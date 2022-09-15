@@ -54,7 +54,7 @@ static int console() {
     for (int i = 0; i < app.argc; i++) {
         printf("argv[%d]=\"%s\"\n", i, app.argv[i]);
     }
-	return 0;
+    return 0;
 }
 
 app_t app = { .main = console };
