@@ -592,7 +592,10 @@ typedef struct uic_s uic_t;
 typedef struct app_s {
     // implemented by client:
     const char* class_name;
-    void (*init)(); // called before creating main window
+    // called before creating main window
+    void (*init)();
+    // called instead of init() for console apps and when .no_ui=true
+    int (*main)();
     // class_name and init must be set before main()
     void (*openned)(); // window has been created and shown
     void (*once_upon_a_second)(); // if not null called ~ once a second
@@ -722,7 +725,7 @@ extern virtual_keys_t virtual_keys;
 
 #endif qucik_defintion
 
-#ifdef quick_implementation
+#if defined(quick_implementation) || defined(quick_implementation_console)
 #undef quick_implementation
 
 // CRT implementation
@@ -4070,6 +4073,8 @@ int win_app(HINSTANCE instance, HINSTANCE previous, char* command, int show_comm
         fatal_if_false(SetEvent(app_event_quit));
         threads.join(thread);
         dispose();
+    } else {
+        r = app.main();
     }
     return r;
 }
@@ -4253,12 +4258,30 @@ static void __winnls_init__() {
     app.set_locale = set_locale;
 }
 
+#if !defined(quick_implementation_console)
+
+#pragma warning(disable: 28251) // inconsistent annotations
+
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, char* command,
         int show_command) {
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
     __winnls_init__();
     return win_app(instance, previous, command, show_command);
 }
+
+#else
+
+#undef quick_implementation_console
+
+int main(int argc, const char* argv[]) {
+    fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
+    __winnls_init__();
+    app.argc = argc;
+    app.argv = argv;
+    return app.main();
+}
+
+#endif quick_implementation_console
 
 end_c
 

@@ -1,5 +1,10 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021 see LICENSE for details */
 #include "quick.h"
+
+#ifndef CONSOLE 
+
+// cmd.exe> cl.exe sample.c
+
 #define quick_implementation
 #include "quick.h"
 
@@ -36,3 +41,22 @@ app_t app = {
 };
 
 end_c
+
+#else
+
+// cmd.exe> cl.exe -DCONSOLE sample.c
+	
+#define quick_implementation_console
+#include "quick.h"
+
+static int console() {
+    printf("main(%d)\n", app.argc);
+    for (int i = 0; i < app.argc; i++) {
+        printf("argv[%d]=\"%s\"\n", i, app.argv[i]);
+    }
+	return 0;
+}
+
+app_t app = { .main = console };
+
+#endif
