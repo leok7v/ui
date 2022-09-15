@@ -102,12 +102,11 @@ with SDK 10.0.222621 or better
 
 from ``Developer Command Prompt 2022`` execute:
 
+4 lines build and test:
 ```
-curl.exe "https://raw.githubusercontent.com/leok7v/quick.h/main/quick.h"  --remote-name
-curl.exe "https://raw.githubusercontent.com/leok7v/quick.h/main/sample.c" --remote-name
-
-user\quick>cl.exe sample1.c
-
-user\quick>sample.exe
+c:\Users\quick> curl.exe "https://raw.githubusercontent.com/leok7v/quick.h/main/quick.h"  --remote-name
+c:\Users\quick> curl.exe "https://raw.githubusercontent.com/leok7v/quick.h/main/sample.c" --remote-name
+c:\Users\quick> cl.exe sample.c
+c:\Users\quick> sample.exe
 ```
 
