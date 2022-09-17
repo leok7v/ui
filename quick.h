@@ -419,13 +419,13 @@ typedef struct uic_text_s {
     int32_t dy; // vertical shift down (to line up baselines of diff fonts)
 } uic_text_t;
 
-void _text_init_(uic_t* ui); // do not call use ui_text() and ui_multiline()
+void _uic_text_init_(uic_t* ui); // do not call use ui_text() and ui_multiline()
 
 #define uic_text(t, s) \
-    uic_text_t t = { .ui = {.tag = uic_tag_text, .init = _text_init_, \
+    uic_text_t t = { .ui = {.tag = uic_tag_text, .init = _uic_text_init_, \
     .children = null, .width = 0.0, .text = s}, .multiline = false}
 #define uic_multiline(t, w, s) \
-    uic_text_t t = {.ui = {.tag = uic_tag_text, .init = _text_init_, \
+    uic_text_t t = {.ui = {.tag = uic_tag_text, .init = _uic_text_init_, \
     .children = null, .width = w, .text = s}, .multiline = true}
 
 // single line of text with "&" keyboard shortcuts:
@@ -445,7 +445,7 @@ typedef struct uic_button_s {
 void uic_button_init(uic_button_t* b, const char* label, double ems,
     void (*cb)(uic_button_t* b));
 
-void _button_init_(uic_t* ui); // do not call use uic_button() macro
+void _uic_button_init_(uic_t* ui); // do not call use uic_button() macro
 
 #define uic_button(name, s, w, code)                     \
     static void name ## _callback(uic_button_t* b) {     \
@@ -454,7 +454,7 @@ void _button_init_(uic_t* ui); // do not call use uic_button() macro
     }                                                    \
                                                          \
     uic_button_t name = {                                \
-    .ui = {.tag = uic_tag_button, .init = _button_init_, \
+    .ui = {.tag = uic_tag_button, .init = _uic_button_init_, \
     .children = null, .width = w, .text = s}, .cb = name ## _callback }
 
 // usage:
@@ -471,7 +471,7 @@ typedef struct  uic_checkbox_s {
 void  uic_checkbox_init( uic_checkbox_t* b, const char* label, double ems,
     void (*cb)( uic_checkbox_t* b));
 
-void _checkbox_init_(uic_t* ui); // do not call use uic_checkbox() macro
+void _uic_checkbox_init_(uic_t* ui); // do not call use uic_checkbox() macro
 
 #define uic_checkbox(name, s, w, code)                       \
     static void name ## _callback(uic_checkbox_t* c) {       \
@@ -480,7 +480,7 @@ void _checkbox_init_(uic_t* ui); // do not call use uic_checkbox() macro
     }                                                        \
                                                              \
     uic_checkbox_t name = {                                  \
-    .ui = {.tag = uic_tag_checkbox, .init = _checkbox_init_, \
+    .ui = {.tag = uic_tag_checkbox, .init = _uic_checkbox_init_, \
     .children = null, .width = w, .text = s}, .cb = name ## _callback }
 
 typedef struct uic_slider_s uic_slider_t;
@@ -517,7 +517,7 @@ typedef struct uic_messagebox_s {
 void uic_messagebox_init(uic_messagebox_t* mx, const char* option[],
     void (*cb)(uic_messagebox_t* m, int option), const char* format, ...);
 
-void _messagebox_init_(uic_t* ui); // do not call use uic_checkbox() macro
+void _uic_messagebox_init_(uic_t* ui); // do not call use uic_checkbox() macro
 
 #define uic_messagebox(name, s, code, ...)                           \
                                                                      \
@@ -684,7 +684,6 @@ typedef struct app_s {
     //      "All Files", "*"};
     // const char* fn = app.open_filename("C:\\", filter, countof(filter));
     const char* (*open_filename)(const char* folder, const char* filter[], int n);
-    int (*copy_to_clipboard)(const char* s); // returns error or 0
     const char* (*known_folder)(int kfid);
     // attempts to attach to parent command line console:
     void (*attach_console)();
@@ -696,6 +695,13 @@ typedef struct app_s {
 } app_t;
 
 extern app_t app;
+
+typedef struct clipboard_s {
+    int (*copy_text)(const char* s); // returns error or 0
+    int (*copy_bitmap)(image_t* im); // returns error or 0
+} clipboard_t;
+
+extern clipboard_t clipboard;
 
 typedef struct messages_s {
     const int left_button_down;
@@ -1392,7 +1398,6 @@ static color_t gdi_set_text_color(color_t c) {
     return SetTextColor(canvas(), c);
 }
 
-
 static pen_t gdi_set_pen(pen_t p) {
     assert(p != null);
     return (pen_t)SelectPen(canvas(), (HPEN)p);
@@ -2066,7 +2071,7 @@ static void uic_text_context_menu(uic_t* ui) {
     assert(ui->tag == uic_tag_text);
     uic_text_t* t = (uic_text_t*)ui;
     if (!t->label && !ui->hidden) {
-        app.copy_to_clipboard(uic_nsl(ui));
+        clipboard.copy_text(uic_nsl(ui));
         static bool first_time = true;
         app.toast(first_time ? 2.15 : 0.75,
             app.nls("Text copied to clipboard"));
@@ -2080,12 +2085,12 @@ static void uic_text_keyboard(uic_t* ui, int ch) {
     if (ui->hover && !ui->hidden && !t->label) {
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {
-            app.copy_to_clipboard(uic_nsl(ui)); // 3 is ASCII for Ctrl+C
+            clipboard.copy_text(uic_nsl(ui)); // 3 is ASCII for Ctrl+C
         }
     }
 }
 
-void _text_init_(uic_t* ui) {
+void _uic_text_init_(uic_t* ui) {
     static_assert(offsetof(uic_text_t, ui) == 0, "offsetof(.ui)");
     assert(ui->tag == uic_tag_text);
     ui_init(ui);
@@ -2100,7 +2105,7 @@ void uic_text_vinit(uic_text_t* t, const char* format, va_list vl) {
     static_assert(offsetof(uic_text_t, ui) == 0, "offsetof(.ui)");
     crt.vformat(t->ui.text, countof(t->ui.text), format, vl);
     t->ui.tag = uic_tag_text;
-    _text_init_(&t->ui);
+    _uic_text_init_(&t->ui);
 }
 
 void uic_text_init(uic_text_t* t, const char* format, ...) {
@@ -2228,7 +2233,7 @@ static void uic_button_measure(uic_t* ui) {
     if (ui->w < ui->h) { ui->w = ui->h; }
 }
 
-void _button_init_(uic_t* ui) {
+void _uic_button_init_(uic_t* ui) {
     assert(ui->tag == uic_tag_button);
     ui_init(ui);
     ui->mouse = uic_button_mouse;
@@ -2247,7 +2252,7 @@ void uic_button_init(uic_button_t* b, const char* label, double ems,
     strprintf(b->ui.text, "%s", label);
     b->cb = cb;
     b->ui.width = ems;
-     _button_init_(&b->ui);
+    _uic_button_init_(&b->ui);
 }
 
 // checkbox
@@ -2328,7 +2333,7 @@ static void  uic_checkbox_mouse(uic_t* ui, int message, int flags) {
     }
 }
 
-void _checkbox_init_(uic_t* ui) {
+void _uic_checkbox_init_(uic_t* ui) {
     assert(ui->tag == uic_tag_checkbox);
     ui_init(ui);
     uic_set_label(ui, ui->text);
@@ -2347,7 +2352,7 @@ void  uic_checkbox_init( uic_checkbox_t* c, const char* label, double ems,
     c->ui.width = ems;
     c->cb = cb;
     c->ui.tag = uic_tag_checkbox;
-    _checkbox_init_(&c->ui);
+    _uic_checkbox_init_(&c->ui);
 }
 
 // slider control
@@ -2511,9 +2516,12 @@ void uic_slider_init(uic_slider_t* r, const char* label, double ems,
     r->buttons[1] = &r->inc.ui;
     r->buttons[2] = null;
     r->ui.children = r->buttons;
-    uic_button_init(&r->dec, "\xE2\x9E\x96", 0, uic_slider_inc_dec); // Heavy Minus Sign
-    uic_button_init(&r->inc, "\xE2\x9E\x95", 0, uic_slider_inc_dec); // Heavy Plus Sign
-    static const char* accel ="Accelerate by Ctrl x10 Shift x100 and Ctrl+Shift x1000";
+    // Heavy Minus Sign
+    uic_button_init(&r->dec, "\xE2\x9E\x96", 0, uic_slider_inc_dec);
+    // Heavy Plus Sign
+    uic_button_init(&r->inc, "\xE2\x9E\x95", 0, uic_slider_inc_dec);
+    static const char* accel =
+        "Accelerate by Ctrl x10 Shift x100 and Ctrl+Shift x1000";
     strprintf(r->inc.ui.tip, "%s", accel);
     strprintf(r->dec.ui.tip, "%s", accel);
     r->dec.ui.parent = &r->ui;
@@ -2803,19 +2811,19 @@ static MONITORINFO mi = {sizeof(MONITORINFO)};
 static HANDLE app_event_quit;
 static HANDLE app_event_invalidate;
 
-static uintptr_t timer_1s_id;
-static uintptr_t timer_100ms_id;
+static uintptr_t app_timer_1s_id;
+static uintptr_t app_timer_100ms_id;
 
-static bool layout_dirty; // call layout() before paint
+static bool app_layout_dirty; // call layout() before paint
 
-typedef void (*animate_function_t)(int step);
+typedef void (*app_animate_function_t)(int step);
 
 static struct {
-    animate_function_t f;
+    app_animate_function_t f;
     int count;
     int step;
     tm_t timer;
-} animate;
+} app_animate;
 
 // Animation timer is Windows minimum of 10ms, but in reality the timer
 // messages are far from isochronous and more likely to arrive at 16 or
@@ -2831,85 +2839,97 @@ static struct {
     int y; // screen coordinates for tooltip
 } toast;
 
-static void ui_on_every_message(uic_t* ui);
+static void app_on_every_message(uic_t* ui);
 
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
 
-static void alt_ctrl_shift(bool down, int key) {
+static void app_alt_ctrl_shift(bool down, int key) {
     if (key == VK_MENU)    { app.alt   = down; }
     if (key == VK_CONTROL) { app.ctrl  = down; }
     if (key == VK_SHIFT)   { app.shift = down; }
 }
 
-static inline_c ui_point_t point2ui(const POINT* p) {
+static inline_c ui_point_t app_point2ui(const POINT* p) {
     ui_point_t u = { p->x, p->y };
     return u;
 }
 
-static inline_c POINT ui2point(const ui_point_t* u) {
+static inline_c POINT app_ui2point(const ui_point_t* u) {
     POINT p = { u->x, u->y };
     return p;
 }
 
-static ui_rect_t rect2ui(const RECT* r) {
+static ui_rect_t app_rect2ui(const RECT* r) {
     ui_rect_t u = { r->left, r->top, r->right - r->left, r->bottom - r->top };
     return u;
 }
 
-static RECT ui2rect(const ui_rect_t* u) {
+static RECT app_ui2rect(const ui_rect_t* u) {
     RECT r = { u->x, u->y, u->x + u->w, u->y + u->h };
     return r;
 }
 
-static void update_ncm(int dpi) {
+static void app_update_ncm(int dpi) {
     // Only UTF-16 version supported SystemParametersInfoForDpi
     fatal_if_false(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0, dpi));
 }
 
-static void monitor_dpi(HMONITOR monitor) {
+static void app_update_monitor_dpi(HMONITOR monitor) {
     for (int mtd = MDT_EFFECTIVE_DPI; mtd <= MDT_RAW_DPI; mtd++) {
         uint32_t dpi_x = 0;
         uint32_t dpi_y = 0;
-        fatal_if_not_zero(GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd,
-            &dpi_x, &dpi_y));
-//      const char* names[] = {"EFFECTIVE_DPI", "ANGULAR_DPI","RAW_DPI"};
-//      traceln("%s %d %d", names[mtd], dpi_x, dpi_y);
-        // EFFECTIVE_DPI 168 168 (with regard of user scaling)
-        // ANGULAR_DPI 247 248 (diagonal)
-        // RAW_DPI 283 284 (horizontal, vertical)
-        switch (mtd) {
-            case MDT_EFFECTIVE_DPI:
-                app.dpi.monitor_effective = max(dpi_x, dpi_y); break;
-            case MDT_ANGULAR_DPI:
-                app.dpi.monitor_angular = max(dpi_x, dpi_y); break;
-            case MDT_RAW_DPI:
-                app.dpi.monitor_raw = max(dpi_x, dpi_y); break;
-            default: assert(false);
+        // GetDpiForMonitor() may return ERROR_GEN_FAILURE 0x8007001F when
+        // system wakes up from sleep:
+        // ""A device attached to the system is not functioning."
+        // docs say:
+        // "May be used to indicate that the device has stopped responding
+        // or a general failure has occurred on the device.
+        // The device may need to be manually reset."
+        int r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
+        if (r != 0) {
+            crt.sleep(1.0 / 32); // and retry:
+            r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
+        }
+        if (r == 0) {
+//          const char* names[] = {"EFFECTIVE_DPI", "ANGULAR_DPI","RAW_DPI"};
+//          traceln("%s %d %d", names[mtd], dpi_x, dpi_y);
+            // EFFECTIVE_DPI 168 168 (with regard of user scaling)
+            // ANGULAR_DPI 247 248 (diagonal)
+            // RAW_DPI 283 284 (horizontal, vertical)
+            switch (mtd) {
+                case MDT_EFFECTIVE_DPI:
+                    app.dpi.monitor_effective = max(dpi_x, dpi_y); break;
+                case MDT_ANGULAR_DPI:
+                    app.dpi.monitor_angular = max(dpi_x, dpi_y); break;
+                case MDT_RAW_DPI:
+                    app.dpi.monitor_raw = max(dpi_x, dpi_y); break;
+                default: assert(false);
+            }
         }
     }
 }
 
-static void update_mi(const ui_rect_t* r, uint32_t flags) {
-    RECT rc = ui2rect(r);
+static void app_update_mi(const ui_rect_t* r, uint32_t flags) {
+    RECT rc = app_ui2rect(r);
     HMONITOR monitor = MonitorFromRect(&rc, flags);
     if (monitor != null) {
-        monitor_dpi(monitor);
+        app_update_monitor_dpi(monitor);
         fatal_if_false(GetMonitorInfoA(monitor, &mi));
-        app.work_area = rect2ui(&mi.rcWork);
-        app.mrc = rect2ui(&mi.rcMonitor);
+        app.work_area = app_rect2ui(&mi.rcWork);
+        app.mrc = app_rect2ui(&mi.rcMonitor);
     }
 }
 
-static void update_crc() {
+static void app_update_crc() {
     RECT rc = {0};
     fatal_if_false(GetClientRect(window(), &rc));
-    app.crc = rect2ui(&rc);
+    app.crc = app_rect2ui(&rc);
     app.width = app.crc.w;
     app.height = app.crc.h;
 }
 
-static void dispose_fonts() {
+static void app_dispose_fonts() {
     fatal_if_false(DeleteFont(app.fonts.regular));
     fatal_if_false(DeleteFont(app.fonts.H1));
     fatal_if_false(DeleteFont(app.fonts.H2));
@@ -2917,9 +2937,9 @@ static void dispose_fonts() {
     fatal_if_false(DeleteFont(app.fonts.mono));
 }
 
-static void init_fonts(int dpi) {
-    update_ncm(dpi);
-    if (app.fonts.regular != null) { dispose_fonts(); }
+static void app_init_fonts(int dpi) {
+    app_update_ncm(dpi);
+    if (app.fonts.regular != null) { app_dispose_fonts(); }
     app.fonts.regular = (font_t)CreateFontIndirectW(&ncm.lfMessageFont);
     fatal_if_null(app.fonts.regular);
     const double fh = ncm.lfMessageFont.lfHeight;
@@ -2945,7 +2965,7 @@ static void init_fonts(int dpi) {
     app.cursor = app.cursor_arrow;
 }
 
-static HKEY get_app_key() {
+static HKEY app_get_reg_key() {
     char path[MAX_PATH];
     strprintf(path, "Software\\app\\%s", app.class_name);
     HKEY key = null;
@@ -2957,7 +2977,7 @@ static HKEY get_app_key() {
 }
 
 static void app_data_save(const char* name, const void* data, int bytes) {
-    HKEY key = get_app_key();
+    HKEY key = app_get_reg_key();
     if (key != null) {
         fatal_if_not_zero(RegSetValueExA(key, name, 0, REG_BINARY,
             (byte*)data, bytes));
@@ -2967,7 +2987,7 @@ static void app_data_save(const char* name, const void* data, int bytes) {
 
 static int app_data_size(const char* name) {
     int bytes = -1;
-    HKEY key = get_app_key();
+    HKEY key = app_get_reg_key();
     if (key != null) {
         DWORD type = REG_BINARY;
         DWORD cb = sizeof(app.last_visibility);
@@ -2987,7 +3007,7 @@ static int app_data_size(const char* name) {
 
 static int app_data_load(const char* name, void* data, int bytes) {
     int read = -1;
-    HKEY key = get_app_key();
+    HKEY key = app_get_reg_key();
     if (key != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
@@ -3003,8 +3023,8 @@ static int app_data_load(const char* name, void* data, int bytes) {
     return read;
 }
 
-static void save_window_pos() {
-    HKEY key = get_app_key();
+static void app_save_window_pos() {
+    HKEY key = app_get_reg_key();
     if (key != null) {
         WINDOWPLACEMENT wpl = {0};
         wpl.length = sizeof(wpl);
@@ -3016,7 +3036,7 @@ static void save_window_pos() {
 }
 
 static void load_window_pos(ui_rect_t* rect) {
-    HKEY key = get_app_key();
+    HKEY key = app_get_reg_key();
     if (key != null) {
         DWORD type = REG_DWORD;
         DWORD cb = sizeof(app.last_visibility);
@@ -3036,11 +3056,11 @@ static void load_window_pos(ui_rect_t* rect) {
             if (SystemParametersInfoA(SPI_GETWORKAREA, 0, &work_area, false)) {
                 screen = work_area;
             }
-            app.work_area = rect2ui(&screen);
-            update_mi(&app.work_area, MONITOR_DEFAULTTONEAREST);
+            app.work_area = app_rect2ui(&screen);
+            app_update_mi(&app.work_area, MONITOR_DEFAULTTONEAREST);
             RECT intersect = {0};
             if (IntersectRect(&intersect, &rc, &screen) && !IsRectEmpty(&intersect)) {
-                *rect = rect2ui(&intersect);
+                *rect = app_rect2ui(&intersect);
             } else {
                 traceln("WARNING: out of work area");
             }
@@ -3085,25 +3105,25 @@ static void app_post_message(int m, int64_t wp, int64_t lp) {
     fatal_if_false(PostMessageA(window(), m, wp, lp));
 }
 
-static void ui_timer(uic_t* ui, tm_t id) {
+static void app_timer(uic_t* ui, tm_t id) {
     if (ui->timer != null) {
         ui->timer(ui, id);
     }
-    if (id == timer_1s_id && ui->once_upon_a_second != null) {
+    if (id == app_timer_1s_id && ui->once_upon_a_second != null) {
         ui->once_upon_a_second(ui);
     }
-    if (id == timer_100ms_id && ui->periodically != null) {
+    if (id == app_timer_100ms_id && ui->periodically != null) {
         ui->periodically(ui);
     }
     uic_t** c = ui->children;
-    while (c != null && *c != null) { ui_timer(*c, id); c++; }
+    while (c != null && *c != null) { app_timer(*c, id); c++; }
 }
 
 static void app_periodically(tm_t id) {
-    if (id == timer_1s_id && app.once_upon_a_second != null) {
+    if (id == app_timer_1s_id && app.once_upon_a_second != null) {
         app.once_upon_a_second();
     }
-    if (id == timer_100ms_id && app.periodically != null) {
+    if (id == app_timer_100ms_id && app.periodically != null) {
         app.periodically();
     }
     if (toast.time != 0 && app.now > toast.time) {
@@ -3111,19 +3131,20 @@ static void app_periodically(tm_t id) {
     }
 }
 
-static void animate_timer() {
-    app_post_message(WM_ANIMATE, (uint64_t)animate.step + 1, (uintptr_t)animate.f);
+static void app_animate_timer() {
+    app_post_message(WM_ANIMATE, (uint64_t)app_animate.step + 1,
+        (uintptr_t)app_animate.f);
 }
 
-static void wm_timer(tm_t id) {
+static void app_wm_timer(tm_t id) {
     app_periodically(id);
-    if (animate.timer == id) { animate_timer(); }
-    ui_timer(app.ui, id);
+    if (app_animate.timer == id) { app_animate_timer(); }
+    app_timer(app.ui, id);
 }
 
-static void window_openning() {
-    timer_1s_id = app.set_timer((uintptr_t)&timer_1s_id, 1000);
-    timer_100ms_id = app.set_timer((uintptr_t)&timer_100ms_id, 100);
+static void app_window_openning() {
+    app_timer_1s_id = app.set_timer((uintptr_t)&app_timer_1s_id, 1000);
+    app_timer_100ms_id = app.set_timer((uintptr_t)&app_timer_100ms_id, 100);
     app.set_cursor(app.cursor_arrow);
     app.canvas = (canvas_t)GetDC(window());
     fatal_if_null(app.canvas);
@@ -3131,8 +3152,8 @@ static void window_openning() {
     app.ui->em = gdi.get_em(*app.ui->font);
     set_parents(app.ui);
     init_children(app.ui);
-    wm_timer(timer_100ms_id);
-    wm_timer(timer_1s_id);
+    app_wm_timer(app_timer_100ms_id);
+    app_wm_timer(app_timer_1s_id);
     fatal_if(ReleaseDC(window(), canvas()) == 0);
     app.canvas = null;
     app.layout(); // request layout
@@ -3144,21 +3165,21 @@ static void window_openning() {
 //  }
 }
 
-static void window_closing() {
+static void app_window_closing() {
     if (app.can_close == null || app.can_close()) {
         if (app.is_full_screen) { app.full_screen(false); }
-        save_window_pos();
-        app.kill_timer(timer_1s_id);
-        app.kill_timer(timer_100ms_id);
+        app_save_window_pos();
+        app.kill_timer(app_timer_1s_id);
+        app.kill_timer(app_timer_100ms_id);
         if (app.closed != null) { app.closed(); }
-        timer_1s_id = 0;
-        timer_100ms_id = 0;
+        app_timer_1s_id = 0;
+        app_timer_100ms_id = 0;
         DestroyWindow(window());
         app.window = null;
     }
 }
 
-static void get_min_max_info(MINMAXINFO* mmi) {
+static void app_get_min_max_info(MINMAXINFO* mmi) {
     mmi->ptMinTrackSize.x = app.min_width;
     mmi->ptMinTrackSize.y = app.min_height;
     mmi->ptMaxTrackSize.x = app.max_width;
@@ -3167,88 +3188,84 @@ static void get_min_max_info(MINMAXINFO* mmi) {
     mmi->ptMaxSize.y = app.max_height;
 }
 
-#define ui_method_int32(name)                                  \
-static void ui_##name(uic_t* ui, int32_t p) {                   \
-    if (ui->name != null && !ui->hidden && !ui->disabled) {    \
-        ui->name(ui, p);                                       \
-    }                                                          \
+#define app_method_int32(name)                                  \
+static void app_##name(uic_t* ui, int32_t p) {                  \
+    if (ui->name != null && !ui->hidden && !ui->disabled) {     \
+        ui->name(ui, p);                                        \
+    }                                                           \
     uic_t** c = ui->children;                                   \
-    while (c != null && *c != null) { ui_##name(*c, p); c++; } \
+    while (c != null && *c != null) { app_##name(*c, p); c++; } \
 }
 
-ui_method_int32(keyboard)
-ui_method_int32(key_up)
-ui_method_int32(key_down)
+app_method_int32(keyboard)
+app_method_int32(key_up)
+app_method_int32(key_down)
 
-static void ui_paint(uic_t* ui) {
+static void app_paint(uic_t* ui) {
     if (!ui->hidden) {
         if (ui->paint != null) { ui->paint(ui); }
-        for (uic_t** c = ui->children; c != null && *c != null; c++) {
-            ui_paint(*c);
-        }
+        uic_t** c = ui->children;
+        while (c != null && *c != null) { app_paint(*c); c++; }
     }
 }
 
-static void ui_mousewheel(uic_t* ui, int dx, int dy) {
+static void app_mousewheel(uic_t* ui, int dx, int dy) {
     if (!ui->hidden && !ui->disabled) {
         if (ui->mousewheel != null) { ui->mousewheel(ui, dx, dy); }
-        for (uic_t** c = ui->children; c != null && *c != null; c++) {
-            ui_mousewheel(*c, dx, dy);
-        }
+        uic_t** c = ui->children;
+        while (c != null && *c != null) { app_mousewheel(*c, dx, dy); c++; }
     }
 }
 
-static void measure_children(uic_t* ui) {
+static void app_measure_children(uic_t* ui) {
     if (!ui->hidden) {
-        for (uic_t** c = ui->children; c != null && *c != null; c++) {
-            measure_children(*c);
-        }
+        uic_t** c = ui->children;
+        while (c != null && *c != null) { app_measure_children(*c); c++; }
         if (ui->measure != null) { ui->measure(ui); }
     }
 }
 
-static void layout_children(uic_t* ui) {
+static void app_layout_children(uic_t* ui) {
     if (!ui->hidden) {
         if (ui->layout != null) { ui->layout(ui); }
-        for (uic_t** c = ui->children; c != null && *c != null; c++) {
-            layout_children(*c);
-        }
+        uic_t** c = ui->children;
+        while (c != null && *c != null) { app_layout_children(*c); c++; }
     }
 }
 
-static void ui_layout(uic_t* ui) {
-    measure_children(ui);
-    layout_children(ui);
+static void app_layout_ui(uic_t* ui) {
+    app_measure_children(ui);
+    app_layout_children(ui);
 }
 
-static bool ui_message(uic_t* ui, int32_t m, int64_t wp, int64_t lp,
+static bool app_message(uic_t* ui, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
     // message() callback is called even for hidden and disabled ui-elements
     // consider timers, and other useful messages
-    ui_on_every_message(ui);
+    app_on_every_message(ui);
     if (ui->message != null) {
         if (ui->message(ui, m, wp, lp, ret)) { return true; }
     }
     uic_t** c = ui->children;
     while (c != null && *c != null) {
-        if (ui_message(*c, m, wp, lp, ret)) { return true; }
+        if (app_message(*c, m, wp, lp, ret)) { return true; }
         c++;
     }
     return false;
 }
 
-static void toast_mouse(int32_t m, int32_t f);
-static void toast_keyboard(int32_t ch);
+static void app_toast_mouse(int32_t m, int32_t f);
+static void app_toast_keyboard(int32_t ch);
 
-static void ui_and_toast_keyboard(uic_t* ui, int32_t ch) {
+static void app_ui_keyboard(uic_t* ui, int32_t ch) {
     if (toast.ui != null) {
-        toast_keyboard(ch);
+        app_toast_keyboard(ch);
     } else {
-        ui_keyboard(ui, ch);
+        app_keyboard(ui, ch);
     }
 }
 
-static void ui_hover_changed(uic_t* ui) {
+static void app_hover_changed(uic_t* ui) {
     if (ui->hovering != null) {
         if (!ui->hover) {
             ui->hover_at = 0;
@@ -3265,10 +3282,10 @@ static void ui_hover_changed(uic_t* ui) {
     }
 }
 
-// ui_on_every_message() is called on every message including timers
+// app_on_every_message() is called on every message including timers
 // allowing ui elements to do scheduled actions like e.g. hovering()
 
-static void ui_on_every_message(uic_t* ui) {
+static void app_on_every_message(uic_t* ui) {
     if (ui->hovering != null) {
         if (ui->hover_at > 0 && app.now > ui->hover_at) {
             ui->hover_at = -1; // "already called"
@@ -3277,33 +3294,33 @@ static void ui_on_every_message(uic_t* ui) {
     }
 }
 
-static void ui_mouse(uic_t* ui, int32_t m, int32_t f) {
+static void app_ui_mouse(uic_t* ui, int32_t m, int32_t f) {
     if (m == WM_MOUSEHOVER || m == WM_MOUSEMOVE) {
         RECT rc = { ui->x, ui->y, ui->x + ui->w, ui->y + ui->h};
         bool hover = ui->hover;
-        POINT pt = ui2point(&app.mouse);
+        POINT pt = app_ui2point(&app.mouse);
         ui->hover = PtInRect(&rc, pt);
         InflateRect(&rc, ui->w / 4, ui->h / 4);
-        ui_rect_t r = rect2ui(&rc);
+        ui_rect_t r = app_rect2ui(&rc);
         if (hover != ui->hover) { app.invalidate(&r); }
         if (hover != ui->hover && ui->hovering != null) {
-            ui_hover_changed(ui);
+            app_hover_changed(ui);
         }
     }
     if (ui->mouse != null && !ui->hidden && !ui->disabled) {
         ui->mouse(ui, m, f);
     }
     for (uic_t** c = ui->children; c != null && *c != null; c++) {
-        ui_mouse(*c, m, f);
+        app_ui_mouse(*c, m, f);
     }
 }
 
-static bool ui_context_menu(uic_t* ui) {
+static bool app_context_menu(uic_t* ui) {
     for (uic_t** c = ui->children; c != null && *c != null; c++) {
-        if (ui_context_menu(*c)) { return true; }
+        if (app_context_menu(*c)) { return true; }
     }
     RECT rc = { ui->x, ui->y, ui->x + ui->w, ui->y + ui->h};
-    POINT pt = ui2point(&app.mouse);
+    POINT pt = app_ui2point(&app.mouse);
     if (PtInRect(&rc, pt)) {
         if (!ui->hidden && !ui->disabled && ui->context_menu != null) {
             ui->context_menu(ui);
@@ -3312,19 +3329,19 @@ static bool ui_context_menu(uic_t* ui) {
     return false;
 }
 
-static void ui_and_toast_mouse(uic_t* ui, int32_t m, int32_t f) {
+static void app_mouse(uic_t* ui, int32_t m, int32_t f) {
     if (toast.ui != null && toast.ui->mouse != null) {
-        ui_mouse(toast.ui, m, f);
+        app_ui_mouse(toast.ui, m, f);
     } else if (toast.ui != null && toast.ui->mouse == null) {
-        toast_mouse(m, f);
+        app_toast_mouse(m, f);
         bool tooltip = toast.x >= 0 && toast.y >= 0;
-        if (tooltip) { ui_mouse(ui, m, f); }
+        if (tooltip) { app_ui_mouse(ui, m, f); }
     } else {
-        ui_mouse(ui, m, f);
+        app_ui_mouse(ui, m, f);
     }
 }
 
-static void toast_paint() {
+static void app_toast_paint() {
     static image_t image;
     if (image.bitmap == null) {
         byte pixels[4] = { 0x3F, 0x3F, 0x3F };
@@ -3347,14 +3364,14 @@ static void toast_paint() {
             int step = toast.step - (toast_steps - 1);
             toast.ui->y = toast.ui->h * step / (toast_steps - 1);
 //          traceln("step=%d of %d y=%d", toast.step, toast_steps, toast.ui->y);
-            ui_layout(toast.ui);
+            app_layout_ui(toast.ui);
             double alpha = min(0.40, 0.40 * toast.step / (double)toast_steps);
             gdi.alpha_blend(0, 0, app.width, app.height, &image, alpha);
             toast.ui->x = (app.width - toast.ui->w) / 2;
         } else {
             toast.ui->x = toast.x;
             toast.ui->y = toast.y;
-            ui_layout(toast.ui);
+            app_layout_ui(toast.ui);
             int mx = app.width - toast.ui->w - em_x;
             toast.ui->x = min(mx, max(0, toast.x - toast.ui->w / 2));
             toast.ui->y = min(app.crc.h - em_y, max(0, toast.y));
@@ -3365,7 +3382,7 @@ static void toast_paint() {
         int h = toast.ui->h + em_y;
         gdi.rounded(x, y, w, h, em_x, em_y);
         if (!tooltip) { toast.ui->y += em_y / 4; }
-        ui_paint(toast.ui);
+        app_paint(toast.ui);
         if (!tooltip) {
             if (toast.ui->y == em_y / 4) {
                 // micro "close" toast button:
@@ -3378,7 +3395,7 @@ static void toast_paint() {
     }
 }
 
-static void toast_cancel() {
+static void app_toast_cancel() {
     if (toast.ui != null && toast.ui->tag == uic_tag_messagebox) {
         uic_messagebox_t* mx = (uic_messagebox_t*)toast.ui;
         if (mx->option < 0) { mx->cb(mx, -1); }
@@ -3391,68 +3408,68 @@ static void toast_cancel() {
     app.redraw();
 }
 
-static void toast_mouse(int32_t m, int32_t flags) {
+static void app_toast_mouse(int32_t m, int32_t flags) {
     bool down = (m == WM_LBUTTONDOWN || m == WM_RBUTTONDOWN);
     if (toast.ui != null && down) {
         const ui_point_t em = toast.ui->em;
         int x = toast.ui->x + toast.ui->w;
         if (x <= app.mouse.x && app.mouse.x <= x + em.x &&
             0 <= app.mouse.y && app.mouse.y <= em.y) {
-            toast_cancel();
+            app_toast_cancel();
         } else {
-            ui_mouse(toast.ui, m, flags);
+            app_ui_mouse(toast.ui, m, flags);
         }
     } else {
-        ui_mouse(toast.ui, m, flags);
+        app_ui_mouse(toast.ui, m, flags);
     }
 }
 
-static void toast_keyboard(int32_t ch) {
+static void app_toast_keyboard(int32_t ch) {
     if (toast.ui != null && ch == 033) { // ESC traditionally in octal
-        toast_cancel();
+        app_toast_cancel();
         app.show_toast(null, 0);
     } else {
-        ui_keyboard(toast.ui, ch);
+        app_keyboard(toast.ui, ch);
     }
 }
 
-static void toast_dim(int step) {
+static void app_toast_dim(int step) {
     toast.step = step;
     app.redraw();
     UpdateWindow(window());
 }
 
-static void animate_step(animate_function_t f, int step, int steps) {
+static void app_animate_step(app_animate_function_t f, int step, int steps) {
     // calls function(0..step-1) exactly step times
     bool cancel = false;
-    if (f != null && f != animate.f && step == 0 && steps > 0) {
+    if (f != null && f != app_animate.f && step == 0 && steps > 0) {
         // start animation
-        animate.count = steps;
-        animate.f = f;
+        app_animate.count = steps;
+        app_animate.f = f;
         f(step);
-        animate.timer = app.set_timer((uintptr_t)&animate.timer, 10);
-    } else if (f != null && animate.f == f && step > 0) {
-        cancel = step >= animate.count;
+        app_animate.timer = app.set_timer((uintptr_t)&app_animate.timer, 10);
+    } else if (f != null && app_animate.f == f && step > 0) {
+        cancel = step >= app_animate.count;
         if (!cancel) {
-            animate.step = step;
+            app_animate.step = step;
             f(step);
         }
     } else if (f == null) {
         cancel = true;
     }
     if (cancel) {
-        if (animate.timer != 0) { app.kill_timer(animate.timer); }
-        animate.step = 0;
-        animate.timer = 0;
-        animate.f = null;
-        animate.count = 0;
+        if (app_animate.timer != 0) { app.kill_timer(app_animate.timer); }
+        app_animate.step = 0;
+        app_animate.timer = 0;
+        app_animate.f = null;
+        app_animate.count = 0;
     }
 }
 
-static void animate_start(animate_function_t f, int steps) {
+static void app_animate_start(app_animate_function_t f, int steps) {
     // calls f(0..step-1) exactly steps times, unless cancelled with call
     // animate(null, 0) or animate(other_function, n > 0)
-    animate_step(f, 0, steps);
+    app_animate_step(f, 0, steps);
 }
 
 static void app_layout_root() {
@@ -3460,25 +3477,28 @@ static void app_layout_root() {
     assert(app.canvas != null);
     app.ui->w = app.crc.w; // crc is window client rectangle
     app.ui->h = app.crc.h;
-    ui_layout(app.ui);
+    app_layout_ui(app.ui);
 }
 
-static void paint_canvas(HDC hdc) {
+static void app_paint_on_canvas(HDC hdc) {
     canvas_t canvas = app.canvas;
     app.canvas = (canvas_t)hdc;
     gdi.push(0, 0);
-    if (layout_dirty) { app_layout_root(); layout_dirty = false; }
+    if (app_layout_dirty) {
+        app_layout_dirty = false;
+        app_layout_root();
+    }
     double time = crt.seconds();
     gdi.x = 0;
     gdi.y = 0;
-    update_crc();
+    app_update_crc();
     font_t font = gdi.set_font(app.fonts.regular);
     color_t c = gdi.set_text_color(colors.text);
     int bm = SetBkMode(canvas(), TRANSPARENT);
     int sm = SetStretchBltMode(canvas(), COLORONCOLOR);
     brush_t br = gdi.set_brush(gdi.brush_hollow);
-    ui_paint(app.ui);
-    if (toast.ui != null) { toast_paint(); }
+    app_paint(app.ui);
+    if (toast.ui != null) { app_toast_paint(); }
     SetStretchBltMode(canvas(), sm);
     SetBkMode(canvas(), bm);
     gdi.set_brush(br);
@@ -3498,19 +3518,19 @@ static void paint_canvas(HDC hdc) {
     app.canvas = canvas;
 }
 
-static void window_position_changed() {
-    RECT wrc = ui2rect(&app.wrc);
+static void app_window_position_changed() {
+    RECT wrc = app_ui2rect(&app.wrc);
     fatal_if_false(GetWindowRect(window(), &wrc));
-    app.wrc = rect2ui(&wrc);
-    update_mi(&app.wrc, MONITOR_DEFAULTTONEAREST);
-    update_crc();
+    app.wrc = app_rect2ui(&wrc);
+    app_update_mi(&app.wrc, MONITOR_DEFAULTTONEAREST);
+    app_update_crc();
     // call layout() only if window was already openned
 //  traceln("WM_WINDOWPOSCHANGED %p", timer_1s_id);
     app.ui->hidden = !IsWindowVisible(window());
-    if (timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
+    if (app_timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
 }
 
-static void setting_change(uintptr_t wp, uintptr_t lp) {
+static void app_setting_change(uintptr_t wp, uintptr_t lp) {
     if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         wchar_t ln[LOCALE_NAME_MAX_LENGTH + 1];
         int n = GetUserDefaultLocaleName(ln, countof(ln));
@@ -3523,7 +3543,7 @@ static void setting_change(uintptr_t wp, uintptr_t lp) {
     }
 }
 
-static void show_task_bar(bool show) {
+static void app_show_task_bar(bool show) {
     HWND taskbar = FindWindow("Shell_TrayWnd", null);
     if (taskbar != null) {
         ShowWindow(taskbar, show ? SW_SHOW : SW_HIDE);
@@ -3539,42 +3559,44 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         assert(window() == window);
     }
     int64_t ret = 0;
-    if (ui_message(app.ui, msg, wp, lp, &ret)) {
+    if (app_message(app.ui, msg, wp, lp, &ret)) {
         return (LRESULT)ret;
     }
     switch (msg) {
-        case WM_GETMINMAXINFO: get_min_max_info((MINMAXINFO*)lp); break;
-        case WM_SETTINGCHANGE: setting_change(wp, lp); break;
+        case WM_GETMINMAXINFO: app_get_min_max_info((MINMAXINFO*)lp); break;
+        case WM_SETTINGCHANGE: app_setting_change(wp, lp); break;
         case WM_CLOSE        : app_post_message(WM_CLOSING, 0, 0); return 0;
-        case WM_OPENNING     : window_openning(); return 0;
-        case WM_CLOSING      : window_closing(); return 0;
+        case WM_OPENNING     : app_window_openning(); return 0;
+        case WM_CLOSING      : app_window_closing(); return 0;
         case WM_DESTROY      : PostQuitMessage(0); break;
         case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
-        case WM_KEYDOWN      : alt_ctrl_shift(true, (int32_t)wp);
-                               ui_key_down(app.ui, (int32_t)wp);
+        case WM_KEYDOWN      : app_alt_ctrl_shift(true, (int32_t)wp);
+                               app_key_down(app.ui, (int32_t)wp);
                                break;
         case WM_SYSKEYUP:
-        case WM_KEYUP        : alt_ctrl_shift(false, (int32_t)wp);
-                               ui_key_up(app.ui, (int32_t)wp);
+        case WM_KEYUP        : app_alt_ctrl_shift(false, (int32_t)wp);
+                               app_key_up(app.ui, (int32_t)wp);
                                break;
-        case WM_TIMER        : wm_timer((tm_t)wp); break;
+        case WM_TIMER        : app_wm_timer((tm_t)wp); break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
         case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor); break;
-        case WM_CHAR         : ui_and_toast_keyboard(app.ui, (int32_t)wp); break;
-        case WM_PRINTCLIENT  : paint_canvas((HDC)wp); break;
-        case WM_ANIMATE      : animate_step((animate_function_t)lp, (int)wp, -1);
+        case WM_CHAR         : app_ui_keyboard(app.ui, (int32_t)wp);
+                               break;
+        case WM_PRINTCLIENT  : app_paint_on_canvas((HDC)wp); break;
+        case WM_ANIMATE      : app_animate_step((app_animate_function_t)lp,
+                                    (int)wp, -1);
                                break;
         case WM_PAINT        : {
             PAINTSTRUCT ps = {0};
             BeginPaint(window(), &ps);
-            paint_canvas(ps.hdc);
+            app_paint_on_canvas(ps.hdc);
             EndPaint(window(), &ps);
             break;
         }
         case WM_MOUSEWHEEL:
-            ui_mousewheel(app.ui, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
+            app_mousewheel(app.ui, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
         case WM_MOUSEHWHEEL:
-            ui_mousewheel(app.ui, GET_WHEEL_DELTA_WPARAM(wp), 0); break;
+            app_mousewheel(app.ui, GET_WHEEL_DELTA_WPARAM(wp), 0); break;
         case WM_NCMOUSEMOVE    :
         case WM_NCLBUTTONDOWN  :
         case WM_NCLBUTTONUP    :
@@ -3587,8 +3609,8 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_NCMBUTTONDBLCLK: {
             POINT pt = {(int32_t)GET_X_LPARAM(lp), (int32_t)GET_Y_LPARAM(lp)};
             ScreenToClient(window(), &pt);
-            app.mouse = point2ui(&pt);
-            ui_and_toast_mouse(app.ui, (int32_t)msg, (int32_t)wp);
+            app.mouse = app_point2ui(&pt);
+            app_mouse(app.ui, (int32_t)msg, (int32_t)wp);
             break;
         }
         case WM_MOUSEHOVER   : // see TrackMouseEvent()
@@ -3606,10 +3628,10 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             app.mouse.x = (int32_t)GET_X_LPARAM(lp);
             app.mouse.y = (int32_t)GET_Y_LPARAM(lp);
             // note: ScreenToClient() is not needed for this messages
-            ui_and_toast_mouse(app.ui, (int32_t)msg, (int32_t)wp);
+            app_mouse(app.ui, (int32_t)msg, (int32_t)wp);
             break;
         }
-        case WM_CONTEXTMENU  : (void)ui_context_menu(app.ui); break;
+        case WM_CONTEXTMENU  : (void)app_context_menu(app.ui); break;
         case WM_GETDPISCALEDSIZE: {
             // sent before WM_DPICHANGED
             int32_t dpi = (int32_t)wp;
@@ -3620,43 +3642,30 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
                 app.dpi.window, dpi, cell.x, cell.y);
             // TODO: not clear which way adjustment should go and what
             // the scale whould be
-            if (timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
+            if (app_timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
             break;
         }
         case WM_DPICHANGED: { // TODO
             app.dpi.window = GetDpiForWindow(window());
-            // pointer to a RECT structure that provides a suggested size and
-            // position of the current window scaled for the new DPI.
-//          rect_t* rc = (rect_t*)lp;
-//          int dpi_y = HIWORD(wp);
-//          int dpi_x = LOWORD(wp);
-//          traceln("WM_DPICHANGED dpi %d (x:%d y:%d) ltrb %d %d %d %d",
-//              app.dpi.window, dpi_x, dpi_y,
-//              rc->left, rc->top, rc->right, rc->bottom);
-            init_fonts(app.dpi.window);
-/*
-            // SetWindowPos() below results in flickering moving window between monitors
-            SetWindowPos(window, null, rc->left, rc->top, rc->right, rc->bottom,
-                SWP_NOACTIVATE|SWP_NOZORDER|SWP_FRAMECHANGED);
-*/
-            if (timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
+            app_init_fonts(app.dpi.window);
+            if (app_timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
             break;
         }
-        case WM_WINDOWPOSCHANGED: window_position_changed(); break;
+        case WM_WINDOWPOSCHANGED: app_window_position_changed(); break;
         default:
             break;
     }
     return DefWindowProcA(window(), msg, wp, lp);
 }
 
-static long set_window_long(int index, long value) {
+static long app_set_window_long(int index, long value) {
     SetLastError(0);
     long r = SetWindowLongA(window(), index, value);
     fatal_if_not_zero(GetLastError());
     return r;
 }
 
-static void create_main_window(ui_rect_t r, int32_t width, int32_t height) {
+static void app_create_window(ui_rect_t r, int32_t width, int32_t height) {
     WNDCLASSA wc = { 0 };
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
     wc.lpfnWndProc = window_proc;
@@ -3681,9 +3690,9 @@ static void create_main_window(ui_rect_t r, int32_t width, int32_t height) {
     fatal_if_null(app.window);
     app.dpi.window = GetDpiForWindow(window());
 //  traceln("app.dpi.window=%d", app.dpi.window);
-    RECT wrc = ui2rect(&app.wrc);
+    RECT wrc = app_ui2rect(&app.wrc);
     fatal_if_false(GetWindowRect(window(), &wrc));
-    app.wrc = rect2ui(&wrc);
+    app.wrc = app_rect2ui(&wrc);
     color_t caption_color = colors.dkgray3;
     fatal_if_not_zero(DwmSetWindowAttribute(window(),
         DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
@@ -3697,12 +3706,12 @@ static void create_main_window(ui_rect_t r, int32_t width, int32_t height) {
     if (app.no_min_max) {
         uint32_t exclude = WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_SIZEBOX;
         uint32_t s = GetWindowLongA(window(), GWL_STYLE);
-        set_window_long(GWL_STYLE, s & ~exclude);
+        app_set_window_long(GWL_STYLE, s & ~exclude);
     }
     if (app.visibility != window_visibility.hide) {
         AnimateWindow(window(), 250, AW_ACTIVATE);
         app.show_window(app.visibility);
-        update_crc();
+        app_update_crc();
         app.ui->w = app.crc.w; // app.crc is "client rectangle"
         app.ui->h = app.crc.h;
     }
@@ -3715,7 +3724,7 @@ static void app_full_screen(bool on) {
     static int32_t style;
     static WINDOWPLACEMENT wp;
     if (on != app.is_full_screen) {
-        show_task_bar(!on);
+        app_show_task_bar(!on);
         if (on) {
             style = GetWindowLongA(window(), GWL_STYLE);
             wp.length = sizeof(wp);
@@ -3725,11 +3734,11 @@ static void app_full_screen(bool on) {
             nwp.rcNormalPosition = (RECT){app.mrc.x, app.mrc.y,
                 app.mrc.x + app.mrc.w, app.mrc.y + app.mrc.h};
             fatal_if_false(SetWindowPlacement(window(), &nwp));
-            set_window_long(GWL_STYLE, (style | WS_VISIBLE) &
+            app_set_window_long(GWL_STYLE, (style | WS_VISIBLE) &
                 ~(WS_OVERLAPPEDWINDOW));
         } else {
             fatal_if_false(SetWindowPlacement(window(), &wp));
-            set_window_long(GWL_STYLE,  style | WS_OVERLAPPED);
+            app_set_window_long(GWL_STYLE,  style | WS_OVERLAPPED);
             uint32_t flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
                 SWP_NOOWNERZORDER | SWP_FRAMECHANGED;
             fatal_if_false(SetWindowPos(window(), null, 0, 0, 0, 0, flags));
@@ -3741,12 +3750,12 @@ static void app_full_screen(bool on) {
     }
 }
 
-static void fast_redraw() { SetEvent(app_event_invalidate); } // < 2us
+static void app_fast_redraw() { SetEvent(app_event_invalidate); } // < 2us
 
-static void draw() { UpdateWindow(window()); }
+static void app_draw() { UpdateWindow(window()); }
 
-static void invalidate_rect(ui_rect_t* r) {
-    RECT rc = ui2rect(r);
+static void app_invalidate_rect(ui_rect_t* r) {
+    RECT rc = app_ui2rect(r);
     InvalidateRect(window(), &rc, false);
 }
 
@@ -3754,7 +3763,7 @@ static void invalidate_rect(ui_rect_t* r) {
 // which is unacceptable for video drawing at monitor
 // refresh rate
 
-static void redraw_thread(void* unused) {
+static void app_redraw_thread(void* unused) {
     (void)unused;
     threads.realtime();
     threads.name("app.redraw");
@@ -3769,7 +3778,7 @@ static void redraw_thread(void* unused) {
     }
 }
 
-static int32_t message_loop() {
+static int32_t app_message_loop() {
     MSG msg = {0};
     while (GetMessage(&msg, null, 0, 0)) {
         TranslateMessage(&msg);
@@ -3780,7 +3789,7 @@ static int32_t message_loop() {
 }
 
 static void dispose() {
-    dispose_fonts();
+    app_dispose_fonts();
     if (gdi.clip != null) { DeleteRgn(gdi.clip); }
     fatal_if_false(CloseHandle(app_event_quit));
     fatal_if_false(CloseHandle(app_event_invalidate));
@@ -3808,46 +3817,46 @@ static void show_tooltip_or_toast(uic_t* ui, int x, int y, double timeout) {
         // allow unparented ui for toast and tooltip
         if (ui->init != null) { ui->init(ui); ui->init = null; }
         ui->localize(ui);
-        animate_start(toast_dim, toast_steps);
+        app_animate_start(app_toast_dim, toast_steps);
         toast.ui = ui;
         toast.time = timeout > 0 ? app.now + timeout : 0;
     } else {
-        toast_cancel();
+        app_toast_cancel();
     }
 }
 
-static void show_toast(uic_t* ui, double timeout) {
+static void app_show_toast(uic_t* ui, double timeout) {
     show_tooltip_or_toast(ui, -1, -1, timeout);
 }
 
-static void show_tooltip(uic_t* ui, int x, int y, double timeout) {
+static void app_show_tooltip(uic_t* ui, int x, int y, double timeout) {
     if (ui != null) {
         show_tooltip_or_toast(ui, x, y, timeout);
     } else if (toast.ui != null && toast.x >= 0 && toast.y >= 0) {
-        toast_cancel(); // only cancel tooltips not toasts
+        app_toast_cancel(); // only cancel tooltips not toasts
     }
 }
 
-static void formatted_vtoast(double timeout, const char* format, va_list vl) {
-    show_toast(null, 0);
+static void app_formatted_vtoast(double timeout, const char* format, va_list vl) {
+    app_show_toast(null, 0);
     static uic_text_t txt;
     uic_text_vinit(&txt, format, vl);
-    show_toast(&txt.ui, timeout);
+    app_show_toast(&txt.ui, timeout);
 }
 
-static void formatted_toast(double timeout, const char* format, ...) {
+static void app_formatted_toast(double timeout, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    formatted_vtoast(timeout, format, vl);
+    app_formatted_vtoast(timeout, format, vl);
     va_end(vl);
 }
 
-static void enable_sys_command_close(void) {
+static void app_enable_sys_command_close(void) {
     EnableMenuItem(GetSystemMenu(GetConsoleWindow(), false),
         SC_CLOSE, MF_BYCOMMAND | MF_ENABLED);
 }
 
-static void console_attach() {
+static void app_console_attach() {
     if (AttachConsole(ATTACH_PARENT_PROCESS)) {
         // disable SC_CLOSE not to kill firmware update...
         EnableMenuItem(GetSystemMenu(GetConsoleWindow(), false),
@@ -3856,16 +3865,16 @@ static void console_attach() {
         (void)freopen("CONOUT$", "w", stderr);
         crt.sleep(0.1); // give cmd.exe a chance to print prompt again
         printf("\n");
-        atexit(enable_sys_command_close);
+        atexit(app_enable_sys_command_close);
     }
 }
 
-static void request_layout() {
-    layout_dirty = true;
+static void app_request_layout() {
+    app_layout_dirty = true;
     app.redraw();
 }
 
-static void show_window(int32_t show) {
+static void app_show_window(int32_t show) {
     assert(window_visibility.hide <= show &&
            show <= window_visibility.force_min);
     // ShowWindow() does not have documented error reporting
@@ -3925,7 +3934,7 @@ static const char* app_open_filename(const char* folder, const char* pairs[], in
     return text;
 }
 
-static int app_copy_to_clipboard(const char* s) {
+static int clipboard_copy_text(const char* s) {
     const int n = (int)strlen(s) + 1;
     int r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
     if (r != 0) { traceln("OpenClipboard() failed %s", crt.error(r)); }
@@ -3961,6 +3970,49 @@ static int app_copy_to_clipboard(const char* s) {
     return r;
 }
 
+static int clipboard_copy_bitmap(image_t* im) {
+    HDC canvas = GetDC(null);
+    fatal_if_null(canvas);
+    HDC src = CreateCompatibleDC(canvas); fatal_if_null(src);
+    HDC dst = CreateCompatibleDC(canvas); fatal_if_null(dst);
+    // CreateCompatibleBitmap(dst) will create monochrome bitmap!
+    // CreateCompatibleBitmap(canvas) will create display compatible
+    HBITMAP bitmap = CreateCompatibleBitmap(canvas, im->w, im->h);
+//  HBITMAP bitmap = CreateBitmap(image.w, image.h, 1, 32, null);
+    fatal_if_null(bitmap);
+    HBITMAP s = SelectBitmap(src, im->bitmap); fatal_if_null(s);
+    HBITMAP d = SelectBitmap(dst, bitmap);     fatal_if_null(d);
+    POINT pt = { 0 };
+    fatal_if_false(SetBrushOrgEx(dst, 0, 0, &pt));
+    fatal_if_false(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
+        im->w, im->h, SRCCOPY));
+    int r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
+    if (r != 0) { traceln("OpenClipboard() failed %s", crt.error(r)); }
+    if (r == 0) {
+        r = EmptyClipboard() ? 0 : GetLastError();
+        if (r != 0) { traceln("EmptyClipboard() failed %s", crt.error(r)); }
+    }
+    if (r == 0) {
+        r = SetClipboardData(CF_BITMAP, bitmap) ? 0 : GetLastError();
+        if (r != 0) {
+            traceln("SetClipboardData() failed %s", crt.error(r));
+        }
+    }
+    if (r == 0) {
+        r = CloseClipboard() ? 0 : GetLastError();
+        if (r != 0) {
+            traceln("CloseClipboard() failed %s", crt.error(r));
+        }
+    }
+    fatal_if_null(SelectBitmap(dst, d));
+    fatal_if_null(SelectBitmap(src, s));
+    fatal_if_false(DeleteBitmap(bitmap));
+    fatal_if_false(DeleteDC(dst));
+    fatal_if_false(DeleteDC(src));
+    fatal_if_false(ReleaseDC(null, canvas));
+    return r;
+}
+
 const char* app_known_folder(int kf) {
     // known folder ids order must match enum
     static const GUID* kfrid[] = {
@@ -3988,36 +4040,42 @@ const char* app_known_folder(int kf) {
     return folder;
 }
 
+clipboard_t clipboard;
+
+static void clipboard_init() {
+    clipboard.copy_text = clipboard_copy_text;
+    clipboard.copy_bitmap = clipboard_copy_bitmap;
+}
+
 static uic_t app_ui;
 
 static void app_init() {
     app.ui = &app_ui;
-    app.redraw = fast_redraw;
-    app.draw = draw;
-    app.layout = request_layout;
-    app.invalidate = invalidate_rect;
+    app.redraw = app_fast_redraw;
+    app.draw = app_draw;
+    app.layout = app_request_layout;
+    app.invalidate = app_invalidate_rect;
     app.full_screen = app_full_screen;
     app.set_cursor = cursor_set;
     app.close = close_window;
     app.set_timer = timer_set;
     app.kill_timer = timer_kill;
-    app.show_window = show_window;
-    app.show_toast = show_toast;
-    app.show_tooltip = show_tooltip;
-    app.vtoast = formatted_vtoast;
-    app.toast = formatted_toast;
+    app.show_window = app_show_window;
+    app.show_toast = app_show_toast;
+    app.show_tooltip = app_show_tooltip;
+    app.vtoast = app_formatted_vtoast;
+    app.toast = app_formatted_toast;
     app.data_save = app_data_save;
     app.data_size = app_data_size;
     app.data_load = app_data_load;
     app.open_filename = app_open_filename;
-    app.copy_to_clipboard = app_copy_to_clipboard;
     app.known_folder = app_known_folder;
-    app.attach_console = console_attach;
+    app.attach_console = app_console_attach;
     app_event_quit = events.create();
     app_event_invalidate = events.create();
 }
 
-static void __windows_init__() {
+static void __app_windows_init__() {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
     fatal_if_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     InitCommonControls(); // otherwise GetOpenFileName does not work
@@ -4028,29 +4086,20 @@ static void __windows_init__() {
     app.dpi.monitor_angular = app.dpi.system;
     app.dpi.monitor_raw = app.dpi.system;
     static const RECT nowhere = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
-    ui_rect_t r = rect2ui(&nowhere);
-    update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
+    ui_rect_t r = app_rect2ui(&nowhere);
+    app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
     app.dpi.window = app.dpi.monitor_effective;
-    init_fonts(app.dpi.window);
+    app_init_fonts(app.dpi.window);
 }
 
-int win_app(HINSTANCE instance, HINSTANCE previous, char* command, int show_command) {
-    (void)instance; (void)previous; (void)command; // unused
+static int app_win_main() {
     assert(app.init != null && app.class_name != null);
-    __windows_init__();
+    __app_windows_init__();
     __gdi_init__();
     int r = 0;
-    const char* cl = GetCommandLineA(); // same as command
-    const int len = (int)strlen(cl);
-    const int k = ((len + 2) / 2) * (int)sizeof(void*) + (int)sizeof(void*);
-    const int n = k + (len + 2) * (int)sizeof(char);
-    app.argv = (const char**)alloca(n);
-    memset(app.argv, 0, n);
-    char* buff = (char*)(((char*)app.argv) + k);
-    app.argc = args.parse(cl, app.argv, buff);
-    if (app.min_width <= 0) { app.min_width = 1024; }
+    if (app.min_width  <= 0) { app.min_width = 1024; }
     if (app.min_height <= 0) { app.min_height = 768; }
-    if (app.max_width <= 0) { app.max_width = app.work_area.w; }
+    if (app.max_width  <= 0) { app.max_width = app.work_area.w; }
     if (app.max_height <= 0) { app.max_height = app.work_area.h; }
     int size_frame = GetSystemMetricsForDpi(SM_CXSIZEFRAME, app.dpi.process);
     int caption_height = GetSystemMetricsForDpi(SM_CYCAPTION, app.dpi.process);
@@ -4059,7 +4108,6 @@ int win_app(HINSTANCE instance, HINSTANCE previous, char* command, int show_comm
     ui_rect_t rc = {100, 100, width, height};
     app.last_visibility = window_visibility.defau1t;
     load_window_pos(&rc);
-    app.visibility = show_command;
     app_init();
     app.ui->hidden = true; // start with ui hidden
     app.ui->font = &app.fonts.regular;
@@ -4067,9 +4115,9 @@ int win_app(HINSTANCE instance, HINSTANCE previous, char* command, int show_comm
     app.ui->h = rc.h;
     app.init(); // app.init() may change .show
     if (!app.no_ui) {
-        create_main_window(rc, width, height);
-        thread_t thread = threads.start(redraw_thread, null);
-        r = message_loop();
+        app_create_window(rc, width, height);
+        thread_t thread = threads.start(app_redraw_thread, null);
+        r = app_message_loop();
         fatal_if_false(SetEvent(app_event_quit));
         threads.join(thread);
         dispose();
@@ -4247,7 +4295,7 @@ static void init_ns() {
     }
 }
 
-static void __winnls_init__() {
+static void __app_winnls_init__() {
     static_assert(countof(ns) % 16 == 0, "countof(ns) must be multiple of 16");
     static bool ns_initialized;
     if (!ns_initialized) { ns_initialized = true; init_ns(); }
@@ -4265,8 +4313,20 @@ static void __winnls_init__() {
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, char* command,
         int show_command) {
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
-    __winnls_init__();
-    return win_app(instance, previous, command, show_command);
+    __app_winnls_init__();
+    clipboard_init();
+    app.visibility = show_command;
+    (void)command; // ASCII unused
+    const char* cl = utf16to8(GetCommandLineW());
+    const int len = (int)strlen(cl);
+    const int k = ((len + 2) / 2) * (int)sizeof(void*) + (int)sizeof(void*);
+    const int n = k + (len + 2) * (int)sizeof(char);
+    app.argv = (const char**)alloca(n);
+    memset(app.argv, 0, n);
+    char* buff = (char*)(((char*)app.argv) + k);
+    app.argc = args.parse(cl, app.argv, buff);
+    (void)instance; (void)previous; // unused
+    return app_win_main();
 }
 
 #else
@@ -4275,7 +4335,8 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, char* command,
 
 int main(int argc, const char* argv[]) {
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
-    __winnls_init__();
+    __app_winnls_init__();
+    clipboard_init();
     app.argc = argc;
     app.argv = argv;
     return app.main();
