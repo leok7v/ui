@@ -3069,11 +3069,11 @@ static void load_window_pos(ui_rect_t* rect) {
     }
 }
 
-static void timer_kill(tm_t timer) {
+static void app_timer_kill(tm_t timer) {
     fatal_if_false(KillTimer(window(), timer));
 }
 
-static tm_t timer_set(uintptr_t id, int32_t ms) {
+static tm_t app_timer_set(uintptr_t id, int32_t ms) {
     assert(window() != null);
     assert(0 <= id); // can be zero see notes in .h file
     assert(10 <= ms && ms < 0x7FFFFFFF);
@@ -3788,14 +3788,14 @@ static int32_t app_message_loop() {
     return (int32_t)msg.wParam;
 }
 
-static void dispose() {
+static void app_dispose() {
     app_dispose_fonts();
     if (gdi.clip != null) { DeleteRgn(gdi.clip); }
     fatal_if_false(CloseHandle(app_event_quit));
     fatal_if_false(CloseHandle(app_event_invalidate));
 }
 
-static void cursor_set(cursor_t c) {
+static void app_cursor_set(cursor_t c) {
     // https://docs.microsoft.com/en-us/windows/win32/menurc/using-cursors
     app.cursor = c;
     SetClassLongPtr(window(), GCLP_HCURSOR, (LONG_PTR)c);
@@ -3803,11 +3803,11 @@ static void cursor_set(cursor_t c) {
     if (GetCursorPos(&pt)) { SetCursorPos(pt.x + 1, pt.y); SetCursorPos(pt.x, pt.y); }
 }
 
-static void close_window() {
+static void app_close_window() {
     app_post_message(WM_CLOSE, 0, 0);
 }
 
-static void show_tooltip_or_toast(uic_t* ui, int x, int y, double timeout) {
+static void app_show_tooltip_or_toast(uic_t* ui, int x, int y, double timeout) {
     if (ui != null) {
         toast.x = x;
         toast.y = y;
@@ -3826,12 +3826,12 @@ static void show_tooltip_or_toast(uic_t* ui, int x, int y, double timeout) {
 }
 
 static void app_show_toast(uic_t* ui, double timeout) {
-    show_tooltip_or_toast(ui, -1, -1, timeout);
+    app_show_tooltip_or_toast(ui, -1, -1, timeout);
 }
 
 static void app_show_tooltip(uic_t* ui, int x, int y, double timeout) {
     if (ui != null) {
-        show_tooltip_or_toast(ui, x, y, timeout);
+        app_show_tooltip_or_toast(ui, x, y, timeout);
     } else if (toast.ui != null && toast.x >= 0 && toast.y >= 0) {
         app_toast_cancel(); // only cancel tooltips not toasts
     }
@@ -4040,12 +4040,10 @@ const char* app_known_folder(int kf) {
     return folder;
 }
 
-clipboard_t clipboard;
-
-static void clipboard_init() {
-    clipboard.copy_text = clipboard_copy_text;
-    clipboard.copy_bitmap = clipboard_copy_bitmap;
-}
+clipboard_t clipboard = {
+    .copy_text = clipboard_copy_text,
+    .copy_bitmap = clipboard_copy_bitmap
+};
 
 static uic_t app_ui;
 
@@ -4056,10 +4054,10 @@ static void app_init() {
     app.layout = app_request_layout;
     app.invalidate = app_invalidate_rect;
     app.full_screen = app_full_screen;
-    app.set_cursor = cursor_set;
-    app.close = close_window;
-    app.set_timer = timer_set;
-    app.kill_timer = timer_kill;
+    app.set_cursor = app_cursor_set;
+    app.close = app_close_window;
+    app.set_timer = app_timer_set;
+    app.kill_timer = app_timer_kill;
     app.show_window = app_show_window;
     app.show_toast = app_show_toast;
     app.show_tooltip = app_show_tooltip;
@@ -4120,7 +4118,7 @@ static int app_win_main() {
         r = app_message_loop();
         fatal_if_false(SetEvent(app_event_quit));
         threads.join(thread);
-        dispose();
+        app_dispose();
     } else {
         r = app.main();
     }
@@ -4138,18 +4136,18 @@ static int app_win_main() {
 // and many others...
 
 enum {
-    str_count_max = 1024,
-    str_mem_max = 64 * str_count_max
+    winnls_str_count_max = 1024,
+    winnls_str_mem_max = 64 * winnls_str_count_max
 };
 
-static char strings_memory[str_mem_max]; // increase if overflows
-static char* strings_free = strings_memory;
-static int strings_count;
-static const char* ls[str_count_max]; // localized strings
-static const char* ns[str_count_max]; // neutral language strings
+static char winnls_strings_memory[winnls_str_mem_max]; // increase if overflows
+static char* winnls_strings_free = winnls_strings_memory;
+static int winnls_strings_count;
+static const char* winnls_ls[winnls_str_count_max]; // localized strings
+static const char* winnls_ns[winnls_str_count_max]; // neutral language strings
 
-wchar_t* load_string(int32_t strid, LANGID langid) {
-    assert(0 <= strid && strid < countof(ns));
+wchar_t* winnls_load_string(int32_t strid, LANGID langid) {
+    assert(0 <= strid && strid < countof(winnls_ns));
     wchar_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
@@ -4178,64 +4176,64 @@ wchar_t* load_string(int32_t strid, LANGID langid) {
     return r;
 }
 
-static const char* save_string(wchar_t* mem) {
+static const char* winnls_save_string(wchar_t* mem) {
     const char* utf8 = utf16to8(mem);
     uintptr_t n = strlen(utf8) + 1;
     assert(n > 1);
-    uintptr_t left = countof(strings_memory) - (
-        strings_free - strings_memory);
+    uintptr_t left = countof(winnls_strings_memory) - (
+        winnls_strings_free - winnls_strings_memory);
     fatal_if_false(left >= n, "string_memory[] overflow");
-    memcpy(strings_free, utf8, n);
-    const char* s = strings_free;
-    strings_free += n;
+    memcpy(winnls_strings_free, utf8, n);
+    const char* s = winnls_strings_free;
+    winnls_strings_free += n;
     return s;
 }
 
-const char* localize_string(int32_t strid) {
-    assert(0 <= strid && strid < countof(ns));
+const char* winnls_localize_string(int32_t strid) {
+    assert(0 <= strid && strid < countof(winnls_ns));
     const char* r = null;
-    if (0 <= strid && strid < countof(ns)) {
-        if (ls[strid] != null) {
-            r = ls[strid];
+    if (0 <= strid && strid < countof(winnls_ns)) {
+        if (winnls_ls[strid] != null) {
+            r = winnls_ls[strid];
         } else {
             LCID lcid = GetThreadLocale();
             LANGID langid = LANGIDFROMLCID(lcid);
-            wchar_t* ws = load_string(strid, langid);
+            wchar_t* ws = winnls_load_string(strid, langid);
             if (ws == null) { // try default dialect:
                 LANGID primary = PRIMARYLANGID(langid);
                 langid = MAKELANGID(primary, SUBLANG_NEUTRAL);
-                ws = load_string(strid, langid);
+                ws = winnls_load_string(strid, langid);
             }
             if (ws != null) {
-                r = save_string(ws);
-                ls[strid] = r;
+                r = winnls_save_string(ws);
+                winnls_ls[strid] = r;
             }
         }
     }
     return r;
 }
 
-static int strid(const char* s) {
+static int winnls_strid(const char* s) {
     int strid = 0;
-    for (int i = 1; i < strings_count && strid == 0; i++) {
-        if (ns[i] != null && strcmp(s, ns[i]) == 0) {
+    for (int i = 1; i < winnls_strings_count && strid == 0; i++) {
+        if (winnls_ns[i] != null && strcmp(s, winnls_ns[i]) == 0) {
             strid = i;
-            localize_string(strid); // to save it, ignore result
+            winnls_localize_string(strid); // to save it, ignore result
         }
     }
     return strid;
 }
 
-static const char* string(int strid, const char* defau1t) {
-    const char* r = localize_string(strid);
+static const char* winnls_string(int strid, const char* defau1t) {
+    const char* r = winnls_localize_string(strid);
     return r == null ? defau1t : r;
 }
 
-const char* nls(const char* s) {
-    return string(strid(s), s);
+const char* winnls_nls(const char* s) {
+    return winnls_string(winnls_strid(s), s);
 }
 
-static const char* locale() {
+static const char* winnls_locale() {
     wchar_t wln[LOCALE_NAME_MAX_LENGTH + 1];
     LCID lcid = GetThreadLocale();
     int n = LCIDToLocaleName(lcid, wln, countof(wln),
@@ -4253,7 +4251,7 @@ static const char* locale() {
     return ln;
 }
 
-static void set_locale(const char* locale) {
+static void winnls_set_locale(const char* locale) {
     wchar_t rln[LOCALE_NAME_MAX_LENGTH + 1];
     int n = ResolveLocaleName(utf8to16(locale), rln, countof(rln));
     if (n == 0) {
@@ -4264,14 +4262,14 @@ static void set_locale(const char* locale) {
             // TODO: log error
         } else {
             fatal_if_false(SetThreadLocale(lcid));
-            memset((void*)ls, 0, sizeof(ls)); // start all over
+            memset((void*)winnls_ls, 0, sizeof(winnls_ls)); // start all over
         }
     }
 }
 
-static void init_ns() {
+static void winnls_init() {
     LANGID langid = MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL);
-    for (int strid = 0; strid < countof(ns); strid += 16) {
+    for (int strid = 0; strid < countof(winnls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
         HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
             MAKEINTRESOURCE(block), langid);
@@ -4284,8 +4282,8 @@ static void init_ns() {
             if (count > 0) {
                 ws++;
                 fatal_if_false(ws[count - 1] == 0, "use rc.exe /n");
-                ns[ix] = save_string(ws);
-                strings_count = ix + 1;
+                winnls_ns[ix] = winnls_save_string(ws);
+                winnls_strings_count = ix + 1;
 //              traceln("ns[%d] := %d \"%s\"", ix, strlen(ns[ix]), ns[ix]);
                 ws += count;
             } else {
@@ -4295,15 +4293,15 @@ static void init_ns() {
     }
 }
 
-static void __app_winnls_init__() {
-    static_assert(countof(ns) % 16 == 0, "countof(ns) must be multiple of 16");
+static void __winnls_init__() {
+    static_assert(countof(winnls_ns) % 16 == 0, "countof(ns) must be multiple of 16");
     static bool ns_initialized;
-    if (!ns_initialized) { ns_initialized = true; init_ns(); }
-    app.strid = strid;
-    app.nls = nls;
-    app.string = string;
-    app.locale = locale;
-    app.set_locale = set_locale;
+    if (!ns_initialized) { ns_initialized = true; winnls_init(); }
+    app.strid = winnls_strid;
+    app.nls = winnls_nls;
+    app.string = winnls_string;
+    app.locale = winnls_locale;
+    app.set_locale = winnls_set_locale;
 }
 
 #if !defined(quick_implementation_console)
@@ -4313,8 +4311,7 @@ static void __app_winnls_init__() {
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, char* command,
         int show_command) {
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
-    __app_winnls_init__();
-    clipboard_init();
+    __winnls_init__();
     app.visibility = show_command;
     (void)command; // ASCII unused
     const char* cl = utf16to8(GetCommandLineW());
@@ -4335,8 +4332,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, char* command,
 
 int main(int argc, const char* argv[]) {
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
-    __app_winnls_init__();
-    clipboard_init();
+    __winnls_init__();
     app.argc = argc;
     app.argv = argv;
     return app.main();
