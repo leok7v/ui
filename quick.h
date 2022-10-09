@@ -876,7 +876,6 @@ end_c
 
 #ifdef _WIN32 // it is possible and trivial to implement for other platforms
 
-#pragma once
 #if !defined(STRICT)
 #define STRICT
 #endif
