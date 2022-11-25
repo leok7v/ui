@@ -2,7 +2,9 @@
 #ifndef qucik_defintion
 #define qucik_defintion
 
+#ifndef _CRT_SECURE_NO_WARNINGS
 #define _CRT_SECURE_NO_WARNINGS // shutdown MSVC _s() function suggestions
+#endif
 #include <assert.h>
 #undef assert
 #include <ctype.h>
