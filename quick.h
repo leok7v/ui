@@ -4037,6 +4037,8 @@ const char* app_known_folder(int kf) {
         strprintf(known_foders[kf], "%s", utf16to8(path));
         CoTaskMemFree(path);
         folder = known_foders[kf];
+    } else {
+        folder = known_foders[kf];
     }
     return folder;
 }
