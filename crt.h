@@ -523,11 +523,15 @@ end_c
 #include <errno.h>
 #include <fcntl.h>
 #include <float.h>
+#ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
+#endif
 #include <math.h>
 #include <process.h>
 #include <sys/stat.h>
+#ifndef _CRT_SILENCE_NONCONFORMING_TGMATH_H
 #define _CRT_SILENCE_NONCONFORMING_TGMATH_H
+#endif
 #include <tgmath.h>
 
 begin_c
