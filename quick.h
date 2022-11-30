@@ -343,6 +343,8 @@ typedef struct uic_messagebox_s {
     const char** opts;
 } uic_messagebox_t;
 
+void _messagebox_init_(uic_t* ui);
+
 void uic_messagebox_init(uic_messagebox_t* mx, const char* option[],
     void (*cb)(uic_messagebox_t* m, int option), const char* format, ...);
 
@@ -567,12 +569,15 @@ end_c
 #if !defined(STRICT)
 #define STRICT
 #endif
+
+#if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
-#define VC_EXTRALEAN
-#define _CRT_NONSTDC_NO_WARNINGS
-#ifndef _SCL_SECURE_NO_WARNINGS
-#define _SCL_SECURE_NO_WARNINGS
 #endif
+
+#if !defined(WIN32_LEAN_AND_MEAN)
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <Windows.h>
 #include <WindowsX.h>
 #include <timeapi.h>

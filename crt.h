@@ -42,6 +42,7 @@
 #include <crtdbg.h> // _malloca()
 #endif
 
+#include <io.h>
 #include <malloc.h>
 #include <stdarg.h>
 #include <stdbool.h>
@@ -499,8 +500,15 @@ end_c
 #if !defined(STRICT)
 #define STRICT
 #endif
+
+#if !defined(WIN32_LEAN_AND_MEAN)
 #define WIN32_LEAN_AND_MEAN
-#define VC_EXTRALEAN
+#endif
+
+#if !defined(WIN32_LEAN_AND_MEAN)
+#define WIN32_LEAN_AND_MEAN
+#endif
+
 #include <Windows.h>
 #include <WindowsX.h>
 #include <timeapi.h>
