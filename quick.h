@@ -1,189 +1,9 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021 see LICENSE at the end of file */
 #ifndef qucik_defintion
 #define qucik_defintion
-
-#ifndef _CRT_SECURE_NO_WARNINGS
-#define _CRT_SECURE_NO_WARNINGS // shutdown MSVC _s() function suggestions
-#endif
-#include <assert.h>
-#undef assert
-#include <ctype.h>
-#include <io.h>
-#include <errno.h>
-#include <malloc.h> // posix: <alloca.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <tgmath.h>
-
-#ifdef __cplusplus
-#define begin_c extern "C" {
-#define end_c } // extern "C"
-#else
-#define begin_c
-#define end_c
-#endif
+#include "crt.h"
 
 begin_c
-
-typedef unsigned char byte;
-
-#ifndef __cplusplus
-#define thread_local __declspec(thread) // supposed to be _Thread_local
-#define null NULL
-#define thread_local_storage __declspec(thread) // posix: __thread
-#else
-#define null nullptr
-#define thread_local_storage thread_local
-#endif
-
-// see: https://docs.microsoft.com/en-us/cpp/cpp/inline-functions-cpp
-
-#define force_inline __forceinline
-#define inline_c __inline // inline is only in C++ __inline in both C and C++
-
-#ifndef countof
-#define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
-#endif
-
-#ifndef max
-#define max(a,b)     (((a) > (b)) ? (a) : (b))
-#endif
-#define maximum(a,b) (((a) > (b)) ? (a) : (b)) // prefered
-
-#ifndef min
-#define min(a,b)     (((a) < (b)) ? (a) : (b))
-#endif
-#define minimum(a,b) (((a) < (b)) ? (a) : (b)) // prefered
-
-#define breakpoint() do { if (IsDebuggerPresent()) { DebugBreak(); } } while (0)
-
-// C-runtime crt.functions()
-
-#if defined(DEBUG)
-  #define assert(b, ...) (void)((!!(b)) || \
-    crt.assertion_failed(__FILE__, __LINE__, __FUNCTION__, #b, "" __VA_ARGS__))
-#else
-  #define assert(b, ...) (void)(0)
-#endif
-
-#define traceln(...) crt.traceline(__FILE__, __LINE__, __FUNCTION__, \
-    "" __VA_ARGS__)
-
-#define fatal_if_(condition, call, err2str, err, ...) \
-    do { \
-        bool _b_##__LINE__ = (condition); \
-        if (_b_##__LINE__) { \
-            char va[256]; \
-            crt.sformat(va, sizeof(va), "" __VA_ARGS__); \
-            crt.fatal(__FILE__, __LINE__, __FUNCTION__, err2str, err, call, va); \
-        } \
-    } while (0)
-
-#define fatal_if(api_call, ...) \
-    fatal_if_(api_call, #api_call, crt.error, crt.err(), __VA_ARGS__)
-
-#define fatal_if_false(api_call, ...) \
-    fatal_if_(!(api_call), #api_call, crt.error, crt.err(), __VA_ARGS__)
-
-#define fatal_if_null(api_call, ...) \
-    fatal_if_((api_call) == null, #api_call, crt.error, crt.err(), \
-              __VA_ARGS__)
-
-#define fatal_if_not_zero(api_call, ...) \
-    do { \
-        uint32_t _r_##__LINE__ = (api_call); \
-        fatal_if_(_r_##__LINE__ != 0, #api_call, crt.error, _r_##__LINE__, \
-                  __VA_ARGS__); \
-    } while (0)
-
-#define utf16to8(utf16) crt.utf16to8((char*) \
-    alloca(crt.utf8_bytes(utf16) + 1), utf16)
-
-#define utf8to16(s) crt.utf8to16((wchar_t*)alloca((crt.utf16_bytes(s) + 1) * \
-    (int)sizeof(wchar_t)), s)
-
-#define strprintf(s, ...) crt.sformat((s), countof(s), "" __VA_ARGS__)
-
-typedef struct {
-    int32_t (*err)(); // errno or GetLastError()
-    void (*seterr)(int32_t err); // errno = err or SetLastError()
-    // non-crypro strong pseudo-random number generators (thread safe)
-    uint32_t (*random32)(uint32_t *state); // "Mulberry32"
-    uint64_t (*random64)(uint64_t *state); // "Trust"
-    int (*memmap_read)(const char* filename, void** data, int64_t* bytes);
-    int (*memmap_rw)(const char* filename, void** data, int64_t* bytes);
-    void (*memunmap)(void* data, int64_t bytes);
-    // memmap_res() maps data from resources, do NOT unmap!
-    int (*memmap_res)(const char* label, void** data, int64_t* bytes);
-    void (*sleep)(double seconds);
-    double (*seconds)(); // since boot
-    void (*vformat)(char* utf8, int count, const char* format, va_list vl);
-    void (*sformat)(char* utf8, int count, const char* format, ...);
-    const char* (*error)(int32_t error);
-    // do not call directly used by macros above
-    int (*utf8_bytes)(const wchar_t* wcs);
-    int (*utf16_bytes)(const char* s);
-    char* (*utf16to8)(char* s, const wchar_t* wcs);
-    wchar_t* (*utf8to16)(wchar_t* wcs, const char* s);
-    void (*traceline)(const char* file, int line, const char* function,
-        const char* format, ...);
-    int (*assertion_failed)(const char* file, int line, const char* function,
-                         const char* condition, const char* format, ...);
-    void (*fatal)(const char* file, int line, const char* function,
-        const char* (*err2str)(int32_t error), int32_t error,
-        const char* call, const char* extra);
-} crt_if;
-
-extern crt_if crt;
-
-typedef void* thread_t;
-
-typedef struct {
-    thread_t (*start)(void (*func)(void*), void* p);
-    void (*join)(thread_t thread);
-    void (*name)(const char* name); // names the thread
-    void (*realtime)(); // bumps calling thread priority
-} threads_if;
-
-extern threads_if threads;
-
-typedef struct {
-    int (*option_index)(int argc, const char* argv[], const char* option);
-    int (*remove_at)(int ix, int argc, const char* argv[]);
-    /* argc=3 argv={"foo", "--verbose"} -> returns true; argc=1 argv={"foo"} */
-    bool (*option_bool)(int *argc, const char* argv[], const char* option);
-    /* argc=3 argv={"foo", "--n", "153"} -> value==153, true; argc=1 argv={"foo"}
-       also handles negative values (e.g. "-153") and hex (e.g. 0xBADF00D)
-    */
-    bool (*option_int)(int *argc, const char* argv[], const char* option, int64_t *value);
-    /* argc=3 argv={"foo", "--path", "bar"} -> returns "bar" argc=1 argv={"foo"} */
-    const char* (*option_str)(int *argc, const char* argv[], const char* option);
-    int (*parse)(const char* cl, const char** argv, char* buff);
-} args_if;
-
-extern args_if args;
-
-typedef void* event_t;
-
-typedef struct {
-    event_t (*create)();
-    event_t (*create_manual)();
-    void (*set)(event_t e);
-    void (*reset)(event_t e);
-    void (*wait)(event_t e);
-    // returns 0 or -1 on timeout
-    int (*wait_or_timeout)(event_t e, double seconds); // seconds < 0 forever
-    // returns event index or -1 on timeout or abandon
-    int (*wait_any)(int n, event_t events[]); // -1 on abandon
-    int (*wait_any_or_timeout)(int n, event_t e[], double milliseconds);
-    void (*dispose)(event_t e);
-} events_if;
-
-extern events_if events;
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
@@ -231,6 +51,7 @@ typedef struct gdi_s {
     // use set_clip(0, 0, 0, 0) to clear clip region
     void (*push)(int32_t x, int32_t y); // also calls SaveDC(app.canvas)
     void (*pop)(); // also calls RestoreDC(-1, app.canvas)
+    void (*pixel)(int32_t x, int32_t y, color_t c);
     ui_point_t (*move_to)(int32_t x, int32_t y); // returns previous (x, y)
     void (*line)(int32_t x, int32_t y); // line to x, y with gdi.pen moves x, y
     void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h); // app.pen
@@ -240,9 +61,15 @@ typedef struct gdi_s {
         int32_t rx, int32_t ry); // see RoundRect, pen, brush
     void (*gradient)(int32_t x, int32_t y, int32_t w, int32_t h,
         color_t rgba_from, color_t rgba_to, bool vertical);
-    // images: (x,y remains untouched after swaring)
+    // draw images: (x,y remains untouched after drawing)
+    // draw_greyscale() sx, sy, sw, sh screen rectangle
+    // x, y, w, h rectange inside pixels[ih][iw] byte array
     void (*draw_greyscale)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h, const byte* pixels);
+        int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t iw, int32_t ih, const byte* pixels);
+    void (*draw_bgr)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+        int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t iw, int32_t ih, const byte* pixels);
     void (*alpha_blend)(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image, double alpha);
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -353,7 +180,7 @@ typedef struct uic_s { // ui element container/control
     int32_t shortcut; // keyboard shortcut
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
-    void (*notify)(uic_t* ui); // for the application use
+    void (*notify)(uic_t* ui, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
@@ -519,8 +346,6 @@ typedef struct uic_messagebox_s {
 void uic_messagebox_init(uic_messagebox_t* mx, const char* option[],
     void (*cb)(uic_messagebox_t* m, int option), const char* format, ...);
 
-void _uic_messagebox_init_(uic_t* ui); // do not call use uic_checkbox() macro
-
 #define uic_messagebox(name, s, code, ...)                           \
                                                                      \
     static char* name ## _options[] = { __VA_ARGS__, null };         \
@@ -636,7 +461,7 @@ typedef struct app_s {
     ui_rect_t work_area; // current monitor work area
     int32_t width;  // client width
     int32_t height; // client height
-    // not to call clocks.seconds() too often:
+    // not to call crt.seconds() too often:
     double now; // ssb "seconds since boot" updated on each message
     uic_t* ui; // show_window() changes ui.hidden
     fonts_t fonts;
@@ -670,6 +495,7 @@ typedef struct app_s {
     void (*close)(); // window
     tm_t (*set_timer)(uintptr_t id, int32_t milliseconds); // see notes
     void (*kill_timer)(tm_t id);
+    void (*post)(int message, int64_t wp, int64_t lp);
     void (*show_window)(int32_t show); // see show_window enum
     void (*show_toast)(uic_t* toast, double seconds); // toast(null) to cancel
     void (*show_tooltip)(uic_t* tooltip, int x, int y, double seconds);
@@ -731,152 +557,12 @@ typedef struct virtual_keys_s {
 
 extern virtual_keys_t virtual_keys;
 
+end_c
+
 #endif qucik_defintion
 
 #if defined(quick_implementation) || defined(quick_implementation_console)
 #undef quick_implementation
-
-// CRT implementation
-
-static int args_option_index(int argc, const char* argv[], const char* option) {
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--") == 0) { break; } // no options after '--'
-        if (strcmp(argv[i], option) == 0) { return i; }
-    }
-    return -1;
-}
-
-static int args_remove_at(int ix, int argc, const char* argv[]) { // returns new argc
-    assert(0 < argc);
-    assert(0 < ix && ix < argc); // cannot remove argv[0]
-    for (int i = ix; i < argc; i++) {
-        argv[i] = argv[i+1];
-    }
-    argv[argc - 1] = "";
-    return argc - 1;
-}
-
-static bool args_option_bool(int *argc, const char* argv[], const char* option) {
-    int ix = args_option_index(*argc, argv, option);
-    if (ix > 0) {
-        *argc = args_remove_at(ix, *argc, argv);
-    }
-    return ix > 0;
-}
-
-static bool args_option_int(int *argc, const char* argv[], const char* option, int64_t *value) {
-    int ix = args_option_index(*argc, argv, option);
-    if (ix > 0 && ix < *argc - 1) {
-        const char* s = argv[ix + 1];
-        int base = (strstr(s, "0x") == s || strstr(s, "0X") == s) ? 16 : 10;
-        const char* b = s + (base == 10 ? 0 : 2);
-        char* e = null;
-        errno = 0;
-        int64_t v = strtoll(b, &e, base);
-        if (errno == 0 && e > b && *e == 0) {
-            *value = v;
-        } else {
-            ix = -1;
-        }
-    } else {
-        ix = -1;
-    }
-    if (ix > 0) {
-        *argc = args_remove_at(ix, *argc, argv); // remove option
-        *argc = args_remove_at(ix, *argc, argv); // remove following number
-    }
-    return ix > 0;
-}
-
-static const char* args_option_str(int *argc, const char* argv[], const char* option) {
-    int ix = args_option_index(*argc, argv, option);
-    const char* s = null;
-    if (ix > 0 && ix < *argc - 1) {
-        s = argv[ix + 1];
-    } else {
-        ix = -1;
-    }
-    if (ix > 0) {
-        *argc = args_remove_at(ix, *argc, argv); // remove option
-        *argc = args_remove_at(ix, *argc, argv); // remove following string
-    }
-    return ix > 0 ? s : null;
-}
-
-static const char BACKSLASH = '\\';
-static const char QUOTE = '\"';
-
-static char next_char(const char** cl, int* escaped) {
-    char ch = **cl;
-    (*cl)++;
-    *escaped = false;
-    if (ch == BACKSLASH) {
-        if (**cl == BACKSLASH) {
-            (*cl)++;
-            *escaped = true;
-        } else if (**cl == QUOTE) {
-            ch = QUOTE;
-            (*cl)++;
-            *escaped = true;
-        } else { /* keep the backslash and copy it into the resulting argument */ }
-    }
-    return ch;
-}
-
-static int args_parse(const char* cl, const char** argv, char* buff) {
-    int escaped = 0;
-    int argc = 0;
-    int j = 0;
-    char ch = next_char(&cl, &escaped);
-    while (ch != 0) {
-        while (isspace(ch)) { ch = next_char(&cl, &escaped); }
-        if (ch == 0) { break; }
-        argv[argc++] = buff + j;
-        if (ch == QUOTE) {
-            ch = next_char(&cl, &escaped);
-            while (ch != 0) {
-                if (ch == QUOTE && !escaped) { break; }
-                buff[j++] = ch;
-                ch = next_char(&cl, &escaped);
-            }
-            buff[j++] = 0;
-            if (ch == 0) { break; }
-            ch = next_char(&cl, &escaped); // skip closing quote maerk
-        } else {
-            while (ch != 0 && !isspace(ch)) {
-                buff[j++] = ch;
-                ch = next_char(&cl, &escaped);
-            }
-            buff[j++] = 0;
-        }
-    }
-    return argc;
-}
-
-args_if args = {
-    args_option_index,
-    args_remove_at,
-    args_option_bool,
-    args_option_int,
-    args_option_str,
-    args_parse
-};
-
-static void crt_vformat(char* utf8, int count, const char* format, va_list vl) {
-    vsnprintf(utf8, count, format, vl);
-    utf8[count - 1] = 0;
-}
-
-static void crt_sformat(char* utf8, int count, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    crt.vformat(utf8, count, format, vl);
-    va_end(vl);
-}
-
-end_c
-
-#ifdef _WIN32 // it is possible and trivial to implement for other platforms
 
 #if !defined(STRICT)
 #define STRICT
@@ -890,488 +576,6 @@ end_c
 #include <Windows.h>
 #include <WindowsX.h>
 #include <timeapi.h>
-
-begin_c
-
-static void crt_fatal(const char* file, int line, const char* function,
-        const char* (*err2str)(int32_t err), int32_t error,
-        const char* call, const char* extra) {
-    crt.traceline(file, line, function, "FATAL: %s failed %d 0x%08X \"%s\" %s",
-        call, error, error, err2str(error), extra);
-    breakpoint();
-    if (file != null) { ExitProcess(error); }
-}
-
-static const char* crt_error(int32_t error) {
-    static thread_local_storage char text[256];
-    const DWORD neutral = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
-    const DWORD format = FORMAT_MESSAGE_FROM_SYSTEM|
-        FORMAT_MESSAGE_IGNORE_INSERTS;
-    wchar_t s[256];
-    HRESULT hr = 0 <= error && error <= 0xFFFF ?
-        HRESULT_FROM_WIN32(error) : error;
-    if (FormatMessageW(format, null, hr, neutral, s, countof(s) - 1, (va_list*)null) > 0) {
-        s[countof(s) - 1] = 0;
-        // remove trailing '\r\n'
-        int k = (int)wcslen(s);
-        if (k > 0 && s[k - 1] == '\n') { s[k - 1] = 0; }
-        k = (int)wcslen(s);
-        if (k > 0 && s[k - 1] == '\r') { s[k - 1] = 0; }
-        strprintf(text, "0x%08X(%d) \"%s\"", error, error, utf16to8(s));
-    } else {
-        strprintf(text, "0x%08X(%d)", error, error);
-    }
-    return text;
-}
-
-static void crt_sleep(double seconds) {
-    assert(seconds >= 0);
-    if (seconds < 0) { seconds = 0; }
-    int64_t ns100 = (int64_t)(seconds * 1.0e+7); // in 0.1 microsecond aka 100ns
-    typedef int (__stdcall *nt_delay_execution_t)(BOOLEAN Alertable, PLARGE_INTEGER DelayInterval);
-    static nt_delay_execution_t NtDelayExecution;
-    // delay in 100-ns units. negative value means delay relative to current.
-    LARGE_INTEGER delay; // delay in 100-ns units.
-    delay.QuadPart = -ns100; // negative value means delay relative to current.
-    if (NtDelayExecution == null) {
-        HMODULE ntdll = LoadLibraryA("ntdll.dll");
-        fatal_if_null(ntdll);
-        NtDelayExecution = (nt_delay_execution_t)GetProcAddress(ntdll, "NtDelayExecution");
-        fatal_if_null(NtDelayExecution);
-    }
-    //  If "alertable" is set, execution can break in a result of NtAlertThread call.
-    NtDelayExecution(false, &delay);
-}
-
-static double crt_seconds() { // since_boot
-    LARGE_INTEGER qpc;
-    QueryPerformanceCounter(&qpc);
-    static double one_over_freq;
-    if (one_over_freq == 0) {
-        LARGE_INTEGER frequency;
-        QueryPerformanceFrequency(&frequency);
-        one_over_freq = 1.0 / frequency.QuadPart;
-    }
-    return (double)qpc.QuadPart * one_over_freq;
-}
-
-enum {
-    NS_IN_US = 1000, // nanoseconds in microsecond
-    NS_IN_MS = NS_IN_US * 1000 // nanoseconds in millisecond
-};
-
-static int64_t ns2ms(int64_t ns) { return (ns + NS_IN_MS - 1) / NS_IN_MS; }
-
-typedef int (*nt_query_timer_resolution_t)(ULONG* minimum_resolution,
-    ULONG* maximum_resolution, ULONG* actual_resolution);
-typedef int (*nt_settimer_resolution_t)(ULONG RequestedResolution,
-    BOOLEAN Set, ULONG* ActualResolution);
-
-static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
-    const int ns100 = (int)(ns / 100);
-    nt_query_timer_resolution_t NtQueryTimerResolution =
-        (nt_query_timer_resolution_t)
-        GetProcAddress(LoadLibraryA("NtDll.dll"), "NtQueryTimerResolution");
-    nt_settimer_resolution_t NtSetTimerResolution = (nt_settimer_resolution_t)
-        GetProcAddress(LoadLibraryA("NtDll.dll"), "NtSetTimerResolution");
-    // it is resolution not frequency this is why it is in reverse
-    // to common sense and what is not on Windows?
-    unsigned long min_100ns = 16 * 10 * 1000;
-    unsigned long max_100ns = 1 * 10 * 1000;
-    unsigned long actual_100ns = 0;
-    int r = 0;
-    if (NtQueryTimerResolution != null &&
-        NtQueryTimerResolution(&min_100ns, &max_100ns, &actual_100ns) == 0) {
-        int64_t minimum_ns = min_100ns * 100LL;
-        int64_t maximum_ns = max_100ns * 100LL;
-//      int64_t actual_ns  = actual_100ns  * 100LL;
-        // note that maximum resolution is actually < minimum
-        if (NtSetTimerResolution == null) {
-            const int milliseconds = (int)(ns2ms(ns) + 0.5);
-            r = (int)maximum_ns <= ns && ns <= (int)minimum_ns ?
-                timeBeginPeriod(milliseconds) : ERROR_INVALID_PARAMETER;
-        } else {
-            r = (int)maximum_ns <= ns && ns <= (int)minimum_ns ?
-                NtSetTimerResolution(ns100, true, &actual_100ns) :
-                ERROR_INVALID_PARAMETER;
-        }
-        NtQueryTimerResolution(&min_100ns, &max_100ns, &actual_100ns);
-    } else {
-        const int milliseconds = (int)(ns2ms(ns) + 0.5);
-        r = 1 <= milliseconds && milliseconds <= 16 ?
-            timeBeginPeriod(milliseconds) : ERROR_INVALID_PARAMETER;
-    }
-    return r;
-}
-
-static void crt_power_throttling_disable_for_process() {
-    static bool disabled_for_the_process;
-    if (!disabled_for_the_process) {
-        PROCESS_POWER_THROTTLING_STATE pt = { 0 };
-        pt.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
-        pt.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED |
-            PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
-        pt.StateMask = 0;
-        fatal_if_false(SetProcessInformation(GetCurrentProcess(),
-            ProcessPowerThrottling, &pt, sizeof(pt)));
-        disabled_for_the_process = true;
-    }
-}
-
-static void crt_power_throttling_disable_for_thread(HANDLE thread) {
-    THREAD_POWER_THROTTLING_STATE pt = { 0 };
-    pt.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
-    pt.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
-    pt.StateMask = 0;
-    fatal_if_false(SetThreadInformation(thread, ThreadPowerThrottling, &pt, sizeof(pt)));
-}
-
-static void crt_disable_power_throttling() {
-    crt_power_throttling_disable_for_process();
-    crt_power_throttling_disable_for_thread(GetCurrentThread());
-}
-
-static void threads_realtime() {
-    fatal_if_false(SetPriorityClass(GetCurrentProcess(),
-        REALTIME_PRIORITY_CLASS));
-    fatal_if_false(SetThreadPriority(GetCurrentThread(),
-        THREAD_PRIORITY_TIME_CRITICAL));
-    fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
-        /* bDisablePriorityBoost = */ false));
-    fatal_if_not_zero(
-        crt_scheduler_set_timer_resolution(NS_IN_MS));
-    crt_disable_power_throttling();
-}
-
-static thread_t threads_start(void (*func)(void*), void* p) {
-    thread_t t = (thread_t)CreateThread(null, 0,
-        (LPTHREAD_START_ROUTINE)func, p, 0, null);
-    fatal_if_null(t);
-    return t;
-}
-
-static void threads_join(thread_t t) {
-    DWORD flags = 0;
-    fatal_if_false(GetHandleInformation(t, &flags));
-    fatal_if_null(t);
-    int r = WaitForSingleObject(t, INFINITE);
-    fatal_if(r != 0);
-    fatal_if_false(CloseHandle(t));
-}
-
-static void threads_name(const char* name) {
-    HRESULT r = SetThreadDescription(GetCurrentThread(), utf8to16(name));
-    // notoriously returns 0x10000000 for no good reason whatsoever
-    if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
-}
-
-threads_if threads = {
-    .start = threads_start,
-    .join = threads_join,
-    .name = threads_name,
-    .realtime = threads_realtime
-};
-
-static event_t events_create() {
-    HANDLE e = null;
-    fatal_if_null(e = CreateEvent(null, false, false, null));
-    return (event_t)e;
-}
-
-static event_t events_create_manual() {
-    HANDLE e = null;
-    fatal_if_null(e = CreateEvent(null, true, false, null));
-    return (event_t)e;
-}
-
-static void events_set(event_t e) {
-    fatal_if_false(SetEvent((HANDLE)e));
-}
-
-static void events_reset(event_t e) {
-    fatal_if_false(ResetEvent((HANDLE)e));
-}
-
-static int events_wait_or_timeout(event_t e, double seconds) {
-    uint32_t ms = seconds < 0 ? INFINITE : (int32_t)(seconds * 1000.0 + 0.5);
-    uint32_t r = 0;
-    fatal_if_false((r = WaitForSingleObject(e, ms)) != WAIT_FAILED);
-    return r == WAIT_OBJECT_0 ? 0 : -1; // all WAIT_ABANDONED as -1
-}
-
-static void events_wait(event_t e) { events_wait_or_timeout(e, -1); }
-
-static int events_wait_any_or_timeout(int n, event_t events_[], double s) {
-    uint32_t ms = s < 0 ? INFINITE : (int32_t)(s * 1000.0 + 0.5);
-    uint32_t r = 0;
-    fatal_if_false((r = WaitForMultipleObjects(n, events_, false, ms)) != WAIT_FAILED);
-    // all WAIT_ABANDONED_0 and WAIT_IO_COMPLETION 0xC0 as -1
-    return WAIT_OBJECT_0 <= r && r < WAIT_OBJECT_0 + n ? r - WAIT_OBJECT_0 : -1;
-}
-
-static int events_wait_any(int n, event_t e[]) {
-    return events_wait_any_or_timeout(n, e, -1);
-}
-
-static void handles_close(event_t handle) {
-    fatal_if_false(CloseHandle(handle));
-}
-
-events_if events = {
-    events_create,
-    events_create_manual,
-    events_set,
-    events_reset,
-    events_wait,
-    events_wait_or_timeout,
-    events_wait_any,
-    events_wait_any_or_timeout,
-    handles_close
-};
-
-static void utf8_ods(const char* s) { OutputDebugStringW(utf8to16(s)); }
-
-enum { NO_LINEFEED = -2 };
-
-#define gettid() (GetCurrentThreadId())
-
-static int vformat_(char* s, int count, const char* file, int line,
-    const char* function, const char* format, va_list vl) {
-    s[0] = 0;
-    char* sb = s;
-    int left = count - 1;
-    if (file != null && line >= 0) {
-        crt.sformat(sb, left, "%s(%d): [%05d] %s ", file, line, GetCurrentThreadId(), function);
-        int n = (int)strlen(sb);
-        sb += n;
-        left -= n;
-    }
-    crt.vformat(sb, left, format, vl);
-    int k = (int)strlen(sb);
-    sb += k;
-    if (k == 0 || sb[-1] != '\n') {
-        *sb = '\n';
-        sb++;
-        *sb = 0;
-    }
-    return (int)(sb - s);
-}
-
-// traceln() both OutputDebugStringA() and vfprintf() are subject
-// of synchronizarion/seralization and may enter wait state which
-// in combination with Windows scheduler can take milliseconds to
-// complete. In time critical threads use traceln() instead which
-// does NOT lock at all and completes in microseconds
-
-static void vtraceln(const char* file, int line, const char* function, const char* format, va_list vl) {
-    enum { max_ods_count = 32 * 1024 - 1 };
-    char s[max_ods_count * 2 + 1];
-    const char* basename = strrchr(file, '/');
-    if (basename == (void*)0) { basename = strrchr(file, '\\'); }
-    basename = basename != (void*)0 ? basename + 1 : file;
-    (void)vformat_(s, (int)countof(s), file, line, function, format, vl);
-    utf8_ods(s);
-    if (GetStdHandle(STD_ERROR_HANDLE) != null) {
-        fprintf(stderr, "%s(%d): [%05d] %s ", (file + (int)(basename - file)), line,
-            gettid(), function);
-        vfprintf(stderr, format, vl);
-        fprintf(stderr, "\n");
-    }
-}
-
-static void crt_traceline(const char* path, int line, const char* function, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    vtraceln(path, line, function, format, vl);
-    va_end(vl);
-}
-
-static int crt_utf8_bytes(const wchar_t* utf16) {
-    int required_bytes_count = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-        utf16, -1, null, 0, null, null);
-    assert(required_bytes_count > 0);
-    return required_bytes_count;
-}
-
-static int crt_utf16_bytes(const char* utf8) {
-    int required_bytes_count = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
-    assert(required_bytes_count > 0);
-    return required_bytes_count;
-}
-
-static char* crt_utf16to8(char* s, const wchar_t* utf16) {
-    int r = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16, -1, s,
-        crt.utf8_bytes(utf16), null, null);
-    if (r == 0) {
-        traceln("WideCharToMultiByte() failed %s", crt.error(crt.err()));
-    }
-    return s;
-}
-
-static wchar_t* crt_utf8to16(wchar_t* utf16, const char* s) {
-    int r = MultiByteToWideChar(CP_UTF8, 0, s, -1, utf16, crt.utf16_bytes(s));
-    if (r == 0) {
-        traceln("WideCharToMultiByte() failed %d", crt.err());
-    }
-    return utf16;
-}
-
-static int crt_assertion_failed(const char* file, int line, const char* function,
-                      const char* condition, const char* format, ...) {
-    const int n = (int)strlen(format);
-    if (n == 0) {
-        crt.traceline(file, line, function, "assertion failed: \"%s\"", condition);
-    } else {
-        crt.traceline(file, line, function, "assertion failed: \"%s\"", condition);
-        va_list va;
-        va_start(va, format);
-        vtraceln(file, line, function, format, va);
-        va_end(va);
-    }
-    crt.sleep(0.25); // give other threads some time to flush buffers
-    breakpoint();
-    // pretty much always true but avoids "warning: unreachable code"
-    if (file != null || line != 0 || function != null) { exit(1); }
-    return 0;
-}
-
-static int32_t crt_err() { return GetLastError(); }
-
-static void crt_seterr(int32_t err) { SetLastError(err); }
-
-static uint32_t crt_random32(uint32_t* state) {
-    // https://gist.github.com/tommyettinger/46a874533244883189143505d203312c
-    static thread_local bool started; // first seed must be odd
-    if (!started) { started = true; *state |= 1; }
-    uint32_t z = (*state += 0x6D2B79F5UL);
-    z = (z ^ (z >> 15)) * (z | 1UL);
-    z ^= z + (z ^ (z >> 7)) * (z | 61UL);
-    return z ^ (z >> 14);
-}
-
-static uint64_t crt_random64(uint64_t *state) {
-    // https://gist.github.com/tommyettinger/e6d3e8816da79b45bfe582384c2fe14a
-    static thread_local bool started; // first seed must be odd
-    if (!started) { started = true; *state |= 1; }
-	const uint64_t s = *state;
-	const uint64_t z = (s ^ s >> 25) * (*state += 0x6A5D39EAE12657AAULL);
-	return z ^ (z >> 22);
-}
-
-static int crt_memmap_file(HANDLE file, void* *data, int64_t *bytes, bool rw) {
-    int r = 0;
-    void* address = null;
-    LARGE_INTEGER size = {{0, 0}};
-    if (GetFileSizeEx(file, &size)) {
-        HANDLE mapping = CreateFileMapping(file, null,
-            rw ? PAGE_READWRITE : PAGE_READONLY,
-            0, (DWORD)size.QuadPart, null);
-        if (mapping == null) {
-            r = GetLastError();
-        } else {
-            address = MapViewOfFile(mapping, FILE_MAP_READ,
-                0, 0, (int64_t)size.QuadPart);
-            if (address != null) {
-                *bytes = (int64_t)size.QuadPart;
-            } else {
-                r = GetLastError();
-            }
-            fatal_if_false(CloseHandle(mapping));
-        }
-    } else {
-        r = GetLastError();
-    }
-    if (r == 0) { *data = address; }
-    return r;
-}
-
-static int crt_memmap(const char* filename, void* *data,
-        int64_t *bytes, bool rw) {
-    *bytes = 0;
-    int r = 0;
-    const DWORD flags = GENERIC_READ | (rw ? GENERIC_WRITE : 0);
-    const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
-    HANDLE file = CreateFileA(filename, flags, share, null,
-        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, null);
-    if (file == INVALID_HANDLE_VALUE) {
-        r = GetLastError();
-    } else {
-        r = crt_memmap_file(file, data, bytes, rw);
-        fatal_if_false(CloseHandle(file));
-    }
-    return r;
-}
-
-static int crt_memmap_read(const char* filename, void* *data, int64_t *bytes) {
-    return crt_memmap(filename, data, bytes, false);
-}
-
-static int crt_memmap_rw(const char* filename, void* *data, int64_t *bytes) {
-    return crt_memmap(filename, data, bytes, true);
-}
-
-static void crt_memunmap(void* data, int64_t bytes) {
-    assert(data != null && bytes > 0);
-    (void)bytes; /* unused only need for posix version */
-    if (data != null && bytes > 0) {
-        fatal_if_false(UnmapViewOfFile(data));
-    }
-}
-
-static int crt_memmap_res(const char* label, void* *data, int64_t *bytes) {
-    HRSRC res = FindResourceA(null, label, (const char*)RT_RCDATA);
-    // "LockResource does not actually lock memory; it is just used to
-    // obtain a pointer to the memory containing the resource data.
-    // The name of the function comes from versions prior to Windows XP,
-    // when it was used to lock a global memory block allocated by LoadResource."
-    if (res != null) { *bytes = SizeofResource(null, res); }
-    HGLOBAL g = res != null ? LoadResource(null, res) : null;
-    *data = g != null ? LockResource(g) : null;
-    return *data != null ? 0 : GetLastError();
-}
-
-crt_if crt = {
-    .err = crt_err,
-    .seterr = crt_seterr,
-    .sleep = crt_sleep,
-    .random32 = crt_random32,
-    .random64 = crt_random64,
-    .memmap_read = crt_memmap_read,
-    .memmap_rw = crt_memmap_rw,
-    .memunmap = crt_memunmap,
-    .memmap_res = crt_memmap_res,
-    .seconds = crt_seconds,
-    .vformat = crt_vformat,
-    .sformat = crt_sformat,
-    .error = crt_error,
-    .utf8_bytes = crt_utf8_bytes,
-    .utf16_bytes = crt_utf16_bytes,
-    .utf16to8 = crt_utf16to8,
-    .utf8to16 = crt_utf8to16,
-    .traceline = crt_traceline,
-    .assertion_failed = crt_assertion_failed,
-    .fatal = crt_fatal
-};
-
-#pragma comment(lib, "advapi32")
-#pragma comment(lib, "comctl32")
-#pragma comment(lib, "comdlg32")
-#pragma comment(lib, "dwmapi")
-#pragma comment(lib, "gdi32")
-#pragma comment(lib, "msimg32")
-#pragma comment(lib, "ole32")
-#pragma comment(lib, "shcore")
-#pragma comment(lib, "shell32")
-#pragma comment(lib, "winmm")
-#pragma comment(lib, "user32")
-
-#else
-
-// TODO: implement for other platforms e.g. posix/Linux and MacOS
-
-#endif // _WIN32
-
-end_c
 
 // GDI implementation
 
@@ -1400,7 +604,7 @@ static color_t gdi_set_text_color(color_t c) {
 }
 
 static pen_t gdi_set_pen(pen_t p) {
-    assert(p != null);
+    not_null(p);
     return (pen_t)SelectPen(canvas(), (HPEN)p);
 }
 
@@ -1413,7 +617,7 @@ static pen_t gdi_set_colored_pen(color_t c) {
 static pen_t gdi_create_pen(color_t color, int width) {
     assert(width >= 1);
     pen_t pen = (pen_t)CreatePen(PS_SOLID, width, color);
-    fatal_if_null(pen);
+    not_null(pen);
     return pen;
 }
 
@@ -1422,7 +626,7 @@ static void gdi_delete_pen(pen_t p) {
 }
 
 static brush_t gdi_set_brush(brush_t b) {
-    assert(b != null);
+    not_null(b);
     return (brush_t)SelectBrush(canvas(), b);
 }
 
@@ -1434,8 +638,7 @@ static void gdi_set_clip(int x, int y, int w, int h) {
     if (gdi.clip != null) { DeleteRgn(gdi.clip); gdi.clip = null; }
     if (w > 0 && h > 0) {
         gdi.clip = (region_t)CreateRectRgn(x, y, x + w, y + h);
-        assert(gdi.clip != null);
-        fatal_if_null(gdi.clip);
+        not_null(gdi.clip);
     }
     fatal_if(SelectClipRgn(canvas(), (HRGN)gdi.clip) == ERROR);
 }
@@ -1458,6 +661,11 @@ static void gdi_pop() {
     gdi.x = gdi_stack[gdi_top].x;
     gdi.y = gdi_stack[gdi_top].y;
     fatal_if_false(RestoreDC(canvas(), -1));
+}
+
+static void gdi_pixel(int32_t x, int32_t y, color_t c) {
+    not_null(app.canvas);
+    fatal_if_false(SetPixel(canvas(), x, y, c));
 }
 
 static ui_point_t gdi_move_to(int x, int y) {
@@ -1523,7 +731,8 @@ static void gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
 }
 
 static void gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h, const byte* pixels) {
+        int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t iw, int32_t ih, const byte* pixels) {
     typedef struct bitmap_rgb_s {
         BITMAPINFO bi;
         RGBQUAD rgb[256];
@@ -1544,13 +753,35 @@ static void gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         bih->biClrUsed = 256;
         bih->biClrImportant = 256;
     }
-    bih->biWidth = w;
-    bih->biHeight = -h; // top down image
+    bih->biWidth = iw;
+    bih->biHeight = -ih; // top down image
     bih->biSizeImage = w * h;
     POINT pt = { 0 };
     fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
     StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
         pixels, bi, DIB_RGB_COLORS, SRCCOPY);
+    fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
+}
+
+static void gdi_draw_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+        int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t iw, int32_t ih, const byte* pixels) {
+    static BITMAPINFOHEADER bi;
+    if (bi.biSize == 0) { // once
+        bi.biSize = sizeof(BITMAPINFOHEADER);
+        bi.biPlanes = 1;
+        bi.biBitCount = 8 * 3;
+        bi.biCompression = BI_RGB;
+        bi.biClrUsed = 0;
+        bi.biClrImportant = 0;
+    }
+    bi.biWidth = iw;
+    bi.biHeight = -ih; // top down image
+    bi.biSizeImage = w * h * 3;
+    POINT pt = { 0 };
+    fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
+    StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
+        pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY);
     fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
 }
 
@@ -1579,6 +810,7 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
     if (bpp >= 3) {
         for (int i = 0; i < n; i++) {
             // swap R <-> B RGBA -> BGRA
+            __suppress_reading_invalid_data__
             byte red = bgra[0]; bgra[0] = bgra[2]; bgra[2] = red;
             if (bpp == 4) {
                 // premultiply alpha, see:
@@ -1601,9 +833,9 @@ static void gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image, double alpha) {
     assert(image->bpp > 0);
     assert(0 <= alpha && alpha <= 1);
-    fatal_if_null(canvas());
+    not_null(canvas());
     HDC c = CreateCompatibleDC(canvas());
-    fatal_if_null(c);
+    not_null(c);
     HBITMAP zero1x1 = SelectBitmap((HDC)c, (HBITMAP)image->bitmap);
     BLENDFUNCTION bf = { 0 };
     bf.SourceConstantAlpha = (byte)(0xFF * alpha + 0.49);
@@ -1625,9 +857,9 @@ static void gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
 static void gdi_draw_image(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image) {
     assert(image->bpp == 3 || image->bpp == 4);
-    fatal_if_null(canvas());
+    not_null(canvas());
     HDC c = CreateCompatibleDC(canvas());
-    fatal_if_null(c);
+    not_null(c);
     HBITMAP zero1x1 = SelectBitmap(c, image->bitmap);
     fatal_if_false(StretchBlt(canvas(), x, y, w, h,
         c, 0, 0, image->w, image->h, SRCCOPY));
@@ -1649,12 +881,13 @@ static void gdi_delete_font(font_t f) {
 }
 
 static font_t gdi_set_font(font_t f) {
-    assert(f != null);
+    not_null(f);
     return (font_t)SelectFont(canvas(), (HFONT)f);
 }
 
 static int gdi_baseline(font_t f) {
-    assert(canvas() != null && f != null);
+    not_null(canvas());
+    not_null(f);
     f = gdi.set_font(f);
     TEXTMETRICA tm;
     fatal_if_false(GetTextMetricsA(canvas(), &tm));
@@ -1663,7 +896,8 @@ static int gdi_baseline(font_t f) {
 }
 
 static int gdi_descent(font_t f) {
-    assert(canvas() != null && f != null);
+    not_null(canvas());
+    not_null(f);
     f = gdi.set_font(f);
     TEXTMETRICA tm;
     fatal_if_false(GetTextMetricsA(canvas(), &tm));
@@ -1672,7 +906,8 @@ static int gdi_descent(font_t f) {
 }
 
 static ui_point_t gdi_get_em(font_t f) {
-    assert(canvas() != null && f != null);
+    not_null(canvas());
+    not_null(f);
     f = gdi.set_font(f);
     SIZE cell = {0};
     fatal_if_false(GetTextExtentPoint32A(canvas(), "M", 1, &cell));
@@ -1689,7 +924,7 @@ static double gdi_line_spacing(double height_multiplier) {
 }
 
 static int gdi_draw_utf16(const char* s, int n, RECT* r, uint32_t f) {
-    assert(canvas() != null);
+    not_null(canvas());
     return DrawTextW(canvas(), utf8to16(s), n, r, f);
 }
 
@@ -1743,7 +978,7 @@ enum {
 };
 
 static ui_point_t gdi_text_measure(font_t f, gdi_dtp_t* p) {
-    assert(f != null);
+    not_null(f);
     f = gdi.set_font(f);
     gdi_text_draw(p);
     gdi.set_font(f);
@@ -1771,14 +1006,14 @@ static ui_point_t gdi_measure_multiline(font_t f, int w, const char* format, ...
 }
 
 static void gdi_vtext(const char* format, va_list vl) {
-    assert(canvas() != null);
+    not_null(canvas());
     gdi_dtp_t p = { format, vl, {gdi.x, gdi.y, 0, 0}, sl_draw };
     gdi_text_draw(&p);
     gdi.x += p.rc.right - p.rc.left;
 }
 
 static void gdi_vtextln(const char* format, va_list vl) {
-    assert(canvas() != null);
+    not_null(canvas());
     gdi_dtp_t p = { format, vl, {gdi.x, gdi.y, gdi.x, gdi.y}, sl_draw };
     gdi_text_draw(&p);
     gdi.y += (int)((p.rc.bottom - p.rc.top) * gdi.height_multiplier + 0.5f);
@@ -1810,7 +1045,7 @@ static ui_point_t gdi_multiline(int w, const char* f, ...) {
 }
 
 static void gdi_vprint(const char* format, va_list vl) {
-    assert(app.fonts.mono != null);
+    not_null(app.fonts.mono);
     font_t f = gdi.set_font(app.fonts.mono);
     gdi.vtext(format, vl);
     gdi.set_font(f);
@@ -1823,7 +1058,7 @@ static void gdi_print(const char* format, ...) {
 }
 
 static void gdi_vprintln(const char* format, va_list vl) {
-    assert(app.fonts.mono != null);
+    not_null(app.fonts.mono);
     font_t f = gdi.set_font(app.fonts.mono);
     gdi.vtextln(format, vl);
     gdi.set_font(f);
@@ -1883,6 +1118,7 @@ gdi_t gdi = {
     .set_clip = gdi_set_clip,
     .push = gdi_push,
     .pop = gdi_pop,
+    .pixel = gdi_pixel,
     .move_to = gdi_move_to,
     .line = gdi_line,
     .rect = gdi_rect,
@@ -1891,6 +1127,7 @@ gdi_t gdi = {
     .rounded = gdi_rounded,
     .gradient = gdi_gradient,
     .draw_greyscale = gdi_draw_greyscale,
+    .draw_bgr = gdi_draw_bgr,
     .font = gdi_font,
     .delete_font = gdi_delete_font,
     .set_font = gdi_set_font,
@@ -2151,7 +1388,7 @@ static void uic_button_paint(uic_t* ui) {
     int32_t y = b->ui.y + (int)pressed * ui->h;
     gdi.gradient(x, y, w, h, colors.btn_gradient_darker,
         colors.btn_gradient_dark, true);
-    color_t c = ui->armed ? colors.btn_armed : colors.off_white;
+    color_t c = ui->armed ? colors.btn_armed : ui->color;
     if (b->ui.hover && !ui->armed) { c = colors.btn_hover_highlight; }
     if (ui->disabled) { c = colors.btn_disabled; }
     font_t f = ui->font != null ? *ui->font : app.fonts.regular;
@@ -2244,6 +1481,7 @@ void _uic_button_init_(uic_t* ui) {
     ui->periodically = uic_button_periodically;
     uic_set_label(ui, ui->text);
     ui->localize(ui);
+    ui->color = colors.btn_text;
 }
 
 void uic_button_init(uic_button_t* b, const char* label, double ems,
@@ -2263,7 +1501,7 @@ static int  uic_checkbox_paint_on_off(uic_t* ui) {
     static const char* circle = "\xE2\xAC\xA4"; // Black Large Circle
     gdi.push(ui->x, ui->y);
     color_t background = ui->pressed ? colors.tone_green : colors.dkgray4;
-    color_t foreground = colors.off_white;
+    color_t foreground = ui->color;
     gdi.set_text_color(background);
     int32_t x = ui->x;
     int32_t x1 = ui->x + ui->em.x * 3 / 4;
@@ -2343,6 +1581,7 @@ void _uic_checkbox_init_(uic_t* ui) {
     ui->paint =  uic_checkbox_paint;
     ui->keyboard =  uic_checkbox_keyboard;
     ui->localize(ui);
+    ui->color = colors.btn_text;
 }
 
 void  uic_checkbox_init( uic_checkbox_t* c, const char* label, double ems,
@@ -2423,8 +1662,7 @@ static void uic_slider_paint(uic_t* ui) {
     gdi.pop();
 }
 
-static void uic_slider_keyboard(uic_t* ui, int unused) {
-    (void)ui; (void)unused;
+static void uic_slider_keyboard(uic_t* unused(ui), int unused(ch)) {
     assert(ui->tag == uic_tag_slider);
 }
 
@@ -2694,9 +1932,11 @@ static void measure_grid(uic_t* ui, int gap_h, int gap_v) {
         (*row)->h = 0;
         int i = 0;
         for (uic_t** col = (*row)->children; *col != null; col++) {
-            mxw[i] = max(mxw[i], (*col)->w);
-            (*row)->h = max((*row)->h, (*col)->h);
-            (*row)->baseline = max((*row)->baseline, (*col)->baseline);
+            if (!(*col)->hidden) {
+                mxw[i] = max(mxw[i], (*col)->w);
+                (*row)->h = max((*row)->h, (*col)->h);
+                (*row)->baseline = max((*row)->baseline, (*col)->baseline);
+            }
             i++;
         }
     }
@@ -2942,7 +2182,7 @@ static void app_init_fonts(int dpi) {
     app_update_ncm(dpi);
     if (app.fonts.regular != null) { app_dispose_fonts(); }
     app.fonts.regular = (font_t)CreateFontIndirectW(&ncm.lfMessageFont);
-    fatal_if_null(app.fonts.regular);
+    not_null(app.fonts.regular);
     const double fh = ncm.lfMessageFont.lfHeight;
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
@@ -2973,7 +2213,7 @@ static HKEY app_get_reg_key() {
     if (RegOpenKey(HKEY_CURRENT_USER, path, &key) != 0) {
         RegCreateKey(HKEY_CURRENT_USER, path, &key);
     }
-    assert(key != null);
+    not_null(key);
     return key;
 }
 
@@ -3075,8 +2315,7 @@ static void app_timer_kill(tm_t timer) {
 }
 
 static tm_t app_timer_set(uintptr_t id, int32_t ms) {
-    assert(window() != null);
-    assert(0 <= id); // can be zero see notes in .h file
+    not_null(window());
     assert(10 <= ms && ms < 0x7FFFFFFF);
     tm_t tid = (tm_t)SetTimer(window(), id, (uint32_t)ms, null);
     fatal_if(tid == 0);
@@ -3098,6 +2337,9 @@ static void set_parents(uic_t* ui) {
 static void init_children(uic_t* ui) {
     for (uic_t** c = ui->children; c != null && *c != null; c++) {
         if ((*c)->init != null) { (*c)->init(*c); (*c)->init = null; }
+        if ((*c)->font == null) { (*c)->font = &app.fonts.regular; }
+        if ((*c)->em.x == 0 || (*c)->em.y == 0) { (*c)->em = gdi.get_em(*ui->font); }
+        uic_localize(*c);
         init_children(*c);
     }
 }
@@ -3148,7 +2390,7 @@ static void app_window_openning() {
     app_timer_100ms_id = app.set_timer((uintptr_t)&app_timer_100ms_id, 100);
     app.set_cursor(app.cursor_arrow);
     app.canvas = (canvas_t)GetDC(window());
-    fatal_if_null(app.canvas);
+    not_null(app.canvas);
     if (app.openned != null) { app.openned(); }
     app.ui->em = gdi.get_em(*app.ui->font);
     set_parents(app.ui);
@@ -3474,8 +2716,8 @@ static void app_animate_start(app_animate_function_t f, int steps) {
 }
 
 static void app_layout_root() {
-    assert(app.window != null);
-    assert(app.canvas != null);
+    not_null(app.window);
+    not_null(app.canvas);
     app.ui->w = app.crc.w; // crc is window client rectangle
     app.ui->h = app.crc.h;
     app_layout_ui(app.ui);
@@ -3688,7 +2930,7 @@ static void app_create_window(ui_rect_t r, int32_t width, int32_t height) {
         app.class_name, app.title, style,
         r.x, r.y, width, height, null, null, wc.hInstance, null);
     assert(window == window()); (void)window;
-    fatal_if_null(app.window);
+    not_null(app.window);
     app.dpi.window = GetDpiForWindow(window());
 //  traceln("app.dpi.window=%d", app.dpi.window);
     RECT wrc = app_ui2rect(&app.wrc);
@@ -3764,13 +3006,12 @@ static void app_invalidate_rect(ui_rect_t* r) {
 // which is unacceptable for video drawing at monitor
 // refresh rate
 
-static void app_redraw_thread(void* unused) {
-    (void)unused;
+static void app_redraw_thread(void* unused(p)) {
     threads.realtime();
     threads.name("app.redraw");
     for (;;) {
-        void* hs[] = { app_event_invalidate, app_event_quit };
-        int r = events.wait_any(2, hs);
+        event_t es[] = { app_event_invalidate, app_event_quit };
+        int r = events.wait_any(countof(es), es);
         if (r == 0) {
             InvalidateRect(window(), null, false);
         } else {
@@ -3895,7 +3136,7 @@ static const char* app_open_filename(const char* folder, const char* pairs[], in
            n >= 2 && n % 2 == 0);
     wchar_t mem[32 * 1024];
     wchar_t* filter = mem;
-    if (pairs == null && n == 0) {
+    if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
         int left = countof(mem) - 2;
@@ -3926,7 +3167,7 @@ static const char* app_open_filename(const char* folder, const char* pairs[], in
     ofn.lpstrInitialDir = utf8to16(folder);
     ofn.lpstrFile = path;
     ofn.nMaxFile = sizeof(path);
-    static thread_local_storage char text[MAX_PATH];
+    static thread_local char text[MAX_PATH];
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
         strprintf(text, "%s", utf16to8(path));
     } else {
@@ -3951,7 +3192,7 @@ static int clipboard_copy_text(const char* s) {
     }
     if (r == 0) {
         char* d = (char*)GlobalLock(global);
-        fatal_if_null(d);
+        not_null(d);
         memcpy(d, s, n);
         r = SetClipboardData(CF_TEXT, global) ? 0 : GetLastError();
         GlobalUnlock(global);
@@ -3973,16 +3214,16 @@ static int clipboard_copy_text(const char* s) {
 
 static int clipboard_copy_bitmap(image_t* im) {
     HDC canvas = GetDC(null);
-    fatal_if_null(canvas);
-    HDC src = CreateCompatibleDC(canvas); fatal_if_null(src);
-    HDC dst = CreateCompatibleDC(canvas); fatal_if_null(dst);
+    not_null(canvas);
+    HDC src = CreateCompatibleDC(canvas); not_null(src);
+    HDC dst = CreateCompatibleDC(canvas); not_null(dst);
     // CreateCompatibleBitmap(dst) will create monochrome bitmap!
     // CreateCompatibleBitmap(canvas) will create display compatible
     HBITMAP bitmap = CreateCompatibleBitmap(canvas, im->w, im->h);
 //  HBITMAP bitmap = CreateBitmap(image.w, image.h, 1, 32, null);
-    fatal_if_null(bitmap);
-    HBITMAP s = SelectBitmap(src, im->bitmap); fatal_if_null(s);
-    HBITMAP d = SelectBitmap(dst, bitmap);     fatal_if_null(d);
+    not_null(bitmap);
+    HBITMAP s = SelectBitmap(src, im->bitmap); not_null(s);
+    HBITMAP d = SelectBitmap(dst, bitmap);     not_null(d);
     POINT pt = { 0 };
     fatal_if_false(SetBrushOrgEx(dst, 0, 0, &pt));
     fatal_if_false(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
@@ -4005,8 +3246,8 @@ static int clipboard_copy_bitmap(image_t* im) {
             traceln("CloseClipboard() failed %s", crt.error(r));
         }
     }
-    fatal_if_null(SelectBitmap(dst, d));
-    fatal_if_null(SelectBitmap(src, s));
+    not_null(SelectBitmap(dst, d));
+    not_null(SelectBitmap(src, s));
     fatal_if_false(DeleteBitmap(bitmap));
     fatal_if_false(DeleteDC(dst));
     fatal_if_false(DeleteDC(src));
@@ -4037,8 +3278,6 @@ const char* app_known_folder(int kf) {
         strprintf(known_foders[kf], "%s", utf16to8(path));
         CoTaskMemFree(path);
         folder = known_foders[kf];
-    } else {
-        folder = known_foders[kf];
     }
     return folder;
 }
@@ -4061,6 +3300,7 @@ static void app_init() {
     app.close = app_close_window;
     app.set_timer = app_timer_set;
     app.kill_timer = app_timer_kill;
+    app.post = app_post_message;
     app.show_window = app_show_window;
     app.show_toast = app_show_toast;
     app.show_tooltip = app_show_tooltip;
@@ -4078,7 +3318,7 @@ static void app_init() {
 
 static void __app_windows_init__() {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
-    fatal_if_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
+    not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     InitCommonControls(); // otherwise GetOpenFileName does not work
     app.dpi.process = GetSystemDpiForProcess(GetCurrentProcess());
     app.dpi.system = GetDpiForSystem(); // default was 96DPI
@@ -4094,7 +3334,7 @@ static void __app_windows_init__() {
 }
 
 static int app_win_main() {
-    assert(app.init != null && app.class_name != null);
+    not_null(app.init); not_null(app.class_name);
     __app_windows_init__();
     __gdi_init__();
     int r = 0;
@@ -4193,9 +3433,9 @@ static const char* winnls_save_string(wchar_t* mem) {
 }
 
 const char* winnls_localize_string(int32_t strid) {
-    assert(0 <= strid && strid < countof(winnls_ns));
+    assert(0 < strid && strid < countof(winnls_ns));
     const char* r = null;
-    if (0 <= strid && strid < countof(winnls_ns)) {
+    if (0 < strid && strid < countof(winnls_ns)) {
         if (winnls_ls[strid] != null) {
             r = winnls_ls[strid];
         } else {
@@ -4233,7 +3473,8 @@ static const char* winnls_string(int strid, const char* defau1t) {
 }
 
 const char* winnls_nls(const char* s) {
-    return winnls_string(winnls_strid(s), s);
+    int id = winnls_strid(s);
+    return id == 0 ? s : winnls_string(id, s);
 }
 
 static const char* winnls_locale() {
@@ -4271,7 +3512,7 @@ static void winnls_set_locale(const char* locale) {
 }
 
 static void winnls_init() {
-    LANGID langid = MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL);
+    LANGID langid = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
     for (int strid = 0; strid < countof(winnls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
         HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
