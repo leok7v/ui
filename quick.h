@@ -3275,16 +3275,14 @@ const char* app_known_folder(int kf) {
         &FOLDERID_ProgramData
     };
     static char known_foders[countof(kfrid)][MAX_PATH];
-    const char* folder = null;
     fatal_if(!(0 <= kf && kf < countof(kfrid)), "invalide kf=%d", kf);
     if (known_foders[kf][0] == 0) {
         wchar_t* path = null;
         fatal_if_not_zero(SHGetKnownFolderPath(kfrid[kf], 0, null, &path));
         strprintf(known_foders[kf], "%s", utf16to8(path));
         CoTaskMemFree(path);
-        folder = known_foders[kf];
-    }
-    return folder;
+	}
+    return known_foders[kf];
 }
 
 clipboard_t clipboard = {
