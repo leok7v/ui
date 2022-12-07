@@ -230,6 +230,7 @@ typedef struct layouts_s {
 
 extern layouts_t layouts;
 
+void uic_init(uic_t* ui);
 #define uic_container(name, init, ...) \
 static uic_t* _ ## name ## children ## _[] = {__VA_ARGS__, null}; \
 uic_t name = { uic_tag_container, init, (_ ## name ## children ## _) }
@@ -1269,7 +1270,7 @@ static void uic_hovering(uic_t* ui, bool start) {
     }
 }
 
-static void ui_init(uic_t* ui) {
+void uic_init(uic_t* ui) {
     ui->invalidate = uic_invalidate;
     ui->localize = uic_localize;
     ui->measure  = uic_measure;
@@ -1336,7 +1337,7 @@ static void uic_text_keyboard(uic_t* ui, int ch) {
 void _uic_text_init_(uic_t* ui) {
     static_assert(offsetof(uic_text_t, ui) == 0, "offsetof(.ui)");
     assert(ui->tag == uic_tag_text);
-    ui_init(ui);
+    uic_init(ui);
     if (ui->font == null) { ui->font = &app.fonts.regular; }
     ui->color = colors.text;
     ui->paint = uic_text_paint;
@@ -1478,7 +1479,7 @@ static void uic_button_measure(uic_t* ui) {
 
 void _uic_button_init_(uic_t* ui) {
     assert(ui->tag == uic_tag_button);
-    ui_init(ui);
+    uic_init(ui);
     ui->mouse = uic_button_mouse;
     ui->measure = uic_button_measure;
     ui->paint = uic_button_paint;
@@ -1579,7 +1580,7 @@ static void  uic_checkbox_mouse(uic_t* ui, int message, int flags) {
 
 void _uic_checkbox_init_(uic_t* ui) {
     assert(ui->tag == uic_tag_checkbox);
-    ui_init(ui);
+    uic_init(ui);
     uic_set_label(ui, ui->text);
     ui->mouse =  uic_checkbox_mouse;
     ui->measure = uic_checkbox_measure;
@@ -1592,7 +1593,7 @@ void _uic_checkbox_init_(uic_t* ui) {
 void  uic_checkbox_init( uic_checkbox_t* c, const char* label, double ems,
        void (*cb)( uic_checkbox_t* b)) {
     static_assert(offsetof( uic_checkbox_t, ui) == 0, "offsetof(.ui)");
-    ui_init(&c->ui);
+    uic_init(&c->ui);
     strprintf(c->ui.text, "%s", label);
     c->ui.width = ems;
     c->cb = cb;
@@ -1742,7 +1743,7 @@ void uic_slider_init(uic_slider_t* r, const char* label, double ems,
         int32_t vmin, int32_t vmax, void (*cb)(uic_slider_t* r)) {
     static_assert(offsetof(uic_slider_t, ui) == 0, "offsetof(.ui)");
     assert(ems >= 3.0, "allow 1em for each of [-] and [+] buttons");
-    ui_init(&r->ui);
+    uic_init(&r->ui);
     uic_set_label(&r->ui, label);
     r->cb = cb;
     r->ui.tag = uic_tag_slider;
@@ -1845,7 +1846,7 @@ static void uic_messagebox_layout(uic_t* ui) {
 void _messagebox_init_(uic_t* ui) {
     assert(ui->tag == uic_tag_messagebox);
     uic_messagebox_t* mx = (uic_messagebox_t*)ui;
-    ui_init(ui);
+    uic_init(ui);
     ui->measure = uic_messagebox_measure;
     ui->layout = uic_messagebox_layout;
     mx->ui.font = &app.fonts.H3;
