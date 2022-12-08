@@ -107,6 +107,11 @@ typedef struct gdi_s {
 
 extern gdi_t gdi;
 
+/* TODO: make color_t uint64_t RGBA remove pens and brushes
+         support upto 16-16-16-15(A)bit per pixel color
+         components with 'transparent/hollow' bit
+*/
+
 typedef struct colors_s {
     const int none; // aka CLR_INVALID in wingdi
     const int text;
@@ -465,8 +470,9 @@ typedef struct app_s {
     int32_t width;  // client width
     int32_t height; // client height
     // not to call crt.seconds() too often:
-    double now; // ssb "seconds since boot" updated on each message
-    uic_t* ui; // show_window() changes ui.hidden
+    double now;     // ssb "seconds since boot" updated on each message
+    uic_t* ui;      // show_window() changes ui.hidden
+    uic_t* focus;   // does not affect message routing - free for all
     fonts_t fonts;
     cursor_t cursor; // current cursor
     cursor_t cursor_arrow;
@@ -1456,11 +1462,13 @@ static void uic_button_mouse(uic_t* ui, int message, int flags) {
     bool on = false;
     if (message == messages.left_button_down ||
         message == messages.right_button_down) {
+        app.focus = ui;
         ui->armed = uic_button_hit_test(b, app.mouse);
         if (ui->armed) { app.show_tooltip(null, -1, -1, 0); }
     }
     if (message == messages.left_button_up ||
         message == messages.right_button_up) {
+        app.focus = ui;
         if (ui->armed) { on = uic_button_hit_test(b, app.mouse); }
         ui->armed = false;
     }
@@ -1570,6 +1578,7 @@ static void  uic_checkbox_mouse(uic_t* ui, int message, int flags) {
     assert(!ui->hidden && !ui->disabled);
     if (message == messages.left_button_down ||
         message == messages.right_button_down) {
+        app.focus = ui;
         int32_t x = app.mouse.x - ui->x;
         int32_t y = app.mouse.y - ui->y;
         if (0 <= x && x < ui->w && 0 <= y && y < ui->h) {
@@ -1680,6 +1689,7 @@ static void uic_slider_mouse(uic_t* ui, int message, int f) {
         (f & (mouse_flags.left_button|mouse_flags.right_button)) != 0;
     if (message == messages.left_button_down ||
         message == messages.right_button_down || drag) {
+        app.focus = ui;
         const int32_t x = app.mouse.x - ui->x - r->dec.ui.w;
         const int32_t y = app.mouse.y - ui->y;
         const int32_t x0 = ui->em.x / 2;
@@ -2503,6 +2513,19 @@ static bool app_message(uic_t* ui, int32_t m, int64_t wp, int64_t lp,
     return false;
 }
 
+static void app_killfocus(uic_t* ui) {
+    // removes focus from hidden or disabled ui controls
+    if (app.focus == ui && (ui->disabled || ui->hidden)) {
+        app.focus = null;
+    } else {
+        uic_t** c = ui->children;
+        while (c != null && *c != null) {
+            app_killfocus(*c);
+            c++;
+        }
+    }
+}
+
 static void app_toast_mouse(int32_t m, int32_t f);
 static void app_toast_keyboard(int32_t ch);
 
@@ -2808,6 +2831,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         assert(window() == window);
     }
     int64_t ret = 0;
+    app_killfocus(app.ui);
     if (app_message(app.ui, msg, wp, lp, &ret)) {
         return (LRESULT)ret;
     }
