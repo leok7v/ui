@@ -481,6 +481,7 @@ typedef struct app_s {
     bool alt;
     bool ctrl;
     bool shift;
+    bool focused;     // window has system focus
     ui_point_t mouse; // mouse/touchpad pointer
     canvas_t canvas; // set by WM_PAINT message
     // i18n
@@ -2790,6 +2791,13 @@ static void app_paint_on_canvas(HDC hdc) {
     app.canvas = canvas;
 }
 
+static void app_wm_paint() {
+    PAINTSTRUCT ps = {0};
+    BeginPaint(window(), &ps);
+    app_paint_on_canvas(ps.hdc);
+    EndPaint(window(), &ps);
+}
+
 static void app_window_position_changed() {
     RECT wrc = app_ui2rect(&app.wrc);
     fatal_if_false(GetWindowRect(window(), &wrc));
@@ -2853,19 +2861,17 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_TIMER        : app_wm_timer((tm_t)wp); break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
         case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor); break;
+        // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
+        // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
+//      case WM_UNICHAR      : // only UTF-32 via PostMessage
         case WM_CHAR         : app_ui_keyboard(app.ui, (int32_t)wp);
                                break;
         case WM_PRINTCLIENT  : app_paint_on_canvas((HDC)wp); break;
-        case WM_ANIMATE      : app_animate_step((app_animate_function_t)lp,
-                                    (int)wp, -1);
+        case WM_ANIMATE      : app_animate_step((app_animate_function_t)lp, (int)wp, -1);
                                break;
-        case WM_PAINT        : {
-            PAINTSTRUCT ps = {0};
-            BeginPaint(window(), &ps);
-            app_paint_on_canvas(ps.hdc);
-            EndPaint(window(), &ps);
-            break;
-        }
+        case WM_SETFOCUS     : app.focused = true;  break;
+        case WM_KILLFOCUS    : app.focused = false; break;
+        case WM_PAINT        : app_wm_paint(); break;
         case WM_MOUSEWHEEL:
             app_mousewheel(app.ui, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
         case WM_MOUSEHWHEEL:
