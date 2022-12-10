@@ -898,33 +898,51 @@ static font_t gdi_set_font(font_t f) {
     return (font_t)SelectFont(canvas(), (HFONT)f);
 }
 
+#define gdi_with_hdc(code) do {                              \
+    not_null(window());                                      \
+    HDC hdc = canvas() != null ? canvas() : GetDC(window()); \
+    not_null(hdc);                                           \
+    code                                                     \
+    if (canvas() == null) {                                  \
+        ReleaseDC(window(), hdc);                            \
+    }                                                        \
+} while (0);
+
+#define gdi_hdc_with_font(f, code) do {                      \
+    not_null(f);                                             \
+    not_null(window());                                      \
+    HDC hdc = canvas() != null ? canvas() : GetDC(window()); \
+    not_null(hdc);                                           \
+    HFONT _font_ = SelectFont(hdc, (HFONT)f);                \
+    code                                                     \
+    SelectFont(hdc, _font_);                                 \
+    if (canvas() == null) {                                  \
+        ReleaseDC(window(), hdc);                            \
+    }                                                        \
+} while (0);
+
+
 static int gdi_baseline(font_t f) {
-    not_null(canvas());
-    not_null(f);
-    f = gdi.set_font(f);
     TEXTMETRICA tm;
-    fatal_if_false(GetTextMetricsA(canvas(), &tm));
-    gdi.set_font(f);
+    gdi_hdc_with_font(f, {
+        fatal_if_false(GetTextMetricsA(hdc, &tm));
+    })
     return tm.tmAscent;
 }
 
 static int gdi_descent(font_t f) {
-    not_null(canvas());
-    not_null(f);
-    f = gdi.set_font(f);
     TEXTMETRICA tm;
-    fatal_if_false(GetTextMetricsA(canvas(), &tm));
-    gdi.set_font(f);
+    gdi_hdc_with_font(f, {
+        fatal_if_false(GetTextMetricsA(hdc, &tm));
+    });
     return tm.tmDescent;
 }
 
 static ui_point_t gdi_get_em(font_t f) {
-    not_null(canvas());
-    not_null(f);
-    f = gdi.set_font(f);
     SIZE cell = {0};
-    fatal_if_false(GetTextExtentPoint32A(canvas(), "M", 1, &cell));
-    gdi.set_font(f);
+    gdi_hdc_with_font(f, {
+        fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &cell));
+    });
     ui_point_t c = {cell.cx, cell.cy};
     return c;
 }
@@ -936,12 +954,23 @@ static double gdi_line_spacing(double height_multiplier) {
     return hm;
 }
 
-static int gdi_draw_utf16(const char* s, int n, RECT* r, uint32_t f) {
-    not_null(canvas());
-    return DrawTextW(canvas(), utf8to16(s), n, r, f);
+static int gdi_draw_utf16(font_t font, const char* s, int n, RECT* r, uint32_t format) {
+    // if font == null, draws on HDC with selected font
+    int height = 0; // return value is the height of the text in logical units
+    if (font != null) {
+        gdi_hdc_with_font(font, {
+            height = DrawTextW(hdc, utf8to16(s), n, r, format);
+        });
+    } else {
+        gdi_with_hdc({
+            height = DrawTextW(hdc, utf8to16(s), n, r, format);
+        });
+    }
+    return height;
 }
 
 typedef struct gdi_dtp_s { // draw text params
+    font_t font;
     const char* format; // format string
     va_list vl;
     RECT rc;
@@ -973,10 +1002,10 @@ static void gdi_text_draw(gdi_dtp_t* p) {
     // much slower but UI layer is mostly uses bitmap caching:
     if ((p->flags & DT_CALCRECT) == 0) {
         // no actual drawing just calculate rectangle
-        bool b = gdi_draw_utf16(text, -1, &p->rc, p->flags | DT_CALCRECT);
+        bool b = gdi_draw_utf16(p->font, text, -1, &p->rc, p->flags | DT_CALCRECT);
         assert(b, "draw_text_utf16(%s) failed", text); (void)b;
     }
-    bool b = gdi_draw_utf16(text, -1, &p->rc, p->flags);
+    bool b = gdi_draw_utf16(p->font, text, -1, &p->rc, p->flags);
     assert(b, "draw_text_utf16(%s) failed", text); (void)b;
 }
 
@@ -990,11 +1019,8 @@ enum {
     ml_measure       = ml_draw|DT_CALCRECT
 };
 
-static ui_point_t gdi_text_measure(font_t f, gdi_dtp_t* p) {
-    not_null(f);
-    f = gdi.set_font(f);
+static ui_point_t gdi_text_measure(gdi_dtp_t* p) {
     gdi_text_draw(p);
-    gdi.set_font(f);
     ui_point_t cell = {p->rc.right - p->rc.left, p->rc.bottom - p->rc.top};
     return cell;
 }
@@ -1002,8 +1028,8 @@ static ui_point_t gdi_text_measure(font_t f, gdi_dtp_t* p) {
 static ui_point_t gdi_measure_singleline(font_t f, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    gdi_dtp_t p = { format, vl, {0, 0, 0, 0}, sl_measure };
-    ui_point_t cell = gdi_text_measure(f, &p);
+    gdi_dtp_t p = { f, format, vl, {0, 0, 0, 0}, sl_measure };
+    ui_point_t cell = gdi_text_measure(&p);
     va_end(vl);
     return cell;
 }
@@ -1012,22 +1038,20 @@ static ui_point_t gdi_measure_multiline(font_t f, int w, const char* format, ...
     va_list vl;
     va_start(vl, format);
     uint32_t flags = w <= 0 ? ml_measure : ml_measure_break;
-    gdi_dtp_t p = { format, vl, {gdi.x, gdi.y, gdi.x + (w <= 0 ? 1 : w), gdi.y}, flags };
-    ui_point_t cell = gdi_text_measure(f, &p);
+    gdi_dtp_t p = { f, format, vl, {gdi.x, gdi.y, gdi.x + (w <= 0 ? 1 : w), gdi.y}, flags };
+    ui_point_t cell = gdi_text_measure(&p);
     va_end(vl);
     return cell;
 }
 
 static void gdi_vtext(const char* format, va_list vl) {
-    not_null(canvas());
-    gdi_dtp_t p = { format, vl, {gdi.x, gdi.y, 0, 0}, sl_draw };
+    gdi_dtp_t p = { null, format, vl, {gdi.x, gdi.y, 0, 0}, sl_draw };
     gdi_text_draw(&p);
     gdi.x += p.rc.right - p.rc.left;
 }
 
 static void gdi_vtextln(const char* format, va_list vl) {
-    not_null(canvas());
-    gdi_dtp_t p = { format, vl, {gdi.x, gdi.y, gdi.x, gdi.y}, sl_draw };
+    gdi_dtp_t p = { null, format, vl, {gdi.x, gdi.y, gdi.x, gdi.y}, sl_draw };
     gdi_text_draw(&p);
     gdi.y += (int)((p.rc.bottom - p.rc.top) * gdi.height_multiplier + 0.5f);
 }
@@ -1050,7 +1074,7 @@ static ui_point_t gdi_multiline(int w, const char* f, ...) {
     va_list vl;
     va_start(vl, f);
     uint32_t flags = w <= 0 ? ml_draw : ml_draw_break;
-    gdi_dtp_t p = { f, vl, {gdi.x, gdi.y, gdi.x + (w <= 0 ? 1 : w), gdi.y}, flags };
+    gdi_dtp_t p = { null, f, vl, {gdi.x, gdi.y, gdi.x + (w <= 0 ? 1 : w), gdi.y}, flags };
     gdi_text_draw(&p);
     va_end(vl);
     ui_point_t c = { p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
@@ -1068,6 +1092,7 @@ static void gdi_print(const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     gdi.vprint(format, vl);
+    va_end(vl);
 }
 
 static void gdi_vprintln(const char* format, va_list vl) {
@@ -1463,13 +1488,12 @@ static void uic_button_mouse(uic_t* ui, int message, int flags) {
     bool on = false;
     if (message == messages.left_button_down ||
         message == messages.right_button_down) {
-        app.focus = ui;
         ui->armed = uic_button_hit_test(b, app.mouse);
+        if (ui->armed) { app.focus = ui; }
         if (ui->armed) { app.show_tooltip(null, -1, -1, 0); }
     }
     if (message == messages.left_button_up ||
         message == messages.right_button_up) {
-        app.focus = ui;
         if (ui->armed) { on = uic_button_hit_test(b, app.mouse); }
         ui->armed = false;
     }
@@ -1579,11 +1603,11 @@ static void  uic_checkbox_mouse(uic_t* ui, int message, int flags) {
     assert(!ui->hidden && !ui->disabled);
     if (message == messages.left_button_down ||
         message == messages.right_button_down) {
-        app.focus = ui;
         int32_t x = app.mouse.x - ui->x;
         int32_t y = app.mouse.y - ui->y;
         if (0 <= x && x < ui->w && 0 <= y && y < ui->h) {
-             uic_checkbox_flip(( uic_checkbox_t*)ui);
+            app.focus = ui;
+            uic_checkbox_flip(( uic_checkbox_t*)ui);
         }
     }
 }
@@ -1690,12 +1714,12 @@ static void uic_slider_mouse(uic_t* ui, int message, int f) {
         (f & (mouse_flags.left_button|mouse_flags.right_button)) != 0;
     if (message == messages.left_button_down ||
         message == messages.right_button_down || drag) {
-        app.focus = ui;
         const int32_t x = app.mouse.x - ui->x - r->dec.ui.w;
         const int32_t y = app.mouse.y - ui->y;
         const int32_t x0 = ui->em.x / 2;
         const int32_t x1 = r->tm.x + ui->em.x;
         if (x0 <= x && x < x1 && 0 <= y && y < ui->h) {
+            app.focus = ui;
             const double range = (double)r->vmax - (double)r->vmin;
             double v = ((double)x - x0) * range / (double)(x1 - x0 - 1);
             int32_t vw = (int32_t)(v + r->vmin + 0.5);
