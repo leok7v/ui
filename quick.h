@@ -563,6 +563,39 @@ typedef struct virtual_keys_s {
     const int down;
     const int left;
     const int right;
+    const int home;
+    const int end;
+    const int pageup;
+    const int pagedw;
+    const int insert;
+    const int del;
+    const int back;
+    const int escape;
+    const int enter;
+    const int f1;
+    const int f2;
+    const int f3;
+    const int f4;
+    const int f5;
+    const int f6;
+    const int f7;
+    const int f8;
+    const int f9;
+    const int f10;
+    const int f11;
+    const int f12;
+    const int f13;
+    const int f14;
+    const int f15;
+    const int f16;
+    const int f17;
+    const int f18;
+    const int f19;
+    const int f20;
+    const int f21;
+    const int f22;
+    const int f23;
+    const int f24;
 } virtual_keys_t;
 
 extern virtual_keys_t virtual_keys;
@@ -2060,10 +2093,43 @@ mouse_flags_t mouse_flags = {
 };
 
 virtual_keys_t virtual_keys = {
-    .up    = VK_UP,
-    .down  = VK_DOWN,
-    .left  = VK_LEFT,
-    .right = VK_RIGHT
+    .up     = VK_UP,
+    .down   = VK_DOWN,
+    .left   = VK_LEFT,
+    .right  = VK_RIGHT,
+    .home   = VK_HOME,
+    .end    = VK_END,
+    .pageup = VK_PRIOR,
+    .pagedw = VK_NEXT,
+    .insert = VK_INSERT,
+    .del    = VK_DELETE,
+    .back   = VK_BACK,
+    .escape = VK_ESCAPE,
+    .enter  = VK_RETURN,
+    .f1     = VK_F1,
+    .f2     = VK_F2,
+    .f3     = VK_F3,
+    .f4     = VK_F4,
+    .f5     = VK_F5,
+    .f6     = VK_F6,
+    .f7     = VK_F7,
+    .f8     = VK_F8,
+    .f9     = VK_F9,
+    .f10    = VK_F10,
+    .f11    = VK_F11,
+    .f12    = VK_F12,
+    .f13    = VK_F13,
+    .f14    = VK_F14,
+    .f15    = VK_F15,
+    .f16    = VK_F16,
+    .f17    = VK_F17,
+    .f18    = VK_F18,
+    .f19    = VK_F19,
+    .f20    = VK_F20,
+    .f21    = VK_F21,
+    .f22    = VK_F22,
+    .f23    = VK_F23,
+    .f24    = VK_F24,
 };
 
 
