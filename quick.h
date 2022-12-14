@@ -283,8 +283,8 @@ void uic_button_init(uic_button_t* b, const char* label, double ems,
 void _uic_button_init_(uic_t* ui); // do not call use uic_button() macro
 
 #define uic_button(name, s, w, code)                     \
-    static void name ## _callback(uic_button_t* b) {     \
-        (void)b; /* no warning if unused */              \
+    static void name ## _callback(uic_button_t* name) {  \
+        (void)name; /* no warning if unused */           \
         code                                             \
     }                                                    \
                                                          \
@@ -308,13 +308,13 @@ void  uic_checkbox_init( uic_checkbox_t* b, const char* label, double ems,
 
 void _uic_checkbox_init_(uic_t* ui); // do not call use uic_checkbox() macro
 
-#define uic_checkbox(name, s, w, code)                       \
-    static void name ## _callback(uic_checkbox_t* c) {       \
-        (void)c; /* no warning if unused */                  \
-        code                                                 \
-    }                                                        \
-                                                             \
-    uic_checkbox_t name = {                                  \
+#define uic_checkbox(name, s, w, code)                    \
+    static void name ## _callback(uic_checkbox_t* name) { \
+        (void)name; /* no warning if unused */            \
+        code                                              \
+    }                                                     \
+                                                          \
+    uic_checkbox_t name = {                               \
     .ui = {.tag = uic_tag_checkbox, .init = _uic_checkbox_init_, \
     .children = null, .width = w, .text = s}, .cb = name ## _callback }
 
@@ -1499,7 +1499,7 @@ static void uic_button_keyboard(uic_t* ui, int ch) {
     assert(ui->tag == uic_tag_button);
     assert(!ui->hidden && !ui->disabled);
     uic_button_t* b = (uic_button_t*)ui;
-    if (toupper(ui->shortcut) == toupper(ch)) {
+    if (ui->shortcut != 0 && toupper(ui->shortcut) == toupper(ch)) {
         ui->armed = true;
         ui->invalidate(ui);
         app.draw();
@@ -1625,7 +1625,7 @@ static void  uic_checkbox_flip( uic_checkbox_t* c) {
 static void  uic_checkbox_keyboard(uic_t* ui, int ch) {
     assert(ui->tag == uic_tag_checkbox);
     assert(!ui->hidden && !ui->disabled);
-    if (toupper(ui->shortcut) == toupper(ch)) {
+    if (ui->shortcut != 0 && toupper(ui->shortcut) == toupper(ch)) {
          uic_checkbox_flip(( uic_checkbox_t*)ui);
     }
 }
@@ -2977,6 +2977,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_NCMBUTTONUP    :
         case WM_NCMBUTTONDBLCLK: {
             POINT pt = {(int32_t)GET_X_LPARAM(lp), (int32_t)GET_Y_LPARAM(lp)};
+//          traceln("%d %d", pt.x, pt.y);
             ScreenToClient(window(), &pt);
             app.mouse = app_point2ui(&pt);
             app_mouse(app.ui, (int32_t)msg, (int32_t)wp);
@@ -2993,9 +2994,9 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_MBUTTONDOWN  :
         case WM_MBUTTONUP    :
         case WM_MBUTTONDBLCLK: {
-//          traceln("%d %d", app.mouse.x, app.mouse.y);
             app.mouse.x = (int32_t)GET_X_LPARAM(lp);
             app.mouse.y = (int32_t)GET_Y_LPARAM(lp);
+//          traceln("%d %d", app.mouse.x, app.mouse.y);
             // note: ScreenToClient() is not needed for this messages
             app_mouse(app.ui, (int32_t)msg, (int32_t)wp);
             break;
