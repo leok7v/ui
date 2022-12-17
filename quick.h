@@ -3477,11 +3477,11 @@ static int app_win_main() {
     app_init();
     app.ui->hidden = true; // start with ui hidden
     app.ui->font = &app.fonts.regular;
-    app.ui->w = rc.w;
-    app.ui->h = rc.h;
+    app.ui->w = rc.w - size_frame * 2;
+    app.ui->h = rc.h - size_frame * 2 - caption_height;
     app.init(); // app.init() may change .show
     if (!app.no_ui) {
-        app_create_window(rc, width, height);
+        app_create_window(rc, rc.w, rc.h);
         thread_t thread = threads.start(app_redraw_thread, null);
         r = app_message_loop();
         fatal_if_false(SetEvent(app_event_quit));
