@@ -2258,7 +2258,7 @@ static void app_update_monitor_dpi(HMONITOR monitor) {
     }
 }
 
-static void app_update_mi(const ui_rect_t* r, uint32_t flags) {
+static bool app_update_mi(const ui_rect_t* r, uint32_t flags) {
     RECT rc = app_ui2rect(r);
     HMONITOR monitor = MonitorFromRect(&rc, flags);
     if (monitor != null) {
@@ -2267,6 +2267,7 @@ static void app_update_mi(const ui_rect_t* r, uint32_t flags) {
         app.work_area = app_rect2ui(&mi.rcWork);
         app.mrc = app_rect2ui(&mi.rcMonitor);
     }
+    return monitor != null;
 }
 
 static void app_update_crc() {
@@ -2359,7 +2360,7 @@ static int app_data_load(const char* name, void* data, int bytes) {
     if (key != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
-        int r = RegQueryValueExA(key, "window", null, &type, (byte*)data, &cb);
+        int r = RegQueryValueExA(key, name, null, &type, (byte*)data, &cb);
         if (r != ERROR_MORE_DATA) {
             traceln("RegQueryValueExA(\"%s\") failed %s", name,
                 crt.error(r));
@@ -2377,6 +2378,8 @@ static void app_save_window_pos() {
         WINDOWPLACEMENT wpl = {0};
         wpl.length = sizeof(wpl);
         fatal_if_false(GetWindowPlacement(window(), &wpl));
+        RECT wa = app_ui2rect(&app.work_area);
+        fatal_if_not_zero(RegSetValueExA(key, "work_area", 0, REG_BINARY, (byte*)&wa, sizeof(wa)));
         fatal_if_not_zero(RegSetValueExA(key, "window", 0, REG_BINARY, (byte*)&wpl.rcNormalPosition, sizeof(wpl.rcNormalPosition)));
         fatal_if_not_zero(RegSetValueExA(key, "show", 0, REG_DWORD, (byte*)&wpl.showCmd, sizeof(wpl.showCmd)));
         fatal_if_not_zero(RegCloseKey(key));
@@ -2394,23 +2397,42 @@ static void load_window_pos(ui_rect_t* rect) {
         } else {
             app.last_visibility = window_visibility.defau1t;
         }
-        RECT rc = {0};
-        cb = sizeof(rc);
-        type = REG_BINARY;
+        RECT wa = {0}; cb = sizeof(wa); type = REG_BINARY;
+        if (RegQueryValueExA(key, "work_area", null, &type, (byte*)&wa, &cb) != 0 ||
+            type != REG_BINARY || cb != sizeof(RECT)) {
+            memset(&wa, 0, sizeof(wa));
+        }
+        RECT rc = {0}; cb = sizeof(rc); type = REG_BINARY;
         if (RegQueryValueExA(key, "window", null, &type, (byte*)&rc, &cb) == 0 &&
             type == REG_BINARY && cb == sizeof(RECT)) {
             RECT screen = {0, 0, 1920, 1080};
             RECT work_area = {0, 0, 1920, 1080};
-            if (SystemParametersInfoA(SPI_GETWORKAREA, 0, &work_area, false)) {
-                screen = work_area;
+            ui_rect_t r = app_rect2ui(&rc);
+            if (app_update_mi(&r, MONITOR_DEFAULTTONEAREST)) {
+                screen = app_ui2rect(&app.mrc);
+                work_area = app_ui2rect(&app.work_area);
+            } else {
+                if (SystemParametersInfoA(SPI_GETWORKAREA, 0, &work_area, false)) {
+                    screen = work_area;
+                }
+                app.work_area = app_rect2ui(&screen);
+                app_update_mi(&app.work_area, MONITOR_DEFAULTTONEAREST);
             }
-            app.work_area = app_rect2ui(&screen);
-            app_update_mi(&app.work_area, MONITOR_DEFAULTTONEAREST);
             RECT intersect = {0};
             if (IntersectRect(&intersect, &rc, &screen) && !IsRectEmpty(&intersect)) {
                 *rect = app_rect2ui(&intersect);
             } else {
-                traceln("WARNING: out of work area");
+//              traceln("WARNING: out of work area");
+                // out of work area - move in trying to preserve position and size
+                int x = wa.left != 0 ? rc.left - wa.left : 0;
+                int y = wa.top  != 0 ? rc.top - wa.top : 0;
+                int w = rc.right - rc.left;
+                int h = rc.bottom - rc.top;
+                rc.left = app.work_area.x + x;
+                rc.top = app.work_area.y + y;
+                rc.right = rc.left + w;
+                rc.bottom = rc.top + h;
+                *rect = app_rect2ui(&rc);
             }
         }
         fatal_if_not_zero(RegCloseKey(key));
