@@ -2418,22 +2418,20 @@ static void load_window_pos(ui_rect_t* rect) {
                 app.work_area = app_rect2ui(&screen);
                 app_update_mi(&app.work_area, MONITOR_DEFAULTTONEAREST);
             }
+            const int w = rc.right - rc.left;
+            const int h = rc.bottom - rc.top;
             RECT intersect = {0};
             if (IntersectRect(&intersect, &rc, &screen) && !IsRectEmpty(&intersect)) {
-                *rect = app_rect2ui(&intersect);
+                intersect.right = intersect.left + w;
+                intersect.bottom = intersect.top + h;
             } else {
 //              traceln("WARNING: out of work area");
-                // out of work area - move in trying to preserve position and size
-                int x = wa.left != 0 ? rc.left - wa.left : 0;
-                int y = wa.top  != 0 ? rc.top - wa.top : 0;
-                int w = rc.right - rc.left;
-                int h = rc.bottom - rc.top;
-                rc.left = app.work_area.x + x;
-                rc.top = app.work_area.y + y;
-                rc.right = rc.left + w;
-                rc.bottom = rc.top + h;
-                *rect = app_rect2ui(&rc);
+                intersect = (RECT){app.work_area.x, app.work_area.y,
+                                   app.work_area.x + w, app.work_area.y + h};
             }
+            intersect.right = intersect.left + w;
+            intersect.bottom = intersect.top + h;
+            *rect = app_rect2ui(&intersect);
         }
         fatal_if_not_zero(RegCloseKey(key));
     }
