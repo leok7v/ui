@@ -206,6 +206,12 @@ static inline_c int indexof(const int a[], int n, int v) {
 #define stackalloc(bytes) (__suppress_alloca_warnings__ alloca(bytes))
 #define zero_initialized_stackalloc(bytes) memset(stackalloc(bytes), 0, (bytes))
 
+// Since a lot of str*() operations are preprocessor defines
+// care should be exercised that arguments of macro invocations
+// do not have side effects or not computationaly expensive.
+// None of the definitions are performance champions - if the
+// code needs extreme cpu cycle savings working with utf8 strings
+
 #define strempty(s) ((s) == null || (s)[0] == 0)
 
 #define strconcat(a, b) __suppress_buffer_overrun__ \
@@ -217,12 +223,10 @@ static inline_c int indexof(const int a[], int n, int v) {
 #define striequ(s1, s2)  (((void*)(s1) == (void*)(s2)) || \
     (((void*)(s1) != null && (void*)(s2) != null) && stricmp((s1), (s2)) == 0))
 
-#define strendswith(s1, s2) (strlen(s2) <= strlen(s1) && strequ(s1 + strlen(s2), s2))
-// strends(s1, s2) (strstr(s1, s2) == s1 + strlen(s1) - strlen(s2))
-// won't always work strends("ab", "b") unless compiler coalesce
-// two copies "ab" in one
+#define strendswith(s1, s2) \
+    (strlen(s1) >= strlen(s2) && strcmp((s1) + strlen(s1) - strlen(s2), (s2)) == 0)
 
-#define strlength(s) ((int)strlen(s)) // avoitd code analysis noise
+#define strlength(s) ((int)strlen(s)) // avoid code analysis noise
 // a lot of posix like API consumes "int" instead of size_t which
 // is acceptable for majority of char* zero terminated strings usage
 // since most of them work with filepath that are relatively short
