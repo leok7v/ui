@@ -241,10 +241,10 @@ const char* _strtolc_(char* d, const char* s);
 
 #define strtolowercase(s) _strtolc_((char*)stackalloc(strlen(s) + 1), s)
 
-#define utf16to8(utf16) crt.utf16to8((char*) \
+#define utf16to8(utf16) crt.utf16_utf8((char*) \
     stackalloc((size_t)crt.utf8_bytes(utf16) + 1), utf16)
 
-#define utf8to16(s) crt.utf8to16((wchar_t*)stackalloc((crt.utf16_bytes(s) + 1) * \
+#define utf8to16(s) crt.utf8_utf16((wchar_t*)stackalloc((crt.utf16_chars(s) + 1) * \
     sizeof(wchar_t)), s)
 
 #define strprintf(s, ...) crt.sformat((s), countof(s), "" __VA_ARGS__)
@@ -281,9 +281,9 @@ typedef struct {
     const char* (*error_nls)(int32_t error); // national locale string
     // do not call directly used by macros above
     int (*utf8_bytes)(const wchar_t* utf16);
-    int (*utf16_bytes)(const char* s);
-    char* (*utf16to8)(char* s, const wchar_t* utf16);
-    wchar_t* (*utf8to16)(wchar_t* utf16, const char* s);
+    int (*utf16_chars)(const char* s);
+    char* (*utf16_utf8)(char* s, const wchar_t* utf16);
+    wchar_t* (*utf8_utf16)(wchar_t* utf16, const char* s);
     void (*ods)(const char* file, int line, const char* function,
         const char* format, ...); // Output Debug String
     void (*traceline)(const char* file, int line, const char* function,
@@ -1260,10 +1260,10 @@ static int crt_utf8_bytes(const wchar_t* utf16) {
     return required_bytes_count;
 }
 
-static int crt_utf16_bytes(const char* utf8) {
-    int required_bytes_count = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
-    assert(required_bytes_count > 0);
-    return required_bytes_count;
+static int crt_utf16_chars(const char* utf8) {
+    int required_wide_chars_count = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
+    assert(required_wide_chars_count > 0);
+    return required_wide_chars_count;
 }
 
 static char* crt_utf16to8(char* s, const wchar_t* utf16) {
@@ -1276,7 +1276,7 @@ static char* crt_utf16to8(char* s, const wchar_t* utf16) {
 }
 
 static wchar_t* crt_utf8to16(wchar_t* utf16, const char* s) {
-    int r = MultiByteToWideChar(CP_UTF8, 0, s, -1, utf16, crt.utf16_bytes(s));
+    int r = MultiByteToWideChar(CP_UTF8, 0, s, -1, utf16, crt.utf16_chars(s));
     if (r == 0) {
         traceln("WideCharToMultiByte() failed %d", crt.err());
     }
@@ -1431,9 +1431,9 @@ crt_if crt = {
     .error = crt_error,
     .error_nls = crt_error_nls,
     .utf8_bytes = crt_utf8_bytes,
-    .utf16_bytes = crt_utf16_bytes,
-    .utf16to8 = crt_utf16to8,
-    .utf8to16 = crt_utf8to16,
+    .utf16_chars = crt_utf16_chars,
+    .utf16_utf8 = crt_utf16to8,
+    .utf8_utf16 = crt_utf8to16,
     .ods = crt_ods,
     .traceline = crt_traceline,
     .vtraceline = crt_traceline_vl,

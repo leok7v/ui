@@ -3343,38 +3343,49 @@ static const char* app_open_filename(const char* folder, const char* pairs[], in
     return text;
 }
 
-static int clipboard_copy_text(const char* s) {
-    const int n = (int)strlen(s) + 1;
-    int r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
-    if (r != 0) { traceln("OpenClipboard() failed %s", crt.error(r)); }
-    if (r == 0) {
-        r = EmptyClipboard() ? 0 : GetLastError();
-        if (r != 0) { traceln("EmptyClipboard() failed %s", crt.error(r)); }
-    }
-    void* global = null;
-    if (r == 0) {
-        global = GlobalAlloc(GMEM_MOVEABLE, n);
-        r = global != null ? 0 : GetLastError();
-        if (r != 0) { traceln("GlobalAlloc() failed %s", crt.error(r)); }
-    }
-    if (r == 0) {
-        char* d = (char*)GlobalLock(global);
-        not_null(d);
-        memcpy(d, s, n);
-        r = SetClipboardData(CF_TEXT, global) ? 0 : GetLastError();
-        GlobalUnlock(global);
-        if (r != 0) {
-            traceln("SetClipboardData() failed %s", crt.error(r));
-            GlobalFree(global);
-        } else {
-            // do not free global memory. It's owned by system clipboard now
+static int clipboard_copy_text(const char* utf8) {
+    int r = 0;
+    int chars = crt.utf16_chars(utf8);
+    int bytes = (chars + 1) * 2;
+    wchar_t* utf16 = (wchar_t*)malloc(bytes);
+    if (utf16 == null) {
+        r = ERROR_OUTOFMEMORY;
+    } else {
+        crt.utf8_utf16(utf16, utf8);
+        assert(utf16[chars - 1] == 0);
+        const int n = (int)wcslen(utf16) + 1;
+        r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
+        if (r != 0) { traceln("OpenClipboard() failed %s", crt.error(r)); }
+        if (r == 0) {
+            r = EmptyClipboard() ? 0 : GetLastError();
+            if (r != 0) { traceln("EmptyClipboard() failed %s", crt.error(r)); }
         }
-    }
-    if (r == 0) {
-        r = CloseClipboard() ? 0 : GetLastError();
-        if (r != 0) {
-            traceln("CloseClipboard() failed %s", crt.error(r));
+        void* global = null;
+        if (r == 0) {
+            global = GlobalAlloc(GMEM_MOVEABLE, n * 2);
+            r = global != null ? 0 : GetLastError();
+            if (r != 0) { traceln("GlobalAlloc() failed %s", crt.error(r)); }
         }
+        if (r == 0) {
+            char* d = (char*)GlobalLock(global);
+            not_null(d);
+            memcpy(d, utf16, n * 2);
+            r = SetClipboardData(CF_UNICODETEXT, global) ? 0 : GetLastError();
+            GlobalUnlock(global);
+            if (r != 0) {
+                traceln("SetClipboardData() failed %s", crt.error(r));
+                GlobalFree(global);
+            } else {
+                // do not free global memory. It's owned by system clipboard now
+            }
+        }
+        if (r == 0) {
+            r = CloseClipboard() ? 0 : GetLastError();
+            if (r != 0) {
+                traceln("CloseClipboard() failed %s", crt.error(r));
+            }
+        }
+        free(utf16);
     }
     return r;
 }
