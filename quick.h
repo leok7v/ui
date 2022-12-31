@@ -552,6 +552,7 @@ extern app_t app;
 typedef struct clipboard_s {
     int (*copy_text)(const char* s); // returns error or 0
     int (*copy_bitmap)(image_t* im); // returns error or 0
+    int (*text)(char* text, int32_t* bytes);
 } clipboard_t;
 
 extern clipboard_t clipboard;
@@ -3390,6 +3391,41 @@ static int clipboard_copy_text(const char* utf8) {
     return r;
 }
 
+static int clipboard_text(char* utf8, int32_t* bytes) {
+    not_null(bytes);
+    int r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
+    if (r != 0) { traceln("OpenClipboard() failed %s", crt.error(r)); }
+    if (r == 0) {
+        HANDLE global = GetClipboardData(CF_UNICODETEXT);
+        if (global == null) {
+            r = GetLastError();
+        } else {
+            wchar_t* utf16 = (wchar_t*)GlobalLock(global);
+            if (utf16 != null) {
+                int32_t utf8_bytes = crt.utf8_bytes(utf16);
+                if (utf8 != null) {
+                    char* decoded = (char*)malloc(utf8_bytes);
+                    if (decoded == null) {
+                        r = ERROR_OUTOFMEMORY;
+                    } else {
+                        crt.utf16_utf8(decoded, utf16);
+                        int32_t n = min(*bytes, utf8_bytes);
+                        memcpy(utf8, decoded, n);
+                        free(decoded);
+                        if (n < utf8_bytes) {
+                            r = ERROR_INSUFFICIENT_BUFFER;
+                        }
+                    }
+                }
+                *bytes = utf8_bytes;
+                GlobalUnlock(global);
+            }
+        }
+        r = CloseClipboard() ? 0 : GetLastError();
+    }
+    return r;
+}
+
 static int clipboard_copy_bitmap(image_t* im) {
     HDC canvas = GetDC(null);
     not_null(canvas);
@@ -3460,7 +3496,8 @@ const char* app_known_folder(int kf) {
 
 clipboard_t clipboard = {
     .copy_text = clipboard_copy_text,
-    .copy_bitmap = clipboard_copy_bitmap
+    .copy_bitmap = clipboard_copy_bitmap,
+    .text = clipboard_text
 };
 
 static uic_t app_ui;
