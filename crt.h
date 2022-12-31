@@ -239,6 +239,8 @@ static inline_c int indexof(const int a[], int n, int v) {
 
 const char* _strtolc_(char* d, const char* s);
 
+char* strnchr(const char* s, int n, char ch);
+
 #define strtolowercase(s) _strtolc_((char*)stackalloc(strlen(s) + 1), s)
 
 #define utf16to8(utf16) crt.utf16_utf8((char*) \
@@ -282,8 +284,8 @@ typedef struct {
     // do not call directly used by macros above
     int (*utf8_bytes)(const wchar_t* utf16);
     int (*utf16_chars)(const char* s);
-    char* (*utf16_utf8)(char* s, const wchar_t* utf16);
-    wchar_t* (*utf8_utf16)(wchar_t* utf16, const char* s);
+    char* (*utf16_utf8)(char* destination, const wchar_t* utf16);
+    wchar_t* (*utf8_utf16)(wchar_t* destination, const char* utf8);
     void (*ods)(const char* file, int line, const char* function,
         const char* format, ...); // Output Debug String
     void (*traceline)(const char* file, int line, const char* function,
@@ -539,6 +541,14 @@ end_c
 #include <tgmath.h>
 
 begin_c
+
+char* strnchr(const char* s, int n, char ch) {
+    while (n > 0 && *s != 0) {
+        if (*s == ch) { return (char*)s; }
+        s++; n--;
+    }
+    return null;
+}
 
 const char* _strtolc_(char* d, const char* s) {
     char* r = d;
