@@ -729,7 +729,6 @@ static const char* crt_error_for_language(int32_t error, LANGID language) {
     return text;
 }
 
-
 static const char* crt_error(int32_t error) {
     const LANGID lang = MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT);
     return crt_error_for_language(error, lang);

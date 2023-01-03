@@ -3251,6 +3251,7 @@ static void app_formatted_vtoast(double timeout, const char* format, va_list vl)
     app_show_toast(null, 0);
     static uic_text_t txt;
     uic_text_vinit(&txt, format, vl);
+    txt.multiline = true;
     app_show_toast(&txt.ui, timeout);
 }
 
