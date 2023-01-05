@@ -199,9 +199,10 @@ typedef struct uic_s { // ui element container/control
     void (*mouse)(uic_t* ui, int32_t message, int32_t flags);
     void (*mousewheel)(uic_t* ui, int32_t dx, int32_t dy); // touchpad scroll
     void (*context_menu)(uic_t* ui); // right mouse click or long press
-    void (*keyboard)(uic_t* ui, int32_t character);
-    void (*key_down)(uic_t* ui, int32_t key);
-    void (*key_up)(uic_t* ui, int32_t key);
+    // translated from key pressed/released to utf8:
+    void (*character)(uic_t* ui, const char* utf8);
+    void (*key_pressed)(uic_t* ui, int32_t key);
+    void (*key_released)(uic_t* ui, int32_t key);
     void (*hovering)(uic_t* ui, bool start);
     void (*invalidate)(uic_t* ui); // more prone to delays than app.redraw()
     // timer() periodically() and once_upon_a_second() called
@@ -558,10 +559,13 @@ typedef struct clipboard_s {
 extern clipboard_t clipboard;
 
 typedef struct messages_s {
-    const int left_button_down;
-    const int left_button_up;
-    const int right_button_down;
-    const int right_button_up;
+    const int character; // translated from key pressed/released to utf8
+    const int key_pressed;
+    const int key_released;
+    const int left_button_pressed;
+    const int left_button_released;
+    const int right_button_pressed;
+    const int right_button_released;
     const int mouse_move;
 } messages_t;
 
@@ -1414,10 +1418,11 @@ static void uic_text_context_menu(uic_t* ui) {
     }
 }
 
-static void uic_text_keyboard(uic_t* ui, int ch) {
+static void uic_text_character(uic_t* ui, const char* utf8) {
     assert(ui->tag == uic_tag_text);
     uic_text_t* t = (uic_text_t*)ui;
     if (ui->hover && !ui->hidden && !t->label) {
+        char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {
             clipboard.copy_text(uic_nsl(ui)); // 3 is ASCII for Ctrl+C
@@ -1432,7 +1437,7 @@ void _uic_text_init_(uic_t* ui) {
     if (ui->font == null) { ui->font = &app.fonts.regular; }
     ui->color = colors.text;
     ui->paint = uic_text_paint;
-    ui->keyboard = uic_text_keyboard;
+    ui->character = uic_text_character;
     ui->context_menu = uic_text_context_menu;
 }
 
@@ -1521,10 +1526,11 @@ static void uic_button_callback(uic_button_t* b) {
     if (b->cb != null) { b->cb(b); }
 }
 
-static void uic_button_keyboard(uic_t* ui, int ch) {
+static void uic_button_character(uic_t* ui, const char* utf8) {
     assert(ui->tag == uic_tag_button);
     assert(!ui->hidden && !ui->disabled);
     uic_button_t* b = (uic_button_t*)ui;
+    char ch = utf8[0]; // TODO: multibyte shortcuts?
     if (ui->shortcut != 0 && toupper(ui->shortcut) == toupper(ch)) {
         ui->armed = true;
         ui->invalidate(ui);
@@ -1545,14 +1551,14 @@ static void uic_button_mouse(uic_t* ui, int message, int flags) {
     uic_button_t* b = (uic_button_t*)ui;
     bool a = ui->armed;
     bool on = false;
-    if (message == messages.left_button_down ||
-        message == messages.right_button_down) {
+    if (message == messages.left_button_pressed ||
+        message == messages.right_button_pressed) {
         ui->armed = uic_button_hit_test(b, app.mouse);
         if (ui->armed) { app.focus = ui; }
         if (ui->armed) { app.show_tooltip(null, -1, -1, 0); }
     }
-    if (message == messages.left_button_up ||
-        message == messages.right_button_up) {
+    if (message == messages.left_button_released ||
+        message == messages.right_button_released) {
         if (ui->armed) { on = uic_button_hit_test(b, app.mouse); }
         ui->armed = false;
     }
@@ -1575,7 +1581,7 @@ void _uic_button_init_(uic_t* ui) {
     ui->mouse = uic_button_mouse;
     ui->measure = uic_button_measure;
     ui->paint = uic_button_paint;
-    ui->keyboard = uic_button_keyboard;
+    ui->character = uic_button_character;
     ui->periodically = uic_button_periodically;
     uic_set_label(ui, ui->text);
     ui->localize(ui);
@@ -1648,9 +1654,10 @@ static void  uic_checkbox_flip( uic_checkbox_t* c) {
     if (c->cb != null) { c->cb(c); }
 }
 
-static void  uic_checkbox_keyboard(uic_t* ui, int ch) {
+static void  uic_checkbox_character(uic_t* ui, const char* utf8) {
     assert(ui->tag == uic_tag_checkbox);
     assert(!ui->hidden && !ui->disabled);
+    char ch = utf8[0];
     if (ui->shortcut != 0 && toupper(ui->shortcut) == toupper(ch)) {
          uic_checkbox_flip(( uic_checkbox_t*)ui);
     }
@@ -1660,8 +1667,8 @@ static void  uic_checkbox_mouse(uic_t* ui, int message, int flags) {
     assert(ui->tag == uic_tag_checkbox);
     (void)flags; // unused
     assert(!ui->hidden && !ui->disabled);
-    if (message == messages.left_button_down ||
-        message == messages.right_button_down) {
+    if (message == messages.left_button_pressed ||
+        message == messages.right_button_pressed) {
         int32_t x = app.mouse.x - ui->x;
         int32_t y = app.mouse.y - ui->y;
         if (0 <= x && x < ui->w && 0 <= y && y < ui->h) {
@@ -1678,7 +1685,7 @@ void _uic_checkbox_init_(uic_t* ui) {
     ui->mouse =  uic_checkbox_mouse;
     ui->measure = uic_checkbox_measure;
     ui->paint =  uic_checkbox_paint;
-    ui->keyboard =  uic_checkbox_keyboard;
+    ui->character =  uic_checkbox_character;
     ui->localize(ui);
     ui->color = colors.btn_text;
 }
@@ -1759,18 +1766,14 @@ static void uic_slider_paint(uic_t* ui) {
     gdi.pop();
 }
 
-static void uic_slider_keyboard(uic_t* unused(ui), int unused(ch)) {
-    assert(ui->tag == uic_tag_slider);
-}
-
 static void uic_slider_mouse(uic_t* ui, int message, int f) {
     assert(ui->tag == uic_tag_slider);
     uic_slider_t* r = (uic_slider_t*)ui;
     assert(!ui->hidden && !ui->disabled);
     bool drag = message == messages.mouse_move &&
         (f & (mouse_flags.left_button|mouse_flags.right_button)) != 0;
-    if (message == messages.left_button_down ||
-        message == messages.right_button_down || drag) {
+    if (message == messages.left_button_pressed ||
+        message == messages.right_button_pressed || drag) {
         const int32_t x = app.mouse.x - ui->x - r->dec.ui.w;
         const int32_t y = app.mouse.y - ui->y;
         const int32_t x0 = ui->em.x / 2;
@@ -1835,11 +1838,10 @@ void _uic_slider_init_(uic_t* ui) {
     assert(ui->tag == uic_tag_slider);
     uic_init(ui);
     uic_set_label(ui, ui->text);
-    ui->mouse    = uic_slider_mouse;
-    ui->measure  = uic_slider_measure;
-    ui->layout   = uic_slider_layout;
-    ui->paint    = uic_slider_paint;
-    ui->keyboard = uic_slider_keyboard;
+    ui->mouse        = uic_slider_mouse;
+    ui->measure      = uic_slider_measure;
+    ui->layout       = uic_slider_layout;
+    ui->paint        = uic_slider_paint;
     ui->periodically = uic_slider_periodically;
     uic_slider_t* r = (uic_slider_t*)ui;
     r->buttons[0] = &r->dec.ui;
@@ -2111,11 +2113,14 @@ begin_c
 #define canvas() ((HDC)app.canvas)
 
 messages_t messages = {
-    .left_button_down  = WM_LBUTTONDOWN,
-    .left_button_up    = WM_LBUTTONUP,
-    .right_button_down = WM_RBUTTONDOWN,
-    .right_button_up   = WM_RBUTTONUP,
-    .mouse_move        = WM_MOUSEMOVE
+    .character             = WM_CHAR,
+    .key_pressed           = WM_KEYDOWN,
+    .key_released          = WM_KEYUP,
+    .left_button_pressed   = WM_LBUTTONDOWN,
+    .left_button_released  = WM_LBUTTONUP,
+    .right_button_pressed  = WM_RBUTTONDOWN,
+    .right_button_released = WM_RBUTTONUP,
+    .mouse_move            = WM_MOUSEMOVE
 };
 
 mouse_flags_t mouse_flags = {
@@ -2588,9 +2593,16 @@ static void app_##name(uic_t* ui, int32_t p) {                  \
     while (c != null && *c != null) { app_##name(*c, p); c++; } \
 }
 
-app_method_int32(keyboard)
-app_method_int32(key_up)
-app_method_int32(key_down)
+app_method_int32(key_pressed)
+app_method_int32(key_released)
+
+static void app_character(uic_t* ui, const char* utf8) {
+    if (!ui->hidden) {
+        if (ui->character != null) { ui->character(ui, utf8); }
+        uic_t** c = ui->children;
+        while (c != null && *c != null) { app_character(*c, utf8); c++; }
+    }
+}
 
 static void app_paint(uic_t* ui) {
     if (!ui->hidden) {
@@ -2659,13 +2671,13 @@ static void app_killfocus(uic_t* ui) {
 }
 
 static void app_toast_mouse(int32_t m, int32_t f);
-static void app_toast_keyboard(int32_t ch);
+static void app_toast_character(const char* utf8);
 
-static void app_ui_keyboard(uic_t* ui, int32_t ch) {
+static void app_wm_char(uic_t* ui, const char* utf8) {
     if (app_toast.ui != null) {
-        app_toast_keyboard(ch);
+        app_toast_character(utf8);
     } else {
-        app_keyboard(ui, ch);
+        app_character(ui, utf8);
     }
 }
 
@@ -2699,7 +2711,7 @@ static void app_on_every_message(uic_t* ui) {
 }
 
 static void app_ui_mouse(uic_t* ui, int32_t m, int32_t f) {
-    if (m == WM_MOUSEHOVER || m == WM_MOUSEMOVE) {
+    if (m == WM_MOUSEHOVER || m == messages.mouse_move) {
         RECT rc = { ui->x, ui->y, ui->x + ui->w, ui->y + ui->h};
         bool hover = ui->hover;
         POINT pt = app_ui2point(&app.mouse);
@@ -2813,8 +2825,9 @@ static void app_toast_cancel() {
 }
 
 static void app_toast_mouse(int32_t m, int32_t flags) {
-    bool down = (m == WM_LBUTTONDOWN || m == WM_RBUTTONDOWN);
-    if (app_toast.ui != null && down) {
+    bool pressed = m == messages.left_button_pressed ||
+                   m == messages.right_button_pressed;
+    if (app_toast.ui != null && pressed) {
         const ui_point_t em = app_toast.ui->em;
         int x = app_toast.ui->x + app_toast.ui->w;
         if (x <= app.mouse.x && app.mouse.x <= x + em.x &&
@@ -2828,12 +2841,13 @@ static void app_toast_mouse(int32_t m, int32_t flags) {
     }
 }
 
-static void app_toast_keyboard(int32_t ch) {
+static void app_toast_character(const char* utf8) {
+    char ch = utf8[0];
     if (app_toast.ui != null && ch == 033) { // ESC traditionally in octal
         app_toast_cancel();
         app.show_toast(null, 0);
     } else {
-        app_keyboard(app_toast.ui, ch);
+        app_character(app_toast.ui, utf8);
     }
 }
 
@@ -2983,11 +2997,11 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_DESTROY      : PostQuitMessage(0); break;
         case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
         case WM_KEYDOWN      : app_alt_ctrl_shift(true, (int32_t)wp);
-                               app_key_down(app.ui, (int32_t)wp);
+                               app_key_pressed(app.ui, (int32_t)wp);
                                break;
         case WM_SYSKEYUP:
         case WM_KEYUP        : app_alt_ctrl_shift(false, (int32_t)wp);
-                               app_key_up(app.ui, (int32_t)wp);
+                               app_key_released(app.ui, (int32_t)wp);
                                break;
         case WM_TIMER        : app_wm_timer((tm_t)wp); break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
@@ -2995,8 +3009,8 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
         // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
 //      case WM_UNICHAR      : // only UTF-32 via PostMessage
-        case WM_CHAR         : app_ui_keyboard(app.ui, (int32_t)wp);
-                               break;
+        case WM_CHAR         : app_wm_char(app.ui, (const char*)&wp);
+                               break; // TODO: CreateWindowW() and utf16->utf8
         case WM_PRINTCLIENT  : app_paint_on_canvas((HDC)wp); break;
         case WM_ANIMATE      : app_animate_step((app_animate_function_t)lp, (int)wp, -1);
                                break;
