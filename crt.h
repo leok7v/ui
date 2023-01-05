@@ -42,6 +42,7 @@
 #include <crtdbg.h> // _malloca()
 #endif
 
+#include <ctype.h>
 #include <io.h>
 #include <malloc.h>
 #include <stdarg.h>
