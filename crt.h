@@ -278,6 +278,11 @@ typedef struct {
         int* day, int* hh, int* mm, int* ss, int* ms, int* mc);
     void (*time_local)(uint64_t microseconds, int* year, int* month,
         int* day, int* hh, int* mm, int* ss, int* ms, int* mc);
+    // persistant storage interface:
+    void (*data_save)(const char* name, const char* key, const void* data, int bytes);
+    int  (*data_size)(const char* name, const char* key);
+    int  (*data_load)(const char* name, const char* key, void* data, int bytes);
+    // string formatting printf style:
     void (*vformat)(char* utf8, int count, const char* format, va_list vl);
     void (*sformat)(char* utf8, int count, const char* format, ...);
     const char* (*error)(int32_t error); // en-US
@@ -865,6 +870,68 @@ static int64_t crt_nanoseconds() {
     return freq == 1 ? ns_mul_freq : ns_mul_freq / freq;
 }
 
+static HKEY crt_get_reg_key(const char* name) {
+    char path[MAX_PATH];
+    strprintf(path, "Software\\app\\%s", name);
+    HKEY key = null;
+    if (RegOpenKey(HKEY_CURRENT_USER, path, &key) != 0) {
+        RegCreateKey(HKEY_CURRENT_USER, path, &key);
+    }
+    not_null(key);
+    return key;
+}
+
+static void crt_data_save(const char* name,
+        const char* key, const void* data, int bytes) {
+    HKEY k = crt_get_reg_key(name);
+    if (k != null) {
+        fatal_if_not_zero(RegSetValueExA(k, key, 0, REG_BINARY,
+            (byte*)data, bytes));
+        fatal_if_not_zero(RegCloseKey(k));
+    }
+}
+
+static int crt_data_size(const char* name, const char* key) {
+    int bytes = -1;
+    HKEY k = crt_get_reg_key(name);
+    if (k != null) {
+        DWORD type = REG_BINARY;
+        DWORD cb = 0;
+        int r = RegQueryValueExA(k, key, null, &type, null, &cb);
+        if (r == ERROR_FILE_NOT_FOUND) {
+            bytes = 0; // do not report data_size() often used this way
+        } else if (r != 0) {
+            fatal_if_not_zero(r, "%s.RegQueryValueExA(\"%s\") failed %s",
+                name, key, crt.error(r));
+        } else {
+            bytes = (int)cb;
+        }
+        fatal_if_not_zero(RegCloseKey(k));
+    }
+    return bytes;
+}
+
+static int crt_data_load(const char* name,
+        const char* key, void* data, int bytes) {
+    int read = -1;
+    HKEY k= crt_get_reg_key(name);
+    if (k != null) {
+        DWORD type = REG_BINARY;
+        DWORD cb = (DWORD)bytes;
+        int r = RegQueryValueExA(k, key, null, &type, (byte*)data, &cb);
+        if (r == ERROR_MORE_DATA) {
+            // returns -1 app.data_size() should be used
+        } else if (r != 0) {
+            fatal_if_not_zero(r, "%s.RegQueryValueExA(\"%s\") failed %s",
+                name, key, crt.error(r));
+        } else {
+            read = (int)cb;
+        }
+        fatal_if_not_zero(RegCloseKey(k));
+    }
+    return read;
+}
+
 static int64_t crt_ns2ms(int64_t ns) { return (ns + NSEC_IN_MSEC - 1) / NSEC_IN_MSEC; }
 
 typedef int (*gettimerresolution_t)(ULONG* minimum_resolution,
@@ -1436,6 +1503,9 @@ crt_if crt = {
     .localtime = crt_localtime,
     .time_utc = crt_time_utc,
     .time_local = crt_time_local,
+    .data_save = crt_data_save,
+    .data_size = crt_data_size,
+    .data_load = crt_data_load,
     .vformat = crt_vformat,
     .sformat = crt_sformat,
     .error = crt_error,

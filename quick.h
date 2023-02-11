@@ -2366,126 +2366,73 @@ static void app_init_fonts(int dpi) {
     app.cursor = app.cursor_arrow;
 }
 
-static HKEY app_get_reg_key() {
-    char path[MAX_PATH];
-    strprintf(path, "Software\\app\\%s", app.class_name);
-    HKEY key = null;
-    if (RegOpenKey(HKEY_CURRENT_USER, path, &key) != 0) {
-        RegCreateKey(HKEY_CURRENT_USER, path, &key);
-    }
-    not_null(key);
-    return key;
-}
-
 static void app_data_save(const char* name, const void* data, int bytes) {
-    HKEY key = app_get_reg_key();
-    if (key != null) {
-        fatal_if_not_zero(RegSetValueExA(key, name, 0, REG_BINARY,
-            (byte*)data, bytes));
-        fatal_if_not_zero(RegCloseKey(key));
-    }
+    crt.data_save(app.class_name, name, data, bytes);
 }
 
 static int app_data_size(const char* name) {
-    int bytes = -1;
-    HKEY key = app_get_reg_key();
-    if (key != null) {
-        DWORD type = REG_BINARY;
-        DWORD cb = sizeof(app.last_visibility);
-        int r = RegQueryValueExA(key, name, null, &type, null, &cb);
-        if (r == ERROR_FILE_NOT_FOUND) {
-            bytes = 0; // do not report data_size() often used this way
-        } else if (r != 0) {
-            traceln("RegQueryValueExA(\"%s\") failed %s", name,
-                crt.error(r));
-        } else {
-            bytes = (int)cb;
-        }
-        fatal_if_not_zero(RegCloseKey(key));
-    }
-    return bytes;
+    return crt.data_size(app.class_name, name);
 }
 
 static int app_data_load(const char* name, void* data, int bytes) {
-    int read = -1;
-    HKEY key = app_get_reg_key();
-    if (key != null) {
-        DWORD type = REG_BINARY;
-        DWORD cb = (DWORD)bytes;
-        int r = RegQueryValueExA(key, name, null, &type, (byte*)data, &cb);
-        if (r != ERROR_MORE_DATA) {
-            traceln("RegQueryValueExA(\"%s\") failed %s", name,
-                crt.error(r));
-        } else {
-            read = (int)cb;
-        }
-        fatal_if_not_zero(RegCloseKey(key));
-    }
-    return read;
+    return crt.data_load(app.class_name, name, data, bytes);
 }
 
 static void app_save_window_pos() {
-    HKEY key = app_get_reg_key();
-    if (key != null) {
-        WINDOWPLACEMENT wpl = {0};
-        wpl.length = sizeof(wpl);
-        fatal_if_false(GetWindowPlacement(window(), &wpl));
-        RECT wa = app_ui2rect(&app.work_area);
-        fatal_if_not_zero(RegSetValueExA(key, "work_area", 0, REG_BINARY, (byte*)&wa, sizeof(wa)));
-        fatal_if_not_zero(RegSetValueExA(key, "window", 0, REG_BINARY, (byte*)&wpl.rcNormalPosition, sizeof(wpl.rcNormalPosition)));
-        fatal_if_not_zero(RegSetValueExA(key, "show", 0, REG_DWORD, (byte*)&wpl.showCmd, sizeof(wpl.showCmd)));
-        fatal_if_not_zero(RegCloseKey(key));
-    }
+    WINDOWPLACEMENT wpl = {0};
+    wpl.length = sizeof(wpl);
+    fatal_if_false(GetWindowPlacement(window(), &wpl));
+    RECT wa = app_ui2rect(&app.work_area);
+    crt.data_save(app.class_name, "work_area", &wa, (int)sizeof(wa));
+    crt.data_save(app.class_name, "window",
+                 &wpl.rcNormalPosition, (int)sizeof(wpl.rcNormalPosition));
+    crt.data_save(app.class_name, "show", &wpl.showCmd,
+                  (int)sizeof(wpl.showCmd));
 }
 
 static void load_window_pos(ui_rect_t* rect) {
-    HKEY key = app_get_reg_key();
-    if (key != null) {
-        DWORD type = REG_DWORD;
-        DWORD cb = sizeof(app.last_visibility);
-        if (RegQueryValueExA(key, "show", null, &type, (byte*)&app.last_visibility, &cb) == 0) {
-            // if there is last show_command state in the registry it supersedes
-            // startup info
+    int cb = (int)sizeof(app.last_visibility);
+    if (crt.data_load(app.class_name, "show", (byte*)&app.last_visibility, cb) == cb) {
+        // if there is last show_command state in the registry it supersedes
+        // startup info
+    } else {
+        app.last_visibility = window_visibility.defau1t;
+    }
+    RECT wa = {0};
+    cb = (int)sizeof(wa);
+    if (crt.data_load(app.class_name, "work_area", &wa, cb) != cb) {
+        memset(&wa, 0, sizeof(wa));
+    }
+    RECT rc = {0};
+    cb = (int)sizeof(rc);
+    if (crt.data_load(app.class_name, "window", &rc, cb) == cb) {
+        RECT screen = {0, 0, 1920, 1080};
+        RECT work_area = {0, 0, 1920, 1080};
+        ui_rect_t r = app_rect2ui(&rc);
+        if (app_update_mi(&r, MONITOR_DEFAULTTONEAREST)) {
+            screen = app_ui2rect(&app.mrc);
+            work_area = app_ui2rect(&app.work_area);
         } else {
-            app.last_visibility = window_visibility.defau1t;
-        }
-        RECT wa = {0}; cb = sizeof(wa); type = REG_BINARY;
-        if (RegQueryValueExA(key, "work_area", null, &type, (byte*)&wa, &cb) != 0 ||
-            type != REG_BINARY || cb != sizeof(RECT)) {
-            memset(&wa, 0, sizeof(wa));
-        }
-        RECT rc = {0}; cb = sizeof(rc); type = REG_BINARY;
-        if (RegQueryValueExA(key, "window", null, &type, (byte*)&rc, &cb) == 0 &&
-            type == REG_BINARY && cb == sizeof(RECT)) {
-            RECT screen = {0, 0, 1920, 1080};
-            RECT work_area = {0, 0, 1920, 1080};
-            ui_rect_t r = app_rect2ui(&rc);
-            if (app_update_mi(&r, MONITOR_DEFAULTTONEAREST)) {
-                screen = app_ui2rect(&app.mrc);
-                work_area = app_ui2rect(&app.work_area);
-            } else {
-                if (SystemParametersInfoA(SPI_GETWORKAREA, 0, &work_area, false)) {
-                    screen = work_area;
-                }
-                app.work_area = app_rect2ui(&screen);
-                app_update_mi(&app.work_area, MONITOR_DEFAULTTONEAREST);
+            if (SystemParametersInfoA(SPI_GETWORKAREA, 0, &work_area, false)) {
+                screen = work_area;
             }
-            const int w = rc.right - rc.left;
-            const int h = rc.bottom - rc.top;
-            RECT intersect = {0};
-            if (IntersectRect(&intersect, &rc, &screen) && !IsRectEmpty(&intersect)) {
-                intersect.right = intersect.left + w;
-                intersect.bottom = intersect.top + h;
-            } else {
-//              traceln("WARNING: out of work area");
-                intersect = (RECT){app.work_area.x, app.work_area.y,
-                                   app.work_area.x + w, app.work_area.y + h};
-            }
+            app.work_area = app_rect2ui(&screen);
+            app_update_mi(&app.work_area, MONITOR_DEFAULTTONEAREST);
+        }
+        const int w = rc.right - rc.left;
+        const int h = rc.bottom - rc.top;
+        RECT intersect = {0};
+        if (IntersectRect(&intersect, &rc, &screen) && !IsRectEmpty(&intersect)) {
             intersect.right = intersect.left + w;
             intersect.bottom = intersect.top + h;
-            *rect = app_rect2ui(&intersect);
+        } else {
+//          traceln("WARNING: out of work area");
+            intersect = (RECT){app.work_area.x, app.work_area.y,
+                               app.work_area.x + w, app.work_area.y + h};
         }
-        fatal_if_not_zero(RegCloseKey(key));
+        intersect.right = intersect.left + w;
+        intersect.bottom = intersect.top + h;
+        *rect = app_rect2ui(&intersect);
     }
 }
 
