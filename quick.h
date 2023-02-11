@@ -9,7 +9,7 @@ begin_c
 
 typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
-typedef uint32_t color_t;
+typedef uint64_t color_t; // top 2 bits determine color format
 
 typedef struct window_s__* window_t;
 typedef struct canvas_s__* canvas_t;
@@ -21,6 +21,27 @@ typedef struct cursor_s__* cursor_t;
 typedef struct region_s__* region_t;
 
 typedef uintptr_t tm_t; // timer not the same as "id" in set_timer()!
+
+#define color_mask        ((color_t)0xC000000000000000ULL)
+
+#define color_mask        ((color_t)0xC000000000000000ULL)
+#define color_undefined   ((color_t)0x8000000000000000ULL)
+#define color_transparent ((color_t)0x4000000000000000ULL)
+#define color_hdr         ((color_t)0xC000000000000000ULL)
+
+#define color_is_8bit(c)         (((c) & color_mask) == 0)
+#define color_is_hdr(c)          (((c) & color_mask) == color_hdr)
+#define color_is_undefined(c)    (((c) & color_mask) == color_undefined)
+#define color_is_transparent(c) ((((c) & color_mask) == color_transparent) && \
+                                 (((c) & ~color_mask) == 0))
+// if any other special colors or formats need to be introduced
+// (c) & ~color_mask) has 2^62 possible extensions bits
+
+// color_hdr A - 14 bit, R,G,B - 16 bit, all in range [0..0xFFFF]
+#define color_hdr_a(c)    ((((c) >> 48) & 0x3FFF) << 2)
+#define color_hdr_r(c)    (((c) >>  0) & 0xFFFF)
+#define color_hdr_g(c)    (((c) >> 16) & 0xFFFF)
+#define color_hdr_b(c)    (((c) >> 32) & 0xFFFF)
 
 #define rgb(r,g,b) ((color_t)(((byte)(r) | ((uint16_t)((byte)(g))<<8)) | \
     (((uint32_t)(byte)(b))<<16)))
@@ -665,8 +686,13 @@ static void __gdi_init__() {
     gdi.pen_hollow = (pen_t)GetStockPen(NULL_PEN);
 }
 
+static inline_c COLORREF gdi_color_ref(color_t c) {
+    assert(color_is_8bit(c));
+    return (COLORREF)(c & 0xFFFFFFFF);
+}
+
 static color_t gdi_set_text_color(color_t c) {
-    return SetTextColor(canvas(), c);
+    return SetTextColor(canvas(), gdi_color_ref(c));
 }
 
 static pen_t gdi_set_pen(pen_t p) {
@@ -676,13 +702,13 @@ static pen_t gdi_set_pen(pen_t p) {
 
 static pen_t gdi_set_colored_pen(color_t c) {
     pen_t p = (pen_t)SelectPen(canvas(), GetStockPen(DC_PEN));
-    SetDCPenColor(canvas(), c);
+    SetDCPenColor(canvas(), gdi_color_ref(c));
     return p;
 }
 
-static pen_t gdi_create_pen(color_t color, int width) {
+static pen_t gdi_create_pen(color_t c, int width) {
     assert(width >= 1);
-    pen_t pen = (pen_t)CreatePen(PS_SOLID, width, color);
+    pen_t pen = (pen_t)CreatePen(PS_SOLID, width, gdi_color_ref(c));
     not_null(pen);
     return pen;
 }
@@ -697,7 +723,7 @@ static brush_t gdi_set_brush(brush_t b) {
 }
 
 static color_t gdi_set_brush_color(color_t c) {
-    return SetDCBrushColor(canvas(), c);
+    return SetDCBrushColor(canvas(), gdi_color_ref(c));
 }
 
 static void gdi_set_clip(int x, int y, int w, int h) {
@@ -731,7 +757,7 @@ static void gdi_pop() {
 
 static void gdi_pixel(int32_t x, int32_t y, color_t c) {
     not_null(app.canvas);
-    fatal_if_false(SetPixel(canvas(), x, y, c));
+    fatal_if_false(SetPixel(canvas(), x, y, gdi_color_ref(c)));
 }
 
 static ui_point_t gdi_move_to(int x, int y) {
@@ -3118,9 +3144,9 @@ static void app_create_window(ui_rect_t r, int32_t width, int32_t height) {
     RECT wrc = app_ui2rect(&app.wrc);
     fatal_if_false(GetWindowRect(window(), &wrc));
     app.wrc = app_rect2ui(&wrc);
-    color_t caption_color = colors.dkgray3;
+    COLORREF caption_color_ref = gdi_color_ref(colors.dkgray3);
     fatal_if_not_zero(DwmSetWindowAttribute(window(),
-        DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
+        DWMWA_CAPTION_COLOR, &caption_color_ref, sizeof(caption_color_ref)));
     if (app.aero) { // It makes app look like retro Windows 7 Aero style :)
         enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
         fatal_if_not_zero(DwmSetWindowAttribute(window(),
