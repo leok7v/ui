@@ -278,7 +278,7 @@ typedef struct {
         int* day, int* hh, int* mm, int* ss, int* ms, int* mc);
     void (*time_local)(uint64_t microseconds, int* year, int* month,
         int* day, int* hh, int* mm, int* ss, int* ms, int* mc);
-    // persistant storage interface:
+    // persistent storage interface:
     void (*data_save)(const char* name, const char* key, const void* data, int bytes);
     int  (*data_size)(const char* name, const char* key);
     int  (*data_load)(const char* name, const char* key, void* data, int bytes);
@@ -1418,42 +1418,80 @@ static uint64_t crt_random64(uint64_t *state) {
 static int crt_memmap_file(HANDLE file, void* *data, int64_t *bytes, bool rw) {
     int r = 0;
     void* address = null;
-    LARGE_INTEGER size = {{0, 0}};
-    if (GetFileSizeEx(file, &size)) {
-        HANDLE mapping = CreateFileMapping(file, null,
-            rw ? PAGE_READWRITE : PAGE_READONLY,
-            0, (DWORD)size.QuadPart, null);
-        if (mapping == null) {
-            r = GetLastError();
-        } else {
-            address = MapViewOfFile(mapping, FILE_MAP_READ,
-                0, 0, (int64_t)size.QuadPart);
-            if (address != null) {
-                *bytes = (int64_t)size.QuadPart;
-            } else {
-                r = GetLastError();
-            }
-            fatal_if_false(CloseHandle(mapping));
-        }
-    } else {
+    HANDLE mapping = CreateFileMapping(file, null,
+        rw ? PAGE_READWRITE : PAGE_READONLY,
+        (uint32_t)(*bytes >> 32), (uint32_t)*bytes, null);
+    if (mapping == null) {
         r = GetLastError();
+    } else {
+        address = MapViewOfFile(mapping,
+            rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ,
+            0, 0, *bytes);
+        if (address == null) { r = GetLastError(); }
+        fatal_if_false(CloseHandle(mapping));
     }
-    if (r == 0) { *data = address; }
+    if (r == 0) {
+        *data = address;
+    } else {
+        *data = null;
+        *bytes = 0;
+    }
+    return r;
+}
+
+static int crt_set_token_privilege(void* token, const char* name, bool e) {
+    // see: https://learn.microsoft.com/en-us/windows/win32/secauthz/enabling-and-disabling-privileges-in-c--
+    TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
+    tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
+    fatal_if_false(LookupPrivilegeValue(null, name, &tp.Privileges[0].Luid));
+    return AdjustTokenPrivileges(token, false, &tp,
+           sizeof(TOKEN_PRIVILEGES), null, null) ? 0 : GetLastError();
+}
+
+static int crt_adjust_process_privilege_manage_volume_name() {
+    // see: https://devblogs.microsoft.com/oldnewthing/20160603-00/?p=93565
+    const uint32_t access = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
+    const HANDLE process = GetCurrentProcess();
+    HANDLE token = null;
+    int r = OpenProcessToken(process, access, &token) ? 0 : GetLastError();
+    if (r == 0) {
+        r = crt_set_token_privilege(token, SE_MANAGE_VOLUME_NAME, true);
+        fatal_if_false(CloseHandle(token));
+    }
     return r;
 }
 
 static int crt_memmap(const char* filename, void* *data,
         int64_t *bytes, bool rw) {
-    *bytes = 0;
+    if (rw) { // for SetFileValidData() call:
+        (void)crt_adjust_process_privilege_manage_volume_name();
+    }
     int r = 0;
     const DWORD flags = GENERIC_READ | (rw ? GENERIC_WRITE : 0);
     const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
     HANDLE file = CreateFileA(filename, flags, share, null,
-        OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, null);
+        rw ? OPEN_ALWAYS : OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, null);
     if (file == INVALID_HANDLE_VALUE) {
         r = GetLastError();
     } else {
-        r = crt_memmap_file(file, data, bytes, rw);
+        LARGE_INTEGER eof = { .QuadPart = 0 };
+        fatal_if_false(GetFileSizeEx(file, &eof));
+        if (rw && *bytes > eof.QuadPart) { // increase file size
+            const LARGE_INTEGER size = { .QuadPart = *bytes };
+            r = r != 0 ? r : (SetFilePointerEx(file, size, null, FILE_BEGIN) ? 0 : GetLastError());
+            r = r != 0 ? r : (SetEndOfFile(file) ? 0 : GetLastError());
+            // the following not guaranteed to work but helps with sparse files
+            r = r != 0 ? r : (SetFileValidData(file, *bytes) ? 0 : GetLastError());
+            // SetFileValidData() only works for Admin (verified) or System accounts
+            if (r == ERROR_PRIVILEGE_NOT_HELD) { r = 0; } // ignore
+            // SetFileValidData() is also semi-security hole because it allows to read
+            // previously not zeroed disk content of other files
+            const LARGE_INTEGER zero = { .QuadPart = 0 }; // rewind stream:
+            r = r != 0 ? r : (SetFilePointerEx(file, zero, null, FILE_BEGIN) ? 0 : GetLastError());
+        } else {
+            *bytes = eof.QuadPart;
+        }
+        r = r != 0 ? r : crt_memmap_file(file, data, bytes, rw);
         fatal_if_false(CloseHandle(file));
     }
     return r;
