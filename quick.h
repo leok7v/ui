@@ -1668,8 +1668,11 @@ static void  uic_checkbox_paint(uic_t* ui) {
     char text[countof(ui->text)];
     const char* label =  uic_checkbox_on_off_label(ui, text, countof(text));
     gdi.push(ui->x, ui->y);
+    font_t f = ui->font != null ? *ui->font : app.fonts.regular;
+    font_t font = gdi.set_font(f);
     gdi.x =  uic_checkbox_paint_on_off(ui) + ui->em.x * 3 / 4;
     gdi.text("%s", label);
+    gdi.set_font(font);
     gdi.pop();
 }
 
