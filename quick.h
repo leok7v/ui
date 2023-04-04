@@ -2576,7 +2576,7 @@ app_method_int32(key_pressed)
 app_method_int32(key_released)
 
 static void app_character(uic_t* ui, const char* utf8) {
-    if (!ui->hidden) {
+    if (!ui->hidden && !ui->disabled) {
         if (ui->character != null) { ui->character(ui, utf8); }
         uic_t** c = ui->children;
         while (c != null && *c != null) { app_character(*c, utf8); c++; }
@@ -2996,9 +2996,10 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_SETFOCUS     : app.focused = true;  break;
         case WM_KILLFOCUS    : app.focused = false; break;
         case WM_PAINT        : app_wm_paint(); break;
-        case WM_MOUSEWHEEL:
+        case WM_CONTEXTMENU  : (void)app_context_menu(app.ui); break;
+        case WM_MOUSEWHEEL   :
             app_mousewheel(app.ui, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
-        case WM_MOUSEHWHEEL:
+        case WM_MOUSEHWHEEL  :
             app_mousewheel(app.ui, GET_WHEEL_DELTA_WPARAM(wp), 0); break;
         case WM_NCMOUSEMOVE    :
         case WM_NCLBUTTONDOWN  :
@@ -3035,7 +3036,6 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             app_mouse(app.ui, (int32_t)msg, (int32_t)wp);
             break;
         }
-        case WM_CONTEXTMENU  : (void)app_context_menu(app.ui); break;
         case WM_GETDPISCALEDSIZE: {
             // sent before WM_DPICHANGED
             int32_t dpi = (int32_t)wp;
@@ -3050,9 +3050,16 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             break;
         }
         case WM_DPICHANGED: { // TODO
-            app.dpi.window = GetDpiForWindow(window());
-            app_init_fonts(app.dpi.window);
-            if (app_timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
+            int dpi = GetDpiForWindow(window());
+            if (dpi == 0) { dpi = GetDpiForWindow(GetParent(window())); }
+            if (dpi == 0) { dpi = GetDpiForWindow(GetDesktopWindow()); }
+            if (dpi == 0) { dpi = GetSystemDpiForProcess(GetCurrentProcess()); }
+            if (dpi == 0) { dpi = GetDpiForSystem(); }
+            if (dpi != 0) {
+                app.dpi.window = dpi;
+                app_init_fonts(app.dpi.window);
+                if (app_timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
+            }
             break;
         }
         case WM_SYSCOMMAND:
