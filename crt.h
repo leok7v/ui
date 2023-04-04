@@ -901,8 +901,9 @@ static int crt_data_size(const char* name, const char* key) {
         if (r == ERROR_FILE_NOT_FOUND) {
             bytes = 0; // do not report data_size() often used this way
         } else if (r != 0) {
-            fatal_if_not_zero(r, "%s.RegQueryValueExA(\"%s\") failed %s",
+            traceln("%s.RegQueryValueExA(\"%s\") failed %s",
                 name, key, crt.error(r));
+            bytes = 0; // on any error behave as empty data
         } else {
             bytes = (int)cb;
         }
@@ -922,8 +923,11 @@ static int crt_data_load(const char* name,
         if (r == ERROR_MORE_DATA) {
             // returns -1 app.data_size() should be used
         } else if (r != 0) {
-            fatal_if_not_zero(r, "%s.RegQueryValueExA(\"%s\") failed %s",
-                name, key, crt.error(r));
+            if (r != ERROR_FILE_NOT_FOUND) {
+                traceln("%s.RegQueryValueExA(\"%s\") failed %s",
+                    name, key, crt.error(r));
+            }
+            read = 0; // on any error behave as empty data
         } else {
             read = (int)cb;
         }
