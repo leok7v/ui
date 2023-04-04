@@ -487,10 +487,12 @@ typedef struct app_s {
     int32_t startup_visibility; // window_visibility from parent process
     bool is_full_screen;
     // ui flags:
-    bool no_ui; // do not create main window at all
-    bool no_decor; // main window w/o title bar, min/max close buttons
-    bool no_min_max; // main window w/o min/max buttons
-    bool aero; // retro Windows 7 decoration (just for the fun of it)
+    bool no_ui;    // do not create application window at all
+    bool no_decor; // window w/o title bar, min/max close buttons
+    bool no_min;   // window w/o minimize button on title bar and sys menu
+    bool no_max;   // window w/o maximize button on title bar
+    bool hide_on_minimize; // like task manager minimize means hide
+    bool aero;     // retro Windows 7 decoration (just for the fun of it)
     // main(argc, argv)
     int32_t argc;
     const char** argv;
@@ -2514,6 +2516,7 @@ static void app_wm_timer(tm_t id) {
     app_timer(app.ui, id);
 }
 
+
 static void app_window_openning() {
     app_timer_1s_id = app.set_timer((uintptr_t)&app_timer_1s_id, 1000);
     app_timer_100ms_id = app.set_timer((uintptr_t)&app_timer_100ms_id, 100);
@@ -3052,6 +3055,34 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             if (app_timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
             break;
         }
+        case WM_SYSCOMMAND:
+            if (wp == SC_MINIMIZE && app.hide_on_minimize) {
+                app.show_window(window_visibility.min_na);
+                app.show_window(window_visibility.hide);
+            }
+            break;
+        case WM_ACTIVATE:
+//          traceln("WM_ACTiVATE wp=%d", LOWORD(wp));
+            if (!IsWindowVisible(window()) && LOWORD(wp) != WA_INACTIVE) {
+                app.show_window(window_visibility.restore);
+//              SetForegroundWindow(window()); // this does not make it ActiveWindow
+//              BringWindowToTop(window());
+//              SetWindowPos(window(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+                SwitchToThisWindow(window(), true);
+            }
+            break;
+        case WM_WINDOWPOSCHANGING: {
+            #ifdef QUICK_DEBUG_WM_WINDOWPOSCHANGING
+                WINDOWPOS* pos = (WINDOWPOS*)lp;
+                traceln("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
+                if (pos->flags & SWP_SHOWWINDOW) {
+                    traceln("SWP_SHOWWINDOW");
+                } else if (pos->flags & SWP_HIDEWINDOW) {
+                    traceln("SWP_HIDEWINDOW");
+                }
+            #endif
+            break;
+        }
         case WM_WINDOWPOSCHANGED: app_window_position_changed(); break;
         default:
             break;
@@ -3102,12 +3133,19 @@ static void app_create_window(ui_rect_t r, int32_t width, int32_t height) {
         fatal_if_not_zero(DwmSetWindowAttribute(window(),
             DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp)));
     }
-    // always start with window hidden and let
+    // always start with window hidden and let application show it
     app.show_window(window_visibility.hide);
-    if (app.no_min_max) {
-        uint32_t exclude = WS_MINIMIZEBOX|WS_MAXIMIZEBOX|WS_SIZEBOX;
+    if (app.no_min || app.no_max) {
+        uint32_t exclude = WS_SIZEBOX;
+        if (app.no_min) { exclude = WS_MINIMIZEBOX; }
+        if (app.no_max) { exclude = WS_MAXIMIZEBOX; }
         uint32_t s = GetWindowLongA(window(), GWL_STYLE);
         app_set_window_long(GWL_STYLE, s & ~exclude);
+        // even for windows without maximize/minimize
+        // make sure "Minimize All Windows" still works:
+        // ???
+//      EnableMenuItem(GetSystemMenu(window(), false),
+//          SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
     }
     if (app.visibility != window_visibility.hide) {
         AnimateWindow(window(), 250, AW_ACTIVATE);
