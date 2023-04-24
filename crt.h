@@ -1009,6 +1009,42 @@ static void crt_disable_power_throttling() {
     crt_power_throttling_disable_for_thread(GetCurrentThread());
 }
 
+static uint64_t crt_next_physical_processor_affinity_mask() {
+    static bool init;
+    static int next = 1; // next physical core to use
+    static int cores = 0; // number of physical processors (cores)
+    static uint64_t any;
+    static uint64_t affinity[64]; // mask for each physical processor
+    if (!init) {
+        // Concept D: 6 cores, 12 logical processors: 27 lpi entries
+        static SYSTEM_LOGICAL_PROCESSOR_INFORMATION lpi[64];
+        DWORD bytes = 0;
+        GetLogicalProcessorInformation(null, &bytes);
+        assert(bytes % sizeof(lpi[0]) == 0);
+        int n = bytes / sizeof(lpi[0]); // number of lpi entries == 27 on 6 core / 12 logical processors system
+        assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
+        fatal_if_false(GetLogicalProcessorInformation(&lpi[0], &bytes));
+        for (int i = 0; i < n; i++) {
+//          traceln("[%2d] afinity mask 0x%016llX relationship=%d %s", i,
+//              lpi[i].ProcessorMask, lpi[i].Relationship,
+//              rel2str(lpi[i].Relationship));
+            if (lpi[i].Relationship == RelationProcessorCore) {
+                assert(cores < countof(affinity), "increase affinity[%d]", cores);
+                if (cores < countof(affinity)) {
+                    any |= lpi[i].ProcessorMask;
+                    affinity[cores] = lpi[i].ProcessorMask;
+                    cores++;
+                }
+            }
+        }
+        init = true;
+    }
+    uint64_t mask = next < cores ? affinity[next] : any;
+    assert(mask != 0);
+    if (next < cores) { next++; }
+    return mask;
+}
+
 static void threads_realtime() {
     fatal_if_false(SetPriorityClass(GetCurrentProcess(),
         REALTIME_PRIORITY_CLASS));
@@ -1018,6 +1054,8 @@ static void threads_realtime() {
         /* bDisablePriorityBoost = */ false));
     fatal_if_not_zero(
         crt_scheduler_set_timer_resolution(NSEC_IN_MSEC));
+    fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
+        crt_next_physical_processor_affinity_mask()));
     crt_disable_power_throttling();
 }
 
