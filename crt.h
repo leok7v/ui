@@ -453,6 +453,8 @@ produces:
 #define attribute_packed
 #endif
 
+// usage: typedef begin_packed struct foo_s { ... } end_packed foo_t;
+
 #ifdef _MSC_VER
 
 #if defined(_WIN64) || defined(_M_X64)
@@ -874,8 +876,8 @@ static HKEY crt_get_reg_key(const char* name) {
     char path[MAX_PATH];
     strprintf(path, "Software\\app\\%s", name);
     HKEY key = null;
-    if (RegOpenKey(HKEY_CURRENT_USER, path, &key) != 0) {
-        RegCreateKey(HKEY_CURRENT_USER, path, &key);
+    if (RegOpenKeyA(HKEY_CURRENT_USER, path, &key) != 0) {
+        RegCreateKeyA(HKEY_CURRENT_USER, path, &key);
     }
     not_null(key);
     return key;
@@ -987,11 +989,18 @@ static void crt_power_throttling_disable_for_process() {
     if (!disabled_for_the_process) {
         PROCESS_POWER_THROTTLING_STATE pt = { 0 };
         pt.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
-        pt.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED |
-            PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
+        pt.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
         pt.StateMask = 0;
         fatal_if_false(SetProcessInformation(GetCurrentProcess(),
             ProcessPowerThrottling, &pt, sizeof(pt)));
+        // PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION 
+        // does not work on Win10. There is no easy way to 
+        // distinguish Windows 11 from 10 (Microsoft great engineering)
+        pt.ControlMask = PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
+        pt.StateMask = 0;
+        // ignore error on Windows 10:
+        (void)SetProcessInformation(GetCurrentProcess(),
+            ProcessPowerThrottling, &pt, sizeof(pt)); 
         disabled_for_the_process = true;
     }
 }
@@ -1001,7 +1010,8 @@ static void crt_power_throttling_disable_for_thread(HANDLE thread) {
     pt.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
     pt.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
     pt.StateMask = 0;
-    fatal_if_false(SetThreadInformation(thread, ThreadPowerThrottling, &pt, sizeof(pt)));
+    fatal_if_false(SetThreadInformation(thread, ThreadPowerThrottling, 
+        &pt, sizeof(pt)));
 }
 
 static void crt_disable_power_throttling() {
