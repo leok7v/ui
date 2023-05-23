@@ -3133,12 +3133,13 @@ static void app_create_window(ui_rect_t r, int32_t width, int32_t height) {
     fatal_if_false(GetWindowRect(window(), &wrc));
     app.wrc = app_rect2ui(&wrc);
     COLORREF caption_color_ref = gdi_color_ref(colors.dkgray3);
-    fatal_if_not_zero(DwmSetWindowAttribute(window(),
-        DWMWA_CAPTION_COLOR, &caption_color_ref, sizeof(caption_color_ref)));
+    // ignore DwmSetWindowAttribute() error on Windows 10
+    (void)DwmSetWindowAttribute(window(),
+        DWMWA_CAPTION_COLOR, &caption_color_ref, sizeof(caption_color_ref));
     if (app.aero) { // It makes app look like retro Windows 7 Aero style :)
         enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
-        fatal_if_not_zero(DwmSetWindowAttribute(window(),
-            DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp)));
+        (void)DwmSetWindowAttribute(window(),
+            DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
     }
     // always start with window hidden and let application show it
     app.show_window(window_visibility.hide);
