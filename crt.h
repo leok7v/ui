@@ -363,7 +363,7 @@ typedef struct {
     // compare_exchange functions compare the *a value with the comparand value.
     // If the *a is equal to the comparand value, the "v" value is stored in the address
     // specified by "a" otherwise, no operation is performed.
-    // returns true is previous value if *a was the same as "comarand"
+    // returns true is previous value if *a was the same as "comparand"
     bool (*compare_exchange_int64)(volatile int64_t* a, int64_t comparand, int64_t v);
     bool (*compare_exchange_int32)(volatile int32_t* a, int32_t comparand, int32_t v);
     void (*spinlock_acquire)(volatile int64_t* spinlock);
@@ -1020,12 +1020,14 @@ static void crt_disable_power_throttling() {
 }
 
 static uint64_t crt_next_physical_processor_affinity_mask() {
-    static bool init;
+    static volatile int32_t initialized;
+    static int32_t init;
     static int next = 1; // next physical core to use
     static int cores = 0; // number of physical processors (cores)
     static uint64_t any;
     static uint64_t affinity[64]; // mask for each physical processor
-    if (!init) {
+    bool set_to_true = atomics.compare_exchange_int32(&init, false, true);
+    if (set_to_true) {
         // Concept D: 6 cores, 12 logical processors: 27 lpi entries
         static SYSTEM_LOGICAL_PROCESSOR_INFORMATION lpi[64];
         DWORD bytes = 0;
@@ -1047,11 +1049,16 @@ static uint64_t crt_next_physical_processor_affinity_mask() {
                 }
             }
         }
-        init = true;
+        initialized = true;
+    } else {
+        while (initialized == 0) { crt.sleep(1 / 1024.0); }
+        assert(any != 0); // should not ever happen
+        if (any == 0) { any = (uint64_t)(-1LL); }
     }
     uint64_t mask = next < cores ? affinity[next] : any;
     assert(mask != 0);
-    if (next < cores) { next++; }
+    // assume last physical core is least popular
+    if (next < cores) { next++; } // not circular
     return mask;
 }
 
