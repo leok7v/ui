@@ -259,7 +259,7 @@ enum {
 };
 
 typedef struct {
-    int32_t (*err)(); // errno or GetLastError()
+    int32_t (*err)(void); // errno or GetLastError()
     void (*seterr)(int32_t err); // errno = err or SetLastError()
     // non-crypro strong pseudo-random number generators (thread safe)
     uint32_t (*random32)(uint32_t *state); // "Mulberry32"
@@ -270,10 +270,10 @@ typedef struct {
     // memmap_res() maps data from resources, do NOT unmap!
     int (*memmap_res)(const char* label, void** data, int64_t* bytes);
     void (*sleep)(double seconds);
-    double (*seconds)(); // since boot
-    int64_t (*nanoseconds)(); // since boot
-    uint64_t (*microseconds)(); // NOT monotonic(!) UTC since epoch January 1, 1601
-    uint64_t (*localtime)();    // local time microseconds since epoch
+    double (*seconds)(void); // since boot
+    int64_t (*nanoseconds)(void); // since boot
+    uint64_t (*microseconds)(void); // NOT monotonic(!) UTC since epoch January 1, 1601
+    uint64_t (*localtime)(void);    // local time microseconds since epoch
     void (*time_utc)(uint64_t microseconds, int* year, int* month,
         int* day, int* hh, int* mm, int* ss, int* ms, int* mc);
     void (*time_local)(uint64_t microseconds, int* year, int* month,
@@ -298,8 +298,8 @@ typedef struct {
         const char* format, ...);
     void (*vtraceline)(const char* file, int line, const char* function,
         const char* format, va_list vl);
-    void (*breakpoint)();
-    int (*gettid)();
+    void (*breakpoint)(void);
+    int (*gettid)(void);
     int (*assertion_failed)(const char* file, int line, const char* function,
                          const char* condition, const char* format, ...);
     void (*fatal)(const char* file, int line, const char* function,
@@ -316,7 +316,7 @@ typedef struct {
     bool (*try_join)(thread_t thread, double timeout); // seconds
     void (*join)(thread_t thread);
     void (*name)(const char* name); // names the thread
-    void (*realtime)(); // bumps calling thread priority
+    void (*realtime)(void); // bumps calling thread priority
 } threads_if;
 
 extern threads_if threads;
@@ -324,8 +324,8 @@ extern threads_if threads;
 typedef void* event_t;
 
 typedef struct {
-    event_t (*create)(); // never returns null
-    event_t (*create_manual)(); // never returns null
+    event_t (*create)(void); // never returns null
+    event_t (*create_manual)(void); // never returns null
     void (*set)(event_t e);
     void (*reset)(event_t e);
     void (*wait)(event_t e);
@@ -368,7 +368,7 @@ typedef struct {
     bool (*compare_exchange_int32)(volatile int32_t* a, int32_t comparand, int32_t v);
     void (*spinlock_acquire)(volatile int64_t* spinlock);
     void (*spinlock_release)(volatile int64_t* spinlock);
-    void (*memory_fence)();
+    void (*memory_fence)(void);
 } atomics_if;
 
 extern atomics_if atomics;
@@ -501,7 +501,7 @@ void* _force_symbol_reference_(void* symbol);
         static void after_main2(void) { printf("called after main() 2\n"); }
         static_init(main_init1)       { printf("called before main 1\n"); atexit(after_main1); }
         static_init(main_init2)       { printf("called before main 2\n"); atexit(after_main2); }
-        int main() { printf("main()\n"); }
+        int main(void) { printf("main()\n"); }
 */
 
 end_c
@@ -768,7 +768,7 @@ static void crt_sleep(double seconds) {
     NtDelayExecution(false, &delay);
 }
 
-static uint64_t crt_microseconds_since_epoch() { // NOT monotonic
+static uint64_t crt_microseconds_since_epoch(void) { // NOT monotonic
     FILETIME ft; // time in 100ns interval (tenth of microsecond)
     // since 12:00 A.M. January 1, 1601 Coordinated Universal Time (UTC)
     GetSystemTimePreciseAsFileTime(&ft);
@@ -778,7 +778,7 @@ static uint64_t crt_microseconds_since_epoch() { // NOT monotonic
     return microseconds;
 }
 
-static uint64_t crt_localtime() {
+static uint64_t crt_localtime(void) {
     TIME_ZONE_INFORMATION tzi; // UTC = local time + bias
     GetTimeZoneInformation(&tzi);
     uint64_t bias = (uint64_t)tzi.Bias * 60LL * 1000 * 1000; // in microseconds
@@ -821,7 +821,7 @@ static void crt_time_local(uint64_t microseconds, int* year, int* month,
     *mc = microseconds % 1000;
 }
 
-static double crt_seconds() { // since_boot
+static double crt_seconds(void) { // since_boot
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static double one_over_freq;
@@ -851,7 +851,7 @@ static uint32_t crt_gcd(uint32_t u, uint32_t v) {
     return v << g;
 }
 
-static int64_t crt_nanoseconds() {
+static int64_t crt_nanoseconds(void) {
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static uint32_t freq;
@@ -984,7 +984,7 @@ static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
     return r;
 }
 
-static void crt_power_throttling_disable_for_process() {
+static void crt_power_throttling_disable_for_process(void) {
     static bool disabled_for_the_process;
     if (!disabled_for_the_process) {
         PROCESS_POWER_THROTTLING_STATE pt = { 0 };
@@ -1014,12 +1014,12 @@ static void crt_power_throttling_disable_for_thread(HANDLE thread) {
         &pt, sizeof(pt)));
 }
 
-static void crt_disable_power_throttling() {
+static void crt_disable_power_throttling(void) {
     crt_power_throttling_disable_for_process();
     crt_power_throttling_disable_for_thread(GetCurrentThread());
 }
 
-static uint64_t crt_next_physical_processor_affinity_mask() {
+static uint64_t crt_next_physical_processor_affinity_mask(void) {
     static volatile int32_t initialized;
     static int32_t init;
     static int next = 1; // next physical core to use
@@ -1062,7 +1062,7 @@ static uint64_t crt_next_physical_processor_affinity_mask() {
     return mask;
 }
 
-static void threads_realtime() {
+static void threads_realtime(void) {
     fatal_if_false(SetPriorityClass(GetCurrentProcess(),
         REALTIME_PRIORITY_CLASS));
     fatal_if_false(SetThreadPriority(GetCurrentThread(),
@@ -1128,13 +1128,13 @@ threads_if threads = {
     .realtime = threads_realtime
 };
 
-static event_t events_create() {
+static event_t events_create(void) {
     HANDLE e = CreateEvent(null, false, false, null);
     not_null(e);
     return (event_t)e;
 }
 
-static event_t events_create_manual() {
+static event_t events_create_manual(void) {
     HANDLE e = CreateEvent(null, true, false, null);
     not_null(e);
     return (event_t)e;
@@ -1281,7 +1281,7 @@ static void spinlock_release(volatile int64_t* spinlock) {
     atomics.memory_fence(); // tribute to lengthy Linus discussion going since 2006
 }
 
-static void memory_fence() { _mm_mfence(); }
+static void memory_fence(void) { _mm_mfence(); }
 
 atomics_if atomics = {
     .exchange_ptr    = atomics_exchange_ptr,
@@ -1419,9 +1419,9 @@ static wchar_t* crt_utf8to16(wchar_t* utf16, const char* s) {
     return utf16;
 }
 
-static void crt_breakpoint() { if (IsDebuggerPresent()) { DebugBreak(); } }
+static void crt_breakpoint(void) { if (IsDebuggerPresent()) { DebugBreak(); } }
 
-static int crt_gettid() { return (int)GetCurrentThreadId(); }
+static int crt_gettid(void) { return (int)GetCurrentThreadId(); }
 
 static void crt_fatal(const char* file, int line, const char* func,
         const char* (*err2str)(int32_t err), int32_t error,
@@ -1451,7 +1451,7 @@ static int crt_assertion_failed(const char* file, int line, const char* func,
     return 0;
 }
 
-static int32_t crt_err() { return GetLastError(); }
+static int32_t crt_err(void) { return GetLastError(); }
 
 static void crt_seterr(int32_t err) { SetLastError(err); }
 
@@ -1507,7 +1507,7 @@ static int crt_set_token_privilege(void* token, const char* name, bool e) {
            sizeof(TOKEN_PRIVILEGES), null, null) ? 0 : GetLastError();
 }
 
-static int crt_adjust_process_privilege_manage_volume_name() {
+static int crt_adjust_process_privilege_manage_volume_name(void) {
     // see: https://devblogs.microsoft.com/oldnewthing/20160603-00/?p=93565
     const uint32_t access = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
     const HANDLE process = GetCurrentProcess();

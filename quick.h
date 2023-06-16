@@ -71,7 +71,7 @@ typedef struct gdi_s {
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
     void (*push)(int32_t x, int32_t y); // also calls SaveDC(app.canvas)
-    void (*pop)(); // also calls RestoreDC(-1, app.canvas)
+    void (*pop)(void); // also calls RestoreDC(-1, app.canvas)
     void (*pixel)(int32_t x, int32_t y, color_t c);
     ui_point_t (*move_to)(int32_t x, int32_t y); // returns previous (x, y)
     void (*line)(int32_t x, int32_t y); // line to x, y with gdi.pen moves x, y
@@ -101,6 +101,7 @@ typedef struct gdi_s {
     font_t (*set_font)(font_t f);
     int    (*descent)(font_t f);  // font descent (glyphs blow baseline)
     int    (*baseline)(font_t f); // height - baseline (aka ascent) = descent
+    bool   (*is_mono)(font_t f);  // is font monospaced?
     ui_point_t (*get_em)(font_t f); // pixel size of glyph "M"
     ui_point_t (*measure_text)(font_t f, const char* format, ...);
     // width can be -1 which measures text with "\n" or
@@ -185,7 +186,8 @@ enum {
     uic_tag_button     = 'btn',
     uic_tag_checkbox   = 'cbx',
     uic_tag_slider     = 'sld',
-    uic_tag_text       = 'txt'
+    uic_tag_text       = 'txt',
+    uic_tag_edit       = 'edt'
 };
 
 typedef struct uic_s uic_t;
@@ -465,16 +467,16 @@ typedef struct app_s {
     // implemented by client:
     const char* class_name;
     // called before creating main window
-    void (*init)();
+    void (*init)(void);
     // called instead of init() for console apps and when .no_ui=true
-    int (*main)();
+    int (*main)(void);
     // class_name and init must be set before main()
-    void (*openned)(); // window has been created and shown
-    void (*once_upon_a_second)(); // if not null called ~ once a second
-    void (*periodically)(); // called ~10 times per second
-    bool (*can_close)();  // window can be closed
-    void (*closed)();  // window has been closed
-    void (*fini)(); // called before WinMain() return
+    void (*openned)(void); // window has been created and shown
+    void (*once_upon_a_second)(void); // if not null called ~ once a second
+    void (*periodically)(void); // called ~10 times per second
+    bool (*can_close)(void);  // window can be closed
+    void (*closed)(void);  // window has been closed
+    void (*fini)(void); // called before WinMain() return
     // must be filled by application:
     const char* title;
     // min/max width/heigh are prefilled according to monitor size
@@ -531,17 +533,17 @@ typedef struct app_s {
     const char* (*string)(int strid, const char* defau1t);
     // nls(s) is same as string(strid(s), s)
     const char* (*nls)(const char* defau1t); // national localized string
-    const char* (*locale)(); // "en-US" "zh-CN" etc...
+    const char* (*locale)(void); // "en-US" "zh-CN" etc...
     // force locale for debugging and testing:
     void (*set_locale)(const char* locale); // only for calling thread
     // layout:
-    void (*layout)(); // requests layout on UI tree before paint()
+    void (*layout)(void); // requests layout on UI tree before paint()
     void (*invalidate)(ui_rect_t* rc);
     void (*full_screen)(bool on);
-    void (*redraw)(); // very fast (5 microseconds) InvalidateRect(null)
-    void (*draw)();   // UpdateWindow()
+    void (*redraw)(void); // very fast (5 microseconds) InvalidateRect(null)
+    void (*draw)(void);   // UpdateWindow()
     void (*set_cursor)(cursor_t c);
-    void (*close)(); // window
+    void (*close)(void); // window
     tm_t (*set_timer)(uintptr_t id, int32_t milliseconds); // see notes
     void (*kill_timer)(tm_t id);
     void (*post)(int message, int64_t wp, int64_t lp);
@@ -563,7 +565,7 @@ typedef struct app_s {
     const char* (*open_filename)(const char* folder, const char* filter[], int n);
     const char* (*known_folder)(int kfid);
     // attempts to attach to parent command line console:
-    void (*attach_console)();
+    void (*attach_console)(void);
     // stats:
     int32_t paint_count; // number of paint calls
     double paint_time; // last paint duration in seconds
@@ -682,7 +684,7 @@ typedef struct gdi_xyc_s {
 static int gdi_top;
 static gdi_xyc_t gdi_stack[256];
 
-static void __gdi_init__() {
+static void __gdi_init__(void) {
     gdi.brush_hollow = (brush_t)GetStockBrush(HOLLOW_BRUSH);
     gdi.brush_color  = (brush_t)GetStockBrush(DC_BRUSH);
     gdi.pen_hollow = (pen_t)GetStockPen(NULL_PEN);
@@ -748,7 +750,7 @@ static void gdi_push(int x, int y) {
     gdi.y = y;
 }
 
-static void gdi_pop() {
+static void gdi_pop(void) {
     assert(0 < gdi_top && gdi_top <= countof(gdi_stack));
     fatal_if(gdi_top <= 0);
     gdi_top--;
@@ -1028,6 +1030,18 @@ static ui_point_t gdi_get_em(font_t f) {
     return c;
 }
 
+static bool gdi_is_mono(font_t f) {
+    SIZE em = {0}; // "M"
+    SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
+    SIZE e3 = {0}; // "\xE2\xB8\xBB" Three-Em Dash https://www.compart.com/en/unicode/U+2E3B
+    gdi_hdc_with_font(f, {
+        fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &em));
+        fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        fatal_if_false(GetTextExtentPoint32A(hdc, "\xE2\xB8\xBB", 1, &e3));
+    });
+    return em.cx == vl.cx && vl.cx == e3.cx;
+}
+
 static double gdi_line_spacing(double height_multiplier) {
     assert(0.1 <= height_multiplier && height_multiplier <= 2.0);
     double hm = gdi.height_multiplier;
@@ -1252,6 +1266,7 @@ gdi_t gdi = {
     .set_font = gdi_set_font,
     .descent = gdi_descent,
     .baseline = gdi_baseline,
+    .is_mono = gdi_is_mono,
     .get_em = gdi_get_em,
     .line_spacing = gdi_line_spacing,
     .measure_text = gdi_measure_singleline,
@@ -2327,7 +2342,7 @@ static bool app_update_mi(const ui_rect_t* r, uint32_t flags) {
     return monitor != null;
 }
 
-static void app_update_crc() {
+static void app_update_crc(void) {
     RECT rc = {0};
     fatal_if_false(GetClientRect(window(), &rc));
     app.crc = app_rect2ui(&rc);
@@ -2335,7 +2350,7 @@ static void app_update_crc() {
     app.height = app.crc.h;
 }
 
-static void app_dispose_fonts() {
+static void app_dispose_fonts(void) {
     fatal_if_false(DeleteFont(app.fonts.regular));
     fatal_if_false(DeleteFont(app.fonts.H1));
     fatal_if_false(DeleteFont(app.fonts.H2));
@@ -2383,7 +2398,7 @@ static int app_data_load(const char* name, void* data, int bytes) {
     return crt.data_load(app.class_name, name, data, bytes);
 }
 
-static void app_save_window_pos() {
+static void app_save_window_pos(void) {
     WINDOWPLACEMENT wpl = {0};
     wpl.length = sizeof(wpl);
     fatal_if_false(GetWindowPlacement(window(), &wpl));
@@ -2505,7 +2520,7 @@ static void app_periodically(tm_t id) {
     }
 }
 
-static void app_animate_timer() {
+static void app_animate_timer(void) {
     app_post_message(WM_ANIMATE, (uint64_t)app_animate.step + 1,
         (uintptr_t)app_animate.f);
 }
@@ -2517,7 +2532,7 @@ static void app_wm_timer(tm_t id) {
 }
 
 
-static void app_window_openning() {
+static void app_window_openning(void) {
     app_timer_1s_id = app.set_timer((uintptr_t)&app_timer_1s_id, 1000);
     app_timer_100ms_id = app.set_timer((uintptr_t)&app_timer_100ms_id, 100);
     app.set_cursor(app.cursor_arrow);
@@ -2540,7 +2555,7 @@ static void app_window_openning() {
 //  }
 }
 
-static void app_window_closing() {
+static void app_window_closing(void) {
     if (app.can_close == null || app.can_close()) {
         if (app.is_full_screen) { app.full_screen(false); }
         app_save_window_pos();
@@ -2736,7 +2751,7 @@ static void app_mouse(uic_t* ui, int32_t m, int32_t f) {
     }
 }
 
-static void app_toast_paint() {
+static void app_toast_paint(void) {
     static image_t image;
     if (image.bitmap == null) {
         byte pixels[4] = { 0x3F, 0x3F, 0x3F };
@@ -2790,7 +2805,7 @@ static void app_toast_paint() {
     }
 }
 
-static void app_toast_cancel() {
+static void app_toast_cancel(void) {
     if (app_toast.ui != null && app_toast.ui->tag == uic_tag_messagebox) {
         uic_messagebox_t* mx = (uic_messagebox_t*)app_toast.ui;
         if (mx->option < 0) { mx->cb(mx, -1); }
@@ -2869,7 +2884,7 @@ static void app_animate_start(app_animate_function_t f, int steps) {
     app_animate_step(f, 0, steps);
 }
 
-static void app_layout_root() {
+static void app_layout_root(void) {
     not_null(app.window);
     not_null(app.canvas);
     app.ui->w = app.crc.w; // crc is window client rectangle
@@ -2915,14 +2930,14 @@ static void app_paint_on_canvas(HDC hdc) {
     app.canvas = canvas;
 }
 
-static void app_wm_paint() {
+static void app_wm_paint(void) {
     PAINTSTRUCT ps = {0};
     BeginPaint(window(), &ps);
     app_paint_on_canvas(ps.hdc);
     EndPaint(window(), &ps);
 }
 
-static void app_window_position_changed() {
+static void app_window_position_changed(void) {
     RECT wrc = app_ui2rect(&app.wrc);
     fatal_if_false(GetWindowRect(window(), &wrc));
     app.wrc = app_rect2ui(&wrc);
@@ -3197,9 +3212,9 @@ static void app_full_screen(bool on) {
     }
 }
 
-static void app_fast_redraw() { SetEvent(app_event_invalidate); } // < 2us
+static void app_fast_redraw(void) { SetEvent(app_event_invalidate); } // < 2us
 
-static void app_draw() { UpdateWindow(window()); }
+static void app_draw(void) { UpdateWindow(window()); }
 
 static void app_invalidate_rect(ui_rect_t* r) {
     RECT rc = app_ui2rect(r);
@@ -3224,7 +3239,7 @@ static void app_redraw_thread(void* unused(p)) {
     }
 }
 
-static int32_t app_message_loop() {
+static int32_t app_message_loop(void) {
     MSG msg = {0};
     while (GetMessage(&msg, null, 0, 0)) {
         TranslateMessage(&msg);
@@ -3234,7 +3249,7 @@ static int32_t app_message_loop() {
     return (int32_t)msg.wParam;
 }
 
-static void app_dispose() {
+static void app_dispose(void) {
     app_dispose_fonts();
     if (gdi.clip != null) { DeleteRgn(gdi.clip); }
     fatal_if_false(CloseHandle(app_event_quit));
@@ -3249,7 +3264,7 @@ static void app_cursor_set(cursor_t c) {
     if (GetCursorPos(&pt)) { SetCursorPos(pt.x + 1, pt.y); SetCursorPos(pt.x, pt.y); }
 }
 
-static void app_close_window() {
+static void app_close_window(void) {
     app_post_message(WM_CLOSE, 0, 0);
 }
 
@@ -3303,7 +3318,7 @@ static void app_enable_sys_command_close(void) {
         SC_CLOSE, MF_BYCOMMAND | MF_ENABLED);
 }
 
-static void app_console_attach() {
+static void app_console_attach(void) {
     if (AttachConsole(ATTACH_PARENT_PROCESS)) {
         // disable SC_CLOSE not to kill firmware update...
         EnableMenuItem(GetSystemMenu(GetConsoleWindow(), false),
@@ -3316,7 +3331,7 @@ static void app_console_attach() {
     }
 }
 
-static void app_request_layout() {
+static void app_request_layout(void) {
     app_layout_dirty = true;
     app.redraw();
 }
@@ -3539,7 +3554,7 @@ clipboard_t clipboard = {
 
 static uic_t app_ui;
 
-static void app_init() {
+static void app_init(void) {
     app.ui = &app_ui;
     app.redraw = app_fast_redraw;
     app.draw = app_draw;
@@ -3566,7 +3581,7 @@ static void app_init() {
     app_event_invalidate = events.create();
 }
 
-static void __app_windows_init__() {
+static void __app_windows_init__(void) {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
     not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     InitCommonControls(); // otherwise GetOpenFileName does not work
@@ -3583,7 +3598,7 @@ static void __app_windows_init__() {
     app_init_fonts(app.dpi.window);
 }
 
-static int app_win_main() {
+static int app_win_main(void) {
     not_null(app.init); not_null(app.class_name);
     __app_windows_init__();
     __gdi_init__();
@@ -3727,7 +3742,7 @@ const char* winnls_nls(const char* s) {
     return id == 0 ? s : winnls_string(id, s);
 }
 
-static const char* winnls_locale() {
+static const char* winnls_locale(void) {
     wchar_t wln[LOCALE_NAME_MAX_LENGTH + 1];
     LCID lcid = GetThreadLocale();
     int n = LCIDToLocaleName(lcid, wln, countof(wln),
@@ -3761,7 +3776,7 @@ static void winnls_set_locale(const char* locale) {
     }
 }
 
-static void winnls_init() {
+static void winnls_init(void) {
     LANGID langid = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
     for (int strid = 0; strid < countof(winnls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
@@ -3787,7 +3802,7 @@ static void winnls_init() {
     }
 }
 
-static void __winnls_init__() {
+static void __winnls_init__(void) {
     static_assert(countof(winnls_ns) % 16 == 0, "countof(ns) must be multiple of 16");
     static bool ns_initialized;
     if (!ns_initialized) { ns_initialized = true; winnls_init(); }
