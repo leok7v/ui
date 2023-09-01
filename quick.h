@@ -91,6 +91,9 @@ typedef struct gdi_s {
     void (*draw_bgr)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, const byte* pixels);
+    void (*draw_bgrx)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+        int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t iw, int32_t ih, const byte* pixels);
     void (*alpha_blend)(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image, double alpha);
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -859,21 +862,36 @@ static void gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
     fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
 }
 
+static BITMAPINFOHEADER gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
+    BITMAPINFOHEADER bi = {
+        .biSize = sizeof(BITMAPINFOHEADER),
+        .biPlanes = 1,
+        .biBitCount = (uint16_t)(bpp * 8),
+        .biCompression = BI_RGB,
+        .biWidth = w,
+        .biHeight = -h, // top down image
+        .biSizeImage = w * h * bpp,
+        .biClrUsed = 0,
+        .biClrImportant = 0
+   };
+   return bi;
+}
+
 static void gdi_draw_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, const byte* pixels) {
-    static BITMAPINFOHEADER bi;
-    if (bi.biSize == 0) { // once
-        bi.biSize = sizeof(BITMAPINFOHEADER);
-        bi.biPlanes = 1;
-        bi.biBitCount = 8 * 3;
-        bi.biCompression = BI_RGB;
-        bi.biClrUsed = 0;
-        bi.biClrImportant = 0;
-    }
-    bi.biWidth = iw;
-    bi.biHeight = -ih; // top down image
-    bi.biSizeImage = w * h * 3;
+    BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 3);
+    POINT pt = { 0 };
+    fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
+    StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
+        pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY);
+    fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
+}
+
+static void gdi_draw_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+        int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t iw, int32_t ih, const byte* pixels) {
+    BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 4);
     POINT pt = { 0 };
     fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
     StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
