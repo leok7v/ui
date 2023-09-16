@@ -993,14 +993,14 @@ static void crt_power_throttling_disable_for_process(void) {
         pt.StateMask = 0;
         fatal_if_false(SetProcessInformation(GetCurrentProcess(),
             ProcessPowerThrottling, &pt, sizeof(pt)));
-        // PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION 
-        // does not work on Win10. There is no easy way to 
+        // PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
+        // does not work on Win10. There is no easy way to
         // distinguish Windows 11 from 10 (Microsoft great engineering)
         pt.ControlMask = PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
         pt.StateMask = 0;
         // ignore error on Windows 10:
         (void)SetProcessInformation(GetCurrentProcess(),
-            ProcessPowerThrottling, &pt, sizeof(pt)); 
+            ProcessPowerThrottling, &pt, sizeof(pt));
         disabled_for_the_process = true;
     }
 }
@@ -1010,7 +1010,7 @@ static void crt_power_throttling_disable_for_thread(HANDLE thread) {
     pt.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
     pt.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
     pt.StateMask = 0;
-    fatal_if_false(SetThreadInformation(thread, ThreadPowerThrottling, 
+    fatal_if_false(SetThreadInformation(thread, ThreadPowerThrottling,
         &pt, sizeof(pt)));
 }
 
@@ -1502,7 +1502,7 @@ static int crt_set_token_privilege(void* token, const char* name, bool e) {
     // see: https://learn.microsoft.com/en-us/windows/win32/secauthz/enabling-and-disabling-privileges-in-c--
     TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
     tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
-    fatal_if_false(LookupPrivilegeValue(null, name, &tp.Privileges[0].Luid));
+    fatal_if_false(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid));
     return AdjustTokenPrivileges(token, false, &tp,
            sizeof(TOKEN_PRIVILEGES), null, null) ? 0 : GetLastError();
 }
@@ -1514,7 +1514,12 @@ static int crt_adjust_process_privilege_manage_volume_name(void) {
     HANDLE token = null;
     int r = OpenProcessToken(process, access, &token) ? 0 : GetLastError();
     if (r == 0) {
-        r = crt_set_token_privilege(token, SE_MANAGE_VOLUME_NAME, true);
+        #ifdef UNICODE
+        const char* se_manage_volume_name = utf16to8(SE_MANAGE_VOLUME_NAME);
+        #else
+        const char* se_manage_volume_name = SE_MANAGE_VOLUME_NAME;
+        #endif
+        r = crt_set_token_privilege(token, se_manage_volume_name, true);
         fatal_if_false(CloseHandle(token));
     }
     return r;
