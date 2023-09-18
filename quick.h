@@ -47,6 +47,16 @@ typedef uintptr_t tm_t; // timer not the same as "id" in set_timer()!
     (((uint32_t)(byte)(b))<<16)))
 #define rgba(r, g, b, a) (color_t)((rgb(r, g, b)) | (((byte)a) << 24))
 
+enum {
+    gdi_font_quality_default = 0,
+    gdi_font_quality_draft = 1,
+    gdi_font_quality_proof = 2, // antialiased w/o ClrearType rainbows
+    gdi_font_quality_nonantialiased = 3,
+    gdi_font_quality_antialiased = 4,
+    gdi_font_quality_cleartype = 5,
+    gdi_font_quality_cleartype_natural = 6
+};
+
 typedef struct image_s {
     int32_t w, h, bpp;
     bitmap_t bitmap;
@@ -99,7 +109,9 @@ typedef struct gdi_s {
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image);
     // text:
-    font_t (*font)(font_t f, int height); // custom font
+    void (*cleartype)(bool on);
+    void (*font_smoothing_contrast)(int c); // [1000..2202] or -1 for 1400 default
+    font_t (*font)(font_t f, int height, int quality); // custom font, quality: -1 as is
     void   (*delete_font)(font_t f);
     font_t (*set_font)(font_t f);
     int    (*descent)(font_t f);  // font descent (glyphs blow baseline)
@@ -567,8 +579,8 @@ typedef struct app_s {
     // const char* fn = app.open_filename("C:\\", filter, countof(filter));
     const char* (*open_filename)(const char* folder, const char* filter[], int n);
     const char* (*known_folder)(int kfid);
-    // attempts to attach to parent command line console:
-    void (*attach_console)(void);
+    int (*console_attach)(void); // attempts to attach to parent terminal
+    int (*console_create)(void); // allocates new console
     // stats:
     int32_t paint_count; // number of paint calls
     double paint_time; // last paint duration in seconds
@@ -981,12 +993,40 @@ static void gdi_draw_image(int32_t x, int32_t y, int32_t w, int32_t h,
     fatal_if_false(DeleteDC(c));
 }
 
-static font_t gdi_font(font_t f, int height) {
+static void gdi_cleartype(bool on) {
+    enum { spif = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE };
+    fatal_if_false(SystemParametersInfoA(SPI_SETFONTSMOOTHING, true, 0, spif));
+    uintptr_t s = on ? FE_FONTSMOOTHINGCLEARTYPE : FE_FONTSMOOTHINGSTANDARD;
+    fatal_if_false(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE, 0,
+        (void*)s, spif));
+}
+
+static void gdi_font_smoothing_contrast(int c) {
+    fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
+    if (c == -1) { c = 1400; }
+    fatal_if_false(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST, 0,
+                   (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
+}
+
+static_assertion(gdi_font_quality_default == DEFAULT_QUALITY);
+static_assertion(gdi_font_quality_draft == DRAFT_QUALITY);
+static_assertion(gdi_font_quality_proof == PROOF_QUALITY);
+static_assertion(gdi_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
+static_assertion(gdi_font_quality_antialiased == ANTIALIASED_QUALITY);
+static_assertion(gdi_font_quality_cleartype == CLEARTYPE_QUALITY);
+static_assertion(gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
+
+static font_t gdi_font(font_t f, int height, int quality) {
     assert(f != null && height > 0);
     LOGFONTA lf = {0};
     int n = GetObjectA(f, sizeof(lf), &lf);
     fatal_if_false(n == (int)sizeof(lf));
     lf.lfHeight = -height;
+    if (gdi_font_quality_default <= quality && quality <= gdi_font_quality_cleartype_natural) {
+        lf.lfQuality = (uint8_t)quality;
+    } else {
+        fatal_if(quality != -1, "use -1 for do not care quality");
+    }
     return (font_t)CreateFontIndirectA(&lf);
 }
 
@@ -1279,6 +1319,8 @@ gdi_t gdi = {
     .gradient = gdi_gradient,
     .draw_greyscale = gdi_draw_greyscale,
     .draw_bgr = gdi_draw_bgr,
+    .cleartype = gdi_cleartype,
+    .font_smoothing_contrast = gdi_font_smoothing_contrast,
     .font = gdi_font,
     .delete_font = gdi_delete_font,
     .set_font = gdi_set_font,
@@ -2379,12 +2421,15 @@ static void app_dispose_fonts(void) {
 static void app_init_fonts(int dpi) {
     app_update_ncm(dpi);
     if (app.fonts.regular != null) { app_dispose_fonts(); }
-    app.fonts.regular = (font_t)CreateFontIndirectW(&ncm.lfMessageFont);
+    LOGFONTW lf = ncm.lfMessageFont;
+    // lf.lfQuality is CLEARTYPE_QUALITY which looks bad on 4K monitors
+    // Windows UI uses PROOF_QUALITY which is aliased w/o ClearType rainbows
+    lf.lfQuality = PROOF_QUALITY;
+    app.fonts.regular = (font_t)CreateFontIndirectW(&lf);
     not_null(app.fonts.regular);
     const double fh = ncm.lfMessageFont.lfHeight;
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
-    LOGFONTW lf = ncm.lfMessageFont;
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int)(fh * 1.75);
     app.fonts.H1 = (font_t)CreateFontIndirectW(&lf);
@@ -3336,17 +3381,30 @@ static void app_enable_sys_command_close(void) {
         SC_CLOSE, MF_BYCOMMAND | MF_ENABLED);
 }
 
-static void app_console_attach(void) {
-    if (AttachConsole(ATTACH_PARENT_PROCESS)) {
-        // disable SC_CLOSE not to kill firmware update...
-        EnableMenuItem(GetSystemMenu(GetConsoleWindow(), false),
-            SC_CLOSE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED);
-        (void)freopen("CONOUT$", "w", stdout);
-        (void)freopen("CONOUT$", "w", stderr);
+static void app_console_disable_close(void) {
+    EnableMenuItem(GetSystemMenu(GetConsoleWindow(), false),
+        SC_CLOSE, MF_BYCOMMAND | MF_DISABLED | MF_GRAYED);
+    (void)freopen("CONOUT$", "w", stdout);
+    (void)freopen("CONOUT$", "w", stderr);
+    atexit(app_enable_sys_command_close);
+}
+
+static int app_console_attach(void) {
+    int r = AttachConsole(ATTACH_PARENT_PROCESS) ? 0 : crt.err();
+    if (r == 0) {
+        app_console_disable_close();
         crt.sleep(0.1); // give cmd.exe a chance to print prompt again
         printf("\n");
-        atexit(app_enable_sys_command_close);
     }
+    return r;
+}
+
+static int app_console_create(void) {
+    int r = AllocConsole() ? 0 : crt.err();
+    if (r == 0) {
+        app_console_disable_close();
+    }
+    return r;
 }
 
 static void app_request_layout(void) {
@@ -3594,7 +3652,8 @@ static void app_init(void) {
     app.data_load = app_data_load;
     app.open_filename = app_open_filename;
     app.known_folder = app_known_folder;
-    app.attach_console = app_console_attach;
+    app.console_attach = app_console_attach;
+    app.console_create = app_console_create;
     app_event_quit = events.create();
     app_event_invalidate = events.create();
 }
