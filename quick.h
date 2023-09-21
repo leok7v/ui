@@ -58,7 +58,10 @@ enum {
 };
 
 typedef struct image_s {
-    int32_t w, h, bpp;
+    int32_t w; // width
+    int32_t h; // height
+    int32_t bpp;    // "components" bytes per pixel
+    int32_t stride; // bytes per scanline rounded up to: (w * bpp + 3) & ~3
     bitmap_t bitmap;
     void* pixels;
 } image_t;
@@ -97,13 +100,13 @@ typedef struct gdi_s {
     // x, y, w, h rectange inside pixels[ih][iw] byte array
     void (*draw_greyscale)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, const byte* pixels);
+        int32_t iw, int32_t ih, int32_t stride, const byte* pixels);
     void (*draw_bgr)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, const byte* pixels);
+        int32_t iw, int32_t ih, int32_t stride, const byte* pixels);
     void (*draw_bgrx)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, const byte* pixels);
+        int32_t iw, int32_t ih, int32_t stride, const byte* pixels);
     void (*alpha_blend)(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image, double alpha);
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -843,7 +846,8 @@ static void gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, const byte* pixels) {
+        int32_t iw, int32_t ih, int32_t stride, const byte* pixels) {
+    fatal_if(stride != ((iw * 3 + 3) & ~0x3));
     typedef struct bitmap_rgb_s {
         BITMAPINFO bi;
         RGBQUAD rgb[256];
@@ -889,9 +893,15 @@ static BITMAPINFOHEADER gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
    return bi;
 }
 
+// draw_bgr(iw) assumes straides are padded and rounded up to 4 bytes
+// if this is not the case use gdi.image_init() that will unpack
+// and align scanlines prio to draw
+
 static void gdi_draw_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, const byte* pixels) {
+        int32_t iw, int32_t ih, int32_t stride,
+        const byte* pixels) {
+    fatal_if(stride != ((iw * 3 + 3) & ~0x3));
     BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 3);
     POINT pt = { 0 };
     fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
@@ -902,7 +912,9 @@ static void gdi_draw_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
 
 static void gdi_draw_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, const byte* pixels) {
+        int32_t iw, int32_t ih, int32_t stride,
+        const byte* pixels) {
+    fatal_if(stride != ((iw * 3 + 3) & ~0x3));
     BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 4);
     POINT pt = { 0 };
     fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
@@ -930,28 +942,52 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
     image->bitmap = (bitmap_t)CreateDIBSection(c, gdi_bmp(w, h, bpp, &bi),
         DIB_RGB_COLORS, &image->pixels, null, 0x0);
     fatal_if(image->bitmap == null || image->pixels == null);
-    memcpy(image->pixels, pixels, bi.bmiHeader.biSizeImage);
-    const int32_t n = w * h;
-    byte* bgra = (byte*)image->pixels;
-    if (bpp >= 3) {
-        for (int i = 0; i < n; i++) {
-            // swap R <-> B RGBA -> BGRA
-            __suppress_reading_invalid_data__
-            byte red = bgra[0]; bgra[0] = bgra[2]; bgra[2] = red;
-            if (bpp == 4) {
-                // premultiply alpha, see:
-                // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
-                int alpha = bgra[3];
-                bgra[0] = (byte)(bgra[0] * alpha / 255);
-                bgra[1] = (byte)(bgra[1] * alpha / 255);
-                bgra[2] = (byte)(bgra[2] * alpha / 255);
+    // Win32 bitmaps stride is rounded up to 4 bytes
+    const int32_t stride = (w * bpp + 3) & ~0x3;
+    byte* scanline = image->pixels;
+    if (bpp == 1) {
+        for (int y = 0; y < h; y++) {
+            memcpy(scanline, pixels, w);
+            pixels += w;
+            scanline += stride;
+        }
+    } else if (bpp == 3) {
+        const byte* rgb = pixels;
+        for (int y = 0; y < h; y++) {
+            byte* bgr = scanline;
+            for (int x = 0; x < w; x++) {
+                bgr[0] = rgb[2];
+                bgr[1] = rgb[1];
+                bgr[2] = rgb[0];
+                bgr += 3;
+                rgb += 3;
             }
-            bgra += bpp;
+            pixels += w * bpp;
+            scanline += stride;
+        }
+    } else if (bpp == 4) {
+        // premultiply alpha, see:
+        // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
+        const byte* rgba = pixels;
+        for (int y = 0; y < h; y++) {
+            byte* bgra = scanline;
+            for (int x = 0; x < w; x++) {
+                int32_t alpha = rgba[3];
+                bgra[0] = (byte)(bgra[2] * alpha / 255);
+                bgra[1] = (byte)(bgra[1] * alpha / 255);
+                bgra[2] = (byte)(bgra[0] * alpha / 255);
+                bgra[3] = rgba[3];
+                bgra += 4;
+                rgba += 4;
+            }
+            pixels += w * 4;
+            scanline += stride;
         }
     }
     image->w = w;
     image->h = h;
     image->bpp = bpp;
+    image->stride = stride;
     fatal_if_false(ReleaseDC(window(), c));
 }
 

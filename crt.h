@@ -201,8 +201,7 @@ static inline_c int indexof(const int a[], int n, int v) {
 // compiler cannot infere the size of accessible memory.
 
 #define __suppress_alloca_warnings__ _Pragma("warning(suppress: 6255 6263)")
-#define __suppress_buffer_overrun__ _Pragma("warning(suppress: 6386)")
-#define __suppress_reading_invalid_data__ _Pragma("warning(suppress: 6385)")
+#define __suppress_buffer_overrun__  _Pragma("warning(suppress: 6386)")
 
 #define stackalloc(bytes) (__suppress_alloca_warnings__ alloca(bytes))
 #define zero_initialized_stackalloc(bytes) memset(stackalloc(bytes), 0, (bytes))
