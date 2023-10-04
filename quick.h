@@ -43,9 +43,9 @@ typedef uintptr_t tm_t; // timer not the same as "id" in set_timer()!
 #define color_hdr_g(c)    (((c) >> 16) & 0xFFFF)
 #define color_hdr_b(c)    (((c) >> 32) & 0xFFFF)
 
-#define rgb(r,g,b) ((color_t)(((byte)(r) | ((uint16_t)((byte)(g))<<8)) | \
-    (((uint32_t)(byte)(b))<<16)))
-#define rgba(r, g, b, a) (color_t)((rgb(r, g, b)) | (((byte)a) << 24))
+#define rgb(r,g,b) ((color_t)(((uint8_t)(r) | ((uint16_t)((uint8_t)(g))<<8)) | \
+    (((uint32_t)(uint8_t)(b))<<16)))
+#define rgba(r, g, b, a) (color_t)((rgb(r, g, b)) | (((uint8_t)a) << 24))
 
 enum {
     gdi_font_quality_default = 0,
@@ -71,8 +71,9 @@ typedef struct gdi_s {
     brush_t  brush_hollow;
     pen_t pen_hollow;
     region_t clip;
+    // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
     void (*image_init)(image_t* image, int32_t w, int32_t h, int32_t bpp,
-        const byte* pixels); // bpp bytes (not bits!) per pixel
+        const uint8_t* pixels);
     void (*image_dispose)(image_t* image);
     color_t (*set_text_color)(color_t c);
     color_t (*set_brush_color)(color_t c);
@@ -100,13 +101,13 @@ typedef struct gdi_s {
     // x, y, w, h rectange inside pixels[ih][iw] byte array
     void (*draw_greyscale)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const byte* pixels);
+        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
     void (*draw_bgr)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const byte* pixels);
+        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
     void (*draw_bgrx)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const byte* pixels);
+        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
     void (*alpha_blend)(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image, double alpha);
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -846,8 +847,8 @@ static void gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const byte* pixels) {
-    fatal_if(stride != ((iw * 3 + 3) & ~0x3));
+        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels) {
+    fatal_if(stride != ((iw + 3) & ~0x3));
     typedef struct bitmap_rgb_s {
         BITMAPINFO bi;
         RGBQUAD rgb[256];
@@ -860,7 +861,7 @@ static void gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         for (int i = 0; i < 256; i++) {
             RGBQUAD* q = &bi->bmiColors[i];
             q->rgbReserved = 0;
-            q->rgbBlue = q->rgbGreen = q->rgbRed = (byte)i;
+            q->rgbBlue = q->rgbGreen = q->rgbRed = (uint8_t)i;
         }
         bih->biPlanes = 1;
         bih->biBitCount = 8;
@@ -900,7 +901,7 @@ static BITMAPINFOHEADER gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
 static void gdi_draw_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride,
-        const byte* pixels) {
+        const uint8_t* pixels) {
     fatal_if(stride != ((iw * 3 + 3) & ~0x3));
     BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 3);
     POINT pt = { 0 };
@@ -913,8 +914,8 @@ static void gdi_draw_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
 static void gdi_draw_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride,
-        const byte* pixels) {
-    fatal_if(stride != ((iw * 3 + 3) & ~0x3));
+        const uint8_t* pixels) {
+    fatal_if(stride != ((iw * 4 + 3) & ~0x3));
     BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 4);
     POINT pt = { 0 };
     fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
@@ -935,7 +936,9 @@ static BITMAPINFO* gdi_bmp(int32_t w, int32_t h, int32_t bpp, BITMAPINFO* bi) {
 }
 
 static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
-        const byte* pixels) {
+        const uint8_t* pixels) {
+    bool swapped = bpp < 0;
+    bpp = abs(bpp);
     fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
     HDC c = GetWindowDC(window());
     BITMAPINFO bi = { {sizeof(BITMAPINFOHEADER)} };
@@ -944,17 +947,17 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
     fatal_if(image->bitmap == null || image->pixels == null);
     // Win32 bitmaps stride is rounded up to 4 bytes
     const int32_t stride = (w * bpp + 3) & ~0x3;
-    byte* scanline = image->pixels;
+    uint8_t* scanline = image->pixels;
     if (bpp == 1) {
         for (int y = 0; y < h; y++) {
             memcpy(scanline, pixels, w);
             pixels += w;
             scanline += stride;
         }
-    } else if (bpp == 3) {
-        const byte* rgb = pixels;
+    } else if (bpp == 3 && !swapped) {
+        const uint8_t* rgb = pixels;
         for (int y = 0; y < h; y++) {
-            byte* bgr = scanline;
+            uint8_t* bgr = scanline;
             for (int x = 0; x < w; x++) {
                 bgr[0] = rgb[2];
                 bgr[1] = rgb[1];
@@ -965,17 +968,49 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
             pixels += w * bpp;
             scanline += stride;
         }
-    } else if (bpp == 4) {
+    } else if (bpp == 3 && swapped) {
+        const uint8_t* rgb = pixels;
+        for (int y = 0; y < h; y++) {
+            uint8_t* bgr = scanline;
+            for (int x = 0; x < w; x++) {
+                bgr[0] = rgb[0];
+                bgr[1] = rgb[1];
+                bgr[2] = rgb[2];
+                bgr += 3;
+                rgb += 3;
+            }
+            pixels += w * bpp;
+            scanline += stride;
+        }
+    } else if (bpp == 4 && !swapped) {
         // premultiply alpha, see:
         // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
-        const byte* rgba = pixels;
+        const uint8_t* rgba = pixels;
         for (int y = 0; y < h; y++) {
-            byte* bgra = scanline;
+            uint8_t* bgra = scanline;
             for (int x = 0; x < w; x++) {
                 int32_t alpha = rgba[3];
-                bgra[0] = (byte)(bgra[2] * alpha / 255);
-                bgra[1] = (byte)(bgra[1] * alpha / 255);
-                bgra[2] = (byte)(bgra[0] * alpha / 255);
+                bgra[0] = (uint8_t)(rgba[2] * alpha / 255);
+                bgra[1] = (uint8_t)(rgba[1] * alpha / 255);
+                bgra[2] = (uint8_t)(rgba[0] * alpha / 255);
+                bgra[3] = rgba[3];
+                bgra += 4;
+                rgba += 4;
+            }
+            pixels += w * 4;
+            scanline += stride;
+        }
+    } else if (bpp == 4 && swapped) {
+        // premultiply alpha, see:
+        // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
+        const uint8_t* rgba = pixels;
+        for (int y = 0; y < h; y++) {
+            uint8_t* bgra = scanline;
+            for (int x = 0; x < w; x++) {
+                int32_t alpha = rgba[3];
+                bgra[0] = (uint8_t)(rgba[0] * alpha / 255);
+                bgra[1] = (uint8_t)(rgba[1] * alpha / 255);
+                bgra[2] = (uint8_t)(rgba[2] * alpha / 255);
                 bgra[3] = rgba[3];
                 bgra += 4;
                 rgba += 4;
@@ -1000,7 +1035,7 @@ static void gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
     not_null(c);
     HBITMAP zero1x1 = SelectBitmap((HDC)c, (HBITMAP)image->bitmap);
     BLENDFUNCTION bf = { 0 };
-    bf.SourceConstantAlpha = (byte)(0xFF * alpha + 0.49);
+    bf.SourceConstantAlpha = (uint8_t)(0xFF * alpha + 0.49);
     if (image->bpp == 4) {
         bf.BlendOp = AC_SRC_OVER;
         bf.BlendFlags = 0;
@@ -1310,10 +1345,10 @@ static void gdi_println(const char* format, ...) {
 //    #define STB_IMAGE_IMPLEMENTATION
 //    #include "stb_image.h"
 
-static byte* gdi_load_image(const void* data, int bytes, int* w, int* h,
+static uint8_t* gdi_load_image(const void* data, int bytes, int* w, int* h,
         int* bytes_per_pixel, int preffered_bytes_per_pixel) {
     #ifdef STBI_VERSION
-        return stbi_load_from_memory((byte const*)data, bytes, w, h,
+        return stbi_load_from_memory((uint8_t const*)data, bytes, w, h,
             bytes_per_pixel, preffered_bytes_per_pixel);
     #else // see instructions above
         (void)data; (void)bytes; (void)data; (void)w; (void)h;
@@ -1355,6 +1390,7 @@ gdi_t gdi = {
     .gradient = gdi_gradient,
     .draw_greyscale = gdi_draw_greyscale,
     .draw_bgr = gdi_draw_bgr,
+    .draw_bgrx = gdi_draw_bgrx,
     .cleartype = gdi_cleartype,
     .font_smoothing_contrast = gdi_font_smoothing_contrast,
     .font = gdi_font,
@@ -2511,7 +2547,7 @@ static void app_save_window_pos(void) {
 
 static void load_window_pos(ui_rect_t* rect) {
     int cb = (int)sizeof(app.last_visibility);
-    if (crt.data_load(app.class_name, "show", (byte*)&app.last_visibility, cb) == cb) {
+    if (crt.data_load(app.class_name, "show", (uint8_t*)&app.last_visibility, cb) == cb) {
         // if there is last show_command state in the registry it supersedes
         // startup info
     } else {
@@ -2853,7 +2889,7 @@ static void app_mouse(uic_t* ui, int32_t m, int32_t f) {
 static void app_toast_paint(void) {
     static image_t image;
     if (image.bitmap == null) {
-        byte pixels[4] = { 0x3F, 0x3F, 0x3F };
+        uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
         gdi.image_init(&image, 1, 1, 3, pixels);
     }
     if (app_toast.ui != null) {
@@ -3775,7 +3811,7 @@ wchar_t* winnls_load_string(int32_t strid, LANGID langid) {
     HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
         MAKEINTRESOURCE(block), langid);
 //  traceln("FindResourceExA(block=%d langid=%04X)=%p", block, langid, res);
-    byte* mem = res == null ? null : (byte*)LoadResource(null, res);
+    uint8_t* mem = res == null ? null : (uint8_t*)LoadResource(null, res);
     wchar_t* ws = mem == null ? null : (wchar_t*)LockResource(mem);
 //  traceln("LockResource(block=%d langid=%04X)=%p", block, langid, ws);
     if (ws != null) {
@@ -3895,7 +3931,7 @@ static void winnls_init(void) {
         int32_t block = strid / 16 + 1;
         HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
             MAKEINTRESOURCE(block), langid);
-        byte* mem = res == null ? null : (byte*)LoadResource(null, res);
+        uint8_t* mem = res == null ? null : (uint8_t*)LoadResource(null, res);
         wchar_t* ws = mem == null ? null : (wchar_t*)LockResource(mem);
         if (ws == null) { break; }
         for (int i = 0; i < 16; i++) {

@@ -518,8 +518,8 @@ end_c
 #define WIN32_LEAN_AND_MEAN
 #endif
 
-#if !defined(WIN32_LEAN_AND_MEAN)
-#define WIN32_LEAN_AND_MEAN
+#if !defined(VC_EXTRALEAN)
+#define VC_EXTRALEAN
 #endif
 
 #include <Windows.h>
