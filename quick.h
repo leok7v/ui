@@ -74,6 +74,8 @@ typedef struct gdi_s {
     // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
     void (*image_init)(image_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels);
+    void (*image_init_rgbx)(image_t* image, int32_t w, int32_t h,
+        int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
     void (*image_dispose)(image_t* image);
     color_t (*set_text_color)(color_t c);
     color_t (*set_brush_color)(color_t c);
@@ -845,16 +847,13 @@ static void gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
     GradientFill(canvas(), vertex, 2, &gRect, 1, mode);
 }
 
-static void gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels) {
-    fatal_if(stride != ((iw + 3) & ~0x3));
+static BITMAPINFO* gdi_greyscale_bitmap_info() {
     typedef struct bitmap_rgb_s {
         BITMAPINFO bi;
         RGBQUAD rgb[256];
     } bitmap_rgb_t;
     static bitmap_rgb_t storage; // for grayscale palette
-    static BITMAPINFO *bi = &storage.bi;
+    static BITMAPINFO* bi = &storage.bi;
     BITMAPINFOHEADER* bih = &bi->bmiHeader;
     if (bih->biSize == 0) { // once
         bih->biSize = sizeof(BITMAPINFOHEADER);
@@ -869,14 +868,26 @@ static void gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         bih->biClrUsed = 256;
         bih->biClrImportant = 256;
     }
-    bih->biWidth = iw;
-    bih->biHeight = -ih; // top down image
-    bih->biSizeImage = w * h;
-    POINT pt = { 0 };
-    fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
-    StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
-        pixels, bi, DIB_RGB_COLORS, SRCCOPY);
-    fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
+    return bi;
+}
+
+static void gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+        int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels) {
+    fatal_if(stride != ((iw + 3) & ~0x3));
+    assert(w > 0 && h != 0); // h can be negative
+    if (w > 0 && h != 0) {
+        BITMAPINFO *bi = gdi_greyscale_bitmap_info(); // global! not thread safe
+        BITMAPINFOHEADER* bih = &bi->bmiHeader;
+        bih->biWidth = iw;
+        bih->biHeight = -ih; // top down image
+        bih->biSizeImage = w * h;
+        POINT pt = { 0 };
+        fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
+        fatal_if(StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
+            pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
+        fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
+    }
 }
 
 static BITMAPINFOHEADER gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
@@ -903,12 +914,15 @@ static void gdi_draw_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t iw, int32_t ih, int32_t stride,
         const uint8_t* pixels) {
     fatal_if(stride != ((iw * 3 + 3) & ~0x3));
-    BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 3);
-    POINT pt = { 0 };
-    fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
-    StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
-        pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY);
-    fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
+    assert(w > 0 && h != 0); // h can be negative
+    if (w > 0 && h != 0) {
+        BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 3);
+        POINT pt = { 0 };
+        fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
+        fatal_if(StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
+            pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
+        fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
+    }
 }
 
 static void gdi_draw_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
@@ -916,15 +930,19 @@ static void gdi_draw_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t iw, int32_t ih, int32_t stride,
         const uint8_t* pixels) {
     fatal_if(stride != ((iw * 4 + 3) & ~0x3));
-    BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 4);
-    POINT pt = { 0 };
-    fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
-    StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
-        pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY);
-    fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
+    assert(w > 0 && h != 0); // h can be negative
+    if (w > 0 && h != 0) {
+        BITMAPINFOHEADER bi = gdi_bgrx_init_bi(iw, ih, 4);
+        POINT pt = { 0 };
+        fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, &pt));
+        fatal_if(StretchDIBits(canvas(), sx, sy, sw, sh, x, y, w, h,
+            pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
+        fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, &pt));
+    }
 }
 
-static BITMAPINFO* gdi_bmp(int32_t w, int32_t h, int32_t bpp, BITMAPINFO* bi) {
+static BITMAPINFO* gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp, 
+        BITMAPINFO* bi) {
     bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bi->bmiHeader.biWidth = w;
     bi->bmiHeader.biHeight = -h;  // top down image
@@ -935,16 +953,71 @@ static BITMAPINFO* gdi_bmp(int32_t w, int32_t h, int32_t bpp, BITMAPINFO* bi) {
     return bi;
 }
 
+static void gdi_create_dib_section(image_t* image, int32_t w, int32_t h,
+        int32_t bpp) {
+    fatal_if(image->bitmap != null, "image_dispose() not called?");
+    // not using GetWindowDC(window()) will allow to initialize images
+    // before window is created
+    HDC c = CreateCompatibleDC(null); // GetWindowDC(window());
+    BITMAPINFO local = { {sizeof(BITMAPINFOHEADER)} };
+    BITMAPINFO* bi = bpp == 1 ? gdi_greyscale_bitmap_info() : &local;
+    image->bitmap = (bitmap_t)CreateDIBSection(c, gdi_init_bitmap_info(w, h, bpp, bi),
+        bpp == 1 ? DIB_PAL_COLORS : DIB_RGB_COLORS, &image->pixels, null, 0x0);
+    fatal_if(image->bitmap == null || image->pixels == null);
+//  fatal_if_false(ReleaseDC(window(), c));
+    fatal_if_false(DeleteDC(c));
+}
+
+static void gdi_image_init_rgbx(image_t* image, int32_t w, int32_t h,
+        int32_t bpp, const uint8_t* pixels) {
+    bool swapped = bpp < 0;
+    bpp = abs(bpp);
+    fatal_if(bpp != 4, "bpp: %d", bpp);
+    gdi_create_dib_section(image, w, h, bpp);
+    const int32_t stride = (w * bpp + 3) & ~0x3;
+    uint8_t* scanline = image->pixels;
+    const uint8_t* rgbx = pixels;
+    if (!swapped) {
+        for (int y = 0; y < h; y++) {
+            uint8_t* bgra = scanline;
+            for (int x = 0; x < w; x++) {
+                bgra[0] = rgbx[2];
+                bgra[1] = rgbx[1];
+                bgra[2] = rgbx[0];
+                bgra[3] = 0xFF;
+                bgra += 4;
+                rgbx += 4;
+            }
+            pixels += w * 4;
+            scanline += stride;
+        }
+    } else {
+        for (int y = 0; y < h; y++) {
+            uint8_t* bgra = scanline;
+            for (int x = 0; x < w; x++) {
+                bgra[0] = rgbx[0];
+                bgra[1] = rgbx[1];
+                bgra[2] = rgbx[2];
+                bgra[3] = 0xFF;
+                bgra += 4;
+                rgbx += 4;
+            }
+            pixels += w * 4;
+            scanline += stride;
+        }
+    }
+    image->w = w;
+    image->h = h;
+    image->bpp = bpp;
+    image->stride = stride;
+}
+
 static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
     fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
-    HDC c = GetWindowDC(window());
-    BITMAPINFO bi = { {sizeof(BITMAPINFOHEADER)} };
-    image->bitmap = (bitmap_t)CreateDIBSection(c, gdi_bmp(w, h, bpp, &bi),
-        DIB_RGB_COLORS, &image->pixels, null, 0x0);
-    fatal_if(image->bitmap == null || image->pixels == null);
+    gdi_create_dib_section(image, w, h, bpp);
     // Win32 bitmaps stride is rounded up to 4 bytes
     const int32_t stride = (w * bpp + 3) & ~0x3;
     uint8_t* scanline = image->pixels;
@@ -1023,7 +1096,6 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
     image->h = h;
     image->bpp = bpp;
     image->stride = stride;
-    fatal_if_false(ReleaseDC(window(), c));
 }
 
 static void gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -1053,15 +1125,22 @@ static void gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void gdi_draw_image(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image) {
-    assert(image->bpp == 3 || image->bpp == 4);
+    assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     not_null(canvas());
-    HDC c = CreateCompatibleDC(canvas());
-    not_null(c);
-    HBITMAP zero1x1 = SelectBitmap(c, image->bitmap);
-    fatal_if_false(StretchBlt(canvas(), x, y, w, h,
-        c, 0, 0, image->w, image->h, SRCCOPY));
-    SelectBitmap(c, zero1x1);
-    fatal_if_false(DeleteDC(c));
+    if (image->bpp == 1) { // StretchBlt() is bad for greyscale
+        BITMAPINFO* bi = gdi_greyscale_bitmap_info();
+        fatal_if(StretchDIBits(canvas(), x, y, w, h, 0, 0, image->w, image->h,
+            image->pixels, gdi_init_bitmap_info(image->w, image->h, 1, bi), 
+            DIB_RGB_COLORS, SRCCOPY) == 0);
+    } else {
+        HDC c = CreateCompatibleDC(canvas());
+        not_null(c);
+        HBITMAP zero1x1 = SelectBitmap(c, image->bitmap);
+        fatal_if_false(StretchBlt(canvas(), x, y, w, h,
+            c, 0, 0, image->w, image->h, SRCCOPY));
+        SelectBitmap(c, zero1x1);
+        fatal_if_false(DeleteDC(c));
+    }
 }
 
 static void gdi_cleartype(bool on) {
@@ -1362,11 +1441,13 @@ static uint8_t* gdi_load_image(const void* data, int bytes, int* w, int* h,
 
 static void gdi_image_dispose(image_t* image) {
     fatal_if_false(DeleteBitmap(image->bitmap));
+    memset(image, 0, sizeof(image_t));
 }
 
 gdi_t gdi = {
     .height_multiplier = 1.0,
     .image_init = gdi_image_init,
+    .image_init_rgbx = gdi_image_init_rgbx,
     .image_dispose = gdi_image_dispose,
     .alpha_blend = gdi_alpha_blend,
     .draw_image = gdi_draw_image,
@@ -3042,10 +3123,14 @@ static void app_paint_on_canvas(HDC hdc) {
     font_t font = gdi.set_font(app.fonts.regular);
     color_t c = gdi.set_text_color(colors.text);
     int bm = SetBkMode(canvas(), TRANSPARENT);
-    int sm = SetStretchBltMode(canvas(), COLORONCOLOR);
+//  int sm = SetStretchBltMode(canvas(), COLORONCOLOR);
+    int sm = SetStretchBltMode(canvas(), HALFTONE);
+    ui_point_t pt = {0};
+    fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, (POINT*)&pt));
     brush_t br = gdi.set_brush(gdi.brush_hollow);
     app_paint(app.ui);
     if (app_toast.ui != null) { app_toast_paint(); }
+    fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, null));
     SetStretchBltMode(canvas(), sm);
     SetBkMode(canvas(), bm);
     gdi.set_brush(br);
@@ -3066,10 +3151,13 @@ static void app_paint_on_canvas(HDC hdc) {
 }
 
 static void app_wm_paint(void) {
-    PAINTSTRUCT ps = {0};
-    BeginPaint(window(), &ps);
-    app_paint_on_canvas(ps.hdc);
-    EndPaint(window(), &ps);
+    // it is possible to receive WM_PAINT when window is not closed
+    if (app.window != null) {
+        PAINTSTRUCT ps = {0};
+        BeginPaint(window(), &ps);
+        app_paint_on_canvas(ps.hdc);
+        EndPaint(window(), &ps);
+    }
 }
 
 static void app_window_position_changed(void) {
@@ -3367,7 +3455,9 @@ static void app_redraw_thread(void* unused(p)) {
         event_t es[] = { app_event_invalidate, app_event_quit };
         int r = events.wait_any(countof(es), es);
         if (r == 0) {
-            InvalidateRect(window(), null, false);
+            if (window() != null) {
+                InvalidateRect(window(), null, false);
+            }
         } else {
             break;
         }
@@ -3779,6 +3869,7 @@ static int app_win_main(void) {
     } else {
         r = app.main();
     }
+    if (app.fini != null) { app.fini(); }
     return r;
 }
 
