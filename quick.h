@@ -270,15 +270,23 @@ typedef struct uic_s { // ui element container/control
     char    tip[256]; // tooltip text
 } uic_t;
 
-typedef struct layouts_s {
+typedef struct {
+    void (*center)(uic_t* ui); // exactly one child
+    void (*horizontal)(uic_t* ui, int gap);
+    void (*vertical)(uic_t* ui, int gap);
+    void (*grid)(uic_t* ui, int gap_h, int gap_v);
+} measurements_if;
+
+extern measurements_if measurements;
+
+typedef struct {
     void (*center)(uic_t* ui); // exactly one child
     void (*horizontal)(uic_t* ui, int x, int y, int gap);
     void (*vertical)(uic_t* ui, int x, int y, int gap);
-    void (*measure_grid)(uic_t* ui, int gap_h, int gap_v);
-    void (*layout_grid)(uic_t* ui, int gap_h, int gap_v);
-} layouts_t;
+    void (*grid)(uic_t* ui, int gap_h, int gap_v);
+} layouts_if;
 
-extern layouts_t layouts;
+extern layouts_if layouts;
 
 void uic_init(uic_t* ui);
 #define uic_container(name, init, ...) \
@@ -409,7 +417,7 @@ typedef struct uic_messagebox_s {
     const char** opts;
 } uic_messagebox_t;
 
-void _messagebox_init_(uic_t* ui);
+void uic_messagebox_init_(uic_t* ui);
 
 void uic_messagebox_init(uic_messagebox_t* mx, const char* option[],
     void (*cb)(uic_messagebox_t* m, int option), const char* format, ...);
@@ -424,7 +432,7 @@ void uic_messagebox_init(uic_messagebox_t* mx, const char* option[],
     }                                                                \
                                                                      \
     uic_messagebox_t name = {                                        \
-    .ui = {.tag = uic_tag_messagebox, .init = _messagebox_init_,     \
+    .ui = {.tag = uic_tag_messagebox, .init = uic_messagebox_init_,  \
     .children = null, .text = s}, .opts = name ## _options,          \
     .cb = name ## _callback }
 
@@ -574,9 +582,9 @@ typedef struct app_s {
     void (*vtoast)(double seconds, const char* format, va_list vl);
     void (*toast)(double seconds, const char* format, ...);
     // registry interface:
-    void (*data_save)(const char* name, const void* data, int bytes);
+    void (*data_save)(const char* name, const void* data, int32_t bytes);
     int  (*data_size)(const char* name);
-    int  (*data_load)(const char* name, void* data, int bytes);
+    int  (*data_load)(const char* name, void* data, int32_t bytes); // returns bytes read
     // filename dialog:
     // const char* filter[] =
     //     {"Text Files", ".txt;.doc;.ini",
@@ -585,8 +593,11 @@ typedef struct app_s {
     // const char* fn = app.open_filename("C:\\", filter, countof(filter));
     const char* (*open_filename)(const char* folder, const char* filter[], int n);
     const char* (*known_folder)(int kfid);
-    int (*console_attach)(void); // attempts to attach to parent terminal
-    int (*console_create)(void); // allocates new console
+    bool (*is_stdout_redirected)(void);
+    bool (*is_console_visible)(void);
+    int  (*console_attach)(void); // attempts to attach to parent terminal
+    int  (*console_create)(void); // allocates new console
+    void (*console_show)(bool b);
     // stats:
     int32_t paint_count; // number of paint calls
     double paint_time; // last paint duration in seconds
@@ -941,7 +952,7 @@ static void gdi_draw_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
     }
 }
 
-static BITMAPINFO* gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp, 
+static BITMAPINFO* gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
         BITMAPINFO* bi) {
     bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bi->bmiHeader.biWidth = w;
@@ -1130,7 +1141,7 @@ static void gdi_draw_image(int32_t x, int32_t y, int32_t w, int32_t h,
     if (image->bpp == 1) { // StretchBlt() is bad for greyscale
         BITMAPINFO* bi = gdi_greyscale_bitmap_info();
         fatal_if(StretchDIBits(canvas(), x, y, w, h, 0, 0, image->w, image->h,
-            image->pixels, gdi_init_bitmap_info(image->w, image->h, 1, bi), 
+            image->pixels, gdi_init_bitmap_info(image->w, image->h, 1, bi),
             DIB_RGB_COLORS, SRCCOPY) == 0);
     } else {
         HDC c = CreateCompatibleDC(canvas());
@@ -2112,7 +2123,7 @@ void _uic_slider_init_(uic_t* ui) {
     // Heavy Plus Sign
     uic_button_init(&r->inc, "\xE2\x9E\x95", 0, uic_slider_inc_dec);
     static const char* accel =
-        "Accelerate by Ctrl x10 Shift x100 and Ctrl+Shift x1000";
+        "Accelerate by holding Ctrl x10 Shift x100 and Ctrl+Shift x1000";
     strprintf(r->inc.ui.tip, "%s", accel);
     strprintf(r->dec.ui.tip, "%s", accel);
     r->dec.ui.parent = &r->ui;
@@ -2203,7 +2214,7 @@ static void uic_messagebox_layout(uic_t* ui) {
     }
 }
 
-void _messagebox_init_(uic_t* ui) {
+void uic_messagebox_init_(uic_t* ui) {
     assert(ui->tag == uic_tag_messagebox);
     uic_messagebox_t* mx = (uic_messagebox_t*)ui;
     uic_init(ui);
@@ -2246,44 +2257,55 @@ void uic_messagebox_init(uic_messagebox_t* mx, const char* opts[],
     crt.vformat(mx->ui.text, countof(mx->ui.text), format, vl);
     uic_text_init_ml(&mx->text, 0.0, mx->ui.text);
     va_end(vl);
-    _messagebox_init_(&mx->ui);
+    uic_messagebox_init_(&mx->ui);
 }
 
-// layouts
+// measurements:
 
-static void layout_center(uic_t* ui) {
+static void measurements_center(uic_t* ui) {
     assert(ui->children != null && ui->children[0] != null, "no children?");
     assert(ui->children[1] == null, "must be single child");
-    uic_t* c = ui->children[0];
-    c->x = (ui->w - c->w) / 2;
-    c->y = (ui->h - c->h) / 2;
+    uic_t* c = ui->children[0]; // even if hidden measure it
+    c->w = ui->w;
+    c->h = ui->h;
 }
 
-static void layout_horizontal(uic_t* ui, int x, int y, int gap) {
+static void measurements_horizontal(uic_t* ui, int gap) {
     assert(ui->children != null && ui->children[0] != null, "no children?");
     uic_t** c = ui->children;
+    ui->w = 0;
+    ui->h = 0;
+    bool seen = false;
     while (*c != null) {
         uic_t* u = *c;
-        u->x = x;
-        u->y = y;
-        x += u->w + gap;
+        if (!u->hidden) {
+            if (seen) { ui->w += gap; }
+            ui->w += u->w;
+            ui->h = max(ui->h, u->h);
+            seen = true;
+        }
         c++;
     }
 }
 
-static void layout_vertical(uic_t* ui, int x, int y, int gap) {
+static void measurements_vertical(uic_t* ui, int gap) {
     assert(ui->children != null && ui->children[0] != null, "no children?");
     uic_t** c = ui->children;
+    ui->h = 0;
+    bool seen = false;
     while (*c != null) {
         uic_t* u = *c;
-        u->x = x;
-        u->y = y;
-        y += u->h + gap;
+        if (!u->hidden) {
+            if (seen) { ui->w += gap; }
+            ui->h += u->h;
+            ui->w = max(ui->w, u->w);
+            seen = true;
+        }
         c++;
     }
 }
 
-static void measure_grid(uic_t* ui, int gap_h, int gap_v) {
+static void measurements_grid(uic_t* ui, int gap_h, int gap_v) {
     int cols = 0;
     for (uic_t** row = ui->children; *row != null; row++) {
         uic_t* r = *row;
@@ -2295,61 +2317,131 @@ static void measure_grid(uic_t* ui, int gap_h, int gap_v) {
     int32_t* mxw = (int32_t*)alloca(cols * sizeof(int32_t));
     memset(mxw, 0, cols * sizeof(int32_t));
     for (uic_t** row = ui->children; *row != null; row++) {
-        (*row)->h = 0;
-        int i = 0;
-        for (uic_t** col = (*row)->children; *col != null; col++) {
-            if (!(*col)->hidden) {
-                mxw[i] = max(mxw[i], (*col)->w);
-                (*row)->h = max((*row)->h, (*col)->h);
-                (*row)->baseline = max((*row)->baseline, (*col)->baseline);
+        if (!(*row)->hidden) {
+            (*row)->h = 0;
+            int i = 0;
+            for (uic_t** col = (*row)->children; *col != null; col++) {
+                if (!(*col)->hidden) {
+                    mxw[i] = max(mxw[i], (*col)->w);
+                    (*row)->h = max((*row)->h, (*col)->h);
+                    (*row)->baseline = max((*row)->baseline, (*col)->baseline);
+                }
+                i++;
             }
-            i++;
         }
     }
     ui->h = 0;
     ui->w = 0;
+    int rows_seen = 0; // number of visible rows so far
     for (uic_t** row = ui->children; *row != null; row++) {
         uic_t* r = *row;
-        r->w = 0;
-        int i = 0;
-        for (uic_t** col = r->children; *col != null; col++) {
-            uic_t* c = *col;
-            c->h = r->h; // all cells are same height
-            if (c->tag == uic_tag_text) { // lineup text baselines
-                uic_text_t* t = (uic_text_t*)c;
-                t->dy = r->baseline - c->baseline;
+        if (!r->hidden) {
+            r->w = 0;
+            int i = 0;
+            int cols_seen = 0; // number of visible columns so far
+            for (uic_t** col = r->children; *col != null; col++) {
+                uic_t* c = *col;
+                if (!c->hidden) {
+                    c->h = r->h; // all cells are same height
+                    if (c->tag == uic_tag_text) { // lineup text baselines
+                        uic_text_t* t = (uic_text_t*)c;
+                        t->dy = r->baseline - c->baseline;
+                    }
+                    c->w = mxw[i++];
+                    r->w += c->w;
+                    if (cols_seen > 0) { r->w += gap_h; }
+                    ui->w = max(ui->w, r->w);
+                    cols_seen++;
+                }
             }
-            c->w = mxw[i++];
-            r->w += c->w;
-            if (col[1] != null) { r->w += gap_h; }
-            ui->w = max(ui->w, r->w);
+            ui->h += r->h;
+            if (rows_seen > 0) { ui->h += gap_v; }
+            rows_seen++;
         }
-        ui->h += r->h;
-        if (row[1] != null) { ui->h += gap_v; }
     }
 }
 
-static void layout_grid(uic_t* ui, int gap_h, int gap_v) {
+measurements_if measurements = {
+    .center     = measurements_center,
+    .horizontal = measurements_horizontal,
+    .vertical   = measurements_vertical,
+    .grid       = measurements_grid,
+};
+
+// layouts
+
+static void layouts_center(uic_t* ui) {
+    assert(ui->children != null && ui->children[0] != null, "no children?");
+    assert(ui->children[1] == null, "must be single child");
+    uic_t* c = ui->children[0];
+    c->x = (ui->w - c->w) / 2;
+    c->y = (ui->h - c->h) / 2;
+}
+
+static void layouts_horizontal(uic_t* ui, int x, int y, int gap) {
+    assert(ui->children != null && ui->children[0] != null, "no children?");
+    uic_t** c = ui->children;
+    bool seen = false;
+    while (*c != null) {
+        uic_t* u = *c;
+        if (!u->hidden) {
+            if (seen) { x += gap; }
+            u->x = x;
+            u->y = y;
+            x += u->w;
+            seen = true;
+        }
+        c++;
+    }
+}
+
+static void layouts_vertical(uic_t* ui, int x, int y, int gap) {
+    assert(ui->children != null && ui->children[0] != null, "no children?");
+    uic_t** c = ui->children;
+    bool seen = false;
+    while (*c != null) {
+        uic_t* u = *c;
+        if (!u->hidden) {
+            if (seen) { y += gap; }
+            u->x = x;
+            u->y = y;
+            y += u->h;
+            seen = true;
+        }
+        c++;
+    }
+}
+
+static void layouts_grid(uic_t* ui, int gap_h, int gap_v) {
     assert(ui->children != null, "layout_grid() with no children?");
     int x = ui->x;
     int y = ui->y;
+    bool row_seen = false;
     for (uic_t** row = ui->children; *row != null; row++) {
-        int xc = x;
-        for (uic_t** col = (*row)->children; *col != null; col++) {
-            (*col)->x = xc;
-            (*col)->y = y;
-            xc += (*col)->w + gap_h;
+        if (!(*row)->hidden) {
+            if (row_seen) { y += gap_v; }
+            int xc = x;
+            bool col_seen = false;
+            for (uic_t** col = (*row)->children; *col != null; col++) {
+                if (!(*col)->hidden) {
+                    if (col_seen) { xc += gap_h; }
+                    (*col)->x = xc;
+                    (*col)->y = y;
+                    xc += (*col)->w;
+                    col_seen = true;
+                }
+            }
+            y += (*row)->h;
+            row_seen = true;
         }
-        y += (*row)->h + gap_v;
     }
 }
 
-layouts_t layouts = {
-    .center = layout_center,
-    .horizontal = layout_horizontal,
-    .vertical = layout_vertical,
-    .measure_grid = measure_grid,
-    .layout_grid = layout_grid
+layouts_if layouts = {
+    .center     = layouts_center,
+    .horizontal = layouts_horizontal,
+    .vertical   = layouts_vertical,
+    .grid       = layouts_grid
 };
 
 end_c
@@ -2622,17 +2714,53 @@ static void app_save_window_pos(void) {
     crt.data_save(app.class_name, "work_area", &wa, (int)sizeof(wa));
     crt.data_save(app.class_name, "window",
                  &wpl.rcNormalPosition, (int)sizeof(wpl.rcNormalPosition));
-    crt.data_save(app.class_name, "show", &wpl.showCmd,
+    crt.data_save(app.class_name, "show_window", &wpl.showCmd,
                   (int)sizeof(wpl.showCmd));
 }
 
-static void load_window_pos(ui_rect_t* rect) {
-    int cb = (int)sizeof(app.last_visibility);
-    if (crt.data_load(app.class_name, "show", (uint8_t*)&app.last_visibility, cb) == cb) {
+static void app_save_console_pos(void) {
+    HWND cw = GetConsoleWindow();
+    if (cw != null) {
+        WINDOWPLACEMENT wpl = {0};
+        wpl.length = sizeof(wpl);
+        fatal_if_false(GetWindowPlacement(cw, &wpl));
+        int32_t w = wpl.rcNormalPosition.right - wpl.rcNormalPosition.left;
+        int32_t h = wpl.rcNormalPosition.bottom - wpl.rcNormalPosition.top;
+        if (w > 0 && h > 0) {
+//          traceln("%d,%d %dx%d", wpl.rcNormalPosition.left, wpl.rcNormalPosition.top, w, h);
+            crt.data_save(app.class_name, "console_window",
+                         &wpl.rcNormalPosition, (int)sizeof(wpl.rcNormalPosition));
+            HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+            CONSOLE_SCREEN_BUFFER_INFOEX csbiex = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
+            int r = GetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+            if (r != 0) {
+                traceln("GetConsoleScreenBufferInfoEx() %s", crt.error(r));
+            } else {
+                crt.data_save(app.class_name, "console_screen_buffer_infoex",
+                             &csbiex, (int)sizeof(csbiex));
+//              traceln("csbiex: %dx%d", csbiex.dwSize.X, csbiex.dwSize.Y);
+//              traceln("%d,%d %dx%d", csbiex.srWindow.Left, csbiex.srWindow.Top,
+//                  csbiex.srWindow.Right - csbiex.srWindow.Left,
+//                  csbiex.srWindow.Bottom - csbiex.srWindow.Top);
+            }
+        }
+    }
+    int32_t v = app.is_console_visible();
+    crt.data_save(app.class_name, "show_console", &v, (int)sizeof(v));
+}
+
+static void load_window_pos(ui_rect_t* rect,
+        const char* name, const char* show, int32_t *visibility) {
+    int cb = (int)sizeof(*visibility);
+    if (crt.data_load(app.class_name, show, (uint8_t*)visibility, cb) == cb) {
         // if there is last show_command state in the registry it supersedes
         // startup info
     } else {
-        app.last_visibility = window_visibility.defau1t;
+        if (strequ(name, "console_window")) {
+            *visibility = 0; // boolean
+        } else {
+            *visibility = window_visibility.defau1t;
+        }
     }
     RECT wa = {0};
     cb = (int)sizeof(wa);
@@ -2641,7 +2769,7 @@ static void load_window_pos(ui_rect_t* rect) {
     }
     RECT rc = {0};
     cb = (int)sizeof(rc);
-    if (crt.data_load(app.class_name, "window", &rc, cb) == cb) {
+    if (crt.data_load(app.class_name, name, &rc, cb) == cb) {
         RECT screen = {0, 0, 1920, 1080};
         RECT work_area = {0, 0, 1920, 1080};
         ui_rect_t r = app_rect2ui(&rc);
@@ -2775,6 +2903,7 @@ static void app_window_closing(void) {
     if (app.can_close == null || app.can_close()) {
         if (app.is_full_screen) { app.full_screen(false); }
         app_save_window_pos();
+        app_save_console_pos();
         app.kill_timer(app_timer_1s_id);
         app.kill_timer(app_timer_100ms_id);
         if (app.closed != null) { app.closed(); }
@@ -2892,7 +3021,7 @@ static void app_wm_char(uic_t* ui, const char* utf8) {
 }
 
 static void app_hover_changed(uic_t* ui) {
-    if (ui->hovering != null) {
+    if (ui->hovering != null && !ui->hidden) {
         if (!ui->hover) {
             ui->hover_at = 0;
             ui->hovering(ui, false); // cancel hover
@@ -2912,7 +3041,7 @@ static void app_hover_changed(uic_t* ui) {
 // allowing ui elements to do scheduled actions like e.g. hovering()
 
 static void app_on_every_message(uic_t* ui) {
-    if (ui->hovering != null) {
+    if (ui->hovering != null && !ui->hidden) {
         if (ui->hover_at > 0 && app.now > ui->hover_at) {
             ui->hover_at = -1; // "already called"
             ui->hovering(ui, true);
@@ -3166,8 +3295,8 @@ static void app_window_position_changed(void) {
     app.wrc = app_rect2ui(&wrc);
     app_update_mi(&app.wrc, MONITOR_DEFAULTTONEAREST);
     app_update_crc();
-    // call layout() only if window was already openned
-//  traceln("WM_WINDOWPOSCHANGED %p", timer_1s_id);
+    // call layout() only if window has been openned
+//  traceln("WM_WINDOWPOSCHANGED %p", app_timer_1s_id);
     app.ui->hidden = !IsWindowVisible(window());
     if (app_timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
 }
@@ -3561,10 +3690,178 @@ static int app_console_attach(void) {
     return r;
 }
 
+static bool app_is_stdout_redirected(void) {
+    // https://stackoverflow.com/questions/30126490/how-to-check-if-stdout-is-redirected-to-a-file-or-to-a-console
+    HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
+    DWORD type = out == null ? FILE_TYPE_UNKNOWN : GetFileType(out);
+    type &= ~FILE_TYPE_REMOTE;
+    // FILE_TYPE_DISK or FILE_TYPE_CHAR or FILE_TYPE_PIPE
+    return type != FILE_TYPE_UNKNOWN;
+}
+
+static bool app_is_console_visible(void) {
+    HWND cw = GetConsoleWindow();
+    return cw != null && IsWindowVisible(cw);
+}
+
+static int app_set_console_size(int16_t w, int16_t h) {
+    // width/height in characters
+    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFOEX csbiex = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
+    int r = GetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+    if (r != 0) {
+        traceln("GetConsoleScreenBufferInfoEx() %s", crt.error(r));
+    } else {
+        // tricky because correct order of the calls
+        // SetConsoleWindowInfo() SetConsoleScreenBufferSize() depends on
+        // current Window Size (in pixels) ConsoleWindowSize(in characters)
+        // and SetConsoleScreenBufferSize().
+        // After a lot of experimentation and reading docs most sensible option
+        // is to try both calls in two differen orders.
+        COORD c = {w, h};
+        SMALL_RECT const minwin = { 0, 0, c.X - 1, c.Y - 1 };
+        c.Y = 9001; // maximum buffer number of rows at the moment of implementation
+        int r0 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : crt.err();
+//      if (r0 != 0) { traceln("SetConsoleWindowInfo() %s", crt.error(r0)); }
+        int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : crt.err();
+//      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", crt.error(r1)); }
+        if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
+            r0 = SetConsoleScreenBufferSize(console, c) ? 0 : crt.err();
+            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", crt.error(r0)); }
+            r1 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : crt.err();
+            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", crt.error(r1)); }
+	    }
+        r = r0 == 0 ? r1 : r0; // first of two errors
+    }
+    return r;
+}
+
+
+static void app_console_largest(void) {
+    HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
+    // User have to manuall uncheck "[x] Let system position window" in console
+    // Properties -> Layout -> Window Position because I did not find the way
+    // to programmatically unchecked it.
+    // commented code below does not work.
+    // see: https://www.os2museum.com/wp/disabling-quick-edit-mode/
+    // and: https://learn.microsoft.com/en-us/windows/console/setconsolemode
+    /* DOES NOT WORK:
+    DWORD mode = 0;
+    r = GetConsoleMode(console, &mode) ? 0 : crt.err();
+    fatal_if_not_zero(r, "GetConsoleMode() %s", crt.error(r));
+    mode &= ~ENABLE_AUTO_POSITION;
+    r = SetConsoleMode(console, &mode) ? 0 : crt.err();
+    fatal_if_not_zero(r, "SetConsoleMode() %s", crt.error(r));
+    */
+    CONSOLE_SCREEN_BUFFER_INFOEX csbiex = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
+    int r = GetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", crt.error(r));
+    COORD c = GetLargestConsoleWindowSize(console);
+    if (c.X > 80) { c.X &= ~0x7; }
+    if (c.Y > 24) { c.Y &= ~0x3; }
+    if (c.X > 80) { c.X -= 8; }
+    if (c.Y > 24) { c.Y -= 4; }
+    app_set_console_size(c.X, c.Y);
+    r = GetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", crt.error(r));
+    csbiex.dwSize.Y = 9999; // maximum value at the moment of implementation
+    r = SetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+    fatal_if_not_zero(r, "SetConsoleScreenBufferInfoEx() %s", crt.error(r));
+    app_save_console_pos();
+}
+
+static void window_foreground_active_focus(void* w) {
+    fatal_if_false(SetForegroundWindow((HWND)w));
+    // because SetForegroundWindow() does not activate window:
+    SetActiveWindow((HWND)w); // returns previous active window
+    (void)SetFocus((HWND)w);  // fails for console with ERROR_ACCESS_DENIED
+}
+
+static void window_make_topmost(void* w) {
+    //  Places the window above all non-topmost windows.
+    // The window maintains its topmost position even when it is deactivated.
+    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION | SWP_NOMOVE;
+    fatal_if_false(SetWindowPos((HWND)w, HWND_TOPMOST, 0, 0, 0, 0, SWP));
+    window_foreground_active_focus(w);
+}
+
+static void app_window_foreground_active_focus(void) {
+    window_foreground_active_focus(app.window);
+}
+
+static void app_window_bring_to_front(void) {
+    // bring UI window to front:
+    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION | SWP_NOMOVE;
+    fatal_if_false(SetWindowPos((HWND)app.window, HWND_TOP, 0, 0, 0, 0, SWP));
+    app_window_foreground_active_focus();
+}
+
+static void app_window_make_topmost(void) {
+    window_make_topmost(app.window);
+}
+
+static void app_set_console_title(HWND cw) {
+    char text[256];
+    text[0] = 0;
+    GetWindowTextA((HWND)app.window, text, countof(text));
+    text[countof(text) - 1] = 0;
+    char title[256];
+    strprintf(title, "%s - Console", text);
+    fatal_if_false(SetWindowTextA(cw, title));
+}
+
+static void app_restore_console(int32_t *visibility) {
+    HWND cw = GetConsoleWindow();
+    if (cw != null) {
+        RECT rc = {0};
+        GetWindowRect(cw, &rc);
+        ui_rect_t rect = app_rect2ui(&rc);
+        load_window_pos(&rect, "console_window", "show_console", visibility);
+        if (rect.w > 0 && rect.h > 0) {
+//          traceln("%d,%d %dx%d", rect.x, rect.y, rect.w, rect.h);
+            enum { swp = SWP_NOZORDER | SWP_NOREDRAW | SWP_NOACTIVATE };
+            fatal_if_false(SetWindowPos(cw, null, rect.x, rect.y, rect.w, rect.h, swp));
+            CONSOLE_SCREEN_BUFFER_INFOEX csbiex = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
+            int r = crt.data_load(app.class_name, "console_screen_buffer_infoex",
+                             &csbiex, (int)sizeof(csbiex));
+            if (r == sizeof(csbiex)) {
+                int16_t w = csbiex.srWindow.Right - csbiex.srWindow.Left;
+                int16_t h = csbiex.srWindow.Bottom - csbiex.srWindow.Top;
+//              traceln("csbiex: %dx%d", csbiex.dwSize.X, csbiex.dwSize.Y);
+//              traceln("%d,%d %dx%d", csbiex.srWindow.Left, csbiex.srWindow.Top, w, h);
+                if (w > 0 && h > 0) { app_set_console_size(w, h); }
+    	    }
+        } else {
+            app_console_largest();
+        }
+    }
+}
+
+static void app_console_show(bool b) {
+    HWND cw = GetConsoleWindow();
+    if (cw != null && b != app.is_console_visible()) {
+        if (app.is_console_visible()) { app_save_console_pos(); }
+        if (b) {
+            int32_t ignored_visibility = 0;
+            app_restore_console(&ignored_visibility);
+            app_set_console_title(cw);
+        }
+        // If the window was previously visible, the return value is nonzero.
+        // If the window was previously hidden, the return value is zero.
+        bool unused_was_visible = ShowWindow(cw, b ? SW_SHOWNOACTIVATE : SW_HIDE);
+        (void)unused_was_visible;
+        if (b) { SetActiveWindow((HWND)cw); }
+        app_save_console_pos(); // again after visibility changed
+    }
+}
+
 static int app_console_create(void) {
     int r = AllocConsole() ? 0 : crt.err();
     if (r == 0) {
         app_console_disable_close();
+        int32_t visibility = 0;
+        app_restore_console(&visibility);
+        app.console_show(visibility != 0);
     }
     return r;
 }
@@ -3814,8 +4111,11 @@ static void app_init(void) {
     app.data_load = app_data_load;
     app.open_filename = app_open_filename;
     app.known_folder = app_known_folder;
+    app.is_stdout_redirected = app_is_stdout_redirected;
+    app.is_console_visible = app_is_console_visible;
     app.console_attach = app_console_attach;
     app.console_create = app_console_create;
+    app.console_show = app_console_show;
     app_event_quit = events.create();
     app_event_invalidate = events.create();
 }
@@ -3852,7 +4152,7 @@ static int app_win_main(void) {
     int height = app.min_height + size_frame * 2 + caption_height;
     ui_rect_t rc = {100, 100, width, height};
     app.last_visibility = window_visibility.defau1t;
-    load_window_pos(&rc);
+    load_window_pos(&rc, "window", "show_window", &app.last_visibility);
     app_init();
     app.ui->hidden = true; // start with ui hidden
     app.ui->font = &app.fonts.regular;
