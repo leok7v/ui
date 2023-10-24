@@ -365,6 +365,7 @@ typedef struct {
     // returns true is previous value if *a was the same as "comparand"
     bool (*compare_exchange_int64)(volatile int64_t* a, int64_t comparand, int64_t v);
     bool (*compare_exchange_int32)(volatile int32_t* a, int32_t comparand, int32_t v);
+    bool (*compare_exchange_ptr)(volatile void** a, void* comparand, void* v);
     void (*spinlock_acquire)(volatile int64_t* spinlock);
     void (*spinlock_release)(volatile int64_t* spinlock);
     void (*memory_fence)(void);
@@ -1206,9 +1207,7 @@ mutex_if mutexes = {
 // #include <stdatomic.h> still is not implemented
 
 static void* atomics_exchange_ptr(volatile void** a, void* v) {
-    size_t s = sizeof(void*); (void)s;
-//  assert(sizeof(void*) == 8 && sizeof(uintptr_t) == 8, "expected 64 bit architecture");
-    assert(s == sizeof(uint64_t), "expected 64 bit architecture");
+    static_assertion(sizeof(void*) == sizeof(uint64_t));
     return (void*)atomics.exchange_int64((int64_t*)a, (int64_t)v);
 }
 
@@ -1241,12 +1240,21 @@ static int32_t atomics_exchange_int32(volatile int32_t* a, int32_t v) {
     return (int32_t)InterlockedExchange((volatile LONG*)a, (unsigned long)v);
 }
 
-static bool atomics_compare_exchange_int64(volatile int64_t* a, int64_t comparand, int64_t v) {
-    return (int64_t)InterlockedCompareExchange64((LONGLONG*)a, (LONGLONG)v, (LONGLONG)comparand) == comparand;
+static bool atomics_compare_exchange_int64(volatile int64_t* a,
+        int64_t comparand, int64_t v) {
+    return (int64_t)InterlockedCompareExchange64((LONGLONG*)a,
+        (LONGLONG)v, (LONGLONG)comparand) == comparand;
 }
 
 static bool atomics_compare_exchange_int32(volatile int32_t* a, int32_t comparand, int32_t v) {
-    return (int64_t)InterlockedCompareExchange((LONG*)a, (LONG)v, (LONG)comparand) == comparand;
+    return (int64_t)InterlockedCompareExchange((LONG*)a,
+        (LONG)v, (LONG)comparand) == comparand;
+}
+
+static bool atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
+    static_assertion(sizeof(void*) == sizeof(int64_t));
+    return atomics_compare_exchange_int64((int64_t*)a,
+        (int64_t)v, (int64_t)comparand);
 }
 
 // https://en.wikipedia.org/wiki/Spinlock
@@ -1293,6 +1301,7 @@ atomics_if atomics = {
     .exchange_int64  = atomics_exchange_int64,
     .compare_exchange_int64 = atomics_compare_exchange_int64,
     .compare_exchange_int32 = atomics_compare_exchange_int32,
+    .compare_exchange_ptr = atomics_compare_exchange_ptr,
     .spinlock_acquire = spinlock_acquire,
     .spinlock_release = spinlock_release,
     .memory_fence = memory_fence
@@ -1425,8 +1434,8 @@ static int crt_gettid(void) { return (int)GetCurrentThreadId(); }
 static void crt_fatal(const char* file, int line, const char* func,
         const char* (*err2str)(int32_t err), int32_t error,
         const char* call, const char* extra) {
-    crt.traceline(file, line, func, "FATAL: %s failed 0x%08X (%d) %s %s",
-        call, error, error, err2str(error), extra);
+    crt.traceline(file, line, func, "FATAL: %s failed %s %s",
+        call, err2str(error), extra);
     crt.breakpoint();
     if (file != null) { ExitProcess(error); }
 }
