@@ -561,6 +561,7 @@ char* strnchr(const char* s, int n, char ch) {
 const char* _strtolc_(char* d, const char* s) {
     char* r = d;
     while (*s != 0) { *d++ = (char)tolower(*s++); }
+    *d = 0;
     return r;
 }
 
