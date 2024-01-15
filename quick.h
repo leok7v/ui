@@ -120,8 +120,9 @@ typedef struct gdi_s {
     font_t (*font)(font_t f, int height, int quality); // custom font, quality: -1 as is
     void   (*delete_font)(font_t f);
     font_t (*set_font)(font_t f);
-    int    (*descent)(font_t f);  // font descent (glyphs blow baseline)
-    int    (*baseline)(font_t f); // height - baseline (aka ascent) = descent
+    int    (*font_height)(font_t f); // font height in pixels
+    int    (*descent)(font_t f);     // font descent (glyphs below baseline)
+    int    (*baseline)(font_t f);    // height - baseline (aka ascent) = descent
     bool   (*is_mono)(font_t f);  // is font monospaced?
     ui_point_t (*get_em)(font_t f); // pixel size of glyph "M"
     ui_point_t (*measure_text)(font_t f, const char* format, ...);
@@ -249,11 +250,11 @@ typedef struct uic_s { // ui element container/control
     void (*key_released)(uic_t* ui, int32_t key);
     void (*hovering)(uic_t* ui, bool start);
     void (*invalidate)(uic_t* ui); // more prone to delays than app.redraw()
-    // timer() periodically() and once_upon_a_second() called
+    // timer() every_100ms() and every_sec() called
     // even for hidden and disabled ui elements
     void (*timer)(uic_t* ui, tm_t id);
-    void (*periodically)(uic_t* ui); // ~10 x times per second
-    void (*once_upon_a_second)(uic_t* ui); // ~once a second
+    void (*every_100ms)(uic_t* ui); // ~10 x times per second
+    void (*every_sec)(uic_t* ui); // ~once a second
     bool hidden; // paint() is not called on hidden
     bool armed;
     bool hover;
@@ -289,11 +290,8 @@ typedef struct {
 extern layouts_if layouts;
 
 void uic_init(uic_t* ui);
-#define uic_container(name, init, ...) \
-static uic_t* _ ## name ## children ## _[] = {__VA_ARGS__, null}; \
-uic_t name = { uic_tag_container, init, (_ ## name ## children ## _) }
 
-#define static_uic_container(name, init, ...) \
+#define uic_container(name, init, ...)                            \
 static uic_t* _ ## name ## children ## _[] = {__VA_ARGS__, null}; \
 static uic_t name = { uic_tag_container, init, (_ ## name ## children ## _) }
 
@@ -335,13 +333,13 @@ void uic_button_init(uic_button_t* b, const char* label, double ems,
 
 void _uic_button_init_(uic_t* ui); // do not call use uic_button() macro
 
-#define uic_button(name, s, w, code)                     \
-    static void name ## _callback(uic_button_t* name) {  \
-        (void)name; /* no warning if unused */           \
-        code                                             \
-    }                                                    \
-                                                         \
-    uic_button_t name = {                                \
+#define uic_button(name, s, w, code)                         \
+    static void name ## _callback(uic_button_t* name) {      \
+        (void)name; /* no warning if unused */               \
+        code                                                 \
+    }                                                        \
+    static                                                   \
+    uic_button_t name = {                                    \
     .ui = {.tag = uic_tag_button, .init = _uic_button_init_, \
     .children = null, .width = w, .text = s}, .cb = name ## _callback }
 
@@ -361,13 +359,13 @@ void  uic_checkbox_init( uic_checkbox_t* b, const char* label, double ems,
 
 void _uic_checkbox_init_(uic_t* ui); // do not call use uic_checkbox() macro
 
-#define uic_checkbox(name, s, w, code)                    \
-    static void name ## _callback(uic_checkbox_t* name) { \
-        (void)name; /* no warning if unused */            \
-        code                                              \
-    }                                                     \
-                                                          \
-    uic_checkbox_t name = {                               \
+#define uic_checkbox(name, s, w, code)                           \
+    static void name ## _callback(uic_checkbox_t* name) {        \
+        (void)name; /* no warning if unused */                   \
+        code                                                     \
+    }                                                            \
+    static                                                       \
+    uic_checkbox_t name = {                                      \
     .ui = {.tag = uic_tag_checkbox, .init = _uic_checkbox_init_, \
     .children = null, .width = w, .text = s}, .cb = name ## _callback }
 
@@ -387,7 +385,6 @@ typedef struct uic_slider_s {
     int32_t vmax;
 } uic_slider_t;
 
-
 void _uic_slider_init_(uic_t* ui);
 
 void uic_slider_init(uic_slider_t* r, const char* label, double ems,
@@ -398,12 +395,12 @@ void uic_slider_init(uic_slider_t* r, const char* label, double ems,
         (void)name; /* no warning if unused */          \
         code                                            \
     }                                                   \
+    static                                              \
     uic_slider_t name = {                               \
     .ui = {.tag = uic_tag_slider, .children = null,     \
     .width = ems, .text = s, .init = _uic_slider_init_, \
     }, .vmin = vmn, .vmax = vmx, .value = vmn,          \
     .cb = name ## _callback }
-
 
 typedef struct uic_messagebox_s uic_messagebox_t;
 
@@ -430,7 +427,7 @@ void uic_messagebox_init(uic_messagebox_t* mx, const char* option[],
         (void)m; (void)option; /* no warnings if unused */           \
         code                                                         \
     }                                                                \
-                                                                     \
+    static                                                           \
     uic_messagebox_t name = {                                        \
     .ui = {.tag = uic_tag_messagebox, .init = uic_messagebox_init_,  \
     .children = null, .text = s}, .opts = name ## _options,          \
@@ -463,7 +460,7 @@ typedef struct dpi_s { // max(dpi_x, dpi_y)
     int32_t monitor_effective; // effective with regard of user scaling
     int32_t monitor_raw;       // with regard of physical screen size
     int32_t monitor_angular;   // diagonal raw
-    int32_t window; // main window dpi
+    int32_t window;            // main window dpi
 } dpi_t;
 
 typedef struct fonts_s {
@@ -490,7 +487,7 @@ enum {
 
 typedef struct uic_s uic_t;
 
-// once_upon_a_second() and periodically() also called on all UICs
+// every_sec() and every_100ms() also called on all UICs
 
 typedef struct app_s {
     // implemented by client:
@@ -500,12 +497,14 @@ typedef struct app_s {
     // called instead of init() for console apps and when .no_ui=true
     int (*main)(void);
     // class_name and init must be set before main()
-    void (*openned)(void); // window has been created and shown
-    void (*once_upon_a_second)(void); // if not null called ~ once a second
-    void (*periodically)(void); // called ~10 times per second
-    bool (*can_close)(void);  // window can be closed
-    void (*closed)(void);  // window has been closed
-    void (*fini)(void); // called before WinMain() return
+    void (*openned)(void);     // window has been created and shown
+    void (*every_sec)(void);   // if not null called ~ once a second
+    void (*every_100ms)(void); // called ~10 times per second
+    // .can_close() called before window is closed and can be
+    // used in a meaning of .closing()
+    bool (*can_close)(void);   // window can be closed
+    void (*closed)(void);      // window has been closed
+    void (*fini)(void);        // called before WinMain() return
     // must be filled by application:
     const char* title;
     // min/max width/heigh are prefilled according to monitor size
@@ -522,8 +521,9 @@ typedef struct app_s {
     bool no_decor; // window w/o title bar, min/max close buttons
     bool no_min;   // window w/o minimize button on title bar and sys menu
     bool no_max;   // window w/o maximize button on title bar
+    bool no_size;  // window w/o maximize button on title bar
     bool hide_on_minimize; // like task manager minimize means hide
-    bool aero;     // retro Windows 7 decoration (just for the fun of it)
+    bool aero;      // retro Windows 7 decoration (just for the fun of it)
     // main(argc, argv)
     int32_t argc;
     const char** argv;
@@ -572,7 +572,9 @@ typedef struct app_s {
     void (*redraw)(void); // very fast (5 microseconds) InvalidateRect(null)
     void (*draw)(void);   // UpdateWindow()
     void (*set_cursor)(cursor_t c);
-    void (*close)(void); // window
+    void (*close)(void); // attempts to close (can_close() permitting)
+    // forced quit() even if can_close() returns false
+    void (*quit)(int32_t ec);  // app.exit_code = ec; PostQuitMessage(ec);
     tm_t (*set_timer)(uintptr_t id, int32_t milliseconds); // see notes
     void (*kill_timer)(tm_t id);
     void (*post)(int message, int64_t wp, int64_t lp);
@@ -1191,6 +1193,15 @@ static font_t gdi_font(font_t f, int height, int quality) {
     return (font_t)CreateFontIndirectA(&lf);
 }
 
+static int gdi_font_height(font_t f) {
+    assert(f != null);
+    LOGFONTA lf = {0};
+    int n = GetObjectA(f, sizeof(lf), &lf);
+    fatal_if_false(n == (int)sizeof(lf));
+    assert(lf.lfHeight < 0);
+    return abs(lf.lfHeight);
+}
+
 static void gdi_delete_font(font_t f) {
     fatal_if_false(DeleteFont(f));
 }
@@ -1488,6 +1499,7 @@ gdi_t gdi = {
     .font = gdi_font,
     .delete_font = gdi_delete_font,
     .set_font = gdi_set_font,
+    .font_height = gdi_font_height,
     .descent = gdi_descent,
     .baseline = gdi_baseline,
     .is_mono = gdi_is_mono,
@@ -1733,7 +1745,7 @@ void uic_text_init_ml(uic_text_t* t, double width, const char* format, ...) {
 
 // button
 
-static void uic_button_periodically(uic_t* ui) { // every 100ms
+static void uic_button_every_100ms(uic_t* ui) { // every 100ms
     assert(ui->tag == uic_tag_button);
     uic_button_t* b = (uic_button_t*)ui;
     if (b->armed_until != 0 && app.now > b->armed_until) {
@@ -1849,7 +1861,7 @@ void _uic_button_init_(uic_t* ui) {
     ui->measure = uic_button_measure;
     ui->paint = uic_button_paint;
     ui->character = uic_button_character;
-    ui->periodically = uic_button_periodically;
+    ui->every_100ms = uic_button_every_100ms;
     uic_set_label(ui, ui->text);
     ui->localize(ui);
     ui->color = colors.btn_text;
@@ -1960,7 +1972,7 @@ void _uic_checkbox_init_(uic_t* ui) {
     ui->color = colors.btn_text;
 }
 
-void uic_checkbox_init( uic_checkbox_t* c, const char* label, double ems,
+void uic_checkbox_init(uic_checkbox_t* c, const char* label, double ems,
        void (*cb)( uic_checkbox_t* b)) {
     static_assert(offsetof( uic_checkbox_t, ui) == 0, "offsetof(.ui)");
     uic_init(&c->ui);
@@ -2037,58 +2049,66 @@ static void uic_slider_paint(uic_t* ui) {
 }
 
 static void uic_slider_mouse(uic_t* ui, int message, int f) {
-    assert(ui->tag == uic_tag_slider);
-    uic_slider_t* r = (uic_slider_t*)ui;
-    assert(!ui->hidden && !ui->disabled);
-    bool drag = message == messages.mouse_move &&
-        (f & (mouse_flags.left_button|mouse_flags.right_button)) != 0;
-    if (message == messages.left_button_pressed ||
-        message == messages.right_button_pressed || drag) {
-        const int32_t x = app.mouse.x - ui->x - r->dec.ui.w;
-        const int32_t y = app.mouse.y - ui->y;
-        const int32_t x0 = ui->em.x / 2;
-        const int32_t x1 = r->tm.x + ui->em.x;
-        if (x0 <= x && x < x1 && 0 <= y && y < ui->h) {
-            app.focus = ui;
-            const double range = (double)r->vmax - (double)r->vmin;
-            double v = ((double)x - x0) * range / (double)(x1 - x0 - 1);
-            int32_t vw = (int32_t)(v + r->vmin + 0.5);
-            r->value = min(max(vw, r->vmin), r->vmax);
-            if (r->cb != null) { r->cb(r); }
-            ui->invalidate(ui);
+    if (!ui->hidden && !ui->disabled) {
+        assert(ui->tag == uic_tag_slider);
+        uic_slider_t* r = (uic_slider_t*)ui;
+        assert(!ui->hidden && !ui->disabled);
+        bool drag = message == messages.mouse_move &&
+            (f & (mouse_flags.left_button|mouse_flags.right_button)) != 0;
+        if (message == messages.left_button_pressed ||
+            message == messages.right_button_pressed || drag) {
+            const int32_t x = app.mouse.x - ui->x - r->dec.ui.w;
+            const int32_t y = app.mouse.y - ui->y;
+            const int32_t x0 = ui->em.x / 2;
+            const int32_t x1 = r->tm.x + ui->em.x;
+            if (x0 <= x && x < x1 && 0 <= y && y < ui->h) {
+                app.focus = ui;
+                const double range = (double)r->vmax - (double)r->vmin;
+                double v = ((double)x - x0) * range / (double)(x1 - x0 - 1);
+                int32_t vw = (int32_t)(v + r->vmin + 0.5);
+                r->value = min(max(vw, r->vmin), r->vmax);
+                if (r->cb != null) { r->cb(r); }
+                ui->invalidate(ui);
+            }
         }
     }
 }
 
 static void uic_slider_inc_dec_value(uic_slider_t* r, int sign, int mul) {
-    // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
-    int32_t v = r->value;
-    if (v > r->vmin && sign < 0) {
-        mul = min(v - r->vmin, mul);
-        v += mul * sign;
-    } else if (v < r->vmax && sign > 0) {
-        mul = min(r->vmax - v, mul);
-        v += mul * sign;
-    }
-    if (r->value != v) {
-        r->value = v;
-        if (r->cb != null) { r->cb(r); }
-        r->ui.invalidate(&r->ui);
+    if (!r->ui.hidden && !r->ui.disabled) {
+        // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
+        int32_t v = r->value;
+        if (v > r->vmin && sign < 0) {
+            mul = min(v - r->vmin, mul);
+            v += mul * sign;
+        } else if (v < r->vmax && sign > 0) {
+            mul = min(r->vmax - v, mul);
+            v += mul * sign;
+        }
+        if (r->value != v) {
+            r->value = v;
+            if (r->cb != null) { r->cb(r); }
+            r->ui.invalidate(&r->ui);
+        }
     }
 }
 
 static void uic_slider_inc_dec(uic_button_t* b) {
     uic_slider_t* r = (uic_slider_t*)b->ui.parent;
-    int32_t sign = b == &r->inc ? +1 : -1;
-    int32_t mul = app.shift && app.ctrl ? 1000 :
-        app.shift ? 100 : app.ctrl ? 10 : 1;
-    uic_slider_inc_dec_value(r, sign, mul);
+    if (!r->ui.hidden && !r->ui.disabled) {
+        int32_t sign = b == &r->inc ? +1 : -1;
+        int32_t mul = app.shift && app.ctrl ? 1000 :
+            app.shift ? 100 : app.ctrl ? 10 : 1;
+        uic_slider_inc_dec_value(r, sign, mul);
+    }
 }
 
-static void uic_slider_periodically(uic_t* ui) { // 100ms
+static void uic_slider_every_100ms(uic_t* ui) { // 100ms
     assert(ui->tag == uic_tag_slider);
     uic_slider_t* r = (uic_slider_t*)ui;
-    if (!r->dec.ui.armed && !r->inc.ui.armed) {
+    if (r->ui.hidden || r->ui.disabled) {
+        r->time = 0;
+    } else if (!r->dec.ui.armed && !r->inc.ui.armed) {
         r->time = 0;
     } else {
         if (r->time == 0) {
@@ -2112,7 +2132,7 @@ void _uic_slider_init_(uic_t* ui) {
     ui->measure      = uic_slider_measure;
     ui->layout       = uic_slider_layout;
     ui->paint        = uic_slider_paint;
-    ui->periodically = uic_slider_periodically;
+    ui->every_100ms = uic_slider_every_100ms;
     uic_slider_t* r = (uic_slider_t*)ui;
     r->buttons[0] = &r->dec.ui;
     r->buttons[1] = &r->inc.ui;
@@ -2635,14 +2655,28 @@ static void app_update_monitor_dpi(HMONITOR monitor) {
     }
 }
 
+#ifdef QUICK
+static void app_dump_dpi(void) {
+    traceln("app.dpi.monitor_effective: %d", app.dpi.monitor_effective  );
+    traceln("app.dpi.monitor_angular  : %d", app.dpi.monitor_angular    );
+    traceln("app.dpi.monitor_raw      : %d", app.dpi.monitor_raw        );
+    traceln("app.dpi.app.dpi.window   : %d", app.dpi.window             );
+    traceln("app.dpi.app.dpi.system   : %d", app.dpi.system             );
+    traceln("app.dpi.app.dpi.process  : %d", app.dpi.process            );
+}
+#endif
+
 static bool app_update_mi(const ui_rect_t* r, uint32_t flags) {
     RECT rc = app_ui2rect(r);
     HMONITOR monitor = MonitorFromRect(&rc, flags);
+//  TODO: moving between monitors with different DPIs
+//  HMONITOR mw = MonitorFromWindow(window(), flags);
     if (monitor != null) {
         app_update_monitor_dpi(monitor);
         fatal_if_false(GetMonitorInfoA(monitor, &mi));
         app.work_area = app_rect2ui(&mi.rcWork);
         app.mrc = app_rect2ui(&mi.rcMonitor);
+//      app_dump_dpi();
     }
     return monitor != null;
 }
@@ -2731,17 +2765,17 @@ static void app_save_console_pos(void) {
             crt.data_save(app.class_name, "console_window",
                          &wpl.rcNormalPosition, (int)sizeof(wpl.rcNormalPosition));
             HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-            CONSOLE_SCREEN_BUFFER_INFOEX csbiex = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-            int r = GetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+            CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
+            int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : crt.err();
             if (r != 0) {
                 traceln("GetConsoleScreenBufferInfoEx() %s", crt.error(r));
             } else {
                 crt.data_save(app.class_name, "console_screen_buffer_infoex",
-                             &csbiex, (int)sizeof(csbiex));
-//              traceln("csbiex: %dx%d", csbiex.dwSize.X, csbiex.dwSize.Y);
-//              traceln("%d,%d %dx%d", csbiex.srWindow.Left, csbiex.srWindow.Top,
-//                  csbiex.srWindow.Right - csbiex.srWindow.Left,
-//                  csbiex.srWindow.Bottom - csbiex.srWindow.Top);
+                             &info, (int)sizeof(info));
+//              traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
+//              traceln("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
+//                  info.srWindow.Right - info.srWindow.Left,
+//                  info.srWindow.Bottom - info.srWindow.Top);
             }
         }
     }
@@ -2842,22 +2876,22 @@ static void app_timer(uic_t* ui, tm_t id) {
     if (ui->timer != null) {
         ui->timer(ui, id);
     }
-    if (id == app_timer_1s_id && ui->once_upon_a_second != null) {
-        ui->once_upon_a_second(ui);
+    if (id == app_timer_1s_id && ui->every_sec != null) {
+        ui->every_sec(ui);
     }
-    if (id == app_timer_100ms_id && ui->periodically != null) {
-        ui->periodically(ui);
+    if (id == app_timer_100ms_id && ui->every_100ms != null) {
+        ui->every_100ms(ui);
     }
     uic_t** c = ui->children;
     while (c != null && *c != null) { app_timer(*c, id); c++; }
 }
 
-static void app_periodically(tm_t id) {
-    if (id == app_timer_1s_id && app.once_upon_a_second != null) {
-        app.once_upon_a_second();
+static void app_every_100ms(tm_t id) {
+    if (id == app_timer_1s_id && app.every_sec != null) {
+        app.every_sec();
     }
-    if (id == app_timer_100ms_id && app.periodically != null) {
-        app.periodically();
+    if (id == app_timer_100ms_id && app.every_100ms != null) {
+        app.every_100ms();
     }
     if (app_toast.time != 0 && app.now > app_toast.time) {
         app.show_toast(null, 0);
@@ -2870,11 +2904,10 @@ static void app_animate_timer(void) {
 }
 
 static void app_wm_timer(tm_t id) {
-    app_periodically(id);
+    app_every_100ms(id);
     if (app_animate.timer == id) { app_animate_timer(); }
     app_timer(app.ui, id);
 }
-
 
 static void app_window_openning(void) {
     app_timer_1s_id = app.set_timer((uintptr_t)&app_timer_1s_id, 1000);
@@ -3252,15 +3285,14 @@ static void app_paint_on_canvas(HDC hdc) {
     font_t font = gdi.set_font(app.fonts.regular);
     color_t c = gdi.set_text_color(colors.text);
     int bm = SetBkMode(canvas(), TRANSPARENT);
-//  int sm = SetStretchBltMode(canvas(), COLORONCOLOR);
-    int sm = SetStretchBltMode(canvas(), HALFTONE);
+    int stretch_mode = SetStretchBltMode(canvas(), HALFTONE);
     ui_point_t pt = {0};
     fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, (POINT*)&pt));
     brush_t br = gdi.set_brush(gdi.brush_hollow);
     app_paint(app.ui);
     if (app_toast.ui != null) { app_toast_paint(); }
     fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, null));
-    SetStretchBltMode(canvas(), sm);
+    SetStretchBltMode(canvas(), stretch_mode);
     SetBkMode(canvas(), bm);
     gdi.set_brush(br);
     gdi.set_text_color(c);
@@ -3340,7 +3372,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_CLOSE        : app_post_message(WM_CLOSING, 0, 0); return 0;
         case WM_OPENNING     : app_window_openning(); return 0;
         case WM_CLOSING      : app_window_closing(); return 0;
-        case WM_DESTROY      : PostQuitMessage(0); break;
+        case WM_DESTROY      : PostQuitMessage(app.exit_code); break;
         case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
         case WM_KEYDOWN      : app_alt_ctrl_shift(true, (int32_t)wp);
                                app_key_pressed(app.ui, (int32_t)wp);
@@ -3522,6 +3554,12 @@ static void app_create_window(ui_rect_t r, int32_t width, int32_t height) {
 //      EnableMenuItem(GetSystemMenu(window(), false),
 //          SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
     }
+    if (app.no_size) {
+        uint32_t s =GetWindowLong(window(), GWL_STYLE);
+        app_set_window_long(GWL_STYLE, s & ~WS_SIZEBOX);
+        enum { changed = SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED };
+        SetWindowPos(window(), NULL, 0, 0, 0, 0, changed);
+    }
     if (app.visibility != window_visibility.hide) {
         AnimateWindow(window(), 250, AW_ACTIVATE);
         app.show_window(app.visibility);
@@ -3622,6 +3660,15 @@ static void app_close_window(void) {
     app_post_message(WM_CLOSE, 0, 0);
 }
 
+static void app_quit(int32_t exit_code) {
+    app.exit_code = exit_code;
+    if (app.can_close != null) {
+        (void)app.can_close(); // and deliberately ignore result
+    }
+    app.can_close = null; // will not be called again
+    app.close(); // close and destroy app only window
+}
+
 static void app_show_tooltip_or_toast(uic_t* ui, int x, int y, double timeout) {
     if (ui != null) {
         app_toast.x = x;
@@ -3707,8 +3754,8 @@ static bool app_is_console_visible(void) {
 static int app_set_console_size(int16_t w, int16_t h) {
     // width/height in characters
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_SCREEN_BUFFER_INFOEX csbiex = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-    int r = GetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+    CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
+    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : crt.err();
     if (r != 0) {
         traceln("GetConsoleScreenBufferInfoEx() %s", crt.error(r));
     } else {
@@ -3753,8 +3800,8 @@ static void app_console_largest(void) {
     r = SetConsoleMode(console, &mode) ? 0 : crt.err();
     fatal_if_not_zero(r, "SetConsoleMode() %s", crt.error(r));
     */
-    CONSOLE_SCREEN_BUFFER_INFOEX csbiex = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-    int r = GetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+    CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
+    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : crt.err();
     fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", crt.error(r));
     COORD c = GetLargestConsoleWindowSize(console);
     if (c.X > 80) { c.X &= ~0x7; }
@@ -3762,10 +3809,10 @@ static void app_console_largest(void) {
     if (c.X > 80) { c.X -= 8; }
     if (c.Y > 24) { c.Y -= 4; }
     app_set_console_size(c.X, c.Y);
-    r = GetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+    r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : crt.err();
     fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", crt.error(r));
-    csbiex.dwSize.Y = 9999; // maximum value at the moment of implementation
-    r = SetConsoleScreenBufferInfoEx(console, &csbiex) ? 0 : crt.err();
+    info.dwSize.Y = 9999; // maximum value at the moment of implementation
+    r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : crt.err();
     fatal_if_not_zero(r, "SetConsoleScreenBufferInfoEx() %s", crt.error(r));
     app_save_console_pos();
 }
@@ -3813,24 +3860,28 @@ static void app_set_console_title(HWND cw) {
 static void app_restore_console(int32_t *visibility) {
     HWND cw = GetConsoleWindow();
     if (cw != null) {
-        RECT rc = {0};
-        GetWindowRect(cw, &rc);
-        ui_rect_t rect = app_rect2ui(&rc);
-        load_window_pos(&rect, "console_window", "show_console", visibility);
-        if (rect.w > 0 && rect.h > 0) {
-//          traceln("%d,%d %dx%d", rect.x, rect.y, rect.w, rect.h);
-            enum { swp = SWP_NOZORDER | SWP_NOREDRAW | SWP_NOACTIVATE };
-            fatal_if_false(SetWindowPos(cw, null, rect.x, rect.y, rect.w, rect.h, swp));
-            CONSOLE_SCREEN_BUFFER_INFOEX csbiex = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-            int r = crt.data_load(app.class_name, "console_screen_buffer_infoex",
-                             &csbiex, (int)sizeof(csbiex));
-            if (r == sizeof(csbiex)) {
-                int16_t w = csbiex.srWindow.Right - csbiex.srWindow.Left;
-                int16_t h = csbiex.srWindow.Bottom - csbiex.srWindow.Top;
-//              traceln("csbiex: %dx%d", csbiex.dwSize.X, csbiex.dwSize.Y);
-//              traceln("%d,%d %dx%d", csbiex.srWindow.Left, csbiex.srWindow.Top, w, h);
+        RECT wr = {0};
+        GetWindowRect(cw, &wr);
+        ui_rect_t rc = app_rect2ui(&wr);
+        load_window_pos(&rc, "console_window", "show_console", visibility);
+        if (rc.w > 0 && rc.h > 0) {
+//          traceln("%d,%d %dx%d px", rc.x, rc.y, rc.w, rc.h);
+            CONSOLE_SCREEN_BUFFER_INFOEX info = {
+                sizeof(CONSOLE_SCREEN_BUFFER_INFOEX)
+            };
+            int r = crt.data_load(app.class_name,
+                "console_screen_buffer_infoex", &info, (int)sizeof(info));
+            if (r == sizeof(info)) { // 24x80
+                SMALL_RECT sr = info.srWindow;
+                int16_t w = max(sr.Right - sr.Left + 1, 80);
+                int16_t h = max(sr.Bottom - sr.Top + 1, 24);
+//              traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
+//              traceln("%d,%d %dx%d", sr.Left, sr.Top, w, h);
                 if (w > 0 && h > 0) { app_set_console_size(w, h); }
     	    }
+            // do not resize console window just restore it's position
+            enum { swp = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE };
+            fatal_if_false(SetWindowPos(cw, null, rc.x, rc.y, rc.w, rc.h, swp));
         } else {
             app_console_largest();
         }
@@ -3850,7 +3901,7 @@ static void app_console_show(bool b) {
         // If the window was previously hidden, the return value is zero.
         bool unused_was_visible = ShowWindow(cw, b ? SW_SHOWNOACTIVATE : SW_HIDE);
         (void)unused_was_visible;
-        if (b) { SetActiveWindow((HWND)cw); }
+        if (b) { InvalidateRect(cw, null, true); SetActiveWindow((HWND)cw); }
         app_save_console_pos(); // again after visibility changed
     }
 }
@@ -4098,6 +4149,7 @@ static void app_init(void) {
     app.full_screen = app_full_screen;
     app.set_cursor = app_cursor_set;
     app.close = app_close_window;
+    app.quit = app_quit;
     app.set_timer = app_timer_set;
     app.kill_timer = app_timer_kill;
     app.post = app_post_message;
@@ -4158,6 +4210,7 @@ static int app_win_main(void) {
     app.ui->font = &app.fonts.regular;
     app.ui->w = rc.w - size_frame * 2;
     app.ui->h = rc.h - size_frame * 2 - caption_height;
+    app_layout_dirty = true; // layout will be done before first paint
     app.init(); // app.init() may change .show
     if (!app.no_ui) {
         app_create_window(rc, rc.w, rc.h);
@@ -4166,6 +4219,7 @@ static int app_win_main(void) {
         fatal_if_false(SetEvent(app_event_quit));
         threads.join(thread);
         app_dispose();
+        if (r == 0 && app.exit_code != 0) { r = app.exit_code; }
     } else {
         r = app.main();
     }
@@ -4360,6 +4414,10 @@ static void __winnls_init__(void) {
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, char* command,
         int show_command) {
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
+    // https://learn.microsoft.com/en-us/windows/win32/api/imm/nf-imm-immdisablelegacyime
+    ImmDisableLegacyIME();
+    // https://developercommunity.visualstudio.com/t/MSCTFdll-timcpp-An-assertion-failure-h/10513796
+    ImmDisableIME(0); // temporarely disable IME till MS fixes thta assert
     __winnls_init__();
     app.visibility = show_command;
     (void)command; // ASCII unused
