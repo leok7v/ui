@@ -332,7 +332,7 @@ typedef struct {
     int (*wait_or_timeout)(event_t e, double seconds); // seconds < 0 forever
     // returns event index or -1 on timeout or abandon
     int (*wait_any)(int n, event_t events[]); // -1 on abandon
-    int (*wait_any_or_timeout)(int n, event_t e[], double milliseconds);
+    int (*wait_any_or_timeout)(int n, event_t e[], double seconds);
     void (*dispose)(event_t e);
 } events_if;
 
@@ -362,7 +362,8 @@ typedef struct {
     // compare_exchange functions compare the *a value with the comparand value.
     // If the *a is equal to the comparand value, the "v" value is stored in the address
     // specified by "a" otherwise, no operation is performed.
-    // returns true is previous value if *a was the same as "comparand"
+    // returns true if previous value *a was the same as "comparand"
+    // false if *a was different from "comparand" and "a" was NOT modified.
     bool (*compare_exchange_int64)(volatile int64_t* a, int64_t comparand, int64_t v);
     bool (*compare_exchange_int32)(volatile int32_t* a, int32_t comparand, int32_t v);
     bool (*compare_exchange_ptr)(volatile void** a, void* comparand, void* v);
@@ -1661,6 +1662,7 @@ crt_if crt = {
 #pragma comment(lib, "imagehlp")
 #pragma comment(lib, "opengl32")
 #pragma comment(lib, "glu32")
+#pragma comment(lib, "imm32.lib")
 
 end_c
 
