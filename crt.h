@@ -1644,6 +1644,7 @@ crt_if crt = {
 #pragma comment(lib, "dxva2")
 #pragma comment(lib, "dwmapi")
 #pragma comment(lib, "gdi32")
+#pragma comment(lib, "glu32")
 #pragma comment(lib, "msimg32")
 #pragma comment(lib, "ntdll")
 #pragma comment(lib, "ole32")
@@ -1661,8 +1662,7 @@ crt_if crt = {
 #pragma comment(lib, "dbghelp")
 #pragma comment(lib, "imagehlp")
 #pragma comment(lib, "opengl32")
-#pragma comment(lib, "glu32")
-#pragma comment(lib, "imm32.lib")
+#pragma comment(lib, "winmm")
 
 end_c
 
