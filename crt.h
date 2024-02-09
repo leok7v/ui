@@ -260,9 +260,12 @@ enum {
 typedef struct {
     int32_t (*err)(void); // errno or GetLastError()
     void (*seterr)(int32_t err); // errno = err or SetLastError()
-    // non-crypro strong pseudo-random number generators (thread safe)
+    // non-crypto strong pseudo-random number generators (thread safe)
     uint32_t (*random32)(uint32_t *state); // "Mulberry32"
     uint64_t (*random64)(uint64_t *state); // "Trust"
+    // "FNV-1a" hash functions (if bytes == 0 expects zero terminated string)
+    uint32_t (*hash32)(const char* s, int64_t bytes);
+    uint64_t (*hash64)(const char* s, int64_t bytes);
     int (*memmap_read)(const char* filename, void** data, int64_t* bytes);
     int (*memmap_rw)(const char* filename, void** data, int64_t* bytes);
     void (*memunmap)(void* data, int64_t bytes);
@@ -316,6 +319,7 @@ typedef struct {
     void (*join)(thread_t thread);
     void (*name)(const char* name); // names the thread
     void (*realtime)(void); // bumps calling thread priority
+    void (*yield)(void);    // SwitchToThread()
 } threads_if;
 
 extern threads_if threads;
@@ -369,6 +373,8 @@ typedef struct {
     bool (*compare_exchange_ptr)(volatile void** a, void* comparand, void* v);
     void (*spinlock_acquire)(volatile int64_t* spinlock);
     void (*spinlock_release)(volatile int64_t* spinlock);
+    int32_t (*load32)(volatile int32_t* a);
+    int64_t (*load64)(volatile int64_t* a);
     void (*memory_fence)(void);
 } atomics_if;
 
@@ -1078,6 +1084,8 @@ static void threads_realtime(void) {
     crt_disable_power_throttling();
 }
 
+static void threads_yield(void) { SwitchToThread(); }
+
 static thread_t threads_start(void (*func)(void*), void* p) {
     thread_t t = (thread_t)CreateThread(null, 0,
         (LPTHREAD_START_ROUTINE)func, p, 0, null);
@@ -1123,11 +1131,12 @@ static void threads_name(const char* name) {
 }
 
 threads_if threads = {
-    .start = threads_start,
+    .start    = threads_start,
     .try_join = threads_try_join,
-    .join = threads_join,
-    .name = threads_name,
-    .realtime = threads_realtime
+    .join     = threads_join,
+    .name     = threads_name,
+    .realtime = threads_realtime,
+    .yield    = threads_yield
 };
 
 static event_t events_create(void) {
@@ -1192,6 +1201,7 @@ static_assertion(sizeof(CRITICAL_SECTION) == sizeof(mutex_t));
 static void mutex_init(mutex_t* m) {
     fatal_if_false(InitializeCriticalSectionAndSpinCount((LPCRITICAL_SECTION)m, 4096));
 }
+
 
 static void mutex_lock(mutex_t* m) { EnterCriticalSection((LPCRITICAL_SECTION)m); }
 
@@ -1290,6 +1300,14 @@ static void spinlock_release(volatile int64_t* spinlock) {
     atomics.memory_fence(); // tribute to lengthy Linus discussion going since 2006
 }
 
+static int32_t atomics_load_int32(volatile int32_t* a) {
+    return InterlockedAdd((volatile LONG*)a, 0);
+}
+
+static int64_t atomics_load_int64(volatile int64_t* a) {
+    return InterlockedAdd64((__int64 volatile *)a, 0);
+}
+
 static void memory_fence(void) { _mm_mfence(); }
 
 atomics_if atomics = {
@@ -1304,6 +1322,8 @@ atomics_if atomics = {
     .compare_exchange_int64 = atomics_compare_exchange_int64,
     .compare_exchange_int32 = atomics_compare_exchange_int32,
     .compare_exchange_ptr = atomics_compare_exchange_ptr,
+    .load32 = atomics_load_int32,
+    .load64 = atomics_load_int64,
     .spinlock_acquire = spinlock_acquire,
     .spinlock_release = spinlock_release,
     .memory_fence = memory_fence
@@ -1484,6 +1504,42 @@ static uint64_t crt_random64(uint64_t *state) {
 	return z ^ (z >> 22);
 }
 
+// https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
+
+uint32_t crt_hash32(const char *data, int64_t len) {
+    uint32_t hash  = 0x811c9dc5;  // FNV_offset_basis for 32-bit
+    uint32_t prime = 0x01000193; // FNV_prime for 32-bit
+    if (len > 0) {
+        for (int64_t i = 1; i < len; i++) {
+            hash ^= data[i];
+            hash *= prime;
+        }
+    } else {
+        for (int64_t i = 0; data[i] != 0; i++) {
+            hash ^= data[i];
+            hash *= prime;
+        }
+    }
+    return hash;
+}
+
+uint64_t crt_hash64(const char *data, int64_t len) {
+    uint64_t hash  = 0xcbf29ce484222325; // FNV_offset_basis for 64-bit
+    uint64_t prime = 0x100000001b3;      // FNV_prime for 64-bit
+    if (len > 0) {
+        for (int64_t i = 0; i < len; i++) {
+            hash ^= data[i];
+            hash *= prime;
+        }
+    } else {
+        for (int64_t i = 0; data[i] != 0; i++) {
+            hash ^= data[i];
+            hash *= prime;
+        }
+    }
+    return hash;
+}
+
 static int crt_memmap_file(HANDLE file, void* *data, int64_t *bytes, bool rw) {
     int r = 0;
     void* address = null;
@@ -1605,6 +1661,8 @@ crt_if crt = {
     .sleep = crt_sleep,
     .random32 = crt_random32,
     .random64 = crt_random64,
+    .hash32 = crt_hash32,
+    .hash64 = crt_hash64,
     .memmap_read = crt_memmap_read,
     .memmap_rw = crt_memmap_rw,
     .memunmap = crt_memunmap,
