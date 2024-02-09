@@ -78,10 +78,12 @@ typedef struct gdi_s {
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
     void (*image_dispose)(image_t* image);
     color_t (*set_text_color)(color_t c);
+    brush_t (*create_brush)(color_t c);
+    void    (*delete_brush)(brush_t b);
     color_t (*set_brush_color)(color_t c);
     brush_t (*set_brush)(brush_t b); // color or hollow
     pen_t (*set_colored_pen)(color_t c); // always 1px wide
-    pen_t (*create_pen)(color_t c, int pixels); // pixels wide pen
+    pen_t (*create_pen)(color_t c, int32_t pixels); // pixels wide pen
     pen_t (*set_pen)(pen_t p);
     void  (*delete_pen)(pen_t p);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
@@ -100,7 +102,7 @@ typedef struct gdi_s {
         color_t rgba_from, color_t rgba_to, bool vertical);
     // draw images: (x,y remains untouched after drawing)
     // draw_greyscale() sx, sy, sw, sh screen rectangle
-    // x, y, w, h rectange inside pixels[ih][iw] byte array
+    // x, y, w, h rectangle inside pixels[ih][iw] byte array
     void (*draw_greyscale)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
@@ -116,19 +118,24 @@ typedef struct gdi_s {
         image_t* image);
     // text:
     void (*cleartype)(bool on);
-    void (*font_smoothing_contrast)(int c); // [1000..2202] or -1 for 1400 default
-    font_t (*font)(font_t f, int height, int quality); // custom font, quality: -1 as is
+    void (*font_smoothing_contrast)(int32_t c); // [1000..2202] or -1 for 1400 default
+    font_t (*font)(font_t f, int32_t height, int32_t quality); // custom font, quality: -1 as is
     void   (*delete_font)(font_t f);
     font_t (*set_font)(font_t f);
-    int    (*font_height)(font_t f); // font height in pixels
-    int    (*descent)(font_t f);     // font descent (glyphs below baseline)
-    int    (*baseline)(font_t f);    // height - baseline (aka ascent) = descent
-    bool   (*is_mono)(font_t f);  // is font monospaced?
-    ui_point_t (*get_em)(font_t f); // pixel size of glyph "M"
+    // IMPORTANT: relationship between font_height(), baseline(), descent()
+    // E.g. for monospaced font on dpi=96 (monitor_raw=101) and font_height=15
+    // the get_em() is: 9 20 font_height(): 15 baseline: 16 descent: 4
+    // Monospaced fonts are not `em` "M" square!
+    int32_t (*font_height)(font_t f); // font height in pixels
+    int32_t (*descent)(font_t f);     // font descent (glyphs below baseline)
+    int32_t (*baseline)(font_t f);    // height - baseline (aka ascent) = descent
+    bool    (*is_mono)(font_t f);     // is font monospaced?
+    // https://en.wikipedia.org/wiki/Em_(typography)
+    ui_point_t (*get_em)(font_t f);  // pixel size of glyph "M"
     ui_point_t (*measure_text)(font_t f, const char* format, ...);
     // width can be -1 which measures text with "\n" or
     // positive number of pixels
-    ui_point_t (*measure_multiline)(font_t f, int w, const char* format, ...);
+    ui_point_t (*measure_multiline)(font_t f, int32_t w, const char* format, ...);
     double height_multiplier; // see line_spacing()
     double (*line_spacing)(double height_multiplier); // default 1.0
     int32_t x; // incremented by text, print
@@ -145,8 +152,8 @@ typedef struct gdi_s {
     // gdi.y += height * line_spacing
     void (*vprintln)(const char* format, va_list vl);
     void (*println)(const char* format, ...);
-    // multiline(null, formate, ...) only increments app.y
-    ui_point_t (*multiline)(int width, const char* format, ...);
+    // multiline(null, format, ...) only increments gdi.y
+    ui_point_t (*multiline)(int32_t width, const char* format, ...);
 } gdi_t;
 
 extern gdi_t gdi;
@@ -157,45 +164,45 @@ extern gdi_t gdi;
 */
 
 typedef struct colors_s {
-    const int none; // aka CLR_INVALID in wingdi
-    const int text;
-    const int white;
-    const int black;
-    const int red;
-    const int green;
-    const int blue;
-    const int yellow;
-    const int cyan;
-    const int magenta;
-    const int gray;
+    const int32_t none; // aka CLR_INVALID in wingdi
+    const int32_t text;
+    const int32_t white;
+    const int32_t black;
+    const int32_t red;
+    const int32_t green;
+    const int32_t blue;
+    const int32_t yellow;
+    const int32_t cyan;
+    const int32_t magenta;
+    const int32_t gray;
     // darker shades of grey:
-    const int dkgray1; // 30 / 255 = 11.7%
-    const int dkgray2; // 38 / 255 = 15%
-    const int dkgray3; // 45 / 255 = 17.6%
-    const int dkgray4; // 63 / 255 = 24.0%
+    const int32_t dkgray1; // 30 / 255 = 11.7%
+    const int32_t dkgray2; // 38 / 255 = 15%
+    const int32_t dkgray3; // 45 / 255 = 17.6%
+    const int32_t dkgray4; // 63 / 255 = 24.0%
     // tone down RGB colors:
-    const int tone_white;
-    const int tone_red;
-    const int tone_green;
-    const int tone_blue;
-    const int tone_yellow;
-    const int tone_cyan;
-    const int tone_magenta;
+    const int32_t tone_white;
+    const int32_t tone_red;
+    const int32_t tone_green;
+    const int32_t tone_blue;
+    const int32_t tone_yellow;
+    const int32_t tone_cyan;
+    const int32_t tone_magenta;
     // misc:
-    const int orange;
-    const int dkgreen;
+    const int32_t orange;
+    const int32_t dkgreen;
     // highlights:
-    const int text_highlight; // bluish off-white
-    const int blue_highlight;
-    const int off_white;
+    const int32_t text_highlight; // bluish off-white
+    const int32_t blue_highlight;
+    const int32_t off_white;
 
-    const int btn_gradient_darker;
-    const int btn_gradient_dark;
-    const int btn_hover_highlight;
-    const int btn_disabled;
-    const int btn_armed;
-    const int btn_text;
-    const int toast; // toast background
+    const int32_t btn_gradient_darker;
+    const int32_t btn_gradient_dark;
+    const int32_t btn_hover_highlight;
+    const int32_t btn_disabled;
+    const int32_t btn_armed;
+    const int32_t btn_text;
+    const int32_t toast; // toast background
 } colors_t;
 
 extern colors_t colors;
@@ -249,7 +256,7 @@ typedef struct uic_s { // ui element container/control
     void (*key_pressed)(uic_t* ui, int32_t key);
     void (*key_released)(uic_t* ui, int32_t key);
     void (*hovering)(uic_t* ui, bool start);
-    void (*invalidate)(uic_t* ui); // more prone to delays than app.redraw()
+    void (*invalidate)(const uic_t* ui); // more prone to delays than app.redraw()
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled ui elements
     void (*timer)(uic_t* ui, tm_t id);
@@ -273,18 +280,18 @@ typedef struct uic_s { // ui element container/control
 
 typedef struct {
     void (*center)(uic_t* ui); // exactly one child
-    void (*horizontal)(uic_t* ui, int gap);
-    void (*vertical)(uic_t* ui, int gap);
-    void (*grid)(uic_t* ui, int gap_h, int gap_v);
+    void (*horizontal)(uic_t* ui, int32_t gap);
+    void (*vertical)(uic_t* ui, int32_t gap);
+    void (*grid)(uic_t* ui, int32_t gap_h, int32_t gap_v);
 } measurements_if;
 
 extern measurements_if measurements;
 
 typedef struct {
     void (*center)(uic_t* ui); // exactly one child
-    void (*horizontal)(uic_t* ui, int x, int y, int gap);
-    void (*vertical)(uic_t* ui, int x, int y, int gap);
-    void (*grid)(uic_t* ui, int gap_h, int gap_v);
+    void (*horizontal)(uic_t* ui, int32_t x, int32_t y, int32_t gap);
+    void (*vertical)(uic_t* ui, int32_t x, int32_t y, int32_t gap);
+    void (*grid)(uic_t* ui, int32_t gap_h, int32_t gap_v);
 } layouts_if;
 
 extern layouts_if layouts;
@@ -300,8 +307,8 @@ typedef struct uic_text_s {
     bool multiline;
     bool editable;  // can be edited
     bool highlight; // paint with highlight color
-    bool hovered;   // paint highligh rectangle when hover over
-    bool label;     // do not copy text to clipboard, do not highligh
+    bool hovered;   // paint highlight rectangle when hover over
+    bool label;     // do not copy text to clipboard, do not highlight
     int32_t dy; // vertical shift down (to line up baselines of diff fonts)
 } uic_text_t;
 
@@ -406,48 +413,48 @@ typedef struct uic_messagebox_s uic_messagebox_t;
 
 typedef struct uic_messagebox_s {
     uic_t  ui;
-    void (*cb)(uic_messagebox_t* m, int option); // callback -1 on cancel
+    void (*cb)(uic_messagebox_t* m, int32_t option); // callback -1 on cancel
     uic_text_t text;
     uic_button_t button[16];
     uic_t* children[17];
-    int option; // -1 or option chosen by user
+    int32_t option; // -1 or option chosen by user
     const char** opts;
 } uic_messagebox_t;
 
 void uic_messagebox_init_(uic_t* ui);
 
 void uic_messagebox_init(uic_messagebox_t* mx, const char* option[],
-    void (*cb)(uic_messagebox_t* m, int option), const char* format, ...);
+    void (*cb)(uic_messagebox_t* m, int32_t option), const char* format, ...);
 
-#define uic_messagebox(name, s, code, ...)                           \
-                                                                     \
-    static char* name ## _options[] = { __VA_ARGS__, null };         \
-                                                                     \
-    static void name ## _callback(uic_messagebox_t* m, int option) { \
-        (void)m; (void)option; /* no warnings if unused */           \
-        code                                                         \
-    }                                                                \
-    static                                                           \
-    uic_messagebox_t name = {                                        \
-    .ui = {.tag = uic_tag_messagebox, .init = uic_messagebox_init_,  \
-    .children = null, .text = s}, .opts = name ## _options,          \
+#define uic_messagebox(name, s, code, ...)                               \
+                                                                         \
+    static char* name ## _options[] = { __VA_ARGS__, null };             \
+                                                                         \
+    static void name ## _callback(uic_messagebox_t* m, int32_t option) { \
+        (void)m; (void)option; /* no warnings if unused */               \
+        code                                                             \
+    }                                                                    \
+    static                                                               \
+    uic_messagebox_t name = {                                            \
+    .ui = {.tag = uic_tag_messagebox, .init = uic_messagebox_init_,      \
+    .children = null, .text = s}, .opts = name ## _options,              \
     .cb = name ## _callback }
 
 // Subsystem:WINDOWS single window application
 
 typedef struct window_visibility_s {
-    const int hide;
-    const int normal;   // should be use for first .show()
-    const int minimize; // activate and minimize
-    const int maximize; // activate and maximinze
-    const int normal_na;// same as .normal but no activate
-    const int show;     // shows and activates in current size and position
-    const int min_next; // minimize and activate next window in Z order
-    const int min_na;   // minimize but do not activate
-    const int show_na;  // same as .show but no activate
-    const int restore;  // from min/max to normal window size/pos
-    const int defau1t;  // use Windows STARTUPINFO value
-    const int force_min;// minimize even if dispatch thread not responding
+    const int32_t hide;
+    const int32_t normal;   // should be use for first .show()
+    const int32_t minimize; // activate and minimize
+    const int32_t maximize; // activate and maximize
+    const int32_t normal_na;// same as .normal but no activate
+    const int32_t show;     // shows and activates in current size and position
+    const int32_t min_next; // minimize and activate next window in Z order
+    const int32_t min_na;   // minimize but do not activate
+    const int32_t show_na;  // same as .show but no activate
+    const int32_t restore;  // from min/max to normal window size/pos
+    const int32_t defau1t;  // use Windows STARTUPINFO value
+    const int32_t force_min;// minimize even if dispatch thread not responding
 } window_visibility_t;
 
 extern window_visibility_t window_visibility;
@@ -465,7 +472,7 @@ typedef struct dpi_s { // max(dpi_x, dpi_y)
 
 typedef struct fonts_s {
     // font handles re-created on scale change
-    font_t regular; // proprtional UI font
+    font_t regular; // proportional UI font
     font_t mono; // monospaced  UI font
     font_t H1; // bold header font
     font_t H2;
@@ -497,7 +504,7 @@ typedef struct app_s {
     // called instead of init() for console apps and when .no_ui=true
     int (*main)(void);
     // class_name and init must be set before main()
-    void (*openned)(void);     // window has been created and shown
+    void (*opened)(void);      // window has been created and shown
     void (*every_sec)(void);   // if not null called ~ once a second
     void (*every_100ms)(void); // called ~10 times per second
     // .can_close() called before window is closed and can be
@@ -522,6 +529,7 @@ typedef struct app_s {
     bool no_min;   // window w/o minimize button on title bar and sys menu
     bool no_max;   // window w/o maximize button on title bar
     bool no_size;  // window w/o maximize button on title bar
+    bool no_clip;  // allows to resize window above hosting monitor size
     bool hide_on_minimize; // like task manager minimize means hide
     bool aero;      // retro Windows 7 decoration (just for the fun of it)
     // main(argc, argv)
@@ -557,24 +565,27 @@ typedef struct app_s {
     // i18n
     // strid("foo") returns 0 if there is no matching ENGLISH NEUTRAL
     // STRINGTABLE entry
-    int (*strid)(const char* s);
+    int32_t (*strid)(const char* s);
     // given strid > 0 returns localized string or defau1t value
-    const char* (*string)(int strid, const char* defau1t);
+    const char* (*string)(int32_t strid, const char* defau1t);
     // nls(s) is same as string(strid(s), s)
     const char* (*nls)(const char* defau1t); // national localized string
     const char* (*locale)(void); // "en-US" "zh-CN" etc...
     // force locale for debugging and testing:
     void (*set_locale)(const char* locale); // only for calling thread
     // inch to pixels and reverse translation via app.dpi.window
-    float   (*px2in)(int pixels);
+    float   (*px2in)(int32_t pixels);
     int32_t (*in2px)(float inches);
-    // Both:
+    bool    (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
     // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) are OK.
     bool    (*intersect_rect)(ui_rect_t* r, const ui_rect_t* r0,
                                             const ui_rect_t* r1);
     // layout:
+    bool (*is_hidden)(const uic_t* ui);   // control or any parent is hidden
+    bool (*is_disabled)(const uic_t* ui); // control or any parent is disabled
+    void (*measure)(uic_t* ui); // measure all children
     void (*layout)(void); // requests layout on UI tree before paint()
-    void (*invalidate)(ui_rect_t* rc);
+    void (*invalidate)(const ui_rect_t* rc);
     void (*full_screen)(bool on);
     void (*redraw)(void); // very fast (5 microseconds) InvalidateRect(null)
     void (*draw)(void);   // UpdateWindow()
@@ -584,24 +595,24 @@ typedef struct app_s {
     void (*quit)(int32_t ec);  // app.exit_code = ec; PostQuitMessage(ec);
     tm_t (*set_timer)(uintptr_t id, int32_t milliseconds); // see notes
     void (*kill_timer)(tm_t id);
-    void (*post)(int message, int64_t wp, int64_t lp);
+    void (*post)(int32_t message, int64_t wp, int64_t lp);
     void (*show_window)(int32_t show); // see show_window enum
     void (*show_toast)(uic_t* toast, double seconds); // toast(null) to cancel
-    void (*show_tooltip)(uic_t* tooltip, int x, int y, double seconds);
+    void (*show_tooltip)(uic_t* tooltip, int32_t x, int32_t y, double seconds);
     void (*vtoast)(double seconds, const char* format, va_list vl);
     void (*toast)(double seconds, const char* format, ...);
     // registry interface:
     void (*data_save)(const char* name, const void* data, int32_t bytes);
-    int  (*data_size)(const char* name);
-    int  (*data_load)(const char* name, void* data, int32_t bytes); // returns bytes read
+    int32_t (*data_size)(const char* name);
+    int32_t (*data_load)(const char* name, void* data, int32_t bytes); // returns bytes read
     // filename dialog:
     // const char* filter[] =
     //     {"Text Files", ".txt;.doc;.ini",
     //      "Executables", ".exe",
     //      "All Files", "*"};
     // const char* fn = app.open_filename("C:\\", filter, countof(filter));
-    const char* (*open_filename)(const char* folder, const char* filter[], int n);
-    const char* (*known_folder)(int kfid);
+    const char* (*open_filename)(const char* folder, const char* filter[], int32_t n);
+    const char* (*known_folder)(int32_t kfid);
     bool (*is_stdout_redirected)(void);
     bool (*is_console_visible)(void);
     int  (*console_attach)(void); // attempts to attach to parent terminal
@@ -625,63 +636,65 @@ typedef struct clipboard_s {
 extern clipboard_t clipboard;
 
 typedef struct messages_s {
-    const int character; // translated from key pressed/released to utf8
-    const int key_pressed;
-    const int key_released;
-    const int left_button_pressed;
-    const int left_button_released;
-    const int right_button_pressed;
-    const int right_button_released;
-    const int mouse_move;
+    const int32_t character; // translated from key pressed/released to utf8
+    const int32_t key_pressed;
+    const int32_t key_released;
+    const int32_t left_button_pressed;
+    const int32_t left_button_released;
+    const int32_t right_button_pressed;
+    const int32_t right_button_released;
+    const int32_t mouse_move;
+    const int32_t left_double_click;
+    const int32_t right_double_click;
 } messages_t;
 
 extern messages_t messages;
 
 typedef struct mouse_flags_s { // which buttons are pressed
-    const int left_button;
-    const int right_button;
+    const int32_t left_button;
+    const int32_t right_button;
 } mouse_flags_t;
 
 extern mouse_flags_t mouse_flags;
 
 typedef struct virtual_keys_s {
-    const int up;
-    const int down;
-    const int left;
-    const int right;
-    const int home;
-    const int end;
-    const int pageup;
-    const int pagedw;
-    const int insert;
-    const int del;
-    const int back;
-    const int escape;
-    const int enter;
-    const int f1;
-    const int f2;
-    const int f3;
-    const int f4;
-    const int f5;
-    const int f6;
-    const int f7;
-    const int f8;
-    const int f9;
-    const int f10;
-    const int f11;
-    const int f12;
-    const int f13;
-    const int f14;
-    const int f15;
-    const int f16;
-    const int f17;
-    const int f18;
-    const int f19;
-    const int f20;
-    const int f21;
-    const int f22;
-    const int f23;
-    const int f24;
+    const int32_t up;
+    const int32_t down;
+    const int32_t left;
+    const int32_t right;
+    const int32_t home;
+    const int32_t end;
+    const int32_t pageup;
+    const int32_t pagedw;
+    const int32_t insert;
+    const int32_t del;
+    const int32_t back;
+    const int32_t escape;
+    const int32_t enter;
+    const int32_t f1;
+    const int32_t f2;
+    const int32_t f3;
+    const int32_t f4;
+    const int32_t f5;
+    const int32_t f6;
+    const int32_t f7;
+    const int32_t f8;
+    const int32_t f9;
+    const int32_t f10;
+    const int32_t f11;
+    const int32_t f12;
+    const int32_t f13;
+    const int32_t f14;
+    const int32_t f15;
+    const int32_t f16;
+    const int32_t f17;
+    const int32_t f18;
+    const int32_t f19;
+    const int32_t f20;
+    const int32_t f21;
+    const int32_t f22;
+    const int32_t f23;
+    const int32_t f24;
 } virtual_keys_t;
 
 extern virtual_keys_t virtual_keys;
@@ -722,7 +735,7 @@ typedef struct gdi_xyc_s {
     color_t c;
 } gdi_xyc_t;
 
-static int gdi_top;
+static int32_t gdi_top;
 static gdi_xyc_t gdi_stack[256];
 
 static void __gdi_init__(void) {
@@ -751,7 +764,7 @@ static pen_t gdi_set_colored_pen(color_t c) {
     return p;
 }
 
-static pen_t gdi_create_pen(color_t c, int width) {
+static pen_t gdi_create_pen(color_t c, int32_t width) {
     assert(width >= 1);
     pen_t pen = (pen_t)CreatePen(PS_SOLID, width, gdi_color_ref(c));
     not_null(pen);
@@ -760,6 +773,14 @@ static pen_t gdi_create_pen(color_t c, int width) {
 
 static void gdi_delete_pen(pen_t p) {
     fatal_if_false(DeletePen(p));
+}
+
+static brush_t gdi_create_brush(color_t c) {
+    return (brush_t)CreateSolidBrush(gdi_color_ref(c));
+}
+
+static void gdi_delete_brush(brush_t b) {
+    DeleteBrush((HBRUSH)b);
 }
 
 static brush_t gdi_set_brush(brush_t b) {
@@ -771,7 +792,7 @@ static color_t gdi_set_brush_color(color_t c) {
     return SetDCBrushColor(canvas(), gdi_color_ref(c));
 }
 
-static void gdi_set_clip(int x, int y, int w, int h) {
+static void gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
     if (gdi.clip != null) { DeleteRgn(gdi.clip); gdi.clip = null; }
     if (w > 0 && h > 0) {
         gdi.clip = (region_t)CreateRectRgn(x, y, x + w, y + h);
@@ -780,7 +801,7 @@ static void gdi_set_clip(int x, int y, int w, int h) {
     fatal_if(SelectClipRgn(canvas(), (HRGN)gdi.clip) == ERROR);
 }
 
-static void gdi_push(int x, int y) {
+static void gdi_push(int32_t x, int32_t y) {
     assert(gdi_top < countof(gdi_stack));
     fatal_if(gdi_top >= countof(gdi_stack));
     gdi_stack[gdi_top].x = gdi.x;
@@ -805,7 +826,7 @@ static void gdi_pixel(int32_t x, int32_t y, color_t c) {
     fatal_if_false(SetPixel(canvas(), x, y, gdi_color_ref(c)));
 }
 
-static ui_point_t gdi_move_to(int x, int y) {
+static ui_point_t gdi_move_to(int32_t x, int32_t y) {
     POINT pt;
     pt.x = gdi.x;
     pt.y = gdi.y;
@@ -863,7 +884,7 @@ static void gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
     vertex[1].Blue  = ((rgba_to >> 16) & 0xFF) << 8;
     vertex[1].Alpha = ((rgba_to >> 24) & 0xFF) << 8;
     GRADIENT_RECT gRect = {0, 1};
-    const int mode = vertical ? GRADIENT_FILL_RECT_V : GRADIENT_FILL_RECT_H;
+    const int32_t mode = vertical ? GRADIENT_FILL_RECT_V : GRADIENT_FILL_RECT_H;
     GradientFill(canvas(), vertex, 2, &gRect, 1, mode);
 }
 
@@ -877,7 +898,7 @@ static BITMAPINFO* gdi_greyscale_bitmap_info() {
     BITMAPINFOHEADER* bih = &bi->bmiHeader;
     if (bih->biSize == 0) { // once
         bih->biSize = sizeof(BITMAPINFOHEADER);
-        for (int i = 0; i < 256; i++) {
+        for (int32_t i = 0; i < 256; i++) {
             RGBQUAD* q = &bi->bmiColors[i];
             q->rgbReserved = 0;
             q->rgbBlue = q->rgbGreen = q->rgbRed = (uint8_t)i;
@@ -982,7 +1003,7 @@ static void gdi_create_dib_section(image_t* image, int32_t w, int32_t h,
     BITMAPINFO local = { {sizeof(BITMAPINFOHEADER)} };
     BITMAPINFO* bi = bpp == 1 ? gdi_greyscale_bitmap_info() : &local;
     image->bitmap = (bitmap_t)CreateDIBSection(c, gdi_init_bitmap_info(w, h, bpp, bi),
-        bpp == 1 ? DIB_PAL_COLORS : DIB_RGB_COLORS, &image->pixels, null, 0x0);
+                                               DIB_RGB_COLORS, &image->pixels, null, 0x0);
     fatal_if(image->bitmap == null || image->pixels == null);
 //  fatal_if_false(ReleaseDC(window(), c));
     fatal_if_false(DeleteDC(c));
@@ -998,9 +1019,9 @@ static void gdi_image_init_rgbx(image_t* image, int32_t w, int32_t h,
     uint8_t* scanline = image->pixels;
     const uint8_t* rgbx = pixels;
     if (!swapped) {
-        for (int y = 0; y < h; y++) {
+        for (int32_t y = 0; y < h; y++) {
             uint8_t* bgra = scanline;
-            for (int x = 0; x < w; x++) {
+            for (int32_t x = 0; x < w; x++) {
                 bgra[0] = rgbx[2];
                 bgra[1] = rgbx[1];
                 bgra[2] = rgbx[0];
@@ -1012,9 +1033,9 @@ static void gdi_image_init_rgbx(image_t* image, int32_t w, int32_t h,
             scanline += stride;
         }
     } else {
-        for (int y = 0; y < h; y++) {
+        for (int32_t y = 0; y < h; y++) {
             uint8_t* bgra = scanline;
-            for (int x = 0; x < w; x++) {
+            for (int32_t x = 0; x < w; x++) {
                 bgra[0] = rgbx[0];
                 bgra[1] = rgbx[1];
                 bgra[2] = rgbx[2];
@@ -1042,16 +1063,16 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
     const int32_t stride = (w * bpp + 3) & ~0x3;
     uint8_t* scanline = image->pixels;
     if (bpp == 1) {
-        for (int y = 0; y < h; y++) {
+        for (int32_t y = 0; y < h; y++) {
             memcpy(scanline, pixels, w);
             pixels += w;
             scanline += stride;
         }
     } else if (bpp == 3 && !swapped) {
         const uint8_t* rgb = pixels;
-        for (int y = 0; y < h; y++) {
+        for (int32_t y = 0; y < h; y++) {
             uint8_t* bgr = scanline;
-            for (int x = 0; x < w; x++) {
+            for (int32_t x = 0; x < w; x++) {
                 bgr[0] = rgb[2];
                 bgr[1] = rgb[1];
                 bgr[2] = rgb[0];
@@ -1063,9 +1084,9 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
         }
     } else if (bpp == 3 && swapped) {
         const uint8_t* rgb = pixels;
-        for (int y = 0; y < h; y++) {
+        for (int32_t y = 0; y < h; y++) {
             uint8_t* bgr = scanline;
-            for (int x = 0; x < w; x++) {
+            for (int32_t x = 0; x < w; x++) {
                 bgr[0] = rgb[0];
                 bgr[1] = rgb[1];
                 bgr[2] = rgb[2];
@@ -1079,9 +1100,9 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
         // premultiply alpha, see:
         // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
         const uint8_t* rgba = pixels;
-        for (int y = 0; y < h; y++) {
+        for (int32_t y = 0; y < h; y++) {
             uint8_t* bgra = scanline;
-            for (int x = 0; x < w; x++) {
+            for (int32_t x = 0; x < w; x++) {
                 int32_t alpha = rgba[3];
                 bgra[0] = (uint8_t)(rgba[2] * alpha / 255);
                 bgra[1] = (uint8_t)(rgba[1] * alpha / 255);
@@ -1097,9 +1118,9 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
         // premultiply alpha, see:
         // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
         const uint8_t* rgba = pixels;
-        for (int y = 0; y < h; y++) {
+        for (int32_t y = 0; y < h; y++) {
             uint8_t* bgra = scanline;
-            for (int x = 0; x < w; x++) {
+            for (int32_t x = 0; x < w; x++) {
                 int32_t alpha = rgba[3];
                 bgra[0] = (uint8_t)(rgba[0] * alpha / 255);
                 bgra[1] = (uint8_t)(rgba[1] * alpha / 255);
@@ -1171,7 +1192,7 @@ static void gdi_cleartype(bool on) {
         (void*)s, spif));
 }
 
-static void gdi_font_smoothing_contrast(int c) {
+static void gdi_font_smoothing_contrast(int32_t c) {
     fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
     if (c == -1) { c = 1400; }
     fatal_if_false(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST, 0,
@@ -1186,10 +1207,10 @@ static_assertion(gdi_font_quality_antialiased == ANTIALIASED_QUALITY);
 static_assertion(gdi_font_quality_cleartype == CLEARTYPE_QUALITY);
 static_assertion(gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
-static font_t gdi_font(font_t f, int height, int quality) {
+static font_t gdi_font(font_t f, int32_t height, int32_t quality) {
     assert(f != null && height > 0);
     LOGFONTA lf = {0};
-    int n = GetObjectA(f, sizeof(lf), &lf);
+    int32_t n = GetObjectA(f, sizeof(lf), &lf);
     fatal_if_false(n == (int)sizeof(lf));
     lf.lfHeight = -height;
     if (gdi_font_quality_default <= quality && quality <= gdi_font_quality_cleartype_natural) {
@@ -1200,10 +1221,10 @@ static font_t gdi_font(font_t f, int height, int quality) {
     return (font_t)CreateFontIndirectA(&lf);
 }
 
-static int gdi_font_height(font_t f) {
+static int32_t gdi_font_height(font_t f) {
     assert(f != null);
     LOGFONTA lf = {0};
-    int n = GetObjectA(f, sizeof(lf), &lf);
+    int32_t n = GetObjectA(f, sizeof(lf), &lf);
     fatal_if_false(n == (int)sizeof(lf));
     assert(lf.lfHeight < 0);
     return abs(lf.lfHeight);
@@ -1242,7 +1263,7 @@ static font_t gdi_set_font(font_t f) {
 } while (0);
 
 
-static int gdi_baseline(font_t f) {
+static int32_t gdi_baseline(font_t f) {
     TEXTMETRICA tm;
     gdi_hdc_with_font(f, {
         fatal_if_false(GetTextMetricsA(hdc, &tm));
@@ -1250,7 +1271,7 @@ static int gdi_baseline(font_t f) {
     return tm.tmAscent;
 }
 
-static int gdi_descent(font_t f) {
+static int32_t gdi_descent(font_t f) {
     TEXTMETRICA tm;
     gdi_hdc_with_font(f, {
         fatal_if_false(GetTextMetricsA(hdc, &tm));
@@ -1286,9 +1307,10 @@ static double gdi_line_spacing(double height_multiplier) {
     return hm;
 }
 
-static int gdi_draw_utf16(font_t font, const char* s, int n, RECT* r, uint32_t format) {
+static int32_t gdi_draw_utf16(font_t font, const char* s, int32_t n,
+        RECT* r, uint32_t format) {
     // if font == null, draws on HDC with selected font
-    int height = 0; // return value is the height of the text in logical units
+    int32_t height = 0; // return value is the height of the text in logical units
     if (font != null) {
         gdi_hdc_with_font(font, {
             height = DrawTextW(hdc, utf8to16(s), n, r, format);
@@ -1318,10 +1340,10 @@ typedef struct gdi_dtp_s { // draw text params
 } gdi_dtp_t;
 
 static void gdi_text_draw(gdi_dtp_t* p) {
-    int n = 1024;
+    int32_t n = 1024;
     char* text = (char*)alloca(n);
     crt.vformat(text, n - 1, p->format, p->vl);
-    int k = (int)strlen(text);
+    int32_t k = (int32_t)strlen(text);
     // Microsoft returns -1 not posix required sizeof buffer
     while (k >= n - 1 || k < 0) {
         n = n * 2;
@@ -1366,7 +1388,7 @@ static ui_point_t gdi_measure_singleline(font_t f, const char* format, ...) {
     return cell;
 }
 
-static ui_point_t gdi_measure_multiline(font_t f, int w, const char* format, ...) {
+static ui_point_t gdi_measure_multiline(font_t f, int32_t w, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     uint32_t flags = w <= 0 ? ml_measure : ml_measure_break;
@@ -1402,7 +1424,7 @@ static void gdi_textln(const char* format, ...) {
     va_end(vl);
 }
 
-static ui_point_t gdi_multiline(int w, const char* f, ...) {
+static ui_point_t gdi_multiline(int32_t w, const char* f, ...) {
     va_list vl;
     va_start(vl, f);
     uint32_t flags = w <= 0 ? ml_draw : ml_draw_break;
@@ -1453,14 +1475,14 @@ static void gdi_println(const char* format, ...) {
 //    #define STB_IMAGE_IMPLEMENTATION
 //    #include "stb_image.h"
 
-static uint8_t* gdi_load_image(const void* data, int bytes, int* w, int* h,
-        int* bytes_per_pixel, int preffered_bytes_per_pixel) {
+static uint8_t* gdi_load_image(const void* data, int32_t bytes, int* w, int* h,
+        int* bytes_per_pixel, int32_t preferred_bytes_per_pixel) {
     #ifdef STBI_VERSION
         return stbi_load_from_memory((uint8_t const*)data, bytes, w, h,
-            bytes_per_pixel, preffered_bytes_per_pixel);
+            bytes_per_pixel, preferred_bytes_per_pixel);
     #else // see instructions above
         (void)data; (void)bytes; (void)data; (void)w; (void)h;
-        (void)bytes_per_pixel; (void)preffered_bytes_per_pixel;
+        (void)bytes_per_pixel; (void)preferred_bytes_per_pixel;
         fatal_if(true, "curl.exe --silent --fail --create-dirs "
             "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h "
             "--output ext/stb_image.h");
@@ -1481,6 +1503,8 @@ gdi_t gdi = {
     .alpha_blend = gdi_alpha_blend,
     .draw_image = gdi_draw_image,
     .set_text_color = gdi_set_text_color,
+    .create_brush = gdi_create_brush,
+    .delete_brush = gdi_delete_brush,
     .set_brush = gdi_set_brush,
     .set_brush_color = gdi_set_brush_color,
     .set_colored_pen = gdi_set_colored_pen,
@@ -1583,19 +1607,37 @@ enum { toast_steps = 15 }; // number of animation steps
 
 static struct {
     uic_t* ui;
-    int step;
+    int32_t step;
     double time; // closing time or zero
-    int x; // -1 for toast
-    int y; // screen coordinates for tooltip
+    int32_t x; // -1 for toast
+    int32_t y; // screen coordinates for tooltip
 } app_toast;
 
-static void uic_invalidate(uic_t* ui) {
+static void uic_invalidate(const uic_t* ui) {
     ui_rect_t rc = { ui->x, ui->y, ui->w, ui->h};
     rc.x -= ui->em.x;
     rc.y -= ui->em.y;
     rc.w += ui->em.x * 2;
     rc.h += ui->em.y * 2;
     app.invalidate(&rc);
+}
+
+static bool app_is_hidden(const uic_t* ui) {
+    bool hidden = ui->hidden;
+    while (!hidden && ui->parent != null) {
+        ui = ui->parent;
+        hidden = ui->hidden;
+    }
+    return hidden;
+}
+
+static bool app_is_disabled(const uic_t* ui) {
+    bool disabled = ui->disabled;
+    while (!disabled && ui->parent != null) {
+        ui = ui->parent;
+        disabled = ui->disabled;
+    }
+    return disabled;
 }
 
 static const char* uic_nsl(uic_t* ui) {
@@ -1609,7 +1651,7 @@ static void uic_measure(uic_t* ui) {
     ui->w = (int32_t)(ui->em.x * ui->width + 0.5);
     ui_point_t mt = { 0 };
     if (ui->tag == uic_tag_text && ((uic_text_t*)ui)->multiline) {
-        int w = (int)(ui->width * ui->em.x + 0.5);
+        int32_t w = (int)(ui->width * ui->em.x + 0.5);
         mt = gdi.measure_multiline(f, w == 0 ? -1 : w, uic_nsl(ui));
     } else {
         mt = gdi.measure_text(f, uic_nsl(ui));
@@ -1617,13 +1659,13 @@ static void uic_measure(uic_t* ui) {
     ui->h = mt.y;
     ui->w = max(ui->w, mt.x);
     ui->baseline = gdi.baseline(f);
-    ui->descent = gdi.descent(f);
+    ui->descent  = gdi.descent(f);
 }
 
 static void uic_set_label(uic_t* ui, const char* label) {
-    int n = (int)strlen(label);
+    int32_t n = (int32_t)strlen(label);
     strprintf(ui->text, "%s", label);
-    for (int i = 0; i < n; i++) {
+    for (int32_t i = 0; i < n; i++) {
         if (label[i] == '&' && i < n - 1 && label[i + 1] != '&') {
             ui->shortcut = label[i + 1];
             break;
@@ -1637,10 +1679,16 @@ static void uic_localize(uic_t* ui) {
     }
 }
 
+static bool uic_hidden_or_disabled(uic_t* ui) {
+    return app.is_hidden(ui) || app.is_disabled(ui);
+}
+
 static void uic_hovering(uic_t* ui, bool start) {
     static uic_text(btn_tooltip,  "");
-    if (start && app_toast.ui == null && ui->tip[0] != 0 && !ui->disabled && !ui->hidden) {
+    if (start && app_toast.ui == null && ui->tip[0] != 0 &&
+       !app.is_hidden(ui)) {
         strprintf(btn_tooltip.ui.text, "%s", app.nls(ui->tip));
+        btn_tooltip.ui.font = &app.fonts.H1;
         int32_t y = app.mouse.y - ui->em.y;
         // enough space above? if not show below
         if (y < ui->em.y) { y = app.mouse.y + ui->em.y * 3 / 2; }
@@ -1656,7 +1704,7 @@ void uic_init(uic_t* ui) {
     ui->localize = uic_localize;
     ui->measure  = uic_measure;
     ui->hovering = uic_hovering;
-    ui->hover_delay = 2.5;
+    ui->hover_delay = 1.5;
 }
 
 // text
@@ -1678,14 +1726,14 @@ static void uic_text_paint(uic_t* ui) {
     if (!t->multiline) {
         gdi.text("%s", uic_nsl(ui));
     } else {
-        int w = (int)(ui->width * ui->em.x + 0.5);
+        int32_t w = (int)(ui->width * ui->em.x + 0.5);
         gdi.multiline(w == 0 ? -1 : w, "%s", uic_nsl(ui));
     }
     if (ui->hover && t->hovered && !t->label) {
         gdi.set_colored_pen(colors.btn_hover_highlight);
         gdi.set_brush(gdi.brush_hollow);
-        int cr = ui->em.y / 4; // corner radius
-        int h = t->multiline ? ui->h : ui->baseline + ui->descent;
+        int32_t cr = ui->em.y / 4; // corner radius
+        int32_t h = t->multiline ? ui->h : ui->baseline + ui->descent;
         gdi.rounded(ui->x - cr, ui->y + t->dy, ui->w + 2 * cr,
             h, cr, cr);
     }
@@ -1695,7 +1743,7 @@ static void uic_text_paint(uic_t* ui) {
 static void uic_text_context_menu(uic_t* ui) {
     assert(ui->tag == uic_tag_text);
     uic_text_t* t = (uic_text_t*)ui;
-    if (!t->label && !ui->hidden) {
+    if (!t->label && !uic_hidden_or_disabled(ui)) {
         clipboard.copy_text(uic_nsl(ui));
         static bool first_time = true;
         app.toast(first_time ? 2.15 : 0.75,
@@ -1707,7 +1755,7 @@ static void uic_text_context_menu(uic_t* ui) {
 static void uic_text_character(uic_t* ui, const char* utf8) {
     assert(ui->tag == uic_tag_text);
     uic_text_t* t = (uic_text_t*)ui;
-    if (ui->hover && !ui->hidden && !t->label) {
+    if (ui->hover && !uic_hidden_or_disabled(ui) && !t->label) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {
@@ -1769,7 +1817,7 @@ static void uic_button_paint(uic_t* ui) {
     gdi.push(ui->x, ui->y);
     bool pressed = (ui->armed ^ ui->pressed) == 0;
     if (b->armed_until != 0) { pressed = true; }
-    int sign = 1 - pressed * 2; // -1, +1
+    int32_t sign = 1 - pressed * 2; // -1, +1
     int32_t w = sign * ui->w;
     int32_t h = sign * ui->h;
     int32_t x = b->ui.x + (int)pressed * ui->w;
@@ -1830,7 +1878,7 @@ static void uic_button_character(uic_t* ui, const char* utf8) {
 
 /* processes mouse clicks and invokes callback  */
 
-static void uic_button_mouse(uic_t* ui, int message, int flags) {
+static void uic_button_mouse(uic_t* ui, int32_t message, int32_t flags) {
     assert(ui->tag == uic_tag_button);
     (void)flags; // unused
     assert(!ui->hidden && !ui->disabled);
@@ -1900,7 +1948,7 @@ static int  uic_checkbox_paint_on_off(uic_t* ui) {
         gdi.text("%s", circle);
         x++;
     }
-    int rx = gdi.x;
+    int32_t rx = gdi.x;
     gdi.set_text_color(foreground);
     gdi.x = ui->pressed ? x : ui->x;
     gdi.text("%s", circle);
@@ -1908,7 +1956,7 @@ static int  uic_checkbox_paint_on_off(uic_t* ui) {
     return rx;
 }
 
-static const char*  uic_checkbox_on_off_label(uic_t* ui, char* label, int count)  {
+static const char*  uic_checkbox_on_off_label(uic_t* ui, char* label, int32_t count)  {
     crt.sformat(label, count, "%s", uic_nsl(ui));
     char* s = strstr(label, "___");
     if (s != null) {
@@ -1952,7 +2000,7 @@ static void  uic_checkbox_character(uic_t* ui, const char* utf8) {
     }
 }
 
-static void  uic_checkbox_mouse(uic_t* ui, int message, int flags) {
+static void  uic_checkbox_mouse(uic_t* ui, int32_t message, int32_t flags) {
     assert(ui->tag == uic_tag_checkbox);
     (void)flags; // unused
     assert(!ui->hidden && !ui->disabled);
@@ -1999,7 +2047,7 @@ static void uic_slider_measure(uic_t* ui) {
     assert(r->inc.ui.w == r->dec.ui.w && r->inc.ui.h == r->dec.ui.h);
     const int32_t em = ui->em.x;
     font_t f = ui->font != null ? *ui->font : app.fonts.regular;
-    const int w = (int)(ui->width * ui->em.x);
+    const int32_t w = (int)(ui->width * ui->em.x);
     r->tm = gdi.measure_text(f, uic_nsl(ui), r->vmax);
     if (w > r->tm.x) { r->tm.x = w; }
     ui->w = r->dec.ui.w + r->tm.x + r->inc.ui.w + em * 2;
@@ -2055,7 +2103,7 @@ static void uic_slider_paint(uic_t* ui) {
     gdi.pop();
 }
 
-static void uic_slider_mouse(uic_t* ui, int message, int f) {
+static void uic_slider_mouse(uic_t* ui, int32_t message, int32_t f) {
     if (!ui->hidden && !ui->disabled) {
         assert(ui->tag == uic_tag_slider);
         uic_slider_t* r = (uic_slider_t*)ui;
@@ -2081,7 +2129,7 @@ static void uic_slider_mouse(uic_t* ui, int message, int f) {
     }
 }
 
-static void uic_slider_inc_dec_value(uic_slider_t* r, int sign, int mul) {
+static void uic_slider_inc_dec_value(uic_slider_t* r, int32_t sign, int32_t mul) {
     if (!r->ui.hidden && !r->ui.disabled) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
         int32_t v = r->value;
@@ -2121,8 +2169,8 @@ static void uic_slider_every_100ms(uic_t* ui) { // 100ms
         if (r->time == 0) {
             r->time = app.now;
         } else if (app.now - r->time > 1.0) {
-            const int sign = r->dec.ui.armed ? -1 : +1;
-            int s = (int)(app.now - r->time + 0.5);
+            const int32_t sign = r->dec.ui.armed ? -1 : +1;
+            int32_t s = (int)(app.now - r->time + 0.5);
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
             const int64_t range = (int64_t)r->vmax - r->vmin;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
@@ -2178,7 +2226,7 @@ static void uic_messagebox_button(uic_button_t* b) {
     uic_messagebox_t* mx = (uic_messagebox_t*)b->ui.parent;
     assert(mx->ui.tag == uic_tag_messagebox);
     mx->option = -1;
-    for (int i = 0; i < countof(mx->button) && mx->option < 0; i++) {
+    for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
         if (b == &mx->button[i]) {
             mx->option = i;
             mx->cb(mx, i);
@@ -2190,17 +2238,17 @@ static void uic_messagebox_button(uic_button_t* b) {
 static void uic_messagebox_measure(uic_t* ui) {
     uic_messagebox_t* mx = (uic_messagebox_t*)ui;
     assert(ui->tag == uic_tag_messagebox);
-    int n = 0;
+    int32_t n = 0;
     for (uic_t** c = ui->children; c != null && *c != null; c++) { n++; }
     n--; // number of buttons
     mx->text.ui.measure(&mx->text.ui);
-    const int em_x = mx->text.ui.em.x;
-    const int em_y = mx->text.ui.em.y;
-    const int tw = mx->text.ui.w;
-    const int th = mx->text.ui.h;
+    const int32_t em_x = mx->text.ui.em.x;
+    const int32_t em_y = mx->text.ui.em.y;
+    const int32_t tw = mx->text.ui.w;
+    const int32_t th = mx->text.ui.h;
     if (n > 0) {
-        int bw = 0;
-        for (int i = 0; i < n; i++) {
+        int32_t bw = 0;
+        for (int32_t i = 0; i < n; i++) {
             bw += mx->button[i].ui.w;
         }
         ui->w = max(tw, bw + em_x * 2);
@@ -2215,25 +2263,25 @@ static void uic_messagebox_layout(uic_t* ui) {
     uic_messagebox_t* mx = (uic_messagebox_t*)ui;
     assert(ui->tag == uic_tag_messagebox);
 //  traceln("ui.y=%d", ui->y);
-    int n = 0;
+    int32_t n = 0;
     for (uic_t** c = ui->children; c != null && *c != null; c++) { n++; }
     n--; // number of buttons
-    const int em_y = mx->text.ui.em.y;
+    const int32_t em_y = mx->text.ui.em.y;
     mx->text.ui.x = ui->x;
     mx->text.ui.y = ui->y + em_y * 2 / 3;
-    const int tw = mx->text.ui.w;
-    const int th = mx->text.ui.h;
+    const int32_t tw = mx->text.ui.w;
+    const int32_t th = mx->text.ui.h;
     if (n > 0) {
-        int bw = 0;
-        for (int i = 0; i < n; i++) {
+        int32_t bw = 0;
+        for (int32_t i = 0; i < n; i++) {
             bw += mx->button[i].ui.w;
         }
         // center text:
         mx->text.ui.x = ui->x + (ui->w - tw) / 2;
         // spacing between buttons:
-        int sp = (ui->w - bw) / (n + 1);
-        int x = sp;
-        for (int i = 0; i < n; i++) {
+        int32_t sp = (ui->w - bw) / (n + 1);
+        int32_t x = sp;
+        for (int32_t i = 0; i < n; i++) {
             mx->button[i].ui.x = ui->x + x;
             mx->button[i].ui.y = ui->y + th + em_y * 3 / 2;
             x += mx->button[i].ui.w + sp;
@@ -2249,7 +2297,7 @@ void uic_messagebox_init_(uic_t* ui) {
     ui->layout = uic_messagebox_layout;
     mx->ui.font = &app.fonts.H3;
     const char** opts = mx->opts;
-    int n = 0;
+    int32_t n = 0;
     while (opts[n] != null && n < countof(mx->button) - 1) {
         uic_button_init(&mx->button[n], opts[n], 6.0, uic_messagebox_button);
         mx->button[n].ui.parent = &mx->ui;
@@ -2258,7 +2306,7 @@ void uic_messagebox_init_(uic_t* ui) {
     assert(n <= countof(mx->button));
     if (n > countof(mx->button)) { n = countof(mx->button); }
     mx->children[0] = &mx->text.ui;
-    for (int i = 0; i < n; i++) {
+    for (int32_t i = 0; i < n; i++) {
         mx->children[i + 1] = &mx->button[i].ui;
         mx->children[i + 1]->font = mx->ui.font;
         mx->button[i].ui.localize(&mx->button[i].ui);
@@ -2272,7 +2320,7 @@ void uic_messagebox_init_(uic_t* ui) {
 }
 
 void uic_messagebox_init(uic_messagebox_t* mx, const char* opts[],
-        void (*cb)(uic_messagebox_t* m, int option),
+        void (*cb)(uic_messagebox_t* m, int32_t option),
         const char* format, ...) {
     mx->ui.tag = uic_tag_messagebox;
     mx->ui.measure = uic_messagebox_measure;
@@ -2297,7 +2345,7 @@ static void measurements_center(uic_t* ui) {
     c->h = ui->h;
 }
 
-static void measurements_horizontal(uic_t* ui, int gap) {
+static void measurements_horizontal(uic_t* ui, int32_t gap) {
     assert(ui->children != null && ui->children[0] != null, "no children?");
     uic_t** c = ui->children;
     ui->w = 0;
@@ -2315,7 +2363,7 @@ static void measurements_horizontal(uic_t* ui, int gap) {
     }
 }
 
-static void measurements_vertical(uic_t* ui, int gap) {
+static void measurements_vertical(uic_t* ui, int32_t gap) {
     assert(ui->children != null && ui->children[0] != null, "no children?");
     uic_t** c = ui->children;
     ui->h = 0;
@@ -2332,11 +2380,11 @@ static void measurements_vertical(uic_t* ui, int gap) {
     }
 }
 
-static void measurements_grid(uic_t* ui, int gap_h, int gap_v) {
-    int cols = 0;
+static void measurements_grid(uic_t* ui, int32_t gap_h, int32_t gap_v) {
+    int32_t cols = 0;
     for (uic_t** row = ui->children; *row != null; row++) {
         uic_t* r = *row;
-        int n = 0;
+        int32_t n = 0;
         for (uic_t** col = r->children; *col != null; col++) { n++; }
         if (cols == 0) { cols = n; }
         assert(n > 0 && cols == n);
@@ -2346,11 +2394,13 @@ static void measurements_grid(uic_t* ui, int gap_h, int gap_v) {
     for (uic_t** row = ui->children; *row != null; row++) {
         if (!(*row)->hidden) {
             (*row)->h = 0;
-            int i = 0;
+            (*row)->baseline = 0;
+            int32_t i = 0;
             for (uic_t** col = (*row)->children; *col != null; col++) {
                 if (!(*col)->hidden) {
                     mxw[i] = max(mxw[i], (*col)->w);
                     (*row)->h = max((*row)->h, (*col)->h);
+//                  traceln("[%d] row.baseline: %d col.baseline: %d ", i, (*row)->baseline, (*col)->baseline);
                     (*row)->baseline = max((*row)->baseline, (*col)->baseline);
                 }
                 i++;
@@ -2359,13 +2409,13 @@ static void measurements_grid(uic_t* ui, int gap_h, int gap_v) {
     }
     ui->h = 0;
     ui->w = 0;
-    int rows_seen = 0; // number of visible rows so far
+    int32_t rows_seen = 0; // number of visible rows so far
     for (uic_t** row = ui->children; *row != null; row++) {
         uic_t* r = *row;
         if (!r->hidden) {
             r->w = 0;
-            int i = 0;
-            int cols_seen = 0; // number of visible columns so far
+            int32_t i = 0;
+            int32_t cols_seen = 0; // number of visible columns so far
             for (uic_t** col = r->children; *col != null; col++) {
                 uic_t* c = *col;
                 if (!c->hidden) {
@@ -2405,7 +2455,7 @@ static void layouts_center(uic_t* ui) {
     c->y = (ui->h - c->h) / 2;
 }
 
-static void layouts_horizontal(uic_t* ui, int x, int y, int gap) {
+static void layouts_horizontal(uic_t* ui, int32_t x, int32_t y, int32_t gap) {
     assert(ui->children != null && ui->children[0] != null, "no children?");
     uic_t** c = ui->children;
     bool seen = false;
@@ -2422,7 +2472,7 @@ static void layouts_horizontal(uic_t* ui, int x, int y, int gap) {
     }
 }
 
-static void layouts_vertical(uic_t* ui, int x, int y, int gap) {
+static void layouts_vertical(uic_t* ui, int32_t x, int32_t y, int32_t gap) {
     assert(ui->children != null && ui->children[0] != null, "no children?");
     uic_t** c = ui->children;
     bool seen = false;
@@ -2439,15 +2489,15 @@ static void layouts_vertical(uic_t* ui, int x, int y, int gap) {
     }
 }
 
-static void layouts_grid(uic_t* ui, int gap_h, int gap_v) {
+static void layouts_grid(uic_t* ui, int32_t gap_h, int32_t gap_v) {
     assert(ui->children != null, "layout_grid() with no children?");
-    int x = ui->x;
-    int y = ui->y;
+    int32_t x = ui->x;
+    int32_t y = ui->y;
     bool row_seen = false;
     for (uic_t** row = ui->children; *row != null; row++) {
         if (!(*row)->hidden) {
             if (row_seen) { y += gap_v; }
-            int xc = x;
+            int32_t xc = x;
             bool col_seen = false;
             for (uic_t** col = (*row)->children; *col != null; col++) {
                 if (!(*col)->hidden) {
@@ -2498,7 +2548,9 @@ messages_t messages = {
     .left_button_released  = WM_LBUTTONUP,
     .right_button_pressed  = WM_RBUTTONDOWN,
     .right_button_released = WM_RBUTTONUP,
-    .mouse_move            = WM_MOUSEMOVE
+    .mouse_move            = WM_MOUSEMOVE,
+    .left_double_click     = WM_LBUTTONDBLCLK,
+    .right_double_click    = WM_RBUTTONDBLCLK
 };
 
 mouse_flags_t mouse_flags = {
@@ -2578,12 +2630,12 @@ static uintptr_t app_timer_100ms_id;
 
 static bool app_layout_dirty; // call layout() before paint
 
-typedef void (*app_animate_function_t)(int step);
+typedef void (*app_animate_function_t)(int32_t step);
 
 static struct {
     app_animate_function_t f;
-    int count;
-    int step;
+    int32_t count;
+    int32_t step;
     tm_t timer;
 } app_animate;
 
@@ -2596,7 +2648,7 @@ static void app_on_every_message(uic_t* ui);
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
 
-static void app_alt_ctrl_shift(bool down, int key) {
+static void app_alt_ctrl_shift(bool down, int32_t key) {
     if (key == VK_MENU)    { app.alt   = down; }
     if (key == VK_CONTROL) { app.ctrl  = down; }
     if (key == VK_SHIFT)   { app.shift = down; }
@@ -2622,14 +2674,14 @@ static RECT app_ui2rect(const ui_rect_t* u) {
     return r;
 }
 
-static void app_update_ncm(int dpi) {
+static void app_update_ncm(int32_t dpi) {
     // Only UTF-16 version supported SystemParametersInfoForDpi
     fatal_if_false(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
         sizeof(app_ncm), &app_ncm, 0, dpi));
 }
 
 static void app_update_monitor_dpi(HMONITOR monitor, dpi_t* dpi) {
-    for (int mtd = MDT_EFFECTIVE_DPI; mtd <= MDT_RAW_DPI; mtd++) {
+    for (int32_t mtd = MDT_EFFECTIVE_DPI; mtd <= MDT_RAW_DPI; mtd++) {
         uint32_t dpi_x = 0;
         uint32_t dpi_y = 0;
         // GetDpiForMonitor() may return ERROR_GEN_FAILURE 0x8007001F when
@@ -2639,7 +2691,7 @@ static void app_update_monitor_dpi(HMONITOR monitor, dpi_t* dpi) {
         // "May be used to indicate that the device has stopped responding
         // or a general failure has occurred on the device.
         // The device may need to be manually reset."
-        int r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
+        int32_t r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
         if (r != 0) {
             crt.sleep(1.0 / 32); // and retry:
             r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
@@ -2663,7 +2715,7 @@ static void app_update_monitor_dpi(HMONITOR monitor, dpi_t* dpi) {
     }
 }
 
-#ifdef QUICK_DEBUG
+#ifndef QUICK_DEBUG
 
 static void app_dump_dpi(void) {
     traceln("app.dpi.monitor_effective: %d", app.dpi.monitor_effective  );
@@ -2690,6 +2742,9 @@ static void app_dump_dpi(void) {
 
 #endif
 
+#include "util/logger.h"
+#include "util/callstack.h"
+
 static bool app_update_mi(const ui_rect_t* r, uint32_t flags) {
     RECT rc = app_ui2rect(r);
     HMONITOR monitor = MonitorFromRect(&rc, flags);
@@ -2699,6 +2754,12 @@ static bool app_update_mi(const ui_rect_t* r, uint32_t flags) {
         app_update_monitor_dpi(monitor, &app.dpi);
         fatal_if_false(GetMonitorInfoA(monitor, &app_mi));
         app.work_area = app_rect2ui(&app_mi.rcWork);
+// log_info("app.work_area: %d,%d %dx%d", app.work_area.x, app.work_area.y, app.work_area.w, app.work_area.h);
+// log_callstack();
+// if (app.work_area.h == 1080) {
+//     traceln("1080");
+//     crt.breakpoint();
+// }
         app.mrc = app_rect2ui(&app_mi.rcMonitor);
 //      app_dump_dpi();
     }
@@ -2721,7 +2782,7 @@ static void app_dispose_fonts(void) {
     fatal_if_false(DeleteFont(app.fonts.mono));
 }
 
-static void app_init_fonts(int dpi) {
+static void app_init_fonts(int32_t dpi) {
     app_update_ncm(dpi);
     if (app.fonts.regular != null) { app_dispose_fonts(); }
     LOGFONTW lf = app_ncm.lfMessageFont;
@@ -2752,15 +2813,15 @@ static void app_init_fonts(int dpi) {
     app.cursor = app.cursor_arrow;
 }
 
-static void app_data_save(const char* name, const void* data, int bytes) {
+static void app_data_save(const char* name, const void* data, int32_t bytes) {
     crt.data_save(app.class_name, name, data, bytes);
 }
 
-static int app_data_size(const char* name) {
+static int32_t app_data_size(const char* name) {
     return crt.data_size(app.class_name, name);
 }
 
-static int app_data_load(const char* name, void* data, int bytes) {
+static int32_t app_data_load(const char* name, void* data, int32_t bytes) {
     return crt.data_load(app.class_name, name, data, bytes);
 }
 
@@ -2852,7 +2913,7 @@ static void app_save_console_pos(void) {
         app_save_window_pos((window_t)cw, "wic", false);
         HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
         CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-        int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : crt.err();
+        int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : crt.err();
         if (r != 0) {
             traceln("GetConsoleScreenBufferInfoEx() %s", crt.error(r));
         } else {
@@ -2867,6 +2928,11 @@ static void app_save_console_pos(void) {
     int32_t v = app.is_console_visible();
     // "icv" "is console visible"
     crt.data_save(app.class_name, "icv", &v, (int)sizeof(v));
+}
+
+static bool app_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
+    return r->x <= p->x && p->x < r->x + r->w &&
+           r->y <= p->y && p->y < r->y + r->h;
 }
 
 static bool app_intersect_rect(ui_rect_t* i, const ui_rect_t* r0, const ui_rect_t* r1) {
@@ -3006,7 +3072,7 @@ static void init_children(uic_t* ui) {
     }
 }
 
-static void app_post_message(int m, int64_t wp, int64_t lp) {
+static void app_post_message(int32_t m, int64_t wp, int64_t lp) {
     fatal_if_false(PostMessageA(window(), m, wp, lp));
 }
 
@@ -3047,13 +3113,24 @@ static void app_wm_timer(tm_t id) {
     app_timer(app.ui, id);
 }
 
-static void app_window_openning(void) {
+static void app_window_dpi(void) {
+    int32_t dpi = GetDpiForWindow(window());
+    if (dpi == 0) { dpi = GetDpiForWindow(GetParent(window())); }
+    if (dpi == 0) { dpi = GetDpiForWindow(GetDesktopWindow()); }
+    if (dpi == 0) { dpi = GetSystemDpiForProcess(GetCurrentProcess()); }
+    if (dpi == 0) { dpi = GetDpiForSystem(); }
+    app.dpi.window = dpi;
+}
+
+static void app_window_opening(void) {
+    app_window_dpi();
+    app_init_fonts(app.dpi.window);
     app_timer_1s_id = app.set_timer((uintptr_t)&app_timer_1s_id, 1000);
     app_timer_100ms_id = app.set_timer((uintptr_t)&app_timer_100ms_id, 100);
     app.set_cursor(app.cursor_arrow);
     app.canvas = (canvas_t)GetDC(window());
     not_null(app.canvas);
-    if (app.openned != null) { app.openned(); }
+    if (app.opened != null) { app.opened(); }
     app.ui->em = gdi.get_em(*app.ui->font);
     set_parents(app.ui);
     init_children(app.ui);
@@ -3096,19 +3173,25 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
     const ui_rect_t* wa = &app.work_area;
     const int32_t wmin = app.wmin > 0 ? app.in2px(app.wmin) : wa->w / 2;
     const int32_t hmin = app.hmin > 0 ? app.in2px(app.hmin) : wa->h / 2;
-    const int32_t wmax = app.wmax > 0 ? app.in2px(app.wmax) : wa->w;
-    const int32_t hmax = app.hmax > 0 ? app.in2px(app.hmax) : wa->h;
     mmi->ptMinTrackSize.x = wmin;
     mmi->ptMinTrackSize.y = hmin;
-    mmi->ptMaxTrackSize.x = wmax;
-    mmi->ptMaxTrackSize.y = hmax;
-    mmi->ptMaxSize.x = wmax;
-    mmi->ptMaxSize.y = hmax;
+    const int32_t wmax = app.wmax > 0 ? app.in2px(app.wmax) : wa->w;
+    const int32_t hmax = app.hmax > 0 ? app.in2px(app.hmax) : wa->h;
+    if (app.no_clip) {
+        mmi->ptMaxTrackSize.x = wmax;
+        mmi->ptMaxTrackSize.y = hmax;
+    } else {
+        // clip wmax and hmax to monitor work area
+        mmi->ptMaxTrackSize.x = min(wmax, wa->w);
+        mmi->ptMaxTrackSize.y = min(hmax, wa->h);
+    }
+    mmi->ptMaxSize.x = mmi->ptMaxTrackSize.x;
+    mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
 }
 
 #define app_method_int32(name)                                  \
 static void app_##name(uic_t* ui, int32_t p) {                  \
-    if (ui->name != null && !ui->hidden && !ui->disabled) {     \
+    if (ui->name != null && !uic_hidden_or_disabled(ui)) {      \
         ui->name(ui, p);                                        \
     }                                                           \
     uic_t** c = ui->children;                                   \
@@ -3119,7 +3202,7 @@ app_method_int32(key_pressed)
 app_method_int32(key_released)
 
 static void app_character(uic_t* ui, const char* utf8) {
-    if (!ui->hidden && !ui->disabled) {
+    if (!uic_hidden_or_disabled(ui)) {
         if (ui->character != null) { ui->character(ui, utf8); }
         uic_t** c = ui->children;
         while (c != null && *c != null) { app_character(*c, utf8); c++; }
@@ -3127,15 +3210,15 @@ static void app_character(uic_t* ui, const char* utf8) {
 }
 
 static void app_paint(uic_t* ui) {
-    if (!ui->hidden) {
+    if (!ui->hidden && app.crc.w > 0 && app.crc.h > 0) {
         if (ui->paint != null) { ui->paint(ui); }
         uic_t** c = ui->children;
         while (c != null && *c != null) { app_paint(*c); c++; }
     }
 }
 
-static void app_mousewheel(uic_t* ui, int dx, int dy) {
-    if (!ui->hidden && !ui->disabled) {
+static void app_mousewheel(uic_t* ui, int32_t dx, int32_t dy) {
+    if (!uic_hidden_or_disabled(ui)) {
         if (ui->mousewheel != null) { ui->mousewheel(ui, dx, dy); }
         uic_t** c = ui->children;
         while (c != null && *c != null) { app_mousewheel(*c, dx, dy); c++; }
@@ -3143,7 +3226,7 @@ static void app_mousewheel(uic_t* ui, int dx, int dy) {
 }
 
 static void app_measure_children(uic_t* ui) {
-    if (!ui->hidden) {
+    if (!ui->hidden && app.crc.w > 0 && app.crc.h > 0) {
         uic_t** c = ui->children;
         while (c != null && *c != null) { app_measure_children(*c); c++; }
         if (ui->measure != null) { ui->measure(ui); }
@@ -3151,7 +3234,7 @@ static void app_measure_children(uic_t* ui) {
 }
 
 static void app_layout_children(uic_t* ui) {
-    if (!ui->hidden) {
+    if (!ui->hidden && app.crc.w > 0 && app.crc.h > 0) {
         if (ui->layout != null) { ui->layout(ui); }
         uic_t** c = ui->children;
         while (c != null && *c != null) { app_layout_children(*c); c++; }
@@ -3233,7 +3316,8 @@ static void app_on_every_message(uic_t* ui) {
 }
 
 static void app_ui_mouse(uic_t* ui, int32_t m, int32_t f) {
-    if (m == WM_MOUSEHOVER || m == messages.mouse_move) {
+    if (!app.is_hidden(ui) &&
+       (m == WM_MOUSEHOVER || m == messages.mouse_move)) {
         RECT rc = { ui->x, ui->y, ui->x + ui->w, ui->y + ui->h};
         bool hover = ui->hover;
         POINT pt = app_ui2point(&app.mouse);
@@ -3245,23 +3329,25 @@ static void app_ui_mouse(uic_t* ui, int32_t m, int32_t f) {
             app_hover_changed(ui);
         }
     }
-    if (ui->mouse != null && !ui->hidden && !ui->disabled) {
-        ui->mouse(ui, m, f);
-    }
-    for (uic_t** c = ui->children; c != null && *c != null; c++) {
-        app_ui_mouse(*c, m, f);
+    if (!uic_hidden_or_disabled(ui)) {
+        if (ui->mouse != null) { ui->mouse(ui, m, f); }
+        for (uic_t** c = ui->children; c != null && *c != null; c++) {
+            app_ui_mouse(*c, m, f);
+        }
     }
 }
 
 static bool app_context_menu(uic_t* ui) {
-    for (uic_t** c = ui->children; c != null && *c != null; c++) {
-        if (app_context_menu(*c)) { return true; }
-    }
-    RECT rc = { ui->x, ui->y, ui->x + ui->w, ui->y + ui->h};
-    POINT pt = app_ui2point(&app.mouse);
-    if (PtInRect(&rc, pt)) {
-        if (!ui->hidden && !ui->disabled && ui->context_menu != null) {
-            ui->context_menu(ui);
+    if (!uic_hidden_or_disabled(ui)) {
+        for (uic_t** c = ui->children; c != null && *c != null; c++) {
+            if (app_context_menu(*c)) { return true; }
+        }
+        RECT rc = { ui->x, ui->y, ui->x + ui->w, ui->y + ui->h};
+        POINT pt = app_ui2point(&app.mouse);
+        if (PtInRect(&rc, pt)) {
+            if (!ui->hidden && !ui->disabled && ui->context_menu != null) {
+                ui->context_menu(ui);
+            }
         }
     }
     return false;
@@ -3293,13 +3379,13 @@ static void app_toast_paint(void) {
         if (app_toast.ui->measure != null) { app_toast.ui->measure(app_toast.ui); }
         gdi.push(0, 0);
         bool tooltip = app_toast.x >= 0 && app_toast.y >= 0;
-        int em_x = em.x;
-        int em_y = em.y;
+        int32_t em_x = em.x;
+        int32_t em_y = em.y;
         gdi.set_brush(gdi.brush_color);
         gdi.set_brush_color(colors.toast);
         if (!tooltip) {
             assert(0 <= app_toast.step && app_toast.step < toast_steps);
-            int step = app_toast.step - (toast_steps - 1);
+            int32_t step = app_toast.step - (toast_steps - 1);
             app_toast.ui->y = app_toast.ui->h * step / (toast_steps - 1);
 //          traceln("step=%d of %d y=%d", app_toast.step, app_toast_steps, app_toast.ui->y);
             app_layout_ui(app_toast.ui);
@@ -3310,14 +3396,14 @@ static void app_toast_paint(void) {
             app_toast.ui->x = app_toast.x;
             app_toast.ui->y = app_toast.y;
             app_layout_ui(app_toast.ui);
-            int mx = app.width - app_toast.ui->w - em_x;
+            int32_t mx = app.width - app_toast.ui->w - em_x;
             app_toast.ui->x = min(mx, max(0, app_toast.x - app_toast.ui->w / 2));
             app_toast.ui->y = min(app.crc.h - em_y, max(0, app_toast.y));
         }
-        int x = app_toast.ui->x - em_x;
-        int y = app_toast.ui->y - em_y / 2;
-        int w = app_toast.ui->w + em_x * 2;
-        int h = app_toast.ui->h + em_y;
+        int32_t x = app_toast.ui->x - em_x;
+        int32_t y = app_toast.ui->y - em_y / 2;
+        int32_t w = app_toast.ui->w + em_x * 2;
+        int32_t h = app_toast.ui->h + em_y;
         gdi.rounded(x, y, w, h, em_x, em_y);
         if (!tooltip) { app_toast.ui->y += em_y / 4; }
         app_paint(app_toast.ui);
@@ -3351,7 +3437,7 @@ static void app_toast_mouse(int32_t m, int32_t flags) {
                    m == messages.right_button_pressed;
     if (app_toast.ui != null && pressed) {
         const ui_point_t em = app_toast.ui->em;
-        int x = app_toast.ui->x + app_toast.ui->w;
+        int32_t x = app_toast.ui->x + app_toast.ui->w;
         if (x <= app.mouse.x && app.mouse.x <= x + em.x &&
             0 <= app.mouse.y && app.mouse.y <= em.y) {
             app_toast_cancel();
@@ -3373,13 +3459,13 @@ static void app_toast_character(const char* utf8) {
     }
 }
 
-static void app_toast_dim(int step) {
+static void app_toast_dim(int32_t step) {
     app_toast.step = step;
     app.redraw();
     UpdateWindow(window());
 }
 
-static void app_animate_step(app_animate_function_t f, int step, int steps) {
+static void app_animate_step(app_animate_function_t f, int32_t step, int32_t steps) {
     // calls function(0..step-1) exactly step times
     bool cancel = false;
     if (f != null && f != app_animate.f && step == 0 && steps > 0) {
@@ -3406,7 +3492,7 @@ static void app_animate_step(app_animate_function_t f, int step, int steps) {
     }
 }
 
-static void app_animate_start(app_animate_function_t f, int steps) {
+static void app_animate_start(app_animate_function_t f, int32_t steps) {
     // calls f(0..step-1) exactly steps times, unless cancelled with call
     // animate(null, 0) or animate(other_function, n > 0)
     app_animate_step(f, 0, steps);
@@ -3424,18 +3510,18 @@ static void app_paint_on_canvas(HDC hdc) {
     canvas_t canvas = app.canvas;
     app.canvas = (canvas_t)hdc;
     gdi.push(0, 0);
-    if (app_layout_dirty) {
-        app_layout_dirty = false;
-        app_layout_root();
-    }
     double time = crt.seconds();
     gdi.x = 0;
     gdi.y = 0;
     app_update_crc();
+    if (app_layout_dirty) {
+        app_layout_dirty = false;
+        app_layout_root();
+    }
     font_t font = gdi.set_font(app.fonts.regular);
     color_t c = gdi.set_text_color(colors.text);
-    int bm = SetBkMode(canvas(), TRANSPARENT);
-    int stretch_mode = SetStretchBltMode(canvas(), HALFTONE);
+    int32_t bm = SetBkMode(canvas(), TRANSPARENT);
+    int32_t stretch_mode = SetStretchBltMode(canvas(), HALFTONE);
     ui_point_t pt = {0};
     fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, (POINT*)&pt));
     brush_t br = gdi.set_brush(gdi.brush_hollow);
@@ -3471,22 +3557,30 @@ static void app_wm_paint(void) {
     }
 }
 
-static void app_window_position_changed(void) {
-    RECT wrc = app_ui2rect(&app.wrc);
-    fatal_if_false(GetWindowRect(window(), &wrc));
-    app.wrc = app_rect2ui(&wrc);
-    app_update_mi(&app.wrc, MONITOR_DEFAULTTONEAREST);
-    app_update_crc();
-    // call layout() only if window has been openned
-//  traceln("WM_WINDOWPOSCHANGED %p", app_timer_1s_id);
+// about (x,y) being (-32000,-32000) see:
+// https://chromium.googlesource.com/chromium/src.git/+/62.0.3178.1/ui/views/win/hwnd_message_handler.cc#1847
+
+static void app_window_position_changed(const WINDOWPOS* wp) {
     app.ui->hidden = !IsWindowVisible(window());
-    if (app_timer_1s_id != 0 && !app.ui->hidden) { app.layout(); }
+    const bool moved  = (wp->flags & SWP_NOMOVE) == 0;
+    const bool sized  = (wp->flags & SWP_NOSIZE) == 0;
+    const bool hiding = (wp->flags & SWP_HIDEWINDOW) != 0 ||
+                        wp->x == -32000 && wp->y == -32000;
+    HMONITOR monitor = MonitorFromWindow(window(), MONITOR_DEFAULTTONULL);
+    if (!app.ui->hidden && (moved || sized) && !hiding && monitor != null) {
+        RECT wrc = app_ui2rect(&app.wrc);
+        fatal_if_false(GetWindowRect(window(), &wrc));
+        app.wrc = app_rect2ui(&wrc);
+        app_update_mi(&app.wrc, MONITOR_DEFAULTTONEAREST);
+        app_update_crc();
+        if (app_timer_1s_id != 0) { app.layout(); }
+    }
 }
 
 static void app_setting_change(uintptr_t wp, uintptr_t lp) {
     if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         wchar_t ln[LOCALE_NAME_MAX_LENGTH + 1];
-        int n = GetUserDefaultLocaleName(ln, countof(ln));
+        int32_t n = GetUserDefaultLocaleName(ln, countof(ln));
         fatal_if_false(n > 0);
         wchar_t rln[LOCALE_NAME_MAX_LENGTH + 1];
         n = ResolveLocaleName(ln, rln, countof(rln));
@@ -3520,7 +3614,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_GETMINMAXINFO: app_get_min_max_info((MINMAXINFO*)lp); break;
         case WM_SETTINGCHANGE: app_setting_change(wp, lp); break;
         case WM_CLOSE        : app_post_message(WM_CLOSING, 0, 0); return 0;
-        case WM_OPENNING     : app_window_openning(); return 0;
+        case WM_OPENNING     : app_window_opening(); return 0;
         case WM_CLOSING      : app_window_closing(); return 0;
         case WM_DESTROY      : PostQuitMessage(app.exit_code); break;
         case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
@@ -3602,19 +3696,12 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         }
         case WM_DPICHANGED: {
 //          traceln("WM_DPICHANGED");
-            int dpi = GetDpiForWindow(window());
-            if (dpi == 0) { dpi = GetDpiForWindow(GetParent(window())); }
-            if (dpi == 0) { dpi = GetDpiForWindow(GetDesktopWindow()); }
-            if (dpi == 0) { dpi = GetSystemDpiForProcess(GetCurrentProcess()); }
-            if (dpi == 0) { dpi = GetDpiForSystem(); }
-            if (dpi != 0) {
-                app.dpi.window = dpi;
-                app_init_fonts(app.dpi.window);
-                if (app_timer_1s_id != 0 && !app.ui->hidden) {
-                    app.layout();
-                } else {
-                    app_layout_dirty = true;
-                }
+            app_window_dpi();
+            app_init_fonts(app.dpi.window);
+            if (app_timer_1s_id != 0 && !app.ui->hidden) {
+                app.layout();
+            } else {
+                app_layout_dirty = true;
             }
             break;
         }
@@ -3625,35 +3712,31 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             }
             break;
         case WM_ACTIVATE:
-//          traceln("WM_ACTiVATE wp=%d", LOWORD(wp));
             if (!IsWindowVisible(window()) && LOWORD(wp) != WA_INACTIVE) {
                 app.show_window(window_visibility.restore);
-//              SetForegroundWindow(window()); // this does not make it ActiveWindow
-//              BringWindowToTop(window());
-//              SetWindowPos(window(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
                 SwitchToThisWindow(window(), true);
             }
             break;
         case WM_WINDOWPOSCHANGING: {
             #ifdef QUICK_DEBUG
                 WINDOWPOS* pos = (WINDOWPOS*)lp;
-                traceln("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
+//              traceln("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
                 if (pos->flags & SWP_SHOWWINDOW) {
-                    traceln("SWP_SHOWWINDOW");
+//                  traceln("SWP_SHOWWINDOW");
                 } else if (pos->flags & SWP_HIDEWINDOW) {
-                    traceln("SWP_HIDEWINDOW");
+//                  traceln("SWP_HIDEWINDOW");
                 }
             #endif
             break;
         }
-        case WM_WINDOWPOSCHANGED: app_window_position_changed(); break;
+        case WM_WINDOWPOSCHANGED: app_window_position_changed((WINDOWPOS*)lp); break;
         default:
             break;
     }
     return DefWindowProcA(window(), msg, wp, lp);
 }
 
-static long app_set_window_long(int index, long value) {
+static long app_set_window_long(int32_t index, long value) {
     SetLastError(0);
     long r = SetWindowLongA(window(), index, value);
     fatal_if_not_zero(GetLastError());
@@ -3712,7 +3795,8 @@ static void app_create_window(const ui_rect_t r) {
     if (app.no_size) {
         uint32_t s =GetWindowLong(window(), GWL_STYLE);
         app_set_window_long(GWL_STYLE, s & ~WS_SIZEBOX);
-        enum { changed = SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED };
+        enum { changed = SWP_NOMOVE | SWP_NOSIZE |
+                         SWP_FRAMECHANGED | SWP_NOACTIVATE };
         SetWindowPos(window(), NULL, 0, 0, 0, 0, changed);
     }
     if (app.visibility != window_visibility.hide) {
@@ -3747,7 +3831,7 @@ static void app_full_screen(bool on) {
             fatal_if_false(SetWindowPlacement(window(), &wp));
             app_set_window_long(GWL_STYLE,  style | WS_OVERLAPPED);
             uint32_t flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                SWP_NOOWNERZORDER | SWP_FRAMECHANGED;
+                             SWP_NOOWNERZORDER | SWP_FRAMECHANGED;
             fatal_if_false(SetWindowPos(window(), null, 0, 0, 0, 0, flags));
             enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_ENABLED;
             fatal_if_not_zero(DwmSetWindowAttribute(window(),
@@ -3761,7 +3845,7 @@ static void app_fast_redraw(void) { SetEvent(app_event_invalidate); } // < 2us
 
 static void app_draw(void) { UpdateWindow(window()); }
 
-static void app_invalidate_rect(ui_rect_t* r) {
+static void app_invalidate_rect(const ui_rect_t* r) {
     RECT rc = app_ui2rect(r);
     InvalidateRect(window(), &rc, false);
 }
@@ -3775,7 +3859,7 @@ static void app_redraw_thread(void* unused(p)) {
     threads.name("app.redraw");
     for (;;) {
         event_t es[] = { app_event_invalidate, app_event_quit };
-        int r = events.wait_any(countof(es), es);
+        int32_t r = events.wait_any(countof(es), es);
         if (r == 0) {
             if (window() != null) {
                 InvalidateRect(window(), null, false);
@@ -3824,7 +3908,7 @@ static void app_quit(int32_t exit_code) {
     app.close(); // close and destroy app only window
 }
 
-static void app_show_tooltip_or_toast(uic_t* ui, int x, int y, double timeout) {
+static void app_show_tooltip_or_toast(uic_t* ui, int32_t x, int32_t y, double timeout) {
     if (ui != null) {
         app_toast.x = x;
         app_toast.y = y;
@@ -3836,6 +3920,7 @@ static void app_show_tooltip_or_toast(uic_t* ui, int x, int y, double timeout) {
         ui->localize(ui);
         app_animate_start(app_toast_dim, toast_steps);
         app_toast.ui = ui;
+        app_toast.ui->font = &app.fonts.H1;
         app_toast.time = timeout > 0 ? app.now + timeout : 0;
     } else {
         app_toast_cancel();
@@ -3846,7 +3931,7 @@ static void app_show_toast(uic_t* ui, double timeout) {
     app_show_tooltip_or_toast(ui, -1, -1, timeout);
 }
 
-static void app_show_tooltip(uic_t* ui, int x, int y, double timeout) {
+static void app_show_tooltip(uic_t* ui, int32_t x, int32_t y, double timeout) {
     if (ui != null) {
         app_show_tooltip_or_toast(ui, x, y, timeout);
     } else if (app_toast.ui != null && app_toast.x >= 0 && app_toast.y >= 0) {
@@ -4023,7 +4108,7 @@ static void app_restore_console(int32_t *visibility) {
             CONSOLE_SCREEN_BUFFER_INFOEX info = {
                 sizeof(CONSOLE_SCREEN_BUFFER_INFOEX)
             };
-            int r = crt.data_load(app.class_name,
+            int32_t r = crt.data_load(app.class_name,
                 "console_screen_buffer_infoex", &info, (int)sizeof(info));
             if (r == sizeof(info)) { // 24x80
                 SMALL_RECT sr = info.srWindow;
@@ -4095,14 +4180,16 @@ static void app_show_window(int32_t show) {
     (void)was_visible;
     if (show == window_visibility.show) {
         SetForegroundWindow(window()); // this does not make it ActiveWindow
-        const int SWP = SWP_NOZORDER | SWP_SHOWWINDOW | SWP_NOREPOSITION |
-            SWP_NOMOVE;
+        const int32_t SWP = SWP_NOZORDER | SWP_SHOWWINDOW |
+                            SWP_NOREPOSITION | SWP_NOMOVE;
         SetWindowPos(window(), null, 0, 0, 0, 0, SWP);
         SetFocus(window());
+    } else if (show == window_visibility.hide) {
+        app_toast_cancel();
     }
 }
 
-static const char* app_open_filename(const char* folder, const char* pairs[], int n) {
+static const char* app_open_filename(const char* folder, const char* pairs[], int32_t n) {
     assert(pairs == null && n == 0 ||
            n >= 2 && n % 2 == 0);
     wchar_t mem[32 * 1024];
@@ -4110,13 +4197,13 @@ static const char* app_open_filename(const char* folder, const char* pairs[], in
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
-        int left = countof(mem) - 2;
+        int32_t left = countof(mem) - 2;
         wchar_t* s = mem;
-        for (int i = 0; i < n; i+= 2) {
+        for (int32_t i = 0; i < n; i+= 2) {
             wchar_t* s0 = utf8to16(pairs[i + 0]);
             wchar_t* s1 = utf8to16(pairs[i + 1]);
-            int n0 = (int)wcslen(s0);
-            int n1 = (int)wcslen(s1);
+            int32_t n0 = (int)wcslen(s0);
+            int32_t n1 = (int)wcslen(s1);
             assert(n0 > 0 && n1 > 0);
             fatal_if(n0 + n1 + 3 >= left, "too many filters");
             memcpy(s, s0, (n0 + 1) * 2);
@@ -4147,17 +4234,17 @@ static const char* app_open_filename(const char* folder, const char* pairs[], in
     return text;
 }
 
-static int clipboard_copy_text(const char* utf8) {
+static int32_t clipboard_copy_text(const char* utf8) {
     int r = 0;
-    int chars = crt.utf16_chars(utf8);
-    int bytes = (chars + 1) * 2;
+    int32_t chars = crt.utf16_chars(utf8);
+    int32_t bytes = (chars + 1) * 2;
     wchar_t* utf16 = (wchar_t*)malloc(bytes);
     if (utf16 == null) {
         r = ERROR_OUTOFMEMORY;
     } else {
         crt.utf8_utf16(utf16, utf8);
         assert(utf16[chars - 1] == 0);
-        const int n = (int)wcslen(utf16) + 1;
+        const int32_t n = (int)wcslen(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
         if (r != 0) { traceln("OpenClipboard() failed %s", crt.error(r)); }
         if (r == 0) {
@@ -4272,7 +4359,7 @@ static int clipboard_copy_bitmap(image_t* im) {
     return r;
 }
 
-const char* app_known_folder(int kf) {
+const char* app_known_folder(int32_t kf) {
     // known folder ids order must match enum
     static const GUID* kfrid[] = {
         &FOLDERID_Profile,
@@ -4311,7 +4398,11 @@ static void app_init(void) {
     app.draw = app_draw;
     app.px2in = app_px2in;
     app.in2px = app_in2px;
+    app.point_in_rect = app_point_in_rect;
     app.intersect_rect = app_intersect_rect;
+    app.is_hidden   = app_is_hidden;
+    app.is_disabled = app_is_disabled;
+    app.measure = app_measure_children;
     app.layout = app_request_layout;
     app.invalidate = app_invalidate_rect;
     app.full_screen = app_full_screen;
@@ -4338,6 +4429,7 @@ static void app_init(void) {
     app.console_show = app_console_show;
     app_event_quit = events.create();
     app_event_invalidate = events.create();
+    app.init();
 }
 
 static void __app_windows_init__(void) {
@@ -4354,11 +4446,11 @@ static void __app_windows_init__(void) {
     ui_rect_t r = app_rect2ui(&nowhere);
     app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
     app.dpi.window = app.dpi.monitor_effective;
-    app_init_fonts(app.dpi.window);
+    app_init_fonts(app.dpi.window); // for default monitor
 }
 
 static int app_win_main(void) {
-    not_null(app.init); not_null(app.class_name);
+    not_null(app.init);
     __app_windows_init__();
     __gdi_init__();
     app_init();
@@ -4370,8 +4462,8 @@ static int app_win_main(void) {
     int32_t hmin = app.hmin > 0 ?
         app.in2px(app.hmin) : app.work_area.h / 4;
     ui_rect_t wr = {100, 100, wmin, hmin};
-    int size_frame = GetSystemMetricsForDpi(SM_CXSIZEFRAME, app.dpi.process);
-    int caption_height = GetSystemMetricsForDpi(SM_CYCAPTION, app.dpi.process);
+    int32_t size_frame = GetSystemMetricsForDpi(SM_CXSIZEFRAME, app.dpi.process);
+    int32_t caption_height = GetSystemMetricsForDpi(SM_CYCAPTION, app.dpi.process);
     wr.x -= size_frame;
     wr.w += size_frame * 2;
     wr.y -= size_frame + caption_height;
@@ -4383,12 +4475,13 @@ static int app_win_main(void) {
         wr.y = app.work_area.y + (app.work_area.h - wr.h) / 2;
         app_bring_window_inside_monitor(&app.mrc, &wr);
     }
+    app.ui->invalidate  = uic_invalidate;
     app.ui->hidden = true; // start with ui hidden
     app.ui->font = &app.fonts.regular;
     app.ui->w = wr.w - size_frame * 2;
     app.ui->h = wr.h - size_frame * 2 - caption_height;
     app_layout_dirty = true; // layout will be done before first paint
-    app.init(); // app.init() may change .show
+    not_null(app.class_name);
     if (!app.no_ui) {
         app_create_window(wr);
         thread_t thread = threads.start(app_redraw_thread, null);
@@ -4421,7 +4514,7 @@ enum {
 
 static char winnls_strings_memory[winnls_str_mem_max]; // increase if overflows
 static char* winnls_strings_free = winnls_strings_memory;
-static int winnls_strings_count;
+static int32_t winnls_strings_count;
 static const char* winnls_ls[winnls_str_count_max]; // localized strings
 static const char* winnls_ns[winnls_str_count_max]; // neutral language strings
 
@@ -4437,9 +4530,9 @@ wchar_t* winnls_load_string(int32_t strid, LANGID langid) {
     wchar_t* ws = mem == null ? null : (wchar_t*)LockResource(mem);
 //  traceln("LockResource(block=%d langid=%04X)=%p", block, langid, ws);
     if (ws != null) {
-        for (int i = 0; i < 16 && r == null; i++) {
+        for (int32_t i = 0; i < 16 && r == null; i++) {
             if (ws[0] != 0) {
-                int count = (int)ws[0];  // String size in characters.
+                int32_t count = (int)ws[0];  // String size in characters.
                 ws++;
                 assert(ws[count - 1] == 0, "use rc.exe /n command line option");
                 if (i == index) { // the string has been found
@@ -4492,9 +4585,9 @@ const char* winnls_localize_string(int32_t strid) {
     return r;
 }
 
-static int winnls_strid(const char* s) {
-    int strid = 0;
-    for (int i = 1; i < winnls_strings_count && strid == 0; i++) {
+static int32_t winnls_strid(const char* s) {
+    int32_t strid = 0;
+    for (int32_t i = 1; i < winnls_strings_count && strid == 0; i++) {
         if (winnls_ns[i] != null && strcmp(s, winnls_ns[i]) == 0) {
             strid = i;
             winnls_localize_string(strid); // to save it, ignore result
@@ -4503,20 +4596,20 @@ static int winnls_strid(const char* s) {
     return strid;
 }
 
-static const char* winnls_string(int strid, const char* defau1t) {
+static const char* winnls_string(int32_t strid, const char* defau1t) {
     const char* r = winnls_localize_string(strid);
     return r == null ? defau1t : r;
 }
 
 const char* winnls_nls(const char* s) {
-    int id = winnls_strid(s);
+    int32_t id = winnls_strid(s);
     return id == 0 ? s : winnls_string(id, s);
 }
 
 static const char* winnls_locale(void) {
     wchar_t wln[LOCALE_NAME_MAX_LENGTH + 1];
     LCID lcid = GetThreadLocale();
-    int n = LCIDToLocaleName(lcid, wln, countof(wln),
+    int32_t n = LCIDToLocaleName(lcid, wln, countof(wln),
         LOCALE_ALLOW_NEUTRAL_NAMES);
     static char ln[LOCALE_NAME_MAX_LENGTH * 4 + 1];
     ln[0] = 0;
@@ -4533,7 +4626,7 @@ static const char* winnls_locale(void) {
 
 static void winnls_set_locale(const char* locale) {
     wchar_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-    int n = ResolveLocaleName(utf8to16(locale), rln, countof(rln));
+    int32_t n = ResolveLocaleName(utf8to16(locale), rln, countof(rln));
     if (n == 0) {
         // TODO: log error
     } else {
@@ -4549,15 +4642,15 @@ static void winnls_set_locale(const char* locale) {
 
 static void winnls_init(void) {
     LANGID langid = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
-    for (int strid = 0; strid < countof(winnls_ns); strid += 16) {
+    for (int32_t strid = 0; strid < countof(winnls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
         HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
             MAKEINTRESOURCE(block), langid);
         uint8_t* mem = res == null ? null : (uint8_t*)LoadResource(null, res);
         wchar_t* ws = mem == null ? null : (wchar_t*)LockResource(mem);
         if (ws == null) { break; }
-        for (int i = 0; i < 16; i++) {
-            int ix = strid + i;
+        for (int32_t i = 0; i < 16; i++) {
+            int32_t ix = strid + i;
             uint16_t count = ws[0];
             if (count > 0) {
                 ws++;
@@ -4599,9 +4692,9 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, char* command,
     app.visibility = show_command;
     (void)command; // ASCII unused
     const char* cl = utf16to8(GetCommandLineW());
-    const int len = (int)strlen(cl);
-    const int k = ((len + 2) / 2) * (int)sizeof(void*) + (int)sizeof(void*);
-    const int n = k + (len + 2) * (int)sizeof(char);
+    const int32_t len = (int)strlen(cl);
+    const int32_t k = ((len + 2) / 2) * (int)sizeof(void*) + (int)sizeof(void*);
+    const int32_t n = k + (len + 2) * (int)sizeof(char);
     app.argv = (const char**)alloca(n);
     memset(app.argv, 0, n);
     char* buff = (char*)(((char*)app.argv) + k);
