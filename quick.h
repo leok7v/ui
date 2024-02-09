@@ -2742,9 +2742,6 @@ static void app_dump_dpi(void) {
 
 #endif
 
-#include "util/logger.h"
-#include "util/callstack.h"
-
 static bool app_update_mi(const ui_rect_t* r, uint32_t flags) {
     RECT rc = app_ui2rect(r);
     HMONITOR monitor = MonitorFromRect(&rc, flags);
@@ -2754,12 +2751,6 @@ static bool app_update_mi(const ui_rect_t* r, uint32_t flags) {
         app_update_monitor_dpi(monitor, &app.dpi);
         fatal_if_false(GetMonitorInfoA(monitor, &app_mi));
         app.work_area = app_rect2ui(&app_mi.rcWork);
-// log_info("app.work_area: %d,%d %dx%d", app.work_area.x, app.work_area.y, app.work_area.w, app.work_area.h);
-// log_callstack();
-// if (app.work_area.h == 1080) {
-//     traceln("1080");
-//     crt.breakpoint();
-// }
         app.mrc = app_rect2ui(&app_mi.rcMonitor);
 //      app_dump_dpi();
     }
