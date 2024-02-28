@@ -3141,6 +3141,7 @@ static void app_window_opening(void) {
 
 static void app_window_closing(void) {
     if (app.can_close == null || app.can_close()) {
+        app.focused = false;
         if (app.is_full_screen) { app.full_screen(false); }
         app_save_window_pos(app.window, "wiw", false);
         app_save_console_pos();
@@ -3784,7 +3785,7 @@ static void app_create_window(const ui_rect_t r) {
 //          SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
     }
     if (app.no_size) {
-        uint32_t s =GetWindowLong(window(), GWL_STYLE);
+        uint32_t s = GetWindowLong(window(), GWL_STYLE);
         app_set_window_long(GWL_STYLE, s & ~WS_SIZEBOX);
         enum { changed = SWP_NOMOVE | SWP_NOSIZE |
                          SWP_FRAMECHANGED | SWP_NOACTIVATE };
@@ -4444,6 +4445,7 @@ static int app_win_main(void) {
     not_null(app.init);
     __app_windows_init__();
     __gdi_init__();
+    app.last_visibility = window_visibility.defau1t;
     app_init();
     int r = 0;
 //  app_dump_dpi();
@@ -4459,7 +4461,6 @@ static int app_win_main(void) {
     wr.w += size_frame * 2;
     wr.y -= size_frame + caption_height;
     wr.h += size_frame * 2 + caption_height;
-    app.last_visibility = window_visibility.defau1t;
     if (!app_load_window_pos(&wr, &app.last_visibility)) {
         // first time - center window
         wr.x = app.work_area.x + (app.work_area.w - wr.w) / 2;
