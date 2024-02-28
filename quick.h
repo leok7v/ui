@@ -720,6 +720,7 @@ end_c
 
 #include <Windows.h>
 #include <WindowsX.h>
+#include <VersionHelpers.h>
 #include <timeapi.h>
 
 // GDI implementation
@@ -3762,10 +3763,12 @@ static void app_create_window(const ui_rect_t r) {
     RECT wrc = app_ui2rect(&app.wrc);
     fatal_if_false(GetWindowRect(window(), &wrc));
     app.wrc = app_rect2ui(&wrc);
-    COLORREF caption_color_ref = gdi_color_ref(colors.dkgray3);
-    // ignore DwmSetWindowAttribute() error on Windows 10
-    (void)DwmSetWindowAttribute(window(),
-        DWMWA_CAPTION_COLOR, &caption_color_ref, sizeof(caption_color_ref));
+    // DWMWA_CAPTION_COLOR is supported starting with Windows 11 Build 22000.
+    if (IsWindowsVersionOrGreater(10, 0, 22000)) {
+        COLORREF caption_color = gdi_color_ref(colors.dkgray3);
+        fatal_if_not_zero(DwmSetWindowAttribute(window(),
+            DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
+    }
     if (app.aero) { // It makes app look like retro Windows 7 Aero style :)
         enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
         (void)DwmSetWindowAttribute(window(),
