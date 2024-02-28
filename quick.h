@@ -3768,6 +3768,14 @@ static void app_create_window(const ui_rect_t r) {
         COLORREF caption_color = gdi_color_ref(colors.dkgray3);
         fatal_if_not_zero(DwmSetWindowAttribute(window(),
             DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
+        BOOL immersive = TRUE;
+        fatal_if_not_zero(DwmSetWindowAttribute(window(),
+            DWMWA_USE_IMMERSIVE_DARK_MODE, &immersive, sizeof(immersive)));
+        // also availabale but not yet used:
+//      DWMWA_USE_HOSTBACKDROPBRUSH
+//      DWMWA_WINDOW_CORNER_PREFERENCE
+//      DWMWA_BORDER_COLOR
+//      DWMWA_CAPTION_COLOR
     }
     if (app.aero) { // It makes app look like retro Windows 7 Aero style :)
         enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
