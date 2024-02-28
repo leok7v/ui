@@ -3141,7 +3141,6 @@ static void app_window_opening(void) {
 
 static void app_window_closing(void) {
     if (app.can_close == null || app.can_close()) {
-        app.focused = false;
         if (app.is_full_screen) { app.full_screen(false); }
         app_save_window_pos(app.window, "wiw", false);
         app_save_console_pos();
@@ -3605,7 +3604,9 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg) {
         case WM_GETMINMAXINFO: app_get_min_max_info((MINMAXINFO*)lp); break;
         case WM_SETTINGCHANGE: app_setting_change(wp, lp); break;
-        case WM_CLOSE        : app_post_message(WM_CLOSING, 0, 0); return 0;
+        case WM_CLOSE        : app.focus = null;
+                               app.focused = false; // before WM_CLOSING
+                               app_post_message(WM_CLOSING, 0, 0); return 0;
         case WM_OPENNING     : app_window_opening(); return 0;
         case WM_CLOSING      : app_window_closing(); return 0;
         case WM_DESTROY      : PostQuitMessage(app.exit_code); break;
