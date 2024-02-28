@@ -535,6 +535,7 @@ end_c
 #include <timeapi.h>
 #include <sysinfoapi.h>
 #include <winternl.h>
+#include <VersionHelpers.h>
 
 #include <intrin.h>
 #include <immintrin.h>
