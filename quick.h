@@ -251,6 +251,8 @@ typedef struct uic_s { // ui element container/control
     void (*mouse)(uic_t* ui, int32_t message, int32_t flags);
     void (*mousewheel)(uic_t* ui, int32_t dx, int32_t dy); // touchpad scroll
     void (*context_menu)(uic_t* ui); // right mouse click or long press
+    bool (*set_focus)(uic_t* ui); // returns true if focus is set
+    void (*kill_focus)(uic_t* ui);
     // translated from key pressed/released to utf8:
     void (*character)(uic_t* ui, const char* utf8);
     void (*key_pressed)(uic_t* ui, int32_t key);
@@ -3143,13 +3145,13 @@ static void app_window_opening(void) {
 static void app_window_closing(void) {
     if (app.can_close == null || app.can_close()) {
         if (app.is_full_screen) { app.full_screen(false); }
-        app_save_window_pos(app.window, "wiw", false);
-        app_save_console_pos();
         app.kill_timer(app_timer_1s_id);
         app.kill_timer(app_timer_100ms_id);
-        if (app.closed != null) { app.closed(); }
         app_timer_1s_id = 0;
         app_timer_100ms_id = 0;
+        if (app.closed != null) { app.closed(); }
+        app_save_window_pos(app.window, "wiw", false);
+        app_save_console_pos();
         DestroyWindow(window());
         app.window = null;
     }
@@ -3206,6 +3208,26 @@ static void app_paint(uic_t* ui) {
         if (ui->paint != null) { ui->paint(ui); }
         uic_t** c = ui->children;
         while (c != null && *c != null) { app_paint(*c); c++; }
+    }
+}
+
+static bool app_set_focus(uic_t* ui) {
+    bool set = false;
+    assert(GetActiveWindow() == window());
+    uic_t** c = ui->children;
+    while (c != null && *c != null && !set) { set = app_set_focus(*c); c++; }
+    if (ui->focusable && ui->set_focus != null &&
+       (app.focus == ui || app.focus == null)) {
+        set = ui->set_focus(ui);
+    }
+    return set;
+}
+
+static void app_kill_focus(uic_t* ui) {
+    uic_t** c = ui->children;
+    while (c != null && *c != null) { app_kill_focus(*c); c++; }
+    if (ui->set_focus != null && ui->focusable) {
+        ui->kill_focus(ui);
     }
 }
 
@@ -3619,7 +3641,8 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_KEYUP        : app_alt_ctrl_shift(false, (int32_t)wp);
                                app_key_released(app.ui, (int32_t)wp);
                                break;
-        case WM_TIMER        : app_wm_timer((tm_t)wp); break;
+        case WM_TIMER        : app_wm_timer((tm_t)wp); 
+                               break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
         case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor); break;
         // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
@@ -3630,8 +3653,12 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_PRINTCLIENT  : app_paint_on_canvas((HDC)wp); break;
         case WM_ANIMATE      : app_animate_step((app_animate_function_t)lp, (int)wp, -1);
                                break;
-        case WM_SETFOCUS     : app.focused = true;  break;
-        case WM_KILLFOCUS    : app.focused = false; break;
+        case WM_SETFOCUS     : app.focused = true;
+                               app_set_focus(app.ui);
+                               break;
+        case WM_KILLFOCUS    : app.focused = false; 
+                               app_kill_focus(app.ui);
+                               break;
         case WM_PAINT        : app_wm_paint(); break;
         case WM_CONTEXTMENU  : (void)app_context_menu(app.ui); break;
         case WM_MOUSEWHEEL   :
@@ -3760,7 +3787,7 @@ static void app_create_window(const ui_rect_t r) {
     not_null(app.window);
     app.dpi.window = GetDpiForWindow(window());
 //  traceln("app.dpi.window=%d", app.dpi.window);
-    RECT wrc = app_ui2rect(&app.wrc);
+    RECT wrc = app_ui2rect(&r);
     fatal_if_false(GetWindowRect(window(), &wrc));
     app.wrc = app_rect2ui(&wrc);
     // DWMWA_CAPTION_COLOR is supported starting with Windows 11 Build 22000.
@@ -3804,11 +3831,13 @@ static void app_create_window(const ui_rect_t r) {
         SetWindowPos(window(), NULL, 0, 0, 0, 0, changed);
     }
     if (app.visibility != window_visibility.hide) {
+        app.ui->w = app.wrc.w;
+        app.ui->h = app.wrc.h;
         AnimateWindow(window(), 250, AW_ACTIVATE);
         app.show_window(app.visibility);
         app_update_crc();
-        app.ui->w = app.crc.w; // app.crc is "client rectangle"
-        app.ui->h = app.crc.h;
+//      app.ui->w = app.crc.w; // app.crc is "client rectangle"
+//      app.ui->h = app.crc.h;
     }
     // even if it is hidden:
     app_post_message(WM_OPENNING, 0, 0);
@@ -4070,7 +4099,8 @@ static void window_foreground_active_focus(void* w) {
 static void window_make_topmost(void* w) {
     //  Places the window above all non-topmost windows.
     // The window maintains its topmost position even when it is deactivated.
-    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION | SWP_NOMOVE;
+    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION | 
+                        SWP_NOMOVE | SWP_NOSIZE;
     fatal_if_false(SetWindowPos((HWND)w, HWND_TOPMOST, 0, 0, 0, 0, SWP));
     window_foreground_active_focus(w);
 }
@@ -4081,8 +4111,10 @@ static void app_window_foreground_active_focus(void) {
 
 static void app_window_bring_to_front(void) {
     // bring UI window to front:
-    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION | SWP_NOMOVE;
-    fatal_if_false(SetWindowPos((HWND)app.window, HWND_TOP, 0, 0, 0, 0, SWP));
+    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION | 
+                        SWP_NOMOVE | SWP_NOSIZE;
+    fatal_if_false(SetWindowPos((HWND)app.window, HWND_TOP, 
+        0, 0, 0, 0, SWP));
     app_window_foreground_active_focus();
 }
 
@@ -4124,7 +4156,8 @@ static void app_restore_console(int32_t *visibility) {
     	    }
             // do not resize console window just restore it's position
             enum { swp = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE };
-            fatal_if_false(SetWindowPos(cw, null, rc.x, rc.y, rc.w, rc.h, swp));
+            fatal_if_false(SetWindowPos(cw, null, 
+                    rc.x, rc.y, rc.w, rc.h, swp));
         } else {
             app_console_largest();
         }
@@ -4182,13 +4215,21 @@ static void app_show_window(int32_t show) {
     // ShowWindow() does not have documented error reporting
     bool was_visible = ShowWindow(window(), show);
     (void)was_visible;
-    if (show == window_visibility.show) {
+    const bool hiding = 
+        show == window_visibility.hide ||
+        show == window_visibility.minimize ||
+        show == window_visibility.show_na ||
+        show == window_visibility.min_na;
+    if (!hiding) {
         SetForegroundWindow(window()); // this does not make it ActiveWindow
         const int32_t SWP = SWP_NOZORDER | SWP_SHOWWINDOW |
-                            SWP_NOREPOSITION | SWP_NOMOVE;
+                            SWP_NOREPOSITION | SWP_NOMOVE | 
+                            SWP_NOSIZE;
         SetWindowPos(window(), null, 0, 0, 0, 0, SWP);
         SetFocus(window());
-    } else if (show == window_visibility.hide) {
+    } else if (show == window_visibility.hide || 
+               show == window_visibility.minimize || 
+               show == window_visibility.min_na) {
         app_toast_cancel();
     }
 }
