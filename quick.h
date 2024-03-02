@@ -3641,7 +3641,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_KEYUP        : app_alt_ctrl_shift(false, (int32_t)wp);
                                app_key_released(app.ui, (int32_t)wp);
                                break;
-        case WM_TIMER        : app_wm_timer((tm_t)wp); 
+        case WM_TIMER        : app_wm_timer((tm_t)wp);
                                break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
         case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor); break;
@@ -3654,10 +3654,10 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_ANIMATE      : app_animate_step((app_animate_function_t)lp, (int)wp, -1);
                                break;
         case WM_SETFOCUS     : app.focused = true;
-                               app_set_focus(app.ui);
+                               if (!app.ui->hidden) { app_set_focus(app.ui); }
                                break;
-        case WM_KILLFOCUS    : app.focused = false; 
-                               app_kill_focus(app.ui);
+        case WM_KILLFOCUS    : app.focused = false;
+                               if (!app.ui->hidden) { app_kill_focus(app.ui); }
                                break;
         case WM_PAINT        : app_wm_paint(); break;
         case WM_CONTEXTMENU  : (void)app_context_menu(app.ui); break;
@@ -4099,7 +4099,7 @@ static void window_foreground_active_focus(void* w) {
 static void window_make_topmost(void* w) {
     //  Places the window above all non-topmost windows.
     // The window maintains its topmost position even when it is deactivated.
-    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION | 
+    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION |
                         SWP_NOMOVE | SWP_NOSIZE;
     fatal_if_false(SetWindowPos((HWND)w, HWND_TOPMOST, 0, 0, 0, 0, SWP));
     window_foreground_active_focus(w);
@@ -4111,9 +4111,9 @@ static void app_window_foreground_active_focus(void) {
 
 static void app_window_bring_to_front(void) {
     // bring UI window to front:
-    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION | 
+    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION |
                         SWP_NOMOVE | SWP_NOSIZE;
-    fatal_if_false(SetWindowPos((HWND)app.window, HWND_TOP, 
+    fatal_if_false(SetWindowPos((HWND)app.window, HWND_TOP,
         0, 0, 0, 0, SWP));
     app_window_foreground_active_focus();
 }
@@ -4156,7 +4156,7 @@ static void app_restore_console(int32_t *visibility) {
     	    }
             // do not resize console window just restore it's position
             enum { swp = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE };
-            fatal_if_false(SetWindowPos(cw, null, 
+            fatal_if_false(SetWindowPos(cw, null,
                     rc.x, rc.y, rc.w, rc.h, swp));
         } else {
             app_console_largest();
@@ -4215,7 +4215,7 @@ static void app_show_window(int32_t show) {
     // ShowWindow() does not have documented error reporting
     bool was_visible = ShowWindow(window(), show);
     (void)was_visible;
-    const bool hiding = 
+    const bool hiding =
         show == window_visibility.hide ||
         show == window_visibility.minimize ||
         show == window_visibility.show_na ||
@@ -4223,12 +4223,12 @@ static void app_show_window(int32_t show) {
     if (!hiding) {
         SetForegroundWindow(window()); // this does not make it ActiveWindow
         const int32_t SWP = SWP_NOZORDER | SWP_SHOWWINDOW |
-                            SWP_NOREPOSITION | SWP_NOMOVE | 
+                            SWP_NOREPOSITION | SWP_NOMOVE |
                             SWP_NOSIZE;
         SetWindowPos(window(), null, 0, 0, 0, 0, SWP);
         SetFocus(window());
-    } else if (show == window_visibility.hide || 
-               show == window_visibility.minimize || 
+    } else if (show == window_visibility.hide ||
+               show == window_visibility.minimize ||
                show == window_visibility.min_na) {
         app_toast_cancel();
     }
