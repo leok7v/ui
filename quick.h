@@ -1863,19 +1863,42 @@ static void uic_button_callback(uic_button_t* b) {
     if (b->cb != null) { b->cb(b); }
 }
 
-static void uic_button_character(uic_t* ui, const char* utf8) {
+static bool uic_is_keyboard_shortcut(uic_t* ui, int32_t key) {
+    // Supported keyboard shortcuts are ASCII characters only for now
+    // If there is not focused UI control in Alt+key [Alt] is optional.
+    // If there is focused control only Alt+Key is accepted as shortcut
+    char ch = 0x20 <= key && key <= 0x7F ? (char)toupper(key) : 0x00;
+    bool need_alt = app.focus != null && app.focus != ui;
+    bool keyboard_shortcut = ch != 0x00 && ui->shortcut != 0x00 &&
+         (app.alt || !need_alt) && toupper(ui->shortcut) == ch;
+    return keyboard_shortcut;
+}
+
+static void uic_button_trigger(uic_t* ui) {
     assert(ui->tag == uic_tag_button);
     assert(!ui->hidden && !ui->disabled);
     uic_button_t* b = (uic_button_t*)ui;
+    ui->armed = true;
+    ui->invalidate(ui);
+    app.draw();
+    b->armed_until = app.now + 0.250;
+    uic_button_callback(b);
+    ui->invalidate(ui);
+}
+
+static void uic_button_character(uic_t* ui, const char* utf8) {
+    assert(ui->tag == uic_tag_button);
+    assert(!ui->hidden && !ui->disabled);
     char ch = utf8[0]; // TODO: multibyte shortcuts?
-    if (ui->shortcut != 0 && toupper(ui->shortcut) == toupper(ch)) {
-        ui->armed = true;
-        ui->invalidate(ui);
-        app.draw();
-        b->armed_until = app.now + 0.250;
-//      ui->armed = false;
-        uic_button_callback(b);
-        ui->invalidate(ui);
+    if (uic_is_keyboard_shortcut(ui, ch)) {
+        uic_button_trigger(ui);
+    }
+}
+
+static void uic_button_key_pressed(uic_t* ui, int32_t key) {
+    if (app.alt && uic_is_keyboard_shortcut(ui, key)) {
+//      traceln("key: 0x%02X shortcut: %d", key, uic_is_keyboard_shortcut(ui, key));
+        uic_button_trigger(ui);
     }
 }
 
@@ -1915,11 +1938,12 @@ static void uic_button_measure(uic_t* ui) {
 void _uic_button_init_(uic_t* ui) {
     assert(ui->tag == uic_tag_button);
     uic_init(ui);
-    ui->mouse = uic_button_mouse;
-    ui->measure = uic_button_measure;
-    ui->paint = uic_button_paint;
-    ui->character = uic_button_character;
+    ui->mouse       = uic_button_mouse;
+    ui->measure     = uic_button_measure;
+    ui->paint       = uic_button_paint;
+    ui->character   = uic_button_character;
     ui->every_100ms = uic_button_every_100ms;
+    ui->key_pressed = uic_button_key_pressed;
     uic_set_label(ui, ui->text);
     ui->localize(ui);
     ui->color = colors.btn_text;
@@ -1998,8 +2022,15 @@ static void  uic_checkbox_character(uic_t* ui, const char* utf8) {
     assert(ui->tag == uic_tag_checkbox);
     assert(!ui->hidden && !ui->disabled);
     char ch = utf8[0];
-    if (ui->shortcut != 0 && toupper(ui->shortcut) == toupper(ch)) {
-         uic_checkbox_flip(( uic_checkbox_t*)ui);
+    if (uic_is_keyboard_shortcut(ui, ch)) {
+         uic_checkbox_flip((uic_checkbox_t*)ui);
+    }
+}
+
+static void uic_checkbox_key_pressed(uic_t* ui, int32_t key) {
+    if (app.alt && uic_is_keyboard_shortcut(ui, key)) {
+//      traceln("key: 0x%02X shortcut: %d", key, uic_is_keyboard_shortcut(ui, key));
+        uic_checkbox_flip((uic_checkbox_t*)ui);
     }
 }
 
@@ -2013,7 +2044,7 @@ static void  uic_checkbox_mouse(uic_t* ui, int32_t message, int32_t flags) {
         int32_t y = app.mouse.y - ui->y;
         if (0 <= x && x < ui->w && 0 <= y && y < ui->h) {
             app.focus = ui;
-            uic_checkbox_flip(( uic_checkbox_t*)ui);
+            uic_checkbox_flip((uic_checkbox_t*)ui);
         }
     }
 }
@@ -2022,10 +2053,11 @@ void _uic_checkbox_init_(uic_t* ui) {
     assert(ui->tag == uic_tag_checkbox);
     uic_init(ui);
     uic_set_label(ui, ui->text);
-    ui->mouse =  uic_checkbox_mouse;
-    ui->measure = uic_checkbox_measure;
-    ui->paint =  uic_checkbox_paint;
-    ui->character =  uic_checkbox_character;
+    ui->mouse       =  uic_checkbox_mouse;
+    ui->measure     = uic_checkbox_measure;
+    ui->paint       = uic_checkbox_paint;
+    ui->character   = uic_checkbox_character;
+    ui->key_pressed = uic_checkbox_key_pressed;
     ui->localize(ui);
     ui->color = colors.btn_text;
 }
@@ -3730,6 +3762,10 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             if (wp == SC_MINIMIZE && app.hide_on_minimize) {
                 app.show_window(window_visibility.min_na);
                 app.show_window(window_visibility.hide);
+            }
+            // If the selection is in menu handle the key event
+            if (wp == SC_KEYMENU && lp != 0x20) {
+                return 0; // This prevents the error/beep sound
             }
             break;
         case WM_ACTIVATE:
