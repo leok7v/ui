@@ -250,6 +250,12 @@ typedef struct uic_s { // ui element container/control
     void (*click)(uic_t* ui); // interpretation depends on ui element
     void (*mouse)(uic_t* ui, int32_t message, int32_t flags);
     void (*mousewheel)(uic_t* ui, int32_t dx, int32_t dy); // touchpad scroll
+    // tap(ui, button_index) press(ui, button_index) see note below
+    // button index 0: left, 1: middle, 2: right
+    // bottom up (leaves to root or children to parent)
+    // return true if consumed (halts further calls up the tree)
+    bool (*tap)(uic_t* ui, int32_t ix);   // single click/tap inside ui
+    bool (*press)(uic_t* ui, int32_t ix); // two finger click/tap or long press
     void (*context_menu)(uic_t* ui); // right mouse click or long press
     bool (*set_focus)(uic_t* ui); // returns true if focus is set
     void (*kill_focus)(uic_t* ui);
@@ -279,6 +285,12 @@ typedef struct uic_s { // ui element container/control
     int32_t descent;  // font descent
     char    tip[256]; // tooltip text
 } uic_t;
+
+// tap() / press() APIs guarantee that single tap() is not coming
+// before double tap/click in expense of double click delay (0.5 seconds)
+// which is OK for buttons and many other UI controls but absolutely not
+// OK for text editing. Thus edit uses raw mouse events to react
+// on clicks and double clicks.
 
 typedef struct {
     void (*center)(uic_t* ui); // exactly one child
@@ -648,6 +660,10 @@ typedef struct messages_s {
     const int32_t mouse_move;
     const int32_t left_double_click;
     const int32_t right_double_click;
+    // wp: 0,1,2 (left, middle, right) button index, lp: client x,y
+    const int32_t tap;
+    const int32_t dtap;
+    const int32_t press;
 } messages_t;
 
 extern messages_t messages;
@@ -2571,6 +2587,11 @@ begin_c
 #define WM_ANIMATE  (WM_APP + 0x7FFF)
 #define WM_OPENNING (WM_APP + 0x7FFE)
 #define WM_CLOSING  (WM_APP + 0x7FFD)
+#define WM_TAP      (WM_APP + 0x7FFC)
+#define WM_DTAP     (WM_APP + 0x7FFB) // double tap (aka click)
+#define WM_PRESS    (WM_APP + 0x7FFA)
+
+#define LONG_PRESS_MSEC (250)
 
 #define window() ((HWND)app.window)
 #define canvas() ((HDC)app.canvas)
@@ -2585,7 +2606,10 @@ messages_t messages = {
     .right_button_released = WM_RBUTTONUP,
     .mouse_move            = WM_MOUSEMOVE,
     .left_double_click     = WM_LBUTTONDBLCLK,
-    .right_double_click    = WM_RBUTTONDBLCLK
+    .right_double_click    = WM_RBUTTONDBLCLK,
+    .tap                   = WM_TAP,
+    .dtap                  = WM_DTAP,
+    .press                 = WM_PRESS
 };
 
 mouse_flags_t mouse_flags = {
@@ -3399,6 +3423,34 @@ static bool app_context_menu(uic_t* ui) {
     return false;
 }
 
+static bool app_inside(uic_t* ui) {
+    const int32_t x = app.mouse.x - ui->x;
+    const int32_t y = app.mouse.y - ui->y;
+    return 0 <= x && x < ui->w && 0 <= y && y < ui->h;
+}
+
+static bool app_tap(uic_t* ui, int32_t ix) { // 0: left 1: middle 2: right
+    bool done = false; // consumed
+    if (!uic_hidden_or_disabled(ui) && app_inside(ui)) {
+        for (uic_t** c = ui->children; c != null && *c != null && !done; c++) {
+            done = app_tap(*c, ix);
+        }
+        if (ui->tap != null && !done) { done = ui->tap(ui, ix); }
+    }
+    return done;
+}
+
+static bool app_press(uic_t* ui, int32_t ix) { // 0: left 1: middle 2: right
+    bool done = false; // consumed
+    if (!uic_hidden_or_disabled(ui) && app_inside(ui)) {
+        for (uic_t** c = ui->children; c != null && *c != null && !done; c++) {
+            done = app_press(*c, ix);
+        }
+        if (ui->press != null && !done) { done = ui->press(ui, ix); }
+    }
+    return done;
+}
+
 static void app_mouse(uic_t* ui, int32_t m, int32_t f) {
     if (app_toast.ui != null && app_toast.ui->mouse != null) {
         app_ui_mouse(app_toast.ui, m, f);
@@ -3408,6 +3460,23 @@ static void app_mouse(uic_t* ui, int32_t m, int32_t f) {
         if (tooltip) { app_ui_mouse(ui, m, f); }
     } else {
         app_ui_mouse(ui, m, f);
+    }
+}
+
+static void app_tap_press(uint32_t m, WPARAM wp, LPARAM lp) {
+    app.mouse.x = GET_X_LPARAM(lp);
+    app.mouse.y = GET_Y_LPARAM(lp);
+    // dispatch as generic mouse message:
+    app_mouse(app.ui, (int32_t)m, (int32_t)wp);
+    int32_t ix = (int32_t)wp;
+    assert(0 <= ix && ix <= 2);
+    // for now long press and double tap/double click
+    // treated as press() call - can be separated if desired:
+    switch (m) {
+        case WM_TAP  : app_tap(app.ui, ix);  break;
+        case WM_DTAP : app_press(app.ui, ix); break;
+        case WM_PRESS: app_press(app.ui, ix); break;
+        default: assert(false);
     }
 }
 
@@ -3644,6 +3713,101 @@ static void app_show_task_bar(bool show) {
     }
 }
 
+static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
+    // TODO: click detector does not handle WM_NCLBUTTONDOWN, ...
+    //       it can be modified to do so if needed
+    #pragma push_macro("set_timer")
+    #pragma push_macro("kill_timer")
+    #pragma push_macro("done")
+
+    #define set_timer(t, ms) do {                   \
+        assert(t == 0);                             \
+        t = app_timer_set((uintptr_t)&t, ms);       \
+    } while (0)
+
+    #define kill_timer(t) do {                      \
+        if (t != 0) { app_timer_kill(t); t = 0; }   \
+    } while (0)
+
+    #define done(ix) do {                           \
+        clicked[ix] = 0;                            \
+        pressed[ix] = false;                        \
+        click_at[ix] = (ui_point_t){0, 0};          \
+        kill_timer(timer_p[ix]);                    \
+        kill_timer(timer_d[ix]);                    \
+    } while (0)
+
+    // This function should work regardless to CS_BLKCLK being present
+    // 0: Left, 1: Middle, 2: Right
+    static ui_point_t click_at[3];
+    static double     clicked[3]; // click time
+    static bool       pressed[3];
+    static tm_t       timer_d[3]; // double tap
+    static tm_t       timer_p[3]; // long press
+    bool up = false;
+    int32_t ix = -1;
+    uint32_t m = 0;
+    switch (msg) {
+        case WM_LBUTTONDOWN  : ix = 0; m = WM_TAP;  break;
+        case WM_MBUTTONDOWN  : ix = 1; m = WM_TAP;  break;
+        case WM_RBUTTONDOWN  : ix = 2; m = WM_TAP;  break;
+        case WM_LBUTTONDBLCLK: ix = 0; m = WM_DTAP; break;
+        case WM_MBUTTONDBLCLK: ix = 1; m = WM_DTAP; break;
+        case WM_RBUTTONDBLCLK: ix = 2; m = WM_DTAP; break;
+        case WM_LBUTTONUP    : ix = 0; up = true;   break;
+        case WM_MBUTTONUP    : ix = 1; up = true;   break;
+        case WM_RBUTTONUP    : ix = 2; up = true;   break;
+    }
+    if (msg == WM_TIMER) { // long press && dtap
+        for (int i = 0; i < 3; i++) {
+            if (wp == timer_p[i]) {
+                lp = MAKELONG(click_at[i].x, click_at[i].y);
+                app_post_message(WM_PRESS, i, lp);
+                done(i);
+            }
+            if (wp == timer_d[i]) {
+                lp = MAKELONG(click_at[i].x, click_at[i].y);
+                app_post_message(WM_TAP, i, lp);
+                done(i);
+            }
+        }
+    }
+    if (ix != -1) {
+        const uint32_t DTAP_MSEC = GetDoubleClickTime();
+        const double double_click_dt = DTAP_MSEC / 1000.0;
+        const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
+        const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
+        ui_point_t pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+        if (m == WM_TAP) {
+            if (app.now  - clicked[ix]  <= double_click_dt &&
+                abs(pt.x - click_at[ix].x) <= double_click_x &&
+                abs(pt.y - click_at[ix].y) <= double_click_y) {
+                app_post_message(WM_DTAP, ix, lp);
+                done(ix);
+            } else {
+                clicked[ix]  = app.now;
+                click_at[ix] = pt;
+                pressed[ix]  = true;
+                set_timer(timer_p[ix], LONG_PRESS_MSEC); // 0.25s
+                set_timer(timer_d[ix], DTAP_MSEC); // 0.5s
+            }
+        } else if (up) {
+//          traceln("pressed[%d]: %d %.3f", ix, pressed[ix], app.now - clicked[ix]);
+            if (pressed[ix] && app.now - clicked[ix] > double_click_dt) {
+                app_post_message(WM_DTAP, ix, lp);
+                done(ix);
+            }
+            kill_timer(timer_p[ix]); // long press is no the case
+        } else if (m == WM_DTAP) {
+            app_post_message(WM_DTAP, ix, lp);
+            done(ix);
+        }
+    }
+    #pragma pop_macro("done")
+    #pragma pop_macro("kill_timer")
+    #pragma pop_macro("set_timer")
+}
+
 static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp) {
     app.now = crt.seconds();
     if (app.window == null) {
@@ -3653,6 +3817,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
     }
     int64_t ret = 0;
     app_killfocus(app.ui);
+    app_click_detector(msg, wp, lp);
     if (app_message(app.ui, msg, wp, lp, &ret)) {
         return (LRESULT)ret;
     }
@@ -3707,13 +3872,18 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_NCMBUTTONDOWN  :
         case WM_NCMBUTTONUP    :
         case WM_NCMBUTTONDBLCLK: {
-            POINT pt = {(int32_t)GET_X_LPARAM(lp), (int32_t)GET_Y_LPARAM(lp)};
+            POINT pt = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
 //          traceln("%d %d", pt.x, pt.y);
             ScreenToClient(window(), &pt);
             app.mouse = app_point2ui(&pt);
             app_mouse(app.ui, (int32_t)msg, (int32_t)wp);
             break;
         }
+        case WM_TAP:
+        case WM_DTAP:
+        case WM_PRESS:
+            app_tap_press(msg, wp, lp);
+            break;
         case WM_MOUSEHOVER   : // see TrackMouseEvent()
         case WM_MOUSEMOVE    :
         case WM_LBUTTONDOWN  :
@@ -3725,8 +3895,8 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_MBUTTONDOWN  :
         case WM_MBUTTONUP    :
         case WM_MBUTTONDBLCLK: {
-            app.mouse.x = (int32_t)GET_X_LPARAM(lp);
-            app.mouse.y = (int32_t)GET_Y_LPARAM(lp);
+            app.mouse.x = GET_X_LPARAM(lp);
+            app.mouse.y = GET_Y_LPARAM(lp);
 //          traceln("%d %d", app.mouse.x, app.mouse.y);
             // note: ScreenToClient() is not needed for this messages
             app_mouse(app.ui, (int32_t)msg, (int32_t)wp);
