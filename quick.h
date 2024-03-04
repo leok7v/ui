@@ -93,8 +93,13 @@ typedef struct gdi_s {
     void (*pixel)(int32_t x, int32_t y, color_t c);
     ui_point_t (*move_to)(int32_t x, int32_t y); // returns previous (x, y)
     void (*line)(int32_t x, int32_t y); // line to x, y with gdi.pen moves x, y
-    void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h); // app.pen
-    void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h); // app.brush
+    void (*frame)(int32_t x, int32_t y, int32_t w, int32_t h); // gdi.pen only 
+    void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h);  // gdi.pen & brush 
+    void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h);  // gdi.brush only
+    void (*frame_with)(int32_t x, int32_t y, int32_t w, int32_t h, color_t c); 
+    void (*rect_with)(int32_t x, int32_t y, int32_t w, int32_t h, 
+                      color_t border, color_t fill);
+    void (*fill_with)(int32_t x, int32_t y, int32_t w, int32_t h, color_t c);
     void (*poly)(ui_point_t* points, int32_t count);
     void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t rx, int32_t ry); // see RoundRect, pen, brush
@@ -312,9 +317,12 @@ extern layouts_if layouts;
 
 void uic_init(uic_t* ui);
 
-#define uic_container(name, init, ...)                            \
-static uic_t* _ ## name ## children ## _[] = {__VA_ARGS__, null}; \
-static uic_t name = { uic_tag_container, init, (_ ## name ## children ## _) }
+#define uic_container(name, ini, ...)                                  \
+static uic_t* _ ## name ## _ ## children ## _[] = {__VA_ARGS__, null}; \
+static uic_t name = { .tag = uic_tag_container, .init = ini,           \
+                      .children = (_ ## name ## _ ## children ## _),   \
+                      .text = #name                                    \
+}
 
 typedef struct uic_text_s {
     uic_t ui;
@@ -569,6 +577,7 @@ typedef struct app_s {
     cursor_t cursor; // current cursor
     cursor_t cursor_arrow;
     cursor_t cursor_wait;
+    cursor_t cursor_ibeam;
     // keyboard state now:
     bool alt;
     bool ctrl;
@@ -862,6 +871,12 @@ static void gdi_line(int32_t x, int32_t y) {
     gdi.y = y;
 }
 
+static void gdi_frame(int32_t x, int32_t y, int32_t w, int32_t h) {
+    brush_t b = gdi.set_brush(gdi.brush_hollow);
+    gdi.rect(x, y, w, h);
+    gdi.set_brush(b);
+}
+
 static void gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h) {
     fatal_if_false(Rectangle(canvas(), x, y, x + w, y + h));
 }
@@ -870,6 +885,35 @@ static void gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h) {
     RECT rc = { x, y, x + w, y + h };
     brush_t b = (brush_t)GetCurrentObject(canvas(), OBJ_BRUSH);
     fatal_if_false(FillRect(canvas(), &rc, (HBRUSH)b));
+}
+
+static void gdi_frame_with(int32_t x, int32_t y, int32_t w, int32_t h, 
+        color_t c) {
+    brush_t b = gdi.set_brush(gdi.brush_hollow);
+    pen_t p = gdi.set_colored_pen(c);
+    gdi.rect(x, y, w, h);
+    gdi.set_pen(p);
+    gdi.set_brush(b);
+}
+
+static void gdi_rect_with(int32_t x, int32_t y, int32_t w, int32_t h, 
+        color_t border, color_t fill) {
+    brush_t b = gdi.set_brush(gdi.brush_color);
+    color_t c = gdi.set_brush_color(fill);
+    pen_t p = gdi.set_colored_pen(border);
+    gdi.rect(x, y, w, h);
+    gdi.set_brush_color(c);
+    gdi.set_pen(p);
+    gdi.set_brush(b);
+}
+
+static void gdi_fill_with(int32_t x, int32_t y, int32_t w, int32_t h,
+        color_t c) {
+    brush_t b = gdi.set_brush(gdi.brush_color);
+    c = gdi.set_brush_color(c);
+    gdi.fill(x, y, w, h);
+    gdi.set_brush_color(c);
+    gdi.set_brush(b);
 }
 
 static void gdi_poly(ui_point_t* points, int32_t count) {
@@ -1536,8 +1580,12 @@ gdi_t gdi = {
     .pixel = gdi_pixel,
     .move_to = gdi_move_to,
     .line = gdi_line,
+    .frame = gdi_frame,
     .rect = gdi_rect,
     .fill = gdi_fill,
+    .frame_with = gdi_frame_with,
+    .rect_with = gdi_rect_with,
+    .fill_with = gdi_fill_with,
     .poly = gdi_poly,
     .rounded = gdi_rounded,
     .gradient = gdi_gradient,
@@ -2422,7 +2470,7 @@ static void measurements_vertical(uic_t* ui, int32_t gap) {
     while (*c != null) {
         uic_t* u = *c;
         if (!u->hidden) {
-            if (seen) { ui->w += gap; }
+            if (seen) { ui->h += gap; }
             ui->h += u->h;
             ui->w = max(ui->w, u->w);
             seen = true;
@@ -2859,7 +2907,8 @@ static void app_init_fonts(int32_t dpi) {
     wcscpy(lf.lfFaceName, L"Cascadia Code");
     app.fonts.mono = (font_t)CreateFontIndirectW(&lf);
     app.cursor_arrow = (cursor_t)LoadCursorA(null, IDC_ARROW);
-    app.cursor_wait = (cursor_t)LoadCursorA(null, IDC_WAIT);
+    app.cursor_wait  = (cursor_t)LoadCursorA(null, IDC_WAIT);
+    app.cursor_ibeam = (cursor_t)LoadCursorA(null, IDC_IBEAM);
     app.cursor = app.cursor_arrow;
 }
 
@@ -3785,6 +3834,7 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
                 app_post_message(WM_DTAP, ix, lp);
                 done(ix);
             } else {
+                done(ix); // clear timers
                 clicked[ix]  = app.now;
                 click_at[ix] = pt;
                 pressed[ix]  = true;
