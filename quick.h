@@ -536,11 +536,12 @@ typedef struct app_s {
     void (*fini)(void);        // called before WinMain() return
     // must be filled by application:
     const char* title;
-    // min/max width/heigh are prefilled according to monitor size
+    // min/max width/height are prefilled according to monitor size
     float wmin; // inches
     float hmin; // inches
     float wmax; // inches
     float hmax; // inches
+    // TODO: need wstart/hstart which are between min/max
     int32_t visibility; // initial window_visibility state
     int32_t last_visibility;    // last window_visibility state from last run
     int32_t startup_visibility; // window_visibility from parent process
@@ -553,17 +554,18 @@ typedef struct app_s {
     bool no_size;  // window w/o maximize button on title bar
     bool no_clip;  // allows to resize window above hosting monitor size
     bool hide_on_minimize; // like task manager minimize means hide
-    bool aero;      // retro Windows 7 decoration (just for the fun of it)
+    bool aero;     // retro Windows 7 decoration (just for the fun of it)
     // main(argc, argv)
     int32_t argc;
     const char** argv;
     const char** command_line;
     // application exit code:
     int32_t exit_code;
+    int32_t tid; // main thread id
     // drawing context:
     dpi_t dpi;
     window_t window;
-    ui_rect_t wrc;  // window rectangle incl non-client area
+    ui_rect_t wrc;  // window rectangle including non-client area
     ui_rect_t crc;  // client rectangle
     ui_rect_t mrc;  // monitor rectangle
     ui_rect_t work_area; // current monitor work area
@@ -582,7 +584,6 @@ typedef struct app_s {
     bool alt;
     bool ctrl;
     bool shift;
-    bool focused;     // window has system focus
     ui_point_t mouse; // mouse/touchpad pointer
     canvas_t canvas;  // set by WM_PAINT message
     // i18n
@@ -606,7 +607,15 @@ typedef struct app_s {
     // layout:
     bool (*is_hidden)(const uic_t* ui);   // control or any parent is hidden
     bool (*is_disabled)(const uic_t* ui); // control or any parent is disabled
-    void (*measure)(uic_t* ui); // measure all children
+    bool (*is_active)(void); // is application window active
+    bool (*has_focus)(void); // application window has keyboard focus
+    void (*activate)(void); // request application window activation
+    void (*bring_to_foreground)(void); // not necessary topmost
+    void (*make_topmost)(void);    // in foreground hierarchy of windows
+    void (*request_focus)(void);   // request application window keyboard focus
+    void (*bring_to_front)(void);  // activate() + bring_to_foreground() +
+                                   // make_topmost() + request_focus()
+    void (*measure)(uic_t* ui);    // measure all children
     void (*layout)(void); // requests layout on UI tree before paint()
     void (*invalidate)(const ui_rect_t* rc);
     void (*full_screen)(bool on);
@@ -1705,6 +1714,27 @@ static bool app_is_disabled(const uic_t* ui) {
         disabled = ui->disabled;
     }
     return disabled;
+}
+
+static bool app_is_active(void) {
+    return GetActiveWindow() == window();
+}
+
+static bool app_has_focus(void) {
+    return GetFocus() == window(); 
+}
+
+static void window_request_focus(void* w) {
+    // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
+    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
+    assert(crt.gettid() == app.tid, "cannot be called from background thread");
+    crt.seterr(0);
+    w = SetFocus((HWND)w); // w previous focused window
+    if (w == null) { fatal_if_not_zero(crt.err()); }
+}
+
+static void app_request_focus(void) {
+    window_request_focus(app.window);
 }
 
 static const char* uic_nsl(uic_t* ui) {
@@ -3874,8 +3904,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
     switch (msg) {
         case WM_GETMINMAXINFO: app_get_min_max_info((MINMAXINFO*)lp); break;
         case WM_SETTINGCHANGE: app_setting_change(wp, lp); break;
-        case WM_CLOSE        : app.focus = null;
-                               app.focused = false; // before WM_CLOSING
+        case WM_CLOSE        : app.focus = null; // before WM_CLOSING
                                app_post_message(WM_CLOSING, 0, 0); return 0;
         case WM_OPENNING     : app_window_opening(); return 0;
         case WM_CLOSING      : app_window_closing(); return 0;
@@ -3900,11 +3929,9 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_PRINTCLIENT  : app_paint_on_canvas((HDC)wp); break;
         case WM_ANIMATE      : app_animate_step((app_animate_function_t)lp, (int)wp, -1);
                                break;
-        case WM_SETFOCUS     : app.focused = true;
-                               if (!app.ui->hidden) { app_set_focus(app.ui); }
+        case WM_SETFOCUS     : if (!app.ui->hidden) { app_set_focus(app.ui); }
                                break;
-        case WM_KILLFOCUS    : app.focused = false;
-                               if (!app.ui->hidden) { app_kill_focus(app.ui); }
+        case WM_KILLFOCUS    : if (!app.ui->hidden) { app_kill_focus(app.ui); }
                                break;
         case WM_PAINT        : app_wm_paint(); break;
         case WM_CONTEXTMENU  : (void)app_context_menu(app.ui); break;
@@ -4006,7 +4033,9 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             #endif
             break;
         }
-        case WM_WINDOWPOSCHANGED: app_window_position_changed((WINDOWPOS*)lp); break;
+        case WM_WINDOWPOSCHANGED: 
+            app_window_position_changed((WINDOWPOS*)lp); 
+            break;
         default:
             break;
     }
@@ -4014,9 +4043,9 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 }
 
 static long app_set_window_long(int32_t index, long value) {
-    SetLastError(0);
-    long r = SetWindowLongA(window(), index, value);
-    fatal_if_not_zero(GetLastError());
+    crt.seterr(0);
+    long r = SetWindowLongA(window(), index, value); // r previous value
+    fatal_if_not_zero(crt.err());
     return r;
 }
 
@@ -4082,9 +4111,9 @@ static void app_create_window(const ui_rect_t r) {
     if (app.no_size) {
         uint32_t s = GetWindowLong(window(), GWL_STYLE);
         app_set_window_long(GWL_STYLE, s & ~WS_SIZEBOX);
-        enum { changed = SWP_NOMOVE | SWP_NOSIZE |
-                         SWP_FRAMECHANGED | SWP_NOACTIVATE };
-        SetWindowPos(window(), NULL, 0, 0, 0, 0, changed);
+        enum { swp = SWP_FRAMECHANGED |
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE };
+        SetWindowPos(window(), NULL, 0, 0, 0, 0, swp);
     }
     if (app.visibility != window_visibility.hide) {
         app.ui->w = app.wrc.w;
@@ -4119,9 +4148,9 @@ static void app_full_screen(bool on) {
         } else {
             fatal_if_false(SetWindowPlacement(window(), &wp));
             app_set_window_long(GWL_STYLE,  style | WS_OVERLAPPED);
-            uint32_t flags = SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
-                             SWP_NOOWNERZORDER | SWP_FRAMECHANGED;
-            fatal_if_false(SetWindowPos(window(), null, 0, 0, 0, 0, flags));
+            enum { swp = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE | 
+                         SWP_NOZORDER | SWP_NOOWNERZORDER };
+            fatal_if_false(SetWindowPos(window(), null, 0, 0, 0, 0, swp));
             enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_ENABLED;
             fatal_if_not_zero(DwmSetWindowAttribute(window(),
                 DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp)));
@@ -4345,37 +4374,43 @@ static void app_console_largest(void) {
     app_save_console_pos();
 }
 
-static void window_foreground_active_focus(void* w) {
+static void window_foreground(void* w) {
+    // SetForegroundWindow() does not activate window:
     fatal_if_false(SetForegroundWindow((HWND)w));
-    // because SetForegroundWindow() does not activate window:
-    SetActiveWindow((HWND)w); // returns previous active window
-    (void)SetFocus((HWND)w);  // fails for console with ERROR_ACCESS_DENIED
+}
+
+static void window_activate(void* w) {
+    crt.seterr(0);
+    w = SetActiveWindow((HWND)w); // w previous active window
+    if (w == null) { fatal_if_not_zero(crt.err()); }
 }
 
 static void window_make_topmost(void* w) {
     //  Places the window above all non-topmost windows.
     // The window maintains its topmost position even when it is deactivated.
-    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION |
-                        SWP_NOMOVE | SWP_NOSIZE;
-    fatal_if_false(SetWindowPos((HWND)w, HWND_TOPMOST, 0, 0, 0, 0, SWP));
-    window_foreground_active_focus(w);
+    enum { swp = SWP_SHOWWINDOW | SWP_NOREPOSITION | SWP_NOMOVE | SWP_NOSIZE };
+    fatal_if_false(SetWindowPos((HWND)w, HWND_TOPMOST, 0, 0, 0, 0, swp));
 }
 
-static void app_window_foreground_active_focus(void) {
-    window_foreground_active_focus(app.window);
-}
-
-static void app_window_bring_to_front(void) {
-    // bring UI window to front:
-    const int32_t SWP = SWP_SHOWWINDOW | SWP_NOREPOSITION |
-                        SWP_NOMOVE | SWP_NOSIZE;
-    fatal_if_false(SetWindowPos((HWND)app.window, HWND_TOP,
-        0, 0, 0, 0, SWP));
-    app_window_foreground_active_focus();
-}
-
-static void app_window_make_topmost(void) {
+static void app_make_topmost(void) {
     window_make_topmost(app.window);
+}
+
+static void app_activate(void) {
+    window_activate(app.window);
+}
+
+static void app_bring_to_foreground(void) {
+    window_foreground(app.window);
+}
+
+static void app_bring_to_front(void) {
+    app.bring_to_foreground();
+    app.make_topmost();
+    app.bring_to_foreground();
+    // because bring_to_foreground() does not activate
+    app.activate();
+    app.request_focus();
 }
 
 static void app_set_console_title(HWND cw) {
@@ -4433,7 +4468,7 @@ static void app_console_show(bool b) {
         // If the window was previously hidden, the return value is zero.
         bool unused_was_visible = ShowWindow(cw, b ? SW_SHOWNOACTIVATE : SW_HIDE);
         (void)unused_was_visible;
-        if (b) { InvalidateRect(cw, null, true); SetActiveWindow((HWND)cw); }
+        if (b) { InvalidateRect(cw, null, true); window_activate(cw); }
         app_save_console_pos(); // again after visibility changed
     }
 }
@@ -4477,12 +4512,11 @@ static void app_show_window(int32_t show) {
         show == window_visibility.show_na ||
         show == window_visibility.min_na;
     if (!hiding) {
-        SetForegroundWindow(window()); // this does not make it ActiveWindow
-        const int32_t SWP = SWP_NOZORDER | SWP_SHOWWINDOW |
-                            SWP_NOREPOSITION | SWP_NOMOVE |
-                            SWP_NOSIZE;
-        SetWindowPos(window(), null, 0, 0, 0, 0, SWP);
-        SetFocus(window());
+        app.bring_to_foreground(); // this does not make it ActiveWindow
+        enum { swp = SWP_SHOWWINDOW | SWP_NOZORDER | SWP_NOSIZE |
+                     SWP_NOREPOSITION | SWP_NOMOVE };
+        SetWindowPos(window(), null, 0, 0, 0, 0, swp);
+        app.request_focus();
     } else if (show == window_visibility.hide ||
                show == window_visibility.minimize ||
                show == window_visibility.min_na) {
@@ -4703,6 +4737,13 @@ static void app_init(void) {
     app.intersect_rect = app_intersect_rect;
     app.is_hidden   = app_is_hidden;
     app.is_disabled = app_is_disabled;
+    app.is_active = app_is_active,
+    app.has_focus = app_has_focus,
+    app.request_focus = app_request_focus,
+    app.activate = app_activate,
+    app.bring_to_foreground = app_bring_to_foreground,
+    app.make_topmost = app_make_topmost,
+    app.bring_to_front = app_bring_to_front,
     app.measure = app_measure_children;
     app.layout = app_request_layout;
     app.invalidate = app_invalidate_rect;
@@ -4984,6 +5025,7 @@ static void __winnls_init__(void) {
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, char* command,
         int show_command) {
+    app.tid = crt.gettid();
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
     // https://learn.microsoft.com/en-us/windows/win32/api/imm/nf-imm-immdisablelegacyime
     ImmDisableLegacyIME();
@@ -5013,6 +5055,7 @@ int main(int argc, const char* argv[]) {
     __winnls_init__();
     app.argc = argc;
     app.argv = argv;
+    app.tid = crt.gettid();
     return app.main();
 }
 
