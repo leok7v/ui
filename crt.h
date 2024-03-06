@@ -232,7 +232,7 @@ static inline_c int indexof(const int a[], int n, int v) {
 // since most of them work with filepath that are relatively short
 // and on Windows are limited to 260 chars or 32KB - 1 chars.
 
-#define strcopy(s1, s2) /* use with exteme caution */                      \
+#define strcopy(s1, s2) /* use with extreme caution */                      \
     do {                                                                   \
         strncpy((s1), (s2), countof((s1)) - 1); s1[countof((s1)) - 1] = 0; \
 } while (0)
