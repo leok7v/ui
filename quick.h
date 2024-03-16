@@ -707,6 +707,8 @@ typedef struct virtual_keys_s {
     const int32_t back;
     const int32_t escape;
     const int32_t enter;
+    const int32_t plus;
+    const int32_t minus;
     const int32_t f1;
     const int32_t f2;
     const int32_t f3;
@@ -2709,6 +2711,8 @@ virtual_keys_t virtual_keys = {
     .back   = VK_BACK,
     .escape = VK_ESCAPE,
     .enter  = VK_RETURN,
+    .minus  = VK_OEM_MINUS,
+    .plus   = VK_OEM_PLUS,
     .f1     = VK_F1,
     .f2     = VK_F2,
     .f3     = VK_F3,
