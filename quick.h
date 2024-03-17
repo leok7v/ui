@@ -633,6 +633,12 @@ typedef struct app_s {
     void (*show_tooltip)(uic_t* tooltip, int32_t x, int32_t y, double seconds);
     void (*vtoast)(double seconds, const char* format, va_list vl);
     void (*toast)(double seconds, const char* format, ...);
+    // caret calls must be balanced by caller
+    void (*create_caret)(int32_t w, int32_t h);
+    void (*show_caret)(void);
+    void (*move_caret)(int32_t x, int32_t y);
+    void (*hide_caret)(void);
+    void (*destroy_caret)(void);
     // registry interface:
     void (*data_save)(const char* name, const void* data, int32_t bytes);
     int32_t (*data_size)(const char* name);
@@ -4276,6 +4282,27 @@ static void app_formatted_toast(double timeout, const char* format, ...) {
     va_end(vl);
 }
 
+static void app_create_caret(int32_t w, int32_t h) {
+    fatal_if_false(CreateCaret(window(), null, w, h));
+    assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
+}
+
+static void app_show_caret(void) {
+    fatal_if_false(ShowCaret(window()));
+}
+
+static void app_move_caret(int32_t x, int32_t y) {
+    fatal_if_false(SetCaretPos(x, y));
+}
+
+static void app_hide_caret(void) {
+    fatal_if_false(HideCaret(window()));
+}
+
+static void app_destroy_caret(void) {
+    fatal_if_false(DestroyCaret());
+}
+
 static void app_enable_sys_command_close(void) {
     EnableMenuItem(GetSystemMenu(GetConsoleWindow(), false),
         SC_CLOSE, MF_BYCOMMAND | MF_ENABLED);
@@ -4763,6 +4790,11 @@ static void app_init(void) {
     app.show_tooltip = app_show_tooltip;
     app.vtoast = app_formatted_vtoast;
     app.toast = app_formatted_toast;
+    app.create_caret = app_create_caret;
+    app.show_caret = app_show_caret;
+    app.move_caret = app_move_caret;
+    app.hide_caret = app_hide_caret;
+    app.destroy_caret = app_destroy_caret;
     app.data_save = app_data_save;
     app.data_size = app_data_size;
     app.data_load = app_data_load;
