@@ -1,4 +1,4 @@
-#include "..\samples\version.h"
+#include "..\build\version.h"
 
 VS_VERSION_INFO VERSIONINFO
  FILEVERSION version_yy, version_mm, version_dd, version_hh
