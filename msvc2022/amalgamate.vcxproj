@@ -11,10 +11,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{0EA9BF0C-402B-4852-BD16-644244F0D1B8}</ProjectGuid>
+    <ProjectGuid>{1EA9BF0C-402B-4852-BD16-644244F0D1B9}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>version</RootNamespace>
-    <ProjectName>version</ProjectName>
+    <RootNamespace>amalgamate</RootNamespace>
+    <ProjectName>amalgamate</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'" Label="Configuration">
@@ -37,7 +37,6 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <Link>
       <SubSystem>Console</SubSystem>
-      <AdditionalDependencies />
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
@@ -46,7 +45,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\version.c" />
+    <ClCompile Include="..\src\amalgamate.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
+

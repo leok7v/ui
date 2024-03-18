@@ -5,15 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
-/* amalgamate \uh-MAL-guh-mayt\ verb. : to unite in or as if in a 
-   mixture of elements; especially : to merge into a single body. 
+/* amalgamate \uh-MAL-guh-mayt\ verb. : to unite in or as if in a
+   mixture of elements; especially : to merge into a single body.
 */
 
 #ifndef countof
 #define countof(a) (sizeof(a) / sizeof((a)[0]))
 #endif
 
-// Windows still do not have #include <error.h>
+// absence of #include <error.h> on Windows:
+
 static void error(int32_t status, int32_t errnum, const char *format, ...) {
     if (status != 0) {
         va_list args;
@@ -32,7 +33,16 @@ int main(int argc, const char* argv[]) {
         char fn[1024];
         snprintf(fn, countof(fn), "%s.h", argv[i]);
         FILE* f = fopen(fn, "r");
-        if (f == NULL) { error(1, errno, "file not found %s\n", fn); }         
+        if (f == NULL) {
+            error(1, errno, "file not found %s\n", fn);
+            return errno;
+        } else {
+            static char line[16 * 1024];
+            while (fgets(line, countof(line), f) != NULL) {
+                printf("%s", line);
+            }
+            fclose(f);
+        }
     }
     return 0;
 }

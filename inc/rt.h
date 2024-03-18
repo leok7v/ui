@@ -23,7 +23,7 @@
 #endif
 
 #ifndef _CRT_SECURE_NO_WARNINGS
-#define _CRT_SECURE_NO_WARNINGS // shut up MSVC _s() function suggestions
+#define _CRT_SECURE_NO_WARNINGS // shutup MSVC _s() function suggestions
 #endif
 
 #ifndef _CRT_NONSTDC_NO_WARNINGS

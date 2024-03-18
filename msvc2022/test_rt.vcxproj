@@ -11,10 +11,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{0EA9BF0C-402B-4852-BD16-644244F0D1B8}</ProjectGuid>
+    <ProjectGuid>{3EA9BF0C-402B-4852-BD16-644255F0D1B7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>version</RootNamespace>
-    <ProjectName>version</ProjectName>
+    <RootNamespace>test_rt</RootNamespace>
+    <ProjectName>test_rt</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'" Label="Configuration">
@@ -46,7 +46,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\version.c" />
+    <ClCompile Include="..\src\rt.c" />
+    <ClCompile Include="..\test\test_rt.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\inc\rt.h" />
+    <ClInclude Include="..\inc\win32.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
