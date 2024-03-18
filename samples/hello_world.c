@@ -1,13 +1,9 @@
-/* Copyright (c) Dmitry "Leo" Kuznetsov 2021 see LICENSE for details */
+/* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "quick.h"
 
 begin_c
 
-const char* title = "Hello World";
-
-static void layout(uic_t* ui) {
-    layouts.center(ui);
-}
+static void layout(uic_t* ui) { layouts.center(ui); }
 
 static void paint(uic_t* ui) {
     // all UIC are transparent and expect parent to paint background
@@ -16,6 +12,7 @@ static void paint(uic_t* ui) {
 }
 
 static void init(void) {
+    app.title = "Hello"; // can be localized
     app.ui->layout = layout;
     app.ui->paint  = paint;
     static uic_text(text, "Hello World!");
@@ -24,7 +21,6 @@ static void init(void) {
 }
 
 app_t app = {
-    .title = "Hello World",
     .class_name = "hello-world",
     .init = init,
     .wmin = 4.00, // inches

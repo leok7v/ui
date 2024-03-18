@@ -1,4 +1,4 @@
-/* Copyright (c) Dmitry "Leo" Kuznetsov 2021 see LICENSE for details */
+/* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "quick.h"
 
 #ifndef CONSOLE 
@@ -7,9 +7,7 @@
 
 begin_c
 
-static void layout(uic_t* ui) {
-    layouts.center(ui);
-}
+static void layout(uic_t* ui) { layouts.center(ui); }
 
 static void paint(uic_t* ui) {
     // all UIC are transparent and expect parent to paint background
@@ -63,4 +61,3 @@ end_c
 
 #define crt_implementation
 #include "crt.h"
-
