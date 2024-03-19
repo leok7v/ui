@@ -46,10 +46,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\inc\args.c" />
-    <ClCompile Include="..\inc\trace.c" />
-    <ClCompile Include="..\inc\vigil.c" />
+    <ClCompile Include="..\src\args.c" />
     <ClCompile Include="..\src\rt.c" />
+    <ClCompile Include="..\src\trace.c" />
+    <ClCompile Include="..\src\vigil.c" />
     <ClCompile Include="..\test\test_rt.c" />
   </ItemGroup>
   <ItemGroup>
