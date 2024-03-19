@@ -1,6 +1,6 @@
 #include "rt.h"
 
-begin_c // allows C99 code to be compiled by C++ compiler (e.g. in #include)
+begin_c
 
 static bool verbose;
 
@@ -17,14 +17,15 @@ static_init(static_init_test) { static_init_function(); }
 
 static void test_static_init() {
     fatal_if(static_init_function_called != 1,
-    "static_init_function() should have been called before main()");
+    "static_init_function() expected to be called before main()");
+    if (verbose) { traceln("static_init_function() called before main()"); }
 }
 
-// vigil: assert() and fatal() test
+// vigil: assert(), swear() and fatal()
 
 static int32_t failed_assertion_count;
 
-static int test_failed_assertion(const char* file, int line,
+static int failed_assertion(const char* file, int line,
         const char* func, const char* condition, const char* format, ...) {
     fatal_if_not(strequ(file,  __FILE__));
     fatal_if_not(line > __LINE__);
@@ -35,17 +36,21 @@ static int test_failed_assertion(const char* file, int line,
     if (verbose) {
         va_list vl;
         va_start(vl, format);
-        trace.vtraceline(file, line, func, format, vl);
+        trace.vprintf(file, line, func, format, vl);
         va_end(vl);
-        trace.traceline(file, line, func, "assertion failed: %s\n", condition);
+        trace.printf(file, line, func, "assertion failed: %s\n", condition);
     }
     return 0;
 }
 
 static int32_t fatal_calls_count;
 
-static int test_fatal(const char* file, int line, const char* func,
+static int fatal_termination(const char* file, int line, const char* func,
         const char* condition, const char* format, ...) {
+    const int32_t er = crt.err();
+    const int32_t en = errno;
+    assert(er == 2);
+    assert(en == 2);
     assert(strequ(file,  __FILE__));
     assert(line > __LINE__);
     assert(strequ(func, "test_vigil"));
@@ -55,31 +60,43 @@ static int test_fatal(const char* file, int line, const char* func,
     if (verbose) {
         va_list vl;
         va_start(vl, format);
-        trace.vtraceline(file, line, func, format, vl);
+        trace.vprintf(file, line, func, format, vl);
         va_end(vl);
+        if (er != 0) { trace.perror(file, line, func, er, ""); }
+        if (en != 0) { trace.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {
-            trace.traceline(file, line, func, "FATAL: %s\n", condition);
+            trace.printf(file, line, func, "FATAL: %s\n", condition);
         } else {
-            trace.traceline(file, line, func, "FATAL\n");
+            trace.printf(file, line, func, "FATAL\n");
         }
     }
     return 0;
 }
 
 static void test_vigil(void) {
-    // save global functions for failed assertion
     vigil_if saved = vigil;
-    // test functions override:
-    vigil.failed_assertion = test_failed_assertion;
-    vigil.fatal_termination = test_fatal;
-    // testing functions:
+    int32_t en = errno;
+    int32_t er = crt.err();
+    errno = 2; // ENOENT
+    crt.seterr(2); // ERROR_FILE_NOT_FOUND
+    vigil.failed_assertion  = failed_assertion;
+    vigil.fatal_termination = fatal_termination;
     int32_t count = fatal_calls_count;
     fatal("testing: %s call", "fatal()");
     assert(fatal_calls_count == count + 1);
     count = failed_assertion_count;
     assert(false, "testing: assert(%s)", "false");
+    #ifdef DEBUG // verify that assert() is only compiled in in DEBUG:
+        fatal_if_not(failed_assertion_count == count + 1);
+    #else // not RELEASE buid:
+        fatal_if_not(failed_assertion_count == count);
+    #endif
+    count = failed_assertion_count;
+    swear(false, "testing: swear(%s)", "false");
+    // swear() is triggered in both debug and release configurations:
     fatal_if_not(failed_assertion_count == count + 1);
-    // restore vigil functions:
+    errno = en;
+    crt.seterr(er);
     vigil = saved;
 }
 

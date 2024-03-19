@@ -4,7 +4,7 @@
     #define begin_c extern "C" {
     #define end_c } // extern "C"
 #else
-    #define begin_c
+    #define begin_c // allows C99 code to be compiled by C++ compiler (e.g. in #include)
     #define end_c
 #endif
 

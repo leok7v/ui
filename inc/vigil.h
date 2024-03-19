@@ -3,6 +3,7 @@
 // in honor of:
 // https://github.com/munificent/vigil
 #include <assert.h>
+#include <stdint.h>
 #undef assert
 
 #include "manifest.h"
@@ -12,9 +13,9 @@
 begin_c
 
 typedef struct {
-    int (*failed_assertion)(const char* file, int line,
+    int32_t (*failed_assertion)(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...);
-    int (*fatal_termination)(const char* file, int line,
+    int32_t (*fatal_termination)(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...);
 } vigil_if;
 

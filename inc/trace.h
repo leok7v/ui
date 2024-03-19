@@ -12,15 +12,17 @@
 //          that may or may not happen on some calls
 
 typedef struct {
-    void (*vtraceline)(const char* file, int line, const char* func,
+    void (*vprintf)(const char* file, int line, const char* func,
         const char* format, va_list vl);
-
-    void (*traceline)(const char* file, int line, const char* func,
+    void (*printf)(const char* file, int line, const char* func,
         const char* format, ...);
-
+    void (*perrno)(const char* file, int32_t line,
+        const char* func, int32_t err_no, const char* format, ...);
+    void (*perror)(const char* file, int32_t line,
+        const char* func, int32_t error, const char* format, ...);
 } trace_if;
 
-#define traceln(...) trace.traceline(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define traceln(...) trace.printf(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
 begin_c
 
