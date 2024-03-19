@@ -1,0 +1,41 @@
+name: build-on-push
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+      - name: setup msbuild
+        uses: microsoft/setup-msbuild@v1.1
+      - name: build debug
+        run:  msbuild msvc2022\quick.sln -t:rebuild -verbosity:quiet -property:Configuration=debug
+      - name: build release
+        run:  msbuild msvc2022\quick.sln -t:rebuild -verbosity:quiet -property:Configuration=release
+      - name: short sha
+        id: vars
+        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+      - name: check short sha
+        run: echo ${{ steps.vars.outputs.sha_short }}
+      - name: upload release artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: quick.release.zip
+          path: |
+            bin\release\hellow_world.exe
+            bin\release\test_rt.exe
+          retention-days: 5
+      - name: upload debug artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: quick.debug.zip
+          path: |
+            bin\debug\hellow_world.exe
+            bin\debug\test_rt.exe
+          retention-days: 5
