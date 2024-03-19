@@ -13,8 +13,8 @@
 #endif
 
 #include <Windows.h>
-#include <timeapi.h>
-#include <sysinfoapi.h>
+// #include <timeapi.h>
+// #include <sysinfoapi.h>
 
 begin_c
 
@@ -312,6 +312,7 @@ static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
         int64_t maximum_ns = max_100ns * 100LL;
 //      int64_t actual_ns  = actual_100ns  * 100LL;
         // note that maximum resolution is actually < minimum
+#if CRT_FALLBACK_TO_TIMEBEGINPERIOD // requires #include <timeapi.h>
         if (NtSetTimerResolution == null) {
             const int milliseconds = (int)(crt_ns2ms(ns) + 0.5);
             r = (int)maximum_ns <= ns && ns <= (int)minimum_ns ?
@@ -321,11 +322,21 @@ static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
                 NtSetTimerResolution(ns100, true, &actual_100ns) :
                 ERROR_INVALID_PARAMETER;
         }
+#else
+        not_null(NtSetTimerResolution);
+        r = (int)maximum_ns <= ns && ns <= (int)minimum_ns ?
+            NtSetTimerResolution(ns100, true, &actual_100ns) :
+            ERROR_INVALID_PARAMETER;
+#endif
         NtQueryTimerResolution(&min_100ns, &max_100ns, &actual_100ns);
     } else {
+#if CRT_FALLBACK_TO_TIMEBEGINPERIOD // requires #include <timeapi.h>
         const int milliseconds = (int)(crt_ns2ms(ns) + 0.5);
         r = 1 <= milliseconds && milliseconds <= 16 ?
             timeBeginPeriod(milliseconds) : ERROR_INVALID_PARAMETER;
+#else
+        fatal_if_null(NtQueryTimerResolution);
+#endif
     }
     return r;
 }
