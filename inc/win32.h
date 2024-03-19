@@ -1,4 +1,5 @@
 #pragma once
+#ifdef WIN32
 
 #pragma warning(error  : 4013) // ERROR: 'foo' undefined; assuming extern returning int
 #pragma warning(disable: 4191) // 'type cast': unsafe conversion from 'FARPROC'
@@ -60,3 +61,5 @@
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h> // _malloca()
 #endif
+
+#endif // WIN32

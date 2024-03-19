@@ -23,8 +23,14 @@ extern vigil_if vigil;
 
 end_c
 
+#ifdef _MSC_VER
+    #define __suppress_constant_cond_exp__ _Pragma("warning(suppress: 4127)")
+#else
+    #define __suppress_constant_cond_exp__
+#endif
+
 #if defined(DEBUG)
-  #define assert(b, ...) _Pragma("warning(suppress: 4127)")      \
+  #define assert(b, ...) __suppress_constant_cond_exp__          \
     /* const cond */                                             \
     (void)((!!(b)) || vigil.failed_assertion(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
@@ -34,20 +40,20 @@ end_c
 
 // swear() is both debug and release configuration assert
 
-#define swear(b, ...) _Pragma("warning(suppress: 4127)")         \
+#define swear(b, ...) __suppress_constant_cond_exp__             \
     /* const cond */                                             \
     (void)((!!(b)) || vigil.failed_assertion(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 
-#define fatal(...) (void)(vigil.fatal_termination(__FILE__, __LINE__, \
-    __func__, "",  "" __VA_ARGS__))
+#define fatal(...) (void)(vigil.fatal_termination(               \
+    __FILE__, __LINE__,  __func__, "",  "" __VA_ARGS__))
 
-#define fatal_if(b, ...) _Pragma("warning(suppress: 4127)")      \
+#define fatal_if(b, ...) __suppress_constant_cond_exp__          \
     /* const cond */                                             \
     (void)((!(b)) || vigil.fatal_termination(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 
-#define fatal_if_not(b, ...) _Pragma("warning(suppress: 4127)")   \
+#define fatal_if_not(b, ...) __suppress_constant_cond_exp__       \
     /* const cond */                                              \
     (void)((!!(b)) || vigil.fatal_termination(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))

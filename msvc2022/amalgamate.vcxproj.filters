@@ -1,6 +1,13 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\src\version.c" />
+    <ClCompile Include="..\src\amalgamate.c" />
+    <ClCompile Include="..\src\rt.c" />
+    <ClCompile Include="..\src\vigil.c" />
+    <ClCompile Include="..\src\trace.c" />
+    <ClCompile Include="..\src\args.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="..\amalgamate.txt" />
   </ItemGroup>
 </Project>

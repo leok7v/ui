@@ -1,11 +1,5 @@
 #pragma once
-
-#define crt_version 20240318 // YYYYMMDD
-
-#ifdef WIN32
 #include "win32.h"
-#endif
-
 #include "manifest.h"
 #include "args.h"
 #include "vigil.h"
@@ -20,6 +14,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define crt_version 20240318 // YYYYMMDD
 
 begin_c
 
@@ -77,6 +73,9 @@ char* strnchr(const char* s, int n, char ch);
     sizeof(wchar_t)), s)
 
 #define strprintf(s, ...) crt.sformat((s), countof(s), "" __VA_ARGS__)
+
+#define strstartswith(a, b) \
+    (strlen(a) >= strlen(b) && memcmp((a), (b), strlen(b)) == 0)
 
 enum {
     NSEC_IN_USEC = 1000,

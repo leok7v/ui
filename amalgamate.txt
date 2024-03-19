@@ -1,0 +1,11 @@
+# headers
+inc/win32.h
+inc/manifest.h
+inc/args.h
+inc/vigil.h
+inc/trace.h
+# source code
+src/rt.c
+src/args.c
+src/vigil.c
+src/trace.c
