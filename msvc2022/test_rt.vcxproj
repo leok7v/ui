@@ -15,6 +15,7 @@
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>test_rt</RootNamespace>
     <ProjectName>test_rt</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'" Label="Configuration">
@@ -39,23 +40,40 @@
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies />
     </Link>
+    <ClCompile>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <Link>
       <SubSystem>Console</SubSystem>
     </Link>
+    <ClCompile>
+      <LanguageStandard_C>stdc11</LanguageStandard_C>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\args.c" />
+    <ClCompile Include="..\src\atomics.c">
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='release|x64'">/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='debug|x64'">/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <ClCompile Include="..\src\events.c" />
+    <ClCompile Include="..\src\mutexes.c" />
     <ClCompile Include="..\src\rt.c" />
+    <ClCompile Include="..\src\threads.c" />
     <ClCompile Include="..\src\trace.c" />
     <ClCompile Include="..\src\vigil.c" />
     <ClCompile Include="..\test\test_rt.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h" />
+    <ClInclude Include="..\inc\atomics.h" />
+    <ClInclude Include="..\inc\events.h" />
     <ClInclude Include="..\inc\manifest.h" />
+    <ClInclude Include="..\inc\mutexes.h" />
     <ClInclude Include="..\inc\rt.h" />
+    <ClInclude Include="..\inc\threads.h" />
     <ClInclude Include="..\inc\trace.h" />
     <ClInclude Include="..\inc\vigil.h" />
     <ClInclude Include="..\inc\win32.h" />

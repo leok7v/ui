@@ -1,7 +1,5 @@
 #include "rt.h"
 
-begin_c
-
 static bool verbose;
 
 // testing static_init() { code } that will be executed in random
@@ -109,4 +107,3 @@ int main(int unused(argc), const char* unused(argv)[]) {
     return 0;
 }
 
-end_c

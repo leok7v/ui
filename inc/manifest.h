@@ -1,4 +1,6 @@
 #pragma once
+#include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
     #define begin_c extern "C" {

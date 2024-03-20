@@ -1,8 +1,13 @@
 #pragma once
+
 #include "win32.h"
 #include "manifest.h"
 #include "args.h"
+#include "atomics.h"
+#include "events.h"
 #include "vigil.h"
+#include "mutexes.h"
+#include "threads.h"
 #include "trace.h"
 
 #include <ctype.h>
@@ -136,75 +141,6 @@ typedef struct {
 } crt_if;
 
 extern crt_if crt;
-
-typedef void* thread_t;
-
-typedef struct {
-    thread_t (*start)(void (*func)(void*), void* p); // never returns null
-    bool (*try_join)(thread_t thread, double timeout); // seconds
-    void (*join)(thread_t thread);
-    void (*name)(const char* name); // names the thread
-    void (*realtime)(void); // bumps calling thread priority
-    void (*yield)(void);    // SwitchToThread()
-} threads_if;
-
-extern threads_if threads;
-
-typedef void* event_t;
-
-typedef struct {
-    event_t (*create)(void); // never returns null
-    event_t (*create_manual)(void); // never returns null
-    void (*set)(event_t e);
-    void (*reset)(event_t e);
-    void (*wait)(event_t e);
-    // returns 0 or -1 on timeout
-    int (*wait_or_timeout)(event_t e, double seconds); // seconds < 0 forever
-    // returns event index or -1 on timeout or abandon
-    int (*wait_any)(int n, event_t events[]); // -1 on abandon
-    int (*wait_any_or_timeout)(int n, event_t e[], double seconds);
-    void (*dispose)(event_t e);
-} events_if;
-
-extern events_if events;
-
-typedef struct { byte content[40]; } mutex_t;
-
-typedef struct {
-    void (*init)(mutex_t* m);
-    void (*lock)(mutex_t* m);
-    void (*unlock)(mutex_t* m);
-    void (*dispose)(mutex_t* m);
-} mutex_if;
-
-extern mutex_if mutexes;
-
-typedef struct {
-    void* (*exchange_ptr)(volatile void** a, void* v);
-    int32_t (*increment_int32)(volatile int32_t* a); // returns incremented
-    int32_t (*decrement_int32)(volatile int32_t* a); // returns decremented
-    int64_t (*increment_int64)(volatile int64_t* a); // returns incremented
-    int64_t (*decrement_int64)(volatile int64_t* a); // returns decremented
-    int64_t (*add_int64)(volatile int64_t* a, int64_t v); // returns result of add
-    // returns the value held previously by "a" address:
-    int32_t (*exchange_int32)(volatile int32_t* a, int32_t v);
-    int64_t (*exchange_int64)(volatile int64_t* a, int64_t v);
-    // compare_exchange functions compare the *a value with the comparand value.
-    // If the *a is equal to the comparand value, the "v" value is stored in the address
-    // specified by "a" otherwise, no operation is performed.
-    // returns true if previous value *a was the same as "comparand"
-    // false if *a was different from "comparand" and "a" was NOT modified.
-    bool (*compare_exchange_int64)(volatile int64_t* a, int64_t comparand, int64_t v);
-    bool (*compare_exchange_int32)(volatile int32_t* a, int32_t comparand, int32_t v);
-    bool (*compare_exchange_ptr)(volatile void** a, void* comparand, void* v);
-    void (*spinlock_acquire)(volatile int64_t* spinlock);
-    void (*spinlock_release)(volatile int64_t* spinlock);
-    int32_t (*load32)(volatile int32_t* a);
-    int64_t (*load64)(volatile int64_t* a);
-    void (*memory_fence)(void);
-} atomics_if;
-
-extern atomics_if atomics;
 
 end_c
 

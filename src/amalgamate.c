@@ -76,7 +76,7 @@ static void msvc_folder_up2(const char* argv0) {
     }
 }
 
-int main(int argc, const char* argv[]) {
+int main(int unused(argc), const char* argv[]) {
     msvc_folder_up2(argv[0]); // msvc debugging convenience
     fatal_if_null(getcwd(folder, countof(folder)));
     traceln("%s", folder);

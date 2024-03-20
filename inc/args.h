@@ -1,7 +1,7 @@
 #pragma once
 #include "manifest.h"
-#include <stdint.h>
-#include <stdbool.h>
+
+begin_c
 
 typedef struct {
     int (*option_index)(int argc, const char* argv[], const char* option);
@@ -16,8 +16,6 @@ typedef struct {
     const char* (*option_str)(int *argc, const char* argv[], const char* option);
     int (*parse)(const char* cl, const char** argv, char* buff);
 } args_if;
-
-begin_c
 
 extern args_if args;
 

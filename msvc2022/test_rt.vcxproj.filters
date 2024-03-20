@@ -14,6 +14,18 @@
     <ClCompile Include="..\src\args.c">
       <Filter>rt\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\events.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mutexes.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\threads.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\atomics.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h">
@@ -32,6 +44,18 @@
       <Filter>rt\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\win32.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\atomics.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\events.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\mutexes.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\threads.h">
       <Filter>rt\inc</Filter>
     </ClInclude>
   </ItemGroup>

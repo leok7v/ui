@@ -4,8 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-begin_c
-
 static int32_t args_option_index(int argc, const char* argv[], const char* option) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--") == 0) { break; } // no options after '--'
@@ -133,5 +131,3 @@ args_if args = {
     .option_str   = args_option_str,
     .parse        = args_parse
 };
-
-end_c
