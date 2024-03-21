@@ -15,9 +15,9 @@ jobs:
       - name: setup msbuild
         uses: microsoft/setup-msbuild@v1.1
       - name: build debug
-        run:  msbuild msvc2022\quick.sln -t:rebuild -verbosity:quiet -property:Configuration=debug
+        run:  msbuild msvc2022\xrt.sln -t:rebuild -verbosity:quiet -property:Configuration=debug
       - name: build release
-        run:  msbuild msvc2022\quick.sln -t:rebuild -verbosity:quiet -property:Configuration=release
+        run:  msbuild msvc2022\xrt.sln -t:rebuild -verbosity:quiet -property:Configuration=release
       - name: short sha
         id: vars
         run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
