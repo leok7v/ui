@@ -1,6 +1,8 @@
 #include "rt.h"
 #include <stdatomic.h> // needs cl.exe /experimental:c11atomics command line
 
+// see: https://developercommunity.visualstudio.com/t/C11--C17-include-stdatomich-issue/10620622
+
 #define ATOMICS_HAS_STDATOMIC_H
 
 #ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type) etc...
@@ -167,7 +169,8 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
             __builtin_cpu_pause();
         }
     }
-    atomics.memory_fence(); // not strcitly necessary on strong mem model Intel/AMD but
+    atomics.memory_fence();
+    // not strcitly necessary on strong mem model Intel/AMD but
     // see: https://cfsamsonbooks.gitbook.io/explaining-atomics-in-rust/
     //      Fig 2 Inconsistent C11 execution of SB and 2+2W
     assert(*spinlock == 1);
@@ -201,7 +204,13 @@ atomics_if atomics = {
 
 #endif // __INTELLISENSE__
 
-// 2024-03-20 latest Win32 SDK and cl.exe
+// 2024-03-20 latest windows runtime and toolchain cl.exe
+// ... VC\Tools\MSVC\14.39.33519\include
+// see:
+//     vcruntime_c11_atomic_support.h
+//     vcruntime_c11_stdatomic.h
+//     stdatomic.h
 // https://developercommunity.visualstudio.com/t/C11--C17-include--issue/10620622
-// cl.exe needs /experimental:c11atomics command line option for this to compile
+// cl.exe /std:c11 /experimental:c11atomics
+// command line option are required
 // even in C17 mode in spring of 2024
