@@ -22,7 +22,10 @@ jobs:
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)"  >> $GITHUB_OUTPUT
       - name: check short sha
-        run: echo ${{ steps.vars.outputs.sha_short }}
+        run: |
+            echo "sha_short: $env:sha_short"
+        env:
+          sha_short: ${{ steps.vars.outputs.sha_short }}
       - name: upload release artifact
         uses: actions/upload-artifact@v4
         with:
