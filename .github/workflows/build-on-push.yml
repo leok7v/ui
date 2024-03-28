@@ -9,11 +9,11 @@ jobs:
   build:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: setup msbuild
-        uses: microsoft/setup-msbuild@v1.1
+        uses: microsoft/setup-msbuild@v2
       - name: build debug
         run:  msbuild msvc2022\xrt.sln -t:rebuild -verbosity:quiet -property:Configuration=debug
       - name: build release
@@ -24,7 +24,7 @@ jobs:
       - name: check short sha
         run: echo ${{ steps.vars.outputs.sha_short }}
       - name: upload release artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: quick.release.zip
           path: |
@@ -32,7 +32,7 @@ jobs:
             bin\release\test_rt.exe
           retention-days: 5
       - name: upload debug artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: quick.debug.zip
           path: |
