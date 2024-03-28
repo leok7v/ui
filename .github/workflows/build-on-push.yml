@@ -20,13 +20,13 @@ jobs:
         run:  msbuild msvc2022\xrt.sln -t:rebuild -verbosity:quiet -property:Configuration=release
       - name: short sha
         id: vars
-        run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+        run: echo "sha_short=$(git rev-parse --short HEAD)"  >> $GITHUB_OUTPUT
       - name: check short sha
-        run: echo ${{ steps.vars.outputs.sha_short }}
+        run: echo $GITHUB_OUTPUT
       - name: upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: quick.release.zip
+          name: xrt.release.zip
           path: |
             bin\release\hellow_world.exe
             bin\release\test_rt.exe
@@ -34,7 +34,7 @@ jobs:
       - name: upload debug artifact
         uses: actions/upload-artifact@v4
         with:
-          name: quick.debug.zip
+          name: xrt.debug.zip
           path: |
             bin\debug\hellow_world.exe
             bin\debug\test_rt.exe
