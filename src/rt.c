@@ -13,6 +13,7 @@
 #endif
 
 #include <Windows.h>
+#include <immintrin.h> // _tzcnt_u32
 // #include <timeapi.h>
 // #include <sysinfoapi.h>
 

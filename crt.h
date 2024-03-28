@@ -60,13 +60,10 @@
 #define end_c
 #endif
 
-#ifdef WIN32 // definded for all windows platforms
+#if defined(WIN32) && !defined(WINDOWS) // definded for all windows platforms
 #define WINDOWS // less obscure name
 #endif
 
-#if defined(WIN32) && !defined(WINDOWS)
-#define WINDOWS
-#endif
 #if defined(_DEBUG) && !defined(DEBUG)
 #define DEBUG _DEBUG
 #endif
