@@ -1,5 +1,5 @@
 #include "rt.h"
-#include "trace.h"
+#include "debug.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -13,18 +13,18 @@ __declspec(dllimport) void __stdcall OutputDebugStringW(const uint16_t* s);
 #pragma comment(lib, "Kernel32")
 #endif
 
-static const char* trace_abbreviate(const char* file) {
+static const char* debug_abbreviate(const char* file) {
     const char* fn = strrchr(file, '\\');
     if (fn == null) { fn = strrchr(file, '/'); }
     return fn != null ? fn + 1 : file;
 }
 
-static void trace_vprintf(const char* file, int line, const char* func,
+static void debug_vprintf(const char* file, int line, const char* func,
         const char* format, va_list vl) {
     char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
     // for all other scenarious short filename without path is preferable:
-    const char* name = IsDebuggerPresent() ? file : trace_abbreviate(file);
+    const char* name = IsDebuggerPresent() ? file : debug_abbreviate(file);
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
     prefix[countof(prefix) - 1] = 0; // zero terminated
@@ -58,7 +58,7 @@ static void trace_vprintf(const char* file, int line, const char* func,
 
 #else // posix version:
 
-static void trace_vprintf(const char* file, int line, const char* func,
+static void debug_vprintf(const char* file, int line, const char* func,
         const char* format, va_list vl) {
     fprintf(stderr, "%s(%d): %s ", file, line, func);
     vfprintf(stderr, format, vl);
@@ -67,45 +67,48 @@ static void trace_vprintf(const char* file, int line, const char* func,
 
 #endif
 
-static void trace_perrno(const char* file, int32_t line,
+static void debug_perrno(const char* file, int32_t line,
     const char* func, int32_t err_no, const char* format, ...) {
     if (err_no != 0) {
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            trace.vprintf(file, line, func, format, vl);
+            debug.vprintf(file, line, func, format, vl);
             va_end(vl);
         }
-        trace.printf(file, line, func, "errno: %d %s", err_no, strerror(err_no));
+        debug.printf(file, line, func, "errno: %d %s", err_no, strerror(err_no));
     }
 }
 
-static void trace_perror(const char* file, int32_t line,
+static void debug_perror(const char* file, int32_t line,
     const char* func, int32_t error, const char* format, ...) {
     if (error != 0) {
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            trace.vprintf(file, line, func, format, vl);
+            debug.vprintf(file, line, func, format, vl);
             va_end(vl);
         }
-        trace.printf(file, line, func, "error: %s", crt.error(error));
+        debug.printf(file, line, func, "error: %s", crt.error(error));
     }
 }
 
-static void trace_printf(const char* file, int line, const char* func,
+static void debug_printf(const char* file, int line, const char* func,
         const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    trace.vprintf(file, line, func, format, vl);
+    debug.vprintf(file, line, func, format, vl);
     va_end(vl);
 }
 
-trace_if trace = {
-    .printf  = trace_printf,
-    .vprintf = trace_vprintf,
-    .perrno  = trace_perrno,
-    .perror  = trace_perror
+static void debug_breakpoint(void) { if (IsDebuggerPresent()) { DebugBreak(); } }
+
+debug_if debug = {
+    .printf  = debug_printf,
+    .vprintf = debug_vprintf,
+    .perrno  = debug_perrno,
+    .perror  = debug_perror,
+    .breakpoint = debug_breakpoint
 };
 
 end_c

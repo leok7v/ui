@@ -9,7 +9,7 @@
 #include "mutexes.h"
 #include "static.h"
 #include "threads.h"
-#include "trace.h"
+#include "debug.h"
 #include "va_args.h"
 
 #include <ctype.h>
@@ -112,7 +112,7 @@ typedef struct {
     void (*memunmap)(void* data, int64_t bytes);
     // memmap_res() maps data from resources, do NOT unmap!
     int (*memmap_res)(const char* label, void** data, int64_t* bytes);
-    void (*sleep)(double seconds);
+    void (*sleep)(double seconds);  // deprecated: threads.sleep_for()
     double (*seconds)(void); // since boot
     int64_t (*nanoseconds)(void); // since boot
     uint64_t (*microseconds)(void); // NOT monotonic(!) UTC since epoch January 1, 1601
@@ -135,19 +135,8 @@ typedef struct {
     int (*utf16_chars)(const char* s);
     char* (*utf16_utf8)(char* destination, const wchar_t* utf16);
     wchar_t* (*utf8_utf16)(wchar_t* destination, const char* utf8);
-    void (*ods)(const char* file, int line, const char* function,
-        const char* format, ...); // Output Debug String
-    void (*traceline)(const char* file, int line, const char* function,
-        const char* format, ...);
-    void (*vtraceline)(const char* file, int line, const char* function,
-        const char* format, va_list vl);
-    void (*breakpoint)(void);
-    int (*gettid)(void);
-    int (*assertion_failed)(const char* file, int line, const char* function,
-                         const char* condition, const char* format, ...);
-    void (*fatal)(const char* file, int line, const char* function,
-        const char* (*err2str)(int32_t error), int32_t error,
-        const char* call, const char* extra);
+    void (*breakpoint)(void); // deprecated: debug.breakpoint()
+    int (*gettid)(void); // deprecated: threads.id()
 } crt_if;
 
 extern crt_if crt;

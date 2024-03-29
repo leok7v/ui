@@ -47,9 +47,9 @@
   <ItemGroup>
     <ClCompile Include="..\src\amalgamate.c" />
     <ClCompile Include="..\src\args.c" />
+    <ClCompile Include="..\src\debug.c" />
     <ClCompile Include="..\src\rt.c" />
     <ClCompile Include="..\src\static.c" />
-    <ClCompile Include="..\src\trace.c" />
     <ClCompile Include="..\src\vigil.c" />
   </ItemGroup>
   <ItemGroup>

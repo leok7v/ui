@@ -1,5 +1,3 @@
-#include "vigil.h"
-#include "trace.h"
 #include "rt.h"
 #include <stdbool.h>
 #include <stdlib.h>
@@ -10,9 +8,9 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    trace.vprintf(file, line, func, format, vl);
+    debug.vprintf(file, line, func, format, vl);
     va_end(vl);
-    trace.printf(file, line, func, "assertion failed: %s\n", condition);
+    debug.printf(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
     const bool always_true = crt.abort != null;
     if (always_true) { crt.abort(); }
@@ -24,17 +22,17 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     const int32_t en = errno;
     va_list vl;
     va_start(vl, format);
-    trace.vprintf(file, line, func, format, vl);
+    debug.vprintf(file, line, func, format, vl);
     va_end(vl);
     // report last errors:
-    if (er != 0) { trace.perror(file, line, func, er, ""); }
-    if (en != 0) { trace.perrno(file, line, func, en, ""); }
+    if (er != 0) { debug.perror(file, line, func, er, ""); }
+    if (en != 0) { debug.perrno(file, line, func, en, ""); }
     if (condition != null && condition[0] != 0) {
-        trace.printf(file, line, func, "FATAL: %s\n", condition);
+        debug.printf(file, line, func, "FATAL: %s\n", condition);
     } else {
-        trace.printf(file, line, func, "FATAL\n");
+        debug.printf(file, line, func, "FATAL\n");
     }
-    const bool always_true = trace.printf != null;
+    const bool always_true = debug.printf != null;
     if (always_true) { abort(); }
     return 0;
 }
@@ -46,6 +44,7 @@ static int32_t vigil_test_failed_assertion_count;
 static int32_t vigil_test_verbosity;
 
 #pragma push_macro("vigil")
+// intimate knowledge of vigil.*() functions used in macro definitions
 #define vigil vigil_test_saved
 
 static int32_t vigil_test_failed_assertion(const char* file, int line,
@@ -59,9 +58,9 @@ static int32_t vigil_test_failed_assertion(const char* file, int line,
     if (vigil_test_verbosity > 0) {
         va_list vl;
         va_start(vl, format);
-        trace.vprintf(file, line, func, format, vl);
+        debug.vprintf(file, line, func, format, vl);
         va_end(vl);
-        trace.printf(file, line, func, "assertion failed: %s\n", condition);
+        debug.printf(file, line, func, "assertion failed: %s\n", condition);
     }
     return 0;
 }
@@ -83,14 +82,14 @@ static int32_t vigil_test_fatal_termination(const char* file, int line,
     if (vigil_test_verbosity > 0) {
         va_list vl;
         va_start(vl, format);
-        trace.vprintf(file, line, func, format, vl);
+        debug.vprintf(file, line, func, format, vl);
         va_end(vl);
-        if (er != 0) { trace.perror(file, line, func, er, ""); }
-        if (en != 0) { trace.perrno(file, line, func, en, ""); }
+        if (er != 0) { debug.perror(file, line, func, er, ""); }
+        if (en != 0) { debug.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {
-            trace.printf(file, line, func, "FATAL: %s\n", condition);
+            debug.printf(file, line, func, "FATAL: %s\n", condition);
         } else {
-            trace.printf(file, line, func, "FATAL\n");
+            debug.printf(file, line, func, "FATAL\n");
         }
     }
     return 0;

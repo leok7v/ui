@@ -5,9 +5,6 @@
     <ClCompile Include="..\src\rt.c">
       <Filter>rt\src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\trace.c">
-      <Filter>rt\src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\vigil.c">
       <Filter>rt\src</Filter>
     </ClCompile>
@@ -29,6 +26,9 @@
     <ClCompile Include="..\src\static.c">
       <Filter>rt\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\debug.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h">
@@ -38,9 +38,6 @@
       <Filter>rt\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\rt.h">
-      <Filter>rt\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\trace.h">
       <Filter>rt\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\vigil.h">
@@ -65,6 +62,9 @@
       <Filter>rt\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\va_args.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\debug.h">
       <Filter>rt\inc</Filter>
     </ClInclude>
   </ItemGroup>

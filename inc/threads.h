@@ -11,7 +11,9 @@ typedef struct {
     void (*join)(thread_t thread);
     void (*name)(const char* name); // names the thread
     void (*realtime)(void); // bumps calling thread priority
-    void (*yield)(void);    // SwitchToThread()
+    void (*yield)(void);    // pthread_yield() / Win32: SwitchToThread()
+    void (*sleep_for)(double seconds);
+    int32_t (*id)(void);    // gettid()
 } threads_if;
 
 extern threads_if threads;

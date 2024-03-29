@@ -434,96 +434,6 @@ static void threads_realtime(void) {
     crt_disable_power_throttling();
 }
 
-static void utf8_ods(const char* s) { OutputDebugStringW(utf8to16(s)); }
-
-enum { NO_LINEFEED = -2 };
-
-static int vformat_(char* s, int count, const char* file, int line,
-    const char* func, const char* format, va_list vl) {
-    s[0] = 0;
-    char* sb = s;
-    int left = count - 1;
-    const char* foo = func != null ? func : "";
-    const char* fn = file != null ? file : "";
-    if (fn[0] != 0) {
-        crt.sformat(sb, left, "%s(%d): [%05d] %s ", file, line, crt.gettid(), foo);
-        int n = (int)strlen(sb);
-        sb += n;
-        left -= n;
-    } else  if (foo[0] != 0) {
-        crt.sformat(sb, left, "[%05d] %s ", crt.gettid(), foo);
-        int n = (int)strlen(sb);
-        sb += n;
-        left -= n;
-    }
-    crt.vformat(sb, left, format, vl);
-    int k = (int)strlen(sb);
-    sb += k;
-    if (k == 0 || sb[-1] != '\n') {
-        *sb = '\n';
-        sb++;
-        *sb = 0;
-    }
-    return (int)(sb - s);
-}
-
-// traceln() both OutputDebugStringA() and vfprintf() are subject
-// of synchronization/serialization and may enter wait state which
-// in combination with Windows scheduler can take milliseconds to
-// complete. In time critical threads use traceln() instead which
-// does NOT lock at all and completes in microseconds
-
-static void crt_ods_and_printf_vl(bool print, const char* file, int line,
-        const char* func, const char* format, va_list vl) {
-    print = print && GetStdHandle(STD_ERROR_HANDLE) != null;
-    enum { max_ods_count = 32 * 1024 - 1 };
-    char s[max_ods_count * 2 + 1];
-    const char* foo = func != null ? func : "";
-    const char* fn = file != null ? file : "";
-    if (fn[0] != 0 || foo[0] != 0) {
-        const char* basename = strrchr(fn, '/');
-        if (basename == null) { basename = strrchr(fn, '\\'); }
-        basename = basename != null ? basename + 1 : file;
-        (void)vformat_(s, (int)countof(s), fn, line, foo, format, vl);
-        utf8_ods(s);
-        if (print) {
-            if (fn[0] != 0) {
-                const char* bn = (file + (int)(basename - file));
-                fprintf(stderr, "%s(%d): [%05d] %s ", bn, line, crt.gettid(), foo);
-            } else {
-                fprintf(stderr, "[%05d] %s ", crt.gettid(), foo);
-            }
-            vfprintf(stderr, format, vl);
-            fprintf(stderr, "\n");
-        }
-    } else {
-        crt.vformat(s, (int)countof(s), format, vl);
-        utf8_ods(s);
-        if (print) { vfprintf(stderr, format, vl); }
-    }
-}
-
-static void crt_traceline_vl(const char* file, int line, const char* func,
-        const char* format, va_list vl) {
-    crt_ods_and_printf_vl(true, file, line, func, format, vl);
-}
-
-static void crt_traceline(const char* file, int line, const char* func,
-        const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    crt_ods_and_printf_vl(true, file, line, func, format, vl);
-    va_end(vl);
-}
-
-static void crt_ods(const char* file, int line, const char* func,
-        const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    crt_ods_and_printf_vl(false, file, line, func, format, vl);
-    va_end(vl);
-}
-
 static int crt_utf8_bytes(const wchar_t* utf16) {
     int required_bytes_count = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
         utf16, -1, null, 0, null, null);
@@ -557,34 +467,6 @@ static wchar_t* crt_utf8to16(wchar_t* utf16, const char* s) {
 static void crt_breakpoint(void) { if (IsDebuggerPresent()) { DebugBreak(); } }
 
 static int crt_gettid(void) { return (int)GetCurrentThreadId(); }
-
-static void crt_fatal(const char* file, int line, const char* func,
-        const char* (*err2str)(int32_t err), int32_t error,
-        const char* call, const char* extra) {
-    crt.traceline(file, line, func, "FATAL: %s failed %s %s",
-        call, err2str(error), extra);
-    crt.breakpoint();
-    if (file != null) { ExitProcess(error); }
-}
-
-static int crt_assertion_failed(const char* file, int line, const char* func,
-                      const char* condition, const char* format, ...) {
-    const int n = (int)strlen(format);
-    if (n == 0) {
-        crt.traceline(file, line, func, "assertion failed: \"%s\"", condition);
-    } else {
-        crt.traceline(file, line, func, "assertion failed: \"%s\"", condition);
-        va_list va;
-        va_start(va, format);
-        crt_traceline_vl(file, line, func, format, va);
-        va_end(va);
-    }
-    crt.sleep(0.25); // give other threads some time to flush buffers
-    crt.breakpoint();
-    // pretty much always true but avoids "warning: unreachable code"
-    if (file != null || line != 0 || func != null) { exit(1); }
-    return 0;
-}
 
 static int32_t crt_err(void) { return GetLastError(); }
 
@@ -794,13 +676,8 @@ crt_if crt = {
     .utf16_chars = crt_utf16_chars,
     .utf16_utf8 = crt_utf16to8,
     .utf8_utf16 = crt_utf8to16,
-    .ods = crt_ods,
-    .traceline = crt_traceline,
-    .vtraceline = crt_traceline_vl,
     .breakpoint = crt_breakpoint,
-    .gettid = crt_gettid,
-    .assertion_failed = crt_assertion_failed,
-    .fatal = crt_fatal
+    .gettid = crt_gettid
 };
 
 #pragma comment(lib, "advapi32")

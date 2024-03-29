@@ -20,12 +20,13 @@ typedef struct {
         const char* func, int32_t err_no, const char* format, ...);
     void (*perror)(const char* file, int32_t line,
         const char* func, int32_t error, const char* format, ...);
-} trace_if;
+    void (*breakpoint)(void);
+} debug_if;
 
-#define traceln(...) trace.printf(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define traceln(...) debug.printf(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
 begin_c
 
-extern trace_if trace;
+extern debug_if debug;
 
 end_c

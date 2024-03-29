@@ -14,22 +14,22 @@ No goals: (or "Quick is not...")
 
 Motivation:
 
-The Microsoft C-runtime (even for C99, C11 and C14) is still missing
-a lot of really essential posix funtionality.
+The Microsoft C-runtime (even for C99, C11, C17, C23) is still missing
+a lot of really essential posix functionality.
 
 Quick is a poor man attempt to make peace between platforms 
-shortcommings and differences is a set of (thread safe and
+shortcomings and differences is a set of (thread safe and
 fail fast) functions packed is reasonable modular interfaces.
 
 Using interfaces for essentially static functions is expensive
-in terms of ultimate performance but minimizes polution of 
-global namespace. Time crirical sections of the code can always
+in terms of ultimate performance but minimizes pollution of 
+global namespace. Time critical sections of the code can always
 manually inside necessary code.
 
 The shortage or resources or invalid parameters always handled
-inside funtions and result in fatal error and process termination.
+inside functions and result in fatal error and process termination.
 
-Using UTF-8 instead of UTF-16 on application level whereever possible.
+Using UTF-8 instead of UTF-16 on application level wherever possible.
 
 ```
 

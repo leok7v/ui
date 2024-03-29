@@ -190,11 +190,45 @@ static void threads_name(const char* name) {
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
 }
 
+static void* threads_ntdll(void) {
+    static HMODULE ntdll;
+    if (ntdll == null) {
+        ntdll = crt.dlopen("ntdll.dll", 0);
+        not_null(ntdll);
+    }
+    return ntdll;
+}
+
+static void threads_sleep_for(double seconds) {
+    assert(seconds >= 0);
+    if (seconds < 0) { seconds = 0; }
+    int64_t ns100 = (int64_t)(seconds * 1.0e+7); // in 0.1 us aka 100ns
+    typedef int (__stdcall *nt_delay_execution_t)(BOOLEAN alertable,
+        PLARGE_INTEGER DelayInterval);
+    static nt_delay_execution_t NtDelayExecution;
+    // delay in 100-ns units. negative value means delay relative to current.
+    LARGE_INTEGER delay = {0}; // delay in 100-ns units.
+    delay.QuadPart = -ns100; // negative value means delay relative to current.
+    if (NtDelayExecution == null) {
+        void* ntdll = threads_ntdll();
+        NtDelayExecution = (nt_delay_execution_t)
+            crt.dlsym(ntdll, "NtDelayExecution");
+        not_null(NtDelayExecution);
+    }
+    // If "alertable" is set, sleep_for() can break earlier
+    // as a result of NtAlertThread call.
+    NtDelayExecution(false, &delay);
+}
+
+static int32_t threads_id(void) { return GetThreadId(GetCurrentThread()); }
+
 threads_if threads = {
-    .start    = threads_start,
-    .try_join = threads_try_join,
-    .join     = threads_join,
-    .name     = threads_name,
-    .realtime = threads_realtime,
-    .yield    = threads_yield
+    .start     = threads_start,
+    .try_join  = threads_try_join,
+    .join      = threads_join,
+    .name      = threads_name,
+    .realtime  = threads_realtime,
+    .yield     = threads_yield,
+    .sleep_for = threads_sleep_for,
+    .id        = threads_id
 };
