@@ -26,6 +26,9 @@
     <ClCompile Include="..\src\atomics.c">
       <Filter>rt\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\static.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h">

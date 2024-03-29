@@ -61,6 +61,7 @@
     <ClCompile Include="..\src\events.c" />
     <ClCompile Include="..\src\mutexes.c" />
     <ClCompile Include="..\src\rt.c" />
+    <ClCompile Include="..\src\static.c" />
     <ClCompile Include="..\src\threads.c" />
     <ClCompile Include="..\src\trace.c" />
     <ClCompile Include="..\src\vigil.c" />

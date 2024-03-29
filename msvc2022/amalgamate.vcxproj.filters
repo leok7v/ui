@@ -6,6 +6,7 @@
     <ClCompile Include="..\src\vigil.c" />
     <ClCompile Include="..\src\trace.c" />
     <ClCompile Include="..\src\args.c" />
+    <ClCompile Include="..\src\static.c" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\amalgamate.txt" />

@@ -17,6 +17,7 @@ typedef struct {
         const char* func, const char* condition, const char* format, ...);
     int32_t (*fatal_termination)(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...);
+    void (*test)(int32_t verbosity);
 } vigil_if;
 
 extern vigil_if vigil;

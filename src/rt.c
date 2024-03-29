@@ -23,22 +23,6 @@ const char* _strtolc_(char* d, const char* s) {
     return r;
 }
 
-static void* symbol_reference[1024];
-static int symbol_reference_count;
-
-void* _force_symbol_reference_(void* symbol) {
-    assert(symbol_reference_count <= countof(symbol_reference),
-        "increase size of symbol_reference[%d] to at least %d",
-        countof(symbol_reference), symbol_reference);
-    if (symbol_reference_count < countof(symbol_reference)) {
-        symbol_reference[symbol_reference_count] = symbol;
-//      traceln("symbol_reference[%d] = %p", symbol_reference_count, symbol_reference[symbol_reference_count]);
-        symbol_reference_count++;
-    }
-    return symbol;
-}
-
-
 static void crt_vformat(char* utf8, int count, const char* format, va_list vl) {
     vsnprintf(utf8, count, format, vl);
     utf8[count - 1] = 0;
@@ -82,6 +66,15 @@ static const char* crt_error_nls(int32_t error) {
     const LANGID lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
     return crt_error_for_language(error, lang);
 }
+
+// abort does NOT call atexit() functions and
+// does NOT flush streams. Also Win32 runtime
+// abort() attempt to show Abort/Retry/Ignore
+// MessageBox - thus ExitProcess()
+
+static void crt_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
+
+static void crt_exit(int32_t exit_code) { exit(exit_code); }
 
 static void crt_sleep(double seconds) {
     assert(seconds >= 0);
@@ -752,6 +745,8 @@ static int crt_memmap_res(const char* label, void* *data, int64_t *bytes) {
 crt_if crt = {
     .err = crt_err,
     .seterr = crt_seterr,
+    .abort = crt_abort,
+    .exit = crt_exit,
     .sleep = crt_sleep,
     .random32 = crt_random32,
     .random64 = crt_random64,

@@ -15,20 +15,20 @@
 #define _msvc_extern_c_ extern
 #endif
 
-#pragma comment(linker, "/include:_force_symbol_reference_")
+#pragma comment(linker, "/include:_static_force_symbol_reference_")
 
-void* _force_symbol_reference_(void* symbol);
+void* _static_force_symbol_reference_(void* symbol);
 
-#define _msvc_ctor_(_sym_prefix, func)                                  \
-  _msvc_extern_c_ void func(void);                                      \
-  _msvc_extern_c_ int (* _array ## func)(void);                         \
-  _msvc_extern_c_ int func ## _wrapper(void);                           \
-  _msvc_extern_c_ int func ## _wrapper(void) { func();                  \
-    _force_symbol_reference_((void*)_array ## func);                    \
-    _force_symbol_reference_((void*)func ## _wrapper); return 0; }      \
-  __pragma(comment(linker, "/include:" _sym_prefix # func "_wrapper"))  \
-  __pragma(section(".CRT$XCU", read))                                   \
-  __declspec(allocate(".CRT$XCU"))                                      \
+#define _msvc_ctor_(_sym_prefix, func)                                    \
+  _msvc_extern_c_ void func(void);                                        \
+  _msvc_extern_c_ int (* _array ## func)(void);                           \
+  _msvc_extern_c_ int func ## _wrapper(void);                             \
+  _msvc_extern_c_ int func ## _wrapper(void) { func();                    \
+    _static_force_symbol_reference_((void*)_array ## func);               \
+    _static_force_symbol_reference_((void*)func ## _wrapper); return 0; } \
+  __pragma(comment(linker, "/include:" _sym_prefix # func "_wrapper"))    \
+  __pragma(section(".CRT$XCU", read))                                     \
+  __declspec(allocate(".CRT$XCU"))                                        \
     int (* _array ## func)(void) = func ## _wrapper;
 
 #define _static_init2_(func, line) _msvc_ctor_(_msvc_symbol_prefix_, \
@@ -40,5 +40,9 @@ void* _force_symbol_reference_(void* symbol);
 #define static_init(func) _static_init1_(func, __LINE__)
 
 #else
-#define static_init(n) __attribute__((constructor)) static void _init_ ## n ##_ctor(void)
+#define static_init(n) __attribute__((constructor)) \
+        static void _init_ ## n ## __LINE__ ## _ctor(void)
 #endif
+
+void static_init_test(int32_t verbosity);
+

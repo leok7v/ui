@@ -84,6 +84,9 @@ char* strnchr(const char* s, int n, char ch);
 #define strstartswith(a, b) \
     (strlen(a) >= strlen(b) && memcmp((a), (b), strlen(b)) == 0)
 
+#define strncasecmp _strnicmp
+#define strcasecmp _stricmp
+
 enum {
     NSEC_IN_USEC = 1000,
     NSEC_IN_MSEC = NSEC_IN_USEC * 1000,
@@ -93,6 +96,8 @@ enum {
 typedef struct {
     int32_t (*err)(void); // errno or GetLastError()
     void (*seterr)(int32_t err); // errno = err or SetLastError()
+    void (*abort)(void);
+    void (*exit)(int32_t exit_code); // only 8 bits on posix
     // non-crypto strong pseudo-random number generators (thread safe)
     uint32_t (*random32)(uint32_t *state); // "Mulberry32"
     uint64_t (*random64)(uint64_t *state); // "Trust"
