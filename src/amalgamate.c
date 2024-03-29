@@ -72,7 +72,9 @@ static void msvc_folder_up2(const char* argv0) {
         strendswith(folder, "bin\\Release") ||
         strendswith(folder, "bin\\debug") ||
         strendswith(folder, "bin\\Debug")) {
-        fatal_if_not_zero(_chdir(strconcat(folder, "\\..\\..")));
+        char cd[4 * 1024];
+        strprintf(cd, "%s\\..\\..", folder);
+        fatal_if_not_zero(_chdir(cd));
     }
 }
 

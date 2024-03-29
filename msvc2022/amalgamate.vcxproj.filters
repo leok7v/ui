@@ -2,13 +2,34 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\src\amalgamate.c" />
-    <ClCompile Include="..\src\rt.c" />
-    <ClCompile Include="..\src\vigil.c" />
-    <ClCompile Include="..\src\args.c" />
-    <ClCompile Include="..\src\static.c" />
-    <ClCompile Include="..\src\debug.c" />
+    <ClCompile Include="..\src\args.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\debug.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\static.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\str.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\vigil.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\amalgamate.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="rt">
+      <UniqueIdentifier>{75a5eead-6d3a-4a50-8a81-b8509cad839b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="rt\src">
+      <UniqueIdentifier>{ba5e9330-91c6-4ee0-acdf-86c4e59dd61b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
 </Project>

@@ -50,6 +50,7 @@
     <ClCompile Include="..\src\debug.c" />
     <ClCompile Include="..\src\rt.c" />
     <ClCompile Include="..\src\static.c" />
+    <ClCompile Include="..\src\str.c" />
     <ClCompile Include="..\src\vigil.c" />
   </ItemGroup>
   <ItemGroup>

@@ -30,7 +30,5 @@ static_init(static_init_test) { static_init_function(); }
 void static_init_test(int32_t verbosity) {
     fatal_if(static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
-    if (verbosity > 0) {
-        traceln("static_init_function() called before main()");
-    }
+    if (verbosity > 0) { traceln("done"); }
 }

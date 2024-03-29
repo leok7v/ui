@@ -1,8 +1,4 @@
 #include "rt.h"
-#include "debug.h"
-#include <stdint.h>
-#include <stdio.h>
-#include <string.h>
 
 begin_c
 
@@ -89,7 +85,7 @@ static void debug_perror(const char* file, int32_t line,
             debug.vprintf(file, line, func, format, vl);
             va_end(vl);
         }
-        debug.printf(file, line, func, "error: %s", crt.error(error));
+        debug.printf(file, line, func, "error: %s", str.error(error));
     }
 }
 

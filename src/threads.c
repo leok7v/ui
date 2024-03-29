@@ -1,6 +1,6 @@
 #include "rt.h"
 
-static int64_t crt_ns2ms(int64_t ns) { return (ns + NSEC_IN_MSEC - 1) / NSEC_IN_MSEC; }
+static int64_t threads_ns2ms(int64_t ns) { return (ns + NSEC_IN_MSEC - 1) / NSEC_IN_MSEC; }
 
 typedef int (*gettimerresolution_t)(ULONG* minimum_resolution,
     ULONG* maximum_resolution, ULONG* actual_resolution);
@@ -8,7 +8,7 @@ typedef int (*settimerresolution_t)(ULONG requested_resolution,
     BOOLEAN Set, ULONG* actual_resolution);  // ntdll.dll
 typedef int (*timeBeginPeriod_t)(UINT period); // winmm.dll
 
-static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
+static int threads_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
     const int ns100 = (int)(ns / 100);
     HMODULE ntdll = GetModuleHandleA("ntdll.dll");
     if (ntdll == null) { ntdll = LoadLibraryA("ntdll.dll"); }
@@ -35,7 +35,7 @@ static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
 //      int64_t actual_ns  = actual_100ns  * 100LL;
         // note that maximum resolution is actually < minimum
         if (NtSetTimerResolution == null) {
-            const int milliseconds = (int)(crt_ns2ms(ns) + 0.5);
+            const int milliseconds = (int)(threads_ns2ms(ns) + 0.5);
             r = (int)maximum_ns <= ns && ns <= (int)minimum_ns ?
                 timeBeginPeriod(milliseconds) : ERROR_INVALID_PARAMETER;
         } else {
@@ -45,14 +45,14 @@ static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
         }
         NtQueryTimerResolution(&min_100ns, &max_100ns, &actual_100ns);
     } else {
-        const int milliseconds = (int)(crt_ns2ms(ns) + 0.5);
+        const int milliseconds = (int)(threads_ns2ms(ns) + 0.5);
         r = 1 <= milliseconds && milliseconds <= 16 ?
             timeBeginPeriod(milliseconds) : ERROR_INVALID_PARAMETER;
     }
     return r;
 }
 
-static void crt_power_throttling_disable_for_process(void) {
+static void threads_power_throttling_disable_for_process(void) {
     static bool disabled_for_the_process;
     if (!disabled_for_the_process) {
         PROCESS_POWER_THROTTLING_STATE pt = { 0 };
@@ -73,7 +73,7 @@ static void crt_power_throttling_disable_for_process(void) {
     }
 }
 
-static void crt_power_throttling_disable_for_thread(HANDLE thread) {
+static void threads_power_throttling_disable_for_thread(HANDLE thread) {
     THREAD_POWER_THROTTLING_STATE pt = { 0 };
     pt.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
     pt.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
@@ -82,12 +82,12 @@ static void crt_power_throttling_disable_for_thread(HANDLE thread) {
         &pt, sizeof(pt)));
 }
 
-static void crt_disable_power_throttling(void) {
-    crt_power_throttling_disable_for_process();
-    crt_power_throttling_disable_for_thread(GetCurrentThread());
+static void threads_disable_power_throttling(void) {
+    threads_power_throttling_disable_for_process();
+    threads_power_throttling_disable_for_thread(GetCurrentThread());
 }
 
-static uint64_t crt_next_physical_processor_affinity_mask(void) {
+static uint64_t threads_next_physical_processor_affinity_mask(void) {
     static volatile int32_t initialized;
     static int32_t init;
     static int next = 1; // next physical core to use
@@ -138,10 +138,10 @@ static void threads_realtime(void) {
     fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
     fatal_if_not_zero(
-        crt_scheduler_set_timer_resolution(NSEC_IN_MSEC));
+        threads_scheduler_set_timer_resolution(NSEC_IN_MSEC));
     fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
-        crt_next_physical_processor_affinity_mask()));
-    crt_disable_power_throttling();
+        threads_next_physical_processor_affinity_mask()));
+    threads_disable_power_throttling();
 }
 
 static void threads_yield(void) { SwitchToThread(); }
@@ -164,10 +164,10 @@ static bool threads_try_join(thread_t t, double timeout) {
     int32_t timeout_ms = timeout <= 0 ? 0 : (int)(timeout * 1000.0 + 0.5);
     int r = WaitForSingleObject(t, timeout_ms);
     if (r != 0) {
-        traceln("failed to join thread %p %s", t, crt.error(r));
+        traceln("failed to join thread %p %s", t, str.error(r));
     } else {
         r = CloseHandle(t) ? 0 : GetLastError();
-        if (r != 0) { traceln("CloseHandle(%p) failed %s", t, crt.error(r)); }
+        if (r != 0) { traceln("CloseHandle(%p) failed %s", t, str.error(r)); }
     }
     return r == 0;
 }

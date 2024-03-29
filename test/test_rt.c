@@ -37,6 +37,7 @@ int main(int argc, const char* argv[]) {
     }
     static_init_test(verbosity);
     vigil.test(verbosity);
+    str.test(verbosity);
     if (verbosity > 0) { printf("done\n"); }
     return 0;
 }

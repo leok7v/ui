@@ -63,6 +63,7 @@
     <ClCompile Include="..\src\mutexes.c" />
     <ClCompile Include="..\src\rt.c" />
     <ClCompile Include="..\src\static.c" />
+    <ClCompile Include="..\src\str.c" />
     <ClCompile Include="..\src\threads.c" />
     <ClCompile Include="..\src\vigil.c" />
     <ClCompile Include="..\test\test_rt.c" />
@@ -76,6 +77,7 @@
     <ClInclude Include="..\inc\mutexes.h" />
     <ClInclude Include="..\inc\rt.h" />
     <ClInclude Include="..\inc\static.h" />
+    <ClInclude Include="..\inc\str.h" />
     <ClInclude Include="..\inc\threads.h" />
     <ClInclude Include="..\inc\va_args.h" />
     <ClInclude Include="..\inc\vigil.h" />

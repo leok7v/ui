@@ -5,16 +5,6 @@
 
 #define ATOMICS_HAS_STDATOMIC_H
 
-#ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type) etc...
-
-// __INTELLISENSE__ Defined as 1 during an IntelliSense compiler pass
-// in the Visual Studio IDE. Otherwise, undefined. You can use this macro
-// to guard code the IntelliSense compiler doesn't understand,
-// or use it to toggle between the build and IntelliSense compiler.
-
-static_assertion(sizeof(void*) == sizeof(int64_t));
-static_assertion(sizeof(void*) == sizeof(uintptr_t));
-
 #ifndef ATOMICS_HAS_STDATOMIC_H
 
 static int32_t atomics_increment_int32(volatile int32_t* a) {
@@ -67,6 +57,13 @@ static void memory_fence(void) { _mm_mfence(); }
 #else
 
 // stdatomic.h version:
+
+#ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type)
+// __INTELLISENSE__ Defined as 1 during an IntelliSense compiler pass
+// in the Visual Studio IDE. Otherwise, undefined. You can use this macro
+// to guard code the IntelliSense compiler doesn't understand,
+// or use it to toggle between the build and IntelliSense compiler.
+
 
 // _strong() operations are the same as _explicit(..., memory_order_seq_cst)
 // memory_order_seq_cst stands for Sequentially Consistent Ordering
@@ -128,6 +125,8 @@ static bool atomics_compare_exchange_int32(volatile int32_t* a,
 
 static void memory_fence(void) { atomic_thread_fence(memory_order_seq_cst); }
 
+#endif // __INTELLISENSE__
+
 #endif // ATOMICS_HAS_STDATOMIC_H
 
 static int32_t atomics_load_int32(volatile int32_t* a) {
@@ -181,6 +180,11 @@ static void spinlock_release(volatile int64_t* spinlock) {
     *spinlock = 0;
     atomics.memory_fence(); // tribute to lengthy Linus discussion going since 2006
 }
+
+#ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type)
+
+static_assertion(sizeof(void*) == sizeof(int64_t));
+static_assertion(sizeof(void*) == sizeof(uintptr_t));
 
 atomics_if atomics = {
     .exchange_ptr    = atomics_exchange_ptr,

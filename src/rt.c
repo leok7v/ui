@@ -8,65 +8,6 @@
 
 begin_c
 
-char* strnchr(const char* s, int n, char ch) {
-    while (n > 0 && *s != 0) {
-        if (*s == ch) { return (char*)s; }
-        s++; n--;
-    }
-    return null;
-}
-
-const char* _strtolc_(char* d, const char* s) {
-    char* r = d;
-    while (*s != 0) { *d++ = (char)tolower(*s++); }
-    *d = 0;
-    return r;
-}
-
-static void crt_vformat(char* utf8, int count, const char* format, va_list vl) {
-    vsnprintf(utf8, count, format, vl);
-    utf8[count - 1] = 0;
-}
-
-static void crt_sformat(char* utf8, int count, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    crt.vformat(utf8, count, format, vl);
-    va_end(vl);
-}
-
-static const char* crt_error_for_language(int32_t error, LANGID language) {
-    static thread_local char text[256];
-    const DWORD format = FORMAT_MESSAGE_FROM_SYSTEM|
-        FORMAT_MESSAGE_IGNORE_INSERTS;
-    wchar_t s[256];
-    HRESULT hr = 0 <= error && error <= 0xFFFF ?
-        HRESULT_FROM_WIN32(error) : error;
-    if (FormatMessageW(format, null, hr, language, s, countof(s) - 1,
-            (va_list*)null) > 0) {
-        s[countof(s) - 1] = 0;
-        // remove trailing '\r\n'
-        int k = (int)wcslen(s);
-        if (k > 0 && s[k - 1] == '\n') { s[k - 1] = 0; }
-        k = (int)wcslen(s);
-        if (k > 0 && s[k - 1] == '\r') { s[k - 1] = 0; }
-        strprintf(text, "0x%08X(%d) \"%s\"", error, error, utf16to8(s));
-    } else {
-        strprintf(text, "0x%08X(%d)", error, error);
-    }
-    return text;
-}
-
-static const char* crt_error(int32_t error) {
-    const LANGID lang = MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT);
-    return crt_error_for_language(error, lang);
-}
-
-static const char* crt_error_nls(int32_t error) {
-    const LANGID lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
-    return crt_error_for_language(error, lang);
-}
-
 // abort does NOT call atexit() functions and
 // does NOT flush streams. Also Win32 runtime
 // abort() attempt to show Abort/Retry/Ignore
@@ -253,7 +194,7 @@ static int crt_data_size(const char* name, const char* key) {
             bytes = 0; // do not report data_size() often used this way
         } else if (r != 0) {
             traceln("%s.RegQueryValueExA(\"%s\") failed %s",
-                name, key, crt.error(r));
+                name, key, str.error(r));
             bytes = 0; // on any error behave as empty data
         } else {
             bytes = (int)cb;
@@ -276,7 +217,7 @@ static int crt_data_load(const char* name,
         } else if (r != 0) {
             if (r != ERROR_FILE_NOT_FOUND) {
                 traceln("%s.RegQueryValueExA(\"%s\") failed %s",
-                    name, key, crt.error(r));
+                    name, key, str.error(r));
             }
             read = 0; // on any error behave as empty data
         } else {
@@ -286,187 +227,6 @@ static int crt_data_load(const char* name,
     }
     return read;
 }
-
-static int64_t crt_ns2ms(int64_t ns) { return (ns + NSEC_IN_MSEC - 1) / NSEC_IN_MSEC; }
-
-typedef int (*gettimerresolution_t)(ULONG* minimum_resolution,
-    ULONG* maximum_resolution, ULONG* actual_resolution);
-typedef int (*settimerresolution_t)(ULONG requested_resolution,
-    BOOLEAN Set, ULONG* actual_resolution);
-
-static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
-    const int ns100 = (int)(ns / 100);
-    void* ntdll = crt_ntdll();
-    gettimerresolution_t NtQueryTimerResolution = (gettimerresolution_t)
-        crt.dlsym(ntdll, "NtQueryTimerResolution");
-    settimerresolution_t NtSetTimerResolution = (settimerresolution_t)
-        crt.dlsym(ntdll, "NtSetTimerResolution");
-    // it is resolution not frequency this is why it is in reverse
-    // to common sense and what is not on Windows?
-    unsigned long min_100ns = 16 * 10 * 1000;
-    unsigned long max_100ns = 1 * 10 * 1000;
-    unsigned long actual_100ns = 0;
-    int r = 0;
-    if (NtQueryTimerResolution != null &&
-        NtQueryTimerResolution(&min_100ns, &max_100ns, &actual_100ns) == 0) {
-        int64_t minimum_ns = min_100ns * 100LL;
-        int64_t maximum_ns = max_100ns * 100LL;
-//      int64_t actual_ns  = actual_100ns  * 100LL;
-        // note that maximum resolution is actually < minimum
-#ifdef CRT_FALLBACK_TO_TIMEBEGINPERIOD // requires #include <timeapi.h>
-        if (NtSetTimerResolution == null) {
-            const int milliseconds = (int)(crt_ns2ms(ns) + 0.5);
-            r = (int)maximum_ns <= ns && ns <= (int)minimum_ns ?
-                timeBeginPeriod(milliseconds) : ERROR_INVALID_PARAMETER;
-        } else {
-            r = (int)maximum_ns <= ns && ns <= (int)minimum_ns ?
-                NtSetTimerResolution(ns100, true, &actual_100ns) :
-                ERROR_INVALID_PARAMETER;
-        }
-#else
-        not_null(NtSetTimerResolution);
-        r = (int)maximum_ns <= ns && ns <= (int)minimum_ns ?
-            NtSetTimerResolution(ns100, true, &actual_100ns) :
-            ERROR_INVALID_PARAMETER;
-#endif
-        NtQueryTimerResolution(&min_100ns, &max_100ns, &actual_100ns);
-    } else {
-#ifdef CRT_FALLBACK_TO_TIMEBEGINPERIOD // requires #include <timeapi.h>
-        const int milliseconds = (int)(crt_ns2ms(ns) + 0.5);
-        r = 1 <= milliseconds && milliseconds <= 16 ?
-            timeBeginPeriod(milliseconds) : ERROR_INVALID_PARAMETER;
-#else
-        fatal_if_null(NtQueryTimerResolution);
-#endif
-    }
-    return r;
-}
-
-static void crt_power_throttling_disable_for_process(void) {
-    static bool disabled_for_the_process;
-    if (!disabled_for_the_process) {
-        PROCESS_POWER_THROTTLING_STATE pt = { 0 };
-        pt.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
-        pt.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
-        pt.StateMask = 0;
-        fatal_if_false(SetProcessInformation(GetCurrentProcess(),
-            ProcessPowerThrottling, &pt, sizeof(pt)));
-        // PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
-        // does not work on Win10. There is no easy way to
-        // distinguish Windows 11 from 10 (Microsoft great engineering)
-        pt.ControlMask = PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
-        pt.StateMask = 0;
-        // ignore error on Windows 10:
-        (void)SetProcessInformation(GetCurrentProcess(),
-            ProcessPowerThrottling, &pt, sizeof(pt));
-        disabled_for_the_process = true;
-    }
-}
-
-static void crt_power_throttling_disable_for_thread(HANDLE thread) {
-    THREAD_POWER_THROTTLING_STATE pt = { 0 };
-    pt.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
-    pt.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
-    pt.StateMask = 0;
-    fatal_if_false(SetThreadInformation(thread, ThreadPowerThrottling,
-        &pt, sizeof(pt)));
-}
-
-static void crt_disable_power_throttling(void) {
-    crt_power_throttling_disable_for_process();
-    crt_power_throttling_disable_for_thread(GetCurrentThread());
-}
-
-static uint64_t crt_next_physical_processor_affinity_mask(void) {
-    static volatile int32_t initialized;
-    static int32_t init;
-    static int next = 1; // next physical core to use
-    static int cores = 0; // number of physical processors (cores)
-    static uint64_t any;
-    static uint64_t affinity[64]; // mask for each physical processor
-    bool set_to_true = atomics.compare_exchange_int32(&init, false, true);
-    if (set_to_true) {
-        // Concept D: 6 cores, 12 logical processors: 27 lpi entries
-        static SYSTEM_LOGICAL_PROCESSOR_INFORMATION lpi[64];
-        DWORD bytes = 0;
-        GetLogicalProcessorInformation(null, &bytes);
-        assert(bytes % sizeof(lpi[0]) == 0);
-        int n = bytes / sizeof(lpi[0]); // number of lpi entries == 27 on 6 core / 12 logical processors system
-        assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
-        fatal_if_false(GetLogicalProcessorInformation(&lpi[0], &bytes));
-        for (int i = 0; i < n; i++) {
-//          traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
-//              lpi[i].ProcessorMask, lpi[i].Relationship,
-//              rel2str(lpi[i].Relationship));
-            if (lpi[i].Relationship == RelationProcessorCore) {
-                assert(cores < countof(affinity), "increase affinity[%d]", cores);
-                if (cores < countof(affinity)) {
-                    any |= lpi[i].ProcessorMask;
-                    affinity[cores] = lpi[i].ProcessorMask;
-                    cores++;
-                }
-            }
-        }
-        initialized = true;
-    } else {
-        while (initialized == 0) { crt.sleep(1 / 1024.0); }
-        assert(any != 0); // should not ever happen
-        if (any == 0) { any = (uint64_t)(-1LL); }
-    }
-    uint64_t mask = next < cores ? affinity[next] : any;
-    assert(mask != 0);
-    // assume last physical core is least popular
-    if (next < cores) { next++; } // not circular
-    return mask;
-}
-
-static void threads_realtime(void) {
-    fatal_if_false(SetPriorityClass(GetCurrentProcess(),
-        REALTIME_PRIORITY_CLASS));
-    fatal_if_false(SetThreadPriority(GetCurrentThread(),
-        THREAD_PRIORITY_TIME_CRITICAL));
-    fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
-        /* bDisablePriorityBoost = */ false));
-    fatal_if_not_zero(
-        crt_scheduler_set_timer_resolution(NSEC_IN_MSEC));
-    fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
-        crt_next_physical_processor_affinity_mask()));
-    crt_disable_power_throttling();
-}
-
-static int crt_utf8_bytes(const wchar_t* utf16) {
-    int required_bytes_count = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-        utf16, -1, null, 0, null, null);
-    assert(required_bytes_count > 0);
-    return required_bytes_count;
-}
-
-static int crt_utf16_chars(const char* utf8) {
-    int required_wide_chars_count = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
-    assert(required_wide_chars_count > 0);
-    return required_wide_chars_count;
-}
-
-static char* crt_utf16to8(char* s, const wchar_t* utf16) {
-    int r = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16, -1, s,
-        crt.utf8_bytes(utf16), null, null);
-    if (r == 0) {
-        traceln("WideCharToMultiByte() failed %s", crt.error(crt.err()));
-    }
-    return s;
-}
-
-static wchar_t* crt_utf8to16(wchar_t* utf16, const char* s) {
-    int r = MultiByteToWideChar(CP_UTF8, 0, s, -1, utf16, crt.utf16_chars(s));
-    if (r == 0) {
-        traceln("WideCharToMultiByte() failed %d", crt.err());
-    }
-    return utf16;
-}
-
-static void crt_breakpoint(void) { if (IsDebuggerPresent()) { DebugBreak(); } }
-
-static int crt_gettid(void) { return (int)GetCurrentThreadId(); }
 
 static int32_t crt_err(void) { return GetLastError(); }
 
@@ -667,17 +427,7 @@ crt_if crt = {
     .time_local = crt_time_local,
     .data_save = crt_data_save,
     .data_size = crt_data_size,
-    .data_load = crt_data_load,
-    .vformat = crt_vformat,
-    .sformat = crt_sformat,
-    .error = crt_error,
-    .error_nls = crt_error_nls,
-    .utf8_bytes = crt_utf8_bytes,
-    .utf16_chars = crt_utf16_chars,
-    .utf16_utf8 = crt_utf16to8,
-    .utf8_utf16 = crt_utf8to16,
-    .breakpoint = crt_breakpoint,
-    .gettid = crt_gettid
+    .data_load = crt_data_load
 };
 
 #pragma comment(lib, "advapi32")
