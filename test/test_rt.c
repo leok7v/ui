@@ -13,7 +13,7 @@ static void force_inline static_init_function(void) {
 
 static_init(static_init_test) { static_init_function(); }
 
-static void test_static_init() {
+static void test_static_init(void) {
     fatal_if(static_init_function_called != 1,
     "static_init_function() expected to be called before main()");
     if (verbose) { traceln("static_init_function() called before main()"); }

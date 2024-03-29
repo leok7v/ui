@@ -7,8 +7,10 @@
 #include "events.h"
 #include "vigil.h"
 #include "mutexes.h"
+#include "static.h"
 #include "threads.h"
 #include "trace.h"
+#include "va_args.h"
 
 #include <ctype.h>
 #include <io.h>

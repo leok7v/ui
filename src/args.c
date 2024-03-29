@@ -1,8 +1,5 @@
-#include "args.h"
+#include "rt.h"
 #include "vigil.h"
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
 
 static int32_t args_option_index(int argc, const char* argv[], const char* option) {
     for (int i = 1; i < argc; i++) {

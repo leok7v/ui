@@ -58,6 +58,12 @@
     <ClInclude Include="..\inc\threads.h">
       <Filter>rt\inc</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\static.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\va_args.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="rt">

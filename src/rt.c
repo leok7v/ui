@@ -1,17 +1,6 @@
 #include "rt.h"
 
-#if !defined(STRICT)
-#define STRICT
-#endif
-
-#if !defined(WIN32_LEAN_AND_MEAN)
-#define WIN32_LEAN_AND_MEAN
-#endif
-
-#if !defined(VC_EXTRALEAN)
-#define VC_EXTRALEAN
-#endif
-
+#include <immintrin.h>
 #include <Windows.h>
 #include <immintrin.h> // _tzcnt_u32
 // #include <timeapi.h>
@@ -107,8 +96,8 @@ static void crt_sleep(double seconds) {
     if (NtDelayExecution == null) {
         HMODULE ntdll = LoadLibraryA("ntdll.dll");
         not_null(ntdll);
-        NtDelayExecution = (nt_delay_execution_t)GetProcAddress(ntdll,
-            "NtDelayExecution");
+        NtDelayExecution = (nt_delay_execution_t)
+            (void*)GetProcAddress(ntdll, "NtDelayExecution");
         not_null(NtDelayExecution);
     }
     //  If "alertable" is set, execution can break in a result of NtAlertThread call.
@@ -298,9 +287,9 @@ static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
     if (ntdll == null) { ntdll = LoadLibraryA("ntdll.dll"); }
     not_null(ntdll);
     gettimerresolution_t NtQueryTimerResolution =  (gettimerresolution_t)
-        GetProcAddress(ntdll, "NtQueryTimerResolution");
+        (void*)GetProcAddress(ntdll, "NtQueryTimerResolution");
     settimerresolution_t NtSetTimerResolution = (settimerresolution_t)
-        GetProcAddress(ntdll, "NtSetTimerResolution");
+        (void*)GetProcAddress(ntdll, "NtSetTimerResolution");
     // it is resolution not frequency this is why it is in reverse
     // to common sense and what is not on Windows?
     unsigned long min_100ns = 16 * 10 * 1000;
@@ -313,7 +302,7 @@ static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
         int64_t maximum_ns = max_100ns * 100LL;
 //      int64_t actual_ns  = actual_100ns  * 100LL;
         // note that maximum resolution is actually < minimum
-#if CRT_FALLBACK_TO_TIMEBEGINPERIOD // requires #include <timeapi.h>
+#ifdef CRT_FALLBACK_TO_TIMEBEGINPERIOD // requires #include <timeapi.h>
         if (NtSetTimerResolution == null) {
             const int milliseconds = (int)(crt_ns2ms(ns) + 0.5);
             r = (int)maximum_ns <= ns && ns <= (int)minimum_ns ?
@@ -331,7 +320,7 @@ static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
 #endif
         NtQueryTimerResolution(&min_100ns, &max_100ns, &actual_100ns);
     } else {
-#if CRT_FALLBACK_TO_TIMEBEGINPERIOD // requires #include <timeapi.h>
+#ifdef CRT_FALLBACK_TO_TIMEBEGINPERIOD // requires #include <timeapi.h>
         const int milliseconds = (int)(crt_ns2ms(ns) + 0.5);
         r = 1 <= milliseconds && milliseconds <= 16 ?
             timeBeginPeriod(milliseconds) : ERROR_INVALID_PARAMETER;

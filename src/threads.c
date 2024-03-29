@@ -17,11 +17,11 @@ static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
     if (winmm == null) { winmm = LoadLibraryA("winmm.dll"); }
     not_null(winmm);
     gettimerresolution_t NtQueryTimerResolution =  (gettimerresolution_t)
-        GetProcAddress(ntdll, "NtQueryTimerResolution");
+        (void*)GetProcAddress(ntdll, "NtQueryTimerResolution");
     settimerresolution_t NtSetTimerResolution = (settimerresolution_t)
-        GetProcAddress(ntdll, "NtSetTimerResolution");
+        (void*)GetProcAddress(ntdll, "NtSetTimerResolution");
     timeBeginPeriod_t timeBeginPeriod = (timeBeginPeriod_t)
-        GetProcAddress(winmm, "timeBeginPeriod");
+        (void*)GetProcAddress(winmm, "timeBeginPeriod");
     // it is resolution not frequency this is why it is in reverse
     // to common sense and what is not on Windows?
     unsigned long min_100ns = 16 * 10 * 1000;
@@ -148,7 +148,7 @@ static void threads_yield(void) { SwitchToThread(); }
 
 static thread_t threads_start(void (*func)(void*), void* p) {
     thread_t t = (thread_t)CreateThread(null, 0,
-        (LPTHREAD_START_ROUTINE)func, p, 0, null);
+        (LPTHREAD_START_ROUTINE)(void*)func, p, 0, null);
     not_null(t);
     return t;
 }
