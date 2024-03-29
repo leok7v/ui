@@ -198,11 +198,27 @@ static void str_test(int32_t verbosity) {
     swear(str.utf16_utf8(utf8_buf, wide_str));
     wchar_t wide_buf[100];
     swear(str.utf8_utf16(wide_buf, utf8_buf));
-    swear(str.equal(utf16to8(wide_buf), utf8_str)); // Verify round-trip conversion
+    // Verify round-trip conversion:
+    swear(str.equal(utf16to8(wide_buf), utf8_str));
     // --- strprintf ---
     char formatted[100];
-    str.sformat(formatted, sizeof(formatted), "Number: %d, String: %s", 42, "test");
-    swear(str.equal(formatted, "Number: 42, String: test"));
+    str.sformat(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
+    swear(str.equal(formatted, "n: 42, s: test"));
+    // str.copy() truncation
+    char truncated_buf[5]; // Truncate to fit:
+    str.copy(truncated_buf, countof(truncated_buf), "hello", -1);
+    assert(truncated_buf[4] == '\0'); // Verify zero termination
+
+    // str.to_lowercase() truncation
+    char truncated_lower[6]; // Truncate to fit:
+    str.to_lowercase(truncated_lower, countof(truncated_lower), "HELLO");
+    assert(truncated_lower[5] == '\0'); // Verify zero termination
+
+    // str.sformat() truncation
+    char truncated_formatted[8]; // Truncate to fit:
+    str.sformat(truncated_formatted, countof(truncated_formatted),
+                "n: %d, s: %s", 42, "a long test string");
+    assert(truncated_formatted[7] == '\0'); // Verify zero termination
     if (verbosity > 0) { traceln("done"); }
 }
 
