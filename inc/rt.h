@@ -98,6 +98,9 @@ typedef struct {
     void (*seterr)(int32_t err); // errno = err or SetLastError()
     void (*abort)(void);
     void (*exit)(int32_t exit_code); // only 8 bits on posix
+    void* (*dlopen)(const char* filename, int mode); // RTLD_LOCAL == 0
+    void* (*dlsym)(void* handle, const char* name);
+    void  (*dlclose)(void* handle);
     // non-crypto strong pseudo-random number generators (thread safe)
     uint32_t (*random32)(uint32_t *state); // "Mulberry32"
     uint64_t (*random64)(uint64_t *state); // "Trust"

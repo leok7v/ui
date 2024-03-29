@@ -76,6 +76,27 @@ static void crt_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
 
 static void crt_exit(int32_t exit_code) { exit(exit_code); }
 
+static void* crt_dlopen(const char* filename, int unused(mode)) {
+    return (void*)LoadLibraryA(filename);
+}
+
+static void* crt_dlsym(void* handle, const char* name) {
+    return (void*)GetProcAddress((HMODULE)handle, name);
+}
+
+static void crt_dlclose(void* handle) {
+    fatal_if_false(FreeLibrary(handle));
+}
+
+static void* crt_ntdll(void) {
+    static HMODULE ntdll;
+    if (ntdll == null) {
+        ntdll = crt.dlopen("ntdll.dll", 0);
+        not_null(ntdll);
+    }
+    return ntdll;
+}
+
 static void crt_sleep(double seconds) {
     assert(seconds >= 0);
     if (seconds < 0) { seconds = 0; }
@@ -87,10 +108,9 @@ static void crt_sleep(double seconds) {
     LARGE_INTEGER delay = {0}; // delay in 100-ns units.
     delay.QuadPart = -ns100; // negative value means delay relative to current.
     if (NtDelayExecution == null) {
-        HMODULE ntdll = LoadLibraryA("ntdll.dll");
-        not_null(ntdll);
+        void* ntdll = crt_ntdll();
         NtDelayExecution = (nt_delay_execution_t)
-            (void*)GetProcAddress(ntdll, "NtDelayExecution");
+            crt.dlsym(ntdll, "NtDelayExecution");
         not_null(NtDelayExecution);
     }
     //  If "alertable" is set, execution can break in a result of NtAlertThread call.
@@ -276,13 +296,11 @@ typedef int (*settimerresolution_t)(ULONG requested_resolution,
 
 static int crt_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
     const int ns100 = (int)(ns / 100);
-    HMODULE ntdll = GetModuleHandleA("ntdll.dll");
-    if (ntdll == null) { ntdll = LoadLibraryA("ntdll.dll"); }
-    not_null(ntdll);
-    gettimerresolution_t NtQueryTimerResolution =  (gettimerresolution_t)
-        (void*)GetProcAddress(ntdll, "NtQueryTimerResolution");
+    void* ntdll = crt_ntdll();
+    gettimerresolution_t NtQueryTimerResolution = (gettimerresolution_t)
+        crt.dlsym(ntdll, "NtQueryTimerResolution");
     settimerresolution_t NtSetTimerResolution = (settimerresolution_t)
-        (void*)GetProcAddress(ntdll, "NtSetTimerResolution");
+        crt.dlsym(ntdll, "NtSetTimerResolution");
     // it is resolution not frequency this is why it is in reverse
     // to common sense and what is not on Windows?
     unsigned long min_100ns = 16 * 10 * 1000;
@@ -747,7 +765,9 @@ crt_if crt = {
     .seterr = crt_seterr,
     .abort = crt_abort,
     .exit = crt_exit,
-    .sleep = crt_sleep,
+    .dlopen = crt_dlopen,
+    .dlsym = crt_dlsym,
+    .dlclose = crt_dlclose,
     .random32 = crt_random32,
     .random64 = crt_random64,
     .hash32 = crt_hash32,
@@ -756,6 +776,7 @@ crt_if crt = {
     .memmap_rw = crt_memmap_rw,
     .memunmap = crt_memunmap,
     .memmap_res = crt_memmap_res,
+    .sleep = crt_sleep,
     .seconds = crt_seconds,
     .nanoseconds = crt_nanoseconds,
     .microseconds = crt_microseconds_since_epoch,
