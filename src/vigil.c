@@ -1,6 +1,4 @@
 #include "rt.h"
-#include <stdbool.h>
-#include <stdlib.h>
 
 begin_c
 

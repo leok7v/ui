@@ -1,6 +1,19 @@
 #include "rt.h"
+#include "win32.h"
 
-static int64_t threads_ns2ms(int64_t ns) { return (ns + NSEC_IN_MSEC - 1) / NSEC_IN_MSEC; }
+static int64_t threads_ns2ms(int64_t ns) { return (ns + nsec_in_msec - 1) / nsec_in_msec; }
+
+static void* threads_ntdll(void) {
+    static HMODULE ntdll;
+    if (ntdll == null) {
+        ntdll = (void*)GetModuleHandleA("ntdll.dll");
+    }
+    if (ntdll == null) {
+        ntdll = crt.dlopen("ntdll.dll", 0);
+    }
+    not_null(ntdll);
+    return ntdll;
+}
 
 typedef int (*gettimerresolution_t)(ULONG* minimum_resolution,
     ULONG* maximum_resolution, ULONG* actual_resolution);
@@ -10,18 +23,15 @@ typedef int (*timeBeginPeriod_t)(UINT period); // winmm.dll
 
 static int threads_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
     const int ns100 = (int)(ns / 100);
-    HMODULE ntdll = GetModuleHandleA("ntdll.dll");
-    if (ntdll == null) { ntdll = LoadLibraryA("ntdll.dll"); }
-    not_null(ntdll);
-    HMODULE winmm = GetModuleHandleA("winmm.dll");
-    if (winmm == null) { winmm = LoadLibraryA("winmm.dll"); }
+    void* ntdll = threads_ntdll();
+    void* winmm = crt.dlopen("winmm.dll", 0);
     not_null(winmm);
     gettimerresolution_t NtQueryTimerResolution =  (gettimerresolution_t)
-        (void*)GetProcAddress(ntdll, "NtQueryTimerResolution");
+        crt.dlsym(ntdll, "NtQueryTimerResolution");
     settimerresolution_t NtSetTimerResolution = (settimerresolution_t)
-        (void*)GetProcAddress(ntdll, "NtSetTimerResolution");
+        crt.dlsym(ntdll, "NtSetTimerResolution");
     timeBeginPeriod_t timeBeginPeriod = (timeBeginPeriod_t)
-        (void*)GetProcAddress(winmm, "timeBeginPeriod");
+        crt.dlsym(winmm, "timeBeginPeriod");
     // it is resolution not frequency this is why it is in reverse
     // to common sense and what is not on Windows?
     unsigned long min_100ns = 16 * 10 * 1000;
@@ -119,7 +129,7 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
         }
         initialized = true;
     } else {
-        while (initialized == 0) { crt.sleep(1 / 1024.0); }
+        while (initialized == 0) { threads.sleep_for(1 / 1024.0); }
         assert(any != 0); // should not ever happen
         if (any == 0) { any = (uint64_t)(-1LL); }
     }
@@ -138,7 +148,7 @@ static void threads_realtime(void) {
     fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
     fatal_if_not_zero(
-        threads_scheduler_set_timer_resolution(NSEC_IN_MSEC));
+        threads_scheduler_set_timer_resolution(nsec_in_msec));
     fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
         threads_next_physical_processor_affinity_mask()));
     threads_disable_power_throttling();
@@ -190,15 +200,6 @@ static void threads_name(const char* name) {
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
 }
 
-static void* threads_ntdll(void) {
-    static HMODULE ntdll;
-    if (ntdll == null) {
-        ntdll = crt.dlopen("ntdll.dll", 0);
-        not_null(ntdll);
-    }
-    return ntdll;
-}
-
 static void threads_sleep_for(double seconds) {
     assert(seconds >= 0);
     if (seconds < 0) { seconds = 0; }
@@ -222,6 +223,10 @@ static void threads_sleep_for(double seconds) {
 
 static int32_t threads_id(void) { return GetThreadId(GetCurrentThread()); }
 
+static void threads_test(int32_t verbosity) {
+    // TODO: implement me
+}
+
 threads_if threads = {
     .start     = threads_start,
     .try_join  = threads_try_join,
@@ -230,5 +235,6 @@ threads_if threads = {
     .realtime  = threads_realtime,
     .yield     = threads_yield,
     .sleep_for = threads_sleep_for,
-    .id        = threads_id
+    .id        = threads_id,
+    .test      = threads_test
 };

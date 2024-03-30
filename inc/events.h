@@ -17,6 +17,7 @@ typedef struct {
     int (*wait_any)(int n, event_t events[]); // -1 on abandon
     int (*wait_any_or_timeout)(int n, event_t e[], double seconds);
     void (*dispose)(event_t e);
+    void (*test)(int32_t verbosity);
 } events_if;
 
 extern events_if events;

@@ -20,6 +20,24 @@
     <ClCompile Include="..\src\vigil.c">
       <Filter>rt\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\mutexes.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\events.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\threads.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\num.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mem.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\atomics.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\amalgamate.txt" />

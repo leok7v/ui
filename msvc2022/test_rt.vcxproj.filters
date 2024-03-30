@@ -32,6 +32,15 @@
     <ClCompile Include="..\src\str.c">
       <Filter>rt\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\clock.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mem.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\num.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h">
@@ -71,6 +80,15 @@
       <Filter>rt\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\str.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\clock.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\mem.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\num.h">
       <Filter>rt\inc</Filter>
     </ClInclude>
   </ItemGroup>

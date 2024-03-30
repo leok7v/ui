@@ -10,6 +10,7 @@ typedef struct {
     void (*lock)(mutex_t* m);
     void (*unlock)(mutex_t* m);
     void (*dispose)(mutex_t* m);
+    void (*test)(int32_t verbosity);
 } mutex_if;
 
 extern mutex_if mutexes;

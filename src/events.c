@@ -1,4 +1,5 @@
 #include "rt.h"
+#include "win32.h"
 
 static event_t events_create(void) {
     HANDLE e = CreateEvent(null, false, false, null);
@@ -45,14 +46,20 @@ static void events_dispose(event_t handle) {
     fatal_if_false(CloseHandle(handle));
 }
 
+static void events_test(int32_t verbosity) {
+    // TODO: implement me
+    if (verbosity > 0) { traceln("done"); }
+}
+
 events_if events = {
-    events_create,
-    events_create_manual,
-    events_set,
-    events_reset,
-    events_wait,
-    events_wait_or_timeout,
-    events_wait_any,
-    events_wait_any_or_timeout,
-    events_dispose
+    .create              = events_create,
+    .create_manual       = events_create_manual,
+    .set                 = events_set,
+    .reset               = events_reset,
+    .wait                = events_wait,
+    .wait_or_timeout     = events_wait_or_timeout,
+    .wait_any            = events_wait_any,
+    .wait_any_or_timeout = events_wait_any_or_timeout,
+    .dispose             = events_dispose,
+    .test                = events_test
 };

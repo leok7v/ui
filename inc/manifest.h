@@ -1,8 +1,11 @@
 #pragma once
 #include <ctype.h>
+#include <io.h>
+#include <malloc.h>
 #include <stdarg.h>
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 

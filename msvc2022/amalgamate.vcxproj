@@ -47,10 +47,16 @@
   <ItemGroup>
     <ClCompile Include="..\src\amalgamate.c" />
     <ClCompile Include="..\src\args.c" />
+    <ClCompile Include="..\src\atomics.c" />
     <ClCompile Include="..\src\debug.c" />
+    <ClCompile Include="..\src\events.c" />
+    <ClCompile Include="..\src\mem.c" />
+    <ClCompile Include="..\src\mutexes.c" />
+    <ClCompile Include="..\src\num.c" />
     <ClCompile Include="..\src\rt.c" />
     <ClCompile Include="..\src\static.c" />
     <ClCompile Include="..\src\str.c" />
+    <ClCompile Include="..\src\threads.c" />
     <ClCompile Include="..\src\vigil.c" />
   </ItemGroup>
   <ItemGroup>

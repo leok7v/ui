@@ -1,4 +1,5 @@
 #include "rt.h"
+#include "win32.h"
 
 char* strnchr(const char* s, int n, char ch) {
     while (n > 0 && *s != 0) {

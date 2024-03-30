@@ -22,7 +22,8 @@
       <DisableSpecificWarnings>4710;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- function not inlined -->
       <DisableSpecificWarnings>4711;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- automatic inline expansion -->
       <DisableSpecificWarnings>5045;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- Spectre mitigation -->
-     <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
 	<Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
