@@ -207,18 +207,22 @@ static void str_test(int32_t verbosity) {
     // str.copy() truncation
     char truncated_buf[5]; // Truncate to fit:
     str.copy(truncated_buf, countof(truncated_buf), "hello", -1);
-    assert(truncated_buf[4] == '\0'); // Verify zero termination
-
+    swear(truncated_buf[4] == 0, "expected zero termination");
     // str.to_lowercase() truncation
     char truncated_lower[6]; // Truncate to fit:
     str.to_lowercase(truncated_lower, countof(truncated_lower), "HELLO");
-    assert(truncated_lower[5] == '\0'); // Verify zero termination
-
+    swear(truncated_lower[5] == 0, "expected zero termination");
     // str.sformat() truncation
     char truncated_formatted[8]; // Truncate to fit:
     str.sformat(truncated_formatted, countof(truncated_formatted),
                 "n: %d, s: %s", 42, "a long test string");
-    assert(truncated_formatted[7] == '\0'); // Verify zero termination
+    swear(truncated_formatted[7] == 0, "expected zero termination");
+    // str.sformat() truncation
+    char very_short_str[1];
+    very_short_str[0] = 0xFF; // not zero terminated
+    strprintf(very_short_str, "%s", "test");
+    swear(very_short_str[0] == 0, "expected zero termination");
+    // oll korrect:
     if (verbosity > 0) { traceln("done"); }
 }
 
