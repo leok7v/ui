@@ -93,6 +93,10 @@ static bool str_equal(const char* s1, const char* s2) {
     return strequ(s1, s2);
 }
 
+static bool str_equal_nc(const char* s1, const char* s2) {
+    return striequ(s1, s2);
+}
+
 static bool str_starts_with(const char* s1, const char* s2) {
     return strstartswith(s1, s2);
 }
@@ -140,9 +144,16 @@ static char* str_first(const char* s1, const char* s2) {
     return strstr(s1, s2);
 }
 
-static bool str_to_lowercase(char* d, int32_t capacity, const char* s) {
+static bool str_to_lower(char* d, int32_t capacity, const char* s) {
     swear(capacity > 0, "capacity: %d", capacity);
     while (*s != 0 && capacity > 0) { *d++ = (char)tolower(*s++); }
+    *d = 0;
+    return *s == 0;
+}
+
+static bool str_to_upper(char* d, int32_t capacity, const char* s) {
+    swear(capacity > 0, "capacity: %d", capacity);
+    while (*s != 0 && capacity > 0) { *d++ = (char)toupper(*s++); }
     *d = 0;
     return *s == 0;
 }
@@ -151,8 +162,7 @@ static int str_compare(const char* s1, int32_t bytes, const char* s2) {
     return bytes > 0 ? strncmp(s1, s2, bytes) : strcmp(s1, s2);
 }
 
-static int str_compare_ignore_case(const char* s1, int32_t bytes,
-                                   const char* s2) {
+static int str_compare_nc(const char* s1, int32_t bytes, const char* s2) {
     return bytes > 0 ? strncasecmp(s1, s2, bytes) : strcasecmp(s1, s2);
 }
 
@@ -170,9 +180,11 @@ static int str_compare_ignore_case(const char* s1, int32_t bytes,
 
 static void str_test(int32_t verbosity) {
     // TODO: this is very minimalistic test. Needs to be extended.
+    swear(str.is_empty(null));
     swear(str.is_empty(""));
     swear(!str.is_empty("hello"));
     swear(str.equal("hello", "hello"));
+    swear(str.equal_nc("hello", "HeLlO"));
     swear(!str.equal("hello", "world"));
     // --- starts_with, ends_with ---
     swear(str.starts_with("hello world", "hello"));
@@ -185,9 +197,9 @@ static void str_test(int32_t verbosity) {
     swear(str.copy(buf, sizeof(buf), "hello", -1));  // Copy whole string
     swear(str.equal(buf, "hello"));
     swear(!str.copy(buf, 3, "hello", -1)); // Buffer too small
-    // --- to_lowercase ---
+    // --- to_lower ---
     char lower[20];
-    swear(str.to_lowercase(lower, sizeof(lower), "HeLlO WoRlD"));
+    swear(str.to_lower(lower, sizeof(lower), "HeLlO WoRlD"));
     swear(str.equal(lower, "hello world"));
     // --- UTF-8 / UTF-16 conversion ---
     const char* utf8_str =  glyph_teddy_bear
@@ -208,9 +220,9 @@ static void str_test(int32_t verbosity) {
     char truncated_buf[5]; // Truncate to fit:
     str.copy(truncated_buf, countof(truncated_buf), "hello", -1);
     swear(truncated_buf[4] == 0, "expected zero termination");
-    // str.to_lowercase() truncation
+    // str.to_lower() truncation
     char truncated_lower[6]; // Truncate to fit:
-    str.to_lowercase(truncated_lower, countof(truncated_lower), "HELLO");
+    str.to_lower(truncated_lower, countof(truncated_lower), "HELLO");
     swear(truncated_lower[5] == 0, "expected zero termination");
     // str.sformat() truncation
     char truncated_formatted[8]; // Truncate to fit:
@@ -222,7 +234,6 @@ static void str_test(int32_t verbosity) {
     very_short_str[0] = 0xFF; // not zero terminated
     strprintf(very_short_str, "%s", "test");
     swear(very_short_str[0] == 0, "expected zero termination");
-    // oll korrect:
     if (verbosity > 0) { traceln("done"); }
 }
 
@@ -232,25 +243,27 @@ static void str_test(int32_t verbosity) {
 #pragma pop_macro("glyph_chinese_one")
 
 str_if str = {
-    .vformat = str_vformat,
-    .sformat = str_sformat,
-    .error = str_error,
-    .error_nls = str_error_nls,
-    .utf8_bytes = str_utf8_bytes,
+    .vformat     = str_vformat,
+    .sformat     = str_sformat,
+    .error       = str_error,
+    .error_nls   = str_error_nls,
+    .utf8_bytes  = str_utf8_bytes,
     .utf16_chars = str_utf16_chars,
-    .utf16_utf8 = str_utf16to8,
-    .utf8_utf16 = str_utf8to16,
-    .is_empty = str_is_empty,
-    .equal = str_equal,
+    .utf16_utf8  = str_utf16to8,
+    .utf8_utf16  = str_utf8to16,
+    .is_empty    = str_is_empty,
+    .equal       = str_equal,
+    .equal_nc    = str_equal_nc,
     .starts_with = str_starts_with,
-    .ends_with = str_ends_with,
-    .length = str_length,
-    .copy = str_copy,
-    .first_char = str_first_char,
-    .last_char = str_last_char,
-    .first = str_first,
-    .to_lowercase = str_to_lowercase,
-    .compare = str_compare,
-    .compare_ignore_case = str_compare_ignore_case,
-    .test = str_test
+    .ends_with   = str_ends_with,
+    .length      = str_length,
+    .copy        = str_copy,
+    .first_char  = str_first_char,
+    .last_char   = str_last_char,
+    .first       = str_first,
+    .to_lower    = str_to_lower,
+    .to_upper    = str_to_upper,
+    .compare     = str_compare,
+    .compare_nc  = str_compare_nc,
+    .test        = str_test
 };

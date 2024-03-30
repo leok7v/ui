@@ -77,6 +77,7 @@ typedef struct {
     void (*sformat)(char* utf8, int32_t count, const char* format, ...);
     bool (*is_empty)(const char* s); // null or empty string
     bool (*equal)(const char* s1, const char* s2);
+    bool (*equal_nc)(const char* s1, const char* s2);
     bool (*starts_with)(const char* s1, const char* s2);
     bool (*ends_with)(const char* s1, const char* s2);
     int32_t (*length)(const char* s);
@@ -86,10 +87,11 @@ typedef struct {
     char* (*first_char)(const char* s1, int32_t bytes, char ch);
     char* (*last_char)(const char* s1, char ch);
     char* (*first)(const char* s1, const char* s2);
-    bool  (*to_lowercase)(char* d, int32_t capacity, const char* s);
+    bool  (*to_lower)(char* d, int32_t capacity, const char* s);
+    bool  (*to_upper)(char* d, int32_t capacity, const char* s);
     int   (*compare)(const char* s1, int32_t bytes, const char* s2);
-    int   (*compare_ignore_case)(const char* s1, int32_t bytes,
-                                 const char* s2); // ASCII only
+    int   (*compare_nc)(const char* s1, int32_t bytes,
+                        const char* s2); // no-case ASCII only
     void (*test)(int32_t verbosity);
 } str_if;
 
