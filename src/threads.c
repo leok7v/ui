@@ -223,10 +223,105 @@ static void threads_sleep_for(double seconds) {
 
 static int32_t threads_id(void) { return GetThreadId(GetCurrentThread()); }
 
+// test:
+
+typedef struct threads_philosophers_s threads_philosophers_t;
+
+typedef struct {
+    threads_philosophers_t* ps;
+    mutex_t  fork;
+    mutex_t* left_fork;
+    mutex_t* right_fork;
+    thread_t thread;
+    int32_t  id;
+} threads_philosopher_t;
+
+typedef struct threads_philosophers_s {
+    threads_philosopher_t philosopher[3];
+    event_t fed_up[3];
+    int32_t verbosity;
+    uint32_t seed;
+    volatile bool enough;
+} threads_philosophers_t;
+
+#pragma push_macro("verbose") // --verbosity 2
+
+#define verbose(...) do {                                \
+    if (p->ps->verbosity > 1) { traceln(__VA_ARGS__); }  \
+} while (0)
+
+static void threads_philosopher_think(threads_philosopher_t* p) {
+    verbose("philosopher %d is thinking.\n", p->id);
+    // Random think time between .1 and .3 seconds
+    double seconds = (num.random32(&p->ps->seed) % 3 + 1) / 10.0;
+    threads.sleep_for(seconds);
+}
+
+static void threads_philosopher_eat(threads_philosopher_t* p) {
+    verbose("philosopher %d is eating.\n", p->id);
+    // Random eat time between .1 and .2 seconds
+    double seconds = (num.random32(&p->ps->seed) % 2 + 1) / 10.0;
+    threads.sleep_for(seconds);
+}
+
+static void threads_philosopher_routine(void* arg) {
+    threads_philosopher_t* p = (threads_philosopher_t*)arg;
+    threads.name("philosopher");
+    while (!p->ps->enough) {
+        threads_philosopher_think(p);
+        mutexes.lock(p->left_fork);
+        verbose("philosopher %d picked up left fork.\n", p->id);
+        mutexes.lock(p->right_fork);
+        verbose("philosopher %d picked up right fork.\n", p->id);
+        threads_philosopher_eat(p);
+        mutexes.unlock(p->right_fork);
+        verbose("philosopher %d put down right fork.\n", p->id);
+        mutexes.unlock(p->left_fork);
+        verbose("philosopher %d put down left fork.\n", p->id);
+        events.set(p->ps->fed_up[p->id]);
+    }
+}
+
 static void threads_test(int32_t verbosity) {
-    // TODO: implement me
+    threads_philosophers_t ps = {
+        .verbosity = verbosity,
+        .seed = 1
+    };
+    enum { n = countof(ps.philosopher) };
+    // Initialize mutexes for forks
+    for (int i = 0; i < n; i++) {
+        threads_philosopher_t* p = &ps.philosopher[i];
+        p->id = i;
+        p->ps = &ps;
+        mutexes.init(&p->fork);
+        p->left_fork = &p->fork;
+        ps.fed_up[i] = events.create();
+    }
+    // Create and start philosopher threads
+    for (int i = 0; i < n; i++) {
+        threads_philosopher_t* p = &ps.philosopher[i];
+        threads_philosopher_t* r = &ps.philosopher[(i + 1) % n];
+        p->right_fork = r->left_fork;
+        p->thread = threads.start(threads_philosopher_routine, p);
+    }
+    // wait for all philosophers being fed up:
+    for (int i = 0; i < n; i++) { events.wait(ps.fed_up[i]); }
+    ps.enough = true;
+    // join all philosopher threads
+    for (int i = 0; i < n; i++) {
+        threads_philosopher_t* p = &ps.philosopher[i];
+        threads.join(p->thread);
+    }
+    // Dispose of mutexes and events
+    for (int i = 0; i < n; ++i) {
+        threads_philosopher_t* p = &ps.philosopher[i];
+        mutexes.dispose(&p->fork);
+        events.dispose(ps.fed_up[i]);
+    }
     if (verbosity > 0) { traceln("done"); }
 }
+
+#pragma pop_macro("verbose")
 
 threads_if threads = {
     .start     = threads_start,

@@ -2,8 +2,6 @@
 
 static int32_t verbosity;
 
-
-
 static int32_t string_to_verbosity(const char* s) {
     const char* n = null;
     long v = strtol(s, &n, 10);
