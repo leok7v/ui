@@ -16,18 +16,6 @@ static void crt_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
 
 static void crt_exit(int32_t exit_code) { exit(exit_code); }
 
-static void* crt_dlopen(const char* filename, int unused(mode)) {
-    return (void*)LoadLibraryA(filename);
-}
-
-static void* crt_dlsym(void* handle, const char* name) {
-    return (void*)GetProcAddress((HMODULE)handle, name);
-}
-
-static void crt_dlclose(void* handle) {
-    fatal_if_false(FreeLibrary(handle));
-}
-
 static HKEY crt_get_reg_key(const char* name) {
     char path[MAX_PATH];
     strprintf(path, "Software\\app\\%s", name);
@@ -103,11 +91,13 @@ static void rt_test(int32_t verbosity) {
     vigil.test(verbosity);
     str.test(verbosity);
     num.test(verbosity);
+    dl.test(verbosity);
+    atomics.test(verbosity);
     clock.test(verbosity);
     mem.test(verbosity);
-    threads.test(verbosity);
-    mutexes.test(verbosity);
     events.test(verbosity);
+    mutexes.test(verbosity);
+    threads.test(verbosity);
 }
 
 crt_if crt = {
@@ -115,9 +105,6 @@ crt_if crt = {
     .seterr = crt_seterr,
     .abort = crt_abort,
     .exit = crt_exit,
-    .dlopen = crt_dlopen,
-    .dlsym = crt_dlsym,
-    .dlclose = crt_dlclose,
     .data_save = crt_data_save,
     .data_size = crt_data_size,
     .data_load = crt_data_load,

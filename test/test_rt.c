@@ -36,7 +36,7 @@ int main(int argc, const char* argv[]) {
         verbosity = 1;
     }
     crt.test(verbosity);
-    if (verbosity > 0) { printf("done\n"); }
+    if (verbosity > 0) { printf("all tests complete\n"); }
     return 0;
 }
 

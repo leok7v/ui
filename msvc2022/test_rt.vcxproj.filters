@@ -41,6 +41,9 @@
     <ClCompile Include="..\src\num.c">
       <Filter>rt\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\dl.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h">
@@ -89,6 +92,9 @@
       <Filter>rt\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\num.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\dl.h">
       <Filter>rt\inc</Filter>
     </ClInclude>
   </ItemGroup>

@@ -49,6 +49,7 @@
     <ClCompile Include="..\src\args.c" />
     <ClCompile Include="..\src\atomics.c" />
     <ClCompile Include="..\src\debug.c" />
+    <ClCompile Include="..\src\dl.c" />
     <ClCompile Include="..\src\events.c" />
     <ClCompile Include="..\src\mem.c" />
     <ClCompile Include="..\src\mutexes.c" />

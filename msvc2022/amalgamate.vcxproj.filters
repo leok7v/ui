@@ -38,6 +38,9 @@
     <ClCompile Include="..\src\atomics.c">
       <Filter>rt\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\dl.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\amalgamate.txt" />

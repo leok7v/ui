@@ -182,6 +182,11 @@ static void spinlock_release(volatile int64_t* spinlock) {
     atomics.memory_fence(); // tribute to lengthy Linus discussion going since 2006
 }
 
+static void atomics_test(int32_t verbosity) {
+    // TODO: implement me
+    if (verbosity > 0) { traceln("done"); }
+}
+
 #ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type)
 
 static_assertion(sizeof(void*) == sizeof(int64_t));
@@ -204,7 +209,8 @@ atomics_if atomics = {
     .load64 = atomics_load_int64,
     .spinlock_acquire = spinlock_acquire,
     .spinlock_release = spinlock_release,
-    .memory_fence = memory_fence
+    .memory_fence = memory_fence,
+    .test = atomics_test
 };
 
 #endif // __INTELLISENSE__
