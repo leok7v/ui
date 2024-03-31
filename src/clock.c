@@ -77,22 +77,35 @@ static double clock_seconds(void) { // since_boot
 //
 // it would take approximately 213,503 days (or about 584.5 years)
 // for crt.nanoseconds() to overflow
+//
+// for divider = num.gcd32(nsec_in_sec, freq) below and 10MHz timer
+// the actual duration is shorter because of (mul == 100)
+//    (uint64_t)qpc.QuadPart * mul
+// 64 bit overflow and is about 5.8 years.
+//
+// In a long running code like services is advisable to use
+// clock.nanoseconds() to measure only deltas and pay close attention
+// to the wrap around despite of 5 years monotony
 
 static uint64_t clock_nanoseconds(void) {
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static uint32_t freq;
-    static uint32_t mul;
+    static uint32_t mul = nsec_in_sec;
     if (freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
         assert(frequency.HighPart == 0);
-        // known values: 10,000,000 and 3,000,000
-        assert(frequency.LowPart == 10000000 ||
-               frequency.LowPart == 3000000);
         // even 1GHz frequency should fit into 32 bit unsigned
+        assert(frequency.HighPart == 0, "%08lX%%08lX",
+               frequency.HighPart, frequency.LowPart);
+        // known values: 10,000,000 and 3,000,000 10MHz, 3MHz
+        assert(frequency.LowPart % (1000 * 1000) == 0);
+        // if we start getting weird frequencies not
+        // multiples of MHz num.gcd() approach may need
+        // to be revised in favor of num.muldiv64x64()
         freq = frequency.LowPart;
-        assert(freq != 0);
+        assert(freq != 0 && freq < nsec_in_sec);
         // to avoid num.muldiv128:
         uint32_t divider = num.gcd32(nsec_in_sec, freq);
         freq /= divider;
@@ -104,18 +117,26 @@ static uint64_t clock_nanoseconds(void) {
 
 // Difference between 1601 and 1970 in microseconds:
 
-const uint64_t EPOCH_DIFF_MICROSECONDS = 11644473600000000ULL;
+const uint64_t clock_epoch_diff_usec = 11644473600000000ULL;
 
 static uint64_t clock_unix_microseconds(void) {
-    return clock.microseconds() - EPOCH_DIFF_MICROSECONDS;
+    return clock.microseconds() - clock_epoch_diff_usec;
 }
 
 static uint64_t clock_unix_seconds(void) {
-    return clock.unix_microseconds() / msec_in_sec;
+    return clock.unix_microseconds() / usec_in_sec;
 }
 
 static void clock_test(int32_t verbosity) {
-    // TODO: implement me
+    // TODO: implement more tests
+    uint64_t t0 = clock.nanoseconds();
+    uint64_t t1 = clock.nanoseconds();
+    int32_t count = 0;
+    while (t0 == t1 && count < 1024) {
+        t1 = clock.nanoseconds();
+        count++;
+    }
+    swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
     if (verbosity > 0) { traceln("done"); }
 }
 

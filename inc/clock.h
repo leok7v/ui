@@ -4,10 +4,12 @@
 begin_c
 
 enum {
-    nsec_in_usec = 1000,
-    nsec_in_msec = nsec_in_usec * 1000,
+    nsec_in_usec = 1000, // nano in micro
+    nsec_in_msec = nsec_in_usec * 1000, // nano in milli
     nsec_in_sec  = nsec_in_msec * 1000,
-    msec_in_sec  = 1000 * 1000
+    usec_in_msec = 1000, // micro in mill
+    msec_in_sec  = 1000, // milli in sec
+    usec_in_sec  = usec_in_msec * msec_in_sec // micro in sec
 };
 
 typedef struct {

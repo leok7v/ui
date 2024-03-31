@@ -1,11 +1,31 @@
 #include "rt.h"
 #include <immintrin.h> // _tzcnt_u32
 
+static inline num128_t num_add128_inline(const num128_t a, const num128_t b) {
+    num128_t r = a;
+    r.hi += b.hi;
+    r.lo += b.lo;
+    if (r.lo < b.lo) { r.hi++; } // carry
+    return r;
+}
 
-// TODO: correct implementation is here
-// https://opensource.apple.com/source/Libc/Libc-1044.1.2/gen/nanosleep.c.auto.html
+static inline num128_t num_sub128_inline(const num128_t a, const num128_t b) {
+    num128_t r = a;
+    r.hi -= b.hi;
+    if (r.lo < b.lo) { r.hi--; } // borrow
+    r.lo -= b.lo;
+    return r;
+}
 
-static num128_t num_mul128(uint64_t a, uint64_t b) {
+static num128_t num_add128(const num128_t a, const num128_t b) {
+    return num_add128_inline(a, b);
+}
+
+static num128_t num_sub128(const num128_t a, const num128_t b) {
+    return num_sub128_inline(a, b);
+}
+
+static num128_t num_mul64x64(uint64_t a, uint64_t b) {
     uint64_t a_lo = (uint32_t)a;
     uint64_t a_hi = a >> 32;
     uint64_t b_lo = (uint32_t)b;
@@ -14,32 +34,62 @@ static num128_t num_mul128(uint64_t a, uint64_t b) {
     uint64_t cross1 = a_hi * b_lo;
     uint64_t cross2 = a_lo * b_hi;
     uint64_t high = a_hi * b_hi;
-    // Add cross terms to 'low' and 'high'
-    uint64_t cross = cross1 + cross2;
-    high += cross >> 32;
-    low += (cross << 32);
-    // Check for overflow in 'low' and carry to 'high'
-    if (low < (cross << 32)) {
-        high++;
-    }
-    num128_t result = {.lo = low, .hi = high, .overflow = (high >> 32) != 0};
-    return result;
+    // this cannot overflow as (2^32-1)^2 + 2^32-1 < 2^64-1
+    cross1 += low >> 32;
+    // this one can overflow
+    cross1 += cross2;
+    // propagate the carry if any
+    high += ((uint64_t)(cross1 < cross2 != 0)) << 32;
+    high = high + (cross1 >> 32);
+    low = ((cross1 & 0xFFFFFFFF) << 32) + (low & 0xFFFFFFFF);
+    return (num128_t){.lo = low, .hi = high };
 }
 
-static uint64_t num_muldiv128(uint64_t a, uint64_t b, uint64_t d, bool* overflow) {
-    num128_t product = num.mul128(a, b);
-    *overflow = product.overflow || product.hi >= d;
-    uint64_t quotient = 0;
-    if (!*overflow) {
-        // Divide the 128-bit product by the divisor using 64-bit division
-        quotient = product.hi / d;
-        uint64_t remainder = product.hi % d;
-        remainder = (remainder << 32) | (product.lo >> 32);
-        quotient = (quotient << 32) | (remainder / d);
-        remainder = (remainder % d) << 32 | (uint32_t)product.lo;
-        quotient = (quotient << 32) | (remainder / d);
+static inline void num_shift128_left_inline(num128_t* n) {
+    const uint64_t top = (1ULL << 63);
+    n->hi = (n->hi << 1) | ((n->lo & top) ? 1 : 0);
+    n->lo = (n->lo << 1);
+}
+
+static inline void num_shift128_right_inline(num128_t* n) {
+    const uint64_t top = (1ULL << 63);
+    n->lo = (n->lo >> 1) | ((n->hi & 0x1) ? top : 0);
+    n->hi = (n->hi >> 1);
+}
+
+static inline bool num_less128_inline(const num128_t a, const num128_t b) {
+    return a.hi < b.hi || (a.hi == b.hi && a.lo < b.lo);
+}
+
+static inline bool num_uint128_high_bit(const num128_t a) {
+    return (int64_t)a.hi < 0;
+}
+
+static uint64_t num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
+    swear(divisor > 0, "divisor: %lld", divisor);
+    num128_t r = num.mul64x64(a, b); // reminder: a * b
+    uint64_t q = 0; // quotient
+    if (r.hi >= divisor) {
+        q = UINT64_MAX; // overflow
+    } else {
+        int32_t  shift = 0;
+        num128_t d = { .hi = 0, .lo = divisor };
+        while (!num_uint128_high_bit(d) && num_less128_inline(d, r)) {
+            num_shift128_left_inline(&d);
+            shift++;
+        }
+        assert(shift <= 64);
+        while (shift >= 0 && (d.hi != 0 || d.lo != 0)) {
+            if (!num_less128_inline(r, d)) {
+                r = num_sub128_inline(r, d);
+                assert(shift < 64);
+                q |= (1ULL << shift);
+            }
+            num_shift128_right_inline(&d);
+            shift--;
+        }
     }
-    return *overflow ? UINT64_MAX : quotient;
+    return q;
 }
 
 #define ctz(x) _tzcnt_u32(x)
@@ -116,58 +166,48 @@ static uint64_t num_hash64(const char *data, int64_t len) {
 }
 
 static void num_test(int32_t verbosity) {
-    bool overflow = false;
-    // Test multiplication without overflow
-    num128_t result = num.mul128(0xFFFFFFFF, 0xFFFFFFFF);
-    swear(result.lo == 0xFFFFFFFE00000001,
-          "result: 0x%016llX 0x%016llX", result.hi, result.lo);
-    swear(result.hi == 0);
-    swear(!result.overflow);
-    // Test multiplication with overflow
-    result = num.mul128(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF);
-    swear(result.overflow);
-    // Test division without overflow
-    uint64_t quotient = num.muldiv128(0xFFFFFFFF, 0xFFFFFFFF, 2, &overflow);
-    swear(quotient == 0x7FFFFFFF80000000,
-        "quotient: 0x%016llX", quotient);
-    swear(!overflow);
-    // Test division with overflow
-    quotient = num.muldiv128(0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF, 2, &overflow);
-    swear(overflow);
-    // Test with small numbers
-    result = num.mul128(123, 456);
-    swear(result.lo == 123 * 456);
-    swear(result.hi == 0);
-    swear(!result.overflow);
-    quotient = num.muldiv128(123, 456, 789, &overflow);
-    swear(quotient == (123 * 456) / 789);
-    swear(!overflow);
-    // Test division by 1 (should return the product)
-    quotient = num.muldiv128(123456789, 987654321, 1, &overflow);
-    swear(quotient == 123456789LL * 987654321LL);
-    swear(!overflow);
-    // Test division by the maximum uint64_t value (should be 0 if no overflow)
-    quotient = num.muldiv128(123456789, 987654321, UINT64_MAX, &overflow);
-    swear(quotient == 0);
-    swear(!overflow);
-    // Test multiplication and division with zero
-    result = num.mul128(0, 987654321);
-    swear(result.lo == 0);
-    swear(result.hi == 0);
-    swear(!result.overflow);
-    quotient = num.muldiv128(0, 987654321, 123456789, &overflow);
-    swear(quotient == 0);
-    swear(!overflow);
-    // Test division with a divisor larger than the product
-    quotient = num.muldiv128(123456789, 987654321,
-                123456789987654321ULL, &overflow);
-    swear(quotient == 0);
-    swear(!overflow);
+    {
+        // https://asecuritysite.com/encryption/nprimes?y=64
+        // https://www.rapidtables.com/convert/number/decimal-to-hex.html
+        uint64_t p = 15843490434539008357u; // prime
+        uint64_t q = 16304766625841520833u; // prime
+        // pq: 258324414073910997987910483408576601381
+        //     0xC25778F20853A9A1EC0C27C467C45D25
+        num128_t pq = {.hi = 0xC25778F20853A9A1uLL,
+                       .lo = 0xEC0C27C467C45D25uLL };
+        num128_t p_q = num.mul64x64(p, q);
+        swear(p_q.hi == pq.hi && pq.lo == pq.lo);
+        uint64_t p1 = num.muldiv128(p, q, q);
+        uint64_t q1 = num.muldiv128(p, q, p);
+        swear(p1 == p);
+        swear(q1 == q);
+   }
+    uint64_t seed64 = 1;
+    for (int32_t i = 0; i < 100000; i++) {
+        uint64_t p = num.random64(&seed64);
+        uint64_t q = num.random64(&seed64);
+        uint64_t p1 = num.muldiv128(p, q, q);
+        uint64_t q1 = num.muldiv128(p, q, p);
+        swear(p == p1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
+        swear(q == q1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
+    }
+    uint32_t seed32 = 1;
+    for (int32_t i = 0; i < 100; i++) {
+        uint64_t p = num.random32(&seed32);
+        uint64_t q = num.random32(&seed32);
+        uint64_t r = num.muldiv128(p, q, 1);
+        swear(r == p * q);
+        // division by the maximum uint64_t value:
+        r = num.muldiv128(p, q, UINT64_MAX);
+        swear(r == 0);
+    }
     if (verbosity > 0) { traceln("done"); }
 }
 
 num_if num = {
-    .mul128    = num_mul128,
+    .add128    = num_add128,
+    .sub128    = num_sub128,
+    .mul64x64  = num_mul64x64,
     .muldiv128 = num_muldiv128,
     .gcd32     = num_gcd32,
     .random32  = num_random32,

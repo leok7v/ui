@@ -225,6 +225,7 @@ static int32_t threads_id(void) { return GetThreadId(GetCurrentThread()); }
 
 static void threads_test(int32_t verbosity) {
     // TODO: implement me
+    if (verbosity > 0) { traceln("done"); }
 }
 
 threads_if threads = {

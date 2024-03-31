@@ -6,12 +6,13 @@ begin_c
 typedef struct {
     uint64_t lo;
     uint64_t hi;
-    uint64_t overflow; // to avoid padding
 } num128_t; // uint128_t may be supported by compiler
 
 typedef struct {
-    num128_t (*mul128)(uint64_t a, uint64_t b);
-    uint64_t (*muldiv128)(uint64_t a, uint64_t b, uint64_t d, bool* overflow);
+    num128_t (*add128)(const num128_t a, const num128_t b);
+    num128_t (*sub128)(const num128_t a, const num128_t b);
+    num128_t (*mul64x64)(uint64_t a, uint64_t b);
+    uint64_t (*muldiv128)(uint64_t a, uint64_t b, uint64_t d);
     uint32_t (*gcd32)(uint32_t u, uint32_t v); // greatest common denominator
     // non-crypto strong pseudo-random number generators (thread safe)
     uint32_t (*random32)(uint32_t *state); // "Mulberry32"

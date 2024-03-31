@@ -2,6 +2,8 @@
 #include <ctype.h>
 #include <io.h>
 #include <malloc.h>
+#define _USE_MATH_DEFINES
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>

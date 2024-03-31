@@ -102,8 +102,7 @@ static void rt_test(int32_t verbosity) {
     static_init_test(verbosity);
     vigil.test(verbosity);
     str.test(verbosity);
-//  TODO: fails:
-//  num.test(verbosity);
+    num.test(verbosity);
     clock.test(verbosity);
     mem.test(verbosity);
     threads.test(verbosity);
