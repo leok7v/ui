@@ -181,9 +181,14 @@ static void num_test(int32_t verbosity) {
         uint64_t q1 = num.muldiv128(p, q, p);
         swear(p1 == p);
         swear(q1 == q);
-   }
+    }
+    #ifdef DEBUG
+    enum { n = 100 };
+    #else
+    enum { n = 10000 };
+    #endif
     uint64_t seed64 = 1;
-    for (int32_t i = 0; i < 100000; i++) {
+    for (int32_t i = 0; i < n; i++) {
         uint64_t p = num.random64(&seed64);
         uint64_t q = num.random64(&seed64);
         uint64_t p1 = num.muldiv128(p, q, q);
@@ -192,7 +197,7 @@ static void num_test(int32_t verbosity) {
         swear(q == q1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
     }
     uint32_t seed32 = 1;
-    for (int32_t i = 0; i < 100; i++) {
+    for (int32_t i = 0; i < n; i++) {
         uint64_t p = num.random32(&seed32);
         uint64_t q = num.random32(&seed32);
         uint64_t r = num.muldiv128(p, q, 1);
