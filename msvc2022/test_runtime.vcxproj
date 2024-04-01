@@ -40,17 +40,13 @@
       <SubSystem>Console</SubSystem>
       <AdditionalDependencies />
     </Link>
-    <ClCompile>
-      <LanguageStandard_C>stdc11</LanguageStandard_C>
-    </ClCompile>
+    <ClCompile />
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <Link>
       <SubSystem>Console</SubSystem>
     </Link>
-    <ClCompile>
-      <LanguageStandard_C>stdc11</LanguageStandard_C>
-    </ClCompile>
+    <ClCompile />
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\args.c" />

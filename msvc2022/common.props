@@ -41,6 +41,8 @@
     <IntDir>$(SolutionDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <UseDebugLibraries>true</UseDebugLibraries>
+    <Optimization>Disabled</Optimization>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
     <LinkIncremental>false</LinkIncremental>
@@ -50,6 +52,7 @@
     <IntDir>$(SolutionDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <UseDebugLibraries>false</UseDebugLibraries>
+    <Optimization>Full</Optimization>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
     <IgnoreImportLibrary>true</IgnoreImportLibrary>
@@ -75,8 +78,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <Optimization>MinSpace</Optimization>
-      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
+      <Optimization>Full</Optimization>
       <LinkIncremental>false</LinkIncremental>
     </ClCompile>
     <ResourceCompile>
