@@ -2,6 +2,11 @@
 
 begin_c
 
+static void vigil_breakpoint_and_abort(void) {
+    debug.breakpoint(); // only if debugger is present
+    crt.abort();
+}
+
 static int32_t vigil_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     va_list vl;
@@ -11,7 +16,7 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
     debug.printf(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
     const bool always_true = crt.abort != null;
-    if (always_true) { crt.abort(); }
+    if (always_true) { vigil_breakpoint_and_abort(); }
     return 0;
 }
 static int32_t vigil_fatal_termination(const char* file, int32_t line,
@@ -30,8 +35,8 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     } else {
         debug.printf(file, line, func, "FATAL\n");
     }
-    const bool always_true = debug.printf != null;
-    if (always_true) { abort(); }
+    const bool always_true = crt.abort != null;
+    if (always_true) { vigil_breakpoint_and_abort(); }
     return 0;
 }
 

@@ -223,7 +223,7 @@ static void threads_sleep_for(double seconds) {
 
 static int32_t threads_id(void) { return GetThreadId(GetCurrentThread()); }
 
-// test:
+// test: https://en.wikipedia.org/wiki/Dining_philosophers_problem
 
 typedef struct threads_philosophers_s threads_philosophers_t;
 
@@ -251,33 +251,53 @@ typedef struct threads_philosophers_s {
 } while (0)
 
 static void threads_philosopher_think(threads_philosopher_t* p) {
-    verbose("philosopher %d is thinking.\n", p->id);
+    verbose("philosopher %d is thinking.", p->id);
     // Random think time between .1 and .3 seconds
-    double seconds = (num.random32(&p->ps->seed) % 3 + 1) / 10.0;
+    double seconds = (num.random32(&p->ps->seed) % 30 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 
 static void threads_philosopher_eat(threads_philosopher_t* p) {
-    verbose("philosopher %d is eating.\n", p->id);
+    verbose("philosopher %d is eating.", p->id);
     // Random eat time between .1 and .2 seconds
-    double seconds = (num.random32(&p->ps->seed) % 2 + 1) / 10.0;
+    double seconds = (num.random32(&p->ps->seed) % 20 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 
+// To avoid deadlocks in the Three Philosophers problem, we can implement
+// the Tanenbaum's solution, which ensures that one of the philosophers
+// (e.g., the last one) tries to pick up the right fork first, while the
+// others pick up the left fork first. This breaks the circular wait
+// condition and prevents deadlock.
+
+// If the philosopher is the last one (p->id == n - 1) they will try to pick
+// up the right fork first and then the left fork. All other philosophers will
+// pick up the left fork first and then the right fork, as before. This change
+// ensures that at least one philosopher will be able to eat, breaking the
+// circular wait condition and preventing deadlock.
+
 static void threads_philosopher_routine(void* arg) {
     threads_philosopher_t* p = (threads_philosopher_t*)arg;
+    enum { n = countof(p->ps->philosopher) };
     threads.name("philosopher");
     while (!p->ps->enough) {
         threads_philosopher_think(p);
-        mutexes.lock(p->left_fork);
-        verbose("philosopher %d picked up left fork.\n", p->id);
-        mutexes.lock(p->right_fork);
-        verbose("philosopher %d picked up right fork.\n", p->id);
+        if (p->id == n - 1) { // Last philosopher picks up the right fork first
+            mutexes.lock(p->right_fork);
+            verbose("philosopher %d picked up right fork.", p->id);
+            mutexes.lock(p->left_fork);
+            verbose("philosopher %d picked up left fork.", p->id);
+        } else { // Other philosophers pick up the left fork first
+            mutexes.lock(p->left_fork);
+            verbose("philosopher %d picked up left fork.", p->id);
+            mutexes.lock(p->right_fork);
+            verbose("philosopher %d picked up right fork.", p->id);
+        }
         threads_philosopher_eat(p);
         mutexes.unlock(p->right_fork);
-        verbose("philosopher %d put down right fork.\n", p->id);
+        verbose("philosopher %d put down right fork.", p->id);
         mutexes.unlock(p->left_fork);
-        verbose("philosopher %d put down left fork.\n", p->id);
+        verbose("philosopher %d put down left fork.", p->id);
         events.set(p->ps->fed_up[p->id]);
     }
 }

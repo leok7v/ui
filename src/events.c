@@ -46,8 +46,52 @@ static void events_dispose(event_t handle) {
     fatal_if_false(CloseHandle(handle));
 }
 
+// test:
+
+static int32_t events_test_verbosity;
+
+// check if the elapsed time is within the expected range
+static void events_test_check_time(double start, double expected) {
+    double elapsed = clock.seconds() - start;
+    // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
+    swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
+          "expected: %f elapsed %f seconds", expected, elapsed);
+}
+
 static void events_test(int32_t verbosity) {
-    // TODO: implement me
+    events_test_verbosity = verbosity;
+    event_t event = events.create();
+    double start = clock.seconds();
+    events.set(event);
+    events.wait(event);
+    events_test_check_time(start, 0); // Event should be immediate
+    events.reset(event);
+    start = clock.seconds();
+    const double timeout_seconds = 0.01;
+    int result = events.wait_or_timeout(event, timeout_seconds);
+    events_test_check_time(start, timeout_seconds);
+    swear(result == -1); // Timeout expected
+    enum { count = 5 };
+    event_t event_array[count];
+    for (int i = 0; i < countof(event_array); i++) {
+        event_array[i] = events.create_manual();
+    }
+    start = clock.seconds();
+    events.set(event_array[2]); // Set the third event
+    int index = events.wait_any(countof(event_array), event_array);
+    events_test_check_time(start, 0);
+    swear(index == 2); // Third event should be triggered
+    events.reset(event_array[2]); // Reset the third event
+    start = clock.seconds();
+    result = events.wait_any_or_timeout(countof(event_array),
+        event_array, timeout_seconds);
+    events_test_check_time(start, timeout_seconds);
+    swear(result == -1); // Timeout expected
+    // Clean up
+    events.dispose(event);
+    for (int i = 0; i < countof(event_array); i++) {
+        events.dispose(event_array[i]);
+    }
     if (verbosity > 0) { traceln("done"); }
 }
 

@@ -16,8 +16,41 @@ static void mutexes_unlock(mutex_t* m) { LeaveCriticalSection((CRITICAL_SECTION*
 
 static void mutexes_dispose(mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTION*)m); }
 
+// test:
+
+// check if the elapsed time is within the expected range
+static void mutexes_test_check_time(double start, double expected) {
+    double elapsed = clock.seconds() - start;
+    // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
+    swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
+          "expected: %f elapsed %f seconds", expected, elapsed);
+}
+
+static void mutexes_test_lock_unlock(void* arg) {
+    mutex_t* mutex = (mutex_t*)arg;
+    mutexes.lock(mutex);
+    threads.sleep_for(0.01); // Hold the mutex for 10ms
+    mutexes.unlock(mutex);
+}
+
 static void mutexes_test(int32_t verbosity) {
-    // TODO: implement me
+    mutex_t mutex;
+    mutexes.init(&mutex);
+    double start = clock.seconds();
+    mutexes.lock(&mutex);
+    mutexes.unlock(&mutex);
+    // Lock and unlock should be immediate
+    mutexes_test_check_time(start, 0);
+    enum { count = 5 };
+    thread_t ts[count];
+    for (int i = 0; i < countof(ts); i++) {
+        ts[i] = threads.start(mutexes_test_lock_unlock, &mutex);
+    }
+    // Wait for all threads to finish
+    for (int i = 0; i < countof(ts); i++) {
+        threads.join(ts[i]);
+    }
+    mutexes.dispose(&mutex);
     if (verbosity > 0) { traceln("done"); }
 }
 
