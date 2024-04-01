@@ -1,5 +1,6 @@
 #include "rt.h"
 #include "win32.h"
+#include <psapi.h>
 
 // This is oversimplified Win32 version completely ignoring mode.
 
@@ -31,6 +32,48 @@ static void dl_test(int32_t verbosity) {
     // TODO: implement me
     if (verbosity > 0) { traceln("done"); }
 }
+
+static void* dl_sym_all(const char* name) {
+    void* sym = null;
+    DWORD bytes = 0;
+    fatal_if_false(EnumProcessModules(GetCurrentProcess(), null, 0, &bytes));
+    HMODULE* modules = stackalloc(bytes);
+    fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes, &bytes));
+    assert(bytes % sizeof(HMODULE) == 0);
+    const int32_t n = bytes / (int)sizeof(HMODULE);
+    for (int32_t i = 0; i < n && sym != null; i++) {
+        sym = dl.sym(modules[i], name);
+    }
+    return sym;
+}
+
+#if 0  // Pre Vista???
+
+/* Load psapi.dll at runtime, this avoids linking caveat */
+
+static BOOL dl_enum_process_modules(HANDLE hProcess, HMODULE Module[], DWORD cb, DWORD *required) {
+    typedef BOOL (WINAPI *EnumProcessModules_t)(HANDLE, HMODULE*, DWORD, DWORD*);
+    static EnumProcessModules_t EnumProcessModules;
+    if (EnumProcessModules == null) {
+        // Windows 7 and newer versions have K32EnumProcessModules
+        // in Kernel32.dll which is always pre-loaded */
+        HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
+        not_null(kernel32);
+        EnumProcessModules = (EnumProcessModules_t)(void*)
+            GetProcAddress(kernel32, "K32EnumProcessModules");
+        if (EnumProcessModules == null) {
+            static void* psapi;
+            if (psapi == null) { psapi = dl.open("psapi.dll", dl.local); }
+            EnumProcessModules = (EnumProcessModules_t)(void*)
+                GetProcAddress(kernel32, "K32EnumProcessModules");
+            // intentionally no dl.close(psapi) because we are holding pointer to a function in it.
+        }
+        not_null(EnumProcessModules);
+    }
+    return EnumProcessModules(hProcess, lphModule, cb, required);
+}
+#endif
+
 
 enum {
     dl_local  = 0,       // RTLD_LOCAL  All symbols are not made available for relocation processing by other modules.
