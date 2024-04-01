@@ -86,6 +86,22 @@ static int32_t crt_err(void) { return GetLastError(); }
 
 static void crt_seterr(int32_t err) { SetLastError(err); }
 
+static_init(rt) {
+    SetErrorMode(
+        // The system does not display the critical-error-handler message box.
+        // Instead, the system sends the error to the calling process:
+        SEM_FAILCRITICALERRORS|
+        // The system automatically fixes memory alignment faults and
+        // makes them invisible to the application.
+        SEM_NOALIGNMENTFAULTEXCEPT|
+        // The system does not display the Windows Error Reporting dialog.
+        SEM_NOGPFAULTERRORBOX|
+        // The OpenFile function does not display a message box when it fails
+        // to find a file. Instead, the error is returned to the caller.
+        // This error mode overrides the OF_PROMPT flag.
+        SEM_NOOPENFILEERRORBOX);
+}
+
 static void rt_test(int32_t verbosity) {
     static_init_test(verbosity);
     vigil.test(verbosity);
@@ -127,6 +143,7 @@ crt_if crt = {
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "OneCoreUAP")
 #pragma comment(lib, "powrprof")
+#pragma comment(lib, "psapi")
 #pragma comment(lib, "rpcrt4")
 #pragma comment(lib, "setupapi")
 #pragma comment(lib, "shcore")
