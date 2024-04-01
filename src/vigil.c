@@ -1,10 +1,10 @@
-#include "rt.h"
+#include "runtime.h"
 
 begin_c
 
 static void vigil_breakpoint_and_abort(void) {
     debug.breakpoint(); // only if debugger is present
-    crt.abort();
+    runtime.abort();
 }
 
 static int32_t vigil_failed_assertion(const char* file, int32_t line,
@@ -15,13 +15,13 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
     va_end(vl);
     debug.printf(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
-    const bool always_true = crt.abort != null;
+    const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
     return 0;
 }
 static int32_t vigil_fatal_termination(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    const int32_t er = crt.err();
+    const int32_t er = runtime.err();
     const int32_t en = errno;
     va_list vl;
     va_start(vl, format);
@@ -35,7 +35,7 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     } else {
         debug.printf(file, line, func, "FATAL\n");
     }
-    const bool always_true = crt.abort != null;
+    const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
     return 0;
 }
@@ -72,9 +72,9 @@ static int32_t vigil_test_fatal_calls_count;
 
 static int32_t vigil_test_fatal_termination(const char* file, int line,
         const char* func, const char* condition, const char* format, ...) {
-    const int32_t er = crt.err();
+    const int32_t er = runtime.err();
     const int32_t en = errno;
-    assert(er == 2, "crt.err: %d expected 2", er);
+    assert(er == 2, "runtime.err: %d expected 2", er);
     assert(en == 2, "errno: %d expected 2", en);
     fatal_if_not(strequ(file,  __FILE__), "file: %s", file);
     fatal_if_not(line > __LINE__, "line: %s", line);
@@ -104,9 +104,9 @@ static void vigil_test(int32_t verbosity) {
     vigil_test_verbosity = verbosity;
     vigil_test_saved = vigil;
     int32_t en = errno;
-    int32_t er = crt.err();
+    int32_t er = runtime.err();
     errno = 2; // ENOENT
-    crt.seterr(2); // ERROR_FILE_NOT_FOUND
+    runtime.seterr(2); // ERROR_FILE_NOT_FOUND
     vigil.failed_assertion  = vigil_test_failed_assertion;
     vigil.fatal_termination = vigil_test_fatal_termination;
     int32_t count = vigil_test_fatal_calls_count;
@@ -124,7 +124,7 @@ static void vigil_test(int32_t verbosity) {
     // swear() is triggered in both debug and release configurations:
     fatal_if_not(vigil_test_failed_assertion_count == count + 1);
     errno = en;
-    crt.seterr(er);
+    runtime.seterr(er);
     vigil = vigil_test_saved;
     if (verbosity > 0) { traceln("done"); }
 }

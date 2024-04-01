@@ -1,22 +1,16 @@
-#include "rt.h"
-
-#include <immintrin.h>
-#include <Windows.h>
-// #include <timeapi.h>
-// #include <sysinfoapi.h>
-
-begin_c
+#include "runtime.h"
+#include "win32.h"
 
 // abort does NOT call atexit() functions and
 // does NOT flush streams. Also Win32 runtime
 // abort() attempt to show Abort/Retry/Ignore
 // MessageBox - thus ExitProcess()
 
-static void crt_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
+static void runtime_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
 
-static void crt_exit(int32_t exit_code) { exit(exit_code); }
+static void runtime_exit(int32_t exit_code) { exit(exit_code); }
 
-static HKEY crt_get_reg_key(const char* name) {
+static HKEY runtime_get_reg_key(const char* name) {
     char path[MAX_PATH];
     strprintf(path, "Software\\app\\%s", name);
     HKEY key = null;
@@ -27,9 +21,9 @@ static HKEY crt_get_reg_key(const char* name) {
     return key;
 }
 
-static void crt_data_save(const char* name,
+static void runtime_data_save(const char* name,
         const char* key, const void* data, int bytes) {
-    HKEY k = crt_get_reg_key(name);
+    HKEY k = runtime_get_reg_key(name);
     if (k != null) {
         fatal_if_not_zero(RegSetValueExA(k, key, 0, REG_BINARY,
             (byte*)data, bytes));
@@ -37,9 +31,9 @@ static void crt_data_save(const char* name,
     }
 }
 
-static int crt_data_size(const char* name, const char* key) {
+static int runtime_data_size(const char* name, const char* key) {
     int bytes = -1;
-    HKEY k = crt_get_reg_key(name);
+    HKEY k = runtime_get_reg_key(name);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = 0;
@@ -58,10 +52,10 @@ static int crt_data_size(const char* name, const char* key) {
     return bytes;
 }
 
-static int crt_data_load(const char* name,
+static int runtime_data_load(const char* name,
         const char* key, void* data, int bytes) {
     int read = -1;
-    HKEY k= crt_get_reg_key(name);
+    HKEY k= runtime_get_reg_key(name);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
@@ -82,9 +76,9 @@ static int crt_data_load(const char* name,
     return read;
 }
 
-static int32_t crt_err(void) { return GetLastError(); }
+static int32_t runtime_err(void) { return GetLastError(); }
 
-static void crt_seterr(int32_t err) { SetLastError(err); }
+static void runtime_seterr(int32_t err) { SetLastError(err); }
 
 static_init(rt) {
     SetErrorMode(
@@ -107,7 +101,7 @@ static void rt_test(int32_t verbosity) {
     vigil.test(verbosity);
     str.test(verbosity);
     num.test(verbosity);
-    dl.test(verbosity);
+    loader.test(verbosity);
     atomics.test(verbosity);
     clock.test(verbosity);
     mem.test(verbosity);
@@ -116,14 +110,14 @@ static void rt_test(int32_t verbosity) {
     threads.test(verbosity);
 }
 
-crt_if crt = {
-    .err = crt_err,
-    .seterr = crt_seterr,
-    .abort = crt_abort,
-    .exit = crt_exit,
-    .data_save = crt_data_save,
-    .data_size = crt_data_size,
-    .data_load = crt_data_load,
+runtime_if runtime = {
+    .err = runtime_err,
+    .seterr = runtime_seterr,
+    .abort = runtime_abort,
+    .exit = runtime_exit,
+    .data_save = runtime_data_save,
+    .data_size = runtime_data_size,
+    .data_load = runtime_data_load,
     .test = rt_test
 };
 
@@ -158,5 +152,4 @@ crt_if crt = {
 #pragma comment(lib, "opengl32")
 #pragma comment(lib, "winmm")
 
-end_c
 

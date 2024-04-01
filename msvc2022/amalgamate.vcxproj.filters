@@ -8,9 +8,6 @@
     <ClCompile Include="..\src\debug.c">
       <Filter>rt\src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\rt.c">
-      <Filter>rt\src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\static.c">
       <Filter>rt\src</Filter>
     </ClCompile>
@@ -38,7 +35,10 @@
     <ClCompile Include="..\src\atomics.c">
       <Filter>rt\src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\dl.c">
+    <ClCompile Include="..\src\loader.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\runtime.c">
       <Filter>rt\src</Filter>
     </ClCompile>
   </ItemGroup>

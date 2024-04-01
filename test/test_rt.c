@@ -1,4 +1,4 @@
-#include "rt.h"
+#include "runtime.h"
 
 static int32_t verbosity;
 
@@ -33,7 +33,7 @@ int main(int argc, const char* argv[]) {
               args.option_bool(&argc, argv, "-v")) {
         verbosity = 1;
     }
-    crt.test(verbosity);
+    runtime.test(verbosity);
     if (verbosity > 0) { printf("all tests complete\n"); }
     return 0;
 }

@@ -2,9 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\test\test_rt.c" />
-    <ClCompile Include="..\src\rt.c">
-      <Filter>rt\src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\vigil.c">
       <Filter>rt\src</Filter>
     </ClCompile>
@@ -41,7 +38,10 @@
     <ClCompile Include="..\src\num.c">
       <Filter>rt\src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\dl.c">
+    <ClCompile Include="..\src\loader.c">
+      <Filter>rt\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\runtime.c">
       <Filter>rt\src</Filter>
     </ClCompile>
   </ItemGroup>
@@ -50,9 +50,6 @@
       <Filter>rt\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\manifest.h">
-      <Filter>rt\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\rt.h">
       <Filter>rt\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\vigil.h">
@@ -94,7 +91,10 @@
     <ClInclude Include="..\inc\num.h">
       <Filter>rt\inc</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\dl.h">
+    <ClInclude Include="..\inc\loader.h">
+      <Filter>rt\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime.h">
       <Filter>rt\inc</Filter>
     </ClInclude>
   </ItemGroup>

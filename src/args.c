@@ -1,4 +1,4 @@
-#include "rt.h"
+#include "runtime.h"
 
 static int32_t args_option_index(int argc, const char* argv[], const char* option) {
     for (int i = 1; i < argc; i++) {

@@ -5,8 +5,8 @@
 #include "atomics.h"
 #include "clock.h"
 #include "debug.h"
-#include "dl.h"
 #include "events.h"
+#include "loader.h"
 #include "mem.h"
 #include "mutexes.h"
 #include "num.h"
@@ -30,9 +30,9 @@ typedef struct {
     int32_t (*data_size)(const char* name, const char* key);
     int  (*data_load)(const char* name, const char* key, void* data, int32_t bytes);
     void (*test)(int32_t verbosity);
-} crt_if;
+} runtime_if;
 
-extern crt_if crt;
+extern runtime_if runtime;
 
 end_c
 

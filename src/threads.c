@@ -1,4 +1,4 @@
-#include "rt.h"
+#include "runtime.h"
 #include "win32.h"
 
 static int64_t threads_ns2ms(int64_t ns) { return (ns + nsec_in_msec - 1) / nsec_in_msec; }
@@ -9,7 +9,7 @@ static void* threads_ntdll(void) {
         ntdll = (void*)GetModuleHandleA("ntdll.dll");
     }
     if (ntdll == null) {
-        ntdll = dl.open("ntdll.dll", 0);
+        ntdll = loader.open("ntdll.dll", 0);
     }
     not_null(ntdll);
     return ntdll;
@@ -24,14 +24,14 @@ typedef int (*timeBeginPeriod_t)(UINT period); // winmm.dll
 static int threads_scheduler_set_timer_resolution(int64_t ns) { // nanoseconds
     const int ns100 = (int)(ns / 100);
     void* ntdll = threads_ntdll();
-    void* winmm = dl.open("winmm.dll", 0);
+    void* winmm = loader.open("winmm.dll", 0);
     not_null(winmm);
     gettimerresolution_t NtQueryTimerResolution =  (gettimerresolution_t)
-        dl.sym(ntdll, "NtQueryTimerResolution");
+        loader.sym(ntdll, "NtQueryTimerResolution");
     settimerresolution_t NtSetTimerResolution = (settimerresolution_t)
-        dl.sym(ntdll, "NtSetTimerResolution");
+        loader.sym(ntdll, "NtSetTimerResolution");
     timeBeginPeriod_t timeBeginPeriod = (timeBeginPeriod_t)
-        dl.sym(winmm, "timeBeginPeriod");
+        loader.sym(winmm, "timeBeginPeriod");
     // it is resolution not frequency this is why it is in reverse
     // to common sense and what is not on Windows?
     unsigned long min_100ns = 16 * 10 * 1000;
@@ -213,7 +213,7 @@ static void threads_sleep_for(double seconds) {
     if (NtDelayExecution == null) {
         void* ntdll = threads_ntdll();
         NtDelayExecution = (nt_delay_execution_t)
-            dl.sym(ntdll, "NtDelayExecution");
+            loader.sym(ntdll, "NtDelayExecution");
         not_null(NtDelayExecution);
     }
     // If "alertable" is set, sleep_for() can break earlier
