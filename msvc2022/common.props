@@ -29,7 +29,6 @@
 	<Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalOptions>/NOIMPLIB %(AdditionalOptions)</AdditionalOptions>
 	</Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)..\inc;$(SolutionDir)..\build;$(SolutionDir)..\src;$(SolutionDir)..\samples</AdditionalIncludeDirectories>

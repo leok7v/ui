@@ -128,6 +128,7 @@ static uint64_t clock_unix_seconds(void) {
 }
 
 static void clock_test(int32_t verbosity) {
+#ifdef RUNTIME_TESTS
     // TODO: implement more tests
     uint64_t t0 = clock.nanoseconds();
     uint64_t t1 = clock.nanoseconds();
@@ -138,6 +139,9 @@ static void clock_test(int32_t verbosity) {
     }
     swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
     if (verbosity > 0) { traceln("done"); }
+#else
+    (void)unused(verbosity);
+#endif
 }
 
 clock_if clock = {

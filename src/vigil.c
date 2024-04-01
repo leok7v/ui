@@ -40,7 +40,7 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     return 0;
 }
 
-// test
+#ifdef RUNTIME_TESTS
 
 static vigil_if vigil_test_saved;
 static int32_t vigil_test_failed_assertion_count;
@@ -129,6 +129,11 @@ static void vigil_test(int32_t verbosity) {
     if (verbosity > 0) { traceln("done"); }
 }
 
+#else
+
+static void vigil_test(int32_t unused(verbosity)) { }
+
+#endif
 
 vigil_if vigil = {
     .failed_assertion  = vigil_failed_assertion,

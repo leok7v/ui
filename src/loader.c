@@ -54,11 +54,16 @@ static void loader_close(void* handle) {
     }
 }
 
+#ifdef RUNTIME_TESTS
+
 static int32_t loader_test_count;
 
 export void loader_test_exported_function(void) { loader_test_count++; }
 
+#endif
+
 static void loader_test(int32_t verbosity) {
+#ifdef RUNTIME_TESTS
     loader_test_count = 0;
     loader_test_exported_function(); // to make sure it is linked in
     swear(loader_test_count == 1);
@@ -91,6 +96,9 @@ static void loader_test(int32_t verbosity) {
     }
     loader.close(nt_dll);
     if (verbosity > 0) { traceln("done"); }
+#else
+    (void)unused(verbosity);
+#endif
 }
 
 enum {

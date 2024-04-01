@@ -3,53 +3,53 @@
   <ItemGroup>
     <ClCompile Include="..\src\amalgamate.c" />
     <ClCompile Include="..\src\args.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\debug.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\static.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\str.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\vigil.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\mutexes.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\events.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\threads.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\num.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\mem.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\atomics.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\loader.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\runtime.c">
-      <Filter>rt\src</Filter>
+      <Filter>runtime\src</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\amalgamate.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="rt">
+    <Filter Include="runtime">
       <UniqueIdentifier>{75a5eead-6d3a-4a50-8a81-b8509cad839b}</UniqueIdentifier>
     </Filter>
-    <Filter Include="rt\src">
+    <Filter Include="runtime\src">
       <UniqueIdentifier>{ba5e9330-91c6-4ee0-acdf-86c4e59dd61b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>

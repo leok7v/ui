@@ -19,6 +19,7 @@ void* _static_force_symbol_reference_(void* symbol) {
 // test static_init() { code } that will be executed in random
 // order but before main()
 
+#ifdef RUNTIME_TESTS
 static int32_t static_init_function_called;
 
 static void force_inline static_init_function(void) {
@@ -26,9 +27,14 @@ static void force_inline static_init_function(void) {
 }
 
 static_init(static_init_test) { static_init_function(); }
+#endif
 
 void static_init_test(int32_t verbosity) {
+#ifdef RUNTIME_TESTS
     fatal_if(static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
     if (verbosity > 0) { traceln("done"); }
+#else
+    (void)unused(verbosity);
+#endif
 }

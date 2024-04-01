@@ -165,20 +165,18 @@ static int str_compare_nc(const char* s1, int32_t bytes, const char* s2) {
     return bytes > 0 ? strncasecmp(s1, s2, bytes) : strcasecmp(s1, s2);
 }
 
-// test:
-
-#pragma push_macro("glyph_chinese_one")
-#pragma push_macro("glyph_chinese_two")
-#pragma push_macro("glyph_teddy_bear")
-#pragma push_macro("glyph_ice_cube")
-
-#define glyph_chinese_one "\xE5\xA3\xB9"
-#define glyph_chinese_two "\xE8\xB4\xB0"
-#define glyph_teddy_bear  "\xF0\x9F\xA7\xB8"
-#define glyph_ice_cube    "\xF0\x9F\xA7\x8A"
-
 static void str_test(int32_t verbosity) {
-    // TODO: this is very minimalistic test. Needs to be extended.
+#ifdef RUNTIME_TESTS
+    #pragma push_macro("glyph_chinese_one")
+    #pragma push_macro("glyph_chinese_two")
+    #pragma push_macro("glyph_teddy_bear")
+    #pragma push_macro("glyph_ice_cube")
+
+    #define glyph_chinese_one "\xE5\xA3\xB9"
+    #define glyph_chinese_two "\xE8\xB4\xB0"
+    #define glyph_teddy_bear  "\xF0\x9F\xA7\xB8"
+    #define glyph_ice_cube    "\xF0\x9F\xA7\x8A"
+
     swear(str.is_empty(null));
     swear(str.is_empty(""));
     swear(!str.is_empty("hello"));
@@ -234,12 +232,14 @@ static void str_test(int32_t verbosity) {
     strprintf(very_short_str, "%s", "test");
     swear(very_short_str[0] == 0, "expected zero termination");
     if (verbosity > 0) { traceln("done"); }
+    #pragma pop_macro("glyph_ice_cube")
+    #pragma pop_macro("glyph_teddy_bear")
+    #pragma pop_macro("glyph_chinese_two")
+    #pragma pop_macro("glyph_chinese_one")
+#else
+    (void)unused(verbosity);
+#endif
 }
-
-#pragma pop_macro("glyph_ice_cube")
-#pragma pop_macro("glyph_teddy_bear")
-#pragma pop_macro("glyph_chinese_two")
-#pragma pop_macro("glyph_chinese_one")
 
 str_if str = {
     .vformat     = str_vformat,

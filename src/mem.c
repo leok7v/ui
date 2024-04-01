@@ -117,8 +117,12 @@ static int mem_map_resource(const char* label, void* *data, int64_t *bytes) {
 }
 
 static void mem_test(int32_t verbosity) {
-    // TODO: implement me
+#ifdef RUNTIME_TESTS
+    traceln("TODO: implement me");
     if (verbosity > 0) { traceln("done"); }
+#else
+    (void)unused(verbosity);
+#endif
 }
 
 

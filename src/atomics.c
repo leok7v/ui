@@ -183,8 +183,12 @@ static void spinlock_release(volatile int64_t* spinlock) {
 }
 
 static void atomics_test(int32_t verbosity) {
-    // TODO: implement me
+#ifdef RUNTIME_TESTS
+    traceln("TODO: implement me");
     if (verbosity > 0) { traceln("done"); }
+#else
+    (void)unused(verbosity);
+#endif
 }
 
 #ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type)

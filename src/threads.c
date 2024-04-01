@@ -252,6 +252,8 @@ static void threads_sleep_for(double seconds) {
 
 static int32_t threads_id(void) { return GetThreadId(GetCurrentThread()); }
 
+#ifdef RUNTIME_TESTS
+
 // test: https://en.wikipedia.org/wiki/Dining_philosophers_problem
 
 typedef struct threads_philosophers_s threads_philosophers_t;
@@ -372,6 +374,10 @@ static void threads_test(int32_t verbosity) {
 }
 
 #pragma pop_macro("verbose")
+
+#else
+static void threads_test(int32_t unused(verbosity)) { }
+#endif
 
 threads_if threads = {
     .start     = threads_start,

@@ -119,11 +119,30 @@ static int32_t args_parse(const char* cl, const char** argv, char* buff) {
     return argc;
 }
 
+// https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments?view=msvc-170
+// Command-line input   argv[1] argv[2]	argv[3]
+// "a b c" d e	        a b c   d       e
+// "ab\"c" "\\" d       ab"c    \       d
+// a\\\b d"e f"g h      a\\\b   de fg   h
+// a\\\"b c d           a\"b    c       d
+// a\\\\"b c" d e       a\\b c  d       e
+// a"b"" c d            ab" c d
+
+static void args_test(int32_t verbosity) {
+#ifdef RUNTIME_TESTS
+    traceln("TODO: implement me");
+    if (verbosity > 0) { traceln("done"); }
+#else
+    (void)unused(verbosity);
+#endif
+}
+
 args_if args = {
     .option_index = args_option_index,
     .remove_at    = args_remove_at,
     .option_bool  = args_option_bool,
     .option_int   = args_option_int,
     .option_str   = args_option_str,
-    .parse        = args_parse
+    .parse        = args_parse,
+    .test         = args_test
 };

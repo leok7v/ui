@@ -166,6 +166,7 @@ static uint64_t num_hash64(const char *data, int64_t len) {
 }
 
 static void num_test(int32_t verbosity) {
+#ifdef RUNTIME_TESTS
     {
         // https://asecuritysite.com/encryption/nprimes?y=64
         // https://www.rapidtables.com/convert/number/decimal-to-hex.html
@@ -207,6 +208,9 @@ static void num_test(int32_t verbosity) {
         swear(r == 0);
     }
     if (verbosity > 0) { traceln("done"); }
+#else
+    (void)unused(verbosity);
+#endif
 }
 
 num_if num = {

@@ -80,7 +80,7 @@ static int32_t runtime_err(void) { return GetLastError(); }
 
 static void runtime_seterr(int32_t err) { SetLastError(err); }
 
-static_init(rt) {
+static_init(runtime) {
     SetErrorMode(
         // The system does not display the critical-error-handler message box.
         // Instead, the system sends the error to the calling process:
@@ -97,6 +97,7 @@ static_init(rt) {
 }
 
 static void rt_test(int32_t verbosity) {
+#ifdef RUNTIME_TESTS
     static_init_test(verbosity);
     vigil.test(verbosity);
     str.test(verbosity);
@@ -108,6 +109,9 @@ static void rt_test(int32_t verbosity) {
     events.test(verbosity);
     mutexes.test(verbosity);
     threads.test(verbosity);
+#else
+    (void)unused(verbosity);
+#endif
 }
 
 runtime_if runtime = {

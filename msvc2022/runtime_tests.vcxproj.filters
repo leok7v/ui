@@ -43,7 +43,7 @@
     <ClCompile Include="..\src\runtime.c">
       <Filter>runtime\src</Filter>
     </ClCompile>
-    <ClCompile Include="..\test\test_runtime.c" />
+    <ClCompile Include="..\test\runtime_tests.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h">

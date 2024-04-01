@@ -59,6 +59,7 @@ static void events_test_check_time(double start, double expected) {
 }
 
 static void events_test(int32_t verbosity) {
+#ifdef RUNTIME_TESTS
     events_test_verbosity = verbosity;
     event_t event = events.create();
     double start = clock.seconds();
@@ -93,6 +94,9 @@ static void events_test(int32_t verbosity) {
         events.dispose(event_array[i]);
     }
     if (verbosity > 0) { traceln("done"); }
+#else
+    (void)unused(verbosity);
+#endif
 }
 
 events_if events = {
