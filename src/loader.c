@@ -78,15 +78,16 @@ static void loader_test(int32_t verbosity) {
         (nt_query_timer_resolution_t)loader.sym(nt_dll, "NtQueryTimerResolution");
     // in 100ns = 0.1us units
     long min_resolution = 0;
-    long max_resolution = 0; //  lowest possible delay between timer events
+    long max_resolution = 0; // lowest possible delay between timer events
     long cur_resolution = 0;
     fatal_if(query_timer_resolution(
         &min_resolution, &max_resolution, &cur_resolution) != 0);
     if (verbosity > 1) {
         traceln("timer resolution min: %.3f max: %.3f cur: %.3f microsecond",
-            min_resolution / 10000.0,
-            max_resolution / 10000.0,
-            cur_resolution / 10000.0);
+            min_resolution / 10.0,
+            max_resolution / 10.0,
+            cur_resolution / 10.0);
+        // Interesting observation cur_resoluition sometimes 15.625us or 1.0us
     }
     loader.close(nt_dll);
     if (verbosity > 0) { traceln("done"); }

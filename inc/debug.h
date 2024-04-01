@@ -12,6 +12,13 @@
 //          that may or may not happen on some calls
 
 typedef struct {
+    int32_t verbosity;   // global verbosity (interpretation vary)
+    const int32_t info;  // 1
+    const int32_t warn;  // 2
+    const int32_t error; // 3
+    const int32_t fatal; // 4
+    const int32_t debug; // 5
+    const int32_t trace; // 6
     void (*vprintf)(const char* file, int line, const char* func,
         const char* format, va_list vl);
     void (*printf)(const char* file, int line, const char* func,

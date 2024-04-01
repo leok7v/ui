@@ -101,6 +101,13 @@ static void debug_printf(const char* file, int line, const char* func,
 static void debug_breakpoint(void) { if (IsDebuggerPresent()) { DebugBreak(); } }
 
 debug_if debug = {
+    .verbosity = 0,
+    .info  =  1,
+    .warn  =  2,
+    .error =  3,
+    .fatal =  4,
+    .debug =  5,
+    .trace =  6,
     .printf  = debug_printf,
     .vprintf = debug_vprintf,
     .perrno  = debug_perrno,

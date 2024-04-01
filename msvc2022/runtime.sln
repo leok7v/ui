@@ -23,7 +23,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "version", "version.vcxproj"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "amalgamate", "amalgamate.vcxproj", "{1EA9BF0C-402B-4852-BD16-644244F0D1B9}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_rt", "test_rt.vcxproj", "{3EA9BF0C-402B-4852-BD16-644255F0D1B7}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_runtime", "test_runtime.vcxproj", "{3EA9BF0C-402B-4852-BD16-644255F0D1B7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

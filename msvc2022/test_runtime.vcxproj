@@ -13,8 +13,8 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3EA9BF0C-402B-4852-BD16-644255F0D1B7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>test_rt</RootNamespace>
-    <ProjectName>test_rt</ProjectName>
+    <RootNamespace>test_runtime</RootNamespace>
+    <ProjectName>test_runtime</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -67,7 +67,7 @@
     <ClCompile Include="..\src\str.c" />
     <ClCompile Include="..\src\threads.c" />
     <ClCompile Include="..\src\vigil.c" />
-    <ClCompile Include="..\test\test_rt.c" />
+    <ClCompile Include="..\test\test_runtime.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h" />
