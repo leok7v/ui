@@ -16,64 +16,81 @@
 // with the RTLD_LOCAL flag, we create our own list later on. They are
 // excluded from EnumProcessModules() iteration.
 
-static void* dl_open(const char* filename, int unused(mode)) {
-    return (void*)LoadLibraryA(filename);
-}
 
-static void* dl_sym(void* handle, const char* name) {
-    return (void*)GetProcAddress((HMODULE)handle, name);
-}
-
-static void dl_close(void* handle) {
-    fatal_if_false(FreeLibrary(handle));
-}
-
-static void dl_test(int32_t verbosity) {
-    // TODO: implement me
-    if (verbosity > 0) { traceln("done"); }
-}
+static void* dl_all;
 
 static void* dl_sym_all(const char* name) {
     void* sym = null;
     DWORD bytes = 0;
     fatal_if_false(EnumProcessModules(GetCurrentProcess(), null, 0, &bytes));
-    HMODULE* modules = stackalloc(bytes);
-    fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes, &bytes));
     assert(bytes % sizeof(HMODULE) == 0);
+    assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
+    HMODULE* modules = stackalloc(bytes);
+    fatal_if_false(EnumProcessModules(GetCurrentProcess(),
+        modules, bytes, &bytes));
     const int32_t n = bytes / (int)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
         sym = dl.sym(modules[i], name);
     }
+    if (sym == null) {
+        sym = dl.sym(GetModuleHandleA(null), name);
+    }
     return sym;
 }
 
-#if 0  // Pre Vista???
-
-/* Load psapi.dll at runtime, this avoids linking caveat */
-
-static BOOL dl_enum_process_modules(HANDLE hProcess, HMODULE Module[], DWORD cb, DWORD *required) {
-    typedef BOOL (WINAPI *EnumProcessModules_t)(HANDLE, HMODULE*, DWORD, DWORD*);
-    static EnumProcessModules_t EnumProcessModules;
-    if (EnumProcessModules == null) {
-        // Windows 7 and newer versions have K32EnumProcessModules
-        // in Kernel32.dll which is always pre-loaded */
-        HMODULE kernel32 = GetModuleHandleA("kernel32.dll");
-        not_null(kernel32);
-        EnumProcessModules = (EnumProcessModules_t)(void*)
-            GetProcAddress(kernel32, "K32EnumProcessModules");
-        if (EnumProcessModules == null) {
-            static void* psapi;
-            if (psapi == null) { psapi = dl.open("psapi.dll", dl.local); }
-            EnumProcessModules = (EnumProcessModules_t)(void*)
-                GetProcAddress(kernel32, "K32EnumProcessModules");
-            // intentionally no dl.close(psapi) because we are holding pointer to a function in it.
-        }
-        not_null(EnumProcessModules);
-    }
-    return EnumProcessModules(hProcess, lphModule, cb, required);
+static void* dl_open(const char* filename, int unused(mode)) {
+    return filename == null ? &dl_all : (void*)LoadLibraryA(filename);
 }
-#endif
 
+static void* dl_sym(void* handle, const char* name) {
+    return handle == &dl_all ?
+            (void*)dl_sym_all(name) :
+            (void*)GetProcAddress((HMODULE)handle, name);
+}
+
+static void dl_close(void* handle) {
+    if (handle != &dl_all) {
+        fatal_if_false(FreeLibrary(handle));
+    }
+}
+
+static int32_t dl_test_count;
+
+export void dl_test_exported_function(void) { dl_test_count++; }
+
+static void dl_test(int32_t verbosity) {
+    dl_test_count = 0;
+    dl_test_exported_function(); // to make sure it is linked in
+    swear(dl_test_count == 1);
+    void* global = dl.open(null, dl.local);
+    typedef void (*foo_t)(void);
+    foo_t foo = (foo_t)dl.sym(global, "dl_test_exported_function");
+    foo();
+    swear(dl_test_count == 2);
+    dl.close(global);
+    // NtQueryTimerResolution - http://undocumented.ntinternals.net/
+    typedef long (__stdcall *nt_query_timer_resolution_t)(
+        long* minimum_resolution,
+        long* maximum_resolution,
+        long* current_resolution);
+    void* nt_dll = dl.open("ntdll", dl.local);
+    nt_query_timer_resolution_t query_timer_resolution =
+        (nt_query_timer_resolution_t)dl.sym(nt_dll, "NtQueryTimerResolution");
+    // in 100ns = 0.1us units
+    long min_resolution = 0;
+    long max_resolution = 0; //  lowest possible delay between timer events
+    long cur_resolution = 0;
+    fatal_if(query_timer_resolution(
+        &min_resolution, &max_resolution, &cur_resolution) != 0);
+    if (verbosity > 1) {
+        traceln("timer resolution min: %.3f max: %.3f cur: %.3f microsecond",
+            min_resolution / 10000.0,
+            max_resolution / 10000.0,
+            cur_resolution / 10000.0);
+    }
+    dl.close(nt_dll);
+    if (verbosity > 0) { traceln("done"); }
+}
 
 enum {
     dl_local  = 0,       // RTLD_LOCAL  All symbols are not made available for relocation processing by other modules.

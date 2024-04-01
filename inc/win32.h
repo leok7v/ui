@@ -8,4 +8,6 @@
 #include <crtdbg.h> // _malloca()
 #endif
 
+#define export __declspec(dllexport)
+
 #endif // WIN32
