@@ -1,7 +1,8 @@
 #include "runtime.h"
 #include "win32.h"
 
-static int mem_map_file(HANDLE file, void* *data, int64_t *bytes, bool rw) {
+static int mem_map_view_of_file(HANDLE file, void* *data, int64_t *bytes,
+        bool rw) {
     int r = 0;
     void* address = null;
     HANDLE mapping = CreateFileMapping(file, null,
@@ -52,7 +53,7 @@ static int mem_adjust_process_privilege_manage_volume_name(void) {
     return r;
 }
 
-static int mem_map(const char* filename, void* *data,
+static int mem_map_file(const char* filename, void* *data,
         int64_t *bytes, bool rw) {
     if (rw) { // for SetFileValidData() call:
         (void)mem_adjust_process_privilege_manage_volume_name();
@@ -82,18 +83,18 @@ static int mem_map(const char* filename, void* *data,
         } else {
             *bytes = eof.QuadPart;
         }
-        r = r != 0 ? r : mem_map_file(file, data, bytes, rw);
+        r = r != 0 ? r : mem_map_view_of_file(file, data, bytes, rw);
         fatal_if_false(CloseHandle(file));
     }
     return r;
 }
 
-static int mem_map_read(const char* filename, void* *data, int64_t *bytes) {
-    return mem_map(filename, data, bytes, false);
+static int mem_map_ro(const char* filename, void* *data, int64_t *bytes) {
+    return mem_map_file(filename, data, bytes, false);
 }
 
 static int mem_map_rw(const char* filename, void* *data, int64_t *bytes) {
-    return mem_map(filename, data, bytes, true);
+    return mem_map_file(filename, data, bytes, true);
 }
 
 static void mem_unmap(void* data, int64_t bytes) {
@@ -118,14 +119,18 @@ static int mem_map_resource(const char* label, void* *data, int64_t *bytes) {
 
 static void mem_test(void) {
 #ifdef RUNTIME_TESTS
-    traceln("TODO: implement me");
+    swear(args.c > 0);
+    void* data = null;
+    int64_t bytes = 0;
+    swear(mem.map_ro(args.v[0], &data, &bytes) == 0);
+    swear(data != null && bytes != 0);
+    mem.unmap(data, bytes);
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 #endif
 }
 
-
 mem_if mem = {
-    .map_read     = mem_map_read,
+    .map_ro       = mem_map_ro,
     .map_rw       = mem_map_rw,
     .unmap        = mem_unmap,
     .map_resource = mem_map_resource,

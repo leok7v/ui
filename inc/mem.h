@@ -4,7 +4,9 @@
 begin_c
 
 typedef struct {
-    int (*map_read)(const char* filename, void** data, int64_t* bytes);
+    // whole file read only
+    int (*map_ro)(const char* filename, void** data, int64_t* bytes);
+    // whole file read-write
     int (*map_rw)(const char* filename, void** data, int64_t* bytes);
     void (*unmap)(void* data, int64_t bytes);
     // map_resource() maps data from resources, do NOT unmap!
