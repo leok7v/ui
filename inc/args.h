@@ -4,6 +4,10 @@
 begin_c
 
 typedef struct {
+    // On Unix it is responsibility of the main() to assign these values
+    int32_t c;      // argc
+    const char** v; // argv[argc]
+    const char** env;
     int (*option_index)(int argc, const char* argv[], const char* option);
     int (*remove_at)(int ix, int argc, const char* argv[]);
     /* argc=3 argv={"foo", "--verbose"} -> returns true; argc=1 argv={"foo"} */

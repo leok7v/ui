@@ -266,3 +266,13 @@ args_if args = {
     .parse        = args_parse,
     .test         = args_test
 };
+
+#ifdef WINDOWS
+
+static_init(args) {
+    args.c = __argc;
+    args.v = __argv;
+    args.env = _environ;
+}
+
+#endif
