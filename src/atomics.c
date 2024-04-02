@@ -222,7 +222,7 @@ static void atomics_test(void) {
     bool int64_exchanged = atomics.compare_exchange_int64(&int64_var, 6, 7);
     swear(int64_exchanged);
     swear(int64_var == 7);
-    ptr_var = 0x123;
+    ptr_var = (void*)0x123;
     bool ptr_exchanged = atomics.compare_exchange_ptr(&ptr_var,
         (void*)0x123, (void*)0x456);
     swear(ptr_exchanged);
