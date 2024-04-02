@@ -138,7 +138,7 @@ static int64_t atomics_load_int64(volatile int64_t* a) {
     return atomics.add_int64(a, 0);
 }
 
-static void* atomics_exchange_ptr(volatile void** a, void* v) {
+static void* atomics_exchange_ptr(volatile void* *a, void* v) {
     static_assertion(sizeof(void*) == sizeof(uint64_t));
     return (void*)atomics.exchange_int64((int64_t*)a, (int64_t)v);
 }
@@ -146,7 +146,7 @@ static void* atomics_exchange_ptr(volatile void** a, void* v) {
 static bool atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
     static_assertion(sizeof(void*) == sizeof(int64_t));
     return atomics.compare_exchange_int64((int64_t*)a,
-        (int64_t)v, (int64_t)comparand);
+        (int64_t)comparand, (int64_t)v);
 }
 
 // https://en.wikipedia.org/wiki/Spinlock
@@ -179,12 +179,63 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
 static void spinlock_release(volatile int64_t* spinlock) {
     assert(*spinlock == 1);
     *spinlock = 0;
-    atomics.memory_fence(); // tribute to lengthy Linus discussion going since 2006
+    // tribute to lengthy Linus discussion going since 2006:
+    atomics.memory_fence();
 }
 
 static void atomics_test(void) {
 #ifdef RUNTIME_TESTS
-    traceln("TODO: implement me");
+    volatile int32_t int32_var = 0;
+    volatile int64_t int64_var = 0;
+    volatile void* ptr_var = null;
+    int64_t spinlock = 0;
+    void* old_ptr = atomics.exchange_ptr(&ptr_var, (void*)123);
+    swear(old_ptr == null);
+    swear(ptr_var == (void*)123);
+    int32_t incremented_int32 = atomics.increment_int32(&int32_var);
+    swear(incremented_int32 == 1);
+    swear(int32_var == 1);
+    int32_t decremented_int32 = atomics.decrement_int32(&int32_var);
+    swear(decremented_int32 == 0);
+    swear(int32_var == 0);
+    int64_t incremented_int64 = atomics.increment_int64(&int64_var);
+    swear(incremented_int64 == 1);
+    swear(int64_var == 1);
+    int64_t decremented_int64 = atomics.decrement_int64(&int64_var);
+    swear(decremented_int64 == 0);
+    swear(int64_var == 0);
+    int32_t added_int32 = atomics.add_int32(&int32_var, 5);
+    swear(added_int32 == 5);
+    swear(int32_var == 5);
+    int64_t added_int64 = atomics.add_int64(&int64_var, 10);
+    swear(added_int64 == 10);
+    swear(int64_var == 10);
+    int32_t old_int32 = atomics.exchange_int32(&int32_var, 3);
+    swear(old_int32 == 5);
+    swear(int32_var == 3);
+    int64_t old_int64 = atomics.exchange_int64(&int64_var, 6);
+    swear(old_int64 == 10);
+    swear(int64_var == 6);
+    bool int32_exchanged = atomics.compare_exchange_int32(&int32_var, 3, 4);
+    swear(int32_exchanged);
+    swear(int32_var == 4);
+    bool int64_exchanged = atomics.compare_exchange_int64(&int64_var, 6, 7);
+    swear(int64_exchanged);
+    swear(int64_var == 7);
+    ptr_var = 0x123;
+    bool ptr_exchanged = atomics.compare_exchange_ptr(&ptr_var,
+        (void*)0x123, (void*)0x456);
+    swear(ptr_exchanged);
+    swear(ptr_var == (void*)0x456);
+    atomics.spinlock_acquire(&spinlock);
+    swear(spinlock == 1);
+    atomics.spinlock_release(&spinlock);
+    swear(spinlock == 0);
+    int32_t loaded_int32 = atomics.load32(&int32_var);
+    swear(loaded_int32 == int32_var);
+    int64_t loaded_int64 = atomics.load64(&int64_var);
+    swear(loaded_int64 == int64_var);
+    atomics.memory_fence();
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 #endif
 }
