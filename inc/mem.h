@@ -9,7 +9,7 @@ typedef struct {
     void (*unmap)(void* data, int64_t bytes);
     // map_resource() maps data from resources, do NOT unmap!
     int  (*map_resource)(const char* label, void** data, int64_t* bytes);
-    void (*test)(int32_t verbosity);
+    void (*test)(void);
 } mem_if;
 
 extern mem_if mem;

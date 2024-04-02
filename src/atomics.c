@@ -182,12 +182,10 @@ static void spinlock_release(volatile int64_t* spinlock) {
     atomics.memory_fence(); // tribute to lengthy Linus discussion going since 2006
 }
 
-static void atomics_test(int32_t verbosity) {
+static void atomics_test(void) {
 #ifdef RUNTIME_TESTS
     traceln("TODO: implement me");
-    if (verbosity > 0) { traceln("done"); }
-#else
-    (void)unused(verbosity);
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 #endif
 }
 

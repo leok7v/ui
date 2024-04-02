@@ -44,5 +44,5 @@ void* _static_force_symbol_reference_(void* symbol);
         static void _init_ ## n ## __LINE__ ## _ctor(void)
 #endif
 
-void static_init_test(int32_t verbosity);
+void static_init_test(void);
 

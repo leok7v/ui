@@ -20,7 +20,7 @@ typedef struct {
     // "FNV-1a" hash functions (if bytes == 0 expects zero terminated string)
     uint32_t (*hash32)(const char* s, int64_t bytes);
     uint64_t (*hash64)(const char* s, int64_t bytes);
-    void     (*test)(int32_t verbosity);
+    void     (*test)(void);
 } num_if;
 
 extern num_if num;

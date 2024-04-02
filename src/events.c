@@ -48,8 +48,6 @@ static void events_dispose(event_t handle) {
 
 // test:
 
-static int32_t events_test_verbosity;
-
 // check if the elapsed time is within the expected range
 static void events_test_check_time(double start, double expected) {
     double elapsed = clock.seconds() - start;
@@ -58,9 +56,8 @@ static void events_test_check_time(double start, double expected) {
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
-static void events_test(int32_t verbosity) {
+static void events_test(void) {
 #ifdef RUNTIME_TESTS
-    events_test_verbosity = verbosity;
     event_t event = events.create();
     double start = clock.seconds();
     events.set(event);
@@ -93,9 +90,7 @@ static void events_test(int32_t verbosity) {
     for (int i = 0; i < countof(event_array); i++) {
         events.dispose(event_array[i]);
     }
-    if (verbosity > 0) { traceln("done"); }
-#else
-    (void)unused(verbosity);
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 #endif
 }
 

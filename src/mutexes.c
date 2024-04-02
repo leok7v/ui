@@ -33,7 +33,7 @@ static void mutexes_test_lock_unlock(void* arg) {
     mutexes.unlock(mutex);
 }
 
-static void mutexes_test(int32_t verbosity) {
+static void mutexes_test(void) {
     mutex_t mutex;
     mutexes.init(&mutex);
     double start = clock.seconds();
@@ -51,7 +51,7 @@ static void mutexes_test(int32_t verbosity) {
         threads.join(ts[i]);
     }
     mutexes.dispose(&mutex);
-    if (verbosity > 0) { traceln("done"); }
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }
 
 mutex_if mutexes = {

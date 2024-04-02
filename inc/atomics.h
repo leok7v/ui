@@ -27,7 +27,7 @@ typedef struct {
     int32_t (*load32)(volatile int32_t* a);
     int64_t (*load64)(volatile int64_t* a);
     void (*memory_fence)(void);
-    void (*test)(int32_t verbosity);
+    void (*test)(void);
 } atomics_if;
 
 extern atomics_if atomics;

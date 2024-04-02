@@ -92,7 +92,7 @@ typedef struct {
     int   (*compare)(const char* s1, int32_t bytes, const char* s2);
     int   (*compare_nc)(const char* s1, int32_t bytes,
                         const char* s2); // no-case ASCII only
-    void (*test)(int32_t verbosity);
+    void (*test)(void);
 } str_if;
 
 extern str_if str;

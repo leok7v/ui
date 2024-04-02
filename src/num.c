@@ -165,7 +165,7 @@ static uint64_t num_hash64(const char *data, int64_t len) {
     return hash;
 }
 
-static void num_test(int32_t verbosity) {
+static void num_test(void) {
 #ifdef RUNTIME_TESTS
     {
         // https://asecuritysite.com/encryption/nprimes?y=64
@@ -207,9 +207,7 @@ static void num_test(int32_t verbosity) {
         r = num.muldiv128(p, q, UINT64_MAX);
         swear(r == 0);
     }
-    if (verbosity > 0) { traceln("done"); }
-#else
-    (void)unused(verbosity);
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 #endif
 }
 

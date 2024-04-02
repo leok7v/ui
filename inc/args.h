@@ -15,7 +15,7 @@ typedef struct {
     /* argc=3 argv={"foo", "--path", "bar"} -> returns "bar" argc=1 argv={"foo"} */
     const char* (*option_str)(int *argc, const char* argv[], const char* option);
     int (*parse)(const char* cl, const char** argv, char* buff);
-    void (*test)(int32_t verbosity);
+    void (*test)(void);
 } args_if;
 
 extern args_if args;

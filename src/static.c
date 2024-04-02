@@ -29,12 +29,10 @@ static void force_inline static_init_function(void) {
 static_init(static_init_test) { static_init_function(); }
 #endif
 
-void static_init_test(int32_t verbosity) {
+void static_init_test(void) {
 #ifdef RUNTIME_TESTS
     fatal_if(static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
-    if (verbosity > 0) { traceln("done"); }
-#else
-    (void)unused(verbosity);
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 #endif
 }

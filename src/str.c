@@ -165,7 +165,7 @@ static int str_compare_nc(const char* s1, int32_t bytes, const char* s2) {
     return bytes > 0 ? strncasecmp(s1, s2, bytes) : strcasecmp(s1, s2);
 }
 
-static void str_test(int32_t verbosity) {
+static void str_test(void) {
 #ifdef RUNTIME_TESTS
     #pragma push_macro("glyph_chinese_one")
     #pragma push_macro("glyph_chinese_two")
@@ -231,13 +231,11 @@ static void str_test(int32_t verbosity) {
     very_short_str[0] = 0xFF; // not zero terminated
     strprintf(very_short_str, "%s", "test");
     swear(very_short_str[0] == 0, "expected zero termination");
-    if (verbosity > 0) { traceln("done"); }
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
     #pragma pop_macro("glyph_ice_cube")
     #pragma pop_macro("glyph_teddy_bear")
     #pragma pop_macro("glyph_chinese_two")
     #pragma pop_macro("glyph_chinese_one")
-#else
-    (void)unused(verbosity);
 #endif
 }
 

@@ -62,7 +62,7 @@ export void loader_test_exported_function(void) { loader_test_count++; }
 
 #endif
 
-static void loader_test(int32_t verbosity) {
+static void loader_test(void) {
 #ifdef RUNTIME_TESTS
     loader_test_count = 0;
     loader_test_exported_function(); // to make sure it is linked in
@@ -74,20 +74,20 @@ static void loader_test(int32_t verbosity) {
     swear(loader_test_count == 2);
     loader.close(global);
     // NtQueryTimerResolution - http://undocumented.ntinternals.net/
-    typedef long (__stdcall *nt_query_timer_resolution_t)(
+    typedef long (__stdcall *query_timer_resolution_t)(
         long* minimum_resolution,
         long* maximum_resolution,
         long* current_resolution);
     void* nt_dll = loader.open("ntdll", loader.local);
-    nt_query_timer_resolution_t query_timer_resolution =
-        (nt_query_timer_resolution_t)loader.sym(nt_dll, "NtQueryTimerResolution");
+    query_timer_resolution_t query_timer_resolution =
+        (query_timer_resolution_t)loader.sym(nt_dll, "NtQueryTimerResolution");
     // in 100ns = 0.1us units
     long min_resolution = 0;
     long max_resolution = 0; // lowest possible delay between timer events
     long cur_resolution = 0;
     fatal_if(query_timer_resolution(
         &min_resolution, &max_resolution, &cur_resolution) != 0);
-    if (verbosity > 1) {
+    if (debug.verbosity.level > debug.verbosity.info) {
         traceln("timer resolution min: %.3f max: %.3f cur: %.3f microsecond",
             min_resolution / 10.0,
             max_resolution / 10.0,
@@ -95,9 +95,7 @@ static void loader_test(int32_t verbosity) {
         // Interesting observation cur_resoluition sometimes 15.625us or 1.0us
     }
     loader.close(nt_dll);
-    if (verbosity > 0) { traceln("done"); }
-#else
-    (void)unused(verbosity);
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 #endif
 }
 

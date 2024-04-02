@@ -18,61 +18,46 @@ static double threads_ns2ms(int64_t ns) {
     return ns / (double)nsec_in_msec;
 }
 
-static int threads_scheduler_set_timer_resolution(uint64_t nanoseconds) {
-    typedef int (*gettimerresolution_t)(ULONG* minimum_resolution,
+static void threads_set_timer_resolution(uint64_t nanoseconds) {
+    typedef int (*query_timer_resolution_t)(ULONG* minimum_resolution,
         ULONG* maximum_resolution, ULONG* actual_resolution);
-    typedef int (*settimerresolution_t)(ULONG requested_resolution,
+    typedef int (*set_timer_resolution_t)(ULONG requested_resolution,
         BOOLEAN Set, ULONG* actual_resolution);    // ntdll.dll
     typedef int (*timeBeginPeriod_t)(UINT period); // winmm.dll
-    void* ntdll = threads_ntdll();
-    void* winmm = loader.open("winmm.dll", 0);
-    not_null(winmm);
-    gettimerresolution_t NtQueryTimerResolution =  (gettimerresolution_t)
-        loader.sym(ntdll, "NtQueryTimerResolution");
-    settimerresolution_t NtSetTimerResolution = (settimerresolution_t)
-        loader.sym(ntdll, "NtSetTimerResolution");
-    timeBeginPeriod_t timeBeginPeriod = (timeBeginPeriod_t)
-        loader.sym(winmm, "timeBeginPeriod");
+    void* nt_dll = threads_ntdll();
+    query_timer_resolution_t query_timer_resolution =  (query_timer_resolution_t)
+        loader.sym(nt_dll, "NtQueryTimerResolution");
+    set_timer_resolution_t set_timer_resolution = (set_timer_resolution_t)
+        loader.sym(nt_dll, "NtSetTimerResolution");
     unsigned long min100ns = 16 * 10 * 1000;
     unsigned long max100ns =  1 * 10 * 1000;
     unsigned long cur100ns =  0;
-    int r = 0;
-    if (NtQueryTimerResolution != null &&
-        NtQueryTimerResolution(&min100ns, &max100ns, &cur100ns) == 0) {
-        uint64_t min_ns = min100ns * 100uLL;
-        uint64_t max_ns = max100ns * 100uLL; // lowest possible delay between timer events
-        uint64_t cur_ns = cur100ns * 100uLL;
-        if (debug.verbosity >= debug.trace) {
-            traceln("timer resolution min: %.3f max: %.3f cur: %.3f ms (milliseconds)",
-                threads_ns2ms(min_ns),
-                threads_ns2ms(max_ns),
-                threads_ns2ms(cur_ns));
-        }
-        // note that maximum resolution is actually < minimum
-        nanoseconds = maximum(max_ns, nanoseconds);
-        if (NtSetTimerResolution == null) {
-            const int milliseconds = (int)(threads_ns2ms(nanoseconds) + 0.5);
-            r = timeBeginPeriod(milliseconds);
-        } else {
-            unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
-            r = NtSetTimerResolution(ns, true, &cur100ns);
-        }
-        fatal_if(NtQueryTimerResolution(&min100ns, &max100ns, &cur100ns) != 0);
-        if (debug.verbosity >= debug.trace) {
-            min_ns = min100ns * 100uLL;
-            max_ns = max100ns * 100uLL; // the smallest interval
-            cur_ns = cur100ns * 100uLL;
-            traceln("timer resolution min: %.3f max: %.3f cur: %.3f ms (milliseconds)",
-                threads_ns2ms(min_ns),
-                threads_ns2ms(max_ns),
-                threads_ns2ms(cur_ns));
-        }
-    } else {
-        const int milliseconds = (int)(threads_ns2ms(nanoseconds) + 0.5);
-        r = 1 <= milliseconds && milliseconds <= 16 ?
-            timeBeginPeriod(milliseconds) : ERROR_INVALID_PARAMETER;
+    fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+    uint64_t min_ns = min100ns * 100uLL;
+    uint64_t max_ns = max100ns * 100uLL;
+    uint64_t cur_ns = cur100ns * 100uLL;
+    // max resolution is lowest possible delay between timer events
+    if (debug.verbosity.level >= debug.verbosity.trace) {
+        traceln("timer resolution min: %.3f max: %.3f cur: %.3f"
+            " ms (milliseconds)",
+            threads_ns2ms(min_ns),
+            threads_ns2ms(max_ns),
+            threads_ns2ms(cur_ns));
     }
-    return r;
+    // note that maximum resolution is actually < minimum
+    nanoseconds = maximum(max_ns, nanoseconds);
+    unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
+    fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
+    fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+    if (debug.verbosity.level >= debug.verbosity.trace) {
+        min_ns = min100ns * 100uLL;
+        max_ns = max100ns * 100uLL; // the smallest interval
+        cur_ns = cur100ns * 100uLL;
+        traceln("timer resolution min: %.3f max: %.3f cur: %.3f ms (milliseconds)",
+            threads_ns2ms(min_ns),
+            threads_ns2ms(max_ns),
+            threads_ns2ms(cur_ns));
+    }
 }
 
 static void threads_power_throttling_disable_for_process(void) {
@@ -142,7 +127,7 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
         assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
         fatal_if_false(GetLogicalProcessorInformation(&lpi[0], &bytes));
         for (int i = 0; i < n; i++) {
-            if (debug.verbosity >= debug.trace) {
+            if (debug.verbosity.level >= debug.verbosity.trace) {
                 traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
                     lpi[i].ProcessorMask, lpi[i].Relationship,
                     threads_rel2str(lpi[i].Relationship));
@@ -176,8 +161,8 @@ static void threads_realtime(void) {
         THREAD_PRIORITY_TIME_CRITICAL));
     fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
-    fatal_if_not_zero( // desired: 1us (microsecond)
-        threads_scheduler_set_timer_resolution(nsec_in_usec));
+    // desired: 0.5ms = 500us (microsecond)
+    threads_set_timer_resolution(nsec_in_usec * 500);
     fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
         threads_next_physical_processor_affinity_mask()));
     threads_disable_power_throttling();
@@ -270,15 +255,16 @@ typedef struct {
 typedef struct threads_philosophers_s {
     threads_philosopher_t philosopher[3];
     event_t fed_up[3];
-    int32_t verbosity;
     uint32_t seed;
     volatile bool enough;
 } threads_philosophers_t;
 
 #pragma push_macro("verbose") // --verbosity trace
 
-#define verbose(...) do {                                           \
-    if (p->ps->verbosity >= debug.trace) { traceln(__VA_ARGS__); }  \
+#define verbose(...) do {                                 \
+    if (debug.verbosity.level >= debug.verbosity.trace) { \
+        traceln(__VA_ARGS__);                             \
+    }                                                     \
 } while (0)
 
 static void threads_philosopher_think(threads_philosopher_t* p) {
@@ -334,11 +320,8 @@ static void threads_philosopher_routine(void* arg) {
     }
 }
 
-static void threads_test(int32_t verbosity) {
-    threads_philosophers_t ps = {
-        .verbosity = verbosity,
-        .seed = 1
-    };
+static void threads_test(void) {
+    threads_philosophers_t ps = { .seed = 1 };
     enum { n = countof(ps.philosopher) };
     // Initialize mutexes for forks
     for (int i = 0; i < n; i++) {
@@ -370,13 +353,13 @@ static void threads_test(int32_t verbosity) {
         mutexes.dispose(&p->fork);
         events.dispose(ps.fed_up[i]);
     }
-    if (verbosity > 0) { traceln("done"); }
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }
 
 #pragma pop_macro("verbose")
 
 #else
-static void threads_test(int32_t unused(verbosity)) { }
+static void threads_test(void) { }
 #endif
 
 threads_if threads = {

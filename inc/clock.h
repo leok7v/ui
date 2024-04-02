@@ -23,7 +23,7 @@ typedef struct {
         int* day, int* hh, int* mm, int* ss, int* ms, int* mc);
     void (*time_local)(uint64_t microseconds, int* year, int* month,
         int* day, int* hh, int* mm, int* ss, int* ms, int* mc);
-    void (*test)(int32_t verbosity);
+    void (*test)(void);
 } clock_if;
 
 extern clock_if clock;

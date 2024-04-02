@@ -14,7 +14,7 @@ typedef struct {
     void (*yield)(void);    // pthread_yield() / Win32: SwitchToThread()
     void (*sleep_for)(double seconds);
     int32_t (*id)(void);    // gettid()
-    void (*test)(int32_t verbosity);
+    void (*test)(void);
 } threads_if;
 
 extern threads_if threads;

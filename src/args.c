@@ -190,7 +190,9 @@ static int32_t args_parse(const char* s, const char** argv, char* d) {
 #ifndef __INTELLISENSE__ // confused data analysis
 
 static void args_test_verify(const char* cl, int32_t expected, ...) {
-    if (debug.verbosity >= debug.trace) { traceln("cl: `%s`", cl); }
+    if (debug.verbosity.level >= debug.verbosity.trace) {
+        traceln("cl: `%s`", cl);
+    }
     const int32_t len = (int)strlen(cl);
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
@@ -204,7 +206,7 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
     va_start(vl, expected);
     for (int32_t i = 0; i < expected; i++) {
         const char* s = va_arg(vl, const char*);
-        if (debug.verbosity >= debug.trace) {
+        if (debug.verbosity.level >= debug.verbosity.trace) {
             traceln("argv[%d]: `%s` expected: `%s`", i, argv[i], s);
         }
         #pragma warning(push)
@@ -218,7 +220,7 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
 
 #endif // __INTELLISENSE__
 
-static void args_test(int32_t verbosity) {
+static void args_test(void) {
     // The first argument (argv[0]) is treated specially.
     // It represents the program name. Because it must be a valid pathname,
     // parts surrounded by quote (") are allowed. The quote aren't included
@@ -244,12 +246,14 @@ static void args_test(int32_t verbosity) {
     args_test_verify("foo.exe \\",     2, "foo.exe", "\\");
     args_test_verify("foo.exe \\\\",   2, "foo.exe", "\\\\");
     args_test_verify("foo.exe \\\\\\", 2, "foo.exe", "\\\\\\");
-    if (verbosity > 0) { traceln("done"); }
+    if (debug.verbosity.level > debug.verbosity.quiet) {
+        traceln("done");
+    }
 }
 
 #else
 
-static void args_test(int32_t unused(verbosity) {}
+static void args_test(void) {}
 
 #endif
 

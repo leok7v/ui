@@ -96,22 +96,20 @@ static_init(runtime) {
         SEM_NOOPENFILEERRORBOX);
 }
 
-static void rt_test(int32_t verbosity) {
+static void rt_test(void) {
 #ifdef RUNTIME_TESTS // in alphabetical order
-    args.test(verbosity);
-    atomics.test(verbosity);
-    clock.test(verbosity);
-    events.test(verbosity);
-    loader.test(verbosity);
-    mem.test(verbosity);
-    mutexes.test(verbosity);
-    num.test(verbosity);
-    static_init_test(verbosity);
-    str.test(verbosity);
-    threads.test(verbosity);
-    vigil.test(verbosity);
-#else
-    (void)unused(verbosity);
+    args.test();
+    atomics.test();
+    clock.test();
+    events.test();
+    loader.test();
+    mem.test();
+    mutexes.test();
+    num.test();
+    static_init_test();
+    str.test();
+    threads.test();
+    vigil.test();
 #endif
 }
 

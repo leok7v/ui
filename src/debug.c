@@ -20,7 +20,7 @@ static void debug_vprintf(const char* file, int line, const char* func,
         const char* format, va_list vl) {
     char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
-    // for all other scenarious short filename without path is preferable:
+    // for all other scenarios short filename without path is preferable:
     const char* name = IsDebuggerPresent() ? file : debug_abbreviate(file);
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
@@ -98,17 +98,40 @@ static void debug_printf(const char* file, int line, const char* func,
     va_end(vl);
 }
 
-
 static void debug_breakpoint(void) { if (IsDebuggerPresent()) { DebugBreak(); } }
 
+static int32_t debug_verbosity_from_string(const char* s) {
+    const char* n = null;
+    long v = strtol(s, &n, 10);
+    if (str.equal_nc(s, "quiet")) {
+        return debug.verbosity.quiet;
+    } else if (str.equal_nc(s, "info")) {
+        return debug.verbosity.info;
+    } else if (str.equal_nc(s, "verbose")) {
+        return debug.verbosity.verbose;
+    } else if (str.equal_nc(s, "debug")) {
+        return debug.verbosity.debug;
+    } else if (str.equal_nc(s, "trace")) {
+        return debug.verbosity.trace;
+    } else if (n > s && debug.verbosity.quiet <= v &&
+               v <= debug.verbosity.trace) {
+        return v;
+    } else {
+        fatal("invalid verbosity: %s", s);
+        return debug.verbosity.quiet;
+    }
+}
+
 debug_if debug = {
-    .verbosity = 0,
-    .info  =  1,
-    .warn  =  2,
-    .error =  3,
-    .fatal =  4,
-    .debug =  5,
-    .trace =  6,
+    .verbosity = {
+        .level   =  0,
+        .quiet   =  0,
+        .info    =  1,
+        .verbose =  2,
+        .debug   =  3,
+        .trace   =  4,
+    },
+    .verbosity_from_string = debug_verbosity_from_string,
     .printf  = debug_printf,
     .vprintf = debug_vprintf,
     .perrno  = debug_perrno,

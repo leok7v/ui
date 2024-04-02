@@ -43,8 +43,7 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
 #ifdef RUNTIME_TESTS
 
 static vigil_if vigil_test_saved;
-static int32_t vigil_test_failed_assertion_count;
-static int32_t vigil_test_verbosity;
+static int32_t  vigil_test_failed_assertion_count;
 
 #pragma push_macro("vigil")
 // intimate knowledge of vigil.*() functions used in macro definitions
@@ -58,7 +57,7 @@ static int32_t vigil_test_failed_assertion(const char* file, int line,
     fatal_if(condition == null || condition[0] == 0);
     fatal_if(format == null || format[0] == 0);
     vigil_test_failed_assertion_count++;
-    if (vigil_test_verbosity > 1) {
+    if (debug.verbosity.level > debug.verbosity.info) {
         va_list vl;
         va_start(vl, format);
         debug.vprintf(file, line, func, format, vl);
@@ -82,7 +81,7 @@ static int32_t vigil_test_fatal_termination(const char* file, int line,
     assert(strequ(condition, "")); // not yet used expected to be ""
     assert(format != null && format[0] != 0);
     vigil_test_fatal_calls_count++;
-    if (vigil_test_verbosity > 1) {
+    if (debug.verbosity.level > debug.verbosity.info) {
         va_list vl;
         va_start(vl, format);
         debug.vprintf(file, line, func, format, vl);
@@ -100,8 +99,7 @@ static int32_t vigil_test_fatal_termination(const char* file, int line,
 
 #pragma pop_macro("vigil")
 
-static void vigil_test(int32_t verbosity) {
-    vigil_test_verbosity = verbosity;
+static void vigil_test(void) {
     vigil_test_saved = vigil;
     int32_t en = errno;
     int32_t er = runtime.err();
@@ -126,12 +124,12 @@ static void vigil_test(int32_t verbosity) {
     errno = en;
     runtime.seterr(er);
     vigil = vigil_test_saved;
-    if (verbosity > 0) { traceln("done"); }
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-static void vigil_test(int32_t unused(verbosity)) { }
+static void vigil_test(void) { }
 
 #endif
 

@@ -29,7 +29,7 @@ typedef struct {
     void (*data_save)(const char* name, const char* key, const void* data, int32_t bytes);
     int32_t (*data_size)(const char* name, const char* key);
     int  (*data_load)(const char* name, const char* key, void* data, int32_t bytes);
-    void (*test)(int32_t verbosity);
+    void (*test)(void);
 } runtime_if;
 
 extern runtime_if runtime;

@@ -26,6 +26,10 @@ jobs:
             echo "sha_short: $env:sha_short"
         env:
           sha_short: ${{ steps.vars.outputs.sha_short }}
+      - name: run debug tests
+        run:  bin\debug\runtime_tests.exe --verbosity quiet
+      - name: run release tests
+        run:  bin\release\runtime_tests.exe --verbosity quiet
       - name: upload release artifact
         uses: actions/upload-artifact@v4
         with:
