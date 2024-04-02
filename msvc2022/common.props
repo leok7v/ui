@@ -43,8 +43,6 @@
     <Optimization>Disabled</Optimization>
     <WholeProgramOptimization>false</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
-    <IgnoreImportLibrary>true</IgnoreImportLibrary>
-    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <OutDir>$(SolutionDir)..\bin\$(Configuration)\</OutDir>
@@ -54,8 +52,6 @@
     <Optimization>Full</Optimization>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
-    <IgnoreImportLibrary>true</IgnoreImportLibrary>
-    <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile>
@@ -64,12 +60,15 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <Optimization>Disabled</Optimization>
-      <LinkIncremental>false</LinkIncremental>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;DEBUG;$(DefineConstants);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <NullTerminateStrings>true</NullTerminateStrings>
     </ResourceCompile>
+	<Link>
+      <OptimizeReferences>false</OptimizeReferences>
+      <LinkIncremental>false</LinkIncremental>
+	</Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <ClCompile>
@@ -78,7 +77,6 @@
       <LanguageStandard_C>stdc17</LanguageStandard_C>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <Optimization>Full</Optimization>
-      <LinkIncremental>false</LinkIncremental>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG</PreprocessorDefinitions>
@@ -86,6 +84,7 @@
     </ResourceCompile>
 	<Link>
       <OptimizeReferences>true</OptimizeReferences>
+      <LinkIncremental>false</LinkIncremental>
 	</Link>
   </ItemDefinitionGroup>
 </Project>

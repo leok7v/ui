@@ -2,13 +2,7 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\src\amalgamate.c" />
-    <ClCompile Include="..\src\args.c">
-      <Filter>runtime\src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\debug.c">
-      <Filter>runtime\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\static.c">
       <Filter>runtime\src</Filter>
     </ClCompile>
     <ClCompile Include="..\src\str.c">
@@ -17,28 +11,10 @@
     <ClCompile Include="..\src\vigil.c">
       <Filter>runtime\src</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\mutexes.c">
-      <Filter>runtime\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\events.c">
-      <Filter>runtime\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\threads.c">
-      <Filter>runtime\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\num.c">
-      <Filter>runtime\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\mem.c">
-      <Filter>runtime\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\atomics.c">
-      <Filter>runtime\src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\loader.c">
-      <Filter>runtime\src</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\runtime.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\static.c">
       <Filter>runtime\src</Filter>
     </ClCompile>
   </ItemGroup>
