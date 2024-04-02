@@ -23,13 +23,18 @@ static int32_t string_to_verbosity(const char* s) {
     }
 }
 
+// for more details run with
+// --verbosity info (aka -v)
+// or
+// --verbosity trace
+
 int main(int argc, const char* argv[]) {
     const char* vs = args.option_str(&argc, argv, "--verbosity");
     if (vs != null) {
         debug.verbosity = string_to_verbosity(vs);
     } else if (args.option_bool(&argc, argv, "--verbose") ||
               args.option_bool(&argc, argv, "-v")) {
-        debug.verbosity = 1;
+        debug.verbosity = debug.info;
     }
     runtime.test(debug.verbosity);
     if (debug.verbosity > 0) { printf("all tests complete\n"); }

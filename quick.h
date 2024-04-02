@@ -5066,7 +5066,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE previous, char* command,
     // https://learn.microsoft.com/en-us/windows/win32/api/imm/nf-imm-immdisablelegacyime
     ImmDisableLegacyIME();
     // https://developercommunity.visualstudio.com/t/MSCTFdll-timcpp-An-assertion-failure-h/10513796
-    ImmDisableIME(0); // temporarely disable IME till MS fixes thta assert
+    ImmDisableIME(0); // temporarily disable IME till MS fixes that assert
     SetConsoleCP(CP_UTF8);
     __winnls_init__();
     app.visibility = show_command;

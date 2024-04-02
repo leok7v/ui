@@ -97,18 +97,19 @@ static_init(runtime) {
 }
 
 static void rt_test(int32_t verbosity) {
-#ifdef RUNTIME_TESTS
-    static_init_test(verbosity);
-    vigil.test(verbosity);
-    str.test(verbosity);
-    num.test(verbosity);
-    loader.test(verbosity);
+#ifdef RUNTIME_TESTS // in alphabetical order
+    args.test(verbosity);
     atomics.test(verbosity);
     clock.test(verbosity);
-    mem.test(verbosity);
     events.test(verbosity);
+    loader.test(verbosity);
+    mem.test(verbosity);
     mutexes.test(verbosity);
+    num.test(verbosity);
+    static_init_test(verbosity);
+    str.test(verbosity);
     threads.test(verbosity);
+    vigil.test(verbosity);
 #else
     (void)unused(verbosity);
 #endif

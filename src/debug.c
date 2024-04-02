@@ -98,6 +98,7 @@ static void debug_printf(const char* file, int line, const char* func,
     va_end(vl);
 }
 
+
 static void debug_breakpoint(void) { if (IsDebuggerPresent()) { DebugBreak(); } }
 
 debug_if debug = {
