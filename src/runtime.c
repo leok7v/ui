@@ -37,7 +37,7 @@ static int runtime_data_size(const char* name, const char* key) {
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = 0;
-        int r = RegQueryValueExA(k, key, null, &type, null, &cb);
+        errno_t r = RegQueryValueExA(k, key, null, &type, null, &cb);
         if (r == ERROR_FILE_NOT_FOUND) {
             bytes = 0; // do not report data_size() often used this way
         } else if (r != 0) {
@@ -59,7 +59,7 @@ static int runtime_data_load(const char* name,
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
-        int r = RegQueryValueExA(k, key, null, &type, (byte*)data, &cb);
+        errno_t r = RegQueryValueExA(k, key, null, &type, (byte*)data, &cb);
         if (r == ERROR_MORE_DATA) {
             // returns -1 app.data_size() should be used
         } else if (r != 0) {
@@ -97,7 +97,7 @@ static_init(runtime) {
 }
 
 static void rt_test(void) {
-#ifdef RUNTIME_TESTS // in alphabetical order
+    #ifdef RUNTIME_TESTS // in alphabetical order
     args.test();
     atomics.test();
     clock.test();
@@ -106,11 +106,13 @@ static void rt_test(void) {
     mem.test();
     mutexes.test();
     num.test();
+    processes.test();
     static_init_test();
     str.test();
+    streams.test();
     threads.test();
     vigil.test();
-#endif
+    #endif
 }
 
 runtime_if runtime = {

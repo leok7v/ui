@@ -186,7 +186,7 @@ static bool threads_try_join(thread_t t, double timeout) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
     int32_t timeout_ms = timeout <= 0 ? 0 : (int)(timeout * 1000.0 + 0.5);
-    int r = WaitForSingleObject(t, timeout_ms);
+    errno_t r = WaitForSingleObject(t, timeout_ms);
     if (r != 0) {
         traceln("failed to join thread %p %s", t, str.error(r));
     } else {

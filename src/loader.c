@@ -60,10 +60,7 @@ static int32_t loader_test_count;
 
 export void loader_test_exported_function(void) { loader_test_count++; }
 
-#endif
-
 static void loader_test(void) {
-#ifdef RUNTIME_TESTS
     loader_test_count = 0;
     loader_test_exported_function(); // to make sure it is linked in
     swear(loader_test_count == 1);
@@ -87,17 +84,23 @@ static void loader_test(void) {
     long cur_resolution = 0;
     fatal_if(query_timer_resolution(
         &min_resolution, &max_resolution, &cur_resolution) != 0);
-    if (debug.verbosity.level > debug.verbosity.info) {
-        traceln("timer resolution min: %.3f max: %.3f cur: %.3f microsecond",
-            min_resolution / 10.0,
-            max_resolution / 10.0,
-            cur_resolution / 10.0);
-        // Interesting observation cur_resoluition sometimes 15.625us or 1.0us
+    if (debug.verbosity.level >= debug.verbosity.trace) {
+        traceln("timer resolution min: %.3f max: %.3f cur: %.3f millisecond",
+            min_resolution / 10.0 / 1000.0,
+            max_resolution / 10.0 / 1000.0,
+            cur_resolution / 10.0 / 1000.0);
+        // Interesting observation cur_resolution sometimes 15.625ms or 1.0ms
     }
     loader.close(nt_dll);
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
-#endif
 }
+
+#else
+
+static void loader_test(void) {}
+
+#endif
+
 
 enum {
     loader_local  = 0,       // RTLD_LOCAL  All symbols are not made available for relocation processing by other modules.

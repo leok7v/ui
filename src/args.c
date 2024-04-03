@@ -1,7 +1,7 @@
 #include "runtime.h"
 
-// Terminilogy "quote" in the code and comments below
-// actually refers to "double quote mark" and used for briefity
+// Terminology: "quote" in the code and comments below
+// actually refers to "double quote mark" and used for brevity.
 
 static int32_t args_option_index(int argc, const char* argv[], const char* option) {
     for (int i = 1; i < argc; i++) {

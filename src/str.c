@@ -69,7 +69,7 @@ static int str_utf16_chars(const char* utf8) {
 }
 
 static char* str_utf16to8(char* s, const wchar_t* utf16) {
-    int r = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16, -1, s,
+    errno_t r = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16, -1, s,
         str.utf8_bytes(utf16), null, null);
     fatal_if(r == 0, "WideCharToMultiByte() failed %s",
             str.error(runtime.err()));
@@ -77,7 +77,7 @@ static char* str_utf16to8(char* s, const wchar_t* utf16) {
 }
 
 static wchar_t* str_utf8to16(wchar_t* utf16, const char* s) {
-    int r = MultiByteToWideChar(CP_UTF8, 0, s, -1, utf16,
+    errno_t r = MultiByteToWideChar(CP_UTF8, 0, s, -1, utf16,
                                 str.utf16_chars(s));
     fatal_if(r == 0, "WideCharToMultiByte() failed %s",
             str.error(runtime.err()));

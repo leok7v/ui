@@ -57,7 +57,7 @@ static void events_test_check_time(double start, double expected) {
 }
 
 static void events_test(void) {
-#ifdef RUNTIME_TESTS
+    #ifdef RUNTIME_TESTS
     event_t event = events.create();
     double start = clock.seconds();
     events.set(event);
@@ -91,7 +91,7 @@ static void events_test(void) {
         events.dispose(event_array[i]);
     }
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
-#endif
+    #endif
 }
 
 events_if events = {

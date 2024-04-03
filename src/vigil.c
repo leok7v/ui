@@ -57,7 +57,7 @@ static int32_t vigil_test_failed_assertion(const char* file, int line,
     fatal_if(condition == null || condition[0] == 0);
     fatal_if(format == null || format[0] == 0);
     vigil_test_failed_assertion_count++;
-    if (debug.verbosity.level > debug.verbosity.info) {
+    if (debug.verbosity.level >= debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
         debug.vprintf(file, line, func, format, vl);
@@ -81,7 +81,7 @@ static int32_t vigil_test_fatal_termination(const char* file, int line,
     assert(strequ(condition, "")); // not yet used expected to be ""
     assert(format != null && format[0] != 0);
     vigil_test_fatal_calls_count++;
-    if (debug.verbosity.level > debug.verbosity.info) {
+    if (debug.verbosity.level > debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
         debug.vprintf(file, line, func, format, vl);

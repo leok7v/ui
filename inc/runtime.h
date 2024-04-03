@@ -12,6 +12,8 @@
 #include "num.h"
 #include "static.h"
 #include "str.h"
+#include "streams.h"
+#include "processes.h"
 #include "threads.h"
 #include "va_args.h"
 #include "vigil.h"

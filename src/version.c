@@ -13,7 +13,7 @@ enum { max_command_output = 16 * 1024 };
 
 int run_command(const char* command, char* output, size_t max_output) {
     FILE* f = popen(command, "r");
-    int r = f != NULL ? 1 : -1;
+    errno_t r = f != NULL ? 1 : -1;
     size_t total = 0;
     while (r > 0) {
         size_t seen = fread(output + total, 1, max_output - total, f);

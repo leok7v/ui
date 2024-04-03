@@ -3,7 +3,7 @@
 
 static int mem_map_view_of_file(HANDLE file, void* *data, int64_t *bytes,
         bool rw) {
-    int r = 0;
+    errno_t r = 0;
     void* address = null;
     HANDLE mapping = CreateFileMapping(file, null,
         rw ? PAGE_READWRITE : PAGE_READONLY,
@@ -40,7 +40,7 @@ static int mem_adjust_process_privilege_manage_volume_name(void) {
     const uint32_t access = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
     const HANDLE process = GetCurrentProcess();
     HANDLE token = null;
-    int r = OpenProcessToken(process, access, &token) ? 0 : GetLastError();
+    errno_t r = OpenProcessToken(process, access, &token) ? 0 : GetLastError();
     if (r == 0) {
         #ifdef UNICODE
         const char* se_manage_volume_name = utf16to8(SE_MANAGE_VOLUME_NAME);
@@ -58,7 +58,7 @@ static int mem_map_file(const char* filename, void* *data,
     if (rw) { // for SetFileValidData() call:
         (void)mem_adjust_process_privilege_manage_volume_name();
     }
-    int r = 0;
+    errno_t r = 0;
     const DWORD flags = GENERIC_READ | (rw ? GENERIC_WRITE : 0);
     const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
     HANDLE file = CreateFileA(filename, flags, share, null,
@@ -118,7 +118,7 @@ static int mem_map_resource(const char* label, void* *data, int64_t *bytes) {
 }
 
 static void mem_test(void) {
-#ifdef RUNTIME_TESTS
+    #ifdef RUNTIME_TESTS
     swear(args.c > 0);
     void* data = null;
     int64_t bytes = 0;
@@ -126,7 +126,7 @@ static void mem_test(void) {
     swear(data != null && bytes != 0);
     mem.unmap(data, bytes);
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
-#endif
+    #endif
 }
 
 mem_if mem = {
