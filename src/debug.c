@@ -3,20 +3,15 @@
 
 begin_c
 
-#ifdef WINDOWS
-
-#ifndef OutputDebugString // beats #include <Windows.h>
-__declspec(dllimport) void __stdcall OutputDebugStringW(const uint16_t* s);
-#pragma comment(lib, "Kernel32")
-#endif
-
 static const char* debug_abbreviate(const char* file) {
     const char* fn = strrchr(file, '\\');
     if (fn == null) { fn = strrchr(file, '/'); }
     return fn != null ? fn + 1 : file;
 }
 
-static void debug_vprintf(const char* file, int line, const char* func,
+#ifdef WINDOWS
+
+static void debug_vprintf(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
     char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
@@ -55,7 +50,7 @@ static void debug_vprintf(const char* file, int line, const char* func,
 
 #else // posix version:
 
-static void debug_vprintf(const char* file, int line, const char* func,
+static void debug_vprintf(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
     fprintf(stderr, "%s(%d): %s ", file, line, func);
     vfprintf(stderr, format, vl);
@@ -90,7 +85,7 @@ static void debug_perror(const char* file, int32_t line,
     }
 }
 
-static void debug_printf(const char* file, int line, const char* func,
+static void debug_printf(const char* file, int32_t line, const char* func,
         const char* format, ...) {
     va_list vl;
     va_start(vl, format);
@@ -98,7 +93,11 @@ static void debug_printf(const char* file, int line, const char* func,
     va_end(vl);
 }
 
-static void debug_breakpoint(void) { if (IsDebuggerPresent()) { DebugBreak(); } }
+static bool debug_is_debugger_present(void) { return IsDebuggerPresent(); }
+
+static void debug_breakpoint(void) {
+    if (debug.is_debugger_present()) { DebugBreak(); }
+}
 
 static int32_t debug_verbosity_from_string(const char* s) {
     const char* n = null;
@@ -136,7 +135,8 @@ debug_if debug = {
     .vprintf = debug_vprintf,
     .perrno  = debug_perrno,
     .perror  = debug_perror,
-    .breakpoint = debug_breakpoint
+    .is_debugger_present = debug_is_debugger_present,
+    .breakpoint          = debug_breakpoint
 };
 
 end_c

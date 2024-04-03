@@ -3,7 +3,7 @@
 
 begin_c
 
-static int streams_memory_read(stream_if* stream, void* data, int64_t bytes,
+static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,
         int64_t *transferred) {
     swear(bytes > 0);
     stream_memory_if* s = (stream_memory_if*)stream;
@@ -17,7 +17,7 @@ static int streams_memory_read(stream_if* stream, void* data, int64_t bytes,
     return 0;
 }
 
-static int streams_memory_write(stream_if* stream, const void* data, int64_t bytes,
+static errno_t streams_memory_write(stream_if* stream, const void* data, int64_t bytes,
         int64_t *transferred) {
     swear(bytes > 0);
     stream_memory_if* s = (stream_memory_if*)stream;

@@ -21,15 +21,15 @@ void* _static_force_symbol_reference_(void* symbol);
 
 #define _msvc_ctor_(_sym_prefix, func)                                    \
   _msvc_extern_c_ void func(void);                                        \
-  _msvc_extern_c_ int (* _array ## func)(void);                           \
-  _msvc_extern_c_ int func ## _wrapper(void);                             \
-  _msvc_extern_c_ int func ## _wrapper(void) { func();                    \
+  _msvc_extern_c_ int32_t (* _array ## func)(void);                       \
+  _msvc_extern_c_ int32_t func ## _wrapper(void);                         \
+  _msvc_extern_c_ int32_t func ## _wrapper(void) { func();                \
     _static_force_symbol_reference_((void*)_array ## func);               \
     _static_force_symbol_reference_((void*)func ## _wrapper); return 0; } \
   __pragma(comment(linker, "/include:" _sym_prefix # func "_wrapper"))    \
   __pragma(section(".CRT$XCU", read))                                     \
   __declspec(allocate(".CRT$XCU"))                                        \
-    int (* _array ## func)(void) = func ## _wrapper;
+    int32_t (* _array ## func)(void) = func ## _wrapper;
 
 #define _static_init2_(func, line) _msvc_ctor_(_msvc_symbol_prefix_, \
     func ## _constructor_##line)                                     \

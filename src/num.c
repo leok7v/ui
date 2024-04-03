@@ -97,7 +97,7 @@ static uint64_t num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
 static uint32_t num_gcd32(uint32_t u, uint32_t v) {
     uint32_t t = u | v;
     if (u == 0 || v == 0) { return t; }
-    int g = ctz(t);
+    int32_t g = ctz(t);
     while (u != 0) {
         u >>= ctz(u);
         v >>= ctz(v);

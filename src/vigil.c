@@ -49,7 +49,7 @@ static int32_t  vigil_test_failed_assertion_count;
 // intimate knowledge of vigil.*() functions used in macro definitions
 #define vigil vigil_test_saved
 
-static int32_t vigil_test_failed_assertion(const char* file, int line,
+static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     fatal_if_not(strequ(file,  __FILE__), "file: %s", file);
     fatal_if_not(line > __LINE__, "line: %s", line);
@@ -69,7 +69,7 @@ static int32_t vigil_test_failed_assertion(const char* file, int line,
 
 static int32_t vigil_test_fatal_calls_count;
 
-static int32_t vigil_test_fatal_termination(const char* file, int line,
+static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     const int32_t er = runtime.err();
     const int32_t en = errno;

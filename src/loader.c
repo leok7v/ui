@@ -1,6 +1,5 @@
 #include "runtime.h"
 #include "win32.h"
-#include <psapi.h>
 
 // This is oversimplified Win32 version completely ignoring mode.
 
@@ -38,7 +37,7 @@ static void* loader_sym_all(const char* name) {
     return sym;
 }
 
-static void* loader_open(const char* filename, int unused(mode)) {
+static void* loader_open(const char* filename, int32_t unused(mode)) {
     return filename == null ? &loader_all : (void*)LoadLibraryA(filename);
 }
 

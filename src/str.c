@@ -1,7 +1,7 @@
 #include "runtime.h"
 #include "win32.h"
 
-char* strnchr(const char* s, int n, char ch) {
+char* strnchr(const char* s, int32_t n, char ch) {
     while (n > 0 && *s != 0) {
         if (*s == ch) { return (char*)s; }
         s++; n--;
@@ -9,12 +9,12 @@ char* strnchr(const char* s, int n, char ch) {
     return null;
 }
 
-static void str_vformat(char* utf8, int count, const char* format, va_list vl) {
+static void str_vformat(char* utf8, int32_t count, const char* format, va_list vl) {
     vsnprintf(utf8, count, format, vl);
     utf8[count - 1] = 0;
 }
 
-static void str_sformat(char* utf8, int count, const char* format, ...) {
+static void str_sformat(char* utf8, int32_t count, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     str.vformat(utf8, count, format, vl);
@@ -32,7 +32,7 @@ static const char* str_error_for_language(int32_t error, LANGID language) {
             (va_list*)null) > 0) {
         s[countof(s) - 1] = 0;
         // remove trailing '\r\n'
-        int k = (int)wcslen(s);
+        int32_t k = (int32_t)wcslen(s);
         if (k > 0 && s[k - 1] == '\n') { s[k - 1] = 0; }
         k = (int)wcslen(s);
         if (k > 0 && s[k - 1] == '\r') { s[k - 1] = 0; }
@@ -53,16 +53,16 @@ static const char* str_error_nls(int32_t error) {
     return str_error_for_language(error, lang);
 }
 
-static int str_utf8_bytes(const wchar_t* utf16) {
-    int required_bytes_count =
+static int32_t str_utf8_bytes(const wchar_t* utf16) {
+    int32_t required_bytes_count =
         WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
         utf16, -1, null, 0, null, null);
     swear(required_bytes_count > 0);
     return required_bytes_count;
 }
 
-static int str_utf16_chars(const char* utf8) {
-    int required_wide_chars_count =
+static int32_t str_utf16_chars(const char* utf8) {
+    int32_t required_wide_chars_count =
         MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
     swear(required_wide_chars_count > 0);
     return required_wide_chars_count;
@@ -157,11 +157,11 @@ static bool str_to_upper(char* d, int32_t capacity, const char* s) {
     return *s == 0;
 }
 
-static int str_compare(const char* s1, int32_t bytes, const char* s2) {
+static int32_t str_compare(const char* s1, int32_t bytes, const char* s2) {
     return bytes > 0 ? strncmp(s1, s2, bytes) : strcmp(s1, s2);
 }
 
-static int str_compare_nc(const char* s1, int32_t bytes, const char* s2) {
+static int32_t str_compare_nc(const char* s1, int32_t bytes, const char* s2) {
     return bytes > 0 ? strncasecmp(s1, s2, bytes) : strcasecmp(s1, s2);
 }
 

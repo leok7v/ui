@@ -21,7 +21,7 @@ static void events_reset(event_t e) {
     fatal_if_false(ResetEvent((HANDLE)e));
 }
 
-static int events_wait_or_timeout(event_t e, double seconds) {
+static int32_t events_wait_or_timeout(event_t e, double seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (int32_t)(seconds * 1000.0 + 0.5);
     uint32_t r = 0;
     fatal_if_false((r = WaitForSingleObject(e, ms)) != WAIT_FAILED);
@@ -30,7 +30,7 @@ static int events_wait_or_timeout(event_t e, double seconds) {
 
 static void events_wait(event_t e) { events_wait_or_timeout(e, -1); }
 
-static int events_wait_any_or_timeout(int n, event_t events_[], double s) {
+static int32_t events_wait_any_or_timeout(int32_t n, event_t events_[], double s) {
     uint32_t ms = s < 0 ? INFINITE : (int32_t)(s * 1000.0 + 0.5);
     uint32_t r = 0;
     fatal_if_false((r = WaitForMultipleObjects(n, events_, false, ms)) != WAIT_FAILED);
@@ -38,7 +38,7 @@ static int events_wait_any_or_timeout(int n, event_t events_[], double s) {
     return r < WAIT_OBJECT_0 + n ? r - WAIT_OBJECT_0 : -1;
 }
 
-static int events_wait_any(int n, event_t e[]) {
+static int32_t events_wait_any(int32_t n, event_t e[]) {
     return events_wait_any_or_timeout(n, e, -1);
 }
 
@@ -66,17 +66,17 @@ static void events_test(void) {
     events.reset(event);
     start = clock.seconds();
     const double timeout_seconds = 0.01;
-    int result = events.wait_or_timeout(event, timeout_seconds);
+    int32_t result = events.wait_or_timeout(event, timeout_seconds);
     events_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     enum { count = 5 };
     event_t event_array[count];
-    for (int i = 0; i < countof(event_array); i++) {
+    for (int32_t i = 0; i < countof(event_array); i++) {
         event_array[i] = events.create_manual();
     }
     start = clock.seconds();
     events.set(event_array[2]); // Set the third event
-    int index = events.wait_any(countof(event_array), event_array);
+    int32_t index = events.wait_any(countof(event_array), event_array);
     events_test_check_time(start, 0);
     swear(index == 2); // Third event should be triggered
     events.reset(event_array[2]); // Reset the third event
@@ -87,7 +87,7 @@ static void events_test(void) {
     swear(result == -1); // Timeout expected
     // Clean up
     events.dispose(event);
-    for (int i = 0; i < countof(event_array); i++) {
+    for (int32_t i = 0; i < countof(event_array); i++) {
         events.dispose(event_array[i]);
     }
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }

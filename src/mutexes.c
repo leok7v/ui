@@ -43,11 +43,11 @@ static void mutexes_test(void) {
     mutexes_test_check_time(start, 0);
     enum { count = 5 };
     thread_t ts[count];
-    for (int i = 0; i < countof(ts); i++) {
+    for (int32_t i = 0; i < countof(ts); i++) {
         ts[i] = threads.start(mutexes_test_lock_unlock, &mutex);
     }
     // Wait for all threads to finish
-    for (int i = 0; i < countof(ts); i++) {
+    for (int32_t i = 0; i < countof(ts); i++) {
         threads.join(ts[i]);
     }
     mutexes.dispose(&mutex);

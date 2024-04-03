@@ -13,17 +13,15 @@ static void* threads_ntdll(void) {
     return ntdll;
 }
 
-
 static double threads_ns2ms(int64_t ns) {
     return ns / (double)nsec_in_msec;
 }
 
 static void threads_set_timer_resolution(uint64_t nanoseconds) {
-    typedef int (*query_timer_resolution_t)(ULONG* minimum_resolution,
+    typedef int32_t (*query_timer_resolution_t)(ULONG* minimum_resolution,
         ULONG* maximum_resolution, ULONG* actual_resolution);
-    typedef int (*set_timer_resolution_t)(ULONG requested_resolution,
-        BOOLEAN Set, ULONG* actual_resolution);    // ntdll.dll
-    typedef int (*timeBeginPeriod_t)(UINT period); // winmm.dll
+    typedef int32_t (*set_timer_resolution_t)(ULONG requested_resolution,
+        BOOLEAN set, ULONG* actual_resolution); // ntdll.dll
     void* nt_dll = threads_ntdll();
     query_timer_resolution_t query_timer_resolution =  (query_timer_resolution_t)
         loader.sym(nt_dll, "NtQueryTimerResolution");
@@ -95,7 +93,7 @@ static void threads_disable_power_throttling(void) {
     threads_power_throttling_disable_for_thread(GetCurrentThread());
 }
 
-static const char* threads_rel2str(int rel) {
+static const char* threads_rel2str(int32_t rel) {
     switch (rel) {
         case RelationProcessorCore   : return "ProcessorCore   ";
         case RelationNumaNode        : return "NumaNode        ";
@@ -112,8 +110,8 @@ static const char* threads_rel2str(int rel) {
 static uint64_t threads_next_physical_processor_affinity_mask(void) {
     static volatile int32_t initialized;
     static int32_t init;
-    static int next = 1; // next physical core to use
-    static int cores = 0; // number of physical processors (cores)
+    static int32_t next = 1; // next physical core to use
+    static int32_t cores = 0; // number of physical processors (cores)
     static uint64_t any;
     static uint64_t affinity[64]; // mask for each physical processor
     bool set_to_true = atomics.compare_exchange_int32(&init, false, true);
@@ -123,10 +121,11 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
         DWORD bytes = 0;
         GetLogicalProcessorInformation(null, &bytes);
         assert(bytes % sizeof(lpi[0]) == 0);
-        int n = bytes / sizeof(lpi[0]); // number of lpi entries == 27 on 6 core / 12 logical processors system
+        // number of lpi entries == 27 on 6 core / 12 logical processors system
+        int32_t n = bytes / sizeof(lpi[0]);
         assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
         fatal_if_false(GetLogicalProcessorInformation(&lpi[0], &bytes));
-        for (int i = 0; i < n; i++) {
+        for (int32_t i = 0; i < n; i++) {
             if (debug.verbosity.level >= debug.verbosity.trace) {
                 traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
                     lpi[i].ProcessorMask, lpi[i].Relationship,
@@ -218,7 +217,7 @@ static void threads_sleep_for(double seconds) {
     assert(seconds >= 0);
     if (seconds < 0) { seconds = 0; }
     int64_t ns100 = (int64_t)(seconds * 1.0e+7); // in 0.1 us aka 100ns
-    typedef int (__stdcall *nt_delay_execution_t)(BOOLEAN alertable,
+    typedef int32_t (__stdcall *nt_delay_execution_t)(BOOLEAN alertable,
         PLARGE_INTEGER DelayInterval);
     static nt_delay_execution_t NtDelayExecution;
     // delay in 100-ns units. negative value means delay relative to current.
@@ -324,7 +323,7 @@ static void threads_test(void) {
     threads_philosophers_t ps = { .seed = 1 };
     enum { n = countof(ps.philosopher) };
     // Initialize mutexes for forks
-    for (int i = 0; i < n; i++) {
+    for (int32_t i = 0; i < n; i++) {
         threads_philosopher_t* p = &ps.philosopher[i];
         p->id = i;
         p->ps = &ps;
@@ -333,22 +332,22 @@ static void threads_test(void) {
         ps.fed_up[i] = events.create();
     }
     // Create and start philosopher threads
-    for (int i = 0; i < n; i++) {
+    for (int32_t i = 0; i < n; i++) {
         threads_philosopher_t* p = &ps.philosopher[i];
         threads_philosopher_t* r = &ps.philosopher[(i + 1) % n];
         p->right_fork = r->left_fork;
         p->thread = threads.start(threads_philosopher_routine, p);
     }
     // wait for all philosophers being fed up:
-    for (int i = 0; i < n; i++) { events.wait(ps.fed_up[i]); }
+    for (int32_t i = 0; i < n; i++) { events.wait(ps.fed_up[i]); }
     ps.enough = true;
     // join all philosopher threads
-    for (int i = 0; i < n; i++) {
+    for (int32_t i = 0; i < n; i++) {
         threads_philosopher_t* p = &ps.philosopher[i];
         threads.join(p->thread);
     }
     // Dispose of mutexes and events
-    for (int i = 0; i < n; ++i) {
+    for (int32_t i = 0; i < n; ++i) {
         threads_philosopher_t* p = &ps.philosopher[i];
         mutexes.dispose(&p->fork);
         events.dispose(ps.fed_up[i]);

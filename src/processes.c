@@ -1,8 +1,5 @@
 #include "runtime.h"
 #include "win32.h"
-#include <psapi.h>
-#include <shellapi.h>
-#include <winternl.h>
 
 begin_c
 
@@ -32,7 +29,7 @@ typedef struct pidof_lambda_s {
     size_t size;  // pids[size]
     size_t count; // number of valid pids in the pids
     double timeout;
-    int error;
+    errno_t error;
 } pidof_lambda_t;
 
 static int32_t for_each_pidof(const char* pname, pidof_lambda_t* la) {
@@ -112,7 +109,7 @@ static void processes_close_handle(HANDLE h) {
     fatal_if_false(CloseHandle(h));
 }
 
-static int nameof(uintptr_t pid, char* name, int32_t count) {
+static errno_t nameof(uintptr_t pid, char* name, int32_t count) {
     assert(name != null && count > 0);
     errno_t r = 0;
     name[0] = 0;
@@ -160,7 +157,7 @@ static bool store_pid(pidof_lambda_t* lambda, uintptr_t pid) {
     return true; // always - need to count all
 }
 
-static int pids(const char* pname, uintptr_t* pids/*[size]*/, int32_t size,
+static errno_t pids(const char* pname, uintptr_t* pids/*[size]*/, int32_t size,
         int32_t *count) {
     *count = 0;
     pidof_lambda_t lambda = {
@@ -175,7 +172,7 @@ static int pids(const char* pname, uintptr_t* pids/*[size]*/, int32_t size,
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
-static int processes_kill(uintptr_t pid, double timeout) {
+static errno_t processes_kill(uintptr_t pid, double timeout) {
     DWORD timeout_milliseconds = (DWORD)(timeout * 1000);
     enum { access = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE };
     assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
@@ -196,7 +193,7 @@ static int processes_kill(uintptr_t pid, double timeout) {
             }
         } else {
             DWORD bytes = countof(path);
-            int rq = b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
+            errno_t rq = b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
             if (rq != 0) {
                 traceln("QueryFullProcessImageNameA(pid=%d, h=%p) "
                         "failed %s", pid, h, str.error(rq));
@@ -231,7 +228,7 @@ static bool processes_kill_one(pidof_lambda_t* lambda, uintptr_t pid) {
     return true; // keep going
 }
 
-static int processes_kill_all(const char* name, double timeout) {
+static errno_t processes_kill_all(const char* name, double timeout) {
     pidof_lambda_t lambda = {
         .each = processes_kill_one,
         .pids = null,
@@ -240,12 +237,12 @@ static int processes_kill_all(const char* name, double timeout) {
         .timeout = timeout,
         .error = 0
     };
-    int c = for_each_pidof(name, &lambda);
+    int32_t c = for_each_pidof(name, &lambda);
     return c == 0 ? ERROR_NOT_FOUND : lambda.error;
 }
 
 static bool processes_is_elevated(void) { // Is process running as Admin / System ?
-    int elevated = false;
+    BOOL elevated = false;
     PSID administrators_group = null;
     // Allocate and initialize a SID of the administrators group.
     SID_IDENTIFIER_AUTHORITY administrators_group_authority = SECURITY_NT_AUTHORITY;
@@ -277,7 +274,7 @@ static bool processes_is_elevated(void) { // Is process running as Admin / Syste
     return elevated;
 }
 
-static int processes_restart_elevated(void) {
+static errno_t processes_restart_elevated(void) {
     errno_t r = 0;
     if (!processes.is_elevated()) {
         const char* path = processes.name();
@@ -308,7 +305,7 @@ static void processes_close_pipes(STARTUPINFOA* si,
     if (*write_in != INVALID_HANDLE_VALUE) { processes_close_handle(*write_in); }
 }
 
-static int processes_child_read(stream_if* out, HANDLE pipe) {
+static errno_t processes_child_read(stream_if* out, HANDLE pipe) {
     char data[32 * 1024]; // Temporary buffer for reading
     DWORD available = 0;
     errno_t r = PeekNamedPipe(pipe, null, sizeof(data), null, &available, null) ?
@@ -326,9 +323,7 @@ static int processes_child_read(stream_if* out, HANDLE pipe) {
 //      traceln("r: %d bytes_read: %d", r, bytes_read);
         if (out != null) {
             if (r == 0) {
-                if (!out->write(out, data, bytes_read, null)) {
-                    r = ERROR_INSUFFICIENT_BUFFER;
-                }
+                r = out->write(out, data, bytes_read, null);
             }
         } else {
             // no one interested - drop on the floor
@@ -337,7 +332,7 @@ static int processes_child_read(stream_if* out, HANDLE pipe) {
     return r;
 }
 
-static int processes_child_write(stream_if* in, HANDLE pipe) {
+static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
     errno_t r = 0;
     if (in != null) {
         uint8_t  memory[32 * 1024]; // Temporary buffer for reading
@@ -358,7 +353,7 @@ static int processes_child_write(stream_if* in, HANDLE pipe) {
     return r;
 }
 
-static int processes_run(processes_child_t* child) {
+static errno_t processes_run(processes_child_t* child) {
     const double deadline = clock.seconds() + child->timeout;
     errno_t r = 0;
     STARTUPINFOA si = {
@@ -374,9 +369,9 @@ static int processes_run(processes_child_t* child) {
     HANDLE read_out = INVALID_HANDLE_VALUE;
     HANDLE read_err = INVALID_HANDLE_VALUE;
     HANDLE write_in = INVALID_HANDLE_VALUE;
-    int ro = CreatePipe(&read_out, &si.hStdOutput, &sa, 0) ? 0 : runtime.err();
-    int re = CreatePipe(&read_err, &si.hStdError,  &sa, 0) ? 0 : runtime.err();
-    int ri = CreatePipe(&si.hStdInput, &write_in,  &sa, 0) ? 0 : runtime.err();
+    errno_t ro = CreatePipe(&read_out, &si.hStdOutput, &sa, 0) ? 0 : runtime.err();
+    errno_t re = CreatePipe(&read_err, &si.hStdError,  &sa, 0) ? 0 : runtime.err();
+    errno_t ri = CreatePipe(&si.hStdInput, &write_in,  &sa, 0) ? 0 : runtime.err();
     if (ro != 0 || re != 0 || ri != 0) {
         processes_close_pipes(&si, &read_out, &read_err, &write_in);
         if (ro != 0) { traceln("CreatePipe() failed %s", str.error(ro)); r = ro; }
@@ -431,7 +426,7 @@ static int processes_run(processes_child_t* child) {
         if (r == ERROR_BROKEN_PIPE) { r = 0; } // not an error
 //      if (r != 0) { traceln("pipe loop failed %s", str.error(r));}
         DWORD xc = 0;
-        int rx = GetExitCodeProcess(pi.hProcess, &xc) ? 0 : runtime.err();
+        errno_t rx = GetExitCodeProcess(pi.hProcess, &xc) ? 0 : runtime.err();
         if (rx == 0) {
             child->exit_code = xc;
         } else {
@@ -447,10 +442,10 @@ static int processes_run(processes_child_t* child) {
 typedef struct processes_io_merge_out_and_err_if {
     stream_if stream;
     stream_if* output;
-    int error;
+    errno_t error;
 } processes_io_merge_out_and_err_if;
 
-static int processes_merge_write(stream_if* stream, const void* data,
+static errno_t processes_merge_write(stream_if* stream, const void* data,
         int64_t bytes, int64_t* transferred) {
     if (transferred != null) { *transferred = 0; }
     processes_io_merge_out_and_err_if* s =
@@ -461,7 +456,7 @@ static int processes_merge_write(stream_if* stream, const void* data,
     return s->error;
 }
 
-static int processes_open(const char* command, int32_t *exit_code,
+static errno_t processes_open(const char* command, int32_t *exit_code,
         stream_if* output,  double timeout) {
     not_null(output);
     processes_io_merge_out_and_err_if merge_out_and_err = {
@@ -487,7 +482,7 @@ static int processes_open(const char* command, int32_t *exit_code,
     return r;
 }
 
-static int processes_spawn(const char* command) {
+static errno_t processes_spawn(const char* command) {
     errno_t r = 0;
     STARTUPINFOA si = {
         .cb = sizeof(STARTUPINFOA),
@@ -535,7 +530,7 @@ static const char* processes_name(void) {
 static void processes_test(void) {
     #ifdef RUNTIME_TESTS // in alphabetical order
     const char* names[] = { "svchost", "RuntimeBroker", "conhost" };
-    for (int j = 0; j < countof(names); j++) {
+    for (int32_t j = 0; j < countof(names); j++) {
         int32_t size  = 0;
         int32_t count = 0;
         uintptr_t* pids = null;
@@ -546,7 +541,7 @@ static void processes_test(void) {
             r = processes.pids(names[j], pids, size, &count);
         }
         if (r == 0 && count > 0) {
-            for (int i = 0; i < count; i++) {
+            for (int32_t i = 0; i < count; i++) {
                 char path[256] = {0};
                 #pragma warning(suppress: 6011) // dereferencing null
                 r = processes.nameof(pids[i], path, countof(path));

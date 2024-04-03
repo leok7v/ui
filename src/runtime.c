@@ -22,7 +22,7 @@ static HKEY runtime_get_reg_key(const char* name) {
 }
 
 static void runtime_data_save(const char* name,
-        const char* key, const void* data, int bytes) {
+        const char* key, const void* data, int32_t bytes) {
     HKEY k = runtime_get_reg_key(name);
     if (k != null) {
         fatal_if_not_zero(RegSetValueExA(k, key, 0, REG_BINARY,
@@ -31,8 +31,8 @@ static void runtime_data_save(const char* name,
     }
 }
 
-static int runtime_data_size(const char* name, const char* key) {
-    int bytes = -1;
+static int32_t runtime_data_size(const char* name, const char* key) {
+    int32_t bytes = -1;
     HKEY k = runtime_get_reg_key(name);
     if (k != null) {
         DWORD type = REG_BINARY;
@@ -52,10 +52,10 @@ static int runtime_data_size(const char* name, const char* key) {
     return bytes;
 }
 
-static int runtime_data_load(const char* name,
-        const char* key, void* data, int bytes) {
-    int read = -1;
-    HKEY k= runtime_get_reg_key(name);
+static int32_t runtime_data_load(const char* name,
+        const char* key, void* data, int32_t bytes) {
+    int32_t read = -1;
+    HKEY k = runtime_get_reg_key(name);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;

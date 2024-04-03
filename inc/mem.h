@@ -5,12 +5,12 @@ begin_c
 
 typedef struct {
     // whole file read only
-    int (*map_ro)(const char* filename, void** data, int64_t* bytes);
+    errno_t (*map_ro)(const char* filename, void** data, int64_t* bytes);
     // whole file read-write
-    int (*map_rw)(const char* filename, void** data, int64_t* bytes);
+    errno_t (*map_rw)(const char* filename, void** data, int64_t* bytes);
     void (*unmap)(void* data, int64_t bytes);
     // map_resource() maps data from resources, do NOT unmap!
-    int  (*map_resource)(const char* label, void** data, int64_t* bytes);
+    errno_t  (*map_resource)(const char* label, void** data, int64_t* bytes);
     void (*test)(void);
 } mem_if;
 

@@ -28,9 +28,11 @@ typedef struct {
     void (*abort)(void);
     void (*exit)(int32_t exit_code); // only 8 bits on posix
     // persistent storage interface:
-    void (*data_save)(const char* name, const char* key, const void* data, int32_t bytes);
+    void (*data_save)(const char* name, const char* key,
+                      const void* data, int32_t bytes);
     int32_t (*data_size)(const char* name, const char* key);
-    int  (*data_load)(const char* name, const char* key, void* data, int32_t bytes);
+    int32_t (*data_load)(const char* name, const char* key,
+                         void* data, int32_t bytes);
     void (*test)(void);
 } runtime_if;
 

@@ -2,6 +2,9 @@
 #ifdef WIN32
 
 #include <Windows.h>
+#include <psapi.h> // used by both loader.c and processes.c
+#include <shellapi.h> // processes.c
+#include <winternl.h> // processes.c
 
 #if (defined(_DEBUG) || defined(DEBUG)) && !defined(_malloca) // Microsoft runtime debug heap
 #define _CRTDBG_MAP_ALLOC

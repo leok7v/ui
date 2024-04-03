@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -11,7 +12,7 @@
 
 enum { max_command_output = 16 * 1024 };
 
-int run_command(const char* command, char* output, size_t max_output) {
+static errno_t run_command(const char* command, char* output, size_t max_output) {
     FILE* f = popen(command, "r");
     errno_t r = f != NULL ? 1 : -1;
     size_t total = 0;

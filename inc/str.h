@@ -42,7 +42,7 @@ begin_c
         strncpy((s1), (s2), countof((s1)) - 1); s1[countof((s1)) - 1] = 0; \
 } while (0)
 
-char* strnchr(const char* s, int n, char ch);
+char* strnchr(const char* s, int32_t n, char ch);
 
 #define strtolowercase(s) \
     str.to_lowercase((char*)stackalloc(strlen(s) + 1), strlen(s) + 1, s)
@@ -89,8 +89,8 @@ typedef struct {
     char* (*first)(const char* s1, const char* s2);
     bool  (*to_lower)(char* d, int32_t capacity, const char* s);
     bool  (*to_upper)(char* d, int32_t capacity, const char* s);
-    int   (*compare)(const char* s1, int32_t bytes, const char* s2);
-    int   (*compare_nc)(const char* s1, int32_t bytes,
+    int32_t (*compare)(const char* s1, int32_t bytes, const char* s2);
+    int32_t (*compare_nc)(const char* s1, int32_t bytes,
                         const char* s2); // no-case ASCII only
     void (*test)(void);
 } str_if;

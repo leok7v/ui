@@ -23,14 +23,15 @@ typedef struct {
 typedef struct {
     verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
-    void (*vprintf)(const char* file, int line, const char* func,
+    void (*vprintf)(const char* file, int32_t line, const char* func,
         const char* format, va_list vl);
-    void (*printf)(const char* file, int line, const char* func,
+    void (*printf)(const char* file, int32_t line, const char* func,
         const char* format, ...);
     void (*perrno)(const char* file, int32_t line,
         const char* func, int32_t err_no, const char* format, ...);
     void (*perror)(const char* file, int32_t line,
         const char* func, int32_t error, const char* format, ...);
+    bool (*is_debugger_present)(void);
     void (*breakpoint)(void);
 } debug_if;
 

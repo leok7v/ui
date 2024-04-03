@@ -6,10 +6,10 @@ begin_c
 typedef struct stream_if stream_if;
 
 typedef struct stream_if {
-   int (*read)(stream_if* s, void* data, int64_t bytes,
-               int64_t *transferred);
-    int (*write)(stream_if* s, const void* data, int64_t bytes,
-                 int64_t *transferred);
+    errno_t (*read)(stream_if* s, void* data, int64_t bytes,
+                    int64_t *transferred);
+    errno_t (*write)(stream_if* s, const void* data, int64_t bytes,
+                     int64_t *transferred);
 } stream_if;
 
 typedef struct stream_memory_if {

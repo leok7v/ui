@@ -1,7 +1,7 @@
 #include "runtime.h"
 #include "win32.h"
 
-static int mem_map_view_of_file(HANDLE file, void* *data, int64_t *bytes,
+static errno_t mem_map_view_of_file(HANDLE file, void* *data, int64_t *bytes,
         bool rw) {
     errno_t r = 0;
     void* address = null;
@@ -26,21 +26,21 @@ static int mem_map_view_of_file(HANDLE file, void* *data, int64_t *bytes,
     return r;
 }
 
-static int mem_set_token_privilege(void* token, const char* name, bool e) {
+static errno_t mem_set_token_privilege(void* token, const char* name, bool e) {
     // see: https://learn.microsoft.com/en-us/windows/win32/secauthz/enabling-and-disabling-privileges-in-c--
     TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
     tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
     fatal_if_false(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid));
-    return AdjustTokenPrivileges(token, false, &tp,
-           sizeof(TOKEN_PRIVILEGES), null, null) ? 0 : GetLastError();
+    return b2e(AdjustTokenPrivileges(token, false, &tp,
+               sizeof(TOKEN_PRIVILEGES), null, null));
 }
 
-static int mem_adjust_process_privilege_manage_volume_name(void) {
+static errno_t mem_adjust_process_privilege_manage_volume_name(void) {
     // see: https://devblogs.microsoft.com/oldnewthing/20160603-00/?p=93565
     const uint32_t access = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
     const HANDLE process = GetCurrentProcess();
     HANDLE token = null;
-    errno_t r = OpenProcessToken(process, access, &token) ? 0 : GetLastError();
+    errno_t r = b2e(OpenProcessToken(process, access, &token));
     if (r == 0) {
         #ifdef UNICODE
         const char* se_manage_volume_name = utf16to8(SE_MANAGE_VOLUME_NAME);
@@ -53,7 +53,7 @@ static int mem_adjust_process_privilege_manage_volume_name(void) {
     return r;
 }
 
-static int mem_map_file(const char* filename, void* *data,
+static errno_t mem_map_file(const char* filename, void* *data,
         int64_t *bytes, bool rw) {
     if (rw) { // for SetFileValidData() call:
         (void)mem_adjust_process_privilege_manage_volume_name();
@@ -70,16 +70,16 @@ static int mem_map_file(const char* filename, void* *data,
         fatal_if_false(GetFileSizeEx(file, &eof));
         if (rw && *bytes > eof.QuadPart) { // increase file size
             const LARGE_INTEGER size = { .QuadPart = *bytes };
-            r = r != 0 ? r : (SetFilePointerEx(file, size, null, FILE_BEGIN) ? 0 : GetLastError());
-            r = r != 0 ? r : (SetEndOfFile(file) ? 0 : GetLastError());
+            r = r != 0 ? r : (b2e(SetFilePointerEx(file, size, null, FILE_BEGIN)));
+            r = r != 0 ? r : (b2e(SetEndOfFile(file)));
             // the following not guaranteed to work but helps with sparse files
-            r = r != 0 ? r : (SetFileValidData(file, *bytes) ? 0 : GetLastError());
+            r = r != 0 ? r : (b2e(SetFileValidData(file, *bytes)));
             // SetFileValidData() only works for Admin (verified) or System accounts
             if (r == ERROR_PRIVILEGE_NOT_HELD) { r = 0; } // ignore
             // SetFileValidData() is also semi-security hole because it allows to read
             // previously not zeroed disk content of other files
             const LARGE_INTEGER zero = { .QuadPart = 0 }; // rewind stream:
-            r = r != 0 ? r : (SetFilePointerEx(file, zero, null, FILE_BEGIN) ? 0 : GetLastError());
+            r = r != 0 ? r : (b2e(SetFilePointerEx(file, zero, null, FILE_BEGIN)));
         } else {
             *bytes = eof.QuadPart;
         }
@@ -89,11 +89,11 @@ static int mem_map_file(const char* filename, void* *data,
     return r;
 }
 
-static int mem_map_ro(const char* filename, void* *data, int64_t *bytes) {
+static errno_t mem_map_ro(const char* filename, void* *data, int64_t *bytes) {
     return mem_map_file(filename, data, bytes, false);
 }
 
-static int mem_map_rw(const char* filename, void* *data, int64_t *bytes) {
+static errno_t mem_map_rw(const char* filename, void* *data, int64_t *bytes) {
     return mem_map_file(filename, data, bytes, true);
 }
 
@@ -105,7 +105,7 @@ static void mem_unmap(void* data, int64_t bytes) {
     }
 }
 
-static int mem_map_resource(const char* label, void* *data, int64_t *bytes) {
+static errno_t mem_map_resource(const char* label, void* *data, int64_t *bytes) {
     HRSRC res = FindResourceA(null, label, (const char*)RT_RCDATA);
     // "LockResource does not actually lock memory; it is just used to
     // obtain a pointer to the memory containing the resource data.
