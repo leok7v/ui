@@ -53,6 +53,9 @@
     <ClCompile Include="..\src\files.c">
       <Filter>runtime\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\folders.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h">
@@ -113,6 +116,9 @@
       <Filter>runtime\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\files.h">
+      <Filter>runtime\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\folders.h">
       <Filter>runtime\inc</Filter>
     </ClInclude>
   </ItemGroup>
