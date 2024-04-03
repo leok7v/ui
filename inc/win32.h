@@ -10,4 +10,6 @@
 
 #define export __declspec(dllexport)
 
+#define b2e(call) (call ? 0 : GetLastError()) // BOOL -> errno_t
+
 #endif // WIN32
