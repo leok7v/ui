@@ -23,6 +23,7 @@
       <DisableSpecificWarnings>4711;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- automatic inline expansion -->
       <DisableSpecificWarnings>4820;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- '?' bytes padding added after data member -->
       <DisableSpecificWarnings>5045;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- Spectre mitigation -->
+      <DisableSpecificWarnings>6262;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- EXCESSIVESTACKUSAGE -->
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
