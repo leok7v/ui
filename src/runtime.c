@@ -102,6 +102,8 @@ static void rt_test(void) {
     atomics.test();
     clock.test();
     events.test();
+    files.test();
+    folders.test();
     loader.test();
     mem.test();
     mutexes.test();

@@ -6,6 +6,7 @@
 #include "clock.h"
 #include "debug.h"
 #include "events.h"
+#include "files.h"
 #include "loader.h"
 #include "mem.h"
 #include "mutexes.h"

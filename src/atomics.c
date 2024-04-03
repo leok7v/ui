@@ -184,7 +184,7 @@ static void spinlock_release(volatile int64_t* spinlock) {
 }
 
 static void atomics_test(void) {
-#ifdef RUNTIME_TESTS
+    #ifdef RUNTIME_TESTS
     volatile int32_t int32_var = 0;
     volatile int64_t int64_var = 0;
     volatile void* ptr_var = null;
@@ -237,7 +237,7 @@ static void atomics_test(void) {
     swear(loaded_int64 == int64_var);
     atomics.memory_fence();
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
-#endif
+    #endif
 }
 
 #ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type)

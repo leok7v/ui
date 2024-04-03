@@ -68,6 +68,7 @@
     <ClCompile Include="..\src\clock.c" />
     <ClCompile Include="..\src\debug.c" />
     <ClCompile Include="..\src\events.c" />
+    <ClCompile Include="..\src\files.c" />
     <ClCompile Include="..\src\loader.c" />
     <ClCompile Include="..\src\mem.c" />
     <ClCompile Include="..\src\mutexes.c" />
@@ -87,6 +88,7 @@
     <ClInclude Include="..\inc\clock.h" />
     <ClInclude Include="..\inc\debug.h" />
     <ClInclude Include="..\inc\events.h" />
+    <ClInclude Include="..\inc\files.h" />
     <ClInclude Include="..\inc\loader.h" />
     <ClInclude Include="..\inc\manifest.h" />
     <ClInclude Include="..\inc\mem.h" />

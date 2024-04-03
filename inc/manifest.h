@@ -1,5 +1,7 @@
 #pragma once
+// C runtime include files that are present on most of the platforms:
 #include <ctype.h>
+#include <fcntl.h>
 #include <io.h>
 #include <malloc.h>
 #define _USE_MATH_DEFINES
@@ -10,6 +12,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #ifdef __cplusplus
     #define begin_c extern "C" {
