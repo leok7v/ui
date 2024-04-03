@@ -44,6 +44,12 @@
     <ClCompile Include="..\src\mem.c">
       <Filter>runtime\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\streams.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\processes.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\args.h">
@@ -95,6 +101,12 @@
       <Filter>runtime\inc</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\runtime.h">
+      <Filter>runtime\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\streams.h">
+      <Filter>runtime\inc</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\processes.h">
       <Filter>runtime\inc</Filter>
     </ClInclude>
   </ItemGroup>

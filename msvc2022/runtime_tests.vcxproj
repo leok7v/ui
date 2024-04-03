@@ -72,9 +72,11 @@
     <ClCompile Include="..\src\mem.c" />
     <ClCompile Include="..\src\mutexes.c" />
     <ClCompile Include="..\src\num.c" />
+    <ClCompile Include="..\src\processes.c" />
     <ClCompile Include="..\src\runtime.c" />
     <ClCompile Include="..\src\static.c" />
     <ClCompile Include="..\src\str.c" />
+    <ClCompile Include="..\src\streams.c" />
     <ClCompile Include="..\src\threads.c" />
     <ClCompile Include="..\src\vigil.c" />
     <ClCompile Include="..\test\runtime_tests.c" />
@@ -90,9 +92,11 @@
     <ClInclude Include="..\inc\mem.h" />
     <ClInclude Include="..\inc\mutexes.h" />
     <ClInclude Include="..\inc\num.h" />
+    <ClInclude Include="..\inc\processes.h" />
     <ClInclude Include="..\inc\runtime.h" />
     <ClInclude Include="..\inc\static.h" />
     <ClInclude Include="..\inc\str.h" />
+    <ClInclude Include="..\inc\streams.h" />
     <ClInclude Include="..\inc\threads.h" />
     <ClInclude Include="..\inc\va_args.h" />
     <ClInclude Include="..\inc\vigil.h" />
