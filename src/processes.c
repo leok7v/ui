@@ -43,7 +43,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
         // add little extra if new process is spawned in between calls.
         bytes += sizeof(SYSTEM_PROCESS_INFORMATION) * 32;
         if (data == null) {
-            data = (byte*)malloc(bytes);
+            data = (byte*)mem.heap.allocate(null, bytes, 0);
         } else {
             byte* reallocated = (byte*)realloc(data, bytes);
             if (reallocated != null) { data = reallocated; }
@@ -82,7 +82,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
                 ((byte*)proc + proc->NextEntryOffset) : null;
         }
     }
-    if (data != null) { free(data); }
+    if (data != null) { mem.heap.deallocate(null, data); }
     assert((int32_t)count == count);
     return (int32_t)count;
 }

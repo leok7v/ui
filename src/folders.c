@@ -16,16 +16,16 @@ typedef struct folders_s {
 } folders_t_;
 
 static folders_t* folders_open(void) {
-    return (folders_t_*)calloc(sizeof(folders_t_), 1);
+    return (folders_t_*)mem.heap.allocate(null, sizeof(folders_t_), true);
 }
 
 void folders_close(folders_t* dirs) {
     folders_t_* d = (folders_t_*)dirs;
     if (d != null) {
-        free(d->data);  d->data = null;
-        free(d->folder); d->folder = null;
+        mem.heap.deallocate(null, d->data);   d->data = null;
+        mem.heap.deallocate(null, d->folder); d->folder = null;
     }
-    free(d);
+    mem.heap.deallocate(null, d);
 }
 
 const char* folders_folder_name(folders_t* dirs) {
@@ -107,8 +107,11 @@ int32_t folders_enumerate(folders_t* dirs, const char* folder) {
     int32_t pattern_length = k + 3;
     char* pattern = (char*)stackalloc(pattern_length);
     str.sformat(pattern, pattern_length, "%-*.*s/*", k, k, folder);
-    if (d->folder != null) { free(d->folder); d->folder = null; }
-    d->folder = (char*)malloc(k + 1);
+    if (d->folder != null) {
+        mem.heap.deallocate(null, d->folder);
+        d->folder = null;
+    }
+    d->folder = (char*)mem.heap.allocate(null, k + 1, true);
     if (d->folder == null) {
         return -1;
     }
@@ -117,9 +120,10 @@ int32_t folders_enumerate(folders_t* dirs, const char* folder) {
     if (d->capacity == 0 && d->n == 0 && d->data == null) {
         d->capacity = 128;
         d->n = 0;
-        d->data = (folders_data_t*)malloc(sizeof(folders_data_t) * d->capacity);
+        const int64_t bytes = sizeof(folders_data_t) * d->capacity;
+        d->data = (folders_data_t*)mem.heap.allocate(null, bytes, true);
         if (d->data == null) {
-            free(d->data);
+            mem.heap.deallocate(null, d->data);
             d->capacity = 0;
             d->data = null;
         }
@@ -135,8 +139,9 @@ int32_t folders_enumerate(folders_t* dirs, const char* folder) {
             do {
                 if (strequ(".", ffd.cFileName) || strequ("..", ffd.cFileName)) { continue; }
                 if (d->n >= d->capacity) {
-                    folders_data_t* r = (folders_data_t*)realloc(d->data,
-                        sizeof(folders_data_t) * d->capacity * 2);
+                    const int64_t bytes = sizeof(folders_data_t) * d->capacity * 2;
+                    folders_data_t* r = (folders_data_t*)
+                        mem.heap.reallocate(null, d->data, bytes, true);
                     if (r != null) {
                         // out of memory - do the best we can, leave the rest for next pass
                         d->capacity = d->capacity * 2;
@@ -152,7 +157,8 @@ int32_t folders_enumerate(folders_t* dirs, const char* folder) {
                     return -1; // keep the data we have so far intact
                 }
             } while (FindNextFileA(h, &ffd));
-            FindClose(h);
+            fatal_if_false(runtime.err() == ERROR_NO_MORE_FILES);
+            fatal_if_false(FindClose(h));
         }
         return 0;
     }

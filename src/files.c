@@ -40,7 +40,8 @@ static errno_t files_remove_file_or_folder(const char* pathname) {
     }
 }
 
-static errno_t files_create_temp_folder(char* folder, int32_t count) {
+static errno_t files_tmp(char* folder, int32_t count) {
+    // create temporary folder
     assert(folder != null && count > 0);
     char temp_path[1024] = { 0 };
     // If GetTempPathA() succeeds, the return value is the length,
@@ -91,14 +92,16 @@ static errno_t files_create_temp_folder(char* folder, int32_t count) {
              SE_KERNEL_OBJECT, files_acl_args(acl)) :           \
     ERROR_INVALID_PARAMETER)
 
-static errno_t files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask, ACL** free_me, byte flags) {
+static errno_t files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
+                                 ACL** free_me, byte flags) {
     ACL_SIZE_INFORMATION info;
     ACL* bigger = null;
     uint32_t bytes_needed = sizeof(ACCESS_ALLOWED_ACE) + GetLengthSid(sid) - sizeof(DWORD);
     errno_t r = b2e(GetAclInformation(acl, &info, sizeof(ACL_SIZE_INFORMATION),
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
-        bigger = (ACL*)calloc(info.AclBytesInUse + bytes_needed, 1);
+        const int64_t bytes = info.AclBytesInUse + bytes_needed;
+        bigger = (ACL*)mem.heap.allocate(null, bytes, true);
         if (bigger == null) {
             r = ERROR_NOT_ENOUGH_MEMORY;
         } else {
@@ -196,7 +199,7 @@ static errno_t files_add_acl_ace(const void* obj, int32_t obj_type,
             if (r == 0) {
                 r = files_set_acl(obj, obj_type, (new_acl != null ? new_acl : acl));
             }
-            if (new_acl != null) { free(new_acl); }
+            if (new_acl != null) { mem.heap.deallocate(null, new_acl); }
         }
     }
     if (sd != null) { LocalFree(sd); }
@@ -281,7 +284,7 @@ static const char* files_get_program_data(void) {
 //  descriptor. The ACLs in the default security descriptor for a directory
 //  are inherited from its parent directory."
 
-static errno_t files_create_folder(const char* dir) {
+static errno_t files_mkdirs(const char* dir) {
     errno_t r = 0;
     const int32_t n = (int)strlen(dir) + 1;
     char* s = (char*)stackalloc(n);
@@ -304,7 +307,7 @@ static errno_t files_create_folder(const char* dir) {
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
 }
 
-static errno_t files_remove_folder(const char* folder) {
+static errno_t files_rmdirs(const char* folder) {
     folders_t* dirs = folders.open();
     errno_t r = dirs == null ?
             ERROR_OUTOFMEMORY : folders.enumerate(dirs, folder);
@@ -316,11 +319,14 @@ static errno_t files_remove_folder(const char* folder) {
             if (!folders.is_symlink(dirs, i) && folders.is_folder(dirs, i)) {
                 const char* name = folders.name(dirs, i);
                 int32_t k = (int32_t)(strlen(folder) + strlen(name) + 3);
-                char* pathname = (char*)malloc(k);
-                if (pathname == null) { r = -1; break; }
+                char* pathname = (char*)mem.heap.allocate(null, k, false);
+                if (pathname == null) {
+                    r = ERROR_OUTOFMEMORY;
+                    break;
+                }
                 str.sformat(pathname, k, "%s/%s", folder, name);
                 r = files.rmdirs(pathname);
-                free(pathname);
+                mem.heap.deallocate(null, pathname);
                 if (r != 0) { break; }
             }
         }
@@ -328,14 +334,17 @@ static errno_t files_remove_folder(const char* folder) {
             if (!folders.is_folder(dirs, i)) { // symlinks are removed as normal files
                 const char* name = folders.name(dirs, i);
                 int32_t k = (int32_t)(strlen(folder) + strlen(name) + 3);
-                char* pathname = (char*)malloc(k);
-                if (pathname == null) { r = -1; break; }
+                char* pathname = (char*)mem.heap.allocate(null, k, false);
+                if (pathname == null) {
+                    r = ERROR_OUTOFMEMORY;
+                    break;
+                }
                 str.sformat(pathname, k, "%s/%s", folder, name);
                 r = files.unlink(pathname);
                 if (r != 0) {
                     traceln("remove(%s) failed %s", pathname, str.error(r));
                 }
-                free(pathname);
+                mem.heap.deallocate(null, pathname);
                 if (r != 0) { break; }
             }
         }
@@ -368,7 +377,7 @@ static const char* files_cwd(char* wd, int32_t count) {
     }
 }
 
-static errno_t files_set_cwd(const char* wd) {
+static errno_t files_setcwd(const char* wd) {
     return b2e(SetCurrentDirectoryA(wd));
 }
 
@@ -405,10 +414,9 @@ files_if files = {
     .write_fully        = files_write_fully,
     .exists             = files_exists,
     .is_folder          = files_is_folder,
-    .mkdirs             = files_create_folder,
-    .rmdirs             = files_remove_folder,
-    .create_temp_folder = files_create_temp_folder,
-    .add_acl_ace        = files_add_acl_ace,
+    .mkdirs             = files_mkdirs,
+    .rmdirs             = files_rmdirs,
+    .tmp                = files_tmp,
     .chmod777           = files_chmod777,
     .folder_bin         = files_get_program_files,
     .folder_data        = files_get_program_data,
@@ -418,7 +426,7 @@ files_if files = {
     .cwd                = files_cwd,
     .copy               = files_copy,
     .move               = files_move,
-    .set_cwd            = files_set_cwd,
+    .setcwd             = files_setcwd,
     .test               = files_test
 };
 
