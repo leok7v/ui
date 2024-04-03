@@ -224,7 +224,7 @@ static errno_t files_chmod777(const char* pathname) {
     assert(b && acl != null);
     // Initialize a security descriptor.
     SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)
-        alloca(SECURITY_DESCRIPTOR_MIN_LENGTH);
+        stackalloc(SECURITY_DESCRIPTOR_MIN_LENGTH);
     b = InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION);
     assert(b);
     // Add the ACL to the security descriptor.
@@ -284,7 +284,7 @@ static const char* files_get_program_data(void) {
 static errno_t files_create_folder(const char* dir) {
     errno_t r = 0;
     const int32_t n = (int)strlen(dir) + 1;
-    char* s = (char*)alloca(n);
+    char* s = (char*)stackalloc(n);
     memset(s, 0, n);
     const char* next = strchr(dir, '\\');
     if (next == null) { next = strchr(dir, '/'); }

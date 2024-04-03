@@ -97,11 +97,18 @@ static bool str_equal_nc(const char* s1, const char* s2) {
 }
 
 static bool str_starts_with(const char* s1, const char* s2) {
-    return strstartswith(s1, s2);
+    return s1 != null && s2 != null && strstartswith(s1, s2);
 }
 
 static bool str_ends_with(const char* s1, const char* s2) {
-    return strendswith(s1, s2);
+    return s1 != null && s2 != null && strendswith(s1, s2);
+}
+
+static bool str_ends_with_nc(const char* s1, const char* s2) {
+    size_t n1 = s1 == null ? 0 : strlen(s1);
+    size_t n2 = s2 == null ? 0 : strlen(s2);
+    return s1 != null && s2 != null &&
+           n1 >= n2 && stricmp(s1 + n1 - n2, s2) == 0;
 }
 
 static int32_t str_length(const char* s) {
@@ -240,27 +247,28 @@ static void str_test(void) {
 }
 
 str_if str = {
-    .vformat     = str_vformat,
-    .sformat     = str_sformat,
-    .error       = str_error,
-    .error_nls   = str_error_nls,
-    .utf8_bytes  = str_utf8_bytes,
-    .utf16_chars = str_utf16_chars,
-    .utf16_utf8  = str_utf16to8,
-    .utf8_utf16  = str_utf8to16,
-    .is_empty    = str_is_empty,
-    .equal       = str_equal,
-    .equal_nc    = str_equal_nc,
-    .starts_with = str_starts_with,
-    .ends_with   = str_ends_with,
-    .length      = str_length,
-    .copy        = str_copy,
-    .first_char  = str_first_char,
-    .last_char   = str_last_char,
-    .first       = str_first,
-    .to_lower    = str_to_lower,
-    .to_upper    = str_to_upper,
-    .compare     = str_compare,
-    .compare_nc  = str_compare_nc,
-    .test        = str_test
+    .vformat      = str_vformat,
+    .sformat      = str_sformat,
+    .error        = str_error,
+    .error_nls    = str_error_nls,
+    .utf8_bytes   = str_utf8_bytes,
+    .utf16_chars  = str_utf16_chars,
+    .utf16_utf8   = str_utf16to8,
+    .utf8_utf16   = str_utf8to16,
+    .is_empty     = str_is_empty,
+    .equal        = str_equal,
+    .equal_nc     = str_equal_nc,
+    .length       = str_length,
+    .copy         = str_copy,
+    .first_char   = str_first_char,
+    .last_char    = str_last_char,
+    .first        = str_first,
+    .to_lower     = str_to_lower,
+    .to_upper     = str_to_upper,
+    .compare      = str_compare,
+    .compare_nc   = str_compare_nc,
+    .starts_with  = str_starts_with,
+    .ends_with    = str_ends_with,
+    .ends_with_nc = str_ends_with_nc,
+    .test         = str_test
 };

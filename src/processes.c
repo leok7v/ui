@@ -3,36 +3,18 @@
 
 begin_c
 
-// Wide character string ("wcs" aka UTF16) "endswith"
-// s1 and s2 may be null
-// Allow to use pidof("foo.exe") as well as pidof("C:\\Program Files\\foo.exe")
+typedef struct processes_pidof_lambda_s processes_pidof_lambdat_t;
 
-static bool wcs_endswith_nocase(const wchar_t* s1, const wchar_t* s2) {
-    size_t n1 = s1 == null ? 0 : wcslen(s1);
-    size_t n2 = s2 == null ? 0 : wcslen(s2);
-    return s1 != null && s2 != null &&
-           n1 >= n2 && wcsicmp(s1 + n1 - n2, s2) == 0;
-}
-
-static bool str_endswith_nocase(const char* s1, const char* s2) {
-    size_t n1 = s1 == null ? 0 : strlen(s1);
-    size_t n2 = s2 == null ? 0 : strlen(s2);
-    return s1 != null && s2 != null &&
-           n1 >= n2 && stricmp(s1 + n1 - n2, s2) == 0;
-}
-
-typedef struct pidof_lambda_s pidof_lambdat_t;
-
-typedef struct pidof_lambda_s {
-    bool (*each)(pidof_lambdat_t* p, uintptr_t pid); // returns true to continue
-    uintptr_t* pids;
+typedef struct processes_pidof_lambda_s {
+    bool (*each)(processes_pidof_lambdat_t* p, uint64_t pid); // returns true to continue
+    uint64_t* pids;
     size_t size;  // pids[size]
     size_t count; // number of valid pids in the pids
     double timeout;
     errno_t error;
-} pidof_lambda_t;
+} processes_pidof_lambda_t;
 
-static int32_t for_each_pidof(const char* pname, pidof_lambda_t* la) {
+static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambda_t* la) {
     const char* name = pname;
     // append ".exe" if not present (mixed casing ".eXe" etc - not handled):
     if (!strendswith(pname, ".exe") && !strendswith(pname, ".EXE")) {
@@ -49,7 +31,7 @@ static int32_t for_each_pidof(const char* pname, pidof_lambda_t* la) {
     }
     wchar_t* wname = utf8to16(last_name);
     size_t count = 0;
-    uintptr_t pid = 0;
+    uint64_t pid = 0;
     byte* data = null;
     ULONG bytes = 0;
     errno_t r = NtQuerySystemInformation(SystemProcessInformation, data, 0, &bytes);
@@ -79,11 +61,11 @@ static int32_t for_each_pidof(const char* pname, pidof_lambda_t* la) {
             wchar_t* img = proc->ImageName.Buffer; // last name only, not a pathname!
             bool match = img != null && wcsicmp(img, wname) == 0;
             if (match) {
-                pid = (uintptr_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
+                pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (last_name != name) {
                     char path[MAX_PATH];
                     match = processes.nameof(pid, path, countof(path)) == 0 &&
-                        str_endswith_nocase(path, name);
+                            str.ends_with_nc(path, name);
 //                  traceln("\"%s\" -> \"%s\" match: %d", name, path, match);
                 }
             }
@@ -109,7 +91,7 @@ static void processes_close_handle(HANDLE h) {
     fatal_if_false(CloseHandle(h));
 }
 
-static errno_t nameof(uintptr_t pid, char* name, int32_t count) {
+static errno_t processes_nameof(uint64_t pid, char* name, int32_t count) {
     assert(name != null && count > 0);
     errno_t r = 0;
     name[0] = 0;
@@ -124,55 +106,55 @@ static errno_t nameof(uintptr_t pid, char* name, int32_t count) {
     return r;
 }
 
-static bool present(uintptr_t pid) {
+static bool processes_present(uint64_t pid) {
     void* h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, (DWORD)pid);
     bool b = h != null;
     if (h != null) { processes_close_handle(h); }
     return b;
 }
 
-static bool first_pid(pidof_lambda_t* lambda, uintptr_t pid) {
+static bool processes_first_pid(processes_pidof_lambda_t* lambda, uint64_t pid) {
     lambda->pids[0] = pid;
     return false;
 }
 
-static uintptr_t pid(const char* pname) {
-    uintptr_t first[1] = {0};
-    pidof_lambda_t lambda = {
-        .each = first_pid,
+static uint64_t processes_pid(const char* pname) {
+    uint64_t first[1] = {0};
+    processes_pidof_lambda_t lambda = {
+        .each = processes_first_pid,
         .pids = first,
         .size  = 1,
         .count = 0,
         .timeout = 0,
         .error = 0
     };
-    for_each_pidof(pname, &lambda);
+    processes_for_each_pidof(pname, &lambda);
     return first[0];
 }
 
-static bool store_pid(pidof_lambda_t* lambda, uintptr_t pid) {
+static bool processes_store_pid(processes_pidof_lambda_t* lambda, uint64_t pid) {
     if (lambda->pids != null && lambda->count < lambda->size) {
         lambda->pids[lambda->count++] = pid;
     }
     return true; // always - need to count all
 }
 
-static errno_t pids(const char* pname, uintptr_t* pids/*[size]*/, int32_t size,
-        int32_t *count) {
+static errno_t processes_pids(const char* pname, uint64_t* pids/*[size]*/,
+        int32_t size, int32_t *count) {
     *count = 0;
-    pidof_lambda_t lambda = {
-        .each = store_pid,
+    processes_pidof_lambda_t lambda = {
+        .each = processes_store_pid,
         .pids = pids,
         .size  = size,
         .count = 0,
         .timeout = 0,
         .error = 0
     };
-    *count = for_each_pidof(pname, &lambda);
+    *count = processes_for_each_pidof(pname, &lambda);
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
-static errno_t processes_kill(uintptr_t pid, double timeout) {
+static errno_t processes_kill(uint64_t pid, double timeout) {
     DWORD timeout_milliseconds = (DWORD)(timeout * 1000);
     enum { access = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE };
     assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
@@ -185,11 +167,12 @@ static errno_t processes_kill(uintptr_t pid, double timeout) {
         if (r == 0) {
             r = WaitForSingleObject(h, timeout_milliseconds);
             switch (r) {
-                case WAIT_OBJECT_0 : r = 0;         break;
-                case WAIT_ABANDONED: r = EINTR;     break;
-                case WAIT_TIMEOUT  : r = ETIMEDOUT; break;
-                case WAIT_FAILED   : r = GetLastError(); break;
-                default: assert(false, "unexpected: %d", r); r = EINVAL; break;
+                case WAIT_OBJECT_0 : r = 0; break;
+                case WAIT_ABANDONED: r = ERROR_REQUEST_ABORTED; break;
+                case WAIT_TIMEOUT  : r = ERROR_TIMEOUT; break;
+                case WAIT_FAILED   : r = runtime.err(); break;
+                default: assert(false, "unexpected: %d", r);
+                         r = ERROR_INVALID_PARAMETER; break;
             }
         } else {
             DWORD bytes = countof(path);
@@ -222,14 +205,14 @@ static errno_t processes_kill(uintptr_t pid, double timeout) {
     return r;
 }
 
-static bool processes_kill_one(pidof_lambda_t* lambda, uintptr_t pid) {
+static bool processes_kill_one(processes_pidof_lambda_t* lambda, uint64_t pid) {
     errno_t r = processes_kill(pid, lambda->timeout);
     if (r != 0) { lambda->error = r; }
     return true; // keep going
 }
 
 static errno_t processes_kill_all(const char* name, double timeout) {
-    pidof_lambda_t lambda = {
+    processes_pidof_lambda_t lambda = {
         .each = processes_kill_one,
         .pids = null,
         .size  = 0,
@@ -237,7 +220,7 @@ static errno_t processes_kill_all(const char* name, double timeout) {
         .timeout = timeout,
         .error = 0
     };
-    int32_t c = for_each_pidof(name, &lambda);
+    int32_t c = processes_for_each_pidof(name, &lambda);
     return c == 0 ? ERROR_NOT_FOUND : lambda.error;
 }
 
@@ -308,8 +291,8 @@ static void processes_close_pipes(STARTUPINFOA* si,
 static errno_t processes_child_read(stream_if* out, HANDLE pipe) {
     char data[32 * 1024]; // Temporary buffer for reading
     DWORD available = 0;
-    errno_t r = PeekNamedPipe(pipe, null, sizeof(data), null, &available, null) ?
-            0 : runtime.err();
+    errno_t r = b2e(PeekNamedPipe(pipe, null, sizeof(data), null,
+                                 &available, null));
     if (r != 0) {
         if (r != ERROR_BROKEN_PIPE) { // unexpected!
 //          traceln("PeekNamedPipe() failed %s", str.error(r));
@@ -318,8 +301,7 @@ static errno_t processes_child_read(stream_if* out, HANDLE pipe) {
         assert(r == ERROR_BROKEN_PIPE);
     } else if (available > 0) {
         DWORD bytes_read = 0;
-        r = ReadFile(pipe, data, sizeof(data), &bytes_read, null) ?
-                0 : runtime.err();
+        r = b2e(ReadFile(pipe, data, sizeof(data), &bytes_read, null));
 //      traceln("r: %d bytes_read: %d", r, bytes_read);
         if (out != null) {
             if (r == 0) {
@@ -341,9 +323,8 @@ static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
         in->read(in, data, sizeof(data), &bytes_read);
         while (r == 0 && bytes_read > 0) {
             DWORD bytes_written = 0;
-            r = WriteFile(pipe, data, (DWORD)bytes_read,
-                            &bytes_written, null) ?
-                            0 : runtime.err();
+            r = b2e(WriteFile(pipe, data, (DWORD)bytes_read,
+                             &bytes_written, null));
             traceln("r: %d bytes_written: %d", r, bytes_written);
             assert((int32_t)bytes_written <= bytes_read);
             data += bytes_written;
@@ -369,9 +350,9 @@ static errno_t processes_run(processes_child_t* child) {
     HANDLE read_out = INVALID_HANDLE_VALUE;
     HANDLE read_err = INVALID_HANDLE_VALUE;
     HANDLE write_in = INVALID_HANDLE_VALUE;
-    errno_t ro = CreatePipe(&read_out, &si.hStdOutput, &sa, 0) ? 0 : runtime.err();
-    errno_t re = CreatePipe(&read_err, &si.hStdError,  &sa, 0) ? 0 : runtime.err();
-    errno_t ri = CreatePipe(&si.hStdInput, &write_in,  &sa, 0) ? 0 : runtime.err();
+    errno_t ro = b2e(CreatePipe(&read_out, &si.hStdOutput, &sa, 0));
+    errno_t re = b2e(CreatePipe(&read_err, &si.hStdError,  &sa, 0));
+    errno_t ri = b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
     if (ro != 0 || re != 0 || ri != 0) {
         processes_close_pipes(&si, &read_out, &read_err, &write_in);
         if (ro != 0) { traceln("CreatePipe() failed %s", str.error(ro)); r = ro; }
@@ -379,8 +360,8 @@ static errno_t processes_run(processes_child_t* child) {
         if (ri != 0) { traceln("CreatePipe() failed %s", str.error(ri)); r = ri; }
     }
     if (r == 0) {
-        r = CreateProcessA(null, (char*)child->command, null, null, true,
-                CREATE_NO_WINDOW, null, null, &si, &pi) ? 0: runtime.err();
+        r = b2e(CreateProcessA(null, (char*)child->command, null, null, true,
+                CREATE_NO_WINDOW, null, null, &si, &pi));
         if (r != 0) {
             traceln("CreateProcess() failed %s", str.error(r));
             processes_close_pipes(&si, &read_out, &read_err, &write_in);
@@ -403,7 +384,7 @@ static errno_t processes_run(processes_child_t* child) {
         bool done = false;
         while (!done && r == 0) {
             if (child->timeout > 0 && clock.seconds() > deadline) {
-                r = TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT) ? 0 : runtime.err();
+                r = b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
                     traceln("TerminateProcess() failed %s", str.error(r));
                 } else {
@@ -426,7 +407,7 @@ static errno_t processes_run(processes_child_t* child) {
         if (r == ERROR_BROKEN_PIPE) { r = 0; } // not an error
 //      if (r != 0) { traceln("pipe loop failed %s", str.error(r));}
         DWORD xc = 0;
-        errno_t rx = GetExitCodeProcess(pi.hProcess, &xc) ? 0 : runtime.err();
+        errno_t rx = b2e(GetExitCodeProcess(pi.hProcess, &xc));
         if (rx == 0) {
             child->exit_code = xc;
         } else {
@@ -494,14 +475,13 @@ static errno_t processes_spawn(const char* command) {
         .hStdOutput = INVALID_HANDLE_VALUE,
         .hStdError  = INVALID_HANDLE_VALUE
     };
-    const static DWORD flags = CREATE_BREAKAWAY_FROM_JOB
+    const DWORD flags = CREATE_BREAKAWAY_FROM_JOB
                 | CREATE_NO_WINDOW
                 | CREATE_NEW_PROCESS_GROUP
                 | DETACHED_PROCESS;
     PROCESS_INFORMATION pi = {0};
-    r = CreateProcessA(null, (char*)command, null, null,
-            /*bInheritHandles:*/false,
-            flags, null, null, &si, &pi) ? 0: runtime.err();
+    r = b2e(CreateProcessA(null, (char*)command, null, null,
+            /*bInheritHandles:*/false, flags, null, null, &si, &pi));
     if (r == 0) { // Close handles immediately
         fatal_if_false(CloseHandle(pi.hProcess));
         fatal_if_false(CloseHandle(pi.hThread));
@@ -533,11 +513,11 @@ static void processes_test(void) {
     for (int32_t j = 0; j < countof(names); j++) {
         int32_t size  = 0;
         int32_t count = 0;
-        uintptr_t* pids = null;
+        uint64_t* pids = null;
         errno_t r = processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
-            pids = stackalloc(sizeof(uintptr_t) * size);
+            pids = stackalloc(sizeof(uint64_t) * size);
             r = processes.pids(names[j], pids, size, &count);
         }
         if (r == 0 && count > 0) {
@@ -578,10 +558,10 @@ static void processes_test(void) {
 #pragma pop_macro("verbose")
 
 processes_if processes = {
-    .pid                 = pid,
-    .pids                = pids,
-    .nameof              = nameof,
-    .present             = present,
+    .pid                 = processes_pid,
+    .pids                = processes_pids,
+    .nameof              = processes_nameof,
+    .present             = processes_present,
     .kill                = processes_kill,
     .kill_all            = processes_kill_all,
     .is_elevated         = processes_is_elevated,

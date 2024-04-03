@@ -19,12 +19,12 @@ typedef struct {
 
 typedef struct {
     const char* (*name)(void); // argv[0] like but full path
-    uintptr_t (*pid)(const char* name); // 0 if process not found
-    errno_t   (*pids)(const char* name, uintptr_t* pids/*[size]*/, int32_t size,
+    uint64_t  (*pid)(const char* name); // 0 if process not found
+    errno_t   (*pids)(const char* name, uint64_t* pids/*[size]*/, int32_t size,
                       int32_t *count); // return 0, error or ERROR_MORE_DATA
-    errno_t   (*nameof)(uintptr_t pid, char* name, int32_t count); // pathname
-    bool      (*present)(uintptr_t pid);
-    errno_t   (*kill)(uintptr_t pid, double timeout_seconds);
+    errno_t   (*nameof)(uint64_t pid, char* name, int32_t count); // pathname
+    bool      (*present)(uint64_t pid);
+    errno_t   (*kill)(uint64_t pid, double timeout_seconds);
     errno_t   (*kill_all)(const char* name, double timeout_seconds);
     bool      (*is_elevated)(void); // Is process running as root/ Admin / System?
     errno_t   (*restart_elevated)(void); // retuns error or exits on success

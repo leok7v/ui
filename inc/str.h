@@ -61,8 +61,8 @@ char* strnchr(const char* s, int32_t n, char ch);
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
 
-// case insensitive functions operate only on ASCII characters
-// strings. No ANSI no UTF-8
+// case insensitive functions with postfix _nc
+// operate only on ASCII characters. No ANSI no UTF-8
 
 typedef struct {
     const char* (*error)(int32_t error);     // en-US
@@ -78,8 +78,6 @@ typedef struct {
     bool (*is_empty)(const char* s); // null or empty string
     bool (*equal)(const char* s1, const char* s2);
     bool (*equal_nc)(const char* s1, const char* s2);
-    bool (*starts_with)(const char* s1, const char* s2);
-    bool (*ends_with)(const char* s1, const char* s2);
     int32_t (*length)(const char* s);
     // copy(s1, countof(s1), s2, /*bytes*/-1) means zero terminated
     bool  (*copy)(char* d, int32_t capacity,
@@ -92,6 +90,9 @@ typedef struct {
     int32_t (*compare)(const char* s1, int32_t bytes, const char* s2);
     int32_t (*compare_nc)(const char* s1, int32_t bytes,
                         const char* s2); // no-case ASCII only
+    bool (*starts_with)(const char* s1, const char* s2);
+    bool (*ends_with)(const char* s1, const char* s2);
+    bool (*ends_with_nc)(const char* s1, const char* s2);
     void (*test)(void);
 } str_if;
 
