@@ -19,10 +19,12 @@ typedef struct {
     uint64_t (*unix_seconds)(void);      // since January 1, 1970
     uint64_t (*microseconds)(void); // NOT monotonic(!) UTC since epoch January 1, 1601
     uint64_t (*localtime)(void);    // local time microseconds since epoch
-    void (*time_utc)(uint64_t microseconds, int* year, int* month,
-        int* day, int* hh, int* mm, int* ss, int* ms, int* mc);
-    void (*time_local)(uint64_t microseconds, int* year, int* month,
-        int* day, int* hh, int* mm, int* ss, int* ms, int* mc);
+    void (*utc)(uint64_t microseconds, int32_t* year, int32_t* month,
+        int32_t* day, int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms,
+        int32_t* mc);
+    void (*local)(uint64_t microseconds, int32_t* year, int32_t* month,
+        int32_t* day, int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms,
+        int32_t* mc);
     void (*test)(void);
 } clock_if;
 

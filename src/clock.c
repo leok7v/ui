@@ -18,10 +18,12 @@ static uint64_t clock_localtime(void) {
     return clock_microseconds_since_epoch() - bias;
 }
 
-static void clock_time_utc(uint64_t microseconds, int* year, int* month,
-        int* day, int* hh, int* mm, int* ss, int* ms, int* mc) {
+static void clock_utc(uint64_t microseconds,
+        int32_t* year, int32_t* month, int32_t* day,
+        int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
     uint64_t time_in_100ns = microseconds * 10;
-    FILETIME mst = { (DWORD)(time_in_100ns & 0xFFFFFFFF), (DWORD)(time_in_100ns >> 32) };
+    FILETIME mst = { (DWORD)(time_in_100ns & 0xFFFFFFFF),
+                     (DWORD)(time_in_100ns >> 32) };
     SYSTEMTIME utc;
     FileTimeToSystemTime(&mst, &utc);
     *year = utc.wYear;
@@ -34,8 +36,9 @@ static void clock_time_utc(uint64_t microseconds, int* year, int* month,
     *mc = microseconds % 1000;
 }
 
-static void clock_time_local(uint64_t microseconds, int* year, int* month,
-        int* day, int* hh, int* mm, int* ss, int* ms, int* mc) {
+static void clock_local(uint64_t microseconds,
+        int32_t* year, int32_t* month, int32_t* day,
+        int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
     uint64_t time_in_100ns = microseconds * 10;
     FILETIME mst = { (DWORD)(time_in_100ns & 0xFFFFFFFF), (DWORD)(time_in_100ns >> 32) };
     SYSTEMTIME utc;
@@ -149,8 +152,8 @@ clock_if clock = {
     .unix_seconds      = clock_unix_seconds,
     .microseconds      = clock_microseconds_since_epoch,
     .localtime         = clock_localtime,
-    .time_utc          = clock_time_utc,
-    .time_local        = clock_time_local,
+    .utc               = clock_utc,
+    .local             = clock_local,
     .test              = clock_test
 };
 
