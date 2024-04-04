@@ -33,6 +33,7 @@ typedef struct {
         const char* func, int32_t error, const char* format, ...);
     bool (*is_debugger_present)(void);
     void (*breakpoint)(void);
+    void (*test)(void);
 } debug_if;
 
 #define traceln(...) debug.printf(__FILE__, __LINE__, __func__, "" __VA_ARGS__)

@@ -5,6 +5,7 @@
 #include "atomics.h"
 #include "clock.h"
 #include "debug.h"
+#include "dotfiles.h"
 #include "events.h"
 #include "files.h"
 #include "folders.h"
@@ -29,12 +30,6 @@ typedef struct {
     void (*seterr)(int32_t err); // errno = err or SetLastError()
     void (*abort)(void);
     void (*exit)(int32_t exit_code); // only 8 bits on posix
-    // persistent storage:
-    void (*data_save)(const char* name, const char* key,
-                      const void* data, int32_t bytes);
-    int32_t (*data_size)(const char* name, const char* key);
-    int32_t (*data_load)(const char* name, const char* key,
-                         void* data, int32_t bytes);
     void (*test)(void);
 } runtime_if;
 

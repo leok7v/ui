@@ -121,6 +121,14 @@ static int32_t debug_verbosity_from_string(const char* s) {
     }
 }
 
+static void debug_test(void) {
+    #ifdef RUNTIME_TESTS
+    // not clear what can be tested here
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    #endif
+}
+
+
 debug_if debug = {
     .verbosity = {
         .level   =  0,
@@ -131,12 +139,13 @@ debug_if debug = {
         .trace   =  4,
     },
     .verbosity_from_string = debug_verbosity_from_string,
-    .printf  = debug_printf,
-    .vprintf = debug_vprintf,
-    .perrno  = debug_perrno,
-    .perror  = debug_perror,
-    .is_debugger_present = debug_is_debugger_present,
-    .breakpoint          = debug_breakpoint
+    .printf                = debug_printf,
+    .vprintf               = debug_vprintf,
+    .perrno                = debug_perrno,
+    .perror                = debug_perror,
+    .is_debugger_present   = debug_is_debugger_present,
+    .breakpoint            = debug_breakpoint,
+    .test                  = debug_test
 };
 
 end_c

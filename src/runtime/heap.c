@@ -60,5 +60,3 @@ heap_if heap = {
     .dispose     = heap_dispose,
     .test        = heap_test
 };
-
-
