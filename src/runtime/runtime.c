@@ -104,6 +104,7 @@ static void rt_test(void) {
     events.test();
     files.test();
     folders.test();
+    heap.test();
     loader.test();
     mem.test();
     mutexes.test();

@@ -18,10 +18,10 @@ typedef struct folders_s {
 void folders_close(folders_t* fs) {
     folders_t_* d = (folders_t_*)fs;
     if (d != null) {
-        mem.heap.deallocate(null, d->data);   d->data = null;
-        mem.heap.deallocate(null, d->folder); d->folder = null;
+        heap.deallocate(null, d->data);   d->data = null;
+        heap.deallocate(null, d->folder); d->folder = null;
     }
-    mem.heap.deallocate(null, d);
+    heap.deallocate(null, d);
 }
 
 const char* folders_folder(folders_t* fs) {
@@ -101,15 +101,15 @@ errno_t folders_enumerate(folders_t* d, const char* fn) {
     } else {
         str.sformat(pattern, pattern_length, "%-*.*s\\*", k, k, fn);
     }
-    d->folder = (char*)mem.heap.allocate(null, k + 1, true);
+    d->folder = (char*)heap.allocate(null, k + 1, true);
     if (d->folder != null) {
         str.sformat(d->folder, k + 1, "%.*s", k, fn);
         d->capacity = 128;
         d->n = 0;
         const int64_t bytes = sizeof(folders_data_t) * d->capacity;
-        d->data = (folders_data_t*)mem.heap.allocate(null, bytes, true);
+        d->data = (folders_data_t*)heap.allocate(null, bytes, true);
         if (d->data == null) {
-            mem.heap.deallocate(null, d->data);
+            heap.deallocate(null, d->data);
             d->capacity = 0;
             d->data = null;
             r = ERROR_OUTOFMEMORY;
@@ -126,7 +126,7 @@ errno_t folders_enumerate(folders_t* d, const char* fn) {
                             if (d->n >= d->capacity) {
                                 const int64_t bytes_x_2 =
                                     sizeof(folders_data_t) * d->capacity * 2;
-                                r = mem.heap.reallocate(null, &d->data,
+                                r = heap.reallocate(null, &d->data,
                                     bytes_x_2, false);
                                 if (r == 0) {
                                     d->capacity = d->capacity * 2;
@@ -150,7 +150,7 @@ errno_t folders_enumerate(folders_t* d, const char* fn) {
 }
 
 static errno_t folders_open(folders_t* *fs, const char* pathname) {
-    folders_t_* d = (folders_t_*)mem.heap.allocate(null,
+    folders_t_* d = (folders_t_*)heap.allocate(null,
         sizeof(folders_t_), true);
     *fs = d;
     return d != null ? folders_enumerate(d, pathname) : ERROR_OUTOFMEMORY;

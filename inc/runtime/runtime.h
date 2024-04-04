@@ -8,6 +8,7 @@
 #include "events.h"
 #include "files.h"
 #include "folders.h"
+#include "heap.h"
 #include "loader.h"
 #include "mem.h"
 #include "mutexes.h"
@@ -17,7 +18,6 @@
 #include "streams.h"
 #include "processes.h"
 #include "threads.h"
-#include "va_args.h"
 #include "vigil.h"
 
 #define crt_version 20240318 // YYYYMMDD
@@ -29,7 +29,7 @@ typedef struct {
     void (*seterr)(int32_t err); // errno = err or SetLastError()
     void (*abort)(void);
     void (*exit)(int32_t exit_code); // only 8 bits on posix
-    // persistent storage interface:
+    // persistent storage:
     void (*data_save)(const char* name, const char* key,
                       const void* data, int32_t bytes);
     int32_t (*data_size)(const char* name, const char* key);

@@ -42,7 +42,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
         // too much for stack alloca()
         // add little extra if new process is spawned in between calls.
         bytes += sizeof(SYSTEM_PROCESS_INFORMATION) * 32;
-        r = mem.heap.reallocate(null, &data, bytes, false);
+        r = heap.reallocate(null, &data, bytes, false);
         if (r == 0) {
             r = NtQuerySystemInformation(SystemProcessInformation, data, bytes, &bytes);
         } else {
@@ -77,7 +77,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
                 ((byte*)proc + proc->NextEntryOffset) : null;
         }
     }
-    if (data != null) { mem.heap.deallocate(null, data); }
+    if (data != null) { heap.deallocate(null, data); }
     assert((int32_t)count == count);
     return (int32_t)count;
 }

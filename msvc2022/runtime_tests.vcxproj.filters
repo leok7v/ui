@@ -56,6 +56,9 @@
     <ClCompile Include="..\src\runtime\static.c">
       <Filter>runtime\src\runtime</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\runtime\heap.c">
+      <Filter>runtime\src\runtime</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="runtime">
@@ -79,9 +82,6 @@
       <Filter>runtime\inc\runtime</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\runtime\threads.h">
-      <Filter>runtime\inc\runtime</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\runtime\va_args.h">
       <Filter>runtime\inc\runtime</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\runtime\vigil.h">
@@ -136,6 +136,9 @@
       <Filter>runtime\inc\runtime</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\runtime\str.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\heap.h">
       <Filter>runtime\inc\runtime</Filter>
     </ClInclude>
   </ItemGroup>

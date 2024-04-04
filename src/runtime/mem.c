@@ -136,7 +136,7 @@ static int mem_large_page_size(void) {
     return (int32_t)large_page_minimum;
 }
 
-static void* mem_alloc_pages(int64_t bytes_multiple_of_page_size) {
+static void* mem_allocate(int64_t bytes_multiple_of_page_size) {
     assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
     int page_size = mem_page_size();
@@ -194,7 +194,7 @@ static void* mem_alloc_pages(int64_t bytes_multiple_of_page_size) {
     return a;
 }
 
-static void mem_free_pages(void* a, int64_t bytes_multiple_of_page_size) {
+static void mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
     int r = 0;
@@ -218,48 +218,6 @@ static void mem_free_pages(void* a, int64_t bytes_multiple_of_page_size) {
     }
 }
 
-static heap_t* mem_heap_create(bool serialized) {
-    const DWORD options = serialized ? 0 : HEAP_NO_SERIALIZE;
-    return (heap_t*)HeapCreate(options, 0, 0);
-}
-
-static void mem_heap_dispose(heap_t* heap) {
-    fatal_if_false(HeapDestroy((HANDLE)heap));
-}
-
-static inline HANDLE mem_heap(heap_t* heap) {
-    static HANDLE process_heap;
-    if (process_heap == null) { process_heap = GetProcessHeap(); }
-    return heap != null ? (HANDLE)heap : process_heap;
-}
-
-static void* mem_heap_allocate(heap_t* heap, int64_t bytes, bool zero) {
-    swear(bytes > 0);
-    const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
-    return HeapAlloc(mem_heap(heap), flags, (SIZE_T)bytes);
-}
-
-static errno_t mem_heap_reallocate(heap_t* heap, void* *p, int64_t bytes,
-        bool zero) {
-    swear(bytes > 0);
-    const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
-    void* a = *p == null ? // HeapReAlloc(..., null, bytes) may not work
-        HeapAlloc(mem_heap(heap), flags, (SIZE_T)bytes) :
-        HeapReAlloc(mem_heap(heap), flags, *p, (SIZE_T)bytes);
-    if (a != null) { *p = a; }
-    return a == null ? ERROR_OUTOFMEMORY : 0;
-}
-
-static void mem_heap_deallocate(heap_t* heap, void* a) {
-    fatal_if_false(HeapFree(mem_heap(heap), 0, a));
-}
-
-static int64_t mem_heap_bytes(heap_t* heap, void* a) {
-    SIZE_T bytes = HeapSize(mem_heap(heap), 0, a);
-    fatal_if(bytes == (SIZE_T)-1);
-    return (int64_t)bytes;
-}
-
 static void mem_test(void) {
     #ifdef RUNTIME_TESTS
     swear(args.c > 0);
@@ -268,29 +226,21 @@ static void mem_test(void) {
     swear(mem.map_ro(args.v[0], &data, &bytes) == 0);
     swear(data != null && bytes != 0);
     mem.unmap(data, bytes);
-    // TODO: page_size large_page_size alloc_pages free_pages
+    // TODO: page_size large_page_size allocate deallocate
     // TODO: test heap functions
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
 mem_if mem = {
-    .heap = {
-        .create      = mem_heap_create,
-        .allocate    = mem_heap_allocate,
-        .reallocate  = mem_heap_reallocate,
-        .deallocate  = mem_heap_deallocate,
-        .bytes       = mem_heap_bytes,
-        .dispose     = mem_heap_dispose
-    },
     .map_ro          = mem_map_ro,
     .map_rw          = mem_map_rw,
     .unmap           = mem_unmap,
     .map_resource    = mem_map_resource,
     .page_size       = mem_page_size,
     .large_page_size = mem_large_page_size,
-    .alloc_pages     = mem_alloc_pages,
-    .free_pages      = mem_free_pages,
+    .allocate        = mem_allocate,
+    .deallocate      = mem_deallocate,
     .test            = mem_test
 };
 

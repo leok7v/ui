@@ -52,6 +52,7 @@
     <ClCompile Include="..\src\runtime\events.c" />
     <ClCompile Include="..\src\runtime\files.c" />
     <ClCompile Include="..\src\runtime\folders.c" />
+    <ClCompile Include="..\src\runtime\heap.c" />
     <ClCompile Include="..\src\runtime\loader.c" />
     <ClCompile Include="..\src\runtime\mem.c" />
     <ClCompile Include="..\src\runtime\mutexes.c" />

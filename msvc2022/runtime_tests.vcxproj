@@ -70,6 +70,7 @@
     <ClCompile Include="..\src\runtime\events.c" />
     <ClCompile Include="..\src\runtime\files.c" />
     <ClCompile Include="..\src\runtime\folders.c" />
+    <ClCompile Include="..\src\runtime\heap.c" />
     <ClCompile Include="..\src\runtime\loader.c" />
     <ClCompile Include="..\src\runtime\mem.c" />
     <ClCompile Include="..\src\runtime\mutexes.c" />
@@ -91,6 +92,7 @@
     <ClInclude Include="..\inc\runtime\events.h" />
     <ClInclude Include="..\inc\runtime\files.h" />
     <ClInclude Include="..\inc\runtime\folders.h" />
+    <ClInclude Include="..\inc\runtime\heap.h" />
     <ClInclude Include="..\inc\runtime\loader.h" />
     <ClInclude Include="..\inc\runtime\manifest.h" />
     <ClInclude Include="..\inc\runtime\mem.h" />
@@ -102,7 +104,6 @@
     <ClInclude Include="..\inc\runtime\str.h" />
     <ClInclude Include="..\inc\runtime\streams.h" />
     <ClInclude Include="..\inc\runtime\threads.h" />
-    <ClInclude Include="..\inc\runtime\va_args.h" />
     <ClInclude Include="..\inc\runtime\vigil.h" />
     <ClInclude Include="..\inc\runtime\win32.h" />
   </ItemGroup>

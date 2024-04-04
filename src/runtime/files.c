@@ -102,7 +102,7 @@ static errno_t files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
         const int64_t bytes = info.AclBytesInUse + bytes_needed;
-        bigger = (ACL*)mem.heap.allocate(null, bytes, true);
+        bigger = (ACL*)heap.allocate(null, bytes, true);
         if (bigger == null) {
             r = ERROR_NOT_ENOUGH_MEMORY;
         } else {
@@ -200,7 +200,7 @@ static errno_t files_add_acl_ace(const void* obj, int32_t obj_type,
             if (r == 0) {
                 r = files_set_acl(obj, obj_type, (new_acl != null ? new_acl : acl));
             }
-            if (new_acl != null) { mem.heap.deallocate(null, new_acl); }
+            if (new_acl != null) { heap.deallocate(null, new_acl); }
         }
     }
     if (sd != null) { LocalFree(sd); }
@@ -314,11 +314,11 @@ static errno_t files_mkdirs(const char* dir) {
 #define files_realloc_pn(pn, pnc, fn, name) do {                        \
     const int32_t bytes = (int32_t)(strlen(fn) + strlen(name) + 3);     \
     if (bytes > pnc) {                                                  \
-        r = mem.heap.reallocate(null, &pn, bytes, false);               \
+        r = heap.reallocate(null, &pn, bytes, false);               \
         if (r != 0) {                                                   \
             pnc = bytes;                                                \
         } else {                                                        \
-            mem.heap.deallocate(null, pn);                              \
+            heap.deallocate(null, pn);                              \
             pn = null;                                                  \
         }                                                               \
     }                                                                   \
@@ -343,7 +343,7 @@ static errno_t files_rmdirs(const char* fn) {
             k--;
         }
         int32_t pnc = 1024; // pathname "pn" capacity in bytes
-        char* pn = (char*)mem.heap.allocate(null, pnc, false);
+        char* pn = (char*)heap.allocate(null, pnc, false);
         if (pn == null) { r = ERROR_OUTOFMEMORY; }
         const int32_t n = folders.count(fs);
         for (int32_t i = 0; i < n && r == 0; i++) {
@@ -371,7 +371,7 @@ static errno_t files_rmdirs(const char* fn) {
                 }
             }
         }
-        mem.heap.deallocate(null, pn);
+        heap.deallocate(null, pn);
         folders.close(fs);
     }
     if (r == 0) { r = files.unlink(fn); }
