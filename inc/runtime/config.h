@@ -3,22 +3,22 @@
 
 begin_c
 
-// Persistent storage for configuration files or other small data
+// Persistent storage for configuration and other small data
 // related to specific application.
-// on Unix-like system ~/.app/name files are used.
+// on Unix-like system ~/.name/key files are used.
 // On Window User registry (could be .dot files/folders).
-// "app" is customary basename of "args.v[0]"
+// "name" is customary basename of "args.v[0]"
 
 typedef struct {
-    void (*save)(const char* name, const char* key,
-                 const void* data, int32_t bytes);
+    void    (*save)(const char* name, const char* key,
+                    const void* data, int32_t bytes);
     int32_t (*size)(const char* name, const char* key);
     int32_t (*load)(const char* name, const char* key,
                     void* data, int32_t bytes);
     void (*test)(void);
-} dotfiles_if;
+} config_if;
 
-extern dotfiles_if dotfiles;
+extern config_if config;
 
 end_c
 

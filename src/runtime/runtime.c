@@ -35,8 +35,8 @@ static void rt_test(void) {
     args.test();
     atomics.test();
     clock.test();
+    config.test();
     debug.test();
-    dotfiles.test();
     events.test();
     files.test();
     folders.test();

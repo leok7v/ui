@@ -1,7 +1,7 @@
 #include "runtime/runtime.h"
 #include "runtime/win32.h"
 
-static HKEY dotfiles_get_reg_key(const char* name) {
+static HKEY config_get_reg_key(const char* name) {
     char path[MAX_PATH];
     strprintf(path, "Software\\app\\%s", name);
     HKEY key = null;
@@ -12,9 +12,9 @@ static HKEY dotfiles_get_reg_key(const char* name) {
     return key;
 }
 
-static void dotfiles_save(const char* name,
+static void config_save(const char* name,
         const char* key, const void* data, int32_t bytes) {
-    HKEY k = dotfiles_get_reg_key(name);
+    HKEY k = config_get_reg_key(name);
     if (k != null) {
         fatal_if_not_zero(RegSetValueExA(k, key, 0, REG_BINARY,
             (byte*)data, bytes));
@@ -22,9 +22,9 @@ static void dotfiles_save(const char* name,
     }
 }
 
-static int32_t dotfiles_size(const char* name, const char* key) {
+static int32_t config_size(const char* name, const char* key) {
     int32_t bytes = -1;
-    HKEY k = dotfiles_get_reg_key(name);
+    HKEY k = config_get_reg_key(name);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = 0;
@@ -43,10 +43,10 @@ static int32_t dotfiles_size(const char* name, const char* key) {
     return bytes;
 }
 
-static int32_t dotfiles_load(const char* name,
+static int32_t config_load(const char* name,
         const char* key, void* data, int32_t bytes) {
     int32_t read = -1;
-    HKEY k = dotfiles_get_reg_key(name);
+    HKEY k = config_get_reg_key(name);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
@@ -67,17 +67,17 @@ static int32_t dotfiles_load(const char* name,
     return read;
 }
 
-static void dotfiles_test(void) {
+static void config_test(void) {
     #ifdef RUNTIME_TESTS
     traceln("TODO");
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
-dotfiles_if dotfiles = {
-    .save = dotfiles_save,
-    .size = dotfiles_size,
-    .load = dotfiles_load,
-    .test = dotfiles_test
+config_if config = {
+    .save = config_save,
+    .size = config_size,
+    .load = config_load,
+    .test = config_test
 };
 

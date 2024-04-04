@@ -66,8 +66,8 @@
     <ClCompile Include="..\src\runtime\args.c" />
     <ClCompile Include="..\src\runtime\atomics.c" />
     <ClCompile Include="..\src\runtime\clock.c" />
+    <ClCompile Include="..\src\runtime\config.c" />
     <ClCompile Include="..\src\runtime\debug.c" />
-    <ClCompile Include="..\src\runtime\dotfiles.c" />
     <ClCompile Include="..\src\runtime\events.c" />
     <ClCompile Include="..\src\runtime\files.c" />
     <ClCompile Include="..\src\runtime\folders.c" />
@@ -89,8 +89,8 @@
     <ClInclude Include="..\inc\runtime\args.h" />
     <ClInclude Include="..\inc\runtime\atomics.h" />
     <ClInclude Include="..\inc\runtime\clock.h" />
+    <ClInclude Include="..\inc\runtime\config.h" />
     <ClInclude Include="..\inc\runtime\debug.h" />
-    <ClInclude Include="..\inc\runtime\dotfiles.h" />
     <ClInclude Include="..\inc\runtime\events.h" />
     <ClInclude Include="..\inc\runtime\files.h" />
     <ClInclude Include="..\inc\runtime\folders.h" />

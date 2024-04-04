@@ -48,8 +48,8 @@
     <ClCompile Include="..\src\runtime\args.c" />
     <ClCompile Include="..\src\runtime\atomics.c" />
     <ClCompile Include="..\src\runtime\clock.c" />
+    <ClCompile Include="..\src\runtime\config.c" />
     <ClCompile Include="..\src\runtime\debug.c" />
-    <ClCompile Include="..\src\runtime\dotfiles.c" />
     <ClCompile Include="..\src\runtime\events.c" />
     <ClCompile Include="..\src\runtime\files.c" />
     <ClCompile Include="..\src\runtime\folders.c" />

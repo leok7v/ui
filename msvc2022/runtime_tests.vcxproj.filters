@@ -59,7 +59,7 @@
     <ClCompile Include="..\src\runtime\heap.c">
       <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\dotfiles.c">
+    <ClCompile Include="..\src\runtime\config.c">
       <Filter>runtime\src\runtime</Filter>
     </ClCompile>
   </ItemGroup>
@@ -144,7 +144,7 @@
     <ClInclude Include="..\inc\runtime\heap.h">
       <Filter>runtime\inc\runtime</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\runtime\dotfiles.h">
+    <ClInclude Include="..\inc\runtime\config.h">
       <Filter>runtime\inc\runtime</Filter>
     </ClInclude>
   </ItemGroup>
