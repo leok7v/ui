@@ -187,16 +187,6 @@ static bool threads_try_join(thread_t t, double timeout) {
     int32_t timeout_ms = timeout <= 0 ? 0 : (int)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, timeout_ms);
     errno_t r = wait2e(ix);
-    // TODO: remove switch replaing with wait2e(ix)
-    switch (ix) {
-        case WAIT_OBJECT_0 : r = 0; break;
-        case WAIT_ABANDONED: r = ERROR_REQUEST_ABORTED; break;
-        case WAIT_TIMEOUT  : r = ERROR_TIMEOUT; break;
-        case WAIT_FAILED   : r = runtime.err(); break;
-        default: assert(false, "unexpected: %d", r);
-                 r = ERROR_INVALID_HANDLE; break;
-    }
-    swear(r == wait2e(ix));
     if (r != 0) {
         traceln("failed to join thread %p %s", t, str.error(r));
     } else {

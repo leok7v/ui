@@ -167,16 +167,6 @@ static errno_t processes_kill(uint64_t pid, double timeout) {
         if (r == 0) {
             DWORD ix = WaitForSingleObject(h, timeout_milliseconds);
             r = wait2e(ix);
-            // TODO: remove switch
-            switch (ix) {
-                case WAIT_OBJECT_0 : r = 0; break;
-                case WAIT_ABANDONED: r = ERROR_REQUEST_ABORTED; break;
-                case WAIT_TIMEOUT  : r = ERROR_TIMEOUT; break;
-                case WAIT_FAILED   : r = runtime.err(); break;
-                default: assert(false, "unexpected: %d", r);
-                         r = ERROR_INVALID_HANDLE; break;
-            }
-            swear(r == wait2e(ix));
         } else {
             DWORD bytes = countof(path);
             errno_t rq = b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
