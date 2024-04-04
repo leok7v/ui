@@ -234,13 +234,18 @@ static inline HANDLE mem_heap(heap_t* heap) {
 }
 
 static void* mem_heap_allocate(heap_t* heap, int64_t bytes, bool zero) {
+    swear(bytes > 0);
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
     return HeapAlloc(mem_heap(heap), flags, (SIZE_T)bytes);
 }
 
-static void* mem_heap_reallocate(heap_t* heap, void* a, int64_t bytes, bool zero) {
+static void* mem_heap_reallocate(heap_t* heap, void* a, int64_t bytes,
+        bool zero) {
+    swear(bytes > 0);
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
-    return HeapReAlloc(mem_heap(heap), flags, a, (SIZE_T)bytes);
+    return a == null ? // HeapReAlloc(..., null, bytes) may not work
+        HeapAlloc(mem_heap(heap), flags, (SIZE_T)bytes) :
+        HeapReAlloc(mem_heap(heap), flags, a, (SIZE_T)bytes);
 }
 
 static void mem_heap_deallocate(heap_t* heap, void* a) {
