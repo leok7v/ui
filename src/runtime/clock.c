@@ -1,5 +1,5 @@
-#include "runtime.h"
-#include "win32.h"
+#include "runtime/runtime.h"
+#include "runtime/win32.h"
 
 static uint64_t clock_microseconds_since_epoch(void) { // NOT monotonic
     FILETIME ft; // time in 100ns interval (tenth of microsecond)

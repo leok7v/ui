@@ -45,25 +45,25 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\amalgamate.c" />
-    <ClCompile Include="..\src\args.c" />
-    <ClCompile Include="..\src\atomics.c" />
-    <ClCompile Include="..\src\clock.c" />
-    <ClCompile Include="..\src\debug.c" />
-    <ClCompile Include="..\src\events.c" />
-    <ClCompile Include="..\src\files.c" />
-    <ClCompile Include="..\src\folders.c" />
-    <ClCompile Include="..\src\loader.c" />
-    <ClCompile Include="..\src\mem.c" />
-    <ClCompile Include="..\src\mutexes.c" />
-    <ClCompile Include="..\src\num.c" />
-    <ClCompile Include="..\src\processes.c" />
-    <ClCompile Include="..\src\runtime.c" />
-    <ClCompile Include="..\src\static.c" />
-    <ClCompile Include="..\src\str.c" />
-    <ClCompile Include="..\src\streams.c" />
-    <ClCompile Include="..\src\threads.c" />
-    <ClCompile Include="..\src\vigil.c" />
+    <ClCompile Include="..\src\runtime\args.c" />
+    <ClCompile Include="..\src\runtime\atomics.c" />
+    <ClCompile Include="..\src\runtime\clock.c" />
+    <ClCompile Include="..\src\runtime\debug.c" />
+    <ClCompile Include="..\src\runtime\events.c" />
+    <ClCompile Include="..\src\runtime\files.c" />
+    <ClCompile Include="..\src\runtime\folders.c" />
+    <ClCompile Include="..\src\runtime\loader.c" />
+    <ClCompile Include="..\src\runtime\mem.c" />
+    <ClCompile Include="..\src\runtime\mutexes.c" />
+    <ClCompile Include="..\src\runtime\num.c" />
+    <ClCompile Include="..\src\runtime\processes.c" />
+    <ClCompile Include="..\src\runtime\runtime.c" />
+    <ClCompile Include="..\src\runtime\static.c" />
+    <ClCompile Include="..\src\runtime\str.c" />
+    <ClCompile Include="..\src\runtime\streams.c" />
+    <ClCompile Include="..\src\runtime\threads.c" />
+    <ClCompile Include="..\src\runtime\vigil.c" />
+    <ClCompile Include="..\src\tools\amalgamate.c" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\amalgamate.txt" />

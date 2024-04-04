@@ -1,5 +1,5 @@
-#include "runtime.h"
-#include "win32.h"
+#include "runtime/runtime.h"
+#include "runtime/win32.h"
 #include <stdatomic.h> // needs cl.exe /experimental:c11atomics command line
 
 // see: https://developercommunity.visualstudio.com/t/C11--C17-include-stdatomich-issue/10620622

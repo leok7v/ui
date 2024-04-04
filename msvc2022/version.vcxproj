@@ -10,6 +10,9 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\tools\version.c" />
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0EA9BF0C-402B-4852-BD16-644244F0D1B8}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
@@ -45,8 +48,5 @@
       <SubSystem>Console</SubSystem>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="..\src\version.c" />
-  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

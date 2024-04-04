@@ -2,125 +2,60 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\test\runtime_tests.c" />
-    <ClCompile Include="..\src\mutexes.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\str.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\num.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\streams.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\threads.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\static.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\vigil.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\str.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\args.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\threads.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\atomics.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\vigil.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\clock.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\args.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\debug.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\atomics.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\events.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\clock.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\files.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\debug.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\folders.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\events.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\loader.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\loader.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\mem.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\mem.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\mutexes.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\streams.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\num.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\processes.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\processes.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\files.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\runtime.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\folders.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\static.c">
+      <Filter>runtime\src\runtime</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="..\inc\args.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\manifest.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\vigil.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\win32.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\atomics.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\events.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\mutexes.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\threads.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\static.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\va_args.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\debug.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\str.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\clock.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\mem.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\num.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\loader.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\runtime.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\streams.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\processes.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\files.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\folders.h">
-      <Filter>runtime\inc</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="runtime">
@@ -132,5 +67,76 @@
     <Filter Include="runtime\src">
       <UniqueIdentifier>{3f4a2d7c-7207-4180-97e5-a42fadd767cc}</UniqueIdentifier>
     </Filter>
+    <Filter Include="runtime\inc\runtime">
+      <UniqueIdentifier>{6ca884e5-c026-4a69-96b3-088748b7adf3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="runtime\src\runtime">
+      <UniqueIdentifier>{b622764f-3cf6-4af4-ba32-0815b2a6bc30}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\inc\runtime\streams.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\threads.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\va_args.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\vigil.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\win32.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\args.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\atomics.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\clock.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\debug.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\events.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\files.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\folders.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\loader.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\manifest.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\mem.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\mutexes.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\num.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\processes.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\runtime.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\static.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\runtime\str.h">
+      <Filter>runtime\inc\runtime</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

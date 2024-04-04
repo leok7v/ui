@@ -1,5 +1,5 @@
-#include "runtime.h"
-#include "win32.h"
+#include "runtime/runtime.h"
+#include "runtime/win32.h"
 
 // abort does NOT call atexit() functions and
 // does NOT flush streams. Also Win32 runtime

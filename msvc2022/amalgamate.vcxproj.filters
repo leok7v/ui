@@ -1,71 +1,71 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\src\amalgamate.c" />
-    <ClCompile Include="..\src\debug.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\tools\amalgamate.c" />
+    <ClCompile Include="..\src\runtime\mutexes.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\str.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\num.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\vigil.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\processes.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\runtime.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\static.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\static.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\clock.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\str.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\args.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\streams.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\atomics.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\threads.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\num.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\vigil.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\processes.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\args.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\events.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\atomics.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\files.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\clock.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\folders.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\debug.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\loader.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\events.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\mem.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\files.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\mutexes.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\folders.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\threads.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\loader.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\streams.c">
-      <Filter>runtime\src</Filter>
+    <ClCompile Include="..\src\runtime\mem.c">
+      <Filter>src\runtime</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\amalgamate.txt" />
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="runtime">
-      <UniqueIdentifier>{75a5eead-6d3a-4a50-8a81-b8509cad839b}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtime\src">
+    <Filter Include="src">
       <UniqueIdentifier>{ba5e9330-91c6-4ee0-acdf-86c4e59dd61b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\runtime">
+      <UniqueIdentifier>{75a5eead-6d3a-4a50-8a81-b8509cad839b}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>

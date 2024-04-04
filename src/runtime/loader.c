@@ -1,5 +1,5 @@
-#include "runtime.h"
-#include "win32.h"
+#include "runtime/runtime.h"
+#include "runtime/win32.h"
 
 // This is oversimplified Win32 version completely ignoring mode.
 

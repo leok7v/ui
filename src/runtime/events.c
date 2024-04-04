@@ -1,5 +1,5 @@
-#include "runtime.h"
-#include "win32.h"
+#include "runtime/runtime.h"
+#include "runtime/win32.h"
 
 static event_t events_create(void) {
     HANDLE e = CreateEvent(null, false, false, null);

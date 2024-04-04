@@ -1,5 +1,5 @@
-#include "runtime.h"
-#include "win32.h"
+#include "runtime/runtime.h"
+#include "runtime/win32.h"
 
 static void* threads_ntdll(void) {
     static HMODULE ntdll;

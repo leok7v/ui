@@ -1,5 +1,5 @@
-#include "runtime.h"
-#include "win32.h"
+#include "runtime/runtime.h"
+#include "runtime/win32.h"
 
 static_assertion(sizeof(CRITICAL_SECTION) == sizeof(mutex_t));
 

@@ -1,5 +1,5 @@
-#include "runtime.h"
-#include "win32.h"
+#include "runtime/runtime.h"
+#include "runtime/win32.h"
 
 char* strnchr(const char* s, int32_t n, char ch) {
     while (n > 0 && *s != 0) {

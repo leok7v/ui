@@ -1,4 +1,4 @@
-#include "runtime.h"
+#include "runtime/runtime.h"
 
 // for more details run with
 // --verbosity info (aka -v)
@@ -20,6 +20,6 @@ int main(int argc, char* argv[], char *envp[]) {
         debug.verbosity.level = debug.verbosity.info;
     }
     runtime.test();
-    if (debug.verbosity.level > 0) { traceln("all tests complete\n"); }
+    traceln("all tests passed\n");
     return 0;
 }

@@ -1,5 +1,5 @@
-#include "runtime.h"
-#include "win32.h"
+#include "runtime/runtime.h"
+#include "runtime/win32.h"
 
 static errno_t mem_map_view_of_file(HANDLE file,
         void* *data, int64_t *bytes, bool rw) {
