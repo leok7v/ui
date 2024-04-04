@@ -314,14 +314,12 @@ static errno_t files_mkdirs(const char* dir) {
 #define files_realloc_pn(pn, pnc, fn, name) do {                        \
     const int32_t bytes = (int32_t)(strlen(fn) + strlen(name) + 3);     \
     if (bytes > pnc) {                                                  \
-        char* xpn = (char*)mem.heap.reallocate(null, pn, bytes, false); \
-        if (xpn != null) {                                              \
-            pn = xpn;                                                   \
+        r = mem.heap.reallocate(null, &pn, bytes, false);               \
+        if (r != 0) {                                                   \
             pnc = bytes;                                                \
         } else {                                                        \
             mem.heap.deallocate(null, pn);                              \
             pn = null;                                                  \
-            r = ERROR_OUTOFMEMORY;                                      \
         }                                                               \
     }                                                                   \
 } while (0)

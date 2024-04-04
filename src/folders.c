@@ -126,14 +126,10 @@ errno_t folders_enumerate(folders_t* d, const char* fn) {
                             if (d->n >= d->capacity) {
                                 const int64_t bytes_x_2 =
                                     sizeof(folders_data_t) * d->capacity * 2;
-                                folders_data_t* data = (folders_data_t*)
-                                    mem.heap.reallocate(null, d->data,
-                                                        bytes_x_2, true);
-                                if (data != null) {
+                                r = mem.heap.reallocate(null, &d->data,
+                                    bytes_x_2, false);
+                                if (r == 0) {
                                     d->capacity = d->capacity * 2;
-                                    d->data = data;
-                                } else {
-                                    r = ERROR_OUTOFMEMORY;
                                 }
                             }
                             if (r == 0) {

@@ -8,11 +8,14 @@ typedef struct heap_s heap_t;
 typedef struct { // heap == null uses process serialized LFH
     heap_t* (*create)(bool serialized);
     void*   (*allocate)(heap_t* heap, int64_t bytes, bool zero);
-    void*   (*reallocate)(heap_t* heap, void* a, int64_t bytes, bool zero);
+    // reallocate may return ERROR_OUTOFMEMORY w/o changing 'a' *)
+    errno_t (*reallocate)(heap_t* heap, void* *a, int64_t bytes, bool zero);
     void    (*deallocate)(heap_t* heap, void* a);
     int64_t (*bytes)(heap_t* heap, void* a); // actual allocated size
     void    (*dispose)(heap_t* heap);
 } heap_if;
+
+// *) zero in reallocate applies to the newly appended bytes
 
 typedef struct {
     heap_if heap; // process heap (see notes below)

@@ -42,16 +42,11 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
         // too much for stack alloca()
         // add little extra if new process is spawned in between calls.
         bytes += sizeof(SYSTEM_PROCESS_INFORMATION) * 32;
-        if (data == null) {
-            data = (byte*)mem.heap.allocate(null, bytes, 0);
-        } else {
-            byte* reallocated = (byte*)realloc(data, bytes);
-            if (reallocated != null) { data = reallocated; }
-        }
-        if (data != null) {
+        r = mem.heap.reallocate(null, &data, bytes, false);
+        if (r == 0) {
             r = NtQuerySystemInformation(SystemProcessInformation, data, bytes, &bytes);
         } else {
-            r = ERROR_NOT_ENOUGH_MEMORY;
+            assert(r == ERROR_NOT_ENOUGH_MEMORY);
         }
     }
     #pragma pop_macro("STATUS_INFO_LENGTH_MISMATCH")
