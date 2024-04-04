@@ -23,19 +23,19 @@ static void events_reset(event_t e) {
 
 static int32_t events_wait_or_timeout(event_t e, double seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (int32_t)(seconds * 1000.0 + 0.5);
-    uint32_t r = 0;
-    fatal_if_false((r = WaitForSingleObject(e, ms)) != WAIT_FAILED);
-    return r == WAIT_OBJECT_0 ? 0 : -1; // all WAIT_ABANDONED as -1
+    DWORD ix = WaitForSingleObject(e, ms);
+    errno_t r = wait2e(ix);
+    return r != 0 ? -1 : 0;
 }
 
 static void events_wait(event_t e) { events_wait_or_timeout(e, -1); }
 
 static int32_t events_wait_any_or_timeout(int32_t n, event_t events_[], double s) {
     uint32_t ms = s < 0 ? INFINITE : (int32_t)(s * 1000.0 + 0.5);
-    uint32_t r = 0;
-    fatal_if_false((r = WaitForMultipleObjects(n, events_, false, ms)) != WAIT_FAILED);
+    DWORD ix = WaitForMultipleObjects(n, events_, false, ms);
+    errno_t r = wait2e(ix);
     // all WAIT_ABANDONED_0 and WAIT_IO_COMPLETION 0xC0 as -1
-    return r < WAIT_OBJECT_0 + n ? r - WAIT_OBJECT_0 : -1;
+    return r != 0 ? -1 : ix;
 }
 
 static int32_t events_wait_any(int32_t n, event_t e[]) {

@@ -118,10 +118,6 @@ errno_t folders_enumerate(folders_t* d, const char* fn) {
                 "inconsistent values of n=%d allocated=%d", d->n, d->capacity);
             d->n = 0;
             if (d->capacity > 0 && d->n <= d->capacity && d->data != null) {
-                // only for debugging
-                int32_t n = (int32_t)(strlen(fn) + countof(ffd.cFileName) + 3);
-                char* pathname = (char*)stackalloc(n);
-                // ^^^^^^^^^
                 HANDLE h = FindFirstFileA(pattern, &ffd);
                 if (h != INVALID_HANDLE_VALUE) {
                     do {
@@ -141,10 +137,6 @@ errno_t folders_enumerate(folders_t* d, const char* fn) {
                                 }
                             }
                             if (r == 0) {
-                                // only for debugging
-                                str.sformat(pathname, n, "%s/%s", fn, ffd.cFileName);
-                                traceln("%s", pathname);
-                                // ^^^
                                 d->data[d->n].ffd = ffd;
                                 d->n++;
                             } else {
@@ -168,9 +160,17 @@ static errno_t folders_open(folders_t* *fs, const char* pathname) {
     return d != null ? folders_enumerate(d, pathname) : ERROR_OUTOFMEMORY;
 }
 
+#ifdef RUNTIME_TESTS
+
+#pragma push_macro("verbose") // --verbosity trace
+
+#define verbose(...) do {                                 \
+    if (debug.verbosity.level >= debug.verbosity.trace) { \
+        traceln(__VA_ARGS__);                             \
+    }                                                     \
+} while (0)
 
 static void folders_test(void) {
-    #ifdef RUNTIME_TESTS
     uint64_t now = clock.microseconds(); // microseconds since epoch
     uint64_t one_second_earlier = now - 1 * usec_in_sec;
     uint64_t two_second_later   = now + 2 * usec_in_sec;
@@ -183,12 +183,12 @@ static void folders_test(void) {
     int32_t ms = 0;
     int32_t mc = 0;
     clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
-    traceln("now: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d",
+    verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d",
              year, month, day, hh, mm, ss, ms, mc);
     char tmp[1024];
     errno_t r = files.tmp(tmp, countof(tmp));
     fatal_if(r != 0, "files.tmp() failed %s", str.error(r));
-    traceln("%s", tmp);
+    verbose("%s", tmp);
     folders_t* fs = null;
     char pn[1024] = {0};
     strprintf(pn, "%s/file", tmp);
@@ -230,7 +230,7 @@ static void folders_test(void) {
         bool is_folder = folders.is_folder(fs, i);
         bool is_symlink = folders.is_symlink(fs, i);
         int64_t bytes = folders.bytes(fs, i);
-        traceln("%s: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d %lld bytes %s%s",
+        verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d %lld bytes %s%s",
                 name, year, month, day, hh, mm, ss, ms, mc,
                 bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
         if (str.equal(name, "file") || str.equal(name, "hard")) {
@@ -260,8 +260,15 @@ static void folders_test(void) {
     fatal_if(r != 0, "files.rmdirs(\"%s\") failed %s",
                      tmp, str.error(r));
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
-    #endif
 }
+
+#pragma pop_macro("verbose")
+
+#else
+
+static void folders_test(void) { }
+
+#endif
 
 folders_if folders = {
     .open        = folders_open,

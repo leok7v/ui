@@ -17,6 +17,45 @@
     <ClCompile Include="..\src\static.c">
       <Filter>runtime\src</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\clock.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\args.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\atomics.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\num.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\processes.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\events.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\files.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\folders.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\loader.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mem.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\mutexes.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\threads.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\streams.c">
+      <Filter>runtime\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="..\amalgamate.txt" />
