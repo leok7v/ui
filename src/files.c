@@ -24,9 +24,10 @@ static errno_t files_write_fully(const char* filename, const void* data,
             DWORD chunk = 0;
             r = b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
             written += chunk;
+            bytes -= chunk;
         }
         if (transferred != null) { *transferred = written; }
-        errno_t rc = CloseHandle(file);
+        errno_t rc = b2e(CloseHandle(file));
         if (r == 0) { r = rc; }
     }
     return r;
@@ -307,52 +308,80 @@ static errno_t files_mkdirs(const char* dir) {
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
 }
 
-static errno_t files_rmdirs(const char* folder) {
-    folders_t* dirs = folders.open();
-    errno_t r = dirs == null ?
-            ERROR_OUTOFMEMORY : folders.enumerate(dirs, folder);
+#pragma push_macro("files_realloc_pn")
+#pragma push_macro("files_pn_fn_name")
+
+#define files_realloc_pn(pn, pnc, fn, name) do {                        \
+    const int32_t bytes = (int32_t)(strlen(fn) + strlen(name) + 3);     \
+    if (bytes > pnc) {                                                  \
+        char* xpn = (char*)mem.heap.reallocate(null, pn, bytes, false); \
+        if (xpn != null) {                                              \
+            pn = xpn;                                                   \
+            pnc = bytes;                                                \
+        } else {                                                        \
+            mem.heap.deallocate(null, pn);                              \
+            pn = null;                                                  \
+            r = ERROR_OUTOFMEMORY;                                      \
+        }                                                               \
+    }                                                                   \
+} while (0)
+
+#define files_pn_fn_name(pn, pnc, fn, name) do {       \
+    if (str.equal(fn, "\\") || str.equal(fn, "/")) {   \
+        str.sformat(pn, pnc, "\\%s", name);            \
+    } else {                                           \
+        str.sformat(pn, pnc, "%.*s\\%s", k, fn, name); \
+    }                                                  \
+} while (0)
+
+
+static errno_t files_rmdirs(const char* fn) {
+    folders_t* fs = null;
+    errno_t r = folders.open(&fs, fn);
     if (r == 0) {
-        const int32_t n = folders.count(dirs);
-        for (int32_t i = 0; i < n; i++) {
+        int32_t k = (int32_t)strlen(fn);
+        // remove trailing backslash (except if it is root: "/" or "\\")
+        if (k > 1 && (fn[k - 1] == '/' || fn[k - 1] == '\\')) {
+            k--;
+        }
+        int32_t pnc = 1024; // pathname "pn" capacity in bytes
+        char* pn = (char*)mem.heap.allocate(null, pnc, false);
+        if (pn == null) { r = ERROR_OUTOFMEMORY; }
+        const int32_t n = folders.count(fs);
+        for (int32_t i = 0; i < n && r == 0; i++) {
             // recurse into sub folders and remove them first
             // do NOT follow symlinks - it could be disastrous
-            if (!folders.is_symlink(dirs, i) && folders.is_folder(dirs, i)) {
-                const char* name = folders.name(dirs, i);
-                int32_t k = (int32_t)(strlen(folder) + strlen(name) + 3);
-                char* pathname = (char*)mem.heap.allocate(null, k, false);
-                if (pathname == null) {
-                    r = ERROR_OUTOFMEMORY;
-                    break;
+            if (!folders.is_symlink(fs, i) && folders.is_folder(fs, i)) {
+                const char* name = folders.name(fs, i);
+                files_realloc_pn(pn, pnc, fn, name);
+                if (r == 0) {
+                    files_pn_fn_name(pn, pnc, fn, name);
+                    r = files.rmdirs(pn);
                 }
-                str.sformat(pathname, k, "%s/%s", folder, name);
-                r = files.rmdirs(pathname);
-                mem.heap.deallocate(null, pathname);
-                if (r != 0) { break; }
             }
         }
-        for (int32_t i = 0; i < n; i++) {
-            if (!folders.is_folder(dirs, i)) { // symlinks are removed as normal files
-                const char* name = folders.name(dirs, i);
-                int32_t k = (int32_t)(strlen(folder) + strlen(name) + 3);
-                char* pathname = (char*)mem.heap.allocate(null, k, false);
-                if (pathname == null) {
-                    r = ERROR_OUTOFMEMORY;
-                    break;
+        for (int32_t i = 0; i < n && r == 0; i++) {
+            if (!folders.is_folder(fs, i)) { // symlinks are removed as normal files
+                const char* name = folders.name(fs, i);
+                files_realloc_pn(pn, pnc, fn, name);
+                if (r == 0) {
+                    files_pn_fn_name(pn, pnc, fn, name);
+                    r = files.unlink(pn);
+                    if (r != 0) {
+                        traceln("remove(%s) failed %s", pn, str.error(r));
+                    }
                 }
-                str.sformat(pathname, k, "%s/%s", folder, name);
-                r = files.unlink(pathname);
-                if (r != 0) {
-                    traceln("remove(%s) failed %s", pathname, str.error(r));
-                }
-                mem.heap.deallocate(null, pathname);
-                if (r != 0) { break; }
             }
         }
+        mem.heap.deallocate(null, pn);
+        folders.close(fs);
     }
-    if (dirs != null) { folders.close(dirs); }
-    if (r == 0) { r = files.unlink(folder); }
+    if (r == 0) { r = files.unlink(fn); }
     return r;
 }
+
+#pragma pop_macro("files_pn_fn_name")
+#pragma pop_macro("files_realloc_pn")
 
 static bool files_exists(const char* path) {
     return PathFileExistsA(path);
@@ -399,8 +428,10 @@ static errno_t files_link(const char* from, const char* to) {
 }
 
 static errno_t files_symlink(const char* from, const char* to) {
+    // The correct order of parameters for CreateSymbolicLinkA is:
+    // CreateSymbolicLinkA(symlink_to_create, existing_file, flags);
     DWORD flags = files.is_folder(from) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
-    return b2e(CreateSymbolicLinkA(from, to, flags));
+    return b2e(CreateSymbolicLinkA(to, from, flags));
 }
 
 static void files_test(void) {
