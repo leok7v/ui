@@ -9,10 +9,10 @@ begin_c
 
 typedef struct {
     // mode:
-    const int32_t local;
-    const int32_t lazy;
-    const int32_t now;
-    const int32_t global;
+    int32_t const local;
+    int32_t const lazy;
+    int32_t const now;
+    int32_t const global;
     // "If the value of file is null, dlopen() provides a handle on a global
     //  symbol object." posix
     void* (*open)(const char* filename, int32_t mode);

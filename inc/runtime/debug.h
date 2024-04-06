@@ -13,11 +13,11 @@
 
 typedef struct {
     int32_t level; // global verbosity (interpretation may vary)
-    const int32_t quiet;    // 0
-    const int32_t info;     // 1 basic information (errors and warnings)
-    const int32_t verbose;  // 2 detailed diagnostic
-    const int32_t debug;    // 3 including debug messages
-    const int32_t trace;    // 4 everything (may include nested calls)
+    int32_t const quiet;    // 0
+    int32_t const info;     // 1 basic information (errors and warnings)
+    int32_t const verbose;  // 2 detailed diagnostic
+    int32_t const debug;    // 3 including debug messages
+    int32_t const trace;    // 4 everything (may include nested calls)
 } verbosity_if;
 
 typedef struct {

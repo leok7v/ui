@@ -6,6 +6,9 @@ begin_c
 typedef struct folders_s folders_t;
 
 typedef struct folders_if {
+    const char* (*bin)(void);  // Windows: "c:\ProgramFiles" Un*x: "/bin"
+    const char* (*data)(void); // Windows: "c:\ProgramData" Un*x: /data or /var
+    const char* (*tmp)(void);  // temporary folder (system or user)
     errno_t (*open)(folders_t* *folders, const char* folder);
     const char* (*folder)(folders_t* folders); // name of the folder
     // number of enumerated files and sub folders inside folder

@@ -14,7 +14,7 @@ static void* threads_ntdll(void) {
 }
 
 static double threads_ns2ms(int64_t ns) {
-    return ns / (double)nsec_in_msec;
+    return ns / (double)clock.nsec_in_msec;
 }
 
 static void threads_set_timer_resolution(uint64_t nanoseconds) {
@@ -160,8 +160,8 @@ static void threads_realtime(void) {
         THREAD_PRIORITY_TIME_CRITICAL));
     fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
-    // desired: 0.5ms = 500us (microsecond)
-    threads_set_timer_resolution(nsec_in_usec * 500);
+    // desired: 0.5ms = 500us (microsecond) = 50,000ns
+    threads_set_timer_resolution(clock.nsec_in_usec * 500);
     fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
         threads_next_physical_processor_affinity_mask()));
     threads_disable_power_throttling();

@@ -1,6 +1,15 @@
 #include "runtime/runtime.h"
 #include "runtime/win32.h"
 
+enum {
+    clock_nsec_in_usec = 1000, // nano in micro
+    clock_nsec_in_msec = clock_nsec_in_usec * 1000, // nano in milli
+    clock_nsec_in_sec  = clock_nsec_in_msec * 1000,
+    clock_usec_in_msec = 1000, // micro in mill
+    clock_msec_in_sec  = 1000, // milli in sec
+    clock_usec_in_sec  = clock_usec_in_msec * clock_msec_in_sec // micro in sec
+};
+
 static uint64_t clock_microseconds_since_epoch(void) { // NOT monotonic
     FILETIME ft; // time in 100ns interval (tenth of microsecond)
     // since 12:00 A.M. January 1, 1601 Coordinated Universal Time (UTC)
@@ -94,7 +103,7 @@ static uint64_t clock_nanoseconds(void) {
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static uint32_t freq;
-    static uint32_t mul = nsec_in_sec;
+    static uint32_t mul = clock_nsec_in_sec;
     if (freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
@@ -108,9 +117,9 @@ static uint64_t clock_nanoseconds(void) {
         // multiples of MHz num.gcd() approach may need
         // to be revised in favor of num.muldiv64x64()
         freq = frequency.LowPart;
-        assert(freq != 0 && freq < nsec_in_sec);
+        assert(freq != 0 && freq < (uint32_t)clock.nsec_in_sec);
         // to avoid num.muldiv128:
-        uint32_t divider = num.gcd32(nsec_in_sec, freq);
+        uint32_t divider = num.gcd32(clock.nsec_in_sec, freq);
         freq /= divider;
         mul  /= divider;
     }
@@ -127,7 +136,7 @@ static uint64_t clock_unix_microseconds(void) {
 }
 
 static uint64_t clock_unix_seconds(void) {
-    return clock.unix_microseconds() / usec_in_sec;
+    return clock.unix_microseconds() / clock.usec_in_sec;
 }
 
 static void clock_test(void) {
@@ -146,6 +155,12 @@ static void clock_test(void) {
 }
 
 clock_if clock = {
+    .nsec_in_usec      = clock_nsec_in_usec,
+    .nsec_in_msec      = clock_nsec_in_msec,
+    .nsec_in_sec       = clock_nsec_in_sec,
+    .usec_in_msec      = clock_usec_in_msec,
+    .msec_in_sec       = clock_msec_in_sec,
+    .usec_in_sec       = clock_usec_in_sec,
     .seconds           = clock_seconds,
     .nanoseconds       = clock_nanoseconds,
     .unix_microseconds = clock_unix_microseconds,
@@ -156,4 +171,3 @@ clock_if clock = {
     .local             = clock_local,
     .test              = clock_test
 };
-

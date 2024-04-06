@@ -10,6 +10,10 @@ static void runtime_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
 
 static void runtime_exit(int32_t exit_code) { exit(exit_code); }
 
+// TODO: consider r = HRESULT_FROM_WIN32() and r = HRESULT_CODE(hr);
+// this separates posix error codes from win32 error codes
+
+
 static int32_t runtime_err(void) { return GetLastError(); }
 
 static void runtime_seterr(int32_t err) { SetLastError(err); }

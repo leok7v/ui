@@ -15,6 +15,53 @@ typedef struct folders_s {
     folders_data_t* data;
 } folders_t_;
 
+static const char* folders_bin(void) {
+    static char program_files[1024];
+    if (program_files[0] == 0) {
+        wchar_t* program_files_w = null;
+        fatal_if(SHGetKnownFolderPath(&FOLDERID_ProgramFilesX64, 0,
+            null, &program_files_w) != 0);
+        int32_t len = (int32_t)wcslen(program_files_w);
+        assert(len < countof(program_files));
+        fatal_if(len >= countof(program_files), "len=%d", len);
+        for (int32_t i = 0; i <= len; i++) { // including zero terminator
+            assert(program_files_w[i] < 128); // pure ascii
+            program_files[i] = (char)program_files_w[i];
+        }
+    }
+    return program_files;
+}
+
+static const char* folders_tmp(void) {
+    static char tmp[1024];
+    if (tmp[0] == 0) {
+        // If GetTempPathA() succeeds, the return value is the length,
+        // in chars, of the string copied to lpBuffer, not including
+        // the terminating null character. If the function fails, the
+        // return value is zero.
+        errno_t r = GetTempPathA(countof(tmp), tmp) == 0 ? runtime.err() : 0;
+        fatal_if(r != 0, "GetTempPathA() failed %s", str.error(r));
+    }
+    return tmp;
+}
+
+static const char* folders_data(void) {
+    static char program_data[1024];
+    if (program_data[0] == 0) {
+        wchar_t* program_data_w = null;
+        fatal_if(SHGetKnownFolderPath(&FOLDERID_ProgramData, 0,
+            null, &program_data_w) != 0);
+        int32_t len = (int32_t)wcslen(program_data_w);
+        assert(len < countof(program_data));
+        fatal_if(len >= countof(program_data), "len=%d", len);
+        for (int32_t i = 0; i <= len; i++) { // including zero terminator
+            assert(program_data_w[i] < 128); // pure ascii
+            program_data[i] = (char)program_data_w[i];
+        }
+    }
+    return program_data;
+}
+
 void folders_close(folders_t* fs) {
     folders_t_* d = (folders_t_*)fs;
     if (d != null) {
@@ -168,8 +215,8 @@ static errno_t folders_open(folders_t* *fs, const char* pathname) {
 
 static void folders_test(void) {
     uint64_t now = clock.microseconds(); // microseconds since epoch
-    uint64_t one_second_earlier = now - 1 * usec_in_sec;
-    uint64_t two_second_later   = now + 2 * usec_in_sec;
+    uint64_t before = now - 1 * clock.usec_in_sec; // one second earlier
+    uint64_t after  = now + 2 * clock.usec_in_sec; // two seconds later
     int32_t year = 0;
     int32_t month = 0;
     int32_t day = 0;
@@ -181,9 +228,15 @@ static void folders_test(void) {
     clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
     verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d",
              year, month, day, hh, mm, ss, ms, mc);
+    // there is no racing free way to create temporary folder
+    // without having a temporary file for the duration of folder usage:
+    char tmp_file[1024]; // create_tmp() is thread safe race free:
+    errno_t r = files.create_tmp(tmp_file, countof(tmp_file));
+    fatal_if(r != 0, "files.create_tmp() failed %s", str.error(r));
     char tmp[1024];
-    errno_t r = files.tmp(tmp, countof(tmp));
-    fatal_if(r != 0, "files.tmp() failed %s", str.error(r));
+    strprintf(tmp, "%s.dir", tmp_file);
+    r = files.mkdirs(tmp);
+    fatal_if(r != 0, "files.mkdirs(%s) failed %s", tmp, str.error(r));
     verbose("%s", tmp);
     folders_t* fs = null;
     char pn[1024] = {0};
@@ -236,25 +289,22 @@ static void folders_test(void) {
         }
         swear(str.equal(name, "subd") == is_folder,
               "\"%s\" is_folder: %d", name, is_folder);
-        // timestamps are very imprecise on NTFS
-        swear(at >= one_second_earlier, "access: %lld  >= %lld",
-              at, one_second_earlier);
-        swear(ct >= one_second_earlier, "create: %lld  >= %lld",
-              ct, one_second_earlier);
-        swear(ut >= one_second_earlier, "update: %lld  >= %lld",
-              ut, one_second_earlier);
+        // empirically timestamps are imprecise on NTFS
+        swear(at >= before, "access: %lld  >= %lld", at, before);
+        swear(ct >= before, "create: %lld  >= %lld", ct, before);
+        swear(ut >= before, "update: %lld  >= %lld", ut, before);
         // and no later than 2 seconds since folders_test()
-        swear(at < two_second_later, "access: %lld  < %lld",
-              at, two_second_later);
-        swear(ct < two_second_later, "create: %lld  < %lld",
-              ct, two_second_later);
-        swear(at < two_second_later, "update: %lld  < %lld",
-              ut, two_second_later);
+        swear(at < after, "access: %lld  < %lld", at, after);
+        swear(ct < after, "create: %lld  < %lld", ct, after);
+        swear(at < after, "update: %lld  < %lld", ut, after);
     }
     folders.close(fs);
     r = files.rmdirs(tmp);
     fatal_if(r != 0, "files.rmdirs(\"%s\") failed %s",
                      tmp, str.error(r));
+    r = files.unlink(tmp_file);
+    fatal_if(r != 0, "files.unlink(\"%s\") failed %s",
+                     tmp_file, str.error(r));
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -267,6 +317,9 @@ static void folders_test(void) { }
 #endif
 
 folders_if folders = {
+    .bin         = folders_bin,
+    .tmp         = folders_tmp,
+    .data        = folders_data,
     .open        = folders_open,
     .folder      = folders_folder,
     .count       = folders_count,
