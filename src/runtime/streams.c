@@ -1,8 +1,6 @@
 #include "runtime/runtime.h"
 #include "runtime/win32.h"
 
-begin_c
-
 static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,
         int64_t *transferred) {
     swear(bytes > 0);
@@ -109,6 +107,3 @@ streams_if streams = {
     .read_write = streams_read_write,
     .test = streams_test
 };
-
-end_c
-

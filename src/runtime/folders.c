@@ -1,8 +1,6 @@
 #include "runtime/runtime.h"
 #include "runtime/win32.h"
 
-begin_c
-
 typedef struct folders_data_s {
     WIN32_FIND_DATAA ffd;
 } folders_data_t;
@@ -13,10 +11,10 @@ typedef struct folders_s {
     int32_t fd;
     char* folder;
     folders_data_t* data;
-} folders_t_;
+} folder_t_;
 
 static const char* folders_bin(void) {
-    static char program_files[1024];
+    static char program_files[files_max_path];
     if (program_files[0] == 0) {
         wchar_t* program_files_w = null;
         fatal_if(SHGetKnownFolderPath(&FOLDERID_ProgramFilesX64, 0,
@@ -33,7 +31,7 @@ static const char* folders_bin(void) {
 }
 
 static const char* folders_tmp(void) {
-    static char tmp[1024];
+    static char tmp[files_max_path];
     if (tmp[0] == 0) {
         // If GetTempPathA() succeeds, the return value is the length,
         // in chars, of the string copied to lpBuffer, not including
@@ -45,8 +43,20 @@ static const char* folders_tmp(void) {
     return tmp;
 }
 
+static errno_t folders_cwd(char* fn, int32_t count) {
+    swear(count > 1);
+    DWORD bytes = count - 1;
+    errno_t r = b2e(GetCurrentDirectoryA(bytes, fn));
+    fn[count - 1] = 0; // always
+    return r;
+}
+
+static errno_t folders_setcwd(const char* fn) {
+    return b2e(SetCurrentDirectoryA(fn));
+}
+
 static const char* folders_data(void) {
-    static char program_data[1024];
+    static char program_data[files_max_path];
     if (program_data[0] == 0) {
         wchar_t* program_data_w = null;
         fatal_if(SHGetKnownFolderPath(&FOLDERID_ProgramData, 0,
@@ -62,8 +72,8 @@ static const char* folders_data(void) {
     return program_data;
 }
 
-void folders_close(folders_t* fs) {
-    folders_t_* d = (folders_t_*)fs;
+void folders_close(folder_t* fs) {
+    folder_t_* d = (folder_t_*)fs;
     if (d != null) {
         heap.deallocate(null, d->data);   d->data = null;
         heap.deallocate(null, d->folder); d->folder = null;
@@ -71,69 +81,69 @@ void folders_close(folders_t* fs) {
     heap.deallocate(null, d);
 }
 
-const char* folders_folder(folders_t* fs) {
-    folders_t_* d = (folders_t_*)fs;
+const char* folders_folder(folder_t* fs) {
+    folder_t_* d = (folder_t_*)fs;
     return d->folder;
 }
 
-int32_t folders_count(folders_t* fs) {
-    folders_t_* d = (folders_t_*)fs;
+int32_t folders_count(folder_t* fs) {
+    folder_t_* d = (folder_t_*)fs;
     return d->n;
 }
 
 #define folders_return_time_field(field) \
-    folders_t_* d = (folders_t_*)fs; \
+    folder_t_* d = (folder_t_*)fs; \
     assert(0 <= i && i < d->n, "assertion %d out of range [0..%d[", i, d->n); \
     return 0 <= i && i < d->n ? \
         (((uint64_t)d->data[i].ffd.field.dwHighDateTime) << 32 | \
                     d->data[i].ffd.field.dwLowDateTime) / 10 : 0
 
 #define folders_return_bool_field(field, bit) \
-    folders_t_* d = (folders_t_*)fs; \
+    folder_t_* d = (folder_t_*)fs; \
     assert(0 <= i && i < d->n, "assertion %d out of range [0..%d[", i, d->n); \
     return 0 <= i && i < d->n ? (d->data[i].ffd.field & bit) != 0 : false
 
 #define folders_return_int64_file_size() \
-    folders_t_* d = (folders_t_*)fs; \
+    folder_t_* d = (folder_t_*)fs; \
     assert(0 <= i && i < d->n, "assertion %d out of range [0..%d[", i, d->n); \
     return 0 <= i && i < d->n ? \
         (int64_t)(((uint64_t)d->data[i].ffd.nFileSizeHigh) << 32 | \
         d->data[i].ffd.nFileSizeLow) : -1
 
-const char* folders_filename(folders_t* fs, int32_t i) {
-    folders_t_* d = (folders_t_*)fs;
+const char* folders_filename(folder_t* fs, int32_t i) {
+    folder_t_* d = (folder_t_*)fs;
     assert(0 <= i && i < d->n, "assertion %d out of range [0..%d[", i, d->n);
     return 0 <= i && i < d->n ? d->data[i].ffd.cFileName : null;
 }
 
-bool folders_is_folder(folders_t* fs, int32_t i) {
+bool folders_is_folder(folder_t* fs, int32_t i) {
     folders_return_bool_field(dwFileAttributes, FILE_ATTRIBUTE_DIRECTORY);
 }
 
-bool folders_is_symlink(folders_t* fs, int32_t i) {
+bool folders_is_symlink(folder_t* fs, int32_t i) {
     folders_return_bool_field(dwFileAttributes, FILE_ATTRIBUTE_REPARSE_POINT);
 }
 
-int64_t folders_bytes(folders_t* fs, int32_t i) {
+int64_t folders_bytes(folder_t* fs, int32_t i) {
     folders_return_int64_file_size();
 }
 
 // functions folders_time_*() return time in absolute nanoseconds since
 // start of OS epoch or 0 if failed or not available
 
-uint64_t folders_time_created(folders_t* fs, int32_t i) {
+uint64_t folders_time_created(folder_t* fs, int32_t i) {
     folders_return_time_field(ftCreationTime);
 }
 
-uint64_t folders_time_updated(folders_t* fs, int32_t i) {
+uint64_t folders_time_updated(folder_t* fs, int32_t i) {
     folders_return_time_field(ftLastWriteTime);
 }
 
-uint64_t folders_time_accessed(folders_t* fs, int32_t i) {
+uint64_t folders_time_accessed(folder_t* fs, int32_t i) {
     folders_return_time_field(ftLastAccessTime);
 }
 
-errno_t folders_enumerate(folders_t* d, const char* fn) {
+errno_t folders_enumerate(folder_t_* d, const char* fn) {
     errno_t r = 0;
     WIN32_FIND_DATAA ffd = {0};
     int32_t k = (int32_t)strlen(fn);
@@ -196,10 +206,9 @@ errno_t folders_enumerate(folders_t* d, const char* fn) {
     return r;
 }
 
-static errno_t folders_open(folders_t* *fs, const char* pathname) {
-    folders_t_* d = (folders_t_*)heap.allocate(null,
-        sizeof(folders_t_), true);
-    *fs = d;
+static errno_t folders_open(folder_t* *fs, const char* pathname) {
+    folder_t_* d = (folder_t_*)heap.allocate(null, sizeof(folder_t_), true);
+    *fs = (folder_t*)d;
     return d != null ? folders_enumerate(d, pathname) : ERROR_OUTOFMEMORY;
 }
 
@@ -228,27 +237,32 @@ static void folders_test(void) {
     clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
     verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d",
              year, month, day, hh, mm, ss, ms, mc);
+    // Test cwd, setcwd
+    const char* tmp = folders.tmp();
+    char cwd[256] = {0};
+    fatal_if(folders.cwd(cwd, sizeof(cwd)) != 0, "folders.cwd() failed");
+    fatal_if(folders.setcwd(tmp) != 0, "folders.setcwd(\"%s\") failed %s",
+                tmp, str.error(runtime.err()));
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
-    char tmp_file[1024]; // create_tmp() is thread safe race free:
+    char tmp_file[files_max_path]; // create_tmp() is thread safe race free:
     errno_t r = files.create_tmp(tmp_file, countof(tmp_file));
     fatal_if(r != 0, "files.create_tmp() failed %s", str.error(r));
-    char tmp[1024];
-    strprintf(tmp, "%s.dir", tmp_file);
-    r = files.mkdirs(tmp);
-    fatal_if(r != 0, "files.mkdirs(%s) failed %s", tmp, str.error(r));
-    verbose("%s", tmp);
-    folders_t* fs = null;
-    char pn[1024] = {0};
-    strprintf(pn, "%s/file", tmp);
+    char tmp_dir[files_max_path];
+    strprintf(tmp_dir, "%s.dir", tmp_file);
+    r = files.mkdirs(tmp_dir);
+    fatal_if(r != 0, "files.mkdirs(%s) failed %s", tmp_dir, str.error(r));
+    verbose("%s", tmp_dir);
+    folder_t* fs = null;
+    char pn[files_max_path] = {0};
+    strprintf(pn, "%s/file", tmp_dir);
     // cannot test symlinks because they are only
     // available to Administrators and in Developer mode
-//  char sym[1024] = {0};
-    char hard[1024] = {0};
-    char sub[1024] = {0};
-    strprintf(hard, "%s/hard", tmp);
-//  strprintf(sym, "%s/sym", tmp);
-    strprintf(sub, "%s/subd", tmp);
+//  char sym[files_max_path] = {0};
+    char hard[files_max_path] = {0};
+    char sub[files_max_path] = {0};
+    strprintf(hard, "%s/hard", tmp_dir);
+    strprintf(sub, "%s/subd", tmp_dir);
     const char* content = "content";
     int64_t transferred = 0;
     r = files.write_fully(pn, content, strlen(content), &transferred);
@@ -257,16 +271,13 @@ static void folders_test(void) {
     r = files.link(pn, hard);
     fatal_if(r != 0, "files.link(\"%s\", \"%s\") failed %s",
                       pn, hard, str.error(r));
-//  r = files.symlink(pn, sym);
-//  fatal_if(r != 0, "files.link(\"%s\", \"%s\") failed %s",
-//                    pn, sym, str.error(r));
     r = files.mkdirs(sub);
     fatal_if(r != 0, "files.mkdirs(\"%s\") failed %s", sub, str.error(r));
-    r = folders.open(&fs, tmp);
+    r = folders.open(&fs, tmp_dir);
     fatal_if(r != 0, "folders.open(\"%s\") failed %s",
-                        tmp, str.error(r));
-    fatal_if(!str.equal(folders.folder(fs), tmp),
-            "folders.folder(fs): %s tmp: %s", folders.folder(fs), tmp);
+                        tmp_dir, str.error(r));
+    fatal_if(!str.equal(folders.folder(fs), tmp_dir),
+            "folders.folder(fs): %s tmp_dir: %s", folders.folder(fs), tmp_dir);
     int32_t count = folders.count(fs);
     fatal_if(count != 3, "count: %d expected 4", count);
     for (int32_t i = 0; i < count; ++i) {
@@ -299,12 +310,14 @@ static void folders_test(void) {
         swear(at < after, "update: %lld  < %lld", ut, after);
     }
     folders.close(fs);
-    r = files.rmdirs(tmp);
+    r = files.rmdirs(tmp_dir);
     fatal_if(r != 0, "files.rmdirs(\"%s\") failed %s",
-                     tmp, str.error(r));
+                     tmp_dir, str.error(r));
     r = files.unlink(tmp_file);
     fatal_if(r != 0, "files.unlink(\"%s\") failed %s",
                      tmp_file, str.error(r));
+    fatal_if(folders.setcwd(cwd) != 0, "folders.setcwd(\"%s\") failed %s",
+             cwd, str.error(runtime.err()));
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -320,6 +333,8 @@ folders_if folders = {
     .bin         = folders_bin,
     .tmp         = folders_tmp,
     .data        = folders_data,
+    .cwd         = folders_cwd,
+    .setcwd      = folders_setcwd,
     .open        = folders_open,
     .folder      = folders_folder,
     .count       = folders_count,
@@ -333,6 +348,3 @@ folders_if folders = {
     .close       = folders_close,
     .test        = folders_test
 };
-
-end_c
-

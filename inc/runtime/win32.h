@@ -5,6 +5,7 @@
 #include <psapi.h>    // both loader.c and processes.c
 #include <shellapi.h> // processes.c
 #include <winternl.h> // processes.c
+#include <immintrin.h> // _tzcnt_u32 num.c
 #include <initguid.h>     // for knownfolders
 #include <knownfolders.h> // files.c
 #include <aclapi.h>       // files.c

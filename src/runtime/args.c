@@ -257,16 +257,6 @@ static void args_test(void) {}
 
 #endif
 
-args_if args = {
-    .option_index = args_option_index,
-    .remove_at    = args_remove_at,
-    .option_bool  = args_option_bool,
-    .option_int   = args_option_int,
-    .option_str   = args_option_str,
-    .parse        = args_parse,
-    .test         = args_test
-};
-
 #ifdef WINDOWS
 
 static_init(args) {
@@ -276,3 +266,13 @@ static_init(args) {
 }
 
 #endif
+
+args_if args = {
+    .option_index = args_option_index,
+    .remove_at    = args_remove_at,
+    .option_bool  = args_option_bool,
+    .option_int   = args_option_int,
+    .option_str   = args_option_str,
+    .parse        = args_parse,
+    .test         = args_test
+};

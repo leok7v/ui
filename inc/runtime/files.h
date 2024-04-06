@@ -1,7 +1,9 @@
 #pragma once
-#include "manifest.h"
+#include "runtime/manifest.h"
 
 begin_c
+
+enum { files_max_path = 4 * 1024 }; // *)
 
 typedef struct file_s file_t;
 
@@ -44,10 +46,7 @@ typedef struct {
     errno_t (*rmdirs)(const char* pathname); // tries to remove folder and its subtree
     errno_t (*create_tmp)(char* file, int32_t count); // create temporary file
     errno_t (*chmod777)(const char* pathname); // and whole subtree new files and folders
-    // cwd() shall return absolute pathname of the current working directory or null
-    const char* (*cwd)(char* wd, int32_t count);
-    errno_t (*setcwd)(const char* wd); // set working directory
-    errno_t (*symlink)(const char* from, const char* to); // sym link "ln -s" *)
+    errno_t (*symlink)(const char* from, const char* to); // sym link "ln -s" **)
     errno_t (*link)(const char* from, const char* to); // hard link like "ln"
     errno_t (*unlink)(const char* pathname); // delete file or empty folder
     errno_t (*copy)(const char* from, const char* to); // allows overwriting
@@ -55,8 +54,14 @@ typedef struct {
     void (*test)(void);
 } files_if;
 
-// *) symlink on Win32 is only allowed in Admin elevated
-//    processes and in Developer mode.
+// *) files_max_path is a compromise - way longer than Windows MAX_PATH of 260
+// and somewhat shorter than 32 * 1024 Windows long path.
+// Use with caution understanding that it is a limitation and where it is
+// important heap may and should be used. Do not to rely on thread stack size
+// (default: 1MB on Windows, Android Linux 64KB, 512 KB  on MacOS, Ubuntu 8MB)
+//
+// **) symlink on Win32 is only allowed in Admin elevated
+//     processes and in Developer mode.
 
 extern files_if files;
 

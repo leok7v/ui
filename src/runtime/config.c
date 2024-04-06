@@ -2,7 +2,7 @@
 #include "runtime/win32.h"
 
 static HKEY config_get_reg_key(const char* name) {
-    char path[MAX_PATH];
+    char path[256];
     strprintf(path, "Software\\app\\%s", name);
     HKEY key = null;
     if (RegOpenKeyA(HKEY_CURRENT_USER, path, &key) != 0) {
@@ -80,4 +80,3 @@ config_if config = {
     .load = config_load,
     .test = config_test
 };
-

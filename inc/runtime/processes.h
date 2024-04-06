@@ -1,6 +1,6 @@
 #pragma once
-#include "manifest.h"
-#include "streams.h"
+#include "runtime/manifest.h"
+#include "runtime/streams.h"
 
 begin_c
 

@@ -1,5 +1,5 @@
 #include "runtime/runtime.h"
-#include <immintrin.h> // _tzcnt_u32
+#include "runtime/win32.h"
 
 static inline num128_t num_add128_inline(const num128_t a, const num128_t b) {
     num128_t r = a;

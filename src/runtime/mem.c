@@ -243,5 +243,3 @@ mem_if mem = {
     .deallocate      = mem_deallocate,
     .test            = mem_test
 };
-
-

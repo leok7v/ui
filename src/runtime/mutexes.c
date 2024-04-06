@@ -61,4 +61,3 @@ mutex_if mutexes = {
     .dispose = mutexes_dispose,
     .test    = mutexes_test
 };
-

@@ -1,8 +1,6 @@
 #include "runtime/runtime.h"
 #include "runtime/win32.h"
 
-begin_c
-
 // TODO: test FILE_APPEND_DATA
 // https://learn.microsoft.com/en-us/windows/win32/fileio/appending-one-file-to-another-file?redirectedfrom=MSDN
 
@@ -398,7 +396,7 @@ static errno_t files_mkdirs(const char* dir) {
 
 
 static errno_t files_rmdirs(const char* fn) {
-    folders_t* fs = null;
+    folder_t* fs = null;
     errno_t r = folders.open(&fs, fn);
     if (r == 0) {
         int32_t k = (int32_t)strlen(fn);
@@ -457,25 +455,6 @@ static bool files_is_symlink(const char* filename) {
     DWORD attributes = GetFileAttributesA(filename);
     return attributes != INVALID_FILE_ATTRIBUTES &&
           (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
-}
-
-static const char* files_cwd(char* wd, int32_t count) {
-    assert(count > 0);
-    if (count <= 0) {
-        return null;
-    } else {
-        DWORD bytes = count - 1;
-        if (GetCurrentDirectoryA(bytes, wd)) {
-            wd[count - 1] = 0;
-            return wd;
-        } else {
-            return null;
-        }
-    }
-}
-
-static errno_t files_setcwd(const char* wd) {
-    return b2e(SetCurrentDirectoryA(wd));
 }
 
 static errno_t files_copy(const char* s, const char* d) {
@@ -624,12 +603,12 @@ static void files_test(void) {
     {   // Test cwd, setcwd
         const char* tmp = folders.tmp();
         char cwd[256] = {0};
-        fatal_if(files.cwd(cwd, sizeof(cwd)) == NULL, "files.cwd() failed");
-        fatal_if(files.setcwd(tmp) != 0, "files.setcwd(\"%s\") failed %s",
+        fatal_if(folders.cwd(cwd, sizeof(cwd)) != 0, "folders.cwd() failed");
+        fatal_if(folders.setcwd(tmp) != 0, "folders.setcwd(\"%s\") failed %s",
                  tmp, str.error(runtime.err()));
         // symlink
         if (processes.is_elevated()) {
-            char sym_link[1024];
+            char sym_link[files_max_path];
             strprintf(sym_link, "%s.sym_link", tf);
             fatal_if(files.symlink(tf, sym_link) != 0,
                 "files.symlink(\"%s\", \"%s\") failed %s",
@@ -641,7 +620,7 @@ static void files_test(void) {
             traceln("Skipping files.symlink test: process is not elevated");
         }
         // hard link
-        char hard_link[1024];
+        char hard_link[files_max_path];
         strprintf(hard_link, "%s.hard_link", tf);
         fatal_if(files.link(tf, hard_link) != 0,
             "files.link(\"%s\", \"%s\") failed %s",
@@ -663,8 +642,8 @@ static void files_test(void) {
         fatal_if(files.unlink("moved_file") != 0,
                 "files.unlink('moved_file') failed %s",
                  str.error(runtime.err()));
-        fatal_if(files.setcwd(cwd) != 0, "files.setcwd(\"%s\") failed %s",
-                 cwd, str.error(runtime.err()));
+        fatal_if(folders.setcwd(cwd) != 0, "files.setcwd(\"%s\") failed %s",
+                    cwd, str.error(runtime.err()));
     }
     fatal_if(files.unlink(tf) != 0);
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
@@ -712,12 +691,7 @@ files_if files = {
     .unlink             = files_remove_file_or_folder,
     .link               = files_link,
     .symlink            = files_symlink,
-    .cwd                = files_cwd,
     .copy               = files_copy,
     .move               = files_move,
-    .setcwd             = files_setcwd,
     .test               = files_test
 };
-
-end_c
-

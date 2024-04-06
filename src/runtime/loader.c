@@ -15,7 +15,6 @@
 // with the RTLD_LOCAL flag, we create our own list later on. They are
 // excluded from EnumProcessModules() iteration.
 
-
 static void* loader_all;
 
 static void* loader_sym_all(const char* name) {
@@ -118,6 +117,3 @@ loader_if loader = {
     .close  = loader_close,
     .test   = loader_test
 };
-
-end_c
-

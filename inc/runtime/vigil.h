@@ -6,7 +6,7 @@
 #include <stdint.h>
 #undef assert
 
-#include "manifest.h"
+#include "runtime/manifest.h"
 
 #define static_assertion(condition) static_assert(condition, #condition)
 

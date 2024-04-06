@@ -1,8 +1,6 @@
 #include "runtime/runtime.h"
 #include "runtime/win32.h"
 
-begin_c
-
 typedef struct processes_pidof_lambda_s processes_pidof_lambdat_t;
 
 typedef struct processes_pidof_lambda_s {
@@ -58,7 +56,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
             if (match) {
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (last_name != name) {
-                    char path[MAX_PATH];
+                    char path[files_max_path];
                     match = processes.nameof(pid, path, countof(path)) == 0 &&
                             str.ends_with_nc(path, name);
 //                  traceln("\"%s\" -> \"%s\" match: %d", name, path, match);
@@ -156,7 +154,7 @@ static errno_t processes_kill(uint64_t pid, double timeout) {
     errno_t r = ERROR_NOT_FOUND;
     HANDLE h = OpenProcess(access, 0, (DWORD)pid);
     if (h != null) {
-        char path[MAX_PATH];
+        char path[files_max_path];
         path[0] = 0;
         r = b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
         if (r == 0) {
@@ -480,7 +478,7 @@ static errno_t processes_spawn(const char* command) {
 }
 
 static const char* processes_name(void) {
-    static char module_name[MAX_PATH];
+    static char module_name[files_max_path];
     if (module_name[0] == 0) {
         fatal_if_false(GetModuleFileNameA(null, module_name, countof(module_name)));
     }
@@ -561,4 +559,3 @@ processes_if processes = {
     .test                = processes_test
 };
 
-end_c

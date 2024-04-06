@@ -1,5 +1,5 @@
 #pragma once
-#include "manifest.h"
+#include "runtime/manifest.h"
 
 begin_c
 
@@ -83,7 +83,7 @@ typedef struct {
     bool  (*copy)(char* d, int32_t capacity,
                  const char* s, int32_t bytes); // false on overflow
     char* (*first_char)(const char* s1, int32_t bytes, char ch);
-    char* (*last_char)(const char* s1, char ch);
+    char* (*last_char)(const char* s1, char ch); // strrchr
     char* (*first)(const char* s1, const char* s2);
     bool  (*to_lower)(char* d, int32_t capacity, const char* s);
     bool  (*to_upper)(char* d, int32_t capacity, const char* s);

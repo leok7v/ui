@@ -64,9 +64,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="..\amalgamate.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <Filter Include="src">
       <UniqueIdentifier>{ba5e9330-91c6-4ee0-acdf-86c4e59dd61b}</UniqueIdentifier>
     </Filter>

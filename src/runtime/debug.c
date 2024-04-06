@@ -1,8 +1,6 @@
 #include "runtime/runtime.h"
 #include "runtime/win32.h"
 
-begin_c
-
 static const char* debug_abbreviate(const char* file) {
     const char* fn = strrchr(file, '\\');
     if (fn == null) { fn = strrchr(file, '/'); }
@@ -13,21 +11,21 @@ static const char* debug_abbreviate(const char* file) {
 
 static void debug_vprintf(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
-    char prefix[2 * 1024];
+    char prefix[4 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
     // for all other scenarios short filename without path is preferable:
     const char* name = IsDebuggerPresent() ? file : debug_abbreviate(file);
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
     prefix[countof(prefix) - 1] = 0; // zero terminated
-    char text[2 * 1024];
+    char text[4 * 1024];
     if (format != null && !strequ(format, "")) {
         vsnprintf(text, countof(text) - 1, format, vl);
         text[countof(text) - 1] = 0;
     } else {
         text[0] = 0;
     }
-    char output[4 * 1024];
+    char output[8 * 1024];
     snprintf(output, countof(output) - 1, "%s %s", prefix, text);
     output[countof(output) - 2] = 0;
     // strip trailing \n which can be remnant of fprintf("...\n")
@@ -147,5 +145,3 @@ debug_if debug = {
     .breakpoint            = debug_breakpoint,
     .test                  = debug_test
 };
-
-end_c

@@ -1,7 +1,5 @@
 #include "runtime/runtime.h"
 
-begin_c
-
 static void vigil_breakpoint_and_abort(void) {
     debug.breakpoint(); // only if debugger is present
     runtime.abort();
@@ -19,6 +17,7 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
     if (always_true) { vigil_breakpoint_and_abort(); }
     return 0;
 }
+
 static int32_t vigil_fatal_termination(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     const int32_t er = runtime.err();
@@ -138,6 +137,3 @@ vigil_if vigil = {
     .fatal_termination = vigil_fatal_termination,
     .test = vigil_test
 };
-
-end_c
-
