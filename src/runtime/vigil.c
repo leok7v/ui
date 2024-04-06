@@ -111,7 +111,7 @@ static void vigil_test(void) {
     assert(vigil_test_fatal_calls_count == count + 1);
     count = vigil_test_failed_assertion_count;
     assert(false, "testing: assert(%s)", "false");
-    #ifdef DEBUG // verify that assert() is only compiled in in DEBUG:
+    #ifdef DEBUG // verify that assert() is only compiled in DEBUG:
         fatal_if_not(vigil_test_failed_assertion_count == count + 1);
     #else // not RELEASE buid:
         fatal_if_not(vigil_test_failed_assertion_count == count);

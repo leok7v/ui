@@ -1,7 +1,10 @@
 #include "runtime/runtime.h"
 
+// amalgamate \uh-MAL-guh-mayt\ verb. : to unite in or as if in a
+// mixture of elements; especially : to merge into a single body.
+
 static const char* name;
-static char inclide_name[1024];
+static char include_name[1024];
 
 static const char* basename(const char* filename) {
     const char* s = str.last_char(filename, '\\');
@@ -18,10 +21,6 @@ static int32_t usage(void) {
     fprintf(stderr, "\n");
     return 1;
 }
-
-
-// amalgamate \uh-MAL-guh-mayt\ verb. : to unite in or as if in a
-// mixture of elements; especially : to merge into a single body.
 
 typedef struct {
     char a[1024][128];
@@ -68,7 +67,7 @@ static void cat_header_file(const char* filename) {
         const char* line = s;
         int32_t k = line_bytes(&s, e);
         if (!str.starts_with(line, "#pragma once") &&
-            !str.starts_with(line, inclide_name)) {
+            !str.starts_with(line, include_name)) {
             printf("%.*s\n", k, line);
         }
     }
@@ -112,9 +111,9 @@ static void process_root(const char* root) {
         int32_t k = line_bytes(&s, e);
         if (str.starts_with(line, "#pragma once")) {
             // skip
-        } else if (str.starts_with(line, inclide_name)) {
-            const char* header = line + strlen(inclide_name);
-            include_file(header, k - str.length(inclide_name) - 1);
+        } else if (str.starts_with(line, include_name)) {
+            const char* header = line + strlen(include_name);
+            include_file(header, k - str.length(include_name) - 1);
         } else {
             printf("%.*s\n", k, line);
         }
@@ -133,10 +132,10 @@ static void cat_source_file(const char* filename) {
         if (s >= e) { break; }
         const char* line = s;
         int32_t k = line_bytes(&s, e);
-        if (str.starts_with(line, inclide_name)) {
+        if (str.starts_with(line, include_name)) {
             char fn[1024];
-            const char* header = line + strlen(inclide_name);
-            strprintf(fn, "%.*s", k - str.length(inclide_name) - 1, header);
+            const char* header = line + strlen(include_name);
+            strprintf(fn, "%.*s", k - str.length(include_name) - 1, header);
             if (!includes_contain(fn)) {
                 char inc_file[1024];
                 strprintf(inc_file, "inc/%s/%s", name, fn);
@@ -218,7 +217,7 @@ int main(int unused(argc), const char* argv[]) {
         fprintf(stderr, "file not found: \"%s\"", root);
         runtime.exit(usage());
     }
-    strprintf(inclide_name, "#include \"%s/", name);
+    strprintf(include_name, "#include \"%s/", name);
     process_root(root);
     process_src(src);
     return 0;
