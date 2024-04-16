@@ -2,64 +2,64 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\src\tools\amalgamate.c" />
-    <ClCompile Include="..\src\runtime\mutexes.c">
+    <ClCompile Include="..\src\util\mutexes.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\num.c">
+    <ClCompile Include="..\src\util\num.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\processes.c">
+    <ClCompile Include="..\src\util\processes.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\runtime.c">
+    <ClCompile Include="..\src\util\runtime.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\static.c">
+    <ClCompile Include="..\src\util\static.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\str.c">
+    <ClCompile Include="..\src\util\str.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\streams.c">
+    <ClCompile Include="..\src\util\streams.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\threads.c">
+    <ClCompile Include="..\src\util\threads.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\vigil.c">
+    <ClCompile Include="..\src\util\vigil.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\args.c">
+    <ClCompile Include="..\src\util\args.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\atomics.c">
+    <ClCompile Include="..\src\util\atomics.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\clock.c">
+    <ClCompile Include="..\src\util\clock.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\debug.c">
+    <ClCompile Include="..\src\util\debug.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\events.c">
+    <ClCompile Include="..\src\util\events.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\files.c">
+    <ClCompile Include="..\src\util\files.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\folders.c">
+    <ClCompile Include="..\src\util\folders.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\loader.c">
+    <ClCompile Include="..\src\util\loader.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\mem.c">
+    <ClCompile Include="..\src\util\mem.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\heap.c">
+    <ClCompile Include="..\src\util\heap.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\runtime\config.c">
+    <ClCompile Include="..\src\util\config.c">
       <Filter>src\runtime</Filter>
     </ClCompile>
   </ItemGroup>

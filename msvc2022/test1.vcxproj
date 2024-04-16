@@ -11,10 +11,11 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{1EA9BF0C-402B-4852-BD16-644244F0D1B9}</ProjectGuid>
+    <ProjectGuid>{3EA9BF0C-402B-4852-BD16-644255F0D1B7}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>amalgamate</RootNamespace>
-    <ProjectName>amalgamate</ProjectName>
+    <RootNamespace>test1</RootNamespace>
+    <ProjectName>test1</ProjectName>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'" Label="Configuration">
@@ -34,15 +35,32 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
     <Import Project="common.props" />
   </ImportGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
+    <IgnoreImportLibrary>true</IgnoreImportLibrary>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
+    <IgnoreImportLibrary>true</IgnoreImportLibrary>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <Link>
       <SubSystem>Console</SubSystem>
+      <AdditionalDependencies />
+      <AdditionalOptions>/NOIMPLIB %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <ClCompile />
+    <ClCompile>
+      <PreprocessorDefinitions>RUNTIME_TESTS;_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <Link>
       <SubSystem>Console</SubSystem>
+      <AdditionalOptions>/NOIMPLIB %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <ClCompile />
+    <ClCompile>
+      <PreprocessorDefinitions>RUNTIME_TESTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\util\args.c" />
@@ -65,7 +83,31 @@
     <ClCompile Include="..\src\util\streams.c" />
     <ClCompile Include="..\src\util\threads.c" />
     <ClCompile Include="..\src\util\vigil.c" />
-    <ClCompile Include="..\src\tools\amalgamate.c" />
+    <ClCompile Include="..\test\test1.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\inc\util\args.h" />
+    <ClInclude Include="..\inc\util\atomics.h" />
+    <ClInclude Include="..\inc\util\clock.h" />
+    <ClInclude Include="..\inc\util\config.h" />
+    <ClInclude Include="..\inc\util\debug.h" />
+    <ClInclude Include="..\inc\util\events.h" />
+    <ClInclude Include="..\inc\util\files.h" />
+    <ClInclude Include="..\inc\util\folders.h" />
+    <ClInclude Include="..\inc\util\heap.h" />
+    <ClInclude Include="..\inc\util\loader.h" />
+    <ClInclude Include="..\inc\util\manifest.h" />
+    <ClInclude Include="..\inc\util\mem.h" />
+    <ClInclude Include="..\inc\util\mutexes.h" />
+    <ClInclude Include="..\inc\util\num.h" />
+    <ClInclude Include="..\inc\util\processes.h" />
+    <ClInclude Include="..\inc\util\runtime.h" />
+    <ClInclude Include="..\inc\util\static.h" />
+    <ClInclude Include="..\inc\util\str.h" />
+    <ClInclude Include="..\inc\util\streams.h" />
+    <ClInclude Include="..\inc\util\threads.h" />
+    <ClInclude Include="..\inc\util\vigil.h" />
+    <ClInclude Include="..\inc\util\win32.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

@@ -15,9 +15,9 @@ jobs:
       - name: setup msbuild
         uses: microsoft/setup-msbuild@v2
       - name: build debug
-        run:  msbuild msvc2022\runtime.sln -t:rebuild -verbosity:quiet -property:Configuration=debug
+        run:  msbuild msvc2022\util.sln -t:rebuild -verbosity:quiet -property:Configuration=debug
       - name: build release
-        run:  msbuild msvc2022\runtime.sln -t:rebuild -verbosity:quiet -property:Configuration=release
+        run:  msbuild msvc2022\util.sln -t:rebuild -verbosity:quiet -property:Configuration=release
       - name: short sha
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)"  >> $GITHUB_OUTPUT
@@ -27,22 +27,20 @@ jobs:
         env:
           sha_short: ${{ steps.vars.outputs.sha_short }}
       - name: run debug tests
-        run:  bin\debug\runtime_tests.exe --verbosity quiet
+        run:  bin\debug\test1.exe --verbosity quiet
       - name: run release tests
-        run:  bin\release\runtime_tests.exe --verbosity quiet
+        run:  bin\release\test1.exe --verbosity quiet
       - name: upload release artifact
         uses: actions/upload-artifact@v4
         with:
           name: xrt.release.zip
           path: |
-            bin\release\hellow_world.exe
-            bin\release\test_rt.exe
+            bin\release\test1.exe
           retention-days: 5
       - name: upload debug artifact
         uses: actions/upload-artifact@v4
         with:
           name: xrt.debug.zip
           path: |
-            bin\debug\hellow_world.exe
-            bin\debug\test_rt.exe
+            bin\debug\test1.exe
           retention-days: 5
