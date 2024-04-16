@@ -45,27 +45,52 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\util\args.c" />
-    <ClCompile Include="..\src\util\atomics.c" />
-    <ClCompile Include="..\src\util\clock.c" />
-    <ClCompile Include="..\src\util\config.c" />
-    <ClCompile Include="..\src\util\debug.c" />
-    <ClCompile Include="..\src\util\events.c" />
-    <ClCompile Include="..\src\util\files.c" />
-    <ClCompile Include="..\src\util\folders.c" />
-    <ClCompile Include="..\src\util\heap.c" />
-    <ClCompile Include="..\src\util\loader.c" />
-    <ClCompile Include="..\src\util\mem.c" />
-    <ClCompile Include="..\src\util\mutexes.c" />
-    <ClCompile Include="..\src\util\num.c" />
-    <ClCompile Include="..\src\util\processes.c" />
-    <ClCompile Include="..\src\util\runtime.c" />
-    <ClCompile Include="..\src\util\static.c" />
-    <ClCompile Include="..\src\util\str.c" />
-    <ClCompile Include="..\src\util\streams.c" />
-    <ClCompile Include="..\src\util\threads.c" />
-    <ClCompile Include="..\src\util\vigil.c" />
+    <ClCompile Include="..\src\ut\args.c" />
+    <ClCompile Include="..\src\ut\atomics.c" />
+    <ClCompile Include="..\src\ut\clock.c" />
+    <ClCompile Include="..\src\ut\config.c" />
+    <ClCompile Include="..\src\ut\debug.c" />
+    <ClCompile Include="..\src\ut\events.c" />
+    <ClCompile Include="..\src\ut\files.c" />
+    <ClCompile Include="..\src\ut\folders.c" />
+    <ClCompile Include="..\src\ut\heap.c" />
+    <ClCompile Include="..\src\ut\loader.c" />
+    <ClCompile Include="..\src\ut\mem.c" />
+    <ClCompile Include="..\src\ut\mutexes.c" />
+    <ClCompile Include="..\src\ut\num.c" />
+    <ClCompile Include="..\src\ut\processes.c" />
+    <ClCompile Include="..\src\ut\runtime.c" />
+    <ClCompile Include="..\src\ut\static.c" />
+    <ClCompile Include="..\src\ut\str.c" />
+    <ClCompile Include="..\src\ut\streams.c" />
+    <ClCompile Include="..\src\ut\threads.c" />
+    <ClCompile Include="..\src\ut\vigil.c" />
     <ClCompile Include="..\src\tools\amalgamate.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\inc\ut\args.h" />
+    <ClInclude Include="..\inc\ut\atomics.h" />
+    <ClInclude Include="..\inc\ut\clock.h" />
+    <ClInclude Include="..\inc\ut\config.h" />
+    <ClInclude Include="..\inc\ut\debug.h" />
+    <ClInclude Include="..\inc\ut\events.h" />
+    <ClInclude Include="..\inc\ut\files.h" />
+    <ClInclude Include="..\inc\ut\folders.h" />
+    <ClInclude Include="..\inc\ut\heap.h" />
+    <ClInclude Include="..\inc\ut\loader.h" />
+    <ClInclude Include="..\inc\ut\mem.h" />
+    <ClInclude Include="..\inc\ut\mutexes.h" />
+    <ClInclude Include="..\inc\ut\num.h" />
+    <ClInclude Include="..\inc\ut\processes.h" />
+    <ClInclude Include="..\inc\ut\runtime.h" />
+    <ClInclude Include="..\inc\ut\static.h" />
+    <ClInclude Include="..\inc\ut\std.h" />
+    <ClInclude Include="..\inc\ut\str.h" />
+    <ClInclude Include="..\inc\ut\streams.h" />
+    <ClInclude Include="..\inc\ut\threads.h" />
+    <ClInclude Include="..\inc\ut\ut.h" />
+    <ClInclude Include="..\inc\ut\vigil.h" />
+    <ClInclude Include="..\inc\ut\win32.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

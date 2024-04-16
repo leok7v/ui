@@ -2,150 +2,150 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\test\test1.c" />
-    <ClCompile Include="..\src\util\str.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\str.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\streams.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\streams.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\threads.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\threads.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\vigil.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\vigil.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\args.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\args.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\atomics.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\atomics.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\clock.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\clock.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\debug.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\debug.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\events.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\events.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\files.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\files.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\folders.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\folders.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\loader.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\loader.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\mem.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\mem.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\mutexes.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\mutexes.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\num.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\num.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\processes.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\processes.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\runtime.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\runtime.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\static.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\static.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\heap.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\heap.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\util\config.c">
-      <Filter>runtime\src\runtime</Filter>
+    <ClCompile Include="..\src\ut\config.c">
+      <Filter>src\ut</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="runtime">
-      <UniqueIdentifier>{c2a45055-6696-4564-af0b-8c2f405f6737}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtime\inc">
+    <Filter Include="inc">
       <UniqueIdentifier>{f6eea51f-b283-4a0c-b58b-dd6f6dc789c4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="runtime\src">
-      <UniqueIdentifier>{3f4a2d7c-7207-4180-97e5-a42fadd767cc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="runtime\inc\runtime">
+    <Filter Include="inc\ut">
       <UniqueIdentifier>{6ca884e5-c026-4a69-96b3-088748b7adf3}</UniqueIdentifier>
     </Filter>
-    <Filter Include="runtime\src\runtime">
+    <Filter Include="src">
+      <UniqueIdentifier>{3f4a2d7c-7207-4180-97e5-a42fadd767cc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ut">
       <UniqueIdentifier>{b622764f-3cf6-4af4-ba32-0815b2a6bc30}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\util\streams.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\streams.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\threads.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\threads.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\vigil.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\vigil.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\win32.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\win32.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\args.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\args.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\atomics.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\atomics.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\clock.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\clock.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\debug.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\debug.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\events.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\events.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\files.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\files.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\folders.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\folders.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\loader.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\loader.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\manifest.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\mem.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\mem.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\mutexes.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\mutexes.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\num.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\num.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\processes.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\processes.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\runtime.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\runtime.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\static.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\static.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\str.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\str.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\heap.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\heap.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\config.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\util\config.h">
-      <Filter>runtime\inc\runtime</Filter>
+    <ClInclude Include="..\inc\ut\ut.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\std.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
