@@ -10,6 +10,7 @@ typedef struct stream_if {
                     int64_t *transferred);
     errno_t (*write)(stream_if* s, const void* data, int64_t bytes,
                      int64_t *transferred);
+    void    (*close)(stream_if* s); // optional
 } stream_if;
 
 typedef struct stream_memory_if {

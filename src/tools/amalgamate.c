@@ -1,10 +1,21 @@
-#include "ut/runtime.h"
+#include "ut/ut.h"
 
 // amalgamate \uh-MAL-guh-mayt\ verb. : to unite in or as if in a
 // mixture of elements; especially : to merge into a single body.
 
+enum { files_short_name = 260 };
+
 static const char* name;
-static char include_name[1024];
+static char include_prefix[files_short_name]; // #include "<name>./"
+static int32_t include_prefix_bytes;
+
+const char* pragma_once = "#pragma once";
+const char* c_begin     = "begin_c";
+const char* c_end       = "end_c";
+
+static int32_t pragma_once_bytes = sizeof(pragma_once) - 1;
+static int32_t c_begin_bytes     = sizeof(c_begin) - 1;
+static int32_t c_end_bytes       = sizeof(c_end) - 1;
 
 static const char* basename(const char* filename) {
     const char* s = str.last_char(filename, '\\');
@@ -23,24 +34,26 @@ static int32_t usage(void) {
 }
 
 typedef struct {
-    char a[1024][128];
+    char a[1024][files_short_name];
     int32_t n; // number of strings
-} includes_t;
+} fns_t; // processed filenames
 
-static includes_t includes;
+static fns_t fns;
 
-static bool includes_contain(const char* fn) {
-    for (int32_t i = 0; i < includes.n; i++) {
-        if (str.equal(includes.a[i], fn)) { return true; }
+static bool fns_contain(const char* fn) {
+    for (int32_t i = 0; i < fns.n; i++) {
+        if (str.equal(fns.a[i], fn)) { return true; }
     }
     return false;
 }
 
-static void includes_add(const char* fn) {
-    if (!includes_contain(fn)) {
-        swear(includes.n < countof(includes.a) - 1);
-        strprintf(includes.a[includes.n], "%s", fn);
-        includes.n++;
+static void fns_add(const char* fn) {
+    assert(!fns_contain(fn));
+    if (!fns_contain(fn)) {
+        swear(fns.n < countof(fns.a) - 1);
+        swear(str.length(fn) < countof(fns.a[0]) - 1);
+        strprintf(fns.a[fns.n], "%s", fn);
+        fns.n++;
     }
 }
 
@@ -56,23 +69,40 @@ static int32_t line_bytes(const char* *s, const char* e) {
     return (int32_t)k;
 }
 
-static void cat_header_file(const char* filename) {
+static bool str_starts(const char* s, const char* e, const char* pattern, int32_t bytes) {
+    return bytes <= (int32_t)(uintptr_t)(e - s) &&
+           str.starts_with(s, pattern);
+}
+
+static void definition(const char* filename, bool whole) {
+//  traceln("filename: %s", filename);
     void* data = null;
     int64_t bytes = 0;
     fatal_if(mem.map_ro(filename, &data, &bytes) != 0);
+    int32_t inside = 0;
     const char* s = (const char*)data;
     const char* e = (const char*)data + bytes;
     for (;;) {
         if (s >= e) { break; }
         const char* line = s;
         int32_t k = line_bytes(&s, e);
-        if (!str.starts_with(line, "#pragma once") &&
-            !str.starts_with(line, include_name)) {
+//traceln("\"%.*s\"\n", k, line);
+//if (strstr(line, "begin_c") == line) { debug.breakpoint(); }
+        if (str_starts(line, e, c_begin, c_begin_bytes)) {
+            fatal_if(inside != 0, "%s: %.*s", filename, line, k);
+            inside++;
+        } else if (str_starts(line, e, c_end, c_end_bytes)) {
+            fatal_if(inside != 1, "%s: %.*s", filename, line, k);
+            inside--;
+        } else if ((inside || whole) &&
+            !str_starts(line, e, pragma_once, pragma_once_bytes) &&
+            !str_starts(line, e, include_prefix, include_prefix_bytes)) {
             printf("%.*s\n", k, line);
         }
     }
     mem.unmap(data, bytes);
     printf("\n");
+    fatal_if(inside != 0, "%s", filename);
 }
 
 static void header(const char* fn) {
@@ -83,46 +113,19 @@ static void header(const char* fn) {
     printf("// %.*s %s %.*s\n", i, underscores, fn, j, underscores);
 }
 
-static void include_file(const char* filename, int32_t k) {
-    char fn[1024];
-    strprintf(fn, "%.*s", k, filename);
-    includes_add(fn);
-    header(fn);
-    char include_file[1024];
-    strprintf(include_file, "inc/%s/%s", name, fn);
-    cat_header_file(include_file);
-}
-
-static void process_root(const char* root) {
-    char root_h[1024];
-    strprintf(root_h, "%s.h", name);
-    includes_add(root_h);
-    printf("#ifndef %s_definition\n", name);
-    printf("#define %s_definition\n", name);
-    printf("\n");
-    void* data = null;
-    int64_t bytes = 0;
-    fatal_if(mem.map_ro(root, &data, &bytes) != 0);
-    const char* s = (const char*)data;
-    const char* e = (const char*)data + bytes;
-    for (;;) {
-        if (s >= e) { break; }
-        const char* line = s;
-        int32_t k = line_bytes(&s, e);
-        if (str.starts_with(line, "#pragma once")) {
-            // skip
-        } else if (str.starts_with(line, include_name)) {
-            const char* header = line + strlen(include_name);
-            include_file(header, k - str.length(include_name) - 1);
-        } else {
-            printf("%.*s\n", k, line);
-        }
+static void include_file(const char* header_name, int32_t k, bool whole) {
+    char fn[files_short_name];
+    strprintf(fn, "%.*s", k, header_name);
+    if (!fns_contain(fn)) {
+        fns_add(fn);
+        header(fn);
+        char ifn[files_short_name];
+        strprintf(ifn, "inc/%s/%s", name, fn);
+        definition(ifn, whole);
     }
-    mem.unmap(data, bytes);
-    printf("#endif // %s_definition\n", name);
 }
 
-static void cat_source_file(const char* filename) {
+static void implementation(const char* filename) {
     void* data = null;
     int64_t bytes = 0;
     fatal_if(mem.map_ro(filename, &data, &bytes) != 0);
@@ -132,15 +135,14 @@ static void cat_source_file(const char* filename) {
         if (s >= e) { break; }
         const char* line = s;
         int32_t k = line_bytes(&s, e);
-        if (str.starts_with(line, include_name)) {
-            char fn[1024];
-            const char* header = line + strlen(include_name);
-            strprintf(fn, "%.*s", k - str.length(include_name) - 1, header);
-            if (!includes_contain(fn)) {
-                char inc_file[1024];
-                strprintf(inc_file, "inc/%s/%s", name, fn);
-                includes_add(fn);
-                cat_header_file(inc_file);
+        if (str.starts_with(line, include_prefix)) {
+            char fn[files_short_name];
+            const char* header = line + strlen(include_prefix);
+            strprintf(fn, "%.*s", k - str.length(include_prefix) - 1, header);
+            if (!fns_contain(fn)) {
+                int32_t len = k - include_prefix_bytes;
+                const char* q = str.first_char(header + 1, len, '"');
+                include_file(header, (int32_t)(uintptr_t)(q - header), true);
             }
         } else {
             printf("%.*s\n", k, line);
@@ -150,29 +152,75 @@ static void cat_source_file(const char* filename) {
     printf("\n");
 }
 
-
-static void process_src(const char* src) {
-    printf("\n");
-    printf("#ifndef %s_implementation\n", name);
-    printf("#define %s_implementation\n", name);
-    printf("\n");
-    printf("begin_c\n");
-    printf("\n");
-    folder_t* f = null;
-    fatal_if(folders.open(&f, src) != 0);
-    int32_t count = folders.count(f);
-    for (int32_t i = 0; i < count; i++) {
-        const char* fn = folders.name(f, i);
-        header(fn);
-        char src_file[1024];
-        strprintf(src_file, "src/%s/%s", name, fn);
-        cat_source_file(src_file);
+static void parse(char ext) {
+    char fn[files_short_name];
+    strprintf(fn, "%s.%c", name, ext);
+    fns_add(fn);
+    char filename[files_max_path];
+    strprintf(filename, "%s/%s/%s", ext == 'h' ? "inc" : "src", name, fn);
+    if (!files.exists(filename)) {
+        fprintf(stderr, "file not found: \"%s\"", filename);
+        runtime.exit(usage());
     }
-    folders.close(f);
+    const char* suffix = ext == 'h' ? "definition" : "implementation";
+    printf("#ifndef %s_%s\n", name, suffix);
+    printf("#define %s_%s\n", name, suffix);
     printf("\n");
-    printf("end_c\n");
-    printf("\n");
-    printf("#endif // %s_implementation\n", name);
+    void* data = null;
+    int64_t bytes = 0;
+    fatal_if(mem.map_ro(filename, &data, &bytes) != 0);
+    bool first = true;
+    int32_t inside = 0;
+    const char* s = (const char*)data;
+    const char* e = (const char*)data + bytes;
+    for (;;) {
+        if (s >= e) { break; }
+        const char* line = s;
+        int32_t k = line_bytes(&s, e);
+        if (str_starts(line, e, include_prefix, include_prefix_bytes)) {
+            const char* header = line + include_prefix_bytes;
+            int32_t len = k - include_prefix_bytes;
+            const char* q = str.first_char(header + 1, len, '"');
+            include_file(header, (int32_t)(uintptr_t)(q - header), first);
+            if (first && ext == 'h') {
+                printf("\n");
+                printf("begin_c\n");
+                printf("\n");
+            }
+            first = false;
+        } else if (str_starts(line, e, c_begin, c_begin_bytes)) {
+            fatal_if(inside != 0, "%s: %.*s", filename, line, k);
+            inside++;
+        } else if (str_starts(line, e, c_end, c_end_bytes)) {
+            fatal_if(inside != 1, "%s: %.*s", filename, line, k);
+            inside--;
+        } else if (inside &&
+            !str_starts(line, e, pragma_once, pragma_once_bytes)) {
+            printf("%.*s\n", k, line);
+        }
+    }
+    mem.unmap(data, bytes);
+    fatal_if(inside != 0, "%s", filename);
+    if (first && ext == 'h') {
+        printf("\n");
+        printf("end_c\n");
+        printf("\n");
+    } else {
+        char src[files_max_path];
+        strprintf(src, "src/%s", name);
+        folder_t* f = null;
+        fatal_if(folders.open(&f, src) != 0);
+        int32_t count = folders.count(f);
+        for (int32_t i = 0; i < count; i++) {
+            const char* fname = folders.name(f, i);
+            header(fname);
+            char src_file[files_short_name];
+            strprintf(src_file, "src/%s/%s", name, fname);
+            implementation(src_file);
+        }
+        folders.close(f);
+    }
+    printf("#endif // %s_%s\n", name, suffix);
 }
 
 static char folder[files_max_path];
@@ -200,7 +248,7 @@ static void msvc_folder_up2(const char* argv0) {
 int main(int unused(argc), const char* argv[]) {
     msvc_folder_up2(argv[0]); // msvc debugging convenience
     fatal_if(folders.cwd(folder, countof(folder)) != 0);
-    traceln("%s", folder);
+//  traceln("%s", folder);
     if (argc < 2) { runtime.exit(usage()); }
     name = argv[1];
     char inc[files_max_path];
@@ -211,14 +259,12 @@ int main(int unused(argc), const char* argv[]) {
         fprintf(stderr, "folders not found: \"%s\" or \"%s\"", inc, src);
         runtime.exit(usage());
     }
-    char root[files_max_path];
-    strprintf(root, "%s/%s.h", inc, name);
-    if (!files.exists(root)) {
-        fprintf(stderr, "file not found: \"%s\"", root);
-        runtime.exit(usage());
-    }
-    strprintf(include_name, "#include \"%s/", name);
-    process_root(root);
-    process_src(src);
+    pragma_once_bytes = str.length(pragma_once);
+    c_begin_bytes     = str.length(c_begin);
+    c_end_bytes       = str.length(c_end);
+    strprintf(include_prefix, "#include \"%s/", name);
+    include_prefix_bytes = str.length(include_prefix);
+    parse('h');
+    parse('c');
     return 0;
 }

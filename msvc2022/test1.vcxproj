@@ -82,6 +82,7 @@
     <ClCompile Include="..\src\ut\str.c" />
     <ClCompile Include="..\src\ut\streams.c" />
     <ClCompile Include="..\src\ut\threads.c" />
+    <ClCompile Include="..\src\ut\ut.c" />
     <ClCompile Include="..\src\ut\vigil.c" />
     <ClCompile Include="..\test\test1.c" />
   </ItemGroup>

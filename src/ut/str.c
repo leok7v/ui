@@ -1,4 +1,4 @@
-#include "ut/runtime.h"
+#include "ut/ut.h"
 #include "ut/win32.h"
 
 char* strnchr(const char* s, int32_t n, char ch) {

@@ -1,4 +1,4 @@
-#include "ut/runtime.h"
+#include "ut/ut.h"
 #include "ut/win32.h"
 
 static_assertion(sizeof(CRITICAL_SECTION) == sizeof(mutex_t));

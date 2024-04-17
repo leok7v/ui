@@ -1,4 +1,4 @@
-#include "ut/runtime.h"
+#include "ut/ut.h"
 #include "ut/win32.h"
 
 static HKEY config_get_reg_key(const char* name) {

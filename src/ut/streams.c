@@ -1,4 +1,4 @@
-#include "ut/runtime.h"
+#include "ut/ut.h"
 #include "ut/win32.h"
 
 static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,

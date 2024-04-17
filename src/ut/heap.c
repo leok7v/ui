@@ -1,4 +1,4 @@
-#include "ut/runtime.h"
+#include "ut/ut.h"
 #include "ut/win32.h"
 
 static heap_t* heap_create(bool serialized) {

@@ -38,11 +38,17 @@
     <Link>
       <SubSystem>Console</SubSystem>
     </Link>
+    <PostBuildEvent>
+      <Command>rem pushd $(ProjectDir).. &amp;&amp; $(TargetPath) ut &gt; $(ProjectDir)..\sfh\ut.h &amp;&amp; popd</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <Link>
       <SubSystem>Console</SubSystem>
     </Link>
+    <PostBuildEvent>
+      <Command>rem pushd $(ProjectDir).. &amp;&amp; $(TargetPath) ut &gt; $(ProjectDir)..\sfh\ut.h &amp;&amp; popd</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\ut\args.c" />
@@ -64,6 +70,7 @@
     <ClCompile Include="..\src\ut\str.c" />
     <ClCompile Include="..\src\ut\streams.c" />
     <ClCompile Include="..\src\ut\threads.c" />
+    <ClCompile Include="..\src\ut\ut.c" />
     <ClCompile Include="..\src\ut\vigil.c" />
     <ClCompile Include="..\src\tools\amalgamate.c" />
   </ItemGroup>

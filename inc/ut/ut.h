@@ -1,6 +1,6 @@
 #pragma once
 
-#include "ut/std.h"
+#include "ut/std.h" // must be first
 #include "ut/args.h"
 #include "ut/atomics.h"
 #include "ut/clock.h"
@@ -18,5 +18,6 @@
 #include "ut/str.h"
 #include "ut/streams.h"
 #include "ut/processes.h"
+#include "ut/runtime.h"
 #include "ut/threads.h"
 #include "ut/vigil.h"

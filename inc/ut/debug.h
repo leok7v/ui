@@ -1,6 +1,5 @@
 #pragma once
 #include "ut/std.h"
-#include <stdarg.h>
 
 // debug interface essentially is:
 // vfprintf(stderr, format, vl)
