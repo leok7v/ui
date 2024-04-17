@@ -1,0 +1,10 @@
+﻿#include <winres.h>
+
+#define company_name "<Insert Name Here>"
+#define copyright "Copyright (C) 2024 `Leo` Dmitry Kuznetsov. All rights reserved."
+#define file_description "https://github.com/leok7v/ut"
+#define original_file_name "test1.exe"
+#define product_name "test1"
+
+#include "..\test\version.rc.in"
+

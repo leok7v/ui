@@ -76,6 +76,9 @@
     <Filter Include="src\ut">
       <UniqueIdentifier>{b622764f-3cf6-4af4-ba32-0815b2a6bc30}</UniqueIdentifier>
     </Filter>
+    <Filter Include="rc">
+      <UniqueIdentifier>{be5e3ac4-0df0-4828-adc5-d9e917138711}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\ut\streams.h">
@@ -147,5 +150,15 @@
     <ClInclude Include="..\inc\ut\std.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\test\test1.rc">
+      <Filter>rc</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\test\version.rc.in">
+      <Filter>rc</Filter>
+    </None>
   </ItemGroup>
 </Project>

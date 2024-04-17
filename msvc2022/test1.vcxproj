@@ -110,5 +110,11 @@
     <ClInclude Include="..\inc\ut\vigil.h" />
     <ClInclude Include="..\inc\ut\win32.h" />
   </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\test\test1.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\test\version.rc.in" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
