@@ -191,11 +191,9 @@ static errno_t files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
         const int64_t bytes = info.AclBytesInUse + bytes_needed;
-        bigger = (ACL*)heap.allocate(null, bytes, true);
-        if (bigger == null) {
-            r = ERROR_NOT_ENOUGH_MEMORY;
-        } else {
-            r = b2e(InitializeAcl(bigger,
+        r = heap.allocate(null, &bigger, bytes, true);
+        if (r == 0) {
+            r = b2e(InitializeAcl((ACL*)bigger,
                     info.AclBytesInUse + bytes_needed, ACL_REVISION));
         }
     }
@@ -405,8 +403,8 @@ static errno_t files_rmdirs(const char* fn) {
             k--;
         }
         int32_t pnc = 1024; // pathname "pn" capacity in bytes
-        char* pn = (char*)heap.allocate(null, pnc, false);
-        if (pn == null) { r = ERROR_OUTOFMEMORY; }
+        char* pn = null;
+        r = heap.allocate(null, &pn, pnc, false);
         const int32_t n = folders.count(fs);
         for (int32_t i = 0; i < n && r == 0; i++) {
             // recurse into sub folders and remove them first

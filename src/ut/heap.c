@@ -16,10 +16,11 @@ static inline HANDLE mem_heap(heap_t* h) {
     return h != null ? (HANDLE)h : process_heap;
 }
 
-static void* heap_allocate(heap_t* h, int64_t bytes, bool zero) {
+static errno_t heap_allocate(heap_t* h, void* *p, int64_t bytes, bool zero) {
     swear(bytes > 0);
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
-    return HeapAlloc(mem_heap(h), flags, (SIZE_T)bytes);
+    *p = HeapAlloc(mem_heap(h), flags, (SIZE_T)bytes);
+    return *p == null ? ERROR_OUTOFMEMORY : 0;
 }
 
 static errno_t heap_reallocate(heap_t* h, void* *p, int64_t bytes,

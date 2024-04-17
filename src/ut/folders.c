@@ -158,13 +158,13 @@ errno_t folders_enumerate(folder_t_* d, const char* fn) {
     } else {
         str.sformat(pattern, pattern_length, "%-*.*s\\*", k, k, fn);
     }
-    d->folder = (char*)heap.allocate(null, k + 1, true);
+    r = heap.allocate(null, &d->folder, k + 1, true);
     if (d->folder != null) {
         str.sformat(d->folder, k + 1, "%.*s", k, fn);
         d->capacity = 128;
         d->n = 0;
         const int64_t bytes = sizeof(folders_data_t) * d->capacity;
-        d->data = (folders_data_t*)heap.allocate(null, bytes, true);
+        r = heap.allocate(null, &d->data, bytes, true);
         if (d->data == null) {
             heap.deallocate(null, d->data);
             d->capacity = 0;
@@ -207,9 +207,8 @@ errno_t folders_enumerate(folder_t_* d, const char* fn) {
 }
 
 static errno_t folders_open(folder_t* *fs, const char* pathname) {
-    folder_t_* d = (folder_t_*)heap.allocate(null, sizeof(folder_t_), true);
-    *fs = (folder_t*)d;
-    return d != null ? folders_enumerate(d, pathname) : ERROR_OUTOFMEMORY;
+    errno_t r = heap.allocate(null, fs, sizeof(folder_t_), true);
+    return r == 0 ? folders_enumerate((folder_t_*)*fs, pathname) : r;
 }
 
 #ifdef RUNTIME_TESTS
