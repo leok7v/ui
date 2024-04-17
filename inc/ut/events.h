@@ -3,7 +3,7 @@
 
 begin_c
 
-typedef void* event_t;
+typedef struct event_s * event_t;
 
 typedef struct {
     event_t (*create)(void); // never returns null

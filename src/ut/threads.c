@@ -181,31 +181,25 @@ static bool is_handle_valid(void* h) {
     return GetHandleInformation(h, &flags);
 }
 
-static bool threads_try_join(thread_t t, double timeout) {
+static errno_t threads_join(thread_t t, double timeout) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
-    int32_t timeout_ms = timeout <= 0 ? 0 : (int)(timeout * 1000.0 + 0.5);
+    int32_t timeout_ms = timeout < 0 ? INFINITE : (int)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, timeout_ms);
     errno_t r = wait2e(ix);
-    if (r != 0) {
-        traceln("failed to join thread %p %s", t, str.error(r));
+    assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");
+    if (r == 0) {
+        fatal_if_false(CloseHandle(t));
     } else {
-        r = b2e(CloseHandle(t));
-        if (r != 0) { traceln("CloseHandle(%p) failed %s", t, str.error(r)); }
+        traceln("failed to join thread %p %s", t, str.error(r));
     }
-    return r == 0;
+    return r;
 }
 
-static void threads_join(thread_t t) {
-    // longer timeout for super slow instrumented code
-    #ifdef DEBUG
-    const double timeout = 3.0; // 30 seconds
-    #else
-    const double timeout = 1.0; // 1 second
-    #endif
-    if (!threads.try_join(t, timeout)) {
-        traceln("failed to join thread %p", t);
-    }
+static void threads_detach(thread_t t) {
+    not_null(t);
+    fatal_if_false(is_handle_valid(t));
+    fatal_if_false(CloseHandle(t));
 }
 
 static void threads_name(const char* name) {
@@ -320,6 +314,17 @@ static void threads_philosopher_routine(void* arg) {
     }
 }
 
+static void threads_detached_sleep(void* unused(p)) {
+    threads.sleep_for(1000.0); // seconds
+}
+
+static void threads_detached_loop(void* unused(p)) {
+    uint64_t sum = 0;
+    for (uint64_t i = 0; i < UINT64_MAX; i++) { sum += i; }
+    // making sure that compiler won't get rid of the loop:
+    traceln("%lld", sum);
+}
+
 static void threads_test(void) {
     threads_philosophers_t ps = { .seed = 1 };
     enum { n = countof(ps.philosopher) };
@@ -345,7 +350,7 @@ static void threads_test(void) {
     // join all philosopher threads
     for (int32_t i = 0; i < n; i++) {
         threads_philosopher_t* p = &ps.philosopher[i];
-        threads.join(p->thread);
+        threads.join(p->thread, -1);
     }
     // Dispose of mutexes and events
     for (int32_t i = 0; i < n; ++i) {
@@ -353,6 +358,17 @@ static void threads_test(void) {
         mutexes.dispose(&p->fork);
         events.dispose(ps.fed_up[i]);
     }
+    // detached threads are hacky and not that swell of an idea
+    // but sometimes can be useful for 1. quick hacks 2. threads
+    // that execute blocking calls that e.g. write logs to the
+    // internet service that hangs.
+    // test detached threads
+    thread_t detached_sleep = threads.start(threads_detached_sleep, null);
+    threads.detach(detached_sleep);
+    thread_t detached_loop = threads.start(threads_detached_loop, null);
+    threads.detach(detached_loop);
+    // leave detached threads sleeping and running till ExitProcess(0)
+    // that should NOT hang.
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -364,8 +380,8 @@ static void threads_test(void) { }
 
 threads_if threads = {
     .start     = threads_start,
-    .try_join  = threads_try_join,
     .join      = threads_join,
+    .detach    = threads_detach,
     .name      = threads_name,
     .realtime  = threads_realtime,
     .yield     = threads_yield,

@@ -48,7 +48,7 @@ static void mutexes_test(void) {
     }
     // Wait for all threads to finish
     for (int32_t i = 0; i < countof(ts); i++) {
-        threads.join(ts[i]);
+        threads.join(ts[i], -1);
     }
     mutexes.dispose(&mutex);
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }

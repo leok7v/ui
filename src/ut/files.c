@@ -577,8 +577,8 @@ static void files_test(void) {
                 !files.is_valid(f), "files.open()" files_test_failed);
         thread_t thread1 = threads.start(files_test_append_thread, f);
         thread_t thread2 = threads.start(files_test_append_thread, f);
-        threads.join(thread1);
-        threads.join(thread2);
+        threads.join(thread1, -1);
+        threads.join(thread2, -1);
         files.close(f);
     }
     {   // Test write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
