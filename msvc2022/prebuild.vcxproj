@@ -78,8 +78,8 @@
       <FileType>Document</FileType>
       <Command Condition="'$(Configuration)|$(Platform)'=='debug|x64'">$(SolutionDir)..\scripts\prebuild.bat</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='release|x64'">$(SolutionDir)..\scripts\prebuild.bat</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='debug|x64'">$(SolutionDir)..\build\version.h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='release|x64'">$(SolutionDir)..\build\version.h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='debug|x64'">$(SolutionDir)..\inc\ut\version.h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='release|x64'">$(SolutionDir)..\inc\ut\version.h</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='debug|x64'">false</LinkObjects>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='release|x64'">false</LinkObjects>
       <Message Condition="'$(Configuration)|$(Platform)'=='debug|x64'">prebuild</Message>
