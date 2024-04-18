@@ -1,16 +1,15 @@
 #pragma once
-// better assert() - augmented with printf format and parameters
-// in honor of:
-// https://github.com/munificent/vigil
-#include <assert.h>
-#include <stdint.h>
-#undef assert
-
 #include "ut/std.h"
+
+begin_c
+
+// better assert() - augmented with printf format and parameters
+// swear() - release configuration assert() in honor of:
+// https://github.com/munificent/vigil
+
 
 #define static_assertion(condition) static_assert(condition, #condition)
 
-begin_c
 
 typedef struct {
     int32_t (*failed_assertion)(const char* file, int32_t line,
@@ -21,8 +20,6 @@ typedef struct {
 } vigil_if;
 
 extern vigil_if vigil;
-
-end_c
 
 #ifdef _MSC_VER
     #define __suppress_constant_cond_exp__ _Pragma("warning(suppress: 4127)")
@@ -63,3 +60,5 @@ end_c
 #define fatal_if_not_zero(e, ...) fatal_if((e) != 0, "" __VA_ARGS__)
 #define fatal_if_null(e, ...) fatal_if((e) == null, "" __VA_ARGS__)
 #define not_null(e, ...) fatal_if_null(e, "" __VA_ARGS__)
+
+end_c

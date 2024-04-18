@@ -1,5 +1,6 @@
 #pragma once
 // C runtime include files that are present on most of the platforms:
+#include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <io.h>
@@ -13,6 +14,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+
+#undef assert // will be redefined
 
 #ifdef __cplusplus
     #define begin_c extern "C" {

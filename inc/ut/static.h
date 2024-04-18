@@ -1,4 +1,7 @@
 #pragma once
+#include "ut/std.h"
+
+begin_c
 
 // static_init(unique_name) { code_to_execute_before_main }
 
@@ -9,21 +12,16 @@
 #else
 #define _msvc_symbol_prefix_ "_"
 #endif
-#ifdef __cplusplus
-#define _msvc_extern_c_ extern "C"
-#else
-#define _msvc_extern_c_ extern
-#endif
 
 #pragma comment(linker, "/include:_static_force_symbol_reference_")
 
 void* _static_force_symbol_reference_(void* symbol);
 
 #define _msvc_ctor_(_sym_prefix, func)                                    \
-  _msvc_extern_c_ void func(void);                                        \
-  _msvc_extern_c_ int32_t (* _array ## func)(void);                       \
-  _msvc_extern_c_ int32_t func ## _wrapper(void);                         \
-  _msvc_extern_c_ int32_t func ## _wrapper(void) { func();                \
+  void func(void);                                                        \
+  int32_t (* _array ## func)(void);                                       \
+  int32_t func ## _wrapper(void);                                         \
+  int32_t func ## _wrapper(void) { func();                                \
     _static_force_symbol_reference_((void*)_array ## func);               \
     _static_force_symbol_reference_((void*)func ## _wrapper); return 0; } \
   __pragma(comment(linker, "/include:" _sym_prefix # func "_wrapper"))    \
@@ -33,7 +31,7 @@ void* _static_force_symbol_reference_(void* symbol);
 
 #define _static_init2_(func, line) _msvc_ctor_(_msvc_symbol_prefix_, \
     func ## _constructor_##line)                                     \
-    _msvc_extern_c_ void func ## _constructor_##line(void)
+    void func ## _constructor_##line(void)
 
 #define _static_init1_(func, line) _static_init2_(func, line)
 
@@ -46,3 +44,4 @@ void* _static_force_symbol_reference_(void* symbol);
 
 void static_init_test(void);
 
+end_c

@@ -1,5 +1,4 @@
 #pragma once
-
 #include "ut/std.h" // must be first
 #include "ut/args.h"
 #include "ut/atomics.h"

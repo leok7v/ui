@@ -87,9 +87,6 @@
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="amalgamate.vcxproj">
-      <Project>{1ea9bf0c-402b-4852-bd16-644244f0d1b9}</Project>
-    </ProjectReference>
     <ProjectReference Include="version.vcxproj">
       <Project>{0ea9bf0c-402b-4852-bd16-644244f0d1b8}</Project>
     </ProjectReference>

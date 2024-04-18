@@ -1,6 +1,8 @@
 #pragma once
 #include "ut/std.h"
 
+begin_c
+
 // debug interface essentially is:
 // vfprintf(stderr, format, vl)
 // fprintf(stderr, format, ...)
@@ -36,8 +38,6 @@ typedef struct {
 } debug_if;
 
 #define traceln(...) debug.printf(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
-
-begin_c
 
 extern debug_if debug;
 
