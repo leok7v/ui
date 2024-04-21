@@ -654,7 +654,7 @@ static void folders_dump_time(const char* label, uint64_t us) {
     int32_t ms = 0;
     int32_t mc = 0;
     clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
-    traceln("%-20s: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d",
+    traceln("%-7s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
             label, year, month, day, hh, mm, ss, ms, mc);
 }
 
@@ -671,7 +671,7 @@ static void folders_test(void) {
     int32_t ms = 0;
     int32_t mc = 0;
     clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
-    verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d",
+    verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
              year, month, day, hh, mm, ss, ms, mc);
     // Test cwd, setcwd
     const char* tmp = files.tmp();
@@ -723,7 +723,7 @@ static void folders_test(void) {
         bool is_folder = st.type & files.type_folder;
         bool is_symlink = st.type & files.type_symlink;
         int64_t bytes = st.size;
-        verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d %lld bytes %s%s",
+        verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d %lld bytes %s%s",
                 name, year, month, day, hh, mm, ss, ms, mc,
                 bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
         if (str.equal(name, "file") || str.equal(name, "hard")) {
@@ -738,9 +738,13 @@ static void folders_test(void) {
                   "\"%s\" is_folder: %d", name, is_folder);
             // empirically timestamps are imprecise on NTFS
             swear(at >= before, "access: %lld  >= %lld", at, before);
-            traceln("file: %s", name);
-            folders_dump_time("before", before);
-            folders_dump_time("create", ct);
+            if (ct < before || ut < before || at >= after || ct >= after || ut >= after) {
+                traceln("file: %s", name);
+                folders_dump_time("before", before);
+                folders_dump_time("create", ct);
+                folders_dump_time("update", ut);
+                folders_dump_time("access", at);
+            }
             swear(ct >= before, "create: %lld  >= %lld", ct, before);
             swear(ut >= before, "update: %lld  >= %lld", ut, before);
             // and no later than 2 seconds since folders_test()
