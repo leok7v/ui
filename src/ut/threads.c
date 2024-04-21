@@ -31,31 +31,31 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
     unsigned long max100ns =  1 * 10 * 1000;
     unsigned long cur100ns =  0;
     fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
-    uint64_t min_ns = min100ns * 100uLL;
     uint64_t max_ns = max100ns * 100uLL;
-    uint64_t cur_ns = cur100ns * 100uLL;
+//  uint64_t min_ns = min100ns * 100uLL;
+//  uint64_t cur_ns = cur100ns * 100uLL;
     // max resolution is lowest possible delay between timer events
-    if (debug.verbosity.level >= debug.verbosity.trace) {
-        traceln("timer resolution min: %.3f max: %.3f cur: %.3f"
-            " ms (milliseconds)",
-            threads_ns2ms(min_ns),
-            threads_ns2ms(max_ns),
-            threads_ns2ms(cur_ns));
-    }
+//  if (debug.verbosity.level >= debug.verbosity.trace) {
+//      traceln("timer resolution min: %.3f max: %.3f cur: %.3f"
+//          " ms (milliseconds)",
+//          threads_ns2ms(min_ns),
+//          threads_ns2ms(max_ns),
+//          threads_ns2ms(cur_ns));
+//  }
     // note that maximum resolution is actually < minimum
     nanoseconds = maximum(max_ns, nanoseconds);
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
     fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
     fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
-    if (debug.verbosity.level >= debug.verbosity.trace) {
-        min_ns = min100ns * 100uLL;
-        max_ns = max100ns * 100uLL; // the smallest interval
-        cur_ns = cur100ns * 100uLL;
-        traceln("timer resolution min: %.3f max: %.3f cur: %.3f ms (milliseconds)",
-            threads_ns2ms(min_ns),
-            threads_ns2ms(max_ns),
-            threads_ns2ms(cur_ns));
-    }
+//  if (debug.verbosity.level >= debug.verbosity.trace) {
+//      min_ns = min100ns * 100uLL;
+//      max_ns = max100ns * 100uLL; // the smallest interval
+//      cur_ns = cur100ns * 100uLL;
+//      traceln("timer resolution min: %.3f max: %.3f cur: %.3f ms (milliseconds)",
+//          threads_ns2ms(min_ns),
+//          threads_ns2ms(max_ns),
+//          threads_ns2ms(cur_ns));
+//  }
 }
 
 static void threads_power_throttling_disable_for_process(void) {
@@ -126,11 +126,11 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
         assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
         fatal_if_false(GetLogicalProcessorInformation(&lpi[0], &bytes));
         for (int32_t i = 0; i < n; i++) {
-            if (debug.verbosity.level >= debug.verbosity.trace) {
-                traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
-                    lpi[i].ProcessorMask, lpi[i].Relationship,
-                    threads_rel2str(lpi[i].Relationship));
-            }
+//          if (debug.verbosity.level >= debug.verbosity.trace) {
+//              traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
+//                  lpi[i].ProcessorMask, lpi[i].Relationship,
+//                  threads_rel2str(lpi[i].Relationship));
+//          }
             if (lpi[i].Relationship == RelationProcessorCore) {
                 assert(cores < countof(affinity), "increase affinity[%d]", cores);
                 if (cores < countof(affinity)) {

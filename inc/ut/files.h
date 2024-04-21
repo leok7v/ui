@@ -7,15 +7,24 @@ enum { files_max_path = 4 * 1024 }; // *)
 
 typedef struct file_s file_t;
 
-typedef struct file_stat_s {
+typedef struct files_stat_s {
     uint64_t created;
     uint64_t accessed;
     uint64_t updated;
-    int64_t size; // bytes
-} file_stat_t;
+    int64_t  size; // bytes
+    int64_t  type; // device / folder / symlink
+} files_stat_t;
+
+typedef struct folder_s {
+    uint8_t data[512]; // implementation specific
+} folder_t;
 
 typedef struct {
     file_t* const invalid; // (file_t*)-1
+    // files_stat_t.type:
+    int32_t const type_folder;
+    int32_t const type_symlink;
+    int32_t const type_device;
     // seek() methods:
     int32_t const seek_set;
     int32_t const seek_cur;
@@ -32,7 +41,7 @@ typedef struct {
     errno_t (*open)(file_t* *file, const char* filename, int32_t flags);
     bool    (*is_valid)(file_t* file); // checks both null and invalid
     errno_t (*seek)(file_t* file, int64_t *position, int32_t method);
-    void    (*stat)(file_t* file, file_stat_t* stat);
+    errno_t (*stat)(file_t* file, files_stat_t* stat, bool follow_symlink);
     errno_t (*read)(file_t* file, void* data, int64_t bytes, int64_t *transferred);
     errno_t (*write)(file_t* file, const void* data, int64_t bytes, int64_t *transferred);
     errno_t (*flush)(file_t* file);
@@ -51,6 +60,17 @@ typedef struct {
     errno_t (*unlink)(const char* pathname); // delete file or empty folder
     errno_t (*copy)(const char* from, const char* to); // allows overwriting
     errno_t (*move)(const char* from, const char* to); // allows overwriting
+    errno_t (*getcwd)(char* folder, int32_t count);
+    errno_t (*chdir)(const char* folder); // set working directory
+    const char* (*bin)(void);  // Windows: "c:\ProgramFiles" Un*x: "/bin"
+    const char* (*data)(void); // Windows: "c:\ProgramData" Un*x: /data or /var
+    const char* (*tmp)(void);  // temporary folder (system or user)
+    // There are better, native, higher performance ways to iterate thru
+    // folders in Posix, Linux and Windows. The following is minimalistic
+    // approach to folder content reading:
+    errno_t (*opendir)(folder_t* folder, const char* folder_name);
+    const char* (*readdir)(folder_t* folder, files_stat_t* optional);
+    void (*closedir)(folder_t* folder);
     void (*test)(void);
 } files_if;
 

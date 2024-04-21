@@ -82,13 +82,13 @@ static void loader_test(void) {
     long cur_resolution = 0;
     fatal_if(query_timer_resolution(
         &min_resolution, &max_resolution, &cur_resolution) != 0);
-    if (debug.verbosity.level >= debug.verbosity.trace) {
-        traceln("timer resolution min: %.3f max: %.3f cur: %.3f millisecond",
-            min_resolution / 10.0 / 1000.0,
-            max_resolution / 10.0 / 1000.0,
-            cur_resolution / 10.0 / 1000.0);
-        // Interesting observation cur_resolution sometimes 15.625ms or 1.0ms
-    }
+//  if (debug.verbosity.level >= debug.verbosity.trace) {
+//      traceln("timer resolution min: %.3f max: %.3f cur: %.3f millisecond",
+//          min_resolution / 10.0 / 1000.0,
+//          max_resolution / 10.0 / 1000.0,
+//          cur_resolution / 10.0 / 1000.0);
+//      // Interesting observation cur_resolution sometimes 15.625ms or 1.0ms
+//  }
     loader.close(nt_dll);
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }

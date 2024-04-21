@@ -32,9 +32,6 @@
     <ClCompile Include="..\src\ut\files.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\folders.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\ut\loader.c">
       <Filter>src\ut</Filter>
     </ClCompile>
@@ -112,9 +109,6 @@
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\files.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\folders.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\loader.h">

@@ -46,13 +46,66 @@ static inline uint64_t files_ft_to_us(FILETIME ft) { // us (microseconds)
     return (ft.dwLowDateTime | (((uint64_t)ft.dwHighDateTime) << 32)) / 10;
 }
 
-static void files_stat(file_t* file, file_stat_t* s) {
+static int64_t files_a2t(DWORD a) {
+    int64_t type = 0;
+    if (a & FILE_ATTRIBUTE_REPARSE_POINT) {
+        type |= files.type_symlink;
+    }
+    if (a & FILE_ATTRIBUTE_DIRECTORY) {
+        type |= files.type_folder;
+    }
+    if (a & FILE_ATTRIBUTE_DEVICE) {
+        type |= files.type_device;
+    }
+    return type;
+}
+
+#ifdef FILES_LINUX_PATH_BY_FD
+
+static int get_final_path_name_by_fd(int fd, char *buffer, int32_t bytes) {
+    swear(bytes >= 0);
+    char fd_path[16 * 1024];
+    // /proc/self/fd/* is a symbolic link
+    snprintf(fd_path, sizeof(fd_path), "/proc/self/fd/%d", fd);
+    size_t len = readlink(fd_path, buffer, bytes - 1);
+    if (len != -1) { buffer[len] = 0x00; } // Null-terminate the result
+    return len == -1 ? errno : 0;
+}
+
+#endif
+
+static errno_t files_stat(file_t* file, files_stat_t* s, bool follow_symlink) {
+    errno_t r = 0;
     BY_HANDLE_FILE_INFORMATION fi;
     fatal_if_false(GetFileInformationByHandle(file, &fi));
-    s->size = fi.nFileSizeLow | (((uint64_t)fi.nFileSizeHigh) << 32);
-    s->created  = files_ft_to_us(fi.ftCreationTime); // since epoch
-    s->accessed = files_ft_to_us(fi.ftLastAccessTime);
-    s->updated  = files_ft_to_us(fi.ftLastWriteTime);
+    const bool symlink = (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+    if (follow_symlink && symlink) {
+        const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
+        DWORD n = GetFinalPathNameByHandleA(file, null, 0, flags);
+        if (n == 0) {
+            r = GetLastError();
+        } else {
+            char* name = (char*)stackalloc(n + 1);
+            n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
+            if (n == 0) {
+                r = GetLastError();
+            } else {
+                file_t* f = files.invalid;
+                r = files.open(&f, name, files.o_rd);
+                if (r == 0) { // keep following:
+                    r = files.stat(f, s, follow_symlink);
+                    files.close(f);
+                }
+            }
+        }
+    } else {
+        s->size = fi.nFileSizeLow | (((uint64_t)fi.nFileSizeHigh) << 32);
+        s->created  = files_ft_to_us(fi.ftCreationTime); // since epoch
+        s->accessed = files_ft_to_us(fi.ftLastAccessTime);
+        s->updated  = files_ft_to_us(fi.ftLastWriteTime);
+        s->type = files_a2t(fi.dwFileAttributes);
+    }
+    return r;
 }
 
 static errno_t files_read(file_t* file, void* data, int64_t bytes, int64_t *transferred) {
@@ -125,7 +178,7 @@ static errno_t files_write_fully(const char* filename, const void* data,
     return r;
 }
 
-static errno_t files_remove_file_or_folder(const char* pathname) {
+static errno_t files_unlink(const char* pathname) {
     if (files.is_folder(pathname)) {
         return b2e(RemoveDirectoryA(pathname));
     } else {
@@ -134,9 +187,9 @@ static errno_t files_remove_file_or_folder(const char* pathname) {
 }
 
 static errno_t files_create_tmp(char* fn, int32_t count) {
-    // create temporary file (not folder!) see folders.test() about racing
+    // create temporary file (not folder!) see folders_test() about racing
     swear(fn != null && count > 0);
-    const char* tmp = folders.tmp();
+    const char* tmp = files.tmp();
     errno_t r = 0;
     if (count < (int)strlen(tmp) + 8) {
         r = ERROR_BUFFER_OVERFLOW;
@@ -368,23 +421,23 @@ static errno_t files_mkdirs(const char* dir) {
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
 }
 
-#pragma push_macro("files_realloc_pn")
-#pragma push_macro("files_pn_fn_name")
+#pragma push_macro("files_realloc_path")
+#pragma push_macro("files_append_name")
 
-#define files_realloc_pn(pn, pnc, fn, name) do {                        \
+#define files_realloc_path(r, pn, pnc, fn, name) do {                   \
     const int32_t bytes = (int32_t)(strlen(fn) + strlen(name) + 3);     \
     if (bytes > pnc) {                                                  \
-        r = heap.reallocate(null, &pn, bytes, false);               \
+        r = heap.reallocate(null, &pn, bytes, false);                   \
         if (r != 0) {                                                   \
             pnc = bytes;                                                \
         } else {                                                        \
-            heap.deallocate(null, pn);                              \
+            heap.deallocate(null, pn);                                  \
             pn = null;                                                  \
         }                                                               \
     }                                                                   \
 } while (0)
 
-#define files_pn_fn_name(pn, pnc, fn, name) do {       \
+#define files_append_name(pn, pnc, fn, name) do {      \
     if (str.equal(fn, "\\") || str.equal(fn, "/")) {   \
         str.sformat(pn, pnc, "\\%s", name);            \
     } else {                                           \
@@ -392,38 +445,45 @@ static errno_t files_mkdirs(const char* dir) {
     }                                                  \
 } while (0)
 
-
 static errno_t files_rmdirs(const char* fn) {
-    folder_t* fs = null;
-    errno_t r = folders.opendir(&fs, fn);
+    files_stat_t st;
+    folder_t folder;
+    errno_t r = files.opendir(&folder, fn);
     if (r == 0) {
         int32_t k = (int32_t)strlen(fn);
         // remove trailing backslash (except if it is root: "/" or "\\")
         if (k > 1 && (fn[k - 1] == '/' || fn[k - 1] == '\\')) {
             k--;
         }
-        int32_t pnc = 1024; // pathname "pn" capacity in bytes
+        int32_t pnc = 64 * 1024; // pathname "pn" capacity in bytes
         char* pn = null;
         r = heap.allocate(null, &pn, pnc, false);
-        const int32_t n = folders.count(fs);
-        for (int32_t i = 0; i < n && r == 0; i++) {
+        while (r == 0) {
             // recurse into sub folders and remove them first
             // do NOT follow symlinks - it could be disastrous
-            if (!folders.is_symlink(fs, i) && folders.is_folder(fs, i)) {
-                const char* name = folders.name(fs, i);
-                files_realloc_pn(pn, pnc, fn, name);
+            const char* name = files.readdir(&folder, &st);
+            if (name == null) { break; }
+            if (!str.equal(name, ".") && !str.equal(name, "..") &&
+                (st.type & files.type_symlink) == 0 &&
+                (st.type & files.type_folder) != 0) {
+                files_realloc_path(r, pn, pnc, fn, name);
                 if (r == 0) {
-                    files_pn_fn_name(pn, pnc, fn, name);
+                    files_append_name(pn, pnc, fn, name);
                     r = files.rmdirs(pn);
                 }
             }
         }
-        for (int32_t i = 0; i < n && r == 0; i++) {
-            if (!folders.is_folder(fs, i)) { // symlinks are removed as normal files
-                const char* name = folders.name(fs, i);
-                files_realloc_pn(pn, pnc, fn, name);
+        files.closedir(&folder);
+        r = files.opendir(&folder, fn);
+        while (r == 0) {
+            const char* name = files.readdir(&folder, &st);
+            if (name == null) { break; }
+            // symlinks are already removed as normal files
+            if (!str.equal(name, ".") && !str.equal(name, "..") &&
+                (st.type & files.type_folder) == 0) {
+                files_realloc_path(r, pn, pnc, fn, name);
                 if (r == 0) {
-                    files_pn_fn_name(pn, pnc, fn, name);
+                    files_append_name(pn, pnc, fn, name);
                     r = files.unlink(pn);
                     if (r != 0) {
                         traceln("remove(%s) failed %s", pn, str.error(r));
@@ -432,14 +492,14 @@ static errno_t files_rmdirs(const char* fn) {
             }
         }
         heap.deallocate(null, pn);
-        folders.closedir(fs);
+        files.closedir(&folder);
     }
     if (r == 0) { r = files.unlink(fn); }
     return r;
 }
 
-#pragma pop_macro("files_pn_fn_name")
-#pragma pop_macro("files_realloc_pn")
+#pragma pop_macro("files_append_name")
+#pragma pop_macro("files_realloc_path")
 
 static bool files_exists(const char* path) {
     return PathFileExistsA(path);
@@ -479,11 +539,212 @@ static errno_t files_symlink(const char* from, const char* to) {
     return b2e(CreateSymbolicLinkA(to, from, flags));
 }
 
+static const char* files_bin(void) {
+    static char program_files[files_max_path];
+    if (program_files[0] == 0) {
+        wchar_t* program_files_w = null;
+        fatal_if(SHGetKnownFolderPath(&FOLDERID_ProgramFilesX64, 0,
+            null, &program_files_w) != 0);
+        int32_t len = (int32_t)wcslen(program_files_w);
+        assert(len < countof(program_files));
+        fatal_if(len >= countof(program_files), "len=%d", len);
+        for (int32_t i = 0; i <= len; i++) { // including zero terminator
+            assert(program_files_w[i] < 128); // pure ascii
+            program_files[i] = (char)program_files_w[i];
+        }
+    }
+    return program_files;
+}
+
+static const char* files_tmp(void) {
+    static char tmp[files_max_path];
+    if (tmp[0] == 0) {
+        // If GetTempPathA() succeeds, the return value is the length,
+        // in chars, of the string copied to lpBuffer, not including
+        // the terminating null character. If the function fails, the
+        // return value is zero.
+        errno_t r = GetTempPathA(countof(tmp), tmp) == 0 ? runtime.err() : 0;
+        fatal_if(r != 0, "GetTempPathA() failed %s", str.error(r));
+    }
+    return tmp;
+}
+
+static errno_t files_getcwd(char* fn, int32_t count) {
+    swear(count > 1);
+    DWORD bytes = count - 1;
+    errno_t r = b2e(GetCurrentDirectoryA(bytes, fn));
+    fn[count - 1] = 0; // always
+    return r;
+}
+
+static errno_t files_chdir(const char* fn) {
+    return b2e(SetCurrentDirectoryA(fn));
+}
+
+
+
+typedef struct files_dir_s {
+    HANDLE handle;
+    WIN32_FIND_DATAA find; // On Win64: 320 bytes
+} files_dir_t;
+
+static_assertion(sizeof(files_dir_t) <= sizeof(folder_t));
+
+errno_t files_opendir(folder_t* folder, const char* folder_name) {
+    errno_t r = 0;
+    files_dir_t* d = (files_dir_t*)folder;
+    int32_t n = (int32_t)strlen(folder_name);
+    char* fn = (char*)stackalloc(n + 3); // extra room for "\*" suffix
+    snprintf(fn, n + 3, "%s\\*", folder_name);
+    fn[n + 2] = 0;
+    d->handle = FindFirstFileA(fn, &d->find);
+    if (d->handle == INVALID_HANDLE_VALUE) { r = GetLastError(); }
+    return r;
+}
+
+static uint64_t files_ft2us(FILETIME* ft) { // 100ns units to microseconds:
+    return (((uint64_t)ft->dwHighDateTime) << 32 | ft->dwLowDateTime) / 10;
+}
+
+const char* files_readdir(folder_t* folder, files_stat_t* s) {
+    const char* fn = null;
+    files_dir_t* d = (files_dir_t*)folder;
+    if (FindNextFileA(d->handle, &d->find)) {
+        fn = d->find.cFileName;
+        // Ensure zero termination
+        d->find.cFileName[countof(d->find.cFileName) - 1] = 0x00;
+        if (s != null) {
+            s->accessed = files_ft2us(&d->find.ftLastAccessTime);
+            s->created = files_ft2us(&d->find.ftCreationTime);
+            s->updated = files_ft2us(&d->find.ftLastWriteTime);
+            s->type = files_a2t(d->find.dwFileAttributes);
+            s->size = (((uint64_t)d->find.nFileSizeHigh) << 32) |
+                                  d->find.nFileSizeLow;
+        }
+    }
+    return fn;
+}
+
+void files_closedir(folder_t* folder) {
+    files_dir_t* d = (files_dir_t*)folder;
+    fatal_if_false(FindClose(d->handle));
+}
+
 #pragma push_macro("files_test_failed")
 
 #ifdef RUNTIME_TESTS
 
 #define files_test_failed " failed %s", str.error(runtime.err())
+
+#pragma push_macro("verbose") // --verbosity trace
+
+#define verbose(...) do {                                 \
+    if (debug.verbosity.level >= debug.verbosity.trace) { \
+        traceln(__VA_ARGS__);                             \
+    }                                                     \
+} while (0)
+
+static void folders_test(void) {
+    uint64_t now = clock.microseconds(); // microseconds since epoch
+    uint64_t before = now - 1 * clock.usec_in_sec; // one second earlier
+    uint64_t after  = now + 2 * clock.usec_in_sec; // two seconds later
+    int32_t year = 0;
+    int32_t month = 0;
+    int32_t day = 0;
+    int32_t hh = 0;
+    int32_t mm = 0;
+    int32_t ss = 0;
+    int32_t ms = 0;
+    int32_t mc = 0;
+    clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d",
+             year, month, day, hh, mm, ss, ms, mc);
+    // Test cwd, setcwd
+    const char* tmp = files.tmp();
+    char cwd[256] = {0};
+    fatal_if(files.getcwd(cwd, sizeof(cwd)) != 0, "files.getcwd() failed");
+    fatal_if(files.chdir(tmp) != 0, "files.chdir(\"%s\") failed %s",
+                tmp, str.error(runtime.err()));
+    // there is no racing free way to create temporary folder
+    // without having a temporary file for the duration of folder usage:
+    char tmp_file[files_max_path]; // create_tmp() is thread safe race free:
+    errno_t r = files.create_tmp(tmp_file, countof(tmp_file));
+    fatal_if(r != 0, "files.create_tmp() failed %s", str.error(r));
+    char tmp_dir[files_max_path];
+    strprintf(tmp_dir, "%s.dir", tmp_file);
+    r = files.mkdirs(tmp_dir);
+    fatal_if(r != 0, "files.mkdirs(%s) failed %s", tmp_dir, str.error(r));
+    verbose("%s", tmp_dir);
+    folder_t folder;
+    char pn[files_max_path] = {0};
+    strprintf(pn, "%s/file", tmp_dir);
+    // cannot test symlinks because they are only
+    // available to Administrators and in Developer mode
+//  char sym[files_max_path] = {0};
+    char hard[files_max_path] = {0};
+    char sub[files_max_path] = {0};
+    strprintf(hard, "%s/hard", tmp_dir);
+    strprintf(sub, "%s/subd", tmp_dir);
+    const char* content = "content";
+    int64_t transferred = 0;
+    r = files.write_fully(pn, content, strlen(content), &transferred);
+    fatal_if(r != 0, "files.write_fully(\"%s\") failed %s", pn, str.error(r));
+    swear(transferred == (int64_t)strlen(content));
+    r = files.link(pn, hard);
+    fatal_if(r != 0, "files.link(\"%s\", \"%s\") failed %s",
+                      pn, hard, str.error(r));
+    r = files.mkdirs(sub);
+    fatal_if(r != 0, "files.mkdirs(\"%s\") failed %s", sub, str.error(r));
+    r = files.opendir(&folder, tmp_dir);
+    fatal_if(r != 0, "files.opendir(\"%s\") failed %s", tmp_dir, str.error(r));
+    for (;;) {
+        files_stat_t st = {0};
+        const char* name = files.readdir(&folder, &st);
+        if (name == null) { break; }
+        uint64_t at = st.accessed;
+        uint64_t ct = st.created;
+        uint64_t ut = st.updated;
+        swear(ct <= at && ct <= ut);
+        clock.local(ct, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+        bool is_folder = st.type & files.type_folder;
+        bool is_symlink = st.type & files.type_symlink;
+        int64_t bytes = st.size;
+        verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d %lld bytes %s%s",
+                name, year, month, day, hh, mm, ss, ms, mc,
+                bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
+        if (str.equal(name, "file") || str.equal(name, "hard")) {
+            swear(bytes == (int64_t)strlen(content),
+                    "size of \"%s\": %lld is incorrect expected: %d",
+                    name, bytes, transferred);
+        }
+        if (str.equal(name, ".") || str.equal(name, "..")) {
+            swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
+        } else {
+            swear(str.equal(name, "subd") == is_folder,
+                  "\"%s\" is_folder: %d", name, is_folder);
+        }
+        // empirically timestamps are imprecise on NTFS
+        swear(at >= before, "access: %lld  >= %lld", at, before);
+        swear(ct >= before, "create: %lld  >= %lld", ct, before);
+        swear(ut >= before, "update: %lld  >= %lld", ut, before);
+        // and no later than 2 seconds since folders_test()
+        swear(at < after, "access: %lld  < %lld", at, after);
+        swear(ct < after, "create: %lld  < %lld", ct, after);
+        swear(at < after, "update: %lld  < %lld", ut, after);
+    }
+    files.closedir(&folder);
+    r = files.rmdirs(tmp_dir);
+    fatal_if(r != 0, "files.rmdirs(\"%s\") failed %s",
+                     tmp_dir, str.error(r));
+    r = files.unlink(tmp_file);
+    fatal_if(r != 0, "files.unlink(\"%s\") failed %s",
+                     tmp_file, str.error(r));
+    fatal_if(files.chdir(cwd) != 0, "files.chdir(\"%s\") failed %s",
+             cwd, str.error(runtime.err()));
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+}
+
+#pragma pop_macro("verbose")
 
 static void files_test_append_thread(void* p) {
     file_t* f = (file_t*)p;
@@ -495,7 +756,7 @@ static void files_test_append_thread(void* p) {
 }
 
 static void files_test(void) {
-    traceln("TODO");
+    folders_test();
     uint64_t now = clock.microseconds(); // epoch time
     char tf[256]; // temporary file
     fatal_if(files.create_tmp(tf, countof(tf)) != 0,
@@ -552,8 +813,8 @@ static void files_test(void) {
                      transferred != 1, "files.read()" files_test_failed);
             swear(read_val == val, "Data mismatch at position %d", i);
         }
-        file_stat_t s = {0};
-        files.stat(f, &s);
+        files_stat_t s = {0};
+        files.stat(f, &s, false);
         uint64_t before = now - 1 * clock.usec_in_sec; // one second before now
         uint64_t after  = now + 2 * clock.usec_in_sec; // two seconds after
         swear(before <= s.created  && s.created  <= after,
@@ -565,7 +826,7 @@ static void files_test(void) {
         files.close(f);
         fatal_if(files.open(&f, tf, files.o_wr | files.o_create | files.o_trunc) != 0 ||
                 !files.is_valid(f), "files.open()" files_test_failed);
-        files.stat(f, &s);
+        files.stat(f, &s, false);
         swear(s.size == 0, "File is not empty after truncation. .size: %lld", s.size);
         files.close(f);
     }
@@ -599,10 +860,10 @@ static void files_test(void) {
         fatal_if(files.exists(folder), "folder \"%s\" still exists", folder);
     }
     {   // Test getcwd, chdir
-        const char* tmp = folders.tmp();
+        const char* tmp = files.tmp();
         char cwd[256] = {0};
-        fatal_if(folders.getcwd(cwd, sizeof(cwd)) != 0, "folders.getcwd() failed");
-        fatal_if(folders.chdir(tmp) != 0, "folders.chdir(\"%s\") failed %s",
+        fatal_if(files.getcwd(cwd, sizeof(cwd)) != 0, "files.getcwd() failed");
+        fatal_if(files.chdir(tmp) != 0, "files.chdir(\"%s\") failed %s",
                  tmp, str.error(runtime.err()));
         // symlink
         if (processes.is_elevated()) {
@@ -640,7 +901,7 @@ static void files_test(void) {
         fatal_if(files.unlink("moved_file") != 0,
                 "files.unlink('moved_file') failed %s",
                  str.error(runtime.err()));
-        fatal_if(folders.chdir(cwd) != 0, "files.chdir(\"%s\") failed %s",
+        fatal_if(files.chdir(cwd) != 0, "files.chdir(\"%s\") failed %s",
                     cwd, str.error(runtime.err()));
     }
     fatal_if(files.unlink(tf) != 0);
@@ -657,6 +918,10 @@ static void files_test(void) {}
 
 files_if files = {
     .invalid  = (file_t*)INVALID_HANDLE_VALUE,
+    // files_stat_t.type:
+    .type_folder  = 0x00000010, // FILE_ATTRIBUTE_DIRECTORY
+    .type_symlink = 0x00000400, // FILE_ATTRIBUTE_REPARSE_POINT
+    .type_device  = 0x00000040, // FILE_ATTRIBUTE_DEVICE
     // seek() methods:
     .seek_set = SEEK_SET,
     .seek_cur = SEEK_CUR,
@@ -686,10 +951,17 @@ files_if files = {
     .rmdirs             = files_rmdirs,
     .create_tmp         = files_create_tmp,
     .chmod777           = files_chmod777,
-    .unlink             = files_remove_file_or_folder,
+    .unlink             = files_unlink,
     .link               = files_link,
     .symlink            = files_symlink,
     .copy               = files_copy,
     .move               = files_move,
+    .getcwd             = files_getcwd,
+    .chdir              = files_chdir,
+    .tmp                = files_tmp,
+    .bin                = files_bin,
+    .opendir            = files_opendir,
+    .readdir            = files_readdir,
+    .closedir           = files_closedir,
     .test               = files_test
 };

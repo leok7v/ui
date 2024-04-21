@@ -61,7 +61,8 @@ static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
         va_start(vl, format);
         debug.vprintf(file, line, func, format, vl);
         va_end(vl);
-        debug.printf(file, line, func, "assertion failed: %s\n", condition);
+        debug.printf(file, line, func, "assertion failed: %s (expected)\n", 
+                     condition);
     }
     return 0;
 }
@@ -88,9 +89,9 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
         if (er != 0) { debug.perror(file, line, func, er, ""); }
         if (en != 0) { debug.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {
-            debug.printf(file, line, func, "FATAL: %s\n", condition);
+            debug.printf(file, line, func, "FATAL: %s (testing)\n", condition);
         } else {
-            debug.printf(file, line, func, "FATAL\n");
+            debug.printf(file, line, func, "FATAL (testing)\n");
         }
     }
     return 0;

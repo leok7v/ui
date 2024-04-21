@@ -206,9 +206,9 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
     va_start(vl, expected);
     for (int32_t i = 0; i < expected; i++) {
         const char* s = va_arg(vl, const char*);
-        if (debug.verbosity.level >= debug.verbosity.trace) {
-            traceln("argv[%d]: `%s` expected: `%s`", i, argv[i], s);
-        }
+//      if (debug.verbosity.level >= debug.verbosity.trace) {
+//          traceln("argv[%d]: `%s` expected: `%s`", i, argv[i], s);
+//      }
         #pragma warning(push)
         #pragma warning(disable: 6385) // reading data outside of array
         swear(str.equal(argv[i], s), "argv[%d]: `%s` expected: `%s`",

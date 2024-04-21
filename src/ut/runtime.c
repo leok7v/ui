@@ -43,7 +43,6 @@ static void rt_test(void) {
     debug.test();
     events.test();
     files.test();
-    folders.test();
     heap.test();
     loader.test();
     mem.test();
