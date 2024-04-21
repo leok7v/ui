@@ -1,6 +1,8 @@
 #pragma once
 #include "ut/std.h"
 
+// Could be deprecated soon after Microsoft fully supports <stdatomic.h>
+
 begin_c
 
 typedef struct {

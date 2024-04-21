@@ -68,12 +68,10 @@
     <ClCompile Include="..\src\ut\clock.c" />
     <ClCompile Include="..\src\ut\config.c" />
     <ClCompile Include="..\src\ut\debug.c" />
-    <ClCompile Include="..\src\ut\events.c" />
     <ClCompile Include="..\src\ut\files.c" />
     <ClCompile Include="..\src\ut\heap.c" />
     <ClCompile Include="..\src\ut\loader.c" />
     <ClCompile Include="..\src\ut\mem.c" />
-    <ClCompile Include="..\src\ut\mutexes.c" />
     <ClCompile Include="..\src\ut\num.c" />
     <ClCompile Include="..\src\ut\processes.c" />
     <ClCompile Include="..\src\ut\runtime.c" />
