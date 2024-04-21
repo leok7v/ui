@@ -1,5 +1,5 @@
-#if 1
-#include "leok7v_ut.h"
+#define ut_implementation
+#include "single_file_lib/ut.h"
 
 int main(int argc, char* argv[], char *envp[]) {
     #ifdef WINDOWS // see static_init(args)
@@ -19,12 +19,3 @@ int main(int argc, char* argv[], char *envp[]) {
     traceln("all tests passed\n");
     return 0;
 }
-
-#define ut_implementation
-#include "leok7v_ut.h"
-
-#else
-
-int main(void) { return 0; }
-
-#endif

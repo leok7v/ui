@@ -52,7 +52,7 @@
       <PreprocessorDefinitions>RUNTIME_TESTS;_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <PreBuildEvent>
-      <Command>pushd $(ProjectDir).. &amp;&amp; $(TargetDir)amalgamate.exe ut &gt; leok7v_ut.h &amp;&amp; popd</Command>
+      <Command>pushd $(ProjectDir).. &amp;&amp; $(TargetDir)amalgamate.exe ut &gt; single_file_lib/ut.h &amp;&amp; popd</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
@@ -65,7 +65,7 @@
       <PreprocessorDefinitions>RUNTIME_TESTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <PreBuildEvent>
-      <Command>pushd $(ProjectDir).. &amp;&amp; $(TargetDir)amalgamate.exe ut &gt; leok7v_ut.h &amp;&amp; popd</Command>
+      <Command>pushd $(ProjectDir).. &amp;&amp; $(TargetDir)amalgamate.exe ut &gt; single_file_lib/ut.h &amp;&amp; popd</Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

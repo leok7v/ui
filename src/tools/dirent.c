@@ -10,7 +10,7 @@
 
 typedef struct dir_s {
     HANDLE handle;
-    WIN32_FIND_DATAA find;
+    WIN32_FIND_DATAA find; // 320 bytes
     struct dirent entry;
 } dir_t;
 

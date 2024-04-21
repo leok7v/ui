@@ -395,7 +395,7 @@ static errno_t files_mkdirs(const char* dir) {
 
 static errno_t files_rmdirs(const char* fn) {
     folder_t* fs = null;
-    errno_t r = folders.open(&fs, fn);
+    errno_t r = folders.opendir(&fs, fn);
     if (r == 0) {
         int32_t k = (int32_t)strlen(fn);
         // remove trailing backslash (except if it is root: "/" or "\\")
@@ -432,7 +432,7 @@ static errno_t files_rmdirs(const char* fn) {
             }
         }
         heap.deallocate(null, pn);
-        folders.close(fs);
+        folders.closedir(fs);
     }
     if (r == 0) { r = files.unlink(fn); }
     return r;
@@ -598,11 +598,11 @@ static void files_test(void) {
                  folder, str.error(runtime.err()));
         fatal_if(files.exists(folder), "folder \"%s\" still exists", folder);
     }
-    {   // Test cwd, setcwd
+    {   // Test getcwd, chdir
         const char* tmp = folders.tmp();
         char cwd[256] = {0};
-        fatal_if(folders.cwd(cwd, sizeof(cwd)) != 0, "folders.cwd() failed");
-        fatal_if(folders.setcwd(tmp) != 0, "folders.setcwd(\"%s\") failed %s",
+        fatal_if(folders.getcwd(cwd, sizeof(cwd)) != 0, "folders.getcwd() failed");
+        fatal_if(folders.chdir(tmp) != 0, "folders.chdir(\"%s\") failed %s",
                  tmp, str.error(runtime.err()));
         // symlink
         if (processes.is_elevated()) {
@@ -640,7 +640,7 @@ static void files_test(void) {
         fatal_if(files.unlink("moved_file") != 0,
                 "files.unlink('moved_file') failed %s",
                  str.error(runtime.err()));
-        fatal_if(folders.setcwd(cwd) != 0, "files.setcwd(\"%s\") failed %s",
+        fatal_if(folders.chdir(cwd) != 0, "files.chdir(\"%s\") failed %s",
                     cwd, str.error(runtime.err()));
     }
     fatal_if(files.unlink(tf) != 0);

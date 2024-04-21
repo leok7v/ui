@@ -169,8 +169,7 @@ static void definition(void) {
 
 static void implementation(void) {
     printf("\n");
-    printf("#ifndef %s_implementation\n", name);
-    printf("#define %s_implementation\n", name);
+    printf("#ifdef %s_implementation\n", name);
     DIR* d = opendir(src);
     fatal_if(d == null, "folder not found: `%s`", src);
     struct dirent* e = readdir(d);

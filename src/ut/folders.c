@@ -43,7 +43,7 @@ static const char* folders_tmp(void) {
     return tmp;
 }
 
-static errno_t folders_cwd(char* fn, int32_t count) {
+static errno_t folders_getcwd(char* fn, int32_t count) {
     swear(count > 1);
     DWORD bytes = count - 1;
     errno_t r = b2e(GetCurrentDirectoryA(bytes, fn));
@@ -51,7 +51,7 @@ static errno_t folders_cwd(char* fn, int32_t count) {
     return r;
 }
 
-static errno_t folders_setcwd(const char* fn) {
+static errno_t folders_chdir(const char* fn) {
     return b2e(SetCurrentDirectoryA(fn));
 }
 
@@ -72,7 +72,7 @@ static const char* folders_data(void) {
     return program_data;
 }
 
-void folders_close(folder_t* fs) {
+void folders_closedir(folder_t* fs) {
     folder_t_* d = (folder_t_*)fs;
     if (d != null) {
         heap.deallocate(null, d->data);   d->data = null;
@@ -206,7 +206,7 @@ errno_t folders_enumerate(folder_t_* d, const char* fn) {
     return r;
 }
 
-static errno_t folders_open(folder_t* *fs, const char* pathname) {
+static errno_t folders_opendir(folder_t* *fs, const char* pathname) {
     errno_t r = heap.allocate(null, fs, sizeof(folder_t_), true);
     return r == 0 ? folders_enumerate((folder_t_*)*fs, pathname) : r;
 }
@@ -239,8 +239,8 @@ static void folders_test(void) {
     // Test cwd, setcwd
     const char* tmp = folders.tmp();
     char cwd[256] = {0};
-    fatal_if(folders.cwd(cwd, sizeof(cwd)) != 0, "folders.cwd() failed");
-    fatal_if(folders.setcwd(tmp) != 0, "folders.setcwd(\"%s\") failed %s",
+    fatal_if(folders.getcwd(cwd, sizeof(cwd)) != 0, "folders.getcwd() failed");
+    fatal_if(folders.chdir(tmp) != 0, "folders.chdir(\"%s\") failed %s",
                 tmp, str.error(runtime.err()));
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
@@ -272,7 +272,7 @@ static void folders_test(void) {
                       pn, hard, str.error(r));
     r = files.mkdirs(sub);
     fatal_if(r != 0, "files.mkdirs(\"%s\") failed %s", sub, str.error(r));
-    r = folders.open(&fs, tmp_dir);
+    r = folders.opendir(&fs, tmp_dir);
     fatal_if(r != 0, "folders.open(\"%s\") failed %s",
                         tmp_dir, str.error(r));
     fatal_if(!str.equal(folders.folder(fs), tmp_dir),
@@ -308,14 +308,14 @@ static void folders_test(void) {
         swear(ct < after, "create: %lld  < %lld", ct, after);
         swear(at < after, "update: %lld  < %lld", ut, after);
     }
-    folders.close(fs);
+    folders.closedir(fs);
     r = files.rmdirs(tmp_dir);
     fatal_if(r != 0, "files.rmdirs(\"%s\") failed %s",
                      tmp_dir, str.error(r));
     r = files.unlink(tmp_file);
     fatal_if(r != 0, "files.unlink(\"%s\") failed %s",
                      tmp_file, str.error(r));
-    fatal_if(folders.setcwd(cwd) != 0, "folders.setcwd(\"%s\") failed %s",
+    fatal_if(folders.chdir(cwd) != 0, "folders.chdir(\"%s\") failed %s",
              cwd, str.error(runtime.err()));
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }
@@ -332,9 +332,9 @@ folders_if folders = {
     .bin         = folders_bin,
     .tmp         = folders_tmp,
     .data        = folders_data,
-    .cwd         = folders_cwd,
-    .setcwd      = folders_setcwd,
-    .open        = folders_open,
+    .getcwd      = folders_getcwd,
+    .chdir       = folders_chdir,
+    .opendir     = folders_opendir,
     .folder      = folders_folder,
     .count       = folders_count,
     .name        = folders_filename,
@@ -344,6 +344,6 @@ folders_if folders = {
     .created     = folders_time_created,
     .updated     = folders_time_updated,
     .accessed    = folders_time_accessed,
-    .close       = folders_close,
+    .closedir    = folders_closedir,
     .test        = folders_test
 };
