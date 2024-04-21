@@ -2,6 +2,7 @@
 #define ut_definition
 
 // __________________________________ std.h ___________________________________
+
 // C runtime include files that are present on most of the platforms:
 #include <assert.h>
 #include <ctype.h>
@@ -93,6 +94,8 @@ typedef unsigned char byte; // legacy, deprecated: use uint8_t instead
 
 begin_c
 
+
+
 // __________________________________ args.h __________________________________
 
 typedef struct {
@@ -120,6 +123,8 @@ typedef struct {
 } args_if;
 
 extern args_if args;
+
+
 
 // ________________________________ atomics.h _________________________________
 
@@ -152,6 +157,8 @@ typedef struct {
 
 extern atomics_if atomics;
 
+
+
 // _________________________________ clock.h __________________________________
 
 typedef struct {
@@ -178,6 +185,9 @@ typedef struct {
 
 extern clock_if clock;
 
+
+
+
 // _________________________________ config.h _________________________________
 
 // Persistent storage for configuration and other small data
@@ -196,6 +206,9 @@ typedef struct {
 } config_if;
 
 extern config_if config;
+
+
+
 
 // _________________________________ debug.h __________________________________
 
@@ -237,6 +250,8 @@ typedef struct {
 
 extern debug_if debug;
 
+
+
 // _________________________________ events.h _________________________________
 
 typedef struct event_s * event_t;
@@ -257,6 +272,8 @@ typedef struct {
 } events_if;
 
 extern events_if events;
+
+
 
 // _________________________________ files.h __________________________________
 
@@ -322,6 +339,8 @@ typedef struct {
 
 extern files_if files;
 
+
+
 // ________________________________ folders.h _________________________________
 
 typedef struct folder_s folder_t;
@@ -352,6 +371,8 @@ typedef struct folders_if {
 } folders_if;
 
 extern folders_if folders;
+
+
 
 // __________________________________ heap.h __________________________________
 
@@ -396,6 +417,9 @@ extern heap_if heap;
 // threads can benefit from not serialized, not LFH if they allocate and free
 // memory in time critical loops.
 
+
+
+
 // _________________________________ loader.h _________________________________
 
 // see:
@@ -416,6 +440,8 @@ typedef struct {
 } loader_if;
 
 extern loader_if loader;
+
+
 
 // __________________________________ mem.h ___________________________________
 
@@ -440,6 +466,9 @@ typedef struct {
 
 extern mem_if mem;
 
+
+
+
 // ________________________________ mutexes.h _________________________________
 
 typedef struct { byte content[40]; } mutex_t;
@@ -453,6 +482,9 @@ typedef struct {
 } mutex_if;
 
 extern mutex_if mutexes;
+
+
+
 
 // __________________________________ num.h ___________________________________
 
@@ -477,6 +509,9 @@ typedef struct {
 } num_if;
 
 extern num_if num;
+
+
+
 
 // _________________________________ static.h _________________________________
 
@@ -520,6 +555,8 @@ void* _static_force_symbol_reference_(void* symbol);
 #endif
 
 void static_init_test(void);
+
+
 
 // __________________________________ str.h ___________________________________
 
@@ -618,6 +655,9 @@ typedef struct {
 
 extern str_if str;
 
+
+
+
 // ________________________________ streams.h _________________________________
 
 typedef struct stream_if stream_if;
@@ -649,6 +689,8 @@ typedef struct streams_if {
 } streams_if;
 
 extern streams_if streams;
+
+
 
 // _______________________________ processes.h ________________________________
 
@@ -686,6 +728,8 @@ typedef struct {
 
 extern processes_if processes;
 
+
+
 // ________________________________ runtime.h _________________________________
 
 typedef struct {
@@ -697,6 +741,9 @@ typedef struct {
 } runtime_if;
 
 extern runtime_if runtime;
+
+
+
 
 // ________________________________ threads.h _________________________________
 
@@ -715,6 +762,8 @@ typedef struct {
 } threads_if;
 
 extern threads_if threads;
+
+
 
 // _________________________________ vigil.h __________________________________
 
@@ -783,6 +832,8 @@ end_c
 
 #ifndef ut_implementation
 #define ut_implementation
+
+// __________________________________ args.c __________________________________
 
 // Terminology: "quote" in the code and comments below
 // actually refers to "double quote mark" and used for brevity.
@@ -1061,6 +1112,7 @@ args_if args = {
     .test         = args_test
 };
 // _________________________________ win32.h __________________________________
+
 #ifdef WIN32
 
 #include <Windows.h>  // used by:
@@ -1105,6 +1157,8 @@ args_if args = {
 
 
 #endif // WIN32
+// ________________________________ atomics.c _________________________________
+
 #include <stdatomic.h> // needs cl.exe /experimental:c11atomics command line
 
 // see: https://developercommunity.visualstudio.com/t/C11--C17-include-stdatomich-issue/10620622
@@ -1384,6 +1438,8 @@ atomics_if atomics = {
 // command line option are required
 // even in C17 mode in spring of 2024
 
+// _________________________________ clock.c __________________________________
+
 enum {
     clock_nsec_in_usec = 1000, // nano in micro
     clock_nsec_in_msec = clock_nsec_in_usec * 1000, // nano in milli
@@ -1555,6 +1611,8 @@ clock_if clock = {
     .test              = clock_test
 };
 
+// _________________________________ config.c _________________________________
+
 static HKEY config_get_reg_key(const char* name) {
     char path[256];
     strprintf(path, "Software\\app\\%s", name);
@@ -1634,6 +1692,8 @@ config_if config = {
     .load = config_load,
     .test = config_test
 };
+
+// _________________________________ debug.c __________________________________
 
 static const char* debug_abbreviate(const char* file) {
     const char* fn = strrchr(file, '\\');
@@ -1780,6 +1840,8 @@ debug_if debug = {
     .test                  = debug_test
 };
 
+// _________________________________ events.c _________________________________
+
 static event_t events_create(void) {
     HANDLE e = CreateEvent(null, false, false, null);
     not_null(e);
@@ -1885,6 +1947,8 @@ events_if events = {
     .dispose             = events_dispose,
     .test                = events_test
 };
+
+// _________________________________ files.c __________________________________
 
 // TODO: test FILE_APPEND_DATA
 // https://learn.microsoft.com/en-us/windows/win32/fileio/appending-one-file-to-another-file?redirectedfrom=MSDN
@@ -2579,6 +2643,8 @@ files_if files = {
     .test               = files_test
 };
 
+// ________________________________ folders.c _________________________________
+
 typedef struct folders_data_s {
     WIN32_FIND_DATAA ffd;
 } folders_data_t;
@@ -2926,6 +2992,8 @@ folders_if folders = {
     .test        = folders_test
 };
 
+// __________________________________ heap.c __________________________________
+
 static heap_t* heap_create(bool serialized) {
     const DWORD options = serialized ? 0 : HEAP_NO_SERIALIZE;
     return (heap_t*)HeapCreate(options, 0, 0);
@@ -2986,6 +3054,8 @@ heap_if heap = {
     .dispose     = heap_dispose,
     .test        = heap_test
 };
+
+// _________________________________ loader.c _________________________________
 
 // This is oversimplified Win32 version completely ignoring mode.
 
@@ -3103,6 +3173,8 @@ loader_if loader = {
     .close  = loader_close,
     .test   = loader_test
 };
+
+// __________________________________ mem.c ___________________________________
 
 static errno_t mem_map_view_of_file(HANDLE file,
         void* *data, int64_t *bytes, bool rw) {
@@ -3347,6 +3419,8 @@ mem_if mem = {
     .test            = mem_test
 };
 
+// ________________________________ mutexes.c _________________________________
+
 static_assertion(sizeof(CRITICAL_SECTION) == sizeof(mutex_t));
 
 static void mutexes_init(mutex_t* m) {
@@ -3407,6 +3481,8 @@ mutex_if mutexes = {
     .dispose = mutexes_dispose,
     .test    = mutexes_test
 };
+
+// __________________________________ num.c ___________________________________
 
 static inline num128_t num_add128_inline(const num128_t a, const num128_t b) {
     num128_t r = a;
@@ -3630,6 +3706,8 @@ num_if num = {
     .hash64    = num_hash64,
     .test      = num_test
 };
+
+// _______________________________ processes.c ________________________________
 
 typedef struct processes_pidof_lambda_s processes_pidof_lambdat_t;
 
@@ -4190,6 +4268,8 @@ processes_if processes = {
 };
 
 
+// ________________________________ runtime.c _________________________________
+
 // abort does NOT call atexit() functions and
 // does NOT flush streams. Also Win32 runtime
 // abort() attempt to show Abort/Retry/Ignore
@@ -4262,6 +4342,8 @@ runtime_if runtime = {
 #pragma comment(lib, "shlwapi")
 #pragma comment(lib, "kernel32")
 
+// _________________________________ static.c _________________________________
+
 static void*   _static_symbol_reference[1024];
 static int32_t _static_symbol_reference_count;
 
@@ -4302,6 +4384,8 @@ void static_init_test(void) {
 void static_init_test(void) {}
 
 #endif
+
+// __________________________________ str.c ___________________________________
 
 char* strnchr(const char* s, int32_t n, char ch) {
     while (n > 0 && *s != 0) {
@@ -4575,6 +4659,8 @@ str_if str = {
     .test         = str_test
 };
 
+// ________________________________ streams.c _________________________________
+
 static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,
         int64_t *transferred) {
     swear(bytes > 0);
@@ -4681,6 +4767,8 @@ streams_if streams = {
     .read_write = streams_read_write,
     .test = streams_test
 };
+
+// ________________________________ threads.c _________________________________
 
 static void* threads_ntdll(void) {
     static HMODULE ntdll;
@@ -5070,9 +5158,13 @@ threads_if threads = {
     .id        = threads_id,
     .test      = threads_test
 };
+// ___________________________________ ut.c ___________________________________
+
 // #include "ut/macos.h" // TODO
 // #include "ut/linux.h" // TODO
 
+
+// _________________________________ vigil.c __________________________________
 
 static void vigil_breakpoint_and_abort(void) {
     debug.breakpoint(); // only if debugger is present

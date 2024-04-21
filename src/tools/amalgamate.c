@@ -103,7 +103,7 @@ static void divider(const char* fn) {
     memset(underscores, '_', countof(underscores) - 1);
     int i = (int)(74 - strlen(fn)) / 2;
     int j = (int)(74 - i - strlen(fn));
-    printf("// %.*s %s %.*s\n", i, underscores, fn, j, underscores);
+    printf("// %.*s %s %.*s\n\n", i, underscores, fn, j, underscores);
 }
 
 static const char* include(char* s) {
@@ -121,18 +121,16 @@ static const char* include(char* s) {
     return null;
 }
 
+static bool ignore(const char* s) {
+    return strequ(s, "#pragma once") ||
+           strequ(s, "begin_c") || strequ(s, "end_c");
+}
+
 static void parse(const char* fn) {
     FILE* f = fopen(fn, "r");
     fatal_if(f == null, "file not found: `%s`", fn);
     static char line[16 * 1024];
-    int inside = 0; // inside begin_c and end_c
-    // special case: begin_c end_c are defined in std.h
-    //  win32.h does #include <Windows.h> etc
-    // include whole file:
-    if (ends_with(fn, "/std.h") || ends_with(fn, "/win32.h")) {
-        inside = 1;
-        divider(fn + 5 + strlen_name);
-    }
+    bool first = true;
     while (fgets(line, countof(line) - 1, f) != null) {
         tail_trim(line);
         const char* in = include(line);
@@ -141,25 +139,11 @@ static void parse(const char* fn) {
                 set_add(&files, in);
                 parse(concat(inc, concat("/", in)));
             }
-        } else {
-            if (ends_with(fn, ".c")) {
-                printf("%s\n", line);
-            } else {
-                if (strequ(line, "#pragma once")) {
-                    // skip
-                } else if (strequ(line, "begin_c")) {
-                    fatal_if(inside != 0, "%s: unmatched begin_c", fn);
-                    inside++;
-                    divider(fn + 5 + strlen_name);
-                } else if (strequ(line, "end_c")) {
-                    fatal_if(inside != 1, "%s: unmatched end_c", fn);
-                    inside--;
-                } else {
-                    if (inside) {
-                        printf("%s\n", line);
-                    }
-                }
+        } else if (ends_with(fn, ".c") || !ignore(line)) {
+            if (first && line[0] != 0) {
+                divider(fn + 5 + strlen_name); first = false;
             }
+            printf("%s\n", line);
         }
     }
     fclose(f);
