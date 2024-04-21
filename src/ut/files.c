@@ -644,6 +644,20 @@ void files_closedir(folder_t* folder) {
     }                                                     \
 } while (0)
 
+static void folders_dump_time(const char* label, uint64_t us) {
+    int32_t year = 0;
+    int32_t month = 0;
+    int32_t day = 0;
+    int32_t hh = 0;
+    int32_t mm = 0;
+    int32_t ss = 0;
+    int32_t ms = 0;
+    int32_t mc = 0;
+    clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    traceln("%-20s: %04d-%02d-%02d %02d:%02d:%02d.%3d:%3d",
+            label, year, month, day, hh, mm, ss, ms, mc);
+}
+
 static void folders_test(void) {
     uint64_t now = clock.microseconds(); // microseconds since epoch
     uint64_t before = now - 1 * clock.usec_in_sec; // one second earlier
@@ -722,15 +736,18 @@ static void folders_test(void) {
         } else {
             swear(str.equal(name, "subd") == is_folder,
                   "\"%s\" is_folder: %d", name, is_folder);
+            // empirically timestamps are imprecise on NTFS
+            swear(at >= before, "access: %lld  >= %lld", at, before);
+            traceln("file: %s", name);
+            folders_dump_time("before", before);
+            folders_dump_time("create", ct);
+            swear(ct >= before, "create: %lld  >= %lld", ct, before);
+            swear(ut >= before, "update: %lld  >= %lld", ut, before);
+            // and no later than 2 seconds since folders_test()
+            swear(at < after, "access: %lld  < %lld", at, after);
+            swear(ct < after, "create: %lld  < %lld", ct, after);
+            swear(at < after, "update: %lld  < %lld", ut, after);
         }
-        // empirically timestamps are imprecise on NTFS
-        swear(at >= before, "access: %lld  >= %lld", at, before);
-        swear(ct >= before, "create: %lld  >= %lld", ct, before);
-        swear(ut >= before, "update: %lld  >= %lld", ut, before);
-        // and no later than 2 seconds since folders_test()
-        swear(at < after, "access: %lld  < %lld", at, after);
-        swear(ct < after, "create: %lld  < %lld", ct, after);
-        swear(at < after, "update: %lld  < %lld", ut, after);
     }
     files.closedir(&folder);
     r = files.rmdirs(tmp_dir);
