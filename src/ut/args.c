@@ -1,42 +1,45 @@
 #include "ut/ut.h"
+#include "ut/win32.h"
 
-// Terminology: "quote" in the code and comments below
-// actually refers to "double quote mark" and used for brevity.
+static void* args_memory;
 
-static int32_t args_option_index(int32_t argc, const char* argv[],
-        const char* option) {
-    for (int32_t i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--") == 0) { break; } // no options after '--'
-        if (strcmp(argv[i], option) == 0) { return i; }
+static void args_main(int32_t argc, const char* argv[], const char** env) {
+    swear(args.c == 0 && args.v == null && args.env == null);
+    swear(args_memory == null);
+    args.c = argc;
+    args.v = argv;
+    args.env = env;
+}
+
+static int32_t args_option_index(const char* option) {
+    for (int32_t i = 1; i < args.c; i++) {
+        if (strcmp(args.v[i], "--") == 0) { break; } // no options after '--'
+        if (strcmp(args.v[i], option) == 0) { return i; }
     }
     return -1;
 }
 
-static int32_t args_remove_at(int32_t ix, int32_t argc, const char* argv[]) {
+static void args_remove_at(int32_t ix) {
     // returns new argc
-    assert(0 < argc);
-    assert(0 < ix && ix < argc); // cannot remove argv[0]
-    for (int32_t i = ix; i < argc; i++) {
-        argv[i] = argv[i+1];
+    assert(0 < args.c);
+    assert(0 < ix && ix < args.c); // cannot remove args.v[0]
+    for (int32_t i = ix; i < args.c; i++) {
+        args.v[i] = args.v[i + 1];
     }
-    argv[argc - 1] = "";
-    return argc - 1;
+    args.v[args.c - 1] = "";
+    args.c--;
 }
 
-static bool args_option_bool(int32_t *argc, const char* argv[],
-        const char* option) {
-    int32_t ix = args_option_index(*argc, argv, option);
-    if (ix > 0) {
-        *argc = args_remove_at(ix, *argc, argv);
-    }
+static bool args_option_bool(const char* option) {
+    int32_t ix = args_option_index(option);
+    if (ix > 0) { args_remove_at(ix); }
     return ix > 0;
 }
 
-static bool args_option_int(int32_t *argc, const char* argv[],
-        const char* option, int64_t *value) {
-    int32_t ix = args_option_index(*argc, argv, option);
-    if (ix > 0 && ix < *argc - 1) {
-        const char* s = argv[ix + 1];
+static bool args_option_int(const char* option, int64_t *value) {
+    int32_t ix = args_option_index(option);
+    if (ix > 0 && ix < args.c - 1) {
+        const char* s = args.v[ix + 1];
         int32_t base = (strstr(s, "0x") == s || strstr(s, "0X") == s) ? 16 : 10;
         const char* b = s + (base == 10 ? 0 : 2);
         char* e = null;
@@ -51,27 +54,29 @@ static bool args_option_int(int32_t *argc, const char* argv[],
         ix = -1;
     }
     if (ix > 0) {
-        *argc = args_remove_at(ix, *argc, argv); // remove option
-        *argc = args_remove_at(ix, *argc, argv); // remove following number
+        args_remove_at(ix); // remove option
+        args_remove_at(ix); // remove following number
     }
     return ix > 0;
 }
 
-static const char* args_option_str(int32_t *argc, const char* argv[],
-        const char* option) {
-    int32_t ix = args_option_index(*argc, argv, option);
+static const char* args_option_str(const char* option) {
+    int32_t ix = args_option_index(option);
     const char* s = null;
-    if (ix > 0 && ix < *argc - 1) {
-        s = argv[ix + 1];
+    if (ix > 0 && ix < args.c - 1) {
+        s = args.v[ix + 1];
     } else {
         ix = -1;
     }
     if (ix > 0) {
-        *argc = args_remove_at(ix, *argc, argv); // remove option
-        *argc = args_remove_at(ix, *argc, argv); // remove following string
+        args_remove_at(ix); // remove option
+        args_remove_at(ix); // remove following string
     }
     return ix > 0 ? s : null;
 }
+
+// Terminology: "quote" in the code and comments below
+// actually refers to "double quote mark" and used for brevity.
 
 // TODO: posix like systems
 // Looks like all shells support quote marks but
@@ -130,12 +135,25 @@ static args_pair_t args_parse_quoted(args_pair_t p) {
     return (args_pair_t){ .s = s, .d = d };
 }
 
-static int32_t args_parse(const char* s, const char** argv, char* d) {
+static void args_parse(const char* s) {
     swear(s[0] != 0, "cannot parse empty string");
+    swear(args.c == 0);
+    swear(args.v == null);
+    swear(args_memory == null);
     enum { quote = '"', backslash = '\\', tab = '\t', space = 0x20 };
-    int32_t argc = 0;
+    const int32_t len = (int)strlen(s);
+    // Worst-case scenario (possible to optimize with dry run of parse)
+    // at least 2 characters per token in "a b c d e" plush null at the end:
+    const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
+    const int32_t n = k + (len + 2) * (int)sizeof(char);
+    args_memory = malloc(n);
+    not_null(args_memory, "not enough memory");
+    args.c = 0;
+    args.v = (const char**)args_memory;
+    memset(args.v, 0x00, n);
+    char* d = (char*)(((char*)args.v) + k);
     // special rules for 1st argument:
-    argv[argc++] = d;
+    args.v[args.c++] = d;
     if (*s == quote) {
         s++;
         while (*s != 0x00 && *s != quote) { *d++ = *s++; }
@@ -148,15 +166,15 @@ static int32_t args_parse(const char* s, const char** argv, char* d) {
         while (*s == space || *s == tab) { s++; }
         if (*s == 0) { break; }
         if (*s == quote && s[1] == 0) { // unbalanced single quote
-            argv[argc++] = d; // spec does not say what to do
+            args.v[args.c++] = d; // spec does not say what to do
             *d++ = *s++;
         } else if (*s == quote) { // quoted arg
-            argv[argc++] = d;
+            args.v[args.c++] = d;
             args_pair_t p = args_parse_quoted(
                     (args_pair_t){ .s = s, .d = d });
             s = p.s; d = p.d;
         } else { // non-quoted arg (that can have quoted strings inside)
-            argv[argc++] = d;
+            args.v[args.c++] = d;
             while (*s != 0) {
                 if (*s == backslash) {
                     args_pair_t p = args_parse_backslashes(
@@ -175,8 +193,24 @@ static int32_t args_parse(const char* s, const char** argv, char* d) {
         }
         *d++ = 0;
     }
-    argv[argc] = null;
-    return argc;
+    args.v[args.c] = null;
+}
+
+static void args_fini(void) {
+    free(args_memory); // can be null is parse() was not called
+    args_memory = null;
+    args.c = 0;
+    args.v = null;
+}
+
+static void args_WinMain(const char* cl) {
+    swear(args.c == 0 && args.v == null && args.env == null);
+    swear(args_memory == null);
+    static char filename[1024];
+    GetModuleFileName(null, filename, countof(filename));
+    const char* a = strconcat(filename, strconcat("\x20", cl));
+    args_parse(a);
+    args.env = _environ;
 }
 
 #ifdef RUNTIME_TESTS
@@ -196,39 +230,41 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
     if (debug.verbosity.level >= debug.verbosity.trace) {
         traceln("cl: `%s`", cl);
     }
-    const int32_t len = (int)strlen(cl);
-    // at least 2 characters per token in "a b c d e" plush null at the end:
-    const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
-    const int32_t n = k + (len + 2) * (int)sizeof(char);
-    const char** argv = (const char**)stackalloc(n);
-    memset(argv, 0, n);
-    char* text = (char*)(((char*)argv) + k);
-    int32_t argc = args.parse(cl, argv, text);
-    swear(expected <= n, "expected: %d n: %d", expected, n);
-    swear(argc == expected, "argc: %d expected: %d", argc, expected);
+    int32_t argc = args.c;
+    const char** argv = args.v;
+    void* memory = args_memory;
+    args.c = 0;
+    args.v = null;
+    args_memory = null;
+    args_parse(cl);
     va_list vl;
     va_start(vl, expected);
     for (int32_t i = 0; i < expected; i++) {
         const char* s = va_arg(vl, const char*);
 //      if (debug.verbosity.level >= debug.verbosity.trace) {
-//          traceln("argv[%d]: `%s` expected: `%s`", i, argv[i], s);
+//          traceln("args.v[%d]: `%s` expected: `%s`", i, args.v[i], s);
 //      }
         // Warning 6385: reading data outside of array
-        const char* ai = _Pragma("warning(suppress:  6385)")argv[i];
-        swear(strcmp(ai, s) == 0, "argv[%d]: `%s` expected: `%s`",
+        const char* ai = _Pragma("warning(suppress:  6385)")args.v[i];
+        swear(strcmp(ai, s) == 0, "args.v[%d]: `%s` expected: `%s`",
               i, ai, s);
     }
     va_end(vl);
+    args.fini();
+    // restore command line arguments:
+    args.c = argc;
+    args.v = argv;
+    args_memory = memory;
 }
 
 #endif // __INTELLISENSE__
 
 static void args_test(void) {
-    // The first argument (argv[0]) is treated specially.
+    // The first argument (args.v[0]) is treated specially.
     // It represents the program name. Because it must be a valid pathname,
     // parts surrounded by quote (") are allowed. The quote aren't included
-    // in the argv[0] output. The parts surrounded by quote prevent interpretation
-    // of a space or tab character as the end of the argument.
+    // in the args.v[0] output. The parts surrounded by quote prevent
+    // interpretation of a space or tab character as the end of the argument.
     // The escaping rules don't apply.
     args_test_verify("\"c:\\foo\\bar\\snafu.exe\"", 1,
                      "c:\\foo\\bar\\snafu.exe");
@@ -260,22 +296,14 @@ static void args_test(void) {}
 
 #endif
 
-#ifdef WINDOWS
-
-static_init(args) {
-    args.c = __argc;
-    args.v = __argv;
-    args.env = _environ;
-}
-
-#endif
-
 args_if args = {
+    .main         = args_main,
+    .WinMain      = args_WinMain,
     .option_index = args_option_index,
     .remove_at    = args_remove_at,
     .option_bool  = args_option_bool,
     .option_int   = args_option_int,
     .option_str   = args_option_str,
-    .parse        = args_parse,
+    .fini         = args_fini,
     .test         = args_test
 };
