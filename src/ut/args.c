@@ -90,7 +90,7 @@ static const char* args_option_str(const char* option) {
 // https://web.archive.org/web/20231115181633/http://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments?view=msvc-170
 // Alternative: just use CommandLineToArgvW()
 
-typedef struct { const char* s; char* d; } args_pair_t;
+typedef struct { const char* s; char* d; const char* e; } args_pair_t;
 
 static args_pair_t args_parse_backslashes(args_pair_t p) {
     enum { quote = '"', backslash = '\\' };
@@ -100,14 +100,14 @@ static args_pair_t args_parse_backslashes(args_pair_t p) {
     int32_t bsc = 0; // number of backslashes
     while (*s == backslash) { s++; bsc++; }
     if (*s == quote) {
-        while (bsc > 1) { *d++ = backslash; bsc -= 2; }
-        if (bsc == 1) { *d++ = *s++; }
+        while (bsc > 1 && d < p.e) { *d++ = backslash; bsc -= 2; }
+        if (bsc == 1 && d < p.e) { *d++ = *s++; }
     } else {
         // Backslashes are interpreted literally,
         // unless they immediately precede a quote:
-        while (bsc > 0) { *d++ = backslash; bsc--; }
+        while (bsc > 0 && d < p.e) { *d++ = backslash; bsc--; }
     }
-    return (args_pair_t){ .s = s, .d = d };
+    return (args_pair_t){ .s = s, .d = d, .e = p.e };
 }
 
 static args_pair_t args_parse_quoted(args_pair_t p) {
@@ -118,21 +118,22 @@ static args_pair_t args_parse_quoted(args_pair_t p) {
     s++; // opening quote (skip)
     while (*s != 0x00) {
         if (*s == backslash) {
-            p = args_parse_backslashes((args_pair_t){ .s = s, .d = d });
+            p = args_parse_backslashes((args_pair_t){
+                        .s = s, .d = d, .e = p.e });
             s = p.s; d = p.d;
         } else if (*s == quote && s[1] == quote) {
             // Within a quoted string, a pair of quote is
             // interpreted as a single escaped quote.
-            *d++ = *s++;
+            if (d < p.e) { *d++ = *s++; }
             s++; // 1 for 2 quotes
         } else if (*s == quote) {
             s++; // closing quote (skip)
             break;
-        } else {
+        } else if (d < p.e) {
             *d++ = *s++;
         }
     }
-    return (args_pair_t){ .s = s, .d = d };
+    return (args_pair_t){ .s = s, .d = d, .e = p.e };
 }
 
 static void args_parse(const char* s) {
@@ -152,48 +153,84 @@ static void args_parse(const char* s) {
     args.v = (const char**)args_memory;
     memset(args.v, 0x00, n);
     char* d = (char*)(((char*)args.v) + k);
+    char* e = d + n; // end of memory
     // special rules for 1st argument:
-    args.v[args.c++] = d;
+    if (args.c < n) { args.v[args.c++] = d; }
     if (*s == quote) {
         s++;
-        while (*s != 0x00 && *s != quote) { *d++ = *s++; }
+        while (*s != 0x00 && *s != quote && d < e) { *d++ = *s++; }
         while (*s != 0x00) { s++; }
     } else {
-        while (*s != 0x00 && *s != space && *s != tab) { *d++ = *s++; }
+        while (*s != 0x00 && *s != space && *s != tab && d < e) {
+            *d++ = *s++;
+        }
     }
-    *d++ = 0;
-    for (;;) {
+    if (d < e) { *d++ = 0; }
+    while (d < e) {
         while (*s == space || *s == tab) { s++; }
         if (*s == 0) { break; }
-        if (*s == quote && s[1] == 0) { // unbalanced single quote
-            args.v[args.c++] = d; // spec does not say what to do
+        if (*s == quote && s[1] == 0 && d < e) { // unbalanced single quote
+            if (args.c < n) { args.v[args.c++] = d; } // spec does not say what to do
             *d++ = *s++;
         } else if (*s == quote) { // quoted arg
-            args.v[args.c++] = d;
+            if (args.c < n) { args.v[args.c++] = d; }
             args_pair_t p = args_parse_quoted(
-                    (args_pair_t){ .s = s, .d = d });
+                    (args_pair_t){ .s = s, .d = d, .e = e });
             s = p.s; d = p.d;
         } else { // non-quoted arg (that can have quoted strings inside)
-            args.v[args.c++] = d;
+            if (args.c < n) { args.v[args.c++] = d; }
             while (*s != 0) {
                 if (*s == backslash) {
                     args_pair_t p = args_parse_backslashes(
-                            (args_pair_t){ .s = s, .d = d });
+                            (args_pair_t){ .s = s, .d = d, .e = e });
                     s = p.s; d = p.d;
                 } else if (*s == quote) {
                     args_pair_t p = args_parse_quoted(
-                            (args_pair_t){ .s = s, .d = d });
+                            (args_pair_t){ .s = s, .d = d, .e = e });
                     s = p.s; d = p.d;
                 } else if (*s == tab || *s == space) {
                     break;
-                } else {
+                } else if (d < e) {
                     *d++ = *s++;
                 }
             }
         }
-        *d++ = 0;
+        if (d < e) { *d++ = 0; }
     }
-    args.v[args.c] = null;
+    if (args.c < n) {
+        args.v[args.c] = null;
+    }
+    swear(args.c < n, "not enough memory - adjust guestimates");
+    swear(d <= e, "not enough memory - adjust guestimates");
+}
+
+const char* args_basename(void) {
+    static char basename[260];
+    swear(args.c > 0);
+    if (basename[0] == 0) {
+        const char* s = args.v[0];
+        const char* b = s;
+        while (*s != 0) {
+            if (*s == '\\' || *s == '/') { b = s + 1; }
+            s++;
+        }
+        int32_t n = str.length(b);
+        swear(n < countof(basename));
+        strncpy(basename, b, countof(basename) - 1);
+        char* d = basename + n - 1;
+        while (d > basename && *d != '.') { d--; }
+        if (*d == '.') { *d = 0x00; }
+    }
+    return basename;
+}
+
+static const char* args_unquote(char* *s) {
+    int32_t n = str.length(*s);
+    if (n > 0 && (*s)[0] == '\"' && (*s)[n - 1] == '\"') {
+        (*s)[n - 1] = 0x00;
+        (*s)++;
+    }
+    return *s;
 }
 
 static void args_fini(void) {
@@ -304,6 +341,8 @@ args_if args = {
     .option_bool  = args_option_bool,
     .option_int   = args_option_int,
     .option_str   = args_option_str,
+    .basename     = args_basename,
+    .unquote      = args_unquote,
     .fini         = args_fini,
     .test         = args_test
 };

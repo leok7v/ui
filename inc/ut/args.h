@@ -22,6 +22,10 @@ typedef struct {
     //     option_str("--path", option)
     // returns option: "bar" and argc=1 argv={"foo"} */
     const char* (*option_str)(const char* option);
+    // basename() for argc=3 argv={"/bin/foo.exe", ...} returns "foo":
+    const char* (*basename)(void);
+    // removes quotes from a head and tail of the string `s` if present
+    const char* (*unquote)(char* *s); // modifies `s` in place
     void (*fini)(void);
     void (*test)(void);
 } args_if;
