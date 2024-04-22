@@ -34,8 +34,9 @@ static_init(runtime) {
         SEM_NOOPENFILEERRORBOX);
 }
 
-static void rt_test(void) {
-    #ifdef RUNTIME_TESTS // in alphabetical order
+#ifdef RUNTIME_TESTS
+
+static void runtime_test(void) { // in alphabetical order
     args.test();
     atomics.test();
     clock.test();
@@ -54,15 +55,20 @@ static void rt_test(void) {
     streams.test();
     threads.test();
     vigil.test();
-    #endif
 }
+
+#else
+
+static void runtime_test(void) { }
+
+#endif
 
 runtime_if runtime = {
     .err    = runtime_err,
     .seterr = runtime_seterr,
     .abort  = runtime_abort,
     .exit   = runtime_exit,
-    .test   = rt_test
+    .test   = runtime_test
 };
 
 #pragma comment(lib, "advapi32")

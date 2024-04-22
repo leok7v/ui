@@ -111,7 +111,7 @@ typedef struct {
     const char** v; // argv[argc]
     const char** env;
     int32_t (*option_index)(int32_t argc, const char* argv[],
-             const char* option); // e.g. option: "--vebose" or "-v"
+             const char* option); // e.g. option: "--verbosity" or "-v"
     int32_t (*remove_at)(int32_t ix, int32_t argc, const char* argv[]);
     /* argc=3 argv={"foo", "--verbose"} -> returns true; argc=1 argv={"foo"} */
     bool (*option_bool)(int32_t *argc, const char* argv[], const char* option);
@@ -206,11 +206,14 @@ extern clock_if clock;
 // "name" is customary basename of "args.v[0]"
 
 typedef struct {
-    void    (*save)(const char* name, const char* key,
+    errno_t (*save)(const char* name, const char* key,
                     const void* data, int32_t bytes);
     int32_t (*size)(const char* name, const char* key);
+    // load() returns number of actual loaded bytes:
     int32_t (*load)(const char* name, const char* key,
                     void* data, int32_t bytes);
+    errno_t (*remove)(const char* name, const char* key);
+    errno_t (*clean)(const char* name); // remove all subkeys
     void (*test)(void);
 } config_if;
 
@@ -823,7 +826,8 @@ end_c
 // Terminology: "quote" in the code and comments below
 // actually refers to "double quote mark" and used for brevity.
 
-static int32_t args_option_index(int32_t argc, const char* argv[], const char* option) {
+static int32_t args_option_index(int32_t argc, const char* argv[],
+        const char* option) {
     for (int32_t i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--") == 0) { break; } // no options after '--'
         if (strcmp(argv[i], option) == 0) { return i; }
@@ -831,7 +835,8 @@ static int32_t args_option_index(int32_t argc, const char* argv[], const char* o
     return -1;
 }
 
-static int32_t args_remove_at(int32_t ix, int32_t argc, const char* argv[]) { // returns new argc
+static int32_t args_remove_at(int32_t ix, int32_t argc, const char* argv[]) {
+    // returns new argc
     assert(0 < argc);
     assert(0 < ix && ix < argc); // cannot remove argv[0]
     for (int32_t i = ix; i < argc; i++) {
@@ -841,7 +846,8 @@ static int32_t args_remove_at(int32_t ix, int32_t argc, const char* argv[]) { //
     return argc - 1;
 }
 
-static bool args_option_bool(int32_t *argc, const char* argv[], const char* option) {
+static bool args_option_bool(int32_t *argc, const char* argv[],
+        const char* option) {
     int32_t ix = args_option_index(*argc, argv, option);
     if (ix > 0) {
         *argc = args_remove_at(ix, *argc, argv);
@@ -849,8 +855,8 @@ static bool args_option_bool(int32_t *argc, const char* argv[], const char* opti
     return ix > 0;
 }
 
-static bool args_option_int(int32_t *argc, const char* argv[], const char* option,
-        int64_t *value) {
+static bool args_option_int(int32_t *argc, const char* argv[],
+        const char* option, int64_t *value) {
     int32_t ix = args_option_index(*argc, argv, option);
     if (ix > 0 && ix < *argc - 1) {
         const char* s = argv[ix + 1];
@@ -1019,8 +1025,9 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
     const int32_t n = k + (len + 2) * (int)sizeof(char);
     const char** argv = (const char**)stackalloc(n);
     memset(argv, 0, n);
-    char* buff = (char*)(((char*)argv) + k);
-    int32_t argc = args.parse(cl, argv, buff);
+    char* text = (char*)(((char*)argv) + k);
+    int32_t argc = args.parse(cl, argv, text);
+    swear(expected <= n, "expected: %d n: %d", expected, n);
     swear(argc == expected, "argc: %d expected: %d", argc, expected);
     va_list vl;
     va_start(vl, expected);
@@ -1029,11 +1036,10 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
 //      if (debug.verbosity.level >= debug.verbosity.trace) {
 //          traceln("argv[%d]: `%s` expected: `%s`", i, argv[i], s);
 //      }
-        #pragma warning(push)
-        #pragma warning(disable: 6385) // reading data outside of array
-        swear(strequ(argv[i], s), "argv[%d]: `%s` expected: `%s`",
-              i, argv[i], s);
-        #pragma warning(pop)
+        // Warning 6385: reading data outside of array
+        const char* ai = _Pragma("warning(suppress:  6385)")argv[i];
+        swear(strcmp(ai, s) == 0, "argv[%d]: `%s` expected: `%s`",
+              i, ai, s);
     }
     va_end(vl);
 }
@@ -1598,34 +1604,68 @@ clock_if clock = {
 
 // _________________________________ config.c _________________________________
 
-static HKEY config_get_reg_key(const char* name) {
+// On Unix the implementation should keep KV pairs in
+// key-named files inside .name/ folder
+
+static const char* config_app = "Software\\app";
+const DWORD config_access = KEY_READ|KEY_WRITE|KEY_SET_VALUE|KEY_QUERY_VALUE|
+                            KEY_ENUMERATE_SUB_KEYS|DELETE;
+
+static errno_t config_get_reg_key(const char* name, HKEY *key) {
+    errno_t r = 0;
     char path[256];
-    strprintf(path, "Software\\app\\%s", name);
-    HKEY key = null;
-    if (RegOpenKeyA(HKEY_CURRENT_USER, path, &key) != 0) {
-        RegCreateKeyA(HKEY_CURRENT_USER, path, &key);
+    strprintf(path, "%s\\%s", config_app, name);
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, config_access, key) != 0) {
+        const DWORD option = REG_OPTION_NON_VOLATILE;
+        r = RegCreateKeyExA(HKEY_CURRENT_USER, path, 0, null, option,
+                            config_access, null, key, null);
     }
-    not_null(key);
-    return key;
+    return r;
 }
 
-static void config_save(const char* name,
+static errno_t config_save(const char* name,
         const char* key, const void* data, int32_t bytes) {
-    HKEY k = config_get_reg_key(name);
+    errno_t r = 0;
+    HKEY k = null;
+    r = config_get_reg_key(name, &k);
     if (k != null) {
-        fatal_if_not_zero(RegSetValueExA(k, key, 0, REG_BINARY,
-            (byte*)data, bytes));
+        r = RegSetValueExA(k, key, 0, REG_BINARY,
+            (byte*)data, bytes);
         fatal_if_not_zero(RegCloseKey(k));
     }
+    return r;
+}
+
+static errno_t config_remove(const char* name, const char* key) {
+    errno_t r = 0;
+    HKEY k = null;
+    r = config_get_reg_key(name, &k);
+    if (k != null) {
+        r = RegDeleteValueA(k, key);
+        fatal_if_not_zero(RegCloseKey(k));
+    }
+    return r;
+}
+
+static errno_t config_clean(const char* name) {
+    errno_t r = 0;
+    HKEY k = null;
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, config_app,
+                                      0, config_access, &k) == 0) {
+       r = RegDeleteTreeA(k, name);
+       fatal_if_not_zero(RegCloseKey(k));
+    }
+    return r;
 }
 
 static int32_t config_size(const char* name, const char* key) {
     int32_t bytes = -1;
-    HKEY k = config_get_reg_key(name);
+    HKEY k = null;
+    errno_t r = config_get_reg_key(name, &k);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = 0;
-        errno_t r = RegQueryValueExA(k, key, null, &type, null, &cb);
+        r = RegQueryValueExA(k, key, null, &type, null, &cb);
         if (r == ERROR_FILE_NOT_FOUND) {
             bytes = 0; // do not report data_size() often used this way
         } else if (r != 0) {
@@ -1643,11 +1683,12 @@ static int32_t config_size(const char* name, const char* key) {
 static int32_t config_load(const char* name,
         const char* key, void* data, int32_t bytes) {
     int32_t read = -1;
-    HKEY k = config_get_reg_key(name);
+    HKEY k = null;
+    errno_t r = config_get_reg_key(name, &k);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
-        errno_t r = RegQueryValueExA(k, key, null, &type, (byte*)data, &cb);
+        r = RegQueryValueExA(k, key, null, &type, (byte*)data, &cb);
         if (r == ERROR_MORE_DATA) {
             // returns -1 app.data_size() should be used
         } else if (r != 0) {
@@ -1664,18 +1705,39 @@ static int32_t config_load(const char* name,
     return read;
 }
 
+#ifdef RUNTIME_TESTS
+
 static void config_test(void) {
-    #ifdef RUNTIME_TESTS
-    traceln("TODO");
+    const char* name = strrchr(args.v[0], '\\');
+    if (name == null) { name = strrchr(args.v[0], '/'); }
+    name = name != null ? name + 1 : args.v[0];
+    swear(name != null);
+    const char* key = "test";
+    const char data[] = "data";
+    int32_t bytes = sizeof(data);
+    swear(config.save(name, key, data, bytes) == 0);
+    char read[256];
+    swear(config.load(name, key, read, bytes) == bytes);
+    int32_t size = config.size(name, key);
+    swear(size == bytes);
+    swear(config.remove(name, key) == 0);
+    swear(config.clean(name) == 0);
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
-    #endif
 }
 
+#else
+
+static void config_test(void) { }
+
+#endif
+
 config_if config = {
-    .save = config_save,
-    .size = config_size,
-    .load = config_load,
-    .test = config_test
+    .save   = config_save,
+    .size   = config_size,
+    .load   = config_load,
+    .remove = config_remove,
+    .clean  = config_clean,
+    .test   = config_test
 };
 
 // _________________________________ debug.c __________________________________
@@ -1804,7 +1866,6 @@ static void debug_test(void) {
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
-
 
 debug_if debug = {
     .verbosity = {
@@ -4025,7 +4086,6 @@ processes_if processes = {
     .test                = processes_test
 };
 
-
 // ________________________________ runtime.c _________________________________
 
 // abort does NOT call atexit() functions and
@@ -4061,8 +4121,9 @@ static_init(runtime) {
         SEM_NOOPENFILEERRORBOX);
 }
 
-static void rt_test(void) {
-    #ifdef RUNTIME_TESTS // in alphabetical order
+#ifdef RUNTIME_TESTS
+
+static void runtime_test(void) { // in alphabetical order
     args.test();
     atomics.test();
     clock.test();
@@ -4081,15 +4142,20 @@ static void rt_test(void) {
     streams.test();
     threads.test();
     vigil.test();
-    #endif
 }
+
+#else
+
+static void runtime_test(void) { }
+
+#endif
 
 runtime_if runtime = {
     .err    = runtime_err,
     .seterr = runtime_seterr,
     .abort  = runtime_abort,
     .exit   = runtime_exit,
-    .test   = rt_test
+    .test   = runtime_test
 };
 
 #pragma comment(lib, "advapi32")
@@ -5258,7 +5324,7 @@ static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
         va_start(vl, format);
         debug.vprintf(file, line, func, format, vl);
         va_end(vl);
-        debug.printf(file, line, func, "assertion failed: %s (expected)\n", 
+        debug.printf(file, line, func, "assertion failed: %s (expected)\n",
                      condition);
     }
     return 0;

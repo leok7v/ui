@@ -9,7 +9,7 @@ typedef struct {
     const char** v; // argv[argc]
     const char** env;
     int32_t (*option_index)(int32_t argc, const char* argv[],
-             const char* option); // e.g. option: "--vebose" or "-v"
+             const char* option); // e.g. option: "--verbosity" or "-v"
     int32_t (*remove_at)(int32_t ix, int32_t argc, const char* argv[]);
     /* argc=3 argv={"foo", "--verbose"} -> returns true; argc=1 argv={"foo"} */
     bool (*option_bool)(int32_t *argc, const char* argv[], const char* option);

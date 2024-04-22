@@ -61,7 +61,7 @@ static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
         va_start(vl, format);
         debug.vprintf(file, line, func, format, vl);
         va_end(vl);
-        debug.printf(file, line, func, "assertion failed: %s (expected)\n", 
+        debug.printf(file, line, func, "assertion failed: %s (expected)\n",
                      condition);
     }
     return 0;

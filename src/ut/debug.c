@@ -126,7 +126,6 @@ static void debug_test(void) {
     #endif
 }
 
-
 debug_if debug = {
     .verbosity = {
         .level   =  0,

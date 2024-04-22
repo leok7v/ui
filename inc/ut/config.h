@@ -10,11 +10,14 @@ begin_c
 // "name" is customary basename of "args.v[0]"
 
 typedef struct {
-    void    (*save)(const char* name, const char* key,
+    errno_t (*save)(const char* name, const char* key,
                     const void* data, int32_t bytes);
     int32_t (*size)(const char* name, const char* key);
+    // load() returns number of actual loaded bytes:
     int32_t (*load)(const char* name, const char* key,
                     void* data, int32_t bytes);
+    errno_t (*remove)(const char* name, const char* key);
+    errno_t (*clean)(const char* name); // remove all subkeys
     void (*test)(void);
 } config_if;
 

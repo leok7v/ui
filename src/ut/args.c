@@ -3,7 +3,8 @@
 // Terminology: "quote" in the code and comments below
 // actually refers to "double quote mark" and used for brevity.
 
-static int32_t args_option_index(int32_t argc, const char* argv[], const char* option) {
+static int32_t args_option_index(int32_t argc, const char* argv[],
+        const char* option) {
     for (int32_t i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--") == 0) { break; } // no options after '--'
         if (strcmp(argv[i], option) == 0) { return i; }
@@ -11,7 +12,8 @@ static int32_t args_option_index(int32_t argc, const char* argv[], const char* o
     return -1;
 }
 
-static int32_t args_remove_at(int32_t ix, int32_t argc, const char* argv[]) { // returns new argc
+static int32_t args_remove_at(int32_t ix, int32_t argc, const char* argv[]) {
+    // returns new argc
     assert(0 < argc);
     assert(0 < ix && ix < argc); // cannot remove argv[0]
     for (int32_t i = ix; i < argc; i++) {
@@ -21,7 +23,8 @@ static int32_t args_remove_at(int32_t ix, int32_t argc, const char* argv[]) { //
     return argc - 1;
 }
 
-static bool args_option_bool(int32_t *argc, const char* argv[], const char* option) {
+static bool args_option_bool(int32_t *argc, const char* argv[],
+        const char* option) {
     int32_t ix = args_option_index(*argc, argv, option);
     if (ix > 0) {
         *argc = args_remove_at(ix, *argc, argv);
@@ -29,8 +32,8 @@ static bool args_option_bool(int32_t *argc, const char* argv[], const char* opti
     return ix > 0;
 }
 
-static bool args_option_int(int32_t *argc, const char* argv[], const char* option,
-        int64_t *value) {
+static bool args_option_int(int32_t *argc, const char* argv[],
+        const char* option, int64_t *value) {
     int32_t ix = args_option_index(*argc, argv, option);
     if (ix > 0 && ix < *argc - 1) {
         const char* s = argv[ix + 1];
@@ -199,8 +202,9 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
     const int32_t n = k + (len + 2) * (int)sizeof(char);
     const char** argv = (const char**)stackalloc(n);
     memset(argv, 0, n);
-    char* buff = (char*)(((char*)argv) + k);
-    int32_t argc = args.parse(cl, argv, buff);
+    char* text = (char*)(((char*)argv) + k);
+    int32_t argc = args.parse(cl, argv, text);
+    swear(expected <= n, "expected: %d n: %d", expected, n);
     swear(argc == expected, "argc: %d expected: %d", argc, expected);
     va_list vl;
     va_start(vl, expected);
@@ -209,11 +213,10 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
 //      if (debug.verbosity.level >= debug.verbosity.trace) {
 //          traceln("argv[%d]: `%s` expected: `%s`", i, argv[i], s);
 //      }
-        #pragma warning(push)
-        #pragma warning(disable: 6385) // reading data outside of array
-        swear(strequ(argv[i], s), "argv[%d]: `%s` expected: `%s`",
-              i, argv[i], s);
-        #pragma warning(pop)
+        // Warning 6385: reading data outside of array
+        const char* ai = _Pragma("warning(suppress:  6385)")argv[i];
+        swear(strcmp(ai, s) == 0, "argv[%d]: `%s` expected: `%s`",
+              i, ai, s);
     }
     va_end(vl);
 }
