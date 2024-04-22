@@ -262,7 +262,7 @@ static errno_t files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     }
     if (r == 0) {
         ACCESS_ALLOWED_ACE* ace = (ACCESS_ALLOWED_ACE*)
-            zero_initialized_stackalloc(bytes_needed);
+            stackalloc_zeroed(bytes_needed);
         ace->Header.AceFlags = flags;
         ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
         ace->Header.AceSize = (WORD)bytes_needed;
@@ -298,7 +298,7 @@ static errno_t files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
 static errno_t files_add_acl_ace(const void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
     int32_t n = SECURITY_MAX_SID_SIZE;
-    SID* sid = (SID*)zero_initialized_stackalloc(n);
+    SID* sid = (SID*)stackalloc_zeroed(n);
     errno_t r = b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
                                        null, sid, (DWORD*)&n));
     if (r != 0) {
@@ -861,7 +861,7 @@ static void files_test(void) {
         threads.join(thread2, -1);
         files.close(f);
     }
-    {   // Test write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
+    {   // write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
         fatal_if(files.write_fully(tf, data, countof(data), &transferred) != 0 ||
                  transferred != countof(data),
                 "files.write_fully() failed %s", runtime.err());
@@ -880,7 +880,7 @@ static void files_test(void) {
                  folder, str.error(runtime.err()));
         fatal_if(files.exists(folder), "folder \"%s\" still exists", folder);
     }
-    {   // Test getcwd, chdir
+    {   // getcwd, chdir
         const char* tmp = files.tmp();
         char cwd[256] = {0};
         fatal_if(files.getcwd(cwd, sizeof(cwd)) != 0, "files.getcwd() failed");

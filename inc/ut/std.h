@@ -81,10 +81,16 @@ typedef unsigned char byte; // legacy, deprecated: use uint8_t instead
 // frequently unused because the application global state is
 // more convenient to work with. Also sometimes parameters
 // are used in Debug build only (e.g. assert() checks) not in Release.
-// To de-uglyfy
+// Since C does not have anonymous parameters like C++
 //      return_type_t foo(param_type_t param) { (void)param; / *unused */ }
 // use this:
 //      return_type_t foo(param_type_t unused(param)) { }
 
 #define unused(name) _Pragma("warning(suppress:  4100)") name
 
+// Since MS C compiler is sincerely unhappy about alloca() and
+// does not implement dynamic arrays on the stack (that are optional):
+
+#define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
+
+#define stackalloc_zeroed(n) memset(stackalloc(n), 0x00, (n))

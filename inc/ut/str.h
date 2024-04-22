@@ -3,23 +3,19 @@
 
 begin_c
 
-#define __suppress_alloca_warnings__ _Pragma("warning(suppress: 6255 6263)")
-#define __suppress_buffer_overrun__  _Pragma("warning(suppress: 6386)")
-
-#define stackalloc(bytes) (__suppress_alloca_warnings__ alloca(bytes))
-#define zero_initialized_stackalloc(bytes) memset(stackalloc(bytes), 0, (bytes))
-
 // Since a lot of str*() operations are preprocessor defines
 // care should be exercised that arguments of macro invocations
 // do not have side effects or not computationally expensive.
 // None of the definitions are performance champions - if the
-// code needs extreme cpu cycle savings working with utf8 strings
+// code needs extreme cpu cycle savings working with utf8 strings.
+//
+// str* macros and functions assume zero terminated UTF-8 strings
+// in C tradition. Use str.* functions for non-zero terminated
+// strings.
 
-#define strempty(s) ((s) == null || (s)[0] == 0)
+#define strempty(s) ((void*)(s) == null || (s)[0] == 0)
 
-#pragma deprecated(strconcat, strtolowercase) // use strprintf() instead
-
-#define strconcat(a, b) __suppress_buffer_overrun__ \
+#define strconcat(a, b) _Pragma("warning(suppress: 6386)") \
     (strcat(strcpy((char*)stackalloc(strlen(a) + strlen(b) + 1), (a)), (b)))
 
 #define strequ(s1, s2)  (((void*)(s1) == (void*)(s2)) || \
@@ -28,10 +24,13 @@ begin_c
 #define striequ(s1, s2)  (((void*)(s1) == (void*)(s2)) || \
     (((void*)(s1) != null && (void*)(s2) != null) && stricmp((s1), (s2)) == 0))
 
+#define strstartswith(a, b) \
+    (strlen(a) >= strlen(b) && memcmp((a), (b), strlen(b)) == 0)
+
 #define strendswith(s1, s2) \
     (strlen(s1) >= strlen(s2) && strcmp((s1) + strlen(s1) - strlen(s2), (s2)) == 0)
 
-#define strlength(s) ((int)strlen(s)) // avoid code analysis noise
+#define strlength(s) ((int32_t)strlen(s)) // avoid code analysis noise
 // a lot of posix like API consumes "int" instead of size_t which
 // is acceptable for majority of char* zero terminated strings usage
 // since most of them work with filepath that are relatively short
@@ -51,13 +50,10 @@ char* strnchr(const char* s, int32_t n, char ch);
 #define utf16to8(utf16) str.utf16_utf8((char*) \
     stackalloc((size_t)str.utf8_bytes(utf16) + 1), utf16)
 
-#define utf8to16(s) str.utf8_utf16((wchar_t*)stackalloc((str.utf16_chars(s) + 1) * \
-    sizeof(wchar_t)), s)
+#define utf8to16(s) str.utf8_utf16((uint16_t*) \
+    stackalloc((str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
 
 #define strprintf(s, ...) str.sformat((s), countof(s), "" __VA_ARGS__)
-
-#define strstartswith(a, b) \
-    (strlen(a) >= strlen(b) && memcmp((a), (b), strlen(b)) == 0)
 
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
@@ -70,10 +66,10 @@ char* strnchr(const char* s, int32_t n, char ch);
 typedef struct {
     const char* (*error)(int32_t error);     // en-US
     const char* (*error_nls)(int32_t error); // national locale string
-    int32_t (*utf8_bytes)(const wchar_t* utf16);
+    int32_t (*utf8_bytes)(const uint16_t* utf16);
     int32_t (*utf16_chars)(const char* s);
-    char* (*utf16_utf8)(char* destination, const wchar_t* utf16);
-    wchar_t* (*utf8_utf16)(wchar_t* destination, const char* utf8);
+    char* (*utf16_utf8)(char* destination, const uint16_t* utf16);
+    uint16_t* (*utf8_utf16)(uint16_t* destination, const char* utf8);
     // string formatting printf style:
     void (*vformat)(char* utf8, int32_t count, const char* format, va_list vl);
     void (*sformat)(char* utf8, int32_t count, const char* format, ...);

@@ -25,7 +25,7 @@ static const char* str_error_for_language(int32_t error, LANGID language) {
     static thread_local char text[256];
     const DWORD format = FORMAT_MESSAGE_FROM_SYSTEM|
         FORMAT_MESSAGE_IGNORE_INSERTS;
-    wchar_t s[256];
+    uint16_t s[256];
     HRESULT hr = 0 <= error && error <= 0xFFFF ?
         HRESULT_FROM_WIN32(error) : error;
     if (FormatMessageW(format, null, hr, language, s, countof(s) - 1,
@@ -53,7 +53,7 @@ static const char* str_error_nls(int32_t error) {
     return str_error_for_language(error, lang);
 }
 
-static int32_t str_utf8_bytes(const wchar_t* utf16) {
+static int32_t str_utf8_bytes(const uint16_t* utf16) {
     int32_t required_bytes_count =
         WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
         utf16, -1, null, 0, null, null);
@@ -68,7 +68,7 @@ static int32_t str_utf16_chars(const char* utf8) {
     return required_wide_chars_count;
 }
 
-static char* str_utf16to8(char* s, const wchar_t* utf16) {
+static char* str_utf16to8(char* s, const uint16_t* utf16) {
     errno_t r = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16, -1, s,
         str.utf8_bytes(utf16), null, null);
     fatal_if(r == 0, "WideCharToMultiByte() failed %s",
@@ -76,7 +76,7 @@ static char* str_utf16to8(char* s, const wchar_t* utf16) {
     return s;
 }
 
-static wchar_t* str_utf8to16(wchar_t* utf16, const char* s) {
+static uint16_t* str_utf8to16(uint16_t* utf16, const char* s) {
     errno_t r = MultiByteToWideChar(CP_UTF8, 0, s, -1, utf16,
                                 str.utf16_chars(s));
     fatal_if(r == 0, "WideCharToMultiByte() failed %s",
@@ -144,8 +144,7 @@ static bool str_copy(char* d, int32_t capacity,
                      const char* s, int32_t bytes) {
     not_null(d);
     not_null(s);
-    // frequent bug in C with [] parameters:
-    swear(capacity > (int32_t)sizeof(void*), "capacity: %d", capacity);
+    swear(capacity > 1, "capacity: %d", capacity);
     if (bytes < 0) {
         while (capacity > 1 && *s != 0) {
             *d++ = *s++;
@@ -187,7 +186,7 @@ static char* str_first(const char* s1, int32_t n1, const char* s2, int32_t n2) {
 }
 
 static bool str_to_lower(char* d, int32_t capacity, const char* s, int32_t n) {
-    swear(capacity > (int32_t)sizeof(void*), "capacity: %d", capacity);
+    swear(capacity > 1, "capacity: %d", capacity);
     if (n < 0) {
         while (*s != 0 && capacity > 1) {
             *d++ = (char)tolower(*s++);
@@ -207,7 +206,7 @@ static bool str_to_lower(char* d, int32_t capacity, const char* s, int32_t n) {
 }
 
 static bool str_to_upper(char* d, int32_t capacity, const char* s, int32_t n) {
-    swear(capacity > (int32_t)sizeof(void*), "capacity: %d", capacity);
+    swear(capacity > 1, "capacity: %d", capacity);
     if (n < 0) {
         while (*s != 0 && capacity > 1) {
             *d++ = (char)toupper(*s++);
@@ -232,7 +231,7 @@ static int32_t str_compare(const char* s1, int32_t n1, const char* s2, int32_t n
     } else {
         if (n1 < 0) { n1 = str.length(s1); }
         if (n2 < 0) { n2 = str.length(s2); }
-        return n1 == n2 && memcmp(s1, s2, n1);
+        return n1 == n2 ? memcmp(s1, s2, n1) : n1 - n2;
     }
 }
 
@@ -242,13 +241,12 @@ static int32_t str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_
     } else {
         if (n1 < 0) { n1 = str.length(s1); }
         if (n2 < 0) { n2 = str.length(s2); }
-        if (n1 != n2) { return false; }
-        for (int32_t i = 0; i < n1; i++) {
-            if (tolower(s1[i]) != tolower(s2[i])) {
-                return tolower(s1[i]) - tolower(s2[i]);
-            }
+        int32_t n = min(n1, n2);
+        for (int32_t i = 0; i < n; i++) {
+            int32_t r = tolower(s1[i]) - tolower(s2[i]);
+            if (r != 0) { return r; }
         }
-        return true;
+        return n1 - n2;
     }
 }
 
@@ -259,13 +257,22 @@ static void str_test(void) {
     #pragma push_macro("glyph_chinese_two")
     #pragma push_macro("glyph_teddy_bear")
     #pragma push_macro("glyph_ice_cube")
-
     #define glyph_chinese_one "\xE5\xA3\xB9"
     #define glyph_chinese_two "\xE8\xB4\xB0"
     #define glyph_teddy_bear  "\xF0\x9F\xA7\xB8"
     #define glyph_ice_cube    "\xF0\x9F\xA7\x8A"
-
-    swear(str.is_empty(null));
+    const char* null_string = null;
+    swear(strempty(null_string));
+    swear(strempty(""));
+    swear(!strempty("hello"));
+    swear(strequ("hello", "hello"));
+    swear(!strequ("hello", "world"));
+    swear(strcasecmp("hello", "HeLLo") == 0);
+    swear(strncasecmp("hello", "HeLLo", 4) == 0);
+    swear(strcasecmp("hello", "world") != 0);
+    swear(strncasecmp("hello", "world", 4) != 0);
+    swear(strequ(strconcat("hello_", "_world"), "hello__world"));
+    swear(str.is_empty(null_string));
     swear(str.is_empty(""));
     swear(!str.is_empty("hello"));
     swear(str.equal("hello", -1, "hello", -1));
@@ -274,57 +281,58 @@ static void str_test(void) {
     swear(!str.equal("hello", -1, "hello", 4));
     swear(!str.equal("hello",  4, "hello", -1));
     swear(str.equal("hellO",  4, "hello", 4));
-    // --- starts_with, ends_with ---
+    swear(str.equal("abc", 1, "a", 1));
+    swear(!str.equal("a", 1, "abc", 3));
     swear(str.starts_with("hello world", -1, "hello", -1));
     swear(!str.starts_with("hello world", -1, "world", -1));
     swear(str.ends_with("hello world", -1, "world", -1));
     swear(!str.ends_with("hello world", -1, "hello", -1));
-    // --- length, copy ---
     swear(str.length("hello") == 5);
     char text[10];
-    swear(str.copy(text, countof(text), "hello", -1)); // copy whole string
+    swear(str.copy(text, countof(text), "hello", -1));
     swear(str.equal(text, -1, "hello", -1));
-    swear(!str.copy(text, 9, "0123456789", -1)); // too small
-    // --- to_lower ---
+    swear(!str.copy(text, 9, "0123456789", -1));
     char lower[20];
     swear(str.to_lower(lower, countof(lower), "HeLlO WoRlD", -1));
     swear(str.equal(lower, -1, "hello world", -1));
-    // --- UTF-8 / UTF-16 conversion ---
-    const char* utf8_str =  glyph_teddy_bear
-        "0" glyph_chinese_one glyph_chinese_two "3456789 "
-        glyph_ice_cube;
-    const wchar_t* wide_str = utf8to16(utf8_str); // stack allocated
+    const char* utf8_str =
+            glyph_teddy_bear "0"
+            glyph_chinese_one glyph_chinese_two
+            "3456789 "
+            glyph_ice_cube;
+    const uint16_t* wide_str = utf8to16(utf8_str);
     char utf8[100];
     swear(str.utf16_utf8(utf8, wide_str));
-    wchar_t utf16[100];
+    uint16_t utf16[100];
     swear(str.utf8_utf16(utf16, utf8));
-    // Verify round-trip conversion:
     swear(str.equal(utf16to8(utf16), -1, utf8_str, -1));
-    // --- strprintf ---
     char formatted[100];
     str.sformat(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
     swear(str.equal(formatted, -1, "n: 42, s: test", -1));
-    // str.copy() truncation
-    char truncated[9]; // Truncate to fit:
-    truncated[8] = 0xFF; // not zero terminated
+    char truncated[9];
+    truncated[8] = 0xFF;
     swear(!str.copy(truncated, countof(truncated), "0123456789", -1));
-    swear(truncated[8] == 0, "expected zero termination");
-    // str.to_lower() truncation
-    char truncated_lower[9]; // Truncate to fit:
-    truncated_lower[8] = 0xFF; // not zero terminated
+    swear(truncated[8] == 0);
+    char truncated_lower[9];
+    truncated_lower[8] = 0xFF;
     str.to_lower(truncated_lower, countof(truncated_lower), "HELLO012345", -1);
-    swear(truncated_lower[8] == 0, "expected zero termination");
-    // str.sformat() truncation
-    char truncated_formatted[9]; // Truncate to fit:
-    truncated_formatted[8] = 0xFF; // not zero terminated
-    str.sformat(truncated_formatted, countof(truncated_formatted),
-                "n: %d, s: %s", 42, "a long test string");
-    swear(truncated_formatted[8] == 0, "expected zero termination");
-    // str.sformat() truncation
+    swear(truncated_lower[8] == 0);
+    char truncated_formatted[9];
+    truncated_formatted[8] = 0xFF;
+    str.sformat(truncated_formatted, countof(truncated_formatted), "n: %d, s: %s", 42, "a long test string");
+    swear(truncated_formatted[8] == 0);
     char very_short_str[1];
-    very_short_str[0] = 0xFF; // not zero terminated
-    strprintf(very_short_str, "%s", "test");
-    swear(very_short_str[0] == 0, "expected zero termination");
+    very_short_str[0] = 0xFF;
+    str.sformat(very_short_str, countof(very_short_str), "%s", "test");
+    swear(very_short_str[0] == 0);
+    swear(str.starts_with("example text", 7, "exam", 4));
+    swear(str.starts_with_nc("example text", 7, "ExAm", 4));
+    swear(str.ends_with("testing", 7, "ing", 3));
+    swear(str.ends_with_nc("testing", 7, "InG", 3));
+    swear(str.compare("hello", 5, "hello", 5) == 0);
+    swear(str.compare_nc("Hello", 5, "hello", 5) == 0);
+    swear(str.compare("ab", 2, "abc", 3) < 0);
+    swear(str.compare_nc("abc", 3, "ABCD", 4) < 0);
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
     #pragma pop_macro("glyph_ice_cube")
     #pragma pop_macro("glyph_teddy_bear")
