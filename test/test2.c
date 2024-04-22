@@ -2,7 +2,7 @@
 #include "single_file_lib/ut.h"
 
 int main(int argc, char* argv[], char *envp[]) {
-    args.init(argc, argv, envp);
+    args.main(argc, argv, envp);
     const char* v = args.option_str("--verbosity");
     if (v != null) {
         debug.verbosity.level = debug.verbosity_from_string(v);

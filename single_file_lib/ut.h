@@ -110,29 +110,76 @@ typedef struct {
     int32_t c;      // argc
     const char** v; // argv[argc]
     const char** env;
-    void (*init)(int32_t argc, const char* argv[], const char** env);
-    void (*parse)(const char* command_line);
+    void    (*main)(int32_t argc, const char* argv[], const char** env);
+    void    (*WinMain)(const char* command_line); // windows specific
     int32_t (*option_index)(const char* option); // e.g. option: "--verbosity" or "-v"
-    int32_t (*remove_at)(int32_t ix);
+    void    (*remove_at)(int32_t ix);
     /* argc=3 argv={"foo", "--verbose"} -> returns true; argc=1 argv={"foo"} */
-    bool (*option_bool)(const char* option);
+    bool    (*option_bool)(const char* option);
     /* argc=3 argv={"foo", "--n", "153"} -> value==153, true; argc=1 argv={"foo"}
        also handles negative values (e.g. "-153") and hex (e.g. 0xBADF00D)
     */
-    bool (*option_int)(const char* option, int64_t *value);
+    bool    (*option_int)(const char* option, int64_t *value);
     // for argc=3 argv={"foo", "--path", "bar"}
     //     option_str("--path", option)
     // returns option: "bar" and argc=1 argv={"foo"} */
     const char* (*option_str)(const char* option);
+    // basename() for argc=3 argv={"/bin/foo.exe", ...} returns "foo":
+    const char* (*basename)(void);
+    // removes quotes from a head and tail of the string `s` if present
+    const char* (*unquote)(char* *s); // modifies `s` in place
     void (*fini)(void);
     void (*test)(void);
 } args_if;
 
 extern args_if args;
 
-/* args documentation:
-*  Usage:
-*
+/* Usage:
+
+    (both main() and WinMain() could be compiled at the same time on Windows):
+
+    static int run(void);
+
+    int main(int argc, char* argv[], char* envp[]) { // link.exe /SUBSYSTEM:CONSOLE
+        args.main(argc, argv, envp); // Initialize args with command-line parameters
+        int r = run();
+        args.fini(); // Clean-up
+        return r;
+    }
+
+    #include "ut/win32.h"
+
+    int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* cl, int show) {
+        // link.exe /SUBSYSTEM:WINDOWS
+        args.WinMain(cl); // Initialize args with command line string
+        int r = run();
+        args.fini(); // Clean-up
+        return 0;
+    }
+
+    static int run(void) {
+        if (args.option_bool("-v")) {
+            debug.verbosity.level = debug.verbosity.verbose;
+        }
+        int64_t num = 0;
+        if (args.option_int("--number", &num)) {
+            printf("--number: %ld\n", num);
+        }
+        const char* path = args.option_str("--path");
+        if (path != null) {
+            printf("--path: %s\n", path);
+        }
+        printf("args.basename(): %s\n", args.basename());
+        printf("args.v[0]: %s\n", args.v[0]);
+        for (int i = 1; i < args.c; i++) {
+            const char* ai = args.unquote(&args.v[i]);
+            printf("args.v[%d]: %s\n", i, ai);
+        }
+        return 0;
+    }
+
+    // Also see: https://github.com/leok7v/ut/blob/main/test/test1.c
+
 */
 
 
@@ -824,12 +871,60 @@ end_c
 #endif // ut_definition
 
 #ifdef ut_implementation
+// _________________________________ win32.h __________________________________
+
+#ifdef WIN32
+
+#include <Windows.h>  // used by:
+#include <psapi.h>    // both loader.c and processes.c
+#include <shellapi.h> // processes.c
+#include <winternl.h> // processes.c
+#include <immintrin.h> // _tzcnt_u32 num.c
+#include <initguid.h>     // for knownfolders
+#include <knownfolders.h> // files.c
+#include <aclapi.h>       // files.c
+#include <shlobj_core.h>  // files.c
+#include <shlwapi.h>      // files.c
+
+#if (defined(_DEBUG) || defined(DEBUG)) && !defined(_malloca) // Microsoft runtime debug heap
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h> // _malloca()
+#endif
+
+#define export __declspec(dllexport)
+
+#define b2e(call) (call ? 0 : GetLastError()) // BOOL -> errno_t
+
+// inline errno_t wait2e(DWORD ix) { // rather huge switch statement 0xFFFFFFFF
+//     switch (ix) {
+//         case WAIT_OBJECT_0 : return 0;
+//         case WAIT_ABANDONED: return ERROR_REQUEST_ABORTED;
+//         case WAIT_TIMEOUT  : return ERROR_TIMEOUT;
+//         case WAIT_FAILED   : return runtime.err();
+//         default: // assert(false, "unexpected: %d", r);
+//                  return ERROR_INVALID_HANDLE;
+//     }
+// }
+
+#define wait2e(ix) (errno_t)                                                     \
+    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
+      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
+        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
+          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
+        )                                                                        \
+      )                                                                          \
+    )
+
+
+#endif // WIN32
 
 // __________________________________ args.c __________________________________
 
 static void* args_memory;
 
-static void args_init(int32_t argc, const char* argv[], const char** env) {
+static void args_main(int32_t argc, const char* argv[], const char** env) {
+    swear(args.c == 0 && args.v == null && args.env == null);
+    swear(args_memory == null);
     args.c = argc;
     args.v = argv;
     args.env = env;
@@ -843,7 +938,7 @@ static int32_t args_option_index(const char* option) {
     return -1;
 }
 
-static int32_t args_remove_at(int32_t ix) {
+static void args_remove_at(int32_t ix) {
     // returns new argc
     assert(0 < args.c);
     assert(0 < ix && ix < args.c); // cannot remove args.v[0]
@@ -851,14 +946,12 @@ static int32_t args_remove_at(int32_t ix) {
         args.v[i] = args.v[i + 1];
     }
     args.v[args.c - 1] = "";
-    return args.c - 1;
+    args.c--;
 }
 
 static bool args_option_bool(const char* option) {
     int32_t ix = args_option_index(option);
-    if (ix > 0) {
-        args.c = args_remove_at(ix);
-    }
+    if (ix > 0) { args_remove_at(ix); }
     return ix > 0;
 }
 
@@ -880,8 +973,8 @@ static bool args_option_int(const char* option, int64_t *value) {
         ix = -1;
     }
     if (ix > 0) {
-        args.c = args_remove_at(ix); // remove option
-        args.c = args_remove_at(ix); // remove following number
+        args_remove_at(ix); // remove option
+        args_remove_at(ix); // remove following number
     }
     return ix > 0;
 }
@@ -895,8 +988,8 @@ static const char* args_option_str(const char* option) {
         ix = -1;
     }
     if (ix > 0) {
-        args.c = args_remove_at(ix); // remove option
-        args.c = args_remove_at(ix); // remove following string
+        args_remove_at(ix); // remove option
+        args_remove_at(ix); // remove following string
     }
     return ix > 0 ? s : null;
 }
@@ -916,7 +1009,7 @@ static const char* args_option_str(const char* option) {
 // https://web.archive.org/web/20231115181633/http://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments?view=msvc-170
 // Alternative: just use CommandLineToArgvW()
 
-typedef struct { const char* s; char* d; } args_pair_t;
+typedef struct { const char* s; char* d; const char* e; } args_pair_t;
 
 static args_pair_t args_parse_backslashes(args_pair_t p) {
     enum { quote = '"', backslash = '\\' };
@@ -926,14 +1019,14 @@ static args_pair_t args_parse_backslashes(args_pair_t p) {
     int32_t bsc = 0; // number of backslashes
     while (*s == backslash) { s++; bsc++; }
     if (*s == quote) {
-        while (bsc > 1) { *d++ = backslash; bsc -= 2; }
-        if (bsc == 1) { *d++ = *s++; }
+        while (bsc > 1 && d < p.e) { *d++ = backslash; bsc -= 2; }
+        if (bsc == 1 && d < p.e) { *d++ = *s++; }
     } else {
         // Backslashes are interpreted literally,
         // unless they immediately precede a quote:
-        while (bsc > 0) { *d++ = backslash; bsc--; }
+        while (bsc > 0 && d < p.e) { *d++ = backslash; bsc--; }
     }
-    return (args_pair_t){ .s = s, .d = d };
+    return (args_pair_t){ .s = s, .d = d, .e = p.e };
 }
 
 static args_pair_t args_parse_quoted(args_pair_t p) {
@@ -944,21 +1037,22 @@ static args_pair_t args_parse_quoted(args_pair_t p) {
     s++; // opening quote (skip)
     while (*s != 0x00) {
         if (*s == backslash) {
-            p = args_parse_backslashes((args_pair_t){ .s = s, .d = d });
+            p = args_parse_backslashes((args_pair_t){
+                        .s = s, .d = d, .e = p.e });
             s = p.s; d = p.d;
         } else if (*s == quote && s[1] == quote) {
             // Within a quoted string, a pair of quote is
             // interpreted as a single escaped quote.
-            *d++ = *s++;
+            if (d < p.e) { *d++ = *s++; }
             s++; // 1 for 2 quotes
         } else if (*s == quote) {
             s++; // closing quote (skip)
             break;
-        } else {
+        } else if (d < p.e) {
             *d++ = *s++;
         }
     }
-    return (args_pair_t){ .s = s, .d = d };
+    return (args_pair_t){ .s = s, .d = d, .e = p.e };
 }
 
 static void args_parse(const char* s) {
@@ -968,6 +1062,7 @@ static void args_parse(const char* s) {
     swear(args_memory == null);
     enum { quote = '"', backslash = '\\', tab = '\t', space = 0x20 };
     const int32_t len = (int)strlen(s);
+    // Worst-case scenario (possible to optimize with dry run of parse)
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
     const int32_t n = k + (len + 2) * (int)sizeof(char);
@@ -977,48 +1072,84 @@ static void args_parse(const char* s) {
     args.v = (const char**)args_memory;
     memset(args.v, 0x00, n);
     char* d = (char*)(((char*)args.v) + k);
+    char* e = d + n; // end of memory
     // special rules for 1st argument:
-    args.v[args.c++] = d;
+    if (args.c < n) { args.v[args.c++] = d; }
     if (*s == quote) {
         s++;
-        while (*s != 0x00 && *s != quote) { *d++ = *s++; }
+        while (*s != 0x00 && *s != quote && d < e) { *d++ = *s++; }
         while (*s != 0x00) { s++; }
     } else {
-        while (*s != 0x00 && *s != space && *s != tab) { *d++ = *s++; }
+        while (*s != 0x00 && *s != space && *s != tab && d < e) {
+            *d++ = *s++;
+        }
     }
-    *d++ = 0;
-    for (;;) {
+    if (d < e) { *d++ = 0; }
+    while (d < e) {
         while (*s == space || *s == tab) { s++; }
         if (*s == 0) { break; }
-        if (*s == quote && s[1] == 0) { // unbalanced single quote
-            args.v[args.c++] = d; // spec does not say what to do
+        if (*s == quote && s[1] == 0 && d < e) { // unbalanced single quote
+            if (args.c < n) { args.v[args.c++] = d; } // spec does not say what to do
             *d++ = *s++;
         } else if (*s == quote) { // quoted arg
-            args.v[args.c++] = d;
+            if (args.c < n) { args.v[args.c++] = d; }
             args_pair_t p = args_parse_quoted(
-                    (args_pair_t){ .s = s, .d = d });
+                    (args_pair_t){ .s = s, .d = d, .e = e });
             s = p.s; d = p.d;
         } else { // non-quoted arg (that can have quoted strings inside)
-            args.v[args.c++] = d;
+            if (args.c < n) { args.v[args.c++] = d; }
             while (*s != 0) {
                 if (*s == backslash) {
                     args_pair_t p = args_parse_backslashes(
-                            (args_pair_t){ .s = s, .d = d });
+                            (args_pair_t){ .s = s, .d = d, .e = e });
                     s = p.s; d = p.d;
                 } else if (*s == quote) {
                     args_pair_t p = args_parse_quoted(
-                            (args_pair_t){ .s = s, .d = d });
+                            (args_pair_t){ .s = s, .d = d, .e = e });
                     s = p.s; d = p.d;
                 } else if (*s == tab || *s == space) {
                     break;
-                } else {
+                } else if (d < e) {
                     *d++ = *s++;
                 }
             }
         }
-        *d++ = 0;
+        if (d < e) { *d++ = 0; }
     }
-    args.v[args.c] = null;
+    if (args.c < n) {
+        args.v[args.c] = null;
+    }
+    swear(args.c < n, "not enough memory - adjust guestimates");
+    swear(d <= e, "not enough memory - adjust guestimates");
+}
+
+const char* args_basename(void) {
+    static char basename[260];
+    swear(args.c > 0);
+    if (basename[0] == 0) {
+        const char* s = args.v[0];
+        const char* b = s;
+        while (*s != 0) {
+            if (*s == '\\' || *s == '/') { b = s + 1; }
+            s++;
+        }
+        int32_t n = str.length(b);
+        swear(n < countof(basename));
+        strncpy(basename, b, countof(basename) - 1);
+        char* d = basename + n - 1;
+        while (d > basename && *d != '.') { d--; }
+        if (*d == '.') { *d = 0x00; }
+    }
+    return basename;
+}
+
+static const char* args_unquote(char* *s) {
+    int32_t n = str.length(*s);
+    if (n > 0 && (*s)[0] == '\"' && (*s)[n - 1] == '\"') {
+        (*s)[n - 1] = 0x00;
+        (*s)++;
+    }
+    return *s;
 }
 
 static void args_fini(void) {
@@ -1026,6 +1157,16 @@ static void args_fini(void) {
     args_memory = null;
     args.c = 0;
     args.v = null;
+}
+
+static void args_WinMain(const char* cl) {
+    swear(args.c == 0 && args.v == null && args.env == null);
+    swear(args_memory == null);
+    static char filename[1024];
+    GetModuleFileName(null, filename, countof(filename));
+    const char* a = strconcat(filename, strconcat("\x20", cl));
+    args_parse(a);
+    args.env = _environ;
 }
 
 #ifdef RUNTIME_TESTS
@@ -1050,7 +1191,8 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
     void* memory = args_memory;
     args.c = 0;
     args.v = null;
-    args.parse(cl);
+    args_memory = null;
+    args_parse(cl);
     va_list vl;
     va_start(vl, expected);
     for (int32_t i = 0; i < expected; i++) {
@@ -1111,62 +1253,18 @@ static void args_test(void) {}
 #endif
 
 args_if args = {
-    .init         = args_init,
-    .parse        = args_parse,
+    .main         = args_main,
+    .WinMain      = args_WinMain,
     .option_index = args_option_index,
     .remove_at    = args_remove_at,
     .option_bool  = args_option_bool,
     .option_int   = args_option_int,
     .option_str   = args_option_str,
+    .basename     = args_basename,
+    .unquote      = args_unquote,
     .fini         = args_fini,
     .test         = args_test
 };
-// _________________________________ win32.h __________________________________
-
-#ifdef WIN32
-
-#include <Windows.h>  // used by:
-#include <psapi.h>    // both loader.c and processes.c
-#include <shellapi.h> // processes.c
-#include <winternl.h> // processes.c
-#include <immintrin.h> // _tzcnt_u32 num.c
-#include <initguid.h>     // for knownfolders
-#include <knownfolders.h> // files.c
-#include <aclapi.h>       // files.c
-#include <shlobj_core.h>  // files.c
-#include <shlwapi.h>      // files.c
-
-#if (defined(_DEBUG) || defined(DEBUG)) && !defined(_malloca) // Microsoft runtime debug heap
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h> // _malloca()
-#endif
-
-#define export __declspec(dllexport)
-
-#define b2e(call) (call ? 0 : GetLastError()) // BOOL -> errno_t
-
-// inline errno_t wait2e(DWORD ix) { // rather huge switch statement 0xFFFFFFFF
-//     switch (ix) {
-//         case WAIT_OBJECT_0 : return 0;
-//         case WAIT_ABANDONED: return ERROR_REQUEST_ABORTED;
-//         case WAIT_TIMEOUT  : return ERROR_TIMEOUT;
-//         case WAIT_FAILED   : return runtime.err();
-//         default: // assert(false, "unexpected: %d", r);
-//                  return ERROR_INVALID_HANDLE;
-//     }
-// }
-
-#define wait2e(ix) (errno_t)                                                     \
-    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
-      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
-        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
-          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
-        )                                                                        \
-      )                                                                          \
-    )
-
-
-#endif // WIN32
 // ________________________________ atomics.c _________________________________
 
 #include <stdatomic.h> // needs cl.exe /experimental:c11atomics command line
