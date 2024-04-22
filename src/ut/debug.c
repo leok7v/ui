@@ -100,15 +100,15 @@ static void debug_breakpoint(void) {
 static int32_t debug_verbosity_from_string(const char* s) {
     const char* n = null;
     long v = strtol(s, &n, 10);
-    if (str.equal_nc(s, "quiet")) {
+    if (striequ(s, "quiet")) {
         return debug.verbosity.quiet;
-    } else if (str.equal_nc(s, "info")) {
+    } else if (striequ(s, "info")) {
         return debug.verbosity.info;
-    } else if (str.equal_nc(s, "verbose")) {
+    } else if (striequ(s, "verbose")) {
         return debug.verbosity.verbose;
-    } else if (str.equal_nc(s, "debug")) {
+    } else if (striequ(s, "debug")) {
         return debug.verbosity.debug;
-    } else if (str.equal_nc(s, "trace")) {
+    } else if (striequ(s, "trace")) {
         return debug.verbosity.trace;
     } else if (n > s && debug.verbosity.quiet <= v &&
                v <= debug.verbosity.trace) {

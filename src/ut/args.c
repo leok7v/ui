@@ -211,7 +211,7 @@ static void args_test_verify(const char* cl, int32_t expected, ...) {
 //      }
         #pragma warning(push)
         #pragma warning(disable: 6385) // reading data outside of array
-        swear(str.equal(argv[i], s), "argv[%d]: `%s` expected: `%s`",
+        swear(strequ(argv[i], s), "argv[%d]: `%s` expected: `%s`",
               i, argv[i], s);
         #pragma warning(pop)
     }

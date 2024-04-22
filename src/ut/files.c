@@ -438,7 +438,7 @@ static errno_t files_mkdirs(const char* dir) {
 } while (0)
 
 #define files_append_name(pn, pnc, fn, name) do {      \
-    if (str.equal(fn, "\\") || str.equal(fn, "/")) {   \
+    if (strequ(fn, "\\") || strequ(fn, "/")) {         \
         str.sformat(pn, pnc, "\\%s", name);            \
     } else {                                           \
         str.sformat(pn, pnc, "%.*s\\%s", k, fn, name); \
@@ -463,7 +463,7 @@ static errno_t files_rmdirs(const char* fn) {
             // do NOT follow symlinks - it could be disastrous
             const char* name = files.readdir(&folder, &st);
             if (name == null) { break; }
-            if (!str.equal(name, ".") && !str.equal(name, "..") &&
+            if (!strequ(name, ".") && !strequ(name, "..") &&
                 (st.type & files.type_symlink) == 0 &&
                 (st.type & files.type_folder) != 0) {
                 files_realloc_path(r, pn, pnc, fn, name);
@@ -479,7 +479,7 @@ static errno_t files_rmdirs(const char* fn) {
             const char* name = files.readdir(&folder, &st);
             if (name == null) { break; }
             // symlinks are already removed as normal files
-            if (!str.equal(name, ".") && !str.equal(name, "..") &&
+            if (!strequ(name, ".") && !strequ(name, "..") &&
                 (st.type & files.type_folder) == 0) {
                 files_realloc_path(r, pn, pnc, fn, name);
                 if (r == 0) {
@@ -726,15 +726,15 @@ static void folders_test(void) {
         verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d %lld bytes %s%s",
                 name, year, month, day, hh, mm, ss, ms, mc,
                 bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
-        if (str.equal(name, "file") || str.equal(name, "hard")) {
+        if (strequ(name, "file") || strequ(name, "hard")) {
             swear(bytes == (int64_t)strlen(content),
                     "size of \"%s\": %lld is incorrect expected: %d",
                     name, bytes, transferred);
         }
-        if (str.equal(name, ".") || str.equal(name, "..")) {
+        if (strequ(name, ".") || strequ(name, "..")) {
             swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
         } else {
-            swear(str.equal(name, "subd") == is_folder,
+            swear(strequ(name, "subd") == is_folder,
                   "\"%s\" is_folder: %d", name, is_folder);
             // empirically timestamps are imprecise on NTFS
             swear(at >= before, "access: %lld  >= %lld", at, before);

@@ -58,7 +58,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
                 if (last_name != name) {
                     char path[files_max_path];
                     match = processes.nameof(pid, path, countof(path)) == 0 &&
-                            str.ends_with_nc(path, name);
+                            str.ends_with_nc(path, -1, name, -1);
 //                  traceln("\"%s\" -> \"%s\" match: %d", name, path, match);
                 }
             }
