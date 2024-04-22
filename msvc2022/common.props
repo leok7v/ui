@@ -22,6 +22,9 @@
       <DisableSpecificWarnings>4820;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- '?' bytes padding added after data member -->
       <DisableSpecificWarnings>5045;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- Spectre mitigation -->
       <DisableSpecificWarnings>6262;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- EXCESSIVESTACKUSAGE -->
+      <TreatSpecificWarningsAsErrors>4133;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- incompatible types -->
+      <TreatSpecificWarningsAsErrors>4020;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- too many actual parameters -->
+      <TreatSpecificWarningsAsErrors>4716;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function must return a value -->
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
