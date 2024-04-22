@@ -34,39 +34,47 @@ extern args_if args;
 
 /* Usage:
 
-  (both main() and WinMain() could be compiled at the same time on Windows):
+    (both main() and WinMain() could be compiled at the same time on Windows):
 
-  static int run(void);
+    static int run(void);
 
-  int main(int argc, char* argv[], char* envp[]) { // link.exe /SUBSYSTEM:CONSOLE
-      args.main(argc, argv, envp); // Initialize args with command-line parameters
-      int r = run();
-      args.fini(); // Clean-up
-      return r;
-  }
+    int main(int argc, char* argv[], char* envp[]) { // link.exe /SUBSYSTEM:CONSOLE
+        args.main(argc, argv, envp); // Initialize args with command-line parameters
+        int r = run();
+        args.fini(); // Clean-up
+        return r;
+    }
 
-  int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* cl, int show) {
-      // link.exe /SUBSYSTEM:WINDOWS
-      args.WinMain(cl); // Initialize args with command line string
-      int r = run();
-      args.fini(); // Clean-up
-      return 0;
-  }
+    #include "ut/win32.h"
 
-  static int run(void) {
-      if (args.option_bool("-v")) {
-          debug.verbosity.level = debug.verbosity.verbose;
-      }
-      int64_t num = 0;
-      if (args.option_int("--number", &num)) {
-          printf("--number: %ld\n", num);
-      }
-      const char* path = args.option_str("--path");
-      if (path != null) {
-          printf("--path: %s\n", path);
-      }
-      return 0;
-  }
+    int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* cl, int show) {
+        // link.exe /SUBSYSTEM:WINDOWS
+        args.WinMain(cl); // Initialize args with command line string
+        int r = run();
+        args.fini(); // Clean-up
+        return 0;
+    }
+
+    static int run(void) {
+        if (args.option_bool("-v")) {
+            debug.verbosity.level = debug.verbosity.verbose;
+        }
+        int64_t num = 0;
+        if (args.option_int("--number", &num)) {
+            printf("--number: %ld\n", num);
+        }
+        const char* path = args.option_str("--path");
+        if (path != null) {
+            printf("--path: %s\n", path);
+        }
+        printf("args.basename(): %s\n", args.basename());
+        printf("args.v[0]: %s\n", args.v[0]);
+        for (int i = 1; i < args.c; i++) {
+            const char* ai = args.unquote(&args.v[i]);
+            printf("args.v[%d]: %s\n", i, ai);
+        }
+        return 0;
+    }
 
 */
 
