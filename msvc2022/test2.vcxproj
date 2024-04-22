@@ -80,5 +80,29 @@
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
     </ProjectReference>
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\inc\ut\args.h" />
+    <ClInclude Include="..\inc\ut\atomics.h" />
+    <ClInclude Include="..\inc\ut\clock.h" />
+    <ClInclude Include="..\inc\ut\config.h" />
+    <ClInclude Include="..\inc\ut\debug.h" />
+    <ClInclude Include="..\inc\ut\events.h" />
+    <ClInclude Include="..\inc\ut\files.h" />
+    <ClInclude Include="..\inc\ut\heap.h" />
+    <ClInclude Include="..\inc\ut\loader.h" />
+    <ClInclude Include="..\inc\ut\mem.h" />
+    <ClInclude Include="..\inc\ut\mutexes.h" />
+    <ClInclude Include="..\inc\ut\num.h" />
+    <ClInclude Include="..\inc\ut\processes.h" />
+    <ClInclude Include="..\inc\ut\runtime.h" />
+    <ClInclude Include="..\inc\ut\static.h" />
+    <ClInclude Include="..\inc\ut\std.h" />
+    <ClInclude Include="..\inc\ut\str.h" />
+    <ClInclude Include="..\inc\ut\streams.h" />
+    <ClInclude Include="..\inc\ut\threads.h" />
+    <ClInclude Include="..\inc\ut\vigil.h" />
+    <ClInclude Include="..\inc\ut\win32.h" />
+    <ClInclude Include="..\single_file_lib\ut.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>
