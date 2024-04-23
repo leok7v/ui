@@ -1,5 +1,5 @@
 #define ut_implementation
-#include "single_file_lib/ut.h"
+#include "single_file_lib/ut/ut.h"
 
 int main(int argc, char* argv[], char *envp[]) {
     args.main(argc, argv, envp);

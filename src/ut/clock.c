@@ -88,7 +88,7 @@ static double clock_seconds(void) { // since_boot
 //                          24 hours / day
 //
 // it would take approximately 213,503 days (or about 584.5 years)
-// for crt.nanoseconds() to overflow
+// for clock.nanoseconds() to overflow
 //
 // for divider = num.gcd32(nsec_in_sec, freq) below and 10MHz timer
 // the actual duration is shorter because of (mul == 100)

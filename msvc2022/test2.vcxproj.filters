@@ -13,6 +13,9 @@
     <Filter Include="single_file_lib">
       <UniqueIdentifier>{965f87a5-7aa4-48a6-8f61-70479fd74ef6}</UniqueIdentifier>
     </Filter>
+    <Filter Include="single_file_lib\ut">
+      <UniqueIdentifier>{5fb84469-51a5-4305-9c2e-20874e45dff6}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\ut\args.h">
@@ -78,8 +81,8 @@
     <ClInclude Include="..\inc\ut\win32.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\single_file_lib\ut.h">
-      <Filter>single_file_lib</Filter>
+    <ClInclude Include="..\single_file_lib\ut\ut.h">
+      <Filter>single_file_lib\ut</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
