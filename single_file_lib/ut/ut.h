@@ -3,24 +3,13 @@
 
 // __________________________________ std.h ___________________________________
 
-// C runtime include files that are present on most of the platforms:
 #include <assert.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <io.h>
-#include <malloc.h>
-#define _USE_MATH_DEFINES
-#include <math.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
-#undef assert // will be redefined
+#undef assert // will be redefined in vigil.h
 
 #ifdef __cplusplus
     #define begin_c extern "C" {
@@ -56,8 +45,6 @@
     #define null nullptr
 #endif
 
-typedef unsigned char byte; // legacy, deprecated: use uint8_t instead
-
 #if defined(_MSC_VER)
     #define thread_local __declspec(thread)
 #else
@@ -81,26 +68,24 @@ typedef unsigned char byte; // legacy, deprecated: use uint8_t instead
 #define attribute_packed
 #endif
 
-// In callbacks on application level the formal parameters are
-// frequently unused because the application global state is
-// more convenient to work with. Also sometimes parameters
-// are used in Debug build only (e.g. assert() checks) not in Release.
-// Since C does not have anonymous parameters like C++
-//      return_type_t foo(param_type_t param) { (void)param; / *unused */ }
-// use this:
-//      return_type_t foo(param_type_t unused(param)) { }
+// In callbacks the formal parameters are
+// frequently unused. Also sometimes parameters
+// are used in debug configuration only (e.g. assert() checks)
+// but not in release.
+// C does not have anonymous parameters like C++
+// Instead of:
+//      void foo(param_type_t param) { (void)param; / *unused */ }
+// use:
+//      vod foo(param_type_t unused(param)) { }
 
 #define unused(name) _Pragma("warning(suppress:  4100)") name
 
-// Since MS C compiler is sincerely unhappy about alloca() and
-// does not implement dynamic arrays on the stack (that are optional):
+// Because MS C compiler is unhappy about alloca() and
+// does not implement (C99 optional) dynamic arrays on the stack:
 
 #define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
 
-#define stackalloc_zeroed(n) memset(stackalloc(n), 0x00, (n))
-
 begin_c
-
 
 
 // __________________________________ args.h __________________________________
@@ -775,7 +760,7 @@ typedef struct {
 
 extern events_if events;
 
-typedef struct { byte content[40]; } mutex_t;
+typedef struct { uint8_t content[40]; } mutex_t;
 
 typedef struct {
     void (*init)(mutex_t* m);
@@ -886,7 +871,20 @@ end_c
 #include <shlobj_core.h>  // files.c
 #include <shlwapi.h>      // files.c
 
-#if (defined(_DEBUG) || defined(DEBUG)) && !defined(_malloca) // Microsoft runtime debug heap
+#include <ctype.h>
+#include <fcntl.h>
+#include <io.h>
+#include <malloc.h>
+#define _USE_MATH_DEFINES
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+// Microsoft runtime debug heap:
+#if (defined(_DEBUG) || defined(DEBUG)) && !defined(_malloca)
 #define _CRTDBG_MAP_ALLOC
 #include <crtdbg.h> // _malloca()
 #endif
@@ -894,17 +892,6 @@ end_c
 #define export __declspec(dllexport)
 
 #define b2e(call) (call ? 0 : GetLastError()) // BOOL -> errno_t
-
-// inline errno_t wait2e(DWORD ix) { // rather huge switch statement 0xFFFFFFFF
-//     switch (ix) {
-//         case WAIT_OBJECT_0 : return 0;
-//         case WAIT_ABANDONED: return ERROR_REQUEST_ABORTED;
-//         case WAIT_TIMEOUT  : return ERROR_TIMEOUT;
-//         case WAIT_FAILED   : return runtime.err();
-//         default: // assert(false, "unexpected: %d", r);
-//                  return ERROR_INVALID_HANDLE;
-//     }
-// }
 
 #define wait2e(ix) (errno_t)                                                     \
     ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
@@ -2265,8 +2252,8 @@ static errno_t files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         }
     }
     if (r == 0) {
-        ACCESS_ALLOWED_ACE* ace = (ACCESS_ALLOWED_ACE*)
-            stackalloc_zeroed(bytes_needed);
+        ACCESS_ALLOWED_ACE* ace = (ACCESS_ALLOWED_ACE*)stackalloc(bytes_needed);
+        memset(ace, 0x00, bytes_needed);
         ace->Header.AceFlags = flags;
         ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
         ace->Header.AceSize = (WORD)bytes_needed;
@@ -2302,7 +2289,7 @@ static errno_t files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
 static errno_t files_add_acl_ace(const void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
     int32_t n = SECURITY_MAX_SID_SIZE;
-    SID* sid = (SID*)stackalloc_zeroed(n);
+    SID* sid = (SID*)stackalloc(n);
     errno_t r = b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
                                        null, sid, (DWORD*)&n));
     if (r != 0) {
@@ -3417,8 +3404,9 @@ mem_if mem = {
     .deallocate      = mem_deallocate,
     .test            = mem_test
 };
-
 // __________________________________ num.c ___________________________________
+
+#include <immintrin.h> // _tzcnt_u32 
 
 static inline num128_t num_add128_inline(const num128_t a, const num128_t b) {
     num128_t r = a;
@@ -5377,8 +5365,10 @@ threads_if threads = {
 // #include "ut/macos.h" // TODO
 // #include "ut/linux.h" // TODO
 
-
 // _________________________________ vigil.c __________________________________
+
+#include <stdio.h>
+#include <string.h>
 
 static void vigil_breakpoint_and_abort(void) {
     debug.breakpoint(); // only if debugger is present

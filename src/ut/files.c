@@ -261,8 +261,8 @@ static errno_t files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         }
     }
     if (r == 0) {
-        ACCESS_ALLOWED_ACE* ace = (ACCESS_ALLOWED_ACE*)
-            stackalloc_zeroed(bytes_needed);
+        ACCESS_ALLOWED_ACE* ace = (ACCESS_ALLOWED_ACE*)stackalloc(bytes_needed);
+        memset(ace, 0x00, bytes_needed);
         ace->Header.AceFlags = flags;
         ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
         ace->Header.AceSize = (WORD)bytes_needed;
@@ -298,7 +298,7 @@ static errno_t files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
 static errno_t files_add_acl_ace(const void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
     int32_t n = SECURITY_MAX_SID_SIZE;
-    SID* sid = (SID*)stackalloc_zeroed(n);
+    SID* sid = (SID*)stackalloc(n);
     errno_t r = b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
                                        null, sid, (DWORD*)&n));
     if (r != 0) {

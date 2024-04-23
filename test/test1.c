@@ -1,4 +1,5 @@
 #include "ut/ut.h"
+#include <stdio.h>
 
 static int usage(void) {
     fprintf(stderr, "Usage: %s [options]\n", args.basename());

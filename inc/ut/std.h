@@ -1,22 +1,11 @@
 #pragma once
-// C runtime include files that are present on most of the platforms:
 #include <assert.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <io.h>
-#include <malloc.h>
-#define _USE_MATH_DEFINES
-#include <math.h>
+#include <errno.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
-#undef assert // will be redefined
+#undef assert // will be redefined in vigil.h
 
 #ifdef __cplusplus
     #define begin_c extern "C" {
@@ -52,8 +41,6 @@
     #define null nullptr
 #endif
 
-typedef unsigned char byte; // legacy, deprecated: use uint8_t instead
-
 #if defined(_MSC_VER)
     #define thread_local __declspec(thread)
 #else
@@ -77,20 +64,19 @@ typedef unsigned char byte; // legacy, deprecated: use uint8_t instead
 #define attribute_packed
 #endif
 
-// In callbacks on application level the formal parameters are
-// frequently unused because the application global state is
-// more convenient to work with. Also sometimes parameters
-// are used in Debug build only (e.g. assert() checks) not in Release.
-// Since C does not have anonymous parameters like C++
-//      return_type_t foo(param_type_t param) { (void)param; / *unused */ }
-// use this:
-//      return_type_t foo(param_type_t unused(param)) { }
+// In callbacks the formal parameters are
+// frequently unused. Also sometimes parameters
+// are used in debug configuration only (e.g. assert() checks)
+// but not in release.
+// C does not have anonymous parameters like C++
+// Instead of:
+//      void foo(param_type_t param) { (void)param; / *unused */ }
+// use:
+//      vod foo(param_type_t unused(param)) { }
 
 #define unused(name) _Pragma("warning(suppress:  4100)") name
 
-// Since MS C compiler is sincerely unhappy about alloca() and
-// does not implement dynamic arrays on the stack (that are optional):
+// Because MS C compiler is unhappy about alloca() and
+// does not implement (C99 optional) dynamic arrays on the stack:
 
 #define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
-
-#define stackalloc_zeroed(n) memset(stackalloc(n), 0x00, (n))

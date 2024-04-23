@@ -1,4 +1,6 @@
 #include "ut/ut.h"
+#include <stdio.h>
+#include <string.h>
 
 static void vigil_breakpoint_and_abort(void) {
     debug.breakpoint(); // only if debugger is present

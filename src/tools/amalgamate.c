@@ -147,11 +147,7 @@ static void parse(const char* fn) {
         }
     }
     fclose(f);
-    if (ends_with(fn, "/std.h")) {
-        printf("\n");
-        printf("begin_c\n");
-        printf("\n");
-    }
+    if (ends_with(fn, "/std.h")) { printf("\nbegin_c\n"); }
 }
 
 static void definition(void) {
