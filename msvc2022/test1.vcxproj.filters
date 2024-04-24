@@ -99,9 +99,6 @@
     <ClInclude Include="..\inc\ut\debug.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\events.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\files.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
@@ -109,9 +106,6 @@
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\mem.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\mutexes.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\num.h">
