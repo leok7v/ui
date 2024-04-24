@@ -4,6 +4,7 @@
 // __________________________________ std.h ___________________________________
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
 #include <malloc.h>
 #include <stdarg.h>
