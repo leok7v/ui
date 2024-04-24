@@ -7,7 +7,7 @@ typedef struct {
     // On Unix it is responsibility of the main() to assign these values
     int32_t c;      // argc
     const char** v; // argv[argc]
-    const char** env;
+    const char** env; // args.env[] is null-terminated
     void    (*main)(int32_t argc, const char* argv[], const char** env);
     void    (*WinMain)(const char* command_line); // windows specific
     int32_t (*option_index)(const char* option); // e.g. option: "--verbosity" or "-v"

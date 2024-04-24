@@ -34,9 +34,12 @@ static const char* str_error_for_language(int32_t error, LANGID language) {
         // remove trailing '\r\n'
         int32_t k = (int32_t)wcslen(s);
         if (k > 0 && s[k - 1] == '\n') { s[k - 1] = 0; }
-        k = (int)wcslen(s);
+        k = (int32_t)wcslen(s);
         if (k > 0 && s[k - 1] == '\r') { s[k - 1] = 0; }
-        strprintf(text, "0x%08X(%d) \"%s\"", error, error, utf16to8(s));
+        char stack[2048];
+        fatal_if(k >= countof(stack), "error message too long");
+        strprintf(text, "0x%08X(%d) \"%s\"", error, error,
+                  str.utf16_utf8(stack, s));
     } else {
         strprintf(text, "0x%08X(%d)", error, error);
     }

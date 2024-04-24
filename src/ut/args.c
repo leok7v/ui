@@ -147,11 +147,9 @@ static void args_parse(const char* s) {
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
     const int32_t n = k + (len + 2) * (int)sizeof(char);
-    args_memory = malloc(n);
-    not_null(args_memory, "not enough memory");
+    fatal_if_not_zero(heap.allocate(null, &args_memory, n, true));
     args.c = 0;
     args.v = (const char**)args_memory;
-    memset(args.v, 0x00, n);
     char* d = (char*)(((char*)args.v) + k);
     char* e = d + n; // end of memory
     // special rules for 1st argument:
@@ -234,7 +232,7 @@ static const char* args_unquote(char* *s) {
 }
 
 static void args_fini(void) {
-    free(args_memory); // can be null is parse() was not called
+    heap.deallocate(null, args_memory); // can be null is parse() was not called
     args_memory = null;
     args.c = 0;
     args.v = null;
@@ -243,10 +241,18 @@ static void args_fini(void) {
 static void args_WinMain(const char* cl) {
     swear(args.c == 0 && args.v == null && args.env == null);
     swear(args_memory == null);
-    static char filename[1024];
-    GetModuleFileName(null, filename, countof(filename));
-    const char* a = strconcat(filename, strconcat("\x20", cl));
+    int32_t bytes = str.length(cl);
+    // GetModuleFileNameA() returns the length of the string it copied
+    // not the length of the module pathname.
+    int32_t n = str.length(_pgmptr) + 1;
+    swear(n > 0);
+    char* a = null;
+    fatal_if_not_zero(heap.allocate(null, &a, n + bytes + 2, false));
+    memcpy(a, _pgmptr, n);
+    swear(a[n - 1] == 0x00);
+    str.sformat(a + n - 1, bytes + 2, "\x20%s", cl);
     args_parse(a);
+    heap.deallocate(null, a);
     args.env = _environ;
 }
 

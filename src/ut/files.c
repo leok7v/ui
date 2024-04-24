@@ -85,17 +85,21 @@ static errno_t files_stat(file_t* file, files_stat_t* s, bool follow_symlink) {
         if (n == 0) {
             r = GetLastError();
         } else {
-            char* name = (char*)stackalloc(n + 1);
-            n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
-            if (n == 0) {
-                r = GetLastError();
-            } else {
-                file_t* f = files.invalid;
-                r = files.open(&f, name, files.o_rd);
-                if (r == 0) { // keep following:
-                    r = files.stat(f, s, follow_symlink);
-                    files.close(f);
+            char* name = null;
+            r = heap.allocate(null, &name, n + 2, false);
+            if (r == 0) {
+                n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
+                if (n == 0) {
+                    r = GetLastError();
+                } else {
+                    file_t* f = files.invalid;
+                    r = files.open(&f, name, files.o_rd);
+                    if (r == 0) { // keep following:
+                        r = files.stat(f, s, follow_symlink);
+                        files.close(f);
+                    }
                 }
+                heap.deallocate(null, name);
             }
         }
     } else {
@@ -261,16 +265,19 @@ static errno_t files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         }
     }
     if (r == 0) {
-        ACCESS_ALLOWED_ACE* ace = (ACCESS_ALLOWED_ACE*)stackalloc(bytes_needed);
-        memset(ace, 0x00, bytes_needed);
-        ace->Header.AceFlags = flags;
-        ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
-        ace->Header.AceSize = (WORD)bytes_needed;
-        ace->Mask = mask;
-        ace->SidStart = sizeof(ACCESS_ALLOWED_ACE);
-        memcpy(&ace->SidStart, sid, GetLengthSid(sid));
-        r = b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
-                       ace, bytes_needed));
+        ACCESS_ALLOWED_ACE* ace = null;
+        r = heap.allocate(null, &ace, bytes_needed, true);
+        if (r == 0) {
+            ace->Header.AceFlags = flags;
+            ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
+            ace->Header.AceSize = (WORD)bytes_needed;
+            ace->Mask = mask;
+            ace->SidStart = sizeof(ACCESS_ALLOWED_ACE);
+            memcpy(&ace->SidStart, sid, GetLengthSid(sid));
+            r = b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
+                           ace, bytes_needed));
+            heap.deallocate(null, ace);
+        }
     }
     *free_me = bigger;
     return r;
@@ -297,10 +304,11 @@ static errno_t files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
 
 static errno_t files_add_acl_ace(const void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
-    int32_t n = SECURITY_MAX_SID_SIZE;
-    SID* sid = (SID*)stackalloc(n);
+    uint8_t stack[SECURITY_MAX_SID_SIZE];
+    DWORD n = countof(stack);
+    SID* sid = (SID*)stack;
     errno_t r = b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
-                                       null, sid, (DWORD*)&n));
+                                       null, sid, &n));
     if (r != 0) {
         return ERROR_INVALID_PARAMETER;
     }
@@ -355,12 +363,10 @@ static errno_t files_add_acl_ace(const void* obj, int32_t obj_type,
 #pragma pop_macro("files_acl_args")
 
 static errno_t files_chmod777(const char* pathname) {
-    errno_t r = 0;
     SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
     PSID everyone = null; // Create a well-known SID for the Everyone group.
-    BOOL b = AllocateAndInitializeSid(&SIDAuthWorld, 1, SECURITY_WORLD_RID,
-             0, 0, 0, 0, 0, 0, 0, &everyone);
-    assert(b && everyone != null);
+    fatal_if_false(AllocateAndInitializeSid(&SIDAuthWorld, 1,
+             SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone));
     EXPLICIT_ACCESSA ea[1] = {{0}};
     // Initialize an EXPLICIT_ACCESS structure for an ACE.
     ea[0].grfAccessPermissions = 0xFFFFFFFF;
@@ -371,21 +377,17 @@ static errno_t files_chmod777(const char* pathname) {
     ea[0].Trustee.ptstrName  = (LPSTR)everyone;
     // Create a new ACL that contains the new ACEs.
     ACL* acl = null;
-    b = b && SetEntriesInAclA(1, ea, null, &acl) == ERROR_SUCCESS;
-    assert(b && acl != null);
+    fatal_if_not_zero(SetEntriesInAclA(1, ea, null, &acl));
     // Initialize a security descriptor.
-    SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)
-        stackalloc(SECURITY_DESCRIPTOR_MIN_LENGTH);
-    b = InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION);
-    assert(b);
+    uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH];
+    SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)stack;
+    fatal_if_false(InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION));
     // Add the ACL to the security descriptor.
-    b = b && SetSecurityDescriptorDacl(sd, /* bDaclPresent flag: */ true,
-                                   acl, /* not a default DACL: */  false);
-    assert(b);
+    fatal_if_false(SetSecurityDescriptorDacl(sd, /* DaclPresent flag: */ true,
+                                   acl, /* not a default DACL: */  false));
     // Change the security attributes
-    b = b && SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd);
-    if (!b) {
-        r = runtime.err();
+    errno_t r = b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
+    if (r != 0) {
         traceln("chmod777(%s) failed %s", pathname, str.error(r));
     }
     if (everyone != null) { FreeSid(everyone); }
@@ -399,25 +401,27 @@ static errno_t files_chmod777(const char* pathname) {
 //  are inherited from its parent directory."
 
 static errno_t files_mkdirs(const char* dir) {
-    errno_t r = 0;
     const int32_t n = (int)strlen(dir) + 1;
-    char* s = (char*)stackalloc(n);
-    memset(s, 0, n);
+    char* s = null;
+    errno_t r = heap.allocate(null, &s, n, true);
     const char* next = strchr(dir, '\\');
     if (next == null) { next = strchr(dir, '/'); }
-    while (next != null) {
+    while (r == 0 && next != null) {
         if (next > dir && *(next - 1) != ':') {
             memcpy(s, dir, next - dir);
             r = b2e(CreateDirectoryA(s, null));
-            if (r != 0 && r != ERROR_ALREADY_EXISTS) { break; }
+            if (r == ERROR_ALREADY_EXISTS) { r = 0; }
         }
-        const char* prev = ++next;
-        next = strchr(prev, '\\');
-        if (next == null) { next = strchr(prev, '/'); }
+        if (r == 0) {
+            const char* prev = ++next;
+            next = strchr(prev, '\\');
+            if (next == null) { next = strchr(prev, '/'); }
+        }
     }
-    if (r == 0 || r == ERROR_ALREADY_EXISTS) {
+    if (r == 0) {
         r = b2e(CreateDirectoryA(dir, null));
     }
+    heap.deallocate(null, s);
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
 }
 
@@ -569,7 +573,7 @@ static const char* files_tmp(void) {
     return tmp;
 }
 
-static errno_t files_getcwd(char* fn, int32_t count) {
+static errno_t files_cwd(char* fn, int32_t count) {
     swear(count > 1);
     DWORD bytes = count - 1;
     errno_t r = b2e(GetCurrentDirectoryA(bytes, fn));
@@ -591,14 +595,17 @@ typedef struct files_dir_s {
 static_assertion(sizeof(files_dir_t) <= sizeof(folder_t));
 
 errno_t files_opendir(folder_t* folder, const char* folder_name) {
-    errno_t r = 0;
     files_dir_t* d = (files_dir_t*)folder;
     int32_t n = (int32_t)strlen(folder_name);
-    char* fn = (char*)stackalloc(n + 3); // extra room for "\*" suffix
-    snprintf(fn, n + 3, "%s\\*", folder_name);
-    fn[n + 2] = 0;
-    d->handle = FindFirstFileA(fn, &d->find);
-    if (d->handle == INVALID_HANDLE_VALUE) { r = GetLastError(); }
+    char* fn = null;
+    errno_t r = heap.allocate(null, &fn, n + 3, false); // extra room for "\*" suffix
+    if (r == 0) {
+        snprintf(fn, n + 3, "%s\\*", folder_name);
+        fn[n + 2] = 0;
+        d->handle = FindFirstFileA(fn, &d->find);
+        if (d->handle == INVALID_HANDLE_VALUE) { r = GetLastError(); }
+        heap.deallocate(null, fn);
+    }
     return r;
 }
 
@@ -676,7 +683,7 @@ static void folders_test(void) {
     // Test cwd, setcwd
     const char* tmp = files.tmp();
     char cwd[256] = {0};
-    fatal_if(files.getcwd(cwd, sizeof(cwd)) != 0, "files.getcwd() failed");
+    fatal_if(files.cwd(cwd, sizeof(cwd)) != 0, "files.cwd() failed");
     fatal_if(files.chdir(tmp) != 0, "files.chdir(\"%s\") failed %s",
                 tmp, str.error(runtime.err()));
     // there is no racing free way to create temporary folder
@@ -883,7 +890,7 @@ static void files_test(void) {
     {   // getcwd, chdir
         const char* tmp = files.tmp();
         char cwd[256] = {0};
-        fatal_if(files.getcwd(cwd, sizeof(cwd)) != 0, "files.getcwd() failed");
+        fatal_if(files.cwd(cwd, sizeof(cwd)) != 0, "files.cwd() failed");
         fatal_if(files.chdir(tmp) != 0, "files.chdir(\"%s\") failed %s",
                  tmp, str.error(runtime.err()));
         // symlink
@@ -977,7 +984,7 @@ files_if files = {
     .symlink            = files_symlink,
     .copy               = files_copy,
     .move               = files_move,
-    .getcwd             = files_getcwd,
+    .cwd                = files_cwd,
     .chdir              = files_chdir,
     .tmp                = files_tmp,
     .bin                = files_bin,

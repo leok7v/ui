@@ -376,7 +376,10 @@ static void threads_detach(thread_t t) {
 }
 
 static void threads_name(const char* name) {
-    HRESULT r = SetThreadDescription(GetCurrentThread(), utf8to16(name));
+    uint16_t stack[1024];
+    fatal_if(str.length(name) >= countof(stack), "name too long: %s", name);
+    uint16_t* wide = str.utf8_utf16(stack, name);
+    HRESULT r = SetThreadDescription(GetCurrentThread(), wide);
     // notoriously returns 0x10000000 for no good reason whatsoever
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
 }

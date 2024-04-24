@@ -1,9 +1,13 @@
 #pragma once
 #include <assert.h>
 #include <errno.h>
+#include <malloc.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #undef assert // will be redefined in vigil.h
 

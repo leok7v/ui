@@ -60,7 +60,7 @@ typedef struct {
     errno_t (*unlink)(const char* pathname); // delete file or empty folder
     errno_t (*copy)(const char* from, const char* to); // allows overwriting
     errno_t (*move)(const char* from, const char* to); // allows overwriting
-    errno_t (*getcwd)(char* folder, int32_t count);
+    errno_t (*cwd)(char* folder, int32_t count); // get current working dir
     errno_t (*chdir)(const char* folder); // set working directory
     const char* (*bin)(void);  // Windows: "c:\ProgramFiles" Un*x: "/bin"
     const char* (*data)(void); // Windows: "c:\ProgramData" Un*x: /data or /var

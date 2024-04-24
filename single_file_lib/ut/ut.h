@@ -5,9 +5,13 @@
 
 #include <assert.h>
 #include <errno.h>
+#include <malloc.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #undef assert // will be redefined in vigil.h
 
@@ -94,7 +98,7 @@ typedef struct {
     // On Unix it is responsibility of the main() to assign these values
     int32_t c;      // argc
     const char** v; // argv[argc]
-    const char** env;
+    const char** env; // args.env[] is null-terminated
     void    (*main)(int32_t argc, const char* argv[], const char** env);
     void    (*WinMain)(const char* command_line); // windows specific
     int32_t (*option_index)(const char* option); // e.g. option: "--verbosity" or "-v"
@@ -170,7 +174,7 @@ extern args_if args;
 
 // ________________________________ atomics.h _________________________________
 
-// Could be deprecated soon after Microsoft fully supports <stdatomic.h>
+// Will be deprecated soon after Microsoft fully supports <stdatomic.h>
 
 
 typedef struct {
@@ -359,7 +363,7 @@ typedef struct {
     errno_t (*unlink)(const char* pathname); // delete file or empty folder
     errno_t (*copy)(const char* from, const char* to); // allows overwriting
     errno_t (*move)(const char* from, const char* to); // allows overwriting
-    errno_t (*getcwd)(char* folder, int32_t count);
+    errno_t (*cwd)(char* folder, int32_t count); // get current working dir
     errno_t (*chdir)(const char* folder); // set working directory
     const char* (*bin)(void);  // Windows: "c:\ProgramFiles" Un*x: "/bin"
     const char* (*data)(void); // Windows: "c:\ProgramData" Un*x: /data or /var
@@ -864,30 +868,12 @@ end_c
 #include <psapi.h>    // both loader.c and processes.c
 #include <shellapi.h> // processes.c
 #include <winternl.h> // processes.c
-#include <immintrin.h> // _tzcnt_u32 num.c
 #include <initguid.h>     // for knownfolders
 #include <knownfolders.h> // files.c
 #include <aclapi.h>       // files.c
 #include <shlobj_core.h>  // files.c
 #include <shlwapi.h>      // files.c
-
-#include <ctype.h>
 #include <fcntl.h>
-#include <io.h>
-#include <malloc.h>
-#define _USE_MATH_DEFINES
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-// Microsoft runtime debug heap:
-#if (defined(_DEBUG) || defined(DEBUG)) && !defined(_malloca)
-#define _CRTDBG_MAP_ALLOC
-#include <crtdbg.h> // _malloca()
-#endif
 
 #define export __declspec(dllexport)
 
@@ -1053,11 +1039,9 @@ static void args_parse(const char* s) {
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
     const int32_t n = k + (len + 2) * (int)sizeof(char);
-    args_memory = malloc(n);
-    not_null(args_memory, "not enough memory");
+    fatal_if_not_zero(heap.allocate(null, &args_memory, n, true));
     args.c = 0;
     args.v = (const char**)args_memory;
-    memset(args.v, 0x00, n);
     char* d = (char*)(((char*)args.v) + k);
     char* e = d + n; // end of memory
     // special rules for 1st argument:
@@ -1140,7 +1124,7 @@ static const char* args_unquote(char* *s) {
 }
 
 static void args_fini(void) {
-    free(args_memory); // can be null is parse() was not called
+    heap.deallocate(null, args_memory); // can be null is parse() was not called
     args_memory = null;
     args.c = 0;
     args.v = null;
@@ -1149,10 +1133,18 @@ static void args_fini(void) {
 static void args_WinMain(const char* cl) {
     swear(args.c == 0 && args.v == null && args.env == null);
     swear(args_memory == null);
-    static char filename[1024];
-    GetModuleFileName(null, filename, countof(filename));
-    const char* a = strconcat(filename, strconcat("\x20", cl));
+    int32_t bytes = str.length(cl);
+    // GetModuleFileNameA() returns the length of the string it copied
+    // not the length of the module pathname.
+    int32_t n = str.length(_pgmptr) + 1;
+    swear(n > 0);
+    char* a = null;
+    fatal_if_not_zero(heap.allocate(null, &a, n + bytes + 2, false));
+    memcpy(a, _pgmptr, n);
+    swear(a[n - 1] == 0x00);
+    str.sformat(a + n - 1, bytes + 2, "\x20%s", cl);
     args_parse(a);
+    heap.deallocate(null, a);
     args.env = _environ;
 }
 
@@ -1856,21 +1848,21 @@ static const char* debug_abbreviate(const char* file) {
 
 static void debug_vprintf(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
-    char prefix[4 * 1024];
+    char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
     // for all other scenarios short filename without path is preferable:
     const char* name = IsDebuggerPresent() ? file : debug_abbreviate(file);
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
     prefix[countof(prefix) - 1] = 0; // zero terminated
-    char text[4 * 1024];
+    char text[2 * 1024];
     if (format != null && !strequ(format, "")) {
         vsnprintf(text, countof(text) - 1, format, vl);
         text[countof(text) - 1] = 0;
     } else {
         text[0] = 0;
     }
-    char output[8 * 1024];
+    char output[4 * 1024];
     snprintf(output, countof(output) - 1, "%s %s", prefix, text);
     output[countof(output) - 2] = 0;
     // strip trailing \n which can be remnant of fprintf("...\n")
@@ -1888,7 +1880,8 @@ static void debug_vprintf(const char* file, int32_t line, const char* func,
     output[n + 0] = '\n';
     output[n + 1] = 0;
     // SetConsoleCP(CP_UTF8) is not guaranteed to be called
-    OutputDebugStringW(utf8to16(output));
+    uint16_t wide[countof(output)];
+    OutputDebugStringW(str.utf8_utf16(wide, output));
 }
 
 #else // posix version:
@@ -2076,17 +2069,21 @@ static errno_t files_stat(file_t* file, files_stat_t* s, bool follow_symlink) {
         if (n == 0) {
             r = GetLastError();
         } else {
-            char* name = (char*)stackalloc(n + 1);
-            n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
-            if (n == 0) {
-                r = GetLastError();
-            } else {
-                file_t* f = files.invalid;
-                r = files.open(&f, name, files.o_rd);
-                if (r == 0) { // keep following:
-                    r = files.stat(f, s, follow_symlink);
-                    files.close(f);
+            char* name = null;
+            r = heap.allocate(null, &name, n + 2, false);
+            if (r == 0) {
+                n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
+                if (n == 0) {
+                    r = GetLastError();
+                } else {
+                    file_t* f = files.invalid;
+                    r = files.open(&f, name, files.o_rd);
+                    if (r == 0) { // keep following:
+                        r = files.stat(f, s, follow_symlink);
+                        files.close(f);
+                    }
                 }
+                heap.deallocate(null, name);
             }
         }
     } else {
@@ -2252,16 +2249,19 @@ static errno_t files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         }
     }
     if (r == 0) {
-        ACCESS_ALLOWED_ACE* ace = (ACCESS_ALLOWED_ACE*)stackalloc(bytes_needed);
-        memset(ace, 0x00, bytes_needed);
-        ace->Header.AceFlags = flags;
-        ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
-        ace->Header.AceSize = (WORD)bytes_needed;
-        ace->Mask = mask;
-        ace->SidStart = sizeof(ACCESS_ALLOWED_ACE);
-        memcpy(&ace->SidStart, sid, GetLengthSid(sid));
-        r = b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
-                       ace, bytes_needed));
+        ACCESS_ALLOWED_ACE* ace = null;
+        r = heap.allocate(null, &ace, bytes_needed, true);
+        if (r == 0) {
+            ace->Header.AceFlags = flags;
+            ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
+            ace->Header.AceSize = (WORD)bytes_needed;
+            ace->Mask = mask;
+            ace->SidStart = sizeof(ACCESS_ALLOWED_ACE);
+            memcpy(&ace->SidStart, sid, GetLengthSid(sid));
+            r = b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
+                           ace, bytes_needed));
+            heap.deallocate(null, ace);
+        }
     }
     *free_me = bigger;
     return r;
@@ -2288,10 +2288,11 @@ static errno_t files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
 
 static errno_t files_add_acl_ace(const void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
-    int32_t n = SECURITY_MAX_SID_SIZE;
-    SID* sid = (SID*)stackalloc(n);
+    uint8_t stack[SECURITY_MAX_SID_SIZE];
+    DWORD n = countof(stack);
+    SID* sid = (SID*)stack;
     errno_t r = b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
-                                       null, sid, (DWORD*)&n));
+                                       null, sid, &n));
     if (r != 0) {
         return ERROR_INVALID_PARAMETER;
     }
@@ -2346,12 +2347,10 @@ static errno_t files_add_acl_ace(const void* obj, int32_t obj_type,
 #pragma pop_macro("files_acl_args")
 
 static errno_t files_chmod777(const char* pathname) {
-    errno_t r = 0;
     SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
     PSID everyone = null; // Create a well-known SID for the Everyone group.
-    BOOL b = AllocateAndInitializeSid(&SIDAuthWorld, 1, SECURITY_WORLD_RID,
-             0, 0, 0, 0, 0, 0, 0, &everyone);
-    assert(b && everyone != null);
+    fatal_if_false(AllocateAndInitializeSid(&SIDAuthWorld, 1,
+             SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone));
     EXPLICIT_ACCESSA ea[1] = {{0}};
     // Initialize an EXPLICIT_ACCESS structure for an ACE.
     ea[0].grfAccessPermissions = 0xFFFFFFFF;
@@ -2362,21 +2361,17 @@ static errno_t files_chmod777(const char* pathname) {
     ea[0].Trustee.ptstrName  = (LPSTR)everyone;
     // Create a new ACL that contains the new ACEs.
     ACL* acl = null;
-    b = b && SetEntriesInAclA(1, ea, null, &acl) == ERROR_SUCCESS;
-    assert(b && acl != null);
+    fatal_if_not_zero(SetEntriesInAclA(1, ea, null, &acl));
     // Initialize a security descriptor.
-    SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)
-        stackalloc(SECURITY_DESCRIPTOR_MIN_LENGTH);
-    b = InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION);
-    assert(b);
+    uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH];
+    SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)stack;
+    fatal_if_false(InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION));
     // Add the ACL to the security descriptor.
-    b = b && SetSecurityDescriptorDacl(sd, /* bDaclPresent flag: */ true,
-                                   acl, /* not a default DACL: */  false);
-    assert(b);
+    fatal_if_false(SetSecurityDescriptorDacl(sd, /* DaclPresent flag: */ true,
+                                   acl, /* not a default DACL: */  false));
     // Change the security attributes
-    b = b && SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd);
-    if (!b) {
-        r = runtime.err();
+    errno_t r = b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
+    if (r != 0) {
         traceln("chmod777(%s) failed %s", pathname, str.error(r));
     }
     if (everyone != null) { FreeSid(everyone); }
@@ -2390,25 +2385,27 @@ static errno_t files_chmod777(const char* pathname) {
 //  are inherited from its parent directory."
 
 static errno_t files_mkdirs(const char* dir) {
-    errno_t r = 0;
     const int32_t n = (int)strlen(dir) + 1;
-    char* s = (char*)stackalloc(n);
-    memset(s, 0, n);
+    char* s = null;
+    errno_t r = heap.allocate(null, &s, n, true);
     const char* next = strchr(dir, '\\');
     if (next == null) { next = strchr(dir, '/'); }
-    while (next != null) {
+    while (r == 0 && next != null) {
         if (next > dir && *(next - 1) != ':') {
             memcpy(s, dir, next - dir);
             r = b2e(CreateDirectoryA(s, null));
-            if (r != 0 && r != ERROR_ALREADY_EXISTS) { break; }
+            if (r == ERROR_ALREADY_EXISTS) { r = 0; }
         }
-        const char* prev = ++next;
-        next = strchr(prev, '\\');
-        if (next == null) { next = strchr(prev, '/'); }
+        if (r == 0) {
+            const char* prev = ++next;
+            next = strchr(prev, '\\');
+            if (next == null) { next = strchr(prev, '/'); }
+        }
     }
-    if (r == 0 || r == ERROR_ALREADY_EXISTS) {
+    if (r == 0) {
         r = b2e(CreateDirectoryA(dir, null));
     }
+    heap.deallocate(null, s);
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
 }
 
@@ -2560,7 +2557,7 @@ static const char* files_tmp(void) {
     return tmp;
 }
 
-static errno_t files_getcwd(char* fn, int32_t count) {
+static errno_t files_cwd(char* fn, int32_t count) {
     swear(count > 1);
     DWORD bytes = count - 1;
     errno_t r = b2e(GetCurrentDirectoryA(bytes, fn));
@@ -2582,14 +2579,17 @@ typedef struct files_dir_s {
 static_assertion(sizeof(files_dir_t) <= sizeof(folder_t));
 
 errno_t files_opendir(folder_t* folder, const char* folder_name) {
-    errno_t r = 0;
     files_dir_t* d = (files_dir_t*)folder;
     int32_t n = (int32_t)strlen(folder_name);
-    char* fn = (char*)stackalloc(n + 3); // extra room for "\*" suffix
-    snprintf(fn, n + 3, "%s\\*", folder_name);
-    fn[n + 2] = 0;
-    d->handle = FindFirstFileA(fn, &d->find);
-    if (d->handle == INVALID_HANDLE_VALUE) { r = GetLastError(); }
+    char* fn = null;
+    errno_t r = heap.allocate(null, &fn, n + 3, false); // extra room for "\*" suffix
+    if (r == 0) {
+        snprintf(fn, n + 3, "%s\\*", folder_name);
+        fn[n + 2] = 0;
+        d->handle = FindFirstFileA(fn, &d->find);
+        if (d->handle == INVALID_HANDLE_VALUE) { r = GetLastError(); }
+        heap.deallocate(null, fn);
+    }
     return r;
 }
 
@@ -2667,7 +2667,7 @@ static void folders_test(void) {
     // Test cwd, setcwd
     const char* tmp = files.tmp();
     char cwd[256] = {0};
-    fatal_if(files.getcwd(cwd, sizeof(cwd)) != 0, "files.getcwd() failed");
+    fatal_if(files.cwd(cwd, sizeof(cwd)) != 0, "files.cwd() failed");
     fatal_if(files.chdir(tmp) != 0, "files.chdir(\"%s\") failed %s",
                 tmp, str.error(runtime.err()));
     // there is no racing free way to create temporary folder
@@ -2874,7 +2874,7 @@ static void files_test(void) {
     {   // getcwd, chdir
         const char* tmp = files.tmp();
         char cwd[256] = {0};
-        fatal_if(files.getcwd(cwd, sizeof(cwd)) != 0, "files.getcwd() failed");
+        fatal_if(files.cwd(cwd, sizeof(cwd)) != 0, "files.cwd() failed");
         fatal_if(files.chdir(tmp) != 0, "files.chdir(\"%s\") failed %s",
                  tmp, str.error(runtime.err()));
         // symlink
@@ -2968,7 +2968,7 @@ files_if files = {
     .symlink            = files_symlink,
     .copy               = files_copy,
     .move               = files_move,
-    .getcwd             = files_getcwd,
+    .cwd                = files_cwd,
     .chdir              = files_chdir,
     .tmp                = files_tmp,
     .bin                = files_bin,
@@ -3065,9 +3065,10 @@ static void* loader_sym_all(const char* name) {
     fatal_if_false(EnumProcessModules(GetCurrentProcess(), null, 0, &bytes));
     assert(bytes % sizeof(HMODULE) == 0);
     assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
-    HMODULE* modules = stackalloc(bytes);
-    fatal_if_false(EnumProcessModules(GetCurrentProcess(),
-        modules, bytes, &bytes));
+    HMODULE* modules = null;
+    fatal_if_not_zero(heap.allocate(null, (void**)&modules, bytes, false));
+    fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes,
+                                                                   &bytes));
     const int32_t n = bytes / (int)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
         sym = loader.sym(modules[i], name);
@@ -3075,6 +3076,7 @@ static void* loader_sym_all(const char* name) {
     if (sym == null) {
         sym = loader.sym(GetModuleHandleA(null), name);
     }
+    heap.deallocate(null, modules);
     return sym;
 }
 
@@ -3406,7 +3408,7 @@ mem_if mem = {
 };
 // __________________________________ num.c ___________________________________
 
-#include <immintrin.h> // _tzcnt_u32 
+#include <immintrin.h> // _tzcnt_u32
 
 static inline num128_t num_add128_inline(const num128_t a, const num128_t b) {
     num128_t r = a;
@@ -3645,21 +3647,26 @@ typedef struct processes_pidof_lambda_s {
 } processes_pidof_lambda_t;
 
 static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambda_t* la) {
+    char stack[1024]; // avoid alloca()
+    int32_t n = str.length(pname);
+    fatal_if(n + 5 >= countof(stack), "name is too long: %s", pname);
     const char* name = pname;
-    // append ".exe" if not present (mixed casing ".eXe" etc - not handled):
-    if (!strendswith(pname, ".exe") && !strendswith(pname, ".EXE")) {
+    // append ".exe" if not present:
+    if (!str.ends_with_nc(pname, -1, ".exe", -1)) {
         int32_t k = (int32_t)strlen(pname) + 5;
-        char* exe = stackalloc(k);
+        char* exe = stack;
         str.sformat(exe, k, "%s.exe", pname);
         name = exe;
     }
-    const char* last_name = strrchr(name, '\\');
-    if (last_name != null) {
-        last_name++; // advance past "\\"
+    const char* base = strrchr(name, '\\');
+    if (base != null) {
+        base++; // advance past "\\"
     } else {
-        last_name = name;
+        base = name;
     }
-    wchar_t* wname = utf8to16(last_name);
+    uint16_t wide[1024];
+    fatal_if(strlen(base) >= countof(wide), "name too long: %s", base);
+    uint16_t* wn = str.utf8_utf16(wide, base);
     size_t count = 0;
     uint64_t pid = 0;
     byte* data = null;
@@ -3684,10 +3691,10 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
         SYSTEM_PROCESS_INFORMATION* proc = (SYSTEM_PROCESS_INFORMATION*)data;
         while (proc != null) {
             wchar_t* img = proc->ImageName.Buffer; // last name only, not a pathname!
-            bool match = img != null && wcsicmp(img, wname) == 0;
+            bool match = img != null && wcsicmp(img, wn) == 0;
             if (match) {
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
-                if (last_name != name) {
+                if (base != name) {
                     char path[files_max_path];
                     match = processes.nameof(pid, path, countof(path)) == 0 &&
                             str.ends_with_nc(path, -1, name, -1);
@@ -4135,8 +4142,10 @@ static void processes_test(void) {
         errno_t r = processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
-            pids = stackalloc(sizeof(uint64_t) * size);
-            r = processes.pids(names[j], pids, size, &count);
+            r = heap.reallocate(null, &pids, sizeof(uint64_t) * size, false);
+            if (r == 0) {
+                r = processes.pids(names[j], pids, size, &count);
+            }
         }
         if (r == 0 && count > 0) {
             for (int32_t i = 0; i < count; i++) {
@@ -4149,6 +4158,7 @@ static void processes_test(void) {
                 }
             }
         }
+        heap.deallocate(null, pids);
     }
     // test popen()
     int32_t xc = 0;
@@ -4348,9 +4358,12 @@ static const char* str_error_for_language(int32_t error, LANGID language) {
         // remove trailing '\r\n'
         int32_t k = (int32_t)wcslen(s);
         if (k > 0 && s[k - 1] == '\n') { s[k - 1] = 0; }
-        k = (int)wcslen(s);
+        k = (int32_t)wcslen(s);
         if (k > 0 && s[k - 1] == '\r') { s[k - 1] = 0; }
-        strprintf(text, "0x%08X(%d) \"%s\"", error, error, utf16to8(s));
+        char stack[2048];
+        fatal_if(k >= countof(stack), "error message too long");
+        strprintf(text, "0x%08X(%d) \"%s\"", error, error,
+                  str.utf16_utf8(stack, s));
     } else {
         strprintf(text, "0x%08X(%d)", error, error);
     }
@@ -5174,7 +5187,10 @@ static void threads_detach(thread_t t) {
 }
 
 static void threads_name(const char* name) {
-    HRESULT r = SetThreadDescription(GetCurrentThread(), utf8to16(name));
+    uint16_t stack[1024];
+    fatal_if(str.length(name) >= countof(stack), "name too long: %s", name);
+    uint16_t* wide = str.utf8_utf16(stack, name);
+    HRESULT r = SetThreadDescription(GetCurrentThread(), wide);
     // notoriously returns 0x10000000 for no good reason whatsoever
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
 }

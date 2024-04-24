@@ -1,19 +1,3 @@
-#include <assert.h>
-#include <ctype.h>
-#include <fcntl.h>
-#include <io.h>
-#include <malloc.h>
-#define _USE_MATH_DEFINES
-#include <math.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
 #define ut_implementation
 #include "single_file_lib/ut/ut.h"
 

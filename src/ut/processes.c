@@ -13,21 +13,26 @@ typedef struct processes_pidof_lambda_s {
 } processes_pidof_lambda_t;
 
 static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambda_t* la) {
+    char stack[1024]; // avoid alloca()
+    int32_t n = str.length(pname);
+    fatal_if(n + 5 >= countof(stack), "name is too long: %s", pname);
     const char* name = pname;
-    // append ".exe" if not present (mixed casing ".eXe" etc - not handled):
-    if (!strendswith(pname, ".exe") && !strendswith(pname, ".EXE")) {
+    // append ".exe" if not present:
+    if (!str.ends_with_nc(pname, -1, ".exe", -1)) {
         int32_t k = (int32_t)strlen(pname) + 5;
-        char* exe = stackalloc(k);
+        char* exe = stack;
         str.sformat(exe, k, "%s.exe", pname);
         name = exe;
     }
-    const char* last_name = strrchr(name, '\\');
-    if (last_name != null) {
-        last_name++; // advance past "\\"
+    const char* base = strrchr(name, '\\');
+    if (base != null) {
+        base++; // advance past "\\"
     } else {
-        last_name = name;
+        base = name;
     }
-    wchar_t* wname = utf8to16(last_name);
+    uint16_t wide[1024];
+    fatal_if(strlen(base) >= countof(wide), "name too long: %s", base);
+    uint16_t* wn = str.utf8_utf16(wide, base);
     size_t count = 0;
     uint64_t pid = 0;
     byte* data = null;
@@ -52,10 +57,10 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
         SYSTEM_PROCESS_INFORMATION* proc = (SYSTEM_PROCESS_INFORMATION*)data;
         while (proc != null) {
             wchar_t* img = proc->ImageName.Buffer; // last name only, not a pathname!
-            bool match = img != null && wcsicmp(img, wname) == 0;
+            bool match = img != null && wcsicmp(img, wn) == 0;
             if (match) {
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
-                if (last_name != name) {
+                if (base != name) {
                     char path[files_max_path];
                     match = processes.nameof(pid, path, countof(path)) == 0 &&
                             str.ends_with_nc(path, -1, name, -1);
@@ -503,8 +508,10 @@ static void processes_test(void) {
         errno_t r = processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
-            pids = stackalloc(sizeof(uint64_t) * size);
-            r = processes.pids(names[j], pids, size, &count);
+            r = heap.reallocate(null, &pids, sizeof(uint64_t) * size, false);
+            if (r == 0) {
+                r = processes.pids(names[j], pids, size, &count);
+            }
         }
         if (r == 0 && count > 0) {
             for (int32_t i = 0; i < count; i++) {
@@ -517,6 +524,7 @@ static void processes_test(void) {
                 }
             }
         }
+        heap.deallocate(null, pids);
     }
     // test popen()
     int32_t xc = 0;

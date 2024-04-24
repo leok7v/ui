@@ -23,9 +23,10 @@ static void* loader_sym_all(const char* name) {
     fatal_if_false(EnumProcessModules(GetCurrentProcess(), null, 0, &bytes));
     assert(bytes % sizeof(HMODULE) == 0);
     assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
-    HMODULE* modules = stackalloc(bytes);
-    fatal_if_false(EnumProcessModules(GetCurrentProcess(),
-        modules, bytes, &bytes));
+    HMODULE* modules = null;
+    fatal_if_not_zero(heap.allocate(null, (void**)&modules, bytes, false));
+    fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes,
+                                                                   &bytes));
     const int32_t n = bytes / (int)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
         sym = loader.sym(modules[i], name);
@@ -33,6 +34,7 @@ static void* loader_sym_all(const char* name) {
     if (sym == null) {
         sym = loader.sym(GetModuleHandleA(null), name);
     }
+    heap.deallocate(null, modules);
     return sym;
 }
 
