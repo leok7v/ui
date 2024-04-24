@@ -41,17 +41,17 @@ extern args_if args;
     int main(int argc, char* argv[], char* envp[]) { // link.exe /SUBSYSTEM:CONSOLE
         args.main(argc, argv, envp); // Initialize args with command-line parameters
         int r = run();
-        args.fini(); // Clean-up
+        args.fini();
         return r;
     }
 
     #include "ut/win32.h"
 
-    int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* cl, int show) {
+    int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* command, int show) {
         // link.exe /SUBSYSTEM:WINDOWS
-        args.WinMain(cl); // Initialize args with command line string
+        args.WinMain();
         int r = run();
-        args.fini(); // Clean-up
+        args.fini();
         return 0;
     }
 
