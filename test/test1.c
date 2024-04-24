@@ -38,6 +38,15 @@ static int run(void) {
     return 0;
 }
 
+// both main() wand WinMain() can be present and compiled.
+// Runtime does something along the lines:
+// #include <winnt.h>
+// #include <dbghelp.h>
+//   IMAGE_NT_HEADERS32* h = ImageNtHeader(GetModuleHandle(null));
+//   h->OptionalHeader.Subsystem == IMAGE_SUBSYSTEM_WINDOWS_CUI
+//   h->OptionalHeader.Subsystem == IMAGE_SUBSYSTEM_WINDOWS_GUI
+// to select and call appropriate function:
+
 int main(int argc, char* argv[], char *envp[]) {
     args.main(argc, argv, envp);
     int r = run();
@@ -50,8 +59,8 @@ int main(int argc, char* argv[], char *envp[]) {
 #pragma warning(suppress: 28251) // no annotations
 
 int APIENTRY WinMain(HINSTANCE unused(inst), HINSTANCE unused(prev),
-                     char* cl, int unused(show)) {
-    args.WinMain(cl);
+                     char* unused(command), int unused(show)) {
+    args.WinMain(); // Uses GetCommandLineW() which has full pathname
     int r = run();
     args.fini();
     return r;

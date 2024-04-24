@@ -101,7 +101,7 @@ typedef struct {
     const char** v; // argv[argc]
     const char** env; // args.env[] is null-terminated
     void    (*main)(int32_t argc, const char* argv[], const char** env);
-    void    (*WinMain)(const char* command_line); // windows specific
+    void    (*WinMain)(void); // windows specific
     int32_t (*option_index)(const char* option); // e.g. option: "--verbosity" or "-v"
     void    (*remove_at)(int32_t ix);
     /* argc=3 argv={"foo", "--verbose"} -> returns true; argc=1 argv={"foo"} */
@@ -1131,21 +1131,15 @@ static void args_fini(void) {
     args.v = null;
 }
 
-static void args_WinMain(const char* cl) {
+static void args_WinMain(void) {
     swear(args.c == 0 && args.v == null && args.env == null);
     swear(args_memory == null);
-    int32_t bytes = str.length(cl);
-    // GetModuleFileNameA() returns the length of the string it copied
-    // not the length of the module pathname.
-    int32_t n = str.length(_pgmptr) + 1;
-    swear(n > 0);
-    char* a = null;
-    fatal_if_not_zero(heap.allocate(null, &a, n + bytes + 2, false));
-    memcpy(a, _pgmptr, n);
-    swear(a[n - 1] == 0x00);
-    str.sformat(a + n - 1, bytes + 2, "\x20%s", cl);
-    args_parse(a);
-    heap.deallocate(null, a);
+    const uint16_t* wcl = GetCommandLineW();
+    int32_t n = (int32_t)wcslen(wcl);
+    char* cl = null;
+    fatal_if_not_zero(heap.allocate(null, &cl, n * 2 + 1, false));
+    args_parse(str.utf16_utf8(cl, wcl));
+    heap.deallocate(null, cl);
     args.env = _environ;
 }
 

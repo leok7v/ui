@@ -9,7 +9,7 @@ typedef struct {
     const char** v; // argv[argc]
     const char** env; // args.env[] is null-terminated
     void    (*main)(int32_t argc, const char* argv[], const char** env);
-    void    (*WinMain)(const char* command_line); // windows specific
+    void    (*WinMain)(void); // windows specific
     int32_t (*option_index)(const char* option); // e.g. option: "--verbosity" or "-v"
     void    (*remove_at)(int32_t ix);
     /* argc=3 argv={"foo", "--verbose"} -> returns true; argc=1 argv={"foo"} */
