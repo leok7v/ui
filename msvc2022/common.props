@@ -27,6 +27,7 @@
       <TreatSpecificWarningsAsErrors>4716;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function must return a value -->
       <TreatSpecificWarningsAsErrors>4013;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- 'foo' undefined; assuming extern returning int -->
       <TreatSpecificWarningsAsErrors>4312;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- conversion from '...' to '...' of greater size -->
+      <TreatSpecificWarningsAsErrors>4087;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- 'args': declared with 'void' parameter list -->
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
