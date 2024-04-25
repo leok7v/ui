@@ -77,17 +77,6 @@ typedef struct app_s {
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
     } animating;
-    // i18n
-    // strid("foo") returns 0 if there is no matching ENGLISH NEUTRAL
-    // STRINGTABLE entry
-    int32_t (*strid)(const char* s);
-    // given strid > 0 returns localized string or defau1t value
-    const char* (*string)(int32_t strid, const char* defau1t);
-    // nls(s) is same as string(strid(s), s)
-    const char* (*nls)(const char* defau1t); // national localized string
-    const char* (*locale)(void); // "en-US" "zh-CN" etc...
-    // force locale for debugging and testing:
-    void (*set_locale)(const char* locale); // only for calling thread
     // inch to pixels and reverse translation via app.dpi.window
     float   (*px2in)(int32_t pixels);
     int32_t (*in2px)(float inches);

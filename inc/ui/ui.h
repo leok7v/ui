@@ -6,6 +6,7 @@
 #include "ui/view.h"
 #include "ui/layout.h"
 #include "ui/label.h"
+#include "ui/nls.h"
 #include "ui/button.h"
 #include "ui/checkbox.h"
 #include "ui/slider.h"

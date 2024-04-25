@@ -56,7 +56,7 @@ static void ui_slider_paint(ui_view_t* view) {
     double vw = (double)(r->tm.x + em) * (r->value - r->vmin) / range;
     gdi.rect(x, view->y, (int32_t)(vw + 0.5), view->h);
     gdi.x += r->dec.view.w + em;
-    const char* format = app.nls(view->text);
+    const char* format = nls.str(view->text);
     gdi.text(format, r->value);
     gdi.set_clip(0, 0, 0, 0);
     gdi.delete_pen(pen_grey30);

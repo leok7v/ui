@@ -29,7 +29,7 @@ static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_
     if (s != null) {
         memcpy(s, view->pressed ? "On " : "Off", 3);
     }
-    return app.nls(label);
+    return nls.str(label);
 }
 
 static void ui_checkbox_measure(ui_view_t* view) {

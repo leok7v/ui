@@ -20,6 +20,7 @@
     <ClInclude Include="..\inc\ui\label.h" />
     <ClInclude Include="..\inc\ui\layout.h" />
     <ClInclude Include="..\inc\ui\messagebox.h" />
+    <ClInclude Include="..\inc\ui\nls.h" />
     <ClInclude Include="..\inc\ui\slider.h" />
     <ClInclude Include="..\inc\ui\std.h" />
     <ClInclude Include="..\inc\ui\ui.h" />
@@ -36,6 +37,7 @@
     <ClCompile Include="..\src\ui\label.c" />
     <ClCompile Include="..\src\ui\layout.c" />
     <ClCompile Include="..\src\ui\messagebox.c" />
+    <ClCompile Include="..\src\ui\nls.c" />
     <ClCompile Include="..\src\ui\slider.c" />
     <ClCompile Include="..\src\ui\ui.c" />
     <ClCompile Include="..\src\ui\view.c" />

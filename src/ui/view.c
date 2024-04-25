@@ -12,7 +12,7 @@ static void ui_view_invalidate(const ui_view_t* view) {
 
 static const char* ui_view_nls(ui_view_t* view) {
     return view->strid != 0 ?
-        app.string(view->strid, view->text) : view->text;
+        nls.string(view->strid, view->text) : view->text;
 }
 
 static void ui_view_measure(ui_view_t* view) {
@@ -47,7 +47,7 @@ static void ui_view_set_text(ui_view_t* view, const char* text) {
 
 static void ui_view_localize(ui_view_t* view) {
     if (view->text[0] != 0) {
-        view->strid = app.strid(view->text);
+        view->strid = nls.strid(view->text);
     }
 }
 
@@ -55,7 +55,7 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_text(btn_tooltip,  "");
     if (start && app.animating.view == null && view->tip[0] != 0 &&
        !view->is_hidden(view)) {
-        strprintf(btn_tooltip.view.text, "%s", app.nls(view->tip));
+        strprintf(btn_tooltip.view.text, "%s", nls.str(view->tip));
         btn_tooltip.view.font = &app.fonts.H1;
         int32_t y = app.mouse.y - view->em.y;
         // enough space above? if not show below
