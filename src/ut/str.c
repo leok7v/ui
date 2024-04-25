@@ -253,6 +253,16 @@ static int32_t str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_
     }
 }
 
+static const char* str_unquote(char* *s, int32_t n) {
+    if (n < 0) { n = str.length(*s); }
+    if (n > 0 && (*s)[0] == '\"' && (*s)[n - 1] == '\"') {
+        (*s)[n - 1] = 0x00;
+        (*s)++;
+    }
+    return *s;
+}
+
+
 #ifdef RUNTIME_TESTS
 
 static void str_test(void) {
@@ -374,5 +384,6 @@ str_if str = {
     .ends_with      = str_ends_with,
     .starts_with_nc = str_starts_with_nc,
     .ends_with_nc   = str_ends_with_nc,
+    .unquote        = str_unquote,
     .test           = str_test
 };

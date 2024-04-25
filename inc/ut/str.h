@@ -92,6 +92,8 @@ typedef struct {
     bool (*ends_with)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*ends_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*starts_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
+    // removes quotes from a head and tail of the string `s` if present
+    const char* (*unquote)(char* *s, int32_t n); // modifies `s` in place
     void (*test)(void);
 } str_if;
 

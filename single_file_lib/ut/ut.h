@@ -114,8 +114,6 @@ typedef struct {
     const char* (*option_str)(const char* option);
     // basename() for argc=3 argv={"/bin/foo.exe", ...} returns "foo":
     const char* (*basename)(void);
-    // removes quotes from a head and tail of the string `s` if present
-    const char* (*unquote)(char* *s); // modifies `s` in place
     void (*fini)(void);
     void (*test)(void);
 } args_if;
@@ -160,8 +158,7 @@ extern args_if args;
         printf("args.basename(): %s\n", args.basename());
         printf("args.v[0]: %s\n", args.v[0]);
         for (int i = 1; i < args.c; i++) {
-            const char* ai = args.unquote(&args.v[i]);
-            printf("args.v[%d]: %s\n", i, ai);
+            printf("args.v[%d]: %s\n", i, args.v[i]);
         }
         return 0;
     }
@@ -662,6 +659,8 @@ typedef struct {
     bool (*ends_with)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*ends_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*starts_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
+    // removes quotes from a head and tail of the string `s` if present
+    const char* (*unquote)(char* *s, int32_t n); // modifies `s` in place
     void (*test)(void);
 } str_if;
 
@@ -1144,15 +1143,6 @@ const char* args_basename(void) {
     return basename;
 }
 
-static const char* args_unquote(char* *s) {
-    int32_t n = str.length(*s);
-    if (n > 0 && (*s)[0] == '\"' && (*s)[n - 1] == '\"') {
-        (*s)[n - 1] = 0x00;
-        (*s)++;
-    }
-    return *s;
-}
-
 static void args_fini(void) {
     heap.deallocate(null, args_memory); // can be null is parse() was not called
     args_memory = null;
@@ -1262,7 +1252,6 @@ args_if args = {
     .option_int   = args_option_int,
     .option_str   = args_option_str,
     .basename     = args_basename,
-    .unquote      = args_unquote,
     .fini         = args_fini,
     .test         = args_test
 };
@@ -4710,6 +4699,16 @@ static int32_t str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_
     }
 }
 
+static const char* str_unquote(char* *s, int32_t n) {
+    if (n < 0) { n = str.length(*s); }
+    if (n > 0 && (*s)[0] == '\"' && (*s)[n - 1] == '\"') {
+        (*s)[n - 1] = 0x00;
+        (*s)++;
+    }
+    return *s;
+}
+
+
 #ifdef RUNTIME_TESTS
 
 static void str_test(void) {
@@ -4831,6 +4830,7 @@ str_if str = {
     .ends_with      = str_ends_with,
     .starts_with_nc = str_starts_with_nc,
     .ends_with_nc   = str_ends_with_nc,
+    .unquote        = str_unquote,
     .test           = str_test
 };
 

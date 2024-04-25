@@ -222,15 +222,6 @@ const char* args_basename(void) {
     return basename;
 }
 
-static const char* args_unquote(char* *s) {
-    int32_t n = str.length(*s);
-    if (n > 0 && (*s)[0] == '\"' && (*s)[n - 1] == '\"') {
-        (*s)[n - 1] = 0x00;
-        (*s)++;
-    }
-    return *s;
-}
-
 static void args_fini(void) {
     heap.deallocate(null, args_memory); // can be null is parse() was not called
     args_memory = null;
@@ -340,7 +331,6 @@ args_if args = {
     .option_int   = args_option_int,
     .option_str   = args_option_str,
     .basename     = args_basename,
-    .unquote      = args_unquote,
     .fini         = args_fini,
     .test         = args_test
 };

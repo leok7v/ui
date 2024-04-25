@@ -26,8 +26,7 @@ static int run(void) {
     traceln("args.v[0]: %s", args.v[0]);
     traceln("args.basename(): %s", args.basename());
     for (int i = 1; i < args.c; i++) {
-        const char* ai = args.unquote(&args.v[i]);
-        traceln("args.v[%d]: %s", i, ai);
+        traceln("args.v[%d]: %s", i, args.v[i]);
     }
     //  $ .\bin\debug\test1.exe "Hello World" Hello World
     //  args.v[0]: .\bin\debug\test1.exe
