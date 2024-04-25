@@ -443,9 +443,9 @@ static errno_t files_mkdirs(const char* dir) {
 
 #define files_append_name(pn, pnc, fn, name) do {      \
     if (strequ(fn, "\\") || strequ(fn, "/")) {         \
-        str.sformat(pn, pnc, "\\%s", name);            \
+        str.format(pn, pnc, "\\%s", name);            \
     } else {                                           \
-        str.sformat(pn, pnc, "%.*s\\%s", k, fn, name); \
+        str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
     }                                                  \
 } while (0)
 
@@ -517,6 +517,12 @@ static bool files_is_symlink(const char* filename) {
     DWORD attributes = GetFileAttributesA(filename);
     return attributes != INVALID_FILE_ATTRIBUTES &&
           (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+}
+
+const char* files_basename(const char* pathname) {
+    const char* bn = strrchr(pathname, '\\');
+    if (bn == null) { bn = strrchr(pathname, '/'); }
+    return bn != null ? bn + 1 : pathname;
 }
 
 static errno_t files_copy(const char* s, const char* d) {
@@ -982,6 +988,7 @@ files_if files = {
     .unlink             = files_unlink,
     .link               = files_link,
     .symlink            = files_symlink,
+    .basename           = files_basename,
     .copy               = files_copy,
     .move               = files_move,
     .cwd                = files_cwd,

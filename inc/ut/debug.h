@@ -24,9 +24,9 @@ typedef struct {
 typedef struct {
     verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
-    void (*vprintf)(const char* file, int32_t line, const char* func,
+    void (*println_va)(const char* file, int32_t line, const char* func,
         const char* format, va_list vl);
-    void (*printf)(const char* file, int32_t line, const char* func,
+    void (*println)(const char* file, int32_t line, const char* func,
         const char* format, ...);
     void (*perrno)(const char* file, int32_t line,
         const char* func, int32_t err_no, const char* format, ...);
@@ -37,7 +37,7 @@ typedef struct {
     void (*test)(void);
 } debug_if;
 
-#define traceln(...) debug.printf(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define traceln(...) debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
 extern debug_if debug;
 

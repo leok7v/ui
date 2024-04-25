@@ -53,7 +53,7 @@ char* strnchr(const char* s, int32_t n, char ch);
 #define utf8to16(s) str.utf8_utf16((uint16_t*) \
     stackalloc((str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
 
-#define strprintf(s, ...) str.sformat((s), countof(s), "" __VA_ARGS__)
+#define strprintf(s, ...) str.format((s), countof(s), "" __VA_ARGS__)
 
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
@@ -71,8 +71,8 @@ typedef struct {
     char* (*utf16_utf8)(char* destination, const uint16_t* utf16);
     uint16_t* (*utf8_utf16)(uint16_t* destination, const char* utf8);
     // string formatting printf style:
-    void (*vformat)(char* utf8, int32_t count, const char* format, va_list vl);
-    void (*sformat)(char* utf8, int32_t count, const char* format, ...);
+    void (*format_va)(char* utf8, int32_t count, const char* format, va_list vl);
+    void (*format)(char* utf8, int32_t count, const char* format, ...);
     bool (*is_empty)(const char* s); // null or empty string
     bool (*equal)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*equal_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);

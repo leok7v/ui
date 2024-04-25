@@ -3357,7 +3357,7 @@ static int ui_checkbox_paint_on_off(ui_view_t* view) {
 }
 
 static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_t count)  {
-    str.sformat(label, count, "%s", view->nls(view));
+    str.format(label, count, "%s", view->nls(view));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, view->pressed ? "On " : "Off", 3);
@@ -4268,13 +4268,13 @@ typedef struct gdi_dtp_s { // draw text params
 static void gdi_text_draw(gdi_dtp_t* p) {
     int32_t n = 1024;
     char* text = (char*)alloca(n);
-    str.vformat(text, n - 1, p->format, p->vl);
+    str.format_va(text, n - 1, p->format, p->vl);
     int32_t k = (int32_t)strlen(text);
     // Microsoft returns -1 not posix required sizeof buffer
     while (k >= n - 1 || k < 0) {
         n = n * 2;
         text = (char*)alloca(n);
-        str.vformat(text, n - 1, p->format, p->vl);
+        str.format_va(text, n - 1, p->format, p->vl);
         k = (int)strlen(text);
     }
     assert(k >= 0 && k <= n, "k=%d n=%d fmt=%s", k, n, p->format);
@@ -4558,7 +4558,7 @@ void ui_label_init_(ui_view_t* view) {
 
 void ui_label_vinit(ui_label_t* t, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
-    str.vformat(t->view.text, countof(t->view.text), format, vl);
+    str.format_va(t->view.text, countof(t->view.text), format, vl);
     t->view.type = ui_view_text;
     ui_label_init_(&t->view);
 }
@@ -4875,7 +4875,7 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* opts[],
     mx->cb = cb;
     va_list vl;
     va_start(vl, format);
-    str.vformat(mx->view.text, countof(mx->view.text), format, vl);
+    str.format_va(mx->view.text, countof(mx->view.text), format, vl);
     ui_label_init_ml(&mx->text, 0.0, mx->view.text);
     va_end(vl);
     ui_messagebox_init_(&mx->view);

@@ -296,9 +296,9 @@ typedef struct {
 typedef struct {
     verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
-    void (*vprintf)(const char* file, int32_t line, const char* func,
+    void (*println_va)(const char* file, int32_t line, const char* func,
         const char* format, va_list vl);
-    void (*printf)(const char* file, int32_t line, const char* func,
+    void (*println)(const char* file, int32_t line, const char* func,
         const char* format, ...);
     void (*perrno)(const char* file, int32_t line,
         const char* func, int32_t err_no, const char* format, ...);
@@ -309,7 +309,7 @@ typedef struct {
     void (*test)(void);
 } debug_if;
 
-#define traceln(...) debug.printf(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define traceln(...) debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
 extern debug_if debug;
 
@@ -365,6 +365,7 @@ typedef struct {
     bool (*exists)(const char* pathname); // does not guarantee any access writes
     bool (*is_folder)(const char* pathname);
     bool (*is_symlink)(const char* pathname);
+    const char* (*basename)(const char* pathname); // c:\foo\bar.ext -> bar.ext
     errno_t (*mkdirs)(const char* pathname); // tries to deep create all folders in pathname
     errno_t (*rmdirs)(const char* pathname); // tries to remove folder and its subtree
     errno_t (*create_tmp)(char* file, int32_t count); // create temporary file
@@ -620,7 +621,7 @@ char* strnchr(const char* s, int32_t n, char ch);
 #define utf8to16(s) str.utf8_utf16((uint16_t*) \
     stackalloc((str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
 
-#define strprintf(s, ...) str.sformat((s), countof(s), "" __VA_ARGS__)
+#define strprintf(s, ...) str.format((s), countof(s), "" __VA_ARGS__)
 
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
@@ -638,8 +639,8 @@ typedef struct {
     char* (*utf16_utf8)(char* destination, const uint16_t* utf16);
     uint16_t* (*utf8_utf16)(uint16_t* destination, const char* utf8);
     // string formatting printf style:
-    void (*vformat)(char* utf8, int32_t count, const char* format, va_list vl);
-    void (*sformat)(char* utf8, int32_t count, const char* format, ...);
+    void (*format_va)(char* utf8, int32_t count, const char* format, va_list vl);
+    void (*format)(char* utf8, int32_t count, const char* format, ...);
     bool (*is_empty)(const char* s); // null or empty string
     bool (*equal)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*equal_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
@@ -1966,12 +1967,12 @@ static const char* debug_abbreviate(const char* file) {
 
 #ifdef WINDOWS
 
-static void debug_vprintf(const char* file, int32_t line, const char* func,
+static void debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
     char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
     // for all other scenarios short filename without path is preferable:
-    const char* name = IsDebuggerPresent() ? file : debug_abbreviate(file);
+    const char* name = IsDebuggerPresent() ? file : files.basename(file);
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
     prefix[countof(prefix) - 1] = 0; // zero terminated
@@ -2021,10 +2022,10 @@ static void debug_perrno(const char* file, int32_t line,
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            debug.vprintf(file, line, func, format, vl);
+            debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        debug.printf(file, line, func, "errno: %d %s", err_no, strerror(err_no));
+        debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
     }
 }
 
@@ -2034,18 +2035,18 @@ static void debug_perror(const char* file, int32_t line,
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            debug.vprintf(file, line, func, format, vl);
+            debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        debug.printf(file, line, func, "error: %s", str.error(error));
+        debug.println(file, line, func, "error: %s", str.error(error));
     }
 }
 
-static void debug_printf(const char* file, int32_t line, const char* func,
+static void debug_println(const char* file, int32_t line, const char* func,
         const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    debug.vprintf(file, line, func, format, vl);
+    debug.println_va(file, line, func, format, vl);
     va_end(vl);
 }
 
@@ -2094,8 +2095,8 @@ debug_if debug = {
         .trace   =  4,
     },
     .verbosity_from_string = debug_verbosity_from_string,
-    .printf                = debug_printf,
-    .vprintf               = debug_vprintf,
+    .println               = debug_println,
+    .println_va            = debug_println_va,
     .perrno                = debug_perrno,
     .perror                = debug_perror,
     .is_debugger_present   = debug_is_debugger_present,
@@ -2547,9 +2548,9 @@ static errno_t files_mkdirs(const char* dir) {
 
 #define files_append_name(pn, pnc, fn, name) do {      \
     if (strequ(fn, "\\") || strequ(fn, "/")) {         \
-        str.sformat(pn, pnc, "\\%s", name);            \
+        str.format(pn, pnc, "\\%s", name);            \
     } else {                                           \
-        str.sformat(pn, pnc, "%.*s\\%s", k, fn, name); \
+        str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
     }                                                  \
 } while (0)
 
@@ -2621,6 +2622,12 @@ static bool files_is_symlink(const char* filename) {
     DWORD attributes = GetFileAttributesA(filename);
     return attributes != INVALID_FILE_ATTRIBUTES &&
           (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+}
+
+const char* files_basename(const char* pathname) {
+    const char* bn = strrchr(pathname, '\\');
+    if (bn == null) { bn = strrchr(pathname, '/'); }
+    return bn != null ? bn + 1 : pathname;
 }
 
 static errno_t files_copy(const char* s, const char* d) {
@@ -3086,6 +3093,7 @@ files_if files = {
     .unlink             = files_unlink,
     .link               = files_link,
     .symlink            = files_symlink,
+    .basename           = files_basename,
     .copy               = files_copy,
     .move               = files_move,
     .cwd                = files_cwd,
@@ -3775,7 +3783,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
     if (!str.ends_with_nc(pname, -1, ".exe", -1)) {
         int32_t k = (int32_t)strlen(pname) + 5;
         char* exe = stack;
-        str.sformat(exe, k, "%s.exe", pname);
+        str.format(exe, k, "%s.exe", pname);
         name = exe;
     }
     const char* base = strrchr(name, '\\');
@@ -4455,15 +4463,16 @@ char* strnchr(const char* s, int32_t n, char ch) {
     return null;
 }
 
-static void str_vformat(char* utf8, int32_t count, const char* format, va_list vl) {
+static void str_format_va(char* utf8, int32_t count, const char* format,
+        va_list vl) {
     vsnprintf(utf8, count, format, vl);
     utf8[count - 1] = 0;
 }
 
-static void str_sformat(char* utf8, int32_t count, const char* format, ...) {
+static void str_format(char* utf8, int32_t count, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    str.vformat(utf8, count, format, vl);
+    str.format_va(utf8, count, format, vl);
     va_end(vl);
 }
 
@@ -4766,7 +4775,7 @@ static void str_test(void) {
     swear(str.utf8_utf16(utf16, utf8));
     swear(str.equal(utf16to8(utf16), -1, utf8_str, -1));
     char formatted[100];
-    str.sformat(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
+    str.format(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
     swear(str.equal(formatted, -1, "n: 42, s: test", -1));
     char truncated[9];
     truncated[8] = 0xFF;
@@ -4778,11 +4787,11 @@ static void str_test(void) {
     swear(truncated_lower[8] == 0);
     char truncated_formatted[9];
     truncated_formatted[8] = 0xFF;
-    str.sformat(truncated_formatted, countof(truncated_formatted), "n: %d, s: %s", 42, "a long test string");
+    str.format(truncated_formatted, countof(truncated_formatted), "n: %d, s: %s", 42, "a long test string");
     swear(truncated_formatted[8] == 0);
     char very_short_str[1];
     very_short_str[0] = 0xFF;
-    str.sformat(very_short_str, countof(very_short_str), "%s", "test");
+    str.format(very_short_str, countof(very_short_str), "%s", "test");
     swear(very_short_str[0] == 0);
     swear(str.starts_with("example text", 7, "exam", 4));
     swear(str.starts_with_nc("example text", 7, "ExAm", 4));
@@ -4806,14 +4815,14 @@ static void str_test(void) {}
 #endif
 
 str_if str = {
-    .vformat        = str_vformat,
-    .sformat        = str_sformat,
     .error          = str_error,
     .error_nls      = str_error_nls,
     .utf8_bytes     = str_utf8_bytes,
     .utf16_chars    = str_utf16_chars,
     .utf16_utf8     = str_utf16to8,
     .utf8_utf16     = str_utf8to16,
+    .format         = str_format,
+    .format_va      = str_format_va,
     .is_empty       = str_is_empty,
     .equal          = str_equal,
     .equal_nc       = str_equal_nc,
@@ -5528,9 +5537,9 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    debug.vprintf(file, line, func, format, vl);
+    debug.println_va(file, line, func, format, vl);
     va_end(vl);
-    debug.printf(file, line, func, "assertion failed: %s\n", condition);
+    debug.println(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
     const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
@@ -5543,15 +5552,15 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     const int32_t en = errno;
     va_list vl;
     va_start(vl, format);
-    debug.vprintf(file, line, func, format, vl);
+    debug.println_va(file, line, func, format, vl);
     va_end(vl);
     // report last errors:
     if (er != 0) { debug.perror(file, line, func, er, ""); }
     if (en != 0) { debug.perrno(file, line, func, en, ""); }
     if (condition != null && condition[0] != 0) {
-        debug.printf(file, line, func, "FATAL: %s\n", condition);
+        debug.println(file, line, func, "FATAL: %s\n", condition);
     } else {
-        debug.printf(file, line, func, "FATAL\n");
+        debug.println(file, line, func, "FATAL\n");
     }
     const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
@@ -5578,9 +5587,9 @@ static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
     if (debug.verbosity.level >= debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
-        debug.vprintf(file, line, func, format, vl);
+        debug.println_va(file, line, func, format, vl);
         va_end(vl);
-        debug.printf(file, line, func, "assertion failed: %s (expected)\n",
+        debug.println(file, line, func, "assertion failed: %s (expected)\n",
                      condition);
     }
     return 0;
@@ -5603,14 +5612,14 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     if (debug.verbosity.level > debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
-        debug.vprintf(file, line, func, format, vl);
+        debug.println_va(file, line, func, format, vl);
         va_end(vl);
         if (er != 0) { debug.perror(file, line, func, er, ""); }
         if (en != 0) { debug.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {
-            debug.printf(file, line, func, "FATAL: %s (testing)\n", condition);
+            debug.println(file, line, func, "FATAL: %s (testing)\n", condition);
         } else {
-            debug.printf(file, line, func, "FATAL (testing)\n");
+            debug.println(file, line, func, "FATAL (testing)\n");
         }
     }
     return 0;

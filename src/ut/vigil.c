@@ -11,9 +11,9 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    debug.vprintf(file, line, func, format, vl);
+    debug.println_va(file, line, func, format, vl);
     va_end(vl);
-    debug.printf(file, line, func, "assertion failed: %s\n", condition);
+    debug.println(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
     const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
@@ -26,15 +26,15 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     const int32_t en = errno;
     va_list vl;
     va_start(vl, format);
-    debug.vprintf(file, line, func, format, vl);
+    debug.println_va(file, line, func, format, vl);
     va_end(vl);
     // report last errors:
     if (er != 0) { debug.perror(file, line, func, er, ""); }
     if (en != 0) { debug.perrno(file, line, func, en, ""); }
     if (condition != null && condition[0] != 0) {
-        debug.printf(file, line, func, "FATAL: %s\n", condition);
+        debug.println(file, line, func, "FATAL: %s\n", condition);
     } else {
-        debug.printf(file, line, func, "FATAL\n");
+        debug.println(file, line, func, "FATAL\n");
     }
     const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
@@ -61,9 +61,9 @@ static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
     if (debug.verbosity.level >= debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
-        debug.vprintf(file, line, func, format, vl);
+        debug.println_va(file, line, func, format, vl);
         va_end(vl);
-        debug.printf(file, line, func, "assertion failed: %s (expected)\n",
+        debug.println(file, line, func, "assertion failed: %s (expected)\n",
                      condition);
     }
     return 0;
@@ -86,14 +86,14 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     if (debug.verbosity.level > debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
-        debug.vprintf(file, line, func, format, vl);
+        debug.println_va(file, line, func, format, vl);
         va_end(vl);
         if (er != 0) { debug.perror(file, line, func, er, ""); }
         if (en != 0) { debug.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {
-            debug.printf(file, line, func, "FATAL: %s (testing)\n", condition);
+            debug.println(file, line, func, "FATAL: %s (testing)\n", condition);
         } else {
-            debug.printf(file, line, func, "FATAL (testing)\n");
+            debug.println(file, line, func, "FATAL (testing)\n");
         }
     }
     return 0;

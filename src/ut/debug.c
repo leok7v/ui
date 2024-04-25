@@ -9,12 +9,12 @@ static const char* debug_abbreviate(const char* file) {
 
 #ifdef WINDOWS
 
-static void debug_vprintf(const char* file, int32_t line, const char* func,
+static void debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
     char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
     // for all other scenarios short filename without path is preferable:
-    const char* name = IsDebuggerPresent() ? file : debug_abbreviate(file);
+    const char* name = IsDebuggerPresent() ? file : files.basename(file);
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
     prefix[countof(prefix) - 1] = 0; // zero terminated
@@ -64,10 +64,10 @@ static void debug_perrno(const char* file, int32_t line,
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            debug.vprintf(file, line, func, format, vl);
+            debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        debug.printf(file, line, func, "errno: %d %s", err_no, strerror(err_no));
+        debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
     }
 }
 
@@ -77,18 +77,18 @@ static void debug_perror(const char* file, int32_t line,
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            debug.vprintf(file, line, func, format, vl);
+            debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        debug.printf(file, line, func, "error: %s", str.error(error));
+        debug.println(file, line, func, "error: %s", str.error(error));
     }
 }
 
-static void debug_printf(const char* file, int32_t line, const char* func,
+static void debug_println(const char* file, int32_t line, const char* func,
         const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    debug.vprintf(file, line, func, format, vl);
+    debug.println_va(file, line, func, format, vl);
     va_end(vl);
 }
 
@@ -137,8 +137,8 @@ debug_if debug = {
         .trace   =  4,
     },
     .verbosity_from_string = debug_verbosity_from_string,
-    .printf                = debug_printf,
-    .vprintf               = debug_vprintf,
+    .println               = debug_println,
+    .println_va            = debug_println_va,
     .perrno                = debug_perrno,
     .perror                = debug_perror,
     .is_debugger_present   = debug_is_debugger_present,

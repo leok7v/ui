@@ -51,6 +51,7 @@ typedef struct {
     bool (*exists)(const char* pathname); // does not guarantee any access writes
     bool (*is_folder)(const char* pathname);
     bool (*is_symlink)(const char* pathname);
+    const char* (*basename)(const char* pathname); // c:\foo\bar.ext -> bar.ext
     errno_t (*mkdirs)(const char* pathname); // tries to deep create all folders in pathname
     errno_t (*rmdirs)(const char* pathname); // tries to remove folder and its subtree
     errno_t (*create_tmp)(char* file, int32_t count); // create temporary file

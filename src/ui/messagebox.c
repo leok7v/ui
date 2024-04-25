@@ -107,7 +107,7 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* opts[],
     mx->cb = cb;
     va_list vl;
     va_start(vl, format);
-    str.vformat(mx->view.text, countof(mx->view.text), format, vl);
+    str.format_va(mx->view.text, countof(mx->view.text), format, vl);
     ui_label_init_ml(&mx->text, 0.0, mx->view.text);
     va_end(vl);
     ui_messagebox_init_(&mx->view);

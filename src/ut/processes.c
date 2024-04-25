@@ -21,7 +21,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
     if (!str.ends_with_nc(pname, -1, ".exe", -1)) {
         int32_t k = (int32_t)strlen(pname) + 5;
         char* exe = stack;
-        str.sformat(exe, k, "%s.exe", pname);
+        str.format(exe, k, "%s.exe", pname);
         name = exe;
     }
     const char* base = strrchr(name, '\\');

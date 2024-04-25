@@ -9,15 +9,16 @@ char* strnchr(const char* s, int32_t n, char ch) {
     return null;
 }
 
-static void str_vformat(char* utf8, int32_t count, const char* format, va_list vl) {
+static void str_format_va(char* utf8, int32_t count, const char* format,
+        va_list vl) {
     vsnprintf(utf8, count, format, vl);
     utf8[count - 1] = 0;
 }
 
-static void str_sformat(char* utf8, int32_t count, const char* format, ...) {
+static void str_format(char* utf8, int32_t count, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    str.vformat(utf8, count, format, vl);
+    str.format_va(utf8, count, format, vl);
     va_end(vl);
 }
 
@@ -320,7 +321,7 @@ static void str_test(void) {
     swear(str.utf8_utf16(utf16, utf8));
     swear(str.equal(utf16to8(utf16), -1, utf8_str, -1));
     char formatted[100];
-    str.sformat(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
+    str.format(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
     swear(str.equal(formatted, -1, "n: 42, s: test", -1));
     char truncated[9];
     truncated[8] = 0xFF;
@@ -332,11 +333,11 @@ static void str_test(void) {
     swear(truncated_lower[8] == 0);
     char truncated_formatted[9];
     truncated_formatted[8] = 0xFF;
-    str.sformat(truncated_formatted, countof(truncated_formatted), "n: %d, s: %s", 42, "a long test string");
+    str.format(truncated_formatted, countof(truncated_formatted), "n: %d, s: %s", 42, "a long test string");
     swear(truncated_formatted[8] == 0);
     char very_short_str[1];
     very_short_str[0] = 0xFF;
-    str.sformat(very_short_str, countof(very_short_str), "%s", "test");
+    str.format(very_short_str, countof(very_short_str), "%s", "test");
     swear(very_short_str[0] == 0);
     swear(str.starts_with("example text", 7, "exam", 4));
     swear(str.starts_with_nc("example text", 7, "ExAm", 4));
@@ -360,14 +361,14 @@ static void str_test(void) {}
 #endif
 
 str_if str = {
-    .vformat        = str_vformat,
-    .sformat        = str_sformat,
     .error          = str_error,
     .error_nls      = str_error_nls,
     .utf8_bytes     = str_utf8_bytes,
     .utf16_chars    = str_utf16_chars,
     .utf16_utf8     = str_utf16to8,
     .utf8_utf16     = str_utf8to16,
+    .format         = str_format,
+    .format_va      = str_format_va,
     .is_empty       = str_is_empty,
     .equal          = str_equal,
     .equal_nc       = str_equal_nc,
