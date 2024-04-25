@@ -1,5 +1,4 @@
 #include "ui/ui.h"
-#include "ut/win32.h"
 
 static void ui_view_invalidate(const ui_view_t* view) {
     ui_rect_t rc = { view->x, view->y, view->w, view->h};

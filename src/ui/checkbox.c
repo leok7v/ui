@@ -1,5 +1,4 @@
 #include "ui/ui.h"
-#include "ut/win32.h"
 
 static int ui_checkbox_paint_on_off(ui_view_t* view) {
     // https://www.compart.com/en/unicode/U+2B24

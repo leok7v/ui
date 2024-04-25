@@ -970,6 +970,7 @@ static void app_animate_start(app_animate_function_t f, int32_t steps) {
 static void app_layout_root(void) {
     not_null(app.window);
     not_null(app.canvas);
+    assert(app.view->measure == null, "sized by client rectangle");
     app.view->w = app.crc.w; // crc is window client rectangle
     app.view->h = app.crc.h;
     app_layout_ui(app.view);
@@ -2071,6 +2072,8 @@ static void app_request_focus(void) {
 static void app_init(void) {
     app.view = &app_ui;
     ui_view_init(app.view);
+    app.view->measure = null; // always measured by crc
+    app.view->layout  = null; // always at 0,0 app can override
     app.redraw = app_fast_redraw;
     app.draw = app_draw;
     app.px2in = app_px2in;

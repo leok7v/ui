@@ -1,5 +1,4 @@
 #include "ui/ui.h"
-#include "ut/win32.h"
 
 static void ui_label_paint(ui_view_t* view) {
     assert(view->type == ui_view_text);

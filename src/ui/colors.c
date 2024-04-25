@@ -1,5 +1,4 @@
 #include "ui/ui.h"
-#include "ut/win32.h"
 
 enum {
     _colors_white     = rgb(255, 255, 255),

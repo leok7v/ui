@@ -1,5 +1,4 @@
 #include "ui/ui.h"
-#include "ut/win32.h"
 
 static void ui_slider_measure(ui_view_t* view) {
     assert(view->type == ui_view_slider);
