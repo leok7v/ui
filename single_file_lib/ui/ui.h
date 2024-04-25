@@ -5065,7 +5065,6 @@ void ui_slider_init(ui_slider_t* r, const char* label, double ems,
     r->value = vmin;
     ui_slider_init_(&r->view);
 }
-
 // __________________________________ view.c __________________________________
 
 #include "ut/ut.h"

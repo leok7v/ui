@@ -92,9 +92,6 @@
     <ClCompile Include="..\src\ui\slider.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\ui.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\ui\view.c">
       <Filter>src\ui</Filter>
     </ClCompile>

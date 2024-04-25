@@ -39,7 +39,6 @@
     <ClCompile Include="..\src\ui\messagebox.c" />
     <ClCompile Include="..\src\ui\nls.c" />
     <ClCompile Include="..\src\ui\slider.c" />
-    <ClCompile Include="..\src\ui\ui.c" />
     <ClCompile Include="..\src\ui\view.c" />
   </ItemGroup>
   <ItemGroup>

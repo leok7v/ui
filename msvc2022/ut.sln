@@ -27,6 +27,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ui", "ui.vcxproj", "{9B9AC2
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ut", "ut.vcxproj", "{8B9AC256-A764-474A-AD7A-31411FE694E1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sample2", "sample2.vcxproj", "{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		debug|x64 = debug|x64
@@ -99,6 +101,14 @@ Global
 		{8B9AC256-A764-474A-AD7A-31411FE694E1}.release|x64.Build.0 = release|x64
 		{8B9AC256-A764-474A-AD7A-31411FE694E1}.release|x86.ActiveCfg = release|x64
 		{8B9AC256-A764-474A-AD7A-31411FE694E1}.release|x86.Build.0 = release|x64
+		{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43}.debug|x64.ActiveCfg = debug|x64
+		{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43}.debug|x64.Build.0 = debug|x64
+		{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43}.debug|x86.ActiveCfg = debug|x64
+		{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43}.debug|x86.Build.0 = debug|x64
+		{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43}.release|x64.ActiveCfg = release|x64
+		{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43}.release|x64.Build.0 = release|x64
+		{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43}.release|x86.ActiveCfg = release|x64
+		{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43}.release|x86.Build.0 = release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
