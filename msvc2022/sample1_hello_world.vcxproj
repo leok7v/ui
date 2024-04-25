@@ -96,7 +96,8 @@
       </TreatOutputAsContent>
     </CustomBuildStep>
     <PreBuildEvent>
-      <Command>pushd $(ProjectDir).. &amp;&amp; $(TargetDir)amalgamate.exe ui &gt; single_file_lib/ui/ui.h &amp;&amp; popd</Command>
+      <Command>
+      </Command>
       <Message>
       </Message>
     </PreBuildEvent>
@@ -140,7 +141,8 @@
       </TreatOutputAsContent>
     </CustomBuildStep>
     <PreBuildEvent>
-      <Command>pushd $(ProjectDir).. &amp;&amp; $(TargetDir)amalgamate.exe ui &gt; single_file_lib/ui/ui.h &amp;&amp; popd</Command>
+      <Command>
+      </Command>
       <Message>
       </Message>
     </PreBuildEvent>
@@ -194,10 +196,6 @@
     <ClCompile Include="..\src\samples\sample1.c" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="amalgamate.vcxproj">
-      <Project>{1ea9bf0c-402b-4852-bd16-644244f0d1b9}</Project>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
-    </ProjectReference>
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
     </ProjectReference>

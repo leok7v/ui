@@ -41,6 +41,9 @@
     <ClCompile Include="..\src\ui\view.c" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="amalgamate.vcxproj">
+      <Project>{1ea9bf0c-402b-4852-bd16-644244f0d1b9}</Project>
+    </ProjectReference>
     <ProjectReference Include="ut.vcxproj">
       <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
     </ProjectReference>
@@ -76,10 +79,10 @@
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
-    <OutDir>$(SolutionDir)..\lib\$(Configuration)\</OutDir>
+    <OutDir>$(ProjectDir)..\lib\$(Configuration)\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
-    <OutDir>$(SolutionDir)..\lib\$(Configuration)\</OutDir>
+    <OutDir>$(ProjectDir)..\lib\$(Configuration)\</OutDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile />
@@ -88,6 +91,12 @@
       </SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PostBuildEvent>
+      <Command>pushd $(ProjectDir).. &amp;&amp; $(ProjectDir)..\bin\$(Configuration)\amalgamate.exe $(ProjectName) &gt; single_file_lib\$(ProjectName)\$(ProjectName).h &amp;&amp; popd</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>amalgamate "$(ProjectName)" into single_file_lib\$(ProjectName)\$(ProjectName).h</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <ClCompile />
@@ -98,6 +107,12 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PostBuildEvent>
+      <Command>pushd $(ProjectDir).. &amp;&amp; $(ProjectDir)..\bin\$(Configuration)\amalgamate.exe $(ProjectName) &gt; single_file_lib\$(ProjectName)\$(ProjectName).h &amp;&amp; popd</Command>
+    </PostBuildEvent>
+    <PostBuildEvent>
+      <Message>amalgamate "$(ProjectName)" into single_file_lib\$(ProjectName)\$(ProjectName).h</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

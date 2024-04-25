@@ -3,9 +3,9 @@
   <ImportGroup Label="PropertySheets" />
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\inc;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions>WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions>STRICT;%(PreprocessorDefinitions);</PreprocessorDefinitions>
@@ -36,21 +36,21 @@
       <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
 	</Link>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\inc;$(SolutionDir)..\src;$(SolutionDir)..\src\samples</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\src;$(ProjectDir)..\src\samples</AdditionalIncludeDirectories>
 	  <PreprocessorDefinitions>NDEBUG;$(DefineConstants);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
-    <OutDir>$(SolutionDir)..\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir>$(ProjectDir)..\bin\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <UseDebugLibraries>true</UseDebugLibraries>
     <Optimization>Disabled</Optimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
-    <OutDir>$(SolutionDir)..\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
+    <OutDir>$(ProjectDir)..\bin\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <UseDebugLibraries>false</UseDebugLibraries>
     <Optimization>Full</Optimization>
