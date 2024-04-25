@@ -790,14 +790,14 @@ typedef struct app_s {
     bool ctrl;
     bool shift;
     ui_point_t mouse; // mouse/touchpad pointer
-    ui_canvas_t canvas;  // set by WM_PAINT message
-    struct { // toast state
+    ui_canvas_t canvas;  // set by message.paint
+    struct { // animation state
         ui_view_t* view;
         int32_t step;
         double time; // closing time or zero
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
-    } toasting;
+    } animating;
     // i18n
     // strid("foo") returns 0 if there is no matching ENGLISH NEUTRAL
     // STRINGTABLE entry
@@ -1369,7 +1369,7 @@ static void app_every_100ms(ui_timer_t id) {
     if (id == app_timer_100ms_id && app.every_100ms != null) {
         app.every_100ms();
     }
-    if (app.toasting.time != 0 && app.now > app.toasting.time) {
+    if (app.animating.time != 0 && app.now > app.animating.time) {
         app.show_toast(null, 0);
     }
 }
@@ -1575,7 +1575,7 @@ static void app_toast_mouse(int32_t m, int32_t f);
 static void app_toast_character(const char* utf8);
 
 static void app_wm_char(ui_view_t* view, const char* utf8) {
-    if (app.toasting.view != null) {
+    if (app.animating.view != null) {
         app_toast_character(utf8);
     } else {
         app_character(view, utf8);
@@ -1678,11 +1678,11 @@ static bool app_press(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: rig
 }
 
 static void app_mouse(ui_view_t* view, int32_t m, int32_t f) {
-    if (app.toasting.view != null && app.toasting.view->mouse != null) {
-        app_ui_mouse(app.toasting.view, m, f);
-    } else if (app.toasting.view != null && app.toasting.view->mouse == null) {
+    if (app.animating.view != null && app.animating.view->mouse != null) {
+        app_ui_mouse(app.animating.view, m, f);
+    } else if (app.animating.view != null && app.animating.view->mouse == null) {
         app_toast_mouse(m, f);
-        bool tooltip = app.toasting.x >= 0 && app.toasting.y >= 0;
+        bool tooltip = app.animating.x >= 0 && app.animating.y >= 0;
         if (tooltip) { app_ui_mouse(view, m, f); }
     } else {
         app_ui_mouse(view, m, f);
@@ -1717,50 +1717,50 @@ static void app_toast_paint(void) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
         gdi.image_init(&image, 1, 1, 3, pixels);
     }
-    if (app.toasting.view != null) {
-        ui_font_t f = app.toasting.view->font != null ?
-            *app.toasting.view->font : app.fonts.regular;
+    if (app.animating.view != null) {
+        ui_font_t f = app.animating.view->font != null ?
+            *app.animating.view->font : app.fonts.regular;
         const ui_point_t em = gdi.get_em(f);
-        app.toasting.view->em = em;
+        app.animating.view->em = em;
         // allow unparented and unmeasured toasts:
-        if (app.toasting.view->measure != null) {
-            app.toasting.view->measure(app.toasting.view);
+        if (app.animating.view->measure != null) {
+            app.animating.view->measure(app.animating.view);
         }
         gdi.push(0, 0);
-        bool tooltip = app.toasting.x >= 0 && app.toasting.y >= 0;
+        bool tooltip = app.animating.x >= 0 && app.animating.y >= 0;
         int32_t em_x = em.x;
         int32_t em_y = em.y;
         gdi.set_brush(gdi.brush_color);
         gdi.set_brush_color(colors.toast);
         if (!tooltip) {
-            assert(0 <= app.toasting.step && app.toasting.step < ui_toast_steps);
-            int32_t step = app.toasting.step - (ui_toast_steps - 1);
-            app.toasting.view->y = app.toasting.view->h * step / (ui_toast_steps - 1);
-//          traceln("step=%d of %d y=%d", app.toasting.step,
-//                  app_toast_steps, app.toasting.view->y);
-            app_layout_ui(app.toasting.view);
-            double alpha = min(0.40, 0.40 * app.toasting.step / (double)ui_toast_steps);
+            assert(0 <= app.animating.step && app.animating.step < ui_toast_steps);
+            int32_t step = app.animating.step - (ui_toast_steps - 1);
+            app.animating.view->y = app.animating.view->h * step / (ui_toast_steps - 1);
+//          traceln("step=%d of %d y=%d", app.animating.step,
+//                  app_toast_steps, app.animating.view->y);
+            app_layout_ui(app.animating.view);
+            double alpha = min(0.40, 0.40 * app.animating.step / (double)ui_toast_steps);
             gdi.alpha_blend(0, 0, app.width, app.height, &image, alpha);
-            app.toasting.view->x = (app.width - app.toasting.view->w) / 2;
+            app.animating.view->x = (app.width - app.animating.view->w) / 2;
         } else {
-            app.toasting.view->x = app.toasting.x;
-            app.toasting.view->y = app.toasting.y;
-            app_layout_ui(app.toasting.view);
-            int32_t mx = app.width - app.toasting.view->w - em_x;
-            app.toasting.view->x = min(mx, max(0, app.toasting.x - app.toasting.view->w / 2));
-            app.toasting.view->y = min(app.crc.h - em_y, max(0, app.toasting.y));
+            app.animating.view->x = app.animating.x;
+            app.animating.view->y = app.animating.y;
+            app_layout_ui(app.animating.view);
+            int32_t mx = app.width - app.animating.view->w - em_x;
+            app.animating.view->x = min(mx, max(0, app.animating.x - app.animating.view->w / 2));
+            app.animating.view->y = min(app.crc.h - em_y, max(0, app.animating.y));
         }
-        int32_t x = app.toasting.view->x - em_x;
-        int32_t y = app.toasting.view->y - em_y / 2;
-        int32_t w = app.toasting.view->w + em_x * 2;
-        int32_t h = app.toasting.view->h + em_y;
+        int32_t x = app.animating.view->x - em_x;
+        int32_t y = app.animating.view->y - em_y / 2;
+        int32_t w = app.animating.view->w + em_x * 2;
+        int32_t h = app.animating.view->h + em_y;
         gdi.rounded(x, y, w, h, em_x, em_y);
-        if (!tooltip) { app.toasting.view->y += em_y / 4; }
-        app_paint(app.toasting.view);
+        if (!tooltip) { app.animating.view->y += em_y / 4; }
+        app_paint(app.animating.view);
         if (!tooltip) {
-            if (app.toasting.view->y == em_y / 4) {
+            if (app.animating.view->y == em_y / 4) {
                 // micro "close" toast button:
-                gdi.x = app.toasting.view->x + app.toasting.view->w;
+                gdi.x = app.animating.view->x + app.animating.view->w;
                 gdi.y = 0;
                 gdi.text("\xC3\x97"); // Heavy Multiplication X
             }
@@ -1770,47 +1770,47 @@ static void app_toast_paint(void) {
 }
 
 static void app_toast_cancel(void) {
-    if (app.toasting.view != null && app.toasting.view->type == ui_view_messagebox) {
-        ui_messagebox_t* mx = (ui_messagebox_t*)app.toasting.view;
+    if (app.animating.view != null && app.animating.view->type == ui_view_messagebox) {
+        ui_messagebox_t* mx = (ui_messagebox_t*)app.animating.view;
         if (mx->option < 0) { mx->cb(mx, -1); }
     }
-    app.toasting.step = 0;
-    app.toasting.view = null;
-    app.toasting.time = 0;
-    app.toasting.x = -1;
-    app.toasting.y = -1;
+    app.animating.step = 0;
+    app.animating.view = null;
+    app.animating.time = 0;
+    app.animating.x = -1;
+    app.animating.y = -1;
     app.redraw();
 }
 
 static void app_toast_mouse(int32_t m, int32_t flags) {
     bool pressed = m == ui.message.left_button_pressed ||
                    m == ui.message.right_button_pressed;
-    if (app.toasting.view != null && pressed) {
-        const ui_point_t em = app.toasting.view->em;
-        int32_t x = app.toasting.view->x + app.toasting.view->w;
+    if (app.animating.view != null && pressed) {
+        const ui_point_t em = app.animating.view->em;
+        int32_t x = app.animating.view->x + app.animating.view->w;
         if (x <= app.mouse.x && app.mouse.x <= x + em.x &&
             0 <= app.mouse.y && app.mouse.y <= em.y) {
             app_toast_cancel();
         } else {
-            app_ui_mouse(app.toasting.view, m, flags);
+            app_ui_mouse(app.animating.view, m, flags);
         }
     } else {
-        app_ui_mouse(app.toasting.view, m, flags);
+        app_ui_mouse(app.animating.view, m, flags);
     }
 }
 
 static void app_toast_character(const char* utf8) {
     char ch = utf8[0];
-    if (app.toasting.view != null && ch == 033) { // ESC traditionally in octal
+    if (app.animating.view != null && ch == 033) { // ESC traditionally in octal
         app_toast_cancel();
         app.show_toast(null, 0);
     } else {
-        app_character(app.toasting.view, utf8);
+        app_character(app.animating.view, utf8);
     }
 }
 
 static void app_toast_dim(int32_t step) {
-    app.toasting.step = step;
+    app.animating.step = step;
     app.redraw();
     UpdateWindow(app_window());
 }
@@ -1877,7 +1877,7 @@ static void app_paint_on_canvas(HDC hdc) {
     fatal_if_false(SetBrushOrgEx(app_canvas(), 0, 0, (POINT*)&pt));
     ui_brush_t br = gdi.set_brush(gdi.brush_hollow);
     app_paint(app.view);
-    if (app.toasting.view != null) { app_toast_paint(); }
+    if (app.animating.view != null) { app_toast_paint(); }
     fatal_if_false(SetBrushOrgEx(app_canvas(), pt.x, pt.y, null));
     SetStretchBltMode(app_canvas(), stretch_mode);
     SetBkMode(app_canvas(), bm);
@@ -2388,8 +2388,8 @@ static void app_quit(int32_t exit_code) {
 static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         double timeout) {
     if (view != null) {
-        app.toasting.x = x;
-        app.toasting.y = y;
+        app.animating.x = x;
+        app.animating.y = y;
         if (view->type == ui_view_messagebox) {
             ((ui_messagebox_t*)view)->option = -1;
         }
@@ -2397,9 +2397,9 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         if (view->init != null) { view->init(view); view->init = null; }
         view->localize(view);
         app_animate_start(app_toast_dim, ui_toast_steps);
-        app.toasting.view = view;
-        app.toasting.view->font = &app.fonts.H1;
-        app.toasting.time = timeout > 0 ? app.now + timeout : 0;
+        app.animating.view = view;
+        app.animating.view->font = &app.fonts.H1;
+        app.animating.time = timeout > 0 ? app.now + timeout : 0;
     } else {
         app_toast_cancel();
     }
@@ -2413,8 +2413,8 @@ static void app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
         double timeout) {
     if (view != null) {
         app_show_tooltip_or_toast(view, x, y, timeout);
-    } else if (app.toasting.view != null && app.toasting.x >= 0 &&
-               app.toasting.y >= 0) {
+    } else if (app.animating.view != null && app.animating.x >= 0 &&
+               app.animating.y >= 0) {
         app_toast_cancel(); // only cancel tooltips not toasts
     }
 }
@@ -5119,7 +5119,7 @@ static void ui_view_localize(ui_view_t* view) {
 
 static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_text(btn_tooltip,  "");
-    if (start && app.toasting.view == null && view->tip[0] != 0 &&
+    if (start && app.animating.view == null && view->tip[0] != 0 &&
        !view->is_hidden(view)) {
         strprintf(btn_tooltip.view.text, "%s", app.nls(view->tip));
         btn_tooltip.view.font = &app.fonts.H1;
@@ -5128,7 +5128,7 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
         if (y < view->em.y) { y = app.mouse.y + view->em.y * 3 / 2; }
         y = min(app.crc.h - view->em.y * 3 / 2, max(0, y));
         app.show_tooltip(&btn_tooltip.view, app.mouse.x, y, 0);
-    } else if (!start && app.toasting.view == &btn_tooltip.view) {
+    } else if (!start && app.animating.view == &btn_tooltip.view) {
         app.show_tooltip(null, -1, -1, 0);
     }
 }

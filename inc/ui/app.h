@@ -69,14 +69,14 @@ typedef struct app_s {
     bool ctrl;
     bool shift;
     ui_point_t mouse; // mouse/touchpad pointer
-    ui_canvas_t canvas;  // set by WM_PAINT message
-    struct { // toast state
+    ui_canvas_t canvas;  // set by message.paint
+    struct { // animation state
         ui_view_t* view;
         int32_t step;
         double time; // closing time or zero
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
-    } toasting;
+    } animating;
     // i18n
     // strid("foo") returns 0 if there is no matching ENGLISH NEUTRAL
     // STRINGTABLE entry

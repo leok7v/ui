@@ -53,7 +53,7 @@ static void ui_view_localize(ui_view_t* view) {
 
 static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_text(btn_tooltip,  "");
-    if (start && app.toasting.view == null && view->tip[0] != 0 &&
+    if (start && app.animating.view == null && view->tip[0] != 0 &&
        !view->is_hidden(view)) {
         strprintf(btn_tooltip.view.text, "%s", app.nls(view->tip));
         btn_tooltip.view.font = &app.fonts.H1;
@@ -62,7 +62,7 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
         if (y < view->em.y) { y = app.mouse.y + view->em.y * 3 / 2; }
         y = min(app.crc.h - view->em.y * 3 / 2, max(0, y));
         app.show_tooltip(&btn_tooltip.view, app.mouse.x, y, 0);
-    } else if (!start && app.toasting.view == &btn_tooltip.view) {
+    } else if (!start && app.animating.view == &btn_tooltip.view) {
         app.show_tooltip(null, -1, -1, 0);
     }
 }
