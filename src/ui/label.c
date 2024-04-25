@@ -35,7 +35,7 @@ static void ui_label_paint(ui_view_t* view) {
 static void ui_label_context_menu(ui_view_t* view) {
     assert(view->type == ui_view_text);
     ui_label_t* t = (ui_label_t*)view;
-    if (!t->label && !app.is_hidden(view) && !app.is_disabled(view)) {
+    if (!t->label && !view->is_hidden(view) && !view->is_disabled(view)) {
         clipboard.put_text(view->nls(view));
         static bool first_time = true;
         app.toast(first_time ? 2.15 : 0.75,
@@ -48,7 +48,7 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_text);
     ui_label_t* t = (ui_label_t*)view;
     if (view->hover && !t->label &&
-       !app.is_hidden(view) && !app.is_disabled(view)) {
+       !view->is_hidden(view) && !view->is_disabled(view)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {

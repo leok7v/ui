@@ -31,6 +31,8 @@ typedef struct ui_view_s { // ui element container/control
     const char* (*nls)(ui_view_t* view); // returns localized text
     void (*localize)(ui_view_t* view); // set strid based ui .text field
     void (*paint)(ui_view_t* view);
+    bool (*is_hidden)(ui_view_t* view);   // view or any parent is hidden
+    bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
     void (*click)(ui_view_t* view); // interpretation depends on ui element

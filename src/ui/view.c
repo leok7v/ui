@@ -51,14 +51,10 @@ static void ui_view_localize(ui_view_t* view) {
     }
 }
 
-static bool ui_view_hidden_or_disabled(ui_view_t* view) {
-    return app.is_hidden(view) || app.is_disabled(view);
-}
-
 static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_text(btn_tooltip,  "");
     if (start && app.toasting.view == null && view->tip[0] != 0 &&
-       !app.is_hidden(view)) {
+       !view->is_hidden(view)) {
         strprintf(btn_tooltip.view.text, "%s", app.nls(view->tip));
         btn_tooltip.view.font = &app.fonts.H1;
         int32_t y = app.mouse.y - view->em.y;
@@ -82,13 +78,34 @@ static bool ui_view_is_keyboard_shortcut(ui_view_t* view, int32_t key) {
     return keyboard_shortcut;
 }
 
+static bool ui_view_is_hidden(const ui_view_t* view) {
+    bool hidden = view->hidden;
+    while (!hidden && view->parent != null) {
+        view = view->parent;
+        hidden = view->hidden;
+    }
+    return hidden;
+}
+
+static bool ui_view_is_disabled(const ui_view_t* view) {
+    bool disabled = view->disabled;
+    while (!disabled && view->parent != null) {
+        view = view->parent;
+        disabled = view->disabled;
+    }
+    return disabled;
+}
+
 void ui_view_init(ui_view_t* view) {
-    view->set_text   = ui_view_set_text;
-    view->invalidate = ui_view_invalidate;
-    view->nls        = ui_view_nls;
-    view->localize   = ui_view_localize;
-    view->measure    = ui_view_measure;
-    view->hovering   = ui_view_hovering;
+    view->set_text    = ui_view_set_text;
+    view->invalidate  = ui_view_invalidate;
+    view->nls         = ui_view_nls;
+    view->localize    = ui_view_localize;
+    view->measure     = ui_view_measure;
+    view->hovering    = ui_view_hovering;
+    view->is_hidden   = ui_view_is_hidden;
+    view->is_disabled = ui_view_is_disabled;
     view->hover_delay = 1.5;
     view->is_keyboard_shortcut = ui_view_is_keyboard_shortcut;
 }
+

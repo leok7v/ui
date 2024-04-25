@@ -577,28 +577,24 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
 }
 
-static bool app_view_hidden_or_disabled(ui_view_t* view) {
-    return app.is_hidden(view) || app.is_disabled(view);
+static void app_key_pressed(ui_view_t* view, int32_t p) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+        if (view->key_pressed != null) { view->key_pressed(view, p); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { app_key_pressed(*c, p); c++; }
+    }
 }
 
-#pragma push_macro("app_method_int32")
-
-#define app_method_int32(name)                                      \
-static void app_##name(ui_view_t* view, int32_t p) {                \
-    if (view->name != null && !app_view_hidden_or_disabled(view)) { \
-        view->name(view, p);                                        \
-    }                                                               \
-    ui_view_t** c = view->children;                                 \
-    while (c != null && *c != null) { app_##name(*c, p); c++; }     \
+static void app_key_released(ui_view_t* view, int32_t p) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+        if (view->key_released != null) { view->key_released(view, p); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { app_key_released(*c, p); c++; }
+    }
 }
-
-app_method_int32(key_pressed)
-app_method_int32(key_released)
-
-#pragma pop_macro("app_method_int32")
 
 static void app_character(ui_view_t* view, const char* utf8) {
-    if (!app_view_hidden_or_disabled(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         if (view->character != null) { view->character(view, utf8); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_character(*c, utf8); c++; }
@@ -634,7 +630,7 @@ static void app_kill_focus(ui_view_t* view) {
 }
 
 static void app_mousewheel(ui_view_t* view, int32_t dx, int32_t dy) {
-    if (!app_view_hidden_or_disabled(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         if (view->mousewheel != null) { view->mousewheel(view, dx, dy); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_mousewheel(*c, dx, dy); c++; }
@@ -732,7 +728,7 @@ static void app_on_every_message(ui_view_t* view) {
 }
 
 static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
-    if (!app.is_hidden(view) &&
+    if (!view->is_hidden(view) &&
        (m == WM_MOUSEHOVER || m == ui.message.mouse_move)) {
         RECT rc = { view->x, view->y, view->x + view->w, view->y + view->h};
         bool hover = view->hover;
@@ -745,7 +741,7 @@ static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
             app_hover_changed(view);
         }
     }
-    if (!app_view_hidden_or_disabled(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         if (view->mouse != null) { view->mouse(view, m, f); }
         for (ui_view_t** c = view->children; c != null && *c != null; c++) {
             app_ui_mouse(*c, m, f);
@@ -754,7 +750,7 @@ static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
 }
 
 static bool app_context_menu(ui_view_t* view) {
-    if (!app_view_hidden_or_disabled(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null; c++) {
             if (app_context_menu(*c)) { return true; }
         }
@@ -777,7 +773,7 @@ static bool app_inside(ui_view_t* view) {
 
 static bool app_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!app_view_hidden_or_disabled(view) && app_inside(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view) && app_inside(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
             done = app_tap(*c, ix);
         }
@@ -788,7 +784,7 @@ static bool app_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
 
 static bool app_press(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!app_view_hidden_or_disabled(view) && app_inside(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
             done = app_press(*c, ix);
         }
@@ -1943,24 +1939,6 @@ const char* app_known_folder(int32_t kf) {
 
 static ui_view_t app_ui;
 
-static bool app_is_hidden(const ui_view_t* view) {
-    bool hidden = view->hidden;
-    while (!hidden && view->parent != null) {
-        view = view->parent;
-        hidden = view->hidden;
-    }
-    return hidden;
-}
-
-static bool app_is_disabled(const ui_view_t* view) {
-    bool disabled = view->disabled;
-    while (!disabled && view->parent != null) {
-        view = view->parent;
-        disabled = view->disabled;
-    }
-    return disabled;
-}
-
 static bool app_is_active(void) {
     return GetActiveWindow() == app_window();
 }
@@ -1993,8 +1971,6 @@ static void app_init(void) {
     app.in2px = app_in2px;
     app.point_in_rect = app_point_in_rect;
     app.intersect_rect = app_intersect_rect;
-    app.is_hidden   = app_is_hidden;
-    app.is_disabled = app_is_disabled;
     app.is_active = app_is_active,
     app.has_focus = app_has_focus,
     app.request_focus = app_request_focus,

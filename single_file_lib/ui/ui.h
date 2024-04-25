@@ -473,6 +473,8 @@ typedef struct ui_view_s { // ui element container/control
     const char* (*nls)(ui_view_t* view); // returns localized text
     void (*localize)(ui_view_t* view); // set strid based ui .text field
     void (*paint)(ui_view_t* view);
+    bool (*is_hidden)(ui_view_t* view);   // view or any parent is hidden
+    bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
     void (*click)(ui_view_t* view); // interpretation depends on ui element
@@ -814,18 +816,16 @@ typedef struct app_s {
     // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) are OK.
     bool    (*intersect_rect)(ui_rect_t* r, const ui_rect_t* r0,
                                             const ui_rect_t* r1);
-    // layout:
-    bool (*is_hidden)(const ui_view_t* view);   // control or any parent is hidden
-    bool (*is_disabled)(const ui_view_t* view); // control or any parent is disabled
     bool (*is_active)(void); // is application window active
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
     void (*bring_to_foreground)(void); // not necessary topmost
-    void (*make_topmost)(void);    // in foreground hierarchy of windows
-    void (*request_focus)(void);   // request application window keyboard focus
-    void (*bring_to_front)(void);  // activate() + bring_to_foreground() +
-                                   // make_topmost() + request_focus()
-    void (*measure)(ui_view_t* view);    // measure all children
+    void (*make_topmost)(void);   // in foreground hierarchy of windows
+    void (*request_focus)(void);  // request application window keyboard focus
+    void (*bring_to_front)(void); // activate() + bring_to_foreground() +
+                                  // make_topmost() + request_focus()
+    // measure and layout:
+    void (*measure)(ui_view_t* view); // bottom up measure all children
     void (*layout)(void); // requests layout on UI tree before paint()
     void (*invalidate)(const ui_rect_t* rc);
     void (*full_screen)(bool on);
@@ -1461,28 +1461,24 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
 }
 
-static bool app_view_hidden_or_disabled(ui_view_t* view) {
-    return app.is_hidden(view) || app.is_disabled(view);
+static void app_key_pressed(ui_view_t* view, int32_t p) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+        if (view->key_pressed != null) { view->key_pressed(view, p); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { app_key_pressed(*c, p); c++; }
+    }
 }
 
-#pragma push_macro("app_method_int32")
-
-#define app_method_int32(name)                                      \
-static void app_##name(ui_view_t* view, int32_t p) {                \
-    if (view->name != null && !app_view_hidden_or_disabled(view)) { \
-        view->name(view, p);                                        \
-    }                                                               \
-    ui_view_t** c = view->children;                                 \
-    while (c != null && *c != null) { app_##name(*c, p); c++; }     \
+static void app_key_released(ui_view_t* view, int32_t p) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+        if (view->key_released != null) { view->key_released(view, p); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { app_key_released(*c, p); c++; }
+    }
 }
-
-app_method_int32(key_pressed)
-app_method_int32(key_released)
-
-#pragma pop_macro("app_method_int32")
 
 static void app_character(ui_view_t* view, const char* utf8) {
-    if (!app_view_hidden_or_disabled(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         if (view->character != null) { view->character(view, utf8); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_character(*c, utf8); c++; }
@@ -1518,7 +1514,7 @@ static void app_kill_focus(ui_view_t* view) {
 }
 
 static void app_mousewheel(ui_view_t* view, int32_t dx, int32_t dy) {
-    if (!app_view_hidden_or_disabled(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         if (view->mousewheel != null) { view->mousewheel(view, dx, dy); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_mousewheel(*c, dx, dy); c++; }
@@ -1616,7 +1612,7 @@ static void app_on_every_message(ui_view_t* view) {
 }
 
 static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
-    if (!app.is_hidden(view) &&
+    if (!view->is_hidden(view) &&
        (m == WM_MOUSEHOVER || m == ui.message.mouse_move)) {
         RECT rc = { view->x, view->y, view->x + view->w, view->y + view->h};
         bool hover = view->hover;
@@ -1629,7 +1625,7 @@ static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
             app_hover_changed(view);
         }
     }
-    if (!app_view_hidden_or_disabled(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         if (view->mouse != null) { view->mouse(view, m, f); }
         for (ui_view_t** c = view->children; c != null && *c != null; c++) {
             app_ui_mouse(*c, m, f);
@@ -1638,7 +1634,7 @@ static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
 }
 
 static bool app_context_menu(ui_view_t* view) {
-    if (!app_view_hidden_or_disabled(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null; c++) {
             if (app_context_menu(*c)) { return true; }
         }
@@ -1661,7 +1657,7 @@ static bool app_inside(ui_view_t* view) {
 
 static bool app_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!app_view_hidden_or_disabled(view) && app_inside(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view) && app_inside(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
             done = app_tap(*c, ix);
         }
@@ -1672,7 +1668,7 @@ static bool app_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
 
 static bool app_press(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!app_view_hidden_or_disabled(view) && app_inside(view)) {
+    if (!view->is_hidden(view) && !view->is_disabled(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
             done = app_press(*c, ix);
         }
@@ -2827,24 +2823,6 @@ const char* app_known_folder(int32_t kf) {
 
 static ui_view_t app_ui;
 
-static bool app_is_hidden(const ui_view_t* view) {
-    bool hidden = view->hidden;
-    while (!hidden && view->parent != null) {
-        view = view->parent;
-        hidden = view->hidden;
-    }
-    return hidden;
-}
-
-static bool app_is_disabled(const ui_view_t* view) {
-    bool disabled = view->disabled;
-    while (!disabled && view->parent != null) {
-        view = view->parent;
-        disabled = view->disabled;
-    }
-    return disabled;
-}
-
 static bool app_is_active(void) {
     return GetActiveWindow() == app_window();
 }
@@ -2877,8 +2855,6 @@ static void app_init(void) {
     app.in2px = app_in2px;
     app.point_in_rect = app_point_in_rect;
     app.intersect_rect = app_intersect_rect;
-    app.is_hidden   = app_is_hidden;
-    app.is_disabled = app_is_disabled;
     app.is_active = app_is_active,
     app.has_focus = app_has_focus,
     app.request_focus = app_request_focus,
@@ -4547,7 +4523,7 @@ static void ui_label_paint(ui_view_t* view) {
 static void ui_label_context_menu(ui_view_t* view) {
     assert(view->type == ui_view_text);
     ui_label_t* t = (ui_label_t*)view;
-    if (!t->label && !app.is_hidden(view) && !app.is_disabled(view)) {
+    if (!t->label && !view->is_hidden(view) && !view->is_disabled(view)) {
         clipboard.put_text(view->nls(view));
         static bool first_time = true;
         app.toast(first_time ? 2.15 : 0.75,
@@ -4560,7 +4536,7 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_text);
     ui_label_t* t = (ui_label_t*)view;
     if (view->hover && !t->label &&
-       !app.is_hidden(view) && !app.is_disabled(view)) {
+       !view->is_hidden(view) && !view->is_disabled(view)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {
@@ -5141,14 +5117,10 @@ static void ui_view_localize(ui_view_t* view) {
     }
 }
 
-static bool ui_view_hidden_or_disabled(ui_view_t* view) {
-    return app.is_hidden(view) || app.is_disabled(view);
-}
-
 static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_text(btn_tooltip,  "");
     if (start && app.toasting.view == null && view->tip[0] != 0 &&
-       !app.is_hidden(view)) {
+       !view->is_hidden(view)) {
         strprintf(btn_tooltip.view.text, "%s", app.nls(view->tip));
         btn_tooltip.view.font = &app.fonts.H1;
         int32_t y = app.mouse.y - view->em.y;
@@ -5172,16 +5144,37 @@ static bool ui_view_is_keyboard_shortcut(ui_view_t* view, int32_t key) {
     return keyboard_shortcut;
 }
 
+static bool ui_view_is_hidden(const ui_view_t* view) {
+    bool hidden = view->hidden;
+    while (!hidden && view->parent != null) {
+        view = view->parent;
+        hidden = view->hidden;
+    }
+    return hidden;
+}
+
+static bool ui_view_is_disabled(const ui_view_t* view) {
+    bool disabled = view->disabled;
+    while (!disabled && view->parent != null) {
+        view = view->parent;
+        disabled = view->disabled;
+    }
+    return disabled;
+}
+
 void ui_view_init(ui_view_t* view) {
-    view->set_text   = ui_view_set_text;
-    view->invalidate = ui_view_invalidate;
-    view->nls        = ui_view_nls;
-    view->localize   = ui_view_localize;
-    view->measure    = ui_view_measure;
-    view->hovering   = ui_view_hovering;
+    view->set_text    = ui_view_set_text;
+    view->invalidate  = ui_view_invalidate;
+    view->nls         = ui_view_nls;
+    view->localize    = ui_view_localize;
+    view->measure     = ui_view_measure;
+    view->hovering    = ui_view_hovering;
+    view->is_hidden   = ui_view_is_hidden;
+    view->is_disabled = ui_view_is_disabled;
     view->hover_delay = 1.5;
     view->is_keyboard_shortcut = ui_view_is_keyboard_shortcut;
 }
+
 
 #endif // ui_implementation
 

@@ -95,18 +95,16 @@ typedef struct app_s {
     // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) are OK.
     bool    (*intersect_rect)(ui_rect_t* r, const ui_rect_t* r0,
                                             const ui_rect_t* r1);
-    // layout:
-    bool (*is_hidden)(const ui_view_t* view);   // control or any parent is hidden
-    bool (*is_disabled)(const ui_view_t* view); // control or any parent is disabled
     bool (*is_active)(void); // is application window active
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
     void (*bring_to_foreground)(void); // not necessary topmost
-    void (*make_topmost)(void);    // in foreground hierarchy of windows
-    void (*request_focus)(void);   // request application window keyboard focus
-    void (*bring_to_front)(void);  // activate() + bring_to_foreground() +
-                                   // make_topmost() + request_focus()
-    void (*measure)(ui_view_t* view);    // measure all children
+    void (*make_topmost)(void);   // in foreground hierarchy of windows
+    void (*request_focus)(void);  // request application window keyboard focus
+    void (*bring_to_front)(void); // activate() + bring_to_foreground() +
+                                  // make_topmost() + request_focus()
+    // measure and layout:
+    void (*measure)(ui_view_t* view); // bottom up measure all children
     void (*layout)(void); // requests layout on UI tree before paint()
     void (*invalidate)(const ui_rect_t* rc);
     void (*full_screen)(bool on);
