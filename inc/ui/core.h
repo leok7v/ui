@@ -147,7 +147,7 @@ typedef struct ui_s {
         int32_t const pictures ;
         int32_t const videos   ;
         int32_t const shared   ; // c:\Users\Public
-        int32_t const bin      ; // c:\ProgramFiles
+        int32_t const bin      ; // c:\Program Files
         int32_t const data     ; // c:\ProgramData
     } folder;
 } ui_if;

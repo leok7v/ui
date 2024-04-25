@@ -14,7 +14,7 @@
     <ProjectGuid>{4A21BE1F-678C-4733-A9F0-A7BFFFCF3CC2}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>sample</RootNamespace>
-    <ProjectName>Sample#1 Hello World</ProjectName>
+    <ProjectName>sample1</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />

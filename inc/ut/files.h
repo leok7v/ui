@@ -63,7 +63,7 @@ typedef struct {
     errno_t (*move)(const char* from, const char* to); // allows overwriting
     errno_t (*cwd)(char* folder, int32_t count); // get current working dir
     errno_t (*chdir)(const char* folder); // set working directory
-    const char* (*bin)(void);  // Windows: "c:\ProgramFiles" Un*x: "/bin"
+    const char* (*bin)(void);  // Windows: "c:\Program Files" Un*x: "/bin"
     const char* (*data)(void); // Windows: "c:\ProgramData" Un*x: /data or /var
     const char* (*tmp)(void);  // temporary folder (system or user)
     // There are better, native, higher performance ways to iterate thru

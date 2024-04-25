@@ -1,4 +1,4 @@
-/* Copyright (c) Dmitry "Leo" Kuznetsov 2021 see LICENSE for details */
+/* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
 #include <math.h>
@@ -68,7 +68,6 @@ static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y
             j++;
         }
         gdi.poly(points, n - 1);
-
         gdi.x = view->em.x;
         gdi.y = y - h8 - view->em.y;
         gdi.println("min %.3f max %.3f avg %.3f ms  "
@@ -93,9 +92,7 @@ static void timer_thread(void* p) {
 static void paint(ui_view_t* view) {
     stats(&ts[0]);
     stats(&ts[1]);
-    gdi.set_brush(gdi.brush_color);
-    gdi.set_brush_color(colors.dkgray1);
-    gdi.fill(0, 0, view->w, view->h);
+    gdi.fill_with(0, 0, view->w, view->h, colors.dkgray1);
     gdi.y = view->em.y;
     gdi.x = view->w - gdi.measure_text(app.fonts.mono,
         "avg paint time %.1f ms", app.paint_avg * 1000).x - view->em.x;
@@ -185,10 +182,10 @@ app_t app = {
     .class_name = "sample2",
     .init = init,
     // fixed size app
-    .wmin = 11.0f, // 11x7 inches
-    .hmin =  7.0f,
-    .wmax = 11.0f,
-    .hmax =  7.0f,
+    .wmin = 10.0f, // 10x6 inches
+    .hmin =  6.0f,
+    .wmax = 10.0f,
+    .hmax =  6.0f,
 };
 
 end_c

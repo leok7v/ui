@@ -98,7 +98,7 @@ extern ui_if ui = {
         .pictures  = 5,
         .videos    = 6,
         .shared    = 7, // c:\Users\Public
-        .bin       = 8, // c:\ProgramFiles
+        .bin       = 8, // c:\Program Files
         .data      = 9  // c:\ProgramData
     }
 };
