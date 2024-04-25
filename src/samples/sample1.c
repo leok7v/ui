@@ -1,7 +1,6 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021 see LICENSE for details */
-#include "quick.h"
-
-begin_c
+#include "ut/ut.h"
+#include "ui/ui.h"
 
 const char* title = "Sample1";
 
@@ -33,4 +32,3 @@ app_t app = {
     .hmin = 2.0f
 };
 
-end_c

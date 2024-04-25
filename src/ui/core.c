@@ -1,5 +1,5 @@
 #include "ui/ui.h"
-#include "ui/win32.h"
+#include "ut/win32.h"
 
 #define UI_WM_ANIMATE  (WM_APP + 0x7FFF)
 #define UI_WM_OPENING  (WM_APP + 0x7FFE)

@@ -1,3 +1,6 @@
+#include "ui/ui.h"
+#include "ut/win32.h"
+
 static int ui_checkbox_paint_on_off(ui_view_t* view) {
     // https://www.compart.com/en/unicode/U+2B24
     static const char* circle = "\xE2\xAC\xA4"; // Black Large Circle
@@ -21,7 +24,7 @@ static int ui_checkbox_paint_on_off(ui_view_t* view) {
 }
 
 static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_t count)  {
-    str.sformat(label, count, "%s", ui_view_nls(view));
+    str.sformat(label, count, "%s", view->nls(view));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, view->pressed ? "On " : "Off", 3);
@@ -31,7 +34,7 @@ static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_
 
 static void ui_checkbox_measure(ui_view_t* view) {
     assert(view->type == ui_view_checkbox);
-    ui_view_measure(view);
+    view->measure(view);
     view->w += view->em.x * 2;
 }
 
@@ -59,14 +62,14 @@ static void ui_checkbox_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_checkbox);
     assert(!view->hidden && !view->disabled);
     char ch = utf8[0];
-    if (ui_is_keyboard_shortcut(view, ch)) {
+    if (view->is_keyboard_shortcut(view, ch)) {
          ui_checkbox_flip((checkbox_t*)view);
     }
 }
 
 static void ui_checkbox_key_pressed(ui_view_t* view, int32_t key) {
-    if (app.alt && ui_is_keyboard_shortcut(view, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, ui_is_keyboard_shortcut(view, key));
+    if (app.alt && view->is_keyboard_shortcut(view, key)) {
+//      traceln("key: 0x%02X shortcut: %d", key, view->is_keyboard_shortcut(view, key));
         ui_checkbox_flip((checkbox_t*)view);
     }
 }
@@ -89,7 +92,7 @@ static void ui_checkbox_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 void ui_checkbox_init_(ui_view_t* view) {
     assert(view->type == ui_view_checkbox);
     ui_view_init(view);
-    ui_view_set_text(view, view->text);
+    view->set_text(view, view->text);
     view->mouse       = ui_checkbox_mouse;
     view->measure     = ui_checkbox_measure;
     view->paint       = ui_checkbox_paint;

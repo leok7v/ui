@@ -1,14 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClInclude Include="..\samples\i18n.h">
-      <Filter>res</Filter>
-    </ClInclude>
-    <ClInclude Include="..\samples\version.h">
-      <Filter>res</Filter>
-    </ClInclude>
-    <ClInclude Include="..\quick.h" />
-    <ClInclude Include="..\ut\single_file_lib\ut.h" />
     <ClInclude Include="..\inc\ui\ui.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
@@ -48,11 +40,72 @@
     <ClInclude Include="..\inc\ui\core.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\samples\i18n.h" />
+    <ClInclude Include="..\inc\ut\version.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\debug.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\heap.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\vigil.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\args.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\atomics.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\clock.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\config.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\files.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\loader.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\mem.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\num.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\processes.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\runtime.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\static.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\std.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\str.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\streams.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\threads.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\ut.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\win32.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="res">
-      <UniqueIdentifier>{c60b96ea-15fe-4796-86c9-3b9428dc82c7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="inc">
       <UniqueIdentifier>{cfad7e97-c07d-4e7c-9f5d-e050de0d392d}</UniqueIdentifier>
     </Filter>
@@ -65,24 +118,20 @@
     <Filter Include="src\ui">
       <UniqueIdentifier>{b024e767-c6e0-4351-bf06-8240d113012c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="inc\ut">
+      <UniqueIdentifier>{4e1a5a4e-2a20-4edf-811f-9a0128ec521a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ut">
+      <UniqueIdentifier>{52ad5b7a-bfbe-4bcc-9bb3-fef7290f76a2}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\samples\sample.ico">
-      <Filter>res</Filter>
-    </Image>
+    <Image Include="..\src\samples\sample.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\samples\sample.rc">
-      <Filter>res</Filter>
-    </ResourceCompile>
-    <ResourceCompile Include="..\samples\version.rc">
-      <Filter>res</Filter>
-    </ResourceCompile>
+    <ResourceCompile Include="..\src\samples\sample.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\samples\sample1.c" />
-    <ClCompile Include="..\samples\quick.c" />
-    <ClCompile Include="..\samples\ut.c" />
     <ClCompile Include="..\src\ui\ui.c">
       <Filter>src\ui</Filter>
     </ClCompile>
@@ -119,5 +168,68 @@
     <ClCompile Include="..\src\ui\core.c">
       <Filter>src\ui</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\samples\sample1.c" />
+    <ClCompile Include="..\src\ut\args.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\atomics.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\clock.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\config.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\debug.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\files.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\heap.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\loader.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\mem.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\num.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\processes.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\runtime.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\static.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\str.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\streams.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\threads.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\ut.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\vigil.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="manifest.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\inc\ut\version.rc.in">
+      <Filter>inc\ut</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -1,3 +1,6 @@
+#include "ui/ui.h"
+#include "ut/win32.h"
+
 static void ui_button_every_100ms(ui_view_t* view) { // every 100ms
     assert(view->type == ui_view_button);
     ui_button_t* b = (ui_button_t*)view;
@@ -26,12 +29,12 @@ static void ui_button_paint(ui_view_t* view) {
     if (b->view.hover && !view->armed) { c = colors.btn_hover_highlight; }
     if (view->disabled) { c = colors.btn_disabled; }
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
-    ui_point_t m = gdi.measure_text(f, ui_view_nls(view));
+    ui_point_t m = gdi.measure_text(f, view->nls(view));
     gdi.set_text_color(c);
     gdi.x = view->x + (view->w - m.x) / 2;
     gdi.y = view->y + (view->h - m.y) / 2;
     f = gdi.set_font(f);
-    gdi.text("%s", ui_view_nls(view));
+    gdi.text("%s", view->nls(view));
     gdi.set_font(f);
     const int32_t pw = max(1, view->em.y / 32); // pen width
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
@@ -58,17 +61,6 @@ static void ui_button_callback(ui_button_t* b) {
     if (b->cb != null) { b->cb(b); }
 }
 
-static bool ui_is_keyboard_shortcut(ui_view_t* view, int32_t key) {
-    // Supported keyboard shortcuts are ASCII characters only for now
-    // If there is not focused UI control in Alt+key [Alt] is optional.
-    // If there is focused control only Alt+Key is accepted as shortcut
-    char ch = 0x20 <= key && key <= 0x7F ? (char)toupper(key) : 0x00;
-    bool need_alt = app.focus != null && app.focus != view;
-    bool keyboard_shortcut = ch != 0x00 && view->shortcut != 0x00 &&
-         (app.alt || !need_alt) && toupper(view->shortcut) == ch;
-    return keyboard_shortcut;
-}
-
 static void ui_button_trigger(ui_view_t* view) {
     assert(view->type == ui_view_button);
     assert(!view->hidden && !view->disabled);
@@ -85,14 +77,14 @@ static void ui_button_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_button);
     assert(!view->hidden && !view->disabled);
     char ch = utf8[0]; // TODO: multibyte shortcuts?
-    if (ui_is_keyboard_shortcut(view, ch)) {
+    if (view->is_keyboard_shortcut(view, ch)) {
         ui_button_trigger(view);
     }
 }
 
 static void ui_button_key_pressed(ui_view_t* view, int32_t key) {
-    if (app.alt && ui_is_keyboard_shortcut(view, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, ui_is_keyboard_shortcut(view, key));
+    if (app.alt && view->is_keyboard_shortcut(view, key)) {
+//      traceln("key: 0x%02X shortcut: %d", key, view->is_keyboard_shortcut(view, key));
         ui_button_trigger(view);
     }
 }
@@ -123,7 +115,7 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 
 static void ui_button_measure(ui_view_t* view) {
     assert(view->type == ui_view_button || view->type == ui_view_text);
-    ui_view_measure(view);
+    view->measure(view);
     const int32_t em2  = max(1, view->em.x / 2);
     view->w = view->w;
     view->h = view->h + em2;
@@ -139,7 +131,7 @@ void ui_button_init_(ui_view_t* view) {
     view->character   = ui_button_character;
     view->every_100ms = ui_button_every_100ms;
     view->key_pressed = ui_button_key_pressed;
-    ui_view_set_text(view, view->text);
+    view->set_text(view, view->text);
     view->localize(view);
     view->color = colors.btn_text;
 }

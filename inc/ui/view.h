@@ -21,12 +21,14 @@ typedef struct ui_view_s { // ui element container/control
     int32_t shortcut; // keyboard shortcut
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
+    void (*set_text)(ui_view_t* view, const char* label);
     void (*notify)(ui_view_t* view, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     void (*measure)(ui_view_t* view); // determine w, h (bottom up)
-    void (*layout)(ui_view_t* view);  // set x, y possibly adjust w, h (top down)
+    void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
+    const char* (*nls)(ui_view_t* view); // returns localized text
     void (*localize)(ui_view_t* view); // set strid based ui .text field
     void (*paint)(ui_view_t* view);
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
@@ -47,6 +49,7 @@ typedef struct ui_view_s { // ui element container/control
     void (*character)(ui_view_t* view, const char* utf8);
     void (*key_pressed)(ui_view_t* view, int32_t key);
     void (*key_released)(ui_view_t* view, int32_t key);
+    bool (*is_keyboard_shortcut)(ui_view_t* view, int32_t key);
     void (*hovering)(ui_view_t* view, bool start);
     void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()
     // timer() every_100ms() and every_sec() called

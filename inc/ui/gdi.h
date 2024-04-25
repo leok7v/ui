@@ -20,6 +20,8 @@ typedef struct gdi_s {
     ui_brush_t  brush_hollow;
     ui_pen_t pen_hollow;
     ui_region_t clip;
+    void (*init)(void);
+    uint32_t (*color_rgb)(ui_color_t c); // rgb color
     // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
     void (*image_init)(image_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels);

@@ -14,7 +14,7 @@
     <ProjectGuid>{4A21BE1F-678C-4733-A9F0-A7BFFFCF3CC2}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>sample</RootNamespace>
-    <ProjectName>sample1</ProjectName>
+    <ProjectName>Sample#1 Hello World</ProjectName>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -161,78 +161,78 @@
     <ClInclude Include="..\inc\ui\ui.h" />
     <ClInclude Include="..\inc\ui\view.h" />
     <ClInclude Include="..\inc\ui\win32.h" />
-    <ClInclude Include="..\quick.h" />
-    <ClInclude Include="..\samples\i18n.h" />
-    <ClInclude Include="..\samples\version.h" />
-    <ClInclude Include="..\ut\single_file_lib\ut.h" />
+    <ClInclude Include="..\inc\ut\args.h" />
+    <ClInclude Include="..\inc\ut\atomics.h" />
+    <ClInclude Include="..\inc\ut\clock.h" />
+    <ClInclude Include="..\inc\ut\config.h" />
+    <ClInclude Include="..\inc\ut\debug.h" />
+    <ClInclude Include="..\inc\ut\files.h" />
+    <ClInclude Include="..\inc\ut\heap.h" />
+    <ClInclude Include="..\inc\ut\loader.h" />
+    <ClInclude Include="..\inc\ut\mem.h" />
+    <ClInclude Include="..\inc\ut\num.h" />
+    <ClInclude Include="..\inc\ut\processes.h" />
+    <ClInclude Include="..\inc\ut\runtime.h" />
+    <ClInclude Include="..\inc\ut\static.h" />
+    <ClInclude Include="..\inc\ut\std.h" />
+    <ClInclude Include="..\inc\ut\str.h" />
+    <ClInclude Include="..\inc\ut\streams.h" />
+    <ClInclude Include="..\inc\ut\threads.h" />
+    <ClInclude Include="..\inc\ut\ut.h" />
+    <ClInclude Include="..\inc\ut\version.h" />
+    <ClInclude Include="..\inc\ut\vigil.h" />
+    <ClInclude Include="..\inc\ut\win32.h" />
+    <ClInclude Include="..\src\samples\i18n.h" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="..\samples\sample.ico" />
+    <Image Include="..\src\samples\sample.ico" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\samples\sample.rc" />
-    <ResourceCompile Include="..\samples\version.rc">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ResourceCompile>
+    <ResourceCompile Include="..\src\samples\sample.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\samples\quick.c" />
-    <ClCompile Include="..\samples\sample1.c" />
-    <ClCompile Include="..\samples\ut.c" />
-    <ClCompile Include="..\src\ui\app.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\button.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\checkbox.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\colors.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\core.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\gdi.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\label.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\layout.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\messagebox.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\slider.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\view.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="..\src\samples\sample1.c" />
+    <ClCompile Include="..\src\ui\app.c" />
+    <ClCompile Include="..\src\ui\button.c" />
+    <ClCompile Include="..\src\ui\checkbox.c" />
+    <ClCompile Include="..\src\ui\colors.c" />
+    <ClCompile Include="..\src\ui\core.c" />
+    <ClCompile Include="..\src\ui\gdi.c" />
+    <ClCompile Include="..\src\ui\label.c" />
+    <ClCompile Include="..\src\ui\layout.c" />
+    <ClCompile Include="..\src\ui\messagebox.c" />
+    <ClCompile Include="..\src\ui\slider.c" />
+    <ClCompile Include="..\src\ui\ui.c" />
+    <ClCompile Include="..\src\ui\view.c" />
+    <ClCompile Include="..\src\ut\args.c" />
+    <ClCompile Include="..\src\ut\atomics.c" />
+    <ClCompile Include="..\src\ut\clock.c" />
+    <ClCompile Include="..\src\ut\config.c" />
+    <ClCompile Include="..\src\ut\debug.c" />
+    <ClCompile Include="..\src\ut\files.c" />
+    <ClCompile Include="..\src\ut\heap.c" />
+    <ClCompile Include="..\src\ut\loader.c" />
+    <ClCompile Include="..\src\ut\mem.c" />
+    <ClCompile Include="..\src\ut\num.c" />
+    <ClCompile Include="..\src\ut\processes.c" />
+    <ClCompile Include="..\src\ut\runtime.c" />
+    <ClCompile Include="..\src\ut\static.c" />
+    <ClCompile Include="..\src\ut\str.c" />
+    <ClCompile Include="..\src\ut\streams.c" />
+    <ClCompile Include="..\src\ut\threads.c" />
+    <ClCompile Include="..\src\ut\ut.c" />
+    <ClCompile Include="..\src\ut\vigil.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="manifest.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\inc\ut\version.rc.in" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

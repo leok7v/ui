@@ -1,3 +1,6 @@
+#include "ui/ui.h"
+#include "ut/win32.h"
+
 static void ui_messagebox_button(ui_button_t* b) {
     ui_messagebox_t* mx = (ui_messagebox_t*)b->view.parent;
     assert(mx->view.type == ui_view_messagebox);

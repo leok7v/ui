@@ -36,7 +36,7 @@
       <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
 	</Link>
     <ResourceCompile>
-      <AdditionalIncludeDirectories>$(SolutionDir)..\inc;$(SolutionDir)..\build;$(SolutionDir)..\src;$(SolutionDir)..\samples</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(SolutionDir)..\inc;$(SolutionDir)..\src;$(SolutionDir)..\src\samples</AdditionalIncludeDirectories>
 	  <PreprocessorDefinitions>NDEBUG;$(DefineConstants);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>

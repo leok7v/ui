@@ -1,12 +1,15 @@
+#include "ui/ui.h"
+#include "ut/win32.h"
+
 static void ui_slider_measure(ui_view_t* view) {
     assert(view->type == ui_view_slider);
-    ui_view_measure(view);
+    view->measure(view);
     ui_slider_t* r = (ui_slider_t*)view;
     assert(r->inc.view.w == r->dec.view.w && r->inc.view.h == r->dec.view.h);
     const int32_t em = view->em.x;
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
     const int32_t w = (int)(view->width * view->em.x);
-    r->tm = gdi.measure_text(f, ui_view_nls(view), r->vmax);
+    r->tm = gdi.measure_text(f, view->nls(view), r->vmax);
     if (w > r->tm.x) { r->tm.x = w; }
     view->w = r->dec.view.w + r->tm.x + r->inc.view.w + em * 2;
     view->h = r->inc.view.h;
@@ -139,7 +142,7 @@ static void ui_slider_every_100ms(ui_view_t* view) { // 100ms
 void ui_slider_init_(ui_view_t* view) {
     assert(view->type == ui_view_slider);
     ui_view_init(view);
-    ui_view_set_text(view, view->text);
+    view->set_text(view, view->text);
     view->mouse       = ui_slider_mouse;
     view->measure     = ui_slider_measure;
     view->layout      = ui_slider_layout;

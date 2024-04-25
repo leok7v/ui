@@ -1,3 +1,11 @@
+#include "ui/ui.h"
+#include "ut/win32.h"
+
+#pragma push_macro("app_window")
+#pragma push_macro("app_canvas")
+
+#define app_window() ((HWND)app.window)
+#define app_canvas() ((HDC)app.canvas)
 
 enum { ui_long_press_msec = 250 };
 
@@ -128,7 +136,7 @@ static bool app_update_mi(const ui_rect_t* r, uint32_t flags) {
     RECT rc = app_ui2rect(r);
     HMONITOR monitor = MonitorFromRect(&rc, flags);
 //  TODO: moving between monitors with different DPIs
-//  HMONITOR mw = MonitorFromWindow(window(), flags);
+//  HMONITOR mw = MonitorFromWindow(app_window(), flags);
     if (monitor != null) {
         app_update_monitor_dpi(monitor, &app.dpi);
         fatal_if_false(GetMonitorInfoA(monitor, &app_mi));
@@ -141,7 +149,7 @@ static bool app_update_mi(const ui_rect_t* r, uint32_t flags) {
 
 static void app_update_crc(void) {
     RECT rc = {0};
-    fatal_if_false(GetClientRect(window(), &rc));
+    fatal_if_false(GetClientRect(app_window(), &rc));
     app.crc = app_rect2ui(&rc);
     app.width = app.crc.w;
     app.height = app.crc.h;
@@ -416,13 +424,13 @@ static bool app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
 }
 
 static void app_timer_kill(ui_timer_t timer) {
-    fatal_if_false(KillTimer(window(), timer));
+    fatal_if_false(KillTimer(app_window(), timer));
 }
 
 static ui_timer_t app_timer_set(uintptr_t id, int32_t ms) {
-    not_null(window());
+    not_null(app_window());
     assert(10 <= ms && ms < 0x7FFFFFFF);
-    ui_timer_t tid = (ui_timer_t)SetTimer(window(), id, (uint32_t)ms, null);
+    ui_timer_t tid = (ui_timer_t)SetTimer(app_window(), id, (uint32_t)ms, null);
     fatal_if(tid == 0);
     assert(tid == id);
     return tid;
@@ -446,13 +454,13 @@ static void app_init_children(ui_view_t* view) {
         if ((*c)->em.x == 0 || (*c)->em.y == 0) {
             (*c)->em = gdi.get_em(*view->font);
         }
-        ui_view_localize(*c);
+        (*c)->localize(*c);
         app_init_children(*c);
     }
 }
 
 static void app_post_message(int32_t m, int64_t wp, int64_t lp) {
-    fatal_if_false(PostMessageA(window(), m, wp, lp));
+    fatal_if_false(PostMessageA(app_window(), m, wp, lp));
 }
 
 static void app_timer(ui_view_t* view, ui_timer_t id) {
@@ -493,8 +501,8 @@ static void app_wm_timer(ui_timer_t id) {
 }
 
 static void app_window_dpi(void) {
-    int32_t dpi = GetDpiForWindow(window());
-    if (dpi == 0) { dpi = GetDpiForWindow(GetParent(window())); }
+    int32_t dpi = GetDpiForWindow(app_window());
+    if (dpi == 0) { dpi = GetDpiForWindow(GetParent(app_window())); }
     if (dpi == 0) { dpi = GetDpiForWindow(GetDesktopWindow()); }
     if (dpi == 0) { dpi = GetSystemDpiForProcess(GetCurrentProcess()); }
     if (dpi == 0) { dpi = GetDpiForSystem(); }
@@ -507,7 +515,7 @@ static void app_window_opening(void) {
     app_timer_1s_id = app.set_timer((uintptr_t)&app_timer_1s_id, 1000);
     app_timer_100ms_id = app.set_timer((uintptr_t)&app_timer_100ms_id, 100);
     app.set_cursor(app.cursor_arrow);
-    app.canvas = (ui_canvas_t)GetDC(window());
+    app.canvas = (ui_canvas_t)GetDC(app_window());
     not_null(app.canvas);
     if (app.opened != null) { app.opened(); }
     app.view->em = gdi.get_em(*app.view->font);
@@ -515,11 +523,11 @@ static void app_window_opening(void) {
     app_init_children(app.view);
     app_wm_timer(app_timer_100ms_id);
     app_wm_timer(app_timer_1s_id);
-    fatal_if(ReleaseDC(window(), canvas()) == 0);
+    fatal_if(ReleaseDC(app_window(), app_canvas()) == 0);
     app.canvas = null;
     app.layout(); // request layout
     if (app.last_visibility == ui.visibility.maximize) {
-        ShowWindow(window(), ui.visibility.maximize);
+        ShowWindow(app_window(), ui.visibility.maximize);
     }
 //  app_dump_dpi();
 //  if (forced_locale != 0) {
@@ -537,7 +545,7 @@ static void app_window_closing(void) {
         if (app.closed != null) { app.closed(); }
         app_save_window_pos(app.window, "wiw", false);
         app_save_console_pos();
-        DestroyWindow(window());
+        DestroyWindow(app_window());
         app.window = null;
     }
 }
@@ -568,15 +576,19 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
 }
 
+static bool app_view_hidden_or_disabled(ui_view_t* view) {
+    return app.is_hidden(view) || app.is_disabled(view);
+}
+
 #pragma push_macro("app_method_int32")
 
-#define app_method_int32(name)                                     \
-static void app_##name(ui_view_t* view, int32_t p) {               \
-    if (view->name != null && !ui_view_hidden_or_disabled(view)) { \
-        view->name(view, p);                                       \
-    }                                                              \
-    ui_view_t** c = view->children;                                \
-    while (c != null && *c != null) { app_##name(*c, p); c++; }    \
+#define app_method_int32(name)                                      \
+static void app_##name(ui_view_t* view, int32_t p) {                \
+    if (view->name != null && !app_view_hidden_or_disabled(view)) { \
+        view->name(view, p);                                        \
+    }                                                               \
+    ui_view_t** c = view->children;                                 \
+    while (c != null && *c != null) { app_##name(*c, p); c++; }     \
 }
 
 app_method_int32(key_pressed)
@@ -585,7 +597,7 @@ app_method_int32(key_released)
 #pragma pop_macro("app_method_int32")
 
 static void app_character(ui_view_t* view, const char* utf8) {
-    if (!ui_view_hidden_or_disabled(view)) {
+    if (!app_view_hidden_or_disabled(view)) {
         if (view->character != null) { view->character(view, utf8); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_character(*c, utf8); c++; }
@@ -602,7 +614,7 @@ static void app_paint(ui_view_t* view) {
 
 static bool app_set_focus(ui_view_t* view) {
     bool set = false;
-    assert(GetActiveWindow() == window());
+    assert(GetActiveWindow() == app_window());
     ui_view_t** c = view->children;
     while (c != null && *c != null && !set) { set = app_set_focus(*c); c++; }
     if (view->focusable && view->set_focus != null &&
@@ -621,7 +633,7 @@ static void app_kill_focus(ui_view_t* view) {
 }
 
 static void app_mousewheel(ui_view_t* view, int32_t dx, int32_t dy) {
-    if (!ui_view_hidden_or_disabled(view)) {
+    if (!app_view_hidden_or_disabled(view)) {
         if (view->mousewheel != null) { view->mousewheel(view, dx, dy); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_mousewheel(*c, dx, dy); c++; }
@@ -732,7 +744,7 @@ static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
             app_hover_changed(view);
         }
     }
-    if (!ui_view_hidden_or_disabled(view)) {
+    if (!app_view_hidden_or_disabled(view)) {
         if (view->mouse != null) { view->mouse(view, m, f); }
         for (ui_view_t** c = view->children; c != null && *c != null; c++) {
             app_ui_mouse(*c, m, f);
@@ -741,7 +753,7 @@ static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
 }
 
 static bool app_context_menu(ui_view_t* view) {
-    if (!ui_view_hidden_or_disabled(view)) {
+    if (!app_view_hidden_or_disabled(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null; c++) {
             if (app_context_menu(*c)) { return true; }
         }
@@ -764,7 +776,7 @@ static bool app_inside(ui_view_t* view) {
 
 static bool app_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!ui_view_hidden_or_disabled(view) && app_inside(view)) {
+    if (!app_view_hidden_or_disabled(view) && app_inside(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
             done = app_tap(*c, ix);
         }
@@ -775,7 +787,7 @@ static bool app_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
 
 static bool app_press(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!ui_view_hidden_or_disabled(view) && app_inside(view)) {
+    if (!app_view_hidden_or_disabled(view) && app_inside(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
             done = app_press(*c, ix);
         }
@@ -919,7 +931,7 @@ static void app_toast_character(const char* utf8) {
 static void app_toast_dim(int32_t step) {
     app.toasting.step = step;
     app.redraw();
-    UpdateWindow(window());
+    UpdateWindow(app_window());
 }
 
 static void app_animate_step(app_animate_function_t f, int32_t step, int32_t steps) {
@@ -977,16 +989,16 @@ static void app_paint_on_canvas(HDC hdc) {
     }
     ui_font_t font = gdi.set_font(app.fonts.regular);
     ui_color_t c = gdi.set_text_color(colors.text);
-    int32_t bm = SetBkMode(canvas(), TRANSPARENT);
-    int32_t stretch_mode = SetStretchBltMode(canvas(), HALFTONE);
+    int32_t bm = SetBkMode(app_canvas(), TRANSPARENT);
+    int32_t stretch_mode = SetStretchBltMode(app_canvas(), HALFTONE);
     ui_point_t pt = {0};
-    fatal_if_false(SetBrushOrgEx(canvas(), 0, 0, (POINT*)&pt));
+    fatal_if_false(SetBrushOrgEx(app_canvas(), 0, 0, (POINT*)&pt));
     ui_brush_t br = gdi.set_brush(gdi.brush_hollow);
     app_paint(app.view);
     if (app.toasting.view != null) { app_toast_paint(); }
-    fatal_if_false(SetBrushOrgEx(canvas(), pt.x, pt.y, null));
-    SetStretchBltMode(canvas(), stretch_mode);
-    SetBkMode(canvas(), bm);
+    fatal_if_false(SetBrushOrgEx(app_canvas(), pt.x, pt.y, null));
+    SetStretchBltMode(app_canvas(), stretch_mode);
+    SetBkMode(app_canvas(), bm);
     gdi.set_brush(br);
     gdi.set_text_color(c);
     gdi.set_font(font);
@@ -1008,9 +1020,9 @@ static void app_wm_paint(void) {
     // it is possible to receive WM_PAINT when window is not closed
     if (app.window != null) {
         PAINTSTRUCT ps = {0};
-        BeginPaint(window(), &ps);
+        BeginPaint(app_window(), &ps);
         app_paint_on_canvas(ps.hdc);
-        EndPaint(window(), &ps);
+        EndPaint(app_window(), &ps);
     }
 }
 
@@ -1018,15 +1030,15 @@ static void app_wm_paint(void) {
 // https://chromium.googlesource.com/chromium/src.git/+/62.0.3178.1/ui/views/win/hwnd_message_handler.cc#1847
 
 static void app_window_position_changed(const WINDOWPOS* wp) {
-    app.view->hidden = !IsWindowVisible(window());
+    app.view->hidden = !IsWindowVisible(app_window());
     const bool moved  = (wp->flags & SWP_NOMOVE) == 0;
     const bool sized  = (wp->flags & SWP_NOSIZE) == 0;
     const bool hiding = (wp->flags & SWP_HIDEWINDOW) != 0 ||
                         wp->x == -32000 && wp->y == -32000;
-    HMONITOR monitor = MonitorFromWindow(window(), MONITOR_DEFAULTTONULL);
+    HMONITOR monitor = MonitorFromWindow(app_window(), MONITOR_DEFAULTTONULL);
     if (!app.view->hidden && (moved || sized) && !hiding && monitor != null) {
         RECT wrc = app_ui2rect(&app.wrc);
-        fatal_if_false(GetWindowRect(window(), &wrc));
+        fatal_if_false(GetWindowRect(app_window(), &wrc));
         app.wrc = app_rect2ui(&wrc);
         app_update_mi(&app.wrc, MONITOR_DEFAULTTONEAREST);
         app_update_crc();
@@ -1156,7 +1168,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
     if (app.window == null) {
         app.window = (ui_window_t)window;
     } else {
-        assert(window() == window);
+        assert(app_window() == window);
     }
     int64_t ret = 0;
     app_kill_hidden_focus(app.view);
@@ -1221,7 +1233,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_NCMBUTTONDBLCLK: {
             POINT pt = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
 //          traceln("%d %d", pt.x, pt.y);
-            ScreenToClient(window(), &pt);
+            ScreenToClient(app_window(), &pt);
             app.mouse = app_point2ui(&pt);
             app_mouse(app.view, (int32_t)msg, (int32_t)wp);
             break;
@@ -1281,9 +1293,9 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             }
             break;
         case WM_ACTIVATE:
-            if (!IsWindowVisible(window()) && LOWORD(wp) != WA_INACTIVE) {
+            if (!IsWindowVisible(app_window()) && LOWORD(wp) != WA_INACTIVE) {
                 app.show_window(ui.visibility.restore);
-                SwitchToThisWindow(window(), true);
+                SwitchToThisWindow(app_window(), true);
             }
             break;
         case WM_WINDOWPOSCHANGING: {
@@ -1304,12 +1316,12 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         default:
             break;
     }
-    return DefWindowProcA(window(), msg, wp, lp);
+    return DefWindowProcA(app_window(), msg, wp, lp);
 }
 
 static long app_set_window_long(int32_t index, long value) {
     runtime.seterr(0);
-    long r = SetWindowLongA(window(), index, value); // r previous value
+    long r = SetWindowLongA(app_window(), index, value); // r previous value
     fatal_if_not_zero(runtime.err());
     return r;
 }
@@ -1333,22 +1345,22 @@ static void app_create_window(const ui_rect_t r) {
     HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
         app.class_name, app.title, style,
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
-    assert(window == window()); (void)window;
+    assert(window == app_window()); (void)window;
     not_null(app.window);
-    app.dpi.window = GetDpiForWindow(window());
+    app.dpi.window = GetDpiForWindow(app_window());
 //  traceln("app.dpi.window=%d", app.dpi.window);
     RECT wrc = app_ui2rect(&r);
-    fatal_if_false(GetWindowRect(window(), &wrc));
+    fatal_if_false(GetWindowRect(app_window(), &wrc));
     app.wrc = app_rect2ui(&wrc);
     // DWMWA_CAPTION_COLOR is supported starting with Windows 11 Build 22000.
     if (IsWindowsVersionOrGreater(10, 0, 22000)) {
-        COLORREF caption_color = gdi_color_ref(colors.dkgray3);
-        fatal_if_not_zero(DwmSetWindowAttribute(window(),
+        COLORREF caption_color = (COLORREF)gdi.color_rgb(colors.dkgray3);
+        fatal_if_not_zero(DwmSetWindowAttribute(app_window(),
             DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
         BOOL immersive = TRUE;
-        fatal_if_not_zero(DwmSetWindowAttribute(window(),
+        fatal_if_not_zero(DwmSetWindowAttribute(app_window(),
             DWMWA_USE_IMMERSIVE_DARK_MODE, &immersive, sizeof(immersive)));
-        // also availabale but not yet used:
+        // also available but not yet used:
 //      DWMWA_USE_HOSTBACKDROPBRUSH
 //      DWMWA_WINDOW_CORNER_PREFERENCE
 //      DWMWA_BORDER_COLOR
@@ -1356,7 +1368,7 @@ static void app_create_window(const ui_rect_t r) {
     }
     if (app.aero) { // It makes app look like retro Windows 7 Aero style :)
         enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
-        (void)DwmSetWindowAttribute(window(),
+        (void)DwmSetWindowAttribute(app_window(),
             DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
     }
     // always start with window hidden and let application show it
@@ -1365,25 +1377,25 @@ static void app_create_window(const ui_rect_t r) {
         uint32_t exclude = WS_SIZEBOX;
         if (app.no_min) { exclude = WS_MINIMIZEBOX; }
         if (app.no_max) { exclude = WS_MAXIMIZEBOX; }
-        uint32_t s = GetWindowLongA(window(), GWL_STYLE);
+        uint32_t s = GetWindowLongA(app_window(), GWL_STYLE);
         app_set_window_long(GWL_STYLE, s & ~exclude);
         // even for windows without maximize/minimize
         // make sure "Minimize All Windows" still works:
         // ???
-//      EnableMenuItem(GetSystemMenu(window(), false),
+//      EnableMenuItem(GetSystemMenu(app_window(), false),
 //          SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
     }
     if (app.no_size) {
-        uint32_t s = GetWindowLong(window(), GWL_STYLE);
+        uint32_t s = GetWindowLong(app_window(), GWL_STYLE);
         app_set_window_long(GWL_STYLE, s & ~WS_SIZEBOX);
         enum { swp = SWP_FRAMECHANGED |
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE };
-        SetWindowPos(window(), NULL, 0, 0, 0, 0, swp);
+        SetWindowPos(app_window(), NULL, 0, 0, 0, 0, swp);
     }
     if (app.visibility != ui.visibility.hide) {
         app.view->w = app.wrc.w;
         app.view->h = app.wrc.h;
-        AnimateWindow(window(), 250, AW_ACTIVATE);
+        AnimateWindow(app_window(), 250, AW_ACTIVATE);
         app.show_window(app.visibility);
         app_update_crc();
 //      app.view->w = app.crc.w; // app.crc is "client rectangle"
@@ -1391,7 +1403,7 @@ static void app_create_window(const ui_rect_t r) {
     }
     // even if it is hidden:
     app_post_message(ui.message.opening, 0, 0);
-//  SetWindowTheme(window(), L"DarkMode_Explorer", null); ???
+//  SetWindowTheme(app_window(), L"DarkMode_Explorer", null); ???
 }
 
 static void app_full_screen(bool on) {
@@ -1400,24 +1412,24 @@ static void app_full_screen(bool on) {
     if (on != app.is_full_screen) {
         app_show_task_bar(!on);
         if (on) {
-            style = GetWindowLongA(window(), GWL_STYLE);
+            style = GetWindowLongA(app_window(), GWL_STYLE);
             app_set_window_long(GWL_STYLE, (style | WS_POPUP | WS_VISIBLE) &
                 ~(WS_OVERLAPPEDWINDOW));
             wp.length = sizeof(wp);
-            fatal_if_false(GetWindowPlacement(window(), &wp));
+            fatal_if_false(GetWindowPlacement(app_window(), &wp));
             WINDOWPLACEMENT nwp = wp;
             nwp.showCmd = SW_SHOWNORMAL;
             nwp.rcNormalPosition = (RECT){app.mrc.x, app.mrc.y,
                 app.mrc.x + app.mrc.w, app.mrc.y + app.mrc.h};
-            fatal_if_false(SetWindowPlacement(window(), &nwp));
+            fatal_if_false(SetWindowPlacement(app_window(), &nwp));
         } else {
-            fatal_if_false(SetWindowPlacement(window(), &wp));
+            fatal_if_false(SetWindowPlacement(app_window(), &wp));
             app_set_window_long(GWL_STYLE,  style | WS_OVERLAPPED);
             enum { swp = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
                          SWP_NOZORDER | SWP_NOOWNERZORDER };
-            fatal_if_false(SetWindowPos(window(), null, 0, 0, 0, 0, swp));
+            fatal_if_false(SetWindowPos(app_window(), null, 0, 0, 0, 0, swp));
             enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_ENABLED;
-            fatal_if_not_zero(DwmSetWindowAttribute(window(),
+            fatal_if_not_zero(DwmSetWindowAttribute(app_window(),
                 DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp)));
         }
         app.is_full_screen = on;
@@ -1426,11 +1438,11 @@ static void app_full_screen(bool on) {
 
 static void app_fast_redraw(void) { SetEvent(app_event_invalidate); } // < 2us
 
-static void app_draw(void) { UpdateWindow(window()); }
+static void app_draw(void) { UpdateWindow(app_window()); }
 
 static void app_invalidate_rect(const ui_rect_t* r) {
     RECT rc = app_ui2rect(r);
-    InvalidateRect(window(), &rc, false);
+    InvalidateRect(app_window(), &rc, false);
 }
 
 // InvalidateRect() may wait for up to 30 milliseconds
@@ -1444,8 +1456,8 @@ static void app_redraw_thread(void* unused(p)) {
         event_t es[] = { app_event_invalidate, app_event_quit };
         int32_t r = events.wait_any(countof(es), es);
         if (r == 0) {
-            if (window() != null) {
-                InvalidateRect(window(), null, false);
+            if (app_window() != null) {
+                InvalidateRect(app_window(), null, false);
             }
         } else {
             break;
@@ -1473,7 +1485,7 @@ static void app_dispose(void) {
 static void app_cursor_set(ui_cursor_t c) {
     // https://docs.microsoft.com/en-us/windows/win32/menurc/using-cursors
     app.cursor = c;
-    SetClassLongPtr(window(), GCLP_HCURSOR, (LONG_PTR)c);
+    SetClassLongPtr(app_window(), GCLP_HCURSOR, (LONG_PTR)c);
     POINT pt = {0};
     if (GetCursorPos(&pt)) { SetCursorPos(pt.x + 1, pt.y); SetCursorPos(pt.x, pt.y); }
 }
@@ -1541,12 +1553,12 @@ static void app_formatted_toast(double timeout, const char* format, ...) {
 }
 
 static void app_create_caret(int32_t w, int32_t h) {
-    fatal_if_false(CreateCaret(window(), null, w, h));
+    fatal_if_false(CreateCaret(app_window(), null, w, h));
     assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
 }
 
 static void app_show_caret(void) {
-    fatal_if_false(ShowCaret(window()));
+    fatal_if_false(ShowCaret(app_window()));
 }
 
 static void app_move_caret(int32_t x, int32_t y) {
@@ -1554,7 +1566,7 @@ static void app_move_caret(int32_t x, int32_t y) {
 }
 
 static void app_hide_caret(void) {
-    fatal_if_false(HideCaret(window()));
+    fatal_if_false(HideCaret(app_window()));
 }
 
 static void app_destroy_caret(void) {
@@ -1793,7 +1805,7 @@ static void app_show_window(int32_t show) {
     assert(ui.visibility.hide <= show &&
            show <= ui.visibility.force_min);
     // ShowWindow() does not have documented error reporting
-    bool was_visible = ShowWindow(window(), show);
+    bool was_visible = ShowWindow(app_window(), show);
     (void)was_visible;
     const bool hiding =
         show == ui.visibility.hide ||
@@ -1804,7 +1816,7 @@ static void app_show_window(int32_t show) {
         app.bring_to_foreground(); // this does not make it ActiveWindow
         enum { swp = SWP_SHOWWINDOW | SWP_NOZORDER | SWP_NOSIZE |
                      SWP_NOREPOSITION | SWP_NOMOVE };
-        SetWindowPos(window(), null, 0, 0, 0, 0, swp);
+        SetWindowPos(app_window(), null, 0, 0, 0, 0, swp);
         app.request_focus();
     } else if (show == ui.visibility.hide ||
                show == ui.visibility.minimize ||
@@ -2036,11 +2048,11 @@ static bool app_is_disabled(const ui_view_t* view) {
 }
 
 static bool app_is_active(void) {
-    return GetActiveWindow() == window();
+    return GetActiveWindow() == app_window();
 }
 
 static bool app_has_focus(void) {
-    return GetFocus() == window();
+    return GetFocus() == app_window();
 }
 
 static void window_request_focus(void* w) {
@@ -2058,6 +2070,7 @@ static void app_request_focus(void) {
 
 static void app_init(void) {
     app.view = &app_ui;
+    ui_view_init(app.view);
     app.redraw = app_fast_redraw;
     app.draw = app_draw;
     app.px2in = app_px2in;
@@ -2108,7 +2121,7 @@ static void app_init(void) {
     app.init();
 }
 
-static void __app_windows_init__(void) {
+static void app_init_windows(void) {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
     not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     InitCommonControls(); // otherwise GetOpenFileName does not work
@@ -2127,8 +2140,8 @@ static void __app_windows_init__(void) {
 
 static int app_win_main(void) {
     not_null(app.init);
-    __app_windows_init__();
-    __gdi_init__();
+    app_init_windows();
+    gdi.init();
     app.last_visibility = ui.visibility.defau1t;
     app_init();
     int r = 0;
@@ -2151,7 +2164,6 @@ static int app_win_main(void) {
         wr.y = app.work_area.y + (app.work_area.h - wr.h) / 2;
         app_bring_window_inside_monitor(&app.mrc, &wr);
     }
-    app.view->invalidate = ui_view_invalidate;
     app.view->hidden = true; // start with ui hidden
     app.view->font = &app.fonts.regular;
     app.view->w = wr.w - size_frame * 2;
@@ -2353,3 +2365,34 @@ static void __winnls_init__(void) {
     app.set_locale = winnls_set_locale;
 }
 
+#pragma warning(disable: 28251) // inconsistent annotations
+
+int WINAPI WinMain(HINSTANCE unused(instance), HINSTANCE unused(previous),
+        char* unused(command), int show) {
+    app.tid = threads.id();
+    fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
+    // https://learn.microsoft.com/en-us/windows/win32/api/imm/nf-imm-immdisablelegacyime
+    ImmDisableLegacyIME();
+    // https://developercommunity.visualstudio.com/t/MSCTFdll-timcpp-An-assertion-failure-h/10513796
+    ImmDisableIME(0); // temporarily disable IME till MS fixes that assert
+    SetConsoleCP(CP_UTF8);
+    __winnls_init__();
+    app.visibility = show;
+    args.WinMain();
+    int32_t r = app_win_main();
+    args.fini();
+    return r;
+}
+
+int main(int argc, const char* argv[], const char** envp) {
+    fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
+    args.main(argc, argv, envp);
+    __winnls_init__();
+    app.tid = threads.id();
+    int r = app.main();
+    args.fini();
+    return r;
+}
+
+#pragma pop_macro("app_canvas")
+#pragma pop_macro("app_window")

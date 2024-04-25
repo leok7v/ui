@@ -1,6 +1,11 @@
 #pragma once
 #ifdef WIN32
 
+#pragma warning(push)
+#pragma warning(disable: 4255) // no function prototype: '()' to '(void)'
+#pragma warning(disable: 4459) // declaration of '...' hides global declaration
+
+// ut:
 #include <Windows.h>  // used by:
 #include <psapi.h>    // both loader.c and processes.c
 #include <shellapi.h> // processes.c
@@ -10,6 +15,15 @@
 #include <aclapi.h>       // files.c
 #include <shlobj_core.h>  // files.c
 #include <shlwapi.h>      // files.c
+// ui:
+#include <windowsx.h>
+#include <commdlg.h>
+#include <dwmapi.h>
+#include <ShellScalingApi.h>
+#include <VersionHelpers.h>
+
+#pragma warning(pop)
+
 #include <fcntl.h>
 
 #define export __declspec(dllexport)
