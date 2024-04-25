@@ -3,4 +3,5 @@
 inc/ut/version.h
 bin/
 build/
+lib/
 msvc2022/.vs/*
