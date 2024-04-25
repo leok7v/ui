@@ -47,16 +47,6 @@ typedef struct ui_fonts_s {
     ui_font_t H3;
 } ui_fonts_t;
 
-// TODO: move clipboard to ut.clipboard
-
-typedef struct clipboard_s {
-    errno_t (*copy_text)(const char* s); // returns error or 0
-    errno_t (*copy_bitmap)(image_t* im); // returns error or 0
-    int (*text)(char* text, int32_t* bytes);
-} clipboard_t;
-
-extern clipboard_t clipboard;
-
 enum ui_view_type_t {
     ui_view_container  = 'cnt',
     ui_view_messagebox = 'mbx',

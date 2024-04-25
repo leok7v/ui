@@ -65,6 +65,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\ut\args.c" />
     <ClCompile Include="..\src\ut\atomics.c" />
+    <ClCompile Include="..\src\ut\clipboard.c" />
     <ClCompile Include="..\src\ut\clock.c" />
     <ClCompile Include="..\src\ut\config.c" />
     <ClCompile Include="..\src\ut\debug.c" />
@@ -86,6 +87,7 @@
   <ItemGroup>
     <ClInclude Include="..\inc\ut\args.h" />
     <ClInclude Include="..\inc\ut\atomics.h" />
+    <ClInclude Include="..\inc\ut\clipboard.h" />
     <ClInclude Include="..\inc\ut\clock.h" />
     <ClInclude Include="..\inc\ut\config.h" />
     <ClInclude Include="..\inc\ut\debug.h" />

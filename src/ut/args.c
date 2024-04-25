@@ -322,9 +322,7 @@ static void args_test(void) {
     args_test_verify("foo.exe \\",     2, "foo.exe", "\\");
     args_test_verify("foo.exe \\\\",   2, "foo.exe", "\\\\");
     args_test_verify("foo.exe \\\\\\", 2, "foo.exe", "\\\\\\");
-    if (debug.verbosity.level > debug.verbosity.quiet) {
-        traceln("done");
-    }
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else

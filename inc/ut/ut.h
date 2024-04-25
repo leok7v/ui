@@ -2,6 +2,7 @@
 #include "ut/std.h" // must be first
 #include "ut/args.h"
 #include "ut/atomics.h"
+#include "ut/clipboard.h"
 #include "ut/clock.h"
 #include "ut/config.h"
 #include "ut/debug.h"

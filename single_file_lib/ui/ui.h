@@ -138,16 +138,6 @@ typedef struct ui_fonts_s {
     ui_font_t H3;
 } ui_fonts_t;
 
-// TODO: move clipboard to ut.clipboard
-
-typedef struct clipboard_s {
-    errno_t (*copy_text)(const char* s); // returns error or 0
-    errno_t (*copy_bitmap)(image_t* im); // returns error or 0
-    int (*text)(char* text, int32_t* bytes);
-} clipboard_t;
-
-extern clipboard_t clipboard;
-
 enum ui_view_type_t {
     ui_view_container  = 'cnt',
     ui_view_messagebox = 'mbx',
@@ -2767,89 +2757,7 @@ static const char* app_open_filename(const char* folder,
     return text;
 }
 
-static errno_t clipboard_copy_text(const char* utf8) {
-    errno_t r = 0;
-    int32_t chars = str.utf16_chars(utf8);
-    int32_t bytes = (chars + 1) * 2;
-    wchar_t* utf16 = (wchar_t*)malloc(bytes);
-    if (utf16 == null) {
-        r = ERROR_OUTOFMEMORY;
-    } else {
-        str.utf8_utf16(utf16, utf8);
-        assert(utf16[chars - 1] == 0);
-        const int32_t n = (int)wcslen(utf16) + 1;
-        r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
-        if (r != 0) { traceln("OpenClipboard() failed %s", str.error(r)); }
-        if (r == 0) {
-            r = EmptyClipboard() ? 0 : GetLastError();
-            if (r != 0) { traceln("EmptyClipboard() failed %s", str.error(r)); }
-        }
-        void* global = null;
-        if (r == 0) {
-            global = GlobalAlloc(GMEM_MOVEABLE, n * 2);
-            r = global != null ? 0 : GetLastError();
-            if (r != 0) { traceln("GlobalAlloc() failed %s", str.error(r)); }
-        }
-        if (r == 0) {
-            char* d = (char*)GlobalLock(global);
-            not_null(d);
-            memcpy(d, utf16, n * 2);
-            r = SetClipboardData(CF_UNICODETEXT, global) ? 0 : GetLastError();
-            GlobalUnlock(global);
-            if (r != 0) {
-                traceln("SetClipboardData() failed %s", str.error(r));
-                GlobalFree(global);
-            } else {
-                // do not free global memory. It's owned by system clipboard now
-            }
-        }
-        if (r == 0) {
-            r = CloseClipboard() ? 0 : GetLastError();
-            if (r != 0) {
-                traceln("CloseClipboard() failed %s", str.error(r));
-            }
-        }
-        free(utf16);
-    }
-    return r;
-}
-
-static errno_t clipboard_text(char* utf8, int32_t* bytes) {
-    not_null(bytes);
-    int r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
-    if (r != 0) { traceln("OpenClipboard() failed %s", str.error(r)); }
-    if (r == 0) {
-        HANDLE global = GetClipboardData(CF_UNICODETEXT);
-        if (global == null) {
-            r = GetLastError();
-        } else {
-            wchar_t* utf16 = (wchar_t*)GlobalLock(global);
-            if (utf16 != null) {
-                int32_t utf8_bytes = str.utf8_bytes(utf16);
-                if (utf8 != null) {
-                    char* decoded = (char*)malloc(utf8_bytes);
-                    if (decoded == null) {
-                        r = ERROR_OUTOFMEMORY;
-                    } else {
-                        str.utf16_utf8(decoded, utf16);
-                        int32_t n = min(*bytes, utf8_bytes);
-                        memcpy(utf8, decoded, n);
-                        free(decoded);
-                        if (n < utf8_bytes) {
-                            r = ERROR_INSUFFICIENT_BUFFER;
-                        }
-                    }
-                }
-                *bytes = utf8_bytes;
-                GlobalUnlock(global);
-            }
-        }
-        r = CloseClipboard() ? 0 : GetLastError();
-    }
-    return r;
-}
-
-static errno_t clipboard_copy_bitmap(image_t* im) {
+static errno_t clipboard_put_image(image_t* im) {
     HDC canvas = GetDC(null);
     not_null(canvas);
     HDC src = CreateCompatibleDC(canvas); not_null(src);
@@ -2916,12 +2824,6 @@ const char* app_known_folder(int32_t kf) {
 	}
     return known_foders[kf];
 }
-
-clipboard_t clipboard = {
-    .copy_text = clipboard_copy_text,
-    .copy_bitmap = clipboard_copy_bitmap,
-    .text = clipboard_text
-};
 
 static ui_view_t app_ui;
 
@@ -3040,6 +2942,7 @@ static int app_win_main(void) {
     not_null(app.init);
     app_init_windows();
     gdi.init();
+    clipboard.put_image = clipboard_put_image;
     app.last_visibility = ui.visibility.defau1t;
     app_init();
     int r = 0;
@@ -4636,7 +4539,7 @@ static void ui_label_context_menu(ui_view_t* view) {
     assert(view->type == ui_view_text);
     ui_label_t* t = (ui_label_t*)view;
     if (!t->label && !app.is_hidden(view) && !app.is_disabled(view)) {
-        clipboard.copy_text(view->nls(view));
+        clipboard.put_text(view->nls(view));
         static bool first_time = true;
         app.toast(first_time ? 2.15 : 0.75,
             app.nls("Text copied to clipboard"));
@@ -4652,7 +4555,7 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {
-            clipboard.copy_text(view->nls(view)); // 3 is ASCII for Ctrl+C
+            clipboard.put_text(view->nls(view)); // 3 is ASCII for Ctrl+C
         }
     }
 }
@@ -5186,7 +5089,6 @@ void ui_slider_init(ui_slider_t* r, const char* label, double ems,
 #pragma comment(lib, "msimg32")
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "shcore")
-#pragma comment(lib, "user32")
 // __________________________________ view.c __________________________________
 
 #include "ut/ut.h"
