@@ -63,25 +63,6 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\ut\args.c" />
-    <ClCompile Include="..\src\ut\atomics.c" />
-    <ClCompile Include="..\src\ut\clipboard.c" />
-    <ClCompile Include="..\src\ut\clock.c" />
-    <ClCompile Include="..\src\ut\config.c" />
-    <ClCompile Include="..\src\ut\debug.c" />
-    <ClCompile Include="..\src\ut\files.c" />
-    <ClCompile Include="..\src\ut\heap.c" />
-    <ClCompile Include="..\src\ut\loader.c" />
-    <ClCompile Include="..\src\ut\mem.c" />
-    <ClCompile Include="..\src\ut\num.c" />
-    <ClCompile Include="..\src\ut\processes.c" />
-    <ClCompile Include="..\src\ut\runtime.c" />
-    <ClCompile Include="..\src\ut\static.c" />
-    <ClCompile Include="..\src\ut\str.c" />
-    <ClCompile Include="..\src\ut\streams.c" />
-    <ClCompile Include="..\src\ut\threads.c" />
-    <ClCompile Include="..\src\ut\ut.c" />
-    <ClCompile Include="..\src\ut\vigil.c" />
     <ClCompile Include="..\test\test1.c" />
   </ItemGroup>
   <ItemGroup>
@@ -116,6 +97,9 @@
   <ItemGroup>
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ut.vcxproj">
+      <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

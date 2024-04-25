@@ -1062,7 +1062,7 @@ static void app_setting_change(uintptr_t wp, uintptr_t lp) {
 }
 
 static void app_show_task_bar(bool show) {
-    HWND taskbar = FindWindow("Shell_TrayWnd", null);
+    HWND taskbar = FindWindowA("Shell_TrayWnd", null);
     if (taskbar != null) {
         ShowWindow(taskbar, show ? SW_SHOW : SW_HIDE);
         UpdateWindow(taskbar);
@@ -2313,3 +2313,12 @@ int main(int argc, const char* argv[], const char** envp) {
 
 #pragma pop_macro("app_canvas")
 #pragma pop_macro("app_window")
+
+#pragma comment(lib, "comctl32")
+#pragma comment(lib, "comdlg32")
+#pragma comment(lib, "dwmapi")
+#pragma comment(lib, "gdi32")
+#pragma comment(lib, "imm32")
+#pragma comment(lib, "msimg32")
+#pragma comment(lib, "ole32")
+#pragma comment(lib, "shcore")

@@ -33,12 +33,13 @@ static void ui_view_measure(ui_view_t* view) {
     view->descent  = gdi.descent(f);
 }
 
-static void ui_view_set_text(ui_view_t* view, const char* label) {
-    int32_t n = (int32_t)strlen(label);
-    strprintf(view->text, "%s", label);
+static void ui_view_set_text(ui_view_t* view, const char* text) {
+    int32_t n = (int32_t)strlen(text);
+    strprintf(view->text, "%s", text);
+    view->strid = 0; // next call to nls() will localize this text
     for (int32_t i = 0; i < n; i++) {
-        if (label[i] == '&' && i < n - 1 && label[i + 1] != '&') {
-            view->shortcut = label[i + 1];
+        if (text[i] == '&' && i < n - 1 && text[i + 1] != '&') {
+            view->shortcut = text[i + 1];
             break;
         }
     }

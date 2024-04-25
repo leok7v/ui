@@ -118,17 +118,8 @@
     <Filter Include="inc\ui">
       <UniqueIdentifier>{8c1f8b04-c548-4f04-a9ab-f48af41ce29c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src">
-      <UniqueIdentifier>{7270cfc9-e29d-4b58-8ef8-9cb77d2858aa}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\ui">
-      <UniqueIdentifier>{b024e767-c6e0-4351-bf06-8240d113012c}</UniqueIdentifier>
-    </Filter>
     <Filter Include="inc\ut">
       <UniqueIdentifier>{4e1a5a4e-2a20-4edf-811f-9a0128ec521a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\ut">
-      <UniqueIdentifier>{52ad5b7a-bfbe-4bcc-9bb3-fef7290f76a2}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -138,100 +129,7 @@
     <ResourceCompile Include="..\src\samples\sample.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\ui\ui.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\slider.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\view.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\app.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\button.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\checkbox.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\colors.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\gdi.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\label.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\messagebox.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\layout.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\core.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\samples\sample1.c" />
-    <ClCompile Include="..\src\ut\args.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\atomics.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\clock.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\config.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\debug.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\files.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\heap.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\loader.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\mem.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\num.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\processes.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\runtime.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\static.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\str.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\streams.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\threads.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\ut.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\vigil.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\clipboard.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="manifest.xml" />

@@ -1,0 +1,99 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="inc">
+      <UniqueIdentifier>{4c769adc-9483-4a7d-86f9-288a6f0c0b9e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc\ui">
+      <UniqueIdentifier>{24026435-1a60-4f78-a1fd-e3c4f12e5885}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{a4450c50-a72b-444f-be12-c4ebf4fe5b4a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\ui">
+      <UniqueIdentifier>{72fd0a31-5562-44eb-b991-4130091643f4}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\inc\ui\app.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\button.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\checkbox.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\colors.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\core.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\gdi.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\label.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\layout.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\messagebox.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\slider.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\std.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\ui.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\view.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\win32.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\ui\app.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\button.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\checkbox.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\colors.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\core.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\gdi.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\label.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\layout.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\messagebox.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\slider.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\ui.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\view.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

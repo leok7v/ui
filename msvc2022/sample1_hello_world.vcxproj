@@ -192,41 +192,22 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\samples\sample1.c" />
-    <ClCompile Include="..\src\ui\app.c" />
-    <ClCompile Include="..\src\ui\button.c" />
-    <ClCompile Include="..\src\ui\checkbox.c" />
-    <ClCompile Include="..\src\ui\colors.c" />
-    <ClCompile Include="..\src\ui\core.c" />
-    <ClCompile Include="..\src\ui\gdi.c" />
-    <ClCompile Include="..\src\ui\label.c" />
-    <ClCompile Include="..\src\ui\layout.c" />
-    <ClCompile Include="..\src\ui\messagebox.c" />
-    <ClCompile Include="..\src\ui\slider.c" />
-    <ClCompile Include="..\src\ui\ui.c" />
-    <ClCompile Include="..\src\ui\view.c" />
-    <ClCompile Include="..\src\ut\args.c" />
-    <ClCompile Include="..\src\ut\atomics.c" />
-    <ClCompile Include="..\src\ut\clipboard.c" />
-    <ClCompile Include="..\src\ut\clock.c" />
-    <ClCompile Include="..\src\ut\config.c" />
-    <ClCompile Include="..\src\ut\debug.c" />
-    <ClCompile Include="..\src\ut\files.c" />
-    <ClCompile Include="..\src\ut\heap.c" />
-    <ClCompile Include="..\src\ut\loader.c" />
-    <ClCompile Include="..\src\ut\mem.c" />
-    <ClCompile Include="..\src\ut\num.c" />
-    <ClCompile Include="..\src\ut\processes.c" />
-    <ClCompile Include="..\src\ut\runtime.c" />
-    <ClCompile Include="..\src\ut\static.c" />
-    <ClCompile Include="..\src\ut\str.c" />
-    <ClCompile Include="..\src\ut\streams.c" />
-    <ClCompile Include="..\src\ut\threads.c" />
-    <ClCompile Include="..\src\ut\ut.c" />
-    <ClCompile Include="..\src\ut\vigil.c" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="amalgamate.vcxproj">
+      <Project>{1ea9bf0c-402b-4852-bd16-644244f0d1b9}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
+    </ProjectReference>
+    <ProjectReference Include="ui.vcxproj">
+      <Project>{9b9ac256-a764-474a-ad7a-31411fe694e2}</Project>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
+    </ProjectReference>
+    <ProjectReference Include="ut.vcxproj">
+      <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
+      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

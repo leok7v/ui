@@ -2,63 +2,6 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\test\test1.c" />
-    <ClCompile Include="..\src\ut\str.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\streams.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\threads.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\vigil.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\args.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\atomics.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\clock.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\debug.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\files.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\loader.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\mem.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\num.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\processes.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\runtime.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\static.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\heap.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\config.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\ut.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ut\clipboard.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="inc">
@@ -66,12 +9,6 @@
     </Filter>
     <Filter Include="inc\ut">
       <UniqueIdentifier>{6ca884e5-c026-4a69-96b3-088748b7adf3}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src">
-      <UniqueIdentifier>{3f4a2d7c-7207-4180-97e5-a42fadd767cc}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\ut">
-      <UniqueIdentifier>{b622764f-3cf6-4af4-ba32-0815b2a6bc30}</UniqueIdentifier>
     </Filter>
     <Filter Include="rc">
       <UniqueIdentifier>{be5e3ac4-0df0-4828-adc5-d9e917138711}</UniqueIdentifier>

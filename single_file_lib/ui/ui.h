@@ -1946,7 +1946,7 @@ static void app_setting_change(uintptr_t wp, uintptr_t lp) {
 }
 
 static void app_show_task_bar(bool show) {
-    HWND taskbar = FindWindow("Shell_TrayWnd", null);
+    HWND taskbar = FindWindowA("Shell_TrayWnd", null);
     if (taskbar != null) {
         ShowWindow(taskbar, show ? SW_SHOW : SW_HIDE);
         UpdateWindow(taskbar);
@@ -3197,6 +3197,15 @@ int main(int argc, const char* argv[], const char** envp) {
 
 #pragma pop_macro("app_canvas")
 #pragma pop_macro("app_window")
+
+#pragma comment(lib, "comctl32")
+#pragma comment(lib, "comdlg32")
+#pragma comment(lib, "dwmapi")
+#pragma comment(lib, "gdi32")
+#pragma comment(lib, "imm32")
+#pragma comment(lib, "msimg32")
+#pragma comment(lib, "ole32")
+#pragma comment(lib, "shcore")
 // _________________________________ button.c _________________________________
 
 #include "ut/ut.h"
@@ -5078,17 +5087,6 @@ void ui_slider_init(ui_slider_t* r, const char* label, double ems,
     ui_slider_init_(&r->view);
 }
 
-// ___________________________________ ui.c ___________________________________
-
-#pragma comment(lib, "advapi32")
-#pragma comment(lib, "comctl32")
-#pragma comment(lib, "comdlg32")
-#pragma comment(lib, "dwmapi")
-#pragma comment(lib, "gdi32")
-#pragma comment(lib, "imm32")
-#pragma comment(lib, "msimg32")
-#pragma comment(lib, "ole32")
-#pragma comment(lib, "shcore")
 // __________________________________ view.c __________________________________
 
 #include "ut/ut.h"
@@ -5125,12 +5123,13 @@ static void ui_view_measure(ui_view_t* view) {
     view->descent  = gdi.descent(f);
 }
 
-static void ui_view_set_text(ui_view_t* view, const char* label) {
-    int32_t n = (int32_t)strlen(label);
-    strprintf(view->text, "%s", label);
+static void ui_view_set_text(ui_view_t* view, const char* text) {
+    int32_t n = (int32_t)strlen(text);
+    strprintf(view->text, "%s", text);
+    view->strid = 0; // next call to nls() will localize this text
     for (int32_t i = 0; i < n; i++) {
-        if (label[i] == '&' && i < n - 1 && label[i + 1] != '&') {
-            view->shortcut = label[i + 1];
+        if (text[i] == '&' && i < n - 1 && text[i + 1] != '&') {
+            view->shortcut = text[i + 1];
             break;
         }
     }
