@@ -7,9 +7,6 @@
     <ClInclude Include="..\inc\ui\view.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\win32.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ui\app.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
@@ -103,6 +100,12 @@
     </ClInclude>
     <ClInclude Include="..\inc\ut\win32.h">
       <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\std.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\win32.h">
+      <Filter>inc\ui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

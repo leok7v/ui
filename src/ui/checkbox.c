@@ -1,3 +1,4 @@
+#include "ut/ut.h"
 #include "ui/ui.h"
 
 static int ui_checkbox_paint_on_off(ui_view_t* view) {

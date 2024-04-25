@@ -1,3 +1,4 @@
+#include "ut/ut.h"
 #include "ui/ui.h"
 
 static void measurements_center(ui_view_t* view) {

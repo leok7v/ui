@@ -1,5 +1,7 @@
 #pragma once
 #include "ut/std.h"
+#include <assert.h> // unsures that it will not be included again
+#undef assert       // because better assert(b, ...) will be defined here
 
 begin_c
 

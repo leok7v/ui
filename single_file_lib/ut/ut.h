@@ -3,7 +3,6 @@
 
 // __________________________________ std.h ___________________________________
 
-#include <assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <malloc.h>
@@ -14,7 +13,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#undef assert // will be redefined in vigil.h
 
 #ifdef __cplusplus
     #define begin_c extern "C" {
@@ -793,9 +791,11 @@ typedef struct {
 
 extern threads_if threads;
 
-
-
 // _________________________________ vigil.h __________________________________
+
+#include <assert.h> // unsures that it will not be included again
+#undef assert       // because better assert(b, ...) will be defined here
+
 
 // better assert() - augmented with printf format and parameters
 // swear() - release configuration assert() in honor of:

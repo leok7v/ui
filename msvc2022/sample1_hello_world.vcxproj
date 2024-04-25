@@ -96,8 +96,7 @@
       </TreatOutputAsContent>
     </CustomBuildStep>
     <PreBuildEvent>
-      <Command>
-      </Command>
+      <Command>pushd $(ProjectDir).. &amp;&amp; $(TargetDir)amalgamate.exe ui &gt; single_file_lib/ui/ui.h &amp;&amp; popd</Command>
       <Message>
       </Message>
     </PreBuildEvent>
@@ -141,8 +140,7 @@
       </TreatOutputAsContent>
     </CustomBuildStep>
     <PreBuildEvent>
-      <Command>
-      </Command>
+      <Command>pushd $(ProjectDir).. &amp;&amp; $(TargetDir)amalgamate.exe ui &gt; single_file_lib/ui/ui.h &amp;&amp; popd</Command>
       <Message>
       </Message>
     </PreBuildEvent>
@@ -158,6 +156,7 @@
     <ClInclude Include="..\inc\ui\layout.h" />
     <ClInclude Include="..\inc\ui\messagebox.h" />
     <ClInclude Include="..\inc\ui\slider.h" />
+    <ClInclude Include="..\inc\ui\std.h" />
     <ClInclude Include="..\inc\ui\ui.h" />
     <ClInclude Include="..\inc\ui\view.h" />
     <ClInclude Include="..\inc\ui\win32.h" />

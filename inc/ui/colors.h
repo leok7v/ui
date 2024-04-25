@@ -1,5 +1,5 @@
 #pragma once
-#include "ui/ui.h"
+#include "ut/std.h"
 
 begin_c
 
@@ -65,7 +65,7 @@ typedef struct colors_s {
     const int32_t text_highlight; // bluish off-white
     const int32_t blue_highlight;
     const int32_t off_white;
-
+    // button and other UI colors
     const int32_t btn_gradient_darker;
     const int32_t btn_gradient_dark;
     const int32_t btn_hover_highlight;

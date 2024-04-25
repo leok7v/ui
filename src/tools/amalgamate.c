@@ -159,8 +159,9 @@ static void definition(void) {
     printf("end_c\n");
     printf("\n");
     printf("#endif // %s_definition\n", name);
+    const char* name_h = concat(name, ".h");
     // because name.h is fully processed do not include it again:
-    set_add(&files, concat(name, ".h"));
+    if (!set_has(&files, name_h)) { set_add(&files, concat(name, ".h")); }
 }
 
 static void implementation(void) {

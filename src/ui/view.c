@@ -1,3 +1,4 @@
+#include "ut/ut.h"
 #include "ui/ui.h"
 
 static void ui_view_invalidate(const ui_view_t* view) {

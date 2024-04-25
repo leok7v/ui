@@ -1,5 +1,7 @@
 #pragma once
-#include <stdint.h>
+#include "ut/std.h"
+
+begin_c
 
 typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
@@ -161,3 +163,5 @@ typedef struct ui_s {
 } ui_if;
 
 extern ui_if ui;
+
+end_c
