@@ -39,6 +39,7 @@ static_init(runtime) {
 static void runtime_test(void) { // in alphabetical order
     args.test();
     atomics.test();
+    clipboard.test();
     clock.test();
     config.test();
     debug.test();
@@ -77,3 +78,4 @@ runtime_if runtime = {
 #pragma comment(lib, "shell32")
 #pragma comment(lib, "shlwapi")
 #pragma comment(lib, "kernel32")
+#pragma comment(lib, "user32") // clipboard

@@ -9,4 +9,3 @@
 #pragma comment(lib, "msimg32")
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "shcore")
-#pragma comment(lib, "user32")

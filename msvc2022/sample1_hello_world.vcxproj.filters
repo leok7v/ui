@@ -107,6 +107,9 @@
     <ClInclude Include="..\inc\ui\win32.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ut\clipboard.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="inc">
@@ -224,6 +227,9 @@
       <Filter>src\ut</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ut\vigil.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\clipboard.c">
       <Filter>src\ut</Filter>
     </ClCompile>
   </ItemGroup>
