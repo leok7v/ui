@@ -9,6 +9,27 @@
 #define UI_WM_DTAP     (WM_APP + 0x7FFB) // double tap (aka click)
 #define UI_WM_PRESS    (WM_APP + 0x7FFA)
 
+bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
+    return r->x <= p->x && p->x < r->x + r->w &&
+           r->y <= p->y && p->y < r->y + r->h;
+}
+
+bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
+                                     const ui_rect_t* r1) {
+    ui_rect_t r = {0};
+    r.x = max(r0->x, r1->x);  // Maximum of left edges
+    r.y = max(r0->y, r1->y);  // Maximum of top edges
+    r.w = min(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
+    r.h = min(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
+    bool b = r.w > 0 && r.h > 0;
+    if (!b) {
+        r.w = 0;
+        r.h = 0;
+    }
+    if (i != null) { *i = r; }
+    return b;
+}
+
 extern ui_if ui = {
     .visibility = { // window visibility see ShowWindow link below
         .hide      = SW_HIDE,
@@ -101,7 +122,9 @@ extern ui_if ui = {
         .shared    = 7, // c:\Users\Public
         .bin       = 8, // c:\Program Files
         .data      = 9  // c:\ProgramData
-    }
+    },
+    .point_in_rect = ui_point_in_rect,
+    .intersect_rect = ui_intersect_rect
 };
 
 // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow

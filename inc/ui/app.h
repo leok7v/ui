@@ -80,10 +80,6 @@ typedef struct app_s {
     // inch to pixels and reverse translation via app.dpi.window
     float   (*px2in)(int32_t pixels);
     int32_t (*in2px)(float inches);
-    bool    (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
-    // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) are OK.
-    bool    (*intersect_rect)(ui_rect_t* r, const ui_rect_t* r0,
-                                            const ui_rect_t* r1);
     bool (*is_active)(void); // is application window active
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation

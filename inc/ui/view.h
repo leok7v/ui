@@ -78,6 +78,7 @@ typedef struct ui_view_s {
 void ui_view_init(ui_view_t* view);
 
 typedef struct ui_view_if {
+    bool (*inside)(ui_view_t* view, const ui_point_t* pt);
     void (*set_text)(ui_view_t* view, const char* text);
     void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()
     void (*measure)(ui_view_t* view);     // if text[] != "" sets w, h
@@ -96,9 +97,15 @@ typedef struct ui_view_if {
     void (*paint)(ui_view_t* view);
     bool (*set_focus)(ui_view_t* view);
     void (*kill_focus)(ui_view_t* view);
+    void (*mouse)(ui_view_t* view, int32_t m, int32_t f);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
     void (*measure_children)(ui_view_t* view);
     void (*layout_children)(ui_view_t* view);
+    void (*hover_changed)(ui_view_t* view);
+    void (*kill_hidden_focus)(ui_view_t* view);
+    bool (*context_menu)(ui_view_t* view);
+    bool (*tap)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
+    bool (*press)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
     bool (*message)(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
                                      int64_t* ret);
 } ui_view_if;

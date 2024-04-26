@@ -311,27 +311,6 @@ static void app_save_console_pos(void) {
     config.save(app.class_name, "icv", &v, (int)sizeof(v));
 }
 
-static bool app_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
-    return r->x <= p->x && p->x < r->x + r->w &&
-           r->y <= p->y && p->y < r->y + r->h;
-}
-
-static bool app_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
-                               const ui_rect_t* r1) {
-    ui_rect_t r = {0};
-    r.x = max(r0->x, r1->x);  // Maximum of left edges
-    r.y = max(r0->y, r1->y);  // Maximum of top edges
-    r.w = min(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
-    r.h = min(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
-    bool b = r.w > 0 && r.h > 0;
-    if (!b) {
-        r.w = 0;
-        r.h = 0;
-    }
-    if (i != null) { *i = r; }
-    return b;
-}
-
 static bool app_is_fully_inside(const ui_rect_t* inner,
                                 const ui_rect_t* outer) {
     return
@@ -545,19 +524,6 @@ static void app_measure_and_layout(ui_view_t* view) {
     ui_view.layout_children(view);
 }
 
-static void app_kill_hidden_focus(ui_view_t* view) {
-    // removes focus from hidden or disabled ui controls
-    if (app.focus == view && (view->disabled || view->hidden)) {
-        app.focus = null;
-    } else {
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) {
-            app_kill_hidden_focus(*c);
-            c++;
-        }
-    }
-}
-
 static void app_toast_mouse(int32_t m, int32_t f);
 static void app_toast_character(const char* utf8);
 
@@ -569,100 +535,15 @@ static void app_wm_char(ui_view_t* view, const char* utf8) {
     }
 }
 
-static void app_hover_changed(ui_view_t* view) {
-    if (view->hovering != null && !view->hidden) {
-        if (!view->hover) {
-            view->hover_at = 0;
-            view->hovering(view, false); // cancel hover
-        } else {
-            assert(view->hover_delay >= 0);
-            if (view->hover_delay == 0) {
-                view->hover_at = -1;
-                view->hovering(view, true); // call immediately
-            } else if (view->hover_delay != 0 && view->hover_at >= 0) {
-                view->hover_at = app.now + view->hover_delay;
-            }
-        }
-    }
-}
-
-static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
-    if (!ui_view.is_hidden(view) &&
-       (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
-        RECT rc = { view->x, view->y, view->x + view->w, view->y + view->h};
-        bool hover = view->hover;
-        POINT pt = app_ui2point(&app.mouse);
-        view->hover = PtInRect(&rc, pt);
-        ui_rect_t r2 = { view->x, view->y, view->w, view->h};
-        assert(app_point_in_rect(&app.mouse, &r2) == view->hover);
-        InflateRect(&rc, view->w / 4, view->h / 4);
-        ui_rect_t r = app_rect2ui(&rc);
-        if (hover != view->hover) { app.invalidate(&r); }
-        if (hover != view->hover && view->hovering != null) {
-            app_hover_changed(view);
-        }
-    }
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->mouse != null) { view->mouse(view, m, f); }
-        for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-            app_ui_mouse(*c, m, f);
-        }
-    }
-}
-
-static bool app_context_menu(ui_view_t* view) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-            if (app_context_menu(*c)) { return true; }
-        }
-        RECT rc = { view->x, view->y, view->x + view->w, view->y + view->h};
-        POINT pt = app_ui2point(&app.mouse);
-        if (PtInRect(&rc, pt)) {
-            if (!view->hidden && !view->disabled && view->context_menu != null) {
-                view->context_menu(view);
-            }
-        }
-    }
-    return false;
-}
-
-static bool app_inside(ui_view_t* view) {
-    const int32_t x = app.mouse.x - view->x;
-    const int32_t y = app.mouse.y - view->y;
-    return 0 <= x && x < view->w && 0 <= y && y < view->h;
-}
-
-static bool app_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
-    bool done = false; // consumed
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view) && app_inside(view)) {
-        for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
-            done = app_tap(*c, ix);
-        }
-        if (view->tap != null && !done) { done = view->tap(view, ix); }
-    }
-    return done;
-}
-
-static bool app_press(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
-    bool done = false; // consumed
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
-            done = app_press(*c, ix);
-        }
-        if (view->press != null && !done) { done = view->press(view, ix); }
-    }
-    return done;
-}
-
 static void app_mouse(ui_view_t* view, int32_t m, int32_t f) {
     if (app.animating.view != null && app.animating.view->mouse != null) {
-        app_ui_mouse(app.animating.view, m, f);
+        ui_view.mouse(app.animating.view, m, f);
     } else if (app.animating.view != null && app.animating.view->mouse == null) {
         app_toast_mouse(m, f);
         bool tooltip = app.animating.x >= 0 && app.animating.y >= 0;
-        if (tooltip) { app_ui_mouse(view, m, f); }
+        if (tooltip) { ui_view.mouse(view, m, f); }
     } else {
-        app_ui_mouse(view, m, f);
+        ui_view.mouse(view, m, f);
     }
 }
 
@@ -676,11 +557,11 @@ static void app_tap_press(int32_t m, WPARAM wp, LPARAM lp) {
     // for now long press and double tap/double click
     // treated as press() call - can be separated if desired:
     if (m == ui.message.tap) {
-        app_tap(app.view, ix);
+        ui_view.tap(app.view, ix);
     } else if (m == ui.message.dtap) {
-        app_press(app.view, ix);
+        ui_view.press(app.view, ix);
     } else if (m == ui.message.press) {
-        app_press(app.view, ix);
+        ui_view.press(app.view, ix);
     } else {
         assert(false, "unexpected message: 0x%04X", m);
     }
@@ -769,10 +650,10 @@ static void app_toast_mouse(int32_t m, int32_t flags) {
             0 <= app.mouse.y && app.mouse.y <= em.y) {
             app_toast_cancel();
         } else {
-            app_ui_mouse(app.animating.view, m, flags);
+            ui_view.mouse(app.animating.view, m, flags);
         }
     } else {
-        app_ui_mouse(app.animating.view, m, flags);
+        ui_view.mouse(app.animating.view, m, flags);
     }
 }
 
@@ -1029,7 +910,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         assert(app_window() == window);
     }
     int64_t ret = 0;
-    app_kill_hidden_focus(app.view);
+    ui_view.kill_hidden_focus(app.view);
     app_click_detector(msg, wp, lp);
     if (ui_view.message(app.view, msg, wp, lp, &ret)) {
         return (LRESULT)ret;
@@ -1070,15 +951,16 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_CHAR         : app_wm_char(app.view, (const char*)&wp);
                                break; // TODO: CreateWindowW() and utf16->utf8
         case WM_PRINTCLIENT  : app_paint_on_canvas((HDC)wp); break;
-        case WM_SETFOCUS     : if (!app.view->hidden) {
-                                   assert(GetActiveWindow() == app_window());
-                                   ui_view.set_focus(app.view);
-                               }
-                               break;
+        case WM_SETFOCUS     :
+            if (!app.view->hidden) {
+                assert(GetActiveWindow() == app_window());
+                ui_view.set_focus(app.view);
+            }
+            break;
         case WM_KILLFOCUS    : if (!app.view->hidden) { ui_view.kill_focus(app.view); }
                                break;
         case WM_PAINT        : app_wm_paint(); break;
-        case WM_CONTEXTMENU  : (void)app_context_menu(app.view); break;
+        case WM_CONTEXTMENU  : (void)ui_view.context_menu(app.view); break;
         case WM_MOUSEWHEEL   :
             ui_view.mouse_wheel(app.view, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
         case WM_MOUSEHWHEEL  :
@@ -1821,8 +1703,6 @@ static void app_init(void) {
     app.draw                = app_draw;
     app.px2in               = app_px2in;
     app.in2px               = app_in2px;
-    app.point_in_rect       = app_point_in_rect;
-    app.intersect_rect      = app_intersect_rect;
     app.is_active           = app_is_active,
     app.has_focus           = app_has_focus,
     app.request_focus       = app_request_focus,
