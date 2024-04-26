@@ -15,22 +15,27 @@ static const char* ui_view_nls(ui_view_t* view) {
         nls.string(view->strid, view->text) : view->text;
 }
 
-static void ui_view_measure(ui_view_t* view) {
+static void ui_view_measure_text(ui_view_t* view) {
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
     view->em = gdi.get_em(f);
-    assert(view->em.x > 0 && view->em.y > 0);
-    view->w = (int32_t)(view->em.x * view->width + 0.5);
-    ui_point_t mt = { 0 };
-    if (view->type == ui_view_text && ((ui_label_t*)view)->multiline) {
-        int32_t w = (int)(view->width * view->em.x + 0.5);
-        mt = gdi.measure_multiline(f, w == 0 ? -1 : w, view->nls(view));
-    } else {
-        mt = gdi.measure_text(f, view->nls(view));
-    }
-    view->h = mt.y;
-    view->w = max(view->w, mt.x);
     view->baseline = gdi.baseline(f);
     view->descent  = gdi.descent(f);
+    if (view->text[0] != 0) {
+        view->w = (int32_t)(view->em.x * view->width + 0.5);
+        ui_point_t mt = { 0 };
+        if (view->type == ui_view_text && ((ui_label_t*)view)->multiline) {
+            int32_t w = (int)(view->width * view->em.x + 0.5);
+            mt = gdi.measure_multiline(f, w == 0 ? -1 : w, view->nls(view));
+        } else {
+            mt = gdi.measure_text(f, view->nls(view));
+        }
+        view->h = mt.y;
+        view->w = max(view->w, mt.x);
+    }
+}
+
+static void ui_view_measure(ui_view_t* view) {
+    view->measure_text(view);
 }
 
 static void ui_view_set_text(ui_view_t* view, const char* text) {
@@ -97,14 +102,15 @@ static bool ui_view_is_disabled(const ui_view_t* view) {
 }
 
 void ui_view_init(ui_view_t* view) {
-    view->set_text    = ui_view_set_text;
-    view->invalidate  = ui_view_invalidate;
-    view->nls         = ui_view_nls;
-    view->localize    = ui_view_localize;
-    view->measure     = ui_view_measure;
-    view->hovering    = ui_view_hovering;
-    view->is_hidden   = ui_view_is_hidden;
-    view->is_disabled = ui_view_is_disabled;
+    view->set_text     = ui_view_set_text;
+    view->invalidate   = ui_view_invalidate;
+    view->measure      = ui_view_measure;
+    view->measure_text = ui_view_measure_text;
+    view->nls          = ui_view_nls;
+    view->localize     = ui_view_localize;
+    view->hovering     = ui_view_hovering;
+    view->is_hidden    = ui_view_is_hidden;
+    view->is_disabled  = ui_view_is_disabled;
     view->hover_delay = 1.5;
     view->is_keyboard_shortcut = ui_view_is_keyboard_shortcut;
 }

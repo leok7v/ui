@@ -238,7 +238,7 @@ typedef struct ui_s {
         int32_t const pictures ;
         int32_t const videos   ;
         int32_t const shared   ; // c:\Users\Public
-        int32_t const bin      ; // c:\ProgramFiles
+        int32_t const bin      ; // c:\Program Files
         int32_t const data     ; // c:\ProgramData
     } folder;
 } ui_if;
@@ -470,6 +470,7 @@ typedef struct ui_view_s { // ui element container/control
     // second layout() top down - parent.layout before children.layout
     void (*measure)(ui_view_t* view); // determine w, h (bottom up)
     void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
+    void (*measure_text)(ui_view_t* view); // if text[] != "" sets w, h
     const char* (*nls)(ui_view_t* view); // returns localized text
     void (*localize)(ui_view_t* view); // set strid based ui .text field
     void (*paint)(ui_view_t* view);
@@ -581,7 +582,7 @@ void ui_label_init_(ui_view_t* view); // do not call use ui_text() and ui_multil
     .children = null, .width = w, .text = s}, .multiline = true}
 
 // single line of text with "&" keyboard shortcuts:
-void ui_label_vinit(ui_label_t* t, const char* format, va_list vl);
+void ui_label_init_va(ui_label_t* t, const char* format, va_list vl);
 void ui_label_init(ui_label_t* t, const char* format, ...);
 // multiline
 void ui_label_init_ml(ui_label_t* t, double width, const char* format, ...);
@@ -851,7 +852,7 @@ typedef struct app_s {
     void (*show_window)(int32_t show); // see show_window enum
     void (*show_toast)(ui_view_t* toast, double seconds); // toast(null) to cancel
     void (*show_tooltip)(ui_view_t* tooltip, int32_t x, int32_t y, double seconds);
-    void (*vtoast)(double seconds, const char* format, va_list vl);
+    void (*toast_va)(double seconds, const char* format, va_list vl);
     void (*toast)(double seconds, const char* format, ...);
     // caret calls must be balanced by caller
     void (*create_caret)(int32_t w, int32_t h);
@@ -1349,7 +1350,9 @@ static void app_init_children(ui_view_t* view) {
         if ((*c)->em.x == 0 || (*c)->em.y == 0) {
             (*c)->em = gdi.get_em(*view->font);
         }
-        (*c)->localize(*c);
+        if ((*c)->localize != null && (*c)->text[0] != 0) { 
+            (*c)->localize(*c); 
+        }
         app_init_children(*c);
     }
 }
@@ -1861,7 +1864,6 @@ static void app_animate_start(app_animate_function_t f, int32_t steps) {
 static void app_layout_root(void) {
     not_null(app.window);
     not_null(app.canvas);
-    assert(app.view->measure == null, "sized by client rectangle");
     app.view->w = app.crc.w; // crc is window client rectangle
     app.view->h = app.crc.h;
     app_layout_ui(app.view);
@@ -2096,7 +2098,8 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_TIMER        : app_wm_timer((ui_timer_t)wp);
                                break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
-        case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor); break;
+        case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor); 
+                               break; // must call DefWindowProc()
         // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
         // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
 //      case WM_UNICHAR      : // only UTF-32 via PostMessage
@@ -2429,10 +2432,10 @@ static void app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
     }
 }
 
-static void app_formatted_vtoast(double timeout, const char* format, va_list vl) {
+static void app_formatted_toast_va(double timeout, const char* format, va_list vl) {
     app_show_toast(null, 0);
     static ui_label_t txt;
-    ui_label_vinit(&txt, format, vl);
+    ui_label_init_va(&txt, format, vl);
     txt.multiline = true;
     app_show_toast(&txt.view, timeout);
 }
@@ -2440,7 +2443,7 @@ static void app_formatted_vtoast(double timeout, const char* format, va_list vl)
 static void app_formatted_toast(double timeout, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    app_formatted_vtoast(timeout, format, vl);
+    app_formatted_toast_va(timeout, format, vl);
     va_end(vl);
 }
 
@@ -2873,7 +2876,7 @@ static void app_init(void) {
     app.show_window = app_show_window;
     app.show_toast = app_show_toast;
     app.show_tooltip = app_show_tooltip;
-    app.vtoast = app_formatted_vtoast;
+    app.toast_va = app_formatted_toast_va;
     app.toast = app_formatted_toast;
     app.create_caret = app_create_caret;
     app.show_caret = app_show_caret;
@@ -3119,7 +3122,7 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 
 static void ui_button_measure(ui_view_t* view) {
     assert(view->type == ui_view_button || view->type == ui_view_text);
-    view->measure(view);
+    view->measure_text(view);
     const int32_t em2  = max(1, view->em.x / 2);
     view->w = view->w;
     view->h = view->h + em2;
@@ -3186,7 +3189,7 @@ static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_
 
 static void ui_checkbox_measure(ui_view_t* view) {
     assert(view->type == ui_view_checkbox);
-    view->measure(view);
+    view->measure_text(view);
     view->w += view->em.x * 2;
 }
 
@@ -3416,7 +3419,7 @@ extern ui_if ui = {
         .pictures  = 5,
         .videos    = 6,
         .shared    = 7, // c:\Users\Public
-        .bin       = 8, // c:\ProgramFiles
+        .bin       = 8, // c:\Program Files
         .data      = 9  // c:\ProgramData
     }
 };
@@ -4375,7 +4378,7 @@ void ui_label_init_(ui_view_t* view) {
     view->context_menu = ui_label_context_menu;
 }
 
-void ui_label_vinit(ui_label_t* t, const char* format, va_list vl) {
+void ui_label_init_va(ui_label_t* t, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     str.format_va(t->view.text, countof(t->view.text), format, vl);
     t->view.type = ui_view_text;
@@ -4385,14 +4388,14 @@ void ui_label_vinit(ui_label_t* t, const char* format, va_list vl) {
 void ui_label_init(ui_label_t* t, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_label_vinit(t, format, vl);
+    ui_label_init_va(t, format, vl);
     va_end(vl);
 }
 
 void ui_label_init_ml(ui_label_t* t, double width, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_label_vinit(t, format, vl);
+    ui_label_init_va(t, format, vl);
     va_end(vl);
     t->view.width = width;
     t->multiline = true;
@@ -4889,7 +4892,7 @@ nls_if nls = {
 
 static void ui_slider_measure(ui_view_t* view) {
     assert(view->type == ui_view_slider);
-    view->measure(view);
+    view->measure_text(view);
     ui_slider_t* r = (ui_slider_t*)view;
     assert(r->inc.view.w == r->dec.view.w && r->inc.view.h == r->dec.view.h);
     const int32_t em = view->em.x;
@@ -5083,22 +5086,27 @@ static const char* ui_view_nls(ui_view_t* view) {
         nls.string(view->strid, view->text) : view->text;
 }
 
-static void ui_view_measure(ui_view_t* view) {
+static void ui_view_measure_text(ui_view_t* view) {
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
     view->em = gdi.get_em(f);
-    assert(view->em.x > 0 && view->em.y > 0);
-    view->w = (int32_t)(view->em.x * view->width + 0.5);
-    ui_point_t mt = { 0 };
-    if (view->type == ui_view_text && ((ui_label_t*)view)->multiline) {
-        int32_t w = (int)(view->width * view->em.x + 0.5);
-        mt = gdi.measure_multiline(f, w == 0 ? -1 : w, view->nls(view));
-    } else {
-        mt = gdi.measure_text(f, view->nls(view));
-    }
-    view->h = mt.y;
-    view->w = max(view->w, mt.x);
     view->baseline = gdi.baseline(f);
     view->descent  = gdi.descent(f);
+    if (view->text[0] != 0) {
+        view->w = (int32_t)(view->em.x * view->width + 0.5);
+        ui_point_t mt = { 0 };
+        if (view->type == ui_view_text && ((ui_label_t*)view)->multiline) {
+            int32_t w = (int)(view->width * view->em.x + 0.5);
+            mt = gdi.measure_multiline(f, w == 0 ? -1 : w, view->nls(view));
+        } else {
+            mt = gdi.measure_text(f, view->nls(view));
+        }
+        view->h = mt.y;
+        view->w = max(view->w, mt.x);
+    }
+}
+
+static void ui_view_measure(ui_view_t* view) {
+    view->measure_text(view);
 }
 
 static void ui_view_set_text(ui_view_t* view, const char* text) {
@@ -5165,14 +5173,15 @@ static bool ui_view_is_disabled(const ui_view_t* view) {
 }
 
 void ui_view_init(ui_view_t* view) {
-    view->set_text    = ui_view_set_text;
-    view->invalidate  = ui_view_invalidate;
-    view->nls         = ui_view_nls;
-    view->localize    = ui_view_localize;
-    view->measure     = ui_view_measure;
-    view->hovering    = ui_view_hovering;
-    view->is_hidden   = ui_view_is_hidden;
-    view->is_disabled = ui_view_is_disabled;
+    view->set_text     = ui_view_set_text;
+    view->invalidate   = ui_view_invalidate;
+    view->measure      = ui_view_measure;
+    view->measure_text = ui_view_measure_text;
+    view->nls          = ui_view_nls;
+    view->localize     = ui_view_localize;
+    view->hovering     = ui_view_hovering;
+    view->is_hidden    = ui_view_is_hidden;
+    view->is_disabled  = ui_view_is_disabled;
     view->hover_delay = 1.5;
     view->is_keyboard_shortcut = ui_view_is_keyboard_shortcut;
 }

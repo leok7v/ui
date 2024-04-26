@@ -3,7 +3,7 @@
 
 static void ui_slider_measure(ui_view_t* view) {
     assert(view->type == ui_view_slider);
-    view->measure(view);
+    view->measure_text(view);
     ui_slider_t* r = (ui_slider_t*)view;
     assert(r->inc.view.w == r->dec.view.w && r->inc.view.h == r->dec.view.h);
     const int32_t em = view->em.x;

@@ -28,6 +28,7 @@ typedef struct ui_view_s { // ui element container/control
     // second layout() top down - parent.layout before children.layout
     void (*measure)(ui_view_t* view); // determine w, h (bottom up)
     void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
+    void (*measure_text)(ui_view_t* view); // if text[] != "" sets w, h
     const char* (*nls)(ui_view_t* view); // returns localized text
     void (*localize)(ui_view_t* view); // set strid based ui .text field
     void (*paint)(ui_view_t* view);

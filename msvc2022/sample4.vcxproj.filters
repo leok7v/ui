@@ -8,8 +8,8 @@
       <Filter>res</Filter>
     </ClInclude>
     <ClInclude Include="..\single_file_lib\ui\ui.h" />
-    <ClInclude Include="..\stb_image.h" />
     <ClInclude Include="..\single_file_lib\ut\ut.h" />
+    <ClInclude Include="..\stb_image.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="res">

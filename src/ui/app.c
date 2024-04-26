@@ -455,7 +455,9 @@ static void app_init_children(ui_view_t* view) {
         if ((*c)->em.x == 0 || (*c)->em.y == 0) {
             (*c)->em = gdi.get_em(*view->font);
         }
-        (*c)->localize(*c);
+        if ((*c)->localize != null && (*c)->text[0] != 0) { 
+            (*c)->localize(*c); 
+        }
         app_init_children(*c);
     }
 }
@@ -967,7 +969,6 @@ static void app_animate_start(app_animate_function_t f, int32_t steps) {
 static void app_layout_root(void) {
     not_null(app.window);
     not_null(app.canvas);
-    assert(app.view->measure == null, "sized by client rectangle");
     app.view->w = app.crc.w; // crc is window client rectangle
     app.view->h = app.crc.h;
     app_layout_ui(app.view);
@@ -1202,7 +1203,8 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_TIMER        : app_wm_timer((ui_timer_t)wp);
                                break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
-        case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor); break;
+        case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor); 
+                               break; // must call DefWindowProc()
         // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
         // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
 //      case WM_UNICHAR      : // only UTF-32 via PostMessage
@@ -1535,10 +1537,10 @@ static void app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
     }
 }
 
-static void app_formatted_vtoast(double timeout, const char* format, va_list vl) {
+static void app_formatted_toast_va(double timeout, const char* format, va_list vl) {
     app_show_toast(null, 0);
     static ui_label_t txt;
-    ui_label_vinit(&txt, format, vl);
+    ui_label_init_va(&txt, format, vl);
     txt.multiline = true;
     app_show_toast(&txt.view, timeout);
 }
@@ -1546,7 +1548,7 @@ static void app_formatted_vtoast(double timeout, const char* format, va_list vl)
 static void app_formatted_toast(double timeout, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    app_formatted_vtoast(timeout, format, vl);
+    app_formatted_toast_va(timeout, format, vl);
     va_end(vl);
 }
 
@@ -1979,7 +1981,7 @@ static void app_init(void) {
     app.show_window = app_show_window;
     app.show_toast = app_show_toast;
     app.show_tooltip = app_show_tooltip;
-    app.vtoast = app_formatted_vtoast;
+    app.toast_va = app_formatted_toast_va;
     app.toast = app_formatted_toast;
     app.create_caret = app_create_caret;
     app.show_caret = app_show_caret;

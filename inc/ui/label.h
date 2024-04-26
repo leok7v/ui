@@ -24,7 +24,7 @@ void ui_label_init_(ui_view_t* view); // do not call use ui_text() and ui_multil
     .children = null, .width = w, .text = s}, .multiline = true}
 
 // single line of text with "&" keyboard shortcuts:
-void ui_label_vinit(ui_label_t* t, const char* format, va_list vl);
+void ui_label_init_va(ui_label_t* t, const char* format, va_list vl);
 void ui_label_init(ui_label_t* t, const char* format, ...);
 // multiline
 void ui_label_init_ml(ui_label_t* t, double width, const char* format, ...);

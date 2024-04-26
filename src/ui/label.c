@@ -68,7 +68,7 @@ void ui_label_init_(ui_view_t* view) {
     view->context_menu = ui_label_context_menu;
 }
 
-void ui_label_vinit(ui_label_t* t, const char* format, va_list vl) {
+void ui_label_init_va(ui_label_t* t, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     str.format_va(t->view.text, countof(t->view.text), format, vl);
     t->view.type = ui_view_text;
@@ -78,14 +78,14 @@ void ui_label_vinit(ui_label_t* t, const char* format, va_list vl) {
 void ui_label_init(ui_label_t* t, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_label_vinit(t, format, vl);
+    ui_label_init_va(t, format, vl);
     va_end(vl);
 }
 
 void ui_label_init_ml(ui_label_t* t, double width, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_label_vinit(t, format, vl);
+    ui_label_init_va(t, format, vl);
     va_end(vl);
     t->view.width = width;
     t->multiline = true;

@@ -34,7 +34,7 @@ static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_
 
 static void ui_checkbox_measure(ui_view_t* view) {
     assert(view->type == ui_view_checkbox);
-    view->measure(view);
+    view->measure_text(view);
     view->w += view->em.x * 2;
 }
 

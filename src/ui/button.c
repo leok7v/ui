@@ -115,7 +115,7 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 
 static void ui_button_measure(ui_view_t* view) {
     assert(view->type == ui_view_button || view->type == ui_view_text);
-    view->measure(view);
+    view->measure_text(view);
     const int32_t em2  = max(1, view->em.x / 2);
     view->w = view->w;
     view->h = view->h + em2;

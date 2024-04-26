@@ -109,7 +109,7 @@ typedef struct app_s {
     void (*show_window)(int32_t show); // see show_window enum
     void (*show_toast)(ui_view_t* toast, double seconds); // toast(null) to cancel
     void (*show_tooltip)(ui_view_t* tooltip, int32_t x, int32_t y, double seconds);
-    void (*vtoast)(double seconds, const char* format, va_list vl);
+    void (*toast_va)(double seconds, const char* format, va_list vl);
     void (*toast)(double seconds, const char* format, ...);
     // caret calls must be balanced by caller
     void (*create_caret)(int32_t w, int32_t h);
