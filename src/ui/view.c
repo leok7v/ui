@@ -113,9 +113,20 @@ static void ui_view_init_children(ui_view_t* view) {
     }
 }
 
+static void ui_view_parents(ui_view_t* view) {
+    for (ui_view_t** c = view->children; c != null && *c != null; c++) {
+        if ((*c)->parent == null) {
+            (*c)->parent = view;
+            ui_view_parents(*c);
+        } else {
+            assert((*c)->parent == view, "no reparenting");
+        }
+    }
+}
+
 void ui_view_init(ui_view_t* view) {
-    view->measure      = ui_view_measure;
-    view->hovering     = ui_view_hovering;
+    view->measure     = ui_view_measure;
+    view->hovering    = ui_view_hovering;
     view->hover_delay = 1.5;
     view->is_keyboard_shortcut = ui_view_is_keyboard_shortcut;
 }
@@ -128,5 +139,6 @@ ui_view_if ui_view = {
     .localize      = ui_view_localize,
     .is_hidden     = ui_view_is_hidden,
     .is_disabled   = ui_view_is_disabled,
-    .init_children = ui_view_init_children
+    .init_children = ui_view_init_children,
+    .set_parents   = ui_view_parents
 };

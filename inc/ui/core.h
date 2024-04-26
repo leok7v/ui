@@ -81,6 +81,7 @@ typedef struct ui_s {
         int32_t const right_button_pressed;
         int32_t const right_button_released;
         int32_t const mouse_move;
+        int32_t const mouse_hover;
         int32_t const left_double_click;
         int32_t const right_double_click;
         int32_t const animate;

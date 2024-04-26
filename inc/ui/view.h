@@ -86,6 +86,7 @@ typedef struct ui_view_if {
     const char* (*nls)(ui_view_t* view);  // returns localized text
     void (*localize)(ui_view_t* view);    // set strid based ui .text field
     void (*init_children)(ui_view_t* view);
+    void (*set_parents)(ui_view_t* view);
 } ui_view_if;
 
 extern ui_view_if ui_view;

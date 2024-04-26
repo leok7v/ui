@@ -33,6 +33,7 @@ extern ui_if ui = {
         .right_button_pressed  = WM_RBUTTONDOWN,
         .right_button_released = WM_RBUTTONUP,
         .mouse_move            = WM_MOUSEMOVE,
+        .mouse_hover           = WM_MOUSEHOVER,
         .left_double_click     = WM_LBUTTONDBLCLK,
         .right_double_click    = WM_RBUTTONDBLCLK,
         .animate               = UI_WM_ANIMATE,

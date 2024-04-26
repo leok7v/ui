@@ -437,29 +437,6 @@ static ui_timer_t app_timer_set(uintptr_t id, int32_t ms) {
     return tid;
 }
 
-static void app_set_parents(ui_view_t* view) {
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-        if ((*c)->parent == null) {
-            (*c)->parent = view;
-            app_set_parents(*c);
-        } else {
-            assert((*c)->parent == view, "no reparenting");
-        }
-    }
-}
-
-static void app_init_children(ui_view_t* view) {
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-        if ((*c)->init != null) { (*c)->init(*c); (*c)->init = null; }
-        if ((*c)->font == null) { (*c)->font = &app.fonts.regular; }
-        if ((*c)->em.x == 0 || (*c)->em.y == 0) {
-            (*c)->em = gdi.get_em(*view->font);
-        }
-        if ((*c)->text[0] != 0) { ui_view.localize(*c); }
-        app_init_children(*c);
-    }
-}
-
 static void app_post_message(int32_t m, int64_t wp, int64_t lp) {
     fatal_if_false(PostMessageA(app_window(), m, wp, lp));
 }
@@ -520,7 +497,7 @@ static void app_window_opening(void) {
     not_null(app.canvas);
     if (app.opened != null) { app.opened(); }
     app.view->em = gdi.get_em(*app.view->font);
-    app_set_parents(app.view);
+    ui_view.set_parents(app.view);
     ui_view.init_children(app.view);
     app_wm_timer(app_timer_100ms_id);
     app_wm_timer(app_timer_1s_id);
@@ -614,7 +591,8 @@ static bool app_set_focus(ui_view_t* view) {
     assert(GetActiveWindow() == app_window());
     ui_view_t** c = view->children;
     while (c != null && *c != null && !set) { set = app_set_focus(*c); c++; }
-    if (view->focusable && view->set_focus != null &&
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view) &&
+        view->focusable && view->set_focus != null &&
        (app.focus == view || app.focus == null)) {
         set = view->set_focus(view);
     }
@@ -653,7 +631,7 @@ static void app_layout_children(ui_view_t* view) {
     }
 }
 
-static void app_layout_ui(ui_view_t* view) {
+static void app_measure_and_layout(ui_view_t* view) {
     app_measure_children(view);
     app_layout_children(view);
 }
@@ -729,7 +707,7 @@ static void app_on_every_message(ui_view_t* view) {
 
 static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
     if (!ui_view.is_hidden(view) &&
-       (m == WM_MOUSEHOVER || m == ui.message.mouse_move)) {
+       (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
         RECT rc = { view->x, view->y, view->x + view->w, view->y + view->h};
         bool hover = view->hover;
         POINT pt = app_ui2point(&app.mouse);
@@ -854,14 +832,14 @@ static void app_toast_paint(void) {
             app.animating.view->y = app.animating.view->h * step / (app_animation_steps - 1);
 //          traceln("step=%d of %d y=%d", app.animating.step,
 //                  app_toast_steps, app.animating.view->y);
-            app_layout_ui(app.animating.view);
+            app_measure_and_layout(app.animating.view);
             double alpha = min(0.40, 0.40 * app.animating.step / (double)app_animation_steps);
             gdi.alpha_blend(0, 0, app.width, app.height, &image, alpha);
             app.animating.view->x = (app.width - app.animating.view->w) / 2;
         } else {
             app.animating.view->x = app.animating.x;
             app.animating.view->y = app.animating.y;
-            app_layout_ui(app.animating.view);
+            app_measure_and_layout(app.animating.view);
             int32_t mx = app.width - app.animating.view->w - em_x;
             app.animating.view->x = min(mx, max(0, app.animating.x - app.animating.view->w / 2));
             app.animating.view->y = min(app.crc.h - em_y, max(0, app.animating.y));
@@ -969,7 +947,7 @@ static void app_layout_root(void) {
     not_null(app.canvas);
     app.view->w = app.crc.w; // crc is window client rectangle
     app.view->h = app.crc.h;
-    app_layout_ui(app.view);
+    app_measure_and_layout(app.view);
 }
 
 static void app_paint_on_canvas(HDC hdc) {
