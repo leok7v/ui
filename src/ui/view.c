@@ -220,6 +220,28 @@ static void ui_view_layout_children(ui_view_t* view) {
     }
 }
 
+static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
+        int64_t* ret) {
+    if (view->hovering != null && !view->hidden) {
+        if (view->hover_at > 0 && app.now > view->hover_at) {
+            view->hover_at = -1; // "already called"
+            view->hovering(view, true);
+        }
+    }
+    // message() callback is called even for hidden and disabled views
+    // could be useful for enabling conditions of post() messages from
+    // background threads.
+    if (view->message != null) {
+        if (view->message(view, m, wp, lp, ret)) { return true; }
+    }
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) {
+        if (ui_view_message(*c, m, wp, lp, ret)) { return true; }
+        c++;
+    }
+    return false;
+}
+
 void ui_view_init(ui_view_t* view) {
     view->measure     = ui_view_measure;
     view->hovering    = ui_view_hovering;
@@ -248,5 +270,6 @@ ui_view_if ui_view = {
     .kill_focus         = ui_view_kill_focus,
     .mouse_wheel        = ui_view_mouse_wheel,
     .measure_children   = ui_view_measure_children,
-    .layout_children    = ui_view_layout_children
+    .layout_children    = ui_view_layout_children,
+    .message            = ui_view_message
 };

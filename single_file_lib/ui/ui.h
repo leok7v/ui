@@ -542,6 +542,8 @@ typedef struct ui_view_if {
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
     void (*measure_children)(ui_view_t* view);
     void (*layout_children)(ui_view_t* view);
+    bool (*message)(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
+                                     int64_t* ret);
 } ui_view_if;
 
 extern ui_view_if ui_view;
@@ -947,8 +949,6 @@ static struct {
 // Animation timer is Windows minimum of 10ms, but in reality the timer
 // messages are far from isochronous and more likely to arrive at 16 or
 // 32ms intervals and can be delayed.
-
-static void app_on_every_message(ui_view_t* view);
 
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
@@ -1461,22 +1461,6 @@ static void app_measure_and_layout(ui_view_t* view) {
     ui_view.layout_children(view);
 }
 
-static bool app_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
-        int64_t* ret) {
-    // message() callback is called even for hidden and disabled ui-elements
-    // consider timers, and other useful messages
-    app_on_every_message(view);
-    if (view->message != null) {
-        if (view->message(view, m, wp, lp, ret)) { return true; }
-    }
-    ui_view_t** c = view->children;
-    while (c != null && *c != null) {
-        if (app_message(*c, m, wp, lp, ret)) { return true; }
-        c++;
-    }
-    return false;
-}
-
 static void app_kill_hidden_focus(ui_view_t* view) {
     // removes focus from hidden or disabled ui controls
     if (app.focus == view && (view->disabled || view->hidden)) {
@@ -1518,18 +1502,6 @@ static void app_hover_changed(ui_view_t* view) {
     }
 }
 
-// app_on_every_message() is called on every message including timers
-// allowing ui elements to do scheduled actions like e.g. hovering()
-
-static void app_on_every_message(ui_view_t* view) {
-    if (view->hovering != null && !view->hidden) {
-        if (view->hover_at > 0 && app.now > view->hover_at) {
-            view->hover_at = -1; // "already called"
-            view->hovering(view, true);
-        }
-    }
-}
-
 static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
     if (!ui_view.is_hidden(view) &&
        (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
@@ -1537,6 +1509,8 @@ static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
         bool hover = view->hover;
         POINT pt = app_ui2point(&app.mouse);
         view->hover = PtInRect(&rc, pt);
+        ui_rect_t r2 = { view->x, view->y, view->w, view->h};
+        assert(app_point_in_rect(&app.mouse, &r2) == view->hover);
         InflateRect(&rc, view->w / 4, view->h / 4);
         ui_rect_t r = app_rect2ui(&rc);
         if (hover != view->hover) { app.invalidate(&r); }
@@ -1973,7 +1947,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
     int64_t ret = 0;
     app_kill_hidden_focus(app.view);
     app_click_detector(msg, wp, lp);
-    if (app_message(app.view, msg, wp, lp, &ret)) {
+    if (ui_view.message(app.view, msg, wp, lp, &ret)) {
         return (LRESULT)ret;
     }
     if ((int32_t)msg == ui.message.opening) { app_window_opening(); return 0; }
@@ -2320,7 +2294,7 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         ui_view.localize(view);
         app_animate_start(app_toast_dim, app_animation_steps);
         app.animating.view = view;
-        app.animating.view->font = &app.fonts.H1;
+        app.animating.view->font = &app.fonts.H2;
         app.animating.time = timeout > 0 ? app.now + timeout : 0;
     } else {
         app_toast_cancel();
@@ -5200,6 +5174,28 @@ static void ui_view_layout_children(ui_view_t* view) {
     }
 }
 
+static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
+        int64_t* ret) {
+    if (view->hovering != null && !view->hidden) {
+        if (view->hover_at > 0 && app.now > view->hover_at) {
+            view->hover_at = -1; // "already called"
+            view->hovering(view, true);
+        }
+    }
+    // message() callback is called even for hidden and disabled views
+    // could be useful for enabling conditions of post() messages from
+    // background threads.
+    if (view->message != null) {
+        if (view->message(view, m, wp, lp, ret)) { return true; }
+    }
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) {
+        if (ui_view_message(*c, m, wp, lp, ret)) { return true; }
+        c++;
+    }
+    return false;
+}
+
 void ui_view_init(ui_view_t* view) {
     view->measure     = ui_view_measure;
     view->hovering    = ui_view_hovering;
@@ -5228,7 +5224,8 @@ ui_view_if ui_view = {
     .kill_focus         = ui_view_kill_focus,
     .mouse_wheel        = ui_view_mouse_wheel,
     .measure_children   = ui_view_measure_children,
-    .layout_children    = ui_view_layout_children
+    .layout_children    = ui_view_layout_children,
+    .message            = ui_view_message
 };
 
 #endif // ui_implementation

@@ -23,12 +23,14 @@
       <DisableSpecificWarnings>4820;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- '?' bytes padding added after data member -->
       <DisableSpecificWarnings>5045;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- Spectre mitigation -->
       <DisableSpecificWarnings>6262;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- EXCESSIVESTACKUSAGE -->
+      <!-- Theat these warning as errors (because they are): -->
       <TreatSpecificWarningsAsErrors>4133;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- incompatible types -->
       <TreatSpecificWarningsAsErrors>4020;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- too many actual parameters -->
       <TreatSpecificWarningsAsErrors>4716;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function must return a value -->
       <TreatSpecificWarningsAsErrors>4013;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- 'foo' undefined; assuming extern returning int -->
       <TreatSpecificWarningsAsErrors>4312;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- conversion from '...' to '...' of greater size -->
       <TreatSpecificWarningsAsErrors>4087;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- 'args': declared with 'void' parameter list -->
+      <TreatSpecificWarningsAsErrors>4033;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function 'foo' must return a value -->
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>

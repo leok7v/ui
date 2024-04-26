@@ -99,6 +99,8 @@ typedef struct ui_view_if {
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
     void (*measure_children)(ui_view_t* view);
     void (*layout_children)(ui_view_t* view);
+    bool (*message)(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
+                                     int64_t* ret);
 } ui_view_if;
 
 extern ui_view_if ui_view;
