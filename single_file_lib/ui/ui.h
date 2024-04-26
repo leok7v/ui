@@ -475,7 +475,7 @@ typedef struct ui_view_s {
         int64_t* rt); // return true and value in rt to stop processing
     void (*click)(ui_view_t* view); // interpretation depends on ui element
     void (*mouse)(ui_view_t* view, int32_t message, int32_t flags);
-    void (*mousewheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
+    void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
@@ -537,7 +537,11 @@ typedef struct ui_view_if {
     void (*key_released)(ui_view_t* view, int32_t p);
     void (*character)(ui_view_t* view, const char* utf8);
     void (*paint)(ui_view_t* view);
-
+    bool (*set_focus)(ui_view_t* view);
+    void (*kill_focus)(ui_view_t* view);
+    void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
+    void (*measure_children)(ui_view_t* view);
+    void (*layout_children)(ui_view_t* view);
 } ui_view_if;
 
 extern ui_view_if ui_view;
@@ -852,7 +856,6 @@ typedef struct app_s {
     void (*bring_to_front)(void); // activate() + bring_to_foreground() +
                                   // make_topmost() + request_focus()
     // measure and layout:
-    void (*measure)(ui_view_t* view); // bottom up measure all children
     void (*layout)(void); // requests layout on UI tree before paint()
     void (*invalidate)(const ui_rect_t* rc);
     void (*full_screen)(bool on);
@@ -1448,57 +1451,14 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
 }
 
 static void app_paint(ui_view_t* view) {
+    assert(app.crc.w > 0 && app.crc.h > 0 && app_window() != null);
     if (app.crc.w > 0 && app.crc.h > 0) { ui_view.paint(view); }
 }
 
-static bool app_set_focus(ui_view_t* view) {
-    bool set = false;
-    assert(GetActiveWindow() == app_window());
-    ui_view_t** c = view->children;
-    while (c != null && *c != null && !set) { set = app_set_focus(*c); c++; }
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view) &&
-        view->focusable && view->set_focus != null &&
-       (app.focus == view || app.focus == null)) {
-        set = view->set_focus(view);
-    }
-    return set;
-}
-
-static void app_kill_focus(ui_view_t* view) {
-    ui_view_t** c = view->children;
-    while (c != null && *c != null) { app_kill_focus(*c); c++; }
-    if (view->set_focus != null && view->focusable) {
-        view->kill_focus(view);
-    }
-}
-
-static void app_mousewheel(ui_view_t* view, int32_t dx, int32_t dy) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->mousewheel != null) { view->mousewheel(view, dx, dy); }
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { app_mousewheel(*c, dx, dy); c++; }
-    }
-}
-
-static void app_measure_children(ui_view_t* view) {
-    if (!view->hidden && app.crc.w > 0 && app.crc.h > 0) {
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { app_measure_children(*c); c++; }
-        if (view->measure != null) { view->measure(view); }
-    }
-}
-
-static void app_layout_children(ui_view_t* view) {
-    if (!view->hidden && app.crc.w > 0 && app.crc.h > 0) {
-        if (view->layout != null) { view->layout(view); }
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { app_layout_children(*c); c++; }
-    }
-}
-
 static void app_measure_and_layout(ui_view_t* view) {
-    app_measure_children(view);
-    app_layout_children(view);
+    assert(app.crc.w > 0 && app.crc.h > 0 && app_window() != null);
+    ui_view.measure_children(view);
+    ui_view.layout_children(view);
 }
 
 static bool app_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
@@ -2052,16 +2012,19 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_CHAR         : app_wm_char(app.view, (const char*)&wp);
                                break; // TODO: CreateWindowW() and utf16->utf8
         case WM_PRINTCLIENT  : app_paint_on_canvas((HDC)wp); break;
-        case WM_SETFOCUS     : if (!app.view->hidden) { app_set_focus(app.view); }
+        case WM_SETFOCUS     : if (!app.view->hidden) {
+                                   assert(GetActiveWindow() == app_window());
+                                   ui_view.set_focus(app.view);
+                               }
                                break;
-        case WM_KILLFOCUS    : if (!app.view->hidden) { app_kill_focus(app.view); }
+        case WM_KILLFOCUS    : if (!app.view->hidden) { ui_view.kill_focus(app.view); }
                                break;
         case WM_PAINT        : app_wm_paint(); break;
         case WM_CONTEXTMENU  : (void)app_context_menu(app.view); break;
         case WM_MOUSEWHEEL   :
-            app_mousewheel(app.view, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
+            ui_view.mouse_wheel(app.view, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
         case WM_MOUSEHWHEEL  :
-            app_mousewheel(app.view, GET_WHEEL_DELTA_WPARAM(wp), 0); break;
+            ui_view.mouse_wheel(app.view, GET_WHEEL_DELTA_WPARAM(wp), 0); break;
         case WM_NCMOUSEMOVE    :
         case WM_NCLBUTTONDOWN  :
         case WM_NCLBUTTONUP    :
@@ -2796,51 +2759,50 @@ static void app_init(void) {
     ui_view_init(app.view);
     app.view->measure = null; // always measured by crc
     app.view->layout  = null; // always at 0,0 app can override
-    app.redraw = app_fast_redraw;
-    app.draw = app_draw;
-    app.px2in = app_px2in;
-    app.in2px = app_in2px;
-    app.point_in_rect = app_point_in_rect;
-    app.intersect_rect = app_intersect_rect;
-    app.is_active = app_is_active,
-    app.has_focus = app_has_focus,
-    app.request_focus = app_request_focus,
-    app.activate = app_activate,
+    app.redraw              = app_fast_redraw;
+    app.draw                = app_draw;
+    app.px2in               = app_px2in;
+    app.in2px               = app_in2px;
+    app.point_in_rect       = app_point_in_rect;
+    app.intersect_rect      = app_intersect_rect;
+    app.is_active           = app_is_active,
+    app.has_focus           = app_has_focus,
+    app.request_focus       = app_request_focus,
+    app.activate            = app_activate,
     app.bring_to_foreground = app_bring_to_foreground,
-    app.make_topmost = app_make_topmost,
-    app.bring_to_front = app_bring_to_front,
-    app.measure = app_measure_children;
-    app.layout = app_request_layout;
-    app.invalidate = app_invalidate_rect;
-    app.full_screen = app_full_screen;
-    app.set_cursor = app_cursor_set;
-    app.close = app_close_window;
-    app.quit = app_quit;
-    app.set_timer = app_timer_set;
-    app.kill_timer = app_timer_kill;
-    app.post = app_post_message;
-    app.show_window = app_show_window;
-    app.show_toast = app_show_toast;
-    app.show_tooltip = app_show_tooltip;
-    app.toast_va = app_formatted_toast_va;
-    app.toast = app_formatted_toast;
-    app.create_caret = app_create_caret;
-    app.show_caret = app_show_caret;
-    app.move_caret = app_move_caret;
-    app.hide_caret = app_hide_caret;
-    app.destroy_caret = app_destroy_caret;
-    app.data_save = app_data_save;
-    app.data_size = app_data_size;
-    app.data_load = app_data_load;
-    app.open_filename = app_open_filename;
-    app.known_folder = app_known_folder;
+    app.make_topmost        = app_make_topmost,
+    app.bring_to_front      = app_bring_to_front,
+    app.layout              = app_request_layout;
+    app.invalidate          = app_invalidate_rect;
+    app.full_screen         = app_full_screen;
+    app.set_cursor          = app_cursor_set;
+    app.close               = app_close_window;
+    app.quit                = app_quit;
+    app.set_timer           = app_timer_set;
+    app.kill_timer          = app_timer_kill;
+    app.post                = app_post_message;
+    app.show_window         = app_show_window;
+    app.show_toast          = app_show_toast;
+    app.show_tooltip        = app_show_tooltip;
+    app.toast_va            = app_formatted_toast_va;
+    app.toast               = app_formatted_toast;
+    app.create_caret        = app_create_caret;
+    app.show_caret          = app_show_caret;
+    app.move_caret          = app_move_caret;
+    app.hide_caret          = app_hide_caret;
+    app.destroy_caret       = app_destroy_caret;
+    app.data_save           = app_data_save;
+    app.data_size           = app_data_size;
+    app.data_load           = app_data_load;
+    app.open_filename       = app_open_filename;
+    app.known_folder        = app_known_folder;
     app.is_stdout_redirected = app_is_stdout_redirected;
-    app.is_console_visible = app_is_console_visible;
-    app.console_attach = app_console_attach;
-    app.console_create = app_console_create;
-    app.console_show = app_console_show;
-    app_event_quit = events.create();
-    app_event_invalidate = events.create();
+    app.is_console_visible  = app_is_console_visible;
+    app.console_attach      = app_console_attach;
+    app.console_create      = app_console_create;
+    app.console_show        = app_console_show;
+    app_event_quit          = events.create();
+    app_event_invalidate    = events.create();
     app.init();
 }
 
@@ -5194,6 +5156,49 @@ static void ui_view_paint(ui_view_t* view) {
     }
 }
 
+static bool ui_view_set_focus(ui_view_t* view) {
+    bool set = false;
+    ui_view_t** c = view->children;
+    while (c != null && *c != null && !set) { set = ui_view_set_focus(*c); c++; }
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view) &&
+        view->focusable && view->set_focus != null &&
+       (app.focus == view || app.focus == null)) {
+        set = view->set_focus(view);
+    }
+    return set;
+}
+
+static void ui_view_kill_focus(ui_view_t* view) {
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) { ui_view_kill_focus(*c); c++; }
+    if (view->kill_focus != null && view->focusable) {
+        view->kill_focus(view);
+    }
+}
+
+static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
+        if (view->mouse_wheel != null) { view->mouse_wheel(view, dx, dy); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_mouse_wheel(*c, dx, dy); c++; }
+    }
+}
+
+static void ui_view_measure_children(ui_view_t* view) {
+    if (!view->hidden) {
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_measure_children(*c); c++; }
+        if (view->measure != null) { view->measure(view); }
+    }
+}
+
+static void ui_view_layout_children(ui_view_t* view) {
+    if (!view->hidden) {
+        if (view->layout != null) { view->layout(view); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_layout_children(*c); c++; }
+    }
+}
 
 void ui_view_init(ui_view_t* view) {
     view->measure     = ui_view_measure;
@@ -5203,22 +5208,27 @@ void ui_view_init(ui_view_t* view) {
 }
 
 ui_view_if ui_view = {
-    .set_text      = ui_view_set_text,
-    .invalidate    = ui_view_invalidate,
-    .measure       = ui_view_measure_text,
-    .nls           = ui_view_nls,
-    .localize      = ui_view_localize,
-    .is_hidden     = ui_view_is_hidden,
-    .is_disabled   = ui_view_is_disabled,
-    .init_children = ui_view_init_children,
-    .set_parents   = ui_view_parents,
-    .timer         = ui_view_timer,
-    .every_sec     = ui_view_every_sec,
-    .every_100ms   = ui_view_every_100ms,
-    .key_pressed   = ui_view_key_pressed,
-    .key_released  = ui_view_key_released,
-    .character     = ui_view_character,
-    .paint         = ui_view_paint
+    .set_text           = ui_view_set_text,
+    .invalidate         = ui_view_invalidate,
+    .measure            = ui_view_measure_text,
+    .nls                = ui_view_nls,
+    .localize           = ui_view_localize,
+    .is_hidden          = ui_view_is_hidden,
+    .is_disabled        = ui_view_is_disabled,
+    .init_children      = ui_view_init_children,
+    .set_parents        = ui_view_parents,
+    .timer              = ui_view_timer,
+    .every_sec          = ui_view_every_sec,
+    .every_100ms        = ui_view_every_100ms,
+    .key_pressed        = ui_view_key_pressed,
+    .key_released       = ui_view_key_released,
+    .character          = ui_view_character,
+    .paint              = ui_view_paint,
+    .set_focus          = ui_view_set_focus,
+    .kill_focus         = ui_view_kill_focus,
+    .mouse_wheel        = ui_view_mouse_wheel,
+    .measure_children   = ui_view_measure_children,
+    .layout_children    = ui_view_layout_children
 };
 
 #endif // ui_implementation

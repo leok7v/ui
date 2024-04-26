@@ -176,6 +176,49 @@ static void ui_view_paint(ui_view_t* view) {
     }
 }
 
+static bool ui_view_set_focus(ui_view_t* view) {
+    bool set = false;
+    ui_view_t** c = view->children;
+    while (c != null && *c != null && !set) { set = ui_view_set_focus(*c); c++; }
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view) &&
+        view->focusable && view->set_focus != null &&
+       (app.focus == view || app.focus == null)) {
+        set = view->set_focus(view);
+    }
+    return set;
+}
+
+static void ui_view_kill_focus(ui_view_t* view) {
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) { ui_view_kill_focus(*c); c++; }
+    if (view->kill_focus != null && view->focusable) {
+        view->kill_focus(view);
+    }
+}
+
+static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
+        if (view->mouse_wheel != null) { view->mouse_wheel(view, dx, dy); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_mouse_wheel(*c, dx, dy); c++; }
+    }
+}
+
+static void ui_view_measure_children(ui_view_t* view) {
+    if (!view->hidden) {
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_measure_children(*c); c++; }
+        if (view->measure != null) { view->measure(view); }
+    }
+}
+
+static void ui_view_layout_children(ui_view_t* view) {
+    if (!view->hidden) {
+        if (view->layout != null) { view->layout(view); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_layout_children(*c); c++; }
+    }
+}
 
 void ui_view_init(ui_view_t* view) {
     view->measure     = ui_view_measure;
@@ -185,20 +228,25 @@ void ui_view_init(ui_view_t* view) {
 }
 
 ui_view_if ui_view = {
-    .set_text      = ui_view_set_text,
-    .invalidate    = ui_view_invalidate,
-    .measure       = ui_view_measure_text,
-    .nls           = ui_view_nls,
-    .localize      = ui_view_localize,
-    .is_hidden     = ui_view_is_hidden,
-    .is_disabled   = ui_view_is_disabled,
-    .init_children = ui_view_init_children,
-    .set_parents   = ui_view_parents,
-    .timer         = ui_view_timer,
-    .every_sec     = ui_view_every_sec,
-    .every_100ms   = ui_view_every_100ms,
-    .key_pressed   = ui_view_key_pressed,
-    .key_released  = ui_view_key_released,
-    .character     = ui_view_character,
-    .paint         = ui_view_paint
+    .set_text           = ui_view_set_text,
+    .invalidate         = ui_view_invalidate,
+    .measure            = ui_view_measure_text,
+    .nls                = ui_view_nls,
+    .localize           = ui_view_localize,
+    .is_hidden          = ui_view_is_hidden,
+    .is_disabled        = ui_view_is_disabled,
+    .init_children      = ui_view_init_children,
+    .set_parents        = ui_view_parents,
+    .timer              = ui_view_timer,
+    .every_sec          = ui_view_every_sec,
+    .every_100ms        = ui_view_every_100ms,
+    .key_pressed        = ui_view_key_pressed,
+    .key_released       = ui_view_key_released,
+    .character          = ui_view_character,
+    .paint              = ui_view_paint,
+    .set_focus          = ui_view_set_focus,
+    .kill_focus         = ui_view_kill_focus,
+    .mouse_wheel        = ui_view_mouse_wheel,
+    .measure_children   = ui_view_measure_children,
+    .layout_children    = ui_view_layout_children
 };

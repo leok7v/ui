@@ -93,7 +93,6 @@ typedef struct app_s {
     void (*bring_to_front)(void); // activate() + bring_to_foreground() +
                                   // make_topmost() + request_focus()
     // measure and layout:
-    void (*measure)(ui_view_t* view); // bottom up measure all children
     void (*layout)(void); // requests layout on UI tree before paint()
     void (*invalidate)(const ui_rect_t* rc);
     void (*full_screen)(bool on);

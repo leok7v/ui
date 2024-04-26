@@ -332,7 +332,7 @@ static void zoomer_callback(ui_slider_t* slider) {
     refresh();
 }
 
-static void mousewheel(ui_view_t* unused, int32_t dx, int32_t dy) {
+static void mouse_wheel(ui_view_t* unused, int32_t dx, int32_t dy) {
     (void)unused;
     if (!scroll.view.pressed) { dy = -dy; }
     if (!scroll.view.pressed) { dx = -dx; }
@@ -352,9 +352,9 @@ static void character(ui_view_t* view, const char* utf8) {
     } else if (ch == '-' || ch == '_') {
         zoom = min(zoom * 2, 1.0); refresh();
     } else if (ch == '<' || ch == ',') {
-        mousewheel(view, +image.w / 8, 0);
+        mouse_wheel(view, +image.w / 8, 0);
     } else if (ch == '>' || ch == '.') {
-        mousewheel(view, -image.w / 8, 0);
+        mouse_wheel(view, -image.w / 8, 0);
     } else if (ch == 3) { // Ctrl+C
         clipboard.put_image(&image);
     }
@@ -362,13 +362,13 @@ static void character(ui_view_t* view, const char* utf8) {
 
 static void keyboard(ui_view_t* view, int32_t vk) {
     if (vk == ui.key.up) {
-        mousewheel(view, 0, +image.h / 8);
+        mouse_wheel(view, 0, +image.h / 8);
     } else if (vk == ui.key.down) {
-        mousewheel(view, 0, -image.h / 8);
+        mouse_wheel(view, 0, -image.h / 8);
     } else if (vk == ui.key.left) {
-        mousewheel(view, +image.w / 8, 0);
+        mouse_wheel(view, +image.w / 8, 0);
     } else if (vk == ui.key.right) {
-        mousewheel(view, -image.w / 8, 0);
+        mouse_wheel(view, -image.w / 8, 0);
     }
 }
 
@@ -407,12 +407,12 @@ static void opened(void) {
 
 static void init(void) {
     app.title = TITLE;
-    app.view->measure = measure;
-    app.view->layout = layout;
+    app.view->measure     = measure;
+    app.view->layout      = layout;
     app.view->character   = character;
     app.view->key_pressed = keyboard; // virtual_keys
-    app.view->mousewheel = mousewheel;
-    app.opened = opened;
+    app.view->mouse_wheel = mouse_wheel;
+    app.opened            = opened;
     static ui_view_t* root_children[] = { &panel_top, &panel_center,
         &panel_right, &panel_bottom, null };
     app.view->children = root_children;

@@ -32,7 +32,7 @@ typedef struct ui_view_s {
         int64_t* rt); // return true and value in rt to stop processing
     void (*click)(ui_view_t* view); // interpretation depends on ui element
     void (*mouse)(ui_view_t* view, int32_t message, int32_t flags);
-    void (*mousewheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
+    void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
@@ -94,7 +94,11 @@ typedef struct ui_view_if {
     void (*key_released)(ui_view_t* view, int32_t p);
     void (*character)(ui_view_t* view, const char* utf8);
     void (*paint)(ui_view_t* view);
-
+    bool (*set_focus)(ui_view_t* view);
+    void (*kill_focus)(ui_view_t* view);
+    void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
+    void (*measure_children)(ui_view_t* view);
+    void (*layout_children)(ui_view_t* view);
 } ui_view_if;
 
 extern ui_view_if ui_view;

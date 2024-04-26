@@ -1751,7 +1751,7 @@ void ns(init)(ui_edit_t* e) {
     e->view.set_focus   = ns(set_focus);
     e->view.kill_focus  = ns(kill_focus);
     e->view.key_pressed = ns(key_pressed);
-    e->view.mousewheel  = ns(mousewheel);
+    e->view.mouse_wheel = ns(mousewheel);
     e->set_font       = ns(set_font);
     e->move           = ns(move);
     e->paste          = ns(paste);
