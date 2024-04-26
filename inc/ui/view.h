@@ -87,6 +87,14 @@ typedef struct ui_view_if {
     void (*localize)(ui_view_t* view);    // set strid based ui .text field
     void (*init_children)(ui_view_t* view);
     void (*set_parents)(ui_view_t* view);
+    void (*timer)(ui_view_t* view, ui_timer_t id);
+    void (*every_sec)(ui_view_t* view);
+    void (*every_100ms)(ui_view_t* view);
+    void (*key_pressed)(ui_view_t* view, int32_t p);
+    void (*key_released)(ui_view_t* view, int32_t p);
+    void (*character)(ui_view_t* view, const char* utf8);
+    void (*paint)(ui_view_t* view);
+
 } ui_view_if;
 
 extern ui_view_if ui_view;

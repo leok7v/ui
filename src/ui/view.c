@@ -124,6 +124,59 @@ static void ui_view_parents(ui_view_t* view) {
     }
 }
 
+// timers are delivered even to hidden and disabled views:
+
+static void ui_view_timer(ui_view_t* view, ui_timer_t id) {
+    if (view->timer != null) { view->timer(view, id); }
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) { ui_view_timer(*c, id); c++; }
+}
+
+static void ui_view_every_sec(ui_view_t* view) {
+    if (view->every_sec != null) { view->every_sec(view); }
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) { ui_view_every_sec(*c); c++; }
+}
+
+static void ui_view_every_100ms(ui_view_t* view) {
+    if (view->every_100ms != null) { view->every_100ms(view); }
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) { ui_view_every_100ms(*c); c++; }
+}
+
+static void ui_view_key_pressed(ui_view_t* view, int32_t p) {
+    if (!view->hidden && !view->disabled) {
+        if (view->key_pressed != null) { view->key_pressed(view, p); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_key_pressed(*c, p); c++; }
+    }
+}
+
+static void ui_view_key_released(ui_view_t* view, int32_t p) {
+    if (!view->hidden && !view->disabled) {
+        if (view->key_released != null) { view->key_released(view, p); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_key_released(*c, p); c++; }
+    }
+}
+
+static void ui_view_character(ui_view_t* view, const char* utf8) {
+    if (!view->hidden && !view->disabled) {
+        if (view->character != null) { view->character(view, utf8); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_character(*c, utf8); c++; }
+    }
+}
+
+static void ui_view_paint(ui_view_t* view) {
+    if (!view->hidden && app.crc.w > 0 && app.crc.h > 0) {
+        if (view->paint != null) { view->paint(view); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_paint(*c); c++; }
+    }
+}
+
+
 void ui_view_init(ui_view_t* view) {
     view->measure     = ui_view_measure;
     view->hovering    = ui_view_hovering;
@@ -140,5 +193,12 @@ ui_view_if ui_view = {
     .is_hidden     = ui_view_is_hidden,
     .is_disabled   = ui_view_is_disabled,
     .init_children = ui_view_init_children,
-    .set_parents   = ui_view_parents
+    .set_parents   = ui_view_parents,
+    .timer         = ui_view_timer,
+    .every_sec     = ui_view_every_sec,
+    .every_100ms   = ui_view_every_100ms,
+    .key_pressed   = ui_view_key_pressed,
+    .key_released  = ui_view_key_released,
+    .character     = ui_view_character,
+    .paint         = ui_view_paint
 };

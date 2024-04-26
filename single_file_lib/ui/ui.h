@@ -530,6 +530,14 @@ typedef struct ui_view_if {
     void (*localize)(ui_view_t* view);    // set strid based ui .text field
     void (*init_children)(ui_view_t* view);
     void (*set_parents)(ui_view_t* view);
+    void (*timer)(ui_view_t* view, ui_timer_t id);
+    void (*every_sec)(ui_view_t* view);
+    void (*every_100ms)(ui_view_t* view);
+    void (*key_pressed)(ui_view_t* view, int32_t p);
+    void (*key_released)(ui_view_t* view, int32_t p);
+    void (*character)(ui_view_t* view, const char* utf8);
+    void (*paint)(ui_view_t* view);
+
 } ui_view_if;
 
 extern ui_view_if ui_view;
@@ -1345,29 +1353,9 @@ static void app_post_message(int32_t m, int64_t wp, int64_t lp) {
 }
 
 static void app_timer(ui_view_t* view, ui_timer_t id) {
-    if (view->timer != null) {
-        view->timer(view, id);
-    }
-    if (id == app_timer_1s_id && view->every_sec != null) {
-        view->every_sec(view);
-    }
-    if (id == app_timer_100ms_id && view->every_100ms != null) {
-        view->every_100ms(view);
-    }
-    ui_view_t** c = view->children;
-    while (c != null && *c != null) { app_timer(*c, id); c++; }
-}
-
-static void app_every_100ms(ui_timer_t id) {
-    if (id == app_timer_1s_id && app.every_sec != null) {
-        app.every_sec();
-    }
-    if (id == app_timer_100ms_id && app.every_100ms != null) {
-        app.every_100ms();
-    }
-    if (app.animating.time != 0 && app.now > app.animating.time) {
-        app.show_toast(null, 0);
-    }
+    if (view->timer != null) { ui_view.timer(view, id); }
+    if (id == app_timer_1s_id) { ui_view.every_sec(view); }
+    if (id == app_timer_100ms_id) { ui_view.every_100ms(view); }
 }
 
 static void app_animate_timer(void) {
@@ -1376,7 +1364,9 @@ static void app_animate_timer(void) {
 }
 
 static void app_wm_timer(ui_timer_t id) {
-    app_every_100ms(id);
+    if (app.animating.time != 0 && app.now > app.animating.time) {
+        app.show_toast(null, 0);
+    }
     if (app_animate.timer == id) { app_animate_timer(); }
     app_timer(app.view, id);
 }
@@ -1457,36 +1447,8 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
 }
 
-static void app_key_pressed(ui_view_t* view, int32_t p) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->key_pressed != null) { view->key_pressed(view, p); }
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { app_key_pressed(*c, p); c++; }
-    }
-}
-
-static void app_key_released(ui_view_t* view, int32_t p) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->key_released != null) { view->key_released(view, p); }
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { app_key_released(*c, p); c++; }
-    }
-}
-
-static void app_character(ui_view_t* view, const char* utf8) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->character != null) { view->character(view, utf8); }
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { app_character(*c, utf8); c++; }
-    }
-}
-
 static void app_paint(ui_view_t* view) {
-    if (!view->hidden && app.crc.w > 0 && app.crc.h > 0) {
-        if (view->paint != null) { view->paint(view); }
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { app_paint(*c); c++; }
-    }
+    if (app.crc.w > 0 && app.crc.h > 0) { ui_view.paint(view); }
 }
 
 static bool app_set_focus(ui_view_t* view) {
@@ -1575,7 +1537,7 @@ static void app_wm_char(ui_view_t* view, const char* utf8) {
     if (app.animating.view != null) {
         app_toast_character(utf8);
     } else {
-        app_character(view, utf8);
+        ui_view.character(view, utf8);
     }
 }
 
@@ -1802,7 +1764,7 @@ static void app_toast_character(const char* utf8) {
         app_toast_cancel();
         app.show_toast(null, 0);
     } else {
-        app_character(app.animating.view, utf8);
+        ui_view.character(app.animating.view, utf8);
     }
 }
 
@@ -2073,11 +2035,11 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_DESTROY      : PostQuitMessage(app.exit_code); break;
         case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
         case WM_KEYDOWN      : app_alt_ctrl_shift(true, (int32_t)wp);
-                               app_key_pressed(app.view, (int32_t)wp);
+                               ui_view.key_pressed(app.view, (int32_t)wp);
                                break;
         case WM_SYSKEYUP:
         case WM_KEYUP        : app_alt_ctrl_shift(false, (int32_t)wp);
-                               app_key_released(app.view, (int32_t)wp);
+                               ui_view.key_released(app.view, (int32_t)wp);
                                break;
         case WM_TIMER        : app_wm_timer((ui_timer_t)wp);
                                break;
@@ -5180,6 +5142,59 @@ static void ui_view_parents(ui_view_t* view) {
     }
 }
 
+// timers are delivered even to hidden and disabled views:
+
+static void ui_view_timer(ui_view_t* view, ui_timer_t id) {
+    if (view->timer != null) { view->timer(view, id); }
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) { ui_view_timer(*c, id); c++; }
+}
+
+static void ui_view_every_sec(ui_view_t* view) {
+    if (view->every_sec != null) { view->every_sec(view); }
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) { ui_view_every_sec(*c); c++; }
+}
+
+static void ui_view_every_100ms(ui_view_t* view) {
+    if (view->every_100ms != null) { view->every_100ms(view); }
+    ui_view_t** c = view->children;
+    while (c != null && *c != null) { ui_view_every_100ms(*c); c++; }
+}
+
+static void ui_view_key_pressed(ui_view_t* view, int32_t p) {
+    if (!view->hidden && !view->disabled) {
+        if (view->key_pressed != null) { view->key_pressed(view, p); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_key_pressed(*c, p); c++; }
+    }
+}
+
+static void ui_view_key_released(ui_view_t* view, int32_t p) {
+    if (!view->hidden && !view->disabled) {
+        if (view->key_released != null) { view->key_released(view, p); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_key_released(*c, p); c++; }
+    }
+}
+
+static void ui_view_character(ui_view_t* view, const char* utf8) {
+    if (!view->hidden && !view->disabled) {
+        if (view->character != null) { view->character(view, utf8); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_character(*c, utf8); c++; }
+    }
+}
+
+static void ui_view_paint(ui_view_t* view) {
+    if (!view->hidden && app.crc.w > 0 && app.crc.h > 0) {
+        if (view->paint != null) { view->paint(view); }
+        ui_view_t** c = view->children;
+        while (c != null && *c != null) { ui_view_paint(*c); c++; }
+    }
+}
+
+
 void ui_view_init(ui_view_t* view) {
     view->measure     = ui_view_measure;
     view->hovering    = ui_view_hovering;
@@ -5196,7 +5211,14 @@ ui_view_if ui_view = {
     .is_hidden     = ui_view_is_hidden,
     .is_disabled   = ui_view_is_disabled,
     .init_children = ui_view_init_children,
-    .set_parents   = ui_view_parents
+    .set_parents   = ui_view_parents,
+    .timer         = ui_view_timer,
+    .every_sec     = ui_view_every_sec,
+    .every_100ms   = ui_view_every_100ms,
+    .key_pressed   = ui_view_key_pressed,
+    .key_released  = ui_view_key_released,
+    .character     = ui_view_character,
+    .paint         = ui_view_paint
 };
 
 #endif // ui_implementation
