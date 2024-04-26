@@ -21,3 +21,12 @@
 #define str_header            16
 #define str_left_top          17
 #define str_zoom              18
+#define str_mandelbrot        19
+#define str_help              20
+#define str_proportional      21
+#define str_monospaced        22
+#define str_millisecond       23
+#define str_minimum           24
+#define str_average           25
+#define str_maximum           26
+#define str_restore           27

@@ -200,8 +200,8 @@ static void right_paint(ui_view_t* view) {
         nls.str("&Full Screen"));
     gdi.x = text_multiline.view.x;
     gdi.y = text_multiline.view.y + text_multiline.view.h + max(1, em.y / 4);
-    gdi.textln("Proportional");
-    gdi.println("Monospaced");
+    gdi.textln(nls.str("Proportional"));
+    gdi.println(nls.str("Monospaced"));
     ui_font_t font = gdi.set_font(app.fonts.H1);
     gdi.textln("H1 %s", nls.str("Header"));
     gdi.set_font(app.fonts.H2); gdi.textln("H2 %s", nls.str("Header"));
@@ -213,8 +213,9 @@ static void right_paint(ui_view_t* view) {
     gdi.println("%s %d %d", nls.str("Left Top"), app.wrc.x, app.wrc.y);
     gdi.println("%s %d %d", nls.str("Mouse"), app.mouse.x, app.mouse.y);
     gdi.println("%d x paint()", app.paint_count);
-    gdi.println("%.1fms (max %.1f avg %.1f)", app.paint_time * 1000.0,
-        app.paint_max * 1000.0, app.paint_avg * 1000.0);
+    gdi.println("%.1fms (%s %.1f %s %.1f)", app.paint_time * 1000.0,
+        nls.str("max"), app.paint_max * 1000.0, nls.str("avg"),
+        app.paint_avg * 1000.0);
     text_after(&zoomer.view, "%.16f", zoom);
     text_after(&scroll.view, "%s", scroll.view.pressed ?
         nls.str("Natural") : nls.str("Reverse"));
@@ -307,16 +308,20 @@ static void zoom_in(int x, int y) {
 }
 
 static void mouse(ui_view_t* unused(view), int32_t m, int32_t unused(flags)) {
-    int x = app.mouse.x - (panel_center.w - image.w) / 2 - panel_center.x;
-    int y = app.mouse.y - (panel_center.h - image.h) / 2 - panel_center.y;
-    if (0 <= x && x < image.w && 0 <= y && y < image.h) {
-        if (m == ui.message.right_button_pressed) {
-            if (zoom < 1) { zoom_out(); refresh(); }
-        } else if (m == ui.message.left_button_pressed) {
-            if (top < countof(stack)) { zoom_in(x, y); refresh(); }
+    int mx = app.mouse.x - panel_center.x;
+    int my = app.mouse.y - panel_center.y;
+    if (0 <= mx && mx < panel_center.w && 0 <= my && my < panel_center.h) {
+        int x = app.mouse.x - (panel_center.w - image.w) / 2 - panel_center.x;
+        int y = app.mouse.y - (panel_center.h - image.h) / 2 - panel_center.y;
+        if (0 <= x && x < image.w && 0 <= y && y < image.h) {
+            if (m == ui.message.right_button_pressed) {
+                if (zoom < 1) { zoom_out(); refresh(); }
+            } else if (m == ui.message.left_button_pressed) {
+                if (top < countof(stack)) { zoom_in(x, y); refresh(); }
+            }
         }
+        app.redraw(); // always to update Mouse: x, y info
     }
-    app.redraw(); // always to update Mouse: x, y info
 }
 
 static void zoomer_callback(ui_slider_t* slider) {

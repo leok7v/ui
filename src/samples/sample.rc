@@ -44,6 +44,15 @@ STRINGTABLE {
     str_header            , L"标题"
     str_left_top          , L"左上"
     str_zoom              , L"飞涨: 1 / (2^%d)"
+    str_mandelbrot        , L"曼德勃罗特探险家"
+    str_help              , L"单击内部或+/-放大；\n右键单击缩小；\n使用触摸板或键盘←↑↓→移动"
+    str_proportional      , L"成比例的"
+    str_monospaced        , L"等宽"
+    str_millisecond       , L"毫秒"
+    str_minimum           , L"最低的"
+    str_average           , L"平均"
+    str_maximum           , L"最大"
+    str_restore           , L"从全屏恢复"
 }
 
 // Order of languages is important. (ENGLISH, NEUTRAL) must be last.
@@ -77,4 +86,13 @@ STRINGTABLE {
     str_header            , L"Header"
     str_left_top          , L"Left Top"
     str_zoom              , L"Zoom: 1 / (2^%d)"
+    str_mandelbrot        , L"Mandelbrot Explorer"
+    str_help              , L"Click inside or +/- to zoom;\nright mouse click to zoom out;\nuse touchpad or keyboard ←↑↓→ to pan"
+    str_proportional      , L"Proportional"
+    str_monospaced        , L"Monospaced"
+    str_millisecond       , L"ms"
+    str_minimum           , L"min"
+    str_average           , L"avg"
+    str_maximum           , L"max"
+    str_restore           , L"Restore from &Full Screen"
 }
