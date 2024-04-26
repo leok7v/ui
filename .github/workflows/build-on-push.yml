@@ -33,14 +33,30 @@ jobs:
       - name: upload release artifact
         uses: actions/upload-artifact@v4
         with:
-          name: xrt.release.zip
+          name: ui.release.zip
           path: |
             bin\release\test1.exe
+            bin\release\test2.exe
+            bin\release\sample1.exe
+            bin\release\sample2.exe
+            bin\release\sample3.exe
+            bin\release\sample4.exe
+            bin\release\sample5.exe
+            bin\release\sample6.exe
+            bin\release\sample9.exe
           retention-days: 5
       - name: upload debug artifact
         uses: actions/upload-artifact@v4
         with:
-          name: xrt.debug.zip
+          name: ui.debug.zip
           path: |
             bin\debug\test1.exe
+            bin\debug\test2.exe
+            bin\debug\sample1.exe
+            bin\debug\sample2.exe
+            bin\debug\sample3.exe
+            bin\debug\sample4.exe
+            bin\debug\sample5.exe
+            bin\debug\sample6.exe
+            bin\debug\sample9.exe
           retention-days: 5
