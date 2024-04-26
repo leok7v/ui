@@ -25,9 +25,9 @@ static void ui_view_measure_text(ui_view_t* view) {
         ui_point_t mt = { 0 };
         if (view->type == ui_view_text && ((ui_label_t*)view)->multiline) {
             int32_t w = (int)(view->width * view->em.x + 0.5);
-            mt = gdi.measure_multiline(f, w == 0 ? -1 : w, view->nls(view));
+            mt = gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
-            mt = gdi.measure_text(f, view->nls(view));
+            mt = gdi.measure_text(f, ui_view.nls(view));
         }
         view->h = mt.y;
         view->w = max(view->w, mt.x);
@@ -35,7 +35,7 @@ static void ui_view_measure_text(ui_view_t* view) {
 }
 
 static void ui_view_measure(ui_view_t* view) {
-    view->measure_text(view);
+    ui_view.measure(view);
 }
 
 static void ui_view_set_text(ui_view_t* view, const char* text) {
@@ -59,7 +59,7 @@ static void ui_view_localize(ui_view_t* view) {
 static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_text(btn_tooltip,  "");
     if (start && app.animating.view == null && view->tip[0] != 0 &&
-       !view->is_hidden(view)) {
+       !ui_view.is_hidden(view)) {
         strprintf(btn_tooltip.view.text, "%s", nls.str(view->tip));
         btn_tooltip.view.font = &app.fonts.H1;
         int32_t y = app.mouse.y - view->em.y;
@@ -101,17 +101,32 @@ static bool ui_view_is_disabled(const ui_view_t* view) {
     return disabled;
 }
 
+static void ui_view_init_children(ui_view_t* view) {
+    for (ui_view_t** c = view->children; c != null && *c != null; c++) {
+        if ((*c)->init != null) { (*c)->init(*c); (*c)->init = null; }
+        if ((*c)->font == null) { (*c)->font = &app.fonts.regular; }
+        if ((*c)->em.x == 0 || (*c)->em.y == 0) {
+            (*c)->em = gdi.get_em(*view->font);
+        }
+        if ((*c)->text[0] != 0) { ui_view.localize(*c); }
+        ui_view_init_children(*c);
+    }
+}
+
 void ui_view_init(ui_view_t* view) {
-    view->set_text     = ui_view_set_text;
-    view->invalidate   = ui_view_invalidate;
     view->measure      = ui_view_measure;
-    view->measure_text = ui_view_measure_text;
-    view->nls          = ui_view_nls;
-    view->localize     = ui_view_localize;
     view->hovering     = ui_view_hovering;
-    view->is_hidden    = ui_view_is_hidden;
-    view->is_disabled  = ui_view_is_disabled;
     view->hover_delay = 1.5;
     view->is_keyboard_shortcut = ui_view_is_keyboard_shortcut;
 }
 
+ui_view_if ui_view = {
+    .set_text      = ui_view_set_text,
+    .invalidate    = ui_view_invalidate,
+    .measure       = ui_view_measure_text,
+    .nls           = ui_view_nls,
+    .localize      = ui_view_localize,
+    .is_hidden     = ui_view_is_hidden,
+    .is_disabled   = ui_view_is_disabled,
+    .init_children = ui_view_init_children
+};

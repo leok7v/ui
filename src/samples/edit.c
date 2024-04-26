@@ -87,7 +87,7 @@ fn(void, reallocate)(void** pp, int32_t count, size_t element) {
 
 fn(void, invalidate)(ui_edit_t* e) {
 //  traceln("");
-    e->view.invalidate(&e->view);
+    ui_view.invalidate(&e->view);
 }
 
 fn(int32_t, text_width)(ui_edit_t* e, const char* s, int32_t n) {

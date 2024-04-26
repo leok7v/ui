@@ -5,7 +5,7 @@ begin_c
 
 typedef struct ui_view_s ui_view_t;
 
-typedef struct ui_view_s { // ui element container/control
+typedef struct ui_view_s {
     enum ui_view_type_t type;
     void (*init)(ui_view_t* view); // called once before first layout
     ui_view_t** children; // null terminated array[] of children
@@ -21,19 +21,13 @@ typedef struct ui_view_s { // ui element container/control
     int32_t shortcut; // keyboard shortcut
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
-    void (*set_text)(ui_view_t* view, const char* label);
     void (*notify)(ui_view_t* view, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     void (*measure)(ui_view_t* view); // determine w, h (bottom up)
     void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
-    void (*measure_text)(ui_view_t* view); // if text[] != "" sets w, h
-    const char* (*nls)(ui_view_t* view); // returns localized text
-    void (*localize)(ui_view_t* view); // set strid based ui .text field
     void (*paint)(ui_view_t* view);
-    bool (*is_hidden)(ui_view_t* view);   // view or any parent is hidden
-    bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
     void (*click)(ui_view_t* view); // interpretation depends on ui element
@@ -54,7 +48,6 @@ typedef struct ui_view_s { // ui element container/control
     void (*key_released)(ui_view_t* view, int32_t key);
     bool (*is_keyboard_shortcut)(ui_view_t* view, int32_t key);
     void (*hovering)(ui_view_t* view, bool start);
-    void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled ui elements
     void (*timer)(ui_view_t* view, ui_timer_t id);
@@ -83,6 +76,19 @@ typedef struct ui_view_s { // ui element container/control
 // on clicks and double clicks.
 
 void ui_view_init(ui_view_t* view);
+
+typedef struct ui_view_if {
+    void (*set_text)(ui_view_t* view, const char* text);
+    void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()
+    void (*measure)(ui_view_t* view);     // if text[] != "" sets w, h
+    bool (*is_hidden)(ui_view_t* view);   // view or any parent is hidden
+    bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
+    const char* (*nls)(ui_view_t* view);  // returns localized text
+    void (*localize)(ui_view_t* view);    // set strid based ui .text field
+    void (*init_children)(ui_view_t* view);
+} ui_view_if;
+
+extern ui_view_if ui_view;
 
 #define ui_container(name, ini, ...)                                       \
 static ui_view_t* _ ## name ## _ ## children ## _[] = {__VA_ARGS__, null}; \

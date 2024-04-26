@@ -24,7 +24,7 @@ static int ui_checkbox_paint_on_off(ui_view_t* view) {
 }
 
 static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_t count)  {
-    str.format(label, count, "%s", view->nls(view));
+    str.format(label, count, "%s", ui_view.nls(view));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, view->pressed ? "On " : "Off", 3);
@@ -34,7 +34,7 @@ static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_
 
 static void ui_checkbox_measure(ui_view_t* view) {
     assert(view->type == ui_view_checkbox);
-    view->measure_text(view);
+    ui_view.measure(view);
     view->w += view->em.x * 2;
 }
 
@@ -92,13 +92,13 @@ static void ui_checkbox_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 void ui_checkbox_init_(ui_view_t* view) {
     assert(view->type == ui_view_checkbox);
     ui_view_init(view);
-    view->set_text(view, view->text);
+    ui_view.set_text(view, view->text);
     view->mouse       = ui_checkbox_mouse;
     view->measure     = ui_checkbox_measure;
     view->paint       = ui_checkbox_paint;
     view->character   = ui_checkbox_character;
     view->key_pressed = ui_checkbox_key_pressed;
-    view->localize(view);
+    ui_view.localize(view);
     view->color = colors.btn_text;
 }
 

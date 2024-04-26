@@ -7,7 +7,7 @@ static void ui_button_every_100ms(ui_view_t* view) { // every 100ms
     if (b->armed_until != 0 && app.now > b->armed_until) {
         b->armed_until = 0;
         view->armed = false;
-        view->invalidate(view);
+        ui_view.invalidate(view);
     }
 }
 
@@ -29,12 +29,12 @@ static void ui_button_paint(ui_view_t* view) {
     if (b->view.hover && !view->armed) { c = colors.btn_hover_highlight; }
     if (view->disabled) { c = colors.btn_disabled; }
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
-    ui_point_t m = gdi.measure_text(f, view->nls(view));
+    ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
     gdi.set_text_color(c);
     gdi.x = view->x + (view->w - m.x) / 2;
     gdi.y = view->y + (view->h - m.y) / 2;
     f = gdi.set_font(f);
-    gdi.text("%s", view->nls(view));
+    gdi.text("%s", ui_view.nls(view));
     gdi.set_font(f);
     const int32_t pw = max(1, view->em.y / 32); // pen width
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
@@ -66,11 +66,11 @@ static void ui_button_trigger(ui_view_t* view) {
     assert(!view->hidden && !view->disabled);
     ui_button_t* b = (ui_button_t*)view;
     view->armed = true;
-    view->invalidate(view);
+    ui_view.invalidate(view);
     app.draw();
     b->armed_until = app.now + 0.250;
     ui_button_callback(b);
-    view->invalidate(view);
+    ui_view.invalidate(view);
 }
 
 static void ui_button_character(ui_view_t* view, const char* utf8) {
@@ -110,12 +110,12 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
         view->armed = false;
     }
     if (on) { ui_button_callback(b); }
-    if (a != view->armed) { view->invalidate(view); }
+    if (a != view->armed) { ui_view.invalidate(view); }
 }
 
 static void ui_button_measure(ui_view_t* view) {
     assert(view->type == ui_view_button || view->type == ui_view_text);
-    view->measure_text(view);
+    ui_view.measure(view);
     const int32_t em2  = max(1, view->em.x / 2);
     view->w = view->w;
     view->h = view->h + em2;
@@ -131,8 +131,8 @@ void ui_button_init_(ui_view_t* view) {
     view->character   = ui_button_character;
     view->every_100ms = ui_button_every_100ms;
     view->key_pressed = ui_button_key_pressed;
-    view->set_text(view, view->text);
-    view->localize(view);
+    ui_view.set_text(view, view->text);
+    ui_view.localize(view);
     view->color = colors.btn_text;
 }
 

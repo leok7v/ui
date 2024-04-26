@@ -447,7 +447,7 @@ extern gdi_t gdi;
 
 typedef struct ui_view_s ui_view_t;
 
-typedef struct ui_view_s { // ui element container/control
+typedef struct ui_view_s {
     enum ui_view_type_t type;
     void (*init)(ui_view_t* view); // called once before first layout
     ui_view_t** children; // null terminated array[] of children
@@ -463,19 +463,13 @@ typedef struct ui_view_s { // ui element container/control
     int32_t shortcut; // keyboard shortcut
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
-    void (*set_text)(ui_view_t* view, const char* label);
     void (*notify)(ui_view_t* view, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     void (*measure)(ui_view_t* view); // determine w, h (bottom up)
     void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
-    void (*measure_text)(ui_view_t* view); // if text[] != "" sets w, h
-    const char* (*nls)(ui_view_t* view); // returns localized text
-    void (*localize)(ui_view_t* view); // set strid based ui .text field
     void (*paint)(ui_view_t* view);
-    bool (*is_hidden)(ui_view_t* view);   // view or any parent is hidden
-    bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
     void (*click)(ui_view_t* view); // interpretation depends on ui element
@@ -496,7 +490,6 @@ typedef struct ui_view_s { // ui element container/control
     void (*key_released)(ui_view_t* view, int32_t key);
     bool (*is_keyboard_shortcut)(ui_view_t* view, int32_t key);
     void (*hovering)(ui_view_t* view, bool start);
-    void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled ui elements
     void (*timer)(ui_view_t* view, ui_timer_t id);
@@ -525,6 +518,19 @@ typedef struct ui_view_s { // ui element container/control
 // on clicks and double clicks.
 
 void ui_view_init(ui_view_t* view);
+
+typedef struct ui_view_if {
+    void (*set_text)(ui_view_t* view, const char* text);
+    void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()
+    void (*measure)(ui_view_t* view);     // if text[] != "" sets w, h
+    bool (*is_hidden)(ui_view_t* view);   // view or any parent is hidden
+    bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
+    const char* (*nls)(ui_view_t* view);  // returns localized text
+    void (*localize)(ui_view_t* view);    // set strid based ui .text field
+    void (*init_children)(ui_view_t* view);
+} ui_view_if;
+
+extern ui_view_if ui_view;
 
 #define ui_container(name, ini, ...)                                       \
 static ui_view_t* _ ## name ## _ ## children ## _[] = {__VA_ARGS__, null}; \
@@ -1350,9 +1356,7 @@ static void app_init_children(ui_view_t* view) {
         if ((*c)->em.x == 0 || (*c)->em.y == 0) {
             (*c)->em = gdi.get_em(*view->font);
         }
-        if ((*c)->localize != null && (*c)->text[0] != 0) { 
-            (*c)->localize(*c); 
-        }
+        if ((*c)->text[0] != 0) { ui_view.localize(*c); }
         app_init_children(*c);
     }
 }
@@ -1418,7 +1422,7 @@ static void app_window_opening(void) {
     if (app.opened != null) { app.opened(); }
     app.view->em = gdi.get_em(*app.view->font);
     app_set_parents(app.view);
-    app_init_children(app.view);
+    ui_view.init_children(app.view);
     app_wm_timer(app_timer_100ms_id);
     app_wm_timer(app_timer_1s_id);
     fatal_if(ReleaseDC(app_window(), app_canvas()) == 0);
@@ -1475,7 +1479,7 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
 }
 
 static void app_key_pressed(ui_view_t* view, int32_t p) {
-    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->key_pressed != null) { view->key_pressed(view, p); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_key_pressed(*c, p); c++; }
@@ -1483,7 +1487,7 @@ static void app_key_pressed(ui_view_t* view, int32_t p) {
 }
 
 static void app_key_released(ui_view_t* view, int32_t p) {
-    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->key_released != null) { view->key_released(view, p); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_key_released(*c, p); c++; }
@@ -1491,7 +1495,7 @@ static void app_key_released(ui_view_t* view, int32_t p) {
 }
 
 static void app_character(ui_view_t* view, const char* utf8) {
-    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->character != null) { view->character(view, utf8); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_character(*c, utf8); c++; }
@@ -1527,7 +1531,7 @@ static void app_kill_focus(ui_view_t* view) {
 }
 
 static void app_mousewheel(ui_view_t* view, int32_t dx, int32_t dy) {
-    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->mousewheel != null) { view->mousewheel(view, dx, dy); }
         ui_view_t** c = view->children;
         while (c != null && *c != null) { app_mousewheel(*c, dx, dy); c++; }
@@ -1625,7 +1629,7 @@ static void app_on_every_message(ui_view_t* view) {
 }
 
 static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
-    if (!view->is_hidden(view) &&
+    if (!ui_view.is_hidden(view) &&
        (m == WM_MOUSEHOVER || m == ui.message.mouse_move)) {
         RECT rc = { view->x, view->y, view->x + view->w, view->y + view->h};
         bool hover = view->hover;
@@ -1638,7 +1642,7 @@ static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
             app_hover_changed(view);
         }
     }
-    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->mouse != null) { view->mouse(view, m, f); }
         for (ui_view_t** c = view->children; c != null && *c != null; c++) {
             app_ui_mouse(*c, m, f);
@@ -1647,7 +1651,7 @@ static void app_ui_mouse(ui_view_t* view, int32_t m, int32_t f) {
 }
 
 static bool app_context_menu(ui_view_t* view) {
-    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null; c++) {
             if (app_context_menu(*c)) { return true; }
         }
@@ -1670,7 +1674,7 @@ static bool app_inside(ui_view_t* view) {
 
 static bool app_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!view->is_hidden(view) && !view->is_disabled(view) && app_inside(view)) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view) && app_inside(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
             done = app_tap(*c, ix);
         }
@@ -1681,7 +1685,7 @@ static bool app_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
 
 static bool app_press(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!view->is_hidden(view) && !view->is_disabled(view)) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
             done = app_press(*c, ix);
         }
@@ -2098,7 +2102,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         case WM_TIMER        : app_wm_timer((ui_timer_t)wp);
                                break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
-        case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor); 
+        case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor);
                                break; // must call DefWindowProc()
         // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
         // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
@@ -2408,7 +2412,7 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         }
         // allow unparented ui for toast and tooltip
         if (view->init != null) { view->init(view); view->init = null; }
-        view->localize(view);
+        ui_view.localize(view);
         app_animate_start(app_toast_dim, app_animation_steps);
         app.animating.view = view;
         app.animating.view->font = &app.fonts.H1;
@@ -3014,7 +3018,7 @@ static void ui_button_every_100ms(ui_view_t* view) { // every 100ms
     if (b->armed_until != 0 && app.now > b->armed_until) {
         b->armed_until = 0;
         view->armed = false;
-        view->invalidate(view);
+        ui_view.invalidate(view);
     }
 }
 
@@ -3036,12 +3040,12 @@ static void ui_button_paint(ui_view_t* view) {
     if (b->view.hover && !view->armed) { c = colors.btn_hover_highlight; }
     if (view->disabled) { c = colors.btn_disabled; }
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
-    ui_point_t m = gdi.measure_text(f, view->nls(view));
+    ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
     gdi.set_text_color(c);
     gdi.x = view->x + (view->w - m.x) / 2;
     gdi.y = view->y + (view->h - m.y) / 2;
     f = gdi.set_font(f);
-    gdi.text("%s", view->nls(view));
+    gdi.text("%s", ui_view.nls(view));
     gdi.set_font(f);
     const int32_t pw = max(1, view->em.y / 32); // pen width
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
@@ -3073,11 +3077,11 @@ static void ui_button_trigger(ui_view_t* view) {
     assert(!view->hidden && !view->disabled);
     ui_button_t* b = (ui_button_t*)view;
     view->armed = true;
-    view->invalidate(view);
+    ui_view.invalidate(view);
     app.draw();
     b->armed_until = app.now + 0.250;
     ui_button_callback(b);
-    view->invalidate(view);
+    ui_view.invalidate(view);
 }
 
 static void ui_button_character(ui_view_t* view, const char* utf8) {
@@ -3117,12 +3121,12 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
         view->armed = false;
     }
     if (on) { ui_button_callback(b); }
-    if (a != view->armed) { view->invalidate(view); }
+    if (a != view->armed) { ui_view.invalidate(view); }
 }
 
 static void ui_button_measure(ui_view_t* view) {
     assert(view->type == ui_view_button || view->type == ui_view_text);
-    view->measure_text(view);
+    ui_view.measure(view);
     const int32_t em2  = max(1, view->em.x / 2);
     view->w = view->w;
     view->h = view->h + em2;
@@ -3138,8 +3142,8 @@ void ui_button_init_(ui_view_t* view) {
     view->character   = ui_button_character;
     view->every_100ms = ui_button_every_100ms;
     view->key_pressed = ui_button_key_pressed;
-    view->set_text(view, view->text);
-    view->localize(view);
+    ui_view.set_text(view, view->text);
+    ui_view.localize(view);
     view->color = colors.btn_text;
 }
 
@@ -3179,7 +3183,7 @@ static int ui_checkbox_paint_on_off(ui_view_t* view) {
 }
 
 static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_t count)  {
-    str.format(label, count, "%s", view->nls(view));
+    str.format(label, count, "%s", ui_view.nls(view));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, view->pressed ? "On " : "Off", 3);
@@ -3189,7 +3193,7 @@ static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_
 
 static void ui_checkbox_measure(ui_view_t* view) {
     assert(view->type == ui_view_checkbox);
-    view->measure_text(view);
+    ui_view.measure(view);
     view->w += view->em.x * 2;
 }
 
@@ -3247,13 +3251,13 @@ static void ui_checkbox_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 void ui_checkbox_init_(ui_view_t* view) {
     assert(view->type == ui_view_checkbox);
     ui_view_init(view);
-    view->set_text(view, view->text);
+    ui_view.set_text(view, view->text);
     view->mouse       = ui_checkbox_mouse;
     view->measure     = ui_checkbox_measure;
     view->paint       = ui_checkbox_paint;
     view->character   = ui_checkbox_character;
     view->key_pressed = ui_checkbox_key_pressed;
-    view->localize(view);
+    ui_view.localize(view);
     view->color = colors.btn_text;
 }
 
@@ -4326,10 +4330,10 @@ static void ui_label_paint(ui_view_t* view) {
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
     if (!t->multiline) {
-        gdi.text("%s", view->nls(view));
+        gdi.text("%s", ui_view.nls(view));
     } else {
         int32_t w = (int)(view->width * view->em.x + 0.5);
-        gdi.multiline(w == 0 ? -1 : w, "%s", view->nls(view));
+        gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
     }
     if (view->hover && t->hovered && !t->label) {
         gdi.set_colored_pen(colors.btn_hover_highlight);
@@ -4345,8 +4349,8 @@ static void ui_label_paint(ui_view_t* view) {
 static void ui_label_context_menu(ui_view_t* view) {
     assert(view->type == ui_view_text);
     ui_label_t* t = (ui_label_t*)view;
-    if (!t->label && !view->is_hidden(view) && !view->is_disabled(view)) {
-        clipboard.put_text(view->nls(view));
+    if (!t->label && !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
+        clipboard.put_text(ui_view.nls(view));
         static bool first_time = true;
         app.toast(first_time ? 2.15 : 0.75,
             nls.str("Text copied to clipboard"));
@@ -4358,11 +4362,11 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_text);
     ui_label_t* t = (ui_label_t*)view;
     if (view->hover && !t->label &&
-       !view->is_hidden(view) && !view->is_disabled(view)) {
+       !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {
-            clipboard.put_text(view->nls(view)); // 3 is ASCII for Ctrl+C
+            clipboard.put_text(ui_view.nls(view)); // 3 is ASCII for Ctrl+C
         }
     }
 }
@@ -4677,12 +4681,12 @@ void ui_messagebox_init_(ui_view_t* view) {
     for (int32_t i = 0; i < n; i++) {
         mx->children[i + 1] = &mx->button[i].view;
         mx->children[i + 1]->font = mx->view.font;
-        mx->button[i].view.localize(&mx->button[i].view);
+        ui_view.localize(&mx->button[i].view);
     }
     mx->view.children = mx->children;
     ui_label_init_ml(&mx->text, 0.0, "%s", mx->view.text);
     mx->text.view.font = mx->view.font;
-    mx->text.view.localize(&mx->text.view);
+    ui_view.localize(&mx->text.view);
     mx->view.text[0] = 0;
     mx->option = -1;
 }
@@ -4892,13 +4896,13 @@ nls_if nls = {
 
 static void ui_slider_measure(ui_view_t* view) {
     assert(view->type == ui_view_slider);
-    view->measure_text(view);
+    ui_view.measure(view);
     ui_slider_t* r = (ui_slider_t*)view;
     assert(r->inc.view.w == r->dec.view.w && r->inc.view.h == r->dec.view.h);
     const int32_t em = view->em.x;
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
     const int32_t w = (int)(view->width * view->em.x);
-    r->tm = gdi.measure_text(f, view->nls(view), r->vmax);
+    r->tm = gdi.measure_text(f, ui_view.nls(view), r->vmax);
     if (w > r->tm.x) { r->tm.x = w; }
     view->w = r->dec.view.w + r->tm.x + r->inc.view.w + em * 2;
     view->h = r->inc.view.h;
@@ -4972,7 +4976,7 @@ static void ui_slider_mouse(ui_view_t* view, int32_t message, int32_t f) {
                 int32_t vw = (int32_t)(v + r->vmin + 0.5);
                 r->value = min(max(vw, r->vmin), r->vmax);
                 if (r->cb != null) { r->cb(r); }
-                view->invalidate(view);
+                ui_view.invalidate(view);
             }
         }
     }
@@ -4992,7 +4996,7 @@ static void ui_slider_inc_dec_value(ui_slider_t* r, int32_t sign, int32_t mul) {
         if (r->value != v) {
             r->value = v;
             if (r->cb != null) { r->cb(r); }
-            r->view.invalidate(&r->view);
+            ui_view.invalidate(&r->view);
         }
     }
 }
@@ -5031,7 +5035,7 @@ static void ui_slider_every_100ms(ui_view_t* view) { // 100ms
 void ui_slider_init_(ui_view_t* view) {
     assert(view->type == ui_view_slider);
     ui_view_init(view);
-    view->set_text(view, view->text);
+    ui_view.set_text(view, view->text);
     view->mouse       = ui_slider_mouse;
     view->measure     = ui_slider_measure;
     view->layout      = ui_slider_layout;
@@ -5052,7 +5056,7 @@ void ui_slider_init_(ui_view_t* view) {
     strprintf(r->dec.view.tip, "%s", accel);
     r->dec.view.parent = &r->view;
     r->inc.view.parent = &r->view;
-    r->view.localize(&r->view);
+    ui_view.localize(&r->view);
 }
 
 void ui_slider_init(ui_slider_t* r, const char* label, double ems,
@@ -5096,9 +5100,9 @@ static void ui_view_measure_text(ui_view_t* view) {
         ui_point_t mt = { 0 };
         if (view->type == ui_view_text && ((ui_label_t*)view)->multiline) {
             int32_t w = (int)(view->width * view->em.x + 0.5);
-            mt = gdi.measure_multiline(f, w == 0 ? -1 : w, view->nls(view));
+            mt = gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
-            mt = gdi.measure_text(f, view->nls(view));
+            mt = gdi.measure_text(f, ui_view.nls(view));
         }
         view->h = mt.y;
         view->w = max(view->w, mt.x);
@@ -5106,7 +5110,7 @@ static void ui_view_measure_text(ui_view_t* view) {
 }
 
 static void ui_view_measure(ui_view_t* view) {
-    view->measure_text(view);
+    ui_view.measure(view);
 }
 
 static void ui_view_set_text(ui_view_t* view, const char* text) {
@@ -5130,7 +5134,7 @@ static void ui_view_localize(ui_view_t* view) {
 static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_text(btn_tooltip,  "");
     if (start && app.animating.view == null && view->tip[0] != 0 &&
-       !view->is_hidden(view)) {
+       !ui_view.is_hidden(view)) {
         strprintf(btn_tooltip.view.text, "%s", nls.str(view->tip));
         btn_tooltip.view.font = &app.fonts.H1;
         int32_t y = app.mouse.y - view->em.y;
@@ -5172,20 +5176,35 @@ static bool ui_view_is_disabled(const ui_view_t* view) {
     return disabled;
 }
 
+static void ui_view_init_children(ui_view_t* view) {
+    for (ui_view_t** c = view->children; c != null && *c != null; c++) {
+        if ((*c)->init != null) { (*c)->init(*c); (*c)->init = null; }
+        if ((*c)->font == null) { (*c)->font = &app.fonts.regular; }
+        if ((*c)->em.x == 0 || (*c)->em.y == 0) {
+            (*c)->em = gdi.get_em(*view->font);
+        }
+        if ((*c)->text[0] != 0) { ui_view.localize(*c); }
+        ui_view_init_children(*c);
+    }
+}
+
 void ui_view_init(ui_view_t* view) {
-    view->set_text     = ui_view_set_text;
-    view->invalidate   = ui_view_invalidate;
     view->measure      = ui_view_measure;
-    view->measure_text = ui_view_measure_text;
-    view->nls          = ui_view_nls;
-    view->localize     = ui_view_localize;
     view->hovering     = ui_view_hovering;
-    view->is_hidden    = ui_view_is_hidden;
-    view->is_disabled  = ui_view_is_disabled;
     view->hover_delay = 1.5;
     view->is_keyboard_shortcut = ui_view_is_keyboard_shortcut;
 }
 
+ui_view_if ui_view = {
+    .set_text      = ui_view_set_text,
+    .invalidate    = ui_view_invalidate,
+    .measure       = ui_view_measure_text,
+    .nls           = ui_view_nls,
+    .localize      = ui_view_localize,
+    .is_hidden     = ui_view_is_hidden,
+    .is_disabled   = ui_view_is_disabled,
+    .init_children = ui_view_init_children
+};
 
 #endif // ui_implementation
 

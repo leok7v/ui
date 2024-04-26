@@ -142,8 +142,8 @@ static void set_text(int32_t ix) {
             edit[ix]->scroll.pn, edit[ix]->scroll.rn);
     }
     // can be called before text.ui initialized
-    if (text.view.invalidate != null && !strequ(last, text.view.text)) {
-        text.view.invalidate(&text.view);
+    if (!strequ(last, text.view.text)) {
+        ui_view.invalidate(&text.view);
     }
     strprintf(last, "%s", text.view.text);
 }
@@ -155,7 +155,7 @@ static void after_paint(void) {
         bool fuzzing = edit[ix]->fuzzer != null;
         if (fuzz.view.pressed != fuzzing) {
             fuzz.view.pressed = fuzzing;
-            fuzz.view.invalidate(&fuzz.view);
+            ui_view.invalidate(&fuzz.view);
         }
         set_text(ix);
     }

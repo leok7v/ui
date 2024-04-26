@@ -87,12 +87,12 @@ void ui_messagebox_init_(ui_view_t* view) {
     for (int32_t i = 0; i < n; i++) {
         mx->children[i + 1] = &mx->button[i].view;
         mx->children[i + 1]->font = mx->view.font;
-        mx->button[i].view.localize(&mx->button[i].view);
+        ui_view.localize(&mx->button[i].view);
     }
     mx->view.children = mx->children;
     ui_label_init_ml(&mx->text, 0.0, "%s", mx->view.text);
     mx->text.view.font = mx->view.font;
-    mx->text.view.localize(&mx->text.view);
+    ui_view.localize(&mx->text.view);
     mx->view.text[0] = 0;
     mx->option = -1;
 }

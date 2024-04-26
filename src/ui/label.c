@@ -16,10 +16,10 @@ static void ui_label_paint(ui_view_t* view) {
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
     if (!t->multiline) {
-        gdi.text("%s", view->nls(view));
+        gdi.text("%s", ui_view.nls(view));
     } else {
         int32_t w = (int)(view->width * view->em.x + 0.5);
-        gdi.multiline(w == 0 ? -1 : w, "%s", view->nls(view));
+        gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
     }
     if (view->hover && t->hovered && !t->label) {
         gdi.set_colored_pen(colors.btn_hover_highlight);
@@ -35,8 +35,8 @@ static void ui_label_paint(ui_view_t* view) {
 static void ui_label_context_menu(ui_view_t* view) {
     assert(view->type == ui_view_text);
     ui_label_t* t = (ui_label_t*)view;
-    if (!t->label && !view->is_hidden(view) && !view->is_disabled(view)) {
-        clipboard.put_text(view->nls(view));
+    if (!t->label && !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
+        clipboard.put_text(ui_view.nls(view));
         static bool first_time = true;
         app.toast(first_time ? 2.15 : 0.75,
             nls.str("Text copied to clipboard"));
@@ -48,11 +48,11 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_text);
     ui_label_t* t = (ui_label_t*)view;
     if (view->hover && !t->label &&
-       !view->is_hidden(view) && !view->is_disabled(view)) {
+       !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {
-            clipboard.put_text(view->nls(view)); // 3 is ASCII for Ctrl+C
+            clipboard.put_text(ui_view.nls(view)); // 3 is ASCII for Ctrl+C
         }
     }
 }

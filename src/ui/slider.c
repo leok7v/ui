@@ -3,13 +3,13 @@
 
 static void ui_slider_measure(ui_view_t* view) {
     assert(view->type == ui_view_slider);
-    view->measure_text(view);
+    ui_view.measure(view);
     ui_slider_t* r = (ui_slider_t*)view;
     assert(r->inc.view.w == r->dec.view.w && r->inc.view.h == r->dec.view.h);
     const int32_t em = view->em.x;
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
     const int32_t w = (int)(view->width * view->em.x);
-    r->tm = gdi.measure_text(f, view->nls(view), r->vmax);
+    r->tm = gdi.measure_text(f, ui_view.nls(view), r->vmax);
     if (w > r->tm.x) { r->tm.x = w; }
     view->w = r->dec.view.w + r->tm.x + r->inc.view.w + em * 2;
     view->h = r->inc.view.h;
@@ -83,7 +83,7 @@ static void ui_slider_mouse(ui_view_t* view, int32_t message, int32_t f) {
                 int32_t vw = (int32_t)(v + r->vmin + 0.5);
                 r->value = min(max(vw, r->vmin), r->vmax);
                 if (r->cb != null) { r->cb(r); }
-                view->invalidate(view);
+                ui_view.invalidate(view);
             }
         }
     }
@@ -103,7 +103,7 @@ static void ui_slider_inc_dec_value(ui_slider_t* r, int32_t sign, int32_t mul) {
         if (r->value != v) {
             r->value = v;
             if (r->cb != null) { r->cb(r); }
-            r->view.invalidate(&r->view);
+            ui_view.invalidate(&r->view);
         }
     }
 }
@@ -142,7 +142,7 @@ static void ui_slider_every_100ms(ui_view_t* view) { // 100ms
 void ui_slider_init_(ui_view_t* view) {
     assert(view->type == ui_view_slider);
     ui_view_init(view);
-    view->set_text(view, view->text);
+    ui_view.set_text(view, view->text);
     view->mouse       = ui_slider_mouse;
     view->measure     = ui_slider_measure;
     view->layout      = ui_slider_layout;
@@ -163,7 +163,7 @@ void ui_slider_init_(ui_view_t* view) {
     strprintf(r->dec.view.tip, "%s", accel);
     r->dec.view.parent = &r->view;
     r->inc.view.parent = &r->view;
-    r->view.localize(&r->view);
+    ui_view.localize(&r->view);
 }
 
 void ui_slider_init(ui_slider_t* r, const char* label, double ems,

@@ -12,8 +12,8 @@ static void init(void);
 app_t app = {
     .class_name = "sample9",
     .init = init,
-    .wmin = 11.0f, // 11x7 inches
-    .hmin =  7.0f
+    .wmin = 10.0f, // 10x6 inches
+    .hmin =  6.0f
 };
 
 static ui_point_t em;
@@ -131,9 +131,7 @@ ui_container(panel_right, null,
 static void panel_paint(ui_view_t* view) {
     gdi.push(view->x, view->y);
     gdi.set_clip(view->x, view->y, view->w, view->h);
-    gdi.set_brush(gdi.brush_color);
-    gdi.set_brush_color(colors.dkgray1);
-    gdi.fill(view->x, view->y, view->w, view->h);
+    gdi.fill_with(view->x, view->y, view->w, view->h, colors.dkgray1);
     ui_pen_t p = gdi.create_pen(colors.dkgray4, panel_border);
     gdi.set_pen(p);
     gdi.move_to(view->x, view->y);
@@ -225,14 +223,13 @@ static void right_paint(ui_view_t* view) {
 }
 
 static void center_paint(ui_view_t* view) {
-    gdi.set_brush(gdi.brush_color);
-    gdi.set_brush_color(colors.black);
-    gdi.fill(view->x, view->y, view->w, view->h);
+    gdi.fill_with(view->x, view->y, view->w, view->h, colors.black);
     int x = (view->w - image.w) / 2;
     int y = (view->h - image.h) / 2;
 //  gdi.alpha_blend(view->x + x, view->y + y, image.w, image.h, &image, 0.8);
     HDC canvas = GetDC((HWND)app.window);
     fatal_if_null(canvas);
+// TODO: make it thru UI gdi calls
     HDC src = CreateCompatibleDC(canvas); fatal_if_null(src);
     HDC dst = CreateCompatibleDC(canvas); fatal_if_null(dst);
     HBITMAP bitmap = CreateCompatibleBitmap(canvas, image.w, image.h);
@@ -254,7 +251,6 @@ static void center_paint(ui_view_t* view) {
     fatal_if_false(DeleteDC(dst));
     fatal_if_false(DeleteDC(src));
     fatal_if_false(ReleaseDC((HWND)app.window, canvas));
-
 }
 
 static void measure(ui_view_t* view) {
