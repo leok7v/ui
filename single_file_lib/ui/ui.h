@@ -2738,11 +2738,6 @@ int WINAPI WinMain(HINSTANCE unused(instance), HINSTANCE unused(previous),
         char* unused(command), int show) {
     app.tid = threads.id();
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
-// TODO: remove it?
-    // https://learn.microsoft.com/en-us/windows/win32/api/imm/nf-imm-immdisablelegacyime
-//  ImmDisableLegacyIME();
-    // https://developercommunity.visualstudio.com/t/MSCTFdll-timcpp-An-assertion-failure-h/10513796
-//  ImmDisableIME(0); // temporarily disable IME till MS fixes that assert
     SetConsoleCP(CP_UTF8);
     nls.init();
     app.visibility = show;
@@ -2769,7 +2764,6 @@ int main(int argc, const char* argv[], const char** envp) {
 #pragma comment(lib, "comdlg32")
 #pragma comment(lib, "dwmapi")
 #pragma comment(lib, "gdi32")
-// #pragma comment(lib, "imm32")
 #pragma comment(lib, "msimg32")
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "shcore")
