@@ -26,7 +26,11 @@ static inline uint32_t maximum_uint32(uint32_t x, uint32_t y) { return x > y ? x
 static inline uint64_t maximum_uint64(uint64_t x, uint64_t y) { return x > y ? x : y; }
 static inline fp32_t   maximum_fp32(fp32_t x, fp32_t y)       { return x > y ? x : y; }
 static inline fp64_t   maximum_fp64(fp64_t x, fp64_t y)       { return x > y ? x : y; }
-// also need to handle long because cl.exe compiler is slightly confused about it:
+
+// MS cl.exe version 19.39.33523 has issues with "long":
+// does not pick up int32_t/uint32_t types for "long" and "unsigned long"
+// need to handle long / unsigned long separately:
+
 static inline long          maximum_long(long x, long y)                    { return x > y ? x : y; }
 static inline unsigned long maximum_ulong(unsigned long x, unsigned long y) { return x > y ? x : y; }
 
@@ -78,8 +82,27 @@ static inline void     maximum_undefined(void) { }
     unsigned long: minimum_ulong, \
     default:  minimum_undefined)(X, Y)
 
+
+// The expression (X) + (Y) is used in _Generic primarily for type promotion
+// and compatibility between different types of the two operands. In C, when
+// you perform an arithmetic operation like addition between two variables,
+// the types of these variables undergo implicit conversions to a common type
+// according to the usual arithmetic conversions defined in the C standard.
+// This helps ensure that:
+//
+// Type Compatibility: The macro works correctly even if X and Y are of
+// different types. By using (X) + (Y), both X and Y are promoted to a common
+// type, which ensures that the macro selects the appropriate function
+// that can handle this common type.
+//
+// Type Safety: It ensures that the selected function can handle the type
+// resulting from the operation, thereby preventing type mismatches that
+// could lead to undefined behavior or compilation errors.
+
 typedef struct generics_if {
     void (*test)(void);
 } generics_if;
+
+extern generics_if generics;
 
 end_c

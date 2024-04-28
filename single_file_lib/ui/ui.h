@@ -33,17 +33,17 @@
 #ifndef max
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 #endif
-//#define maximum(a,b) (((a) > (b)) ? (a) : (b)) // preferred
+
+// #define maximum(a,b) (((a) > (b)) ? (a) : (b)) // preferred
 
 #ifndef min
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 #endif
-//#define minimum(a,b) (((a) < (b)) ? (a) : (b)) // preferred
 
-// alternative in definining minimum/maximum as force_inline
-// functions but they will be typed and require
-// minimum_int32() maximum_int32() and so on...
-//
+// #define minimum(a,b) (((a) < (b)) ? (a) : (b)) // preferred
+
+// see generics.h/.c for alternative to definining minimum/maximum
+// as C11 generics functions. For now experimental
 
 #if defined(__GNUC__) || defined(__clang__)
     #define force_inline __attribute__((always_inline))
@@ -1170,11 +1170,11 @@ static BOOL CALLBACK app_monitor_enum_proc(HMONITOR monitor,
     ui_rect_t* space = &wiw->space;
     MONITORINFOEX mi = { .cbSize = sizeof(MONITORINFOEX) };
     fatal_if_false(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
-    // monitors can be in negative coordinate spaces and even rotated upsidedown
-    const int32_t min_x = minimum((int32_t)mi.rcMonitor.left, (int32_t)mi.rcMonitor.right);
-    const int32_t min_y = minimum((int32_t)mi.rcMonitor.top,  (int32_t)mi.rcMonitor.bottom);
-    const int32_t max_w = maximum((int32_t)mi.rcMonitor.left, (int32_t)mi.rcMonitor.right);
-    const int32_t max_h = maximum((int32_t)mi.rcMonitor.top,  (int32_t)mi.rcMonitor.bottom);
+    // monitors can be in negative coordinate spaces and even rotated upside-down
+    const int32_t min_x = minimum(mi.rcMonitor.left, mi.rcMonitor.right);
+    const int32_t min_y = minimum(mi.rcMonitor.top,  mi.rcMonitor.bottom);
+    const int32_t max_w = maximum(mi.rcMonitor.left, mi.rcMonitor.right);
+    const int32_t max_h = maximum(mi.rcMonitor.top,  mi.rcMonitor.bottom);
     space->x = minimum(space->x, min_x);
     space->y = minimum(space->y, min_y);
     space->w = maximum(space->w, max_w);

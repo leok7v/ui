@@ -44,6 +44,8 @@ static void generics_test(void) {
         swear(maximum(a, b) == b);
         swear(minimum(a, b) == a);
     }
+    // MS cl.exe version 19.39.33523 has issues with "long":
+    // does not pick up int32_t/uint32_t types for "long" and "unsigned long"
     {
         long int a = 1, b = 2;
         swear(maximum(a, b) == b);
@@ -71,4 +73,3 @@ static void generics_test(void) { }
 generics_if generics = {
     .test = generics_test
 };
-
