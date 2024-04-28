@@ -488,26 +488,21 @@ static void app_window_closing(void) {
 }
 
 static void app_get_min_max_info(MINMAXINFO* mmi) {
-    if (app.wmax != 0 && app.hmax != 0) {
-        // if wmax hmax are set then wmin hmin must be less than wmax hmax
-        assert(app.wmin <= app.wmax && app.hmin <= app.hmax,
-            "app.wmax=%d app.hmax=%d app.wmin=%d app.hmin=%d",
-             app.wmax, app.hmax, app.wmin, app.hmin);
-    }
+    const ui_window_sizing_t* ws = &app.window_sizing;
     const ui_rect_t* wa = &app.work_area;
-    const int32_t wmin = app.wmin > 0 ? app.in2px(app.wmin) : wa->w / 2;
-    const int32_t hmin = app.hmin > 0 ? app.in2px(app.hmin) : wa->h / 2;
-    mmi->ptMinTrackSize.x = wmin;
-    mmi->ptMinTrackSize.y = hmin;
-    const int32_t wmax = app.wmax > 0 ? app.in2px(app.wmax) : wa->w;
-    const int32_t hmax = app.hmax > 0 ? app.in2px(app.hmax) : wa->h;
+    const int32_t min_w = ws->min_w > 0 ? app.in2px(ws->min_w) : wa->w / 2;
+    const int32_t min_h = ws->min_h > 0 ? app.in2px(ws->min_h) : wa->h / 2;
+    mmi->ptMinTrackSize.x = min_w;
+    mmi->ptMinTrackSize.y = min_h;
+    const int32_t max_w = ws->max_w > 0 ? app.in2px(ws->max_w) : wa->w;
+    const int32_t max_h = ws->max_h > 0 ? app.in2px(ws->max_h) : wa->h;
     if (app.no_clip) {
-        mmi->ptMaxTrackSize.x = wmax;
-        mmi->ptMaxTrackSize.y = hmax;
+        mmi->ptMaxTrackSize.x = max_w;
+        mmi->ptMaxTrackSize.y = max_h;
     } else {
-        // clip wmax and hmax to monitor work area
-        mmi->ptMaxTrackSize.x = min(wmax, wa->w);
-        mmi->ptMaxTrackSize.y = min(hmax, wa->h);
+        // clip max_w and max_h to monitor work area
+        mmi->ptMaxTrackSize.x = min(max_w, wa->w);
+        mmi->ptMaxTrackSize.y = min(max_h, wa->h);
     }
     mmi->ptMaxSize.x = mmi->ptMaxTrackSize.x;
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
@@ -1761,6 +1756,40 @@ static void app_init_windows(void) {
     app_init_fonts(app.dpi.window); // for default monitor
 }
 
+static ui_rect_t app_window_initial_rectangle(void) {
+    const ui_window_sizing_t* ws = &app.window_sizing;
+    // it is not practical and thus not implemented handling
+    // == (0, 0) and != (0, 0) for sizing half dimension (only w or only h)
+    swear((ws->min_w != 0) == (ws->min_h != 0) &&
+           ws->min_w >= 0 && ws->min_h >= 0,
+          "app.window_sizing .min_w=%.1f .min_h=%.1f", ws->min_w, ws->min_h);
+    swear((ws->ini_w != 0) == (ws->ini_h != 0) &&
+           ws->ini_w >= 0 && ws->ini_h >= 0,
+          "app.window_sizing .ini_w=%.1f .ini_h=%.1f", ws->ini_w, ws->ini_h);
+    swear((ws->max_w != 0) == (ws->max_h != 0) &&
+           ws->max_w >= 0 && ws->max_h >= 0,
+          "app.window_sizing .max_w=%.1f .max_h=%.1f", ws->max_w, ws->max_h);
+    // if max is set then min and ini must be less than max
+    if (ws->max_w != 0 || ws->max_h != 0) {
+        swear(ws->min_w <= ws->max_w && ws->min_h <= ws->max_h,
+            "app.window_sizing .min_w=%.1f .min_h=%.1f .max_w=%1.f .max_h=%.1f",
+             ws->min_w, ws->min_h, ws->max_w, ws->max_h);
+        swear(ws->ini_w <= ws->max_w && ws->ini_h <= ws->max_h,
+            "app.window_sizing .min_w=%.1f .min_h=%.1f .max_w=%1.f .max_h=%.1f",
+                ws->ini_w, ws->ini_h, ws->max_w, ws->max_h);
+    }
+    const int32_t ini_w = app.in2px(ws->ini_w);
+    const int32_t ini_h = app.in2px(ws->ini_h);
+    int32_t min_w = ws->min_w > 0 ?
+        app.in2px(ws->min_w) : app.work_area.w / 4;
+    int32_t min_h = ws->min_h > 0 ?
+        app.in2px(ws->min_h) : app.work_area.h / 4;
+    // (x, y) (-1, -1) means "let Windows manager position the window"
+    ui_rect_t r = {-1, -1,
+                   ini_w > 0 ? ini_w : min_w, ini_h > 0 ? ini_h : min_h};
+    return r;
+}
+
 static int app_win_main(void) {
     not_null(app.init);
     app_init_windows();
@@ -1770,12 +1799,8 @@ static int app_win_main(void) {
     app_init();
     int r = 0;
 //  app_dump_dpi();
-    // "wr" Window Rect in pixels: default is 100,100, wmin, hmin
-    int32_t wmin = app.wmin > 0 ?
-        app.in2px(app.wmin) : app.work_area.w / 4;
-    int32_t hmin = app.hmin > 0 ?
-        app.in2px(app.hmin) : app.work_area.h / 4;
-    ui_rect_t wr = {100, 100, wmin, hmin};
+    // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
+    ui_rect_t wr = app_window_initial_rectangle();
     int32_t size_frame = GetSystemMetricsForDpi(SM_CXSIZEFRAME, app.dpi.process);
     int32_t caption_height = GetSystemMetricsForDpi(SM_CYCAPTION, app.dpi.process);
     wr.x -= size_frame;

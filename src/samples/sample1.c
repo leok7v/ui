@@ -28,7 +28,11 @@ static void init(void) {
 app_t app = {
     .class_name = "sample1",
     .init = init,
-    .wmin = 2.0f, // 2x1 inches
-    .hmin = 1.0f
+    .window_sizing = {
+        .min_w = 1.0f, // 1x0.5 inches
+        .min_h = 0.5f,
+        .ini_w = 2.0f, // 2x1 inches
+        .ini_h = 1.0f
+    }
 };
 

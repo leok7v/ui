@@ -7,6 +7,19 @@ begin_c
 
 // every_sec() and every_100ms() also called on all UICs
 
+typedef struct ui_window_sizing_s { // in inches (because monitors customary are)
+    float ini_w; // initial window width in inches
+    float ini_h; // 0,0 means set to min_w, min_h
+    float min_w; // minimum window width in inches
+    float min_h; // 0,0 means - do not care use content size
+    float max_w; // maximum window width in inches
+    float max_h; // 0,0 means as big as user wants
+    // "sizing" "estimate or measure something's dimensions."
+	// initial window sizing only used on the first invocation
+	// actual user sizing is stored in the configuration and used
+	// on all launches except the very first.
+} ui_window_sizing_t;
+
 typedef struct app_s {
     // implemented by client:
     const char* class_name;
@@ -26,10 +39,7 @@ typedef struct app_s {
     // must be filled by application:
     const char* title;
     // min/max width/height are prefilled according to monitor size
-    float wmin; // inches
-    float hmin; // inches
-    float wmax; // inches
-    float hmax; // inches
+    ui_window_sizing_t const window_sizing;
     // TODO: need wstart/hstart which are between min/max
     int32_t visibility; // initial window_visibility state
     int32_t last_visibility;    // last window_visibility state from last run

@@ -1824,7 +1824,8 @@ clock_if clock = {
 // On Unix the implementation should keep KV pairs in
 // key-named files inside .name/ folder
 
-static const char* config_app = "Software\\app";
+static const char* config_app = "Software\\apps";
+
 const DWORD config_access = KEY_READ|KEY_WRITE|KEY_SET_VALUE|KEY_QUERY_VALUE|
                             KEY_ENUMERATE_SUB_KEYS|DELETE;
 

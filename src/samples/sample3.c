@@ -132,8 +132,13 @@ static void init(void) {
 app_t app = {
     .class_name = "sample3",
     .init = init,
-    .wmin = 6.0f, // 6x4 inches
-    .hmin = 4.0f
+    // 6x4 inches. Thinking of 6x4 timbers columns, beams, supporting posts :)
+    .window_sizing = {
+        .min_w =  6.0f,
+        .min_h =  4.0f,
+        .ini_w =  6.0f,
+        .ini_h =  4.0f
+    }
 };
 
 static double scale(int x, int n, double low, double hi) {

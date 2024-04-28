@@ -181,11 +181,12 @@ static void init(void) {
 app_t app = {
     .class_name = "sample2",
     .init = init,
-    // fixed size app
-    .wmin = 10.0f, // 10x6 inches
-    .hmin =  6.0f,
-    .wmax = 10.0f,
-    .hmax =  6.0f,
+    .window_sizing = {
+        .min_w =  9.0f, // 9x5 inches
+        .min_h =  5.0f,
+        .ini_w = 10.0f, // 10x6 inches - fits 11" laptops
+        .ini_h = 6.0f
+    }
 };
 
 end_c

@@ -19,9 +19,13 @@ static int  console(void) {
 app_t app = {
     .class_name = "sample4",
     .init = init,
-    .main = console, // optional
-    .wmin = 6.0f, // 6x4 inches
-    .hmin = 4.0f
+    .main = console,
+    .window_sizing = {
+        .min_w =  4.0f,
+        .min_h =  4.0f,
+        .ini_w =  6.0f,
+        .ini_h =  6.0f
+    }
 };
 
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,

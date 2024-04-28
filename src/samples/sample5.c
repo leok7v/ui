@@ -22,8 +22,26 @@ static ui_edit_t edit1;
 static ui_edit_t edit2;
 static ui_edit_t* edit[3] = { &edit0, &edit1, &edit2 };
 
-static int32_t focused(void);
-static void focus_back_to_edit(void);
+static int32_t focused(void) {
+    // app.focus can point to a button, thus see which edit
+    // control was focused last
+    int32_t ix = -1;
+    for (int32_t i = 0; i < countof(edit) && ix < 0; i++) {
+        if (app.focus == &edit[i]->view) { ix = i; }
+        if (edit[i]->focused) { ix = i; }
+    }
+    static int32_t last_ix = -1;
+    if (ix < 0) { ix = last_ix; }
+    last_ix = ix;
+    return ix;
+}
+
+static void focus_back_to_edit(void) {
+    const int32_t ix = focused();
+    if (ix >= 0) {
+        app.focus = &edit[ix]->view; // return focus where it was
+    }
+}
 
 static void scaled_fonts(void) {
     assert(0 <= fx && fx < countof(fs));
@@ -232,27 +250,6 @@ static void opened(void) {
     if (args.c > 1) { open_file(args.v[1]); }
 }
 
-static int32_t focused(void) {
-    // app.focus can point to a button, thus see which edit
-    // control was focused last
-    int32_t ix = -1;
-    for (int32_t i = 0; i < countof(edit) && ix < 0; i++) {
-        if (app.focus == &edit[i]->view) { ix = i; }
-        if (edit[i]->focused) { ix = i; }
-    }
-    static int32_t last_ix = -1;
-    if (ix < 0) { ix = last_ix; }
-    last_ix = ix;
-    return ix;
-}
-
-static void focus_back_to_edit(void) {
-    const int32_t ix = focused();
-    if (ix >= 0) {
-        app.focus = &edit[ix]->view; // return focus where it was
-    }
-}
-
 static void every_100ms(void) {
 //  traceln("");
     static ui_view_t* last;
@@ -410,8 +407,12 @@ app_t app = {
     .class_name = "sample5",
     .init   = init,
     .opened = opened,
-    .wmin = 3.0f, // 3x2 inches
-    .hmin = 2.0f
+    .window_sizing = {
+        .min_w =  3.0f,
+        .min_h =  2.5f,
+        .ini_w =  4.0f,
+        .ini_h =  5.0f
+    }
 };
 
 end_c

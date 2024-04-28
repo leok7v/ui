@@ -12,8 +12,12 @@ static void init(void);
 app_t app = {
     .class_name = "sample9",
     .init = init,
-    .wmin = 10.0f, // 10x6 inches
-    .hmin =  6.0f
+    .window_sizing = {
+        .min_w =  9.0f,
+        .min_h =  5.5f,
+        .ini_w = 10.0f,
+        .ini_h =  6.0f
+    }
 };
 
 static ui_point_t em;

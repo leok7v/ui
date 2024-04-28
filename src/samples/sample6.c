@@ -53,20 +53,6 @@ static void midi_play(void);
 static void midi_stop(void);
 static void midi_close(void);
 
-static int  console(void) {
-    fatal_if(true, "%s only SUBSYSTEM:WINDOWS", args.basename());
-    return 1;
-}
-
-app_t app = {
-    .class_name = "sample4",
-    .init = init,
-    .fini = fini,
-    .main = console, // optional
-    .wmin = 6.0f, // 6x4 inches
-    .hmin = 4.0f
-};
-
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,
     int32_t* bpp, int32_t preferred_bytes_per_pixel);
 
@@ -346,6 +332,25 @@ static void* load_animated_gif(const uint8_t* data, int64_t bytes,
         bpp, preferred_bytes_per_pixel);
     return pixels;
 }
+
+
+static int  console(void) {
+    fatal_if(true, "%s only SUBSYSTEM:WINDOWS", args.basename());
+    return 1;
+}
+
+app_t app = {
+    .class_name = "sample4",
+    .init = init,
+    .fini = fini,
+    .main = console,
+    .window_sizing = {
+        .min_w =  6.0f,
+        .min_h =  5.0f,
+        .ini_w =  8.0f,
+        .ini_h =  6.0f
+    }
+};
 
 end_c
 
