@@ -9,7 +9,7 @@ typedef struct ui_slider_s {
     ui_view_t view;
     void (*cb)(ui_slider_t* b); // callback
     int32_t step;
-    double time;   // time last button was pressed
+    fp64_t time;   // time last button was pressed
     ui_point_t tm; // text measurement (special case for %0*d)
     ui_button_t inc;
     ui_button_t dec;
@@ -21,7 +21,7 @@ typedef struct ui_slider_s {
 
 void _slider_init_(ui_view_t* view);
 
-void ui_slider_init(ui_slider_t* r, const char* label, double ems,
+void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     int32_t vmin, int32_t vmax, void (*cb)(ui_slider_t* r));
 
 #define ui_slider(name, s, ems, vmn, vmx, code)             \

@@ -9,6 +9,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Type aliases for floating-point types similar to <stdint.h>
+typedef float  fp32_t;
+typedef double fp64_t;
+// "long fp64_t" is required by C standard but the bitness
+// of it is not specified.
 
 #ifdef __cplusplus
     #define begin_c extern "C" {

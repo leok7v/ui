@@ -124,8 +124,8 @@ static void app_dump_dpi(void) {
     traceln("MAXTRACK: %d, %d", mxt_x, mxt_y);
     int32_t scr_x = GetSystemMetrics(SM_CXSCREEN);
     int32_t scr_y = GetSystemMetrics(SM_CYSCREEN);
-    float monitor_x = scr_x / (float)app.dpi.monitor_raw;
-    float monitor_y = scr_y / (float)app.dpi.monitor_raw;
+    fp32_t monitor_x = scr_x / (fp32_t)app.dpi.monitor_raw;
+    fp32_t monitor_y = scr_y / (fp32_t)app.dpi.monitor_raw;
     traceln("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
 }
 
@@ -171,7 +171,7 @@ static void app_init_fonts(int32_t dpi) {
     lf.lfQuality = PROOF_QUALITY;
     app.fonts.regular = (ui_font_t)CreateFontIndirectW(&lf);
     not_null(app.fonts.regular);
-    const double fh = app_ncm.lfMessageFont.lfHeight;
+    const fp64_t fh = app_ncm.lfMessageFont.lfHeight;
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
@@ -554,7 +554,7 @@ static void app_tap_press(int32_t m, WPARAM wp, LPARAM lp) {
     app_mouse(app.view, (int32_t)m, (int32_t)wp);
     int32_t ix = (int32_t)wp;
     assert(0 <= ix && ix <= 2);
-    // for now long press and double tap/double click
+    // for now long press and fp64_t tap/fp64_t click
     // treated as press() call - can be separated if desired:
     if (m == ui.message.tap) {
         ui_view.tap(app.view, ix);
@@ -597,7 +597,7 @@ static void app_toast_paint(void) {
 //          traceln("step=%d of %d y=%d", app.animating.step,
 //                  app_toast_steps, app.animating.view->y);
             app_measure_and_layout(app.animating.view);
-            double alpha = minimum(0.40, 0.40 * app.animating.step / (double)app_animation_steps);
+            fp64_t alpha = minimum(0.40, 0.40 * app.animating.step / (fp64_t)app_animation_steps);
             gdi.alpha_blend(0, 0, app.width, app.height, &image, alpha);
             app.animating.view->x = (app.width - app.animating.view->w) / 2;
         } else {
@@ -718,7 +718,7 @@ static void app_paint_on_canvas(HDC hdc) {
     ui_canvas_t canvas = app.canvas;
     app.canvas = (ui_canvas_t)hdc;
     gdi.push(0, 0);
-    double time = clock.seconds();
+    fp64_t time = clock.seconds();
     gdi.x = 0;
     gdi.y = 0;
     app_update_crc();
@@ -833,9 +833,9 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     // This function should work regardless to CS_BLKCLK being present
     // 0: Left, 1: Middle, 2: Right
     static ui_point_t click_at[3];
-    static double     clicked[3]; // click time
+    static fp64_t     clicked[3]; // click time
     static bool       pressed[3];
-    static ui_timer_t       timer_d[3]; // double tap
+    static ui_timer_t       timer_d[3]; // fp64_t tap
     static ui_timer_t       timer_p[3]; // long press
     bool up = false;
     int32_t ix = -1;
@@ -867,7 +867,7 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     }
     if (ix != -1) {
         const uint32_t dtap_msec = GetDoubleClickTime();
-        const double double_click_dt = dtap_msec / 1000.0;
+        const fp64_t double_click_dt = dtap_msec / 1000.0;
         const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
         ui_point_t pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
@@ -1248,7 +1248,7 @@ static void app_quit(int32_t exit_code) {
 }
 
 static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
-        double timeout) {
+        fp64_t timeout) {
     if (view != null) {
         app.animating.x = x;
         app.animating.y = y;
@@ -1267,12 +1267,12 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
     }
 }
 
-static void app_show_toast(ui_view_t* view, double timeout) {
+static void app_show_toast(ui_view_t* view, fp64_t timeout) {
     app_show_tooltip_or_toast(view, -1, -1, timeout);
 }
 
 static void app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
-        double timeout) {
+        fp64_t timeout) {
     if (view != null) {
         app_show_tooltip_or_toast(view, x, y, timeout);
     } else if (app.animating.view != null && app.animating.x >= 0 &&
@@ -1281,7 +1281,7 @@ static void app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
     }
 }
 
-static void app_formatted_toast_va(double timeout, const char* format, va_list vl) {
+static void app_formatted_toast_va(fp64_t timeout, const char* format, va_list vl) {
     app_show_toast(null, 0);
     static ui_label_t txt;
     ui_label_init_va(&txt, format, vl);
@@ -1289,7 +1289,7 @@ static void app_formatted_toast_va(double timeout, const char* format, va_list v
     app_show_toast(&txt.view, timeout);
 }
 
-static void app_formatted_toast(double timeout, const char* format, ...) {
+static void app_formatted_toast(fp64_t timeout, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     app_formatted_toast_va(timeout, format, vl);
@@ -1517,13 +1517,13 @@ static int app_console_create(void) {
     return r;
 }
 
-static float app_px2in(int pixels) {
+static fp32_t app_px2in(int pixels) {
     assert(app.dpi.monitor_raw > 0);
     return app.dpi.monitor_raw > 0 ?
-           pixels / (float)app.dpi.monitor_raw : 0;
+           pixels / (fp32_t)app.dpi.monitor_raw : 0;
 }
 
-static int32_t app_in2px(float inches) {
+static int32_t app_in2px(fp32_t inches) {
     assert(app.dpi.monitor_raw > 0);
     return (int32_t)(inches * app.dpi.monitor_raw + 0.5f);
 }

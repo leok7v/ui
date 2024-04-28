@@ -13,6 +13,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Type aliases for floating-point types similar to <stdint.h>
+typedef float  fp32_t;
+typedef double fp64_t;
+// "long fp64_t" is required by C standard but the bitness
+// of it is not specified.
 
 #ifdef __cplusplus
     #define begin_c extern "C" {
@@ -399,7 +404,7 @@ typedef struct gdi_s {
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
     void (*alpha_blend)(int32_t x, int32_t y, int32_t w, int32_t h,
-        image_t* image, double alpha);
+        image_t* image, fp64_t alpha);
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image);
     // text:
@@ -422,8 +427,8 @@ typedef struct gdi_s {
     // width can be -1 which measures text with "\n" or
     // positive number of pixels
     ui_point_t (*measure_multiline)(ui_font_t f, int32_t w, const char* format, ...);
-    double height_multiplier; // see line_spacing()
-    double (*line_spacing)(double height_multiplier); // default 1.0
+    fp64_t height_multiplier; // see line_spacing()
+    fp64_t (*line_spacing)(fp64_t height_multiplier); // default 1.0
     int32_t x; // incremented by text, print
     int32_t y; // incremented by textln, println
     // proportional:
@@ -465,7 +470,7 @@ typedef struct ui_view_s ui_view_t;
 typedef struct ui_view_s {
     enum ui_view_type_t type;
     void (*init)(ui_view_t* view); // called once before first layout
-    double width;    // > 0 width of UI element in "em"s
+    fp64_t width;    // > 0 width of UI element in "em"s
     char text[2048];
     ui_view_t** children; // null terminated array[] of children
     ui_view_t* parent;
@@ -517,7 +522,7 @@ typedef struct ui_view_s {
     bool pressed;   // for ui_button_t and  checkbox_t
     bool disabled;  // mouse, keyboard, key_up/down not called on disabled
     bool focusable; // can be target for keyboard focus
-    double  hover_at;    // time in seconds when to call hovered()
+    fp64_t  hover_at;    // time in seconds when to call hovered()
     ui_color_t color;      // interpretation depends on ui element type
     ui_color_t background; // interpretation depends on ui element type
     ui_font_t* font;
@@ -527,10 +532,10 @@ typedef struct ui_view_s {
 } ui_view_t;
 
 // tap() / press() APIs guarantee that single tap() is not coming
-// before double tap/click in expense of double click delay (0.5 seconds)
+// before fp64_t tap/click in expense of fp64_t click delay (0.5 seconds)
 // which is OK for buttons and many other UI controls but absolutely not
 // OK for text editing. Thus edit uses raw mouse events to react
-// on clicks and double clicks.
+// on clicks and fp64_t clicks.
 
 void ui_view_init(ui_view_t* view);
 
@@ -646,7 +651,7 @@ void ui_label_init(ui_label_t* t, const char* format, ...);
 void ui_label_init_va(ui_label_t* t, const char* format, va_list vl);
 
 // multiline
-void ui_label_init_ml(ui_label_t* t, double width, const char* format, ...);
+void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...);
 
 // __________________________________ nls.h ___________________________________
 
@@ -679,10 +684,10 @@ typedef struct ui_button_s ui_button_t;
 typedef struct ui_button_s {
     ui_view_t view;
     void (*cb)(ui_button_t* b); // callback
-    double armed_until;   // seconds - when to release
+    fp64_t armed_until;   // seconds - when to release
 } ui_button_t;
 
-void ui_button_init(ui_button_t* b, const char* label, double ems,
+void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
     void (*cb)(ui_button_t* b));
 
 void ui_button_init_(ui_view_t* view); // do not call use ui_button() macro
@@ -713,7 +718,7 @@ typedef struct ui_checkbox_s {
 }  checkbox_t;
 
 // label may contain "___" which will be replaced with "On" / "Off"
-void ui_checkbox_init( checkbox_t* b, const char* label, double ems,
+void ui_checkbox_init( checkbox_t* b, const char* label, fp64_t ems,
     void (*cb)( checkbox_t* b));
 
 void ui_checkbox_init_(ui_view_t* view); // do not call use ui_checkbox() macro
@@ -739,7 +744,7 @@ typedef struct ui_slider_s {
     ui_view_t view;
     void (*cb)(ui_slider_t* b); // callback
     int32_t step;
-    double time;   // time last button was pressed
+    fp64_t time;   // time last button was pressed
     ui_point_t tm; // text measurement (special case for %0*d)
     ui_button_t inc;
     ui_button_t dec;
@@ -751,7 +756,7 @@ typedef struct ui_slider_s {
 
 void _slider_init_(ui_view_t* view);
 
-void ui_slider_init(ui_slider_t* r, const char* label, double ems,
+void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     int32_t vmin, int32_t vmax, void (*cb)(ui_slider_t* r));
 
 #define ui_slider(name, s, ems, vmn, vmx, code)             \
@@ -812,12 +817,12 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* option[],
 // every_sec() and every_100ms() also called on all UICs
 
 typedef struct ui_window_sizing_s { // in inches (because monitors customary are)
-    float ini_w; // initial window width in inches
-    float ini_h; // 0,0 means set to min_w, min_h
-    float min_w; // minimum window width in inches
-    float min_h; // 0,0 means - do not care use content size
-    float max_w; // maximum window width in inches
-    float max_h; // 0,0 means as big as user wants
+    fp32_t ini_w; // initial window width in inches
+    fp32_t ini_h; // 0,0 means set to min_w, min_h
+    fp32_t min_w; // minimum window width in inches
+    fp32_t min_h; // 0,0 means - do not care use content size
+    fp32_t max_w; // maximum window width in inches
+    fp32_t max_h; // 0,0 means as big as user wants
     // "sizing" "estimate or measure something's dimensions."
 	// initial window sizing only used on the first invocation
 	// actual user sizing is stored in the configuration and used
@@ -870,7 +875,7 @@ typedef struct app_s {
     int32_t width;  // client width
     int32_t height; // client height
     // not to call clock.seconds() too often:
-    double now;     // ssb "seconds since boot" updated on each message
+    fp64_t now;     // ssb "seconds since boot" updated on each message
     ui_view_t* view;      // show_window() changes ui.hidden
     ui_view_t* focus;   // does not affect message routing - free for all
     ui_fonts_t fonts;
@@ -887,13 +892,13 @@ typedef struct app_s {
     struct { // animation state
         ui_view_t* view;
         int32_t step;
-        double time; // closing time or zero
+        fp64_t time; // closing time or zero
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
     } animating;
     // inch to pixels and reverse translation via app.dpi.window
-    float   (*px2in)(int32_t pixels);
-    int32_t (*in2px)(float inches);
+    fp32_t   (*px2in)(int32_t pixels);
+    int32_t (*in2px)(fp32_t inches);
     bool (*is_active)(void); // is application window active
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
@@ -916,10 +921,10 @@ typedef struct app_s {
     void (*kill_timer)(ui_timer_t id);
     void (*post)(int32_t message, int64_t wp, int64_t lp);
     void (*show_window)(int32_t show); // see show_window enum
-    void (*show_toast)(ui_view_t* toast, double seconds); // toast(null) to cancel
-    void (*show_tooltip)(ui_view_t* tooltip, int32_t x, int32_t y, double seconds);
-    void (*toast_va)(double seconds, const char* format, va_list vl);
-    void (*toast)(double seconds, const char* format, ...);
+    void (*show_toast)(ui_view_t* toast, fp64_t seconds); // toast(null) to cancel
+    void (*show_tooltip)(ui_view_t* tooltip, int32_t x, int32_t y, fp64_t seconds);
+    void (*toast_va)(fp64_t seconds, const char* format, va_list vl);
+    void (*toast)(fp64_t seconds, const char* format, ...);
     // caret calls must be balanced by caller
     void (*create_caret)(int32_t w, int32_t h);
     void (*show_caret)(void);
@@ -945,9 +950,9 @@ typedef struct app_s {
     void (*console_show)(bool b);
     // stats:
     int32_t paint_count; // number of paint calls
-    double paint_time; // last paint duration in seconds
-    double paint_max;  // max of last 128 paint
-    double paint_avg;  // EMA of last 128 paints
+    fp64_t paint_time; // last paint duration in seconds
+    fp64_t paint_max;  // max of last 128 paint
+    fp64_t paint_avg;  // EMA of last 128 paints
 } app_t;
 
 extern app_t app;
@@ -1085,8 +1090,8 @@ static void app_dump_dpi(void) {
     traceln("MAXTRACK: %d, %d", mxt_x, mxt_y);
     int32_t scr_x = GetSystemMetrics(SM_CXSCREEN);
     int32_t scr_y = GetSystemMetrics(SM_CYSCREEN);
-    float monitor_x = scr_x / (float)app.dpi.monitor_raw;
-    float monitor_y = scr_y / (float)app.dpi.monitor_raw;
+    fp32_t monitor_x = scr_x / (fp32_t)app.dpi.monitor_raw;
+    fp32_t monitor_y = scr_y / (fp32_t)app.dpi.monitor_raw;
     traceln("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
 }
 
@@ -1132,7 +1137,7 @@ static void app_init_fonts(int32_t dpi) {
     lf.lfQuality = PROOF_QUALITY;
     app.fonts.regular = (ui_font_t)CreateFontIndirectW(&lf);
     not_null(app.fonts.regular);
-    const double fh = app_ncm.lfMessageFont.lfHeight;
+    const fp64_t fh = app_ncm.lfMessageFont.lfHeight;
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
@@ -1515,7 +1520,7 @@ static void app_tap_press(int32_t m, WPARAM wp, LPARAM lp) {
     app_mouse(app.view, (int32_t)m, (int32_t)wp);
     int32_t ix = (int32_t)wp;
     assert(0 <= ix && ix <= 2);
-    // for now long press and double tap/double click
+    // for now long press and fp64_t tap/fp64_t click
     // treated as press() call - can be separated if desired:
     if (m == ui.message.tap) {
         ui_view.tap(app.view, ix);
@@ -1558,7 +1563,7 @@ static void app_toast_paint(void) {
 //          traceln("step=%d of %d y=%d", app.animating.step,
 //                  app_toast_steps, app.animating.view->y);
             app_measure_and_layout(app.animating.view);
-            double alpha = minimum(0.40, 0.40 * app.animating.step / (double)app_animation_steps);
+            fp64_t alpha = minimum(0.40, 0.40 * app.animating.step / (fp64_t)app_animation_steps);
             gdi.alpha_blend(0, 0, app.width, app.height, &image, alpha);
             app.animating.view->x = (app.width - app.animating.view->w) / 2;
         } else {
@@ -1679,7 +1684,7 @@ static void app_paint_on_canvas(HDC hdc) {
     ui_canvas_t canvas = app.canvas;
     app.canvas = (ui_canvas_t)hdc;
     gdi.push(0, 0);
-    double time = clock.seconds();
+    fp64_t time = clock.seconds();
     gdi.x = 0;
     gdi.y = 0;
     app_update_crc();
@@ -1794,9 +1799,9 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     // This function should work regardless to CS_BLKCLK being present
     // 0: Left, 1: Middle, 2: Right
     static ui_point_t click_at[3];
-    static double     clicked[3]; // click time
+    static fp64_t     clicked[3]; // click time
     static bool       pressed[3];
-    static ui_timer_t       timer_d[3]; // double tap
+    static ui_timer_t       timer_d[3]; // fp64_t tap
     static ui_timer_t       timer_p[3]; // long press
     bool up = false;
     int32_t ix = -1;
@@ -1828,7 +1833,7 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     }
     if (ix != -1) {
         const uint32_t dtap_msec = GetDoubleClickTime();
-        const double double_click_dt = dtap_msec / 1000.0;
+        const fp64_t double_click_dt = dtap_msec / 1000.0;
         const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
         ui_point_t pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
@@ -2209,7 +2214,7 @@ static void app_quit(int32_t exit_code) {
 }
 
 static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
-        double timeout) {
+        fp64_t timeout) {
     if (view != null) {
         app.animating.x = x;
         app.animating.y = y;
@@ -2228,12 +2233,12 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
     }
 }
 
-static void app_show_toast(ui_view_t* view, double timeout) {
+static void app_show_toast(ui_view_t* view, fp64_t timeout) {
     app_show_tooltip_or_toast(view, -1, -1, timeout);
 }
 
 static void app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
-        double timeout) {
+        fp64_t timeout) {
     if (view != null) {
         app_show_tooltip_or_toast(view, x, y, timeout);
     } else if (app.animating.view != null && app.animating.x >= 0 &&
@@ -2242,7 +2247,7 @@ static void app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
     }
 }
 
-static void app_formatted_toast_va(double timeout, const char* format, va_list vl) {
+static void app_formatted_toast_va(fp64_t timeout, const char* format, va_list vl) {
     app_show_toast(null, 0);
     static ui_label_t txt;
     ui_label_init_va(&txt, format, vl);
@@ -2250,7 +2255,7 @@ static void app_formatted_toast_va(double timeout, const char* format, va_list v
     app_show_toast(&txt.view, timeout);
 }
 
-static void app_formatted_toast(double timeout, const char* format, ...) {
+static void app_formatted_toast(fp64_t timeout, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     app_formatted_toast_va(timeout, format, vl);
@@ -2478,13 +2483,13 @@ static int app_console_create(void) {
     return r;
 }
 
-static float app_px2in(int pixels) {
+static fp32_t app_px2in(int pixels) {
     assert(app.dpi.monitor_raw > 0);
     return app.dpi.monitor_raw > 0 ?
-           pixels / (float)app.dpi.monitor_raw : 0;
+           pixels / (fp32_t)app.dpi.monitor_raw : 0;
 }
 
-static int32_t app_in2px(float inches) {
+static int32_t app_in2px(fp32_t inches) {
     assert(app.dpi.monitor_raw > 0);
     return (int32_t)(inches * app.dpi.monitor_raw + 0.5f);
 }
@@ -2974,7 +2979,7 @@ void ui_button_init_(ui_view_t* view) {
     view->color = colors.btn_text;
 }
 
-void ui_button_init(ui_button_t* b, const char* label, double ems,
+void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
         void (*cb)(ui_button_t* b)) {
     static_assert(offsetof(ui_button_t, view) == 0, "offsetof(.view)");
     b->view.type = ui_view_button;
@@ -3088,7 +3093,7 @@ void ui_checkbox_init_(ui_view_t* view) {
     view->color = colors.btn_text;
 }
 
-void ui_checkbox_init(checkbox_t* c, const char* label, double ems,
+void ui_checkbox_init(checkbox_t* c, const char* label, fp64_t ems,
        void (*cb)( checkbox_t* b)) {
     static_assert(offsetof( checkbox_t, view) == 0, "offsetof(.view)");
     ui_view_init(&c->view);
@@ -3158,7 +3163,7 @@ colors_t colors = {
 #define UI_WM_OPENING  (WM_APP + 0x7FFE)
 #define UI_WM_CLOSING  (WM_APP + 0x7FFD)
 #define UI_WM_TAP      (WM_APP + 0x7FFC)
-#define UI_WM_DTAP     (WM_APP + 0x7FFB) // double tap (aka click)
+#define UI_WM_DTAP     (WM_APP + 0x7FFB) // fp64_t tap (aka click)
 #define UI_WM_PRESS    (WM_APP + 0x7FFA)
 
 bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
@@ -3743,7 +3748,7 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
 }
 
 static void gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
-        image_t* image, double alpha) {
+        image_t* image, fp64_t alpha) {
     assert(image->bpp > 0);
     assert(0 <= alpha && alpha <= 1);
     not_null(app_canvas());
@@ -3903,9 +3908,9 @@ static bool gdi_is_mono(ui_font_t f) {
     return em.cx == vl.cx && vl.cx == e3.cx;
 }
 
-static double gdi_line_spacing(double height_multiplier) {
+static fp64_t gdi_line_spacing(fp64_t height_multiplier) {
     assert(0.1 <= height_multiplier && height_multiplier <= 2.0);
-    double hm = gdi.height_multiplier;
+    fp64_t hm = gdi.height_multiplier;
     gdi.height_multiplier = height_multiplier;
     return hm;
 }
@@ -4247,7 +4252,7 @@ void ui_label_init(ui_label_t* t, const char* format, ...) {
     va_end(vl);
 }
 
-void ui_label_init_ml(ui_label_t* t, double width, const char* format, ...) {
+void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     ui_label_init_va(t, format, vl);
@@ -4796,8 +4801,8 @@ static void ui_slider_paint(ui_view_t* view) {
     gdi.set_brush_color(colors.dkgreen);
     ui_pen_t pen_grey30 = gdi.create_pen(colors.dkgray1, em16);
     gdi.set_pen(pen_grey30);
-    const double range = (double)r->vmax - (double)r->vmin;
-    double vw = (double)(r->tm.x + em) * (r->value - r->vmin) / range;
+    const fp64_t range = (fp64_t)r->vmax - (fp64_t)r->vmin;
+    fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->vmin) / range;
     gdi.rect(x, view->y, (int32_t)(vw + 0.5), view->h);
     gdi.x += r->dec.view.w + em;
     const char* format = nls.str(view->text);
@@ -4822,8 +4827,8 @@ static void ui_slider_mouse(ui_view_t* view, int32_t message, int32_t f) {
             const int32_t x1 = r->tm.x + view->em.x;
             if (x0 <= x && x < x1 && 0 <= y && y < view->h) {
                 app.focus = view;
-                const double range = (double)r->vmax - (double)r->vmin;
-                double v = ((double)x - x0) * range / (double)(x1 - x0 - 1);
+                const fp64_t range = (fp64_t)r->vmax - (fp64_t)r->vmin;
+                fp64_t v = ((fp64_t)x - x0) * range / (fp64_t)(x1 - x0 - 1);
                 int32_t vw = (int32_t)(v + r->vmin + 0.5);
                 r->value = minimum(maximum(vw, r->vmin), r->vmax);
                 if (r->cb != null) { r->cb(r); }
@@ -4910,7 +4915,7 @@ void ui_slider_init_(ui_view_t* view) {
     ui_view.localize(&r->view);
 }
 
-void ui_slider_init(ui_slider_t* r, const char* label, double ems,
+void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
         int32_t vmin, int32_t vmax, void (*cb)(ui_slider_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(ems >= 3.0, "allow 1em for each of [-] and [+] buttons");

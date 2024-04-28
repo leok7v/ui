@@ -102,7 +102,7 @@ void ui_checkbox_init_(ui_view_t* view) {
     view->color = colors.btn_text;
 }
 
-void ui_checkbox_init(checkbox_t* c, const char* label, double ems,
+void ui_checkbox_init(checkbox_t* c, const char* label, fp64_t ems,
        void (*cb)( checkbox_t* b)) {
     static_assert(offsetof( checkbox_t, view) == 0, "offsetof(.view)");
     ui_view_init(&c->view);

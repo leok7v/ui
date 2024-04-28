@@ -27,11 +27,11 @@ static int32_t frame_border;
 static image_t image;
 static uint32_t pixels[1024][1024];
 
-static double zoom = 0.5;
-static double sx = 0.25; // [0..1]
-static double sy = 0.25; // [0..1]
+static fp64_t zoom = 0.5;
+static fp64_t sx = 0.25; // [0..1]
+static fp64_t sy = 0.25; // [0..1]
 
-static struct { double x; double y; } stack[52];
+static struct { fp64_t x; fp64_t y; } stack[52];
 static int top = 1; // because it is already zoomed in once above
 
 static ui_slider_t zoomer;
@@ -329,7 +329,7 @@ static void mouse(ui_view_t* unused(view), int32_t m, int32_t unused(flags)) {
 }
 
 static void zoomer_callback(ui_slider_t* slider) {
-    double z = 1;
+    fp64_t z = 1;
     for (int i = 0; i < slider->value; i++) { z /= 2; }
     while (zoom > z) { zoom_in(image.w / 2, image.h / 2); }
     while (zoom < z) { zoom_out(); }
@@ -423,26 +423,26 @@ static void init(void) {
     panel_center.mouse = mouse;
 }
 
-static double scale0to1(int v, int range, double sh, double zm) {
+static fp64_t scale0to1(int v, int range, fp64_t sh, fp64_t zm) {
     return sh + zm * v / range;
 }
 
-static double into(double v, double lo, double hi) {
+static fp64_t into(fp64_t v, fp64_t lo, fp64_t hi) {
     assert(0 <= v && v <= 1);
     return v * (hi - lo) + lo;
 }
 
 static void mandelbrot(image_t* im) {
     for (int r = 0; r < im->h; r++) {
-        double y0 = into(scale0to1(r, im->h, sy, zoom), -1.12, 1.12);
+        fp64_t y0 = into(scale0to1(r, im->h, sy, zoom), -1.12, 1.12);
         for (int c = 0; c < im->w; c++) {
-            double x0 = into(scale0to1(c, im->w, sx, zoom), -2.00, 0.47);
-            double x = 0;
-            double y = 0;
+            fp64_t x0 = into(scale0to1(c, im->w, sx, zoom), -2.00, 0.47);
+            fp64_t x = 0;
+            fp64_t y = 0;
             int iteration = 0;
             enum { max_iteration = 100 };
             while (x* x + y * y <= 2 * 2 && iteration < max_iteration) {
-                double t = x * x - y * y + x0;
+                fp64_t t = x * x - y * y + x0;
                 y = 2 * x * y + y0;
                 x = t;
                 iteration++;
@@ -474,7 +474,7 @@ static void refresh(void) {
     if (sy > 1 - zoom) { sy = 1 - zoom; }
     if (zoom == 1) { sx = 0; sy = 0; }
     zoomer.value = 0;
-    double z = 1;
+    fp64_t z = 1;
     while (z != zoom) { zoomer.value++; z /= 2; }
     zoomer.value = minimum(zoomer.value, zoomer.vmax);
     mandelbrot(&image);

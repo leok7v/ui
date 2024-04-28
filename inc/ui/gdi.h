@@ -69,7 +69,7 @@ typedef struct gdi_s {
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
     void (*alpha_blend)(int32_t x, int32_t y, int32_t w, int32_t h,
-        image_t* image, double alpha);
+        image_t* image, fp64_t alpha);
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image);
     // text:
@@ -92,8 +92,8 @@ typedef struct gdi_s {
     // width can be -1 which measures text with "\n" or
     // positive number of pixels
     ui_point_t (*measure_multiline)(ui_font_t f, int32_t w, const char* format, ...);
-    double height_multiplier; // see line_spacing()
-    double (*line_spacing)(double height_multiplier); // default 1.0
+    fp64_t height_multiplier; // see line_spacing()
+    fp64_t (*line_spacing)(fp64_t height_multiplier); // default 1.0
     int32_t x; // incremented by text, print
     int32_t y; // incremented by textln, println
     // proportional:

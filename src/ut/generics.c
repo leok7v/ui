@@ -25,12 +25,12 @@ static void generics_test(void) {
         swear(minimum(a, b) == a);
     }
     {
-        float a = 1.1f, b = 2.2f;
+        fp32_t a = 1.1f, b = 2.2f;
         swear(maximum(a, b) == b);
         swear(minimum(a, b) == a);
     }
     {
-        double a = 1.1, b = 2.2;
+        fp64_t a = 1.1, b = 2.2;
         swear(maximum(a, b) == b);
         swear(minimum(a, b) == a);
     }

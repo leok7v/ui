@@ -11,7 +11,7 @@ typedef struct ui_checkbox_s {
 }  checkbox_t;
 
 // label may contain "___" which will be replaced with "On" / "Off"
-void ui_checkbox_init( checkbox_t* b, const char* label, double ems,
+void ui_checkbox_init( checkbox_t* b, const char* label, fp64_t ems,
     void (*cb)( checkbox_t* b));
 
 void ui_checkbox_init_(ui_view_t* view); // do not call use ui_checkbox() macro

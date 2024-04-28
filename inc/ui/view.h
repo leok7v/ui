@@ -19,7 +19,7 @@ typedef struct ui_view_s ui_view_t;
 typedef struct ui_view_s {
     enum ui_view_type_t type;
     void (*init)(ui_view_t* view); // called once before first layout
-    double width;    // > 0 width of UI element in "em"s
+    fp64_t width;    // > 0 width of UI element in "em"s
     char text[2048];
     ui_view_t** children; // null terminated array[] of children
     ui_view_t* parent;
@@ -71,7 +71,7 @@ typedef struct ui_view_s {
     bool pressed;   // for ui_button_t and  checkbox_t
     bool disabled;  // mouse, keyboard, key_up/down not called on disabled
     bool focusable; // can be target for keyboard focus
-    double  hover_at;    // time in seconds when to call hovered()
+    fp64_t  hover_at;    // time in seconds when to call hovered()
     ui_color_t color;      // interpretation depends on ui element type
     ui_color_t background; // interpretation depends on ui element type
     ui_font_t* font;
@@ -81,10 +81,10 @@ typedef struct ui_view_s {
 } ui_view_t;
 
 // tap() / press() APIs guarantee that single tap() is not coming
-// before double tap/click in expense of double click delay (0.5 seconds)
+// before fp64_t tap/click in expense of fp64_t click delay (0.5 seconds)
 // which is OK for buttons and many other UI controls but absolutely not
 // OK for text editing. Thus edit uses raw mouse events to react
-// on clicks and double clicks.
+// on clicks and fp64_t clicks.
 
 void ui_view_init(ui_view_t* view);
 

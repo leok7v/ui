@@ -13,6 +13,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Type aliases for floating-point types similar to <stdint.h>
+typedef float  fp32_t;
+typedef double fp64_t;
+// "long fp64_t" is required by C standard but the bitness
+// of it is not specified.
 
 #ifdef __cplusplus
     #define begin_c extern "C" {
@@ -237,7 +242,7 @@ typedef struct {
     int32_t const usec_in_msec; // micro in milli
     int32_t const msec_in_sec;  // milli in sec
     int32_t const usec_in_sec;  // micro in sec
-    double   (*seconds)(void);      // since boot
+    fp64_t   (*seconds)(void);      // since boot
     uint64_t (*nanoseconds)(void);  // since boot overflows in about 584.5 years
     uint64_t (*unix_microseconds)(void); // since January 1, 1970
     uint64_t (*unix_seconds)(void);      // since January 1, 1970
@@ -413,10 +418,6 @@ extern files_if files;
 
 #include "std.h"
 
-
-// Type aliases for floating-point types similar to <stdint.h>
-typedef float  fp32_t;
-typedef double fp64_t;
 
 // Most of ut/ui code is written the way of min(a,b) max(a,b)
 // not having side effects on the arguments and thus evaluating
@@ -828,7 +829,7 @@ typedef struct {
     stream_if* out;
     stream_if* err;
     uint32_t exit_code;
-    double   timeout; // seconds
+    fp64_t   timeout; // seconds
 } processes_child_t;
 
 // Process name may be an the executable filename with
@@ -842,13 +843,13 @@ typedef struct {
                       int32_t *count); // return 0, error or ERROR_MORE_DATA
     errno_t   (*nameof)(uint64_t pid, char* name, int32_t count); // pathname
     bool      (*present)(uint64_t pid);
-    errno_t   (*kill)(uint64_t pid, double timeout_seconds);
-    errno_t   (*kill_all)(const char* name, double timeout_seconds);
+    errno_t   (*kill)(uint64_t pid, fp64_t timeout_seconds);
+    errno_t   (*kill_all)(const char* name, fp64_t timeout_seconds);
     bool      (*is_elevated)(void); // Is process running as root/ Admin / System?
     errno_t   (*restart_elevated)(void); // retuns error or exits on success
     errno_t   (*run)(processes_child_t* child);
     errno_t   (*popen)(const char* command, int32_t *xc, stream_if* output,
-                       double timeout_seconds); // <= 0 infinite
+                       fp64_t timeout_seconds); // <= 0 infinite
     // popen() does NOT guarantee stream zero termination on errors
     errno_t  (*spawn)(const char* command); // spawn fully detached process
     void (*test)(void);
@@ -884,10 +885,10 @@ typedef struct {
     void (*reset)(event_t e);
     void (*wait)(event_t e);
     // returns 0 or -1 on timeout
-    int32_t (*wait_or_timeout)(event_t e, double seconds); // seconds < 0 forever
+    int32_t (*wait_or_timeout)(event_t e, fp64_t seconds); // seconds < 0 forever
     // returns event index or -1 on timeout or abandon
     int32_t (*wait_any)(int32_t n, event_t events[]); // -1 on abandon
-    int32_t (*wait_any_or_timeout)(int32_t n, event_t e[], double seconds);
+    int32_t (*wait_any_or_timeout)(int32_t n, event_t e[], fp64_t seconds);
     void (*dispose)(event_t e);
     void (*test)(void);
 } events_if;
@@ -910,12 +911,12 @@ typedef struct thread_s * thread_t;
 
 typedef struct {
     thread_t (*start)(void (*func)(void*), void* p); // never returns null
-    errno_t (*join)(thread_t thread, double timeout_seconds); // < 0 forever
+    errno_t (*join)(thread_t thread, fp64_t timeout_seconds); // < 0 forever
     void (*detach)(thread_t thread); // closes handle. thread is not joinable
     void (*name)(const char* name); // names the thread
     void (*realtime)(void); // bumps calling thread priority
     void (*yield)(void);    // pthread_yield() / Win32: SwitchToThread()
-    void (*sleep_for)(double seconds);
+    void (*sleep_for)(fp64_t seconds);
     int32_t (*id)(void);    // gettid()
     void (*test)(void);
 } threads_if;
@@ -1114,7 +1115,7 @@ static const char* args_option_str(const char* option) {
 }
 
 // Terminology: "quote" in the code and comments below
-// actually refers to "double quote mark" and used for brevity.
+// actually refers to "fp64_t quote mark" and used for brevity.
 
 // TODO: posix like systems
 // Looks like all shells support quote marks but
@@ -1829,16 +1830,16 @@ static void clock_local(uint64_t microseconds,
     *mc = microseconds % 1000;
 }
 
-static double clock_seconds(void) { // since_boot
+static fp64_t clock_seconds(void) { // since_boot
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
-    static double one_over_freq;
+    static fp64_t one_over_freq;
     if (one_over_freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
         one_over_freq = 1.0 / frequency.QuadPart;
     }
-    return (double)qpc.QuadPart * one_over_freq;
+    return (fp64_t)qpc.QuadPart * one_over_freq;
 }
 
 // Max duration in nanoseconds=2^64 - 1 nanoseconds
@@ -3250,12 +3251,12 @@ static void generics_test(void) {
         swear(minimum(a, b) == a);
     }
     {
-        float a = 1.1f, b = 2.2f;
+        fp32_t a = 1.1f, b = 2.2f;
         swear(maximum(a, b) == b);
         swear(minimum(a, b) == a);
     }
     {
-        double a = 1.1, b = 2.2;
+        fp64_t a = 1.1, b = 2.2;
         swear(maximum(a, b) == b);
         swear(minimum(a, b) == a);
     }
@@ -3963,7 +3964,7 @@ typedef struct processes_pidof_lambda_s {
     uint64_t* pids;
     size_t size;  // pids[size]
     size_t count; // number of valid pids in the pids
-    double timeout;
+    fp64_t timeout;
     errno_t error;
 } processes_pidof_lambda_t;
 
@@ -4107,7 +4108,7 @@ static errno_t processes_pids(const char* pname, uint64_t* pids/*[size]*/,
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
-static errno_t processes_kill(uint64_t pid, double timeout) {
+static errno_t processes_kill(uint64_t pid, fp64_t timeout) {
     DWORD timeout_milliseconds = (DWORD)(timeout * 1000);
     enum { access = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE };
     assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
@@ -4157,7 +4158,7 @@ static bool processes_kill_one(processes_pidof_lambda_t* lambda, uint64_t pid) {
     return true; // keep going
 }
 
-static errno_t processes_kill_all(const char* name, double timeout) {
+static errno_t processes_kill_all(const char* name, fp64_t timeout) {
     processes_pidof_lambda_t lambda = {
         .each = processes_kill_one,
         .pids = null,
@@ -4281,7 +4282,7 @@ static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
 }
 
 static errno_t processes_run(processes_child_t* child) {
-    const double deadline = clock.seconds() + child->timeout;
+    const fp64_t deadline = clock.seconds() + child->timeout;
     errno_t r = 0;
     STARTUPINFOA si = {
         .cb = sizeof(STARTUPINFOA),
@@ -4384,7 +4385,7 @@ static errno_t processes_merge_write(stream_if* stream, const void* data,
 }
 
 static errno_t processes_open(const char* command, int32_t *exit_code,
-        stream_if* output,  double timeout) {
+        stream_if* output,  fp64_t timeout) {
     not_null(output);
     processes_io_merge_out_and_err_if merge_out_and_err = {
         .stream ={ .write = processes_merge_write },
@@ -5170,7 +5171,7 @@ static void events_reset(event_t e) {
     fatal_if_false(ResetEvent((HANDLE)e));
 }
 
-static int32_t events_wait_or_timeout(event_t e, double seconds) {
+static int32_t events_wait_or_timeout(event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (int32_t)(seconds * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(e, ms);
     errno_t r = wait2e(ix);
@@ -5179,7 +5180,7 @@ static int32_t events_wait_or_timeout(event_t e, double seconds) {
 
 static void events_wait(event_t e) { events_wait_or_timeout(e, -1); }
 
-static int32_t events_wait_any_or_timeout(int32_t n, event_t events_[], double s) {
+static int32_t events_wait_any_or_timeout(int32_t n, event_t events_[], fp64_t s) {
     uint32_t ms = s < 0 ? INFINITE : (int32_t)(s * 1000.0 + 0.5);
     DWORD ix = WaitForMultipleObjects(n, events_, false, ms);
     errno_t r = wait2e(ix);
@@ -5198,8 +5199,8 @@ static void events_dispose(event_t handle) {
 // test:
 
 // check if the elapsed time is within the expected range
-static void events_test_check_time(double start, double expected) {
-    double elapsed = clock.seconds() - start;
+static void events_test_check_time(fp64_t start, fp64_t expected) {
+    fp64_t elapsed = clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
@@ -5208,13 +5209,13 @@ static void events_test_check_time(double start, double expected) {
 static void events_test(void) {
     #ifdef UT_TESTS
     event_t event = events.create();
-    double start = clock.seconds();
+    fp64_t start = clock.seconds();
     events.set(event);
     events.wait(event);
     events_test_check_time(start, 0); // Event should be immediate
     events.reset(event);
     start = clock.seconds();
-    const double timeout_seconds = 0.01;
+    const fp64_t timeout_seconds = 0.01;
     int32_t result = events.wait_or_timeout(event, timeout_seconds);
     events_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
@@ -5276,8 +5277,8 @@ static void mutexes_dispose(mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTIO
 // test:
 
 // check if the elapsed time is within the expected range
-static void mutexes_test_check_time(double start, double expected) {
-    double elapsed = clock.seconds() - start;
+static void mutexes_test_check_time(fp64_t start, fp64_t expected) {
+    fp64_t elapsed = clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
@@ -5293,7 +5294,7 @@ static void mutexes_test_lock_unlock(void* arg) {
 static void mutexes_test(void) {
     mutex_t mutex;
     mutexes.init(&mutex);
-    double start = clock.seconds();
+    fp64_t start = clock.seconds();
     mutexes.lock(&mutex);
     mutexes.unlock(&mutex);
     // Lock and unlock should be immediate
@@ -5333,8 +5334,8 @@ static void* threads_ntdll(void) {
     return ntdll;
 }
 
-static double threads_ns2ms(int64_t ns) {
-    return ns / (double)clock.nsec_in_msec;
+static fp64_t threads_ns2ms(int64_t ns) {
+    return ns / (fp64_t)clock.nsec_in_msec;
 }
 
 static void threads_set_timer_resolution(uint64_t nanoseconds) {
@@ -5501,7 +5502,7 @@ static bool is_handle_valid(void* h) {
     return GetHandleInformation(h, &flags);
 }
 
-static errno_t threads_join(thread_t t, double timeout) {
+static errno_t threads_join(thread_t t, fp64_t timeout) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
     int32_t timeout_ms = timeout < 0 ? INFINITE : (int)(timeout * 1000.0 + 0.5);
@@ -5531,7 +5532,7 @@ static void threads_name(const char* name) {
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
 }
 
-static void threads_sleep_for(double seconds) {
+static void threads_sleep_for(fp64_t seconds) {
     assert(seconds >= 0);
     if (seconds < 0) { seconds = 0; }
     int64_t ns100 = (int64_t)(seconds * 1.0e+7); // in 0.1 us aka 100ns
@@ -5587,14 +5588,14 @@ typedef struct threads_philosophers_s {
 static void threads_philosopher_think(threads_philosopher_t* p) {
     verbose("philosopher %d is thinking.", p->id);
     // Random think time between .1 and .3 seconds
-    double seconds = (num.random32(&p->ps->seed) % 30 + 1) / 100.0;
+    fp64_t seconds = (num.random32(&p->ps->seed) % 30 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 
 static void threads_philosopher_eat(threads_philosopher_t* p) {
     verbose("philosopher %d is eating.", p->id);
     // Random eat time between .1 and .2 seconds
-    double seconds = (num.random32(&p->ps->seed) % 20 + 1) / 100.0;
+    fp64_t seconds = (num.random32(&p->ps->seed) % 20 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 

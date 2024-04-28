@@ -10,7 +10,7 @@ typedef struct {
     int32_t const usec_in_msec; // micro in milli
     int32_t const msec_in_sec;  // milli in sec
     int32_t const usec_in_sec;  // micro in sec
-    double   (*seconds)(void);      // since boot
+    fp64_t   (*seconds)(void);      // since boot
     uint64_t (*nanoseconds)(void);  // since boot overflows in about 584.5 years
     uint64_t (*unix_microseconds)(void); // since January 1, 1970
     uint64_t (*unix_seconds)(void);      // since January 1, 1970

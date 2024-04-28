@@ -16,7 +16,7 @@ static event_t quit;
 
 static volatile bool rendering;
 static volatile bool stop;
-static volatile double render_time;
+static volatile fp64_t render_time;
 
 ui_button(full_screen, "\xE2\xA7\x89", 1.0, {
     full_screen->view.pressed = !full_screen->view.pressed;
@@ -141,22 +141,22 @@ app_t app = {
     }
 };
 
-static double scale(int x, int n, double low, double hi) {
-    return x / (double)(n - 1) * (hi - low) + low;
+static fp64_t scale(int x, int n, fp64_t low, fp64_t hi) {
+    return x / (fp64_t)(n - 1) * (hi - low) + low;
 }
 
 static void mandelbrot(image_t* im) {
-    double time = clock.seconds();
+    fp64_t time = clock.seconds();
     for (int r = 0; r < im->h && !stop; r++) {
-        double y0 = scale(r, im->h, -1.12, 1.12);
+        fp64_t y0 = scale(r, im->h, -1.12, 1.12);
         for (int c = 0; c < im->w && !stop; c++) {
-            double x0 = scale(c, im->w, -2.00, 0.47);
-            double x = 0;
-            double y = 0;
+            fp64_t x0 = scale(c, im->w, -2.00, 0.47);
+            fp64_t x = 0;
+            fp64_t y = 0;
             int iteration = 0;
             enum { max_iteration = 100 };
             while (x* x + y * y <= 2 * 2 && iteration < max_iteration && !stop) {
-                double t = x * x - y * y + x0;
+                fp64_t t = x * x - y * y + x0;
                 y = 2 * x * y + y0;
                 x = t;
                 iteration++;

@@ -230,7 +230,7 @@ static void load_gif(void) {
 static void animate(void) {
     for (;;) {
         app.redraw();
-        double delay_in_seconds = gif.delays[animation.index] * 0.001;
+        fp64_t delay_in_seconds = gif.delays[animation.index] * 0.001;
         if (events.wait_or_timeout(animation.quit, delay_in_seconds) == 0) {
             break;
         }

@@ -52,8 +52,8 @@ static void ui_slider_paint(ui_view_t* view) {
     gdi.set_brush_color(colors.dkgreen);
     ui_pen_t pen_grey30 = gdi.create_pen(colors.dkgray1, em16);
     gdi.set_pen(pen_grey30);
-    const double range = (double)r->vmax - (double)r->vmin;
-    double vw = (double)(r->tm.x + em) * (r->value - r->vmin) / range;
+    const fp64_t range = (fp64_t)r->vmax - (fp64_t)r->vmin;
+    fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->vmin) / range;
     gdi.rect(x, view->y, (int32_t)(vw + 0.5), view->h);
     gdi.x += r->dec.view.w + em;
     const char* format = nls.str(view->text);
@@ -78,8 +78,8 @@ static void ui_slider_mouse(ui_view_t* view, int32_t message, int32_t f) {
             const int32_t x1 = r->tm.x + view->em.x;
             if (x0 <= x && x < x1 && 0 <= y && y < view->h) {
                 app.focus = view;
-                const double range = (double)r->vmax - (double)r->vmin;
-                double v = ((double)x - x0) * range / (double)(x1 - x0 - 1);
+                const fp64_t range = (fp64_t)r->vmax - (fp64_t)r->vmin;
+                fp64_t v = ((fp64_t)x - x0) * range / (fp64_t)(x1 - x0 - 1);
                 int32_t vw = (int32_t)(v + r->vmin + 0.5);
                 r->value = minimum(maximum(vw, r->vmin), r->vmax);
                 if (r->cb != null) { r->cb(r); }
@@ -166,7 +166,7 @@ void ui_slider_init_(ui_view_t* view) {
     ui_view.localize(&r->view);
 }
 
-void ui_slider_init(ui_slider_t* r, const char* label, double ems,
+void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
         int32_t vmin, int32_t vmax, void (*cb)(ui_slider_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(ems >= 3.0, "allow 1em for each of [-] and [+] buttons");

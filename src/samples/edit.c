@@ -91,14 +91,14 @@ fn(void, invalidate)(ui_edit_t* e) {
 }
 
 fn(int32_t, text_width)(ui_edit_t* e, const char* s, int32_t n) {
-//  double time = clock.seconds();
+//  fp64_t time = clock.seconds();
     // average measure_text() performance per character:
     // "app.fonts.mono"    ~500us (microseconds)
     // "app.fonts.regular" ~250us (microseconds)
     int32_t x = n == 0 ? 0 : gdi.measure_text(*e->view.font, "%.*s", n, s).x;
 //  time = (clock.seconds() - time) * 1000.0;
-//  static double time_sum;
-//  static double length_sum;
+//  static fp64_t time_sum;
+//  static fp64_t length_sum;
 //  time_sum += time;
 //  length_sum += n;
 //  traceln("avg=%.6fms per char total %.3fms", time_sum / length_sum, time_sum);
@@ -256,7 +256,7 @@ fn(ui_edit_glyph_t, glyph_at)(ui_edit_t* e, ui_edit_pg_t p) {
 
 fn(const ui_edit_run_t*, paragraph_runs)(ui_edit_t* e, int32_t pn,
         int32_t* runs) {
-//  double time = clock.seconds();
+//  fp64_t time = clock.seconds();
     assert(e->view.w > 0);
     const ui_edit_run_t* r = null;
     if (pn == e->paragraphs) {
@@ -1270,7 +1270,7 @@ fn(void, select_word)(ui_edit_t* e, int32_t x, int32_t y) {
         int32_t glyphs = ns(glyphs_in_paragraph)(e, p.pn);
         if (p.gp > glyphs) { p.gp = maximum(0, glyphs); }
         if (p.pn == e->paragraphs || glyphs == 0) {
-            // last paragraph is empty - nothing to select on double click
+            // last paragraph is empty - nothing to select on fp64_t click
         } else {
             ui_edit_glyph_t glyph = ns(glyph_at)(e, p);
             bool not_a_white_space = glyph.bytes > 0 &&
@@ -1315,7 +1315,7 @@ fn(void, select_paragraph)(ui_edit_t* e, int32_t x, int32_t y) {
         int32_t glyphs = ns(glyphs_in_paragraph)(e, p.pn);
         if (p.gp > glyphs) { p.gp = maximum(0, glyphs); }
         if (p.pn == e->paragraphs || glyphs == 0) {
-            // last paragraph is empty - nothing to select on double click
+            // last paragraph is empty - nothing to select on fp64_t click
         } else if (p.pn == e->selection[0].pn &&
                 (e->selection[0].gp <= p.gp && p.gp <= e->selection[1].gp) ||
                 (e->selection[1].gp <= p.gp && p.gp <= e->selection[0].gp)){

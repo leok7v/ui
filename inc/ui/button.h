@@ -8,10 +8,10 @@ typedef struct ui_button_s ui_button_t;
 typedef struct ui_button_s {
     ui_view_t view;
     void (*cb)(ui_button_t* b); // callback
-    double armed_until;   // seconds - when to release
+    fp64_t armed_until;   // seconds - when to release
 } ui_button_t;
 
-void ui_button_init(ui_button_t* b, const char* label, double ems,
+void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
     void (*cb)(ui_button_t* b));
 
 void ui_button_init_(ui_view_t* view); // do not call use ui_button() macro

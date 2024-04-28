@@ -460,7 +460,7 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
 }
 
 static void gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
-        image_t* image, double alpha) {
+        image_t* image, fp64_t alpha) {
     assert(image->bpp > 0);
     assert(0 <= alpha && alpha <= 1);
     not_null(app_canvas());
@@ -620,9 +620,9 @@ static bool gdi_is_mono(ui_font_t f) {
     return em.cx == vl.cx && vl.cx == e3.cx;
 }
 
-static double gdi_line_spacing(double height_multiplier) {
+static fp64_t gdi_line_spacing(fp64_t height_multiplier) {
     assert(0.1 <= height_multiplier && height_multiplier <= 2.0);
-    double hm = gdi.height_multiplier;
+    fp64_t hm = gdi.height_multiplier;
     gdi.height_multiplier = height_multiplier;
     return hm;
 }

@@ -23,7 +23,7 @@ static void events_reset(event_t e) {
     fatal_if_false(ResetEvent((HANDLE)e));
 }
 
-static int32_t events_wait_or_timeout(event_t e, double seconds) {
+static int32_t events_wait_or_timeout(event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (int32_t)(seconds * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(e, ms);
     errno_t r = wait2e(ix);
@@ -32,7 +32,7 @@ static int32_t events_wait_or_timeout(event_t e, double seconds) {
 
 static void events_wait(event_t e) { events_wait_or_timeout(e, -1); }
 
-static int32_t events_wait_any_or_timeout(int32_t n, event_t events_[], double s) {
+static int32_t events_wait_any_or_timeout(int32_t n, event_t events_[], fp64_t s) {
     uint32_t ms = s < 0 ? INFINITE : (int32_t)(s * 1000.0 + 0.5);
     DWORD ix = WaitForMultipleObjects(n, events_, false, ms);
     errno_t r = wait2e(ix);
@@ -51,8 +51,8 @@ static void events_dispose(event_t handle) {
 // test:
 
 // check if the elapsed time is within the expected range
-static void events_test_check_time(double start, double expected) {
-    double elapsed = clock.seconds() - start;
+static void events_test_check_time(fp64_t start, fp64_t expected) {
+    fp64_t elapsed = clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
@@ -61,13 +61,13 @@ static void events_test_check_time(double start, double expected) {
 static void events_test(void) {
     #ifdef UT_TESTS
     event_t event = events.create();
-    double start = clock.seconds();
+    fp64_t start = clock.seconds();
     events.set(event);
     events.wait(event);
     events_test_check_time(start, 0); // Event should be immediate
     events.reset(event);
     start = clock.seconds();
-    const double timeout_seconds = 0.01;
+    const fp64_t timeout_seconds = 0.01;
     int32_t result = events.wait_or_timeout(event, timeout_seconds);
     events_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
@@ -129,8 +129,8 @@ static void mutexes_dispose(mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTIO
 // test:
 
 // check if the elapsed time is within the expected range
-static void mutexes_test_check_time(double start, double expected) {
-    double elapsed = clock.seconds() - start;
+static void mutexes_test_check_time(fp64_t start, fp64_t expected) {
+    fp64_t elapsed = clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
@@ -146,7 +146,7 @@ static void mutexes_test_lock_unlock(void* arg) {
 static void mutexes_test(void) {
     mutex_t mutex;
     mutexes.init(&mutex);
-    double start = clock.seconds();
+    fp64_t start = clock.seconds();
     mutexes.lock(&mutex);
     mutexes.unlock(&mutex);
     // Lock and unlock should be immediate
@@ -186,8 +186,8 @@ static void* threads_ntdll(void) {
     return ntdll;
 }
 
-static double threads_ns2ms(int64_t ns) {
-    return ns / (double)clock.nsec_in_msec;
+static fp64_t threads_ns2ms(int64_t ns) {
+    return ns / (fp64_t)clock.nsec_in_msec;
 }
 
 static void threads_set_timer_resolution(uint64_t nanoseconds) {
@@ -354,7 +354,7 @@ static bool is_handle_valid(void* h) {
     return GetHandleInformation(h, &flags);
 }
 
-static errno_t threads_join(thread_t t, double timeout) {
+static errno_t threads_join(thread_t t, fp64_t timeout) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
     int32_t timeout_ms = timeout < 0 ? INFINITE : (int)(timeout * 1000.0 + 0.5);
@@ -384,7 +384,7 @@ static void threads_name(const char* name) {
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
 }
 
-static void threads_sleep_for(double seconds) {
+static void threads_sleep_for(fp64_t seconds) {
     assert(seconds >= 0);
     if (seconds < 0) { seconds = 0; }
     int64_t ns100 = (int64_t)(seconds * 1.0e+7); // in 0.1 us aka 100ns
@@ -440,14 +440,14 @@ typedef struct threads_philosophers_s {
 static void threads_philosopher_think(threads_philosopher_t* p) {
     verbose("philosopher %d is thinking.", p->id);
     // Random think time between .1 and .3 seconds
-    double seconds = (num.random32(&p->ps->seed) % 30 + 1) / 100.0;
+    fp64_t seconds = (num.random32(&p->ps->seed) % 30 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 
 static void threads_philosopher_eat(threads_philosopher_t* p) {
     verbose("philosopher %d is eating.", p->id);
     // Random eat time between .1 and .2 seconds
-    double seconds = (num.random32(&p->ps->seed) % 20 + 1) / 100.0;
+    fp64_t seconds = (num.random32(&p->ps->seed) % 20 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 

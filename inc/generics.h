@@ -3,10 +3,6 @@
 
 begin_c
 
-// Type aliases for floating-point types similar to <stdint.h>
-typedef float  fp32_t;
-typedef double fp64_t;
-
 // Most of ut/ui code is written the way of min(a,b) max(a,b)
 // not having side effects on the arguments and thus evaluating
 // them twice ain't a big deal. However, out of curiosity of

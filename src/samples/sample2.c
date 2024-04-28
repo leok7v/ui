@@ -14,14 +14,14 @@ static thread_t thread;
 static bool quit;
 
 typedef struct {
-    double time[N]; // circular buffer of timestamps
+    fp64_t time[N]; // circular buffer of timestamps
     int pos; // writing position in the buffer for next timer event
     int samples; // number of samples collected
-    double dt[N]; // delta(t) between 2 timer events
-    double min_dt;
-    double max_dt;
-    double avg;
-    double spread;
+    fp64_t dt[N]; // delta(t) between 2 timer events
+    fp64_t min_dt;
+    fp64_t max_dt;
+    fp64_t avg;
+    fp64_t spread;
 } time_stats_t;
 
 static volatile time_stats_t ts[2];
@@ -33,7 +33,7 @@ static void stats(volatile time_stats_t* t) {
     t->min_dt = 1.0; // 1 second is 100x of 10ms
     t->max_dt = 0;
     int j = 0;
-    double sum = 0;
+    fp64_t sum = 0;
     for (int i = 0; i < n - 1; i++) {
         int p0 = (t->pos - i - 1 + N) % N;
         int p1 = (p0 - 1 + N) % N;
@@ -58,11 +58,11 @@ static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y
     gdi.line(app.crc.w, y);
     gdi.set_colored_pen(c);
     if (ts[0].samples > 2 && ts[1].samples > 2) {
-        const double spread = maximum(ts[0].spread, ts[0].spread);
+        const fp64_t spread = maximum(ts[0].spread, ts[0].spread);
         int n = minimum(N - 1, t->samples);
         int j = 0;
         for (int i = 0; i < n - 1; i++) {
-            double v = t->dt[j] / spread;
+            fp64_t v = t->dt[j] / spread;
             points[j].x = n - 1 - i;
             points[j].y = y + (int32_t)(v * h8);
             j++;

@@ -82,7 +82,7 @@ void ui_label_init(ui_label_t* t, const char* format, ...) {
     va_end(vl);
 }
 
-void ui_label_init_ml(ui_label_t* t, double width, const char* format, ...) {
+void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     ui_label_init_va(t, format, vl);

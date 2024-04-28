@@ -136,7 +136,7 @@ void ui_button_init_(ui_view_t* view) {
     view->color = colors.btn_text;
 }
 
-void ui_button_init(ui_button_t* b, const char* label, double ems,
+void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
         void (*cb)(ui_button_t* b)) {
     static_assert(offsetof(ui_button_t, view) == 0, "offsetof(.view)");
     b->view.type = ui_view_button;

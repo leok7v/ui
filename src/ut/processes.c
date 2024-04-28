@@ -8,7 +8,7 @@ typedef struct processes_pidof_lambda_s {
     uint64_t* pids;
     size_t size;  // pids[size]
     size_t count; // number of valid pids in the pids
-    double timeout;
+    fp64_t timeout;
     errno_t error;
 } processes_pidof_lambda_t;
 
@@ -152,7 +152,7 @@ static errno_t processes_pids(const char* pname, uint64_t* pids/*[size]*/,
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
-static errno_t processes_kill(uint64_t pid, double timeout) {
+static errno_t processes_kill(uint64_t pid, fp64_t timeout) {
     DWORD timeout_milliseconds = (DWORD)(timeout * 1000);
     enum { access = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE };
     assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
@@ -202,7 +202,7 @@ static bool processes_kill_one(processes_pidof_lambda_t* lambda, uint64_t pid) {
     return true; // keep going
 }
 
-static errno_t processes_kill_all(const char* name, double timeout) {
+static errno_t processes_kill_all(const char* name, fp64_t timeout) {
     processes_pidof_lambda_t lambda = {
         .each = processes_kill_one,
         .pids = null,
@@ -326,7 +326,7 @@ static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
 }
 
 static errno_t processes_run(processes_child_t* child) {
-    const double deadline = clock.seconds() + child->timeout;
+    const fp64_t deadline = clock.seconds() + child->timeout;
     errno_t r = 0;
     STARTUPINFOA si = {
         .cb = sizeof(STARTUPINFOA),
@@ -429,7 +429,7 @@ static errno_t processes_merge_write(stream_if* stream, const void* data,
 }
 
 static errno_t processes_open(const char* command, int32_t *exit_code,
-        stream_if* output,  double timeout) {
+        stream_if* output,  fp64_t timeout) {
     not_null(output);
     processes_io_merge_out_and_err_if merge_out_and_err = {
         .stream ={ .write = processes_merge_write },

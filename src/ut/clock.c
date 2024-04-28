@@ -66,16 +66,16 @@ static void clock_local(uint64_t microseconds,
     *mc = microseconds % 1000;
 }
 
-static double clock_seconds(void) { // since_boot
+static fp64_t clock_seconds(void) { // since_boot
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
-    static double one_over_freq;
+    static fp64_t one_over_freq;
     if (one_over_freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
         one_over_freq = 1.0 / frequency.QuadPart;
     }
-    return (double)qpc.QuadPart * one_over_freq;
+    return (fp64_t)qpc.QuadPart * one_over_freq;
 }
 
 // Max duration in nanoseconds=2^64 - 1 nanoseconds

@@ -10,7 +10,7 @@ static bool debug_layout; // = true;
 const char* title = "Sample5";
 
 // font scale:
-static const double fs[] = {0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0};
+static const fp64_t fs[] = {0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0};
 // font scale index
 static int32_t fx = 2; // fs[2] == 1.0
 

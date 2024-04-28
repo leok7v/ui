@@ -76,7 +76,7 @@ static const char* args_option_str(const char* option) {
 }
 
 // Terminology: "quote" in the code and comments below
-// actually refers to "double quote mark" and used for brevity.
+// actually refers to "fp64_t quote mark" and used for brevity.
 
 // TODO: posix like systems
 // Looks like all shells support quote marks but
