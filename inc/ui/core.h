@@ -47,16 +47,6 @@ typedef struct ui_fonts_s {
     ui_font_t H3;
 } ui_fonts_t;
 
-enum ui_view_type_t {
-    ui_view_container  = 'cnt',
-    ui_view_messagebox = 'mbx',
-    ui_view_button     = 'btn',
-    ui_view_checkbox   = 'cbx',
-    ui_view_slider     = 'sld',
-    ui_view_text       = 'txt',
-    ui_view_edit       = 'edt'
-};
-
 typedef struct ui_s {
     struct { // window visibility
         int32_t const hide;

@@ -134,7 +134,7 @@ ui_button(fp, "Font Ctrl+", 7.5, { font_plus(); });
 
 ui_button(fm, "Font Ctrl-", 7.5, { font_minus(); });
 
-ui_multiline(text, 0.0, "...");
+ui_label_ml(text, 0.0, "...");
 
 ui_container(right, null,
     &full_screen.view, &quit.view, &fuzz.view,

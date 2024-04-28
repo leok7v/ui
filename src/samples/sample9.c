@@ -43,24 +43,24 @@ static ui_slider_t zoomer;
 #define glyph_right       "\xE2\x86\x92" // "ShortRightArrow"
 #define glyph_down        "\xE2\x86\x93" // "ShortDownArrow"
 
-ui_text(text_single_line, "Mandelbrot Explorer");
+ui_label(text_single_line, "Mandelbrot Explorer");
 
-ui_text(toast_filename, "filename placeholder");
+ui_label(toast_filename, "filename placeholder");
 
-ui_multiline(text_multiline, 19.0, "Click inside or +/- to zoom;\n"
+ui_label_ml(text_multiline, 19.0, "Click inside or +/- to zoom;\n"
     "right mouse click to zoom out;\nuse "
     "touchpad or keyboard " glyph_left glyph_up glyph_down glyph_right
     " to pan");
 
-ui_multiline(about, 34.56,
+ui_label_ml(about, 34.56,
     "\nClick inside Mandelbrot Julia Set fractal to zoom in into interesting "
     "areas. Right mouse click to zoom out.\n"
     "Use Win + Shift + S to take a screenshot of something "
     "beautiful that caught your eye."
     "\n\n"
     "This sample also a showcase of controls like checkbox, message box, "
-    "tooltips, clipboard copy as well as full sreen handling, open "
-    "file dialog and on-the-fly locale swticing for simple and possibly "
+    "tooltips, clipboard copy as well as full screen handling, open "
+    "file dialog and on-the-fly locale switching for simple and possibly "
     "incorrect Simplified Chinese localization."
     "\n\n"
     "Press ESC or click the \xC3\x97 button in right top corner "

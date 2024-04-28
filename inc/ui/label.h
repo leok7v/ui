@@ -13,19 +13,22 @@ typedef struct ui_label_s {
     int32_t dy; // vertical shift down (to line up baselines of diff fonts)
 } ui_label_t;
 
-void ui_label_init_(ui_view_t* view); // do not call use ui_text() and ui_multiline()
+// do not call ui_label_init_ use ui_label() and ui_label_ml() instead
+void ui_label_init_(ui_view_t* view);
 
-#define ui_text(t, s)                                                        \
-    ui_label_t t = { .view = { .type = ui_view_text, .init = ui_label_init_, \
+#define ui_label(t, s)                                                        \
+    ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
     .children = null, .width = 0.0, .text = s}, .multiline = false}
 
-#define ui_multiline(t, w, s)                                                \
-    ui_label_t t = { .view = { .type = ui_view_text, .init = ui_label_init_, \
+#define ui_label_ml(t, w, s)  /* multiline */                                 \
+    ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
     .children = null, .width = w, .text = s}, .multiline = true}
 
 // single line of text with "&" keyboard shortcuts:
-void ui_label_init_va(ui_label_t* t, const char* format, va_list vl);
+
 void ui_label_init(ui_label_t* t, const char* format, ...);
+void ui_label_init_va(ui_label_t* t, const char* format, va_list vl);
+
 // multiline
 void ui_label_init_ml(ui_label_t* t, double width, const char* format, ...);
 

@@ -2,7 +2,7 @@
 #include "ui/ui.h"
 
 static void ui_label_paint(ui_view_t* view) {
-    assert(view->type == ui_view_text);
+    assert(view->type == ui_view_label);
     assert(!view->hidden);
     ui_label_t* t = (ui_label_t*)view;
     // at later stages of layout text height can grow:
@@ -33,7 +33,7 @@ static void ui_label_paint(ui_view_t* view) {
 }
 
 static void ui_label_context_menu(ui_view_t* view) {
-    assert(view->type == ui_view_text);
+    assert(view->type == ui_view_label);
     ui_label_t* t = (ui_label_t*)view;
     if (!t->label && !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         clipboard.put_text(ui_view.nls(view));
@@ -45,7 +45,7 @@ static void ui_label_context_menu(ui_view_t* view) {
 }
 
 static void ui_label_character(ui_view_t* view, const char* utf8) {
-    assert(view->type == ui_view_text);
+    assert(view->type == ui_view_label);
     ui_label_t* t = (ui_label_t*)view;
     if (view->hover && !t->label &&
        !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
@@ -59,7 +59,7 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
 
 void ui_label_init_(ui_view_t* view) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
-    assert(view->type == ui_view_text);
+    assert(view->type == ui_view_label);
     ui_view_init(view);
     if (view->font == null) { view->font = &app.fonts.regular; }
     view->color = colors.text;
@@ -71,7 +71,7 @@ void ui_label_init_(ui_view_t* view) {
 void ui_label_init_va(ui_label_t* t, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     str.format_va(t->view.text, countof(t->view.text), format, vl);
-    t->view.type = ui_view_text;
+    t->view.type = ui_view_label;
     ui_label_init_(&t->view);
 }
 

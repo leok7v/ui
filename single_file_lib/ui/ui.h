@@ -147,16 +147,6 @@ typedef struct ui_fonts_s {
     ui_font_t H3;
 } ui_fonts_t;
 
-enum ui_view_type_t {
-    ui_view_container  = 'cnt',
-    ui_view_messagebox = 'mbx',
-    ui_view_button     = 'btn',
-    ui_view_checkbox   = 'cbx',
-    ui_view_slider     = 'sld',
-    ui_view_text       = 'txt',
-    ui_view_edit       = 'edt'
-};
-
 typedef struct ui_s {
     struct { // window visibility
         int32_t const hide;
@@ -459,14 +449,25 @@ extern gdi_t gdi;
 #include "ut/std.h"
 
 
+enum ui_view_type_t {
+    ui_view_container  = 'cnt',
+    ui_view_label      = 'lbl',
+    ui_view_messagebox = 'mbx',
+    ui_view_button     = 'btn',
+    ui_view_checkbox   = 'cbx',
+    ui_view_slider     = 'sld',
+//  ui_view_text       = 'txt',
+    ui_view_edit       = 'edt'
+};
+
 typedef struct ui_view_s ui_view_t;
 
 typedef struct ui_view_s {
     enum ui_view_type_t type;
     void (*init)(ui_view_t* view); // called once before first layout
-    ui_view_t** children; // null terminated array[] of children
     double width;    // > 0 width of UI element in "em"s
     char text[2048];
+    ui_view_t** children; // null terminated array[] of children
     ui_view_t* parent;
     ui_view_t* child; // first child, circular doubly linked list
     ui_view_t* prev;  // left or top sibling
@@ -481,7 +482,6 @@ typedef struct ui_view_s {
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
     void (*notify)(ui_view_t* view, void* p); // for the application use
-    ui_view_t* (*add)(ui_view_t* view, ui_view_t* child);
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
@@ -506,8 +506,6 @@ typedef struct ui_view_s {
     void (*character)(ui_view_t* view, const char* utf8);
     void (*key_pressed)(ui_view_t* view, int32_t key);
     void (*key_released)(ui_view_t* view, int32_t key);
-    bool (*is_keyboard_shortcut)(ui_view_t* view, int32_t key);
-    void (*hovering)(ui_view_t* view, bool start);
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled ui elements
     void (*timer)(ui_view_t* view, ui_timer_t id);
@@ -519,7 +517,6 @@ typedef struct ui_view_s {
     bool pressed;   // for ui_button_t and  checkbox_t
     bool disabled;  // mouse, keyboard, key_up/down not called on disabled
     bool focusable; // can be target for keyboard focus
-    double  hover_delay; // delta time in seconds before hovered(true)
     double  hover_at;    // time in seconds when to call hovered()
     ui_color_t color;      // interpretation depends on ui element type
     ui_color_t background; // interpretation depends on ui element type
@@ -537,17 +534,22 @@ typedef struct ui_view_s {
 
 void ui_view_init(ui_view_t* view);
 
+void ui_view_init_container(ui_view_t* view);
+
+#define ui_view(view_type) { .type = (ui_view_ ## view_type),   \
+                             .init = ui_view_init_ ## view_type }
+
 typedef struct ui_view_if {
-    void (*add)(ui_view_t* parent, ...); // arguments must be null terminated
+    // children va_args must be null terminated
+    ui_view_t* (*add)(ui_view_t* parent, ...);
     void (*add_first)(ui_view_t* parent, ui_view_t* child);
     void (*add_last)(ui_view_t* parent,  ui_view_t* child);
     void (*add_after)(ui_view_t* child,  ui_view_t* after);
     void (*add_before)(ui_view_t* child, ui_view_t* before);
     void (*remove)(ui_view_t* view);
-void (*test)(void);
     bool (*inside)(ui_view_t* view, const ui_point_t* pt);
     void (*set_text)(ui_view_t* view, const char* text);
-    void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()
+    void (*invalidate)(const ui_view_t* view); // prone to delays
     void (*measure)(ui_view_t* view);     // if text[] != "" sets w, h
     bool (*is_hidden)(ui_view_t* view);   // view or any parent is hidden
     bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
@@ -564,17 +566,20 @@ void (*test)(void);
     void (*paint)(ui_view_t* view);
     bool (*set_focus)(ui_view_t* view);
     void (*kill_focus)(ui_view_t* view);
+    void (*kill_hidden_focus)(ui_view_t* view);
+    void (*hovering)(ui_view_t* view, bool start);
     void (*mouse)(ui_view_t* view, int32_t m, int32_t f);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
     void (*measure_children)(ui_view_t* view);
     void (*layout_children)(ui_view_t* view);
     void (*hover_changed)(ui_view_t* view);
-    void (*kill_hidden_focus)(ui_view_t* view);
+    bool (*is_shortcut_key)(ui_view_t* view, int32_t key);
     bool (*context_menu)(ui_view_t* view);
     bool (*tap)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
     bool (*press)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
     bool (*message)(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
                                      int64_t* ret);
+    void (*test)(void);
 } ui_view_if;
 
 extern ui_view_if ui_view;
@@ -624,19 +629,22 @@ typedef struct ui_label_s {
     int32_t dy; // vertical shift down (to line up baselines of diff fonts)
 } ui_label_t;
 
-void ui_label_init_(ui_view_t* view); // do not call use ui_text() and ui_multiline()
+// do not call ui_label_init_ use ui_label() and ui_label_ml() instead
+void ui_label_init_(ui_view_t* view);
 
-#define ui_text(t, s)                                                        \
-    ui_label_t t = { .view = { .type = ui_view_text, .init = ui_label_init_, \
+#define ui_label(t, s)                                                        \
+    ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
     .children = null, .width = 0.0, .text = s}, .multiline = false}
 
-#define ui_multiline(t, w, s)                                                \
-    ui_label_t t = { .view = { .type = ui_view_text, .init = ui_label_init_, \
+#define ui_label_ml(t, w, s)  /* multiline */                                 \
+    ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
     .children = null, .width = w, .text = s}, .multiline = true}
 
 // single line of text with "&" keyboard shortcuts:
-void ui_label_init_va(ui_label_t* t, const char* format, va_list vl);
+
 void ui_label_init(ui_label_t* t, const char* format, ...);
+void ui_label_init_va(ui_label_t* t, const char* format, va_list vl);
+
 // multiline
 void ui_label_init_ml(ui_label_t* t, double width, const char* format, ...);
 
@@ -2907,14 +2915,14 @@ static void ui_button_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_button);
     assert(!view->hidden && !view->disabled);
     char ch = utf8[0]; // TODO: multibyte shortcuts?
-    if (view->is_keyboard_shortcut(view, ch)) {
+    if (ui_view.is_shortcut_key(view, ch)) {
         ui_button_trigger(view);
     }
 }
 
 static void ui_button_key_pressed(ui_view_t* view, int32_t key) {
-    if (app.alt && view->is_keyboard_shortcut(view, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, view->is_keyboard_shortcut(view, key));
+    if (app.alt && ui_view.is_shortcut_key(view, key)) {
+//      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_button_trigger(view);
     }
 }
@@ -2944,7 +2952,7 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 }
 
 static void ui_button_measure(ui_view_t* view) {
-    assert(view->type == ui_view_button || view->type == ui_view_text);
+    assert(view->type == ui_view_button || view->type == ui_view_label);
     ui_view.measure(view);
     const int32_t em2  = maximum(1, view->em.x / 2);
     view->w = view->w;
@@ -3040,14 +3048,14 @@ static void ui_checkbox_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_checkbox);
     assert(!view->hidden && !view->disabled);
     char ch = utf8[0];
-    if (view->is_keyboard_shortcut(view, ch)) {
+    if (ui_view.is_shortcut_key(view, ch)) {
          ui_checkbox_flip((checkbox_t*)view);
     }
 }
 
 static void ui_checkbox_key_pressed(ui_view_t* view, int32_t key) {
-    if (app.alt && view->is_keyboard_shortcut(view, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, view->is_keyboard_shortcut(view, key));
+    if (app.alt && ui_view.is_shortcut_key(view, key)) {
+//      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_checkbox_flip((checkbox_t*)view);
     }
 }
@@ -4159,7 +4167,7 @@ gdi_t gdi = {
 #include "ut/ut.h"
 
 static void ui_label_paint(ui_view_t* view) {
-    assert(view->type == ui_view_text);
+    assert(view->type == ui_view_label);
     assert(!view->hidden);
     ui_label_t* t = (ui_label_t*)view;
     // at later stages of layout text height can grow:
@@ -4190,7 +4198,7 @@ static void ui_label_paint(ui_view_t* view) {
 }
 
 static void ui_label_context_menu(ui_view_t* view) {
-    assert(view->type == ui_view_text);
+    assert(view->type == ui_view_label);
     ui_label_t* t = (ui_label_t*)view;
     if (!t->label && !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         clipboard.put_text(ui_view.nls(view));
@@ -4202,7 +4210,7 @@ static void ui_label_context_menu(ui_view_t* view) {
 }
 
 static void ui_label_character(ui_view_t* view, const char* utf8) {
-    assert(view->type == ui_view_text);
+    assert(view->type == ui_view_label);
     ui_label_t* t = (ui_label_t*)view;
     if (view->hover && !t->label &&
        !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
@@ -4216,7 +4224,7 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
 
 void ui_label_init_(ui_view_t* view) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
-    assert(view->type == ui_view_text);
+    assert(view->type == ui_view_label);
     ui_view_init(view);
     if (view->font == null) { view->font = &app.fonts.regular; }
     view->color = colors.text;
@@ -4228,7 +4236,7 @@ void ui_label_init_(ui_view_t* view) {
 void ui_label_init_va(ui_label_t* t, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     str.format_va(t->view.text, countof(t->view.text), format, vl);
-    t->view.type = ui_view_text;
+    t->view.type = ui_view_label;
     ui_label_init_(&t->view);
 }
 
@@ -4334,7 +4342,7 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
                 ui_view_t* c = *col;
                 if (!c->hidden) {
                     c->h = r->h; // all cells are same height
-                    if (c->type == ui_view_text) { // lineup text baselines
+                    if (c->type == ui_view_label) { // lineup text baselines
                         ui_label_t* t = (ui_label_t*)c;
                         t->dy = r->baseline - c->baseline;
                     }
@@ -4919,6 +4927,8 @@ void ui_slider_init(ui_slider_t* r, const char* label, double ems,
 
 #include "ut/ut.h"
 
+static const fp64_t ui_view_hover_delay = 1.5; // seconds
+
 #define ui_view_for_each(v, it, code) do { \
     ui_view_t* it = (v)->child;            \
     if (it != null) {                      \
@@ -4929,7 +4939,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, double ems,
     }                                      \
 } while (0)
 
-static void ui_view_verify_tree(ui_view_t* p) {
+static void ui_view_verify(ui_view_t* p) {
     ui_view_for_each(p, c, {
         swear(c->parent == p);
         swear(c == c->next->prev);
@@ -4937,7 +4947,7 @@ static void ui_view_verify_tree(ui_view_t* p) {
     });
 }
 
-static void ui_view_add(ui_view_t* p, ...) {
+static ui_view_t* ui_view_add(ui_view_t* p, ...) {
     va_list vl;
     va_start(vl, p);
     ui_view_t* c = va_arg(vl, ui_view_t*);
@@ -4947,6 +4957,8 @@ static void ui_view_add(ui_view_t* p, ...) {
         c = va_arg(vl, ui_view_t*);
     }
     va_end(vl);
+    if (p->init != null) { p->init(p); p->init = null; }
+    return p;
 }
 
 static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
@@ -4962,6 +4974,7 @@ static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
         c->next->prev = c;
     }
     p->child = c;
+    if (c->init != null) { c->init(c); c->init = null; }
 }
 
 static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
@@ -4977,6 +4990,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
         c->prev->next = c;
         c->next->prev = c;
     }
+    if (c->init != null) { c->init(c); c->init = null; }
 }
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
@@ -4988,6 +5002,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     a->next = c;
     c->prev->next = c;
     c->next->prev = c;
+    if (c->init != null) { c->init(c); c->init = null; }
 }
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
@@ -4999,6 +5014,7 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     b->prev = c;
     c->prev->next = c;
     c->next->prev = c;
+    if (c->init != null) { c->init(c); c->init = null; }
 }
 
 static void ui_view_remove(ui_view_t* c) {
@@ -5019,6 +5035,13 @@ static void ui_view_remove(ui_view_t* c) {
     c->parent = null;
 }
 
+static void ui_view_remove_tree(ui_view_t* p) {
+    while (p->child != null) {
+        ui_view_remove_tree(p->child);
+        ui_view.remove(p->child);
+    }
+}
+
 static void ui_view_invalidate(const ui_view_t* view) {
     ui_rect_t rc = { view->x, view->y, view->w, view->h};
     rc.x -= view->em.x;
@@ -5033,7 +5056,7 @@ static const char* ui_view_nls(ui_view_t* view) {
         nls.string(view->strid, view->text) : view->text;
 }
 
-static void ui_view_measure_text(ui_view_t* view) {
+static void ui_view_measure(ui_view_t* view) {
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
     view->em = gdi.get_em(f);
     view->baseline = gdi.baseline(f);
@@ -5041,7 +5064,7 @@ static void ui_view_measure_text(ui_view_t* view) {
     if (view->text[0] != 0) {
         view->w = (int32_t)(view->em.x * view->width + 0.5);
         ui_point_t mt = { 0 };
-        if (view->type == ui_view_text && ((ui_label_t*)view)->multiline) {
+        if (view->type == ui_view_label && ((ui_label_t*)view)->multiline) {
             int32_t w = (int)(view->width * view->em.x + 0.5);
             mt = gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
@@ -5050,10 +5073,6 @@ static void ui_view_measure_text(ui_view_t* view) {
         view->h = mt.y;
         view->w = maximum(view->w, mt.x);
     }
-}
-
-static void ui_view_measure(ui_view_t* view) {
-    ui_view.measure(view);
 }
 
 static bool ui_view_inside(ui_view_t* view, const ui_point_t* pt) {
@@ -5081,7 +5100,7 @@ static void ui_view_localize(ui_view_t* view) {
 }
 
 static void ui_view_hovering(ui_view_t* view, bool start) {
-    static ui_text(btn_tooltip,  "");
+    static ui_label(btn_tooltip,  "");
     if (start && app.animating.view == null && view->tip[0] != 0 &&
        !ui_view.is_hidden(view)) {
         strprintf(btn_tooltip.view.text, "%s", nls.str(view->tip));
@@ -5096,7 +5115,7 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
     }
 }
 
-static bool ui_view_is_keyboard_shortcut(ui_view_t* view, int32_t key) {
+static bool ui_view_is_shortcut_key(ui_view_t* view, int32_t key) {
     // Supported keyboard shortcuts are ASCII characters only for now
     // If there is not focused UI control in Alt+key [Alt] is optional.
     // If there is focused control only Alt+Key is accepted as shortcut
@@ -5232,7 +5251,7 @@ static void ui_view_mouse(ui_view_t* view, int32_t m, int32_t f) {
         r.w += view->w / 2;
         r.h += view->h / 2;
         if (hover != view->hover) { app.invalidate(&r); }
-        if (hover != view->hover && view->hovering != null) {
+        if (hover != view->hover) {
             ui_view.hover_changed(view);
         }
     }
@@ -5256,7 +5275,11 @@ static void ui_view_measure_children(ui_view_t* view) {
     if (!view->hidden) {
         ui_view_t** c = view->children;
         while (c != null && *c != null) { ui_view_measure_children(*c); c++; }
-        if (view->measure != null) { view->measure(view); }
+        if (view->measure != null) {
+            view->measure(view);
+        } else {
+            ui_view.measure(view);
+        }
     }
 }
 
@@ -5269,17 +5292,14 @@ static void ui_view_layout_children(ui_view_t* view) {
 }
 
 static void ui_view_hover_changed(ui_view_t* view) {
-    if (view->hovering != null && !view->hidden) {
+    if (!view->hidden) {
         if (!view->hover) {
             view->hover_at = 0;
-            view->hovering(view, false); // cancel hover
+            ui_view.hovering(view, false); // cancel hover
         } else {
-            assert(view->hover_delay >= 0);
-            if (view->hover_delay == 0) {
-                view->hover_at = -1;
-                view->hovering(view, true); // call immediately
-            } else if (view->hover_delay != 0 && view->hover_at >= 0) {
-                view->hover_at = app.now + view->hover_delay;
+            swear(ui_view_hover_delay >= 0);
+            if (view->hover_at >= 0) {
+                view->hover_at = app.now + ui_view_hover_delay;
             }
         }
     }
@@ -5342,10 +5362,10 @@ static bool ui_view_context_menu(ui_view_t* view) {
 
 static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
-    if (view->hovering != null && !view->hidden) {
+    if (!view->hidden) {
         if (view->hover_at > 0 && app.now > view->hover_at) {
             view->hover_at = -1; // "already called"
-            view->hovering(view, true);
+            ui_view.hovering(view, true);
         }
     }
     // message() callback is called even for hidden and disabled views
@@ -5362,77 +5382,80 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     return false;
 }
 
-static ui_view_t* ui_view_add_to(ui_view_t* p, ui_view_t* c) {
-    ui_view.add_last(p, c);
-    return p;
-}
+#pragma push_macro("ui_view_alone")
 
-void ui_view_init(ui_view_t* view) {
-    view->add         = ui_view_add_to;
-    view->measure     = ui_view_measure;
-    view->hovering    = ui_view_hovering;
-    view->hover_delay = 1.5;
-    view->is_keyboard_shortcut = ui_view_is_keyboard_shortcut;
-}
+#define ui_view_alone(v) do {                          \
+    swear((v)->parent == null && (v)->child == null && \
+          (v)->prev == null && (v)->next == null);     \
+} while (0)
 
 static void ui_view_test(void) {
-    ui_view_t p0 = {0}; ui_view_init(&p0);
-    ui_view_t c1 = {0}; ui_view_init(&c1);
-    ui_view_t c2 = {0}; ui_view_init(&c2);
-    ui_view_t c3 = {0}; ui_view_init(&c3);
-    ui_view_t c4 = {0}; ui_view_init(&c4);
-    ui_view_t g1 = {0}; ui_view_init(&g1);
-    ui_view_t g2 = {0}; ui_view_init(&g2);
-    ui_view_t g3 = {0}; ui_view_init(&g3);
-    ui_view_t g4 = {0}; ui_view_init(&g4);
+    ui_view_t p0 = ui_view(container);
+    ui_view_t c1 = ui_view(container);
+    ui_view_t c2 = ui_view(container);
+    ui_view_t c3 = ui_view(container);
+    ui_view_t c4 = ui_view(container);
+    ui_view_t g1 = ui_view(container);
+    ui_view_t g2 = ui_view(container);
+    ui_view_t g3 = ui_view(container);
+    ui_view_t g4 = ui_view(container);
     // add grand children to children:
-    ui_view.add(&c2, &g1, &g2, null);       ui_view_verify_tree(&c2);
-    ui_view.add(&c3, &g3, &g4, null);       ui_view_verify_tree(&c3);
+    ui_view.add(&c2, &g1, &g2, null);               ui_view_verify(&c2);
+    ui_view.add(&c3, &g3, &g4, null);               ui_view_verify(&c3);
     // single child
-    ui_view.add(&p0, &c1, null);            ui_view_verify_tree(&p0);
-    ui_view.remove(&c1);                    ui_view_verify_tree(&p0);
+    ui_view.add(&p0, &c1, null);                    ui_view_verify(&p0);
+    ui_view.remove(&c1);                            ui_view_verify(&p0);
     // two children
-    ui_view.add(&p0, &c1, &c2, null);       ui_view_verify_tree(&p0);
-    ui_view.remove(&c1);                    ui_view_verify_tree(&p0);
-    ui_view.remove(&c2);                    ui_view_verify_tree(&p0);
+    ui_view.add(&p0, &c1, &c2, null);               ui_view_verify(&p0);
+    ui_view.remove(&c1);                            ui_view_verify(&p0);
+    ui_view.remove(&c2);                            ui_view_verify(&p0);
     // three children
-    ui_view.add(&p0, &c1, &c2, &c3, null);  ui_view_verify_tree(&p0);
-    ui_view.remove(&c1);                    ui_view_verify_tree(&p0);
-    ui_view.remove(&c2);                    ui_view_verify_tree(&p0);
-    ui_view.remove(&c3);                    ui_view_verify_tree(&p0);
+    ui_view.add(&p0, &c1, &c2, &c3, null);          ui_view_verify(&p0);
+    ui_view.remove(&c1);                            ui_view_verify(&p0);
+    ui_view.remove(&c2);                            ui_view_verify(&p0);
+    ui_view.remove(&c3);                            ui_view_verify(&p0);
     // add_first, add_last, add_before, add_after
-    ui_view.add_first(&p0, &c1);            ui_view_verify_tree(&p0);
+    ui_view.add_first(&p0, &c1);                    ui_view_verify(&p0);
     swear(p0.child == &c1);
-    ui_view.add_last(&p0, &c4);             ui_view_verify_tree(&p0);
+    ui_view.add_last(&p0, &c4);                     ui_view_verify(&p0);
     swear(p0.child == &c1 && p0.child->prev == &c4);
-    ui_view.add_after(&c2, &c1);            ui_view_verify_tree(&p0);
+    ui_view.add_after(&c2, &c1);                    ui_view_verify(&p0);
     swear(p0.child == &c1);
     swear(c1.next == &c2);
-    ui_view.add_before(&c3, &c4);           ui_view_verify_tree(&p0);
+    ui_view.add_before(&c3, &c4);                   ui_view_verify(&p0);
     swear(p0.child == &c1);
     swear(c4.prev == &c3);
     // removing all
-    ui_view.remove(&c1);                    ui_view_verify_tree(&p0);
-    ui_view.remove(&c2);                    ui_view_verify_tree(&p0);
-    ui_view.remove(&c3);                    ui_view_verify_tree(&p0);
-    ui_view.remove(&c4);                    ui_view_verify_tree(&p0);
-    swear(p0.parent == null && p0.child == null && p0.prev == null && p0.next == null);
-    swear(c1.parent == null && c1.child == null && c1.prev == null && c1.next == null);
-    swear(c4.parent == null && c4.child == null && c4.prev == null && c4.next == null);
-    ui_view.remove(&g1);                    ui_view_verify_tree(&c2);
-    ui_view.remove(&g2);                    ui_view_verify_tree(&c2);
-    ui_view.remove(&g3);                    ui_view_verify_tree(&c3);
-    ui_view.remove(&g4);                    ui_view_verify_tree(&c3);
-    swear(c2.parent == null && c2.child == null && c2.prev == null && c2.next == null);
-    swear(c3.parent == null && c3.child == null && c3.prev == null && c3.next == null);
-    // much more intuitive (for a human) nested way to initialize tree:
-    p0.add(&p0, &c1)->
-       add(&c1, c2.add(&c2, &g1)->add(&c2, &g2))->
-       add(&c2, c3.add(&c3, &g3)->add(&c3, &g4))->
-       add(&c3, &c4);
-    ui_view_verify_tree(&p0);
+    ui_view.remove(&c1);                            ui_view_verify(&p0);
+    ui_view.remove(&c2);                            ui_view_verify(&p0);
+    ui_view.remove(&c3);                            ui_view_verify(&p0);
+    ui_view.remove(&c4);                            ui_view_verify(&p0);
+    ui_view_alone(&p0); ui_view_alone(&c1); ui_view_alone(&c4);
+    ui_view.remove(&g1);                            ui_view_verify(&c2);
+    ui_view.remove(&g2);                            ui_view_verify(&c2);
+    ui_view.remove(&g3);                            ui_view_verify(&c3);
+    ui_view.remove(&g4);                            ui_view_verify(&c3);
+    ui_view_alone(&c2); ui_view_alone(&c3);
+    ui_view_alone(&g1); ui_view_alone(&g2); ui_view_alone(&g3); ui_view_alone(&g4);
+    // a bit more intuitive (for a human) nested way to initialize tree:
+    ui_view.add(&p0,
+        &c1,
+        ui_view.add(&c2, &g1, &g2, null),
+        ui_view.add(&c3, &g3, &g4, null),
+        &c4);
+    ui_view_verify(&p0);
+    ui_view_remove_tree(&p0);
+    ui_view_alone(&p0);
+    ui_view_alone(&c1); ui_view_alone(&c2); ui_view_alone(&c3); ui_view_alone(&c4);
+    ui_view_alone(&g1); ui_view_alone(&g2); ui_view_alone(&g3); ui_view_alone(&g4);
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
 }
+
+#pragma pop_macro("ui_view_alone")
+
+void ui_view_init(ui_view_t* unused(view)) { }
+
+void ui_view_init_container(ui_view_t* view) { ui_view_init(view); }
 
 ui_view_if ui_view = {
     .add                = ui_view_add,
@@ -5440,11 +5463,12 @@ ui_view_if ui_view = {
     .add_last           = ui_view_add_last,
     .add_after          = ui_view_add_after,
     .add_before         = ui_view_add_before,
+    .add                = ui_view_add,
     .remove             = ui_view_remove,
     .inside             = ui_view_inside,
     .set_text           = ui_view_set_text,
     .invalidate         = ui_view_invalidate,
-    .measure            = ui_view_measure_text,
+    .measure            = ui_view_measure,
     .nls                = ui_view_nls,
     .localize           = ui_view_localize,
     .is_hidden          = ui_view_is_hidden,
@@ -5460,12 +5484,14 @@ ui_view_if ui_view = {
     .paint              = ui_view_paint,
     .set_focus          = ui_view_set_focus,
     .kill_focus         = ui_view_kill_focus,
+    .kill_hidden_focus  = ui_view_kill_hidden_focus,
     .mouse              = ui_view_mouse,
     .mouse_wheel        = ui_view_mouse_wheel,
     .measure_children   = ui_view_measure_children,
     .layout_children    = ui_view_layout_children,
+    .hovering           = ui_view_hovering,
     .hover_changed      = ui_view_hover_changed,
-    .kill_hidden_focus  = ui_view_kill_hidden_focus,
+    .is_shortcut_key    = ui_view_is_shortcut_key,
     .context_menu       = ui_view_context_menu,
     .tap                = ui_view_tap,
     .press              = ui_view_press,

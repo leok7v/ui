@@ -3,14 +3,25 @@
 
 begin_c
 
+enum ui_view_type_t {
+    ui_view_container  = 'cnt',
+    ui_view_label      = 'lbl',
+    ui_view_messagebox = 'mbx',
+    ui_view_button     = 'btn',
+    ui_view_checkbox   = 'cbx',
+    ui_view_slider     = 'sld',
+//  ui_view_text       = 'txt',
+    ui_view_edit       = 'edt'
+};
+
 typedef struct ui_view_s ui_view_t;
 
 typedef struct ui_view_s {
     enum ui_view_type_t type;
     void (*init)(ui_view_t* view); // called once before first layout
-    ui_view_t** children; // null terminated array[] of children
     double width;    // > 0 width of UI element in "em"s
     char text[2048];
+    ui_view_t** children; // null terminated array[] of children
     ui_view_t* parent;
     ui_view_t* child; // first child, circular doubly linked list
     ui_view_t* prev;  // left or top sibling
@@ -25,7 +36,6 @@ typedef struct ui_view_s {
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
     void (*notify)(ui_view_t* view, void* p); // for the application use
-    ui_view_t* (*add)(ui_view_t* view, ui_view_t* child);
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
@@ -50,8 +60,6 @@ typedef struct ui_view_s {
     void (*character)(ui_view_t* view, const char* utf8);
     void (*key_pressed)(ui_view_t* view, int32_t key);
     void (*key_released)(ui_view_t* view, int32_t key);
-    bool (*is_keyboard_shortcut)(ui_view_t* view, int32_t key);
-    void (*hovering)(ui_view_t* view, bool start);
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled ui elements
     void (*timer)(ui_view_t* view, ui_timer_t id);
@@ -63,7 +71,6 @@ typedef struct ui_view_s {
     bool pressed;   // for ui_button_t and  checkbox_t
     bool disabled;  // mouse, keyboard, key_up/down not called on disabled
     bool focusable; // can be target for keyboard focus
-    double  hover_delay; // delta time in seconds before hovered(true)
     double  hover_at;    // time in seconds when to call hovered()
     ui_color_t color;      // interpretation depends on ui element type
     ui_color_t background; // interpretation depends on ui element type
@@ -81,17 +88,22 @@ typedef struct ui_view_s {
 
 void ui_view_init(ui_view_t* view);
 
+void ui_view_init_container(ui_view_t* view);
+
+#define ui_view(view_type) { .type = (ui_view_ ## view_type),   \
+                             .init = ui_view_init_ ## view_type }
+
 typedef struct ui_view_if {
-    void (*add)(ui_view_t* parent, ...); // arguments must be null terminated
+    // children va_args must be null terminated
+    ui_view_t* (*add)(ui_view_t* parent, ...);
     void (*add_first)(ui_view_t* parent, ui_view_t* child);
     void (*add_last)(ui_view_t* parent,  ui_view_t* child);
     void (*add_after)(ui_view_t* child,  ui_view_t* after);
     void (*add_before)(ui_view_t* child, ui_view_t* before);
     void (*remove)(ui_view_t* view);
-void (*test)(void);
     bool (*inside)(ui_view_t* view, const ui_point_t* pt);
     void (*set_text)(ui_view_t* view, const char* text);
-    void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()
+    void (*invalidate)(const ui_view_t* view); // prone to delays
     void (*measure)(ui_view_t* view);     // if text[] != "" sets w, h
     bool (*is_hidden)(ui_view_t* view);   // view or any parent is hidden
     bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
@@ -108,17 +120,20 @@ void (*test)(void);
     void (*paint)(ui_view_t* view);
     bool (*set_focus)(ui_view_t* view);
     void (*kill_focus)(ui_view_t* view);
+    void (*kill_hidden_focus)(ui_view_t* view);
+    void (*hovering)(ui_view_t* view, bool start);
     void (*mouse)(ui_view_t* view, int32_t m, int32_t f);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
     void (*measure_children)(ui_view_t* view);
     void (*layout_children)(ui_view_t* view);
     void (*hover_changed)(ui_view_t* view);
-    void (*kill_hidden_focus)(ui_view_t* view);
+    bool (*is_shortcut_key)(ui_view_t* view, int32_t key);
     bool (*context_menu)(ui_view_t* view);
     bool (*tap)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
     bool (*press)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
     bool (*message)(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
                                      int64_t* ret);
+    void (*test)(void);
 } ui_view_if;
 
 extern ui_view_if ui_view;

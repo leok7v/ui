@@ -77,14 +77,14 @@ static void ui_button_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_button);
     assert(!view->hidden && !view->disabled);
     char ch = utf8[0]; // TODO: multibyte shortcuts?
-    if (view->is_keyboard_shortcut(view, ch)) {
+    if (ui_view.is_shortcut_key(view, ch)) {
         ui_button_trigger(view);
     }
 }
 
 static void ui_button_key_pressed(ui_view_t* view, int32_t key) {
-    if (app.alt && view->is_keyboard_shortcut(view, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, view->is_keyboard_shortcut(view, key));
+    if (app.alt && ui_view.is_shortcut_key(view, key)) {
+//      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_button_trigger(view);
     }
 }
@@ -114,7 +114,7 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 }
 
 static void ui_button_measure(ui_view_t* view) {
-    assert(view->type == ui_view_button || view->type == ui_view_text);
+    assert(view->type == ui_view_button || view->type == ui_view_label);
     ui_view.measure(view);
     const int32_t em2  = maximum(1, view->em.x / 2);
     view->w = view->w;

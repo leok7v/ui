@@ -62,14 +62,14 @@ static void ui_checkbox_character(ui_view_t* view, const char* utf8) {
     assert(view->type == ui_view_checkbox);
     assert(!view->hidden && !view->disabled);
     char ch = utf8[0];
-    if (view->is_keyboard_shortcut(view, ch)) {
+    if (ui_view.is_shortcut_key(view, ch)) {
          ui_checkbox_flip((checkbox_t*)view);
     }
 }
 
 static void ui_checkbox_key_pressed(ui_view_t* view, int32_t key) {
-    if (app.alt && view->is_keyboard_shortcut(view, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, view->is_keyboard_shortcut(view, key));
+    if (app.alt && ui_view.is_shortcut_key(view, key)) {
+//      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_checkbox_flip((checkbox_t*)view);
     }
 }
