@@ -30,7 +30,7 @@ static void ui_messagebox_measure(ui_view_t* view) {
         for (int32_t i = 0; i < n; i++) {
             bw += mx->button[i].view.w;
         }
-        view->w = max(tw, bw + em_x * 2);
+        view->w = maximum(tw, bw + em_x * 2);
         view->h = th + mx->button[0].view.h + em_y + em_y / 2;
     } else {
         view->h = th + em_y / 2;

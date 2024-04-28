@@ -54,7 +54,7 @@ static void loader_close(void* handle) {
     }
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static int32_t loader_test_count;
 

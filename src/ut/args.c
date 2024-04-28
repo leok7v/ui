@@ -241,7 +241,7 @@ static void args_WinMain(void) {
     args.env = _environ;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 // https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments
 // Command-line input       argv[1]     argv[2]	    argv[3]

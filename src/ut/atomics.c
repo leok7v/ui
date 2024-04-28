@@ -184,7 +184,7 @@ static void spinlock_release(volatile int64_t* spinlock) {
 }
 
 static void atomics_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     volatile int32_t int32_var = 0;
     volatile int64_t int64_var = 0;
     volatile void* ptr_var = null;

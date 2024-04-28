@@ -36,7 +36,7 @@ static void ui_button_paint(ui_view_t* view) {
     f = gdi.set_font(f);
     gdi.text("%s", ui_view.nls(view));
     gdi.set_font(f);
-    const int32_t pw = max(1, view->em.y / 32); // pen width
+    const int32_t pw = maximum(1, view->em.y / 32); // pen width
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
     if (view->hover && !view->armed) { color = colors.blue; }
     if (view->disabled) { color = colors.dkgray1; }
@@ -116,7 +116,7 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 static void ui_button_measure(ui_view_t* view) {
     assert(view->type == ui_view_button || view->type == ui_view_text);
     ui_view.measure(view);
-    const int32_t em2  = max(1, view->em.x / 2);
+    const int32_t em2  = maximum(1, view->em.x / 2);
     view->w = view->w;
     view->h = view->h + em2;
     if (view->w < view->h) { view->w = view->h; }

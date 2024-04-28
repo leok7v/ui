@@ -166,7 +166,7 @@ static uint64_t num_hash64(const char *data, int64_t len) {
 }
 
 static void num_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     {
         // https://asecuritysite.com/encryption/nprimes?y=64
         // https://www.rapidtables.com/convert/number/decimal-to-hex.html

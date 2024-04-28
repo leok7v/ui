@@ -59,7 +59,7 @@ static void events_test_check_time(double start, double expected) {
 }
 
 static void events_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     event_t event = events.create();
     double start = clock.seconds();
     events.set(event);
@@ -407,7 +407,7 @@ static void threads_sleep_for(double seconds) {
 
 static int32_t threads_id(void) { return GetThreadId(GetCurrentThread()); }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 // test: https://en.wikipedia.org/wiki/Dining_philosophers_problem
 

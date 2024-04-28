@@ -140,7 +140,7 @@ static uint64_t clock_unix_seconds(void) {
 }
 
 static void clock_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     // TODO: implement more tests
     uint64_t t0 = clock.nanoseconds();
     uint64_t t1 = clock.nanoseconds();

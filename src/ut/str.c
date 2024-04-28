@@ -245,7 +245,7 @@ static int32_t str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_
     } else {
         if (n1 < 0) { n1 = str.length(s1); }
         if (n2 < 0) { n2 = str.length(s2); }
-        int32_t n = min(n1, n2);
+        int32_t n = minimum(n1, n2);
         for (int32_t i = 0; i < n; i++) {
             int32_t r = tolower(s1[i]) - tolower(s2[i]);
             if (r != 0) { return r; }
@@ -264,7 +264,7 @@ static const char* str_unquote(char* *s, int32_t n) {
 }
 
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static void str_test(void) {
     #pragma push_macro("glyph_chinese_one")

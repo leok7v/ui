@@ -34,7 +34,61 @@ static_init(runtime) {
         SEM_NOOPENFILEERRORBOX);
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
+
+static void generics_test(void) {
+    {
+        int8_t a = 10, b = 20;
+        swear(maximum(a++, b++) == 20);
+        swear(minimum(a++, b++) == 11);
+    }
+    {
+        int32_t a = 10, b = 20;
+        swear(maximum(a++, b++) == 20);
+        swear(minimum(a++, b++) == 11);
+    }
+    {
+        fp32_t a = 1.1f, b = 2.2f;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        fp64_t a = 1.1, b = 2.2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        float a = 1.1f, b = 2.2f;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        double a = 1.1, b = 2.2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        char a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        unsigned char a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        long long a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        long long a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+}
+
 
 static void runtime_test(void) { // in alphabetical order
     args.test();
@@ -45,6 +99,7 @@ static void runtime_test(void) { // in alphabetical order
     debug.test();
     events.test();
     files.test();
+    generics_test();
     heap.test();
     loader.test();
     mem.test();

@@ -81,6 +81,9 @@
     <ClInclude Include="..\inc\ut\win32.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ut\generics.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\inc\ut\version.rc.in">
@@ -143,6 +146,9 @@
       <Filter>src\ut</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ut\vigil.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\generics.c">
       <Filter>src\ut</Filter>
     </ClCompile>
   </ItemGroup>

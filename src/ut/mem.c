@@ -219,7 +219,7 @@ static void mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
 }
 
 static void mem_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     swear(args.c > 0);
     void* data = null;
     int64_t bytes = 0;

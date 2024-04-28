@@ -19,7 +19,7 @@ void* _static_force_symbol_reference_(void* symbol) {
 // test static_init() { code } that will be executed in random
 // order but before main()
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static int32_t static_init_function_called;
 

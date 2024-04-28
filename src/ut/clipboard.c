@@ -66,7 +66,7 @@ static errno_t clipboard_get_text(char* utf8, int32_t* bytes) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
                         str.utf16_utf8(decoded, utf16);
-                        int32_t n = min(*bytes, utf8_bytes);
+                        int32_t n = minimum(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, n);
                         free(decoded);
                         if (n < utf8_bytes) {
@@ -83,7 +83,7 @@ static errno_t clipboard_get_text(char* utf8, int32_t* bytes) {
     return r;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static void clipboard_test(void) {
     fatal_if_not_zero(clipboard.put_text("Hello Clipboard"));

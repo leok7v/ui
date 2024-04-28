@@ -41,7 +41,7 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     return 0;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static vigil_if vigil_test_saved;
 static int32_t  vigil_test_failed_assertion_count;

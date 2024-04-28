@@ -30,7 +30,7 @@ static void ui_view_measure_text(ui_view_t* view) {
             mt = gdi.measure_text(f, ui_view.nls(view));
         }
         view->h = mt.y;
-        view->w = max(view->w, mt.x);
+        view->w = maximum(view->w, mt.x);
     }
 }
 
@@ -71,7 +71,7 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
         int32_t y = app.mouse.y - view->em.y;
         // enough space above? if not show below
         if (y < view->em.y) { y = app.mouse.y + view->em.y * 3 / 2; }
-        y = min(app.crc.h - view->em.y * 3 / 2, max(0, y));
+        y = minimum(app.crc.h - view->em.y * 3 / 2, maximum(0, y));
         app.show_tooltip(&btn_tooltip.view, app.mouse.x, y, 0);
     } else if (!start && app.animating.view == &btn_tooltip.view) {
         app.show_tooltip(null, -1, -1, 0);

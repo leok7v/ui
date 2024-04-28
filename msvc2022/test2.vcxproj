@@ -49,7 +49,7 @@
     </Link>
     <ClCompile />
     <ClCompile>
-      <PreprocessorDefinitions>RUNTIME_TESTS;_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>UT_TESTS;_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <PreBuildEvent>
       <Command>
@@ -63,7 +63,7 @@
     </Link>
     <ClCompile />
     <ClCompile>
-      <PreprocessorDefinitions>RUNTIME_TESTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>UT_TESTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <PreBuildEvent>
       <Command>

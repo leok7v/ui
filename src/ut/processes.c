@@ -499,7 +499,7 @@ static const char* processes_name(void) {
 } while (0)
 
 static void processes_test(void) {
-    #ifdef RUNTIME_TESTS // in alphabetical order
+    #ifdef UT_TESTS // in alphabetical order
     const char* names[] = { "svchost", "RuntimeBroker", "conhost" };
     for (int32_t j = 0; j < countof(names); j++) {
         int32_t size  = 0;

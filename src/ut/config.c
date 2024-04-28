@@ -103,7 +103,7 @@ static int32_t config_load(const char* name,
     return read;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static void config_test(void) {
     const char* name = strrchr(args.v[0], '\\');

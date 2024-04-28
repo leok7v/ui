@@ -26,15 +26,24 @@
     #define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #endif
 
-#ifndef max // min/max is convoluted story use minimum/maximum
-#define max(a,b)     (((a) > (b)) ? (a) : (b))
+// min()/max() macro is a highly debated story you may consider
+// using minimum()/maximum() instead with steady understanding
+// that both (a, b) arguments are evaluating twice.
+
+#ifndef max
+#define max(a,b) (((a) > (b)) ? (a) : (b))
 #endif
-#define maximum(a,b) (((a) > (b)) ? (a) : (b)) // preferred
+//#define maximum(a,b) (((a) > (b)) ? (a) : (b)) // preferred
 
 #ifndef min
-#define min(a,b)     (((a) < (b)) ? (a) : (b))
+#define min(a,b) (((a) < (b)) ? (a) : (b))
 #endif
-#define minimum(a,b) (((a) < (b)) ? (a) : (b)) // preferred
+//#define minimum(a,b) (((a) < (b)) ? (a) : (b)) // preferred
+
+// alternative in definining minimum/maximum as force_inline
+// functions but they will be typed and require
+// minimum_int32() maximum_int32() and so on...
+//
 
 #if defined(__GNUC__) || defined(__clang__)
     #define force_inline __attribute__((always_inline))
@@ -400,6 +409,9 @@ typedef struct {
 
 extern files_if files;
 
+// ___________________________________ ut.h ___________________________________
+
+#include "generics.h"
 
 
 // __________________________________ heap.h __________________________________
@@ -1163,7 +1175,7 @@ static void args_WinMain(void) {
     args.env = _environ;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 // https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments
 // Command-line input       argv[1]     argv[2]	    argv[3]
@@ -1442,7 +1454,7 @@ static void spinlock_release(volatile int64_t* spinlock) {
 }
 
 static void atomics_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     volatile int32_t int32_var = 0;
     volatile int64_t int64_var = 0;
     volatile void* ptr_var = null;
@@ -1604,7 +1616,7 @@ static errno_t clipboard_get_text(char* utf8, int32_t* bytes) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
                         str.utf16_utf8(decoded, utf16);
-                        int32_t n = min(*bytes, utf8_bytes);
+                        int32_t n = minimum(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, n);
                         free(decoded);
                         if (n < utf8_bytes) {
@@ -1621,7 +1633,7 @@ static errno_t clipboard_get_text(char* utf8, int32_t* bytes) {
     return r;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static void clipboard_test(void) {
     fatal_if_not_zero(clipboard.put_text("Hello Clipboard"));
@@ -1787,7 +1799,7 @@ static uint64_t clock_unix_seconds(void) {
 }
 
 static void clock_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     // TODO: implement more tests
     uint64_t t0 = clock.nanoseconds();
     uint64_t t1 = clock.nanoseconds();
@@ -1923,7 +1935,7 @@ static int32_t config_load(const char* name,
     return read;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static void config_test(void) {
     const char* name = strrchr(args.v[0], '\\');
@@ -2080,7 +2092,7 @@ static int32_t debug_verbosity_from_string(const char* s) {
 }
 
 static void debug_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     // not clear what can be tested here
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
     #endif
@@ -2751,7 +2763,7 @@ void files_closedir(folder_t* folder) {
 
 #pragma push_macro("files_test_failed")
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 #define files_test_failed " failed %s", str.error(runtime.err())
 
@@ -3052,7 +3064,7 @@ static void files_test(void) {
 
 static void files_test(void) {}
 
-#endif // RUNTIME_TESTS
+#endif // UT_TESTS
 
 #pragma pop_macro("files_test_failed")
 
@@ -3107,6 +3119,80 @@ files_if files = {
     .test               = files_test
 };
 
+
+// ________________________________ generics.c ________________________________
+
+#ifdef UT_TESTS
+
+static void generics_test(void) {
+    {
+        int8_t a = 10, b = 20;
+        swear(maximum(a++, b++) == 20);
+        swear(minimum(a++, b++) == 11);
+    }
+    {
+        int32_t a = 10, b = 20;
+        swear(maximum(a++, b++) == 20);
+        swear(minimum(a++, b++) == 11);
+    }
+    {
+        fp32_t a = 1.1f, b = 2.2f;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        fp64_t a = 1.1, b = 2.2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        float a = 1.1f, b = 2.2f;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        double a = 1.1, b = 2.2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        char a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        unsigned char a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        long int a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        unsigned long a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        long long a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+}
+
+#else
+
+static void generics_test(void) { }
+
+#endif
+
+generics_if generics = {
+    .test = generics_test
+};
+
+
 // __________________________________ heap.c __________________________________
 
 static heap_t* heap_create(bool serialized) {
@@ -3153,7 +3239,7 @@ static int64_t heap_bytes(heap_t* h, void* a) {
 }
 
 static void heap_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     // TODO: allocate, reallocate deallocate, create, dispose
     traceln("TODO");
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
@@ -3225,7 +3311,7 @@ static void loader_close(void* handle) {
     }
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static int32_t loader_test_count;
 
@@ -3511,7 +3597,7 @@ static void mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
 }
 
 static void mem_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     swear(args.c > 0);
     void* data = null;
     int64_t bytes = 0;
@@ -3704,7 +3790,7 @@ static uint64_t num_hash64(const char *data, int64_t len) {
 }
 
 static void num_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     {
         // https://asecuritysite.com/encryption/nprimes?y=64
         // https://www.rapidtables.com/convert/number/decimal-to-hex.html
@@ -4262,7 +4348,7 @@ static const char* processes_name(void) {
 } while (0)
 
 static void processes_test(void) {
-    #ifdef RUNTIME_TESTS // in alphabetical order
+    #ifdef UT_TESTS // in alphabetical order
     const char* names[] = { "svchost", "RuntimeBroker", "conhost" };
     for (int32_t j = 0; j < countof(names); j++) {
         int32_t size  = 0;
@@ -4365,7 +4451,61 @@ static_init(runtime) {
         SEM_NOOPENFILEERRORBOX);
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
+
+static void generics_test(void) {
+    {
+        int8_t a = 10, b = 20;
+        swear(maximum(a++, b++) == 20);
+        swear(minimum(a++, b++) == 11);
+    }
+    {
+        int32_t a = 10, b = 20;
+        swear(maximum(a++, b++) == 20);
+        swear(minimum(a++, b++) == 11);
+    }
+    {
+        fp32_t a = 1.1f, b = 2.2f;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        fp64_t a = 1.1, b = 2.2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        float a = 1.1f, b = 2.2f;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        double a = 1.1, b = 2.2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        char a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        unsigned char a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        long long a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+    {
+        long long a = 1, b = 2;
+        swear(maximum(a, b) == b);
+        swear(minimum(a, b) == a);
+    }
+}
+
 
 static void runtime_test(void) { // in alphabetical order
     args.test();
@@ -4376,6 +4516,7 @@ static void runtime_test(void) { // in alphabetical order
     debug.test();
     events.test();
     files.test();
+    generics_test();
     heap.test();
     loader.test();
     mem.test();
@@ -4432,7 +4573,7 @@ void* _static_force_symbol_reference_(void* symbol) {
 // test static_init() { code } that will be executed in random
 // order but before main()
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static int32_t static_init_function_called;
 
@@ -4700,7 +4841,7 @@ static int32_t str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_
     } else {
         if (n1 < 0) { n1 = str.length(s1); }
         if (n2 < 0) { n2 = str.length(s2); }
-        int32_t n = min(n1, n2);
+        int32_t n = minimum(n1, n2);
         for (int32_t i = 0; i < n; i++) {
             int32_t r = tolower(s1[i]) - tolower(s2[i]);
             if (r != 0) { return r; }
@@ -4719,7 +4860,7 @@ static const char* str_unquote(char* *s, int32_t n) {
 }
 
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static void str_test(void) {
     #pragma push_macro("glyph_chinese_one")
@@ -4853,7 +4994,7 @@ static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,
     swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
-    int64_t transfer = min(bytes, s->bytes_read - s->pos_read);
+    int64_t transfer = minimum(bytes, s->bytes_read - s->pos_read);
     memcpy(data, (uint8_t*)s->data_read + s->pos_read, transfer);
     s->pos_read += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -4868,7 +5009,7 @@ static errno_t streams_memory_write(stream_if* stream, const void* data, int64_t
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
     bool overflow = s->bytes_write - s->pos_write <= 0;
-    int64_t transfer = min(bytes, s->bytes_write - s->pos_write);
+    int64_t transfer = minimum(bytes, s->bytes_write - s->pos_write);
     memcpy((uint8_t*)s->data_write + s->pos_write, data, transfer);
     s->pos_write += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -4913,7 +5054,7 @@ static void streams_read_write(stream_memory_if* s,
     s->pos_write = 0;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static void streams_test(void) {
     {   // read test
@@ -5013,7 +5154,7 @@ static void events_test_check_time(double start, double expected) {
 }
 
 static void events_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     event_t event = events.create();
     double start = clock.seconds();
     events.set(event);
@@ -5361,7 +5502,7 @@ static void threads_sleep_for(double seconds) {
 
 static int32_t threads_id(void) { return GetThreadId(GetCurrentThread()); }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 // test: https://en.wikipedia.org/wiki/Dining_philosophers_problem
 
@@ -5568,7 +5709,7 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     return 0;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static vigil_if vigil_test_saved;
 static int32_t  vigil_test_failed_assertion_count;

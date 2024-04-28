@@ -22,15 +22,24 @@
     #define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #endif
 
-#ifndef max // min/max is convoluted story use minimum/maximum
-#define max(a,b)     (((a) > (b)) ? (a) : (b))
+// min()/max() macro is a highly debated story you may consider
+// using minimum()/maximum() instead with steady understanding
+// that both (a, b) arguments are evaluating twice.
+
+#ifndef max
+#define max(a,b) (((a) > (b)) ? (a) : (b))
 #endif
-#define maximum(a,b) (((a) > (b)) ? (a) : (b)) // preferred
+
+// #define maximum(a,b) (((a) > (b)) ? (a) : (b)) // preferred
 
 #ifndef min
-#define min(a,b)     (((a) < (b)) ? (a) : (b))
+#define min(a,b) (((a) < (b)) ? (a) : (b))
 #endif
-#define minimum(a,b) (((a) < (b)) ? (a) : (b)) // preferred
+
+// #define minimum(a,b) (((a) < (b)) ? (a) : (b)) // preferred
+
+// see generics.h/.c for alternative to definining minimum/maximum
+// as C11 generics functions. For now experimental
 
 #if defined(__GNUC__) || defined(__clang__)
     #define force_inline __attribute__((always_inline))

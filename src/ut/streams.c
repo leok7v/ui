@@ -8,7 +8,7 @@ static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,
     swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
-    int64_t transfer = min(bytes, s->bytes_read - s->pos_read);
+    int64_t transfer = minimum(bytes, s->bytes_read - s->pos_read);
     memcpy(data, (uint8_t*)s->data_read + s->pos_read, transfer);
     s->pos_read += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -23,7 +23,7 @@ static errno_t streams_memory_write(stream_if* stream, const void* data, int64_t
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
     bool overflow = s->bytes_write - s->pos_write <= 0;
-    int64_t transfer = min(bytes, s->bytes_write - s->pos_write);
+    int64_t transfer = minimum(bytes, s->bytes_write - s->pos_write);
     memcpy((uint8_t*)s->data_write + s->pos_write, data, transfer);
     s->pos_write += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -68,7 +68,7 @@ static void streams_read_write(stream_memory_if* s,
     s->pos_write = 0;
 }
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 static void streams_test(void) {
     {   // read test

@@ -32,10 +32,10 @@ static void ui_slider_paint(ui_view_t* view) {
     gdi.push(view->x, view->y);
     gdi.set_clip(view->x, view->y, view->w, view->h);
     const int32_t em = view->em.x;
-    const int32_t em2  = max(1, em / 2);
-    const int32_t em4  = max(1, em / 8);
-    const int32_t em8  = max(1, em / 8);
-    const int32_t em16 = max(1, em / 16);
+    const int32_t em2  = maximum(1, em / 2);
+    const int32_t em4  = maximum(1, em / 8);
+    const int32_t em8  = maximum(1, em / 8);
+    const int32_t em16 = maximum(1, em / 16);
     gdi.set_brush(gdi.brush_color);
     ui_pen_t pen_grey45 = gdi.create_pen(colors.dkgray3, em16);
     gdi.set_pen(pen_grey45);
@@ -81,7 +81,7 @@ static void ui_slider_mouse(ui_view_t* view, int32_t message, int32_t f) {
                 const double range = (double)r->vmax - (double)r->vmin;
                 double v = ((double)x - x0) * range / (double)(x1 - x0 - 1);
                 int32_t vw = (int32_t)(v + r->vmin + 0.5);
-                r->value = min(max(vw, r->vmin), r->vmax);
+                r->value = minimum(maximum(vw, r->vmin), r->vmax);
                 if (r->cb != null) { r->cb(r); }
                 ui_view.invalidate(view);
             }
@@ -94,10 +94,10 @@ static void ui_slider_inc_dec_value(ui_slider_t* r, int32_t sign, int32_t mul) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
         int32_t v = r->value;
         if (v > r->vmin && sign < 0) {
-            mul = min(v - r->vmin, mul);
+            mul = minimum(v - r->vmin, mul);
             v += mul * sign;
         } else if (v < r->vmax && sign > 0) {
-            mul = min(r->vmax - v, mul);
+            mul = minimum(r->vmax - v, mul);
             v += mul * sign;
         }
         if (r->value != v) {
@@ -134,7 +134,7 @@ static void ui_slider_every_100ms(ui_view_t* view) { // 100ms
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
             const int64_t range = (int64_t)r->vmax - r->vmin;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
-            ui_slider_inc_dec_value(r, sign, max(mul, 1));
+            ui_slider_inc_dec_value(r, sign, maximum(mul, 1));
         }
     }
 }

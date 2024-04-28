@@ -45,7 +45,7 @@ static int64_t heap_bytes(heap_t* h, void* a) {
 }
 
 static void heap_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     // TODO: allocate, reallocate deallocate, create, dispose
     traceln("TODO");
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }

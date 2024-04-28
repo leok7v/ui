@@ -121,7 +121,7 @@ static int32_t debug_verbosity_from_string(const char* s) {
 }
 
 static void debug_test(void) {
-    #ifdef RUNTIME_TESTS
+    #ifdef UT_TESTS
     // not clear what can be tested here
     if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
     #endif

@@ -645,7 +645,7 @@ void files_closedir(folder_t* folder) {
 
 #pragma push_macro("files_test_failed")
 
-#ifdef RUNTIME_TESTS
+#ifdef UT_TESTS
 
 #define files_test_failed " failed %s", str.error(runtime.err())
 
@@ -946,7 +946,7 @@ static void files_test(void) {
 
 static void files_test(void) {}
 
-#endif // RUNTIME_TESTS
+#endif // UT_TESTS
 
 #pragma pop_macro("files_test_failed")
 

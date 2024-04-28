@@ -20,7 +20,7 @@ static void measurements_horizontal(ui_view_t* view, int32_t gap) {
         if (!u->hidden) {
             if (seen) { view->w += gap; }
             view->w += u->w;
-            view->h = max(view->h, u->h);
+            view->h = maximum(view->h, u->h);
             seen = true;
         }
         c++;
@@ -37,7 +37,7 @@ static void measurements_vertical(ui_view_t* view, int32_t gap) {
         if (!u->hidden) {
             if (seen) { view->h += gap; }
             view->h += u->h;
-            view->w = max(view->w, u->w);
+            view->w = maximum(view->w, u->w);
             seen = true;
         }
         c++;
@@ -62,10 +62,10 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
             int32_t i = 0;
             for (ui_view_t** col = (*row)->children; *col != null; col++) {
                 if (!(*col)->hidden) {
-                    mxw[i] = max(mxw[i], (*col)->w);
-                    (*row)->h = max((*row)->h, (*col)->h);
+                    mxw[i] = maximum(mxw[i], (*col)->w);
+                    (*row)->h = maximum((*row)->h, (*col)->h);
 //                  traceln("[%d] row.baseline: %d col.baseline: %d ", i, (*row)->baseline, (*col)->baseline);
-                    (*row)->baseline = max((*row)->baseline, (*col)->baseline);
+                    (*row)->baseline = maximum((*row)->baseline, (*col)->baseline);
                 }
                 i++;
             }
@@ -91,7 +91,7 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
                     c->w = mxw[i++];
                     r->w += c->w;
                     if (cols_seen > 0) { r->w += gap_h; }
-                    view->w = max(view->w, r->w);
+                    view->w = maximum(view->w, r->w);
                     cols_seen++;
                 }
             }

@@ -18,6 +18,7 @@
     <ClInclude Include="..\inc\ut\config.h" />
     <ClInclude Include="..\inc\ut\debug.h" />
     <ClInclude Include="..\inc\ut\files.h" />
+    <ClInclude Include="..\inc\ut\generics.h" />
     <ClInclude Include="..\inc\ut\heap.h" />
     <ClInclude Include="..\inc\ut\loader.h" />
     <ClInclude Include="..\inc\ut\mem.h" />
@@ -45,6 +46,7 @@
     <ClCompile Include="..\src\ut\config.c" />
     <ClCompile Include="..\src\ut\debug.c" />
     <ClCompile Include="..\src\ut\files.c" />
+    <ClCompile Include="..\src\ut\generics.c" />
     <ClCompile Include="..\src\ut\heap.c" />
     <ClCompile Include="..\src\ut\loader.c" />
     <ClCompile Include="..\src\ut\mem.c" />
@@ -112,6 +114,9 @@
     <PostBuildEvent>
       <Message>amalgamate "$(ProjectName)" into single_file_lib\$(ProjectName)\$(ProjectName).h</Message>
     </PostBuildEvent>
+    <ClCompile>
+      <PreprocessorDefinitions>UT_TESTS;_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <ClCompile />
@@ -128,6 +133,9 @@
     <PostBuildEvent>
       <Message>amalgamate "$(ProjectName)" into single_file_lib\$(ProjectName)\$(ProjectName).h</Message>
     </PostBuildEvent>
+    <ClCompile>
+      <PreprocessorDefinitions>UT_TESTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
