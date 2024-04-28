@@ -12,6 +12,9 @@ typedef struct ui_view_s {
     double width;    // > 0 width of UI element in "em"s
     char text[2048];
     ui_view_t* parent;
+    ui_view_t* child; // first child, circular doubly linked list
+    ui_view_t* prev;  // left or top sibling
+    ui_view_t* next;  // right or top sibling
     int32_t x;
     int32_t y;
     int32_t w;
@@ -22,6 +25,7 @@ typedef struct ui_view_s {
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
     void (*notify)(ui_view_t* view, void* p); // for the application use
+    ui_view_t* (*add)(ui_view_t* view, ui_view_t* child);
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
@@ -78,6 +82,13 @@ typedef struct ui_view_s {
 void ui_view_init(ui_view_t* view);
 
 typedef struct ui_view_if {
+    void (*add)(ui_view_t* parent, ...); // arguments must be null terminated
+    void (*add_first)(ui_view_t* parent, ui_view_t* child);
+    void (*add_last)(ui_view_t* parent,  ui_view_t* child);
+    void (*add_after)(ui_view_t* child,  ui_view_t* after);
+    void (*add_before)(ui_view_t* child, ui_view_t* before);
+    void (*remove)(ui_view_t* view);
+void (*test)(void);
     bool (*inside)(ui_view_t* view, const ui_point_t* pt);
     void (*set_text)(ui_view_t* view, const char* text);
     void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()

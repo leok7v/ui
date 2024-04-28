@@ -468,6 +468,9 @@ typedef struct ui_view_s {
     double width;    // > 0 width of UI element in "em"s
     char text[2048];
     ui_view_t* parent;
+    ui_view_t* child; // first child, circular doubly linked list
+    ui_view_t* prev;  // left or top sibling
+    ui_view_t* next;  // right or top sibling
     int32_t x;
     int32_t y;
     int32_t w;
@@ -478,6 +481,7 @@ typedef struct ui_view_s {
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
     void (*notify)(ui_view_t* view, void* p); // for the application use
+    ui_view_t* (*add)(ui_view_t* view, ui_view_t* child);
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
@@ -534,6 +538,13 @@ typedef struct ui_view_s {
 void ui_view_init(ui_view_t* view);
 
 typedef struct ui_view_if {
+    void (*add)(ui_view_t* parent, ...); // arguments must be null terminated
+    void (*add_first)(ui_view_t* parent, ui_view_t* child);
+    void (*add_last)(ui_view_t* parent,  ui_view_t* child);
+    void (*add_after)(ui_view_t* child,  ui_view_t* after);
+    void (*add_before)(ui_view_t* child, ui_view_t* before);
+    void (*remove)(ui_view_t* view);
+void (*test)(void);
     bool (*inside)(ui_view_t* view, const ui_point_t* pt);
     void (*set_text)(ui_view_t* view, const char* text);
     void (*invalidate)(const ui_view_t* view); // more prone to delays than app.redraw()
@@ -4908,6 +4919,106 @@ void ui_slider_init(ui_slider_t* r, const char* label, double ems,
 
 #include "ut/ut.h"
 
+#define ui_view_for_each(v, it, code) do { \
+    ui_view_t* it = (v)->child;            \
+    if (it != null) {                      \
+        do {                               \
+            { code }                       \
+            it = it->next;                 \
+        } while (it != (v)->child);        \
+    }                                      \
+} while (0)
+
+static void ui_view_verify_tree(ui_view_t* p) {
+    ui_view_for_each(p, c, {
+        swear(c->parent == p);
+        swear(c == c->next->prev);
+        swear(c == c->prev->next);
+    });
+}
+
+static void ui_view_add(ui_view_t* p, ...) {
+    va_list vl;
+    va_start(vl, p);
+    ui_view_t* c = va_arg(vl, ui_view_t*);
+    while (c != null) {
+        swear(c->parent == null && c->prev == null && c->next == null);
+        ui_view.add_last(p, c);
+        c = va_arg(vl, ui_view_t*);
+    }
+    va_end(vl);
+}
+
+static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
+    swear(c->parent == null && c->prev == null && c->next == null);
+    c->parent = p;
+    if (p->child == null) {
+        c->prev = c;
+        c->next = c;
+    } else {
+        c->prev = p->child->prev;
+        c->next = p->child;
+        c->prev->next = c;
+        c->next->prev = c;
+    }
+    p->child = c;
+}
+
+static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
+    swear(c->parent == null && c->prev == null && c->next == null);
+    c->parent = p;
+    if (p->child == null) {
+        c->prev = c;
+        c->next = c;
+        p->child = c;
+    } else {
+        c->prev = p->child->prev;
+        c->next = p->child;
+        c->prev->next = c;
+        c->next->prev = c;
+    }
+}
+
+static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
+    swear(c->parent == null && c->prev == null && c->next == null);
+    not_null(a->parent);
+    c->parent = a->parent;
+    c->next = a->next;
+    c->prev = a;
+    a->next = c;
+    c->prev->next = c;
+    c->next->prev = c;
+}
+
+static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
+    swear(c->parent == null && c->prev == null && c->next == null);
+    not_null(b->parent);
+    c->parent = b->parent;
+    c->prev = b->prev;
+    c->next = b;
+    b->prev = c;
+    c->prev->next = c;
+    c->next->prev = c;
+}
+
+static void ui_view_remove(ui_view_t* c) {
+    not_null(c->parent);
+    not_null(c->parent->child);
+    if (c->prev == c) {
+        swear(c->next == c);
+        c->parent->child = null;
+    } else {
+        c->prev->next = c->next;
+        c->next->prev = c->prev;
+        if (c->parent->child == c) {
+            c->parent->child = c->next;
+        }
+    }
+    c->prev = null;
+    c->next = null;
+    c->parent = null;
+}
+
 static void ui_view_invalidate(const ui_view_t* view) {
     ui_rect_t rc = { view->x, view->y, view->w, view->h};
     rc.x -= view->em.x;
@@ -5251,14 +5362,85 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     return false;
 }
 
+static ui_view_t* ui_view_add_to(ui_view_t* p, ui_view_t* c) {
+    ui_view.add_last(p, c);
+    return p;
+}
+
 void ui_view_init(ui_view_t* view) {
+    view->add         = ui_view_add_to;
     view->measure     = ui_view_measure;
     view->hovering    = ui_view_hovering;
     view->hover_delay = 1.5;
     view->is_keyboard_shortcut = ui_view_is_keyboard_shortcut;
 }
 
+static void ui_view_test(void) {
+    ui_view_t p0 = {0}; ui_view_init(&p0);
+    ui_view_t c1 = {0}; ui_view_init(&c1);
+    ui_view_t c2 = {0}; ui_view_init(&c2);
+    ui_view_t c3 = {0}; ui_view_init(&c3);
+    ui_view_t c4 = {0}; ui_view_init(&c4);
+    ui_view_t g1 = {0}; ui_view_init(&g1);
+    ui_view_t g2 = {0}; ui_view_init(&g2);
+    ui_view_t g3 = {0}; ui_view_init(&g3);
+    ui_view_t g4 = {0}; ui_view_init(&g4);
+    // add grand children to children:
+    ui_view.add(&c2, &g1, &g2, null);       ui_view_verify_tree(&c2);
+    ui_view.add(&c3, &g3, &g4, null);       ui_view_verify_tree(&c3);
+    // single child
+    ui_view.add(&p0, &c1, null);            ui_view_verify_tree(&p0);
+    ui_view.remove(&c1);                    ui_view_verify_tree(&p0);
+    // two children
+    ui_view.add(&p0, &c1, &c2, null);       ui_view_verify_tree(&p0);
+    ui_view.remove(&c1);                    ui_view_verify_tree(&p0);
+    ui_view.remove(&c2);                    ui_view_verify_tree(&p0);
+    // three children
+    ui_view.add(&p0, &c1, &c2, &c3, null);  ui_view_verify_tree(&p0);
+    ui_view.remove(&c1);                    ui_view_verify_tree(&p0);
+    ui_view.remove(&c2);                    ui_view_verify_tree(&p0);
+    ui_view.remove(&c3);                    ui_view_verify_tree(&p0);
+    // add_first, add_last, add_before, add_after
+    ui_view.add_first(&p0, &c1);            ui_view_verify_tree(&p0);
+    swear(p0.child == &c1);
+    ui_view.add_last(&p0, &c4);             ui_view_verify_tree(&p0);
+    swear(p0.child == &c1 && p0.child->prev == &c4);
+    ui_view.add_after(&c2, &c1);            ui_view_verify_tree(&p0);
+    swear(p0.child == &c1);
+    swear(c1.next == &c2);
+    ui_view.add_before(&c3, &c4);           ui_view_verify_tree(&p0);
+    swear(p0.child == &c1);
+    swear(c4.prev == &c3);
+    // removing all
+    ui_view.remove(&c1);                    ui_view_verify_tree(&p0);
+    ui_view.remove(&c2);                    ui_view_verify_tree(&p0);
+    ui_view.remove(&c3);                    ui_view_verify_tree(&p0);
+    ui_view.remove(&c4);                    ui_view_verify_tree(&p0);
+    swear(p0.parent == null && p0.child == null && p0.prev == null && p0.next == null);
+    swear(c1.parent == null && c1.child == null && c1.prev == null && c1.next == null);
+    swear(c4.parent == null && c4.child == null && c4.prev == null && c4.next == null);
+    ui_view.remove(&g1);                    ui_view_verify_tree(&c2);
+    ui_view.remove(&g2);                    ui_view_verify_tree(&c2);
+    ui_view.remove(&g3);                    ui_view_verify_tree(&c3);
+    ui_view.remove(&g4);                    ui_view_verify_tree(&c3);
+    swear(c2.parent == null && c2.child == null && c2.prev == null && c2.next == null);
+    swear(c3.parent == null && c3.child == null && c3.prev == null && c3.next == null);
+    // much more intuitive (for a human) nested way to initialize tree:
+    p0.add(&p0, &c1)->
+       add(&c1, c2.add(&c2, &g1)->add(&c2, &g2))->
+       add(&c2, c3.add(&c3, &g3)->add(&c3, &g4))->
+       add(&c3, &c4);
+    ui_view_verify_tree(&p0);
+    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+}
+
 ui_view_if ui_view = {
+    .add                = ui_view_add,
+    .add_first          = ui_view_add_first,
+    .add_last           = ui_view_add_last,
+    .add_after          = ui_view_add_after,
+    .add_before         = ui_view_add_before,
+    .remove             = ui_view_remove,
     .inside             = ui_view_inside,
     .set_text           = ui_view_set_text,
     .invalidate         = ui_view_invalidate,
@@ -5287,8 +5469,13 @@ ui_view_if ui_view = {
     .context_menu       = ui_view_context_menu,
     .tap                = ui_view_tap,
     .press              = ui_view_press,
-    .message            = ui_view_message
+    .message            = ui_view_message,
+    .test               = ui_view_test
 };
+
+static_init(ui_view) {
+    ui_view.test();
+}
 
 #endif // ui_implementation
 
