@@ -192,10 +192,10 @@ fn(int32_t, word_break_at)(ui_edit_t* e, int32_t pn, int32_t rn,
         const int32_t glyphs_in_this_run = p->glyphs - gp;
         int32_t* g2b = &p->g2b[gp];
         // 4 is maximum number of bytes in a UTF-8 sequence
-        int32_t gc = minimum(4, glyphs_in_this_run);
+        int32_t gc = ut_min(4, glyphs_in_this_run);
         int32_t w = ns(text_width)(e, text, g2b[gc] - bp);
         while (gc < glyphs_in_this_run && w < width) {
-            gc = minimum(gc * 4, glyphs_in_this_run);
+            gc = ut_min(gc * 4, glyphs_in_this_run);
             w = ns(text_width)(e, text, g2b[gc] - bp);
         }
         if (w < width) {
@@ -345,7 +345,7 @@ fn(void, create_caret)(ui_edit_t* e) {
     fatal_if(e->focused);
     assert(app.is_active());
     assert(app.has_focus());
-    int32_t caret_width = minimum(2, maximum(1, app.dpi.monitor_effective / 100));
+    int32_t caret_width = ut_min(2, ut_max(1, app.dpi.monitor_effective / 100));
 //  traceln("%d,%d", caret_width, e->view.em.y);
     app.create_caret(caret_width, e->view.em.y);
     e->focused = true; // means caret was created
@@ -550,7 +550,7 @@ fn(ui_edit_pg_t, xy_to_pg)(ui_edit_t* e, int32_t x, int32_t y) {
                 pg.pn = i;
                 if (x >= w) {
                     const int32_t last_run = j == runs - 1;
-                    pg.gp = r->gp + maximum(0, r->glyphs - 1 + last_run);
+                    pg.gp = r->gp + ut_max(0, r->glyphs - 1 + last_run);
                 } else {
                     pg.gp = r->gp + ns(glyph_at_x)(e, i, j, x);
                     if (pg.gp < r->glyphs - 1) {
@@ -587,8 +587,8 @@ fn(void, paint_selection)(ui_edit_t* e, const ui_edit_run_t* r,
     uint64_t s1 = ns(uint64)(pn, c0);
     uint64_t e1 = ns(uint64)(pn, c1);
     if (s0 <= e1 && s1 <= e0) {
-        uint64_t start = maximum(s0, s1) - c0;
-        uint64_t end = minimum(e0, e1) - c0;
+        uint64_t start = ut_max(s0, s1) - c0;
+        uint64_t end = ut_min(e0, e1) - c0;
         if (start < end) {
             int32_t fro = (int32_t)start;
             int32_t to  = (int32_t)end;
@@ -663,7 +663,7 @@ fn(void, scroll_down)(ui_edit_t* e, int32_t run_count) {
     assert(0 < run_count, "does it make sense to have 0 scroll?");
     while (run_count > 0 && (e->scroll.pn > 0 || e->scroll.rn > 0)) {
         int32_t runs = ns(paragraph_run_count)(e, e->scroll.pn);
-        e->scroll.rn = minimum(e->scroll.rn, runs - 1);
+        e->scroll.rn = ut_min(e->scroll.rn, runs - 1);
         if (e->scroll.rn == 0 && e->scroll.pn > 0) {
             e->scroll.pn--;
             e->scroll.rn = ns(paragraph_run_count)(e, e->scroll.pn) - 1;
@@ -1131,7 +1131,7 @@ fn(void, key_end)(ui_edit_t* e) {
 }
 
 fn(void, key_pageup)(ui_edit_t* e) {
-    int32_t n = maximum(1, e->visible_runs - 1);
+    int32_t n = ut_max(1, e->visible_runs - 1);
     ui_edit_pg_t scr = ns(scroll_pg)(e);
     ui_edit_pg_t bof = {.pn = 0, .gp = 0};
     int32_t m = ns(runs_between)(e, bof, scr);
@@ -1149,7 +1149,7 @@ fn(void, key_pageup)(ui_edit_t* e) {
 }
 
 fn(void, key_pagedw)(ui_edit_t* e) {
-    int32_t n = maximum(1, e->visible_runs - 1);
+    int32_t n = ut_max(1, e->visible_runs - 1);
     ui_edit_pg_t scr = ns(scroll_pg)(e);
     ui_edit_pg_t eof = {.pn = e->paragraphs, .gp = 0};
     int32_t m = ns(runs_between)(e, scr, eof);
@@ -1266,9 +1266,9 @@ fn(void, character)(ui_view_t* unused(view), const char* utf8) {
 fn(void, select_word)(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_pg_t p = ns(xy_to_pg)(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        if (p.pn > e->paragraphs) { p.pn = maximum(0, e->paragraphs); }
+        if (p.pn > e->paragraphs) { p.pn = ut_max(0, e->paragraphs); }
         int32_t glyphs = ns(glyphs_in_paragraph)(e, p.pn);
-        if (p.gp > glyphs) { p.gp = maximum(0, glyphs); }
+        if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         if (p.pn == e->paragraphs || glyphs == 0) {
             // last paragraph is empty - nothing to select on fp64_t click
         } else {
@@ -1311,9 +1311,9 @@ fn(void, select_word)(ui_edit_t* e, int32_t x, int32_t y) {
 fn(void, select_paragraph)(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_pg_t p = ns(xy_to_pg)(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        if (p.pn > e->paragraphs) { p.pn = maximum(0, e->paragraphs); }
+        if (p.pn > e->paragraphs) { p.pn = ut_max(0, e->paragraphs); }
         int32_t glyphs = ns(glyphs_in_paragraph)(e, p.pn);
-        if (p.gp > glyphs) { p.gp = maximum(0, glyphs); }
+        if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         if (p.pn == e->paragraphs || glyphs == 0) {
             // last paragraph is empty - nothing to select on fp64_t click
         } else if (p.pn == e->selection[0].pn &&
@@ -1343,9 +1343,9 @@ fn(void, double_click)(ui_edit_t* e, int32_t x, int32_t y) {
 fn(void, click)(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_pg_t p = ns(xy_to_pg)(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        if (p.pn > e->paragraphs) { p.pn = maximum(0, e->paragraphs); }
+        if (p.pn > e->paragraphs) { p.pn = ut_max(0, e->paragraphs); }
         int32_t glyphs = ns(glyphs_in_paragraph)(e, p.pn);
-        if (p.gp > glyphs) { p.gp = maximum(0, glyphs); }
+        if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         ns(move_caret)(e, p);
     }
 }
@@ -1540,7 +1540,7 @@ fn(int32_t, copy)(ui_edit_t* e, char* text, int32_t* bytes) {
     int32_t n = 0; // bytes between from..to
     ns(op)(e, false, from, to, null, &n);
     if (text != null) {
-        int32_t m = minimum(n, *bytes);
+        int32_t m = ut_min(n, *bytes);
         enum { error_insufficient_buffer = 122 }; //  ERROR_INSUFFICIENT_BUFFER
         if (m < n) { r = error_insufficient_buffer; }
         ns(op)(e, false, from, to, text, &m);
@@ -1624,7 +1624,7 @@ fn(void, measure)(ui_view_t* view) { // bottom up
     if (view->w < view->em.x * 4) { view->w = view->em.x * 4; }
     if (view->h < view->em.y) { view->h = view->em.y; }
     if (e->sle) { // for SLE if more than one run resize vertical:
-        int32_t runs = maximum(ns(paragraph_run_count)(e, 0), 1);
+        int32_t runs = ut_max(ns(paragraph_run_count)(e, 0), 1);
         if (view->h < view->em.y * runs) { view->h = view->em.y * runs; }
     }
 }
@@ -1648,8 +1648,8 @@ fn(void, layout)(ui_view_t* view) { // top down
     ns(dispose_paragraphs_layout)(e);
     int32_t sle_height = 0;
     if (e->sle) {
-        int32_t runs = maximum(ns(paragraph_run_count)(e, 0), 1);
-        sle_height = minimum(e->view.em.y * runs, view->h);
+        int32_t runs = ut_max(ns(paragraph_run_count)(e, 0), 1);
+        sle_height = ut_min(e->view.em.y * runs, view->h);
     }
     e->top    = !e->sle ? 0 : (view->h - sle_height) / 2;
     e->bottom = !e->sle ? view->h : e->top + sle_height;

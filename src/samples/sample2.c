@@ -29,7 +29,7 @@ static volatile time_stats_t ts[2];
 static ui_point_t points[N]; // graph polyline coordinates
 
 static void stats(volatile time_stats_t* t) {
-    int n = minimum(N - 1, t->samples);
+    int n = ut_min(N - 1, t->samples);
     t->min_dt = 1.0; // 1 second is 100x of 10ms
     t->max_dt = 0;
     int j = 0;
@@ -38,14 +38,14 @@ static void stats(volatile time_stats_t* t) {
         int p0 = (t->pos - i - 1 + N) % N;
         int p1 = (p0 - 1 + N) % N;
         t->dt[j] = t->time[p0] - (t->time[p1] + 0.01); // expected 10ms
-        t->min_dt = minimum(t->dt[j], t->min_dt);
-        t->max_dt = maximum(t->dt[j], t->max_dt);
+        t->min_dt = ut_min(t->dt[j], t->min_dt);
+        t->max_dt = ut_max(t->dt[j], t->max_dt);
         sum += t->time[p0] - t->time[p1];
         j++;
     }
     t->avg = sum / (n - 1);
     j = 0;
-    t->spread = maximum(fabs(t->max_dt), fabs(t->min_dt));
+    t->spread = ut_max(fabs(t->max_dt), fabs(t->min_dt));
 }
 
 static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y) {
@@ -58,8 +58,8 @@ static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y
     gdi.line(app.crc.w, y);
     gdi.set_colored_pen(c);
     if (ts[0].samples > 2 && ts[1].samples > 2) {
-        const fp64_t spread = maximum(ts[0].spread, ts[0].spread);
-        int n = minimum(N - 1, t->samples);
+        const fp64_t spread = ut_max(ts[0].spread, ts[0].spread);
+        int n = ut_min(N - 1, t->samples);
         int j = 0;
         for (int i = 0; i < n - 1; i++) {
             fp64_t v = t->dt[j] / spread;

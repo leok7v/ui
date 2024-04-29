@@ -27,7 +27,7 @@ typedef struct image_s {
     void* pixels;
 } image_t;
 
-typedef struct dpi_s { // maximum(dpi_x, dpi_y)
+typedef struct dpi_s { // max(dpi_x, dpi_y)
     int32_t system;  // system dpi
     int32_t process; // process dpi
     // 15" diagonal monitor 3840x2160 175% scaled

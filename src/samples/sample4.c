@@ -59,8 +59,8 @@ static void paint(ui_view_t* view) {
     gdi.set_brush_color(colors.black);
     gdi.fill(0, 0, view->w, view->h);
     if (image[1].w > 0 && image[1].h > 0) {
-        int w = minimum(view->w, image[1].w);
-        int h = minimum(view->h, image[1].h);
+        int w = ut_min(view->w, image[1].w);
+        int h = ut_min(view->h, image[1].h);
         int x = (view->w - w) / 2;
         int y = (view->h - h) / 2;
         gdi.set_clip(0, 0, view->w, view->h);

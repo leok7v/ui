@@ -66,7 +66,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
                         str.utf16_utf8(decoded, utf16);
-                        int32_t n = minimum(*bytes, utf8_bytes);
+                        int32_t n = ut_min(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, n);
                         free(decoded);
                         if (n < utf8_bytes) {

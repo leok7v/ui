@@ -216,7 +216,7 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
 //          threads_ns2ms(cur_ns));
 //  }
     // note that maximum resolution is actually < minimum
-    nanoseconds = maximum(max_ns, nanoseconds);
+    nanoseconds = ut_max(max_ns, nanoseconds);
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
     fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
     fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);

@@ -68,8 +68,8 @@ static void paint(ui_view_t* view) {
     gdi.set_brush(gdi.brush_color);
     gdi.set_brush_color(colors.black);
     gdi.fill(0, 0, view->w, view->h);
-    int32_t w = minimum(view->w, background.w);
-    int32_t h = minimum(view->h, background.h);
+    int32_t w = ut_min(view->w, background.w);
+    int32_t h = ut_min(view->h, background.h);
     int32_t x = (view->w - w) / 2;
     int32_t y = (view->h - h) / 2;
     gdi.set_clip(0, 0, view->w, view->h);

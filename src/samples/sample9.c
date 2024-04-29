@@ -153,15 +153,15 @@ static void panel_paint(ui_view_t* view) {
         assert(view == &panel_center);
         gdi.line(view->x, view->y + view->h);
     }
-    int32_t x = view->x + panel_border + maximum(1, em.x / 8);
-    int32_t y = view->y + panel_border + maximum(1, em.y / 4);
+    int32_t x = view->x + panel_border + ut_max(1, em.x / 8);
+    int32_t y = view->y + panel_border + ut_max(1, em.y / 4);
     ui_pen_t s = gdi.set_colored_pen(view->color);
     gdi.set_brush(gdi.brush_hollow);
-    gdi.rounded(x, y, em.x * 12, em.y, maximum(1, em.y / 4), maximum(1, em.y / 4));
+    gdi.rounded(x, y, em.x * 12, em.y, ut_max(1, em.y / 4), ut_max(1, em.y / 4));
     gdi.set_pen(s);
     ui_color_t color = gdi.set_text_color(view->color);
-    gdi.x = view->x + panel_border + maximum(1, em.x / 2);
-    gdi.y = view->y + panel_border + maximum(1, em.y / 4);
+    gdi.x = view->x + panel_border + ut_max(1, em.x / 2);
+    gdi.y = view->y + panel_border + ut_max(1, em.y / 4);
     gdi.text("%d,%d %dx%d %s", view->x, view->y, view->w, view->h, view->text);
     gdi.set_text_color(color);
     gdi.set_clip(0, 0, 0, 0);
@@ -177,7 +177,7 @@ static void right_layout(ui_view_t* view) {
             ui_view_t* ch = *it;
             ch->x = x;
             ch->y = y;
-            y += ch->h + maximum(1, em.y / 2);
+            y += ch->h + ut_max(1, em.y / 2);
         }
     }
 }
@@ -203,7 +203,7 @@ static void right_paint(ui_view_t* view) {
     gdi.println(app.is_full_screen ? nls.str("Restore from &Full Screen") :
         nls.str("&Full Screen"));
     gdi.x = text_multiline.view.x;
-    gdi.y = text_multiline.view.y + text_multiline.view.h + maximum(1, em.y / 4);
+    gdi.y = text_multiline.view.y + text_multiline.view.h + ut_max(1, em.y / 4);
     gdi.textln(nls.str("Proportional"));
     gdi.println(nls.str("Monospaced"));
     ui_font_t font = gdi.set_font(app.fonts.H1);
@@ -262,8 +262,8 @@ static void measure(ui_view_t* view) {
     ui_point_t em_mono = gdi.get_em(app.fonts.mono);
     em = gdi.get_em(app.fonts.regular);
     view->em = em;
-    panel_border = maximum(1, em_mono.y / 4);
-    frame_border = maximum(1, em_mono.y / 8);
+    panel_border = ut_max(1, em_mono.y / 4);
+    frame_border = ut_max(1, em_mono.y / 8);
     assert(panel_border > 0 && frame_border > 0);
     const int32_t w = app.width;
     const int32_t h = app.height;
@@ -354,7 +354,7 @@ static void character(ui_view_t* view, const char* utf8) {
     } else if (ch == '+' || ch == '=') {
         zoom /= 2; refresh();
     } else if (ch == '-' || ch == '_') {
-        zoom = minimum(zoom * 2, 1.0); refresh();
+        zoom = ut_min(zoom * 2, 1.0); refresh();
     } else if (ch == '<' || ch == ',') {
         mouse_wheel(view, +image.w / 8, 0);
     } else if (ch == '>' || ch == '.') {
@@ -476,7 +476,7 @@ static void refresh(void) {
     zoomer.value = 0;
     fp64_t z = 1;
     while (z != zoom) { zoomer.value++; z /= 2; }
-    zoomer.value = minimum(zoomer.value, zoomer.vmax);
+    zoomer.value = ut_min(zoomer.value, zoomer.vmax);
     mandelbrot(&image);
     app.redraw();
 }

@@ -17,10 +17,10 @@ bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
 bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
                                      const ui_rect_t* r1) {
     ui_rect_t r = {0};
-    r.x = maximum(r0->x, r1->x);  // Maximum of left edges
-    r.y = maximum(r0->y, r1->y);  // Maximum of top edges
-    r.w = minimum(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
-    r.h = minimum(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
+    r.x = ut_max(r0->x, r1->x);  // Maximum of left edges
+    r.y = ut_max(r0->y, r1->y);  // Maximum of top edges
+    r.w = ut_min(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
+    r.h = ut_min(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
     bool b = r.w > 0 && r.h > 0;
     if (!b) {
         r.w = 0;

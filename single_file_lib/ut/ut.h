@@ -31,21 +31,19 @@ typedef double fp64_t;
     #define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #endif
 
-// min()/max() macro is a highly debated story you may consider
-// using minimum()/maximum() instead with steady understanding
-// that both (a, b) arguments are evaluating twice.
+// min()/max() macro is a highly debated story because
+// one of the arguments of (a, b) is evaluated twice (which
+// is bad if it has side effect).
+// Consider using ut_min()/ut_max() generic implementation
+// instead.
 
 #ifndef max
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
-// #define maximum(a,b) (((a) > (b)) ? (a) : (b)) // preferred
-
 #ifndef min
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 #endif
-
-// #define minimum(a,b) (((a) < (b)) ? (a) : (b)) // preferred
 
 // see ut_generics.h/.c for alternative to definining minimum/maximum
 // as C11 generics functions. For now experimental
@@ -425,71 +423,71 @@ extern ut_files_if ut_files;
 // Type safety comes with the cost of complexity in puritan
 // or stoic language like C:
 
-static inline int8_t   ut_maximum_int8(int8_t x, int8_t y)       { return x > y ? x : y; }
-static inline int16_t  ut_maximum_int16(int16_t x, int16_t y)    { return x > y ? x : y; }
-static inline int32_t  ut_maximum_int32(int32_t x, int32_t y)    { return x > y ? x : y; }
-static inline int64_t  ut_maximum_int64(int64_t x, int64_t y)    { return x > y ? x : y; }
-static inline uint8_t  ut_maximum_uint8(uint8_t x, uint8_t y)    { return x > y ? x : y; }
-static inline uint16_t ut_maximum_uint16(uint16_t x, uint16_t y) { return x > y ? x : y; }
-static inline uint32_t ut_maximum_uint32(uint32_t x, uint32_t y) { return x > y ? x : y; }
-static inline uint64_t ut_maximum_uint64(uint64_t x, uint64_t y) { return x > y ? x : y; }
-static inline fp32_t   ut_maximum_fp32(fp32_t x, fp32_t y)       { return x > y ? x : y; }
-static inline fp64_t   ut_maximum_fp64(fp64_t x, fp64_t y)       { return x > y ? x : y; }
+static inline int8_t   ut_max_int8(int8_t x, int8_t y)       { return x > y ? x : y; }
+static inline int16_t  ut_max_int16(int16_t x, int16_t y)    { return x > y ? x : y; }
+static inline int32_t  ut_max_int32(int32_t x, int32_t y)    { return x > y ? x : y; }
+static inline int64_t  ut_max_int64(int64_t x, int64_t y)    { return x > y ? x : y; }
+static inline uint8_t  ut_max_uint8(uint8_t x, uint8_t y)    { return x > y ? x : y; }
+static inline uint16_t ut_max_uint16(uint16_t x, uint16_t y) { return x > y ? x : y; }
+static inline uint32_t ut_max_uint32(uint32_t x, uint32_t y) { return x > y ? x : y; }
+static inline uint64_t ut_max_uint64(uint64_t x, uint64_t y) { return x > y ? x : y; }
+static inline fp32_t   ut_max_fp32(fp32_t x, fp32_t y)       { return x > y ? x : y; }
+static inline fp64_t   ut_max_fp64(fp64_t x, fp64_t y)       { return x > y ? x : y; }
 
 // MS cl.exe version 19.39.33523 has issues with "long":
 // does not pick up int32_t/uint32_t types for "long" and "unsigned long"
 // need to handle long / unsigned long separately:
 
-static inline long          ut_maximum_long(long x, long y)                    { return x > y ? x : y; }
-static inline unsigned long ut_maximum_ulong(unsigned long x, unsigned long y) { return x > y ? x : y; }
+static inline long          ut_max_long(long x, long y)                    { return x > y ? x : y; }
+static inline unsigned long ut_max_ulong(unsigned long x, unsigned long y) { return x > y ? x : y; }
 
-static inline int8_t   ut_minimum_int8(int8_t x, int8_t y)       { return x < y ? x : y; }
-static inline int16_t  ut_minimum_int16(int16_t x, int16_t y)    { return x < y ? x : y; }
-static inline int32_t  ut_minimum_int32(int32_t x, int32_t y)    { return x < y ? x : y; }
-static inline int64_t  ut_minimum_int64(int64_t x, int64_t y)    { return x < y ? x : y; }
-static inline uint8_t  ut_minimum_uint8(uint8_t x, uint8_t y)    { return x < y ? x : y; }
-static inline uint16_t ut_minimum_uint16(uint16_t x, uint16_t y) { return x < y ? x : y; }
-static inline uint32_t ut_minimum_uint32(uint32_t x, uint32_t y) { return x < y ? x : y; }
-static inline uint64_t ut_minimum_uint64(uint64_t x, uint64_t y) { return x < y ? x : y; }
-static inline fp32_t   ut_minimum_fp32(fp32_t x, fp32_t y)       { return x < y ? x : y; }
-static inline fp64_t   ut_minimum_fp64(fp64_t x, fp64_t y)       { return x < y ? x : y; }
+static inline int8_t   ut_min_int8(int8_t x, int8_t y)       { return x < y ? x : y; }
+static inline int16_t  ut_min_int16(int16_t x, int16_t y)    { return x < y ? x : y; }
+static inline int32_t  ut_min_int32(int32_t x, int32_t y)    { return x < y ? x : y; }
+static inline int64_t  ut_min_int64(int64_t x, int64_t y)    { return x < y ? x : y; }
+static inline uint8_t  ut_min_uint8(uint8_t x, uint8_t y)    { return x < y ? x : y; }
+static inline uint16_t ut_min_uint16(uint16_t x, uint16_t y) { return x < y ? x : y; }
+static inline uint32_t ut_min_uint32(uint32_t x, uint32_t y) { return x < y ? x : y; }
+static inline uint64_t ut_min_uint64(uint64_t x, uint64_t y) { return x < y ? x : y; }
+static inline fp32_t   ut_min_fp32(fp32_t x, fp32_t y)       { return x < y ? x : y; }
+static inline fp64_t   ut_min_fp64(fp64_t x, fp64_t y)       { return x < y ? x : y; }
 
-static inline long          ut_minimum_long(long x, long y)                    { return x < y ? x : y; }
-static inline unsigned long ut_minimum_ulong(unsigned long x, unsigned long y) { return x < y ? x : y; }
+static inline long          ut_min_long(long x, long y)                    { return x < y ? x : y; }
+static inline unsigned long ut_min_ulong(unsigned long x, unsigned long y) { return x < y ? x : y; }
 
 
-static inline void     ut_minimum_undefined(void) { }
-static inline void     ut_maximum_undefined(void) { }
+static inline void ut_min_undefined(void) { }
+static inline void ut_max_undefined(void) { }
 
-#define maximum(X, Y) _Generic((X) + (Y), \
-    int8_t:   ut_maximum_int8,   \
-    int16_t:  ut_maximum_int16,  \
-    int32_t:  ut_maximum_int32,  \
-    int64_t:  ut_maximum_int64,  \
-    uint8_t:  ut_maximum_uint8,  \
-    uint16_t: ut_maximum_uint16, \
-    uint32_t: ut_maximum_uint32, \
-    uint64_t: ut_maximum_uint64, \
-    fp32_t:   ut_maximum_fp32,   \
-    fp64_t:   ut_maximum_fp64,   \
-    long:     ut_maximum_long,   \
-    unsigned long: ut_maximum_ulong, \
-    default:  ut_maximum_undefined)(X, Y)
+#define ut_max(X, Y) _Generic((X) + (Y), \
+    int8_t:   ut_max_int8,   \
+    int16_t:  ut_max_int16,  \
+    int32_t:  ut_max_int32,  \
+    int64_t:  ut_max_int64,  \
+    uint8_t:  ut_max_uint8,  \
+    uint16_t: ut_max_uint16, \
+    uint32_t: ut_max_uint32, \
+    uint64_t: ut_max_uint64, \
+    fp32_t:   ut_max_fp32,   \
+    fp64_t:   ut_max_fp64,   \
+    long:     ut_max_long,   \
+    unsigned long: ut_max_ulong, \
+    default:  ut_max_undefined)(X, Y)
 
-#define minimum(X, Y) _Generic((X) + (Y), \
-    int8_t:   ut_minimum_int8,   \
-    int16_t:  ut_minimum_int16,  \
-    int32_t:  ut_minimum_int32,  \
-    int64_t:  ut_minimum_int64,  \
-    uint8_t:  ut_minimum_uint8,  \
-    uint16_t: ut_minimum_uint16, \
-    uint32_t: ut_minimum_uint32, \
-    uint64_t: ut_minimum_uint64, \
-    fp32_t:   ut_minimum_fp32,   \
-    fp64_t:   ut_minimum_fp64,   \
-    long:     ut_minimum_long,   \
-    unsigned long: ut_minimum_ulong, \
-    default:  ut_minimum_undefined)(X, Y)
+#define ut_min(X, Y) _Generic((X) + (Y), \
+    int8_t:   ut_min_int8,   \
+    int16_t:  ut_min_int16,  \
+    int32_t:  ut_min_int32,  \
+    int64_t:  ut_min_int64,  \
+    uint8_t:  ut_min_uint8,  \
+    uint16_t: ut_min_uint16, \
+    uint32_t: ut_min_uint32, \
+    uint64_t: ut_min_uint64, \
+    fp32_t:   ut_min_fp32,   \
+    fp64_t:   ut_min_fp64,   \
+    long:     ut_min_long,   \
+    unsigned long: ut_min_ulong, \
+    default:  ut_min_undefined)(X, Y)
 
 
 // The expression (X) + (Y) is used in _Generic primarily for type promotion
@@ -1723,7 +1721,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
                         str.utf16_utf8(decoded, utf16);
-                        int32_t n = minimum(*bytes, utf8_bytes);
+                        int32_t n = ut_min(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, n);
                         free(decoded);
                         if (n < utf8_bytes) {
@@ -3231,60 +3229,60 @@ ut_files_if ut_files = {
 static void ut_generics_test(void) {
     {
         int8_t a = 10, b = 20;
-        swear(maximum(a++, b++) == 20);
-        swear(minimum(a++, b++) == 11);
+        swear(ut_max(a++, b++) == 20);
+        swear(ut_min(a++, b++) == 11);
     }
     {
         int32_t a = 10, b = 20;
-        swear(maximum(a++, b++) == 20);
-        swear(minimum(a++, b++) == 11);
+        swear(ut_max(a++, b++) == 20);
+        swear(ut_min(a++, b++) == 11);
     }
     {
         fp32_t a = 1.1f, b = 2.2f;
-        swear(maximum(a, b) == b);
-        swear(minimum(a, b) == a);
+        swear(ut_max(a, b) == b);
+        swear(ut_min(a, b) == a);
     }
     {
         fp64_t a = 1.1, b = 2.2;
-        swear(maximum(a, b) == b);
-        swear(minimum(a, b) == a);
+        swear(ut_max(a, b) == b);
+        swear(ut_min(a, b) == a);
     }
     {
         fp32_t a = 1.1f, b = 2.2f;
-        swear(maximum(a, b) == b);
-        swear(minimum(a, b) == a);
+        swear(ut_max(a, b) == b);
+        swear(ut_min(a, b) == a);
     }
     {
         fp64_t a = 1.1, b = 2.2;
-        swear(maximum(a, b) == b);
-        swear(minimum(a, b) == a);
+        swear(ut_max(a, b) == b);
+        swear(ut_min(a, b) == a);
     }
     {
         char a = 1, b = 2;
-        swear(maximum(a, b) == b);
-        swear(minimum(a, b) == a);
+        swear(ut_max(a, b) == b);
+        swear(ut_min(a, b) == a);
     }
     {
         unsigned char a = 1, b = 2;
-        swear(maximum(a, b) == b);
-        swear(minimum(a, b) == a);
+        swear(ut_max(a, b) == b);
+        swear(ut_min(a, b) == a);
     }
     // MS cl.exe version 19.39.33523 has issues with "long":
     // does not pick up int32_t/uint32_t types for "long" and "unsigned long"
     {
         long int a = 1, b = 2;
-        swear(maximum(a, b) == b);
-        swear(minimum(a, b) == a);
+        swear(ut_max(a, b) == b);
+        swear(ut_min(a, b) == a);
     }
     {
         unsigned long a = 1, b = 2;
-        swear(maximum(a, b) == b);
-        swear(minimum(a, b) == a);
+        swear(ut_max(a, b) == b);
+        swear(ut_min(a, b) == a);
     }
     {
         long long a = 1, b = 2;
-        swear(maximum(a, b) == b);
-        swear(minimum(a, b) == a);
+        swear(ut_max(a, b) == b);
+        swear(ut_min(a, b) == a);
     }
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
@@ -4893,7 +4891,7 @@ static int32_t str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_
     } else {
         if (n1 < 0) { n1 = str.length(s1); }
         if (n2 < 0) { n2 = str.length(s2); }
-        int32_t n = minimum(n1, n2);
+        int32_t n = ut_min(n1, n2);
         for (int32_t i = 0; i < n; i++) {
             int32_t r = tolower(s1[i]) - tolower(s2[i]);
             if (r != 0) { return r; }
@@ -5046,7 +5044,7 @@ static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,
     swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
-    int64_t transfer = minimum(bytes, s->bytes_read - s->pos_read);
+    int64_t transfer = ut_min(bytes, s->bytes_read - s->pos_read);
     memcpy(data, (uint8_t*)s->data_read + s->pos_read, transfer);
     s->pos_read += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -5061,7 +5059,7 @@ static errno_t streams_memory_write(stream_if* stream, const void* data, int64_t
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
     bool overflow = s->bytes_write - s->pos_write <= 0;
-    int64_t transfer = minimum(bytes, s->bytes_write - s->pos_write);
+    int64_t transfer = ut_min(bytes, s->bytes_write - s->pos_write);
     memcpy((uint8_t*)s->data_write + s->pos_write, data, transfer);
     s->pos_write += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -5363,7 +5361,7 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
 //          threads_ns2ms(cur_ns));
 //  }
     // note that maximum resolution is actually < minimum
-    nanoseconds = maximum(max_ns, nanoseconds);
+    nanoseconds = ut_max(max_ns, nanoseconds);
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
     fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
     fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);

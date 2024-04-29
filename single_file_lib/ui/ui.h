@@ -31,21 +31,19 @@ typedef double fp64_t;
     #define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #endif
 
-// min()/max() macro is a highly debated story you may consider
-// using minimum()/maximum() instead with steady understanding
-// that both (a, b) arguments are evaluating twice.
+// min()/max() macro is a highly debated story because
+// one of the arguments of (a, b) is evaluated twice (which
+// is bad if it has side effect).
+// Consider using ut_min()/ut_max() generic implementation
+// instead.
 
 #ifndef max
 #define max(a,b) (((a) > (b)) ? (a) : (b))
 #endif
 
-// #define maximum(a,b) (((a) > (b)) ? (a) : (b)) // preferred
-
 #ifndef min
 #define min(a,b) (((a) < (b)) ? (a) : (b))
 #endif
-
-// #define minimum(a,b) (((a) < (b)) ? (a) : (b)) // preferred
 
 // see ut_generics.h/.c for alternative to definining minimum/maximum
 // as C11 generics functions. For now experimental
@@ -130,7 +128,7 @@ typedef struct image_s {
     void* pixels;
 } image_t;
 
-typedef struct dpi_s { // maximum(dpi_x, dpi_y)
+typedef struct dpi_s { // max(dpi_x, dpi_y)
     int32_t system;  // system dpi
     int32_t process; // process dpi
     // 15" diagonal monitor 3840x2160 175% scaled
@@ -1057,11 +1055,11 @@ static void app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
             // RAW_DPI 283 284 (horizontal, vertical)
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
-                    dpi->monitor_effective = maximum(dpi_x, dpi_y); break;
+                    dpi->monitor_effective = ut_max(dpi_x, dpi_y); break;
                 case MDT_ANGULAR_DPI:
-                    dpi->monitor_angular = maximum(dpi_x, dpi_y); break;
+                    dpi->monitor_angular = ut_max(dpi_x, dpi_y); break;
                 case MDT_RAW_DPI:
-                    dpi->monitor_raw = maximum(dpi_x, dpi_y); break;
+                    dpi->monitor_raw = ut_max(dpi_x, dpi_y); break;
                 default: assert(false);
             }
         }
@@ -1193,14 +1191,14 @@ static BOOL CALLBACK app_monitor_enum_proc(HMONITOR monitor,
     MONITORINFOEX mi = { .cbSize = sizeof(MONITORINFOEX) };
     fatal_if_false(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
-    const int32_t min_x = minimum(mi.rcMonitor.left, mi.rcMonitor.right);
-    const int32_t min_y = minimum(mi.rcMonitor.top,  mi.rcMonitor.bottom);
-    const int32_t max_w = maximum(mi.rcMonitor.left, mi.rcMonitor.right);
-    const int32_t max_h = maximum(mi.rcMonitor.top,  mi.rcMonitor.bottom);
-    space->x = minimum(space->x, min_x);
-    space->y = minimum(space->y, min_y);
-    space->w = maximum(space->w, max_w);
-    space->h = maximum(space->h, max_h);
+    const int32_t min_x = ut_min(mi.rcMonitor.left, mi.rcMonitor.right);
+    const int32_t min_y = ut_min(mi.rcMonitor.top,  mi.rcMonitor.bottom);
+    const int32_t max_w = ut_max(mi.rcMonitor.left, mi.rcMonitor.right);
+    const int32_t max_h = ut_max(mi.rcMonitor.top,  mi.rcMonitor.bottom);
+    space->x = ut_min(space->x, min_x);
+    space->y = ut_min(space->y, min_y);
+    space->w = ut_max(space->w, max_w);
+    space->h = ut_max(space->h, max_h);
     return true; // keep going
 }
 
@@ -1292,11 +1290,11 @@ static void app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* wrc
     // Check if window rect is inside monitor rect
     if (!app_is_fully_inside(wrc, mrc)) {
         // Move window into monitor rect
-        wrc->x = maximum(mrc->x, minimum(mrc->x + mrc->w - wrc->w, wrc->x));
-        wrc->y = maximum(mrc->y, minimum(mrc->y + mrc->h - wrc->h, wrc->y));
+        wrc->x = ut_max(mrc->x, ut_min(mrc->x + mrc->w - wrc->w, wrc->x));
+        wrc->y = ut_max(mrc->y, ut_min(mrc->y + mrc->h - wrc->h, wrc->y));
         // Adjust size to fit into monitor rect
-        wrc->w = minimum(wrc->w, mrc->w);
-        wrc->h = minimum(wrc->h, mrc->h);
+        wrc->w = ut_min(wrc->w, mrc->w);
+        wrc->h = ut_min(wrc->h, mrc->h);
     }
 }
 
@@ -1470,8 +1468,8 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
         mmi->ptMaxTrackSize.y = max_h;
     } else {
         // clip max_w and max_h to monitor work area
-        mmi->ptMaxTrackSize.x = minimum(max_w, wa->w);
-        mmi->ptMaxTrackSize.y = minimum(max_h, wa->h);
+        mmi->ptMaxTrackSize.x = ut_min(max_w, wa->w);
+        mmi->ptMaxTrackSize.y = ut_min(max_h, wa->h);
     }
     mmi->ptMaxSize.x = mmi->ptMaxTrackSize.x;
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
@@ -1561,7 +1559,7 @@ static void app_toast_paint(void) {
 //          traceln("step=%d of %d y=%d", app.animating.step,
 //                  app_toast_steps, app.animating.view->y);
             app_measure_and_layout(app.animating.view);
-            fp64_t alpha = minimum(0.40, 0.40 * app.animating.step / (fp64_t)app_animation_steps);
+            fp64_t alpha = ut_min(0.40, 0.40 * app.animating.step / (fp64_t)app_animation_steps);
             gdi.alpha_blend(0, 0, app.width, app.height, &image, alpha);
             app.animating.view->x = (app.width - app.animating.view->w) / 2;
         } else {
@@ -1569,8 +1567,8 @@ static void app_toast_paint(void) {
             app.animating.view->y = app.animating.y;
             app_measure_and_layout(app.animating.view);
             int32_t mx = app.width - app.animating.view->w - em_x;
-            app.animating.view->x = minimum(mx, maximum(0, app.animating.x - app.animating.view->w / 2));
-            app.animating.view->y = minimum(app.crc.h - em_y, maximum(0, app.animating.y));
+            app.animating.view->x = ut_min(mx, ut_max(0, app.animating.x - app.animating.view->w / 2));
+            app.animating.view->y = ut_min(app.crc.h - em_y, ut_max(0, app.animating.y));
         }
         int32_t x = app.animating.view->x - em_x;
         int32_t y = app.animating.view->y - em_y / 2;
@@ -1708,7 +1706,7 @@ static void app_paint_on_canvas(HDC hdc) {
     app.paint_count++;
     if (app.paint_count % 128 == 0) { app.paint_max = 0; }
     app.paint_time = ut_clock.seconds() - time;
-    app.paint_max = maximum(app.paint_time, app.paint_max);
+    app.paint_max = ut_max(app.paint_time, app.paint_max);
     if (app.paint_avg == 0) {
         app.paint_avg = app.paint_time;
     } else { // EMA over 32 paint() calls
@@ -2436,8 +2434,8 @@ static void app_restore_console(int32_t *visibility) {
                 "console_screen_buffer_infoex", &info, (int)sizeof(info));
             if (r == sizeof(info)) { // 24x80
                 SMALL_RECT sr = info.srWindow;
-                int16_t w = (int16_t)maximum(sr.Right - sr.Left + 1, 80);
-                int16_t h = (int16_t)maximum(sr.Bottom - sr.Top + 1, 24);
+                int16_t w = (int16_t)ut_max(sr.Right - sr.Left + 1, 80);
+                int16_t h = (int16_t)ut_max(sr.Bottom - sr.Top + 1, 24);
 //              traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
 //              traceln("%d,%d %dx%d", sr.Left, sr.Top, w, h);
                 if (w > 0 && h > 0) { app_set_console_size(w, h); }
@@ -2877,7 +2875,7 @@ static void ui_button_paint(ui_view_t* view) {
     f = gdi.set_font(f);
     gdi.text("%s", ui_view.nls(view));
     gdi.set_font(f);
-    const int32_t pw = maximum(1, view->em.y / 32); // pen width
+    const int32_t pw = ut_max(1, view->em.y / 32); // pen width
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
     if (view->hover && !view->armed) { color = colors.blue; }
     if (view->disabled) { color = colors.dkgray1; }
@@ -2957,7 +2955,7 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
 static void ui_button_measure(ui_view_t* view) {
     assert(view->type == ui_view_button || view->type == ui_view_label);
     ui_view.measure(view);
-    const int32_t em2  = maximum(1, view->em.x / 2);
+    const int32_t em2  = ut_max(1, view->em.x / 2);
     view->w = view->w;
     view->h = view->h + em2;
     if (view->w < view->h) { view->w = view->h; }
@@ -3172,10 +3170,10 @@ bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
 bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
                                      const ui_rect_t* r1) {
     ui_rect_t r = {0};
-    r.x = maximum(r0->x, r1->x);  // Maximum of left edges
-    r.y = maximum(r0->y, r1->y);  // Maximum of top edges
-    r.w = minimum(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
-    r.h = minimum(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
+    r.x = ut_max(r0->x, r1->x);  // Maximum of left edges
+    r.y = ut_max(r0->y, r1->y);  // Maximum of top edges
+    r.w = ut_min(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
+    r.h = ut_min(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
     bool b = r.w > 0 && r.h > 0;
     if (!b) {
         r.w = 0;
@@ -4281,7 +4279,7 @@ static void measurements_horizontal(ui_view_t* view, int32_t gap) {
         if (!u->hidden) {
             if (seen) { view->w += gap; }
             view->w += u->w;
-            view->h = maximum(view->h, u->h);
+            view->h = ut_max(view->h, u->h);
             seen = true;
         }
         c++;
@@ -4298,7 +4296,7 @@ static void measurements_vertical(ui_view_t* view, int32_t gap) {
         if (!u->hidden) {
             if (seen) { view->h += gap; }
             view->h += u->h;
-            view->w = maximum(view->w, u->w);
+            view->w = ut_max(view->w, u->w);
             seen = true;
         }
         c++;
@@ -4323,10 +4321,10 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
             int32_t i = 0;
             for (ui_view_t** col = (*row)->children; *col != null; col++) {
                 if (!(*col)->hidden) {
-                    mxw[i] = maximum(mxw[i], (*col)->w);
-                    (*row)->h = maximum((*row)->h, (*col)->h);
+                    mxw[i] = ut_max(mxw[i], (*col)->w);
+                    (*row)->h = ut_max((*row)->h, (*col)->h);
 //                  traceln("[%d] row.baseline: %d col.baseline: %d ", i, (*row)->baseline, (*col)->baseline);
-                    (*row)->baseline = maximum((*row)->baseline, (*col)->baseline);
+                    (*row)->baseline = ut_max((*row)->baseline, (*col)->baseline);
                 }
                 i++;
             }
@@ -4352,7 +4350,7 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
                     c->w = mxw[i++];
                     r->w += c->w;
                     if (cols_seen > 0) { r->w += gap_h; }
-                    view->w = maximum(view->w, r->w);
+                    view->w = ut_max(view->w, r->w);
                     cols_seen++;
                 }
             }
@@ -4478,7 +4476,7 @@ static void ui_messagebox_measure(ui_view_t* view) {
         for (int32_t i = 0; i < n; i++) {
             bw += mx->button[i].view.w;
         }
-        view->w = maximum(tw, bw + em_x * 2);
+        view->w = ut_max(tw, bw + em_x * 2);
         view->h = th + mx->button[0].view.h + em_y + em_y / 2;
     } else {
         view->h = th + em_y / 2;
@@ -4779,10 +4777,10 @@ static void ui_slider_paint(ui_view_t* view) {
     gdi.push(view->x, view->y);
     gdi.set_clip(view->x, view->y, view->w, view->h);
     const int32_t em = view->em.x;
-    const int32_t em2  = maximum(1, em / 2);
-    const int32_t em4  = maximum(1, em / 8);
-    const int32_t em8  = maximum(1, em / 8);
-    const int32_t em16 = maximum(1, em / 16);
+    const int32_t em2  = ut_max(1, em / 2);
+    const int32_t em4  = ut_max(1, em / 8);
+    const int32_t em8  = ut_max(1, em / 8);
+    const int32_t em16 = ut_max(1, em / 16);
     gdi.set_brush(gdi.brush_color);
     ui_pen_t pen_grey45 = gdi.create_pen(colors.dkgray3, em16);
     gdi.set_pen(pen_grey45);
@@ -4828,7 +4826,7 @@ static void ui_slider_mouse(ui_view_t* view, int32_t message, int32_t f) {
                 const fp64_t range = (fp64_t)r->vmax - (fp64_t)r->vmin;
                 fp64_t v = ((fp64_t)x - x0) * range / (fp64_t)(x1 - x0 - 1);
                 int32_t vw = (int32_t)(v + r->vmin + 0.5);
-                r->value = minimum(maximum(vw, r->vmin), r->vmax);
+                r->value = ut_min(ut_max(vw, r->vmin), r->vmax);
                 if (r->cb != null) { r->cb(r); }
                 ui_view.invalidate(view);
             }
@@ -4841,10 +4839,10 @@ static void ui_slider_inc_dec_value(ui_slider_t* r, int32_t sign, int32_t mul) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
         int32_t v = r->value;
         if (v > r->vmin && sign < 0) {
-            mul = minimum(v - r->vmin, mul);
+            mul = ut_min(v - r->vmin, mul);
             v += mul * sign;
         } else if (v < r->vmax && sign > 0) {
-            mul = minimum(r->vmax - v, mul);
+            mul = ut_min(r->vmax - v, mul);
             v += mul * sign;
         }
         if (r->value != v) {
@@ -4881,7 +4879,7 @@ static void ui_slider_every_100ms(ui_view_t* view) { // 100ms
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
             const int64_t range = (int64_t)r->vmax - r->vmin;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
-            ui_slider_inc_dec_value(r, sign, maximum(mul, 1));
+            ui_slider_inc_dec_value(r, sign, ut_max(mul, 1));
         }
     }
 }
@@ -5074,7 +5072,7 @@ static void ui_view_measure(ui_view_t* view) {
             mt = gdi.measure_text(f, ui_view.nls(view));
         }
         view->h = mt.y;
-        view->w = maximum(view->w, mt.x);
+        view->w = ut_max(view->w, mt.x);
     }
 }
 
@@ -5111,7 +5109,7 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
         int32_t y = app.mouse.y - view->em.y;
         // enough space above? if not show below
         if (y < view->em.y) { y = app.mouse.y + view->em.y * 3 / 2; }
-        y = minimum(app.crc.h - view->em.y * 3 / 2, maximum(0, y));
+        y = ut_min(app.crc.h - view->em.y * 3 / 2, ut_max(0, y));
         app.show_tooltip(&btn_tooltip.view, app.mouse.x, y, 0);
     } else if (!start && app.animating.view == &btn_tooltip.view) {
         app.show_tooltip(null, -1, -1, 0);
