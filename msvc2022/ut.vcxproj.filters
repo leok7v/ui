@@ -15,58 +15,58 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ut\args.h">
+    <ClInclude Include="..\inc\ut\ut_args.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\atomics.h">
+    <ClInclude Include="..\inc\ut\ut_atomics.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\clipboard.h">
+    <ClInclude Include="..\inc\ut\ut_clipboard.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\clock.h">
+    <ClInclude Include="..\inc\ut\ut_clock.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\config.h">
+    <ClInclude Include="..\inc\ut\ut_config.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\debug.h">
+    <ClInclude Include="..\inc\ut\ut_debug.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\files.h">
+    <ClInclude Include="..\inc\ut\ut_files.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\heap.h">
+    <ClInclude Include="..\inc\ut\ut_heap.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\loader.h">
+    <ClInclude Include="..\inc\ut\ut_loader.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\mem.h">
+    <ClInclude Include="..\inc\ut\ut_mem.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\num.h">
+    <ClInclude Include="..\inc\ut\ut_num.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\processes.h">
+    <ClInclude Include="..\inc\ut\ut_processes.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\runtime.h">
+    <ClInclude Include="..\inc\ut\ut_runtime.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\static.h">
+    <ClInclude Include="..\inc\ut\ut_static.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_std.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\str.h">
+    <ClInclude Include="..\inc\ut\ut_str.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\streams.h">
+    <ClInclude Include="..\inc\ut\ut_streams.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\threads.h">
+    <ClInclude Include="..\inc\ut\ut_threads.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut.h">
@@ -75,13 +75,13 @@
     <ClInclude Include="..\inc\ut\version.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\vigil.h">
+    <ClInclude Include="..\inc\ut\ut_vigil.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_win32.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\generics.h">
+    <ClInclude Include="..\inc\ut\ut_generics.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
   </ItemGroup>
@@ -91,64 +91,64 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\ut\args.c">
+    <ClCompile Include="..\src\ut\ut_args.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\atomics.c">
+    <ClCompile Include="..\src\ut\ut_atomics.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\clipboard.c">
+    <ClCompile Include="..\src\ut\ut_clipboard.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\clock.c">
+    <ClCompile Include="..\src\ut\ut_clock.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\config.c">
+    <ClCompile Include="..\src\ut\ut_config.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\debug.c">
+    <ClCompile Include="..\src\ut\ut_debug.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\files.c">
+    <ClCompile Include="..\src\ut\ut_files.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\heap.c">
+    <ClCompile Include="..\src\ut\ut_heap.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\loader.c">
+    <ClCompile Include="..\src\ut\ut_loader.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\mem.c">
+    <ClCompile Include="..\src\ut\ut_mem.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\num.c">
+    <ClCompile Include="..\src\ut\ut_num.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\processes.c">
+    <ClCompile Include="..\src\ut\ut_processes.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\runtime.c">
+    <ClCompile Include="..\src\ut\ut_runtime.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\static.c">
+    <ClCompile Include="..\src\ut\ut_static.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\str.c">
+    <ClCompile Include="..\src\ut\ut_str.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\streams.c">
+    <ClCompile Include="..\src\ut\ut_streams.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\threads.c">
+    <ClCompile Include="..\src\ut\ut_threads.c">
       <Filter>src\ut</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ut\ut.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\vigil.c">
+    <ClCompile Include="..\src\ut\ut_vigil.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\generics.c">
+    <ClCompile Include="..\src\ut\ut_generics.c">
       <Filter>src\ut</Filter>
     </ClCompile>
   </ItemGroup>

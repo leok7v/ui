@@ -103,7 +103,7 @@ typedef double fp64_t;
 #define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
 
 
-// __________________________________ args.h __________________________________
+// ________________________________ ut_args.h _________________________________
 
 typedef struct {
     // On Unix it is responsibility of the main() to assign these values
@@ -180,7 +180,7 @@ extern args_if args;
 */
 
 
-// ________________________________ atomics.h _________________________________
+// _______________________________ ut_atomics.h _______________________________
 
 // Will be deprecated soon after Microsoft fully supports <stdatomic.h>
 
@@ -216,7 +216,7 @@ extern atomics_if atomics;
 
 
 
-// _______________________________ clipboard.h ________________________________
+// ______________________________ ut_clipboard.h ______________________________
 
 typedef struct image_s image_t;
 
@@ -231,7 +231,7 @@ extern clipboard_if clipboard;
 
 
 
-// _________________________________ clock.h __________________________________
+// ________________________________ ut_clock.h ________________________________
 
 typedef struct {
     int32_t const nsec_in_usec; // nano in micro second
@@ -260,7 +260,7 @@ extern clock_if clock;
 
 
 
-// _________________________________ config.h _________________________________
+// _______________________________ ut_config.h ________________________________
 
 // Persistent storage for configuration and other small data
 // related to specific application.
@@ -285,7 +285,7 @@ extern config_if config;
 
 
 
-// _________________________________ debug.h __________________________________
+// ________________________________ ut_debug.h ________________________________
 
 // debug interface essentially is:
 // vfprintf(stderr, format, vl)
@@ -327,7 +327,7 @@ extern debug_if debug;
 
 
 
-// _________________________________ files.h __________________________________
+// ________________________________ ut_files.h ________________________________
 
 enum { files_max_path = 4 * 1024 }; // *)
 
@@ -414,7 +414,7 @@ extern files_if files;
 
 
 
-// ________________________________ generics.h ________________________________
+// ______________________________ ut_generics.h _______________________________
 
 // Most of ut/ui code is written the way of min(a,b) max(a,b)
 // not having side effects on the arguments and thus evaluating
@@ -516,7 +516,7 @@ extern generics_if generics;
 
 
 
-// __________________________________ heap.h __________________________________
+// ________________________________ ut_heap.h _________________________________
 
 // It is absolutely OK to use posix compliant
 // malloc()/calloc()/realloc()/free() function calls with understanding
@@ -562,7 +562,7 @@ extern heap_if heap;
 
 
 
-// _________________________________ loader.h _________________________________
+// _______________________________ ut_loader.h ________________________________
 
 // see:
 // https://pubs.opengroup.org/onlinepubs/7908799/xsh/dlfcn.h.html
@@ -585,7 +585,7 @@ extern loader_if loader;
 
 
 
-// __________________________________ mem.h ___________________________________
+// _________________________________ ut_mem.h _________________________________
 
 typedef struct {
     // whole file read only
@@ -611,7 +611,7 @@ extern mem_if mem;
 
 
 
-// __________________________________ num.h ___________________________________
+// _________________________________ ut_num.h _________________________________
 
 typedef struct {
     uint64_t lo;
@@ -638,7 +638,7 @@ extern num_if num;
 
 
 
-// _________________________________ static.h _________________________________
+// _______________________________ ut_static.h ________________________________
 
 // static_init(unique_name) { code_to_execute_before_main }
 
@@ -683,7 +683,7 @@ void static_init_test(void);
 
 
 
-// __________________________________ str.h ___________________________________
+// _________________________________ ut_str.h _________________________________
 
 // Since a lot of str*() operations are preprocessor defines
 // care should be exercised that arguments of macro invocations
@@ -784,7 +784,7 @@ extern str_if str;
 
 
 
-// ________________________________ streams.h _________________________________
+// _______________________________ ut_streams.h _______________________________
 
 typedef struct stream_if stream_if;
 
@@ -818,7 +818,7 @@ extern streams_if streams;
 
 
 
-// _______________________________ processes.h ________________________________
+// ______________________________ ut_processes.h ______________________________
 
 typedef struct {
     const char* command;
@@ -856,7 +856,7 @@ extern processes_if processes;
 
 
 
-// ________________________________ runtime.h _________________________________
+// _______________________________ ut_runtime.h _______________________________
 
 typedef struct {
     int32_t (*err)(void); // errno or GetLastError()
@@ -871,7 +871,7 @@ extern runtime_if runtime;
 
 
 
-// ________________________________ threads.h _________________________________
+// _______________________________ ut_threads.h _______________________________
 
 typedef struct event_s * event_t;
 
@@ -920,7 +920,7 @@ typedef struct {
 
 extern threads_if threads;
 
-// _________________________________ vigil.h __________________________________
+// ________________________________ ut_vigil.h ________________________________
 
 #include <assert.h> // unsures that it will not be included again
 #undef assert       // because better assert(b, ...) will be defined here
@@ -1034,8 +1034,13 @@ end_c
 
 
 #endif // WIN32
+// ___________________________________ ut.c ___________________________________
 
-// __________________________________ args.c __________________________________
+// #include "ut/macos.h" // TODO
+// #include "ut/linux.h" // TODO
+
+
+// ________________________________ ut_args.c _________________________________
 
 static void* args_memory;
 
@@ -1370,7 +1375,7 @@ args_if args = {
     .fini         = args_fini,
     .test         = args_test
 };
-// ________________________________ atomics.c _________________________________
+// _______________________________ ut_atomics.c _______________________________
 
 #include <stdatomic.h> // needs cl.exe /experimental:c11atomics command line
 
@@ -1651,7 +1656,7 @@ atomics_if atomics = {
 // command line option are required
 // even in C17 mode in spring of 2024
 
-// _______________________________ clipboard.c ________________________________
+// ______________________________ ut_clipboard.c ______________________________
 
 static errno_t clipboard_put_text(const char* utf8) {
     errno_t r = 0;
@@ -1760,7 +1765,7 @@ clipboard_if clipboard = {
     .test       = clipboard_test
 };
 
-// _________________________________ clock.c __________________________________
+// ________________________________ ut_clock.c ________________________________
 
 enum {
     clock_nsec_in_usec = 1000, // nano in micro
@@ -1933,7 +1938,7 @@ clock_if clock = {
     .test              = clock_test
 };
 
-// _________________________________ config.c _________________________________
+// _______________________________ ut_config.c ________________________________
 
 // On Unix the implementation should keep KV pairs in
 // key-named files inside .name/ folder
@@ -2072,7 +2077,7 @@ config_if config = {
     .test   = config_test
 };
 
-// _________________________________ debug.c __________________________________
+// ________________________________ ut_debug.c ________________________________
 
 static const char* debug_abbreviate(const char* file) {
     const char* fn = strrchr(file, '\\');
@@ -2219,7 +2224,7 @@ debug_if debug = {
     .test                  = debug_test
 };
 
-// _________________________________ files.c __________________________________
+// ________________________________ ut_files.c ________________________________
 
 // TODO: test FILE_APPEND_DATA
 // https://learn.microsoft.com/en-us/windows/win32/fileio/appending-one-file-to-another-file?redirectedfrom=MSDN
@@ -3222,7 +3227,7 @@ files_if files = {
 };
 
 
-// ________________________________ generics.c ________________________________
+// ______________________________ ut_generics.c _______________________________
 
 #ifdef UT_TESTS
 
@@ -3297,7 +3302,7 @@ generics_if generics = {
     .test = generics_test
 };
 
-// __________________________________ heap.c __________________________________
+// ________________________________ ut_heap.c _________________________________
 
 static heap_t* heap_create(bool serialized) {
     const DWORD options = serialized ? 0 : HEAP_NO_SERIALIZE;
@@ -3360,7 +3365,7 @@ heap_if heap = {
     .test        = heap_test
 };
 
-// _________________________________ loader.c _________________________________
+// _______________________________ ut_loader.c ________________________________
 
 // This is oversimplified Win32 version completely ignoring mode.
 
@@ -3481,7 +3486,7 @@ loader_if loader = {
     .test   = loader_test
 };
 
-// __________________________________ mem.c ___________________________________
+// _________________________________ ut_mem.c _________________________________
 
 static errno_t mem_map_view_of_file(HANDLE file,
         void* *data, int64_t *bytes, bool rw) {
@@ -3725,7 +3730,7 @@ mem_if mem = {
     .deallocate      = mem_deallocate,
     .test            = mem_test
 };
-// __________________________________ num.c ___________________________________
+// _________________________________ ut_num.c _________________________________
 
 #include <immintrin.h> // _tzcnt_u32
 
@@ -3952,7 +3957,7 @@ num_if num = {
     .test      = num_test
 };
 
-// _______________________________ processes.c ________________________________
+// ______________________________ ut_processes.c ______________________________
 
 typedef struct processes_pidof_lambda_s processes_pidof_lambdat_t;
 
@@ -4520,7 +4525,7 @@ processes_if processes = {
     .test                = processes_test
 };
 
-// ________________________________ runtime.c _________________________________
+// _______________________________ ut_runtime.c _______________________________
 
 // abort does NOT call atexit() functions and
 // does NOT flush streams. Also Win32 runtime
@@ -4602,7 +4607,7 @@ runtime_if runtime = {
 #pragma comment(lib, "kernel32")
 #pragma comment(lib, "user32") // clipboard
 
-// _________________________________ static.c _________________________________
+// _______________________________ ut_static.c ________________________________
 
 static void*   _static_symbol_reference[1024];
 static int32_t _static_symbol_reference_count;
@@ -4645,7 +4650,7 @@ void static_init_test(void) {}
 
 #endif
 
-// __________________________________ str.c ___________________________________
+// _________________________________ ut_str.c _________________________________
 
 char* strnchr(const char* s, int32_t n, char ch) {
     while (n > 0 && *s != 0) {
@@ -5035,7 +5040,7 @@ str_if str = {
     .test           = str_test
 };
 
-// ________________________________ streams.c _________________________________
+// _______________________________ ut_streams.c _______________________________
 
 static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,
         int64_t *transferred) {
@@ -5144,7 +5149,7 @@ streams_if streams = {
     .test = streams_test
 };
 
-// ________________________________ threads.c _________________________________
+// _______________________________ ut_threads.c _______________________________
 
 // events:
 
@@ -5710,12 +5715,7 @@ threads_if threads = {
     .id        = threads_id,
     .test      = threads_test
 };
-// ___________________________________ ut.c ___________________________________
-
-// #include "ut/macos.h" // TODO
-// #include "ut/linux.h" // TODO
-
-// _________________________________ vigil.c __________________________________
+// ________________________________ ut_vigil.c ________________________________
 
 #include <stdio.h>
 #include <string.h>
