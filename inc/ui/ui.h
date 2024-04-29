@@ -8,7 +8,7 @@
 #include "ui/ui_label.h"
 #include "ui/ui_nls.h"
 #include "ui/ui_button.h"
-#include "ui/ui_checkbox.h"
+#include "ui/ui_toggle.h"
 #include "ui/ui_slider.h"
 #include "ui/ui_messagebox.h"
 #include "ui/ui_app.h" // must be last

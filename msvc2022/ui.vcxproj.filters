@@ -21,7 +21,7 @@
     <ClInclude Include="..\inc\ui\ui_button.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_checkbox.h">
+    <ClInclude Include="..\inc\ui\ui_toggle.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui_colors.h">
@@ -68,7 +68,7 @@
     <ClCompile Include="..\src\ui\ui_button.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\ui_checkbox.c">
+    <ClCompile Include="..\src\ui\ui_toggle.c">
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_colors.c">

@@ -70,7 +70,7 @@ ui_button(fuzz, "Fu&zz", 7.5, {
     }
 });
 
-ui_checkbox(ro, "&Read Only", 7.5, {
+ui_toggle(ro, "&Read Only", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->ro = ro->view.pressed;
@@ -79,7 +79,7 @@ ui_checkbox(ro, "&Read Only", 7.5, {
     }
 });
 
-ui_checkbox(mono, "&Mono", 7.5, {
+ui_toggle(mono, "&Mono", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->set_font(edit[ix], mono->view.pressed ? &mf : &pf);
@@ -89,7 +89,7 @@ ui_checkbox(mono, "&Mono", 7.5, {
     }
 });
 
-ui_checkbox(sl, "&Single Line", 7.5, {
+ui_toggle(sl, "&Single Line", 7.5, {
     int32_t ix = focused();
     if (ix == 2) {
         sl->view.pressed = true; // always single line

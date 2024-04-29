@@ -80,7 +80,7 @@
     <ClInclude Include="..\inc\ui\ui.h" />
     <ClInclude Include="..\inc\ui\ui_app.h" />
     <ClInclude Include="..\inc\ui\ui_button.h" />
-    <ClInclude Include="..\inc\ui\ui_checkbox.h" />
+    <ClInclude Include="..\inc\ui\ui_toggle.h" />
     <ClInclude Include="..\inc\ui\ui_colors.h" />
     <ClInclude Include="..\inc\ui\ui_core.h" />
     <ClInclude Include="..\inc\ui\ui_gdi.h" />

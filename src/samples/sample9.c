@@ -58,9 +58,9 @@ ui_label_ml(about, 34.56,
     "Use Win + Shift + S to take a screenshot of something "
     "beautiful that caught your eye."
     "\n\n"
-    "This sample also a showcase of controls like checkbox, message box, "
-    "tooltips, clipboard copy as well as full screen handling, open "
-    "file dialog and on-the-fly locale switching for simple and possibly "
+    "This sample also a showcase of controls like toggle, message box, "
+    "tooltips, clipboard copy, full screen switching, open file "
+    "dialog and on-the-fly locale switching for simple and possibly "
     "incorrect Simplified Chinese localization."
     "\n\n"
     "Press ESC or click the \xC3\x97 button in right top corner "
@@ -113,8 +113,8 @@ ui_button(button_message_box, "&Message Box", 7.5, {
     app.show_toast(&messagebox.view, 0);
 });
 
-// ui_checkbox label can include "___" for "ON ": "OFF" state
-ui_checkbox(scroll, "Scroll &Direction:", 0, {});
+// ui_toggle label can include "___" for "ON ": "OFF" state
+ui_toggle(scroll, "Scroll &Direction:", 0, {});
 
 ui_container(panel_top, null, null);
 ui_container(panel_bottom, null, null);

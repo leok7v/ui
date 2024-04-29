@@ -8,7 +8,7 @@ enum ui_view_type_t {
     ui_view_label      = 'lbl',
     ui_view_messagebox = 'mbx',
     ui_view_button     = 'btn',
-    ui_view_checkbox   = 'cbx',
+    ui_view_toggle   = 'cbx',
     ui_view_slider     = 'sld',
 //  ui_view_text       = 'txt',
     ui_view_edit       = 'edt'
@@ -68,7 +68,7 @@ typedef struct ui_view_s {
     bool hidden; // paint() is not called on hidden
     bool armed;
     bool hover;
-    bool pressed;   // for ui_button_t and  checkbox_t
+    bool pressed;   // for ui_button_t and ui_toggle_t
     bool disabled;  // mouse, keyboard, key_up/down not called on disabled
     bool focusable; // can be target for keyboard focus
     fp64_t  hover_at;    // time in seconds when to call hovered()

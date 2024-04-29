@@ -19,7 +19,7 @@
     <ClInclude Include="..\inc\ui\ui_layout.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_checkbox.h">
+    <ClInclude Include="..\inc\ui\ui_toggle.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui_label.h">
