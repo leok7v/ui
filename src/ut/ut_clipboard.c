@@ -1,7 +1,7 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
-static errno_t clipboard_put_text(const char* utf8) {
+static errno_t ut_clipboard_put_text(const char* utf8) {
     errno_t r = 0;
     int32_t chars = str.utf16_chars(utf8);
     int32_t bytes = (chars + 1) * 2;
@@ -48,7 +48,7 @@ static errno_t clipboard_put_text(const char* utf8) {
     return r;
 }
 
-static errno_t clipboard_get_text(char* utf8, int32_t* bytes) {
+static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
     not_null(bytes);
     int r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
     if (r != 0) { traceln("OpenClipboard() failed %s", str.error(r)); }
@@ -85,25 +85,25 @@ static errno_t clipboard_get_text(char* utf8, int32_t* bytes) {
 
 #ifdef UT_TESTS
 
-static void clipboard_test(void) {
-    fatal_if_not_zero(clipboard.put_text("Hello Clipboard"));
+static void ut_clipboard_test(void) {
+    fatal_if_not_zero(ut_clipboard.put_text("Hello Clipboard"));
     char text[256];
     int32_t bytes = countof(text);
-    fatal_if_not_zero(clipboard.get_text(text, &bytes));
+    fatal_if_not_zero(ut_clipboard.get_text(text, &bytes));
     swear(strequ(text, "Hello Clipboard"));
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-static void clipboard_test(void) {
+static void ut_clipboard_test(void) {
 }
 
 #endif
 
-clipboard_if clipboard = {
-    .put_text   = clipboard_put_text,
-    .get_text   = clipboard_get_text,
+ut_clipboard_if ut_clipboard = {
+    .put_text   = ut_clipboard_put_text,
+    .get_text   = ut_clipboard_get_text,
     .put_image  = null, // implemented in ui.app
-    .test       = clipboard_test
+    .test       = ut_clipboard_test
 };

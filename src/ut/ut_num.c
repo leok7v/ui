@@ -207,7 +207,7 @@ static void num_test(void) {
         r = num.muldiv128(p, q, UINT64_MAX);
         swear(r == 0);
     }
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 

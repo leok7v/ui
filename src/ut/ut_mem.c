@@ -220,15 +220,15 @@ static void mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
 
 static void mem_test(void) {
     #ifdef UT_TESTS
-    swear(args.c > 0);
+    swear(ut_args.c > 0);
     void* data = null;
     int64_t bytes = 0;
-    swear(mem.map_ro(args.v[0], &data, &bytes) == 0);
+    swear(mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
     swear(data != null && bytes != 0);
     mem.unmap(data, bytes);
     // TODO: page_size large_page_size allocate deallocate
     // TODO: test heap functions
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 

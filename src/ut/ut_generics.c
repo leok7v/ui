@@ -61,7 +61,7 @@ static void generics_test(void) {
         swear(maximum(a, b) == b);
         swear(minimum(a, b) == a);
     }
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else

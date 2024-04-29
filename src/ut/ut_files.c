@@ -652,7 +652,7 @@ void files_closedir(folder_t* folder) {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                 \
-    if (debug.verbosity.level >= debug.verbosity.trace) { \
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
         traceln(__VA_ARGS__);                             \
     }                                                     \
 } while (0)
@@ -666,15 +666,15 @@ static void folders_dump_time(const char* label, uint64_t us) {
     int32_t ss = 0;
     int32_t ms = 0;
     int32_t mc = 0;
-    clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    ut_clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
     traceln("%-7s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
             label, year, month, day, hh, mm, ss, ms, mc);
 }
 
 static void folders_test(void) {
-    uint64_t now = clock.microseconds(); // microseconds since epoch
-    uint64_t before = now - 1 * clock.usec_in_sec; // one second earlier
-    uint64_t after  = now + 2 * clock.usec_in_sec; // two seconds later
+    uint64_t now = ut_clock.microseconds(); // microseconds since epoch
+    uint64_t before = now - 1 * ut_clock.usec_in_sec; // one second earlier
+    uint64_t after  = now + 2 * ut_clock.usec_in_sec; // two seconds later
     int32_t year = 0;
     int32_t month = 0;
     int32_t day = 0;
@@ -683,7 +683,7 @@ static void folders_test(void) {
     int32_t ss = 0;
     int32_t ms = 0;
     int32_t mc = 0;
-    clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    ut_clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
     verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
              year, month, day, hh, mm, ss, ms, mc);
     // Test cwd, setcwd
@@ -732,7 +732,7 @@ static void folders_test(void) {
         uint64_t ct = st.created;
         uint64_t ut = st.updated;
         swear(ct <= at && ct <= ut);
-        clock.local(ct, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+        ut_clock.local(ct, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
         bool is_folder = st.type & files.type_folder;
         bool is_symlink = st.type & files.type_symlink;
         int64_t bytes = st.size;
@@ -775,7 +775,7 @@ static void folders_test(void) {
                      tmp_file, str.error(r));
     fatal_if(files.chdir(cwd) != 0, "files.chdir(\"%s\") failed %s",
              cwd, str.error(runtime.err()));
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #pragma pop_macro("verbose")
@@ -791,7 +791,7 @@ static void files_test_append_thread(void* p) {
 
 static void files_test(void) {
     folders_test();
-    uint64_t now = clock.microseconds(); // epoch time
+    uint64_t now = ut_clock.microseconds(); // epoch time
     char tf[256]; // temporary file
     fatal_if(files.create_tmp(tf, countof(tf)) != 0,
             "files.create_tmp()" files_test_failed);
@@ -849,8 +849,8 @@ static void files_test(void) {
         }
         files_stat_t s = {0};
         files.stat(f, &s, false);
-        uint64_t before = now - 1 * clock.usec_in_sec; // one second before now
-        uint64_t after  = now + 2 * clock.usec_in_sec; // two seconds after
+        uint64_t before = now - 1 * ut_clock.usec_in_sec; // one second before now
+        uint64_t after  = now + 2 * ut_clock.usec_in_sec; // two seconds after
         swear(before <= s.created  && s.created  <= after,
              "before: %lld created: %lld after: %lld", before, s.created, after);
         swear(before <= s.accessed && s.accessed <= after,
@@ -939,7 +939,7 @@ static void files_test(void) {
                     cwd, str.error(runtime.err()));
     }
     fatal_if(files.unlink(tf) != 0);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else

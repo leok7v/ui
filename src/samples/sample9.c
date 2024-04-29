@@ -360,7 +360,7 @@ static void character(ui_view_t* view, const char* utf8) {
     } else if (ch == '>' || ch == '.') {
         mouse_wheel(view, -image.w / 8, 0);
     } else if (ch == 3) { // Ctrl+C
-        clipboard.put_image(&image);
+        ut_clipboard.put_image(&image);
     }
 }
 

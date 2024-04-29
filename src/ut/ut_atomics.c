@@ -8,46 +8,46 @@
 
 #ifndef ATOMICS_HAS_STDATOMIC_H
 
-static int32_t atomics_increment_int32(volatile int32_t* a) {
+static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
     return InterlockedIncrement((volatile LONG*)a);
 }
 
-static int32_t atomics_decrement_int32(volatile int32_t* a) {
+static int32_t ut_atomics_decrement_int32(volatile int32_t* a) {
     return InterlockedDecrement((volatile LONG*)a);
 }
 
-static int64_t atomics_increment_int64(volatile int64_t* a) {
+static int64_t ut_atomics_increment_int64(volatile int64_t* a) {
     return InterlockedIncrement64((__int64 volatile *)a);
 }
 
-static int64_t atomics_decrement_int64(volatile int64_t* a) {
+static int64_t ut_atomics_decrement_int64(volatile int64_t* a) {
     return InterlockedDecrement64((__int64 volatile *)a);
 }
 
-static int32_t atomics_add_int32(volatile int32_t* a, int32_t v) {
+static int32_t ut_atomics_add_int32(volatile int32_t* a, int32_t v) {
     return InterlockedAdd((LONG volatile *)a, v);
 }
 
-static int64_t atomics_add_int64(volatile int64_t* a, int64_t v) {
+static int64_t ut_atomics_add_int64(volatile int64_t* a, int64_t v) {
     return InterlockedAdd64((__int64 volatile *)a, v);
 }
 
-static int64_t atomics_exchange_int64(volatile int64_t* a, int64_t v) {
+static int64_t ut_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
     return (int64_t)InterlockedExchange64((LONGLONG*)a, (LONGLONG)v);
 }
 
-static int32_t atomics_exchange_int32(volatile int32_t* a, int32_t v) {
+static int32_t ut_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
     assert(sizeof(int32_t) == sizeof(unsigned long));
     return (int32_t)InterlockedExchange((volatile LONG*)a, (unsigned long)v);
 }
 
-static bool atomics_compare_exchange_int64(volatile int64_t* a,
+static bool ut_atomics_compare_exchange_int64(volatile int64_t* a,
         int64_t comparand, int64_t v) {
     return (int64_t)InterlockedCompareExchange64((LONGLONG*)a,
         (LONGLONG)v, (LONGLONG)comparand) == comparand;
 }
 
-static bool atomics_compare_exchange_int32(volatile int32_t* a,
+static bool ut_atomics_compare_exchange_int32(volatile int32_t* a,
         int32_t comparand, int32_t v) {
     return (int64_t)InterlockedCompareExchange((LONG*)a,
         (LONG)v, (LONG)comparand) == comparand;
@@ -79,46 +79,46 @@ static void memory_fence(void) { _mm_mfence(); }
 static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
 static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
 
-static int32_t atomics_increment_int32(volatile int32_t* a) {
+static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
     return atomic_fetch_add((atomic_int_fast32_t*)a, 1) + 1;
 }
 
-static int32_t atomics_decrement_int32(volatile int32_t* a) {
+static int32_t ut_atomics_decrement_int32(volatile int32_t* a) {
     return atomic_fetch_sub((atomic_int_fast32_t*)a, 1) - 1;
 }
 
-static int64_t atomics_increment_int64(volatile int64_t* a) {
+static int64_t ut_atomics_increment_int64(volatile int64_t* a) {
     return atomic_fetch_add((atomic_int_fast64_t*)a, 1) + 1;
 }
 
-static int64_t atomics_decrement_int64(volatile int64_t* a) {
+static int64_t ut_atomics_decrement_int64(volatile int64_t* a) {
     return atomic_fetch_sub((atomic_int_fast64_t*)a, 1) - 1;
 }
 
-static int32_t atomics_add_int32(volatile int32_t* a, int32_t v) {
+static int32_t ut_atomics_add_int32(volatile int32_t* a, int32_t v) {
     return atomic_fetch_add((atomic_int_fast32_t*)a, v) + v;
 }
 
-static int64_t atomics_add_int64(volatile int64_t* a, int64_t v) {
+static int64_t ut_atomics_add_int64(volatile int64_t* a, int64_t v) {
     return atomic_fetch_add((atomic_int_fast64_t*)a, v) + v;
 }
 
-static int64_t atomics_exchange_int64(volatile int64_t* a, int64_t v) {
+static int64_t ut_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
     return atomic_exchange((atomic_int_fast64_t*)a, v);
 }
 
-static int32_t atomics_exchange_int32(volatile int32_t* a, int32_t v) {
+static int32_t ut_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
     return atomic_exchange((atomic_int_fast32_t*)a, v);
 }
 
-static bool atomics_compare_exchange_int64(volatile int64_t* a,
+static bool ut_atomics_compare_exchange_int64(volatile int64_t* a,
     int64_t comparand, int64_t v) {
     return atomic_compare_exchange_strong((atomic_int_fast64_t*)a,
         &comparand, v);
 }
 
 // Code here is not "seen" by IntelliSense but is compiled normally.
-static bool atomics_compare_exchange_int32(volatile int32_t* a,
+static bool ut_atomics_compare_exchange_int32(volatile int32_t* a,
     int32_t comparand, int32_t v) {
     return atomic_compare_exchange_strong((atomic_int_fast32_t*)a,
         &comparand, v);
@@ -130,22 +130,22 @@ static void memory_fence(void) { atomic_thread_fence(memory_order_seq_cst); }
 
 #endif // ATOMICS_HAS_STDATOMIC_H
 
-static int32_t atomics_load_int32(volatile int32_t* a) {
-    return atomics.add_int32(a, 0);
+static int32_t ut_atomics_load_int32(volatile int32_t* a) {
+    return ut_atomics.add_int32(a, 0);
 }
 
-static int64_t atomics_load_int64(volatile int64_t* a) {
-    return atomics.add_int64(a, 0);
+static int64_t ut_atomics_load_int64(volatile int64_t* a) {
+    return ut_atomics.add_int64(a, 0);
 }
 
-static void* atomics_exchange_ptr(volatile void* *a, void* v) {
+static void* ut_atomics_exchange_ptr(volatile void* *a, void* v) {
     static_assertion(sizeof(void*) == sizeof(uint64_t));
-    return (void*)atomics.exchange_int64((int64_t*)a, (int64_t)v);
+    return (void*)ut_atomics.exchange_int64((int64_t*)a, (int64_t)v);
 }
 
-static bool atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
+static bool ut_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
     static_assertion(sizeof(void*) == sizeof(int64_t));
-    return atomics.compare_exchange_int64((int64_t*)a,
+    return ut_atomics.compare_exchange_int64((int64_t*)a,
         (int64_t)comparand, (int64_t)v);
 }
 
@@ -169,7 +169,7 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
             __builtin_cpu_pause();
         }
     }
-    atomics.memory_fence();
+    ut_atomics.memory_fence();
     // not strcitly necessary on strong mem model Intel/AMD but
     // see: https://cfsamsonbooks.gitbook.io/explaining-atomics-in-rust/
     //      Fig 2 Inconsistent C11 execution of SB and 2+2W
@@ -180,63 +180,63 @@ static void spinlock_release(volatile int64_t* spinlock) {
     assert(*spinlock == 1);
     *spinlock = 0;
     // tribute to lengthy Linus discussion going since 2006:
-    atomics.memory_fence();
+    ut_atomics.memory_fence();
 }
 
-static void atomics_test(void) {
+static void ut_atomics_test(void) {
     #ifdef UT_TESTS
     volatile int32_t int32_var = 0;
     volatile int64_t int64_var = 0;
     volatile void* ptr_var = null;
     int64_t spinlock = 0;
-    void* old_ptr = atomics.exchange_ptr(&ptr_var, (void*)123);
+    void* old_ptr = ut_atomics.exchange_ptr(&ptr_var, (void*)123);
     swear(old_ptr == null);
     swear(ptr_var == (void*)123);
-    int32_t incremented_int32 = atomics.increment_int32(&int32_var);
+    int32_t incremented_int32 = ut_atomics.increment_int32(&int32_var);
     swear(incremented_int32 == 1);
     swear(int32_var == 1);
-    int32_t decremented_int32 = atomics.decrement_int32(&int32_var);
+    int32_t decremented_int32 = ut_atomics.decrement_int32(&int32_var);
     swear(decremented_int32 == 0);
     swear(int32_var == 0);
-    int64_t incremented_int64 = atomics.increment_int64(&int64_var);
+    int64_t incremented_int64 = ut_atomics.increment_int64(&int64_var);
     swear(incremented_int64 == 1);
     swear(int64_var == 1);
-    int64_t decremented_int64 = atomics.decrement_int64(&int64_var);
+    int64_t decremented_int64 = ut_atomics.decrement_int64(&int64_var);
     swear(decremented_int64 == 0);
     swear(int64_var == 0);
-    int32_t added_int32 = atomics.add_int32(&int32_var, 5);
+    int32_t added_int32 = ut_atomics.add_int32(&int32_var, 5);
     swear(added_int32 == 5);
     swear(int32_var == 5);
-    int64_t added_int64 = atomics.add_int64(&int64_var, 10);
+    int64_t added_int64 = ut_atomics.add_int64(&int64_var, 10);
     swear(added_int64 == 10);
     swear(int64_var == 10);
-    int32_t old_int32 = atomics.exchange_int32(&int32_var, 3);
+    int32_t old_int32 = ut_atomics.exchange_int32(&int32_var, 3);
     swear(old_int32 == 5);
     swear(int32_var == 3);
-    int64_t old_int64 = atomics.exchange_int64(&int64_var, 6);
+    int64_t old_int64 = ut_atomics.exchange_int64(&int64_var, 6);
     swear(old_int64 == 10);
     swear(int64_var == 6);
-    bool int32_exchanged = atomics.compare_exchange_int32(&int32_var, 3, 4);
+    bool int32_exchanged = ut_atomics.compare_exchange_int32(&int32_var, 3, 4);
     swear(int32_exchanged);
     swear(int32_var == 4);
-    bool int64_exchanged = atomics.compare_exchange_int64(&int64_var, 6, 7);
+    bool int64_exchanged = ut_atomics.compare_exchange_int64(&int64_var, 6, 7);
     swear(int64_exchanged);
     swear(int64_var == 7);
     ptr_var = (void*)0x123;
-    bool ptr_exchanged = atomics.compare_exchange_ptr(&ptr_var,
+    bool ptr_exchanged = ut_atomics.compare_exchange_ptr(&ptr_var,
         (void*)0x123, (void*)0x456);
     swear(ptr_exchanged);
     swear(ptr_var == (void*)0x456);
-    atomics.spinlock_acquire(&spinlock);
+    ut_atomics.spinlock_acquire(&spinlock);
     swear(spinlock == 1);
-    atomics.spinlock_release(&spinlock);
+    ut_atomics.spinlock_release(&spinlock);
     swear(spinlock == 0);
-    int32_t loaded_int32 = atomics.load32(&int32_var);
+    int32_t loaded_int32 = ut_atomics.load32(&int32_var);
     swear(loaded_int32 == int32_var);
-    int64_t loaded_int64 = atomics.load64(&int64_var);
+    int64_t loaded_int64 = ut_atomics.load64(&int64_var);
     swear(loaded_int64 == int64_var);
-    atomics.memory_fence();
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    ut_atomics.memory_fence();
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
@@ -245,25 +245,25 @@ static void atomics_test(void) {
 static_assertion(sizeof(void*) == sizeof(int64_t));
 static_assertion(sizeof(void*) == sizeof(uintptr_t));
 
-atomics_if atomics = {
-    .exchange_ptr    = atomics_exchange_ptr,
-    .increment_int32 = atomics_increment_int32,
-    .decrement_int32 = atomics_decrement_int32,
-    .increment_int64 = atomics_increment_int64,
-    .decrement_int64 = atomics_decrement_int64,
-    .add_int32 = atomics_add_int32,
-    .add_int64 = atomics_add_int64,
-    .exchange_int32  = atomics_exchange_int32,
-    .exchange_int64  = atomics_exchange_int64,
-    .compare_exchange_int64 = atomics_compare_exchange_int64,
-    .compare_exchange_int32 = atomics_compare_exchange_int32,
-    .compare_exchange_ptr = atomics_compare_exchange_ptr,
-    .load32 = atomics_load_int32,
-    .load64 = atomics_load_int64,
+ut_atomics_if ut_atomics = {
+    .exchange_ptr    = ut_atomics_exchange_ptr,
+    .increment_int32 = ut_atomics_increment_int32,
+    .decrement_int32 = ut_atomics_decrement_int32,
+    .increment_int64 = ut_atomics_increment_int64,
+    .decrement_int64 = ut_atomics_decrement_int64,
+    .add_int32 = ut_atomics_add_int32,
+    .add_int64 = ut_atomics_add_int64,
+    .exchange_int32  = ut_atomics_exchange_int32,
+    .exchange_int64  = ut_atomics_exchange_int64,
+    .compare_exchange_int64 = ut_atomics_compare_exchange_int64,
+    .compare_exchange_int32 = ut_atomics_compare_exchange_int32,
+    .compare_exchange_ptr = ut_atomics_compare_exchange_ptr,
+    .load32 = ut_atomics_load_int32,
+    .load64 = ut_atomics_load_int64,
     .spinlock_acquire = spinlock_acquire,
     .spinlock_release = spinlock_release,
     .memory_fence = memory_fence,
-    .test = atomics_test
+    .test = ut_atomics_test
 };
 
 #endif // __INTELLISENSE__

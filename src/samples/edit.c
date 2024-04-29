@@ -91,12 +91,12 @@ fn(void, invalidate)(ui_edit_t* e) {
 }
 
 fn(int32_t, text_width)(ui_edit_t* e, const char* s, int32_t n) {
-//  fp64_t time = clock.seconds();
+//  fp64_t time = ut_clock.seconds();
     // average measure_text() performance per character:
     // "app.fonts.mono"    ~500us (microseconds)
     // "app.fonts.regular" ~250us (microseconds)
     int32_t x = n == 0 ? 0 : gdi.measure_text(*e->view.font, "%.*s", n, s).x;
-//  time = (clock.seconds() - time) * 1000.0;
+//  time = (ut_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
 //  static fp64_t length_sum;
 //  time_sum += time;
@@ -256,7 +256,7 @@ fn(ui_edit_glyph_t, glyph_at)(ui_edit_t* e, ui_edit_pg_t p) {
 
 fn(const ui_edit_run_t*, paragraph_runs)(ui_edit_t* e, int32_t pn,
         int32_t* runs) {
-//  fp64_t time = clock.seconds();
+//  fp64_t time = ut_clock.seconds();
     assert(e->view.w > 0);
     const ui_edit_run_t* r = null;
     if (pn == e->paragraphs) {
@@ -325,7 +325,7 @@ fn(const ui_edit_run_t*, paragraph_runs)(ui_edit_t* e, int32_t pn,
         r = p->run;
     }
     assert(r != null && *runs >= 1);
-//  time = clock.seconds() - time;
+//  time = ut_clock.seconds() - time;
 //  traceln("%.3fms", time * 1000.0);
     return r;
 }
@@ -1519,7 +1519,7 @@ fn(void, cut_copy)(ui_edit_t* e, bool cut) {
             ns(move_caret)(e, pg);
         }
         text[n] = 0; // make it zero terminated
-        clipboard.put_text(text);
+        ut_clipboard.put_text(text);
         assert(n == (int32_t)strlen(text), "n=%d strlen(cb)=%d cb=\"%s\"",
                n, strlen(text), text);
         ns(free)(&text);
@@ -1597,10 +1597,10 @@ fn(void, clipboard_paste)(ui_edit_t* e) {
     if (!e->ro) {
         ui_edit_pg_t pg = e->selection[1];
         int32_t bytes = 0;
-        clipboard.get_text(null, &bytes);
+        ut_clipboard.get_text(null, &bytes);
         if (bytes > 0) {
             char* text = ns(alloc)(bytes);
-            int32_t r = clipboard.get_text(text, &bytes);
+            int32_t r = ut_clipboard.get_text(text, &bytes);
             fatal_if_not_zero(r);
             if (bytes > 0 && text[bytes - 1] == 0) {
                 bytes--; // clipboard includes zero terminator
@@ -1730,7 +1730,7 @@ void ns(init)(ui_edit_t* e) {
     ui_view_init(&e->view);
     e->view.type = ui_view_edit;
     e->view.focusable = true;
-    e->fuzz_seed = 1; // client can seed it with (clock.nanoseconds() | 1)
+    e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
     e->last_x    = -1;
     e->focused   = false;
     e->sle       = false;

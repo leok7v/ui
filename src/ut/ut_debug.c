@@ -1,7 +1,7 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
-static const char* debug_abbreviate(const char* file) {
+static const char* ut_debug_abbreviate(const char* file) {
     const char* fn = strrchr(file, '\\');
     if (fn == null) { fn = strrchr(file, '/'); }
     return fn != null ? fn + 1 : file;
@@ -9,7 +9,7 @@ static const char* debug_abbreviate(const char* file) {
 
 #ifdef WINDOWS
 
-static void debug_println_va(const char* file, int32_t line, const char* func,
+static void ut_debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
     char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
@@ -49,7 +49,7 @@ static void debug_println_va(const char* file, int32_t line, const char* func,
 
 #else // posix version:
 
-static void debug_vprintf(const char* file, int32_t line, const char* func,
+static void ut_debug_vprintf(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
     fprintf(stderr, "%s(%d): %s ", file, line, func);
     vfprintf(stderr, format, vl);
@@ -58,76 +58,76 @@ static void debug_vprintf(const char* file, int32_t line, const char* func,
 
 #endif
 
-static void debug_perrno(const char* file, int32_t line,
+static void ut_debug_perrno(const char* file, int32_t line,
     const char* func, int32_t err_no, const char* format, ...) {
     if (err_no != 0) {
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            debug.println_va(file, line, func, format, vl);
+            ut_debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
+        ut_debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
     }
 }
 
-static void debug_perror(const char* file, int32_t line,
+static void ut_debug_perror(const char* file, int32_t line,
     const char* func, int32_t error, const char* format, ...) {
     if (error != 0) {
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            debug.println_va(file, line, func, format, vl);
+            ut_debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        debug.println(file, line, func, "error: %s", str.error(error));
+        ut_debug.println(file, line, func, "error: %s", str.error(error));
     }
 }
 
-static void debug_println(const char* file, int32_t line, const char* func,
+static void ut_debug_println(const char* file, int32_t line, const char* func,
         const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    debug.println_va(file, line, func, format, vl);
+    ut_debug.println_va(file, line, func, format, vl);
     va_end(vl);
 }
 
-static bool debug_is_debugger_present(void) { return IsDebuggerPresent(); }
+static bool ut_debug_is_debugger_present(void) { return IsDebuggerPresent(); }
 
-static void debug_breakpoint(void) {
-    if (debug.is_debugger_present()) { DebugBreak(); }
+static void ut_debug_breakpoint(void) {
+    if (ut_debug.is_debugger_present()) { DebugBreak(); }
 }
 
-static int32_t debug_verbosity_from_string(const char* s) {
+static int32_t ut_debug_verbosity_from_string(const char* s) {
     const char* n = null;
     long v = strtol(s, &n, 10);
     if (striequ(s, "quiet")) {
-        return debug.verbosity.quiet;
+        return ut_debug.verbosity.quiet;
     } else if (striequ(s, "info")) {
-        return debug.verbosity.info;
+        return ut_debug.verbosity.info;
     } else if (striequ(s, "verbose")) {
-        return debug.verbosity.verbose;
+        return ut_debug.verbosity.verbose;
     } else if (striequ(s, "debug")) {
-        return debug.verbosity.debug;
+        return ut_debug.verbosity.debug;
     } else if (striequ(s, "trace")) {
-        return debug.verbosity.trace;
-    } else if (n > s && debug.verbosity.quiet <= v &&
-               v <= debug.verbosity.trace) {
+        return ut_debug.verbosity.trace;
+    } else if (n > s && ut_debug.verbosity.quiet <= v &&
+               v <= ut_debug.verbosity.trace) {
         return v;
     } else {
         fatal("invalid verbosity: %s", s);
-        return debug.verbosity.quiet;
+        return ut_debug.verbosity.quiet;
     }
 }
 
-static void debug_test(void) {
+static void ut_debug_test(void) {
     #ifdef UT_TESTS
     // not clear what can be tested here
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
-debug_if debug = {
+ut_debug_if ut_debug = {
     .verbosity = {
         .level   =  0,
         .quiet   =  0,
@@ -136,12 +136,12 @@ debug_if debug = {
         .debug   =  3,
         .trace   =  4,
     },
-    .verbosity_from_string = debug_verbosity_from_string,
-    .println               = debug_println,
-    .println_va            = debug_println_va,
-    .perrno                = debug_perrno,
-    .perror                = debug_perror,
-    .is_debugger_present   = debug_is_debugger_present,
-    .breakpoint            = debug_breakpoint,
-    .test                  = debug_test
+    .verbosity_from_string = ut_debug_verbosity_from_string,
+    .println               = ut_debug_println,
+    .println_va            = ut_debug_println_va,
+    .perrno                = ut_debug_perrno,
+    .perror                = ut_debug_perror,
+    .is_debugger_present   = ut_debug_is_debugger_present,
+    .breakpoint            = ut_debug_breakpoint,
+    .test                  = ut_debug_test
 };

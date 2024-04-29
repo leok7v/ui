@@ -30,8 +30,8 @@ typedef struct {
     int64_t (*load64)(volatile int64_t* a);
     void (*memory_fence)(void);
     void (*test)(void);
-} atomics_if;
+} ut_atomics_if;
 
-extern atomics_if atomics;
+extern ut_atomics_if ut_atomics;
 
 end_c

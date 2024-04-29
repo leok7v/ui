@@ -146,7 +146,7 @@ static fp64_t scale(int x, int n, fp64_t low, fp64_t hi) {
 }
 
 static void mandelbrot(image_t* im) {
-    fp64_t time = clock.seconds();
+    fp64_t time = ut_clock.seconds();
     for (int r = 0; r < im->h && !stop; r++) {
         fp64_t y0 = scale(r, im->h, -1.12, 1.12);
         for (int c = 0; c < im->w && !stop; c++) {
@@ -179,7 +179,7 @@ static void mandelbrot(image_t* im) {
             px[2] = (color >>  0) & 0xFF;
         }
     }
-    render_time = clock.seconds() - time;
+    render_time = ut_clock.seconds() - time;
 }
 
 static void renderer(void* unused) {

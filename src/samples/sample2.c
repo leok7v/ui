@@ -82,7 +82,7 @@ static void timer_thread(void* p) {
     threads.realtime();
     while (!*done) {
         threads.sleep_for(0.0094);
-        ts[1].time[ts[1].pos] = clock.seconds();
+        ts[1].time[ts[1].pos] = ut_clock.seconds();
         ts[1].pos = (ts[1].pos + 1) % N;
         (ts[1].samples)++;
         app.redraw();

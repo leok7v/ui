@@ -37,12 +37,12 @@ static_init(runtime) {
 #ifdef UT_TESTS
 
 static void runtime_test(void) { // in alphabetical order
-    args.test();
-    atomics.test();
-    clipboard.test();
-    clock.test();
-    config.test();
-    debug.test();
+    ut_args.test();
+    ut_atomics.test();
+    ut_clipboard.test();
+    ut_clock.test();
+    ut_config.test();
+    ut_debug.test();
     events.test();
     files.test();
     generics.test();

@@ -109,7 +109,7 @@ typedef struct {
     // On Unix it is responsibility of the main() to assign these values
     int32_t c;      // argc
     const char** v; // argv[argc]
-    const char** env; // args.env[] is null-terminated
+    const char** env; // ut_args.env[] is null-terminated
     void    (*main)(int32_t argc, const char* argv[], const char** env);
     void    (*WinMain)(void); // windows specific
     int32_t (*option_index)(const char* option); // e.g. option: "--verbosity" or "-v"
@@ -128,9 +128,9 @@ typedef struct {
     const char* (*basename)(void);
     void (*fini)(void);
     void (*test)(void);
-} args_if;
+} ut_args_if;
 
-extern args_if args;
+extern ut_args_if ut_args;
 
 /* Usage:
 
@@ -139,9 +139,9 @@ extern args_if args;
     static int run(void);
 
     int main(int argc, char* argv[], char* envp[]) { // link.exe /SUBSYSTEM:CONSOLE
-        args.main(argc, argv, envp); // Initialize args with command-line parameters
+        ut_args.main(argc, argv, envp); // Initialize args with command-line parameters
         int r = run();
-        args.fini();
+        ut_args.fini();
         return r;
     }
 
@@ -149,28 +149,28 @@ extern args_if args;
 
     int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* command, int show) {
         // link.exe /SUBSYSTEM:WINDOWS
-        args.WinMain();
+        ut_args.WinMain();
         int r = run();
-        args.fini();
+        ut_args.fini();
         return 0;
     }
 
     static int run(void) {
-        if (args.option_bool("-v")) {
-            debug.verbosity.level = debug.verbosity.verbose;
+        if (ut_args.option_bool("-v")) {
+            ut_debug.verbosity.level = ut_debug.verbosity.verbose;
         }
         int64_t num = 0;
-        if (args.option_int("--number", &num)) {
+        if (ut_args.option_int("--number", &num)) {
             printf("--number: %ld\n", num);
         }
-        const char* path = args.option_str("--path");
+        const char* path = ut_args.option_str("--path");
         if (path != null) {
             printf("--path: %s\n", path);
         }
-        printf("args.basename(): %s\n", args.basename());
-        printf("args.v[0]: %s\n", args.v[0]);
-        for (int i = 1; i < args.c; i++) {
-            printf("args.v[%d]: %s\n", i, args.v[i]);
+        printf("ut_args.basename(): %s\n", ut_args.basename());
+        printf("ut_args.v[0]: %s\n", ut_args.v[0]);
+        for (int i = 1; i < ut_args.c; i++) {
+            printf("ut_args.v[%d]: %s\n", i, ut_args.v[i]);
         }
         return 0;
     }
@@ -210,9 +210,9 @@ typedef struct {
     int64_t (*load64)(volatile int64_t* a);
     void (*memory_fence)(void);
     void (*test)(void);
-} atomics_if;
+} ut_atomics_if;
 
-extern atomics_if atomics;
+extern ut_atomics_if ut_atomics;
 
 
 
@@ -220,14 +220,14 @@ extern atomics_if atomics;
 
 typedef struct image_s image_t;
 
-typedef struct clipboard_if {
+typedef struct {
     errno_t (*put_text)(const char* s);
     errno_t (*get_text)(char* text, int32_t* bytes);
     errno_t (*put_image)(image_t* im); // only for Windows apps
     void (*test)(void);
-} clipboard_if;
+} ut_clipboard_if;
 
-extern clipboard_if clipboard;
+extern ut_clipboard_if ut_clipboard;
 
 
 
@@ -253,9 +253,9 @@ typedef struct {
         int32_t* day, int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms,
         int32_t* mc);
     void (*test)(void);
-} clock_if;
+} ut_clock_if;
 
-extern clock_if clock;
+extern ut_clock_if ut_clock;
 
 
 
@@ -266,7 +266,7 @@ extern clock_if clock;
 // related to specific application.
 // on Unix-like system ~/.name/key files are used.
 // On Window User registry (could be .dot files/folders).
-// "name" is customary basename of "args.v[0]"
+// "name" is customary basename of "ut_args.v[0]"
 
 typedef struct {
     errno_t (*save)(const char* name, const char* key,
@@ -278,9 +278,9 @@ typedef struct {
     errno_t (*remove)(const char* name, const char* key);
     errno_t (*clean)(const char* name); // remove all subkeys
     void (*test)(void);
-} config_if;
+} ut_config_if;
 
-extern config_if config;
+extern ut_config_if ut_config;
 
 
 
@@ -319,11 +319,11 @@ typedef struct {
     bool (*is_debugger_present)(void);
     void (*breakpoint)(void);
     void (*test)(void);
-} debug_if;
+} ut_debug_if;
 
-#define traceln(...) debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define traceln(...) ut_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
-extern debug_if debug;
+extern ut_debug_if ut_debug;
 
 
 
@@ -1042,45 +1042,45 @@ end_c
 
 // ________________________________ ut_args.c _________________________________
 
-static void* args_memory;
+static void* ut_args_memory;
 
-static void args_main(int32_t argc, const char* argv[], const char** env) {
-    swear(args.c == 0 && args.v == null && args.env == null);
-    swear(args_memory == null);
-    args.c = argc;
-    args.v = argv;
-    args.env = env;
+static void ut_args_main(int32_t argc, const char* argv[], const char** env) {
+    swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
+    swear(ut_args_memory == null);
+    ut_args.c = argc;
+    ut_args.v = argv;
+    ut_args.env = env;
 }
 
-static int32_t args_option_index(const char* option) {
-    for (int32_t i = 1; i < args.c; i++) {
-        if (strcmp(args.v[i], "--") == 0) { break; } // no options after '--'
-        if (strcmp(args.v[i], option) == 0) { return i; }
+static int32_t ut_args_option_index(const char* option) {
+    for (int32_t i = 1; i < ut_args.c; i++) {
+        if (strcmp(ut_args.v[i], "--") == 0) { break; } // no options after '--'
+        if (strcmp(ut_args.v[i], option) == 0) { return i; }
     }
     return -1;
 }
 
-static void args_remove_at(int32_t ix) {
+static void ut_args_remove_at(int32_t ix) {
     // returns new argc
-    assert(0 < args.c);
-    assert(0 < ix && ix < args.c); // cannot remove args.v[0]
-    for (int32_t i = ix; i < args.c; i++) {
-        args.v[i] = args.v[i + 1];
+    assert(0 < ut_args.c);
+    assert(0 < ix && ix < ut_args.c); // cannot remove ut_args.v[0]
+    for (int32_t i = ix; i < ut_args.c; i++) {
+        ut_args.v[i] = ut_args.v[i + 1];
     }
-    args.v[args.c - 1] = "";
-    args.c--;
+    ut_args.v[ut_args.c - 1] = "";
+    ut_args.c--;
 }
 
-static bool args_option_bool(const char* option) {
-    int32_t ix = args_option_index(option);
-    if (ix > 0) { args_remove_at(ix); }
+static bool ut_args_option_bool(const char* option) {
+    int32_t ix = ut_args_option_index(option);
+    if (ix > 0) { ut_args_remove_at(ix); }
     return ix > 0;
 }
 
-static bool args_option_int(const char* option, int64_t *value) {
-    int32_t ix = args_option_index(option);
-    if (ix > 0 && ix < args.c - 1) {
-        const char* s = args.v[ix + 1];
+static bool ut_args_option_int(const char* option, int64_t *value) {
+    int32_t ix = ut_args_option_index(option);
+    if (ix > 0 && ix < ut_args.c - 1) {
+        const char* s = ut_args.v[ix + 1];
         int32_t base = (strstr(s, "0x") == s || strstr(s, "0X") == s) ? 16 : 10;
         const char* b = s + (base == 10 ? 0 : 2);
         char* e = null;
@@ -1095,23 +1095,23 @@ static bool args_option_int(const char* option, int64_t *value) {
         ix = -1;
     }
     if (ix > 0) {
-        args_remove_at(ix); // remove option
-        args_remove_at(ix); // remove following number
+        ut_args_remove_at(ix); // remove option
+        ut_args_remove_at(ix); // remove following number
     }
     return ix > 0;
 }
 
-static const char* args_option_str(const char* option) {
-    int32_t ix = args_option_index(option);
+static const char* ut_args_option_str(const char* option) {
+    int32_t ix = ut_args_option_index(option);
     const char* s = null;
-    if (ix > 0 && ix < args.c - 1) {
-        s = args.v[ix + 1];
+    if (ix > 0 && ix < ut_args.c - 1) {
+        s = ut_args.v[ix + 1];
     } else {
         ix = -1;
     }
     if (ix > 0) {
-        args_remove_at(ix); // remove option
-        args_remove_at(ix); // remove following string
+        ut_args_remove_at(ix); // remove option
+        ut_args_remove_at(ix); // remove following string
     }
     return ix > 0 ? s : null;
 }
@@ -1131,9 +1131,9 @@ static const char* args_option_str(const char* option) {
 // https://web.archive.org/web/20231115181633/http://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments?view=msvc-170
 // Alternative: just use CommandLineToArgvW()
 
-typedef struct { const char* s; char* d; const char* e; } args_pair_t;
+typedef struct { const char* s; char* d; const char* e; } ut_args_pair_t;
 
-static args_pair_t args_parse_backslashes(args_pair_t p) {
+static ut_args_pair_t ut_args_parse_backslashes(ut_args_pair_t p) {
     enum { quote = '"', backslash = '\\' };
     const char* s = p.s;
     char* d = p.d;
@@ -1148,10 +1148,10 @@ static args_pair_t args_parse_backslashes(args_pair_t p) {
         // unless they immediately precede a quote:
         while (bsc > 0 && d < p.e) { *d++ = backslash; bsc--; }
     }
-    return (args_pair_t){ .s = s, .d = d, .e = p.e };
+    return (ut_args_pair_t){ .s = s, .d = d, .e = p.e };
 }
 
-static args_pair_t args_parse_quoted(args_pair_t p) {
+static ut_args_pair_t ut_args_parse_quoted(ut_args_pair_t p) {
     enum { quote = '"', backslash = '\\' };
     const char* s = p.s;
     char* d = p.d;
@@ -1159,7 +1159,7 @@ static args_pair_t args_parse_quoted(args_pair_t p) {
     s++; // opening quote (skip)
     while (*s != 0x00) {
         if (*s == backslash) {
-            p = args_parse_backslashes((args_pair_t){
+            p = ut_args_parse_backslashes((ut_args_pair_t){
                         .s = s, .d = d, .e = p.e });
             s = p.s; d = p.d;
         } else if (*s == quote && s[1] == quote) {
@@ -1174,27 +1174,27 @@ static args_pair_t args_parse_quoted(args_pair_t p) {
             *d++ = *s++;
         }
     }
-    return (args_pair_t){ .s = s, .d = d, .e = p.e };
+    return (ut_args_pair_t){ .s = s, .d = d, .e = p.e };
 }
 
-static void args_parse(const char* s) {
+static void ut_args_parse(const char* s) {
     swear(s[0] != 0, "cannot parse empty string");
-    swear(args.c == 0);
-    swear(args.v == null);
-    swear(args_memory == null);
+    swear(ut_args.c == 0);
+    swear(ut_args.v == null);
+    swear(ut_args_memory == null);
     enum { quote = '"', backslash = '\\', tab = '\t', space = 0x20 };
     const int32_t len = (int)strlen(s);
     // Worst-case scenario (possible to optimize with dry run of parse)
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
     const int32_t n = k + (len + 2) * (int)sizeof(char);
-    fatal_if_not_zero(heap.allocate(null, &args_memory, n, true));
-    args.c = 0;
-    args.v = (const char**)args_memory;
-    char* d = (char*)(((char*)args.v) + k);
+    fatal_if_not_zero(heap.allocate(null, &ut_args_memory, n, true));
+    ut_args.c = 0;
+    ut_args.v = (const char**)ut_args_memory;
+    char* d = (char*)(((char*)ut_args.v) + k);
     char* e = d + n; // end of memory
     // special rules for 1st argument:
-    if (args.c < n) { args.v[args.c++] = d; }
+    if (ut_args.c < n) { ut_args.v[ut_args.c++] = d; }
     if (*s == quote) {
         s++;
         while (*s != 0x00 && *s != quote && d < e) { *d++ = *s++; }
@@ -1209,23 +1209,23 @@ static void args_parse(const char* s) {
         while (*s == space || *s == tab) { s++; }
         if (*s == 0) { break; }
         if (*s == quote && s[1] == 0 && d < e) { // unbalanced single quote
-            if (args.c < n) { args.v[args.c++] = d; } // spec does not say what to do
+            if (ut_args.c < n) { ut_args.v[ut_args.c++] = d; } // spec does not say what to do
             *d++ = *s++;
         } else if (*s == quote) { // quoted arg
-            if (args.c < n) { args.v[args.c++] = d; }
-            args_pair_t p = args_parse_quoted(
-                    (args_pair_t){ .s = s, .d = d, .e = e });
+            if (ut_args.c < n) { ut_args.v[ut_args.c++] = d; }
+            ut_args_pair_t p = ut_args_parse_quoted(
+                    (ut_args_pair_t){ .s = s, .d = d, .e = e });
             s = p.s; d = p.d;
         } else { // non-quoted arg (that can have quoted strings inside)
-            if (args.c < n) { args.v[args.c++] = d; }
+            if (ut_args.c < n) { ut_args.v[ut_args.c++] = d; }
             while (*s != 0) {
                 if (*s == backslash) {
-                    args_pair_t p = args_parse_backslashes(
-                            (args_pair_t){ .s = s, .d = d, .e = e });
+                    ut_args_pair_t p = ut_args_parse_backslashes(
+                            (ut_args_pair_t){ .s = s, .d = d, .e = e });
                     s = p.s; d = p.d;
                 } else if (*s == quote) {
-                    args_pair_t p = args_parse_quoted(
-                            (args_pair_t){ .s = s, .d = d, .e = e });
+                    ut_args_pair_t p = ut_args_parse_quoted(
+                            (ut_args_pair_t){ .s = s, .d = d, .e = e });
                     s = p.s; d = p.d;
                 } else if (*s == tab || *s == space) {
                     break;
@@ -1236,18 +1236,18 @@ static void args_parse(const char* s) {
         }
         if (d < e) { *d++ = 0; }
     }
-    if (args.c < n) {
-        args.v[args.c] = null;
+    if (ut_args.c < n) {
+        ut_args.v[ut_args.c] = null;
     }
-    swear(args.c < n, "not enough memory - adjust guestimates");
+    swear(ut_args.c < n, "not enough memory - adjust guestimates");
     swear(d <= e, "not enough memory - adjust guestimates");
 }
 
-const char* args_basename(void) {
+const char* ut_args_basename(void) {
     static char basename[260];
-    swear(args.c > 0);
+    swear(ut_args.c > 0);
     if (basename[0] == 0) {
-        const char* s = args.v[0];
+        const char* s = ut_args.v[0];
         const char* b = s;
         while (*s != 0) {
             if (*s == '\\' || *s == '/') { b = s + 1; }
@@ -1263,23 +1263,23 @@ const char* args_basename(void) {
     return basename;
 }
 
-static void args_fini(void) {
-    heap.deallocate(null, args_memory); // can be null is parse() was not called
-    args_memory = null;
-    args.c = 0;
-    args.v = null;
+static void ut_args_fini(void) {
+    heap.deallocate(null, ut_args_memory); // can be null is parse() was not called
+    ut_args_memory = null;
+    ut_args.c = 0;
+    ut_args.v = null;
 }
 
-static void args_WinMain(void) {
-    swear(args.c == 0 && args.v == null && args.env == null);
-    swear(args_memory == null);
+static void ut_args_WinMain(void) {
+    swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
+    swear(ut_args_memory == null);
     const uint16_t* wcl = GetCommandLineW();
     int32_t n = (int32_t)wcslen(wcl);
     char* cl = null;
     fatal_if_not_zero(heap.allocate(null, &cl, n * 2 + 1, false));
-    args_parse(str.utf16_utf8(cl, wcl));
+    ut_args_parse(str.utf16_utf8(cl, wcl));
     heap.deallocate(null, cl);
-    args.env = _environ;
+    ut_args.env = _environ;
 }
 
 #ifdef UT_TESTS
@@ -1295,85 +1295,85 @@ static void args_WinMain(void) {
 
 #ifndef __INTELLISENSE__ // confused data analysis
 
-static void args_test_verify(const char* cl, int32_t expected, ...) {
-    if (debug.verbosity.level >= debug.verbosity.trace) {
+static void ut_args_test_verify(const char* cl, int32_t expected, ...) {
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
         traceln("cl: `%s`", cl);
     }
-    int32_t argc = args.c;
-    const char** argv = args.v;
-    void* memory = args_memory;
-    args.c = 0;
-    args.v = null;
-    args_memory = null;
-    args_parse(cl);
+    int32_t argc = ut_args.c;
+    const char** argv = ut_args.v;
+    void* memory = ut_args_memory;
+    ut_args.c = 0;
+    ut_args.v = null;
+    ut_args_memory = null;
+    ut_args_parse(cl);
     va_list vl;
     va_start(vl, expected);
     for (int32_t i = 0; i < expected; i++) {
         const char* s = va_arg(vl, const char*);
-//      if (debug.verbosity.level >= debug.verbosity.trace) {
-//          traceln("args.v[%d]: `%s` expected: `%s`", i, args.v[i], s);
+//      if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+//          traceln("ut_args.v[%d]: `%s` expected: `%s`", i, ut_args.v[i], s);
 //      }
         // Warning 6385: reading data outside of array
-        const char* ai = _Pragma("warning(suppress:  6385)")args.v[i];
-        swear(strcmp(ai, s) == 0, "args.v[%d]: `%s` expected: `%s`",
+        const char* ai = _Pragma("warning(suppress:  6385)")ut_args.v[i];
+        swear(strcmp(ai, s) == 0, "ut_args.v[%d]: `%s` expected: `%s`",
               i, ai, s);
     }
     va_end(vl);
-    args.fini();
+    ut_args.fini();
     // restore command line arguments:
-    args.c = argc;
-    args.v = argv;
-    args_memory = memory;
+    ut_args.c = argc;
+    ut_args.v = argv;
+    ut_args_memory = memory;
 }
 
 #endif // __INTELLISENSE__
 
-static void args_test(void) {
-    // The first argument (args.v[0]) is treated specially.
+static void ut_args_test(void) {
+    // The first argument (ut_args.v[0]) is treated specially.
     // It represents the program name. Because it must be a valid pathname,
     // parts surrounded by quote (") are allowed. The quote aren't included
-    // in the args.v[0] output. The parts surrounded by quote prevent
+    // in the ut_args.v[0] output. The parts surrounded by quote prevent
     // interpretation of a space or tab character as the end of the argument.
     // The escaping rules don't apply.
-    args_test_verify("\"c:\\foo\\bar\\snafu.exe\"", 1,
+    ut_args_test_verify("\"c:\\foo\\bar\\snafu.exe\"", 1,
                      "c:\\foo\\bar\\snafu.exe");
-    args_test_verify("c:\\foo\\bar\\snafu.exe", 1,
+    ut_args_test_verify("c:\\foo\\bar\\snafu.exe", 1,
                      "c:\\foo\\bar\\snafu.exe");
-    args_test_verify("foo.exe \"a b c\" d e", 4,
+    ut_args_test_verify("foo.exe \"a b c\" d e", 4,
                      "foo.exe", "a b c", "d", "e");
-    args_test_verify("foo.exe \"ab\\\"c\" \"\\\\\" d", 4,
+    ut_args_test_verify("foo.exe \"ab\\\"c\" \"\\\\\" d", 4,
                      "foo.exe", "ab\"c", "\\", "d");
-    args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
+    ut_args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
                      "foo.exe", "a\\\\\\b", "de fg", "h");
-    args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
+    ut_args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
                      "foo.exe", "a\\\\\\b", "de fg", "h");
-    args_test_verify("foo.exe a\"b\"\" c d", 2, // unmatched quote
+    ut_args_test_verify("foo.exe a\"b\"\" c d", 2, // unmatched quote
                      "foo.exe", "ab\" c d");
     // unbalanced quote and backslash:
-    args_test_verify("foo.exe \"",     2, "foo.exe", "\"");
-    args_test_verify("foo.exe \\",     2, "foo.exe", "\\");
-    args_test_verify("foo.exe \\\\",   2, "foo.exe", "\\\\");
-    args_test_verify("foo.exe \\\\\\", 2, "foo.exe", "\\\\\\");
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    ut_args_test_verify("foo.exe \"",     2, "foo.exe", "\"");
+    ut_args_test_verify("foo.exe \\",     2, "foo.exe", "\\");
+    ut_args_test_verify("foo.exe \\\\",   2, "foo.exe", "\\\\");
+    ut_args_test_verify("foo.exe \\\\\\", 2, "foo.exe", "\\\\\\");
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-static void args_test(void) {}
+static void ut_args_test(void) {}
 
 #endif
 
-args_if args = {
-    .main         = args_main,
-    .WinMain      = args_WinMain,
-    .option_index = args_option_index,
-    .remove_at    = args_remove_at,
-    .option_bool  = args_option_bool,
-    .option_int   = args_option_int,
-    .option_str   = args_option_str,
-    .basename     = args_basename,
-    .fini         = args_fini,
-    .test         = args_test
+ut_args_if ut_args = {
+    .main         = ut_args_main,
+    .WinMain      = ut_args_WinMain,
+    .option_index = ut_args_option_index,
+    .remove_at    = ut_args_remove_at,
+    .option_bool  = ut_args_option_bool,
+    .option_int   = ut_args_option_int,
+    .option_str   = ut_args_option_str,
+    .basename     = ut_args_basename,
+    .fini         = ut_args_fini,
+    .test         = ut_args_test
 };
 // _______________________________ ut_atomics.c _______________________________
 
@@ -1385,46 +1385,46 @@ args_if args = {
 
 #ifndef ATOMICS_HAS_STDATOMIC_H
 
-static int32_t atomics_increment_int32(volatile int32_t* a) {
+static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
     return InterlockedIncrement((volatile LONG*)a);
 }
 
-static int32_t atomics_decrement_int32(volatile int32_t* a) {
+static int32_t ut_atomics_decrement_int32(volatile int32_t* a) {
     return InterlockedDecrement((volatile LONG*)a);
 }
 
-static int64_t atomics_increment_int64(volatile int64_t* a) {
+static int64_t ut_atomics_increment_int64(volatile int64_t* a) {
     return InterlockedIncrement64((__int64 volatile *)a);
 }
 
-static int64_t atomics_decrement_int64(volatile int64_t* a) {
+static int64_t ut_atomics_decrement_int64(volatile int64_t* a) {
     return InterlockedDecrement64((__int64 volatile *)a);
 }
 
-static int32_t atomics_add_int32(volatile int32_t* a, int32_t v) {
+static int32_t ut_atomics_add_int32(volatile int32_t* a, int32_t v) {
     return InterlockedAdd((LONG volatile *)a, v);
 }
 
-static int64_t atomics_add_int64(volatile int64_t* a, int64_t v) {
+static int64_t ut_atomics_add_int64(volatile int64_t* a, int64_t v) {
     return InterlockedAdd64((__int64 volatile *)a, v);
 }
 
-static int64_t atomics_exchange_int64(volatile int64_t* a, int64_t v) {
+static int64_t ut_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
     return (int64_t)InterlockedExchange64((LONGLONG*)a, (LONGLONG)v);
 }
 
-static int32_t atomics_exchange_int32(volatile int32_t* a, int32_t v) {
+static int32_t ut_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
     assert(sizeof(int32_t) == sizeof(unsigned long));
     return (int32_t)InterlockedExchange((volatile LONG*)a, (unsigned long)v);
 }
 
-static bool atomics_compare_exchange_int64(volatile int64_t* a,
+static bool ut_atomics_compare_exchange_int64(volatile int64_t* a,
         int64_t comparand, int64_t v) {
     return (int64_t)InterlockedCompareExchange64((LONGLONG*)a,
         (LONGLONG)v, (LONGLONG)comparand) == comparand;
 }
 
-static bool atomics_compare_exchange_int32(volatile int32_t* a,
+static bool ut_atomics_compare_exchange_int32(volatile int32_t* a,
         int32_t comparand, int32_t v) {
     return (int64_t)InterlockedCompareExchange((LONG*)a,
         (LONG)v, (LONG)comparand) == comparand;
@@ -1456,46 +1456,46 @@ static void memory_fence(void) { _mm_mfence(); }
 static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
 static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
 
-static int32_t atomics_increment_int32(volatile int32_t* a) {
+static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
     return atomic_fetch_add((atomic_int_fast32_t*)a, 1) + 1;
 }
 
-static int32_t atomics_decrement_int32(volatile int32_t* a) {
+static int32_t ut_atomics_decrement_int32(volatile int32_t* a) {
     return atomic_fetch_sub((atomic_int_fast32_t*)a, 1) - 1;
 }
 
-static int64_t atomics_increment_int64(volatile int64_t* a) {
+static int64_t ut_atomics_increment_int64(volatile int64_t* a) {
     return atomic_fetch_add((atomic_int_fast64_t*)a, 1) + 1;
 }
 
-static int64_t atomics_decrement_int64(volatile int64_t* a) {
+static int64_t ut_atomics_decrement_int64(volatile int64_t* a) {
     return atomic_fetch_sub((atomic_int_fast64_t*)a, 1) - 1;
 }
 
-static int32_t atomics_add_int32(volatile int32_t* a, int32_t v) {
+static int32_t ut_atomics_add_int32(volatile int32_t* a, int32_t v) {
     return atomic_fetch_add((atomic_int_fast32_t*)a, v) + v;
 }
 
-static int64_t atomics_add_int64(volatile int64_t* a, int64_t v) {
+static int64_t ut_atomics_add_int64(volatile int64_t* a, int64_t v) {
     return atomic_fetch_add((atomic_int_fast64_t*)a, v) + v;
 }
 
-static int64_t atomics_exchange_int64(volatile int64_t* a, int64_t v) {
+static int64_t ut_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
     return atomic_exchange((atomic_int_fast64_t*)a, v);
 }
 
-static int32_t atomics_exchange_int32(volatile int32_t* a, int32_t v) {
+static int32_t ut_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
     return atomic_exchange((atomic_int_fast32_t*)a, v);
 }
 
-static bool atomics_compare_exchange_int64(volatile int64_t* a,
+static bool ut_atomics_compare_exchange_int64(volatile int64_t* a,
     int64_t comparand, int64_t v) {
     return atomic_compare_exchange_strong((atomic_int_fast64_t*)a,
         &comparand, v);
 }
 
 // Code here is not "seen" by IntelliSense but is compiled normally.
-static bool atomics_compare_exchange_int32(volatile int32_t* a,
+static bool ut_atomics_compare_exchange_int32(volatile int32_t* a,
     int32_t comparand, int32_t v) {
     return atomic_compare_exchange_strong((atomic_int_fast32_t*)a,
         &comparand, v);
@@ -1507,22 +1507,22 @@ static void memory_fence(void) { atomic_thread_fence(memory_order_seq_cst); }
 
 #endif // ATOMICS_HAS_STDATOMIC_H
 
-static int32_t atomics_load_int32(volatile int32_t* a) {
-    return atomics.add_int32(a, 0);
+static int32_t ut_atomics_load_int32(volatile int32_t* a) {
+    return ut_atomics.add_int32(a, 0);
 }
 
-static int64_t atomics_load_int64(volatile int64_t* a) {
-    return atomics.add_int64(a, 0);
+static int64_t ut_atomics_load_int64(volatile int64_t* a) {
+    return ut_atomics.add_int64(a, 0);
 }
 
-static void* atomics_exchange_ptr(volatile void* *a, void* v) {
+static void* ut_atomics_exchange_ptr(volatile void* *a, void* v) {
     static_assertion(sizeof(void*) == sizeof(uint64_t));
-    return (void*)atomics.exchange_int64((int64_t*)a, (int64_t)v);
+    return (void*)ut_atomics.exchange_int64((int64_t*)a, (int64_t)v);
 }
 
-static bool atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
+static bool ut_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
     static_assertion(sizeof(void*) == sizeof(int64_t));
-    return atomics.compare_exchange_int64((int64_t*)a,
+    return ut_atomics.compare_exchange_int64((int64_t*)a,
         (int64_t)comparand, (int64_t)v);
 }
 
@@ -1546,7 +1546,7 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
             __builtin_cpu_pause();
         }
     }
-    atomics.memory_fence();
+    ut_atomics.memory_fence();
     // not strcitly necessary on strong mem model Intel/AMD but
     // see: https://cfsamsonbooks.gitbook.io/explaining-atomics-in-rust/
     //      Fig 2 Inconsistent C11 execution of SB and 2+2W
@@ -1557,63 +1557,63 @@ static void spinlock_release(volatile int64_t* spinlock) {
     assert(*spinlock == 1);
     *spinlock = 0;
     // tribute to lengthy Linus discussion going since 2006:
-    atomics.memory_fence();
+    ut_atomics.memory_fence();
 }
 
-static void atomics_test(void) {
+static void ut_atomics_test(void) {
     #ifdef UT_TESTS
     volatile int32_t int32_var = 0;
     volatile int64_t int64_var = 0;
     volatile void* ptr_var = null;
     int64_t spinlock = 0;
-    void* old_ptr = atomics.exchange_ptr(&ptr_var, (void*)123);
+    void* old_ptr = ut_atomics.exchange_ptr(&ptr_var, (void*)123);
     swear(old_ptr == null);
     swear(ptr_var == (void*)123);
-    int32_t incremented_int32 = atomics.increment_int32(&int32_var);
+    int32_t incremented_int32 = ut_atomics.increment_int32(&int32_var);
     swear(incremented_int32 == 1);
     swear(int32_var == 1);
-    int32_t decremented_int32 = atomics.decrement_int32(&int32_var);
+    int32_t decremented_int32 = ut_atomics.decrement_int32(&int32_var);
     swear(decremented_int32 == 0);
     swear(int32_var == 0);
-    int64_t incremented_int64 = atomics.increment_int64(&int64_var);
+    int64_t incremented_int64 = ut_atomics.increment_int64(&int64_var);
     swear(incremented_int64 == 1);
     swear(int64_var == 1);
-    int64_t decremented_int64 = atomics.decrement_int64(&int64_var);
+    int64_t decremented_int64 = ut_atomics.decrement_int64(&int64_var);
     swear(decremented_int64 == 0);
     swear(int64_var == 0);
-    int32_t added_int32 = atomics.add_int32(&int32_var, 5);
+    int32_t added_int32 = ut_atomics.add_int32(&int32_var, 5);
     swear(added_int32 == 5);
     swear(int32_var == 5);
-    int64_t added_int64 = atomics.add_int64(&int64_var, 10);
+    int64_t added_int64 = ut_atomics.add_int64(&int64_var, 10);
     swear(added_int64 == 10);
     swear(int64_var == 10);
-    int32_t old_int32 = atomics.exchange_int32(&int32_var, 3);
+    int32_t old_int32 = ut_atomics.exchange_int32(&int32_var, 3);
     swear(old_int32 == 5);
     swear(int32_var == 3);
-    int64_t old_int64 = atomics.exchange_int64(&int64_var, 6);
+    int64_t old_int64 = ut_atomics.exchange_int64(&int64_var, 6);
     swear(old_int64 == 10);
     swear(int64_var == 6);
-    bool int32_exchanged = atomics.compare_exchange_int32(&int32_var, 3, 4);
+    bool int32_exchanged = ut_atomics.compare_exchange_int32(&int32_var, 3, 4);
     swear(int32_exchanged);
     swear(int32_var == 4);
-    bool int64_exchanged = atomics.compare_exchange_int64(&int64_var, 6, 7);
+    bool int64_exchanged = ut_atomics.compare_exchange_int64(&int64_var, 6, 7);
     swear(int64_exchanged);
     swear(int64_var == 7);
     ptr_var = (void*)0x123;
-    bool ptr_exchanged = atomics.compare_exchange_ptr(&ptr_var,
+    bool ptr_exchanged = ut_atomics.compare_exchange_ptr(&ptr_var,
         (void*)0x123, (void*)0x456);
     swear(ptr_exchanged);
     swear(ptr_var == (void*)0x456);
-    atomics.spinlock_acquire(&spinlock);
+    ut_atomics.spinlock_acquire(&spinlock);
     swear(spinlock == 1);
-    atomics.spinlock_release(&spinlock);
+    ut_atomics.spinlock_release(&spinlock);
     swear(spinlock == 0);
-    int32_t loaded_int32 = atomics.load32(&int32_var);
+    int32_t loaded_int32 = ut_atomics.load32(&int32_var);
     swear(loaded_int32 == int32_var);
-    int64_t loaded_int64 = atomics.load64(&int64_var);
+    int64_t loaded_int64 = ut_atomics.load64(&int64_var);
     swear(loaded_int64 == int64_var);
-    atomics.memory_fence();
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    ut_atomics.memory_fence();
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
@@ -1622,25 +1622,25 @@ static void atomics_test(void) {
 static_assertion(sizeof(void*) == sizeof(int64_t));
 static_assertion(sizeof(void*) == sizeof(uintptr_t));
 
-atomics_if atomics = {
-    .exchange_ptr    = atomics_exchange_ptr,
-    .increment_int32 = atomics_increment_int32,
-    .decrement_int32 = atomics_decrement_int32,
-    .increment_int64 = atomics_increment_int64,
-    .decrement_int64 = atomics_decrement_int64,
-    .add_int32 = atomics_add_int32,
-    .add_int64 = atomics_add_int64,
-    .exchange_int32  = atomics_exchange_int32,
-    .exchange_int64  = atomics_exchange_int64,
-    .compare_exchange_int64 = atomics_compare_exchange_int64,
-    .compare_exchange_int32 = atomics_compare_exchange_int32,
-    .compare_exchange_ptr = atomics_compare_exchange_ptr,
-    .load32 = atomics_load_int32,
-    .load64 = atomics_load_int64,
+ut_atomics_if ut_atomics = {
+    .exchange_ptr    = ut_atomics_exchange_ptr,
+    .increment_int32 = ut_atomics_increment_int32,
+    .decrement_int32 = ut_atomics_decrement_int32,
+    .increment_int64 = ut_atomics_increment_int64,
+    .decrement_int64 = ut_atomics_decrement_int64,
+    .add_int32 = ut_atomics_add_int32,
+    .add_int64 = ut_atomics_add_int64,
+    .exchange_int32  = ut_atomics_exchange_int32,
+    .exchange_int64  = ut_atomics_exchange_int64,
+    .compare_exchange_int64 = ut_atomics_compare_exchange_int64,
+    .compare_exchange_int32 = ut_atomics_compare_exchange_int32,
+    .compare_exchange_ptr = ut_atomics_compare_exchange_ptr,
+    .load32 = ut_atomics_load_int32,
+    .load64 = ut_atomics_load_int64,
     .spinlock_acquire = spinlock_acquire,
     .spinlock_release = spinlock_release,
     .memory_fence = memory_fence,
-    .test = atomics_test
+    .test = ut_atomics_test
 };
 
 #endif // __INTELLISENSE__
@@ -1658,7 +1658,7 @@ atomics_if atomics = {
 
 // ______________________________ ut_clipboard.c ______________________________
 
-static errno_t clipboard_put_text(const char* utf8) {
+static errno_t ut_clipboard_put_text(const char* utf8) {
     errno_t r = 0;
     int32_t chars = str.utf16_chars(utf8);
     int32_t bytes = (chars + 1) * 2;
@@ -1705,7 +1705,7 @@ static errno_t clipboard_put_text(const char* utf8) {
     return r;
 }
 
-static errno_t clipboard_get_text(char* utf8, int32_t* bytes) {
+static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
     not_null(bytes);
     int r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
     if (r != 0) { traceln("OpenClipboard() failed %s", str.error(r)); }
@@ -1742,41 +1742,41 @@ static errno_t clipboard_get_text(char* utf8, int32_t* bytes) {
 
 #ifdef UT_TESTS
 
-static void clipboard_test(void) {
-    fatal_if_not_zero(clipboard.put_text("Hello Clipboard"));
+static void ut_clipboard_test(void) {
+    fatal_if_not_zero(ut_clipboard.put_text("Hello Clipboard"));
     char text[256];
     int32_t bytes = countof(text);
-    fatal_if_not_zero(clipboard.get_text(text, &bytes));
+    fatal_if_not_zero(ut_clipboard.get_text(text, &bytes));
     swear(strequ(text, "Hello Clipboard"));
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-static void clipboard_test(void) {
+static void ut_clipboard_test(void) {
 }
 
 #endif
 
-clipboard_if clipboard = {
-    .put_text   = clipboard_put_text,
-    .get_text   = clipboard_get_text,
+ut_clipboard_if ut_clipboard = {
+    .put_text   = ut_clipboard_put_text,
+    .get_text   = ut_clipboard_get_text,
     .put_image  = null, // implemented in ui.app
-    .test       = clipboard_test
+    .test       = ut_clipboard_test
 };
 
 // ________________________________ ut_clock.c ________________________________
 
 enum {
-    clock_nsec_in_usec = 1000, // nano in micro
-    clock_nsec_in_msec = clock_nsec_in_usec * 1000, // nano in milli
-    clock_nsec_in_sec  = clock_nsec_in_msec * 1000,
-    clock_usec_in_msec = 1000, // micro in mill
-    clock_msec_in_sec  = 1000, // milli in sec
-    clock_usec_in_sec  = clock_usec_in_msec * clock_msec_in_sec // micro in sec
+    ut_clock_nsec_in_usec = 1000, // nano in micro
+    ut_clock_nsec_in_msec = ut_clock_nsec_in_usec * 1000, // nano in milli
+    ut_clock_nsec_in_sec  = ut_clock_nsec_in_msec * 1000,
+    ut_clock_usec_in_msec = 1000, // micro in mill
+    ut_clock_msec_in_sec  = 1000, // milli in sec
+    ut_clock_usec_in_sec  = ut_clock_usec_in_msec * ut_clock_msec_in_sec // micro in sec
 };
 
-static uint64_t clock_microseconds_since_epoch(void) { // NOT monotonic
+static uint64_t ut_clock_microseconds_since_epoch(void) { // NOT monotonic
     FILETIME ft; // time in 100ns interval (tenth of microsecond)
     // since 12:00 A.M. January 1, 1601 Coordinated Universal Time (UTC)
     GetSystemTimePreciseAsFileTime(&ft);
@@ -1786,14 +1786,14 @@ static uint64_t clock_microseconds_since_epoch(void) { // NOT monotonic
     return microseconds;
 }
 
-static uint64_t clock_localtime(void) {
+static uint64_t ut_clock_localtime(void) {
     TIME_ZONE_INFORMATION tzi; // UTC = local time + bias
     GetTimeZoneInformation(&tzi);
     uint64_t bias = (uint64_t)tzi.Bias * 60LL * 1000 * 1000; // in microseconds
-    return clock_microseconds_since_epoch() - bias;
+    return ut_clock_microseconds_since_epoch() - bias;
 }
 
-static void clock_utc(uint64_t microseconds,
+static void ut_clock_utc(uint64_t microseconds,
         int32_t* year, int32_t* month, int32_t* day,
         int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
     uint64_t time_in_100ns = microseconds * 10;
@@ -1811,7 +1811,7 @@ static void clock_utc(uint64_t microseconds,
     *mc = microseconds % 1000;
 }
 
-static void clock_local(uint64_t microseconds,
+static void ut_clock_local(uint64_t microseconds,
         int32_t* year, int32_t* month, int32_t* day,
         int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
     uint64_t time_in_100ns = microseconds * 10;
@@ -1832,7 +1832,7 @@ static void clock_local(uint64_t microseconds,
     *mc = microseconds % 1000;
 }
 
-static fp64_t clock_seconds(void) { // since_boot
+static fp64_t ut_clock_seconds(void) { // since_boot
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static fp64_t one_over_freq;
@@ -1854,7 +1854,7 @@ static fp64_t clock_seconds(void) { // since_boot
 //                          24 hours / day
 //
 // it would take approximately 213,503 days (or about 584.5 years)
-// for clock.nanoseconds() to overflow
+// for ut_clock.nanoseconds() to overflow
 //
 // for divider = num.gcd32(nsec_in_sec, freq) below and 10MHz timer
 // the actual duration is shorter because of (mul == 100)
@@ -1862,14 +1862,14 @@ static fp64_t clock_seconds(void) { // since_boot
 // 64 bit overflow and is about 5.8 years.
 //
 // In a long running code like services is advisable to use
-// clock.nanoseconds() to measure only deltas and pay close attention
+// ut_clock.nanoseconds() to measure only deltas and pay close attention
 // to the wrap around despite of 5 years monotony
 
-static uint64_t clock_nanoseconds(void) {
+static uint64_t ut_clock_nanoseconds(void) {
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static uint32_t freq;
-    static uint32_t mul = clock_nsec_in_sec;
+    static uint32_t mul = ut_clock_nsec_in_sec;
     if (freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
@@ -1883,9 +1883,9 @@ static uint64_t clock_nanoseconds(void) {
         // multiples of MHz num.gcd() approach may need
         // to be revised in favor of num.muldiv64x64()
         freq = frequency.LowPart;
-        assert(freq != 0 && freq < (uint32_t)clock.nsec_in_sec);
+        assert(freq != 0 && freq < (uint32_t)ut_clock.nsec_in_sec);
         // to avoid num.muldiv128:
-        uint32_t divider = num.gcd32(clock.nsec_in_sec, freq);
+        uint32_t divider = num.gcd32(ut_clock.nsec_in_sec, freq);
         freq /= divider;
         mul  /= divider;
     }
@@ -1895,47 +1895,47 @@ static uint64_t clock_nanoseconds(void) {
 
 // Difference between 1601 and 1970 in microseconds:
 
-const uint64_t clock_epoch_diff_usec = 11644473600000000ULL;
+const uint64_t ut_clock_epoch_diff_usec = 11644473600000000ULL;
 
-static uint64_t clock_unix_microseconds(void) {
-    return clock.microseconds() - clock_epoch_diff_usec;
+static uint64_t ut_clock_unix_microseconds(void) {
+    return ut_clock.microseconds() - ut_clock_epoch_diff_usec;
 }
 
-static uint64_t clock_unix_seconds(void) {
-    return clock.unix_microseconds() / clock.usec_in_sec;
+static uint64_t ut_clock_unix_seconds(void) {
+    return ut_clock.unix_microseconds() / ut_clock.usec_in_sec;
 }
 
-static void clock_test(void) {
+static void ut_clock_test(void) {
     #ifdef UT_TESTS
     // TODO: implement more tests
-    uint64_t t0 = clock.nanoseconds();
-    uint64_t t1 = clock.nanoseconds();
+    uint64_t t0 = ut_clock.nanoseconds();
+    uint64_t t1 = ut_clock.nanoseconds();
     int32_t count = 0;
     while (t0 == t1 && count < 1024) {
-        t1 = clock.nanoseconds();
+        t1 = ut_clock.nanoseconds();
         count++;
     }
     swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
-clock_if clock = {
-    .nsec_in_usec      = clock_nsec_in_usec,
-    .nsec_in_msec      = clock_nsec_in_msec,
-    .nsec_in_sec       = clock_nsec_in_sec,
-    .usec_in_msec      = clock_usec_in_msec,
-    .msec_in_sec       = clock_msec_in_sec,
-    .usec_in_sec       = clock_usec_in_sec,
-    .seconds           = clock_seconds,
-    .nanoseconds       = clock_nanoseconds,
-    .unix_microseconds = clock_unix_microseconds,
-    .unix_seconds      = clock_unix_seconds,
-    .microseconds      = clock_microseconds_since_epoch,
-    .localtime         = clock_localtime,
-    .utc               = clock_utc,
-    .local             = clock_local,
-    .test              = clock_test
+ut_clock_if ut_clock = {
+    .nsec_in_usec      = ut_clock_nsec_in_usec,
+    .nsec_in_msec      = ut_clock_nsec_in_msec,
+    .nsec_in_sec       = ut_clock_nsec_in_sec,
+    .usec_in_msec      = ut_clock_usec_in_msec,
+    .msec_in_sec       = ut_clock_msec_in_sec,
+    .usec_in_sec       = ut_clock_usec_in_sec,
+    .seconds           = ut_clock_seconds,
+    .nanoseconds       = ut_clock_nanoseconds,
+    .unix_microseconds = ut_clock_unix_microseconds,
+    .unix_seconds      = ut_clock_unix_seconds,
+    .microseconds      = ut_clock_microseconds_since_epoch,
+    .localtime         = ut_clock_localtime,
+    .utc               = ut_clock_utc,
+    .local             = ut_clock_local,
+    .test              = ut_clock_test
 };
 
 // _______________________________ ut_config.c ________________________________
@@ -1943,28 +1943,28 @@ clock_if clock = {
 // On Unix the implementation should keep KV pairs in
 // key-named files inside .name/ folder
 
-static const char* config_app = "Software\\apps";
+static const char* ut_config_app = "Software\\apps";
 
-const DWORD config_access = KEY_READ|KEY_WRITE|KEY_SET_VALUE|KEY_QUERY_VALUE|
+const DWORD ut_config_access = KEY_READ|KEY_WRITE|KEY_SET_VALUE|KEY_QUERY_VALUE|
                             KEY_ENUMERATE_SUB_KEYS|DELETE;
 
-static errno_t config_get_reg_key(const char* name, HKEY *key) {
+static errno_t ut_config_get_reg_key(const char* name, HKEY *key) {
     errno_t r = 0;
     char path[256];
-    strprintf(path, "%s\\%s", config_app, name);
-    if (RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, config_access, key) != 0) {
+    strprintf(path, "%s\\%s", ut_config_app, name);
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, ut_config_access, key) != 0) {
         const DWORD option = REG_OPTION_NON_VOLATILE;
         r = RegCreateKeyExA(HKEY_CURRENT_USER, path, 0, null, option,
-                            config_access, null, key, null);
+                            ut_config_access, null, key, null);
     }
     return r;
 }
 
-static errno_t config_save(const char* name,
+static errno_t ut_config_save(const char* name,
         const char* key, const void* data, int32_t bytes) {
     errno_t r = 0;
     HKEY k = null;
-    r = config_get_reg_key(name, &k);
+    r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         r = RegSetValueExA(k, key, 0, REG_BINARY,
             (byte*)data, bytes);
@@ -1973,10 +1973,10 @@ static errno_t config_save(const char* name,
     return r;
 }
 
-static errno_t config_remove(const char* name, const char* key) {
+static errno_t ut_config_remove(const char* name, const char* key) {
     errno_t r = 0;
     HKEY k = null;
-    r = config_get_reg_key(name, &k);
+    r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         r = RegDeleteValueA(k, key);
         fatal_if_not_zero(RegCloseKey(k));
@@ -1984,21 +1984,21 @@ static errno_t config_remove(const char* name, const char* key) {
     return r;
 }
 
-static errno_t config_clean(const char* name) {
+static errno_t ut_config_clean(const char* name) {
     errno_t r = 0;
     HKEY k = null;
-    if (RegOpenKeyExA(HKEY_CURRENT_USER, config_app,
-                                      0, config_access, &k) == 0) {
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, ut_config_app,
+                                      0, ut_config_access, &k) == 0) {
        r = RegDeleteTreeA(k, name);
        fatal_if_not_zero(RegCloseKey(k));
     }
     return r;
 }
 
-static int32_t config_size(const char* name, const char* key) {
+static int32_t ut_config_size(const char* name, const char* key) {
     int32_t bytes = -1;
     HKEY k = null;
-    errno_t r = config_get_reg_key(name, &k);
+    errno_t r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = 0;
@@ -2017,11 +2017,11 @@ static int32_t config_size(const char* name, const char* key) {
     return bytes;
 }
 
-static int32_t config_load(const char* name,
+static int32_t ut_config_load(const char* name,
         const char* key, void* data, int32_t bytes) {
     int32_t read = -1;
     HKEY k = null;
-    errno_t r = config_get_reg_key(name, &k);
+    errno_t r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
@@ -2044,42 +2044,42 @@ static int32_t config_load(const char* name,
 
 #ifdef UT_TESTS
 
-static void config_test(void) {
-    const char* name = strrchr(args.v[0], '\\');
-    if (name == null) { name = strrchr(args.v[0], '/'); }
-    name = name != null ? name + 1 : args.v[0];
+static void ut_config_test(void) {
+    const char* name = strrchr(ut_args.v[0], '\\');
+    if (name == null) { name = strrchr(ut_args.v[0], '/'); }
+    name = name != null ? name + 1 : ut_args.v[0];
     swear(name != null);
     const char* key = "test";
     const char data[] = "data";
     int32_t bytes = sizeof(data);
-    swear(config.save(name, key, data, bytes) == 0);
+    swear(ut_config.save(name, key, data, bytes) == 0);
     char read[256];
-    swear(config.load(name, key, read, bytes) == bytes);
-    int32_t size = config.size(name, key);
+    swear(ut_config.load(name, key, read, bytes) == bytes);
+    int32_t size = ut_config.size(name, key);
     swear(size == bytes);
-    swear(config.remove(name, key) == 0);
-    swear(config.clean(name) == 0);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    swear(ut_config.remove(name, key) == 0);
+    swear(ut_config.clean(name) == 0);
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-static void config_test(void) { }
+static void ut_config_test(void) { }
 
 #endif
 
-config_if config = {
-    .save   = config_save,
-    .size   = config_size,
-    .load   = config_load,
-    .remove = config_remove,
-    .clean  = config_clean,
-    .test   = config_test
+ut_config_if ut_config = {
+    .save   = ut_config_save,
+    .size   = ut_config_size,
+    .load   = ut_config_load,
+    .remove = ut_config_remove,
+    .clean  = ut_config_clean,
+    .test   = ut_config_test
 };
 
 // ________________________________ ut_debug.c ________________________________
 
-static const char* debug_abbreviate(const char* file) {
+static const char* ut_debug_abbreviate(const char* file) {
     const char* fn = strrchr(file, '\\');
     if (fn == null) { fn = strrchr(file, '/'); }
     return fn != null ? fn + 1 : file;
@@ -2087,7 +2087,7 @@ static const char* debug_abbreviate(const char* file) {
 
 #ifdef WINDOWS
 
-static void debug_println_va(const char* file, int32_t line, const char* func,
+static void ut_debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
     char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
@@ -2127,7 +2127,7 @@ static void debug_println_va(const char* file, int32_t line, const char* func,
 
 #else // posix version:
 
-static void debug_vprintf(const char* file, int32_t line, const char* func,
+static void ut_debug_vprintf(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
     fprintf(stderr, "%s(%d): %s ", file, line, func);
     vfprintf(stderr, format, vl);
@@ -2136,76 +2136,76 @@ static void debug_vprintf(const char* file, int32_t line, const char* func,
 
 #endif
 
-static void debug_perrno(const char* file, int32_t line,
+static void ut_debug_perrno(const char* file, int32_t line,
     const char* func, int32_t err_no, const char* format, ...) {
     if (err_no != 0) {
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            debug.println_va(file, line, func, format, vl);
+            ut_debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
+        ut_debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
     }
 }
 
-static void debug_perror(const char* file, int32_t line,
+static void ut_debug_perror(const char* file, int32_t line,
     const char* func, int32_t error, const char* format, ...) {
     if (error != 0) {
         if (format != null && !strequ(format, "")) {
             va_list vl;
             va_start(vl, format);
-            debug.println_va(file, line, func, format, vl);
+            ut_debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        debug.println(file, line, func, "error: %s", str.error(error));
+        ut_debug.println(file, line, func, "error: %s", str.error(error));
     }
 }
 
-static void debug_println(const char* file, int32_t line, const char* func,
+static void ut_debug_println(const char* file, int32_t line, const char* func,
         const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    debug.println_va(file, line, func, format, vl);
+    ut_debug.println_va(file, line, func, format, vl);
     va_end(vl);
 }
 
-static bool debug_is_debugger_present(void) { return IsDebuggerPresent(); }
+static bool ut_debug_is_debugger_present(void) { return IsDebuggerPresent(); }
 
-static void debug_breakpoint(void) {
-    if (debug.is_debugger_present()) { DebugBreak(); }
+static void ut_debug_breakpoint(void) {
+    if (ut_debug.is_debugger_present()) { DebugBreak(); }
 }
 
-static int32_t debug_verbosity_from_string(const char* s) {
+static int32_t ut_debug_verbosity_from_string(const char* s) {
     const char* n = null;
     long v = strtol(s, &n, 10);
     if (striequ(s, "quiet")) {
-        return debug.verbosity.quiet;
+        return ut_debug.verbosity.quiet;
     } else if (striequ(s, "info")) {
-        return debug.verbosity.info;
+        return ut_debug.verbosity.info;
     } else if (striequ(s, "verbose")) {
-        return debug.verbosity.verbose;
+        return ut_debug.verbosity.verbose;
     } else if (striequ(s, "debug")) {
-        return debug.verbosity.debug;
+        return ut_debug.verbosity.debug;
     } else if (striequ(s, "trace")) {
-        return debug.verbosity.trace;
-    } else if (n > s && debug.verbosity.quiet <= v &&
-               v <= debug.verbosity.trace) {
+        return ut_debug.verbosity.trace;
+    } else if (n > s && ut_debug.verbosity.quiet <= v &&
+               v <= ut_debug.verbosity.trace) {
         return v;
     } else {
         fatal("invalid verbosity: %s", s);
-        return debug.verbosity.quiet;
+        return ut_debug.verbosity.quiet;
     }
 }
 
-static void debug_test(void) {
+static void ut_debug_test(void) {
     #ifdef UT_TESTS
     // not clear what can be tested here
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
-debug_if debug = {
+ut_debug_if ut_debug = {
     .verbosity = {
         .level   =  0,
         .quiet   =  0,
@@ -2214,14 +2214,14 @@ debug_if debug = {
         .debug   =  3,
         .trace   =  4,
     },
-    .verbosity_from_string = debug_verbosity_from_string,
-    .println               = debug_println,
-    .println_va            = debug_println_va,
-    .perrno                = debug_perrno,
-    .perror                = debug_perror,
-    .is_debugger_present   = debug_is_debugger_present,
-    .breakpoint            = debug_breakpoint,
-    .test                  = debug_test
+    .verbosity_from_string = ut_debug_verbosity_from_string,
+    .println               = ut_debug_println,
+    .println_va            = ut_debug_println_va,
+    .perrno                = ut_debug_perrno,
+    .perror                = ut_debug_perror,
+    .is_debugger_present   = ut_debug_is_debugger_present,
+    .breakpoint            = ut_debug_breakpoint,
+    .test                  = ut_debug_test
 };
 
 // ________________________________ ut_files.c ________________________________
@@ -2877,7 +2877,7 @@ void files_closedir(folder_t* folder) {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                 \
-    if (debug.verbosity.level >= debug.verbosity.trace) { \
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
         traceln(__VA_ARGS__);                             \
     }                                                     \
 } while (0)
@@ -2891,15 +2891,15 @@ static void folders_dump_time(const char* label, uint64_t us) {
     int32_t ss = 0;
     int32_t ms = 0;
     int32_t mc = 0;
-    clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    ut_clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
     traceln("%-7s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
             label, year, month, day, hh, mm, ss, ms, mc);
 }
 
 static void folders_test(void) {
-    uint64_t now = clock.microseconds(); // microseconds since epoch
-    uint64_t before = now - 1 * clock.usec_in_sec; // one second earlier
-    uint64_t after  = now + 2 * clock.usec_in_sec; // two seconds later
+    uint64_t now = ut_clock.microseconds(); // microseconds since epoch
+    uint64_t before = now - 1 * ut_clock.usec_in_sec; // one second earlier
+    uint64_t after  = now + 2 * ut_clock.usec_in_sec; // two seconds later
     int32_t year = 0;
     int32_t month = 0;
     int32_t day = 0;
@@ -2908,7 +2908,7 @@ static void folders_test(void) {
     int32_t ss = 0;
     int32_t ms = 0;
     int32_t mc = 0;
-    clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    ut_clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
     verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
              year, month, day, hh, mm, ss, ms, mc);
     // Test cwd, setcwd
@@ -2957,7 +2957,7 @@ static void folders_test(void) {
         uint64_t ct = st.created;
         uint64_t ut = st.updated;
         swear(ct <= at && ct <= ut);
-        clock.local(ct, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+        ut_clock.local(ct, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
         bool is_folder = st.type & files.type_folder;
         bool is_symlink = st.type & files.type_symlink;
         int64_t bytes = st.size;
@@ -3000,7 +3000,7 @@ static void folders_test(void) {
                      tmp_file, str.error(r));
     fatal_if(files.chdir(cwd) != 0, "files.chdir(\"%s\") failed %s",
              cwd, str.error(runtime.err()));
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #pragma pop_macro("verbose")
@@ -3016,7 +3016,7 @@ static void files_test_append_thread(void* p) {
 
 static void files_test(void) {
     folders_test();
-    uint64_t now = clock.microseconds(); // epoch time
+    uint64_t now = ut_clock.microseconds(); // epoch time
     char tf[256]; // temporary file
     fatal_if(files.create_tmp(tf, countof(tf)) != 0,
             "files.create_tmp()" files_test_failed);
@@ -3074,8 +3074,8 @@ static void files_test(void) {
         }
         files_stat_t s = {0};
         files.stat(f, &s, false);
-        uint64_t before = now - 1 * clock.usec_in_sec; // one second before now
-        uint64_t after  = now + 2 * clock.usec_in_sec; // two seconds after
+        uint64_t before = now - 1 * ut_clock.usec_in_sec; // one second before now
+        uint64_t after  = now + 2 * ut_clock.usec_in_sec; // two seconds after
         swear(before <= s.created  && s.created  <= after,
              "before: %lld created: %lld after: %lld", before, s.created, after);
         swear(before <= s.accessed && s.accessed <= after,
@@ -3164,7 +3164,7 @@ static void files_test(void) {
                     cwd, str.error(runtime.err()));
     }
     fatal_if(files.unlink(tf) != 0);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
@@ -3289,7 +3289,7 @@ static void generics_test(void) {
         swear(maximum(a, b) == b);
         swear(minimum(a, b) == a);
     }
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
@@ -3351,7 +3351,7 @@ static void heap_test(void) {
     #ifdef UT_TESTS
     // TODO: allocate, reallocate deallocate, create, dispose
     traceln("TODO");
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
@@ -3450,7 +3450,7 @@ static void loader_test(void) {
     long cur_resolution = 0;
     fatal_if(query_timer_resolution(
         &min_resolution, &max_resolution, &cur_resolution) != 0);
-//  if (debug.verbosity.level >= debug.verbosity.trace) {
+//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      traceln("timer resolution min: %.3f max: %.3f cur: %.3f millisecond",
 //          min_resolution / 10.0 / 1000.0,
 //          max_resolution / 10.0 / 1000.0,
@@ -3458,7 +3458,7 @@ static void loader_test(void) {
 //      // Interesting observation cur_resolution sometimes 15.625ms or 1.0ms
 //  }
     loader.close(nt_dll);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
@@ -3707,15 +3707,15 @@ static void mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
 
 static void mem_test(void) {
     #ifdef UT_TESTS
-    swear(args.c > 0);
+    swear(ut_args.c > 0);
     void* data = null;
     int64_t bytes = 0;
-    swear(mem.map_ro(args.v[0], &data, &bytes) == 0);
+    swear(mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
     swear(data != null && bytes != 0);
     mem.unmap(data, bytes);
     // TODO: page_size large_page_size allocate deallocate
     // TODO: test heap functions
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
@@ -3940,7 +3940,7 @@ static void num_test(void) {
         r = num.muldiv128(p, q, UINT64_MAX);
         swear(r == 0);
     }
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
@@ -4284,7 +4284,7 @@ static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
 }
 
 static errno_t processes_run(processes_child_t* child) {
-    const fp64_t deadline = clock.seconds() + child->timeout;
+    const fp64_t deadline = ut_clock.seconds() + child->timeout;
     errno_t r = 0;
     STARTUPINFOA si = {
         .cb = sizeof(STARTUPINFOA),
@@ -4332,7 +4332,7 @@ static errno_t processes_run(processes_child_t* child) {
         si.hStdInput  = INVALID_HANDLE_VALUE;
         bool done = false;
         while (!done && r == 0) {
-            if (child->timeout > 0 && clock.seconds() > deadline) {
+            if (child->timeout > 0 && ut_clock.seconds() > deadline) {
                 r = b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
                     traceln("TerminateProcess() failed %s", str.error(r));
@@ -4451,7 +4451,7 @@ static const char* processes_name(void) {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                 \
-    if (debug.verbosity.level >= debug.verbosity.trace) { \
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
         traceln(__VA_ARGS__);                             \
     }                                                     \
 } while (0)
@@ -4563,12 +4563,12 @@ static_init(runtime) {
 #ifdef UT_TESTS
 
 static void runtime_test(void) { // in alphabetical order
-    args.test();
-    atomics.test();
-    clipboard.test();
-    clock.test();
-    config.test();
-    debug.test();
+    ut_args.test();
+    ut_atomics.test();
+    ut_clipboard.test();
+    ut_clock.test();
+    ut_config.test();
+    ut_debug.test();
     events.test();
     files.test();
     generics.test();
@@ -4641,7 +4641,7 @@ static_init(static_init_test) { static_init_function(); }
 void static_init_test(void) {
     fatal_if(static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
@@ -4998,7 +4998,7 @@ static void str_test(void) {
     swear(str.compare_nc("Hello", 5, "hello", 5) == 0);
     swear(str.compare("ab", 2, "abc", 3) < 0);
     swear(str.compare_nc("abc", 3, "ABCD", 4) < 0);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #pragma pop_macro("glyph_ice_cube")
     #pragma pop_macro("glyph_teddy_bear")
     #pragma pop_macro("glyph_chinese_two")
@@ -5133,7 +5133,7 @@ static void streams_test(void) {
     {   // read/write test
         // TODO: implement
     }
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
@@ -5202,7 +5202,7 @@ static void events_dispose(event_t handle) {
 
 // check if the elapsed time is within the expected range
 static void events_test_check_time(fp64_t start, fp64_t expected) {
-    fp64_t elapsed = clock.seconds() - start;
+    fp64_t elapsed = ut_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
@@ -5211,12 +5211,12 @@ static void events_test_check_time(fp64_t start, fp64_t expected) {
 static void events_test(void) {
     #ifdef UT_TESTS
     event_t event = events.create();
-    fp64_t start = clock.seconds();
+    fp64_t start = ut_clock.seconds();
     events.set(event);
     events.wait(event);
     events_test_check_time(start, 0); // Event should be immediate
     events.reset(event);
-    start = clock.seconds();
+    start = ut_clock.seconds();
     const fp64_t timeout_seconds = 0.01;
     int32_t result = events.wait_or_timeout(event, timeout_seconds);
     events_test_check_time(start, timeout_seconds);
@@ -5226,13 +5226,13 @@ static void events_test(void) {
     for (int32_t i = 0; i < countof(event_array); i++) {
         event_array[i] = events.create_manual();
     }
-    start = clock.seconds();
+    start = ut_clock.seconds();
     events.set(event_array[2]); // Set the third event
     int32_t index = events.wait_any(countof(event_array), event_array);
     events_test_check_time(start, 0);
     swear(index == 2); // Third event should be triggered
     events.reset(event_array[2]); // Reset the third event
-    start = clock.seconds();
+    start = ut_clock.seconds();
     result = events.wait_any_or_timeout(countof(event_array),
         event_array, timeout_seconds);
     events_test_check_time(start, timeout_seconds);
@@ -5242,7 +5242,7 @@ static void events_test(void) {
     for (int32_t i = 0; i < countof(event_array); i++) {
         events.dispose(event_array[i]);
     }
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
@@ -5280,7 +5280,7 @@ static void mutexes_dispose(mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTIO
 
 // check if the elapsed time is within the expected range
 static void mutexes_test_check_time(fp64_t start, fp64_t expected) {
-    fp64_t elapsed = clock.seconds() - start;
+    fp64_t elapsed = ut_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
@@ -5296,7 +5296,7 @@ static void mutexes_test_lock_unlock(void* arg) {
 static void mutexes_test(void) {
     mutex_t mutex;
     mutexes.init(&mutex);
-    fp64_t start = clock.seconds();
+    fp64_t start = ut_clock.seconds();
     mutexes.lock(&mutex);
     mutexes.unlock(&mutex);
     // Lock and unlock should be immediate
@@ -5311,7 +5311,7 @@ static void mutexes_test(void) {
         threads.join(ts[i], -1);
     }
     mutexes.dispose(&mutex);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 mutex_if mutexes = {
@@ -5337,7 +5337,7 @@ static void* threads_ntdll(void) {
 }
 
 static fp64_t threads_ns2ms(int64_t ns) {
-    return ns / (fp64_t)clock.nsec_in_msec;
+    return ns / (fp64_t)ut_clock.nsec_in_msec;
 }
 
 static void threads_set_timer_resolution(uint64_t nanoseconds) {
@@ -5358,7 +5358,7 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
 //  uint64_t min_ns = min100ns * 100uLL;
 //  uint64_t cur_ns = cur100ns * 100uLL;
     // max resolution is lowest possible delay between timer events
-//  if (debug.verbosity.level >= debug.verbosity.trace) {
+//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      traceln("timer resolution min: %.3f max: %.3f cur: %.3f"
 //          " ms (milliseconds)",
 //          threads_ns2ms(min_ns),
@@ -5370,7 +5370,7 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
     fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
     fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
-//  if (debug.verbosity.level >= debug.verbosity.trace) {
+//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      min_ns = min100ns * 100uLL;
 //      max_ns = max100ns * 100uLL; // the smallest interval
 //      cur_ns = cur100ns * 100uLL;
@@ -5437,7 +5437,7 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
     static int32_t cores = 0; // number of physical processors (cores)
     static uint64_t any;
     static uint64_t affinity[64]; // mask for each physical processor
-    bool set_to_true = atomics.compare_exchange_int32(&init, false, true);
+    bool set_to_true = ut_atomics.compare_exchange_int32(&init, false, true);
     if (set_to_true) {
         // Concept D: 6 cores, 12 logical processors: 27 lpi entries
         static SYSTEM_LOGICAL_PROCESSOR_INFORMATION lpi[64];
@@ -5449,7 +5449,7 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
         assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
         fatal_if_false(GetLogicalProcessorInformation(&lpi[0], &bytes));
         for (int32_t i = 0; i < n; i++) {
-//          if (debug.verbosity.level >= debug.verbosity.trace) {
+//          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //              traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
 //                  lpi[i].ProcessorMask, lpi[i].Relationship,
 //                  threads_rel2str(lpi[i].Relationship));
@@ -5484,7 +5484,7 @@ static void threads_realtime(void) {
     fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
     // desired: 0.5ms = 500us (microsecond) = 50,000ns
-    threads_set_timer_resolution(clock.nsec_in_usec * 500);
+    threads_set_timer_resolution(ut_clock.nsec_in_usec * 500);
     fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
         threads_next_physical_processor_affinity_mask()));
     threads_disable_power_throttling();
@@ -5582,7 +5582,7 @@ typedef struct threads_philosophers_s {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                 \
-    if (debug.verbosity.level >= debug.verbosity.trace) { \
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
         traceln(__VA_ARGS__);                             \
     }                                                     \
 } while (0)
@@ -5695,7 +5695,7 @@ static void threads_test(void) {
     threads.detach(detached_loop);
     // leave detached threads sleeping and running till ExitProcess(0)
     // that should NOT hang.
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #pragma pop_macro("verbose")
@@ -5721,7 +5721,7 @@ threads_if threads = {
 #include <string.h>
 
 static void vigil_breakpoint_and_abort(void) {
-    debug.breakpoint(); // only if debugger is present
+    ut_debug.breakpoint(); // only if debugger is present
     runtime.abort();
 }
 
@@ -5729,9 +5729,9 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    debug.println_va(file, line, func, format, vl);
+    ut_debug.println_va(file, line, func, format, vl);
     va_end(vl);
-    debug.println(file, line, func, "assertion failed: %s\n", condition);
+    ut_debug.println(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
     const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
@@ -5744,15 +5744,15 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     const int32_t en = errno;
     va_list vl;
     va_start(vl, format);
-    debug.println_va(file, line, func, format, vl);
+    ut_debug.println_va(file, line, func, format, vl);
     va_end(vl);
     // report last errors:
-    if (er != 0) { debug.perror(file, line, func, er, ""); }
-    if (en != 0) { debug.perrno(file, line, func, en, ""); }
+    if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
+    if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
     if (condition != null && condition[0] != 0) {
-        debug.println(file, line, func, "FATAL: %s\n", condition);
+        ut_debug.println(file, line, func, "FATAL: %s\n", condition);
     } else {
-        debug.println(file, line, func, "FATAL\n");
+        ut_debug.println(file, line, func, "FATAL\n");
     }
     const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
@@ -5776,12 +5776,12 @@ static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
     fatal_if(condition == null || condition[0] == 0);
     fatal_if(format == null || format[0] == 0);
     vigil_test_failed_assertion_count++;
-    if (debug.verbosity.level >= debug.verbosity.trace) {
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
-        debug.println_va(file, line, func, format, vl);
+        ut_debug.println_va(file, line, func, format, vl);
         va_end(vl);
-        debug.println(file, line, func, "assertion failed: %s (expected)\n",
+        ut_debug.println(file, line, func, "assertion failed: %s (expected)\n",
                      condition);
     }
     return 0;
@@ -5801,17 +5801,17 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     assert(strequ(condition, "")); // not yet used expected to be ""
     assert(format != null && format[0] != 0);
     vigil_test_fatal_calls_count++;
-    if (debug.verbosity.level > debug.verbosity.trace) {
+    if (ut_debug.verbosity.level > ut_debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
-        debug.println_va(file, line, func, format, vl);
+        ut_debug.println_va(file, line, func, format, vl);
         va_end(vl);
-        if (er != 0) { debug.perror(file, line, func, er, ""); }
-        if (en != 0) { debug.perrno(file, line, func, en, ""); }
+        if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
+        if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {
-            debug.println(file, line, func, "FATAL: %s (testing)\n", condition);
+            ut_debug.println(file, line, func, "FATAL: %s (testing)\n", condition);
         } else {
-            debug.println(file, line, func, "FATAL (testing)\n");
+            ut_debug.println(file, line, func, "FATAL (testing)\n");
         }
     }
     return 0;
@@ -5844,7 +5844,7 @@ static void vigil_test(void) {
     errno = en;
     runtime.seterr(er);
     vigil = vigil_test_saved;
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else

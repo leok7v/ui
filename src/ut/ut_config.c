@@ -4,28 +4,28 @@
 // On Unix the implementation should keep KV pairs in
 // key-named files inside .name/ folder
 
-static const char* config_app = "Software\\apps";
+static const char* ut_config_app = "Software\\apps";
 
-const DWORD config_access = KEY_READ|KEY_WRITE|KEY_SET_VALUE|KEY_QUERY_VALUE|
+const DWORD ut_config_access = KEY_READ|KEY_WRITE|KEY_SET_VALUE|KEY_QUERY_VALUE|
                             KEY_ENUMERATE_SUB_KEYS|DELETE;
 
-static errno_t config_get_reg_key(const char* name, HKEY *key) {
+static errno_t ut_config_get_reg_key(const char* name, HKEY *key) {
     errno_t r = 0;
     char path[256];
-    strprintf(path, "%s\\%s", config_app, name);
-    if (RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, config_access, key) != 0) {
+    strprintf(path, "%s\\%s", ut_config_app, name);
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, ut_config_access, key) != 0) {
         const DWORD option = REG_OPTION_NON_VOLATILE;
         r = RegCreateKeyExA(HKEY_CURRENT_USER, path, 0, null, option,
-                            config_access, null, key, null);
+                            ut_config_access, null, key, null);
     }
     return r;
 }
 
-static errno_t config_save(const char* name,
+static errno_t ut_config_save(const char* name,
         const char* key, const void* data, int32_t bytes) {
     errno_t r = 0;
     HKEY k = null;
-    r = config_get_reg_key(name, &k);
+    r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         r = RegSetValueExA(k, key, 0, REG_BINARY,
             (byte*)data, bytes);
@@ -34,10 +34,10 @@ static errno_t config_save(const char* name,
     return r;
 }
 
-static errno_t config_remove(const char* name, const char* key) {
+static errno_t ut_config_remove(const char* name, const char* key) {
     errno_t r = 0;
     HKEY k = null;
-    r = config_get_reg_key(name, &k);
+    r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         r = RegDeleteValueA(k, key);
         fatal_if_not_zero(RegCloseKey(k));
@@ -45,21 +45,21 @@ static errno_t config_remove(const char* name, const char* key) {
     return r;
 }
 
-static errno_t config_clean(const char* name) {
+static errno_t ut_config_clean(const char* name) {
     errno_t r = 0;
     HKEY k = null;
-    if (RegOpenKeyExA(HKEY_CURRENT_USER, config_app,
-                                      0, config_access, &k) == 0) {
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, ut_config_app,
+                                      0, ut_config_access, &k) == 0) {
        r = RegDeleteTreeA(k, name);
        fatal_if_not_zero(RegCloseKey(k));
     }
     return r;
 }
 
-static int32_t config_size(const char* name, const char* key) {
+static int32_t ut_config_size(const char* name, const char* key) {
     int32_t bytes = -1;
     HKEY k = null;
-    errno_t r = config_get_reg_key(name, &k);
+    errno_t r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = 0;
@@ -78,11 +78,11 @@ static int32_t config_size(const char* name, const char* key) {
     return bytes;
 }
 
-static int32_t config_load(const char* name,
+static int32_t ut_config_load(const char* name,
         const char* key, void* data, int32_t bytes) {
     int32_t read = -1;
     HKEY k = null;
-    errno_t r = config_get_reg_key(name, &k);
+    errno_t r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
@@ -105,35 +105,35 @@ static int32_t config_load(const char* name,
 
 #ifdef UT_TESTS
 
-static void config_test(void) {
-    const char* name = strrchr(args.v[0], '\\');
-    if (name == null) { name = strrchr(args.v[0], '/'); }
-    name = name != null ? name + 1 : args.v[0];
+static void ut_config_test(void) {
+    const char* name = strrchr(ut_args.v[0], '\\');
+    if (name == null) { name = strrchr(ut_args.v[0], '/'); }
+    name = name != null ? name + 1 : ut_args.v[0];
     swear(name != null);
     const char* key = "test";
     const char data[] = "data";
     int32_t bytes = sizeof(data);
-    swear(config.save(name, key, data, bytes) == 0);
+    swear(ut_config.save(name, key, data, bytes) == 0);
     char read[256];
-    swear(config.load(name, key, read, bytes) == bytes);
-    int32_t size = config.size(name, key);
+    swear(ut_config.load(name, key, read, bytes) == bytes);
+    int32_t size = ut_config.size(name, key);
     swear(size == bytes);
-    swear(config.remove(name, key) == 0);
-    swear(config.clean(name) == 0);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    swear(ut_config.remove(name, key) == 0);
+    swear(ut_config.clean(name) == 0);
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-static void config_test(void) { }
+static void ut_config_test(void) { }
 
 #endif
 
-config_if config = {
-    .save   = config_save,
-    .size   = config_size,
-    .load   = config_load,
-    .remove = config_remove,
-    .clean  = config_clean,
-    .test   = config_test
+ut_config_if ut_config = {
+    .save   = ut_config_save,
+    .size   = ut_config_size,
+    .load   = ut_config_load,
+    .remove = ut_config_remove,
+    .clean  = ut_config_clean,
+    .test   = ut_config_test
 };

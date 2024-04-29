@@ -52,7 +52,7 @@ static void events_dispose(event_t handle) {
 
 // check if the elapsed time is within the expected range
 static void events_test_check_time(fp64_t start, fp64_t expected) {
-    fp64_t elapsed = clock.seconds() - start;
+    fp64_t elapsed = ut_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
@@ -61,12 +61,12 @@ static void events_test_check_time(fp64_t start, fp64_t expected) {
 static void events_test(void) {
     #ifdef UT_TESTS
     event_t event = events.create();
-    fp64_t start = clock.seconds();
+    fp64_t start = ut_clock.seconds();
     events.set(event);
     events.wait(event);
     events_test_check_time(start, 0); // Event should be immediate
     events.reset(event);
-    start = clock.seconds();
+    start = ut_clock.seconds();
     const fp64_t timeout_seconds = 0.01;
     int32_t result = events.wait_or_timeout(event, timeout_seconds);
     events_test_check_time(start, timeout_seconds);
@@ -76,13 +76,13 @@ static void events_test(void) {
     for (int32_t i = 0; i < countof(event_array); i++) {
         event_array[i] = events.create_manual();
     }
-    start = clock.seconds();
+    start = ut_clock.seconds();
     events.set(event_array[2]); // Set the third event
     int32_t index = events.wait_any(countof(event_array), event_array);
     events_test_check_time(start, 0);
     swear(index == 2); // Third event should be triggered
     events.reset(event_array[2]); // Reset the third event
-    start = clock.seconds();
+    start = ut_clock.seconds();
     result = events.wait_any_or_timeout(countof(event_array),
         event_array, timeout_seconds);
     events_test_check_time(start, timeout_seconds);
@@ -92,7 +92,7 @@ static void events_test(void) {
     for (int32_t i = 0; i < countof(event_array); i++) {
         events.dispose(event_array[i]);
     }
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
@@ -130,7 +130,7 @@ static void mutexes_dispose(mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTIO
 
 // check if the elapsed time is within the expected range
 static void mutexes_test_check_time(fp64_t start, fp64_t expected) {
-    fp64_t elapsed = clock.seconds() - start;
+    fp64_t elapsed = ut_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
@@ -146,7 +146,7 @@ static void mutexes_test_lock_unlock(void* arg) {
 static void mutexes_test(void) {
     mutex_t mutex;
     mutexes.init(&mutex);
-    fp64_t start = clock.seconds();
+    fp64_t start = ut_clock.seconds();
     mutexes.lock(&mutex);
     mutexes.unlock(&mutex);
     // Lock and unlock should be immediate
@@ -161,7 +161,7 @@ static void mutexes_test(void) {
         threads.join(ts[i], -1);
     }
     mutexes.dispose(&mutex);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 mutex_if mutexes = {
@@ -187,7 +187,7 @@ static void* threads_ntdll(void) {
 }
 
 static fp64_t threads_ns2ms(int64_t ns) {
-    return ns / (fp64_t)clock.nsec_in_msec;
+    return ns / (fp64_t)ut_clock.nsec_in_msec;
 }
 
 static void threads_set_timer_resolution(uint64_t nanoseconds) {
@@ -208,7 +208,7 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
 //  uint64_t min_ns = min100ns * 100uLL;
 //  uint64_t cur_ns = cur100ns * 100uLL;
     // max resolution is lowest possible delay between timer events
-//  if (debug.verbosity.level >= debug.verbosity.trace) {
+//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      traceln("timer resolution min: %.3f max: %.3f cur: %.3f"
 //          " ms (milliseconds)",
 //          threads_ns2ms(min_ns),
@@ -220,7 +220,7 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
     fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
     fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
-//  if (debug.verbosity.level >= debug.verbosity.trace) {
+//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      min_ns = min100ns * 100uLL;
 //      max_ns = max100ns * 100uLL; // the smallest interval
 //      cur_ns = cur100ns * 100uLL;
@@ -287,7 +287,7 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
     static int32_t cores = 0; // number of physical processors (cores)
     static uint64_t any;
     static uint64_t affinity[64]; // mask for each physical processor
-    bool set_to_true = atomics.compare_exchange_int32(&init, false, true);
+    bool set_to_true = ut_atomics.compare_exchange_int32(&init, false, true);
     if (set_to_true) {
         // Concept D: 6 cores, 12 logical processors: 27 lpi entries
         static SYSTEM_LOGICAL_PROCESSOR_INFORMATION lpi[64];
@@ -299,7 +299,7 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
         assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
         fatal_if_false(GetLogicalProcessorInformation(&lpi[0], &bytes));
         for (int32_t i = 0; i < n; i++) {
-//          if (debug.verbosity.level >= debug.verbosity.trace) {
+//          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //              traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
 //                  lpi[i].ProcessorMask, lpi[i].Relationship,
 //                  threads_rel2str(lpi[i].Relationship));
@@ -334,7 +334,7 @@ static void threads_realtime(void) {
     fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
     // desired: 0.5ms = 500us (microsecond) = 50,000ns
-    threads_set_timer_resolution(clock.nsec_in_usec * 500);
+    threads_set_timer_resolution(ut_clock.nsec_in_usec * 500);
     fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
         threads_next_physical_processor_affinity_mask()));
     threads_disable_power_throttling();
@@ -432,7 +432,7 @@ typedef struct threads_philosophers_s {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                 \
-    if (debug.verbosity.level >= debug.verbosity.trace) { \
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
         traceln(__VA_ARGS__);                             \
     }                                                     \
 } while (0)
@@ -545,7 +545,7 @@ static void threads_test(void) {
     threads.detach(detached_loop);
     // leave detached threads sleeping and running till ExitProcess(0)
     // that should NOT hang.
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #pragma pop_macro("verbose")

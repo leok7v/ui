@@ -288,7 +288,7 @@ static void init(void) {
     app.view->message   = message;
     app.view->mouse     = mouse;
     app.opened        = opened;
-    animation.seed = (uint32_t)clock.nanoseconds();
+    animation.seed = (uint32_t)ut_clock.nanoseconds();
     animation.x = -1;
     animation.y = -1;
     animation.quit = events.create();
@@ -335,7 +335,7 @@ static void* load_animated_gif(const uint8_t* data, int64_t bytes,
 
 
 static int  console(void) {
-    fatal_if(true, "%s only SUBSYSTEM:WINDOWS", args.basename());
+    fatal_if(true, "%s only SUBSYSTEM:WINDOWS", ut_args.basename());
     return 1;
 }
 

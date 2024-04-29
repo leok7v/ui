@@ -2,15 +2,15 @@
 #include "ut/ut_win32.h"
 
 enum {
-    clock_nsec_in_usec = 1000, // nano in micro
-    clock_nsec_in_msec = clock_nsec_in_usec * 1000, // nano in milli
-    clock_nsec_in_sec  = clock_nsec_in_msec * 1000,
-    clock_usec_in_msec = 1000, // micro in mill
-    clock_msec_in_sec  = 1000, // milli in sec
-    clock_usec_in_sec  = clock_usec_in_msec * clock_msec_in_sec // micro in sec
+    ut_clock_nsec_in_usec = 1000, // nano in micro
+    ut_clock_nsec_in_msec = ut_clock_nsec_in_usec * 1000, // nano in milli
+    ut_clock_nsec_in_sec  = ut_clock_nsec_in_msec * 1000,
+    ut_clock_usec_in_msec = 1000, // micro in mill
+    ut_clock_msec_in_sec  = 1000, // milli in sec
+    ut_clock_usec_in_sec  = ut_clock_usec_in_msec * ut_clock_msec_in_sec // micro in sec
 };
 
-static uint64_t clock_microseconds_since_epoch(void) { // NOT monotonic
+static uint64_t ut_clock_microseconds_since_epoch(void) { // NOT monotonic
     FILETIME ft; // time in 100ns interval (tenth of microsecond)
     // since 12:00 A.M. January 1, 1601 Coordinated Universal Time (UTC)
     GetSystemTimePreciseAsFileTime(&ft);
@@ -20,14 +20,14 @@ static uint64_t clock_microseconds_since_epoch(void) { // NOT monotonic
     return microseconds;
 }
 
-static uint64_t clock_localtime(void) {
+static uint64_t ut_clock_localtime(void) {
     TIME_ZONE_INFORMATION tzi; // UTC = local time + bias
     GetTimeZoneInformation(&tzi);
     uint64_t bias = (uint64_t)tzi.Bias * 60LL * 1000 * 1000; // in microseconds
-    return clock_microseconds_since_epoch() - bias;
+    return ut_clock_microseconds_since_epoch() - bias;
 }
 
-static void clock_utc(uint64_t microseconds,
+static void ut_clock_utc(uint64_t microseconds,
         int32_t* year, int32_t* month, int32_t* day,
         int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
     uint64_t time_in_100ns = microseconds * 10;
@@ -45,7 +45,7 @@ static void clock_utc(uint64_t microseconds,
     *mc = microseconds % 1000;
 }
 
-static void clock_local(uint64_t microseconds,
+static void ut_clock_local(uint64_t microseconds,
         int32_t* year, int32_t* month, int32_t* day,
         int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
     uint64_t time_in_100ns = microseconds * 10;
@@ -66,7 +66,7 @@ static void clock_local(uint64_t microseconds,
     *mc = microseconds % 1000;
 }
 
-static fp64_t clock_seconds(void) { // since_boot
+static fp64_t ut_clock_seconds(void) { // since_boot
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static fp64_t one_over_freq;
@@ -88,7 +88,7 @@ static fp64_t clock_seconds(void) { // since_boot
 //                          24 hours / day
 //
 // it would take approximately 213,503 days (or about 584.5 years)
-// for clock.nanoseconds() to overflow
+// for ut_clock.nanoseconds() to overflow
 //
 // for divider = num.gcd32(nsec_in_sec, freq) below and 10MHz timer
 // the actual duration is shorter because of (mul == 100)
@@ -96,14 +96,14 @@ static fp64_t clock_seconds(void) { // since_boot
 // 64 bit overflow and is about 5.8 years.
 //
 // In a long running code like services is advisable to use
-// clock.nanoseconds() to measure only deltas and pay close attention
+// ut_clock.nanoseconds() to measure only deltas and pay close attention
 // to the wrap around despite of 5 years monotony
 
-static uint64_t clock_nanoseconds(void) {
+static uint64_t ut_clock_nanoseconds(void) {
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static uint32_t freq;
-    static uint32_t mul = clock_nsec_in_sec;
+    static uint32_t mul = ut_clock_nsec_in_sec;
     if (freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
@@ -117,9 +117,9 @@ static uint64_t clock_nanoseconds(void) {
         // multiples of MHz num.gcd() approach may need
         // to be revised in favor of num.muldiv64x64()
         freq = frequency.LowPart;
-        assert(freq != 0 && freq < (uint32_t)clock.nsec_in_sec);
+        assert(freq != 0 && freq < (uint32_t)ut_clock.nsec_in_sec);
         // to avoid num.muldiv128:
-        uint32_t divider = num.gcd32(clock.nsec_in_sec, freq);
+        uint32_t divider = num.gcd32(ut_clock.nsec_in_sec, freq);
         freq /= divider;
         mul  /= divider;
     }
@@ -129,45 +129,45 @@ static uint64_t clock_nanoseconds(void) {
 
 // Difference between 1601 and 1970 in microseconds:
 
-const uint64_t clock_epoch_diff_usec = 11644473600000000ULL;
+const uint64_t ut_clock_epoch_diff_usec = 11644473600000000ULL;
 
-static uint64_t clock_unix_microseconds(void) {
-    return clock.microseconds() - clock_epoch_diff_usec;
+static uint64_t ut_clock_unix_microseconds(void) {
+    return ut_clock.microseconds() - ut_clock_epoch_diff_usec;
 }
 
-static uint64_t clock_unix_seconds(void) {
-    return clock.unix_microseconds() / clock.usec_in_sec;
+static uint64_t ut_clock_unix_seconds(void) {
+    return ut_clock.unix_microseconds() / ut_clock.usec_in_sec;
 }
 
-static void clock_test(void) {
+static void ut_clock_test(void) {
     #ifdef UT_TESTS
     // TODO: implement more tests
-    uint64_t t0 = clock.nanoseconds();
-    uint64_t t1 = clock.nanoseconds();
+    uint64_t t0 = ut_clock.nanoseconds();
+    uint64_t t1 = ut_clock.nanoseconds();
     int32_t count = 0;
     while (t0 == t1 && count < 1024) {
-        t1 = clock.nanoseconds();
+        t1 = ut_clock.nanoseconds();
         count++;
     }
     swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
-clock_if clock = {
-    .nsec_in_usec      = clock_nsec_in_usec,
-    .nsec_in_msec      = clock_nsec_in_msec,
-    .nsec_in_sec       = clock_nsec_in_sec,
-    .usec_in_msec      = clock_usec_in_msec,
-    .msec_in_sec       = clock_msec_in_sec,
-    .usec_in_sec       = clock_usec_in_sec,
-    .seconds           = clock_seconds,
-    .nanoseconds       = clock_nanoseconds,
-    .unix_microseconds = clock_unix_microseconds,
-    .unix_seconds      = clock_unix_seconds,
-    .microseconds      = clock_microseconds_since_epoch,
-    .localtime         = clock_localtime,
-    .utc               = clock_utc,
-    .local             = clock_local,
-    .test              = clock_test
+ut_clock_if ut_clock = {
+    .nsec_in_usec      = ut_clock_nsec_in_usec,
+    .nsec_in_msec      = ut_clock_nsec_in_msec,
+    .nsec_in_sec       = ut_clock_nsec_in_sec,
+    .usec_in_msec      = ut_clock_usec_in_msec,
+    .msec_in_sec       = ut_clock_msec_in_sec,
+    .usec_in_sec       = ut_clock_usec_in_sec,
+    .seconds           = ut_clock_seconds,
+    .nanoseconds       = ut_clock_nanoseconds,
+    .unix_microseconds = ut_clock_unix_microseconds,
+    .unix_seconds      = ut_clock_unix_seconds,
+    .microseconds      = ut_clock_microseconds_since_epoch,
+    .localtime         = ut_clock_localtime,
+    .utc               = ut_clock_utc,
+    .local             = ut_clock_local,
+    .test              = ut_clock_test
 };

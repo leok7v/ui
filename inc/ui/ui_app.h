@@ -65,7 +65,7 @@ typedef struct app_s {
     ui_rect_t work_area; // current monitor work area
     int32_t width;  // client width
     int32_t height; // client height
-    // not to call clock.seconds() too often:
+    // not to call ut_clock.seconds() too often:
     fp64_t now;     // ssb "seconds since boot" updated on each message
     ui_view_t* view;      // show_window() changes ui.hidden
     ui_view_t* focus;   // does not affect message routing - free for all

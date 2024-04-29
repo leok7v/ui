@@ -326,7 +326,7 @@ static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
 }
 
 static errno_t processes_run(processes_child_t* child) {
-    const fp64_t deadline = clock.seconds() + child->timeout;
+    const fp64_t deadline = ut_clock.seconds() + child->timeout;
     errno_t r = 0;
     STARTUPINFOA si = {
         .cb = sizeof(STARTUPINFOA),
@@ -374,7 +374,7 @@ static errno_t processes_run(processes_child_t* child) {
         si.hStdInput  = INVALID_HANDLE_VALUE;
         bool done = false;
         while (!done && r == 0) {
-            if (child->timeout > 0 && clock.seconds() > deadline) {
+            if (child->timeout > 0 && ut_clock.seconds() > deadline) {
                 r = b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
                     traceln("TerminateProcess() failed %s", str.error(r));
@@ -493,7 +493,7 @@ static const char* processes_name(void) {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                 \
-    if (debug.verbosity.level >= debug.verbosity.trace) { \
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
         traceln(__VA_ARGS__);                             \
     }                                                     \
 } while (0)

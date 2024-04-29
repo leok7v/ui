@@ -3,7 +3,7 @@
 #include <string.h>
 
 static void vigil_breakpoint_and_abort(void) {
-    debug.breakpoint(); // only if debugger is present
+    ut_debug.breakpoint(); // only if debugger is present
     runtime.abort();
 }
 
@@ -11,9 +11,9 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    debug.println_va(file, line, func, format, vl);
+    ut_debug.println_va(file, line, func, format, vl);
     va_end(vl);
-    debug.println(file, line, func, "assertion failed: %s\n", condition);
+    ut_debug.println(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
     const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
@@ -26,15 +26,15 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     const int32_t en = errno;
     va_list vl;
     va_start(vl, format);
-    debug.println_va(file, line, func, format, vl);
+    ut_debug.println_va(file, line, func, format, vl);
     va_end(vl);
     // report last errors:
-    if (er != 0) { debug.perror(file, line, func, er, ""); }
-    if (en != 0) { debug.perrno(file, line, func, en, ""); }
+    if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
+    if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
     if (condition != null && condition[0] != 0) {
-        debug.println(file, line, func, "FATAL: %s\n", condition);
+        ut_debug.println(file, line, func, "FATAL: %s\n", condition);
     } else {
-        debug.println(file, line, func, "FATAL\n");
+        ut_debug.println(file, line, func, "FATAL\n");
     }
     const bool always_true = runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
@@ -58,12 +58,12 @@ static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
     fatal_if(condition == null || condition[0] == 0);
     fatal_if(format == null || format[0] == 0);
     vigil_test_failed_assertion_count++;
-    if (debug.verbosity.level >= debug.verbosity.trace) {
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
-        debug.println_va(file, line, func, format, vl);
+        ut_debug.println_va(file, line, func, format, vl);
         va_end(vl);
-        debug.println(file, line, func, "assertion failed: %s (expected)\n",
+        ut_debug.println(file, line, func, "assertion failed: %s (expected)\n",
                      condition);
     }
     return 0;
@@ -83,17 +83,17 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     assert(strequ(condition, "")); // not yet used expected to be ""
     assert(format != null && format[0] != 0);
     vigil_test_fatal_calls_count++;
-    if (debug.verbosity.level > debug.verbosity.trace) {
+    if (ut_debug.verbosity.level > ut_debug.verbosity.trace) {
         va_list vl;
         va_start(vl, format);
-        debug.println_va(file, line, func, format, vl);
+        ut_debug.println_va(file, line, func, format, vl);
         va_end(vl);
-        if (er != 0) { debug.perror(file, line, func, er, ""); }
-        if (en != 0) { debug.perrno(file, line, func, en, ""); }
+        if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
+        if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {
-            debug.println(file, line, func, "FATAL: %s (testing)\n", condition);
+            ut_debug.println(file, line, func, "FATAL: %s (testing)\n", condition);
         } else {
-            debug.println(file, line, func, "FATAL (testing)\n");
+            ut_debug.println(file, line, func, "FATAL (testing)\n");
         }
     }
     return 0;
@@ -126,7 +126,7 @@ static void vigil_test(void) {
     errno = en;
     runtime.seterr(er);
     vigil = vigil_test_saved;
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else

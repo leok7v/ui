@@ -347,7 +347,7 @@ static void str_test(void) {
     swear(str.compare_nc("Hello", 5, "hello", 5) == 0);
     swear(str.compare("ab", 2, "abc", 3) < 0);
     swear(str.compare_nc("abc", 3, "ABCD", 4) < 0);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #pragma pop_macro("glyph_ice_cube")
     #pragma pop_macro("glyph_teddy_bear")
     #pragma pop_macro("glyph_chinese_two")

@@ -7,7 +7,7 @@ typedef struct {
     // On Unix it is responsibility of the main() to assign these values
     int32_t c;      // argc
     const char** v; // argv[argc]
-    const char** env; // args.env[] is null-terminated
+    const char** env; // ut_args.env[] is null-terminated
     void    (*main)(int32_t argc, const char* argv[], const char** env);
     void    (*WinMain)(void); // windows specific
     int32_t (*option_index)(const char* option); // e.g. option: "--verbosity" or "-v"
@@ -26,9 +26,9 @@ typedef struct {
     const char* (*basename)(void);
     void (*fini)(void);
     void (*test)(void);
-} args_if;
+} ut_args_if;
 
-extern args_if args;
+extern ut_args_if ut_args;
 
 /* Usage:
 
@@ -37,9 +37,9 @@ extern args_if args;
     static int run(void);
 
     int main(int argc, char* argv[], char* envp[]) { // link.exe /SUBSYSTEM:CONSOLE
-        args.main(argc, argv, envp); // Initialize args with command-line parameters
+        ut_args.main(argc, argv, envp); // Initialize args with command-line parameters
         int r = run();
-        args.fini();
+        ut_args.fini();
         return r;
     }
 
@@ -47,28 +47,28 @@ extern args_if args;
 
     int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* command, int show) {
         // link.exe /SUBSYSTEM:WINDOWS
-        args.WinMain();
+        ut_args.WinMain();
         int r = run();
-        args.fini();
+        ut_args.fini();
         return 0;
     }
 
     static int run(void) {
-        if (args.option_bool("-v")) {
-            debug.verbosity.level = debug.verbosity.verbose;
+        if (ut_args.option_bool("-v")) {
+            ut_debug.verbosity.level = ut_debug.verbosity.verbose;
         }
         int64_t num = 0;
-        if (args.option_int("--number", &num)) {
+        if (ut_args.option_int("--number", &num)) {
             printf("--number: %ld\n", num);
         }
-        const char* path = args.option_str("--path");
+        const char* path = ut_args.option_str("--path");
         if (path != null) {
             printf("--path: %s\n", path);
         }
-        printf("args.basename(): %s\n", args.basename());
-        printf("args.v[0]: %s\n", args.v[0]);
-        for (int i = 1; i < args.c; i++) {
-            printf("args.v[%d]: %s\n", i, args.v[i]);
+        printf("ut_args.basename(): %s\n", ut_args.basename());
+        printf("ut_args.v[0]: %s\n", ut_args.v[0]);
+        for (int i = 1; i < ut_args.c; i++) {
+            printf("ut_args.v[%d]: %s\n", i, ut_args.v[i]);
         }
         return 0;
     }

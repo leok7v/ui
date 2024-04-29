@@ -247,7 +247,7 @@ static void open_file(const char* pathname) {
 }
 
 static void opened(void) {
-    if (args.c > 1) { open_file(args.v[1]); }
+    if (ut_args.c > 1) { open_file(ut_args.v[1]); }
 }
 
 static void every_100ms(void) {

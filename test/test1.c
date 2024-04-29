@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 static int usage(void) {
-    fprintf(stderr, "Usage: %s [options]\n", args.basename());
+    fprintf(stderr, "Usage: %s [options]\n", ut_args.basename());
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "  --help, -h     - this help\n");
     fprintf(stderr, "  --verbosity    - set verbosity level "
@@ -12,28 +12,28 @@ static int usage(void) {
 }
 
 static int run(void) {
-    if (args.option_bool("--help") || args.option_bool("-?")) {
+    if (ut_args.option_bool("--help") || ut_args.option_bool("-?")) {
         return usage();
     }
-    const char* v = args.option_str("--verbosity");
+    const char* v = ut_args.option_str("--verbosity");
     if (v != null) {
-        debug.verbosity.level = debug.verbosity_from_string(v);
-    } else if (args.option_bool("-v") || args.option_bool("--verbose")) {
-        debug.verbosity.level = debug.verbosity.verbose;
+        ut_debug.verbosity.level = ut_debug.verbosity_from_string(v);
+    } else if (ut_args.option_bool("-v") || ut_args.option_bool("--verbose")) {
+        ut_debug.verbosity.level = ut_debug.verbosity.verbose;
     }
     runtime.test();
     traceln("all tests passed\n");
-    traceln("args.v[0]: %s", args.v[0]);
-    traceln("args.basename(): %s", args.basename());
-    for (int i = 1; i < args.c; i++) {
-        traceln("args.v[%d]: %s", i, args.v[i]);
+    traceln("ut_args.v[0]: %s", ut_args.v[0]);
+    traceln("ut_args.basename(): %s", ut_args.basename());
+    for (int i = 1; i < ut_args.c; i++) {
+        traceln("ut_args.v[%d]: %s", i, ut_args.v[i]);
     }
     //  $ .\bin\debug\test1.exe "Hello World" Hello World
-    //  args.v[0]: .\bin\debug\test1.exe
-    //  args.basename(): test1
-    //  args.v[1]: Hello World
-    //  args.v[2]: Hello
-    //  args.v[3]: World
+    //  ut_args.v[0]: .\bin\debug\test1.exe
+    //  ut_args.basename(): test1
+    //  ut_args.v[1]: Hello World
+    //  ut_args.v[2]: Hello
+    //  ut_args.v[3]: World
     return 0;
 }
 
@@ -47,9 +47,9 @@ static int run(void) {
 // to select and call appropriate function:
 
 int main(int argc, char* argv[], char *envp[]) {
-    args.main(argc, argv, envp);
+    ut_args.main(argc, argv, envp);
     int r = run();
-    args.fini();
+    ut_args.fini();
     return r;
 }
 
@@ -59,8 +59,8 @@ int main(int argc, char* argv[], char *envp[]) {
 
 int APIENTRY WinMain(HINSTANCE unused(inst), HINSTANCE unused(prev),
                      char* unused(command), int unused(show)) {
-    args.WinMain(); // Uses GetCommandLineW() which has full pathname
+    ut_args.WinMain(); // Uses GetCommandLineW() which has full pathname
     int r = run();
-    args.fini();
+    ut_args.fini();
     return r;
 }

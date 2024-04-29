@@ -7,7 +7,7 @@ begin_c
 // related to specific application.
 // on Unix-like system ~/.name/key files are used.
 // On Window User registry (could be .dot files/folders).
-// "name" is customary basename of "args.v[0]"
+// "name" is customary basename of "ut_args.v[0]"
 
 typedef struct {
     errno_t (*save)(const char* name, const char* key,
@@ -19,9 +19,9 @@ typedef struct {
     errno_t (*remove)(const char* name, const char* key);
     errno_t (*clean)(const char* name); // remove all subkeys
     void (*test)(void);
-} config_if;
+} ut_config_if;
 
-extern config_if config;
+extern ut_config_if ut_config;
 
 end_c
 

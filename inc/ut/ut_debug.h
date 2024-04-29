@@ -35,10 +35,10 @@ typedef struct {
     bool (*is_debugger_present)(void);
     void (*breakpoint)(void);
     void (*test)(void);
-} debug_if;
+} ut_debug_if;
 
-#define traceln(...) debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define traceln(...) ut_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
-extern debug_if debug;
+extern ut_debug_if ut_debug;
 
 end_c

@@ -169,7 +169,7 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_t* e) {
     #ifdef DEBUG
         p.seed = 1; // repeatable sequence of pseudo random numbers
     #else
-        p.seed = (int32_t)clock.nanoseconds() | 0x1; // must be odd
+        p.seed = (int32_t)ut_clock.nanoseconds() | 0x1; // must be odd
     #endif
     ui_edit_lorem_ipsum_generator(p);
     e->paste(e, test_content, (int32_t)strlen(test_content));
@@ -179,7 +179,7 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_t* e) {
 }
 
 void ui_edit_next_fuzz(ui_edit_t* e) {
-    atomics.increment_int32(&e->fuzz_count);
+    ut_atomics.increment_int32(&e->fuzz_count);
 }
 
 static void ui_edit_fuzzer(void* p) {

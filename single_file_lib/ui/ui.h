@@ -872,7 +872,7 @@ typedef struct app_s {
     ui_rect_t work_area; // current monitor work area
     int32_t width;  // client width
     int32_t height; // client height
-    // not to call clock.seconds() too often:
+    // not to call ut_clock.seconds() too often:
     fp64_t now;     // ssb "seconds since boot" updated on each message
     ui_view_t* view;      // show_window() changes ui.hidden
     ui_view_t* focus;   // does not affect message routing - free for all
@@ -1159,15 +1159,15 @@ static void app_init_fonts(int32_t dpi) {
 }
 
 static void app_data_save(const char* name, const void* data, int32_t bytes) {
-    config.save(app.class_name, name, data, bytes);
+    ut_config.save(app.class_name, name, data, bytes);
 }
 
 static int32_t app_data_size(const char* name) {
-    return config.size(app.class_name, name);
+    return ut_config.size(app.class_name, name);
 }
 
 static int32_t app_data_load(const char* name, void* data, int32_t bytes) {
-    return config.load(app.class_name, name, data, bytes);
+    return ut_config.load(app.class_name, name, data, bytes);
 }
 
 typedef begin_packed struct app_wiw_s { // "where is window"
@@ -1253,7 +1253,7 @@ static void app_save_window_pos(ui_window_t wnd, const char* name, bool dump) {
     }
 //  traceln("%d,%d %dx%d show=%d", wiw.placement.x, wiw.placement.y,
 //      wiw.placement.w, wiw.placement.h, wiw.show);
-    config.save(app.class_name, name, &wiw, sizeof(wiw));
+    ut_config.save(app.class_name, name, &wiw, sizeof(wiw));
     app_update_mi(&app.wrc, MONITOR_DEFAULTTONEAREST);
 }
 
@@ -1267,7 +1267,7 @@ static void app_save_console_pos(void) {
         if (r != 0) {
             traceln("GetConsoleScreenBufferInfoEx() %s", str.error(r));
         } else {
-            config.save(app.class_name, "console_screen_buffer_infoex",
+            ut_config.save(app.class_name, "console_screen_buffer_infoex",
                             &info, (int)sizeof(info));
 //          traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
 //          traceln("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
@@ -1277,7 +1277,7 @@ static void app_save_console_pos(void) {
     }
     int32_t v = app.is_console_visible();
     // "icv" "is console visible"
-    config.save(app.class_name, "icv", &v, (int)sizeof(v));
+    ut_config.save(app.class_name, "icv", &v, (int)sizeof(v));
 }
 
 static bool app_is_fully_inside(const ui_rect_t* inner,
@@ -1302,7 +1302,7 @@ static void app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* wrc
 
 static bool app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
     app_wiw_t wiw = {0}; // where is window
-    bool loaded = config.load(app.class_name, "wiw", &wiw, sizeof(wiw)) ==
+    bool loaded = ut_config.load(app.class_name, "wiw", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
         #ifdef QUICK_DEBUG
@@ -1345,7 +1345,7 @@ static bool app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
 static bool app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
     app_wiw_t wiw = {0}; // where is window
     *visibility = 0; // boolean
-    bool loaded = config.load(app.class_name, "wic", &wiw, sizeof(wiw)) ==
+    bool loaded = ut_config.load(app.class_name, "wic", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
         ui_rect_t* p = &wiw.placement;
@@ -1682,7 +1682,7 @@ static void app_paint_on_canvas(HDC hdc) {
     ui_canvas_t canvas = app.canvas;
     app.canvas = (ui_canvas_t)hdc;
     gdi.push(0, 0);
-    fp64_t time = clock.seconds();
+    fp64_t time = ut_clock.seconds();
     gdi.x = 0;
     gdi.y = 0;
     app_update_crc();
@@ -1707,7 +1707,7 @@ static void app_paint_on_canvas(HDC hdc) {
     gdi.set_font(font);
     app.paint_count++;
     if (app.paint_count % 128 == 0) { app.paint_max = 0; }
-    app.paint_time = clock.seconds() - time;
+    app.paint_time = ut_clock.seconds() - time;
     app.paint_max = maximum(app.paint_time, app.paint_max);
     if (app.paint_avg == 0) {
         app.paint_avg = app.paint_time;
@@ -1867,7 +1867,7 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 }
 
 static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp) {
-    app.now = clock.seconds();
+    app.now = ut_clock.seconds();
     if (app.window == null) {
         app.window = (ui_window_t)window;
     } else {
@@ -2432,7 +2432,7 @@ static void app_restore_console(int32_t *visibility) {
             CONSOLE_SCREEN_BUFFER_INFOEX info = {
                 sizeof(CONSOLE_SCREEN_BUFFER_INFOEX)
             };
-            int32_t r = config.load(app.class_name,
+            int32_t r = ut_config.load(app.class_name,
                 "console_screen_buffer_infoex", &info, (int)sizeof(info));
             if (r == sizeof(info)) { // 24x80
                 SMALL_RECT sr = info.srWindow;
@@ -2763,7 +2763,7 @@ static int app_win_main(void) {
     not_null(app.init);
     app_init_windows();
     gdi.init();
-    clipboard.put_image = app_clipboard_put_image;
+    ut_clipboard.put_image = app_clipboard_put_image;
     app.last_visibility = ui.visibility.defau1t;
     app_init();
     int r = 0;
@@ -2812,19 +2812,19 @@ int WINAPI WinMain(HINSTANCE unused(instance), HINSTANCE unused(previous),
     SetConsoleCP(CP_UTF8);
     nls.init();
     app.visibility = show;
-    args.WinMain();
+    ut_args.WinMain();
     int32_t r = app_win_main();
-    args.fini();
+    ut_args.fini();
     return r;
 }
 
 int main(int argc, const char* argv[], const char** envp) {
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
-    args.main(argc, argv, envp);
+    ut_args.main(argc, argv, envp);
     nls.init();
     app.tid = threads.id();
     int r = app.main();
-    args.fini();
+    ut_args.fini();
     return r;
 }
 
@@ -4204,7 +4204,7 @@ static void ui_label_context_menu(ui_view_t* view) {
     assert(view->type == ui_view_label);
     ui_label_t* t = (ui_label_t*)view;
     if (!t->label && !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        clipboard.put_text(ui_view.nls(view));
+        ut_clipboard.put_text(ui_view.nls(view));
         static bool first_time = true;
         app.toast(first_time ? 2.15 : 0.75,
             nls.str("Text copied to clipboard"));
@@ -4220,7 +4220,7 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {
-            clipboard.put_text(ui_view.nls(view)); // 3 is ASCII for Ctrl+C
+            ut_clipboard.put_text(ui_view.nls(view)); // 3 is ASCII for Ctrl+C
         }
     }
 }
@@ -5451,7 +5451,7 @@ static void ui_view_test(void) {
     ui_view_alone(&p0);
     ui_view_alone(&c1); ui_view_alone(&c2); ui_view_alone(&c3); ui_view_alone(&c4);
     ui_view_alone(&g1); ui_view_alone(&g2); ui_view_alone(&g3); ui_view_alone(&g4);
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #pragma pop_macro("ui_view_alone")

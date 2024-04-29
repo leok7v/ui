@@ -23,9 +23,9 @@ typedef struct {
         int32_t* day, int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms,
         int32_t* mc);
     void (*test)(void);
-} clock_if;
+} ut_clock_if;
 
-extern clock_if clock;
+extern ut_clock_if ut_clock;
 
 end_c
 

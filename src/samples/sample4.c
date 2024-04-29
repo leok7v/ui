@@ -12,7 +12,7 @@ static char filename[260]; // c:\Users\user\Pictures\mandrill-4.2.03.png
 static void init(void);
 
 static int  console(void) {
-    fatal_if(true, "%s only SUBSYSTEM:WINDOWS", args.basename());
+    fatal_if(true, "%s only SUBSYSTEM:WINDOWS", ut_args.basename());
     return 1;
 }
 

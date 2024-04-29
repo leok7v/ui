@@ -48,7 +48,7 @@ static void heap_test(void) {
     #ifdef UT_TESTS
     // TODO: allocate, reallocate deallocate, create, dispose
     traceln("TODO");
-    if (debug.verbosity.level > debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
