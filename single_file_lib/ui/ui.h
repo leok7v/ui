@@ -1,7 +1,7 @@
 #ifndef ui_definition
 #define ui_definition
 
-// __________________________________ std.h ___________________________________
+// _________________________________ ut_std.h _________________________________
 
 #include <ctype.h>
 #include <errno.h>
@@ -101,11 +101,9 @@ typedef double fp64_t;
 // does not implement (C99 optional) dynamic arrays on the stack:
 
 #define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
-
-begin_c
 // ________________________________ ui_core.h _________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 typedef struct ui_point_s { int32_t x, y; } ui_point_t;
@@ -256,7 +254,7 @@ extern ui_if ui;
 
 // _______________________________ ui_colors.h ________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 /* TODO: make ui_color_t uint64_t RGBA remove pens and brushes
@@ -335,7 +333,7 @@ extern colors_t colors;
 
 // _________________________________ ui_gdi.h _________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 // Graphic Device Interface (selected parts of Windows GDI)
@@ -451,7 +449,7 @@ extern gdi_t gdi;
 
 // ________________________________ ui_view.h _________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 enum ui_view_type_t {
@@ -598,7 +596,7 @@ static ui_view_t name = { .type = ui_view_container, .init = ini,          \
 
 // _______________________________ ui_layout.h ________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 typedef struct {
@@ -621,7 +619,7 @@ extern layouts_if layouts;
 
 // ________________________________ ui_label.h ________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 typedef struct ui_label_s {
@@ -655,7 +653,7 @@ void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...);
 
 // _________________________________ ui_nls.h _________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 typedef struct nsl_if { // i18n national language support
@@ -676,7 +674,7 @@ extern nls_if nls;
 
 // _______________________________ ui_button.h ________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 typedef struct ui_button_s ui_button_t;
@@ -707,7 +705,7 @@ void ui_button_init_(ui_view_t* view); // do not call use ui_button() macro
 
 // ______________________________ ui_checkbox.h _______________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 typedef struct ui_checkbox_s  checkbox_t;
@@ -735,7 +733,7 @@ void ui_checkbox_init_(ui_view_t* view); // do not call use ui_checkbox() macro
 
 // _______________________________ ui_slider.h ________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 typedef struct ui_slider_s ui_slider_t;
@@ -773,7 +771,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
 
 // _____________________________ ui_messagebox.h ______________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 typedef struct ui_messagebox_s ui_messagebox_t;
@@ -809,7 +807,7 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* option[],
 
 // _________________________________ ui_app.h _________________________________
 
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
@@ -966,7 +964,7 @@ end_c
 // _________________________________ ui_app.c _________________________________
 
 #include "ut/ut.h"
-#include "ut/win32.h"
+#include "ut/ut_win32.h"
 
 #pragma push_macro("app_window")
 #pragma push_macro("app_canvas")
@@ -3157,7 +3155,7 @@ colors_t colors = {
 // ________________________________ ui_core.c _________________________________
 
 #include "ut/ut.h"
-#include "ut/win32.h"
+#include "ut/ut_win32.h"
 
 #define UI_WM_ANIMATE  (WM_APP + 0x7FFF)
 #define UI_WM_OPENING  (WM_APP + 0x7FFE)
@@ -3288,7 +3286,7 @@ extern ui_if ui = {
 // _________________________________ ui_gdi.c _________________________________
 
 #include "ut/ut.h"
-#include "ut/win32.h"
+#include "ut/ut_win32.h"
 
 #pragma push_macro("app_window")
 #pragma push_macro("app_canvas")
@@ -4565,7 +4563,7 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* opts[],
 // _________________________________ ui_nls.c _________________________________
 
 #include "ut/ut.h"
-#include "ut/win32.h"
+#include "ut/ut_win32.h"
 
 // Simplistic Win32 implementation of national language support.
 // Windows NLS family of functions is very complicated and has

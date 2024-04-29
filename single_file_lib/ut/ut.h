@@ -1,7 +1,7 @@
 #ifndef ut_definition
 #define ut_definition
 
-// __________________________________ std.h ___________________________________
+// _________________________________ ut_std.h _________________________________
 
 #include <ctype.h>
 #include <errno.h>
@@ -102,8 +102,6 @@ typedef double fp64_t;
 
 #define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
 
-begin_c
-
 
 // __________________________________ args.h __________________________________
 
@@ -147,7 +145,7 @@ extern args_if args;
         return r;
     }
 
-    #include "ut/win32.h"
+    #include "ut/ut_win32.h"
 
     int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* command, int show) {
         // link.exe /SUBSYSTEM:WINDOWS
@@ -414,10 +412,9 @@ typedef struct {
 
 extern files_if files;
 
+
+
 // ________________________________ generics.h ________________________________
-
-#include "std.h"
-
 
 // Most of ut/ui code is written the way of min(a,b) max(a,b)
 // not having side effects on the arguments and thus evaluating
@@ -993,7 +990,7 @@ end_c
 #endif // ut_definition
 
 #ifdef ut_implementation
-// _________________________________ win32.h __________________________________
+// ________________________________ ut_win32.h ________________________________
 
 #ifdef WIN32
 

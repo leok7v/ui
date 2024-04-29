@@ -1,5 +1,5 @@
 #include "ut/ut.h"
-#include "ut/win32.h"
+#include "ut/ut_win32.h"
 
 static const char* debug_abbreviate(const char* file) {
     const char* fn = strrchr(file, '\\');

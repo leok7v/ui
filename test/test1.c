@@ -53,7 +53,7 @@ int main(int argc, char* argv[], char *envp[]) {
     return r;
 }
 
-#include "ut/win32.h"
+#include "ut/ut_win32.h"
 
 #pragma warning(suppress: 28251) // no annotations
 

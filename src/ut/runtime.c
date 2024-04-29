@@ -1,5 +1,5 @@
 #include "ut/ut.h"
-#include "ut/win32.h"
+#include "ut/ut_win32.h"
 
 // abort does NOT call atexit() functions and
 // does NOT flush streams. Also Win32 runtime

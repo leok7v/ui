@@ -1,5 +1,5 @@
 #include "ut/ut.h"
-#include "ut/win32.h"
+#include "ut/ut_win32.h"
 
 char* strnchr(const char* s, int32_t n, char ch) {
     while (n > 0 && *s != 0) {

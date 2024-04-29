@@ -1,5 +1,5 @@
 #include "ut/ut.h"
-#include "ut/win32.h"
+#include "ut/ut_win32.h"
 
 static errno_t mem_map_view_of_file(HANDLE file,
         void* *data, int64_t *bytes, bool rw) {

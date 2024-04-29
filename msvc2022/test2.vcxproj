@@ -96,12 +96,12 @@
     <ClInclude Include="..\inc\ut\processes.h" />
     <ClInclude Include="..\inc\ut\runtime.h" />
     <ClInclude Include="..\inc\ut\static.h" />
-    <ClInclude Include="..\inc\ut\std.h" />
+    <ClInclude Include="..\inc\ut\ut_std.h" />
     <ClInclude Include="..\inc\ut\str.h" />
     <ClInclude Include="..\inc\ut\streams.h" />
     <ClInclude Include="..\inc\ut\threads.h" />
     <ClInclude Include="..\inc\ut\vigil.h" />
-    <ClInclude Include="..\inc\ut\win32.h" />
+    <ClInclude Include="..\inc\ut\ut_win32.h" />
     <ClInclude Include="..\single_file_lib\ut\ut.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

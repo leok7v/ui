@@ -45,7 +45,7 @@
     <ClInclude Include="..\inc\ui\ui_slider.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\std.h">
+    <ClInclude Include="..\inc\ui\ut_std.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui.h">
@@ -54,7 +54,7 @@
     <ClInclude Include="..\inc\ui\ui_view.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\win32.h">
+    <ClInclude Include="..\inc\ui\ut_win32.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui_nls.h">

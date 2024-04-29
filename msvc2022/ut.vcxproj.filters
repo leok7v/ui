@@ -57,7 +57,7 @@
     <ClInclude Include="..\inc\ut\static.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\std.h">
+    <ClInclude Include="..\inc\ut\ut_std.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\str.h">
@@ -78,7 +78,7 @@
     <ClInclude Include="..\inc\ut\vigil.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\win32.h">
+    <ClInclude Include="..\inc\ut\ut_win32.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\generics.h">

@@ -1,5 +1,5 @@
 #pragma once
-#include "ut/std.h"
+#include "ut/ut_std.h"
 
 begin_c
 
@@ -43,7 +43,7 @@ extern args_if args;
         return r;
     }
 
-    #include "ut/win32.h"
+    #include "ut/ut_win32.h"
 
     int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* command, int show) {
         // link.exe /SUBSYSTEM:WINDOWS

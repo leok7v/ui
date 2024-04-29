@@ -11,7 +11,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ui\std.h" />
+    <ClInclude Include="..\inc\ui\ut_std.h" />
     <ClInclude Include="..\inc\ui\ui.h" />
     <ClInclude Include="..\inc\ui\ui_app.h" />
     <ClInclude Include="..\inc\ui\ui_button.h" />
@@ -25,7 +25,7 @@
     <ClInclude Include="..\inc\ui\ui_nls.h" />
     <ClInclude Include="..\inc\ui\ui_slider.h" />
     <ClInclude Include="..\inc\ui\ui_view.h" />
-    <ClInclude Include="..\inc\ui\win32.h" />
+    <ClInclude Include="..\inc\ui\ut_win32.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\ui\ui_app.c" />
