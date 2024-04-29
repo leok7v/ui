@@ -94,7 +94,7 @@ void ui_mbx_init_(ui_view_t* view) {
         // TODO: remove assert below
         assert(mx->button[i].view.parent == &mx->view);
     }
-    ui_label_init_ml(&mx->text, 0.0, "%s", mx->view.text);
+    ui_label_init(&mx->text, 0.0, "%s", mx->view.text);
     mx->text.view.font = mx->view.font;
     ui_view.localize(&mx->text.view);
     mx->view.text[0] = 0;
@@ -112,7 +112,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* opts[],
     va_list vl;
     va_start(vl, format);
     ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
-    ui_label_init_ml(&mx->text, 0.0, mx->view.text);
+    ui_label_init(&mx->text, 0.0, mx->view.text);
     va_end(vl);
     ui_mbx_init_(&mx->view);
 }

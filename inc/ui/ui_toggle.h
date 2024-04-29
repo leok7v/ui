@@ -15,9 +15,9 @@ typedef struct ui_toggle_s {
 void ui_toggle_init(ui_toggle_t* b, const char* label, fp64_t ems,
     void (*cb)(ui_toggle_t* b));
 
-void ui_toggle_init_(ui_view_t* view); // do not call use ui_toggle() macro
+void ui_toggle_init_(ui_view_t* view); // do not call use static_ui_toggle() macro
 
-#define ui_toggle(name, s, w, code)                                   \
+#define static_ui_toggle(name, s, w, code)                            \
     static void name ## _callback(ui_toggle_t* name) {                \
         (void)name; /* no warning if unused */                        \
         code                                                          \
@@ -26,5 +26,10 @@ void ui_toggle_init_(ui_view_t* view); // do not call use ui_toggle() macro
    ui_toggle_t name = {                                               \
     .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
     .child = null, .width = w, .text = s}, .cb = name ## _callback }
+
+#define ui_toggle(s, w, callback) {                                   \
+    .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
+    .child = null, .width = w, .text = s}, .cb = callback }
+
 
 end_c

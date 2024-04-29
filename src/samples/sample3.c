@@ -23,7 +23,7 @@ static void toggle_full_screen(ui_button_t* b) {
     app.full_screen(b->view.pressed);
 }
 
-ui_button(button_fs, glyph_two_squares, 1.0, {
+static_ui_button(button_fs, glyph_two_squares, 1.0, {
     toggle_full_screen(button_fs);
 });
 

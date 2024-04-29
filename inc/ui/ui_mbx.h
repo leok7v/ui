@@ -20,7 +20,7 @@ void ui_mbx_init_(ui_view_t* view);
 void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     void (*cb)(ui_mbx_t* m, int32_t option), const char* format, ...);
 
-#define ui_mbx(name, s, code, ...)                               \
+#define static_ui_mbx(name, s, code, ...)                        \
                                                                  \
     static char* name ## _options[] = { __VA_ARGS__, null };     \
                                                                  \
@@ -33,5 +33,12 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     .view = { .type = ui_view_mbx, .init = ui_mbx_init_,         \
     .child = null, .text = s}, .opts = name ## _options,         \
     .cb = name ## _callback }
+
+
+#define ui_mbx(s, callback, ...) {                       \
+    .view = { .type = ui_view_mbx, .init = ui_mbx_init_, \
+    .child = null, .text = s},                           \
+    .opts = (const char*[]){ __VA_ARGS__, null },        \
+    .cb = callback }
 
 end_c

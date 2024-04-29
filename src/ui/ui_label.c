@@ -15,7 +15,8 @@ static void ui_label_paint(ui_view_t* view) {
     gdi.set_text_color(c);
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
-    if (!t->multiline) {
+    bool multiline = strchr(t->view.text, '\n') != null;
+    if (!multiline) {
         gdi.text("%s", ui_view.nls(view));
     } else {
         int32_t w = (int)(view->width * view->em.x + 0.5);
@@ -25,7 +26,7 @@ static void ui_label_paint(ui_view_t* view) {
         gdi.set_colored_pen(colors.btn_hover_highlight);
         gdi.set_brush(gdi.brush_hollow);
         int32_t cr = view->em.y / 4; // corner radius
-        int32_t h = t->multiline ? view->h : view->baseline + view->descent;
+        int32_t h = multiline ? view->h : view->baseline + view->descent;
         gdi.rounded(view->x - cr, view->y + t->dy, view->w + 2 * cr,
             h, cr, cr);
     }
@@ -68,25 +69,17 @@ void ui_label_init_(ui_view_t* view) {
     view->context_menu = ui_label_context_menu;
 }
 
-void ui_label_init_va(ui_label_t* t, const char* format, va_list vl) {
+void ui_label_init_va(ui_label_t* t, fp64_t width, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     ut_str.format_va(t->view.text, countof(t->view.text), format, vl);
+    t->view.width = width;
     t->view.type = ui_view_label;
     ui_label_init_(&t->view);
 }
 
-void ui_label_init(ui_label_t* t, const char* format, ...) {
+void ui_label_init(ui_label_t* t, fp64_t width, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_label_init_va(t, format, vl);
+    ui_label_init_va(t, width, format, vl);
     va_end(vl);
-}
-
-void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ui_label_init_va(t, format, vl);
-    va_end(vl);
-    t->view.width = width;
-    t->multiline = true;
 }

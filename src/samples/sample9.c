@@ -42,16 +42,16 @@ static ui_slider_t zoomer;
 #define glyph_right       "\xE2\x86\x92" // "ShortRightArrow"
 #define glyph_down        "\xE2\x86\x93" // "ShortDownArrow"
 
-ui_label(text_single_line, "Mandelbrot Explorer");
+static ui_label_t text_single_line = ui_label(0.0, "Mandelbrot Explorer");
 
-ui_label(toast_filename, "filename placeholder");
+static ui_label_t toast_filename = ui_label(0.0, "filename placeholder");
 
-ui_label_ml(text_multiline, 19.0, "Click inside or +/- to zoom;\n"
+static ui_label_t text_multiline = ui_label(19.0, "Click inside or +/- to zoom;\n"
     "right mouse click to zoom out;\nuse "
     "touchpad or keyboard " glyph_left glyph_up glyph_down glyph_right
     " to pan");
 
-ui_label_ml(about, 34.56,
+static ui_label_t about = ui_label(34.56,
     "\nClick inside Mandelbrot Julia Set fractal to zoom in into interesting "
     "areas. Right mouse click to zoom out.\n"
     "Use Win + Shift + S to take a screenshot of something "
@@ -66,11 +66,27 @@ ui_label_ml(about, 34.56,
     "to dismiss this message or just wait - it will disappear by "
     "itself in 10 seconds.\n");
 
-ui_mbx(mbx, // message box
+#ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
+
+static_ui_mbx(mbx, // message box
     "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
     "is it the longest English language word or not?", {
     traceln("option=%d", option); // -1 or index of { "&Yes", "&No" }
 }, "&Yes", "&No");
+
+#else
+
+static void mbx_callback(ui_mbx_t* unused(mbx), int32_t option) {
+    static const char* name[] = { "Cancel", "Yes", "No" };
+    traceln("option: %d \"%s\"", option, name[option + 1]);
+}
+
+static ui_mbx_t mbx = ui_mbx( // message box
+    "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
+    "is it the longest English language word or not?", mbx_callback,
+    "&Yes", "&No");
+
+#endif
 
 static const char* filter[] = {
     "All Files", "*",
@@ -90,7 +106,7 @@ static void open_file(ui_button_t* unused(b)) {
     }
 }
 
-ui_button(button_open_file, "&Open", 7.5, {
+static_ui_button(button_open_file, "&Open", 7.5, {
     open_file(button_open_file);
 });
 
@@ -102,7 +118,7 @@ static void flip_full_screen(ui_button_t* b) {
     }
 }
 
-ui_button(button_full_screen, glyph_two_squares, 1, {
+static_ui_button(button_full_screen, glyph_two_squares, 1, {
     flip_full_screen(button_full_screen);
 });
 
@@ -112,20 +128,28 @@ static void flip_locale(ui_button_t* b) {
     app.layout(); // because center panel layout changed
 }
 
-ui_button(button_locale, glyph_onna "A", 1, {
-    flip_locale(button_locale);
-});
+static ui_button_t button_locale = ui_button(glyph_onna "A", 1, flip_locale);
 
-ui_button(button_about, "&About", 7.5, {
+static_ui_button(button_about, "&About", 7.5, {
     app.show_toast(&about.view, 10.0);
 });
 
-ui_button(button_mbx, "&Message Box", 7.5, {
+static_ui_button(button_mbx, "&Message Box", 7.5, {
     app.show_toast(&mbx.view, 0);
 });
 
+#ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
+
 // ui_toggle label can include "___" for "ON ": "OFF" state
-ui_toggle(scroll, "Scroll &Direction:", 0, {});
+static_ui_toggle(scroll, "Scroll &Direction:", 0, {});
+
+#else
+
+static ui_toggle_t scroll = ui_toggle("Scroll &Direction:",
+                                      /* width: */0.0,
+                                      /* callback:*/ null);
+
+#endif
 
 static ui_view_t panel_top    = ui_view(container);
 static ui_view_t panel_bottom = ui_view(container);
@@ -366,26 +390,6 @@ static void opened(void) {
     app.view->key_pressed = keyboard; // virtual_keys
     app.view->mouse_wheel = mouse_wheel;
 
-    ui_view.add(&panel_right,
-        &button_locale.view,
-        &button_full_screen.view,
-        &zoomer.view,
-        &scroll.view,
-        &button_open_file.view,
-        &button_about.view,
-        &button_mbx.view,
-        &text_single_line.view,
-        &text_multiline.view,
-        null
-    );
-
-    ui_view.add(app.view,
-        &panel_top,
-        &panel_center,
-        &panel_right,
-        &panel_bottom,
-        null);
-
     panel_center.mouse = mouse;
 
     int n = countof(pixels);
@@ -406,10 +410,34 @@ static void opened(void) {
     about.view.font = &app.fonts.H3;
     button_locale.view.shortcut = 'l';
     button_full_screen.view.shortcut = 'f';
+#ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
     ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
         zoomer_callback);
+#else
+    zoomer = ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
+        zoomer_callback);
+#endif
     strcopy(button_mbx.view.tip, "Show Yes/No message box");
     strcopy(button_about.view.tip, "Show About message box");
+
+    ui_view.add(&panel_right,
+        &button_locale.view,
+        &button_full_screen.view,
+        &zoomer.view,
+        &scroll.view,
+        &button_open_file.view,
+        &button_about.view,
+        &button_mbx.view,
+        &text_single_line.view,
+        &text_multiline.view,
+        null
+    );
+    ui_view.add(app.view,
+        &panel_top,
+        &panel_center,
+        &panel_right,
+        &panel_bottom,
+        null);
     refresh();
 }
 

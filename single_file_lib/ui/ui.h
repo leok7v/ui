@@ -595,6 +595,16 @@ extern ui_view_if ui_view;
     }                                      \
 } while (0)
 
+
+#define ui_view_call_init(v) do {               \
+    if (v->init != null) {                      \
+        void (*_init_)(ui_view_t* v) = v->init; \
+        v->init = null; /* before! call */      \
+        _init_(v);                              \
+    }                                           \
+} while (0)
+
+
 // _______________________________ ui_layout.h ________________________________
 
 #include "ut/ut_std.h"
@@ -625,7 +635,6 @@ extern layouts_if layouts;
 
 typedef struct ui_label_s {
     ui_view_t view;
-    bool multiline;
     bool editable;  // can be edited
     bool highlight; // paint with highlight color
     bool hovered;   // paint highlight rectangle when hover over
@@ -633,24 +642,18 @@ typedef struct ui_label_s {
     int32_t dy; // vertical shift down (to line up baselines of diff fonts)
 } ui_label_t;
 
-// do not call ui_label_init_ use ui_label() and ui_label_ml() instead
+// do not call ui_label_init_ use ui_label() instead
 void ui_label_init_(ui_view_t* view);
 
-#define ui_label(t, s)                                                        \
-    ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
-    .child = null, .width = 0.0, .text = s}, .multiline = false}
-
-#define ui_label_ml(t, w, s)  /* multiline */                                 \
-    ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
-    .child = null, .width = w, .text = s}, .multiline = true}
+#define ui_label(w, s) {                                       \
+      .view = { .type = ui_view_label, .init = ui_label_init_, \
+      .child = null, .width = w, .text = s}                    \
+}
 
 // single line of text with "&" keyboard shortcuts:
 
-void ui_label_init(ui_label_t* t, const char* format, ...);
-void ui_label_init_va(ui_label_t* t, const char* format, va_list vl);
-
-// multiline
-void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...);
+void ui_label_init(ui_label_t* t, fp64_t width, const char* format, ...);
+void ui_label_init_va(ui_label_t* t, fp64_t width, const char* format, va_list vl);
 
 // _________________________________ ui_nls.h _________________________________
 
@@ -689,9 +692,9 @@ typedef struct ui_button_s {
 void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
     void (*cb)(ui_button_t* b));
 
-void ui_button_init_(ui_view_t* view); // do not call use ui_button() macro
+void ui_button_init_(ui_view_t* view); // do not call use static_ui_button() macro
 
-#define ui_button(name, s, w, code)                                   \
+#define static_ui_button(name, s, w, code)                            \
     static void name ## _callback(ui_button_t* name) {                \
         (void)name; /* no warning if unused */                        \
         code                                                          \
@@ -701,8 +704,23 @@ void ui_button_init_(ui_view_t* view); // do not call use ui_button() macro
     .view = { .type = ui_view_button, .init = ui_button_init_,        \
     .child = null, .width = w, .text = s}, .cb = name ## _callback }
 
+#define ui_button(s, w, callback) {                            \
+    .view = { .type = ui_view_button, .init = ui_button_init_, \
+    .child = null, .width = w, .text = s}, .cb = callback }
+
 // usage:
-// ui_button(button, 7.0, "&Button", { b->view.pressed = !b->view.pressed; })
+//
+// static_ui_button(button, 7.0, "&Button", {
+//      button->view.pressed = !button->view.pressed;
+// })
+//
+// or:
+//
+// static void button_flipped(ui_button_t* b) {
+//      b->view.pressed = !b->view.pressed;
+// }
+//
+// ui_button_t button = ui_button(7.0, "&Button", button_flipped);
 
 // _______________________________ ui_toggle.h ________________________________
 
@@ -720,9 +738,9 @@ typedef struct ui_toggle_s {
 void ui_toggle_init(ui_toggle_t* b, const char* label, fp64_t ems,
     void (*cb)(ui_toggle_t* b));
 
-void ui_toggle_init_(ui_view_t* view); // do not call use ui_toggle() macro
+void ui_toggle_init_(ui_view_t* view); // do not call use static_ui_toggle() macro
 
-#define ui_toggle(name, s, w, code)                                   \
+#define static_ui_toggle(name, s, w, code)                            \
     static void name ## _callback(ui_toggle_t* name) {                \
         (void)name; /* no warning if unused */                        \
         code                                                          \
@@ -731,6 +749,11 @@ void ui_toggle_init_(ui_view_t* view); // do not call use ui_toggle() macro
    ui_toggle_t name = {                                               \
     .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
     .child = null, .width = w, .text = s}, .cb = name ## _callback }
+
+#define ui_toggle(s, w, callback) {                                   \
+    .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
+    .child = null, .width = w, .text = s}, .cb = callback }
+
 
 // _______________________________ ui_slider.h ________________________________
 
@@ -753,12 +776,12 @@ typedef struct ui_slider_s {
     int32_t value_max;
 } ui_slider_t;
 
-void _slider_init_(ui_view_t* view);
+void ui_slider_init_(ui_view_t* view);
 
 void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     int32_t value_min, int32_t value_max, void (*cb)(ui_slider_t* r));
 
-#define ui_slider(name, s, ems, vmn, vmx, code)             \
+#define static_ui_slider(name, s, ems, vmn, vmx, code)      \
     static void name ## _callback(ui_slider_t* name) {      \
         (void)name; /* no warning if unused */              \
         code                                                \
@@ -766,9 +789,15 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     static                                                  \
     ui_slider_t name = {                                    \
         .view = { .type = ui_view_slider, .child = null,    \
-        .width = ems, .text = s, .init = _slider_init_,     \
+        .width = ems, .text = s, .init = ui_slider_init_,   \
     }, .value_min = vmn, .value_max = vmx, .value = vmn,    \
     .cb = name ## _callback }
+
+#define ui_slider(s, ems, vmn, vmx, callback) (ui_slider_t){ \
+        .view = { .type = ui_view_slider, .child = null,     \
+        .width = ems, .text = s, .init = ui_slider_init_,    \
+    }, .value_min = vmn, .value_max = vmx, .value = vmn,     \
+    .cb = callback }
 
 // _________________________________ ui_mbx.h _________________________________
 
@@ -791,7 +820,7 @@ void ui_mbx_init_(ui_view_t* view);
 void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     void (*cb)(ui_mbx_t* m, int32_t option), const char* format, ...);
 
-#define ui_mbx(name, s, code, ...)                               \
+#define static_ui_mbx(name, s, code, ...)                        \
                                                                  \
     static char* name ## _options[] = { __VA_ARGS__, null };     \
                                                                  \
@@ -804,6 +833,13 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     .view = { .type = ui_view_mbx, .init = ui_mbx_init_,         \
     .child = null, .text = s}, .opts = name ## _options,         \
     .cb = name ## _callback }
+
+
+#define ui_mbx(s, callback, ...) {                       \
+    .view = { .type = ui_view_mbx, .init = ui_mbx_init_, \
+    .child = null, .text = s},                           \
+    .opts = (const char*[]){ __VA_ARGS__, null },        \
+    .cb = callback }
 
 // _________________________________ ui_app.h _________________________________
 
@@ -2220,7 +2256,7 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
             ((ui_mbx_t*)view)->option = -1;
         }
         // allow unparented ui for toast and tooltip
-        if (view->init != null) { view->init(view); view->init = null; }
+        ui_view_call_init(view);
         ui_view.localize(view);
         app_animate_start(app_toast_dim, app_animation_steps);
         app.animating.view = view;
@@ -2248,8 +2284,7 @@ static void app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
 static void app_formatted_toast_va(fp64_t timeout, const char* format, va_list vl) {
     app_show_toast(null, 0);
     static ui_label_t txt;
-    ui_label_init_va(&txt, format, vl);
-    txt.multiline = true;
+    ui_label_init_va(&txt, 0.0, format, vl);
     app_show_toast(&txt.view, timeout);
 }
 
@@ -4066,7 +4101,8 @@ static void ui_label_paint(ui_view_t* view) {
     gdi.set_text_color(c);
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
-    if (!t->multiline) {
+    bool multiline = strchr(t->view.text, '\n') != null;
+    if (!multiline) {
         gdi.text("%s", ui_view.nls(view));
     } else {
         int32_t w = (int)(view->width * view->em.x + 0.5);
@@ -4076,7 +4112,7 @@ static void ui_label_paint(ui_view_t* view) {
         gdi.set_colored_pen(colors.btn_hover_highlight);
         gdi.set_brush(gdi.brush_hollow);
         int32_t cr = view->em.y / 4; // corner radius
-        int32_t h = t->multiline ? view->h : view->baseline + view->descent;
+        int32_t h = multiline ? view->h : view->baseline + view->descent;
         gdi.rounded(view->x - cr, view->y + t->dy, view->w + 2 * cr,
             h, cr, cr);
     }
@@ -4119,27 +4155,19 @@ void ui_label_init_(ui_view_t* view) {
     view->context_menu = ui_label_context_menu;
 }
 
-void ui_label_init_va(ui_label_t* t, const char* format, va_list vl) {
+void ui_label_init_va(ui_label_t* t, fp64_t width, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     ut_str.format_va(t->view.text, countof(t->view.text), format, vl);
+    t->view.width = width;
     t->view.type = ui_view_label;
     ui_label_init_(&t->view);
 }
 
-void ui_label_init(ui_label_t* t, const char* format, ...) {
+void ui_label_init(ui_label_t* t, fp64_t width, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_label_init_va(t, format, vl);
+    ui_label_init_va(t, width, format, vl);
     va_end(vl);
-}
-
-void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ui_label_init_va(t, format, vl);
-    va_end(vl);
-    t->view.width = width;
-    t->multiline = true;
 }
 // _______________________________ ui_layout.c ________________________________
 
@@ -4416,7 +4444,7 @@ void ui_mbx_init_(ui_view_t* view) {
         // TODO: remove assert below
         assert(mx->button[i].view.parent == &mx->view);
     }
-    ui_label_init_ml(&mx->text, 0.0, "%s", mx->view.text);
+    ui_label_init(&mx->text, 0.0, "%s", mx->view.text);
     mx->text.view.font = mx->view.font;
     ui_view.localize(&mx->text.view);
     mx->view.text[0] = 0;
@@ -4434,7 +4462,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* opts[],
     va_list vl;
     va_start(vl, format);
     ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
-    ui_label_init_ml(&mx->text, 0.0, mx->view.text);
+    ui_label_init(&mx->text, 0.0, mx->view.text);
     va_end(vl);
     ui_mbx_init_(&mx->view);
 }
@@ -4945,7 +4973,7 @@ static ui_view_t* ui_view_add(ui_view_t* p, ...) {
         c = va_arg(vl, ui_view_t*);
     }
     va_end(vl);
-    if (p->init != null) { p->init(p); p->init = null; }
+    ui_view_call_init(p);
     return p;
 }
 
@@ -4962,7 +4990,7 @@ static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
         c->next->prev = c;
     }
     p->child = c;
-    if (c->init != null) { c->init(c); c->init = null; }
+    ui_view_call_init(c);
 }
 
 static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
@@ -4978,7 +5006,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
         c->prev->next = c;
         c->next->prev = c;
     }
-    if (c->init != null) { c->init(c); c->init = null; }
+    ui_view_call_init(c);
 }
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
@@ -4990,7 +5018,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     a->next = c;
     c->prev->next = c;
     c->next->prev = c;
-    if (c->init != null) { c->init(c); c->init = null; }
+    ui_view_call_init(c);
 }
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
@@ -5002,7 +5030,7 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     b->prev = c;
     c->prev->next = c;
     c->next->prev = c;
-    if (c->init != null) { c->init(c); c->init = null; }
+    ui_view_call_init(c);
 }
 
 static void ui_view_remove(ui_view_t* c) {
@@ -5052,7 +5080,8 @@ static void ui_view_measure(ui_view_t* view) {
     if (view->text[0] != 0) {
         view->w = (int32_t)(view->em.x * view->width + 0.5);
         ui_point_t mt = { 0 };
-        if (view->type == ui_view_label && ((ui_label_t*)view)->multiline) {
+        bool multiline = strchr(view->text, '\n') != null;
+        if (view->type == ui_view_label && multiline) {
             int32_t w = (int)(view->width * view->em.x + 0.5);
             mt = gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
@@ -5088,7 +5117,7 @@ static void ui_view_localize(ui_view_t* view) {
 }
 
 static void ui_view_hovering(ui_view_t* view, bool start) {
-    static ui_label(btn_tooltip,  "");
+    static ui_label_t btn_tooltip = ui_label(0.0, "");
     if (start && app.animating.view == null && view->tip[0] != 0 &&
        !ui_view.is_hidden(view)) {
         strprintf(btn_tooltip.view.text, "%s", nls.str(view->tip));
@@ -5134,7 +5163,7 @@ static bool ui_view_is_disabled(const ui_view_t* view) {
 
 static void ui_view_init_children(ui_view_t* view) {
     ui_view_for_each(view, c, {
-        if (c->init != null) { c->init(c); c->init = null; }
+        ui_view_call_init(c);
         if (c->font == null) { c->font = &app.fonts.regular; }
         if (c->em.x == 0 || c->em.y == 0) {
             c->em = gdi.get_em(*view->font);

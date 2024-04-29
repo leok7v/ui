@@ -55,13 +55,13 @@ static void scaled_fonts(void) {
                   -1);
 }
 
-ui_button(full_screen, "&Full Screen", 7.5, {
+static_ui_button(full_screen, "&Full Screen", 7.5, {
     app.full_screen(!app.is_full_screen);
 });
 
-ui_button(quit, "&Quit", 7.5, { app.close(); });
+static_ui_button(quit, "&Quit", 7.5, { app.close(); });
 
-ui_button(fuzz, "Fu&zz", 7.5, {
+static_ui_button(fuzz, "Fu&zz", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->fuzz(edit[ix]);
@@ -70,7 +70,7 @@ ui_button(fuzz, "Fu&zz", 7.5, {
     }
 });
 
-ui_toggle(ro, "&Read Only", 7.5, {
+static_ui_toggle(ro, "&Read Only", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->ro = ro->view.pressed;
@@ -79,7 +79,7 @@ ui_toggle(ro, "&Read Only", 7.5, {
     }
 });
 
-ui_toggle(mono, "&Mono", 7.5, {
+static_ui_toggle(mono, "&Mono", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->set_font(edit[ix], mono->view.pressed ? &mf : &pf);
@@ -89,7 +89,7 @@ ui_toggle(mono, "&Mono", 7.5, {
     }
 });
 
-ui_toggle(sl, "&Single Line", 7.5, {
+static_ui_toggle(sl, "&Single Line", 7.5, {
     int32_t ix = focused();
     if (ix == 2) {
         sl->view.pressed = true; // always single line
@@ -130,11 +130,11 @@ static void font_reset(void) {
     app.layout();
 }
 
-ui_button(fp, "Font Ctrl+", 7.5, { font_plus(); });
+static_ui_button(fp, "Font Ctrl+", 7.5, { font_plus(); });
 
-ui_button(fm, "Font Ctrl-", 7.5, { font_minus(); });
+static_ui_button(fm, "Font Ctrl-", 7.5, { font_minus(); });
 
-ui_label_ml(text, 0.0, "...");
+static ui_label_t text = ui_label(0.0, "...");
 
 static ui_view_t right  = ui_view(container);
 static ui_view_t left   = ui_view(container);

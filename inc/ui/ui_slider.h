@@ -20,12 +20,12 @@ typedef struct ui_slider_s {
     int32_t value_max;
 } ui_slider_t;
 
-void _slider_init_(ui_view_t* view);
+void ui_slider_init_(ui_view_t* view);
 
 void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     int32_t value_min, int32_t value_max, void (*cb)(ui_slider_t* r));
 
-#define ui_slider(name, s, ems, vmn, vmx, code)             \
+#define static_ui_slider(name, s, ems, vmn, vmx, code)      \
     static void name ## _callback(ui_slider_t* name) {      \
         (void)name; /* no warning if unused */              \
         code                                                \
@@ -33,8 +33,14 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     static                                                  \
     ui_slider_t name = {                                    \
         .view = { .type = ui_view_slider, .child = null,    \
-        .width = ems, .text = s, .init = _slider_init_,     \
+        .width = ems, .text = s, .init = ui_slider_init_,   \
     }, .value_min = vmn, .value_max = vmx, .value = vmn,    \
     .cb = name ## _callback }
+
+#define ui_slider(s, ems, vmn, vmx, callback) (ui_slider_t){ \
+        .view = { .type = ui_view_slider, .child = null,     \
+        .width = ems, .text = s, .init = ui_slider_init_,    \
+    }, .value_min = vmn, .value_max = vmx, .value = vmn,     \
+    .cb = callback }
 
 end_c

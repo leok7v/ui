@@ -148,4 +148,14 @@ extern ui_view_if ui_view;
     }                                      \
 } while (0)
 
+
+#define ui_view_call_init(v) do {               \
+    if (v->init != null) {                      \
+        void (*_init_)(ui_view_t* v) = v->init; \
+        v->init = null; /* before! call */      \
+        _init_(v);                              \
+    }                                           \
+} while (0)
+
+
 end_c

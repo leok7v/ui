@@ -12,7 +12,7 @@ static struct {
     int32_t bpp; // bytes per pixel
     int32_t w;
     int32_t h;
-    int32_t frames;
+    int32_t  frames;
     int32_t* delays; // delays[frames];
     uint8_t* pixels;
 } gif; // animated
@@ -148,6 +148,8 @@ static void load_gif(void) {
     int64_t bytes = 0;
     int r = ut_mem.map_resource("groot_gif", &data, &bytes);
     fatal_if_not_zero(r);
+    // load_animated_gif() calls realloc(delays) w/o first malloc()
+    gif.delays = malloc(sizeof(int));
     gif.pixels = load_animated_gif(data, bytes, &gif.delays,
         &gif.w, &gif.h, &gif.frames, &gif.bpp, 4);
     fatal_if(gif.pixels == null || gif.bpp != 4 || gif.frames < 1);

@@ -19,7 +19,7 @@ static void init(void) {
     app.title = title;
     app.view->layout = layout;
     app.view->paint = paint;
-    static ui_label(label, "Hello World!");
+    static ui_label_t label = ui_label(0.0, "Hello World!");
     label.view.font = &app.fonts.H3;
     ui_view.add(app.view, &label, null);
 }

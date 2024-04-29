@@ -1256,7 +1256,7 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
             ((ui_mbx_t*)view)->option = -1;
         }
         // allow unparented ui for toast and tooltip
-        if (view->init != null) { view->init(view); view->init = null; }
+        ui_view_call_init(view);
         ui_view.localize(view);
         app_animate_start(app_toast_dim, app_animation_steps);
         app.animating.view = view;
@@ -1284,8 +1284,7 @@ static void app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
 static void app_formatted_toast_va(fp64_t timeout, const char* format, va_list vl) {
     app_show_toast(null, 0);
     static ui_label_t txt;
-    ui_label_init_va(&txt, format, vl);
-    txt.multiline = true;
+    ui_label_init_va(&txt, 0.0, format, vl);
     app_show_toast(&txt.view, timeout);
 }
 

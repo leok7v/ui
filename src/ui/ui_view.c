@@ -23,7 +23,7 @@ static ui_view_t* ui_view_add(ui_view_t* p, ...) {
         c = va_arg(vl, ui_view_t*);
     }
     va_end(vl);
-    if (p->init != null) { p->init(p); p->init = null; }
+    ui_view_call_init(p);
     return p;
 }
 
@@ -40,7 +40,7 @@ static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
         c->next->prev = c;
     }
     p->child = c;
-    if (c->init != null) { c->init(c); c->init = null; }
+    ui_view_call_init(c);
 }
 
 static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
@@ -56,7 +56,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
         c->prev->next = c;
         c->next->prev = c;
     }
-    if (c->init != null) { c->init(c); c->init = null; }
+    ui_view_call_init(c);
 }
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
@@ -68,7 +68,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     a->next = c;
     c->prev->next = c;
     c->next->prev = c;
-    if (c->init != null) { c->init(c); c->init = null; }
+    ui_view_call_init(c);
 }
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
@@ -80,7 +80,7 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     b->prev = c;
     c->prev->next = c;
     c->next->prev = c;
-    if (c->init != null) { c->init(c); c->init = null; }
+    ui_view_call_init(c);
 }
 
 static void ui_view_remove(ui_view_t* c) {
@@ -130,7 +130,8 @@ static void ui_view_measure(ui_view_t* view) {
     if (view->text[0] != 0) {
         view->w = (int32_t)(view->em.x * view->width + 0.5);
         ui_point_t mt = { 0 };
-        if (view->type == ui_view_label && ((ui_label_t*)view)->multiline) {
+        bool multiline = strchr(view->text, '\n') != null;
+        if (view->type == ui_view_label && multiline) {
             int32_t w = (int)(view->width * view->em.x + 0.5);
             mt = gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
@@ -166,7 +167,7 @@ static void ui_view_localize(ui_view_t* view) {
 }
 
 static void ui_view_hovering(ui_view_t* view, bool start) {
-    static ui_label(btn_tooltip,  "");
+    static ui_label_t btn_tooltip = ui_label(0.0, "");
     if (start && app.animating.view == null && view->tip[0] != 0 &&
        !ui_view.is_hidden(view)) {
         strprintf(btn_tooltip.view.text, "%s", nls.str(view->tip));
@@ -212,7 +213,7 @@ static bool ui_view_is_disabled(const ui_view_t* view) {
 
 static void ui_view_init_children(ui_view_t* view) {
     ui_view_for_each(view, c, {
-        if (c->init != null) { c->init(c); c->init = null; }
+        ui_view_call_init(c);
         if (c->font == null) { c->font = &app.fonts.regular; }
         if (c->em.x == 0 || c->em.y == 0) {
             c->em = gdi.get_em(*view->font);
