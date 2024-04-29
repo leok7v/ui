@@ -1,7 +1,6 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
-#include "ui/ut_win32.h"
 
 begin_c
 
@@ -226,34 +225,13 @@ static void right_paint(ui_view_t* view) {
 }
 
 static void center_paint(ui_view_t* view) {
+    gdi.set_clip(view->x, view->y, view->w, view->h);
     gdi.fill_with(view->x, view->y, view->w, view->h, colors.black);
     int x = (view->w - image.w) / 2;
     int y = (view->h - image.h) / 2;
-//  gdi.alpha_blend(view->x + x, view->y + y, image.w, image.h, &image, 0.8);
-    HDC canvas = GetDC((HWND)app.window);
-    fatal_if_null(canvas);
-// TODO: make it thru UI gdi calls
-    HDC src = CreateCompatibleDC(canvas); fatal_if_null(src);
-    HDC dst = CreateCompatibleDC(canvas); fatal_if_null(dst);
-    HBITMAP bitmap = CreateCompatibleBitmap(canvas, image.w, image.h);
-//  HBITMAP bitmap = CreateBitmap(image.w, image.h, 1, 32, null);
-    fatal_if_null(bitmap);
-    HBITMAP s = SelectBitmap(src, image.bitmap); fatal_if_null(s);
-    HBITMAP d = SelectBitmap(dst, bitmap);     fatal_if_null(d);
-    POINT pt = { 0 };
-    fatal_if_false(SetBrushOrgEx(dst, 0, 0, &pt));
-    fatal_if_false(StretchBlt(dst, 0, 0, image.w, image.h, src, 0, 0,
-        image.w, image.h, SRCCOPY));
-    ///
-    fatal_if_false(StretchBlt((HDC)app.canvas, view->x + x, view->y + y,
-        image.w, image.h, dst, 0, 0,
-        image.w, image.h, SRCCOPY));
-    fatal_if_null(SelectBitmap(dst, d));
-    fatal_if_null(SelectBitmap(src, s));
-    fatal_if_false(DeleteBitmap(bitmap));
-    fatal_if_false(DeleteDC(dst));
-    fatal_if_false(DeleteDC(src));
-    fatal_if_false(ReleaseDC((HWND)app.window, canvas));
+//  gdi.alpha_blend(view->x + x, view->y + y, image.w, image.h, &image, 0.5);
+    gdi.draw_image(view->x + x, view->y + y, image.w, image.h, &image);
+    gdi.set_clip(0, 0, 0, 0);
 }
 
 static void measure(ui_view_t* view) {

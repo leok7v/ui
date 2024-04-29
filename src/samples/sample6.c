@@ -1,13 +1,10 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
-#include "ui/ut_win32.h"
-#include <mmsystem.h>
+#include "midi.h"
 #include "stb_image.h"
 
 #pragma comment(lib, "winmm.lib")
-
-begin_c
 
 const char* title = "Sample6: I am groot";
 
@@ -33,12 +30,9 @@ static struct {
     int32_t  speed_y;
 } animation;
 
-static struct {
-    int32_t tid; // main thread id because MCI is thread sensitive
-    char filename[MAX_PATH];
-    MCI_OPEN_PARMSA mop;
-    bool muted;
-} midi;
+static bool muted;
+
+static midi_t mds;
 
 #define glyph_mute "\xF0\x9F\x94\x87"
 #define glyph_speaker "\xF0\x9F\x94\x88"
@@ -48,10 +42,6 @@ static image_t  background;
 static void init(void);
 static void fini(void);
 static void character(ui_view_t* view, const char* utf8);
-static void midi_open(void);
-static void midi_play(void);
-static void midi_stop(void);
-static void midi_close(void);
 
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,
     int32_t* bpp, int32_t preferred_bytes_per_pixel);
@@ -59,6 +49,24 @@ static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t*
 static void* load_animated_gif(const uint8_t* data, int64_t bytes,
     int32_t** delays, int32_t* w, int32_t* h, int32_t* frames, int32_t* bpp,
     int32_t preferred_bytes_per_pixel);
+
+static const char* midi_file(void) {
+    static char filename[ut_files_max_path];
+    if (filename[0] == 0) {
+        void* data = null;
+        int64_t bytes = 0;
+        int r = ut_mem.map_resource("mr_blue_sky_midi", &data, &bytes);
+        fatal_if_not_zero(r);
+        fatal_if_not_zero(ut_files.create_tmp(filename,
+                                      countof(filename)));
+        assert(filename[0] != 0);
+        int64_t written = 0;
+        fatal_if_not_zero(ut_files.write_fully(filename, data, bytes,
+                                                        &written));
+        assert(written == bytes);
+    }
+    return filename;
+}
 
 static void paint(ui_view_t* view) {
     if (animation.x < 0 && animation.y < 0) {
@@ -87,8 +95,8 @@ static void paint(ui_view_t* view) {
     ui_font_t f = gdi.set_font(app.fonts.H1);
     gdi.x = 0;
     gdi.y = 0;
-    gdi.set_text_color(midi.muted ? colors.green : colors.red);
-    gdi.text("%s", midi.muted ? glyph_speaker : glyph_mute);
+    gdi.set_text_color(muted ? colors.green : colors.red);
+    gdi.text("%s", muted ? glyph_speaker : glyph_mute);
     gdi.set_font(f);
 }
 
@@ -104,116 +112,35 @@ static void mouse(ui_view_t* unused(view), int32_t m, int32_t unused(f)) {
         m == ui.message.right_button_pressed) &&
         0 <= app.mouse.x && app.mouse.x < em.x &&
         0 <= app.mouse.y && app.mouse.y < em.y) {
-        midi.muted = !midi.muted;
-        if (midi.muted) {
-            midi_stop();
-//          midi_close();
+        muted = !muted;
+        if (muted) {
+            midi.stop(&mds);
+//          midi.close(&mds);
         } else {
-//          midi_open();
-            midi_play();
+//          midi.open(&mds, app.window, midi_file());
+            midi.play(&mds);
         }
     }
 }
 
 static void opened(void) {
-    midi.tid = ut_thread.id();
-    midi_open();
-    midi_play();
+    midi.open(&mds, app.window, midi_file());
+    midi.play(&mds);
 }
 
 static bool message(ui_view_t* unused(view), int32_t m, int64_t wp, int64_t lp,
         int64_t* unused(ret)) {
-    if (m == MM_MCINOTIFY) {
-//      traceln("MM_MCINOTIFY flags: %016llX device: %016llX", wp, lp);
-//      if (wp & MCI_NOTIFY_ABORTED)    { traceln("MCI_NOTIFY_ABORTED"); }
-//      if (wp & MCI_NOTIFY_FAILURE)    { traceln("MCI_NOTIFY_FAILURE"); }
-//      if (wp & MCI_NOTIFY_SUCCESSFUL) { traceln("MCI_NOTIFY_SUCCESSFUL"); }
-//      if (wp & MCI_NOTIFY_SUPERSEDED) { traceln("MCI_NOTIFY_SUPERSEDED"); }
-        if ((wp & MCI_NOTIFY_SUCCESSFUL) != 0 && lp == midi.mop.wDeviceID) {
-            midi_stop();
-            midi_close();
-            midi_open();
-            midi_play();
-        }
+    if (m == midi.notify && (wp & midi.successful) != 0 && lp == mds.device_id) {
+        midi.stop(&mds);
+        midi.close(&mds);
+        midi.open(&mds, app.window, midi_file());
+        midi.play(&mds);
     }
-    return m == MM_MCINOTIFY;
-}
-
-static const char* midi_file(void) {
-    char path[MAX_PATH];
-    if (midi.filename[0] == 0) {
-        void* data = null;
-        int64_t bytes = 0;
-        int r = ut_mem.map_resource("mr_blue_sky_midi", &data, &bytes);
-        fatal_if_not_zero(r);
-        GetTempPathA(countof(path), path);
-        assert(path[0] != 0);
-        GetTempFileNameA(path, "midi", 0, midi.filename);
-        assert(midi.filename[0] != 0);
-        HANDLE file = CreateFileA(midi.filename, GENERIC_WRITE, 0, null, CREATE_ALWAYS,
-               FILE_ATTRIBUTE_NORMAL, null);
-        fatal_if_null(file);
-        DWORD written = 0;
-        r = WriteFile(file, data, (uint32_t)bytes, &written, null) ? 0 : GetLastError();
-        fatal_if(r != 0 || written != bytes);
-        r = CloseHandle(file) ? 0 : GetLastError();
-        fatal_if(r != 0);
-    }
-    return midi.filename;
+    return m == midi.notify;
 }
 
 static void delete_midi_file(void) {
-    int r = DeleteFile(midi.filename) ? 0 : GetLastError();
-    fatal_if(r != 0);
-}
-
-static void midi_warn_if_error_(int r, const char* call, const char* func, int line) {
-    if (r != 0) {
-        static char error[256];
-        mciGetErrorString(r, error, countof(error));
-        traceln("%s:%d %s", func, line, call);
-        traceln("%d - MCIERR_BASE: %d %s", r, r - MCIERR_BASE, error);
-    }
-}
-
-#define midi_warn_if_error(r) do { midi_warn_if_error_(r, #r, __func__, __LINE__); } while (0)
-
-#define midi_fatal_if_error(call) do { \
-    int _r_ = call; midi_warn_if_error_(r, #call, __func__, __LINE__); \
-    fatal_if_not_zero(r); \
-} while (0)
-
-static void midi_play(void) {
-    assert(midi.tid == ut_thread.id());
-    MCI_PLAY_PARMS pp = {0};
-    pp.dwCallback = (uintptr_t)app.window;
-    midi_warn_if_error(mciSendCommandA(midi.mop.wDeviceID,
-        MCI_PLAY, MCI_NOTIFY, (uintptr_t)&pp));
-}
-
-static void midi_stop(void) {
-    assert(midi.tid == ut_thread.id());
-    midi_warn_if_error(mciSendCommandA(midi.mop.wDeviceID,
-        MCI_STOP, 0, 0));
-}
-
-static void midi_open(void) {
-    assert(midi.tid == ut_thread.id());
-    midi.mop.dwCallback = (uintptr_t)app.window;
-    midi.mop.wDeviceID = (WORD)-1;
-    midi.mop.lpstrDeviceType = (const char*)MCI_DEVTYPE_SEQUENCER;
-    midi.mop.lpstrElementName = midi_file();
-    midi.mop.lpstrAlias = null;
-    midi_warn_if_error(mciSendCommandA(0, MCI_OPEN,
-            MCI_OPEN_TYPE | MCI_OPEN_TYPE_ID | MCI_OPEN_ELEMENT,
-            (uintptr_t)&midi.mop));
-}
-
-static void midi_close(void) {
-    midi_warn_if_error(mciSendCommandA(midi.mop.wDeviceID,
-        MCI_CLOSE, MCI_WAIT, 0));
-    midi_warn_if_error(mciSendCommandA(MCI_ALL_DEVICE_ID,
-        MCI_CLOSE, MCI_WAIT, 0));
+    fatal_if_not_zero(ut_files.unlink(midi_file()));
 }
 
 static void load_gif(void) {
@@ -312,8 +239,8 @@ static void fini(void) {
     ut_event.set(animation.quit);
     ut_thread.join(animation.thread, -1);
     ut_event.dispose(animation.quit);
-    midi_stop();
-    midi_close();
+    midi.stop(&mds);
+    midi.close(&mds);
     delete_midi_file();
 }
 
@@ -352,5 +279,4 @@ app_t app = {
     }
 };
 
-end_c
 
