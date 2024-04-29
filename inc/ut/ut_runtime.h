@@ -9,9 +9,9 @@ typedef struct {
     void (*abort)(void);
     void (*exit)(int32_t exit_code); // only 8 bits on posix
     void (*test)(void);
-} runtime_if;
+} ut_runtime_if;
 
-extern runtime_if runtime;
+extern ut_runtime_if ut_runtime;
 
 end_c
 

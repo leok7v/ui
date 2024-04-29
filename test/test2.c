@@ -9,7 +9,7 @@ int main(int argc, char* argv[], char *envp[]) {
     } else if (ut_args.option_bool("-v") || ut_args.option_bool("--verbose")) {
         ut_debug.verbosity.level = ut_debug.verbosity.info;
     }
-    runtime.test();
+    ut_runtime.test();
     traceln("all tests passed\n");
     ut_args.fini();
     return 0;

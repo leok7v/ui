@@ -2,23 +2,23 @@
 #include "ut/ut_win32.h"
 
 // abort does NOT call atexit() functions and
-// does NOT flush streams. Also Win32 runtime
+// does NOT flush ut_streams. Also Win32 runtime
 // abort() attempt to show Abort/Retry/Ignore
 // MessageBox - thus ExitProcess()
 
-static void runtime_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
+static void ut_runtime_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
 
-static void runtime_exit(int32_t exit_code) { exit(exit_code); }
+static void ut_runtime_exit(int32_t exit_code) { exit(exit_code); }
 
 // TODO: consider r = HRESULT_FROM_WIN32() and r = HRESULT_CODE(hr);
 // this separates posix error codes from win32 error codes
 
 
-static int32_t runtime_err(void) { return GetLastError(); }
+static int32_t ut_runtime_err(void) { return GetLastError(); }
 
-static void runtime_seterr(int32_t err) { SetLastError(err); }
+static void ut_runtime_seterr(int32_t err) { SetLastError(err); }
 
-static_init(runtime) {
+ut_static_init(runtime) {
     SetErrorMode(
         // The system does not display the critical-error-handler message box.
         // Instead, the system sends the error to the calling process:
@@ -36,7 +36,7 @@ static_init(runtime) {
 
 #ifdef UT_TESTS
 
-static void runtime_test(void) { // in alphabetical order
+static void ut_runtime_test(void) { // in alphabetical order
     ut_args.test();
     ut_atomics.test();
     ut_clipboard.test();
@@ -51,26 +51,26 @@ static void runtime_test(void) { // in alphabetical order
     ut_mem.test();
     mutexes.test();
     ut_num.test();
-    processes.test();
-    static_init_test();
-    str.test();
-    streams.test();
+    ut_processes.test();
+    ut_static_init_test();
+    ut_str.test();
+    ut_streams.test();
     threads.test();
     vigil.test();
 }
 
 #else
 
-static void runtime_test(void) { }
+static void ut_runtime_test(void) { }
 
 #endif
 
-runtime_if runtime = {
-    .err    = runtime_err,
-    .seterr = runtime_seterr,
-    .abort  = runtime_abort,
-    .exit   = runtime_exit,
-    .test   = runtime_test
+ut_runtime_if ut_runtime = {
+    .err    = ut_runtime_err,
+    .seterr = ut_runtime_seterr,
+    .abort  = ut_runtime_abort,
+    .exit   = ut_runtime_exit,
+    .test   = ut_runtime_test
 };
 
 #pragma comment(lib, "advapi32")

@@ -212,7 +212,7 @@ const char* ut_args_basename(void) {
             if (*s == '\\' || *s == '/') { b = s + 1; }
             s++;
         }
-        int32_t n = str.length(b);
+        int32_t n = ut_str.length(b);
         swear(n < countof(basename));
         strncpy(basename, b, countof(basename) - 1);
         char* d = basename + n - 1;
@@ -236,7 +236,7 @@ static void ut_args_WinMain(void) {
     int32_t n = (int32_t)wcslen(wcl);
     char* cl = null;
     fatal_if_not_zero(ut_heap.allocate(null, &cl, n * 2 + 1, false));
-    ut_args_parse(str.utf16_utf8(cl, wcl));
+    ut_args_parse(ut_str.utf16_utf8(cl, wcl));
     ut_heap.deallocate(null, cl);
     ut_args.env = _environ;
 }

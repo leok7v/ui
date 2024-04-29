@@ -364,7 +364,7 @@ static errno_t threads_join(thread_t t, fp64_t timeout) {
     if (r == 0) {
         fatal_if_false(CloseHandle(t));
     } else {
-        traceln("failed to join thread %p %s", t, str.error(r));
+        traceln("failed to join thread %p %s", t, ut_str.error(r));
     }
     return r;
 }
@@ -377,8 +377,8 @@ static void threads_detach(thread_t t) {
 
 static void threads_name(const char* name) {
     uint16_t stack[1024];
-    fatal_if(str.length(name) >= countof(stack), "name too long: %s", name);
-    uint16_t* wide = str.utf8_utf16(stack, name);
+    fatal_if(ut_str.length(name) >= countof(stack), "name too long: %s", name);
+    uint16_t* wide = ut_str.utf8_utf16(stack, name);
     HRESULT r = SetThreadDescription(GetCurrentThread(), wide);
     // notoriously returns 0x10000000 for no good reason whatsoever
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }

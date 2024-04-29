@@ -84,7 +84,7 @@ static void download(void) {
             "\"%s\" --output \"%s\" 2>nul >nul", url, filename);
         int r = system(cmd);
         if (r != 0) {
-            traceln("download %s failed %d %s", filename, r, str.error(r));
+            traceln("download %s failed %d %s", filename, r, ut_str.error(r));
         }
     }
 }

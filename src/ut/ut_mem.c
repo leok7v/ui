@@ -9,11 +9,11 @@ static errno_t ut_mem_map_view_of_file(HANDLE file,
         rw ? PAGE_READWRITE : PAGE_READONLY,
         (uint32_t)(*bytes >> 32), (uint32_t)*bytes, null);
     if (mapping == null) {
-        r = runtime.err();
+        r = ut_runtime.err();
     } else {
         DWORD access = rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
         address = MapViewOfFile(mapping, access, 0, 0, *bytes);
-        if (address == null) { r = runtime.err(); }
+        if (address == null) { r = ut_runtime.err(); }
         fatal_if_false(CloseHandle(mapping));
     }
     if (r == 0) {
@@ -67,7 +67,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
     HANDLE file = CreateFileA(filename, access, share, null, disposition,
                               flags, null);
     if (file == INVALID_HANDLE_VALUE) {
-        r = runtime.err();
+        r = ut_runtime.err();
     } else {
         LARGE_INTEGER eof = { .QuadPart = 0 };
         fatal_if_false(GetFileSizeEx(file, &eof));
@@ -117,7 +117,7 @@ static errno_t ut_mem_map_resource(const char* label, void* *data, int64_t *byte
     if (res != null) { *bytes = SizeofResource(null, res); }
     HGLOBAL g = res != null ? LoadResource(null, res) : null;
     *data = g != null ? LockResource(g) : null;
-    return *data != null ? 0 : runtime.err();
+    return *data != null ? 0 : ut_runtime.err();
 }
 
 static int32_t ut_mem_page_size(void) {
@@ -154,19 +154,19 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
             a = VirtualAlloc(null, bytes, type, PAGE_READWRITE);
         }
         if (a == null) {
-            r = runtime.err();
+            r = ut_runtime.err();
             if (r != 0) {
-                traceln("VirtualAlloc(%lld) failed %s", bytes, str.error(r));
+                traceln("VirtualAlloc(%lld) failed %s", bytes, ut_str.error(r));
             }
         } else {
-            r = VirtualLock(a, bytes) ? 0 : runtime.err();
+            r = VirtualLock(a, bytes) ? 0 : ut_runtime.err();
             if (r == ERROR_WORKING_SET_QUOTA) {
                 // The default size is 345 pages (for example,
                 // this is 1,413,120 bytes on systems with a 4K page size).
                 SIZE_T min_mem = 0, max_mem = 0;
                 r = b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
                 if (r != 0) {
-                    traceln("GetProcessWorkingSetSize() failed %s", str.error(r));
+                    traceln("GetProcessWorkingSetSize() failed %s", ut_str.error(r));
                 } else {
                     max_mem =  max_mem + bytes * 2LL;
                     max_mem = (max_mem + page_size - 1) / page_size * page_size +
@@ -176,19 +176,19 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                             min_mem, max_mem));
                     if (r != 0) {
                         traceln("SetProcessWorkingSetSize(%lld, %lld) failed %s",
-                            (uint64_t)min_mem, (uint64_t)max_mem, str.error(r));
+                            (uint64_t)min_mem, (uint64_t)max_mem, ut_str.error(r));
                     } else {
                         r = b2e(VirtualLock(a, bytes));
                     }
                 }
             }
             if (r != 0) {
-                traceln("VirtualLock(%lld) failed %s", bytes, str.error(r));
+                traceln("VirtualLock(%lld) failed %s", bytes, ut_str.error(r));
             }
         }
     }
     if (r != 0) {
-        traceln("mem_alloc_pages(%lld) failed %s", bytes, str.error(r));
+        traceln("mem_alloc_pages(%lld) failed %s", bytes, ut_str.error(r));
         assert(a == null);
     }
     return a;
@@ -201,19 +201,19 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     int page_size = ut_mem_page_size();
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
         r = EINVAL;
-        traceln("failed %s", str.error(r));
+        traceln("failed %s", ut_str.error(r));
     } else {
         if (a != null) {
             // in case it was successfully locked
             r = b2e(VirtualUnlock(a, bytes));
             if (r != 0) {
-                traceln("VirtualUnlock() failed %s", str.error(r));
+                traceln("VirtualUnlock() failed %s", ut_str.error(r));
             }
             // If the "dwFreeType" parameter is MEM_RELEASE, "dwSize" parameter
             // must be the base address returned by the VirtualAlloc function when
             // the region of pages is reserved.
             r = b2e(VirtualFree(a, 0, MEM_RELEASE));
-            if (r != 0) { traceln("VirtuaFree() failed %s", str.error(r)); }
+            if (r != 0) { traceln("VirtuaFree() failed %s", ut_str.error(r)); }
         }
     }
 }

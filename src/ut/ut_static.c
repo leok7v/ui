@@ -16,27 +16,27 @@ void* _static_force_symbol_reference_(void* symbol) {
     return symbol;
 }
 
-// test static_init() { code } that will be executed in random
+// test ut_static_init() { code } that will be executed in random
 // order but before main()
 
 #ifdef UT_TESTS
 
-static int32_t static_init_function_called;
+static int32_t ut_static_init_function_called;
 
-static void force_inline static_init_function(void) {
-    static_init_function_called = 1;
+static void force_inline ut_static_init_function(void) {
+    ut_static_init_function_called = 1;
 }
 
-static_init(static_init_test) { static_init_function(); }
+ut_static_init(static_init_test) { ut_static_init_function(); }
 
-void static_init_test(void) {
-    fatal_if(static_init_function_called != 1,
+void ut_static_init_test(void) {
+    fatal_if(ut_static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-void static_init_test(void) {}
+void ut_static_init_test(void) {}
 
 #endif

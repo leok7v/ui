@@ -70,7 +70,7 @@ void ui_label_init_(ui_view_t* view) {
 
 void ui_label_init_va(ui_label_t* t, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
-    str.format_va(t->view.text, countof(t->view.text), format, vl);
+    ut_str.format_va(t->view.text, countof(t->view.text), format, vl);
     t->view.type = ui_view_label;
     ui_label_init_(&t->view);
 }

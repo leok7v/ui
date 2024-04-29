@@ -27,7 +27,7 @@ static errno_t ut_files_open(ut_file_t* *file, const char* fn, int32_t f) {
     DWORD attr = FILE_ATTRIBUTE_NORMAL;
     attr |= (f & O_SYNC) ? FILE_FLAG_WRITE_THROUGH : 0;
     *file = CreateFileA(fn, access, share, null, disposition, attr, null);
-    return *file != INVALID_HANDLE_VALUE ? 0 : runtime.err();
+    return *file != INVALID_HANDLE_VALUE ? 0 : ut_runtime.err();
 }
 
 static bool ut_files_is_valid(ut_file_t* file) { // both null and ut_files.invalid
@@ -162,7 +162,7 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
     HANDLE file = CreateFileA(filename, access, share, null, CREATE_ALWAYS,
                               flags, null);
     if (file == INVALID_HANDLE_VALUE) {
-        r = runtime.err();
+        r = ut_runtime.err();
     } else {
         int64_t written = 0;
         const uint8_t* p = (const uint8_t*)data;
@@ -205,11 +205,11 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
         // the return value is zero.
         if (count > (int)strlen(tmp) + 8) {
             char prefix[4] = {0};
-            r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? runtime.err() : 0;
+            r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? ut_runtime.err() : 0;
             if (r == 0) {
                 assert(ut_files.exists(fn) && !ut_files.is_folder(fn));
             } else {
-                traceln("GetTempFileNameA() failed %s", str.error(r));
+                traceln("GetTempFileNameA() failed %s", ut_str.error(r));
             }
         } else {
             r = ERROR_BUFFER_OVERFLOW;
@@ -297,7 +297,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
                 group, account,
                 ace->Header.AceType, ace->Mask, ace->Header.AceFlags);
     } else {
-        traceln("LookupAccountSidA() failed %s", str.error(r));
+        traceln("LookupAccountSidA() failed %s", ut_str.error(r));
     }
     return r;
 }
@@ -388,7 +388,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
     // Change the security attributes
     errno_t r = b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
-        traceln("chmod777(%s) failed %s", pathname, str.error(r));
+        traceln("chmod777(%s) failed %s", pathname, ut_str.error(r));
     }
     if (everyone != null) { FreeSid(everyone); }
     if (acl != null) { LocalFree(acl); }
@@ -443,9 +443,9 @@ static errno_t ut_files_mkdirs(const char* dir) {
 
 #define ut_files_append_name(pn, pnc, fn, name) do {      \
     if (strequ(fn, "\\") || strequ(fn, "/")) {         \
-        str.format(pn, pnc, "\\%s", name);            \
+        ut_str.format(pn, pnc, "\\%s", name);            \
     } else {                                           \
-        str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
+        ut_str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
     }                                                  \
 } while (0)
 
@@ -490,7 +490,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
                     ut_files_append_name(pn, pnc, fn, name);
                     r = ut_files.unlink(pn);
                     if (r != 0) {
-                        traceln("remove(%s) failed %s", pn, str.error(r));
+                        traceln("remove(%s) failed %s", pn, ut_str.error(r));
                     }
                 }
             }
@@ -573,8 +573,8 @@ static const char* ut_files_tmp(void) {
         // in chars, of the string copied to lpBuffer, not including
         // the terminating null character. If the function fails, the
         // return value is zero.
-        errno_t r = GetTempPathA(countof(tmp), tmp) == 0 ? runtime.err() : 0;
-        fatal_if(r != 0, "GetTempPathA() failed %s", str.error(r));
+        errno_t r = GetTempPathA(countof(tmp), tmp) == 0 ? ut_runtime.err() : 0;
+        fatal_if(r != 0, "GetTempPathA() failed %s", ut_str.error(r));
     }
     return tmp;
 }
@@ -645,7 +645,7 @@ void ut_files_closedir(ut_folder_t* folder) {
 
 #ifdef UT_TESTS
 
-#define ut_files_test_failed " failed %s", str.error(runtime.err())
+#define ut_files_test_failed " failed %s", ut_str.error(ut_runtime.err())
 
 #pragma push_macro("verbose") // --verbosity trace
 
@@ -689,16 +689,16 @@ static void folders_test(void) {
     char cwd[256] = {0};
     fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
     fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
-                tmp, str.error(runtime.err()));
+                tmp, ut_str.error(ut_runtime.err()));
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
     char tmp_file[ut_files_max_path]; // create_tmp() is thread safe race free:
     errno_t r = ut_files.create_tmp(tmp_file, countof(tmp_file));
-    fatal_if(r != 0, "ut_files.create_tmp() failed %s", str.error(r));
+    fatal_if(r != 0, "ut_files.create_tmp() failed %s", ut_str.error(r));
     char tmp_dir[ut_files_max_path];
     strprintf(tmp_dir, "%s.dir", tmp_file);
     r = ut_files.mkdirs(tmp_dir);
-    fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, str.error(r));
+    fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, ut_str.error(r));
     verbose("%s", tmp_dir);
     ut_folder_t folder;
     char pn[ut_files_max_path] = {0};
@@ -713,15 +713,15 @@ static void folders_test(void) {
     const char* content = "content";
     int64_t transferred = 0;
     r = ut_files.write_fully(pn, content, strlen(content), &transferred);
-    fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, str.error(r));
+    fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, ut_str.error(r));
     swear(transferred == (int64_t)strlen(content));
     r = ut_files.link(pn, hard);
     fatal_if(r != 0, "ut_files.link(\"%s\", \"%s\") failed %s",
-                      pn, hard, str.error(r));
+                      pn, hard, ut_str.error(r));
     r = ut_files.mkdirs(sub);
-    fatal_if(r != 0, "ut_files.mkdirs(\"%s\") failed %s", sub, str.error(r));
+    fatal_if(r != 0, "ut_files.mkdirs(\"%s\") failed %s", sub, ut_str.error(r));
     r = ut_files.opendir(&folder, tmp_dir);
-    fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, str.error(r));
+    fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, ut_str.error(r));
     for (;;) {
         ut_files_stat_t st = {0};
         const char* name = ut_files.readdir(&folder, &st);
@@ -767,12 +767,12 @@ static void folders_test(void) {
     ut_files.closedir(&folder);
     r = ut_files.rmdirs(tmp_dir);
     fatal_if(r != 0, "ut_files.rmdirs(\"%s\") failed %s",
-                     tmp_dir, str.error(r));
+                     tmp_dir, ut_str.error(r));
     r = ut_files.unlink(tmp_file);
     fatal_if(r != 0, "ut_files.unlink(\"%s\") failed %s",
-                     tmp_file, str.error(r));
+                     tmp_file, ut_str.error(r));
     fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
-             cwd, str.error(runtime.err()));
+             cwd, ut_str.error(ut_runtime.err()));
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -813,11 +813,11 @@ static void ut_files_test(void) {
                 fatal_if(ut_files.seek(f, &position, ut_files.seek_set) != 0 ||
                          position != i,
                         "ut_files.seek(position: %lld) failed %s",
-                         position, str.error(runtime.err()));
+                         position, ut_str.error(ut_runtime.err()));
                 fatal_if(ut_files.read(f, test, j, &transferred) != 0 ||
                          transferred != j,
                         "ut_files.read() transferred: %lld failed %s",
-                        transferred, str.error(runtime.err()));
+                        transferred, ut_str.error(ut_runtime.err()));
                 for (int32_t k = 0; k < j; k++) {
                     swear(test[k] == data[i + k],
                          "Data mismatch at position: %d, length %d"
@@ -834,12 +834,12 @@ static void ut_files_test(void) {
             uint8_t val = ~data[i];
             int64_t pos = i;
             fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
-                    "ut_files.seek() failed %s", runtime.err());
+                    "ut_files.seek() failed %s", ut_runtime.err());
             fatal_if(ut_files.write(f, &val, 1, &transferred) != 0 ||
                      transferred != 1, "ut_files.write()" ut_files_test_failed);
             pos = i;
             fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
-                    "ut_files.seek(pos: %lld i: %d) failed %s", pos, i, runtime.err());
+                    "ut_files.seek(pos: %lld i: %d) failed %s", pos, i, ut_runtime.err());
             uint8_t read_val = 0;
             fatal_if(ut_files.read(f, &read_val, 1, &transferred) != 0 ||
                      transferred != 1, "ut_files.read()" ut_files_test_failed);
@@ -875,20 +875,20 @@ static void ut_files_test(void) {
     {   // write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
         fatal_if(ut_files.write_fully(tf, data, countof(data), &transferred) != 0 ||
                  transferred != countof(data),
-                "ut_files.write_fully() failed %s", runtime.err());
+                "ut_files.write_fully() failed %s", ut_runtime.err());
         fatal_if(!ut_files.exists(tf), "file \"%s\" does not exist", tf);
         fatal_if(ut_files.is_folder(tf), "%s is a folder", tf);
         fatal_if(ut_files.chmod777(tf) != 0, "ut_files.chmod777(\"%s\") failed %s",
-                 tf, str.error(runtime.err()));
+                 tf, ut_str.error(ut_runtime.err()));
         char folder[256] = {0};
         strprintf(folder, "%s.folder\\subfolder", tf);
         fatal_if(ut_files.mkdirs(folder) != 0, "ut_files.mkdirs(\"%s\") failed %s",
-            folder, str.error(runtime.err()));
+            folder, ut_str.error(ut_runtime.err()));
         fatal_if(!ut_files.is_folder(folder), "\"%s\" is not a folder", folder);
         fatal_if(ut_files.chmod777(folder) != 0, "ut_files.chmod777(\"%s\") failed %s",
-                 folder, str.error(runtime.err()));
+                 folder, ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.rmdirs(folder) != 0, "ut_files.rmdirs(\"%s\") failed %s",
-                 folder, str.error(runtime.err()));
+                 folder, ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.exists(folder), "folder \"%s\" still exists", folder);
     }
     {   // getcwd, chdir
@@ -896,17 +896,17 @@ static void ut_files_test(void) {
         char cwd[256] = {0};
         fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
         fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
-                 tmp, str.error(runtime.err()));
+                 tmp, ut_str.error(ut_runtime.err()));
         // symlink
-        if (processes.is_elevated()) {
+        if (ut_processes.is_elevated()) {
             char sym_link[ut_files_max_path];
             strprintf(sym_link, "%s.sym_link", tf);
             fatal_if(ut_files.symlink(tf, sym_link) != 0,
                 "ut_files.symlink(\"%s\", \"%s\") failed %s",
-                tf, sym_link, str.error(runtime.err()));
+                tf, sym_link, ut_str.error(ut_runtime.err()));
             fatal_if(!ut_files.is_symlink(sym_link), "\"%s\" is not a sym_link", sym_link);
             fatal_if(ut_files.unlink(sym_link) != 0, "ut_files.unlink(\"%s\") failed %s",
-                    sym_link, str.error(runtime.err()));
+                    sym_link, ut_str.error(ut_runtime.err()));
         } else {
             traceln("Skipping ut_files.symlink test: process is not elevated");
         }
@@ -915,26 +915,26 @@ static void ut_files_test(void) {
         strprintf(hard_link, "%s.hard_link", tf);
         fatal_if(ut_files.link(tf, hard_link) != 0,
             "ut_files.link(\"%s\", \"%s\") failed %s",
-            tf, hard_link, str.error(runtime.err()));
+            tf, hard_link, ut_str.error(ut_runtime.err()));
         fatal_if(!ut_files.exists(hard_link), "\"%s\" does not exist", hard_link);
         fatal_if(ut_files.unlink(hard_link) != 0, "ut_files.unlink(\"%s\") failed %s",
-                 hard_link, str.error(runtime.err()));
+                 hard_link, ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.exists(hard_link), "\"%s\" still exists", hard_link);
         // copy, move:
         fatal_if(ut_files.copy(tf, "copied_file") != 0,
             "ut_files.copy(\"%s\", 'copied_file') failed %s",
-            tf, str.error(runtime.err()));
+            tf, ut_str.error(ut_runtime.err()));
         fatal_if(!ut_files.exists("copied_file"), "'copied_file' does not exist");
         fatal_if(ut_files.move("copied_file", "moved_file") != 0,
             "ut_files.move('copied_file', 'moved_file') failed %s",
-            str.error(runtime.err()));
+            ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.exists("copied_file"), "'copied_file' still exists");
         fatal_if(!ut_files.exists("moved_file"), "'moved_file' does not exist");
         fatal_if(ut_files.unlink("moved_file") != 0,
                 "ut_files.unlink('moved_file') failed %s",
-                 str.error(runtime.err()));
+                 ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
-                    cwd, str.error(runtime.err()));
+                    cwd, ut_str.error(ut_runtime.err()));
     }
     fatal_if(ut_files.unlink(tf) != 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }

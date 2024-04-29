@@ -68,7 +68,7 @@ static int32_t ut_config_size(const char* name, const char* key) {
             bytes = 0; // do not report data_size() often used this way
         } else if (r != 0) {
             traceln("%s.RegQueryValueExA(\"%s\") failed %s",
-                name, key, str.error(r));
+                name, key, ut_str.error(r));
             bytes = 0; // on any error behave as empty data
         } else {
             bytes = (int)cb;
@@ -92,7 +92,7 @@ static int32_t ut_config_load(const char* name,
         } else if (r != 0) {
             if (r != ERROR_FILE_NOT_FOUND) {
                 traceln("%s.RegQueryValueExA(\"%s\") failed %s",
-                    name, key, str.error(r));
+                    name, key, ut_str.error(r));
             }
             read = 0; // on any error behave as empty data
         } else {

@@ -21,7 +21,7 @@ static int run(void) {
     } else if (ut_args.option_bool("-v") || ut_args.option_bool("--verbose")) {
         ut_debug.verbosity.level = ut_debug.verbosity.verbose;
     }
-    runtime.test();
+    ut_runtime.test();
     traceln("all tests passed\n");
     traceln("ut_args.v[0]: %s", ut_args.v[0]);
     traceln("ut_args.basename(): %s", ut_args.basename());

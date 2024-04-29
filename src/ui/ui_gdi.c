@@ -662,13 +662,13 @@ typedef struct gdi_dtp_s { // draw text params
 static void gdi_text_draw(gdi_dtp_t* p) {
     int32_t n = 1024;
     char* text = (char*)alloca(n);
-    str.format_va(text, n - 1, p->format, p->vl);
+    ut_str.format_va(text, n - 1, p->format, p->vl);
     int32_t k = (int32_t)strlen(text);
     // Microsoft returns -1 not posix required sizeof buffer
     while (k >= n - 1 || k < 0) {
         n = n * 2;
         text = (char*)alloca(n);
-        str.format_va(text, n - 1, p->format, p->vl);
+        ut_str.format_va(text, n - 1, p->format, p->vl);
         k = (int)strlen(text);
     }
     assert(k >= 0 && k <= n, "k=%d n=%d fmt=%s", k, n, p->format);

@@ -1,27 +1,27 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
-typedef struct processes_pidof_lambda_s processes_pidof_lambdat_t;
+typedef struct ut_processes_pidof_lambda_s ut_processes_pidof_lambda_t;
 
-typedef struct processes_pidof_lambda_s {
-    bool (*each)(processes_pidof_lambdat_t* p, uint64_t pid); // returns true to continue
+typedef struct ut_processes_pidof_lambda_s {
+    bool (*each)(ut_processes_pidof_lambda_t* p, uint64_t pid); // returns true to continue
     uint64_t* pids;
     size_t size;  // pids[size]
     size_t count; // number of valid pids in the pids
     fp64_t timeout;
     errno_t error;
-} processes_pidof_lambda_t;
+} ut_processes_pidof_lambda_t;
 
-static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambda_t* la) {
+static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
-    int32_t n = str.length(pname);
+    int32_t n = ut_str.length(pname);
     fatal_if(n + 5 >= countof(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
-    if (!str.ends_with_nc(pname, -1, ".exe", -1)) {
+    if (!ut_str.ends_with_nc(pname, -1, ".exe", -1)) {
         int32_t k = (int32_t)strlen(pname) + 5;
         char* exe = stack;
-        str.format(exe, k, "%s.exe", pname);
+        ut_str.format(exe, k, "%s.exe", pname);
         name = exe;
     }
     const char* base = strrchr(name, '\\');
@@ -32,7 +32,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
     }
     uint16_t wide[1024];
     fatal_if(strlen(base) >= countof(wide), "name too long: %s", base);
-    uint16_t* wn = str.utf8_utf16(wide, base);
+    uint16_t* wn = ut_str.utf8_utf16(wide, base);
     size_t count = 0;
     uint64_t pid = 0;
     byte* data = null;
@@ -62,8 +62,8 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (base != name) {
                     char path[ut_files_max_path];
-                    match = processes.nameof(pid, path, countof(path)) == 0 &&
-                            str.ends_with_nc(path, -1, name, -1);
+                    match = ut_processes.nameof(pid, path, countof(path)) == 0 &&
+                            ut_str.ends_with_nc(path, -1, name, -1);
 //                  traceln("\"%s\" -> \"%s\" match: %d", name, path, match);
                 }
             }
@@ -85,11 +85,11 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
     return (int32_t)count;
 }
 
-static void processes_close_handle(HANDLE h) {
+static void ut_processes_close_handle(HANDLE h) {
     fatal_if_false(CloseHandle(h));
 }
 
-static errno_t processes_nameof(uint64_t pid, char* name, int32_t count) {
+static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
     assert(name != null && count > 0);
     errno_t r = 0;
     name[0] = 0;
@@ -97,62 +97,62 @@ static errno_t processes_nameof(uint64_t pid, char* name, int32_t count) {
     if (p != null) {
         r = b2e(GetModuleFileNameExA(p, null, name, count));
         name[count - 1] = 0; // ensure zero termination
-        processes_close_handle(p);
+        ut_processes_close_handle(p);
     } else {
         r = ERROR_NOT_FOUND;
     }
     return r;
 }
 
-static bool processes_present(uint64_t pid) {
+static bool ut_processes_present(uint64_t pid) {
     void* h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, (DWORD)pid);
     bool b = h != null;
-    if (h != null) { processes_close_handle(h); }
+    if (h != null) { ut_processes_close_handle(h); }
     return b;
 }
 
-static bool processes_first_pid(processes_pidof_lambda_t* lambda, uint64_t pid) {
+static bool ut_processes_first_pid(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
     lambda->pids[0] = pid;
     return false;
 }
 
-static uint64_t processes_pid(const char* pname) {
+static uint64_t ut_processes_pid(const char* pname) {
     uint64_t first[1] = {0};
-    processes_pidof_lambda_t lambda = {
-        .each = processes_first_pid,
+    ut_processes_pidof_lambda_t lambda = {
+        .each = ut_processes_first_pid,
         .pids = first,
         .size  = 1,
         .count = 0,
         .timeout = 0,
         .error = 0
     };
-    processes_for_each_pidof(pname, &lambda);
+    ut_processes_for_each_pidof(pname, &lambda);
     return first[0];
 }
 
-static bool processes_store_pid(processes_pidof_lambda_t* lambda, uint64_t pid) {
+static bool ut_processes_store_pid(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
     if (lambda->pids != null && lambda->count < lambda->size) {
         lambda->pids[lambda->count++] = pid;
     }
     return true; // always - need to count all
 }
 
-static errno_t processes_pids(const char* pname, uint64_t* pids/*[size]*/,
+static errno_t ut_processes_pids(const char* pname, uint64_t* pids/*[size]*/,
         int32_t size, int32_t *count) {
     *count = 0;
-    processes_pidof_lambda_t lambda = {
-        .each = processes_store_pid,
+    ut_processes_pidof_lambda_t lambda = {
+        .each = ut_processes_store_pid,
         .pids = pids,
         .size  = size,
         .count = 0,
         .timeout = 0,
         .error = 0
     };
-    *count = processes_for_each_pidof(pname, &lambda);
+    *count = ut_processes_for_each_pidof(pname, &lambda);
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
-static errno_t processes_kill(uint64_t pid, fp64_t timeout) {
+static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     DWORD timeout_milliseconds = (DWORD)(timeout * 1000);
     enum { access = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE };
     assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
@@ -170,10 +170,10 @@ static errno_t processes_kill(uint64_t pid, fp64_t timeout) {
             errno_t rq = b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
             if (rq != 0) {
                 traceln("QueryFullProcessImageNameA(pid=%d, h=%p) "
-                        "failed %s", pid, h, str.error(rq));
+                        "failed %s", pid, h, ut_str.error(rq));
             }
         }
-        processes_close_handle(h);
+        ut_processes_close_handle(h);
         if (r == ERROR_ACCESS_DENIED) { // special case
             threads.sleep_for(0.015); // need to wait a bit
             HANDLE retry = OpenProcess(access, 0, (DWORD)pid);
@@ -181,41 +181,41 @@ static errno_t processes_kill(uint64_t pid, fp64_t timeout) {
             if (retry == null) {
                 traceln("TerminateProcess(pid=%d, h=%p, im=%s) "
                         "failed but zombie died after: %s",
-                        pid, h, path, str.error(r));
+                        pid, h, path, ut_str.error(r));
                 r = 0;
             } else {
-                processes_close_handle(retry);
+                ut_processes_close_handle(retry);
             }
         }
         if (r != 0) {
             traceln("TerminateProcess(pid=%d, h=%p, im=%s) failed %s",
-                pid, h, path, str.error(r));
+                pid, h, path, ut_str.error(r));
         }
     }
     if (r != 0) { errno = r; }
     return r;
 }
 
-static bool processes_kill_one(processes_pidof_lambda_t* lambda, uint64_t pid) {
-    errno_t r = processes_kill(pid, lambda->timeout);
+static bool ut_processes_kill_one(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
+    errno_t r = ut_processes_kill(pid, lambda->timeout);
     if (r != 0) { lambda->error = r; }
     return true; // keep going
 }
 
-static errno_t processes_kill_all(const char* name, fp64_t timeout) {
-    processes_pidof_lambda_t lambda = {
-        .each = processes_kill_one,
+static errno_t ut_processes_kill_all(const char* name, fp64_t timeout) {
+    ut_processes_pidof_lambda_t lambda = {
+        .each = ut_processes_kill_one,
         .pids = null,
         .size  = 0,
         .count = 0,
         .timeout = timeout,
         .error = 0
     };
-    int32_t c = processes_for_each_pidof(name, &lambda);
+    int32_t c = ut_processes_for_each_pidof(name, &lambda);
     return c == 0 ? ERROR_NOT_FOUND : lambda.error;
 }
 
-static bool processes_is_elevated(void) { // Is process running as Admin / System ?
+static bool ut_processes_is_elevated(void) { // Is process running as Admin / System ?
     BOOL elevated = false;
     PSID administrators_group = null;
     // Allocate and initialize a SID of the administrators group.
@@ -224,7 +224,7 @@ static bool processes_is_elevated(void) { // Is process running as Admin / Syste
                 SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
                 0, 0, 0, 0, 0, 0, &administrators_group));
     if (r != 0) {
-        traceln("AllocateAndInitializeSid() failed %s", str.error(r));
+        traceln("AllocateAndInitializeSid() failed %s", ut_str.error(r));
     }
     PSID system_ops = null;
     SID_IDENTIFIER_AUTHORITY system_ops_authority = SECURITY_NT_AUTHORITY;
@@ -232,7 +232,7 @@ static bool processes_is_elevated(void) { // Is process running as Admin / Syste
             SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_SYSTEM_OPS,
             0, 0, 0, 0, 0, 0, &system_ops));
     if (r != 0) {
-        traceln("AllocateAndInitializeSid() failed %s", str.error(r));
+        traceln("AllocateAndInitializeSid() failed %s", ut_str.error(r));
     }
     if (administrators_group != null) {
         r = b2e(CheckTokenMembership(null, administrators_group, &elevated));
@@ -243,15 +243,15 @@ static bool processes_is_elevated(void) { // Is process running as Admin / Syste
     if (administrators_group != null) { FreeSid(administrators_group); }
     if (system_ops != null) { FreeSid(system_ops); }
     if (r != 0) {
-        traceln("failed %s", str.error(r));
+        traceln("failed %s", ut_str.error(r));
     }
     return elevated;
 }
 
-static errno_t processes_restart_elevated(void) {
+static errno_t ut_processes_restart_elevated(void) {
     errno_t r = 0;
-    if (!processes.is_elevated()) {
-        const char* path = processes.name();
+    if (!ut_processes.is_elevated()) {
+        const char* path = ut_processes.name();
         SHELLEXECUTEINFOA sei = { sizeof(sei) };
         sei.lpVerb = "runas";
         sei.lpFile = path;
@@ -261,32 +261,32 @@ static errno_t processes_restart_elevated(void) {
         if (r == ERROR_CANCELLED) {
             traceln("The user unable or refused to allow privileges elevation");
         } else if (r == 0) {
-            runtime.exit(0); // second copy of the app is running now
+            ut_runtime.exit(0); // second copy of the app is running now
         }
     }
     return r;
 }
 
-static void processes_close_pipes(STARTUPINFOA* si,
+static void ut_processes_close_pipes(STARTUPINFOA* si,
         HANDLE *read_out,
         HANDLE *read_err,
         HANDLE *write_in) {
-    if (si->hStdOutput != INVALID_HANDLE_VALUE) { processes_close_handle(si->hStdOutput); }
-    if (si->hStdError  != INVALID_HANDLE_VALUE) { processes_close_handle(si->hStdError);  }
-    if (si->hStdInput  != INVALID_HANDLE_VALUE) { processes_close_handle(si->hStdInput);  }
-    if (*read_out != INVALID_HANDLE_VALUE) { processes_close_handle(*read_out); }
-    if (*read_err != INVALID_HANDLE_VALUE) { processes_close_handle(*read_err); }
-    if (*write_in != INVALID_HANDLE_VALUE) { processes_close_handle(*write_in); }
+    if (si->hStdOutput != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdOutput); }
+    if (si->hStdError  != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdError);  }
+    if (si->hStdInput  != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdInput);  }
+    if (*read_out != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*read_out); }
+    if (*read_err != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*read_err); }
+    if (*write_in != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*write_in); }
 }
 
-static errno_t processes_child_read(stream_if* out, HANDLE pipe) {
+static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
     char data[32 * 1024]; // Temporary buffer for reading
     DWORD available = 0;
     errno_t r = b2e(PeekNamedPipe(pipe, null, sizeof(data), null,
                                  &available, null));
     if (r != 0) {
         if (r != ERROR_BROKEN_PIPE) { // unexpected!
-//          traceln("PeekNamedPipe() failed %s", str.error(r));
+//          traceln("PeekNamedPipe() failed %s", ut_str.error(r));
         }
         // process has exited and closed the pipe
         assert(r == ERROR_BROKEN_PIPE);
@@ -305,7 +305,7 @@ static errno_t processes_child_read(stream_if* out, HANDLE pipe) {
     return r;
 }
 
-static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
+static errno_t ut_processes_child_write(ut_stream_if* in, HANDLE pipe) {
     errno_t r = 0;
     if (in != null) {
         uint8_t  memory[32 * 1024]; // Temporary buffer for reading
@@ -325,7 +325,7 @@ static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
     return r;
 }
 
-static errno_t processes_run(processes_child_t* child) {
+static errno_t ut_processes_run(ut_processes_child_t* child) {
     const fp64_t deadline = ut_clock.seconds() + child->timeout;
     errno_t r = 0;
     STARTUPINFOA si = {
@@ -345,17 +345,17 @@ static errno_t processes_run(processes_child_t* child) {
     errno_t re = b2e(CreatePipe(&read_err, &si.hStdError,  &sa, 0));
     errno_t ri = b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
     if (ro != 0 || re != 0 || ri != 0) {
-        processes_close_pipes(&si, &read_out, &read_err, &write_in);
-        if (ro != 0) { traceln("CreatePipe() failed %s", str.error(ro)); r = ro; }
-        if (re != 0) { traceln("CreatePipe() failed %s", str.error(re)); r = re; }
-        if (ri != 0) { traceln("CreatePipe() failed %s", str.error(ri)); r = ri; }
+        ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
+        if (ro != 0) { traceln("CreatePipe() failed %s", ut_str.error(ro)); r = ro; }
+        if (re != 0) { traceln("CreatePipe() failed %s", ut_str.error(re)); r = re; }
+        if (ri != 0) { traceln("CreatePipe() failed %s", ut_str.error(ri)); r = ri; }
     }
     if (r == 0) {
         r = b2e(CreateProcessA(null, (char*)child->command, null, null, true,
                 CREATE_NO_WINDOW, null, null, &si, &pi));
         if (r != 0) {
-            traceln("CreateProcess() failed %s", str.error(r));
-            processes_close_pipes(&si, &read_out, &read_err, &write_in);
+            traceln("CreateProcess() failed %s", ut_str.error(r));
+            ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         }
     }
     if (r == 0) {
@@ -377,14 +377,14 @@ static errno_t processes_run(processes_child_t* child) {
             if (child->timeout > 0 && ut_clock.seconds() > deadline) {
                 r = b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
-                    traceln("TerminateProcess() failed %s", str.error(r));
+                    traceln("TerminateProcess() failed %s", ut_str.error(r));
                 } else {
                     done = true;
                 }
             }
-            if (r == 0) { r = processes_child_write(child->in, write_in); }
-            if (r == 0) { r = processes_child_read(child->out, read_out); }
-            if (r == 0) { r = processes_child_read(child->err, read_err); }
+            if (r == 0) { r = ut_processes_child_write(child->in, write_in); }
+            if (r == 0) { r = ut_processes_child_read(child->out, read_out); }
+            if (r == 0) { r = ut_processes_child_read(child->err, read_err); }
             if (!done) {
                 DWORD ix = WaitForSingleObject(pi.hProcess, 0);
                 // ix == 0 means process has exited (or terminated)
@@ -396,47 +396,47 @@ static errno_t processes_run(processes_child_t* child) {
         }
         // broken pipe actually signifies EOF on the pipe
         if (r == ERROR_BROKEN_PIPE) { r = 0; } // not an error
-//      if (r != 0) { traceln("pipe loop failed %s", str.error(r));}
+//      if (r != 0) { traceln("pipe loop failed %s", ut_str.error(r));}
         DWORD xc = 0;
         errno_t rx = b2e(GetExitCodeProcess(pi.hProcess, &xc));
         if (rx == 0) {
             child->exit_code = xc;
         } else {
-            traceln("GetExitCodeProcess() failed %s", str.error(rx));
+            traceln("GetExitCodeProcess() failed %s", ut_str.error(rx));
             if (r != 0) { r = rx; } // report earliest error
         }
-        processes_close_pipes(&si, &read_out, &read_err, &write_in);
+        ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         fatal_if_false(CloseHandle(pi.hProcess)); // expected never to fail
     }
     return r;
 }
 
-typedef struct processes_io_merge_out_and_err_if {
-    stream_if stream;
-    stream_if* output;
+typedef struct ut_processes_io_merge_out_and_err_if {
+    ut_stream_if stream;
+    ut_stream_if* output;
     errno_t error;
-} processes_io_merge_out_and_err_if;
+} ut_processes_io_merge_out_and_err_if;
 
-static errno_t processes_merge_write(stream_if* stream, const void* data,
+static errno_t ut_processes_merge_write(ut_stream_if* stream, const void* data,
         int64_t bytes, int64_t* transferred) {
     if (transferred != null) { *transferred = 0; }
-    processes_io_merge_out_and_err_if* s =
-        (processes_io_merge_out_and_err_if*)stream;
+    ut_processes_io_merge_out_and_err_if* s =
+        (ut_processes_io_merge_out_and_err_if*)stream;
     if (s->output != null && bytes > 0) {
         s->error = s->output->write(s->output, data, bytes, transferred);
     }
     return s->error;
 }
 
-static errno_t processes_open(const char* command, int32_t *exit_code,
-        stream_if* output,  fp64_t timeout) {
+static errno_t ut_processes_open(const char* command, int32_t *exit_code,
+        ut_stream_if* output,  fp64_t timeout) {
     not_null(output);
-    processes_io_merge_out_and_err_if merge_out_and_err = {
-        .stream ={ .write = processes_merge_write },
+    ut_processes_io_merge_out_and_err_if merge_out_and_err = {
+        .stream ={ .write = ut_processes_merge_write },
         .output = output,
         .error = 0
     };
-    processes_child_t child = {
+    ut_processes_child_t child = {
         .command = command,
         .in = null,
         .out = &merge_out_and_err.stream,
@@ -444,7 +444,7 @@ static errno_t processes_open(const char* command, int32_t *exit_code,
         .exit_code = 0,
         .timeout = timeout
     };
-    errno_t r = processes.run(&child);
+    errno_t r = ut_processes.run(&child);
     if (exit_code != null) { *exit_code = child.exit_code; }
     uint8_t zero = 0; // zero termination
     merge_out_and_err.stream.write(&merge_out_and_err.stream, &zero, 1, null);
@@ -454,7 +454,7 @@ static errno_t processes_open(const char* command, int32_t *exit_code,
     return r;
 }
 
-static errno_t processes_spawn(const char* command) {
+static errno_t ut_processes_spawn(const char* command) {
     errno_t r = 0;
     STARTUPINFOA si = {
         .cb = sizeof(STARTUPINFOA),
@@ -477,12 +477,12 @@ static errno_t processes_spawn(const char* command) {
         fatal_if_false(CloseHandle(pi.hProcess));
         fatal_if_false(CloseHandle(pi.hThread));
     } else {
-//      traceln("CreateProcess() failed %s", str.error(r));
+//      traceln("CreateProcess() failed %s", ut_str.error(r));
     }
     return r;
 }
 
-static const char* processes_name(void) {
+static const char* ut_processes_name(void) {
     static char module_name[ut_files_max_path];
     if (module_name[0] == 0) {
         fatal_if_false(GetModuleFileNameA(null, module_name, countof(module_name)));
@@ -498,29 +498,29 @@ static const char* processes_name(void) {
     }                                                     \
 } while (0)
 
-static void processes_test(void) {
+static void ut_processes_test(void) {
     #ifdef UT_TESTS // in alphabetical order
     const char* names[] = { "svchost", "RuntimeBroker", "conhost" };
     for (int32_t j = 0; j < countof(names); j++) {
         int32_t size  = 0;
         int32_t count = 0;
         uint64_t* pids = null;
-        errno_t r = processes.pids(names[j], null, size, &count);
+        errno_t r = ut_processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
             r = ut_heap.reallocate(null, &pids, sizeof(uint64_t) * size, false);
             if (r == 0) {
-                r = processes.pids(names[j], pids, size, &count);
+                r = ut_processes.pids(names[j], pids, size, &count);
             }
         }
         if (r == 0 && count > 0) {
             for (int32_t i = 0; i < count; i++) {
                 char path[256] = {0};
                 #pragma warning(suppress: 6011) // dereferencing null
-                r = processes.nameof(pids[i], path, countof(path));
+                r = ut_processes.nameof(pids[i], path, countof(path));
                 if (r != ERROR_NOT_FOUND) {
                     assert(r == 0 && !strempty(path));
-                    verbose("%6d %s %s", pids[i], path, r == 0 ? "" : str.error(r));
+                    verbose("%6d %s %s", pids[i], path, r == 0 ? "" : ut_str.error(r));
                 }
             }
         }
@@ -529,40 +529,40 @@ static void processes_test(void) {
     // test popen()
     int32_t xc = 0;
     char data[32 * 1024];
-    stream_memory_if output;
-    streams.write_only(&output, data, countof(data));
+    ut_stream_memory_if output;
+    ut_streams.write_only(&output, data, countof(data));
     const char* cmd = "cmd /c dir 2>nul >nul";;
-    errno_t r = processes.popen(cmd, &xc, &output.stream, 99999.0);
+    errno_t r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, countof(data));
     cmd = "cmd /c dir \"folder that does not exist\\\"";
-    r = processes.popen(cmd, &xc, &output.stream, 99999.0);
+    r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, countof(data));
     cmd = "cmd /c dir";
-    r = processes.popen(cmd, &xc, &output.stream, 99999.0);
+    r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, countof(data));
     cmd = "cmd /c timeout 1";
-    r = processes.popen(cmd, &xc, &output.stream, 1.0E-9);
+    r = ut_processes.popen(cmd, &xc, &output.stream, 1.0E-9);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
     #endif
 }
 
 #pragma pop_macro("verbose")
 
-processes_if processes = {
-    .pid                 = processes_pid,
-    .pids                = processes_pids,
-    .nameof              = processes_nameof,
-    .present             = processes_present,
-    .kill                = processes_kill,
-    .kill_all            = processes_kill_all,
-    .is_elevated         = processes_is_elevated,
-    .restart_elevated    = processes_restart_elevated,
-    .run                 = processes_run,
-    .popen               = processes_open,
-    .spawn               = processes_spawn,
-    .name                = processes_name,
-    .test                = processes_test
+ut_processes_if ut_processes = {
+    .pid                 = ut_processes_pid,
+    .pids                = ut_processes_pids,
+    .nameof              = ut_processes_nameof,
+    .present             = ut_processes_present,
+    .kill                = ut_processes_kill,
+    .kill_all            = ut_processes_kill_all,
+    .is_elevated         = ut_processes_is_elevated,
+    .restart_elevated    = ut_processes_restart_elevated,
+    .run                 = ut_processes_run,
+    .popen               = ut_processes_open,
+    .spawn               = ut_processes_spawn,
+    .name                = ut_processes_name,
+    .test                = ut_processes_test
 };

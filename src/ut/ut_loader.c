@@ -66,7 +66,7 @@ static void ut_loader_test(void) {
     swear(ut_loader_test_count == 1);
     void* global = ut_loader.open(null, ut_loader.local);
     typedef void (*foo_t)(void);
-    foo_t foo = (foo_t)ut_loader.sym(global, "loader_test_exported_function");
+    foo_t foo = (foo_t)ut_loader.sym(global, "ut_loader_test_exported_function");
     foo();
     swear(ut_loader_test_count == 2);
     ut_loader.close(global);

@@ -44,7 +44,7 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
     output[n + 1] = 0;
     // SetConsoleCP(CP_UTF8) is not guaranteed to be called
     uint16_t wide[countof(output)];
-    OutputDebugStringW(str.utf8_utf16(wide, output));
+    OutputDebugStringW(ut_str.utf8_utf16(wide, output));
 }
 
 #else // posix version:
@@ -80,7 +80,7 @@ static void ut_debug_perror(const char* file, int32_t line,
             ut_debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        ut_debug.println(file, line, func, "error: %s", str.error(error));
+        ut_debug.println(file, line, func, "error: %s", ut_str.error(error));
     }
 }
 

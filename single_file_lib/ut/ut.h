@@ -638,7 +638,7 @@ extern ut_num_if ut_num;
 
 // _______________________________ ut_static.h ________________________________
 
-// static_init(unique_name) { code_to_execute_before_main }
+// ut_static_init(unique_name) { code_to_execute_before_main }
 
 #if defined(_MSC_VER)
 
@@ -664,20 +664,20 @@ void* _static_force_symbol_reference_(void* symbol);
   __declspec(allocate(".CRT$XCU"))                                        \
     int32_t (* _array ## func)(void) = func ## _wrapper;
 
-#define _static_init2_(func, line) _msvc_ctor_(_msvc_symbol_prefix_, \
+#define ut_static_init2_(func, line) _msvc_ctor_(_msvc_symbol_prefix_, \
     func ## _constructor_##line)                                     \
     void func ## _constructor_##line(void)
 
-#define _static_init1_(func, line) _static_init2_(func, line)
+#define ut_static_init1_(func, line) ut_static_init2_(func, line)
 
-#define static_init(func) _static_init1_(func, __LINE__)
+#define ut_static_init(func) ut_static_init1_(func, __LINE__)
 
 #else
-#define static_init(n) __attribute__((constructor)) \
+#define ut_static_init(n) __attribute__((constructor)) \
         static void _init_ ## n ## __LINE__ ## _ctor(void)
 #endif
 
-void static_init_test(void);
+void ut_static_init_test(void);
 
 
 
@@ -690,7 +690,7 @@ void static_init_test(void);
 // code needs extreme cpu cycle savings working with utf8 strings.
 //
 // str* macros and functions assume zero terminated UTF-8 strings
-// in C tradition. Use str.* functions for non-zero terminated
+// in C tradition. Use ut_str.* functions for non-zero terminated
 // strings.
 
 #define strempty(s) ((void*)(s) == null || (s)[0] == 0)
@@ -725,20 +725,20 @@ void static_init_test(void);
 char* strnchr(const char* s, int32_t n, char ch);
 
 #define strtolowercase(s) \
-    str.to_lowercase((char*)stackalloc(strlen(s) + 1), strlen(s) + 1, s)
+    ut_str.to_lowercase((char*)stackalloc(strlen(s) + 1), strlen(s) + 1, s)
 
-#define utf16to8(utf16) str.utf16_utf8((char*) \
-    stackalloc((size_t)str.utf8_bytes(utf16) + 1), utf16)
+#define utf16to8(utf16) ut_str.utf16_utf8((char*) \
+    stackalloc((size_t)ut_str.utf8_bytes(utf16) + 1), utf16)
 
-#define utf8to16(s) str.utf8_utf16((uint16_t*) \
-    stackalloc((str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
+#define utf8to16(s) ut_str.utf8_utf16((uint16_t*) \
+    stackalloc((ut_str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
 
-#define strprintf(s, ...) str.format((s), countof(s), "" __VA_ARGS__)
+#define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
 
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
 
-// str.functions are capable of working with both 0x00 terminated
+// ut_str.functions are capable of working with both 0x00 terminated
 // strings and UTF-8 strings of fixed length denoted by n1 and n2.
 // case insensitive functions with postfix _nc
 // operate only on ASCII characters. No ANSI no UTF-8
@@ -775,44 +775,44 @@ typedef struct {
     // removes quotes from a head and tail of the string `s` if present
     const char* (*unquote)(char* *s, int32_t n); // modifies `s` in place
     void (*test)(void);
-} str_if;
+} ut_str_if;
 
-extern str_if str;
+extern ut_str_if ut_str;
 
 
 
 
 // _______________________________ ut_streams.h _______________________________
 
-typedef struct stream_if stream_if;
+typedef struct ut_stream_if ut_stream_if;
 
-typedef struct stream_if {
-    errno_t (*read)(stream_if* s, void* data, int64_t bytes,
+typedef struct ut_stream_if {
+    errno_t (*read)(ut_stream_if* s, void* data, int64_t bytes,
                     int64_t *transferred);
-    errno_t (*write)(stream_if* s, const void* data, int64_t bytes,
+    errno_t (*write)(ut_stream_if* s, const void* data, int64_t bytes,
                      int64_t *transferred);
-    void    (*close)(stream_if* s); // optional
-} stream_if;
+    void    (*close)(ut_stream_if* s); // optional
+} ut_stream_if;
 
-typedef struct stream_memory_if {
-    stream_if   stream;
+typedef struct ut_stream_memory_if {
+    ut_stream_if   stream;
     const void* data_read;
     int64_t     bytes_read;
     int64_t     pos_read;
     void*       data_write;
     int64_t     bytes_write;
     int64_t     pos_write;
-} stream_memory_if;
+} ut_stream_memory_if;
 
 typedef struct streams_if {
-    void (*read_only)(stream_memory_if* s,  const void* data, int64_t bytes);
-    void (*write_only)(stream_memory_if* s, void* data, int64_t bytes);
-    void (*read_write)(stream_memory_if* s, const void* read, int64_t read_bytes,
+    void (*read_only)(ut_stream_memory_if* s,  const void* data, int64_t bytes);
+    void (*write_only)(ut_stream_memory_if* s, void* data, int64_t bytes);
+    void (*read_write)(ut_stream_memory_if* s, const void* read, int64_t read_bytes,
                                             void* write, int64_t write_bytes);
     void (*test)(void);
-} streams_if;
+} ut_streams_if;
 
-extern streams_if streams;
+extern ut_streams_if ut_streams;
 
 
 
@@ -820,12 +820,12 @@ extern streams_if streams;
 
 typedef struct {
     const char* command;
-    stream_if* in;
-    stream_if* out;
-    stream_if* err;
+    ut_stream_if* in;
+    ut_stream_if* out;
+    ut_stream_if* err;
     uint32_t exit_code;
     fp64_t   timeout; // seconds
-} processes_child_t;
+} ut_processes_child_t;
 
 // Process name may be an the executable filename with
 // full, partial or absent pathname.
@@ -842,15 +842,15 @@ typedef struct {
     errno_t   (*kill_all)(const char* name, fp64_t timeout_seconds);
     bool      (*is_elevated)(void); // Is process running as root/ Admin / System?
     errno_t   (*restart_elevated)(void); // retuns error or exits on success
-    errno_t   (*run)(processes_child_t* child);
-    errno_t   (*popen)(const char* command, int32_t *xc, stream_if* output,
+    errno_t   (*run)(ut_processes_child_t* child);
+    errno_t   (*popen)(const char* command, int32_t *xc, ut_stream_if* output,
                        fp64_t timeout_seconds); // <= 0 infinite
     // popen() does NOT guarantee stream zero termination on errors
     errno_t  (*spawn)(const char* command); // spawn fully detached process
     void (*test)(void);
-} processes_if;
+} ut_processes_if;
 
-extern processes_if processes;
+extern ut_processes_if ut_processes;
 
 
 
@@ -862,9 +862,9 @@ typedef struct {
     void (*abort)(void);
     void (*exit)(int32_t exit_code); // only 8 bits on posix
     void (*test)(void);
-} runtime_if;
+} ut_runtime_if;
 
-extern runtime_if runtime;
+extern ut_runtime_if ut_runtime;
 
 
 
@@ -998,9 +998,9 @@ end_c
 
 // ut:
 #include <Windows.h>  // used by:
-#include <psapi.h>    // both ut_loader.c and processes.c
-#include <shellapi.h> // processes.c
-#include <winternl.h> // processes.c
+#include <psapi.h>    // both ut_loader.c and ut_processes.c
+#include <shellapi.h> // ut_processes.c
+#include <winternl.h> // ut_processes.c
 #include <initguid.h>     // for knownfolders
 #include <knownfolders.h> // ut_files.c
 #include <aclapi.h>       // ut_files.c
@@ -1251,7 +1251,7 @@ const char* ut_args_basename(void) {
             if (*s == '\\' || *s == '/') { b = s + 1; }
             s++;
         }
-        int32_t n = str.length(b);
+        int32_t n = ut_str.length(b);
         swear(n < countof(basename));
         strncpy(basename, b, countof(basename) - 1);
         char* d = basename + n - 1;
@@ -1275,7 +1275,7 @@ static void ut_args_WinMain(void) {
     int32_t n = (int32_t)wcslen(wcl);
     char* cl = null;
     fatal_if_not_zero(ut_heap.allocate(null, &cl, n * 2 + 1, false));
-    ut_args_parse(str.utf16_utf8(cl, wcl));
+    ut_args_parse(ut_str.utf16_utf8(cl, wcl));
     ut_heap.deallocate(null, cl);
     ut_args.env = _environ;
 }
@@ -1658,26 +1658,26 @@ ut_atomics_if ut_atomics = {
 
 static errno_t ut_clipboard_put_text(const char* utf8) {
     errno_t r = 0;
-    int32_t chars = str.utf16_chars(utf8);
+    int32_t chars = ut_str.utf16_chars(utf8);
     int32_t bytes = (chars + 1) * 2;
     wchar_t* utf16 = (wchar_t*)malloc(bytes);
     if (utf16 == null) {
         r = ERROR_OUTOFMEMORY;
     } else {
-        str.utf8_utf16(utf16, utf8);
+        ut_str.utf8_utf16(utf16, utf8);
         assert(utf16[chars - 1] == 0);
         const int32_t n = (int)wcslen(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
-        if (r != 0) { traceln("OpenClipboard() failed %s", str.error(r)); }
+        if (r != 0) { traceln("OpenClipboard() failed %s", ut_str.error(r)); }
         if (r == 0) {
             r = EmptyClipboard() ? 0 : GetLastError();
-            if (r != 0) { traceln("EmptyClipboard() failed %s", str.error(r)); }
+            if (r != 0) { traceln("EmptyClipboard() failed %s", ut_str.error(r)); }
         }
         void* global = null;
         if (r == 0) {
             global = GlobalAlloc(GMEM_MOVEABLE, n * 2);
             r = global != null ? 0 : GetLastError();
-            if (r != 0) { traceln("GlobalAlloc() failed %s", str.error(r)); }
+            if (r != 0) { traceln("GlobalAlloc() failed %s", ut_str.error(r)); }
         }
         if (r == 0) {
             char* d = (char*)GlobalLock(global);
@@ -1686,7 +1686,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
             r = SetClipboardData(CF_UNICODETEXT, global) ? 0 : GetLastError();
             GlobalUnlock(global);
             if (r != 0) {
-                traceln("SetClipboardData() failed %s", str.error(r));
+                traceln("SetClipboardData() failed %s", ut_str.error(r));
                 GlobalFree(global);
             } else {
                 // do not free global memory. It's owned by system clipboard now
@@ -1695,7 +1695,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
         if (r == 0) {
             r = CloseClipboard() ? 0 : GetLastError();
             if (r != 0) {
-                traceln("CloseClipboard() failed %s", str.error(r));
+                traceln("CloseClipboard() failed %s", ut_str.error(r));
             }
         }
         free(utf16);
@@ -1706,7 +1706,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
 static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
     not_null(bytes);
     int r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
-    if (r != 0) { traceln("OpenClipboard() failed %s", str.error(r)); }
+    if (r != 0) { traceln("OpenClipboard() failed %s", ut_str.error(r)); }
     if (r == 0) {
         HANDLE global = GetClipboardData(CF_UNICODETEXT);
         if (global == null) {
@@ -1714,13 +1714,13 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
         } else {
             wchar_t* utf16 = (wchar_t*)GlobalLock(global);
             if (utf16 != null) {
-                int32_t utf8_bytes = str.utf8_bytes(utf16);
+                int32_t utf8_bytes = ut_str.utf8_bytes(utf16);
                 if (utf8 != null) {
                     char* decoded = (char*)malloc(utf8_bytes);
                     if (decoded == null) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
-                        str.utf16_utf8(decoded, utf16);
+                        ut_str.utf16_utf8(decoded, utf16);
                         int32_t n = ut_min(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, n);
                         free(decoded);
@@ -2005,7 +2005,7 @@ static int32_t ut_config_size(const char* name, const char* key) {
             bytes = 0; // do not report data_size() often used this way
         } else if (r != 0) {
             traceln("%s.RegQueryValueExA(\"%s\") failed %s",
-                name, key, str.error(r));
+                name, key, ut_str.error(r));
             bytes = 0; // on any error behave as empty data
         } else {
             bytes = (int)cb;
@@ -2029,7 +2029,7 @@ static int32_t ut_config_load(const char* name,
         } else if (r != 0) {
             if (r != ERROR_FILE_NOT_FOUND) {
                 traceln("%s.RegQueryValueExA(\"%s\") failed %s",
-                    name, key, str.error(r));
+                    name, key, ut_str.error(r));
             }
             read = 0; // on any error behave as empty data
         } else {
@@ -2120,7 +2120,7 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
     output[n + 1] = 0;
     // SetConsoleCP(CP_UTF8) is not guaranteed to be called
     uint16_t wide[countof(output)];
-    OutputDebugStringW(str.utf8_utf16(wide, output));
+    OutputDebugStringW(ut_str.utf8_utf16(wide, output));
 }
 
 #else // posix version:
@@ -2156,7 +2156,7 @@ static void ut_debug_perror(const char* file, int32_t line,
             ut_debug.println_va(file, line, func, format, vl);
             va_end(vl);
         }
-        ut_debug.println(file, line, func, "error: %s", str.error(error));
+        ut_debug.println(file, line, func, "error: %s", ut_str.error(error));
     }
 }
 
@@ -2250,7 +2250,7 @@ static errno_t ut_files_open(ut_file_t* *file, const char* fn, int32_t f) {
     DWORD attr = FILE_ATTRIBUTE_NORMAL;
     attr |= (f & O_SYNC) ? FILE_FLAG_WRITE_THROUGH : 0;
     *file = CreateFileA(fn, access, share, null, disposition, attr, null);
-    return *file != INVALID_HANDLE_VALUE ? 0 : runtime.err();
+    return *file != INVALID_HANDLE_VALUE ? 0 : ut_runtime.err();
 }
 
 static bool ut_files_is_valid(ut_file_t* file) { // both null and ut_files.invalid
@@ -2385,7 +2385,7 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
     HANDLE file = CreateFileA(filename, access, share, null, CREATE_ALWAYS,
                               flags, null);
     if (file == INVALID_HANDLE_VALUE) {
-        r = runtime.err();
+        r = ut_runtime.err();
     } else {
         int64_t written = 0;
         const uint8_t* p = (const uint8_t*)data;
@@ -2428,11 +2428,11 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
         // the return value is zero.
         if (count > (int)strlen(tmp) + 8) {
             char prefix[4] = {0};
-            r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? runtime.err() : 0;
+            r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? ut_runtime.err() : 0;
             if (r == 0) {
                 assert(ut_files.exists(fn) && !ut_files.is_folder(fn));
             } else {
-                traceln("GetTempFileNameA() failed %s", str.error(r));
+                traceln("GetTempFileNameA() failed %s", ut_str.error(r));
             }
         } else {
             r = ERROR_BUFFER_OVERFLOW;
@@ -2520,7 +2520,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
                 group, account,
                 ace->Header.AceType, ace->Mask, ace->Header.AceFlags);
     } else {
-        traceln("LookupAccountSidA() failed %s", str.error(r));
+        traceln("LookupAccountSidA() failed %s", ut_str.error(r));
     }
     return r;
 }
@@ -2611,7 +2611,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
     // Change the security attributes
     errno_t r = b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
-        traceln("chmod777(%s) failed %s", pathname, str.error(r));
+        traceln("chmod777(%s) failed %s", pathname, ut_str.error(r));
     }
     if (everyone != null) { FreeSid(everyone); }
     if (acl != null) { LocalFree(acl); }
@@ -2666,9 +2666,9 @@ static errno_t ut_files_mkdirs(const char* dir) {
 
 #define ut_files_append_name(pn, pnc, fn, name) do {      \
     if (strequ(fn, "\\") || strequ(fn, "/")) {         \
-        str.format(pn, pnc, "\\%s", name);            \
+        ut_str.format(pn, pnc, "\\%s", name);            \
     } else {                                           \
-        str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
+        ut_str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
     }                                                  \
 } while (0)
 
@@ -2713,7 +2713,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
                     ut_files_append_name(pn, pnc, fn, name);
                     r = ut_files.unlink(pn);
                     if (r != 0) {
-                        traceln("remove(%s) failed %s", pn, str.error(r));
+                        traceln("remove(%s) failed %s", pn, ut_str.error(r));
                     }
                 }
             }
@@ -2796,8 +2796,8 @@ static const char* ut_files_tmp(void) {
         // in chars, of the string copied to lpBuffer, not including
         // the terminating null character. If the function fails, the
         // return value is zero.
-        errno_t r = GetTempPathA(countof(tmp), tmp) == 0 ? runtime.err() : 0;
-        fatal_if(r != 0, "GetTempPathA() failed %s", str.error(r));
+        errno_t r = GetTempPathA(countof(tmp), tmp) == 0 ? ut_runtime.err() : 0;
+        fatal_if(r != 0, "GetTempPathA() failed %s", ut_str.error(r));
     }
     return tmp;
 }
@@ -2868,7 +2868,7 @@ void ut_files_closedir(ut_folder_t* folder) {
 
 #ifdef UT_TESTS
 
-#define ut_files_test_failed " failed %s", str.error(runtime.err())
+#define ut_files_test_failed " failed %s", ut_str.error(ut_runtime.err())
 
 #pragma push_macro("verbose") // --verbosity trace
 
@@ -2912,16 +2912,16 @@ static void folders_test(void) {
     char cwd[256] = {0};
     fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
     fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
-                tmp, str.error(runtime.err()));
+                tmp, ut_str.error(ut_runtime.err()));
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
     char tmp_file[ut_files_max_path]; // create_tmp() is thread safe race free:
     errno_t r = ut_files.create_tmp(tmp_file, countof(tmp_file));
-    fatal_if(r != 0, "ut_files.create_tmp() failed %s", str.error(r));
+    fatal_if(r != 0, "ut_files.create_tmp() failed %s", ut_str.error(r));
     char tmp_dir[ut_files_max_path];
     strprintf(tmp_dir, "%s.dir", tmp_file);
     r = ut_files.mkdirs(tmp_dir);
-    fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, str.error(r));
+    fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, ut_str.error(r));
     verbose("%s", tmp_dir);
     ut_folder_t folder;
     char pn[ut_files_max_path] = {0};
@@ -2936,15 +2936,15 @@ static void folders_test(void) {
     const char* content = "content";
     int64_t transferred = 0;
     r = ut_files.write_fully(pn, content, strlen(content), &transferred);
-    fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, str.error(r));
+    fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, ut_str.error(r));
     swear(transferred == (int64_t)strlen(content));
     r = ut_files.link(pn, hard);
     fatal_if(r != 0, "ut_files.link(\"%s\", \"%s\") failed %s",
-                      pn, hard, str.error(r));
+                      pn, hard, ut_str.error(r));
     r = ut_files.mkdirs(sub);
-    fatal_if(r != 0, "ut_files.mkdirs(\"%s\") failed %s", sub, str.error(r));
+    fatal_if(r != 0, "ut_files.mkdirs(\"%s\") failed %s", sub, ut_str.error(r));
     r = ut_files.opendir(&folder, tmp_dir);
-    fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, str.error(r));
+    fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, ut_str.error(r));
     for (;;) {
         ut_files_stat_t st = {0};
         const char* name = ut_files.readdir(&folder, &st);
@@ -2990,12 +2990,12 @@ static void folders_test(void) {
     ut_files.closedir(&folder);
     r = ut_files.rmdirs(tmp_dir);
     fatal_if(r != 0, "ut_files.rmdirs(\"%s\") failed %s",
-                     tmp_dir, str.error(r));
+                     tmp_dir, ut_str.error(r));
     r = ut_files.unlink(tmp_file);
     fatal_if(r != 0, "ut_files.unlink(\"%s\") failed %s",
-                     tmp_file, str.error(r));
+                     tmp_file, ut_str.error(r));
     fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
-             cwd, str.error(runtime.err()));
+             cwd, ut_str.error(ut_runtime.err()));
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -3036,11 +3036,11 @@ static void ut_files_test(void) {
                 fatal_if(ut_files.seek(f, &position, ut_files.seek_set) != 0 ||
                          position != i,
                         "ut_files.seek(position: %lld) failed %s",
-                         position, str.error(runtime.err()));
+                         position, ut_str.error(ut_runtime.err()));
                 fatal_if(ut_files.read(f, test, j, &transferred) != 0 ||
                          transferred != j,
                         "ut_files.read() transferred: %lld failed %s",
-                        transferred, str.error(runtime.err()));
+                        transferred, ut_str.error(ut_runtime.err()));
                 for (int32_t k = 0; k < j; k++) {
                     swear(test[k] == data[i + k],
                          "Data mismatch at position: %d, length %d"
@@ -3057,12 +3057,12 @@ static void ut_files_test(void) {
             uint8_t val = ~data[i];
             int64_t pos = i;
             fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
-                    "ut_files.seek() failed %s", runtime.err());
+                    "ut_files.seek() failed %s", ut_runtime.err());
             fatal_if(ut_files.write(f, &val, 1, &transferred) != 0 ||
                      transferred != 1, "ut_files.write()" ut_files_test_failed);
             pos = i;
             fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
-                    "ut_files.seek(pos: %lld i: %d) failed %s", pos, i, runtime.err());
+                    "ut_files.seek(pos: %lld i: %d) failed %s", pos, i, ut_runtime.err());
             uint8_t read_val = 0;
             fatal_if(ut_files.read(f, &read_val, 1, &transferred) != 0 ||
                      transferred != 1, "ut_files.read()" ut_files_test_failed);
@@ -3098,20 +3098,20 @@ static void ut_files_test(void) {
     {   // write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
         fatal_if(ut_files.write_fully(tf, data, countof(data), &transferred) != 0 ||
                  transferred != countof(data),
-                "ut_files.write_fully() failed %s", runtime.err());
+                "ut_files.write_fully() failed %s", ut_runtime.err());
         fatal_if(!ut_files.exists(tf), "file \"%s\" does not exist", tf);
         fatal_if(ut_files.is_folder(tf), "%s is a folder", tf);
         fatal_if(ut_files.chmod777(tf) != 0, "ut_files.chmod777(\"%s\") failed %s",
-                 tf, str.error(runtime.err()));
+                 tf, ut_str.error(ut_runtime.err()));
         char folder[256] = {0};
         strprintf(folder, "%s.folder\\subfolder", tf);
         fatal_if(ut_files.mkdirs(folder) != 0, "ut_files.mkdirs(\"%s\") failed %s",
-            folder, str.error(runtime.err()));
+            folder, ut_str.error(ut_runtime.err()));
         fatal_if(!ut_files.is_folder(folder), "\"%s\" is not a folder", folder);
         fatal_if(ut_files.chmod777(folder) != 0, "ut_files.chmod777(\"%s\") failed %s",
-                 folder, str.error(runtime.err()));
+                 folder, ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.rmdirs(folder) != 0, "ut_files.rmdirs(\"%s\") failed %s",
-                 folder, str.error(runtime.err()));
+                 folder, ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.exists(folder), "folder \"%s\" still exists", folder);
     }
     {   // getcwd, chdir
@@ -3119,17 +3119,17 @@ static void ut_files_test(void) {
         char cwd[256] = {0};
         fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
         fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
-                 tmp, str.error(runtime.err()));
+                 tmp, ut_str.error(ut_runtime.err()));
         // symlink
-        if (processes.is_elevated()) {
+        if (ut_processes.is_elevated()) {
             char sym_link[ut_files_max_path];
             strprintf(sym_link, "%s.sym_link", tf);
             fatal_if(ut_files.symlink(tf, sym_link) != 0,
                 "ut_files.symlink(\"%s\", \"%s\") failed %s",
-                tf, sym_link, str.error(runtime.err()));
+                tf, sym_link, ut_str.error(ut_runtime.err()));
             fatal_if(!ut_files.is_symlink(sym_link), "\"%s\" is not a sym_link", sym_link);
             fatal_if(ut_files.unlink(sym_link) != 0, "ut_files.unlink(\"%s\") failed %s",
-                    sym_link, str.error(runtime.err()));
+                    sym_link, ut_str.error(ut_runtime.err()));
         } else {
             traceln("Skipping ut_files.symlink test: process is not elevated");
         }
@@ -3138,26 +3138,26 @@ static void ut_files_test(void) {
         strprintf(hard_link, "%s.hard_link", tf);
         fatal_if(ut_files.link(tf, hard_link) != 0,
             "ut_files.link(\"%s\", \"%s\") failed %s",
-            tf, hard_link, str.error(runtime.err()));
+            tf, hard_link, ut_str.error(ut_runtime.err()));
         fatal_if(!ut_files.exists(hard_link), "\"%s\" does not exist", hard_link);
         fatal_if(ut_files.unlink(hard_link) != 0, "ut_files.unlink(\"%s\") failed %s",
-                 hard_link, str.error(runtime.err()));
+                 hard_link, ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.exists(hard_link), "\"%s\" still exists", hard_link);
         // copy, move:
         fatal_if(ut_files.copy(tf, "copied_file") != 0,
             "ut_files.copy(\"%s\", 'copied_file') failed %s",
-            tf, str.error(runtime.err()));
+            tf, ut_str.error(ut_runtime.err()));
         fatal_if(!ut_files.exists("copied_file"), "'copied_file' does not exist");
         fatal_if(ut_files.move("copied_file", "moved_file") != 0,
             "ut_files.move('copied_file', 'moved_file') failed %s",
-            str.error(runtime.err()));
+            ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.exists("copied_file"), "'copied_file' still exists");
         fatal_if(!ut_files.exists("moved_file"), "'moved_file' does not exist");
         fatal_if(ut_files.unlink("moved_file") != 0,
                 "ut_files.unlink('moved_file') failed %s",
-                 str.error(runtime.err()));
+                 ut_str.error(ut_runtime.err()));
         fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
-                    cwd, str.error(runtime.err()));
+                    cwd, ut_str.error(ut_runtime.err()));
     }
     fatal_if(ut_files.unlink(tf) != 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
@@ -3427,7 +3427,7 @@ static void ut_loader_test(void) {
     swear(ut_loader_test_count == 1);
     void* global = ut_loader.open(null, ut_loader.local);
     typedef void (*foo_t)(void);
-    foo_t foo = (foo_t)ut_loader.sym(global, "loader_test_exported_function");
+    foo_t foo = (foo_t)ut_loader.sym(global, "ut_loader_test_exported_function");
     foo();
     swear(ut_loader_test_count == 2);
     ut_loader.close(global);
@@ -3490,11 +3490,11 @@ static errno_t ut_mem_map_view_of_file(HANDLE file,
         rw ? PAGE_READWRITE : PAGE_READONLY,
         (uint32_t)(*bytes >> 32), (uint32_t)*bytes, null);
     if (mapping == null) {
-        r = runtime.err();
+        r = ut_runtime.err();
     } else {
         DWORD access = rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
         address = MapViewOfFile(mapping, access, 0, 0, *bytes);
-        if (address == null) { r = runtime.err(); }
+        if (address == null) { r = ut_runtime.err(); }
         fatal_if_false(CloseHandle(mapping));
     }
     if (r == 0) {
@@ -3548,7 +3548,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
     HANDLE file = CreateFileA(filename, access, share, null, disposition,
                               flags, null);
     if (file == INVALID_HANDLE_VALUE) {
-        r = runtime.err();
+        r = ut_runtime.err();
     } else {
         LARGE_INTEGER eof = { .QuadPart = 0 };
         fatal_if_false(GetFileSizeEx(file, &eof));
@@ -3598,7 +3598,7 @@ static errno_t ut_mem_map_resource(const char* label, void* *data, int64_t *byte
     if (res != null) { *bytes = SizeofResource(null, res); }
     HGLOBAL g = res != null ? LoadResource(null, res) : null;
     *data = g != null ? LockResource(g) : null;
-    return *data != null ? 0 : runtime.err();
+    return *data != null ? 0 : ut_runtime.err();
 }
 
 static int32_t ut_mem_page_size(void) {
@@ -3635,19 +3635,19 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
             a = VirtualAlloc(null, bytes, type, PAGE_READWRITE);
         }
         if (a == null) {
-            r = runtime.err();
+            r = ut_runtime.err();
             if (r != 0) {
-                traceln("VirtualAlloc(%lld) failed %s", bytes, str.error(r));
+                traceln("VirtualAlloc(%lld) failed %s", bytes, ut_str.error(r));
             }
         } else {
-            r = VirtualLock(a, bytes) ? 0 : runtime.err();
+            r = VirtualLock(a, bytes) ? 0 : ut_runtime.err();
             if (r == ERROR_WORKING_SET_QUOTA) {
                 // The default size is 345 pages (for example,
                 // this is 1,413,120 bytes on systems with a 4K page size).
                 SIZE_T min_mem = 0, max_mem = 0;
                 r = b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
                 if (r != 0) {
-                    traceln("GetProcessWorkingSetSize() failed %s", str.error(r));
+                    traceln("GetProcessWorkingSetSize() failed %s", ut_str.error(r));
                 } else {
                     max_mem =  max_mem + bytes * 2LL;
                     max_mem = (max_mem + page_size - 1) / page_size * page_size +
@@ -3657,19 +3657,19 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                             min_mem, max_mem));
                     if (r != 0) {
                         traceln("SetProcessWorkingSetSize(%lld, %lld) failed %s",
-                            (uint64_t)min_mem, (uint64_t)max_mem, str.error(r));
+                            (uint64_t)min_mem, (uint64_t)max_mem, ut_str.error(r));
                     } else {
                         r = b2e(VirtualLock(a, bytes));
                     }
                 }
             }
             if (r != 0) {
-                traceln("VirtualLock(%lld) failed %s", bytes, str.error(r));
+                traceln("VirtualLock(%lld) failed %s", bytes, ut_str.error(r));
             }
         }
     }
     if (r != 0) {
-        traceln("mem_alloc_pages(%lld) failed %s", bytes, str.error(r));
+        traceln("mem_alloc_pages(%lld) failed %s", bytes, ut_str.error(r));
         assert(a == null);
     }
     return a;
@@ -3682,19 +3682,19 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     int page_size = ut_mem_page_size();
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
         r = EINVAL;
-        traceln("failed %s", str.error(r));
+        traceln("failed %s", ut_str.error(r));
     } else {
         if (a != null) {
             // in case it was successfully locked
             r = b2e(VirtualUnlock(a, bytes));
             if (r != 0) {
-                traceln("VirtualUnlock() failed %s", str.error(r));
+                traceln("VirtualUnlock() failed %s", ut_str.error(r));
             }
             // If the "dwFreeType" parameter is MEM_RELEASE, "dwSize" parameter
             // must be the base address returned by the VirtualAlloc function when
             // the region of pages is reserved.
             r = b2e(VirtualFree(a, 0, MEM_RELEASE));
-            if (r != 0) { traceln("VirtuaFree() failed %s", str.error(r)); }
+            if (r != 0) { traceln("VirtuaFree() failed %s", ut_str.error(r)); }
         }
     }
 }
@@ -3953,27 +3953,27 @@ ut_num_if ut_num = {
 
 // ______________________________ ut_processes.c ______________________________
 
-typedef struct processes_pidof_lambda_s processes_pidof_lambdat_t;
+typedef struct ut_processes_pidof_lambda_s ut_processes_pidof_lambda_t;
 
-typedef struct processes_pidof_lambda_s {
-    bool (*each)(processes_pidof_lambdat_t* p, uint64_t pid); // returns true to continue
+typedef struct ut_processes_pidof_lambda_s {
+    bool (*each)(ut_processes_pidof_lambda_t* p, uint64_t pid); // returns true to continue
     uint64_t* pids;
     size_t size;  // pids[size]
     size_t count; // number of valid pids in the pids
     fp64_t timeout;
     errno_t error;
-} processes_pidof_lambda_t;
+} ut_processes_pidof_lambda_t;
 
-static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambda_t* la) {
+static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
-    int32_t n = str.length(pname);
+    int32_t n = ut_str.length(pname);
     fatal_if(n + 5 >= countof(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
-    if (!str.ends_with_nc(pname, -1, ".exe", -1)) {
+    if (!ut_str.ends_with_nc(pname, -1, ".exe", -1)) {
         int32_t k = (int32_t)strlen(pname) + 5;
         char* exe = stack;
-        str.format(exe, k, "%s.exe", pname);
+        ut_str.format(exe, k, "%s.exe", pname);
         name = exe;
     }
     const char* base = strrchr(name, '\\');
@@ -3984,7 +3984,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
     }
     uint16_t wide[1024];
     fatal_if(strlen(base) >= countof(wide), "name too long: %s", base);
-    uint16_t* wn = str.utf8_utf16(wide, base);
+    uint16_t* wn = ut_str.utf8_utf16(wide, base);
     size_t count = 0;
     uint64_t pid = 0;
     byte* data = null;
@@ -4014,8 +4014,8 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (base != name) {
                     char path[ut_files_max_path];
-                    match = processes.nameof(pid, path, countof(path)) == 0 &&
-                            str.ends_with_nc(path, -1, name, -1);
+                    match = ut_processes.nameof(pid, path, countof(path)) == 0 &&
+                            ut_str.ends_with_nc(path, -1, name, -1);
 //                  traceln("\"%s\" -> \"%s\" match: %d", name, path, match);
                 }
             }
@@ -4037,11 +4037,11 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
     return (int32_t)count;
 }
 
-static void processes_close_handle(HANDLE h) {
+static void ut_processes_close_handle(HANDLE h) {
     fatal_if_false(CloseHandle(h));
 }
 
-static errno_t processes_nameof(uint64_t pid, char* name, int32_t count) {
+static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
     assert(name != null && count > 0);
     errno_t r = 0;
     name[0] = 0;
@@ -4049,62 +4049,62 @@ static errno_t processes_nameof(uint64_t pid, char* name, int32_t count) {
     if (p != null) {
         r = b2e(GetModuleFileNameExA(p, null, name, count));
         name[count - 1] = 0; // ensure zero termination
-        processes_close_handle(p);
+        ut_processes_close_handle(p);
     } else {
         r = ERROR_NOT_FOUND;
     }
     return r;
 }
 
-static bool processes_present(uint64_t pid) {
+static bool ut_processes_present(uint64_t pid) {
     void* h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, (DWORD)pid);
     bool b = h != null;
-    if (h != null) { processes_close_handle(h); }
+    if (h != null) { ut_processes_close_handle(h); }
     return b;
 }
 
-static bool processes_first_pid(processes_pidof_lambda_t* lambda, uint64_t pid) {
+static bool ut_processes_first_pid(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
     lambda->pids[0] = pid;
     return false;
 }
 
-static uint64_t processes_pid(const char* pname) {
+static uint64_t ut_processes_pid(const char* pname) {
     uint64_t first[1] = {0};
-    processes_pidof_lambda_t lambda = {
-        .each = processes_first_pid,
+    ut_processes_pidof_lambda_t lambda = {
+        .each = ut_processes_first_pid,
         .pids = first,
         .size  = 1,
         .count = 0,
         .timeout = 0,
         .error = 0
     };
-    processes_for_each_pidof(pname, &lambda);
+    ut_processes_for_each_pidof(pname, &lambda);
     return first[0];
 }
 
-static bool processes_store_pid(processes_pidof_lambda_t* lambda, uint64_t pid) {
+static bool ut_processes_store_pid(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
     if (lambda->pids != null && lambda->count < lambda->size) {
         lambda->pids[lambda->count++] = pid;
     }
     return true; // always - need to count all
 }
 
-static errno_t processes_pids(const char* pname, uint64_t* pids/*[size]*/,
+static errno_t ut_processes_pids(const char* pname, uint64_t* pids/*[size]*/,
         int32_t size, int32_t *count) {
     *count = 0;
-    processes_pidof_lambda_t lambda = {
-        .each = processes_store_pid,
+    ut_processes_pidof_lambda_t lambda = {
+        .each = ut_processes_store_pid,
         .pids = pids,
         .size  = size,
         .count = 0,
         .timeout = 0,
         .error = 0
     };
-    *count = processes_for_each_pidof(pname, &lambda);
+    *count = ut_processes_for_each_pidof(pname, &lambda);
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
-static errno_t processes_kill(uint64_t pid, fp64_t timeout) {
+static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     DWORD timeout_milliseconds = (DWORD)(timeout * 1000);
     enum { access = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE };
     assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
@@ -4122,10 +4122,10 @@ static errno_t processes_kill(uint64_t pid, fp64_t timeout) {
             errno_t rq = b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
             if (rq != 0) {
                 traceln("QueryFullProcessImageNameA(pid=%d, h=%p) "
-                        "failed %s", pid, h, str.error(rq));
+                        "failed %s", pid, h, ut_str.error(rq));
             }
         }
-        processes_close_handle(h);
+        ut_processes_close_handle(h);
         if (r == ERROR_ACCESS_DENIED) { // special case
             threads.sleep_for(0.015); // need to wait a bit
             HANDLE retry = OpenProcess(access, 0, (DWORD)pid);
@@ -4133,41 +4133,41 @@ static errno_t processes_kill(uint64_t pid, fp64_t timeout) {
             if (retry == null) {
                 traceln("TerminateProcess(pid=%d, h=%p, im=%s) "
                         "failed but zombie died after: %s",
-                        pid, h, path, str.error(r));
+                        pid, h, path, ut_str.error(r));
                 r = 0;
             } else {
-                processes_close_handle(retry);
+                ut_processes_close_handle(retry);
             }
         }
         if (r != 0) {
             traceln("TerminateProcess(pid=%d, h=%p, im=%s) failed %s",
-                pid, h, path, str.error(r));
+                pid, h, path, ut_str.error(r));
         }
     }
     if (r != 0) { errno = r; }
     return r;
 }
 
-static bool processes_kill_one(processes_pidof_lambda_t* lambda, uint64_t pid) {
-    errno_t r = processes_kill(pid, lambda->timeout);
+static bool ut_processes_kill_one(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
+    errno_t r = ut_processes_kill(pid, lambda->timeout);
     if (r != 0) { lambda->error = r; }
     return true; // keep going
 }
 
-static errno_t processes_kill_all(const char* name, fp64_t timeout) {
-    processes_pidof_lambda_t lambda = {
-        .each = processes_kill_one,
+static errno_t ut_processes_kill_all(const char* name, fp64_t timeout) {
+    ut_processes_pidof_lambda_t lambda = {
+        .each = ut_processes_kill_one,
         .pids = null,
         .size  = 0,
         .count = 0,
         .timeout = timeout,
         .error = 0
     };
-    int32_t c = processes_for_each_pidof(name, &lambda);
+    int32_t c = ut_processes_for_each_pidof(name, &lambda);
     return c == 0 ? ERROR_NOT_FOUND : lambda.error;
 }
 
-static bool processes_is_elevated(void) { // Is process running as Admin / System ?
+static bool ut_processes_is_elevated(void) { // Is process running as Admin / System ?
     BOOL elevated = false;
     PSID administrators_group = null;
     // Allocate and initialize a SID of the administrators group.
@@ -4176,7 +4176,7 @@ static bool processes_is_elevated(void) { // Is process running as Admin / Syste
                 SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
                 0, 0, 0, 0, 0, 0, &administrators_group));
     if (r != 0) {
-        traceln("AllocateAndInitializeSid() failed %s", str.error(r));
+        traceln("AllocateAndInitializeSid() failed %s", ut_str.error(r));
     }
     PSID system_ops = null;
     SID_IDENTIFIER_AUTHORITY system_ops_authority = SECURITY_NT_AUTHORITY;
@@ -4184,7 +4184,7 @@ static bool processes_is_elevated(void) { // Is process running as Admin / Syste
             SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_SYSTEM_OPS,
             0, 0, 0, 0, 0, 0, &system_ops));
     if (r != 0) {
-        traceln("AllocateAndInitializeSid() failed %s", str.error(r));
+        traceln("AllocateAndInitializeSid() failed %s", ut_str.error(r));
     }
     if (administrators_group != null) {
         r = b2e(CheckTokenMembership(null, administrators_group, &elevated));
@@ -4195,15 +4195,15 @@ static bool processes_is_elevated(void) { // Is process running as Admin / Syste
     if (administrators_group != null) { FreeSid(administrators_group); }
     if (system_ops != null) { FreeSid(system_ops); }
     if (r != 0) {
-        traceln("failed %s", str.error(r));
+        traceln("failed %s", ut_str.error(r));
     }
     return elevated;
 }
 
-static errno_t processes_restart_elevated(void) {
+static errno_t ut_processes_restart_elevated(void) {
     errno_t r = 0;
-    if (!processes.is_elevated()) {
-        const char* path = processes.name();
+    if (!ut_processes.is_elevated()) {
+        const char* path = ut_processes.name();
         SHELLEXECUTEINFOA sei = { sizeof(sei) };
         sei.lpVerb = "runas";
         sei.lpFile = path;
@@ -4213,32 +4213,32 @@ static errno_t processes_restart_elevated(void) {
         if (r == ERROR_CANCELLED) {
             traceln("The user unable or refused to allow privileges elevation");
         } else if (r == 0) {
-            runtime.exit(0); // second copy of the app is running now
+            ut_runtime.exit(0); // second copy of the app is running now
         }
     }
     return r;
 }
 
-static void processes_close_pipes(STARTUPINFOA* si,
+static void ut_processes_close_pipes(STARTUPINFOA* si,
         HANDLE *read_out,
         HANDLE *read_err,
         HANDLE *write_in) {
-    if (si->hStdOutput != INVALID_HANDLE_VALUE) { processes_close_handle(si->hStdOutput); }
-    if (si->hStdError  != INVALID_HANDLE_VALUE) { processes_close_handle(si->hStdError);  }
-    if (si->hStdInput  != INVALID_HANDLE_VALUE) { processes_close_handle(si->hStdInput);  }
-    if (*read_out != INVALID_HANDLE_VALUE) { processes_close_handle(*read_out); }
-    if (*read_err != INVALID_HANDLE_VALUE) { processes_close_handle(*read_err); }
-    if (*write_in != INVALID_HANDLE_VALUE) { processes_close_handle(*write_in); }
+    if (si->hStdOutput != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdOutput); }
+    if (si->hStdError  != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdError);  }
+    if (si->hStdInput  != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdInput);  }
+    if (*read_out != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*read_out); }
+    if (*read_err != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*read_err); }
+    if (*write_in != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*write_in); }
 }
 
-static errno_t processes_child_read(stream_if* out, HANDLE pipe) {
+static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
     char data[32 * 1024]; // Temporary buffer for reading
     DWORD available = 0;
     errno_t r = b2e(PeekNamedPipe(pipe, null, sizeof(data), null,
                                  &available, null));
     if (r != 0) {
         if (r != ERROR_BROKEN_PIPE) { // unexpected!
-//          traceln("PeekNamedPipe() failed %s", str.error(r));
+//          traceln("PeekNamedPipe() failed %s", ut_str.error(r));
         }
         // process has exited and closed the pipe
         assert(r == ERROR_BROKEN_PIPE);
@@ -4257,7 +4257,7 @@ static errno_t processes_child_read(stream_if* out, HANDLE pipe) {
     return r;
 }
 
-static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
+static errno_t ut_processes_child_write(ut_stream_if* in, HANDLE pipe) {
     errno_t r = 0;
     if (in != null) {
         uint8_t  memory[32 * 1024]; // Temporary buffer for reading
@@ -4277,7 +4277,7 @@ static errno_t processes_child_write(stream_if* in, HANDLE pipe) {
     return r;
 }
 
-static errno_t processes_run(processes_child_t* child) {
+static errno_t ut_processes_run(ut_processes_child_t* child) {
     const fp64_t deadline = ut_clock.seconds() + child->timeout;
     errno_t r = 0;
     STARTUPINFOA si = {
@@ -4297,17 +4297,17 @@ static errno_t processes_run(processes_child_t* child) {
     errno_t re = b2e(CreatePipe(&read_err, &si.hStdError,  &sa, 0));
     errno_t ri = b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
     if (ro != 0 || re != 0 || ri != 0) {
-        processes_close_pipes(&si, &read_out, &read_err, &write_in);
-        if (ro != 0) { traceln("CreatePipe() failed %s", str.error(ro)); r = ro; }
-        if (re != 0) { traceln("CreatePipe() failed %s", str.error(re)); r = re; }
-        if (ri != 0) { traceln("CreatePipe() failed %s", str.error(ri)); r = ri; }
+        ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
+        if (ro != 0) { traceln("CreatePipe() failed %s", ut_str.error(ro)); r = ro; }
+        if (re != 0) { traceln("CreatePipe() failed %s", ut_str.error(re)); r = re; }
+        if (ri != 0) { traceln("CreatePipe() failed %s", ut_str.error(ri)); r = ri; }
     }
     if (r == 0) {
         r = b2e(CreateProcessA(null, (char*)child->command, null, null, true,
                 CREATE_NO_WINDOW, null, null, &si, &pi));
         if (r != 0) {
-            traceln("CreateProcess() failed %s", str.error(r));
-            processes_close_pipes(&si, &read_out, &read_err, &write_in);
+            traceln("CreateProcess() failed %s", ut_str.error(r));
+            ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         }
     }
     if (r == 0) {
@@ -4329,14 +4329,14 @@ static errno_t processes_run(processes_child_t* child) {
             if (child->timeout > 0 && ut_clock.seconds() > deadline) {
                 r = b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
-                    traceln("TerminateProcess() failed %s", str.error(r));
+                    traceln("TerminateProcess() failed %s", ut_str.error(r));
                 } else {
                     done = true;
                 }
             }
-            if (r == 0) { r = processes_child_write(child->in, write_in); }
-            if (r == 0) { r = processes_child_read(child->out, read_out); }
-            if (r == 0) { r = processes_child_read(child->err, read_err); }
+            if (r == 0) { r = ut_processes_child_write(child->in, write_in); }
+            if (r == 0) { r = ut_processes_child_read(child->out, read_out); }
+            if (r == 0) { r = ut_processes_child_read(child->err, read_err); }
             if (!done) {
                 DWORD ix = WaitForSingleObject(pi.hProcess, 0);
                 // ix == 0 means process has exited (or terminated)
@@ -4348,47 +4348,47 @@ static errno_t processes_run(processes_child_t* child) {
         }
         // broken pipe actually signifies EOF on the pipe
         if (r == ERROR_BROKEN_PIPE) { r = 0; } // not an error
-//      if (r != 0) { traceln("pipe loop failed %s", str.error(r));}
+//      if (r != 0) { traceln("pipe loop failed %s", ut_str.error(r));}
         DWORD xc = 0;
         errno_t rx = b2e(GetExitCodeProcess(pi.hProcess, &xc));
         if (rx == 0) {
             child->exit_code = xc;
         } else {
-            traceln("GetExitCodeProcess() failed %s", str.error(rx));
+            traceln("GetExitCodeProcess() failed %s", ut_str.error(rx));
             if (r != 0) { r = rx; } // report earliest error
         }
-        processes_close_pipes(&si, &read_out, &read_err, &write_in);
+        ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         fatal_if_false(CloseHandle(pi.hProcess)); // expected never to fail
     }
     return r;
 }
 
-typedef struct processes_io_merge_out_and_err_if {
-    stream_if stream;
-    stream_if* output;
+typedef struct ut_processes_io_merge_out_and_err_if {
+    ut_stream_if stream;
+    ut_stream_if* output;
     errno_t error;
-} processes_io_merge_out_and_err_if;
+} ut_processes_io_merge_out_and_err_if;
 
-static errno_t processes_merge_write(stream_if* stream, const void* data,
+static errno_t ut_processes_merge_write(ut_stream_if* stream, const void* data,
         int64_t bytes, int64_t* transferred) {
     if (transferred != null) { *transferred = 0; }
-    processes_io_merge_out_and_err_if* s =
-        (processes_io_merge_out_and_err_if*)stream;
+    ut_processes_io_merge_out_and_err_if* s =
+        (ut_processes_io_merge_out_and_err_if*)stream;
     if (s->output != null && bytes > 0) {
         s->error = s->output->write(s->output, data, bytes, transferred);
     }
     return s->error;
 }
 
-static errno_t processes_open(const char* command, int32_t *exit_code,
-        stream_if* output,  fp64_t timeout) {
+static errno_t ut_processes_open(const char* command, int32_t *exit_code,
+        ut_stream_if* output,  fp64_t timeout) {
     not_null(output);
-    processes_io_merge_out_and_err_if merge_out_and_err = {
-        .stream ={ .write = processes_merge_write },
+    ut_processes_io_merge_out_and_err_if merge_out_and_err = {
+        .stream ={ .write = ut_processes_merge_write },
         .output = output,
         .error = 0
     };
-    processes_child_t child = {
+    ut_processes_child_t child = {
         .command = command,
         .in = null,
         .out = &merge_out_and_err.stream,
@@ -4396,7 +4396,7 @@ static errno_t processes_open(const char* command, int32_t *exit_code,
         .exit_code = 0,
         .timeout = timeout
     };
-    errno_t r = processes.run(&child);
+    errno_t r = ut_processes.run(&child);
     if (exit_code != null) { *exit_code = child.exit_code; }
     uint8_t zero = 0; // zero termination
     merge_out_and_err.stream.write(&merge_out_and_err.stream, &zero, 1, null);
@@ -4406,7 +4406,7 @@ static errno_t processes_open(const char* command, int32_t *exit_code,
     return r;
 }
 
-static errno_t processes_spawn(const char* command) {
+static errno_t ut_processes_spawn(const char* command) {
     errno_t r = 0;
     STARTUPINFOA si = {
         .cb = sizeof(STARTUPINFOA),
@@ -4429,12 +4429,12 @@ static errno_t processes_spawn(const char* command) {
         fatal_if_false(CloseHandle(pi.hProcess));
         fatal_if_false(CloseHandle(pi.hThread));
     } else {
-//      traceln("CreateProcess() failed %s", str.error(r));
+//      traceln("CreateProcess() failed %s", ut_str.error(r));
     }
     return r;
 }
 
-static const char* processes_name(void) {
+static const char* ut_processes_name(void) {
     static char module_name[ut_files_max_path];
     if (module_name[0] == 0) {
         fatal_if_false(GetModuleFileNameA(null, module_name, countof(module_name)));
@@ -4450,29 +4450,29 @@ static const char* processes_name(void) {
     }                                                     \
 } while (0)
 
-static void processes_test(void) {
+static void ut_processes_test(void) {
     #ifdef UT_TESTS // in alphabetical order
     const char* names[] = { "svchost", "RuntimeBroker", "conhost" };
     for (int32_t j = 0; j < countof(names); j++) {
         int32_t size  = 0;
         int32_t count = 0;
         uint64_t* pids = null;
-        errno_t r = processes.pids(names[j], null, size, &count);
+        errno_t r = ut_processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
             r = ut_heap.reallocate(null, &pids, sizeof(uint64_t) * size, false);
             if (r == 0) {
-                r = processes.pids(names[j], pids, size, &count);
+                r = ut_processes.pids(names[j], pids, size, &count);
             }
         }
         if (r == 0 && count > 0) {
             for (int32_t i = 0; i < count; i++) {
                 char path[256] = {0};
                 #pragma warning(suppress: 6011) // dereferencing null
-                r = processes.nameof(pids[i], path, countof(path));
+                r = ut_processes.nameof(pids[i], path, countof(path));
                 if (r != ERROR_NOT_FOUND) {
                     assert(r == 0 && !strempty(path));
-                    verbose("%6d %s %s", pids[i], path, r == 0 ? "" : str.error(r));
+                    verbose("%6d %s %s", pids[i], path, r == 0 ? "" : ut_str.error(r));
                 }
             }
         }
@@ -4481,64 +4481,64 @@ static void processes_test(void) {
     // test popen()
     int32_t xc = 0;
     char data[32 * 1024];
-    stream_memory_if output;
-    streams.write_only(&output, data, countof(data));
+    ut_stream_memory_if output;
+    ut_streams.write_only(&output, data, countof(data));
     const char* cmd = "cmd /c dir 2>nul >nul";;
-    errno_t r = processes.popen(cmd, &xc, &output.stream, 99999.0);
+    errno_t r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, countof(data));
     cmd = "cmd /c dir \"folder that does not exist\\\"";
-    r = processes.popen(cmd, &xc, &output.stream, 99999.0);
+    r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, countof(data));
     cmd = "cmd /c dir";
-    r = processes.popen(cmd, &xc, &output.stream, 99999.0);
+    r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, countof(data));
     cmd = "cmd /c timeout 1";
-    r = processes.popen(cmd, &xc, &output.stream, 1.0E-9);
+    r = ut_processes.popen(cmd, &xc, &output.stream, 1.0E-9);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
     #endif
 }
 
 #pragma pop_macro("verbose")
 
-processes_if processes = {
-    .pid                 = processes_pid,
-    .pids                = processes_pids,
-    .nameof              = processes_nameof,
-    .present             = processes_present,
-    .kill                = processes_kill,
-    .kill_all            = processes_kill_all,
-    .is_elevated         = processes_is_elevated,
-    .restart_elevated    = processes_restart_elevated,
-    .run                 = processes_run,
-    .popen               = processes_open,
-    .spawn               = processes_spawn,
-    .name                = processes_name,
-    .test                = processes_test
+ut_processes_if ut_processes = {
+    .pid                 = ut_processes_pid,
+    .pids                = ut_processes_pids,
+    .nameof              = ut_processes_nameof,
+    .present             = ut_processes_present,
+    .kill                = ut_processes_kill,
+    .kill_all            = ut_processes_kill_all,
+    .is_elevated         = ut_processes_is_elevated,
+    .restart_elevated    = ut_processes_restart_elevated,
+    .run                 = ut_processes_run,
+    .popen               = ut_processes_open,
+    .spawn               = ut_processes_spawn,
+    .name                = ut_processes_name,
+    .test                = ut_processes_test
 };
 
 // _______________________________ ut_runtime.c _______________________________
 
 // abort does NOT call atexit() functions and
-// does NOT flush streams. Also Win32 runtime
+// does NOT flush ut_streams. Also Win32 runtime
 // abort() attempt to show Abort/Retry/Ignore
 // MessageBox - thus ExitProcess()
 
-static void runtime_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
+static void ut_runtime_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
 
-static void runtime_exit(int32_t exit_code) { exit(exit_code); }
+static void ut_runtime_exit(int32_t exit_code) { exit(exit_code); }
 
 // TODO: consider r = HRESULT_FROM_WIN32() and r = HRESULT_CODE(hr);
 // this separates posix error codes from win32 error codes
 
 
-static int32_t runtime_err(void) { return GetLastError(); }
+static int32_t ut_runtime_err(void) { return GetLastError(); }
 
-static void runtime_seterr(int32_t err) { SetLastError(err); }
+static void ut_runtime_seterr(int32_t err) { SetLastError(err); }
 
-static_init(runtime) {
+ut_static_init(runtime) {
     SetErrorMode(
         // The system does not display the critical-error-handler message box.
         // Instead, the system sends the error to the calling process:
@@ -4556,7 +4556,7 @@ static_init(runtime) {
 
 #ifdef UT_TESTS
 
-static void runtime_test(void) { // in alphabetical order
+static void ut_runtime_test(void) { // in alphabetical order
     ut_args.test();
     ut_atomics.test();
     ut_clipboard.test();
@@ -4571,26 +4571,26 @@ static void runtime_test(void) { // in alphabetical order
     ut_mem.test();
     mutexes.test();
     ut_num.test();
-    processes.test();
-    static_init_test();
-    str.test();
-    streams.test();
+    ut_processes.test();
+    ut_static_init_test();
+    ut_str.test();
+    ut_streams.test();
     threads.test();
     vigil.test();
 }
 
 #else
 
-static void runtime_test(void) { }
+static void ut_runtime_test(void) { }
 
 #endif
 
-runtime_if runtime = {
-    .err    = runtime_err,
-    .seterr = runtime_seterr,
-    .abort  = runtime_abort,
-    .exit   = runtime_exit,
-    .test   = runtime_test
+ut_runtime_if ut_runtime = {
+    .err    = ut_runtime_err,
+    .seterr = ut_runtime_seterr,
+    .abort  = ut_runtime_abort,
+    .exit   = ut_runtime_exit,
+    .test   = ut_runtime_test
 };
 
 #pragma comment(lib, "advapi32")
@@ -4619,28 +4619,28 @@ void* _static_force_symbol_reference_(void* symbol) {
     return symbol;
 }
 
-// test static_init() { code } that will be executed in random
+// test ut_static_init() { code } that will be executed in random
 // order but before main()
 
 #ifdef UT_TESTS
 
-static int32_t static_init_function_called;
+static int32_t ut_static_init_function_called;
 
-static void force_inline static_init_function(void) {
-    static_init_function_called = 1;
+static void force_inline ut_static_init_function(void) {
+    ut_static_init_function_called = 1;
 }
 
-static_init(static_init_test) { static_init_function(); }
+ut_static_init(static_init_test) { ut_static_init_function(); }
 
-void static_init_test(void) {
-    fatal_if(static_init_function_called != 1,
+void ut_static_init_test(void) {
+    fatal_if(ut_static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-void static_init_test(void) {}
+void ut_static_init_test(void) {}
 
 #endif
 
@@ -4654,20 +4654,20 @@ char* strnchr(const char* s, int32_t n, char ch) {
     return null;
 }
 
-static void str_format_va(char* utf8, int32_t count, const char* format,
+static void ut_str_format_va(char* utf8, int32_t count, const char* format,
         va_list vl) {
     vsnprintf(utf8, count, format, vl);
     utf8[count - 1] = 0;
 }
 
-static void str_format(char* utf8, int32_t count, const char* format, ...) {
+static void ut_str_format(char* utf8, int32_t count, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    str.format_va(utf8, count, format, vl);
+    ut_str.format_va(utf8, count, format, vl);
     va_end(vl);
 }
 
-static const char* str_error_for_language(int32_t error, LANGID language) {
+static const char* ut_str_error_for_language(int32_t error, LANGID language) {
     static thread_local char text[256];
     const DWORD format = FORMAT_MESSAGE_FROM_SYSTEM|
         FORMAT_MESSAGE_IGNORE_INSERTS;
@@ -4685,24 +4685,24 @@ static const char* str_error_for_language(int32_t error, LANGID language) {
         char stack[2048];
         fatal_if(k >= countof(stack), "error message too long");
         strprintf(text, "0x%08X(%d) \"%s\"", error, error,
-                  str.utf16_utf8(stack, s));
+                  ut_str.utf16_utf8(stack, s));
     } else {
         strprintf(text, "0x%08X(%d)", error, error);
     }
     return text;
 }
 
-static const char* str_error(int32_t error) {
+static const char* ut_str_error(int32_t error) {
     const LANGID lang = MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT);
-    return str_error_for_language(error, lang);
+    return ut_str_error_for_language(error, lang);
 }
 
-static const char* str_error_nls(int32_t error) {
+static const char* ut_str_error_nls(int32_t error) {
     const LANGID lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
-    return str_error_for_language(error, lang);
+    return ut_str_error_for_language(error, lang);
 }
 
-static int32_t str_utf8_bytes(const uint16_t* utf16) {
+static int32_t ut_str_utf8_bytes(const uint16_t* utf16) {
     int32_t required_bytes_count =
         WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
         utf16, -1, null, 0, null, null);
@@ -4710,45 +4710,45 @@ static int32_t str_utf8_bytes(const uint16_t* utf16) {
     return required_bytes_count;
 }
 
-static int32_t str_utf16_chars(const char* utf8) {
+static int32_t ut_str_utf16_chars(const char* utf8) {
     int32_t required_wide_chars_count =
         MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
     swear(required_wide_chars_count > 0);
     return required_wide_chars_count;
 }
 
-static char* str_utf16to8(char* s, const uint16_t* utf16) {
+static char* ut_str_utf16to8(char* s, const uint16_t* utf16) {
     errno_t r = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16, -1, s,
-        str.utf8_bytes(utf16), null, null);
+        ut_str.utf8_bytes(utf16), null, null);
     fatal_if(r == 0, "WideCharToMultiByte() failed %s",
-            str.error(runtime.err()));
+            ut_str.error(ut_runtime.err()));
     return s;
 }
 
-static uint16_t* str_utf8to16(uint16_t* utf16, const char* s) {
+static uint16_t* ut_str_utf8to16(uint16_t* utf16, const char* s) {
     errno_t r = MultiByteToWideChar(CP_UTF8, 0, s, -1, utf16,
-                                str.utf16_chars(s));
+                                ut_str.utf16_chars(s));
     fatal_if(r == 0, "WideCharToMultiByte() failed %s",
-            str.error(runtime.err()));
+            ut_str.error(ut_runtime.err()));
     return utf16;
 }
 
-static bool str_is_empty(const char* s) {
+static bool ut_str_is_empty(const char* s) {
     return strempty(s);
 }
 
-static bool str_equal(const char* s1, int32_t n1, const char* s2, int32_t n2) {
-    if (n1 < 0) { n1 = str.length(s1); }
-    if (n2 < 0) { n2 = str.length(s2); }
+static bool ut_str_equal(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+    if (n1 < 0) { n1 = ut_str.length(s1); }
+    if (n2 < 0) { n2 = ut_str.length(s2); }
     return n1 == n2 && memcmp(s1, s2, n1) == 0;
 }
 
-static bool str_equal_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+static bool ut_str_equal_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n1 < 0 && n2 < 0) {
         return striequ(s1, s2);
     }
-    if (n1 < 0) { n1 = str.length(s1); }
-    if (n2 < 0) { n2 = str.length(s2); }
+    if (n1 < 0) { n1 = ut_str.length(s1); }
+    if (n2 < 0) { n2 = ut_str.length(s2); }
     if (n1 != n2) { return false; }
     for (int32_t i = 0; i < n1; i++) {
         if (tolower(s1[i]) != tolower(s2[i])) { return false; }
@@ -4756,14 +4756,14 @@ static bool str_equal_nc(const char* s1, int32_t n1, const char* s2, int32_t n2)
     return true;
 }
 
-static bool str_starts_with(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+static bool ut_str_starts_with(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n1 < 0 && n2 < 0) { return strstartswith(s1, s2); }
     if (n1 <= 0) { n1 = (int32_t)strlen(s1); }
     if (n2 <= 0) { n2 = (int32_t)strlen(s2); }
     return n1 >= n2 && memcmp(s1, s2, n2) == 0;
 }
 
-static bool str_ends_with(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+static bool ut_str_ends_with(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n1 < 0 && n2 < 0) {
         return s1 != null && s2 != null && strendswith(s1, s2);
     }
@@ -4772,24 +4772,24 @@ static bool str_ends_with(const char* s1, int32_t n1, const char* s2, int32_t n2
     return n1 >= n2 && memcmp(s1 + n1 - n2, s2, n2) == 0;
 }
 
-static bool str_starts_with_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+static bool ut_str_starts_with_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n1 < 0 && n2 < 0) { return strstartswith(s1, s2); }
     if (n1 <= 0) { n1 = (int32_t)strlen(s1); }
     if (n2 <= 0) { n2 = (int32_t)strlen(s2); }
-    return n1 >= n2 && str.compare_nc(s1, n2, s2, n2) == 0;
+    return n1 >= n2 && ut_str.compare_nc(s1, n2, s2, n2) == 0;
 }
 
-static bool str_ends_with_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+static bool ut_str_ends_with_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n1 <= 0) { n1 = (int32_t)strlen(s1); }
     if (n2 <= 0) { n2 = (int32_t)strlen(s2); }
-    return n1 >= n2 && str.compare_nc(s1 + n1 - n2, n2, s2, n2) == 0;
+    return n1 >= n2 && ut_str.compare_nc(s1 + n1 - n2, n2, s2, n2) == 0;
 }
 
-static int32_t str_length(const char* s) {
+static int32_t ut_str_length(const char* s) {
     return strlength(s);
 }
 
-static bool str_copy(char* d, int32_t capacity,
+static bool ut_str_copy(char* d, int32_t capacity,
                      const char* s, int32_t bytes) {
     not_null(d);
     not_null(s);
@@ -4812,11 +4812,11 @@ static bool str_copy(char* d, int32_t capacity,
     }
 }
 
-static char* str_first_char(const char* s, int32_t bytes, char ch) {
+static char* ut_str_first_char(const char* s, int32_t bytes, char ch) {
     return bytes > 0 ? strnchr(s, bytes, ch) : strchr(s, ch);
 }
 
-static char* str_last_char(const char* s, int32_t n, char ch) {
+static char* ut_str_last_char(const char* s, int32_t n, char ch) {
     if (n < 0) { return strrchr(s, ch); }
     for (int32_t i = n; i >= 0; i--) {
         if (s[i] == ch) { return (char*)&s[i]; }
@@ -4824,17 +4824,17 @@ static char* str_last_char(const char* s, int32_t n, char ch) {
     return null;
 }
 
-static char* str_first(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+static char* ut_str_first(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n1 < 0 && n2 < 0) { return strstr(s1, s2); }
-    if (n1 < 0) { n1 = str.length(s1); }
-    if (n2 < 0) { n2 = str.length(s2); }
+    if (n1 < 0) { n1 = ut_str.length(s1); }
+    if (n2 < 0) { n2 = ut_str.length(s2); }
     for (int32_t i = 0; i <= n1 - n2; i++) {
         if (memcmp(s1 + i, s2, n2) == 0) { return (char*)&s1[i]; }
     }
     return null;
 }
 
-static bool str_to_lower(char* d, int32_t capacity, const char* s, int32_t n) {
+static bool ut_str_to_lower(char* d, int32_t capacity, const char* s, int32_t n) {
     swear(capacity > 1, "capacity: %d", capacity);
     if (n < 0) {
         while (*s != 0 && capacity > 1) {
@@ -4854,7 +4854,7 @@ static bool str_to_lower(char* d, int32_t capacity, const char* s, int32_t n) {
     }
 }
 
-static bool str_to_upper(char* d, int32_t capacity, const char* s, int32_t n) {
+static bool ut_str_to_upper(char* d, int32_t capacity, const char* s, int32_t n) {
     swear(capacity > 1, "capacity: %d", capacity);
     if (n < 0) {
         while (*s != 0 && capacity > 1) {
@@ -4874,22 +4874,22 @@ static bool str_to_upper(char* d, int32_t capacity, const char* s, int32_t n) {
     }
 }
 
-static int32_t str_compare(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+static int32_t ut_str_compare(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n2 < 0) {
         return n1 > 0 ? strncmp(s1, s2, n1) : strcmp(s1, s2);
     } else {
-        if (n1 < 0) { n1 = str.length(s1); }
-        if (n2 < 0) { n2 = str.length(s2); }
+        if (n1 < 0) { n1 = ut_str.length(s1); }
+        if (n2 < 0) { n2 = ut_str.length(s2); }
         return n1 == n2 ? memcmp(s1, s2, n1) : n1 - n2;
     }
 }
 
-static int32_t str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+static int32_t ut_str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n2 < 0) {
         return n1 > 0 ? strncasecmp(s1, s2, n1) : strcasecmp(s1, s2);
     } else {
-        if (n1 < 0) { n1 = str.length(s1); }
-        if (n2 < 0) { n2 = str.length(s2); }
+        if (n1 < 0) { n1 = ut_str.length(s1); }
+        if (n2 < 0) { n2 = ut_str.length(s2); }
         int32_t n = ut_min(n1, n2);
         for (int32_t i = 0; i < n; i++) {
             int32_t r = tolower(s1[i]) - tolower(s2[i]);
@@ -4899,8 +4899,8 @@ static int32_t str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_
     }
 }
 
-static const char* str_unquote(char* *s, int32_t n) {
-    if (n < 0) { n = str.length(*s); }
+static const char* ut_str_unquote(char* *s, int32_t n) {
+    if (n < 0) { n = ut_str.length(*s); }
     if (n > 0 && (*s)[0] == '\"' && (*s)[n - 1] == '\"') {
         (*s)[n - 1] = 0x00;
         (*s)++;
@@ -4911,7 +4911,7 @@ static const char* str_unquote(char* *s, int32_t n) {
 
 #ifdef UT_TESTS
 
-static void str_test(void) {
+static void ut_str_test(void) {
     #pragma push_macro("glyph_chinese_one")
     #pragma push_macro("glyph_chinese_two")
     #pragma push_macro("glyph_teddy_bear")
@@ -4931,29 +4931,29 @@ static void str_test(void) {
     swear(strcasecmp("hello", "world") != 0);
     swear(strncasecmp("hello", "world", 4) != 0);
     swear(strequ(strconcat("hello_", "_world"), "hello__world"));
-    swear(str.is_empty(null_string));
-    swear(str.is_empty(""));
-    swear(!str.is_empty("hello"));
-    swear(str.equal("hello", -1, "hello", -1));
-    swear(str.equal_nc("hello", -1, "HeLlO", -1));
-    swear(!str.equal("hello", -1, "world", -1));
-    swear(!str.equal("hello", -1, "hello", 4));
-    swear(!str.equal("hello",  4, "hello", -1));
-    swear(str.equal("hellO",  4, "hello", 4));
-    swear(str.equal("abc", 1, "a", 1));
-    swear(!str.equal("a", 1, "abc", 3));
-    swear(str.starts_with("hello world", -1, "hello", -1));
-    swear(!str.starts_with("hello world", -1, "world", -1));
-    swear(str.ends_with("hello world", -1, "world", -1));
-    swear(!str.ends_with("hello world", -1, "hello", -1));
-    swear(str.length("hello") == 5);
+    swear(ut_str.is_empty(null_string));
+    swear(ut_str.is_empty(""));
+    swear(!ut_str.is_empty("hello"));
+    swear(ut_str.equal("hello", -1, "hello", -1));
+    swear(ut_str.equal_nc("hello", -1, "HeLlO", -1));
+    swear(!ut_str.equal("hello", -1, "world", -1));
+    swear(!ut_str.equal("hello", -1, "hello", 4));
+    swear(!ut_str.equal("hello",  4, "hello", -1));
+    swear(ut_str.equal("hellO",  4, "hello", 4));
+    swear(ut_str.equal("abc", 1, "a", 1));
+    swear(!ut_str.equal("a", 1, "abc", 3));
+    swear(ut_str.starts_with("hello world", -1, "hello", -1));
+    swear(!ut_str.starts_with("hello world", -1, "world", -1));
+    swear(ut_str.ends_with("hello world", -1, "world", -1));
+    swear(!ut_str.ends_with("hello world", -1, "hello", -1));
+    swear(ut_str.length("hello") == 5);
     char text[10];
-    swear(str.copy(text, countof(text), "hello", -1));
-    swear(str.equal(text, -1, "hello", -1));
-    swear(!str.copy(text, 9, "0123456789", -1));
+    swear(ut_str.copy(text, countof(text), "hello", -1));
+    swear(ut_str.equal(text, -1, "hello", -1));
+    swear(!ut_str.copy(text, 9, "0123456789", -1));
     char lower[20];
-    swear(str.to_lower(lower, countof(lower), "HeLlO WoRlD", -1));
-    swear(str.equal(lower, -1, "hello world", -1));
+    swear(ut_str.to_lower(lower, countof(lower), "HeLlO WoRlD", -1));
+    swear(ut_str.equal(lower, -1, "hello world", -1));
     const char* utf8_str =
             glyph_teddy_bear "0"
             glyph_chinese_one glyph_chinese_two
@@ -4961,37 +4961,37 @@ static void str_test(void) {
             glyph_ice_cube;
     const uint16_t* wide_str = utf8to16(utf8_str);
     char utf8[100];
-    swear(str.utf16_utf8(utf8, wide_str));
+    swear(ut_str.utf16_utf8(utf8, wide_str));
     uint16_t utf16[100];
-    swear(str.utf8_utf16(utf16, utf8));
-    swear(str.equal(utf16to8(utf16), -1, utf8_str, -1));
+    swear(ut_str.utf8_utf16(utf16, utf8));
+    swear(ut_str.equal(utf16to8(utf16), -1, utf8_str, -1));
     char formatted[100];
-    str.format(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
-    swear(str.equal(formatted, -1, "n: 42, s: test", -1));
+    ut_str.format(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
+    swear(ut_str.equal(formatted, -1, "n: 42, s: test", -1));
     char truncated[9];
     truncated[8] = 0xFF;
-    swear(!str.copy(truncated, countof(truncated), "0123456789", -1));
+    swear(!ut_str.copy(truncated, countof(truncated), "0123456789", -1));
     swear(truncated[8] == 0);
     char truncated_lower[9];
     truncated_lower[8] = 0xFF;
-    str.to_lower(truncated_lower, countof(truncated_lower), "HELLO012345", -1);
+    ut_str.to_lower(truncated_lower, countof(truncated_lower), "HELLO012345", -1);
     swear(truncated_lower[8] == 0);
     char truncated_formatted[9];
     truncated_formatted[8] = 0xFF;
-    str.format(truncated_formatted, countof(truncated_formatted), "n: %d, s: %s", 42, "a long test string");
+    ut_str.format(truncated_formatted, countof(truncated_formatted), "n: %d, s: %s", 42, "a long test string");
     swear(truncated_formatted[8] == 0);
     char very_short_str[1];
     very_short_str[0] = 0xFF;
-    str.format(very_short_str, countof(very_short_str), "%s", "test");
+    ut_str.format(very_short_str, countof(very_short_str), "%s", "test");
     swear(very_short_str[0] == 0);
-    swear(str.starts_with("example text", 7, "exam", 4));
-    swear(str.starts_with_nc("example text", 7, "ExAm", 4));
-    swear(str.ends_with("testing", 7, "ing", 3));
-    swear(str.ends_with_nc("testing", 7, "InG", 3));
-    swear(str.compare("hello", 5, "hello", 5) == 0);
-    swear(str.compare_nc("Hello", 5, "hello", 5) == 0);
-    swear(str.compare("ab", 2, "abc", 3) < 0);
-    swear(str.compare_nc("abc", 3, "ABCD", 4) < 0);
+    swear(ut_str.starts_with("example text", 7, "exam", 4));
+    swear(ut_str.starts_with_nc("example text", 7, "ExAm", 4));
+    swear(ut_str.ends_with("testing", 7, "ing", 3));
+    swear(ut_str.ends_with_nc("testing", 7, "InG", 3));
+    swear(ut_str.compare("hello", 5, "hello", 5) == 0);
+    swear(ut_str.compare_nc("Hello", 5, "hello", 5) == 0);
+    swear(ut_str.compare("ab", 2, "abc", 3) < 0);
+    swear(ut_str.compare_nc("abc", 3, "ABCD", 4) < 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #pragma pop_macro("glyph_ice_cube")
     #pragma pop_macro("glyph_teddy_bear")
@@ -5001,45 +5001,45 @@ static void str_test(void) {
 
 #else
 
-static void str_test(void) {}
+static void ut_str_test(void) {}
 
 #endif
 
-str_if str = {
-    .error          = str_error,
-    .error_nls      = str_error_nls,
-    .utf8_bytes     = str_utf8_bytes,
-    .utf16_chars    = str_utf16_chars,
-    .utf16_utf8     = str_utf16to8,
-    .utf8_utf16     = str_utf8to16,
-    .format         = str_format,
-    .format_va      = str_format_va,
-    .is_empty       = str_is_empty,
-    .equal          = str_equal,
-    .equal_nc       = str_equal_nc,
-    .length         = str_length,
-    .copy           = str_copy,
-    .first_char     = str_first_char,
-    .last_char      = str_last_char,
-    .first          = str_first,
-    .to_lower       = str_to_lower,
-    .to_upper       = str_to_upper,
-    .compare        = str_compare,
-    .compare_nc     = str_compare_nc,
-    .starts_with    = str_starts_with,
-    .ends_with      = str_ends_with,
-    .starts_with_nc = str_starts_with_nc,
-    .ends_with_nc   = str_ends_with_nc,
-    .unquote        = str_unquote,
-    .test           = str_test
+ut_str_if ut_str = {
+    .error          = ut_str_error,
+    .error_nls      = ut_str_error_nls,
+    .utf8_bytes     = ut_str_utf8_bytes,
+    .utf16_chars    = ut_str_utf16_chars,
+    .utf16_utf8     = ut_str_utf16to8,
+    .utf8_utf16     = ut_str_utf8to16,
+    .format         = ut_str_format,
+    .format_va      = ut_str_format_va,
+    .is_empty       = ut_str_is_empty,
+    .equal          = ut_str_equal,
+    .equal_nc       = ut_str_equal_nc,
+    .length         = ut_str_length,
+    .copy           = ut_str_copy,
+    .first_char     = ut_str_first_char,
+    .last_char      = ut_str_last_char,
+    .first          = ut_str_first,
+    .to_lower       = ut_str_to_lower,
+    .to_upper       = ut_str_to_upper,
+    .compare        = ut_str_compare,
+    .compare_nc     = ut_str_compare_nc,
+    .starts_with    = ut_str_starts_with,
+    .ends_with      = ut_str_ends_with,
+    .starts_with_nc = ut_str_starts_with_nc,
+    .ends_with_nc   = ut_str_ends_with_nc,
+    .unquote        = ut_str_unquote,
+    .test           = ut_str_test
 };
 
 // _______________________________ ut_streams.c _______________________________
 
-static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,
+static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t bytes,
         int64_t *transferred) {
     swear(bytes > 0);
-    stream_memory_if* s = (stream_memory_if*)stream;
+    ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
     swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
@@ -5050,10 +5050,10 @@ static errno_t streams_memory_read(stream_if* stream, void* data, int64_t bytes,
     return 0;
 }
 
-static errno_t streams_memory_write(stream_if* stream, const void* data, int64_t bytes,
+static errno_t ut_streams_memory_write(ut_stream_if* stream, const void* data, int64_t bytes,
         int64_t *transferred) {
     swear(bytes > 0);
-    stream_memory_if* s = (stream_memory_if*)stream;
+    ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
     swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
@@ -5065,9 +5065,9 @@ static errno_t streams_memory_write(stream_if* stream, const void* data, int64_t
     return overflow ? ERROR_INSUFFICIENT_BUFFER : 0;
 }
 
-static void streams_read_only(stream_memory_if* s,
+static void ut_streams_read_only(ut_stream_memory_if* s,
         const void* data, int64_t bytes) {
-    s->stream.read = streams_memory_read;
+    s->stream.read = ut_streams_memory_read;
     s->stream.write = null;
     s->data_read = data;
     s->bytes_read = bytes;
@@ -5077,10 +5077,10 @@ static void streams_read_only(stream_memory_if* s,
     s->pos_write = 0;
 }
 
-static void streams_write_only(stream_memory_if* s,
+static void ut_streams_write_only(ut_stream_memory_if* s,
         void* data, int64_t bytes) {
     s->stream.read = null;
-    s->stream.write = streams_memory_write;
+    s->stream.write = ut_streams_memory_write;
     s->data_read = null;
     s->bytes_read = 0;
     s->pos_read = 0;
@@ -5089,11 +5089,11 @@ static void streams_write_only(stream_memory_if* s,
     s->pos_write = 0;
 }
 
-static void streams_read_write(stream_memory_if* s,
+static void ut_streams_read_write(ut_stream_memory_if* s,
         const void* read, int64_t read_bytes,
         void* write, int64_t write_bytes) {
-    s->stream.read = streams_memory_read;
-    s->stream.write = streams_memory_write;
+    s->stream.read = ut_streams_memory_read;
+    s->stream.write = ut_streams_memory_write;
     s->data_read = read;
     s->bytes_read = read_bytes;
     s->pos_read = 0;
@@ -5105,13 +5105,13 @@ static void streams_read_write(stream_memory_if* s,
 
 #ifdef UT_TESTS
 
-static void streams_test(void) {
+static void ut_streams_test(void) {
     {   // read test
         uint8_t memory[256];
         for (int32_t i = 0; i < countof(memory); i++) { memory[i] = (uint8_t)i; }
         for (int32_t i = 1; i < countof(memory) - 1; i++) {
-            stream_memory_if ms; // memory stream
-            streams.read_only(&ms, memory, sizeof(memory));
+            ut_stream_memory_if ms; // memory stream
+            ut_streams.read_only(&ms, memory, sizeof(memory));
             uint8_t data[256];
             for (int32_t j = 0; j < countof(data); j++) { data[j] = 0xFF; }
             int64_t transferred = 0;
@@ -5132,15 +5132,15 @@ static void streams_test(void) {
 
 #else
 
-static void streams_test(void) { }
+static void ut_streams_test(void) { }
 
 #endif
 
-streams_if streams = {
-    .read_only  = streams_read_only,
-    .write_only = streams_write_only,
-    .read_write = streams_read_write,
-    .test = streams_test
+ut_streams_if ut_streams = {
+    .read_only  = ut_streams_read_only,
+    .write_only = ut_streams_write_only,
+    .read_write = ut_streams_read_write,
+    .test       = ut_streams_test
 };
 
 // _______________________________ ut_threads.c _______________________________
@@ -5508,7 +5508,7 @@ static errno_t threads_join(thread_t t, fp64_t timeout) {
     if (r == 0) {
         fatal_if_false(CloseHandle(t));
     } else {
-        traceln("failed to join thread %p %s", t, str.error(r));
+        traceln("failed to join thread %p %s", t, ut_str.error(r));
     }
     return r;
 }
@@ -5521,8 +5521,8 @@ static void threads_detach(thread_t t) {
 
 static void threads_name(const char* name) {
     uint16_t stack[1024];
-    fatal_if(str.length(name) >= countof(stack), "name too long: %s", name);
-    uint16_t* wide = str.utf8_utf16(stack, name);
+    fatal_if(ut_str.length(name) >= countof(stack), "name too long: %s", name);
+    uint16_t* wide = ut_str.utf8_utf16(stack, name);
     HRESULT r = SetThreadDescription(GetCurrentThread(), wide);
     // notoriously returns 0x10000000 for no good reason whatsoever
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
@@ -5716,7 +5716,7 @@ threads_if threads = {
 
 static void vigil_breakpoint_and_abort(void) {
     ut_debug.breakpoint(); // only if debugger is present
-    runtime.abort();
+    ut_runtime.abort();
 }
 
 static int32_t vigil_failed_assertion(const char* file, int32_t line,
@@ -5727,14 +5727,14 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
     va_end(vl);
     ut_debug.println(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
-    const bool always_true = runtime.abort != null;
+    const bool always_true = ut_runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
     return 0;
 }
 
 static int32_t vigil_fatal_termination(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    const int32_t er = runtime.err();
+    const int32_t er = ut_runtime.err();
     const int32_t en = errno;
     va_list vl;
     va_start(vl, format);
@@ -5748,7 +5748,7 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     } else {
         ut_debug.println(file, line, func, "FATAL\n");
     }
-    const bool always_true = runtime.abort != null;
+    const bool always_true = ut_runtime.abort != null;
     if (always_true) { vigil_breakpoint_and_abort(); }
     return 0;
 }
@@ -5785,9 +5785,9 @@ static int32_t vigil_test_fatal_calls_count;
 
 static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    const int32_t er = runtime.err();
+    const int32_t er = ut_runtime.err();
     const int32_t en = errno;
-    assert(er == 2, "runtime.err: %d expected 2", er);
+    assert(er == 2, "ut_runtime.err: %d expected 2", er);
     assert(en == 2, "errno: %d expected 2", en);
     fatal_if_not(strequ(file,  __FILE__), "file: %s", file);
     fatal_if_not(line > __LINE__, "line: %s", line);
@@ -5816,9 +5816,9 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
 static void vigil_test(void) {
     vigil_test_saved = vigil;
     int32_t en = errno;
-    int32_t er = runtime.err();
+    int32_t er = ut_runtime.err();
     errno = 2; // ENOENT
-    runtime.seterr(2); // ERROR_FILE_NOT_FOUND
+    ut_runtime.seterr(2); // ERROR_FILE_NOT_FOUND
     vigil.failed_assertion  = vigil_test_failed_assertion;
     vigil.fatal_termination = vigil_test_fatal_termination;
     int32_t count = vigil_test_fatal_calls_count;
@@ -5836,7 +5836,7 @@ static void vigil_test(void) {
     // swear() is triggered in both debug and release configurations:
     fatal_if_not(vigil_test_failed_assertion_count == count + 1);
     errno = en;
-    runtime.seterr(er);
+    ut_runtime.seterr(er);
     vigil = vigil_test_saved;
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }

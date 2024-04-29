@@ -573,6 +573,6 @@ ui_view_if ui_view = {
     .test               = ui_view_test
 };
 
-static_init(ui_view) {
+ut_static_init(ui_view) {
     ui_view.test();
 }

@@ -24,7 +24,7 @@ static int ui_checkbox_paint_on_off(ui_view_t* view) {
 }
 
 static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_t count)  {
-    str.format(label, count, "%s", ui_view.nls(view));
+    ut_str.format(label, count, "%s", ui_view.nls(view));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, view->pressed ? "On " : "Off", 3);

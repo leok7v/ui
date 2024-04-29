@@ -1261,9 +1261,9 @@ static void app_save_console_pos(void) {
         app_save_window_pos((ui_window_t)cw, "wic", false);
         HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
         CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-        int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : runtime.err();
+        int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
         if (r != 0) {
-            traceln("GetConsoleScreenBufferInfoEx() %s", str.error(r));
+            traceln("GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
         } else {
             ut_config.save(app.class_name, "console_screen_buffer_infoex",
                             &info, (int)sizeof(info));
@@ -2026,9 +2026,9 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 }
 
 static long app_set_window_long(int32_t index, long value) {
-    runtime.seterr(0);
+    ut_runtime.seterr(0);
     long r = SetWindowLongA(app_window(), index, value); // r previous value
-    fatal_if_not_zero(runtime.err());
+    fatal_if_not_zero(ut_runtime.err());
     return r;
 }
 
@@ -2293,7 +2293,7 @@ static void app_console_disable_close(void) {
 }
 
 static int app_console_attach(void) {
-    int r = AttachConsole(ATTACH_PARENT_PROCESS) ? 0 : runtime.err();
+    int r = AttachConsole(ATTACH_PARENT_PROCESS) ? 0 : ut_runtime.err();
     if (r == 0) {
         app_console_disable_close();
         threads.sleep_for(0.1); // give cmd.exe a chance to print prompt again
@@ -2320,9 +2320,9 @@ static int app_set_console_size(int16_t w, int16_t h) {
     // width/height in characters
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : runtime.err();
+    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
     if (r != 0) {
-        traceln("GetConsoleScreenBufferInfoEx() %s", str.error(r));
+        traceln("GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
     } else {
         // tricky because correct order of the calls
         // SetConsoleWindowInfo() SetConsoleScreenBufferSize() depends on
@@ -2333,15 +2333,15 @@ static int app_set_console_size(int16_t w, int16_t h) {
         COORD c = {w, h};
         SMALL_RECT const minwin = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
-        int r0 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : runtime.err();
-//      if (r0 != 0) { traceln("SetConsoleWindowInfo() %s", str.error(r0)); }
-        int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : runtime.err();
-//      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", str.error(r1)); }
+        int r0 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : ut_runtime.err();
+//      if (r0 != 0) { traceln("SetConsoleWindowInfo() %s", ut_str.error(r0)); }
+        int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
+//      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", ut_str.error(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
-            r0 = SetConsoleScreenBufferSize(console, c) ? 0 : runtime.err();
-            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", str.error(r0)); }
-            r1 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : runtime.err();
-            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", str.error(r1)); }
+            r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
+            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", ut_str.error(r0)); }
+            r1 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : ut_runtime.err();
+            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", ut_str.error(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
     }
@@ -2358,26 +2358,26 @@ static void app_console_largest(void) {
     // and: https://learn.microsoft.com/en-us/windows/console/setconsolemode
     /* DOES NOT WORK:
     DWORD mode = 0;
-    r = GetConsoleMode(console, &mode) ? 0 : runtime.err();
-    fatal_if_not_zero(r, "GetConsoleMode() %s", str.error(r));
+    r = GetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
+    fatal_if_not_zero(r, "GetConsoleMode() %s", ut_str.error(r));
     mode &= ~ENABLE_AUTO_POSITION;
-    r = SetConsoleMode(console, &mode) ? 0 : runtime.err();
-    fatal_if_not_zero(r, "SetConsoleMode() %s", str.error(r));
+    r = SetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
+    fatal_if_not_zero(r, "SetConsoleMode() %s", ut_str.error(r));
     */
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : runtime.err();
-    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", str.error(r));
+    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
+    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
     COORD c = GetLargestConsoleWindowSize(console);
     if (c.X > 80) { c.X &= ~0x7; }
     if (c.Y > 24) { c.Y &= ~0x3; }
     if (c.X > 80) { c.X -= 8; }
     if (c.Y > 24) { c.Y -= 4; }
     app_set_console_size(c.X, c.Y);
-    r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : runtime.err();
-    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", str.error(r));
+    r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
+    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
     info.dwSize.Y = 9999; // maximum value at the moment of implementation
-    r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : runtime.err();
-    fatal_if_not_zero(r, "SetConsoleScreenBufferInfoEx() %s", str.error(r));
+    r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
+    fatal_if_not_zero(r, "SetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
     app_save_console_pos();
 }
 
@@ -2389,9 +2389,9 @@ static void app_make_topmost(void) {
 }
 
 static void app_activate(void) {
-    runtime.seterr(0);
+    ut_runtime.seterr(0);
     HWND previous = SetActiveWindow(app_window());
-    if (previous == null) { fatal_if_not_zero(runtime.err()); }
+    if (previous == null) { fatal_if_not_zero(ut_runtime.err()); }
 }
 
 static void app_bring_to_foreground(void) {
@@ -2469,7 +2469,7 @@ static void app_console_show(bool b) {
 }
 
 static int app_console_create(void) {
-    int r = AllocConsole() ? 0 : runtime.err();
+    int r = AllocConsole() ? 0 : ut_runtime.err();
     if (r == 0) {
         app_console_disable_close();
         int32_t visibility = 0;
@@ -2582,21 +2582,21 @@ static errno_t app_clipboard_put_image(image_t* im) {
     fatal_if_false(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
         im->w, im->h, SRCCOPY));
     errno_t r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
-    if (r != 0) { traceln("OpenClipboard() failed %s", str.error(r)); }
+    if (r != 0) { traceln("OpenClipboard() failed %s", ut_str.error(r)); }
     if (r == 0) {
         r = EmptyClipboard() ? 0 : GetLastError();
-        if (r != 0) { traceln("EmptyClipboard() failed %s", str.error(r)); }
+        if (r != 0) { traceln("EmptyClipboard() failed %s", ut_str.error(r)); }
     }
     if (r == 0) {
         r = SetClipboardData(CF_BITMAP, bitmap) ? 0 : GetLastError();
         if (r != 0) {
-            traceln("SetClipboardData() failed %s", str.error(r));
+            traceln("SetClipboardData() failed %s", ut_str.error(r));
         }
     }
     if (r == 0) {
         r = CloseClipboard() ? 0 : GetLastError();
         if (r != 0) {
-            traceln("CloseClipboard() failed %s", str.error(r));
+            traceln("CloseClipboard() failed %s", ut_str.error(r));
         }
     }
     not_null(SelectBitmap(dst, d));
@@ -2647,9 +2647,9 @@ static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
     assert(threads.id() == app.tid, "cannot be called from background thread");
-    runtime.seterr(0);
+    ut_runtime.seterr(0);
     w = SetFocus((HWND)w); // w previous focused window
-    if (w == null) { fatal_if_not_zero(runtime.err()); }
+    if (w == null) { fatal_if_not_zero(ut_runtime.err()); }
 }
 
 static void app_request_focus(void) {
@@ -3011,7 +3011,7 @@ static int ui_checkbox_paint_on_off(ui_view_t* view) {
 }
 
 static const char* ui_checkbox_on_off_label(ui_view_t* view, char* label, int32_t count)  {
-    str.format(label, count, "%s", ui_view.nls(view));
+    ut_str.format(label, count, "%s", ui_view.nls(view));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, view->pressed ? "On " : "Off", 3);
@@ -3946,13 +3946,13 @@ typedef struct gdi_dtp_s { // draw text params
 static void gdi_text_draw(gdi_dtp_t* p) {
     int32_t n = 1024;
     char* text = (char*)alloca(n);
-    str.format_va(text, n - 1, p->format, p->vl);
+    ut_str.format_va(text, n - 1, p->format, p->vl);
     int32_t k = (int32_t)strlen(text);
     // Microsoft returns -1 not posix required sizeof buffer
     while (k >= n - 1 || k < 0) {
         n = n * 2;
         text = (char*)alloca(n);
-        str.format_va(text, n - 1, p->format, p->vl);
+        ut_str.format_va(text, n - 1, p->format, p->vl);
         k = (int)strlen(text);
     }
     assert(k >= 0 && k <= n, "k=%d n=%d fmt=%s", k, n, p->format);
@@ -4236,7 +4236,7 @@ void ui_label_init_(ui_view_t* view) {
 
 void ui_label_init_va(ui_label_t* t, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
-    str.format_va(t->view.text, countof(t->view.text), format, vl);
+    ut_str.format_va(t->view.text, countof(t->view.text), format, vl);
     t->view.type = ui_view_label;
     ui_label_init_(&t->view);
 }
@@ -4553,7 +4553,7 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* opts[],
     mx->cb = cb;
     va_list vl;
     va_start(vl, format);
-    str.format_va(mx->view.text, countof(mx->view.text), format, vl);
+    ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
     ui_label_init_ml(&mx->text, 0.0, mx->view.text);
     va_end(vl);
     ui_messagebox_init_(&mx->view);
@@ -5500,7 +5500,7 @@ ui_view_if ui_view = {
     .test               = ui_view_test
 };
 
-static_init(ui_view) {
+ut_static_init(ui_view) {
     ui_view.test();
 }
 

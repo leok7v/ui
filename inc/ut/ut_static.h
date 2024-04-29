@@ -3,7 +3,7 @@
 
 begin_c
 
-// static_init(unique_name) { code_to_execute_before_main }
+// ut_static_init(unique_name) { code_to_execute_before_main }
 
 #if defined(_MSC_VER)
 
@@ -29,19 +29,19 @@ void* _static_force_symbol_reference_(void* symbol);
   __declspec(allocate(".CRT$XCU"))                                        \
     int32_t (* _array ## func)(void) = func ## _wrapper;
 
-#define _static_init2_(func, line) _msvc_ctor_(_msvc_symbol_prefix_, \
+#define ut_static_init2_(func, line) _msvc_ctor_(_msvc_symbol_prefix_, \
     func ## _constructor_##line)                                     \
     void func ## _constructor_##line(void)
 
-#define _static_init1_(func, line) _static_init2_(func, line)
+#define ut_static_init1_(func, line) ut_static_init2_(func, line)
 
-#define static_init(func) _static_init1_(func, __LINE__)
+#define ut_static_init(func) ut_static_init1_(func, __LINE__)
 
 #else
-#define static_init(n) __attribute__((constructor)) \
+#define ut_static_init(n) __attribute__((constructor)) \
         static void _init_ ## n ## __LINE__ ## _ctor(void)
 #endif
 
-void static_init_test(void);
+void ut_static_init_test(void);
 
 end_c

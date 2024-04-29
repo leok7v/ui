@@ -7,9 +7,9 @@
 
 // ut:
 #include <Windows.h>  // used by:
-#include <psapi.h>    // both ut_loader.c and processes.c
-#include <shellapi.h> // processes.c
-#include <winternl.h> // processes.c
+#include <psapi.h>    // both ut_loader.c and ut_processes.c
+#include <shellapi.h> // ut_processes.c
+#include <winternl.h> // ut_processes.c
 #include <initguid.h>     // for knownfolders
 #include <knownfolders.h> // ut_files.c
 #include <aclapi.h>       // ut_files.c

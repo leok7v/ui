@@ -10,7 +10,7 @@ begin_c
 // code needs extreme cpu cycle savings working with utf8 strings.
 //
 // str* macros and functions assume zero terminated UTF-8 strings
-// in C tradition. Use str.* functions for non-zero terminated
+// in C tradition. Use ut_str.* functions for non-zero terminated
 // strings.
 
 #define strempty(s) ((void*)(s) == null || (s)[0] == 0)
@@ -45,20 +45,20 @@ begin_c
 char* strnchr(const char* s, int32_t n, char ch);
 
 #define strtolowercase(s) \
-    str.to_lowercase((char*)stackalloc(strlen(s) + 1), strlen(s) + 1, s)
+    ut_str.to_lowercase((char*)stackalloc(strlen(s) + 1), strlen(s) + 1, s)
 
-#define utf16to8(utf16) str.utf16_utf8((char*) \
-    stackalloc((size_t)str.utf8_bytes(utf16) + 1), utf16)
+#define utf16to8(utf16) ut_str.utf16_utf8((char*) \
+    stackalloc((size_t)ut_str.utf8_bytes(utf16) + 1), utf16)
 
-#define utf8to16(s) str.utf8_utf16((uint16_t*) \
-    stackalloc((str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
+#define utf8to16(s) ut_str.utf8_utf16((uint16_t*) \
+    stackalloc((ut_str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
 
-#define strprintf(s, ...) str.format((s), countof(s), "" __VA_ARGS__)
+#define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
 
 #define strncasecmp _strnicmp
 #define strcasecmp _stricmp
 
-// str.functions are capable of working with both 0x00 terminated
+// ut_str.functions are capable of working with both 0x00 terminated
 // strings and UTF-8 strings of fixed length denoted by n1 and n2.
 // case insensitive functions with postfix _nc
 // operate only on ASCII characters. No ANSI no UTF-8
@@ -95,9 +95,9 @@ typedef struct {
     // removes quotes from a head and tail of the string `s` if present
     const char* (*unquote)(char* *s, int32_t n); // modifies `s` in place
     void (*test)(void);
-} str_if;
+} ut_str_if;
 
-extern str_if str;
+extern ut_str_if ut_str;
 
 end_c
 
