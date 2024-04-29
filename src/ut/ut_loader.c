@@ -15,69 +15,69 @@
 // with the RTLD_LOCAL flag, we create our own list later on. They are
 // excluded from EnumProcessModules() iteration.
 
-static void* loader_all;
+static void* ut_loader_all;
 
-static void* loader_sym_all(const char* name) {
+static void* ut_loader_sym_all(const char* name) {
     void* sym = null;
     DWORD bytes = 0;
     fatal_if_false(EnumProcessModules(GetCurrentProcess(), null, 0, &bytes));
     assert(bytes % sizeof(HMODULE) == 0);
     assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
     HMODULE* modules = null;
-    fatal_if_not_zero(heap.allocate(null, (void**)&modules, bytes, false));
+    fatal_if_not_zero(ut_heap.allocate(null, (void**)&modules, bytes, false));
     fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes,
                                                                    &bytes));
     const int32_t n = bytes / (int)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
-        sym = loader.sym(modules[i], name);
+        sym = ut_loader.sym(modules[i], name);
     }
     if (sym == null) {
-        sym = loader.sym(GetModuleHandleA(null), name);
+        sym = ut_loader.sym(GetModuleHandleA(null), name);
     }
-    heap.deallocate(null, modules);
+    ut_heap.deallocate(null, modules);
     return sym;
 }
 
-static void* loader_open(const char* filename, int32_t unused(mode)) {
-    return filename == null ? &loader_all : (void*)LoadLibraryA(filename);
+static void* ut_loader_open(const char* filename, int32_t unused(mode)) {
+    return filename == null ? &ut_loader_all : (void*)LoadLibraryA(filename);
 }
 
-static void* loader_sym(void* handle, const char* name) {
-    return handle == &loader_all ?
-            (void*)loader_sym_all(name) :
+static void* ut_loader_sym(void* handle, const char* name) {
+    return handle == &ut_loader_all ?
+            (void*)ut_loader_sym_all(name) :
             (void*)GetProcAddress((HMODULE)handle, name);
 }
 
-static void loader_close(void* handle) {
-    if (handle != &loader_all) {
+static void ut_loader_close(void* handle) {
+    if (handle != &ut_loader_all) {
         fatal_if_false(FreeLibrary(handle));
     }
 }
 
 #ifdef UT_TESTS
 
-static int32_t loader_test_count;
+static int32_t ut_loader_test_count;
 
-export void loader_test_exported_function(void) { loader_test_count++; }
+export void ut_loader_test_exported_function(void) { ut_loader_test_count++; }
 
-static void loader_test(void) {
-    loader_test_count = 0;
-    loader_test_exported_function(); // to make sure it is linked in
-    swear(loader_test_count == 1);
-    void* global = loader.open(null, loader.local);
+static void ut_loader_test(void) {
+    ut_loader_test_count = 0;
+    ut_loader_test_exported_function(); // to make sure it is linked in
+    swear(ut_loader_test_count == 1);
+    void* global = ut_loader.open(null, ut_loader.local);
     typedef void (*foo_t)(void);
-    foo_t foo = (foo_t)loader.sym(global, "loader_test_exported_function");
+    foo_t foo = (foo_t)ut_loader.sym(global, "loader_test_exported_function");
     foo();
-    swear(loader_test_count == 2);
-    loader.close(global);
+    swear(ut_loader_test_count == 2);
+    ut_loader.close(global);
     // NtQueryTimerResolution - http://undocumented.ntinternals.net/
     typedef long (__stdcall *query_timer_resolution_t)(
         long* minimum_resolution,
         long* maximum_resolution,
         long* current_resolution);
-    void* nt_dll = loader.open("ntdll", loader.local);
+    void* nt_dll = ut_loader.open("ntdll", ut_loader.local);
     query_timer_resolution_t query_timer_resolution =
-        (query_timer_resolution_t)loader.sym(nt_dll, "NtQueryTimerResolution");
+        (query_timer_resolution_t)ut_loader.sym(nt_dll, "NtQueryTimerResolution");
     // in 100ns = 0.1us units
     long min_resolution = 0;
     long max_resolution = 0; // lowest possible delay between timer events
@@ -91,31 +91,30 @@ static void loader_test(void) {
 //          cur_resolution / 10.0 / 1000.0);
 //      // Interesting observation cur_resolution sometimes 15.625ms or 1.0ms
 //  }
-    loader.close(nt_dll);
+    ut_loader.close(nt_dll);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-static void loader_test(void) {}
+static void ut_loader_test(void) {}
 
 #endif
 
-
 enum {
-    loader_local  = 0,       // RTLD_LOCAL  All symbols are not made available for relocation processing by other modules.
-    loader_lazy   = 1,       // RTLD_LAZY   Relocations are performed at an implementation-dependent time.
-    loader_now    = 2,       // RTLD_NOW    Relocations are performed when the object is loaded.
-    loader_global = 0x00100, // RTLD_GLOBAL All symbols are available for relocation processing of other modules.
+    ut_loader_local  = 0,       // RTLD_LOCAL  All symbols are not made available for relocation processing by other modules.
+    ut_loader_lazy   = 1,       // RTLD_LAZY   Relocations are performed at an implementation-dependent time.
+    ut_loader_now    = 2,       // RTLD_NOW    Relocations are performed when the object is loaded.
+    ut_loader_global = 0x00100, // RTLD_GLOBAL All symbols are available for relocation processing of other modules.
 };
 
-loader_if loader = {
-    .local  = loader_local,
-    .lazy   = loader_lazy,
-    .now    = loader_now,
-    .global = loader_global,
-    .open   = loader_open,
-    .sym    = loader_sym,
-    .close  = loader_close,
-    .test   = loader_test
+ut_loader_if ut_loader = {
+    .local  = ut_loader_local,
+    .lazy   = ut_loader_lazy,
+    .now    = ut_loader_now,
+    .global = ut_loader_global,
+    .open   = ut_loader_open,
+    .sym    = ut_loader_sym,
+    .close  = ut_loader_close,
+    .test   = ut_loader_test
 };

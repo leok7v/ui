@@ -22,24 +22,24 @@ begin_c
 //
 // zero: true initializes allocated or reallocated tail memory to 0x00
 
-typedef struct heap_s heap_t;
+typedef struct ut_heap_s ut_heap_t;
 
 typedef struct { // heap == null uses process serialized LFH
-    heap_t* (*create)(bool serialized);
-    errno_t (*allocate)(heap_t* heap, void* *a, int64_t bytes, bool zero);
+    ut_heap_t* (*create)(bool serialized);
+    errno_t (*allocate)(ut_heap_t* heap, void* *a, int64_t bytes, bool zero);
     // reallocate may return ERROR_OUTOFMEMORY w/o changing 'a' *)
-    errno_t (*reallocate)(heap_t* heap, void* *a, int64_t bytes, bool zero);
-    void    (*deallocate)(heap_t* heap, void* a);
-    int64_t (*bytes)(heap_t* heap, void* a); // actual allocated size
-    void    (*dispose)(heap_t* heap);
+    errno_t (*reallocate)(ut_heap_t* heap, void* *a, int64_t bytes, bool zero);
+    void    (*deallocate)(ut_heap_t* heap, void* a);
+    int64_t (*bytes)(ut_heap_t* heap, void* a); // actual allocated size
+    void    (*dispose)(ut_heap_t* heap);
     void    (*test)(void);
-} heap_if;
+} ut_heap_if;
 
-extern heap_if heap;
+extern ut_heap_if ut_heap;
 
 // *) zero in reallocate applies to the newly appended bytes
 
-// On Windows mem.heap is based on serialized LFH returned by GetProcessHeap()
+// On Windows ut_mem.heap is based on serialized LFH returned by GetProcessHeap()
 // https://learn.microsoft.com/en-us/windows/win32/memory/low-fragmentation-heap
 // threads can benefit from not serialized, not LFH if they allocate and free
 // memory in time critical loops.

@@ -90,7 +90,7 @@ static fp64_t ut_clock_seconds(void) { // since_boot
 // it would take approximately 213,503 days (or about 584.5 years)
 // for ut_clock.nanoseconds() to overflow
 //
-// for divider = num.gcd32(nsec_in_sec, freq) below and 10MHz timer
+// for divider = ut_num.gcd32(nsec_in_sec, freq) below and 10MHz timer
 // the actual duration is shorter because of (mul == 100)
 //    (uint64_t)qpc.QuadPart * mul
 // 64 bit overflow and is about 5.8 years.
@@ -114,12 +114,12 @@ static uint64_t ut_clock_nanoseconds(void) {
         // known values: 10,000,000 and 3,000,000 10MHz, 3MHz
         assert(frequency.LowPart % (1000 * 1000) == 0);
         // if we start getting weird frequencies not
-        // multiples of MHz num.gcd() approach may need
-        // to be revised in favor of num.muldiv64x64()
+        // multiples of MHz ut_num.gcd() approach may need
+        // to be revised in favor of ut_num.muldiv64x64()
         freq = frequency.LowPart;
         assert(freq != 0 && freq < (uint32_t)ut_clock.nsec_in_sec);
-        // to avoid num.muldiv128:
-        uint32_t divider = num.gcd32(ut_clock.nsec_in_sec, freq);
+        // to avoid ut_num.muldiv128:
+        uint32_t divider = ut_num.gcd32(ut_clock.nsec_in_sec, freq);
         freq /= divider;
         mul  /= divider;
     }

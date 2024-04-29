@@ -6,12 +6,12 @@ begin_c
 typedef struct {
     uint64_t lo;
     uint64_t hi;
-} num128_t; // uint128_t may be supported by compiler
+} ut_num128_t; // uint128_t may be supported by compiler
 
 typedef struct {
-    num128_t (*add128)(const num128_t a, const num128_t b);
-    num128_t (*sub128)(const num128_t a, const num128_t b);
-    num128_t (*mul64x64)(uint64_t a, uint64_t b);
+    ut_num128_t (*add128)(const ut_num128_t a, const ut_num128_t b);
+    ut_num128_t (*sub128)(const ut_num128_t a, const ut_num128_t b);
+    ut_num128_t (*mul64x64)(uint64_t a, uint64_t b);
     uint64_t (*muldiv128)(uint64_t a, uint64_t b, uint64_t d);
     uint32_t (*gcd32)(uint32_t u, uint32_t v); // greatest common denominator
     // non-crypto strong pseudo-random number generators (thread safe)
@@ -21,9 +21,9 @@ typedef struct {
     uint32_t (*hash32)(const char* s, int64_t bytes);
     uint64_t (*hash64)(const char* s, int64_t bytes);
     void     (*test)(void);
-} num_if;
+} ut_num_if;
 
-extern num_if num;
+extern ut_num_if ut_num;
 
 end_c
 

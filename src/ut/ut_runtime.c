@@ -46,11 +46,11 @@ static void runtime_test(void) { // in alphabetical order
     events.test();
     ut_files.test();
     ut_generics.test();
-    heap.test();
-    loader.test();
-    mem.test();
+    ut_heap.test();
+    ut_loader.test();
+    ut_mem.test();
     mutexes.test();
-    num.test();
+    ut_num.test();
     processes.test();
     static_init_test();
     str.test();

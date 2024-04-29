@@ -45,7 +45,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
         // too much for stack alloca()
         // add little extra if new process is spawned in between calls.
         bytes += sizeof(SYSTEM_PROCESS_INFORMATION) * 32;
-        r = heap.reallocate(null, &data, bytes, false);
+        r = ut_heap.reallocate(null, &data, bytes, false);
         if (r == 0) {
             r = NtQuerySystemInformation(SystemProcessInformation, data, bytes, &bytes);
         } else {
@@ -80,7 +80,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
                 ((byte*)proc + proc->NextEntryOffset) : null;
         }
     }
-    if (data != null) { heap.deallocate(null, data); }
+    if (data != null) { ut_heap.deallocate(null, data); }
     assert((int32_t)count == count);
     return (int32_t)count;
 }
@@ -508,7 +508,7 @@ static void processes_test(void) {
         errno_t r = processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
-            r = heap.reallocate(null, &pids, sizeof(uint64_t) * size, false);
+            r = ut_heap.reallocate(null, &pids, sizeof(uint64_t) * size, false);
             if (r == 0) {
                 r = processes.pids(names[j], pids, size, &count);
             }
@@ -524,7 +524,7 @@ static void processes_test(void) {
                 }
             }
         }
-        heap.deallocate(null, pids);
+        ut_heap.deallocate(null, pids);
     }
     // test popen()
     int32_t xc = 0;

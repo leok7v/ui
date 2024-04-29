@@ -301,10 +301,10 @@ typedef struct {
     int32_t const verbose;  // 2 detailed diagnostic
     int32_t const debug;    // 3 including debug messages
     int32_t const trace;    // 4 everything (may include nested calls)
-} verbosity_if;
+} ut_verbosity_if;
 
 typedef struct {
-    verbosity_if verbosity;
+    ut_verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
     void (*println_va)(const char* file, int32_t line, const char* func,
         const char* format, va_list vl);
@@ -535,24 +535,24 @@ extern ut_generics_if ut_generics;
 //
 // zero: true initializes allocated or reallocated tail memory to 0x00
 
-typedef struct heap_s heap_t;
+typedef struct ut_heap_s ut_heap_t;
 
 typedef struct { // heap == null uses process serialized LFH
-    heap_t* (*create)(bool serialized);
-    errno_t (*allocate)(heap_t* heap, void* *a, int64_t bytes, bool zero);
+    ut_heap_t* (*create)(bool serialized);
+    errno_t (*allocate)(ut_heap_t* heap, void* *a, int64_t bytes, bool zero);
     // reallocate may return ERROR_OUTOFMEMORY w/o changing 'a' *)
-    errno_t (*reallocate)(heap_t* heap, void* *a, int64_t bytes, bool zero);
-    void    (*deallocate)(heap_t* heap, void* a);
-    int64_t (*bytes)(heap_t* heap, void* a); // actual allocated size
-    void    (*dispose)(heap_t* heap);
+    errno_t (*reallocate)(ut_heap_t* heap, void* *a, int64_t bytes, bool zero);
+    void    (*deallocate)(ut_heap_t* heap, void* a);
+    int64_t (*bytes)(ut_heap_t* heap, void* a); // actual allocated size
+    void    (*dispose)(ut_heap_t* heap);
     void    (*test)(void);
-} heap_if;
+} ut_heap_if;
 
-extern heap_if heap;
+extern ut_heap_if ut_heap;
 
 // *) zero in reallocate applies to the newly appended bytes
 
-// On Windows mem.heap is based on serialized LFH returned by GetProcessHeap()
+// On Windows ut_mem.heap is based on serialized LFH returned by GetProcessHeap()
 // https://learn.microsoft.com/en-us/windows/win32/memory/low-fragmentation-heap
 // threads can benefit from not serialized, not LFH if they allocate and free
 // memory in time critical loops.
@@ -577,9 +577,9 @@ typedef struct {
     void* (*sym)(void* handle, const char* name);
     void  (*close)(void* handle);
     void (*test)(void);
-} loader_if;
+} ut_loader_if;
 
-extern loader_if loader;
+extern ut_loader_if ut_loader;
 
 
 
@@ -602,9 +602,9 @@ typedef struct {
     void* (*allocate)(int64_t bytes_multiple_of_page_size);
     void  (*deallocate)(void* a, int64_t bytes_multiple_of_page_size);
     void  (*test)(void);
-} mem_if;
+} ut_mem_if;
 
-extern mem_if mem;
+extern ut_mem_if ut_mem;
 
 
 
@@ -614,12 +614,12 @@ extern mem_if mem;
 typedef struct {
     uint64_t lo;
     uint64_t hi;
-} num128_t; // uint128_t may be supported by compiler
+} ut_num128_t; // uint128_t may be supported by compiler
 
 typedef struct {
-    num128_t (*add128)(const num128_t a, const num128_t b);
-    num128_t (*sub128)(const num128_t a, const num128_t b);
-    num128_t (*mul64x64)(uint64_t a, uint64_t b);
+    ut_num128_t (*add128)(const ut_num128_t a, const ut_num128_t b);
+    ut_num128_t (*sub128)(const ut_num128_t a, const ut_num128_t b);
+    ut_num128_t (*mul64x64)(uint64_t a, uint64_t b);
     uint64_t (*muldiv128)(uint64_t a, uint64_t b, uint64_t d);
     uint32_t (*gcd32)(uint32_t u, uint32_t v); // greatest common denominator
     // non-crypto strong pseudo-random number generators (thread safe)
@@ -629,9 +629,9 @@ typedef struct {
     uint32_t (*hash32)(const char* s, int64_t bytes);
     uint64_t (*hash64)(const char* s, int64_t bytes);
     void     (*test)(void);
-} num_if;
+} ut_num_if;
 
-extern num_if num;
+extern ut_num_if ut_num;
 
 
 
@@ -998,7 +998,7 @@ end_c
 
 // ut:
 #include <Windows.h>  // used by:
-#include <psapi.h>    // both loader.c and processes.c
+#include <psapi.h>    // both ut_loader.c and processes.c
 #include <shellapi.h> // processes.c
 #include <winternl.h> // processes.c
 #include <initguid.h>     // for knownfolders
@@ -1186,7 +1186,7 @@ static void ut_args_parse(const char* s) {
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
     const int32_t n = k + (len + 2) * (int)sizeof(char);
-    fatal_if_not_zero(heap.allocate(null, &ut_args_memory, n, true));
+    fatal_if_not_zero(ut_heap.allocate(null, &ut_args_memory, n, true));
     ut_args.c = 0;
     ut_args.v = (const char**)ut_args_memory;
     char* d = (char*)(((char*)ut_args.v) + k);
@@ -1262,7 +1262,7 @@ const char* ut_args_basename(void) {
 }
 
 static void ut_args_fini(void) {
-    heap.deallocate(null, ut_args_memory); // can be null is parse() was not called
+    ut_heap.deallocate(null, ut_args_memory); // can be null is parse() was not called
     ut_args_memory = null;
     ut_args.c = 0;
     ut_args.v = null;
@@ -1274,9 +1274,9 @@ static void ut_args_WinMain(void) {
     const uint16_t* wcl = GetCommandLineW();
     int32_t n = (int32_t)wcslen(wcl);
     char* cl = null;
-    fatal_if_not_zero(heap.allocate(null, &cl, n * 2 + 1, false));
+    fatal_if_not_zero(ut_heap.allocate(null, &cl, n * 2 + 1, false));
     ut_args_parse(str.utf16_utf8(cl, wcl));
-    heap.deallocate(null, cl);
+    ut_heap.deallocate(null, cl);
     ut_args.env = _environ;
 }
 
@@ -1854,7 +1854,7 @@ static fp64_t ut_clock_seconds(void) { // since_boot
 // it would take approximately 213,503 days (or about 584.5 years)
 // for ut_clock.nanoseconds() to overflow
 //
-// for divider = num.gcd32(nsec_in_sec, freq) below and 10MHz timer
+// for divider = ut_num.gcd32(nsec_in_sec, freq) below and 10MHz timer
 // the actual duration is shorter because of (mul == 100)
 //    (uint64_t)qpc.QuadPart * mul
 // 64 bit overflow and is about 5.8 years.
@@ -1878,12 +1878,12 @@ static uint64_t ut_clock_nanoseconds(void) {
         // known values: 10,000,000 and 3,000,000 10MHz, 3MHz
         assert(frequency.LowPart % (1000 * 1000) == 0);
         // if we start getting weird frequencies not
-        // multiples of MHz num.gcd() approach may need
-        // to be revised in favor of num.muldiv64x64()
+        // multiples of MHz ut_num.gcd() approach may need
+        // to be revised in favor of ut_num.muldiv64x64()
         freq = frequency.LowPart;
         assert(freq != 0 && freq < (uint32_t)ut_clock.nsec_in_sec);
-        // to avoid num.muldiv128:
-        uint32_t divider = num.gcd32(ut_clock.nsec_in_sec, freq);
+        // to avoid ut_num.muldiv128:
+        uint32_t divider = ut_num.gcd32(ut_clock.nsec_in_sec, freq);
         freq /= divider;
         mul  /= divider;
     }
@@ -2309,7 +2309,7 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_sy
             r = GetLastError();
         } else {
             char* name = null;
-            r = heap.allocate(null, &name, n + 2, false);
+            r = ut_heap.allocate(null, &name, n + 2, false);
             if (r == 0) {
                 n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
                 if (n == 0) {
@@ -2322,7 +2322,7 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_sy
                         ut_files.close(f);
                     }
                 }
-                heap.deallocate(null, name);
+                ut_heap.deallocate(null, name);
             }
         }
     } else {
@@ -2471,7 +2471,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
         const int64_t bytes = info.AclBytesInUse + bytes_needed;
-        r = heap.allocate(null, &bigger, bytes, true);
+        r = ut_heap.allocate(null, &bigger, bytes, true);
         if (r == 0) {
             r = b2e(InitializeAcl((ACL*)bigger,
                     info.AclBytesInUse + bytes_needed, ACL_REVISION));
@@ -2489,7 +2489,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     }
     if (r == 0) {
         ACCESS_ALLOWED_ACE* ace = null;
-        r = heap.allocate(null, &ace, bytes_needed, true);
+        r = ut_heap.allocate(null, &ace, bytes_needed, true);
         if (r == 0) {
             ace->Header.AceFlags = flags;
             ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
@@ -2499,7 +2499,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
             memcpy(&ace->SidStart, sid, GetLengthSid(sid));
             r = b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
                            ace, bytes_needed));
-            heap.deallocate(null, ace);
+            ut_heap.deallocate(null, ace);
         }
     }
     *free_me = bigger;
@@ -2574,7 +2574,7 @@ static errno_t ut_files_add_acl_ace(const void* obj, int32_t obj_type,
             if (r == 0) {
                 r = ut_files_set_acl(obj, obj_type, (new_acl != null ? new_acl : acl));
             }
-            if (new_acl != null) { heap.deallocate(null, new_acl); }
+            if (new_acl != null) { ut_heap.deallocate(null, new_acl); }
         }
     }
     if (sd != null) { LocalFree(sd); }
@@ -2626,7 +2626,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
 static errno_t ut_files_mkdirs(const char* dir) {
     const int32_t n = (int)strlen(dir) + 1;
     char* s = null;
-    errno_t r = heap.allocate(null, &s, n, true);
+    errno_t r = ut_heap.allocate(null, &s, n, true);
     const char* next = strchr(dir, '\\');
     if (next == null) { next = strchr(dir, '/'); }
     while (r == 0 && next != null) {
@@ -2644,7 +2644,7 @@ static errno_t ut_files_mkdirs(const char* dir) {
     if (r == 0) {
         r = b2e(CreateDirectoryA(dir, null));
     }
-    heap.deallocate(null, s);
+    ut_heap.deallocate(null, s);
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
 }
 
@@ -2654,11 +2654,11 @@ static errno_t ut_files_mkdirs(const char* dir) {
 #define ut_files_realloc_path(r, pn, pnc, fn, name) do {                   \
     const int32_t bytes = (int32_t)(strlen(fn) + strlen(name) + 3);     \
     if (bytes > pnc) {                                                  \
-        r = heap.reallocate(null, &pn, bytes, false);                   \
+        r = ut_heap.reallocate(null, &pn, bytes, false);                   \
         if (r != 0) {                                                   \
             pnc = bytes;                                                \
         } else {                                                        \
-            heap.deallocate(null, pn);                                  \
+            ut_heap.deallocate(null, pn);                                  \
             pn = null;                                                  \
         }                                                               \
     }                                                                   \
@@ -2684,7 +2684,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
         }
         int32_t pnc = 64 * 1024; // pathname "pn" capacity in bytes
         char* pn = null;
-        r = heap.allocate(null, &pn, pnc, false);
+        r = ut_heap.allocate(null, &pn, pnc, false);
         while (r == 0) {
             // recurse into sub folders and remove them first
             // do NOT follow symlinks - it could be disastrous
@@ -2718,7 +2718,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
                 }
             }
         }
-        heap.deallocate(null, pn);
+        ut_heap.deallocate(null, pn);
         ut_files.closedir(&folder);
     }
     if (r == 0) { r = ut_files.unlink(fn); }
@@ -2825,13 +2825,13 @@ errno_t ut_files_opendir(ut_folder_t* folder, const char* folder_name) {
     ut_files_dir_t* d = (ut_files_dir_t*)folder;
     int32_t n = (int32_t)strlen(folder_name);
     char* fn = null;
-    errno_t r = heap.allocate(null, &fn, n + 3, false); // extra room for "\*" suffix
+    errno_t r = ut_heap.allocate(null, &fn, n + 3, false); // extra room for "\*" suffix
     if (r == 0) {
         snprintf(fn, n + 3, "%s\\*", folder_name);
         fn[n + 2] = 0;
         d->handle = FindFirstFileA(fn, &d->find);
         if (d->handle == INVALID_HANDLE_VALUE) { r = GetLastError(); }
-        heap.deallocate(null, fn);
+        ut_heap.deallocate(null, fn);
     }
     return r;
 }
@@ -3299,29 +3299,29 @@ ut_generics_if ut_generics = {
 
 // ________________________________ ut_heap.c _________________________________
 
-static heap_t* heap_create(bool serialized) {
+static ut_heap_t* ut_heap_create(bool serialized) {
     const DWORD options = serialized ? 0 : HEAP_NO_SERIALIZE;
-    return (heap_t*)HeapCreate(options, 0, 0);
+    return (ut_heap_t*)HeapCreate(options, 0, 0);
 }
 
-static void heap_dispose(heap_t* h) {
+static void ut_heap_dispose(ut_heap_t* h) {
     fatal_if_false(HeapDestroy((HANDLE)h));
 }
 
-static inline HANDLE mem_heap(heap_t* h) {
+static inline HANDLE mem_heap(ut_heap_t* h) {
     static HANDLE process_heap;
     if (process_heap == null) { process_heap = GetProcessHeap(); }
     return h != null ? (HANDLE)h : process_heap;
 }
 
-static errno_t heap_allocate(heap_t* h, void* *p, int64_t bytes, bool zero) {
+static errno_t ut_heap_allocate(ut_heap_t* h, void* *p, int64_t bytes, bool zero) {
     swear(bytes > 0);
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
     *p = HeapAlloc(mem_heap(h), flags, (SIZE_T)bytes);
     return *p == null ? ERROR_OUTOFMEMORY : 0;
 }
 
-static errno_t heap_reallocate(heap_t* h, void* *p, int64_t bytes,
+static errno_t ut_heap_reallocate(ut_heap_t* h, void* *p, int64_t bytes,
         bool zero) {
     swear(bytes > 0);
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
@@ -3332,17 +3332,17 @@ static errno_t heap_reallocate(heap_t* h, void* *p, int64_t bytes,
     return a == null ? ERROR_OUTOFMEMORY : 0;
 }
 
-static void heap_deallocate(heap_t* h, void* a) {
+static void ut_heap_deallocate(ut_heap_t* h, void* a) {
     fatal_if_false(HeapFree(mem_heap(h), 0, a));
 }
 
-static int64_t heap_bytes(heap_t* h, void* a) {
+static int64_t ut_heap_bytes(ut_heap_t* h, void* a) {
     SIZE_T bytes = HeapSize(mem_heap(h), 0, a);
     fatal_if(bytes == (SIZE_T)-1);
     return (int64_t)bytes;
 }
 
-static void heap_test(void) {
+static void ut_heap_test(void) {
     #ifdef UT_TESTS
     // TODO: allocate, reallocate deallocate, create, dispose
     traceln("TODO");
@@ -3350,14 +3350,14 @@ static void heap_test(void) {
     #endif
 }
 
-heap_if heap = {
-    .create      = heap_create,
-    .allocate    = heap_allocate,
-    .reallocate  = heap_reallocate,
-    .deallocate  = heap_deallocate,
-    .bytes       = heap_bytes,
-    .dispose     = heap_dispose,
-    .test        = heap_test
+ut_heap_if ut_heap = {
+    .create      = ut_heap_create,
+    .allocate    = ut_heap_allocate,
+    .reallocate  = ut_heap_reallocate,
+    .deallocate  = ut_heap_deallocate,
+    .bytes       = ut_heap_bytes,
+    .dispose     = ut_heap_dispose,
+    .test        = ut_heap_test
 };
 
 // _______________________________ ut_loader.c ________________________________
@@ -3376,69 +3376,69 @@ heap_if heap = {
 // with the RTLD_LOCAL flag, we create our own list later on. They are
 // excluded from EnumProcessModules() iteration.
 
-static void* loader_all;
+static void* ut_loader_all;
 
-static void* loader_sym_all(const char* name) {
+static void* ut_loader_sym_all(const char* name) {
     void* sym = null;
     DWORD bytes = 0;
     fatal_if_false(EnumProcessModules(GetCurrentProcess(), null, 0, &bytes));
     assert(bytes % sizeof(HMODULE) == 0);
     assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
     HMODULE* modules = null;
-    fatal_if_not_zero(heap.allocate(null, (void**)&modules, bytes, false));
+    fatal_if_not_zero(ut_heap.allocate(null, (void**)&modules, bytes, false));
     fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes,
                                                                    &bytes));
     const int32_t n = bytes / (int)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
-        sym = loader.sym(modules[i], name);
+        sym = ut_loader.sym(modules[i], name);
     }
     if (sym == null) {
-        sym = loader.sym(GetModuleHandleA(null), name);
+        sym = ut_loader.sym(GetModuleHandleA(null), name);
     }
-    heap.deallocate(null, modules);
+    ut_heap.deallocate(null, modules);
     return sym;
 }
 
-static void* loader_open(const char* filename, int32_t unused(mode)) {
-    return filename == null ? &loader_all : (void*)LoadLibraryA(filename);
+static void* ut_loader_open(const char* filename, int32_t unused(mode)) {
+    return filename == null ? &ut_loader_all : (void*)LoadLibraryA(filename);
 }
 
-static void* loader_sym(void* handle, const char* name) {
-    return handle == &loader_all ?
-            (void*)loader_sym_all(name) :
+static void* ut_loader_sym(void* handle, const char* name) {
+    return handle == &ut_loader_all ?
+            (void*)ut_loader_sym_all(name) :
             (void*)GetProcAddress((HMODULE)handle, name);
 }
 
-static void loader_close(void* handle) {
-    if (handle != &loader_all) {
+static void ut_loader_close(void* handle) {
+    if (handle != &ut_loader_all) {
         fatal_if_false(FreeLibrary(handle));
     }
 }
 
 #ifdef UT_TESTS
 
-static int32_t loader_test_count;
+static int32_t ut_loader_test_count;
 
-export void loader_test_exported_function(void) { loader_test_count++; }
+export void ut_loader_test_exported_function(void) { ut_loader_test_count++; }
 
-static void loader_test(void) {
-    loader_test_count = 0;
-    loader_test_exported_function(); // to make sure it is linked in
-    swear(loader_test_count == 1);
-    void* global = loader.open(null, loader.local);
+static void ut_loader_test(void) {
+    ut_loader_test_count = 0;
+    ut_loader_test_exported_function(); // to make sure it is linked in
+    swear(ut_loader_test_count == 1);
+    void* global = ut_loader.open(null, ut_loader.local);
     typedef void (*foo_t)(void);
-    foo_t foo = (foo_t)loader.sym(global, "loader_test_exported_function");
+    foo_t foo = (foo_t)ut_loader.sym(global, "loader_test_exported_function");
     foo();
-    swear(loader_test_count == 2);
-    loader.close(global);
+    swear(ut_loader_test_count == 2);
+    ut_loader.close(global);
     // NtQueryTimerResolution - http://undocumented.ntinternals.net/
     typedef long (__stdcall *query_timer_resolution_t)(
         long* minimum_resolution,
         long* maximum_resolution,
         long* current_resolution);
-    void* nt_dll = loader.open("ntdll", loader.local);
+    void* nt_dll = ut_loader.open("ntdll", ut_loader.local);
     query_timer_resolution_t query_timer_resolution =
-        (query_timer_resolution_t)loader.sym(nt_dll, "NtQueryTimerResolution");
+        (query_timer_resolution_t)ut_loader.sym(nt_dll, "NtQueryTimerResolution");
     // in 100ns = 0.1us units
     long min_resolution = 0;
     long max_resolution = 0; // lowest possible delay between timer events
@@ -3452,38 +3452,37 @@ static void loader_test(void) {
 //          cur_resolution / 10.0 / 1000.0);
 //      // Interesting observation cur_resolution sometimes 15.625ms or 1.0ms
 //  }
-    loader.close(nt_dll);
+    ut_loader.close(nt_dll);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
 #else
 
-static void loader_test(void) {}
+static void ut_loader_test(void) {}
 
 #endif
 
-
 enum {
-    loader_local  = 0,       // RTLD_LOCAL  All symbols are not made available for relocation processing by other modules.
-    loader_lazy   = 1,       // RTLD_LAZY   Relocations are performed at an implementation-dependent time.
-    loader_now    = 2,       // RTLD_NOW    Relocations are performed when the object is loaded.
-    loader_global = 0x00100, // RTLD_GLOBAL All symbols are available for relocation processing of other modules.
+    ut_loader_local  = 0,       // RTLD_LOCAL  All symbols are not made available for relocation processing by other modules.
+    ut_loader_lazy   = 1,       // RTLD_LAZY   Relocations are performed at an implementation-dependent time.
+    ut_loader_now    = 2,       // RTLD_NOW    Relocations are performed when the object is loaded.
+    ut_loader_global = 0x00100, // RTLD_GLOBAL All symbols are available for relocation processing of other modules.
 };
 
-loader_if loader = {
-    .local  = loader_local,
-    .lazy   = loader_lazy,
-    .now    = loader_now,
-    .global = loader_global,
-    .open   = loader_open,
-    .sym    = loader_sym,
-    .close  = loader_close,
-    .test   = loader_test
+ut_loader_if ut_loader = {
+    .local  = ut_loader_local,
+    .lazy   = ut_loader_lazy,
+    .now    = ut_loader_now,
+    .global = ut_loader_global,
+    .open   = ut_loader_open,
+    .sym    = ut_loader_sym,
+    .close  = ut_loader_close,
+    .test   = ut_loader_test
 };
 
 // _________________________________ ut_mem.c _________________________________
 
-static errno_t mem_map_view_of_file(HANDLE file,
+static errno_t ut_mem_map_view_of_file(HANDLE file,
         void* *data, int64_t *bytes, bool rw) {
     errno_t r = 0;
     void* address = null;
@@ -3509,7 +3508,7 @@ static errno_t mem_map_view_of_file(HANDLE file,
 
 // see: https://learn.microsoft.com/en-us/windows/win32/secauthz/enabling-and-disabling-privileges-in-c--
 
-static errno_t mem_set_token_privilege(void* token,
+static errno_t ut_mem_set_token_privilege(void* token,
             const char* name, bool e) {
     TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
     tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
@@ -3518,7 +3517,7 @@ static errno_t mem_set_token_privilege(void* token,
                sizeof(TOKEN_PRIVILEGES), null, null));
 }
 
-static errno_t mem_adjust_process_privilege_manage_volume_name(void) {
+static errno_t ut_mem_adjust_process_privilege_manage_volume_name(void) {
     // see: https://devblogs.microsoft.com/oldnewthing/20160603-00/?p=93565
     const uint32_t access = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
     const HANDLE process = GetCurrentProcess();
@@ -3530,16 +3529,16 @@ static errno_t mem_adjust_process_privilege_manage_volume_name(void) {
         #else
         const char* se_manage_volume_name = SE_MANAGE_VOLUME_NAME;
         #endif
-        r = mem_set_token_privilege(token, se_manage_volume_name, true);
+        r = ut_mem_set_token_privilege(token, se_manage_volume_name, true);
         fatal_if_false(CloseHandle(token));
     }
     return r;
 }
 
-static errno_t mem_map_file(const char* filename, void* *data,
+static errno_t ut_mem_map_file(const char* filename, void* *data,
         int64_t *bytes, bool rw) {
     if (rw) { // for SetFileValidData() call:
-        (void)mem_adjust_process_privilege_manage_volume_name();
+        (void)ut_mem_adjust_process_privilege_manage_volume_name();
     }
     errno_t r = 0;
     const DWORD access = GENERIC_READ | (rw ? GENERIC_WRITE : 0);
@@ -3568,21 +3567,21 @@ static errno_t mem_map_file(const char* filename, void* *data,
         } else {
             *bytes = eof.QuadPart;
         }
-        r = r != 0 ? r : mem_map_view_of_file(file, data, bytes, rw);
+        r = r != 0 ? r : ut_mem_map_view_of_file(file, data, bytes, rw);
         fatal_if_false(CloseHandle(file));
     }
     return r;
 }
 
-static errno_t mem_map_ro(const char* filename, void* *data, int64_t *bytes) {
-    return mem_map_file(filename, data, bytes, false);
+static errno_t ut_mem_map_ro(const char* filename, void* *data, int64_t *bytes) {
+    return ut_mem_map_file(filename, data, bytes, false);
 }
 
-static errno_t mem_map_rw(const char* filename, void* *data, int64_t *bytes) {
-    return mem_map_file(filename, data, bytes, true);
+static errno_t ut_mem_map_rw(const char* filename, void* *data, int64_t *bytes) {
+    return ut_mem_map_file(filename, data, bytes, true);
 }
 
-static void mem_unmap(void* data, int64_t bytes) {
+static void ut_mem_unmap(void* data, int64_t bytes) {
     assert(data != null && bytes > 0);
     (void)bytes; /* unused only need for posix version */
     if (data != null && bytes > 0) {
@@ -3590,7 +3589,7 @@ static void mem_unmap(void* data, int64_t bytes) {
     }
 }
 
-static errno_t mem_map_resource(const char* label, void* *data, int64_t *bytes) {
+static errno_t ut_mem_map_resource(const char* label, void* *data, int64_t *bytes) {
     HRSRC res = FindResourceA(null, label, (const char*)RT_RCDATA);
     // "LockResource does not actually lock memory; it is just used to
     // obtain a pointer to the memory containing the resource data.
@@ -3602,7 +3601,7 @@ static errno_t mem_map_resource(const char* label, void* *data, int64_t *bytes) 
     return *data != null ? 0 : runtime.err();
 }
 
-static int32_t mem_page_size(void) {
+static int32_t ut_mem_page_size(void) {
     static SYSTEM_INFO system_info;
     if (system_info.dwPageSize == 0) {
         GetSystemInfo(&system_info);
@@ -3610,7 +3609,7 @@ static int32_t mem_page_size(void) {
     return (int32_t)system_info.dwPageSize;
 }
 
-static int mem_large_page_size(void) {
+static int ut_mem_large_page_size(void) {
     static SIZE_T large_page_minimum = 0;
     if (large_page_minimum == 0) {
         large_page_minimum = GetLargePageMinimum();
@@ -3618,10 +3617,10 @@ static int mem_large_page_size(void) {
     return (int32_t)large_page_minimum;
 }
 
-static void* mem_allocate(int64_t bytes_multiple_of_page_size) {
+static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
     assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
-    int page_size = mem_page_size();
+    int page_size = ut_mem_page_size();
     assert(bytes % page_size == 0);
     int r = 0;
     void* a = null;
@@ -3676,11 +3675,11 @@ static void* mem_allocate(int64_t bytes_multiple_of_page_size) {
     return a;
 }
 
-static void mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
+static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
     int r = 0;
-    int page_size = mem_page_size();
+    int page_size = ut_mem_page_size();
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
         r = EINVAL;
         traceln("failed %s", str.error(r));
@@ -3700,60 +3699,60 @@ static void mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     }
 }
 
-static void mem_test(void) {
+static void ut_mem_test(void) {
     #ifdef UT_TESTS
     swear(ut_args.c > 0);
     void* data = null;
     int64_t bytes = 0;
-    swear(mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
+    swear(ut_mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
     swear(data != null && bytes != 0);
-    mem.unmap(data, bytes);
+    ut_mem.unmap(data, bytes);
     // TODO: page_size large_page_size allocate deallocate
     // TODO: test heap functions
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
-mem_if mem = {
-    .map_ro          = mem_map_ro,
-    .map_rw          = mem_map_rw,
-    .unmap           = mem_unmap,
-    .map_resource    = mem_map_resource,
-    .page_size       = mem_page_size,
-    .large_page_size = mem_large_page_size,
-    .allocate        = mem_allocate,
-    .deallocate      = mem_deallocate,
-    .test            = mem_test
+ut_mem_if ut_mem = {
+    .map_ro          = ut_mem_map_ro,
+    .map_rw          = ut_mem_map_rw,
+    .unmap           = ut_mem_unmap,
+    .map_resource    = ut_mem_map_resource,
+    .page_size       = ut_mem_page_size,
+    .large_page_size = ut_mem_large_page_size,
+    .allocate        = ut_mem_allocate,
+    .deallocate      = ut_mem_deallocate,
+    .test            = ut_mem_test
 };
 // _________________________________ ut_num.c _________________________________
 
 #include <immintrin.h> // _tzcnt_u32
 
-static inline num128_t num_add128_inline(const num128_t a, const num128_t b) {
-    num128_t r = a;
+static inline ut_num128_t ut_num_add128_inline(const ut_num128_t a, const ut_num128_t b) {
+    ut_num128_t r = a;
     r.hi += b.hi;
     r.lo += b.lo;
     if (r.lo < b.lo) { r.hi++; } // carry
     return r;
 }
 
-static inline num128_t num_sub128_inline(const num128_t a, const num128_t b) {
-    num128_t r = a;
+static inline ut_num128_t ut_num_sub128_inline(const ut_num128_t a, const ut_num128_t b) {
+    ut_num128_t r = a;
     r.hi -= b.hi;
     if (r.lo < b.lo) { r.hi--; } // borrow
     r.lo -= b.lo;
     return r;
 }
 
-static num128_t num_add128(const num128_t a, const num128_t b) {
-    return num_add128_inline(a, b);
+static ut_num128_t ut_num_add128(const ut_num128_t a, const ut_num128_t b) {
+    return ut_num_add128_inline(a, b);
 }
 
-static num128_t num_sub128(const num128_t a, const num128_t b) {
-    return num_sub128_inline(a, b);
+static ut_num128_t ut_num_sub128(const ut_num128_t a, const ut_num128_t b) {
+    return ut_num_sub128_inline(a, b);
 }
 
-static num128_t num_mul64x64(uint64_t a, uint64_t b) {
+static ut_num128_t ut_num_mul64x64(uint64_t a, uint64_t b) {
     uint64_t a_lo = (uint32_t)a;
     uint64_t a_hi = a >> 32;
     uint64_t b_lo = (uint32_t)b;
@@ -3770,50 +3769,50 @@ static num128_t num_mul64x64(uint64_t a, uint64_t b) {
     high += ((uint64_t)(cross1 < cross2 != 0)) << 32;
     high = high + (cross1 >> 32);
     low = ((cross1 & 0xFFFFFFFF) << 32) + (low & 0xFFFFFFFF);
-    return (num128_t){.lo = low, .hi = high };
+    return (ut_num128_t){.lo = low, .hi = high };
 }
 
-static inline void num_shift128_left_inline(num128_t* n) {
+static inline void ut_num_shift128_left_inline(ut_num128_t* n) {
     const uint64_t top = (1ULL << 63);
     n->hi = (n->hi << 1) | ((n->lo & top) ? 1 : 0);
     n->lo = (n->lo << 1);
 }
 
-static inline void num_shift128_right_inline(num128_t* n) {
+static inline void ut_num_shift128_right_inline(ut_num128_t* n) {
     const uint64_t top = (1ULL << 63);
     n->lo = (n->lo >> 1) | ((n->hi & 0x1) ? top : 0);
     n->hi = (n->hi >> 1);
 }
 
-static inline bool num_less128_inline(const num128_t a, const num128_t b) {
+static inline bool ut_num_less128_inline(const ut_num128_t a, const ut_num128_t b) {
     return a.hi < b.hi || (a.hi == b.hi && a.lo < b.lo);
 }
 
-static inline bool num_uint128_high_bit(const num128_t a) {
+static inline bool ut_num_uint128_high_bit(const ut_num128_t a) {
     return (int64_t)a.hi < 0;
 }
 
-static uint64_t num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
+static uint64_t ut_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
     swear(divisor > 0, "divisor: %lld", divisor);
-    num128_t r = num.mul64x64(a, b); // reminder: a * b
+    ut_num128_t r = ut_num.mul64x64(a, b); // reminder: a * b
     uint64_t q = 0; // quotient
     if (r.hi >= divisor) {
         q = UINT64_MAX; // overflow
     } else {
         int32_t  shift = 0;
-        num128_t d = { .hi = 0, .lo = divisor };
-        while (!num_uint128_high_bit(d) && num_less128_inline(d, r)) {
-            num_shift128_left_inline(&d);
+        ut_num128_t d = { .hi = 0, .lo = divisor };
+        while (!ut_num_uint128_high_bit(d) && ut_num_less128_inline(d, r)) {
+            ut_num_shift128_left_inline(&d);
             shift++;
         }
         assert(shift <= 64);
         while (shift >= 0 && (d.hi != 0 || d.lo != 0)) {
-            if (!num_less128_inline(r, d)) {
-                r = num_sub128_inline(r, d);
+            if (!ut_num_less128_inline(r, d)) {
+                r = ut_num_sub128_inline(r, d);
                 assert(shift < 64);
                 q |= (1ULL << shift);
             }
-            num_shift128_right_inline(&d);
+            ut_num_shift128_right_inline(&d);
             shift--;
         }
     }
@@ -3822,7 +3821,7 @@ static uint64_t num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
 
 #define ctz(x) _tzcnt_u32(x)
 
-static uint32_t num_gcd32(uint32_t u, uint32_t v) {
+static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
     uint32_t t = u | v;
     if (u == 0 || v == 0) { return t; }
     int32_t g = ctz(t);
@@ -3838,7 +3837,7 @@ static uint32_t num_gcd32(uint32_t u, uint32_t v) {
     return v << g;
 }
 
-static uint32_t num_random32(uint32_t* state) {
+static uint32_t ut_num_random32(uint32_t* state) {
     // https://gist.github.com/tommyettinger/46a874533244883189143505d203312c
     static thread_local bool started; // first seed must be odd
     if (!started) { started = true; *state |= 1; }
@@ -3848,7 +3847,7 @@ static uint32_t num_random32(uint32_t* state) {
     return z ^ (z >> 14);
 }
 
-static uint64_t num_random64(uint64_t *state) {
+static uint64_t ut_num_random64(uint64_t *state) {
     // https://gist.github.com/tommyettinger/e6d3e8816da79b45bfe582384c2fe14a
     static thread_local bool started; // first seed must be odd
     if (!started) { started = true; *state |= 1; }
@@ -3859,7 +3858,7 @@ static uint64_t num_random64(uint64_t *state) {
 
 // https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 
-static uint32_t num_hash32(const char *data, int64_t len) {
+static uint32_t ut_num_hash32(const char *data, int64_t len) {
     uint32_t hash  = 0x811c9dc5;  // FNV_offset_basis for 32-bit
     uint32_t prime = 0x01000193; // FNV_prime for 32-bit
     if (len > 0) {
@@ -3876,7 +3875,7 @@ static uint32_t num_hash32(const char *data, int64_t len) {
     return hash;
 }
 
-static uint64_t num_hash64(const char *data, int64_t len) {
+static uint64_t ut_num_hash64(const char *data, int64_t len) {
     uint64_t hash  = 0xcbf29ce484222325; // FNV_offset_basis for 64-bit
     uint64_t prime = 0x100000001b3;      // FNV_prime for 64-bit
     if (len > 0) {
@@ -3893,7 +3892,7 @@ static uint64_t num_hash64(const char *data, int64_t len) {
     return hash;
 }
 
-static void num_test(void) {
+static void ut_num_test(void) {
     #ifdef UT_TESTS
     {
         // https://asecuritysite.com/encryption/nprimes?y=64
@@ -3902,12 +3901,12 @@ static void num_test(void) {
         uint64_t q = 16304766625841520833u; // prime
         // pq: 258324414073910997987910483408576601381
         //     0xC25778F20853A9A1EC0C27C467C45D25
-        num128_t pq = {.hi = 0xC25778F20853A9A1uLL,
+        ut_num128_t pq = {.hi = 0xC25778F20853A9A1uLL,
                        .lo = 0xEC0C27C467C45D25uLL };
-        num128_t p_q = num.mul64x64(p, q);
+        ut_num128_t p_q = ut_num.mul64x64(p, q);
         swear(p_q.hi == pq.hi && pq.lo == pq.lo);
-        uint64_t p1 = num.muldiv128(p, q, q);
-        uint64_t q1 = num.muldiv128(p, q, p);
+        uint64_t p1 = ut_num.muldiv128(p, q, q);
+        uint64_t q1 = ut_num.muldiv128(p, q, p);
         swear(p1 == p);
         swear(q1 == q);
     }
@@ -3918,38 +3917,38 @@ static void num_test(void) {
     #endif
     uint64_t seed64 = 1;
     for (int32_t i = 0; i < n; i++) {
-        uint64_t p = num.random64(&seed64);
-        uint64_t q = num.random64(&seed64);
-        uint64_t p1 = num.muldiv128(p, q, q);
-        uint64_t q1 = num.muldiv128(p, q, p);
+        uint64_t p = ut_num.random64(&seed64);
+        uint64_t q = ut_num.random64(&seed64);
+        uint64_t p1 = ut_num.muldiv128(p, q, q);
+        uint64_t q1 = ut_num.muldiv128(p, q, p);
         swear(p == p1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
         swear(q == q1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
     }
     uint32_t seed32 = 1;
     for (int32_t i = 0; i < n; i++) {
-        uint64_t p = num.random32(&seed32);
-        uint64_t q = num.random32(&seed32);
-        uint64_t r = num.muldiv128(p, q, 1);
+        uint64_t p = ut_num.random32(&seed32);
+        uint64_t q = ut_num.random32(&seed32);
+        uint64_t r = ut_num.muldiv128(p, q, 1);
         swear(r == p * q);
         // division by the maximum uint64_t value:
-        r = num.muldiv128(p, q, UINT64_MAX);
+        r = ut_num.muldiv128(p, q, UINT64_MAX);
         swear(r == 0);
     }
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
-num_if num = {
-    .add128    = num_add128,
-    .sub128    = num_sub128,
-    .mul64x64  = num_mul64x64,
-    .muldiv128 = num_muldiv128,
-    .gcd32     = num_gcd32,
-    .random32  = num_random32,
-    .random64  = num_random64,
-    .hash32    = num_hash32,
-    .hash64    = num_hash64,
-    .test      = num_test
+ut_num_if ut_num = {
+    .add128    = ut_num_add128,
+    .sub128    = ut_num_sub128,
+    .mul64x64  = ut_num_mul64x64,
+    .muldiv128 = ut_num_muldiv128,
+    .gcd32     = ut_num_gcd32,
+    .random32  = ut_num_random32,
+    .random64  = ut_num_random64,
+    .hash32    = ut_num_hash32,
+    .hash64    = ut_num_hash64,
+    .test      = ut_num_test
 };
 
 // ______________________________ ut_processes.c ______________________________
@@ -3998,7 +3997,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
         // too much for stack alloca()
         // add little extra if new process is spawned in between calls.
         bytes += sizeof(SYSTEM_PROCESS_INFORMATION) * 32;
-        r = heap.reallocate(null, &data, bytes, false);
+        r = ut_heap.reallocate(null, &data, bytes, false);
         if (r == 0) {
             r = NtQuerySystemInformation(SystemProcessInformation, data, bytes, &bytes);
         } else {
@@ -4033,7 +4032,7 @@ static int32_t processes_for_each_pidof(const char* pname, processes_pidof_lambd
                 ((byte*)proc + proc->NextEntryOffset) : null;
         }
     }
-    if (data != null) { heap.deallocate(null, data); }
+    if (data != null) { ut_heap.deallocate(null, data); }
     assert((int32_t)count == count);
     return (int32_t)count;
 }
@@ -4461,7 +4460,7 @@ static void processes_test(void) {
         errno_t r = processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
-            r = heap.reallocate(null, &pids, sizeof(uint64_t) * size, false);
+            r = ut_heap.reallocate(null, &pids, sizeof(uint64_t) * size, false);
             if (r == 0) {
                 r = processes.pids(names[j], pids, size, &count);
             }
@@ -4477,7 +4476,7 @@ static void processes_test(void) {
                 }
             }
         }
-        heap.deallocate(null, pids);
+        ut_heap.deallocate(null, pids);
     }
     // test popen()
     int32_t xc = 0;
@@ -4567,11 +4566,11 @@ static void runtime_test(void) { // in alphabetical order
     events.test();
     ut_files.test();
     ut_generics.test();
-    heap.test();
-    loader.test();
-    mem.test();
+    ut_heap.test();
+    ut_loader.test();
+    ut_mem.test();
     mutexes.test();
-    num.test();
+    ut_num.test();
     processes.test();
     static_init_test();
     str.test();
@@ -5325,7 +5324,7 @@ static void* threads_ntdll(void) {
         ntdll = (void*)GetModuleHandleA("ntdll.dll");
     }
     if (ntdll == null) {
-        ntdll = loader.open("ntdll.dll", 0);
+        ntdll = ut_loader.open("ntdll.dll", 0);
     }
     not_null(ntdll);
     return ntdll;
@@ -5342,9 +5341,9 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
         BOOLEAN set, ULONG* actual_resolution); // ntdll.dll
     void* nt_dll = threads_ntdll();
     query_timer_resolution_t query_timer_resolution =  (query_timer_resolution_t)
-        loader.sym(nt_dll, "NtQueryTimerResolution");
+        ut_loader.sym(nt_dll, "NtQueryTimerResolution");
     set_timer_resolution_t set_timer_resolution = (set_timer_resolution_t)
-        loader.sym(nt_dll, "NtSetTimerResolution");
+        ut_loader.sym(nt_dll, "NtSetTimerResolution");
     unsigned long min100ns = 16 * 10 * 1000;
     unsigned long max100ns =  1 * 10 * 1000;
     unsigned long cur100ns =  0;
@@ -5542,7 +5541,7 @@ static void threads_sleep_for(fp64_t seconds) {
     if (NtDelayExecution == null) {
         void* ntdll = threads_ntdll();
         NtDelayExecution = (nt_delay_execution_t)
-            loader.sym(ntdll, "NtDelayExecution");
+            ut_loader.sym(ntdll, "NtDelayExecution");
         not_null(NtDelayExecution);
     }
     // If "alertable" is set, sleep_for() can break earlier
@@ -5585,14 +5584,14 @@ typedef struct threads_philosophers_s {
 static void threads_philosopher_think(threads_philosopher_t* p) {
     verbose("philosopher %d is thinking.", p->id);
     // Random think time between .1 and .3 seconds
-    fp64_t seconds = (num.random32(&p->ps->seed) % 30 + 1) / 100.0;
+    fp64_t seconds = (ut_num.random32(&p->ps->seed) % 30 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 
 static void threads_philosopher_eat(threads_philosopher_t* p) {
     verbose("philosopher %d is eating.", p->id);
     // Random eat time between .1 and .2 seconds
-    fp64_t seconds = (num.random32(&p->ps->seed) % 20 + 1) / 100.0;
+    fp64_t seconds = (ut_num.random32(&p->ps->seed) % 20 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 

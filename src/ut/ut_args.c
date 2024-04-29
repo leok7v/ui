@@ -147,7 +147,7 @@ static void ut_args_parse(const char* s) {
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
     const int32_t n = k + (len + 2) * (int)sizeof(char);
-    fatal_if_not_zero(heap.allocate(null, &ut_args_memory, n, true));
+    fatal_if_not_zero(ut_heap.allocate(null, &ut_args_memory, n, true));
     ut_args.c = 0;
     ut_args.v = (const char**)ut_args_memory;
     char* d = (char*)(((char*)ut_args.v) + k);
@@ -223,7 +223,7 @@ const char* ut_args_basename(void) {
 }
 
 static void ut_args_fini(void) {
-    heap.deallocate(null, ut_args_memory); // can be null is parse() was not called
+    ut_heap.deallocate(null, ut_args_memory); // can be null is parse() was not called
     ut_args_memory = null;
     ut_args.c = 0;
     ut_args.v = null;
@@ -235,9 +235,9 @@ static void ut_args_WinMain(void) {
     const uint16_t* wcl = GetCommandLineW();
     int32_t n = (int32_t)wcslen(wcl);
     char* cl = null;
-    fatal_if_not_zero(heap.allocate(null, &cl, n * 2 + 1, false));
+    fatal_if_not_zero(ut_heap.allocate(null, &cl, n * 2 + 1, false));
     ut_args_parse(str.utf16_utf8(cl, wcl));
-    heap.deallocate(null, cl);
+    ut_heap.deallocate(null, cl);
     ut_args.env = _environ;
 }
 

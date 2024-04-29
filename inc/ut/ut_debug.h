@@ -19,10 +19,10 @@ typedef struct {
     int32_t const verbose;  // 2 detailed diagnostic
     int32_t const debug;    // 3 including debug messages
     int32_t const trace;    // 4 everything (may include nested calls)
-} verbosity_if;
+} ut_verbosity_if;
 
 typedef struct {
-    verbosity_if verbosity;
+    ut_verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
     void (*println_va)(const char* file, int32_t line, const char* func,
         const char* format, va_list vl);

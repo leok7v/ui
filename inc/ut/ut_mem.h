@@ -20,9 +20,9 @@ typedef struct {
     void* (*allocate)(int64_t bytes_multiple_of_page_size);
     void  (*deallocate)(void* a, int64_t bytes_multiple_of_page_size);
     void  (*test)(void);
-} mem_if;
+} ut_mem_if;
 
-extern mem_if mem;
+extern ut_mem_if ut_mem;
 
 end_c
 

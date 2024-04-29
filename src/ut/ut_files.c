@@ -86,7 +86,7 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_sy
             r = GetLastError();
         } else {
             char* name = null;
-            r = heap.allocate(null, &name, n + 2, false);
+            r = ut_heap.allocate(null, &name, n + 2, false);
             if (r == 0) {
                 n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
                 if (n == 0) {
@@ -99,7 +99,7 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_sy
                         ut_files.close(f);
                     }
                 }
-                heap.deallocate(null, name);
+                ut_heap.deallocate(null, name);
             }
         }
     } else {
@@ -248,7 +248,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
         const int64_t bytes = info.AclBytesInUse + bytes_needed;
-        r = heap.allocate(null, &bigger, bytes, true);
+        r = ut_heap.allocate(null, &bigger, bytes, true);
         if (r == 0) {
             r = b2e(InitializeAcl((ACL*)bigger,
                     info.AclBytesInUse + bytes_needed, ACL_REVISION));
@@ -266,7 +266,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     }
     if (r == 0) {
         ACCESS_ALLOWED_ACE* ace = null;
-        r = heap.allocate(null, &ace, bytes_needed, true);
+        r = ut_heap.allocate(null, &ace, bytes_needed, true);
         if (r == 0) {
             ace->Header.AceFlags = flags;
             ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
@@ -276,7 +276,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
             memcpy(&ace->SidStart, sid, GetLengthSid(sid));
             r = b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
                            ace, bytes_needed));
-            heap.deallocate(null, ace);
+            ut_heap.deallocate(null, ace);
         }
     }
     *free_me = bigger;
@@ -351,7 +351,7 @@ static errno_t ut_files_add_acl_ace(const void* obj, int32_t obj_type,
             if (r == 0) {
                 r = ut_files_set_acl(obj, obj_type, (new_acl != null ? new_acl : acl));
             }
-            if (new_acl != null) { heap.deallocate(null, new_acl); }
+            if (new_acl != null) { ut_heap.deallocate(null, new_acl); }
         }
     }
     if (sd != null) { LocalFree(sd); }
@@ -403,7 +403,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
 static errno_t ut_files_mkdirs(const char* dir) {
     const int32_t n = (int)strlen(dir) + 1;
     char* s = null;
-    errno_t r = heap.allocate(null, &s, n, true);
+    errno_t r = ut_heap.allocate(null, &s, n, true);
     const char* next = strchr(dir, '\\');
     if (next == null) { next = strchr(dir, '/'); }
     while (r == 0 && next != null) {
@@ -421,7 +421,7 @@ static errno_t ut_files_mkdirs(const char* dir) {
     if (r == 0) {
         r = b2e(CreateDirectoryA(dir, null));
     }
-    heap.deallocate(null, s);
+    ut_heap.deallocate(null, s);
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
 }
 
@@ -431,11 +431,11 @@ static errno_t ut_files_mkdirs(const char* dir) {
 #define ut_files_realloc_path(r, pn, pnc, fn, name) do {                   \
     const int32_t bytes = (int32_t)(strlen(fn) + strlen(name) + 3);     \
     if (bytes > pnc) {                                                  \
-        r = heap.reallocate(null, &pn, bytes, false);                   \
+        r = ut_heap.reallocate(null, &pn, bytes, false);                   \
         if (r != 0) {                                                   \
             pnc = bytes;                                                \
         } else {                                                        \
-            heap.deallocate(null, pn);                                  \
+            ut_heap.deallocate(null, pn);                                  \
             pn = null;                                                  \
         }                                                               \
     }                                                                   \
@@ -461,7 +461,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
         }
         int32_t pnc = 64 * 1024; // pathname "pn" capacity in bytes
         char* pn = null;
-        r = heap.allocate(null, &pn, pnc, false);
+        r = ut_heap.allocate(null, &pn, pnc, false);
         while (r == 0) {
             // recurse into sub folders and remove them first
             // do NOT follow symlinks - it could be disastrous
@@ -495,7 +495,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
                 }
             }
         }
-        heap.deallocate(null, pn);
+        ut_heap.deallocate(null, pn);
         ut_files.closedir(&folder);
     }
     if (r == 0) { r = ut_files.unlink(fn); }
@@ -602,13 +602,13 @@ errno_t ut_files_opendir(ut_folder_t* folder, const char* folder_name) {
     ut_files_dir_t* d = (ut_files_dir_t*)folder;
     int32_t n = (int32_t)strlen(folder_name);
     char* fn = null;
-    errno_t r = heap.allocate(null, &fn, n + 3, false); // extra room for "\*" suffix
+    errno_t r = ut_heap.allocate(null, &fn, n + 3, false); // extra room for "\*" suffix
     if (r == 0) {
         snprintf(fn, n + 3, "%s\\*", folder_name);
         fn[n + 2] = 0;
         d->handle = FindFirstFileA(fn, &d->find);
         if (d->handle == INVALID_HANDLE_VALUE) { r = GetLastError(); }
-        heap.deallocate(null, fn);
+        ut_heap.deallocate(null, fn);
     }
     return r;
 }

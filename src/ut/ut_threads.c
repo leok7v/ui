@@ -180,7 +180,7 @@ static void* threads_ntdll(void) {
         ntdll = (void*)GetModuleHandleA("ntdll.dll");
     }
     if (ntdll == null) {
-        ntdll = loader.open("ntdll.dll", 0);
+        ntdll = ut_loader.open("ntdll.dll", 0);
     }
     not_null(ntdll);
     return ntdll;
@@ -197,9 +197,9 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
         BOOLEAN set, ULONG* actual_resolution); // ntdll.dll
     void* nt_dll = threads_ntdll();
     query_timer_resolution_t query_timer_resolution =  (query_timer_resolution_t)
-        loader.sym(nt_dll, "NtQueryTimerResolution");
+        ut_loader.sym(nt_dll, "NtQueryTimerResolution");
     set_timer_resolution_t set_timer_resolution = (set_timer_resolution_t)
-        loader.sym(nt_dll, "NtSetTimerResolution");
+        ut_loader.sym(nt_dll, "NtSetTimerResolution");
     unsigned long min100ns = 16 * 10 * 1000;
     unsigned long max100ns =  1 * 10 * 1000;
     unsigned long cur100ns =  0;
@@ -397,7 +397,7 @@ static void threads_sleep_for(fp64_t seconds) {
     if (NtDelayExecution == null) {
         void* ntdll = threads_ntdll();
         NtDelayExecution = (nt_delay_execution_t)
-            loader.sym(ntdll, "NtDelayExecution");
+            ut_loader.sym(ntdll, "NtDelayExecution");
         not_null(NtDelayExecution);
     }
     // If "alertable" is set, sleep_for() can break earlier
@@ -440,14 +440,14 @@ typedef struct threads_philosophers_s {
 static void threads_philosopher_think(threads_philosopher_t* p) {
     verbose("philosopher %d is thinking.", p->id);
     // Random think time between .1 and .3 seconds
-    fp64_t seconds = (num.random32(&p->ps->seed) % 30 + 1) / 100.0;
+    fp64_t seconds = (ut_num.random32(&p->ps->seed) % 30 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 
 static void threads_philosopher_eat(threads_philosopher_t* p) {
     verbose("philosopher %d is eating.", p->id);
     // Random eat time between .1 and .2 seconds
-    fp64_t seconds = (num.random32(&p->ps->seed) % 20 + 1) / 100.0;
+    fp64_t seconds = (ut_num.random32(&p->ps->seed) % 20 + 1) / 100.0;
     threads.sleep_for(seconds);
 }
 

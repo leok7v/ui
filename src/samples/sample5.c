@@ -232,14 +232,14 @@ static void paint(ui_view_t* view) {
 static void open_file(const char* pathname) {
     char* file = null;
     int64_t bytes = 0;
-    if (mem.map_ro(pathname, &file, &bytes) == 0) {
+    if (ut_mem.map_ro(pathname, &file, &bytes) == 0) {
         if (0 < bytes && bytes <= INT64_MAX) {
             edit[0]->select_all(edit[0]);
             edit[0]->paste(edit[0], file, (int32_t)bytes);
             ui_edit_pg_t start = { .pn = 0, .gp = 0 };
             edit[0]->move(edit[0], start);
         }
-        mem.unmap(file, bytes);
+        ut_mem.unmap(file, bytes);
     } else {
         app.toast(5.3, "\nFailed to open file \"%s\".\n%s\n",
                   pathname, str.error(runtime.err()));

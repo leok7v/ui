@@ -26,7 +26,7 @@ static struct {
     int32_t  index; // animation index 0..gif.frames - 1
     event_t  quit;
     thread_t thread;
-    uint32_t seed; // for num.random32()
+    uint32_t seed; // for ut_num.random32()
     int32_t  x;
     int32_t  y;
     int32_t  speed_x;
@@ -144,7 +144,7 @@ static const char* midi_file(void) {
     if (midi.filename[0] == 0) {
         void* data = null;
         int64_t bytes = 0;
-        int r = mem.map_resource("mr_blue_sky_midi", &data, &bytes);
+        int r = ut_mem.map_resource("mr_blue_sky_midi", &data, &bytes);
         fatal_if_not_zero(r);
         GetTempPathA(countof(path), path);
         assert(path[0] != 0);
@@ -219,12 +219,12 @@ static void midi_close(void) {
 static void load_gif(void) {
     void* data = null;
     int64_t bytes = 0;
-    int r = mem.map_resource("groot_gif", &data, &bytes);
+    int r = ut_mem.map_resource("groot_gif", &data, &bytes);
     fatal_if_not_zero(r);
     gif.pixels = load_animated_gif(data, bytes, &gif.delays,
         &gif.w, &gif.h, &gif.frames, &gif.bpp, 4);
     fatal_if(gif.pixels == null || gif.bpp != 4 || gif.frames < 1);
-    // resources cannot be unmapped do not call mem.unmap()
+    // resources cannot be unmapped do not call ut_mem.unmap()
 }
 
 static void animate(void) {
@@ -238,10 +238,10 @@ static void animate(void) {
 //          traceln("%d %d speed: %d %d", animation.x, animation.y, animation.speed_x, animation.speed_y);
             animation.index = (animation.index + 1) % gif.frames;
             while (animation.speed_x == 0) {
-                animation.speed_x = num.random32(&animation.seed) % (max_speed * 2 + 1) - max_speed;
+                animation.speed_x = ut_num.random32(&animation.seed) % (max_speed * 2 + 1) - max_speed;
             }
             while (animation.speed_y == 0) {
-                animation.speed_y = num.random32(&animation.seed) % (max_speed * 2 + 1) - max_speed;
+                animation.speed_y = ut_num.random32(&animation.seed) % (max_speed * 2 + 1) - max_speed;
             }
             animation.x += animation.speed_x;
             animation.y += animation.speed_y;
@@ -259,8 +259,8 @@ static void animate(void) {
                 animation.y = app.crc.h - gif.h / 2 - 1;
                 animation.speed_y = -animation.speed_y;
             }
-            int inc = num.random32(&animation.seed) % 2 == 0 ? -1 : +1;
-            if (num.random32(&animation.seed) % 2 == 0) {
+            int inc = ut_num.random32(&animation.seed) % 2 == 0 ? -1 : +1;
+            if (ut_num.random32(&animation.seed) % 2 == 0) {
                 if (1 <= animation.speed_x + inc && animation.speed_x + inc < max_speed) {
                     animation.speed_x += inc;
                 }
@@ -295,7 +295,7 @@ static void init(void) {
     animation.thread = threads.start(startup, null);
     void* data = null;
     int64_t bytes = 0;
-    fatal_if_not_zero(mem.map_resource("sample_png", &data, &bytes));
+    fatal_if_not_zero(ut_mem.map_resource("sample_png", &data, &bytes));
     int w = 0;
     int h = 0;
     int bpp = 0; // bytes (!) per pixel

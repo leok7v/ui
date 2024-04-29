@@ -37,9 +37,9 @@ static void load_images(void) {
     int64_t bytes = 0;
     for (int i = 0; i < countof(image); i++) {
         if (i == 0) {
-            r = mem.map_ro(filename, &data, &bytes);
+            r = ut_mem.map_ro(filename, &data, &bytes);
         } else {
-            r = mem.map_resource("sample_png", &data, &bytes);
+            r = ut_mem.map_resource("sample_png", &data, &bytes);
         }
         fatal_if_not_zero(r);
         int w = 0;
@@ -50,7 +50,7 @@ static void load_images(void) {
         gdi.image_init(&image[i], w, h, bpp, pixels);
         free(pixels);
         // do not unmap resources:
-        if (i == 0) { mem.unmap(data, bytes); }
+        if (i == 0) { ut_mem.unmap(data, bytes); }
     }
 }
 

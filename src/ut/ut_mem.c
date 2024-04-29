@@ -1,7 +1,7 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
-static errno_t mem_map_view_of_file(HANDLE file,
+static errno_t ut_mem_map_view_of_file(HANDLE file,
         void* *data, int64_t *bytes, bool rw) {
     errno_t r = 0;
     void* address = null;
@@ -27,7 +27,7 @@ static errno_t mem_map_view_of_file(HANDLE file,
 
 // see: https://learn.microsoft.com/en-us/windows/win32/secauthz/enabling-and-disabling-privileges-in-c--
 
-static errno_t mem_set_token_privilege(void* token,
+static errno_t ut_mem_set_token_privilege(void* token,
             const char* name, bool e) {
     TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
     tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
@@ -36,7 +36,7 @@ static errno_t mem_set_token_privilege(void* token,
                sizeof(TOKEN_PRIVILEGES), null, null));
 }
 
-static errno_t mem_adjust_process_privilege_manage_volume_name(void) {
+static errno_t ut_mem_adjust_process_privilege_manage_volume_name(void) {
     // see: https://devblogs.microsoft.com/oldnewthing/20160603-00/?p=93565
     const uint32_t access = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
     const HANDLE process = GetCurrentProcess();
@@ -48,16 +48,16 @@ static errno_t mem_adjust_process_privilege_manage_volume_name(void) {
         #else
         const char* se_manage_volume_name = SE_MANAGE_VOLUME_NAME;
         #endif
-        r = mem_set_token_privilege(token, se_manage_volume_name, true);
+        r = ut_mem_set_token_privilege(token, se_manage_volume_name, true);
         fatal_if_false(CloseHandle(token));
     }
     return r;
 }
 
-static errno_t mem_map_file(const char* filename, void* *data,
+static errno_t ut_mem_map_file(const char* filename, void* *data,
         int64_t *bytes, bool rw) {
     if (rw) { // for SetFileValidData() call:
-        (void)mem_adjust_process_privilege_manage_volume_name();
+        (void)ut_mem_adjust_process_privilege_manage_volume_name();
     }
     errno_t r = 0;
     const DWORD access = GENERIC_READ | (rw ? GENERIC_WRITE : 0);
@@ -86,21 +86,21 @@ static errno_t mem_map_file(const char* filename, void* *data,
         } else {
             *bytes = eof.QuadPart;
         }
-        r = r != 0 ? r : mem_map_view_of_file(file, data, bytes, rw);
+        r = r != 0 ? r : ut_mem_map_view_of_file(file, data, bytes, rw);
         fatal_if_false(CloseHandle(file));
     }
     return r;
 }
 
-static errno_t mem_map_ro(const char* filename, void* *data, int64_t *bytes) {
-    return mem_map_file(filename, data, bytes, false);
+static errno_t ut_mem_map_ro(const char* filename, void* *data, int64_t *bytes) {
+    return ut_mem_map_file(filename, data, bytes, false);
 }
 
-static errno_t mem_map_rw(const char* filename, void* *data, int64_t *bytes) {
-    return mem_map_file(filename, data, bytes, true);
+static errno_t ut_mem_map_rw(const char* filename, void* *data, int64_t *bytes) {
+    return ut_mem_map_file(filename, data, bytes, true);
 }
 
-static void mem_unmap(void* data, int64_t bytes) {
+static void ut_mem_unmap(void* data, int64_t bytes) {
     assert(data != null && bytes > 0);
     (void)bytes; /* unused only need for posix version */
     if (data != null && bytes > 0) {
@@ -108,7 +108,7 @@ static void mem_unmap(void* data, int64_t bytes) {
     }
 }
 
-static errno_t mem_map_resource(const char* label, void* *data, int64_t *bytes) {
+static errno_t ut_mem_map_resource(const char* label, void* *data, int64_t *bytes) {
     HRSRC res = FindResourceA(null, label, (const char*)RT_RCDATA);
     // "LockResource does not actually lock memory; it is just used to
     // obtain a pointer to the memory containing the resource data.
@@ -120,7 +120,7 @@ static errno_t mem_map_resource(const char* label, void* *data, int64_t *bytes) 
     return *data != null ? 0 : runtime.err();
 }
 
-static int32_t mem_page_size(void) {
+static int32_t ut_mem_page_size(void) {
     static SYSTEM_INFO system_info;
     if (system_info.dwPageSize == 0) {
         GetSystemInfo(&system_info);
@@ -128,7 +128,7 @@ static int32_t mem_page_size(void) {
     return (int32_t)system_info.dwPageSize;
 }
 
-static int mem_large_page_size(void) {
+static int ut_mem_large_page_size(void) {
     static SIZE_T large_page_minimum = 0;
     if (large_page_minimum == 0) {
         large_page_minimum = GetLargePageMinimum();
@@ -136,10 +136,10 @@ static int mem_large_page_size(void) {
     return (int32_t)large_page_minimum;
 }
 
-static void* mem_allocate(int64_t bytes_multiple_of_page_size) {
+static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
     assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
-    int page_size = mem_page_size();
+    int page_size = ut_mem_page_size();
     assert(bytes % page_size == 0);
     int r = 0;
     void* a = null;
@@ -194,11 +194,11 @@ static void* mem_allocate(int64_t bytes_multiple_of_page_size) {
     return a;
 }
 
-static void mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
+static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
     int r = 0;
-    int page_size = mem_page_size();
+    int page_size = ut_mem_page_size();
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
         r = EINVAL;
         traceln("failed %s", str.error(r));
@@ -218,28 +218,28 @@ static void mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     }
 }
 
-static void mem_test(void) {
+static void ut_mem_test(void) {
     #ifdef UT_TESTS
     swear(ut_args.c > 0);
     void* data = null;
     int64_t bytes = 0;
-    swear(mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
+    swear(ut_mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
     swear(data != null && bytes != 0);
-    mem.unmap(data, bytes);
+    ut_mem.unmap(data, bytes);
     // TODO: page_size large_page_size allocate deallocate
     // TODO: test heap functions
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
-mem_if mem = {
-    .map_ro          = mem_map_ro,
-    .map_rw          = mem_map_rw,
-    .unmap           = mem_unmap,
-    .map_resource    = mem_map_resource,
-    .page_size       = mem_page_size,
-    .large_page_size = mem_large_page_size,
-    .allocate        = mem_allocate,
-    .deallocate      = mem_deallocate,
-    .test            = mem_test
+ut_mem_if ut_mem = {
+    .map_ro          = ut_mem_map_ro,
+    .map_rw          = ut_mem_map_rw,
+    .unmap           = ut_mem_unmap,
+    .map_resource    = ut_mem_map_resource,
+    .page_size       = ut_mem_page_size,
+    .large_page_size = ut_mem_large_page_size,
+    .allocate        = ut_mem_allocate,
+    .deallocate      = ut_mem_deallocate,
+    .test            = ut_mem_test
 };

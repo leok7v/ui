@@ -18,8 +18,8 @@ typedef struct {
     void* (*sym)(void* handle, const char* name);
     void  (*close)(void* handle);
     void (*test)(void);
-} loader_if;
+} ut_loader_if;
 
-extern loader_if loader;
+extern ut_loader_if ut_loader;
 
 end_c
