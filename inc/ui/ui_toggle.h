@@ -25,6 +25,6 @@ void ui_toggle_init_(ui_view_t* view); // do not call use ui_toggle() macro
     static                                                            \
    ui_toggle_t name = {                                               \
     .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
-    .children = null, .width = w, .text = s}, .cb = name ## _callback }
+    .child = null, .width = w, .text = s}, .cb = name ## _callback }
 
 end_c

@@ -136,13 +136,9 @@ ui_button(fm, "Font Ctrl-", 7.5, { font_minus(); });
 
 ui_label_ml(text, 0.0, "...");
 
-ui_container_deprecated(right, null,
-    &full_screen.view, &quit.view, &fuzz.view,
-    &fp.view, &fm.view,
-    &mono.view, &sl.view, &ro.view, &edit2.view);
-
-ui_container_deprecated(left, null, &edit0.view, &edit1.view);
-ui_container_deprecated(bottom, null, &text.view);
+static ui_view_t right  = ui_view(container);
+static ui_view_t left   = ui_view(container);
+static ui_view_t bottom = ui_view(container);
 
 static void set_text(int32_t ix) {
     static char last[128];
@@ -180,9 +176,7 @@ static void after_paint(void) {
 }
 
 static void paint_frames(ui_view_t* view) {
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-        paint_frames(*c);
-    }
+    ui_view_for_each(view, c, { paint_frames(c); });
     ui_color_t fc[] = {
         colors.red, colors.green, colors.blue, colors.red,
         colors.yellow, colors.cyan, colors.magenta
@@ -198,9 +192,7 @@ static void paint_frames(ui_view_t* view) {
 }
 
 static void null_paint(ui_view_t* view) {
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-        null_paint(*c);
-    }
+    ui_view_for_each(view, c, { null_paint(c); });
     if (view != app.view) {
         view->paint = null;
     }
@@ -246,10 +238,6 @@ static void open_file(const char* pathname) {
     }
 }
 
-static void opened(void) {
-    if (ut_args.c > 1) { open_file(ut_args.v[1]); }
-}
-
 static void every_100ms(void) {
 //  traceln("");
     static ui_view_t* last;
@@ -280,9 +268,9 @@ static void measure(ui_view_t* view) {
     if (debug_layout) {
         traceln("%d,%d %dx%d", view->x, view->y, view->w, view->h);
         traceln("right %d,%d %dx%d", right.x, right.y, right.w, right.h);
-        for (ui_view_t** c = right.children; c != null && *c != null; c++) {
-            traceln("  %s %d,%d %dx%d", (*c)->text, (*c)->x, (*c)->y, (*c)->w, (*c)->h);
-        }
+        ui_view_for_each(&right, c, {
+            traceln("  %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
+        });
         for (int32_t i = 0; i < countof(edit); i++) {
             traceln("[%d] %d,%d %dx%d", i, edit[i]->view.x, edit[i]->view.y,
                 edit[i]->view.w, edit[i]->view.h);
@@ -369,15 +357,13 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_t* e);
 void ui_edit_fuzz(ui_edit_t* e);
 void ui_edit_next_fuzz(ui_edit_t* e);
 
-static void init(void) {
-    app.title = title;
+static void opened(void) {
     app.view->measure     = measure;
     app.view->layout      = layout;
     app.view->paint       = paint;
     app.view->key_pressed = key_pressed;
     scaled_fonts();
-    static ui_view_t* children[] = { &left, &right, &bottom, null };
-    app.view->children = children;
+    ui_view.add(app.view, &left, &right, &bottom, null);
     text.view.font = &app.fonts.mono;
     strprintf(fuzz.view.tip, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
@@ -401,12 +387,23 @@ static void init(void) {
     edit[2]->select_all(edit[2]);
     edit[2]->paste(edit[2], "Single line edit", -1);
     edit[2]->enter = edit_enter;
+
+    ui_view.add(&right, &full_screen, &quit, &fuzz,
+                &fp, &fm, &mono, &sl, &ro,
+                &edit2,null);
+    ui_view.add(&left, &edit0, &edit1, null);
+    ui_view.add(&bottom, &text.view, null);
+    if (ut_args.c > 1) { open_file(ut_args.v[1]); }
+}
+
+static void init(void) {
+    app.title = title;
+    app.opened = opened;
 }
 
 app_t app = {
     .class_name = "sample5",
-    .init   = init,
-    .opened = opened,
+    .init = init,
     .window_sizing = {
         .min_w =  3.0f,
         .min_h =  2.5f,

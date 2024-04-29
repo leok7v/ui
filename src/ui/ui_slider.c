@@ -151,8 +151,7 @@ void ui_slider_init_(ui_view_t* view) {
     ui_slider_t* r = (ui_slider_t*)view;
     r->buttons[0] = &r->dec.view;
     r->buttons[1] = &r->inc.view;
-    r->buttons[2] = null;
-    r->view.children = r->buttons;
+    ui_view.add(&r->view, r->buttons[0], r->buttons[1], null);
     // Heavy Minus Sign
     ui_button_init(&r->dec, "\xE2\x9E\x96", 0, ui_slider_inc_dec);
     // Heavy Plus Sign
@@ -161,8 +160,9 @@ void ui_slider_init_(ui_view_t* view) {
         "Accelerate by holding Ctrl x10 Shift x100 and Ctrl+Shift x1000";
     strprintf(r->inc.view.tip, "%s", accel);
     strprintf(r->dec.view.tip, "%s", accel);
-    r->dec.view.parent = &r->view;
-    r->inc.view.parent = &r->view;
+    // TODO: remove asserts below
+    assert(r->dec.view.parent == &r->view);
+    assert(r->inc.view.parent == &r->view);
     ui_view.localize(&r->view);
 }
 

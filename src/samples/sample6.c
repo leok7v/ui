@@ -40,8 +40,8 @@ static struct {
     bool muted;
 } midi;
 
-#define mute "\xF0\x9F\x94\x87"
-#define speaker "\xF0\x9F\x94\x88"
+#define glyph_mute "\xF0\x9F\x94\x87"
+#define glyph_speaker "\xF0\x9F\x94\x88"
 
 static image_t  background;
 
@@ -88,7 +88,7 @@ static void paint(ui_view_t* view) {
     gdi.x = 0;
     gdi.y = 0;
     gdi.set_text_color(midi.muted ? colors.green : colors.red);
-    gdi.text("%s", midi.muted ? speaker : mute);
+    gdi.text("%s", midi.muted ? glyph_speaker : glyph_mute);
     gdi.set_font(f);
 }
 

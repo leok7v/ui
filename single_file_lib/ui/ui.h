@@ -467,7 +467,6 @@ typedef struct ui_view_s {
     void (*init)(ui_view_t* view); // called once before first layout
     fp64_t width;    // > 0 width of UI element in "em"s
     char text[2048];
-    ui_view_t** children; // null terminated array[] of children
     ui_view_t* parent;
     ui_view_t* child; // first child, circular doubly linked list
     ui_view_t* prev;  // left or top sibling
@@ -584,12 +583,17 @@ typedef struct ui_view_if {
 
 extern ui_view_if ui_view;
 
-#define ui_container_deprecated(name, ini, ...)                                       \
-static ui_view_t* _ ## name ## _ ## children ## _[] = {__VA_ARGS__, null}; \
-static ui_view_t name = { .type = ui_view_container, .init = ini,          \
-                       .children = (_ ## name ## _ ## children ## _),      \
-                       .text = #name                                       \
-}
+// view children iterator:
+
+#define ui_view_for_each(v, it, code) do { \
+    ui_view_t* it = (v)->child;            \
+    if (it != null) {                      \
+        do {                               \
+            { code }                       \
+            it = it->next;                 \
+        } while (it != (v)->child);        \
+    }                                      \
+} while (0)
 
 // _______________________________ ui_layout.h ________________________________
 
@@ -634,11 +638,11 @@ void ui_label_init_(ui_view_t* view);
 
 #define ui_label(t, s)                                                        \
     ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
-    .children = null, .width = 0.0, .text = s}, .multiline = false}
+    .child = null, .width = 0.0, .text = s}, .multiline = false}
 
 #define ui_label_ml(t, w, s)  /* multiline */                                 \
     ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
-    .children = null, .width = w, .text = s}, .multiline = true}
+    .child = null, .width = w, .text = s}, .multiline = true}
 
 // single line of text with "&" keyboard shortcuts:
 
@@ -695,7 +699,7 @@ void ui_button_init_(ui_view_t* view); // do not call use ui_button() macro
     static                                                            \
     ui_button_t name = {                                              \
     .view = { .type = ui_view_button, .init = ui_button_init_,        \
-    .children = null, .width = w, .text = s}, .cb = name ## _callback }
+    .child = null, .width = w, .text = s}, .cb = name ## _callback }
 
 // usage:
 // ui_button(button, 7.0, "&Button", { b->view.pressed = !b->view.pressed; })
@@ -726,7 +730,7 @@ void ui_toggle_init_(ui_view_t* view); // do not call use ui_toggle() macro
     static                                                            \
    ui_toggle_t name = {                                               \
     .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
-    .children = null, .width = w, .text = s}, .cb = name ## _callback }
+    .child = null, .width = w, .text = s}, .cb = name ## _callback }
 
 // _______________________________ ui_slider.h ________________________________
 
@@ -743,7 +747,7 @@ typedef struct ui_slider_s {
     ui_point_t tm; // text measurement (special case for %0*d)
     ui_button_t inc;
     ui_button_t dec;
-    ui_view_t* buttons[3]; // = { dec, inc, null }
+    ui_view_t* buttons[2]; // = { dec, inc }
     int32_t value;  // for ui_slider_t range slider control
     int32_t value_min;
     int32_t value_max;
@@ -761,9 +765,9 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     }                                                       \
     static                                                  \
     ui_slider_t name = {                                    \
-        .view = { .type = ui_view_slider, .children = null, \
+        .view = { .type = ui_view_slider, .child = null,    \
         .width = ems, .text = s, .init = _slider_init_,     \
-    }, .value_min = vmn, .value_max = vmx, .value = vmn,              \
+    }, .value_min = vmn, .value_max = vmx, .value = vmn,    \
     .cb = name ## _callback }
 
 // _________________________________ ui_mbx.h _________________________________
@@ -778,7 +782,6 @@ typedef struct ui_mbx_s {
     void (*cb)(ui_mbx_t* m, int32_t option); // callback -1 on cancel
     ui_label_t text;
     ui_button_t button[16];
-    ui_view_t* children[17];
     int32_t option; // -1 or option chosen by user
     const char** opts;
 } ui_mbx_t;
@@ -788,18 +791,18 @@ void ui_mbx_init_(ui_view_t* view);
 void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     void (*cb)(ui_mbx_t* m, int32_t option), const char* format, ...);
 
-#define ui_mbx(name, s, code, ...)                                \
-                                                                         \
-    static char* name ## _options[] = { __VA_ARGS__, null };             \
-                                                                         \
-    static void name ## _callback(ui_mbx_t* m, int32_t option) {  \
-        (void)m; (void)option; /* no warnings if unused */               \
-        code                                                             \
-    }                                                                    \
-    static                                                               \
-    ui_mbx_t name = {                                             \
-    .view = { .type = ui_view_mbx, .init = ui_mbx_init_,   \
-    .children = null, .text = s}, .opts = name ## _options,              \
+#define ui_mbx(name, s, code, ...)                               \
+                                                                 \
+    static char* name ## _options[] = { __VA_ARGS__, null };     \
+                                                                 \
+    static void name ## _callback(ui_mbx_t* m, int32_t option) { \
+        (void)m; (void)option; /* no warnings if unused */       \
+        code                                                     \
+    }                                                            \
+    static                                                       \
+    ui_mbx_t name = {                                            \
+    .view = { .type = ui_view_mbx, .init = ui_mbx_init_,         \
+    .child = null, .text = s}, .opts = name ## _options,         \
     .cb = name ## _callback }
 
 // _________________________________ ui_app.h _________________________________
@@ -2746,10 +2749,8 @@ static ui_rect_t app_window_initial_rectangle(void) {
     }
     const int32_t ini_w = app.in2px(ws->ini_w);
     const int32_t ini_h = app.in2px(ws->ini_h);
-    int32_t min_w = ws->min_w > 0 ?
-        app.in2px(ws->min_w) : app.work_area.w / 4;
-    int32_t min_h = ws->min_h > 0 ?
-        app.in2px(ws->min_h) : app.work_area.h / 4;
+    int32_t min_w = ws->min_w > 0 ? app.in2px(ws->min_w) : app.work_area.w / 4;
+    int32_t min_h = ws->min_h > 0 ? app.in2px(ws->min_h) : app.work_area.h / 4;
     // (x, y) (-1, -1) means "let Windows manager position the window"
     ui_rect_t r = {-1, -1,
                    ini_w > 0 ? ini_w : min_w, ini_h > 0 ? ini_h : min_h};
@@ -4145,86 +4146,80 @@ void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...) {
 #include "ut/ut.h"
 
 static void measurements_center(ui_view_t* view) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    assert(view->children[1] == null, "must be single child");
-    ui_view_t* c = view->children[0]; // even if hidden measure it
+    assert(view->child != null && view->child->next == view->child,
+        "must be a single child parent");
+    ui_view_t* c = view->child; // even if hidden measure it
     c->w = view->w;
     c->h = view->h;
 }
 
 static void measurements_horizontal(ui_view_t* view, int32_t gap) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    ui_view_t** c = view->children;
+    assert(view->child != null, "not a single child?");
     view->w = 0;
     view->h = 0;
     bool seen = false;
-    while (*c != null) {
-        ui_view_t* u = *c;
-        if (!u->hidden) {
+    ui_view_for_each(view, c, {
+        if (!c->hidden) {
             if (seen) { view->w += gap; }
-            view->w += u->w;
-            view->h = ut_max(view->h, u->h);
+            view->w += c->w;
+            view->h = ut_max(view->h, c->h);
             seen = true;
         }
-        c++;
-    }
+    });
 }
 
 static void measurements_vertical(ui_view_t* view, int32_t gap) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    ui_view_t** c = view->children;
+    assert(view->child != null, "not a single child?");
     view->h = 0;
     bool seen = false;
-    while (*c != null) {
-        ui_view_t* u = *c;
-        if (!u->hidden) {
+    ui_view_for_each(view, c, {
+        if (!c->hidden) {
             if (seen) { view->h += gap; }
-            view->h += u->h;
-            view->w = ut_max(view->w, u->w);
+            view->h += c->h;
+            view->w = ut_max(view->w, c->w);
             seen = true;
         }
-        c++;
-    }
+    });
 }
 
 static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     int32_t cols = 0;
-    for (ui_view_t** row = view->children; *row != null; row++) {
-        ui_view_t* r = *row;
+    ui_view_for_each(view, r, {
         int32_t n = 0;
-        for (ui_view_t** col = r->children; *col != null; col++) { n++; }
+        ui_view_for_each(r, c, { n++; });
         if (cols == 0) { cols = n; }
         assert(n > 0 && cols == n);
-    }
-    int32_t* mxw = (int32_t*)alloca(cols * sizeof(int32_t));
+    });
+    #pragma warning(push) // mxw[] IntelliSense confusion
+    #pragma warning(disable: 6385)
+    #pragma warning(disable: 6386)
+    int32_t* mxw = (int32_t*)stackalloc(cols * sizeof(int32_t));
     memset(mxw, 0, cols * sizeof(int32_t));
-    for (ui_view_t** row = view->children; *row != null; row++) {
-        if (!(*row)->hidden) {
-            (*row)->h = 0;
-            (*row)->baseline = 0;
+    ui_view_for_each(view, row, {
+        if (!row->hidden) {
+            row->h = 0;
+            row->baseline = 0;
             int32_t i = 0;
-            for (ui_view_t** col = (*row)->children; *col != null; col++) {
-                if (!(*col)->hidden) {
-                    mxw[i] = ut_max(mxw[i], (*col)->w);
-                    (*row)->h = ut_max((*row)->h, (*col)->h);
-//                  traceln("[%d] row.baseline: %d col.baseline: %d ", i, (*row)->baseline, (*col)->baseline);
-                    (*row)->baseline = ut_max((*row)->baseline, (*col)->baseline);
+            ui_view_for_each(row, col, {
+                if (!col->hidden) {
+                    mxw[i] = ut_max(mxw[i], col->w);
+                    row->h = ut_max(row->h, col->h);
+//                  traceln("[%d] row.baseline: %d col.baseline: %d ", i, row->baseline, col->baseline);
+                    row->baseline = ut_max(row->baseline, col->baseline);
                 }
                 i++;
-            }
+            });
         }
-    }
+    });
     view->h = 0;
     view->w = 0;
     int32_t rows_seen = 0; // number of visible rows so far
-    for (ui_view_t** row = view->children; *row != null; row++) {
-        ui_view_t* r = *row;
+    ui_view_for_each(view, r, {
         if (!r->hidden) {
             r->w = 0;
             int32_t i = 0;
             int32_t cols_seen = 0; // number of visible columns so far
-            for (ui_view_t** col = r->children; *col != null; col++) {
-                ui_view_t* c = *col;
+            ui_view_for_each(view, c, {
                 if (!c->hidden) {
                     c->h = r->h; // all cells are same height
                     if (c->type == ui_view_label) { // lineup text baselines
@@ -4237,12 +4232,13 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
                     view->w = ut_max(view->w, r->w);
                     cols_seen++;
                 }
-            }
+            });
             view->h += r->h;
             if (rows_seen > 0) { view->h += gap_v; }
             rows_seen++;
         }
-    }
+    });
+    #pragma warning(pop)
 }
 
 measurements_if measurements = {
@@ -4255,70 +4251,66 @@ measurements_if measurements = {
 // layouts
 
 static void layouts_center(ui_view_t* view) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    assert(view->children[1] == null, "must be single child");
-    ui_view_t* c = view->children[0];
+    assert(view->child != null && view->child->next == view->child,
+        "must be a single child parent");
+    ui_view_t* c = view->child;
     c->x = (view->w - c->w) / 2;
     c->y = (view->h - c->h) / 2;
 }
 
-static void layouts_horizontal(ui_view_t* view, int32_t x, int32_t y, int32_t gap) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    ui_view_t** c = view->children;
+static void layouts_horizontal(ui_view_t* view, int32_t x, int32_t y,
+        int32_t gap) {
+    assert(view->child != null, "not a single child?");
     bool seen = false;
-    while (*c != null) {
-        ui_view_t* u = *c;
-        if (!u->hidden) {
+    ui_view_for_each(view, c, {
+        if (!c->hidden) {
             if (seen) { x += gap; }
-            u->x = x;
-            u->y = y;
-            x += u->w;
+            c->x = x;
+            c->y = y;
+            x += c->w;
             seen = true;
         }
-        c++;
-    }
+    });
 }
 
-static void layouts_vertical(ui_view_t* view, int32_t x, int32_t y, int32_t gap) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    ui_view_t** c = view->children;
+static void layouts_vertical(ui_view_t* view, int32_t x, int32_t y,
+        int32_t gap) {
+    assert(view->child != null, "not a single child?");
     bool seen = false;
-    while (*c != null) {
-        ui_view_t* u = *c;
-        if (!u->hidden) {
+    ui_view_for_each(view, c, {
+        if (!c->hidden) {
             if (seen) { y += gap; }
-            u->x = x;
-            u->y = y;
-            y += u->h;
+            c->x = x;
+            c->y = y;
+            y += c->h;
             seen = true;
         }
-        c++;
-    }
+    });
 }
 
 static void layouts_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
-    assert(view->children != null, "layout_grid() with no children?");
+    assert(view->child != null, "not a single child?");
     int32_t x = view->x;
     int32_t y = view->y;
     bool row_seen = false;
-    for (ui_view_t** row = view->children; *row != null; row++) {
-        if (!(*row)->hidden) {
+    ui_view_for_each(view, row, {
+        if (!row->hidden) {
             if (row_seen) { y += gap_v; }
             int32_t xc = x;
             bool col_seen = false;
-            for (ui_view_t** col = (*row)->children; *col != null; col++) {
-                if (!(*col)->hidden) {
+            ui_view_for_each(row, col, {
+                if (!col->hidden) {
                     if (col_seen) { xc += gap_h; }
-                    (*col)->x = xc;
-                    (*col)->y = y;
-                    xc += (*col)->w;
+                    col->x = xc;
+                    col->y = y;
+                    xc += col->w;
                     col_seen = true;
                 }
-            }
-            y += (*row)->h;
+            });
+            y += row->h;
             row_seen = true;
         }
-    }
+    });
 }
 
 layouts_if layouts = {
@@ -4348,9 +4340,13 @@ static void ui_mbx_measure(ui_view_t* view) {
     ui_mbx_t* mx = (ui_mbx_t*)view;
     assert(view->type == ui_view_mbx);
     int32_t n = 0;
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) { n++; }
+    ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
-    mx->text.view.measure(&mx->text.view);
+    if (mx->text.view.measure != null) {
+        mx->text.view.measure(&mx->text.view);
+    } else {
+        ui_view.measure(&mx->text.view);
+    }
     const int32_t em_x = mx->text.view.em.x;
     const int32_t em_y = mx->text.view.em.y;
     const int32_t tw = mx->text.view.w;
@@ -4372,7 +4368,7 @@ static void ui_mbx_layout(ui_view_t* view) {
     ui_mbx_t* mx = (ui_mbx_t*)view;
     assert(view->type == ui_view_mbx);
     int32_t n = 0;
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) { n++; }
+    ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
     const int32_t em_y = mx->text.view.em.y;
     mx->text.view.x = view->x;
@@ -4408,18 +4404,18 @@ void ui_mbx_init_(ui_view_t* view) {
     int32_t n = 0;
     while (opts[n] != null && n < countof(mx->button) - 1) {
         ui_button_init(&mx->button[n], opts[n], 6.0, ui_mbx_button);
-        mx->button[n].view.parent = &mx->view;
         n++;
     }
-    assert(n <= countof(mx->button));
+    swear(n <= countof(mx->button), "inhumane: %d buttons", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
-    mx->children[0] = &mx->text.view;
+    ui_view.add_last(&mx->view, &mx->text.view);
     for (int32_t i = 0; i < n; i++) {
-        mx->children[i + 1] = &mx->button[i].view;
-        mx->children[i + 1]->font = mx->view.font;
+        ui_view.add_last(&mx->view, &mx->button[i].view);
+        mx->button[i].view.font = mx->view.font;
         ui_view.localize(&mx->button[i].view);
+        // TODO: remove assert below
+        assert(mx->button[i].view.parent == &mx->view);
     }
-    mx->view.children = mx->children;
     ui_label_init_ml(&mx->text, 0.0, "%s", mx->view.text);
     mx->text.view.font = mx->view.font;
     ui_view.localize(&mx->text.view);
@@ -4780,8 +4776,7 @@ void ui_slider_init_(ui_view_t* view) {
     ui_slider_t* r = (ui_slider_t*)view;
     r->buttons[0] = &r->dec.view;
     r->buttons[1] = &r->inc.view;
-    r->buttons[2] = null;
-    r->view.children = r->buttons;
+    ui_view.add(&r->view, r->buttons[0], r->buttons[1], null);
     // Heavy Minus Sign
     ui_button_init(&r->dec, "\xE2\x9E\x96", 0, ui_slider_inc_dec);
     // Heavy Plus Sign
@@ -4790,8 +4785,9 @@ void ui_slider_init_(ui_view_t* view) {
         "Accelerate by holding Ctrl x10 Shift x100 and Ctrl+Shift x1000";
     strprintf(r->inc.view.tip, "%s", accel);
     strprintf(r->dec.view.tip, "%s", accel);
-    r->dec.view.parent = &r->view;
-    r->inc.view.parent = &r->view;
+    // TODO: remove asserts below
+    assert(r->dec.view.parent == &r->view);
+    assert(r->inc.view.parent == &r->view);
     ui_view.localize(&r->view);
 }
 
@@ -4930,16 +4926,6 @@ void ui_toggle_init(ui_toggle_t* c, const char* label, fp64_t ems,
 static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 #pragma push_macro("ui_view_for_each")
-
-#define ui_view_for_each(v, it, code) do { \
-    ui_view_t* it = (v)->child;            \
-    if (it != null) {                      \
-        do {                               \
-            { code }                       \
-            it = it->next;                 \
-        } while (it != (v)->child);        \
-    }                                      \
-} while (0)
 
 static void ui_view_verify(ui_view_t* p) {
     ui_view_for_each(p, c, {
@@ -5146,28 +5132,7 @@ static bool ui_view_is_disabled(const ui_view_t* view) {
     return disabled;
 }
 
-static void ui_view_check_children(ui_view_t* view) {
-    if (view->children != null) { // legacy - deprecated
-        assert(view->children[0] != null);
-        assert(view->child == null);
-    } else if (view->child != null) { // new way
-        assert(view->children == null);
-    }
-}
-
 static void ui_view_init_children(ui_view_t* view) {
-    // TODO: deprecated REMOVE:
-    ui_view_check_children(view);
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-        if ((*c)->init != null) { (*c)->init(*c); (*c)->init = null; }
-        if ((*c)->font == null) { (*c)->font = &app.fonts.regular; }
-        if ((*c)->em.x == 0 || (*c)->em.y == 0) {
-            (*c)->em = gdi.get_em(*view->font);
-        }
-        if ((*c)->text[0] != 0) { ui_view.localize(*c); }
-        ui_view_init_children(*c);
-    }
-    // NEW WAY:
     ui_view_for_each(view, c, {
         if (c->init != null) { c->init(c); c->init = null; }
         if (c->font == null) { c->font = &app.fonts.regular; }
@@ -5181,17 +5146,6 @@ static void ui_view_init_children(ui_view_t* view) {
 
 static void ui_view_parents(ui_view_t* view) {
     not_null(view);
-    // TODO: deprecated REMOVE:
-    ui_view_check_children(view);
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-        if ((*c)->parent == null) {
-            (*c)->parent = view;
-            ui_view_parents(*c);
-        } else {
-            assert((*c)->parent == view, "no reparenting");
-        }
-    }
-    // NEW WAY:
     ui_view_for_each(view, c, {
         if (c->parent == null) {
             c->parent = view;
@@ -5206,102 +5160,51 @@ static void ui_view_parents(ui_view_t* view) {
 
 static void ui_view_timer(ui_view_t* view, ui_timer_t id) {
     if (view->timer != null) { view->timer(view, id); }
-    // TODO: deprecated REMOVE:
-    {
-        ui_view_check_children(view);
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { ui_view_timer(*c, id); c++; }
-    }
-    // NEW WAY:
     ui_view_for_each(view, c, { ui_view_timer(c, id); });
 }
 
 static void ui_view_every_sec(ui_view_t* view) {
     if (view->every_sec != null) { view->every_sec(view); }
-    // TODO: deprecated REMOVE:
-    {
-        ui_view_check_children(view);
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { ui_view_every_sec(*c); c++; }
-    }
-    // NEW WAY:
     ui_view_for_each(view, c, { ui_view_every_sec(c); });
 }
 
 static void ui_view_every_100ms(ui_view_t* view) {
     if (view->every_100ms != null) { view->every_100ms(view); }
-    // TODO: deprecated REMOVE:
-    {
-        ui_view_check_children(view);
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { ui_view_every_100ms(*c); c++; }
-    }
-    // NEW WAY:
     ui_view_for_each(view, c, { ui_view_every_100ms(c); });
 }
 
 static void ui_view_key_pressed(ui_view_t* view, int32_t k) {
-    if (!view->hidden && !view->disabled) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->key_pressed != null) { view->key_pressed(view, k); }
-        // TODO: deprecated REMOVE:
-        {
-            ui_view_check_children(view);
-            ui_view_t** c = view->children;
-            while (c != null && *c != null) { ui_view_key_pressed(*c, k); c++; }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, { ui_view_key_pressed(c, k); });
     }
 }
 
 static void ui_view_key_released(ui_view_t* view, int32_t k) {
-    if (!view->hidden && !view->disabled) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->key_released != null) { view->key_released(view, k); }
-        { // TODO: deprecated REMOVE:
-            ui_view_check_children(view);
-            ui_view_t** c = view->children;
-            while (c != null && *c != null) { ui_view_key_released(*c, k); c++; }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, { ui_view_key_released(c, k); });
     }
 }
 
 static void ui_view_character(ui_view_t* view, const char* utf8) {
-    if (!view->hidden && !view->disabled) {
+    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->character != null) { view->character(view, utf8); }
-        { // TODO: deprecated REMOVE:
-            ui_view_check_children(view);
-            ui_view_t** c = view->children;
-            while (c != null && *c != null) { ui_view_character(*c, utf8); c++; }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, { ui_view_character(c, utf8); });
     }
 }
 
 static void ui_view_paint(ui_view_t* view) {
+    assert(app.crc.w > 0 && app.crc.h > 0);
     if (!view->hidden && app.crc.w > 0 && app.crc.h > 0) {
         if (view->paint != null) { view->paint(view); }
-        { // TODO: deprecated REMOVE:
-            ui_view_check_children(view);
-            ui_view_t** c = view->children;
-            while (c != null && *c != null) { ui_view_paint(*c); c++; }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, { ui_view_paint(c); });
     }
 }
 
 static bool ui_view_set_focus(ui_view_t* view) {
     bool set = false;
-    { // TODO: deprecated REMOVE:
-        ui_view_check_children(view);
-        ui_view_t** c = view->children;
-        while (c != null && *c != null && !set) { set = ui_view_set_focus(*c); c++; }
-    }
-    // NEW WAY:
-    ui_view_for_each(view, c, {
+   ui_view_for_each(view, c, {
         set = ui_view_set_focus(c);
         if (set) { break; }
     });
@@ -5314,12 +5217,6 @@ static bool ui_view_set_focus(ui_view_t* view) {
 }
 
 static void ui_view_kill_focus(ui_view_t* view) {
-    { // TODO: deprecated REMOVE:
-        ui_view_check_children(view);
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) { ui_view_kill_focus(*c); c++; }
-    }
-    // NEW WAY:
     ui_view_for_each(view, c, { ui_view_kill_focus(c); });
     if (view->kill_focus != null && view->focusable) {
         view->kill_focus(view);
@@ -5344,13 +5241,6 @@ static void ui_view_mouse(ui_view_t* view, int32_t m, int32_t f) {
     }
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->mouse != null) { view->mouse(view, m, f); }
-        { // TODO: deprecated REMOVE:
-            ui_view_check_children(view);
-            for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-                ui_view_mouse(*c, m, f);
-            }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, { ui_view_mouse(c, m, f); });
     }
 }
@@ -5358,24 +5248,12 @@ static void ui_view_mouse(ui_view_t* view, int32_t m, int32_t f) {
 static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->mouse_wheel != null) { view->mouse_wheel(view, dx, dy); }
-        { // TODO: deprecated REMOVE:
-            ui_view_check_children(view);
-            ui_view_t** c = view->children;
-            while (c != null && *c != null) { ui_view_mouse_wheel(*c, dx, dy); c++; }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, { ui_view_mouse_wheel(c, dx, dy); });
     }
 }
 
 static void ui_view_measure_children(ui_view_t* view) {
     if (!view->hidden) {
-        { // TODO: deprecated REMOVE:
-            ui_view_check_children(view);
-            ui_view_t** c = view->children;
-            while (c != null && *c != null) { ui_view_measure_children(*c); c++; }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, { ui_view_measure_children(c); });
         if (view->measure != null) {
             view->measure(view);
@@ -5388,12 +5266,6 @@ static void ui_view_measure_children(ui_view_t* view) {
 static void ui_view_layout_children(ui_view_t* view) {
     if (!view->hidden) {
         if (view->layout != null) { view->layout(view); }
-        { // TODO: deprecated REMOVE:
-            ui_view_check_children(view);
-            ui_view_t** c = view->children;
-            while (c != null && *c != null) { ui_view_layout_children(*c); c++; }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, { ui_view_layout_children(c); });
     }
 }
@@ -5420,15 +5292,6 @@ static void ui_view_kill_hidden_focus(ui_view_t* view) {
             // even for disabled or hidden view notify about kill_focus:
             view->kill_focus(view);
         } else {
-            { // TODO: deprecated REMOVE:
-                ui_view_check_children(view);
-                ui_view_t** c = view->children;
-                while (c != null && *c != null) {
-                    ui_view_kill_hidden_focus(*c);
-                    c++;
-                }
-            }
-            // NEW WAY:
             ui_view_for_each(view, c, { ui_view_kill_hidden_focus(c); });
         }
     }
@@ -5438,13 +5301,6 @@ static bool ui_view_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: r
     bool done = false; // consumed
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view) &&
         ui_view_inside(view, &app.mouse)) {
-        { // TODO: deprecated REMOVE:
-            ui_view_check_children(view);
-            for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
-                done = ui_view_tap(*c, ix);
-            }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, {
             done = ui_view_tap(c, ix);
             if (done) { break; }
@@ -5458,13 +5314,6 @@ static bool ui_view_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: r
 static bool ui_view_press(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        { // TODO: deprecated REMOVE:
-            ui_view_check_children(view);
-            for (ui_view_t** c = view->children; c != null && *c != null && !done; c++) {
-                done = ui_view_press(*c, ix);
-            }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, {
             done = ui_view_press(c, ix);
             if (done) { break; }
@@ -5476,12 +5325,6 @@ static bool ui_view_press(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2:
 
 static bool ui_view_context_menu(ui_view_t* view) {
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        // TODO: deprecated REMOVE:
-        ui_view_check_children(view);
-        for (ui_view_t** c = view->children; c != null && *c != null; c++) {
-            if (ui_view_context_menu(*c)) { return true; }
-        }
-        // NEW WAY:
         ui_view_for_each(view, c, {
             if (ui_view_context_menu(c)) { return true; }
         });
@@ -5509,15 +5352,6 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     if (view->message != null) {
         if (view->message(view, m, wp, lp, ret)) { return true; }
     }
-    { // TODO: deprecated REMOVE:
-        ui_view_check_children(view);
-        ui_view_t** c = view->children;
-        while (c != null && *c != null) {
-            if (ui_view_message(*c, m, wp, lp, ret)) { return true; }
-            c++;
-        }
-    }
-    // NEW WAY:
     ui_view_for_each(view, c, {
         if (ui_view_message(c, m, wp, lp, ret)) { return true; }
     });

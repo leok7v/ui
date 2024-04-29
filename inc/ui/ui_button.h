@@ -25,7 +25,7 @@ void ui_button_init_(ui_view_t* view); // do not call use ui_button() macro
     static                                                            \
     ui_button_t name = {                                              \
     .view = { .type = ui_view_button, .init = ui_button_init_,        \
-    .children = null, .width = w, .text = s}, .cb = name ## _callback }
+    .child = null, .width = w, .text = s}, .cb = name ## _callback }
 
 // usage:
 // ui_button(button, 7.0, "&Button", { b->view.pressed = !b->view.pressed; })

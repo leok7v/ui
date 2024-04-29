@@ -80,7 +80,7 @@ static const char* filter[] = {
     "Executables", ".exe"
 };
 
-ui_button(button_open_file, "&Open", 7.5, {
+static void open_file(ui_button_t* unused(b)) {
     const char* fn = app.open_filename(
         app.known_folder(ui.folder.home),
         filter, countof(filter)); //  all files filer: null, 0
@@ -89,20 +89,32 @@ ui_button(button_open_file, "&Open", 7.5, {
         traceln("%s", fn);
         app.show_toast(&toast_filename.view, 2.0);
     }
+}
+
+ui_button(button_open_file, "&Open", 7.5, {
+    open_file(button_open_file);
 });
+
+static void flip_full_screen(ui_button_t* b) {
+    b->view.pressed = !b->view.pressed;
+    app.full_screen(b->view.pressed);
+    if (b->view.pressed) {
+        app.toast(1.75, "Press ESC to exit full screen");
+    }
+}
 
 ui_button(button_full_screen, glyph_two_squares, 1, {
-    button_full_screen->view.pressed = !button_full_screen->view.pressed;
-    app.full_screen(button_full_screen->view.pressed);
-    if (button_full_screen->view.pressed) {
-        app.toast(2.75, "Press ESC to exit full screen");
-    }
+    flip_full_screen(button_full_screen);
 });
 
-ui_button(button_locale, glyph_onna "A", 1, {
-    button_locale->view.pressed = !button_locale->view.pressed;
-    nls.set_locale(button_locale->view.pressed ? "zh-CN" : "en-US");
+static void flip_locale(ui_button_t* b) {
+    b->view.pressed = !b->view.pressed;
+    nls.set_locale(b->view.pressed ? "zh-CN" : "en-US");
     app.layout(); // because center panel layout changed
+}
+
+ui_button(button_locale, glyph_onna "A", 1, {
+    flip_locale(button_locale);
 });
 
 ui_button(button_about, "&About", 7.5, {
@@ -116,21 +128,10 @@ ui_button(button_mbx, "&Message Box", 7.5, {
 // ui_toggle label can include "___" for "ON ": "OFF" state
 ui_toggle(scroll, "Scroll &Direction:", 0, {});
 
-ui_container_deprecated(panel_top, null, null);
-ui_container_deprecated(panel_bottom, null, null);
-ui_container_deprecated(panel_center, null, null);
-ui_container_deprecated(panel_right, null,
-    &button_locale.view,
-    &button_full_screen.view,
-    &zoomer.view,
-    &scroll.view,
-    &button_open_file.view,
-    &button_about.view,
-    &button_mbx.view,
-    &text_single_line.view,
-    &text_multiline.view,
-    null
-);
+static ui_view_t panel_top    = ui_view(container);
+static ui_view_t panel_bottom = ui_view(container);
+static ui_view_t panel_center = ui_view(container);
+static ui_view_t panel_right  = ui_view(container);
 
 static void panel_paint(ui_view_t* view) {
     gdi.push(view->x, view->y);
@@ -170,16 +171,13 @@ static void panel_paint(ui_view_t* view) {
 }
 
 static void right_layout(ui_view_t* view) {
-    if ( view->children != null) {
-        int x = view->x + em.x;
-        int y = view->y + em.y * 2;
-        for (ui_view_t** it = view->children; *it != null; it++) {
-            ui_view_t* ch = *it;
-            ch->x = x;
-            ch->y = y;
-            y += ch->h + ut_max(1, em.y / 2);
-        }
-    }
+    int x = view->x + em.x;
+    int y = view->y + em.y * 2;
+    ui_view_for_each(view, c, {
+        c->x = x;
+        c->y = y;
+        y += c->h + em.y / 2;
+    });
 }
 
 static void text_after(ui_view_t* view, const char* format, ...) {
@@ -384,6 +382,34 @@ static void init_panel(ui_view_t* panel, const char* text, ui_color_t color,
 }
 
 static void opened(void) {
+    app.view->measure     = measure;
+    app.view->layout      = layout;
+    app.view->character   = character;
+    app.view->key_pressed = keyboard; // virtual_keys
+    app.view->mouse_wheel = mouse_wheel;
+
+    ui_view.add(&panel_right,
+        &button_locale.view,
+        &button_full_screen.view,
+        &zoomer.view,
+        &scroll.view,
+        &button_open_file.view,
+        &button_about.view,
+        &button_mbx.view,
+        &text_single_line.view,
+        &text_multiline.view,
+        null
+    );
+
+    ui_view.add(app.view,
+        &panel_top,
+        &panel_center,
+        &panel_right,
+        &panel_bottom,
+        null);
+
+    panel_center.mouse = mouse;
+
     int n = countof(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(countof(pixels) == countof(pixels[0]), "square");
@@ -411,16 +437,7 @@ static void opened(void) {
 
 static void init(void) {
     app.title = TITLE;
-    app.view->measure     = measure;
-    app.view->layout      = layout;
-    app.view->character   = character;
-    app.view->key_pressed = keyboard; // virtual_keys
-    app.view->mouse_wheel = mouse_wheel;
-    app.opened            = opened;
-    static ui_view_t* root_children[] = { &panel_top, &panel_center,
-        &panel_right, &panel_bottom, null };
-    app.view->children = root_children;
-    panel_center.mouse = mouse;
+    app.opened = opened;
 }
 
 static fp64_t scale0to1(int v, int range, fp64_t sh, fp64_t zm) {

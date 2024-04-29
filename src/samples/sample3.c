@@ -16,16 +16,16 @@ static volatile bool rendering;
 static volatile bool stop;
 static volatile fp64_t render_time;
 
-static void toggle_full_screen(ui_button_t* fs);
-
-ui_button(button_fs, "\xE2\xA7\x89", 1.0, {
-    toggle_full_screen(button_fs);
-});
+#define glyph_two_squares "\xE2\xA7\x89" // "Two Joined Squares"
 
 static void toggle_full_screen(ui_button_t* b) {
     b->view.pressed = !b->view.pressed;
     app.full_screen(b->view.pressed);
 }
+
+ui_button(button_fs, glyph_two_squares, 1.0, {
+    toggle_full_screen(button_fs);
+});
 
 static void paint(ui_view_t* view) {
     int k = index;

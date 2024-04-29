@@ -1785,10 +1785,8 @@ static ui_rect_t app_window_initial_rectangle(void) {
     }
     const int32_t ini_w = app.in2px(ws->ini_w);
     const int32_t ini_h = app.in2px(ws->ini_h);
-    int32_t min_w = ws->min_w > 0 ?
-        app.in2px(ws->min_w) : app.work_area.w / 4;
-    int32_t min_h = ws->min_h > 0 ?
-        app.in2px(ws->min_h) : app.work_area.h / 4;
+    int32_t min_w = ws->min_w > 0 ? app.in2px(ws->min_w) : app.work_area.w / 4;
+    int32_t min_h = ws->min_h > 0 ? app.in2px(ws->min_h) : app.work_area.h / 4;
     // (x, y) (-1, -1) means "let Windows manager position the window"
     ui_rect_t r = {-1, -1,
                    ini_w > 0 ? ini_w : min_w, ini_h > 0 ? ini_h : min_h};

@@ -19,11 +19,11 @@ void ui_label_init_(ui_view_t* view);
 
 #define ui_label(t, s)                                                        \
     ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
-    .children = null, .width = 0.0, .text = s}, .multiline = false}
+    .child = null, .width = 0.0, .text = s}, .multiline = false}
 
 #define ui_label_ml(t, w, s)  /* multiline */                                 \
     ui_label_t t = { .view = { .type = ui_view_label, .init = ui_label_init_, \
-    .children = null, .width = w, .text = s}, .multiline = true}
+    .child = null, .width = w, .text = s}, .multiline = true}
 
 // single line of text with "&" keyboard shortcuts:
 

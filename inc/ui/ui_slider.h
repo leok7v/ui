@@ -14,7 +14,7 @@ typedef struct ui_slider_s {
     ui_point_t tm; // text measurement (special case for %0*d)
     ui_button_t inc;
     ui_button_t dec;
-    ui_view_t* buttons[3]; // = { dec, inc, null }
+    ui_view_t* buttons[2]; // = { dec, inc }
     int32_t value;  // for ui_slider_t range slider control
     int32_t value_min;
     int32_t value_max;
@@ -32,9 +32,9 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     }                                                       \
     static                                                  \
     ui_slider_t name = {                                    \
-        .view = { .type = ui_view_slider, .children = null, \
+        .view = { .type = ui_view_slider, .child = null,    \
         .width = ems, .text = s, .init = _slider_init_,     \
-    }, .value_min = vmn, .value_max = vmx, .value = vmn,              \
+    }, .value_min = vmn, .value_max = vmx, .value = vmn,    \
     .cb = name ## _callback }
 
 end_c

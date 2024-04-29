@@ -18,9 +18,13 @@ static void ui_mbx_measure(ui_view_t* view) {
     ui_mbx_t* mx = (ui_mbx_t*)view;
     assert(view->type == ui_view_mbx);
     int32_t n = 0;
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) { n++; }
+    ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
-    mx->text.view.measure(&mx->text.view);
+    if (mx->text.view.measure != null) {
+        mx->text.view.measure(&mx->text.view);
+    } else {
+        ui_view.measure(&mx->text.view);
+    }
     const int32_t em_x = mx->text.view.em.x;
     const int32_t em_y = mx->text.view.em.y;
     const int32_t tw = mx->text.view.w;
@@ -42,7 +46,7 @@ static void ui_mbx_layout(ui_view_t* view) {
     ui_mbx_t* mx = (ui_mbx_t*)view;
     assert(view->type == ui_view_mbx);
     int32_t n = 0;
-    for (ui_view_t** c = view->children; c != null && *c != null; c++) { n++; }
+    ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
     const int32_t em_y = mx->text.view.em.y;
     mx->text.view.x = view->x;
@@ -78,18 +82,18 @@ void ui_mbx_init_(ui_view_t* view) {
     int32_t n = 0;
     while (opts[n] != null && n < countof(mx->button) - 1) {
         ui_button_init(&mx->button[n], opts[n], 6.0, ui_mbx_button);
-        mx->button[n].view.parent = &mx->view;
         n++;
     }
-    assert(n <= countof(mx->button));
+    swear(n <= countof(mx->button), "inhumane: %d buttons", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
-    mx->children[0] = &mx->text.view;
+    ui_view.add_last(&mx->view, &mx->text.view);
     for (int32_t i = 0; i < n; i++) {
-        mx->children[i + 1] = &mx->button[i].view;
-        mx->children[i + 1]->font = mx->view.font;
+        ui_view.add_last(&mx->view, &mx->button[i].view);
+        mx->button[i].view.font = mx->view.font;
         ui_view.localize(&mx->button[i].view);
+        // TODO: remove assert below
+        assert(mx->button[i].view.parent == &mx->view);
     }
-    mx->view.children = mx->children;
     ui_label_init_ml(&mx->text, 0.0, "%s", mx->view.text);
     mx->text.view.font = mx->view.font;
     ui_view.localize(&mx->text.view);

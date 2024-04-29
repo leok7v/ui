@@ -20,7 +20,6 @@ typedef struct ui_view_s {
     void (*init)(ui_view_t* view); // called once before first layout
     fp64_t width;    // > 0 width of UI element in "em"s
     char text[2048];
-    ui_view_t** children; // null terminated array[] of children
     ui_view_t* parent;
     ui_view_t* child; // first child, circular doubly linked list
     ui_view_t* prev;  // left or top sibling
@@ -137,11 +136,16 @@ typedef struct ui_view_if {
 
 extern ui_view_if ui_view;
 
-#define ui_container_deprecated(name, ini, ...)                                       \
-static ui_view_t* _ ## name ## _ ## children ## _[] = {__VA_ARGS__, null}; \
-static ui_view_t name = { .type = ui_view_container, .init = ini,          \
-                       .children = (_ ## name ## _ ## children ## _),      \
-                       .text = #name                                       \
-}
+// view children iterator:
+
+#define ui_view_for_each(v, it, code) do { \
+    ui_view_t* it = (v)->child;            \
+    if (it != null) {                      \
+        do {                               \
+            { code }                       \
+            it = it->next;                 \
+        } while (it != (v)->child);        \
+    }                                      \
+} while (0)
 
 end_c

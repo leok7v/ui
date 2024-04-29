@@ -19,10 +19,9 @@ static void init(void) {
     app.title = title;
     app.view->layout = layout;
     app.view->paint = paint;
-    static ui_label(text, "Hello World!");
-    text.view.font = &app.fonts.H3;
-    static ui_view_t* children[] = { &text.view, null };
-    app.view->children = children;
+    static ui_label(label, "Hello World!");
+    label.view.font = &app.fonts.H3;
+    ui_view.add(app.view, &label, null);
 }
 
 app_t app = {

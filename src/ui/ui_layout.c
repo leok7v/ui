@@ -2,86 +2,80 @@
 #include "ui/ui.h"
 
 static void measurements_center(ui_view_t* view) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    assert(view->children[1] == null, "must be single child");
-    ui_view_t* c = view->children[0]; // even if hidden measure it
+    assert(view->child != null && view->child->next == view->child,
+        "must be a single child parent");
+    ui_view_t* c = view->child; // even if hidden measure it
     c->w = view->w;
     c->h = view->h;
 }
 
 static void measurements_horizontal(ui_view_t* view, int32_t gap) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    ui_view_t** c = view->children;
+    assert(view->child != null, "not a single child?");
     view->w = 0;
     view->h = 0;
     bool seen = false;
-    while (*c != null) {
-        ui_view_t* u = *c;
-        if (!u->hidden) {
+    ui_view_for_each(view, c, {
+        if (!c->hidden) {
             if (seen) { view->w += gap; }
-            view->w += u->w;
-            view->h = ut_max(view->h, u->h);
+            view->w += c->w;
+            view->h = ut_max(view->h, c->h);
             seen = true;
         }
-        c++;
-    }
+    });
 }
 
 static void measurements_vertical(ui_view_t* view, int32_t gap) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    ui_view_t** c = view->children;
+    assert(view->child != null, "not a single child?");
     view->h = 0;
     bool seen = false;
-    while (*c != null) {
-        ui_view_t* u = *c;
-        if (!u->hidden) {
+    ui_view_for_each(view, c, {
+        if (!c->hidden) {
             if (seen) { view->h += gap; }
-            view->h += u->h;
-            view->w = ut_max(view->w, u->w);
+            view->h += c->h;
+            view->w = ut_max(view->w, c->w);
             seen = true;
         }
-        c++;
-    }
+    });
 }
 
 static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     int32_t cols = 0;
-    for (ui_view_t** row = view->children; *row != null; row++) {
-        ui_view_t* r = *row;
+    ui_view_for_each(view, r, {
         int32_t n = 0;
-        for (ui_view_t** col = r->children; *col != null; col++) { n++; }
+        ui_view_for_each(r, c, { n++; });
         if (cols == 0) { cols = n; }
         assert(n > 0 && cols == n);
-    }
-    int32_t* mxw = (int32_t*)alloca(cols * sizeof(int32_t));
+    });
+    #pragma warning(push) // mxw[] IntelliSense confusion
+    #pragma warning(disable: 6385)
+    #pragma warning(disable: 6386)
+    int32_t* mxw = (int32_t*)stackalloc(cols * sizeof(int32_t));
     memset(mxw, 0, cols * sizeof(int32_t));
-    for (ui_view_t** row = view->children; *row != null; row++) {
-        if (!(*row)->hidden) {
-            (*row)->h = 0;
-            (*row)->baseline = 0;
+    ui_view_for_each(view, row, {
+        if (!row->hidden) {
+            row->h = 0;
+            row->baseline = 0;
             int32_t i = 0;
-            for (ui_view_t** col = (*row)->children; *col != null; col++) {
-                if (!(*col)->hidden) {
-                    mxw[i] = ut_max(mxw[i], (*col)->w);
-                    (*row)->h = ut_max((*row)->h, (*col)->h);
-//                  traceln("[%d] row.baseline: %d col.baseline: %d ", i, (*row)->baseline, (*col)->baseline);
-                    (*row)->baseline = ut_max((*row)->baseline, (*col)->baseline);
+            ui_view_for_each(row, col, {
+                if (!col->hidden) {
+                    mxw[i] = ut_max(mxw[i], col->w);
+                    row->h = ut_max(row->h, col->h);
+//                  traceln("[%d] row.baseline: %d col.baseline: %d ", i, row->baseline, col->baseline);
+                    row->baseline = ut_max(row->baseline, col->baseline);
                 }
                 i++;
-            }
+            });
         }
-    }
+    });
     view->h = 0;
     view->w = 0;
     int32_t rows_seen = 0; // number of visible rows so far
-    for (ui_view_t** row = view->children; *row != null; row++) {
-        ui_view_t* r = *row;
+    ui_view_for_each(view, r, {
         if (!r->hidden) {
             r->w = 0;
             int32_t i = 0;
             int32_t cols_seen = 0; // number of visible columns so far
-            for (ui_view_t** col = r->children; *col != null; col++) {
-                ui_view_t* c = *col;
+            ui_view_for_each(view, c, {
                 if (!c->hidden) {
                     c->h = r->h; // all cells are same height
                     if (c->type == ui_view_label) { // lineup text baselines
@@ -94,12 +88,13 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
                     view->w = ut_max(view->w, r->w);
                     cols_seen++;
                 }
-            }
+            });
             view->h += r->h;
             if (rows_seen > 0) { view->h += gap_v; }
             rows_seen++;
         }
-    }
+    });
+    #pragma warning(pop)
 }
 
 measurements_if measurements = {
@@ -112,70 +107,66 @@ measurements_if measurements = {
 // layouts
 
 static void layouts_center(ui_view_t* view) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    assert(view->children[1] == null, "must be single child");
-    ui_view_t* c = view->children[0];
+    assert(view->child != null && view->child->next == view->child,
+        "must be a single child parent");
+    ui_view_t* c = view->child;
     c->x = (view->w - c->w) / 2;
     c->y = (view->h - c->h) / 2;
 }
 
-static void layouts_horizontal(ui_view_t* view, int32_t x, int32_t y, int32_t gap) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    ui_view_t** c = view->children;
+static void layouts_horizontal(ui_view_t* view, int32_t x, int32_t y,
+        int32_t gap) {
+    assert(view->child != null, "not a single child?");
     bool seen = false;
-    while (*c != null) {
-        ui_view_t* u = *c;
-        if (!u->hidden) {
+    ui_view_for_each(view, c, {
+        if (!c->hidden) {
             if (seen) { x += gap; }
-            u->x = x;
-            u->y = y;
-            x += u->w;
+            c->x = x;
+            c->y = y;
+            x += c->w;
             seen = true;
         }
-        c++;
-    }
+    });
 }
 
-static void layouts_vertical(ui_view_t* view, int32_t x, int32_t y, int32_t gap) {
-    assert(view->children != null && view->children[0] != null, "no children?");
-    ui_view_t** c = view->children;
+static void layouts_vertical(ui_view_t* view, int32_t x, int32_t y,
+        int32_t gap) {
+    assert(view->child != null, "not a single child?");
     bool seen = false;
-    while (*c != null) {
-        ui_view_t* u = *c;
-        if (!u->hidden) {
+    ui_view_for_each(view, c, {
+        if (!c->hidden) {
             if (seen) { y += gap; }
-            u->x = x;
-            u->y = y;
-            y += u->h;
+            c->x = x;
+            c->y = y;
+            y += c->h;
             seen = true;
         }
-        c++;
-    }
+    });
 }
 
 static void layouts_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
-    assert(view->children != null, "layout_grid() with no children?");
+    assert(view->child != null, "not a single child?");
     int32_t x = view->x;
     int32_t y = view->y;
     bool row_seen = false;
-    for (ui_view_t** row = view->children; *row != null; row++) {
-        if (!(*row)->hidden) {
+    ui_view_for_each(view, row, {
+        if (!row->hidden) {
             if (row_seen) { y += gap_v; }
             int32_t xc = x;
             bool col_seen = false;
-            for (ui_view_t** col = (*row)->children; *col != null; col++) {
-                if (!(*col)->hidden) {
+            ui_view_for_each(row, col, {
+                if (!col->hidden) {
                     if (col_seen) { xc += gap_h; }
-                    (*col)->x = xc;
-                    (*col)->y = y;
-                    xc += (*col)->w;
+                    col->x = xc;
+                    col->y = y;
+                    xc += col->w;
                     col_seen = true;
                 }
-            }
-            y += (*row)->h;
+            });
+            y += row->h;
             row_seen = true;
         }
-    }
+    });
 }
 
 layouts_if layouts = {
