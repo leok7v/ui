@@ -628,8 +628,8 @@ static void app_toast_paint(void) {
 }
 
 static void app_toast_cancel(void) {
-    if (app.animating.view != null && app.animating.view->type == ui_view_messagebox) {
-        ui_messagebox_t* mx = (ui_messagebox_t*)app.animating.view;
+    if (app.animating.view != null && app.animating.view->type == ui_view_mbx) {
+        ui_mbx_t* mx = (ui_mbx_t*)app.animating.view;
         if (mx->option < 0) { mx->cb(mx, -1); }
     }
     app.animating.step = 0;
@@ -1252,8 +1252,8 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
     if (view != null) {
         app.animating.x = x;
         app.animating.y = y;
-        if (view->type == ui_view_messagebox) {
-            ((ui_messagebox_t*)view)->option = -1;
+        if (view->type == ui_view_mbx) {
+            ((ui_mbx_t*)view)->option = -1;
         }
         // allow unparented ui for toast and tooltip
         if (view->init != null) { view->init(view); view->init = null; }

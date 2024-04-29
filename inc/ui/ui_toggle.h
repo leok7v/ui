@@ -1,5 +1,6 @@
 #pragma once
 #include "ut/ut_std.h"
+#include "ui/ui_view.h"
 
 begin_c
 

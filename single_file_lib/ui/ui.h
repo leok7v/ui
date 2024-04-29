@@ -451,14 +451,13 @@ extern gdi_t gdi;
 
 
 enum ui_view_type_t {
-    ui_view_container  = 'cnt',
-    ui_view_label      = 'lbl',
-    ui_view_messagebox = 'mbx',
-    ui_view_button     = 'btn',
-    ui_view_toggle   = 'cbx',
-    ui_view_slider     = 'sld',
-//  ui_view_text       = 'txt',
-    ui_view_edit       = 'edt'
+    ui_view_container = 'cnt',
+    ui_view_label     = 'lbl',
+    ui_view_mbx       = 'mbx',
+    ui_view_button    = 'btn',
+    ui_view_toggle    = 'cbx',
+    ui_view_slider    = 'sld',
+    ui_view_edit      = 'edt'
 };
 
 typedef struct ui_view_s ui_view_t;
@@ -746,14 +745,14 @@ typedef struct ui_slider_s {
     ui_button_t dec;
     ui_view_t* buttons[3]; // = { dec, inc, null }
     int32_t value;  // for ui_slider_t range slider control
-    int32_t vmin;
-    int32_t vmax;
+    int32_t value_min;
+    int32_t value_max;
 } ui_slider_t;
 
 void _slider_init_(ui_view_t* view);
 
 void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
-    int32_t vmin, int32_t vmax, void (*cb)(ui_slider_t* r));
+    int32_t value_min, int32_t value_max, void (*cb)(ui_slider_t* r));
 
 #define ui_slider(name, s, ems, vmn, vmx, code)             \
     static void name ## _callback(ui_slider_t* name) {      \
@@ -764,42 +763,42 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     ui_slider_t name = {                                    \
         .view = { .type = ui_view_slider, .children = null, \
         .width = ems, .text = s, .init = _slider_init_,     \
-    }, .vmin = vmn, .vmax = vmx, .value = vmn,              \
+    }, .value_min = vmn, .value_max = vmx, .value = vmn,              \
     .cb = name ## _callback }
 
-// _____________________________ ui_messagebox.h ______________________________
+// _________________________________ ui_mbx.h _________________________________
 
 #include "ut/ut_std.h"
 
 
-typedef struct ui_messagebox_s ui_messagebox_t;
+typedef struct ui_mbx_s ui_mbx_t;
 
-typedef struct ui_messagebox_s {
+typedef struct ui_mbx_s {
     ui_view_t view;
-    void (*cb)(ui_messagebox_t* m, int32_t option); // callback -1 on cancel
+    void (*cb)(ui_mbx_t* m, int32_t option); // callback -1 on cancel
     ui_label_t text;
     ui_button_t button[16];
     ui_view_t* children[17];
     int32_t option; // -1 or option chosen by user
     const char** opts;
-} ui_messagebox_t;
+} ui_mbx_t;
 
-void ui_messagebox_init_(ui_view_t* view);
+void ui_mbx_init_(ui_view_t* view);
 
-void ui_messagebox_init(ui_messagebox_t* mx, const char* option[],
-    void (*cb)(ui_messagebox_t* m, int32_t option), const char* format, ...);
+void ui_mbx_init(ui_mbx_t* mx, const char* option[],
+    void (*cb)(ui_mbx_t* m, int32_t option), const char* format, ...);
 
-#define ui_messagebox(name, s, code, ...)                                \
+#define ui_mbx(name, s, code, ...)                                \
                                                                          \
     static char* name ## _options[] = { __VA_ARGS__, null };             \
                                                                          \
-    static void name ## _callback(ui_messagebox_t* m, int32_t option) {  \
+    static void name ## _callback(ui_mbx_t* m, int32_t option) {  \
         (void)m; (void)option; /* no warnings if unused */               \
         code                                                             \
     }                                                                    \
     static                                                               \
-    ui_messagebox_t name = {                                             \
-    .view = { .type = ui_view_messagebox, .init = ui_messagebox_init_,   \
+    ui_mbx_t name = {                                             \
+    .view = { .type = ui_view_mbx, .init = ui_mbx_init_,   \
     .children = null, .text = s}, .opts = name ## _options,              \
     .cb = name ## _callback }
 
@@ -1590,8 +1589,8 @@ static void app_toast_paint(void) {
 }
 
 static void app_toast_cancel(void) {
-    if (app.animating.view != null && app.animating.view->type == ui_view_messagebox) {
-        ui_messagebox_t* mx = (ui_messagebox_t*)app.animating.view;
+    if (app.animating.view != null && app.animating.view->type == ui_view_mbx) {
+        ui_mbx_t* mx = (ui_mbx_t*)app.animating.view;
         if (mx->option < 0) { mx->cb(mx, -1); }
     }
     app.animating.step = 0;
@@ -2214,8 +2213,8 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
     if (view != null) {
         app.animating.x = x;
         app.animating.y = y;
-        if (view->type == ui_view_messagebox) {
-            ((ui_messagebox_t*)view)->option = -1;
+        if (view->type == ui_view_mbx) {
+            ((ui_mbx_t*)view)->option = -1;
         }
         // allow unparented ui for toast and tooltip
         if (view->init != null) { view->init(view); view->init = null; }
@@ -4328,13 +4327,13 @@ layouts_if layouts = {
     .vertical   = layouts_vertical,
     .grid       = layouts_grid
 };
-// _____________________________ ui_messagebox.c ______________________________
+// _________________________________ ui_mbx.c _________________________________
 
 #include "ut/ut.h"
 
-static void ui_messagebox_button(ui_button_t* b) {
-    ui_messagebox_t* mx = (ui_messagebox_t*)b->view.parent;
-    assert(mx->view.type == ui_view_messagebox);
+static void ui_mbx_button(ui_button_t* b) {
+    ui_mbx_t* mx = (ui_mbx_t*)b->view.parent;
+    assert(mx->view.type == ui_view_mbx);
     mx->option = -1;
     for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
         if (b == &mx->button[i]) {
@@ -4345,9 +4344,9 @@ static void ui_messagebox_button(ui_button_t* b) {
     app.show_toast(null, 0);
 }
 
-static void ui_messagebox_measure(ui_view_t* view) {
-    ui_messagebox_t* mx = (ui_messagebox_t*)view;
-    assert(view->type == ui_view_messagebox);
+static void ui_mbx_measure(ui_view_t* view) {
+    ui_mbx_t* mx = (ui_mbx_t*)view;
+    assert(view->type == ui_view_mbx);
     int32_t n = 0;
     for (ui_view_t** c = view->children; c != null && *c != null; c++) { n++; }
     n--; // number of buttons
@@ -4369,9 +4368,9 @@ static void ui_messagebox_measure(ui_view_t* view) {
     }
 }
 
-static void ui_messagebox_layout(ui_view_t* view) {
-    ui_messagebox_t* mx = (ui_messagebox_t*)view;
-    assert(view->type == ui_view_messagebox);
+static void ui_mbx_layout(ui_view_t* view) {
+    ui_mbx_t* mx = (ui_mbx_t*)view;
+    assert(view->type == ui_view_mbx);
     int32_t n = 0;
     for (ui_view_t** c = view->children; c != null && *c != null; c++) { n++; }
     n--; // number of buttons
@@ -4398,17 +4397,17 @@ static void ui_messagebox_layout(ui_view_t* view) {
     }
 }
 
-void ui_messagebox_init_(ui_view_t* view) {
-    assert(view->type == ui_view_messagebox);
-    ui_messagebox_t* mx = (ui_messagebox_t*)view;
+void ui_mbx_init_(ui_view_t* view) {
+    assert(view->type == ui_view_mbx);
+    ui_mbx_t* mx = (ui_mbx_t*)view;
     ui_view_init(view);
-    view->measure = ui_messagebox_measure;
-    view->layout  = ui_messagebox_layout;
+    view->measure = ui_mbx_measure;
+    view->layout  = ui_mbx_layout;
     mx->view.font = &app.fonts.H3;
     const char** opts = mx->opts;
     int32_t n = 0;
     while (opts[n] != null && n < countof(mx->button) - 1) {
-        ui_button_init(&mx->button[n], opts[n], 6.0, ui_messagebox_button);
+        ui_button_init(&mx->button[n], opts[n], 6.0, ui_mbx_button);
         mx->button[n].view.parent = &mx->view;
         n++;
     }
@@ -4428,12 +4427,12 @@ void ui_messagebox_init_(ui_view_t* view) {
     mx->option = -1;
 }
 
-void ui_messagebox_init(ui_messagebox_t* mx, const char* opts[],
-        void (*cb)(ui_messagebox_t* m, int32_t option),
+void ui_mbx_init(ui_mbx_t* mx, const char* opts[],
+        void (*cb)(ui_mbx_t* m, int32_t option),
         const char* format, ...) {
-    mx->view.type = ui_view_messagebox;
-    mx->view.measure = ui_messagebox_measure;
-    mx->view.layout  = ui_messagebox_layout;
+    mx->view.type = ui_view_mbx;
+    mx->view.measure = ui_mbx_measure;
+    mx->view.layout  = ui_mbx_layout;
     mx->opts = opts;
     mx->cb = cb;
     va_list vl;
@@ -4441,7 +4440,7 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* opts[],
     ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
     ui_label_init_ml(&mx->text, 0.0, mx->view.text);
     va_end(vl);
-    ui_messagebox_init_(&mx->view);
+    ui_mbx_init_(&mx->view);
 }
 // _________________________________ ui_nls.c _________________________________
 
@@ -4639,7 +4638,7 @@ static void ui_slider_measure(ui_view_t* view) {
     const int32_t em = view->em.x;
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
     const int32_t w = (int)(view->width * view->em.x);
-    r->tm = gdi.measure_text(f, ui_view.nls(view), r->vmax);
+    r->tm = gdi.measure_text(f, ui_view.nls(view), r->value_max);
     if (w > r->tm.x) { r->tm.x = w; }
     view->w = r->dec.view.w + r->tm.x + r->inc.view.w + em * 2;
     view->h = r->inc.view.h;
@@ -4682,8 +4681,8 @@ static void ui_slider_paint(ui_view_t* view) {
     gdi.set_brush_color(colors.dkgreen);
     ui_pen_t pen_grey30 = gdi.create_pen(colors.dkgray1, em16);
     gdi.set_pen(pen_grey30);
-    const fp64_t range = (fp64_t)r->vmax - (fp64_t)r->vmin;
-    fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->vmin) / range;
+    const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
+    fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->value_min) / range;
     gdi.rect(x, view->y, (int32_t)(vw + 0.5), view->h);
     gdi.x += r->dec.view.w + em;
     const char* format = nls.str(view->text);
@@ -4708,10 +4707,10 @@ static void ui_slider_mouse(ui_view_t* view, int32_t message, int32_t f) {
             const int32_t x1 = r->tm.x + view->em.x;
             if (x0 <= x && x < x1 && 0 <= y && y < view->h) {
                 app.focus = view;
-                const fp64_t range = (fp64_t)r->vmax - (fp64_t)r->vmin;
+                const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
                 fp64_t v = ((fp64_t)x - x0) * range / (fp64_t)(x1 - x0 - 1);
-                int32_t vw = (int32_t)(v + r->vmin + 0.5);
-                r->value = ut_min(ut_max(vw, r->vmin), r->vmax);
+                int32_t vw = (int32_t)(v + r->value_min + 0.5);
+                r->value = ut_min(ut_max(vw, r->value_min), r->value_max);
                 if (r->cb != null) { r->cb(r); }
                 ui_view.invalidate(view);
             }
@@ -4723,11 +4722,11 @@ static void ui_slider_inc_dec_value(ui_slider_t* r, int32_t sign, int32_t mul) {
     if (!r->view.hidden && !r->view.disabled) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
         int32_t v = r->value;
-        if (v > r->vmin && sign < 0) {
-            mul = ut_min(v - r->vmin, mul);
+        if (v > r->value_min && sign < 0) {
+            mul = ut_min(v - r->value_min, mul);
             v += mul * sign;
-        } else if (v < r->vmax && sign > 0) {
-            mul = ut_min(r->vmax - v, mul);
+        } else if (v < r->value_max && sign > 0) {
+            mul = ut_min(r->value_max - v, mul);
             v += mul * sign;
         }
         if (r->value != v) {
@@ -4762,7 +4761,7 @@ static void ui_slider_every_100ms(ui_view_t* view) { // 100ms
             const int32_t sign = r->dec.view.armed ? -1 : +1;
             int32_t s = (int)(app.now - r->time + 0.5);
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
-            const int64_t range = (int64_t)r->vmax - r->vmin;
+            const int64_t range = (int64_t)r->value_max - r->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
             ui_slider_inc_dec_value(r, sign, ut_max(mul, 1));
         }
@@ -4797,16 +4796,16 @@ void ui_slider_init_(ui_view_t* view) {
 }
 
 void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
-        int32_t vmin, int32_t vmax, void (*cb)(ui_slider_t* r)) {
+        int32_t value_min, int32_t value_max, void (*cb)(ui_slider_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(ems >= 3.0, "allow 1em for each of [-] and [+] buttons");
     r->view.type = ui_view_slider;
     strprintf(r->view.text, "%s", label);
     r->cb = cb;
     r->view.width = ems;
-    r->vmin = vmin;
-    r->vmax = vmax;
-    r->value = vmin;
+    r->value_min = value_min;
+    r->value_max = value_max;
+    r->value = value_min;
     ui_slider_init_(&r->view);
 }
 // _______________________________ ui_toggle.c ________________________________

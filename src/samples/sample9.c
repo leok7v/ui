@@ -67,7 +67,7 @@ ui_label_ml(about, 34.56,
     "to dismiss this message or just wait - it will disappear by "
     "itself in 10 seconds.\n");
 
-ui_messagebox(messagebox,
+ui_mbx(messagebox,
     "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
     "is it the longest English language word or not?", {
     traceln("option=%d", option); // -1 or index of { "&Yes", "&No" }
@@ -476,7 +476,7 @@ static void refresh(void) {
     zoomer.value = 0;
     fp64_t z = 1;
     while (z != zoom) { zoomer.value++; z /= 2; }
-    zoomer.value = ut_min(zoomer.value, zoomer.vmax);
+    zoomer.value = ut_min(zoomer.value, zoomer.value_max);
     mandelbrot(&image);
     app.redraw();
 }

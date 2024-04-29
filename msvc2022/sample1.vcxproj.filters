@@ -31,7 +31,7 @@
     <ClInclude Include="..\inc\ui\ui_button.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_messagebox.h">
+    <ClInclude Include="..\inc\ui\ui_mbx.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui_core.h">

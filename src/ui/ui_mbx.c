@@ -1,9 +1,9 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static void ui_messagebox_button(ui_button_t* b) {
-    ui_messagebox_t* mx = (ui_messagebox_t*)b->view.parent;
-    assert(mx->view.type == ui_view_messagebox);
+static void ui_mbx_button(ui_button_t* b) {
+    ui_mbx_t* mx = (ui_mbx_t*)b->view.parent;
+    assert(mx->view.type == ui_view_mbx);
     mx->option = -1;
     for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
         if (b == &mx->button[i]) {
@@ -14,9 +14,9 @@ static void ui_messagebox_button(ui_button_t* b) {
     app.show_toast(null, 0);
 }
 
-static void ui_messagebox_measure(ui_view_t* view) {
-    ui_messagebox_t* mx = (ui_messagebox_t*)view;
-    assert(view->type == ui_view_messagebox);
+static void ui_mbx_measure(ui_view_t* view) {
+    ui_mbx_t* mx = (ui_mbx_t*)view;
+    assert(view->type == ui_view_mbx);
     int32_t n = 0;
     for (ui_view_t** c = view->children; c != null && *c != null; c++) { n++; }
     n--; // number of buttons
@@ -38,9 +38,9 @@ static void ui_messagebox_measure(ui_view_t* view) {
     }
 }
 
-static void ui_messagebox_layout(ui_view_t* view) {
-    ui_messagebox_t* mx = (ui_messagebox_t*)view;
-    assert(view->type == ui_view_messagebox);
+static void ui_mbx_layout(ui_view_t* view) {
+    ui_mbx_t* mx = (ui_mbx_t*)view;
+    assert(view->type == ui_view_mbx);
     int32_t n = 0;
     for (ui_view_t** c = view->children; c != null && *c != null; c++) { n++; }
     n--; // number of buttons
@@ -67,17 +67,17 @@ static void ui_messagebox_layout(ui_view_t* view) {
     }
 }
 
-void ui_messagebox_init_(ui_view_t* view) {
-    assert(view->type == ui_view_messagebox);
-    ui_messagebox_t* mx = (ui_messagebox_t*)view;
+void ui_mbx_init_(ui_view_t* view) {
+    assert(view->type == ui_view_mbx);
+    ui_mbx_t* mx = (ui_mbx_t*)view;
     ui_view_init(view);
-    view->measure = ui_messagebox_measure;
-    view->layout  = ui_messagebox_layout;
+    view->measure = ui_mbx_measure;
+    view->layout  = ui_mbx_layout;
     mx->view.font = &app.fonts.H3;
     const char** opts = mx->opts;
     int32_t n = 0;
     while (opts[n] != null && n < countof(mx->button) - 1) {
-        ui_button_init(&mx->button[n], opts[n], 6.0, ui_messagebox_button);
+        ui_button_init(&mx->button[n], opts[n], 6.0, ui_mbx_button);
         mx->button[n].view.parent = &mx->view;
         n++;
     }
@@ -97,12 +97,12 @@ void ui_messagebox_init_(ui_view_t* view) {
     mx->option = -1;
 }
 
-void ui_messagebox_init(ui_messagebox_t* mx, const char* opts[],
-        void (*cb)(ui_messagebox_t* m, int32_t option),
+void ui_mbx_init(ui_mbx_t* mx, const char* opts[],
+        void (*cb)(ui_mbx_t* m, int32_t option),
         const char* format, ...) {
-    mx->view.type = ui_view_messagebox;
-    mx->view.measure = ui_messagebox_measure;
-    mx->view.layout  = ui_messagebox_layout;
+    mx->view.type = ui_view_mbx;
+    mx->view.measure = ui_mbx_measure;
+    mx->view.layout  = ui_mbx_layout;
     mx->opts = opts;
     mx->cb = cb;
     va_list vl;
@@ -110,5 +110,5 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* opts[],
     ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
     ui_label_init_ml(&mx->text, 0.0, mx->view.text);
     va_end(vl);
-    ui_messagebox_init_(&mx->view);
+    ui_mbx_init_(&mx->view);
 }

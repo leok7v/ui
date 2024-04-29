@@ -1,5 +1,6 @@
 #pragma once
 #include "ut/ut_std.h"
+#include "ui/ui_button.h"
 
 begin_c
 
@@ -15,14 +16,14 @@ typedef struct ui_slider_s {
     ui_button_t dec;
     ui_view_t* buttons[3]; // = { dec, inc, null }
     int32_t value;  // for ui_slider_t range slider control
-    int32_t vmin;
-    int32_t vmax;
+    int32_t value_min;
+    int32_t value_max;
 } ui_slider_t;
 
 void _slider_init_(ui_view_t* view);
 
 void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
-    int32_t vmin, int32_t vmax, void (*cb)(ui_slider_t* r));
+    int32_t value_min, int32_t value_max, void (*cb)(ui_slider_t* r));
 
 #define ui_slider(name, s, ems, vmn, vmx, code)             \
     static void name ## _callback(ui_slider_t* name) {      \
@@ -33,7 +34,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     ui_slider_t name = {                                    \
         .view = { .type = ui_view_slider, .children = null, \
         .width = ems, .text = s, .init = _slider_init_,     \
-    }, .vmin = vmn, .vmax = vmx, .value = vmn,              \
+    }, .value_min = vmn, .value_max = vmx, .value = vmn,              \
     .cb = name ## _callback }
 
 end_c
