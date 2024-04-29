@@ -67,7 +67,7 @@ ui_label_ml(about, 34.56,
     "to dismiss this message or just wait - it will disappear by "
     "itself in 10 seconds.\n");
 
-ui_mbx(messagebox,
+ui_mbx(mbx, // message box
     "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
     "is it the longest English language word or not?", {
     traceln("option=%d", option); // -1 or index of { "&Yes", "&No" }
@@ -80,7 +80,7 @@ static const char* filter[] = {
     "Executables", ".exe"
 };
 
-ui_button(open_file, "&Open", 7.5, {
+ui_button(button_open_file, "&Open", 7.5, {
     const char* fn = app.open_filename(
         app.known_folder(ui.folder.home),
         filter, countof(filter)); //  all files filer: null, 0
@@ -109,24 +109,24 @@ ui_button(button_about, "&About", 7.5, {
     app.show_toast(&about.view, 10.0);
 });
 
-ui_button(button_message_box, "&Message Box", 7.5, {
-    app.show_toast(&messagebox.view, 0);
+ui_button(button_mbx, "&Message Box", 7.5, {
+    app.show_toast(&mbx.view, 0);
 });
 
 // ui_toggle label can include "___" for "ON ": "OFF" state
 ui_toggle(scroll, "Scroll &Direction:", 0, {});
 
-ui_container(panel_top, null, null);
-ui_container(panel_bottom, null, null);
-ui_container(panel_center, null, null);
-ui_container(panel_right, null,
+ui_container_deprecated(panel_top, null, null);
+ui_container_deprecated(panel_bottom, null, null);
+ui_container_deprecated(panel_center, null, null);
+ui_container_deprecated(panel_right, null,
     &button_locale.view,
     &button_full_screen.view,
     &zoomer.view,
     &scroll.view,
-    &open_file.view,
+    &button_open_file.view,
     &button_about.view,
-    &button_message_box.view,
+    &button_mbx.view,
     &text_single_line.view,
     &text_multiline.view,
     null
@@ -404,7 +404,7 @@ static void opened(void) {
     button_full_screen.view.shortcut = 'f';
     ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
         zoomer_callback);
-    strcopy(button_message_box.view.tip, "Show Yes/No message box");
+    strcopy(button_mbx.view.tip, "Show Yes/No message box");
     strcopy(button_about.view.tip, "Show About message box");
     refresh();
 }

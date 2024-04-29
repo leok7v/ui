@@ -136,13 +136,13 @@ ui_button(fm, "Font Ctrl-", 7.5, { font_minus(); });
 
 ui_label_ml(text, 0.0, "...");
 
-ui_container(right, null,
+ui_container_deprecated(right, null,
     &full_screen.view, &quit.view, &fuzz.view,
     &fp.view, &fm.view,
     &mono.view, &sl.view, &ro.view, &edit2.view);
 
-ui_container(left, null, &edit0.view, &edit1.view);
-ui_container(bottom, null, &text.view);
+ui_container_deprecated(left, null, &edit0.view, &edit1.view);
+ui_container_deprecated(bottom, null, &text.view);
 
 static void set_text(int32_t ix) {
     static char last[128];

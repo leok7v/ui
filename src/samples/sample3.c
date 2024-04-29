@@ -4,8 +4,6 @@
 
 begin_c
 
-const char* title = "Sample3";
-
 static volatile int index; // index of image to paint, !ix to render
 static image_t image[2];
 static uint8_t pixels[2][4 * 4096 * 4096];
@@ -18,10 +16,16 @@ static volatile bool rendering;
 static volatile bool stop;
 static volatile fp64_t render_time;
 
-ui_button(full_screen, "\xE2\xA7\x89", 1.0, {
-    full_screen->view.pressed = !full_screen->view.pressed;
-    app.full_screen(full_screen->view.pressed);
+static void toggle_full_screen(ui_button_t* fs);
+
+ui_button(button_fs, "\xE2\xA7\x89", 1.0, {
+    toggle_full_screen(button_fs);
 });
+
+static void toggle_full_screen(ui_button_t* b) {
+    b->view.pressed = !b->view.pressed;
+    app.full_screen(b->view.pressed);
+}
 
 static void paint(ui_view_t* view) {
     int k = index;
@@ -72,21 +76,18 @@ static void measure(ui_view_t* view) {
 }
 
 static void layout(ui_view_t* view) {
-    full_screen.view.x = view->w - full_screen.view.w - view->em.x / 4;
-    full_screen.view.y = view->em.y / 4;
+    button_fs.view.x = view->w - button_fs.view.w - view->em.x / 4;
+    button_fs.view.y = view->em.y / 4;
 }
 
 static void renderer(void* unused); // renderer thread
 
-static void opened(void) {
-    fatal_if(app.crc.w * app.crc.h * 4 > countof(pixels[0]),
-        "increase size of pixels[][%d * %d * 4]", app.crc.w, app.crc.h);
-    gdi.image_init(&image[0], app.crc.w, app.crc.h, 4, pixels[0]);
-    gdi.image_init(&image[1], app.crc.w, app.crc.h, 4, pixels[1]);
-    thread = ut_thread.start(renderer, null);
-    request_rendering();
-    strprintf(full_screen.view.tip, "&Full Screen");
-    full_screen.view.shortcut = 'F';
+static void character(ui_view_t* unused(view), const char* utf8) {
+    char ch = utf8[0];
+    if (ch == 'q' || ch == 'Q') { app.close(); }
+    if (app.is_full_screen && ch == 033) {
+        toggle_full_screen(&button_fs);
+    }
 }
 
 static void closed(void) {
@@ -97,15 +98,6 @@ static void closed(void) {
     gdi.image_dispose(&image[1]);
 }
 
-static void character(ui_view_t* unused, const char* utf8) {
-    (void)unused;
-    char ch = utf8[0];
-    if (ch == 'q' || ch == 'Q') { app.close(); }
-    if (app.is_full_screen && ch == 033) {
-        full_screen_callback(&full_screen);
-    }
-}
-
 static void fini(void) {
     ut_event.dispose(wake);
     ut_event.dispose(quit);
@@ -113,24 +105,34 @@ static void fini(void) {
     quit = null;
 }
 
-static void init(void) {
-    app.title = title;
-    ut_thread.realtime();
+static void opened(void) {
+    fatal_if(app.crc.w * app.crc.h * 4 > countof(pixels[0]),
+        "increase size of pixels[][%d * %d * 4]", app.crc.w, app.crc.h);
     app.fini = fini;
     app.closed = closed;
-    app.opened = opened;
-    static ui_view_t* children[] = { &full_screen.view, null};
-    app.view->children = children;
+    ui_view.add(app.view, &button_fs, null);
     app.view->layout    = layout;
     app.view->measure   = measure;
     app.view->paint     = paint;
     app.view->character = character;
     wake = ut_event.create();
     quit = ut_event.create();
+    // images:
+    gdi.image_init(&image[0], app.crc.w, app.crc.h, 4, pixels[0]);
+    gdi.image_init(&image[1], app.crc.w, app.crc.h, 4, pixels[1]);
+    thread = ut_thread.start(renderer, null);
+    request_rendering();
+    strprintf(button_fs.view.tip, "&Full Screen");
+    button_fs.view.shortcut = 'F';
+}
+
+static void init(void) {
+    app.opened = opened;
 }
 
 app_t app = {
     .class_name = "sample3",
+    .title = "Sample3: Mandelbrot",
     .init = init,
     // 6x4 inches. Thinking of 6x4 timbers columns, beams, supporting posts :)
     .window_sizing = {

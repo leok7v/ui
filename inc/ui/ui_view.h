@@ -137,7 +137,7 @@ typedef struct ui_view_if {
 
 extern ui_view_if ui_view;
 
-#define ui_container(name, ini, ...)                                       \
+#define ui_container_deprecated(name, ini, ...)                                       \
 static ui_view_t* _ ## name ## _ ## children ## _[] = {__VA_ARGS__, null}; \
 static ui_view_t name = { .type = ui_view_container, .init = ini,          \
                        .children = (_ ## name ## _ ## children ## _),      \
