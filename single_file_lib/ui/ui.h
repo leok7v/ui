@@ -103,7 +103,7 @@ typedef double fp64_t;
 #define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
 
 begin_c
-// __________________________________ core.h __________________________________
+// ________________________________ ui_core.h _________________________________
 
 #include "ut/std.h"
 
@@ -254,7 +254,7 @@ typedef struct ui_s {
 
 extern ui_if ui;
 
-// _________________________________ colors.h _________________________________
+// _______________________________ ui_colors.h ________________________________
 
 #include "ut/std.h"
 
@@ -333,7 +333,7 @@ typedef struct colors_s {
 
 extern colors_t colors;
 
-// __________________________________ gdi.h ___________________________________
+// _________________________________ ui_gdi.h _________________________________
 
 #include "ut/std.h"
 
@@ -449,7 +449,7 @@ typedef struct gdi_s {
 
 extern gdi_t gdi;
 
-// __________________________________ view.h __________________________________
+// ________________________________ ui_view.h _________________________________
 
 #include "ut/std.h"
 
@@ -596,7 +596,7 @@ static ui_view_t name = { .type = ui_view_container, .init = ini,          \
                        .text = #name                                       \
 }
 
-// _________________________________ layout.h _________________________________
+// _______________________________ ui_layout.h ________________________________
 
 #include "ut/std.h"
 
@@ -619,7 +619,7 @@ typedef struct {
 
 extern layouts_if layouts;
 
-// _________________________________ label.h __________________________________
+// ________________________________ ui_label.h ________________________________
 
 #include "ut/std.h"
 
@@ -653,7 +653,7 @@ void ui_label_init_va(ui_label_t* t, const char* format, va_list vl);
 // multiline
 void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...);
 
-// __________________________________ nls.h ___________________________________
+// _________________________________ ui_nls.h _________________________________
 
 #include "ut/std.h"
 
@@ -674,7 +674,7 @@ typedef struct nsl_if { // i18n national language support
 
 extern nls_if nls;
 
-// _________________________________ button.h _________________________________
+// _______________________________ ui_button.h ________________________________
 
 #include "ut/std.h"
 
@@ -705,7 +705,7 @@ void ui_button_init_(ui_view_t* view); // do not call use ui_button() macro
 // usage:
 // ui_button(button, 7.0, "&Button", { b->view.pressed = !b->view.pressed; })
 
-// ________________________________ checkbox.h ________________________________
+// ______________________________ ui_checkbox.h _______________________________
 
 #include "ut/std.h"
 
@@ -733,7 +733,7 @@ void ui_checkbox_init_(ui_view_t* view); // do not call use ui_checkbox() macro
     .view = { .type = ui_view_checkbox, .init = ui_checkbox_init_,    \
     .children = null, .width = w, .text = s}, .cb = name ## _callback }
 
-// _________________________________ slider.h _________________________________
+// _______________________________ ui_slider.h ________________________________
 
 #include "ut/std.h"
 
@@ -771,7 +771,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     }, .vmin = vmn, .vmax = vmx, .value = vmn,              \
     .cb = name ## _callback }
 
-// _______________________________ messagebox.h _______________________________
+// _____________________________ ui_messagebox.h ______________________________
 
 #include "ut/std.h"
 
@@ -807,7 +807,7 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* option[],
     .children = null, .text = s}, .opts = name ## _options,              \
     .cb = name ## _callback }
 
-// __________________________________ app.h ___________________________________
+// _________________________________ ui_app.h _________________________________
 
 #include "ut/std.h"
 
@@ -963,7 +963,7 @@ end_c
 #endif // ui_definition
 
 #ifdef ui_implementation
-// __________________________________ app.c ___________________________________
+// _________________________________ ui_app.c _________________________________
 
 #include "ut/ut.h"
 #include "ut/win32.h"
@@ -2840,7 +2840,7 @@ int main(int argc, const char* argv[], const char** envp) {
 #pragma comment(lib, "msimg32")
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "shcore")
-// _________________________________ button.c _________________________________
+// _______________________________ ui_button.c ________________________________
 
 #include "ut/ut.h"
 
@@ -2988,7 +2988,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
     b->view.width = ems;
     ui_button_init_(&b->view);
 }
-// ________________________________ checkbox.c ________________________________
+// ______________________________ ui_checkbox.c _______________________________
 
 #include "ut/ut.h"
 
@@ -3103,7 +3103,7 @@ void ui_checkbox_init(checkbox_t* c, const char* label, fp64_t ems,
     c->view.type = ui_view_checkbox;
     ui_checkbox_init_(&c->view);
 }
-// _________________________________ colors.c _________________________________
+// _______________________________ ui_colors.c ________________________________
 
 #include "ut/ut.h"
 
@@ -3154,7 +3154,7 @@ colors_t colors = {
     .btn_text = _colors_off_white,
     .toast = rgb(8, 40, 24) // toast background
 };
-// __________________________________ core.c __________________________________
+// ________________________________ ui_core.c _________________________________
 
 #include "ut/ut.h"
 #include "ut/win32.h"
@@ -3285,7 +3285,7 @@ extern ui_if ui = {
 };
 
 // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
-// __________________________________ gdi.c ___________________________________
+// _________________________________ ui_gdi.c _________________________________
 
 #include "ut/ut.h"
 #include "ut/win32.h"
@@ -4167,7 +4167,7 @@ gdi_t gdi = {
 #pragma pop_macro("gdi_with_hdc")
 #pragma pop_macro("app_canvas")
 #pragma pop_macro("app_window")
-// _________________________________ label.c __________________________________
+// ________________________________ ui_label.c ________________________________
 
 #include "ut/ut.h"
 
@@ -4260,7 +4260,7 @@ void ui_label_init_ml(ui_label_t* t, fp64_t width, const char* format, ...) {
     t->view.width = width;
     t->multiline = true;
 }
-// _________________________________ layout.c _________________________________
+// _______________________________ ui_layout.c ________________________________
 
 #include "ut/ut.h"
 
@@ -4447,7 +4447,7 @@ layouts_if layouts = {
     .vertical   = layouts_vertical,
     .grid       = layouts_grid
 };
-// _______________________________ messagebox.c _______________________________
+// _____________________________ ui_messagebox.c ______________________________
 
 #include "ut/ut.h"
 
@@ -4562,7 +4562,7 @@ void ui_messagebox_init(ui_messagebox_t* mx, const char* opts[],
     va_end(vl);
     ui_messagebox_init_(&mx->view);
 }
-// __________________________________ nls.c ___________________________________
+// _________________________________ ui_nls.c _________________________________
 
 #include "ut/ut.h"
 #include "ut/win32.h"
@@ -4746,7 +4746,7 @@ nls_if nls = {
     .set_locale = nls_set_locale,
 };
 
-// _________________________________ slider.c _________________________________
+// _______________________________ ui_slider.c ________________________________
 
 #include "ut/ut.h"
 
@@ -4928,7 +4928,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
     r->value = vmin;
     ui_slider_init_(&r->view);
 }
-// __________________________________ view.c __________________________________
+// ________________________________ ui_view.c _________________________________
 
 #include "ut/ut.h"
 

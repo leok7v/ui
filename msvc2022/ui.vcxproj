@@ -11,35 +11,35 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ui\app.h" />
-    <ClInclude Include="..\inc\ui\button.h" />
-    <ClInclude Include="..\inc\ui\checkbox.h" />
-    <ClInclude Include="..\inc\ui\colors.h" />
-    <ClInclude Include="..\inc\ui\core.h" />
-    <ClInclude Include="..\inc\ui\gdi.h" />
-    <ClInclude Include="..\inc\ui\label.h" />
-    <ClInclude Include="..\inc\ui\layout.h" />
-    <ClInclude Include="..\inc\ui\messagebox.h" />
-    <ClInclude Include="..\inc\ui\nls.h" />
-    <ClInclude Include="..\inc\ui\slider.h" />
     <ClInclude Include="..\inc\ui\std.h" />
     <ClInclude Include="..\inc\ui\ui.h" />
-    <ClInclude Include="..\inc\ui\view.h" />
+    <ClInclude Include="..\inc\ui\ui_app.h" />
+    <ClInclude Include="..\inc\ui\ui_button.h" />
+    <ClInclude Include="..\inc\ui\ui_checkbox.h" />
+    <ClInclude Include="..\inc\ui\ui_colors.h" />
+    <ClInclude Include="..\inc\ui\ui_core.h" />
+    <ClInclude Include="..\inc\ui\ui_gdi.h" />
+    <ClInclude Include="..\inc\ui\ui_label.h" />
+    <ClInclude Include="..\inc\ui\ui_layout.h" />
+    <ClInclude Include="..\inc\ui\ui_messagebox.h" />
+    <ClInclude Include="..\inc\ui\ui_nls.h" />
+    <ClInclude Include="..\inc\ui\ui_slider.h" />
+    <ClInclude Include="..\inc\ui\ui_view.h" />
     <ClInclude Include="..\inc\ui\win32.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\ui\app.c" />
-    <ClCompile Include="..\src\ui\button.c" />
-    <ClCompile Include="..\src\ui\checkbox.c" />
-    <ClCompile Include="..\src\ui\colors.c" />
-    <ClCompile Include="..\src\ui\core.c" />
-    <ClCompile Include="..\src\ui\gdi.c" />
-    <ClCompile Include="..\src\ui\label.c" />
-    <ClCompile Include="..\src\ui\layout.c" />
-    <ClCompile Include="..\src\ui\messagebox.c" />
-    <ClCompile Include="..\src\ui\nls.c" />
-    <ClCompile Include="..\src\ui\slider.c" />
-    <ClCompile Include="..\src\ui\view.c" />
+    <ClCompile Include="..\src\ui\ui_app.c" />
+    <ClCompile Include="..\src\ui\ui_button.c" />
+    <ClCompile Include="..\src\ui\ui_checkbox.c" />
+    <ClCompile Include="..\src\ui\ui_colors.c" />
+    <ClCompile Include="..\src\ui\ui_core.c" />
+    <ClCompile Include="..\src\ui\ui_gdi.c" />
+    <ClCompile Include="..\src\ui\ui_label.c" />
+    <ClCompile Include="..\src\ui\ui_layout.c" />
+    <ClCompile Include="..\src\ui\ui_messagebox.c" />
+    <ClCompile Include="..\src\ui\ui_nls.c" />
+    <ClCompile Include="..\src\ui\ui_slider.c" />
+    <ClCompile Include="..\src\ui\ui_view.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="amalgamate.vcxproj">

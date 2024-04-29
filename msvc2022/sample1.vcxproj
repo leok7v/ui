@@ -61,106 +61,34 @@
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <PrecompiledHeaderFile>
-      </PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile />
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
-      <AdditionalDependencies />
     </Link>
-    <PostBuildEvent>
-      <Command>
-      </Command>
-      <Message>
-      </Message>
-    </PostBuildEvent>
-    <CustomBuildStep>
-      <Command>
-      </Command>
-    </CustomBuildStep>
-    <CustomBuildStep>
-      <Message>
-      </Message>
-    </CustomBuildStep>
-    <CustomBuildStep>
-      <Outputs>
-      </Outputs>
-    </CustomBuildStep>
-    <CustomBuildStep>
-      <TreatOutputAsContent>
-      </TreatOutputAsContent>
-    </CustomBuildStep>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-      <Message>
-      </Message>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
-      <PrecompiledHeaderFile>
-      </PrecompiledHeaderFile>
-      <PrecompiledHeaderOutputFile />
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <Optimization>MinSpace</Optimization>
-      <FavorSizeOrSpeed>Size</FavorSizeOrSpeed>
-      <LanguageStandard_C>stdc17</LanguageStandard_C>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
-      <DelayLoadDLLs>
-      </DelayLoadDLLs>
-      <AdditionalDependencies />
     </Link>
-    <PostBuildEvent>
-      <Command>
-      </Command>
-      <Message>
-      </Message>
-    </PostBuildEvent>
-    <CustomBuildStep>
-      <Command>
-      </Command>
-    </CustomBuildStep>
-    <CustomBuildStep>
-      <Message>
-      </Message>
-    </CustomBuildStep>
-    <CustomBuildStep>
-      <Outputs>
-      </Outputs>
-    </CustomBuildStep>
-    <CustomBuildStep>
-      <TreatOutputAsContent>
-      </TreatOutputAsContent>
-    </CustomBuildStep>
-    <PreBuildEvent>
-      <Command>
-      </Command>
-      <Message>
-      </Message>
-    </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ui\app.h" />
-    <ClInclude Include="..\inc\ui\button.h" />
-    <ClInclude Include="..\inc\ui\checkbox.h" />
-    <ClInclude Include="..\inc\ui\colors.h" />
-    <ClInclude Include="..\inc\ui\core.h" />
-    <ClInclude Include="..\inc\ui\gdi.h" />
-    <ClInclude Include="..\inc\ui\label.h" />
-    <ClInclude Include="..\inc\ui\layout.h" />
-    <ClInclude Include="..\inc\ui\messagebox.h" />
-    <ClInclude Include="..\inc\ui\slider.h" />
     <ClInclude Include="..\inc\ui\std.h" />
     <ClInclude Include="..\inc\ui\ui.h" />
-    <ClInclude Include="..\inc\ui\view.h" />
+    <ClInclude Include="..\inc\ui\ui_app.h" />
+    <ClInclude Include="..\inc\ui\ui_button.h" />
+    <ClInclude Include="..\inc\ui\ui_checkbox.h" />
+    <ClInclude Include="..\inc\ui\ui_colors.h" />
+    <ClInclude Include="..\inc\ui\ui_core.h" />
+    <ClInclude Include="..\inc\ui\ui_gdi.h" />
+    <ClInclude Include="..\inc\ui\ui_label.h" />
+    <ClInclude Include="..\inc\ui\ui_layout.h" />
+    <ClInclude Include="..\inc\ui\ui_messagebox.h" />
+    <ClInclude Include="..\inc\ui\ui_slider.h" />
+    <ClInclude Include="..\inc\ui\ui_view.h" />
     <ClInclude Include="..\inc\ui\win32.h" />
     <ClInclude Include="..\inc\ut\args.h" />
     <ClInclude Include="..\inc\ut\atomics.h" />

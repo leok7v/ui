@@ -15,34 +15,34 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ui\app.h">
+    <ClInclude Include="..\inc\ui\ui_app.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\button.h">
+    <ClInclude Include="..\inc\ui\ui_button.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\checkbox.h">
+    <ClInclude Include="..\inc\ui\ui_checkbox.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\colors.h">
+    <ClInclude Include="..\inc\ui\ui_colors.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\core.h">
+    <ClInclude Include="..\inc\ui\ui_core.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\gdi.h">
+    <ClInclude Include="..\inc\ui\ui_gdi.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\label.h">
+    <ClInclude Include="..\inc\ui\ui_label.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\layout.h">
+    <ClInclude Include="..\inc\ui\ui_layout.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\messagebox.h">
+    <ClInclude Include="..\inc\ui\ui_messagebox.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\slider.h">
+    <ClInclude Include="..\inc\ui\ui_slider.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\std.h">
@@ -51,51 +51,51 @@
     <ClInclude Include="..\inc\ui\ui.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\view.h">
+    <ClInclude Include="..\inc\ui\ui_view.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\win32.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\nls.h">
+    <ClInclude Include="..\inc\ui\ui_nls.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\ui\app.c">
+    <ClCompile Include="..\src\ui\ui_app.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\button.c">
+    <ClCompile Include="..\src\ui\ui_button.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\checkbox.c">
+    <ClCompile Include="..\src\ui\ui_checkbox.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\colors.c">
+    <ClCompile Include="..\src\ui\ui_colors.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\core.c">
+    <ClCompile Include="..\src\ui\ui_core.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\gdi.c">
+    <ClCompile Include="..\src\ui\ui_gdi.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\label.c">
+    <ClCompile Include="..\src\ui\ui_label.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\layout.c">
+    <ClCompile Include="..\src\ui\ui_layout.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\messagebox.c">
+    <ClCompile Include="..\src\ui\ui_messagebox.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\slider.c">
+    <ClCompile Include="..\src\ui\ui_slider.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\view.c">
+    <ClCompile Include="..\src\ui\ui_view.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\nls.c">
+    <ClCompile Include="..\src\ui\ui_nls.c">
       <Filter>src\ui</Filter>
     </ClCompile>
   </ItemGroup>

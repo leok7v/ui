@@ -4,37 +4,37 @@
     <ClInclude Include="..\inc\ui\ui.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\view.h">
+    <ClInclude Include="..\inc\ui\ui_view.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\app.h">
+    <ClInclude Include="..\inc\ui\ui_app.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\gdi.h">
+    <ClInclude Include="..\inc\ui\ui_gdi.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\colors.h">
+    <ClInclude Include="..\inc\ui\ui_colors.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\layout.h">
+    <ClInclude Include="..\inc\ui\ui_layout.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\checkbox.h">
+    <ClInclude Include="..\inc\ui\ui_checkbox.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\label.h">
+    <ClInclude Include="..\inc\ui\ui_label.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\slider.h">
+    <ClInclude Include="..\inc\ui\ui_slider.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\button.h">
+    <ClInclude Include="..\inc\ui\ui_button.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\messagebox.h">
+    <ClInclude Include="..\inc\ui\ui_messagebox.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\core.h">
+    <ClInclude Include="..\inc\ui\ui_core.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\src\samples\i18n.h" />
