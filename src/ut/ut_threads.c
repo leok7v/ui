@@ -3,178 +3,178 @@
 
 // events:
 
-static event_t events_create(void) {
+static event_t ut_event_create(void) {
     HANDLE e = CreateEvent(null, false, false, null);
     not_null(e);
     return (event_t)e;
 }
 
-static event_t events_create_manual(void) {
+static event_t ut_event_create_manual(void) {
     HANDLE e = CreateEvent(null, true, false, null);
     not_null(e);
     return (event_t)e;
 }
 
-static void events_set(event_t e) {
+static void ut_event_set(event_t e) {
     fatal_if_false(SetEvent((HANDLE)e));
 }
 
-static void events_reset(event_t e) {
+static void ut_event_reset(event_t e) {
     fatal_if_false(ResetEvent((HANDLE)e));
 }
 
-static int32_t events_wait_or_timeout(event_t e, fp64_t seconds) {
+static int32_t ut_event_wait_or_timeout(event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (int32_t)(seconds * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(e, ms);
     errno_t r = wait2e(ix);
     return r != 0 ? -1 : 0;
 }
 
-static void events_wait(event_t e) { events_wait_or_timeout(e, -1); }
+static void ut_event_wait(event_t e) { ut_event_wait_or_timeout(e, -1); }
 
-static int32_t events_wait_any_or_timeout(int32_t n, event_t events_[], fp64_t s) {
+static int32_t ut_event_wait_any_or_timeout(int32_t n, event_t ut_event_[], fp64_t s) {
     uint32_t ms = s < 0 ? INFINITE : (int32_t)(s * 1000.0 + 0.5);
-    DWORD ix = WaitForMultipleObjects(n, events_, false, ms);
+    DWORD ix = WaitForMultipleObjects(n, ut_event_, false, ms);
     errno_t r = wait2e(ix);
     // all WAIT_ABANDONED_0 and WAIT_IO_COMPLETION 0xC0 as -1
     return r != 0 ? -1 : ix;
 }
 
-static int32_t events_wait_any(int32_t n, event_t e[]) {
-    return events_wait_any_or_timeout(n, e, -1);
+static int32_t ut_event_wait_any(int32_t n, event_t e[]) {
+    return ut_event_wait_any_or_timeout(n, e, -1);
 }
 
-static void events_dispose(event_t handle) {
+static void ut_event_dispose(event_t handle) {
     fatal_if_false(CloseHandle(handle));
 }
 
 // test:
 
 // check if the elapsed time is within the expected range
-static void events_test_check_time(fp64_t start, fp64_t expected) {
+static void ut_event_test_check_time(fp64_t start, fp64_t expected) {
     fp64_t elapsed = ut_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
-static void events_test(void) {
+static void ut_event_test(void) {
     #ifdef UT_TESTS
-    event_t event = events.create();
+    event_t event = ut_event.create();
     fp64_t start = ut_clock.seconds();
-    events.set(event);
-    events.wait(event);
-    events_test_check_time(start, 0); // Event should be immediate
-    events.reset(event);
+    ut_event.set(event);
+    ut_event.wait(event);
+    ut_event_test_check_time(start, 0); // Event should be immediate
+    ut_event.reset(event);
     start = ut_clock.seconds();
     const fp64_t timeout_seconds = 0.01;
-    int32_t result = events.wait_or_timeout(event, timeout_seconds);
-    events_test_check_time(start, timeout_seconds);
+    int32_t result = ut_event.wait_or_timeout(event, timeout_seconds);
+    ut_event_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     enum { count = 5 };
     event_t event_array[count];
     for (int32_t i = 0; i < countof(event_array); i++) {
-        event_array[i] = events.create_manual();
+        event_array[i] = ut_event.create_manual();
     }
     start = ut_clock.seconds();
-    events.set(event_array[2]); // Set the third event
-    int32_t index = events.wait_any(countof(event_array), event_array);
-    events_test_check_time(start, 0);
+    ut_event.set(event_array[2]); // Set the third event
+    int32_t index = ut_event.wait_any(countof(event_array), event_array);
+    ut_event_test_check_time(start, 0);
     swear(index == 2); // Third event should be triggered
-    events.reset(event_array[2]); // Reset the third event
+    ut_event.reset(event_array[2]); // Reset the third event
     start = ut_clock.seconds();
-    result = events.wait_any_or_timeout(countof(event_array),
+    result = ut_event.wait_any_or_timeout(countof(event_array),
         event_array, timeout_seconds);
-    events_test_check_time(start, timeout_seconds);
+    ut_event_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     // Clean up
-    events.dispose(event);
+    ut_event.dispose(event);
     for (int32_t i = 0; i < countof(event_array); i++) {
-        events.dispose(event_array[i]);
+        ut_event.dispose(event_array[i]);
     }
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
 
-events_if events = {
-    .create              = events_create,
-    .create_manual       = events_create_manual,
-    .set                 = events_set,
-    .reset               = events_reset,
-    .wait                = events_wait,
-    .wait_or_timeout     = events_wait_or_timeout,
-    .wait_any            = events_wait_any,
-    .wait_any_or_timeout = events_wait_any_or_timeout,
-    .dispose             = events_dispose,
-    .test                = events_test
+ut_event_if ut_event = {
+    .create              = ut_event_create,
+    .create_manual       = ut_event_create_manual,
+    .set                 = ut_event_set,
+    .reset               = ut_event_reset,
+    .wait                = ut_event_wait,
+    .wait_or_timeout     = ut_event_wait_or_timeout,
+    .wait_any            = ut_event_wait_any,
+    .wait_any_or_timeout = ut_event_wait_any_or_timeout,
+    .dispose             = ut_event_dispose,
+    .test                = ut_event_test
 };
 
 // mutexes:
 
 static_assertion(sizeof(CRITICAL_SECTION) == sizeof(mutex_t));
 
-static void mutexes_init(mutex_t* m) {
+static void ut_mutex_init(mutex_t* m) {
     CRITICAL_SECTION* cs = (CRITICAL_SECTION*)m;
     fatal_if_false(
         InitializeCriticalSectionAndSpinCount(cs, 4096)
     );
 }
 
-static void mutexes_lock(mutex_t* m) { EnterCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_lock(mutex_t* m) { EnterCriticalSection((CRITICAL_SECTION*)m); }
 
-static void mutexes_unlock(mutex_t* m) { LeaveCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_unlock(mutex_t* m) { LeaveCriticalSection((CRITICAL_SECTION*)m); }
 
-static void mutexes_dispose(mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_dispose(mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTION*)m); }
 
 // test:
 
 // check if the elapsed time is within the expected range
-static void mutexes_test_check_time(fp64_t start, fp64_t expected) {
+static void ut_mutex_test_check_time(fp64_t start, fp64_t expected) {
     fp64_t elapsed = ut_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
-static void mutexes_test_lock_unlock(void* arg) {
+static void ut_mutex_test_lock_unlock(void* arg) {
     mutex_t* mutex = (mutex_t*)arg;
-    mutexes.lock(mutex);
-    threads.sleep_for(0.01); // Hold the mutex for 10ms
-    mutexes.unlock(mutex);
+    ut_mutex.lock(mutex);
+    ut_thread.sleep_for(0.01); // Hold the mutex for 10ms
+    ut_mutex.unlock(mutex);
 }
 
-static void mutexes_test(void) {
+static void ut_mutex_test(void) {
     mutex_t mutex;
-    mutexes.init(&mutex);
+    ut_mutex.init(&mutex);
     fp64_t start = ut_clock.seconds();
-    mutexes.lock(&mutex);
-    mutexes.unlock(&mutex);
+    ut_mutex.lock(&mutex);
+    ut_mutex.unlock(&mutex);
     // Lock and unlock should be immediate
-    mutexes_test_check_time(start, 0);
+    ut_mutex_test_check_time(start, 0);
     enum { count = 5 };
     thread_t ts[count];
     for (int32_t i = 0; i < countof(ts); i++) {
-        ts[i] = threads.start(mutexes_test_lock_unlock, &mutex);
+        ts[i] = ut_thread.start(ut_mutex_test_lock_unlock, &mutex);
     }
     // Wait for all threads to finish
     for (int32_t i = 0; i < countof(ts); i++) {
-        threads.join(ts[i], -1);
+        ut_thread.join(ts[i], -1);
     }
-    mutexes.dispose(&mutex);
+    ut_mutex.dispose(&mutex);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
-mutex_if mutexes = {
-    .init    = mutexes_init,
-    .lock    = mutexes_lock,
-    .unlock  = mutexes_unlock,
-    .dispose = mutexes_dispose,
-    .test    = mutexes_test
+ut_mutex_if ut_mutex = {
+    .init    = ut_mutex_init,
+    .lock    = ut_mutex_lock,
+    .unlock  = ut_mutex_unlock,
+    .dispose = ut_mutex_dispose,
+    .test    = ut_mutex_test
 };
 
 // threads:
 
-static void* threads_ntdll(void) {
+static void* ut_thread_ntdll(void) {
     static HMODULE ntdll;
     if (ntdll == null) {
         ntdll = (void*)GetModuleHandleA("ntdll.dll");
@@ -186,16 +186,16 @@ static void* threads_ntdll(void) {
     return ntdll;
 }
 
-static fp64_t threads_ns2ms(int64_t ns) {
+static fp64_t ut_thread_ns2ms(int64_t ns) {
     return ns / (fp64_t)ut_clock.nsec_in_msec;
 }
 
-static void threads_set_timer_resolution(uint64_t nanoseconds) {
+static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
     typedef int32_t (*query_timer_resolution_t)(ULONG* minimum_resolution,
         ULONG* maximum_resolution, ULONG* actual_resolution);
     typedef int32_t (*set_timer_resolution_t)(ULONG requested_resolution,
         BOOLEAN set, ULONG* actual_resolution); // ntdll.dll
-    void* nt_dll = threads_ntdll();
+    void* nt_dll = ut_thread_ntdll();
     query_timer_resolution_t query_timer_resolution =  (query_timer_resolution_t)
         ut_loader.sym(nt_dll, "NtQueryTimerResolution");
     set_timer_resolution_t set_timer_resolution = (set_timer_resolution_t)
@@ -211,9 +211,9 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
 //  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      traceln("timer resolution min: %.3f max: %.3f cur: %.3f"
 //          " ms (milliseconds)",
-//          threads_ns2ms(min_ns),
-//          threads_ns2ms(max_ns),
-//          threads_ns2ms(cur_ns));
+//          ut_thread_ns2ms(min_ns),
+//          ut_thread_ns2ms(max_ns),
+//          ut_thread_ns2ms(cur_ns));
 //  }
     // note that maximum resolution is actually < minimum
     nanoseconds = ut_max(max_ns, nanoseconds);
@@ -225,13 +225,13 @@ static void threads_set_timer_resolution(uint64_t nanoseconds) {
 //      max_ns = max100ns * 100uLL; // the smallest interval
 //      cur_ns = cur100ns * 100uLL;
 //      traceln("timer resolution min: %.3f max: %.3f cur: %.3f ms (milliseconds)",
-//          threads_ns2ms(min_ns),
-//          threads_ns2ms(max_ns),
-//          threads_ns2ms(cur_ns));
+//          ut_thread_ns2ms(min_ns),
+//          ut_thread_ns2ms(max_ns),
+//          ut_thread_ns2ms(cur_ns));
 //  }
 }
 
-static void threads_power_throttling_disable_for_process(void) {
+static void ut_thread_power_throttling_disable_for_process(void) {
     static bool disabled_for_the_process;
     if (!disabled_for_the_process) {
         PROCESS_POWER_THROTTLING_STATE pt = { 0 };
@@ -252,7 +252,7 @@ static void threads_power_throttling_disable_for_process(void) {
     }
 }
 
-static void threads_power_throttling_disable_for_thread(HANDLE thread) {
+static void ut_thread_power_throttling_disable_for_thread(HANDLE thread) {
     THREAD_POWER_THROTTLING_STATE pt = { 0 };
     pt.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
     pt.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
@@ -261,12 +261,12 @@ static void threads_power_throttling_disable_for_thread(HANDLE thread) {
         &pt, sizeof(pt)));
 }
 
-static void threads_disable_power_throttling(void) {
-    threads_power_throttling_disable_for_process();
-    threads_power_throttling_disable_for_thread(GetCurrentThread());
+static void ut_thread_disable_power_throttling(void) {
+    ut_thread_power_throttling_disable_for_process();
+    ut_thread_power_throttling_disable_for_thread(GetCurrentThread());
 }
 
-static const char* threads_rel2str(int32_t rel) {
+static const char* ut_thread_rel2str(int32_t rel) {
     switch (rel) {
         case RelationProcessorCore   : return "ProcessorCore   ";
         case RelationNumaNode        : return "NumaNode        ";
@@ -280,7 +280,7 @@ static const char* threads_rel2str(int32_t rel) {
     }
 }
 
-static uint64_t threads_next_physical_processor_affinity_mask(void) {
+static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
     static volatile int32_t initialized;
     static int32_t init;
     static int32_t next = 1; // next physical core to use
@@ -302,7 +302,7 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
 //          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //              traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
 //                  lpi[i].ProcessorMask, lpi[i].Relationship,
-//                  threads_rel2str(lpi[i].Relationship));
+//                  ut_thread_rel2str(lpi[i].Relationship));
 //          }
             if (lpi[i].Relationship == RelationProcessorCore) {
                 assert(cores < countof(affinity), "increase affinity[%d]", cores);
@@ -315,7 +315,7 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
         }
         initialized = true;
     } else {
-        while (initialized == 0) { threads.sleep_for(1 / 1024.0); }
+        while (initialized == 0) { ut_thread.sleep_for(1 / 1024.0); }
         assert(any != 0); // should not ever happen
         if (any == 0) { any = (uint64_t)(-1LL); }
     }
@@ -326,7 +326,7 @@ static uint64_t threads_next_physical_processor_affinity_mask(void) {
     return mask;
 }
 
-static void threads_realtime(void) {
+static void ut_thread_realtime(void) {
     fatal_if_false(SetPriorityClass(GetCurrentProcess(),
         REALTIME_PRIORITY_CLASS));
     fatal_if_false(SetThreadPriority(GetCurrentThread(),
@@ -334,15 +334,15 @@ static void threads_realtime(void) {
     fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
     // desired: 0.5ms = 500us (microsecond) = 50,000ns
-    threads_set_timer_resolution(ut_clock.nsec_in_usec * 500);
+    ut_thread_set_timer_resolution(ut_clock.nsec_in_usec * 500);
     fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
-        threads_next_physical_processor_affinity_mask()));
-    threads_disable_power_throttling();
+        ut_thread_next_physical_processor_affinity_mask()));
+    ut_thread_disable_power_throttling();
 }
 
-static void threads_yield(void) { SwitchToThread(); }
+static void ut_thread_yield(void) { SwitchToThread(); }
 
-static thread_t threads_start(void (*func)(void*), void* p) {
+static thread_t ut_thread_start(void (*func)(void*), void* p) {
     thread_t t = (thread_t)CreateThread(null, 0,
         (LPTHREAD_START_ROUTINE)(void*)func, p, 0, null);
     not_null(t);
@@ -354,7 +354,7 @@ static bool is_handle_valid(void* h) {
     return GetHandleInformation(h, &flags);
 }
 
-static errno_t threads_join(thread_t t, fp64_t timeout) {
+static errno_t ut_thread_join(thread_t t, fp64_t timeout) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
     int32_t timeout_ms = timeout < 0 ? INFINITE : (int)(timeout * 1000.0 + 0.5);
@@ -369,13 +369,13 @@ static errno_t threads_join(thread_t t, fp64_t timeout) {
     return r;
 }
 
-static void threads_detach(thread_t t) {
+static void ut_thread_detach(thread_t t) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
     fatal_if_false(CloseHandle(t));
 }
 
-static void threads_name(const char* name) {
+static void ut_thread_name(const char* name) {
     uint16_t stack[1024];
     fatal_if(ut_str.length(name) >= countof(stack), "name too long: %s", name);
     uint16_t* wide = ut_str.utf8_utf16(stack, name);
@@ -384,7 +384,7 @@ static void threads_name(const char* name) {
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
 }
 
-static void threads_sleep_for(fp64_t seconds) {
+static void ut_thread_sleep_for(fp64_t seconds) {
     assert(seconds >= 0);
     if (seconds < 0) { seconds = 0; }
     int64_t ns100 = (int64_t)(seconds * 1.0e+7); // in 0.1 us aka 100ns
@@ -395,7 +395,7 @@ static void threads_sleep_for(fp64_t seconds) {
     LARGE_INTEGER delay = {0}; // delay in 100-ns units.
     delay.QuadPart = -ns100; // negative value means delay relative to current.
     if (NtDelayExecution == null) {
-        void* ntdll = threads_ntdll();
+        void* ntdll = ut_thread_ntdll();
         NtDelayExecution = (nt_delay_execution_t)
             ut_loader.sym(ntdll, "NtDelayExecution");
         not_null(NtDelayExecution);
@@ -405,29 +405,29 @@ static void threads_sleep_for(fp64_t seconds) {
     NtDelayExecution(false, &delay);
 }
 
-static int32_t threads_id(void) { return GetThreadId(GetCurrentThread()); }
+static int32_t ut_thread_id(void) { return GetThreadId(GetCurrentThread()); }
 
 #ifdef UT_TESTS
 
 // test: https://en.wikipedia.org/wiki/Dining_philosophers_problem
 
-typedef struct threads_philosophers_s threads_philosophers_t;
+typedef struct ut_thread_philosophers_s ut_thread_philosophers_t;
 
 typedef struct {
-    threads_philosophers_t* ps;
+    ut_thread_philosophers_t* ps;
     mutex_t  fork;
     mutex_t* left_fork;
     mutex_t* right_fork;
     thread_t thread;
     int32_t  id;
-} threads_philosopher_t;
+} ut_thread_philosopher_t;
 
-typedef struct threads_philosophers_s {
-    threads_philosopher_t philosopher[3];
+typedef struct ut_thread_philosophers_s {
+    ut_thread_philosopher_t philosopher[3];
     event_t fed_up[3];
     uint32_t seed;
     volatile bool enough;
-} threads_philosophers_t;
+} ut_thread_philosophers_t;
 
 #pragma push_macro("verbose") // --verbosity trace
 
@@ -437,18 +437,18 @@ typedef struct threads_philosophers_s {
     }                                                     \
 } while (0)
 
-static void threads_philosopher_think(threads_philosopher_t* p) {
+static void ut_thread_philosopher_think(ut_thread_philosopher_t* p) {
     verbose("philosopher %d is thinking.", p->id);
     // Random think time between .1 and .3 seconds
     fp64_t seconds = (ut_num.random32(&p->ps->seed) % 30 + 1) / 100.0;
-    threads.sleep_for(seconds);
+    ut_thread.sleep_for(seconds);
 }
 
-static void threads_philosopher_eat(threads_philosopher_t* p) {
+static void ut_thread_philosopher_eat(ut_thread_philosopher_t* p) {
     verbose("philosopher %d is eating.", p->id);
     // Random eat time between .1 and .2 seconds
     fp64_t seconds = (ut_num.random32(&p->ps->seed) % 20 + 1) / 100.0;
-    threads.sleep_for(seconds);
+    ut_thread.sleep_for(seconds);
 }
 
 // To avoid deadlocks in the Three Philosophers problem, we can implement
@@ -463,86 +463,86 @@ static void threads_philosopher_eat(threads_philosopher_t* p) {
 // ensures that at least one philosopher will be able to eat, breaking the
 // circular wait condition and preventing deadlock.
 
-static void threads_philosopher_routine(void* arg) {
-    threads_philosopher_t* p = (threads_philosopher_t*)arg;
+static void ut_thread_philosopher_routine(void* arg) {
+    ut_thread_philosopher_t* p = (ut_thread_philosopher_t*)arg;
     enum { n = countof(p->ps->philosopher) };
-    threads.name("philosopher");
-    threads.realtime();
+    ut_thread.name("philosopher");
+    ut_thread.realtime();
     while (!p->ps->enough) {
-        threads_philosopher_think(p);
+        ut_thread_philosopher_think(p);
         if (p->id == n - 1) { // Last philosopher picks up the right fork first
-            mutexes.lock(p->right_fork);
+            ut_mutex.lock(p->right_fork);
             verbose("philosopher %d picked up right fork.", p->id);
-            mutexes.lock(p->left_fork);
+            ut_mutex.lock(p->left_fork);
             verbose("philosopher %d picked up left fork.", p->id);
         } else { // Other philosophers pick up the left fork first
-            mutexes.lock(p->left_fork);
+            ut_mutex.lock(p->left_fork);
             verbose("philosopher %d picked up left fork.", p->id);
-            mutexes.lock(p->right_fork);
+            ut_mutex.lock(p->right_fork);
             verbose("philosopher %d picked up right fork.", p->id);
         }
-        threads_philosopher_eat(p);
-        mutexes.unlock(p->right_fork);
+        ut_thread_philosopher_eat(p);
+        ut_mutex.unlock(p->right_fork);
         verbose("philosopher %d put down right fork.", p->id);
-        mutexes.unlock(p->left_fork);
+        ut_mutex.unlock(p->left_fork);
         verbose("philosopher %d put down left fork.", p->id);
-        events.set(p->ps->fed_up[p->id]);
+        ut_event.set(p->ps->fed_up[p->id]);
     }
 }
 
-static void threads_detached_sleep(void* unused(p)) {
-    threads.sleep_for(1000.0); // seconds
+static void ut_thread_detached_sleep(void* unused(p)) {
+    ut_thread.sleep_for(1000.0); // seconds
 }
 
-static void threads_detached_loop(void* unused(p)) {
+static void ut_thread_detached_loop(void* unused(p)) {
     uint64_t sum = 0;
     for (uint64_t i = 0; i < UINT64_MAX; i++) { sum += i; }
     // making sure that compiler won't get rid of the loop:
     traceln("%lld", sum);
 }
 
-static void threads_test(void) {
-    threads_philosophers_t ps = { .seed = 1 };
+static void ut_thread_test(void) {
+    ut_thread_philosophers_t ps = { .seed = 1 };
     enum { n = countof(ps.philosopher) };
     // Initialize mutexes for forks
     for (int32_t i = 0; i < n; i++) {
-        threads_philosopher_t* p = &ps.philosopher[i];
+        ut_thread_philosopher_t* p = &ps.philosopher[i];
         p->id = i;
         p->ps = &ps;
-        mutexes.init(&p->fork);
+        ut_mutex.init(&p->fork);
         p->left_fork = &p->fork;
-        ps.fed_up[i] = events.create();
+        ps.fed_up[i] = ut_event.create();
     }
     // Create and start philosopher threads
     for (int32_t i = 0; i < n; i++) {
-        threads_philosopher_t* p = &ps.philosopher[i];
-        threads_philosopher_t* r = &ps.philosopher[(i + 1) % n];
+        ut_thread_philosopher_t* p = &ps.philosopher[i];
+        ut_thread_philosopher_t* r = &ps.philosopher[(i + 1) % n];
         p->right_fork = r->left_fork;
-        p->thread = threads.start(threads_philosopher_routine, p);
+        p->thread = ut_thread.start(ut_thread_philosopher_routine, p);
     }
     // wait for all philosophers being fed up:
-    for (int32_t i = 0; i < n; i++) { events.wait(ps.fed_up[i]); }
+    for (int32_t i = 0; i < n; i++) { ut_event.wait(ps.fed_up[i]); }
     ps.enough = true;
     // join all philosopher threads
     for (int32_t i = 0; i < n; i++) {
-        threads_philosopher_t* p = &ps.philosopher[i];
-        threads.join(p->thread, -1);
+        ut_thread_philosopher_t* p = &ps.philosopher[i];
+        ut_thread.join(p->thread, -1);
     }
     // Dispose of mutexes and events
     for (int32_t i = 0; i < n; ++i) {
-        threads_philosopher_t* p = &ps.philosopher[i];
-        mutexes.dispose(&p->fork);
-        events.dispose(ps.fed_up[i]);
+        ut_thread_philosopher_t* p = &ps.philosopher[i];
+        ut_mutex.dispose(&p->fork);
+        ut_event.dispose(ps.fed_up[i]);
     }
     // detached threads are hacky and not that swell of an idea
     // but sometimes can be useful for 1. quick hacks 2. threads
     // that execute blocking calls that e.g. write logs to the
     // internet service that hangs.
     // test detached threads
-    thread_t detached_sleep = threads.start(threads_detached_sleep, null);
-    threads.detach(detached_sleep);
-    thread_t detached_loop = threads.start(threads_detached_loop, null);
-    threads.detach(detached_loop);
+    thread_t detached_sleep = ut_thread.start(ut_thread_detached_sleep, null);
+    ut_thread.detach(detached_sleep);
+    thread_t detached_loop = ut_thread.start(ut_thread_detached_loop, null);
+    ut_thread.detach(detached_loop);
     // leave detached threads sleeping and running till ExitProcess(0)
     // that should NOT hang.
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
@@ -551,17 +551,17 @@ static void threads_test(void) {
 #pragma pop_macro("verbose")
 
 #else
-static void threads_test(void) { }
+static void ut_thread_test(void) { }
 #endif
 
-threads_if threads = {
-    .start     = threads_start,
-    .join      = threads_join,
-    .detach    = threads_detach,
-    .name      = threads_name,
-    .realtime  = threads_realtime,
-    .yield     = threads_yield,
-    .sleep_for = threads_sleep_for,
-    .id        = threads_id,
-    .test      = threads_test
+ut_thread_if ut_thread = {
+    .start     = ut_thread_start,
+    .join      = ut_thread_join,
+    .detach    = ut_thread_detach,
+    .name      = ut_thread_name,
+    .realtime  = ut_thread_realtime,
+    .yield     = ut_thread_yield,
+    .sleep_for = ut_thread_sleep_for,
+    .id        = ut_thread_id,
+    .test      = ut_thread_test
 };

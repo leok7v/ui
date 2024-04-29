@@ -27,7 +27,7 @@ typedef struct streams_if {
     void (*read_only)(ut_stream_memory_if* s,  const void* data, int64_t bytes);
     void (*write_only)(ut_stream_memory_if* s, void* data, int64_t bytes);
     void (*read_write)(ut_stream_memory_if* s, const void* read, int64_t read_bytes,
-                                            void* write, int64_t write_bytes);
+                                               void* write, int64_t write_bytes);
     void (*test)(void);
 } ut_streams_if;
 

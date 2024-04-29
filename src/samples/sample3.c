@@ -42,13 +42,13 @@ static void paint(ui_view_t* view) {
 static void request_rendering(void) {
     app.set_cursor(app.cursor_wait);
     rendering = true;
-    events.set(wake);
+    ut_event.set(wake);
 }
 
 static void stop_rendering(void) {
     if (rendering) {
         stop = true;
-        while (rendering || stop) { threads.sleep_for(0.01); }
+        while (rendering || stop) { ut_thread.sleep_for(0.01); }
         app.set_cursor(app.cursor_arrow);
     }
 }
@@ -83,15 +83,15 @@ static void opened(void) {
         "increase size of pixels[][%d * %d * 4]", app.crc.w, app.crc.h);
     gdi.image_init(&image[0], app.crc.w, app.crc.h, 4, pixels[0]);
     gdi.image_init(&image[1], app.crc.w, app.crc.h, 4, pixels[1]);
-    thread = threads.start(renderer, null);
+    thread = ut_thread.start(renderer, null);
     request_rendering();
     strprintf(full_screen.view.tip, "&Full Screen");
     full_screen.view.shortcut = 'F';
 }
 
 static void closed(void) {
-    events.set(quit);
-    threads.join(thread, -1);
+    ut_event.set(quit);
+    ut_thread.join(thread, -1);
     thread = null;
     gdi.image_dispose(&image[0]);
     gdi.image_dispose(&image[1]);
@@ -107,15 +107,15 @@ static void character(ui_view_t* unused, const char* utf8) {
 }
 
 static void fini(void) {
-    events.dispose(wake);
-    events.dispose(quit);
+    ut_event.dispose(wake);
+    ut_event.dispose(quit);
     wake = null;
     quit = null;
 }
 
 static void init(void) {
     app.title = title;
-    threads.realtime();
+    ut_thread.realtime();
     app.fini = fini;
     app.closed = closed;
     app.opened = opened;
@@ -125,8 +125,8 @@ static void init(void) {
     app.view->measure   = measure;
     app.view->paint     = paint;
     app.view->character = character;
-    wake = events.create();
-    quit = events.create();
+    wake = ut_event.create();
+    quit = ut_event.create();
 }
 
 app_t app = {
@@ -184,11 +184,11 @@ static void mandelbrot(image_t* im) {
 
 static void renderer(void* unused) {
     (void)unused;
-    threads.name("renderer");
-    threads.realtime();
+    ut_thread.name("renderer");
+    ut_thread.realtime();
     event_t es[2] = {wake, quit};
     for (;;) {
-        int e = events.wait_any(countof(es), es);
+        int e = ut_event.wait_any(countof(es), es);
         if (e != 0) { break; }
         int k = !index;
         mandelbrot(&image[k]);

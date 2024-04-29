@@ -78,10 +78,10 @@ static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y
 
 static void timer_thread(void* p) {
     bool* done = (bool*)p;
-    threads.name("r/t timer");
-    threads.realtime();
+    ut_thread.name("r/t timer");
+    ut_thread.realtime();
     while (!*done) {
-        threads.sleep_for(0.0094);
+        ut_thread.sleep_for(0.0094);
         ts[1].time[ts[1].pos] = ut_clock.seconds();
         ts[1].pos = (ts[1].pos + 1) % N;
         (ts[1].samples)++;
@@ -124,12 +124,12 @@ static void timer(ui_view_t* unused(view), ui_timer_t id) {
 static void opened(void) {
     timer10ms = app.set_timer((uintptr_t)&timer10ms, 10);
     fatal_if(timer10ms == 0);
-    thread = threads.start(timer_thread, &quit);
+    thread = ut_thread.start(timer_thread, &quit);
     fatal_if_null(thread);
 }
 
 static void detached_sleep(void* unused(p)) {
-    threads.sleep_for(100.0); // seconds
+    ut_thread.sleep_for(100.0); // seconds
 }
 
 static void detached_loop(void* unused(p)) {
@@ -144,15 +144,15 @@ static void detached_loop(void* unused(p)) {
 static void closed(void) {
     app.kill_timer(timer10ms);
     quit = true;
-    fatal_if_not_zero(threads.join(thread, -1));
+    fatal_if_not_zero(ut_thread.join(thread, -1));
     thread = null;
     quit = false;
     // just to test that ExitProcess(0) works when there is
     // are detached threads
-    thread_t detached = threads.start(detached_sleep, null);
-    threads.detach(detached);
-    detached = threads.start(detached_loop, null);
-    threads.detach(detached);
+    thread_t detached = ut_thread.start(detached_sleep, null);
+    ut_thread.detach(detached);
+    detached = ut_thread.start(detached_loop, null);
+    ut_thread.detach(detached);
 }
 
 static void do_not_start_minimized(void) {
@@ -167,7 +167,7 @@ static void do_not_start_minimized(void) {
 
 static void init(void) {
     app.title = title;
-    threads.realtime(); // both main thread and timer thread
+    ut_thread.realtime(); // both main thread and timer thread
     app.view->timer = timer;
     app.closed = closed;
     app.opened = opened;

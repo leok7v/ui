@@ -43,19 +43,19 @@ static void ut_runtime_test(void) { // in alphabetical order
     ut_clock.test();
     ut_config.test();
     ut_debug.test();
-    events.test();
+    ut_event.test();
     ut_files.test();
     ut_generics.test();
     ut_heap.test();
     ut_loader.test();
     ut_mem.test();
-    mutexes.test();
+    ut_mutex.test();
     ut_num.test();
     ut_processes.test();
     ut_static_init_test();
     ut_str.test();
     ut_streams.test();
-    threads.test();
+    ut_thread.test();
     vigil.test();
 }
 

@@ -18,9 +18,9 @@ typedef struct {
     int32_t (*wait_any_or_timeout)(int32_t n, event_t e[], fp64_t seconds);
     void (*dispose)(event_t e);
     void (*test)(void);
-} events_if;
+} ut_event_if;
 
-extern events_if events;
+extern ut_event_if ut_event;
 
 typedef struct { uint8_t content[40]; } mutex_t;
 
@@ -30,9 +30,9 @@ typedef struct {
     void (*unlock)(mutex_t* m);
     void (*dispose)(mutex_t* m);
     void (*test)(void);
-} mutex_if;
+} ut_mutex_if;
 
-extern mutex_if mutexes;
+extern ut_mutex_if ut_mutex;
 
 typedef struct thread_s * thread_t;
 
@@ -46,8 +46,8 @@ typedef struct {
     void (*sleep_for)(fp64_t seconds);
     int32_t (*id)(void);    // gettid()
     void (*test)(void);
-} threads_if;
+} ut_thread_if;
 
-extern threads_if threads;
+extern ut_thread_if ut_thread;
 
 end_c

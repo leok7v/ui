@@ -186,7 +186,7 @@ static void ui_edit_fuzzer(void* p) {
     ui_edit_t* e = (ui_edit_t*)p;
     for (;;) {
         while (!e->fuzz_quit && e->fuzz_count == e->fuzz_last) {
-            threads.sleep_for(1.0 / 1024.0); // ~1ms
+            ut_thread.sleep_for(1.0 / 1024.0); // ~1ms
         }
         if (e->fuzz_quit) { e->fuzz_quit = false; break; }
         e->fuzz_last = e->fuzz_count;
@@ -245,11 +245,11 @@ static void ui_edit_fuzzer(void* p) {
 void ui_edit_fuzz(ui_edit_t* e) {
     if (e->fuzzer == null) {
         app.request_focus(); // force application to be focused
-        e->fuzzer = threads.start(ui_edit_fuzzer, e);
+        e->fuzzer = ut_thread.start(ui_edit_fuzzer, e);
         ui_edit_next_fuzz(e);
     } else {
         e->fuzz_quit = true;
-        threads.join(e->fuzzer, -1);
+        ut_thread.join(e->fuzzer, -1);
         e->fuzzer = null;
     }
     traceln("fuzzing %s",e->fuzzer != null ? "started" : "stopped");

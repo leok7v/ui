@@ -116,7 +116,7 @@ static void mouse(ui_view_t* unused(view), int32_t m, int32_t unused(f)) {
 }
 
 static void opened(void) {
-    midi.tid = threads.id();
+    midi.tid = ut_thread.id();
     midi_open();
     midi_play();
 }
@@ -184,7 +184,7 @@ static void midi_warn_if_error_(int r, const char* call, const char* func, int l
 } while (0)
 
 static void midi_play(void) {
-    assert(midi.tid == threads.id());
+    assert(midi.tid == ut_thread.id());
     MCI_PLAY_PARMS pp = {0};
     pp.dwCallback = (uintptr_t)app.window;
     midi_warn_if_error(mciSendCommandA(midi.mop.wDeviceID,
@@ -192,13 +192,13 @@ static void midi_play(void) {
 }
 
 static void midi_stop(void) {
-    assert(midi.tid == threads.id());
+    assert(midi.tid == ut_thread.id());
     midi_warn_if_error(mciSendCommandA(midi.mop.wDeviceID,
         MCI_STOP, 0, 0));
 }
 
 static void midi_open(void) {
-    assert(midi.tid == threads.id());
+    assert(midi.tid == ut_thread.id());
     midi.mop.dwCallback = (uintptr_t)app.window;
     midi.mop.wDeviceID = (WORD)-1;
     midi.mop.lpstrDeviceType = (const char*)MCI_DEVTYPE_SEQUENCER;
@@ -231,7 +231,7 @@ static void animate(void) {
     for (;;) {
         app.redraw();
         fp64_t delay_in_seconds = gif.delays[animation.index] * 0.001;
-        if (events.wait_or_timeout(animation.quit, delay_in_seconds) == 0) {
+        if (ut_event.wait_or_timeout(animation.quit, delay_in_seconds) == 0) {
             break;
         }
         if (animation.x >= 0 && animation.y >= 0) {
@@ -291,8 +291,8 @@ static void init(void) {
     animation.seed = (uint32_t)ut_clock.nanoseconds();
     animation.x = -1;
     animation.y = -1;
-    animation.quit = events.create();
-    animation.thread = threads.start(startup, null);
+    animation.quit = ut_event.create();
+    animation.thread = ut_thread.start(startup, null);
     void* data = null;
     int64_t bytes = 0;
     fatal_if_not_zero(ut_mem.map_resource("sample_png", &data, &bytes));
@@ -309,9 +309,9 @@ static void fini(void) {
     gdi.image_dispose(&background);
     free(gif.pixels);
     free(gif.delays);
-    events.set(animation.quit);
-    threads.join(animation.thread, -1);
-    events.dispose(animation.quit);
+    ut_event.set(animation.quit);
+    ut_thread.join(animation.thread, -1);
+    ut_event.dispose(animation.quit);
     midi_stop();
     midi_close();
     delete_midi_file();

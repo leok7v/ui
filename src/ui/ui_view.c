@@ -444,7 +444,7 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     }
     // message() callback is called even for hidden and disabled views
     // could be useful for enabling conditions of post() messages from
-    // background threads.
+    // background ut_thread.
     if (view->message != null) {
         if (view->message(view, m, wp, lp, ret)) { return true; }
     }

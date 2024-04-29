@@ -1044,7 +1044,7 @@ static void app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
         // The device may need to be manually reset."
         int32_t r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
         if (r != 0) {
-            threads.sleep_for(1.0 / 32); // and retry:
+            ut_thread.sleep_for(1.0 / 32); // and retry:
             r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
         }
         if (r == 0) {
@@ -2156,11 +2156,11 @@ static void app_invalidate_rect(const ui_rect_t* r) {
 // refresh rate
 
 static void app_redraw_thread(void* unused(p)) {
-    threads.realtime();
-    threads.name("app.redraw");
+    ut_thread.realtime();
+    ut_thread.name("app.redraw");
     for (;;) {
         event_t es[] = { app_event_invalidate, app_event_quit };
-        int32_t r = events.wait_any(countof(es), es);
+        int32_t r = ut_event.wait_any(countof(es), es);
         if (r == 0) {
             if (app_window() != null) {
                 InvalidateRect(app_window(), null, false);
@@ -2296,7 +2296,7 @@ static int app_console_attach(void) {
     int r = AttachConsole(ATTACH_PARENT_PROCESS) ? 0 : ut_runtime.err();
     if (r == 0) {
         app_console_disable_close();
-        threads.sleep_for(0.1); // give cmd.exe a chance to print prompt again
+        ut_thread.sleep_for(0.1); // give cmd.exe a chance to print prompt again
         printf("\n");
     }
     return r;
@@ -2646,7 +2646,7 @@ static bool app_has_focus(void) {
 static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
-    assert(threads.id() == app.tid, "cannot be called from background thread");
+    assert(ut_thread.id() == app.tid, "cannot be called from background thread");
     ut_runtime.seterr(0);
     w = SetFocus((HWND)w); // w previous focused window
     if (w == null) { fatal_if_not_zero(ut_runtime.err()); }
@@ -2701,8 +2701,8 @@ static void app_init(void) {
     app.console_attach      = app_console_attach;
     app.console_create      = app_console_create;
     app.console_show        = app_console_show;
-    app_event_quit          = events.create();
-    app_event_invalidate    = events.create();
+    app_event_quit          = ut_event.create();
+    app_event_invalidate    = ut_event.create();
     app.init();
 }
 
@@ -2788,10 +2788,10 @@ static int app_win_main(void) {
     not_null(app.class_name);
     if (!app.no_ui) {
         app_create_window(wr);
-        thread_t thread = threads.start(app_redraw_thread, null);
+        thread_t thread = ut_thread.start(app_redraw_thread, null);
         r = app_message_loop();
         fatal_if_false(SetEvent(app_event_quit));
-        threads.join(thread, -1);
+        ut_thread.join(thread, -1);
         app_dispose();
         if (r == 0 && app.exit_code != 0) { r = app.exit_code; }
     } else {
@@ -2805,7 +2805,7 @@ static int app_win_main(void) {
 
 int WINAPI WinMain(HINSTANCE unused(instance), HINSTANCE unused(previous),
         char* unused(command), int show) {
-    app.tid = threads.id();
+    app.tid = ut_thread.id();
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
     SetConsoleCP(CP_UTF8);
     nls.init();
@@ -2820,7 +2820,7 @@ int main(int argc, const char* argv[], const char** envp) {
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
     ut_args.main(argc, argv, envp);
     nls.init();
-    app.tid = threads.id();
+    app.tid = ut_thread.id();
     int r = app.main();
     ut_args.fini();
     return r;
@@ -5371,7 +5371,7 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     }
     // message() callback is called even for hidden and disabled views
     // could be useful for enabling conditions of post() messages from
-    // background threads.
+    // background ut_thread.
     if (view->message != null) {
         if (view->message(view, m, wp, lp, ret)) { return true; }
     }

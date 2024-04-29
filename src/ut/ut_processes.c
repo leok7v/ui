@@ -175,7 +175,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
         }
         ut_processes_close_handle(h);
         if (r == ERROR_ACCESS_DENIED) { // special case
-            threads.sleep_for(0.015); // need to wait a bit
+            ut_thread.sleep_for(0.015); // need to wait a bit
             HANDLE retry = OpenProcess(access, 0, (DWORD)pid);
             // process may have died before we have chance to terminate it:
             if (retry == null) {
@@ -392,7 +392,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
                 done = ix == WAIT_OBJECT_0 || r == ERROR_BROKEN_PIPE;
             }
             // to avoid tight loop 100% cpu utilization:
-            if (!done) { threads.yield(); }
+            if (!done) { ut_thread.yield(); }
         }
         // broken pipe actually signifies EOF on the pipe
         if (r == ERROR_BROKEN_PIPE) { r = 0; } // not an error
