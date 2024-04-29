@@ -44,8 +44,8 @@ static void runtime_test(void) { // in alphabetical order
     ut_config.test();
     ut_debug.test();
     events.test();
-    files.test();
-    generics.test();
+    ut_files.test();
+    ut_generics.test();
     heap.test();
     loader.test();
     mem.test();

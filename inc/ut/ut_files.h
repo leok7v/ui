@@ -3,25 +3,25 @@
 
 begin_c
 
-enum { files_max_path = 4 * 1024 }; // *)
+enum { ut_files_max_path = 4 * 1024 }; // *)
 
-typedef struct file_s file_t;
+typedef struct ut_file_s ut_file_t;
 
-typedef struct files_stat_s {
+typedef struct ut_files_stat_s {
     uint64_t created;
     uint64_t accessed;
     uint64_t updated;
     int64_t  size; // bytes
     int64_t  type; // device / folder / symlink
-} files_stat_t;
+} ut_files_stat_t;
 
-typedef struct folder_s {
+typedef struct ut_folder_s {
     uint8_t data[512]; // implementation specific
-} folder_t;
+} ut_folder_t;
 
 typedef struct {
-    file_t* const invalid; // (file_t*)-1
-    // files_stat_t.type:
+    ut_file_t* const invalid; // (ut_file_t*)-1
+    // ut_files_stat_t.type:
     int32_t const type_folder;
     int32_t const type_symlink;
     int32_t const type_device;
@@ -38,14 +38,14 @@ typedef struct {
     int32_t const o_excl;   // create fails if file exists
     int32_t const o_trunc;  // open always truncates to empty
     int32_t const o_sync;
-    errno_t (*open)(file_t* *file, const char* filename, int32_t flags);
-    bool    (*is_valid)(file_t* file); // checks both null and invalid
-    errno_t (*seek)(file_t* file, int64_t *position, int32_t method);
-    errno_t (*stat)(file_t* file, files_stat_t* stat, bool follow_symlink);
-    errno_t (*read)(file_t* file, void* data, int64_t bytes, int64_t *transferred);
-    errno_t (*write)(file_t* file, const void* data, int64_t bytes, int64_t *transferred);
-    errno_t (*flush)(file_t* file);
-    void    (*close)(file_t* file);
+    errno_t (*open)(ut_file_t* *file, const char* filename, int32_t flags);
+    bool    (*is_valid)(ut_file_t* file); // checks both null and invalid
+    errno_t (*seek)(ut_file_t* file, int64_t *position, int32_t method);
+    errno_t (*stat)(ut_file_t* file, ut_files_stat_t* stat, bool follow_symlink);
+    errno_t (*read)(ut_file_t* file, void* data, int64_t bytes, int64_t *transferred);
+    errno_t (*write)(ut_file_t* file, const void* data, int64_t bytes, int64_t *transferred);
+    errno_t (*flush)(ut_file_t* file);
+    void    (*close)(ut_file_t* file);
     errno_t (*write_fully)(const char* filename, const void* data,
                            int64_t bytes, int64_t *transferred);
     bool (*exists)(const char* pathname); // does not guarantee any access writes
@@ -69,13 +69,13 @@ typedef struct {
     // There are better, native, higher performance ways to iterate thru
     // folders in Posix, Linux and Windows. The following is minimalistic
     // approach to folder content reading:
-    errno_t (*opendir)(folder_t* folder, const char* folder_name);
-    const char* (*readdir)(folder_t* folder, files_stat_t* optional);
-    void (*closedir)(folder_t* folder);
+    errno_t (*opendir)(ut_folder_t* folder, const char* folder_name);
+    const char* (*readdir)(ut_folder_t* folder, ut_files_stat_t* optional);
+    void (*closedir)(ut_folder_t* folder);
     void (*test)(void);
-} files_if;
+} ut_files_if;
 
-// *) files_max_path is a compromise - way longer than Windows MAX_PATH of 260
+// *) ut_files_max_path is a compromise - way longer than Windows MAX_PATH of 260
 // and somewhat shorter than 32 * 1024 Windows long path.
 // Use with caution understanding that it is a limitation and where it is
 // important heap may and should be used. Do not to rely on thread stack size
@@ -84,6 +84,6 @@ typedef struct {
 // **) symlink on Win32 is only allowed in Admin elevated
 //     processes and in Developer mode.
 
-extern files_if files;
+extern ut_files_if ut_files;
 
 end_c

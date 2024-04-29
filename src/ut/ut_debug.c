@@ -14,7 +14,7 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
     char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
     // for all other scenarios short filename without path is preferable:
-    const char* name = IsDebuggerPresent() ? file : files.basename(file);
+    const char* name = IsDebuggerPresent() ? file : ut_files.basename(file);
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
     prefix[countof(prefix) - 1] = 0; // zero terminated

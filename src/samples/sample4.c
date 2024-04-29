@@ -78,7 +78,7 @@ static void download(void) {
     static const char* url =
         "https://upload.wikimedia.org/wikipedia/commons/c/c1/"
         "Wikipedia-sipi-image-db-mandrill-4.2.03.png";
-    if (!files.exists(filename)) {
+    if (!ut_files.exists(filename)) {
         char cmd[256];
         strprintf(cmd, "curl.exe  --silent --fail --create-dirs "
             "\"%s\" --output \"%s\" 2>nul >nul", url, filename);

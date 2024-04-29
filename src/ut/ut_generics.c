@@ -1,9 +1,8 @@
 #include "ut/ut.h"
 
-
 #ifdef UT_TESTS
 
-static void generics_test(void) {
+static void ut_generics_test(void) {
     {
         int8_t a = 10, b = 20;
         swear(maximum(a++, b++) == 20);
@@ -66,10 +65,10 @@ static void generics_test(void) {
 
 #else
 
-static void generics_test(void) { }
+static void ut_generics_test(void) { }
 
 #endif
 
-generics_if generics = {
-    .test = generics_test
+ut_generics_if ut_generics = {
+    .test = ut_generics_test
 };

@@ -43,7 +43,7 @@ typedef double fp64_t;
 
 // #define minimum(a,b) (((a) < (b)) ? (a) : (b)) // preferred
 
-// see generics.h/.c for alternative to definining minimum/maximum
+// see ut_generics.h/.c for alternative to definining minimum/maximum
 // as C11 generics functions. For now experimental
 
 #if defined(__GNUC__) || defined(__clang__)
