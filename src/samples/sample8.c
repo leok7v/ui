@@ -25,34 +25,34 @@ static void button_bottom_callback(ui_button_t* b) {
 static ui_button_t button_close  = ui_button("X",  0.0, button_close_callback);
 static ui_button_t button_bottom = ui_button("[]", 0.0, button_bottom_callback);
 
-static void title_bar_mouse(ui_view_t* view, int32_t m, int32_t flags) {
+static ui_point_t title_bar_drag_start;
+
+static void title_bar_mouse(ui_view_t* view, int32_t m, int64_t flags) {
     swear(view == &title_bar, "window dragging only by title_bar");
-    static ui_point_t start;
-    bool started = start.x != 0 || start.y != 0;
+    bool started = title_bar_drag_start.x != 0 || title_bar_drag_start.y != 0;
     bool pressed =
         m == ui.message.left_button_pressed ||
         m == ui.message.right_button_pressed;
     bool released =
         m == ui.message.left_button_released ||
         m == ui.message.right_button_released;
-    if (m == ui.message.mouse_move &&
-        (flags & (ui.mouse.button.left|ui.mouse.button.left)) == 0) {
+    bool holding = flags & (ui.mouse.button.left|ui.mouse.button.left);
+    if (m == ui.message.mouse_move && !holding) {
         released = true;
     }
     if (ui_view.inside(view, &app.mouse)) {
         if (pressed && !started) {
-            start = app.mouse;
+            title_bar_drag_start = app.mouse;
             app.capture_mouse(true);
         } else if (started && released) {
-            start.x = 0;
-            start.y = 0;
+            title_bar_drag_start = (ui_point_t){0, 0};
             app.capture_mouse(false);
             started = false;
         }
     }
-    if (m == ui.message.mouse_move && started) {
-        const int32_t dx = app.mouse.x - start.x;
-        const int32_t dy = app.mouse.y - start.y;
+    if (m == ui.message.mouse_move && started && holding) {
+        const int32_t dx = app.mouse.x - title_bar_drag_start.x;
+        const int32_t dy = app.mouse.y - title_bar_drag_start.y;
 //      traceln("%d,%d", dx, dy);
         ui_rect_t r = app.wrc;
         r.x += dx;
@@ -61,14 +61,71 @@ static void title_bar_mouse(ui_view_t* view, int32_t m, int32_t flags) {
     }
 }
 
-static void paint_panel(ui_view_t* view) {
-    gdi.push(view->x, view->y);
-    gdi.fill_with(view->x, view->y, view->w, view->h, view->color);
-    ui_point_t mt = gdi.measure_text(*view->font, view->text);
-    gdi.x += (view->w - mt.x) / 2;
-    gdi.y += (view->h - mt.y) / 2;
-    gdi.set_text_color((ui_color_t)(view->color ^ 0xFFFFFF));
-    gdi.print("%s", view->text);
+static void root_frame_mouse(ui_view_t* view, int32_t m, int64_t flags) {
+    swear(view == app.view);
+    static int64_t hit_test_result = 1; /* ui.hit_test.client */
+    static ui_point_t resize_start;
+    assert(ui.hit_test.client == 1);
+    bool dragging = title_bar_drag_start.x != 0 || title_bar_drag_start.y != 0;
+//  traceln("dragging: %d title_bar_drag_start: %d,%d", dragging,
+//      title_bar_drag_start.x, title_bar_drag_start.y);
+    if (!dragging) {
+        bool started  = resize_start.x != 0 || resize_start.y != 0;
+        bool pressed  = (m == ui.message.left_button_pressed);
+        bool released = (m == ui.message.left_button_released);
+        bool holding = flags & (ui.mouse.button.left|ui.mouse.button.left);
+        if (m == ui.message.mouse_move && !holding) {
+            released = true;
+        }
+        if (pressed && !started) {
+            resize_start = app.mouse; // save starting mouse position
+            hit_test_result = app.hit_test(app.mouse.x, app.mouse.y);
+        }
+        if (released) { // reset start position and hit test result
+            resize_start = (ui_point_t){0, 0};
+            hit_test_result = ui.hit_test.client;
+        }
+        if (m == ui.message.mouse_move && started && holding) {
+            int32_t dx = app.mouse.x - resize_start.x;
+            int32_t dy = app.mouse.y - resize_start.y;
+            if (hit_test_result != ui.hit_test.client) {
+                traceln("hit_test_result: %d", hit_test_result);
+                ui_rect_t r = app.wrc;
+                if (hit_test_result == ui.hit_test.top_left) {
+                    r.x += dx; r.y += dy; r.w -= dx; r.h -= dy;
+                } else if (hit_test_result == ui.hit_test.top_right) {
+                    r.y += dy; r.w += dx; r.h -= dy;
+                } else if (hit_test_result == ui.hit_test.bottom_left) {
+                    r.x += dx; r.w -= dx; r.h += dy;
+                } else if (hit_test_result == ui.hit_test.bottom_right) {
+                    r.w += dx; r.h += dy;
+                } else if (hit_test_result == ui.hit_test.left) {
+                    r.x += dx; r.w -= dx;
+                } else if (hit_test_result == ui.hit_test.right) {
+                    r.w += dx;
+                } else if (hit_test_result == ui.hit_test.top) {
+                    r.y += dy; r.h -= dy;
+                } else if (hit_test_result == ui.hit_test.bottom) {
+                    r.h += dy;
+                }
+                // assumes no padding in structs:
+                if (memcmp(&r, &app.wrc, sizeof(r)) != 0) {
+                    app.move_and_resize(&r);
+                }
+            }
+        }
+    }
+}
+
+static void paint_panel(ui_view_t* v) {
+    gdi.push(v->x, v->y);
+    gdi.fill_with(v->x + 0, v->y + 0, v->w - 0, v->h - 0, v->color);
+    gdi.fill_with(v->x + 1, v->y + 1, v->w - 2, v->h - 2, v->color);
+    ui_point_t mt = gdi.measure_text(*v->font, v->text);
+    gdi.x += (v->w - mt.x) / 2;
+    gdi.y += (v->h - mt.y) / 2;
+    gdi.set_text_color((ui_color_t)(v->color ^ 0xFFFFFF));
+    gdi.print("%s", v->text);
     gdi.pop();
 }
 
@@ -111,6 +168,7 @@ static void opened(void) {
     app.view->paint     = root_paint;
     app.view->measure   = root_measure;
     app.view->layout    = root_layout;
+    app.view->mouse     = root_frame_mouse;
     ui_view.add(app.view,
         ui_view.add(&title_bar, &button_close, null),
         ui_view.add(&center_pane, &left_pane, &content_pane, &right_pane, null),
@@ -158,10 +216,10 @@ app_t app = {
     .class_name = "sample8",
     .init = init,
     .window_sizing = {
-        .min_w =  10.0f,
-        .min_h =   7.0f,
-        .ini_w =   9.0f,
-        .ini_h =   6.0f
+        .min_w =   4.0f,
+        .min_h =   3.0f,
+        .ini_w =  10.0f,
+        .ini_h =   7.0f
     }
 };
 

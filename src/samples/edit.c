@@ -1199,7 +1199,7 @@ fn(void, key_enter)(ui_edit_t* e) {
     }
 }
 
-fn(void, key_pressed)(ui_view_t* view, int32_t key) {
+fn(void, key_pressed)(ui_view_t* view, int64_t key) {
     assert(view->type == ui_view_edit);
     ui_edit_t* e = (ui_edit_t*)view;
     if (e->focused) {
@@ -1416,7 +1416,7 @@ fn(bool, press)(ui_view_t* view, int32_t ix) {
     }
 }
 
-fn(void, mouse)(ui_view_t* view, int32_t m, int32_t unused(flags)) {
+fn(void, mouse)(ui_view_t* view, int32_t m, int64_t unused(flags)) {
 //  if (m == ui.message.left_button_pressed) { traceln("%p", view); }
     assert(view->type == ui_view_edit);
     assert(!view->hidden);

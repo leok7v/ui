@@ -82,7 +82,7 @@ static void ui_button_character(ui_view_t* view, const char* utf8) {
     }
 }
 
-static void ui_button_key_pressed(ui_view_t* view, int32_t key) {
+static void ui_button_key_pressed(ui_view_t* view, int64_t key) {
     if (app.alt && ui_view.is_shortcut_key(view, key)) {
 //      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_button_trigger(view);
@@ -91,7 +91,7 @@ static void ui_button_key_pressed(ui_view_t* view, int32_t key) {
 
 /* processes mouse clicks and invokes callback  */
 
-static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
+static void ui_button_mouse(ui_view_t* view, int32_t message, int64_t flags) {
     assert(view->type == ui_view_button);
     (void)flags; // unused
     assert(!view->hidden && !view->disabled);

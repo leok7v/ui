@@ -3,6 +3,8 @@
 
 begin_c
 
+ // TODO: ui_ namespace
+
 typedef struct {
     void (*center)(ui_view_t* view); // exactly one child
     void (*horizontal)(ui_view_t* view, int32_t gap);

@@ -118,7 +118,7 @@ typedef struct ui_region_s* ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
-typedef struct image_s {
+typedef struct image_s { // TODO: ui_ namespace
     int32_t w; // width
     int32_t h; // height
     int32_t bpp;    // "components" bytes per pixel
@@ -127,7 +127,7 @@ typedef struct image_s {
     void* pixels;
 } image_t;
 
-typedef struct dpi_s { // max(dpi_x, dpi_y)
+typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
     int32_t system;  // system dpi
     int32_t process; // process dpi
     // 15" diagonal monitor 3840x2160 175% scaled
@@ -161,7 +161,7 @@ typedef struct ui_s {
         int32_t const restore;  // from min/max to normal window size/pos
         int32_t const defau1t;  // use Windows STARTUPINFO value
         int32_t const force_min;// minimize even if dispatch thread not responding
-    } visibility;
+    } const visibility;
     struct { // message:
         int32_t const character; // translated from key pressed/released to utf8
         int32_t const key_pressed;
@@ -181,13 +181,39 @@ typedef struct ui_s {
         int32_t const tap;
         int32_t const dtap;
         int32_t const press;
-   } message;
+   } const message;
    struct { // mouse buttons bitset mask
         struct {
             int32_t const left;
             int32_t const right;
         } button;
-    } mouse;
+    } const mouse;
+    struct { // window decorations hit test results
+        int32_t const error;            // -2
+        int32_t const transparent;      // -1
+        int32_t const nowhere;          // 0
+        int32_t const client;           // 1
+        int32_t const caption;          // 2
+        int32_t const system_menu;      // 3
+        int32_t const grow_box;         // 4
+        int32_t const menu;             // 5
+        int32_t const horizontal_scroll;// 6
+        int32_t const vertical_scroll;  // 7
+        int32_t const min_button;       // 8
+        int32_t const max_button;       // 9
+        int32_t const left;             // 10
+        int32_t const right;            // 11
+        int32_t const top;              // 12
+        int32_t const top_left;         // 13
+        int32_t const top_right;        // 14
+        int32_t const bottom;           // 15
+        int32_t const bottom_left;      // 16
+        int32_t const bottom_right;     // 17
+        int32_t const border;           // 18
+        int32_t const object;           // 19
+        int32_t const close;            // 20
+        int32_t const help;             // 21
+    } const hit_test;
     struct { // virtual keyboard keys
         int32_t const up;
         int32_t const down;
@@ -228,7 +254,7 @@ typedef struct ui_s {
         int32_t const f22;
         int32_t const f23;
         int32_t const f24;
-    } key;
+    } const key;
     struct { // known folders:
         int32_t const home     ; // c:\Users\<username>
         int32_t const desktop  ;
@@ -240,7 +266,7 @@ typedef struct ui_s {
         int32_t const shared   ; // c:\Users\Public
         int32_t const bin      ; // c:\Program Files
         int32_t const data     ; // c:\ProgramData
-    } folder;
+    } const folder;
     bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
     // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
     bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,
@@ -314,6 +340,24 @@ typedef struct colors_s {
     // misc:
     const int32_t orange;
     const int32_t dkgreen;
+    const int32_t pink;
+    const int32_t ochre;
+    const int32_t gold;
+    const int32_t teal;
+    const int32_t wheat;
+    const int32_t tan;
+    const int32_t brown;
+    const int32_t maroon;
+    const int32_t barbie_pink;
+    const int32_t steel_pink;
+    const int32_t salmon_pink;
+    const int32_t gainsboro;
+    const int32_t light_gray;
+    const int32_t silver;
+    const int32_t dark_gray;
+    const int32_t dim_gray;
+    const int32_t light_slate_gray;
+    const int32_t slate_gray;
     // highlights:
     const int32_t text_highlight; // bluish off-white
     const int32_t blue_highlight;
@@ -326,9 +370,58 @@ typedef struct colors_s {
     const int32_t btn_armed;
     const int32_t btn_text;
     const int32_t toast; // toast background
+
+    /* Named colors */
+
+    /* Main Panel Backgrounds */
+    const int32_t charcoal;
+    const int32_t onyx;
+    const int32_t gunmetal;
+    const int32_t jet_black;
+    const int32_t outer_space;
+    const int32_t eerie_black;
+    const int32_t oil;
+    const int32_t black_coral;
+
+    /* Secondary Panels or Sidebars */
+    const int32_t raisin_black;
+    const int32_t dark_charcoal;
+    const int32_t dark_jungle_green;
+    const int32_t pine_tree;
+    const int32_t rich_black;
+    const int32_t eclipse;
+    const int32_t cafe_noir;
+
+    /* Flat Buttons */
+    const int32_t prussian_blue;
+    const int32_t midnight_green;
+    const int32_t charleston_green;
+    const int32_t rich_black_fogra;
+    const int32_t dark_liver;
+    const int32_t dark_slate_gray;
+    const int32_t black_olive;
+    const int32_t cadet;
+
+    /* Button highlights (hover) */
+    const int32_t dark_sienna;
+    const int32_t bistre_brown;
+    const int32_t dark_puce;
+    const int32_t wenge;
+
+    /* Raised button effects */
+    const int32_t dark_scarlet;
+    const int32_t burnt_umber;
+    const int32_t caput_mortuum;
+    const int32_t barn_red;
 } colors_t;
 
 extern colors_t colors;
+
+// TODO:
+// https://ankiewicz.com/colors/
+// https://htmlcolorcodes.com/color-names/
+// it would be super cool to implement a plethora of palettes
+// with named colors and app "themes" that can be switched
 
 // _________________________________ ui_gdi.h _________________________________
 
@@ -337,7 +430,7 @@ extern colors_t colors;
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
-enum {
+enum {  // TODO: ui_ namespace and into gdi int32_t const 
     gdi_font_quality_default = 0,
     gdi_font_quality_draft = 1,
     gdi_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
@@ -347,7 +440,7 @@ enum {
     gdi_font_quality_cleartype_natural = 6
 };
 
-typedef struct gdi_s {
+typedef struct gdi_s {  // TODO: ui_ namespace
     ui_brush_t  brush_color;
     ui_brush_t  brush_hollow;
     ui_pen_t pen_hollow;
@@ -492,7 +585,7 @@ typedef struct ui_view_s {
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
     void (*click)(ui_view_t* view); // interpretation depends on ui element
-    void (*mouse)(ui_view_t* view, int32_t message, int32_t flags);
+    void (*mouse)(ui_view_t* view, int32_t message, int64_t flags);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
@@ -505,8 +598,8 @@ typedef struct ui_view_s {
     void (*kill_focus)(ui_view_t* view);
     // translated from key pressed/released to utf8:
     void (*character)(ui_view_t* view, const char* utf8);
-    void (*key_pressed)(ui_view_t* view, int32_t key);
-    void (*key_released)(ui_view_t* view, int32_t key);
+    void (*key_pressed)(ui_view_t* view, int64_t key);
+    void (*key_released)(ui_view_t* view, int64_t key);
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled ui elements
     void (*timer)(ui_view_t* view, ui_timer_t id);
@@ -561,20 +654,20 @@ typedef struct ui_view_if {
     void (*timer)(ui_view_t* view, ui_timer_t id);
     void (*every_sec)(ui_view_t* view);
     void (*every_100ms)(ui_view_t* view);
-    void (*key_pressed)(ui_view_t* view, int32_t p);
-    void (*key_released)(ui_view_t* view, int32_t p);
+    void (*key_pressed)(ui_view_t* view, int64_t v_key);
+    void (*key_released)(ui_view_t* view, int64_t v_key);
     void (*character)(ui_view_t* view, const char* utf8);
     void (*paint)(ui_view_t* view);
     bool (*set_focus)(ui_view_t* view);
     void (*kill_focus)(ui_view_t* view);
     void (*kill_hidden_focus)(ui_view_t* view);
     void (*hovering)(ui_view_t* view, bool start);
-    void (*mouse)(ui_view_t* view, int32_t m, int32_t f);
+    void (*mouse)(ui_view_t* view, int32_t m, int64_t f);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
     void (*measure_children)(ui_view_t* view);
     void (*layout_children)(ui_view_t* view);
     void (*hover_changed)(ui_view_t* view);
-    bool (*is_shortcut_key)(ui_view_t* view, int32_t key);
+    bool (*is_shortcut_key)(ui_view_t* view, int64_t key);
     bool (*context_menu)(ui_view_t* view);
     bool (*tap)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
     bool (*press)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
@@ -611,6 +704,8 @@ extern ui_view_if ui_view;
 
 #include "ut/ut_std.h"
 
+
+ // TODO: ui_ namespace
 
 typedef struct {
     void (*center)(ui_view_t* view); // exactly one child
@@ -865,7 +960,7 @@ typedef struct ui_window_sizing_s { // in inches (because monitors customary are
 	// on all launches except the very first.
 } ui_window_sizing_t;
 
-typedef struct app_s {
+typedef struct app_s {  // TODO: ui_ namespace
     // implemented by client:
     const char* class_name;
     // called before creating main window
@@ -942,6 +1037,7 @@ typedef struct app_s {
     int32_t (*in2px)(fp32_t inches);
     // color: color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
     errno_t (*set_layered_window)(ui_color_t color, float alpha);
+    int64_t (*hit_test)(int32_t x, int32_t y); // see ui.hit_test.*
     bool (*is_active)(void); // is application window active
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
@@ -1049,7 +1145,7 @@ static struct {
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
 
-static void app_alt_ctrl_shift(bool down, int32_t key) {
+static void app_alt_ctrl_shift(bool down, int64_t key) {
     if (key == VK_MENU)    { app.alt   = down; }
     if (key == VK_CONTROL) { app.ctrl  = down; }
     if (key == VK_SHIFT)   { app.shift = down; }
@@ -1541,7 +1637,7 @@ static void app_measure_and_layout(ui_view_t* view) {
     ui_view.layout_children(view);
 }
 
-static void app_toast_mouse(int32_t m, int32_t f);
+static void app_toast_mouse(int32_t m, int64_t f);
 static void app_toast_character(const char* utf8);
 
 static void app_wm_char(ui_view_t* view, const char* utf8) {
@@ -1552,7 +1648,7 @@ static void app_wm_char(ui_view_t* view, const char* utf8) {
     }
 }
 
-static void app_mouse(ui_view_t* view, int32_t m, int32_t f) {
+static void app_mouse(ui_view_t* view, int32_t m, int64_t f) {
     if (app.animating.view != null && app.animating.view->mouse != null) {
         ui_view.mouse(app.animating.view, m, f);
     } else if (app.animating.view != null && app.animating.view->mouse == null) {
@@ -1564,11 +1660,11 @@ static void app_mouse(ui_view_t* view, int32_t m, int32_t f) {
     }
 }
 
-static void app_tap_press(int32_t m, WPARAM wp, LPARAM lp) {
+static void app_tap_press(int32_t m, int64_t wp, int64_t lp) {
     app.mouse.x = GET_X_LPARAM(lp);
     app.mouse.y = GET_Y_LPARAM(lp);
     // dispatch as generic mouse message:
-    app_mouse(app.view, (int32_t)m, (int32_t)wp);
+    app_mouse(app.view, (int32_t)m, wp);
     int32_t ix = (int32_t)wp;
     assert(0 <= ix && ix <= 2);
     // for now long press and fp64_t tap/fp64_t click
@@ -1657,7 +1753,7 @@ static void app_toast_cancel(void) {
     app.redraw();
 }
 
-static void app_toast_mouse(int32_t m, int32_t flags) {
+static void app_toast_mouse(int32_t m, int64_t flags) {
     bool pressed = m == ui.message.left_button_pressed ||
                    m == ui.message.right_button_pressed;
     if (app.animating.view != null && pressed) {
@@ -1919,49 +2015,90 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma pop_macro("set_timer")
 }
 
-static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp) {
+static int64_t app_hit_test(int32_t x, int32_t y) {
+    RECT rc;
+    GetClientRect(app_window(), &rc);
+    MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
+    // border thickness: width of the resize border
+    int32_t bt = app.in2px(1.0 / 16.0);
+    if (x < rc.left + bt && y < rc.top + bt) {
+        return ui.hit_test.top_left;
+    } else if (x > rc.right - bt && y < rc.top + bt) {
+        return ui.hit_test.top_right;
+    } else if (x < rc.left + bt && y > rc.bottom - bt) {
+        return ui.hit_test.bottom_left;
+    } else if (x > rc.right - bt && y > rc.bottom - bt) {
+        return ui.hit_test.bottom_right;
+    } else if (x < rc.left + bt) { // check edges
+        return ui.hit_test.left;
+    } else if (x > rc.right - bt) {
+        return ui.hit_test.right;
+    } else if (y < rc.top + bt) {
+        return ui.hit_test.top;
+    } else if (y > rc.bottom - bt) {
+        return ui.hit_test.bottom;
+    } else {
+        return ui.hit_test.client; // default to client area
+    }
+}
+
+static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
+        WPARAM w_param, LPARAM l_param) {
     app.now = ut_clock.seconds();
     if (app.window == null) {
         app.window = (ui_window_t)window;
     } else {
         assert(app_window() == window);
     }
+    const int32_t m  = (int32_t)message;
+    const int64_t wp = (int64_t)w_param;
+    const int64_t lp = (int64_t)l_param;
     int64_t ret = 0;
     ui_view.kill_hidden_focus(app.view);
-    app_click_detector(msg, wp, lp);
-    if (ui_view.message(app.view, msg, wp, lp, &ret)) {
+    app_click_detector(m, wp, lp);
+    if (ui_view.message(app.view, m, wp, lp, &ret)) {
         return (LRESULT)ret;
     }
-    if ((int32_t)msg == ui.message.opening) { app_window_opening(); return 0; }
-    if ((int32_t)msg == ui.message.closing) { app_window_closing(); return 0; }
-    if ((int32_t)msg == ui.message.tap || (int32_t)msg == ui.message.dtap ||
-        (int32_t)msg == ui.message.press) {
-            app_tap_press((int32_t)msg, wp, lp);
+    if (m == ui.message.opening) { app_window_opening(); return 0; }
+    if (m == ui.message.closing) { app_window_closing(); return 0; }
+    if (m == ui.message.tap || m == ui.message.dtap ||
+        m == ui.message.press) {
+            app_tap_press(m, wp, lp);
             return 0;
     }
-    if ((int32_t)msg == ui.message.animate) {
+    if (m == ui.message.animate) {
         app_animate_step((app_animate_function_t)lp, (int)wp, -1);
         return 0;
     }
-    switch (msg) {
+    switch (m) {
         case WM_GETMINMAXINFO: app_get_min_max_info((MINMAXINFO*)lp); break;
         case WM_SETTINGCHANGE: app_setting_change(wp, lp); break;
         case WM_CLOSE        : app.focus = null; // before WM_CLOSING
                                app_post_message(ui.message.closing, 0, 0); return 0;
         case WM_DESTROY      : PostQuitMessage(app.exit_code); break;
+        case WM_NCHITTEST    :
+            if (app.no_decor && !app.no_size) {
+                return app.hit_test(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+            } else {
+                break;
+            }
         case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
-        case WM_KEYDOWN      : app_alt_ctrl_shift(true, (int32_t)wp);
-                               ui_view.key_pressed(app.view, (int32_t)wp);
+        case WM_KEYDOWN      : app_alt_ctrl_shift(true, wp);
+                               ui_view.key_pressed(app.view, wp);
                                break;
         case WM_SYSKEYUP:
-        case WM_KEYUP        : app_alt_ctrl_shift(false, (int32_t)wp);
-                               ui_view.key_released(app.view, (int32_t)wp);
+        case WM_KEYUP        : app_alt_ctrl_shift(false, wp);
+                               ui_view.key_released(app.view, wp);
                                break;
         case WM_TIMER        : app_wm_timer((ui_timer_t)wp);
                                break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
-        case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor);
-                               break; // must call DefWindowProc()
+        case WM_SETCURSOR    : // TODO: investigate more in regards to wait cursor
+            if (LOWORD(lp) == HTCLIENT) { // see WM_NCHITTEST
+                SetCursor((HCURSOR)app.cursor);
+                return true; // must NOT call DefWindowProc()
+            }
+            break;
         // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
         // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
 //      case WM_UNICHAR      : // only UTF-32 via PostMessage
@@ -1996,7 +2133,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 //          traceln("%d %d", pt.x, pt.y);
             ScreenToClient(app_window(), &pt);
             app.mouse = app_point2ui(&pt);
-            app_mouse(app.view, (int32_t)msg, (int32_t)wp);
+            app_mouse(app.view, m, wp);
             break;
         }
         case WM_MOUSEHOVER   : // see TrackMouseEvent()
@@ -2014,13 +2151,13 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             app.mouse.y = GET_Y_LPARAM(lp);
 //          traceln("%d %d", app.mouse.x, app.mouse.y);
             // note: ScreenToClient() is not needed for this messages
-            app_mouse(app.view, (int32_t)msg, (int32_t)wp);
+            app_mouse(app.view, m, wp);
             break;
         }
         case WM_GETDPISCALEDSIZE: { // sent before WM_DPICHANGED
 //          traceln("WM_GETDPISCALEDSIZE");
             #ifdef QUICK_DEBUG
-                int32_t dpi = (int32_t)wp;
+                int32_t dpi = wp;
                 SIZE* sz = (SIZE*)lp; // in/out
                 ui_point_t cell = { sz->cx, sz->cy };
                 traceln("WM_GETDPISCALEDSIZE dpi %d := %d "
@@ -2078,7 +2215,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         default:
             break;
     }
-    return DefWindowProcA(app_window(), msg, wp, lp);
+    return DefWindowProcA(app_window(), m, wp, lp);
 }
 
 static long app_set_window_long(int32_t index, long value) {
@@ -2107,7 +2244,7 @@ static errno_t app_set_layered_window(ui_color_t color, float alpha) {
 static void app_create_window(const ui_rect_t r) {
     WNDCLASSA wc = { 0 };
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
-    wc.lpfnWndProc = window_proc;
+    wc.lpfnWndProc = app_window_proc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 256 * 1024;
     wc.hInstance = GetModuleHandleA(null);
@@ -2761,6 +2898,7 @@ static void app_init(void) {
     app.px2in               = app_px2in;
     app.in2px               = app_in2px;
     app.set_layered_window  = app_set_layered_window;
+    app.hit_test            = app_hit_test;
     app.is_active           = app_is_active,
     app.has_focus           = app_has_focus,
     app.request_focus       = app_request_focus,
@@ -3018,7 +3156,7 @@ static void ui_button_character(ui_view_t* view, const char* utf8) {
     }
 }
 
-static void ui_button_key_pressed(ui_view_t* view, int32_t key) {
+static void ui_button_key_pressed(ui_view_t* view, int64_t key) {
     if (app.alt && ui_view.is_shortcut_key(view, key)) {
 //      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_button_trigger(view);
@@ -3027,7 +3165,7 @@ static void ui_button_key_pressed(ui_view_t* view, int32_t key) {
 
 /* processes mouse clicks and invokes callback  */
 
-static void ui_button_mouse(ui_view_t* view, int32_t message, int32_t flags) {
+static void ui_button_mouse(ui_view_t* view, int32_t message, int64_t flags) {
     assert(view->type == ui_view_button);
     (void)flags; // unused
     assert(!view->hidden && !view->disabled);
@@ -3104,10 +3242,10 @@ colors_t colors = {
     .cyan    = rgb(0,   255, 255),
     .magenta = rgb(255,   0, 255),
     .gray    = rgb(128, 128, 128),
-    .dkgray1  = rgb(30, 30, 30),
-    .dkgray2  = rgb(37, 38, 38),
-    .dkgray3  = rgb(45, 45, 48),
-    .dkgray4  = _colors_dkgray4,
+    .dkgray1 = rgb(30, 30, 30),
+    .dkgray2 = rgb(37, 38, 38),
+    .dkgray3 = rgb(45, 45, 48),
+    .dkgray4 = _colors_dkgray4,
     // tone down RGB colors:
     .tone_white   = rgb(164, 164, 164),
     .tone_red     = rgb(192,  64,  64),
@@ -3116,9 +3254,28 @@ colors_t colors = {
     .tone_yellow  = rgb(192, 192,  64),
     .tone_cyan    = rgb(64,  192, 192),
     .tone_magenta = rgb(192,  64, 192),
-    // misc:
-    .orange  = rgb(255, 165, 0), // 0xFFA500
-    .dkgreen = rgb(1, 50, 32),   // 0x013220
+    // miscelaneous:
+    .orange           = rgb(255, 165, 0), // 0xFFA500
+    .dkgreen          = rgb(1, 50, 32),   // 0x013220
+    .pink             = 0xFFC0CB,
+    .ochre            = 0xCC7722,
+    .gold             = 0xFFD700,
+    .teal             = 0x008080,
+    .wheat            = 0xF5DEB3,
+    .tan              = 0xD2B48C,
+    .brown            = 0xA52A2A,
+    .maroon           = 0x800000,
+    .barbie_pink      = 0xE0218A,
+    .steel_pink       = 0xCC33CC,
+    .salmon_pink      = 0xFF91A4,
+    .gainsboro        = 0xDCDCDC, // rgb(220, 220, 220)
+    .light_gray       = 0xD3D3D3, // rgb(211, 211, 211)
+    .silver	          = 0xC0C0C0, // rgb(192, 192, 192)
+    .dark_gray        = 0xA9A9A9, // rgb(169, 169, 169)
+    .dim_gray         = 0x696969, // rgb(105, 105, 105)
+    .light_slate_gray = 0x778899, // rgb(119, 136, 153)
+    .slate_gray	      = 0x708090, // rgb(112, 128, 144)
+
     // highlights:
     .text_highlight = rgb(190, 200, 255), // bluish off-white
     .blue_highlight = _colors_blue_highlight,
@@ -3130,7 +3287,48 @@ colors_t colors = {
     .btn_disabled = _colors_dkgray4,
     .btn_armed = _colors_white,
     .btn_text = _colors_off_white,
-    .toast = rgb(8, 40, 24) // toast background
+    .toast = rgb(8, 40, 24), // toast background
+
+    /* Main Panel Backgrounds */
+    .charcoal                   = 0x36454F,
+    .onyx                       = 0x353839,
+    .gunmetal                   = 0x2A3439,
+    .jet_black                  = 0x343434,
+    .outer_space                = 0x414A4C,
+    .eerie_black                = 0x1B1B1B,
+    .oil                        = 0x3B3C36,
+    .black_coral                = 0x54626F,
+
+    /* Secondary Panels or Sidebars */
+    .raisin_black               = 0x272635,
+    .dark_charcoal              = 0x303030,
+    .dark_jungle_green          = 0x1A2421,
+    .pine_tree                  = 0x2A2F23,
+    .rich_black                 = 0x004040,
+    .eclipse                    = 0x3F3939,
+    .cafe_noir                  = 0x4B3621,
+
+    /* Flat Buttons */
+    .prussian_blue              = 0x003153,
+    .midnight_green             = 0x004953,
+    .charleston_green           = 0x232B2B,
+    .rich_black_fogra           = 0x0A0F0D,
+    .dark_liver                 = 0x534B4F,
+    .dark_slate_gray            = 0x2F4F4F,
+    .black_olive                = 0x3B3C36,
+    .cadet                      = 0x536872,
+
+    /* Button highlights (hover) */
+    .dark_sienna                = 0x3C1414,
+    .bistre_brown               = 0x967117,
+    .dark_puce                  = 0x4F3A3C,
+    .wenge                      = 0x645452,
+
+    /* Raised button effects */
+    .dark_scarlet               = 0x560319,
+    .burnt_umber                = 0x8A3324,
+    .caput_mortuum              = 0x592720,
+    .barn_red                   = 0x7C0A02,
 };
 // ________________________________ ui_core.c _________________________________
 
@@ -3204,6 +3402,32 @@ extern ui_if ui = {
             .left  = MK_LBUTTON,
             .right = MK_RBUTTON
         }
+    },
+    .hit_test = {
+        .error             = HTERROR,
+        .transparent       = HTTRANSPARENT,
+        .nowhere           = HTNOWHERE,
+        .client            = HTCLIENT,
+        .caption           = HTCAPTION,
+        .system_menu       = HTSYSMENU,
+        .grow_box          = HTGROWBOX,
+        .menu              = HTMENU,
+        .horizontal_scroll = HTHSCROLL,
+        .vertical_scroll   = HTVSCROLL,
+        .min_button        = HTMINBUTTON,
+        .max_button        = HTMAXBUTTON,
+        .left              = HTLEFT,
+        .right             = HTRIGHT,
+        .top               = HTTOP,
+        .top_left          = HTTOPLEFT,
+        .top_right         = HTTOPRIGHT,
+        .bottom            = HTBOTTOM,
+        .bottom_left       = HTBOTTOMLEFT,
+        .bottom_right      = HTBOTTOMRIGHT,
+        .border            = HTBORDER,
+        .object            = HTOBJECT,
+        .close             = HTCLOSE,
+        .help              = HTHELP
     },
     .key = {
         .up     = VK_UP,
@@ -4796,7 +5020,7 @@ static void ui_slider_paint(ui_view_t* view) {
     gdi.pop();
 }
 
-static void ui_slider_mouse(ui_view_t* view, int32_t message, int32_t f) {
+static void ui_slider_mouse(ui_view_t* view, int32_t message, int64_t f) {
     if (!view->hidden && !view->disabled) {
         assert(view->type == ui_view_slider);
         ui_slider_t* r = (ui_slider_t*)view;
@@ -4981,14 +5205,14 @@ static void ui_toggle_character(ui_view_t* view, const char* utf8) {
     }
 }
 
-static void ui_toggle_key_pressed(ui_view_t* view, int32_t key) {
+static void ui_toggle_key_pressed(ui_view_t* view, int64_t key) {
     if (app.alt && ui_view.is_shortcut_key(view, key)) {
 //      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_toggle_flip((ui_toggle_t*)view);
     }
 }
 
-static void ui_toggle_mouse(ui_view_t* view, int32_t message, int32_t flags) {
+static void ui_toggle_mouse(ui_view_t* view, int32_t message, int64_t flags) {
     assert(view->type == ui_view_toggle);
     (void)flags; // unused
     assert(!view->hidden && !view->disabled);
@@ -5234,11 +5458,11 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
     }
 }
 
-static bool ui_view_is_shortcut_key(ui_view_t* view, int32_t key) {
+static bool ui_view_is_shortcut_key(ui_view_t* view, int64_t key) {
     // Supported keyboard shortcuts are ASCII characters only for now
     // If there is not focused UI control in Alt+key [Alt] is optional.
     // If there is focused control only Alt+Key is accepted as shortcut
-    char ch = 0x20 <= key && key <= 0x7F ? (char)toupper(key) : 0x00;
+    char ch = 0x20 <= key && key <= 0x7F ? (char)toupper((char)key) : 0x00;
     bool need_alt = app.focus != null && app.focus != view;
     bool keyboard_shortcut = ch != 0x00 && view->shortcut != 0x00 &&
          (app.alt || !need_alt) && toupper(view->shortcut) == ch;
@@ -5304,14 +5528,14 @@ static void ui_view_every_100ms(ui_view_t* view) {
     ui_view_for_each(view, c, { ui_view_every_100ms(c); });
 }
 
-static void ui_view_key_pressed(ui_view_t* view, int32_t k) {
+static void ui_view_key_pressed(ui_view_t* view, int64_t k) {
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->key_pressed != null) { view->key_pressed(view, k); }
         ui_view_for_each(view, c, { ui_view_key_pressed(c, k); });
     }
 }
 
-static void ui_view_key_released(ui_view_t* view, int32_t k) {
+static void ui_view_key_released(ui_view_t* view, int64_t k) {
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->key_released != null) { view->key_released(view, k); }
         ui_view_for_each(view, c, { ui_view_key_released(c, k); });
@@ -5354,7 +5578,7 @@ static void ui_view_kill_focus(ui_view_t* view) {
     }
 }
 
-static void ui_view_mouse(ui_view_t* view, int32_t m, int32_t f) {
+static void ui_view_mouse(ui_view_t* view, int32_t m, int64_t f) {
     if (!ui_view.is_hidden(view) &&
        (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
         ui_rect_t r = { view->x, view->y, view->w, view->h};

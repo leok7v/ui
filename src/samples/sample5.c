@@ -317,7 +317,7 @@ static void measure_3_lines_sle(ui_view_t* view) {
     }
 }
 
-static void key_pressed(ui_view_t* unused(view), int32_t key) {
+static void key_pressed(ui_view_t* unused(view), int64_t key) {
     if (app.has_focus() && key == ui.key.escape) { app.close(); }
     int32_t ix = focused();
     if (key == ui.key.f5) {

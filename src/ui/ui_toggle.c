@@ -67,14 +67,14 @@ static void ui_toggle_character(ui_view_t* view, const char* utf8) {
     }
 }
 
-static void ui_toggle_key_pressed(ui_view_t* view, int32_t key) {
+static void ui_toggle_key_pressed(ui_view_t* view, int64_t key) {
     if (app.alt && ui_view.is_shortcut_key(view, key)) {
 //      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_toggle_flip((ui_toggle_t*)view);
     }
 }
 
-static void ui_toggle_mouse(ui_view_t* view, int32_t message, int32_t flags) {
+static void ui_toggle_mouse(ui_view_t* view, int32_t message, int64_t flags) {
     assert(view->type == ui_view_toggle);
     (void)flags; // unused
     assert(!view->hidden && !view->disabled);

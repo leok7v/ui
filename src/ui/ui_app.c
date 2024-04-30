@@ -37,7 +37,7 @@ static struct {
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
 
-static void app_alt_ctrl_shift(bool down, int32_t key) {
+static void app_alt_ctrl_shift(bool down, int64_t key) {
     if (key == VK_MENU)    { app.alt   = down; }
     if (key == VK_CONTROL) { app.ctrl  = down; }
     if (key == VK_SHIFT)   { app.shift = down; }
@@ -529,7 +529,7 @@ static void app_measure_and_layout(ui_view_t* view) {
     ui_view.layout_children(view);
 }
 
-static void app_toast_mouse(int32_t m, int32_t f);
+static void app_toast_mouse(int32_t m, int64_t f);
 static void app_toast_character(const char* utf8);
 
 static void app_wm_char(ui_view_t* view, const char* utf8) {
@@ -540,7 +540,7 @@ static void app_wm_char(ui_view_t* view, const char* utf8) {
     }
 }
 
-static void app_mouse(ui_view_t* view, int32_t m, int32_t f) {
+static void app_mouse(ui_view_t* view, int32_t m, int64_t f) {
     if (app.animating.view != null && app.animating.view->mouse != null) {
         ui_view.mouse(app.animating.view, m, f);
     } else if (app.animating.view != null && app.animating.view->mouse == null) {
@@ -552,11 +552,11 @@ static void app_mouse(ui_view_t* view, int32_t m, int32_t f) {
     }
 }
 
-static void app_tap_press(int32_t m, WPARAM wp, LPARAM lp) {
+static void app_tap_press(int32_t m, int64_t wp, int64_t lp) {
     app.mouse.x = GET_X_LPARAM(lp);
     app.mouse.y = GET_Y_LPARAM(lp);
     // dispatch as generic mouse message:
-    app_mouse(app.view, (int32_t)m, (int32_t)wp);
+    app_mouse(app.view, (int32_t)m, wp);
     int32_t ix = (int32_t)wp;
     assert(0 <= ix && ix <= 2);
     // for now long press and fp64_t tap/fp64_t click
@@ -645,7 +645,7 @@ static void app_toast_cancel(void) {
     app.redraw();
 }
 
-static void app_toast_mouse(int32_t m, int32_t flags) {
+static void app_toast_mouse(int32_t m, int64_t flags) {
     bool pressed = m == ui.message.left_button_pressed ||
                    m == ui.message.right_button_pressed;
     if (app.animating.view != null && pressed) {
@@ -907,49 +907,90 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma pop_macro("set_timer")
 }
 
-static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp) {
+static int64_t app_hit_test(int32_t x, int32_t y) {
+    RECT rc;
+    GetClientRect(app_window(), &rc);
+    MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
+    // border thickness: width of the resize border
+    int32_t bt = app.in2px(1.0 / 16.0);
+    if (x < rc.left + bt && y < rc.top + bt) {
+        return ui.hit_test.top_left;
+    } else if (x > rc.right - bt && y < rc.top + bt) {
+        return ui.hit_test.top_right;
+    } else if (x < rc.left + bt && y > rc.bottom - bt) {
+        return ui.hit_test.bottom_left;
+    } else if (x > rc.right - bt && y > rc.bottom - bt) {
+        return ui.hit_test.bottom_right;
+    } else if (x < rc.left + bt) { // check edges
+        return ui.hit_test.left;
+    } else if (x > rc.right - bt) {
+        return ui.hit_test.right;
+    } else if (y < rc.top + bt) {
+        return ui.hit_test.top;
+    } else if (y > rc.bottom - bt) {
+        return ui.hit_test.bottom;
+    } else {
+        return ui.hit_test.client; // default to client area
+    }
+}
+
+static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
+        WPARAM w_param, LPARAM l_param) {
     app.now = ut_clock.seconds();
     if (app.window == null) {
         app.window = (ui_window_t)window;
     } else {
         assert(app_window() == window);
     }
+    const int32_t m  = (int32_t)message;
+    const int64_t wp = (int64_t)w_param;
+    const int64_t lp = (int64_t)l_param;
     int64_t ret = 0;
     ui_view.kill_hidden_focus(app.view);
-    app_click_detector(msg, wp, lp);
-    if (ui_view.message(app.view, msg, wp, lp, &ret)) {
+    app_click_detector(m, wp, lp);
+    if (ui_view.message(app.view, m, wp, lp, &ret)) {
         return (LRESULT)ret;
     }
-    if ((int32_t)msg == ui.message.opening) { app_window_opening(); return 0; }
-    if ((int32_t)msg == ui.message.closing) { app_window_closing(); return 0; }
-    if ((int32_t)msg == ui.message.tap || (int32_t)msg == ui.message.dtap ||
-        (int32_t)msg == ui.message.press) {
-            app_tap_press((int32_t)msg, wp, lp);
+    if (m == ui.message.opening) { app_window_opening(); return 0; }
+    if (m == ui.message.closing) { app_window_closing(); return 0; }
+    if (m == ui.message.tap || m == ui.message.dtap ||
+        m == ui.message.press) {
+            app_tap_press(m, wp, lp);
             return 0;
     }
-    if ((int32_t)msg == ui.message.animate) {
+    if (m == ui.message.animate) {
         app_animate_step((app_animate_function_t)lp, (int)wp, -1);
         return 0;
     }
-    switch (msg) {
+    switch (m) {
         case WM_GETMINMAXINFO: app_get_min_max_info((MINMAXINFO*)lp); break;
         case WM_SETTINGCHANGE: app_setting_change(wp, lp); break;
         case WM_CLOSE        : app.focus = null; // before WM_CLOSING
                                app_post_message(ui.message.closing, 0, 0); return 0;
         case WM_DESTROY      : PostQuitMessage(app.exit_code); break;
+        case WM_NCHITTEST    :
+            if (app.no_decor && !app.no_size) {
+                return app.hit_test(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+            } else {
+                break;
+            }
         case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
-        case WM_KEYDOWN      : app_alt_ctrl_shift(true, (int32_t)wp);
-                               ui_view.key_pressed(app.view, (int32_t)wp);
+        case WM_KEYDOWN      : app_alt_ctrl_shift(true, wp);
+                               ui_view.key_pressed(app.view, wp);
                                break;
         case WM_SYSKEYUP:
-        case WM_KEYUP        : app_alt_ctrl_shift(false, (int32_t)wp);
-                               ui_view.key_released(app.view, (int32_t)wp);
+        case WM_KEYUP        : app_alt_ctrl_shift(false, wp);
+                               ui_view.key_released(app.view, wp);
                                break;
         case WM_TIMER        : app_wm_timer((ui_timer_t)wp);
                                break;
         case WM_ERASEBKGND   : return true; // no DefWindowProc()
-        case WM_SETCURSOR    : SetCursor((HCURSOR)app.cursor);
-                               break; // must call DefWindowProc()
+        case WM_SETCURSOR    : // TODO: investigate more in regards to wait cursor
+            if (LOWORD(lp) == HTCLIENT) { // see WM_NCHITTEST
+                SetCursor((HCURSOR)app.cursor);
+                return true; // must NOT call DefWindowProc()
+            }
+            break;
         // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
         // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
 //      case WM_UNICHAR      : // only UTF-32 via PostMessage
@@ -984,7 +1025,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
 //          traceln("%d %d", pt.x, pt.y);
             ScreenToClient(app_window(), &pt);
             app.mouse = app_point2ui(&pt);
-            app_mouse(app.view, (int32_t)msg, (int32_t)wp);
+            app_mouse(app.view, m, wp);
             break;
         }
         case WM_MOUSEHOVER   : // see TrackMouseEvent()
@@ -1002,13 +1043,13 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
             app.mouse.y = GET_Y_LPARAM(lp);
 //          traceln("%d %d", app.mouse.x, app.mouse.y);
             // note: ScreenToClient() is not needed for this messages
-            app_mouse(app.view, (int32_t)msg, (int32_t)wp);
+            app_mouse(app.view, m, wp);
             break;
         }
         case WM_GETDPISCALEDSIZE: { // sent before WM_DPICHANGED
 //          traceln("WM_GETDPISCALEDSIZE");
             #ifdef QUICK_DEBUG
-                int32_t dpi = (int32_t)wp;
+                int32_t dpi = wp;
                 SIZE* sz = (SIZE*)lp; // in/out
                 ui_point_t cell = { sz->cx, sz->cy };
                 traceln("WM_GETDPISCALEDSIZE dpi %d := %d "
@@ -1066,7 +1107,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
         default:
             break;
     }
-    return DefWindowProcA(app_window(), msg, wp, lp);
+    return DefWindowProcA(app_window(), m, wp, lp);
 }
 
 static long app_set_window_long(int32_t index, long value) {
@@ -1095,7 +1136,7 @@ static errno_t app_set_layered_window(ui_color_t color, float alpha) {
 static void app_create_window(const ui_rect_t r) {
     WNDCLASSA wc = { 0 };
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
-    wc.lpfnWndProc = window_proc;
+    wc.lpfnWndProc = app_window_proc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 256 * 1024;
     wc.hInstance = GetModuleHandleA(null);
@@ -1749,6 +1790,7 @@ static void app_init(void) {
     app.px2in               = app_px2in;
     app.in2px               = app_in2px;
     app.set_layered_window  = app_set_layered_window;
+    app.hit_test            = app_hit_test;
     app.is_active           = app_is_active,
     app.has_focus           = app_has_focus,
     app.request_focus       = app_request_focus,

@@ -64,7 +64,7 @@ static void ui_slider_paint(ui_view_t* view) {
     gdi.pop();
 }
 
-static void ui_slider_mouse(ui_view_t* view, int32_t message, int32_t f) {
+static void ui_slider_mouse(ui_view_t* view, int32_t message, int64_t f) {
     if (!view->hidden && !view->disabled) {
         assert(view->type == ui_view_slider);
         ui_slider_t* r = (ui_slider_t*)view;

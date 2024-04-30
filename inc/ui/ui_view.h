@@ -43,7 +43,7 @@ typedef struct ui_view_s {
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
     void (*click)(ui_view_t* view); // interpretation depends on ui element
-    void (*mouse)(ui_view_t* view, int32_t message, int32_t flags);
+    void (*mouse)(ui_view_t* view, int32_t message, int64_t flags);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
@@ -56,8 +56,8 @@ typedef struct ui_view_s {
     void (*kill_focus)(ui_view_t* view);
     // translated from key pressed/released to utf8:
     void (*character)(ui_view_t* view, const char* utf8);
-    void (*key_pressed)(ui_view_t* view, int32_t key);
-    void (*key_released)(ui_view_t* view, int32_t key);
+    void (*key_pressed)(ui_view_t* view, int64_t key);
+    void (*key_released)(ui_view_t* view, int64_t key);
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled ui elements
     void (*timer)(ui_view_t* view, ui_timer_t id);
@@ -112,20 +112,20 @@ typedef struct ui_view_if {
     void (*timer)(ui_view_t* view, ui_timer_t id);
     void (*every_sec)(ui_view_t* view);
     void (*every_100ms)(ui_view_t* view);
-    void (*key_pressed)(ui_view_t* view, int32_t p);
-    void (*key_released)(ui_view_t* view, int32_t p);
+    void (*key_pressed)(ui_view_t* view, int64_t v_key);
+    void (*key_released)(ui_view_t* view, int64_t v_key);
     void (*character)(ui_view_t* view, const char* utf8);
     void (*paint)(ui_view_t* view);
     bool (*set_focus)(ui_view_t* view);
     void (*kill_focus)(ui_view_t* view);
     void (*kill_hidden_focus)(ui_view_t* view);
     void (*hovering)(ui_view_t* view, bool start);
-    void (*mouse)(ui_view_t* view, int32_t m, int32_t f);
+    void (*mouse)(ui_view_t* view, int32_t m, int64_t f);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
     void (*measure_children)(ui_view_t* view);
     void (*layout_children)(ui_view_t* view);
     void (*hover_changed)(ui_view_t* view);
-    bool (*is_shortcut_key)(ui_view_t* view, int32_t key);
+    bool (*is_shortcut_key)(ui_view_t* view, int64_t key);
     bool (*context_menu)(ui_view_t* view);
     bool (*tap)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
     bool (*press)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right

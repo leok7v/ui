@@ -17,7 +17,7 @@ typedef struct ui_region_s* ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
-typedef struct image_s {
+typedef struct image_s { // TODO: ui_ namespace
     int32_t w; // width
     int32_t h; // height
     int32_t bpp;    // "components" bytes per pixel
@@ -26,7 +26,7 @@ typedef struct image_s {
     void* pixels;
 } image_t;
 
-typedef struct dpi_s { // max(dpi_x, dpi_y)
+typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
     int32_t system;  // system dpi
     int32_t process; // process dpi
     // 15" diagonal monitor 3840x2160 175% scaled
@@ -60,7 +60,7 @@ typedef struct ui_s {
         int32_t const restore;  // from min/max to normal window size/pos
         int32_t const defau1t;  // use Windows STARTUPINFO value
         int32_t const force_min;// minimize even if dispatch thread not responding
-    } visibility;
+    } const visibility;
     struct { // message:
         int32_t const character; // translated from key pressed/released to utf8
         int32_t const key_pressed;
@@ -80,13 +80,39 @@ typedef struct ui_s {
         int32_t const tap;
         int32_t const dtap;
         int32_t const press;
-   } message;
+   } const message;
    struct { // mouse buttons bitset mask
         struct {
             int32_t const left;
             int32_t const right;
         } button;
-    } mouse;
+    } const mouse;
+    struct { // window decorations hit test results
+        int32_t const error;            // -2
+        int32_t const transparent;      // -1
+        int32_t const nowhere;          // 0
+        int32_t const client;           // 1
+        int32_t const caption;          // 2
+        int32_t const system_menu;      // 3
+        int32_t const grow_box;         // 4
+        int32_t const menu;             // 5
+        int32_t const horizontal_scroll;// 6
+        int32_t const vertical_scroll;  // 7
+        int32_t const min_button;       // 8
+        int32_t const max_button;       // 9
+        int32_t const left;             // 10
+        int32_t const right;            // 11
+        int32_t const top;              // 12
+        int32_t const top_left;         // 13
+        int32_t const top_right;        // 14
+        int32_t const bottom;           // 15
+        int32_t const bottom_left;      // 16
+        int32_t const bottom_right;     // 17
+        int32_t const border;           // 18
+        int32_t const object;           // 19
+        int32_t const close;            // 20
+        int32_t const help;             // 21
+    } const hit_test;
     struct { // virtual keyboard keys
         int32_t const up;
         int32_t const down;
@@ -127,7 +153,7 @@ typedef struct ui_s {
         int32_t const f22;
         int32_t const f23;
         int32_t const f24;
-    } key;
+    } const key;
     struct { // known folders:
         int32_t const home     ; // c:\Users\<username>
         int32_t const desktop  ;
@@ -139,7 +165,7 @@ typedef struct ui_s {
         int32_t const shared   ; // c:\Users\Public
         int32_t const bin      ; // c:\Program Files
         int32_t const data     ; // c:\ProgramData
-    } folder;
+    } const folder;
     bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
     // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
     bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,

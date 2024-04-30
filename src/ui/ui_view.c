@@ -205,11 +205,11 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
     }
 }
 
-static bool ui_view_is_shortcut_key(ui_view_t* view, int32_t key) {
+static bool ui_view_is_shortcut_key(ui_view_t* view, int64_t key) {
     // Supported keyboard shortcuts are ASCII characters only for now
     // If there is not focused UI control in Alt+key [Alt] is optional.
     // If there is focused control only Alt+Key is accepted as shortcut
-    char ch = 0x20 <= key && key <= 0x7F ? (char)toupper(key) : 0x00;
+    char ch = 0x20 <= key && key <= 0x7F ? (char)toupper((char)key) : 0x00;
     bool need_alt = app.focus != null && app.focus != view;
     bool keyboard_shortcut = ch != 0x00 && view->shortcut != 0x00 &&
          (app.alt || !need_alt) && toupper(view->shortcut) == ch;
@@ -275,14 +275,14 @@ static void ui_view_every_100ms(ui_view_t* view) {
     ui_view_for_each(view, c, { ui_view_every_100ms(c); });
 }
 
-static void ui_view_key_pressed(ui_view_t* view, int32_t k) {
+static void ui_view_key_pressed(ui_view_t* view, int64_t k) {
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->key_pressed != null) { view->key_pressed(view, k); }
         ui_view_for_each(view, c, { ui_view_key_pressed(c, k); });
     }
 }
 
-static void ui_view_key_released(ui_view_t* view, int32_t k) {
+static void ui_view_key_released(ui_view_t* view, int64_t k) {
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         if (view->key_released != null) { view->key_released(view, k); }
         ui_view_for_each(view, c, { ui_view_key_released(c, k); });
@@ -325,7 +325,7 @@ static void ui_view_kill_focus(ui_view_t* view) {
     }
 }
 
-static void ui_view_mouse(ui_view_t* view, int32_t m, int32_t f) {
+static void ui_view_mouse(ui_view_t* view, int32_t m, int64_t f) {
     if (!ui_view.is_hidden(view) &&
        (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
         ui_rect_t r = { view->x, view->y, view->w, view->h};

@@ -104,7 +104,7 @@ static void character(ui_view_t* unused(view), const char* utf8) {
     }
 }
 
-static void mouse(ui_view_t* unused(view), int32_t m, int32_t unused(f)) {
+static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(f)) {
     const ui_point_t em = gdi.get_em(app.fonts.H1);
     if ((m == ui.message.left_button_pressed ||
         m == ui.message.right_button_pressed) &&

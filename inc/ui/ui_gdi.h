@@ -5,7 +5,7 @@ begin_c
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
-enum {
+enum {  // TODO: ui_ namespace and into gdi int32_t const 
     gdi_font_quality_default = 0,
     gdi_font_quality_draft = 1,
     gdi_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
@@ -15,7 +15,7 @@ enum {
     gdi_font_quality_cleartype_natural = 6
 };
 
-typedef struct gdi_s {
+typedef struct gdi_s {  // TODO: ui_ namespace
     ui_brush_t  brush_color;
     ui_brush_t  brush_hollow;
     ui_pen_t pen_hollow;

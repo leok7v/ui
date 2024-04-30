@@ -63,6 +63,24 @@ typedef struct colors_s {
     // misc:
     const int32_t orange;
     const int32_t dkgreen;
+    const int32_t pink;
+    const int32_t ochre;
+    const int32_t gold;
+    const int32_t teal;
+    const int32_t wheat;
+    const int32_t tan;
+    const int32_t brown;
+    const int32_t maroon;
+    const int32_t barbie_pink;
+    const int32_t steel_pink;
+    const int32_t salmon_pink;
+    const int32_t gainsboro;
+    const int32_t light_gray;
+    const int32_t silver;
+    const int32_t dark_gray;
+    const int32_t dim_gray;
+    const int32_t light_slate_gray;
+    const int32_t slate_gray;
     // highlights:
     const int32_t text_highlight; // bluish off-white
     const int32_t blue_highlight;
@@ -75,8 +93,57 @@ typedef struct colors_s {
     const int32_t btn_armed;
     const int32_t btn_text;
     const int32_t toast; // toast background
+
+    /* Named colors */
+
+    /* Main Panel Backgrounds */
+    const int32_t charcoal;
+    const int32_t onyx;
+    const int32_t gunmetal;
+    const int32_t jet_black;
+    const int32_t outer_space;
+    const int32_t eerie_black;
+    const int32_t oil;
+    const int32_t black_coral;
+
+    /* Secondary Panels or Sidebars */
+    const int32_t raisin_black;
+    const int32_t dark_charcoal;
+    const int32_t dark_jungle_green;
+    const int32_t pine_tree;
+    const int32_t rich_black;
+    const int32_t eclipse;
+    const int32_t cafe_noir;
+
+    /* Flat Buttons */
+    const int32_t prussian_blue;
+    const int32_t midnight_green;
+    const int32_t charleston_green;
+    const int32_t rich_black_fogra;
+    const int32_t dark_liver;
+    const int32_t dark_slate_gray;
+    const int32_t black_olive;
+    const int32_t cadet;
+
+    /* Button highlights (hover) */
+    const int32_t dark_sienna;
+    const int32_t bistre_brown;
+    const int32_t dark_puce;
+    const int32_t wenge;
+
+    /* Raised button effects */
+    const int32_t dark_scarlet;
+    const int32_t burnt_umber;
+    const int32_t caput_mortuum;
+    const int32_t barn_red;
 } colors_t;
 
 extern colors_t colors;
+
+// TODO:
+// https://ankiewicz.com/colors/
+// https://htmlcolorcodes.com/color-names/
+// it would be super cool to implement a plethora of palettes
+// with named colors and app "themes" that can be switched
 
 end_c

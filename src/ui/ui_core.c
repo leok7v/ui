@@ -70,6 +70,32 @@ extern ui_if ui = {
             .right = MK_RBUTTON
         }
     },
+    .hit_test = {
+        .error             = HTERROR,
+        .transparent       = HTTRANSPARENT,
+        .nowhere           = HTNOWHERE,
+        .client            = HTCLIENT,
+        .caption           = HTCAPTION,
+        .system_menu       = HTSYSMENU,
+        .grow_box          = HTGROWBOX,
+        .menu              = HTMENU,
+        .horizontal_scroll = HTHSCROLL,
+        .vertical_scroll   = HTVSCROLL,
+        .min_button        = HTMINBUTTON,
+        .max_button        = HTMAXBUTTON,
+        .left              = HTLEFT,
+        .right             = HTRIGHT,
+        .top               = HTTOP,
+        .top_left          = HTTOPLEFT,
+        .top_right         = HTTOPRIGHT,
+        .bottom            = HTBOTTOM,
+        .bottom_left       = HTBOTTOMLEFT,
+        .bottom_right      = HTBOTTOMRIGHT,
+        .border            = HTBORDER,
+        .object            = HTOBJECT,
+        .close             = HTCLOSE,
+        .help              = HTHELP
+    },
     .key = {
         .up     = VK_UP,
         .down   = VK_DOWN,

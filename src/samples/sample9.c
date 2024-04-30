@@ -309,7 +309,7 @@ static void zoom_in(int x, int y) {
     sy += zoom * y / image.h;
 }
 
-static void mouse(ui_view_t* unused(view), int32_t m, int32_t unused(flags)) {
+static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(flags)) {
     int mx = app.mouse.x - panel_center.x;
     int my = app.mouse.y - panel_center.y;
     if (0 <= mx && mx < panel_center.w && 0 <= my && my < panel_center.h) {
@@ -362,7 +362,7 @@ static void character(ui_view_t* view, const char* utf8) {
     }
 }
 
-static void keyboard(ui_view_t* view, int32_t vk) {
+static void keyboard(ui_view_t* view, int64_t vk) {
     if (vk == ui.key.up) {
         mouse_wheel(view, 0, +image.h / 8);
     } else if (vk == ui.key.down) {

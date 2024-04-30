@@ -23,6 +23,7 @@
       <DisableSpecificWarnings>4820;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- '?' bytes padding added after data member -->
       <DisableSpecificWarnings>5045;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- Spectre mitigation -->
       <DisableSpecificWarnings>6262;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- EXCESSIVESTACKUSAGE -->
+
       <!-- Theat these warning as errors (because they are): -->
       <TreatSpecificWarningsAsErrors>4133;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- incompatible types -->
       <TreatSpecificWarningsAsErrors>4020;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- too many actual parameters -->
@@ -34,6 +35,8 @@
       <TreatSpecificWarningsAsErrors>4098;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- 'void' function returning a value -->
       <TreatSpecificWarningsAsErrors>4047;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- '=': '...' differs in levels of indirection -->
       <TreatSpecificWarningsAsErrors>4057;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function type differs in indirection to slightly different base types -->
+      <TreatSpecificWarningsAsErrors>4113;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function '...' differs in parameter lists from '...' -->
+
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
