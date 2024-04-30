@@ -2,8 +2,6 @@
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
 
-begin_c
-
 static const char* title = "Sample2: translucent";
 
 static ui_font_t font;
@@ -42,5 +40,3 @@ app_t app = {
         .ini_h =  2.0f
     }
 };
-
-end_c

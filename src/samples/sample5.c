@@ -3,8 +3,6 @@
 #include "single_file_lib/ui/ui.h"
 #include "edit.h"
 
-begin_c
-
 static bool debug_layout; // = true;
 
 const char* title = "Sample5";
@@ -412,4 +410,3 @@ app_t app = {
     }
 };
 
-end_c

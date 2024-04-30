@@ -3,8 +3,6 @@
 #include "single_file_lib/ui/ui.h"
 #include <math.h>
 
-begin_c
-
 const char* title = "Sample7 : timers";
 
 enum { N = 1800 };
@@ -188,5 +186,3 @@ app_t app = {
         .ini_h = 6.0f
     }
 };
-
-end_c

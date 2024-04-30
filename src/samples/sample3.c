@@ -2,8 +2,6 @@
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
 
-begin_c
-
 static volatile int index; // index of image to paint, !ix to render
 static image_t image[2];
 static uint8_t pixels[2][4 * 4096 * 4096];
@@ -199,5 +197,3 @@ static void renderer(void* unused) {
         rendering = false;
     }
 }
-
-end_c

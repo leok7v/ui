@@ -4,7 +4,7 @@
 #include <mmsystem.h>
 #include "midi.h"
 
-#pragma comment(lib, "winmm.lib")
+#pragma comment(lib, "winmm")
 
 static int32_t tid; // mi is thread sensitive
 

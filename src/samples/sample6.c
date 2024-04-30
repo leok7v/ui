@@ -4,8 +4,6 @@
 #include "midi.h"
 #include "stb_image.h"
 
-#pragma comment(lib, "winmm.lib")
-
 const char* title = "Sample6: I am groot";
 
 static struct {
@@ -280,5 +278,3 @@ app_t app = {
         .ini_h =  6.0f
     }
 };
-
-

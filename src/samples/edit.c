@@ -17,8 +17,6 @@
 // * Multiple fonts (as long as run vertical size is the maximum of font)
 // * Kerning (?! like in overhung "Fl")
 
-begin_c
-
 // When implementation and header are amalgamated
 // into a single file header library name_space is
 // used to separate different modules namespaces.
@@ -1788,4 +1786,3 @@ void ns(init)(ui_edit_t* e) {
 #pragma pop_macro("ns")
 #pragma pop_macro("fn")
 
-end_c

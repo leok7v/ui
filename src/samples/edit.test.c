@@ -3,8 +3,6 @@
 #include "single_file_lib/ui/ui.h"
 #include "edit.h"
 
-begin_c
-
 #define glyph_chinese_one "\xE5\xA3\xB9"
 #define glyph_chinese_two "\xE8\xB4\xB0"
 #define glyph_teddy_bear  "\xF0\x9F\xA7\xB8"
@@ -255,4 +253,3 @@ void ui_edit_fuzz(ui_edit_t* e) {
     traceln("fuzzing %s",e->fuzzer != null ? "started" : "stopped");
 }
 
-end_c

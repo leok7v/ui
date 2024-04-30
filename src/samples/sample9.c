@@ -2,8 +2,6 @@
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
 
-begin_c
-
 #define TITLE "Sample9"
 
 static void init(void);
@@ -504,4 +502,3 @@ static void refresh(void) {
     app.redraw();
 }
 
-end_c
