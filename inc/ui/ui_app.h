@@ -74,6 +74,11 @@ typedef struct app_s {
     ui_cursor_t cursor_arrow;
     ui_cursor_t cursor_wait;
     ui_cursor_t cursor_ibeam;
+    ui_cursor_t cursor_size_nwse; // north west - south east
+    ui_cursor_t cursor_size_nesw; // north east - south west
+    ui_cursor_t cursor_size_we;   // west - east
+    ui_cursor_t cursor_size_ns;   // north - south
+    ui_cursor_t cursor_size_all;  // north - south
     // keyboard state now:
     bool alt;
     bool ctrl;
@@ -96,6 +101,8 @@ typedef struct app_s {
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
     void (*set_title)(const char* title);
+    void (*capture_mouse)(bool on); // capture mouse global input on/of
+    void (*move_and_resize)(const ui_rect_t* rc);
     void (*bring_to_foreground)(void); // not necessary topmost
     void (*make_topmost)(void);   // in foreground hierarchy of windows
     void (*request_focus)(void);  // request application window keyboard focus

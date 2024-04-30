@@ -4,13 +4,13 @@
 begin_c
 
 enum ui_view_type_t {
-    ui_view_container = 'cnt',
-    ui_view_label     = 'lbl',
-    ui_view_mbx       = 'mbx',
-    ui_view_button    = 'btn',
-    ui_view_toggle    = 'cbx',
-    ui_view_slider    = 'sld',
-    ui_view_edit      = 'edt'
+    ui_view_container = 'vwct',
+    ui_view_label     = 'vwlb',
+    ui_view_mbx       = 'vwmb',
+    ui_view_button    = 'vwbt',
+    ui_view_toggle    = 'vwtg',
+    ui_view_slider    = 'vwsl',
+    ui_view_edit      = 'vwed'
 };
 
 typedef struct ui_view_s ui_view_t;

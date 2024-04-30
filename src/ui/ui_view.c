@@ -5,8 +5,27 @@ static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 #pragma push_macro("ui_view_for_each")
 
+// adding and removing views is not expected to be frequent
+// actions by application code (human factor - UI design)
+// thus extra checks and verifications are there even in
+// release code because C is not type safety champion language.
+
+static inline void ui_view_check_type(ui_view_t* v) {
+    // little endian:
+    static_assertion(('vwXX' & 0xFFFF0000U) ==
+                     ('vwZZ' & 0xFFFF0000U));
+    static_assertion((ui_view_container & 0xFFFF0000U) ==
+                                ('vw??' & 0xFFFF0000U));
+    swear((v->type & 0xFFFF0000) ==
+          ('vw??'  & 0xFFFF0000),
+          "not a view: %4.4s 0x%08X (forgotten &static_view?)",
+          &v->type, v->type);
+}
+
 static void ui_view_verify(ui_view_t* p) {
+    ui_view_check_type(p);
     ui_view_for_each(p, c, {
+        ui_view_check_type(c);
         swear(c->parent == p);
         swear(c == c->next->prev);
         swear(c == c->prev->next);
@@ -57,6 +76,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
         c->next->prev = c;
     }
     ui_view_call_init(c);
+    ui_view_verify(p);
 }
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
@@ -69,6 +89,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     c->prev->next = c;
     c->next->prev = c;
     ui_view_call_init(c);
+    ui_view_verify(c->parent);
 }
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
@@ -81,6 +102,7 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     c->prev->next = c;
     c->next->prev = c;
     ui_view_call_init(c);
+    ui_view_verify(c->parent);
 }
 
 static void ui_view_remove(ui_view_t* c) {
@@ -98,6 +120,7 @@ static void ui_view_remove(ui_view_t* c) {
     }
     c->prev = null;
     c->next = null;
+    ui_view_verify(c->parent);
     c->parent = null;
 }
 

@@ -188,9 +188,14 @@ static void app_init_fonts(int32_t dpi) {
     #define monospaced "Cascadia Code"
     wcscpy(lf.lfFaceName, L"Cascadia Code");
     app.fonts.mono = (ui_font_t)CreateFontIndirectW(&lf);
-    app.cursor_arrow = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
-    app.cursor_wait  = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
-    app.cursor_ibeam = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
+    app.cursor_arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
+    app.cursor_wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
+    app.cursor_ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
+    app.cursor_size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
+    app.cursor_size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
+    app.cursor_size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
+    app.cursor_size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
+    app.cursor_size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
     app.cursor = app.cursor_arrow;
 }
 
@@ -1041,6 +1046,7 @@ static LRESULT CALLBACK window_proc(HWND window, UINT msg, WPARAM wp, LPARAM lp)
                 app.show_window(ui.visibility.restore);
                 SwitchToThisWindow(app_window(), true);
             }
+            app.redraw(); // needed for windows changing active frame color
             break;
         case WM_WINDOWPOSCHANGING: {
             #ifdef QUICK_DEBUG
@@ -1465,6 +1471,25 @@ static void app_set_title(const char* title) {
     fatal_if_false(SetWindowTextA(app_window(), title));
 }
 
+static void app_capture_mouse(bool on) {
+    static int32_t mouse_capture;
+    if (on) {
+        assert(mouse_capture == 0);
+        mouse_capture++;
+        SetCapture(app_window());
+    } else {
+        assert(mouse_capture == 1);
+        mouse_capture--;
+        ReleaseCapture();
+    }
+}
+
+static void app_move_and_resize(const ui_rect_t* rc) {
+    enum { swp = SWP_NOZORDER | SWP_NOACTIVATE };
+    fatal_if_false(SetWindowPos(app_window(), null,
+            rc->x, rc->y, rc->w, rc->h, swp));
+}
+
 static void app_set_console_title(HWND cw) {
     char text[256];
     text[0] = 0;
@@ -1690,7 +1715,7 @@ const char* app_known_folder(int32_t kf) {
     return known_foders[kf];
 }
 
-static ui_view_t app_ui;
+static ui_view_t app_content_view = ui_view(container);
 
 static bool app_is_active(void) {
     return GetActiveWindow() == app_window();
@@ -1714,8 +1739,9 @@ static void app_request_focus(void) {
 }
 
 static void app_init(void) {
-    app.view = &app_ui;
+    app.view = &app_content_view;
     ui_view_init(app.view);
+    app.view->type = ui_view_container;
     app.view->measure = null; // always measured by crc
     app.view->layout  = null; // always at 0,0 app can override
     app.redraw              = app_fast_redraw;
@@ -1728,6 +1754,8 @@ static void app_init(void) {
     app.request_focus       = app_request_focus,
     app.activate            = app_activate,
     app.set_title           = app_set_title,
+    app.capture_mouse       = app_capture_mouse,
+    app.move_and_resize     = app_move_and_resize,
     app.bring_to_foreground = app_bring_to_foreground,
     app.make_topmost        = app_make_topmost,
     app.bring_to_front      = app_bring_to_front,
