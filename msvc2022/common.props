@@ -33,6 +33,7 @@
       <TreatSpecificWarningsAsErrors>4033;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function 'foo' must return a value -->
       <TreatSpecificWarningsAsErrors>4098;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- 'void' function returning a value -->
       <TreatSpecificWarningsAsErrors>4047;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- '=': '...' differs in levels of indirection -->
+      <TreatSpecificWarningsAsErrors>4057;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function type differs in indirection to slightly different base types -->
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>

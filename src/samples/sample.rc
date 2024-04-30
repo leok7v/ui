@@ -26,6 +26,7 @@ LANGUAGE LANG_CHINESE, SUBLANG_NEUTRAL
 //                   SUBLANG_CHINESE_SINGAPORE, SUBLANG_CHINESE_MACAU ...
 
 STRINGTABLE {
+    str_hello             , L"你好"
     str_slider_accel      , L"加速 Ctrl x10 Shift x100 而 Ctrl+Shift x1000"
     str_file_open         , L"已连接"
     str_about             , L"盖"
@@ -62,12 +63,563 @@ STRINGTABLE {
 // It is also assumed that same str_ids are used for all string tables
 // are the same for each unique string in the code.
 
+LANGUAGE LANG_AFRIKAANS, SUBLANG_NEUTRAL // locale: "af-ZA"
+STRINGTABLE {
+    str_hello             , L"Hallo"
+}
+
+LANGUAGE LANG_ALBANIAN, SUBLANG_NEUTRAL // locale: "sq-AL"
+STRINGTABLE {
+    str_hello             , L"Tungjatjeta"
+}
+
+LANGUAGE LANG_ALSATIAN, SUBLANG_NEUTRAL // locale: "gsw-FR"
+STRINGTABLE {
+    str_hello             , L"Hallo"
+}
+
+LANGUAGE LANG_AMHARIC, SUBLANG_NEUTRAL // locale: "am-ET"
+STRINGTABLE {
+    str_hello             , L"ሰላም"
+}
+
+LANGUAGE LANG_ARABIC, SUBLANG_NEUTRAL // locale: "ar-SA"
+STRINGTABLE {
+    str_hello             , L"مرحبًا"
+}
+
+LANGUAGE LANG_ARMENIAN, SUBLANG_NEUTRAL // locale: "hy-AM"
+STRINGTABLE {
+    str_hello             , L"Բարեւ ծով"
+}
+
+LANGUAGE LANG_ASSAMESE, SUBLANG_NEUTRAL // locale: "as-IN"
+STRINGTABLE {
+    str_hello             , L"নমস্কাৰ"
+}
+
+LANGUAGE LANG_AZERI, SUBLANG_NEUTRAL // locale: "az-AZ"
+STRINGTABLE {
+    str_hello             , L"Salam"
+}
+
+LANGUAGE LANG_BANGLA, SUBLANG_NEUTRAL // locale: "bn-BD"
+STRINGTABLE {
+    str_hello             , L"হ্যালো"
+}
+
+LANGUAGE LANG_BASHKIR, SUBLANG_NEUTRAL // locale: "ba-RU"
+STRINGTABLE {
+    str_hello             , L"Хәйерсез"
+}
+
+LANGUAGE LANG_BASQUE, SUBLANG_NEUTRAL // locale: "eu-ES"
+STRINGTABLE {
+    str_hello             , L"Kaixo"
+}
+
+LANGUAGE LANG_BELARUSIAN, SUBLANG_NEUTRAL // locale: "be-BY"
+STRINGTABLE {
+    str_hello             , L"Прывітанне"
+}
+
+LANGUAGE LANG_BRETON, SUBLANG_NEUTRAL // locale: "br-FR"
+STRINGTABLE {
+    str_hello             , L"Salud"
+}
+
+LANGUAGE LANG_BOSNIAN, SUBLANG_NEUTRAL // locale: "bs-BA"
+STRINGTABLE {
+    str_hello             , L"Zdravo"
+}
+
+LANGUAGE LANG_BOSNIAN_NEUTRAL, SUBLANG_NEUTRAL // locale: "bs-Latn-BA"
+STRINGTABLE {
+    str_hello             , L"Zdravo"
+}
+
+LANGUAGE LANG_BULGARIAN, SUBLANG_NEUTRAL // locale: "bg-BG"
+STRINGTABLE {
+    str_hello             , L"Здравейте"
+}
+
+LANGUAGE LANG_CATALAN, SUBLANG_NEUTRAL // locale: "ca-ES"
+STRINGTABLE {
+    str_hello             , L"Hola"
+}
+
+LANGUAGE LANG_CENTRAL_KURDISH, SUBLANG_NEUTRAL // locale: "ku-CK"
+STRINGTABLE {
+    str_hello             , L"هەڵۆ"
+}
+
+LANGUAGE LANG_CZECH, SUBLANG_NEUTRAL // locale: "cs-CZ"
+STRINGTABLE {
+    str_hello             , L"Ahoj"
+}
+
+LANGUAGE LANG_DANISH, SUBLANG_NEUTRAL // locale: "da-DK"
+STRINGTABLE {
+    str_hello             , L"Hej"
+}
+
+LANGUAGE LANG_DARI, SUBLANG_NEUTRAL // locale: "prs-AF"
+STRINGTABLE {
+    str_hello             , L"سلام"
+}
+
+LANGUAGE LANG_DIVEHI, SUBLANG_NEUTRAL // locale: "dv-MV"
+STRINGTABLE {
+    str_hello             , L"ଆଲା"
+}
+
+LANGUAGE LANG_DUTCH, SUBLANG_NEUTRAL // locale: "nl-NL"
+STRINGTABLE {
+    str_hello             , L"Hallo"
+}
+
+LANGUAGE LANG_ESTONIAN, SUBLANG_NEUTRAL // locale: "et-EE"
+STRINGTABLE {
+    str_hello             , L"Tere"
+}
+
+LANGUAGE LANG_FAEROESE, SUBLANG_NEUTRAL // locale: "fo-FO"
+STRINGTABLE {
+    str_hello             , L"Hallo"
+}
+
+LANGUAGE LANG_FARSI, SUBLANG_NEUTRAL // locale: "fa-IR"
+STRINGTABLE {
+    str_hello             , L"سلام"
+}
+
+LANGUAGE LANG_FILIPINO, SUBLANG_NEUTRAL // locale: "fil-PH"
+STRINGTABLE {
+    str_hello             , L"Hello"
+}
+
+LANGUAGE LANG_FINNISH, SUBLANG_NEUTRAL // locale: "fi-FI"
+STRINGTABLE {
+    str_hello             , L"Hei"
+}
+
+LANGUAGE LANG_FRENCH, SUBLANG_NEUTRAL // locale: "fr-FR"
+STRINGTABLE {
+    str_hello             , L"Bonjour"
+}
+
+LANGUAGE LANG_FRISIAN, SUBLANG_NEUTRAL // locale: "fy-NL"
+STRINGTABLE {
+    str_hello             , L"Hallo"
+}
+
+LANGUAGE LANG_GALICIAN, SUBLANG_NEUTRAL // locale: "gl-ES"
+STRINGTABLE {
+    str_hello             , L"Ola"
+}
+
+LANGUAGE LANG_GEORGIAN, SUBLANG_NEUTRAL // locale: "ka-GE"
+STRINGTABLE {
+    str_hello             , L"გამარჯობა"
+}
+
+LANGUAGE LANG_GERMAN, SUBLANG_NEUTRAL // locale: "de-DE"
+STRINGTABLE {
+    str_hello             , L"Hallo"
+}
+
+LANGUAGE LANG_GREEK, SUBLANG_NEUTRAL // locale: "el-GR"
+STRINGTABLE {
+    str_hello             , L"Γεια σας"
+}
+
+LANGUAGE LANG_GREENLANDIC, SUBLANG_NEUTRAL // locale: "kl-GL"
+STRINGTABLE {
+    str_hello             , L"Aliorneq"
+}
+
+LANGUAGE LANG_GUJARATI, SUBLANG_NEUTRAL // locale: "gu-IN"
+STRINGTABLE {
+    str_hello             , L"કેમ છો"
+}
+
+LANGUAGE LANG_HAUSA, SUBLANG_NEUTRAL // locale: "ha-Latn-NG"
+STRINGTABLE {
+    str_hello             , L"Sannu"
+}
+
+LANGUAGE LANG_HAWAIIAN, SUBLANG_NEUTRAL // locale: "haw-US"
+STRINGTABLE {
+    str_hello             , L"Aloha"
+}
+
+LANGUAGE LANG_HEBREW, SUBLANG_NEUTRAL // locale: "he-IL"
+STRINGTABLE {
+    str_hello             , L"שלום"
+}
+
+LANGUAGE LANG_HINDI, SUBLANG_NEUTRAL // locale: "hi-IN"
+STRINGTABLE {
+    str_hello             , L"नमस्ते"
+}
+
+LANGUAGE LANG_HUNGARIAN, SUBLANG_NEUTRAL // locale: "hu-HU"
+STRINGTABLE {
+    str_hello             , L"Helló"
+}
+
+LANGUAGE LANG_ICELANDIC, SUBLANG_NEUTRAL // locale: "is-IS"
+STRINGTABLE {
+    str_hello             , L"Hallo"
+}
+
+LANGUAGE LANG_IGBO, SUBLANG_NEUTRAL // locale: "ig-NG"
+STRINGTABLE {
+    str_hello             , L"Ndeewọ"
+}
+
+LANGUAGE LANG_INDONESIAN, SUBLANG_NEUTRAL // locale: "id-ID"
+STRINGTABLE {
+    str_hello             , L"Halo"
+}
+
+LANGUAGE LANG_INUKTITUT, SUBLANG_NEUTRAL // locale: "iu-Latn-CA"
+STRINGTABLE {
+    str_hello             , L"Hi"
+}
+
+LANGUAGE LANG_IRISH, SUBLANG_NEUTRAL // locale: "ga-IE"
+STRINGTABLE {
+    str_hello             , L"Dia dhuit"
+}
+
+LANGUAGE LANG_ITALIAN, SUBLANG_NEUTRAL // locale: "it-IT"
+STRINGTABLE {
+    str_hello             , L"Ciao"
+}
+
+LANGUAGE LANG_JAPANESE, SUBLANG_NEUTRAL // locale: "ja-JP"
+STRINGTABLE {
+    str_hello             , L"こんにちは"
+}
+
+LANGUAGE LANG_KANNADA, SUBLANG_NEUTRAL // locale: "kn-IN"
+STRINGTABLE {
+    str_hello             , L"ಹಲೋ"
+}
+
+LANGUAGE LANG_KAZAK, SUBLANG_NEUTRAL // locale: "kk-KZ"
+STRINGTABLE {
+    str_hello             , L"Сәлем"
+}
+
+LANGUAGE LANG_KHMER, SUBLANG_NEUTRAL // locale: "km-KH"
+STRINGTABLE {
+    str_hello             , L"សួស្ត"
+}
+
+LANGUAGE LANG_KINYARWANDA, SUBLANG_NEUTRAL // locale: "rw-RW"
+STRINGTABLE {
+    str_hello             , L"Murakaza"
+}
+
+LANGUAGE LANG_KONKANI, SUBLANG_NEUTRAL // locale: "kok-IN"
+STRINGTABLE {
+    str_hello             , L"Khallô"
+}
+
+LANGUAGE LANG_KOREAN, SUBLANG_NEUTRAL // locale: "ko-KR"
+STRINGTABLE {
+    str_hello             , L"안녕하세요"
+}
+
+LANGUAGE LANG_KYRGYZ, SUBLANG_NEUTRAL // locale: "ky-KG"
+STRINGTABLE {
+    str_hello             , L"Салам"
+}
+
+LANGUAGE LANG_LAO, SUBLANG_NEUTRAL // locale: "lo-LA"
+STRINGTABLE {
+    str_hello             , L"ສະບາຍດີ"
+}
+
+LANGUAGE LANG_LATVIAN, SUBLANG_NEUTRAL // locale: "lv-LV"
+STRINGTABLE {
+    str_hello             , L"Sveiki"
+}
+
+LANGUAGE LANG_LITHUANIAN, SUBLANG_NEUTRAL // locale: "lt-LT"
+STRINGTABLE {
+    str_hello             , L"Labas"
+}
+
+LANGUAGE LANG_LUXEMBOURGISH, SUBLANG_NEUTRAL // locale: "lb-LU"
+STRINGTABLE {
+    str_hello             , L"Hallo"
+}
+
+LANGUAGE LANG_MACEDONIAN, SUBLANG_NEUTRAL // locale: "mk-MK"
+STRINGTABLE {
+    str_hello             , L"Здраво"
+}
+
+LANGUAGE LANG_MALAY, SUBLANG_NEUTRAL // locale: "ms-MY"
+STRINGTABLE {
+    str_hello             , L"Hello"
+}
+
+LANGUAGE LANG_MALAYALAM, SUBLANG_NEUTRAL // locale: "ml-IN"
+STRINGTABLE {
+    str_hello             , L"ഹായ്"
+}
+
+LANGUAGE LANG_MALTESE, SUBLANG_NEUTRAL // locale: "mt-MT"
+STRINGTABLE {
+    str_hello             , L"Hello"
+}
+
+LANGUAGE LANG_MANIPURI, SUBLANG_NEUTRAL // locale: "mni-IN"
+STRINGTABLE {
+    str_hello             , L"আনৰ এইদিনৰ "
+}
+
+LANGUAGE LANG_MAORI, SUBLANG_NEUTRAL // locale: "mi-NZ"
+STRINGTABLE {
+    str_hello             , L"Kia ora"
+}
+
+LANGUAGE LANG_MARATHI, SUBLANG_NEUTRAL // locale: "mr-IN"
+STRINGTABLE {
+    str_hello             , L"नमस्कार"
+}
+
+LANGUAGE LANG_MOHAWK, SUBLANG_NEUTRAL // locale: "moh-CA"
+STRINGTABLE {
+    str_hello             , L"E:nen"
+}
+
+LANGUAGE LANG_MONGOLIAN, SUBLANG_NEUTRAL // locale: "mn-MN"
+STRINGTABLE {
+    str_hello             , L"Сайн уу"
+}
+
+LANGUAGE LANG_NEPALI, SUBLANG_NEUTRAL // locale: "ne-NP"
+STRINGTABLE {
+    str_hello             , L"नमस्ते"
+}
+
+LANGUAGE LANG_NORWEGIAN, SUBLANG_NEUTRAL // locale: "nb-NO"
+STRINGTABLE {
+    str_hello             , L"Hallo"
+}
+
+LANGUAGE LANG_OCCITAN, SUBLANG_NEUTRAL // locale: "oc-FR"
+STRINGTABLE {
+    str_hello             , L"Alau"
+}
+
+LANGUAGE LANG_ODIA, SUBLANG_NEUTRAL // locale: "or-IN"
+STRINGTABLE {
+    str_hello             , L"ନମସ୍କାର"
+}
+
+LANGUAGE LANG_POLISH, SUBLANG_NEUTRAL // locale: "pl-PL"
+STRINGTABLE {
+    str_hello             , L"Cześć"
+}
+
+LANGUAGE LANG_PORTUGUESE, SUBLANG_NEUTRAL // locale: "pt-PT"
+STRINGTABLE {
+    str_hello             , L"Olá"
+}
+
+LANGUAGE LANG_PUNJABI, SUBLANG_NEUTRAL // locale: "pa-IN"
+STRINGTABLE {
+    str_hello             , L"ਸਤਿ ਸ੍ਰੀ ਅਕਾਲ"
+}
+
+LANGUAGE LANG_ROMANIAN, SUBLANG_NEUTRAL // locale: "ro-RO"
+STRINGTABLE {
+    str_hello             , L"Bună ziua"
+}
+
+LANGUAGE LANG_ROMANSH, SUBLANG_NEUTRAL // locale: "rm-CH"
+STRINGTABLE {
+    str_hello             , L"Bun di"
+}
+
+LANGUAGE LANG_RUSSIAN, SUBLANG_NEUTRAL // locale: "ru-RU"
+STRINGTABLE {
+    str_hello             , L"Привет"
+}
+
+LANGUAGE LANG_SAKHA, SUBLANG_NEUTRAL // locale: "sah-RU"
+STRINGTABLE {
+    str_hello             , L"Саламыт"
+}
+
+LANGUAGE LANG_SAMI, SUBLANG_NEUTRAL // locale: "se-NO"
+STRINGTABLE {
+    str_hello             , L"Bures"
+}
+
+LANGUAGE LANG_SANSKRIT, SUBLANG_NEUTRAL // locale: "sa-IN"
+STRINGTABLE {
+    str_hello             , L"नमस्ते"
+}
+
+LANGUAGE LANG_SCOTTISH_GAELIC, SUBLANG_NEUTRAL // locale: "gd-GB"
+STRINGTABLE {
+    str_hello             , L"Halò"
+}
+
+LANGUAGE LANG_SERBIAN_NEUTRAL, SUBLANG_NEUTRAL // locale: "sr-Latn-RS"
+STRINGTABLE {
+    str_hello             , L"Zdravo"
+}
+
+LANGUAGE LANG_SINHALESE, SUBLANG_NEUTRAL // locale: "si-LK"
+STRINGTABLE {
+    str_hello             , L"හෙලෝ"
+}
+
+LANGUAGE LANG_SLOVAK, SUBLANG_NEUTRAL // locale: "sk-SK"
+STRINGTABLE {
+    str_hello             , L"Ahoj"
+}
+
+LANGUAGE LANG_SLOVENIAN, SUBLANG_NEUTRAL // locale: "sl-SI"
+STRINGTABLE {
+    str_hello             , L"Zdravo"
+}
+
+LANGUAGE LANG_SOTHO, SUBLANG_NEUTRAL // locale: "st-ZA"
+STRINGTABLE {
+    str_hello             , L"Dumela"
+}
+
+LANGUAGE LANG_SPANISH, SUBLANG_NEUTRAL // locale: "es-ES"
+STRINGTABLE {
+    str_hello             , L"Hola"
+}
+
+LANGUAGE LANG_SWAHILI, SUBLANG_NEUTRAL // locale: "sw-KE"
+STRINGTABLE {
+    str_hello             , L"Jambo"
+}
+
+LANGUAGE LANG_SWEDISH, SUBLANG_NEUTRAL // locale: "sv-SE"
+STRINGTABLE {
+    str_hello             , L"Hej"
+}
+
+LANGUAGE LANG_TAJIK, SUBLANG_NEUTRAL // locale: "tg-TJ"
+STRINGTABLE {
+    str_hello             , L"Салом"
+}
+
+LANGUAGE LANG_TAMIL, SUBLANG_NEUTRAL // locale: "ta-IN"
+STRINGTABLE {
+    str_hello             , L"வணக்கம்"
+}
+
+LANGUAGE LANG_TATAR, SUBLANG_NEUTRAL // locale: "tt-RU"
+STRINGTABLE {
+    str_hello             , L"Сәлам"
+}
+
+LANGUAGE LANG_TELUGU, SUBLANG_NEUTRAL // locale: "te-IN"
+STRINGTABLE {
+    str_hello             , L"హలో"
+}
+
+LANGUAGE LANG_THAI, SUBLANG_NEUTRAL // locale: "th-TH"
+STRINGTABLE {
+    str_hello             , L"สวัสดี"
+}
+
+LANGUAGE LANG_TIBETAN, SUBLANG_NEUTRAL // locale: "bo-CN"
+STRINGTABLE {
+    str_hello             , L"དེ་ལེགས་སོགས་པ།"
+}
+
+LANGUAGE LANG_TIGRIGNA, SUBLANG_NEUTRAL // locale: "ti-ER"
+STRINGTABLE {
+    str_hello             , L"ሰላም"
+}
+
+LANGUAGE LANG_TSWANA, SUBLANG_NEUTRAL // locale: "tn-ZA"
+STRINGTABLE {
+    str_hello             , L"Dumela"
+}
+
+LANGUAGE LANG_TURKISH, SUBLANG_NEUTRAL // locale: "tr-TR"
+STRINGTABLE {
+    str_hello             , L"Merhaba"
+}
+
+LANGUAGE LANG_TURKMEN, SUBLANG_NEUTRAL // locale: "tk-TM"
+STRINGTABLE {
+    str_hello             , L"Günaydın"
+}
+
+LANGUAGE LANG_UIGHUR, SUBLANG_NEUTRAL // locale: "ug-CN"
+STRINGTABLE {
+    str_hello             , L"سالام"
+}
+
+LANGUAGE LANG_UKRAINIAN, SUBLANG_NEUTRAL // locale: "uk-UA"
+STRINGTABLE {
+    str_hello             , L"Привіт"
+}
+
+LANGUAGE LANG_URDU, SUBLANG_NEUTRAL // locale: "ur-PK"
+STRINGTABLE {
+    str_hello             , L"ہیلو"
+}
+
+LANGUAGE LANG_UZBEK, SUBLANG_NEUTRAL // locale: "uz-UZ"
+STRINGTABLE {
+    str_hello             , L"Salom"
+}
+
+LANGUAGE LANG_VIETNAMESE, SUBLANG_NEUTRAL // locale: "vi-VN"
+STRINGTABLE {
+    str_hello             , L"Xin chào"
+}
+
+LANGUAGE LANG_WELSH, SUBLANG_NEUTRAL // locale: "cy-GB"
+STRINGTABLE {
+    str_hello             , L"Helo"
+}
+
+LANGUAGE LANG_WOLOF, SUBLANG_NEUTRAL // locale: "wo-SN"
+STRINGTABLE {
+    str_hello             , L"Ndamli"
+}
+
+LANGUAGE LANG_XHOSA, SUBLANG_NEUTRAL // locale: "xh-ZA"
+STRINGTABLE {
+    str_hello             , L"Molo"
+}
+
+LANGUAGE LANG_YORUBA, SUBLANG_NEUTRAL // locale: "yo-NG"
+STRINGTABLE {
+    str_hello             , L"Mo ke fun o"
+}
+
+LANGUAGE LANG_ZULU, SUBLANG_NEUTRAL // locale: "zu-ZA"
+STRINGTABLE {
+    str_hello             , L"Sawubona"
+}
+
 LANGUAGE LANG_ENGLISH, SUBLANG_NEUTRAL
 
 // to localize English variants:
 // use LANG_ENGLISH, SUBLANG_ENGLISH_US, SUBLANG_ENGLISH_UK ...
 
 STRINGTABLE {
+    str_hello             , L"Hello"
     str_slider_accel      , L"Accelerate by Ctrl x10 Shift x100 and Ctrl+Shift x1000"
     str_file_open         , L"&Open"
     str_about             , L"&About"

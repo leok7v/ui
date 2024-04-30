@@ -81,7 +81,7 @@ const char* nls_localize_string(int32_t strid) {
                 langid = MAKELANGID(primary, SUBLANG_NEUTRAL);
                 ws = nls_load_string(strid, langid);
             }
-            if (ws != null) {
+            if (ws != null && ws[0] != 0x0000) {
                 r = nls_save_string(ws);
                 nls_ls[strid] = r;
             }

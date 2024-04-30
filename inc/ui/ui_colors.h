@@ -3,6 +3,8 @@
 
 begin_c
 
+typedef uint64_t ui_color_t; // top 2 bits determine color format
+
 /* TODO: make ui_color_t uint64_t RGBA remove pens and brushes
          support upto 16-16-16-15(A)bit per pixel color
          components with 'transparent/hollow' bit

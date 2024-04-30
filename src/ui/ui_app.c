@@ -1070,6 +1070,22 @@ static long app_set_window_long(int32_t index, long value) {
     return r;
 }
 
+static errno_t app_set_layered_window(ui_color_t color, float alpha) {
+    uint8_t  a = 0; // alpha 0..255
+    uint32_t c = 0; // R8G8B8
+    DWORD mask = 0;
+    if (0 <= alpha && alpha <= 1.0) {
+        mask |= LWA_ALPHA;
+        a = (uint8_t)(alpha * 255 + 0.5);
+    }
+    if (color != color_undefined) {
+        mask |= LWA_COLORKEY;
+        assert(color_is_8bit(color));
+        c = gdi.color_rgb(color);
+    }
+    return b2e(SetLayeredWindowAttributes(app_window(), c, a, mask));
+}
+
 static void app_create_window(const ui_rect_t r) {
     WNDCLASSA wc = { 0 };
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
@@ -1445,6 +1461,10 @@ static void app_bring_to_front(void) {
     app.request_focus();
 }
 
+static void app_set_title(const char* title) {
+    fatal_if_false(SetWindowTextA(app_window(), title));
+}
+
 static void app_set_console_title(HWND cw) {
     char text[256];
     text[0] = 0;
@@ -1702,10 +1722,12 @@ static void app_init(void) {
     app.draw                = app_draw;
     app.px2in               = app_px2in;
     app.in2px               = app_in2px;
+    app.set_layered_window  = app_set_layered_window;
     app.is_active           = app_is_active,
     app.has_focus           = app_has_focus,
     app.request_focus       = app_request_focus,
     app.activate            = app_activate,
+    app.set_title           = app_set_title,
     app.bring_to_foreground = app_bring_to_foreground,
     app.make_topmost        = app_make_topmost,
     app.bring_to_front      = app_bring_to_front,

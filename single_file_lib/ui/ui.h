@@ -106,7 +106,6 @@ typedef double fp64_t;
 
 typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
-typedef uint64_t ui_color_t; // top 2 bits determine color format
 
 typedef struct ui_window_s* ui_window_t;
 typedef struct ui_canvas_s* ui_canvas_t;
@@ -254,6 +253,8 @@ extern ui_if ui;
 
 #include "ut/ut_std.h"
 
+
+typedef uint64_t ui_color_t; // top 2 bits determine color format
 
 /* TODO: make ui_color_t uint64_t RGBA remove pens and brushes
          support upto 16-16-16-15(A)bit per pixel color
@@ -406,6 +407,7 @@ typedef struct gdi_s {
     // text:
     void (*cleartype)(bool on);
     void (*font_smoothing_contrast)(int32_t c); // [1000..2202] or -1 for 1400 default
+    ui_font_t (*create_font)(const char* family, int32_t height, int32_t quality);
     ui_font_t (*font)(ui_font_t f, int32_t height, int32_t quality); // custom font, quality: -1 as is
     void   (*delete_font)(ui_font_t f);
     ui_font_t (*set_font)(ui_font_t f);
@@ -933,9 +935,12 @@ typedef struct app_s {
     // inch to pixels and reverse translation via app.dpi.window
     fp32_t   (*px2in)(int32_t pixels);
     int32_t (*in2px)(fp32_t inches);
+    // color: color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
+    errno_t (*set_layered_window)(ui_color_t color, float alpha);
     bool (*is_active)(void); // is application window active
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
+    void (*set_title)(const char* title);
     void (*bring_to_foreground)(void); // not necessary topmost
     void (*make_topmost)(void);   // in foreground hierarchy of windows
     void (*request_focus)(void);  // request application window keyboard focus
@@ -2070,6 +2075,22 @@ static long app_set_window_long(int32_t index, long value) {
     return r;
 }
 
+static errno_t app_set_layered_window(ui_color_t color, float alpha) {
+    uint8_t  a = 0; // alpha 0..255
+    uint32_t c = 0; // R8G8B8
+    DWORD mask = 0;
+    if (0 <= alpha && alpha <= 1.0) {
+        mask |= LWA_ALPHA;
+        a = (uint8_t)(alpha * 255 + 0.5);
+    }
+    if (color != color_undefined) {
+        mask |= LWA_COLORKEY;
+        assert(color_is_8bit(color));
+        c = gdi.color_rgb(color);
+    }
+    return b2e(SetLayeredWindowAttributes(app_window(), c, a, mask));
+}
+
 static void app_create_window(const ui_rect_t r) {
     WNDCLASSA wc = { 0 };
     wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
@@ -2445,6 +2466,10 @@ static void app_bring_to_front(void) {
     app.request_focus();
 }
 
+static void app_set_title(const char* title) {
+    fatal_if_false(SetWindowTextA(app_window(), title));
+}
+
 static void app_set_console_title(HWND cw) {
     char text[256];
     text[0] = 0;
@@ -2702,10 +2727,12 @@ static void app_init(void) {
     app.draw                = app_draw;
     app.px2in               = app_px2in;
     app.in2px               = app_in2px;
+    app.set_layered_window  = app_set_layered_window;
     app.is_active           = app_is_active,
     app.has_focus           = app_has_focus,
     app.request_focus       = app_request_focus,
     app.activate            = app_activate,
+    app.set_title           = app_set_title,
     app.bring_to_foreground = app_bring_to_foreground,
     app.make_topmost        = app_make_topmost,
     app.bring_to_front      = app_bring_to_front,
@@ -3731,6 +3758,22 @@ static_assertion(gdi_font_quality_antialiased == ANTIALIASED_QUALITY);
 static_assertion(gdi_font_quality_cleartype == CLEARTYPE_QUALITY);
 static_assertion(gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
+static ui_font_t gdi_create_font(const char* family, int32_t height, int32_t quality) {
+    assert(height > 0);
+    LOGFONTA lf = {0};
+    int32_t n = GetObjectA(app.fonts.regular, sizeof(lf), &lf);
+    fatal_if_false(n == (int)sizeof(lf));
+    lf.lfHeight = -height;
+    strprintf(lf.lfFaceName, "%s", family);
+    if (gdi_font_quality_default <= quality && quality <= gdi_font_quality_cleartype_natural) {
+        lf.lfQuality = (uint8_t)quality;
+    } else {
+        fatal_if(quality != -1, "use -1 for do not care quality");
+    }
+    return (ui_font_t)CreateFontIndirectA(&lf);
+}
+
+
 static ui_font_t gdi_font(ui_font_t f, int32_t height, int32_t quality) {
     assert(f != null && height > 0);
     LOGFONTA lf = {0};
@@ -4057,6 +4100,7 @@ gdi_t gdi = {
     .draw_bgrx = gdi_draw_bgrx,
     .cleartype = gdi_cleartype,
     .font_smoothing_contrast = gdi_font_smoothing_contrast,
+    .create_font = gdi_create_font,
     .font = gdi_font,
     .delete_font = gdi_delete_font,
     .set_font = gdi_set_font,
@@ -4550,7 +4594,7 @@ const char* nls_localize_string(int32_t strid) {
                 langid = MAKELANGID(primary, SUBLANG_NEUTRAL);
                 ws = nls_load_string(strid, langid);
             }
-            if (ws != null) {
+            if (ws != null && ws[0] != 0x0000) {
                 r = nls_save_string(ws);
                 nls_ls[strid] = r;
             }

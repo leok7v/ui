@@ -90,9 +90,12 @@ typedef struct app_s {
     // inch to pixels and reverse translation via app.dpi.window
     fp32_t   (*px2in)(int32_t pixels);
     int32_t (*in2px)(fp32_t inches);
+    // color: color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
+    errno_t (*set_layered_window)(ui_color_t color, float alpha);
     bool (*is_active)(void); // is application window active
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
+    void (*set_title)(const char* title);
     void (*bring_to_foreground)(void); // not necessary topmost
     void (*make_topmost)(void);   // in foreground hierarchy of windows
     void (*request_focus)(void);  // request application window keyboard focus

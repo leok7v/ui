@@ -75,6 +75,7 @@ typedef struct gdi_s {
     // text:
     void (*cleartype)(bool on);
     void (*font_smoothing_contrast)(int32_t c); // [1000..2202] or -1 for 1400 default
+    ui_font_t (*create_font)(const char* family, int32_t height, int32_t quality);
     ui_font_t (*font)(ui_font_t f, int32_t height, int32_t quality); // custom font, quality: -1 as is
     void   (*delete_font)(ui_font_t f);
     ui_font_t (*set_font)(ui_font_t f);

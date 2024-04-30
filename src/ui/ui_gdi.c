@@ -527,6 +527,22 @@ static_assertion(gdi_font_quality_antialiased == ANTIALIASED_QUALITY);
 static_assertion(gdi_font_quality_cleartype == CLEARTYPE_QUALITY);
 static_assertion(gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
+static ui_font_t gdi_create_font(const char* family, int32_t height, int32_t quality) {
+    assert(height > 0);
+    LOGFONTA lf = {0};
+    int32_t n = GetObjectA(app.fonts.regular, sizeof(lf), &lf);
+    fatal_if_false(n == (int)sizeof(lf));
+    lf.lfHeight = -height;
+    strprintf(lf.lfFaceName, "%s", family);
+    if (gdi_font_quality_default <= quality && quality <= gdi_font_quality_cleartype_natural) {
+        lf.lfQuality = (uint8_t)quality;
+    } else {
+        fatal_if(quality != -1, "use -1 for do not care quality");
+    }
+    return (ui_font_t)CreateFontIndirectA(&lf);
+}
+
+
 static ui_font_t gdi_font(ui_font_t f, int32_t height, int32_t quality) {
     assert(f != null && height > 0);
     LOGFONTA lf = {0};
@@ -853,6 +869,7 @@ gdi_t gdi = {
     .draw_bgrx = gdi_draw_bgrx,
     .cleartype = gdi_cleartype,
     .font_smoothing_contrast = gdi_font_smoothing_contrast,
+    .create_font = gdi_create_font,
     .font = gdi_font,
     .delete_font = gdi_delete_font,
     .set_font = gdi_set_font,

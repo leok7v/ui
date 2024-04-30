@@ -5,7 +5,6 @@ begin_c
 
 typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
-typedef uint64_t ui_color_t; // top 2 bits determine color format
 
 typedef struct ui_window_s* ui_window_t;
 typedef struct ui_canvas_s* ui_canvas_t;
