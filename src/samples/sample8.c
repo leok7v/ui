@@ -22,11 +22,14 @@ static void bottom_callback(ui_button_t* b) {
     app.layout();
 }
 
-#define ui_glyph_menu  ui_glyph_trigram_for_heaven
-#define ui_glyph_mini  ui_glyph_heavy_minus_sign
-#define ui_glyph_maxi  ui_glyph_white_large_square
-#define ui_glyph_full  ui_glyph_square_four_corners
-#define ui_glyph_close ui_glyph_n_ary_times_operator
+#define ui_glyph_menu   ui_glyph_trigram_for_heaven
+#define ui_glyph_mini   ui_glyph_heavy_minus_sign
+#define ui_glyph_maxi   ui_glyph_white_large_square
+#define ui_glyph_full   ui_glyph_square_four_corners
+#define ui_glyph_close  ui_glyph_n_ary_times_operator
+
+#define ui_glyph_bottom ui_glyph_squared_minus
+#define ui_glyph_side   ui_glyph_white_square_with_vertical_bisecting_line
 
 static ui_button_t button_menu  = ui_button(ui_glyph_menu,  0.0, null);
 static ui_button_t button_mini  = ui_button(ui_glyph_mini,  0.0, null);
@@ -34,7 +37,7 @@ static ui_button_t button_maxi  = ui_button(ui_glyph_maxi,  0.0, null);
 static ui_button_t button_full  = ui_button(ui_glyph_full,  0.0, null);
 static ui_button_t button_close = ui_button(ui_glyph_close, 0.0, close_callback);
 
-static ui_button_t button_bottom = ui_button("[]", 0.0, bottom_callback);
+static ui_button_t button_bottom = ui_button(ui_glyph_bottom, 0.0, bottom_callback);
 
 static void paint_panel(ui_view_t* v) {
     gdi.push(v->x, v->y);
@@ -88,7 +91,8 @@ static void opened(void) {
                     &button_close, null),
         ui_view.add(&center_pane, &left_pane, &content_pane, &right_pane, null),
         &bottom_pane,
-        ui_view.add(&status_bar, &button_bottom, null),
+        ui_view.add(&status_bar,
+                    &button_bottom, null),
         null);
 
     center_pane.hidden = true;
@@ -96,6 +100,20 @@ static void opened(void) {
 //  status_bar.hidden = true;
 
     strprintf(ui_caption.view.text, "Sample8: Panels");
+    ui_button_t* buttons[] = {
+        &button_menu,
+        &button_mini,
+        &button_maxi,
+        &button_full,
+        &button_close,
+        &button_bottom
+    };
+    for (int32_t i = 0; i < countof(buttons); i++) {
+        buttons[i]->view.font = &app.fonts.H3;
+        buttons[i]->view.color = colors.white;
+        buttons[i]->flat = true;
+    }
+
     // debug:
     strprintf(left_pane.text,    "left_pane");
     strprintf(content_pane.text, "content_pane");

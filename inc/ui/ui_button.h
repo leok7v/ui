@@ -10,6 +10,7 @@ typedef struct ui_button_s {
     ui_view_t view;
     void (*cb)(ui_button_t* b); // callback
     fp64_t armed_until;   // seconds - when to release
+    bool flat; // flat style button
 } ui_button_t;
 
 void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,

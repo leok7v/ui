@@ -23,10 +23,16 @@ static void ui_button_paint(ui_view_t* view) {
     int32_t h = sign * view->h;
     int32_t x = b->view.x + (int)pressed * view->w;
     int32_t y = b->view.y + (int)pressed * view->h;
-    gdi.gradient(x, y, w, h, colors.btn_gradient_darker,
-        colors.btn_gradient_dark, true);
-    ui_color_t c = view->armed ? colors.btn_armed : view->color;
-    if (b->view.hover && !view->armed) { c = colors.btn_hover_highlight; }
+    if (!b->flat || view->hover) {
+        gdi.gradient(x, y, w, h, colors.btn_gradient_darker,
+            colors.btn_gradient_dark, true);
+    }
+    ui_color_t c = view->color;
+    if (!b->flat && view->armed) {
+        c = colors.btn_armed;
+    }else if (!b->flat && b->view.hover && !view->armed) {
+        c = colors.btn_hover_highlight;
+    }
     if (view->disabled) { c = colors.btn_disabled; }
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
     ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
@@ -40,11 +46,13 @@ static void ui_button_paint(ui_view_t* view) {
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
     if (view->hover && !view->armed) { color = colors.blue; }
     if (view->disabled) { color = colors.dkgray1; }
-    ui_pen_t p = gdi.create_pen(color, pw);
-    gdi.set_pen(p);
-    gdi.set_brush(gdi.brush_hollow);
-    gdi.rounded(view->x, view->y, view->w, view->h, view->em.y / 4, view->em.y / 4);
-    gdi.delete_pen(p);
+    if (!b->flat) {
+        ui_pen_t p = gdi.create_pen(color, pw);
+        gdi.set_pen(p);
+        gdi.set_brush(gdi.brush_hollow);
+        gdi.rounded(view->x, view->y, view->w, view->h, view->em.y / 4, view->em.y / 4);
+        gdi.delete_pen(p);
+    }
     gdi.pop();
 }
 

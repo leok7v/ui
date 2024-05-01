@@ -60,6 +60,9 @@
     <ClInclude Include="..\inc\ui\ui_nls.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ui\ui_glyphs.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\ui\ui_app.c">

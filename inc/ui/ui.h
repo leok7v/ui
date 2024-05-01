@@ -3,6 +3,7 @@
 #include "ui/ui_core.h"
 #include "ui/ui_colors.h"
 #include "ui/ui_gdi.h"
+#include "ui/ui_glyphs.h"
 #include "ui/ui_view.h"
 #include "ui/ui_layout.h"
 #include "ui/ui_label.h"

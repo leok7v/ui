@@ -101,29 +101,45 @@ typedef struct ui_region_s* ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
-#define ui_glyph_square_four_corners                    "\xE2\x9B\xB6"
 // Square Four Corners (caption full screen button)
 // https://www.compart.com/en/unicode/U+26F6
+#define ui_glyph_square_four_corners                    "\xE2\x9B\xB6"
 
-#define ui_glyph_white_large_square                     "\xE2\xAC\x9C"
 // White Large Square (caption maximize button)
 // https://www.compart.com/en/unicode/U+2B1C
+#define ui_glyph_white_large_square                     "\xE2\xAC\x9C"
 
-#define ui_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
 // N-Ary Times Operator (caption close button)
 // https://www.compart.com/en/unicode/U+2A09
+#define ui_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
 
-#define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
 // Heavy Minus Sign (caption minimize button)
 // https://www.compart.com/en/unicode/U+2796
+#define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
 
-#define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
 // Trigram For Heaven (caption menu button)
 // https://www.compart.com/en/unicode/U+2630
+#define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
 
-#define ui_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
 // Braille Pattern Dots-12345678 (tool bar drag handle like: msvc toolbars)
 // https://www.compart.com/en/unicode/U+28FF
+#define ui_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
+
+// White Square with Upper Left Quadrant
+// https://www.compart.com/en/unicode/U+25F0
+#define ui_glyph_white_square_with_upper_left_quadrant "\xE2\x97\xB0"
+
+// White Square with Lower Left Quadrant
+// https://www.compart.com/en/unicode/U+25F1
+#define ui_glyph_white_square_with_lower_left_quadrant "\xE2\x97\xB1"
+
+// White Square with Lower Right Quadrant
+// https://www.compart.com/en/unicode/U+25F2
+#define ui_glyph_white_square_with_lower_right_quadrant "\xE2\x97\xB2"
+
+// White Square with Upper Right Quadrant
+// https://www.compart.com/en/unicode/U+25F3
+#define ui_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
 
 typedef struct image_s { // TODO: ui_ namespace
     int32_t w; // width
@@ -547,6 +563,57 @@ typedef struct gdi_s {  // TODO: ui_ namespace
 
 extern gdi_t gdi;
 
+// _______________________________ ui_glyphs.h ________________________________
+
+#include "ut/ut_std.h"
+
+// Square Four Corners (caption full screen button)
+// https://www.compart.com/en/unicode/U+26F6
+#define ui_glyph_square_four_corners                    "\xE2\x9B\xB6"
+
+// White Large Square (caption maximize button)
+// https://www.compart.com/en/unicode/U+2B1C
+#define ui_glyph_white_large_square                     "\xE2\xAC\x9C"
+
+// N-Ary Times Operator (caption close button)
+// https://www.compart.com/en/unicode/U+2A09
+#define ui_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
+
+// Heavy Minus Sign (caption minimize button)
+// https://www.compart.com/en/unicode/U+2796
+#define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
+
+// Trigram For Heaven (caption menu button)
+// https://www.compart.com/en/unicode/U+2630
+#define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
+
+// Braille Pattern Dots-12345678 (tool bar drag handle like: msvc toolbars)
+// https://www.compart.com/en/unicode/U+28FF
+#define ui_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
+
+// White Square with Upper Left Quadrant
+// https://www.compart.com/en/unicode/U+25F0
+#define ui_glyph_white_square_with_upper_left_quadrant "\xE2\x97\xB0"
+
+// White Square with Lower Left Quadrant
+// https://www.compart.com/en/unicode/U+25F1
+#define ui_glyph_white_square_with_lower_left_quadrant "\xE2\x97\xB1"
+
+// White Square with Lower Right Quadrant
+// https://www.compart.com/en/unicode/U+25F2
+#define ui_glyph_white_square_with_lower_right_quadrant "\xE2\x97\xB2"
+
+// White Square with Upper Right Quadrant
+// https://www.compart.com/en/unicode/U+25F3
+#define ui_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
+
+// White Square with Vertical Bisecting Line
+// https://www.compart.com/en/unicode/U+25EB
+#define ui_glyph_white_square_with_vertical_bisecting_line "\xE2\x97\xAB"
+
+// Squared Minus (White Square with Horizontal Bisecting Line)
+// https://www.compart.com/en/unicode/U+229F
+#define ui_glyph_squared_minus                          "\xE2\x8A\x9F"
 // ________________________________ ui_view.h _________________________________
 
 #include "ut/ut_std.h"
@@ -791,6 +858,7 @@ typedef struct ui_button_s {
     ui_view_t view;
     void (*cb)(ui_button_t* b); // callback
     fp64_t armed_until;   // seconds - when to release
+    bool flat; // flat style button
 } ui_button_t;
 
 void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
@@ -3104,10 +3172,16 @@ static void ui_button_paint(ui_view_t* view) {
     int32_t h = sign * view->h;
     int32_t x = b->view.x + (int)pressed * view->w;
     int32_t y = b->view.y + (int)pressed * view->h;
-    gdi.gradient(x, y, w, h, colors.btn_gradient_darker,
-        colors.btn_gradient_dark, true);
-    ui_color_t c = view->armed ? colors.btn_armed : view->color;
-    if (b->view.hover && !view->armed) { c = colors.btn_hover_highlight; }
+    if (!b->flat || view->hover) {
+        gdi.gradient(x, y, w, h, colors.btn_gradient_darker,
+            colors.btn_gradient_dark, true);
+    }
+    ui_color_t c = view->color;
+    if (!b->flat && view->armed) {
+        c = colors.btn_armed;
+    }else if (!b->flat && b->view.hover && !view->armed) {
+        c = colors.btn_hover_highlight;
+    }
     if (view->disabled) { c = colors.btn_disabled; }
     ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
     ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
@@ -3121,11 +3195,13 @@ static void ui_button_paint(ui_view_t* view) {
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
     if (view->hover && !view->armed) { color = colors.blue; }
     if (view->disabled) { color = colors.dkgray1; }
-    ui_pen_t p = gdi.create_pen(color, pw);
-    gdi.set_pen(p);
-    gdi.set_brush(gdi.brush_hollow);
-    gdi.rounded(view->x, view->y, view->w, view->h, view->em.y / 4, view->em.y / 4);
-    gdi.delete_pen(p);
+    if (!b->flat) {
+        ui_pen_t p = gdi.create_pen(color, pw);
+        gdi.set_pen(p);
+        gdi.set_brush(gdi.brush_hollow);
+        gdi.rounded(view->x, view->y, view->w, view->h, view->em.y / 4, view->em.y / 4);
+        gdi.delete_pen(p);
+    }
     gdi.pop();
 }
 
