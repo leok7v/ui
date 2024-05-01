@@ -9,7 +9,6 @@
 #define ui_caption_glyph_full ui_glyph_square_four_corners
 #define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
 
-
 static void ui_caption_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h) {
     int32_t n = 16; // minimize distortion
     while (n * 2 < ut_min(w, h)) { n += n; }
