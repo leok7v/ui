@@ -912,7 +912,7 @@ static int64_t app_hit_test(int32_t x, int32_t y) {
     GetClientRect(app_window(), &rc);
     MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
     // border thickness: width of the resize border
-    int32_t bt = app.in2px(1.0 / 16.0);
+    int32_t bt = ut_max(4, app.in2px(1.0 / 32.0));
     if (x < rc.left + bt && y < rc.top + bt) {
         return ui.hit_test.top_left;
     } else if (x > rc.right - bt && y < rc.top + bt) {

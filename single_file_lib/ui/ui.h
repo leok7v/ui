@@ -31,23 +31,6 @@ typedef double fp64_t;
     #define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #endif
 
-// min()/max() macro is a highly debated story because
-// one of the arguments of (a, b) is evaluated twice (which
-// is bad if it has side effect).
-// Consider using ut_min()/ut_max() generic implementation
-// instead.
-
-#ifndef max
-#define max(a,b) (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef min
-#define min(a,b) (((a) < (b)) ? (a) : (b))
-#endif
-
-// see ut_generics.h/.c for alternative to definining minimum/maximum
-// as C11 generics functions. For now experimental
-
 #if defined(__GNUC__) || defined(__clang__)
     #define force_inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
@@ -117,6 +100,30 @@ typedef struct ui_cursor_s* ui_cursor_t;
 typedef struct ui_region_s* ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
+
+#define ui_glyph_square_four_corners                    "\xE2\x9B\xB6"
+// Square Four Corners (caption full screen button)
+// https://www.compart.com/en/unicode/U+26F6
+
+#define ui_glyph_white_large_square                     "\xE2\xAC\x9C"
+// White Large Square (caption maximize button)
+// https://www.compart.com/en/unicode/U+2B1C
+
+#define ui_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
+// N-Ary Times Operator (caption close button)
+// https://www.compart.com/en/unicode/U+2A09
+
+#define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
+// Heavy Minus Sign (caption minimize button)
+// https://www.compart.com/en/unicode/U+2796
+
+#define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
+// Trigram For Heaven (caption menu button)
+// https://www.compart.com/en/unicode/U+2630
+
+#define ui_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
+// Braille Pattern Dots-12345678 (tool bar drag handle like: msvc toolbars)
+// https://www.compart.com/en/unicode/U+28FF
 
 typedef struct image_s { // TODO: ui_ namespace
     int32_t w; // width
@@ -2020,7 +2027,7 @@ static int64_t app_hit_test(int32_t x, int32_t y) {
     GetClientRect(app_window(), &rc);
     MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
     // border thickness: width of the resize border
-    int32_t bt = app.in2px(1.0 / 16.0);
+    int32_t bt = ut_max(4, app.in2px(1.0 / 32.0));
     if (x < rc.left + bt && y < rc.top + bt) {
         return ui.hit_test.top_left;
     } else if (x > rc.right - bt && y < rc.top + bt) {

@@ -38,9 +38,6 @@
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\src\samples\i18n.h" />
-    <ClInclude Include="..\inc\ut\ut_version.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut_debug.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
@@ -110,6 +107,8 @@
     <ClInclude Include="..\inc\ut\ut_clipboard.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ut\version.h" />
+    <ClInclude Include="..\src\samples\ui_caption.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="inc">
@@ -130,13 +129,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\samples\sample8.c" />
+    <ClCompile Include="..\src\samples\ui_caption.c" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="manifest.xml" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\inc\ut\ut_version.rc.in">
-      <Filter>inc\ut</Filter>
-    </None>
+    <None Include="..\inc\ut\version.rc.in" />
   </ItemGroup>
 </Project>

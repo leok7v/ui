@@ -17,6 +17,30 @@ typedef struct ui_region_s* ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
+#define ui_glyph_square_four_corners                    "\xE2\x9B\xB6"
+// Square Four Corners (caption full screen button)
+// https://www.compart.com/en/unicode/U+26F6
+
+#define ui_glyph_white_large_square                     "\xE2\xAC\x9C"
+// White Large Square (caption maximize button)
+// https://www.compart.com/en/unicode/U+2B1C
+
+#define ui_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
+// N-Ary Times Operator (caption close button)
+// https://www.compart.com/en/unicode/U+2A09
+
+#define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
+// Heavy Minus Sign (caption minimize button)
+// https://www.compart.com/en/unicode/U+2796
+
+#define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
+// Trigram For Heaven (caption menu button)
+// https://www.compart.com/en/unicode/U+2630
+
+#define ui_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
+// Braille Pattern Dots-12345678 (tool bar drag handle like: msvc toolbars)
+// https://www.compart.com/en/unicode/U+28FF
+
 typedef struct image_s { // TODO: ui_ namespace
     int32_t w; // width
     int32_t h; // height

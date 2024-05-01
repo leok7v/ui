@@ -27,23 +27,6 @@ typedef double fp64_t;
     #define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #endif
 
-// min()/max() macro is a highly debated story because
-// one of the arguments of (a, b) is evaluated twice (which
-// is bad if it has side effect).
-// Consider using ut_min()/ut_max() generic implementation
-// instead.
-
-#ifndef max
-#define max(a,b) (((a) > (b)) ? (a) : (b))
-#endif
-
-#ifndef min
-#define min(a,b) (((a) < (b)) ? (a) : (b))
-#endif
-
-// see ut_generics.h/.c for alternative to definining minimum/maximum
-// as C11 generics functions. For now experimental
-
 #if defined(__GNUC__) || defined(__clang__)
     #define force_inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
