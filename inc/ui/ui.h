@@ -12,4 +12,5 @@
 #include "ui/ui_toggle.h"
 #include "ui/ui_slider.h"
 #include "ui/ui_mbx.h"
+#include "ui/ui_caption.h"
 #include "ui/ui_app.h" // must be last

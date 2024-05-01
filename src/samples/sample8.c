@@ -1,7 +1,6 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 #include "ui/ui.h"
-#include "ui_caption.h"
 
 static const char* title = "Sample8: Panels";
 
@@ -22,20 +21,8 @@ static void bottom_callback(ui_button_t* b) {
     app.layout();
 }
 
-#define ui_glyph_menu   ui_glyph_trigram_for_heaven
-#define ui_glyph_mini   ui_glyph_heavy_minus_sign
-#define ui_glyph_maxi   ui_glyph_white_large_square
-#define ui_glyph_full   ui_glyph_square_four_corners
-#define ui_glyph_close  ui_glyph_n_ary_times_operator
-
 #define ui_glyph_bottom ui_glyph_squared_minus
 #define ui_glyph_side   ui_glyph_white_square_with_vertical_bisecting_line
-
-static ui_button_t button_menu  = ui_button(ui_glyph_menu,  0.0, null);
-static ui_button_t button_mini  = ui_button(ui_glyph_mini,  0.0, null);
-static ui_button_t button_maxi  = ui_button(ui_glyph_maxi,  0.0, null);
-static ui_button_t button_full  = ui_button(ui_glyph_full,  0.0, null);
-static ui_button_t button_close = ui_button(ui_glyph_close, 0.0, close_callback);
 
 static ui_button_t button_bottom = ui_button(ui_glyph_bottom, 0.0, bottom_callback);
 
@@ -55,7 +42,7 @@ static void root_layout(ui_view_t* view) { // root layout
     ui_caption.view.x = 2;
     ui_caption.view.y = 2;
     layouts.horizontal(&ui_caption.view, ui_caption.view.x + view->em.x / 4,
-                        ui_caption.view.y + view->em.y / 4, view->em.x);
+                        ui_caption.view.y + view->em.y / 8, view->em.x / 8);
     center_pane.x = 2;
     center_pane.y = ui_caption.view.y + ui_caption.view.h;
 //  traceln("center_pane: %d,%d", center_pane.x, center_pane.y);
@@ -83,29 +70,23 @@ static void opened(void) {
     app.view->measure   = root_measure;
     app.view->layout    = root_layout;
     ui_view.add(app.view,
-        ui_view.add(&ui_caption.view,
-                    &button_menu,
-                    &button_mini,
-                    &button_maxi,
-                    &button_full,
-                    &button_close, null),
-        ui_view.add(&center_pane, &left_pane, &content_pane, &right_pane, null),
+        &ui_caption.view,
+        ui_view.add(&center_pane,
+                    &left_pane,
+                    &content_pane,
+                    &right_pane,
+                    null),
         &bottom_pane,
         ui_view.add(&status_bar,
-                    &button_bottom, null),
+                    &button_bottom,
+                     null),
         null);
 
     center_pane.hidden = true;
     bottom_pane.hidden = true;
-//  status_bar.hidden = true;
 
     strprintf(ui_caption.view.text, "Sample8: Panels");
     ui_button_t* buttons[] = {
-        &button_menu,
-        &button_mini,
-        &button_maxi,
-        &button_full,
-        &button_close,
         &button_bottom
     };
     for (int32_t i = 0; i < countof(buttons); i++) {

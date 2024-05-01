@@ -101,46 +101,6 @@ typedef struct ui_region_s* ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
-// Square Four Corners (caption full screen button)
-// https://www.compart.com/en/unicode/U+26F6
-#define ui_glyph_square_four_corners                    "\xE2\x9B\xB6"
-
-// White Large Square (caption maximize button)
-// https://www.compart.com/en/unicode/U+2B1C
-#define ui_glyph_white_large_square                     "\xE2\xAC\x9C"
-
-// N-Ary Times Operator (caption close button)
-// https://www.compart.com/en/unicode/U+2A09
-#define ui_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
-
-// Heavy Minus Sign (caption minimize button)
-// https://www.compart.com/en/unicode/U+2796
-#define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
-
-// Trigram For Heaven (caption menu button)
-// https://www.compart.com/en/unicode/U+2630
-#define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
-
-// Braille Pattern Dots-12345678 (tool bar drag handle like: msvc toolbars)
-// https://www.compart.com/en/unicode/U+28FF
-#define ui_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
-
-// White Square with Upper Left Quadrant
-// https://www.compart.com/en/unicode/U+25F0
-#define ui_glyph_white_square_with_upper_left_quadrant "\xE2\x97\xB0"
-
-// White Square with Lower Left Quadrant
-// https://www.compart.com/en/unicode/U+25F1
-#define ui_glyph_white_square_with_lower_left_quadrant "\xE2\x97\xB1"
-
-// White Square with Lower Right Quadrant
-// https://www.compart.com/en/unicode/U+25F2
-#define ui_glyph_white_square_with_lower_right_quadrant "\xE2\x97\xB2"
-
-// White Square with Upper Right Quadrant
-// https://www.compart.com/en/unicode/U+25F3
-#define ui_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
-
 typedef struct image_s { // TODO: ui_ namespace
     int32_t w; // width
     int32_t h; // height
@@ -614,6 +574,63 @@ extern gdi_t gdi;
 // Squared Minus (White Square with Horizontal Bisecting Line)
 // https://www.compart.com/en/unicode/U+229F
 #define ui_glyph_squared_minus                          "\xE2\x8A\x9F"
+
+// North East and South West Arrow
+// https://www.compart.com/en/unicode/U+2922
+#define ui_glyph_north_east_and_south_west_arrow        "\xE2\xA4\xA2"
+
+// South East Arrow to Corner
+// https://www.compart.com/en/unicode/U+21F2
+#define ui_glyph_south_east_white_arrow_to_corner       "\xE2\x87\xB2"
+
+// North West Arrow to Corner
+// https://www.compart.com/en/unicode/U+21F1
+#define ui_glyph_north_west_white_arrow_to_corner       "\xE2\x87\xB1"
+
+// Leftwards Arrow to Bar
+// https://www.compart.com/en/unicode/U+21E6
+#define ui_glyph_leftwards_white_arrow_to_bar           "\xE2\x87\xA6"
+
+// Rightwards Arrow to Bar
+// https://www.compart.com/en/unicode/U+21E8
+#define ui_glyph_rightwards_white_arrow_to_bar          "\xE2\x87\xA8"
+
+// Upwards White Arrow
+// https://www.compart.com/en/unicode/U+21E7
+#define ui_glyph_upwards_white_arrow                    "\xE2\x87\xA7"
+
+// Downwards White Arrow
+// https://www.compart.com/en/unicode/U+21E9
+#define ui_glyph_downwards_white_arrow                  "\xE2\x87\xA9"
+
+// Leftwards White Arrow
+// https://www.compart.com/en/unicode/U+21E4
+#define ui_glyph_leftwards_white_arrow                  "\xE2\x87\xA4"
+
+// Rightwards White Arrow
+// https://www.compart.com/en/unicode/U+21E5
+#define ui_glyph_rightwards_white_arrow                 "\xE2\x87\xA5"
+
+// Upwards White Arrow on Pedestal
+// https://www.compart.com/en/unicode/U+21EB
+#define ui_glyph_upwards_white_arrow_on_pedestal        "\xE2\x87\xAB"
+
+// Braille Pattern Dots-678
+// https://www.compart.com/en/unicode/U+28E0
+#define ui_glyph_3_dots_tiny_right_bottom_triangle      "\xE2\xA3\xA0"
+
+// Braille Pattern Dots-2345678
+// https://www.compart.com/en/unicode/U+28FE
+// Combining the two into:
+#define ui_glyph_dotted_right_bottom_triangle           "\xE2\xA3\xA0\xE2\xA3\xBE"
+
+// Two Joined Squares
+// https://www.compart.com/en/unicode/U+29C9
+#define ui_glyph_two_joined_squares                     "\xE2\xA7\x89"
+
+// Upper Right Drop-Shadowed White Square
+// https://www.compart.com/en/unicode/U+2750
+#define ui_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
 // ________________________________ ui_view.h _________________________________
 
 #include "ut/ut_std.h"
@@ -1013,6 +1030,9 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     .opts = (const char*[]){ __VA_ARGS__, null },        \
     .cb = callback }
 
+// _______________________________ ui_caption.h _______________________________
+
+/* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 // _________________________________ ui_app.h _________________________________
 
 #include "ut/ut_std.h"
@@ -1173,6 +1193,25 @@ typedef struct app_s {  // TODO: ui_ namespace
 } app_t;
 
 extern app_t app;
+
+
+
+typedef struct ui_caption_s {
+    ui_view_t view;
+    int64_t (*hit_test)(int32_t x, int32_t y);
+    // children of caption
+    ui_button_t button_menu; // ui_caption.button_menu.cb = callback
+    ui_button_t button_mini;
+    ui_button_t button_maxi;
+    ui_button_t button_full;
+    ui_button_t button_quit;
+    ui_view_t   content_view; // use instead of app.view
+    // state:
+    ui_point_t dragging;
+    ui_point_t resizing;
+} ui_caption_t;
+
+extern ui_caption_t ui_caption;
 
 
 end_c
@@ -1702,7 +1741,8 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
 }
 
 static void app_paint(ui_view_t* view) {
-    assert(app.crc.w > 0 && app.crc.h > 0 && app_window() != null);
+    assert(app_window() != null);
+    // crc = {0,0} on minimized windows but paint is still called
     if (app.crc.w > 0 && app.crc.h > 0) { ui_view.paint(view); }
 }
 
@@ -2091,12 +2131,21 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 }
 
 static int64_t app_hit_test(int32_t x, int32_t y) {
+    assert(!ui_caption.view.hidden);
     RECT rc;
     GetClientRect(app_window(), &rc);
     MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
     // border thickness: width of the resize border
-    int32_t bt = ut_max(4, app.in2px(1.0 / 32.0));
-    if (x < rc.left + bt && y < rc.top + bt) {
+    int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
+    int32_t cx = x - app.wrc.x;
+    int32_t cy = y - app.wrc.y;
+    if (y < rc.top + bt) {
+        return ui.hit_test.top;
+    } else if (!ui_caption.view.hidden && y < rc.top + ui_caption.view.h) {
+        return ui_caption.hit_test(cx, cy);
+    } else if (app.is_full_screen) {
+        return ui.hit_test.client;
+    } else if(x < rc.left + bt && y < rc.top + bt) {
         return ui.hit_test.top_left;
     } else if (x > rc.right - bt && y < rc.top + bt) {
         return ui.hit_test.top_right;
@@ -2108,8 +2157,6 @@ static int64_t app_hit_test(int32_t x, int32_t y) {
         return ui.hit_test.left;
     } else if (x > rc.right - bt) {
         return ui.hit_test.right;
-    } else if (y < rc.top + bt) {
-        return ui.hit_test.top;
     } else if (y > rc.bottom - bt) {
         return ui.hit_test.bottom;
     } else {
@@ -2152,7 +2199,7 @@ static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
                                app_post_message(ui.message.closing, 0, 0); return 0;
         case WM_DESTROY      : PostQuitMessage(app.exit_code); break;
         case WM_NCHITTEST    :
-            if (app.no_decor && !app.no_size) {
+            if (app.no_decor && !app.no_size && !ui_caption.view.hidden) {
                 return app.hit_test(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
             } else {
                 break;
@@ -3302,6 +3349,241 @@ void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
     b->view.width = ems;
     ui_button_init_(&b->view);
 }
+// _______________________________ ui_caption.c _______________________________
+
+/* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
+#include "ut/ut.h"
+
+
+#define ui_caption_glyph_rest ui_glyph_upper_right_drop_shadowed_white_square
+#define ui_caption_glyph_menu ui_glyph_trigram_for_heaven
+#define ui_caption_glyph_mini ui_glyph_heavy_minus_sign
+#define ui_caption_glyph_maxi ui_glyph_white_large_square
+#define ui_caption_glyph_full ui_glyph_square_four_corners
+#define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
+
+#ifdef ui_caption_needs_to_do_it_itself
+
+static void ui_caption_mouse(ui_view_t* v, int32_t m, int64_t flags) {
+    swear(v == &ui_caption.view, "window dragging only by caption");
+    ui_caption_t* c = &ui_caption;
+    bool resizing = c->resizing.x != 0 || c->resizing.y != 0;
+//  traceln("resizing: %d %d,%d", resizing, c->resizing.x, c->resizing.y);
+    if (!resizing) {
+        bool dragging = c->dragging.x != 0 || c->dragging.y != 0;
+        bool pressed =
+            m == ui.message.left_button_pressed ||
+            m == ui.message.right_button_pressed;
+        bool released =
+            m == ui.message.left_button_released ||
+            m == ui.message.right_button_released;
+        bool holding = flags & (ui.mouse.button.left|ui.mouse.button.left);
+        if (m == ui.message.mouse_move && !holding) {
+            released = true;
+        }
+        if (ui_view.inside(v, &app.mouse)) {
+            if (pressed && !dragging) {
+                c->dragging = app.mouse;
+                app.capture_mouse(true);
+            } else if (dragging && released) {
+                c->dragging = (ui_point_t){0, 0};
+                app.capture_mouse(false);
+                dragging = false;
+            }
+        }
+        if (m == ui.message.mouse_move && dragging && holding) {
+            const int32_t dx = app.mouse.x - c->dragging.x;
+            const int32_t dy = app.mouse.y - c->dragging.y;
+            if (dx != 0 || dy != 0) {
+                traceln("dx,dy: %4d,%4d", dx, dy);
+                ui_rect_t r = app.wrc;
+                r.x += dx;
+                r.y += dy;
+                app.move_and_resize(&r);
+            }
+        }
+    }
+}
+
+static void ui_app_view_mouse(ui_view_t* v, int32_t m, int64_t flags) {
+if (1) return;
+    swear(v == app.view);
+    ui_caption_t* c = &ui_caption;
+    bool dragging = c->dragging.x != 0 || c->dragging.y != 0;
+//  traceln("dragging: %d %d,%d", dragging, c->dragging.x, c->dragging.y);
+    if (!dragging) {
+        int64_t ht = app.hit_test(app.mouse.x, app.mouse.y);
+        bool started  = c->resizing.x != 0 || c->resizing.y != 0;
+        bool pressed  = (m == ui.message.left_button_pressed);
+        bool released = (m == ui.message.left_button_released);
+        bool holding = flags & (ui.mouse.button.left|ui.mouse.button.left);
+        if (m == ui.message.mouse_move && !holding) {
+            released = true;
+        }
+        if (pressed && !started) {
+            c->resizing = app.mouse; // save starting mouse position
+            started = true;
+        }
+        if (released || !holding) { // reset start position and hit test result
+            c->resizing = (ui_point_t){0, 0};
+            ht = ui.hit_test.client;
+            started = false;
+        }
+        if (m == ui.message.mouse_move && started && holding) {
+            int32_t dx = app.mouse.x - c->resizing.x;
+            int32_t dy = app.mouse.y - c->resizing.y;
+            if (ht != ui.hit_test.client && (dx != 0 || dy != 0)) {
+//              traceln("hit_test_result: %d", ht);
+                ui_rect_t r = app.wrc;
+                if (ht == ui.hit_test.top_left) {
+                    r.x += dx; r.y += dy; r.w -= dx; r.h -= dy;
+                } else if (ht == ui.hit_test.top_right) {
+                    r.y += dy; r.w += dx; r.h -= dy;
+                } else if (ht == ui.hit_test.bottom_left) {
+                    r.x += dx; r.w -= dx; r.h += dy;
+                } else if (ht == ui.hit_test.bottom_right) {
+                    r.w += dx; r.h += dy;
+                } else if (ht == ui.hit_test.left) {
+                    r.x += dx; r.w -= dx;
+                } else if (ht == ui.hit_test.right) {
+                    r.w += dx;
+                } else if (ht == ui.hit_test.top) {
+                    r.y += dy; r.h -= dy;
+                } else if (ht == ui.hit_test.bottom) {
+                    r.h += dy;
+                }
+                // assumes no padding in structs:
+                if (memcmp(&r, &app.wrc, sizeof(r)) != 0) {
+                    traceln("hit_test: %d resize: %d,%d %dx%d", ht, r.x, r.y, r.w, r.h);
+                    app.move_and_resize(&r);
+                }
+            }
+        }
+    }
+}
+
+#endif
+
+static void ui_caption_paint(ui_view_t* v) {
+    swear(v == &ui_caption.view);
+    gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    if (v->text[0] != 0) {
+        gdi.push(v->x, v->y);
+        ui_point_t mt = gdi.measure_text(*v->font, v->text);
+        gdi.x += (v->w - mt.x) / 2;
+        gdi.y += (v->h - mt.y) / 2;
+        gdi.set_text_color((ui_color_t)(v->color ^ 0xFFFFFF));
+        gdi.text("%s", v->text);
+        gdi.pop();
+    }
+}
+
+static void ui_caption_toggle_full(void) {
+    app.full_screen(!app.is_full_screen);
+    ui_caption.view.hidden = app.is_full_screen;
+    app.layout();
+}
+
+static void ui_app_view_character(ui_view_t* v, const char utf8[]) {
+    swear(v == app.view);
+    if (utf8[0] == 033 && app.is_full_screen) { ui_caption_toggle_full(); }
+}
+
+static void ui_app_view_paint(ui_view_t* v) {
+    swear(v == app.view);
+    gdi.fill_with(0, 0, v->w, v->h, colors.dkgray1);
+    ui_color_t c = app.is_active() ? colors.orange : colors.btn_hover_highlight;
+    if (app.is_full_screen) { c = colors.dkgray1; }
+    gdi.frame_with(0, 0, v->w - 0, v->h - 0, colors.dkgray1);
+    gdi.frame_with(1, 1, v->w - 2, v->h - 2, c);
+}
+
+static void ui_caption_init(ui_view_t* v) {
+    swear(v == &ui_caption.view, "caption is a singleton");
+    v->hidden = false,
+    v->color = colors.dkgray2;
+    v->paint = ui_caption_paint;
+//  v->mouse = ui_caption_mouse;
+    app.view->character = ui_app_view_character; // ESC for full screen
+    app.view->paint = ui_app_view_paint;
+//  app.view->mouse = ui_app_view_mouse;
+    ui_view.add(&ui_caption.view,
+        &ui_caption.button_menu,
+        &ui_caption.button_mini,
+        &ui_caption.button_maxi,
+        &ui_caption.button_full,
+        &ui_caption.button_quit,
+        null);
+    ui_button_t* buttons[] = {
+        &ui_caption.button_menu,
+        &ui_caption.button_mini,
+        &ui_caption.button_maxi,
+        &ui_caption.button_full,
+        &ui_caption.button_quit,
+    };
+    for (int32_t i = 0; i < countof(buttons); i++) {
+        buttons[i]->view.font = &app.fonts.H2;
+        buttons[i]->view.color = colors.white;
+        buttons[i]->flat = true;
+    }
+}
+
+static void ui_caption_quit(ui_button_t* unused(b)) {
+    app.close();
+}
+
+static void ui_caption_mini(ui_button_t* unused(b)) {
+    app.show_window(ui.visibility.minimize);
+}
+
+static void ui_caption_maxi(ui_button_t* unused(b)) {
+    // TODO: Absolutely correct handling is much more
+    //       complicated than this. Because of the
+    //       initial state of window may possibly be
+    //       full screen or maximized (see app.visibility)
+    //       Note that show_window() does not update
+    //       app.visibility because e.g. restore or show_na
+    //       may result if a variety of visibility states
+    static bool maximized;
+    if (!maximized) {
+        app.show_window(ui.visibility.maximize);
+        maximized = true;
+        strprintf(ui_caption.button_maxi.view.text, "%s",
+                  ui_caption_glyph_rest);
+    } else {
+        app.show_window(ui.visibility.restore);
+        maximized = false;
+        strprintf(ui_caption.button_maxi.view.text, "%s",
+                  ui_caption_glyph_maxi);
+    }
+}
+
+static void ui_caption_full(ui_button_t* unused(b)) {
+    ui_caption_toggle_full();
+}
+
+static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
+    ui_point_t pt = {x, y};
+    ui_view_for_each(&ui_caption.view, c, {
+        if (ui_view.inside(c, &pt)) { return ui.hit_test.client; }
+    });
+    return ui.hit_test.caption;
+}
+
+ui_caption_t ui_caption =  {
+    .view = {
+        .type = ui_view_container,
+        .init = ui_caption_init,
+        .hidden = true,
+    },
+    .hit_test = ui_caption_hit_test,
+    .button_menu = ui_button(ui_caption_glyph_menu, 0.0, null),
+    .button_mini = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mini),
+    .button_maxi = ui_button(ui_caption_glyph_maxi, 0.0, ui_caption_maxi),
+    .button_full = ui_button(ui_caption_glyph_full, 0.0, ui_caption_full),
+    .button_quit = ui_button(ui_caption_glyph_quit, 0.0, ui_caption_quit),
+    .content_view = ui_view(container),
+};
 // _______________________________ ui_colors.c ________________________________
 
 #include "ut/ut.h"

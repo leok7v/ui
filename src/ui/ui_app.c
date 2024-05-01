@@ -519,7 +519,8 @@ static void app_get_min_max_info(MINMAXINFO* mmi) {
 }
 
 static void app_paint(ui_view_t* view) {
-    assert(app.crc.w > 0 && app.crc.h > 0 && app_window() != null);
+    assert(app_window() != null);
+    // crc = {0,0} on minimized windows but paint is still called
     if (app.crc.w > 0 && app.crc.h > 0) { ui_view.paint(view); }
 }
 
@@ -908,12 +909,21 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 }
 
 static int64_t app_hit_test(int32_t x, int32_t y) {
+    assert(!ui_caption.view.hidden);
     RECT rc;
     GetClientRect(app_window(), &rc);
     MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
     // border thickness: width of the resize border
-    int32_t bt = ut_max(4, app.in2px(1.0 / 32.0));
-    if (x < rc.left + bt && y < rc.top + bt) {
+    int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
+    int32_t cx = x - app.wrc.x;
+    int32_t cy = y - app.wrc.y;
+    if (y < rc.top + bt) {
+        return ui.hit_test.top;
+    } else if (!ui_caption.view.hidden && y < rc.top + ui_caption.view.h) {
+        return ui_caption.hit_test(cx, cy);
+    } else if (app.is_full_screen) {
+        return ui.hit_test.client;
+    } else if(x < rc.left + bt && y < rc.top + bt) {
         return ui.hit_test.top_left;
     } else if (x > rc.right - bt && y < rc.top + bt) {
         return ui.hit_test.top_right;
@@ -925,8 +935,6 @@ static int64_t app_hit_test(int32_t x, int32_t y) {
         return ui.hit_test.left;
     } else if (x > rc.right - bt) {
         return ui.hit_test.right;
-    } else if (y < rc.top + bt) {
-        return ui.hit_test.top;
     } else if (y > rc.bottom - bt) {
         return ui.hit_test.bottom;
     } else {
@@ -969,7 +977,7 @@ static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
                                app_post_message(ui.message.closing, 0, 0); return 0;
         case WM_DESTROY      : PostQuitMessage(app.exit_code); break;
         case WM_NCHITTEST    :
-            if (app.no_decor && !app.no_size) {
+            if (app.no_decor && !app.no_size && !ui_caption.view.hidden) {
                 return app.hit_test(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
             } else {
                 break;

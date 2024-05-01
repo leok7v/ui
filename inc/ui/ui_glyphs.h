@@ -48,3 +48,60 @@
 // Squared Minus (White Square with Horizontal Bisecting Line)
 // https://www.compart.com/en/unicode/U+229F
 #define ui_glyph_squared_minus                          "\xE2\x8A\x9F"
+
+// North East and South West Arrow
+// https://www.compart.com/en/unicode/U+2922
+#define ui_glyph_north_east_and_south_west_arrow        "\xE2\xA4\xA2"
+
+// South East Arrow to Corner
+// https://www.compart.com/en/unicode/U+21F2
+#define ui_glyph_south_east_white_arrow_to_corner       "\xE2\x87\xB2"
+
+// North West Arrow to Corner
+// https://www.compart.com/en/unicode/U+21F1
+#define ui_glyph_north_west_white_arrow_to_corner       "\xE2\x87\xB1"
+
+// Leftwards Arrow to Bar
+// https://www.compart.com/en/unicode/U+21E6
+#define ui_glyph_leftwards_white_arrow_to_bar           "\xE2\x87\xA6"
+
+// Rightwards Arrow to Bar
+// https://www.compart.com/en/unicode/U+21E8
+#define ui_glyph_rightwards_white_arrow_to_bar          "\xE2\x87\xA8"
+
+// Upwards White Arrow
+// https://www.compart.com/en/unicode/U+21E7
+#define ui_glyph_upwards_white_arrow                    "\xE2\x87\xA7"
+
+// Downwards White Arrow
+// https://www.compart.com/en/unicode/U+21E9
+#define ui_glyph_downwards_white_arrow                  "\xE2\x87\xA9"
+
+// Leftwards White Arrow
+// https://www.compart.com/en/unicode/U+21E4
+#define ui_glyph_leftwards_white_arrow                  "\xE2\x87\xA4"
+
+// Rightwards White Arrow
+// https://www.compart.com/en/unicode/U+21E5
+#define ui_glyph_rightwards_white_arrow                 "\xE2\x87\xA5"
+
+// Upwards White Arrow on Pedestal
+// https://www.compart.com/en/unicode/U+21EB
+#define ui_glyph_upwards_white_arrow_on_pedestal        "\xE2\x87\xAB"
+
+// Braille Pattern Dots-678
+// https://www.compart.com/en/unicode/U+28E0
+#define ui_glyph_3_dots_tiny_right_bottom_triangle      "\xE2\xA3\xA0"
+
+// Braille Pattern Dots-2345678
+// https://www.compart.com/en/unicode/U+28FE
+// Combining the two into:
+#define ui_glyph_dotted_right_bottom_triangle           "\xE2\xA3\xA0\xE2\xA3\xBE"
+
+// Two Joined Squares
+// https://www.compart.com/en/unicode/U+29C9
+#define ui_glyph_two_joined_squares                     "\xE2\xA7\x89"
+
+// Upper Right Drop-Shadowed White Square
+// https://www.compart.com/en/unicode/U+2750
+#define ui_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"

@@ -113,7 +113,6 @@
     <ClInclude Include="..\inc\ut\ut_vigil.h" />
     <ClInclude Include="..\inc\ut\ut_win32.h" />
     <ClInclude Include="..\src\samples\i18n.h" />
-    <ClInclude Include="..\src\samples\ui_caption.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\src\samples\sample.ico" />
@@ -123,7 +122,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\samples\sample8.c" />
-    <ClCompile Include="..\src\samples\ui_caption.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="prebuild.vcxproj">

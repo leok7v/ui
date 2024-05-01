@@ -108,7 +108,6 @@
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\version.h" />
-    <ClInclude Include="..\src\samples\ui_caption.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="inc">
@@ -129,7 +128,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\samples\sample8.c" />
-    <ClCompile Include="..\src\samples\ui_caption.c" />
   </ItemGroup>
   <ItemGroup>
     <Xml Include="manifest.xml" />
