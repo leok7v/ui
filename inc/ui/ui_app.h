@@ -38,14 +38,12 @@ typedef struct app_s {  // TODO: ui_ namespace
     void (*fini)(void);        // called before WinMain() return
     // must be filled by application:
     const char* title;
-    // min/max width/height are prefilled according to monitor size
     ui_window_sizing_t const window_sizing;
-    // TODO: need wstart/hstart which are between min/max
     int32_t visibility; // initial window_visibility state
     int32_t last_visibility;    // last window_visibility state from last run
     int32_t startup_visibility; // window_visibility from parent process
-    bool is_full_screen;
     // ui flags:
+    bool is_full_screen;
     bool no_ui;    // do not create application window at all
     bool no_decor; // window w/o title bar, min/max close buttons
     bool no_min;   // window w/o minimize button on title bar and sys menu
@@ -54,6 +52,7 @@ typedef struct app_s {  // TODO: ui_ namespace
     bool no_clip;  // allows to resize window above hosting monitor size
     bool hide_on_minimize; // like task manager minimize means hide
     bool aero;     // retro Windows 7 decoration (just for the fun of it)
+    ui_icon_t icon; // may be null
     int32_t exit_code; // application exit code
     int32_t tid; // main thread id
     // drawing context:

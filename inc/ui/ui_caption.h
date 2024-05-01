@@ -12,10 +12,6 @@ typedef struct ui_caption_s {
     ui_button_t button_maxi;
     ui_button_t button_full;
     ui_button_t button_quit;
-    ui_view_t   content_view; // use instead of app.view
-    // state:
-    ui_point_t dragging;
-    ui_point_t resizing;
 } ui_caption_t;
 
 extern ui_caption_t ui_caption;

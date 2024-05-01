@@ -11,10 +11,6 @@ static ui_view_t center_pane  = ui_view(container);
 static ui_view_t bottom_pane  = ui_view(container);
 static ui_view_t status_bar   = ui_view(container);
 
-static void close_callback(ui_button_t* unused(b)) {
-    app.close();
-}
-
 static void bottom_callback(ui_button_t* b) {
     b->view.pressed = !b->view.pressed;
     bottom_pane.hidden = b->view.pressed;
@@ -41,8 +37,9 @@ static void root_layout(ui_view_t* view) { // root layout
     assert(view == app.view && view->x == 0 && view->y == 0);
     ui_caption.view.x = 2;
     ui_caption.view.y = 2;
-    layouts.horizontal(&ui_caption.view, ui_caption.view.x + view->em.x / 4,
-                        ui_caption.view.y + view->em.y / 8, view->em.x / 8);
+    layouts.horizontal(&ui_caption.view,
+                        ui_caption.view.x + ui_caption.button_menu.view.w + view->em.x / 4,
+                        ui_caption.view.y + view->em.y / 4, view->em.x / 8);
     center_pane.x = 2;
     center_pane.y = ui_caption.view.y + ui_caption.view.h;
 //  traceln("center_pane: %d,%d", center_pane.x, center_pane.y);
@@ -86,14 +83,9 @@ static void opened(void) {
     bottom_pane.hidden = true;
 
     strprintf(ui_caption.view.text, "Sample8: Panels");
-    ui_button_t* buttons[] = {
-        &button_bottom
-    };
-    for (int32_t i = 0; i < countof(buttons); i++) {
-        buttons[i]->view.font = &app.fonts.H3;
-        buttons[i]->view.color = colors.white;
-        buttons[i]->flat = true;
-    }
+    button_bottom.view.font = &app.fonts.H3;
+    button_bottom.view.color = colors.white;
+    button_bottom.view.flat = true;
 
     // debug:
     strprintf(left_pane.text,    "left_pane");

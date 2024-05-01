@@ -91,6 +91,7 @@ typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
 
 typedef struct ui_window_s* ui_window_t;
+typedef struct ui_icon_s*   ui_icon_t;
 typedef struct ui_canvas_s* ui_canvas_t;
 typedef struct ui_bitmap_s* ui_bitmap_t;
 typedef struct ui_font_s*   ui_font_t;
@@ -413,7 +414,7 @@ extern colors_t colors;
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
-enum {  // TODO: ui_ namespace and into gdi int32_t const 
+enum {  // TODO: ui_ namespace and into gdi int32_t const
     gdi_font_quality_default = 0,
     gdi_font_quality_draft = 1,
     gdi_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
@@ -480,6 +481,8 @@ typedef struct gdi_s {  // TODO: ui_ namespace
         image_t* image, fp64_t alpha);
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image);
+    void (*draw_icon)(int32_t x, int32_t y, int32_t w, int32_t h,
+        ui_icon_t icon);
     // text:
     void (*cleartype)(bool on);
     void (*font_smoothing_contrast)(int32_t c); // [1000..2202] or -1 for 1400 default
@@ -696,12 +699,14 @@ typedef struct ui_view_s {
     void (*timer)(ui_view_t* view, ui_timer_t id);
     void (*every_100ms)(ui_view_t* view); // ~10 x times per second
     void (*every_sec)(ui_view_t* view); // ~once a second
+    fp64_t armed_until; // ut_clock.seconds() - when to release
     bool hidden; // paint() is not called on hidden
     bool armed;
     bool hover;
     bool pressed;   // for ui_button_t and ui_toggle_t
     bool disabled;  // mouse, keyboard, key_up/down not called on disabled
     bool focusable; // can be target for keyboard focus
+    bool flat;      // no-border appearance of views
     fp64_t  hover_at;    // time in seconds when to call hovered()
     ui_color_t color;      // interpretation depends on ui element type
     ui_color_t background; // interpretation depends on ui element type
@@ -874,8 +879,6 @@ typedef struct ui_button_s ui_button_t;
 typedef struct ui_button_s {
     ui_view_t view;
     void (*cb)(ui_button_t* b); // callback
-    fp64_t armed_until;   // seconds - when to release
-    bool flat; // flat style button
 } ui_button_t;
 
 void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
@@ -1073,14 +1076,12 @@ typedef struct app_s {  // TODO: ui_ namespace
     void (*fini)(void);        // called before WinMain() return
     // must be filled by application:
     const char* title;
-    // min/max width/height are prefilled according to monitor size
     ui_window_sizing_t const window_sizing;
-    // TODO: need wstart/hstart which are between min/max
     int32_t visibility; // initial window_visibility state
     int32_t last_visibility;    // last window_visibility state from last run
     int32_t startup_visibility; // window_visibility from parent process
-    bool is_full_screen;
     // ui flags:
+    bool is_full_screen;
     bool no_ui;    // do not create application window at all
     bool no_decor; // window w/o title bar, min/max close buttons
     bool no_min;   // window w/o minimize button on title bar and sys menu
@@ -1089,6 +1090,7 @@ typedef struct app_s {  // TODO: ui_ namespace
     bool no_clip;  // allows to resize window above hosting monitor size
     bool hide_on_minimize; // like task manager minimize means hide
     bool aero;     // retro Windows 7 decoration (just for the fun of it)
+    ui_icon_t icon; // may be null
     int32_t exit_code; // application exit code
     int32_t tid; // main thread id
     // drawing context:
@@ -1205,10 +1207,6 @@ typedef struct ui_caption_s {
     ui_button_t button_maxi;
     ui_button_t button_full;
     ui_button_t button_quit;
-    ui_view_t   content_view; // use instead of app.view
-    // state:
-    ui_point_t dragging;
-    ui_point_t resizing;
 } ui_caption_t;
 
 extern ui_caption_t ui_caption;
@@ -2139,7 +2137,9 @@ static int64_t app_hit_test(int32_t x, int32_t y) {
     int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
     int32_t cx = x - app.wrc.x;
     int32_t cy = y - app.wrc.y;
-    if (y < rc.top + bt) {
+    if (x < rc.left + ui_caption.view.h && y < rc.top + ui_caption.view.h) {
+        return ui_caption.hit_test(cx, cy);
+    } else if (y < rc.top + bt) {
         return ui.hit_test.top;
     } else if (!ui_caption.view.hidden && y < rc.top + ui_caption.view.h) {
         return ui_caption.hit_test(cx, cy);
@@ -2370,15 +2370,15 @@ static void app_create_window(const ui_rect_t r) {
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 256 * 1024;
     wc.hInstance = GetModuleHandleA(null);
-    #define IDI_ICON 101
-    wc.hIcon = LoadIconA(wc.hInstance, MAKEINTRESOURCE(IDI_ICON));
+    wc.hIcon = LoadIconA(wc.hInstance, MAKEINTRESOURCE(101)); // IDI_ICON 101
     wc.hCursor = (HCURSOR)app.cursor;
     wc.hbrBackground = null;
     wc.lpszMenuName = null;
     wc.lpszClassName = app.class_name;
+    app.icon = (ui_icon_t)wc.hIcon;
     ATOM atom = RegisterClassA(&wc);
     fatal_if(atom == 0);
-    uint32_t style = app.no_decor ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+    uint32_t style = app.no_decor ? WS_POPUP|WS_SYSMENU : WS_OVERLAPPEDWINDOW;
     HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
         app.class_name, app.title, style,
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
@@ -3197,36 +3197,34 @@ int main(int argc, const char* argv[], const char** envp) {
 
 #include "ut/ut.h"
 
-static void ui_button_every_100ms(ui_view_t* view) { // every 100ms
-    assert(view->type == ui_view_button);
-    ui_button_t* b = (ui_button_t*)view;
-    if (b->armed_until != 0 && app.now > b->armed_until) {
-        b->armed_until = 0;
-        view->armed = false;
-        ui_view.invalidate(view);
+static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
+    assert(v->type == ui_view_button);
+    if (v->armed_until != 0 && app.now > v->armed_until) {
+        v->armed_until = 0;
+        v->armed = false;
+        ui_view.invalidate(v);
     }
 }
 
 static void ui_button_paint(ui_view_t* view) {
     assert(view->type == ui_view_button);
     assert(!view->hidden);
-    ui_button_t* b = (ui_button_t*)view;
     gdi.push(view->x, view->y);
     bool pressed = (view->armed ^ view->pressed) == 0;
-    if (b->armed_until != 0) { pressed = true; }
+    if (view->armed_until != 0) { pressed = true; }
     int32_t sign = 1 - pressed * 2; // -1, +1
     int32_t w = sign * view->w;
     int32_t h = sign * view->h;
-    int32_t x = b->view.x + (int)pressed * view->w;
-    int32_t y = b->view.y + (int)pressed * view->h;
-    if (!b->flat || view->hover) {
+    int32_t x = view->x + (int)pressed * view->w;
+    int32_t y = view->y + (int)pressed * view->h;
+    if (!view->flat || view->hover) {
         gdi.gradient(x, y, w, h, colors.btn_gradient_darker,
             colors.btn_gradient_dark, true);
     }
     ui_color_t c = view->color;
-    if (!b->flat && view->armed) {
+    if (!view->flat && view->armed) {
         c = colors.btn_armed;
-    }else if (!b->flat && b->view.hover && !view->armed) {
+    }else if (!view->flat && view->hover && !view->armed) {
         c = colors.btn_hover_highlight;
     }
     if (view->disabled) { c = colors.btn_disabled; }
@@ -3242,7 +3240,7 @@ static void ui_button_paint(ui_view_t* view) {
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
     if (view->hover && !view->armed) { color = colors.blue; }
     if (view->disabled) { color = colors.dkgray1; }
-    if (!b->flat) {
+    if (!view->flat) {
         ui_pen_t p = gdi.create_pen(color, pw);
         gdi.set_pen(p);
         gdi.set_brush(gdi.brush_hollow);
@@ -3272,7 +3270,7 @@ static void ui_button_trigger(ui_view_t* view) {
     view->armed = true;
     ui_view.invalidate(view);
     app.draw();
-    b->armed_until = app.now + 0.250;
+    view->armed_until = app.now + 0.250;
     ui_button_callback(b);
     ui_view.invalidate(view);
 }
@@ -3354,7 +3352,6 @@ void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 
-
 #define ui_caption_glyph_rest ui_glyph_upper_right_drop_shadowed_white_square
 #define ui_caption_glyph_menu ui_glyph_trigram_for_heaven
 #define ui_caption_glyph_mini ui_glyph_heavy_minus_sign
@@ -3362,120 +3359,32 @@ void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
 #define ui_caption_glyph_full ui_glyph_square_four_corners
 #define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
 
-#ifdef ui_caption_needs_to_do_it_itself
 
-static void ui_caption_mouse(ui_view_t* v, int32_t m, int64_t flags) {
-    swear(v == &ui_caption.view, "window dragging only by caption");
-    ui_caption_t* c = &ui_caption;
-    bool resizing = c->resizing.x != 0 || c->resizing.y != 0;
-//  traceln("resizing: %d %d,%d", resizing, c->resizing.x, c->resizing.y);
-    if (!resizing) {
-        bool dragging = c->dragging.x != 0 || c->dragging.y != 0;
-        bool pressed =
-            m == ui.message.left_button_pressed ||
-            m == ui.message.right_button_pressed;
-        bool released =
-            m == ui.message.left_button_released ||
-            m == ui.message.right_button_released;
-        bool holding = flags & (ui.mouse.button.left|ui.mouse.button.left);
-        if (m == ui.message.mouse_move && !holding) {
-            released = true;
-        }
-        if (ui_view.inside(v, &app.mouse)) {
-            if (pressed && !dragging) {
-                c->dragging = app.mouse;
-                app.capture_mouse(true);
-            } else if (dragging && released) {
-                c->dragging = (ui_point_t){0, 0};
-                app.capture_mouse(false);
-                dragging = false;
-            }
-        }
-        if (m == ui.message.mouse_move && dragging && holding) {
-            const int32_t dx = app.mouse.x - c->dragging.x;
-            const int32_t dy = app.mouse.y - c->dragging.y;
-            if (dx != 0 || dy != 0) {
-                traceln("dx,dy: %4d,%4d", dx, dy);
-                ui_rect_t r = app.wrc;
-                r.x += dx;
-                r.y += dy;
-                app.move_and_resize(&r);
-            }
-        }
-    }
+static void ui_caption_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h) {
+    int32_t n = 16; // minimize distortion
+    while (n * 2 < ut_min(w, h)) { n += n; }
+    gdi.draw_icon(x + (w - n) / 2, y + (h - n) / 2, n, n, app.icon);
 }
-
-static void ui_app_view_mouse(ui_view_t* v, int32_t m, int64_t flags) {
-if (1) return;
-    swear(v == app.view);
-    ui_caption_t* c = &ui_caption;
-    bool dragging = c->dragging.x != 0 || c->dragging.y != 0;
-//  traceln("dragging: %d %d,%d", dragging, c->dragging.x, c->dragging.y);
-    if (!dragging) {
-        int64_t ht = app.hit_test(app.mouse.x, app.mouse.y);
-        bool started  = c->resizing.x != 0 || c->resizing.y != 0;
-        bool pressed  = (m == ui.message.left_button_pressed);
-        bool released = (m == ui.message.left_button_released);
-        bool holding = flags & (ui.mouse.button.left|ui.mouse.button.left);
-        if (m == ui.message.mouse_move && !holding) {
-            released = true;
-        }
-        if (pressed && !started) {
-            c->resizing = app.mouse; // save starting mouse position
-            started = true;
-        }
-        if (released || !holding) { // reset start position and hit test result
-            c->resizing = (ui_point_t){0, 0};
-            ht = ui.hit_test.client;
-            started = false;
-        }
-        if (m == ui.message.mouse_move && started && holding) {
-            int32_t dx = app.mouse.x - c->resizing.x;
-            int32_t dy = app.mouse.y - c->resizing.y;
-            if (ht != ui.hit_test.client && (dx != 0 || dy != 0)) {
-//              traceln("hit_test_result: %d", ht);
-                ui_rect_t r = app.wrc;
-                if (ht == ui.hit_test.top_left) {
-                    r.x += dx; r.y += dy; r.w -= dx; r.h -= dy;
-                } else if (ht == ui.hit_test.top_right) {
-                    r.y += dy; r.w += dx; r.h -= dy;
-                } else if (ht == ui.hit_test.bottom_left) {
-                    r.x += dx; r.w -= dx; r.h += dy;
-                } else if (ht == ui.hit_test.bottom_right) {
-                    r.w += dx; r.h += dy;
-                } else if (ht == ui.hit_test.left) {
-                    r.x += dx; r.w -= dx;
-                } else if (ht == ui.hit_test.right) {
-                    r.w += dx;
-                } else if (ht == ui.hit_test.top) {
-                    r.y += dy; r.h -= dy;
-                } else if (ht == ui.hit_test.bottom) {
-                    r.h += dy;
-                }
-                // assumes no padding in structs:
-                if (memcmp(&r, &app.wrc, sizeof(r)) != 0) {
-                    traceln("hit_test: %d resize: %d,%d %dx%d", ht, r.x, r.y, r.w, r.h);
-                    app.move_and_resize(&r);
-                }
-            }
-        }
-    }
-}
-
-#endif
 
 static void ui_caption_paint(ui_view_t* v) {
     swear(v == &ui_caption.view);
+    gdi.push(v->x, v->y);
     gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    if (app.icon != null) {
+        ui_caption_draw_icon(
+            gdi.x,
+            ui_caption.button_menu.view.y,
+            ui_caption.button_menu.view.w,
+            ui_caption.button_menu.view.h);
+    }
     if (v->text[0] != 0) {
-        gdi.push(v->x, v->y);
         ui_point_t mt = gdi.measure_text(*v->font, v->text);
         gdi.x += (v->w - mt.x) / 2;
         gdi.y += (v->h - mt.y) / 2;
         gdi.set_text_color((ui_color_t)(v->color ^ 0xFFFFFF));
         gdi.text("%s", v->text);
-        gdi.pop();
     }
+    gdi.pop();
 }
 
 static void ui_caption_toggle_full(void) {
@@ -3514,18 +3423,11 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.button_full,
         &ui_caption.button_quit,
         null);
-    ui_button_t* buttons[] = {
-        &ui_caption.button_menu,
-        &ui_caption.button_mini,
-        &ui_caption.button_maxi,
-        &ui_caption.button_full,
-        &ui_caption.button_quit,
-    };
-    for (int32_t i = 0; i < countof(buttons); i++) {
-        buttons[i]->view.font = &app.fonts.H2;
-        buttons[i]->view.color = colors.white;
-        buttons[i]->flat = true;
-    }
+    ui_view_for_each(&ui_caption.view, c, {
+        c->font = &app.fonts.H3;
+        c->color = colors.white;
+        c->flat = true;
+        });
 }
 
 static void ui_caption_quit(ui_button_t* unused(b)) {
@@ -3567,6 +3469,9 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
     ui_view_for_each(&ui_caption.view, c, {
         if (ui_view.inside(c, &pt)) { return ui.hit_test.client; }
     });
+    if (x < ui_caption.view.h && y < ui_caption.view.h) {
+        return ui.hit_test.system_menu;
+    }
     return ui.hit_test.caption;
 }
 
@@ -3582,7 +3487,6 @@ ui_caption_t ui_caption =  {
     .button_maxi = ui_button(ui_caption_glyph_maxi, 0.0, ui_caption_maxi),
     .button_full = ui_button(ui_caption_glyph_full, 0.0, ui_caption_full),
     .button_quit = ui_button(ui_caption_glyph_quit, 0.0, ui_caption_quit),
-    .content_view = ui_view(container),
 };
 // _______________________________ ui_colors.c ________________________________
 
@@ -4359,6 +4263,11 @@ static void gdi_draw_image(int32_t x, int32_t y, int32_t w, int32_t h,
     }
 }
 
+static void gdi_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h,
+        ui_icon_t icon) {
+    DrawIconEx(app_canvas(), x, y, (HICON)icon, w, h, 0, NULL, DI_NORMAL | DI_COMPAT);
+}
+
 static void gdi_cleartype(bool on) {
     enum { spif = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE };
     fatal_if_false(SystemParametersInfoA(SPI_SETFONTSMOOTHING, true, 0, spif));
@@ -4687,64 +4596,65 @@ static void gdi_image_dispose(image_t* image) {
 }
 
 gdi_t gdi = {
-    .height_multiplier = 1.0,
-    .init = gdi_init,
-    .color_rgb = gdi_color_rgb,
-    .image_init = gdi_image_init,
-    .image_init_rgbx = gdi_image_init_rgbx,
-    .image_dispose = gdi_image_dispose,
-    .alpha_blend = gdi_alpha_blend,
-    .draw_image = gdi_draw_image,
-    .set_text_color = gdi_set_text_color,
-    .create_brush = gdi_create_brush,
-    .delete_brush = gdi_delete_brush,
-    .set_brush = gdi_set_brush,
-    .set_brush_color = gdi_set_brush_color,
-    .set_colored_pen = gdi_set_colored_pen,
-    .create_pen = gdi_create_pen,
-    .set_pen = gdi_set_pen,
-    .delete_pen = gdi_delete_pen,
-    .set_clip = gdi_set_clip,
-    .push = gdi_push,
-    .pop = gdi_pop,
-    .pixel = gdi_pixel,
-    .move_to = gdi_move_to,
-    .line = gdi_line,
-    .frame = gdi_frame,
-    .rect = gdi_rect,
-    .fill = gdi_fill,
-    .frame_with = gdi_frame_with,
-    .rect_with = gdi_rect_with,
-    .fill_with = gdi_fill_with,
-    .poly = gdi_poly,
-    .rounded = gdi_rounded,
-    .gradient = gdi_gradient,
-    .draw_greyscale = gdi_draw_greyscale,
-    .draw_bgr = gdi_draw_bgr,
-    .draw_bgrx = gdi_draw_bgrx,
-    .cleartype = gdi_cleartype,
-    .font_smoothing_contrast = gdi_font_smoothing_contrast,
-    .create_font = gdi_create_font,
-    .font = gdi_font,
-    .delete_font = gdi_delete_font,
-    .set_font = gdi_set_font,
-    .font_height = gdi_font_height,
-    .descent = gdi_descent,
-    .baseline = gdi_baseline,
-    .is_mono = gdi_is_mono,
-    .get_em = gdi_get_em,
-    .line_spacing = gdi_line_spacing,
-    .measure_text = gdi_measure_singleline,
-    .measure_multiline = gdi_measure_multiline,
-    .vtext = gdi_vtext,
-    .vtextln = gdi_vtextln,
-    .text = gdi_text,
-    .textln = gdi_textln,
-    .vprint = gdi_vprint,
-    .vprintln = gdi_vprintln,
-    .print = gdi_print,
-    .println = gdi_println,
-    .multiline = gdi_multiline
+    .height_multiplier             = 1.0,
+    .init                          = gdi_init,
+    .color_rgb                     = gdi_color_rgb,
+    .image_init                    = gdi_image_init,
+    .image_init_rgbx               = gdi_image_init_rgbx,
+    .image_dispose                 = gdi_image_dispose,
+    .alpha_blend                   = gdi_alpha_blend,
+    .draw_image                    = gdi_draw_image,
+    .draw_icon                     = gdi_draw_icon,
+    .set_text_color                = gdi_set_text_color,
+    .create_brush                  = gdi_create_brush,
+    .delete_brush                  = gdi_delete_brush,
+    .set_brush                     = gdi_set_brush,
+    .set_brush_color               = gdi_set_brush_color,
+    .set_colored_pen               = gdi_set_colored_pen,
+    .create_pen                    = gdi_create_pen,
+    .set_pen                       = gdi_set_pen,
+    .delete_pen                    = gdi_delete_pen,
+    .set_clip                      = gdi_set_clip,
+    .push                          = gdi_push,
+    .pop                           = gdi_pop,
+    .pixel                         = gdi_pixel,
+    .move_to                       = gdi_move_to,
+    .line                          = gdi_line,
+    .frame                         = gdi_frame,
+    .rect                          = gdi_rect,
+    .fill                          = gdi_fill,
+    .frame_with                    = gdi_frame_with,
+    .rect_with                     = gdi_rect_with,
+    .fill_with                     = gdi_fill_with,
+    .poly                          = gdi_poly,
+    .rounded                       = gdi_rounded,
+    .gradient                      = gdi_gradient,
+    .draw_greyscale                = gdi_draw_greyscale,
+    .draw_bgr                      = gdi_draw_bgr,
+    .draw_bgrx                     = gdi_draw_bgrx,
+    .cleartype                     = gdi_cleartype,
+    .font_smoothing_contrast       = gdi_font_smoothing_contrast,
+    .create_font                   = gdi_create_font,
+    .font                          = gdi_font,
+    .delete_font                   = gdi_delete_font,
+    .set_font                      = gdi_set_font,
+    .font_height                   = gdi_font_height,
+    .descent                       = gdi_descent,
+    .baseline                      = gdi_baseline,
+    .is_mono                       = gdi_is_mono,
+    .get_em                        = gdi_get_em,
+    .line_spacing                  = gdi_line_spacing,
+    .measure_text                  = gdi_measure_singleline,
+    .measure_multiline             = gdi_measure_multiline,
+    .vtext                         = gdi_vtext,
+    .vtextln                       = gdi_vtextln,
+    .text                          = gdi_text,
+    .textln                        = gdi_textln,
+    .vprint                        = gdi_vprint,
+    .vprintln                      = gdi_vprintln,
+    .print                         = gdi_print,
+    .println                       = gdi_println,
+    .multiline                     = gdi_multiline
 };
 
 #pragma pop_macro("gdi_hdc_with_font")

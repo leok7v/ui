@@ -917,7 +917,9 @@ static int64_t app_hit_test(int32_t x, int32_t y) {
     int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
     int32_t cx = x - app.wrc.x;
     int32_t cy = y - app.wrc.y;
-    if (y < rc.top + bt) {
+    if (x < rc.left + ui_caption.view.h && y < rc.top + ui_caption.view.h) {
+        return ui_caption.hit_test(cx, cy);
+    } else if (y < rc.top + bt) {
         return ui.hit_test.top;
     } else if (!ui_caption.view.hidden && y < rc.top + ui_caption.view.h) {
         return ui_caption.hit_test(cx, cy);
@@ -1148,15 +1150,15 @@ static void app_create_window(const ui_rect_t r) {
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 256 * 1024;
     wc.hInstance = GetModuleHandleA(null);
-    #define IDI_ICON 101
-    wc.hIcon = LoadIconA(wc.hInstance, MAKEINTRESOURCE(IDI_ICON));
+    wc.hIcon = LoadIconA(wc.hInstance, MAKEINTRESOURCE(101)); // IDI_ICON 101
     wc.hCursor = (HCURSOR)app.cursor;
     wc.hbrBackground = null;
     wc.lpszMenuName = null;
     wc.lpszClassName = app.class_name;
+    app.icon = (ui_icon_t)wc.hIcon;
     ATOM atom = RegisterClassA(&wc);
     fatal_if(atom == 0);
-    uint32_t style = app.no_decor ? WS_POPUP : WS_OVERLAPPEDWINDOW;
+    uint32_t style = app.no_decor ? WS_POPUP|WS_SYSMENU : WS_OVERLAPPEDWINDOW;
     HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
         app.class_name, app.title, style,
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);

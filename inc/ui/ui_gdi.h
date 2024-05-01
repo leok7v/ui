@@ -5,7 +5,7 @@ begin_c
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
-enum {  // TODO: ui_ namespace and into gdi int32_t const 
+enum {  // TODO: ui_ namespace and into gdi int32_t const
     gdi_font_quality_default = 0,
     gdi_font_quality_draft = 1,
     gdi_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
@@ -72,6 +72,8 @@ typedef struct gdi_s {  // TODO: ui_ namespace
         image_t* image, fp64_t alpha);
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
         image_t* image);
+    void (*draw_icon)(int32_t x, int32_t y, int32_t w, int32_t h,
+        ui_icon_t icon);
     // text:
     void (*cleartype)(bool on);
     void (*font_smoothing_contrast)(int32_t c); // [1000..2202] or -1 for 1400 default

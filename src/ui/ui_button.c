@@ -1,36 +1,34 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static void ui_button_every_100ms(ui_view_t* view) { // every 100ms
-    assert(view->type == ui_view_button);
-    ui_button_t* b = (ui_button_t*)view;
-    if (b->armed_until != 0 && app.now > b->armed_until) {
-        b->armed_until = 0;
-        view->armed = false;
-        ui_view.invalidate(view);
+static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
+    assert(v->type == ui_view_button);
+    if (v->armed_until != 0 && app.now > v->armed_until) {
+        v->armed_until = 0;
+        v->armed = false;
+        ui_view.invalidate(v);
     }
 }
 
 static void ui_button_paint(ui_view_t* view) {
     assert(view->type == ui_view_button);
     assert(!view->hidden);
-    ui_button_t* b = (ui_button_t*)view;
     gdi.push(view->x, view->y);
     bool pressed = (view->armed ^ view->pressed) == 0;
-    if (b->armed_until != 0) { pressed = true; }
+    if (view->armed_until != 0) { pressed = true; }
     int32_t sign = 1 - pressed * 2; // -1, +1
     int32_t w = sign * view->w;
     int32_t h = sign * view->h;
-    int32_t x = b->view.x + (int)pressed * view->w;
-    int32_t y = b->view.y + (int)pressed * view->h;
-    if (!b->flat || view->hover) {
+    int32_t x = view->x + (int)pressed * view->w;
+    int32_t y = view->y + (int)pressed * view->h;
+    if (!view->flat || view->hover) {
         gdi.gradient(x, y, w, h, colors.btn_gradient_darker,
             colors.btn_gradient_dark, true);
     }
     ui_color_t c = view->color;
-    if (!b->flat && view->armed) {
+    if (!view->flat && view->armed) {
         c = colors.btn_armed;
-    }else if (!b->flat && b->view.hover && !view->armed) {
+    }else if (!view->flat && view->hover && !view->armed) {
         c = colors.btn_hover_highlight;
     }
     if (view->disabled) { c = colors.btn_disabled; }
@@ -46,7 +44,7 @@ static void ui_button_paint(ui_view_t* view) {
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
     if (view->hover && !view->armed) { color = colors.blue; }
     if (view->disabled) { color = colors.dkgray1; }
-    if (!b->flat) {
+    if (!view->flat) {
         ui_pen_t p = gdi.create_pen(color, pw);
         gdi.set_pen(p);
         gdi.set_brush(gdi.brush_hollow);
@@ -76,7 +74,7 @@ static void ui_button_trigger(ui_view_t* view) {
     view->armed = true;
     ui_view.invalidate(view);
     app.draw();
-    b->armed_until = app.now + 0.250;
+    view->armed_until = app.now + 0.250;
     ui_button_callback(b);
     ui_view.invalidate(view);
 }

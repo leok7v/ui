@@ -7,6 +7,7 @@ typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
 
 typedef struct ui_window_s* ui_window_t;
+typedef struct ui_icon_s*   ui_icon_t;
 typedef struct ui_canvas_s* ui_canvas_t;
 typedef struct ui_bitmap_s* ui_bitmap_t;
 typedef struct ui_font_s*   ui_font_t;
