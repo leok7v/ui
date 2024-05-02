@@ -714,8 +714,6 @@ typedef struct ui_view_s ui_view_t;
 typedef struct ui_view_s {
     enum ui_view_type_t type;
     void (*init)(ui_view_t* view); // called once before first layout
-    fp64_t width;    // > 0 width of UI element in "em"s
-    char text[2048];
     ui_view_t* parent;
     ui_view_t* child; // first child, circular doubly linked list
     ui_view_t* prev;  // left or top sibling
@@ -727,8 +725,11 @@ typedef struct ui_view_s {
     ui_gaps_t insets;
     ui_gaps_t padding;
     int32_t align; // see ui.alignment values
-    int32_t max_w;     // > 0 maximum width in pixels the view agrees to
-    int32_t max_h;     // > 0 maximum height in pixels
+    int32_t max_w; // > 0 maximum width in pixels the view agrees to
+    int32_t max_h; // > 0 maximum height in pixels
+    fp64_t  width; // > 0 width of UI element in "em"s
+    char text[2048];
+    ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
     ui_point_t em; // cached pixel dimensions of "M"
     int32_t shortcut; // keyboard shortcut
@@ -2204,83 +2205,38 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma pop_macro("kill_timer")
     #pragma pop_macro("set_timer")
 }
-#if 1
 
 static int64_t app_hit_test(int32_t x, int32_t y) {
     assert(!ui_caption.view.hidden);
-    if (app.is_full_screen || app.is_maximized()) {
-        return ui.hit_test.client;
-    }
-    RECT rc;
-    GetClientRect(app_window(), &rc);
-    MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
-    // border thickness: width of the resize border
     int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
     int32_t cx = x - app.wrc.x;
     int32_t cy = y - app.wrc.y;
-    if (x < rc.left + ui_caption.view.h && y < rc.top + ui_caption.view.h) {
-        return ui_caption.view.hit_test(cx, cy);
-    } else if (y < rc.top + bt) {
-        return ui.hit_test.top;
-    } else if (y < rc.top + ui_caption.view.h) {
+    if (app.is_maximized()) {
         return ui_caption.view.hit_test(cx, cy);
     } else if (app.is_full_screen) {
         return ui.hit_test.client;
-    } else if(x < rc.left + bt && y < rc.top + bt) {
+    } else if (cx < bt && cy < bt) {
         return ui.hit_test.top_left;
-    } else if (x > rc.right - bt && y < rc.top + bt) {
+    } else if (cx > app.crc.w - bt && cy < bt) {
         return ui.hit_test.top_right;
-    } else if (x < rc.left + bt && y > rc.bottom - bt) {
-        return ui.hit_test.bottom_left;
-    } else if (x > rc.right - bt && y > rc.bottom - bt) {
-        return ui.hit_test.bottom_right;
-    } else if (x < rc.left + bt) { // check edges
-        return ui.hit_test.left;
-    } else if (x > rc.right - bt) {
-        return ui.hit_test.right;
-    } else if (y > rc.bottom - bt) {
-        return ui.hit_test.bottom;
-    } else {
-        return ui.hit_test.client; // default to client area
-    }
-}
-
-#else
-
-static int64_t app_hit_test(int32_t x, int32_t y) {
-    assert(!ui_caption.view.hidden);
-    RECT rc;
-    GetClientRect(app_window(), &rc);
-    MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
-    // border thickness: width of the resize border
-    int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
-    if (x < rc.left + ui_caption.view.h && y < rc.top + ui_caption.view.h) {
-        // client coordinates
-        return ui_caption.view.hit_test(x - app.wrc.x, y - app.wrc.y);
-    } else if (y < rc.top + bt) {
+    } else if (cy < bt) {
         return ui.hit_test.top;
-    } else if (app.is_full_screen) {
-        return ui.hit_test.client;
-    } else if(x < rc.left + bt && y < rc.top + bt) {
-        return ui.hit_test.top_left;
-    } else if (x > rc.right - bt && y < rc.top + bt) {
-        return ui.hit_test.top_right;
-    } else if (x < rc.left + bt && y > rc.bottom - bt) {
-        return ui.hit_test.bottom_left;
-    } else if (x > rc.right - bt && y > rc.bottom - bt) {
+    } else if (cy < ui_caption.view.h) {
+        return ui_caption.view.hit_test(cx, cy);
+    } else if (cx > app.crc.w - bt && cy > app.crc.h - bt) {
         return ui.hit_test.bottom_right;
-    } else if (x < rc.left + bt) { // check edges
+    } else if (cx < bt && cy > app.crc.h - bt) {
+        return ui.hit_test.bottom_left;
+    } else if (cx < bt) {
         return ui.hit_test.left;
-    } else if (x > rc.right - bt) {
+    } else if (cx > app.crc.w - bt) {
         return ui.hit_test.right;
-    } else if (y > rc.bottom - bt) {
+    } else if (cy > app.crc.h - bt) {
         return ui.hit_test.bottom;
     } else {
-        return ui.hit_test.client; // default to client area
+        return ui.hit_test.client;
     }
 }
-
-#endif
 
 static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
@@ -3375,14 +3331,18 @@ static void ui_button_paint(ui_view_t* view) {
         c = colors.btn_hover_highlight;
     }
     if (view->disabled) { c = colors.btn_disabled; }
-    ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
-    ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
-    gdi.set_text_color(c);
-    gdi.x = view->x + (view->w - m.x) / 2;
-    gdi.y = view->y + (view->h - m.y) / 2;
-    f = gdi.set_font(f);
-    gdi.text("%s", ui_view.nls(view));
-    gdi.set_font(f);
+    if (view->icon == null) {
+        ui_font_t  f = view->font != null ? *view->font : app.fonts.regular;
+        ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
+        gdi.set_text_color(c);
+        gdi.x = view->x + (view->w - m.x) / 2;
+        gdi.y = view->y + (view->h - m.y) / 2;
+        f = gdi.set_font(f);
+        gdi.text("%s", ui_view.nls(view));
+        gdi.set_font(f);
+    } else {
+        gdi.draw_icon(view->x, view->y, view->w, view->h, view->icon);
+    }
     const int32_t pw = ut_max(1, view->em.y / 32); // pen width
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
     if (view->hover && !view->armed) { color = colors.blue; }
@@ -3506,23 +3466,10 @@ void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
 #define ui_caption_glyph_full ui_glyph_square_four_corners
 #define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
 
-static void ui_caption_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h) {
-    int32_t n = 16; // minimize distortion
-    while (n * 2 < ut_min(w, h)) { n += n; }
-    gdi.draw_icon(x + (w - n) / 2, y + (h - n) / 2, n, n, app.icon);
-}
-
 static void ui_caption_paint(ui_view_t* v) {
     swear(v == &ui_caption.view);
     gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     gdi.push(v->x, v->y);
-    if (app.icon != null) {
-        ui_caption_draw_icon(
-            ui_caption.icon.view.x,
-            ui_caption.icon.view.y,
-            ui_caption.icon.view.w,
-            ui_caption.icon.view.h);
-    }
     if (v->text[0] != 0) {
         ui_point_t mt = gdi.measure_text(*v->font, v->text);
         gdi.x += (v->w - mt.x) / 2;
@@ -3541,6 +3488,7 @@ static void ui_caption_toggle_full(void) {
 
 static void ui_app_view_character(ui_view_t* v, const char utf8[]) {
     swear(v == app.view);
+    // TODO: inside app.c instead of here
     if (utf8[0] == 033 && app.is_full_screen) { ui_caption_toggle_full(); }
 }
 
@@ -3572,16 +3520,14 @@ static void ui_caption_full(ui_button_t* unused(b)) {
 }
 
 static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
-    if (app.is_full_screen || app.is_maximized()) {
+    ui_point_t pt = { x, y };
+    if (app.is_full_screen) {
         return ui.hit_test.client;
-    } else if (x < ui_caption.view.h && y < ui_caption.view.h) {
+    } else if (ui_view.inside(&ui_caption.icon.view, &pt)) {
         return ui.hit_test.system_menu;
     } else {
-        ui_point_t pt = {x, y};
         ui_view_for_each(&ui_caption.view, c, {
-            if (ui_view.inside(c, &pt)) {
-                return ui.hit_test.client;
-            }
+            if (ui_view.inside(c, &pt)) { return ui.hit_test.client; }
         });
         return ui.hit_test.caption;
     }
@@ -3610,6 +3556,7 @@ static void ui_caption_init(ui_view_t* v) {
         c->flat = true;
         c->padding = p;
     });
+    ui_caption.icon.view.icon = app.icon;
     ui_caption_maxi_glyph();
 }
 
@@ -5625,7 +5572,7 @@ static void ui_h_stack_measure(ui_view_t* s) {
 static void ui_h_stack_layout(ui_view_t* s) {
     swear(s->type == ui_view_h_stack, "type %4.4s 0x%08X", &s->type, s->type);
     if (s->parent != null && s->max_w >= s->parent->w) {
-        s->w = s->parent->w;
+        s->w = s->parent->w; // TODO: this is NOT correct, must be done by the parent!
     }
     int32_t spacers = 0; // number of spacers
     // left and right insets
@@ -5671,6 +5618,7 @@ static void ui_h_stack_layout(ui_view_t* s) {
             x = c->x + c->w + p_rt;
         }
     });
+    // TODO: before spacers need to distribute excess among max_w > w
     if (x < rt) {
         // evenly distribute excess among spacers
         int32_t sum = 0;

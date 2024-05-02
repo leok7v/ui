@@ -916,83 +916,38 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma pop_macro("kill_timer")
     #pragma pop_macro("set_timer")
 }
-#if 1
 
 static int64_t app_hit_test(int32_t x, int32_t y) {
     assert(!ui_caption.view.hidden);
-    if (app.is_full_screen || app.is_maximized()) {
-        return ui.hit_test.client;
-    }
-    RECT rc;
-    GetClientRect(app_window(), &rc);
-    MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
-    // border thickness: width of the resize border
     int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
     int32_t cx = x - app.wrc.x;
     int32_t cy = y - app.wrc.y;
-    if (x < rc.left + ui_caption.view.h && y < rc.top + ui_caption.view.h) {
-        return ui_caption.view.hit_test(cx, cy);
-    } else if (y < rc.top + bt) {
-        return ui.hit_test.top;
-    } else if (y < rc.top + ui_caption.view.h) {
+    if (app.is_maximized()) {
         return ui_caption.view.hit_test(cx, cy);
     } else if (app.is_full_screen) {
         return ui.hit_test.client;
-    } else if(x < rc.left + bt && y < rc.top + bt) {
+    } else if (cx < bt && cy < bt) {
         return ui.hit_test.top_left;
-    } else if (x > rc.right - bt && y < rc.top + bt) {
+    } else if (cx > app.crc.w - bt && cy < bt) {
         return ui.hit_test.top_right;
-    } else if (x < rc.left + bt && y > rc.bottom - bt) {
-        return ui.hit_test.bottom_left;
-    } else if (x > rc.right - bt && y > rc.bottom - bt) {
-        return ui.hit_test.bottom_right;
-    } else if (x < rc.left + bt) { // check edges
-        return ui.hit_test.left;
-    } else if (x > rc.right - bt) {
-        return ui.hit_test.right;
-    } else if (y > rc.bottom - bt) {
-        return ui.hit_test.bottom;
-    } else {
-        return ui.hit_test.client; // default to client area
-    }
-}
-
-#else
-
-static int64_t app_hit_test(int32_t x, int32_t y) {
-    assert(!ui_caption.view.hidden);
-    RECT rc;
-    GetClientRect(app_window(), &rc);
-    MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
-    // border thickness: width of the resize border
-    int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
-    if (x < rc.left + ui_caption.view.h && y < rc.top + ui_caption.view.h) {
-        // client coordinates
-        return ui_caption.view.hit_test(x - app.wrc.x, y - app.wrc.y);
-    } else if (y < rc.top + bt) {
+    } else if (cy < bt) {
         return ui.hit_test.top;
-    } else if (app.is_full_screen) {
-        return ui.hit_test.client;
-    } else if(x < rc.left + bt && y < rc.top + bt) {
-        return ui.hit_test.top_left;
-    } else if (x > rc.right - bt && y < rc.top + bt) {
-        return ui.hit_test.top_right;
-    } else if (x < rc.left + bt && y > rc.bottom - bt) {
-        return ui.hit_test.bottom_left;
-    } else if (x > rc.right - bt && y > rc.bottom - bt) {
+    } else if (cy < ui_caption.view.h) {
+        return ui_caption.view.hit_test(cx, cy);
+    } else if (cx > app.crc.w - bt && cy > app.crc.h - bt) {
         return ui.hit_test.bottom_right;
-    } else if (x < rc.left + bt) { // check edges
+    } else if (cx < bt && cy > app.crc.h - bt) {
+        return ui.hit_test.bottom_left;
+    } else if (cx < bt) {
         return ui.hit_test.left;
-    } else if (x > rc.right - bt) {
+    } else if (cx > app.crc.w - bt) {
         return ui.hit_test.right;
-    } else if (y > rc.bottom - bt) {
+    } else if (cy > app.crc.h - bt) {
         return ui.hit_test.bottom;
     } else {
-        return ui.hit_test.client; // default to client area
+        return ui.hit_test.client;
     }
 }
-
-#endif
 
 static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {

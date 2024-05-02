@@ -69,7 +69,7 @@ static void ui_h_stack_measure(ui_view_t* s) {
 static void ui_h_stack_layout(ui_view_t* s) {
     swear(s->type == ui_view_h_stack, "type %4.4s 0x%08X", &s->type, s->type);
     if (s->parent != null && s->max_w >= s->parent->w) {
-        s->w = s->parent->w;
+        s->w = s->parent->w; // TODO: this is NOT correct, must be done by the parent!
     }
     int32_t spacers = 0; // number of spacers
     // left and right insets
@@ -115,6 +115,7 @@ static void ui_h_stack_layout(ui_view_t* s) {
             x = c->x + c->w + p_rt;
         }
     });
+    // TODO: before spacers need to distribute excess among max_w > w
     if (x < rt) {
         // evenly distribute excess among spacers
         int32_t sum = 0;

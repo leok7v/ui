@@ -22,8 +22,6 @@ typedef struct ui_view_s ui_view_t;
 typedef struct ui_view_s {
     enum ui_view_type_t type;
     void (*init)(ui_view_t* view); // called once before first layout
-    fp64_t width;    // > 0 width of UI element in "em"s
-    char text[2048];
     ui_view_t* parent;
     ui_view_t* child; // first child, circular doubly linked list
     ui_view_t* prev;  // left or top sibling
@@ -35,8 +33,11 @@ typedef struct ui_view_s {
     ui_gaps_t insets;
     ui_gaps_t padding;
     int32_t align; // see ui.alignment values
-    int32_t max_w;     // > 0 maximum width in pixels the view agrees to
-    int32_t max_h;     // > 0 maximum height in pixels
+    int32_t max_w; // > 0 maximum width in pixels the view agrees to
+    int32_t max_h; // > 0 maximum height in pixels
+    fp64_t  width; // > 0 width of UI element in "em"s
+    char text[2048];
+    ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
     ui_point_t em; // cached pixel dimensions of "M"
     int32_t shortcut; // keyboard shortcut

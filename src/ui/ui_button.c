@@ -32,14 +32,18 @@ static void ui_button_paint(ui_view_t* view) {
         c = colors.btn_hover_highlight;
     }
     if (view->disabled) { c = colors.btn_disabled; }
-    ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
-    ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
-    gdi.set_text_color(c);
-    gdi.x = view->x + (view->w - m.x) / 2;
-    gdi.y = view->y + (view->h - m.y) / 2;
-    f = gdi.set_font(f);
-    gdi.text("%s", ui_view.nls(view));
-    gdi.set_font(f);
+    if (view->icon == null) {
+        ui_font_t  f = view->font != null ? *view->font : app.fonts.regular;
+        ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
+        gdi.set_text_color(c);
+        gdi.x = view->x + (view->w - m.x) / 2;
+        gdi.y = view->y + (view->h - m.y) / 2;
+        f = gdi.set_font(f);
+        gdi.text("%s", ui_view.nls(view));
+        gdi.set_font(f);
+    } else {
+        gdi.draw_icon(view->x, view->y, view->w, view->h, view->icon);
+    }
     const int32_t pw = ut_max(1, view->em.y / 32); // pen width
     ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
     if (view->hover && !view->armed) { color = colors.blue; }

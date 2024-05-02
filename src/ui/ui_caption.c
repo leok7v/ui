@@ -9,23 +9,10 @@
 #define ui_caption_glyph_full ui_glyph_square_four_corners
 #define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
 
-static void ui_caption_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h) {
-    int32_t n = 16; // minimize distortion
-    while (n * 2 < ut_min(w, h)) { n += n; }
-    gdi.draw_icon(x + (w - n) / 2, y + (h - n) / 2, n, n, app.icon);
-}
-
 static void ui_caption_paint(ui_view_t* v) {
     swear(v == &ui_caption.view);
     gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     gdi.push(v->x, v->y);
-    if (app.icon != null) {
-        ui_caption_draw_icon(
-            ui_caption.icon.view.x,
-            ui_caption.icon.view.y,
-            ui_caption.icon.view.w,
-            ui_caption.icon.view.h);
-    }
     if (v->text[0] != 0) {
         ui_point_t mt = gdi.measure_text(*v->font, v->text);
         gdi.x += (v->w - mt.x) / 2;
@@ -44,6 +31,7 @@ static void ui_caption_toggle_full(void) {
 
 static void ui_app_view_character(ui_view_t* v, const char utf8[]) {
     swear(v == app.view);
+    // TODO: inside app.c instead of here
     if (utf8[0] == 033 && app.is_full_screen) { ui_caption_toggle_full(); }
 }
 
@@ -75,16 +63,14 @@ static void ui_caption_full(ui_button_t* unused(b)) {
 }
 
 static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
-    if (app.is_full_screen || app.is_maximized()) {
+    ui_point_t pt = { x, y };
+    if (app.is_full_screen) {
         return ui.hit_test.client;
-    } else if (x < ui_caption.view.h && y < ui_caption.view.h) {
+    } else if (ui_view.inside(&ui_caption.icon.view, &pt)) {
         return ui.hit_test.system_menu;
     } else {
-        ui_point_t pt = {x, y};
         ui_view_for_each(&ui_caption.view, c, {
-            if (ui_view.inside(c, &pt)) {
-                return ui.hit_test.client;
-            }
+            if (ui_view.inside(c, &pt)) { return ui.hit_test.client; }
         });
         return ui.hit_test.caption;
     }
@@ -113,6 +99,7 @@ static void ui_caption_init(ui_view_t* v) {
         c->flat = true;
         c->padding = p;
     });
+    ui_caption.icon.view.icon = app.icon;
     ui_caption_maxi_glyph();
 }
 
