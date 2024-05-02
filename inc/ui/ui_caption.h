@@ -5,9 +5,8 @@ begin_c
 
 typedef struct ui_caption_s {
     ui_view_t view;
-    int64_t (*hit_test)(int32_t x, int32_t y);
-    // children of caption
-    ui_button_t button_menu; // ui_caption.button_menu.cb = callback
+    // caption`s children:
+    ui_button_t button_menu; // use: ui_caption.button_menu.cb := your callback
     ui_button_t button_mini;
     ui_button_t button_maxi;
     ui_button_t button_full;

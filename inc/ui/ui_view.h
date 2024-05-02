@@ -63,6 +63,7 @@ typedef struct ui_view_s {
     void (*timer)(ui_view_t* view, ui_timer_t id);
     void (*every_100ms)(ui_view_t* view); // ~10 x times per second
     void (*every_sec)(ui_view_t* view); // ~once a second
+    int64_t (*hit_test)(int32_t x, int32_t y); // default: ui.hit_test.client
     fp64_t armed_until; // ut_clock.seconds() - when to release
     bool hidden; // paint() is not called on hidden
     bool armed;

@@ -47,13 +47,47 @@ static void ui_app_view_character(ui_view_t* v, const char utf8[]) {
     if (utf8[0] == 033 && app.is_full_screen) { ui_caption_toggle_full(); }
 }
 
-static void ui_app_view_paint(ui_view_t* v) {
-    swear(v == app.view);
-    gdi.fill_with(0, 0, v->w, v->h, colors.dkgray1);
-    ui_color_t c = app.is_active() ? colors.orange : colors.btn_hover_highlight;
-    if (app.is_full_screen) { c = colors.dkgray1; }
-    gdi.frame_with(0, 0, v->w - 0, v->h - 0, colors.dkgray1);
-    gdi.frame_with(1, 1, v->w - 2, v->h - 2, c);
+static void ui_caption_quit(ui_button_t* unused(b)) {
+    app.close();
+}
+
+static void ui_caption_mini(ui_button_t* unused(b)) {
+    app.show_window(ui.visibility.minimize);
+}
+
+static void ui_caption_maxi_glyph(void) {
+    strprintf(ui_caption.button_maxi.view.text, "%s",
+        app.is_maximized() ?
+        ui_caption_glyph_rest : ui_caption_glyph_maxi);
+}
+
+static void ui_caption_maxi(ui_button_t* unused(b)) {
+    if (!app.is_maximized()) {
+        app.show_window(ui.visibility.maximize);
+    } else if (app.is_maximized() || app.is_minimized()) {
+        app.show_window(ui.visibility.restore);
+    }
+    ui_caption_maxi_glyph();
+}
+
+static void ui_caption_full(ui_button_t* unused(b)) {
+    ui_caption_toggle_full();
+}
+
+static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
+    if (app.is_full_screen || app.is_maximized()) {
+        return ui.hit_test.client;
+    } else if (x < ui_caption.view.h && y < ui_caption.view.h) {
+        return ui.hit_test.system_menu;
+    } else {
+        ui_point_t pt = {x, y};
+        ui_view_for_each(&ui_caption.view, c, {
+            if (ui_view.inside(c, &pt)) {
+                return ui.hit_test.client;
+            }
+        });
+        return ui.hit_test.caption;
+    }
 }
 
 static void ui_caption_init(ui_view_t* v) {
@@ -61,10 +95,7 @@ static void ui_caption_init(ui_view_t* v) {
     v->hidden = false,
     v->color = colors.dkgray2;
     v->paint = ui_caption_paint;
-//  v->mouse = ui_caption_mouse;
     app.view->character = ui_app_view_character; // ESC for full screen
-    app.view->paint = ui_app_view_paint;
-//  app.view->mouse = ui_app_view_mouse;
     ui_view.add(&ui_caption.view,
         &ui_caption.button_menu,
         &ui_caption.button_mini,
@@ -77,60 +108,16 @@ static void ui_caption_init(ui_view_t* v) {
         c->color = colors.white;
         c->flat = true;
         });
-}
-
-static void ui_caption_quit(ui_button_t* unused(b)) {
-    app.close();
-}
-
-static void ui_caption_mini(ui_button_t* unused(b)) {
-    app.show_window(ui.visibility.minimize);
-}
-
-static void ui_caption_maxi(ui_button_t* unused(b)) {
-    // TODO: Absolutely correct handling is much more
-    //       complicated than this. Because of the
-    //       initial state of window may possibly be
-    //       full screen or maximized (see app.visibility)
-    //       Note that show_window() does not update
-    //       app.visibility because e.g. restore or show_na
-    //       may result if a variety of visibility states
-    static bool maximized;
-    if (!maximized) {
-        app.show_window(ui.visibility.maximize);
-        maximized = true;
-        strprintf(ui_caption.button_maxi.view.text, "%s",
-                  ui_caption_glyph_rest);
-    } else {
-        app.show_window(ui.visibility.restore);
-        maximized = false;
-        strprintf(ui_caption.button_maxi.view.text, "%s",
-                  ui_caption_glyph_maxi);
-    }
-}
-
-static void ui_caption_full(ui_button_t* unused(b)) {
-    ui_caption_toggle_full();
-}
-
-static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
-    ui_point_t pt = {x, y};
-    ui_view_for_each(&ui_caption.view, c, {
-        if (ui_view.inside(c, &pt)) { return ui.hit_test.client; }
-    });
-    if (x < ui_caption.view.h && y < ui_caption.view.h) {
-        return ui.hit_test.system_menu;
-    }
-    return ui.hit_test.caption;
+    ui_caption_maxi_glyph();
 }
 
 ui_caption_t ui_caption =  {
     .view = {
         .type = ui_view_container,
         .init = ui_caption_init,
+        .hit_test = ui_caption_hit_test,
         .hidden = true,
     },
-    .hit_test = ui_caption_hit_test,
     .button_menu = ui_button(ui_caption_glyph_menu, 0.0, null),
     .button_mini = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mini),
     .button_maxi = ui_button(ui_caption_glyph_maxi, 0.0, ui_caption_maxi),

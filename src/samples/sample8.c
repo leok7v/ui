@@ -33,6 +33,18 @@ static void paint_panel(ui_view_t* v) {
     gdi.pop();
 }
 
+static void root_measure(ui_view_t* view) { // root measure
+    assert(view == app.view);
+    measurements.horizontal(&ui_caption.view, view->em.x);
+    ui_caption.view.w  = view->w - 4;
+    ui_caption.view.h += view->em.y / 2;
+//  traceln("ui_caption: %dx%d", ui_caption.view.w, ui_caption.view.h);
+    measurements.horizontal(&status_bar, view->em.x);
+    status_bar.w = view->w - 4;
+    status_bar.h += view->em.y / 2;
+//  traceln("status_bar: %dx%d", status_bar.w, status_bar.h);
+}
+
 static void root_layout(ui_view_t* view) { // root layout
     assert(view == app.view && view->x == 0 && view->y == 0);
     ui_caption.view.x = 2;
@@ -51,21 +63,15 @@ static void root_layout(ui_view_t* view) { // root layout
 //  traceln("button_bottom: %d,%d", button_bottom.view.x, button_bottom.view.y);
 }
 
-static void root_measure(ui_view_t* view) { // root measure
-    assert(view == app.view);
-    measurements.horizontal(&ui_caption.view, view->em.x);
-    ui_caption.view.w  = view->w - 4;
-    ui_caption.view.h += view->em.y / 2;
-//  traceln("ui_caption: %dx%d", ui_caption.view.w, ui_caption.view.h);
-    measurements.horizontal(&status_bar, view->em.x);
-    status_bar.w = view->w - 4;
-    status_bar.h += view->em.y / 2;
-//  traceln("status_bar: %dx%d", status_bar.w, status_bar.h);
+static void root_paint(ui_view_t* v) {
+    assert(v == app.view && v->x == 0 && v->y == 0);
+    gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
 }
 
 static void opened(void) {
     app.view->measure   = root_measure;
     app.view->layout    = root_layout;
+    app.view->paint     = root_paint;
     ui_view.add(app.view,
         &ui_caption.view,
         ui_view.add(&center_pane,

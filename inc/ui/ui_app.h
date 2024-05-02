@@ -98,6 +98,8 @@ typedef struct app_s {  // TODO: ui_ namespace
     errno_t (*set_layered_window)(ui_color_t color, float alpha);
     int64_t (*hit_test)(int32_t x, int32_t y); // see ui.hit_test.*
     bool (*is_active)(void); // is application window active
+    bool (*is_minimized)(void);
+    bool (*is_maximized)(void);
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
     void (*set_title)(const char* title);

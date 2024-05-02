@@ -720,6 +720,12 @@ static void app_layout_root(void) {
     app_measure_and_layout(app.view);
 }
 
+static void ui_app_view_active_frame_paint(void) {
+    ui_color_t active = (ui_color_t)GetSysColor(COLOR_ACTIVECAPTION);
+    const ui_color_t c = app.is_active() ? active : app.view->color;
+    gdi.frame_with(0, 0, app.view->w - 0, app.view->h - 0, c);
+}
+
 static void app_paint_on_canvas(HDC hdc) {
     ui_canvas_t canvas = app.canvas;
     app.canvas = (ui_canvas_t)hdc;
@@ -756,6 +762,9 @@ static void app_paint_on_canvas(HDC hdc) {
     } else { // EMA over 32 paint() calls
         app.paint_avg = app.paint_avg * (1.0 - 1.0 / 32.0) +
                         app.paint_time / 32.0;
+    }
+    if (app.no_decor && !app.is_full_screen && !app.is_maximized()) {
+        ui_app_view_active_frame_paint();
     }
     gdi.pop();
     app.canvas = canvas;
@@ -907,9 +916,13 @@ static void app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma pop_macro("kill_timer")
     #pragma pop_macro("set_timer")
 }
+#if 1
 
 static int64_t app_hit_test(int32_t x, int32_t y) {
     assert(!ui_caption.view.hidden);
+    if (app.is_full_screen || app.is_maximized()) {
+        return ui.hit_test.client;
+    }
     RECT rc;
     GetClientRect(app_window(), &rc);
     MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
@@ -918,11 +931,11 @@ static int64_t app_hit_test(int32_t x, int32_t y) {
     int32_t cx = x - app.wrc.x;
     int32_t cy = y - app.wrc.y;
     if (x < rc.left + ui_caption.view.h && y < rc.top + ui_caption.view.h) {
-        return ui_caption.hit_test(cx, cy);
+        return ui_caption.view.hit_test(cx, cy);
     } else if (y < rc.top + bt) {
         return ui.hit_test.top;
-    } else if (!ui_caption.view.hidden && y < rc.top + ui_caption.view.h) {
-        return ui_caption.hit_test(cx, cy);
+    } else if (y < rc.top + ui_caption.view.h) {
+        return ui_caption.view.hit_test(cx, cy);
     } else if (app.is_full_screen) {
         return ui.hit_test.client;
     } else if(x < rc.left + bt && y < rc.top + bt) {
@@ -943,6 +956,43 @@ static int64_t app_hit_test(int32_t x, int32_t y) {
         return ui.hit_test.client; // default to client area
     }
 }
+
+#else
+
+static int64_t app_hit_test(int32_t x, int32_t y) {
+    assert(!ui_caption.view.hidden);
+    RECT rc;
+    GetClientRect(app_window(), &rc);
+    MapWindowPoints(app_window(), NULL, (POINT*)&rc, 2);
+    // border thickness: width of the resize border
+    int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
+    if (x < rc.left + ui_caption.view.h && y < rc.top + ui_caption.view.h) {
+        // client coordinates
+        return ui_caption.view.hit_test(x - app.wrc.x, y - app.wrc.y);
+    } else if (y < rc.top + bt) {
+        return ui.hit_test.top;
+    } else if (app.is_full_screen) {
+        return ui.hit_test.client;
+    } else if(x < rc.left + bt && y < rc.top + bt) {
+        return ui.hit_test.top_left;
+    } else if (x > rc.right - bt && y < rc.top + bt) {
+        return ui.hit_test.top_right;
+    } else if (x < rc.left + bt && y > rc.bottom - bt) {
+        return ui.hit_test.bottom_left;
+    } else if (x > rc.right - bt && y > rc.bottom - bt) {
+        return ui.hit_test.bottom_right;
+    } else if (x < rc.left + bt) { // check edges
+        return ui.hit_test.left;
+    } else if (x > rc.right - bt) {
+        return ui.hit_test.right;
+    } else if (y > rc.bottom - bt) {
+        return ui.hit_test.bottom;
+    } else {
+        return ui.hit_test.client; // default to client area
+    }
+}
+
+#endif
 
 static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
@@ -1015,6 +1065,18 @@ static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
             break;
         case WM_KILLFOCUS    : if (!app.view->hidden) { ui_view.kill_focus(app.view); }
                                break;
+        case WM_NCCALCSIZE:
+//          NCCALCSIZE_PARAMS* szp = (NCCALCSIZE_PARAMS*)lp;
+//          traceln("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
+//              wp, app.is_maximized(),
+//              szp->rgrc[0].left, szp->rgrc[0].top, szp->rgrc[0].right, szp->rgrc[0].bottom,
+//              szp->rgrc[1].left, szp->rgrc[1].top, szp->rgrc[1].right, szp->rgrc[1].bottom,
+//              szp->rgrc[2].left, szp->rgrc[2].top, szp->rgrc[2].right, szp->rgrc[2].bottom);
+            // adjust window client area frame for no_decor windows
+            if (wp == true && app.no_decor && !app.is_maximized()) {
+                return 0;
+            }
+            break;
         case WM_PAINT        : app_wm_paint(); break;
         case WM_CONTEXTMENU  : (void)ui_view.context_menu(app.view); break;
         case WM_MOUSEWHEEL   :
@@ -1086,6 +1148,8 @@ static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
             if (wp == SC_MINIMIZE && app.hide_on_minimize) {
                 app.show_window(ui.visibility.min_na);
                 app.show_window(ui.visibility.hide);
+            } else  if (wp == SC_MINIMIZE && app.no_decor) {
+                app.show_window(ui.visibility.min_na);
             }
             // If the selection is in menu handle the key event
             if (wp == SC_KEYMENU && lp != 0x20) {
@@ -1158,12 +1222,16 @@ static void app_create_window(const ui_rect_t r) {
     app.icon = (ui_icon_t)wc.hIcon;
     ATOM atom = RegisterClassA(&wc);
     fatal_if(atom == 0);
-    uint32_t style = app.no_decor ? WS_POPUP|WS_SYSMENU : WS_OVERLAPPEDWINDOW;
+    const DWORD WS_POPUP_EX = WS_POPUP|WS_SYSMENU|WS_THICKFRAME|
+//                            WS_MAXIMIZE|WS_MAXIMIZEBOX| // this does not work for popup
+                              WS_MINIMIZE|WS_MINIMIZEBOX;
+    uint32_t style = app.no_decor ? WS_POPUP_EX : WS_OVERLAPPEDWINDOW;
     HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
         app.class_name, app.title, style,
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
-    assert(window == app_window()); (void)window;
     not_null(app.window);
+    assert(window == app_window()); (void)window;
+    not_null(GetSystemMenu(app_window(), false));
     app.dpi.window = GetDpiForWindow(app_window());
 //  traceln("app.dpi.window=%d", app.dpi.window);
     RECT wrc = app_ui2rect(&r);
@@ -1201,6 +1269,12 @@ static void app_create_window(const ui_rect_t r) {
         // ???
 //      EnableMenuItem(GetSystemMenu(app_window(), false),
 //          SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
+    } else if (!app.no_min) {
+        EnableMenuItem(GetSystemMenu(app_window(), false),
+            SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
+    } else if (!app.no_max) {
+        EnableMenuItem(GetSystemMenu(app_window(), false),
+            SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
     }
     if (app.no_size) {
         uint32_t s = GetWindowLong(app_window(), GWL_STYLE);
@@ -1308,6 +1382,8 @@ static void app_cursor_set(ui_cursor_t c) {
 }
 
 static void app_close_window(void) {
+    // TODO: fixme. Band aid - start up with maximized no_decor window is broken
+    if (app.is_maximized()) { app.show_window(ui.visibility.restore); }
     app_post_message(WM_CLOSE, 0, 0);
 }
 
@@ -1768,13 +1844,13 @@ const char* app_known_folder(int32_t kf) {
 
 static ui_view_t app_content_view = ui_view(container);
 
-static bool app_is_active(void) {
-    return GetActiveWindow() == app_window();
-}
+static bool app_is_active(void) { return GetActiveWindow() == app_window(); }
 
-static bool app_has_focus(void) {
-    return GetFocus() == app_window();
-}
+static bool app_is_minimized(void) { return IsIconic(app_window()); }
+
+static bool app_is_maximized(void) { return IsZoomed(app_window()); }
+
+static bool app_has_focus(void) { return GetFocus() == app_window(); }
 
 static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
@@ -1793,6 +1869,7 @@ static void app_init(void) {
     app.view = &app_content_view;
     ui_view_init(app.view);
     app.view->type = ui_view_container;
+    app.view->color = colors.dkgray1; // TODO: theme background
     app.view->measure = null; // always measured by crc
     app.view->layout  = null; // always at 0,0 app can override
     app.redraw              = app_fast_redraw;
@@ -1802,6 +1879,8 @@ static void app_init(void) {
     app.set_layered_window  = app_set_layered_window;
     app.hit_test            = app_hit_test;
     app.is_active           = app_is_active,
+    app.is_minimized        = app_is_minimized,
+    app.is_maximized        = app_is_maximized,
     app.has_focus           = app_has_focus,
     app.request_focus       = app_request_focus,
     app.activate            = app_activate,
