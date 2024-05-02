@@ -86,6 +86,7 @@ void ui_mbx_init_(ui_view_t* view) {
     }
     swear(n <= countof(mx->button), "inhumane: %d buttons", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
+    ui_label_init(&mx->text, 0.0, "%s", mx->view.text);
     ui_view.add_last(&mx->view, &mx->text.view);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i].view);
@@ -94,7 +95,6 @@ void ui_mbx_init_(ui_view_t* view) {
         // TODO: remove assert below
         assert(mx->button[i].view.parent == &mx->view);
     }
-    ui_label_init(&mx->text, 0.0, "%s", mx->view.text);
     mx->text.view.font = mx->view.font;
     ui_view.localize(&mx->text.view);
     mx->view.text[0] = 0;
