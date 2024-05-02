@@ -131,7 +131,44 @@ typedef struct ui_fonts_s {
     ui_font_t H3;
 } ui_fonts_t;
 
+// in inches (because monitors customary are)
+// it is not in points (1/72 inch) like font size
+// because it is awkward to express large are
+// size in typography measuremnts.
+
+typedef struct ui_window_sizing_s {
+    fp32_t ini_w; // initial window width in inches
+    fp32_t ini_h; // 0,0 means set to min_w, min_h
+    fp32_t min_w; // minimum window width in inches
+    fp32_t min_h; // 0,0 means - do not care use content size
+    fp32_t max_w; // maximum window width in inches
+    fp32_t max_h; // 0,0 means as big as user wants
+    // "sizing" "estimate or measure something's dimensions."
+	// initial window sizing only used on the first invocation
+	// actual user sizing is stored in the configuration and used
+	// on all launches except the very first.
+} ui_window_sizing_t;
+
+// ui_gaps_t are used for padding and insets and expressed
+// in partial "em"s not in pixels, inches or points.
+// Pay attention that "em" is not square. "M" measurement
+// for most fonts are em.w = 0.5 * em.h
+
+typedef struct ui_gaps_s { // in partial "em"s
+    fp32_t left;
+    fp32_t top;
+    fp32_t right;
+    fp32_t bottom;
+} ui_gaps_t;
+
 typedef struct ui_s {
+    struct { // not a bitset
+        int32_t const center; // = 0, default
+        int32_t const left;   // left and top are the same value
+        int32_t const top;    // the different is vertical and horizontal
+        int32_t const right;  // right and bottom are the same too
+        int32_t const bottom;
+    } const align;
     struct { // window visibility
         int32_t const hide;
         int32_t const normal;   // should be use for first .show()
@@ -258,6 +295,21 @@ typedef struct ui_s {
 } ui_if;
 
 extern ui_if ui;
+
+// ui_gaps_t in "em"s:
+//
+// The reason is that UI fonts may become larger smaller
+// for accessibility reasons with the same display
+// density in DPIs. Humanoid would expect the gaps around
+// larger font text to grow with font size increase.
+// SwingUI and MacOS is using "pt" for padding which does
+// not account to font size changes. MacOS does wierd stuff
+// with font increase - it actually decreases GPU resolution.
+// Android uses "dp" which is pretty much the same as scaled
+// "pixels" on MacOS. Windows used to use "dialog units" which
+// is font size based and this is where the idea is inherited from.
+
+
 
 // _______________________________ ui_colors.h ________________________________
 
@@ -634,6 +686,10 @@ extern gdi_t gdi;
 // Upper Right Drop-Shadowed White Square
 // https://www.compart.com/en/unicode/U+2750
 #define ui_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
+
+// No-Break Space (NBSP)
+// https://www.compart.com/en/unicode/U+00A0
+#define ui_glyph_nbsp                                  "\xC2\xA0"
 // ________________________________ ui_view.h _________________________________
 
 #include "ut/ut_std.h"
@@ -646,7 +702,11 @@ enum ui_view_type_t {
     ui_view_button    = 'vwbt',
     ui_view_toggle    = 'vwtg',
     ui_view_slider    = 'vwsl',
-    ui_view_edit      = 'vwed'
+    ui_view_text      = 'vwtx',
+    ui_view_h_stack   = 'vwhs',
+    ui_view_v_stack   = 'vwvs',
+    ui_view_spacer    = 'vwsp',
+    ui_view_scroll    = 'vwsc'
 };
 
 typedef struct ui_view_s ui_view_t;
@@ -664,6 +724,11 @@ typedef struct ui_view_s {
     int32_t y;
     int32_t w;
     int32_t h;
+    ui_gaps_t insets;
+    ui_gaps_t padding;
+    int32_t align; // see ui.alignment values
+    int32_t max_w;     // > 0 maximum width in pixels the view agrees to
+    int32_t max_h;     // > 0 maximum height in pixels
     // updated on layout() call
     ui_point_t em; // cached pixel dimensions of "M"
     int32_t shortcut; // keyboard shortcut
@@ -822,6 +887,9 @@ typedef struct {
 
 extern layouts_if layouts;
 
+// _______________________________ ui_stacks.h ________________________________
+
+/* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 // ________________________________ ui_label.h ________________________________
 
 #include "ut/ut_std.h"
@@ -1036,27 +1104,28 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[],
 // _______________________________ ui_caption.h _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
+
+
+typedef struct ui_caption_s {
+    ui_view_t view;
+    // caption`s children:
+    ui_button_t icon;
+    ui_view_t spacer;
+    ui_button_t menu; // use: ui_caption.button_menu.cb := your callback
+    ui_button_t mini;
+    ui_button_t maxi;
+    ui_button_t full;
+    ui_button_t quit;
+} ui_caption_t;
+
+extern ui_caption_t ui_caption;
+
 // _________________________________ ui_app.h _________________________________
 
 #include "ut/ut_std.h"
 
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
-
-// every_sec() and every_100ms() also called on all UICs
-
-typedef struct ui_window_sizing_s { // in inches (because monitors customary are)
-    fp32_t ini_w; // initial window width in inches
-    fp32_t ini_h; // 0,0 means set to min_w, min_h
-    fp32_t min_w; // minimum window width in inches
-    fp32_t min_h; // 0,0 means - do not care use content size
-    fp32_t max_w; // maximum window width in inches
-    fp32_t max_h; // 0,0 means as big as user wants
-    // "sizing" "estimate or measure something's dimensions."
-	// initial window sizing only used on the first invocation
-	// actual user sizing is stored in the configuration and used
-	// on all launches except the very first.
-} ui_window_sizing_t;
 
 typedef struct app_s {  // TODO: ui_ namespace
     // implemented by client:
@@ -1200,17 +1269,15 @@ extern app_t app;
 
 
 
-typedef struct ui_caption_s {
-    ui_view_t view;
-    // caption`s children:
-    ui_button_t button_menu; // use: ui_caption.button_menu.cb := your callback
-    ui_button_t button_mini;
-    ui_button_t button_maxi;
-    ui_button_t button_full;
-    ui_button_t button_quit;
-} ui_caption_t;
+// Usage:
+// ui_view_t* h_stack = ui_view(ui_view_h_stack);
+// ui_view_t* v_stack = ui_view(ui_view_v_stack);
+// containers that automatically layout child views
+// similar to SwiftUI HStack and VStack
 
-extern ui_caption_t ui_caption;
+void ui_view_init_h_stack(ui_view_t* view);
+void ui_view_init_v_stack(ui_view_t* view);
+void ui_view_init_spacer(ui_view_t* view);
 
 
 end_c
@@ -3447,14 +3514,14 @@ static void ui_caption_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h) {
 
 static void ui_caption_paint(ui_view_t* v) {
     swear(v == &ui_caption.view);
-    gdi.push(v->x, v->y);
     gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    gdi.push(v->x, v->y);
     if (app.icon != null) {
         ui_caption_draw_icon(
-            gdi.x,
-            ui_caption.button_menu.view.y,
-            ui_caption.button_menu.view.w,
-            ui_caption.button_menu.view.h);
+            ui_caption.icon.view.x,
+            ui_caption.icon.view.y,
+            ui_caption.icon.view.w,
+            ui_caption.icon.view.h);
     }
     if (v->text[0] != 0) {
         ui_point_t mt = gdi.measure_text(*v->font, v->text);
@@ -3486,7 +3553,7 @@ static void ui_caption_mini(ui_button_t* unused(b)) {
 }
 
 static void ui_caption_maxi_glyph(void) {
-    strprintf(ui_caption.button_maxi.view.text, "%s",
+    strprintf(ui_caption.maxi.view.text, "%s",
         app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
 }
@@ -3522,37 +3589,45 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
 
 static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
+    ui_view_init_h_stack(v);
+    v->color = colors.dkgray2; // TODO: GetSysColor(COLOR_ACTIVECAPTION); (See Notepad++?)
     v->hidden = false,
-    v->color = colors.dkgray2;
-    v->paint = ui_caption_paint;
     app.view->character = ui_app_view_character; // ESC for full screen
     ui_view.add(&ui_caption.view,
-        &ui_caption.button_menu,
-        &ui_caption.button_mini,
-        &ui_caption.button_maxi,
-        &ui_caption.button_full,
-        &ui_caption.button_quit,
+        &ui_caption.icon,
+        &ui_caption.menu,
+        &ui_caption.spacer,
+        &ui_caption.mini,
+        &ui_caption.maxi,
+        &ui_caption.full,
+        &ui_caption.quit,
         null);
+    static const ui_gaps_t p = { .left  = 0.25, .top    = 0.25,
+                                 .right = 0.25, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
         c->font = &app.fonts.H3;
         c->color = colors.white;
         c->flat = true;
-        });
+        c->padding = p;
+    });
     ui_caption_maxi_glyph();
 }
 
 ui_caption_t ui_caption =  {
     .view = {
-        .type = ui_view_container,
-        .init = ui_caption_init,
+        .type     = ui_view_h_stack,
+        .init     = ui_caption_init,
+        .paint    = ui_caption_paint,
         .hit_test = ui_caption_hit_test,
-        .hidden = true,
+        .hidden = true
     },
-    .button_menu = ui_button(ui_caption_glyph_menu, 0.0, null),
-    .button_mini = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mini),
-    .button_maxi = ui_button(ui_caption_glyph_maxi, 0.0, ui_caption_maxi),
-    .button_full = ui_button(ui_caption_glyph_full, 0.0, ui_caption_full),
-    .button_quit = ui_button(ui_caption_glyph_quit, 0.0, ui_caption_quit),
+    .icon   = ui_button(ui_glyph_nbsp, 0.0, null),
+    .spacer = ui_view(spacer),
+    .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),
+    .mini   = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mini),
+    .maxi   = ui_button(ui_caption_glyph_maxi, 0.0, ui_caption_maxi),
+    .full   = ui_button(ui_caption_glyph_full, 0.0, ui_caption_full),
+    .quit   = ui_button(ui_caption_glyph_quit, 0.0, ui_caption_quit),
 };
 // _______________________________ ui_colors.c ________________________________
 
@@ -3699,6 +3774,13 @@ bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
 }
 
 extern ui_if ui = {
+    .align = {
+        .center = 0,
+        .left   = 1,
+        .top    = 1,
+        .right  = 2,
+        .bottom = 2
+    },
     .visibility = { // window visibility see ShowWindow link below
         .hide      = SW_HIDE,
         .normal    = SW_SHOWNORMAL,
@@ -5470,6 +5552,183 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp64_t ems,
     s->value_max = value_max;
     s->value = value_min;
     ui_slider_init_(&s->view);
+}
+// _______________________________ ui_stacks.c ________________________________
+
+/* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
+#include "ut/ut.h"
+
+static bool ui_stack_debug = false;
+
+#define debugln(...) do {                           \
+    if (ui_stack_debug) {  traceln(__VA_ARGS__); }  \
+} while (0)
+
+static int32_t ui_stack_em2px(int32_t em, fp32_t ratio) {
+    return em == 0 ? 0 : (int32_t)(em * ratio + 0.5f);
+}
+
+static void ui_h_stack_measure(ui_view_t* s) {
+    swear(s->type == ui_view_h_stack, "type %4.4s 0x%08X", &s->type, s->type);
+    int32_t left  = ui_stack_em2px(s->em.x, s->insets.left);
+    int32_t max_w = left;
+    int32_t w = left;
+    int32_t h = 0;
+    ui_view_for_each(s, c, {
+        debugln("%s[%4.4s 0x%08X] .(x,y): (%d,%d) .w: %d max_w: %d (0x%08X)",
+                c->text, &c->type, c->type, c->x, c->y, c->w, max_w, max_w);
+        assert(c->max_w == 0 || c->max_w >= c->w,
+               "max_w: %d w: %d", c->max_w, c->w);
+        if (c->type == ui_view_spacer) {
+            c->w = 0; // layout will distribute excess here
+            max_w = INT32_MAX; // spacer make width greedy
+            debugln("spacer");
+        } else {
+            const int32_t lf = ui_stack_em2px(c->em.x, c->padding.left);
+            const int32_t tp = ui_stack_em2px(c->em.y, c->padding.top);
+            const int32_t rt = ui_stack_em2px(c->em.x, c->padding.right);
+            const int32_t bt = ui_stack_em2px(c->em.y, c->padding.bottom);
+            h = ut_max(h, tp + c->h + bt);
+            const int32_t cw = lf + c->w + rt;
+            if (c->max_w == INT32_MAX) {
+                max_w = INT32_MAX;
+            } else if (max_w < INT32_MAX && c->max_w != 0) {
+                assert(c->max_w >= cw);
+                max_w += c->max_w;
+            } else if (max_w < INT32_MAX) {
+                assert(0 <= max_w + cw && max_w + cw < INT32_MAX);
+                max_w += cw;
+            }
+            w += cw;
+        }
+    });
+    int32_t right = ui_stack_em2px(s->em.x, s->insets.right);
+    if (max_w < INT32_MAX) {
+        assert(0 <= max_w + right && max_w + right < INT32_MAX);
+        max_w += right;
+    }
+    w += right;
+    s->max_w = max_w == w ? 0 : max_w;
+    // do not touch max_h, caller may have set it to something
+    assert(max_w == 0 || max_w >= w);
+    s->w = w;
+    s->h = h;
+    // add top and bottom insets
+    s->h += ui_stack_em2px(s->em.y, s->insets.top);
+    s->h += ui_stack_em2px(s->em.y, s->insets.bottom);
+}
+
+// after measure of the subtree is concluded the parent h_stack
+// may adjust h_stack_w wider number depending on it's own width
+// and h_stack.max_w agreement
+
+static void ui_h_stack_layout(ui_view_t* s) {
+    swear(s->type == ui_view_h_stack, "type %4.4s 0x%08X", &s->type, s->type);
+    if (s->parent != null && s->max_w >= s->parent->w) {
+        s->w = s->parent->w;
+    }
+    int32_t spacers = 0; // number of spacers
+    // left and right insets
+    const int32_t i_lf = ui_stack_em2px(s->em.x, s->insets.left);
+    const int32_t i_rt = ui_stack_em2px(s->em.x, s->insets.right);
+    // top and bottom insets
+    const int32_t i_tp = ui_stack_em2px(s->em.y, s->insets.top);
+    const int32_t i_bt = ui_stack_em2px(s->em.y, s->insets.bottom);
+    const int32_t lf = s->x +        i_lf;
+    const int32_t rt = s->x + s->w - i_rt;
+    assert(lf < rt, "insets left: %d right: %d x: %d w: %d left: %d right: %d",
+                    i_lf, i_rt, s->x, s->w, lf, rt);
+    // top and bottom y
+    const int32_t top = s->y +        i_tp;
+    const int32_t bot = s->y + s->h - i_bt;
+    assert(top < bot, "insets top: %d bottom: %d y: %d h: %d top: %d bottom: %d",
+                      i_tp, i_bt, s->y, s->w, top, bot);
+    int32_t x = i_lf;
+    ui_view_for_each(s, c, {
+        assert(c->h <= s->h);
+        if (c->type == ui_view_spacer) {
+            spacers++;
+        } else {
+            const int32_t p_lf = ui_stack_em2px(c->em.x, c->padding.left);
+            const int32_t p_tp = ui_stack_em2px(c->em.y, c->padding.top);
+            const int32_t p_rt = ui_stack_em2px(c->em.x, c->padding.right);
+            const int32_t p_bt = ui_stack_em2px(c->em.y, c->padding.bottom);
+            if (c->align == ui.align.top) {
+                c->y = top + p_tp;
+            } else if (c->align == ui.align.bottom) {
+                c->y = bot - (c->h + p_bt);
+            } else {
+                swear(c->align == ui.align.center);
+                // y = top + p_tp + c->h + p_bt == bot
+                // top + p_tp + c->h + p_bt == bot
+                const int32_t d = s->h - (p_tp + c->h + p_bt);
+                c->y = i_tp + (s->h - (p_tp + c->h + p_bt)) / 2;
+                debugln("i_tp:%d + (s->h:%d - (p_tp:%d + c->h:%d + p_bt:%d))/2: %d y: %d",
+                         i_tp,      s->h,      p_tp,     c->h,     p_bt,         d/2, c->y);
+            }
+            c->x = x + p_lf;
+            debugln("%s.(x,y): (%d,%d) .w: %d", c->text, c->x, c->y, c->w);
+            x = c->x + c->w + p_rt;
+        }
+    });
+    if (x < rt) {
+        // evenly distribute excess among spacers
+        int32_t sum = 0;
+        int32_t diff = rt - x;
+        int32_t spacer_w = diff / spacers;
+        x = i_lf;
+        ui_view_for_each(s, c, {
+            if (c->type == ui_view_spacer) {
+                c->w = spacers == 1 ? spacer_w : diff - sum;
+                sum += c->w;
+                spacers--;
+            }
+            const int32_t p_lf = ui_stack_em2px(c->em.x, c->padding.left);
+            const int32_t p_rt = ui_stack_em2px(c->em.x, c->padding.right);
+            int32_t cw = p_lf + c->w + p_rt;
+            debugln("%s[%4.4s 0x%08X] .(x,y): (%d:=%d,%d) .(WxH): %d=%d+%d+%d x %d max_w: %d (0x%08X)",
+                    c->text, &c->type, c->type, c->x, x, c->y, cw, p_lf, c->w, p_rt, c->h, c->max_w, c->max_w);
+            c->x = x;
+            x += cw;
+        });
+    }
+    debugln("%s[%4.4s 0x%08X] .(x,y): (%d,%d) .(WxH): %dx%d max_w: %d (0x%08X)",
+            s->text, &s->type, s->type, s->x, s->y, s->w, s->h, s->max_w, s->max_w);
+}
+
+void ui_view_init_h_stack(ui_view_t* v) {
+    ui_view_init_container(v);
+    // TODO: not sure about default insets
+    v->insets  = (ui_gaps_t){ .left = 0.5, .top = 0.25, .right = 0.5, .bottom = 0.25 };
+    v->measure = ui_h_stack_measure;
+    v->layout  = ui_h_stack_layout;
+}
+
+static void ui_v_stack_measure(ui_view_t* v) {
+    swear(v->type == ui_view_v_stack, "type %4.4s 0x%08X", &v->type, v->type);
+    debugln("TODO: implement");
+}
+
+static void ui_v_stack_layout(ui_view_t* v) {
+    swear(v->type == ui_view_v_stack, "type %4.4s 0x%08X", &v->type, v->type);
+    debugln("TODO: implement");
+}
+
+void ui_view_init_v_stack(ui_view_t* v) {
+    ui_view_init_container(v);
+    // TODO: not sure about default insets
+    v->insets  = (ui_gaps_t){ .left = 0.5, .top = 0.25, .right = 0.5, .bottom = 0.25 };
+    v->measure = ui_v_stack_measure;
+    v->layout  = ui_v_stack_layout;
+}
+
+void ui_view_init_spacer(ui_view_t* v) {
+    swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
+    ui_view_init(v);
+    v->w = 0;
+    v->h = 0;
+    v->max_w = INT32_MAX;
+    v->max_h = INT32_MAX;
 }
 // _______________________________ ui_toggle.c ________________________________
 

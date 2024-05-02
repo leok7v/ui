@@ -38,9 +38,6 @@
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\src\samples\i18n.h" />
-    <ClInclude Include="..\inc\ut\ut_version.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut_debug.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
@@ -104,11 +101,18 @@
     <ClInclude Include="..\inc\ui\ut_std.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ut_win32.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut_clipboard.h">
       <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\version.h" />
+    <ClInclude Include="..\inc\ui\ui_caption.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\ui_stacks.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\ui_nls.h">
+      <Filter>inc\ui</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -135,8 +139,6 @@
     <Xml Include="manifest.xml" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\inc\ut\ut_version.rc.in">
-      <Filter>inc\ut</Filter>
-    </None>
+    <None Include="..\inc\ut\version.rc.in" />
   </ItemGroup>
 </Project>

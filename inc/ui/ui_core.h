@@ -47,7 +47,44 @@ typedef struct ui_fonts_s {
     ui_font_t H3;
 } ui_fonts_t;
 
+// in inches (because monitors customary are)
+// it is not in points (1/72 inch) like font size
+// because it is awkward to express large are
+// size in typography measuremnts.
+
+typedef struct ui_window_sizing_s {
+    fp32_t ini_w; // initial window width in inches
+    fp32_t ini_h; // 0,0 means set to min_w, min_h
+    fp32_t min_w; // minimum window width in inches
+    fp32_t min_h; // 0,0 means - do not care use content size
+    fp32_t max_w; // maximum window width in inches
+    fp32_t max_h; // 0,0 means as big as user wants
+    // "sizing" "estimate or measure something's dimensions."
+	// initial window sizing only used on the first invocation
+	// actual user sizing is stored in the configuration and used
+	// on all launches except the very first.
+} ui_window_sizing_t;
+
+// ui_gaps_t are used for padding and insets and expressed
+// in partial "em"s not in pixels, inches or points.
+// Pay attention that "em" is not square. "M" measurement
+// for most fonts are em.w = 0.5 * em.h
+
+typedef struct ui_gaps_s { // in partial "em"s
+    fp32_t left;
+    fp32_t top;
+    fp32_t right;
+    fp32_t bottom;
+} ui_gaps_t;
+
 typedef struct ui_s {
+    struct { // not a bitset
+        int32_t const center; // = 0, default
+        int32_t const left;   // left and top are the same value
+        int32_t const top;    // the different is vertical and horizontal
+        int32_t const right;  // right and bottom are the same too
+        int32_t const bottom;
+    } const align;
     struct { // window visibility
         int32_t const hide;
         int32_t const normal;   // should be use for first .show()
@@ -175,4 +212,19 @@ typedef struct ui_s {
 
 extern ui_if ui;
 
+// ui_gaps_t in "em"s:
+//
+// The reason is that UI fonts may become larger smaller
+// for accessibility reasons with the same display
+// density in DPIs. Humanoid would expect the gaps around
+// larger font text to grow with font size increase.
+// SwingUI and MacOS is using "pt" for padding which does
+// not account to font size changes. MacOS does wierd stuff
+// with font increase - it actually decreases GPU resolution.
+// Android uses "dp" which is pretty much the same as scaled
+// "pixels" on MacOS. Windows used to use "dialog units" which
+// is font size based and this is where the idea is inherited from.
+
+
 end_c
+

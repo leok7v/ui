@@ -6,6 +6,7 @@
 #include "ui/ui_glyphs.h"
 #include "ui/ui_view.h"
 #include "ui/ui_layout.h"
+#include "ui/ui_stacks.h"
 #include "ui/ui_label.h"
 #include "ui/ui_nls.h"
 #include "ui/ui_button.h"

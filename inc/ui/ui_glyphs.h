@@ -105,3 +105,7 @@
 // Upper Right Drop-Shadowed White Square
 // https://www.compart.com/en/unicode/U+2750
 #define ui_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
+
+// No-Break Space (NBSP)
+// https://www.compart.com/en/unicode/U+00A0
+#define ui_glyph_nbsp                                  "\xC2\xA0"

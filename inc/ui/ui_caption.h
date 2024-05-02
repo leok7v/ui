@@ -6,11 +6,13 @@ begin_c
 typedef struct ui_caption_s {
     ui_view_t view;
     // caption`s children:
-    ui_button_t button_menu; // use: ui_caption.button_menu.cb := your callback
-    ui_button_t button_mini;
-    ui_button_t button_maxi;
-    ui_button_t button_full;
-    ui_button_t button_quit;
+    ui_button_t icon;
+    ui_view_t spacer;
+    ui_button_t menu; // use: ui_caption.button_menu.cb := your callback
+    ui_button_t mini;
+    ui_button_t maxi;
+    ui_button_t full;
+    ui_button_t quit;
 } ui_caption_t;
 
 extern ui_caption_t ui_caption;

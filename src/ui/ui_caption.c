@@ -17,14 +17,14 @@ static void ui_caption_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h) {
 
 static void ui_caption_paint(ui_view_t* v) {
     swear(v == &ui_caption.view);
-    gdi.push(v->x, v->y);
     gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    gdi.push(v->x, v->y);
     if (app.icon != null) {
         ui_caption_draw_icon(
-            gdi.x,
-            ui_caption.button_menu.view.y,
-            ui_caption.button_menu.view.w,
-            ui_caption.button_menu.view.h);
+            ui_caption.icon.view.x,
+            ui_caption.icon.view.y,
+            ui_caption.icon.view.w,
+            ui_caption.icon.view.h);
     }
     if (v->text[0] != 0) {
         ui_point_t mt = gdi.measure_text(*v->font, v->text);
@@ -56,7 +56,7 @@ static void ui_caption_mini(ui_button_t* unused(b)) {
 }
 
 static void ui_caption_maxi_glyph(void) {
-    strprintf(ui_caption.button_maxi.view.text, "%s",
+    strprintf(ui_caption.maxi.view.text, "%s",
         app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
 }
@@ -92,35 +92,43 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
 
 static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
+    ui_view_init_h_stack(v);
+    v->color = colors.dkgray2; // TODO: GetSysColor(COLOR_ACTIVECAPTION); (See Notepad++?)
     v->hidden = false,
-    v->color = colors.dkgray2;
-    v->paint = ui_caption_paint;
     app.view->character = ui_app_view_character; // ESC for full screen
     ui_view.add(&ui_caption.view,
-        &ui_caption.button_menu,
-        &ui_caption.button_mini,
-        &ui_caption.button_maxi,
-        &ui_caption.button_full,
-        &ui_caption.button_quit,
+        &ui_caption.icon,
+        &ui_caption.menu,
+        &ui_caption.spacer,
+        &ui_caption.mini,
+        &ui_caption.maxi,
+        &ui_caption.full,
+        &ui_caption.quit,
         null);
+    static const ui_gaps_t p = { .left  = 0.25, .top    = 0.25,
+                                 .right = 0.25, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
         c->font = &app.fonts.H3;
         c->color = colors.white;
         c->flat = true;
-        });
+        c->padding = p;
+    });
     ui_caption_maxi_glyph();
 }
 
 ui_caption_t ui_caption =  {
     .view = {
-        .type = ui_view_container,
-        .init = ui_caption_init,
+        .type     = ui_view_h_stack,
+        .init     = ui_caption_init,
+        .paint    = ui_caption_paint,
         .hit_test = ui_caption_hit_test,
-        .hidden = true,
+        .hidden = true
     },
-    .button_menu = ui_button(ui_caption_glyph_menu, 0.0, null),
-    .button_mini = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mini),
-    .button_maxi = ui_button(ui_caption_glyph_maxi, 0.0, ui_caption_maxi),
-    .button_full = ui_button(ui_caption_glyph_full, 0.0, ui_caption_full),
-    .button_quit = ui_button(ui_caption_glyph_quit, 0.0, ui_caption_quit),
+    .icon   = ui_button(ui_glyph_nbsp, 0.0, null),
+    .spacer = ui_view(spacer),
+    .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),
+    .mini   = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mini),
+    .maxi   = ui_button(ui_caption_glyph_maxi, 0.0, ui_caption_maxi),
+    .full   = ui_button(ui_caption_glyph_full, 0.0, ui_caption_full),
+    .quit   = ui_button(ui_caption_glyph_quit, 0.0, ui_caption_quit),
 };

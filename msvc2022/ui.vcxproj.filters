@@ -45,16 +45,10 @@
     <ClInclude Include="..\inc\ui\ui_slider.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ut_std.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ui\ui.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui_view.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ut_win32.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui_nls.h">
@@ -64,6 +58,12 @@
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui_caption.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\ut_std.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ui\ui_stacks.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
   </ItemGroup>
@@ -105,6 +105,9 @@
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_caption.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\ui_stacks.c">
       <Filter>src\ui</Filter>
     </ClCompile>
   </ItemGroup>

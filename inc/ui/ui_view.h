@@ -10,7 +10,11 @@ enum ui_view_type_t {
     ui_view_button    = 'vwbt',
     ui_view_toggle    = 'vwtg',
     ui_view_slider    = 'vwsl',
-    ui_view_edit      = 'vwed'
+    ui_view_text      = 'vwtx',
+    ui_view_h_stack   = 'vwhs',
+    ui_view_v_stack   = 'vwvs',
+    ui_view_spacer    = 'vwsp',
+    ui_view_scroll    = 'vwsc'
 };
 
 typedef struct ui_view_s ui_view_t;
@@ -28,6 +32,11 @@ typedef struct ui_view_s {
     int32_t y;
     int32_t w;
     int32_t h;
+    ui_gaps_t insets;
+    ui_gaps_t padding;
+    int32_t align; // see ui.alignment values
+    int32_t max_w;     // > 0 maximum width in pixels the view agrees to
+    int32_t max_h;     // > 0 maximum height in pixels
     // updated on layout() call
     ui_point_t em; // cached pixel dimensions of "M"
     int32_t shortcut; // keyboard shortcut

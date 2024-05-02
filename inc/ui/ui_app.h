@@ -5,21 +5,6 @@ begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
-// every_sec() and every_100ms() also called on all UICs
-
-typedef struct ui_window_sizing_s { // in inches (because monitors customary are)
-    fp32_t ini_w; // initial window width in inches
-    fp32_t ini_h; // 0,0 means set to min_w, min_h
-    fp32_t min_w; // minimum window width in inches
-    fp32_t min_h; // 0,0 means - do not care use content size
-    fp32_t max_w; // maximum window width in inches
-    fp32_t max_h; // 0,0 means as big as user wants
-    // "sizing" "estimate or measure something's dimensions."
-	// initial window sizing only used on the first invocation
-	// actual user sizing is stored in the configuration and used
-	// on all launches except the very first.
-} ui_window_sizing_t;
-
 typedef struct app_s {  // TODO: ui_ namespace
     // implemented by client:
     const char* class_name;

@@ -1200,7 +1200,7 @@ fn(void, key_enter)(ui_edit_t* e) {
 }
 
 fn(void, key_pressed)(ui_view_t* view, int64_t key) {
-    assert(view->type == ui_view_edit);
+    assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
     if (e->focused) {
         if (key == ui.key.down && e->selection[1].pn < e->paragraphs) {
@@ -1233,7 +1233,7 @@ fn(void, key_pressed)(ui_view_t* view, int64_t key) {
 }
 
 fn(void, character)(ui_view_t* unused(view), const char* utf8) {
-    assert(view->type == ui_view_edit);
+    assert(view->type == ui_view_text);
     assert(!view->hidden && !view->disabled);
     #pragma push_macro("ctl")
     #define ctl(c) ((char)((c) - 'a' + 1))
@@ -1418,7 +1418,7 @@ fn(bool, press)(ui_view_t* view, int32_t ix) {
 
 fn(void, mouse)(ui_view_t* view, int32_t m, int64_t unused(flags)) {
 //  if (m == ui.message.left_button_pressed) { traceln("%p", view); }
-    assert(view->type == ui_view_edit);
+    assert(view->type == ui_view_text);
     assert(!view->hidden);
     assert(!view->disabled);
     ui_edit_t* e = (ui_edit_t*)view;
@@ -1442,7 +1442,7 @@ fn(void, mouse)(ui_view_t* view, int32_t m, int64_t unused(flags)) {
 fn(void, mousewheel)(ui_view_t* view, int32_t unused(dx), int32_t dy) {
     // TODO: may make a use of dx in single line not-word-breaked edit control
     if (app.focus == view) {
-        assert(view->type == ui_view_edit);
+        assert(view->type == ui_view_text);
         ui_edit_t* e = (ui_edit_t*)view;
         int32_t lines = (abs(dy) + view->em.y - 1) / view->em.y;
         if (dy > 0) {
@@ -1463,7 +1463,7 @@ fn(void, mousewheel)(ui_view_t* view, int32_t unused(dx), int32_t dy) {
 }
 
 fn(bool, set_focus)(ui_view_t* view) {
-    assert(view->type == ui_view_edit);
+    assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
 //  traceln("active=%d has_focus=%d focused=%d",
 //           app.is_active(), app.has_focus(), e->focused);
@@ -1479,7 +1479,7 @@ fn(bool, set_focus)(ui_view_t* view) {
 }
 
 fn(void, kill_focus)(ui_view_t* view) {
-    assert(view->type == ui_view_edit);
+    assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
 //  traceln("active=%d has_focus=%d focused=%d",
 //           app.is_active(), app.has_focus(), e->focused);
@@ -1614,7 +1614,7 @@ fn(void, clipboard_paste)(ui_edit_t* e) {
 }
 
 fn(void, measure)(ui_view_t* view) { // bottom up
-    assert(view->type == ui_view_edit);
+    assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
     view->em = gdi.get_em(view->font == null ? app.fonts.regular : *view->font);
     // enforce minimum size - it makes it checking corner cases much simpler
@@ -1628,7 +1628,7 @@ fn(void, measure)(ui_view_t* view) { // bottom up
 }
 
 fn(void, layout)(ui_view_t* view) { // top down
-    assert(view->type == ui_view_edit);
+    assert(view->type == ui_view_text);
     assert(view->w > 0 && view->h > 0); // could be `if'
     ui_edit_t* e = (ui_edit_t*)view;
     // glyph position in scroll_pn paragraph:
@@ -1671,7 +1671,7 @@ fn(void, layout)(ui_view_t* view) { // top down
 }
 
 fn(void, paint)(ui_view_t* view) {
-    assert(view->type == ui_view_edit);
+    assert(view->type == ui_view_text);
     assert(!view->hidden);
     ui_edit_t* e = (ui_edit_t*)view;
     gdi.push(view->x, view->y + e->top);
@@ -1726,7 +1726,7 @@ __declspec(dllimport) unsigned int __stdcall GetACP(void);
 void ns(init)(ui_edit_t* e) {
     memset(e, 0, sizeof(*e));
     ui_view_init(&e->view);
-    e->view.type = ui_view_edit;
+    e->view.type = ui_view_text;
     e->view.focusable = true;
     e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
     e->last_x    = -1;

@@ -36,6 +36,7 @@
       <TreatSpecificWarningsAsErrors>4047;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- '=': '...' differs in levels of indirection -->
       <TreatSpecificWarningsAsErrors>4057;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function type differs in indirection to slightly different base types -->
       <TreatSpecificWarningsAsErrors>4113;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function '...' differs in parameter lists from '...' -->
+      <TreatSpecificWarningsAsErrors>4700;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- used uninitialized local variable '...' -->
 
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>

@@ -76,20 +76,23 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ui\ut_std.h" />
     <ClInclude Include="..\inc\ui\ui.h" />
     <ClInclude Include="..\inc\ui\ui_app.h" />
     <ClInclude Include="..\inc\ui\ui_button.h" />
-    <ClInclude Include="..\inc\ui\ui_toggle.h" />
+    <ClInclude Include="..\inc\ui\ui_caption.h" />
     <ClInclude Include="..\inc\ui\ui_colors.h" />
     <ClInclude Include="..\inc\ui\ui_core.h" />
     <ClInclude Include="..\inc\ui\ui_gdi.h" />
+    <ClInclude Include="..\inc\ui\ui_glyphs.h" />
     <ClInclude Include="..\inc\ui\ui_label.h" />
     <ClInclude Include="..\inc\ui\ui_layout.h" />
     <ClInclude Include="..\inc\ui\ui_mbx.h" />
+    <ClInclude Include="..\inc\ui\ui_nls.h" />
     <ClInclude Include="..\inc\ui\ui_slider.h" />
+    <ClInclude Include="..\inc\ui\ui_stacks.h" />
+    <ClInclude Include="..\inc\ui\ui_toggle.h" />
     <ClInclude Include="..\inc\ui\ui_view.h" />
-    <ClInclude Include="..\inc\ui\ut_win32.h" />
+    <ClInclude Include="..\inc\ui\ut_std.h" />
     <ClInclude Include="..\inc\ut\ut_args.h" />
     <ClInclude Include="..\inc\ut\ut_atomics.h" />
     <ClInclude Include="..\inc\ut\ut_clipboard.h" />
@@ -111,7 +114,6 @@
     <ClInclude Include="..\inc\ut\ut.h" />
     <ClInclude Include="..\inc\ut\version.h" />
     <ClInclude Include="..\inc\ut\ut_vigil.h" />
-    <ClInclude Include="..\inc\ut\ut_win32.h" />
     <ClInclude Include="..\src\samples\i18n.h" />
   </ItemGroup>
   <ItemGroup>
