@@ -576,7 +576,7 @@ static void app_tap_press(int32_t m, int64_t wp, int64_t lp) {
 enum { app_animation_steps = 15 };
 
 static void app_toast_paint(void) {
-    static image_t image;
+    static ui_image_t image;
     if (image.bitmap == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
         gdi.image_init(&image, 1, 1, 3, pixels);
@@ -1774,7 +1774,7 @@ static const char* app_open_filename(const char* folder,
     return text;
 }
 
-static errno_t app_clipboard_put_image(image_t* im) {
+static errno_t app_clipboard_put_image(ui_image_t* im) {
     HDC canvas = GetDC(null);
     not_null(canvas);
     HDC src = CreateCompatibleDC(canvas); not_null(src);

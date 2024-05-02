@@ -23,11 +23,11 @@ typedef struct gdi_s {  // TODO: ui_ namespace
     void (*init)(void);
     uint32_t (*color_rgb)(ui_color_t c); // rgb color
     // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
-    void (*image_init)(image_t* image, int32_t w, int32_t h, int32_t bpp,
+    void (*image_init)(ui_image_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels);
-    void (*image_init_rgbx)(image_t* image, int32_t w, int32_t h,
+    void (*image_init_rgbx)(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
-    void (*image_dispose)(image_t* image);
+    void (*image_dispose)(ui_image_t* image);
     ui_color_t (*set_text_color)(ui_color_t c);
     ui_brush_t (*create_brush)(ui_color_t c);
     void    (*delete_brush)(ui_brush_t b);
@@ -69,9 +69,9 @@ typedef struct gdi_s {  // TODO: ui_ namespace
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
     void (*alpha_blend)(int32_t x, int32_t y, int32_t w, int32_t h,
-        image_t* image, fp64_t alpha);
+        ui_image_t* image, fp64_t alpha);
     void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
-        image_t* image);
+        ui_image_t* image);
     void (*draw_icon)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_icon_t icon);
     // text:

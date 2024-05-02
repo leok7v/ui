@@ -14,7 +14,6 @@ typedef struct ui_slider_s {
     ui_point_t tm; // text measurement (special case for %0*d)
     ui_button_t inc;
     ui_button_t dec;
-    ui_view_t* buttons[2]; // = { dec, inc }
     int32_t value;  // for ui_slider_t range slider control
     int32_t value_min;
     int32_t value_max;

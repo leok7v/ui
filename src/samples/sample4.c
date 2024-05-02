@@ -5,7 +5,7 @@
 
 const char* title = "Sample4";
 
-static image_t image[2];
+static ui_image_t image[2];
 
 static char filename[260]; // c:\Users\user\Pictures\mandrill-4.2.03.png
 

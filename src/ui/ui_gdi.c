@@ -314,7 +314,7 @@ static BITMAPINFO* gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
     return bi;
 }
 
-static void gdi_create_dib_section(image_t* image, int32_t w, int32_t h,
+static void gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp) {
     fatal_if(image->bitmap != null, "image_dispose() not called?");
     // not using GetWindowDC(app_window()) will allow to initialize images
@@ -329,7 +329,7 @@ static void gdi_create_dib_section(image_t* image, int32_t w, int32_t h,
     fatal_if_false(DeleteDC(c));
 }
 
-static void gdi_image_init_rgbx(image_t* image, int32_t w, int32_t h,
+static void gdi_image_init_rgbx(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -373,7 +373,7 @@ static void gdi_image_init_rgbx(image_t* image, int32_t w, int32_t h,
     image->stride = stride;
 }
 
-static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
+static void gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -460,7 +460,7 @@ static void gdi_image_init(image_t* image, int32_t w, int32_t h, int32_t bpp,
 }
 
 static void gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
-        image_t* image, fp64_t alpha) {
+        ui_image_t* image, fp64_t alpha) {
     assert(image->bpp > 0);
     assert(0 <= alpha && alpha <= 1);
     not_null(app_canvas());
@@ -485,7 +485,7 @@ static void gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
 }
 
 static void gdi_draw_image(int32_t x, int32_t y, int32_t w, int32_t h,
-        image_t* image) {
+        ui_image_t* image) {
     assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     not_null(app_canvas());
     if (image->bpp == 1) { // StretchBlt() is bad for greyscale
@@ -831,9 +831,9 @@ static uint8_t* gdi_load_image(const void* data, int32_t bytes, int* w, int* h,
     #endif
 }
 
-static void gdi_image_dispose(image_t* image) {
+static void gdi_image_dispose(ui_image_t* image) {
     fatal_if_false(DeleteBitmap(image->bitmap));
-    memset(image, 0, sizeof(image_t));
+    memset(image, 0, sizeof(ui_image_t));
 }
 
 gdi_t gdi = {

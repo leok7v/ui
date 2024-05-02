@@ -21,7 +21,7 @@ static ui_point_t em;
 static int32_t panel_border;
 static int32_t frame_border;
 
-static image_t image;
+static ui_image_t image;
 static uint32_t pixels[1024][1024];
 
 static fp64_t zoom = 0.5;
@@ -394,10 +394,10 @@ static void opened(void) {
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(countof(pixels) == countof(pixels[0]), "square");
     gdi.image_init(&image, n, n, (int)sizeof(pixels[0][0]), (uint8_t*)pixels);
-    init_panel(&panel_top, "top", colors.orange, panel_paint);
+    init_panel(&panel_top,    "top",    colors.orange, panel_paint);
     init_panel(&panel_center, "center", colors.off_white, center_paint);
     init_panel(&panel_bottom, "bottom", colors.tone_blue, panel_paint);
-    init_panel(&panel_right, "right", colors.tone_green, right_paint);
+    init_panel(&panel_right,  "right",  colors.tone_green, right_paint);
     panel_right.layout = right_layout;
     text_single_line.highlight = true;
     text_multiline.highlight = true;
@@ -417,7 +417,6 @@ static void opened(void) {
 #endif
     strcopy(button_mbx.view.tip, "Show Yes/No message box");
     strcopy(button_about.view.tip, "Show About message box");
-
     ui_view.add(&panel_right,
         &button_locale.view,
         &button_full_screen.view,
@@ -453,7 +452,7 @@ static fp64_t into(fp64_t v, fp64_t lo, fp64_t hi) {
     return v * (hi - lo) + lo;
 }
 
-static void mandelbrot(image_t* im) {
+static void mandelbrot(ui_image_t* im) {
     for (int r = 0; r < im->h; r++) {
         fp64_t y0 = into(scale0to1(r, im->h, sy, zoom), -1.12, 1.12);
         for (int c = 0; c < im->w; c++) {

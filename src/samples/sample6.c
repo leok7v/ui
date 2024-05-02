@@ -35,7 +35,7 @@ static midi_t mds;
 #define glyph_mute "\xF0\x9F\x94\x87"
 #define glyph_speaker "\xF0\x9F\x94\x88"
 
-static image_t  background;
+static ui_image_t  background;
 
 static void init(void);
 static void fini(void);
@@ -83,7 +83,7 @@ static void paint(ui_view_t* view) {
     gdi.set_clip(0, 0, 0, 0);
     if (gif.pixels != null) {
         uint8_t* p = gif.pixels + gif.w * gif.h * gif.bpp * animation.index;
-        image_t frame = { 0 };
+        ui_image_t frame = { 0 };
         gdi.image_init(&frame, gif.w, gif.h, gif.bpp, p);
         x = animation.x - gif.w / 2;
         y = animation.y - gif.h / 2;
