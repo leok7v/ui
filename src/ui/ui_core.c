@@ -33,10 +33,10 @@ bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
 extern ui_if ui = {
     .align = {
         .center = 0,
-        .left   = 1,
-        .top    = 1,
-        .right  = 2,
-        .bottom = 2
+        .left   = 0x01,
+        .top    = 0x02,
+        .right  = 0x10,
+        .bottom = 0x20
     },
     .visibility = { // window visibility see ShowWindow link below
         .hide      = SW_HIDE,

@@ -56,9 +56,6 @@ static void app_view_paint(ui_view_t* v) {
 }
 
 static void opened(void) {
-    app.view->measure   = app_view_measure;
-    app.view->layout    = app_view_layout;
-    app.view->paint     = app_view_paint;
     ui_view.add(app.view,
         &ui_caption.view,
         ui_view.add(&center_pane,
@@ -71,6 +68,10 @@ static void opened(void) {
                     &button_bottom,
                      null),
         null);
+    // overrides must be after init (otherwise overwritten by init_container() and alike):
+    app.view->measure   = app_view_measure;
+    app.view->layout    = app_view_layout;
+    app.view->paint     = app_view_paint;
 
     center_pane.hidden = true;
     bottom_pane.hidden = true;

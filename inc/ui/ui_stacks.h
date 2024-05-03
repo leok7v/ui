@@ -3,6 +3,11 @@
 
 begin_c
 
+// TODO: renaming
+// ui_container_t
+// ui_span_t  horizontal
+// ui_list_t  vertical
+
 // Usage:
 // ui_view_t* h_stack = ui_view(ui_view_h_stack);
 // ui_view_t* v_stack = ui_view(ui_view_v_stack);

@@ -78,11 +78,11 @@ typedef struct ui_gaps_s { // in partial "em"s
 } ui_gaps_t;
 
 typedef struct ui_s {
-    struct { // not a bitset
+    struct { // align bitset
         int32_t const center; // = 0, default
-        int32_t const left;   // left and top are the same value
-        int32_t const top;    // the different is vertical and horizontal
-        int32_t const right;  // right and bottom are the same too
+        int32_t const left;   // left|top, left|bottom, right|bottom
+        int32_t const top;
+        int32_t const right;  // right|top, right|bottom
         int32_t const bottom;
     } const align;
     struct { // window visibility

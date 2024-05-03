@@ -10,6 +10,7 @@
 #define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
 
 static void ui_caption_paint(ui_view_t* v) {
+    // TODO: add app title label instead
     swear(v == &ui_caption.view);
     gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     gdi.push(v->x, v->y);
@@ -43,7 +44,7 @@ static void ui_caption_mini(ui_button_t* unused(b)) {
     app.show_window(ui.visibility.minimize);
 }
 
-static void ui_caption_maxi_glyph(void) {
+static void ui_caption_maximize_or_restore(void) {
     strprintf(ui_caption.maxi.view.text, "%s",
         app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
@@ -55,7 +56,7 @@ static void ui_caption_maxi(ui_button_t* unused(b)) {
     } else if (app.is_maximized() || app.is_minimized()) {
         app.show_window(ui.visibility.restore);
     }
-    ui_caption_maxi_glyph();
+    ui_caption_maximize_or_restore();
 }
 
 static void ui_caption_full(ui_button_t* unused(b)) {
@@ -100,7 +101,7 @@ static void ui_caption_init(ui_view_t* v) {
         c->padding = p;
     });
     ui_caption.icon.view.icon = app.icon;
-    ui_caption_maxi_glyph();
+    ui_caption_maximize_or_restore();
 }
 
 ui_caption_t ui_caption =  {

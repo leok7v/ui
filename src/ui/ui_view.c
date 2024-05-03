@@ -533,8 +533,6 @@ static void ui_view_test(void) {
 
 void ui_view_init(ui_view_t* unused(view)) { }
 
-void ui_view_init_container(ui_view_t* view) { ui_view_init(view); }
-
 ui_view_if ui_view = {
     .add                = ui_view_add,
     .add_first          = ui_view_add_first,

@@ -162,11 +162,11 @@ typedef struct ui_gaps_s { // in partial "em"s
 } ui_gaps_t;
 
 typedef struct ui_s {
-    struct { // not a bitset
+    struct { // align bitset
         int32_t const center; // = 0, default
-        int32_t const left;   // left and top are the same value
-        int32_t const top;    // the different is vertical and horizontal
-        int32_t const right;  // right and bottom are the same too
+        int32_t const left;   // left|top, left|bottom, right|bottom
+        int32_t const top;
+        int32_t const right;  // right|top, right|bottom
         int32_t const bottom;
     } const align;
     struct { // window visibility
@@ -1269,6 +1269,11 @@ typedef struct app_s {  // TODO: ui_ namespace
 extern app_t app;
 
 
+
+// TODO: renaming
+// ui_container_t
+// ui_span_t  horizontal
+// ui_list_t  vertical
 
 // Usage:
 // ui_view_t* h_stack = ui_view(ui_view_h_stack);
@@ -3467,6 +3472,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
 #define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
 
 static void ui_caption_paint(ui_view_t* v) {
+    // TODO: add app title label instead
     swear(v == &ui_caption.view);
     gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     gdi.push(v->x, v->y);
@@ -3500,7 +3506,7 @@ static void ui_caption_mini(ui_button_t* unused(b)) {
     app.show_window(ui.visibility.minimize);
 }
 
-static void ui_caption_maxi_glyph(void) {
+static void ui_caption_maximize_or_restore(void) {
     strprintf(ui_caption.maxi.view.text, "%s",
         app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
@@ -3512,7 +3518,7 @@ static void ui_caption_maxi(ui_button_t* unused(b)) {
     } else if (app.is_maximized() || app.is_minimized()) {
         app.show_window(ui.visibility.restore);
     }
-    ui_caption_maxi_glyph();
+    ui_caption_maximize_or_restore();
 }
 
 static void ui_caption_full(ui_button_t* unused(b)) {
@@ -3557,7 +3563,7 @@ static void ui_caption_init(ui_view_t* v) {
         c->padding = p;
     });
     ui_caption.icon.view.icon = app.icon;
-    ui_caption_maxi_glyph();
+    ui_caption_maximize_or_restore();
 }
 
 ui_caption_t ui_caption =  {
@@ -3723,10 +3729,10 @@ bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
 extern ui_if ui = {
     .align = {
         .center = 0,
-        .left   = 1,
-        .top    = 1,
-        .right  = 2,
-        .bottom = 2
+        .left   = 0x01,
+        .top    = 0x02,
+        .right  = 0x10,
+        .bottom = 0x20
     },
     .visibility = { // window visibility see ShowWindow link below
         .hide      = SW_HIDE,
@@ -5590,6 +5596,8 @@ static void ui_h_stack_layout(ui_view_t* s) {
     const int32_t bot = s->y + s->h - i_bt;
     assert(top < bot, "insets top: %d bottom: %d y: %d h: %d top: %d bottom: %d",
                       i_tp, i_bt, s->y, s->w, top, bot);
+    int32_t max_w_sum = 0;
+    int32_t max_w_count = 0;
     int32_t x = i_lf;
     ui_view_for_each(s, c, {
         assert(c->h <= s->h);
@@ -5616,18 +5624,52 @@ static void ui_h_stack_layout(ui_view_t* s) {
             c->x = x + p_lf;
             debugln("%s.(x,y): (%d,%d) .w: %d", c->text, c->x, c->y, c->w);
             x = c->x + c->w + p_rt;
+            assert(c->max_w == 0 || c->max_w > c->w);
+            if (c->max_w > 0) {
+                // if max_w is infinity it can occupy whole parent width:
+                max_w_sum += (c->max_w == INT32_MAX) ? s->w : c->max_w;
+                max_w_count++;
+            }
         }
     });
-    // TODO: before spacers need to distribute excess among max_w > w
-    if (x < rt) {
+    if (x < rt && max_w_count > 0) {
+        int32_t sum = 0;
+        int32_t diff = rt - x;
+        x = i_lf;
+        int32_t k = 0;
+        ui_view_for_each(s, c, {
+            if (c->type != ui_view_spacer && c->max_w > 0) {
+                // if max_w is infinity it can occupy whole parent width:
+                const int32_t max_w = (c->max_w == INT32_MAX) ? s->w : c->max_w;
+                debugln("%s[%4.4s] c->max_w: %d max_w: %d diff / max_w_count: %d = %d / %d",
+                        c->text, &c->type,
+                        c->max_w, max_w, diff / max_w_count, diff, max_w_count);
+                int32_t proportional = (diff * max_w) / (max_w_count * max_w_sum);
+                int32_t cw = k == max_w_count - 1 ? diff - sum : proportional;
+                c->w = ut_min(max_w, c->w + cw);
+                debugln("c->w := %d", c->w);
+                sum += c->w;
+                k++;
+            }
+            const int32_t p_lf = ui_stack_em2px(c->em.x, c->padding.left);
+            const int32_t p_rt = ui_stack_em2px(c->em.x, c->padding.right);
+            int32_t cw = p_lf + c->w + p_rt;
+            debugln("%s[%4.4s 0x%08X] .(x,y): (%d:=%d,%d) .(WxH): %d=%d+%d+%d x %d max_w: %d (0x%08X)",
+                    c->text, &c->type, c->type, c->x, x, c->y, cw, p_lf, c->w, p_rt, c->h, c->max_w, c->max_w);
+            c->x = x;
+            x += cw;
+        });
+        assert(k == max_w_count);
+    }
+    if (x < rt && spacers > 0) {
         // evenly distribute excess among spacers
         int32_t sum = 0;
         int32_t diff = rt - x;
-        int32_t spacer_w = diff / spacers;
+        int32_t partial = diff / spacers;
         x = i_lf;
         ui_view_for_each(s, c, {
             if (c->type == ui_view_spacer) {
-                c->w = spacers == 1 ? spacer_w : diff - sum;
+                c->w = spacers == 1 ? diff - sum : partial;
                 sum += c->w;
                 spacers--;
             }
@@ -5644,14 +5686,6 @@ static void ui_h_stack_layout(ui_view_t* s) {
             s->text, &s->type, s->type, s->x, s->y, s->w, s->h, s->max_w, s->max_w);
 }
 
-void ui_view_init_h_stack(ui_view_t* v) {
-    ui_view_init_container(v);
-    // TODO: not sure about default insets
-    v->insets  = (ui_gaps_t){ .left = 0.5, .top = 0.25, .right = 0.5, .bottom = 0.25 };
-    v->measure = ui_h_stack_measure;
-    v->layout  = ui_h_stack_layout;
-}
-
 static void ui_v_stack_measure(ui_view_t* v) {
     swear(v->type == ui_view_v_stack, "type %4.4s 0x%08X", &v->type, v->type);
     debugln("TODO: implement");
@@ -5660,14 +5694,72 @@ static void ui_v_stack_measure(ui_view_t* v) {
 static void ui_v_stack_layout(ui_view_t* v) {
     swear(v->type == ui_view_v_stack, "type %4.4s 0x%08X", &v->type, v->type);
     debugln("TODO: implement");
+    strprintf(v->text, "v_stack"); // for debugging
 }
 
-void ui_view_init_v_stack(ui_view_t* v) {
-    ui_view_init_container(v);
-    // TODO: not sure about default insets
-    v->insets  = (ui_gaps_t){ .left = 0.5, .top = 0.25, .right = 0.5, .bottom = 0.25 };
-    v->measure = ui_v_stack_measure;
-    v->layout  = ui_v_stack_layout;
+static void ui_container_measure(ui_view_t* p) {
+    const int32_t i_lf = ui_stack_em2px(p->em.x, p->insets.left);
+    const int32_t i_rt = ui_stack_em2px(p->em.x, p->insets.right);
+    const int32_t i_tp = ui_stack_em2px(p->em.y, p->insets.top);
+    const int32_t i_bt = ui_stack_em2px(p->em.y, p->insets.bottom);
+    ui_view_for_each(p, c, {
+        assert(c->max_w == 0 || c->max_w > c->w);
+        assert(c->max_h == 0 || c->max_h > c->w);
+        assert(c->type != ui_view_spacer, "spacers should not be used inside container");
+        if (c->type == ui_view_spacer) {
+            const int32_t p_lf = ui_stack_em2px(c->em.x, c->padding.left);
+            const int32_t p_rt = ui_stack_em2px(c->em.x, c->padding.right);
+            const int32_t p_tp = ui_stack_em2px(c->em.y, c->padding.top);
+            const int32_t p_bt = ui_stack_em2px(c->em.y, c->padding.bottom);
+            const int32_t pw = p->w - i_lf - i_rt;
+            const int32_t ph = p->h - i_tp - i_bt;
+            int32_t cw = c->max_w == INT32_MAX ? pw : c->max_w;
+            if (cw > 0) { c->w = ut_min(cw, pw - p_lf - p_rt); }
+            int32_t ch = c->max_h == INT32_MAX ? ph : c->max_h;
+            if (ch > 0) { c->h = ut_min(ch, ph - p_tp - p_bt); }
+        }
+    });
+}
+
+static void ui_container_layout(ui_view_t* p) {
+    const int32_t i_lf = ui_stack_em2px(p->em.x, p->insets.left);
+    const int32_t i_rt = ui_stack_em2px(p->em.x, p->insets.right);
+    const int32_t i_tp = ui_stack_em2px(p->em.y, p->insets.top);
+    const int32_t i_bt = ui_stack_em2px(p->em.y, p->insets.bottom);
+    const int32_t lf = p->x + i_lf;
+    const int32_t rt = p->x + p->w - i_rt;
+    const int32_t tp = p->y + i_tp;
+    const int32_t bt = p->y + p->h - i_bt;
+    ui_view_for_each(p, c, {
+        if (c->type == ui_view_spacer) {
+            assert((c->align & (ui.align.left|ui.align.right)) ==
+                               (ui.align.left|ui.align.right),
+                   "contradictory align: left|right");
+            assert((c->align & (ui.align.top|ui.align.bottom)) ==
+                               (ui.align.top|ui.align.bottom),
+                   "contradictory align: top|bottom");
+            const int32_t p_lf = ui_stack_em2px(c->em.x, c->padding.left);
+            const int32_t p_rt = ui_stack_em2px(c->em.x, c->padding.right);
+            if ((c->align & ui.align.left) != 0) {
+                c->x = lf + p_lf;
+            } else if ((c->align & ui.align.right) != 0) {
+                c->x = rt - c->w - p_rt;
+            } else {
+                const int32_t w = rt - lf - p_lf - p_rt; // effective width
+                c->x = lf + (w - c->w) / 2;
+            }
+            const int32_t p_tp = ui_stack_em2px(c->em.y, c->padding.top);
+            const int32_t p_bt = ui_stack_em2px(c->em.y, c->padding.bottom);
+            if ((c->align & ui.align.top) != 0) {
+                c->y = tp + p_tp;
+            } else if ((c->align & ui.align.bottom) != 0) {
+                c->y = bt - c->h - p_bt;
+            } else {
+                const int32_t h = bt - tp - p_tp - p_bt; // effective height
+                c->y = tp + (h - c->h) / 2;
+            }
+        }
+    });
 }
 
 void ui_view_init_spacer(ui_view_t* v) {
@@ -5677,6 +5769,32 @@ void ui_view_init_spacer(ui_view_t* v) {
     v->h = 0;
     v->max_w = INT32_MAX;
     v->max_h = INT32_MAX;
+    strprintf(v->text, "spacer");
+}
+
+void ui_view_init_container(ui_view_t* v) {
+    ui_view_init(v);
+    v->measure = ui_container_measure;
+    v->layout  = ui_container_layout;
+    strprintf(v->text, "container"); // for debugging
+}
+
+void ui_view_init_h_stack(ui_view_t* v) {
+    ui_view_init_container(v);
+    // TODO: not sure about default insets
+    v->insets  = (ui_gaps_t){ .left = 0.5, .top = 0.25, .right = 0.5, .bottom = 0.25 };
+    v->measure = ui_h_stack_measure;
+    v->layout  = ui_h_stack_layout;
+    strprintf(v->text, "v_stack"); // for debugging
+}
+
+void ui_view_init_v_stack(ui_view_t* v) {
+    ui_view_init_container(v);
+    // TODO: not sure about default insets
+    v->insets  = (ui_gaps_t){ .left = 0.5, .top = 0.25, .right = 0.5, .bottom = 0.25 };
+    v->measure = ui_v_stack_measure;
+    v->layout  = ui_v_stack_layout;
+    strprintf(v->text, "v_stack"); // for debugging
 }
 // _______________________________ ui_toggle.c ________________________________
 
@@ -6328,8 +6446,6 @@ static void ui_view_test(void) {
 #pragma pop_macro("ui_view_alone")
 
 void ui_view_init(ui_view_t* unused(view)) { }
-
-void ui_view_init_container(ui_view_t* view) { ui_view_init(view); }
 
 ui_view_if ui_view = {
     .add                = ui_view_add,
