@@ -830,6 +830,10 @@ extern gdi_t gdi;
 // https://www.compart.com/en/unicode/U+221E
 #define ui_glyph_infinity                              "\xE2\x88\x9E"
 
+// Black Large Circle
+// https://www.compart.com/en/unicode/U+2B24
+#define ui_glyph_black_large_circle                    "\xE2\xAC\xA4"
+
 // Heavy Leftwards Arrow with Equilateral Arrowhead
 // https://www.compart.com/en/unicode/U+1F818
 #define ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead           "\xF0\x9F\xA0\x98"
@@ -882,7 +886,8 @@ typedef struct ui_view_s {
     int32_t align; // see ui.alignment values
     int32_t max_w; // > 0 maximum width in pixels the view agrees to
     int32_t max_h; // > 0 maximum height in pixels
-    fp64_t  width; // > 0 width of UI element in "em"s
+    fp32_t  min_w_em; // > 0 minimum width  of a view in "em"s
+    fp32_t  min_h_em; // > 0 minimum height of a view in "em"s
     char text[2048];
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
@@ -899,7 +904,8 @@ typedef struct ui_view_s {
     void (*paint)(ui_view_t* view);
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
-    void (*click)(ui_view_t* view); // interpretation depends on ui element
+    void (*click)(ui_view_t* view); // interpretation depends on a view
+    void (*callback)(ui_view_t* b); // view state change callback
     void (*mouse)(ui_view_t* view, int32_t message, int64_t flags);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
     // tap(ui, button_index) press(ui, button_index) see note below
@@ -1078,21 +1084,22 @@ typedef struct ui_label_s {
     bool highlight; // paint with highlight color
     bool hovered;   // paint highlight rectangle when hover over
     bool label;     // do not copy text to clipboard, do not highlight
-    int32_t dy; // vertical shift down (to line up baselines of diff fonts)
+    int32_t dy;     // vertical shift down (to line up baselines of diff fonts)
 } ui_label_t;
 
 // do not call ui_label_init_ use ui_label() instead
-void ui_label_init_(ui_view_t* view);
+void ui_view_init_label(ui_view_t* view);
 
-#define ui_label(w, s) {                                       \
-      .view = { .type = ui_view_label, .init = ui_label_init_, \
-      .font = &app.fonts.regular, .width = w, .text = s}       \
+#define ui_label(min_width_em, s) {                                    \
+      .view = { .type = ui_view_label, .init = ui_view_init_label,     \
+                .font = &app.fonts.regular, .min_w_em = min_width_em,  \
+                .text = s }                                            \
 }
 
 // single line of text with "&" keyboard shortcuts:
 
-void ui_label_init(ui_label_t* t, fp64_t width, const char* format, ...);
-void ui_label_init_va(ui_label_t* t, fp64_t width, const char* format, va_list vl);
+void ui_label_init(ui_label_t* t, fp32_t min_w_em, const char* format, ...);
+void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_list vl);
 
 // _________________________________ ui_nls.h _________________________________
 
@@ -1120,47 +1127,51 @@ extern nls_if nls;
 #include "ut/ut_std.h"
 
 
-typedef struct ui_button_s ui_button_t;
+typedef ui_view_t ui_button_t;
 
-typedef struct ui_button_s {
-    ui_view_t view;
-    void (*cb)(ui_button_t* b); // callback TODO: move into view?
-} ui_button_t;
+void ui_view_init_button(ui_view_t* view);
 
-void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
+void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
     void (*cb)(ui_button_t* b));
 
-void ui_button_init_(ui_view_t* view); // do not call use static_ui_button() macro
+#define static_ui_button(name, s, min_width_em, ...)          \
+    static void name ## _callback(ui_button_t* name) {        \
+        (void)name; /* no warning if unused */                \
+        { __VA_ARGS__ }                                       \
+    }                                                         \
+    static                                                    \
+    ui_button_t name = {                                      \
+        .type = ui_view_button, .init = ui_view_init_button,  \
+        .font = &app.fonts.regular, .min_w_em = min_width_em, \
+        .text = s, .callback = name ## _callback              \
+    }
 
-#define static_ui_button(name, s, w, ...)                             \
-    static void name ## _callback(ui_button_t* name) {                \
-        (void)name; /* no warning if unused */                        \
-        { __VA_ARGS__ }                                               \
-    }                                                                 \
-    static                                                            \
-    ui_button_t name = {                                              \
-        .view = { .type = ui_view_button, .init = ui_button_init_,    \
-        .font = &app.fonts.regular, .width = w, .text = s},           \
-    .cb = name ## _callback }
-
-#define ui_button(s, w, callback) {                               \
-    .view = { .type = ui_view_button, .init = ui_button_init_,    \
-              .font = &app.fonts.regular, .width = w, .text = s}, \
-    .cb = callback }
+#define ui_button(s, min_width_em, call_back) {           \
+    .type = ui_view_button, .init = ui_view_init_button,  \
+    .font = &app.fonts.regular, .min_w_em = min_width_em, \
+    .text = s, .callback = call_back }                    \
 
 // usage:
 //
 // static_ui_button(button, "&Button", 7.0, {
-//      button->view.pressed = !button->view.pressed;
+//      button->pressed = !button->pressed;
 // })
 //
 // or:
 //
 // static void button_flipped(ui_button_t* b) {
-//      b->view.pressed = !b->view.pressed;
+//      b->pressed = !b->pressed;
 // }
 //
 // ui_button_t button = ui_button(7.0, "&Button", button_flipped);
+//
+// or
+//
+// ui_button_t button = ui_view)button(button);
+// strprintf(button.text, "&Button");
+// button.min_w_em = 7.0;
+// button.callback = button_flipped;
+
 
 // ________________________________ ui_theme.h ________________________________
 
@@ -1190,34 +1201,32 @@ extern ui_theme_if ui_theme;
 #include "ut/ut_std.h"
 
 
-typedef struct ui_toggle_s ui_toggle_t;
 
-typedef struct ui_toggle_s {
-    ui_view_t view;
-    void (*cb)(ui_toggle_t* b); // callback
-} ui_toggle_t;
+typedef ui_view_t ui_toggle_t;
 
 // label may contain "___" which will be replaced with "On" / "Off"
-void ui_toggle_init(ui_toggle_t* b, const char* label, fp64_t ems,
-    void (*cb)(ui_toggle_t* b));
+void ui_toggle_init(ui_toggle_t* b, const char* label, fp32_t ems,
+    void (*callback)(ui_toggle_t* b));
 
-void ui_toggle_init_(ui_view_t* view); // do not call use static_ui_toggle() macro
+void ui_view_init_toggle(ui_view_t* view);
 
-#define static_ui_toggle(name, s, w, code)                            \
-    static void name ## _callback(ui_toggle_t* name) {                \
-        (void)name; /* no warning if unused */                        \
-        code                                                          \
-    }                                                                 \
-    static                                                            \
-   ui_toggle_t name = {                                               \
-    .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
-              .font = &app.fonts.regular, .width = w, .text = s},     \
-    .cb = name ## _callback }
+#define static_ui_toggle(name, s, min_width_em, ...)          \
+    static void name ## _callback(ui_toggle_t* name) {        \
+        (void)name; /* no warning if unused */                \
+        { __VA_ARGS__ }                                       \
+    }                                                         \
+    static                                                    \
+    ui_toggle_t name = {                                      \
+        .type = ui_view_toggle, .init = ui_view_init_toggle,  \
+        .font = &app.fonts.regular, .min_w_em = min_width_em, \
+        .text = s, .callback = name ## _callback              \
+   }
 
-#define ui_toggle(s, w, callback) {                                   \
-    .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
-    .font = &app.fonts.regular, .width = w, .text = s},               \
-    .cb = callback }
+#define ui_toggle(s, min_width_em, call_back) {           \
+    .type = ui_view_toggle, .init = ui_view_init_toggle,  \
+    .font = &app.fonts.regular, .min_w_em = min_width_em, \
+    .text = s, .callback = call_back                      \
+}
 
 // _______________________________ ui_slider.h ________________________________
 
@@ -1228,7 +1237,6 @@ typedef struct ui_slider_s ui_slider_t;
 
 typedef struct ui_slider_s {
     ui_view_t view;
-    void (*cb)(ui_slider_t* b); // callback
     int32_t step;
     fp64_t time;   // time last button was pressed
     ui_point_t tm; // text measurement (special case for %0*d)
@@ -1239,28 +1247,32 @@ typedef struct ui_slider_s {
     int32_t value_max;
 } ui_slider_t;
 
-void ui_slider_init_(ui_view_t* view);
+void ui_view_init_slider(ui_view_t* view);
 
-void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
-    int32_t value_min, int32_t value_max, void (*cb)(ui_slider_t* r));
+void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
+    int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* r));
 
-#define static_ui_slider(name, s, ems, vmn, vmx, code)                \
-    static void name ## _callback(ui_slider_t* name) {                \
-        (void)name; /* no warning if unused */                        \
-        code                                                          \
-    }                                                                 \
-    static                                                            \
-    ui_slider_t name = {                                              \
-        .view = { .type = ui_view_slider, .font = &app.fonts.regular, \
-        .width = ems, .text = s, .init = ui_slider_init_,             \
-    }, .value_min = vmn, .value_max = vmx, .value = vmn,              \
-    .cb = name ## _callback }
+#define static_ui_slider(name, s, min_width_em, vmn, vmx, ...)            \
+    static void name ## _callback(ui_slider_t* name) {                    \
+        (void)name; /* no warning if unused */                            \
+        { __VA_ARGS__ }                                                   \
+    }                                                                     \
+    static                                                                \
+    ui_slider_t name = {                                                  \
+        .view = { .type = ui_view_slider, .font = &app.fonts.regular,     \
+                  .min_w_em = min_width_em, .init = ui_view_init_slider,  \
+                   .text = s, .callback = name ## _callback               \
+        },                                                                \
+        .value_min = vmn, .value_max = vmx, .value = vmn,                 \
+    }
 
-#define ui_slider(s, ems, vmn, vmx, callback) (ui_slider_t) {         \
-        .view = { .type = ui_view_slider, .font = &app.fonts.regular, \
-        .width = ems, .text = s, .init = ui_slider_init_,             \
-    }, .value_min = vmn, .value_max = vmx, .value = vmn,              \
-    .cb = callback }
+#define ui_slider(s, min_width_em, vmn, vmx, call_back) (ui_slider_t) {   \
+    .view = { .type = ui_view_slider, .font = &app.fonts.regular,         \
+        .min_w_em = min_width_em, .text = s, .init = ui_view_init_slider, \
+        .callback = call_back                                             \
+    },                                                                    \
+    .value_min = vmn, .value_max = vmx, .value = vmn,                     \
+}
 
 // _________________________________ ui_mbx.h _________________________________
 
@@ -3712,16 +3724,14 @@ static void ui_button_paint(ui_view_t* view) {
 }
 
 static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
-    assert(b->view.type == ui_view_button);
-    pt.x -= b->view.x;
-    pt.y -= b->view.y;
-    return 0 <= pt.x && pt.x < b->view.w && 0 <= pt.y && pt.y < b->view.h;
+    assert(b->type == ui_view_button);
+    return ui_view.inside(b, &pt);
 }
 
 static void ui_button_callback(ui_button_t* b) {
-    assert(b->view.type == ui_view_button);
+    assert(b->type == ui_view_button);
     app.show_tooltip(null, -1, -1, 0);
-    if (b->cb != null) { b->cb(b); }
+    if (b->callback != null) { b->callback(b); }
 }
 
 static void ui_button_trigger(ui_view_t* view) {
@@ -3785,7 +3795,7 @@ static void ui_button_measure(ui_view_t* view) {
     if (view->w < view->h) { view->w = view->h; }
 }
 
-void ui_button_init_(ui_view_t* view) {
+void ui_view_init_button(ui_view_t* view) {
     assert(view->type == ui_view_button);
     ui_view_init(view);
     view->mouse       = ui_button_mouse;
@@ -3799,14 +3809,13 @@ void ui_button_init_(ui_view_t* view) {
     view->color = ui_colors.btn_text;
 }
 
-void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
-        void (*cb)(ui_button_t* b)) {
-    static_assert(offsetof(ui_button_t, view) == 0, "offsetof(.view)");
-    b->view.type = ui_view_button;
-    strprintf(b->view.text, "%s", label);
-    b->cb = cb;
-    b->view.width = ems;
-    ui_button_init_(&b->view);
+void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
+        void (*callback)(ui_button_t* b)) {
+    b->type = ui_view_button;
+    strprintf(b->text, "%s", label);
+    b->callback = callback;
+    b->min_w_em = ems;
+    ui_view_init_button(b);
 }
 // _______________________________ ui_caption.c _______________________________
 
@@ -3860,7 +3869,7 @@ static void ui_caption_mini(ui_button_t* unused(b)) {
 }
 
 static void ui_caption_maximize_or_restore(void) {
-    strprintf(ui_caption.maxi.view.text, "%s",
+    strprintf(ui_caption.maxi.text, "%s",
         app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
 }
@@ -3882,7 +3891,7 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
     ui_point_t pt = { x, y };
     if (app.is_full_screen) {
         return ui.hit_test.client;
-    } else if (ui_view.inside(&ui_caption.icon.view, &pt)) {
+    } else if (ui_view.inside(&ui_caption.icon, &pt)) {
         return ui.hit_test.system_menu;
     } else {
         ui_view_for_each(&ui_caption.view, c, {
@@ -3921,7 +3930,7 @@ static void ui_caption_init(ui_view_t* v) {
         c->flat = true;
         c->padding = p;
     });
-    ui_caption.icon.view.icon = app.icon;
+    ui_caption.icon.icon = app.icon;
     ui_caption.view.max_w = INT32_MAX;
     ui_caption.view.align = ui.align.top;
     ui_caption_maximize_or_restore();
@@ -5769,7 +5778,7 @@ static void ui_label_paint(ui_view_t* view) {
     if (!multiline) {
         gdi.text("%s", ui_view.nls(view));
     } else {
-        int32_t w = (int)(view->width * view->em.x + 0.5);
+        int32_t w = (int)(view->min_w_em * view->em.x + 0.5);
         gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
     }
     if (view->hover && t->hovered && !t->label) {
@@ -5808,7 +5817,7 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
     }
 }
 
-void ui_label_init_(ui_view_t* view) {
+void ui_view_init_label(ui_view_t* view) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     assert(view->type == ui_view_label);
     ui_view_init(view);
@@ -5818,18 +5827,18 @@ void ui_label_init_(ui_view_t* view) {
     view->context_menu = ui_label_context_menu;
 }
 
-void ui_label_init_va(ui_label_t* t, fp64_t width, const char* format, va_list vl) {
+void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     ut_str.format_va(t->view.text, countof(t->view.text), format, vl);
-    t->view.width = width;
+    t->view.min_w_em = min_w_em;
     t->view.type = ui_view_label;
-    ui_label_init_(&t->view);
+    ui_view_init_label(&t->view);
 }
 
-void ui_label_init(ui_label_t* t, fp64_t width, const char* format, ...) {
+void ui_label_init(ui_label_t* t, fp32_t min_w_em, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_label_init_va(t, width, format, vl);
+    ui_label_init_va(t, min_w_em, format, vl);
     va_end(vl);
 }
 // _______________________________ ui_layout.c ________________________________
@@ -6015,7 +6024,7 @@ layouts_if layouts = {
 #include "ut/ut.h"
 
 static void ui_mbx_button(ui_button_t* b) {
-    ui_mbx_t* mx = (ui_mbx_t*)b->view.parent;
+    ui_mbx_t* mx = (ui_mbx_t*)b->parent;
     assert(mx->view.type == ui_view_mbx);
     mx->option = -1;
     for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
@@ -6045,10 +6054,10 @@ static void ui_mbx_measure(ui_view_t* view) {
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
-            bw += mx->button[i].view.w;
+            bw += mx->button[i].w;
         }
         view->w = ut_max(tw, bw + em_x * 2);
-        view->h = th + mx->button[0].view.h + em_y + em_y / 2;
+        view->h = th + mx->button[0].h + em_y + em_y / 2;
     } else {
         view->h = th + em_y / 2;
         view->w = tw;
@@ -6069,7 +6078,7 @@ static void ui_mbx_layout(ui_view_t* view) {
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
-            bw += mx->button[i].view.w;
+            bw += mx->button[i].w;
         }
         // center text:
         mx->text.view.x = view->x + (view->w - tw) / 2;
@@ -6077,9 +6086,9 @@ static void ui_mbx_layout(ui_view_t* view) {
         int32_t sp = (view->w - bw) / (n + 1);
         int32_t x = sp;
         for (int32_t i = 0; i < n; i++) {
-            mx->button[i].view.x = view->x + x;
-            mx->button[i].view.y = view->y + th + em_y * 3 / 2;
-            x += mx->button[i].view.w + sp;
+            mx->button[i].x = view->x + x;
+            mx->button[i].y = view->y + th + em_y * 3 / 2;
+            x += mx->button[i].w + sp;
         }
     }
 }
@@ -6102,11 +6111,11 @@ void ui_mbx_init_(ui_view_t* view) {
     ui_label_init(&mx->text, 0.0, "%s", mx->view.text);
     ui_view.add_last(&mx->view, &mx->text.view);
     for (int32_t i = 0; i < n; i++) {
-        ui_view.add_last(&mx->view, &mx->button[i].view);
-        mx->button[i].view.font = mx->view.font;
-        ui_view.localize(&mx->button[i].view);
+        ui_view.add_last(&mx->view, &mx->button[i]);
+        mx->button[i].font = mx->view.font;
+        ui_view.localize(&mx->button[i]);
         // TODO: remove assert below
-        assert(mx->button[i].view.parent == &mx->view);
+        assert(mx->button[i].parent == &mx->view);
     }
     mx->text.view.font = mx->view.font;
     ui_view.localize(&mx->text.view);
@@ -6321,25 +6330,25 @@ static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_view.measure(v);
     ui_slider_t* r = (ui_slider_t*)v;
-    assert(r->inc.view.w == r->dec.view.w && r->inc.view.h == r->dec.view.h);
+    assert(r->inc.w == r->inc.w && r->inc.h == r->inc.h);
     const int32_t em = v->em.x;
     ui_font_t f = v->font != null ? *v->font : app.fonts.regular;
-    const int32_t w = (int)(v->width * v->em.x);
+    const int32_t w = (int)(v->min_w_em * v->em.x);
     r->tm = gdi.measure_text(f, ui_view.nls(v), r->value_max);
     if (w > r->tm.x) { r->tm.x = w; }
-    v->w = r->dec.view.w + r->tm.x + r->inc.view.w + em * 2;
-    v->h = r->inc.view.h;
+    v->w = r->inc.w + r->tm.x + r->inc.w + em * 2;
+    v->h = r->inc.h;
 }
 
 static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* r = (ui_slider_t*)v;
-    assert(r->inc.view.w == r->dec.view.w && r->inc.view.h == r->dec.view.h);
+    assert(r->inc.w == r->inc.w && r->inc.h == r->inc.h);
     const int32_t em = v->em.x;
-    r->dec.view.x = v->x;
-    r->dec.view.y = v->y;
-    r->inc.view.x = v->x + r->dec.view.w + r->tm.x + em * 2;
-    r->inc.view.y = v->y;
+    r->inc.x = v->x;
+    r->inc.y = v->y;
+    r->inc.x = v->x + r->inc.w + r->tm.x + em * 2;
+    r->inc.y = v->y;
 }
 
 static void ui_slider_paint(ui_view_t* v) {
@@ -6356,7 +6365,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_pen_t pen_grey45 = gdi.create_pen(ui_colors.dkgray3, em16);
     gdi.set_pen(pen_grey45);
     gdi.set_brush_color(ui_colors.dkgray3);
-    const int32_t x = v->x + r->dec.view.w + em2;
+    const int32_t x = v->x + r->inc.w + em2;
     const int32_t y = v->y;
     const int32_t w = r->tm.x + em;
     const int32_t h = v->h;
@@ -6371,7 +6380,7 @@ static void ui_slider_paint(ui_view_t* v) {
     const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
     fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->value_min) / range;
     gdi.rect(x, v->y, (int32_t)(vw + 0.5), v->h);
-    gdi.x += r->dec.view.w + em;
+    gdi.x += r->inc.w + em;
     const char* format = nls.str(v->text);
     gdi.text(format, r->value);
     gdi.set_clip(0, 0, 0, 0);
@@ -6388,7 +6397,7 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
         if (message == ui.message.left_button_pressed ||
             message == ui.message.right_button_pressed || drag) {
-            const int32_t x = app.mouse.x - v->x - r->dec.view.w;
+            const int32_t x = app.mouse.x - v->x - r->inc.w;
             const int32_t y = app.mouse.y - v->y;
             const int32_t x0 = v->em.x / 2;
             const int32_t x1 = r->tm.x + v->em.x;
@@ -6398,7 +6407,7 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
                 fp64_t val = ((fp64_t)x - x0) * range / (fp64_t)(x1 - x0 - 1);
                 int32_t vw = (int32_t)(val + r->value_min + 0.5);
                 r->value = ut_min(ut_max(vw, r->value_min), r->value_max);
-                if (r->cb != null) { r->cb(r); }
+                if (r->view.callback != null) { r->view.callback(&r->view); }
                 ui_view.invalidate(v);
             }
         }
@@ -6418,14 +6427,14 @@ static void ui_slider_inc_dec_value(ui_slider_t* r, int32_t sign, int32_t mul) {
         }
         if (r->value != v) {
             r->value = v;
-            if (r->cb != null) { r->cb(r); }
+            if (r->view.callback != null) { r->view.callback(&r->view); }
             ui_view.invalidate(&r->view);
         }
     }
 }
 
 static void ui_slider_inc_dec(ui_button_t* b) {
-    ui_slider_t* r = (ui_slider_t*)b->view.parent;
+    ui_slider_t* r = (ui_slider_t*)b->parent;
     if (!r->view.hidden && !r->view.disabled) {
         int32_t sign = b == &r->inc ? +1 : -1;
         int32_t mul = app.shift && app.ctrl ? 1000 :
@@ -6439,13 +6448,13 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
     ui_slider_t* r = (ui_slider_t*)v;
     if (r->view.hidden || r->view.disabled) {
         r->time = 0;
-    } else if (!r->dec.view.armed && !r->inc.view.armed) {
+    } else if (!r->inc.armed && !r->dec.armed) {
         r->time = 0;
     } else {
         if (r->time == 0) {
             r->time = app.now;
         } else if (app.now - r->time > 1.0) {
-            const int32_t sign = r->dec.view.armed ? -1 : +1;
+            const int32_t sign = r->inc.armed ? -1 : +1;
             int32_t s = (int)(app.now - r->time + 0.5);
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
             const int64_t range = (int64_t)r->value_max - r->value_min;
@@ -6455,7 +6464,7 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
     }
 }
 
-void ui_slider_init_(ui_view_t* v) {
+void ui_view_init_slider(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_view_init(v);
     ui_view.set_text(v, v->text);
@@ -6471,24 +6480,24 @@ void ui_slider_init_(ui_view_t* v) {
     ui_button_init(&s->inc, "\xE2\x9E\x95", 0, ui_slider_inc_dec);
     static const char* accel =
         "Accelerate by holding Ctrl x10 Shift x100 and Ctrl+Shift x1000";
-    strprintf(s->inc.view.tip, "%s", accel);
-    strprintf(s->dec.view.tip, "%s", accel);
-    ui_view.add(&s->view, &s->dec.view, &s->inc.view, null);
+    strprintf(s->inc.tip, "%s", accel);
+    strprintf(s->inc.tip, "%s", accel);
+    ui_view.add(&s->view, &s->dec, &s->inc, null);
     ui_view.localize(&s->view);
 }
 
-void ui_slider_init(ui_slider_t* s, const char* label, fp64_t ems,
-        int32_t value_min, int32_t value_max, void (*cb)(ui_slider_t* r)) {
+void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
+    int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* v)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
-    assert(ems >= 3.0, "allow 1em for each of [-] and [+] buttons");
+    assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
     s->view.type = ui_view_slider;
     strprintf(s->view.text, "%s", label);
-    s->cb = cb;
-    s->view.width = ems;
+    s->view.callback = callback;
+    s->view.min_w_em = min_w_em;
     s->value_min = value_min;
     s->value_max = value_max;
     s->value = value_min;
-    ui_slider_init_(&s->view);
+    ui_view_init_slider(&s->view);
 }
 // ________________________________ ui_theme.c ________________________________
 
@@ -6745,8 +6754,6 @@ ui_theme_if ui_theme = {
 #include "ut/ut.h"
 
 static int ui_toggle_paint_on_off(ui_view_t* view) {
-    // https://www.compart.com/en/unicode/U+2B24
-    static const char* circle = "\xE2\xAC\xA4"; // Black Large Circle
     gdi.push(view->x, view->y);
     ui_color_t background = view->pressed ? ui_colors.tone_green : ui_colors.dkgray4;
     ui_color_t foreground = view->color;
@@ -6755,13 +6762,13 @@ static int ui_toggle_paint_on_off(ui_view_t* view) {
     int32_t x1 = view->x + view->em.x * 3 / 4;
     while (x < x1) {
         gdi.x = x;
-        gdi.text("%s", circle);
+        gdi.text("%s", ui_glyph_black_large_circle);
         x++;
     }
     int32_t rx = gdi.x;
     gdi.set_text_color(foreground);
     gdi.x = view->pressed ? x : view->x;
-    gdi.text("%s", circle);
+    gdi.text("%s", ui_glyph_black_large_circle);
     gdi.pop();
     return rx;
 }
@@ -6795,10 +6802,10 @@ static void ui_toggle_paint(ui_view_t* view) {
 }
 
 static void ui_toggle_flip(ui_toggle_t* c) {
-    assert(c->view.type == ui_view_toggle);
+    assert(c->type == ui_view_toggle);
     app.redraw();
-    c->view.pressed = !c->view.pressed;
-    if (c->cb != null) { c->cb(c); }
+    c->pressed = !c->pressed;
+    if (c->callback != null) { c->callback(c); }
 }
 
 static void ui_toggle_character(ui_view_t* view, const char* utf8) {
@@ -6832,7 +6839,7 @@ static void ui_toggle_mouse(ui_view_t* view, int32_t message, int64_t flags) {
     }
 }
 
-void ui_toggle_init_(ui_view_t* view) {
+void ui_view_init_toggle(ui_view_t* view) {
     assert(view->type == ui_view_toggle);
     ui_view_init(view);
     ui_view.set_text(view, view->text);
@@ -6845,15 +6852,14 @@ void ui_toggle_init_(ui_view_t* view) {
     view->color = ui_colors.btn_text;
 }
 
-void ui_toggle_init(ui_toggle_t* c, const char* label, fp64_t ems,
-       void (*cb)(ui_toggle_t* b)) {
-    static_assert(offsetof(ui_toggle_t, view) == 0, "offsetof(.view)");
-    ui_view_init(&c->view);
-    strprintf(c->view.text, "%s", label);
-    c->view.width = ems;
-    c->cb = cb;
-    c->view.type = ui_view_toggle;
-    ui_toggle_init_(&c->view);
+void ui_toggle_init(ui_toggle_t* c, const char* label, fp32_t ems,
+       void (*callback)(ui_toggle_t* b)) {
+    ui_view_init(c);
+    strprintf(c->text, "%s", label);
+    c->min_w_em = ems;
+    c->callback = callback;
+    c->type = ui_view_toggle;
+    ui_view_init_toggle(c);
 }
 // ________________________________ ui_view.c _________________________________
 
@@ -7021,11 +7027,11 @@ static void ui_view_measure(ui_view_t* view) {
     view->baseline = gdi.baseline(f);
     view->descent  = gdi.descent(f);
     if (view->text[0] != 0) {
-        view->w = (int32_t)(view->em.x * view->width + 0.5);
+        view->w = (int32_t)(view->em.x * view->min_w_em + 0.5f);
         ui_point_t mt = { 0 };
         bool multiline = strchr(view->text, '\n') != null;
         if (view->type == ui_view_label && multiline) {
-            int32_t w = (int)(view->width * view->em.x + 0.5);
+            int32_t w = (int)(view->min_w_em * view->em.x + 0.5f);
             mt = gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
             mt = gdi.measure_text(f, ui_view.nls(view));

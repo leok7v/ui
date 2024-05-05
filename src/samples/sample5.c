@@ -63,7 +63,7 @@ static_ui_button(fuzz, "Fu&zz", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->fuzz(edit[ix]);
-        fuzz->view.pressed = edit[ix]->fuzzer != null;
+        fuzz->pressed = edit[ix]->fuzzer != null;
         focus_back_to_edit();
     }
 });
@@ -71,7 +71,7 @@ static_ui_button(fuzz, "Fu&zz", 7.5, {
 static_ui_toggle(ro, "&Read Only", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
-        edit[ix]->ro = ro->view.pressed;
+        edit[ix]->ro = ro->pressed;
 //      traceln("edit[%d].readonly: %d", ix, edit[ix]->ro);
         focus_back_to_edit();
     }
@@ -80,20 +80,20 @@ static_ui_toggle(ro, "&Read Only", 7.5, {
 static_ui_toggle(mono, "&Mono", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
-        edit[ix]->set_font(edit[ix], mono->view.pressed ? &mf : &pf);
+        edit[ix]->set_font(edit[ix], mono->pressed ? &mf : &pf);
         focus_back_to_edit();
     } else {
-        mono->view.pressed = !mono->view.pressed;
+        mono->pressed = !mono->pressed;
     }
 });
 
 static_ui_toggle(sl, "&Single Line", 7.5, {
     int32_t ix = focused();
     if (ix == 2) {
-        sl->view.pressed = true; // always single line
+        sl->pressed = true; // always single line
     } else if (0 <= ix && ix < 2) {
         ui_edit_t* e = edit[ix];
-        e->sle = sl->view.pressed;
+        e->sle = sl->pressed;
 //      traceln("edit[%d].multiline: %d", ix, e->multiline);
         if (e->sle) {
             e->select_all(e);
@@ -165,9 +165,9 @@ static void after_paint(void) {
     int32_t ix = focused();
     if (ix >= 0) {
         bool fuzzing = edit[ix]->fuzzer != null;
-        if (fuzz.view.pressed != fuzzing) {
-            fuzz.view.pressed = fuzzing;
-            ui_view.invalidate(&fuzz.view);
+        if (fuzz.pressed != fuzzing) {
+            fuzz.pressed = fuzzing;
+            ui_view.invalidate(&fuzz);
         }
         set_text(ix);
     }
@@ -213,9 +213,9 @@ static void paint(ui_view_t* view) {
     after_paint();
     if (debug_layout) { paint_frames(view); }
     if (ix >= 0) {
-        ro.view.pressed = edit[ix]->ro;
-        sl.view.pressed = edit[ix]->sle;
-        mono.view.pressed = edit[ix]->view.font == &mf;
+        ro.pressed = edit[ix]->ro;
+        sl.pressed = edit[ix]->sle;
+        mono.pressed = edit[ix]->view.font == &mf;
     }
 }
 
@@ -262,7 +262,7 @@ static void measure(ui_view_t* view) {
     left.w = 0;
     measurements.vertical(&left, gy);
     left.w += gx;
-    edit2.view.w = ro.view.w; // only "width" height determined by text
+    edit2.view.w = ro.w; // only "width" height determined by text
     if (debug_layout) {
         traceln("%d,%d %dx%d", view->x, view->y, view->w, view->h);
         traceln("right %d,%d %dx%d", right.x, right.y, right.w, right.h);
@@ -305,7 +305,7 @@ static void measure_3_lines_sle(ui_view_t* view) {
     // than not implemented horizontal scroll.
     assert(view == &edit[2]->view);
 //  traceln("WxH: %dx%d <- r/o button", ro.view.w, ro.view.h);
-    view->w = ro.view.w; // r/o button
+    view->w = ro.w; // r/o button
     hooked_sle_measure(view);
 //  traceln("WxH: %dx%d (%dx%d) em: %d lines: %d",
 //          edit[2]->view.w, edit[2]->view.h,
@@ -363,7 +363,7 @@ static void opened(void) {
     scaled_fonts();
     ui_view.add(app.view, &left, &right, &bottom, null);
     text.view.font = &app.fonts.mono;
-    strprintf(fuzz.view.tip, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
+    strprintf(fuzz.tip, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);
         edit[i]->view.font = &pf;

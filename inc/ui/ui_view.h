@@ -35,7 +35,8 @@ typedef struct ui_view_s {
     int32_t align; // see ui.alignment values
     int32_t max_w; // > 0 maximum width in pixels the view agrees to
     int32_t max_h; // > 0 maximum height in pixels
-    fp64_t  width; // > 0 width of UI element in "em"s
+    fp32_t  min_w_em; // > 0 minimum width  of a view in "em"s
+    fp32_t  min_h_em; // > 0 minimum height of a view in "em"s
     char text[2048];
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
@@ -52,7 +53,8 @@ typedef struct ui_view_s {
     void (*paint)(ui_view_t* view);
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
-    void (*click)(ui_view_t* view); // interpretation depends on ui element
+    void (*click)(ui_view_t* view); // interpretation depends on a view
+    void (*callback)(ui_view_t* b); // view state change callback
     void (*mouse)(ui_view_t* view, int32_t message, int64_t flags);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
     // tap(ui, button_index) press(ui, button_index) see note below

@@ -8,7 +8,6 @@ typedef struct ui_slider_s ui_slider_t;
 
 typedef struct ui_slider_s {
     ui_view_t view;
-    void (*cb)(ui_slider_t* b); // callback
     int32_t step;
     fp64_t time;   // time last button was pressed
     ui_point_t tm; // text measurement (special case for %0*d)
@@ -19,27 +18,31 @@ typedef struct ui_slider_s {
     int32_t value_max;
 } ui_slider_t;
 
-void ui_slider_init_(ui_view_t* view);
+void ui_view_init_slider(ui_view_t* view);
 
-void ui_slider_init(ui_slider_t* r, const char* label, fp64_t ems,
-    int32_t value_min, int32_t value_max, void (*cb)(ui_slider_t* r));
+void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
+    int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* r));
 
-#define static_ui_slider(name, s, ems, vmn, vmx, code)                \
-    static void name ## _callback(ui_slider_t* name) {                \
-        (void)name; /* no warning if unused */                        \
-        code                                                          \
-    }                                                                 \
-    static                                                            \
-    ui_slider_t name = {                                              \
-        .view = { .type = ui_view_slider, .font = &app.fonts.regular, \
-        .width = ems, .text = s, .init = ui_slider_init_,             \
-    }, .value_min = vmn, .value_max = vmx, .value = vmn,              \
-    .cb = name ## _callback }
+#define static_ui_slider(name, s, min_width_em, vmn, vmx, ...)            \
+    static void name ## _callback(ui_slider_t* name) {                    \
+        (void)name; /* no warning if unused */                            \
+        { __VA_ARGS__ }                                                   \
+    }                                                                     \
+    static                                                                \
+    ui_slider_t name = {                                                  \
+        .view = { .type = ui_view_slider, .font = &app.fonts.regular,     \
+                  .min_w_em = min_width_em, .init = ui_view_init_slider,  \
+                   .text = s, .callback = name ## _callback               \
+        },                                                                \
+        .value_min = vmn, .value_max = vmx, .value = vmn,                 \
+    }
 
-#define ui_slider(s, ems, vmn, vmx, callback) (ui_slider_t) {         \
-        .view = { .type = ui_view_slider, .font = &app.fonts.regular, \
-        .width = ems, .text = s, .init = ui_slider_init_,             \
-    }, .value_min = vmn, .value_max = vmx, .value = vmn,              \
-    .cb = callback }
+#define ui_slider(s, min_width_em, vmn, vmx, call_back) (ui_slider_t) {   \
+    .view = { .type = ui_view_slider, .font = &app.fonts.regular,         \
+        .min_w_em = min_width_em, .text = s, .init = ui_view_init_slider, \
+        .callback = call_back                                             \
+    },                                                                    \
+    .value_min = vmn, .value_max = vmx, .value = vmn,                     \
+}
 
 end_c

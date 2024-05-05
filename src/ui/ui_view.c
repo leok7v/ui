@@ -163,11 +163,11 @@ static void ui_view_measure(ui_view_t* view) {
     view->baseline = gdi.baseline(f);
     view->descent  = gdi.descent(f);
     if (view->text[0] != 0) {
-        view->w = (int32_t)(view->em.x * view->width + 0.5);
+        view->w = (int32_t)(view->em.x * view->min_w_em + 0.5f);
         ui_point_t mt = { 0 };
         bool multiline = strchr(view->text, '\n') != null;
         if (view->type == ui_view_label && multiline) {
-            int32_t w = (int)(view->width * view->em.x + 0.5);
+            int32_t w = (int)(view->min_w_em * view->em.x + 0.5f);
             mt = gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
             mt = gdi.measure_text(f, ui_view.nls(view));

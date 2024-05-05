@@ -49,7 +49,7 @@ static ui_label_t text_multiline = ui_label(19.0, "Click inside or +/- to zoom;\
     "touchpad or keyboard " glyph_left glyph_up glyph_down glyph_right
     " to pan");
 
-static ui_label_t about = ui_label(34.56,
+static ui_label_t about = ui_label(34.56f,
     "\nClick inside Mandelbrot Julia Set fractal to zoom in into interesting "
     "areas. Right mouse click to zoom out.\n"
     "Use Win + Shift + S to take a screenshot of something "
@@ -109,9 +109,9 @@ static_ui_button(button_open_file, "&Open", 7.5, {
 });
 
 static void flip_full_screen(ui_button_t* b) {
-    b->view.pressed = !b->view.pressed;
-    app.full_screen(b->view.pressed);
-    if (b->view.pressed) {
+    b->pressed = !b->pressed;
+    app.full_screen(b->pressed);
+    if (b->pressed) {
         app.toast(1.75, "Press ESC to exit full screen");
     }
 }
@@ -121,8 +121,8 @@ static_ui_button(button_full_screen, glyph_two_squares, 1, {
 });
 
 static void flip_locale(ui_button_t* b) {
-    b->view.pressed = !b->view.pressed;
-    nls.set_locale(b->view.pressed ? "zh-CN" : "en-US");
+    b->pressed = !b->pressed;
+    nls.set_locale(b->pressed ? "zh-CN" : "en-US");
     app.layout(); // because center panel layout changed
 }
 
@@ -144,7 +144,7 @@ static_ui_toggle(scroll, "Scroll &Direction:", 0, {});
 #else
 
 static ui_toggle_t scroll = ui_toggle("Scroll &Direction:",
-                                      /* width: */0.0,
+                                      /* min_w_em: */ 0.0f,
                                       /* callback:*/ null);
 
 #endif
@@ -217,11 +217,11 @@ static void right_paint(ui_view_t* view) {
     panel_paint(view);
     gdi.push(view->x, view->y);
     gdi.set_clip(view->x, view->y, view->w, view->h);
-    gdi.x = button_locale.view.x + button_locale.view.w + em.x;
-    gdi.y = button_locale.view.y;
-    gdi.println("&Locale %s", button_locale.view.pressed ? "zh-CN" : "en-US");
-    gdi.x = button_full_screen.view.x + button_full_screen.view.w + em.x;
-    gdi.y = button_full_screen.view.y;
+    gdi.x = button_locale.x + button_locale.w + em.x;
+    gdi.y = button_locale.y;
+    gdi.println("&Locale %s", button_locale.pressed ? "zh-CN" : "en-US");
+    gdi.x = button_full_screen.x + button_full_screen.w + em.x;
+    gdi.y = button_full_screen.y;
     gdi.println(app.is_full_screen ? nls.str("Restore from &Full Screen") :
         nls.str("&Full Screen"));
     gdi.x = text_multiline.view.x;
@@ -243,7 +243,7 @@ static void right_paint(ui_view_t* view) {
         nls.str("max"), app.paint_max * 1000.0, nls.str("avg"),
         app.paint_avg * 1000.0);
     text_after(&zoomer.view, "%.16f", zoom);
-    text_after(&scroll.view, "%s", scroll.view.pressed ?
+    text_after(&scroll, "%s", scroll.pressed ?
         nls.str("Natural") : nls.str("Reverse"));
     gdi.set_clip(0, 0, 0, 0);
     gdi.pop();
@@ -325,11 +325,12 @@ static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(flags)) {
                 if (top < countof(stack)) { zoom_in(x, y); refresh(); }
             }
         }
-        app.redraw(); // always to update Mouse: x, y info
+        app.redraw();
     }
 }
 
-static void zoomer_callback(ui_slider_t* slider) {
+static void zoomer_callback(ui_view_t* v) {
+    ui_slider_t* slider = (ui_slider_t*)v;
     fp64_t z = 1;
     for (int i = 0; i < slider->value; i++) { z /= 2; }
     while (zoom > z) { zoom_in(image.w / 2, image.h / 2); }
@@ -339,8 +340,8 @@ static void zoomer_callback(ui_slider_t* slider) {
 
 static void mouse_wheel(ui_view_t* unused, int32_t dx, int32_t dy) {
     (void)unused;
-    if (!scroll.view.pressed) { dy = -dy; }
-    if (!scroll.view.pressed) { dx = -dx; }
+    if (!scroll.pressed) { dy = -dy; }
+    if (!scroll.pressed) { dx = -dx; }
     sx = sx + zoom * dx / image.w;
     sy = sy + zoom * dy / image.h;
     refresh();
@@ -409,8 +410,8 @@ static void opened(void) {
         "Ctrl+C or Right Mouse click to copy text to clipboard");
     toast_filename.view.font = &app.fonts.H1;
     about.view.font = &app.fonts.H3;
-    button_locale.view.shortcut = 'l';
-    button_full_screen.view.shortcut = 'f';
+    button_locale.shortcut = 'l';
+    button_full_screen.shortcut = 'f';
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
     ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
         zoomer_callback);
@@ -418,18 +419,18 @@ static void opened(void) {
     zoomer = ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
         zoomer_callback);
 #endif
-    strcopy(button_mbx.view.tip, "Show Yes/No message box");
-    strcopy(button_about.view.tip, "Show About message box");
+    strcopy(button_mbx.tip, "Show Yes/No message box");
+    strcopy(button_about.tip, "Show About message box");
     ui_view.add(&panel_right,
-        &button_locale.view,
-        &button_full_screen.view,
-        &zoomer.view,
-        &scroll.view,
-        &button_open_file.view,
-        &button_about.view,
-        &button_mbx.view,
-        &text_single_line.view,
-        &text_multiline.view,
+        &button_locale,
+        &button_full_screen,
+        &zoomer,
+        &scroll,
+        &button_open_file,
+        &button_about,
+        &button_mbx,
+        &text_single_line,
+        &text_multiline,
         null
     );
     ui_view.add(app.view,

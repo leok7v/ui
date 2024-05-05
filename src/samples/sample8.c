@@ -29,40 +29,51 @@ app_t app = {
 static ui_view_t test = ui_view(container);
 
 static void toggle_test_container(ui_button_t* b) {
-    ui_view_for_each(b->view.parent, c, { c->pressed = false; });
-    b->view.pressed = !b->view.pressed;
+    ui_view_for_each(b->parent, c, { c->pressed = false; });
+    b->pressed = !b->pressed;
     container_test(&test);
 }
 
 static void toggle_test_span(ui_button_t* b) {
-    ui_view_for_each(b->view.parent, c, { c->pressed = false; });
-    b->view.pressed = !b->view.pressed;
+    ui_view_for_each(b->parent, c, { c->pressed = false; });
+    b->pressed = !b->pressed;
     span_test(&test);
 }
 static void toggle_test_list(ui_button_t* b) {
-    ui_view_for_each(b->view.parent, c, { c->pressed = false; });
-    b->view.pressed = !b->view.pressed;
+    ui_view_for_each(b->parent, c, { c->pressed = false; });
+    b->pressed = !b->pressed;
     list_test(&test);
 }
 
 static ui_mbx_t mbx = ui_mbx( // message box
-    "Orange frames are container, span or list\n"
-    "inserts. Green frames are children padding.\n"
-    "Both intentionally not the same on all sides.\n"
-    "Container centers children by default\n"
-    "unless a child specifies an align. \n"
-    "When child.max_w or child.max_h = "
+    "Orange frames represent container, span, or list\n"
+    "components. Green frames indicate padding for\n"
+    "children.\n"
+    "\n"
+    "These insets and padding are intentionally\n"
+    "varied on different sides.\n"
+    "\n"
+    "By default, a container centers its children \n"
+    "unless an alignment is specified by a child.\n"
+    "\n"
+    "When child.max_w = "
     ui_glyph_infinity
-    "\nit is expanded in specified direction.\n"
-    "Span arranges children horizontally and\n"
-    "List vertically.\n"
-    "Overflows are allowed.\n"
-    "Try to resize application window.\n"
+    "or child.max_h = "
+    ui_glyph_infinity
+    ",\n"
+    "the child expands in the specified direction.\n"
+    "\n"
+    "Span aligns children horizontally, while List\n"
+    "aligns them vertically.\n"
+    "\n"
+    "Overflows are permissible.\n"
+    "\n"
+    "Experiment with resizing the application window.\n"
     "\n"
     "Press ESC to close this message.",
     null, null);
 
-static void toggle_about(ui_button_t* b) {
+static void toggle_about(ui_button_t* unused(b)) {
     app.show_toast(&mbx.view, 10.0);
 }
 
@@ -80,10 +91,10 @@ static void opened(void) {
             ui_view.add(&span,
                 &test,
                 ui_view.add(&tools,
-                    &test_container.view,
-                    &test_span.view,
-                    &test_list.view,
-                    &about.view,
+                    &test_container,
+                    &test_span,
+                    &test_list,
+                    &about,
                 null),
             null),
         null),

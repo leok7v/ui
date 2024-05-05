@@ -19,7 +19,7 @@ static void ui_label_paint(ui_view_t* view) {
     if (!multiline) {
         gdi.text("%s", ui_view.nls(view));
     } else {
-        int32_t w = (int)(view->width * view->em.x + 0.5);
+        int32_t w = (int)(view->min_w_em * view->em.x + 0.5);
         gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
     }
     if (view->hover && t->hovered && !t->label) {
@@ -58,7 +58,7 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
     }
 }
 
-void ui_label_init_(ui_view_t* view) {
+void ui_view_init_label(ui_view_t* view) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     assert(view->type == ui_view_label);
     ui_view_init(view);
@@ -68,17 +68,17 @@ void ui_label_init_(ui_view_t* view) {
     view->context_menu = ui_label_context_menu;
 }
 
-void ui_label_init_va(ui_label_t* t, fp64_t width, const char* format, va_list vl) {
+void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_list vl) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     ut_str.format_va(t->view.text, countof(t->view.text), format, vl);
-    t->view.width = width;
+    t->view.min_w_em = min_w_em;
     t->view.type = ui_view_label;
-    ui_label_init_(&t->view);
+    ui_view_init_label(&t->view);
 }
 
-void ui_label_init(ui_label_t* t, fp64_t width, const char* format, ...) {
+void ui_label_init(ui_label_t* t, fp32_t min_w_em, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_label_init_va(t, width, format, vl);
+    ui_label_init_va(t, min_w_em, format, vl);
     va_end(vl);
 }

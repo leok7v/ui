@@ -114,6 +114,10 @@
 // https://www.compart.com/en/unicode/U+221E
 #define ui_glyph_infinity                              "\xE2\x88\x9E"
 
+// Black Large Circle
+// https://www.compart.com/en/unicode/U+2B24
+#define ui_glyph_black_large_circle                    "\xE2\xAC\xA4"
+
 // Heavy Leftwards Arrow with Equilateral Arrowhead
 // https://www.compart.com/en/unicode/U+1F818
 #define ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead           "\xF0\x9F\xA0\x98"

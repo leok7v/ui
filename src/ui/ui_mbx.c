@@ -2,7 +2,7 @@
 #include "ui/ui.h"
 
 static void ui_mbx_button(ui_button_t* b) {
-    ui_mbx_t* mx = (ui_mbx_t*)b->view.parent;
+    ui_mbx_t* mx = (ui_mbx_t*)b->parent;
     assert(mx->view.type == ui_view_mbx);
     mx->option = -1;
     for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
@@ -32,10 +32,10 @@ static void ui_mbx_measure(ui_view_t* view) {
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
-            bw += mx->button[i].view.w;
+            bw += mx->button[i].w;
         }
         view->w = ut_max(tw, bw + em_x * 2);
-        view->h = th + mx->button[0].view.h + em_y + em_y / 2;
+        view->h = th + mx->button[0].h + em_y + em_y / 2;
     } else {
         view->h = th + em_y / 2;
         view->w = tw;
@@ -56,7 +56,7 @@ static void ui_mbx_layout(ui_view_t* view) {
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
-            bw += mx->button[i].view.w;
+            bw += mx->button[i].w;
         }
         // center text:
         mx->text.view.x = view->x + (view->w - tw) / 2;
@@ -64,9 +64,9 @@ static void ui_mbx_layout(ui_view_t* view) {
         int32_t sp = (view->w - bw) / (n + 1);
         int32_t x = sp;
         for (int32_t i = 0; i < n; i++) {
-            mx->button[i].view.x = view->x + x;
-            mx->button[i].view.y = view->y + th + em_y * 3 / 2;
-            x += mx->button[i].view.w + sp;
+            mx->button[i].x = view->x + x;
+            mx->button[i].y = view->y + th + em_y * 3 / 2;
+            x += mx->button[i].w + sp;
         }
     }
 }
@@ -89,11 +89,11 @@ void ui_mbx_init_(ui_view_t* view) {
     ui_label_init(&mx->text, 0.0, "%s", mx->view.text);
     ui_view.add_last(&mx->view, &mx->text.view);
     for (int32_t i = 0; i < n; i++) {
-        ui_view.add_last(&mx->view, &mx->button[i].view);
-        mx->button[i].view.font = mx->view.font;
-        ui_view.localize(&mx->button[i].view);
+        ui_view.add_last(&mx->view, &mx->button[i]);
+        mx->button[i].font = mx->view.font;
+        ui_view.localize(&mx->button[i]);
         // TODO: remove assert below
-        assert(mx->button[i].view.parent == &mx->view);
+        assert(mx->button[i].parent == &mx->view);
     }
     mx->text.view.font = mx->view.font;
     ui_view.localize(&mx->text.view);

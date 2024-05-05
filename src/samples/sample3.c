@@ -17,8 +17,8 @@ static volatile fp64_t render_time;
 #define glyph_two_squares "\xE2\xA7\x89" // "Two Joined Squares"
 
 static void toggle_full_screen(ui_button_t* b) {
-    b->view.pressed = !b->view.pressed;
-    app.full_screen(b->view.pressed);
+    b->pressed = !b->pressed;
+    app.full_screen(b->pressed);
 }
 
 static_ui_button(button_fs, glyph_two_squares, 1.0, {
@@ -73,9 +73,9 @@ static void measure(ui_view_t* view) {
     }
 }
 
-static void layout(ui_view_t* view) {
-    button_fs.view.x = view->w - button_fs.view.w - view->em.x / 4;
-    button_fs.view.y = view->em.y / 4;
+static void layout(ui_view_t* v) {
+    button_fs.x = v->w - button_fs.w - v->em.x / 4;
+    button_fs.y = v->em.y / 4;
 }
 
 static void renderer(void* unused); // renderer thread
@@ -120,8 +120,8 @@ static void opened(void) {
     gdi.image_init(&image[1], app.crc.w, app.crc.h, 4, pixels[1]);
     thread = ut_thread.start(renderer, null);
     request_rendering();
-    strprintf(button_fs.view.tip, "&Full Screen");
-    button_fs.view.shortcut = 'F';
+    strprintf(button_fs.tip, "&Full Screen");
+    button_fs.shortcut = 'F';
 }
 
 static void init(void) {

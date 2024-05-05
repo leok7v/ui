@@ -49,7 +49,7 @@ static void ui_caption_mini(ui_button_t* unused(b)) {
 }
 
 static void ui_caption_maximize_or_restore(void) {
-    strprintf(ui_caption.maxi.view.text, "%s",
+    strprintf(ui_caption.maxi.text, "%s",
         app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
 }
@@ -71,7 +71,7 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
     ui_point_t pt = { x, y };
     if (app.is_full_screen) {
         return ui.hit_test.client;
-    } else if (ui_view.inside(&ui_caption.icon.view, &pt)) {
+    } else if (ui_view.inside(&ui_caption.icon, &pt)) {
         return ui.hit_test.system_menu;
     } else {
         ui_view_for_each(&ui_caption.view, c, {
@@ -110,7 +110,7 @@ static void ui_caption_init(ui_view_t* v) {
         c->flat = true;
         c->padding = p;
     });
-    ui_caption.icon.view.icon = app.icon;
+    ui_caption.icon.icon = app.icon;
     ui_caption.view.max_w = INT32_MAX;
     ui_caption.view.align = ui.align.top;
     ui_caption_maximize_or_restore();

@@ -59,16 +59,14 @@ static void ui_button_paint(ui_view_t* view) {
 }
 
 static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
-    assert(b->view.type == ui_view_button);
-    pt.x -= b->view.x;
-    pt.y -= b->view.y;
-    return 0 <= pt.x && pt.x < b->view.w && 0 <= pt.y && pt.y < b->view.h;
+    assert(b->type == ui_view_button);
+    return ui_view.inside(b, &pt);
 }
 
 static void ui_button_callback(ui_button_t* b) {
-    assert(b->view.type == ui_view_button);
+    assert(b->type == ui_view_button);
     app.show_tooltip(null, -1, -1, 0);
-    if (b->cb != null) { b->cb(b); }
+    if (b->callback != null) { b->callback(b); }
 }
 
 static void ui_button_trigger(ui_view_t* view) {
@@ -132,7 +130,7 @@ static void ui_button_measure(ui_view_t* view) {
     if (view->w < view->h) { view->w = view->h; }
 }
 
-void ui_button_init_(ui_view_t* view) {
+void ui_view_init_button(ui_view_t* view) {
     assert(view->type == ui_view_button);
     ui_view_init(view);
     view->mouse       = ui_button_mouse;
@@ -146,12 +144,11 @@ void ui_button_init_(ui_view_t* view) {
     view->color = ui_colors.btn_text;
 }
 
-void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,
-        void (*cb)(ui_button_t* b)) {
-    static_assert(offsetof(ui_button_t, view) == 0, "offsetof(.view)");
-    b->view.type = ui_view_button;
-    strprintf(b->view.text, "%s", label);
-    b->cb = cb;
-    b->view.width = ems;
-    ui_button_init_(&b->view);
+void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
+        void (*callback)(ui_button_t* b)) {
+    b->type = ui_view_button;
+    strprintf(b->text, "%s", label);
+    b->callback = callback;
+    b->min_w_em = ems;
+    ui_view_init_button(b);
 }
