@@ -95,7 +95,7 @@ static inline void ut_max_undefined(void) { }
 // resulting from the operation, thereby preventing type mismatches that
 // could lead to undefined behavior or compilation errors.
 
-typedef struct generics_if {
+typedef struct {
     void (*test)(void);
 } ut_generics_if;
 

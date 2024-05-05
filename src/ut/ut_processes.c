@@ -411,7 +411,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     return r;
 }
 
-typedef struct ut_processes_io_merge_out_and_err_if {
+typedef struct {
     ut_stream_if stream;
     ut_stream_if* output;
     errno_t error;

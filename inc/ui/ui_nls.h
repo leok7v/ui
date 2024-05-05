@@ -3,7 +3,7 @@
 
 begin_c
 
-typedef struct nsl_if { // i18n national language support
+typedef struct { // i18n national language support
     void (*init)(void);
     const char* (*locale)(void);  // "en-US" "zh-CN" etc...
     // force locale for debugging and testing:

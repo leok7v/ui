@@ -18,8 +18,8 @@ app_t app = {
 };
 
 static ui_point_t em;
-static int32_t panel_border;
-static int32_t frame_border;
+static int32_t panel_border = 1;
+static int32_t frame_border = 1;
 
 static ui_image_t image;
 static uint32_t pixels[1024][1024];
@@ -155,10 +155,13 @@ static ui_view_t panel_center = ui_view(container);
 static ui_view_t panel_right  = ui_view(container);
 
 static void panel_paint(ui_view_t* view) {
+    if (view->color == ui_color_transparent) {
+        view->color = app.view->color;
+    }
     gdi.push(view->x, view->y);
     gdi.set_clip(view->x, view->y, view->w, view->h);
-    gdi.fill_with(view->x, view->y, view->w, view->h, colors.dkgray1);
-    ui_pen_t p = gdi.create_pen(colors.dkgray4, panel_border);
+    gdi.fill_with(view->x, view->y, view->w, view->h, ui_colors.dkgray1);
+    ui_pen_t p = gdi.create_pen(ui_colors.dkgray4, panel_border);
     gdi.set_pen(p);
     gdi.move_to(view->x, view->y);
     if (view == &panel_right) {
@@ -248,7 +251,7 @@ static void right_paint(ui_view_t* view) {
 
 static void center_paint(ui_view_t* view) {
     gdi.set_clip(view->x, view->y, view->w, view->h);
-    gdi.fill_with(view->x, view->y, view->w, view->h, colors.black);
+    gdi.fill_with(view->x, view->y, view->w, view->h, ui_colors.black);
     int x = (view->w - image.w) / 2;
     int y = (view->h - image.h) / 2;
 //  gdi.alpha_blend(view->x + x, view->y + y, image.w, image.h, &image, 0.5);
@@ -394,10 +397,10 @@ static void opened(void) {
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(countof(pixels) == countof(pixels[0]), "square");
     gdi.image_init(&image, n, n, (int)sizeof(pixels[0][0]), (uint8_t*)pixels);
-    init_panel(&panel_top,    "top",    colors.orange, panel_paint);
-    init_panel(&panel_center, "center", colors.off_white, center_paint);
-    init_panel(&panel_bottom, "bottom", colors.tone_blue, panel_paint);
-    init_panel(&panel_right,  "right",  colors.tone_green, right_paint);
+    init_panel(&panel_top,    "top",    ui_colors.orange, panel_paint);
+    init_panel(&panel_center, "center", ui_colors.off_white, center_paint);
+    init_panel(&panel_bottom, "bottom", ui_colors.tone_blue, panel_paint);
+    init_panel(&panel_right,  "right",  ui_colors.tone_green, right_paint);
     panel_right.layout = right_layout;
     text_single_line.highlight = true;
     text_multiline.highlight = true;
@@ -468,14 +471,14 @@ static void mandelbrot(ui_image_t* im) {
                 iteration++;
             }
             static ui_color_t palette[16] = {
-                rgb( 66,  30,  15),  rgb( 25,   7,  26),
-                rgb(  9,   1,  47),  rgb(  4,   4,  73),
-                rgb(  0,   7, 100),  rgb( 12,  44, 138),
-                rgb( 24,  82, 177),  rgb( 57, 125, 209),
-                rgb(134, 181, 229),  rgb(211, 236, 248),
-                rgb(241, 233, 191),  rgb(248, 201,  95),
-                rgb(255, 170,   0),  rgb(204, 128,   0),
-                rgb(153,  87,   0),  rgb(106,  52,   3)
+                ui_rgb( 66,  30,  15),  ui_rgb( 25,   7,  26),
+                ui_rgb(  9,   1,  47),  ui_rgb(  4,   4,  73),
+                ui_rgb(  0,   7, 100),  ui_rgb( 12,  44, 138),
+                ui_rgb( 24,  82, 177),  ui_rgb( 57, 125, 209),
+                ui_rgb(134, 181, 229),  ui_rgb(211, 236, 248),
+                ui_rgb(241, 233, 191),  ui_rgb(248, 201,  95),
+                ui_rgb(255, 170,   0),  ui_rgb(204, 128,   0),
+                ui_rgb(153,  87,   0),  ui_rgb(106,  52,   3)
             };
             ui_color_t color = palette[iteration % countof(palette)];
             uint8_t* px = &((uint8_t*)im->pixels)[r * im->w * 4 + c * 4];

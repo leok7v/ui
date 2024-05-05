@@ -72,7 +72,7 @@ static void paint(ui_view_t* view) {
         animation.y = (view->h - gif.h) / 2;
     }
     gdi.set_brush(gdi.brush_color);
-    gdi.set_brush_color(colors.black);
+    gdi.set_brush_color(ui_colors.black);
     gdi.fill(0, 0, view->w, view->h);
     int32_t w = ut_min(view->w, background.w);
     int32_t h = ut_min(view->h, background.h);
@@ -93,7 +93,7 @@ static void paint(ui_view_t* view) {
     ui_font_t f = gdi.set_font(app.fonts.H1);
     gdi.x = 0;
     gdi.y = 0;
-    gdi.set_text_color(muted ? colors.green : colors.red);
+    gdi.set_text_color(muted ? ui_colors.green : ui_colors.red);
     gdi.text("%s", muted ? glyph_speaker : glyph_mute);
     gdi.set_font(f);
 }

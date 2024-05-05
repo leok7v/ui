@@ -16,6 +16,10 @@ static MONITORINFO app_mi = {sizeof(MONITORINFO)};
 static HANDLE app_event_quit;
 static HANDLE app_event_invalidate;
 
+#ifdef APP_THEME_EXPERIMENT
+static HTHEME app_theme;
+#endif
+
 static uintptr_t app_timer_1s_id;
 static uintptr_t app_timer_100ms_id;
 
@@ -466,8 +470,7 @@ static void app_window_opening(void) {
     not_null(app.canvas);
     if (app.opened != null) { app.opened(); }
     app.view->em = gdi.get_em(*app.view->font);
-    ui_view.set_parents(app.view);
-    ui_view.init_children(app.view);
+    strprintf(app.view->text, "app.view"); // debugging
     app_wm_timer(app_timer_100ms_id);
     app_wm_timer(app_timer_1s_id);
     fatal_if(ReleaseDC(app_window(), app_canvas()) == 0);
@@ -497,11 +500,65 @@ static void app_window_closing(void) {
     }
 }
 
+static void app_allow_dark_mode_for_app(void) {
+    // https://github.com/rizonesoft/Notepad3/tree/96a48bd829a3f3192bbc93cd6944cafb3228b96d/src/DarkMode
+    HMODULE uxtheme = GetModuleHandleA("uxtheme.dll");
+    not_null(uxtheme);
+    typedef BOOL (__stdcall *AllowDarkModeForApp_t)(bool allow);
+    AllowDarkModeForApp_t AllowDarkModeForApp = (AllowDarkModeForApp_t)
+            (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(132));
+    if (AllowDarkModeForApp != null) {
+        int r = b2e(AllowDarkModeForApp(true));
+        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
+            traceln("AllowDarkModeForApp(true) failed %s", ut_str.error(r));
+        }
+    }
+    enum { Default = 0, AllowDark = 1, ForceDark = 2, ForceLight = 3 };
+    typedef BOOL (__stdcall *SetPreferredAppMode_t)(bool allow);
+    SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
+            (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(135));
+    if (SetPreferredAppMode != null) {
+        int r = b2e(SetPreferredAppMode(AllowDark));
+        // 1814 ERROR_RESOURCE_NAME_NOT_FOUND
+        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
+            traceln("SetPreferredAppMode(AllowDark) failed %s",
+                    ut_str.error(r));
+        }
+    }
+}
+
+static void app_allow_dark_mode_for_window(void) {
+    HMODULE uxtheme = GetModuleHandleA("uxtheme.dll");
+    not_null(uxtheme);
+    typedef BOOL (__stdcall *AllowDarkModeForWindow_t)(HWND hWnd, bool allow);
+    AllowDarkModeForWindow_t AllowDarkModeForWindow = (AllowDarkModeForWindow_t)
+        (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(133));
+    if (AllowDarkModeForWindow != null) {
+        int r = b2e(AllowDarkModeForWindow(app_window(), true));
+        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
+            traceln("AllowDarkModeForWindow(true) failed %s", ut_str.error(r));
+        }
+    }
+}
+
 static void app_get_min_max_info(MINMAXINFO* mmi) {
+#ifdef APP_THEME_EXPERIMENT
+    if (app_theme == null) {
+        app_allow_dark_mode_for_window();
+        const wchar_t* class_list =
+        L"CompositedWindow::Window;BUTTON;CLOCK;COMBOBOX;COMMUNICATIONS;CONTROLPANEL;DATEPICKER;DRAGDROP;"
+        "EDIT;EXPLORERBAR;FLYOUT;GLOBALS;HEADER;LISTBOX;LISTVIEW;MENU;MENUBAND;"
+        "NAVIGATION;PAGE;PROGRESS;REBAR;SCROLLBAR;SEARCHEDITBOX;SPIN;STARTPANEL;"
+        "STATUS;TAB;TASKBAND;TASKBAR;TASKDIALOG;TEXTSTYLE;TOOLBAR;TOOLTIP;"
+        "TRACKBAR;TRAYNOTIFY;TREEVIEW;WINDOW";
+        app_theme = OpenThemeData(app_window(), class_list);
+        not_null(app_theme);
+    }
+#endif // APP_THEME_EXPERIMENT
     const ui_window_sizing_t* ws = &app.window_sizing;
     const ui_rect_t* wa = &app.work_area;
-    const int32_t min_w = ws->min_w > 0 ? app.in2px(ws->min_w) : wa->w / 2;
-    const int32_t min_h = ws->min_h > 0 ? app.in2px(ws->min_h) : wa->h / 2;
+    const int32_t min_w = ws->min_w > 0 ? app.in2px(ws->min_w) : app.in2px(1.0);
+    const int32_t min_h = ws->min_h > 0 ? app.in2px(ws->min_h) : app.in2px(0.5);
     mmi->ptMinTrackSize.x = min_w;
     mmi->ptMinTrackSize.y = min_h;
     const int32_t max_w = ws->max_w > 0 ? app.in2px(ws->max_w) : wa->w;
@@ -582,8 +639,7 @@ static void app_toast_paint(void) {
         gdi.image_init(&image, 1, 1, 3, pixels);
     }
     if (app.animating.view != null) {
-        ui_font_t f = app.animating.view->font != null ?
-            *app.animating.view->font : app.fonts.regular;
+        ui_font_t f = *app.animating.view->font;
         const ui_point_t em = gdi.get_em(f);
         app.animating.view->em = em;
         // allow unparented and unmeasured toasts:
@@ -595,7 +651,7 @@ static void app_toast_paint(void) {
         int32_t em_x = em.x;
         int32_t em_y = em.y;
         gdi.set_brush(gdi.brush_color);
-        gdi.set_brush_color(colors.toast);
+        gdi.set_brush_color(ui_colors.toast);
         if (!tooltip) {
             assert(0 <= app.animating.step && app.animating.step < app_animation_steps);
             int32_t step = app.animating.step - (app_animation_steps - 1);
@@ -712,7 +768,14 @@ static void app_animate_start(app_animate_function_t f, int32_t steps) {
     app_animate_step(f, 0, steps);
 }
 
-static void app_layout_root(void) {
+static void app_view_paint(ui_view_t* v) {
+    assert(v == app.view && v->x == 0 && v->y == 0);
+    if (!ui_color_is_transparent(v->color)) {
+        gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    }
+}
+
+static void app_view_layout(void) {
     not_null(app.window);
     not_null(app.canvas);
     app.view->w = app.crc.w; // crc is window client rectangle
@@ -721,9 +784,20 @@ static void app_layout_root(void) {
 }
 
 static void ui_app_view_active_frame_paint(void) {
-    ui_color_t active = (ui_color_t)GetSysColor(COLOR_ACTIVECAPTION);
-    const ui_color_t c = app.is_active() ? active : app.view->color;
+#ifdef APP_THEME_EXPERIMENT
+    ui_caption.view.color = app.is_active() ?
+        app.get_color(ui.colors.active_caption) :
+        app.get_color(ui.colors.inactive_caption);
+    ui_color_t c = app.is_active() ?
+        app.get_color(ui.colors.active_border) :
+        app.get_color(ui.colors.inactive_border);
+#else
+    ui_caption.view.color = ui_colors.dkgray1;
+    ui_color_t c = app.is_active() ?
+        ui_colors.blue_highlight : ui_colors.dkgray2;
+#endif
     gdi.frame_with(0, 0, app.view->w - 0, app.view->h - 0, c);
+
 }
 
 static void app_paint_on_canvas(HDC hdc) {
@@ -736,10 +810,10 @@ static void app_paint_on_canvas(HDC hdc) {
     app_update_crc();
     if (app_layout_dirty) {
         app_layout_dirty = false;
-        app_layout_root();
+        app_view_layout();
     }
     ui_font_t font = gdi.set_font(app.fonts.regular);
-    ui_color_t c = gdi.set_text_color(colors.text);
+    ui_color_t c = gdi.set_text_color(ui_colors.text);
     int32_t bm = SetBkMode(app_canvas(), TRANSPARENT);
     int32_t stretch_mode = SetStretchBltMode(app_canvas(), HALFTONE);
     ui_point_t pt = {0};
@@ -979,6 +1053,7 @@ static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
     }
     switch (m) {
         case WM_GETMINMAXINFO: app_get_min_max_info((MINMAXINFO*)lp); break;
+        case WM_THEMECHANGED : break;
         case WM_SETTINGCHANGE: app_setting_change(wp, lp); break;
         case WM_CLOSE        : app.focus = null; // before WM_CLOSING
                                app_post_message(ui.message.closing, 0, 0); return 0;
@@ -1154,9 +1229,9 @@ static errno_t app_set_layered_window(ui_color_t color, float alpha) {
         mask |= LWA_ALPHA;
         a = (uint8_t)(alpha * 255 + 0.5);
     }
-    if (color != color_undefined) {
+    if (color != ui_color_undefined) {
         mask |= LWA_COLORKEY;
-        assert(color_is_8bit(color));
+        assert(ui_color_is_8bit(color));
         c = gdi.color_rgb(color);
     }
     return b2e(SetLayeredWindowAttributes(app_window(), c, a, mask));
@@ -1186,6 +1261,7 @@ static void app_create_window(const ui_rect_t r) {
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
     not_null(app.window);
     assert(window == app_window()); (void)window;
+    strprintf(ui_caption.title.view.text, "%s", app.title);
     not_null(GetSystemMenu(app_window(), false));
     app.dpi.window = GetDpiForWindow(app_window());
 //  traceln("app.dpi.window=%d", app.dpi.window);
@@ -1194,7 +1270,7 @@ static void app_create_window(const ui_rect_t r) {
     app.wrc = app_rect2ui(&wrc);
     // DWMWA_CAPTION_COLOR is supported starting with Windows 11 Build 22000.
     if (IsWindowsVersionOrGreater(10, 0, 22000)) {
-        COLORREF caption_color = (COLORREF)gdi.color_rgb(colors.dkgray3);
+        COLORREF caption_color = (COLORREF)gdi.color_rgb(ui_colors.dkgray3);
         fatal_if_not_zero(DwmSetWindowAttribute(app_window(),
             DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
         BOOL immersive = TRUE;
@@ -1550,7 +1626,19 @@ static void app_bring_to_front(void) {
 }
 
 static void app_set_title(const char* title) {
+    strprintf(ui_caption.title.view.text, "%s", title);
     fatal_if_false(SetWindowTextA(app_window(), title));
+    if (!ui_caption.view.hidden) { app.layout(); }
+}
+
+static ui_color_t app_get_color(int32_t color_id) {
+    fatal("Does not work (yet) - needs tender loving care on Win10");
+#ifdef APP_THEME_EXPERIMENT
+    return app_theme != null ?
+        GetThemeSysColor(app_theme, color_id) : GetSysColor(color_id);
+#else
+    return GetSysColor(color_id);
+#endif
 }
 
 static void app_capture_mouse(bool on) {
@@ -1797,7 +1885,7 @@ const char* app_known_folder(int32_t kf) {
     return known_foders[kf];
 }
 
-static ui_view_t app_content_view = ui_view(container);
+static ui_view_t app_view = ui_view(container);
 
 static bool app_is_active(void) { return GetActiveWindow() == app_window(); }
 
@@ -1821,12 +1909,14 @@ static void app_request_focus(void) {
 }
 
 static void app_init(void) {
-    app.view = &app_content_view;
-    ui_view_init(app.view);
-    app.view->type = ui_view_container;
-    app.view->color = colors.dkgray1; // TODO: theme background
-    app.view->measure = null; // always measured by crc
-    app.view->layout  = null; // always at 0,0 app can override
+    app.view = &app_view;
+    ui_view_call_init(app.view); // to get done with container_init()
+    // for ui_view_debug_paint:
+    strprintf(app.view->text, "app.view");
+    app.view->type          = ui_view_container;
+    app.view->color         = ui_colors.dkgray1; // because app.get_color() broken
+    app.view->paint         = app_view_paint;
+    app.view->insets        = (ui_gaps_t){ 0, 0, 0, 0 };
     app.redraw              = app_fast_redraw;
     app.draw                = app_draw;
     app.px2in               = app_px2in;
@@ -1839,6 +1929,7 @@ static void app_init(void) {
     app.has_focus           = app_has_focus,
     app.request_focus       = app_request_focus,
     app.activate            = app_activate,
+    app.get_color           = app_get_color,
     app.set_title           = app_set_title,
     app.capture_mouse       = app_capture_mouse,
     app.move_and_resize     = app_move_and_resize,
@@ -1882,6 +1973,9 @@ static void app_init(void) {
 static void app_init_windows(void) {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
     not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
+#ifdef APP_THEME_EXPERIMENT
+    app_allow_dark_mode_for_app();
+#endif
     InitCommonControls(); // otherwise GetOpenFileName does not work
     app.dpi.process = GetSystemDpiForProcess(GetCurrentProcess());
     app.dpi.system = GetDpiForSystem(); // default was 96DPI
@@ -2007,3 +2101,5 @@ int main(int argc, const char* argv[], const char** envp) {
 #pragma comment(lib, "msimg32")
 #pragma comment(lib, "ole32")
 #pragma comment(lib, "shcore")
+#pragma comment(lib, "uxtheme")
+

@@ -51,7 +51,7 @@ static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y
     const int h4 = h2 / 2;
     const int h8 = h4 / 2;
     gdi.y = y - h8;
-    gdi.set_colored_pen(colors.white);
+    gdi.set_colored_pen(ui_colors.white);
     gdi.move_to(0, y);
     gdi.line(app.crc.w, y);
     gdi.set_colored_pen(c);
@@ -90,7 +90,7 @@ static void timer_thread(void* p) {
 static void paint(ui_view_t* view) {
     stats(&ts[0]);
     stats(&ts[1]);
-    gdi.fill_with(0, 0, view->w, view->h, colors.dkgray1);
+    gdi.fill_with(0, 0, view->w, view->h, ui_colors.dkgray1);
     gdi.y = view->em.y;
     gdi.x = view->w - gdi.measure_text(app.fonts.mono,
         "avg paint time %.1f ms", app.paint_avg * 1000).x - view->em.x;
@@ -100,10 +100,10 @@ static void paint(ui_view_t* view) {
     gdi.print("(\"sps\" stands for samples per second)");
     const int h2 = app.crc.h / 2;
     const int h4 = h2 / 2;
-    graph(view, &ts[0], colors.tone_red, h4);
+    graph(view, &ts[0], ui_colors.tone_red, h4);
     gdi.y = h2;
     gdi.print("10ms r/t thread sleep jitter");
-    graph(view, &ts[1], colors.tone_green, h2 + h4);
+    graph(view, &ts[1], ui_colors.tone_green, h2 + h4);
     gdi.y = h2 - h4;
 
 }

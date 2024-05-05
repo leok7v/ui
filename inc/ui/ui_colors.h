@@ -10,32 +10,36 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
          components with 'transparent/hollow' bit
 */
 
-#define color_mask        ((ui_color_t)0xC000000000000000ULL)
+#define ui_color_mask        ((ui_color_t)0xC000000000000000ULL)
+#define ui_color_undefined   ((ui_color_t)0x8000000000000000ULL)
+#define ui_color_transparent ((ui_color_t)0x4000000000000000ULL)
+#define ui_color_hdr         ((ui_color_t)0xC000000000000000ULL)
 
-#define color_mask        ((ui_color_t)0xC000000000000000ULL)
-#define color_undefined   ((ui_color_t)0x8000000000000000ULL)
-#define color_transparent ((ui_color_t)0x4000000000000000ULL)
-#define color_hdr         ((ui_color_t)0xC000000000000000ULL)
-
-#define color_is_8bit(c)         (((c) & color_mask) == 0)
-#define color_is_hdr(c)          (((c) & color_mask) == color_hdr)
-#define color_is_undefined(c)    (((c) & color_mask) == color_undefined)
-#define color_is_transparent(c) ((((c) & color_mask) == color_transparent) && \
-                                 (((c) & ~color_mask) == 0))
+#define ui_color_is_8bit(c)         (((c) & ui_color_mask) == 0)
+#define ui_color_is_hdr(c)          (((c) & ui_color_mask) == ui_color_hdr)
+#define ui_color_is_undefined(c)    (((c) & ui_color_mask) == ui_color_undefined)
+#define ui_color_is_transparent(c)  ((((c) & ui_color_mask) == ui_color_transparent) && \
+                                    (((c) & ~ui_color_mask) == 0))
 // if any other special colors or formats need to be introduced
-// (c) & ~color_mask) has 2^62 possible extensions bits
+// (c) & ~ui_color_mask) has 2^62 possible extensions bits
 
-// color_hdr A - 14 bit, R,G,B - 16 bit, all in range [0..0xFFFF]
-#define color_hdr_a(c)    ((((c) >> 48) & 0x3FFF) << 2)
-#define color_hdr_r(c)    (((c) >>  0) & 0xFFFF)
-#define color_hdr_g(c)    (((c) >> 16) & 0xFFFF)
-#define color_hdr_b(c)    (((c) >> 32) & 0xFFFF)
+// ui_color_hdr A - 14 bit, R,G,B - 16 bit, all in range [0..0xFFFF]
+#define ui_color_hdr_a(c)    ((((c) >> 48) & 0x3FFF) << 2)
+#define ui_color_hdr_r(c)    (((c) >>  0) & 0xFFFF)
+#define ui_color_hdr_g(c)    (((c) >> 16) & 0xFFFF)
+#define ui_color_hdr_b(c)    (((c) >> 32) & 0xFFFF)
 
-#define rgb(r,g,b) ((ui_color_t)(((uint8_t)(r) | ((uint16_t)((uint8_t)(g))<<8)) | \
-    (((uint32_t)(uint8_t)(b))<<16)))
-#define rgba(r, g, b, a) (ui_color_t)((rgb(r, g, b)) | (((uint8_t)a) << 24))
+#define ui_color_rgb(c)      ((c) & 0x00FFFFFF)
+#define ui_color_rgba(c)     ((c) & 0xFFFFFFFF)
 
-typedef struct colors_s {
+#define ui_rgb(r,g,b) ((ui_color_t)(((uint8_t)(r) |    \
+                      ((uint16_t)((uint8_t)(g))<<8)) | \
+                     (((uint32_t)(uint8_t)(b))<<16)))
+
+#define ui_rgba(r, g, b, a) (ui_color_t)((ui_rgb(r, g, b)) | \
+                                       (((uint8_t)a) << 24))
+
+typedef struct ui_colors_s {
     const int32_t none; // aka CLR_INVALID in wingdi
     const int32_t text;
     const int32_t white;
@@ -60,7 +64,7 @@ typedef struct colors_s {
     const int32_t tone_yellow;
     const int32_t tone_cyan;
     const int32_t tone_magenta;
-    // misc:
+    // miscelaneous:
     const int32_t orange;
     const int32_t dkgreen;
     const int32_t pink;
@@ -136,9 +140,106 @@ typedef struct colors_s {
     const int32_t burnt_umber;
     const int32_t caput_mortuum;
     const int32_t barn_red;
-} colors_t;
 
-extern colors_t colors;
+    /* Text and Icons */
+    const int32_t platinum;
+    const int32_t anti_flash_white;
+    const int32_t silver_sand;
+    const int32_t quick_silver;
+
+    /* Links and Selections */
+    const int32_t dark_powder_blue;
+    const int32_t sapphire_blue;
+    const int32_t international_klein_blue;
+    const int32_t zaffre;
+
+    /* Additional Colors */
+    const int32_t fish_belly;
+    const int32_t rusty_red;
+    const int32_t falu_red;
+    const int32_t cordovan;
+    const int32_t dark_raspberry;
+    const int32_t deep_magenta;
+    const int32_t byzantium;
+    const int32_t amethyst;
+    const int32_t wisteria;
+    const int32_t lavender_purple;
+    const int32_t opera_mauve;
+    const int32_t mauve_taupe;
+    const int32_t rich_lavender;
+    const int32_t pansy_purple;
+    const int32_t violet_eggplant;
+    const int32_t jazzberry_jam;
+    const int32_t dark_orchid;
+    const int32_t electric_purple;
+    const int32_t sky_magenta;
+    const int32_t brilliant_rose;
+    const int32_t fuchsia_purple;
+    const int32_t french_raspberry;
+    const int32_t wild_watermelon;
+    const int32_t neon_carrot;
+    const int32_t burnt_orange;
+    const int32_t carrot_orange;
+    const int32_t tiger_orange;
+    const int32_t giant_onion;
+    const int32_t rust;
+    const int32_t copper_red;
+    const int32_t dark_tangerine;
+    const int32_t bright_marigold;
+
+    /* Earthy Tones */
+    const int32_t sienna;
+    const int32_t sandy_brown;
+    const int32_t golden_brown;
+    const int32_t camel;
+    const int32_t burnt_sienna;
+    const int32_t khaki;
+    const int32_t dark_khaki;
+
+    /* Greens */
+    const int32_t fern_green;
+    const int32_t moss_green;
+    const int32_t myrtle_green;
+    const int32_t pine_green;
+    const int32_t jungle_green;
+    const int32_t sacramento_green;
+
+    /* Blues */
+    const int32_t yale_blue;
+    const int32_t cobalt_blue;
+    const int32_t persian_blue;
+    const int32_t royal_blue;
+    const int32_t iceberg;
+    const int32_t blue_yonder;
+
+    /* Miscellaneous */
+    const int32_t cocoa_brown;
+    const int32_t cinnamon_satin;
+    const int32_t fallow;
+    const int32_t cafe_au_lait;
+    const int32_t liver;
+    const int32_t shadow;
+    const int32_t cool_grey;
+    const int32_t payne_grey;
+
+    /* Lighter Tones for Contrast */
+    const int32_t timberwolf;
+    const int32_t silver_chalice;
+    const int32_t roman_silver;
+
+    /* Dark Mode Specific Highlights */
+    const int32_t electric_lavender;
+    const int32_t magenta_haze;
+    const int32_t cyber_grape;
+    const int32_t purple_navy;
+    const int32_t liberty;
+    const int32_t purple_mountain_majesty;
+    const int32_t ceil;
+    const int32_t moonstone_blue;
+    const int32_t independence;
+} ui_colors_t;
+
+extern ui_colors_t ui_colors;
 
 // TODO:
 // https://ankiewicz.com/colors/

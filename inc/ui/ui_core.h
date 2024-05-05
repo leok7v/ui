@@ -50,7 +50,7 @@ typedef struct ui_fonts_s {
 // in inches (because monitors customary are)
 // it is not in points (1/72 inch) like font size
 // because it is awkward to express large are
-// size in typography measuremnts.
+// size in typography measurements.
 
 typedef struct ui_window_sizing_s {
     fp32_t ini_w; // initial window width in inches
@@ -78,6 +78,7 @@ typedef struct ui_gaps_s { // in partial "em"s
 } ui_gaps_t;
 
 typedef struct ui_s {
+    const int32_t infinity; // = INT32_MAX, look better
     struct { // align bitset
         int32_t const center; // = 0, default
         int32_t const left;   // left|top, left|bottom, right|bottom
@@ -192,6 +193,38 @@ typedef struct ui_s {
         int32_t const f23;
         int32_t const f24;
     } const key;
+    struct { // system colors: TODO: do not use - broken on Win10
+        int32_t const scroll_bar;
+        int32_t const background; // aka: desktop
+        int32_t const active_caption;
+        int32_t const inactive_caption;
+        int32_t const menu;
+        int32_t const window;
+        int32_t const window_frame;
+        int32_t const menu_text;
+        int32_t const window_text;
+        int32_t const caption_text;
+        int32_t const active_border;
+        int32_t const inactive_border;
+        int32_t const app_workspace;
+        int32_t const highlight;
+        int32_t const highlight_text;
+        int32_t const face_3D;
+        int32_t const shadow_3D;
+        int32_t const gray_text;
+        int32_t const btn_text;
+        int32_t const inactive_caption_text;
+        int32_t const highlight_3D;
+        int32_t const dark_shadow_3D;
+        int32_t const light_3D;
+        int32_t const info_text;
+        int32_t const info_background;
+        int32_t const hot_light;
+        int32_t const gradient_active_caption;
+        int32_t const gradient_inactive_caption;
+        int32_t const menu_highlight;
+        int32_t const menu_bar;
+    } const colors;
     struct { // known folders:
         int32_t const home     ; // c:\Users\<username>
         int32_t const desktop  ;
@@ -208,6 +241,7 @@ typedef struct ui_s {
     // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
     bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,
                                                    const ui_rect_t* r1);
+    int32_t (*gaps_em2px)(int32_t em, fp32_t ratio);
 } ui_if;
 
 extern ui_if ui;
@@ -224,7 +258,6 @@ extern ui_if ui;
 // Android uses "dp" which is pretty much the same as scaled
 // "pixels" on MacOS. Windows used to use "dialog units" which
 // is font size based and this is where the idea is inherited from.
-
 
 end_c
 

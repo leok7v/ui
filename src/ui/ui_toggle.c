@@ -5,7 +5,7 @@ static int ui_toggle_paint_on_off(ui_view_t* view) {
     // https://www.compart.com/en/unicode/U+2B24
     static const char* circle = "\xE2\xAC\xA4"; // Black Large Circle
     gdi.push(view->x, view->y);
-    ui_color_t background = view->pressed ? colors.tone_green : colors.dkgray4;
+    ui_color_t background = view->pressed ? ui_colors.tone_green : ui_colors.dkgray4;
     ui_color_t foreground = view->color;
     gdi.set_text_color(background);
     int32_t x = view->x;
@@ -43,7 +43,7 @@ static void ui_toggle_paint(ui_view_t* view) {
     char text[countof(view->text)];
     const char* label = ui_toggle_on_off_label(view, text, countof(text));
     gdi.push(view->x, view->y);
-    ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
+    ui_font_t f = *view->font;
     ui_font_t font = gdi.set_font(f);
     gdi.x = ui_toggle_paint_on_off(view) + view->em.x * 3 / 4;
     gdi.text("%s", label);
@@ -99,7 +99,7 @@ void ui_toggle_init_(ui_view_t* view) {
     view->character   = ui_toggle_character;
     view->key_pressed = ui_toggle_key_pressed;
     ui_view.localize(view);
-    view->color = colors.btn_text;
+    view->color = ui_colors.btn_text;
 }
 
 void ui_toggle_init(ui_toggle_t* c, const char* label, fp64_t ems,

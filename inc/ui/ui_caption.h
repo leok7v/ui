@@ -7,6 +7,7 @@ typedef struct ui_caption_s {
     ui_view_t view;
     // caption`s children:
     ui_button_t icon;
+    ui_label_t title;
     ui_view_t spacer;
     ui_button_t menu; // use: ui_caption.button_menu.cb := your callback
     ui_button_t mini;

@@ -43,6 +43,7 @@ static ui_view_t* ui_view_add(ui_view_t* p, ...) {
     }
     va_end(vl);
     ui_view_call_init(p);
+    app.layout();
     return p;
 }
 
@@ -60,6 +61,7 @@ static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
     }
     p->child = c;
     ui_view_call_init(c);
+    app.layout();
 }
 
 static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
@@ -77,6 +79,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
     }
     ui_view_call_init(c);
     ui_view_verify(p);
+    app.layout();
 }
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
@@ -90,6 +93,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     c->next->prev = c;
     ui_view_call_init(c);
     ui_view_verify(c->parent);
+    app.layout();
 }
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
@@ -103,6 +107,7 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     c->next->prev = c;
     ui_view_call_init(c);
     ui_view_verify(c->parent);
+    app.layout();
 }
 
 static void ui_view_remove(ui_view_t* c) {
@@ -122,13 +127,20 @@ static void ui_view_remove(ui_view_t* c) {
     c->next = null;
     ui_view_verify(c->parent);
     c->parent = null;
+    app.layout();
 }
 
-static void ui_view_remove_tree(ui_view_t* p) {
+static void ui_view_remove_all(ui_view_t* p) {
+    while (p->child != null) { ui_view.remove(p->child); }
+    app.layout();
+}
+
+static void ui_view_disband(ui_view_t* p) {
     while (p->child != null) {
-        ui_view_remove_tree(p->child);
+        ui_view_disband(p->child);
         ui_view.remove(p->child);
     }
+    app.layout();
 }
 
 static void ui_view_invalidate(const ui_view_t* view) {
@@ -146,7 +158,7 @@ static const char* ui_view_nls(ui_view_t* view) {
 }
 
 static void ui_view_measure(ui_view_t* view) {
-    ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
+    ui_font_t f = *view->font;
     view->em = gdi.get_em(f);
     view->baseline = gdi.baseline(f);
     view->descent  = gdi.descent(f);
@@ -232,30 +244,6 @@ static bool ui_view_is_disabled(const ui_view_t* view) {
         disabled = view->disabled;
     }
     return disabled;
-}
-
-static void ui_view_init_children(ui_view_t* view) {
-    ui_view_for_each(view, c, {
-        ui_view_call_init(c);
-        if (c->font == null) { c->font = &app.fonts.regular; }
-        if (c->em.x == 0 || c->em.y == 0) {
-            c->em = gdi.get_em(*view->font);
-        }
-        if (c->text[0] != 0) { ui_view.localize(c); }
-        ui_view_init_children(c);
-    });
-}
-
-static void ui_view_parents(ui_view_t* view) {
-    not_null(view);
-    ui_view_for_each(view, c, {
-        if (c->parent == null) {
-            c->parent = view;
-            ui_view_parents(c);
-        } else {
-            assert(c->parent == view, "no reparenting");
-        }
-    });
 }
 
 // timers are delivered even to hidden and disabled views:
@@ -355,6 +343,7 @@ static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
 }
 
 static void ui_view_measure_children(ui_view_t* view) {
+    view->em = gdi.get_em(*app.view->font);
     if (!view->hidden) {
         ui_view_for_each(view, c, { ui_view_measure_children(c); });
         if (view->measure != null) {
@@ -460,6 +449,40 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     return false;
 }
 
+static void ui_view_debug_paint(ui_view_t* v) {
+    gdi.push(v->x, v->y);
+    if (v->color != ui_color_transparent) {
+//      traceln("%s 0x%08X", v->text, v->color);
+        gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    }
+    const int32_t p_lf = ui.gaps_em2px(v->em.x, v->padding.left);
+    const int32_t p_tp = ui.gaps_em2px(v->em.y, v->padding.top);
+    const int32_t p_rt = ui.gaps_em2px(v->em.x, v->padding.right);
+    const int32_t p_bt = ui.gaps_em2px(v->em.y, v->padding.bottom);
+    if (p_lf > 0) { gdi.frame_with(v->x - p_lf, v->y, p_lf, v->h, ui_colors.green); }
+    if (p_rt > 0) { gdi.frame_with(v->x + v->w, v->y, p_rt, v->h, ui_colors.green); }
+    if (p_tp > 0) { gdi.frame_with(v->x, v->y - p_tp, v->w, p_tp, ui_colors.green); }
+    if (p_bt > 0) { gdi.frame_with(v->x, v->y + v->h, v->w, p_bt, ui_colors.green); }
+    const int32_t i_lf = ui.gaps_em2px(v->em.x, v->insets.left);
+    const int32_t i_tp = ui.gaps_em2px(v->em.y, v->insets.top);
+    const int32_t i_rt = ui.gaps_em2px(v->em.x, v->insets.right);
+    const int32_t i_bt = ui.gaps_em2px(v->em.y, v->insets.bottom);
+    if (i_lf > 0) { gdi.frame_with(v->x,               v->y,               i_lf, v->h, ui_colors.orange); }
+    if (i_rt > 0) { gdi.frame_with(v->x + v->w - i_rt, v->y,               i_rt, v->h, ui_colors.orange); }
+    if (i_tp > 0) { gdi.frame_with(v->x,               v->y,               v->w, i_tp, ui_colors.orange); }
+    if (i_bt > 0) { gdi.frame_with(v->x,               v->y + v->h - i_bt, v->w, i_bt, ui_colors.orange); }
+    if (v->color != ui_color_transparent) {
+        gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
+        ui_point_t mt = gdi.measure_text(*v->font, v->text);
+        gdi.x += (v->w - mt.x) / 2;
+        gdi.y += (v->h - mt.y) / 2;
+        ui_font_t f = gdi.set_font(*v->font);
+        gdi.text("%s", v->text);
+        gdi.set_font(f);
+    }
+    gdi.pop();
+}
+
 #pragma push_macro("ui_view_alone")
 
 #define ui_view_alone(v) do {                          \
@@ -522,7 +545,7 @@ static void ui_view_test(void) {
         ui_view.add(&c3, &g3, &g4, null),
         &c4);
     ui_view_verify(&p0);
-    ui_view_remove_tree(&p0);
+    ui_view_disband(&p0);
     ui_view_alone(&p0);
     ui_view_alone(&c1); ui_view_alone(&c2); ui_view_alone(&c3); ui_view_alone(&c4);
     ui_view_alone(&g1); ui_view_alone(&g2); ui_view_alone(&g3); ui_view_alone(&g4);
@@ -531,7 +554,9 @@ static void ui_view_test(void) {
 
 #pragma pop_macro("ui_view_alone")
 
-void ui_view_init(ui_view_t* unused(view)) { }
+void ui_view_init(ui_view_t* view) {
+    if (view->font == null) { view->font = &app.fonts.regular; }
+}
 
 ui_view_if ui_view = {
     .add                = ui_view_add,
@@ -541,6 +566,8 @@ ui_view_if ui_view = {
     .add_before         = ui_view_add_before,
     .add                = ui_view_add,
     .remove             = ui_view_remove,
+    .remove_all         = ui_view_remove_all,
+    .disband            = ui_view_disband,
     .inside             = ui_view_inside,
     .set_text           = ui_view_set_text,
     .invalidate         = ui_view_invalidate,
@@ -549,8 +576,6 @@ ui_view_if ui_view = {
     .localize           = ui_view_localize,
     .is_hidden          = ui_view_is_hidden,
     .is_disabled        = ui_view_is_disabled,
-    .init_children      = ui_view_init_children,
-    .set_parents        = ui_view_parents,
     .timer              = ui_view_timer,
     .every_sec          = ui_view_every_sec,
     .every_100ms        = ui_view_every_100ms,
@@ -572,11 +597,16 @@ ui_view_if ui_view = {
     .tap                = ui_view_tap,
     .press              = ui_view_press,
     .message            = ui_view_message,
+    .debug_paint        = ui_view_debug_paint,
     .test               = ui_view_test
 };
+
+#ifdef UI_VIEW_TEST
 
 ut_static_init(ui_view) {
     ui_view.test();
 }
+
+#endif
 
 #pragma pop_macro("ui_view_for_each")

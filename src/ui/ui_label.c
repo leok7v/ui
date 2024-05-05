@@ -7,11 +7,11 @@ static void ui_label_paint(ui_view_t* view) {
     ui_label_t* t = (ui_label_t*)view;
     // at later stages of layout text height can grow:
     gdi.push(view->x, view->y + t->dy);
-    ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
+    ui_font_t f = *view->font;
     gdi.set_font(f);
 //  traceln("%s h=%d dy=%d baseline=%d", view->text, view->h, t->dy, view->baseline);
     ui_color_t c = view->hover && t->highlight && !t->label ?
-        colors.text_highlight : view->color;
+        ui_colors.text_highlight : view->color;
     gdi.set_text_color(c);
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
@@ -23,7 +23,7 @@ static void ui_label_paint(ui_view_t* view) {
         gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
     }
     if (view->hover && t->hovered && !t->label) {
-        gdi.set_colored_pen(colors.btn_hover_highlight);
+        gdi.set_colored_pen(ui_colors.btn_hover_highlight);
         gdi.set_brush(gdi.brush_hollow);
         int32_t cr = view->em.y / 4; // corner radius
         int32_t h = multiline ? view->h : view->baseline + view->descent;
@@ -62,8 +62,7 @@ void ui_label_init_(ui_view_t* view) {
     static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
     assert(view->type == ui_view_label);
     ui_view_init(view);
-    if (view->font == null) { view->font = &app.fonts.regular; }
-    view->color = colors.text;
+    view->color = ui_colors.text;
     view->paint = ui_label_paint;
     view->character = ui_label_character;
     view->context_menu = ui_label_context_menu;

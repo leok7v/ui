@@ -2,32 +2,22 @@
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
 
-static const char* title = "Sample2: translucent";
-
-static ui_font_t font;
-
-static void paint(ui_view_t* view) {
-    ui_font_t f = gdi.set_font(font);
-    ui_point_t mt = gdi.measure_text(font, "Hello");
-    gdi.x = (view->w - mt.x) / 2;
-    gdi.y = (view->h - mt.y) / 2;
-    gdi.text("Hello");
-    gdi.set_font(f);
-}
-
 static void opened(void) {
+    static ui_font_t font;
     font = gdi.create_font("Segoe Script", app.in2px(0.5), -1);
-    app.set_layered_window(rgb(255,255,255), 0.75);
-    app.view->paint = paint;
+    static ui_label_t hello = ui_label(0.0, "Hello");
+    hello.view.font = &font;
+    app.set_layered_window(ui_rgb(255,255,255), 0.75);
+    ui_view.add(app.view,
+        &ui_caption.view, // custom caption for no_decor window
+        &hello,
+    null);
 }
 
 static void init(void) {
-    app.title  = title;
+    app.title  = "Sample2: translucent";
     app.opened = opened;
-    // when app.no_decor == true title bar is not draw at all
-    // and extra code will be required for resizing and moving
-    // window on press hold down and move... Not implemented here.
-//  app.no_decor = true;
+    app.no_decor = true;
 }
 
 app_t app = {

@@ -79,7 +79,7 @@ typedef struct app_s {  // TODO: ui_ namespace
     // inch to pixels and reverse translation via app.dpi.window
     fp32_t   (*px2in)(int32_t pixels);
     int32_t (*in2px)(fp32_t inches);
-    // color: color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
+    // color: ui_color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
     errno_t (*set_layered_window)(ui_color_t color, float alpha);
     int64_t (*hit_test)(int32_t x, int32_t y); // see ui.hit_test.*
     bool (*is_active)(void); // is application window active
@@ -87,6 +87,7 @@ typedef struct app_s {  // TODO: ui_ namespace
     bool (*is_maximized)(void);
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
+    ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
     void (*set_title)(const char* title);
     void (*capture_mouse)(bool on); // capture mouse global input on/of
     void (*move_and_resize)(const ui_rect_t* rc);

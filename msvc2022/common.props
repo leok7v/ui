@@ -18,36 +18,51 @@
       <PreprocessorDefinitions>_SCL_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PreprocessorDefinitions>_CRT_SECURE_NO_WARNINGS=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>EnableAllWarnings</WarningLevel>
-      <DisableSpecificWarnings>4710;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- function not inlined -->
-      <DisableSpecificWarnings>4711;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- automatic inline expansion -->
-      <DisableSpecificWarnings>4820;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- '?' bytes padding added after data member -->
-      <DisableSpecificWarnings>5045;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- Spectre mitigation -->
-      <DisableSpecificWarnings>6262;%(DisableSpecificWarnings)</DisableSpecificWarnings> <!-- EXCESSIVESTACKUSAGE -->
-
+      <DisableSpecificWarnings>4710;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <!-- function not inlined -->
+      <DisableSpecificWarnings>4711;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <!-- automatic inline expansion -->
+      <DisableSpecificWarnings>4820;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <!-- '?' bytes padding added after data member -->
+      <DisableSpecificWarnings>5045;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <!-- Spectre mitigation -->
+      <DisableSpecificWarnings>6262;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <!-- EXCESSIVESTACKUSAGE -->
       <!-- Theat these warning as errors (because they are): -->
-      <TreatSpecificWarningsAsErrors>4133;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- incompatible types -->
-      <TreatSpecificWarningsAsErrors>4020;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- too many actual parameters -->
-      <TreatSpecificWarningsAsErrors>4716;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function must return a value -->
-      <TreatSpecificWarningsAsErrors>4013;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- 'foo' undefined; assuming extern returning int -->
-      <TreatSpecificWarningsAsErrors>4312;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- conversion from '...' to '...' of greater size -->
-      <TreatSpecificWarningsAsErrors>4087;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- 'args': declared with 'void' parameter list -->
-      <TreatSpecificWarningsAsErrors>4033;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function 'foo' must return a value -->
-      <TreatSpecificWarningsAsErrors>4098;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- 'void' function returning a value -->
-      <TreatSpecificWarningsAsErrors>4047;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- '=': '...' differs in levels of indirection -->
-      <TreatSpecificWarningsAsErrors>4057;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function type differs in indirection to slightly different base types -->
-      <TreatSpecificWarningsAsErrors>4113;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- function '...' differs in parameter lists from '...' -->
-      <TreatSpecificWarningsAsErrors>4700;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors> <!-- used uninitialized local variable '...' -->
-
+      <TreatSpecificWarningsAsErrors>4133;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- incompatible types -->
+      <TreatSpecificWarningsAsErrors>4020;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- too many actual parameters -->
+      <TreatSpecificWarningsAsErrors>4716;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- function must return a value -->
+      <TreatSpecificWarningsAsErrors>4013;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- 'foo' undefined; assuming extern returning int -->
+      <TreatSpecificWarningsAsErrors>4312;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- conversion from '...' to '...' of greater size -->
+      <TreatSpecificWarningsAsErrors>4087;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- 'args': declared with 'void' parameter list -->
+      <TreatSpecificWarningsAsErrors>4033;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- function 'foo' must return a value -->
+      <TreatSpecificWarningsAsErrors>4098;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- 'void' function returning a value -->
+      <TreatSpecificWarningsAsErrors>4047;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- '=': '...' differs in levels of indirection -->
+      <TreatSpecificWarningsAsErrors>4057;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- function type differs in indirection to slightly different base types -->
+      <TreatSpecificWarningsAsErrors>4113;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- function '...' differs in parameter lists from '...' -->
+      <TreatSpecificWarningsAsErrors>4700;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- used uninitialized local variable '...' -->
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
-	<Link>
+    <Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
       <AdditionalDependencies>$(CoreLibraryDependencies);%(AdditionalDependencies)</AdditionalDependencies>
-	</Link>
+    </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)..\inc;$(ProjectDir)..\src;$(ProjectDir)..\src\samples</AdditionalIncludeDirectories>
-	  <PreprocessorDefinitions>NDEBUG;$(DefineConstants);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;$(DefineConstants);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
@@ -66,6 +81,9 @@
     <Optimization>Full</Optimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup>
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile>
       <PreprocessorDefinitions>_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -75,15 +93,17 @@
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <Optimization>Disabled</Optimization>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
+      <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>_DEBUG;DEBUG;$(DefineConstants);%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <NullTerminateStrings>true</NullTerminateStrings>
     </ResourceCompile>
-	<Link>
+    <Link>
       <OptimizeReferences>false</OptimizeReferences>
       <LinkIncremental>false</LinkIncremental>
-	</Link>
+      <AssemblyDebug>true</AssemblyDebug>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <ClCompile>
@@ -94,15 +114,18 @@
       <Optimization>Full</Optimization>
       <WholeProgramOptimization>true</WholeProgramOptimization>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
     </ClCompile>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG</PreprocessorDefinitions>
       <NullTerminateStrings>true</NullTerminateStrings>
     </ResourceCompile>
-	<Link>
+    <Link>
       <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <OptimizeReferences>true</OptimizeReferences>
       <LinkIncremental>false</LinkIncremental>
-	</Link>
+      <AssemblyDebug>true</AssemblyDebug>
+    </Link>
   </ItemDefinitionGroup>
 </Project>

@@ -77,8 +77,8 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\inc\ui\ui_caption.h" />
+    <ClInclude Include="..\inc\ui\ui_containers.h" />
     <ClInclude Include="..\inc\ui\ui_nls.h" />
-    <ClInclude Include="..\inc\ui\ui_stacks.h" />
     <ClInclude Include="..\inc\ui\ut_std.h" />
     <ClInclude Include="..\inc\ui\ui.h" />
     <ClInclude Include="..\inc\ui\ui_app.h" />

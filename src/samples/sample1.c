@@ -24,12 +24,6 @@ static const char* locales[] = { // 123 languages
     "ur-PK", "uz-UZ", "vi-VN", "wo-SN", "xh-ZA", "yo-NG", "zu-ZA"
 };
 
-
-static const char* heavy_leftwards_arrow_with_equilateral_arrowhead =
-                   "\xF0\x9F\xA0\x98";
-static const char* heavy_rightwards_arrow_with_equilateral_arrowhead =
-                   "\xF0\x9F\xA0\x96";
-
 static ui_label_t label = ui_label(0.0, "Hello");
 
 static void every_sec(ui_view_t* unused(view)) {
@@ -37,31 +31,18 @@ static void every_sec(ui_view_t* unused(view)) {
     nls.set_locale(locales[locale]);
     ui_view.localize(&label.view);
     strprintf(title, "Hello %s%s %s [%s]",
-              heavy_leftwards_arrow_with_equilateral_arrowhead,
-              heavy_rightwards_arrow_with_equilateral_arrowhead,
+              ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead,
+              ui_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead,
               nls.str("Hello"), locales[locale]);
     app.set_title(title);
     app.layout();
     locale = (locale + 1) % countof(locales);
 }
 
-static void layout(ui_view_t* view) {
-    // position single child at the center of the parent
-    layouts.center(view); // only works for a single child view
-}
-
-// all views are transparent and expect parent to fill the background
-
-static void paint(ui_view_t* view) {
-    gdi.fill_with(0, 0, view->w, view->h, colors.black);
-}
-
 static void opened(void) {
     font = gdi.create_font("Segoe Script", app.in2px(0.5), -1);
-    app.view->layout    = layout;
-    app.view->paint     = paint;
     app.view->every_sec = every_sec;
-    label.view.font = &font; // &app.fonts.H3;
+    label.view.font = &font;
     ui_view.add(app.view, &label, null);
 }
 static void init(void) {

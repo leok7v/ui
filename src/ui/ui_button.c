@@ -22,18 +22,18 @@ static void ui_button_paint(ui_view_t* view) {
     int32_t x = view->x + (int)pressed * view->w;
     int32_t y = view->y + (int)pressed * view->h;
     if (!view->flat || view->hover) {
-        gdi.gradient(x, y, w, h, colors.btn_gradient_darker,
-            colors.btn_gradient_dark, true);
+        gdi.gradient(x, y, w, h, ui_colors.btn_gradient_darker,
+            ui_colors.btn_gradient_dark, true);
     }
     ui_color_t c = view->color;
     if (!view->flat && view->armed) {
-        c = colors.btn_armed;
+        c = ui_colors.btn_armed;
     }else if (!view->flat && view->hover && !view->armed) {
-        c = colors.btn_hover_highlight;
+        c = ui_colors.btn_hover_highlight;
     }
-    if (view->disabled) { c = colors.btn_disabled; }
+    if (view->disabled) { c = ui_colors.btn_disabled; }
     if (view->icon == null) {
-        ui_font_t  f = view->font != null ? *view->font : app.fonts.regular;
+        ui_font_t  f = *view->font;
         ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
         gdi.set_text_color(c);
         gdi.x = view->x + (view->w - m.x) / 2;
@@ -45,9 +45,9 @@ static void ui_button_paint(ui_view_t* view) {
         gdi.draw_icon(view->x, view->y, view->w, view->h, view->icon);
     }
     const int32_t pw = ut_max(1, view->em.y / 32); // pen width
-    ui_color_t color = view->armed ? colors.dkgray4 : colors.gray;
-    if (view->hover && !view->armed) { color = colors.blue; }
-    if (view->disabled) { color = colors.dkgray1; }
+    ui_color_t color = view->armed ? ui_colors.dkgray4 : ui_colors.gray;
+    if (view->hover && !view->armed) { color = ui_colors.blue; }
+    if (view->disabled) { color = ui_colors.dkgray1; }
     if (!view->flat) {
         ui_pen_t p = gdi.create_pen(color, pw);
         gdi.set_pen(p);
@@ -143,7 +143,7 @@ void ui_button_init_(ui_view_t* view) {
     view->key_pressed = ui_button_key_pressed;
     ui_view.set_text(view, view->text);
     ui_view.localize(view);
-    view->color = colors.btn_text;
+    view->color = ui_colors.btn_text;
 }
 
 void ui_button_init(ui_button_t* b, const char* label, fp64_t ems,

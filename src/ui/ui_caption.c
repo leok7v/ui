@@ -9,17 +9,21 @@
 #define ui_caption_glyph_full ui_glyph_square_four_corners
 #define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
 
+// TODO: remove me
 static void ui_caption_paint(ui_view_t* v) {
     // TODO: add app title label instead
     swear(v == &ui_caption.view);
     gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     gdi.push(v->x, v->y);
     if (v->text[0] != 0) {
-        ui_point_t mt = gdi.measure_text(*v->font, v->text);
+        ui_font_t f = v->font != null ? *v->font : app.fonts.regular;
+        ui_point_t mt = gdi.measure_text(f, v->text);
         gdi.x += (v->w - mt.x) / 2;
         gdi.y += (v->h - mt.y) / 2;
         gdi.set_text_color((ui_color_t)(v->color ^ 0xFFFFFF));
+        f = gdi.set_font(f);
         gdi.text("%s", v->text);
+        gdi.set_font(f);
     }
     gdi.pop();
 }
@@ -71,7 +75,12 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
         return ui.hit_test.system_menu;
     } else {
         ui_view_for_each(&ui_caption.view, c, {
-            if (ui_view.inside(c, &pt)) { return ui.hit_test.client; }
+            bool ignore = c->type == ui_view_container ||
+                          c->type == ui_view_spacer;
+            if (!ignore && ui_view.inside(c, &pt)) {
+// traceln("ui.hit_test.client %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
+                return ui.hit_test.client;
+            }
         });
         return ui.hit_test.caption;
     }
@@ -79,13 +88,14 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
 
 static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
-    ui_view_init_h_stack(v);
-    v->color = colors.dkgray2; // TODO: GetSysColor(COLOR_ACTIVECAPTION); (See Notepad++?)
-    v->hidden = false,
+    ui_view_init_span(v);
+    ui_caption.view.insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_caption.view.hidden = false;
     app.view->character = ui_app_view_character; // ESC for full screen
     ui_view.add(&ui_caption.view,
         &ui_caption.icon,
         &ui_caption.menu,
+        &ui_caption.title,
         &ui_caption.spacer,
         &ui_caption.mini,
         &ui_caption.maxi,
@@ -96,23 +106,26 @@ static void ui_caption_init(ui_view_t* v) {
                                  .right = 0.25, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
         c->font = &app.fonts.H3;
-        c->color = colors.white;
+        c->color = ui_colors.white;
         c->flat = true;
         c->padding = p;
     });
     ui_caption.icon.view.icon = app.icon;
+    ui_caption.view.max_w = INT32_MAX;
+    ui_caption.view.align = ui.align.top;
     ui_caption_maximize_or_restore();
 }
 
 ui_caption_t ui_caption =  {
     .view = {
-        .type     = ui_view_h_stack,
+        .type     = ui_view_span,
+        .font     = &app.fonts.regular,
         .init     = ui_caption_init,
-        .paint    = ui_caption_paint,
         .hit_test = ui_caption_hit_test,
         .hidden = true
     },
     .icon   = ui_button(ui_glyph_nbsp, 0.0, null),
+    .title  = ui_label(0, ""),
     .spacer = ui_view(spacer),
     .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),
     .mini   = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mini),

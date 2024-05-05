@@ -30,10 +30,10 @@ static void paint(ui_view_t* view) {
     gdi.draw_image(0, 0, view->w, view->h, &image[k]);
     gdi.x = view->em.x;
     gdi.y = view->em.y / 4;
-    gdi.set_text_color(colors.orange);
+    gdi.set_text_color(ui_colors.orange);
     gdi.textln("Try Full Screen Button there --->");
     gdi.y = view->h - view->em.y * 3 / 2;
-    gdi.set_text_color(colors.orange);
+    gdi.set_text_color(ui_colors.orange);
     gdi.textln("render time %.1f ms / avg paint time %.1f ms",
         render_time * 1000, app.paint_avg * 1000);
     if (!rendering) {
@@ -162,14 +162,14 @@ static void mandelbrot(ui_image_t* im) {
                 iteration++;
             }
             static ui_color_t palette[16] = {
-                rgb( 66,  30,  15),  rgb( 25,   7,  26),
-                rgb(  9,   1,  47),  rgb(  4,   4,  73),
-                rgb(  0,   7, 100),  rgb( 12,  44, 138),
-                rgb( 24,  82, 177),  rgb( 57, 125, 209),
-                rgb(134, 181, 229),  rgb(211, 236, 248),
-                rgb(241, 233, 191),  rgb(248, 201,  95),
-                rgb(255, 170,   0),  rgb(204, 128,   0),
-                rgb(153,  87,   0),  rgb(106,  52,   3)
+                ui_rgb( 66,  30,  15),  ui_rgb( 25,   7,  26),
+                ui_rgb(  9,   1,  47),  ui_rgb(  4,   4,  73),
+                ui_rgb(  0,   7, 100),  ui_rgb( 12,  44, 138),
+                ui_rgb( 24,  82, 177),  ui_rgb( 57, 125, 209),
+                ui_rgb(134, 181, 229),  ui_rgb(211, 236, 248),
+                ui_rgb(241, 233, 191),  ui_rgb(248, 201,  95),
+                ui_rgb(255, 170,   0),  ui_rgb(204, 128,   0),
+                ui_rgb(153,  87,   0),  ui_rgb(106,  52,   3)
             };
             ui_color_t color = palette[iteration % countof(palette)];
             uint8_t* px = &((uint8_t*)im->pixels)[r * im->w * 4 + c * 4];

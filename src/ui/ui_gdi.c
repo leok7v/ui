@@ -26,7 +26,7 @@ static void gdi_init(void) {
 }
 
 static uint32_t gdi_color_rgb(ui_color_t c) {
-    assert(color_is_8bit(c));
+    assert(ui_color_is_8bit(c));
     return (COLORREF)(c & 0xFFFFFFFF);
 }
 
@@ -621,11 +621,18 @@ static int32_t gdi_descent(ui_font_t f) {
 }
 
 static ui_point_t gdi_get_em(ui_font_t f) {
-    SIZE cell = {0};
+    SIZE cell = {0, 0};
+    int32_t height   = 0;
+    int32_t descent  = 0;
+    int32_t baseline = 0;
     gdi_hdc_with_font(f, {
         fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &cell));
+        height = gdi.font_height(f);
+        descent = gdi.descent(f);
+        baseline = gdi.baseline(f);
     });
-    ui_point_t c = {cell.cx, cell.cy};
+    assert(baseline >= height);
+    ui_point_t c = {cell.cx, cell.cy - descent - (height - baseline)};
     return c;
 }
 

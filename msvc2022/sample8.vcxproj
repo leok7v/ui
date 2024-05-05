@@ -70,6 +70,9 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <UseStandardPreprocessor>true</UseStandardPreprocessor>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -81,6 +84,7 @@
     <ClInclude Include="..\inc\ui\ui_button.h" />
     <ClInclude Include="..\inc\ui\ui_caption.h" />
     <ClInclude Include="..\inc\ui\ui_colors.h" />
+    <ClInclude Include="..\inc\ui\ui_containers.h" />
     <ClInclude Include="..\inc\ui\ui_core.h" />
     <ClInclude Include="..\inc\ui\ui_gdi.h" />
     <ClInclude Include="..\inc\ui\ui_glyphs.h" />
@@ -89,7 +93,6 @@
     <ClInclude Include="..\inc\ui\ui_mbx.h" />
     <ClInclude Include="..\inc\ui\ui_nls.h" />
     <ClInclude Include="..\inc\ui\ui_slider.h" />
-    <ClInclude Include="..\inc\ui\ui_stacks.h" />
     <ClInclude Include="..\inc\ui\ui_toggle.h" />
     <ClInclude Include="..\inc\ui\ui_view.h" />
     <ClInclude Include="..\inc\ui\ut_std.h" />

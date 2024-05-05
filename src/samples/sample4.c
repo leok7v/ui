@@ -56,7 +56,7 @@ static void load_images(void) {
 
 static void paint(ui_view_t* view) {
     gdi.set_brush(gdi.brush_color);
-    gdi.set_brush_color(colors.black);
+    gdi.set_brush_color(ui_colors.black);
     gdi.fill(0, 0, view->w, view->h);
     if (image[1].w > 0 && image[1].h > 0) {
         int w = ut_min(view->w, image[1].w);

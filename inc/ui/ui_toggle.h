@@ -25,11 +25,12 @@ void ui_toggle_init_(ui_view_t* view); // do not call use static_ui_toggle() mac
     static                                                            \
    ui_toggle_t name = {                                               \
     .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
-    .child = null, .width = w, .text = s}, .cb = name ## _callback }
+              .font = &app.fonts.regular, .width = w, .text = s},     \
+    .cb = name ## _callback }
 
 #define ui_toggle(s, w, callback) {                                   \
     .view = { .type = ui_view_toggle, .init = ui_toggle_init_,        \
-    .child = null, .width = w, .text = s}, .cb = callback }
-
+    .font = &app.fonts.regular, .width = w, .text = s},               \
+    .cb = callback }
 
 end_c

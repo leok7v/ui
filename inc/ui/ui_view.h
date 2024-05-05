@@ -11,8 +11,8 @@ enum ui_view_type_t {
     ui_view_toggle    = 'vwtg',
     ui_view_slider    = 'vwsl',
     ui_view_text      = 'vwtx',
-    ui_view_h_stack   = 'vwhs',
-    ui_view_v_stack   = 'vwvs',
+    ui_view_span      = 'vwhs',
+    ui_view_list      = 'vwvs',
     ui_view_spacer    = 'vwsp',
     ui_view_scroll    = 'vwsc'
 };
@@ -99,11 +99,6 @@ typedef struct ui_view_s {
 
 void ui_view_init(ui_view_t* view);
 
-void ui_view_init_container(ui_view_t* view);
-
-#define ui_view(view_type) { .type = (ui_view_ ## view_type),   \
-                             .init = ui_view_init_ ## view_type }
-
 typedef struct ui_view_if {
     // children va_args must be null terminated
     ui_view_t* (*add)(ui_view_t* parent, ...);
@@ -111,7 +106,9 @@ typedef struct ui_view_if {
     void (*add_last)(ui_view_t* parent,  ui_view_t* child);
     void (*add_after)(ui_view_t* child,  ui_view_t* after);
     void (*add_before)(ui_view_t* child, ui_view_t* before);
-    void (*remove)(ui_view_t* view);
+    void (*remove)(ui_view_t* view); // removes view from it`s parent
+    void (*remove_all)(ui_view_t* parent); // removes all children
+    void (*disband)(ui_view_t* parent); // removes all children recursively
     bool (*inside)(ui_view_t* view, const ui_point_t* pt);
     void (*set_text)(ui_view_t* view, const char* text);
     void (*invalidate)(const ui_view_t* view); // prone to delays
@@ -120,8 +117,6 @@ typedef struct ui_view_if {
     bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
     const char* (*nls)(ui_view_t* view);  // returns localized text
     void (*localize)(ui_view_t* view);    // set strid based ui .text field
-    void (*init_children)(ui_view_t* view);
-    void (*set_parents)(ui_view_t* view);
     void (*timer)(ui_view_t* view, ui_timer_t id);
     void (*every_sec)(ui_view_t* view);
     void (*every_100ms)(ui_view_t* view);
@@ -144,6 +139,7 @@ typedef struct ui_view_if {
     bool (*press)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
     bool (*message)(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
                                      int64_t* ret);
+    void (*debug_paint)(ui_view_t* v);
     void (*test)(void);
 } ui_view_if;
 
@@ -151,23 +147,48 @@ extern ui_view_if ui_view;
 
 // view children iterator:
 
-#define ui_view_for_each(v, it, code) do { \
-    ui_view_t* it = (v)->child;            \
-    if (it != null) {                      \
-        do {                               \
-            { code }                       \
-            it = it->next;                 \
-        } while (it != (v)->child);        \
-    }                                      \
+#define ui_view_for_each_begin(v, it) do {       \
+    ui_view_t* it = (v)->child;                  \
+    if (it != null) {                            \
+        do {                                     \
+
+
+#define ui_view_for_each_end(v, it)              \
+            it = it->next;                       \
+        } while (it != (v)->child);              \
+    }                                            \
 } while (0)
 
+#define ui_view_for_each(v, it, ...) \
+    ui_view_for_each_begin(v, it)    \
+    { __VA_ARGS__ }                  \
+    ui_view_for_each_end(v, it)
 
-#define ui_view_call_init(v) do {               \
-    if (v->init != null) {                      \
-        void (*_init_)(ui_view_t* v) = v->init; \
-        v->init = null; /* before! call */      \
-        _init_(v);                              \
-    }                                           \
+// #define code(statements) statements
+//
+// used as:
+// {
+//     macro({
+//        foo();
+//        bar();
+//     })
+// }
+//
+// except in m4 preprocessor loses new line
+// between foo() and bar() and makes debugging and
+// using __LINE__ difficult to impossible.
+//
+// Also
+// #define code(...) { __VA_ARGS__ }
+// is way easier on preprocessor
+
+
+#define ui_view_call_init(v) do {                   \
+    if ((v)->init != null) {                        \
+        void (*_init_)(ui_view_t* _v_) = (v)->init; \
+        (v)->init = null; /* before! call */        \
+        _init_((v));                                \
+    }                                               \
 } while (0)
 
 

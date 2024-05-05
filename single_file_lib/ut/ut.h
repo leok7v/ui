@@ -489,7 +489,7 @@ static inline void ut_max_undefined(void) { }
 // resulting from the operation, thereby preventing type mismatches that
 // could lead to undefined behavior or compilation errors.
 
-typedef struct generics_if {
+typedef struct {
     void (*test)(void);
 } ut_generics_if;
 
@@ -777,7 +777,7 @@ typedef struct ut_stream_if {
     void    (*close)(ut_stream_if* s); // optional
 } ut_stream_if;
 
-typedef struct ut_stream_memory_if {
+typedef struct {
     ut_stream_if   stream;
     const void* data_read;
     int64_t     bytes_read;
@@ -787,7 +787,7 @@ typedef struct ut_stream_memory_if {
     int64_t     pos_write;
 } ut_stream_memory_if;
 
-typedef struct streams_if {
+typedef struct {
     void (*read_only)(ut_stream_memory_if* s,  const void* data, int64_t bytes);
     void (*write_only)(ut_stream_memory_if* s, void* data, int64_t bytes);
     void (*read_write)(ut_stream_memory_if* s, const void* read, int64_t read_bytes,
@@ -4347,7 +4347,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     return r;
 }
 
-typedef struct ut_processes_io_merge_out_and_err_if {
+typedef struct {
     ut_stream_if stream;
     ut_stream_if* output;
     errno_t error;

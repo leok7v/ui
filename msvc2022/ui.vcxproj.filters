@@ -63,7 +63,7 @@
     <ClInclude Include="..\inc\ui\ut_std.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_stacks.h">
+    <ClInclude Include="..\inc\ui\ui_containers.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
   </ItemGroup>
@@ -107,7 +107,7 @@
     <ClCompile Include="..\src\ui\ui_caption.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\ui_stacks.c">
+    <ClCompile Include="..\src\ui\ui_containers.c">
       <Filter>src\ui</Filter>
     </ClCompile>
   </ItemGroup>

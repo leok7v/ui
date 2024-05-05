@@ -176,8 +176,8 @@ static void after_paint(void) {
 static void paint_frames(ui_view_t* view) {
     ui_view_for_each(view, c, { paint_frames(c); });
     ui_color_t fc[] = {
-        colors.red, colors.green, colors.blue, colors.red,
-        colors.yellow, colors.cyan, colors.magenta
+        ui_colors.red, ui_colors.green, ui_colors.blue, ui_colors.red,
+        ui_colors.yellow, ui_colors.cyan, ui_colors.magenta
     };
     static int32_t color;
     gdi.push(view->x, view->y + view->h - view->em.y);
@@ -200,15 +200,15 @@ static void paint(ui_view_t* view) {
 //  traceln("");
     if (debug_layout) { null_paint(view); }
     gdi.set_brush(gdi.brush_color);
-    gdi.set_brush_color(colors.black);
+    gdi.set_brush_color(ui_colors.black);
     gdi.fill(0, 0, view->w, view->h);
     int32_t ix = focused();
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_view_t* e = &edit[i]->view;
         ui_color_t c = edit[i]->ro ?
-            colors.tone_red : colors.btn_hover_highlight;
+            ui_colors.tone_red : ui_colors.btn_hover_highlight;
         gdi.frame_with(e->x - 1, e->y - 1, e->w + 2, e->h + 2,
-            i == ix ? c : colors.dkgray4);
+            i == ix ? c : ui_colors.dkgray4);
     }
     after_paint();
     if (debug_layout) { paint_frames(view); }

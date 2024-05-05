@@ -595,7 +595,7 @@ fn(void, paint_selection)(ui_edit_t* e, const ui_edit_run_t* r,
             int32_t x0 = ns(text_width)(e, text, ofs0);
             int32_t x1 = ns(text_width)(e, text, ofs1);
             ui_brush_t b = gdi.set_brush(gdi.brush_color);
-            ui_color_t c = gdi.set_brush_color(rgb(48, 64, 72));
+            ui_color_t c = gdi.set_brush_color(ui_rgb(48, 64, 72));
             gdi.fill(gdi.x + x0, gdi.y, x1 - x0, e->view.em.y);
             gdi.set_brush_color(c);
             gdi.set_brush(b);
@@ -1616,7 +1616,6 @@ fn(void, clipboard_paste)(ui_edit_t* e) {
 fn(void, measure)(ui_view_t* view) { // bottom up
     assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
-    view->em = gdi.get_em(view->font == null ? app.fonts.regular : *view->font);
     // enforce minimum size - it makes it checking corner cases much simpler
     // and it's hard to edit anything in a smaller area - will result in bad UX
     if (view->w < view->em.x * 4) { view->w = view->em.x * 4; }
@@ -1676,10 +1675,10 @@ fn(void, paint)(ui_view_t* view) {
     ui_edit_t* e = (ui_edit_t*)view;
     gdi.push(view->x, view->y + e->top);
     gdi.set_brush(gdi.brush_color);
-    gdi.set_brush_color(rgb(20, 20, 14));
+    gdi.set_brush_color(ui_rgb(20, 20, 14));
     gdi.fill(view->x, view->y, view->w, view->h);
     gdi.set_clip(view->x, view->y, view->w, view->h);
-    ui_font_t f = view->font != null ? *view->font : app.fonts.regular;
+    ui_font_t f = *view->font;
     f = gdi.set_font(f);
     gdi.set_text_color(view->color);
     const int32_t pn = e->scroll.pn;
@@ -1733,7 +1732,7 @@ void ns(init)(ui_edit_t* e) {
     e->focused   = false;
     e->sle       = false;
     e->ro        = false;
-    e->view.color  = rgb(168, 168, 150); // colors.text;
+    e->view.color  = ui_rgb(168, 168, 150); // ui_colors.text;
     e->caret     = (ui_point_t){-1, -1};
     e->view.message = ns(message);
     e->view.paint   = ns(paint);

@@ -13,7 +13,7 @@ typedef struct ut_stream_if {
     void    (*close)(ut_stream_if* s); // optional
 } ut_stream_if;
 
-typedef struct ut_stream_memory_if {
+typedef struct {
     ut_stream_if   stream;
     const void* data_read;
     int64_t     bytes_read;
@@ -23,7 +23,7 @@ typedef struct ut_stream_memory_if {
     int64_t     pos_write;
 } ut_stream_memory_if;
 
-typedef struct streams_if {
+typedef struct {
     void (*read_only)(ut_stream_memory_if* s,  const void* data, int64_t bytes);
     void (*write_only)(ut_stream_memory_if* s, void* data, int64_t bytes);
     void (*read_write)(ut_stream_memory_if* s, const void* read, int64_t read_bytes,

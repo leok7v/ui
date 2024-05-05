@@ -9,12 +9,12 @@
 #define UI_WM_DTAP     (WM_APP + 0x7FFB) // fp64_t tap (aka click)
 #define UI_WM_PRESS    (WM_APP + 0x7FFA)
 
-bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
+static bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
     return r->x <= p->x && p->x < r->x + r->w &&
            r->y <= p->y && p->y < r->y + r->h;
 }
 
-bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
+static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
                                      const ui_rect_t* r1) {
     ui_rect_t r = {0};
     r.x = ut_max(r0->x, r1->x);  // Maximum of left edges
@@ -30,7 +30,12 @@ bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
     return b;
 }
 
+static int32_t ui_gaps_em2px(int32_t em, fp32_t ratio) {
+    return em == 0 ? 0 : (int32_t)(em * ratio + 0.5f);
+}
+
 extern ui_if ui = {
+    .infinity = INT32_MAX,
     .align = {
         .center = 0,
         .left   = 0x01,
@@ -144,6 +149,38 @@ extern ui_if ui = {
         .f23    = VK_F23,
         .f24    = VK_F24,
     },
+    .colors = { // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-getsyscolor
+        .scroll_bar               = COLOR_SCROLLBAR,
+        .background               = COLOR_BACKGROUND,
+        .active_caption           = COLOR_ACTIVECAPTION,
+        .inactive_caption         = COLOR_INACTIVECAPTION,
+        .menu                     = COLOR_MENU,
+        .window                   = COLOR_WINDOW,
+        .window_frame             = COLOR_WINDOWFRAME,
+        .menu_text                = COLOR_MENUTEXT,
+        .window_text              = COLOR_WINDOWTEXT,
+        .caption_text             = COLOR_CAPTIONTEXT,
+        .active_border            = COLOR_ACTIVEBORDER,
+        .inactive_border          = COLOR_INACTIVEBORDER,
+        .app_workspace            = COLOR_APPWORKSPACE,
+        .highlight                = COLOR_HIGHLIGHT,
+        .highlight_text           = COLOR_HIGHLIGHTTEXT,
+        .face_3D                  = COLOR_3DFACE,
+        .shadow_3D                = COLOR_3DSHADOW,
+        .gray_text                = COLOR_GRAYTEXT,
+        .btn_text                 = COLOR_BTNTEXT,
+        .inactive_caption_text    = COLOR_INACTIVECAPTIONTEXT,
+        .highlight_3D             = COLOR_3DHIGHLIGHT,
+        .dark_shadow_3D           = COLOR_3DDKSHADOW,
+        .light_3D                 = COLOR_3DLIGHT,
+        .info_text                = COLOR_INFOTEXT,
+        .info_background          = COLOR_INFOBK,
+        .hot_light                = COLOR_HOTLIGHT,
+        .gradient_active_caption  = COLOR_GRADIENTACTIVECAPTION,
+        .gradient_inactive_caption= COLOR_GRADIENTINACTIVECAPTION,
+        .menu_highlight           = COLOR_MENUHILIGHT,
+        .menu_bar                 = COLOR_MENUBAR
+    },
     .folder = {
         .home      = 0, // c:\Users\<username>
         .desktop   = 1,
@@ -156,8 +193,9 @@ extern ui_if ui = {
         .bin       = 8, // c:\Program Files
         .data      = 9  // c:\ProgramData
     },
-    .point_in_rect = ui_point_in_rect,
-    .intersect_rect = ui_intersect_rect
+    .point_in_rect  = ui_point_in_rect,
+    .intersect_rect = ui_intersect_rect,
+    .gaps_em2px     = ui_gaps_em2px
 };
 
 // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow

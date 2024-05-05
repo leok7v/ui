@@ -109,3 +109,23 @@
 // No-Break Space (NBSP)
 // https://www.compart.com/en/unicode/U+00A0
 #define ui_glyph_nbsp                                  "\xC2\xA0"
+
+// Infinity
+// https://www.compart.com/en/unicode/U+221E
+#define ui_glyph_infinity                              "\xE2\x88\x9E"
+
+// Heavy Leftwards Arrow with Equilateral Arrowhead
+// https://www.compart.com/en/unicode/U+1F818
+#define ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead           "\xF0\x9F\xA0\x98"
+
+// Heavy Rightwards Arrow with Equilateral Arrowhead
+// https://www.compart.com/en/unicode/U+1F81A
+#define ui_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead          "\xF0\x9F\xA0\x9A"
+
+// Heavy Leftwards Arrow with Large Equilateral Arrowhead
+// https://www.compart.com/en/unicode/U+1F81C
+#define ui_glyph_heavy_leftwards_arrow_with_large_equilateral_arrowhead     "\xF0\x9F\xA0\x9C"
+
+// Heavy Rightwards Arrow with Large Equilateral Arrowhead
+// https://www.compart.com/en/unicode/U+1F81E
+#define ui_glyph_heavy_rightwards_arrow_with_large_equilateral_arrowhead    "\xF0\x9F\xA0\x9E"

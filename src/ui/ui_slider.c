@@ -37,20 +37,20 @@ static void ui_slider_paint(ui_view_t* v) {
     const int32_t em8  = ut_max(1, em / 8);
     const int32_t em16 = ut_max(1, em / 16);
     gdi.set_brush(gdi.brush_color);
-    ui_pen_t pen_grey45 = gdi.create_pen(colors.dkgray3, em16);
+    ui_pen_t pen_grey45 = gdi.create_pen(ui_colors.dkgray3, em16);
     gdi.set_pen(pen_grey45);
-    gdi.set_brush_color(colors.dkgray3);
+    gdi.set_brush_color(ui_colors.dkgray3);
     const int32_t x = v->x + r->dec.view.w + em2;
     const int32_t y = v->y;
     const int32_t w = r->tm.x + em;
     const int32_t h = v->h;
     gdi.rounded(x - em8, y, w + em4, h, em4, em4);
     gdi.gradient(x, y, w, h / 2,
-        colors.dkgray3, colors.btn_gradient_darker, true);
+        ui_colors.dkgray3, ui_colors.btn_gradient_darker, true);
     gdi.gradient(x, y + h / 2, w, v->h - h / 2,
-        colors.btn_gradient_darker, colors.dkgray3, true);
-    gdi.set_brush_color(colors.dkgreen);
-    ui_pen_t pen_grey30 = gdi.create_pen(colors.dkgray1, em16);
+        ui_colors.btn_gradient_darker, ui_colors.dkgray3, true);
+    gdi.set_brush_color(ui_colors.dkgreen);
+    ui_pen_t pen_grey30 = gdi.create_pen(ui_colors.dkgray1, em16);
     gdi.set_pen(pen_grey30);
     const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
     fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->value_min) / range;

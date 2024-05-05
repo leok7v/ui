@@ -30,14 +30,14 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     }                                                            \
     static                                                       \
     ui_mbx_t name = {                                            \
-    .view = { .type = ui_view_mbx, .init = ui_mbx_init_,         \
-    .child = null, .text = s}, .opts = name ## _options,         \
-    .cb = name ## _callback }
+        .view = { .type = ui_view_mbx, .init = ui_mbx_init_,     \
+        .font = &app.fonts.regular, .text = s},                  \
+    .opts = name ## _options, .cb = name ## _callback }
 
 
 #define ui_mbx(s, callback, ...) {                       \
     .view = { .type = ui_view_mbx, .init = ui_mbx_init_, \
-    .child = null, .text = s},                           \
+              .font = &app.fonts.regular, .text = s},    \
     .opts = (const char*[]){ __VA_ARGS__, null },        \
     .cb = callback }
 

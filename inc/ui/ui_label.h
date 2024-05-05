@@ -18,7 +18,7 @@ void ui_label_init_(ui_view_t* view);
 
 #define ui_label(w, s) {                                       \
       .view = { .type = ui_view_label, .init = ui_label_init_, \
-      .child = null, .width = w, .text = s}                    \
+      .font = &app.fonts.regular, .width = w, .text = s}       \
 }
 
 // single line of text with "&" keyboard shortcuts:
