@@ -590,13 +590,13 @@ static ui_font_t gdi_set_font(ui_font_t f) {
     }                                                                    \
 } while (0);
 
-#define gdi_hdc_with_font(f, code) do {                                  \
+#define gdi_hdc_with_font(f, ...) do {                                   \
     not_null(f);                                                         \
     not_null(app_window());                                              \
     HDC hdc = app_canvas() != null ? app_canvas() : GetDC(app_window()); \
     not_null(hdc);                                                       \
     HFONT _font_ = SelectFont(hdc, (HFONT)f);                            \
-    code                                                                 \
+    { __VA_ARGS__ }                                                      \
     SelectFont(hdc, _font_);                                             \
     if (app_canvas() == null) {                                          \
         ReleaseDC(app_window(), hdc);                                        \
@@ -626,6 +626,7 @@ static ui_point_t gdi_get_em(ui_font_t f) {
     int32_t descent  = 0;
     int32_t baseline = 0;
     gdi_hdc_with_font(f, {
+        // ui_glyph_nbsp and "M" have the same result
         fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &cell));
         height = gdi.font_height(f);
         descent = gdi.descent(f);

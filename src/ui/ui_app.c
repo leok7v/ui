@@ -16,9 +16,7 @@ static MONITORINFO app_mi = {sizeof(MONITORINFO)};
 static HANDLE app_event_quit;
 static HANDLE app_event_invalidate;
 
-#ifdef APP_THEME_EXPERIMENT
-static HTHEME app_theme;
-#endif
+#define APP_THEME_EXPERIMENT
 
 static uintptr_t app_timer_1s_id;
 static uintptr_t app_timer_100ms_id;
@@ -542,19 +540,6 @@ static void app_allow_dark_mode_for_window(void) {
 }
 
 static void app_get_min_max_info(MINMAXINFO* mmi) {
-#ifdef APP_THEME_EXPERIMENT
-    if (app_theme == null) {
-        app_allow_dark_mode_for_window();
-        const wchar_t* class_list =
-        L"CompositedWindow::Window;BUTTON;CLOCK;COMBOBOX;COMMUNICATIONS;CONTROLPANEL;DATEPICKER;DRAGDROP;"
-        "EDIT;EXPLORERBAR;FLYOUT;GLOBALS;HEADER;LISTBOX;LISTVIEW;MENU;MENUBAND;"
-        "NAVIGATION;PAGE;PROGRESS;REBAR;SCROLLBAR;SEARCHEDITBOX;SPIN;STARTPANEL;"
-        "STATUS;TAB;TASKBAND;TASKBAR;TASKDIALOG;TEXTSTYLE;TOOLBAR;TOOLTIP;"
-        "TRACKBAR;TRAYNOTIFY;TREEVIEW;WINDOW";
-        app_theme = OpenThemeData(app_window(), class_list);
-        not_null(app_theme);
-    }
-#endif // APP_THEME_EXPERIMENT
     const ui_window_sizing_t* ws = &app.window_sizing;
     const ui_rect_t* wa = &app.work_area;
     const int32_t min_w = ws->min_w > 0 ? app.in2px(ws->min_w) : app.in2px(1.0);
@@ -692,7 +677,7 @@ static void app_toast_paint(void) {
 static void app_toast_cancel(void) {
     if (app.animating.view != null && app.animating.view->type == ui_view_mbx) {
         ui_mbx_t* mx = (ui_mbx_t*)app.animating.view;
-        if (mx->option < 0) { mx->cb(mx, -1); }
+        if (mx->option < 0 && mx->cb != null) { mx->cb(mx, -1); }
     }
     app.animating.step = 0;
     app.animating.view = null;
@@ -784,13 +769,13 @@ static void app_view_layout(void) {
 }
 
 static void ui_app_view_active_frame_paint(void) {
-#ifdef APP_THEME_EXPERIMENT
+#ifdef APP_THEME_EXPERIMENT_GET_THEME_COLOR_WORKS // it does not!
     ui_caption.view.color = app.is_active() ?
-        app.get_color(ui.colors.active_caption) :
-        app.get_color(ui.colors.inactive_caption);
+        ui_theme.get_color(app.window, ui.colors.active_caption) :
+        ui_theme.get_color(app.window, ui.colors.inactive_caption);
     ui_color_t c = app.is_active() ?
-        app.get_color(ui.colors.active_border) :
-        app.get_color(ui.colors.inactive_border);
+        ui_theme.get_color(app.window, ui.colors.active_border) :
+        ui_theme.get_color(app.window, ui.colors.inactive_border);
 #else
     ui_caption.view.color = ui_colors.dkgray1;
     ui_color_t c = app.is_active() ?
@@ -875,6 +860,12 @@ static void app_window_position_changed(const WINDOWPOS* wp) {
 }
 
 static void app_setting_change(uintptr_t wp, uintptr_t lp) {
+#ifdef APP_THEME_EXPERIMENT
+    if (strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
+        wcscmp((const wchar_t*)lp, L"ImmersiveColorSet") == 0) {
+        ui_theme.refresh(app.window);
+    }
+#endif
     if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         wchar_t ln[LOCALE_NAME_MAX_LENGTH + 1];
         int32_t n = GetUserDefaultLocaleName(ln, countof(ln));
@@ -996,7 +987,9 @@ static int64_t app_hit_test(int32_t x, int32_t y) {
     int32_t bt = ut_max(4, app.in2px(1.0 / 16.0));
     int32_t cx = x - app.wrc.x;
     int32_t cy = y - app.wrc.y;
-    if (app.is_maximized()) {
+    if (app.animating.view != null) {
+        return ui.hit_test.client; // message box or toast is up
+    } else if (app.is_maximized()) {
         return ui_caption.view.hit_test(cx, cy);
     } else if (app.is_full_screen) {
         return ui.hit_test.client;
@@ -1312,8 +1305,11 @@ static void app_create_window(const ui_rect_t r) {
         app_set_window_long(GWL_STYLE, s & ~WS_SIZEBOX);
         enum { swp = SWP_FRAMECHANGED |
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE };
-        SetWindowPos(app_window(), NULL, 0, 0, 0, 0, swp);
+        SetWindowPos(app_window(), null, 0, 0, 0, 0, swp);
     }
+#ifdef APP_THEME_EXPERIMENT
+    ui_theme.refresh(app.window);
+#endif
     if (app.visibility != ui.visibility.hide) {
         app.view->w = app.wrc.w;
         app.view->h = app.wrc.h;
@@ -1634,8 +1630,7 @@ static void app_set_title(const char* title) {
 static ui_color_t app_get_color(int32_t color_id) {
     fatal("Does not work (yet) - needs tender loving care on Win10");
 #ifdef APP_THEME_EXPERIMENT
-    return app_theme != null ?
-        GetThemeSysColor(app_theme, color_id) : GetSysColor(color_id);
+    return ui_theme.get_color(app.window, color_id);
 #else
     return GetSysColor(color_id);
 #endif
@@ -1974,7 +1969,11 @@ static void app_init_windows(void) {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
     not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
 #ifdef APP_THEME_EXPERIMENT
-    app_allow_dark_mode_for_app();
+    if (!ui_theme.is_system_light() && !ui_theme.are_apps_light() &&
+        ui_theme.should_apps_use_dark_mode() &&
+        ui_theme.is_dark_mode_allowed_for_app()) {
+        ui_theme.set_preferred_app_mode(ui_theme.mode_force_dark);
+    }
 #endif
     InitCommonControls(); // otherwise GetOpenFileName does not work
     app.dpi.process = GetSystemDpiForProcess(GetCurrentProcess());

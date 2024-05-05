@@ -17,6 +17,7 @@
     <ClInclude Include="..\inc\ui\ui.h" />
     <ClInclude Include="..\inc\ui\ui_app.h" />
     <ClInclude Include="..\inc\ui\ui_button.h" />
+    <ClInclude Include="..\inc\ui\ui_theme.h" />
     <ClInclude Include="..\inc\ui\ui_toggle.h" />
     <ClInclude Include="..\inc\ui\ui_colors.h" />
     <ClInclude Include="..\inc\ui\ui_core.h" />
@@ -34,6 +35,7 @@
     <ClCompile Include="..\src\ui\ui_button.c" />
     <ClCompile Include="..\src\ui\ui_caption.c" />
     <ClCompile Include="..\src\ui\ui_containers.c" />
+    <ClCompile Include="..\src\ui\ui_theme.c" />
     <ClCompile Include="..\src\ui\ui_toggle.c" />
     <ClCompile Include="..\src\ui\ui_colors.c" />
     <ClCompile Include="..\src\ui\ui_core.c" />

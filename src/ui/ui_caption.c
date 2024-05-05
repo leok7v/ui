@@ -76,9 +76,9 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
     } else {
         ui_view_for_each(&ui_caption.view, c, {
             bool ignore = c->type == ui_view_container ||
-                          c->type == ui_view_spacer;
+                          c->type == ui_view_spacer ||
+                          c->type == ui_view_label;
             if (!ignore && ui_view.inside(c, &pt)) {
-// traceln("ui.hit_test.client %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
                 return ui.hit_test.client;
             }
         });

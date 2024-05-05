@@ -45,14 +45,35 @@ static void toggle_test_list(ui_button_t* b) {
     list_test(&test);
 }
 
-static ui_button_t test_container = ui_button("&Container", 7.0, toggle_test_container);
-static ui_button_t test_span = ui_button("&Span", 7.0, toggle_test_span);
-static ui_button_t test_list = ui_button("&List", 7.0, toggle_test_list);
+static ui_mbx_t mbx = ui_mbx( // message box
+    "Orange frames are container, span or list\n"
+    "inserts. Green frames are children padding.\n"
+    "Both intentionally not the same on all sides.\n"
+    "Container centers children by default\n"
+    "unless a child specifies an align. \n"
+    "When child.max_w or child.max_h = "
+    ui_glyph_infinity
+    "\nit is expanded in specified direction.\n"
+    "Span arranges children horizontally and\n"
+    "List vertically.\n"
+    "Overflows are allowed.\n"
+    "Try to resize application window.\n"
+    "\n"
+    "Press ESC to close this message.",
+    null, null);
+
+static void toggle_about(ui_button_t* b) {
+    app.show_toast(&mbx.view, 10.0);
+}
 
 static void opened(void) {
     static ui_view_t list = ui_view(list);
     static ui_view_t span = ui_view(span);
     static ui_view_t tools = ui_view(list);
+    static ui_button_t test_container = ui_button("&Container", 7.0, toggle_test_container);
+    static ui_button_t test_span = ui_button("&Span", 7.0, toggle_test_span);
+    static ui_button_t test_list = ui_button("&List", 7.0, toggle_test_list);
+    static ui_button_t about     = ui_button("About", 7.0, toggle_about);
     ui_view.add(app.view,
         ui_view.add(&list,
             &ui_caption,
@@ -62,6 +83,7 @@ static void opened(void) {
                     &test_container.view,
                     &test_span.view,
                     &test_list.view,
+                    &about.view,
                 null),
             null),
         null),
@@ -126,7 +148,8 @@ static void container_test(ui_view_t* parent) {
     container.paint  = ui_view.debug_paint;
     container.max_w  = ui.infinity;
     container.max_h  = ui.infinity;
-    container.color  = ui_colors.dark_jungle_green;
+    container.color  = ui_colors.gunmetal;
+    container.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(container.text, "container");
     ui_view_for_each(&container, it, {
         it->paint   = ui_view.debug_paint;
@@ -157,7 +180,7 @@ static void span_test(ui_view_t* parent) {
     span.paint  = ui_view.debug_paint;
     span.max_w  = ui.infinity;
     span.max_h  = ui.infinity;
-    span.color  = ui_colors.dark_jungle_green;
+    span.color  = ui_colors.gunmetal;
     span.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(span.text, "span");
     ui_view_for_each(&span, it, {
@@ -193,7 +216,7 @@ static void list_test(ui_view_t* parent) {
     list.paint  = ui_view.debug_paint;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-    list.color  = ui_colors.dark_jungle_green;
+    list.color  = ui_colors.gunmetal;
     list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(list.text, "list");
     ui_view_for_each(&list, it, {

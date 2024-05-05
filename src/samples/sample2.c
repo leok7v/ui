@@ -7,7 +7,7 @@ static void opened(void) {
     font = gdi.create_font("Segoe Script", app.in2px(0.5), -1);
     static ui_label_t hello = ui_label(0.0, "Hello");
     hello.view.font = &font;
-    app.set_layered_window(ui_rgb(255,255,255), 0.75);
+    app.set_layered_window(ui_colors.black, 0.90f);
     ui_view.add(app.view,
         &ui_caption.view, // custom caption for no_decor window
         &hello,

@@ -93,6 +93,7 @@
     <ClInclude Include="..\inc\ui\ui_mbx.h" />
     <ClInclude Include="..\inc\ui\ui_nls.h" />
     <ClInclude Include="..\inc\ui\ui_slider.h" />
+    <ClInclude Include="..\inc\ui\ui_theme.h" />
     <ClInclude Include="..\inc\ui\ui_toggle.h" />
     <ClInclude Include="..\inc\ui\ui_view.h" />
     <ClInclude Include="..\inc\ui\ut_std.h" />
