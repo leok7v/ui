@@ -19,7 +19,7 @@ static void ui_label_paint(ui_view_t* view) {
     if (!multiline) {
         ui_gdi.text("%s", ui_view.nls(view));
     } else {
-        int32_t w = (int)(view->min_w_em * view->em.x + 0.5);
+        int32_t w = (int32_t)(view->min_w_em * view->em.x + 0.5);
         ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
     }
     if (view->hover && t->hovered && !t->label) {

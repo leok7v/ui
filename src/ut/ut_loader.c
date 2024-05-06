@@ -27,7 +27,7 @@ static void* ut_loader_sym_all(const char* name) {
     fatal_if_not_zero(ut_heap.allocate(null, (void**)&modules, bytes, false));
     fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes,
                                                                    &bytes));
-    const int32_t n = bytes / (int)sizeof(HMODULE);
+    const int32_t n = bytes / (int32_t)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
         sym = ut_loader.sym(modules[i], name);
     }

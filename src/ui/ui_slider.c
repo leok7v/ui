@@ -8,7 +8,7 @@ static void ui_slider_measure(ui_view_t* v) {
     assert(r->inc.w == r->dec.w && r->inc.h == r->dec.h);
     const int32_t em = v->em.x;
     ui_font_t f = v->font != null ? *v->font : app.fonts.regular;
-    const int32_t w = (int)(v->min_w_em * v->em.x);
+    const int32_t w = (int32_t)(v->min_w_em * v->em.x);
     r->tm = ui_gdi.measure_text(f, ui_view.nls(v), r->value_max);
     if (w > r->tm.x) { r->tm.x = w; }
     v->w = r->dec.w + r->tm.x + r->inc.w + em * 2;
@@ -130,7 +130,7 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
             r->time = app.now;
         } else if (app.now - r->time > 1.0) {
             const int32_t sign = r->dec.armed ? -1 : +1;
-            int32_t s = (int)(app.now - r->time + 0.5);
+            int32_t s = (int32_t)(app.now - r->time + 0.5);
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
             const int64_t range = (int64_t)r->value_max - r->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }

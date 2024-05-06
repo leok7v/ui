@@ -19,8 +19,8 @@ static void ui_button_paint(ui_view_t* view) {
     int32_t sign = 1 - pressed * 2; // -1, +1
     int32_t w = sign * view->w;
     int32_t h = sign * view->h;
-    int32_t x = view->x + (int)pressed * view->w;
-    int32_t y = view->y + (int)pressed * view->h;
+    int32_t x = view->x + (int32_t)pressed * view->w;
+    int32_t y = view->y + (int32_t)pressed * view->h;
     if (!view->flat || view->hover) {
         ui_gdi.gradient(x, y, w, h, ui_colors.btn_gradient_darker,
             ui_colors.btn_gradient_dark, true);

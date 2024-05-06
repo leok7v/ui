@@ -1311,21 +1311,21 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
 #include "ut/ut_std.h"
 
 
-typedef struct ui_mbx_s ui_mbx_t;
+// Options like:
+//   "Yes"|"No"|"Abort"|"Retry"|"Ignore"|"Cancel"|"Try"|"Continue"
+// maximum number of choices presentable to human is 4.
 
-typedef struct ui_mbx_s {
-    ui_view_t view;
-    void (*choice)(ui_mbx_t* m, int32_t option); // callback -1 on cancel
-    ui_label_t text;
-    ui_button_t button[16];
+typedef struct {
+    ui_view_t   view;
+    ui_label_t  label;
+    ui_button_t button[4];
     int32_t option; // -1 or option chosen by user
     const char** options;
 } ui_mbx_t;
 
 void ui_view_init_mbx(ui_view_t* view);
 
-void ui_mbx_init(ui_mbx_t* mx, const char* option[],
-    void (*cb)(ui_mbx_t* m, int32_t option), const char* format, ...);
+void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 
 #define static_ui_mbx(name, s, code, ...)                        \
                                                                  \
@@ -1338,17 +1338,18 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     static                                                       \
     ui_mbx_t name = {                                            \
         .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
-                  .font = &app.fonts.regular, .text = s          \
+                  .font = &app.fonts.regular,                    \
+                  .text = s, .callback = name ## _callback       \
                 },                                               \
-        .options = name ## _options, .choice = name ## _callback \
+        .options = name ## _options                              \
     }
 
-#define ui_mbx(s, callback, ...) {                           \
+#define ui_mbx(s, call_back, ...) {                          \
     .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
-              .font = &app.fonts.regular, .text = s          \
+              .font = &app.fonts.regular,                    \
+              .text = s, .callback = call_back               \
     },                                                       \
     .options = (const char*[]){ __VA_ARGS__, null },         \
-    .choice = callback                                       \
 }
 
 // _______________________________ ui_caption.h _______________________________
@@ -1772,13 +1773,13 @@ static void app_init_fonts(int32_t dpi) {
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int)(fh * 1.75);
+    lf.lfHeight = (int32_t)(fh * 1.75);
     app.fonts.H1 = (ui_font_t)CreateFontIndirectW(&lf);
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int)(fh * 1.4);
+    lf.lfHeight = (int32_t)(fh * 1.4);
     app.fonts.H2 = (ui_font_t)CreateFontIndirectW(&lf);
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int)(fh * 1.15);
+    lf.lfHeight = (int32_t)(fh * 1.15);
     app.fonts.H3 = (ui_font_t)CreateFontIndirectW(&lf);
     lf = app_ncm.lfMessageFont;
     lf.lfPitchAndFamily = FIXED_PITCH;
@@ -1906,7 +1907,7 @@ static void app_save_console_pos(void) {
             traceln("GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
         } else {
             ut_config.save(app.class_name, "console_screen_buffer_infoex",
-                            &info, (int)sizeof(info));
+                            &info, (int32_t)sizeof(info));
 //          traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
 //          traceln("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
 //              info.srWindow.Right - info.srWindow.Left,
@@ -1915,7 +1916,7 @@ static void app_save_console_pos(void) {
     }
     int32_t v = app.is_console_visible();
     // "icv" "is console visible"
-    ut_config.save(app.class_name, "icv", &v, (int)sizeof(v));
+    ut_config.save(app.class_name, "icv", &v, (int32_t)sizeof(v));
 }
 
 static bool app_is_fully_inside(const ui_rect_t* inner,
@@ -2272,7 +2273,9 @@ static void app_toast_paint(void) {
 static void app_toast_cancel(void) {
     if (app.animating.view != null && app.animating.view->type == ui_view_mbx) {
         ui_mbx_t* mx = (ui_mbx_t*)app.animating.view;
-        if (mx->option < 0 && mx->choice != null) { mx->choice(mx, -1); }
+        if (mx->option < 0 && mx->view.callback != null) {
+            mx->view.callback(&mx->view);
+        }
     }
     app.animating.step = 0;
     app.animating.view = null;
@@ -2333,6 +2336,7 @@ static void app_animate_step(app_animate_function_t f, int32_t step, int32_t ste
     } else if (f == null) {
         cancel = true;
     }
+    app.focus = null;
     if (cancel) {
         if (app_animate.timer != 0) { app.kill_timer(app_animate.timer); }
         app_animate.step = 0;
@@ -2644,7 +2648,7 @@ static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
             return 0;
     }
     if (m == ui.message.animate) {
-        app_animate_step((app_animate_function_t)lp, (int)wp, -1);
+        app_animate_step((app_animate_function_t)lp, (int32_t)wp, -1);
         return 0;
     }
     switch (m) {
@@ -3040,6 +3044,7 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         app_animate_start(app_toast_dim, app_animation_steps);
         app.animating.view = view;
         app.animating.time = timeout > 0 ? app.now + timeout : 0;
+        app.focus = null;
     } else {
         app_toast_cancel();
     }
@@ -3280,7 +3285,7 @@ static void app_restore_console(int32_t *visibility) {
                 sizeof(CONSOLE_SCREEN_BUFFER_INFOEX)
             };
             int32_t r = ut_config.load(app.class_name,
-                "console_screen_buffer_infoex", &info, (int)sizeof(info));
+                "console_screen_buffer_infoex", &info, (int32_t)sizeof(info));
             if (r == sizeof(info)) { // 24x80
                 SMALL_RECT sr = info.srWindow;
                 int16_t w = (int16_t)ut_max(sr.Right - sr.Left + 1, 80);
@@ -3382,8 +3387,8 @@ static const char* app_open_filename(const char* folder,
         for (int32_t i = 0; i < n; i+= 2) {
             wchar_t* s0 = utf8to16(pairs[i + 0]);
             wchar_t* s1 = utf8to16(pairs[i + 1]);
-            int32_t n0 = (int)wcslen(s0);
-            int32_t n1 = (int)wcslen(s1);
+            int32_t n0 = (int32_t)wcslen(s0);
+            int32_t n1 = (int32_t)wcslen(s1);
             assert(n0 > 0 && n1 > 0);
             fatal_if(n0 + n1 + 3 >= left, "too many filters");
             memcpy(s, s0, (n0 + 1) * 2);
@@ -3726,8 +3731,8 @@ static void ui_button_paint(ui_view_t* view) {
     int32_t sign = 1 - pressed * 2; // -1, +1
     int32_t w = sign * view->w;
     int32_t h = sign * view->h;
-    int32_t x = view->x + (int)pressed * view->w;
-    int32_t y = view->y + (int)pressed * view->h;
+    int32_t x = view->x + (int32_t)pressed * view->w;
+    int32_t y = view->y + (int32_t)pressed * view->h;
     if (!view->flat || view->hover) {
         ui_gdi.gradient(x, y, w, h, ui_colors.btn_gradient_darker,
             ui_colors.btn_gradient_dark, true);
@@ -4011,7 +4016,7 @@ enum {
 };
 
 ui_colors_t ui_colors = {
-    .none             = (int)0xFFFFFFFF, // aka CLR_INVALID in wingdi
+    .none             = (int32_t)0xFFFFFFFFU, // aka CLR_INVALID in wingdi
     .text             = ui_rgb(240, 231, 220),
     .white            = _colors_white,
     .black            = ui_rgb(0,     0,   0),
@@ -5428,7 +5433,7 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t 
     assert(height > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(app.fonts.regular, sizeof(lf), &lf);
-    fatal_if_false(n == (int)sizeof(lf));
+    fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
     strprintf(lf.lfFaceName, "%s", family);
     if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
@@ -5444,7 +5449,7 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t height, int32_t quality) {
     assert(f != null && height > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    fatal_if_false(n == (int)sizeof(lf));
+    fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
     if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)quality;
@@ -5458,7 +5463,7 @@ static int32_t ui_gdi_font_height(ui_font_t f) {
     assert(f != null);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    fatal_if_false(n == (int)sizeof(lf));
+    fatal_if_false(n == (int32_t)sizeof(lf));
     assert(lf.lfHeight < 0);
     return abs(lf.lfHeight);
 }
@@ -5591,7 +5596,7 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
         n = n * 2;
         text = (char*)ut_stackalloc(n);
         ut_str.format_va(text, n - 1, p->format, p->vl);
-        k = (int)strlen(text);
+        k = (int32_t)strlen(text);
     }
     assert(k >= 0 && k <= n, "k=%d n=%d fmt=%s", k, n, p->format);
     // rectangle is always calculated - it makes draw text
@@ -5649,7 +5654,7 @@ static void ui_gdi_vtext(const char* format, va_list vl) {
 static void ui_gdi_vtextln(const char* format, va_list vl) {
     ui_gdi_dtp_t p = { null, format, vl, {ui_gdi.x, ui_gdi.y, ui_gdi.x, ui_gdi.y}, sl_draw };
     ui_gdi_text_draw(&p);
-    ui_gdi.y += (int)((p.rc.bottom - p.rc.top) * ui_gdi.height_multiplier + 0.5f);
+    ui_gdi.y += (int32_t)((p.rc.bottom - p.rc.top) * ui_gdi.height_multiplier + 0.5f);
 }
 
 static void ui_gdi_text(const char* format, ...) {
@@ -5825,7 +5830,7 @@ static void ui_label_paint(ui_view_t* view) {
     if (!multiline) {
         ui_gdi.text("%s", ui_view.nls(view));
     } else {
-        int32_t w = (int)(view->min_w_em * view->em.x + 0.5);
+        int32_t w = (int32_t)(view->min_w_em * view->em.x + 0.5);
         ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
     }
     if (view->hover && t->hovered && !t->label) {
@@ -6077,7 +6082,7 @@ static void ui_mbx_button(ui_button_t* b) {
     for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
         if (b == &mx->button[i]) {
             mx->option = i;
-            mx->choice(mx, i);
+            if (mx->view.callback != null) { mx->view.callback(&mx->view); }
         }
     }
     app.show_toast(null, 0);
@@ -6089,15 +6094,15 @@ static void ui_mbx_measure(ui_view_t* view) {
     int32_t n = 0;
     ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
-    if (mx->text.view.measure != null) {
-        mx->text.view.measure(&mx->text.view);
+    if (mx->label.view.measure != null) {
+        mx->label.view.measure(&mx->label.view);
     } else {
-        ui_view.measure(&mx->text.view);
+        ui_view.measure(&mx->label.view);
     }
-    const int32_t em_x = mx->text.view.em.x;
-    const int32_t em_y = mx->text.view.em.y;
-    const int32_t tw = mx->text.view.w;
-    const int32_t th = mx->text.view.h;
+    const int32_t em_x = mx->label.view.em.x;
+    const int32_t em_y = mx->label.view.em.y;
+    const int32_t tw = mx->label.view.w;
+    const int32_t th = mx->label.view.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
@@ -6117,18 +6122,18 @@ static void ui_mbx_layout(ui_view_t* view) {
     int32_t n = 0;
     ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
-    const int32_t em_y = mx->text.view.em.y;
-    mx->text.view.x = view->x;
-    mx->text.view.y = view->y + em_y * 2 / 3;
-    const int32_t tw = mx->text.view.w;
-    const int32_t th = mx->text.view.h;
+    const int32_t em_y = mx->label.view.em.y;
+    mx->label.view.x = view->x;
+    mx->label.view.y = view->y + em_y * 2 / 3;
+    const int32_t tw = mx->label.view.w;
+    const int32_t th = mx->label.view.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
             bw += mx->button[i].w;
         }
         // center text:
-        mx->text.view.x = view->x + (view->w - tw) / 2;
+        mx->label.view.x = view->x + (view->w - tw) / 2;
         // spacing between buttons:
         int32_t sp = (view->w - bw) / (n + 1);
         int32_t x = sp;
@@ -6155,8 +6160,8 @@ void ui_view_init_mbx(ui_view_t* view) {
     }
     swear(n <= countof(mx->button), "inhumane: %d buttons", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
-    ui_label_init(&mx->text, 0.0, "%s", mx->view.text);
-    ui_view.add_last(&mx->view, &mx->text.view);
+    ui_label_init(&mx->label, 0.0, "%s", mx->view.text);
+    ui_view.add_last(&mx->view, &mx->label.view);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);
         mx->button[i].font = mx->view.font;
@@ -6164,24 +6169,22 @@ void ui_view_init_mbx(ui_view_t* view) {
         // TODO: remove assert below
         assert(mx->button[i].parent == &mx->view);
     }
-    mx->text.view.font = mx->view.font;
-    ui_view.localize(&mx->text.view);
+    mx->label.view.font = mx->view.font;
+    ui_view.localize(&mx->label.view);
     mx->view.text[0] = 0;
     mx->option = -1;
 }
 
 void ui_mbx_init(ui_mbx_t* mx, const char* options[],
-        void (*choice)(ui_mbx_t* m, int32_t option),
         const char* format, ...) {
     mx->view.type = ui_view_mbx;
     mx->view.measure = ui_mbx_measure;
     mx->view.layout  = ui_mbx_layout;
     mx->options = options;
-    mx->choice  = choice;
     va_list vl;
     va_start(vl, format);
     ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
-    ui_label_init(&mx->text, 0.0, mx->view.text);
+    ui_label_init(&mx->label, 0.0, mx->view.text);
     va_end(vl);
     ui_view_init_mbx(&mx->view);
 }
@@ -6225,7 +6228,7 @@ wchar_t* nls_load_string(int32_t strid, LANGID langid) {
     if (ws != null) {
         for (int32_t i = 0; i < 16 && r == null; i++) {
             if (ws[0] != 0) {
-                int32_t count = (int)ws[0];  // String size in characters.
+                int32_t count = (int32_t)ws[0];  // String size in characters.
                 ws++;
                 assert(ws[count - 1] == 0, "use rc.exe /n command line option");
                 if (i == index) { // the string has been found
@@ -6380,7 +6383,7 @@ static void ui_slider_measure(ui_view_t* v) {
     assert(r->inc.w == r->dec.w && r->inc.h == r->dec.h);
     const int32_t em = v->em.x;
     ui_font_t f = v->font != null ? *v->font : app.fonts.regular;
-    const int32_t w = (int)(v->min_w_em * v->em.x);
+    const int32_t w = (int32_t)(v->min_w_em * v->em.x);
     r->tm = ui_gdi.measure_text(f, ui_view.nls(v), r->value_max);
     if (w > r->tm.x) { r->tm.x = w; }
     v->w = r->dec.w + r->tm.x + r->inc.w + em * 2;
@@ -6502,7 +6505,7 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
             r->time = app.now;
         } else if (app.now - r->time > 1.0) {
             const int32_t sign = r->dec.armed ? -1 : +1;
-            int32_t s = (int)(app.now - r->time + 0.5);
+            int32_t s = (int32_t)(app.now - r->time + 0.5);
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
             const int64_t range = (int64_t)r->value_max - r->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
@@ -7079,7 +7082,7 @@ static void ui_view_measure(ui_view_t* view) {
         ui_point_t mt = { 0 };
         bool multiline = strchr(view->text, '\n') != null;
         if (view->type == ui_view_label && multiline) {
-            int32_t w = (int)(view->min_w_em * view->em.x + 0.5f);
+            int32_t w = (int32_t)(view->min_w_em * view->em.x + 0.5f);
             mt = ui_gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
             mt = ui_gdi.measure_text(f, ui_view.nls(view));

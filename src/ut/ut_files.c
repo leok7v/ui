@@ -195,15 +195,15 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
     swear(fn != null && count > 0);
     const char* tmp = ut_files.tmp();
     errno_t r = 0;
-    if (count < (int)strlen(tmp) + 8) {
+    if (count < (int32_t)strlen(tmp) + 8) {
         r = ERROR_BUFFER_OVERFLOW;
     } else {
-        assert(count > (int)strlen(tmp) + 8);
+        assert(count > (int32_t)strlen(tmp) + 8);
         // If GetTempFileNameA() succeeds, the return value is the length,
         // in chars, of the string copied to lpBuffer, not including the
         // terminating null character.If the function fails,
         // the return value is zero.
-        if (count > (int)strlen(tmp) + 8) {
+        if (count > (int32_t)strlen(tmp) + 8) {
             char prefix[4] = {0};
             r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? ut_runtime.err() : 0;
             if (r == 0) {
@@ -255,7 +255,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         }
     }
     if (r == 0 && bigger != null) {
-        for (int32_t i = 0; i < (int)info.AceCount; i++) {
+        for (int32_t i = 0; i < (int32_t)info.AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace;
             r = b2e(GetAce(acl, i, (void**)&ace));
             if (r != 0) { break; }
@@ -401,7 +401,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
 //  are inherited from its parent directory."
 
 static errno_t ut_files_mkdirs(const char* dir) {
-    const int32_t n = (int)strlen(dir) + 1;
+    const int32_t n = (int32_t)strlen(dir) + 1;
     char* s = null;
     errno_t r = ut_heap.allocate(null, &s, n, true);
     const char* next = strchr(dir, '\\');

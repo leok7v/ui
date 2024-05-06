@@ -13,7 +13,7 @@ enum {
 };
 
 ui_colors_t ui_colors = {
-    .none             = (int)0xFFFFFFFF, // aka CLR_INVALID in wingdi
+    .none             = (int32_t)0xFFFFFFFFU, // aka CLR_INVALID in wingdi
     .text             = ui_rgb(240, 231, 220),
     .white            = _colors_white,
     .black            = ui_rgb(0,     0,   0),

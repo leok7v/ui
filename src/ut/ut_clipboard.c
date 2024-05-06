@@ -11,7 +11,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
     } else {
         ut_str.utf8_utf16(utf16, utf8);
         assert(utf16[chars - 1] == 0);
-        const int32_t n = (int)wcslen(utf16) + 1;
+        const int32_t n = (int32_t)wcslen(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
         if (r != 0) { traceln("OpenClipboard() failed %s", ut_str.error(r)); }
         if (r == 0) {

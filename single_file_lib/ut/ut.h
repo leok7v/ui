@@ -1164,11 +1164,11 @@ static void ut_args_parse(const char* s) {
     swear(ut_args.v == null);
     swear(ut_args_memory == null);
     enum { quote = '"', backslash = '\\', tab = '\t', space = 0x20 };
-    const int32_t len = (int)strlen(s);
+    const int32_t len = (int32_t)strlen(s);
     // Worst-case scenario (possible to optimize with dry run of parse)
     // at least 2 characters per token in "a b c d e" plush null at the end:
-    const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
-    const int32_t n = k + (len + 2) * (int)sizeof(char);
+    const int32_t k = ((len + 2) / 2 + 1) * (int32_t)sizeof(void*) + (int32_t)sizeof(void*);
+    const int32_t n = k + (len + 2) * (int32_t)sizeof(char);
     fatal_if_not_zero(ut_heap.allocate(null, &ut_args_memory, n, true));
     ut_args.c = 0;
     ut_args.v = (const char**)ut_args_memory;
@@ -1649,7 +1649,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
     } else {
         ut_str.utf8_utf16(utf16, utf8);
         assert(utf16[chars - 1] == 0);
-        const int32_t n = (int)wcslen(utf16) + 1;
+        const int32_t n = (int32_t)wcslen(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
         if (r != 0) { traceln("OpenClipboard() failed %s", ut_str.error(r)); }
         if (r == 0) {
@@ -1992,7 +1992,7 @@ static int32_t ut_config_size(const char* name, const char* key) {
                 name, key, ut_str.error(r));
             bytes = 0; // on any error behave as empty data
         } else {
-            bytes = (int)cb;
+            bytes = (int32_t)cb;
         }
         fatal_if_not_zero(RegCloseKey(k));
     }
@@ -2017,7 +2017,7 @@ static int32_t ut_config_load(const char* name,
             }
             read = 0; // on any error behave as empty data
         } else {
-            read = (int)cb;
+            read = (int32_t)cb;
         }
         fatal_if_not_zero(RegCloseKey(k));
     }
@@ -2402,15 +2402,15 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
     swear(fn != null && count > 0);
     const char* tmp = ut_files.tmp();
     errno_t r = 0;
-    if (count < (int)strlen(tmp) + 8) {
+    if (count < (int32_t)strlen(tmp) + 8) {
         r = ERROR_BUFFER_OVERFLOW;
     } else {
-        assert(count > (int)strlen(tmp) + 8);
+        assert(count > (int32_t)strlen(tmp) + 8);
         // If GetTempFileNameA() succeeds, the return value is the length,
         // in chars, of the string copied to lpBuffer, not including the
         // terminating null character.If the function fails,
         // the return value is zero.
-        if (count > (int)strlen(tmp) + 8) {
+        if (count > (int32_t)strlen(tmp) + 8) {
             char prefix[4] = {0};
             r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? ut_runtime.err() : 0;
             if (r == 0) {
@@ -2462,7 +2462,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         }
     }
     if (r == 0 && bigger != null) {
-        for (int32_t i = 0; i < (int)info.AceCount; i++) {
+        for (int32_t i = 0; i < (int32_t)info.AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace;
             r = b2e(GetAce(acl, i, (void**)&ace));
             if (r != 0) { break; }
@@ -2608,7 +2608,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
 //  are inherited from its parent directory."
 
 static errno_t ut_files_mkdirs(const char* dir) {
-    const int32_t n = (int)strlen(dir) + 1;
+    const int32_t n = (int32_t)strlen(dir) + 1;
     char* s = null;
     errno_t r = ut_heap.allocate(null, &s, n, true);
     const char* next = strchr(dir, '\\');
@@ -3372,7 +3372,7 @@ static void* ut_loader_sym_all(const char* name) {
     fatal_if_not_zero(ut_heap.allocate(null, (void**)&modules, bytes, false));
     fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes,
                                                                    &bytes));
-    const int32_t n = bytes / (int)sizeof(HMODULE);
+    const int32_t n = bytes / (int32_t)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
         sym = ut_loader.sym(modules[i], name);
     }
@@ -5485,7 +5485,7 @@ static bool is_handle_valid(void* h) {
 static errno_t ut_thread_join(thread_t t, fp64_t timeout) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
-    int32_t timeout_ms = timeout < 0 ? INFINITE : (int)(timeout * 1000.0 + 0.5);
+    int32_t timeout_ms = timeout < 0 ? INFINITE : (int32_t)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, timeout_ms);
     errno_t r = wait2e(ix);
     assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");

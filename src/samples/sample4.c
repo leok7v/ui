@@ -100,7 +100,7 @@ static void init(void) {
 
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,
     int32_t* bpp, int32_t preferred_bytes_per_pixel) {
-    void* pixels = stbi_load_from_memory((uint8_t const*)data, (int)bytes, w, h,
+    void* pixels = stbi_load_from_memory((uint8_t const*)data, (int32_t)bytes, w, h,
         bpp, preferred_bytes_per_pixel);
     return pixels;
 }

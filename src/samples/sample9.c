@@ -73,9 +73,11 @@ static_ui_mbx(mbx, // message box
 
 #else
 
-static void mbx_callback(ui_mbx_t* unused(mbx), int32_t option) {
+static void mbx_callback(ui_view_t* v) {
+    ui_mbx_t* mbx = (ui_mbx_t*)v;
+    assert(-1 <= mbx->option && mbx->option < 2);
     static const char* name[] = { "Cancel", "Yes", "No" };
-    traceln("option: %d \"%s\"", option, name[option + 1]);
+    traceln("option: %d \"%s\"", mbx->option, name[mbx->option + 1]);
 }
 
 static ui_mbx_t mbx = ui_mbx( // message box
@@ -400,7 +402,7 @@ static void opened(void) {
     int n = countof(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(countof(pixels) == countof(pixels[0]), "square");
-    ui_gdi.image_init(&image, n, n, (int)sizeof(pixels[0][0]), (uint8_t*)pixels);
+    ui_gdi.image_init(&image, n, n, (int32_t)sizeof(pixels[0][0]), (uint8_t*)pixels);
     init_panel(&panel_top,    "top",    ui_colors.orange, panel_paint);
     init_panel(&panel_center, "center", ui_colors.off_white, center_paint);
     init_panel(&panel_bottom, "bottom", ui_colors.tone_blue, panel_paint);

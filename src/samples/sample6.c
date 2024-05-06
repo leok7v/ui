@@ -147,7 +147,7 @@ static void load_gif(void) {
     int r = ut_mem.map_resource("groot_gif", &data, &bytes);
     fatal_if_not_zero(r);
     // load_animated_gif() calls realloc(delays) w/o first malloc()
-    gif.delays = malloc(sizeof(int));
+    gif.delays = malloc(sizeof(int32_t));
     gif.pixels = load_animated_gif(data, bytes, &gif.delays,
         &gif.w, &gif.h, &gif.frames, &gif.bpp, 4);
     fatal_if(gif.pixels == null || gif.bpp != 4 || gif.frames < 1);
@@ -246,7 +246,7 @@ static void fini(void) {
 
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,
     int32_t* bpp, int32_t preferred_bytes_per_pixel) {
-    void* pixels = stbi_load_from_memory((uint8_t const*)data, (int)bytes, w, h,
+    void* pixels = stbi_load_from_memory((uint8_t const*)data, (int32_t)bytes, w, h,
         bpp, preferred_bytes_per_pixel);
     return pixels;
 }

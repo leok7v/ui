@@ -72,7 +72,7 @@ static int32_t ut_config_size(const char* name, const char* key) {
                 name, key, ut_str.error(r));
             bytes = 0; // on any error behave as empty data
         } else {
-            bytes = (int)cb;
+            bytes = (int32_t)cb;
         }
         fatal_if_not_zero(RegCloseKey(k));
     }
@@ -97,7 +97,7 @@ static int32_t ut_config_load(const char* name,
             }
             read = 0; // on any error behave as empty data
         } else {
-            read = (int)cb;
+            read = (int32_t)cb;
         }
         fatal_if_not_zero(RegCloseKey(k));
     }

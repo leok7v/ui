@@ -167,7 +167,7 @@ static void ui_view_measure(ui_view_t* view) {
         ui_point_t mt = { 0 };
         bool multiline = strchr(view->text, '\n') != null;
         if (view->type == ui_view_label && multiline) {
-            int32_t w = (int)(view->min_w_em * view->em.x + 0.5f);
+            int32_t w = (int32_t)(view->min_w_em * view->em.x + 0.5f);
             mt = ui_gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
             mt = ui_gdi.measure_text(f, ui_view.nls(view));

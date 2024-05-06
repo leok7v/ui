@@ -177,13 +177,13 @@ static void app_init_fonts(int32_t dpi) {
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int)(fh * 1.75);
+    lf.lfHeight = (int32_t)(fh * 1.75);
     app.fonts.H1 = (ui_font_t)CreateFontIndirectW(&lf);
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int)(fh * 1.4);
+    lf.lfHeight = (int32_t)(fh * 1.4);
     app.fonts.H2 = (ui_font_t)CreateFontIndirectW(&lf);
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int)(fh * 1.15);
+    lf.lfHeight = (int32_t)(fh * 1.15);
     app.fonts.H3 = (ui_font_t)CreateFontIndirectW(&lf);
     lf = app_ncm.lfMessageFont;
     lf.lfPitchAndFamily = FIXED_PITCH;
@@ -311,7 +311,7 @@ static void app_save_console_pos(void) {
             traceln("GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
         } else {
             ut_config.save(app.class_name, "console_screen_buffer_infoex",
-                            &info, (int)sizeof(info));
+                            &info, (int32_t)sizeof(info));
 //          traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
 //          traceln("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
 //              info.srWindow.Right - info.srWindow.Left,
@@ -320,7 +320,7 @@ static void app_save_console_pos(void) {
     }
     int32_t v = app.is_console_visible();
     // "icv" "is console visible"
-    ut_config.save(app.class_name, "icv", &v, (int)sizeof(v));
+    ut_config.save(app.class_name, "icv", &v, (int32_t)sizeof(v));
 }
 
 static bool app_is_fully_inside(const ui_rect_t* inner,
@@ -677,7 +677,9 @@ static void app_toast_paint(void) {
 static void app_toast_cancel(void) {
     if (app.animating.view != null && app.animating.view->type == ui_view_mbx) {
         ui_mbx_t* mx = (ui_mbx_t*)app.animating.view;
-        if (mx->option < 0 && mx->choice != null) { mx->choice(mx, -1); }
+        if (mx->option < 0 && mx->view.callback != null) {
+            mx->view.callback(&mx->view);
+        }
     }
     app.animating.step = 0;
     app.animating.view = null;
@@ -738,6 +740,7 @@ static void app_animate_step(app_animate_function_t f, int32_t step, int32_t ste
     } else if (f == null) {
         cancel = true;
     }
+    app.focus = null;
     if (cancel) {
         if (app_animate.timer != 0) { app.kill_timer(app_animate.timer); }
         app_animate.step = 0;
@@ -1049,7 +1052,7 @@ static LRESULT CALLBACK app_window_proc(HWND window, UINT message,
             return 0;
     }
     if (m == ui.message.animate) {
-        app_animate_step((app_animate_function_t)lp, (int)wp, -1);
+        app_animate_step((app_animate_function_t)lp, (int32_t)wp, -1);
         return 0;
     }
     switch (m) {
@@ -1445,6 +1448,7 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         app_animate_start(app_toast_dim, app_animation_steps);
         app.animating.view = view;
         app.animating.time = timeout > 0 ? app.now + timeout : 0;
+        app.focus = null;
     } else {
         app_toast_cancel();
     }
@@ -1685,7 +1689,7 @@ static void app_restore_console(int32_t *visibility) {
                 sizeof(CONSOLE_SCREEN_BUFFER_INFOEX)
             };
             int32_t r = ut_config.load(app.class_name,
-                "console_screen_buffer_infoex", &info, (int)sizeof(info));
+                "console_screen_buffer_infoex", &info, (int32_t)sizeof(info));
             if (r == sizeof(info)) { // 24x80
                 SMALL_RECT sr = info.srWindow;
                 int16_t w = (int16_t)ut_max(sr.Right - sr.Left + 1, 80);
@@ -1787,8 +1791,8 @@ static const char* app_open_filename(const char* folder,
         for (int32_t i = 0; i < n; i+= 2) {
             wchar_t* s0 = utf8to16(pairs[i + 0]);
             wchar_t* s1 = utf8to16(pairs[i + 1]);
-            int32_t n0 = (int)wcslen(s0);
-            int32_t n1 = (int)wcslen(s1);
+            int32_t n0 = (int32_t)wcslen(s0);
+            int32_t n1 = (int32_t)wcslen(s1);
             assert(n0 > 0 && n1 > 0);
             fatal_if(n0 + n1 + 3 >= left, "too many filters");
             memcpy(s, s0, (n0 + 1) * 2);

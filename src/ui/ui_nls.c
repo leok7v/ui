@@ -37,7 +37,7 @@ wchar_t* nls_load_string(int32_t strid, LANGID langid) {
     if (ws != null) {
         for (int32_t i = 0; i < 16 && r == null; i++) {
             if (ws[0] != 0) {
-                int32_t count = (int)ws[0];  // String size in characters.
+                int32_t count = (int32_t)ws[0];  // String size in characters.
                 ws++;
                 assert(ws[count - 1] == 0, "use rc.exe /n command line option");
                 if (i == index) { // the string has been found

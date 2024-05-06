@@ -536,7 +536,7 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t 
     assert(height > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(app.fonts.regular, sizeof(lf), &lf);
-    fatal_if_false(n == (int)sizeof(lf));
+    fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
     strprintf(lf.lfFaceName, "%s", family);
     if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
@@ -552,7 +552,7 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t height, int32_t quality) {
     assert(f != null && height > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    fatal_if_false(n == (int)sizeof(lf));
+    fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
     if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)quality;
@@ -566,7 +566,7 @@ static int32_t ui_gdi_font_height(ui_font_t f) {
     assert(f != null);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    fatal_if_false(n == (int)sizeof(lf));
+    fatal_if_false(n == (int32_t)sizeof(lf));
     assert(lf.lfHeight < 0);
     return abs(lf.lfHeight);
 }
@@ -699,7 +699,7 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
         n = n * 2;
         text = (char*)ut_stackalloc(n);
         ut_str.format_va(text, n - 1, p->format, p->vl);
-        k = (int)strlen(text);
+        k = (int32_t)strlen(text);
     }
     assert(k >= 0 && k <= n, "k=%d n=%d fmt=%s", k, n, p->format);
     // rectangle is always calculated - it makes draw text
@@ -757,7 +757,7 @@ static void ui_gdi_vtext(const char* format, va_list vl) {
 static void ui_gdi_vtextln(const char* format, va_list vl) {
     ui_gdi_dtp_t p = { null, format, vl, {ui_gdi.x, ui_gdi.y, ui_gdi.x, ui_gdi.y}, sl_draw };
     ui_gdi_text_draw(&p);
-    ui_gdi.y += (int)((p.rc.bottom - p.rc.top) * ui_gdi.height_multiplier + 0.5f);
+    ui_gdi.y += (int32_t)((p.rc.bottom - p.rc.top) * ui_gdi.height_multiplier + 0.5f);
 }
 
 static void ui_gdi_text(const char* format, ...) {

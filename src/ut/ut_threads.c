@@ -357,7 +357,7 @@ static bool is_handle_valid(void* h) {
 static errno_t ut_thread_join(thread_t t, fp64_t timeout) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
-    int32_t timeout_ms = timeout < 0 ? INFINITE : (int)(timeout * 1000.0 + 0.5);
+    int32_t timeout_ms = timeout < 0 ? INFINITE : (int32_t)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, timeout_ms);
     errno_t r = wait2e(ix);
     assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");

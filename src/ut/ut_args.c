@@ -142,11 +142,11 @@ static void ut_args_parse(const char* s) {
     swear(ut_args.v == null);
     swear(ut_args_memory == null);
     enum { quote = '"', backslash = '\\', tab = '\t', space = 0x20 };
-    const int32_t len = (int)strlen(s);
+    const int32_t len = (int32_t)strlen(s);
     // Worst-case scenario (possible to optimize with dry run of parse)
     // at least 2 characters per token in "a b c d e" plush null at the end:
-    const int32_t k = ((len + 2) / 2 + 1) * (int)sizeof(void*) + (int)sizeof(void*);
-    const int32_t n = k + (len + 2) * (int)sizeof(char);
+    const int32_t k = ((len + 2) / 2 + 1) * (int32_t)sizeof(void*) + (int32_t)sizeof(void*);
+    const int32_t n = k + (len + 2) * (int32_t)sizeof(char);
     fatal_if_not_zero(ut_heap.allocate(null, &ut_args_memory, n, true));
     ut_args.c = 0;
     ut_args.v = (const char**)ut_args_memory;
