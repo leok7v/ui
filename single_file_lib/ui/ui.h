@@ -6349,6 +6349,9 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 
 #endif // WIN32
 
+#pragma push_macro("ux_theme_reg_cv")
+#pragma push_macro("ux_theme_reg_default_colors")
+
 static HMODULE ui_theme_ux_theme(void) {
     static HMODULE ux_theme;
     if (ux_theme == null) {
@@ -6487,7 +6490,7 @@ static void ui_theme_set_preferred_app_mode(int32_t mode) {
     SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
             (void*)GetProcAddress(ui_theme_ux_theme(), MAKEINTRESOURCE(135));
     if (SetPreferredAppMode != null) {
-        int r = b2e(SetPreferredAppMode(mode));
+        errno_t r = b2e(SetPreferredAppMode(mode));
         // fails on Windows 10 with: ERROR_RESOURCE_NAME_NOT_FOUND (1814)
         if (r != 0 && r != ERROR_RESOURCE_NAME_NOT_FOUND) { // ignore
             traceln("SetPreferredAppMode(%d) failed %s", mode, ut_str.error(r));
@@ -6547,6 +6550,9 @@ ui_theme_if ui_theme = {
 //  AccentColorMenu
 //  StartColorMenu
 //  AccentPalette binary 8x4byte colors
+
+#pragma pop_macro("ux_theme_reg_cv")
+#pragma pop_macro("ux_theme_reg_default_colors")
 // _______________________________ ui_toggle.c ________________________________
 
 #include "ut/ut.h"
