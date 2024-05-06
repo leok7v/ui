@@ -429,6 +429,7 @@ static void ui_container_layout(ui_view_t* p) {
 }
 
 static void ui_container_paint(ui_view_t* v) {
+//  traceln("%s 0x%016llX", v->text, v->color);
     if (!ui_color_is_transparent(v->color)) {
         ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     }
@@ -470,7 +471,7 @@ void ui_view_init_container(ui_view_t* v) {
     // do not overwrite if already set
     if (v->measure == null) { v->measure = ui_container_measure; }
     if (v->layout  == null) { v->layout  = ui_container_layout; }
-    if (v->paint   == null) { v->paint = ui_container_paint; }
+    if (v->paint   == null) { v->paint   = ui_container_paint; }
     if (v->text[0] == 0) { strprintf(v->text, "ui_container"); }
 }
 

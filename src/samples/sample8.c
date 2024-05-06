@@ -82,7 +82,6 @@ static void toggle_about(ui_button_t* unused(b)) {
     ui_app.show_toast(&mbx.view, 10.0);
 }
 
-
 static void opened(void) {
     static ui_view_t list = ui_view(list);
     static ui_view_t span = ui_view(span);
@@ -122,7 +121,7 @@ static void opened(void) {
     test.paint = ui_view.debug_paint;
     // buttons to switch test content
     tools.max_h = ui.infinity;
-    tools.color = ui_colors.onyx;
+    tools.color = ui_colors.black;
     tools.align = ui.align.right;
     strprintf(tools.text, "%s", "tools");
 //  tools.paint = ui_view.debug_paint;
@@ -169,7 +168,7 @@ static void container_test(ui_view_t* parent) {
     container.paint  = ui_view.debug_paint;
     container.max_w  = ui.infinity;
     container.max_h  = ui.infinity;
-    container.color  = ui_colors.gunmetal;
+    container.color  = ui_colors.black;
     container.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(container.text, "container");
     ui_view_for_each(&container, it, {
@@ -201,7 +200,7 @@ static void span_test(ui_view_t* parent) {
     span.paint  = ui_view.debug_paint;
     span.max_w  = ui.infinity;
     span.max_h  = ui.infinity;
-    span.color  = ui_colors.gunmetal;
+    span.color  = ui_colors.black;
     span.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(span.text, "span");
     ui_view_for_each(&span, it, {
@@ -237,7 +236,7 @@ static void list_test(ui_view_t* parent) {
     list.paint  = ui_view.debug_paint;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-    list.color  = ui_colors.gunmetal;
+    list.color  = ui_colors.black;
     list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(list.text, "list");
     ui_view_for_each(&list, it, {
@@ -251,4 +250,3 @@ static void list_test(ui_view_t* parent) {
     left.max_w = 0;
     right.max_w = 0;
 }
-

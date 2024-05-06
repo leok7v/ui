@@ -16,8 +16,6 @@ static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
 static HANDLE ui_app_event_quit;
 static HANDLE ui_app_event_invalidate;
 
-#define UI_APP_THEME_EXPERIMENT
-
 static uintptr_t ui_app_timer_1s_id;
 static uintptr_t ui_app_timer_100ms_id;
 
@@ -772,20 +770,15 @@ static void ui_app_view_layout(void) {
 }
 
 static void ui_app_view_active_frame_paint(void) {
-#ifdef UI_APP_THEME_EXPERIMENT_GET_THEME_COLOR_WORKS // it does not!
-    ui_caption.view.color = ui_app.is_active() ?
-        ui_theme.get_color(ui_app.window, ui.colors.active_caption) :
-        ui_theme.get_color(ui_app.window, ui.colors.inactive_caption);
+#if 0
     ui_color_t c = ui_app.is_active() ?
-        ui_theme.get_color(ui_app.window, ui.colors.active_border) :
-        ui_theme.get_color(ui_app.window, ui.colors.inactive_border);
+        ui_app.get_color(ui.colors.highlight) : // ui_colors.btn_hover_highlight
+        ui_app.get_color(ui.colors.active_title);
 #else
-    ui_caption.view.color = ui_colors.dkgray1;
     ui_color_t c = ui_app.is_active() ?
-        ui_colors.blue_highlight : ui_colors.dkgray2;
+        ui_colors.dkgray4 : ui_caption.view.color;
 #endif
     ui_gdi.frame_with(0, 0, ui_app.view->w - 0, ui_app.view->h - 0, c);
-
 }
 
 static void ui_app_paint_on_canvas(HDC hdc) {
@@ -863,7 +856,6 @@ static void ui_app_window_position_changed(const WINDOWPOS* wp) {
 }
 
 static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
-#ifdef UI_APP_THEME_EXPERIMENT
     // wp: SPI_SETWORKAREA ... SPI_SETDOCKMOVING
     //     SPI_GETACTIVEWINDOWTRACKING ... SPI_SETGESTUREVISUALIZATION
     if (lp != 0 && strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
@@ -875,7 +867,6 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         // actual wp == 0x0000
         ui_theme.refresh(ui_app.window);
     }
-#endif
     if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         wchar_t ln[LOCALE_NAME_MAX_LENGTH + 1];
@@ -1025,6 +1016,15 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
     } else {
         return ui.hit_test.client;
     }
+}
+
+static void ui_app_wm_activate(int64_t wp) {
+    bool activate = LOWORD(wp) != WA_INACTIVE;
+    if (!IsWindowVisible(ui_app_window()) && activate) {
+        ui_app.show_window(ui.visibility.restore);
+        SwitchToThisWindow(ui_app_window(), true);
+    }
+    ui_app.redraw(); // needed for windows changing active frame color
 }
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
@@ -1190,13 +1190,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                 return 0; // This prevents the error/beep sound
             }
             break;
-        case WM_ACTIVATE:
-            if (!IsWindowVisible(ui_app_window()) && LOWORD(wp) != WA_INACTIVE) {
-                ui_app.show_window(ui.visibility.restore);
-                SwitchToThisWindow(ui_app_window(), true);
-            }
-            ui_app.redraw(); // needed for windows changing active frame color
-            break;
+        case WM_ACTIVATE: ui_app_wm_activate(wp); break;
         case WM_WINDOWPOSCHANGING: {
             #ifdef QUICK_DEBUG
                 WINDOWPOS* pos = (WINDOWPOS*)lp;
@@ -1318,9 +1312,7 @@ static void ui_app_create_window(const ui_rect_t r) {
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE };
         SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, swp);
     }
-#ifdef UI_APP_THEME_EXPERIMENT
     ui_theme.refresh(ui_app.window);
-#endif
     if (ui_app.visibility != ui.visibility.hide) {
         ui_app.view->w = ui_app.wrc.w;
         ui_app.view->h = ui_app.wrc.h;
@@ -1639,12 +1631,7 @@ static void ui_app_set_title(const char* title) {
 }
 
 static ui_color_t ui_app_get_color(int32_t color_id) {
-    fatal("Does not work (yet) - needs tender loving care on Win10");
-#ifdef UI_APP_THEME_EXPERIMENT
-    return ui_theme.get_color(ui_app.window, color_id);
-#else
-    return GetSysColor(color_id);
-#endif
+    return ui_theme.get_color(color_id);
 }
 
 static void ui_app_capture_mouse(bool on) {
@@ -1920,7 +1907,7 @@ static void ui_app_init(void) {
     // for ui_view_debug_paint:
     strprintf(ui_app.view->text, "ui_app.view");
     ui_app.view->type          = ui_view_container;
-    ui_app.view->color         = ui_colors.dkgray1; // because ui_app.get_color() broken
+    ui_app.view->color         = ui_app_get_color(ui.colors.window);
     ui_app.view->paint         = ui_app_view_paint;
     ui_app.view->insets        = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_app.redraw              = ui_app_fast_redraw;
@@ -1979,13 +1966,11 @@ static void ui_app_init(void) {
 static void ui_app_init_windows(void) {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
     not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
-#ifdef UI_APP_THEME_EXPERIMENT
     if (!ui_theme.is_system_light() && !ui_theme.are_apps_light() &&
         ui_theme.should_apps_use_dark_mode() &&
         ui_theme.is_dark_mode_allowed_for_app()) {
         ui_theme.set_preferred_app_mode(ui_theme.mode_force_dark);
     }
-#endif
     InitCommonControls(); // otherwise GetOpenFileName does not work
     ui_app.dpi.process = GetSystemDpiForProcess(GetCurrentProcess());
     ui_app.dpi.system = GetDpiForSystem(); // default was 96DPI

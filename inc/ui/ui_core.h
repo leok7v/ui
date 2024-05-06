@@ -194,36 +194,19 @@ typedef struct ui_s {
         int32_t const f24;
     } const key;
     struct { // system colors: TODO: do not use - broken on Win10
-        int32_t const scroll_bar;
-        int32_t const background; // aka: desktop
-        int32_t const active_caption;
-        int32_t const inactive_caption;
-        int32_t const menu;
-        int32_t const window;
-        int32_t const window_frame;
-        int32_t const menu_text;
-        int32_t const window_text;
-        int32_t const caption_text;
-        int32_t const active_border;
-        int32_t const inactive_border;
-        int32_t const app_workspace;
+        int32_t const active_title;
+        int32_t const button_face;
+        int32_t const button_text;
+        int32_t const gray_text;
         int32_t const highlight;
         int32_t const highlight_text;
-        int32_t const face_3D;
-        int32_t const shadow_3D;
-        int32_t const gray_text;
-        int32_t const btn_text;
-        int32_t const inactive_caption_text;
-        int32_t const highlight_3D;
-        int32_t const dark_shadow_3D;
-        int32_t const light_3D;
-        int32_t const info_text;
-        int32_t const info_background;
-        int32_t const hot_light;
-        int32_t const gradient_active_caption;
-        int32_t const gradient_inactive_caption;
+        int32_t const hot_tracking_color;
+        int32_t const inactive_title;
+        int32_t const inactive_title_text;
         int32_t const menu_highlight;
-        int32_t const menu_bar;
+        int32_t const title_text;
+        int32_t const window;
+        int32_t const window_text;
     } const colors;
     struct { // known folders:
         int32_t const home     ; // c:\Users\<username>

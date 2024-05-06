@@ -9,25 +9,6 @@
 #define ui_caption_glyph_full ui_glyph_square_four_corners
 #define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
 
-// TODO: remove me
-static void ui_caption_paint(ui_view_t* v) {
-    // TODO: add app title label instead
-    swear(v == &ui_caption.view);
-    ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
-    ui_gdi.push(v->x, v->y);
-    if (v->text[0] != 0) {
-        ui_font_t f = v->font != null ? *v->font : ui_app.fonts.regular;
-        ui_point_t mt = ui_gdi.measure_text(f, v->text);
-        ui_gdi.x += (v->w - mt.x) / 2;
-        ui_gdi.y += (v->h - mt.y) / 2;
-        ui_gdi.set_text_color((ui_color_t)(v->color ^ 0xFFFFFF));
-        f = ui_gdi.set_font(f);
-        ui_gdi.text("%s", v->text);
-        ui_gdi.set_font(f);
-    }
-    ui_gdi.pop();
-}
-
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
     ui_caption.view.hidden = ui_app.is_full_screen;
@@ -86,6 +67,28 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
     }
 }
 
+static ui_color_t ui_caption_color(void) {
+#if 1
+    ui_color_t c = ui_app.is_active() ?
+        ui_colors.dkgray1 :
+        ui_colors.dkgray3;
+#else
+    ui_color_t c = ui_app.is_active() ?
+        ui_theme.get_color(ui.colors.active_title) :
+        ui_theme.get_color(ui.colors.inactive_title);
+#endif
+//  traceln("ui_caption.view.color: %08X := %08X", ui_caption.view.color, c);
+    return c;
+}
+
+static void ui_caption_paint(ui_view_t* v) {
+    v->color = ui_caption_color();
+//  traceln("%s 0x%016llX", v->text, v->color);
+    if (!ui_color_is_transparent(v->color)) {
+        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    }
+}
+
 static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
@@ -106,14 +109,16 @@ static void ui_caption_init(ui_view_t* v) {
                                  .right = 0.25, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
         c->font = &ui_app.fonts.H3;
-        c->color = ui_colors.white;
+        c->color = ui_app.get_color(ui.colors.window_text); // ui_colors.white;
         c->flat = true;
         c->padding = p;
     });
     ui_caption.icon.icon = ui_app.icon;
     ui_caption.view.max_w = INT32_MAX;
     ui_caption.view.align = ui.align.top;
+    strprintf(ui_caption.view.text, "ui_caption");
     ui_caption_maximize_or_restore();
+    ui_caption.view.paint = ui_caption_paint;
 }
 
 ui_caption_t ui_caption =  {

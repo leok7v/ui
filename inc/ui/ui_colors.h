@@ -24,13 +24,13 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
 // (c) & ~ui_color_mask) has 2^62 possible extensions bits
 
 // ui_color_hdr A - 14 bit, R,G,B - 16 bit, all in range [0..0xFFFF]
-#define ui_color_hdr_a(c)    ((((c) >> 48) & 0x3FFF) << 2)
-#define ui_color_hdr_r(c)    (((c) >>  0) & 0xFFFF)
-#define ui_color_hdr_g(c)    (((c) >> 16) & 0xFFFF)
-#define ui_color_hdr_b(c)    (((c) >> 32) & 0xFFFF)
+#define ui_color_hdr_a(c)    ((uint16_t)((((c) >> 48) & 0x3FFF) << 2))
+#define ui_color_hdr_r(c)    ((uint16_t)(((c) >>   0) & 0xFFFF))
+#define ui_color_hdr_g(c)    ((uint16_t)(((c) >>  16) & 0xFFFF))
+#define ui_color_hdr_b(c)    ((uint16_t)(((c) >>  32) & 0xFFFF))
 
-#define ui_color_rgb(c)      ((c) & 0x00FFFFFF)
-#define ui_color_rgba(c)     ((c) & 0xFFFFFFFF)
+#define ui_color_rgb(c)      ((uint32_t)((c) & 0x00FFFFFFU))
+#define ui_color_rgba(c)     ((uint32_t)((c) & 0xFFFFFFFFU))
 
 #define ui_rgb(r,g,b) ((ui_color_t)(((uint8_t)(r) |    \
                       ((uint16_t)((uint8_t)(g))<<8)) | \
