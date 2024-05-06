@@ -102,9 +102,6 @@
     <ClInclude Include="..\inc\ui\ui_mbx.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_nls.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ui\ui_slider.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
@@ -116,6 +113,9 @@
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui_theme.h">
       <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_nls.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

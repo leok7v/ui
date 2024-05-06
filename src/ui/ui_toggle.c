@@ -27,7 +27,7 @@ static const char* ui_toggle_on_off_label(ui_view_t* view, char* label, int32_t 
     if (s != null) {
         memcpy(s, view->pressed ? "On " : "Off", 3);
     }
-    return ui_nls.str(label);
+    return ut_nls.str(label);
 }
 
 static void ui_toggle_measure(ui_view_t* view) {

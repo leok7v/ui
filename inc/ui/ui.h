@@ -8,7 +8,6 @@
 #include "ui/ui_containers.h"
 #include "ui/ui_layout.h"
 #include "ui/ui_label.h"
-#include "ui/ui_nls.h"
 #include "ui/ui_button.h"
 #include "ui/ui_theme.h"
 #include "ui/ui_toggle.h"

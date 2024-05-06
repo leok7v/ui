@@ -28,12 +28,12 @@ static ui_label_t label = ui_label(0.0, "Hello");
 
 static void every_sec(ui_view_t* unused(view)) {
     static int32_t locale = 0;
-    ui_nls.set_locale(locales[locale]);
+    ut_nls.set_locale(locales[locale]);
     ui_view.localize(&label.view);
     strprintf(title, "Hello %s%s %s [%s]",
               ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead,
               ui_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead,
-              ui_nls.str("Hello"), locales[locale]);
+              ut_nls.str("Hello"), locales[locale]);
     ui_app.set_title(title);
     ui_app.layout();
     locale = (locale + 1) % countof(locales);

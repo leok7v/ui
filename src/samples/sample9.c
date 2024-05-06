@@ -123,7 +123,7 @@ static_ui_button(button_full_screen, ui_glyph_two_joined_squares, 1, {
 
 static void flip_locale(ui_button_t* b) {
     b->pressed = !b->pressed;
-    ui_nls.set_locale(b->pressed ? "zh-CN" : "en-US");
+    ut_nls.set_locale(b->pressed ? "zh-CN" : "en-US");
     // TODO: label_multiline does not get localized automatically.
     //       investigate why... (comment out next line and put some printfs around)
     ui_view.localize(&label_multiline.view);
@@ -227,29 +227,29 @@ static void right_paint(ui_view_t* view) {
     ui_gdi.println("&Locale %s", button_locale.pressed ? "zh-CN" : "en-US");
     ui_gdi.x = button_full_screen.x + button_full_screen.w + em.x;
     ui_gdi.y = button_full_screen.y;
-    ui_gdi.println(ui_app.is_full_screen ? ui_nls.str("Restore from &Full Screen") :
-        ui_nls.str("&Full Screen"));
+    ui_gdi.println(ui_app.is_full_screen ? ut_nls.str("Restore from &Full Screen") :
+        ut_nls.str("&Full Screen"));
     ui_gdi.x = label_multiline.view.x;
     ui_gdi.y = label_multiline.view.y + label_multiline.view.h + ut_max(1, em.y / 4);
-    ui_gdi.textln(ui_nls.str("Proportional"));
-    ui_gdi.println(ui_nls.str("Monospaced"));
+    ui_gdi.textln(ut_nls.str("Proportional"));
+    ui_gdi.println(ut_nls.str("Monospaced"));
     ui_font_t font = ui_gdi.set_font(ui_app.fonts.H1);
-    ui_gdi.textln("H1 %s", ui_nls.str("Header"));
-    ui_gdi.set_font(ui_app.fonts.H2); ui_gdi.textln("H2 %s", ui_nls.str("Header"));
-    ui_gdi.set_font(ui_app.fonts.H3); ui_gdi.textln("H3 %s", ui_nls.str("Header"));
+    ui_gdi.textln("H1 %s", ut_nls.str("Header"));
+    ui_gdi.set_font(ui_app.fonts.H2); ui_gdi.textln("H2 %s", ut_nls.str("Header"));
+    ui_gdi.set_font(ui_app.fonts.H3); ui_gdi.textln("H3 %s", ut_nls.str("Header"));
     ui_gdi.set_font(font);
-    ui_gdi.println("%s %dx%d", ui_nls.str("Client area"), ui_app.crc.w, ui_app.crc.h);
-    ui_gdi.println("%s %dx%d", ui_nls.str("Window"), ui_app.wrc.w, ui_app.wrc.h);
-    ui_gdi.println("%s %dx%d", ui_nls.str("Monitor"), ui_app.mrc.w, ui_app.mrc.h);
-    ui_gdi.println("%s %d %d", ui_nls.str("Left Top"), ui_app.wrc.x, ui_app.wrc.y);
-    ui_gdi.println("%s %d %d", ui_nls.str("Mouse"), ui_app.mouse.x, ui_app.mouse.y);
+    ui_gdi.println("%s %dx%d", ut_nls.str("Client area"), ui_app.crc.w, ui_app.crc.h);
+    ui_gdi.println("%s %dx%d", ut_nls.str("Window"), ui_app.wrc.w, ui_app.wrc.h);
+    ui_gdi.println("%s %dx%d", ut_nls.str("Monitor"), ui_app.mrc.w, ui_app.mrc.h);
+    ui_gdi.println("%s %d %d", ut_nls.str("Left Top"), ui_app.wrc.x, ui_app.wrc.y);
+    ui_gdi.println("%s %d %d", ut_nls.str("Mouse"), ui_app.mouse.x, ui_app.mouse.y);
     ui_gdi.println("%d x paint()", ui_app.paint_count);
     ui_gdi.println("%.1fms (%s %.1f %s %.1f)", ui_app.paint_time * 1000.0,
-        ui_nls.str("max"), ui_app.paint_max * 1000.0, ui_nls.str("avg"),
+        ut_nls.str("max"), ui_app.paint_max * 1000.0, ut_nls.str("avg"),
         ui_app.paint_avg * 1000.0);
     text_after(&zoomer.view, "%.16f", zoom);
     text_after(&scroll, "%s", scroll.pressed ?
-        ui_nls.str("Natural") : ui_nls.str("Reverse"));
+        ut_nls.str("Natural") : ut_nls.str("Reverse"));
     ui_gdi.set_clip(0, 0, 0, 0);
     ui_gdi.pop();
 }
@@ -414,7 +414,7 @@ static void opened(void) {
     strprintf(label_multiline.view.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
     strprintf(label_multiline.view.text, "%s",
-        ui_nls.string(str_help, label_multiline.view.text));
+        ut_nls.string(str_help, label_multiline.view.text));
     toast_filename.view.font = &ui_app.fonts.H1;
     about.view.font = &ui_app.fonts.H3;
     button_locale.shortcut = 'l';

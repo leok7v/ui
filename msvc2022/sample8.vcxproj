@@ -91,7 +91,6 @@
     <ClInclude Include="..\inc\ui\ui_label.h" />
     <ClInclude Include="..\inc\ui\ui_layout.h" />
     <ClInclude Include="..\inc\ui\ui_mbx.h" />
-    <ClInclude Include="..\inc\ui\ui_nls.h" />
     <ClInclude Include="..\inc\ui\ui_slider.h" />
     <ClInclude Include="..\inc\ui\ui_theme.h" />
     <ClInclude Include="..\inc\ui\ui_toggle.h" />
@@ -107,6 +106,7 @@
     <ClInclude Include="..\inc\ut\ut_heap.h" />
     <ClInclude Include="..\inc\ut\ut_loader.h" />
     <ClInclude Include="..\inc\ut\ut_mem.h" />
+    <ClInclude Include="..\inc\ut\ut_nls.h" />
     <ClInclude Include="..\inc\ut\ut_num.h" />
     <ClInclude Include="..\inc\ut\ut_processes.h" />
     <ClInclude Include="..\inc\ut\ut_runtime.h" />

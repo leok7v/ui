@@ -108,14 +108,14 @@
     <ClInclude Include="..\inc\ui\ui_caption.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_nls.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ui\ui_containers.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ui\ui_theme.h">
       <Filter>inc\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_nls.h">
+      <Filter>inc\ut</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

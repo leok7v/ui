@@ -15,8 +15,8 @@ typedef struct { // i18n national language support
     int32_t (*strid)(const char* s);
     // given strid > 0 returns localized string or defau1t value
     const char* (*string)(int32_t strid, const char* defau1t);
-} ui_nls_if;
+} ut_nls_if;
 
-extern ui_nls_if ui_nls;
+extern ut_nls_if ut_nls;
 
 end_c

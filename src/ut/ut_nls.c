@@ -13,18 +13,20 @@
 // and many others...
 
 enum {
-    ui_nls_str_count_max = 1024,
-    ui_nls_str_mem_max = 64 * ui_nls_str_count_max
+    ut_nls_str_count_max = 1024,
+    ut_nls_str_mem_max = 64 * ut_nls_str_count_max
 };
 
-static char ui_nls_strings_memory[ui_nls_str_mem_max]; // increase if overflows
-static char* ui_nls_strings_free = ui_nls_strings_memory;
-static int32_t ui_nls_strings_count;
-static const char* ui_nls_ls[ui_nls_str_count_max]; // localized strings
-static const char* ui_nls_ns[ui_nls_str_count_max]; // neutral language strings
+static char ut_nls_strings_memory[ut_nls_str_mem_max]; // increase if overflows
+static char* ut_nls_strings_free = ut_nls_strings_memory;
 
-wchar_t* ui_nls_load_string(int32_t strid, LANGID langid) {
-    assert(0 <= strid && strid < countof(ui_nls_ns));
+static int32_t ut_nls_strings_count;
+
+static const char* ut_nls_ls[ut_nls_str_count_max]; // localized strings
+static const char* ut_nls_ns[ut_nls_str_count_max]; // neutral language strings
+
+wchar_t* ut_nls_load_string(int32_t strid, LANGID langid) {
+    assert(0 <= strid && strid < countof(ut_nls_ns));
     wchar_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
@@ -53,65 +55,65 @@ wchar_t* ui_nls_load_string(int32_t strid, LANGID langid) {
     return r;
 }
 
-static const char* ui_nls_save_string(wchar_t* memory) {
+static const char* ut_nls_save_string(wchar_t* memory) {
     const char* utf8 = utf16to8(memory);
     uintptr_t n = strlen(utf8) + 1;
     assert(n > 1);
-    uintptr_t left = countof(ui_nls_strings_memory) - (
-        ui_nls_strings_free - ui_nls_strings_memory);
+    uintptr_t left = countof(ut_nls_strings_memory) - (
+        ut_nls_strings_free - ut_nls_strings_memory);
     fatal_if_false(left >= n, "string_memory[] overflow");
-    memcpy(ui_nls_strings_free, utf8, n);
-    const char* s = ui_nls_strings_free;
-    ui_nls_strings_free += n;
+    memcpy(ut_nls_strings_free, utf8, n);
+    const char* s = ut_nls_strings_free;
+    ut_nls_strings_free += n;
     return s;
 }
 
-const char* ui_nls_localize_string(int32_t strid) {
-    assert(0 < strid && strid < countof(ui_nls_ns));
+const char* ut_nls_localize_string(int32_t strid) {
+    assert(0 < strid && strid < countof(ut_nls_ns));
     const char* r = null;
-    if (0 < strid && strid < countof(ui_nls_ns)) {
-        if (ui_nls_ls[strid] != null) {
-            r = ui_nls_ls[strid];
+    if (0 < strid && strid < countof(ut_nls_ns)) {
+        if (ut_nls_ls[strid] != null) {
+            r = ut_nls_ls[strid];
         } else {
             LCID lcid = GetThreadLocale();
             LANGID langid = LANGIDFROMLCID(lcid);
-            wchar_t* ws = ui_nls_load_string(strid, langid);
+            wchar_t* ws = ut_nls_load_string(strid, langid);
             if (ws == null) { // try default dialect:
                 LANGID primary = PRIMARYLANGID(langid);
                 langid = MAKELANGID(primary, SUBLANG_NEUTRAL);
-                ws = ui_nls_load_string(strid, langid);
+                ws = ut_nls_load_string(strid, langid);
             }
             if (ws != null && ws[0] != 0x0000) {
-                r = ui_nls_save_string(ws);
-                ui_nls_ls[strid] = r;
+                r = ut_nls_save_string(ws);
+                ut_nls_ls[strid] = r;
             }
         }
     }
     return r;
 }
 
-static int32_t ui_nls_strid(const char* s) {
+static int32_t ut_nls_strid(const char* s) {
     int32_t strid = 0;
-    for (int32_t i = 1; i < ui_nls_strings_count && strid == 0; i++) {
-        if (ui_nls_ns[i] != null && strcmp(s, ui_nls_ns[i]) == 0) {
+    for (int32_t i = 1; i < ut_nls_strings_count && strid == 0; i++) {
+        if (ut_nls_ns[i] != null && strcmp(s, ut_nls_ns[i]) == 0) {
             strid = i;
-            ui_nls_localize_string(strid); // to save it, ignore result
+            ut_nls_localize_string(strid); // to save it, ignore result
         }
     }
     return strid;
 }
 
-static const char* ui_nls_string(int32_t strid, const char* defau1t) {
-    const char* r = ui_nls_localize_string(strid);
+static const char* ut_nls_string(int32_t strid, const char* defau1t) {
+    const char* r = ut_nls_localize_string(strid);
     return r == null ? defau1t : r;
 }
 
-const char* ui_nls_str(const char* s) {
-    int32_t id = ui_nls_strid(s);
-    return id == 0 ? s : ui_nls_string(id, s);
+const char* ut_nls_str(const char* s) {
+    int32_t id = ut_nls_strid(s);
+    return id == 0 ? s : ut_nls_string(id, s);
 }
 
-static const char* ui_nls_locale(void) {
+static const char* ut_nls_locale(void) {
     wchar_t wln[LOCALE_NAME_MAX_LENGTH + 1];
     LCID lcid = GetThreadLocale();
     int32_t n = LCIDToLocaleName(lcid, wln, countof(wln),
@@ -129,7 +131,7 @@ static const char* ui_nls_locale(void) {
     return ln;
 }
 
-static void ui_nls_set_locale(const char* locale) {
+static void ut_nls_set_locale(const char* locale) {
     wchar_t rln[LOCALE_NAME_MAX_LENGTH + 1];
     int32_t n = ResolveLocaleName(utf8to16(locale), rln, countof(rln));
     if (n == 0) {
@@ -140,15 +142,15 @@ static void ui_nls_set_locale(const char* locale) {
             // TODO: log error
         } else {
             fatal_if_false(SetThreadLocale(lcid));
-            memset((void*)ui_nls_ls, 0, sizeof(ui_nls_ls)); // start all over
+            memset((void*)ut_nls_ls, 0, sizeof(ut_nls_ls)); // start all over
         }
     }
 }
 
-static void ui_nls_init(void) {
-    static_assert(countof(ui_nls_ns) % 16 == 0, "countof(ns) must be multiple of 16");
+static void ut_nls_init(void) {
+    static_assert(countof(ut_nls_ns) % 16 == 0, "countof(ns) must be multiple of 16");
     LANGID langid = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
-    for (int32_t strid = 0; strid < countof(ui_nls_ns); strid += 16) {
+    for (int32_t strid = 0; strid < countof(ut_nls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
         HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
             MAKEINTRESOURCE(block), langid);
@@ -161,8 +163,8 @@ static void ui_nls_init(void) {
             if (count > 0) {
                 ws++;
                 fatal_if_false(ws[count - 1] == 0, "use rc.exe /n");
-                ui_nls_ns[ix] = ui_nls_save_string(ws);
-                ui_nls_strings_count = ix + 1;
+                ut_nls_ns[ix] = ut_nls_save_string(ws);
+                ut_nls_strings_count = ix + 1;
 //              traceln("ns[%d] := %d \"%s\"", ix, strlen(ns[ix]), ns[ix]);
                 ws += count;
             } else {
@@ -172,11 +174,11 @@ static void ui_nls_init(void) {
     }
 }
 
-ui_nls_if ui_nls = {
-    .init       = ui_nls_init,
-    .strid      = ui_nls_strid,
-    .str        = ui_nls_str,
-    .string     = ui_nls_string,
-    .locale     = ui_nls_locale,
-    .set_locale = ui_nls_set_locale,
+ut_nls_if ut_nls = {
+    .init       = ut_nls_init,
+    .strid      = ut_nls_strid,
+    .str        = ut_nls_str,
+    .string     = ut_nls_string,
+    .locale     = ut_nls_locale,
+    .set_locale = ut_nls_set_locale,
 };

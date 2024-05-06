@@ -84,6 +84,9 @@
     <ClInclude Include="..\inc\ut\ut_generics.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_nls.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\inc\ut\version.rc.in">
@@ -149,6 +152,9 @@
       <Filter>src\ut</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ut\ut_generics.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\ut_nls.c">
       <Filter>src\ut</Filter>
     </ClCompile>
   </ItemGroup>

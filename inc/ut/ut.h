@@ -11,6 +11,7 @@
 #include "ut/ut_heap.h"
 #include "ut/ut_loader.h"
 #include "ut/ut_mem.h"
+#include "ut/ut_nls.h"
 #include "ut/ut_num.h"
 #include "ut/ut_static.h"
 #include "ut/ut_str.h"

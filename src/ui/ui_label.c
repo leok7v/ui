@@ -40,7 +40,7 @@ static void ui_label_context_menu(ui_view_t* view) {
         ut_clipboard.put_text(ui_view.nls(view));
         static bool first_time = true;
         ui_app.toast(first_time ? 1.1 : 0.25,
-            ui_nls.str("Text copied to clipboard"));
+            ut_nls.str("Text copied to clipboard"));
         first_time = false;
     }
 }
