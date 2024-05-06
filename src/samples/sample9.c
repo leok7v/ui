@@ -7,7 +7,7 @@
 
 static void init(void);
 
-app_t app = {
+ui_app_t ui_app = {
     .class_name = "sample9",
     .init = init,
     .window_sizing = {
@@ -95,13 +95,13 @@ static const char* filter[] = {
 };
 
 static void open_file(ui_button_t* unused(b)) {
-    const char* fn = app.open_filename(
-        app.known_folder(ui.folder.home),
+    const char* fn = ui_app.open_filename(
+        ui_app.known_folder(ui.folder.home),
         filter, countof(filter)); //  all files filer: null, 0
     if (fn[0] != 0) {
         strprintf(toast_filename.view.text, "%s", fn);
         traceln("%s", fn);
-        app.show_toast(&toast_filename.view, 2.0);
+        ui_app.show_toast(&toast_filename.view, 2.0);
     }
 }
 
@@ -111,9 +111,9 @@ static_ui_button(button_open_file, "&Open", 7.5, {
 
 static void flip_full_screen(ui_button_t* b) {
     b->pressed = !b->pressed;
-    app.full_screen(b->pressed);
+    ui_app.full_screen(b->pressed);
     if (b->pressed) {
-        app.toast(1.75, "Press ESC to exit full screen");
+        ui_app.toast(1.75, "Press ESC to exit full screen");
     }
 }
 
@@ -127,18 +127,18 @@ static void flip_locale(ui_button_t* b) {
     // TODO: label_multiline does not get localized automatically.
     //       investigate why... (comment out next line and put some printfs around)
     ui_view.localize(&label_multiline.view);
-    app.layout(); // because center panel layout changed
+    ui_app.layout(); // because center panel layout changed
 }
 
 static ui_button_t button_locale = ui_button(
     ui_glyph_kanji_onna_female "A", 1, flip_locale);
 
 static_ui_button(button_about, "&About", 7.5, {
-    app.show_toast(&about.view, 10.0);
+    ui_app.show_toast(&about.view, 10.0);
 });
 
 static_ui_button(button_mbx, "&Message Box", 7.5, {
-    app.show_toast(&mbx.view, 0);
+    ui_app.show_toast(&mbx.view, 0);
 });
 
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
@@ -161,7 +161,7 @@ static ui_view_t panel_right  = ui_view(container);
 
 static void panel_paint(ui_view_t* view) {
     if (view->color == ui_color_transparent) {
-        view->color = app.view->color;
+        view->color = ui_app.view->color;
     }
     ui_gdi.push(view->x, view->y);
     ui_gdi.set_clip(view->x, view->y, view->w, view->h);
@@ -227,26 +227,26 @@ static void right_paint(ui_view_t* view) {
     ui_gdi.println("&Locale %s", button_locale.pressed ? "zh-CN" : "en-US");
     ui_gdi.x = button_full_screen.x + button_full_screen.w + em.x;
     ui_gdi.y = button_full_screen.y;
-    ui_gdi.println(app.is_full_screen ? ui_nls.str("Restore from &Full Screen") :
+    ui_gdi.println(ui_app.is_full_screen ? ui_nls.str("Restore from &Full Screen") :
         ui_nls.str("&Full Screen"));
     ui_gdi.x = label_multiline.view.x;
     ui_gdi.y = label_multiline.view.y + label_multiline.view.h + ut_max(1, em.y / 4);
     ui_gdi.textln(ui_nls.str("Proportional"));
     ui_gdi.println(ui_nls.str("Monospaced"));
-    ui_font_t font = ui_gdi.set_font(app.fonts.H1);
+    ui_font_t font = ui_gdi.set_font(ui_app.fonts.H1);
     ui_gdi.textln("H1 %s", ui_nls.str("Header"));
-    ui_gdi.set_font(app.fonts.H2); ui_gdi.textln("H2 %s", ui_nls.str("Header"));
-    ui_gdi.set_font(app.fonts.H3); ui_gdi.textln("H3 %s", ui_nls.str("Header"));
+    ui_gdi.set_font(ui_app.fonts.H2); ui_gdi.textln("H2 %s", ui_nls.str("Header"));
+    ui_gdi.set_font(ui_app.fonts.H3); ui_gdi.textln("H3 %s", ui_nls.str("Header"));
     ui_gdi.set_font(font);
-    ui_gdi.println("%s %dx%d", ui_nls.str("Client area"), app.crc.w, app.crc.h);
-    ui_gdi.println("%s %dx%d", ui_nls.str("Window"), app.wrc.w, app.wrc.h);
-    ui_gdi.println("%s %dx%d", ui_nls.str("Monitor"), app.mrc.w, app.mrc.h);
-    ui_gdi.println("%s %d %d", ui_nls.str("Left Top"), app.wrc.x, app.wrc.y);
-    ui_gdi.println("%s %d %d", ui_nls.str("Mouse"), app.mouse.x, app.mouse.y);
-    ui_gdi.println("%d x paint()", app.paint_count);
-    ui_gdi.println("%.1fms (%s %.1f %s %.1f)", app.paint_time * 1000.0,
-        ui_nls.str("max"), app.paint_max * 1000.0, ui_nls.str("avg"),
-        app.paint_avg * 1000.0);
+    ui_gdi.println("%s %dx%d", ui_nls.str("Client area"), ui_app.crc.w, ui_app.crc.h);
+    ui_gdi.println("%s %dx%d", ui_nls.str("Window"), ui_app.wrc.w, ui_app.wrc.h);
+    ui_gdi.println("%s %dx%d", ui_nls.str("Monitor"), ui_app.mrc.w, ui_app.mrc.h);
+    ui_gdi.println("%s %d %d", ui_nls.str("Left Top"), ui_app.wrc.x, ui_app.wrc.y);
+    ui_gdi.println("%s %d %d", ui_nls.str("Mouse"), ui_app.mouse.x, ui_app.mouse.y);
+    ui_gdi.println("%d x paint()", ui_app.paint_count);
+    ui_gdi.println("%.1fms (%s %.1f %s %.1f)", ui_app.paint_time * 1000.0,
+        ui_nls.str("max"), ui_app.paint_max * 1000.0, ui_nls.str("avg"),
+        ui_app.paint_avg * 1000.0);
     text_after(&zoomer.view, "%.16f", zoom);
     text_after(&scroll, "%s", scroll.pressed ?
         ui_nls.str("Natural") : ui_nls.str("Reverse"));
@@ -265,14 +265,14 @@ static void center_paint(ui_view_t* view) {
 }
 
 static void measure(ui_view_t* view) {
-    ui_point_t em_mono = ui_gdi.get_em(app.fonts.mono);
-    em = ui_gdi.get_em(app.fonts.regular);
+    ui_point_t em_mono = ui_gdi.get_em(ui_app.fonts.mono);
+    em = ui_gdi.get_em(ui_app.fonts.regular);
     view->em = em;
     panel_border = ut_max(1, em_mono.y / 4);
     frame_border = ut_max(1, em_mono.y / 8);
     assert(panel_border > 0 && frame_border > 0);
-    const int32_t w = app.width;
-    const int32_t h = app.height;
+    const int32_t w = ui_app.width;
+    const int32_t h = ui_app.height;
     // measure ui elements
     panel_top.w = (int32_t)(0.70 * w);
     panel_top.h = em.y * 2;
@@ -286,7 +286,7 @@ static void measure(ui_view_t* view) {
 
 static void layout(ui_view_t* unused(view)) {
     assert(view->em.x > 0 && view->em.y > 0);
-    const int32_t h = app.height;
+    const int32_t h = ui_app.height;
     panel_top.x = 0;
     panel_top.y = 0;
     panel_bottom.x = 0;
@@ -318,11 +318,11 @@ static void zoom_in(int x, int y) {
 }
 
 static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(flags)) {
-    int mx = app.mouse.x - panel_center.x;
-    int my = app.mouse.y - panel_center.y;
+    int mx = ui_app.mouse.x - panel_center.x;
+    int my = ui_app.mouse.y - panel_center.y;
     if (0 <= mx && mx < panel_center.w && 0 <= my && my < panel_center.h) {
-        int x = app.mouse.x - (panel_center.w - image.w) / 2 - panel_center.x;
-        int y = app.mouse.y - (panel_center.h - image.h) / 2 - panel_center.y;
+        int x = ui_app.mouse.x - (panel_center.w - image.w) / 2 - panel_center.x;
+        int y = ui_app.mouse.y - (panel_center.h - image.h) / 2 - panel_center.y;
         if (0 <= x && x < image.w && 0 <= y && y < image.h) {
             if (m == ui.message.right_button_pressed) {
                 if (zoom < 1) { zoom_out(); refresh(); }
@@ -330,7 +330,7 @@ static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(flags)) {
                 if (top < countof(stack)) { zoom_in(x, y); refresh(); }
             }
         }
-        app.redraw();
+        ui_app.redraw();
     }
 }
 
@@ -355,8 +355,8 @@ static void mouse_wheel(ui_view_t* unused, int32_t dx, int32_t dy) {
 static void character(ui_view_t* view, const char* utf8) {
     char ch = utf8[0];
     if (ch == 'q' || ch == 'Q') {
-        app.close();
-    } else if (ch == 033 && app.is_full_screen) {
+        ui_app.close();
+    } else if (ch == 033 && ui_app.is_full_screen) {
         button_full_screen_callback(&button_full_screen);
     } else if (ch == '+' || ch == '=') {
         zoom /= 2; refresh();
@@ -391,11 +391,11 @@ static void init_panel(ui_view_t* panel, const char* text, ui_color_t color,
 }
 
 static void opened(void) {
-    app.view->measure     = measure;
-    app.view->layout      = layout;
-    app.view->character   = character;
-    app.view->key_pressed = keyboard; // virtual_keys
-    app.view->mouse_wheel = mouse_wheel;
+    ui_app.view->measure     = measure;
+    ui_app.view->layout      = layout;
+    ui_app.view->character   = character;
+    ui_app.view->key_pressed = keyboard; // virtual_keys
+    ui_app.view->mouse_wheel = mouse_wheel;
 
     panel_center.mouse = mouse;
 
@@ -415,8 +415,8 @@ static void opened(void) {
         "Ctrl+C or Right Mouse click to copy text to clipboard");
     strprintf(label_multiline.view.text, "%s",
         ui_nls.string(str_help, label_multiline.view.text));
-    toast_filename.view.font = &app.fonts.H1;
-    about.view.font = &app.fonts.H3;
+    toast_filename.view.font = &ui_app.fonts.H1;
+    about.view.font = &ui_app.fonts.H3;
     button_locale.shortcut = 'l';
     button_full_screen.shortcut = 'f';
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
@@ -440,7 +440,7 @@ static void opened(void) {
         &label_multiline,
         null
     );
-    ui_view.add(app.view,
+    ui_view.add(ui_app.view,
         &panel_top,
         &panel_center,
         &panel_right,
@@ -450,8 +450,8 @@ static void opened(void) {
 }
 
 static void init(void) {
-    app.title = TITLE;
-    app.opened = opened;
+    ui_app.title = TITLE;
+    ui_app.opened = opened;
 }
 
 static fp64_t scale0to1(int v, int range, fp64_t sh, fp64_t zm) {
@@ -509,6 +509,6 @@ static void refresh(void) {
     while (z != zoom) { zoomer.value++; z /= 2; }
     zoomer.value = ut_min(zoomer.value, zoomer.value_max);
     mandelbrot(&image);
-    app.redraw();
+    ui_app.redraw();
 }
 

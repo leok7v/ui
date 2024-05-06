@@ -34,23 +34,23 @@ static void every_sec(ui_view_t* unused(view)) {
               ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead,
               ui_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead,
               ui_nls.str("Hello"), locales[locale]);
-    app.set_title(title);
-    app.layout();
+    ui_app.set_title(title);
+    ui_app.layout();
     locale = (locale + 1) % countof(locales);
 }
 
 static void opened(void) {
-    font = ui_gdi.create_font("Segoe Script", app.in2px(0.5), -1);
-    app.view->every_sec = every_sec;
+    font = ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1);
+    ui_app.view->every_sec = every_sec;
     label.view.font = &font;
-    ui_view.add(app.view, &label, null);
+    ui_view.add(ui_app.view, &label, null);
 }
 static void init(void) {
-    app.title = title;
-    app.opened = opened;
+    ui_app.title = title;
+    ui_app.opened = opened;
 }
 
-app_t app = {
+ui_app_t ui_app = {
     .class_name = "sample1",
     .init = init,
     .window_sizing = {

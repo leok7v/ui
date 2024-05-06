@@ -39,8 +39,8 @@ typedef struct {
     void  (*delete_pen)(ui_pen_t p);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
-    void (*push)(int32_t x, int32_t y); // also calls SaveDC(app.canvas)
-    void (*pop)(void); // also calls RestoreDC(-1, app.canvas)
+    void (*push)(int32_t x, int32_t y); // also calls SaveDC(ui_app.canvas)
+    void (*pop)(void); // also calls RestoreDC(-1, ui_app.canvas)
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
     ui_point_t (*move_to)(int32_t x, int32_t y); // returns previous (x, y)
     void (*line)(int32_t x, int32_t y); // line to x, y with ui_gdi.pen moves x, y

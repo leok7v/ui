@@ -43,7 +43,7 @@ static ui_view_t* ui_view_add(ui_view_t* p, ...) {
     }
     va_end(vl);
     ui_view_call_init(p);
-    app.layout();
+    ui_app.layout();
     return p;
 }
 
@@ -61,7 +61,7 @@ static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
     }
     p->child = c;
     ui_view_call_init(c);
-    app.layout();
+    ui_app.layout();
 }
 
 static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
@@ -79,7 +79,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
     }
     ui_view_call_init(c);
     ui_view_verify(p);
-    app.layout();
+    ui_app.layout();
 }
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
@@ -93,7 +93,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     c->next->prev = c;
     ui_view_call_init(c);
     ui_view_verify(c->parent);
-    app.layout();
+    ui_app.layout();
 }
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
@@ -107,7 +107,7 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     c->next->prev = c;
     ui_view_call_init(c);
     ui_view_verify(c->parent);
-    app.layout();
+    ui_app.layout();
 }
 
 static void ui_view_remove(ui_view_t* c) {
@@ -127,12 +127,12 @@ static void ui_view_remove(ui_view_t* c) {
     c->next = null;
     ui_view_verify(c->parent);
     c->parent = null;
-    app.layout();
+    ui_app.layout();
 }
 
 static void ui_view_remove_all(ui_view_t* p) {
     while (p->child != null) { ui_view.remove(p->child); }
-    app.layout();
+    ui_app.layout();
 }
 
 static void ui_view_disband(ui_view_t* p) {
@@ -140,7 +140,7 @@ static void ui_view_disband(ui_view_t* p) {
         ui_view_disband(p->child);
         ui_view.remove(p->child);
     }
-    app.layout();
+    ui_app.layout();
 }
 
 static void ui_view_invalidate(const ui_view_t* view) {
@@ -149,7 +149,7 @@ static void ui_view_invalidate(const ui_view_t* view) {
     rc.y -= view->em.y;
     rc.w += view->em.x * 2;
     rc.h += view->em.y * 2;
-    app.invalidate(&rc);
+    ui_app.invalidate(&rc);
 }
 
 static const char* ui_view_nls(ui_view_t* view) {
@@ -212,23 +212,23 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.x / 4;
     int32_t y = v->y + v->h + v->em.y / 2 + hint->em.y / 4;
 //  traceln("mouse %d,%d xy: %d,%d view: %d,%d %dx%d hint: %d,%d %dx%d",
-//          app.mouse.x, app.mouse.y, x, y,
+//          ui_app.mouse.x, ui_app.mouse.y, x, y,
 //          v->x, v->y, v->w, v->h, hint->x, hint->y, hint->w, hint->h);
-    if (x + hint->w > app.crc.w) { x = app.crc.w - hint->w - hint->em.x / 2; }
+    if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->em.x / 2; }
     if (x < 0) { x = hint->em.x / 2; }
-    if (y + hint->h > app.crc.h) { y = app.crc.h - hint->h - hint->em.y / 2; }
+    if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->em.y / 2; }
     if (y < 0) { y = hint->em.y / 2; }
     // show_tooltip will center horizontally
-    app.show_tooltip(hint, x + hint->w / 2, y, 0);
+    ui_app.show_tooltip(hint, x + hint->w / 2, y, 0);
 }
 
 static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
-    if (start && app.animating.view == null && view->hint[0] != 0 &&
+    if (start && ui_app.animating.view == null && view->hint[0] != 0 &&
        !ui_view.is_hidden(view)) {
         ui_view_show_hint(view, &hint.view);
-    } else if (!start && app.animating.view == &hint.view) {
-        app.show_tooltip(null, -1, -1, 0);
+    } else if (!start && ui_app.animating.view == &hint.view) {
+        ui_app.show_tooltip(null, -1, -1, 0);
     }
 }
 
@@ -237,9 +237,9 @@ static bool ui_view_is_shortcut_key(ui_view_t* view, int64_t key) {
     // If there is not focused UI control in Alt+key [Alt] is optional.
     // If there is focused control only Alt+Key is accepted as shortcut
     char ch = 0x20 <= key && key <= 0x7F ? (char)toupper((char)key) : 0x00;
-    bool need_alt = app.focus != null && app.focus != view;
+    bool need_alt = ui_app.focus != null && ui_app.focus != view;
     bool keyboard_shortcut = ch != 0x00 && view->shortcut != 0x00 &&
-         (app.alt || !need_alt) && toupper(view->shortcut) == ch;
+         (ui_app.alt || !need_alt) && toupper(view->shortcut) == ch;
     return keyboard_shortcut;
 }
 
@@ -300,8 +300,8 @@ static void ui_view_character(ui_view_t* view, const char* utf8) {
 }
 
 static void ui_view_paint(ui_view_t* view) {
-    assert(app.crc.w > 0 && app.crc.h > 0);
-    if (!view->hidden && app.crc.w > 0 && app.crc.h > 0) {
+    assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
+    if (!view->hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
         if (view->paint != null) { view->paint(view); }
         ui_view_for_each(view, c, { ui_view_paint(c); });
     }
@@ -315,7 +315,7 @@ static bool ui_view_set_focus(ui_view_t* view) {
     });
     if (!set && !ui_view.is_hidden(view) && !ui_view.is_disabled(view) &&
         view->focusable && view->set_focus != null &&
-       (app.focus == view || app.focus == null)) {
+       (ui_app.focus == view || ui_app.focus == null)) {
         set = view->set_focus(view);
     }
     return set;
@@ -333,13 +333,13 @@ static void ui_view_mouse(ui_view_t* view, int32_t m, int64_t f) {
        (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
         ui_rect_t r = { view->x, view->y, view->w, view->h};
         bool hover = view->hover;
-        view->hover = ui.point_in_rect(&app.mouse, &r);
+        view->hover = ui.point_in_rect(&ui_app.mouse, &r);
         // inflate view rectangle:
         r.x -= view->w / 4;
         r.y -= view->h / 4;
         r.w += view->w / 2;
         r.h += view->h / 2;
-        if (hover != view->hover) { app.invalidate(&r); }
+        if (hover != view->hover) { ui_app.invalidate(&r); }
         if (hover != view->hover) {
             ui_view.hover_changed(view);
         }
@@ -358,7 +358,7 @@ static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
 }
 
 static void ui_view_measure_children(ui_view_t* view) {
-    view->em = ui_gdi.get_em(*app.view->font);
+    view->em = ui_gdi.get_em(*ui_app.view->font);
     if (!view->hidden) {
         ui_view_for_each(view, c, { ui_view_measure_children(c); });
         if (view->measure != null) {
@@ -384,7 +384,7 @@ static void ui_view_hover_changed(ui_view_t* view) {
         } else {
             swear(ui_view_hover_delay >= 0);
             if (view->hover_at >= 0) {
-                view->hover_at = app.now + ui_view_hover_delay;
+                view->hover_at = ui_app.now + ui_view_hover_delay;
             }
         }
     }
@@ -392,9 +392,9 @@ static void ui_view_hover_changed(ui_view_t* view) {
 
 static void ui_view_kill_hidden_focus(ui_view_t* view) {
     // removes focus from hidden or disabled ui controls
-    if (app.focus != null) {
-        if (app.focus == view && (view->disabled || view->hidden)) {
-            app.focus = null;
+    if (ui_app.focus != null) {
+        if (ui_app.focus == view && (view->disabled || view->hidden)) {
+            ui_app.focus = null;
             // even for disabled or hidden view notify about kill_focus:
             view->kill_focus(view);
         } else {
@@ -406,7 +406,7 @@ static void ui_view_kill_hidden_focus(ui_view_t* view) {
 static bool ui_view_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
     if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view) &&
-        ui_view_inside(view, &app.mouse)) {
+        ui_view_inside(view, &ui_app.mouse)) {
         ui_view_for_each(view, c, {
             done = ui_view_tap(c, ix);
             if (done) { break; }
@@ -435,7 +435,7 @@ static bool ui_view_context_menu(ui_view_t* view) {
             if (ui_view_context_menu(c)) { return true; }
         });
         ui_rect_t r = { view->x, view->y, view->w, view->h};
-        if (ui.point_in_rect(&app.mouse, &r)) {
+        if (ui.point_in_rect(&ui_app.mouse, &r)) {
             if (!view->hidden && !view->disabled && view->context_menu != null) {
                 view->context_menu(view);
             }
@@ -447,7 +447,7 @@ static bool ui_view_context_menu(ui_view_t* view) {
 static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
     if (!view->hidden) {
-        if (view->hover_at > 0 && app.now > view->hover_at) {
+        if (view->hover_at > 0 && ui_app.now > view->hover_at) {
             view->hover_at = -1; // "already called"
             ui_view.hovering(view, true);
         }
@@ -570,7 +570,7 @@ static void ui_view_test(void) {
 #pragma pop_macro("ui_view_alone")
 
 void ui_view_init(ui_view_t* view) {
-    if (view->font == null) { view->font = &app.fonts.regular; }
+    if (view->font == null) { view->font = &ui_app.fonts.regular; }
 }
 
 ui_view_if ui_view = {

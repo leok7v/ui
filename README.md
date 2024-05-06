@@ -23,15 +23,15 @@ ui_ for UI types and interfaces
 static ui_label_t label = ui_label(0.0, "Hello");
 
 static void opened(void) {
-    ui_view.add(app.view, &label, null);
+    ui_view.add(ui_app.view, &label, null);
 }
 
 static void init(void) {
-    app.title = "Sample";
-    app.opened = opened;
+    ui_app.title = "Sample";
+    ui_app.opened = opened;
 }
 
-app_t app = {
+ui_app_t ui_app = {
     .class_name = "sample",
     .init = init,
     .window_sizing = {

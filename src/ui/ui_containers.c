@@ -356,10 +356,10 @@ static void ui_container_measure(ui_view_t* p) {
     const int32_t i_tp = ui.gaps_em2px(p->em.y, p->insets.top);
     const int32_t i_bt = ui.gaps_em2px(p->em.y, p->insets.bottom);
     // empty container minimum size:
-    if (p != app.view) {
+    if (p != ui_app.view) {
         p->w = i_lf + i_rt;
         p->h = i_tp + i_bt;
-    } else { // app.view is special case (expanded to a window)
+    } else { // ui_app.view is special case (expanded to a window)
         p->w = ut_max(p->w, i_lf + i_rt);
         p->h = ut_max(p->h, i_tp + i_bt);
     }

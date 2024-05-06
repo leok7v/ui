@@ -12,11 +12,11 @@ static void span_test(ui_view_t* parent);
 static void list_test(ui_view_t* parent);
 
 static void init(void) {
-    app.title  = title;
-    app.opened = opened;
+    ui_app.title  = title;
+    ui_app.opened = opened;
 }
 
-app_t app = {
+ui_app_t ui_app = {
     .class_name = "sample8",
     .no_decor = true,
     .init = init,
@@ -79,7 +79,7 @@ static ui_mbx_t mbx = ui_mbx( // message box
     null, null);
 
 static void toggle_about(ui_button_t* unused(b)) {
-    app.show_toast(&mbx.view, 10.0);
+    ui_app.show_toast(&mbx.view, 10.0);
 }
 
 
@@ -92,7 +92,7 @@ static void opened(void) {
     static ui_button_t test_list      = ui_button("&List",      8.0, toggle_test_list);
     static ui_button_t about          = ui_button("&About",     8.0, toggle_about);
     static ui_slider_t slider         = ui_slider("%d", 2.5, 0, 3, slider_callback);
-    ui_view.add(app.view,
+    ui_view.add(ui_app.view,
         ui_view.add(&list,
             &ui_caption,
             ui_view.add(&span,
@@ -175,7 +175,7 @@ static void container_test(ui_view_t* parent) {
     ui_view_for_each(&container, it, {
         it->paint   = ui_view.debug_paint;
         it->color   = ui_colors.onyx;
-        it->font    = &app.fonts.H1;
+        it->font    = &ui_app.fonts.H1;
 // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
     });
@@ -210,7 +210,7 @@ static void span_test(ui_view_t* parent) {
 // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
-        it->font    = &app.fonts.H1;
+        it->font    = &ui_app.fonts.H1;
 //      traceln("%s 0x%02X", it->text, it->align);
     });
     top.view.max_h = 0;
@@ -246,7 +246,7 @@ static void list_test(ui_view_t* parent) {
 // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_w   = ui.infinity;
-        it->font    = &app.fonts.H1;
+        it->font    = &ui_app.fonts.H1;
     });
     left.view.max_w = 0;
     right.view.max_w = 0;

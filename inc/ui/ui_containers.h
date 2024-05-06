@@ -42,17 +42,17 @@ typedef struct ui_view_s ui_view_t;
 // the child view .w .h measurement are expanded accordingly.
 //
 // All containers are transparent and inset by 1/4 of an "em"
-// Except app.view which is also container but it is not
+// Except ui_app.view which is also container but it is not
 // inset and has default background color.
 //
 // Application implementer can override this after
 //
 // void opened(void) {
-//     ui_view.add(app.view, ..., null);
-//     app.view->insets = (ui_gaps_t) {
+//     ui_view.add(ui_app.view, ..., null);
+//     ui_app.view->insets = (ui_gaps_t) {
 //         .left = 0.25,  .top = 0.25,
 //         .right = 0.25, .bottom = 0.25 };
-//     app.view->color = ui_colors.dark_scarlet;
+//     ui_app.view->color = ui_colors.dark_scarlet;
 // }
 
 typedef struct ui_view_s ui_view_t;
@@ -60,7 +60,7 @@ typedef struct ui_view_s ui_view_t;
 #define ui_view(view_type) {            \
     .type = (ui_view_ ## view_type),    \
     .init = ui_view_init_ ## view_type, \
-    .font = &app.fonts.regular          \
+    .font = &ui_app.fonts.regular          \
 }
 
 void ui_view_init_container(ui_view_t* view);

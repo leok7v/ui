@@ -7,7 +7,7 @@ static void ui_slider_measure(ui_view_t* v) {
     ui_slider_t* r = (ui_slider_t*)v;
     assert(r->inc.w == r->dec.w && r->inc.h == r->dec.h);
     const int32_t em = v->em.x;
-    ui_font_t f = v->font != null ? *v->font : app.fonts.regular;
+    ui_font_t f = v->font != null ? *v->font : ui_app.fonts.regular;
     const int32_t w = (int32_t)(v->min_w_em * v->em.x);
     r->tm = ui_gdi.measure_text(f, ui_view.nls(v), r->value_max);
     if (w > r->tm.x) { r->tm.x = w; }
@@ -72,12 +72,12 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
         if (message == ui.message.left_button_pressed ||
             message == ui.message.right_button_pressed || drag) {
-            const int32_t x = app.mouse.x - v->x - r->dec.w;
-            const int32_t y = app.mouse.y - v->y;
+            const int32_t x = ui_app.mouse.x - v->x - r->dec.w;
+            const int32_t y = ui_app.mouse.y - v->y;
             const int32_t x0 = v->em.x / 2;
             const int32_t x1 = r->tm.x + v->em.x;
             if (x0 <= x && x < x1 && 0 <= y && y < v->h) {
-                app.focus = v;
+                ui_app.focus = v;
                 const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
                 fp64_t val = ((fp64_t)x - x0) * range / (fp64_t)(x1 - x0 - 1);
                 int32_t vw = (int32_t)(val + r->value_min + 0.5);
@@ -112,8 +112,8 @@ static void ui_slider_inc_dec(ui_button_t* b) {
     ui_slider_t* r = (ui_slider_t*)b->parent;
     if (!r->view.hidden && !r->view.disabled) {
         int32_t sign = b == &r->inc ? +1 : -1;
-        int32_t mul = app.shift && app.ctrl ? 1000 :
-            app.shift ? 100 : app.ctrl ? 10 : 1;
+        int32_t mul = ui_app.shift && ui_app.ctrl ? 1000 :
+            ui_app.shift ? 100 : ui_app.ctrl ? 10 : 1;
         ui_slider_inc_dec_value(r, sign, mul);
     }
 }
@@ -127,10 +127,10 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
         r->time = 0;
     } else {
         if (r->time == 0) {
-            r->time = app.now;
-        } else if (app.now - r->time > 1.0) {
+            r->time = ui_app.now;
+        } else if (ui_app.now - r->time > 1.0) {
             const int32_t sign = r->dec.armed ? -1 : +1;
-            int32_t s = (int32_t)(app.now - r->time + 0.5);
+            int32_t s = (int32_t)(ui_app.now - r->time + 0.5);
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
             const int64_t range = (int64_t)r->value_max - r->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }

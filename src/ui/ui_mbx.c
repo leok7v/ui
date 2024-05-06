@@ -11,7 +11,7 @@ static void ui_mbx_button(ui_button_t* b) {
             if (mx->view.callback != null) { mx->view.callback(&mx->view); }
         }
     }
-    app.show_toast(null, 0);
+    ui_app.show_toast(null, 0);
 }
 
 static void ui_mbx_measure(ui_view_t* view) {
@@ -77,7 +77,7 @@ void ui_view_init_mbx(ui_view_t* view) {
     ui_view_init(view);
     view->measure = ui_mbx_measure;
     view->layout  = ui_mbx_layout;
-    mx->view.font = &app.fonts.H3;
+    mx->view.font = &ui_app.fonts.H3;
     const char** options = mx->options;
     int32_t n = 0;
     while (options[n] != null && n < countof(mx->button) - 1) {

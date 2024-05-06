@@ -5,7 +5,7 @@ begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
-typedef struct app_s {  // TODO: ui_ namespace
+typedef struct {
     // implemented by client:
     const char* class_name;
     // called before creating main window
@@ -76,7 +76,7 @@ typedef struct app_s {  // TODO: ui_ namespace
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
     } animating;
-    // inch to pixels and reverse translation via app.dpi.window
+    // inch to pixels and reverse translation via ui_app.dpi.window
     fp32_t   (*px2in)(int32_t pixels);
     int32_t (*in2px)(fp32_t inches);
     // color: ui_color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
@@ -105,7 +105,7 @@ typedef struct app_s {  // TODO: ui_ namespace
     void (*set_cursor)(ui_cursor_t c);
     void (*close)(void); // attempts to close (can_close() permitting)
     // forced quit() even if can_close() returns false
-    void (*quit)(int32_t ec);  // app.exit_code = ec; PostQuitMessage(ec);
+    void (*quit)(int32_t ec);  // ui_app.exit_code = ec; PostQuitMessage(ec);
     ui_timer_t (*set_timer)(uintptr_t id, int32_t milliseconds); // see notes
     void (*kill_timer)(ui_timer_t id);
     void (*post)(int32_t message, int64_t wp, int64_t lp);
@@ -129,7 +129,7 @@ typedef struct app_s {  // TODO: ui_ namespace
     //     {"Text Files", ".txt;.doc;.ini",
     //      "Executables", ".exe",
     //      "All Files", "*"};
-    // const char* fn = app.open_filename("C:\\", filter, countof(filter));
+    // const char* fn = ui_app.open_filename("C:\\", filter, countof(filter));
     const char* (*open_filename)(const char* folder, const char* filter[], int32_t n);
     const char* (*known_folder)(int32_t kfid);
     bool (*is_stdout_redirected)(void);
@@ -142,8 +142,8 @@ typedef struct app_s {  // TODO: ui_ namespace
     fp64_t paint_time; // last paint duration in seconds
     fp64_t paint_max;  // max of last 128 paint
     fp64_t paint_avg;  // EMA of last 128 paints
-} app_t;
+} ui_app_t;
 
-extern app_t app;
+extern ui_app_t ui_app;
 
 end_c

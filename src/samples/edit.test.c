@@ -190,14 +190,14 @@ static void ui_edit_fuzzer(void* p) {
         e->fuzz_last = e->fuzz_count;
         uint32_t rnd = ut_num.random32(&e->fuzz_seed);
         switch (rnd % 8) {
-            case 0: app.alt = 0; app.ctrl = 0; app.shift = 0; break;
-            case 1: app.alt = 1; app.ctrl = 0; app.shift = 0; break;
-            case 2: app.alt = 0; app.ctrl = 1; app.shift = 0; break;
-            case 3: app.alt = 1; app.ctrl = 1; app.shift = 0; break;
-            case 4: app.alt = 0; app.ctrl = 0; app.shift = 1; break;
-            case 5: app.alt = 1; app.ctrl = 0; app.shift = 1; break;
-            case 6: app.alt = 0; app.ctrl = 1; app.shift = 1; break;
-            case 7: app.alt = 1; app.ctrl = 1; app.shift = 1; break;
+            case 0: ui_app.alt = 0; ui_app.ctrl = 0; ui_app.shift = 0; break;
+            case 1: ui_app.alt = 1; ui_app.ctrl = 0; ui_app.shift = 0; break;
+            case 2: ui_app.alt = 0; ui_app.ctrl = 1; ui_app.shift = 0; break;
+            case 3: ui_app.alt = 1; ui_app.ctrl = 1; ui_app.shift = 0; break;
+            case 4: ui_app.alt = 0; ui_app.ctrl = 0; ui_app.shift = 1; break;
+            case 5: ui_app.alt = 1; ui_app.ctrl = 0; ui_app.shift = 1; break;
+            case 6: ui_app.alt = 0; ui_app.ctrl = 1; ui_app.shift = 1; break;
+            case 7: ui_app.alt = 1; ui_app.ctrl = 1; ui_app.shift = 1; break;
             default: assert(false);
         }
         int keys[] = {
@@ -224,25 +224,25 @@ static void ui_edit_fuzzer(void* p) {
             rnd = ut_num.random32(&e->fuzz_seed);
             int ch = rnd % 128;
             if (ch == 033) { ch = 'a'; } // don't send ESC
-            app.post(ui.message.character, ch, 0);
+            ui_app.post(ui.message.character, ch, 0);
         } else {
-            app.post(ui.message.key_pressed, key, 0);
+            ui_app.post(ui.message.key_pressed, key, 0);
         }
         if (ut_num.random32(&e->fuzz_seed) % 32 == 0) {
             // mouse events only inside edit control otherwise
             // they will start clicking buttons around
             int32_t x = ut_num.random32(&e->fuzz_seed) % e->view.w;
             int32_t y = ut_num.random32(&e->fuzz_seed) % e->view.h;
-            app.post(ui.message.mouse_move,   0, (int64_t)(x | (y << 16)));
-            app.post(ui.message.left_button_pressed,  0, (int64_t)(x | (y << 16)));
-            app.post(ui.message.left_button_released, 0, (int64_t)(x | (y << 16)));
+            ui_app.post(ui.message.mouse_move,   0, (int64_t)(x | (y << 16)));
+            ui_app.post(ui.message.left_button_pressed,  0, (int64_t)(x | (y << 16)));
+            ui_app.post(ui.message.left_button_released, 0, (int64_t)(x | (y << 16)));
         }
     }
 }
 
 void ui_edit_fuzz(ui_edit_t* e) {
     if (e->fuzzer == null) {
-        app.request_focus(); // force application to be focused
+        ui_app.request_focus(); // force application to be focused
         e->fuzzer = ut_thread.start(ui_edit_fuzzer, e);
         ui_edit_next_fuzz(e);
     } else {

@@ -3,7 +3,7 @@
 
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     assert(v->type == ui_view_button);
-    if (v->armed_until != 0 && app.now > v->armed_until) {
+    if (v->armed_until != 0 && ui_app.now > v->armed_until) {
         v->armed_until = 0;
         v->armed = false;
         ui_view.invalidate(v);
@@ -65,7 +65,7 @@ static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
 
 static void ui_button_callback(ui_button_t* b) {
     assert(b->type == ui_view_button);
-    app.show_tooltip(null, -1, -1, 0);
+    ui_app.show_tooltip(null, -1, -1, 0);
     if (b->callback != null) { b->callback(b); }
 }
 
@@ -75,8 +75,8 @@ static void ui_button_trigger(ui_view_t* view) {
     ui_button_t* b = (ui_button_t*)view;
     view->armed = true;
     ui_view.invalidate(view);
-    app.draw();
-    view->armed_until = app.now + 0.250;
+    ui_app.draw();
+    view->armed_until = ui_app.now + 0.250;
     ui_button_callback(b);
     ui_view.invalidate(view);
 }
@@ -91,7 +91,7 @@ static void ui_button_character(ui_view_t* view, const char* utf8) {
 }
 
 static void ui_button_key_pressed(ui_view_t* view, int64_t key) {
-    if (app.alt && ui_view.is_shortcut_key(view, key)) {
+    if (ui_app.alt && ui_view.is_shortcut_key(view, key)) {
 //      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_button_trigger(view);
     }
@@ -108,13 +108,13 @@ static void ui_button_mouse(ui_view_t* view, int32_t message, int64_t flags) {
     bool on = false;
     if (message == ui.message.left_button_pressed ||
         message == ui.message.right_button_pressed) {
-        view->armed = ui_button_hit_test(b, app.mouse);
-        if (view->armed) { app.focus = view; }
-        if (view->armed) { app.show_tooltip(null, -1, -1, 0); }
+        view->armed = ui_button_hit_test(b, ui_app.mouse);
+        if (view->armed) { ui_app.focus = view; }
+        if (view->armed) { ui_app.show_tooltip(null, -1, -1, 0); }
     }
     if (message == ui.message.left_button_released ||
         message == ui.message.right_button_released) {
-        if (view->armed) { on = ui_button_hit_test(b, app.mouse); }
+        if (view->armed) { on = ui_button_hit_test(b, ui_app.mouse); }
         view->armed = false;
     }
     if (on) { ui_button_callback(b); }

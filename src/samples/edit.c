@@ -91,8 +91,8 @@ fn(void, invalidate)(ui_edit_t* e) {
 fn(int32_t, text_width)(ui_edit_t* e, const char* s, int32_t n) {
 //  fp64_t time = ut_clock.seconds();
     // average measure_text() performance per character:
-    // "app.fonts.mono"    ~500us (microseconds)
-    // "app.fonts.regular" ~250us (microseconds)
+    // "ui_app.fonts.mono"    ~500us (microseconds)
+    // "ui_app.fonts.regular" ~250us (microseconds)
     int32_t x = n == 0 ? 0 : ui_gdi.measure_text(*e->view.font, "%.*s", n, s).x;
 //  time = (ut_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
@@ -341,30 +341,30 @@ fn(int32_t, glyphs_in_paragraph)(ui_edit_t* e, int32_t pn) {
 
 fn(void, create_caret)(ui_edit_t* e) {
     fatal_if(e->focused);
-    assert(app.is_active());
-    assert(app.has_focus());
-    int32_t caret_width = ut_min(2, ut_max(1, app.dpi.monitor_effective / 100));
+    assert(ui_app.is_active());
+    assert(ui_app.has_focus());
+    int32_t caret_width = ut_min(2, ut_max(1, ui_app.dpi.monitor_effective / 100));
 //  traceln("%d,%d", caret_width, e->view.em.y);
-    app.create_caret(caret_width, e->view.em.y);
+    ui_app.create_caret(caret_width, e->view.em.y);
     e->focused = true; // means caret was created
 }
 
 fn(void, destroy_caret)(ui_edit_t* e) {
     fatal_if(!e->focused);
-    app.destroy_caret();
+    ui_app.destroy_caret();
     e->focused = false; // means caret was destroyed
 //  traceln("");
 }
 
 fn(void, show_caret)(ui_edit_t* e) {
     if (e->focused) {
-        assert(app.is_active());
-        assert(app.has_focus());
-        app.move_caret(e->view.x + e->caret.x, e->view.y + e->caret.y);
+        assert(ui_app.is_active());
+        assert(ui_app.has_focus());
+        ui_app.move_caret(e->view.x + e->caret.x, e->view.y + e->caret.y);
         // TODO: it is possible to support unblinking caret if desired
         // do not set blink time - use global default
 //      fatal_if_false(SetCaretBlinkTime(500));
-        app.show_caret();
+        ui_app.show_caret();
         e->shown++;
 //      traceln("shown=%d", e->shown);
         assert(e->shown == 1);
@@ -373,7 +373,7 @@ fn(void, show_caret)(ui_edit_t* e) {
 
 fn(void, hide_caret)(ui_edit_t* e) {
     if (e->focused) {
-        app.hide_caret();
+        ui_app.hide_caret();
         e->shown--;
 //      traceln("shown=%d", e->shown);
         assert(e->shown == 0);
@@ -618,8 +618,8 @@ fn(void, paint_paragraph)(ui_edit_t* e, int32_t pn) {
 
 fn(void, set_caret)(ui_edit_t* e, int32_t x, int32_t y) {
     if (e->caret.x != x || e->caret.y != y) {
-        if (e->focused && app.has_focus()) {
-            app.move_caret(e->view.x + x, e->view.y + y);
+        if (e->focused && ui_app.has_focus()) {
+            ui_app.move_caret(e->view.x + x, e->view.y + y);
 //          traceln("%d,%d", e->view.x + x, e->view.y + y);
         }
         e->caret.x = x;
@@ -740,7 +740,7 @@ fn(void, move_caret)(ui_edit_t* e, const ui_edit_pg_t pg) {
         ns(set_caret)(e, pt.x, pt.y + e->top);
         e->selection[1] = pg;
 //      traceln("pn: %d gp: %d", pg.pn, pg.gp);
-        if (!app.shift && !e->mouse != 0) {
+        if (!ui_app.shift && !e->mouse != 0) {
             e->selection[0] = e->selection[1];
         }
         ns(invalidate)(e);
@@ -1055,7 +1055,7 @@ fn(void, key_down)(ui_edit_t* e) {
 }
 
 fn(void, key_home)(ui_edit_t* e) {
-    if (app.ctrl) {
+    if (ui_app.ctrl) {
         e->scroll.pn = 0;
         e->scroll.rn = 0;
         e->selection[1].pn = 0;
@@ -1082,14 +1082,14 @@ fn(void, key_home)(ui_edit_t* e) {
             }
         }
     }
-    if (!app.shift) {
+    if (!ui_app.shift) {
         e->selection[0] = e->selection[1];
     }
     ns(move_caret)(e, e->selection[1]);
 }
 
 fn(void, key_end)(ui_edit_t* e) {
-    if (app.ctrl) {
+    if (ui_app.ctrl) {
         int32_t py = e->bottom;
         for (int32_t i = e->paragraphs - 1; i >= 0 && py >= e->view.em.y; i--) {
             int32_t runs = ns(paragraph_run_count)(e, i);
@@ -1122,7 +1122,7 @@ fn(void, key_end)(ui_edit_t* e) {
             e->selection[1].gp = e->para[pn].glyphs;
         }
     }
-    if (!app.shift) {
+    if (!ui_app.shift) {
         e->selection[0] = e->selection[1];
     }
     ns(move_caret)(e, e->selection[1]);
@@ -1240,7 +1240,7 @@ fn(void, character)(ui_view_t* unused(view), const char* utf8) {
     ui_edit_t* e = (ui_edit_t*)view;
     if (e->focused) {
         char ch = utf8[0];
-        if (app.ctrl) {
+        if (ui_app.ctrl) {
             if (ch == ctl('a')) { e->select_all(e); }
             if (ch == ctl('c')) { e->copy_to_clipboard(e); }
             if (!e->ro) {
@@ -1349,15 +1349,15 @@ fn(void, click)(ui_edit_t* e, int32_t x, int32_t y) {
 }
 
 fn(void, focus_on_click)(ui_edit_t* e, int32_t x, int32_t y) {
-    if (app.has_focus() && !e->focused && e->mouse != 0) {
-        if (app.focus != null && app.focus->kill_focus != null) {
-            app.focus->kill_focus(app.focus);
+    if (ui_app.has_focus() && !e->focused && e->mouse != 0) {
+        if (ui_app.focus != null && ui_app.focus->kill_focus != null) {
+            ui_app.focus->kill_focus(ui_app.focus);
         }
-        app.focus = &e->view;
+        ui_app.focus = &e->view;
         bool set = e->view.set_focus(&e->view);
         fatal_if(!set);
     }
-    if (app.has_focus() && e->focused && e->mouse != 0) {
+    if (ui_app.has_focus() && e->focused && e->mouse != 0) {
         e->mouse = 0;
         ns(click)(e, x, y);
     }
@@ -1381,8 +1381,8 @@ fn(bool, tap)(ui_view_t* view, int32_t ix) {
     traceln("ix: %d", ix);
     if (ix == 0) {
         ui_edit_t* e = (ui_edit_t*)view;
-        const int32_t x = app.mouse.x - e->view.x;
-        const int32_t y = app.mouse.y - e->view.y - e->top;
+        const int32_t x = ui_app.mouse.x - e->view.x;
+        const int32_t y = ui_app.mouse.y - e->view.y - e->top;
         bool inside = 0 <= x && x < view->w && 0 <= y && y < view->h;
         if (inside) {
             e->mouse = 0x1;
@@ -1401,8 +1401,8 @@ fn(bool, press)(ui_view_t* view, int32_t ix) {
 //  traceln("ix: %d", ix);
     if (ix == 0) {
         ui_edit_t* e = (ui_edit_t*)view;
-        const int32_t x = app.mouse.x - e->view.x;
-        const int32_t y = app.mouse.y - e->view.y - e->top;
+        const int32_t x = ui_app.mouse.x - e->view.x;
+        const int32_t y = ui_app.mouse.y - e->view.y - e->top;
         bool inside = 0 <= x && x < view->w && 0 <= y && y < view->h;
         if (inside) {
             e->mouse = 0x1;
@@ -1422,8 +1422,8 @@ fn(void, mouse)(ui_view_t* view, int32_t m, int64_t unused(flags)) {
     assert(!view->hidden);
     assert(!view->disabled);
     ui_edit_t* e = (ui_edit_t*)view;
-    const int32_t x = app.mouse.x - e->view.x;
-    const int32_t y = app.mouse.y - e->view.y - e->top;
+    const int32_t x = ui_app.mouse.x - e->view.x;
+    const int32_t y = ui_app.mouse.y - e->view.y - e->top;
     bool inside = 0 <= x && x < view->w && 0 <= y && y < view->h;
     if (inside) {
         if (m == ui.message.left_button_pressed ||
@@ -1441,7 +1441,7 @@ fn(void, mouse)(ui_view_t* view, int32_t m, int64_t unused(flags)) {
 
 fn(void, mousewheel)(ui_view_t* view, int32_t unused(dx), int32_t dy) {
     // TODO: may make a use of dx in single line not-word-breaked edit control
-    if (app.focus == view) {
+    if (ui_app.focus == view) {
         assert(view->type == ui_view_text);
         ui_edit_t* e = (ui_edit_t*)view;
         int32_t lines = (abs(dy) + view->em.y - 1) / view->em.y;
@@ -1466,11 +1466,11 @@ fn(bool, set_focus)(ui_view_t* view) {
     assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
 //  traceln("active=%d has_focus=%d focused=%d",
-//           app.is_active(), app.has_focus(), e->focused);
-    assert(app.focus == view || app.focus == null);
+//           ui_app.is_active(), ui_app.has_focus(), e->focused);
+    assert(ui_app.focus == view || ui_app.focus == null);
     assert(view->focusable);
-    app.focus = view;
-    if (app.has_focus() && !e->focused) {
+    ui_app.focus = view;
+    if (ui_app.has_focus() && !e->focused) {
         ns(create_caret)(e);
         ns(show_caret)(e);
         ns(if_sle_layout)(e);
@@ -1482,13 +1482,13 @@ fn(void, kill_focus)(ui_view_t* view) {
     assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
 //  traceln("active=%d has_focus=%d focused=%d",
-//           app.is_active(), app.has_focus(), e->focused);
+//           ui_app.is_active(), ui_app.has_focus(), e->focused);
     if (e->focused) {
         ns(hide_caret)(e);
         ns(destroy_caret)(e);
         ns(if_sle_layout)(e);
     }
-    if (app.focus == view) { app.focus = null; }
+    if (ui_app.focus == view) { ui_app.focus = null; }
 }
 
 fn(void, erase)(ui_edit_t* e) {
@@ -1704,9 +1704,9 @@ fn(void, move)(ui_edit_t* e, ui_edit_pg_t pg) {
 fn(bool, message)(ui_view_t* view, int32_t unused(m), int64_t unused(wp),
         int64_t unused(lp), int64_t* unused(rt)) {
     ui_edit_t* e = (ui_edit_t*)view;
-    if (app.is_active() && app.has_focus() && !view->hidden) {
-        if (e->focused != (app.focus == view)) {
-//          traceln("message: 0x%04X e->focused != (app.focus == view)", m);
+    if (ui_app.is_active() && ui_app.has_focus() && !view->hidden) {
+        if (e->focused != (ui_app.focus == view)) {
+//          traceln("message: 0x%04X e->focused != (ui_app.focus == view)", m);
             if (e->focused) {
                 view->kill_focus(view);
             } else {

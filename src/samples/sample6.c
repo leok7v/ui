@@ -90,7 +90,7 @@ static void paint(ui_view_t* view) {
         ui_gdi.alpha_blend(x, y, gif.w, gif.h, &frame, 1.0);
         ui_gdi.image_dispose(&frame);
     }
-    ui_font_t f = ui_gdi.set_font(app.fonts.H1);
+    ui_font_t f = ui_gdi.set_font(ui_app.fonts.H1);
     ui_gdi.x = 0;
     ui_gdi.y = 0;
     ui_gdi.set_text_color(muted ? ui_colors.green : ui_colors.red);
@@ -100,29 +100,29 @@ static void paint(ui_view_t* view) {
 
 static void character(ui_view_t* unused(view), const char* utf8) {
     if (utf8[0] == 'q' || utf8[0] == 'Q' || utf8[0] == 033) {
-        app.close();
+        ui_app.close();
     }
 }
 
 static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(f)) {
-    const ui_point_t em = ui_gdi.get_em(app.fonts.H1);
+    const ui_point_t em = ui_gdi.get_em(ui_app.fonts.H1);
     if ((m == ui.message.left_button_pressed ||
         m == ui.message.right_button_pressed) &&
-        0 <= app.mouse.x && app.mouse.x < em.x &&
-        0 <= app.mouse.y && app.mouse.y < em.y) {
+        0 <= ui_app.mouse.x && ui_app.mouse.x < em.x &&
+        0 <= ui_app.mouse.y && ui_app.mouse.y < em.y) {
         muted = !muted;
         if (muted) {
             midi.stop(&mds);
 //          midi.close(&mds);
         } else {
-//          midi.open(&mds, app.window, midi_file());
+//          midi.open(&mds, ui_app.window, midi_file());
             midi.play(&mds);
         }
     }
 }
 
 static void opened(void) {
-    midi.open(&mds, app.window, midi_file());
+    midi.open(&mds, ui_app.window, midi_file());
     midi.play(&mds);
 }
 
@@ -131,7 +131,7 @@ static bool message(ui_view_t* unused(view), int32_t m, int64_t wp, int64_t lp,
     if (m == midi.notify && (wp & midi.successful) != 0 && lp == mds.device_id) {
         midi.stop(&mds);
         midi.close(&mds);
-        midi.open(&mds, app.window, midi_file());
+        midi.open(&mds, ui_app.window, midi_file());
         midi.play(&mds);
     }
     return m == midi.notify;
@@ -156,7 +156,7 @@ static void load_gif(void) {
 
 static void animate(void) {
     for (;;) {
-        app.redraw();
+        ui_app.redraw();
         fp64_t delay_in_seconds = gif.delays[animation.index] * 0.001;
         if (ut_event.wait_or_timeout(animation.quit, delay_in_seconds) == 0) {
             break;
@@ -175,15 +175,15 @@ static void animate(void) {
             if (animation.x - gif.w / 2 < 0) {
                 animation.x = gif.w / 2;
                 animation.speed_x = -animation.speed_x;
-            } else if (animation.x + gif.w / 2 >= app.crc.w) {
-                animation.x = app.crc.w - gif.w / 2 - 1;
+            } else if (animation.x + gif.w / 2 >= ui_app.crc.w) {
+                animation.x = ui_app.crc.w - gif.w / 2 - 1;
                 animation.speed_x = -animation.speed_x;
             }
             if (animation.y - gif.h / 2 < 0) {
                 animation.y = gif.h / 2;
                 animation.speed_y = -animation.speed_y;
-            } else if (animation.y + gif.h / 2 >= app.crc.h) {
-                animation.y = app.crc.h - gif.h / 2 - 1;
+            } else if (animation.y + gif.h / 2 >= ui_app.crc.h) {
+                animation.y = ui_app.crc.h - gif.h / 2 - 1;
                 animation.speed_y = -animation.speed_y;
             }
             int inc = ut_num.random32(&animation.seed) % 2 == 0 ? -1 : +1;
@@ -201,20 +201,20 @@ static void animate(void) {
 }
 
 static void startup(void* unused(ignored)) {
-    ui_cursor_t cursor = app.cursor;
-    app.set_cursor(app.cursor_wait);
+    ui_cursor_t cursor = ui_app.cursor;
+    ui_app.set_cursor(ui_app.cursor_wait);
     load_gif();
-    app.set_cursor(cursor);
+    ui_app.set_cursor(cursor);
     animate();
 }
 
 static void init(void) {
-    app.title = title;
-    app.view->paint     = paint;
-    app.view->character = character;
-    app.view->message   = message;
-    app.view->mouse     = mouse;
-    app.opened        = opened;
+    ui_app.title = title;
+    ui_app.view->paint     = paint;
+    ui_app.view->character = character;
+    ui_app.view->message   = message;
+    ui_app.view->mouse     = mouse;
+    ui_app.opened        = opened;
     animation.seed = (uint32_t)ut_clock.nanoseconds();
     animation.x = -1;
     animation.y = -1;
@@ -266,7 +266,7 @@ static int  console(void) {
     return 1;
 }
 
-app_t app = {
+ui_app_t ui_app = {
     .class_name = "sample4",
     .init = init,
     .fini = fini,

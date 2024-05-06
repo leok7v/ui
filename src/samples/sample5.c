@@ -21,11 +21,11 @@ static ui_edit_t edit2;
 static ui_edit_t* edit[3] = { &edit0, &edit1, &edit2 };
 
 static int32_t focused(void) {
-    // app.focus can point to a button, thus see which edit
+    // ui_app.focus can point to a button, thus see which edit
     // control was focused last
     int32_t ix = -1;
     for (int32_t i = 0; i < countof(edit) && ix < 0; i++) {
-        if (app.focus == &edit[i]->view) { ix = i; }
+        if (ui_app.focus == &edit[i]->view) { ix = i; }
         if (edit[i]->focused) { ix = i; }
     }
     static int32_t last_ix = -1;
@@ -37,27 +37,27 @@ static int32_t focused(void) {
 static void focus_back_to_edit(void) {
     const int32_t ix = focused();
     if (ix >= 0) {
-        app.focus = &edit[ix]->view; // return focus where it was
+        ui_app.focus = &edit[ix]->view; // return focus where it was
     }
 }
 
 static void scaled_fonts(void) {
     assert(0 <= fx && fx < countof(fs));
     if (mf != null) { ui_gdi.delete_font(mf); }
-    mf = ui_gdi.font(app.fonts.mono,
-                  (int32_t)(ui_gdi.font_height(app.fonts.mono) * fs[fx] + 0.5),
+    mf = ui_gdi.font(ui_app.fonts.mono,
+                  (int32_t)(ui_gdi.font_height(ui_app.fonts.mono) * fs[fx] + 0.5),
                   -1);
     if (pf != null) { ui_gdi.delete_font(pf); }
-    pf = ui_gdi.font(app.fonts.regular,
-                  (int32_t)(ui_gdi.font_height(app.fonts.regular) * fs[fx] + 0.5),
+    pf = ui_gdi.font(ui_app.fonts.regular,
+                  (int32_t)(ui_gdi.font_height(ui_app.fonts.regular) * fs[fx] + 0.5),
                   -1);
 }
 
 static_ui_button(full_screen, "&Full Screen", 7.5, {
-    app.full_screen(!app.is_full_screen);
+    ui_app.full_screen(!ui_app.is_full_screen);
 });
 
-static_ui_button(quit, "&Quit", 7.5, { app.close(); });
+static_ui_button(quit, "&Quit", 7.5, { ui_app.close(); });
 
 static_ui_button(fuzz, "Fu&zz", 7.5, {
     int32_t ix = focused();
@@ -99,7 +99,7 @@ static_ui_toggle(sl, "&Single Line", 7.5, {
             e->select_all(e);
             e->paste(e, "Hello World! Single Line Edit", -1);
         }
-        // alternatively app.layout() for everything or:
+        // alternatively ui_app.layout() for everything or:
         e->view.measure(&e->view);
         e->view.layout(&e->view);
         focus_back_to_edit();
@@ -110,7 +110,7 @@ static void font_plus(void) {
     if (fx < countof(fs) - 1) {
         fx++;
         scaled_fonts();
-        app.layout();
+        ui_app.layout();
     }
 }
 
@@ -118,14 +118,14 @@ static void font_minus(void) {
     if (fx > 0) {
         fx--;
         scaled_fonts();
-        app.layout();
+        ui_app.layout();
     }
 }
 
 static void font_reset(void) {
     fx = 2;
     scaled_fonts();
-    app.layout();
+    ui_app.layout();
 }
 
 static_ui_button(fp, "Font Ctrl+", 7.5, { font_plus(); });
@@ -191,7 +191,7 @@ static void paint_frames(ui_view_t* view) {
 
 static void null_paint(ui_view_t* view) {
     ui_view_for_each(view, c, { null_paint(c); });
-    if (view != app.view) {
+    if (view != ui_app.view) {
         view->paint = null;
     }
 }
@@ -231,7 +231,7 @@ static void open_file(const char* pathname) {
         }
         ut_mem.unmap(file, bytes);
     } else {
-        app.toast(5.3, "\nFailed to open file \"%s\".\n%s\n",
+        ui_app.toast(5.3, "\nFailed to open file \"%s\".\n%s\n",
                   pathname, ut_str.error(ut_runtime.err()));
     }
 }
@@ -239,8 +239,8 @@ static void open_file(const char* pathname) {
 static void every_100ms(void) {
 //  traceln("");
     static ui_view_t* last;
-    if (last != app.focus) { app.redraw(); }
-    last = app.focus;
+    if (last != ui_app.focus) { ui_app.redraw(); }
+    last = ui_app.focus;
 }
 
 static void measure(ui_view_t* view) {
@@ -318,19 +318,19 @@ static void measure_3_lines_sle(ui_view_t* view) {
 }
 
 static void key_pressed(ui_view_t* unused(view), int64_t key) {
-    if (app.has_focus() && key == ui.key.escape) { app.close(); }
+    if (ui_app.has_focus() && key == ui.key.escape) { ui_app.close(); }
     int32_t ix = focused();
     if (key == ui.key.f5) {
         if (ix >= 0) {
             ui_edit_t* e = edit[ix];
-            if (app.ctrl && app.shift && e->fuzzer == null) {
+            if (ui_app.ctrl && ui_app.shift && e->fuzzer == null) {
                 e->fuzz(e); // start on Ctrl+Shift+F5
             } else if (e->fuzzer != null) {
                 e->fuzz(e); // stop on F5
             }
         }
     }
-    if (app.ctrl) {
+    if (ui_app.ctrl) {
         if (key == ui.key.minus) {
             font_minus();
         } else if (key == ui.key.plus) {
@@ -344,7 +344,7 @@ static void key_pressed(ui_view_t* unused(view), int64_t key) {
 
 static void edit_enter(ui_edit_t* e) {
     assert(e->sle);
-    if (!app.shift) { // ignore shift ENRER:
+    if (!ui_app.shift) { // ignore shift ENRER:
         traceln("text: %.*s", e->para[0].bytes, e->para[0].text);
     }
 }
@@ -356,13 +356,13 @@ void ui_edit_fuzz(ui_edit_t* e);
 void ui_edit_next_fuzz(ui_edit_t* e);
 
 static void opened(void) {
-    app.view->measure     = measure;
-    app.view->layout      = layout;
-    app.view->paint       = paint;
-    app.view->key_pressed = key_pressed;
+    ui_app.view->measure     = measure;
+    ui_app.view->layout      = layout;
+    ui_app.view->paint       = paint;
+    ui_app.view->key_pressed = key_pressed;
     scaled_fonts();
-    ui_view.add(app.view, &left, &right, &bottom, null);
-    text.view.font = &app.fonts.mono;
+    ui_view.add(ui_app.view, &left, &right, &bottom, null);
+    text.view.font = &ui_app.fonts.mono;
     strprintf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);
@@ -371,8 +371,8 @@ static void opened(void) {
         edit[i]->next_fuzz = ui_edit_next_fuzz;
         ui_edit_init_with_lorem_ipsum(edit[i]);
     }
-    app.focus = &edit[0]->view;
-    app.every_100ms = every_100ms;
+    ui_app.focus = &edit[0]->view;
+    ui_app.every_100ms = every_100ms;
     set_text(0); // need to be two lines for measure
     // edit[2] is SLE:
     ui_edit_init(edit[2]);
@@ -395,11 +395,11 @@ static void opened(void) {
 }
 
 static void init(void) {
-    app.title = title;
-    app.opened = opened;
+    ui_app.title = title;
+    ui_app.opened = opened;
 }
 
-app_t app = {
+ui_app_t ui_app = {
     .class_name = "sample5",
     .init = init,
     .window_sizing = {

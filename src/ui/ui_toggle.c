@@ -51,7 +51,7 @@ static void ui_toggle_paint(ui_view_t* view) {
 
 static void ui_toggle_flip(ui_toggle_t* c) {
     assert(c->type == ui_view_toggle);
-    app.redraw();
+    ui_app.redraw();
     c->pressed = !c->pressed;
     if (c->callback != null) { c->callback(c); }
 }
@@ -66,7 +66,7 @@ static void ui_toggle_character(ui_view_t* view, const char* utf8) {
 }
 
 static void ui_toggle_key_pressed(ui_view_t* view, int64_t key) {
-    if (app.alt && ui_view.is_shortcut_key(view, key)) {
+    if (ui_app.alt && ui_view.is_shortcut_key(view, key)) {
 //      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_toggle_flip((ui_toggle_t*)view);
     }
@@ -78,10 +78,10 @@ static void ui_toggle_mouse(ui_view_t* view, int32_t message, int64_t flags) {
     assert(!view->hidden && !view->disabled);
     if (message == ui.message.left_button_pressed ||
         message == ui.message.right_button_pressed) {
-        int32_t x = app.mouse.x - view->x;
-        int32_t y = app.mouse.y - view->y;
+        int32_t x = ui_app.mouse.x - view->x;
+        int32_t y = ui_app.mouse.y - view->y;
         if (0 <= x && x < view->w && 0 <= y && y < view->h) {
-            app.focus = view;
+            ui_app.focus = view;
             ui_toggle_flip((ui_toggle_t*)view);
         }
     }

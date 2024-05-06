@@ -16,7 +16,7 @@ static int  console(void) {
     return 1;
 }
 
-app_t app = {
+ui_app_t ui_app = {
     .class_name = "sample4",
     .init = init,
     .main = console,
@@ -90,10 +90,10 @@ static void download(void) {
 }
 
 static void init(void) {
-    app.title = title;
-    app.view->paint = paint;
+    ui_app.title = title;
+    ui_app.view->paint = paint;
     strprintf(filename, "%s\\mandrill-4.2.03.png",
-        app.known_folder(ui.folder.pictures));
+        ui_app.known_folder(ui.folder.pictures));
     download();
     load_images();
 }

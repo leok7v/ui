@@ -2009,7 +2009,7 @@ static int32_t ut_config_load(const char* name,
         DWORD cb = (DWORD)bytes;
         r = RegQueryValueExA(k, key, null, &type, (byte*)data, &cb);
         if (r == ERROR_MORE_DATA) {
-            // returns -1 app.data_size() should be used
+            // returns -1 ui_app.data_size() should be used
         } else if (r != 0) {
             if (r != ERROR_FILE_NOT_FOUND) {
                 traceln("%s.RegQueryValueExA(\"%s\") failed %s",

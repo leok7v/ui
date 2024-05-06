@@ -18,7 +18,7 @@ static volatile fp64_t render_time;
 
 static void toggle_full_screen(ui_button_t* b) {
     b->pressed = !b->pressed;
-    app.full_screen(b->pressed);
+    ui_app.full_screen(b->pressed);
 }
 
 static_ui_button(button_fs, glyph_two_squares, 1.0, {
@@ -35,14 +35,14 @@ static void paint(ui_view_t* view) {
     ui_gdi.y = view->h - view->em.y * 3 / 2;
     ui_gdi.set_text_color(ui_colors.orange);
     ui_gdi.textln("render time %.1f ms / avg paint time %.1f ms",
-        render_time * 1000, app.paint_avg * 1000);
+        render_time * 1000, ui_app.paint_avg * 1000);
     if (!rendering) {
-        app.set_cursor(app.cursor_arrow);
+        ui_app.set_cursor(ui_app.cursor_arrow);
     }
 }
 
 static void request_rendering(void) {
-    app.set_cursor(app.cursor_wait);
+    ui_app.set_cursor(ui_app.cursor_wait);
     rendering = true;
     ut_event.set(wake);
 }
@@ -51,14 +51,14 @@ static void stop_rendering(void) {
     if (rendering) {
         stop = true;
         while (rendering || stop) { ut_thread.sleep_for(0.01); }
-        app.set_cursor(app.cursor_arrow);
+        ui_app.set_cursor(ui_app.cursor_arrow);
     }
 }
 
 static void measure(ui_view_t* view) {
     // called on window resize
-    assert(view->w == app.crc.w);
-    assert(view->h == app.crc.h);
+    assert(view->w == ui_app.crc.w);
+    assert(view->h == ui_app.crc.h);
     const int w = view->w;
     const int h = view->h;
     ui_image_t* im = &image[index];
@@ -82,8 +82,8 @@ static void renderer(void* unused); // renderer thread
 
 static void character(ui_view_t* unused(view), const char* utf8) {
     char ch = utf8[0];
-    if (ch == 'q' || ch == 'Q') { app.close(); }
-    if (app.is_full_screen && ch == 033) {
+    if (ch == 'q' || ch == 'Q') { ui_app.close(); }
+    if (ui_app.is_full_screen && ch == 033) {
         toggle_full_screen(&button_fs);
     }
 }
@@ -104,20 +104,20 @@ static void fini(void) {
 }
 
 static void opened(void) {
-    fatal_if(app.crc.w * app.crc.h * 4 > countof(pixels[0]),
-        "increase size of pixels[][%d * %d * 4]", app.crc.w, app.crc.h);
-    app.fini = fini;
-    app.closed = closed;
-    ui_view.add(app.view, &button_fs, null);
-    app.view->layout    = layout;
-    app.view->measure   = measure;
-    app.view->paint     = paint;
-    app.view->character = character;
+    fatal_if(ui_app.crc.w * ui_app.crc.h * 4 > countof(pixels[0]),
+        "increase size of pixels[][%d * %d * 4]", ui_app.crc.w, ui_app.crc.h);
+    ui_app.fini = fini;
+    ui_app.closed = closed;
+    ui_view.add(ui_app.view, &button_fs, null);
+    ui_app.view->layout    = layout;
+    ui_app.view->measure   = measure;
+    ui_app.view->paint     = paint;
+    ui_app.view->character = character;
     wake = ut_event.create();
     quit = ut_event.create();
     // images:
-    ui_gdi.image_init(&image[0], app.crc.w, app.crc.h, 4, pixels[0]);
-    ui_gdi.image_init(&image[1], app.crc.w, app.crc.h, 4, pixels[1]);
+    ui_gdi.image_init(&image[0], ui_app.crc.w, ui_app.crc.h, 4, pixels[0]);
+    ui_gdi.image_init(&image[1], ui_app.crc.w, ui_app.crc.h, 4, pixels[1]);
     thread = ut_thread.start(renderer, null);
     request_rendering();
     strprintf(button_fs.hint, "&Full Screen");
@@ -125,10 +125,10 @@ static void opened(void) {
 }
 
 static void init(void) {
-    app.opened = opened;
+    ui_app.opened = opened;
 }
 
-app_t app = {
+ui_app_t ui_app = {
     .class_name = "sample3",
     .title = "Sample3: Mandelbrot",
     .init = init,
@@ -192,7 +192,7 @@ static void renderer(void* unused) {
         if (e != 0) { break; }
         int k = !index;
         mandelbrot(&image[k]);
-        if (!stop) { index = !index; app.redraw(); }
+        if (!stop) { index = !index; ui_app.redraw(); }
         stop = false;
         rendering = false;
     }

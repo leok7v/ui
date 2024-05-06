@@ -161,7 +161,7 @@ static void app_allow_dark_mode_for_window(void) {
     AllowDarkModeForWindow_t AllowDarkModeForWindow = (AllowDarkModeForWindow_t)
         (void*)GetProcAddress(ui_theme_ux_theme(), MAKEINTRESOURCE(133));
     if (AllowDarkModeForWindow != null) {
-        int r = b2e(AllowDarkModeForWindow((HWND)app.window, true));
+        int r = b2e(AllowDarkModeForWindow((HWND)ui_app.window, true));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
             traceln("AllowDarkModeForWindow(true) failed %s", ut_str.error(r));
         }

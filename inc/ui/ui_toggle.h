@@ -21,13 +21,13 @@ void ui_view_init_toggle(ui_view_t* view);
     static                                                    \
     ui_toggle_t name = {                                      \
         .type = ui_view_toggle, .init = ui_view_init_toggle,  \
-        .font = &app.fonts.regular, .min_w_em = min_width_em, \
+        .font = &ui_app.fonts.regular, .min_w_em = min_width_em, \
         .text = s, .callback = name ## _callback              \
    }
 
 #define ui_toggle(s, min_width_em, call_back) {           \
     .type = ui_view_toggle, .init = ui_view_init_toggle,  \
-    .font = &app.fonts.regular, .min_w_em = min_width_em, \
+    .font = &ui_app.fonts.regular, .min_w_em = min_width_em, \
     .text = s, .callback = call_back                      \
 }
 

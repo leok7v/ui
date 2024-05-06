@@ -39,7 +39,7 @@ static void ui_label_context_menu(ui_view_t* view) {
     if (!t->label && !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         ut_clipboard.put_text(ui_view.nls(view));
         static bool first_time = true;
-        app.toast(first_time ? 1.1 : 0.25,
+        ui_app.toast(first_time ? 1.1 : 0.25,
             ui_nls.str("Text copied to clipboard"));
         first_time = false;
     }
@@ -52,7 +52,7 @@ static void ui_label_character(ui_view_t* view, const char* utf8) {
        !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
-        if ((ch == 3 || ch == 'c' || ch == 'C') && app.ctrl) {
+        if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {
             ut_clipboard.put_text(ui_view.nls(view)); // 3 is ASCII for Ctrl+C
         }
     }

@@ -18,7 +18,7 @@ void ui_view_init_label(ui_view_t* view);
 
 #define ui_label(min_width_em, s) {                                    \
       .view = { .type = ui_view_label, .init = ui_view_init_label,     \
-                .font = &app.fonts.regular, .min_w_em = min_width_em,  \
+                .font = &ui_app.fonts.regular, .min_w_em = min_width_em,  \
                 .text = s }                                            \
 }
 
