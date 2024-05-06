@@ -77,4 +77,4 @@ typedef double fp64_t;
 // Because MS C compiler is unhappy about alloca() and
 // does not implement (C99 optional) dynamic arrays on the stack:
 
-#define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
+#define ut_stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))

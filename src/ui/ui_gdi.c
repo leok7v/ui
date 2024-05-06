@@ -691,13 +691,13 @@ typedef struct { // draw text parameters
 
 static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     int32_t n = 1024;
-    char* text = (char*)stackalloc(n);
+    char* text = (char*)ut_stackalloc(n);
     ut_str.format_va(text, n - 1, p->format, p->vl);
     int32_t k = (int32_t)strlen(text);
     // Microsoft returns -1 not posix required sizeof buffer
     while (k >= n - 1 || k < 0) {
         n = n * 2;
-        text = (char*)stackalloc(n);
+        text = (char*)ut_stackalloc(n);
         ut_str.format_va(text, n - 1, p->format, p->vl);
         k = (int)strlen(text);
     }

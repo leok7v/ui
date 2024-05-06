@@ -81,7 +81,7 @@ typedef double fp64_t;
 // Because MS C compiler is unhappy about alloca() and
 // does not implement (C99 optional) dynamic arrays on the stack:
 
-#define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
+#define ut_stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
 // ________________________________ ui_core.h _________________________________
 
 #include "ut/ut_std.h"
@@ -5583,13 +5583,13 @@ typedef struct { // draw text parameters
 
 static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     int32_t n = 1024;
-    char* text = (char*)stackalloc(n);
+    char* text = (char*)ut_stackalloc(n);
     ut_str.format_va(text, n - 1, p->format, p->vl);
     int32_t k = (int32_t)strlen(text);
     // Microsoft returns -1 not posix required sizeof buffer
     while (k >= n - 1 || k < 0) {
         n = n * 2;
-        text = (char*)stackalloc(n);
+        text = (char*)ut_stackalloc(n);
         ut_str.format_va(text, n - 1, p->format, p->vl);
         k = (int)strlen(text);
     }
@@ -5940,7 +5940,7 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     #pragma warning(push) // mxw[] IntelliSense confusion
     #pragma warning(disable: 6385)
     #pragma warning(disable: 6386)
-    int32_t* mxw = (int32_t*)stackalloc(cols * sizeof(int32_t));
+    int32_t* mxw = (int32_t*)ut_stackalloc(cols * sizeof(int32_t));
     memset(mxw, 0, cols * sizeof(int32_t));
     ui_view_for_each(view, row, {
         if (!row->hidden) {

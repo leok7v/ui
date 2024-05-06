@@ -81,7 +81,7 @@ typedef double fp64_t;
 // Because MS C compiler is unhappy about alloca() and
 // does not implement (C99 optional) dynamic arrays on the stack:
 
-#define stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
+#define ut_stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
 
 
 // ________________________________ ut_args.h _________________________________
@@ -679,7 +679,7 @@ void ut_static_init_test(void);
 #define strempty(s) ((void*)(s) == null || (s)[0] == 0)
 
 #define strconcat(a, b) _Pragma("warning(suppress: 6386)") \
-    (strcat(strcpy((char*)stackalloc(strlen(a) + strlen(b) + 1), (a)), (b)))
+    (strcat(strcpy((char*)ut_stackalloc(strlen(a) + strlen(b) + 1), (a)), (b)))
 
 #define strequ(s1, s2)  (((void*)(s1) == (void*)(s2)) || \
     (((void*)(s1) != null && (void*)(s2) != null) && strcmp((s1), (s2)) == 0))
@@ -708,13 +708,13 @@ void ut_static_init_test(void);
 char* strnchr(const char* s, int32_t n, char ch);
 
 #define strtolowercase(s) \
-    ut_str.to_lowercase((char*)stackalloc(strlen(s) + 1), strlen(s) + 1, s)
+    ut_str.to_lowercase((char*)ut_stackalloc(strlen(s) + 1), strlen(s) + 1, s)
 
 #define utf16to8(utf16) ut_str.utf16_utf8((char*) \
-    stackalloc((size_t)ut_str.utf8_bytes(utf16) + 1), utf16)
+    ut_stackalloc((size_t)ut_str.utf8_bytes(utf16) + 1), utf16)
 
 #define utf8to16(s) ut_str.utf8_utf16((uint16_t*) \
-    stackalloc((ut_str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
+    ut_stackalloc((ut_str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
 
 #define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
 
