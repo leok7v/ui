@@ -39,8 +39,8 @@ static void ui_label_context_menu(ui_view_t* view) {
     if (!t->label && !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
         ut_clipboard.put_text(ui_view.nls(view));
         static bool first_time = true;
-        app.toast(first_time ? 2.15 : 0.75,
-            nls.str("Text copied to clipboard"));
+        app.toast(first_time ? 1.1 : 0.25,
+            ui_nls.str("Text copied to clipboard"));
         first_time = false;
     }
 }

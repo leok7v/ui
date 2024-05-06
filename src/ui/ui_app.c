@@ -2083,7 +2083,7 @@ int WINAPI WinMain(HINSTANCE unused(instance), HINSTANCE unused(previous),
     app.tid = ut_thread.id();
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
     SetConsoleCP(CP_UTF8);
-    nls.init();
+    ui_nls.init();
     app.visibility = show;
     ut_args.WinMain();
     int32_t r = app_win_main();
@@ -2094,7 +2094,7 @@ int WINAPI WinMain(HINSTANCE unused(instance), HINSTANCE unused(previous),
 int main(int argc, const char* argv[], const char** envp) {
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
     ut_args.main(argc, argv, envp);
-    nls.init();
+    ui_nls.init();
     app.tid = ut_thread.id();
     int r = app.main();
     ut_args.fini();

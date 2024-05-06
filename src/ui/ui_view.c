@@ -154,7 +154,7 @@ static void ui_view_invalidate(const ui_view_t* view) {
 
 static const char* ui_view_nls(ui_view_t* view) {
     return view->strid != 0 ?
-        nls.string(view->strid, view->text) : view->text;
+        ui_nls.string(view->strid, view->text) : view->text;
 }
 
 static void ui_view_measure(ui_view_t* view) {
@@ -197,13 +197,13 @@ static void ui_view_set_text(ui_view_t* view, const char* text) {
 
 static void ui_view_localize(ui_view_t* view) {
     if (view->text[0] != 0) {
-        view->strid = nls.strid(view->text);
+        view->strid = ui_nls.strid(view->text);
     }
 }
 
 static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
-    strprintf(hint->text, "%s", nls.str(v->hint));
+    strprintf(hint->text, "%s", ui_nls.str(v->hint));
     if (hint->measure != null) {
         hint->measure(hint);
     } else {
