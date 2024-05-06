@@ -20,15 +20,15 @@ static void ui_mbx_measure(ui_view_t* view) {
     int32_t n = 0;
     ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
-    if (mx->label.view.measure != null) {
-        mx->label.view.measure(&mx->label.view);
+    if (mx->label.measure != null) {
+        mx->label.measure(&mx->label);
     } else {
-        ui_view.measure(&mx->label.view);
+        ui_view.measure(&mx->label);
     }
-    const int32_t em_x = mx->label.view.em.x;
-    const int32_t em_y = mx->label.view.em.y;
-    const int32_t tw = mx->label.view.w;
-    const int32_t th = mx->label.view.h;
+    const int32_t em_x = mx->label.em.x;
+    const int32_t em_y = mx->label.em.y;
+    const int32_t tw = mx->label.w;
+    const int32_t th = mx->label.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
@@ -48,18 +48,18 @@ static void ui_mbx_layout(ui_view_t* view) {
     int32_t n = 0;
     ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
-    const int32_t em_y = mx->label.view.em.y;
-    mx->label.view.x = view->x;
-    mx->label.view.y = view->y + em_y * 2 / 3;
-    const int32_t tw = mx->label.view.w;
-    const int32_t th = mx->label.view.h;
+    const int32_t em_y = mx->label.em.y;
+    mx->label.x = view->x;
+    mx->label.y = view->y + em_y * 2 / 3;
+    const int32_t tw = mx->label.w;
+    const int32_t th = mx->label.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
             bw += mx->button[i].w;
         }
         // center text:
-        mx->label.view.x = view->x + (view->w - tw) / 2;
+        mx->label.x = view->x + (view->w - tw) / 2;
         // spacing between buttons:
         int32_t sp = (view->w - bw) / (n + 1);
         int32_t x = sp;
@@ -87,7 +87,7 @@ void ui_view_init_mbx(ui_view_t* view) {
     swear(n <= countof(mx->button), "inhumane: %d buttons", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
     ui_label_init(&mx->label, 0.0, "%s", mx->view.text);
-    ui_view.add_last(&mx->view, &mx->label.view);
+    ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);
         mx->button[i].font = mx->view.font;
@@ -95,8 +95,8 @@ void ui_view_init_mbx(ui_view_t* view) {
         // TODO: remove assert below
         assert(mx->button[i].parent == &mx->view);
     }
-    mx->label.view.font = mx->view.font;
-    ui_view.localize(&mx->label.view);
+    mx->label.font = mx->view.font;
+    ui_view.localize(&mx->label);
     mx->view.text[0] = 0;
     mx->option = -1;
 }

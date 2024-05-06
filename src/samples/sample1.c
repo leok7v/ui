@@ -29,7 +29,7 @@ static ui_label_t label = ui_label(0.0, "Hello");
 static void every_sec(ui_view_t* unused(view)) {
     static int32_t locale = 0;
     ut_nls.set_locale(locales[locale]);
-    ui_view.localize(&label.view);
+    ui_view.localize(&label);
     strprintf(title, "Hello %s%s %s [%s]",
               ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead,
               ui_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead,
@@ -42,7 +42,7 @@ static void every_sec(ui_view_t* unused(view)) {
 static void opened(void) {
     font = ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1);
     ui_app.view->every_sec = every_sec;
-    label.view.font = &font;
+    label.font = &font;
     ui_view.add(ui_app.view, &label, null);
 }
 static void init(void) {

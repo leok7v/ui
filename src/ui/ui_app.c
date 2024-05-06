@@ -1265,7 +1265,7 @@ static void ui_app_create_window(const ui_rect_t r) {
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
     not_null(ui_app.window);
     assert(window == ui_app_window()); (void)window;
-    strprintf(ui_caption.title.view.text, "%s", ui_app.title);
+    strprintf(ui_caption.title.text, "%s", ui_app.title);
     not_null(GetSystemMenu(ui_app_window(), false));
     ui_app.dpi.window = GetDpiForWindow(ui_app_window());
 //  traceln("ui_app.dpi.window=%d", ui_app.dpi.window);
@@ -1470,9 +1470,9 @@ static void ui_app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
 
 static void ui_app_formatted_toast_va(fp64_t timeout, const char* format, va_list vl) {
     ui_app_show_toast(null, 0);
-    static ui_label_t txt;
-    ui_label_init_va(&txt, 0.0, format, vl);
-    ui_app_show_toast(&txt.view, timeout);
+    static ui_label_t label;
+    ui_label_init_va(&label, 0.0, format, vl);
+    ui_app_show_toast(&label, timeout);
 }
 
 static void ui_app_formatted_toast(fp64_t timeout, const char* format, ...) {
@@ -1633,7 +1633,7 @@ static void ui_app_bring_to_front(void) {
 }
 
 static void ui_app_set_title(const char* title) {
-    strprintf(ui_caption.title.view.text, "%s", title);
+    strprintf(ui_caption.title.text, "%s", title);
     fatal_if_false(SetWindowTextA(ui_app_window(), title));
     if (!ui_caption.view.hidden) { ui_app.layout(); }
 }

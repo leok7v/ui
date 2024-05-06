@@ -99,9 +99,9 @@ static void open_file(ui_button_t* unused(b)) {
         ui_app.known_folder(ui.folder.home),
         filter, countof(filter)); //  all files filer: null, 0
     if (fn[0] != 0) {
-        strprintf(toast_filename.view.text, "%s", fn);
+        strprintf(toast_filename.text, "%s", fn);
         traceln("%s", fn);
-        ui_app.show_toast(&toast_filename.view, 2.0);
+        ui_app.show_toast(&toast_filename, 2.0);
     }
 }
 
@@ -126,7 +126,7 @@ static void flip_locale(ui_button_t* b) {
     ut_nls.set_locale(b->pressed ? "zh-CN" : "en-US");
     // TODO: label_multiline does not get localized automatically.
     //       investigate why... (comment out next line and put some printfs around)
-    ui_view.localize(&label_multiline.view);
+    ui_view.localize(&label_multiline);
     ui_app.layout(); // because center panel layout changed
 }
 
@@ -134,7 +134,7 @@ static ui_button_t button_locale = ui_button(
     ui_glyph_kanji_onna_female "A", 1, flip_locale);
 
 static_ui_button(button_about, "&About", 7.5, {
-    ui_app.show_toast(&about.view, 10.0);
+    ui_app.show_toast(&about, 10.0);
 });
 
 static_ui_button(button_mbx, "&Message Box", 7.5, {
@@ -229,8 +229,8 @@ static void right_paint(ui_view_t* view) {
     ui_gdi.y = button_full_screen.y;
     ui_gdi.println(ui_app.is_full_screen ? ut_nls.str("Restore from &Full Screen") :
         ut_nls.str("&Full Screen"));
-    ui_gdi.x = label_multiline.view.x;
-    ui_gdi.y = label_multiline.view.y + label_multiline.view.h + ut_max(1, em.y / 4);
+    ui_gdi.x = label_multiline.x;
+    ui_gdi.y = label_multiline.y + label_multiline.h + ut_max(1, em.y / 4);
     ui_gdi.textln(ut_nls.str("Proportional"));
     ui_gdi.println(ut_nls.str("Monospaced"));
     ui_font_t font = ui_gdi.set_font(ui_app.fonts.H1);
@@ -396,9 +396,7 @@ static void opened(void) {
     ui_app.view->character   = character;
     ui_app.view->key_pressed = keyboard; // virtual_keys
     ui_app.view->mouse_wheel = mouse_wheel;
-
     panel_center.mouse = mouse;
-
     int n = countof(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(countof(pixels) == countof(pixels[0]), "square");
@@ -408,15 +406,15 @@ static void opened(void) {
     init_panel(&panel_bottom, "bottom", ui_colors.tone_blue, panel_paint);
     init_panel(&panel_right,  "right",  ui_colors.tone_green, right_paint);
     panel_right.layout = right_layout;
-    label_single_line.highlight = true;
-    label_multiline.highlight = true;
-    label_multiline.hovered = true;
-    strprintf(label_multiline.view.hint, "%s",
+    label_single_line.highlightable = true;
+    label_single_line.flat = true;
+    label_multiline.highlightable = true;
+    strprintf(label_multiline.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
-    strprintf(label_multiline.view.text, "%s",
-        ut_nls.string(str_help, label_multiline.view.text));
-    toast_filename.view.font = &ui_app.fonts.H1;
-    about.view.font = &ui_app.fonts.H3;
+    strprintf(label_multiline.text, "%s",
+        ut_nls.string(str_help, label_multiline.text));
+    toast_filename.font = &ui_app.fonts.H1;
+    about.font = &ui_app.fonts.H3;
     button_locale.shortcut = 'l';
     button_full_screen.shortcut = 'f';
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS

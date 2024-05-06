@@ -132,7 +132,7 @@ static_ui_button(fp, "Font Ctrl+", 7.5, { font_plus(); });
 
 static_ui_button(fm, "Font Ctrl-", 7.5, { font_minus(); });
 
-static ui_label_t text = ui_label(0.0, "...");
+static ui_label_t label = ui_label(0.0, "...");
 
 static ui_view_t right  = ui_view(container);
 static ui_view_t left   = ui_view(container);
@@ -140,7 +140,7 @@ static ui_view_t bottom = ui_view(container);
 
 static void set_text(int32_t ix) {
     static char last[128];
-    strprintf(text.view.text, "%d:%d %d:%d %dx%d\n"
+    strprintf(label.text, "%d:%d %d:%d %dx%d\n"
         "scroll %03d:%03d",
         edit[ix]->selection[0].pn, edit[ix]->selection[0].gp,
         edit[ix]->selection[1].pn, edit[ix]->selection[1].gp,
@@ -154,10 +154,10 @@ static void set_text(int32_t ix) {
             edit[ix]->scroll.pn, edit[ix]->scroll.rn);
     }
     // can be called before text.ui initialized
-    if (!strequ(last, text.view.text)) {
-        ui_view.invalidate(&text.view);
+    if (!strequ(last, label.text)) {
+        ui_view.invalidate(&label);
     }
-    strprintf(last, "%s", text.view.text);
+    strprintf(last, "%s", label.text);
 }
 
 static void after_paint(void) {
@@ -248,12 +248,12 @@ static void measure(ui_view_t* view) {
     // gaps:
     const int32_t gx = view->em.x;
     const int32_t gy = view->em.y;
-    right.h = view->h - text.view.h - gy;
+    right.h = view->h - label.h - gy;
     right.w = 0;
     measurements.vertical(&right, gy / 2);
     right.w += gx;
-    bottom.w = text.view.w - gx;
-    bottom.h = text.view.h;
+    bottom.w = label.w - gx;
+    bottom.h = label.h;
     int32_t h = (view->h - bottom.h - gy * 3) / countof(edit);
     for (int32_t i = 0; i < 2; i++) { // edit[0] and edit[1] only
         edit[i]->view.w = view->w - right.w - gx * 2;
@@ -262,7 +262,7 @@ static void measure(ui_view_t* view) {
     left.w = 0;
     measurements.vertical(&left, gy);
     left.w += gx;
-    edit2.view.w = ro.w; // only "width" height determined by text
+    edit2.view.w = ro.w; // only "width" height determined by label
     if (debug_layout) {
         traceln("%d,%d %dx%d", view->x, view->y, view->w, view->h);
         traceln("right %d,%d %dx%d", right.x, right.y, right.w, right.h);
@@ -291,8 +291,8 @@ static void layout(ui_view_t* view) {
     bottom.x = gx2;
     bottom.y = view->h - bottom.h;
     layouts.vertical(&right, right.x + gx2, right.y, gy2);
-    text.view.x = gx2;
-    text.view.y = view->h - text.view.h;
+    label.x = gx2;
+    label.y = view->h - label.h;
 }
 
 // limiting vertical height of SLE to 3 lines of text:
@@ -362,7 +362,7 @@ static void opened(void) {
     ui_app.view->key_pressed = key_pressed;
     scaled_fonts();
     ui_view.add(ui_app.view, &left, &right, &bottom, null);
-    text.view.font = &ui_app.fonts.mono;
+    label.font = &ui_app.fonts.mono;
     strprintf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);
@@ -390,7 +390,7 @@ static void opened(void) {
                 &fp, &fm, &mono, &sl, &ro,
                 &edit2,null);
     ui_view.add(&left, &edit0, &edit1, null);
-    ui_view.add(&bottom, &text.view, null);
+    ui_view.add(&bottom, &label, null);
     if (ut_args.c > 1) { open_file(ut_args.v[1]); }
 }
 

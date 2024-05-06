@@ -6,7 +6,7 @@ static void opened(void) {
     static ui_font_t font;
     font = ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1);
     static ui_label_t hello = ui_label(0.0, "Hello");
-    hello.view.font = &font;
+    hello.font = &font;
     ui_app.set_layered_window(ui_colors.black, 0.90f);
     ui_view.add(ui_app.view,
         &ui_caption.view, // custom caption for no_decor window

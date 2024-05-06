@@ -155,15 +155,15 @@ static void container_test(ui_view_t* parent) {
     container.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     ui_view.add(parent,
         ui_view.add(&container,
-            align(&left.view,         ui.align.left),
-            align(&right.view,        ui.align.right),
-            align(&top.view,          ui.align.top),
-            align(&bottom.view,       ui.align.bottom),
-            align(&left_top.view,     ui.align.left |ui.align.top),
-            align(&right_bottom.view, ui.align.right|ui.align.bottom),
-            align(&right_top.view,    ui.align.right|ui.align.top),
-            align(&left_bottom.view,  ui.align.left |ui.align.bottom),
-            align(&center.view,       ui.align.center),
+            align(&left,         ui.align.left),
+            align(&right,        ui.align.right),
+            align(&top,          ui.align.top),
+            align(&bottom,       ui.align.bottom),
+            align(&left_top,     ui.align.left |ui.align.top),
+            align(&right_bottom, ui.align.right|ui.align.bottom),
+            align(&right_top,    ui.align.right|ui.align.top),
+            align(&left_bottom,  ui.align.left |ui.align.bottom),
+            align(&center,       ui.align.center),
         null),
     null);
     container.paint  = ui_view.debug_paint;
@@ -191,11 +191,11 @@ static void span_test(ui_view_t* parent) {
     static ui_label_t bottom = ui_label(0, " bottom ");
     ui_view.add(parent,
         ui_view.add(&span,
-            align(&left.view,   ui.align.center),
-            align(&top.view,    ui.align.top),
-            align(&spacer,      ui.align.center),
-            align(&bottom.view, ui.align.bottom),
-            align(&right.view,  ui.align.center),
+            align(&left,   ui.align.center),
+            align(&top,    ui.align.top),
+            align(&spacer, ui.align.center),
+            align(&bottom, ui.align.bottom),
+            align(&right,  ui.align.center),
         null),
     null);
     span.paint  = ui_view.debug_paint;
@@ -213,8 +213,8 @@ static void span_test(ui_view_t* parent) {
         it->font    = &ui_app.fonts.H1;
 //      traceln("%s 0x%02X", it->text, it->align);
     });
-    top.view.max_h = 0;
-    bottom.view.max_h = 0;
+    top.max_h = 0;
+    bottom.max_h = 0;
 }
 
 static void list_test(ui_view_t* parent) {
@@ -227,11 +227,11 @@ static void list_test(ui_view_t* parent) {
     static ui_label_t bottom       = ui_label(0, " bottom ");
     ui_view.add(&test,
         ui_view.add(&list,
-            align(&top.view,          ui.align.center),
-            align(&left.view,         ui.align.left),
-            align(&spacer,            ui.align.center),
-            align(&right.view,        ui.align.right),
-            align(&bottom.view,       ui.align.center),
+            align(&top,    ui.align.center),
+            align(&left,   ui.align.left),
+            align(&spacer, ui.align.center),
+            align(&right,  ui.align.right),
+            align(&bottom, ui.align.center),
         null),
     null);
     list.paint  = ui_view.debug_paint;
@@ -248,7 +248,7 @@ static void list_test(ui_view_t* parent) {
         it->max_w   = ui.infinity;
         it->font    = &ui_app.fonts.H1;
     });
-    left.view.max_w = 0;
-    right.view.max_w = 0;
+    left.max_w = 0;
+    right.max_w = 0;
 }
 

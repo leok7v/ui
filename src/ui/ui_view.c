@@ -226,8 +226,8 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
     if (start && ui_app.animating.view == null && view->hint[0] != 0 &&
        !ui_view.is_hidden(view)) {
-        ui_view_show_hint(view, &hint.view);
-    } else if (!start && ui_app.animating.view == &hint.view) {
+        ui_view_show_hint(view, &hint);
+    } else if (!start && ui_app.animating.view == &hint) {
         ui_app.show_tooltip(null, -1, -1, 0);
     }
 }
@@ -379,12 +379,12 @@ static void ui_view_layout_children(ui_view_t* view) {
 static void ui_view_hover_changed(ui_view_t* view) {
     if (!view->hidden) {
         if (!view->hover) {
-            view->hover_at = 0;
+            view->hover_when = 0;
             ui_view.hovering(view, false); // cancel hover
         } else {
             swear(ui_view_hover_delay >= 0);
-            if (view->hover_at >= 0) {
-                view->hover_at = ui_app.now + ui_view_hover_delay;
+            if (view->hover_when >= 0) {
+                view->hover_when = ui_app.now + ui_view_hover_delay;
             }
         }
     }
@@ -447,8 +447,8 @@ static bool ui_view_context_menu(ui_view_t* view) {
 static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
     if (!view->hidden) {
-        if (view->hover_at > 0 && ui_app.now > view->hover_at) {
-            view->hover_at = -1; // "already called"
+        if (view->hover_when > 0 && ui_app.now > view->hover_when) {
+            view->hover_when = -1; // "already called"
             ui_view.hovering(view, true);
         }
     }

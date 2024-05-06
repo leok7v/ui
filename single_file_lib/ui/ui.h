@@ -967,12 +967,14 @@ typedef struct ui_view_s {
     bool disabled;  // mouse, keyboard, key_up/down not called on disabled
     bool focusable; // can be target for keyboard focus
     bool flat;      // no-border appearance of views
-    fp64_t  hover_at;    // time in seconds when to call hovered()
+    bool highlightable; // paint highlight rectangle when hover over label
+    fp64_t  hover_when;    // time in seconds when to call hovered()
     ui_color_t color;      // interpretation depends on ui element type
     ui_color_t background; // interpretation depends on ui element type
     ui_font_t* font;
     int32_t baseline;  // font ascent; descent = height - baseline
     int32_t descent;   // font descent
+    int32_t label_dy;  // vertical shift down (to line up baselines of diff fonts)
     char    hint[256]; // tooltip hint text (to be shown while hovering over view)
 } ui_view_t;
 
@@ -1110,28 +1112,27 @@ extern layouts_if layouts;
 #include "ut/ut_std.h"
 
 
-typedef struct ui_label_s {
-    ui_view_t view;
-    bool editable;  // can be edited
-    bool highlight; // paint with highlight color
-    bool hovered;   // paint highlight rectangle when hover over
-    bool label;     // do not copy text to clipboard, do not highlight
-    int32_t dy;     // vertical shift down (to line up baselines of diff fonts)
-} ui_label_t;
+typedef ui_view_t ui_label_t;
 
-// do not call ui_label_init_ use ui_label() instead
 void ui_view_init_label(ui_view_t* view);
 
-#define ui_label(min_width_em, s) {                                    \
-      .view = { .type = ui_view_label, .init = ui_view_init_label,     \
-                .font = &ui_app.fonts.regular, .min_w_em = min_width_em,  \
-                .text = s }                                            \
+#define ui_label(min_width_em, s) {                             \
+      .type = ui_view_label, .init = ui_view_init_label,        \
+      .font = &ui_app.fonts.regular, .min_w_em = min_width_em,  \
+      .text = s                                                 \
 }
 
-// single line of text with "&" keyboard shortcuts:
+// text with "&" keyboard shortcuts:
 
 void ui_label_init(ui_label_t* t, fp32_t min_w_em, const char* format, ...);
 void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_list vl);
+
+// use this macro for initilizization:
+//    ui_label_t label = ui_label(min_width_em, s);
+// or:
+//    label = (ui_label_t)ui_label(min_width_em, s);
+// which is subtle C difference of constant and
+// variable initialization and I did not find universal way
 
 // _______________________________ ui_button.h ________________________________
 
@@ -1145,22 +1146,22 @@ void ui_view_init_button(ui_view_t* view);
 void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     void (*callback)(ui_button_t* b));
 
-#define static_ui_button(name, s, min_width_em, ...)          \
-    static void name ## _callback(ui_button_t* name) {        \
-        (void)name; /* no warning if unused */                \
-        { __VA_ARGS__ }                                       \
-    }                                                         \
-    static                                                    \
-    ui_button_t name = {                                      \
-        .type = ui_view_button, .init = ui_view_init_button,  \
+#define static_ui_button(name, s, min_width_em, ...)             \
+    static void name ## _callback(ui_button_t* name) {           \
+        (void)name; /* no warning if unused */                   \
+        { __VA_ARGS__ }                                          \
+    }                                                            \
+    static                                                       \
+    ui_button_t name = {                                         \
+        .type = ui_view_button, .init = ui_view_init_button,     \
         .font = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-        .text = s, .callback = name ## _callback              \
+        .text = s, .callback = name ## _callback                 \
     }
 
-#define ui_button(s, min_width_em, call_back) {           \
-    .type = ui_view_button, .init = ui_view_init_button,  \
+#define ui_button(s, min_width_em, call_back) {              \
+    .type = ui_view_button, .init = ui_view_init_button,     \
     .font = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-    .text = s, .callback = call_back }                    \
+    .text = s, .callback = call_back }                       \
 
 // usage:
 //
@@ -2840,7 +2841,7 @@ static void ui_app_create_window(const ui_rect_t r) {
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
     not_null(ui_app.window);
     assert(window == ui_app_window()); (void)window;
-    strprintf(ui_caption.title.view.text, "%s", ui_app.title);
+    strprintf(ui_caption.title.text, "%s", ui_app.title);
     not_null(GetSystemMenu(ui_app_window(), false));
     ui_app.dpi.window = GetDpiForWindow(ui_app_window());
 //  traceln("ui_app.dpi.window=%d", ui_app.dpi.window);
@@ -3045,9 +3046,9 @@ static void ui_app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
 
 static void ui_app_formatted_toast_va(fp64_t timeout, const char* format, va_list vl) {
     ui_app_show_toast(null, 0);
-    static ui_label_t txt;
-    ui_label_init_va(&txt, 0.0, format, vl);
-    ui_app_show_toast(&txt.view, timeout);
+    static ui_label_t label;
+    ui_label_init_va(&label, 0.0, format, vl);
+    ui_app_show_toast(&label, timeout);
 }
 
 static void ui_app_formatted_toast(fp64_t timeout, const char* format, ...) {
@@ -3208,7 +3209,7 @@ static void ui_app_bring_to_front(void) {
 }
 
 static void ui_app_set_title(const char* title) {
-    strprintf(ui_caption.title.view.text, "%s", title);
+    strprintf(ui_caption.title.text, "%s", title);
     fatal_if_false(SetWindowTextA(ui_app_window(), title));
     if (!ui_caption.view.hidden) { ui_app.layout(); }
 }
@@ -5791,85 +5792,81 @@ ui_gdi_if ui_gdi = {
 
 #include "ut/ut.h"
 
-static void ui_label_paint(ui_view_t* view) {
-    assert(view->type == ui_view_label);
-    assert(!view->hidden);
-    ui_label_t* t = (ui_label_t*)view;
+static void ui_label_paint(ui_view_t* v) {
+    assert(v->type == ui_view_label);
+    assert(!v->hidden);
     // at later stages of layout text height can grow:
-    ui_gdi.push(view->x, view->y + t->dy);
-    ui_font_t f = *view->font;
+    ui_gdi.push(v->x, v->y + v->label_dy);
+    ui_font_t f = *v->font;
     ui_gdi.set_font(f);
-//  traceln("%s h=%d dy=%d baseline=%d", view->text, view->h, t->dy, view->baseline);
-    ui_color_t c = view->hover && t->highlight && !t->label ?
-        ui_colors.text_highlight : view->color;
+//  traceln("%s h=%d dy=%d baseline=%d", v->text, v->h,
+//          v->label_dy, v->baseline);
+    ui_color_t c = v->hover && v->highlightable ?
+        ui_colors.text_highlight : v->color;
     ui_gdi.set_text_color(c);
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
-    bool multiline = strchr(t->view.text, '\n') != null;
+    bool multiline = strchr(v->text, '\n') != null;
     if (!multiline) {
-        ui_gdi.text("%s", ui_view.nls(view));
+        ui_gdi.text("%s", ui_view.nls(v));
     } else {
-        int32_t w = (int32_t)(view->min_w_em * view->em.x + 0.5);
-        ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
+        int32_t w = (int32_t)(v->min_w_em * v->em.x + 0.5);
+        ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(v));
     }
-    if (view->hover && t->hovered && !t->label) {
+    if (v->hover && !v->flat && v->highlightable) {
         ui_gdi.set_colored_pen(ui_colors.btn_hover_highlight);
         ui_gdi.set_brush(ui_gdi.brush_hollow);
-        int32_t cr = view->em.y / 4; // corner radius
-        int32_t h = multiline ? view->h : view->baseline + view->descent;
-        ui_gdi.rounded(view->x - cr, view->y + t->dy, view->w + 2 * cr,
-            h, cr, cr);
+        int32_t cr = v->em.y / 4; // corner radius
+        int32_t h = multiline ? v->h : v->baseline + v->descent;
+        ui_gdi.rounded(v->x - cr, v->y + v->label_dy,
+                       v->w + 2 * cr, h, cr, cr);
     }
     ui_gdi.pop();
 }
 
-static void ui_label_context_menu(ui_view_t* view) {
-    assert(view->type == ui_view_label);
-    ui_label_t* t = (ui_label_t*)view;
-    if (!t->label && !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        ut_clipboard.put_text(ui_view.nls(view));
+static void ui_label_context_menu(ui_view_t* v) {
+    assert(v->type == ui_view_label);
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        ut_clipboard.put_text(ui_view.nls(v));
         static bool first_time = true;
-        ui_app.toast(first_time ? 1.1 : 0.25,
+        ui_app.toast(first_time ? 2.2 : 0.5,
             ut_nls.str("Text copied to clipboard"));
         first_time = false;
     }
 }
 
-static void ui_label_character(ui_view_t* view, const char* utf8) {
-    assert(view->type == ui_view_label);
-    ui_label_t* t = (ui_label_t*)view;
-    if (view->hover && !t->label &&
-       !ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
+static void ui_label_character(ui_view_t* v, const char* utf8) {
+    assert(v->type == ui_view_label);
+    if (v->hover && !ui_view.is_hidden(v)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {
-            ut_clipboard.put_text(ui_view.nls(view)); // 3 is ASCII for Ctrl+C
+            ut_clipboard.put_text(ui_view.nls(v)); // 3 is ASCII for Ctrl+C
         }
     }
 }
 
-void ui_view_init_label(ui_view_t* view) {
-    static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
-    assert(view->type == ui_view_label);
-    ui_view_init(view);
-    view->color = ui_colors.text;
-    view->paint = ui_label_paint;
-    view->character = ui_label_character;
-    view->context_menu = ui_label_context_menu;
+void ui_view_init_label(ui_view_t* v) {
+    assert(v->type == ui_view_label);
+    ui_view_init(v);
+    v->color = ui_colors.text;
+    v->paint = ui_label_paint;
+    v->character = ui_label_character;
+    v->context_menu = ui_label_context_menu;
 }
 
-void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_list vl) {
-    static_assert(offsetof(ui_label_t, view) == 0, "offsetof(.view)");
-    ut_str.format_va(t->view.text, countof(t->view.text), format, vl);
-    t->view.min_w_em = min_w_em;
-    t->view.type = ui_view_label;
-    ui_view_init_label(&t->view);
+void ui_label_init_va(ui_label_t* v, fp32_t min_w_em,
+        const char* format, va_list vl) {
+    ut_str.format_va(v->text, countof(v->text), format, vl);
+    v->min_w_em = min_w_em;
+    v->type = ui_view_label;
+    ui_view_init_label(v);
 }
 
-void ui_label_init(ui_label_t* t, fp32_t min_w_em, const char* format, ...) {
+void ui_label_init(ui_label_t* v, fp32_t min_w_em, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_label_init_va(t, min_w_em, format, vl);
+    ui_label_init_va(v, min_w_em, format, vl);
     va_end(vl);
 }
 // _______________________________ ui_layout.c ________________________________
@@ -5953,9 +5950,10 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
             ui_view_for_each(view, c, {
                 if (!c->hidden) {
                     c->h = r->h; // all cells are same height
+                    // TODO: label_dy needs to be transfered to containers
+                    //       ratinale: labels and buttons baselines must align
                     if (c->type == ui_view_label) { // lineup text baselines
-                        ui_label_t* t = (ui_label_t*)c;
-                        t->dy = r->baseline - c->baseline;
+                        c->label_dy = r->baseline - c->baseline;
                     }
                     c->w = mxw[i++];
                     r->w += c->w;
@@ -6073,15 +6071,15 @@ static void ui_mbx_measure(ui_view_t* view) {
     int32_t n = 0;
     ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
-    if (mx->label.view.measure != null) {
-        mx->label.view.measure(&mx->label.view);
+    if (mx->label.measure != null) {
+        mx->label.measure(&mx->label);
     } else {
-        ui_view.measure(&mx->label.view);
+        ui_view.measure(&mx->label);
     }
-    const int32_t em_x = mx->label.view.em.x;
-    const int32_t em_y = mx->label.view.em.y;
-    const int32_t tw = mx->label.view.w;
-    const int32_t th = mx->label.view.h;
+    const int32_t em_x = mx->label.em.x;
+    const int32_t em_y = mx->label.em.y;
+    const int32_t tw = mx->label.w;
+    const int32_t th = mx->label.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
@@ -6101,18 +6099,18 @@ static void ui_mbx_layout(ui_view_t* view) {
     int32_t n = 0;
     ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
-    const int32_t em_y = mx->label.view.em.y;
-    mx->label.view.x = view->x;
-    mx->label.view.y = view->y + em_y * 2 / 3;
-    const int32_t tw = mx->label.view.w;
-    const int32_t th = mx->label.view.h;
+    const int32_t em_y = mx->label.em.y;
+    mx->label.x = view->x;
+    mx->label.y = view->y + em_y * 2 / 3;
+    const int32_t tw = mx->label.w;
+    const int32_t th = mx->label.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
             bw += mx->button[i].w;
         }
         // center text:
-        mx->label.view.x = view->x + (view->w - tw) / 2;
+        mx->label.x = view->x + (view->w - tw) / 2;
         // spacing between buttons:
         int32_t sp = (view->w - bw) / (n + 1);
         int32_t x = sp;
@@ -6140,7 +6138,7 @@ void ui_view_init_mbx(ui_view_t* view) {
     swear(n <= countof(mx->button), "inhumane: %d buttons", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
     ui_label_init(&mx->label, 0.0, "%s", mx->view.text);
-    ui_view.add_last(&mx->view, &mx->label.view);
+    ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);
         mx->button[i].font = mx->view.font;
@@ -6148,8 +6146,8 @@ void ui_view_init_mbx(ui_view_t* view) {
         // TODO: remove assert below
         assert(mx->button[i].parent == &mx->view);
     }
-    mx->label.view.font = mx->view.font;
-    ui_view.localize(&mx->label.view);
+    mx->label.font = mx->view.font;
+    ui_view.localize(&mx->label);
     mx->view.text[0] = 0;
     mx->option = -1;
 }
@@ -6936,8 +6934,8 @@ static void ui_view_hovering(ui_view_t* view, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
     if (start && ui_app.animating.view == null && view->hint[0] != 0 &&
        !ui_view.is_hidden(view)) {
-        ui_view_show_hint(view, &hint.view);
-    } else if (!start && ui_app.animating.view == &hint.view) {
+        ui_view_show_hint(view, &hint);
+    } else if (!start && ui_app.animating.view == &hint) {
         ui_app.show_tooltip(null, -1, -1, 0);
     }
 }
@@ -7089,12 +7087,12 @@ static void ui_view_layout_children(ui_view_t* view) {
 static void ui_view_hover_changed(ui_view_t* view) {
     if (!view->hidden) {
         if (!view->hover) {
-            view->hover_at = 0;
+            view->hover_when = 0;
             ui_view.hovering(view, false); // cancel hover
         } else {
             swear(ui_view_hover_delay >= 0);
-            if (view->hover_at >= 0) {
-                view->hover_at = ui_app.now + ui_view_hover_delay;
+            if (view->hover_when >= 0) {
+                view->hover_when = ui_app.now + ui_view_hover_delay;
             }
         }
     }
@@ -7157,8 +7155,8 @@ static bool ui_view_context_menu(ui_view_t* view) {
 static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
     if (!view->hidden) {
-        if (view->hover_at > 0 && ui_app.now > view->hover_at) {
-            view->hover_at = -1; // "already called"
+        if (view->hover_when > 0 && ui_app.now > view->hover_when) {
+            view->hover_when = -1; // "already called"
             ui_view.hovering(view, true);
         }
     }

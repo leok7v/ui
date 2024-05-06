@@ -11,22 +11,22 @@ void ui_view_init_button(ui_view_t* view);
 void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     void (*callback)(ui_button_t* b));
 
-#define static_ui_button(name, s, min_width_em, ...)          \
-    static void name ## _callback(ui_button_t* name) {        \
-        (void)name; /* no warning if unused */                \
-        { __VA_ARGS__ }                                       \
-    }                                                         \
-    static                                                    \
-    ui_button_t name = {                                      \
-        .type = ui_view_button, .init = ui_view_init_button,  \
+#define static_ui_button(name, s, min_width_em, ...)             \
+    static void name ## _callback(ui_button_t* name) {           \
+        (void)name; /* no warning if unused */                   \
+        { __VA_ARGS__ }                                          \
+    }                                                            \
+    static                                                       \
+    ui_button_t name = {                                         \
+        .type = ui_view_button, .init = ui_view_init_button,     \
         .font = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-        .text = s, .callback = name ## _callback              \
+        .text = s, .callback = name ## _callback                 \
     }
 
-#define ui_button(s, min_width_em, call_back) {           \
-    .type = ui_view_button, .init = ui_view_init_button,  \
+#define ui_button(s, min_width_em, call_back) {              \
+    .type = ui_view_button, .init = ui_view_init_button,     \
     .font = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-    .text = s, .callback = call_back }                    \
+    .text = s, .callback = call_back }                       \
 
 // usage:
 //

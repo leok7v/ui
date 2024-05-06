@@ -84,12 +84,14 @@ typedef struct ui_view_s {
     bool disabled;  // mouse, keyboard, key_up/down not called on disabled
     bool focusable; // can be target for keyboard focus
     bool flat;      // no-border appearance of views
-    fp64_t  hover_at;    // time in seconds when to call hovered()
+    bool highlightable; // paint highlight rectangle when hover over label
+    fp64_t  hover_when;    // time in seconds when to call hovered()
     ui_color_t color;      // interpretation depends on ui element type
     ui_color_t background; // interpretation depends on ui element type
     ui_font_t* font;
     int32_t baseline;  // font ascent; descent = height - baseline
     int32_t descent;   // font descent
+    int32_t label_dy;  // vertical shift down (to line up baselines of diff fonts)
     char    hint[256]; // tooltip hint text (to be shown while hovering over view)
 } ui_view_t;
 
