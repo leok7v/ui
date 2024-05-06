@@ -5,24 +5,24 @@ static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_view.measure(v);
     ui_slider_t* r = (ui_slider_t*)v;
-    assert(r->inc.w == r->inc.w && r->inc.h == r->inc.h);
+    assert(r->inc.w == r->dec.w && r->inc.h == r->dec.h);
     const int32_t em = v->em.x;
     ui_font_t f = v->font != null ? *v->font : app.fonts.regular;
     const int32_t w = (int)(v->min_w_em * v->em.x);
     r->tm = gdi.measure_text(f, ui_view.nls(v), r->value_max);
     if (w > r->tm.x) { r->tm.x = w; }
-    v->w = r->inc.w + r->tm.x + r->inc.w + em * 2;
+    v->w = r->dec.w + r->tm.x + r->inc.w + em * 2;
     v->h = r->inc.h;
 }
 
 static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* r = (ui_slider_t*)v;
-    assert(r->inc.w == r->inc.w && r->inc.h == r->inc.h);
+    assert(r->inc.w == r->dec.w && r->inc.h == r->dec.h);
     const int32_t em = v->em.x;
-    r->inc.x = v->x;
-    r->inc.y = v->y;
-    r->inc.x = v->x + r->inc.w + r->tm.x + em * 2;
+    r->dec.x = v->x;
+    r->dec.y = v->y;
+    r->inc.x = v->x + r->dec.w + r->tm.x + em * 2;
     r->inc.y = v->y;
 }
 
@@ -40,7 +40,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_pen_t pen_grey45 = gdi.create_pen(ui_colors.dkgray3, em16);
     gdi.set_pen(pen_grey45);
     gdi.set_brush_color(ui_colors.dkgray3);
-    const int32_t x = v->x + r->inc.w + em2;
+    const int32_t x = v->x + r->dec.w + em2;
     const int32_t y = v->y;
     const int32_t w = r->tm.x + em;
     const int32_t h = v->h;
@@ -55,7 +55,7 @@ static void ui_slider_paint(ui_view_t* v) {
     const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
     fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->value_min) / range;
     gdi.rect(x, v->y, (int32_t)(vw + 0.5), v->h);
-    gdi.x += r->inc.w + em;
+    gdi.x += r->dec.w + em;
     const char* format = nls.str(v->text);
     gdi.text(format, r->value);
     gdi.set_clip(0, 0, 0, 0);
@@ -72,7 +72,7 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
         if (message == ui.message.left_button_pressed ||
             message == ui.message.right_button_pressed || drag) {
-            const int32_t x = app.mouse.x - v->x - r->inc.w;
+            const int32_t x = app.mouse.x - v->x - r->dec.w;
             const int32_t y = app.mouse.y - v->y;
             const int32_t x0 = v->em.x / 2;
             const int32_t x1 = r->tm.x + v->em.x;
@@ -123,13 +123,13 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
     ui_slider_t* r = (ui_slider_t*)v;
     if (r->view.hidden || r->view.disabled) {
         r->time = 0;
-    } else if (!r->inc.armed && !r->dec.armed) {
+    } else if (!r->dec.armed && !r->inc.armed) {
         r->time = 0;
     } else {
         if (r->time == 0) {
             r->time = app.now;
         } else if (app.now - r->time > 1.0) {
-            const int32_t sign = r->inc.armed ? -1 : +1;
+            const int32_t sign = r->dec.armed ? -1 : +1;
             int32_t s = (int)(app.now - r->time + 0.5);
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
             const int64_t range = (int64_t)r->value_max - r->value_min;
@@ -154,15 +154,16 @@ void ui_view_init_slider(ui_view_t* v) {
     // Heavy Plus Sign
     ui_button_init(&s->inc, "\xE2\x9E\x95", 0, ui_slider_inc_dec);
     static const char* accel =
-        "Accelerate by holding Ctrl x10 Shift x100 and Ctrl+Shift x1000";
-    strprintf(s->inc.tip, "%s", accel);
-    strprintf(s->inc.tip, "%s", accel);
+        " Hold key while clicking\n Ctrl: x 10 Shift: x 100 \n Ctrl+Shift: x 1000 \n for step multiplier.";
+    strprintf(s->inc.hint, "%s", accel);
+    strprintf(s->dec.hint, "%s", accel);
     ui_view.add(&s->view, &s->dec, &s->inc, null);
     ui_view.localize(&s->view);
 }
 
 void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
-    int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* v)) {
+        int32_t value_min, int32_t value_max,
+        void (*callback)(ui_view_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
     s->view.type = ui_view_slider;

@@ -733,6 +733,18 @@ extern gdi_t gdi;
 // https://www.compart.com/en/unicode/U+2796
 #define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
 
+// Heavy Plus Sign
+// https://www.compart.com/en/unicode/U+2795
+#define ui_glyph_heavy_plus_sign                        "\xE2\x9E\x95"
+
+// Heavy Multiplication X
+// https://www.compart.com/en/unicode/U+2716
+#define ui_glyph_heavy_multiplication_x                 "\xE2\x9C\x96"
+
+// Multiplication Sign
+// https://www.compart.com/en/unicode/U+00D7
+#define ui_glyph_multiplication_sign                    "\xC3\x97"
+
 // Trigram For Heaven (caption menu button)
 // https://www.compart.com/en/unicode/U+2630
 #define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
@@ -939,9 +951,9 @@ typedef struct ui_view_s {
     ui_color_t color;      // interpretation depends on ui element type
     ui_color_t background; // interpretation depends on ui element type
     ui_font_t* font;
-    int32_t baseline; // font ascent; descent = height - baseline
-    int32_t descent;  // font descent
-    char    tip[256]; // tooltip text
+    int32_t baseline;  // font ascent; descent = height - baseline
+    int32_t descent;   // font descent
+    char    hint[256]; // tooltip hint text (to be shown while hovering over view)
 } ui_view_t;
 
 // tap() / press() APIs guarantee that single tap() is not coming
@@ -1131,8 +1143,8 @@ typedef ui_view_t ui_button_t;
 
 void ui_view_init_button(ui_view_t* view);
 
-void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
-    void (*cb)(ui_button_t* b));
+void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
+    void (*callback)(ui_button_t* b));
 
 #define static_ui_button(name, s, min_width_em, ...)          \
     static void name ## _callback(ui_button_t* name) {        \
@@ -1266,7 +1278,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .value_min = vmn, .value_max = vmx, .value = vmn,                 \
     }
 
-#define ui_slider(s, min_width_em, vmn, vmx, call_back) (ui_slider_t) {   \
+#define ui_slider(s, min_width_em, vmn, vmx, call_back) {                 \
     .view = { .type = ui_view_slider, .font = &app.fonts.regular,         \
         .min_w_em = min_width_em, .text = s, .init = ui_view_init_slider, \
         .callback = call_back                                             \
@@ -1283,14 +1295,14 @@ typedef struct ui_mbx_s ui_mbx_t;
 
 typedef struct ui_mbx_s {
     ui_view_t view;
-    void (*cb)(ui_mbx_t* m, int32_t option); // callback -1 on cancel
+    void (*choice)(ui_mbx_t* m, int32_t option); // callback -1 on cancel
     ui_label_t text;
     ui_button_t button[16];
     int32_t option; // -1 or option chosen by user
-    const char** opts;
+    const char** options;
 } ui_mbx_t;
 
-void ui_mbx_init_(ui_view_t* view);
+void ui_view_init_mbx(ui_view_t* view);
 
 void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     void (*cb)(ui_mbx_t* m, int32_t option), const char* format, ...);
@@ -1305,16 +1317,19 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[],
     }                                                            \
     static                                                       \
     ui_mbx_t name = {                                            \
-        .view = { .type = ui_view_mbx, .init = ui_mbx_init_,     \
-        .font = &app.fonts.regular, .text = s},                  \
-    .opts = name ## _options, .cb = name ## _callback }
+        .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
+                  .font = &app.fonts.regular, .text = s          \
+                },                                               \
+        .options = name ## _options, .choice = name ## _callback \
+    }
 
-
-#define ui_mbx(s, callback, ...) {                       \
-    .view = { .type = ui_view_mbx, .init = ui_mbx_init_, \
-              .font = &app.fonts.regular, .text = s},    \
-    .opts = (const char*[]){ __VA_ARGS__, null },        \
-    .cb = callback }
+#define ui_mbx(s, callback, ...) {                           \
+    .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
+              .font = &app.fonts.regular, .text = s          \
+    },                                                       \
+    .options = (const char*[]){ __VA_ARGS__, null },         \
+    .choice = callback                                       \
+}
 
 // _______________________________ ui_caption.h _______________________________
 
@@ -2227,7 +2242,7 @@ static void app_toast_paint(void) {
                 // micro "close" toast button:
                 gdi.x = app.animating.view->x + app.animating.view->w;
                 gdi.y = 0;
-                gdi.text("\xC3\x97"); // Heavy Multiplication X
+                gdi.text("%s", ui_glyph_multiplication_sign);
             }
         }
         gdi.pop();
@@ -2237,7 +2252,7 @@ static void app_toast_paint(void) {
 static void app_toast_cancel(void) {
     if (app.animating.view != null && app.animating.view->type == ui_view_mbx) {
         ui_mbx_t* mx = (ui_mbx_t*)app.animating.view;
-        if (mx->option < 0 && mx->cb != null) { mx->cb(mx, -1); }
+        if (mx->option < 0 && mx->choice != null) { mx->choice(mx, -1); }
     }
     app.animating.step = 0;
     app.animating.view = null;
@@ -2421,12 +2436,20 @@ static void app_window_position_changed(const WINDOWPOS* wp) {
 
 static void app_setting_change(uintptr_t wp, uintptr_t lp) {
 #ifdef APP_THEME_EXPERIMENT
-    if (strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
+    // wp: SPI_SETWORKAREA ... SPI_SETDOCKMOVING
+    //     SPI_GETACTIVEWINDOWTRACKING ... SPI_SETGESTUREVISUALIZATION
+    if (lp != 0 && strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
         wcscmp((const wchar_t*)lp, L"ImmersiveColorSet") == 0) {
+        // expected:
+        // SPI_SETICONTITLELOGFONT 0x22 ?
+        // SPI_SETNONCLIENTMETRICS 0x2A ?
+        traceln("wp: 0x%08X", wp);
+        // actual wp == 0x0000
         ui_theme.refresh(app.window);
     }
 #endif
     if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
+        traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         wchar_t ln[LOCALE_NAME_MAX_LENGTH + 1];
         int32_t n = GetUserDefaultLocaleName(ln, countof(ln));
         fatal_if_false(n > 0);
@@ -2996,7 +3019,6 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         ui_view.localize(view);
         app_animate_start(app_toast_dim, app_animation_steps);
         app.animating.view = view;
-        app.animating.view->font = &app.fonts.H2;
         app.animating.time = timeout > 0 ? app.now + timeout : 0;
     } else {
         app_toast_cancel();
@@ -3960,6 +3982,10 @@ ui_caption_t ui_caption =  {
 enum {
     _colors_white     = ui_rgb(255, 255, 255),
     _colors_off_white = ui_rgb(192, 192, 192),
+    _colors_dkgray0   = ui_rgb(16, 16, 16),
+    _colors_dkgray1   = ui_rgb(30, 30, 30),
+    _colors_dkgray2   = ui_rgb(37, 38, 38),
+    _colors_dkgray3   = ui_rgb(45, 45, 48),
     _colors_dkgray4   = ui_rgb(63, 63, 70),
     _colors_blue_highlight = ui_rgb(128, 128, 255)
 };
@@ -3976,9 +4002,9 @@ ui_colors_t ui_colors = {
     .cyan             = ui_rgb(0,   255, 255),
     .magenta          = ui_rgb(255,   0, 255),
     .gray             = ui_rgb(128, 128, 128),
-    .dkgray1          = ui_rgb(30, 30, 30),
-    .dkgray2          = ui_rgb(37, 38, 38),
-    .dkgray3          = ui_rgb(45, 45, 48),
+    .dkgray1          = _colors_dkgray1,
+    .dkgray2          = _colors_dkgray2,
+    .dkgray3          = _colors_dkgray3,
     .dkgray4          = _colors_dkgray4,
     // tone down RGB colors:
     .tone_white       = ui_rgb(164, 164, 164),
@@ -4015,13 +4041,13 @@ ui_colors_t ui_colors = {
     .blue_highlight      = _colors_blue_highlight,
     .off_white           = _colors_off_white,
 
-    .btn_gradient_darker = ui_rgb(16, 16, 16),
+    .btn_gradient_darker = _colors_dkgray0,
     .btn_gradient_dark   = _colors_dkgray4,
     .btn_hover_highlight = _colors_blue_highlight,
     .btn_disabled        = _colors_dkgray4,
     .btn_armed           = _colors_white,
     .btn_text            = _colors_off_white,
-    .toast               = ui_rgb(8, 40, 24), // toast background
+    .toast               = _colors_dkgray3, // ui_rgb(8, 40, 24), // toast background
 
     /* Main Panel Backgrounds */
     .charcoal                   = ui_rgb( 54,  69,  79), // 0x36454F
@@ -6030,7 +6056,7 @@ static void ui_mbx_button(ui_button_t* b) {
     for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
         if (b == &mx->button[i]) {
             mx->option = i;
-            mx->cb(mx, i);
+            mx->choice(mx, i);
         }
     }
     app.show_toast(null, 0);
@@ -6093,17 +6119,17 @@ static void ui_mbx_layout(ui_view_t* view) {
     }
 }
 
-void ui_mbx_init_(ui_view_t* view) {
+void ui_view_init_mbx(ui_view_t* view) {
     assert(view->type == ui_view_mbx);
     ui_mbx_t* mx = (ui_mbx_t*)view;
     ui_view_init(view);
     view->measure = ui_mbx_measure;
     view->layout  = ui_mbx_layout;
     mx->view.font = &app.fonts.H3;
-    const char** opts = mx->opts;
+    const char** options = mx->options;
     int32_t n = 0;
-    while (opts[n] != null && n < countof(mx->button) - 1) {
-        ui_button_init(&mx->button[n], opts[n], 6.0, ui_mbx_button);
+    while (options[n] != null && n < countof(mx->button) - 1) {
+        ui_button_init(&mx->button[n], options[n], 6.0, ui_mbx_button);
         n++;
     }
     swear(n <= countof(mx->button), "inhumane: %d buttons", n);
@@ -6123,20 +6149,20 @@ void ui_mbx_init_(ui_view_t* view) {
     mx->option = -1;
 }
 
-void ui_mbx_init(ui_mbx_t* mx, const char* opts[],
-        void (*cb)(ui_mbx_t* m, int32_t option),
+void ui_mbx_init(ui_mbx_t* mx, const char* options[],
+        void (*choice)(ui_mbx_t* m, int32_t option),
         const char* format, ...) {
     mx->view.type = ui_view_mbx;
     mx->view.measure = ui_mbx_measure;
     mx->view.layout  = ui_mbx_layout;
-    mx->opts = opts;
-    mx->cb = cb;
+    mx->options = options;
+    mx->choice  = choice;
     va_list vl;
     va_start(vl, format);
     ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
     ui_label_init(&mx->text, 0.0, mx->view.text);
     va_end(vl);
-    ui_mbx_init_(&mx->view);
+    ui_view_init_mbx(&mx->view);
 }
 // _________________________________ ui_nls.c _________________________________
 
@@ -6330,24 +6356,24 @@ static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_view.measure(v);
     ui_slider_t* r = (ui_slider_t*)v;
-    assert(r->inc.w == r->inc.w && r->inc.h == r->inc.h);
+    assert(r->inc.w == r->dec.w && r->inc.h == r->dec.h);
     const int32_t em = v->em.x;
     ui_font_t f = v->font != null ? *v->font : app.fonts.regular;
     const int32_t w = (int)(v->min_w_em * v->em.x);
     r->tm = gdi.measure_text(f, ui_view.nls(v), r->value_max);
     if (w > r->tm.x) { r->tm.x = w; }
-    v->w = r->inc.w + r->tm.x + r->inc.w + em * 2;
+    v->w = r->dec.w + r->tm.x + r->inc.w + em * 2;
     v->h = r->inc.h;
 }
 
 static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* r = (ui_slider_t*)v;
-    assert(r->inc.w == r->inc.w && r->inc.h == r->inc.h);
+    assert(r->inc.w == r->dec.w && r->inc.h == r->dec.h);
     const int32_t em = v->em.x;
-    r->inc.x = v->x;
-    r->inc.y = v->y;
-    r->inc.x = v->x + r->inc.w + r->tm.x + em * 2;
+    r->dec.x = v->x;
+    r->dec.y = v->y;
+    r->inc.x = v->x + r->dec.w + r->tm.x + em * 2;
     r->inc.y = v->y;
 }
 
@@ -6365,7 +6391,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_pen_t pen_grey45 = gdi.create_pen(ui_colors.dkgray3, em16);
     gdi.set_pen(pen_grey45);
     gdi.set_brush_color(ui_colors.dkgray3);
-    const int32_t x = v->x + r->inc.w + em2;
+    const int32_t x = v->x + r->dec.w + em2;
     const int32_t y = v->y;
     const int32_t w = r->tm.x + em;
     const int32_t h = v->h;
@@ -6380,7 +6406,7 @@ static void ui_slider_paint(ui_view_t* v) {
     const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
     fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->value_min) / range;
     gdi.rect(x, v->y, (int32_t)(vw + 0.5), v->h);
-    gdi.x += r->inc.w + em;
+    gdi.x += r->dec.w + em;
     const char* format = nls.str(v->text);
     gdi.text(format, r->value);
     gdi.set_clip(0, 0, 0, 0);
@@ -6397,7 +6423,7 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
         if (message == ui.message.left_button_pressed ||
             message == ui.message.right_button_pressed || drag) {
-            const int32_t x = app.mouse.x - v->x - r->inc.w;
+            const int32_t x = app.mouse.x - v->x - r->dec.w;
             const int32_t y = app.mouse.y - v->y;
             const int32_t x0 = v->em.x / 2;
             const int32_t x1 = r->tm.x + v->em.x;
@@ -6448,13 +6474,13 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
     ui_slider_t* r = (ui_slider_t*)v;
     if (r->view.hidden || r->view.disabled) {
         r->time = 0;
-    } else if (!r->inc.armed && !r->dec.armed) {
+    } else if (!r->dec.armed && !r->inc.armed) {
         r->time = 0;
     } else {
         if (r->time == 0) {
             r->time = app.now;
         } else if (app.now - r->time > 1.0) {
-            const int32_t sign = r->inc.armed ? -1 : +1;
+            const int32_t sign = r->dec.armed ? -1 : +1;
             int32_t s = (int)(app.now - r->time + 0.5);
             int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
             const int64_t range = (int64_t)r->value_max - r->value_min;
@@ -6479,15 +6505,16 @@ void ui_view_init_slider(ui_view_t* v) {
     // Heavy Plus Sign
     ui_button_init(&s->inc, "\xE2\x9E\x95", 0, ui_slider_inc_dec);
     static const char* accel =
-        "Accelerate by holding Ctrl x10 Shift x100 and Ctrl+Shift x1000";
-    strprintf(s->inc.tip, "%s", accel);
-    strprintf(s->inc.tip, "%s", accel);
+        " Hold key while clicking\n Ctrl: x 10 Shift: x 100 \n Ctrl+Shift: x 1000 \n for step multiplier.";
+    strprintf(s->inc.hint, "%s", accel);
+    strprintf(s->dec.hint, "%s", accel);
     ui_view.add(&s->view, &s->dec, &s->inc, null);
     ui_view.localize(&s->view);
 }
 
 void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
-    int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* v)) {
+        int32_t value_min, int32_t value_max,
+        void (*callback)(ui_view_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
     s->view.type = ui_view_slider;
@@ -7065,18 +7092,33 @@ static void ui_view_localize(ui_view_t* view) {
     }
 }
 
+static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
+    ui_view_call_init(hint);
+    strprintf(hint->text, "%s", nls.str(v->hint));
+    if (hint->measure != null) {
+        hint->measure(hint);
+    } else {
+        ui_view.measure(hint);
+    }
+    int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.x / 4;
+    int32_t y = v->y + v->h + v->em.y / 2 + hint->em.y / 4;
+//  traceln("mouse %d,%d xy: %d,%d view: %d,%d %dx%d hint: %d,%d %dx%d",
+//          app.mouse.x, app.mouse.y, x, y,
+//          v->x, v->y, v->w, v->h, hint->x, hint->y, hint->w, hint->h);
+    if (x + hint->w > app.crc.w) { x = app.crc.w - hint->w - hint->em.x / 2; }
+    if (x < 0) { x = hint->em.x / 2; }
+    if (y + hint->h > app.crc.h) { y = app.crc.h - hint->h - hint->em.y / 2; }
+    if (y < 0) { y = hint->em.y / 2; }
+    // show_tooltip will center horizontally
+    app.show_tooltip(hint, x + hint->w / 2, y, 0);
+}
+
 static void ui_view_hovering(ui_view_t* view, bool start) {
-    static ui_label_t btn_tooltip = ui_label(0.0, "");
-    if (start && app.animating.view == null && view->tip[0] != 0 &&
+    static ui_label_t hint = ui_label(0.0, "");
+    if (start && app.animating.view == null && view->hint[0] != 0 &&
        !ui_view.is_hidden(view)) {
-        strprintf(btn_tooltip.view.text, "%s", nls.str(view->tip));
-        btn_tooltip.view.font = &app.fonts.H1;
-        int32_t y = app.mouse.y - view->em.y;
-        // enough space above? if not show below
-        if (y < view->em.y) { y = app.mouse.y + view->em.y * 3 / 2; }
-        y = ut_min(app.crc.h - view->em.y * 3 / 2, ut_max(0, y));
-        app.show_tooltip(&btn_tooltip.view, app.mouse.x, y, 0);
-    } else if (!start && app.animating.view == &btn_tooltip.view) {
+        ui_view_show_hint(view, &hint.view);
+    } else if (!start && app.animating.view == &hint.view) {
         app.show_tooltip(null, -1, -1, 0);
     }
 }

@@ -8,7 +8,7 @@ static void ui_mbx_button(ui_button_t* b) {
     for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
         if (b == &mx->button[i]) {
             mx->option = i;
-            mx->cb(mx, i);
+            mx->choice(mx, i);
         }
     }
     app.show_toast(null, 0);
@@ -71,17 +71,17 @@ static void ui_mbx_layout(ui_view_t* view) {
     }
 }
 
-void ui_mbx_init_(ui_view_t* view) {
+void ui_view_init_mbx(ui_view_t* view) {
     assert(view->type == ui_view_mbx);
     ui_mbx_t* mx = (ui_mbx_t*)view;
     ui_view_init(view);
     view->measure = ui_mbx_measure;
     view->layout  = ui_mbx_layout;
     mx->view.font = &app.fonts.H3;
-    const char** opts = mx->opts;
+    const char** options = mx->options;
     int32_t n = 0;
-    while (opts[n] != null && n < countof(mx->button) - 1) {
-        ui_button_init(&mx->button[n], opts[n], 6.0, ui_mbx_button);
+    while (options[n] != null && n < countof(mx->button) - 1) {
+        ui_button_init(&mx->button[n], options[n], 6.0, ui_mbx_button);
         n++;
     }
     swear(n <= countof(mx->button), "inhumane: %d buttons", n);
@@ -101,18 +101,18 @@ void ui_mbx_init_(ui_view_t* view) {
     mx->option = -1;
 }
 
-void ui_mbx_init(ui_mbx_t* mx, const char* opts[],
-        void (*cb)(ui_mbx_t* m, int32_t option),
+void ui_mbx_init(ui_mbx_t* mx, const char* options[],
+        void (*choice)(ui_mbx_t* m, int32_t option),
         const char* format, ...) {
     mx->view.type = ui_view_mbx;
     mx->view.measure = ui_mbx_measure;
     mx->view.layout  = ui_mbx_layout;
-    mx->opts = opts;
-    mx->cb = cb;
+    mx->options = options;
+    mx->choice  = choice;
     va_list vl;
     va_start(vl, format);
     ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
     ui_label_init(&mx->text, 0.0, mx->view.text);
     va_end(vl);
-    ui_mbx_init_(&mx->view);
+    ui_view_init_mbx(&mx->view);
 }

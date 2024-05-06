@@ -4,6 +4,10 @@
 enum {
     _colors_white     = ui_rgb(255, 255, 255),
     _colors_off_white = ui_rgb(192, 192, 192),
+    _colors_dkgray0   = ui_rgb(16, 16, 16),
+    _colors_dkgray1   = ui_rgb(30, 30, 30),
+    _colors_dkgray2   = ui_rgb(37, 38, 38),
+    _colors_dkgray3   = ui_rgb(45, 45, 48),
     _colors_dkgray4   = ui_rgb(63, 63, 70),
     _colors_blue_highlight = ui_rgb(128, 128, 255)
 };
@@ -20,9 +24,9 @@ ui_colors_t ui_colors = {
     .cyan             = ui_rgb(0,   255, 255),
     .magenta          = ui_rgb(255,   0, 255),
     .gray             = ui_rgb(128, 128, 128),
-    .dkgray1          = ui_rgb(30, 30, 30),
-    .dkgray2          = ui_rgb(37, 38, 38),
-    .dkgray3          = ui_rgb(45, 45, 48),
+    .dkgray1          = _colors_dkgray1,
+    .dkgray2          = _colors_dkgray2,
+    .dkgray3          = _colors_dkgray3,
     .dkgray4          = _colors_dkgray4,
     // tone down RGB colors:
     .tone_white       = ui_rgb(164, 164, 164),
@@ -59,13 +63,13 @@ ui_colors_t ui_colors = {
     .blue_highlight      = _colors_blue_highlight,
     .off_white           = _colors_off_white,
 
-    .btn_gradient_darker = ui_rgb(16, 16, 16),
+    .btn_gradient_darker = _colors_dkgray0,
     .btn_gradient_dark   = _colors_dkgray4,
     .btn_hover_highlight = _colors_blue_highlight,
     .btn_disabled        = _colors_dkgray4,
     .btn_armed           = _colors_white,
     .btn_text            = _colors_off_white,
-    .toast               = ui_rgb(8, 40, 24), // toast background
+    .toast               = _colors_dkgray3, // ui_rgb(8, 40, 24), // toast background
 
     /* Main Panel Backgrounds */
     .charcoal                   = ui_rgb( 54,  69,  79), // 0x36454F

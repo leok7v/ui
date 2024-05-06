@@ -88,9 +88,9 @@ typedef struct ui_view_s {
     ui_color_t color;      // interpretation depends on ui element type
     ui_color_t background; // interpretation depends on ui element type
     ui_font_t* font;
-    int32_t baseline; // font ascent; descent = height - baseline
-    int32_t descent;  // font descent
-    char    tip[256]; // tooltip text
+    int32_t baseline;  // font ascent; descent = height - baseline
+    int32_t descent;   // font descent
+    char    hint[256]; // tooltip hint text (to be shown while hovering over view)
 } ui_view_t;
 
 // tap() / press() APIs guarantee that single tap() is not coming

@@ -201,18 +201,33 @@ static void ui_view_localize(ui_view_t* view) {
     }
 }
 
+static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
+    ui_view_call_init(hint);
+    strprintf(hint->text, "%s", nls.str(v->hint));
+    if (hint->measure != null) {
+        hint->measure(hint);
+    } else {
+        ui_view.measure(hint);
+    }
+    int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.x / 4;
+    int32_t y = v->y + v->h + v->em.y / 2 + hint->em.y / 4;
+    traceln("mouse %d,%d xy: %d,%d view: %d,%d %dx%d hint: %d,%d %dx%d",
+            app.mouse.x, app.mouse.y, x, y,
+            v->x, v->y, v->w, v->h, hint->x, hint->y, hint->w, hint->h);
+    if (x + hint->w > app.crc.w) { x = app.crc.w - hint->w - hint->em.x / 2; }
+    if (x < 0) { x = hint->em.x / 2; }
+    if (y + hint->h > app.crc.h) { y = app.crc.h - hint->h - hint->em.y / 2; }
+    if (y < 0) { y = hint->em.y / 2; }
+    // show_tooltip will center horizontally
+    app.show_tooltip(hint, x + hint->w / 2, y, 0);
+}
+
 static void ui_view_hovering(ui_view_t* view, bool start) {
-    static ui_label_t btn_tooltip = ui_label(0.0, "");
-    if (start && app.animating.view == null && view->tip[0] != 0 &&
+    static ui_label_t hint = ui_label(0.0, "");
+    if (start && app.animating.view == null && view->hint[0] != 0 &&
        !ui_view.is_hidden(view)) {
-        strprintf(btn_tooltip.view.text, "%s", nls.str(view->tip));
-        btn_tooltip.view.font = &app.fonts.H1;
-        int32_t y = app.mouse.y - view->em.y;
-        // enough space above? if not show below
-        if (y < view->em.y) { y = app.mouse.y + view->em.y * 3 / 2; }
-        y = ut_min(app.crc.h - view->em.y * 3 / 2, ut_max(0, y));
-        app.show_tooltip(&btn_tooltip.view, app.mouse.x, y, 0);
-    } else if (!start && app.animating.view == &btn_tooltip.view) {
+        ui_view_show_hint(view, &hint.view);
+    } else if (!start && app.animating.view == &hint.view) {
         app.show_tooltip(null, -1, -1, 0);
     }
 }

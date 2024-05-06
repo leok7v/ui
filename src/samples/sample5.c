@@ -363,7 +363,7 @@ static void opened(void) {
     scaled_fonts();
     ui_view.add(app.view, &left, &right, &bottom, null);
     text.view.font = &app.fonts.mono;
-    strprintf(fuzz.tip, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
+    strprintf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);
         edit[i]->view.font = &pf;

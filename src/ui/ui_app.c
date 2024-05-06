@@ -667,7 +667,7 @@ static void app_toast_paint(void) {
                 // micro "close" toast button:
                 gdi.x = app.animating.view->x + app.animating.view->w;
                 gdi.y = 0;
-                gdi.text("\xC3\x97"); // Heavy Multiplication X
+                gdi.text("%s", ui_glyph_multiplication_sign);
             }
         }
         gdi.pop();
@@ -677,7 +677,7 @@ static void app_toast_paint(void) {
 static void app_toast_cancel(void) {
     if (app.animating.view != null && app.animating.view->type == ui_view_mbx) {
         ui_mbx_t* mx = (ui_mbx_t*)app.animating.view;
-        if (mx->option < 0 && mx->cb != null) { mx->cb(mx, -1); }
+        if (mx->option < 0 && mx->choice != null) { mx->choice(mx, -1); }
     }
     app.animating.step = 0;
     app.animating.view = null;
@@ -861,12 +861,20 @@ static void app_window_position_changed(const WINDOWPOS* wp) {
 
 static void app_setting_change(uintptr_t wp, uintptr_t lp) {
 #ifdef APP_THEME_EXPERIMENT
-    if (strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
+    // wp: SPI_SETWORKAREA ... SPI_SETDOCKMOVING
+    //     SPI_GETACTIVEWINDOWTRACKING ... SPI_SETGESTUREVISUALIZATION
+    if (lp != 0 && strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
         wcscmp((const wchar_t*)lp, L"ImmersiveColorSet") == 0) {
+        // expected:
+        // SPI_SETICONTITLELOGFONT 0x22 ?
+        // SPI_SETNONCLIENTMETRICS 0x2A ?
+        traceln("wp: 0x%08X", wp);
+        // actual wp == 0x0000
         ui_theme.refresh(app.window);
     }
 #endif
     if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
+        traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         wchar_t ln[LOCALE_NAME_MAX_LENGTH + 1];
         int32_t n = GetUserDefaultLocaleName(ln, countof(ln));
         fatal_if_false(n > 0);
@@ -1436,7 +1444,6 @@ static void app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         ui_view.localize(view);
         app_animate_start(app_toast_dim, app_animation_steps);
         app.animating.view = view;
-        app.animating.view->font = &app.fonts.H2;
         app.animating.time = timeout > 0 ? app.now + timeout : 0;
     } else {
         app_toast_cancel();

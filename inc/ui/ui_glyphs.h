@@ -17,6 +17,18 @@
 // https://www.compart.com/en/unicode/U+2796
 #define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
 
+// Heavy Plus Sign
+// https://www.compart.com/en/unicode/U+2795
+#define ui_glyph_heavy_plus_sign                        "\xE2\x9E\x95"
+
+// Heavy Multiplication X
+// https://www.compart.com/en/unicode/U+2716
+#define ui_glyph_heavy_multiplication_x                 "\xE2\x9C\x96"
+
+// Multiplication Sign
+// https://www.compart.com/en/unicode/U+00D7
+#define ui_glyph_multiplication_sign                    "\xC3\x97"
+
 // Trigram For Heaven (caption menu button)
 // https://www.compart.com/en/unicode/U+2630
 #define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"

@@ -120,7 +120,7 @@ static void opened(void) {
     gdi.image_init(&image[1], app.crc.w, app.crc.h, 4, pixels[1]);
     thread = ut_thread.start(renderer, null);
     request_rendering();
-    strprintf(button_fs.tip, "&Full Screen");
+    strprintf(button_fs.hint, "&Full Screen");
     button_fs.shortcut = 'F';
 }
 

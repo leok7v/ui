@@ -8,8 +8,8 @@ typedef ui_view_t ui_button_t;
 
 void ui_view_init_button(ui_view_t* view);
 
-void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
-    void (*cb)(ui_button_t* b));
+void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
+    void (*callback)(ui_button_t* b));
 
 #define static_ui_button(name, s, min_width_em, ...)          \
     static void name ## _callback(ui_button_t* name) {        \

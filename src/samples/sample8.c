@@ -45,6 +45,11 @@ static void toggle_test_list(ui_button_t* b) {
     list_test(&test);
 }
 
+static void slider_callback(ui_view_t* v) {
+    ui_slider_t* slider = (ui_slider_t*)v;
+    traceln("value: %d", slider->value);
+}
+
 static ui_mbx_t mbx = ui_mbx( // message box
     "Orange frames represent container, span, or list\n"
     "components. Green frames indicate padding for\n"
@@ -77,14 +82,16 @@ static void toggle_about(ui_button_t* unused(b)) {
     app.show_toast(&mbx.view, 10.0);
 }
 
+
 static void opened(void) {
     static ui_view_t list = ui_view(list);
     static ui_view_t span = ui_view(span);
     static ui_view_t tools = ui_view(list);
-    static ui_button_t test_container = ui_button("&Container", 7.0, toggle_test_container);
-    static ui_button_t test_span = ui_button("&Span", 7.0, toggle_test_span);
-    static ui_button_t test_list = ui_button("&List", 7.0, toggle_test_list);
-    static ui_button_t about     = ui_button("About", 7.0, toggle_about);
+    static ui_button_t test_container = ui_button("&Container", 8.0, toggle_test_container);
+    static ui_button_t test_span      = ui_button("&Span",      8.0, toggle_test_span);
+    static ui_button_t test_list      = ui_button("&List",      8.0, toggle_test_list);
+    static ui_button_t about          = ui_button("&About",     8.0, toggle_about);
+    static ui_slider_t slider         = ui_slider("%d", 2.5, 0, 3, slider_callback);
     ui_view.add(app.view,
         ui_view.add(&list,
             &ui_caption,
@@ -95,6 +102,7 @@ static void opened(void) {
                     &test_span,
                     &test_list,
                     &about,
+                    &slider,
                 null),
             null),
         null),
@@ -119,9 +127,11 @@ static void opened(void) {
     strprintf(tools.text, "%s", "tools");
 //  tools.paint = ui_view.debug_paint;
     ui_view_for_each(&tools, it, {
+        it->align = ui.align.left;
         it->padding = (ui_gaps_t){ .left = 0.5,  .top = 0.25,
                                    .right = 0.5, .bottom = 0.25 };
     });
+strprintf(test_container.hint, "Shows ui_view(container) layout\nResizing Window will allow\ntoo see how it behaves");
     toggle_test_container(&test_container);
 }
 

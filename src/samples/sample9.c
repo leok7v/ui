@@ -1,6 +1,7 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
+#include "i18n.h"
 
 #define TITLE "Sample9"
 
@@ -40,13 +41,16 @@ static ui_slider_t zoomer;
 #define glyph_right       "\xE2\x86\x92" // "ShortRightArrow"
 #define glyph_down        "\xE2\x86\x93" // "ShortDownArrow"
 
-static ui_label_t text_single_line = ui_label(0.0, "Mandelbrot Explorer");
 
 static ui_label_t toast_filename = ui_label(0.0, "filename placeholder");
 
-static ui_label_t text_multiline = ui_label(19.0, "Click inside or +/- to zoom;\n"
+static ui_label_t label_single_line = ui_label(0.0, "Mandelbrot Explorer");
+
+static ui_label_t label_multiline = ui_label(19.0,
+    "Click inside or +/- to zoom;\n"
     "right mouse click to zoom out;\nuse "
-    "touchpad or keyboard " glyph_left glyph_up glyph_down glyph_right
+    "touchpad or keyboard "
+    glyph_left glyph_up glyph_down glyph_right
     " to pan");
 
 static ui_label_t about = ui_label(34.56f,
@@ -60,7 +64,9 @@ static ui_label_t about = ui_label(34.56f,
     "dialog and on-the-fly locale switching for simple and possibly "
     "incorrect Simplified Chinese localization."
     "\n\n"
-    "Press ESC or click the \xC3\x97 button in right top corner "
+    "Press ESC or click the "
+    ui_glyph_multiplication_sign
+    " button in right top corner "
     "to dismiss this message or just wait - it will disappear by "
     "itself in 10 seconds.\n");
 
@@ -123,6 +129,9 @@ static_ui_button(button_full_screen, glyph_two_squares, 1, {
 static void flip_locale(ui_button_t* b) {
     b->pressed = !b->pressed;
     nls.set_locale(b->pressed ? "zh-CN" : "en-US");
+    // TODO: label_multiline does not get localized automatically.
+    //       investigate why... (comment out next line and put some printfs around)
+    ui_view.localize(&label_multiline.view);
     app.layout(); // because center panel layout changed
 }
 
@@ -224,8 +233,8 @@ static void right_paint(ui_view_t* view) {
     gdi.y = button_full_screen.y;
     gdi.println(app.is_full_screen ? nls.str("Restore from &Full Screen") :
         nls.str("&Full Screen"));
-    gdi.x = text_multiline.view.x;
-    gdi.y = text_multiline.view.y + text_multiline.view.h + ut_max(1, em.y / 4);
+    gdi.x = label_multiline.view.x;
+    gdi.y = label_multiline.view.y + label_multiline.view.h + ut_max(1, em.y / 4);
     gdi.textln(nls.str("Proportional"));
     gdi.println(nls.str("Monospaced"));
     ui_font_t font = gdi.set_font(app.fonts.H1);
@@ -403,11 +412,13 @@ static void opened(void) {
     init_panel(&panel_bottom, "bottom", ui_colors.tone_blue, panel_paint);
     init_panel(&panel_right,  "right",  ui_colors.tone_green, right_paint);
     panel_right.layout = right_layout;
-    text_single_line.highlight = true;
-    text_multiline.highlight = true;
-    text_multiline.hovered = true;
-    strprintf(text_multiline.view.tip, "%s",
+    label_single_line.highlight = true;
+    label_multiline.highlight = true;
+    label_multiline.hovered = true;
+    strprintf(label_multiline.view.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
+    strprintf(label_multiline.view.text, "%s",
+        nls.string(str_help, label_multiline.view.text));
     toast_filename.view.font = &app.fonts.H1;
     about.view.font = &app.fonts.H3;
     button_locale.shortcut = 'l';
@@ -416,11 +427,11 @@ static void opened(void) {
     ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
         zoomer_callback);
 #else
-    zoomer = ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
+    zoomer = (ui_slider_t)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
         zoomer_callback);
 #endif
-    strcopy(button_mbx.tip, "Show Yes/No message box");
-    strcopy(button_about.tip, "Show About message box");
+    strcopy(button_mbx.hint, "Show Yes/No message box");
+    strcopy(button_about.hint, "Show About message box");
     ui_view.add(&panel_right,
         &button_locale,
         &button_full_screen,
@@ -429,8 +440,8 @@ static void opened(void) {
         &button_open_file,
         &button_about,
         &button_mbx,
-        &text_single_line,
-        &text_multiline,
+        &label_single_line,
+        &label_multiline,
         null
     );
     ui_view.add(app.view,
