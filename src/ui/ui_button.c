@@ -13,7 +13,7 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 static void ui_button_paint(ui_view_t* view) {
     assert(view->type == ui_view_button);
     assert(!view->hidden);
-    gdi.push(view->x, view->y);
+    ui_gdi.push(view->x, view->y);
     bool pressed = (view->armed ^ view->pressed) == 0;
     if (view->armed_until != 0) { pressed = true; }
     int32_t sign = 1 - pressed * 2; // -1, +1
@@ -22,7 +22,7 @@ static void ui_button_paint(ui_view_t* view) {
     int32_t x = view->x + (int)pressed * view->w;
     int32_t y = view->y + (int)pressed * view->h;
     if (!view->flat || view->hover) {
-        gdi.gradient(x, y, w, h, ui_colors.btn_gradient_darker,
+        ui_gdi.gradient(x, y, w, h, ui_colors.btn_gradient_darker,
             ui_colors.btn_gradient_dark, true);
     }
     ui_color_t c = view->color;
@@ -34,28 +34,28 @@ static void ui_button_paint(ui_view_t* view) {
     if (view->disabled) { c = ui_colors.btn_disabled; }
     if (view->icon == null) {
         ui_font_t  f = *view->font;
-        ui_point_t m = gdi.measure_text(f, ui_view.nls(view));
-        gdi.set_text_color(c);
-        gdi.x = view->x + (view->w - m.x) / 2;
-        gdi.y = view->y + (view->h - m.y) / 2;
-        f = gdi.set_font(f);
-        gdi.text("%s", ui_view.nls(view));
-        gdi.set_font(f);
+        ui_point_t m = ui_gdi.measure_text(f, ui_view.nls(view));
+        ui_gdi.set_text_color(c);
+        ui_gdi.x = view->x + (view->w - m.x) / 2;
+        ui_gdi.y = view->y + (view->h - m.y) / 2;
+        f = ui_gdi.set_font(f);
+        ui_gdi.text("%s", ui_view.nls(view));
+        ui_gdi.set_font(f);
     } else {
-        gdi.draw_icon(view->x, view->y, view->w, view->h, view->icon);
+        ui_gdi.draw_icon(view->x, view->y, view->w, view->h, view->icon);
     }
     const int32_t pw = ut_max(1, view->em.y / 32); // pen width
     ui_color_t color = view->armed ? ui_colors.dkgray4 : ui_colors.gray;
     if (view->hover && !view->armed) { color = ui_colors.blue; }
     if (view->disabled) { color = ui_colors.dkgray1; }
     if (!view->flat) {
-        ui_pen_t p = gdi.create_pen(color, pw);
-        gdi.set_pen(p);
-        gdi.set_brush(gdi.brush_hollow);
-        gdi.rounded(view->x, view->y, view->w, view->h, view->em.y / 4, view->em.y / 4);
-        gdi.delete_pen(p);
+        ui_pen_t p = ui_gdi.create_pen(color, pw);
+        ui_gdi.set_pen(p);
+        ui_gdi.set_brush(ui_gdi.brush_hollow);
+        ui_gdi.rounded(view->x, view->y, view->w, view->h, view->em.y / 4, view->em.y / 4);
+        ui_gdi.delete_pen(p);
     }
-    gdi.pop();
+    ui_gdi.pop();
 }
 
 static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {

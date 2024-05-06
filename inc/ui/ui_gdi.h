@@ -6,16 +6,16 @@ begin_c
 // Graphic Device Interface (selected parts of Windows GDI)
 
 enum {  // TODO: ui_ namespace and into gdi int32_t const
-    gdi_font_quality_default = 0,
-    gdi_font_quality_draft = 1,
-    gdi_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
-    gdi_font_quality_nonantialiased = 3,
-    gdi_font_quality_antialiased = 4,
-    gdi_font_quality_cleartype = 5,
-    gdi_font_quality_cleartype_natural = 6
+    ui_gdi_font_quality_default = 0,
+    ui_gdi_font_quality_draft = 1,
+    ui_gdi_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
+    ui_gdi_font_quality_nonantialiased = 3,
+    ui_gdi_font_quality_antialiased = 4,
+    ui_gdi_font_quality_cleartype = 5,
+    ui_gdi_font_quality_cleartype_natural = 6
 };
 
-typedef struct gdi_s {  // TODO: ui_ namespace
+typedef struct {
     ui_brush_t  brush_color;
     ui_brush_t  brush_hollow;
     ui_pen_t pen_hollow;
@@ -43,10 +43,10 @@ typedef struct gdi_s {  // TODO: ui_ namespace
     void (*pop)(void); // also calls RestoreDC(-1, app.canvas)
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
     ui_point_t (*move_to)(int32_t x, int32_t y); // returns previous (x, y)
-    void (*line)(int32_t x, int32_t y); // line to x, y with gdi.pen moves x, y
-    void (*frame)(int32_t x, int32_t y, int32_t w, int32_t h); // gdi.pen only
-    void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h);  // gdi.pen & brush
-    void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h);  // gdi.brush only
+    void (*line)(int32_t x, int32_t y); // line to x, y with ui_gdi.pen moves x, y
+    void (*frame)(int32_t x, int32_t y, int32_t w, int32_t h); // ui_gdi.pen only
+    void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.pen & brush
+    void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.brush only
     void (*frame_with)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
     void (*rect_with)(int32_t x, int32_t y, int32_t w, int32_t h,
                       ui_color_t border, ui_color_t fill);
@@ -103,19 +103,19 @@ typedef struct gdi_s {  // TODO: ui_ namespace
     // proportional:
     void (*vtext)(const char* format, va_list vl); // x += width
     void (*text)(const char* format, ...);         // x += width
-    // gdi.y += height * line_spacing
+    // ui_gdi.y += height * line_spacing
     void (*vtextln)(const char* format, va_list vl);
     void (*textln)(const char* format, ...);
     // mono:
     void (*vprint)(const char* format,va_list vl); // x += width
     void (*print)(const char* format, ...);        // x += width
-    // gdi.y += height * line_spacing
+    // ui_gdi.y += height * line_spacing
     void (*vprintln)(const char* format, va_list vl);
     void (*println)(const char* format, ...);
-    // multiline(null, format, ...) only increments gdi.y
+    // multiline(null, format, ...) only increments ui_gdi.y
     ui_point_t (*multiline)(int32_t width, const char* format, ...);
-} gdi_t;
+} ui_gdi_if;
 
-extern gdi_t gdi;
+extern ui_gdi_if ui_gdi;
 
 end_c

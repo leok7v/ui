@@ -6,31 +6,31 @@ static void ui_label_paint(ui_view_t* view) {
     assert(!view->hidden);
     ui_label_t* t = (ui_label_t*)view;
     // at later stages of layout text height can grow:
-    gdi.push(view->x, view->y + t->dy);
+    ui_gdi.push(view->x, view->y + t->dy);
     ui_font_t f = *view->font;
-    gdi.set_font(f);
+    ui_gdi.set_font(f);
 //  traceln("%s h=%d dy=%d baseline=%d", view->text, view->h, t->dy, view->baseline);
     ui_color_t c = view->hover && t->highlight && !t->label ?
         ui_colors.text_highlight : view->color;
-    gdi.set_text_color(c);
+    ui_gdi.set_text_color(c);
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
     bool multiline = strchr(t->view.text, '\n') != null;
     if (!multiline) {
-        gdi.text("%s", ui_view.nls(view));
+        ui_gdi.text("%s", ui_view.nls(view));
     } else {
         int32_t w = (int)(view->min_w_em * view->em.x + 0.5);
-        gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
+        ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(view));
     }
     if (view->hover && t->hovered && !t->label) {
-        gdi.set_colored_pen(ui_colors.btn_hover_highlight);
-        gdi.set_brush(gdi.brush_hollow);
+        ui_gdi.set_colored_pen(ui_colors.btn_hover_highlight);
+        ui_gdi.set_brush(ui_gdi.brush_hollow);
         int32_t cr = view->em.y / 4; // corner radius
         int32_t h = multiline ? view->h : view->baseline + view->descent;
-        gdi.rounded(view->x - cr, view->y + t->dy, view->w + 2 * cr,
+        ui_gdi.rounded(view->x - cr, view->y + t->dy, view->w + 2 * cr,
             h, cr, cr);
     }
-    gdi.pop();
+    ui_gdi.pop();
 }
 
 static void ui_label_context_menu(ui_view_t* view) {

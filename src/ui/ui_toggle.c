@@ -2,22 +2,22 @@
 #include "ui/ui.h"
 
 static int ui_toggle_paint_on_off(ui_view_t* view) {
-    gdi.push(view->x, view->y);
+    ui_gdi.push(view->x, view->y);
     ui_color_t background = view->pressed ? ui_colors.tone_green : ui_colors.dkgray4;
     ui_color_t foreground = view->color;
-    gdi.set_text_color(background);
+    ui_gdi.set_text_color(background);
     int32_t x = view->x;
     int32_t x1 = view->x + view->em.x * 3 / 4;
     while (x < x1) {
-        gdi.x = x;
-        gdi.text("%s", ui_glyph_black_large_circle);
+        ui_gdi.x = x;
+        ui_gdi.text("%s", ui_glyph_black_large_circle);
         x++;
     }
-    int32_t rx = gdi.x;
-    gdi.set_text_color(foreground);
-    gdi.x = view->pressed ? x : view->x;
-    gdi.text("%s", ui_glyph_black_large_circle);
-    gdi.pop();
+    int32_t rx = ui_gdi.x;
+    ui_gdi.set_text_color(foreground);
+    ui_gdi.x = view->pressed ? x : view->x;
+    ui_gdi.text("%s", ui_glyph_black_large_circle);
+    ui_gdi.pop();
     return rx;
 }
 
@@ -40,13 +40,13 @@ static void ui_toggle_paint(ui_view_t* view) {
     assert(view->type == ui_view_toggle);
     char text[countof(view->text)];
     const char* label = ui_toggle_on_off_label(view, text, countof(text));
-    gdi.push(view->x, view->y);
+    ui_gdi.push(view->x, view->y);
     ui_font_t f = *view->font;
-    ui_font_t font = gdi.set_font(f);
-    gdi.x = ui_toggle_paint_on_off(view) + view->em.x * 3 / 4;
-    gdi.text("%s", label);
-    gdi.set_font(font);
-    gdi.pop();
+    ui_font_t font = ui_gdi.set_font(f);
+    ui_gdi.x = ui_toggle_paint_on_off(view) + view->em.x * 3 / 4;
+    ui_gdi.text("%s", label);
+    ui_gdi.set_font(font);
+    ui_gdi.pop();
 }
 
 static void ui_toggle_flip(ui_toggle_t* c) {

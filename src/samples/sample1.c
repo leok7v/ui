@@ -40,7 +40,7 @@ static void every_sec(ui_view_t* unused(view)) {
 }
 
 static void opened(void) {
-    font = gdi.create_font("Segoe Script", app.in2px(0.5), -1);
+    font = ui_gdi.create_font("Segoe Script", app.in2px(0.5), -1);
     app.view->every_sec = every_sec;
     label.view.font = &font;
     ui_view.add(app.view, &label, null);

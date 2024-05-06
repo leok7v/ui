@@ -13,19 +13,19 @@
 static void ui_caption_paint(ui_view_t* v) {
     // TODO: add app title label instead
     swear(v == &ui_caption.view);
-    gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
-    gdi.push(v->x, v->y);
+    ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    ui_gdi.push(v->x, v->y);
     if (v->text[0] != 0) {
         ui_font_t f = v->font != null ? *v->font : app.fonts.regular;
-        ui_point_t mt = gdi.measure_text(f, v->text);
-        gdi.x += (v->w - mt.x) / 2;
-        gdi.y += (v->h - mt.y) / 2;
-        gdi.set_text_color((ui_color_t)(v->color ^ 0xFFFFFF));
-        f = gdi.set_font(f);
-        gdi.text("%s", v->text);
-        gdi.set_font(f);
+        ui_point_t mt = ui_gdi.measure_text(f, v->text);
+        ui_gdi.x += (v->w - mt.x) / 2;
+        ui_gdi.y += (v->h - mt.y) / 2;
+        ui_gdi.set_text_color((ui_color_t)(v->color ^ 0xFFFFFF));
+        f = ui_gdi.set_font(f);
+        ui_gdi.text("%s", v->text);
+        ui_gdi.set_font(f);
     }
-    gdi.pop();
+    ui_gdi.pop();
 }
 
 static void ui_caption_toggle_full(void) {

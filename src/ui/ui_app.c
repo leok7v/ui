@@ -467,7 +467,7 @@ static void app_window_opening(void) {
     app.canvas = (ui_canvas_t)GetDC(app_window());
     not_null(app.canvas);
     if (app.opened != null) { app.opened(); }
-    app.view->em = gdi.get_em(*app.view->font);
+    app.view->em = ui_gdi.get_em(*app.view->font);
     strprintf(app.view->text, "app.view"); // debugging
     app_wm_timer(app_timer_100ms_id);
     app_wm_timer(app_timer_1s_id);
@@ -621,22 +621,22 @@ static void app_toast_paint(void) {
     static ui_image_t image;
     if (image.bitmap == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
-        gdi.image_init(&image, 1, 1, 3, pixels);
+        ui_gdi.image_init(&image, 1, 1, 3, pixels);
     }
     if (app.animating.view != null) {
         ui_font_t f = *app.animating.view->font;
-        const ui_point_t em = gdi.get_em(f);
+        const ui_point_t em = ui_gdi.get_em(f);
         app.animating.view->em = em;
         // allow unparented and unmeasured toasts:
         if (app.animating.view->measure != null) {
             app.animating.view->measure(app.animating.view);
         }
-        gdi.push(0, 0);
+        ui_gdi.push(0, 0);
         bool tooltip = app.animating.x >= 0 && app.animating.y >= 0;
         int32_t em_x = em.x;
         int32_t em_y = em.y;
-        gdi.set_brush(gdi.brush_color);
-        gdi.set_brush_color(ui_colors.toast);
+        ui_gdi.set_brush(ui_gdi.brush_color);
+        ui_gdi.set_brush_color(ui_colors.toast);
         if (!tooltip) {
             assert(0 <= app.animating.step && app.animating.step < app_animation_steps);
             int32_t step = app.animating.step - (app_animation_steps - 1);
@@ -645,7 +645,7 @@ static void app_toast_paint(void) {
 //                  app_toast_steps, app.animating.view->y);
             app_measure_and_layout(app.animating.view);
             fp64_t alpha = ut_min(0.40, 0.40 * app.animating.step / (fp64_t)app_animation_steps);
-            gdi.alpha_blend(0, 0, app.width, app.height, &image, alpha);
+            ui_gdi.alpha_blend(0, 0, app.width, app.height, &image, alpha);
             app.animating.view->x = (app.width - app.animating.view->w) / 2;
         } else {
             app.animating.view->x = app.animating.x;
@@ -659,18 +659,18 @@ static void app_toast_paint(void) {
         int32_t y = app.animating.view->y - em_y / 2;
         int32_t w = app.animating.view->w + em_x * 2;
         int32_t h = app.animating.view->h + em_y;
-        gdi.rounded(x, y, w, h, em_x, em_y);
+        ui_gdi.rounded(x, y, w, h, em_x, em_y);
         if (!tooltip) { app.animating.view->y += em_y / 4; }
         app_paint(app.animating.view);
         if (!tooltip) {
             if (app.animating.view->y == em_y / 4) {
                 // micro "close" toast button:
-                gdi.x = app.animating.view->x + app.animating.view->w;
-                gdi.y = 0;
-                gdi.text("%s", ui_glyph_multiplication_sign);
+                ui_gdi.x = app.animating.view->x + app.animating.view->w;
+                ui_gdi.y = 0;
+                ui_gdi.text("%s", ui_glyph_multiplication_sign);
             }
         }
-        gdi.pop();
+        ui_gdi.pop();
     }
 }
 
@@ -756,7 +756,7 @@ static void app_animate_start(app_animate_function_t f, int32_t steps) {
 static void app_view_paint(ui_view_t* v) {
     assert(v == app.view && v->x == 0 && v->y == 0);
     if (!ui_color_is_transparent(v->color)) {
-        gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     }
 }
 
@@ -781,37 +781,37 @@ static void ui_app_view_active_frame_paint(void) {
     ui_color_t c = app.is_active() ?
         ui_colors.blue_highlight : ui_colors.dkgray2;
 #endif
-    gdi.frame_with(0, 0, app.view->w - 0, app.view->h - 0, c);
+    ui_gdi.frame_with(0, 0, app.view->w - 0, app.view->h - 0, c);
 
 }
 
 static void app_paint_on_canvas(HDC hdc) {
     ui_canvas_t canvas = app.canvas;
     app.canvas = (ui_canvas_t)hdc;
-    gdi.push(0, 0);
+    ui_gdi.push(0, 0);
     fp64_t time = ut_clock.seconds();
-    gdi.x = 0;
-    gdi.y = 0;
+    ui_gdi.x = 0;
+    ui_gdi.y = 0;
     app_update_crc();
     if (app_layout_dirty) {
         app_layout_dirty = false;
         app_view_layout();
     }
-    ui_font_t font = gdi.set_font(app.fonts.regular);
-    ui_color_t c = gdi.set_text_color(ui_colors.text);
+    ui_font_t font = ui_gdi.set_font(app.fonts.regular);
+    ui_color_t c = ui_gdi.set_text_color(ui_colors.text);
     int32_t bm = SetBkMode(app_canvas(), TRANSPARENT);
     int32_t stretch_mode = SetStretchBltMode(app_canvas(), HALFTONE);
     ui_point_t pt = {0};
     fatal_if_false(SetBrushOrgEx(app_canvas(), 0, 0, (POINT*)&pt));
-    ui_brush_t br = gdi.set_brush(gdi.brush_hollow);
+    ui_brush_t br = ui_gdi.set_brush(ui_gdi.brush_hollow);
     app_paint(app.view);
     if (app.animating.view != null) { app_toast_paint(); }
     fatal_if_false(SetBrushOrgEx(app_canvas(), pt.x, pt.y, null));
     SetStretchBltMode(app_canvas(), stretch_mode);
     SetBkMode(app_canvas(), bm);
-    gdi.set_brush(br);
-    gdi.set_text_color(c);
-    gdi.set_font(font);
+    ui_gdi.set_brush(br);
+    ui_gdi.set_text_color(c);
+    ui_gdi.set_font(font);
     app.paint_count++;
     if (app.paint_count % 128 == 0) { app.paint_max = 0; }
     app.paint_time = ut_clock.seconds() - time;
@@ -825,7 +825,7 @@ static void app_paint_on_canvas(HDC hdc) {
     if (app.no_decor && !app.is_full_screen && !app.is_maximized()) {
         ui_app_view_active_frame_paint();
     }
-    gdi.pop();
+    ui_gdi.pop();
     app.canvas = canvas;
 }
 
@@ -1233,7 +1233,7 @@ static errno_t app_set_layered_window(ui_color_t color, float alpha) {
     if (color != ui_color_undefined) {
         mask |= LWA_COLORKEY;
         assert(ui_color_is_8bit(color));
-        c = gdi.color_rgb(color);
+        c = ui_gdi.color_rgb(color);
     }
     return b2e(SetLayeredWindowAttributes(app_window(), c, a, mask));
 }
@@ -1271,7 +1271,7 @@ static void app_create_window(const ui_rect_t r) {
     app.wrc = app_rect2ui(&wrc);
     // DWMWA_CAPTION_COLOR is supported starting with Windows 11 Build 22000.
     if (IsWindowsVersionOrGreater(10, 0, 22000)) {
-        COLORREF caption_color = (COLORREF)gdi.color_rgb(ui_colors.dkgray3);
+        COLORREF caption_color = (COLORREF)ui_gdi.color_rgb(ui_colors.dkgray3);
         fatal_if_not_zero(DwmSetWindowAttribute(app_window(),
             DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
         BOOL immersive = TRUE;
@@ -1403,7 +1403,7 @@ static int32_t app_message_loop(void) {
 
 static void app_dispose(void) {
     app_dispose_fonts();
-    if (gdi.clip != null) { DeleteRgn(gdi.clip); }
+    if (ui_gdi.clip != null) { DeleteRgn(ui_gdi.clip); }
     fatal_if_false(CloseHandle(app_event_quit));
     fatal_if_false(CloseHandle(app_event_invalidate));
 }
@@ -2031,7 +2031,7 @@ static ui_rect_t app_window_initial_rectangle(void) {
 static int app_win_main(void) {
     not_null(app.init);
     app_init_windows();
-    gdi.init();
+    ui_gdi.init();
     ut_clipboard.put_image = app_clipboard_put_image;
     app.last_visibility = ui.visibility.defau1t;
     app_init();

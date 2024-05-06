@@ -4,7 +4,7 @@
 
 static void opened(void) {
     static ui_font_t font;
-    font = gdi.create_font("Segoe Script", app.in2px(0.5), -1);
+    font = ui_gdi.create_font("Segoe Script", app.in2px(0.5), -1);
     static ui_label_t hello = ui_label(0.0, "Hello");
     hello.view.font = &font;
     app.set_layered_window(ui_colors.black, 0.90f);

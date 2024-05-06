@@ -430,7 +430,7 @@ static void ui_container_layout(ui_view_t* p) {
 
 static void ui_container_paint(ui_view_t* v) {
     if (!ui_color_is_transparent(v->color)) {
-        gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     }
 }
 

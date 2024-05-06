@@ -93,7 +93,7 @@ fn(int32_t, text_width)(ui_edit_t* e, const char* s, int32_t n) {
     // average measure_text() performance per character:
     // "app.fonts.mono"    ~500us (microseconds)
     // "app.fonts.regular" ~250us (microseconds)
-    int32_t x = n == 0 ? 0 : gdi.measure_text(*e->view.font, "%.*s", n, s).x;
+    int32_t x = n == 0 ? 0 : ui_gdi.measure_text(*e->view.font, "%.*s", n, s).x;
 //  time = (ut_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
 //  static fp64_t length_sum;
@@ -416,7 +416,7 @@ fn(void, set_font)(ui_edit_t* e, ui_font_t* f) {
     ns(dispose_paragraphs_layout)(e);
     e->scroll.rn = 0;
     e->view.font = f;
-    e->view.em = gdi.get_em(*f);
+    e->view.em = ui_gdi.get_em(*f);
     ns(layout_now)(e);
 }
 
@@ -594,11 +594,11 @@ fn(void, paint_selection)(ui_edit_t* e, const ui_edit_run_t* r,
             int32_t ofs1 = ns(gp_to_bytes)(text, r->bytes, to);
             int32_t x0 = ns(text_width)(e, text, ofs0);
             int32_t x1 = ns(text_width)(e, text, ofs1);
-            ui_brush_t b = gdi.set_brush(gdi.brush_color);
-            ui_color_t c = gdi.set_brush_color(ui_rgb(48, 64, 72));
-            gdi.fill(gdi.x + x0, gdi.y, x1 - x0, e->view.em.y);
-            gdi.set_brush_color(c);
-            gdi.set_brush(b);
+            ui_brush_t b = ui_gdi.set_brush(ui_gdi.brush_color);
+            ui_color_t c = ui_gdi.set_brush_color(ui_rgb(48, 64, 72));
+            ui_gdi.fill(ui_gdi.x + x0, ui_gdi.y, x1 - x0, e->view.em.y);
+            ui_gdi.set_brush_color(c);
+            ui_gdi.set_brush(b);
         }
     }
 }
@@ -607,12 +607,12 @@ fn(void, paint_paragraph)(ui_edit_t* e, int32_t pn) {
     int32_t runs = 0;
     const ui_edit_run_t* run = ns(paragraph_runs)(e, pn, &runs);
     for (int32_t j = ns(first_visible_run)(e, pn);
-                 j < runs && gdi.y < e->view.y + e->bottom; j++) {
+                 j < runs && ui_gdi.y < e->view.y + e->bottom; j++) {
         char* text = e->para[pn].text + run[j].bp;
-        gdi.x = e->view.x;
+        ui_gdi.x = e->view.x;
         ns(paint_selection)(e, &run[j], text, pn, run[j].gp, run[j].gp + run[j].glyphs);
-        gdi.text("%.*s", run[j].bytes, text);
-        gdi.y += e->view.em.y;
+        ui_gdi.text("%.*s", run[j].bytes, text);
+        ui_gdi.y += e->view.em.y;
     }
 }
 
@@ -1673,23 +1673,23 @@ fn(void, paint)(ui_view_t* view) {
     assert(view->type == ui_view_text);
     assert(!view->hidden);
     ui_edit_t* e = (ui_edit_t*)view;
-    gdi.push(view->x, view->y + e->top);
-    gdi.set_brush(gdi.brush_color);
-    gdi.set_brush_color(ui_rgb(20, 20, 14));
-    gdi.fill(view->x, view->y, view->w, view->h);
-    gdi.set_clip(view->x, view->y, view->w, view->h);
+    ui_gdi.push(view->x, view->y + e->top);
+    ui_gdi.set_brush(ui_gdi.brush_color);
+    ui_gdi.set_brush_color(ui_rgb(20, 20, 14));
+    ui_gdi.fill(view->x, view->y, view->w, view->h);
+    ui_gdi.set_clip(view->x, view->y, view->w, view->h);
     ui_font_t f = *view->font;
-    f = gdi.set_font(f);
-    gdi.set_text_color(view->color);
+    f = ui_gdi.set_font(f);
+    ui_gdi.set_text_color(view->color);
     const int32_t pn = e->scroll.pn;
     const int32_t bottom = view->y + e->bottom;
     assert(pn <= e->paragraphs);
-    for (int32_t i = pn; i < e->paragraphs && gdi.y < bottom; i++) {
+    for (int32_t i = pn; i < e->paragraphs && ui_gdi.y < bottom; i++) {
         ns(paint_paragraph)(e, i);
     }
-    gdi.set_font(f);
-    gdi.set_clip(0, 0, 0, 0);
-    gdi.pop();
+    ui_gdi.set_font(f);
+    ui_gdi.set_clip(0, 0, 0, 0);
+    ui_gdi.pop();
 }
 
 fn(void, move)(ui_edit_t* e, ui_edit_pg_t pg) {

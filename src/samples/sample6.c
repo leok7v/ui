@@ -71,31 +71,31 @@ static void paint(ui_view_t* view) {
         animation.x = (view->w - gif.w) / 2;
         animation.y = (view->h - gif.h) / 2;
     }
-    gdi.set_brush(gdi.brush_color);
-    gdi.set_brush_color(ui_colors.black);
-    gdi.fill(0, 0, view->w, view->h);
+    ui_gdi.set_brush(ui_gdi.brush_color);
+    ui_gdi.set_brush_color(ui_colors.black);
+    ui_gdi.fill(0, 0, view->w, view->h);
     int32_t w = ut_min(view->w, background.w);
     int32_t h = ut_min(view->h, background.h);
     int32_t x = (view->w - w) / 2;
     int32_t y = (view->h - h) / 2;
-    gdi.set_clip(0, 0, view->w, view->h);
-    gdi.draw_image(x, y, w, h, &background);
-    gdi.set_clip(0, 0, 0, 0);
+    ui_gdi.set_clip(0, 0, view->w, view->h);
+    ui_gdi.draw_image(x, y, w, h, &background);
+    ui_gdi.set_clip(0, 0, 0, 0);
     if (gif.pixels != null) {
         uint8_t* p = gif.pixels + gif.w * gif.h * gif.bpp * animation.index;
         ui_image_t frame = { 0 };
-        gdi.image_init(&frame, gif.w, gif.h, gif.bpp, p);
+        ui_gdi.image_init(&frame, gif.w, gif.h, gif.bpp, p);
         x = animation.x - gif.w / 2;
         y = animation.y - gif.h / 2;
-        gdi.alpha_blend(x, y, gif.w, gif.h, &frame, 1.0);
-        gdi.image_dispose(&frame);
+        ui_gdi.alpha_blend(x, y, gif.w, gif.h, &frame, 1.0);
+        ui_gdi.image_dispose(&frame);
     }
-    ui_font_t f = gdi.set_font(app.fonts.H1);
-    gdi.x = 0;
-    gdi.y = 0;
-    gdi.set_text_color(muted ? ui_colors.green : ui_colors.red);
-    gdi.text("%s", muted ? glyph_speaker : glyph_mute);
-    gdi.set_font(f);
+    ui_font_t f = ui_gdi.set_font(app.fonts.H1);
+    ui_gdi.x = 0;
+    ui_gdi.y = 0;
+    ui_gdi.set_text_color(muted ? ui_colors.green : ui_colors.red);
+    ui_gdi.text("%s", muted ? glyph_speaker : glyph_mute);
+    ui_gdi.set_font(f);
 }
 
 static void character(ui_view_t* unused(view), const char* utf8) {
@@ -105,7 +105,7 @@ static void character(ui_view_t* unused(view), const char* utf8) {
 }
 
 static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(f)) {
-    const ui_point_t em = gdi.get_em(app.fonts.H1);
+    const ui_point_t em = ui_gdi.get_em(app.fonts.H1);
     if ((m == ui.message.left_button_pressed ||
         m == ui.message.right_button_pressed) &&
         0 <= app.mouse.x && app.mouse.x < em.x &&
@@ -228,12 +228,12 @@ static void init(void) {
     int bpp = 0; // bytes (!) per pixel
     void* pixels = load_image(data, bytes, &w, &h, &bpp, 0);
     fatal_if_null(pixels);
-    gdi.image_init(&background, w, h, bpp, pixels);
+    ui_gdi.image_init(&background, w, h, bpp, pixels);
     free(pixels);
 }
 
 static void fini(void) {
-    gdi.image_dispose(&background);
+    ui_gdi.image_dispose(&background);
     free(gif.pixels);
     free(gif.delays);
     ut_event.set(animation.quit);

@@ -9,7 +9,7 @@ static void ui_slider_measure(ui_view_t* v) {
     const int32_t em = v->em.x;
     ui_font_t f = v->font != null ? *v->font : app.fonts.regular;
     const int32_t w = (int)(v->min_w_em * v->em.x);
-    r->tm = gdi.measure_text(f, ui_view.nls(v), r->value_max);
+    r->tm = ui_gdi.measure_text(f, ui_view.nls(v), r->value_max);
     if (w > r->tm.x) { r->tm.x = w; }
     v->w = r->dec.w + r->tm.x + r->inc.w + em * 2;
     v->h = r->inc.h;
@@ -29,39 +29,39 @@ static void ui_slider_layout(ui_view_t* v) {
 static void ui_slider_paint(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* r = (ui_slider_t*)v;
-    gdi.push(v->x, v->y);
-    gdi.set_clip(v->x, v->y, v->w, v->h);
+    ui_gdi.push(v->x, v->y);
+    ui_gdi.set_clip(v->x, v->y, v->w, v->h);
     const int32_t em = v->em.x;
     const int32_t em2  = ut_max(1, em / 2);
     const int32_t em4  = ut_max(1, em / 8);
     const int32_t em8  = ut_max(1, em / 8);
     const int32_t em16 = ut_max(1, em / 16);
-    gdi.set_brush(gdi.brush_color);
-    ui_pen_t pen_grey45 = gdi.create_pen(ui_colors.dkgray3, em16);
-    gdi.set_pen(pen_grey45);
-    gdi.set_brush_color(ui_colors.dkgray3);
+    ui_gdi.set_brush(ui_gdi.brush_color);
+    ui_pen_t pen_grey45 = ui_gdi.create_pen(ui_colors.dkgray3, em16);
+    ui_gdi.set_pen(pen_grey45);
+    ui_gdi.set_brush_color(ui_colors.dkgray3);
     const int32_t x = v->x + r->dec.w + em2;
     const int32_t y = v->y;
     const int32_t w = r->tm.x + em;
     const int32_t h = v->h;
-    gdi.rounded(x - em8, y, w + em4, h, em4, em4);
-    gdi.gradient(x, y, w, h / 2,
+    ui_gdi.rounded(x - em8, y, w + em4, h, em4, em4);
+    ui_gdi.gradient(x, y, w, h / 2,
         ui_colors.dkgray3, ui_colors.btn_gradient_darker, true);
-    gdi.gradient(x, y + h / 2, w, v->h - h / 2,
+    ui_gdi.gradient(x, y + h / 2, w, v->h - h / 2,
         ui_colors.btn_gradient_darker, ui_colors.dkgray3, true);
-    gdi.set_brush_color(ui_colors.dkgreen);
-    ui_pen_t pen_grey30 = gdi.create_pen(ui_colors.dkgray1, em16);
-    gdi.set_pen(pen_grey30);
+    ui_gdi.set_brush_color(ui_colors.dkgreen);
+    ui_pen_t pen_grey30 = ui_gdi.create_pen(ui_colors.dkgray1, em16);
+    ui_gdi.set_pen(pen_grey30);
     const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
     fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->value_min) / range;
-    gdi.rect(x, v->y, (int32_t)(vw + 0.5), v->h);
-    gdi.x += r->dec.w + em;
+    ui_gdi.rect(x, v->y, (int32_t)(vw + 0.5), v->h);
+    ui_gdi.x += r->dec.w + em;
     const char* format = nls.str(v->text);
-    gdi.text(format, r->value);
-    gdi.set_clip(0, 0, 0, 0);
-    gdi.delete_pen(pen_grey30);
-    gdi.delete_pen(pen_grey45);
-    gdi.pop();
+    ui_gdi.text(format, r->value);
+    ui_gdi.set_clip(0, 0, 0, 0);
+    ui_gdi.delete_pen(pen_grey30);
+    ui_gdi.delete_pen(pen_grey45);
+    ui_gdi.pop();
 }
 
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {

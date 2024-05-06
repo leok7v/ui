@@ -159,18 +159,18 @@ static const char* ui_view_nls(ui_view_t* view) {
 
 static void ui_view_measure(ui_view_t* view) {
     ui_font_t f = *view->font;
-    view->em = gdi.get_em(f);
-    view->baseline = gdi.baseline(f);
-    view->descent  = gdi.descent(f);
+    view->em = ui_gdi.get_em(f);
+    view->baseline = ui_gdi.baseline(f);
+    view->descent  = ui_gdi.descent(f);
     if (view->text[0] != 0) {
         view->w = (int32_t)(view->em.x * view->min_w_em + 0.5f);
         ui_point_t mt = { 0 };
         bool multiline = strchr(view->text, '\n') != null;
         if (view->type == ui_view_label && multiline) {
             int32_t w = (int)(view->min_w_em * view->em.x + 0.5f);
-            mt = gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
+            mt = ui_gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
-            mt = gdi.measure_text(f, ui_view.nls(view));
+            mt = ui_gdi.measure_text(f, ui_view.nls(view));
         }
         view->h = mt.y;
         view->w = ut_max(view->w, mt.x);
@@ -211,9 +211,9 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     }
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.x / 4;
     int32_t y = v->y + v->h + v->em.y / 2 + hint->em.y / 4;
-    traceln("mouse %d,%d xy: %d,%d view: %d,%d %dx%d hint: %d,%d %dx%d",
-            app.mouse.x, app.mouse.y, x, y,
-            v->x, v->y, v->w, v->h, hint->x, hint->y, hint->w, hint->h);
+//  traceln("mouse %d,%d xy: %d,%d view: %d,%d %dx%d hint: %d,%d %dx%d",
+//          app.mouse.x, app.mouse.y, x, y,
+//          v->x, v->y, v->w, v->h, hint->x, hint->y, hint->w, hint->h);
     if (x + hint->w > app.crc.w) { x = app.crc.w - hint->w - hint->em.x / 2; }
     if (x < 0) { x = hint->em.x / 2; }
     if (y + hint->h > app.crc.h) { y = app.crc.h - hint->h - hint->em.y / 2; }
@@ -358,7 +358,7 @@ static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
 }
 
 static void ui_view_measure_children(ui_view_t* view) {
-    view->em = gdi.get_em(*app.view->font);
+    view->em = ui_gdi.get_em(*app.view->font);
     if (!view->hidden) {
         ui_view_for_each(view, c, { ui_view_measure_children(c); });
         if (view->measure != null) {
@@ -465,37 +465,37 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
 }
 
 static void ui_view_debug_paint(ui_view_t* v) {
-    gdi.push(v->x, v->y);
+    ui_gdi.push(v->x, v->y);
     if (v->color != ui_color_transparent) {
 //      traceln("%s 0x%08X", v->text, v->color);
-        gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     }
     const int32_t p_lf = ui.gaps_em2px(v->em.x, v->padding.left);
     const int32_t p_tp = ui.gaps_em2px(v->em.y, v->padding.top);
     const int32_t p_rt = ui.gaps_em2px(v->em.x, v->padding.right);
     const int32_t p_bt = ui.gaps_em2px(v->em.y, v->padding.bottom);
-    if (p_lf > 0) { gdi.frame_with(v->x - p_lf, v->y, p_lf, v->h, ui_colors.green); }
-    if (p_rt > 0) { gdi.frame_with(v->x + v->w, v->y, p_rt, v->h, ui_colors.green); }
-    if (p_tp > 0) { gdi.frame_with(v->x, v->y - p_tp, v->w, p_tp, ui_colors.green); }
-    if (p_bt > 0) { gdi.frame_with(v->x, v->y + v->h, v->w, p_bt, ui_colors.green); }
+    if (p_lf > 0) { ui_gdi.frame_with(v->x - p_lf, v->y, p_lf, v->h, ui_colors.green); }
+    if (p_rt > 0) { ui_gdi.frame_with(v->x + v->w, v->y, p_rt, v->h, ui_colors.green); }
+    if (p_tp > 0) { ui_gdi.frame_with(v->x, v->y - p_tp, v->w, p_tp, ui_colors.green); }
+    if (p_bt > 0) { ui_gdi.frame_with(v->x, v->y + v->h, v->w, p_bt, ui_colors.green); }
     const int32_t i_lf = ui.gaps_em2px(v->em.x, v->insets.left);
     const int32_t i_tp = ui.gaps_em2px(v->em.y, v->insets.top);
     const int32_t i_rt = ui.gaps_em2px(v->em.x, v->insets.right);
     const int32_t i_bt = ui.gaps_em2px(v->em.y, v->insets.bottom);
-    if (i_lf > 0) { gdi.frame_with(v->x,               v->y,               i_lf, v->h, ui_colors.orange); }
-    if (i_rt > 0) { gdi.frame_with(v->x + v->w - i_rt, v->y,               i_rt, v->h, ui_colors.orange); }
-    if (i_tp > 0) { gdi.frame_with(v->x,               v->y,               v->w, i_tp, ui_colors.orange); }
-    if (i_bt > 0) { gdi.frame_with(v->x,               v->y + v->h - i_bt, v->w, i_bt, ui_colors.orange); }
+    if (i_lf > 0) { ui_gdi.frame_with(v->x,               v->y,               i_lf, v->h, ui_colors.orange); }
+    if (i_rt > 0) { ui_gdi.frame_with(v->x + v->w - i_rt, v->y,               i_rt, v->h, ui_colors.orange); }
+    if (i_tp > 0) { ui_gdi.frame_with(v->x,               v->y,               v->w, i_tp, ui_colors.orange); }
+    if (i_bt > 0) { ui_gdi.frame_with(v->x,               v->y + v->h - i_bt, v->w, i_bt, ui_colors.orange); }
     if (v->color != ui_color_transparent) {
-        gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
-        ui_point_t mt = gdi.measure_text(*v->font, v->text);
-        gdi.x += (v->w - mt.x) / 2;
-        gdi.y += (v->h - mt.y) / 2;
-        ui_font_t f = gdi.set_font(*v->font);
-        gdi.text("%s", v->text);
-        gdi.set_font(f);
+        ui_gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
+        ui_point_t mt = ui_gdi.measure_text(*v->font, v->text);
+        ui_gdi.x += (v->w - mt.x) / 2;
+        ui_gdi.y += (v->h - mt.y) / 2;
+        ui_font_t f = ui_gdi.set_font(*v->font);
+        ui_gdi.text("%s", v->text);
+        ui_gdi.set_font(f);
     }
-    gdi.pop();
+    ui_gdi.pop();
 }
 
 #pragma push_macro("ui_view_alone")

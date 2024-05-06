@@ -27,14 +27,14 @@ static_ui_button(button_fs, glyph_two_squares, 1.0, {
 
 static void paint(ui_view_t* view) {
     int k = index;
-    gdi.draw_image(0, 0, view->w, view->h, &image[k]);
-    gdi.x = view->em.x;
-    gdi.y = view->em.y / 4;
-    gdi.set_text_color(ui_colors.orange);
-    gdi.textln("Try Full Screen Button there --->");
-    gdi.y = view->h - view->em.y * 3 / 2;
-    gdi.set_text_color(ui_colors.orange);
-    gdi.textln("render time %.1f ms / avg paint time %.1f ms",
+    ui_gdi.draw_image(0, 0, view->w, view->h, &image[k]);
+    ui_gdi.x = view->em.x;
+    ui_gdi.y = view->em.y / 4;
+    ui_gdi.set_text_color(ui_colors.orange);
+    ui_gdi.textln("Try Full Screen Button there --->");
+    ui_gdi.y = view->h - view->em.y * 3 / 2;
+    ui_gdi.set_text_color(ui_colors.orange);
+    ui_gdi.textln("render time %.1f ms / avg paint time %.1f ms",
         render_time * 1000, app.paint_avg * 1000);
     if (!rendering) {
         app.set_cursor(app.cursor_arrow);
@@ -65,10 +65,10 @@ static void measure(ui_view_t* view) {
     if (w != im->w || h != im->h) {
         stop_rendering();
         im = &image[!index];
-        gdi.image_dispose(im);
+        ui_gdi.image_dispose(im);
         fatal_if(w * h * 4 > countof(pixels[!index]),
             "increase size of pixels[][%d * %d * 4]", w, h);
-        gdi.image_init(im, w, h, 4, pixels[!index]);
+        ui_gdi.image_init(im, w, h, 4, pixels[!index]);
         request_rendering();
     }
 }
@@ -92,8 +92,8 @@ static void closed(void) {
     ut_event.set(quit);
     ut_thread.join(thread, -1);
     thread = null;
-    gdi.image_dispose(&image[0]);
-    gdi.image_dispose(&image[1]);
+    ui_gdi.image_dispose(&image[0]);
+    ui_gdi.image_dispose(&image[1]);
 }
 
 static void fini(void) {
@@ -116,8 +116,8 @@ static void opened(void) {
     wake = ut_event.create();
     quit = ut_event.create();
     // images:
-    gdi.image_init(&image[0], app.crc.w, app.crc.h, 4, pixels[0]);
-    gdi.image_init(&image[1], app.crc.w, app.crc.h, 4, pixels[1]);
+    ui_gdi.image_init(&image[0], app.crc.w, app.crc.h, 4, pixels[0]);
+    ui_gdi.image_init(&image[1], app.crc.w, app.crc.h, 4, pixels[1]);
     thread = ut_thread.start(renderer, null);
     request_rendering();
     strprintf(button_fs.hint, "&Full Screen");
