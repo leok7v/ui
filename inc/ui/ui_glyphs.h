@@ -145,3 +145,23 @@
 // Heavy Rightwards Arrow with Large Equilateral Arrowhead
 // https://www.compart.com/en/unicode/U+1F81E
 #define ui_glyph_heavy_rightwards_arrow_with_large_equilateral_arrowhead    "\xF0\x9F\xA0\x9E"
+
+// CJK Unified Ideograph-5973: Kanji Onna "Female"
+// https://www.compart.com/en/unicode/U+5973
+#define ui_glyph_kanji_onna_female                                          "\xE2\xBC\xA5"
+
+// Leftwards Arrow
+// https://www.compart.com/en/unicode/U+2190
+#define ui_glyph_leftward_arrow                                             "\xE2\x86\x90"
+
+// Upwards Arrow
+// https://www.compart.com/en/unicode/U+2191
+#define ui_glyph_upwards_arrow                                              "\xE2\x86\x91"
+
+// Rightwards Arrow
+// https://www.compart.com/en/unicode/U+2192
+#define ui_glyph_rightwards_arrow                                           "\xE2\x86\x92"
+
+// Downwards Arrow
+// https://www.compart.com/en/unicode/U+2193
+#define ui_glyph_downwards_arrow                                            "\xE2\x86\x93"

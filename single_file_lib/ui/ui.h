@@ -861,6 +861,26 @@ extern gdi_t gdi;
 // Heavy Rightwards Arrow with Large Equilateral Arrowhead
 // https://www.compart.com/en/unicode/U+1F81E
 #define ui_glyph_heavy_rightwards_arrow_with_large_equilateral_arrowhead    "\xF0\x9F\xA0\x9E"
+
+// CJK Unified Ideograph-5973: Kanji Onna "Female"
+// https://www.compart.com/en/unicode/U+5973
+#define ui_glyph_kanji_onna_female                                          "\xE2\xBC\xA5"
+
+// Leftwards Arrow
+// https://www.compart.com/en/unicode/U+2190
+#define ui_glyph_leftward_arrow                                             "\xE2\x86\x90"
+
+// Upwards Arrow
+// https://www.compart.com/en/unicode/U+2191
+#define ui_glyph_upwards_arrow                                              "\xE2\x86\x91"
+
+// Rightwards Arrow
+// https://www.compart.com/en/unicode/U+2192
+#define ui_glyph_rightwards_arrow                                           "\xE2\x86\x92"
+
+// Downwards Arrow
+// https://www.compart.com/en/unicode/U+2193
+#define ui_glyph_downwards_arrow                                            "\xE2\x86\x93"
 // ________________________________ ui_view.h _________________________________
 
 #include "ut/ut_std.h"
@@ -7102,9 +7122,9 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     }
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.x / 4;
     int32_t y = v->y + v->h + v->em.y / 2 + hint->em.y / 4;
-//  traceln("mouse %d,%d xy: %d,%d view: %d,%d %dx%d hint: %d,%d %dx%d",
-//          app.mouse.x, app.mouse.y, x, y,
-//          v->x, v->y, v->w, v->h, hint->x, hint->y, hint->w, hint->h);
+    traceln("mouse %d,%d xy: %d,%d view: %d,%d %dx%d hint: %d,%d %dx%d",
+            app.mouse.x, app.mouse.y, x, y,
+            v->x, v->y, v->w, v->h, hint->x, hint->y, hint->w, hint->h);
     if (x + hint->w > app.crc.w) { x = app.crc.w - hint->w - hint->em.x / 2; }
     if (x < 0) { x = hint->em.x / 2; }
     if (y + hint->h > app.crc.h) { y = app.crc.h - hint->h - hint->em.y / 2; }

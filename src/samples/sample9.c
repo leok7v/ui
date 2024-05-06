@@ -34,23 +34,16 @@ static int top = 1; // because it is already zoomed in once above
 
 static ui_slider_t zoomer;
 
-#define glyph_onna        "\xE2\xBC\xA5" // Kanji Onna "Female"
-#define glyph_two_squares "\xE2\xA7\x89" // "Two Joined Squares"
-#define glyph_left        "\xE2\x86\x90" // "ShortLeftArrow"
-#define glyph_up          "\xE2\x86\x91" // "ShortUpArrow"
-#define glyph_right       "\xE2\x86\x92" // "ShortRightArrow"
-#define glyph_down        "\xE2\x86\x93" // "ShortDownArrow"
-
-
 static ui_label_t toast_filename = ui_label(0.0, "filename placeholder");
 
 static ui_label_t label_single_line = ui_label(0.0, "Mandelbrot Explorer");
 
 static ui_label_t label_multiline = ui_label(19.0,
     "Click inside or +/- to zoom;\n"
-    "right mouse click to zoom out;\nuse "
-    "touchpad or keyboard "
-    glyph_left glyph_up glyph_down glyph_right
+    "right mouse click to zoom out;\n"
+    "use touchpad or keyboard "
+    ui_glyph_leftwards_white_arrow ui_glyph_upwards_white_arrow
+    ui_glyph_downwards_white_arrow ui_glyph_rightwards_white_arrow
     " to pan");
 
 static ui_label_t about = ui_label(34.56f,
@@ -122,7 +115,7 @@ static void flip_full_screen(ui_button_t* b) {
     }
 }
 
-static_ui_button(button_full_screen, glyph_two_squares, 1, {
+static_ui_button(button_full_screen, ui_glyph_two_joined_squares, 1, {
     flip_full_screen(button_full_screen);
 });
 
@@ -135,7 +128,8 @@ static void flip_locale(ui_button_t* b) {
     app.layout(); // because center panel layout changed
 }
 
-static ui_button_t button_locale = ui_button(glyph_onna "A", 1, flip_locale);
+static ui_button_t button_locale = ui_button(
+    ui_glyph_kanji_onna_female "A", 1, flip_locale);
 
 static_ui_button(button_about, "&About", 7.5, {
     app.show_toast(&about.view, 10.0);
