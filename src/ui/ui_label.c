@@ -23,7 +23,8 @@ static void ui_label_paint(ui_view_t* v) {
         ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
-        ui_gdi.set_colored_pen(ui_colors.btn_hover_highlight);
+        // ui_colors.btn_hover_highlight
+        ui_gdi.set_colored_pen(ui_app.get_color(ui_color_id_highlight));
         ui_gdi.set_brush(ui_gdi.brush_hollow);
         int32_t cr = v->em.y / 4; // corner radius
         int32_t h = multiline ? v->h : v->baseline + v->descent;
@@ -58,9 +59,9 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 void ui_view_init_label(ui_view_t* v) {
     assert(v->type == ui_view_label);
     ui_view_init(v);
-    v->color = ui_colors.text;
-    v->paint = ui_label_paint;
-    v->character = ui_label_character;
+    v->color_id     = ui_color_id_window_text;
+    v->paint        = ui_label_paint;
+    v->character    = ui_label_character;
     v->context_menu = ui_label_context_menu;
 }
 

@@ -23,13 +23,14 @@ static struct {
     ui_color_t  dark;
     ui_color_t  light;
 } ui_theme_colors[] = { // empirical
+    { .name = "Undefiled"        ,.dark = ui_color_undefined, .light = ui_color_undefined },
     { .name = "ActiveTitle"      ,.dark = 0x00000000, .light = 0x00D1B499 },
     { .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 },
-    { .name = "ButtonText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
+    { .name = "ButtonText"       ,.dark = 0x00F6F3EE, .light = 0x00000000 },
     { .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D },
     { .name = "Hilight"          ,.dark = 0x00626262, .light = 0x00D77800 },
     { .name = "HilightText"      ,.dark = 0x00000000, .light = 0x00FFFFFF },
-    { .name = "HotTrackingColor" ,.dark = 0x004D8DFA, .light = 0x00CC6600 },
+    { .name = "HotTrackingColor" ,.dark = 0x00B77878, .light = 0x00CC6600 },
     { .name = "InactiveTitle"    ,.dark = 0x002B2B2B, .light = 0x00DBCDBF },
     { .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 },
     { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
@@ -46,10 +47,18 @@ static struct {
 #define ux_theme_reg_default_colors ux_theme_reg_cv "Themes\\DefaultColors\\"
 
 static bool ui_theme_use_light_theme(const char* key) {
-    const char* personalize  = ux_theme_reg_cv "Themes\\Personalize";
-    DWORD light_theme = 0;
-    ui_theme_reg_get_uint32(HKEY_CURRENT_USER, personalize, key, &light_theme);
-    return light_theme != 0;
+    if (!ui_app.dark_mode && !ui_app.light_mode ||
+         ui_app.dark_mode && ui_app.light_mode) {
+        const char* personalize  = ux_theme_reg_cv "Themes\\Personalize";
+        DWORD light_theme = 0;
+        ui_theme_reg_get_uint32(HKEY_CURRENT_USER, personalize, key, &light_theme);
+        return light_theme != 0;
+    } else if (ui_app.light_mode) {
+        return true;
+    } else {
+        assert(ui_app.dark_mode);
+        return false;
+    }
 }
 
 #pragma pop_macro("ux_theme_reg_cv")
@@ -80,7 +89,7 @@ static void ui_theme_refresh(void* window) {
 }
 
 static ui_color_t ui_theme_get_color(int32_t color_id) {
-    swear(0 <= color_id && color_id < countof(ui_theme_colors));
+    swear(0 < color_id && color_id < countof(ui_theme_colors));
     if (ui_theme_dark < 0) {
         ui_theme_dark = ui_theme.are_apps_dark();
     }

@@ -131,6 +131,7 @@ static void init(void) {
 ui_app_t ui_app = {
     .class_name = "sample3",
     .title = "Sample3: Mandelbrot",
+    .dark_mode = true,
     .init = init,
     // 6x4 inches. Thinking of 6x4 timbers columns, beams, supporting posts :)
     .window_sizing = {

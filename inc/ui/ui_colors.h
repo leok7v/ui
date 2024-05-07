@@ -29,6 +29,11 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
 #define ui_color_hdr_g(c)    ((uint16_t)(((c) >>  16) & 0xFFFF))
 #define ui_color_hdr_b(c)    ((uint16_t)(((c) >>  32) & 0xFFFF))
 
+#define ui_color_a(c)        ((uint8_t)(((c) >> 24) & 0xFFU))
+#define ui_color_r(c)        ((uint8_t)(((c) >>  0) & 0xFFU))
+#define ui_color_g(c)        ((uint8_t)(((c) >>  8) & 0xFFU))
+#define ui_color_b(c)        ((uint8_t)(((c) >> 16) & 0xFFU))
+
 #define ui_color_rgb(c)      ((uint32_t)((c) & 0x00FFFFFFU))
 #define ui_color_rgba(c)     ((uint32_t)((c) & 0xFFFFFFFFU))
 
@@ -188,6 +193,7 @@ typedef struct ui_colors_s {
     const int32_t copper_red;
     const int32_t dark_tangerine;
     const int32_t bright_marigold;
+    const int32_t bone;
 
     /* Earthy Tones */
     const int32_t sienna;

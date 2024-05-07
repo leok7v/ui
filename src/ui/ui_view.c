@@ -351,6 +351,9 @@ static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
 
 static void ui_view_measure_children(ui_view_t* view) {
     view->em = ui_gdi.get_em(*view->font);
+    if (view->color_id > 0) {
+        view->color = ui_app.get_color(view->color_id);
+    }
     if (!view->hidden) {
         ui_view_for_each(view, c, { ui_view_measure_children(c); });
         if (view->measure != null) {

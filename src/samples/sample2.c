@@ -21,6 +21,7 @@ static void init(void) {
 
 ui_app_t ui_app = {
     .class_name = "sample2",
+    .dark_mode = true,
     .init = init,
     .window_sizing = {
         .min_w =  2.0f, // 2x1 inches

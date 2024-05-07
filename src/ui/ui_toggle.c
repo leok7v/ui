@@ -97,7 +97,7 @@ void ui_view_init_toggle(ui_view_t* view) {
     view->character   = ui_toggle_character;
     view->key_pressed = ui_toggle_key_pressed;
     ui_view.localize(view);
-    view->color = ui_colors.btn_text;
+    view->color = ui_app.get_color(ui_color_id_button_text);
 }
 
 void ui_toggle_init(ui_toggle_t* c, const char* label, fp32_t ems,

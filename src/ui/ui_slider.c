@@ -26,6 +26,42 @@ static void ui_slider_layout(ui_view_t* v) {
     r->inc.y = v->y;
 }
 
+// TODO: generalize and move to ui_colors.c to avoid slider dup
+
+static ui_color_t ui_slider_gradient_darker(void) {
+    if (ui_theme.are_apps_dark()) {
+        return ui_colors.btn_gradient_darker;
+    } else {
+        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
+        uint32_t r = ui_color_r(c);
+        uint32_t g = ui_color_r(c);
+        uint32_t b = ui_color_r(c);
+        r = ut_max(0, ut_min(0xFF, (uint32_t)(r * 0.75)));
+        g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 0.75)));
+        b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 0.75)));
+        ui_color_t d = ui_rgb(r, g, b);
+//      traceln("c: 0%06X -> 0%06X", c, d);
+        return d;
+    }
+}
+
+static ui_color_t ui_slider_gradient_dark(void) {
+    if (ui_theme.are_apps_dark()) {
+        return ui_colors.btn_gradient_dark;
+    } else {
+        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
+        uint32_t r = ui_color_r(c);
+        uint32_t g = ui_color_r(c);
+        uint32_t b = ui_color_r(c);
+        r = ut_max(0, ut_min(0xFF, (uint32_t)(r * 1.25)));
+        g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 1.25)));
+        b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 1.25)));
+        ui_color_t d = ui_rgb(r, g, b);
+//      traceln("c: 0%06X -> 0%06X", c, d);
+        return d;
+    }
+}
+
 static void ui_slider_paint(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* r = (ui_slider_t*)v;
@@ -36,31 +72,44 @@ static void ui_slider_paint(ui_view_t* v) {
     const int32_t em4  = ut_max(1, em / 8);
     const int32_t em8  = ut_max(1, em / 8);
     const int32_t em16 = ut_max(1, em / 16);
+    ui_color_t c0 = ui_theme.are_apps_dark() ?
+                    ui_colors.dkgray3 :
+                    ui_app.get_color(ui_color_id_button_face);
     ui_gdi.set_brush(ui_gdi.brush_color);
-    ui_pen_t pen_grey45 = ui_gdi.create_pen(ui_colors.dkgray3, em16);
-    ui_gdi.set_pen(pen_grey45);
-    ui_gdi.set_brush_color(ui_colors.dkgray3);
+    ui_pen_t pen_c0 = ui_gdi.create_pen(c0, em16);
+    ui_gdi.set_pen(pen_c0);
+    ui_gdi.set_brush_color(c0);
     const int32_t x = v->x + r->dec.w + em2;
     const int32_t y = v->y;
     const int32_t w = r->tm.x + em;
     const int32_t h = v->h;
     ui_gdi.rounded(x - em8, y, w + em4, h, em4, em4);
-    ui_gdi.gradient(x, y, w, h / 2,
-        ui_colors.dkgray3, ui_colors.btn_gradient_darker, true);
-    ui_gdi.gradient(x, y + h / 2, w, v->h - h / 2,
-        ui_colors.btn_gradient_darker, ui_colors.dkgray3, true);
-    ui_gdi.set_brush_color(ui_colors.dkgreen);
-    ui_pen_t pen_grey30 = ui_gdi.create_pen(ui_colors.dkgray1, em16);
-    ui_gdi.set_pen(pen_grey30);
+    if (ui_theme.are_apps_dark()) {
+        ui_gdi.gradient(x, y, w, h / 2, c0, ui_slider_gradient_darker(), true);
+        ui_gdi.gradient(x, y + h / 2, w, v->h - h / 2, ui_slider_gradient_dark(), c0, true);
+        ui_gdi.set_brush_color(ui_colors.dkgreen);
+    } else {
+        ui_gdi.gradient(x, y, w, h / 2, ui_slider_gradient_dark(), c0, true);
+        ui_gdi.gradient(x, y + h / 2, w, v->h - h / 2, c0, ui_slider_gradient_darker(), true);
+        ui_gdi.set_brush_color(ui_colors.jungle_green);
+    }
+    ui_color_t c1 = ui_theme.are_apps_dark() ?
+                    ui_colors.dkgray1 :
+                    ui_app.get_color(ui_color_id_button_face); // ???
+    ui_pen_t pen_c1 = ui_gdi.create_pen(c1, em16);
+    ui_gdi.set_pen(pen_c1);
     const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
     fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->value_min) / range;
     ui_gdi.rect(x, v->y, (int32_t)(vw + 0.5), v->h);
     ui_gdi.x += r->dec.w + em;
+    v->color = ui_app.get_color(ui_color_id_window_text);
     const char* format = ut_nls.str(v->text);
+    ui_color_t c = ui_gdi.set_text_color(v->color);
     ui_gdi.text(format, r->value);
+    ui_gdi.set_text_color(c);
     ui_gdi.set_clip(0, 0, 0, 0);
-    ui_gdi.delete_pen(pen_grey30);
-    ui_gdi.delete_pen(pen_grey45);
+    ui_gdi.delete_pen(pen_c1);
+    ui_gdi.delete_pen(pen_c0);
     ui_gdi.pop();
 }
 
@@ -148,6 +197,7 @@ void ui_view_init_slider(ui_view_t* v) {
     v->layout      = ui_slider_layout;
     v->paint       = ui_slider_paint;
     v->every_100ms = ui_slider_every_100ms;
+    v->color = ui_app.get_color(ui_color_id_window_text);
     ui_slider_t* s = (ui_slider_t*)v;
     // Heavy Minus Sign
     ui_button_init(&s->dec, "\xE2\x9E\x96", 0, ui_slider_inc_dec);

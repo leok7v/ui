@@ -29,12 +29,14 @@ typedef struct {
     int32_t startup_visibility; // window_visibility from parent process
     // ui flags:
     bool is_full_screen;
-    bool no_ui;    // do not create application window at all
-    bool no_decor; // window w/o title bar, min/max close buttons
-    bool no_min;   // window w/o minimize button on title bar and sys menu
-    bool no_max;   // window w/o maximize button on title bar
-    bool no_size;  // window w/o maximize button on title bar
-    bool no_clip;  // allows to resize window above hosting monitor size
+    bool no_ui;      // do not create application window at all
+    bool dark_mode;  // forced dark  mode for the whole application
+    bool light_mode; // forced light mode for the whole application
+    bool no_decor;   // window w/o title bar, min/max close buttons
+    bool no_min;     // window w/o minimize button on title bar and sys menu
+    bool no_max;     // window w/o maximize button on title bar
+    bool no_size;    // window w/o maximize button on title bar
+    bool no_clip;    // allows to resize window above hosting monitor size
     bool hide_on_minimize; // like task manager minimize means hide
     bool aero;     // retro Windows 7 decoration (just for the fun of it)
     ui_icon_t icon; // may be null

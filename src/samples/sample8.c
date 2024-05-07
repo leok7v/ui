@@ -6,7 +6,6 @@ static const char* title = "Sample8: Panels";
 
 static void init(void);
 static void opened(void);
-static void app_view_paint(ui_view_t* v);
 static void container_test(ui_view_t* parent);
 static void span_test(ui_view_t* parent);
 static void list_test(ui_view_t* parent);
@@ -121,7 +120,7 @@ static void opened(void) {
     test.paint = ui_view.debug_paint;
     // buttons to switch test content
     tools.max_h = ui.infinity;
-    tools.color = ui_colors.obsidian;
+    tools.color_id = ui_color_id_window;
     tools.align = ui.align.right;
     strprintf(tools.text, "%s", "tools");
 //  tools.paint = ui_view.debug_paint;
@@ -165,11 +164,12 @@ static void container_test(ui_view_t* parent) {
             align(&center,       ui.align.center),
         null),
     null);
-    container.paint  = ui_view.debug_paint;
-    container.max_w  = ui.infinity;
-    container.max_h  = ui.infinity;
-    container.color  = ui_colors.black;
-    container.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    container.paint    = ui_view.debug_paint;
+    container.max_w    = ui.infinity;
+    container.max_h    = ui.infinity;
+    container.color    = ui_color_undefined;
+    container.color_id = ui_color_id_window;
+    container.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(container.text, "container");
     ui_view_for_each(&container, it, {
         it->paint   = ui_view.debug_paint;
@@ -197,11 +197,12 @@ static void span_test(ui_view_t* parent) {
             align(&right,  ui.align.center),
         null),
     null);
-    span.paint  = ui_view.debug_paint;
-    span.max_w  = ui.infinity;
-    span.max_h  = ui.infinity;
-    span.color  = ui_colors.black;
-    span.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    span.paint    = ui_view.debug_paint;
+    span.max_w    = ui.infinity;
+    span.max_h    = ui.infinity;
+    span.color    = ui_color_undefined;
+    span.color_id = ui_color_id_window;
+    span.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(span.text, "span");
     ui_view_for_each(&span, it, {
         it->paint   = ui_view.debug_paint;
@@ -236,7 +237,8 @@ static void list_test(ui_view_t* parent) {
     list.paint  = ui_view.debug_paint;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-    list.color  = ui_colors.black;
+    list.color    = ui_color_undefined;
+    list.color_id = ui_color_id_window;
     list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(list.text, "list");
     ui_view_for_each(&list, it, {

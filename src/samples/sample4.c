@@ -19,6 +19,7 @@ static int  console(void) {
 ui_app_t ui_app = {
     .class_name = "sample4",
     .init = init,
+    .dark_mode = true,
     .main = console,
     .window_sizing = {
         .min_w =  4.0f,

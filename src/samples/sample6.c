@@ -268,6 +268,7 @@ static int  console(void) {
 
 ui_app_t ui_app = {
     .class_name = "sample4",
+    .dark_mode = true,
     .init = init,
     .fini = fini,
     .main = console,

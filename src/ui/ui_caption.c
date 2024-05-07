@@ -68,16 +68,9 @@ static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
 }
 
 static ui_color_t ui_caption_color(void) {
-#if 1
     ui_color_t c = ui_app.is_active() ?
-        ui_colors.dkgray1 :
-        ui_colors.dkgray3;
-#else
-    ui_color_t c = ui_app.is_active() ?
-        ui_theme.get_color(ui.colors.active_title) :
-        ui_theme.get_color(ui.colors.inactive_title);
-#endif
-//  traceln("ui_caption.view.color: %08X := %08X", ui_caption.view.color, c);
+        ui_theme.get_color(ui_color_id_active_title) :
+        ui_theme.get_color(ui_color_id_inactive_title);
     return c;
 }
 

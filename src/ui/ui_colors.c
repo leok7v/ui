@@ -63,8 +63,8 @@ ui_colors_t ui_colors = {
     .blue_highlight      = _colors_blue_highlight,
     .off_white           = _colors_off_white,
 
-    .btn_gradient_darker = _colors_dkgray0,
-    .btn_gradient_dark   = _colors_dkgray4,
+    .btn_gradient_darker = _colors_dkgray1,
+    .btn_gradient_dark   = _colors_dkgray3,
     .btn_hover_highlight = _colors_blue_highlight,
     .btn_disabled        = _colors_dkgray4,
     .btn_armed           = _colors_white,
@@ -159,6 +159,7 @@ ui_colors_t ui_colors = {
     .copper_red                 = ui_rgb(203, 109,  81), // 0xCB6D51
     .dark_tangerine             = ui_rgb(255, 168,  18), // 0xFFA812
     .bright_marigold            = ui_rgb(252, 192,   6), // 0xFCC006
+    .bone                       = ui_rgb(227, 218, 201), // 0xE3DAC9
 
     /* Earthy Tones */
     .ochre                      = ui_rgb(204, 119,  34), // 0xCC7722

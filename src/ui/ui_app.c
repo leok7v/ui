@@ -616,10 +616,15 @@ static void ui_app_tap_press(int32_t m, int64_t wp, int64_t lp) {
 enum { ui_app_animation_steps = 15 };
 
 static void ui_app_toast_paint(void) {
-    static ui_image_t image;
-    if (image.bitmap == null) {
+    static ui_image_t image_dark;
+    if (image_dark.bitmap == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
-        ui_gdi.image_init(&image, 1, 1, 3, pixels);
+        ui_gdi.image_init(&image_dark, 1, 1, 3, pixels);
+    }
+    static ui_image_t image_light;
+    if (image_dark.bitmap == null) {
+        uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
+        ui_gdi.image_init(&image_light, 1, 1, 3, pixels);
     }
     if (ui_app.animating.view != null) {
         ui_view.measure_children(ui_app.animating.view);
@@ -628,7 +633,11 @@ static void ui_app_toast_paint(void) {
         const int32_t em_x = ui_app.animating.view->em.x;
         const int32_t em_y = ui_app.animating.view->em.y;
         ui_gdi.set_brush(ui_gdi.brush_color);
-        ui_gdi.set_brush_color(ui_colors.toast);
+        if (ui_theme.are_apps_dark()) {
+            ui_gdi.set_brush_color(ui_colors.toast);
+        } else {
+            ui_gdi.set_brush_color(ui_app.get_color(ui_color_id_button_face));
+        }
         if (!tooltip) {
             assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
@@ -636,8 +645,12 @@ static void ui_app_toast_paint(void) {
 //          traceln("step=%d of %d y=%d", ui_app.animating.step,
 //                  ui_app_toast_steps, ui_app.animating.view->y);
             ui_app_measure_and_layout(ui_app.animating.view);
-            fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
-            ui_gdi.alpha_blend(0, 0, ui_app.width, ui_app.height, &image, alpha);
+            if (ui_theme.are_apps_dark()) {
+                fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
+                ui_gdi.alpha_blend(0, 0, ui_app.width, ui_app.height, &image_dark, alpha);
+            } else {
+                traceln("TODO:");
+            }
             ui_app.animating.view->x = (ui_app.width - ui_app.animating.view->w) / 2;
         } else {
             ui_app.animating.view->x = ui_app.animating.x;
@@ -749,7 +762,9 @@ static void ui_app_animate_start(ui_app_animate_function_t f, int32_t steps) {
 }
 
 static void ui_app_view_paint(ui_view_t* v) {
-    assert(v == ui_app.view && v->x == 0 && v->y == 0);
+    assert(v == ui_app.view && v->x == 0 && v->y == 0 &&
+           v->w >= ui_app.crc.w && v->h >= ui_app.crc.h);
+    v->color = ui_app.get_color(ui_color_id_window);
     if (!ui_color_is_transparent(v->color)) {
         ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     }
@@ -764,14 +779,9 @@ static void ui_app_view_layout(void) {
 }
 
 static void ui_app_view_active_frame_paint(void) {
-#if 0
     ui_color_t c = ui_app.is_active() ?
-        ui_app.get_color(ui.colors.highlight) : // ui_colors.btn_hover_highlight
-        ui_app.get_color(ui.colors.active_title);
-#else
-    ui_color_t c = ui_app.is_active() ?
-        ui_colors.dkgray4 : ui_caption.view.color;
-#endif
+        ui_app.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
+        ui_app.get_color(ui_color_id_inactive_title);
     ui_gdi.frame_with(0, 0, ui_app.view->w - 0, ui_app.view->h - 0, c);
 }
 
@@ -857,7 +867,7 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         // expected:
         // SPI_SETICONTITLELOGFONT 0x22 ?
         // SPI_SETNONCLIENTMETRICS 0x2A ?
-        traceln("wp: 0x%08X", wp);
+//      traceln("wp: 0x%08X", wp);
         // actual wp == 0x0000
         ui_theme.refresh(ui_app.window);
     }
@@ -1260,6 +1270,7 @@ static void ui_app_create_window(const ui_rect_t r) {
     RECT wrc = ui_app_ui2rect(&r);
     fatal_if_false(GetWindowRect(ui_app_window(), &wrc));
     ui_app.wrc = ui_app_rect2ui(&wrc);
+//  TODO: investigate that it holds for Light Theme too
     // DWMWA_CAPTION_COLOR is supported starting with Windows 11 Build 22000.
     if (IsWindowsVersionOrGreater(10, 0, 22000)) {
         COLORREF caption_color = (COLORREF)ui_gdi.color_rgb(ui_colors.dkgray3);

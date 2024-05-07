@@ -71,7 +71,7 @@ typedef struct ui_view_s {
     void (*key_pressed)(ui_view_t* view, int64_t key);
     void (*key_released)(ui_view_t* view, int64_t key);
     // timer() every_100ms() and every_sec() called
-    // even for hidden and disabled ui elements
+    // even for hidden and disabled views
     void (*timer)(ui_view_t* view, ui_timer_t id);
     void (*every_100ms)(ui_view_t* view); // ~10 x times per second
     void (*every_sec)(ui_view_t* view); // ~once a second
@@ -85,9 +85,10 @@ typedef struct ui_view_s {
     bool focusable; // can be target for keyboard focus
     bool flat;      // no-border appearance of views
     bool highlightable; // paint highlight rectangle when hover over label
-    fp64_t  hover_when;    // time in seconds when to call hovered()
-    ui_color_t color;      // interpretation depends on ui element type
-    ui_color_t background; // interpretation depends on ui element type
+    fp64_t  hover_when;   // time in seconds when to call hovered()
+    ui_color_t color;     // interpretation depends on view type
+    int32_t    color_id;  // 0 is default. Otherwise ui_color_id_* when color is undefined
+    ui_color_t background;// interpretation depends on view type
     ui_font_t* font;
     int32_t baseline;  // font ascent; descent = height - baseline
     int32_t descent;   // font descent
