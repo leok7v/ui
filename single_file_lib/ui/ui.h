@@ -277,21 +277,6 @@ typedef struct ui_s {
         int32_t const f23;
         int32_t const f24;
     } const key;
-    struct { // system colors: TODO: do not use - broken on Win10
-        int32_t const active_title;
-        int32_t const button_face;
-        int32_t const button_text;
-        int32_t const gray_text;
-        int32_t const highlight;
-        int32_t const highlight_text;
-        int32_t const hot_tracking_color;
-        int32_t const inactive_title;
-        int32_t const inactive_title_text;
-        int32_t const menu_highlight;
-        int32_t const title_text;
-        int32_t const window;
-        int32_t const window_text;
-    } const colors;
     struct { // known folders:
         int32_t const home     ; // c:\Users\<username>
         int32_t const desktop  ;
@@ -1173,18 +1158,26 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
 
+enum {
+    ui_color_id_active_title        = 0,
+    ui_color_id_button_face         = 1,
+    ui_color_id_button_text         = 2,
+    ui_color_id_gray_text           = 3,
+    ui_color_id_highlight           = 4,
+    ui_color_id_highlight_text      = 5,
+    ui_color_id_hot_tracking_color  = 6,
+    ui_color_id_inactive_title      = 7,
+    ui_color_id_inactive_title_text = 8,
+    ui_color_id_menu_highlight      = 9,
+    ui_color_id_title_text          = 10,
+    ui_color_id_window              = 11,
+    ui_color_id_window_text         = 12
+};
+
 typedef struct  {
-    int32_t const mode_default;     // = 0
-    int32_t const mode_allow_dark;  // = 1
-    int32_t const mode_force_dark;  // = 2
-    int32_t const mode_force_light; // = 3
-    // is Windows Desktop Manager and Apps in Light or Dark mode?
     ui_color_t (*get_color)(int32_t color_id);
-    bool (*is_system_light)(void);
-    bool (*are_apps_light)(void);
-    bool (*should_apps_use_dark_mode)(void);
-    bool (*is_dark_mode_allowed_for_app)(void);
-    void (*set_preferred_app_mode)(int32_t mode);
+    bool (*is_system_dark)(void);
+    bool (*are_apps_dark)(void);
     void (*refresh)(void* window);
     void (*test)(void);
 } ui_theme_if;
@@ -3190,7 +3183,7 @@ static void ui_app_set_title(const char* title) {
 }
 
 static ui_color_t ui_app_get_color(int32_t color_id) {
-    return ui_theme.get_color(color_id);
+    return ui_theme.get_color(color_id); // SysGetColor() does not work on Win10
 }
 
 static void ui_app_capture_mouse(bool on) {
@@ -3466,7 +3459,7 @@ static void ui_app_init(void) {
     // for ui_view_debug_paint:
     strprintf(ui_app.view->text, "ui_app.view");
     ui_app.view->type          = ui_view_container;
-    ui_app.view->color         = ui_app_get_color(ui.colors.window);
+    ui_app.view->color         = ui_app_get_color(ui_color_id_window);
     ui_app.view->paint         = ui_app_view_paint;
     ui_app.view->insets        = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_app.redraw              = ui_app_fast_redraw;
@@ -3525,11 +3518,6 @@ static void ui_app_init(void) {
 static void ui_app_init_windows(void) {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
     not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
-    if (!ui_theme.is_system_light() && !ui_theme.are_apps_light() &&
-        ui_theme.should_apps_use_dark_mode() &&
-        ui_theme.is_dark_mode_allowed_for_app()) {
-        ui_theme.set_preferred_app_mode(ui_theme.mode_force_dark);
-    }
     InitCommonControls(); // otherwise GetOpenFileName does not work
     ui_app.dpi.process = GetSystemDpiForProcess(GetCurrentProcess());
     ui_app.dpi.system = GetDpiForSystem(); // default was 96DPI
@@ -3924,7 +3912,7 @@ static void ui_caption_init(ui_view_t* v) {
                                  .right = 0.25, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
         c->font = &ui_app.fonts.H3;
-        c->color = ui_app.get_color(ui.colors.window_text); // ui_colors.white;
+        c->color = ui_app.get_color(ui_color_id_window_text); // ui_colors.white;
         c->flat = true;
         c->padding = p;
     });
@@ -4797,21 +4785,6 @@ extern ui_if ui = {
         .f22    = VK_F22,
         .f23    = VK_F23,
         .f24    = VK_F24,
-    },
-    .colors = {
-        .active_title        = 0,
-        .button_face         = 1,
-        .button_text         = 2,
-        .gray_text           = 3,
-        .highlight           = 4,
-        .highlight_text      = 5,
-        .hot_tracking_color  = 6,
-        .inactive_title      = 7,
-        .inactive_title_text = 8,
-        .menu_highlight      = 9,
-        .title_text          = 10,
-        .window              = 11,
-        .window_text         = 12
     },
     .folder = {
         .home      = 0, // c:\Users\<username>
@@ -6349,23 +6322,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 
 #endif // WIN32
 
-#pragma push_macro("ux_theme_reg_cv")
-#pragma push_macro("ux_theme_reg_default_colors")
-
-#define ux_theme_reg_cv "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
-#define ux_theme_reg_default_colors ux_theme_reg_cv "Themes\\DefaultColors\\"
-
-static HMODULE ui_theme_ux_theme(void) {
-    static HMODULE ux_theme;
-    if (ux_theme == null) {
-        ux_theme = GetModuleHandleA("uxtheme.dll");
-    }
-    if (ux_theme == null) {
-        ux_theme = (HMODULE)ut_loader.open("uxtheme.dll", ut_loader.local);
-    }
-    not_null(ux_theme);
-    return ux_theme;
-}
+static int32_t ui_theme_dark = -1; // -1 unknown
 
 static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
         const char* key, DWORD *v) {
@@ -6380,83 +6337,32 @@ static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
     return r;
 }
 
-static errno_t ui_theme_reg_get_bin(HKEY root, const char* path,
-        const char* key, void *data, uint32_t *bytes) {
-    memset(data, 0, *bytes);
-    DWORD type = REG_BINARY;
-    DWORD n = *bytes;
-    errno_t r = RegGetValueA(root, path, key, RRF_RT_REG_BINARY, &type, data, &n);
-    if (r == 0) { *bytes = n; }
-    if (r != 0) {
-        traceln("RegGetValueA(%s\\%s) failed %s", path, key, ut_str.error(r));
-    }
-    return r;
-}
-
-typedef struct {
-    int32_t id;
+static struct {
     const char* name;
     ui_color_t  dark;
     ui_color_t  light;
-} ui_theme_color_map_t;
+} ui_theme_colors[] = { // empirical
+    { .name = "ActiveTitle"      ,.dark = 0x00000000, .light = 0x00D1B499 },
+    { .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 },
+    { .name = "ButtonText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
+    { .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D },
+    { .name = "Hilight"          ,.dark = 0x00626262, .light = 0x00D77800 },
+    { .name = "HilightText"      ,.dark = 0x00000000, .light = 0x00FFFFFF },
+    { .name = "HotTrackingColor" ,.dark = 0x004D8DFA, .light = 0x00CC6600 },
+    { .name = "InactiveTitle"    ,.dark = 0x002B2B2B, .light = 0x00DBCDBF },
+    { .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 },
+    { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
+    { .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 },
+    { .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF },
+    { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
+};
 
-// ActiveTitle         : dark 0x006E0037 light 0x00D1B499
-// ButtonFace          : dark 0x00000000 light 0x00F0F0F0
-// ButtonText          : dark 0x00FFFFFF light 0x00000000
-// GrayText            : dark 0x003FF23F light 0x006D6D6D
-// Hilight             : dark 0x00FFEB1A light 0x00D77800
-// HilightText         : dark 0x00000000 light 0x00FFFFFF
-// HotTrackingColor    : dark 0x0000FFFF light 0x00CC6600
-// InactiveTitle       : dark 0x002F0000 light 0x00DBCDBF
-// InactiveTitleText   : dark 0x00FFFFFF light 0x00000000
-// MenuHilight         : dark 0x00800080 light 0x00FF9933
-// TitleText           : dark 0x00FFFFFF light 0x00000000
-// Window              : dark 0x00000000 light 0x00FFFFFF
-// WindowText          : dark 0x00FFFFFF light 0x00000000
 
-static int32_t ui_theme_dark = -1; // -1 unknown
+#pragma push_macro("ux_theme_reg_cv")
+#pragma push_macro("ux_theme_reg_default_colors")
 
-static ui_theme_color_map_t ui_theme_colors[13];
-
-static void ui_theme_init_colors(void) {
-    // this is empirically determined for the dark theme, and from Win10
-    // the registry in standard light theme.
-    // Because all of the:
-    // HKEY_CURRENT_USER\Control Panel\Desktop\Colors
-    // HKEY_CURRENT_USER\Control Panel\Colors
-    // HKEY_USERS\.DEFAULT\Control Panel\Colors
-    // HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\DefaultColors\Standard
-    // Have different colors even for Light mode and none for the Dark Mode simply
-    // keep it hardcoded for time being:
-    ui_theme_colors[ 0] = (ui_theme_color_map_t){ .id = ui.colors.active_title,        .name = "ActiveTitle"      ,.dark = 0x00000000, .light = 0x00D1B499 };
-    ui_theme_colors[ 1] = (ui_theme_color_map_t){ .id = ui.colors.button_face,         .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 };
-    ui_theme_colors[ 2] = (ui_theme_color_map_t){ .id = ui.colors.button_text,         .name = "ButtonText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 };
-    ui_theme_colors[ 3] = (ui_theme_color_map_t){ .id = ui.colors.gray_text,           .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D };
-    ui_theme_colors[ 4] = (ui_theme_color_map_t){ .id = ui.colors.highlight,           .name = "Hilight"          ,.dark = 0x00626262, .light = 0x00D77800 };
-    ui_theme_colors[ 5] = (ui_theme_color_map_t){ .id = ui.colors.highlight_text,      .name = "HilightText"      ,.dark = 0x00000000, .light = 0x00FFFFFF };
-    ui_theme_colors[ 6] = (ui_theme_color_map_t){ .id = ui.colors.hot_tracking_color,  .name = "HotTrackingColor" ,.dark = 0x004D8DFA, .light = 0x00CC6600 };
-    ui_theme_colors[ 7] = (ui_theme_color_map_t){ .id = ui.colors.inactive_title,      .name = "InactiveTitle"    ,.dark = 0x002B2B2B, .light = 0x00DBCDBF };
-    ui_theme_colors[ 8] = (ui_theme_color_map_t){ .id = ui.colors.inactive_title_text, .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 };
-    ui_theme_colors[ 9] = (ui_theme_color_map_t){ .id = ui.colors.menu_highlight,      .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 };
-    ui_theme_colors[10] = (ui_theme_color_map_t){ .id =  ui.colors.title_text,         .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 };
-    ui_theme_colors[11] = (ui_theme_color_map_t){ .id =  ui.colors.window,             .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF };
-    ui_theme_colors[12] = (ui_theme_color_map_t){ .id =  ui.colors.window_text,        .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 };
-    #ifdef UX_THEME_READ_COLORS_FROM_REGISTRY // when the dust of Win11 settles.
-    errno_t r = 0;
-    const char* dark  = ux_theme_reg_default_colors "HighContrast";
-    const char* light = ux_theme_reg_default_colors "Standard";
-    for (int32_t i = 0; i < countof(ui_theme_colors); i++) {
-        const char* name = ui_theme_colors[i].name;
-        DWORD dc = 0;
-        DWORD lc = 0;
-        r = ui_theme_reg_get_uint32(HKEY_LOCAL_MACHINE, dark,  name, &dc);
-        if (r == 0) { ui_theme_colors[i].dark = dc; }
-        ui_theme_reg_get_uint32(HKEY_LOCAL_MACHINE, light, name, &lc);
-        if (r == 0) { ui_theme_colors[i].light = lc; }
-//      traceln("%-20s: dark %08X light %08X", name, dc, lc);
-    }
-    #endif
-}
+#define ux_theme_reg_cv "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
+#define ux_theme_reg_default_colors ux_theme_reg_cv "Themes\\DefaultColors\\"
 
 static bool ui_theme_use_light_theme(const char* key) {
     const char* personalize  = ux_theme_reg_cv "Themes\\Personalize";
@@ -6465,35 +6371,20 @@ static bool ui_theme_use_light_theme(const char* key) {
     return light_theme != 0;
 }
 
-static bool ui_theme_are_apps_light(void) {
-    return ui_theme_use_light_theme("AppsUseLightTheme");
+#pragma pop_macro("ux_theme_reg_cv")
+#pragma pop_macro("ux_theme_reg_default_colors")
+
+static bool ui_theme_are_apps_dark(void) {
+    return !ui_theme_use_light_theme("AppsUseLightTheme");
 }
 
-static bool ui_theme_is_system_light(void) {
-    return ui_theme_use_light_theme("SystemUsesLightTheme");
-}
-
-static ui_color_t ui_theme_get_color(int32_t color_id) {
-    swear(0 <= color_id && color_id < countof(ui_theme_colors));
-    static bool initialized;
-    if (!initialized) { ui_theme_init_colors(); initialized = true; }
-    if (ui_theme_dark < 0) {
-        bool are_apps_light = ui_theme.are_apps_light();
-        bool is_system_light  = ui_theme.is_system_light();
-        bool allowed  = ui_theme.is_dark_mode_allowed_for_app();
-        bool dark  = ui_theme.should_apps_use_dark_mode();
-        ui_theme_dark = !is_system_light && !are_apps_light && allowed && dark;
-        if (ui_theme_dark) {
-            ui_theme.set_preferred_app_mode(ui_theme.mode_force_dark);
-        }
-    }
-    return ui_theme_dark ? ui_theme_colors[color_id].dark :
-                           ui_theme_colors[color_id].light;
+static bool ui_theme_is_system_dark(void) {
+    return !ui_theme_use_light_theme("SystemUsesLightTheme");
 }
 
 static void ui_theme_refresh(void* window) {
     ui_theme_dark = -1;
-    BOOL dark_mode = !ui_theme.are_apps_light();
+    BOOL dark_mode = ui_theme.are_apps_dark();
     static const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     /* 20 == DWMWA_USE_IMMERSIVE_DARK_MODE in Windows 11 SDK.
        This value was undocumented for Windows 10 versions 2004
@@ -6507,161 +6398,21 @@ static void ui_theme_refresh(void* window) {
     ui_app.layout();
 }
 
-static bool ui_theme_is_dark_mode_allowed_for_app(void) {
-    typedef BOOL (__stdcall *IsDarkModeAllowedForApp_t)(void);
-    IsDarkModeAllowedForApp_t IsDarkModeAllowedForApp = (IsDarkModeAllowedForApp_t)
-            (void*)GetProcAddress(ui_theme_ux_theme(), MAKEINTRESOURCE(136));
-    if (IsDarkModeAllowedForApp != null) {
-        return IsDarkModeAllowedForApp();
+static ui_color_t ui_theme_get_color(int32_t color_id) {
+    swear(0 <= color_id && color_id < countof(ui_theme_colors));
+    if (ui_theme_dark < 0) {
+        ui_theme_dark = ui_theme.are_apps_dark();
     }
-    return false;
-}
-
-static bool ui_theme_should_apps_use_dark_mode(void) {
-    typedef BOOL (__stdcall *ShouldAppsUseDarkMode_t)(void);
-    ShouldAppsUseDarkMode_t ShouldAppsUseDarkMode = (ShouldAppsUseDarkMode_t)
-            (void*)GetProcAddress(ui_theme_ux_theme(), MAKEINTRESOURCE(132));
-    if (ShouldAppsUseDarkMode != null) {
-        return ShouldAppsUseDarkMode();
-    }
-    return false;
-}
-
-static void ui_theme_set_preferred_app_mode(int32_t mode) {
-    typedef BOOL (__stdcall *SetPreferredAppMode_t)(bool allow);
-    SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
-            (void*)GetProcAddress(ui_theme_ux_theme(), MAKEINTRESOURCE(135));
-    if (SetPreferredAppMode != null) {
-        errno_t r = b2e(SetPreferredAppMode(mode));
-        // fails on Windows 10 with: ERROR_RESOURCE_NAME_NOT_FOUND (1814)
-        if (r != 0 && r != ERROR_RESOURCE_NAME_NOT_FOUND) { // ignore
-            traceln("SetPreferredAppMode(%d) failed %s", mode, ut_str.error(r));
-        }
-    }
-}
-
-static ui_color_t ui_theme_explorer_accents[] = {
-    0x00FFD8A6, 0x00EDB976, 0x00E39C42, 0x00D77800,
-    0x009E5A00, 0x00754200, 0x00422600, 0x00981788
-};
-
-static void ui_theme_test(void) {
-    DWORD window = GetSysColor(COLOR_WINDOW);
-    DWORD text   = GetSysColor(COLOR_WINDOWTEXT);
-    traceln("COLOR_WINDOW: 0x%08X COLOR_WINDOWTEXT: 0x%08X", window, text);
-    DWORD colors[8] = {0};
-    uint32_t bytes = sizeof(colors);
-    ui_theme_reg_get_bin(HKEY_CURRENT_USER,
-        ux_theme_reg_cv "Explorer\\Accent",
-        "AccentPalette", &colors, &bytes);
-    ui_theme_init_colors();
-    HMODULE ux_theme = ui_theme_ux_theme();
-    traceln("ux_theme: %p", ux_theme);
-    bool are_apps_light = ui_theme.are_apps_light();
-    bool is_system_light  = ui_theme.is_system_light();
-    bool dark  = ui_theme.should_apps_use_dark_mode();
-    bool allowed  = ui_theme.is_dark_mode_allowed_for_app();
-    traceln("light is_system_light(): %d are_apps_light(): %d "
-            "should_apps_use_dark_mode(): %d "
-            "is_dark_mode_allowed_for_app(): %d",
-            is_system_light, are_apps_light, dark, allowed);
-    if (dark) {
-        ui_theme.set_preferred_app_mode(ui_theme.mode_force_dark);
-    }
-    for (int32_t i = 0; i < countof(ui_theme_colors); i++) {
-        ui_color_t c = ui_theme.get_color(ui_theme_colors[i].id);
-        traceln("%-20s 0x%08X", ui_theme_colors[i].name, ui_color_rgb(c));
-    }
+    return ui_theme_dark ? ui_theme_colors[color_id].dark :
+                           ui_theme_colors[color_id].light;
 }
 
 ui_theme_if ui_theme = {
-    .mode_default     = 0,
-    .mode_allow_dark  = 1,
-    .mode_force_dark  = 2,
-    .mode_force_light = 3,
-    .is_system_light              = ui_theme_is_system_light,
-    .are_apps_light               = ui_theme_are_apps_light,
-    .should_apps_use_dark_mode    = ui_theme_should_apps_use_dark_mode,
-    .is_dark_mode_allowed_for_app = ui_theme_is_dark_mode_allowed_for_app,
-    .set_preferred_app_mode       = ui_theme_set_preferred_app_mode,
     .get_color                    = ui_theme_get_color,
+    .is_system_dark               = ui_theme_is_system_dark,
+    .are_apps_dark                = ui_theme_are_apps_dark,
     .refresh                      = ui_theme_refresh,
-    .test                         = ui_theme_test
 };
-
-ut_static_init(ui_theme) { ui_theme.test(); }
-
-// Experimental Dark:
-
-// ActiveTitle         : dark 0x00000000 ***
-// ButtonFace          : dark 0x00333333 ***
-// ButtonText          : dark 0x00FFFFFF ***
-// GrayText            : dark 0x00666666 ***
-// Hilight             : dark 0x00626262 ***
-// HilightText         : dark 0x00000000 ***
-// HotTrackingColor    : dark 0x004D8DFA ***  0x00D77800 is light
-// InactiveTitle       : dark 0x002B2B2B ***
-// InactiveTitleText   : dark 0x00969696 *** (alt A1A1A1 or AAAAAA)
-// MenuHilight         : dark 0x00002642 ***
-// TitleText           : dark 0x00FFFFFF ***
-// Window              : dark 0x00000000 ***
-// WindowText          : dark 0x00FFFFFF ***
-
-//
-//  Computer\HKEY_CURRENT_USER\Control Panel\Desktop\
-//  AutoColorization=1
-//
-//  Computer\HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\DWM
-//  ColorizationColor=0xC43A3A3A // (alpha: C4!)
-//  EnableWindowColorization=0x84 // (bitset of something)
-//
-//  TODO: these values differ:
-//
-// Computer\HKEY_CURRENT_USER\Control Panel\Desktop\Colors
-// Computer\HKEY_CURRENT_USER\Control Panel\Colors
-//
-//  TODO: may be relevant too:
-//  HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\DWM\
-//  absent:
-//  AccentColorInactive
-//  present:
-//  AccentColor ff3a3a3a
-//  ColorizationAfterglow
-//  ColorizationColor
-//
-//  HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\Accent
-//  AccentColorMenu
-//  StartColorMenu
-//  AccentPalette binary 8x4byte colors
-//
-// Computer\HKEY_USERS\.DEFAULT\Control Panel\Colors
-// a lot of colors
-
-// https://superuser.com/questions/1245923/registry-keys-to-change-personalization-settings/1395560#1395560
-// Active Window Border
-// [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent]
-// "AccentColorMenu"=dword:ffb16300
-// Active Window Title Bar
-// [HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
-// "AccentColor"=dword:ffb16300
-// Inactive Window Title Bar
-// [HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
-// "AccentColorInactive"=dword:ffb16300
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-
-
-#pragma pop_macro("ux_theme_reg_cv")
-#pragma pop_macro("ux_theme_reg_default_colors")
 
 
 // _______________________________ ui_toggle.c ________________________________

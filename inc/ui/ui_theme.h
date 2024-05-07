@@ -3,18 +3,26 @@
 
 begin_c
 
+enum {
+    ui_color_id_active_title        = 0,
+    ui_color_id_button_face         = 1,
+    ui_color_id_button_text         = 2,
+    ui_color_id_gray_text           = 3,
+    ui_color_id_highlight           = 4,
+    ui_color_id_highlight_text      = 5,
+    ui_color_id_hot_tracking_color  = 6,
+    ui_color_id_inactive_title      = 7,
+    ui_color_id_inactive_title_text = 8,
+    ui_color_id_menu_highlight      = 9,
+    ui_color_id_title_text          = 10,
+    ui_color_id_window              = 11,
+    ui_color_id_window_text         = 12
+};
+
 typedef struct  {
-    int32_t const mode_default;     // = 0
-    int32_t const mode_allow_dark;  // = 1
-    int32_t const mode_force_dark;  // = 2
-    int32_t const mode_force_light; // = 3
-    // is Windows Desktop Manager and Apps in Light or Dark mode?
     ui_color_t (*get_color)(int32_t color_id);
-    bool (*is_system_light)(void);
-    bool (*are_apps_light)(void);
-    bool (*should_apps_use_dark_mode)(void);
-    bool (*is_dark_mode_allowed_for_app)(void);
-    void (*set_preferred_app_mode)(int32_t mode);
+    bool (*is_system_dark)(void);
+    bool (*are_apps_dark)(void);
     void (*refresh)(void* window);
     void (*test)(void);
 } ui_theme_if;

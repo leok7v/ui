@@ -193,21 +193,6 @@ typedef struct ui_s {
         int32_t const f23;
         int32_t const f24;
     } const key;
-    struct { // system colors: TODO: do not use - broken on Win10
-        int32_t const active_title;
-        int32_t const button_face;
-        int32_t const button_text;
-        int32_t const gray_text;
-        int32_t const highlight;
-        int32_t const highlight_text;
-        int32_t const hot_tracking_color;
-        int32_t const inactive_title;
-        int32_t const inactive_title_text;
-        int32_t const menu_highlight;
-        int32_t const title_text;
-        int32_t const window;
-        int32_t const window_text;
-    } const colors;
     struct { // known folders:
         int32_t const home     ; // c:\Users\<username>
         int32_t const desktop  ;

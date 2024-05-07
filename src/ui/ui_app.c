@@ -1631,7 +1631,7 @@ static void ui_app_set_title(const char* title) {
 }
 
 static ui_color_t ui_app_get_color(int32_t color_id) {
-    return ui_theme.get_color(color_id);
+    return ui_theme.get_color(color_id); // SysGetColor() does not work on Win10
 }
 
 static void ui_app_capture_mouse(bool on) {
@@ -1907,7 +1907,7 @@ static void ui_app_init(void) {
     // for ui_view_debug_paint:
     strprintf(ui_app.view->text, "ui_app.view");
     ui_app.view->type          = ui_view_container;
-    ui_app.view->color         = ui_app_get_color(ui.colors.window);
+    ui_app.view->color         = ui_app_get_color(ui_color_id_window);
     ui_app.view->paint         = ui_app_view_paint;
     ui_app.view->insets        = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_app.redraw              = ui_app_fast_redraw;
@@ -1966,11 +1966,6 @@ static void ui_app_init(void) {
 static void ui_app_init_windows(void) {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
     not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
-    if (!ui_theme.is_system_light() && !ui_theme.are_apps_light() &&
-        ui_theme.should_apps_use_dark_mode() &&
-        ui_theme.is_dark_mode_allowed_for_app()) {
-        ui_theme.set_preferred_app_mode(ui_theme.mode_force_dark);
-    }
     InitCommonControls(); // otherwise GetOpenFileName does not work
     ui_app.dpi.process = GetSystemDpiForProcess(GetCurrentProcess());
     ui_app.dpi.system = GetDpiForSystem(); // default was 96DPI

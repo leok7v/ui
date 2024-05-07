@@ -149,21 +149,6 @@ extern ui_if ui = {
         .f23    = VK_F23,
         .f24    = VK_F24,
     },
-    .colors = {
-        .active_title        = 0,
-        .button_face         = 1,
-        .button_text         = 2,
-        .gray_text           = 3,
-        .highlight           = 4,
-        .highlight_text      = 5,
-        .hot_tracking_color  = 6,
-        .inactive_title      = 7,
-        .inactive_title_text = 8,
-        .menu_highlight      = 9,
-        .title_text          = 10,
-        .window              = 11,
-        .window_text         = 12
-    },
     .folder = {
         .home      = 0, // c:\Users\<username>
         .desktop   = 1,

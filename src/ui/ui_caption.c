@@ -109,7 +109,7 @@ static void ui_caption_init(ui_view_t* v) {
                                  .right = 0.25, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
         c->font = &ui_app.fonts.H3;
-        c->color = ui_app.get_color(ui.colors.window_text); // ui_colors.white;
+        c->color = ui_app.get_color(ui_color_id_window_text); // ui_colors.white;
         c->flat = true;
         c->padding = p;
     });
