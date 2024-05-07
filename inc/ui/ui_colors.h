@@ -101,6 +101,7 @@ typedef struct ui_colors_s {
     /* Named colors */
 
     /* Main Panel Backgrounds */
+    const int32_t ennui_black; // rgb(18, 18, 18) 0x121212
     const int32_t charcoal;
     const int32_t onyx;
     const int32_t gunmetal;
@@ -109,6 +110,7 @@ typedef struct ui_colors_s {
     const int32_t eerie_black;
     const int32_t oil;
     const int32_t black_coral;
+    const int32_t obsidian;
 
     /* Secondary Panels or Sidebars */
     const int32_t raisin_black;

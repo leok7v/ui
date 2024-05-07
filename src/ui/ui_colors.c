@@ -72,6 +72,7 @@ ui_colors_t ui_colors = {
     .toast               = _colors_dkgray3, // ui_rgb(8, 40, 24), // toast background
 
     /* Main Panel Backgrounds */
+    .ennui_black                = ui_rgb( 18,  18,  18), // 0x1212121
     .charcoal                   = ui_rgb( 54,  69,  79), // 0x36454F
     .onyx                       = ui_rgb( 53,  56,  57), // 0x353839
     .gunmetal                   = ui_rgb( 42,  52,  57), // 0x2A3439
@@ -80,6 +81,7 @@ ui_colors_t ui_colors = {
     .eerie_black                = ui_rgb( 27,  27,  27), // 0x1B1B1B
     .oil                        = ui_rgb( 59,  60,  54), // 0x3B3C36
     .black_coral                = ui_rgb( 84,  98, 111), // 0x54626F
+    .obsidian                   = ui_rgb( 58,  50,  45), // 0x3A322D
 
     /* Secondary Panels or Sidebars */
     .raisin_black               = ui_rgb( 39,  38,  53), // 0x272635
