@@ -459,13 +459,13 @@ static void ui_app_window_dpi(void) {
 static void ui_app_window_opening(void) {
     ui_app_window_dpi();
     ui_app_init_fonts(ui_app.dpi.window);
+    ui_app.view->em = ui_gdi.get_em(*ui_app.view->font);
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
     ui_app.set_cursor(ui_app.cursor_arrow);
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
     not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
-    ui_app.view->em = ui_gdi.get_em(*ui_app.view->font);
     strprintf(ui_app.view->text, "ui_app.view"); // debugging
     ui_app_wm_timer(ui_app_timer_100ms_id);
     ui_app_wm_timer(ui_app_timer_1s_id);
@@ -622,17 +622,11 @@ static void ui_app_toast_paint(void) {
         ui_gdi.image_init(&image, 1, 1, 3, pixels);
     }
     if (ui_app.animating.view != null) {
-        ui_font_t f = *ui_app.animating.view->font;
-        const ui_point_t em = ui_gdi.get_em(f);
-        ui_app.animating.view->em = em;
-        // allow unparented and unmeasured toasts:
-        if (ui_app.animating.view->measure != null) {
-            ui_app.animating.view->measure(ui_app.animating.view);
-        }
+        ui_view.measure_children(ui_app.animating.view);
         ui_gdi.push(0, 0);
         bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        int32_t em_x = em.x;
-        int32_t em_y = em.y;
+        const int32_t em_x = ui_app.animating.view->em.x;
+        const int32_t em_y = ui_app.animating.view->em.y;
         ui_gdi.set_brush(ui_gdi.brush_color);
         ui_gdi.set_brush_color(ui_colors.toast);
         if (!tooltip) {
@@ -1412,7 +1406,7 @@ static void ui_app_cursor_set(ui_cursor_t c) {
 }
 
 static void ui_app_close_window(void) {
-    // TODO: fixme. Band aid - start up with maximized no_decor window is broken
+    // TODO: fix me. Band aid - start up with maximized no_decor window is broken
     if (ui_app.is_maximized()) { ui_app.show_window(ui.visibility.restore); }
     ui_app_post_message(WM_CLOSE, 0, 0);
 }

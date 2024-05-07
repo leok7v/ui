@@ -159,7 +159,6 @@ static const char* ui_view_nls(ui_view_t* view) {
 
 static void ui_view_measure(ui_view_t* view) {
     ui_font_t f = *view->font;
-    view->em = ui_gdi.get_em(f);
     view->baseline = ui_gdi.baseline(f);
     view->descent  = ui_gdi.descent(f);
     if (view->text[0] != 0) {
@@ -204,16 +203,9 @@ static void ui_view_localize(ui_view_t* view) {
 static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
     strprintf(hint->text, "%s", ut_nls.str(v->hint));
-    if (hint->measure != null) {
-        hint->measure(hint);
-    } else {
-        ui_view.measure(hint);
-    }
+    ui_view.measure_children(hint);
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.x / 4;
     int32_t y = v->y + v->h + v->em.y / 2 + hint->em.y / 4;
-//  traceln("mouse %d,%d xy: %d,%d view: %d,%d %dx%d hint: %d,%d %dx%d",
-//          ui_app.mouse.x, ui_app.mouse.y, x, y,
-//          v->x, v->y, v->w, v->h, hint->x, hint->y, hint->w, hint->h);
     if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->em.x / 2; }
     if (x < 0) { x = hint->em.x / 2; }
     if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->em.y / 2; }
@@ -358,7 +350,7 @@ static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
 }
 
 static void ui_view_measure_children(ui_view_t* view) {
-    view->em = ui_gdi.get_em(*ui_app.view->font);
+    view->em = ui_gdi.get_em(*view->font);
     if (!view->hidden) {
         ui_view_for_each(view, c, { ui_view_measure_children(c); });
         if (view->measure != null) {

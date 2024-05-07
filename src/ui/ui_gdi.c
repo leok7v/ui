@@ -620,8 +620,13 @@ static int32_t ui_gdi_descent(ui_font_t f) {
     return tm.tmDescent;
 }
 
+// get_em() is relatively expensive:
+// 24 microseconds Core i-7 3667U 2.0 GHz (2012)
+// but in small app with few views the number
+// of calls to get_em() is very small on layout.
+// Few dozens at most. No reason to cache or optimize.
+
 static ui_point_t ui_gdi_get_em(ui_font_t f) {
-    // 24 microseconds Core i-7 3667U 2.0 GHz (2012)
     SIZE cell = {0, 0};
     int32_t height   = 0;
     int32_t descent  = 0;

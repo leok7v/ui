@@ -121,7 +121,7 @@ static void opened(void) {
     test.paint = ui_view.debug_paint;
     // buttons to switch test content
     tools.max_h = ui.infinity;
-    tools.color = ui_colors.black;
+    tools.color = ui_colors.obsidian;
     tools.align = ui.align.right;
     strprintf(tools.text, "%s", "tools");
 //  tools.paint = ui_view.debug_paint;

@@ -415,6 +415,7 @@ typedef struct ui_colors_s {
     /* Named colors */
 
     /* Main Panel Backgrounds */
+    const int32_t ennui_black; // rgb(18, 18, 18) 0x121212
     const int32_t charcoal;
     const int32_t onyx;
     const int32_t gunmetal;
@@ -423,6 +424,7 @@ typedef struct ui_colors_s {
     const int32_t eerie_black;
     const int32_t oil;
     const int32_t black_coral;
+    const int32_t obsidian;
 
     /* Secondary Panels or Sidebars */
     const int32_t raisin_black;
@@ -2011,13 +2013,13 @@ static void ui_app_window_dpi(void) {
 static void ui_app_window_opening(void) {
     ui_app_window_dpi();
     ui_app_init_fonts(ui_app.dpi.window);
+    ui_app.view->em = ui_gdi.get_em(*ui_app.view->font);
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
     ui_app.set_cursor(ui_app.cursor_arrow);
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
     not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
-    ui_app.view->em = ui_gdi.get_em(*ui_app.view->font);
     strprintf(ui_app.view->text, "ui_app.view"); // debugging
     ui_app_wm_timer(ui_app_timer_100ms_id);
     ui_app_wm_timer(ui_app_timer_1s_id);
@@ -2174,17 +2176,11 @@ static void ui_app_toast_paint(void) {
         ui_gdi.image_init(&image, 1, 1, 3, pixels);
     }
     if (ui_app.animating.view != null) {
-        ui_font_t f = *ui_app.animating.view->font;
-        const ui_point_t em = ui_gdi.get_em(f);
-        ui_app.animating.view->em = em;
-        // allow unparented and unmeasured toasts:
-        if (ui_app.animating.view->measure != null) {
-            ui_app.animating.view->measure(ui_app.animating.view);
-        }
+        ui_view.measure_children(ui_app.animating.view);
         ui_gdi.push(0, 0);
         bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        int32_t em_x = em.x;
-        int32_t em_y = em.y;
+        const int32_t em_x = ui_app.animating.view->em.x;
+        const int32_t em_y = ui_app.animating.view->em.y;
         ui_gdi.set_brush(ui_gdi.brush_color);
         ui_gdi.set_brush_color(ui_colors.toast);
         if (!tooltip) {
@@ -2964,7 +2960,7 @@ static void ui_app_cursor_set(ui_cursor_t c) {
 }
 
 static void ui_app_close_window(void) {
-    // TODO: fixme. Band aid - start up with maximized no_decor window is broken
+    // TODO: fix me. Band aid - start up with maximized no_decor window is broken
     if (ui_app.is_maximized()) { ui_app.show_window(ui.visibility.restore); }
     ui_app_post_message(WM_CLOSE, 0, 0);
 }
@@ -4016,6 +4012,7 @@ ui_colors_t ui_colors = {
     .toast               = _colors_dkgray3, // ui_rgb(8, 40, 24), // toast background
 
     /* Main Panel Backgrounds */
+    .ennui_black                = ui_rgb( 18,  18,  18), // 0x1212121
     .charcoal                   = ui_rgb( 54,  69,  79), // 0x36454F
     .onyx                       = ui_rgb( 53,  56,  57), // 0x353839
     .gunmetal                   = ui_rgb( 42,  52,  57), // 0x2A3439
@@ -4024,6 +4021,7 @@ ui_colors_t ui_colors = {
     .eerie_black                = ui_rgb( 27,  27,  27), // 0x1B1B1B
     .oil                        = ui_rgb( 59,  60,  54), // 0x3B3C36
     .black_coral                = ui_rgb( 84,  98, 111), // 0x54626F
+    .obsidian                   = ui_rgb( 58,  50,  45), // 0x3A322D
 
     /* Secondary Panels or Sidebars */
     .raisin_black               = ui_rgb( 39,  38,  53), // 0x272635
@@ -5427,8 +5425,13 @@ static int32_t ui_gdi_descent(ui_font_t f) {
     return tm.tmDescent;
 }
 
+// get_em() is relatively expensive:
+// 24 microseconds Core i-7 3667U 2.0 GHz (2012)
+// but in small app with few views the number
+// of calls to get_em() is very small on layout.
+// Few dozens at most. No reason to cache or optimize.
+
 static ui_point_t ui_gdi_get_em(ui_font_t f) {
-    // 24 microseconds Core i-7 3667U 2.0 GHz (2012)
     SIZE cell = {0, 0};
     int32_t height   = 0;
     int32_t descent  = 0;
@@ -6689,7 +6692,6 @@ static const char* ui_view_nls(ui_view_t* view) {
 
 static void ui_view_measure(ui_view_t* view) {
     ui_font_t f = *view->font;
-    view->em = ui_gdi.get_em(f);
     view->baseline = ui_gdi.baseline(f);
     view->descent  = ui_gdi.descent(f);
     if (view->text[0] != 0) {
@@ -6734,16 +6736,9 @@ static void ui_view_localize(ui_view_t* view) {
 static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
     strprintf(hint->text, "%s", ut_nls.str(v->hint));
-    if (hint->measure != null) {
-        hint->measure(hint);
-    } else {
-        ui_view.measure(hint);
-    }
+    ui_view.measure_children(hint);
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.x / 4;
     int32_t y = v->y + v->h + v->em.y / 2 + hint->em.y / 4;
-//  traceln("mouse %d,%d xy: %d,%d view: %d,%d %dx%d hint: %d,%d %dx%d",
-//          ui_app.mouse.x, ui_app.mouse.y, x, y,
-//          v->x, v->y, v->w, v->h, hint->x, hint->y, hint->w, hint->h);
     if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->em.x / 2; }
     if (x < 0) { x = hint->em.x / 2; }
     if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->em.y / 2; }
@@ -6888,7 +6883,7 @@ static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
 }
 
 static void ui_view_measure_children(ui_view_t* view) {
-    view->em = ui_gdi.get_em(*ui_app.view->font);
+    view->em = ui_gdi.get_em(*view->font);
     if (!view->hidden) {
         ui_view_for_each(view, c, { ui_view_measure_children(c); });
         if (view->measure != null) {
