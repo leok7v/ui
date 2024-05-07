@@ -213,3 +213,138 @@ ui_colors_t ui_colors = {
     .moonstone_blue             = ui_rgb(115, 169, 194), // 0x73A9C2
     .independence               = ui_rgb( 76,  81, 109)  // 0x4C516D
 };
+
+static inline uint8_t ui_color_clamp_uint8(fp64_t value) {
+    return value < 0 ? 0 : (value > 255 ? 255 : (uint8_t)value);
+}
+
+static inline fp64_t ui_color_fp64_min(fp64_t x, fp64_t y) { return x < y ? x : y; }
+
+static inline fp64_t ui_color_fp64_max(fp64_t x, fp64_t y) { return x > y ? x : y; }
+
+static void ui_color_rgb_to_hsi(fp64_t r, fp64_t g, fp64_t b, fp64_t *h, fp64_t *s, fp64_t *i) {
+    r /= 255.0;
+    g /= 255.0;
+    b /= 255.0;
+    fp64_t min_val = ui_color_fp64_min(r, ui_color_fp64_min(g, b));
+    *i = (r + g + b) / 3;
+    fp64_t chroma = ui_color_fp64_max(r, ui_color_fp64_max(g, b)) - min_val;
+    if (chroma == 0) {
+        *h = 0;
+        *s = 0;
+    } else {
+        *s = 1 - min_val / *i;
+        if (*i > 0) { *s = chroma / (*i * 3); }
+        if (r == ui_color_fp64_max(r, ui_color_fp64_max(g, b))) {
+            *h = (g - b) / chroma + (g < b ? 6 : 0);
+        } else if (g == ui_color_fp64_max(r, ui_color_fp64_max(g, b))) {
+            *h = (b - r) / chroma + 2;
+        } else {
+            *h = (r - g) / chroma + 4;
+        }
+        *h *= 60;
+    }
+}
+
+static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i,  uint8_t a) {
+    h /= 60.0;
+    int h_int = (int)h;
+    fp64_t f = h - h_int;
+    fp64_t p = i * (1 - s);
+    fp64_t q = i * (1 - s * f);
+    fp64_t t = i * (1 - s * (1 - f));
+    fp64_t r, g, b;
+    switch (h_int) {
+        case 0:
+        case 6: r = i * 255; g = t * 255; b = p * 255; break;
+        case 1: r = q * 255; g = i * 255; b = p * 255; break;
+        case 2: r = p * 255; g = i * 255; b = t * 255; break;
+        case 3: r = p * 255; g = q * 255; b = i * 255; break;
+        case 4: r = t * 255; g = p * 255; b = i * 255; break;
+        case 5: r = i * 255; g = p * 255; b = q * 255; break;
+        default: assert(false);
+    }
+    assert(0 <= r && r <= 255);
+    assert(0 <= g && g <= 255);
+    assert(0 <= b && b <= 255);
+    return ui_rgba((uint8_t)r, (uint8_t)g, (uint8_t)b, a);
+}
+
+static ui_color_t ui_color_brightness(ui_color_t c, fp32_t multiplier) {
+    fp64_t h, s, i;
+    ui_color_rgb_to_hsi(ui_color_r(c), ui_color_g(c), ui_color_b(c), &h, &s, &i);
+    i = ui_color_fp64_max(0, ui_color_fp64_min(1, i * multiplier));
+    return ui_color_hsi_to_rgb(h, s, i, ui_color_a(c));
+}
+
+static ui_color_t ui_color_saturation(ui_color_t c, fp32_t multiplier) {
+    fp64_t h, s, i;
+    ui_color_rgb_to_hsi(ui_color_r(c), ui_color_g(c), ui_color_b(c), &h, &s, &i);
+    s = ui_color_fp64_max(0, ui_color_fp64_min(1, s * multiplier));
+    return ui_color_hsi_to_rgb(h, s, i, ui_color_a(c));
+}
+
+// Using the ui_color_interpolate function to blend colors toward
+// black or white can effectively adjust brightness and saturation,
+// offering more flexibility  and potentially better results in
+// terms of visual transitions between colors.
+
+static ui_color_t ui_color_interpolate(ui_color_t c0, ui_color_t c1,
+        fp32_t multiplier) {
+    assert(0.0 < multiplier && multiplier < 1.0);
+    fp64_t h0, s0, i0, h1, s1, i1;
+    ui_color_rgb_to_hsi(ui_color_r(c0), ui_color_g(c0), ui_color_b(c0),
+                       &h0, &s0, &i0);
+    ui_color_rgb_to_hsi(ui_color_r(c1), ui_color_g(c1), ui_color_b(c1),
+                       &h1, &s1, &i1);
+    fp64_t h = h0 + (h1 - h0) * multiplier;
+    fp64_t s = s0 + (s1 - s0) * multiplier;
+    fp64_t i = i0 + (i1 - i0) * multiplier;
+    // Interpolate alphas only if differ
+    uint8_t a0 = ui_color_a(c0);
+    uint8_t a1 = ui_color_a(c1);
+    uint8_t a = a0 == a1 ? a0 : ui_color_clamp_uint8(a0 + (a1 - a0) * multiplier);
+    return ui_color_hsi_to_rgb(h, s, i, a);
+}
+
+// Helper to get a neutral gray with the same intensity
+
+static ui_color_t ui_color_gray_with_same_intensity(ui_color_t c) {
+    uint8_t intensity = (ui_color_r(c) + ui_color_g(c) + ui_color_b(c)) / 3;
+    return ui_rgba(intensity, intensity, intensity, ui_color_a(c));
+}
+
+// Adjust brightness by interpolating towards black or white
+// using interpolation:
+//
+// To darken the color: Interpolate between
+// the color and black (rgba(0,0,0,255)).
+//
+// To lighten the color: Interpolate between
+// the color and white (rgba(255,255,255,255)).
+//
+// This approach allows you to manipulate the
+// brightness by specifying how close the color
+// should be to either black or white,
+// providing a smooth transition.
+
+static ui_color_t ui_color_adjust_brightness(ui_color_t c,
+        fp32_t multiplier, bool lighten) {
+    ui_color_t target = lighten ?
+        ui_rgba(255, 255, 255, ui_color_a(c)) :
+        ui_rgba(  0,   0,   0, ui_color_a(c));
+    return ui_color_interpolate(c, target, multiplier);
+}
+
+// Adjust saturation by interpolating towards a gray of the same intensity
+//
+// To adjust saturation, the approach is similar but slightly
+// more nuanced because saturation involves both the color's
+// purity and its brightness:
+
+static ui_color_t ui_color_adjust_saturation(ui_color_t c,
+        fp32_t multiplier) {
+    ui_color_t gray = ui_color_gray_with_same_intensity(c);
+    return ui_color_interpolate(c, gray, 1 - multiplier);
+}
+
