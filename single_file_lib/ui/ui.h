@@ -6352,6 +6352,9 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 #pragma push_macro("ux_theme_reg_cv")
 #pragma push_macro("ux_theme_reg_default_colors")
 
+#define ux_theme_reg_cv "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
+#define ux_theme_reg_default_colors ux_theme_reg_cv "Themes\\DefaultColors\\"
+
 static HMODULE ui_theme_ux_theme(void) {
     static HMODULE ux_theme;
     if (ux_theme == null) {
@@ -6364,18 +6367,31 @@ static HMODULE ui_theme_ux_theme(void) {
     return ux_theme;
 }
 
-static void ui_theme_reg_get_word(HKEY root, const char* path,
+static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
         const char* key, DWORD *v) {
     *v = 0;
     DWORD type = REG_DWORD;
     DWORD light_theme = 0;
     DWORD bytes = sizeof(light_theme);
     errno_t r = RegGetValueA(root, path, key, RRF_RT_DWORD, &type, v, &bytes);
-    fatal_if_not_zero(r, "RegGetValueA(%s) failed %s", key, ut_str.error(r));
+    if (r != 0) {
+        traceln("RegGetValueA(%s\\%s) failed %s", path, key, ut_str.error(r));
+    }
+    return r;
 }
 
-#define ux_theme_reg_cv "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\"
-#define ux_theme_reg_default_colors ux_theme_reg_cv "Themes\\DefaultColors\\"
+static errno_t ui_theme_reg_get_bin(HKEY root, const char* path,
+        const char* key, void *data, uint32_t *bytes) {
+    memset(data, 0, *bytes);
+    DWORD type = REG_BINARY;
+    DWORD n = *bytes;
+    errno_t r = RegGetValueA(root, path, key, RRF_RT_REG_BINARY, &type, data, &n);
+    if (r == 0) { *bytes = n; }
+    if (r != 0) {
+        traceln("RegGetValueA(%s\\%s) failed %s", path, key, ut_str.error(r));
+    }
+    return r;
+}
 
 typedef struct {
     int32_t id;
@@ -6384,42 +6400,68 @@ typedef struct {
     ui_color_t  light;
 } ui_theme_color_map_t;
 
+// ActiveTitle         : dark 0x006E0037 light 0x00D1B499
+// ButtonFace          : dark 0x00000000 light 0x00F0F0F0
+// ButtonText          : dark 0x00FFFFFF light 0x00000000
+// GrayText            : dark 0x003FF23F light 0x006D6D6D
+// Hilight             : dark 0x00FFEB1A light 0x00D77800
+// HilightText         : dark 0x00000000 light 0x00FFFFFF
+// HotTrackingColor    : dark 0x0000FFFF light 0x00CC6600
+// InactiveTitle       : dark 0x002F0000 light 0x00DBCDBF
+// InactiveTitleText   : dark 0x00FFFFFF light 0x00000000
+// MenuHilight         : dark 0x00800080 light 0x00FF9933
+// TitleText           : dark 0x00FFFFFF light 0x00000000
+// Window              : dark 0x00000000 light 0x00FFFFFF
+// WindowText          : dark 0x00FFFFFF light 0x00000000
+
 static int32_t ui_theme_dark = -1; // -1 unknown
 
 static ui_theme_color_map_t ui_theme_colors[13];
 
 static void ui_theme_init_colors(void) {
-    ui_theme_colors[0] = (ui_theme_color_map_t){ ui.colors.active_title, "ActiveTitle" };
-    ui_theme_colors[1] = (ui_theme_color_map_t){ ui.colors.button_face, "ButtonFace" };
-    ui_theme_colors[2] = (ui_theme_color_map_t){ ui.colors.button_text, "ButtonText" };
-    ui_theme_colors[3] = (ui_theme_color_map_t){ ui.colors.gray_text, "GrayText" };
-    ui_theme_colors[4] = (ui_theme_color_map_t){ ui.colors.highlight, "Hilight" };
-    ui_theme_colors[5] = (ui_theme_color_map_t){ ui.colors.highlight_text, "HilightText" };
-    ui_theme_colors[6] = (ui_theme_color_map_t){ ui.colors.hot_tracking_color, "HotTrackingColor" };
-    ui_theme_colors[7] = (ui_theme_color_map_t){ ui.colors.inactive_title, "InactiveTitle" };
-    ui_theme_colors[8] = (ui_theme_color_map_t){ ui.colors.inactive_title_text, "InactiveTitleText" };
-    ui_theme_colors[9] = (ui_theme_color_map_t){ ui.colors.menu_highlight, "MenuHilight" };
-    ui_theme_colors[10] = (ui_theme_color_map_t){ ui.colors.title_text, "TitleText" };
-    ui_theme_colors[11] = (ui_theme_color_map_t){ ui.colors.window, "Window" };
-    ui_theme_colors[12] = (ui_theme_color_map_t){ ui.colors.window_text, "WindowText" };
+    // this is empirically determined for the dark theme, and from Win10
+    // the registry in standard light theme.
+    // Because all of the:
+    // HKEY_CURRENT_USER\Control Panel\Desktop\Colors
+    // HKEY_CURRENT_USER\Control Panel\Colors
+    // HKEY_USERS\.DEFAULT\Control Panel\Colors
+    // HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Themes\DefaultColors\Standard
+    // Have different colors even for Light mode and none for the Dark Mode simply
+    // keep it hardcoded for time being:
+    ui_theme_colors[ 0] = (ui_theme_color_map_t){ .id = ui.colors.active_title,        .name = "ActiveTitle"      ,.dark = 0x00000000, .light = 0x00D1B499 };
+    ui_theme_colors[ 1] = (ui_theme_color_map_t){ .id = ui.colors.button_face,         .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 };
+    ui_theme_colors[ 2] = (ui_theme_color_map_t){ .id = ui.colors.button_text,         .name = "ButtonText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 };
+    ui_theme_colors[ 3] = (ui_theme_color_map_t){ .id = ui.colors.gray_text,           .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D };
+    ui_theme_colors[ 4] = (ui_theme_color_map_t){ .id = ui.colors.highlight,           .name = "Hilight"          ,.dark = 0x00626262, .light = 0x00D77800 };
+    ui_theme_colors[ 5] = (ui_theme_color_map_t){ .id = ui.colors.highlight_text,      .name = "HilightText"      ,.dark = 0x00000000, .light = 0x00FFFFFF };
+    ui_theme_colors[ 6] = (ui_theme_color_map_t){ .id = ui.colors.hot_tracking_color,  .name = "HotTrackingColor" ,.dark = 0x004D8DFA, .light = 0x00CC6600 };
+    ui_theme_colors[ 7] = (ui_theme_color_map_t){ .id = ui.colors.inactive_title,      .name = "InactiveTitle"    ,.dark = 0x002B2B2B, .light = 0x00DBCDBF };
+    ui_theme_colors[ 8] = (ui_theme_color_map_t){ .id = ui.colors.inactive_title_text, .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 };
+    ui_theme_colors[ 9] = (ui_theme_color_map_t){ .id = ui.colors.menu_highlight,      .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 };
+    ui_theme_colors[10] = (ui_theme_color_map_t){ .id =  ui.colors.title_text,         .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 };
+    ui_theme_colors[11] = (ui_theme_color_map_t){ .id =  ui.colors.window,             .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF };
+    ui_theme_colors[12] = (ui_theme_color_map_t){ .id =  ui.colors.window_text,        .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 };
+    #ifdef UX_THEME_READ_COLORS_FROM_REGISTRY // when the dust of Win11 settles.
+    errno_t r = 0;
     const char* dark  = ux_theme_reg_default_colors "HighContrast";
     const char* light = ux_theme_reg_default_colors "Standard";
     for (int32_t i = 0; i < countof(ui_theme_colors); i++) {
         const char* name = ui_theme_colors[i].name;
         DWORD dc = 0;
         DWORD lc = 0;
-        ui_theme_reg_get_word(HKEY_LOCAL_MACHINE, dark,  name, &dc);
-        ui_theme_colors[i].dark = dc;
-        ui_theme_reg_get_word(HKEY_LOCAL_MACHINE, light, name, &lc);
-        ui_theme_colors[i].light = lc;
+        r = ui_theme_reg_get_uint32(HKEY_LOCAL_MACHINE, dark,  name, &dc);
+        if (r == 0) { ui_theme_colors[i].dark = dc; }
+        ui_theme_reg_get_uint32(HKEY_LOCAL_MACHINE, light, name, &lc);
+        if (r == 0) { ui_theme_colors[i].light = lc; }
 //      traceln("%-20s: dark %08X light %08X", name, dc, lc);
     }
+    #endif
 }
 
 static bool ui_theme_use_light_theme(const char* key) {
     const char* personalize  = ux_theme_reg_cv "Themes\\Personalize";
     DWORD light_theme = 0;
-    ui_theme_reg_get_word(HKEY_CURRENT_USER, personalize, key, &light_theme);
+    ui_theme_reg_get_uint32(HKEY_CURRENT_USER, personalize, key, &light_theme);
     return light_theme != 0;
 }
 
@@ -6434,7 +6476,7 @@ static bool ui_theme_is_system_light(void) {
 static ui_color_t ui_theme_get_color(int32_t color_id) {
     swear(0 <= color_id && color_id < countof(ui_theme_colors));
     static bool initialized;
-    if (!initialized) { ui_theme_init_colors(); }
+    if (!initialized) { ui_theme_init_colors(); initialized = true; }
     if (ui_theme_dark < 0) {
         bool are_apps_light = ui_theme.are_apps_light();
         bool is_system_light  = ui_theme.is_system_light();
@@ -6498,7 +6540,20 @@ static void ui_theme_set_preferred_app_mode(int32_t mode) {
     }
 }
 
+static ui_color_t ui_theme_explorer_accents[] = {
+    0x00FFD8A6, 0x00EDB976, 0x00E39C42, 0x00D77800,
+    0x009E5A00, 0x00754200, 0x00422600, 0x00981788
+};
+
 static void ui_theme_test(void) {
+    DWORD window = GetSysColor(COLOR_WINDOW);
+    DWORD text   = GetSysColor(COLOR_WINDOWTEXT);
+    traceln("COLOR_WINDOW: 0x%08X COLOR_WINDOWTEXT: 0x%08X", window, text);
+    DWORD colors[8] = {0};
+    uint32_t bytes = sizeof(colors);
+    ui_theme_reg_get_bin(HKEY_CURRENT_USER,
+        ux_theme_reg_cv "Explorer\\Accent",
+        "AccentPalette", &colors, &bytes);
     ui_theme_init_colors();
     HMODULE ux_theme = ui_theme_ux_theme();
     traceln("ux_theme: %p", ux_theme);
@@ -6534,10 +6589,38 @@ ui_theme_if ui_theme = {
     .test                         = ui_theme_test
 };
 
-// ut_static_init(ui_theme) { ui_theme.test(); }
+ut_static_init(ui_theme) { ui_theme.test(); }
 
-//  TODO: may be relevant too:
+// Experimental Dark:
+
+// ActiveTitle         : dark 0x00000000 ***
+// ButtonFace          : dark 0x00333333 ***
+// ButtonText          : dark 0x00FFFFFF ***
+// GrayText            : dark 0x00666666 ***
+// Hilight             : dark 0x00626262 ***
+// HilightText         : dark 0x00000000 ***
+// HotTrackingColor    : dark 0x004D8DFA ***  0x00D77800 is light
+// InactiveTitle       : dark 0x002B2B2B ***
+// InactiveTitleText   : dark 0x00969696 *** (alt A1A1A1 or AAAAAA)
+// MenuHilight         : dark 0x00002642 ***
+// TitleText           : dark 0x00FFFFFF ***
+// Window              : dark 0x00000000 ***
+// WindowText          : dark 0x00FFFFFF ***
+
 //
+//  Computer\HKEY_CURRENT_USER\Control Panel\Desktop\
+//  AutoColorization=1
+//
+//  Computer\HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\DWM
+//  ColorizationColor=0xC43A3A3A // (alpha: C4!)
+//  EnableWindowColorization=0x84 // (bitset of something)
+//
+//  TODO: these values differ:
+//
+// Computer\HKEY_CURRENT_USER\Control Panel\Desktop\Colors
+// Computer\HKEY_CURRENT_USER\Control Panel\Colors
+//
+//  TODO: may be relevant too:
 //  HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\DWM\
 //  absent:
 //  AccentColorInactive
@@ -6550,9 +6633,37 @@ ui_theme_if ui_theme = {
 //  AccentColorMenu
 //  StartColorMenu
 //  AccentPalette binary 8x4byte colors
+//
+// Computer\HKEY_USERS\.DEFAULT\Control Panel\Colors
+// a lot of colors
+
+// https://superuser.com/questions/1245923/registry-keys-to-change-personalization-settings/1395560#1395560
+// Active Window Border
+// [HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\Accent]
+// "AccentColorMenu"=dword:ffb16300
+// Active Window Title Bar
+// [HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
+// "AccentColor"=dword:ffb16300
+// Inactive Window Title Bar
+// [HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
+// "AccentColorInactive"=dword:ffb16300
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+
 
 #pragma pop_macro("ux_theme_reg_cv")
 #pragma pop_macro("ux_theme_reg_default_colors")
+
+
 // _______________________________ ui_toggle.c ________________________________
 
 #include "ut/ut.h"
