@@ -79,15 +79,16 @@ void ui_view_init_mbx(ui_view_t* view) {
     view->measure = ui_mbx_measure;
     view->layout  = ui_mbx_layout;
     mx->view.fm    = &ui_app.fonts.H3;
-    const char** options = mx->options;
     int32_t n = 0;
-    while (options[n] != null && n < countof(mx->button) - 1) {
-        ui_button_init(&mx->button[n], options[n], 6.0, ui_mbx_button);
+    while (mx->options[n] != null && n < countof(mx->button) - 1) {
+        mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
+        strprintf(mx->button[n].text, "%s", mx->options[n]);
         n++;
     }
-    swear(n <= countof(mx->button), "inhumane: %d buttons", n);
+    swear(n <= countof(mx->button), "inhumane: %d buttons is too many", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
-    ui_label_init(&mx->label, 0.0, "%s", mx->view.text);
+    mx->label = (ui_label_t)ui_label(0, "");
+    strprintf(mx->label.text, "%s", mx->view.text);
     ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);

@@ -4450,6 +4450,7 @@ static const char* ui_container_finite_int(int32_t v, char* text, int32_t count)
 } while (0)
 
 static void ui_span_measure(ui_view_t* p) {
+//  debugln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
     const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
@@ -4462,6 +4463,7 @@ static void ui_span_measure(ui_view_t* p) {
         swear(c->max_w == 0 || c->max_w >= c->w,
               "max_w: %d w: %d", c->max_w, c->w);
         if (c->type == ui_view_spacer) {
+            c->padding = (ui_gaps_t){ 0, 0, 0, 0 };
             c->w = 0; // layout will distribute excess here
             max_w = ui.infinity; // spacer make width greedy
         } else {
@@ -4505,6 +4507,7 @@ static void ui_span_measure(ui_view_t* p) {
     p->h += ui.gaps_em2px(p->fm->em.h, p->insets.top);
     p->h += ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
     swear(p->max_w == 0 || p->max_w >= p->w, "max_w is less than actual width w");
+//  debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
 // after measure of the subtree is concluded the parent ui_span
@@ -4512,7 +4515,7 @@ static void ui_span_measure(ui_view_t* p) {
 // and ui_span.max_w agreement
 
 static void ui_span_layout(ui_view_t* p) {
-    debugln("> %s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
+//  debugln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     int32_t spacers = 0; // Number of spacers
     // Left and right insets
@@ -4528,23 +4531,26 @@ static void ui_span_layout(ui_view_t* p) {
     const int32_t top = p->y + i_tp;
     // Mitigation for vertical overflow:
     const int32_t bot = p->y + p->h - i_bt < top ? top + p->h : p->y + p->h - i_bt;
-    int32_t max_w_sum = 0;
     int32_t max_w_count = 0;
     int32_t x = lf;
     ui_view_for_each_begin(p, c) {
-        const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
-        const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
-        const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
-        const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
         if (c->type == ui_view_spacer) {
-            c->y = p->y + i_tp + p_tp;
-            c->h = bot - top - p_tp - p_bt;
+            c->x = 0;
+            c->y = 0;
+            c->h = 0;
+            c->w = 0;
             spacers++;
         } else {
+            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
+            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
             // setting child`s max_h to infinity means that child`s height is
             // *always* fill vertical view size of the parent
             // childs.h can exceed parent.h (vertical overflow) - not encouraged but allowed
-            if (c->max_h == ui.infinity) { c->h = p->h - i_tp - i_bt - p_tp - p_bt; }
+            if (c->max_h == ui.infinity) {
+                c->h = ut_max(0, p->h - i_tp - i_bt - p_tp - p_bt);
+            }
             if ((c->align & ui.align.top) != 0) {
                 c->y = top + p_tp;
             } else if ((c->align & ui.align.bottom) != 0) {
@@ -4558,57 +4564,64 @@ static void ui_span_layout(ui_view_t* p) {
             swear(c->max_w == 0 || c->max_w > c->w, "max_w must be greater "
                   "than current width: max_w: %d, w: %d", c->max_w, c->w);
             if (c->max_w > 0) {
-                // if max_w is infinity, it can occupy the whole parent width:
-                max_w_sum += (c->max_w == ui.infinity) ? p->w : c->max_w;
                 max_w_count++;
             }
         }
     } ui_view_for_each_end(p, c);
-    if (x < rt && max_w_count > 0) {
-        int32_t sum = 0;
-        int32_t diff = rt - x;
+    int32_t xw = ut_max(0, rt - x); // excess width
+    int32_t max_w_sum = 0;
+    if (xw > 0 && max_w_count > 0) {
+        ui_view_for_each_begin(p, c) {
+            if (c->type != ui_view_spacer && c->max_w > 0) {
+                max_w_sum += ut_min(c->max_w, xw);
+            }
+        } ui_view_for_each_end(p, c);
+    }
+    if (xw > 0 && max_w_count > 0) {
         x = lf;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
             const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
             const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
-            if (c->type != ui_view_spacer && c->max_w > 0) {
-                // if max_w is infinity, it can occupy the whole parent width:
-                const int32_t max_w = (c->max_w == ui.infinity) ? p->w : c->max_w;
-                int32_t proportional = (diff * max_w) / (max_w_count * max_w_sum);
-                int32_t cw = k == max_w_count - 1 ?
-                    diff - sum - p_lf - p_rt : proportional;
-                c->w = ut_min(max_w, c->w + cw);
-                sum += p_lf + c->w + p_rt;
+            if (c->type == ui_view_spacer) {
+                swear(p_lf == 0 && p_rt == 0);
+            } else if (c->max_w > 0) {
+                const int32_t max_w = ut_min(c->max_w, xw);
+                int64_t proportional = ((int64_t)xw * (int64_t)max_w) / max_w_sum;
+                assert(proportional <= INT32_MAX);
+                int32_t cw = (int32_t)proportional;
+                c->w = ut_min(c->max_w, c->w + cw);
                 k++;
             }
-            int32_t cw = p_lf + c->w + p_rt;
             // TODO: take into account .align of a child and adjust x
             //       depending on ui.align.left/right/center
             //       distributing excess width on the left and right of a child
             c->x = p_lf + x;
-            x += cw;
+            x = c->x + p_lf + c->w + p_rt;
         } ui_view_for_each_end(p, c);
         assert(k == max_w_count);
     }
-    if (x < rt && spacers > 0) {
+    // excess width after max_w of non-spacers taken into account
+    xw = ut_max(0, rt - x);
+    if (xw > 0 && spacers > 0) {
         // evenly distribute excess among spacers
-        int32_t sum = 0;
-        int32_t diff = rt - x;
-        int32_t partial = diff / spacers;
+        int32_t partial = xw / spacers;
         x = lf;
         ui_view_for_each_begin(p, c) {
             const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
             const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
             if (c->type == ui_view_spacer) {
-                c->w = spacers == 1 ? diff - sum - p_lf - p_rt : partial;
-                sum += p_lf + c->w + p_rt;
+                c->y = top;
+                c->w = partial;
+                c->h = bot - top;
                 spacers--;
             }
             c->x = x + p_lf;
-            x += p_lf + c->w + p_rt;
+//debugln(" %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
+            x = c->x + c->w + p_rt;
         } ui_view_for_each_end(p, c);
     }
+//  debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
 static void ui_list_measure(ui_view_t* p) {
@@ -4624,6 +4637,7 @@ static void ui_list_measure(ui_view_t* p) {
         swear(c->max_h == 0 || c->max_h >= c->h,
               "max_h: %d h: %d", c->max_h, c->h);
         if (c->type == ui_view_spacer) {
+            c->padding = (ui_gaps_t){ 0, 0, 0, 0 };
             c->h = 0; // layout will distribute excess here
             max_h = ui.infinity; // spacer make height greedy
         } else {
@@ -4667,7 +4681,7 @@ static void ui_list_measure(ui_view_t* p) {
 }
 
 static void ui_list_layout(ui_view_t* p) {
-    debugln(">%s.(x,y): (%d,%d) .h: %d", p->text, p->x, p->y, p->h);
+//  debugln(">%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
     int32_t spacers = 0; // Number of spacers
     const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
@@ -4684,19 +4698,23 @@ static void ui_list_layout(ui_view_t* p) {
     int32_t max_h_count = 0;
     int32_t y = top;
     ui_view_for_each_begin(p, c) {
-        const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
-        const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
-        const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
-        const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
         if (c->type == ui_view_spacer) {
-            c->x = p->x + i_lf + p_lf;
-            c->w = rt - lf - p_lf - p_rt;
+            c->x = 0;
+            c->y = 0;
+            c->w = 0;
+            c->h = 0;
             spacers++;
         } else {
+            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
+            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
             // setting child`s max_w to infinity means that child`s height is
             // *always* fill vertical view size of the parent
             // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
-            if (c->max_w == ui.infinity) { c->w = p->w - i_lf - i_rt - p_lf - p_rt; }
+            if (c->max_w == ui.infinity) {
+                c->w = ut_max(0, p->w - i_lf - i_rt - p_lf - p_rt);
+            }
             if ((c->align & ui.align.left) != 0) {
                 c->x = lf + p_lf;
             } else if ((c->align & ui.align.right) != 0) {
@@ -4710,26 +4728,31 @@ static void ui_list_layout(ui_view_t* p) {
             swear(c->max_h == 0 || c->max_h > c->h, "max_h must be greater"
                 "than current height: max_h: %d, h: %d", c->max_h, c->h);
             if (c->max_h > 0) {
-                max_h_sum += (c->max_h == ui.infinity) ? p->h : c->max_h;
+                // clamp max_h to the effective parent height
                 max_h_count++;
             }
         }
     } ui_view_for_each_end(p, c);
-    if (y < bot && max_h_count > 0) {
-        int32_t sum = 0;
-        int32_t diff = bot - y;
+    int32_t xh = ut_max(0, bot - y); // excess height
+    if (xh > 0 && max_h_count > 0) {
+        ui_view_for_each_begin(p, c) {
+            if (c->type != ui_view_spacer && c->max_h > 0) {
+                max_h_sum += ut_min(c->max_h, xh);
+            }
+        } ui_view_for_each_end(p, c);
+    }
+    if (xh > 0 && max_h_count > 0) {
         y = top;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
             const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
             const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
             if (c->type != ui_view_spacer && c->max_h > 0) {
-                const int32_t max_h = (c->max_h == ui.infinity) ? p->h : c->max_h;
-                int32_t proportional = (diff * max_h) / (max_h_count * max_h_sum);
-                int32_t ch = k == max_h_count - 1 ?
-                        diff - sum - p_tp - p_bt : proportional;
-                c->h = ut_min(max_h, c->h + ch);
-                sum += p_tp + c->h + p_bt;
+                const int32_t max_h = ut_min(c->max_h, xh);
+                int64_t proportional = ((int64_t)xh * (int64_t)max_h) / max_h_sum;
+                assert(proportional <= INT32_MAX);
+                int32_t ch = (int32_t)proportional;
+                c->h = ut_min(c->max_h, c->h + ch);
                 k++;
             }
             int32_t ch = p_tp + c->h + p_bt;
@@ -4738,18 +4761,19 @@ static void ui_list_layout(ui_view_t* p) {
         } ui_view_for_each_end(p, c);
         assert(k == max_h_count);
     }
-    if (y < bot && spacers > 0) {
+    // excess height after max_h of non-spacers taken into account
+    xh = ut_max(0, bot - y); // excess height
+    if (xh > 0 && spacers > 0) {
         // evenly distribute excess among spacers
-        int32_t sum = 0;
-        int32_t diff = bot - y;
-        int32_t partial = diff / spacers;
+        int32_t partial = xh / spacers;
         y = top;
         ui_view_for_each_begin(p, c) {
             const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
             const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
             if (c->type == ui_view_spacer) {
-                c->h = spacers == 1 ? diff - sum - p_tp - p_bt : partial;
-                sum += c->h;
+                c->x = lf;
+                c->w = rt - lf;
+                c->h = partial; // TODO: xxxxx last?
                 spacers--;
             }
             int32_t ch = p_tp + c->h + p_bt;
@@ -4757,10 +4781,11 @@ static void ui_list_layout(ui_view_t* p) {
             y += ch;
         } ui_view_for_each_end(p, c);
     }
-    debugln("<%s.(x,y): (%d,%d) .h: %d", p->text, p->x, p->y, p->h);
+//  debugln("<%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
 static void ui_container_measure(ui_view_t* p) {
+//  debugln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
     const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
     const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
@@ -4782,10 +4807,11 @@ static void ui_container_measure(ui_view_t* p) {
         p->w = ut_max(p->w, p_lf + c->w + p_rt);
         p->h = ut_max(p->h, p_tp + c->h + p_bt);
     } ui_view_for_each_end(p, c);
+//  debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
 static void ui_container_layout(ui_view_t* p) {
-    debugln("> %s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
+//  debugln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
     const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
     const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
@@ -4834,9 +4860,10 @@ static void ui_container_layout(ui_view_t* p) {
                 const int32_t h = bt - tp; // effective height
                 c->y = tp + p_tp + (h - (p_tp + c->h + p_bt)) / 2;
             }
+//          debugln(" %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
         }
     } ui_view_for_each_end(p, c);
-    debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
+//  debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
 static void ui_container_paint(ui_view_t* v) {
@@ -6311,15 +6338,16 @@ void ui_view_init_mbx(ui_view_t* view) {
     view->measure = ui_mbx_measure;
     view->layout  = ui_mbx_layout;
     mx->view.fm    = &ui_app.fonts.H3;
-    const char** options = mx->options;
     int32_t n = 0;
-    while (options[n] != null && n < countof(mx->button) - 1) {
-        ui_button_init(&mx->button[n], options[n], 6.0, ui_mbx_button);
+    while (mx->options[n] != null && n < countof(mx->button) - 1) {
+        mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
+        strprintf(mx->button[n].text, "%s", mx->options[n]);
         n++;
     }
-    swear(n <= countof(mx->button), "inhumane: %d buttons", n);
+    swear(n <= countof(mx->button), "inhumane: %d buttons is too many", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
-    ui_label_init(&mx->label, 0.0, "%s", mx->view.text);
+    mx->label = (ui_label_t)ui_label(0, "");
+    strprintf(mx->label.text, "%s", mx->view.text);
     ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);
@@ -6556,18 +6584,18 @@ void ui_view_init_slider(ui_view_t* v) {
     v->every_100ms = ui_slider_every_100ms;
     v->color_id    = ui_color_id_window_text;
     ui_slider_t* s = (ui_slider_t*)v;
-    s->dec.fm = v->fm;
-    s->dec.color_id = v->color_id;
-    s->dec.background_id = v->background_id;
-    ui_button_init(&s->dec, ui_glyph_heavy_minus_sign, 0, ui_slider_inc_dec);
-    s->inc.fm = v->fm;
-    s->inc.color_id = v->color_id;
-    s->inc.background_id = v->background_id;
-    ui_button_init(&s->inc, ui_glyph_heavy_plus_sign, 0, ui_slider_inc_dec);
     static const char* accel =
-        " Hold key while clicking\n Ctrl: x 10 Shift: x 100 \n Ctrl+Shift: x 1000 \n for step multiplier.";
-    strprintf(s->inc.hint, "%s", accel);
+        " Hold key while clicking\n"
+        " Ctrl: x 10 Shift: x 100 \n"
+        " Ctrl+Shift: x 1000 \n for step multiplier.";
+    s->dec = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
+                                    ui_slider_inc_dec);
+    s->dec.fm = v->fm;
     strprintf(s->dec.hint, "%s", accel);
+    s->inc = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
+                                    ui_slider_inc_dec);
+    s->inc.fm = v->fm;
+    strprintf(s->inc.hint, "%s", accel);
     ui_view.add(&s->view, &s->dec, &s->inc, null);
     ui_view.localize(&s->view);
 }
@@ -7222,7 +7250,6 @@ static void ui_view_measure_children(ui_view_t* v) {
         if (v->before_measure != null) { v->before_measure(v); }
         if (v->measure != null) {
             v->measure(v);
-            v->measure(v);
         } else {
             ui_view.measure(v);
         }
@@ -7331,7 +7358,7 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
 static void ui_view_debug_paint(ui_view_t* v) {
     ui_gdi.push(v->x, v->y);
     if (v->color != ui_color_transparent) {
-//      traceln("%s 0x%08X", v->text, v->color);
+//          traceln("%s 0x%08X", v->text, v->color);
         ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     }
     const int32_t p_lf = ui.gaps_em2px(v->fm->em.w, v->padding.left);
@@ -7350,7 +7377,7 @@ static void ui_view_debug_paint(ui_view_t* v) {
     if (i_rt > 0) { ui_gdi.frame_with(v->x + v->w - i_rt, v->y,               i_rt, v->h, ui_colors.orange); }
     if (i_tp > 0) { ui_gdi.frame_with(v->x,               v->y,               v->w, i_tp, ui_colors.orange); }
     if (i_bt > 0) { ui_gdi.frame_with(v->x,               v->y + v->h - i_bt, v->w, i_bt, ui_colors.orange); }
-    if (v->color != ui_color_transparent) {
+    if (v->w > 0 && v->h > 0 && v->color != ui_color_transparent) {
         ui_gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
         ui_point_t mt = ui_gdi.measure_text(v->fm->font, v->text);
         ui_gdi.x += (v->w - mt.x) / 2;

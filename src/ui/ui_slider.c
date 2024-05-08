@@ -205,18 +205,18 @@ void ui_view_init_slider(ui_view_t* v) {
     v->every_100ms = ui_slider_every_100ms;
     v->color_id    = ui_color_id_window_text;
     ui_slider_t* s = (ui_slider_t*)v;
-    s->dec.fm = v->fm;
-    s->dec.color_id = v->color_id;
-    s->dec.background_id = v->background_id;
-    ui_button_init(&s->dec, ui_glyph_heavy_minus_sign, 0, ui_slider_inc_dec);
-    s->inc.fm = v->fm;
-    s->inc.color_id = v->color_id;
-    s->inc.background_id = v->background_id;
-    ui_button_init(&s->inc, ui_glyph_heavy_plus_sign, 0, ui_slider_inc_dec);
     static const char* accel =
-        " Hold key while clicking\n Ctrl: x 10 Shift: x 100 \n Ctrl+Shift: x 1000 \n for step multiplier.";
-    strprintf(s->inc.hint, "%s", accel);
+        " Hold key while clicking\n"
+        " Ctrl: x 10 Shift: x 100 \n"
+        " Ctrl+Shift: x 1000 \n for step multiplier.";
+    s->dec = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
+                                    ui_slider_inc_dec);
+    s->dec.fm = v->fm;
     strprintf(s->dec.hint, "%s", accel);
+    s->inc = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
+                                    ui_slider_inc_dec);
+    s->inc.fm = v->fm;
+    strprintf(s->inc.hint, "%s", accel);
     ui_view.add(&s->view, &s->dec, &s->inc, null);
     ui_view.localize(&s->view);
 }

@@ -18,7 +18,7 @@ static void init(void) {
 
 ui_app_t ui_app = {
     .class_name = "sample8",
-    .no_decor = true,
+//  .no_decor = true,
     .init = init,
     .window_sizing = {
         .ini_w =  10.0f,
@@ -107,7 +107,7 @@ static void opened(void) {
     static ui_slider_t slider_padding   = ui_slider("Padding: %d",  5.5, 0, 3, padding_callback);
     ui_view.add(ui_app.view,
         ui_view.add(&list,
-            &ui_caption,
+//          &ui_caption,
             ui_view.add(&span,
                 &test,
                 ui_view.add(&tools,
@@ -123,7 +123,6 @@ static void opened(void) {
         null),
     null);
     list.max_w = ui.infinity;
-//  list.max_h = ui.infinity;
     list.insets = (ui_gaps_t){ 0, 0, 0, 0 };
     span.max_w = ui.infinity;
     span.max_h = ui.infinity;
@@ -150,7 +149,9 @@ static void opened(void) {
         "Shows ui_view(container) layout\n"
         "Resizing Window will allow\n"
         "too see how it behaves");
-    toggle_container(&button_container);
+//  toggle_container(&button_container);
+//  toggle_list(&button_container);
+//  toggle_span(&button_container);
 }
 
 static ui_view_t* align(ui_view_t* v, int32_t align) {
@@ -223,7 +224,7 @@ static void span_test(ui_view_t* parent) {
     span.color    = ui_color_undefined;
     span.color_id = ui_color_id_window;
     span.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
-    strprintf(span.text, "span");
+    strprintf(span.text, "test.span");
     ui_view_for_each(&span, it, {
         it->paint   = ui_view.debug_paint;
         it->color   = ui_colors.onyx;
@@ -264,7 +265,7 @@ static void list_test(ui_view_t* parent) {
     ui_view_for_each(&list, it, {
         it->paint   = ui_view.debug_paint;
         it->color   = ui_colors.onyx;
-// TODO: labels, buttons etc should define their own default padding != 0
+        // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_w   = ui.infinity;
         it->fm      = &ui_app.fonts.H1;
@@ -275,19 +276,18 @@ static void list_test(ui_view_t* parent) {
 
 static void controls_test(ui_view_t* parent) {
     ui_view.disband(parent);
-    static ui_view_t  list         = ui_view(list);
-    static ui_view_t  span         = ui_view(span);
-
-    static ui_label_t  left        = ui_label(0, "Left");
-    static ui_button_t button1     = ui_button("&Button", 0, null);
-    static ui_slider_t slider1     = ui_slider("Slider: %d", 0.0, 0, INT32_MAX, null);
-    static ui_toggle_t toggle1     = ui_toggle("Toggle: ___", 0.0, null);
-    static ui_label_t  right       = ui_label(0, "Right ");
-    static ui_label_t  label       = ui_label(0, "Label");
-    static ui_button_t button2     = ui_button("&Button", 0, null);
-    static ui_slider_t slider2     = ui_slider("Slider: %d", 0.0, 0, INT32_MAX, null);
-    static ui_toggle_t toggle2     = ui_toggle("Toggle", 0.0, null);
-    static ui_view_t   spacer      = ui_view(spacer);
+    static ui_view_t  list     = ui_view(list);
+    static ui_view_t  span     = ui_view(span);
+    static ui_label_t  left    = ui_label(0, "Left");
+    static ui_button_t button1 = ui_button("&Button", 0, null);
+    static ui_slider_t slider1 = ui_slider("Slider: %d", 0.0, 0, INT32_MAX, null);
+    static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 0.0, null);
+    static ui_label_t  right   = ui_label(0, "Right ");
+    static ui_label_t  label   = ui_label(0, "Label");
+    static ui_button_t button2 = ui_button("&Button", 0, null);
+    static ui_slider_t slider2 = ui_slider("Slider: %d", 0.0, 0, INT32_MAX, null);
+    static ui_toggle_t toggle2 = ui_toggle("Toggle", 0.0, null);
+    static ui_view_t   spacer  = ui_view(spacer);
     ui_view.add(&test,
         ui_view.add(&list,
             ui_view.add(&span,
@@ -307,20 +307,7 @@ static void controls_test(ui_view_t* parent) {
     list.paint  = ui_view.debug_paint;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-//  list.color    = ui_color_undefined;
-//  list.color_id = ui_color_id_window;
-//  list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(list.text, "list");
     ui_view_for_each(&list, it, { it->fm = &ui_app.fonts.H1; } );
     ui_view_for_each(&span, it, { it->fm = &ui_app.fonts.H1; } );
-//  ui_view_for_each(&list, it, {
-//      it->paint   = ui_view.debug_paint;
-//      it->color   = ui_colors.onyx;
-// TODO: labels, buttons etc should define their own default padding != 0
-//      it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
-//      it->max_w   = ui.infinity;
-//      it->font    = &ui_app.fonts.H1;
-//  });
-//  left.max_w = 0;
-//  right.max_w = 0;
 }

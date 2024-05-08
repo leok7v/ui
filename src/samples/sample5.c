@@ -97,9 +97,7 @@ ui_toggle_on_switch(sl, "&Single Line", 7.5, {
             e->select_all(e);
             e->paste(e, "Hello World! Single Line Edit", -1);
         }
-        // alternatively ui_app.layout() for everything or:
-        e->view.measure(&e->view);
-        e->view.layout(&e->view);
+        ui_app.request_layout();
         focus_back_to_edit();
     }
 });
@@ -171,35 +169,35 @@ static void after_paint(void) {
     }
 }
 
-static void paint_frames(ui_view_t* view) {
-    ui_view_for_each(view, c, { paint_frames(c); });
+static void paint_frames(ui_view_t* v) {
+    ui_view_for_each(v, c, { paint_frames(c); });
     ui_color_t fc[] = {
         ui_colors.red, ui_colors.green, ui_colors.blue, ui_colors.red,
         ui_colors.yellow, ui_colors.cyan, ui_colors.magenta
     };
     static int32_t color;
-    ui_gdi.push(view->x, view->y + view->h - view->fm->em.h);
-    ui_gdi.frame_with(view->x, view->y, view->w, view->h, fc[color]);
+    ui_gdi.push(v->x, v->y + v->h - v->fm->em.h);
+    ui_gdi.frame_with(v->x, v->y, v->w, v->h, fc[color]);
     ui_color_t c = ui_gdi.set_text_color(fc[color]);
-    ui_gdi.print("%s", view->text);
+    ui_gdi.print("%s", v->text);
     ui_gdi.set_text_color(c);
     ui_gdi.pop();
     color = (color + 1) % countof(fc);
 }
 
-static void null_paint(ui_view_t* view) {
-    ui_view_for_each(view, c, { null_paint(c); });
-    if (view != ui_app.view) {
-        view->paint = null;
+static void null_paint(ui_view_t* v) {
+    ui_view_for_each(v, c, { null_paint(c); });
+    if (v != ui_app.view) {
+        v->paint = null;
     }
 }
 
-static void paint(ui_view_t* view) {
+static void paint(ui_view_t* v) {
 //  traceln("");
-    if (debug_layout) { null_paint(view); }
+    if (debug_layout) { null_paint(v); }
     ui_gdi.set_brush(ui_gdi.brush_color);
     ui_gdi.set_brush_color(ui_colors.black);
-    ui_gdi.fill(0, 0, view->w, view->h);
+    ui_gdi.fill(0, 0, v->w, v->h);
     int32_t ix = focused();
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_view_t* e = &edit[i]->view;
@@ -209,7 +207,7 @@ static void paint(ui_view_t* view) {
             i == ix ? c : ui_colors.dkgray4);
     }
     after_paint();
-    if (debug_layout) { paint_frames(view); }
+    if (debug_layout) { paint_frames(v); }
     if (ix >= 0) {
         ro.pressed = edit[ix]->ro;
         sl.pressed = edit[ix]->sle;
@@ -243,23 +241,23 @@ static void every_100ms(void) {
 
 // limiting vertical height of SLE to 3 lines of text:
 
-static void edit2_before_measure(ui_view_t* view) { // _3_lines_sle
+static void edit2_before_measure(ui_view_t* v) { // _3_lines_sle
     // UX design decision:
     // 3 vertical visible runs SLE is friendlier in UX term
     // than not implemented horizontal scroll.
-    assert(view == &edit[2]->view);
+    assert(v == &edit[2]->view);
 //  traceln("WxH: %dx%d <- r/o button", ro.view.w, ro.view.h);
-    view->w = ro.w; // r/o button
+    v->w = ro.w; // r/o button
 }
 
-static void edit2_after_measure(ui_view_t* view) {
+static void edit2_after_measure(ui_view_t* v) {
 //  traceln("WxH: %dx%d (%dx%d) em: %d lines: %d",
 //          edit[2]->view.w, edit[2]->view.h,
 //          edit[2]->width, edit[2]->height,
 //          edit[2]->view.fm->em.h, edit[2]->view.h / edit[2]->view.fm->em.h);
     int32_t max_lines = edit[2]->focused ? 3 : 1;
-    if (view->h > view->fm->em.h * max_lines) {
-        view->h = view->fm->em.h * max_lines;
+    if (v->h > v->fm->em.h * max_lines) {
+        v->h = v->fm->em.h * max_lines;
     }
 }
 
@@ -311,6 +309,7 @@ static void opened(void) {
     strprintf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);
+        edit[i]->view.padding = (ui_gaps_t){0.5, 0.5, 0.5, 0.5};
         edit[i]->view.max_w = ui.infinity;
         if (i < 2) { edit[i]->view.max_h = ui.infinity; }
         edit[i]->view.fm = &pf;
@@ -331,18 +330,14 @@ static void opened(void) {
     static ui_view_t span    = ui_view(span);
     static ui_view_t spacer1 = ui_view(spacer);
     static ui_view_t spacer2 = ui_view(spacer);
-    static ui_view_t spacer3 = ui_view(spacer);
-    static ui_view_t spacer4 = ui_view(spacer);
     ui_view.add(ui_app.view,
         ui_view.add(&span,
             ui_view.add(&left,
                 &edit0,
-                &spacer1,
                 &edit1,
-                &spacer4,
                 &label,
             null),
-            &spacer2,
+            &spacer1,
             ui_view.add(&right,
                 &full_screen,
                 &quit,
@@ -353,15 +348,13 @@ static void opened(void) {
                 &sl,
                 &ro,
                 &edit2,
-                &spacer3,
+                &spacer2,
             null),
         null),
     null);
     span.max_h = ui.infinity;
-
     label.align = ui.align.left;
     edit2.view.align = ui.align.left;
-
     left.max_w = ui.infinity;
     left.max_h = ui.infinity;
     right.max_h = ui.infinity;

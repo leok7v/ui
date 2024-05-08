@@ -5,7 +5,8 @@
 
 // TODO: undo/redo
 // TODO: back/forward navigation
-// TODO: exit/save keystrokes?
+// TODO: exit/save keyboard shortcuts?
+// TODO: iBeam cursor
 
 // http://worrydream.com/refs/Tesler%20-%20A%20Personal%20History%20of%20Modeless%20Text%20Editing%20and%20Cut-Copy-Paste.pdf
 // https://web.archive.org/web/20221216044359/http://worrydream.com/refs/Tesler%20-%20A%20Personal%20History%20of%20Modeless%20Text%20Editing%20and%20Cut-Copy-Paste.pdf
@@ -411,6 +412,7 @@ static void ui_edit_set_font(ui_edit_t* e, ui_fm_t* f) {
     e->scroll.rn = 0;
     e->view.fm = f;
     ui_edit_layout_now(e);
+    ui_app.request_layout();
 }
 
 // Paragraph number, glyph number -> run number
@@ -1609,6 +1611,8 @@ static void ui_edit_clipboard_paste(ui_edit_t* e) {
 static void ui_edit_measure(ui_view_t* view) { // bottom up
     assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
+    view->w = 0;
+    view->h = 0;
     // enforce minimum size - it makes it checking corner cases much simpler
     // and it's hard to edit anything in a smaller area - will result in bad UX
     if (view->w < view->fm->em.w * 4) { view->w = view->fm->em.w * 4; }
@@ -1617,9 +1621,11 @@ static void ui_edit_measure(ui_view_t* view) { // bottom up
         int32_t runs = ut_max(ui_edit_paragraph_run_count(e, 0), 1);
         if (view->h < view->fm->em.h * runs) { view->h = view->fm->em.h * runs; }
     }
+//  traceln("%dx%d", view->w, view->h);
 }
 
 static void ui_edit_layout(ui_view_t* view) { // top down
+//  traceln(">%d,%d %dx%d", view->y, view->y, view->w, view->h);
     assert(view->type == ui_view_text);
     assert(view->w > 0 && view->h > 0); // could be `if'
     ui_edit_t* e = (ui_edit_t*)view;
@@ -1660,6 +1666,7 @@ static void ui_edit_layout(ui_view_t* view) { // top down
         ui_edit_show_caret(e);
         ui_edit_move_caret(e, e->selection[1]);
     }
+//  traceln("<%d,%d %dx%d", view->y, view->y, view->w, view->h);
 }
 
 static void ui_edit_paint(ui_view_t* view) {
