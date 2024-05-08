@@ -3122,7 +3122,7 @@ static void ui_app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
 
 static void ui_app_formatted_toast_va(fp64_t timeout, const char* format, va_list vl) {
     ui_app_show_toast(null, 0);
-    static ui_label_t label;
+    static ui_label_t label = ui_label(0, "");
     ui_label_init_va(&label, 0.0, format, vl);
     ui_app_show_toast(&label, timeout);
 }
