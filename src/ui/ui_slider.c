@@ -4,16 +4,15 @@
 static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-    s->inc.font = v->font;
-    s->dec.font = v->font;
+    s->inc.fm = v->fm;
+    s->dec.fm = v->fm;
     ui_view.measure(v);
 //  ui_view.measure(&s->dec);
 //  ui_view.measure(&s->inc);
     assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
-    const int32_t em = v->em.body.w;
-    ui_font_t f = *v->font;
-    const int32_t w = (int32_t)(v->min_w_em * v->em.body.w);
-    s->tm = ui_gdi.measure_text(f, ui_view.nls(v), s->value_max);
+    const int32_t em = v->fm->em.w;
+    const int32_t w = (int32_t)(v->min_w_em * v->fm->em.w);
+    s->tm = ui_gdi.measure_text(v->fm->font, ui_view.nls(v), s->value_max);
 //  if (w > r->tm.x) { r->tm.x = w; }
     s->tm.x = w != 0 ? w : s->tm.x;
     v->w = s->dec.w + s->tm.x + s->inc.w + em * 2;
@@ -24,7 +23,7 @@ static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
-    const int32_t em = v->em.body.w;
+    const int32_t em = v->fm->em.w;
     s->dec.x = v->x;
     s->dec.y = v->y;
     s->inc.x = v->x + s->dec.w + s->tm.x + em * 2;
@@ -72,7 +71,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_slider_t* s = (ui_slider_t*)v;
     ui_gdi.push(v->x, v->y);
     ui_gdi.set_clip(v->x, v->y, v->w, v->h);
-    const int32_t em = v->em.body.w;
+    const int32_t em = v->fm->em.w;
     const int32_t em2  = ut_max(1, em / 2);
     const int32_t em4  = ut_max(1, em / 8);
     const int32_t em8  = ut_max(1, em / 8);
@@ -109,7 +108,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.x += s->dec.w + em;
     ui_gdi.y = y;
     ui_color_t c = ui_gdi.set_text_color(v->color);
-    ui_font_t f = ui_gdi.set_font(*v->font);
+    ui_font_t f = ui_gdi.set_font(v->fm->font);
     const char* format = ut_nls.str(v->text);
     ui_gdi.text(format, s->value);
     ui_gdi.set_font(f);
@@ -130,8 +129,8 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             message == ui.message.right_button_pressed || drag) {
             const int32_t x = ui_app.mouse.x - v->x - s->dec.w;
             const int32_t y = ui_app.mouse.y - v->y;
-            const int32_t x0 = v->em.body.w / 2;
-            const int32_t x1 = s->tm.x + v->em.body.w;
+            const int32_t x0 = v->fm->em.w / 2;
+            const int32_t x1 = s->tm.x + v->fm->em.w;
             if (x0 <= x && x < x1 && 0 <= y && y < v->h) {
                 ui_app.focus = v;
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
@@ -206,10 +205,14 @@ void ui_view_init_slider(ui_view_t* v) {
     v->every_100ms = ui_slider_every_100ms;
     v->color_id    = ui_color_id_window_text;
     ui_slider_t* s = (ui_slider_t*)v;
-    // Heavy Minus Sign
-    ui_button_init(&s->dec, "\xE2\x9E\x96", 0, ui_slider_inc_dec);
-    // Heavy Plus Sign
-    ui_button_init(&s->inc, "\xE2\x9E\x95", 0, ui_slider_inc_dec);
+    s->dec.fm = v->fm;
+    s->dec.color_id = v->color_id;
+    s->dec.background_id = v->background_id;
+    ui_button_init(&s->dec, ui_glyph_heavy_minus_sign, 0, ui_slider_inc_dec);
+    s->inc.fm = v->fm;
+    s->inc.color_id = v->color_id;
+    s->inc.background_id = v->background_id;
+    ui_button_init(&s->inc, ui_glyph_heavy_plus_sign, 0, ui_slider_inc_dec);
     static const char* accel =
         " Hold key while clicking\n Ctrl: x 10 Shift: x 100 \n Ctrl+Shift: x 1000 \n for step multiplier.";
     strprintf(s->inc.hint, "%s", accel);

@@ -12,7 +12,7 @@
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
     ui_caption.view.hidden = ui_app.is_full_screen;
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
 static void ui_app_view_character(ui_view_t* v, const char utf8[]) {
@@ -99,7 +99,7 @@ static void ui_caption_init(ui_view_t* v) {
     static const ui_gaps_t p = { .left  = 0.25, .top    = 0.25,
                                  .right = 0.25, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
-        c->font = &ui_app.fonts.H3;
+        c->fm = &ui_app.fonts.H3;
         c->color_id = ui_caption.view.color_id;
         c->flat = true;
         c->padding = p;
@@ -115,7 +115,7 @@ static void ui_caption_init(ui_view_t* v) {
 ui_caption_t ui_caption =  {
     .view = {
         .type     = ui_view_span,
-        .font     = &ui_app.fonts.regular,
+        .fm       = &ui_app.fonts.regular,
         .init     = ui_caption_init,
         .hit_test = ui_caption_hit_test,
         .hidden = true

@@ -28,11 +28,11 @@ ui_button_on_click(button_fs, glyph_two_squares, 1.0, {
 static void paint(ui_view_t* view) {
     int k = index;
     ui_gdi.draw_image(0, 0, view->w, view->h, &image[k]);
-    ui_gdi.x = view->em.body.w;
-    ui_gdi.y = view->em.body.h / 4;
+    ui_gdi.x = view->fm->em.w;
+    ui_gdi.y = view->fm->em.h / 4;
     ui_gdi.set_text_color(ui_colors.orange);
     ui_gdi.textln("Try Full Screen Button there --->");
-    ui_gdi.y = view->h - view->em.body.h * 3 / 2;
+    ui_gdi.y = view->h - view->fm->em.h * 3 / 2;
     ui_gdi.set_text_color(ui_colors.orange);
     ui_gdi.textln("render time %.1f ms / avg paint time %.1f ms",
         render_time * 1000, ui_app.paint_avg * 1000);
@@ -74,8 +74,8 @@ static void measure(ui_view_t* view) {
 }
 
 static void layout(ui_view_t* v) {
-    button_fs.x = v->w - button_fs.w - v->em.body.w / 4;
-    button_fs.y = v->em.body.h / 4;
+    button_fs.x = v->w - button_fs.w - v->fm->em.w / 4;
+    button_fs.y = v->fm->em.h / 4;
 }
 
 static void renderer(void* unused); // renderer thread
@@ -193,7 +193,7 @@ static void renderer(void* unused) {
         if (e != 0) { break; }
         int k = !index;
         mandelbrot(&image[k]);
-        if (!stop) { index = !index; ui_app.redraw(); }
+        if (!stop) { index = !index; ui_app.request_redraw(); }
         stop = false;
         rendering = false;
     }

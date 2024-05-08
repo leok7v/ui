@@ -155,39 +155,38 @@ static void ui_app_update_crc(void) {
 }
 
 static void ui_app_dispose_fonts(void) {
-    fatal_if_false(DeleteFont(ui_app.fonts.regular));
-    fatal_if_false(DeleteFont(ui_app.fonts.H1));
-    fatal_if_false(DeleteFont(ui_app.fonts.H2));
-    fatal_if_false(DeleteFont(ui_app.fonts.H3));
-    fatal_if_false(DeleteFont(ui_app.fonts.mono));
+    ui_gdi.delete_font(ui_app.fonts.regular.font);
+    ui_gdi.delete_font(ui_app.fonts.H1.font);
+    ui_gdi.delete_font(ui_app.fonts.H2.font);
+    ui_gdi.delete_font(ui_app.fonts.H3.font);
+    ui_gdi.delete_font(ui_app.fonts.mono.font);
 }
 
 static void ui_app_init_fonts(int32_t dpi) {
     ui_app_update_ncm(dpi);
-    if (ui_app.fonts.regular != null) { ui_app_dispose_fonts(); }
+    if (ui_app.fonts.regular.font != null) { ui_app_dispose_fonts(); }
     LOGFONTW lf = ui_app_ncm.lfMessageFont;
     // lf.lfQuality is CLEARTYPE_QUALITY which looks bad on 4K monitors
     // Windows UI uses PROOF_QUALITY which is aliased w/o ClearType rainbows
     lf.lfQuality = PROOF_QUALITY;
-    ui_app.fonts.regular = (ui_font_t)CreateFontIndirectW(&lf);
-    not_null(ui_app.fonts.regular);
+    ui_gdi.update_fm(&ui_app.fonts.regular, (ui_font_t)CreateFontIndirectW(&lf));
     const fp64_t fh = ui_app_ncm.lfMessageFont.lfHeight;
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.75);
-    ui_app.fonts.H1 = (ui_font_t)CreateFontIndirectW(&lf);
+    ui_gdi.update_fm(&ui_app.fonts.H1, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.4);
-    ui_app.fonts.H2 = (ui_font_t)CreateFontIndirectW(&lf);
+    ui_gdi.update_fm(&ui_app.fonts.H2, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.15);
-    ui_app.fonts.H3 = (ui_font_t)CreateFontIndirectW(&lf);
+    ui_gdi.update_fm(&ui_app.fonts.H3, (ui_font_t)CreateFontIndirectW(&lf));
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily = FIXED_PITCH;
     #define monospaced "Cascadia Code"
     wcscpy(lf.lfFaceName, L"Cascadia Code");
-    ui_app.fonts.mono = (ui_font_t)CreateFontIndirectW(&lf);
+    ui_gdi.update_fm(&ui_app.fonts.mono, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app.cursor_arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
     ui_app.cursor_wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
     ui_app.cursor_ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
@@ -459,7 +458,6 @@ static void ui_app_window_dpi(void) {
 static void ui_app_window_opening(void) {
     ui_app_window_dpi();
     ui_app_init_fonts(ui_app.dpi.window);
-    ui_app.view->em = ui_gdi.get_em(*ui_app.view->font);
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
     ui_app.set_cursor(ui_app.cursor_arrow);
@@ -471,7 +469,7 @@ static void ui_app_window_opening(void) {
     ui_app_wm_timer(ui_app_timer_1s_id);
     fatal_if(ReleaseDC(ui_app_window(), ui_app_canvas()) == 0);
     ui_app.canvas = null;
-    ui_app.layout(); // request layout
+    ui_app.request_layout(); // request layout
     if (ui_app.last_visibility == ui.visibility.maximize) {
         ShowWindow(ui_app_window(), ui.visibility.maximize);
     }
@@ -630,8 +628,8 @@ static void ui_app_toast_paint(void) {
         ui_view.measure_children(ui_app.animating.view);
         ui_gdi.push(0, 0);
         bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        const int32_t em_x = ui_app.animating.view->em.body.w;
-        const int32_t em_y = ui_app.animating.view->em.body.h;
+        const int32_t em_x = ui_app.animating.view->fm->em.w;
+        const int32_t em_y = ui_app.animating.view->fm->em.h;
         ui_gdi.set_brush(ui_gdi.brush_color);
         if (ui_theme.are_apps_dark()) {
             ui_gdi.set_brush_color(ui_colors.toast);
@@ -691,17 +689,17 @@ static void ui_app_toast_cancel(void) {
     ui_app.animating.time = 0;
     ui_app.animating.x = -1;
     ui_app.animating.y = -1;
-    ui_app.redraw();
+    ui_app.request_redraw();
 }
 
 static void ui_app_toast_mouse(int32_t m, int64_t flags) {
     bool pressed = m == ui.message.left_button_pressed ||
                    m == ui.message.right_button_pressed;
     if (ui_app.animating.view != null && pressed) {
-        const ui_em_t em = ui_app.animating.view->em;
+        const ui_fm_t* fm = ui_app.animating.view->fm;
         int32_t x = ui_app.animating.view->x + ui_app.animating.view->w;
-        if (x <= ui_app.mouse.x && ui_app.mouse.x <= x + em.body.w &&
-            0 <= ui_app.mouse.y && ui_app.mouse.y <= em.body.h) {
+        if (x <= ui_app.mouse.x && ui_app.mouse.x <= x + fm->em.w &&
+            0 <= ui_app.mouse.y && ui_app.mouse.y <= fm->em.h) {
             ui_app_toast_cancel();
         } else {
             ui_view.mouse(ui_app.animating.view, m, flags);
@@ -723,7 +721,7 @@ static void ui_app_toast_character(const char* utf8) {
 
 static void ui_app_toast_dim(int32_t step) {
     ui_app.animating.step = step;
-    ui_app.redraw();
+    ui_app.request_redraw();
     UpdateWindow(ui_app_window());
 }
 
@@ -803,8 +801,8 @@ static void ui_app_paint_on_canvas(HDC hdc) {
         ui_app_layout_dirty = false;
         ui_app_view_layout();
     }
-    ui_font_t font = ui_gdi.set_font(ui_app.fonts.regular);
-    ui_color_t c = ui_gdi.set_text_color(ui_colors.text);
+    ui_font_t  f = ui_gdi.set_font(ui_app.fonts.regular.font);
+    ui_color_t c = ui_gdi.set_text_color(ui_app.get_color(ui_color_id_window_text));
     int32_t bm = SetBkMode(ui_app_canvas(), TRANSPARENT);
     int32_t stretch_mode = SetStretchBltMode(ui_app_canvas(), HALFTONE);
     ui_point_t pt = {0};
@@ -817,7 +815,7 @@ static void ui_app_paint_on_canvas(HDC hdc) {
     SetBkMode(ui_app_canvas(), bm);
     ui_gdi.set_brush(br);
     ui_gdi.set_text_color(c);
-    ui_gdi.set_font(font);
+    ui_gdi.set_font(f);
     ui_app.paint_count++;
     if (ui_app.paint_count % 128 == 0) { ui_app.paint_max = 0; }
     ui_app.paint_time = ut_clock.seconds() - time;
@@ -861,23 +859,26 @@ static void ui_app_window_position_changed(const WINDOWPOS* wp) {
         ui_app.wrc = ui_app_rect2ui(&wrc);
         ui_app_update_mi(&ui_app.wrc, MONITOR_DEFAULTTONEAREST);
         ui_app_update_crc();
-        if (ui_app_timer_1s_id != 0) { ui_app.layout(); }
+        if (ui_app_timer_1s_id != 0) { ui_app.request_layout(); }
     }
 }
 
 static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
     // wp: SPI_SETWORKAREA ... SPI_SETDOCKMOVING
     //     SPI_GETACTIVEWINDOWTRACKING ... SPI_SETGESTUREVISUALIZATION
-    if (lp != 0 && strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
-        wcscmp((const wchar_t*)lp, L"ImmersiveColorSet") == 0) {
+    if (wp == SPI_SETLOGICALDPIOVERRIDE) {
+        ui_app_init_fonts(ui_app.dpi.window); // font scale changed
+        ui_app.request_layout();
+    } else if (lp != 0 &&
+       (strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
+        wcscmp((const wchar_t*)lp, L"ImmersiveColorSet") == 0)) {
         // expected:
         // SPI_SETICONTITLELOGFONT 0x22 ?
         // SPI_SETNONCLIENTMETRICS 0x2A ?
 //      traceln("wp: 0x%08X", wp);
         // actual wp == 0x0000
         ui_theme.refresh(ui_app.window);
-    }
-    if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
+    } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         wchar_t ln[LOCALE_NAME_MAX_LENGTH + 1];
         int32_t n = GetUserDefaultLocaleName(ln, countof(ln));
@@ -1034,7 +1035,7 @@ static void ui_app_wm_activate(int64_t wp) {
         ui_app.show_window(ui.visibility.restore);
         SwitchToThisWindow(ui_app_window(), true);
     }
-    ui_app.redraw(); // needed for windows changing active frame color
+    ui_app.request_redraw(); // needed for windows changing active frame color
 }
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
@@ -1172,7 +1173,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                     "size %d,%d *may/must* be adjusted",
                     ui_app.dpi.window, dpi, cell.x, cell.y);
             #endif
-            if (ui_app_timer_1s_id != 0 && !ui_app.view->hidden) { ui_app.layout(); }
+            if (ui_app_timer_1s_id != 0 && !ui_app.view->hidden) { ui_app.request_layout(); }
             // IMPORTANT: return true because otherwise linear, see
             // https://learn.microsoft.com/en-us/windows/win32/hidpi/wm-getdpiscaledsize
             return true;
@@ -1182,7 +1183,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             ui_app_window_dpi();
             ui_app_init_fonts(ui_app.dpi.window);
             if (ui_app_timer_1s_id != 0 && !ui_app.view->hidden) {
-                ui_app.layout();
+                ui_app.request_layout();
             } else {
                 ui_app_layout_dirty = true;
             }
@@ -1368,7 +1369,7 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
-static void ui_app_fast_redraw(void) { SetEvent(ui_app_event_invalidate); } // < 2us
+static void ui_app_request_redraw(void) { SetEvent(ui_app_event_invalidate); } // < 2us
 
 static void ui_app_draw(void) { UpdateWindow(ui_app_window()); }
 
@@ -1638,7 +1639,7 @@ static void ui_app_bring_to_front(void) {
 static void ui_app_set_title(const char* title) {
     strprintf(ui_caption.title.text, "%s", title);
     fatal_if_false(SetWindowTextA(ui_app_window(), title));
-    if (!ui_caption.view.hidden) { ui_app.layout(); }
+    if (!ui_caption.view.hidden) { ui_app.request_layout(); }
 }
 
 static ui_color_t ui_app_get_color(int32_t color_id) {
@@ -1748,7 +1749,7 @@ static int32_t ui_app_in2px(fp32_t inches) {
 
 static void ui_app_request_layout(void) {
     ui_app_layout_dirty = true;
-    ui_app.redraw();
+    ui_app.request_redraw();
 }
 
 static void ui_app_show_window(int32_t show) {
@@ -1923,7 +1924,7 @@ static void ui_app_init(void) {
     ui_app.view->background_id = ui_color_id_window;
     ui_app.view->paint         = ui_app_view_paint;
     ui_app.view->insets        = (ui_gaps_t){ 0, 0, 0, 0 };
-    ui_app.redraw              = ui_app_fast_redraw;
+    ui_app.request_redraw      = ui_app_request_redraw;
     ui_app.draw                = ui_app_draw;
     ui_app.px2in               = ui_app_px2in;
     ui_app.in2px               = ui_app_in2px;
@@ -1942,7 +1943,7 @@ static void ui_app_init(void) {
     ui_app.bring_to_foreground = ui_app_bring_to_foreground,
     ui_app.make_topmost        = ui_app_make_topmost,
     ui_app.bring_to_front      = ui_app_bring_to_front,
-    ui_app.layout              = ui_app_request_layout;
+    ui_app.request_layout      = ui_app_request_layout;
     ui_app.invalidate          = ui_app_invalidate_rect;
     ui_app.full_screen         = ui_app_full_screen;
     ui_app.set_cursor          = ui_app_cursor_set;
@@ -1991,7 +1992,6 @@ static void ui_app_init_windows(void) {
     ui_rect_t r = ui_app_rect2ui(&nowhere);
     ui_app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
     ui_app.dpi.window = ui_app.dpi.monitor_effective;
-    ui_app_init_fonts(ui_app.dpi.window); // for default monitor
 }
 
 static ui_rect_t ui_app_window_initial_rectangle(void) {
@@ -2050,13 +2050,14 @@ static int ui_app_win_main(void) {
         ui_app_bring_window_inside_monitor(&ui_app.mrc, &wr);
     }
     ui_app.view->hidden = true; // start with ui hidden
-    ui_app.view->font = &ui_app.fonts.regular;
+    ui_app.view->fm = &ui_app.fonts.regular;
     ui_app.view->w = wr.w - size_frame * 2;
     ui_app.view->h = wr.h - size_frame * 2 - caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint
     not_null(ui_app.class_name);
     if (!ui_app.no_ui) {
         ui_app_create_window(wr);
+        ui_app_init_fonts(ui_app.dpi.window);
         thread_t thread = ut_thread.start(ui_app_redraw_thread, null);
         r = ui_app_message_loop();
         fatal_if_false(SetEvent(ui_app_event_quit));

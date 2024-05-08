@@ -70,7 +70,7 @@ static void ui_button_paint(ui_view_t* v) {
     }
     if (v->disabled) { c = ui_app.get_color(ui_color_id_gray_text); }
     if (v->icon == null) {
-        ui_font_t  f = *v->font;
+        ui_font_t  f = v->fm->font;
         ui_point_t m = ui_gdi.measure_text(f, ui_view.nls(v));
         ui_gdi.set_text_color(c);
         ui_gdi.x = v->x + (v->w - m.x) / 2;
@@ -81,7 +81,7 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         ui_gdi.draw_icon(v->x, v->y, v->w, v->h, v->icon);
     }
-    const int32_t pw = ut_max(1, v->em.body.h / 32); // pen width
+    const int32_t pw = ut_max(1, v->fm->em.h / 32); // pen width
     ui_color_t color = v->armed ? ui_colors.dkgray4 : ui_colors.gray;
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
@@ -89,7 +89,7 @@ static void ui_button_paint(ui_view_t* v) {
         ui_pen_t p = ui_gdi.create_pen(color, pw);
         ui_gdi.set_pen(p);
         ui_gdi.set_brush(ui_gdi.brush_hollow);
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, v->em.body.h / 4, v->em.body.h / 4);
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, v->fm->em.h / 4, v->fm->em.h / 4);
         ui_gdi.delete_pen(p);
     }
     ui_gdi.pop();
@@ -161,7 +161,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
 static void ui_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button || v->type == ui_view_label);
     ui_view.measure(v);
-    const int32_t em2  = ut_max(1, v->em.body.w / 2);
+    const int32_t em2  = ut_max(1, v->fm->em.w / 2);
     v->w = v->w;
     v->h = v->h + em2;
     if (v->w < v->h) { v->w = v->h; }

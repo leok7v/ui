@@ -112,9 +112,7 @@ static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
 }
 
 static ui_point_t ui_gdi_move_to(int32_t x, int32_t y) {
-    POINT pt;
-    pt.x = ui_gdi.x;
-    pt.y = ui_gdi.y;
+    POINT pt = (POINT){ .x = ui_gdi.x, .y = ui_gdi.y };
     fatal_if_false(MoveToEx(ui_app_canvas(), x, y, &pt));
     ui_gdi.x = x;
     ui_gdi.y = y;
@@ -189,7 +187,7 @@ static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical) {
-    TRIVERTEX vertex[2];
+    TRIVERTEX vertex[2] = {0};
     vertex[0].x = x;
     vertex[0].y = y;
     // TODO: colors:
@@ -535,7 +533,7 @@ static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUAL
 static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t quality) {
     assert(height > 0);
     LOGFONTA lf = {0};
-    int32_t n = GetObjectA(ui_app.fonts.regular, sizeof(lf), &lf);
+    int32_t n = GetObjectA(ui_app.fonts.regular.font, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
     strprintf(lf.lfFaceName, "%s", family);
@@ -546,7 +544,6 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t 
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
-
 
 static ui_font_t ui_gdi_font(ui_font_t f, int32_t height, int32_t quality) {
     assert(f != null && height > 0);
@@ -626,32 +623,26 @@ static int32_t ui_gdi_descent(ui_font_t f) {
 // of calls to get_em() is very small on layout.
 // Few dozens at most. No reason to cache or optimize.
 
-static ui_em_t ui_gdi_get_em(ui_font_t f) {
-    SIZE cell = {0, 0};
-    ui_em_t em = {0};
+static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
+    not_null(f);
+    SIZE em = {0, 0}; // "M"
+    *fm = (ui_fm_t){ .font = f };
     ui_gdi_hdc_with_font(f, {
         // ui_glyph_nbsp and "M" have the same result
-        fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &cell));
-        em.height = ui_gdi.font_height(f);
-        em.descent = ui_gdi.descent(f);
-        em.baseline = ui_gdi.baseline(f);
-    });
-    assert(em.baseline >= em.height);
-    const int32_t ascend = em.descent - (em.height - em.baseline);
-    em.body = (ui_wh_t){cell.cx, cell.cy - ascend};
-    return em;
-}
-
-static bool ui_gdi_is_mono(ui_font_t f) {
-    SIZE em = {0}; // "M"
-    SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-    SIZE e3 = {0}; // "\xE2\xB8\xBB" Three-Em Dash https://www.compart.com/en/unicode/U+2E3B
-    ui_gdi_hdc_with_font(f, {
         fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &em));
+        fm->height = ui_gdi.font_height(f);
+        fm->descent = ui_gdi.descent(f);
+        fm->baseline = ui_gdi.baseline(f);
+        SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
+        SIZE e3 = {0}; // "\xE2\xB8\xBB" Three-Em Dash https://www.compart.com/en/unicode/U+2E3B
         fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         fatal_if_false(GetTextExtentPoint32A(hdc, "\xE2\xB8\xBB", 1, &e3));
+        fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
+
     });
-    return em.cx == vl.cx && vl.cx == e3.cx;
+    assert(fm->baseline >= fm->height);
+    const int32_t ascend = fm->descent - (fm->height - fm->baseline);
+    fm->em = (ui_wh_t){em.cx, em.cy - ascend};
 }
 
 static fp64_t ui_gdi_line_spacing(fp64_t height_multiplier) {
@@ -790,8 +781,8 @@ static ui_point_t ui_gdi_multiline(int32_t w, const char* f, ...) {
 }
 
 static void ui_gdi_vprint(const char* format, va_list vl) {
-    not_null(ui_app.fonts.mono);
-    ui_font_t f = ui_gdi.set_font(ui_app.fonts.mono);
+    not_null(ui_app.fonts.mono.font);
+    ui_font_t f = ui_gdi.set_font(ui_app.fonts.mono.font);
     ui_gdi.vtext(format, vl);
     ui_gdi.set_font(f);
 }
@@ -804,8 +795,8 @@ static void ui_gdi_print(const char* format, ...) {
 }
 
 static void ui_gdi_vprintln(const char* format, va_list vl) {
-    not_null(ui_app.fonts.mono);
-    ui_font_t f = ui_gdi.set_font(ui_app.fonts.mono);
+    not_null(ui_app.fonts.mono.font);
+    ui_font_t f = ui_gdi.set_font(ui_app.fonts.mono.font);
     ui_gdi.vtextln(format, vl);
     ui_gdi.set_font(f);
 }
@@ -895,8 +886,7 @@ ui_gdi_if ui_gdi = {
     .font_height                   = ui_gdi_font_height,
     .descent                       = ui_gdi_descent,
     .baseline                      = ui_gdi_baseline,
-    .is_mono                       = ui_gdi_is_mono,
-    .get_em                        = ui_gdi_get_em,
+    .update_fm                        = ui_gdi_update_fm,
     .line_spacing                  = ui_gdi_line_spacing,
     .measure_text                  = ui_gdi_measure_singleline,
     .measure_multiline             = ui_gdi_measure_multiline,

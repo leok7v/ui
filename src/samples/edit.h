@@ -6,7 +6,7 @@
 begin_c
 
 // important ui_edit_t will refuse to layout into a box smaller than
-// width 3 x em.body.w height 1 x em.body.h
+// width 3 x fm->em.w height 1 x fm->em.h
 
 typedef struct ui_edit_run_s {
     int32_t bp;     // position in bytes  since start of the paragraph
@@ -46,7 +46,7 @@ typedef struct ui_edit_s ui_edit_t;
 
 typedef struct ui_edit_s {
     ui_view_t view;
-    void (*set_font)(ui_edit_t* e, ui_font_t* font); // see notes below (*)
+    void (*set_font)(ui_edit_t* e, ui_fm_t* fm); // see notes below (*)
     void (*move)(ui_edit_t* e, ui_edit_pg_t pg); // move caret clear selection
     // replace selected text. If bytes < 0 text is treated as zero terminated
     void (*paste)(ui_edit_t* e, const char* text, int32_t bytes);

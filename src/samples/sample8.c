@@ -192,9 +192,9 @@ static void container_test(ui_view_t* parent) {
     container.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(container.text, "container");
     ui_view_for_each(&container, it, {
-        it->paint   = ui_view.debug_paint;
-        it->color   = ui_colors.onyx;
-        it->font    = &ui_app.fonts.H1;
+        it->paint = ui_view.debug_paint;
+        it->color = ui_colors.onyx;
+        it->fm    = &ui_app.fonts.H1;
 // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
     });
@@ -230,7 +230,7 @@ static void span_test(ui_view_t* parent) {
 // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
-        it->font    = &ui_app.fonts.H1;
+        it->fm      = &ui_app.fonts.H1;
 //      traceln("%s 0x%02X", it->text, it->align);
     });
     top.max_h = 0;
@@ -267,7 +267,7 @@ static void list_test(ui_view_t* parent) {
 // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_w   = ui.infinity;
-        it->font    = &ui_app.fonts.H1;
+        it->fm      = &ui_app.fonts.H1;
     });
     left.max_w = 0;
     right.max_w = 0;
@@ -311,8 +311,8 @@ static void controls_test(ui_view_t* parent) {
 //  list.color_id = ui_color_id_window;
 //  list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     strprintf(list.text, "list");
-    ui_view_for_each(&list, it, { it->font = &ui_app.fonts.H1; } );
-    ui_view_for_each(&span, it, { it->font = &ui_app.fonts.H1; } );
+    ui_view_for_each(&list, it, { it->fm = &ui_app.fonts.H1; } );
+    ui_view_for_each(&span, it, { it->fm = &ui_app.fonts.H1; } );
 //  ui_view_for_each(&list, it, {
 //      it->paint   = ui_view.debug_paint;
 //      it->color   = ui_colors.onyx;

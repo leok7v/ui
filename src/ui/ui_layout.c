@@ -54,15 +54,15 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     ui_view_for_each(view, row, {
         if (!row->hidden) {
             row->h = 0;
-            row->em.baseline = 0;
+            row->fm->baseline = 0;
             int32_t i = 0;
             ui_view_for_each(row, col, {
                 if (!col->hidden) {
                     mxw[i] = ut_max(mxw[i], col->w);
                     row->h = ut_max(row->h, col->h);
-//                  traceln("[%d] row.em.baseline: %d col.em.baseline: %d ",
-//                          i, row->em.baseline, col->em.baseline);
-                    row->em.baseline = ut_max(row->em.baseline, col->em.baseline);
+//                  traceln("[%d] row.fm->baseline: %d col.fm->baseline: %d ",
+//                          i, row->fm->baseline, col->fm->baseline);
+                    row->fm->baseline = ut_max(row->fm->baseline, col->fm->baseline);
                 }
                 i++;
             });
@@ -82,7 +82,7 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
                     // TODO: label_dy needs to be transferred to containers
                     //       rationale: labels and buttons baselines must align
                     if (c->type == ui_view_label) { // lineup text baselines
-                        c->label_dy = r->em.baseline - c->em.baseline;
+                        c->label_dy = r->fm->baseline - c->fm->baseline;
                     }
                     c->w = mxw[i++];
                     r->w += c->w;

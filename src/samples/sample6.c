@@ -90,7 +90,7 @@ static void paint(ui_view_t* view) {
         ui_gdi.alpha_blend(x, y, gif.w, gif.h, &frame, 1.0);
         ui_gdi.image_dispose(&frame);
     }
-    ui_font_t f = ui_gdi.set_font(ui_app.fonts.H1);
+    ui_font_t f = ui_gdi.set_font(ui_app.fonts.H1.font);
     ui_gdi.x = 0;
     ui_gdi.y = 0;
     ui_gdi.set_text_color(muted ? ui_colors.green : ui_colors.red);
@@ -105,11 +105,10 @@ static void character(ui_view_t* unused(view), const char* utf8) {
 }
 
 static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(f)) {
-    const ui_em_t em = ui_gdi.get_em(ui_app.fonts.H1);
     if ((m == ui.message.left_button_pressed ||
         m == ui.message.right_button_pressed) &&
-        0 <= ui_app.mouse.x && ui_app.mouse.x < em.body.w &&
-        0 <= ui_app.mouse.y && ui_app.mouse.y < em.body.h) {
+        0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fonts.H1.em.w &&
+        0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fonts.H1.em.h) {
         muted = !muted;
         if (muted) {
             midi.stop(&mds);
@@ -156,7 +155,7 @@ static void load_gif(void) {
 
 static void animate(void) {
     for (;;) {
-        ui_app.redraw();
+        ui_app.request_redraw();
         fp64_t delay_in_seconds = gif.delays[animation.index] * 0.001;
         if (ut_event.wait_or_timeout(animation.quit, delay_in_seconds) == 0) {
             break;

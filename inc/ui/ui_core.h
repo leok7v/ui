@@ -7,13 +7,6 @@ typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
 typedef struct ui_wh_s { int32_t w, h; } ui_wh_t;
 
-typedef struct ui_em_s {
-    ui_wh_t body;      // body square size in "em"s sans ascend/descent
-    int32_t height;    // font height in pixels
-    int32_t baseline;  // font ascent; descent = height - baseline
-    int32_t descent;   // font descent
-} ui_em_t;
-
 typedef struct ui_window_s* ui_window_t;
 typedef struct ui_icon_s*   ui_icon_t;
 typedef struct ui_canvas_s* ui_canvas_t;
@@ -23,6 +16,15 @@ typedef struct ui_brush_s*  ui_brush_t;
 typedef struct ui_pen_s*    ui_pen_t;
 typedef struct ui_cursor_s* ui_cursor_t;
 typedef struct ui_region_s* ui_region_t;
+
+typedef struct ui_fm_s { // font metrics
+    ui_font_t font;
+    ui_wh_t em;        // "em" almost square w/o ascend/descent
+    int32_t height;    // font height in pixels
+    int32_t baseline;  // font ascent; descent = height - baseline
+    int32_t descent;   // font descent
+    bool mono;
+} ui_fm_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
@@ -47,12 +49,12 @@ typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
 } ui_dpi_t;
 
 typedef struct ui_fonts_s {
-    // font handles re-created on scale change
-    ui_font_t regular; // proportional UI font
-    ui_font_t mono; // monospaced  UI font
-    ui_font_t H1; // bold header font
-    ui_font_t H2;
-    ui_font_t H3;
+    // font handles re-created "em" + font geometry filled on scale change
+    ui_fm_t regular; // proportional UI font
+    ui_fm_t mono; // monospaced  UI font
+    ui_fm_t H1; // bold header font
+    ui_fm_t H2;
+    ui_fm_t H3;
 } ui_fonts_t;
 
 // in inches (because monitors customary are)

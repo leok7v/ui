@@ -43,7 +43,7 @@ static ui_view_t* ui_view_add(ui_view_t* p, ...) {
     }
     va_end(vl);
     ui_view_call_init(p);
-    ui_app.layout();
+    ui_app.request_layout();
     return p;
 }
 
@@ -61,7 +61,7 @@ static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
     }
     p->child = c;
     ui_view_call_init(c);
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
 static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
@@ -79,7 +79,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
     }
     ui_view_call_init(c);
     ui_view_verify(p);
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
@@ -93,7 +93,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     c->next->prev = c;
     ui_view_call_init(c);
     ui_view_verify(c->parent);
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
@@ -107,7 +107,7 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     c->next->prev = c;
     ui_view_call_init(c);
     ui_view_verify(c->parent);
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
 static void ui_view_remove(ui_view_t* c) {
@@ -127,12 +127,12 @@ static void ui_view_remove(ui_view_t* c) {
     c->next = null;
     ui_view_verify(c->parent);
     c->parent = null;
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
 static void ui_view_remove_all(ui_view_t* p) {
     while (p->child != null) { ui_view.remove(p->child); }
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
 static void ui_view_disband(ui_view_t* p) {
@@ -140,61 +140,61 @@ static void ui_view_disband(ui_view_t* p) {
         ui_view_disband(p->child);
         ui_view.remove(p->child);
     }
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
-static void ui_view_invalidate(const ui_view_t* view) {
-    ui_rect_t rc = { view->x, view->y, view->w, view->h};
-    rc.x -= view->em.body.w;
-    rc.y -= view->em.body.h;
-    rc.w += view->em.body.w * 2;
-    rc.h += view->em.body.h * 2;
+static void ui_view_invalidate(const ui_view_t* v) {
+    ui_rect_t rc = { v->x, v->y, v->w, v->h};
+    rc.x -= v->fm->em.w;
+    rc.y -= v->fm->em.h;
+    rc.w += v->fm->em.w * 2;
+    rc.h += v->fm->em.h * 2;
     ui_app.invalidate(&rc);
 }
 
-static const char* ui_view_nls(ui_view_t* view) {
-    return view->strid != 0 ?
-        ut_nls.string(view->strid, view->text) : view->text;
+static const char* ui_view_nls(ui_view_t* v) {
+    return v->strid != 0 ?
+        ut_nls.string(v->strid, v->text) : v->text;
 }
 
-static void ui_view_measure(ui_view_t* view) {
-    ui_font_t f = *view->font;
-    if (view->text[0] != 0) {
-        view->w = (int32_t)(view->em.body.w * view->min_w_em + 0.5f);
+static void ui_view_measure(ui_view_t* v) {
+    ui_font_t f = v->fm->font;
+    if (v->text[0] != 0) {
+        v->w = (int32_t)(v->fm->em.w * v->min_w_em + 0.5f);
         ui_point_t mt = { 0 };
-        bool multiline = strchr(view->text, '\n') != null;
-        if (view->type == ui_view_label && multiline) {
-            int32_t w = (int32_t)(view->min_w_em * view->em.body.w + 0.5f);
-            mt = ui_gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
+        bool multiline = strchr(v->text, '\n') != null;
+        if (v->type == ui_view_label && multiline) {
+            int32_t w = (int32_t)(v->min_w_em * v->fm->em.w + 0.5f);
+            mt = ui_gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(v));
         } else {
-            mt = ui_gdi.measure_text(f, ui_view.nls(view));
+            mt = ui_gdi.measure_text(f, ui_view.nls(v));
         }
-        view->h = mt.y;
-        view->w = ut_max(view->w, mt.x);
+        v->h = mt.y;
+        v->w = ut_max(v->w, mt.x);
     }
 }
 
-static bool ui_view_inside(ui_view_t* view, const ui_point_t* pt) {
-    const int32_t x = pt->x - view->x;
-    const int32_t y = pt->y - view->y;
-    return 0 <= x && x < view->w && 0 <= y && y < view->h;
+static bool ui_view_inside(ui_view_t* v, const ui_point_t* pt) {
+    const int32_t x = pt->x - v->x;
+    const int32_t y = pt->y - v->y;
+    return 0 <= x && x < v->w && 0 <= y && y < v->h;
 }
 
-static void ui_view_set_text(ui_view_t* view, const char* text) {
+static void ui_view_set_text(ui_view_t* v, const char* text) {
     int32_t n = (int32_t)strlen(text);
-    strprintf(view->text, "%s", text);
-    view->strid = 0; // next call to nls() will localize this text
+    strprintf(v->text, "%s", text);
+    v->strid = 0; // next call to nls() will localize this text
     for (int32_t i = 0; i < n; i++) {
         if (text[i] == '&' && i < n - 1 && text[i + 1] != '&') {
-            view->shortcut = text[i + 1];
+            v->shortcut = text[i + 1];
             break;
         }
     }
 }
 
-static void ui_view_localize(ui_view_t* view) {
-    if (view->text[0] != 0) {
-        view->strid = ut_nls.strid(view->text);
+static void ui_view_localize(ui_view_t* v) {
+    if (v->text[0] != 0) {
+        v->strid = ut_nls.strid(v->text);
     }
 }
 
@@ -202,247 +202,252 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
     strprintf(hint->text, "%s", ut_nls.str(v->hint));
     ui_view.measure_children(hint);
-    int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.body.w / 4;
-    int32_t y = v->y + v->h + v->em.body.h / 2 + hint->em.body.h / 4;
-    if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->em.body.w / 2; }
-    if (x < 0) { x = hint->em.body.w / 2; }
-    if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->em.body.h / 2; }
-    if (y < 0) { y = hint->em.body.h / 2; }
+    int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->fm->em.w / 4;
+    int32_t y = v->y + v->h + v->fm->em.h / 2 + hint->fm->em.h / 4;
+    if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->fm->em.w / 2; }
+    if (x < 0) { x = hint->fm->em.w / 2; }
+    if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->fm->em.h / 2; }
+    if (y < 0) { y = hint->fm->em.h / 2; }
     // show_tooltip will center horizontally
     ui_app.show_tooltip(hint, x + hint->w / 2, y, 0);
 }
 
-static void ui_view_hovering(ui_view_t* view, bool start) {
+static void ui_view_hovering(ui_view_t* v, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
-    if (start && ui_app.animating.view == null && view->hint[0] != 0 &&
-       !ui_view.is_hidden(view)) {
-        ui_view_show_hint(view, &hint);
+    if (start && ui_app.animating.view == null && v->hint[0] != 0 &&
+       !ui_view.is_hidden(v)) {
+        ui_view_show_hint(v, &hint);
     } else if (!start && ui_app.animating.view == &hint) {
         ui_app.show_tooltip(null, -1, -1, 0);
     }
 }
 
-static bool ui_view_is_shortcut_key(ui_view_t* view, int64_t key) {
+static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
     // Supported keyboard shortcuts are ASCII characters only for now
     // If there is not focused UI control in Alt+key [Alt] is optional.
     // If there is focused control only Alt+Key is accepted as shortcut
     char ch = 0x20 <= key && key <= 0x7F ? (char)toupper((char)key) : 0x00;
-    bool need_alt = ui_app.focus != null && ui_app.focus != view;
-    bool keyboard_shortcut = ch != 0x00 && view->shortcut != 0x00 &&
-         (ui_app.alt || !need_alt) && toupper(view->shortcut) == ch;
+    bool need_alt = ui_app.focus != null && ui_app.focus != v;
+    bool keyboard_shortcut = ch != 0x00 && v->shortcut != 0x00 &&
+         (ui_app.alt || !need_alt) && toupper(v->shortcut) == ch;
     return keyboard_shortcut;
 }
 
-static bool ui_view_is_hidden(const ui_view_t* view) {
-    bool hidden = view->hidden;
-    while (!hidden && view->parent != null) {
-        view = view->parent;
-        hidden = view->hidden;
+static bool ui_view_is_hidden(const ui_view_t* v) {
+    bool hidden = v->hidden;
+    while (!hidden && v->parent != null) {
+        v = v->parent;
+        hidden = v->hidden;
     }
     return hidden;
 }
 
-static bool ui_view_is_disabled(const ui_view_t* view) {
-    bool disabled = view->disabled;
-    while (!disabled && view->parent != null) {
-        view = view->parent;
-        disabled = view->disabled;
+static bool ui_view_is_disabled(const ui_view_t* v) {
+    bool disabled = v->disabled;
+    while (!disabled && v->parent != null) {
+        v = v->parent;
+        disabled = v->disabled;
     }
     return disabled;
 }
 
 // timers are delivered even to hidden and disabled views:
 
-static void ui_view_timer(ui_view_t* view, ui_timer_t id) {
-    if (view->timer != null) { view->timer(view, id); }
-    ui_view_for_each(view, c, { ui_view_timer(c, id); });
+static void ui_view_timer(ui_view_t* v, ui_timer_t id) {
+    if (v->timer != null) { v->timer(v, id); }
+    ui_view_for_each(v, c, { ui_view_timer(c, id); });
 }
 
-static void ui_view_every_sec(ui_view_t* view) {
-    if (view->every_sec != null) { view->every_sec(view); }
-    ui_view_for_each(view, c, { ui_view_every_sec(c); });
+static void ui_view_every_sec(ui_view_t* v) {
+    if (v->every_sec != null) { v->every_sec(v); }
+    ui_view_for_each(v, c, { ui_view_every_sec(c); });
 }
 
-static void ui_view_every_100ms(ui_view_t* view) {
-    if (view->every_100ms != null) { view->every_100ms(view); }
-    ui_view_for_each(view, c, { ui_view_every_100ms(c); });
+static void ui_view_every_100ms(ui_view_t* v) {
+    if (v->every_100ms != null) { v->every_100ms(v); }
+    ui_view_for_each(v, c, { ui_view_every_100ms(c); });
 }
 
-static void ui_view_key_pressed(ui_view_t* view, int64_t k) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->key_pressed != null) { view->key_pressed(view, k); }
-        ui_view_for_each(view, c, { ui_view_key_pressed(c, k); });
+static void ui_view_key_pressed(ui_view_t* v, int64_t k) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        if (v->key_pressed != null) { v->key_pressed(v, k); }
+        ui_view_for_each(v, c, { ui_view_key_pressed(c, k); });
     }
 }
 
-static void ui_view_key_released(ui_view_t* view, int64_t k) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->key_released != null) { view->key_released(view, k); }
-        ui_view_for_each(view, c, { ui_view_key_released(c, k); });
+static void ui_view_key_released(ui_view_t* v, int64_t k) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        if (v->key_released != null) { v->key_released(v, k); }
+        ui_view_for_each(v, c, { ui_view_key_released(c, k); });
     }
 }
 
-static void ui_view_character(ui_view_t* view, const char* utf8) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->character != null) { view->character(view, utf8); }
-        ui_view_for_each(view, c, { ui_view_character(c, utf8); });
+static void ui_view_character(ui_view_t* v, const char* utf8) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        if (v->character != null) { v->character(v, utf8); }
+        ui_view_for_each(v, c, { ui_view_character(c, utf8); });
     }
 }
 
-static void ui_view_paint(ui_view_t* view) {
+static void ui_view_resolve_color_ids(ui_view_t* v) {
+    if (v->color_id > 0) {
+        v->color = ui_app.get_color(v->color_id);
+    }
+    if (v->background_id > 0) {
+        v->background = ui_app.get_color(v->background_id);
+    }
+}
+
+static void ui_view_paint(ui_view_t* v) {
     assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
-    if (!view->hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
-        if (view->before_paint != null) { view->before_paint(view); }
-        if (view->paint != null) { view->paint(view); }
-        if (view->after_paint != null) { view->after_paint(view); }
-        if (view->debug_paint != null && view->debug) { view->debug_paint(view); }
-        if (view->debug) { ui_view.debug_paint(view); }
-        ui_view_for_each(view, c, { ui_view_paint(c); });
+    ui_view_resolve_color_ids(v);
+    if (!v->hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
+        if (v->before_paint != null) { v->before_paint(v); }
+        if (v->paint != null) { v->paint(v); }
+        if (v->after_paint != null) { v->after_paint(v); }
+        if (v->debug_paint != null && v->debug) { v->debug_paint(v); }
+        if (v->debug) { ui_view.debug_paint(v); }
+        ui_view_for_each(v, c, { ui_view_paint(c); });
     }
 }
 
-static bool ui_view_set_focus(ui_view_t* view) {
+static bool ui_view_set_focus(ui_view_t* v) {
     bool set = false;
-   ui_view_for_each(view, c, {
+   ui_view_for_each(v, c, {
         set = ui_view_set_focus(c);
         if (set) { break; }
     });
-    if (!set && !ui_view.is_hidden(view) && !ui_view.is_disabled(view) &&
-        view->focusable && view->set_focus != null &&
-       (ui_app.focus == view || ui_app.focus == null)) {
-        set = view->set_focus(view);
+    if (!set && !ui_view.is_hidden(v) && !ui_view.is_disabled(v) &&
+        v->focusable && v->set_focus != null &&
+       (ui_app.focus == v || ui_app.focus == null)) {
+        set = v->set_focus(v);
     }
     return set;
 }
 
-static void ui_view_kill_focus(ui_view_t* view) {
-    ui_view_for_each(view, c, { ui_view_kill_focus(c); });
-    if (view->kill_focus != null && view->focusable) {
-        view->kill_focus(view);
+static void ui_view_kill_focus(ui_view_t* v) {
+    ui_view_for_each(v, c, { ui_view_kill_focus(c); });
+    if (v->kill_focus != null && v->focusable) {
+        v->kill_focus(v);
     }
 }
 
-static void ui_view_mouse(ui_view_t* view, int32_t m, int64_t f) {
-    if (!ui_view.is_hidden(view) &&
+static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
+    if (!ui_view.is_hidden(v) &&
        (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
-        ui_rect_t r = { view->x, view->y, view->w, view->h};
-        bool hover = view->hover;
-        view->hover = ui.point_in_rect(&ui_app.mouse, &r);
+        ui_rect_t r = { v->x, v->y, v->w, v->h};
+        bool hover = v->hover;
+        v->hover = ui.point_in_rect(&ui_app.mouse, &r);
         // inflate view rectangle:
-        r.x -= view->w / 4;
-        r.y -= view->h / 4;
-        r.w += view->w / 2;
-        r.h += view->h / 2;
-        if (hover != view->hover) { ui_app.invalidate(&r); }
-        if (hover != view->hover) {
-            ui_view.hover_changed(view);
+        r.x -= v->w / 4;
+        r.y -= v->h / 4;
+        r.w += v->w / 2;
+        r.h += v->h / 2;
+        if (hover != v->hover) { ui_app.invalidate(&r); }
+        if (hover != v->hover) {
+            ui_view.hover_changed(v);
         }
     }
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->mouse != null) { view->mouse(view, m, f); }
-        ui_view_for_each(view, c, { ui_view_mouse(c, m, f); });
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        if (v->mouse != null) { v->mouse(v, m, f); }
+        ui_view_for_each(v, c, { ui_view_mouse(c, m, f); });
     }
 }
 
-static void ui_view_mouse_wheel(ui_view_t* view, int32_t dx, int32_t dy) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        if (view->mouse_wheel != null) { view->mouse_wheel(view, dx, dy); }
-        ui_view_for_each(view, c, { ui_view_mouse_wheel(c, dx, dy); });
+static void ui_view_mouse_wheel(ui_view_t* v, int32_t dx, int32_t dy) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        if (v->mouse_wheel != null) { v->mouse_wheel(v, dx, dy); }
+        ui_view_for_each(v, c, { ui_view_mouse_wheel(c, dx, dy); });
     }
 }
 
-static void ui_view_measure_children(ui_view_t* view) {
-    view->em = ui_gdi.get_em(*view->font);
-    if (view->color_id > 0) {
-        view->color = ui_app.get_color(view->color_id);
-    }
-    if (view->background_id > 0) {
-        view->background = ui_app.get_color(view->background_id);
-    }
-    if (!view->hidden) {
-        ui_view_for_each(view, c, { ui_view_measure_children(c); });
-        if (view->before_measure != null) { view->before_measure(view); }
-        if (view->measure != null) {
-            view->measure(view);
-            view->measure(view);
+static void ui_view_measure_children(ui_view_t* v) {
+    if (!ui_view.is_hidden(v)) {
+        ui_view_resolve_color_ids(v);
+        ui_view_for_each(v, c, { ui_view_measure_children(c); });
+        if (v->before_measure != null) { v->before_measure(v); }
+        if (v->measure != null) {
+            v->measure(v);
+            v->measure(v);
         } else {
-            ui_view.measure(view);
+            ui_view.measure(v);
         }
-        if (view->after_measure != null) { view->after_measure(view); }
+        if (v->after_measure != null) { v->after_measure(v); }
     }
 }
 
-static void ui_view_layout_children(ui_view_t* view) {
-    if (!view->hidden) {
-        if (view->before_layout != null) { view->before_layout(view); }
-        if (view->layout != null) { view->layout(view); }
-        if (view->after_layout != null) { view->after_layout(view); }
-        ui_view_for_each(view, c, { ui_view_layout_children(c); });
+static void ui_view_layout_children(ui_view_t* v) {
+    if (!v->hidden) {
+        ui_view_resolve_color_ids(v);
+        if (v->before_layout != null) { v->before_layout(v); }
+        if (v->layout != null) { v->layout(v); }
+        if (v->after_layout != null) { v->after_layout(v); }
+        ui_view_for_each(v, c, { ui_view_layout_children(c); });
     }
 }
 
-static void ui_view_hover_changed(ui_view_t* view) {
-    if (!view->hidden) {
-        if (!view->hover) {
-            view->hover_when = 0;
-            ui_view.hovering(view, false); // cancel hover
+static void ui_view_hover_changed(ui_view_t* v) {
+    if (!v->hidden) {
+        if (!v->hover) {
+            v->hover_when = 0;
+            ui_view.hovering(v, false); // cancel hover
         } else {
             swear(ui_view_hover_delay >= 0);
-            if (view->hover_when >= 0) {
-                view->hover_when = ui_app.now + ui_view_hover_delay;
+            if (v->hover_when >= 0) {
+                v->hover_when = ui_app.now + ui_view_hover_delay;
             }
         }
     }
 }
 
-static void ui_view_kill_hidden_focus(ui_view_t* view) {
+static void ui_view_kill_hidden_focus(ui_view_t* v) {
     // removes focus from hidden or disabled ui controls
     if (ui_app.focus != null) {
-        if (ui_app.focus == view && (view->disabled || view->hidden)) {
+        if (ui_app.focus == v && (v->disabled || v->hidden)) {
             ui_app.focus = null;
             // even for disabled or hidden view notify about kill_focus:
-            view->kill_focus(view);
+            v->kill_focus(v);
         } else {
-            ui_view_for_each(view, c, { ui_view_kill_hidden_focus(c); });
+            ui_view_for_each(v, c, { ui_view_kill_hidden_focus(c); });
         }
     }
 }
 
-static bool ui_view_tap(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
+static bool ui_view_tap(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view) &&
-        ui_view_inside(view, &ui_app.mouse)) {
-        ui_view_for_each(view, c, {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v) &&
+        ui_view_inside(v, &ui_app.mouse)) {
+        ui_view_for_each(v, c, {
             done = ui_view_tap(c, ix);
             if (done) { break; }
         });
 
-        if (view->tap != null && !done) { done = view->tap(view, ix); }
+        if (v->tap != null && !done) { done = v->tap(v, ix); }
     }
     return done;
 }
 
-static bool ui_view_press(ui_view_t* view, int32_t ix) { // 0: left 1: middle 2: right
+static bool ui_view_press(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
     bool done = false; // consumed
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        ui_view_for_each(view, c, {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        ui_view_for_each(v, c, {
             done = ui_view_press(c, ix);
             if (done) { break; }
         });
-        if (view->press != null && !done) { done = view->press(view, ix); }
+        if (v->press != null && !done) { done = v->press(v, ix); }
     }
     return done;
 }
 
-static bool ui_view_context_menu(ui_view_t* view) {
-    if (!ui_view.is_hidden(view) && !ui_view.is_disabled(view)) {
-        ui_view_for_each(view, c, {
+static bool ui_view_context_menu(ui_view_t* v) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        ui_view_for_each(v, c, {
             if (ui_view_context_menu(c)) { return true; }
         });
-        ui_rect_t r = { view->x, view->y, view->w, view->h};
+        ui_rect_t r = { v->x, v->y, v->w, v->h};
         if (ui.point_in_rect(&ui_app.mouse, &r)) {
-            if (!view->hidden && !view->disabled && view->context_menu != null) {
-                view->context_menu(view);
+            if (!v->hidden && !v->disabled && v->context_menu != null) {
+                v->context_menu(v);
             }
         }
     }
@@ -475,28 +480,28 @@ static void ui_view_debug_paint(ui_view_t* v) {
 //      traceln("%s 0x%08X", v->text, v->color);
         ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     }
-    const int32_t p_lf = ui.gaps_em2px(v->em.body.w, v->padding.left);
-    const int32_t p_tp = ui.gaps_em2px(v->em.body.h, v->padding.top);
-    const int32_t p_rt = ui.gaps_em2px(v->em.body.w, v->padding.right);
-    const int32_t p_bt = ui.gaps_em2px(v->em.body.h, v->padding.bottom);
+    const int32_t p_lf = ui.gaps_em2px(v->fm->em.w, v->padding.left);
+    const int32_t p_tp = ui.gaps_em2px(v->fm->em.h, v->padding.top);
+    const int32_t p_rt = ui.gaps_em2px(v->fm->em.w, v->padding.right);
+    const int32_t p_bt = ui.gaps_em2px(v->fm->em.h, v->padding.bottom);
     if (p_lf > 0) { ui_gdi.frame_with(v->x - p_lf, v->y, p_lf, v->h, ui_colors.green); }
     if (p_rt > 0) { ui_gdi.frame_with(v->x + v->w, v->y, p_rt, v->h, ui_colors.green); }
     if (p_tp > 0) { ui_gdi.frame_with(v->x, v->y - p_tp, v->w, p_tp, ui_colors.green); }
     if (p_bt > 0) { ui_gdi.frame_with(v->x, v->y + v->h, v->w, p_bt, ui_colors.green); }
-    const int32_t i_lf = ui.gaps_em2px(v->em.body.w, v->insets.left);
-    const int32_t i_tp = ui.gaps_em2px(v->em.body.h, v->insets.top);
-    const int32_t i_rt = ui.gaps_em2px(v->em.body.w, v->insets.right);
-    const int32_t i_bt = ui.gaps_em2px(v->em.body.h, v->insets.bottom);
+    const int32_t i_lf = ui.gaps_em2px(v->fm->em.w, v->insets.left);
+    const int32_t i_tp = ui.gaps_em2px(v->fm->em.h, v->insets.top);
+    const int32_t i_rt = ui.gaps_em2px(v->fm->em.w, v->insets.right);
+    const int32_t i_bt = ui.gaps_em2px(v->fm->em.h, v->insets.bottom);
     if (i_lf > 0) { ui_gdi.frame_with(v->x,               v->y,               i_lf, v->h, ui_colors.orange); }
     if (i_rt > 0) { ui_gdi.frame_with(v->x + v->w - i_rt, v->y,               i_rt, v->h, ui_colors.orange); }
     if (i_tp > 0) { ui_gdi.frame_with(v->x,               v->y,               v->w, i_tp, ui_colors.orange); }
     if (i_bt > 0) { ui_gdi.frame_with(v->x,               v->y + v->h - i_bt, v->w, i_bt, ui_colors.orange); }
     if (v->color != ui_color_transparent) {
         ui_gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
-        ui_point_t mt = ui_gdi.measure_text(*v->font, v->text);
+        ui_point_t mt = ui_gdi.measure_text(v->fm->font, v->text);
         ui_gdi.x += (v->w - mt.x) / 2;
         ui_gdi.y += (v->h - mt.y) / 2;
-        ui_font_t f = ui_gdi.set_font(*v->font);
+        ui_font_t f = ui_gdi.set_font(v->fm->font);
         ui_gdi.text("%s", v->text);
         ui_gdi.set_font(f);
     }
@@ -574,8 +579,9 @@ static void ui_view_test(void) {
 
 #pragma pop_macro("ui_view_alone")
 
-void ui_view_init(ui_view_t* view) {
-    if (view->font == null) { view->font = &ui_app.fonts.regular; }
+void ui_view_init(ui_view_t* v) { // TODO: remove all together
+    assert(v->fm != null);
+    if (v->fm == null) { v->fm = &ui_app.fonts.regular; }
 }
 
 ui_view_if ui_view = {

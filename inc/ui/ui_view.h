@@ -40,7 +40,7 @@ typedef struct ui_view_s {
     char text[2048];
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
-    ui_em_t em; // cached pixel dimensions of almost square glyph "M"
+    ui_fm_t* fm; // font metrics
     int32_t shortcut; // keyboard shortcut
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
@@ -101,7 +101,6 @@ typedef struct ui_view_s {
     int32_t    color_id;  // 0 is default meaning use color
     ui_color_t background;    // interpretation depends on view type
     int32_t    background_id; // 0 is default meaning use background
-    ui_font_t* font;
     bool       debug; // activates debug_paint() called after after_paint()
     // TODO: get rid of label_dy
     int32_t label_dy;  // vertical shift down (to line up baselines of diff fonts)

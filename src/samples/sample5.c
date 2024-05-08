@@ -12,8 +12,8 @@ static const fp64_t fs[] = {0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0};
 // font scale index
 static int32_t fx = 2; // fs[2] == 1.0
 
-static ui_font_t mf; // mono font
-static ui_font_t pf; // proportional font
+static ui_fm_t mf; // mono font
+static ui_fm_t pf; // proportional font
 
 static ui_edit_t edit0;
 static ui_edit_t edit1;
@@ -43,14 +43,12 @@ static void focus_back_to_edit(void) {
 
 static void scaled_fonts(void) {
     assert(0 <= fx && fx < countof(fs));
-    if (mf != null) { ui_gdi.delete_font(mf); }
-    mf = ui_gdi.font(ui_app.fonts.mono,
-                  (int32_t)(ui_gdi.font_height(ui_app.fonts.mono) * fs[fx] + 0.5),
-                  -1);
-    if (pf != null) { ui_gdi.delete_font(pf); }
-    pf = ui_gdi.font(ui_app.fonts.regular,
-                  (int32_t)(ui_gdi.font_height(ui_app.fonts.regular) * fs[fx] + 0.5),
-                  -1);
+    if (mf.font != null) { ui_gdi.delete_font(mf.font); }
+    int32_t h = (int32_t)(ui_gdi.font_height(ui_app.fonts.mono.font) * fs[fx] + 0.5);
+    ui_gdi.update_fm(&mf, ui_gdi.font(ui_app.fonts.mono.font, h, -1));
+    if (pf.font != null) { ui_gdi.delete_font(pf.font); }
+    h = (int32_t)(ui_gdi.font_height(ui_app.fonts.regular.font) * fs[fx] + 0.5);
+    ui_gdi.update_fm(&pf, ui_gdi.font(ui_app.fonts.regular.font, h, -1));
 }
 
 ui_button_on_click(full_screen, "&Full Screen", 7.5, {
@@ -110,7 +108,7 @@ static void font_plus(void) {
     if (fx < countof(fs) - 1) {
         fx++;
         scaled_fonts();
-        ui_app.layout();
+        ui_app.request_layout();
     }
 }
 
@@ -118,14 +116,14 @@ static void font_minus(void) {
     if (fx > 0) {
         fx--;
         scaled_fonts();
-        ui_app.layout();
+        ui_app.request_layout();
     }
 }
 
 static void font_reset(void) {
     fx = 2;
     scaled_fonts();
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
 ui_button_on_click(fp, "Font Ctrl+", 7.5, { font_plus(); });
@@ -180,7 +178,7 @@ static void paint_frames(ui_view_t* view) {
         ui_colors.yellow, ui_colors.cyan, ui_colors.magenta
     };
     static int32_t color;
-    ui_gdi.push(view->x, view->y + view->h - view->em.body.h);
+    ui_gdi.push(view->x, view->y + view->h - view->fm->em.h);
     ui_gdi.frame_with(view->x, view->y, view->w, view->h, fc[color]);
     ui_color_t c = ui_gdi.set_text_color(fc[color]);
     ui_gdi.print("%s", view->text);
@@ -215,7 +213,7 @@ static void paint(ui_view_t* view) {
     if (ix >= 0) {
         ro.pressed = edit[ix]->ro;
         sl.pressed = edit[ix]->sle;
-        mono.pressed = edit[ix]->view.font == &mf;
+        mono.pressed = edit[ix]->view.fm->font == mf.font;
     }
 }
 
@@ -239,7 +237,7 @@ static void open_file(const char* pathname) {
 static void every_100ms(void) {
 //  traceln("");
     static ui_view_t* last;
-    if (last != ui_app.focus) { ui_app.redraw(); }
+    if (last != ui_app.focus) { ui_app.request_redraw(); }
     last = ui_app.focus;
 }
 
@@ -258,10 +256,10 @@ static void edit2_after_measure(ui_view_t* view) {
 //  traceln("WxH: %dx%d (%dx%d) em: %d lines: %d",
 //          edit[2]->view.w, edit[2]->view.h,
 //          edit[2]->width, edit[2]->height,
-//          edit[2]->view.em.body.h, edit[2]->view.h / edit[2]->view.em.body.h);
+//          edit[2]->view.fm->em.h, edit[2]->view.h / edit[2]->view.fm->em.h);
     int32_t max_lines = edit[2]->focused ? 3 : 1;
-    if (view->h > view->em.body.h * max_lines) {
-        view->h = view->em.body.h * max_lines;
+    if (view->h > view->fm->em.h * max_lines) {
+        view->h = view->fm->em.h * max_lines;
     }
 }
 
@@ -309,13 +307,13 @@ static void opened(void) {
     ui_app.view->paint       = paint;
     ui_app.view->key_pressed = key_pressed;
     scaled_fonts();
-    label.font = &ui_app.fonts.mono;
+    label.fm = &ui_app.fonts.mono;
     strprintf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);
         edit[i]->view.max_w = ui.infinity;
         if (i < 2) { edit[i]->view.max_h = ui.infinity; }
-        edit[i]->view.font = &pf;
+        edit[i]->view.fm = &pf;
         edit[i]->fuzz = ui_edit_fuzz;
         edit[i]->next_fuzz = ui_edit_next_fuzz;
         ui_edit_init_with_lorem_ipsum(edit[i]);

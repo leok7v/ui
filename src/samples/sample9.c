@@ -19,7 +19,6 @@ ui_app_t ui_app = {
     }
 };
 
-static ui_em_t em;
 static int32_t panel_border = 1;
 static int32_t frame_border = 1;
 
@@ -128,7 +127,7 @@ static void flip_locale(ui_button_t* b) {
     // TODO: label_multiline does not get localized automatically.
     //       investigate why... (comment out next line and put some printfs around)
     ui_view.localize(&label_multiline);
-    ui_app.layout(); // because center panel layout changed
+    ui_app.request_layout(); // because center panel layout changed
 }
 
 static ui_button_t button_locale = ui_button(
@@ -160,58 +159,58 @@ static ui_view_t panel_bottom = ui_view(container);
 static ui_view_t panel_center = ui_view(container);
 static ui_view_t panel_right  = ui_view(container);
 
-static void panel_paint(ui_view_t* view) {
-    if (view->color == ui_color_transparent) {
-        view->color = ui_app.view->color;
+static void panel_paint(ui_view_t* v) {
+    if (v->color == ui_color_transparent) {
+        v->color = ui_app.view->color;
     }
-    ui_gdi.push(view->x, view->y);
-    ui_gdi.set_clip(view->x, view->y, view->w, view->h);
-    ui_gdi.fill_with(view->x, view->y, view->w, view->h, ui_colors.dkgray1);
+    ui_gdi.push(v->x, v->y);
+    ui_gdi.set_clip(v->x, v->y, v->w, v->h);
+    ui_gdi.fill_with(v->x, v->y, v->w, v->h, ui_colors.dkgray1);
     ui_pen_t p = ui_gdi.create_pen(ui_colors.dkgray4, panel_border);
     ui_gdi.set_pen(p);
-    ui_gdi.move_to(view->x, view->y);
-    if (view == &panel_right) {
-        ui_gdi.line(view->x + view->w, view->y);
-        ui_gdi.line(view->x + view->w, view->y + view->h);
-        ui_gdi.line(view->x, view->y + view->h);
-        ui_gdi.line(view->x, view->y);
-    } else if (view == &panel_top || view == &panel_bottom) {
-        ui_gdi.line(view->x, view->y + view->h);
-        ui_gdi.line(view->x + view->w, view->y + view->h);
-        ui_gdi.move_to(view->x + view->w, view->y);
-        ui_gdi.line(view->x, view->y);
+    ui_gdi.move_to(v->x, v->y);
+    if (v == &panel_right) {
+        ui_gdi.line(v->x + v->w, v->y);
+        ui_gdi.line(v->x + v->w, v->y + v->h);
+        ui_gdi.line(v->x, v->y + v->h);
+        ui_gdi.line(v->x, v->y);
+    } else if (v == &panel_top || v == &panel_bottom) {
+        ui_gdi.line(v->x, v->y + v->h);
+        ui_gdi.line(v->x + v->w, v->y + v->h);
+        ui_gdi.move_to(v->x + v->w, v->y);
+        ui_gdi.line(v->x, v->y);
     } else {
-        assert(view == &panel_center);
-        ui_gdi.line(view->x, view->y + view->h);
+        assert(v == &panel_center);
+        ui_gdi.line(v->x, v->y + v->h);
     }
-    int32_t x = view->x + panel_border + ut_max(1, em.body.w / 8);
-    int32_t y = view->y + panel_border + ut_max(1, em.body.h / 4);
-    ui_pen_t s = ui_gdi.set_colored_pen(view->color);
+    int32_t x = v->x + panel_border + ut_max(1, v->fm->em.w / 8);
+    int32_t y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);
+    ui_pen_t s = ui_gdi.set_colored_pen(v->color);
     ui_gdi.set_brush(ui_gdi.brush_hollow);
-    ui_gdi.rounded(x, y, em.body.w * 12, em.body.h, ut_max(1, em.body.h / 4), ut_max(1, em.body.h / 4));
+    ui_gdi.rounded(x, y, v->fm->em.w * 12, v->fm->em.h, ut_max(1, v->fm->em.h / 4), ut_max(1, v->fm->em.h / 4));
     ui_gdi.set_pen(s);
-    ui_color_t color = ui_gdi.set_text_color(view->color);
-    ui_gdi.x = view->x + panel_border + ut_max(1, em.body.w / 2);
-    ui_gdi.y = view->y + panel_border + ut_max(1, em.body.h / 4);
-    ui_gdi.text("%d,%d %dx%d %s", view->x, view->y, view->w, view->h, view->text);
+    ui_color_t color = ui_gdi.set_text_color(v->color);
+    ui_gdi.x = v->x + panel_border + ut_max(1, v->fm->em.w / 2);
+    ui_gdi.y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);
+    ui_gdi.text("%d,%d %dx%d %s", v->x, v->y, v->w, v->h, v->text);
     ui_gdi.set_text_color(color);
     ui_gdi.set_clip(0, 0, 0, 0);
     ui_gdi.delete_pen(p);
     ui_gdi.pop();
 }
 
-static void right_layout(ui_view_t* view) {
-    int x = view->x + em.body.w;
-    int y = view->y + em.body.h * 2;
-    ui_view_for_each(view, c, {
+static void right_layout(ui_view_t* v) {
+    int x = v->x + v->fm->em.w;
+    int y = v->y + v->fm->em.h * 2;
+    ui_view_for_each(v, c, {
         c->x = x;
         c->y = y;
-        y += c->h + em.body.h / 2;
+        y += c->h + v->fm->em.h / 2;
     });
 }
 
 static void text_after(ui_view_t* view, const char* format, ...) {
-    ui_gdi.x = view->x + view->w + view->em.body.w;
+    ui_gdi.x = view->x + view->w + view->fm->em.w;
     ui_gdi.y = view->y;
     va_list va;
     va_start(va, format);
@@ -219,25 +218,25 @@ static void text_after(ui_view_t* view, const char* format, ...) {
     va_end(va);
 }
 
-static void right_paint(ui_view_t* view) {
-    panel_paint(view);
-    ui_gdi.push(view->x, view->y);
-    ui_gdi.set_clip(view->x, view->y, view->w, view->h);
-    ui_gdi.x = button_locale.x + button_locale.w + em.body.w;
+static void right_paint(ui_view_t* v) {
+    panel_paint(v);
+    ui_gdi.push(v->x, v->y);
+    ui_gdi.set_clip(v->x, v->y, v->w, v->h);
+    ui_gdi.x = button_locale.x + button_locale.w + v->fm->em.w;
     ui_gdi.y = button_locale.y;
     ui_gdi.println("&Locale %s", button_locale.pressed ? "zh-CN" : "en-US");
-    ui_gdi.x = button_full_screen.x + button_full_screen.w + em.body.w;
+    ui_gdi.x = button_full_screen.x + button_full_screen.w + v->fm->em.w;
     ui_gdi.y = button_full_screen.y;
     ui_gdi.println(ui_app.is_full_screen ? ut_nls.str("Restore from &Full Screen") :
         ut_nls.str("&Full Screen"));
     ui_gdi.x = label_multiline.x;
-    ui_gdi.y = label_multiline.y + label_multiline.h + ut_max(1, em.body.h / 4);
+    ui_gdi.y = label_multiline.y + label_multiline.h + ut_max(1, v->fm->em.h / 4);
     ui_gdi.textln(ut_nls.str("Proportional"));
     ui_gdi.println(ut_nls.str("Monospaced"));
-    ui_font_t font = ui_gdi.set_font(ui_app.fonts.H1);
+    ui_font_t font = ui_gdi.set_font(ui_app.fonts.H1.font);
     ui_gdi.textln("H1 %s", ut_nls.str("Header"));
-    ui_gdi.set_font(ui_app.fonts.H2); ui_gdi.textln("H2 %s", ut_nls.str("Header"));
-    ui_gdi.set_font(ui_app.fonts.H3); ui_gdi.textln("H3 %s", ut_nls.str("Header"));
+    ui_gdi.set_font(ui_app.fonts.H2.font); ui_gdi.textln("H2 %s", ut_nls.str("Header"));
+    ui_gdi.set_font(ui_app.fonts.H3.font); ui_gdi.textln("H3 %s", ut_nls.str("Header"));
     ui_gdi.set_font(font);
     ui_gdi.println("%s %dx%d", ut_nls.str("Client area"), ui_app.crc.w, ui_app.crc.h);
     ui_gdi.println("%s %dx%d", ut_nls.str("Window"), ui_app.wrc.w, ui_app.wrc.h);
@@ -265,20 +264,18 @@ static void center_paint(ui_view_t* view) {
     ui_gdi.set_clip(0, 0, 0, 0);
 }
 
-static void measure(ui_view_t* view) {
-    ui_em_t em_mono = ui_gdi.get_em(ui_app.fonts.mono);
-    em = ui_gdi.get_em(ui_app.fonts.regular);
-    view->em = em;
-    panel_border = ut_max(1, em_mono.body.h / 4);
-    frame_border = ut_max(1, em_mono.body.h / 8);
+static void measure(ui_view_t* v) {
+    v->fm = &ui_app.fonts.mono;
+    panel_border = ut_max(1, v->fm->em.h / 4);
+    frame_border = ut_max(1, v->fm->em.h / 8);
     assert(panel_border > 0 && frame_border > 0);
     const int32_t w = ui_app.width;
     const int32_t h = ui_app.height;
     // measure ui elements
     panel_top.w = (int32_t)(0.70 * w);
-    panel_top.h = em.body.h * 2;
+    panel_top.h = v->fm->em.h * 2;
     panel_bottom.w = panel_top.w;
-    panel_bottom.h = em.body.h * 2;
+    panel_bottom.h = v->fm->em.h * 2;
     panel_right.w = w - panel_bottom.w;
     panel_right.h = h;
     panel_center.w = panel_bottom.w;
@@ -286,7 +283,7 @@ static void measure(ui_view_t* view) {
 }
 
 static void layout(ui_view_t* unused(view)) {
-    assert(view->em.body.w > 0 && view->em.body.h > 0);
+    assert(view->fm->em.w > 0 && view->fm->em.h > 0);
     const int32_t h = ui_app.height;
     panel_top.x = 0;
     panel_top.y = 0;
@@ -331,7 +328,7 @@ static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(flags)) {
                 if (top < countof(stack)) { zoom_in(x, y); refresh(); }
             }
         }
-        ui_app.redraw();
+        ui_app.request_redraw();
     }
 }
 
@@ -414,8 +411,8 @@ static void opened(void) {
         "Ctrl+C or Right Mouse click to copy text to clipboard");
     strprintf(label_multiline.text, "%s",
         ut_nls.string(str_help, label_multiline.text));
-    toast_filename.font = &ui_app.fonts.H1;
-    about.font = &ui_app.fonts.H3;
+    toast_filename.fm = &ui_app.fonts.H1;
+    about.fm = &ui_app.fonts.H3;
     button_locale.shortcut = 'l';
     button_full_screen.shortcut = 'f';
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
@@ -508,6 +505,6 @@ static void refresh(void) {
     while (z != zoom) { zoomer.value++; z /= 2; }
     zoomer.value = ut_min(zoomer.value, zoomer.value_max);
     mandelbrot(&image);
-    ui_app.redraw();
+    ui_app.request_redraw();
 }
 

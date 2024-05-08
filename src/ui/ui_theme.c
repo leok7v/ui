@@ -85,7 +85,7 @@ static void ui_theme_refresh(void* window) {
         traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
                 "failed %s", ut_str.error(r));
     }
-    ui_app.layout();
+    ui_app.request_layout();
 }
 
 static ui_color_t ui_theme_get_color(int32_t color_id) {

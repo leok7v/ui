@@ -99,10 +99,10 @@ typedef struct {
     void (*bring_to_front)(void); // activate() + bring_to_foreground() +
                                   // make_topmost() + request_focus()
     // measure and layout:
-    void (*layout)(void); // requests layout on UI tree before paint()
+    void (*request_layout)(void); // requests layout on UI tree before paint()
     void (*invalidate)(const ui_rect_t* rc);
     void (*full_screen)(bool on);
-    void (*redraw)(void); // very fast (5 microseconds) InvalidateRect(null)
+    void (*request_redraw)(void); // very fast (5 microseconds) InvalidateRect(null)
     void (*draw)(void);   // UpdateWindow()
     void (*set_cursor)(ui_cursor_t c);
     void (*close)(void); // attempts to close (can_close() permitting)

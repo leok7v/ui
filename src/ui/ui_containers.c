@@ -40,10 +40,10 @@ static const char* ui_container_finite_int(int32_t v, char* text, int32_t count)
 
 static void ui_span_measure(ui_view_t* p) {
     swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
-    const int32_t i_lf = ui.gaps_em2px(p->em.body.w, p->insets.left);
-    const int32_t i_tp = ui.gaps_em2px(p->em.body.h, p->insets.top);
-    const int32_t i_rt = ui.gaps_em2px(p->em.body.w, p->insets.right);
-    const int32_t i_bt = ui.gaps_em2px(p->em.body.h, p->insets.bottom);
+    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
+    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
+    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
+    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
     int32_t max_w = i_lf;
     int32_t w = i_lf;
     int32_t h = 0;
@@ -54,10 +54,10 @@ static void ui_span_measure(ui_view_t* p) {
             c->w = 0; // layout will distribute excess here
             max_w = ui.infinity; // spacer make width greedy
         } else {
-            const int32_t p_lf = ui.gaps_em2px(c->em.body.w, c->padding.left);
-            const int32_t p_tp = ui.gaps_em2px(c->em.body.h, c->padding.top);
-            const int32_t p_rt = ui.gaps_em2px(c->em.body.w, c->padding.right);
-            const int32_t p_bt = ui.gaps_em2px(c->em.body.h, c->padding.bottom);
+            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
+            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
             h = ut_max(h, p_tp + c->h + p_bt);
             const int32_t cw = p_lf + c->w + p_rt;
             if (c->max_w == ui.infinity) {
@@ -91,8 +91,8 @@ static void ui_span_measure(ui_view_t* p) {
     p->w = w;
     p->h = h;
     // add top and bottom insets
-    p->h += ui.gaps_em2px(p->em.body.h, p->insets.top);
-    p->h += ui.gaps_em2px(p->em.body.h, p->insets.bottom);
+    p->h += ui.gaps_em2px(p->fm->em.h, p->insets.top);
+    p->h += ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
     swear(p->max_w == 0 || p->max_w >= p->w, "max_w is less than actual width w");
 }
 
@@ -105,11 +105,11 @@ static void ui_span_layout(ui_view_t* p) {
     swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     int32_t spacers = 0; // Number of spacers
     // Left and right insets
-    const int32_t i_lf = ui.gaps_em2px(p->em.body.w, p->insets.left);
-    const int32_t i_rt = ui.gaps_em2px(p->em.body.w, p->insets.right);
+    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
+    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
     // Top and bottom insets
-    const int32_t i_tp = ui.gaps_em2px(p->em.body.h, p->insets.top);
-    const int32_t i_bt = ui.gaps_em2px(p->em.body.h, p->insets.bottom);
+    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
+    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
     const int32_t lf = p->x + i_lf;
     const int32_t rt = p->x + p->w - i_rt;
     swear(lf < rt, "Inverted or zero-width conditions: lf: %d, rt: %d", lf, rt);
@@ -121,10 +121,10 @@ static void ui_span_layout(ui_view_t* p) {
     int32_t max_w_count = 0;
     int32_t x = lf;
     ui_view_for_each_begin(p, c) {
-        const int32_t p_lf = ui.gaps_em2px(c->em.body.w, c->padding.left);
-        const int32_t p_tp = ui.gaps_em2px(c->em.body.h, c->padding.top);
-        const int32_t p_rt = ui.gaps_em2px(c->em.body.w, c->padding.right);
-        const int32_t p_bt = ui.gaps_em2px(c->em.body.h, c->padding.bottom);
+        const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+        const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+        const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
+        const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
         if (c->type == ui_view_spacer) {
             c->y = p->y + i_tp + p_tp;
             c->h = bot - top - p_tp - p_bt;
@@ -159,8 +159,8 @@ static void ui_span_layout(ui_view_t* p) {
         x = lf;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
-            const int32_t p_lf = ui.gaps_em2px(c->em.body.w, c->padding.left);
-            const int32_t p_rt = ui.gaps_em2px(c->em.body.w, c->padding.right);
+            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
             if (c->type != ui_view_spacer && c->max_w > 0) {
                 // if max_w is infinity, it can occupy the whole parent width:
                 const int32_t max_w = (c->max_w == ui.infinity) ? p->w : c->max_w;
@@ -187,8 +187,8 @@ static void ui_span_layout(ui_view_t* p) {
         int32_t partial = diff / spacers;
         x = lf;
         ui_view_for_each_begin(p, c) {
-            const int32_t p_lf = ui.gaps_em2px(c->em.body.w, c->padding.left);
-            const int32_t p_rt = ui.gaps_em2px(c->em.body.w, c->padding.right);
+            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
             if (c->type == ui_view_spacer) {
                 c->w = spacers == 1 ? diff - sum - p_lf - p_rt : partial;
                 sum += p_lf + c->w + p_rt;
@@ -202,10 +202,10 @@ static void ui_span_layout(ui_view_t* p) {
 
 static void ui_list_measure(ui_view_t* p) {
     swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
-    const int32_t i_lf = ui.gaps_em2px(p->em.body.w, p->insets.left);
-    const int32_t i_rt = ui.gaps_em2px(p->em.body.w, p->insets.right);
-    const int32_t i_tp = ui.gaps_em2px(p->em.body.h, p->insets.top);
-    const int32_t i_bt = ui.gaps_em2px(p->em.body.h, p->insets.bottom);
+    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
+    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
+    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
+    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
     int32_t max_h = i_tp;
     int32_t h = i_tp;
     int32_t w = 0;
@@ -216,10 +216,10 @@ static void ui_list_measure(ui_view_t* p) {
             c->h = 0; // layout will distribute excess here
             max_h = ui.infinity; // spacer make height greedy
         } else {
-            const int32_t p_tp = ui.gaps_em2px(c->em.body.h, c->padding.top);
-            const int32_t p_lf = ui.gaps_em2px(c->em.body.w, c->padding.left);
-            const int32_t p_bt = ui.gaps_em2px(c->em.body.h, c->padding.bottom);
-            const int32_t p_rt = ui.gaps_em2px(c->em.body.w, c->padding.right);
+            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
+            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
             w = ut_max(w, p_lf + c->w + p_rt);
             const int32_t ch = p_tp + c->h + p_bt;
             if (c->max_h == ui.infinity) {
@@ -251,18 +251,18 @@ static void ui_list_measure(ui_view_t* p) {
     p->h = h;
     p->w = w;
     // add left and right insets
-    p->h += ui.gaps_em2px(p->em.body.h, p->insets.top);
-    p->h += ui.gaps_em2px(p->em.body.h, p->insets.bottom);
+    p->h += ui.gaps_em2px(p->fm->em.h, p->insets.top);
+    p->h += ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
 }
 
 static void ui_list_layout(ui_view_t* p) {
     debugln(">%s.(x,y): (%d,%d) .h: %d", p->text, p->x, p->y, p->h);
     swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
     int32_t spacers = 0; // Number of spacers
-    const int32_t i_tp = ui.gaps_em2px(p->em.body.h, p->insets.top);
-    const int32_t i_bt = ui.gaps_em2px(p->em.body.h, p->insets.bottom);
-    const int32_t i_lf = ui.gaps_em2px(p->em.body.w, p->insets.left);
-    const int32_t i_rt = ui.gaps_em2px(p->em.body.w, p->insets.right);
+    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
+    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
+    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
+    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
     const int32_t top = p->y + i_tp;
     // Mitigation for vertical overflow:
     const int32_t bot = p->y + p->h - i_bt < top ? top + p->h : p->y + p->h - i_bt;
@@ -273,10 +273,10 @@ static void ui_list_layout(ui_view_t* p) {
     int32_t max_h_count = 0;
     int32_t y = top;
     ui_view_for_each_begin(p, c) {
-        const int32_t p_lf = ui.gaps_em2px(c->em.body.w, c->padding.left);
-        const int32_t p_rt = ui.gaps_em2px(c->em.body.w, c->padding.right);
-        const int32_t p_tp = ui.gaps_em2px(c->em.body.h, c->padding.top);
-        const int32_t p_bt = ui.gaps_em2px(c->em.body.h, c->padding.bottom);
+        const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+        const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
+        const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+        const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
         if (c->type == ui_view_spacer) {
             c->x = p->x + i_lf + p_lf;
             c->w = rt - lf - p_lf - p_rt;
@@ -310,8 +310,8 @@ static void ui_list_layout(ui_view_t* p) {
         y = top;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
-            const int32_t p_tp = ui.gaps_em2px(c->em.body.h, c->padding.top);
-            const int32_t p_bt = ui.gaps_em2px(c->em.body.h, c->padding.bottom);
+            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
             if (c->type != ui_view_spacer && c->max_h > 0) {
                 const int32_t max_h = (c->max_h == ui.infinity) ? p->h : c->max_h;
                 int32_t proportional = (diff * max_h) / (max_h_count * max_h_sum);
@@ -334,8 +334,8 @@ static void ui_list_layout(ui_view_t* p) {
         int32_t partial = diff / spacers;
         y = top;
         ui_view_for_each_begin(p, c) {
-            const int32_t p_tp = ui.gaps_em2px(c->em.body.h, c->padding.top);
-            const int32_t p_bt = ui.gaps_em2px(c->em.body.h, c->padding.bottom);
+            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
             if (c->type == ui_view_spacer) {
                 c->h = spacers == 1 ? diff - sum - p_tp - p_bt : partial;
                 sum += c->h;
@@ -351,10 +351,10 @@ static void ui_list_layout(ui_view_t* p) {
 
 static void ui_container_measure(ui_view_t* p) {
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
-    const int32_t i_lf = ui.gaps_em2px(p->em.body.w, p->insets.left);
-    const int32_t i_rt = ui.gaps_em2px(p->em.body.w, p->insets.right);
-    const int32_t i_tp = ui.gaps_em2px(p->em.body.h, p->insets.top);
-    const int32_t i_bt = ui.gaps_em2px(p->em.body.h, p->insets.bottom);
+    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
+    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
+    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
+    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
     // empty container minimum size:
     if (p != ui_app.view) {
         p->w = i_lf + i_rt;
@@ -364,10 +364,10 @@ static void ui_container_measure(ui_view_t* p) {
         p->h = ut_max(p->h, i_tp + i_bt);
     }
     ui_view_for_each_begin(p, c) {
-        const int32_t p_lf = ui.gaps_em2px(c->em.body.w, c->padding.left);
-        const int32_t p_rt = ui.gaps_em2px(c->em.body.w, c->padding.right);
-        const int32_t p_tp = ui.gaps_em2px(c->em.body.h, c->padding.top);
-        const int32_t p_bt = ui.gaps_em2px(c->em.body.h, c->padding.bottom);
+        const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+        const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
+        const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+        const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
         p->w = ut_max(p->w, p_lf + c->w + p_rt);
         p->h = ut_max(p->h, p_tp + c->h + p_bt);
     } ui_view_for_each_end(p, c);
@@ -376,20 +376,20 @@ static void ui_container_measure(ui_view_t* p) {
 static void ui_container_layout(ui_view_t* p) {
     debugln("> %s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
-    const int32_t i_lf = ui.gaps_em2px(p->em.body.w, p->insets.left);
-    const int32_t i_rt = ui.gaps_em2px(p->em.body.w, p->insets.right);
-    const int32_t i_tp = ui.gaps_em2px(p->em.body.h, p->insets.top);
-    const int32_t i_bt = ui.gaps_em2px(p->em.body.h, p->insets.bottom);
+    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
+    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
+    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
+    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
     const int32_t lf = p->x + i_lf;
     const int32_t rt = p->x + p->w - i_rt;
     const int32_t tp = p->y + i_tp;
     const int32_t bt = p->y + p->h - i_bt;
     ui_view_for_each_begin(p, c) {
         if (c->type != ui_view_spacer) {
-            const int32_t p_lf = ui.gaps_em2px(c->em.body.w, c->padding.left);
-            const int32_t p_rt = ui.gaps_em2px(c->em.body.w, c->padding.right);
-            const int32_t p_tp = ui.gaps_em2px(c->em.body.h, c->padding.top);
-            const int32_t p_bt = ui.gaps_em2px(c->em.body.h, c->padding.bottom);
+            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
+            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
+            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
+            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
 
             const int32_t pw = p->w - i_lf - i_rt - p_lf - p_rt;
             const int32_t ph = p->h - i_tp - i_bt - p_tp - p_bt;

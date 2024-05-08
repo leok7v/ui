@@ -3,10 +3,10 @@
 #include "single_file_lib/ui/ui.h"
 
 static void opened(void) {
-    static ui_font_t font;
-    font = ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1);
+    static ui_fm_t fm;
+    ui_gdi.update_fm(&fm, ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1));
     static ui_label_t hello = ui_label(0.0, "Hello");
-    hello.font = &font;
+    hello.fm = &fm;
     ui_app.set_layered_window(ui_colors.dkgray1, 0.75f);
     if (ui_app.no_decor) { ui_view.add_last(ui_app.view, &ui_caption.view); }
     ui_view.add_last(ui_app.view, &hello);

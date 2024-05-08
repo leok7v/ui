@@ -79,7 +79,7 @@ typedef struct {
     void (*font_smoothing_contrast)(int32_t c); // [1000..2202] or -1 for 1400 default
     ui_font_t (*create_font)(const char* family, int32_t height, int32_t quality);
     ui_font_t (*font)(ui_font_t f, int32_t height, int32_t quality); // custom font, quality: -1 as is
-    void   (*delete_font)(ui_font_t f);
+    void      (*delete_font)(ui_font_t f);
     ui_font_t (*set_font)(ui_font_t f);
     // IMPORTANT: relationship between font_height(), baseline(), descent()
     // E.g. for monospaced font on dpi=96 (monitor_raw=101) and font_height=15
@@ -88,9 +88,8 @@ typedef struct {
     int32_t (*font_height)(ui_font_t f); // font height in pixels
     int32_t (*descent)(ui_font_t f);     // font descent (glyphs below baseline)
     int32_t (*baseline)(ui_font_t f);    // height - baseline (aka ascent) = descent
-    bool    (*is_mono)(ui_font_t f);     // is font monospaced?
     // https://en.wikipedia.org/wiki/Em_(typography)
-    ui_em_t (*get_em)(ui_font_t f);  // pixel size of glyph "M" close to square
+    void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics (pixel size of glyph "M")
     // get_em(f) returns { "M".w, "M".h - f.descent - (f.height - f.baseline)};
     ui_point_t (*measure_text)(ui_font_t f, const char* format, ...);
     // width can be -1 which measures text with "\n" or

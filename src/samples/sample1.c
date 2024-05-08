@@ -4,8 +4,6 @@
 
 static char title[128] = "Sample1: Hello";
 
-static ui_font_t font;
-
 static const char* locales[] = { // 123 languages
     "af-ZA", "am-ET", "ar-SA", "as-IN", "az-AZ", "ba-RU", "be-BY", "bg-BG",
     "bn-BD", "bo-CN", "br-FR", "bs-BA", "bs-Latn-BA", "ca-ES", "ca-ES-Valencia",
@@ -35,14 +33,15 @@ static void every_sec(ui_view_t* unused(view)) {
               ui_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead,
               ut_nls.str("Hello"), locales[locale]);
     ui_app.set_title(title);
-    ui_app.layout();
+    ui_app.request_layout();
     locale = (locale + 1) % countof(locales);
 }
 
 static void opened(void) {
-    font = ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1);
+    static ui_fm_t fm;
+    ui_gdi.update_fm(&fm, ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1));
     ui_app.view->every_sec = every_sec;
-    label.font = &font;
+    label.fm = &fm;
     ui_view.add(ui_app.view, &label, null);
 }
 static void init(void) {

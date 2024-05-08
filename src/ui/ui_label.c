@@ -6,8 +6,7 @@ static void ui_label_paint(ui_view_t* v) {
     assert(!v->hidden);
     // at later stages of layout text height can grow:
     ui_gdi.push(v->x, v->y + v->label_dy);
-    ui_font_t f = *v->font;
-    ui_gdi.set_font(f);
+    ui_font_t f = ui_gdi.set_font(v->fm->font);
 //  traceln("%s h=%d dy=%d baseline=%d", v->text, v->h,
 //          v->label_dy, v->baseline);
     ui_color_t c = v->hover && v->highlightable ?
@@ -19,18 +18,19 @@ static void ui_label_paint(ui_view_t* v) {
     if (!multiline) {
         ui_gdi.text("%s", ui_view.nls(v));
     } else {
-        int32_t w = (int32_t)(v->min_w_em * v->em.body.w + 0.5);
+        int32_t w = (int32_t)(v->min_w_em * v->fm->em.w + 0.5);
         ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
         // ui_colors.btn_hover_highlight
         ui_gdi.set_colored_pen(ui_app.get_color(ui_color_id_highlight));
         ui_gdi.set_brush(ui_gdi.brush_hollow);
-        int32_t cr = v->em.body.h / 4; // corner radius
-        int32_t h = multiline ? v->h : v->em.baseline + v->em.descent;
+        int32_t cr = v->fm->em.h / 4; // corner radius
+        int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
         ui_gdi.rounded(v->x - cr, v->y + v->label_dy,
                        v->w + 2 * cr, h, cr, cr);
     }
+    ui_gdi.set_font(f);
     ui_gdi.pop();
 }
 
