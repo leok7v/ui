@@ -18,7 +18,7 @@ static void init(void) {
 
 ui_app_t ui_app = {
     .class_name = "sample8",
-//  .no_decor = true,
+    .no_decor = true,
     .init = init,
     .window_sizing = {
         .ini_w =  10.0f,
@@ -107,7 +107,7 @@ static void opened(void) {
     static ui_slider_t slider_padding   = ui_slider("Padding: %d",  5.5, 0, 3, padding_callback);
     ui_view.add(ui_app.view,
         ui_view.add(&list,
-//          &ui_caption,
+            &ui_caption,
             ui_view.add(&span,
                 &test,
                 ui_view.add(&tools,
@@ -132,26 +132,26 @@ static void opened(void) {
     test.color = ui_color_transparent;
     test.align = ui.align.left;
     test.insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    test.background_id = ui_color_id_window;
     strprintf(test.text, "%s", "test");
-    test.paint = ui_view.debug_paint;
+//test.paint = ui_view.debug_paint;
+    test.debug = true;
+
     // buttons to switch test content
     tools.max_h = ui.infinity;
     tools.color_id = ui_color_id_window;
     tools.align = ui.align.right;
     strprintf(tools.text, "%s", "tools");
 //  tools.paint = ui_view.debug_paint;
-    ui_view_for_each(&tools, it, {
-        it->align = ui.align.left;
-        it->padding = (ui_gaps_t){ .left = 0.5,  .top = 0.25,
-                                   .right = 0.5, .bottom = 0.25 };
-    });
+    ui_view_for_each(&tools, it, { it->align = ui.align.left; });
     strprintf(button_container.hint,
         "Shows ui_view(container) layout\n"
         "Resizing Window will allow\n"
         "too see how it behaves");
 //  toggle_container(&button_container);
-//  toggle_list(&button_container);
-//  toggle_span(&button_container);
+//  toggle_list(&button_list);
+//  toggle_span(&button_span);
+    toggle_controls(&button_controls);
 }
 
 static ui_view_t* align(ui_view_t* v, int32_t align) {
@@ -185,18 +185,16 @@ static void container_test(ui_view_t* parent) {
             align(&center,       ui.align.center),
         null),
     null);
-    container.paint    = ui_view.debug_paint;
-    container.max_w    = ui.infinity;
-    container.max_h    = ui.infinity;
-    container.color    = ui_color_undefined;
-    container.color_id = ui_color_id_window;
-    container.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    container.debug  = true;
+    container.max_w  = ui.infinity;
+    container.max_h  = ui.infinity;
+    container.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    container.background_id = ui_color_id_window;
     strprintf(container.text, "container");
     ui_view_for_each(&container, it, {
-        it->paint = ui_view.debug_paint;
+        it->debug = true;
         it->color = ui_colors.onyx;
         it->fm    = &ui_app.fonts.H1;
-// TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
     });
 }
@@ -218,17 +216,15 @@ static void span_test(ui_view_t* parent) {
             align(&right,  ui.align.center),
         null),
     null);
-    span.paint    = ui_view.debug_paint;
+    span.debug    = true;
     span.max_w    = ui.infinity;
     span.max_h    = ui.infinity;
-    span.color    = ui_color_undefined;
-    span.color_id = ui_color_id_window;
     span.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
-    strprintf(span.text, "test.span");
+    strprintf(span.text, "span");
+    span.background_id = ui_color_id_window;
     ui_view_for_each(&span, it, {
-        it->paint   = ui_view.debug_paint;
+        it->debug   = true;
         it->color   = ui_colors.onyx;
-// TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
         it->fm      = &ui_app.fonts.H1;
@@ -255,15 +251,14 @@ static void list_test(ui_view_t* parent) {
             align(&bottom, ui.align.center),
         null),
     null);
-    list.paint  = ui_view.debug_paint;
+    list.debug  = true;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-    list.color    = ui_color_undefined;
-    list.color_id = ui_color_id_window;
     list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    list.background_id = ui_color_id_window;
     strprintf(list.text, "list");
     ui_view_for_each(&list, it, {
-        it->paint   = ui_view.debug_paint;
+        it->debug   = true;
         it->color   = ui_colors.onyx;
         // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
@@ -291,23 +286,24 @@ static void controls_test(ui_view_t* parent) {
     ui_view.add(&test,
         ui_view.add(&list,
             ui_view.add(&span,
-                &left,
-                &button1,
-                &right,
-                &slider1,
-                &toggle1,
+                align(&left,         ui.align.top),
+                align(&button1,      ui.align.top),
+                align(&right,        ui.align.top),
+                align(&slider1.view, ui.align.top),
+                align(&toggle1,      ui.align.top),
             null),
-            &label,
-            &button2,
-            &slider2,
-            &toggle2,
-            &spacer,
+            align(&label,        ui.align.left),
+            align(&button2,      ui.align.left),
+            align(&slider2.view, ui.align.left),
+            align(&toggle2,      ui.align.left),
+            align(&spacer,       ui.align.left),
         null),
     null);
-    list.paint  = ui_view.debug_paint;
+    list.debug  = true;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
     strprintf(list.text, "list");
-    ui_view_for_each(&list, it, { it->fm = &ui_app.fonts.H1; } );
-    ui_view_for_each(&span, it, { it->fm = &ui_app.fonts.H1; } );
+    list.background_id = ui_color_id_window;
+    ui_view_for_each(&list, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );
+    ui_view_for_each(&span, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );
 }

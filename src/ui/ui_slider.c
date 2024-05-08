@@ -7,8 +7,8 @@ static void ui_slider_measure(ui_view_t* v) {
     s->inc.fm = v->fm;
     s->dec.fm = v->fm;
     ui_view.measure(v);
-//  ui_view.measure(&s->dec);
-//  ui_view.measure(&s->inc);
+    ui_view.measure(&s->dec);
+    ui_view.measure(&s->inc);
     assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
     const int32_t em = v->fm->em.w;
     const int32_t w = (int32_t)(v->min_w_em * v->fm->em.w);

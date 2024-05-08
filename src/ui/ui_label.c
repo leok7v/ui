@@ -10,7 +10,7 @@ static void ui_label_paint(ui_view_t* v) {
 //  traceln("%s h=%d dy=%d baseline=%d", v->text, v->h,
 //          v->label_dy, v->baseline);
     ui_color_t c = v->hover && v->highlightable ?
-        ui_colors.text_highlight : v->color;
+        ui_app.get_color(ui_color_id_highlight) : v->color;
     ui_gdi.set_text_color(c);
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
@@ -22,7 +22,6 @@ static void ui_label_paint(ui_view_t* v) {
         ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
-        // ui_colors.btn_hover_highlight
         ui_gdi.set_colored_pen(ui_app.get_color(ui_color_id_highlight));
         ui_gdi.set_brush(ui_gdi.brush_hollow);
         int32_t cr = v->fm->em.h / 4; // corner radius
@@ -59,7 +58,8 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 void ui_view_init_label(ui_view_t* v) {
     assert(v->type == ui_view_label);
     ui_view_init(v);
-    v->color_id     = ui_color_id_window_text;
+    v->color_id      = ui_color_id_button_text;
+    v->background_id = ui_color_id_button_face;
     v->paint        = ui_label_paint;
     v->character    = ui_label_character;
     v->context_menu = ui_label_context_menu;

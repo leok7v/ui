@@ -11,7 +11,11 @@ void ui_view_init_label(ui_view_t* view);
 #define ui_label(min_width_em, s) {                          \
       .type = ui_view_label, .init = ui_view_init_label,     \
       .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-      .text = s                                              \
+      .text = s,                                             \
+      .padding = { .left  = 0.25, .top = 0.25,               \
+                   .right = 0.25, .bottom = 0.25, },         \
+      .insets  = { .left  = 0.25, .top = 0.25,               \
+                   .right = 0.25, .bottom = 0.25, }          \
 }
 
 // text with "&" keyboard shortcuts:

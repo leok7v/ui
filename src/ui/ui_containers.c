@@ -456,10 +456,12 @@ static void ui_container_layout(ui_view_t* p) {
 }
 
 static void ui_container_paint(ui_view_t* v) {
-//  traceln("%s 0x%016llX", v->text, v->color);
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
+//      traceln("%s [%d] 0x%016llX", v->text, v->background_id, v->background);
         ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
+    } else {
+//      traceln("%s undefined", v->text);
     }
 }
 

@@ -845,6 +845,10 @@ extern ui_gdi_if ui_gdi;
 // https://www.compart.com/en/unicode/U+2B24
 #define ui_glyph_black_large_circle                    "\xE2\xAC\xA4"
 
+// Large Circle
+// https://www.compart.com/en/unicode/U+25EF
+#define ui_glyph_large_circle                          "\xE2\x97\xAF"
+
 // Heavy Leftwards Arrow with Equilateral Arrowhead
 // https://www.compart.com/en/unicode/U+1F818
 #define ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead           "\xF0\x9F\xA0\x98"
@@ -1130,7 +1134,11 @@ void ui_view_init_label(ui_view_t* view);
 #define ui_label(min_width_em, s) {                          \
       .type = ui_view_label, .init = ui_view_init_label,     \
       .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-      .text = s                                              \
+      .text = s,                                             \
+      .padding = { .left  = 0.25, .top = 0.25,               \
+                   .right = 0.25, .bottom = 0.25, },         \
+      .insets  = { .left  = 0.25, .top = 0.25,               \
+                   .right = 0.25, .bottom = 0.25, }          \
 }
 
 // text with "&" keyboard shortcuts:
@@ -1168,13 +1176,22 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     ui_button_t name = {                                         \
         .type = ui_view_button, .init = ui_view_init_button,     \
         .fm = &ui_app.fonts.regular, .min_w_em = min_width_em,   \
-        .text = s, .callback = name ## _callback                 \
+        .text = s, .callback = name ## _callback,                \
+        .padding = { .left  = 0.25, .top = 0.25,                 \
+                     .right = 0.25, .bottom = 0.25, },           \
+        .insets  = { .left  = 0.25, .top = 0.25,                 \
+                     .right = 0.25, .bottom = 0.25, }            \
     }
 
 #define ui_button(s, min_width_em, call_back) {              \
     .type = ui_view_button, .init = ui_view_init_button,     \
     .fm = &ui_app.fonts.regular, .min_w_em = min_width_em,   \
-    .text = s, .callback = call_back }                       \
+    .text = s, .callback = call_back,                        \
+    .padding = { .left  = 0.25, .top = 0.25,                 \
+                 .right = 0.25, .bottom = 0.25, },           \
+    .insets  = { .left  = 0.25, .top = 0.25,                 \
+                 .right = 0.25, .bottom = 0.25, }            \
+}
 
 // usage:
 //
@@ -1255,13 +1272,21 @@ void ui_view_init_toggle(ui_view_t* view);
     ui_toggle_t name = {                                       \
         .type = ui_view_toggle, .init = ui_view_init_toggle,   \
         .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-        .text = s, .callback = name ## _callback               \
-   }
+        .text = s, .callback = name ## _callback,              \
+        .padding = { .left  = 0.25, .top = 0.25,               \
+                     .right = 0.25, .bottom = 0.25, },         \
+        .insets  = { .left  = 0.25, .top = 0.25,               \
+                     .right = 0.25, .bottom = 0.25, }          \
+    }
 
 #define ui_toggle(s, min_width_em, call_back) {            \
     .type = ui_view_toggle, .init = ui_view_init_toggle,   \
     .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-    .text = s, .callback = call_back                       \
+    .text = s, .callback = call_back,                      \
+    .padding = { .left  = 0.25, .top = 0.25,               \
+                 .right = 0.25, .bottom = 0.25, },         \
+    .insets  = { .left  = 0.25, .top = 0.25,               \
+                 .right = 0.25, .bottom = 0.25, }          \
 }
 
 // _______________________________ ui_slider.h ________________________________
@@ -1299,7 +1324,11 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     ui_slider_t name = {                                                  \
         .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,    \
                   .min_w_em = min_width_em, .init = ui_view_init_slider,  \
-                   .text = s, .callback = name ## _callback               \
+                  .text = s, .callback = name ## _callback,               \
+                  .padding = { .left  = 0.25, .top = 0.25,                \
+                               .right = 0.25, .bottom = 0.25, },          \
+                  .insets  = { .left  = 0.25, .top = 0.25,                \
+                               .right = 0.25, .bottom = 0.25, }           \
         },                                                                \
         .value_min = vmn, .value_max = vmx, .value = vmn,                 \
     }
@@ -1307,7 +1336,11 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
 #define ui_slider(s, min_width_em, vmn, vmx, call_back) {                 \
     .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,        \
         .min_w_em = min_width_em, .text = s, .init = ui_view_init_slider, \
-        .callback = call_back                                             \
+        .callback = call_back,                                            \
+        .padding = { .left  = 0.25, .top = 0.25,                          \
+                     .right = 0.25, .bottom = 0.25, },                    \
+        .insets  = { .left  = 0.25, .top = 0.25,                          \
+                     .right = 0.25, .bottom = 0.25, }                     \
     },                                                                    \
     .value_min = vmn, .value_max = vmx, .value = vmn,                     \
 }
@@ -1348,7 +1381,11 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
     ui_mbx_t name = {                                            \
         .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
                   .fm = &ui_app.fonts.regular,                   \
-                  .text = s, .callback = name ## _callback       \
+                  .text = s, .callback = name ## _callback,      \
+                  .padding = { .left  = 0.25, .top = 0.25,       \
+                               .right = 0.25, .bottom = 0.25, }, \
+                  .insets  = { .left  = 0.25, .top = 0.25,       \
+                               .right = 0.25, .bottom = 0.25, }  \
                 },                                               \
         .options = name ## _options                              \
     }
@@ -1356,7 +1393,11 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 #define ui_mbx(s, call_back, ...) {                          \
     .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
               .fm = &ui_app.fonts.regular,                   \
-              .text = s, .callback = call_back               \
+              .text = s, .callback = call_back,              \
+              .padding = { .left  = 0.25, .top = 0.25,       \
+                           .right = 0.25, .bottom = 0.25, }, \
+              .insets  = { .left  = 0.25, .top = 0.25,       \
+                           .right = 0.25, .bottom = 0.25, }  \
     },                                                       \
     .options = (const char*[]){ __VA_ARGS__, null },         \
 }
@@ -3582,7 +3623,6 @@ static void ui_app_init(void) {
     ui_app_event_quit          = ut_event.create();
     ui_app_event_invalidate    = ut_event.create();
     ui_app.init();
-//  if (ui_app.no_decor) { ui_app.view->background_id = 0; }
 }
 
 static void ui_app_init_windows(void) {
@@ -3732,7 +3772,14 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 
 static ui_color_t ui_button_gradient_darker(void) {
     if (ui_theme.are_apps_dark()) {
-        return ui_colors.btn_gradient_darker;
+        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
+        // 0x1E1E1E
+        // 0x333333 button face
+        ui_color_t d0 = ui_colors.darken(c, 0.50f);
+        return d0;
+//      traceln("ui_color_id_button_face: 0x%06X", c);
+//      traceln("ui_colors.btn_gradient_darker: 0x%06X", ui_colors.btn_gradient_darker);
+//      return ui_colors.btn_gradient_darker;
     } else {
         ui_color_t c = ui_app.get_color(ui_color_id_button_face);
         uint32_t r = ui_color_r(c);
@@ -3742,14 +3789,19 @@ static ui_color_t ui_button_gradient_darker(void) {
         g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 0.75)));
         b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 0.75)));
         ui_color_t d = ui_rgb(r, g, b);
-//      traceln("c: 0%06X -> 0%06X", c, d);
+        traceln("c: 0x%06X -> 0x%06X", c, d);
         return d;
     }
 }
 
 static ui_color_t ui_button_gradient_dark(void) {
     if (ui_theme.are_apps_dark()) {
-        return ui_colors.btn_gradient_dark;
+        // 0x302D2D
+        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
+        ui_color_t d1 = ui_colors.darken(c, 0.125f);
+        return d1;
+//      traceln("ui_colors.btn_gradient_dark: 0x%06X", ui_colors.btn_gradient_dark);
+//      return ui_colors.btn_gradient_dark;
     } else {
         ui_color_t c = ui_app.get_color(ui_color_id_button_face);
         uint32_t r = ui_color_r(c);
@@ -3771,14 +3823,16 @@ static void ui_button_paint(ui_view_t* v) {
     bool pressed = (v->armed ^ v->pressed) == 0;
     if (v->armed_until != 0) { pressed = true; }
     int32_t sign = 1 - pressed * 2; // -1, +1
-    int32_t w = sign * v->w;
-    int32_t h = sign * v->h;
-    int32_t x = v->x + (int32_t)pressed * v->w;
-    int32_t y = v->y + (int32_t)pressed * v->h;
+    int32_t w = sign * (v->w - 2);
+    int32_t h = sign * (v->h - 2);
+    int32_t x = (v->x + (int32_t)pressed * v->w) + sign;
+    int32_t y = (v->y + (int32_t)pressed * v->h) + sign;
+    fp32_t d = ui_theme.are_apps_dark() ? 0.50f : 0.25f;
+    ui_color_t d0 = ui_colors.darken(v->background, d);
+    d /= 4;
+    ui_color_t d1 = ui_colors.darken(v->background, d);
     if (!v->flat || v->hover) {
-        ui_gdi.gradient(x, y, w, h,
-            ui_button_gradient_darker(),
-            ui_button_gradient_dark(), true);
+        ui_gdi.gradient(x, y, w, h, d0, d1, true);
     }
     ui_color_t c = v->color;
     if (!v->flat && v->armed) {
@@ -3799,15 +3853,17 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         ui_gdi.draw_icon(v->x, v->y, v->w, v->h, v->icon);
     }
-    const int32_t pw = ut_max(1, v->fm->em.h / 32); // pen width
-    ui_color_t color = v->armed ? ui_colors.dkgray4 : ui_colors.gray;
+    const int32_t pw = ut_max(1, v->fm->em.h / 8); // pen width
+    ui_color_t color = v->armed ? ui_colors.lighten(v->background, 0.125f) : d1;
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {
         ui_pen_t p = ui_gdi.create_pen(color, pw);
         ui_gdi.set_pen(p);
         ui_gdi.set_brush(ui_gdi.brush_hollow);
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, v->fm->em.h / 4, v->fm->em.h / 4);
+        int32_t r = ut_max(3, v->fm->em.h / 4);
+        if (r % 2 == 0) { r++; }
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, r);
         ui_gdi.delete_pen(p);
     }
     ui_gdi.pop();
@@ -3879,22 +3935,20 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
 static void ui_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button || v->type == ui_view_label);
     ui_view.measure(v);
-    const int32_t em2  = ut_max(1, v->fm->em.w / 2);
-    v->w = v->w;
-    v->h = v->h + em2;
-    if (v->w < v->h) { v->w = v->h; }
+    if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
 }
 
 void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
     ui_view_init(v);
-    v->mouse       = ui_button_mouse;
-    v->measure     = ui_button_measure;
-    v->paint       = ui_button_paint;
-    v->character   = ui_button_character;
-    v->every_100ms = ui_button_every_100ms;
-    v->key_pressed = ui_button_key_pressed;
-    v->color_id    = ui_color_id_window_text;
+    v->mouse         = ui_button_mouse;
+    v->measure       = ui_button_measure;
+    v->paint         = ui_button_paint;
+    v->character     = ui_button_character;
+    v->every_100ms   = ui_button_every_100ms;
+    v->key_pressed   = ui_button_key_pressed;
+    v->color_id      = ui_color_id_window_text;
+    v->background_id = ui_color_id_button_face;
     ui_view.set_text(v, v->text);
     ui_view.localize(v);
 }
@@ -4867,10 +4921,12 @@ static void ui_container_layout(ui_view_t* p) {
 }
 
 static void ui_container_paint(ui_view_t* v) {
-//  traceln("%s 0x%016llX", v->text, v->color);
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
+//      traceln("%s [%d] 0x%016llX", v->text, v->background_id, v->background);
         ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
+    } else {
+//      traceln("%s undefined", v->text);
     }
 }
 
@@ -6007,7 +6063,7 @@ static void ui_label_paint(ui_view_t* v) {
 //  traceln("%s h=%d dy=%d baseline=%d", v->text, v->h,
 //          v->label_dy, v->baseline);
     ui_color_t c = v->hover && v->highlightable ?
-        ui_colors.text_highlight : v->color;
+        ui_app.get_color(ui_color_id_highlight) : v->color;
     ui_gdi.set_text_color(c);
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
@@ -6019,7 +6075,6 @@ static void ui_label_paint(ui_view_t* v) {
         ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
-        // ui_colors.btn_hover_highlight
         ui_gdi.set_colored_pen(ui_app.get_color(ui_color_id_highlight));
         ui_gdi.set_brush(ui_gdi.brush_hollow);
         int32_t cr = v->fm->em.h / 4; // corner radius
@@ -6056,7 +6111,8 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 void ui_view_init_label(ui_view_t* v) {
     assert(v->type == ui_view_label);
     ui_view_init(v);
-    v->color_id     = ui_color_id_window_text;
+    v->color_id      = ui_color_id_button_text;
+    v->background_id = ui_color_id_button_face;
     v->paint        = ui_label_paint;
     v->character    = ui_label_character;
     v->context_menu = ui_label_context_menu;
@@ -6386,8 +6442,8 @@ static void ui_slider_measure(ui_view_t* v) {
     s->inc.fm = v->fm;
     s->dec.fm = v->fm;
     ui_view.measure(v);
-//  ui_view.measure(&s->dec);
-//  ui_view.measure(&s->inc);
+    ui_view.measure(&s->dec);
+    ui_view.measure(&s->inc);
     assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
     const int32_t em = v->fm->em.w;
     const int32_t w = (int32_t)(v->min_w_em * v->fm->em.w);
@@ -6771,8 +6827,9 @@ ui_theme_if ui_theme = {
 
 static int ui_toggle_paint_on_off(ui_view_t* v) {
     ui_gdi.push(v->x, v->y);
-    ui_color_t background = v->pressed ?  // TODO: was ui_colors.dkgray4;
-        ui_colors.tone_green : ui_app.get_color(ui_color_id_button_face);
+    ui_color_t b = v->background;
+    if (!ui_theme.are_apps_dark()) { b = ui_colors.darken(b, 0.25f); }
+    ui_color_t background = v->pressed ? ui_colors.tone_green : b;
     ui_gdi.set_text_color(background);
     int32_t x = v->x;
     int32_t x1 = v->x + v->fm->em.w * 3 / 4;
@@ -6861,12 +6918,13 @@ void ui_view_init_toggle(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
     ui_view_init(v);
     ui_view.set_text(v, v->text);
-    v->mouse       = ui_toggle_mouse;
-    v->measure     = ui_toggle_measure;
-    v->paint       = ui_toggle_paint;
-    v->character   = ui_toggle_character;
-    v->key_pressed = ui_toggle_key_pressed;
-    v->color_id    = ui_color_id_button_text;
+    v->mouse         = ui_toggle_mouse;
+    v->measure       = ui_toggle_measure;
+    v->paint         = ui_toggle_paint;
+    v->character     = ui_toggle_character;
+    v->key_pressed   = ui_toggle_key_pressed;
+    v->color_id      = ui_color_id_button_text;
+    v->background_id = ui_color_id_button_face;
     ui_view.localize(v);
 }
 
@@ -7018,9 +7076,12 @@ static void ui_view_remove_all(ui_view_t* p) {
 }
 
 static void ui_view_disband(ui_view_t* p) {
-    while (p->child != null) {
-        ui_view_disband(p->child);
-        ui_view.remove(p->child);
+    // do not disband composite controls
+    if (p->type != ui_view_mbx && p->type != ui_view_slider) {
+        while (p->child != null) {
+            ui_view_disband(p->child);
+            ui_view.remove(p->child);
+        }
     }
     ui_app.request_layout();
 }
@@ -7035,8 +7096,7 @@ static void ui_view_invalidate(const ui_view_t* v) {
 }
 
 static const char* ui_view_nls(ui_view_t* v) {
-    return v->strid != 0 ?
-        ut_nls.string(v->strid, v->text) : v->text;
+    return v->strid != 0 ? ut_nls.string(v->strid, v->text) : v->text;
 }
 
 static void ui_view_measure(ui_view_t* v) {
@@ -7053,6 +7113,12 @@ static void ui_view_measure(ui_view_t* v) {
         }
         v->h = mt.y;
         v->w = ut_max(v->w, mt.x);
+        const int32_t i_lf = ui.gaps_em2px(v->fm->em.w, v->insets.left);
+        const int32_t i_tp = ui.gaps_em2px(v->fm->em.h, v->insets.top);
+        const int32_t i_rt = ui.gaps_em2px(v->fm->em.w, v->insets.right);
+        const int32_t i_bt = ui.gaps_em2px(v->fm->em.h, v->insets.bottom);
+        v->w += i_lf + i_rt;
+        v->h += i_tp + i_bt;
     }
 }
 
@@ -7357,9 +7423,15 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
 
 static void ui_view_debug_paint(ui_view_t* v) {
     ui_gdi.push(v->x, v->y);
-    if (v->color != ui_color_transparent) {
-//          traceln("%s 0x%08X", v->text, v->color);
-        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    bool container = v->type == ui_view_container ||
+                     v->type == ui_view_span ||
+                     v->type == ui_view_list ||
+                     v->type == ui_view_spacer;
+    if (v->type == ui_view_spacer) {
+        ui_gdi.fill_with(v->x, v->y, v->w, v->h, ui_rgb(128, 128, 128));
+    } else if (container && v->color != ui_color_transparent) {
+//      traceln("%s 0x%08X", v->text, v->color);
+        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
     }
     const int32_t p_lf = ui.gaps_em2px(v->fm->em.w, v->padding.left);
     const int32_t p_tp = ui.gaps_em2px(v->fm->em.h, v->padding.top);
@@ -7377,7 +7449,7 @@ static void ui_view_debug_paint(ui_view_t* v) {
     if (i_rt > 0) { ui_gdi.frame_with(v->x + v->w - i_rt, v->y,               i_rt, v->h, ui_colors.orange); }
     if (i_tp > 0) { ui_gdi.frame_with(v->x,               v->y,               v->w, i_tp, ui_colors.orange); }
     if (i_bt > 0) { ui_gdi.frame_with(v->x,               v->y + v->h - i_bt, v->w, i_bt, ui_colors.orange); }
-    if (v->w > 0 && v->h > 0 && v->color != ui_color_transparent) {
+    if (container && v->w > 0 && v->h > 0 && v->color != ui_color_transparent) {
         ui_gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
         ui_point_t mt = ui_gdi.measure_text(v->fm->font, v->text);
         ui_gdi.x += (v->w - mt.x) / 2;

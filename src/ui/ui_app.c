@@ -1975,7 +1975,6 @@ static void ui_app_init(void) {
     ui_app_event_quit          = ut_event.create();
     ui_app_event_invalidate    = ut_event.create();
     ui_app.init();
-//  if (ui_app.no_decor) { ui_app.view->background_id = 0; }
 }
 
 static void ui_app_init_windows(void) {

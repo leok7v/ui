@@ -34,7 +34,11 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     ui_slider_t name = {                                                  \
         .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,    \
                   .min_w_em = min_width_em, .init = ui_view_init_slider,  \
-                   .text = s, .callback = name ## _callback               \
+                  .text = s, .callback = name ## _callback,               \
+                  .padding = { .left  = 0.25, .top = 0.25,                \
+                               .right = 0.25, .bottom = 0.25, },          \
+                  .insets  = { .left  = 0.25, .top = 0.25,                \
+                               .right = 0.25, .bottom = 0.25, }           \
         },                                                                \
         .value_min = vmn, .value_max = vmx, .value = vmn,                 \
     }
@@ -42,7 +46,11 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
 #define ui_slider(s, min_width_em, vmn, vmx, call_back) {                 \
     .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,        \
         .min_w_em = min_width_em, .text = s, .init = ui_view_init_slider, \
-        .callback = call_back                                             \
+        .callback = call_back,                                            \
+        .padding = { .left  = 0.25, .top = 0.25,                          \
+                     .right = 0.25, .bottom = 0.25, },                    \
+        .insets  = { .left  = 0.25, .top = 0.25,                          \
+                     .right = 0.25, .bottom = 0.25, }                     \
     },                                                                    \
     .value_min = vmn, .value_max = vmx, .value = vmn,                     \
 }

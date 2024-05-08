@@ -14,7 +14,14 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 
 static ui_color_t ui_button_gradient_darker(void) {
     if (ui_theme.are_apps_dark()) {
-        return ui_colors.btn_gradient_darker;
+        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
+        // 0x1E1E1E
+        // 0x333333 button face
+        ui_color_t d0 = ui_colors.darken(c, 0.50f);
+        return d0;
+//      traceln("ui_color_id_button_face: 0x%06X", c);
+//      traceln("ui_colors.btn_gradient_darker: 0x%06X", ui_colors.btn_gradient_darker);
+//      return ui_colors.btn_gradient_darker;
     } else {
         ui_color_t c = ui_app.get_color(ui_color_id_button_face);
         uint32_t r = ui_color_r(c);
@@ -24,14 +31,19 @@ static ui_color_t ui_button_gradient_darker(void) {
         g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 0.75)));
         b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 0.75)));
         ui_color_t d = ui_rgb(r, g, b);
-//      traceln("c: 0%06X -> 0%06X", c, d);
+        traceln("c: 0x%06X -> 0x%06X", c, d);
         return d;
     }
 }
 
 static ui_color_t ui_button_gradient_dark(void) {
     if (ui_theme.are_apps_dark()) {
-        return ui_colors.btn_gradient_dark;
+        // 0x302D2D
+        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
+        ui_color_t d1 = ui_colors.darken(c, 0.125f);
+        return d1;
+//      traceln("ui_colors.btn_gradient_dark: 0x%06X", ui_colors.btn_gradient_dark);
+//      return ui_colors.btn_gradient_dark;
     } else {
         ui_color_t c = ui_app.get_color(ui_color_id_button_face);
         uint32_t r = ui_color_r(c);
@@ -53,14 +65,16 @@ static void ui_button_paint(ui_view_t* v) {
     bool pressed = (v->armed ^ v->pressed) == 0;
     if (v->armed_until != 0) { pressed = true; }
     int32_t sign = 1 - pressed * 2; // -1, +1
-    int32_t w = sign * v->w;
-    int32_t h = sign * v->h;
-    int32_t x = v->x + (int32_t)pressed * v->w;
-    int32_t y = v->y + (int32_t)pressed * v->h;
+    int32_t w = sign * (v->w - 2);
+    int32_t h = sign * (v->h - 2);
+    int32_t x = (v->x + (int32_t)pressed * v->w) + sign;
+    int32_t y = (v->y + (int32_t)pressed * v->h) + sign;
+    fp32_t d = ui_theme.are_apps_dark() ? 0.50f : 0.25f;
+    ui_color_t d0 = ui_colors.darken(v->background, d);
+    d /= 4;
+    ui_color_t d1 = ui_colors.darken(v->background, d);
     if (!v->flat || v->hover) {
-        ui_gdi.gradient(x, y, w, h,
-            ui_button_gradient_darker(),
-            ui_button_gradient_dark(), true);
+        ui_gdi.gradient(x, y, w, h, d0, d1, true);
     }
     ui_color_t c = v->color;
     if (!v->flat && v->armed) {
@@ -81,15 +95,17 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         ui_gdi.draw_icon(v->x, v->y, v->w, v->h, v->icon);
     }
-    const int32_t pw = ut_max(1, v->fm->em.h / 32); // pen width
-    ui_color_t color = v->armed ? ui_colors.dkgray4 : ui_colors.gray;
+    const int32_t pw = ut_max(1, v->fm->em.h / 8); // pen width
+    ui_color_t color = v->armed ? ui_colors.lighten(v->background, 0.125f) : d1;
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {
         ui_pen_t p = ui_gdi.create_pen(color, pw);
         ui_gdi.set_pen(p);
         ui_gdi.set_brush(ui_gdi.brush_hollow);
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, v->fm->em.h / 4, v->fm->em.h / 4);
+        int32_t r = ut_max(3, v->fm->em.h / 4);
+        if (r % 2 == 0) { r++; }
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, r);
         ui_gdi.delete_pen(p);
     }
     ui_gdi.pop();
@@ -161,22 +177,20 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
 static void ui_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button || v->type == ui_view_label);
     ui_view.measure(v);
-    const int32_t em2  = ut_max(1, v->fm->em.w / 2);
-    v->w = v->w;
-    v->h = v->h + em2;
-    if (v->w < v->h) { v->w = v->h; }
+    if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
 }
 
 void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
     ui_view_init(v);
-    v->mouse       = ui_button_mouse;
-    v->measure     = ui_button_measure;
-    v->paint       = ui_button_paint;
-    v->character   = ui_button_character;
-    v->every_100ms = ui_button_every_100ms;
-    v->key_pressed = ui_button_key_pressed;
-    v->color_id    = ui_color_id_window_text;
+    v->mouse         = ui_button_mouse;
+    v->measure       = ui_button_measure;
+    v->paint         = ui_button_paint;
+    v->character     = ui_button_character;
+    v->every_100ms   = ui_button_every_100ms;
+    v->key_pressed   = ui_button_key_pressed;
+    v->color_id      = ui_color_id_window_text;
+    v->background_id = ui_color_id_button_face;
     ui_view.set_text(v, v->text);
     ui_view.localize(v);
 }

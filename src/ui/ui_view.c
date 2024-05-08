@@ -136,9 +136,12 @@ static void ui_view_remove_all(ui_view_t* p) {
 }
 
 static void ui_view_disband(ui_view_t* p) {
-    while (p->child != null) {
-        ui_view_disband(p->child);
-        ui_view.remove(p->child);
+    // do not disband composite controls
+    if (p->type != ui_view_mbx && p->type != ui_view_slider) {
+        while (p->child != null) {
+            ui_view_disband(p->child);
+            ui_view.remove(p->child);
+        }
     }
     ui_app.request_layout();
 }
@@ -153,8 +156,7 @@ static void ui_view_invalidate(const ui_view_t* v) {
 }
 
 static const char* ui_view_nls(ui_view_t* v) {
-    return v->strid != 0 ?
-        ut_nls.string(v->strid, v->text) : v->text;
+    return v->strid != 0 ? ut_nls.string(v->strid, v->text) : v->text;
 }
 
 static void ui_view_measure(ui_view_t* v) {
@@ -171,6 +173,12 @@ static void ui_view_measure(ui_view_t* v) {
         }
         v->h = mt.y;
         v->w = ut_max(v->w, mt.x);
+        const int32_t i_lf = ui.gaps_em2px(v->fm->em.w, v->insets.left);
+        const int32_t i_tp = ui.gaps_em2px(v->fm->em.h, v->insets.top);
+        const int32_t i_rt = ui.gaps_em2px(v->fm->em.w, v->insets.right);
+        const int32_t i_bt = ui.gaps_em2px(v->fm->em.h, v->insets.bottom);
+        v->w += i_lf + i_rt;
+        v->h += i_tp + i_bt;
     }
 }
 
@@ -475,9 +483,15 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
 
 static void ui_view_debug_paint(ui_view_t* v) {
     ui_gdi.push(v->x, v->y);
-    if (v->color != ui_color_transparent) {
-//          traceln("%s 0x%08X", v->text, v->color);
-        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    bool container = v->type == ui_view_container ||
+                     v->type == ui_view_span ||
+                     v->type == ui_view_list ||
+                     v->type == ui_view_spacer;
+    if (v->type == ui_view_spacer) {
+        ui_gdi.fill_with(v->x, v->y, v->w, v->h, ui_rgb(128, 128, 128));
+    } else if (container && v->color != ui_color_transparent) {
+//      traceln("%s 0x%08X", v->text, v->color);
+        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
     }
     const int32_t p_lf = ui.gaps_em2px(v->fm->em.w, v->padding.left);
     const int32_t p_tp = ui.gaps_em2px(v->fm->em.h, v->padding.top);
@@ -495,7 +509,7 @@ static void ui_view_debug_paint(ui_view_t* v) {
     if (i_rt > 0) { ui_gdi.frame_with(v->x + v->w - i_rt, v->y,               i_rt, v->h, ui_colors.orange); }
     if (i_tp > 0) { ui_gdi.frame_with(v->x,               v->y,               v->w, i_tp, ui_colors.orange); }
     if (i_bt > 0) { ui_gdi.frame_with(v->x,               v->y + v->h - i_bt, v->w, i_bt, ui_colors.orange); }
-    if (v->w > 0 && v->h > 0 && v->color != ui_color_transparent) {
+    if (container && v->w > 0 && v->h > 0 && v->color != ui_color_transparent) {
         ui_gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
         ui_point_t mt = ui_gdi.measure_text(v->fm->font, v->text);
         ui_gdi.x += (v->w - mt.x) / 2;

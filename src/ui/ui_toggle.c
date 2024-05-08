@@ -3,8 +3,9 @@
 
 static int ui_toggle_paint_on_off(ui_view_t* v) {
     ui_gdi.push(v->x, v->y);
-    ui_color_t background = v->pressed ?  // TODO: was ui_colors.dkgray4;
-        ui_colors.tone_green : ui_app.get_color(ui_color_id_button_face);
+    ui_color_t b = v->background;
+    if (!ui_theme.are_apps_dark()) { b = ui_colors.darken(b, 0.25f); }
+    ui_color_t background = v->pressed ? ui_colors.tone_green : b;
     ui_gdi.set_text_color(background);
     int32_t x = v->x;
     int32_t x1 = v->x + v->fm->em.w * 3 / 4;
@@ -93,12 +94,13 @@ void ui_view_init_toggle(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
     ui_view_init(v);
     ui_view.set_text(v, v->text);
-    v->mouse       = ui_toggle_mouse;
-    v->measure     = ui_toggle_measure;
-    v->paint       = ui_toggle_paint;
-    v->character   = ui_toggle_character;
-    v->key_pressed = ui_toggle_key_pressed;
-    v->color_id    = ui_color_id_button_text;
+    v->mouse         = ui_toggle_mouse;
+    v->measure       = ui_toggle_measure;
+    v->paint         = ui_toggle_paint;
+    v->character     = ui_toggle_character;
+    v->key_pressed   = ui_toggle_key_pressed;
+    v->color_id      = ui_color_id_button_text;
+    v->background_id = ui_color_id_button_face;
     ui_view.localize(v);
 }
 

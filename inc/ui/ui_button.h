@@ -22,13 +22,22 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     ui_button_t name = {                                         \
         .type = ui_view_button, .init = ui_view_init_button,     \
         .fm = &ui_app.fonts.regular, .min_w_em = min_width_em,   \
-        .text = s, .callback = name ## _callback                 \
+        .text = s, .callback = name ## _callback,                \
+        .padding = { .left  = 0.25, .top = 0.25,                 \
+                     .right = 0.25, .bottom = 0.25, },           \
+        .insets  = { .left  = 0.25, .top = 0.25,                 \
+                     .right = 0.25, .bottom = 0.25, }            \
     }
 
 #define ui_button(s, min_width_em, call_back) {              \
     .type = ui_view_button, .init = ui_view_init_button,     \
     .fm = &ui_app.fonts.regular, .min_w_em = min_width_em,   \
-    .text = s, .callback = call_back }                       \
+    .text = s, .callback = call_back,                        \
+    .padding = { .left  = 0.25, .top = 0.25,                 \
+                 .right = 0.25, .bottom = 0.25, },           \
+    .insets  = { .left  = 0.25, .top = 0.25,                 \
+                 .right = 0.25, .bottom = 0.25, }            \
+}
 
 // usage:
 //
