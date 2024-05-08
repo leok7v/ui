@@ -21,24 +21,18 @@
 // into a single file header library name_space is
 // used to separate different modules namespaces.
 
-#pragma push_macro("fn") // function
-#pragma push_macro("ns") // name space
-
-#define ns(name) ui_edit_ ## name
-#define fn(type, name) static type ns(name)
-
 typedef  struct ui_edit_glyph_s {
     const char* s;
     int32_t bytes;
 } ui_edit_glyph_t;
 
-fn(void, layout)(ui_view_t* view);
+static void ui_edit_layout(ui_view_t* view);
 
 // Glyphs in monospaced Windows fonts may have different width for non-ASCII
 // characters. Thus even if edit is monospaced glyph measurements are used
 // in text layout.
 
-fn(uint64_t, uint64)(int32_t high, int32_t low) {
+static uint64_t ui_edit_uint64(int32_t high, int32_t low) {
     assert(high >= 0 && low >= 0);
     return ((uint64_t)high << 32) | (uint64_t)low;
 }
@@ -52,19 +46,19 @@ fn(uint64_t, uint64)(int32_t high, int32_t low) {
 // work if there is no other run-away code that consumes system
 // memory at a very high rate.
 
-fn(void*,  alloc)(int32_t bytes) {
+static void* ui_edit_alloc(int32_t bytes) {
     void* p = malloc(bytes);
     not_null(p);
     return p;
 }
 
-fn(void, allocate)(void** pp, int32_t count, size_t element) {
+static void ui_edit_allocate(void** pp, int32_t count, size_t element) {
     not_null(pp);
     assert((int64_t)count * element <= INT_MAX);
-    *pp = ns(alloc)(count * (int32_t)element);
+    *pp = ui_edit_alloc(count * (int32_t)element);
 }
 
-fn(void, free)(void** pp) {
+static void ui_edit_free(void** pp) {
     not_null(pp);
     // free(null) is acceptable but may indicate unbalanced logic
     not_null(*pp);
@@ -72,23 +66,23 @@ fn(void, free)(void** pp) {
     *pp = null;
 }
 
-fn(void, reallocate)(void** pp, int32_t count, size_t element) {
+static void ui_edit_reallocate(void** pp, int32_t count, size_t element) {
     not_null(pp);
     assert((int64_t)count * element <= INT_MAX);
     if (*pp == null) {
-        ns(allocate)(pp, count, element);
+        ui_edit_allocate(pp, count, element);
     } else {
         *pp = realloc(*pp, count * (size_t)element);
         not_null(*pp);
     }
 }
 
-fn(void, invalidate)(ui_edit_t* e) {
+static void ui_edit_invalidate(ui_edit_t* e) {
 //  traceln("");
     ui_view.invalidate(&e->view);
 }
 
-fn(int32_t, text_width)(ui_edit_t* e, const char* s, int32_t n) {
+static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
 //  fp64_t time = ut_clock.seconds();
     // average measure_text() performance per character:
     // "ui_app.fonts.mono"    ~500us (microseconds)
@@ -103,7 +97,7 @@ fn(int32_t, text_width)(ui_edit_t* e, const char* s, int32_t n) {
     return x;
 }
 
-fn(int32_t, glyph_bytes)(char start_byte_value) { // utf-8
+static int32_t ui_edit_glyph_bytes(char start_byte_value) { // utf-8
     // return 1-4 bytes glyph starting with `start_byte_value` character
     uint8_t uc = (uint8_t)start_byte_value;
     // 0xxxxxxx
@@ -122,30 +116,30 @@ fn(int32_t, glyph_bytes)(char start_byte_value) { // utf-8
 // g2b() return number of glyphs in text and fills optional
 // g2b[] array with glyphs positions.
 
-fn(int32_t, g2b)(const char* utf8, int32_t bytes, int32_t g2b[]) {
+static int32_t ui_edit_g2b(const char* utf8, int32_t bytes, int32_t g2b[]) {
     int32_t i = 0;
     int32_t k = 1;
     // g2b[k] start postion in uint8_t offset from utf8 text of glyph[k]
     if (g2b != null) { g2b[0] = 0; }
     while (i < bytes) {
-        i += ns(glyph_bytes)(utf8[i]);
+        i += ui_edit_glyph_bytes(utf8[i]);
         if (g2b != null) { g2b[k] = i; }
         k++;
     }
     return k - 1;
 }
 
-fn(int32_t, glyphs)(const char* utf8, int32_t bytes) {
-    return ns(g2b)(utf8, bytes, null);
+static int32_t ui_edit_glyphs(const char* utf8, int32_t bytes) {
+    return ui_edit_g2b(utf8, bytes, null);
 }
 
-fn(int32_t, gp_to_bytes)(const char* s, int32_t bytes, int32_t gp) {
+static int32_t ui_edit_gp_to_bytes(const char* s, int32_t bytes, int32_t gp) {
     int32_t c = 0;
     int32_t i = 0;
     if (bytes > 0) {
         while (c < gp) {
             assert(i < bytes);
-            i += ns(glyph_bytes)(s[i]);
+            i += ui_edit_glyph_bytes(s[i]);
             c++;
         }
     }
@@ -153,7 +147,7 @@ fn(int32_t, gp_to_bytes)(const char* s, int32_t bytes, int32_t gp) {
     return i;
 }
 
-fn(void, paragraph_g2b)(ui_edit_t* e, int32_t pn) {
+static void ui_edit_paragraph_g2b(ui_edit_t* e, int32_t pn) {
     assert(0 <= pn && pn < e->paragraphs);
     ui_edit_para_t* p = &e->para[pn];
     if (p->glyphs < 0) {
@@ -161,7 +155,7 @@ fn(void, paragraph_g2b)(ui_edit_t* e, int32_t pn) {
         const int32_t n = p->bytes + 1;
         const int32_t a = (n * sizeof(int32_t)) * 3 / 2; // heuristic
         if (p->g2b_capacity < a) {
-            ns(reallocate)(&p->g2b, n, sizeof(int32_t));
+            ui_edit_reallocate(&p->g2b, n, sizeof(int32_t));
             p->g2b_capacity = a;
         }
         const char* utf8 = p->text;
@@ -170,7 +164,7 @@ fn(void, paragraph_g2b)(ui_edit_t* e, int32_t pn) {
         int32_t k = 1;
         // g2b[k] start postion in uint8_t offset from utf8 text of glyph[k]
         while (i < bytes) {
-            i += ns(glyph_bytes)(utf8[i]);
+            i += ui_edit_glyph_bytes(utf8[i]);
             p->g2b[k] = i;
             k++;
         }
@@ -178,7 +172,7 @@ fn(void, paragraph_g2b)(ui_edit_t* e, int32_t pn) {
     }
 }
 
-fn(int32_t, word_break_at)(ui_edit_t* e, int32_t pn, int32_t rn,
+static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         const int32_t width, bool allow_zero) {
     ui_edit_para_t* p = &e->para[pn];
     int32_t k = 1; // at least 1 glyph
@@ -191,10 +185,10 @@ fn(int32_t, word_break_at)(ui_edit_t* e, int32_t pn, int32_t rn,
         int32_t* g2b = &p->g2b[gp];
         // 4 is maximum number of bytes in a UTF-8 sequence
         int32_t gc = ut_min(4, glyphs_in_this_run);
-        int32_t w = ns(text_width)(e, text, g2b[gc] - bp);
+        int32_t w = ui_edit_text_width(e, text, g2b[gc] - bp);
         while (gc < glyphs_in_this_run && w < width) {
             gc = ut_min(gc * 4, glyphs_in_this_run);
-            w = ns(text_width)(e, text, g2b[gc] - bp);
+            w = ui_edit_text_width(e, text, g2b[gc] - bp);
         }
         if (w < width) {
             k = gc;
@@ -206,7 +200,7 @@ fn(int32_t, word_break_at)(ui_edit_t* e, int32_t pn, int32_t rn,
             while (i < j) {
                 assert(allow_zero || 1 <= k && k < gc + 1);
                 const int32_t n = g2b[k + 1] - bp;
-                int32_t px = ns(text_width)(e, text, n);
+                int32_t px = ui_edit_text_width(e, text, n);
                 if (px == width) { break; }
                 if (px < width) { i = k + 1; } else { j = k; }
                 if (!allow_zero && (i + j) / 2 == 0) { break; }
@@ -219,31 +213,31 @@ fn(int32_t, word_break_at)(ui_edit_t* e, int32_t pn, int32_t rn,
     return k;
 }
 
-fn(int32_t, word_break)(ui_edit_t* e, int32_t pn, int32_t rn) {
-    return ns(word_break_at)(e, pn, rn, e->view.w, false);
+static int32_t ui_edit_word_break(ui_edit_t* e, int32_t pn, int32_t rn) {
+    return ui_edit_word_break_at(e, pn, rn, e->view.w, false);
 }
 
-fn(int32_t, glyph_at_x)(ui_edit_t* e, int32_t pn, int32_t rn,
+static int32_t ui_edit_glyph_at_x(ui_edit_t* e, int32_t pn, int32_t rn,
         int32_t x) {
     if (x == 0 || e->para[pn].bytes == 0) {
         return 0;
     } else {
-        return ns(word_break_at)(e, pn, rn, x + 1, true);
+        return ui_edit_word_break_at(e, pn, rn, x + 1, true);
     }
 }
 
-fn(ui_edit_glyph_t, glyph_at)(ui_edit_t* e, ui_edit_pg_t p) {
+static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_t* e, ui_edit_pg_t p) {
     ui_edit_glyph_t g = { .s = "", .bytes = 0 };
     if (p.pn == e->paragraphs) {
         assert(p.gp == 0); // last empty paragraph
     } else {
-        ns(paragraph_g2b)(e, p.pn);
+        ui_edit_paragraph_g2b(e, p.pn);
         const int32_t bytes = e->para[p.pn].bytes;
         char* s = e->para[p.pn].text;
         const int32_t bp = e->para[p.pn].g2b[p.gp];
         if (bp < bytes) {
             g.s = s + bp;
-            g.bytes = ns(glyph_bytes)(*g.s);
+            g.bytes = ui_edit_glyph_bytes(*g.s);
 //          traceln("glyph: %.*s 0x%02X bytes: %d", g.bytes, g.s, *g.s, g.bytes);
         }
     }
@@ -252,7 +246,7 @@ fn(ui_edit_glyph_t, glyph_at)(ui_edit_t* e, ui_edit_pg_t p) {
 
 // paragraph_runs() breaks paragraph into `runs` according to `width`
 
-fn(const ui_edit_run_t*, paragraph_runs)(ui_edit_t* e, int32_t pn,
+static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
         int32_t* runs) {
 //  fp64_t time = ut_clock.seconds();
     assert(e->view.w > 0);
@@ -266,21 +260,21 @@ fn(const ui_edit_run_t*, paragraph_runs)(ui_edit_t* e, int32_t pn,
         r = e->para[pn].run;
     } else {
         assert(0 <= pn && pn < e->paragraphs);
-        ns(paragraph_g2b)(e, pn);
+        ui_edit_paragraph_g2b(e, pn);
         ui_edit_para_t* p = &e->para[pn];
         if (p->run == null) {
             assert(p->runs == 0 && p->run == null);
             const int32_t max_runs = p->bytes + 1;
-            ns(allocate)(&p->run, max_runs, sizeof(ui_edit_run_t));
+            ui_edit_allocate(&p->run, max_runs, sizeof(ui_edit_run_t));
             ui_edit_run_t* run = p->run;
             run[0].bp = 0;
             run[0].gp = 0;
-            int32_t gc = p->bytes == 0 ? 0 : ns(word_break)(e, pn, 0);
+            int32_t gc = p->bytes == 0 ? 0 : ui_edit_word_break(e, pn, 0);
             if (gc == p->glyphs) { // whole paragraph fits into width
                 p->runs = 1;
                 run[0].bytes  = p->bytes;
                 run[0].glyphs = p->glyphs;
-                int32_t pixels = ns(text_width)(e, p->text, p->g2b[gc]);
+                int32_t pixels = ui_edit_text_width(e, p->text, p->g2b[gc]);
                 run[0].pixels = pixels;
             } else {
                 assert(gc < p->glyphs);
@@ -292,17 +286,17 @@ fn(const ui_edit_run_t*, paragraph_runs)(ui_edit_t* e, int32_t pn,
                     assert(rc < max_runs);
                     run[rc].bp = (int32_t)(text - p->text);
                     run[rc].gp = ix;
-                    int32_t glyphs = ns(word_break)(e, pn, rc);
+                    int32_t glyphs = ui_edit_word_break(e, pn, rc);
                     int32_t utf8bytes = p->g2b[ix + glyphs] - run[rc].bp;
-                    int32_t pixels = ns(text_width)(e, text, utf8bytes);
+                    int32_t pixels = ui_edit_text_width(e, text, utf8bytes);
                     if (glyphs > 1 && utf8bytes < bytes && text[utf8bytes - 1] != 0x20) {
                         // try to find word break SPACE character. utf8 space is 0x20
                         int32_t i = utf8bytes;
                         while (i > 0 && text[i - 1] != 0x20) { i--; }
                         if (i > 0 && i != utf8bytes) {
                             utf8bytes = i;
-                            glyphs = ns(glyphs)(text, utf8bytes);
-                            pixels = ns(text_width)(e, text, utf8bytes);
+                            glyphs = ui_edit_glyphs(text, utf8bytes);
+                            pixels = ui_edit_text_width(e, text, utf8bytes);
                         }
                     }
                     run[rc].bytes  = utf8bytes;
@@ -316,7 +310,7 @@ fn(const ui_edit_run_t*, paragraph_runs)(ui_edit_t* e, int32_t pn,
                 }
                 assert(rc > 0);
                 p->runs = rc; // truncate heap capacity array:
-                ns(reallocate)(&p->run, rc, sizeof(ui_edit_run_t));
+                ui_edit_reallocate(&p->run, rc, sizeof(ui_edit_run_t));
             }
         }
         *runs = p->runs;
@@ -328,18 +322,18 @@ fn(const ui_edit_run_t*, paragraph_runs)(ui_edit_t* e, int32_t pn,
     return r;
 }
 
-fn(int32_t, paragraph_run_count)(ui_edit_t* e, int32_t pn) {
+static int32_t ui_edit_paragraph_run_count(ui_edit_t* e, int32_t pn) {
     int32_t runs = 0;
-    (void)ns(paragraph_runs)(e, pn, &runs);
+    (void)ui_edit_paragraph_runs(e, pn, &runs);
     return runs;
 }
 
-fn(int32_t, glyphs_in_paragraph)(ui_edit_t* e, int32_t pn) {
-    (void)ns(paragraph_run_count)(e, pn); // word break into runs
+static int32_t ui_edit_glyphs_in_paragraph(ui_edit_t* e, int32_t pn) {
+    (void)ui_edit_paragraph_run_count(e, pn); // word break into runs
     return e->para[pn].glyphs;
 }
 
-fn(void, create_caret)(ui_edit_t* e) {
+static void ui_edit_create_caret(ui_edit_t* e) {
     fatal_if(e->focused);
     assert(ui_app.is_active());
     assert(ui_app.has_focus());
@@ -349,14 +343,14 @@ fn(void, create_caret)(ui_edit_t* e) {
     e->focused = true; // means caret was created
 }
 
-fn(void, destroy_caret)(ui_edit_t* e) {
+static void ui_edit_destroy_caret(ui_edit_t* e) {
     fatal_if(!e->focused);
     ui_app.destroy_caret();
     e->focused = false; // means caret was destroyed
 //  traceln("");
 }
 
-fn(void, show_caret)(ui_edit_t* e) {
+static void ui_edit_show_caret(ui_edit_t* e) {
     if (e->focused) {
         assert(ui_app.is_active());
         assert(ui_app.has_focus());
@@ -371,7 +365,7 @@ fn(void, show_caret)(ui_edit_t* e) {
     }
 }
 
-fn(void, hide_caret)(ui_edit_t* e) {
+static void ui_edit_hide_caret(ui_edit_t* e) {
     if (e->focused) {
         ui_app.hide_caret();
         e->shown--;
@@ -380,14 +374,14 @@ fn(void, hide_caret)(ui_edit_t* e) {
     }
 }
 
-fn(void, dispose_paragraphs_layout)(ui_edit_t* e) {
+static void ui_edit_dispose_paragraphs_layout(ui_edit_t* e) {
     for (int32_t i = 0; i < e->paragraphs; i++) {
         ui_edit_para_t* p = &e->para[i];
         if (p->run != null) {
-            ns(free)(&p->run);
+            ui_edit_free(&p->run);
         }
         if (p->g2b != null) {
-            ns(free)(&p->g2b);
+            ui_edit_free(&p->g2b);
         }
         p->glyphs = -1;
         p->runs = 0;
@@ -395,33 +389,33 @@ fn(void, dispose_paragraphs_layout)(ui_edit_t* e) {
     }
 }
 
-fn(void, layout_now)(ui_edit_t* e) {
+static void ui_edit_layout_now(ui_edit_t* e) {
     if (e->view.measure != null && e->view.layout != null && e->view.w > 0) {
-        ns(dispose_paragraphs_layout)(e);
+        ui_edit_dispose_paragraphs_layout(e);
         e->view.measure(&e->view);
         e->view.layout(&e->view);
-        ns(invalidate)(e);
+        ui_edit_invalidate(e);
     }
 }
 
-fn(void, if_sle_layout)(ui_edit_t* e) {
+static void ui_edit_if_sle_layout(ui_edit_t* e) {
     // only for single line edit controls that were already initialized
     // and measured horizontally at least once.
     if (e->sle && e->view.layout != null && e->view.w > 0) {
-        ns(layout_now)(e);
+        ui_edit_layout_now(e);
     }
 }
 
-fn(void, set_font)(ui_edit_t* e, ui_fm_t* f) {
-    ns(dispose_paragraphs_layout)(e);
+static void ui_edit_set_font(ui_edit_t* e, ui_fm_t* f) {
+    ui_edit_dispose_paragraphs_layout(e);
     e->scroll.rn = 0;
     e->view.fm = f;
-    ns(layout_now)(e);
+    ui_edit_layout_now(e);
 }
 
 // Paragraph number, glyph number -> run number
 
-fn(const ui_edit_pr_t, pg_to_pr)(ui_edit_t* e, const ui_edit_pg_t pg) {
+static const ui_edit_pr_t ui_edit_pg_to_pr(ui_edit_t* e, const ui_edit_pg_t pg) {
     ui_edit_pr_t pr = { .pn = pg.pn, .rn = -1 };
     if (pg.pn == e->paragraphs || e->para[pg.pn].bytes == 0) { // last or empty
         assert(pg.gp == 0);
@@ -429,7 +423,7 @@ fn(const ui_edit_pr_t, pg_to_pr)(ui_edit_t* e, const ui_edit_pg_t pg) {
     } else {
         assert(0 <= pg.pn && pg.pn < e->paragraphs);
         int32_t runs = 0;
-        const ui_edit_run_t* run = ns(paragraph_runs)(e, pg.pn, &runs);
+        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pg.pn, &runs);
         if (pg.gp == e->para[pg.pn].glyphs + 1) {
             pr.rn = runs - 1; // TODO: past last glyph ??? is this correct?
         } else {
@@ -448,11 +442,11 @@ fn(const ui_edit_pr_t, pg_to_pr)(ui_edit_t* e, const ui_edit_pg_t pg) {
     return pr;
 }
 
-fn(int32_t, runs_between)(ui_edit_t* e, const ui_edit_pg_t pg0,
+static int32_t ui_edit_runs_between(ui_edit_t* e, const ui_edit_pg_t pg0,
         const ui_edit_pg_t pg1) {
-    assert(ns(uint64)(pg0.pn, pg0.gp) <= ns(uint64)(pg1.pn, pg1.gp));
-    int32_t rn0 = ns(pg_to_pr)(e, pg0).rn;
-    int32_t rn1 = ns(pg_to_pr)(e, pg1).rn;
+    assert(ui_edit_uint64(pg0.pn, pg0.gp) <= ui_edit_uint64(pg1.pn, pg1.gp));
+    int32_t rn0 = ui_edit_pg_to_pr(e, pg0).rn;
+    int32_t rn1 = ui_edit_pg_to_pr(e, pg1).rn;
     int32_t rc = 0;
     if (pg0.pn == pg1.pn) {
         assert(rn0 <= rn1);
@@ -460,7 +454,7 @@ fn(int32_t, runs_between)(ui_edit_t* e, const ui_edit_pg_t pg0,
     } else {
         assert(pg0.pn < pg1.pn);
         for (int32_t i = pg0.pn; i < pg1.pn; i++) {
-            const int32_t runs = ns(paragraph_run_count)(e, i);
+            const int32_t runs = ui_edit_paragraph_run_count(e, i);
             if (i == pg0.pn) {
                 rc += runs - rn0;
             } else { // i < pg1.pn
@@ -472,34 +466,34 @@ fn(int32_t, runs_between)(ui_edit_t* e, const ui_edit_pg_t pg0,
     return rc;
 }
 
-fn(ui_edit_pg_t, scroll_pg)(ui_edit_t* e) {
+static ui_edit_pg_t ui_edit_scroll_pg(ui_edit_t* e) {
     int32_t runs = 0;
-    const ui_edit_run_t* run = ns(paragraph_runs)(e, e->scroll.pn, &runs);
+    const ui_edit_run_t* run = ui_edit_paragraph_runs(e, e->scroll.pn, &runs);
     assert(0 <= e->scroll.rn && e->scroll.rn < runs);
     return (ui_edit_pg_t) { .pn = e->scroll.pn, .gp = run[e->scroll.rn].gp };
 }
 
-fn(int32_t, first_visible_run)(ui_edit_t* e, int32_t pn) {
+static int32_t ui_edit_first_visible_run(ui_edit_t* e, int32_t pn) {
     return pn == e->scroll.pn ? e->scroll.rn : 0;
 }
 
 // ui_edit::pg_to_xy() paragraph # glyph # -> (x,y) in [0,0  width x height]
 
-fn(ui_point_t, pg_to_xy)(ui_edit_t* e, const ui_edit_pg_t pg) {
+static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
     ui_point_t pt = { .x = -1, .y = 0 };
     for (int32_t i = e->scroll.pn; i < e->paragraphs && pt.x < 0; i++) {
         int32_t runs = 0;
-        const ui_edit_run_t* run = ns(paragraph_runs)(e, i, &runs);
-        for (int32_t j = ns(first_visible_run)(e, i); j < runs; j++) {
+        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, i, &runs);
+        for (int32_t j = ui_edit_first_visible_run(e, i); j < runs; j++) {
             const int32_t last_run = j == runs - 1;
             int32_t gc = run[j].glyphs;
             if (i == pg.pn) {
                 // in the last `run` of a paragraph x after last glyph is OK
                 if (run[j].gp <= pg.gp && pg.gp < run[j].gp + gc + last_run) {
                     const char* s = e->para[i].text + run[j].bp;
-                    int32_t ofs = ns(gp_to_bytes)(s, run[j].bytes,
+                    int32_t ofs = ui_edit_gp_to_bytes(s, run[j].bytes,
                         pg.gp - run[j].gp);
-                    pt.x = ns(text_width)(e, s, ofs);
+                    pt.x = ui_edit_text_width(e, s, ofs);
                     break;
                 }
             }
@@ -515,15 +509,15 @@ fn(ui_point_t, pg_to_xy)(ui_edit_t* e, const ui_edit_pg_t pg) {
     return pt;
 }
 
-fn(int32_t, glyph_width_px)(ui_edit_t* e, const ui_edit_pg_t pg) {
+static int32_t ui_edit_glyph_width_px(ui_edit_t* e, const ui_edit_pg_t pg) {
     char* text = e->para[pg.pn].text;
     int32_t gc = e->para[pg.pn].glyphs;
     if (pg.gp == 0 &&  gc == 0) {
         return 0; // empty paragraph
     } else if (pg.gp < gc) {
-        char* s = text + ns(gp_to_bytes)(text, e->para[pg.pn].bytes, pg.gp);
-        int32_t bytes_in_glyph = ns(glyph_bytes)(*s);
-        int32_t x = ns(text_width)(e, s, bytes_in_glyph);
+        char* s = text + ui_edit_gp_to_bytes(text, e->para[pg.pn].bytes, pg.gp);
+        int32_t bytes_in_glyph = ui_edit_glyph_bytes(*s);
+        int32_t x = ui_edit_text_width(e, s, bytes_in_glyph);
         return x;
     } else {
         assert(pg.gp == gc, "only next position past last glyph is allowed");
@@ -533,27 +527,27 @@ fn(int32_t, glyph_width_px)(ui_edit_t* e, const ui_edit_pg_t pg) {
 
 // xy_to_pg() (x,y) (0,0, width x height) -> paragraph # glyph #
 
-fn(ui_edit_pg_t, xy_to_pg)(ui_edit_t* e, int32_t x, int32_t y) {
+static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_pg_t pg = {-1, -1};
     int32_t py = 0; // paragraph `y' coordinate
     for (int32_t i = e->scroll.pn; i < e->paragraphs && pg.pn < 0; i++) {
         int32_t runs = 0;
-        const ui_edit_run_t* run = ns(paragraph_runs)(e, i, &runs);
-        for (int32_t j = ns(first_visible_run)(e, i); j < runs && pg.pn < 0; j++) {
+        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, i, &runs);
+        for (int32_t j = ui_edit_first_visible_run(e, i); j < runs && pg.pn < 0; j++) {
             const ui_edit_run_t* r = &run[j];
             char* s = e->para[i].text + run[j].bp;
             if (py <= y && y < py + e->view.fm->em.h) {
-                int32_t w = ns(text_width)(e, s, r->bytes);
+                int32_t w = ui_edit_text_width(e, s, r->bytes);
                 pg.pn = i;
                 if (x >= w) {
                     const int32_t last_run = j == runs - 1;
                     pg.gp = r->gp + ut_max(0, r->glyphs - 1 + last_run);
                 } else {
-                    pg.gp = r->gp + ns(glyph_at_x)(e, i, j, x);
+                    pg.gp = r->gp + ui_edit_glyph_at_x(e, i, j, x);
                     if (pg.gp < r->glyphs - 1) {
                         ui_edit_pg_t right = {pg.pn, pg.gp + 1};
-                        int32_t x0 = ns(pg_to_xy)(e, pg).x;
-                        int32_t x1 = ns(pg_to_xy)(e, right).x;
+                        int32_t x0 = ui_edit_pg_to_xy(e, pg).x;
+                        int32_t x1 = ui_edit_pg_to_xy(e, right).x;
                         if (x1 - x < x - x0) {
                             pg.gp++; // snap to closest glyph's 'x'
                         }
@@ -572,27 +566,27 @@ fn(ui_edit_pg_t, xy_to_pg)(ui_edit_t* e, int32_t x, int32_t y) {
     return pg;
 }
 
-fn(void, paint_selection)(ui_edit_t* e, const ui_edit_run_t* r,
+static void ui_edit_paint_selection(ui_edit_t* e, const ui_edit_run_t* r,
         const char* text, int32_t pn, int32_t c0, int32_t c1) {
-    uint64_t s0 = ns(uint64)(e->selection[0].pn, e->selection[0].gp);
-    uint64_t e0 = ns(uint64)(e->selection[1].pn, e->selection[1].gp);
+    uint64_t s0 = ui_edit_uint64(e->selection[0].pn, e->selection[0].gp);
+    uint64_t e0 = ui_edit_uint64(e->selection[1].pn, e->selection[1].gp);
     if (s0 > e0) {
         uint64_t swap = e0;
         e0 = s0;
         s0 = swap;
     }
-    uint64_t s1 = ns(uint64)(pn, c0);
-    uint64_t e1 = ns(uint64)(pn, c1);
+    uint64_t s1 = ui_edit_uint64(pn, c0);
+    uint64_t e1 = ui_edit_uint64(pn, c1);
     if (s0 <= e1 && s1 <= e0) {
         uint64_t start = ut_max(s0, s1) - c0;
         uint64_t end = ut_min(e0, e1) - c0;
         if (start < end) {
             int32_t fro = (int32_t)start;
             int32_t to  = (int32_t)end;
-            int32_t ofs0 = ns(gp_to_bytes)(text, r->bytes, fro);
-            int32_t ofs1 = ns(gp_to_bytes)(text, r->bytes, to);
-            int32_t x0 = ns(text_width)(e, text, ofs0);
-            int32_t x1 = ns(text_width)(e, text, ofs1);
+            int32_t ofs0 = ui_edit_gp_to_bytes(text, r->bytes, fro);
+            int32_t ofs1 = ui_edit_gp_to_bytes(text, r->bytes, to);
+            int32_t x0 = ui_edit_text_width(e, text, ofs0);
+            int32_t x1 = ui_edit_text_width(e, text, ofs1);
             ui_brush_t b = ui_gdi.set_brush(ui_gdi.brush_color);
             ui_color_t c = ui_gdi.set_brush_color(ui_rgb(48, 64, 72));
             ui_gdi.fill(ui_gdi.x + x0, ui_gdi.y, x1 - x0, e->view.fm->em.h);
@@ -602,20 +596,20 @@ fn(void, paint_selection)(ui_edit_t* e, const ui_edit_run_t* r,
     }
 }
 
-fn(void, paint_paragraph)(ui_edit_t* e, int32_t pn) {
+static void ui_edit_paint_paragraph(ui_edit_t* e, int32_t pn) {
     int32_t runs = 0;
-    const ui_edit_run_t* run = ns(paragraph_runs)(e, pn, &runs);
-    for (int32_t j = ns(first_visible_run)(e, pn);
+    const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
+    for (int32_t j = ui_edit_first_visible_run(e, pn);
                  j < runs && ui_gdi.y < e->view.y + e->bottom; j++) {
         char* text = e->para[pn].text + run[j].bp;
         ui_gdi.x = e->view.x;
-        ns(paint_selection)(e, &run[j], text, pn, run[j].gp, run[j].gp + run[j].glyphs);
+        ui_edit_paint_selection(e, &run[j], text, pn, run[j].gp, run[j].gp + run[j].glyphs);
         ui_gdi.text("%.*s", run[j].bytes, text);
         ui_gdi.y += e->view.fm->em.h;
     }
 }
 
-fn(void, set_caret)(ui_edit_t* e, int32_t x, int32_t y) {
+static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
     if (e->caret.x != x || e->caret.y != y) {
         if (e->focused && ui_app.has_focus()) {
             ui_app.move_caret(e->view.x + x, e->view.y + y);
@@ -629,16 +623,16 @@ fn(void, set_caret)(ui_edit_t* e, int32_t x, int32_t y) {
 // scroll_up() text moves up (north) in the visible view,
 // scroll position increments moves down (south)
 
-fn(void, scroll_up)(ui_edit_t* e, int32_t run_count) {
+static void ui_edit_scroll_up(ui_edit_t* e, int32_t run_count) {
     assert(0 < run_count, "does it make sense to have 0 scroll?");
     const ui_edit_pg_t eof = {.pn = e->paragraphs, .gp = 0};
     while (run_count > 0 && e->scroll.pn < e->paragraphs) {
-        ui_edit_pg_t scroll = ns(scroll_pg)(e);
-        int32_t between = ns(runs_between)(e, scroll, eof);
+        ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
+        int32_t between = ui_edit_runs_between(e, scroll, eof);
         if (between <= e->visible_runs - 1) {
             run_count = 0; // enough
         } else {
-            int32_t runs = ns(paragraph_run_count)(e, e->scroll.pn);
+            int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
             if (e->scroll.rn < runs - 1) {
                 e->scroll.rn++;
             } else if (e->scroll.pn < e->paragraphs) {
@@ -649,60 +643,60 @@ fn(void, scroll_up)(ui_edit_t* e, int32_t run_count) {
             assert(e->scroll.pn >= 0 && e->scroll.rn >= 0);
         }
     }
-    ns(if_sle_layout)(e);
-    ns(invalidate)(e);
+    ui_edit_if_sle_layout(e);
+    ui_edit_invalidate(e);
 }
 
 // scroll_dw() text moves down (south) in the visible view,
 // scroll position decrements moves up (north)
 
-fn(void, scroll_down)(ui_edit_t* e, int32_t run_count) {
+static void ui_edit_scroll_down(ui_edit_t* e, int32_t run_count) {
     assert(0 < run_count, "does it make sense to have 0 scroll?");
     while (run_count > 0 && (e->scroll.pn > 0 || e->scroll.rn > 0)) {
-        int32_t runs = ns(paragraph_run_count)(e, e->scroll.pn);
+        int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
         e->scroll.rn = ut_min(e->scroll.rn, runs - 1);
         if (e->scroll.rn == 0 && e->scroll.pn > 0) {
             e->scroll.pn--;
-            e->scroll.rn = ns(paragraph_run_count)(e, e->scroll.pn) - 1;
+            e->scroll.rn = ui_edit_paragraph_run_count(e, e->scroll.pn) - 1;
         } else if (e->scroll.rn > 0) {
             e->scroll.rn--;
         }
         assert(e->scroll.pn >= 0 && e->scroll.rn >= 0);
         assert(0 <= e->scroll.rn &&
-                    e->scroll.rn < ns(paragraph_run_count)(e, e->scroll.pn));
+                    e->scroll.rn < ui_edit_paragraph_run_count(e, e->scroll.pn));
         run_count--;
     }
-    ns(if_sle_layout)(e);
+    ui_edit_if_sle_layout(e);
 }
 
-fn(void, scroll_into_view)(ui_edit_t* e, const ui_edit_pg_t pg) {
+static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
     if (e->paragraphs > 0 && e->bottom > 0) {
         if (e->sle) { assert(pg.pn == 0); }
-        const int32_t rn = ns(pg_to_pr)(e, pg).rn;
-        const uint64_t scroll = ns(uint64)(e->scroll.pn, e->scroll.rn);
-        const uint64_t caret  = ns(uint64)(pg.pn, rn);
+        const int32_t rn = ui_edit_pg_to_pr(e, pg).rn;
+        const uint64_t scroll = ui_edit_uint64(e->scroll.pn, e->scroll.rn);
+        const uint64_t caret  = ui_edit_uint64(pg.pn, rn);
         uint64_t last = 0;
         int32_t py = 0;
         const int32_t pn = e->scroll.pn;
         const int32_t bottom = e->bottom;
         for (int32_t i = pn; i < e->paragraphs && py < bottom; i++) {
-            int32_t runs = ns(paragraph_run_count)(e, i);
-            const int32_t fvr = ns(first_visible_run)(e, i);
+            int32_t runs = ui_edit_paragraph_run_count(e, i);
+            const int32_t fvr = ui_edit_first_visible_run(e, i);
             for (int32_t j = fvr; j < runs && py < bottom; j++) {
-                last = ns(uint64)(i, j);
+                last = ui_edit_uint64(i, j);
                 py += e->view.fm->em.h;
             }
         }
         int32_t sle_runs = e->sle && e->view.w > 0 ?
-            ns(paragraph_run_count)(e, 0) : 0;
-        ns(paragraph_g2b)(e, e->paragraphs - 1);
+            ui_edit_paragraph_run_count(e, 0) : 0;
+        ui_edit_paragraph_g2b(e, e->paragraphs - 1);
         ui_edit_pg_t last_paragraph = {.pn = e->paragraphs - 1,
             .gp = e->para[e->paragraphs - 1].glyphs };
-        ui_edit_pr_t lp = ns(pg_to_pr)(e, last_paragraph);
-        uint64_t eof = ns(uint64)(e->paragraphs - 1, lp.rn);
+        ui_edit_pr_t lp = ui_edit_pg_to_pr(e, last_paragraph);
+        uint64_t eof = ui_edit_uint64(e->paragraphs - 1, lp.rn);
         if (last == eof && py <= bottom - e->view.fm->em.h) {
             // vertical white space for EOF on the screen
-            last = ns(uint64)(e->paragraphs, 0);
+            last = ui_edit_uint64(e->paragraphs, 0);
         }
         if (scroll <= caret && caret < last) {
             // no scroll
@@ -716,49 +710,49 @@ fn(void, scroll_into_view)(ui_edit_t* e, const ui_edit_pg_t pg) {
             e->scroll.pn = pg.pn;
             e->scroll.rn = rn;
             while (e->scroll.pn > 0 || e->scroll.rn > 0) {
-                ui_point_t pt = ns(pg_to_xy)(e, pg);
+                ui_point_t pt = ui_edit_pg_to_xy(e, pg);
                 if (pt.y + e->view.fm->em.h > bottom - e->view.fm->em.h) { break; }
                 if (e->scroll.rn > 0) {
                     e->scroll.rn--;
                 } else {
                     e->scroll.pn--;
-                    e->scroll.rn = ns(paragraph_run_count)(e, e->scroll.pn) - 1;
+                    e->scroll.rn = ui_edit_paragraph_run_count(e, e->scroll.pn) - 1;
                 }
             }
         }
     }
 }
 
-fn(void, move_caret)(ui_edit_t* e, const ui_edit_pg_t pg) {
+static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
     // single line edit control cannot move caret past fist paragraph
     bool can_move = !e->sle || pg.pn < e->paragraphs;
     if (can_move) {
-        ns(scroll_into_view)(e, pg);
+        ui_edit_scroll_into_view(e, pg);
         ui_point_t pt = e->view.w > 0 ? // width == 0 means no measure/layout yet
-            ns(pg_to_xy)(e, pg) : (ui_point_t){0, 0};
-        ns(set_caret)(e, pt.x, pt.y + e->top);
+            ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
+        ui_edit_set_caret(e, pt.x, pt.y + e->top);
         e->selection[1] = pg;
 //      traceln("pn: %d gp: %d", pg.pn, pg.gp);
         if (!ui_app.shift && !e->mouse != 0) {
             e->selection[0] = e->selection[1];
         }
-        ns(invalidate)(e);
+        ui_edit_invalidate(e);
     }
 }
 
-fn(char*, ensure)(ui_edit_t* e, int32_t pn, int32_t bytes,
+static char* ui_edit_ensure(ui_edit_t* e, int32_t pn, int32_t bytes,
         int32_t preserve) {
     assert(bytes >= 0 && preserve <= bytes);
     if (bytes <= e->para[pn].capacity) {
         // enough memory already capacity - do nothing
     } else if (e->para[pn].capacity > 0) {
         assert(preserve <= e->para[pn].capacity);
-        ns(reallocate)(&e->para[pn].text, bytes, 1);
+        ui_edit_reallocate(&e->para[pn].text, bytes, 1);
         fatal_if_null(e->para[pn].text);
         e->para[pn].capacity = bytes;
     } else {
         assert(e->para[pn].capacity == 0);
-        char* text = ns(alloc)(bytes);
+        char* text = ui_edit_alloc(bytes);
         e->para[pn].capacity = bytes;
         memcpy(text, e->para[pn].text, preserve);
         e->para[pn].text = text;
@@ -767,7 +761,7 @@ fn(char*, ensure)(ui_edit_t* e, int32_t pn, int32_t bytes,
     return e->para[pn].text;
 }
 
-fn(ui_edit_pg_t, op)(ui_edit_t* e, bool cut,
+static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
         ui_edit_pg_t from, ui_edit_pg_t to,
         char* text, int32_t* bytes) {
     #pragma push_macro("clip_append")
@@ -783,10 +777,10 @@ fn(ui_edit_pg_t, op)(ui_edit_t* e, bool cut,
     char* a = text; // append
     int32_t ab = 0; // appended bytes
     int32_t limit = bytes != null ? *bytes : 0; // max byes in text
-    uint64_t f = ns(uint64)(from.pn, from.gp);
-    uint64_t t = ns(uint64)(to.pn, to.gp);
+    uint64_t f = ui_edit_uint64(from.pn, from.gp);
+    uint64_t t = ui_edit_uint64(to.pn, to.gp);
     if (f != t) {
-        ns(dispose_paragraphs_layout)(e);
+        ui_edit_dispose_paragraphs_layout(e);
         if (f > t) { uint64_t swap = t; t = f; f = swap; }
         int32_t pn0 = (int32_t)(f >> 32);
         int32_t gp0 = (int32_t)(f);
@@ -795,12 +789,12 @@ fn(ui_edit_pg_t, op)(ui_edit_t* e, bool cut,
         if (pn1 == e->paragraphs) { // last empty paragraph
             assert(gp1 == 0);
             pn1 = e->paragraphs - 1;
-            gp1 = ns(g2b)(e->para[pn1].text, e->para[pn1].bytes, null);
+            gp1 = ui_edit_g2b(e->para[pn1].text, e->para[pn1].bytes, null);
         }
         const int32_t bytes0 = e->para[pn0].bytes;
         char* s0 = e->para[pn0].text;
         char* s1 = e->para[pn1].text;
-        ns(paragraph_g2b)(e, pn0);
+        ui_edit_paragraph_g2b(e, pn0);
         const int32_t bp0 = e->para[pn0].g2b[gp0];
         if (pn0 == pn1) { // inside same paragraph
             const int32_t bp1 = e->para[pn0].g2b[gp1];
@@ -808,7 +802,7 @@ fn(ui_edit_pg_t, op)(ui_edit_t* e, bool cut,
             if (cut) {
                 if (e->para[pn0].capacity == 0) {
                     int32_t n = bytes0 - (bp1 - bp0);
-                    s0 = ns(alloc)(n);
+                    s0 = ui_edit_alloc(n);
                     memcpy(s0, e->para[pn0].text, bp0);
                     e->para[pn0].text = s0;
                     e->para[pn0].capacity = n;
@@ -826,12 +820,12 @@ fn(ui_edit_pg_t, op)(ui_edit_t* e, bool cut,
                 clip_append(a, ab, limit, "\n", 1);
             }
             const int32_t bytes1 = e->para[pn1].bytes;
-            ns(paragraph_g2b)(e, pn1);
+            ui_edit_paragraph_g2b(e, pn1);
             const int32_t bp1 = e->para[pn1].g2b[gp1];
             clip_append(a, ab, limit, s1, bp1);
             if (cut) {
                 int32_t total = bp0 + bytes1 - bp1;
-                s0 = ns(ensure)(e, pn0, total, bp0);
+                s0 = ui_edit_ensure(e, pn0, total, bp0);
                 assert(bytes1 - bp1 >= 0);
                 memcpy(s0 + bp0, s1 + bp1, (size_t)bytes1 - bp1);
                 e->para[pn0].bytes = bp0 + bytes1 - bp1;
@@ -843,7 +837,7 @@ fn(ui_edit_pg_t, op)(ui_edit_t* e, bool cut,
             assert(pn0 + deleted < e->paragraphs);
             for (int32_t i = pn0 + 1; i <= pn0 + deleted; i++) {
                 if (e->para[i].capacity > 0) {
-                    ns(free)(&e->para[i].text);
+                    ui_edit_free(&e->para[i].text);
                 }
             }
             for (int32_t i = pn0 + 1; i < e->paragraphs - deleted; i++) {
@@ -853,7 +847,7 @@ fn(ui_edit_pg_t, op)(ui_edit_t* e, bool cut,
                 memset(&e->para[i], 0, sizeof(e->para[i]));
             }
         }
-        if (t == ns(uint64)(e->paragraphs, 0)) {
+        if (t == ui_edit_uint64(e->paragraphs, 0)) {
             clip_append(a, ab, limit, "\n", 1);
         }
         if (a != null) { assert(a == text + limit); }
@@ -866,16 +860,16 @@ fn(ui_edit_pg_t, op)(ui_edit_t* e, bool cut,
     }
     if (bytes != null) { *bytes = ab; }
     (void)unused(limit); // only in debug
-    ns(if_sle_layout)(e);
+    ui_edit_if_sle_layout(e);
     return from;
     #pragma pop_macro("clip_append")
 }
 
-fn(void, insert_paragraph)(ui_edit_t* e, int32_t pn) {
-    ns(dispose_paragraphs_layout)(e);
+static void ui_edit_insert_paragraph(ui_edit_t* e, int32_t pn) {
+    ui_edit_dispose_paragraphs_layout(e);
     if (e->paragraphs + 1 > e->capacity / (int32_t)sizeof(ui_edit_para_t)) {
         int32_t n = (e->paragraphs + 1) * 3 / 2; // 1.5 times
-        ns(reallocate)(&e->para, n, (int32_t)sizeof(ui_edit_para_t));
+        ui_edit_reallocate(&e->para, n, (int32_t)sizeof(ui_edit_para_t));
         e->capacity = n * (int32_t)sizeof(ui_edit_para_t);
     }
     e->paragraphs++;
@@ -896,26 +890,26 @@ fn(void, insert_paragraph)(ui_edit_t* e, int32_t pn) {
 // insert_inline() inserts text (not containing \n paragraph
 // break inside a paragraph)
 
-fn(ui_edit_pg_t, insert_inline)(ui_edit_t* e, ui_edit_pg_t pg,
+static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
         const char* text, int32_t bytes) {
-    assert(bytes > 0); (void)(void*)unused(strnchr);
+    assert(bytes > 0);
     assert(strnchr(text, bytes, '\n') == null,
            "text \"%s\" must not contain \\n character.", text);
     if (pg.pn == e->paragraphs) {
-        ns(insert_paragraph)(e, pg.pn);
+        ui_edit_insert_paragraph(e, pg.pn);
     }
     const int32_t b = e->para[pg.pn].bytes;
-    ns(paragraph_g2b)(e, pg.pn);
+    ui_edit_paragraph_g2b(e, pg.pn);
     char* s = e->para[pg.pn].text;
     const int32_t bp = e->para[pg.pn].g2b[pg.gp];
     int32_t n = (b + bytes) * 3 / 2; // heuristics 1.5 times of total
     if (e->para[pg.pn].capacity == 0) {
-        s = ns(alloc)(n);
+        s = ui_edit_alloc(n);
         memcpy(s, e->para[pg.pn].text, b);
         e->para[pg.pn].text = s;
         e->para[pg.pn].capacity = n;
     } else if (e->para[pg.pn].capacity < b + bytes) {
-        ns(reallocate)(&s, n, 1);
+        ui_edit_reallocate(&s, n, 1);
         e->para[pg.pn].text = s;
         e->para[pg.pn].capacity = n;
     }
@@ -924,65 +918,65 @@ fn(ui_edit_pg_t, insert_inline)(ui_edit_t* e, ui_edit_pg_t pg,
     memmove(s + bp + bytes, s + bp, (size_t)b - bp); // make space
     memcpy(s + bp, text, bytes);
     e->para[pg.pn].bytes += bytes;
-    ns(dispose_paragraphs_layout)(e);
-    pg.gp = ns(glyphs)(s, bp + bytes);
-    ns(if_sle_layout)(e);
+    ui_edit_dispose_paragraphs_layout(e);
+    pg.gp = ui_edit_glyphs(s, bp + bytes);
+    ui_edit_if_sle_layout(e);
     return pg;
 }
 
-fn(ui_edit_pg_t, insert_paragraph_break)(ui_edit_t* e,
+static ui_edit_pg_t ui_edit_insert_paragraph_break(ui_edit_t* e,
         ui_edit_pg_t pg) {
-    ns(insert_paragraph)(e, pg.pn + (pg.pn < e->paragraphs));
+    ui_edit_insert_paragraph(e, pg.pn + (pg.pn < e->paragraphs));
     const int32_t bytes = e->para[pg.pn].bytes;
     char* s = e->para[pg.pn].text;
-    ns(paragraph_g2b)(e, pg.pn);
+    ui_edit_paragraph_g2b(e, pg.pn);
     const int32_t bp = e->para[pg.pn].g2b[pg.gp];
     ui_edit_pg_t next = {.pn = pg.pn + 1, .gp = 0};
     if (bp < bytes) {
-        (void)ns(insert_inline)(e, next, s + bp, bytes - bp);
+        (void)ui_edit_insert_inline(e, next, s + bp, bytes - bp);
     } else {
-        ns(dispose_paragraphs_layout)(e);
+        ui_edit_dispose_paragraphs_layout(e);
     }
     e->para[pg.pn].bytes = bp;
     return next;
 }
 
-fn(void, key_left)(ui_edit_t* e) {
+static void ui_edit_key_left(ui_edit_t* e) {
     ui_edit_pg_t to = e->selection[1];
     if (to.pn > 0 || to.gp > 0) {
-        ui_point_t pt = ns(pg_to_xy)(e, to);
+        ui_point_t pt = ui_edit_pg_to_xy(e, to);
         if (pt.x == 0 && pt.y == 0) {
-            ns(scroll_down)(e, 1);
+            ui_edit_scroll_down(e, 1);
         }
         if (to.gp > 0) {
             to.gp--;
         } else if (to.pn > 0) {
             to.pn--;
-            to.gp = ns(glyphs_in_paragraph)(e, to.pn);
+            to.gp = ui_edit_glyphs_in_paragraph(e, to.pn);
         }
-        ns(move_caret)(e, to);
+        ui_edit_move_caret(e, to);
         e->last_x = -1;
     }
 }
 
-fn(void, key_right)(ui_edit_t* e) {
+static void ui_edit_key_right(ui_edit_t* e) {
     ui_edit_pg_t to = e->selection[1];
     if (to.pn < e->paragraphs) {
-        int32_t glyphs = ns(glyphs_in_paragraph)(e, to.pn);
+        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, to.pn);
         if (to.gp < glyphs) {
             to.gp++;
-            ns(scroll_into_view)(e, to);
+            ui_edit_scroll_into_view(e, to);
         } else if (!e->sle) {
             to.pn++;
             to.gp = 0;
-            ns(scroll_into_view)(e, to);
+            ui_edit_scroll_into_view(e, to);
         }
-        ns(move_caret)(e, to);
+        ui_edit_move_caret(e, to);
         e->last_x = -1;
     }
 }
 
-fn(void, reuse_last_x)(ui_edit_t* e, ui_point_t* pt) {
+static void ui_edit_reuse_last_x(ui_edit_t* e, ui_point_t* pt) {
     // Vertical caret movement visually tend to move caret horizontally
     // in proportional font text. Remembering starting `x' value for vertical
     // movements alleviates this unpleasant UX experience to some degree.
@@ -998,62 +992,62 @@ fn(void, reuse_last_x)(ui_edit_t* e, ui_point_t* pt) {
     }
 }
 
-fn(void, key_up)(ui_edit_t* e) {
+static void ui_edit_key_up(ui_edit_t* e) {
     const ui_edit_pg_t pg = e->selection[1];
     ui_edit_pg_t to = pg;
     if (to.pn == e->paragraphs) {
         assert(to.gp == 0); // positioned past EOF
         to.pn--;
         to.gp = e->para[to.pn].glyphs;
-        ns(scroll_into_view)(e, to);
-        ui_point_t pt = ns(pg_to_xy)(e, to);
+        ui_edit_scroll_into_view(e, to);
+        ui_point_t pt = ui_edit_pg_to_xy(e, to);
         pt.x = 0;
-        to.gp = ns(xy_to_pg)(e, pt.x, pt.y).gp;
-    } else if (to.pn > 0 || ns(pg_to_pr)(e, to).rn > 0) {
+        to.gp = ui_edit_xy_to_pg(e, pt.x, pt.y).gp;
+    } else if (to.pn > 0 || ui_edit_pg_to_pr(e, to).rn > 0) {
         // top of the text
-        ui_point_t pt = ns(pg_to_xy)(e, to);
+        ui_point_t pt = ui_edit_pg_to_xy(e, to);
         if (pt.y == 0) {
-            ns(scroll_down)(e, 1);
+            ui_edit_scroll_down(e, 1);
         } else {
             pt.y -= 1;
         }
-        ns(reuse_last_x)(e, &pt);
+        ui_edit_reuse_last_x(e, &pt);
         assert(pt.y >= 0);
-        to = ns(xy_to_pg)(e, pt.x, pt.y);
+        to = ui_edit_xy_to_pg(e, pt.x, pt.y);
         assert(to.pn >= 0 && to.gp >= 0);
-        int32_t rn0 = ns(pg_to_pr)(e, pg).rn;
-        int32_t rn1 = ns(pg_to_pr)(e, to).rn;
+        int32_t rn0 = ui_edit_pg_to_pr(e, pg).rn;
+        int32_t rn1 = ui_edit_pg_to_pr(e, to).rn;
         if (rn1 > 0 && rn0 == rn1) { // same run
             assert(to.gp > 0, "word break must not break on zero gp");
             int32_t runs = 0;
-            const ui_edit_run_t* run = ns(paragraph_runs)(e, to.pn, &runs);
+            const ui_edit_run_t* run = ui_edit_paragraph_runs(e, to.pn, &runs);
             to.gp = run[rn1].gp;
         }
     }
-    ns(move_caret)(e, to);
+    ui_edit_move_caret(e, to);
 }
 
-fn(void, key_down)(ui_edit_t* e) {
+static void ui_edit_key_down(ui_edit_t* e) {
     const ui_edit_pg_t pg = e->selection[1];
-    ui_point_t pt = ns(pg_to_xy)(e, pg);
-    ns(reuse_last_x)(e, &pt);
+    ui_point_t pt = ui_edit_pg_to_xy(e, pg);
+    ui_edit_reuse_last_x(e, &pt);
     // scroll runs guaranteed to be already layout for current state of view:
-    ui_edit_pg_t scroll = ns(scroll_pg)(e);
-    int32_t run_count = ns(runs_between)(e, scroll, pg);
+    ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
+    int32_t run_count = ui_edit_runs_between(e, scroll, pg);
     if (!e->sle && run_count >= e->visible_runs - 1) {
-        ns(scroll_up)(e, 1);
+        ui_edit_scroll_up(e, 1);
     } else {
         pt.y += e->view.fm->em.h;
     }
-    ui_edit_pg_t to = ns(xy_to_pg)(e, pt.x, pt.y);
+    ui_edit_pg_t to = ui_edit_xy_to_pg(e, pt.x, pt.y);
     if (to.pn < 0 && to.gp < 0) {
         to.pn = e->paragraphs; // advance past EOF
         to.gp = 0;
     }
-    ns(move_caret)(e, to);
+    ui_edit_move_caret(e, to);
 }
 
-fn(void, key_home)(ui_edit_t* e) {
+static void ui_edit_key_home(ui_edit_t* e) {
     if (ui_app.ctrl) {
         e->scroll.pn = 0;
         e->scroll.rn = 0;
@@ -1061,12 +1055,12 @@ fn(void, key_home)(ui_edit_t* e) {
         e->selection[1].gp = 0;
     }
     const int32_t pn = e->selection[1].pn;
-    int32_t runs = ns(paragraph_run_count)(e, pn);
+    int32_t runs = ui_edit_paragraph_run_count(e, pn);
     const ui_edit_para_t* para = &e->para[pn];
     if (runs <= 1) {
         e->selection[1].gp = 0;
     } else {
-        int32_t rn = ns(pg_to_pr)(e, e->selection[1]).rn;
+        int32_t rn = ui_edit_pg_to_pr(e, e->selection[1]).rn;
         assert(0 <= rn && rn < runs);
         const int32_t gp = para->run[rn].gp;
         if (e->selection[1].gp != gp) {
@@ -1084,14 +1078,14 @@ fn(void, key_home)(ui_edit_t* e) {
     if (!ui_app.shift) {
         e->selection[0] = e->selection[1];
     }
-    ns(move_caret)(e, e->selection[1]);
+    ui_edit_move_caret(e, e->selection[1]);
 }
 
-fn(void, key_end)(ui_edit_t* e) {
+static void ui_edit_key_end(ui_edit_t* e) {
     if (ui_app.ctrl) {
         int32_t py = e->bottom;
         for (int32_t i = e->paragraphs - 1; i >= 0 && py >= e->view.fm->em.h; i--) {
-            int32_t runs = ns(paragraph_run_count)(e, i);
+            int32_t runs = ui_edit_paragraph_run_count(e, i);
             for (int32_t j = runs - 1; j >= 0 && py >= e->view.fm->em.h; j--) {
                 py -= e->view.fm->em.h;
                 if (py < e->view.fm->em.h) {
@@ -1108,8 +1102,8 @@ fn(void, key_end)(ui_edit_t* e) {
         int32_t pn = e->selection[1].pn;
         int32_t gp = e->selection[1].gp;
         int32_t runs = 0;
-        const ui_edit_run_t* run = ns(paragraph_runs)(e, pn, &runs);
-        int32_t rn = ns(pg_to_pr)(e, e->selection[1]).rn;
+        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
+        int32_t rn = ui_edit_pg_to_pr(e, e->selection[1]).rn;
         assert(0 <= rn && rn < runs);
         if (rn == runs - 1) {
             e->selection[1].gp = e->para[pn].glyphs;
@@ -1124,49 +1118,49 @@ fn(void, key_end)(ui_edit_t* e) {
     if (!ui_app.shift) {
         e->selection[0] = e->selection[1];
     }
-    ns(move_caret)(e, e->selection[1]);
+    ui_edit_move_caret(e, e->selection[1]);
 }
 
-fn(void, key_pageup)(ui_edit_t* e) {
+static void ui_edit_key_pageup(ui_edit_t* e) {
     int32_t n = ut_max(1, e->visible_runs - 1);
-    ui_edit_pg_t scr = ns(scroll_pg)(e);
+    ui_edit_pg_t scr = ui_edit_scroll_pg(e);
     ui_edit_pg_t bof = {.pn = 0, .gp = 0};
-    int32_t m = ns(runs_between)(e, bof, scr);
+    int32_t m = ui_edit_runs_between(e, bof, scr);
     if (m > n) {
-        ui_point_t pt = ns(pg_to_xy)(e, e->selection[1]);
+        ui_point_t pt = ui_edit_pg_to_xy(e, e->selection[1]);
         ui_edit_pr_t scroll = e->scroll;
-        ns(scroll_down)(e, n);
+        ui_edit_scroll_down(e, n);
         if (scroll.pn != e->scroll.pn || scroll.rn != e->scroll.rn) {
-            ui_edit_pg_t pg = ns(xy_to_pg)(e, pt.x, pt.y);
-            ns(move_caret)(e, pg);
+            ui_edit_pg_t pg = ui_edit_xy_to_pg(e, pt.x, pt.y);
+            ui_edit_move_caret(e, pg);
         }
     } else {
-        ns(move_caret)(e, bof);
+        ui_edit_move_caret(e, bof);
     }
 }
 
-fn(void, key_pagedw)(ui_edit_t* e) {
+static void ui_edit_key_pagedw(ui_edit_t* e) {
     int32_t n = ut_max(1, e->visible_runs - 1);
-    ui_edit_pg_t scr = ns(scroll_pg)(e);
+    ui_edit_pg_t scr = ui_edit_scroll_pg(e);
     ui_edit_pg_t eof = {.pn = e->paragraphs, .gp = 0};
-    int32_t m = ns(runs_between)(e, scr, eof);
+    int32_t m = ui_edit_runs_between(e, scr, eof);
     if (m > n) {
-        ui_point_t pt = ns(pg_to_xy)(e, e->selection[1]);
+        ui_point_t pt = ui_edit_pg_to_xy(e, e->selection[1]);
         ui_edit_pr_t scroll = e->scroll;
-        ns(scroll_up)(e, n);
+        ui_edit_scroll_up(e, n);
         if (scroll.pn != e->scroll.pn || scroll.rn != e->scroll.rn) {
-            ui_edit_pg_t pg = ns(xy_to_pg)(e, pt.x, pt.y);
-            ns(move_caret)(e, pg);
+            ui_edit_pg_t pg = ui_edit_xy_to_pg(e, pt.x, pt.y);
+            ui_edit_move_caret(e, pg);
         }
     } else {
-        ns(move_caret)(e, eof);
+        ui_edit_move_caret(e, eof);
     }
 }
 
-fn(void, key_delete)(ui_edit_t* e) {
-    uint64_t f = ns(uint64)(e->selection[0].pn, e->selection[0].gp);
-    uint64_t t = ns(uint64)(e->selection[1].pn, e->selection[1].gp);
-    uint64_t eof = ns(uint64)(e->paragraphs, 0);
+static void ui_edit_key_delete(ui_edit_t* e) {
+    uint64_t f = ui_edit_uint64(e->selection[0].pn, e->selection[0].gp);
+    uint64_t t = ui_edit_uint64(e->selection[1].pn, e->selection[1].gp);
+    uint64_t eof = ui_edit_uint64(e->paragraphs, 0);
     if (f == t && t != eof) {
         ui_edit_pg_t s1 = e->selection[1];
         e->key_right(e);
@@ -1175,9 +1169,9 @@ fn(void, key_delete)(ui_edit_t* e) {
     e->erase(e);
 }
 
-fn(void, key_backspace)(ui_edit_t* e) {
-    uint64_t f = ns(uint64)(e->selection[0].pn, e->selection[0].gp);
-    uint64_t t = ns(uint64)(e->selection[1].pn, e->selection[1].gp);
+static void ui_edit_key_backspace(ui_edit_t* e) {
+    uint64_t f = ui_edit_uint64(e->selection[0].pn, e->selection[0].gp);
+    uint64_t t = ui_edit_uint64(e->selection[1].pn, e->selection[1].gp);
     if (t != 0 && f == t) {
         ui_edit_pg_t s1 = e->selection[1];
         e->key_left(e);
@@ -1186,19 +1180,19 @@ fn(void, key_backspace)(ui_edit_t* e) {
     e->erase(e);
 }
 
-fn(void, key_enter)(ui_edit_t* e) {
+static void ui_edit_key_enter(ui_edit_t* e) {
     assert(!e->ro);
     if (!e->sle) {
         e->erase(e);
-        e->selection[1] = ns(insert_paragraph_break)(e, e->selection[1]);
+        e->selection[1] = ui_edit_insert_paragraph_break(e, e->selection[1]);
         e->selection[0] = e->selection[1];
-        ns(move_caret)(e, e->selection[1]);
+        ui_edit_move_caret(e, e->selection[1]);
     } else { // single line edit callback
         if (e->enter != null) { e->enter(e); }
     }
 }
 
-fn(void, key_pressed)(ui_view_t* view, int64_t key) {
+static void ui_edit_key_pressed(ui_view_t* view, int64_t key) {
     assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
     if (e->focused) {
@@ -1231,7 +1225,7 @@ fn(void, key_pressed)(ui_view_t* view, int64_t key) {
     if (e->fuzzer != null) { e->next_fuzz(e); }
 }
 
-fn(void, character)(ui_view_t* unused(view), const char* utf8) {
+static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
     assert(view->type == ui_view_text);
     assert(!view->hidden && !view->disabled);
     #pragma push_macro("ctl")
@@ -1248,33 +1242,33 @@ fn(void, character)(ui_view_t* unused(view), const char* utf8) {
             }
         }
         if (0x20 <= ch && !e->ro) { // 0x20 space
-            int32_t bytes = ns(glyph_bytes)(ch);
+            int32_t bytes = ui_edit_glyph_bytes(ch);
             e->erase(e); // remove selected text to be replaced by glyph
-            e->selection[1] = ns(insert_inline)(e, e->selection[1], utf8, bytes);
+            e->selection[1] = ui_edit_insert_inline(e, e->selection[1], utf8, bytes);
             e->selection[0] = e->selection[1];
-            ns(move_caret)(e, e->selection[1]);
+            ui_edit_move_caret(e, e->selection[1]);
         }
-        ns(invalidate)(e);
+        ui_edit_invalidate(e);
         if (e->fuzzer != null) { e->next_fuzz(e); }
     }
     #pragma pop_macro("ctl")
 }
 
-fn(void, select_word)(ui_edit_t* e, int32_t x, int32_t y) {
-    ui_edit_pg_t p = ns(xy_to_pg)(e, x, y);
+static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
+    ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
         if (p.pn > e->paragraphs) { p.pn = ut_max(0, e->paragraphs); }
-        int32_t glyphs = ns(glyphs_in_paragraph)(e, p.pn);
+        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         if (p.pn == e->paragraphs || glyphs == 0) {
             // last paragraph is empty - nothing to select on fp64_t click
         } else {
-            ui_edit_glyph_t glyph = ns(glyph_at)(e, p);
+            ui_edit_glyph_t glyph = ui_edit_glyph_at(e, p);
             bool not_a_white_space = glyph.bytes > 0 &&
                 *(uint8_t*)glyph.s > 0x20;
             if (!not_a_white_space && p.gp > 0) {
                 p.gp--;
-                glyph = ns(glyph_at)(e, p);
+                glyph = ui_edit_glyph_at(e, p);
                 not_a_white_space = glyph.bytes > 0 &&
                     *(uint8_t*)glyph.s > 0x20;
             }
@@ -1282,7 +1276,7 @@ fn(void, select_word)(ui_edit_t* e, int32_t x, int32_t y) {
                 ui_edit_pg_t from = p;
                 while (from.gp > 0) {
                     from.gp--;
-                    ui_edit_glyph_t g = ns(glyph_at)(e, from);
+                    ui_edit_glyph_t g = ui_edit_glyph_at(e, from);
                     if (g.bytes == 0 || *(uint8_t*)g.s <= 0x20) {
                         from.gp++;
                         break;
@@ -1292,24 +1286,24 @@ fn(void, select_word)(ui_edit_t* e, int32_t x, int32_t y) {
                 ui_edit_pg_t to = p;
                 while (to.gp < glyphs) {
                     to.gp++;
-                    ui_edit_glyph_t g = ns(glyph_at)(e, to);
+                    ui_edit_glyph_t g = ui_edit_glyph_at(e, to);
                     if (g.bytes == 0 || *(uint8_t*)g.s <= 0x20) {
                         break;
                     }
                 }
                 e->selection[1] = to;
-                ns(invalidate)(e);
+                ui_edit_invalidate(e);
                 e->mouse = 0;
             }
         }
     }
 }
 
-fn(void, select_paragraph)(ui_edit_t* e, int32_t x, int32_t y) {
-    ui_edit_pg_t p = ns(xy_to_pg)(e, x, y);
+static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
+    ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
         if (p.pn > e->paragraphs) { p.pn = ut_max(0, e->paragraphs); }
-        int32_t glyphs = ns(glyphs_in_paragraph)(e, p.pn);
+        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         if (p.pn == e->paragraphs || glyphs == 0) {
             // last paragraph is empty - nothing to select on fp64_t click
@@ -1320,34 +1314,34 @@ fn(void, select_paragraph)(ui_edit_t* e, int32_t x, int32_t y) {
             e->selection[1].gp = 0;
             e->selection[1].pn++;
         }
-        ns(invalidate)(e);
+        ui_edit_invalidate(e);
         e->mouse = 0;
     }
 }
 
-fn(void, double_click)(ui_edit_t* e, int32_t x, int32_t y) {
+static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
     if (e->selection[0].pn == e->selection[1].pn &&
         e->selection[0].gp == e->selection[1].gp) {
-        ns(select_word)(e, x, y);
+        ui_edit_select_word(e, x, y);
     } else {
         if (e->selection[0].pn == e->selection[1].pn &&
                e->selection[0].pn <= e->paragraphs) {
-            ns(select_paragraph)(e, x, y);
+            ui_edit_select_paragraph(e, x, y);
         }
     }
 }
 
-fn(void, click)(ui_edit_t* e, int32_t x, int32_t y) {
-    ui_edit_pg_t p = ns(xy_to_pg)(e, x, y);
+static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
+    ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
         if (p.pn > e->paragraphs) { p.pn = ut_max(0, e->paragraphs); }
-        int32_t glyphs = ns(glyphs_in_paragraph)(e, p.pn);
+        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
-        ns(move_caret)(e, p);
+        ui_edit_move_caret(e, p);
     }
 }
 
-fn(void, focus_on_click)(ui_edit_t* e, int32_t x, int32_t y) {
+static void ui_edit_focus_on_click(ui_edit_t* e, int32_t x, int32_t y) {
     if (ui_app.has_focus() && !e->focused && e->mouse != 0) {
         if (ui_app.focus != null && ui_app.focus->kill_focus != null) {
             ui_app.focus->kill_focus(ui_app.focus);
@@ -1358,25 +1352,25 @@ fn(void, focus_on_click)(ui_edit_t* e, int32_t x, int32_t y) {
     }
     if (ui_app.has_focus() && e->focused && e->mouse != 0) {
         e->mouse = 0;
-        ns(click)(e, x, y);
+        ui_edit_click(e, x, y);
     }
 }
 
-fn(void, mouse_button_down)(ui_edit_t* e, int32_t m,
+static void ui_edit_mouse_button_down(ui_edit_t* e, int32_t m,
         int32_t x, int32_t y) {
     if (m == ui.message.left_button_pressed)  { e->mouse |= (1 << 0); }
     if (m == ui.message.right_button_pressed) { e->mouse |= (1 << 1); }
-    ns(focus_on_click)(e, x, y);
+    ui_edit_focus_on_click(e, x, y);
 }
 
-fn(void, mouse_button_up)(ui_edit_t* e, int32_t m) {
+static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t m) {
     if (m == ui.message.left_button_released)  { e->mouse &= ~(1 << 0); }
     if (m == ui.message.right_button_released) { e->mouse &= ~(1 << 1); }
 }
 
 #ifdef EDIT_USE_TAP
 
-fn(bool, tap)(ui_view_t* view, int32_t ix) {
+static bool ui_edit_tap(ui_view_t* view, int32_t ix) {
     traceln("ix: %d", ix);
     if (ix == 0) {
         ui_edit_t* e = (ui_edit_t*)view;
@@ -1385,7 +1379,7 @@ fn(bool, tap)(ui_view_t* view, int32_t ix) {
         bool inside = 0 <= x && x < view->w && 0 <= y && y < view->h;
         if (inside) {
             e->mouse = 0x1;
-            ns(focus_on_click)(e, x, y);
+            ui_edit_focus_on_click(e, x, y);
             e->mouse = 0x0;
         }
         return inside;
@@ -1396,7 +1390,7 @@ fn(bool, tap)(ui_view_t* view, int32_t ix) {
 
 #endif // EDIT_USE_TAP
 
-fn(bool, press)(ui_view_t* view, int32_t ix) {
+static bool ui_edit_press(ui_view_t* view, int32_t ix) {
 //  traceln("ix: %d", ix);
     if (ix == 0) {
         ui_edit_t* e = (ui_edit_t*)view;
@@ -1405,8 +1399,8 @@ fn(bool, press)(ui_view_t* view, int32_t ix) {
         bool inside = 0 <= x && x < view->w && 0 <= y && y < view->h;
         if (inside) {
             e->mouse = 0x1;
-            ns(focus_on_click)(e, x, y);
-            ns(double_click)(e, x, y);
+            ui_edit_focus_on_click(e, x, y);
+            ui_edit_double_click(e, x, y);
             e->mouse = 0x0;
         }
         return inside;
@@ -1415,7 +1409,7 @@ fn(bool, press)(ui_view_t* view, int32_t ix) {
     }
 }
 
-fn(void, mouse)(ui_view_t* view, int32_t m, int64_t unused(flags)) {
+static void ui_edit_mouse(ui_view_t* view, int32_t m, int64_t unused(flags)) {
 //  if (m == ui.message.left_button_pressed) { traceln("%p", view); }
     assert(view->type == ui_view_text);
     assert(!view->hidden);
@@ -1427,27 +1421,27 @@ fn(void, mouse)(ui_view_t* view, int32_t m, int64_t unused(flags)) {
     if (inside) {
         if (m == ui.message.left_button_pressed ||
             m == ui.message.right_button_pressed) {
-            ns(mouse_button_down)(e, m, x, y);
+            ui_edit_mouse_button_down(e, m, x, y);
         } else if (m == ui.message.left_button_released ||
                    m == ui.message.right_button_released) {
-            ns(mouse_button_up)(e, m);
+            ui_edit_mouse_button_up(e, m);
         } else if (m == ui.message.left_double_click ||
                    m == ui.message.right_double_click) {
-            ns(double_click)(e, x, y);
+            ui_edit_double_click(e, x, y);
         }
     }
 }
 
-fn(void, mousewheel)(ui_view_t* view, int32_t unused(dx), int32_t dy) {
+static void ui_edit_mousewheel(ui_view_t* view, int32_t unused(dx), int32_t dy) {
     // TODO: may make a use of dx in single line not-word-breaked edit control
     if (ui_app.focus == view) {
         assert(view->type == ui_view_text);
         ui_edit_t* e = (ui_edit_t*)view;
         int32_t lines = (abs(dy) + view->fm->em.h - 1) / view->fm->em.h;
         if (dy > 0) {
-            ns(scroll_down)(e, lines);
+            ui_edit_scroll_down(e, lines);
         } else if (dy < 0) {
-            ns(scroll_up)(e, lines);
+            ui_edit_scroll_up(e, lines);
         }
 //  TODO: Ctrl UP/DW and caret of out of visible area scrolls are not
 //        implemented. Not sure they are very good UX experience.
@@ -1456,12 +1450,12 @@ fn(void, mousewheel)(ui_view_t* view, int32_t unused(dx), int32_t dy) {
 //        To me back forward stack navigation is much more intuitive and
 //        much mode "modeless" in spirit of cut/copy/paste. But opinions
 //        and editing habits vary. Easy to implement.
-        ui_edit_pg_t pg = ns(xy_to_pg)(e, e->caret.x, e->caret.y);
-        ns(move_caret)(e, pg);
+        ui_edit_pg_t pg = ui_edit_xy_to_pg(e, e->caret.x, e->caret.y);
+        ui_edit_move_caret(e, pg);
     }
 }
 
-fn(bool, set_focus)(ui_view_t* view) {
+static bool ui_edit_set_focus(ui_view_t* view) {
     assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
 //  traceln("active=%d has_focus=%d focused=%d",
@@ -1470,91 +1464,91 @@ fn(bool, set_focus)(ui_view_t* view) {
     assert(view->focusable);
     ui_app.focus = view;
     if (ui_app.has_focus() && !e->focused) {
-        ns(create_caret)(e);
-        ns(show_caret)(e);
-        ns(if_sle_layout)(e);
+        ui_edit_create_caret(e);
+        ui_edit_show_caret(e);
+        ui_edit_if_sle_layout(e);
     }
     return true;
 }
 
-fn(void, kill_focus)(ui_view_t* view) {
+static void ui_edit_kill_focus(ui_view_t* view) {
     assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
 //  traceln("active=%d has_focus=%d focused=%d",
 //           ui_app.is_active(), ui_app.has_focus(), e->focused);
     if (e->focused) {
-        ns(hide_caret)(e);
-        ns(destroy_caret)(e);
-        ns(if_sle_layout)(e);
+        ui_edit_hide_caret(e);
+        ui_edit_destroy_caret(e);
+        ui_edit_if_sle_layout(e);
     }
     if (ui_app.focus == view) { ui_app.focus = null; }
 }
 
-fn(void, erase)(ui_edit_t* e) {
+static void ui_edit_erase(ui_edit_t* e) {
     const ui_edit_pg_t from = e->selection[0];
     const ui_edit_pg_t to = e->selection[1];
-    ui_edit_pg_t pg = ns(op)(e, true, from, to, null, null);
+    ui_edit_pg_t pg = ui_edit_op(e, true, from, to, null, null);
     if (pg.pn >= 0 && pg.gp >= 0) {
         e->selection[0] = pg;
         e->selection[1] = pg;
-        ns(move_caret)(e, pg);
-        ns(invalidate)(e);
+        ui_edit_move_caret(e, pg);
+        ui_edit_invalidate(e);
     }
 }
 
-fn(void, cut_copy)(ui_edit_t* e, bool cut) {
+static void ui_edit_cut_copy(ui_edit_t* e, bool cut) {
     const ui_edit_pg_t from = e->selection[0];
     const ui_edit_pg_t to = e->selection[1];
     int32_t n = 0; // bytes between from..to
-    ns(op)(e, false, from, to, null, &n);
+    ui_edit_op(e, false, from, to, null, &n);
     if (n > 0) {
-        char* text = ns(alloc)(n + 1);
-        ui_edit_pg_t pg = ns(op)(e, cut, from, to, text, &n);
+        char* text = ui_edit_alloc(n + 1);
+        ui_edit_pg_t pg = ui_edit_op(e, cut, from, to, text, &n);
         if (cut && pg.pn >= 0 && pg.gp >= 0) {
             e->selection[0] = pg;
             e->selection[1] = pg;
-            ns(move_caret)(e, pg);
+            ui_edit_move_caret(e, pg);
         }
         text[n] = 0; // make it zero terminated
         ut_clipboard.put_text(text);
         assert(n == (int32_t)strlen(text), "n=%d strlen(cb)=%d cb=\"%s\"",
                n, strlen(text), text);
-        ns(free)(&text);
+        ui_edit_free(&text);
     }
 }
 
-fn(void, select_all)(ui_edit_t* e) {
+static void ui_edit_select_all(ui_edit_t* e) {
     e->selection[0] = (ui_edit_pg_t ){.pn = 0, .gp = 0};
     e->selection[1] = (ui_edit_pg_t ){.pn = e->paragraphs, .gp = 0};
-    ns(invalidate)(e);
+    ui_edit_invalidate(e);
 }
 
-fn(int32_t, copy)(ui_edit_t* e, char* text, int32_t* bytes) {
+static int32_t ui_edit_copy(ui_edit_t* e, char* text, int32_t* bytes) {
     not_null(bytes);
     int32_t r = 0;
     const ui_edit_pg_t from = {.pn = 0, .gp = 0};
     const ui_edit_pg_t to = {.pn = e->paragraphs, .gp = 0};
     int32_t n = 0; // bytes between from..to
-    ns(op)(e, false, from, to, null, &n);
+    ui_edit_op(e, false, from, to, null, &n);
     if (text != null) {
         int32_t m = ut_min(n, *bytes);
         enum { error_insufficient_buffer = 122 }; //  ERROR_INSUFFICIENT_BUFFER
         if (m < n) { r = error_insufficient_buffer; }
-        ns(op)(e, false, from, to, text, &m);
+        ui_edit_op(e, false, from, to, text, &m);
     }
     *bytes = n;
     return r;
 }
 
-fn(void, clipboard_cut)(ui_edit_t* e) {
-    if (!e->ro) { ns(cut_copy)(e, true); }
+static void ui_edit_clipboard_cut(ui_edit_t* e) {
+    if (!e->ro) { ui_edit_cut_copy(e, true); }
 }
 
-fn(void, clipboard_copy)(ui_edit_t* e) {
-    ns(cut_copy)(e, false);
+static void ui_edit_clipboard_copy(ui_edit_t* e) {
+    ui_edit_cut_copy(e, false);
 }
 
-fn(ui_edit_pg_t, paste_text)(ui_edit_t* e,
+static ui_edit_pg_t ui_edit_paste_text(ui_edit_t* e,
         const char* s, int32_t n) {
     assert(!e->ro);
     ui_edit_pg_t pg = e->selection[1];
@@ -1567,12 +1561,12 @@ fn(ui_edit_pg_t, paste_text)(ui_edit_t* e,
         int32_t next = b + 1;
         if (b > i && s[b - 1] == '\r') { b--; } // CR LF
         if (b > i) {
-            pg = ns(insert_inline)(e, pg, text, b - i);
+            pg = ui_edit_insert_inline(e, pg, text, b - i);
         }
         if (lf && e->sle) {
             break;
         } else if (lf) {
-            pg = ns(insert_paragraph_break)(e, pg);
+            pg = ui_edit_insert_paragraph_break(e, pg);
         }
         text = s + next;
         i = next;
@@ -1580,23 +1574,23 @@ fn(ui_edit_pg_t, paste_text)(ui_edit_t* e,
     return pg;
 }
 
-fn(void, paste)(ui_edit_t* e, const char* s, int32_t n) {
+static void ui_edit_paste(ui_edit_t* e, const char* s, int32_t n) {
     if (!e->ro) {
         if (n < 0) { n = (int32_t)strlen(s); }
         e->erase(e);
-        e->selection[1] = ns(paste_text)(e, s, n);
+        e->selection[1] = ui_edit_paste_text(e, s, n);
         e->selection[0] = e->selection[1];
-        if (e->view.w > 0) { ns(move_caret)(e, e->selection[1]); }
+        if (e->view.w > 0) { ui_edit_move_caret(e, e->selection[1]); }
     }
 }
 
-fn(void, clipboard_paste)(ui_edit_t* e) {
+static void ui_edit_clipboard_paste(ui_edit_t* e) {
     if (!e->ro) {
         ui_edit_pg_t pg = e->selection[1];
         int32_t bytes = 0;
         ut_clipboard.get_text(null, &bytes);
         if (bytes > 0) {
-            char* text = ns(alloc)(bytes);
+            char* text = ui_edit_alloc(bytes);
             int32_t r = ut_clipboard.get_text(text, &bytes);
             fatal_if_not_zero(r);
             if (bytes > 0 && text[bytes - 1] == 0) {
@@ -1604,15 +1598,15 @@ fn(void, clipboard_paste)(ui_edit_t* e) {
             }
             if (bytes > 0) {
                 e->erase(e);
-                pg = ns(paste_text)(e, text, bytes);
-                ns(move_caret)(e, pg);
+                pg = ui_edit_paste_text(e, text, bytes);
+                ui_edit_move_caret(e, pg);
             }
-            ns(free)(&text);
+            ui_edit_free(&text);
         }
     }
 }
 
-fn(void, measure)(ui_view_t* view) { // bottom up
+static void ui_edit_measure(ui_view_t* view) { // bottom up
     assert(view->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)view;
     // enforce minimum size - it makes it checking corner cases much simpler
@@ -1620,39 +1614,39 @@ fn(void, measure)(ui_view_t* view) { // bottom up
     if (view->w < view->fm->em.w * 4) { view->w = view->fm->em.w * 4; }
     if (view->h < view->fm->em.h) { view->h = view->fm->em.h; }
     if (e->sle) { // for SLE if more than one run resize vertical:
-        int32_t runs = ut_max(ns(paragraph_run_count)(e, 0), 1);
+        int32_t runs = ut_max(ui_edit_paragraph_run_count(e, 0), 1);
         if (view->h < view->fm->em.h * runs) { view->h = view->fm->em.h * runs; }
     }
 }
 
-fn(void, layout)(ui_view_t* view) { // top down
+static void ui_edit_layout(ui_view_t* view) { // top down
     assert(view->type == ui_view_text);
     assert(view->w > 0 && view->h > 0); // could be `if'
     ui_edit_t* e = (ui_edit_t*)view;
     // glyph position in scroll_pn paragraph:
     const ui_edit_pg_t scroll = view->w == 0 ?
-        (ui_edit_pg_t){0, 0} : ns(scroll_pg)(e);
+        (ui_edit_pg_t){0, 0} : ui_edit_scroll_pg(e);
     // the optimization of layout disposal with cached
     // width and height cannot guarantee correct layout
     // in other changing conditions, e.g. moving UI
     // between monitors with different DPI or font
     // changes by the caller (Ctrl +/- 0)...
 //  if (view->w > 0 && view->w != view->w) {
-//      ns(dispose_paragraphs_layout)(e);
+//      ui_edit_dispose_paragraphs_layout(e);
 //  }
     // always dispose paragraphs layout:
-    ns(dispose_paragraphs_layout)(e);
+    ui_edit_dispose_paragraphs_layout(e);
     int32_t sle_height = 0;
     if (e->sle) {
-        int32_t runs = ut_max(ns(paragraph_run_count)(e, 0), 1);
+        int32_t runs = ut_max(ui_edit_paragraph_run_count(e, 0), 1);
         sle_height = ut_min(e->view.fm->em.h * runs, view->h);
     }
     e->top    = !e->sle ? 0 : (view->h - sle_height) / 2;
     e->bottom = !e->sle ? view->h : e->top + sle_height;
     e->visible_runs = (e->bottom - e->top) / e->view.fm->em.h; // fully visible
     // number of runs in e->scroll.pn may have changed with view->w change
-    int32_t runs = ns(paragraph_run_count)(e, e->scroll.pn);
-    e->scroll.rn = ns(pg_to_pr)(e, scroll).rn;
+    int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
+    e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
     assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
     // For single line editor distribute vertical gap evenly between
     // top and bottom. For multiline snap top line to y coordinate 0
@@ -1660,15 +1654,15 @@ fn(void, layout)(ui_view_t* view) { // top down
     // whole text
     if (e->focused) {
         // recreate caret because fm->em.h may have changed
-        ns(hide_caret)(e);
-        ns(destroy_caret)(e);
-        ns(create_caret)(e);
-        ns(show_caret)(e);
-        ns(move_caret)(e, e->selection[1]);
+        ui_edit_hide_caret(e);
+        ui_edit_destroy_caret(e);
+        ui_edit_create_caret(e);
+        ui_edit_show_caret(e);
+        ui_edit_move_caret(e, e->selection[1]);
     }
 }
 
-fn(void, paint)(ui_view_t* view) {
+static void ui_edit_paint(ui_view_t* view) {
     assert(view->type == ui_view_text);
     assert(!view->hidden);
     ui_edit_t* e = (ui_edit_t*)view;
@@ -1684,23 +1678,23 @@ fn(void, paint)(ui_view_t* view) {
     const int32_t bottom = view->y + e->bottom;
     assert(pn <= e->paragraphs);
     for (int32_t i = pn; i < e->paragraphs && ui_gdi.y < bottom; i++) {
-        ns(paint_paragraph)(e, i);
+        ui_edit_paint_paragraph(e, i);
     }
     ui_gdi.set_font(f);
     ui_gdi.set_clip(0, 0, 0, 0);
     ui_gdi.pop();
 }
 
-fn(void, move)(ui_edit_t* e, ui_edit_pg_t pg) {
+static void ui_edit_move(ui_edit_t* e, ui_edit_pg_t pg) {
     if (e->view.w > 0) {
-        ns(move_caret)(e, pg); // may select text on move
+        ui_edit_move_caret(e, pg); // may select text on move
     } else {
         e->selection[1] = pg;
     }
     e->selection[0] = e->selection[1];
 }
 
-fn(bool, message)(ui_view_t* view, int32_t unused(m), int64_t unused(wp),
+static bool ui_edit_message(ui_view_t* view, int32_t unused(m), int64_t unused(wp),
         int64_t unused(lp), int64_t* unused(rt)) {
     ui_edit_t* e = (ui_edit_t*)view;
     if (ui_app.is_active() && ui_app.has_focus() && !view->hidden) {
@@ -1721,7 +1715,7 @@ fn(bool, message)(ui_view_t* view, int32_t unused(m), int64_t unused(wp),
 
 __declspec(dllimport) unsigned int __stdcall GetACP(void);
 
-void ns(init)(ui_edit_t* e) {
+void ui_edit_init(ui_edit_t* e) {
     memset(e, 0, sizeof(*e));
     e->view.color_id = ui_color_id_window_text;
     e->view.background_id = ui_color_id_window;
@@ -1736,42 +1730,42 @@ void ns(init)(ui_edit_t* e) {
     e->ro        = false;
     e->view.color  = ui_rgb(168, 168, 150); // ui_colors.text;
     e->caret     = (ui_point_t){-1, -1};
-    e->view.message = ns(message);
-    e->view.paint   = ns(paint);
-    e->view.measure = ns(measure);
-    e->view.layout  = ns(layout);
+    e->view.message = ui_edit_message;
+    e->view.paint   = ui_edit_paint;
+    e->view.measure = ui_edit_measure;
+    e->view.layout  = ui_edit_layout;
     #ifdef EDIT_USE_TAP
-    e->view.tap     = ns(tap);
+    e->view.tap     = ui_edit_tap;
     #else
-    e->view.mouse   = ns(mouse);
+    e->view.mouse   = ui_edit_mouse;
     #endif
-    e->view.press       = ns(press);
-    e->view.character   = ns(character);
-    e->view.set_focus   = ns(set_focus);
-    e->view.kill_focus  = ns(kill_focus);
-    e->view.key_pressed = ns(key_pressed);
-    e->view.mouse_wheel = ns(mousewheel);
-    e->set_font       = ns(set_font);
-    e->move           = ns(move);
-    e->paste          = ns(paste);
-    e->copy           = ns(copy);
-    e->erase          = ns(erase);
-    e->cut_to_clipboard = ns(clipboard_cut);
-    e->copy_to_clipboard = ns(clipboard_copy);
-    e->paste_from_clipboard = ns(clipboard_paste);
-    e->select_all    = ns(select_all);
-    e->key_down      = ns(key_down);
-    e->key_up        = ns(key_up);
-    e->key_left      = ns(key_left);
-    e->key_right     = ns(key_right);
-    e->key_pageup    = ns(key_pageup);
-    e->key_pagedw    = ns(key_pagedw);
-    e->key_home      = ns(key_home);
-    e->key_end       = ns(key_end);
-    e->key_delete    = ns(key_delete);
-    e->key_backspace = ns(key_backspace);
-    e->key_enter     = ns(key_enter);
-    e->fuzz                 = null;
+    e->view.press       = ui_edit_press;
+    e->view.character   = ui_edit_character;
+    e->view.set_focus   = ui_edit_set_focus;
+    e->view.kill_focus  = ui_edit_kill_focus;
+    e->view.key_pressed = ui_edit_key_pressed;
+    e->view.mouse_wheel = ui_edit_mousewheel;
+    e->set_font       = ui_edit_set_font;
+    e->move           = ui_edit_move;
+    e->paste          = ui_edit_paste;
+    e->copy           = ui_edit_copy;
+    e->erase          = ui_edit_erase;
+    e->cut_to_clipboard = ui_edit_clipboard_cut;
+    e->copy_to_clipboard = ui_edit_clipboard_copy;
+    e->paste_from_clipboard = ui_edit_clipboard_paste;
+    e->select_all    = ui_edit_select_all;
+    e->key_down      = ui_edit_key_down;
+    e->key_up        = ui_edit_key_up;
+    e->key_left      = ui_edit_key_left;
+    e->key_right     = ui_edit_key_right;
+    e->key_pageup    = ui_edit_key_pageup;
+    e->key_pagedw    = ui_edit_key_pagedw;
+    e->key_home      = ui_edit_key_home;
+    e->key_end       = ui_edit_key_end;
+    e->key_delete    = ui_edit_key_delete;
+    e->key_backspace = ui_edit_key_backspace;
+    e->key_enter     = ui_edit_key_enter;
+    e->fuzz          = null;
     // Expected manifest.xml containing UTF-8 code page
     // for Translate message and WM_CHAR to deliver UTF-8 characters
     // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
@@ -1783,7 +1777,3 @@ void ns(init)(ui_edit_t* e) {
     // Absence of manifest.xml will result to ancient and useless ANSI 1252 codepage
     // TODO: may be change quick.h to use CreateWindowW() and translate UTF16 to UTF8
 }
-
-#pragma pop_macro("ns")
-#pragma pop_macro("fn")
-
