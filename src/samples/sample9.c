@@ -19,7 +19,7 @@ ui_app_t ui_app = {
     }
 };
 
-static ui_point_t em;
+static ui_em_t em;
 static int32_t panel_border = 1;
 static int32_t frame_border = 1;
 
@@ -66,7 +66,7 @@ static ui_label_t about = ui_label(34.56f,
 
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
 
-static_ui_mbx(mbx, // message box
+ui_mbx_on_choice(mbx, // message box
     "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
     "is it the longest English language word or not?", {
     traceln("option=%d", option); // -1 or index of { "&Yes", "&No" }
@@ -106,7 +106,7 @@ static void open_file(ui_button_t* unused(b)) {
     }
 }
 
-static_ui_button(button_open_file, "&Open", 7.5, {
+ui_button_on_click(button_open_file, "&Open", 7.5, {
     open_file(button_open_file);
 });
 
@@ -118,7 +118,7 @@ static void flip_full_screen(ui_button_t* b) {
     }
 }
 
-static_ui_button(button_full_screen, ui_glyph_two_joined_squares, 1, {
+ui_button_on_click(button_full_screen, ui_glyph_two_joined_squares, 1, {
     flip_full_screen(button_full_screen);
 });
 
@@ -134,18 +134,18 @@ static void flip_locale(ui_button_t* b) {
 static ui_button_t button_locale = ui_button(
     ui_glyph_kanji_onna_female "A", 1, flip_locale);
 
-static_ui_button(button_about, "&About", 7.5, {
+ui_button_on_click(button_about, "&About", 7.5, {
     ui_app.show_toast(&about, 10.0);
 });
 
-static_ui_button(button_mbx, "&Message Box", 7.5, {
+ui_button_on_click(button_mbx, "&Message Box", 7.5, {
     ui_app.show_toast(&mbx.view, 0);
 });
 
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
 
 // ui_toggle label can include "___" for "ON ": "OFF" state
-static_ui_toggle(scroll, "Scroll &Direction:", 0, {});
+ui_toggle_on_switch(scroll, "Scroll &Direction:", 0, {});
 
 #else
 
@@ -184,15 +184,15 @@ static void panel_paint(ui_view_t* view) {
         assert(view == &panel_center);
         ui_gdi.line(view->x, view->y + view->h);
     }
-    int32_t x = view->x + panel_border + ut_max(1, em.x / 8);
-    int32_t y = view->y + panel_border + ut_max(1, em.y / 4);
+    int32_t x = view->x + panel_border + ut_max(1, em.body.w / 8);
+    int32_t y = view->y + panel_border + ut_max(1, em.body.h / 4);
     ui_pen_t s = ui_gdi.set_colored_pen(view->color);
     ui_gdi.set_brush(ui_gdi.brush_hollow);
-    ui_gdi.rounded(x, y, em.x * 12, em.y, ut_max(1, em.y / 4), ut_max(1, em.y / 4));
+    ui_gdi.rounded(x, y, em.body.w * 12, em.body.h, ut_max(1, em.body.h / 4), ut_max(1, em.body.h / 4));
     ui_gdi.set_pen(s);
     ui_color_t color = ui_gdi.set_text_color(view->color);
-    ui_gdi.x = view->x + panel_border + ut_max(1, em.x / 2);
-    ui_gdi.y = view->y + panel_border + ut_max(1, em.y / 4);
+    ui_gdi.x = view->x + panel_border + ut_max(1, em.body.w / 2);
+    ui_gdi.y = view->y + panel_border + ut_max(1, em.body.h / 4);
     ui_gdi.text("%d,%d %dx%d %s", view->x, view->y, view->w, view->h, view->text);
     ui_gdi.set_text_color(color);
     ui_gdi.set_clip(0, 0, 0, 0);
@@ -201,17 +201,17 @@ static void panel_paint(ui_view_t* view) {
 }
 
 static void right_layout(ui_view_t* view) {
-    int x = view->x + em.x;
-    int y = view->y + em.y * 2;
+    int x = view->x + em.body.w;
+    int y = view->y + em.body.h * 2;
     ui_view_for_each(view, c, {
         c->x = x;
         c->y = y;
-        y += c->h + em.y / 2;
+        y += c->h + em.body.h / 2;
     });
 }
 
 static void text_after(ui_view_t* view, const char* format, ...) {
-    ui_gdi.x = view->x + view->w + view->em.x;
+    ui_gdi.x = view->x + view->w + view->em.body.w;
     ui_gdi.y = view->y;
     va_list va;
     va_start(va, format);
@@ -223,15 +223,15 @@ static void right_paint(ui_view_t* view) {
     panel_paint(view);
     ui_gdi.push(view->x, view->y);
     ui_gdi.set_clip(view->x, view->y, view->w, view->h);
-    ui_gdi.x = button_locale.x + button_locale.w + em.x;
+    ui_gdi.x = button_locale.x + button_locale.w + em.body.w;
     ui_gdi.y = button_locale.y;
     ui_gdi.println("&Locale %s", button_locale.pressed ? "zh-CN" : "en-US");
-    ui_gdi.x = button_full_screen.x + button_full_screen.w + em.x;
+    ui_gdi.x = button_full_screen.x + button_full_screen.w + em.body.w;
     ui_gdi.y = button_full_screen.y;
     ui_gdi.println(ui_app.is_full_screen ? ut_nls.str("Restore from &Full Screen") :
         ut_nls.str("&Full Screen"));
     ui_gdi.x = label_multiline.x;
-    ui_gdi.y = label_multiline.y + label_multiline.h + ut_max(1, em.y / 4);
+    ui_gdi.y = label_multiline.y + label_multiline.h + ut_max(1, em.body.h / 4);
     ui_gdi.textln(ut_nls.str("Proportional"));
     ui_gdi.println(ut_nls.str("Monospaced"));
     ui_font_t font = ui_gdi.set_font(ui_app.fonts.H1);
@@ -266,19 +266,19 @@ static void center_paint(ui_view_t* view) {
 }
 
 static void measure(ui_view_t* view) {
-    ui_point_t em_mono = ui_gdi.get_em(ui_app.fonts.mono);
+    ui_em_t em_mono = ui_gdi.get_em(ui_app.fonts.mono);
     em = ui_gdi.get_em(ui_app.fonts.regular);
     view->em = em;
-    panel_border = ut_max(1, em_mono.y / 4);
-    frame_border = ut_max(1, em_mono.y / 8);
+    panel_border = ut_max(1, em_mono.body.h / 4);
+    frame_border = ut_max(1, em_mono.body.h / 8);
     assert(panel_border > 0 && frame_border > 0);
     const int32_t w = ui_app.width;
     const int32_t h = ui_app.height;
     // measure ui elements
     panel_top.w = (int32_t)(0.70 * w);
-    panel_top.h = em.y * 2;
+    panel_top.h = em.body.h * 2;
     panel_bottom.w = panel_top.w;
-    panel_bottom.h = em.y * 2;
+    panel_bottom.h = em.body.h * 2;
     panel_right.w = w - panel_bottom.w;
     panel_right.h = h;
     panel_center.w = panel_bottom.w;
@@ -286,7 +286,7 @@ static void measure(ui_view_t* view) {
 }
 
 static void layout(ui_view_t* unused(view)) {
-    assert(view->em.x > 0 && view->em.y > 0);
+    assert(view->em.body.w > 0 && view->em.body.h > 0);
     const int32_t h = ui_app.height;
     panel_top.x = 0;
     panel_top.y = 0;

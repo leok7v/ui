@@ -3,7 +3,7 @@
 #include "single_file_lib/ui/ui.h"
 #include "edit.h"
 
-static bool debug_layout; // = true;
+static bool debug_layout = false;
 
 const char* title = "Sample5";
 
@@ -18,7 +18,7 @@ static ui_font_t pf; // proportional font
 static ui_edit_t edit0;
 static ui_edit_t edit1;
 static ui_edit_t edit2;
-static ui_edit_t* edit[3] = { &edit0, &edit1, &edit2 };
+static ui_edit_t* edit[] = { &edit0, &edit1, &edit2 };
 
 static int32_t focused(void) {
     // ui_app.focus can point to a button, thus see which edit
@@ -53,13 +53,13 @@ static void scaled_fonts(void) {
                   -1);
 }
 
-static_ui_button(full_screen, "&Full Screen", 7.5, {
+ui_button_on_click(full_screen, "&Full Screen", 7.5, {
     ui_app.full_screen(!ui_app.is_full_screen);
 });
 
-static_ui_button(quit, "&Quit", 7.5, { ui_app.close(); });
+ui_button_on_click(quit, "&Quit", 7.5, { ui_app.close(); });
 
-static_ui_button(fuzz, "Fu&zz", 7.5, {
+ui_button_on_click(fuzz, "Fu&zz", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->fuzz(edit[ix]);
@@ -68,7 +68,7 @@ static_ui_button(fuzz, "Fu&zz", 7.5, {
     }
 });
 
-static_ui_toggle(ro, "&Read Only", 7.5, {
+ui_toggle_on_switch(ro, "&Read Only", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->ro = ro->pressed;
@@ -77,7 +77,7 @@ static_ui_toggle(ro, "&Read Only", 7.5, {
     }
 });
 
-static_ui_toggle(mono, "&Mono", 7.5, {
+ui_toggle_on_switch(mono, "&Mono", 7.5, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->set_font(edit[ix], mono->pressed ? &mf : &pf);
@@ -87,7 +87,7 @@ static_ui_toggle(mono, "&Mono", 7.5, {
     }
 });
 
-static_ui_toggle(sl, "&Single Line", 7.5, {
+ui_toggle_on_switch(sl, "&Single Line", 7.5, {
     int32_t ix = focused();
     if (ix == 2) {
         sl->pressed = true; // always single line
@@ -128,14 +128,14 @@ static void font_reset(void) {
     ui_app.layout();
 }
 
-static_ui_button(fp, "Font Ctrl+", 7.5, { font_plus(); });
+ui_button_on_click(fp, "Font Ctrl+", 7.5, { font_plus(); });
 
-static_ui_button(fm, "Font Ctrl-", 7.5, { font_minus(); });
+ui_button_on_click(fm, "Font Ctrl-", 7.5, { font_minus(); });
 
 static ui_label_t label = ui_label(0.0, "...");
 
-static ui_view_t right  = ui_view(container);
-static ui_view_t left   = ui_view(container);
+static ui_view_t left   = ui_view(list);
+static ui_view_t right  = ui_view(list);
 static ui_view_t bottom = ui_view(container);
 
 static void set_text(int32_t ix) {
@@ -180,7 +180,7 @@ static void paint_frames(ui_view_t* view) {
         ui_colors.yellow, ui_colors.cyan, ui_colors.magenta
     };
     static int32_t color;
-    ui_gdi.push(view->x, view->y + view->h - view->em.y);
+    ui_gdi.push(view->x, view->y + view->h - view->em.body.h);
     ui_gdi.frame_with(view->x, view->y, view->w, view->h, fc[color]);
     ui_color_t c = ui_gdi.set_text_color(fc[color]);
     ui_gdi.print("%s", view->text);
@@ -243,77 +243,25 @@ static void every_100ms(void) {
     last = ui_app.focus;
 }
 
-static void measure(ui_view_t* view) {
-//  traceln("");
-    // gaps:
-    const int32_t gx = view->em.x;
-    const int32_t gy = view->em.y;
-    right.h = view->h - label.h - gy;
-    right.w = 0;
-    measurements.vertical(&right, gy / 2);
-    right.w += gx;
-    bottom.w = label.w - gx;
-    bottom.h = label.h;
-    int32_t h = (view->h - bottom.h - gy * 3) / countof(edit);
-    for (int32_t i = 0; i < 2; i++) { // edit[0] and edit[1] only
-        edit[i]->view.w = view->w - right.w - gx * 2;
-        edit[i]->view.h = h; // TODO: remove me - bad idea
-    }
-    left.w = 0;
-    measurements.vertical(&left, gy);
-    left.w += gx;
-    edit2.view.w = ro.w; // only "width" height determined by label
-    if (debug_layout) {
-        traceln("%d,%d %dx%d", view->x, view->y, view->w, view->h);
-        traceln("right %d,%d %dx%d", right.x, right.y, right.w, right.h);
-        ui_view_for_each(&right, c, {
-            traceln("  %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
-        });
-        for (int32_t i = 0; i < countof(edit); i++) {
-            traceln("[%d] %d,%d %dx%d", i, edit[i]->view.x, edit[i]->view.y,
-                edit[i]->view.w, edit[i]->view.h);
-        }
-        traceln("left %d,%d %dx%d", left.x, left.y, left.w, left.h);
-        traceln("bottom %d,%d %dx%d", bottom.x, bottom.y, bottom.w, bottom.h);
-    }
-}
-
-static void layout(ui_view_t* view) {
-//  traceln("");
-    // gaps:
-    const int32_t gx2 = view->em.x / 2;
-    const int32_t gy2 = view->em.y / 2;
-    left.x = gx2;
-    left.y = gy2;
-    layouts.vertical(&left, left.x + gx2, left.y + gy2, gy2);
-    right.x = left.x + left.w + gx2;
-    right.y = left.y;
-    bottom.x = gx2;
-    bottom.y = view->h - bottom.h;
-    layouts.vertical(&right, right.x + gx2, right.y, gy2);
-    label.x = gx2;
-    label.y = view->h - label.h;
-}
-
 // limiting vertical height of SLE to 3 lines of text:
 
-static void (*hooked_sle_measure)(ui_view_t* unused(view));
-
-static void measure_3_lines_sle(ui_view_t* view) {
+static void edit2_before_measure(ui_view_t* view) { // _3_lines_sle
     // UX design decision:
     // 3 vertical visible runs SLE is friendlier in UX term
     // than not implemented horizontal scroll.
     assert(view == &edit[2]->view);
 //  traceln("WxH: %dx%d <- r/o button", ro.view.w, ro.view.h);
     view->w = ro.w; // r/o button
-    hooked_sle_measure(view);
+}
+
+static void edit2_after_measure(ui_view_t* view) {
 //  traceln("WxH: %dx%d (%dx%d) em: %d lines: %d",
 //          edit[2]->view.w, edit[2]->view.h,
 //          edit[2]->width, edit[2]->height,
-//          edit[2]->view.em.y, edit[2]->view.h / edit[2]->view.em.y);
+//          edit[2]->view.em.body.h, edit[2]->view.h / edit[2]->view.em.body.h);
     int32_t max_lines = edit[2]->focused ? 3 : 1;
-    if (view->h > view->em.y * max_lines) {
-        view->h = view->em.y * max_lines;
+    if (view->h > view->em.body.h * max_lines) {
+        view->h = view->em.body.h * max_lines;
     }
 }
 
@@ -356,16 +304,17 @@ void ui_edit_fuzz(ui_edit_t* e);
 void ui_edit_next_fuzz(ui_edit_t* e);
 
 static void opened(void) {
-    ui_app.view->measure     = measure;
-    ui_app.view->layout      = layout;
+//  ui_app.view->measure     = measure;
+//  ui_app.view->layout      = layout;
     ui_app.view->paint       = paint;
     ui_app.view->key_pressed = key_pressed;
     scaled_fonts();
-    ui_view.add(ui_app.view, &left, &right, &bottom, null);
     label.font = &ui_app.fonts.mono;
     strprintf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);
+        edit[i]->view.max_w = ui.infinity;
+        if (i < 2) { edit[i]->view.max_h = ui.infinity; }
         edit[i]->view.font = &pf;
         edit[i]->fuzz = ui_edit_fuzz;
         edit[i]->next_fuzz = ui_edit_next_fuzz;
@@ -375,22 +324,49 @@ static void opened(void) {
     ui_app.every_100ms = every_100ms;
     set_text(0); // need to be two lines for measure
     // edit[2] is SLE:
-    ui_edit_init(edit[2]);
-    hooked_sle_measure = edit[2]->view.measure;
-    edit[2]->view.font = &pf;
-    edit[2]->fuzz = ui_edit_fuzz;
-    edit[2]->next_fuzz = ui_edit_next_fuzz;
-    edit[2]->view.measure = measure_3_lines_sle;
+    edit[2]->view.before_measure = edit2_before_measure;
+    edit[2]->view.after_measure  = edit2_after_measure;
     edit[2]->sle = true;
     edit[2]->select_all(edit[2]);
     edit[2]->paste(edit[2], "Single line edit", -1);
     edit[2]->enter = edit_enter;
+    static ui_view_t span    = ui_view(span);
+    static ui_view_t spacer1 = ui_view(spacer);
+    static ui_view_t spacer2 = ui_view(spacer);
+    static ui_view_t spacer3 = ui_view(spacer);
+    static ui_view_t spacer4 = ui_view(spacer);
+    ui_view.add(ui_app.view,
+        ui_view.add(&span,
+            ui_view.add(&left,
+                &edit0,
+                &spacer1,
+                &edit1,
+                &spacer4,
+                &label,
+            null),
+            &spacer2,
+            ui_view.add(&right,
+                &full_screen,
+                &quit,
+                &fuzz,
+                &fp,
+                &fm,
+                &mono,
+                &sl,
+                &ro,
+                &edit2,
+                &spacer3,
+            null),
+        null),
+    null);
+    span.max_h = ui.infinity;
 
-    ui_view.add(&right, &full_screen, &quit, &fuzz,
-                &fp, &fm, &mono, &sl, &ro,
-                &edit2,null);
-    ui_view.add(&left, &edit0, &edit1, null);
-    ui_view.add(&bottom, &label, null);
+    label.align = ui.align.left;
+    edit2.view.align = ui.align.left;
+
+    left.max_w = ui.infinity;
+    left.max_h = ui.infinity;
+    right.max_h = ui.infinity;
     if (ut_args.c > 1) { open_file(ut_args.v[1]); }
 }
 

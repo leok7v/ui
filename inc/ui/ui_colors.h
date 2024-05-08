@@ -15,36 +15,50 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
 #define ui_color_transparent ((ui_color_t)0x4000000000000000ULL)
 #define ui_color_hdr         ((ui_color_t)0xC000000000000000ULL)
 
-#define ui_color_is_8bit(c)         (((c) & ui_color_mask) == 0)
-#define ui_color_is_hdr(c)          (((c) & ui_color_mask) == ui_color_hdr)
-#define ui_color_is_undefined(c)    (((c) & ui_color_mask) == ui_color_undefined)
-#define ui_color_is_transparent(c)  ((((c) & ui_color_mask) == ui_color_transparent) && \
-                                    (((c) & ~ui_color_mask) == 0))
+#define ui_color_is_8bit(c)         ( ((c) &  ui_color_mask) == 0)
+#define ui_color_is_hdr(c)          ( ((c) &  ui_color_mask) == ui_color_hdr)
+#define ui_color_is_undefined(c)    ( ((c) &  ui_color_mask) == ui_color_undefined)
+#define ui_color_is_transparent(c)  ((((c) &  ui_color_mask) == ui_color_transparent) && \
+                                    ( ((c) & ~ui_color_mask) == 0))
 // if any other special colors or formats need to be introduced
 // (c) & ~ui_color_mask) has 2^62 possible extensions bits
 
 // ui_color_hdr A - 14 bit, R,G,B - 16 bit, all in range [0..0xFFFF]
 #define ui_color_hdr_a(c)    ((uint16_t)((((c) >> 48) & 0x3FFF) << 2))
-#define ui_color_hdr_r(c)    ((uint16_t)(((c) >>   0) & 0xFFFF))
-#define ui_color_hdr_g(c)    ((uint16_t)(((c) >>  16) & 0xFFFF))
-#define ui_color_hdr_b(c)    ((uint16_t)(((c) >>  32) & 0xFFFF))
+#define ui_color_hdr_r(c)    ((uint16_t)( ((c) >>   0) & 0xFFFF))
+#define ui_color_hdr_g(c)    ((uint16_t)( ((c) >>  16) & 0xFFFF))
+#define ui_color_hdr_b(c)    ((uint16_t)( ((c) >>  32) & 0xFFFF))
 
 #define ui_color_a(c)        ((uint8_t)(((c) >> 24) & 0xFFU))
 #define ui_color_r(c)        ((uint8_t)(((c) >>  0) & 0xFFU))
 #define ui_color_g(c)        ((uint8_t)(((c) >>  8) & 0xFFU))
 #define ui_color_b(c)        ((uint8_t)(((c) >> 16) & 0xFFU))
 
-#define ui_color_rgb(c)      ((uint32_t)((c) & 0x00FFFFFFU))
-#define ui_color_rgba(c)     ((uint32_t)((c) & 0xFFFFFFFFU))
+#define ui_color_rgb(c)      ((uint32_t)( (c) & 0x00FFFFFFU))
+#define ui_color_rgba(c)     ((uint32_t)( (c) & 0xFFFFFFFFU))
+#define ui_color_rgbFF(c)    ((uint32_t)(((c) & 0x00FFFFFFU)) | 0xFF000000U)
 
-#define ui_rgb(r,g,b) ((ui_color_t)(((uint8_t)(r) |    \
-                      ((uint16_t)((uint8_t)(g))<<8)) | \
-                     (((uint32_t)(uint8_t)(b))<<16)))
+#define ui_rgb(r,g,b)        ((ui_color_t)(((uint8_t)(r)    | \
+                             ((uint16_t)((uint8_t)(g))<<8)) | \
+                             (((uint32_t)(uint8_t)(b))<<16)))
 
-#define ui_rgba(r, g, b, a) (ui_color_t)((ui_rgb(r, g, b)) | \
-                                       (((uint8_t)a) << 24))
+#define ui_rgba(r, g, b, a)  (ui_color_t)((ui_rgb(r, g, b)) | \
+                             (((uint64_t)((uint8_t)(a))) << 24))
 
 typedef struct ui_colors_s {
+    void       (*rgb_to_hsi)(fp64_t r, fp64_t g, fp64_t b, fp64_t *h, fp64_t *s, fp64_t *i);
+    ui_color_t (*hsi_to_rgb)(fp64_t h, fp64_t s, fp64_t i,  uint8_t a);
+    // interpolate():
+    //    0.0 < multiplier < 1.0 excluding boundaries
+    //    alpha is interpolated as well
+    ui_color_t (*interpolate)(ui_color_t c0, ui_color_t c1, fp32_t multiplier);
+    ui_color_t (*gray_with_same_intensity)(ui_color_t c);
+    // lighten() and darken() ignore alpha (use interpolate for alpha colors)
+    ui_color_t (*lighten)(ui_color_t rgb, fp32_t multiplier); // interpolate toward white
+    ui_color_t (*darken)(ui_color_t  rgb, fp32_t multiplier); // interpolate toward black
+    ui_color_t (*adjust_saturation)(ui_color_t c,fp32_t multiplier);
+    ui_color_t (*multiply_brightness)(ui_color_t c, fp32_t multiplier);
+    ui_color_t (*multiply_saturation)(ui_color_t c, fp32_t multiplier);
     const int32_t none; // aka CLR_INVALID in wingdi
     const int32_t text;
     const int32_t white;
@@ -245,9 +259,9 @@ typedef struct ui_colors_s {
     const int32_t ceil;
     const int32_t moonstone_blue;
     const int32_t independence;
-} ui_colors_t;
+} ui_colors_if;
 
-extern ui_colors_t ui_colors;
+extern ui_colors_if ui_colors;
 
 // TODO:
 // https://ankiewicz.com/colors/

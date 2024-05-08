@@ -344,8 +344,8 @@ fn(void, create_caret)(ui_edit_t* e) {
     assert(ui_app.is_active());
     assert(ui_app.has_focus());
     int32_t caret_width = ut_min(2, ut_max(1, ui_app.dpi.monitor_effective / 100));
-//  traceln("%d,%d", caret_width, e->view.em.y);
-    ui_app.create_caret(caret_width, e->view.em.y);
+//  traceln("%d,%d", caret_width, e->view.em.body.h);
+    ui_app.create_caret(caret_width, e->view.em.body.h);
     e->focused = true; // means caret was created
 }
 
@@ -504,7 +504,7 @@ fn(ui_point_t, pg_to_xy)(ui_edit_t* e, const ui_edit_pg_t pg) {
                     break;
                 }
             }
-            pt.y += e->view.em.y;
+            pt.y += e->view.em.body.h;
         }
     }
     if (pg.pn == e->paragraphs) { pt.x = 0; }
@@ -543,7 +543,7 @@ fn(ui_edit_pg_t, xy_to_pg)(ui_edit_t* e, int32_t x, int32_t y) {
         for (int32_t j = ns(first_visible_run)(e, i); j < runs && pg.pn < 0; j++) {
             const ui_edit_run_t* r = &run[j];
             char* s = e->para[i].text + run[j].bp;
-            if (py <= y && y < py + e->view.em.y) {
+            if (py <= y && y < py + e->view.em.body.h) {
                 int32_t w = ns(text_width)(e, s, r->bytes);
                 pg.pn = i;
                 if (x >= w) {
@@ -561,7 +561,7 @@ fn(ui_edit_pg_t, xy_to_pg)(ui_edit_t* e, int32_t x, int32_t y) {
                     }
                 }
             } else {
-                py += e->view.em.y;
+                py += e->view.em.body.h;
             }
         }
         if (py > e->view.h) { break; }
@@ -596,7 +596,7 @@ fn(void, paint_selection)(ui_edit_t* e, const ui_edit_run_t* r,
             int32_t x1 = ns(text_width)(e, text, ofs1);
             ui_brush_t b = ui_gdi.set_brush(ui_gdi.brush_color);
             ui_color_t c = ui_gdi.set_brush_color(ui_rgb(48, 64, 72));
-            ui_gdi.fill(ui_gdi.x + x0, ui_gdi.y, x1 - x0, e->view.em.y);
+            ui_gdi.fill(ui_gdi.x + x0, ui_gdi.y, x1 - x0, e->view.em.body.h);
             ui_gdi.set_brush_color(c);
             ui_gdi.set_brush(b);
         }
@@ -612,7 +612,7 @@ fn(void, paint_paragraph)(ui_edit_t* e, int32_t pn) {
         ui_gdi.x = e->view.x;
         ns(paint_selection)(e, &run[j], text, pn, run[j].gp, run[j].gp + run[j].glyphs);
         ui_gdi.text("%.*s", run[j].bytes, text);
-        ui_gdi.y += e->view.em.y;
+        ui_gdi.y += e->view.em.body.h;
     }
 }
 
@@ -691,7 +691,7 @@ fn(void, scroll_into_view)(ui_edit_t* e, const ui_edit_pg_t pg) {
             const int32_t fvr = ns(first_visible_run)(e, i);
             for (int32_t j = fvr; j < runs && py < bottom; j++) {
                 last = ns(uint64)(i, j);
-                py += e->view.em.y;
+                py += e->view.em.body.h;
             }
         }
         int32_t sle_runs = e->sle && e->view.w > 0 ?
@@ -701,7 +701,7 @@ fn(void, scroll_into_view)(ui_edit_t* e, const ui_edit_pg_t pg) {
             .gp = e->para[e->paragraphs - 1].glyphs };
         ui_edit_pr_t lp = ns(pg_to_pr)(e, last_paragraph);
         uint64_t eof = ns(uint64)(e->paragraphs - 1, lp.rn);
-        if (last == eof && py <= bottom - e->view.em.y) {
+        if (last == eof && py <= bottom - e->view.em.body.h) {
             // vertical white space for EOF on the screen
             last = ns(uint64)(e->paragraphs, 0);
         }
@@ -710,7 +710,7 @@ fn(void, scroll_into_view)(ui_edit_t* e, const ui_edit_pg_t pg) {
         } else if (caret < scroll) {
             e->scroll.pn = pg.pn;
             e->scroll.rn = rn;
-        } else if (e->sle && sle_runs * e->view.em.y <= e->view.h) {
+        } else if (e->sle && sle_runs * e->view.em.body.h <= e->view.h) {
             // single line edit control fits vertically - no scroll
         } else {
             assert(caret >= last);
@@ -718,7 +718,7 @@ fn(void, scroll_into_view)(ui_edit_t* e, const ui_edit_pg_t pg) {
             e->scroll.rn = rn;
             while (e->scroll.pn > 0 || e->scroll.rn > 0) {
                 ui_point_t pt = ns(pg_to_xy)(e, pg);
-                if (pt.y + e->view.em.y > bottom - e->view.em.y) { break; }
+                if (pt.y + e->view.em.body.h > bottom - e->view.em.body.h) { break; }
                 if (e->scroll.rn > 0) {
                     e->scroll.rn--;
                 } else {
@@ -989,8 +989,8 @@ fn(void, reuse_last_x)(ui_edit_t* e, ui_point_t* pt) {
     // movements alleviates this unpleasant UX experience to some degree.
     if (pt->x > 0) {
         if (e->last_x > 0) {
-            int32_t prev = e->last_x - e->view.em.x;
-            int32_t next = e->last_x + e->view.em.x;
+            int32_t prev = e->last_x - e->view.em.body.w;
+            int32_t next = e->last_x + e->view.em.body.w;
             if (prev <= pt->x && pt->x <= next) {
                 pt->x = e->last_x;
             }
@@ -1044,7 +1044,7 @@ fn(void, key_down)(ui_edit_t* e) {
     if (!e->sle && run_count >= e->visible_runs - 1) {
         ns(scroll_up)(e, 1);
     } else {
-        pt.y += e->view.em.y;
+        pt.y += e->view.em.body.h;
     }
     ui_edit_pg_t to = ns(xy_to_pg)(e, pt.x, pt.y);
     if (to.pn < 0 && to.gp < 0) {
@@ -1091,11 +1091,11 @@ fn(void, key_home)(ui_edit_t* e) {
 fn(void, key_end)(ui_edit_t* e) {
     if (ui_app.ctrl) {
         int32_t py = e->bottom;
-        for (int32_t i = e->paragraphs - 1; i >= 0 && py >= e->view.em.y; i--) {
+        for (int32_t i = e->paragraphs - 1; i >= 0 && py >= e->view.em.body.h; i--) {
             int32_t runs = ns(paragraph_run_count)(e, i);
-            for (int32_t j = runs - 1; j >= 0 && py >= e->view.em.y; j--) {
-                py -= e->view.em.y;
-                if (py < e->view.em.y) {
+            for (int32_t j = runs - 1; j >= 0 && py >= e->view.em.body.h; j--) {
+                py -= e->view.em.body.h;
+                if (py < e->view.em.body.h) {
                     e->scroll.pn = i;
                     e->scroll.rn = j;
                 }
@@ -1444,7 +1444,7 @@ fn(void, mousewheel)(ui_view_t* view, int32_t unused(dx), int32_t dy) {
     if (ui_app.focus == view) {
         assert(view->type == ui_view_text);
         ui_edit_t* e = (ui_edit_t*)view;
-        int32_t lines = (abs(dy) + view->em.y - 1) / view->em.y;
+        int32_t lines = (abs(dy) + view->em.body.h - 1) / view->em.body.h;
         if (dy > 0) {
             ns(scroll_down)(e, lines);
         } else if (dy < 0) {
@@ -1618,11 +1618,11 @@ fn(void, measure)(ui_view_t* view) { // bottom up
     ui_edit_t* e = (ui_edit_t*)view;
     // enforce minimum size - it makes it checking corner cases much simpler
     // and it's hard to edit anything in a smaller area - will result in bad UX
-    if (view->w < view->em.x * 4) { view->w = view->em.x * 4; }
-    if (view->h < view->em.y) { view->h = view->em.y; }
+    if (view->w < view->em.body.w * 4) { view->w = view->em.body.w * 4; }
+    if (view->h < view->em.body.h) { view->h = view->em.body.h; }
     if (e->sle) { // for SLE if more than one run resize vertical:
         int32_t runs = ut_max(ns(paragraph_run_count)(e, 0), 1);
-        if (view->h < view->em.y * runs) { view->h = view->em.y * runs; }
+        if (view->h < view->em.body.h * runs) { view->h = view->em.body.h * runs; }
     }
 }
 
@@ -1646,11 +1646,11 @@ fn(void, layout)(ui_view_t* view) { // top down
     int32_t sle_height = 0;
     if (e->sle) {
         int32_t runs = ut_max(ns(paragraph_run_count)(e, 0), 1);
-        sle_height = ut_min(e->view.em.y * runs, view->h);
+        sle_height = ut_min(e->view.em.body.h * runs, view->h);
     }
     e->top    = !e->sle ? 0 : (view->h - sle_height) / 2;
     e->bottom = !e->sle ? view->h : e->top + sle_height;
-    e->visible_runs = (e->bottom - e->top) / e->view.em.y; // fully visible
+    e->visible_runs = (e->bottom - e->top) / e->view.em.body.h; // fully visible
     // number of runs in e->scroll.pn may have changed with view->w change
     int32_t runs = ns(paragraph_run_count)(e, e->scroll.pn);
     e->scroll.rn = ns(pg_to_pr)(e, scroll).rn;
@@ -1660,7 +1660,7 @@ fn(void, layout)(ui_view_t* view) { // top down
     // otherwise resizing view will result in up-down jiggling of the
     // whole text
     if (e->focused) {
-        // recreate caret because em.y may have changed
+        // recreate caret because em.body.h may have changed
         ns(hide_caret)(e);
         ns(destroy_caret)(e);
         ns(create_caret)(e);

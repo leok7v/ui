@@ -11,7 +11,9 @@ void ui_view_init_button(ui_view_t* view);
 void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     void (*callback)(ui_button_t* b));
 
-#define static_ui_button(name, s, min_width_em, ...)             \
+// ui_button_on_click can only be used on static button variables
+
+#define ui_button_on_click(name, s, min_width_em, ...)           \
     static void name ## _callback(ui_button_t* name) {           \
         (void)name; /* no warning if unused */                   \
         { __VA_ARGS__ }                                          \
@@ -30,7 +32,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 
 // usage:
 //
-// static_ui_button(button, "&Button", 7.0, {
+// ui_button_on_click(button, "&Button", 7.0, {
 //      button->pressed = !button->pressed;
 // })
 //

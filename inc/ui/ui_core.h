@@ -5,6 +5,14 @@ begin_c
 
 typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
+typedef struct ui_wh_s { int32_t w, h; } ui_wh_t;
+
+typedef struct ui_em_s {
+    ui_wh_t body;      // body square size in "em"s sans ascend/descent
+    int32_t height;    // font height in pixels
+    int32_t baseline;  // font ascent; descent = height - baseline
+    int32_t descent;   // font descent
+} ui_em_t;
 
 typedef struct ui_window_s* ui_window_t;
 typedef struct ui_icon_s*   ui_icon_t;

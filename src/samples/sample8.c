@@ -9,6 +9,7 @@ static void opened(void);
 static void container_test(ui_view_t* parent);
 static void span_test(ui_view_t* parent);
 static void list_test(ui_view_t* parent);
+static void controls_test(ui_view_t* parent);
 
 static void init(void) {
     ui_app.title  = title;
@@ -27,24 +28,36 @@ ui_app_t ui_app = {
 
 static ui_view_t test = ui_view(container);
 
-static void toggle_test_container(ui_button_t* b) {
+static void toggle_container(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
     container_test(&test);
 }
 
-static void toggle_test_span(ui_button_t* b) {
+static void toggle_span(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
     span_test(&test);
 }
-static void toggle_test_list(ui_button_t* b) {
+
+static void toggle_list(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
     list_test(&test);
 }
 
-static void slider_callback(ui_view_t* v) {
+static void toggle_controls(ui_button_t* b) {
+    ui_view_for_each(b->parent, c, { c->pressed = false; });
+    b->pressed = !b->pressed;
+    controls_test(&test);
+}
+
+static void insets_callback(ui_view_t* v) {
+    ui_slider_t* slider = (ui_slider_t*)v;
+    traceln("value: %d", slider->value);
+}
+
+static void padding_callback(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
     traceln("value: %d", slider->value);
 }
@@ -85,22 +98,26 @@ static void opened(void) {
     static ui_view_t list = ui_view(list);
     static ui_view_t span = ui_view(span);
     static ui_view_t tools = ui_view(list);
-    static ui_button_t test_container = ui_button("&Container", 8.0, toggle_test_container);
-    static ui_button_t test_span      = ui_button("&Span",      8.0, toggle_test_span);
-    static ui_button_t test_list      = ui_button("&List",      8.0, toggle_test_list);
-    static ui_button_t about          = ui_button("&About",     8.0, toggle_about);
-    static ui_slider_t slider         = ui_slider("%d", 2.5, 0, 3, slider_callback);
+    static ui_button_t button_container = ui_button("&Container",  11.0, toggle_container);
+    static ui_button_t button_span      = ui_button("&Span",       11.0, toggle_span);
+    static ui_button_t button_list      = ui_button("&List",       11.0, toggle_list);
+    static ui_button_t button_controls  = ui_button("&Controls",   11.0, toggle_controls);
+    static ui_button_t button_about     = ui_button("&About",      11.0, toggle_about);
+    static ui_slider_t slider_insets    = ui_slider("Insets:  %d",  5.5, 0, 3, insets_callback);
+    static ui_slider_t slider_padding   = ui_slider("Padding: %d",  5.5, 0, 3, padding_callback);
     ui_view.add(ui_app.view,
         ui_view.add(&list,
             &ui_caption,
             ui_view.add(&span,
                 &test,
                 ui_view.add(&tools,
-                    &test_container,
-                    &test_span,
-                    &test_list,
-                    &about,
-                    &slider,
+                    &button_container,
+                    &button_span,
+                    &button_list,
+                    &button_controls,
+                    &button_about,
+                    &slider_insets,
+                    &slider_padding,
                 null),
             null),
         null),
@@ -129,8 +146,11 @@ static void opened(void) {
         it->padding = (ui_gaps_t){ .left = 0.5,  .top = 0.25,
                                    .right = 0.5, .bottom = 0.25 };
     });
-strprintf(test_container.hint, "Shows ui_view(container) layout\nResizing Window will allow\ntoo see how it behaves");
-    toggle_test_container(&test_container);
+    strprintf(button_container.hint,
+        "Shows ui_view(container) layout\n"
+        "Resizing Window will allow\n"
+        "too see how it behaves");
+    toggle_container(&button_container);
 }
 
 static ui_view_t* align(ui_view_t* v, int32_t align) {
@@ -251,4 +271,56 @@ static void list_test(ui_view_t* parent) {
     });
     left.max_w = 0;
     right.max_w = 0;
+}
+
+static void controls_test(ui_view_t* parent) {
+    ui_view.disband(parent);
+    static ui_view_t  list         = ui_view(list);
+    static ui_view_t  span         = ui_view(span);
+
+    static ui_label_t  left        = ui_label(0, "Left");
+    static ui_button_t button1     = ui_button("&Button", 0, null);
+    static ui_slider_t slider1     = ui_slider("Slider: %d", 0.0, 0, INT32_MAX, null);
+    static ui_toggle_t toggle1     = ui_toggle("Toggle: ___", 0.0, null);
+    static ui_label_t  right       = ui_label(0, "Right ");
+    static ui_label_t  label       = ui_label(0, "Label");
+    static ui_button_t button2     = ui_button("&Button", 0, null);
+    static ui_slider_t slider2     = ui_slider("Slider: %d", 0.0, 0, INT32_MAX, null);
+    static ui_toggle_t toggle2     = ui_toggle("Toggle", 0.0, null);
+    static ui_view_t   spacer      = ui_view(spacer);
+    ui_view.add(&test,
+        ui_view.add(&list,
+            ui_view.add(&span,
+                &left,
+                &button1,
+                &right,
+                &slider1,
+                &toggle1,
+            null),
+            &label,
+            &button2,
+            &slider2,
+            &toggle2,
+            &spacer,
+        null),
+    null);
+    list.paint  = ui_view.debug_paint;
+    list.max_w  = ui.infinity;
+    list.max_h  = ui.infinity;
+//  list.color    = ui_color_undefined;
+//  list.color_id = ui_color_id_window;
+//  list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    strprintf(list.text, "list");
+    ui_view_for_each(&list, it, { it->font = &ui_app.fonts.H1; } );
+    ui_view_for_each(&span, it, { it->font = &ui_app.fonts.H1; } );
+//  ui_view_for_each(&list, it, {
+//      it->paint   = ui_view.debug_paint;
+//      it->color   = ui_colors.onyx;
+// TODO: labels, buttons etc should define their own default padding != 0
+//      it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
+//      it->max_w   = ui.infinity;
+//      it->font    = &ui_app.fonts.H1;
+//  });
+//  left.max_w = 0;
+//  right.max_w = 0;
 }

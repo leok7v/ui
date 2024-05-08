@@ -49,7 +49,6 @@ static ui_color_t ui_button_gradient_dark(void) {
 static void ui_button_paint(ui_view_t* v) {
     assert(v->type == ui_view_button);
     assert(!v->hidden);
-    v->color = ui_app.get_color(ui_color_id_button_text);
     ui_gdi.push(v->x, v->y);
     bool pressed = (v->armed ^ v->pressed) == 0;
     if (v->armed_until != 0) { pressed = true; }
@@ -82,7 +81,7 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         ui_gdi.draw_icon(v->x, v->y, v->w, v->h, v->icon);
     }
-    const int32_t pw = ut_max(1, v->em.y / 32); // pen width
+    const int32_t pw = ut_max(1, v->em.body.h / 32); // pen width
     ui_color_t color = v->armed ? ui_colors.dkgray4 : ui_colors.gray;
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
@@ -90,7 +89,7 @@ static void ui_button_paint(ui_view_t* v) {
         ui_pen_t p = ui_gdi.create_pen(color, pw);
         ui_gdi.set_pen(p);
         ui_gdi.set_brush(ui_gdi.brush_hollow);
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, v->em.y / 4, v->em.y / 4);
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, v->em.body.h / 4, v->em.body.h / 4);
         ui_gdi.delete_pen(p);
     }
     ui_gdi.pop();
@@ -162,7 +161,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
 static void ui_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button || v->type == ui_view_label);
     ui_view.measure(v);
-    const int32_t em2  = ut_max(1, v->em.x / 2);
+    const int32_t em2  = ut_max(1, v->em.body.w / 2);
     v->w = v->w;
     v->h = v->h + em2;
     if (v->w < v->h) { v->w = v->h; }
@@ -177,7 +176,7 @@ void ui_view_init_button(ui_view_t* v) {
     v->character   = ui_button_character;
     v->every_100ms = ui_button_every_100ms;
     v->key_pressed = ui_button_key_pressed;
-    v->color       = ui_app.get_color(ui_color_id_window_text);
+    v->color_id    = ui_color_id_window_text;
     ui_view.set_text(v, v->text);
     ui_view.localize(v);
 }

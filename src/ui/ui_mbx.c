@@ -26,8 +26,8 @@ static void ui_mbx_measure(ui_view_t* view) {
 //  } else {
 //      ui_view.measure(&mx->label);
 //  }
-    const int32_t em_x = mx->label.em.x;
-    const int32_t em_y = mx->label.em.y;
+    const int32_t em_x = mx->label.em.body.w;
+    const int32_t em_y = mx->label.em.body.h;
     const int32_t tw = mx->label.w;
     const int32_t th = mx->label.h;
     if (n > 0) {
@@ -49,7 +49,7 @@ static void ui_mbx_layout(ui_view_t* view) {
     int32_t n = 0;
     ui_view_for_each(view, c, { n++; });
     n--; // number of buttons
-    const int32_t em_y = mx->label.em.y;
+    const int32_t em_y = mx->label.em.body.h;
     mx->label.x = view->x;
     mx->label.y = view->y + em_y * 2 / 3;
     const int32_t tw = mx->label.w;

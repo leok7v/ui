@@ -630,8 +630,8 @@ static void ui_app_toast_paint(void) {
         ui_view.measure_children(ui_app.animating.view);
         ui_gdi.push(0, 0);
         bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        const int32_t em_x = ui_app.animating.view->em.x;
-        const int32_t em_y = ui_app.animating.view->em.y;
+        const int32_t em_x = ui_app.animating.view->em.body.w;
+        const int32_t em_y = ui_app.animating.view->em.body.h;
         ui_gdi.set_brush(ui_gdi.brush_color);
         if (ui_theme.are_apps_dark()) {
             ui_gdi.set_brush_color(ui_colors.toast);
@@ -698,10 +698,10 @@ static void ui_app_toast_mouse(int32_t m, int64_t flags) {
     bool pressed = m == ui.message.left_button_pressed ||
                    m == ui.message.right_button_pressed;
     if (ui_app.animating.view != null && pressed) {
-        const ui_point_t em = ui_app.animating.view->em;
+        const ui_em_t em = ui_app.animating.view->em;
         int32_t x = ui_app.animating.view->x + ui_app.animating.view->w;
-        if (x <= ui_app.mouse.x && ui_app.mouse.x <= x + em.x &&
-            0 <= ui_app.mouse.y && ui_app.mouse.y <= em.y) {
+        if (x <= ui_app.mouse.x && ui_app.mouse.x <= x + em.body.w &&
+            0 <= ui_app.mouse.y && ui_app.mouse.y <= em.body.h) {
             ui_app_toast_cancel();
         } else {
             ui_view.mouse(ui_app.animating.view, m, flags);
@@ -762,11 +762,17 @@ static void ui_app_animate_start(ui_app_animate_function_t f, int32_t steps) {
 }
 
 static void ui_app_view_paint(ui_view_t* v) {
+    // A view can be bigger then client rectangle but shouldn't be smaller
+    // or shifted:
     assert(v == ui_app.view && v->x == 0 && v->y == 0 &&
            v->w >= ui_app.crc.w && v->h >= ui_app.crc.h);
-    v->color = ui_app.get_color(ui_color_id_window);
-    if (!ui_color_is_transparent(v->color)) {
-        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
+    v->color = ui_app.get_color(v->color_id);
+    if (v->background_id > 0) {
+        v->background = ui_app.get_color(v->background_id);
+    }
+    if (!ui_color_is_undefined(v->background) &&
+        !ui_color_is_transparent(v->background)) {
+        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
     }
 }
 
@@ -1912,7 +1918,9 @@ static void ui_app_init(void) {
     // for ui_view_debug_paint:
     strprintf(ui_app.view->text, "ui_app.view");
     ui_app.view->type          = ui_view_container;
-    ui_app.view->color         = ui_app_get_color(ui_color_id_window);
+    ui_app.view->background    = ui_color_transparent; // if the app has no decor
+    ui_app.view->color_id      = ui_color_id_window_text;
+    ui_app.view->background_id = ui_color_id_window;
     ui_app.view->paint         = ui_app_view_paint;
     ui_app.view->insets        = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_app.redraw              = ui_app_fast_redraw;
@@ -1966,6 +1974,7 @@ static void ui_app_init(void) {
     ui_app_event_quit          = ut_event.create();
     ui_app_event_invalidate    = ut_event.create();
     ui_app.init();
+//  if (ui_app.no_decor) { ui_app.view->background_id = 0; }
 }
 
 static void ui_app_init_windows(void) {

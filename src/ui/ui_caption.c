@@ -75,11 +75,8 @@ static ui_color_t ui_caption_color(void) {
 }
 
 static void ui_caption_paint(ui_view_t* v) {
-    v->color = ui_caption_color();
-//  traceln("%s 0x%016llX", v->text, v->color);
-    if (!ui_color_is_transparent(v->color)) {
-        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
-    }
+    ui_color_t background = ui_caption_color();
+    ui_gdi.fill_with(v->x, v->y, v->w, v->h, background);
 }
 
 static void ui_caption_init(ui_view_t* v) {
@@ -98,15 +95,16 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.full,
         &ui_caption.quit,
         null);
+    ui_caption.view.color_id = ui_color_id_window_text;
     static const ui_gaps_t p = { .left  = 0.25, .top    = 0.25,
                                  .right = 0.25, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
         c->font = &ui_app.fonts.H3;
-        c->color = ui_app.get_color(ui_color_id_window_text); // ui_colors.white;
+        c->color_id = ui_caption.view.color_id;
         c->flat = true;
         c->padding = p;
     });
-    ui_caption.icon.icon = ui_app.icon;
+    ui_caption.icon.icon  = ui_app.icon;
     ui_caption.view.max_w = INT32_MAX;
     ui_caption.view.align = ui.align.top;
     strprintf(ui_caption.view.text, "ui_caption");

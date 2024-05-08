@@ -105,11 +105,11 @@ static void character(ui_view_t* unused(view), const char* utf8) {
 }
 
 static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(f)) {
-    const ui_point_t em = ui_gdi.get_em(ui_app.fonts.H1);
+    const ui_em_t em = ui_gdi.get_em(ui_app.fonts.H1);
     if ((m == ui.message.left_button_pressed ||
         m == ui.message.right_button_pressed) &&
-        0 <= ui_app.mouse.x && ui_app.mouse.x < em.x &&
-        0 <= ui_app.mouse.y && ui_app.mouse.y < em.y) {
+        0 <= ui_app.mouse.x && ui_app.mouse.x < em.body.w &&
+        0 <= ui_app.mouse.y && ui_app.mouse.y < em.body.h) {
         muted = !muted;
         if (muted) {
             midi.stop(&mds);

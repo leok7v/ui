@@ -66,8 +66,8 @@ static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y
             j++;
         }
         ui_gdi.poly(points, n - 1);
-        ui_gdi.x = view->em.x;
-        ui_gdi.y = y - h8 - view->em.y;
+        ui_gdi.x = view->em.body.w;
+        ui_gdi.y = y - h8 - view->em.body.h;
         ui_gdi.println("min %.3f max %.3f avg %.3f ms  "
             "%.1f sps",
             t->min_dt * 1000, t->max_dt * 1000, t->avg, 1 / t->avg);
@@ -91,11 +91,11 @@ static void paint(ui_view_t* view) {
     stats(&ts[0]);
     stats(&ts[1]);
     ui_gdi.fill_with(0, 0, view->w, view->h, ui_colors.dkgray1);
-    ui_gdi.y = view->em.y;
+    ui_gdi.y = view->em.body.h;
     ui_gdi.x = view->w - ui_gdi.measure_text(ui_app.fonts.mono,
-        "avg paint time %.1f ms", ui_app.paint_avg * 1000).x - view->em.x;
+        "avg paint time %.1f ms", ui_app.paint_avg * 1000).x - view->em.body.w;
     ui_gdi.print("avg paint time %.1f ms", ui_app.paint_avg * 1000);
-    ui_gdi.x = view->em.x;
+    ui_gdi.x = view->em.body.w;
     ui_gdi.print("10ms window timer jitter ");
     ui_gdi.print("(\"sps\" stands for samples per second)");
     const int h2 = ui_app.crc.h / 2;

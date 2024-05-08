@@ -15,7 +15,7 @@ static void opened(void) {
 static void init(void) {
     ui_app.title  = "Sample2: translucent";
     ui_app.opened = opened;
-    ui_app.no_decor = false;
+    ui_app.no_decor = true;
     // for custom caption or no caption .no_decor can be set to true
 }
 

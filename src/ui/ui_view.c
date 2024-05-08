@@ -145,10 +145,10 @@ static void ui_view_disband(ui_view_t* p) {
 
 static void ui_view_invalidate(const ui_view_t* view) {
     ui_rect_t rc = { view->x, view->y, view->w, view->h};
-    rc.x -= view->em.x;
-    rc.y -= view->em.y;
-    rc.w += view->em.x * 2;
-    rc.h += view->em.y * 2;
+    rc.x -= view->em.body.w;
+    rc.y -= view->em.body.h;
+    rc.w += view->em.body.w * 2;
+    rc.h += view->em.body.h * 2;
     ui_app.invalidate(&rc);
 }
 
@@ -159,14 +159,12 @@ static const char* ui_view_nls(ui_view_t* view) {
 
 static void ui_view_measure(ui_view_t* view) {
     ui_font_t f = *view->font;
-    view->baseline = ui_gdi.baseline(f);
-    view->descent  = ui_gdi.descent(f);
     if (view->text[0] != 0) {
-        view->w = (int32_t)(view->em.x * view->min_w_em + 0.5f);
+        view->w = (int32_t)(view->em.body.w * view->min_w_em + 0.5f);
         ui_point_t mt = { 0 };
         bool multiline = strchr(view->text, '\n') != null;
         if (view->type == ui_view_label && multiline) {
-            int32_t w = (int32_t)(view->min_w_em * view->em.x + 0.5f);
+            int32_t w = (int32_t)(view->min_w_em * view->em.body.w + 0.5f);
             mt = ui_gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(view));
         } else {
             mt = ui_gdi.measure_text(f, ui_view.nls(view));
@@ -204,12 +202,12 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
     strprintf(hint->text, "%s", ut_nls.str(v->hint));
     ui_view.measure_children(hint);
-    int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.x / 4;
-    int32_t y = v->y + v->h + v->em.y / 2 + hint->em.y / 4;
-    if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->em.x / 2; }
-    if (x < 0) { x = hint->em.x / 2; }
-    if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->em.y / 2; }
-    if (y < 0) { y = hint->em.y / 2; }
+    int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->em.body.w / 4;
+    int32_t y = v->y + v->h + v->em.body.h / 2 + hint->em.body.h / 4;
+    if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->em.body.w / 2; }
+    if (x < 0) { x = hint->em.body.w / 2; }
+    if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->em.body.h / 2; }
+    if (y < 0) { y = hint->em.body.h / 2; }
     // show_tooltip will center horizontally
     ui_app.show_tooltip(hint, x + hint->w / 2, y, 0);
 }
@@ -294,7 +292,11 @@ static void ui_view_character(ui_view_t* view, const char* utf8) {
 static void ui_view_paint(ui_view_t* view) {
     assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     if (!view->hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
+        if (view->before_paint != null) { view->before_paint(view); }
         if (view->paint != null) { view->paint(view); }
+        if (view->after_paint != null) { view->after_paint(view); }
+        if (view->debug_paint != null && view->debug) { view->debug_paint(view); }
+        if (view->debug) { ui_view.debug_paint(view); }
         ui_view_for_each(view, c, { ui_view_paint(c); });
     }
 }
@@ -354,19 +356,27 @@ static void ui_view_measure_children(ui_view_t* view) {
     if (view->color_id > 0) {
         view->color = ui_app.get_color(view->color_id);
     }
+    if (view->background_id > 0) {
+        view->background = ui_app.get_color(view->background_id);
+    }
     if (!view->hidden) {
         ui_view_for_each(view, c, { ui_view_measure_children(c); });
+        if (view->before_measure != null) { view->before_measure(view); }
         if (view->measure != null) {
+            view->measure(view);
             view->measure(view);
         } else {
             ui_view.measure(view);
         }
+        if (view->after_measure != null) { view->after_measure(view); }
     }
 }
 
 static void ui_view_layout_children(ui_view_t* view) {
     if (!view->hidden) {
+        if (view->before_layout != null) { view->before_layout(view); }
         if (view->layout != null) { view->layout(view); }
+        if (view->after_layout != null) { view->after_layout(view); }
         ui_view_for_each(view, c, { ui_view_layout_children(c); });
     }
 }
@@ -465,18 +475,18 @@ static void ui_view_debug_paint(ui_view_t* v) {
 //      traceln("%s 0x%08X", v->text, v->color);
         ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->color);
     }
-    const int32_t p_lf = ui.gaps_em2px(v->em.x, v->padding.left);
-    const int32_t p_tp = ui.gaps_em2px(v->em.y, v->padding.top);
-    const int32_t p_rt = ui.gaps_em2px(v->em.x, v->padding.right);
-    const int32_t p_bt = ui.gaps_em2px(v->em.y, v->padding.bottom);
+    const int32_t p_lf = ui.gaps_em2px(v->em.body.w, v->padding.left);
+    const int32_t p_tp = ui.gaps_em2px(v->em.body.h, v->padding.top);
+    const int32_t p_rt = ui.gaps_em2px(v->em.body.w, v->padding.right);
+    const int32_t p_bt = ui.gaps_em2px(v->em.body.h, v->padding.bottom);
     if (p_lf > 0) { ui_gdi.frame_with(v->x - p_lf, v->y, p_lf, v->h, ui_colors.green); }
     if (p_rt > 0) { ui_gdi.frame_with(v->x + v->w, v->y, p_rt, v->h, ui_colors.green); }
     if (p_tp > 0) { ui_gdi.frame_with(v->x, v->y - p_tp, v->w, p_tp, ui_colors.green); }
     if (p_bt > 0) { ui_gdi.frame_with(v->x, v->y + v->h, v->w, p_bt, ui_colors.green); }
-    const int32_t i_lf = ui.gaps_em2px(v->em.x, v->insets.left);
-    const int32_t i_tp = ui.gaps_em2px(v->em.y, v->insets.top);
-    const int32_t i_rt = ui.gaps_em2px(v->em.x, v->insets.right);
-    const int32_t i_bt = ui.gaps_em2px(v->em.y, v->insets.bottom);
+    const int32_t i_lf = ui.gaps_em2px(v->em.body.w, v->insets.left);
+    const int32_t i_tp = ui.gaps_em2px(v->em.body.h, v->insets.top);
+    const int32_t i_rt = ui.gaps_em2px(v->em.body.w, v->insets.right);
+    const int32_t i_bt = ui.gaps_em2px(v->em.body.h, v->insets.bottom);
     if (i_lf > 0) { ui_gdi.frame_with(v->x,               v->y,               i_lf, v->h, ui_colors.orange); }
     if (i_rt > 0) { ui_gdi.frame_with(v->x + v->w - i_rt, v->y,               i_rt, v->h, ui_colors.orange); }
     if (i_tp > 0) { ui_gdi.frame_with(v->x,               v->y,               v->w, i_tp, ui_colors.orange); }

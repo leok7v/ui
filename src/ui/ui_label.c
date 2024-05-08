@@ -19,15 +19,15 @@ static void ui_label_paint(ui_view_t* v) {
     if (!multiline) {
         ui_gdi.text("%s", ui_view.nls(v));
     } else {
-        int32_t w = (int32_t)(v->min_w_em * v->em.x + 0.5);
+        int32_t w = (int32_t)(v->min_w_em * v->em.body.w + 0.5);
         ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
         // ui_colors.btn_hover_highlight
         ui_gdi.set_colored_pen(ui_app.get_color(ui_color_id_highlight));
         ui_gdi.set_brush(ui_gdi.brush_hollow);
-        int32_t cr = v->em.y / 4; // corner radius
-        int32_t h = multiline ? v->h : v->baseline + v->descent;
+        int32_t cr = v->em.body.h / 4; // corner radius
+        int32_t h = multiline ? v->h : v->em.baseline + v->em.descent;
         ui_gdi.rounded(v->x - cr, v->y + v->label_dy,
                        v->w + 2 * cr, h, cr, cr);
     }

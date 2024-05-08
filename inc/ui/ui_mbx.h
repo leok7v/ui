@@ -20,7 +20,10 @@ void ui_view_init_mbx(ui_view_t* view);
 
 void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 
-#define static_ui_mbx(name, s, code, ...)                        \
+// ui_mbx_on_choice can only be used on static mbx variables
+
+
+#define ui_mbx_on_choice(name, s, code, ...)                     \
                                                                  \
     static char* name ## _options[] = { __VA_ARGS__, null };     \
                                                                  \
@@ -31,7 +34,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
     static                                                       \
     ui_mbx_t name = {                                            \
         .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
-                  .font = &ui_app.fonts.regular,                    \
+                  .font = &ui_app.fonts.regular,                 \
                   .text = s, .callback = name ## _callback       \
                 },                                               \
         .options = name ## _options                              \
@@ -39,7 +42,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 
 #define ui_mbx(s, call_back, ...) {                          \
     .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
-              .font = &ui_app.fonts.regular,                    \
+              .font = &ui_app.fonts.regular,                 \
               .text = s, .callback = call_back               \
     },                                                       \
     .options = (const char*[]){ __VA_ARGS__, null },         \

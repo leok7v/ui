@@ -40,7 +40,7 @@ typedef struct ui_view_s {
     char text[2048];
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
-    ui_point_t em; // cached pixel dimensions of "M"
+    ui_em_t em; // cached pixel dimensions of almost square glyph "M"
     int32_t shortcut; // keyboard shortcut
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
@@ -51,6 +51,17 @@ typedef struct ui_view_s {
     void (*measure)(ui_view_t* view); // determine w, h (bottom up)
     void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
     void (*paint)(ui_view_t* view);
+    // before methods: called before measure()/layout()/paint()
+    void (*before_measure)(ui_view_t* view);
+    void (*before_layout)(ui_view_t* view);
+    void (*before_paint)(ui_view_t* view);
+    // after methods: called after measure()/layout()/paint()
+    void (*after_measure)(ui_view_t* view);
+    void (*after_layout)(ui_view_t* view);
+    void (*after_paint)(ui_view_t* view);
+    // debug paint (if .debug set to true)
+    void (*debug_paint)(ui_view_t* view);
+    // any message:
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
     void (*click)(ui_view_t* view); // interpretation depends on a view
@@ -87,11 +98,12 @@ typedef struct ui_view_s {
     bool highlightable; // paint highlight rectangle when hover over label
     fp64_t  hover_when;   // time in seconds when to call hovered()
     ui_color_t color;     // interpretation depends on view type
-    int32_t    color_id;  // 0 is default. Otherwise ui_color_id_* when color is undefined
-    ui_color_t background;// interpretation depends on view type
+    int32_t    color_id;  // 0 is default meaning use color
+    ui_color_t background;    // interpretation depends on view type
+    int32_t    background_id; // 0 is default meaning use background
     ui_font_t* font;
-    int32_t baseline;  // font ascent; descent = height - baseline
-    int32_t descent;   // font descent
+    bool       debug; // activates debug_paint() called after after_paint()
+    // TODO: get rid of label_dy
     int32_t label_dy;  // vertical shift down (to line up baselines of diff fonts)
     char    hint[256]; // tooltip hint text (to be shown while hovering over view)
 } ui_view_t;

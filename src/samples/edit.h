@@ -6,7 +6,7 @@
 begin_c
 
 // important ui_edit_t will refuse to layout into a box smaller than
-// width 3 x em.x height 1 x em.y
+// width 3 x em.body.w height 1 x em.body.h
 
 typedef struct ui_edit_run_s {
     int32_t bp;     // position in bytes  since start of the paragraph

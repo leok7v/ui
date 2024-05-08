@@ -3,27 +3,32 @@
 
 static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
+    ui_slider_t* s = (ui_slider_t*)v;
+    s->inc.font = v->font;
+    s->dec.font = v->font;
     ui_view.measure(v);
-    ui_slider_t* r = (ui_slider_t*)v;
-    assert(r->inc.w == r->dec.w && r->inc.h == r->dec.h);
-    const int32_t em = v->em.x;
-    ui_font_t f = v->font != null ? *v->font : ui_app.fonts.regular;
-    const int32_t w = (int32_t)(v->min_w_em * v->em.x);
-    r->tm = ui_gdi.measure_text(f, ui_view.nls(v), r->value_max);
-    if (w > r->tm.x) { r->tm.x = w; }
-    v->w = r->dec.w + r->tm.x + r->inc.w + em * 2;
-    v->h = r->inc.h;
+//  ui_view.measure(&s->dec);
+//  ui_view.measure(&s->inc);
+    assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
+    const int32_t em = v->em.body.w;
+    ui_font_t f = *v->font;
+    const int32_t w = (int32_t)(v->min_w_em * v->em.body.w);
+    s->tm = ui_gdi.measure_text(f, ui_view.nls(v), s->value_max);
+//  if (w > r->tm.x) { r->tm.x = w; }
+    s->tm.x = w != 0 ? w : s->tm.x;
+    v->w = s->dec.w + s->tm.x + s->inc.w + em * 2;
+    v->h = s->inc.h;
 }
 
 static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
-    ui_slider_t* r = (ui_slider_t*)v;
-    assert(r->inc.w == r->dec.w && r->inc.h == r->dec.h);
-    const int32_t em = v->em.x;
-    r->dec.x = v->x;
-    r->dec.y = v->y;
-    r->inc.x = v->x + r->dec.w + r->tm.x + em * 2;
-    r->inc.y = v->y;
+    ui_slider_t* s = (ui_slider_t*)v;
+    assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
+    const int32_t em = v->em.body.w;
+    s->dec.x = v->x;
+    s->dec.y = v->y;
+    s->inc.x = v->x + s->dec.w + s->tm.x + em * 2;
+    s->inc.y = v->y;
 }
 
 // TODO: generalize and move to ui_colors.c to avoid slider dup
@@ -64,10 +69,10 @@ static ui_color_t ui_slider_gradient_dark(void) {
 
 static void ui_slider_paint(ui_view_t* v) {
     assert(v->type == ui_view_slider);
-    ui_slider_t* r = (ui_slider_t*)v;
+    ui_slider_t* s = (ui_slider_t*)v;
     ui_gdi.push(v->x, v->y);
     ui_gdi.set_clip(v->x, v->y, v->w, v->h);
-    const int32_t em = v->em.x;
+    const int32_t em = v->em.body.w;
     const int32_t em2  = ut_max(1, em / 2);
     const int32_t em4  = ut_max(1, em / 8);
     const int32_t em8  = ut_max(1, em / 8);
@@ -79,9 +84,9 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_pen_t pen_c0 = ui_gdi.create_pen(c0, em16);
     ui_gdi.set_pen(pen_c0);
     ui_gdi.set_brush_color(c0);
-    const int32_t x = v->x + r->dec.w + em2;
+    const int32_t x = v->x + s->dec.w + em2;
     const int32_t y = v->y;
-    const int32_t w = r->tm.x + em;
+    const int32_t w = s->tm.x + em;
     const int32_t h = v->h;
     ui_gdi.rounded(x - em8, y, w + em4, h, em4, em4);
     if (ui_theme.are_apps_dark()) {
@@ -98,14 +103,16 @@ static void ui_slider_paint(ui_view_t* v) {
                     ui_app.get_color(ui_color_id_button_face); // ???
     ui_pen_t pen_c1 = ui_gdi.create_pen(c1, em16);
     ui_gdi.set_pen(pen_c1);
-    const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
-    fp64_t vw = (fp64_t)(r->tm.x + em) * (r->value - r->value_min) / range;
+    const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
+    fp64_t vw = (fp64_t)(s->tm.x + em) * (s->value - s->value_min) / range;
     ui_gdi.rect(x, v->y, (int32_t)(vw + 0.5), v->h);
-    ui_gdi.x += r->dec.w + em;
-    v->color = ui_app.get_color(ui_color_id_window_text);
-    const char* format = ut_nls.str(v->text);
+    ui_gdi.x += s->dec.w + em;
+    ui_gdi.y = y;
     ui_color_t c = ui_gdi.set_text_color(v->color);
-    ui_gdi.text(format, r->value);
+    ui_font_t f = ui_gdi.set_font(*v->font);
+    const char* format = ut_nls.str(v->text);
+    ui_gdi.text(format, s->value);
+    ui_gdi.set_font(f);
     ui_gdi.set_text_color(c);
     ui_gdi.set_clip(0, 0, 0, 0);
     ui_gdi.delete_pen(pen_c1);
@@ -116,74 +123,74 @@ static void ui_slider_paint(ui_view_t* v) {
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
     if (!v->hidden && !v->disabled) {
         assert(v->type == ui_view_slider);
-        ui_slider_t* r = (ui_slider_t*)v;
+        ui_slider_t* s = (ui_slider_t*)v;
         bool drag = message == ui.message.mouse_move &&
             (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
         if (message == ui.message.left_button_pressed ||
             message == ui.message.right_button_pressed || drag) {
-            const int32_t x = ui_app.mouse.x - v->x - r->dec.w;
+            const int32_t x = ui_app.mouse.x - v->x - s->dec.w;
             const int32_t y = ui_app.mouse.y - v->y;
-            const int32_t x0 = v->em.x / 2;
-            const int32_t x1 = r->tm.x + v->em.x;
+            const int32_t x0 = v->em.body.w / 2;
+            const int32_t x1 = s->tm.x + v->em.body.w;
             if (x0 <= x && x < x1 && 0 <= y && y < v->h) {
                 ui_app.focus = v;
-                const fp64_t range = (fp64_t)r->value_max - (fp64_t)r->value_min;
+                const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
                 fp64_t val = ((fp64_t)x - x0) * range / (fp64_t)(x1 - x0 - 1);
-                int32_t vw = (int32_t)(val + r->value_min + 0.5);
-                r->value = ut_min(ut_max(vw, r->value_min), r->value_max);
-                if (r->view.callback != null) { r->view.callback(&r->view); }
+                int32_t vw = (int32_t)(val + s->value_min + 0.5);
+                s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+                if (s->view.callback != null) { s->view.callback(&s->view); }
                 ui_view.invalidate(v);
             }
         }
     }
 }
 
-static void ui_slider_inc_dec_value(ui_slider_t* r, int32_t sign, int32_t mul) {
-    if (!r->view.hidden && !r->view.disabled) {
+static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
+    if (!ui_view.is_hidden(&s->view) && !ui_view.is_disabled(&s->view)) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
-        int32_t v = r->value;
-        if (v > r->value_min && sign < 0) {
-            mul = ut_min(v - r->value_min, mul);
+        int32_t v = s->value;
+        if (v > s->value_min && sign < 0) {
+            mul = ut_min(v - s->value_min, mul);
             v += mul * sign;
-        } else if (v < r->value_max && sign > 0) {
-            mul = ut_min(r->value_max - v, mul);
+        } else if (v < s->value_max && sign > 0) {
+            mul = ut_min(s->value_max - v, mul);
             v += mul * sign;
         }
-        if (r->value != v) {
-            r->value = v;
-            if (r->view.callback != null) { r->view.callback(&r->view); }
-            ui_view.invalidate(&r->view);
+        if (s->value != v) {
+            s->value = v;
+            if (s->view.callback != null) { s->view.callback(&s->view); }
+            ui_view.invalidate(&s->view);
         }
     }
 }
 
 static void ui_slider_inc_dec(ui_button_t* b) {
-    ui_slider_t* r = (ui_slider_t*)b->parent;
-    if (!r->view.hidden && !r->view.disabled) {
-        int32_t sign = b == &r->inc ? +1 : -1;
+    ui_slider_t* s = (ui_slider_t*)b->parent;
+    if (!ui_view.is_hidden(&s->view) && !ui_view.is_disabled(&s->view)) {
+        int32_t sign = b == &s->inc ? +1 : -1;
         int32_t mul = ui_app.shift && ui_app.ctrl ? 1000 :
             ui_app.shift ? 100 : ui_app.ctrl ? 10 : 1;
-        ui_slider_inc_dec_value(r, sign, mul);
+        ui_slider_inc_dec_value(s, sign, mul);
     }
 }
 
 static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
     assert(v->type == ui_view_slider);
-    ui_slider_t* r = (ui_slider_t*)v;
-    if (r->view.hidden || r->view.disabled) {
-        r->time = 0;
-    } else if (!r->dec.armed && !r->inc.armed) {
-        r->time = 0;
+    ui_slider_t* s = (ui_slider_t*)v;
+    if (ui_view.is_hidden(v) || ui_view.is_disabled(v)) {
+        s->time = 0;
+    } else if (!s->dec.armed && !s->inc.armed) {
+        s->time = 0;
     } else {
-        if (r->time == 0) {
-            r->time = ui_app.now;
-        } else if (ui_app.now - r->time > 1.0) {
-            const int32_t sign = r->dec.armed ? -1 : +1;
-            int32_t s = (int32_t)(ui_app.now - r->time + 0.5);
-            int32_t mul = s >= 1 ? 1 << (s - 1) : 1;
-            const int64_t range = (int64_t)r->value_max - r->value_min;
+        if (s->time == 0) {
+            s->time = ui_app.now;
+        } else if (ui_app.now - s->time > 1.0) {
+            const int32_t sign = s->dec.armed ? -1 : +1;
+            int32_t sec = (int32_t)(ui_app.now - s->time + 0.5);
+            int32_t mul = sec >= 1 ? 1 << (sec - 1) : 1;
+            const int64_t range = (int64_t)s->value_max - s->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
-            ui_slider_inc_dec_value(r, sign, ut_max(mul, 1));
+            ui_slider_inc_dec_value(s, sign, ut_max(mul, 1));
         }
     }
 }
@@ -197,7 +204,7 @@ void ui_view_init_slider(ui_view_t* v) {
     v->layout      = ui_slider_layout;
     v->paint       = ui_slider_paint;
     v->every_100ms = ui_slider_every_100ms;
-    v->color = ui_app.get_color(ui_color_id_window_text);
+    v->color_id    = ui_color_id_window_text;
     ui_slider_t* s = (ui_slider_t*)v;
     // Heavy Minus Sign
     ui_button_init(&s->dec, "\xE2\x9E\x96", 0, ui_slider_inc_dec);

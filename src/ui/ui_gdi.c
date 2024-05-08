@@ -626,21 +626,20 @@ static int32_t ui_gdi_descent(ui_font_t f) {
 // of calls to get_em() is very small on layout.
 // Few dozens at most. No reason to cache or optimize.
 
-static ui_point_t ui_gdi_get_em(ui_font_t f) {
+static ui_em_t ui_gdi_get_em(ui_font_t f) {
     SIZE cell = {0, 0};
-    int32_t height   = 0;
-    int32_t descent  = 0;
-    int32_t baseline = 0;
+    ui_em_t em = {0};
     ui_gdi_hdc_with_font(f, {
         // ui_glyph_nbsp and "M" have the same result
         fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &cell));
-        height = ui_gdi.font_height(f);
-        descent = ui_gdi.descent(f);
-        baseline = ui_gdi.baseline(f);
+        em.height = ui_gdi.font_height(f);
+        em.descent = ui_gdi.descent(f);
+        em.baseline = ui_gdi.baseline(f);
     });
-    assert(baseline >= height);
-    ui_point_t c = {cell.cx, cell.cy - descent - (height - baseline)};
-    return c;
+    assert(em.baseline >= em.height);
+    const int32_t ascend = em.descent - (em.height - em.baseline);
+    em.body = (ui_wh_t){cell.cx, cell.cy - ascend};
+    return em;
 }
 
 static bool ui_gdi_is_mono(ui_font_t f) {

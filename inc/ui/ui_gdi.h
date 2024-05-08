@@ -90,7 +90,7 @@ typedef struct {
     int32_t (*baseline)(ui_font_t f);    // height - baseline (aka ascent) = descent
     bool    (*is_mono)(ui_font_t f);     // is font monospaced?
     // https://en.wikipedia.org/wiki/Em_(typography)
-    ui_point_t (*get_em)(ui_font_t f);  // pixel size of glyph "M" close to square
+    ui_em_t (*get_em)(ui_font_t f);  // pixel size of glyph "M" close to square
     // get_em(f) returns { "M".w, "M".h - f.descent - (f.height - f.baseline)};
     ui_point_t (*measure_text)(ui_font_t f, const char* format, ...);
     // width can be -1 which measures text with "\n" or

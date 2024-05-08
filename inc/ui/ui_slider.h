@@ -23,14 +23,16 @@ void ui_view_init_slider(ui_view_t* view);
 void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* r));
 
-#define static_ui_slider(name, s, min_width_em, vmn, vmx, ...)            \
+// ui_slider_on_change can only be used on static slider variables
+
+#define ui_slider_on_change(name, s, min_width_em, vmn, vmx, ...)         \
     static void name ## _callback(ui_slider_t* name) {                    \
         (void)name; /* no warning if unused */                            \
         { __VA_ARGS__ }                                                   \
     }                                                                     \
     static                                                                \
     ui_slider_t name = {                                                  \
-        .view = { .type = ui_view_slider, .font = &ui_app.fonts.regular,     \
+        .view = { .type = ui_view_slider, .font = &ui_app.fonts.regular,  \
                   .min_w_em = min_width_em, .init = ui_view_init_slider,  \
                    .text = s, .callback = name ## _callback               \
         },                                                                \
@@ -38,7 +40,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     }
 
 #define ui_slider(s, min_width_em, vmn, vmx, call_back) {                 \
-    .view = { .type = ui_view_slider, .font = &ui_app.fonts.regular,         \
+    .view = { .type = ui_view_slider, .font = &ui_app.fonts.regular,      \
         .min_w_em = min_width_em, .text = s, .init = ui_view_init_slider, \
         .callback = call_back                                             \
     },                                                                    \
