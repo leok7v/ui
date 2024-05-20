@@ -150,8 +150,8 @@ static void opened(void) {
         "too see how it behaves");
 //  toggle_container(&button_container);
 //  toggle_list(&button_list);
-//  toggle_span(&button_span);
-    toggle_controls(&button_controls);
+    toggle_span(&button_span);
+//  toggle_controls(&button_controls);
 }
 
 static ui_view_t* align(ui_view_t* v, int32_t align) {

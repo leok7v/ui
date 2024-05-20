@@ -104,6 +104,10 @@ static void ui_caption_init(ui_view_t* v) {
         c->flat = true;
         c->padding = p;
     });
+    ui_caption.view.insets = (ui_gaps_t) {
+        .left  = 0.75,  .top    = 0.125,
+        .right = 0.75,  .bottom = 0.125
+    };
     ui_caption.icon.icon  = ui_app.icon;
     ui_caption.view.max_w = INT32_MAX;
     ui_caption.view.align = ui.align.top;

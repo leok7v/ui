@@ -5,7 +5,8 @@ begin_c
 
 typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
-typedef struct ui_wh_s { int32_t w, h; } ui_wh_t;
+typedef struct ui_ltbr_s { int32_t left, top, right, bottom; } ui_ltrb_t;
+typedef struct ui_wh_s   { int32_t w, h; } ui_wh_t;
 
 typedef struct ui_window_s* ui_window_t;
 typedef struct ui_icon_s*   ui_icon_t;
@@ -59,7 +60,7 @@ typedef struct ui_fonts_s {
 
 // in inches (because monitors customary are)
 // it is not in points (1/72 inch) like font size
-// because it is awkward to express large are
+// because it is awkward to express large area
 // size in typography measurements.
 
 typedef struct ui_window_sizing_s {

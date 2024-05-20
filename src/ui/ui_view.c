@@ -188,6 +188,56 @@ static bool ui_view_inside(ui_view_t* v, const ui_point_t* pt) {
     return 0 <= x && x < v->w && 0 <= y && y < v->h;
 }
 
+static ui_ltrb_t ui_view_gaps(ui_view_t* v, const ui_gaps_t* g) {
+    return (ui_ltrb_t) {
+        .left   = ui.gaps_em2px(v->fm->em.w, g->left),
+        .top    = ui.gaps_em2px(v->fm->em.h, g->top),
+        .right  = ui.gaps_em2px(v->fm->em.w, g->right),
+        .bottom = ui.gaps_em2px(v->fm->em.h, g->bottom)
+    };
+}
+
+static void ui_view_inbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
+    assert(r != null || insets != null);
+    const ui_ltrb_t i = ui_view_gaps(v, &v->insets);
+    if (insets != null) { *insets = i; }
+    if (r != null) {
+        *r = (ui_rect_t) {
+            .x = v->x + i.left,
+            .y = v->y + i.top,
+            .w = v->w - i.left - i.right,
+            .h = v->h - i.top  - i.bottom,
+        };
+    }
+}
+
+static void ui_view_outbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
+    assert(r != null || padding != null);
+    const ui_ltrb_t p = ui_view_gaps(v, &v->padding);
+    if (padding != null) { *padding = p; }
+    if (r != null) {
+//      traceln("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->text,
+//          v->x, v->y, v->w, v->h,
+//          v->padding.left, v->padding.top, v->padding.right, v->padding.bottom);
+        *r = (ui_rect_t) {
+            .x = v->x - p.left,
+            .y = v->y - p.top,
+            .w = v->w + p.left + p.right,
+            .h = v->h + p.top  + p.bottom,
+        };
+//      traceln("%s %d,%d %dx%d", v->text,
+//          r->x, r->y, r->w, r->h);
+    }
+}
+
+static void ui_view_position_by_outbox(ui_view_t* v, const ui_rect_t* r,
+            const ui_ltrb_t* padding) {
+    v->x = r->x + padding->left;
+    v->y = r->y + padding->top;
+    v->w = r->w - padding->left - padding->right;
+    v->h = r->h - padding->top  - padding->bottom;
+}
+
 static void ui_view_set_text(ui_view_t* v, const char* text) {
     int32_t n = (int32_t)strlen(text);
     strprintf(v->text, "%s", text);
@@ -608,6 +658,10 @@ ui_view_if ui_view = {
     .remove_all         = ui_view_remove_all,
     .disband            = ui_view_disband,
     .inside             = ui_view_inside,
+    .gaps               = ui_view_gaps,
+    .inbox              = ui_view_inbox,
+    .outbox             = ui_view_outbox,
+    .position_by_outbox = ui_view_position_by_outbox,
     .set_text           = ui_view_set_text,
     .invalidate         = ui_view_invalidate,
     .measure            = ui_view_measure,
