@@ -4543,7 +4543,7 @@ static void ui_span_measure(ui_view_t* p) {
             } else if (max_w < ui.infinity) {
                 swear(0 <= max_w + cbx.w &&
                       (int64_t)max_w + (int64_t)cbx.w < (int64_t)ui.infinity,
-                      "max_w + cbx.w = %d", max_w + cbx.w);
+                      "max_w:%d + cbx.w:%d = %d", max_w, cbx.w, max_w + cbx.w);
                 max_w += cbx.w;
             }
             w += cbx.w;
@@ -4552,14 +4552,13 @@ static void ui_span_measure(ui_view_t* p) {
     if (max_w < ui.infinity) {
         swear(0 <= max_w + insets.right &&
               (int64_t)max_w + (int64_t)insets.right < (int64_t)ui.infinity,
-             "max_w + right = %d",
-              max_w + insets.right);
+             "max_w:%d + right:%d = %d", max_w, insets.right, max_w + insets.right);
         max_w += insets.right;
     }
-    swear(max_w == 0 || max_w >= w,
-         "max_w: %d is less than actual width w: %d", max_w, w);
-    // Handle max width only if it differs from actual width
-    p->max_w = max_w == w ? p->max_w : ut_max(max_w, p->max_w);
+    swear(max_w == 0 || max_w >= w, "max_w: %d w: %d", max_w, w);
+    if (max_w != w) { // only if max_w differs from actual width
+        p->max_w = ut_max(max_w, p->max_w);
+    }
     p->w = w + insets.right;
     p->h = insets.top + h + insets.bottom;
     swear(p->max_w == 0 || p->max_w >= p->w, "max_w is less than actual width w");
@@ -4577,10 +4576,6 @@ static void ui_span_layout(ui_view_t* p) {
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
     int32_t spacers = 0; // Number of spacers
-    // Top and bottom y coordinates
-    // Mitigation for vertical overflow:
-    const int32_t bot = p->y + p->h - insets.bottom < pbx.y ?
-                        pbx.y + p->h : p->y + p->h - insets.bottom;
     int32_t max_w_count = 0;
     int32_t x = p->x + insets.left;
     ui_view_for_each_begin(p, c) {
@@ -4605,7 +4600,7 @@ static void ui_span_layout(ui_view_t* p) {
             if ((c->align & ui.align.top) != 0) {
                 c->y = pbx.y + padding.top;
             } else if ((c->align & ui.align.bottom) != 0) {
-                c->y = bot - (c->h + padding.bottom);
+                c->y = pbx.y + pbx.h - cbx.h + padding.top;
             } else {
                 const int32_t ch = padding.top + c->h + padding.bottom;
                 c->y = pbx.y + (pbx.h - ch) / 2 + padding.top;
@@ -4666,7 +4661,7 @@ static void ui_span_layout(ui_view_t* p) {
             if (c->type == ui_view_spacer) {
                 c->y = pbx.y;
                 c->w = partial;
-                c->h = bot - pbx.y;
+                c->h = pbx.h;
                 spacers--;
             }
             c->x = x + padding.left;
@@ -4686,8 +4681,8 @@ static void ui_list_measure(ui_view_t* p) {
     int32_t h = insets.top;
     int32_t w = 0;
     ui_view_for_each_begin(p, c) {
-        swear(c->max_h == 0 || c->max_h >= c->h,
-              "max_h: %d h: %d", c->max_h, c->h);
+        swear(c->max_h == 0 || c->max_h >= c->h, "max_h: %d h: %d",
+              c->max_h, c->h);
         if (c->type == ui_view_spacer) {
             c->padding = (ui_gaps_t){ 0, 0, 0, 0 };
             c->h = 0; // layout will distribute excess here
@@ -4704,8 +4699,9 @@ static void ui_list_measure(ui_view_t* p) {
                       c->max_h, cbx.h);
                 max_h += c->max_h;
             } else if (max_h < ui.infinity) {
-                swear(0 <= max_h + cbx.h && max_h + cbx.h < (int64_t)ui.infinity,
-                      "max_h + ch = %d", max_h + cbx.h);
+                swear(0 <= max_h + cbx.h &&
+                      (int64_t)max_h + (int64_t)cbx.h < (int64_t)ui.infinity,
+                      "max_h:%d + ch:%d = %d", max_h, cbx.h, max_h + cbx.h);
                 max_h += cbx.h;
             }
             h += cbx.h;
@@ -4714,13 +4710,15 @@ static void ui_list_measure(ui_view_t* p) {
     if (max_h < ui.infinity) {
         swear(0 <= max_h + insets.bottom &&
               (int64_t)max_h + (int64_t)insets.bottom < (int64_t)ui.infinity,
-             "Height overflow at bottom inset: max_h + bottom = %d",
-              max_h + insets.bottom);
+             "max_h:%d + bottom:%d = %d",
+              max_h, insets.bottom, max_h + insets.bottom);
         max_h += insets.bottom;
     }
     // do not touch max_w, caller may have set it to something
     swear(max_h == 0 || max_h >= h, "max_h is less than actual height h");
-    p->max_h = max_h == h ? p->max_h : ut_max(max_h, p->max_h);
+    if (max_h != h) { // only if max_h differs from actual height
+        p->max_h = ut_max(max_h, p->max_h);
+    }
     p->h = h + insets.bottom;
     p->w = insets.left + w + insets.right;
 }
@@ -4732,17 +4730,14 @@ static void ui_list_layout(ui_view_t* p) {
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
     int32_t spacers = 0; // Number of spacers
-    // Mitigation for vertical overflow:
-    const int32_t bot = p->y + p->h - insets.bottom < pbx.y ?
-                        pbx.y + p->h : p->y + p->h - insets.bottom;
     int32_t max_h_sum = 0;
     int32_t max_h_count = 0;
     int32_t y = pbx.y;
     ui_view_for_each_begin(p, c) {
         if (c->type == ui_view_spacer) {
-            c->x = 0;
-            c->y = 0;
-            c->w = 0;
+            c->x = pbx.x;
+            c->y = y;
+            c->w = pbx.w;
             c->h = 0;
             spacers++;
         } else {
@@ -4773,7 +4768,7 @@ static void ui_list_layout(ui_view_t* p) {
             }
         }
     } ui_view_for_each_end(p, c);
-    int32_t xh = ut_max(0, bot - y); // excess height
+    int32_t xh = ut_max(0, pbx.y + pbx.h - y); // excess height
     if (xh > 0 && max_h_count > 0) {
         ui_view_for_each_begin(p, c) {
             if (c->type != ui_view_spacer && c->max_h > 0) {
@@ -4803,7 +4798,7 @@ static void ui_list_layout(ui_view_t* p) {
         assert(k == max_h_count);
     }
     // excess height after max_h of non-spacers taken into account
-    xh = ut_max(0, bot - y); // excess height
+    xh = ut_max(0, pbx.y + pbx.h - y); // excess height
     if (xh > 0 && spacers > 0) {
         // evenly distribute excess among spacers
         int32_t partial = xh / spacers;
