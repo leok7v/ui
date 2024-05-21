@@ -4518,9 +4518,9 @@ static void ui_span_measure(ui_view_t* p) {
     swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     ui_ltrb_t insets;
     ui_view.inbox(p, null, &insets);
-    int32_t max_w = insets.left;
-    int32_t w = max_w;
+    int32_t w = insets.left;
     int32_t h = 0;
+    int32_t max_w = w;
     ui_view_for_each_begin(p, c) {
         swear(c->max_w == 0 || c->max_w >= c->w,
               "max_w: %d w: %d", c->max_w, c->w);
@@ -4533,7 +4533,6 @@ static void ui_span_measure(ui_view_t* p) {
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
-// traceln(" %s %dx%d out: %dx%d", c->text, c->w, c->h, cbx.w, cbx.h);
             h = ut_max(h, cbx.h);
             if (c->max_w == ui.infinity) {
                 max_w = ui.infinity;
@@ -4542,27 +4541,27 @@ static void ui_span_measure(ui_view_t* p) {
                         "c->max_w %d < cbx.w %d, ", c->max_w, cbx.w);
                 max_w += c->max_w;
             } else if (max_w < ui.infinity) {
-                swear(0 <= max_w + cbx.w && max_w + cbx.w < ui.infinity,
-                      "Width overflow: max_w + cbx.w = %d", max_w + cbx.w);
+                swear(0 <= max_w + cbx.w &&
+                      (int64_t)max_w + (int64_t)cbx.w < (int64_t)ui.infinity,
+                      "max_w + cbx.w = %d", max_w + cbx.w);
                 max_w += cbx.w;
             }
             w += cbx.w;
         }
     } ui_view_for_each_end(p, c);
     if (max_w < ui.infinity) {
-        swear(0 <= max_w + insets.right && max_w + insets.right < ui.infinity,
-             "Width overflow at right inset: max_w + right = %d",
+        swear(0 <= max_w + insets.right &&
+              (int64_t)max_w + (int64_t)insets.right < (int64_t)ui.infinity,
+             "max_w + right = %d",
               max_w + insets.right);
         max_w += insets.right;
     }
-    w += insets.right;
-    h += insets.top + insets.bottom;
     swear(max_w == 0 || max_w >= w,
          "max_w: %d is less than actual width w: %d", max_w, w);
     // Handle max width only if it differs from actual width
     p->max_w = max_w == w ? p->max_w : ut_max(max_w, p->max_w);
-    p->w = w;
-    p->h = h;
+    p->w = w + insets.right;
+    p->h = insets.top + h + insets.bottom;
     swear(p->max_w == 0 || p->max_w >= p->w, "max_w is less than actual width w");
 //  traceln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
@@ -4578,20 +4577,10 @@ static void ui_span_layout(ui_view_t* p) {
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
     int32_t spacers = 0; // Number of spacers
-//  // Left and right insets
-//  const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
-//  const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
-//  // Top and bottom insets
-//  const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
-//  const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
-//  const int32_t lf = p->x + i_lf;
-//  swear(lf < rt, "Inverted or zero-width conditions: lf: %d, rt: %d", lf, rt);
     // Top and bottom y coordinates
-    const int32_t top = p->y + insets.top;
-swear(top == pbx.y);
     // Mitigation for vertical overflow:
-    const int32_t bot = p->y + p->h - insets.bottom < top ? 
-                        top + p->h : p->y + p->h - insets.bottom;
+    const int32_t bot = p->y + p->h - insets.bottom < pbx.y ?
+                        pbx.y + p->h : p->y + p->h - insets.bottom;
     int32_t max_w_count = 0;
     int32_t x = p->x + insets.left;
     ui_view_for_each_begin(p, c) {
@@ -4605,10 +4594,6 @@ swear(top == pbx.y);
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
-const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
-const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
-const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
-const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
             // setting child`s max_h to infinity means that child`s height is
             // *always* fill vertical view size of the parent
             // childs.h can exceed parent.h (vertical overflow) - is not
@@ -4618,22 +4603,15 @@ const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
                 c->h = ut_max(c->h, pbx.h - padding.top - padding.bottom);
             }
             if ((c->align & ui.align.top) != 0) {
-swear(top + p_tp == pbx.y + padding.top);
                 c->y = pbx.y + padding.top;
             } else if ((c->align & ui.align.bottom) != 0) {
-swear(bot - (c->h + p_bt) == pbx.y + pbx.h - c->h - padding.bottom);
-                c->y = bot - (c->h + p_bt);
+                c->y = bot - (c->h + padding.bottom);
             } else {
-                const int32_t ch0 = p_tp + c->h + p_bt;
-                const int32_t ch1 = padding.top + c->h + padding.bottom;
-assert(ch0 == ch1);
-assert(bot - top == pbx.h);
-                c->y = top + p_tp + (bot - top - ch0) / 2;
-                int32_t cy = pbx.y + (pbx.h - ch1) / 2 + padding.top;
-                assert(cy == c->y);
+                const int32_t ch = padding.top + c->h + padding.bottom;
+                c->y = pbx.y + (pbx.h - ch) / 2 + padding.top;
             }
-            c->x = x + p_lf;
-            x = c->x + c->w + p_rt;
+            c->x = x + padding.left;
+            x = c->x + c->w + padding.right;
             swear(c->max_w == 0 || c->max_w > c->w, "max_w must be greater "
                   "than current width: max_w: %d, w: %d", c->max_w, c->w);
             if (c->max_w > 0) {
@@ -4657,10 +4635,8 @@ assert(bot - top == pbx.h);
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
-            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
-            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
             if (c->type == ui_view_spacer) {
-                swear(p_lf == 0 && p_rt == 0);
+                swear(padding.left == 0 && padding.right == 0);
             } else if (c->max_w > 0) {
                 const int32_t max_w = ut_min(c->max_w, xw);
                 int64_t proportional = ((int64_t)xw * (int64_t)max_w) / max_w_sum;
@@ -4672,8 +4648,8 @@ assert(bot - top == pbx.h);
             // TODO: take into account .align of a child and adjust x
             //       depending on ui.align.left/right/center
             //       distributing excess width on the left and right of a child
-            c->x = p_lf + x;
-            x = c->x + p_lf + c->w + p_rt;
+            c->x = padding.left + x;
+            x = c->x + padding.left + c->w + padding.right;
         } ui_view_for_each_end(p, c);
         assert(k == max_w_count);
     }
@@ -4687,17 +4663,15 @@ assert(bot - top == pbx.h);
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
-            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
-            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
             if (c->type == ui_view_spacer) {
-                c->y = top;
+                c->y = pbx.y;
                 c->w = partial;
-                c->h = bot - top;
+                c->h = bot - pbx.y;
                 spacers--;
             }
-            c->x = x + p_lf;
+            c->x = x + padding.left;
 //debugln(" %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
-            x = c->x + c->w + p_rt;
+            x = c->x + c->w + padding.right;
         } ui_view_for_each_end(p, c);
     }
 //  traceln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
@@ -4705,12 +4679,11 @@ assert(bot - top == pbx.h);
 
 static void ui_list_measure(ui_view_t* p) {
     swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
-    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
-    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
-    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
-    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
-    int32_t max_h = i_tp;
-    int32_t h = i_tp;
+    ui_rect_t pbx; // parent "in" box (sans insets)
+    ui_ltrb_t insets;
+    ui_view.inbox(p, &pbx, &insets);
+    int32_t max_h = insets.top;
+    int32_t h = insets.top;
     int32_t w = 0;
     ui_view_for_each_begin(p, c) {
         swear(c->max_h == 0 || c->max_h >= c->h,
@@ -4720,62 +4693,51 @@ static void ui_list_measure(ui_view_t* p) {
             c->h = 0; // layout will distribute excess here
             max_h = ui.infinity; // spacer make height greedy
         } else {
-            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
-            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
-            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
-            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
-            w = ut_max(w, p_lf + c->w + p_rt);
-            const int32_t ch = p_tp + c->h + p_bt;
+            ui_rect_t cbx; // child "out" box expanded by padding
+            ui_ltrb_t padding;
+            ui_view.outbox(c, &cbx, &padding);
+            w = ut_max(w, cbx.w);
             if (c->max_h == ui.infinity) {
                 max_h = ui.infinity;
             } else if (max_h < ui.infinity && c->max_h != 0) {
-                swear(c->max_h >= ch, "Constraint violation: c->max_h < ch, "
-                                      "max_h: %d, ch: %d", c->max_h, ch);
+                swear(c->max_h >= cbx.h, "c->max_h:%d < cbx.h: %d",
+                      c->max_h, cbx.h);
                 max_h += c->max_h;
             } else if (max_h < ui.infinity) {
-                swear(0 <= max_h + ch && max_h + ch < ui.infinity,
-                      "Height overflow: max_h + ch = %d", max_h + ch);
-                max_h += ch;
+                swear(0 <= max_h + cbx.h && max_h + cbx.h < (int64_t)ui.infinity,
+                      "max_h + ch = %d", max_h + cbx.h);
+                max_h += cbx.h;
             }
-            h += ch;
+            h += cbx.h;
         }
     } ui_view_for_each_end(p, c);
     if (max_h < ui.infinity) {
-        swear(0 <= max_h + i_bt && max_h + i_bt < ui.infinity,
+        swear(0 <= max_h + insets.bottom &&
+              (int64_t)max_h + (int64_t)insets.bottom < (int64_t)ui.infinity,
              "Height overflow at bottom inset: max_h + bottom = %d",
-              max_h + i_bt);
-        max_h += i_bt;
+              max_h + insets.bottom);
+        max_h += insets.bottom;
     }
-    h += i_bt;
-    w += i_lf + i_rt;
-    // Handle max height only if it differs from actual height
-    p->max_h = max_h == h ? p->max_h : ut_max(max_h, p->max_h);
     // do not touch max_w, caller may have set it to something
     swear(max_h == 0 || max_h >= h, "max_h is less than actual height h");
-    p->h = h;
-    p->w = w;
-    // add left and right insets
-    p->h += ui.gaps_em2px(p->fm->em.h, p->insets.top);
-    p->h += ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
+    p->max_h = max_h == h ? p->max_h : ut_max(max_h, p->max_h);
+    p->h = h + insets.bottom;
+    p->w = insets.left + w + insets.right;
 }
 
 static void ui_list_layout(ui_view_t* p) {
 //  debugln(">%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
+    ui_rect_t pbx; // parent "in" box (sans insets)
+    ui_ltrb_t insets;
+    ui_view.inbox(p, &pbx, &insets);
     int32_t spacers = 0; // Number of spacers
-    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
-    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
-    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
-    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
-    const int32_t top = p->y + i_tp;
     // Mitigation for vertical overflow:
-    const int32_t bot = p->y + p->h - i_bt < top ? top + p->h : p->y + p->h - i_bt;
-    const int32_t lf = p->x + i_lf;
-    // Mitigation for horizontal overflow:
-    const int32_t rt = p->x + p->w - i_rt < lf ? lf + p->h : p->x + p->w - i_rt;
+    const int32_t bot = p->y + p->h - insets.bottom < pbx.y ?
+                        pbx.y + p->h : p->y + p->h - insets.bottom;
     int32_t max_h_sum = 0;
     int32_t max_h_count = 0;
-    int32_t y = top;
+    int32_t y = pbx.y;
     ui_view_for_each_begin(p, c) {
         if (c->type == ui_view_spacer) {
             c->x = 0;
@@ -4784,26 +4746,25 @@ static void ui_list_layout(ui_view_t* p) {
             c->h = 0;
             spacers++;
         } else {
-            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
-            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
-            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
-            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
+            ui_rect_t cbx; // child "out" box expanded by padding
+            ui_ltrb_t padding;
+            ui_view.outbox(c, &cbx, &padding);
             // setting child`s max_w to infinity means that child`s height is
             // *always* fill vertical view size of the parent
             // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
             if (c->max_w == ui.infinity) {
-                c->w = ut_max(c->w, p->w - i_lf - i_rt - p_lf - p_rt);
+                c->w = ut_max(c->w, p->w - insets.left - insets.right - padding.left - padding.right);
             }
             if ((c->align & ui.align.left) != 0) {
-                c->x = lf + p_lf;
+                c->x = pbx.x + padding.left;
             } else if ((c->align & ui.align.right) != 0) {
-                c->x = rt - p_rt - c->w;
+                c->x = pbx.x + pbx.w - padding.right - c->w;
             } else {
-                const int32_t cw = p_lf + c->w + p_rt;
-                c->x = lf + p_lf + (rt - lf - cw) / 2;
+                const int32_t cw = padding.left + c->w + padding.right;
+                c->x = pbx.x + padding.left + (pbx.x + pbx.w - pbx.x - cw) / 2;
             }
-            c->y = y + p_tp;
-            y = c->y + c->h + p_bt;
+            c->y = y + padding.top;
+            y = c->y + c->h + padding.bottom;
             swear(c->max_h == 0 || c->max_h > c->h, "max_h must be greater"
                 "than current height: max_h: %d, h: %d", c->max_h, c->h);
             if (c->max_h > 0) {
@@ -4821,11 +4782,12 @@ static void ui_list_layout(ui_view_t* p) {
         } ui_view_for_each_end(p, c);
     }
     if (xh > 0 && max_h_count > 0) {
-        y = top;
+        y = pbx.y;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
-            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
-            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
+            ui_rect_t cbx; // child "out" box expanded by padding
+            ui_ltrb_t padding;
+            ui_view.outbox(c, &cbx, &padding);
             if (c->type != ui_view_spacer && c->max_h > 0) {
                 const int32_t max_h = ut_min(c->max_h, xh);
                 int64_t proportional = ((int64_t)xh * (int64_t)max_h) / max_h_sum;
@@ -4834,8 +4796,8 @@ static void ui_list_layout(ui_view_t* p) {
                 c->h = ut_min(c->max_h, c->h + ch);
                 k++;
             }
-            int32_t ch = p_tp + c->h + p_bt;
-            c->y = y + p_tp;
+            int32_t ch = padding.top + c->h + padding.bottom;
+            c->y = y + padding.top;
             y += ch;
         } ui_view_for_each_end(p, c);
         assert(k == max_h_count);
@@ -4845,18 +4807,19 @@ static void ui_list_layout(ui_view_t* p) {
     if (xh > 0 && spacers > 0) {
         // evenly distribute excess among spacers
         int32_t partial = xh / spacers;
-        y = top;
+        y = pbx.y;
         ui_view_for_each_begin(p, c) {
-            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
-            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
+            ui_rect_t cbx; // child "out" box expanded by padding
+            ui_ltrb_t padding;
+            ui_view.outbox(c, &cbx, &padding);
             if (c->type == ui_view_spacer) {
-                c->x = lf;
-                c->w = rt - lf;
+                c->x = pbx.x;
+                c->w = pbx.x + pbx.w - pbx.x;
                 c->h = partial; // TODO: xxxxx last?
                 spacers--;
             }
-            int32_t ch = p_tp + c->h + p_bt;
-            c->y = y + p_tp;
+            int32_t ch = padding.top + c->h + padding.bottom;
+            c->y = y + padding.top;
             y += ch;
         } ui_view_for_each_end(p, c);
     }
@@ -4866,25 +4829,23 @@ static void ui_list_layout(ui_view_t* p) {
 static void ui_container_measure(ui_view_t* p) {
 //  debugln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
-    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
-    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
-    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
-    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
+    ui_rect_t pbx; // parent "in" box (sans insets)
+    ui_ltrb_t insets;
+    ui_view.inbox(p, &pbx, &insets);
     // empty container minimum size:
     if (p != ui_app.view) {
-        p->w = i_lf + i_rt;
-        p->h = i_tp + i_bt;
+        p->w = insets.left + insets.right;
+        p->h = insets.top + insets.bottom;
     } else { // ui_app.view is special case (expanded to a window)
-        p->w = ut_max(p->w, i_lf + i_rt);
-        p->h = ut_max(p->h, i_tp + i_bt);
+        p->w = ut_max(p->w, insets.left + insets.right);
+        p->h = ut_max(p->h, insets.top + insets.bottom);
     }
     ui_view_for_each_begin(p, c) {
-        const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
-        const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
-        const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
-        const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
-        p->w = ut_max(p->w, p_lf + c->w + p_rt);
-        p->h = ut_max(p->h, p_tp + c->h + p_bt);
+        ui_rect_t cbx; // child "out" box expanded by padding
+        ui_ltrb_t padding;
+        ui_view.outbox(c, &cbx, &padding);
+        p->w = ut_max(p->w, padding.left + c->w + padding.right);
+        p->h = ut_max(p->h, padding.top + c->h + padding.bottom);
     } ui_view_for_each_end(p, c);
 //  debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
@@ -4892,23 +4853,18 @@ static void ui_container_measure(ui_view_t* p) {
 static void ui_container_layout(ui_view_t* p) {
 //  debugln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
-    const int32_t i_lf = ui.gaps_em2px(p->fm->em.w, p->insets.left);
-    const int32_t i_rt = ui.gaps_em2px(p->fm->em.w, p->insets.right);
-    const int32_t i_tp = ui.gaps_em2px(p->fm->em.h, p->insets.top);
-    const int32_t i_bt = ui.gaps_em2px(p->fm->em.h, p->insets.bottom);
-    const int32_t lf = p->x + i_lf;
-    const int32_t rt = p->x + p->w - i_rt;
-    const int32_t tp = p->y + i_tp;
-    const int32_t bt = p->y + p->h - i_bt;
+    ui_rect_t pbx; // parent "in" box (sans insets)
+    ui_ltrb_t insets;
+    ui_view.inbox(p, &pbx, &insets);
+    const int32_t tp = p->y + insets.top;
+    const int32_t bt = p->y + p->h - insets.bottom;
     ui_view_for_each_begin(p, c) {
         if (c->type != ui_view_spacer) {
-            const int32_t p_lf = ui.gaps_em2px(c->fm->em.w, c->padding.left);
-            const int32_t p_rt = ui.gaps_em2px(c->fm->em.w, c->padding.right);
-            const int32_t p_tp = ui.gaps_em2px(c->fm->em.h, c->padding.top);
-            const int32_t p_bt = ui.gaps_em2px(c->fm->em.h, c->padding.bottom);
-
-            const int32_t pw = p->w - i_lf - i_rt - p_lf - p_rt;
-            const int32_t ph = p->h - i_tp - i_bt - p_tp - p_bt;
+            ui_rect_t cbx; // child "out" box expanded by padding
+            ui_ltrb_t padding;
+            ui_view.outbox(c, &cbx, &padding);
+            const int32_t pw = p->w - insets.left - insets.right - padding.left - padding.right;
+            const int32_t ph = p->h - insets.top - insets.bottom - padding.top - padding.bottom;
             int32_t cw = c->max_w == ui.infinity ? pw : c->max_w;
             if (cw > 0) {
                 c->w = ut_min(cw, pw);
@@ -4924,20 +4880,20 @@ static void ui_container_layout(ui_view_t* p) {
                                (ui.align.top|ui.align.bottom),
                    "Constraint violation align: top|bottom 0x%02X", c->align);
             if ((c->align & ui.align.left) != 0) {
-                c->x = lf + p_lf;
+                c->x = pbx.x + padding.left;
             } else if ((c->align & ui.align.right) != 0) {
-                c->x = rt - c->w - p_rt;
+                c->x = pbx.x + pbx.w - c->w - padding.right;
             } else {
-                const int32_t w = rt - lf; // effective width
-                c->x = lf + p_lf + (w - (p_lf + c->w + p_rt)) / 2;
+                const int32_t w = pbx.x + pbx.w - pbx.x; // effective width
+                c->x = pbx.x + padding.left + (w - (padding.left + c->w + padding.right)) / 2;
             }
             if ((c->align & ui.align.top) != 0) {
-                c->y = tp + p_tp;
+                c->y = tp + padding.top;
             } else if ((c->align & ui.align.bottom) != 0) {
-                c->y = bt - c->h - p_bt;
+                c->y = bt - c->h - padding.bottom;
             } else {
                 const int32_t h = bt - tp; // effective height
-                c->y = tp + p_tp + (h - (p_tp + c->h + p_bt)) / 2;
+                c->y = tp + padding.top + (h - (padding.top + c->h + padding.bottom)) / 2;
             }
 //          debugln(" %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
         }
@@ -7163,7 +7119,8 @@ static ui_ltrb_t ui_view_gaps(ui_view_t* v, const ui_gaps_t* g) {
 }
 
 static void ui_view_inbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
-    assert(r != null || insets != null);
+    swear(r != null || insets != null);
+    swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t i = ui_view_gaps(v, &v->insets);
     if (insets != null) { *insets = i; }
     if (r != null) {
@@ -7177,7 +7134,8 @@ static void ui_view_inbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
 }
 
 static void ui_view_outbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
-    assert(r != null || padding != null);
+    swear(r != null || padding != null);
+    swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t p = ui_view_gaps(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {

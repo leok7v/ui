@@ -198,7 +198,8 @@ static ui_ltrb_t ui_view_gaps(ui_view_t* v, const ui_gaps_t* g) {
 }
 
 static void ui_view_inbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
-    assert(r != null || insets != null);
+    swear(r != null || insets != null);
+    swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t i = ui_view_gaps(v, &v->insets);
     if (insets != null) { *insets = i; }
     if (r != null) {
@@ -212,7 +213,8 @@ static void ui_view_inbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
 }
 
 static void ui_view_outbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
-    assert(r != null || padding != null);
+    swear(r != null || padding != null);
+    swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t p = ui_view_gaps(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
