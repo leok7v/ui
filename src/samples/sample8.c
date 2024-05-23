@@ -107,7 +107,7 @@ static void opened(void) {
     static ui_slider_t slider_padding   = ui_slider("Padding: %d",  5.5, 0, 3, padding_callback);
     ui_view.add(ui_app.view,
         ui_view.add(&list,
-            &ui_caption,
+           &ui_caption, // hack
             ui_view.add(&span,
                 &test,
                 ui_view.add(&tools,
@@ -122,7 +122,17 @@ static void opened(void) {
             null),
         null),
     null);
+    // TODO: ui_caption has a problem. Because app.view is simple container
+    //       ui_caption.view.align = top is not good.
+    //       Ideally, ui_caption should be a child of ui_app.root that
+    //       contains both ui_caption (possibly hidden) and  ui_app.view
+    //       and has vertical "list" layout. Looks like quite involving
+    //       change inside ui_app which uses ui_app.view everywhere as a root
+    //       Need to rename ui_app.view to ui_app.root and introduce ui_app.view
+    //       as it's second child.
+    ui_caption.view.align = ui.align.center; // hack
     list.max_w = ui.infinity;
+    list.max_h = ui.infinity;
     list.insets = (ui_gaps_t){ 0, 0, 0, 0 };
     span.max_w = ui.infinity;
     span.max_h = ui.infinity;
@@ -130,17 +140,15 @@ static void opened(void) {
     test.max_w = ui.infinity;
     test.max_h = ui.infinity;
     test.color = ui_color_transparent;
-    test.align = ui.align.left;
     test.insets = (ui_gaps_t){ 0, 0, 0, 0 };
     test.background_id = ui_color_id_window;
     strprintf(test.text, "%s", "test");
-//test.paint = ui_view.debug_paint;
+//  test.paint = ui_view.debug_paint;
     test.debug = true;
 
     // buttons to switch test content
     tools.max_h = ui.infinity;
     tools.color_id = ui_color_id_window;
-    tools.align = ui.align.right;
     strprintf(tools.text, "%s", "tools");
 //  tools.paint = ui_view.debug_paint;
     ui_view_for_each(&tools, it, { it->align = ui.align.left; });

@@ -5,7 +5,7 @@
 static bool ui_containers_debug = false;
 
 #pragma push_macro("debugln")
-#pragma push_macro("dump")
+#pragma push_macro("ui_layout_dump")
 
 // Usage of: ui_view_for_each_begin(p, c) { ... } ui_view_for_each_end(p, c)
 // makes code inside iterator debugger friendly and ensures correct __LINE__
@@ -24,7 +24,7 @@ static const char* ui_container_finite_int(int32_t v, char* text, int32_t count)
     return text;
 }
 
-#define dump(v) do {                                                          \
+#define ui_layout_dump(v) do {                                                \
     char maxw[32];                                                            \
     char maxh[32];                                                            \
     debugln("%s[%4.4s] %d,%d %dx%d, max[%sx%s] "                              \
@@ -94,8 +94,32 @@ static void ui_span_measure(ui_view_t* p) {
 // may adjust span_w wider number depending on it's own width
 // and ui_span.max_w agreement
 
+static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
+    ui_ltrb_t padding = ui_view.gaps(c, &c->padding);
+    // setting child`s max_h to infinity means that child`s height is
+    // *always* fill vertical view size of the parent
+    // childs.h can exceed parent.h (vertical overflow) - is not
+    // encouraged but allowed
+    if (c->max_h == ui.infinity) {
+        // important c->h changed, cbx.h is no longer valid
+        c->h = ut_max(c->h, pbx.h - padding.top - padding.bottom);
+    }
+    if ((c->align & ui.align.top) != 0) {
+        assert(c->align == ui.align.top);
+        c->y = pbx.y + padding.top;
+    } else if ((c->align & ui.align.bottom) != 0) {
+        assert(c->align == ui.align.bottom);
+        c->y = pbx.y + pbx.h - c->h - padding.bottom;
+    } else { // effective height (c->h might have been changed)
+        assert(c->align == ui.align.center);
+        const int32_t ch = padding.top + c->h + padding.bottom;
+        c->y = pbx.y + (pbx.h - ch) / 2 + padding.top;
+    }
+    c->x = x + padding.left;
+    return c->x + c->w + padding.right;
+}
+
 static void ui_span_layout(ui_view_t* p) {
-//  traceln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
@@ -111,29 +135,9 @@ static void ui_span_layout(ui_view_t* p) {
             c->w = 0;
             spacers++;
         } else {
-            ui_rect_t cbx; // child "out" box expanded by padding
-            ui_ltrb_t padding;
-            ui_view.outbox(c, &cbx, &padding);
-            // setting child`s max_h to infinity means that child`s height is
-            // *always* fill vertical view size of the parent
-            // childs.h can exceed parent.h (vertical overflow) - is not
-            // encouraged but allowed
-            if (c->max_h == ui.infinity) {
-                // important c->h changed, cbx.h is no longer valid
-                c->h = ut_max(c->h, pbx.h - padding.top - padding.bottom);
-            }
-            if ((c->align & ui.align.top) != 0) {
-                c->y = pbx.y + padding.top;
-            } else if ((c->align & ui.align.bottom) != 0) {
-                c->y = pbx.y + pbx.h - cbx.h + padding.top;
-            } else {
-                const int32_t ch = padding.top + c->h + padding.bottom;
-                c->y = pbx.y + (pbx.h - ch) / 2 + padding.top;
-            }
-            c->x = x + padding.left;
-            x = c->x + c->w + padding.right;
-            swear(c->max_w == 0 || c->max_w > c->w, "max_w must be greater "
-                  "than current width: max_w: %d, w: %d", c->max_w, c->w);
+            x = ui_span_place_child(c, pbx, x);
+            swear(c->max_w == 0 || c->max_w > c->w,
+                  "max_w:%d < w:%d", c->max_w, c->w);
             if (c->max_w > 0) {
                 max_w_count++;
             }
@@ -159,7 +163,7 @@ static void ui_span_layout(ui_view_t* p) {
                 swear(padding.left == 0 && padding.right == 0);
             } else if (c->max_w > 0) {
                 const int32_t max_w = ut_min(c->max_w, xw);
-                int64_t proportional = ((int64_t)xw * (int64_t)max_w) / max_w_sum;
+                int64_t proportional = (xw * (int64_t)max_w) / max_w_sum;
                 assert(proportional <= INT32_MAX);
                 int32_t cw = (int32_t)proportional;
                 c->w = ut_min(c->max_w, c->w + cw);
@@ -190,11 +194,9 @@ static void ui_span_layout(ui_view_t* p) {
                 spacers--;
             }
             c->x = x + padding.left;
-//debugln(" %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
             x = c->x + c->w + padding.right;
         } ui_view_for_each_end(p, c);
     }
-//  traceln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
 static void ui_list_measure(ui_view_t* p) {
@@ -248,6 +250,30 @@ static void ui_list_measure(ui_view_t* p) {
     p->w = insets.left + w + insets.right;
 }
 
+static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
+    ui_ltrb_t padding = ui_view.gaps(c, &c->padding);
+    // setting child`s max_w to infinity means that child`s height is
+    // *always* fill vertical view size of the parent
+    // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
+    if (c->max_w == ui.infinity) {
+        c->w = ut_max(c->w, pbx.w - padding.left - padding.right);
+    }
+    if ((c->align & ui.align.left) != 0) {
+        assert(c->align == ui.align.left);
+        c->x = pbx.x + padding.left;
+    } else if ((c->align & ui.align.right) != 0) {
+        assert(c->align == ui.align.right);
+        c->x = pbx.x + pbx.w - c->w - padding.right;
+    } else {
+        assert(c->align == ui.align.center);
+        const int32_t cw = padding.left + c->w + padding.right;
+        c->x = pbx.x + (pbx.w - cw) / 2 + padding.left;
+        assert(c->x == pbx.x + padding.left + (pbx.x + pbx.w - pbx.x - cw) / 2);
+    }
+    c->y = y + padding.top;
+    return c->y + c->h + padding.bottom;
+}
+
 static void ui_list_layout(ui_view_t* p) {
 //  debugln(">%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
@@ -266,27 +292,9 @@ static void ui_list_layout(ui_view_t* p) {
             c->h = 0;
             spacers++;
         } else {
-            ui_rect_t cbx; // child "out" box expanded by padding
-            ui_ltrb_t padding;
-            ui_view.outbox(c, &cbx, &padding);
-            // setting child`s max_w to infinity means that child`s height is
-            // *always* fill vertical view size of the parent
-            // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
-            if (c->max_w == ui.infinity) {
-                c->w = ut_max(c->w, p->w - insets.left - insets.right - padding.left - padding.right);
-            }
-            if ((c->align & ui.align.left) != 0) {
-                c->x = pbx.x + padding.left;
-            } else if ((c->align & ui.align.right) != 0) {
-                c->x = pbx.x + pbx.w - padding.right - c->w;
-            } else {
-                const int32_t cw = padding.left + c->w + padding.right;
-                c->x = pbx.x + padding.left + (pbx.x + pbx.w - pbx.x - cw) / 2;
-            }
-            c->y = y + padding.top;
-            y = c->y + c->h + padding.bottom;
-            swear(c->max_h == 0 || c->max_h > c->h, "max_h must be greater"
-                "than current height: max_h: %d, h: %d", c->max_h, c->h);
+            y = ui_list_place_child(c, pbx, y);
+            swear(c->max_h == 0 || c->max_h > c->h,
+                  "max_h:%d < h:%d", c->max_h, c->h);
             if (c->max_h > 0) {
                 // clamp max_h to the effective parent height
                 max_h_count++;
@@ -310,7 +318,7 @@ static void ui_list_layout(ui_view_t* p) {
             ui_view.outbox(c, &cbx, &padding);
             if (c->type != ui_view_spacer && c->max_h > 0) {
                 const int32_t max_h = ut_min(c->max_h, xh);
-                int64_t proportional = ((int64_t)xh * (int64_t)max_h) / max_h_sum;
+                int64_t proportional = (xh * (int64_t)max_h) / max_h_sum;
                 assert(proportional <= INT32_MAX);
                 int32_t ch = (int32_t)proportional;
                 c->h = ut_min(c->max_h, c->h + ch);
@@ -395,10 +403,10 @@ static void ui_container_layout(ui_view_t* p) {
             }
             swear((c->align & (ui.align.left|ui.align.right)) !=
                                (ui.align.left|ui.align.right),
-                   "Constraint violation align: left|right 0x%02X", c->align);
+                   "align: left|right 0x%02X", c->align);
             swear((c->align & (ui.align.top|ui.align.bottom)) !=
                                (ui.align.top|ui.align.bottom),
-                   "Constraint violation align: top|bottom 0x%02X", c->align);
+                   "align: top|bottom 0x%02X", c->align);
             if ((c->align & ui.align.left) != 0) {
                 c->x = pbx.x + padding.left;
             } else if ((c->align & ui.align.right) != 0) {
@@ -471,5 +479,5 @@ void ui_view_init_container(ui_view_t* v) {
     if (v->text[0] == 0) { strprintf(v->text, "ui_container"); }
 }
 
-#pragma pop_macro("dump")
+#pragma pop_macro("ui_layout_dump")
 #pragma pop_macro("debugln")
