@@ -2274,7 +2274,7 @@ static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
 }
 
 static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
-    if (view->timer != null) { ui_view.timer(view, id); }
+    ui_view.timer(view, id);
     if (id == ui_app_timer_1s_id) { ui_view.every_sec(view); }
     if (id == ui_app_timer_100ms_id) { ui_view.every_100ms(view); }
 }
@@ -2844,38 +2844,41 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 }
 
 static int64_t ui_app_hit_test(int32_t x, int32_t y) {
-    int32_t bt = ut_max(4, ui_app.in2px(1.0 / 16.0));
     int32_t cx = x - ui_app.wrc.x; // client coordinates
     int32_t cy = y - ui_app.wrc.y;
-    if (ui_app.animating.view != null) {
-        return ui.hit_test.client; // message box or toast is up
-    } else if (ui_app.is_maximized()) {
-        int64_t ht = ui_view.hit_test(ui_app.root, x, y);
-        return ht == ui.hit_test.nowhere ? ui.hit_test.client : ht;
-    } else if (ui_app.is_full_screen) {
-        return ui.hit_test.client;
-    } else if (cx < bt && cy < bt) {
-        return ui.hit_test.top_left;
-    } else if (cx > ui_app.crc.w - bt && cy < bt) {
-        return ui.hit_test.top_right;
-    } else if (cy < bt) {
-        return ui.hit_test.top;
-    } else if (!ui_caption.view.hidden && cy < ui_caption.view.h) {
-        return ui_caption.view.hit_test(&ui_caption.view, cx, cy);
-    } else if (cx > ui_app.crc.w - bt && cy > ui_app.crc.h - bt) {
-        return ui.hit_test.bottom_right;
-    } else if (cx < bt && cy > ui_app.crc.h - bt) {
-        return ui.hit_test.bottom_left;
-    } else if (cx < bt) {
-        return ui.hit_test.left;
-    } else if (cx > ui_app.crc.w - bt) {
-        return ui.hit_test.right;
-    } else if (cy > ui_app.crc.h - bt) {
-        return ui.hit_test.bottom;
-    } else {
-        int64_t ht = ui_view.hit_test(ui_app.content, cx, cy);
-        return ht == ui.hit_test.nowhere ? ui.hit_test.client : ht;
+    if (ui_app.no_decor) {
+        int32_t bt = ut_max(4, ui_app.in2px(1.0 / 16.0));
+        if (ui_app.animating.view != null) {
+            return ui.hit_test.client; // message box or toast is up
+        } else if (ui_app.is_maximized()) {
+            int64_t ht = ui_view.hit_test(ui_app.root, x, y);
+            return ht == ui.hit_test.nowhere ? ui.hit_test.client : ht;
+        } else if (ui_app.is_full_screen) {
+            return ui.hit_test.client;
+        } else if (cx < bt && cy < bt) {
+            return ui.hit_test.top_left;
+        } else if (cx > ui_app.crc.w - bt && cy < bt) {
+            return ui.hit_test.top_right;
+        } else if (cy < bt) {
+            return ui.hit_test.top;
+        } else if (!ui_caption.view.hidden && cy < ui_caption.view.h) {
+            return ui_caption.view.hit_test(&ui_caption.view, cx, cy);
+        } else if (cx > ui_app.crc.w - bt && cy > ui_app.crc.h - bt) {
+            return ui.hit_test.bottom_right;
+        } else if (cx < bt && cy > ui_app.crc.h - bt) {
+            return ui.hit_test.bottom_left;
+        } else if (cx < bt) {
+            return ui.hit_test.left;
+        } else if (cx > ui_app.crc.w - bt) {
+            return ui.hit_test.right;
+        } else if (cy > ui_app.crc.h - bt) {
+            return ui.hit_test.bottom;
+        } else {
+            // drop down to content hit test
+        }
     }
+    int64_t ht = ui_view.hit_test(ui_app.content, cx, cy);
+    return ht == ui.hit_test.nowhere ? ui.hit_test.client : ht;
 }
 
 static void ui_app_wm_activate(int64_t wp) {
@@ -2894,19 +2897,6 @@ static void ui_app_update_mouse_buttons_state(void) {
     ui_app.mouse_right = (GetAsyncKeyState(swapped ? VK_LBUTTON : VK_RBUTTON)
                           & 0x8000) != 0;
 }
-
-// static bool ui_app_show_sys_menu(void) {
-//     HMENU menu = GetSystemMenu(ui_app_window(), false);
-//     if (menu) {
-//         int32_t y = ui_app.caption->hidden ? ui_app.wrc.y :
-//             ui_app.wrc.y + ui_app.caption->h;
-//         TrackPopupMenu(menu, TPM_LEFTBUTTON | TPM_RIGHTBUTTON,
-//             ui_app.wrc.x, y, 0, ui_app_window(), null);
-//         return true;
-//     } else {
-//         return false;
-//     }
-// }
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
@@ -3066,21 +3056,6 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             if (wp == SC_KEYMENU && lp != 0x20) {
                 return 0; // This prevents the error/beep sound
             }
-//          if (ui_app.no_decor) {
-//              switch (wp & 0xFFF0) {
-//                  case SC_CLOSE:
-//                  case SC_MINIMIZE:
-//                  case SC_RESTORE:
-//                  case SC_MOVE:
-//                  case SC_SIZE:
-//                  case SC_MAXIMIZE:
-//                      return DefWindowProc(ui_app_window(), m, wp, lp);
-//                  case SC_MOUSEMENU:
-//                      if (ui_app_show_sys_menu()) { return 0; }
-//                  default:
-//                      break; // Suppress unknown system commands
-//              }
-//          }
             break;
         case WM_ACTIVATE: ui_app_wm_activate(wp); break;
         case WM_WINDOWPOSCHANGING: {
@@ -3865,6 +3840,7 @@ static void ui_app_init(void) {
     ui_app.content->insets = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
+    ui_app.caption->hidden = !ui_app.no_decor;
     // for ui_view_debug_paint:
     strprintf(ui_app.root->text, "ui_app.root");
     strprintf(ui_app.content->text, "ui_app.content");
@@ -9350,10 +9326,9 @@ static bool ui_view_is_disabled(const ui_view_t* v) {
     return disabled;
 }
 
-// timers are delivered even to hidden and disabled views:
-
 static void ui_view_timer(ui_view_t* v, ui_timer_t id) {
     if (v->timer != null) { v->timer(v, id); }
+    // timers are delivered even to hidden and disabled views:
     ui_view_for_each(v, c, { ui_view_timer(c, id); });
 }
 

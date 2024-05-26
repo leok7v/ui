@@ -308,10 +308,9 @@ static bool ui_view_is_disabled(const ui_view_t* v) {
     return disabled;
 }
 
-// timers are delivered even to hidden and disabled views:
-
 static void ui_view_timer(ui_view_t* v, ui_timer_t id) {
     if (v->timer != null) { v->timer(v, id); }
+    // timers are delivered even to hidden and disabled views:
     ui_view_for_each(v, c, { ui_view_timer(c, id); });
 }
 

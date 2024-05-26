@@ -26,15 +26,22 @@ static volatile time_stats_t ts[2];
 
 static ui_point_t points[N]; // graph polyline coordinates
 
+static int32_t M = N;
+
+static void after_layout(ui_view_t* view) {
+    if (view->w > 0) { M = ut_min(view->w, M); }
+    traceln("M: %d", M);
+}
+
 static void stats(volatile time_stats_t* t) {
-    int n = ut_min(N - 1, t->samples);
+    int n = ut_min(M - 1, t->samples);
     t->min_dt = 1.0; // 1 second is 100x of 10ms
     t->max_dt = 0;
     int j = 0;
     fp64_t sum = 0;
     for (int i = 0; i < n - 1; i++) {
-        int p0 = (t->pos - i - 1 + N) % N;
-        int p1 = (p0 - 1 + N) % N;
+        int p0 = (t->pos - i - 1 + M) % M;
+        int p1 = (p0 - 1 + M) % M;
         t->dt[j] = t->time[p0] - (t->time[p1] + 0.01); // expected 10ms
         t->min_dt = ut_min(t->dt[j], t->min_dt);
         t->max_dt = ut_max(t->dt[j], t->max_dt);
@@ -46,7 +53,8 @@ static void stats(volatile time_stats_t* t) {
     t->spread = ut_max(fabs(t->max_dt), fabs(t->min_dt));
 }
 
-static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y) {
+static void graph(ui_view_t* view, int ix, ui_color_t c, int y) {
+    volatile time_stats_t* t = &ts[ix];
     const int h2 = ui_app.crc.h / 2;
     const int h4 = h2 / 2;
     const int h8 = h4 / 2;
@@ -56,8 +64,8 @@ static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y
     ui_gdi.line(ui_app.crc.w, y);
     ui_gdi.set_colored_pen(c);
     if (ts[0].samples > 2 && ts[1].samples > 2) {
-        const fp64_t spread = ut_max(ts[0].spread, ts[0].spread);
-        int n = ut_min(N - 1, t->samples);
+        const fp64_t spread = ts[ix].spread;
+        int n = ut_min(M - 1, t->samples);
         int j = 0;
         for (int i = 0; i < n - 1; i++) {
             fp64_t v = t->dt[j] / spread;
@@ -74,19 +82,6 @@ static void graph(ui_view_t* view, volatile time_stats_t* t, ui_color_t c, int y
     }
 }
 
-static void timer_thread(void* p) {
-    bool* done = (bool*)p;
-    ut_thread.name("r/t timer");
-    ut_thread.realtime();
-    while (!*done) {
-        ut_thread.sleep_for(0.0094);
-        ts[1].time[ts[1].pos] = ut_clock.seconds();
-        ts[1].pos = (ts[1].pos + 1) % N;
-        (ts[1].samples)++;
-        ui_app.request_redraw();
-    }
-}
-
 static void paint(ui_view_t* view) {
     stats(&ts[0]);
     stats(&ts[1]);
@@ -100,12 +95,25 @@ static void paint(ui_view_t* view) {
     ui_gdi.print("(\"sps\" stands for samples per second)");
     const int h2 = ui_app.crc.h / 2;
     const int h4 = h2 / 2;
-    graph(view, &ts[0], ui_colors.tone_red, h4);
+    graph(view, 0, ui_colors.tone_red, h4);
     ui_gdi.y = h2;
     ui_gdi.print("10ms r/t thread sleep jitter");
-    graph(view, &ts[1], ui_colors.tone_green, h2 + h4);
+    graph(view, 1, ui_colors.tone_green, h2 + h4);
     ui_gdi.y = h2 - h4;
 
+}
+
+static void timer_thread(void* p) {
+    bool* done = (bool*)p;
+    ut_thread.name("r/t timer");
+    ut_thread.realtime();
+    while (!*done) {
+        ut_thread.sleep_for(0.0094);
+        ts[1].time[ts[1].pos] = ut_clock.seconds();
+        ts[1].pos = (ts[1].pos + 1) % M;
+        (ts[1].samples)++;
+        ui_app.request_redraw();
+    }
 }
 
 static void timer(ui_view_t* view, ui_timer_t id) {
@@ -114,8 +122,9 @@ static void timer(ui_view_t* view, ui_timer_t id) {
     // 1 seconds, 100ms and 10ms:
     if (id == timer10ms) {
         ts[0].time[ts[0].pos] = ui_app.now;
-        ts[0].pos = (ts[0].pos + 1) % N;
+        ts[0].pos = (ts[0].pos + 1) % M;
         (ts[0].samples)++;
+        ui_app.request_redraw();
     }
 }
 
@@ -170,6 +179,7 @@ static void init(void) {
     ui_app.opened = opened;
     ui_app.content->timer = timer;
     ui_app.content->paint = paint;
+    ui_app.content->after_layout = after_layout;
     // no minimize/maximize title bar and system menu
     ui_app.no_min = true;
     ui_app.no_max = true;
