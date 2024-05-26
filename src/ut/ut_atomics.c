@@ -80,47 +80,47 @@ static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
 static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
 
 static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
-    return atomic_fetch_add((atomic_int_fast32_t*)a, 1) + 1;
+    return atomic_fetch_add((volatile atomic_int_fast32_t*)a, 1) + 1;
 }
 
 static int32_t ut_atomics_decrement_int32(volatile int32_t* a) {
-    return atomic_fetch_sub((atomic_int_fast32_t*)a, 1) - 1;
+    return atomic_fetch_sub((volatile atomic_int_fast32_t*)a, 1) - 1;
 }
 
 static int64_t ut_atomics_increment_int64(volatile int64_t* a) {
-    return atomic_fetch_add((atomic_int_fast64_t*)a, 1) + 1;
+    return atomic_fetch_add((volatile atomic_int_fast64_t*)a, 1) + 1;
 }
 
 static int64_t ut_atomics_decrement_int64(volatile int64_t* a) {
-    return atomic_fetch_sub((atomic_int_fast64_t*)a, 1) - 1;
+    return atomic_fetch_sub((volatile atomic_int_fast64_t*)a, 1) - 1;
 }
 
 static int32_t ut_atomics_add_int32(volatile int32_t* a, int32_t v) {
-    return atomic_fetch_add((atomic_int_fast32_t*)a, v) + v;
+    return atomic_fetch_add((volatile atomic_int_fast32_t*)a, v) + v;
 }
 
 static int64_t ut_atomics_add_int64(volatile int64_t* a, int64_t v) {
-    return atomic_fetch_add((atomic_int_fast64_t*)a, v) + v;
+    return atomic_fetch_add((volatile atomic_int_fast64_t*)a, v) + v;
 }
 
 static int64_t ut_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
-    return atomic_exchange((atomic_int_fast64_t*)a, v);
+    return atomic_exchange((volatile atomic_int_fast64_t*)a, v);
 }
 
 static int32_t ut_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
-    return atomic_exchange((atomic_int_fast32_t*)a, v);
+    return atomic_exchange((volatile atomic_int_fast32_t*)a, v);
 }
 
 static bool ut_atomics_compare_exchange_int64(volatile int64_t* a,
     int64_t comparand, int64_t v) {
-    return atomic_compare_exchange_strong((atomic_int_fast64_t*)a,
+    return atomic_compare_exchange_strong((volatile atomic_int_fast64_t*)a,
         &comparand, v);
 }
 
 // Code here is not "seen" by IntelliSense but is compiled normally.
 static bool ut_atomics_compare_exchange_int32(volatile int32_t* a,
     int32_t comparand, int32_t v) {
-    return atomic_compare_exchange_strong((atomic_int_fast32_t*)a,
+    return atomic_compare_exchange_strong((volatile atomic_int_fast32_t*)a,
         &comparand, v);
 }
 
@@ -140,7 +140,7 @@ static int64_t ut_atomics_load_int64(volatile int64_t* a) {
 
 static void* ut_atomics_exchange_ptr(volatile void* *a, void* v) {
     static_assertion(sizeof(void*) == sizeof(uint64_t));
-    return (void*)ut_atomics.exchange_int64((int64_t*)a, (int64_t)v);
+    return (void*)(intptr_t)ut_atomics.exchange_int64((int64_t*)a, (int64_t)v);
 }
 
 static bool ut_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
@@ -149,13 +149,16 @@ static bool ut_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, 
         (int64_t)comparand, (int64_t)v);
 }
 
+#pragma push_macro("ut_sync_bool_compare_and_swap")
+#pragma push_macro("ut_builtin_cpu_pause")
+
 // https://en.wikipedia.org/wiki/Spinlock
 
-#define __sync_bool_compare_and_swap(p, old_val, new_val) \
-    _InterlockedCompareExchange64(p, new_val, old_val) == old_val
+#define ut_sync_bool_compare_and_swap(p, old_val, new_val)          \
+    (_InterlockedCompareExchange64(p, new_val, old_val) == old_val)
 
 // https://stackoverflow.com/questions/37063700/mm-pause-usage-in-gcc-on-intel
-#define __builtin_cpu_pause() YieldProcessor()
+#define ut_builtin_cpu_pause() do { YieldProcessor(); } while (1)
 
 static void spinlock_acquire(volatile int64_t* spinlock) {
     // Very basic implementation of a spinlock. This is currently
@@ -164,17 +167,20 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
     // have minimal thread contention).
     // Not a performance champion (because of mem_fence()) but serves
     // the purpose. mem_fence() can be reduced to mem_sfence()... sigh
-    while (!__sync_bool_compare_and_swap(spinlock, 0, 1)) {
+    while (!ut_sync_bool_compare_and_swap(spinlock, 0, 1)) {
         while (*spinlock) {
-            __builtin_cpu_pause();
+            ut_builtin_cpu_pause();
         }
     }
     ut_atomics.memory_fence();
-    // not strcitly necessary on strong mem model Intel/AMD but
+    // not strictly necessary on strong mem model Intel/AMD but
     // see: https://cfsamsonbooks.gitbook.io/explaining-atomics-in-rust/
     //      Fig 2 Inconsistent C11 execution of SB and 2+2W
     assert(*spinlock == 1);
 }
+
+#pragma pop_macro("ut_builtin_cpu_pause")
+#pragma pop_macro("ut_sync_bool_compare_and_swap")
 
 static void spinlock_release(volatile int64_t* spinlock) {
     assert(*spinlock == 1);
