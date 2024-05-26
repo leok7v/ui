@@ -36,9 +36,9 @@ static bool ut_files_is_valid(ut_file_t* file) { // both null and ut_files.inval
 
 static errno_t ut_files_seek(ut_file_t* file, int64_t *position, int32_t method) {
     LARGE_INTEGER distance_to_move = { .QuadPart = *position };
-    LARGE_INTEGER pointer = {0};
-    errno_t r = b2e(SetFilePointerEx(file, distance_to_move, &pointer, method));
-    if (r == 0) { *position = pointer.QuadPart; };
+    LARGE_INTEGER p = { 0 }; // pointer
+    errno_t r = b2e(SetFilePointerEx(file, distance_to_move, &p, (DWORD)method));
+    if (r == 0) { *position = p.QuadPart; }
     return r;
 }
 
@@ -83,14 +83,14 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_sy
         const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
         DWORD n = GetFinalPathNameByHandleA(file, null, 0, flags);
         if (n == 0) {
-            r = GetLastError();
+            r = (errno_t)GetLastError();
         } else {
             char* name = null;
-            r = ut_heap.allocate(null, &name, n + 2, false);
+            r = ut_heap.allocate(null, (void**)&name, n + 2, false);
             if (r == 0) {
                 n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
                 if (n == 0) {
-                    r = GetLastError();
+                    r = (errno_t)GetLastError();
                 } else {
                     ut_file_t* f = ut_files.invalid;
                     r = ut_files.open(&f, name, ut_files.o_rd);
@@ -103,7 +103,8 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_sy
             }
         }
     } else {
-        s->size = fi.nFileSizeLow | (((uint64_t)fi.nFileSizeHigh) << 32);
+        s->size = (int64_t)((uint64_t)fi.nFileSizeLow |
+                          (((uint64_t)fi.nFileSizeHigh) << 32));
         s->created  = ut_files_ft_to_us(fi.ftCreationTime); // since epoch
         s->accessed = ut_files_ft_to_us(fi.ftLastAccessTime);
         s->updated  = ut_files_ft_to_us(fi.ftLastWriteTime);
@@ -138,7 +139,7 @@ static errno_t ut_files_write(ut_file_t* file, const void* data, int64_t bytes, 
         if (r == 0) {
             *transferred += bytes_read;
             bytes -= bytes_read;
-            data = (uint8_t*)data + bytes_read;
+            data = (const uint8_t*)data + bytes_read;
         }
     }
     return r;
@@ -169,7 +170,7 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
         while (r == 0 && bytes > 0) {
             uint64_t write = bytes >= UINT32_MAX ?
                 (UINT32_MAX) - 0xFFFF : (uint64_t)bytes;
-            assert(0 < write && write < UINT32_MAX);
+            assert(0 < write && write < (uint64_t)UINT32_MAX);
             DWORD chunk = 0;
             r = b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
             written += chunk;
@@ -204,7 +205,7 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
         // terminating null character.If the function fails,
         // the return value is zero.
         if (count > (int32_t)strlen(tmp) + 8) {
-            char prefix[4] = {0};
+            char prefix[4] = { 0 };
             r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? ut_runtime.err() : 0;
             if (r == 0) {
                 assert(ut_files.exists(fn) && !ut_files.is_folder(fn));
@@ -224,19 +225,19 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
 
 #define ut_files_acl_args(acl) DACL_SECURITY_INFORMATION, null, null, acl, null
 
-#define ut_files_get_acl(obj, type, acl, sd)                       \
+#define ut_files_get_acl(obj, type, acl, sd) (errno_t)(         \
     (type == SE_FILE_OBJECT ? GetNamedSecurityInfoA((char*)obj, \
-             SE_FILE_OBJECT, ut_files_acl_args(acl), &sd) :        \
+             SE_FILE_OBJECT, ut_files_acl_args(acl), &sd) :     \
     (type == SE_KERNEL_OBJECT) ? GetSecurityInfo((HANDLE)obj,   \
-             SE_KERNEL_OBJECT, ut_files_acl_args(acl), &sd) :      \
-    ERROR_INVALID_PARAMETER)
+             SE_KERNEL_OBJECT, ut_files_acl_args(acl), &sd) :   \
+    ERROR_INVALID_PARAMETER))
 
-#define ut_files_set_acl(obj, type, acl)                           \
+#define ut_files_set_acl(obj, type, acl) (errno_t)(             \
     (type == SE_FILE_OBJECT ? SetNamedSecurityInfoA((char*)obj, \
-             SE_FILE_OBJECT, ut_files_acl_args(acl)) :             \
+             SE_FILE_OBJECT, ut_files_acl_args(acl)) :          \
     (type == SE_KERNEL_OBJECT) ? SetSecurityInfo((HANDLE)obj,   \
-             SE_KERNEL_OBJECT, ut_files_acl_args(acl)) :           \
-    ERROR_INVALID_PARAMETER)
+             SE_KERNEL_OBJECT, ut_files_acl_args(acl)) :        \
+    ERROR_INVALID_PARAMETER))
 
 static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
                                  ACL** free_me, byte flags) {
@@ -248,7 +249,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
         const int64_t bytes = info.AclBytesInUse + bytes_needed;
-        r = ut_heap.allocate(null, &bigger, bytes, true);
+        r = ut_heap.allocate(null, (void**)&bigger, bytes, true);
         if (r == 0) {
             r = b2e(InitializeAcl((ACL*)bigger,
                     info.AclBytesInUse + bytes_needed, ACL_REVISION));
@@ -257,7 +258,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     if (r == 0 && bigger != null) {
         for (int32_t i = 0; i < (int32_t)info.AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace;
-            r = b2e(GetAce(acl, i, (void**)&ace));
+            r = b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
             r = b2e(AddAce(bigger, ACL_REVISION, MAXDWORD, ace,
                            ace->Header.AceSize));
@@ -266,7 +267,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     }
     if (r == 0) {
         ACCESS_ALLOWED_ACE* ace = null;
-        r = ut_heap.allocate(null, &ace, bytes_needed, true);
+        r = ut_heap.allocate(null, (void**)&ace, bytes_needed, true);
         if (r == 0) {
             ace->Header.AceFlags = flags;
             ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
@@ -302,7 +303,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
     return r;
 }
 
-static errno_t ut_files_add_acl_ace(const void* obj, int32_t obj_type,
+static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
     uint8_t stack[SECURITY_MAX_SID_SIZE];
     DWORD n = countof(stack);
@@ -319,7 +320,7 @@ static errno_t ut_files_add_acl_ace(const void* obj, int32_t obj_type,
         ACCESS_ALLOWED_ACE* found = null;
         for (int32_t i = 0; i < acl->AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace;
-            r = b2e(GetAce(acl, i, (void**)&ace));
+            r = b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
             if (EqualSid((SID*)&ace->SidStart, sid)) {
                 if (ace->Header.AceType == ACCESS_ALLOWED_ACE_TYPE &&
@@ -367,7 +368,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
     PSID everyone = null; // Create a well-known SID for the Everyone group.
     fatal_if_false(AllocateAndInitializeSid(&SIDAuthWorld, 1,
              SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone));
-    EXPLICIT_ACCESSA ea[1] = {{0}};
+    EXPLICIT_ACCESSA ea[1] = { { 0 } };
     // Initialize an EXPLICIT_ACCESS structure for an ACE.
     ea[0].grfAccessPermissions = 0xFFFFFFFF;
     ea[0].grfAccessMode  = GRANT_ACCESS; // The ACE will allow everyone all access.
@@ -403,12 +404,12 @@ static errno_t ut_files_chmod777(const char* pathname) {
 static errno_t ut_files_mkdirs(const char* dir) {
     const int32_t n = (int32_t)strlen(dir) + 1;
     char* s = null;
-    errno_t r = ut_heap.allocate(null, &s, n, true);
+    errno_t r = ut_heap.allocate(null, (void**)&s, n, true);
     const char* next = strchr(dir, '\\');
     if (next == null) { next = strchr(dir, '/'); }
     while (r == 0 && next != null) {
         if (next > dir && *(next - 1) != ':') {
-            memcpy(s, dir, next - dir);
+            memcpy(s, dir, (size_t)(next - dir));
             r = b2e(CreateDirectoryA(s, null));
             if (r == ERROR_ALREADY_EXISTS) { r = 0; }
         }
@@ -425,28 +426,28 @@ static errno_t ut_files_mkdirs(const char* dir) {
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
 }
 
-#pragma push_macro("files_realloc_path")
-#pragma push_macro("files_append_name")
+#pragma push_macro("ut_files_realloc_path")
+#pragma push_macro("ut_files_append_name")
 
-#define ut_files_realloc_path(r, pn, pnc, fn, name) do {                   \
+#define ut_files_realloc_path(r, pn, pnc, fn, name) do {                \
     const int32_t bytes = (int32_t)(strlen(fn) + strlen(name) + 3);     \
     if (bytes > pnc) {                                                  \
-        r = ut_heap.reallocate(null, &pn, bytes, false);                   \
+        r = ut_heap.reallocate(null, (void**)&pn, bytes, false);        \
         if (r != 0) {                                                   \
             pnc = bytes;                                                \
         } else {                                                        \
-            ut_heap.deallocate(null, pn);                                  \
+            ut_heap.deallocate(null, pn);                               \
             pn = null;                                                  \
         }                                                               \
     }                                                                   \
 } while (0)
 
-#define ut_files_append_name(pn, pnc, fn, name) do {      \
-    if (strequ(fn, "\\") || strequ(fn, "/")) {         \
+#define ut_files_append_name(pn, pnc, fn, name) do {     \
+    if (strequ(fn, "\\") || strequ(fn, "/")) {           \
         ut_str.format(pn, pnc, "\\%s", name);            \
-    } else {                                           \
+    } else {                                             \
         ut_str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
-    }                                                  \
+    }                                                    \
 } while (0)
 
 static errno_t ut_files_rmdirs(const char* fn) {
@@ -461,7 +462,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
         }
         int32_t pnc = 64 * 1024; // pathname "pn" capacity in bytes
         char* pn = null;
-        r = ut_heap.allocate(null, &pn, pnc, false);
+        r = ut_heap.allocate(null, (void**)&pn, pnc, false);
         while (r == 0) {
             // recurse into sub folders and remove them first
             // do NOT follow symlinks - it could be disastrous
@@ -502,8 +503,8 @@ static errno_t ut_files_rmdirs(const char* fn) {
     return r;
 }
 
-#pragma pop_macro("files_append_name")
-#pragma pop_macro("files_realloc_path")
+#pragma pop_macro("ut_files_append_name")
+#pragma pop_macro("ut_files_realloc_path")
 
 static bool ut_files_exists(const char* path) {
     return PathFileExistsA(path);
@@ -519,7 +520,7 @@ static bool ut_files_is_symlink(const char* filename) {
           (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 }
 
-const char* ut_files_basename(const char* pathname) {
+static const char* ut_files_basename(const char* pathname) {
     const char* bn = strrchr(pathname, '\\');
     if (bn == null) { bn = strrchr(pathname, '/'); }
     return bn != null ? bn + 1 : pathname;
@@ -581,7 +582,7 @@ static const char* ut_files_tmp(void) {
 
 static errno_t ut_files_cwd(char* fn, int32_t count) {
     swear(count > 1);
-    DWORD bytes = count - 1;
+    DWORD bytes = (DWORD)(count - 1);
     errno_t r = b2e(GetCurrentDirectoryA(bytes, fn));
     fn[count - 1] = 0; // always
     return r;
@@ -598,16 +599,16 @@ typedef struct ut_files_dir_s {
 
 static_assertion(sizeof(ut_files_dir_t) <= sizeof(ut_folder_t));
 
-errno_t ut_files_opendir(ut_folder_t* folder, const char* folder_name) {
-    ut_files_dir_t* d = (ut_files_dir_t*)folder;
+static errno_t ut_files_opendir(ut_folder_t* folder, const char* folder_name) {
+    ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
     int32_t n = (int32_t)strlen(folder_name);
     char* fn = null;
-    errno_t r = ut_heap.allocate(null, &fn, n + 3, false); // extra room for "\*" suffix
+    errno_t r = ut_heap.allocate(null, (void**)&fn, n + 3, false); // extra room for "\*" suffix
     if (r == 0) {
-        snprintf(fn, n + 3, "%s\\*", folder_name);
+        ut_str.format(fn, n + 3, "%s\\*", folder_name);
         fn[n + 2] = 0;
         d->handle = FindFirstFileA(fn, &d->find);
-        if (d->handle == INVALID_HANDLE_VALUE) { r = GetLastError(); }
+        if (d->handle == INVALID_HANDLE_VALUE) { r = (errno_t)GetLastError(); }
         ut_heap.deallocate(null, fn);
     }
     return r;
@@ -617,9 +618,9 @@ static uint64_t ut_files_ft2us(FILETIME* ft) { // 100ns units to microseconds:
     return (((uint64_t)ft->dwHighDateTime) << 32 | ft->dwLowDateTime) / 10;
 }
 
-const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
+static const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
     const char* fn = null;
-    ut_files_dir_t* d = (ut_files_dir_t*)folder;
+    ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
     if (FindNextFileA(d->handle, &d->find)) {
         fn = d->find.cFileName;
         // Ensure zero termination
@@ -629,15 +630,15 @@ const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
             s->created = ut_files_ft2us(&d->find.ftCreationTime);
             s->updated = ut_files_ft2us(&d->find.ftLastWriteTime);
             s->type = ut_files_a2t(d->find.dwFileAttributes);
-            s->size = (((uint64_t)d->find.nFileSizeHigh) << 32) |
-                                  d->find.nFileSizeLow;
+            s->size = (int64_t)((((uint64_t)d->find.nFileSizeHigh) << 32) |
+                                  (uint64_t)d->find.nFileSizeLow);
         }
     }
     return fn;
 }
 
-void ut_files_closedir(ut_folder_t* folder) {
-    ut_files_dir_t* d = (ut_files_dir_t*)folder;
+static void ut_files_closedir(ut_folder_t* folder) {
+    ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
     fatal_if_false(FindClose(d->handle));
 }
 
@@ -671,8 +672,8 @@ static void folders_dump_time(const char* label, uint64_t us) {
 
 static void folders_test(void) {
     uint64_t now = ut_clock.microseconds(); // microseconds since epoch
-    uint64_t before = now - 1 * ut_clock.usec_in_sec; // one second earlier
-    uint64_t after  = now + 2 * ut_clock.usec_in_sec; // two seconds later
+    uint64_t before = now - 1 * (uint64_t)ut_clock.usec_in_sec; // one second earlier
+    uint64_t after  = now + 2 * (uint64_t)ut_clock.usec_in_sec; // two seconds later
     int32_t year = 0;
     int32_t month = 0;
     int32_t day = 0;
@@ -686,7 +687,7 @@ static void folders_test(void) {
              year, month, day, hh, mm, ss, ms, mc);
     // Test cwd, setcwd
     const char* tmp = ut_files.tmp();
-    char cwd[256] = {0};
+    char cwd[256] = { 0 };
     fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
     fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
                 tmp, ut_str.error(ut_runtime.err()));
@@ -701,18 +702,18 @@ static void folders_test(void) {
     fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, ut_str.error(r));
     verbose("%s", tmp_dir);
     ut_folder_t folder;
-    char pn[ut_files_max_path] = {0};
+    char pn[ut_files_max_path] = { 0 };
     strprintf(pn, "%s/file", tmp_dir);
     // cannot test symlinks because they are only
     // available to Administrators and in Developer mode
-//  char sym[ut_files_max_path] = {0};
-    char hard[ut_files_max_path] = {0};
-    char sub[ut_files_max_path] = {0};
+//  char sym[ut_files_max_path] = { 0 };
+    char hard[ut_files_max_path] = { 0 };
+    char sub[ut_files_max_path] = { 0 };
     strprintf(hard, "%s/hard", tmp_dir);
     strprintf(sub, "%s/subd", tmp_dir);
     const char* content = "content";
     int64_t transferred = 0;
-    r = ut_files.write_fully(pn, content, strlen(content), &transferred);
+    r = ut_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
     fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, ut_str.error(r));
     swear(transferred == (int64_t)strlen(content));
     r = ut_files.link(pn, hard);
@@ -723,7 +724,7 @@ static void folders_test(void) {
     r = ut_files.opendir(&folder, tmp_dir);
     fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, ut_str.error(r));
     for (;;) {
-        ut_files_stat_t st = {0};
+        ut_files_stat_t st = { 0 };
         const char* name = ut_files.readdir(&folder, &st);
         if (name == null) { break; }
         uint64_t at = st.accessed;
@@ -808,7 +809,7 @@ static void ut_files_test(void) {
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
         for (int32_t i = 0; i < 256; i++) {
             for (int32_t j = 1; j < 256 - i; j++) {
-                uint8_t test[countof(data)] = {0};
+                uint8_t test[countof(data)] = { 0 };
                 int64_t position = i;
                 fatal_if(ut_files.seek(f, &position, ut_files.seek_set) != 0 ||
                          position != i,
@@ -845,10 +846,10 @@ static void ut_files_test(void) {
                      transferred != 1, "ut_files.read()" ut_files_test_failed);
             swear(read_val == val, "Data mismatch at position %d", i);
         }
-        ut_files_stat_t s = {0};
+        ut_files_stat_t s = { 0 };
         ut_files.stat(f, &s, false);
-        uint64_t before = now - 1 * ut_clock.usec_in_sec; // one second before now
-        uint64_t after  = now + 2 * ut_clock.usec_in_sec; // two seconds after
+        uint64_t before = now - 1 * (uint64_t)ut_clock.usec_in_sec; // one second before now
+        uint64_t after  = now + 2 * (uint64_t)ut_clock.usec_in_sec; // two seconds after
         swear(before <= s.created  && s.created  <= after,
              "before: %lld created: %lld after: %lld", before, s.created, after);
         swear(before <= s.accessed && s.accessed <= after,
@@ -880,7 +881,7 @@ static void ut_files_test(void) {
         fatal_if(ut_files.is_folder(tf), "%s is a folder", tf);
         fatal_if(ut_files.chmod777(tf) != 0, "ut_files.chmod777(\"%s\") failed %s",
                  tf, ut_str.error(ut_runtime.err()));
-        char folder[256] = {0};
+        char folder[256] = { 0 };
         strprintf(folder, "%s.folder\\subfolder", tf);
         fatal_if(ut_files.mkdirs(folder) != 0, "ut_files.mkdirs(\"%s\") failed %s",
             folder, ut_str.error(ut_runtime.err()));
@@ -893,7 +894,7 @@ static void ut_files_test(void) {
     }
     {   // getcwd, chdir
         const char* tmp = ut_files.tmp();
-        char cwd[256] = {0};
+        char cwd[256] = { 0 };
         fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
         fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
                  tmp, ut_str.error(ut_runtime.err()));

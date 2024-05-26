@@ -73,7 +73,7 @@ static fp64_t ut_clock_seconds(void) { // since_boot
     if (one_over_freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
-        one_over_freq = 1.0 / frequency.QuadPart;
+        one_over_freq = 1.0 / (fp64_t)frequency.QuadPart;
     }
     return (fp64_t)qpc.QuadPart * one_over_freq;
 }
@@ -119,7 +119,7 @@ static uint64_t ut_clock_nanoseconds(void) {
         freq = frequency.LowPart;
         assert(freq != 0 && freq < (uint32_t)ut_clock.nsec_in_sec);
         // to avoid ut_num.muldiv128:
-        uint32_t divider = ut_num.gcd32(ut_clock.nsec_in_sec, freq);
+        uint32_t divider = ut_num.gcd32((uint32_t)ut_clock.nsec_in_sec, freq);
         freq /= divider;
         mul  /= divider;
     }
@@ -129,14 +129,14 @@ static uint64_t ut_clock_nanoseconds(void) {
 
 // Difference between 1601 and 1970 in microseconds:
 
-const uint64_t ut_clock_epoch_diff_usec = 11644473600000000ULL;
+static const uint64_t ut_clock_epoch_diff_usec = 11644473600000000ULL;
 
 static uint64_t ut_clock_unix_microseconds(void) {
     return ut_clock.microseconds() - ut_clock_epoch_diff_usec;
 }
 
 static uint64_t ut_clock_unix_seconds(void) {
-    return ut_clock.unix_microseconds() / ut_clock.usec_in_sec;
+    return ut_clock.unix_microseconds() / (uint64_t)ut_clock.usec_in_sec;
 }
 
 static void ut_clock_test(void) {

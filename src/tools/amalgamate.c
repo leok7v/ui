@@ -1,9 +1,25 @@
 #include <assert.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "dirent.h"
+
+#if defined(__GNUC__) || defined(__clang__) // TODO: remove and fix code
+#pragma GCC diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
+#pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
+#pragma GCC diagnostic ignored "-Wfour-char-constants"
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage"
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#pragma GCC diagnostic ignored "-Wmissing-noreturn"
+#pragma GCC diagnostic ignored "-Wdouble-promotion"
+#pragma GCC diagnostic ignored "-Wcast-align"
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+#pragma GCC diagnostic ignored "-Wused-but-marked-unused" // because in debug only
+#endif
 
 #define null NULL
 
@@ -15,7 +31,7 @@
 
 static const char* exe;
 static const char* name;
-static int strlen_name;
+static int32_t strlen_name;
 static char inc[256];
 static char src[256];
 static char mem[1024 * 1023];
@@ -42,7 +58,7 @@ static const char* basename(const char* filename) {
 static char* dup(const char* s) { // strdup() like to avoid leaks reporting
     int n = (int)strlen(s) + 1;
     fatal_if(brk + n > mem + sizeof(mem), "out of memory");
-    char* c = memcpy(brk, s, n);
+    char* c = (char*)memcpy(brk, s, (size_t)n);
     brk += n;
     return c;
 }
@@ -52,23 +68,23 @@ static char* concat(const char* s1, const char* s2) {
     int n2 = (int)strlen(s2);
     fatal_if(brk + n1 + n2 + 1 > mem + sizeof(mem), "out of memory");
     char* c = brk;
-    memcpy((char*)memcpy(brk, s1, n1) + n1, s2, n2 + 1);
+    memcpy((char*)memcpy(brk, s1, (size_t)n1) + n1, s2, (size_t)n2 + 1);
     brk += n1 + n2 + 1;
     return c;
 }
 
 static bool ends_with(const char* s1, const char* s2) {
-    int n1 = (int)strlen(s1);
-    int n2 = (int)strlen(s2);
+    int32_t n1 = (int)strlen(s1);
+    int32_t n2 = (int)strlen(s2);
     return n1 >= n2 && strequ(s1 + n1 - n2, s2);
 }
 
-typedef struct { const char* a[1024]; int n; } set_t;
+typedef struct { const char* a[1024]; int32_t n; } set_t;
 
 static set_t files;
 
 static bool set_has(set_t* set, const char* s) {
-    for (int i = 0; i < set->n; i++) {
+    for (int32_t i = 0; i < set->n; i++) {
         if (strequ(set->a[i], s)) { return true; }
     }
     return false;
@@ -83,7 +99,7 @@ static void set_add(set_t* set, const char* s) {
     }
 }
 
-static int usage(void) {
+static int32_t usage(void) {
     fprintf(stderr, "\n");
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, "%s <name>\n", exe);
@@ -101,8 +117,8 @@ static void tail_trim(char* s) {
 static void divider(const char* fn) {
     char underscores[40] = {0};
     memset(underscores, '_', countof(underscores) - 1);
-    int i = (int)(74 - strlen(fn)) / 2;
-    int j = (int)(74 - i - strlen(fn));
+    int32_t i = (int)(74 - strlen(fn)) / 2;
+    int32_t j = (int)(74 - i - (int)strlen(fn));
     printf("// %.*s %s %.*s\n\n", i, underscores, fn, j, underscores);
 }
 

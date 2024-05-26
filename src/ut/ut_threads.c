@@ -24,7 +24,7 @@ static void ut_event_reset(event_t e) {
 }
 
 static int32_t ut_event_wait_or_timeout(event_t e, fp64_t seconds) {
-    uint32_t ms = seconds < 0 ? INFINITE : (int32_t)(seconds * 1000.0 + 0.5);
+    uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(e, ms);
     errno_t r = wait2e(ix);
     return r != 0 ? -1 : 0;
@@ -32,12 +32,14 @@ static int32_t ut_event_wait_or_timeout(event_t e, fp64_t seconds) {
 
 static void ut_event_wait(event_t e) { ut_event_wait_or_timeout(e, -1); }
 
-static int32_t ut_event_wait_any_or_timeout(int32_t n, event_t ut_event_[], fp64_t s) {
-    uint32_t ms = s < 0 ? INFINITE : (int32_t)(s * 1000.0 + 0.5);
-    DWORD ix = WaitForMultipleObjects(n, ut_event_, false, ms);
+static int32_t ut_event_wait_any_or_timeout(int32_t n, event_t events[],
+        fp64_t s) {
+    const uint32_t ms = s < 0 ? INFINITE : (uint32_t)(s * 1000.0 + 0.5);
+    const HANDLE* es = (const HANDLE*)events;
+    DWORD ix = WaitForMultipleObjects((DWORD)n, es, false, ms);
     errno_t r = wait2e(ix);
     // all WAIT_ABANDONED_0 and WAIT_IO_COMPLETION 0xC0 as -1
-    return r != 0 ? -1 : ix;
+    return r != 0 ? -1 : (int32_t)ix;
 }
 
 static int32_t ut_event_wait_any(int32_t n, event_t e[]) {
@@ -187,7 +189,7 @@ static void* ut_thread_ntdll(void) {
 }
 
 static fp64_t ut_thread_ns2ms(int64_t ns) {
-    return ns / (fp64_t)ut_clock.nsec_in_msec;
+    return (fp64_t)ns / (fp64_t)ut_clock.nsec_in_msec;
 }
 
 static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
@@ -334,7 +336,7 @@ static void ut_thread_realtime(void) {
     fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
     // desired: 0.5ms = 500us (microsecond) = 50,000ns
-    ut_thread_set_timer_resolution(ut_clock.nsec_in_usec * 500);
+    ut_thread_set_timer_resolution((uint64_t)ut_clock.nsec_in_usec * 500ULL);
     fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
         ut_thread_next_physical_processor_affinity_mask()));
     ut_thread_disable_power_throttling();
@@ -357,8 +359,8 @@ static bool is_handle_valid(void* h) {
 static errno_t ut_thread_join(thread_t t, fp64_t timeout) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
-    int32_t timeout_ms = timeout < 0 ? INFINITE : (int32_t)(timeout * 1000.0 + 0.5);
-    DWORD ix = WaitForSingleObject(t, timeout_ms);
+    const uint32_t ms = timeout < 0 ? INFINITE : (uint32_t)(timeout * 1000.0 + 0.5);
+    DWORD ix = WaitForSingleObject(t, (DWORD)ms);
     errno_t r = wait2e(ix);
     assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");
     if (r == 0) {
@@ -405,7 +407,9 @@ static void ut_thread_sleep_for(fp64_t seconds) {
     NtDelayExecution(false, &delay);
 }
 
-static int32_t ut_thread_id(void) { return GetThreadId(GetCurrentThread()); }
+static int32_t ut_thread_id(void) {
+    return (int32_t)GetThreadId(GetCurrentThread());
+}
 
 #ifdef UT_TESTS
 
@@ -497,8 +501,8 @@ static void ut_thread_detached_sleep(void* unused(p)) {
 static void ut_thread_detached_loop(void* unused(p)) {
     uint64_t sum = 0;
     for (uint64_t i = 0; i < UINT64_MAX; i++) { sum += i; }
-    // making sure that compiler won't get rid of the loop:
-    traceln("%lld", sum);
+    // make sure that compiler won't get rid of the loop:
+    swear(sum == 0x8000000000000001ULL, "sum: %llu 0x%16llX", sum, sum);
 }
 
 static void ut_thread_test(void) {

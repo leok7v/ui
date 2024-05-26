@@ -10,6 +10,11 @@
 #define pclose(f) _pclose(f)
 #endif
 
+#if defined(__GNUC__) || defined(__clang__) // TODO: remove and fix code
+#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage"
+#pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
+#endif
+
 enum { max_command_output = 16 * 1024 };
 
 static errno_t run_command(const char* command, char* output, size_t max_output) {

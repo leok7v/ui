@@ -11,7 +11,7 @@ static void ui_slider_measure(ui_view_t* v) {
     ui_view.measure(&s->inc);
     assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
     const int32_t em = v->fm->em.w;
-    const int32_t w = (int32_t)(v->min_w_em * v->fm->em.w);
+    const int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
     s->tm = ui_gdi.measure_text(v->fm->font, ui_view.nls(v), s->value_max);
 //  if (w > r->tm.x) { r->tm.x = w; }
     s->tm.x = w != 0 ? w : s->tm.x;

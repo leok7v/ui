@@ -12,7 +12,7 @@ static errno_t ut_mem_map_view_of_file(HANDLE file,
         r = ut_runtime.err();
     } else {
         DWORD access = rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
-        address = MapViewOfFile(mapping, access, 0, 0, *bytes);
+        address = MapViewOfFile(mapping, access, 0, 0, (SIZE_T)*bytes);
         if (address == null) { r = ut_runtime.err(); }
         fatal_if_false(CloseHandle(mapping));
     }
@@ -139,9 +139,9 @@ static int ut_mem_large_page_size(void) {
 static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
     assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
-    int page_size = ut_mem_page_size();
+    SIZE_T page_size = (SIZE_T)ut_mem_page_size();
     assert(bytes % page_size == 0);
-    int r = 0;
+    errno_t r = 0;
     void* a = null;
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
         SetLastError(ERROR_INVALID_PARAMETER);
@@ -197,8 +197,8 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
 static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
-    int r = 0;
-    int page_size = ut_mem_page_size();
+    errno_t r = 0;
+    SIZE_T page_size = (SIZE_T)ut_mem_page_size();
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
         r = EINVAL;
         traceln("failed %s", ut_str.error(r));

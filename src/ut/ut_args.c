@@ -202,7 +202,7 @@ static void ut_args_parse(const char* s) {
     swear(d <= e, "not enough memory - adjust guestimates");
 }
 
-const char* ut_args_basename(void) {
+static const char* ut_args_basename(void) {
     static char basename[260];
     swear(ut_args.c > 0);
     if (basename[0] == 0) {
@@ -235,10 +235,10 @@ static void ut_args_WinMain(void) {
     const uint16_t* wcl = GetCommandLineW();
     int32_t n = (int32_t)wcslen(wcl);
     char* cl = null;
-    fatal_if_not_zero(ut_heap.allocate(null, &cl, n * 2 + 1, false));
+    fatal_if_not_zero(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
     ut_args_parse(ut_str.utf16_utf8(cl, wcl));
     ut_heap.deallocate(null, cl);
-    ut_args.env = _environ;
+    ut_args.env = (const char**)(void*)_environ;
 }
 
 #ifdef UT_TESTS

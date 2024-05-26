@@ -13,16 +13,26 @@ begin_c
 // in C tradition. Use ut_str.* functions for non-zero terminated
 // strings.
 
-#define strempty(s) ((void*)(s) == null || (s)[0] == 0)
+#define strempty(s) ((const void*)(s) == null || (s)[0] == 0)
 
 #define strconcat(a, b) _Pragma("warning(suppress: 6386)") \
     (strcat(strcpy((char*)ut_stackalloc(strlen(a) + strlen(b) + 1), (a)), (b)))
 
-#define strequ(s1, s2)  (((void*)(s1) == (void*)(s2)) || \
-    (((void*)(s1) != null && (void*)(s2) != null) && strcmp((s1), (s2)) == 0))
+#define strequ(s1, s2)                                              \
+    ut_gcc_pragma(GCC diagnostic push)                              \
+    ut_gcc_pragma(GCC diagnostic ignored "-Wstring-compare")        \
+    (((const void*)(s1) == (const void*)(s2)) ||                    \
+    (((const void*)(s1) != null && (const void*)(s2) != null) &&    \
+    strcmp((s1), (s2)) == 0))                                       \
+    ut_gcc_pragma(GCC diagnostic pop)
 
-#define striequ(s1, s2)  (((void*)(s1) == (void*)(s2)) || \
-    (((void*)(s1) != null && (void*)(s2) != null) && stricmp((s1), (s2)) == 0))
+#define striequ(s1, s2)                                               \
+    ut_gcc_pragma(GCC diagnostic push)                                \
+    ut_gcc_pragma(GCC diagnostic ignored "-Wstring-compare")          \
+    (((const void*)(s1) == (const void*)(s2)) ||                      \
+    (((const void*)(s1) != null && (const void*)(s2) != null) &&      \
+    stricmp((s1), (s2)) == 0))                                        \
+    ut_gcc_pragma(GCC diagnostic pop)
 
 #define strstartswith(a, b) \
     (strlen(a) >= strlen(b) && memcmp((a), (b), strlen(b)) == 0)
@@ -51,7 +61,7 @@ char* strnchr(const char* s, int32_t n, char ch);
     ut_stackalloc((size_t)ut_str.utf8_bytes(utf16) + 1), utf16)
 
 #define utf8to16(s) ut_str.utf8_utf16((uint16_t*) \
-    ut_stackalloc((ut_str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
+    ut_stackalloc((size_t)(ut_str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
 
 #define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
 
@@ -92,6 +102,7 @@ typedef struct {
     bool (*ends_with)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*ends_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*starts_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
+    char* (*drop_const)(const char* s);
     // removes quotes from a head and tail of the string `s` if present
     const char* (*unquote)(char* *s, int32_t n); // modifies `s` in place
     void (*test)(void);

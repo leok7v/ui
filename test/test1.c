@@ -46,7 +46,7 @@ static int run(void) {
 //   h->OptionalHeader.Subsystem == IMAGE_SUBSYSTEM_WINDOWS_GUI
 // to select and call appropriate function:
 
-int main(int argc, char* argv[], char *envp[]) {
+int main(int argc, const char* argv[], const char *envp[]) {
     ut_args.main(argc, argv, envp);
     int r = run();
     ut_args.fini();

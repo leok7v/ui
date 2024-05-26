@@ -31,10 +31,10 @@ static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
 }
 
 static int32_t ui_gaps_em2px(int32_t em, fp32_t ratio) {
-    return em == 0 ? 0 : (int32_t)(em * ratio + 0.5f);
+    return em == 0 ? 0 : (int32_t)((fp64_t)em * (fp64_t)ratio + 0.5);
 }
 
-extern ui_if ui = {
+ui_if ui = {
     .infinity = INT32_MAX,
     .align = {
         .center = 0,

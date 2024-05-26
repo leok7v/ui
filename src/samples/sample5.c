@@ -1,7 +1,6 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
-#include "edit.h"
 
 static bool debug_layout = false;
 

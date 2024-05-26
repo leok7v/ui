@@ -92,15 +92,15 @@ static uint64_t ut_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
     return q;
 }
 
-#define ctz(x) _tzcnt_u32(x)
-
 static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
+    #pragma push_macro("ut_ctz")
+    #define ut_ctz(x) ((int32_t)_tzcnt_u32(x))
     uint32_t t = u | v;
     if (u == 0 || v == 0) { return t; }
-    int32_t g = ctz(t);
+    int32_t g = ut_ctz(t);
     while (u != 0) {
-        u >>= ctz(u);
-        v >>= ctz(v);
+        u >>= ut_ctz(u);
+        v >>= ut_ctz(v);
         if (u >= v) {
             u = (u - v) / 2;
         } else {
@@ -108,6 +108,7 @@ static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
         }
     }
     return v << g;
+    #pragma pop_macro("ut_ctz")
 }
 
 static uint32_t ut_num_random32(uint32_t* state) {
@@ -136,12 +137,12 @@ static uint32_t ut_num_hash32(const char *data, int64_t len) {
     uint32_t prime = 0x01000193; // FNV_prime for 32-bit
     if (len > 0) {
         for (int64_t i = 1; i < len; i++) {
-            hash ^= data[i];
+            hash ^= (uint32_t)data[i];
             hash *= prime;
         }
     } else {
         for (int64_t i = 0; data[i] != 0; i++) {
-            hash ^= data[i];
+            hash ^= (uint32_t)data[i];
             hash *= prime;
         }
     }
@@ -153,12 +154,12 @@ static uint64_t ut_num_hash64(const char *data, int64_t len) {
     uint64_t prime = 0x100000001b3;      // FNV_prime for 64-bit
     if (len > 0) {
         for (int64_t i = 0; i < len; i++) {
-            hash ^= data[i];
+            hash ^= (uint64_t)data[i];
             hash *= prime;
         }
     } else {
         for (int64_t i = 0; data[i] != 0; i++) {
-            hash ^= data[i];
+            hash ^= (uint64_t)data[i];
             hash *= prime;
         }
     }

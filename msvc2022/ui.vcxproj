@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClInclude Include="..\inc\ui\ui_caption.h" />
     <ClInclude Include="..\inc\ui\ui_containers.h" />
+    <ClInclude Include="..\inc\ui\ui_edit.h" />
     <ClInclude Include="..\inc\ui\ui_glyphs.h" />
     <ClInclude Include="..\inc\ui\ui.h" />
     <ClInclude Include="..\inc\ui\ui_app.h" />
@@ -34,6 +35,7 @@
     <ClCompile Include="..\src\ui\ui_button.c" />
     <ClCompile Include="..\src\ui\ui_caption.c" />
     <ClCompile Include="..\src\ui\ui_containers.c" />
+    <ClCompile Include="..\src\ui\ui_edit.c" />
     <ClCompile Include="..\src\ui\ui_theme.c" />
     <ClCompile Include="..\src\ui\ui_toggle.c" />
     <ClCompile Include="..\src\ui\ui_colors.c" />

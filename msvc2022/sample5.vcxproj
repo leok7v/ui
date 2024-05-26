@@ -60,6 +60,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
     <ClCompile>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\src\samples;$(ProjectDir)..\single_file_lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -68,6 +69,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
     <ClCompile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\src\samples;$(ProjectDir)..\single_file_lib;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -75,7 +77,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\single_file_lib\ui\ui.h" />
-    <ClInclude Include="..\src\samples\edit.h" />
     <ClInclude Include="..\src\samples\i18n.h" />
     <ClInclude Include="..\src\samples\version.h" />
     <ClInclude Include="..\single_file_lib\ut\ut.h" />
@@ -87,7 +88,6 @@
     <ResourceCompile Include="..\src\samples\sample.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\samples\edit.c" />
     <ClCompile Include="..\src\samples\edit.test.c" />
     <ClCompile Include="..\src\samples\ui.c" />
     <ClCompile Include="..\src\samples\sample5.c" />

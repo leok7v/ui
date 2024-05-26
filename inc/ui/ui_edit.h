@@ -1,7 +1,6 @@
 #pragma once
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include <stdbool.h>
-#include <stdint.h>
+#include "ui/ui.h"
 
 begin_c
 
@@ -50,7 +49,7 @@ typedef struct ui_edit_s {
     void (*move)(ui_edit_t* e, ui_edit_pg_t pg); // move caret clear selection
     // replace selected text. If bytes < 0 text is treated as zero terminated
     void (*paste)(ui_edit_t* e, const char* text, int32_t bytes);
-    void (*copy)(ui_edit_t* e, char* text, int32_t* bytes); // copy whole text
+    errno_t (*copy)(ui_edit_t* e, char* text, int32_t* bytes); // copy whole text
     void (*copy_to_clipboard)(ui_edit_t* e); // selected text to clipboard
     void (*cut_to_clipboard)(ui_edit_t* e);  // copy selected text to clipboard and erase it
     // replace selected text with content of clipboard:

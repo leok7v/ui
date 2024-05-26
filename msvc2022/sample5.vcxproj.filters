@@ -8,7 +8,6 @@
       <Filter>res</Filter>
     </ClInclude>
     <ClInclude Include="..\single_file_lib\ui\ui.h" />
-    <ClInclude Include="..\src\samples\edit.h" />
     <ClInclude Include="..\single_file_lib\ut\ut.h" />
   </ItemGroup>
   <ItemGroup>
@@ -29,7 +28,6 @@
   <ItemGroup>
     <ClCompile Include="..\src\samples\sample5.c" />
     <ClCompile Include="..\src\samples\ui.c" />
-    <ClCompile Include="..\src\samples\edit.c" />
     <ClCompile Include="..\src\samples\edit.test.c" />
     <ClCompile Include="..\src\samples\ut.c" />
   </ItemGroup>

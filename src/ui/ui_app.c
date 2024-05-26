@@ -4,6 +4,7 @@
 
 #pragma push_macro("ui_app_window")
 #pragma push_macro("ui_app_canvas")
+#pragma push_macro("ui_monospaced_font")
 
 #define ui_app_window() ((HWND)ui_app.window)
 #define ui_app_canvas() ((HDC)ui_app.canvas)
@@ -66,7 +67,7 @@ static RECT ui_app_ui2rect(const ui_rect_t* u) {
 static void ui_app_update_ncm(int32_t dpi) {
     // Only UTF-16 version supported SystemParametersInfoForDpi
     fatal_if_false(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
-        sizeof(ui_app_ncm), &ui_app_ncm, 0, dpi));
+        sizeof(ui_app_ncm), &ui_app_ncm, 0, (DWORD)dpi));
 }
 
 static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
@@ -93,11 +94,11 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
             // RAW_DPI 283 284 (horizontal, vertical)
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
-                    dpi->monitor_effective = ut_max(dpi_x, dpi_y); break;
+                    dpi->monitor_effective = (int32_t)ut_max(dpi_x, dpi_y); break;
                 case MDT_ANGULAR_DPI:
-                    dpi->monitor_angular = ut_max(dpi_x, dpi_y); break;
+                    dpi->monitor_angular = (int32_t)ut_max(dpi_x, dpi_y); break;
                 case MDT_RAW_DPI:
-                    dpi->monitor_raw = ut_max(dpi_x, dpi_y); break;
+                    dpi->monitor_raw = (int32_t)ut_max(dpi_x, dpi_y); break;
                 default: assert(false);
             }
         }
@@ -124,8 +125,8 @@ static void ui_app_dump_dpi(void) {
     traceln("MAXTRACK: %d, %d", mxt_x, mxt_y);
     int32_t scr_x = GetSystemMetrics(SM_CXSCREEN);
     int32_t scr_y = GetSystemMetrics(SM_CYSCREEN);
-    fp32_t monitor_x = scr_x / (fp32_t)ui_app.dpi.monitor_raw;
-    fp32_t monitor_y = scr_y / (fp32_t)ui_app.dpi.monitor_raw;
+    fp64_t monitor_x = (fp64_t)scr_x / (fp64_t)ui_app.dpi.monitor_raw;
+    fp64_t monitor_y = (fp64_t)scr_y / (fp64_t)ui_app.dpi.monitor_raw;
     traceln("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
 }
 
@@ -184,8 +185,9 @@ static void ui_app_init_fonts(int32_t dpi) {
     ui_gdi.update_fm(&ui_app.fonts.H3, (ui_font_t)CreateFontIndirectW(&lf));
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily = FIXED_PITCH;
-    #define monospaced "Cascadia Code"
-    wcscpy(lf.lfFaceName, L"Cascadia Code");
+    // TODO: how to get monospaced from Win32 API?
+    #define ui_monospaced_font L"Cascadia Code"
+    wcscpy(lf.lfFaceName, ui_monospaced_font);
     ui_gdi.update_fm(&ui_app.fonts.mono, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app.cursor_arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
     ui_app.cursor_wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
@@ -214,6 +216,7 @@ typedef begin_packed struct ui_app_wiw_s { // "where is window"
     // coordinates in pixels relative (0,0) top left corner
     // of primary monitor from GetWindowPlacement
     int32_t    bytes;
+    int32_t    padding;      // to allign rects and points to 8 bytes
     ui_rect_t  placement;
     ui_rect_t  mrc;          // monitor rectangle
     ui_rect_t  work_area;    // monitor work area (mrc sans taskbar etc)
@@ -227,9 +230,8 @@ typedef begin_packed struct ui_app_wiw_s { // "where is window"
 } end_packed ui_app_wiw_t;
 
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
-        HDC unused(hdc), RECT* rc1, LPARAM that) {
+        HDC unused(hdc), RECT* unused(rc1), LPARAM that) {
     ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
-    ui_rect_t* space = &wiw->space;
     MONITORINFOEX mi = { .cbSize = sizeof(MONITORINFOEX) };
     fatal_if_false(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
@@ -237,15 +239,16 @@ static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
     const int32_t min_y = ut_min(mi.rcMonitor.top,  mi.rcMonitor.bottom);
     const int32_t max_w = ut_max(mi.rcMonitor.left, mi.rcMonitor.right);
     const int32_t max_h = ut_max(mi.rcMonitor.top,  mi.rcMonitor.bottom);
-    space->x = ut_min(space->x, min_x);
-    space->y = ut_min(space->y, min_y);
-    space->w = ut_max(space->w, max_w);
-    space->h = ut_max(space->h, max_h);
+    wiw->space.x = ut_min(wiw->space.x, min_x);
+    wiw->space.y = ut_min(wiw->space.y, min_y);
+    wiw->space.w = ut_max(wiw->space.w, max_w);
+    wiw->space.h = ut_max(wiw->space.h, max_h);
     return true; // keep going
 }
 
 static void ui_app_enum_monitors(ui_app_wiw_t* wiw) {
-    EnumDisplayMonitors(null, null, ui_app_monitor_enum_proc, (uintptr_t)wiw);
+    EnumDisplayMonitors(null, null, ui_app_monitor_enum_proc,
+        (LPARAM)(uintptr_t)wiw);
     // because ui_app_monitor_enum_proc() puts max into w,h:
     wiw->space.w -= wiw->space.x;
     wiw->space.h -= wiw->space.y;
@@ -271,8 +274,8 @@ static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump)
             .y = GetSystemMetrics(SM_CYMAXTRACK)
         },
         .dpi = ui_app.dpi.monitor_raw,
-        .flags = wpl.flags,
-        .show = wpl.showCmd
+        .flags = (int32_t)wpl.flags,
+        .show  = (int32_t)wpl.showCmd
     };
     ui_app_enum_monitors(&wiw);
     if (dump) {
@@ -358,19 +361,18 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
             traceln("wiw.flags: %d", wiw.flags);
             traceln("wiw.show: %d", wiw.show);
         #endif
-        ui_rect_t* p = &wiw.placement;
         ui_app_update_mi(&wiw.placement, MONITOR_DEFAULTTONEAREST);
         bool same_monitor = memcmp(&wiw.mrc, &ui_app.mrc, sizeof(wiw.mrc)) == 0;
 //      traceln("%d,%d %dx%d", p->x, p->y, p->w, p->h);
         if (same_monitor) {
-            *rect = *p;
+            *rect = wiw.placement;
         } else { // moving to another monitor
-            rect->x = (p->x - wiw.mrc.x) * ui_app.mrc.w / wiw.mrc.w;
-            rect->y = (p->y - wiw.mrc.y) * ui_app.mrc.h / wiw.mrc.h;
+            rect->x = (wiw.placement.x - wiw.mrc.x) * ui_app.mrc.w / wiw.mrc.w;
+            rect->y = (wiw.placement.y - wiw.mrc.y) * ui_app.mrc.h / wiw.mrc.h;
             // adjust according to monitors DPI difference:
             // (w, h) theoretically could be as large as 0xFFFF
-            const int64_t w = (int64_t)p->w * ui_app.dpi.monitor_raw;
-            const int64_t h = (int64_t)p->h * ui_app.dpi.monitor_raw;
+            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_raw;
+            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_raw;
             rect->w = (int32_t)(w / wiw.dpi);
             rect->h = (int32_t)(h / wiw.dpi);
         }
@@ -388,19 +390,18 @@ static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
     bool loaded = ut_config.load(ui_app.class_name, "wic", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
-        ui_rect_t* p = &wiw.placement;
         ui_app_update_mi(&wiw.placement, MONITOR_DEFAULTTONEAREST);
         bool same_monitor = memcmp(&wiw.mrc, &ui_app.mrc, sizeof(wiw.mrc)) == 0;
 //      traceln("%d,%d %dx%d", p->x, p->y, p->w, p->h);
         if (same_monitor) {
-            *rect = *p;
+            *rect = wiw.placement;
         } else { // moving to another monitor
-            rect->x = (p->x - wiw.mrc.x) * ui_app.mrc.w / wiw.mrc.w;
-            rect->y = (p->y - wiw.mrc.y) * ui_app.mrc.h / wiw.mrc.h;
+            rect->x = (wiw.placement.x - wiw.mrc.x) * ui_app.mrc.w / wiw.mrc.w;
+            rect->y = (wiw.placement.y - wiw.mrc.y) * ui_app.mrc.h / wiw.mrc.h;
             // adjust according to monitors DPI difference:
             // (w, h) theoretically could be as large as 0xFFFF
-            const int64_t w = (int64_t)p->w * ui_app.dpi.monitor_raw;
-            const int64_t h = (int64_t)p->h * ui_app.dpi.monitor_raw;
+            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_raw;
+            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_raw;
             rect->w = (int32_t)(w / wiw.dpi);
             rect->h = (int32_t)(h / wiw.dpi);
         }
@@ -424,7 +425,8 @@ static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
 }
 
 static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
-    fatal_if_false(PostMessageA(ui_app_window(), m, wp, lp));
+    fatal_if_false(PostMessageA(ui_app_window(), (UINT)m,
+            (WPARAM)wp, (LPARAM)lp));
 }
 
 static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
@@ -434,8 +436,8 @@ static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
 }
 
 static void ui_app_animate_timer(void) {
-    ui_app_post_message(ui.message.animate, (uint64_t)ui_app_animate.step + 1,
-        (uintptr_t)ui_app_animate.f);
+    ui_app_post_message(ui.message.animate, (int64_t)ui_app_animate.step + 1,
+        (int64_t)(uintptr_t)ui_app_animate.f);
 }
 
 static void ui_app_wm_timer(ui_timer_t id) {
@@ -447,11 +449,11 @@ static void ui_app_wm_timer(ui_timer_t id) {
 }
 
 static void ui_app_window_dpi(void) {
-    int32_t dpi = GetDpiForWindow(ui_app_window());
-    if (dpi == 0) { dpi = GetDpiForWindow(GetParent(ui_app_window())); }
-    if (dpi == 0) { dpi = GetDpiForWindow(GetDesktopWindow()); }
-    if (dpi == 0) { dpi = GetSystemDpiForProcess(GetCurrentProcess()); }
-    if (dpi == 0) { dpi = GetDpiForSystem(); }
+    int32_t dpi = (int32_t)GetDpiForWindow(ui_app_window());
+    if (dpi == 0) { dpi = (int32_t)GetDpiForWindow(GetParent(ui_app_window())); }
+    if (dpi == 0) { dpi = (int32_t)GetDpiForWindow(GetDesktopWindow()); }
+    if (dpi == 0) { dpi = (int32_t)GetSystemDpiForProcess(GetCurrentProcess()); }
+    if (dpi == 0) { dpi = (int32_t)GetDpiForSystem(); }
     ui_app.dpi.window = dpi;
 }
 
@@ -502,7 +504,7 @@ static void ui_app_allow_dark_mode_for_app(void) {
     AllowDarkModeForApp_t AllowDarkModeForApp = (AllowDarkModeForApp_t)
             (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(132));
     if (AllowDarkModeForApp != null) {
-        int r = b2e(AllowDarkModeForApp(true));
+        errno_t r = b2e(AllowDarkModeForApp(true));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
             traceln("AllowDarkModeForApp(true) failed %s", ut_str.error(r));
         }
@@ -851,7 +853,7 @@ static void ui_app_window_position_changed(const WINDOWPOS* wp) {
     const bool moved  = (wp->flags & SWP_NOMOVE) == 0;
     const bool sized  = (wp->flags & SWP_NOSIZE) == 0;
     const bool hiding = (wp->flags & SWP_HIDEWINDOW) != 0 ||
-                        wp->x == -32000 && wp->y == -32000;
+                        (wp->x == -32000 && wp->y == -32000);
     HMONITOR monitor = MonitorFromWindow(ui_app_window(), MONITOR_DEFAULTTONULL);
     if (!ui_app.view->hidden && (moved || sized) && !hiding && monitor != null) {
         RECT wrc = ui_app_ui2rect(&ui_app.wrc);
@@ -908,11 +910,11 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 
     #define set_timer(t, ms) do {                   \
         assert(t == 0);                             \
-        t = ui_app_timer_set((uintptr_t)&t, ms);       \
+        t = ui_app_timer_set((uintptr_t)&t, ms);    \
     } while (0)
 
-    #define kill_timer(t) do {                      \
-        if (t != 0) { ui_app_timer_kill(t); t = 0; }   \
+    #define kill_timer(t) do {                       \
+        if (t != 0) { ui_app_timer_kill(t); t = 0; } \
     } while (0)
 
     #define done(ix) do {                           \
@@ -928,21 +930,21 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     static ui_point_t click_at[3];
     static fp64_t     clicked[3]; // click time
     static bool       pressed[3];
-    static ui_timer_t       timer_d[3]; // fp64_t tap
-    static ui_timer_t       timer_p[3]; // long press
+    static ui_timer_t timer_d[3]; // fp64_t tap
+    static ui_timer_t timer_p[3]; // long press
     bool up = false;
     int32_t ix = -1;
     uint32_t m = 0;
     switch (msg) {
-        case WM_LBUTTONDOWN  : ix = 0; m = ui.message.tap;  break;
-        case WM_MBUTTONDOWN  : ix = 1; m = ui.message.tap;  break;
-        case WM_RBUTTONDOWN  : ix = 2; m = ui.message.tap;  break;
-        case WM_LBUTTONDBLCLK: ix = 0; m = ui.message.dtap; break;
-        case WM_MBUTTONDBLCLK: ix = 1; m = ui.message.dtap; break;
-        case WM_RBUTTONDBLCLK: ix = 2; m = ui.message.dtap; break;
-        case WM_LBUTTONUP    : ix = 0; up = true;   break;
-        case WM_MBUTTONUP    : ix = 1; up = true;   break;
-        case WM_RBUTTONUP    : ix = 2; up = true;   break;
+        case WM_LBUTTONDOWN  : ix = 0; m = (uint32_t)ui.message.tap;  break;
+        case WM_MBUTTONDOWN  : ix = 1; m = (uint32_t)ui.message.tap;  break;
+        case WM_RBUTTONDOWN  : ix = 2; m = (uint32_t)ui.message.tap;  break;
+        case WM_LBUTTONDBLCLK: ix = 0; m = (uint32_t)ui.message.dtap; break;
+        case WM_MBUTTONDBLCLK: ix = 1; m = (uint32_t)ui.message.dtap; break;
+        case WM_RBUTTONDBLCLK: ix = 2; m = (uint32_t)ui.message.dtap; break;
+        case WM_LBUTTONUP    : ix = 0; up = true; break;
+        case WM_MBUTTONUP    : ix = 1; up = true; break;
+        case WM_RBUTTONUP    : ix = 2; up = true; break;
     }
     if (msg == WM_TIMER) { // long press && dtap
         for (int i = 0; i < 3; i++) {
@@ -959,7 +961,7 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
         }
     }
     if (ix != -1) {
-        const uint32_t dtap_msec = GetDoubleClickTime();
+        const int32_t dtap_msec = (int32_t)GetDoubleClickTime();
         const fp64_t double_click_dt = dtap_msec / 1000.0;
         const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
@@ -1051,7 +1053,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     const int64_t lp = (int64_t)l_param;
     int64_t ret = 0;
     ui_view.kill_hidden_focus(ui_app.view);
-    ui_app_click_detector(m, wp, lp);
+    ui_app_click_detector((uint32_t)m, (WPARAM)wp, (LPARAM)lp);
     if (ui_view.message(ui_app.view, m, wp, lp, &ret)) {
         return (LRESULT)ret;
     }
@@ -1069,7 +1071,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     switch (m) {
         case WM_GETMINMAXINFO: ui_app_get_min_max_info((MINMAXINFO*)lp); break;
         case WM_THEMECHANGED : break;
-        case WM_SETTINGCHANGE: ui_app_setting_change(wp, lp); break;
+        case WM_SETTINGCHANGE: ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
         case WM_CLOSE        : ui_app.focus = null; // before WM_CLOSING
                                ui_app_post_message(ui.message.closing, 0, 0); return 0;
         case WM_DESTROY      : PostQuitMessage(ui_app.exit_code); break;
@@ -1220,7 +1222,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         default:
             break;
     }
-    return DefWindowProcA(ui_app_window(), m, wp, lp);
+    return DefWindowProcA(ui_app_window(), (UINT)m, (WPARAM)wp, lp);
 }
 
 static long ui_app_set_window_long(int32_t index, long value) {
@@ -1230,13 +1232,13 @@ static long ui_app_set_window_long(int32_t index, long value) {
     return r;
 }
 
-static errno_t ui_app_set_layered_window(ui_color_t color, float alpha) {
+static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
     uint8_t  a = 0; // alpha 0..255
     uint32_t c = 0; // R8G8B8
     DWORD mask = 0;
-    if (0 <= alpha && alpha <= 1.0) {
+    if (0 <= alpha && alpha <= 1.0f) {
         mask |= LWA_ALPHA;
-        a = (uint8_t)(alpha * 255 + 0.5);
+        a = (uint8_t)(alpha * 255 + 0.5f);
     }
     if (color != ui_color_undefined) {
         mask |= LWA_COLORKEY;
@@ -1272,7 +1274,7 @@ static void ui_app_create_window(const ui_rect_t r) {
     assert(window == ui_app_window()); (void)window;
     strprintf(ui_caption.title.text, "%s", ui_app.title);
     not_null(GetSystemMenu(ui_app_window(), false));
-    ui_app.dpi.window = GetDpiForWindow(ui_app_window());
+    ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
 //  traceln("ui_app.dpi.window=%d", ui_app.dpi.window);
     RECT wrc = ui_app_ui2rect(&r);
     fatal_if_false(GetWindowRect(ui_app_window(), &wrc));
@@ -1300,10 +1302,10 @@ static void ui_app_create_window(const ui_rect_t r) {
     // always start with window hidden and let application show it
     ui_app.show_window(ui.visibility.hide);
     if (ui_app.no_min || ui_app.no_max) {
-        uint32_t exclude = WS_SIZEBOX;
+        int32_t exclude = WS_SIZEBOX;
         if (ui_app.no_min) { exclude = WS_MINIMIZEBOX; }
         if (ui_app.no_max) { exclude = WS_MAXIMIZEBOX; }
-        uint32_t s = GetWindowLongA(ui_app_window(), GWL_STYLE);
+        long s = GetWindowLongA(ui_app_window(), GWL_STYLE);
         ui_app_set_window_long(GWL_STYLE, s & ~exclude);
         // even for windows without maximize/minimize
         // make sure "Minimize All Windows" still works:
@@ -1318,7 +1320,7 @@ static void ui_app_create_window(const ui_rect_t r) {
             SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
     }
     if (ui_app.no_size) {
-        uint32_t s = GetWindowLong(ui_app_window(), GWL_STYLE);
+        long s = GetWindowLong(ui_app_window(), GWL_STYLE);
         ui_app_set_window_long(GWL_STYLE, s & ~WS_SIZEBOX);
         enum { swp = SWP_FRAMECHANGED |
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE };
@@ -1340,14 +1342,16 @@ static void ui_app_create_window(const ui_rect_t r) {
 }
 
 static void ui_app_full_screen(bool on) {
-    static int32_t style;
+    static long style;
     static WINDOWPLACEMENT wp;
     if (on != ui_app.is_full_screen) {
         ui_app_show_task_bar(!on);
         if (on) {
             style = GetWindowLongA(ui_app_window(), GWL_STYLE);
-            ui_app_set_window_long(GWL_STYLE, (style | WS_POPUP | WS_VISIBLE) &
-                ~(WS_OVERLAPPEDWINDOW));
+            // becasue WS_POPUP is defined as 0x80000000L:
+            long s = (long)((uint32_t)style | WS_POPUP | WS_VISIBLE);
+            s &= ~WS_OVERLAPPEDWINDOW;
+            ui_app_set_window_long(GWL_STYLE, s);
             wp.length = sizeof(wp);
             fatal_if_false(GetWindowPlacement(ui_app_window(), &wp));
             WINDOWPLACEMENT nwp = wp;
@@ -1534,7 +1538,7 @@ static bool ui_app_is_stdout_redirected(void) {
     // https://stackoverflow.com/questions/30126490/how-to-check-if-stdout-is-redirected-to-a-file-or-to-a-console
     HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
     DWORD type = out == null ? FILE_TYPE_UNKNOWN : GetFileType(out);
-    type &= ~FILE_TYPE_REMOTE;
+    type &= ~(DWORD)FILE_TYPE_REMOTE;
     // FILE_TYPE_DISK or FILE_TYPE_CHAR or FILE_TYPE_PIPE
     return type != FILE_TYPE_UNKNOWN;
 }
@@ -1649,11 +1653,11 @@ static ui_color_t ui_app_get_color(int32_t color_id) {
 static void ui_app_capture_mouse(bool on) {
     static int32_t mouse_capture;
     if (on) {
-        assert(mouse_capture == 0);
+        swear(mouse_capture == 0);
         mouse_capture++;
         SetCapture(ui_app_window());
     } else {
-        assert(mouse_capture == 1);
+        swear(mouse_capture == 1);
         mouse_capture--;
         ReleaseCapture();
     }
@@ -1736,15 +1740,15 @@ static int ui_app_console_create(void) {
     return r;
 }
 
-static fp32_t ui_app_px2in(int pixels) {
+static fp32_t ui_app_px2in(int32_t pixels) {
     assert(ui_app.dpi.monitor_raw > 0);
     return ui_app.dpi.monitor_raw > 0 ?
-           pixels / (fp32_t)ui_app.dpi.monitor_raw : 0;
+           (fp32_t)pixels / (fp32_t)ui_app.dpi.monitor_raw : 0;
 }
 
 static int32_t ui_app_in2px(fp32_t inches) {
     assert(ui_app.dpi.monitor_raw > 0);
-    return (int32_t)(inches * ui_app.dpi.monitor_raw + 0.5f);
+    return (int32_t)(inches * (fp32_t)ui_app.dpi.monitor_raw + 0.5f);
 }
 
 static void ui_app_request_layout(void) {
@@ -1794,10 +1798,10 @@ static const char* ui_app_open_filename(const char* folder,
             int32_t n1 = (int32_t)wcslen(s1);
             assert(n0 > 0 && n1 > 0);
             fatal_if(n0 + n1 + 3 >= left, "too many filters");
-            memcpy(s, s0, (n0 + 1) * 2);
+            memcpy(s, s0, (size_t)(n0 + 1) * 2);
             s += n0 + 1;
             left -= n0 + 1;
-            memcpy(s, s1, (n1 + 1) * 2);
+            memcpy(s, s1, (size_t)(n1 + 1) * 2);
             s[n1] = 0;
             s += n1 + 1;
             left -= n1 + 1;
@@ -1822,6 +1826,8 @@ static const char* ui_app_open_filename(const char* folder,
     return text;
 }
 
+// TODO: use clipboard instead?
+
 static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     HDC canvas = GetDC(null);
     not_null(canvas);
@@ -1838,20 +1844,20 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     fatal_if_false(SetBrushOrgEx(dst, 0, 0, &pt));
     fatal_if_false(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
         im->w, im->h, SRCCOPY));
-    errno_t r = OpenClipboard(GetDesktopWindow()) ? 0 : GetLastError();
+    errno_t r = b2e(OpenClipboard(GetDesktopWindow()));
     if (r != 0) { traceln("OpenClipboard() failed %s", ut_str.error(r)); }
     if (r == 0) {
-        r = EmptyClipboard() ? 0 : GetLastError();
+        r = b2e(EmptyClipboard());
         if (r != 0) { traceln("EmptyClipboard() failed %s", ut_str.error(r)); }
     }
     if (r == 0) {
-        r = SetClipboardData(CF_BITMAP, bitmap) ? 0 : GetLastError();
+        r = b2e(SetClipboardData(CF_BITMAP, bitmap));
         if (r != 0) {
             traceln("SetClipboardData() failed %s", ut_str.error(r));
         }
     }
     if (r == 0) {
-        r = CloseClipboard() ? 0 : GetLastError();
+        r = b2e(CloseClipboard());
         if (r != 0) {
             traceln("CloseClipboard() failed %s", ut_str.error(r));
         }
@@ -1865,7 +1871,7 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     return r;
 }
 
-const char* ui_app_known_folder(int32_t kf) {
+static const char* ui_app_known_folder(int32_t kf) {
     // known folder ids order must match enum
     static const GUID* kfrid[] = {
         &FOLDERID_Profile,
@@ -1930,19 +1936,19 @@ static void ui_app_init(void) {
     ui_app.in2px               = ui_app_in2px;
     ui_app.set_layered_window  = ui_app_set_layered_window;
     ui_app.hit_test            = ui_app_hit_test;
-    ui_app.is_active           = ui_app_is_active,
-    ui_app.is_minimized        = ui_app_is_minimized,
-    ui_app.is_maximized        = ui_app_is_maximized,
-    ui_app.has_focus           = ui_app_has_focus,
-    ui_app.request_focus       = ui_app_request_focus,
-    ui_app.activate            = ui_app_activate,
-    ui_app.get_color           = ui_app_get_color,
-    ui_app.set_title           = ui_app_set_title,
-    ui_app.capture_mouse       = ui_app_capture_mouse,
-    ui_app.move_and_resize     = ui_app_move_and_resize,
-    ui_app.bring_to_foreground = ui_app_bring_to_foreground,
-    ui_app.make_topmost        = ui_app_make_topmost,
-    ui_app.bring_to_front      = ui_app_bring_to_front,
+    ui_app.is_active           = ui_app_is_active;
+    ui_app.is_minimized        = ui_app_is_minimized;
+    ui_app.is_maximized        = ui_app_is_maximized;
+    ui_app.has_focus           = ui_app_has_focus;
+    ui_app.request_focus       = ui_app_request_focus;
+    ui_app.activate            = ui_app_activate;
+    ui_app.get_color           = ui_app_get_color;
+    ui_app.set_title           = ui_app_set_title;
+    ui_app.capture_mouse       = ui_app_capture_mouse;
+    ui_app.move_and_resize     = ui_app_move_and_resize;
+    ui_app.bring_to_foreground = ui_app_bring_to_foreground;
+    ui_app.make_topmost        = ui_app_make_topmost;
+    ui_app.bring_to_front      = ui_app_bring_to_front;
     ui_app.request_layout      = ui_app_request_layout;
     ui_app.invalidate          = ui_app_invalidate_rect;
     ui_app.full_screen         = ui_app_full_screen;
@@ -1981,8 +1987,8 @@ static void ui_app_init_windows(void) {
     fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
     not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     InitCommonControls(); // otherwise GetOpenFileName does not work
-    ui_app.dpi.process = GetSystemDpiForProcess(GetCurrentProcess());
-    ui_app.dpi.system = GetDpiForSystem(); // default was 96DPI
+    ui_app.dpi.process = (int32_t)GetSystemDpiForProcess(GetCurrentProcess());
+    ui_app.dpi.system = (int32_t)GetDpiForSystem(); // default was 96DPI
     // monitor dpi will be reinitialized in load_window_pos
     ui_app.dpi.monitor_effective = ui_app.dpi.system;
     ui_app.dpi.monitor_angular = ui_app.dpi.system;
@@ -2036,8 +2042,8 @@ static int ui_app_win_main(void) {
 //  ui_app_dump_dpi();
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
-    int32_t size_frame = GetSystemMetricsForDpi(SM_CXSIZEFRAME, ui_app.dpi.process);
-    int32_t caption_height = GetSystemMetricsForDpi(SM_CYCAPTION, ui_app.dpi.process);
+    int32_t size_frame = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
+    int32_t caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION, (uint32_t)ui_app.dpi.process);
     wr.x -= size_frame;
     wr.w += size_frame * 2;
     wr.y -= size_frame + caption_height;
@@ -2095,6 +2101,7 @@ int main(int argc, const char* argv[], const char** envp) {
     return r;
 }
 
+#pragma pop_macro("ui_monospaced_font")
 #pragma pop_macro("ui_app_canvas")
 #pragma pop_macro("ui_app_window")
 

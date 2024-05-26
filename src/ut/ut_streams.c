@@ -9,7 +9,7 @@ static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t 
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
     int64_t transfer = ut_min(bytes, s->bytes_read - s->pos_read);
-    memcpy(data, (uint8_t*)s->data_read + s->pos_read, transfer);
+    memcpy(data, (const uint8_t*)s->data_read + s->pos_read, (size_t)transfer);
     s->pos_read += transfer;
     if (transferred != null) { *transferred = transfer; }
     return 0;
@@ -24,7 +24,7 @@ static errno_t ut_streams_memory_write(ut_stream_if* stream, const void* data, i
           bytes, s->pos_write, s->bytes_write);
     bool overflow = s->bytes_write - s->pos_write <= 0;
     int64_t transfer = ut_min(bytes, s->bytes_write - s->pos_write);
-    memcpy((uint8_t*)s->data_write + s->pos_write, data, transfer);
+    memcpy((uint8_t*)s->data_write + s->pos_write, data, (size_t)transfer);
     s->pos_write += transfer;
     if (transferred != null) { *transferred = transfer; }
     return overflow ? ERROR_INSUFFICIENT_BUFFER : 0;

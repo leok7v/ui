@@ -66,6 +66,9 @@
     <ClInclude Include="..\inc\ui\ui_theme.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ui\ui_edit.h">
+      <Filter>inc\ui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\ui\ui_app.c">
@@ -108,6 +111,9 @@
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_theme.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\ui_edit.c">
       <Filter>src\ui</Filter>
     </ClCompile>
   </ItemGroup>

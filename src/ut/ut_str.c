@@ -1,9 +1,24 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
+static inline char* ut_inline_str_drop_const(const char* s) {
+    #if defined(__GNUC__) || defined(__clang__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wcast-qual"
+    #endif
+    return (char*)s;
+    #if defined(__GNUC__) || defined(__clang__)
+    #pragma GCC diagnostic pop
+    #endif
+}
+
+static char* ut_str_drop_const(const char* s) {
+    return ut_inline_str_drop_const(s);
+}
+
 char* strnchr(const char* s, int32_t n, char ch) {
     while (n > 0 && *s != 0) {
-        if (*s == ch) { return (char*)s; }
+        if (*s == ch) { return ut_inline_str_drop_const(s); }
         s++; n--;
     }
     return null;
@@ -11,8 +26,15 @@ char* strnchr(const char* s, int32_t n, char ch) {
 
 static void ut_str_format_va(char* utf8, int32_t count, const char* format,
         va_list vl) {
-    vsnprintf(utf8, count, format, vl);
+    #if defined(__GNUC__) || defined(__clang__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+    #endif
+    vsnprintf(utf8, (size_t)count, format, vl);
     utf8[count - 1] = 0;
+    #if defined(__GNUC__) || defined(__clang__)
+    #pragma GCC diagnostic pop
+    #endif
 }
 
 static void ut_str_format(char* utf8, int32_t count, const char* format, ...) {
@@ -28,8 +50,8 @@ static const char* ut_str_error_for_language(int32_t error, LANGID language) {
         FORMAT_MESSAGE_IGNORE_INSERTS;
     uint16_t s[256];
     HRESULT hr = 0 <= error && error <= 0xFFFF ?
-        HRESULT_FROM_WIN32(error) : error;
-    if (FormatMessageW(format, null, hr, language, s, countof(s) - 1,
+        HRESULT_FROM_WIN32((uint32_t)error) : (HRESULT)error;
+    if (FormatMessageW(format, null, (DWORD)hr, language, s, countof(s) - 1,
             (va_list*)null) > 0) {
         s[countof(s) - 1] = 0;
         // remove trailing '\r\n'
@@ -95,7 +117,7 @@ static bool ut_str_is_empty(const char* s) {
 static bool ut_str_equal(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n1 < 0) { n1 = ut_str.length(s1); }
     if (n2 < 0) { n2 = ut_str.length(s2); }
-    return n1 == n2 && memcmp(s1, s2, n1) == 0;
+    return n1 == n2 && memcmp(s1, s2, (size_t)n1) == 0;
 }
 
 static bool ut_str_equal_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
@@ -115,7 +137,7 @@ static bool ut_str_starts_with(const char* s1, int32_t n1, const char* s2, int32
     if (n1 < 0 && n2 < 0) { return strstartswith(s1, s2); }
     if (n1 <= 0) { n1 = (int32_t)strlen(s1); }
     if (n2 <= 0) { n2 = (int32_t)strlen(s2); }
-    return n1 >= n2 && memcmp(s1, s2, n2) == 0;
+    return n1 >= n2 && memcmp(s1, s2, (size_t)n2) == 0;
 }
 
 static bool ut_str_ends_with(const char* s1, int32_t n1, const char* s2, int32_t n2) {
@@ -124,7 +146,7 @@ static bool ut_str_ends_with(const char* s1, int32_t n1, const char* s2, int32_t
     }
     if (n1 <= 0) { n1 = (int32_t)strlen(s1); }
     if (n2 <= 0) { n2 = (int32_t)strlen(s2); }
-    return n1 >= n2 && memcmp(s1 + n1 - n2, s2, n2) == 0;
+    return n1 >= n2 && memcmp(s1 + n1 - n2, s2, (size_t)n2) == 0;
 }
 
 static bool ut_str_starts_with_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
@@ -174,17 +196,20 @@ static char* ut_str_first_char(const char* s, int32_t bytes, char ch) {
 static char* ut_str_last_char(const char* s, int32_t n, char ch) {
     if (n < 0) { return strrchr(s, ch); }
     for (int32_t i = n; i >= 0; i--) {
-        if (s[i] == ch) { return (char*)&s[i]; }
+        if (s[i] == ch) { return ut_inline_str_drop_const(&s[i]); }
     }
     return null;
 }
 
-static char* ut_str_first(const char* s1, int32_t n1, const char* s2, int32_t n2) {
+static char* ut_str_first(const char* s1, int32_t n1, const char* s2,
+        int32_t n2) {
     if (n1 < 0 && n2 < 0) { return strstr(s1, s2); }
     if (n1 < 0) { n1 = ut_str.length(s1); }
     if (n2 < 0) { n2 = ut_str.length(s2); }
     for (int32_t i = 0; i <= n1 - n2; i++) {
-        if (memcmp(s1 + i, s2, n2) == 0) { return (char*)&s1[i]; }
+        if (memcmp(s1 + i, s2, (size_t)n2) == 0) {
+            return ut_inline_str_drop_const(&s1[i]);
+        }
     }
     return null;
 }
@@ -231,17 +256,17 @@ static bool ut_str_to_upper(char* d, int32_t capacity, const char* s, int32_t n)
 
 static int32_t ut_str_compare(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n2 < 0) {
-        return n1 > 0 ? strncmp(s1, s2, n1) : strcmp(s1, s2);
+        return n1 > 0 ? strncmp(s1, s2, (size_t)n1) : strcmp(s1, s2);
     } else {
         if (n1 < 0) { n1 = ut_str.length(s1); }
         if (n2 < 0) { n2 = ut_str.length(s2); }
-        return n1 == n2 ? memcmp(s1, s2, n1) : n1 - n2;
+        return n1 == n2 ? memcmp(s1, s2, (size_t)n1) : n1 - n2;
     }
 }
 
 static int32_t ut_str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
     if (n2 < 0) {
-        return n1 > 0 ? strncasecmp(s1, s2, n1) : strcasecmp(s1, s2);
+        return n1 > 0 ? strncasecmp(s1, s2, (size_t)n1) : strcasecmp(s1, s2);
     } else {
         if (n1 < 0) { n1 = ut_str.length(s1); }
         if (n2 < 0) { n2 = ut_str.length(s2); }
@@ -385,6 +410,7 @@ ut_str_if ut_str = {
     .ends_with      = ut_str_ends_with,
     .starts_with_nc = ut_str_starts_with_nc,
     .ends_with_nc   = ut_str_ends_with_nc,
+    .drop_const     = ut_str_drop_const,
     .unquote        = ut_str_unquote,
     .test           = ut_str_test
 };

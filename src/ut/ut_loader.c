@@ -58,7 +58,9 @@ static void ut_loader_close(void* handle) {
 
 static int32_t ut_loader_test_count;
 
-export void ut_loader_test_exported_function(void) { ut_loader_test_count++; }
+ut_export void ut_loader_test_exported_function(void);
+
+void ut_loader_test_exported_function(void) { ut_loader_test_count++; }
 
 static void ut_loader_test(void) {
     ut_loader_test_count = 0;

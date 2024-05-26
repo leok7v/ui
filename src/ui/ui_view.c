@@ -12,12 +12,9 @@ static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 static inline void ui_view_check_type(ui_view_t* v) {
     // little endian:
-    static_assertion(('vwXX' & 0xFFFF0000U) ==
-                     ('vwZZ' & 0xFFFF0000U));
-    static_assertion((ui_view_container & 0xFFFF0000U) ==
-                                ('vw??' & 0xFFFF0000U));
-    swear((v->type & 0xFFFF0000) ==
-          ('vw??'  & 0xFFFF0000),
+    static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
+    static_assertion((ui_view_container & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
+    swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
           "not a view: %4.4s 0x%08X (forgotten &static_view?)",
           &v->type, v->type);
 }
@@ -162,11 +159,11 @@ static const char* ui_view_nls(ui_view_t* v) {
 static void ui_view_measure(ui_view_t* v) {
     ui_font_t f = v->fm->font;
     if (v->text[0] != 0) {
-        v->w = (int32_t)(v->fm->em.w * v->min_w_em + 0.5f);
+        v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
         ui_point_t mt = { 0 };
         bool multiline = strchr(v->text, '\n') != null;
         if (v->type == ui_view_label && multiline) {
-            int32_t w = (int32_t)(v->min_w_em * v->fm->em.w + 0.5f);
+            int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
             mt = ui_gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(v));
         } else {
             mt = ui_gdi.measure_text(f, ui_view.nls(v));
@@ -655,7 +652,6 @@ ui_view_if ui_view = {
     .add_last           = ui_view_add_last,
     .add_after          = ui_view_add_after,
     .add_before         = ui_view_add_before,
-    .add                = ui_view_add,
     .remove             = ui_view_remove,
     .remove_all         = ui_view_remove_all,
     .disband            = ui_view_disband,

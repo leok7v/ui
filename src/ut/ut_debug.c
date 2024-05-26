@@ -20,8 +20,15 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
     prefix[countof(prefix) - 1] = 0; // zero terminated
     char text[2 * 1024];
     if (format != null && !strequ(format, "")) {
+        #if defined(__GNUC__) || defined(__clang__)
+        #pragma GCC diagnostic push
+        #pragma GCC diagnostic ignored "-Wformat-nonliteral"
+        #endif
         vsnprintf(text, countof(text) - 1, format, vl);
         text[countof(text) - 1] = 0;
+        #if defined(__GNUC__) || defined(__clang__)
+        #pragma GCC diagnostic pop
+        #endif
     } else {
         text[0] = 0;
     }
@@ -99,8 +106,8 @@ static void ut_debug_breakpoint(void) {
 }
 
 static int32_t ut_debug_verbosity_from_string(const char* s) {
-    const char* n = null;
-    long v = strtol(s, &n, 10);
+    char* n = null;
+    long v = strtol(ut_str.drop_const(s), &n, 10);
     if (striequ(s, "quiet")) {
         return ut_debug.verbosity.quiet;
     } else if (striequ(s, "info")) {

@@ -14,9 +14,9 @@ static void ut_runtime_exit(int32_t exit_code) { exit(exit_code); }
 // this separates posix error codes from win32 error codes
 
 
-static int32_t ut_runtime_err(void) { return GetLastError(); }
+static errno_t ut_runtime_err(void) { return (errno_t)GetLastError(); }
 
-static void ut_runtime_seterr(int32_t err) { SetLastError(err); }
+static void ut_runtime_seterr(errno_t err) { SetLastError((DWORD)err); }
 
 ut_static_init(runtime) {
     SetErrorMode(

@@ -134,8 +134,8 @@ typedef struct ui_view_if {
     void (*set_text)(ui_view_t* view, const char* text);
     void (*invalidate)(const ui_view_t* view); // prone to delays
     void (*measure)(ui_view_t* view);     // if text[] != "" sets w, h
-    bool (*is_hidden)(ui_view_t* view);   // view or any parent is hidden
-    bool (*is_disabled)(ui_view_t* view); // view or any parent is disabled
+    bool (*is_hidden)(const ui_view_t* view);   // view or any parent is hidden
+    bool (*is_disabled)(const ui_view_t* view); // view or any parent is disabled
     const char* (*nls)(ui_view_t* view);  // returns localized text
     void (*localize)(ui_view_t* view);    // set strid based ui .text field
     void (*timer)(ui_view_t* view, ui_timer_t id);

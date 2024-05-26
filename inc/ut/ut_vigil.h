@@ -24,13 +24,13 @@ typedef struct {
 extern vigil_if vigil;
 
 #ifdef _MSC_VER
-    #define __suppress_constant_cond_exp__ _Pragma("warning(suppress: 4127)")
+    #define ut_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
 #else
-    #define __suppress_constant_cond_exp__
+    #define ut_suppress_constant_cond_exp
 #endif
 
 #if defined(DEBUG)
-  #define assert(b, ...) __suppress_constant_cond_exp__          \
+  #define assert(b, ...) ut_suppress_constant_cond_exp          \
     /* const cond */                                             \
     (void)((!!(b)) || vigil.failed_assertion(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
@@ -40,7 +40,7 @@ extern vigil_if vigil;
 
 // swear() is both debug and release configuration assert
 
-#define swear(b, ...) __suppress_constant_cond_exp__             \
+#define swear(b, ...) ut_suppress_constant_cond_exp              \
     /* const cond */                                             \
     (void)((!!(b)) || vigil.failed_assertion(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
@@ -48,12 +48,12 @@ extern vigil_if vigil;
 #define fatal(...) (void)(vigil.fatal_termination(               \
     __FILE__, __LINE__,  __func__, "",  "" __VA_ARGS__))
 
-#define fatal_if(b, ...) __suppress_constant_cond_exp__          \
+#define fatal_if(b, ...) ut_suppress_constant_cond_exp           \
     /* const cond */                                             \
     (void)((!(b)) || vigil.fatal_termination(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 
-#define fatal_if_not(b, ...) __suppress_constant_cond_exp__       \
+#define fatal_if_not(b, ...) ut_suppress_constant_cond_exp        \
     /* const cond */                                              \
     (void)((!!(b)) || vigil.fatal_termination(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))

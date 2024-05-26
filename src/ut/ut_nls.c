@@ -17,7 +17,7 @@ enum {
     ut_nls_str_mem_max = 64 * ut_nls_str_count_max
 };
 
-static char ut_nls_strings_memory[ut_nls_str_mem_max]; // increase if overflows
+static char  ut_nls_strings_memory[ut_nls_str_mem_max]; // increase if overflows
 static char* ut_nls_strings_free = ut_nls_strings_memory;
 
 static int32_t ut_nls_strings_count;
@@ -25,7 +25,7 @@ static int32_t ut_nls_strings_count;
 static const char* ut_nls_ls[ut_nls_str_count_max]; // localized strings
 static const char* ut_nls_ns[ut_nls_str_count_max]; // neutral language strings
 
-wchar_t* ut_nls_load_string(int32_t strid, LANGID langid) {
+static wchar_t* ut_nls_load_string(int32_t strid, LANGID langid) {
     assert(0 <= strid && strid < countof(ut_nls_ns));
     wchar_t* r = null;
     int32_t block = strid / 16 + 1;
@@ -59,16 +59,16 @@ static const char* ut_nls_save_string(wchar_t* memory) {
     const char* utf8 = utf16to8(memory);
     uintptr_t n = strlen(utf8) + 1;
     assert(n > 1);
-    uintptr_t left = countof(ut_nls_strings_memory) - (
-        ut_nls_strings_free - ut_nls_strings_memory);
+    uintptr_t left = (uintptr_t)countof(ut_nls_strings_memory) -
+        (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
     fatal_if_false(left >= n, "string_memory[] overflow");
-    memcpy(ut_nls_strings_free, utf8, n);
+    memcpy(ut_nls_strings_free, utf8, (size_t)n);
     const char* s = ut_nls_strings_free;
     ut_nls_strings_free += n;
     return s;
 }
 
-const char* ut_nls_localize_string(int32_t strid) {
+static const char* ut_nls_localize_string(int32_t strid) {
     assert(0 < strid && strid < countof(ut_nls_ns));
     const char* r = null;
     if (0 < strid && strid < countof(ut_nls_ns)) {
@@ -108,7 +108,7 @@ static const char* ut_nls_string(int32_t strid, const char* defau1t) {
     return r == null ? defau1t : r;
 }
 
-const char* ut_nls_str(const char* s) {
+static const char* ut_nls_str(const char* s) {
     int32_t id = ut_nls_strid(s);
     return id == 0 ? s : ut_nls_string(id, s);
 }
@@ -133,7 +133,7 @@ static const char* ut_nls_locale(void) {
 
 static void ut_nls_set_locale(const char* locale) {
     wchar_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-    int32_t n = ResolveLocaleName(utf8to16(locale), rln, countof(rln));
+    int32_t n = (int32_t)ResolveLocaleName(utf8to16(locale), rln, (DWORD)countof(rln));
     if (n == 0) {
         // TODO: log error
     } else {

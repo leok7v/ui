@@ -2,10 +2,10 @@
 #include "ui/ui.h"
 #include "ut/ut_win32.h"
 
-#pragma push_macro("app_window")
-#pragma push_macro("app_canvas")
-#pragma push_macro("gdi_with_hdc")
-#pragma push_macro("gdi_hdc_with_font")
+#pragma push_macro("ui_app_window")
+#pragma push_macro("ui_app_canvas")
+#pragma push_macro("ui_gdi_with_hdc")
+#pragma push_macro("ui_gdi_hdc_with_font")
 
 #define ui_app_window() ((HWND)ui_app.window)
 #define ui_app_canvas() ((HDC)ui_app.canvas)
@@ -191,18 +191,19 @@ static void ui_gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
     vertex[0].x = x;
     vertex[0].y = y;
     // TODO: colors:
-    vertex[0].Red   = ((rgba_from >>  0) & 0xFF) << 8;
-    vertex[0].Green = ((rgba_from >>  8) & 0xFF) << 8;
-    vertex[0].Blue  = ((rgba_from >> 16) & 0xFF) << 8;
-    vertex[0].Alpha = ((rgba_from >> 24) & 0xFF) << 8;
+    vertex[0].Red   = (COLOR16)(((rgba_from >>  0) & 0xFF) << 8);
+    vertex[0].Green = (COLOR16)(((rgba_from >>  8) & 0xFF) << 8);
+    vertex[0].Blue  = (COLOR16)(((rgba_from >> 16) & 0xFF) << 8);
+    vertex[0].Alpha = (COLOR16)(((rgba_from >> 24) & 0xFF) << 8);
     vertex[1].x = x + w;
     vertex[1].y = y + h;
-    vertex[1].Red   = ((rgba_to >>  0) & 0xFF) << 8;
-    vertex[1].Green = ((rgba_to >>  8) & 0xFF) << 8;
-    vertex[1].Blue  = ((rgba_to >> 16) & 0xFF) << 8;
-    vertex[1].Alpha = ((rgba_to >> 24) & 0xFF) << 8;
+    vertex[1].Red   = (COLOR16)(((rgba_to >>  0) & 0xFF) << 8);
+    vertex[1].Green = (COLOR16)(((rgba_to >>  8) & 0xFF) << 8);
+    vertex[1].Blue  = (COLOR16)(((rgba_to >> 16) & 0xFF) << 8);
+    vertex[1].Alpha = (COLOR16)(((rgba_to >> 24) & 0xFF) << 8);
     GRADIENT_RECT gRect = {0, 1};
-    const int32_t mode = vertical ? GRADIENT_FILL_RECT_V : GRADIENT_FILL_RECT_H;
+    const uint32_t mode = vertical ?
+        GRADIENT_FILL_RECT_V : GRADIENT_FILL_RECT_H;
     GradientFill(ui_app_canvas(), vertex, 2, &gRect, 1, mode);
 }
 
@@ -240,7 +241,7 @@ static void ui_gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh
         BITMAPINFOHEADER* bih = &bi->bmiHeader;
         bih->biWidth = iw;
         bih->biHeight = -ih; // top down image
-        bih->biSizeImage = w * h;
+        bih->biSizeImage = (DWORD)(w * abs(h));
         POINT pt = { 0 };
         fatal_if_false(SetBrushOrgEx(ui_app_canvas(), 0, 0, &pt));
         fatal_if(StretchDIBits(ui_app_canvas(), sx, sy, sw, sh, x, y, w, h,
@@ -250,6 +251,7 @@ static void ui_gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh
 }
 
 static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
+    assert(w > 0 && h >= 0); // h cannot be negative?
     BITMAPINFOHEADER bi = {
         .biSize = sizeof(BITMAPINFOHEADER),
         .biPlanes = 1,
@@ -257,7 +259,7 @@ static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
         .biCompression = BI_RGB,
         .biWidth = w,
         .biHeight = -h, // top down image
-        .biSizeImage = w * h * bpp,
+        .biSizeImage = (DWORD)(w * abs(h) * bpp),
         .biClrUsed = 0,
         .biClrImportant = 0
    };
@@ -302,13 +304,14 @@ static void ui_gdi_draw_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
 
 static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
         BITMAPINFO* bi) {
+    assert(w > 0 && h >= 0); // h cannot be negative?
     bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bi->bmiHeader.biWidth = w;
     bi->bmiHeader.biHeight = -h;  // top down image
     bi->bmiHeader.biPlanes = 1;
     bi->bmiHeader.biBitCount = (uint16_t)(bpp * 8);
     bi->bmiHeader.biCompression = BI_RGB;
-    bi->bmiHeader.biSizeImage = w * h * bpp;
+    bi->bmiHeader.biSizeImage = (DWORD)(w * abs(h) * bpp);
     return bi;
 }
 
@@ -382,7 +385,7 @@ static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t b
     uint8_t* scanline = image->pixels;
     if (bpp == 1) {
         for (int32_t y = 0; y < h; y++) {
-            memcpy(scanline, pixels, w);
+            memcpy(scanline, pixels, (size_t)w);
             pixels += w;
             scanline += stride;
         }
@@ -577,35 +580,36 @@ static ui_font_t ui_gdi_set_font(ui_font_t f) {
     return (ui_font_t)SelectFont(ui_app_canvas(), (HFONT)f);
 }
 
-#define ui_gdi_with_hdc(code) do {                                          \
-    not_null(ui_app_window());                                              \
-    HDC hdc = ui_app_canvas() != null ? ui_app_canvas() : GetDC(ui_app_window()); \
-    not_null(hdc);                                                       \
-    code                                                                 \
-    if (ui_app_canvas() == null) {                                          \
-        ReleaseDC(ui_app_window(), hdc);                                    \
-    }                                                                    \
-} while (0);
+#define ui_gdi_with_hdc(code) do {                      \
+    not_null(ui_app_window());                          \
+    HDC hdc = ui_app_canvas() != null ?                 \
+              ui_app_canvas() : GetDC(ui_app_window()); \
+    not_null(hdc);                                      \
+    code                                                \
+    if (ui_app_canvas() == null) {                      \
+        ReleaseDC(ui_app_window(), hdc);                \
+    }                                                   \
+} while (0)
 
-#define ui_gdi_hdc_with_font(f, ...) do {                                   \
-    not_null(f);                                                         \
-    not_null(ui_app_window());                                              \
-    HDC hdc = ui_app_canvas() != null ? ui_app_canvas() : GetDC(ui_app_window()); \
-    not_null(hdc);                                                       \
-    HFONT _font_ = SelectFont(hdc, (HFONT)f);                            \
-    { __VA_ARGS__ }                                                      \
-    SelectFont(hdc, _font_);                                             \
-    if (ui_app_canvas() == null) {                                          \
-        ReleaseDC(ui_app_window(), hdc);                                        \
-    }                                                                    \
-} while (0);
-
+#define ui_gdi_hdc_with_font(f, ...) do {               \
+    not_null(f);                                        \
+    not_null(ui_app_window());                          \
+    HDC hdc = ui_app_canvas() != null ?                 \
+              ui_app_canvas() : GetDC(ui_app_window()); \
+    not_null(hdc);                                      \
+    HFONT _font_ = SelectFont(hdc, (HFONT)f);           \
+    { __VA_ARGS__ }                                     \
+    SelectFont(hdc, _font_);                            \
+    if (ui_app_canvas() == null) {                      \
+        ReleaseDC(ui_app_window(), hdc);                \
+    }                                                   \
+} while (0)
 
 static int32_t ui_gdi_baseline(ui_font_t f) {
     TEXTMETRICA tm;
     ui_gdi_hdc_with_font(f, {
         fatal_if_false(GetTextMetricsA(hdc, &tm));
-    })
+    });
     return tm.tmAscent;
 }
 
@@ -901,7 +905,7 @@ ui_gdi_if ui_gdi = {
     .multiline                     = ui_gdi_multiline
 };
 
-#pragma pop_macro("gdi_hdc_with_font")
-#pragma pop_macro("gdi_with_hdc")
-#pragma pop_macro("app_canvas")
-#pragma pop_macro("app_window")
+#pragma pop_macro("ui_gdi_hdc_with_font")
+#pragma pop_macro("ui_gdi_with_hdc")
+#pragma pop_macro("ui_app_canvas")
+#pragma pop_macro("ui_app_window")

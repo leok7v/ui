@@ -47,8 +47,8 @@ static struct {
 #define ux_theme_reg_default_colors ux_theme_reg_cv "Themes\\DefaultColors\\"
 
 static bool ui_theme_use_light_theme(const char* key) {
-    if (!ui_app.dark_mode && !ui_app.light_mode ||
-         ui_app.dark_mode && ui_app.light_mode) {
+    if ((!ui_app.dark_mode && !ui_app.light_mode) ||
+        ( ui_app.dark_mode &&  ui_app.light_mode)) {
         const char* personalize  = ux_theme_reg_cv "Themes\\Personalize";
         DWORD light_theme = 0;
         ui_theme_reg_get_uint32(HKEY_CURRENT_USER, personalize, key, &light_theme);

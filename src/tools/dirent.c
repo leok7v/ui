@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include "ut/ut_win32.h"
 
+#if defined(__GNUC__) || defined(__clang__) // TODO: remove and fix code
+#pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
+#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage"
+#endif
+
 #define null ((void*)0)
 
 #ifndef countof

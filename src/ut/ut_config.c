@@ -29,7 +29,7 @@ static errno_t ut_config_save(const char* name,
     r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         r = RegSetValueExA(k, key, 0, REG_BINARY,
-            (byte*)data, bytes);
+            (const uint8_t*)data, (DWORD)bytes);
         fatal_if_not_zero(RegCloseKey(k));
     }
     return r;
@@ -87,7 +87,7 @@ static int32_t ut_config_load(const char* name,
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
-        r = RegQueryValueExA(k, key, null, &type, (byte*)data, &cb);
+        r = RegQueryValueExA(k, key, null, &type, (uint8_t*)data, &cb);
         if (r == ERROR_MORE_DATA) {
             // returns -1 ui_app.data_size() should be used
         } else if (r != 0) {

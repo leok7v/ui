@@ -2,6 +2,13 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
+#pragma push_macro("ui_caption_glyph_rest")
+#pragma push_macro("ui_caption_glyph_menu")
+#pragma push_macro("ui_caption_glyph_mini")
+#pragma push_macro("ui_caption_glyph_maxi")
+#pragma push_macro("ui_caption_glyph_full")
+#pragma push_macro("ui_caption_glyph_quit")
+
 #define ui_caption_glyph_rest ui_glyph_upper_right_drop_shadowed_white_square
 #define ui_caption_glyph_menu ui_glyph_trigram_for_heaven
 #define ui_caption_glyph_mini ui_glyph_heavy_minus_sign
@@ -133,3 +140,10 @@ ui_caption_t ui_caption =  {
     .full   = ui_button(ui_caption_glyph_full, 0.0, ui_caption_full),
     .quit   = ui_button(ui_caption_glyph_quit, 0.0, ui_caption_quit),
 };
+
+#pragma pop_macro("ui_caption_glyph_rest")
+#pragma pop_macro("ui_caption_glyph_menu")
+#pragma pop_macro("ui_caption_glyph_mini")
+#pragma pop_macro("ui_caption_glyph_maxi")
+#pragma pop_macro("ui_caption_glyph_full")
+#pragma pop_macro("ui_caption_glyph_quit")

@@ -49,8 +49,8 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     #pragma warning(push) // mxw[] IntelliSense confusion
     #pragma warning(disable: 6385)
     #pragma warning(disable: 6386)
-    int32_t* mxw = (int32_t*)ut_stackalloc(cols * sizeof(int32_t));
-    memset(mxw, 0, cols * sizeof(int32_t));
+    int32_t* mxw = (int32_t*)ut_stackalloc((size_t)cols * sizeof(int32_t));
+    memset(mxw, 0, (size_t)cols * sizeof(int32_t));
     ui_view_for_each(view, row, {
         if (!row->hidden) {
             row->h = 0;

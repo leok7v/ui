@@ -1,7 +1,6 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-
 static inline uint8_t ui_color_clamp_uint8(fp64_t value) {
     return value < 0 ? 0 : (value > 255 ? 255 : (uint8_t)value);
 }
@@ -34,7 +33,7 @@ static void ui_color_rgb_to_hsi(fp64_t r, fp64_t g, fp64_t b, fp64_t *h, fp64_t 
     }
 }
 
-static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i,  uint8_t a) {
+static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
     h /= 60.0;
     fp64_t f = h - (int32_t)h;
     fp64_t p = i * (1 - s);
@@ -49,7 +48,7 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i,  uint8_t a) 
         case 3: r = p * 255; g = q * 255; b = i * 255; break;
         case 4: r = t * 255; g = p * 255; b = i * 255; break;
         case 5: r = i * 255; g = p * 255; b = q * 255; break;
-        default: swear(false);
+        default: swear(false); break;
     }
     assert(0 <= r && r <= 255);
     assert(0 <= g && g <= 255);
@@ -60,14 +59,14 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i,  uint8_t a) 
 static ui_color_t ui_color_brightness(ui_color_t c, fp32_t multiplier) {
     fp64_t h, s, i;
     ui_color_rgb_to_hsi(ui_color_r(c), ui_color_g(c), ui_color_b(c), &h, &s, &i);
-    i = ui_color_fp64_max(0, ui_color_fp64_min(1, i * multiplier));
+    i = ui_color_fp64_max(0, ui_color_fp64_min(1, i * (fp64_t)multiplier));
     return ui_color_hsi_to_rgb(h, s, i, ui_color_a(c));
 }
 
 static ui_color_t ui_color_saturation(ui_color_t c, fp32_t multiplier) {
     fp64_t h, s, i;
     ui_color_rgb_to_hsi(ui_color_r(c), ui_color_g(c), ui_color_b(c), &h, &s, &i);
-    s = ui_color_fp64_max(0, ui_color_fp64_min(1, s * multiplier));
+    s = ui_color_fp64_max(0, ui_color_fp64_min(1, s * (fp64_t)multiplier));
     return ui_color_hsi_to_rgb(h, s, i, ui_color_a(c));
 }
 
@@ -78,19 +77,19 @@ static ui_color_t ui_color_saturation(ui_color_t c, fp32_t multiplier) {
 
 static ui_color_t ui_color_interpolate(ui_color_t c0, ui_color_t c1,
         fp32_t multiplier) {
-    assert(0.0 < multiplier && multiplier < 1.0);
+    assert(0.0f < multiplier && multiplier < 1.0f);
     fp64_t h0, s0, i0, h1, s1, i1;
     ui_color_rgb_to_hsi(ui_color_r(c0), ui_color_g(c0), ui_color_b(c0),
                        &h0, &s0, &i0);
     ui_color_rgb_to_hsi(ui_color_r(c1), ui_color_g(c1), ui_color_b(c1),
                        &h1, &s1, &i1);
-    fp64_t h = h0 + (h1 - h0) * multiplier;
-    fp64_t s = s0 + (s1 - s0) * multiplier;
-    fp64_t i = i0 + (i1 - i0) * multiplier;
+    fp64_t h = h0 + (h1 - h0) * (fp64_t)multiplier;
+    fp64_t s = s0 + (s1 - s0) * (fp64_t)multiplier;
+    fp64_t i = i0 + (i1 - i0) * (fp64_t)multiplier;
     // Interpolate alphas only if differ
     uint8_t a0 = ui_color_a(c0);
     uint8_t a1 = ui_color_a(c1);
-    uint8_t a = a0 == a1 ? a0 : ui_color_clamp_uint8(a0 + (a1 - a0) * multiplier);
+    uint8_t a = a0 == a1 ? a0 : ui_color_clamp_uint8(a0 + (a1 - a0) * (fp64_t)multiplier);
     return ui_color_hsi_to_rgb(h, s, i, a);
 }
 
@@ -145,14 +144,14 @@ static ui_color_t ui_color_adjust_saturation(ui_color_t c,
 }
 
 enum { // TODO: get rid of it?
-    _colors_white     = ui_rgb(255, 255, 255),
-    _colors_off_white = ui_rgb(192, 192, 192),
-    _colors_dkgray0   = ui_rgb(16, 16, 16),
-    _colors_dkgray1   = ui_rgb(30, 30, 30),
-    _colors_dkgray2   = ui_rgb(37, 38, 38),
-    _colors_dkgray3   = ui_rgb(45, 45, 48),
-    _colors_dkgray4   = ui_rgb(63, 63, 70),
-    _colors_blue_highlight = ui_rgb(128, 128, 255)
+    ui_colors_white     = ui_rgb(255, 255, 255),
+    ui_colors_off_white = ui_rgb(192, 192, 192),
+    ui_colors_dkgray0   = ui_rgb(16, 16, 16),
+    ui_colors_dkgray1   = ui_rgb(30, 30, 30),
+    ui_colors_dkgray2   = ui_rgb(37, 38, 38),
+    ui_colors_dkgray3   = ui_rgb(45, 45, 48),
+    ui_colors_dkgray4   = ui_rgb(63, 63, 70),
+    ui_colors_blue_highlight = ui_rgb(128, 128, 255)
 };
 
 ui_colors_if ui_colors = {
@@ -165,9 +164,9 @@ ui_colors_if ui_colors = {
     .adjust_saturation        = ui_color_adjust_saturation,
     .multiply_brightness      = ui_color_brightness,
     .multiply_saturation      = ui_color_saturation,
-    .none             = (int32_t)0xFFFFFFFFU, // aka CLR_INVALID in wingdi
+    .none             = (ui_color_t)0xFFFFFFFFU, // aka CLR_INVALID in wingdi
     .text             = ui_rgb(240, 231, 220),
-    .white            = _colors_white,
+    .white            = ui_colors_white,
     .black            = ui_rgb(0,     0,   0),
     .red              = ui_rgb(255,   0,   0),
     .green            = ui_rgb(0,   255,   0),
@@ -176,10 +175,10 @@ ui_colors_if ui_colors = {
     .cyan             = ui_rgb(0,   255, 255),
     .magenta          = ui_rgb(255,   0, 255),
     .gray             = ui_rgb(128, 128, 128),
-    .dkgray1          = _colors_dkgray1,
-    .dkgray2          = _colors_dkgray2,
-    .dkgray3          = _colors_dkgray3,
-    .dkgray4          = _colors_dkgray4,
+    .dkgray1          = ui_colors_dkgray1,
+    .dkgray2          = ui_colors_dkgray2,
+    .dkgray3          = ui_colors_dkgray3,
+    .dkgray4          = ui_colors_dkgray4,
     // tone down RGB colors:
     .tone_white       = ui_rgb(164, 164, 164),
     .tone_red         = ui_rgb(192,  64,  64),
@@ -188,7 +187,7 @@ ui_colors_if ui_colors = {
     .tone_yellow      = ui_rgb(192, 192,  64),
     .tone_cyan        = ui_rgb(64,  192, 192),
     .tone_magenta     = ui_rgb(192,  64, 192),
-    // miscelaneous:
+    // miscellaneous:
     .orange           = ui_rgb(255, 165,   0), // 0xFFA500
     .dkgreen          = ui_rgb(  1,  50,  32), // 0x013220
     .pink             = ui_rgb(255, 192, 203), // 0xFFC0CB
@@ -212,16 +211,16 @@ ui_colors_if ui_colors = {
 
     // highlights:
     .text_highlight      = ui_rgb(190, 200, 255), // bluish off-white
-    .blue_highlight      = _colors_blue_highlight,
-    .off_white           = _colors_off_white,
+    .blue_highlight      = ui_colors_blue_highlight,
+    .off_white           = ui_colors_off_white,
 
-    .btn_gradient_darker = _colors_dkgray1,
-    .btn_gradient_dark   = _colors_dkgray3,
-    .btn_hover_highlight = _colors_blue_highlight,
-    .btn_disabled        = _colors_dkgray4,
-    .btn_armed           = _colors_white,
-    .btn_text            = _colors_off_white,
-    .toast               = _colors_dkgray3, // ui_rgb(8, 40, 24), // toast background
+    .btn_gradient_darker = ui_colors_dkgray1,
+    .btn_gradient_dark   = ui_colors_dkgray3,
+    .btn_hover_highlight = ui_colors_blue_highlight,
+    .btn_disabled        = ui_colors_dkgray4,
+    .btn_armed           = ui_colors_white,
+    .btn_text            = ui_colors_off_white,
+    .toast               = ui_colors_dkgray3, // ui_rgb(8, 40, 24), // toast background
 
     /* Main Panel Backgrounds */
     .ennui_black                = ui_rgb( 18,  18,  18), // 0x1212121
@@ -314,7 +313,6 @@ ui_colors_if ui_colors = {
     .bone                       = ui_rgb(227, 218, 201), // 0xE3DAC9
 
     /* Earthy Tones */
-    .ochre                      = ui_rgb(204, 119,  34), // 0xCC7722
     .sienna                     = ui_rgb(160,  82,  45), // 0xA0522D
     .sandy_brown                = ui_rgb(244, 164,  96), // 0xF4A460
     .golden_brown               = ui_rgb(153, 101,  21), // 0x996515

@@ -35,21 +35,21 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
     uint16_t* wn = ut_str.utf8_utf16(wide, base);
     size_t count = 0;
     uint64_t pid = 0;
-    byte* data = null;
+    uint8_t* data = null;
     ULONG bytes = 0;
     errno_t r = NtQuerySystemInformation(SystemProcessInformation, data, 0, &bytes);
     #pragma push_macro("STATUS_INFO_LENGTH_MISMATCH")
     #define STATUS_INFO_LENGTH_MISMATCH      0xC0000004
-    while (r == STATUS_INFO_LENGTH_MISMATCH) {
+    while (r == (errno_t)STATUS_INFO_LENGTH_MISMATCH) {
         // bytes == 420768 on Windows 11 which may be a bit
         // too much for stack alloca()
         // add little extra if new process is spawned in between calls.
         bytes += sizeof(SYSTEM_PROCESS_INFORMATION) * 32;
-        r = ut_heap.reallocate(null, &data, bytes, false);
+        r = ut_heap.reallocate(null, (void**)&data, bytes, false);
         if (r == 0) {
             r = NtQuerySystemInformation(SystemProcessInformation, data, bytes, &bytes);
         } else {
-            assert(r == ERROR_NOT_ENOUGH_MEMORY);
+            assert(r == (errno_t)ERROR_NOT_ENOUGH_MEMORY);
         }
     }
     #pragma pop_macro("STATUS_INFO_LENGTH_MISMATCH")
@@ -77,11 +77,11 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
                 }
             }
             proc = proc->NextEntryOffset != 0 ? (SYSTEM_PROCESS_INFORMATION*)
-                ((byte*)proc + proc->NextEntryOffset) : null;
+                ((uint8_t*)proc + proc->NextEntryOffset) : null;
         }
     }
     if (data != null) { ut_heap.deallocate(null, data); }
-    assert((int32_t)count == count);
+    assert(count <= (uint64_t)INT32_MAX);
     return (int32_t)count;
 }
 
@@ -143,7 +143,7 @@ static errno_t ut_processes_pids(const char* pname, uint64_t* pids/*[size]*/,
     ut_processes_pidof_lambda_t lambda = {
         .each = ut_processes_store_pid,
         .pids = pids,
-        .size  = size,
+        .size = (size_t)size,
         .count = 0,
         .timeout = 0,
         .error = 0
@@ -351,8 +351,8 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         if (ri != 0) { traceln("CreatePipe() failed %s", ut_str.error(ri)); r = ri; }
     }
     if (r == 0) {
-        r = b2e(CreateProcessA(null, (char*)child->command, null, null, true,
-                CREATE_NO_WINDOW, null, null, &si, &pi));
+        r = b2e(CreateProcessA(null, ut_str.drop_const(child->command),
+                null, null, true, CREATE_NO_WINDOW, null, null, &si, &pi));
         if (r != 0) {
             traceln("CreateProcess() failed %s", ut_str.error(r));
             ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
@@ -445,7 +445,7 @@ static errno_t ut_processes_open(const char* command, int32_t *exit_code,
         .timeout = timeout
     };
     errno_t r = ut_processes.run(&child);
-    if (exit_code != null) { *exit_code = child.exit_code; }
+    if (exit_code != null) { *exit_code = (int32_t)child.exit_code; }
     uint8_t zero = 0; // zero termination
     merge_out_and_err.stream.write(&merge_out_and_err.stream, &zero, 1, null);
     if (r == 0 && merge_out_and_err.error != 0) {
@@ -471,7 +471,7 @@ static errno_t ut_processes_spawn(const char* command) {
                 | CREATE_NEW_PROCESS_GROUP
                 | DETACHED_PROCESS;
     PROCESS_INFORMATION pi = {0};
-    r = b2e(CreateProcessA(null, (char*)command, null, null,
+    r = b2e(CreateProcessA(null, ut_str.drop_const(command), null, null,
             /*bInheritHandles:*/false, flags, null, null, &si, &pi));
     if (r == 0) { // Close handles immediately
         fatal_if_false(CloseHandle(pi.hProcess));
@@ -508,7 +508,9 @@ static void ut_processes_test(void) {
         errno_t r = ut_processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
-            r = ut_heap.reallocate(null, &pids, sizeof(uint64_t) * size, false);
+            r = ut_heap.reallocate(null, (void**)&pids,
+                                  (int64_t)sizeof(uint64_t) * (int64_t)size,
+                                  false);
             if (r == 0) {
                 r = ut_processes.pids(names[j], pids, size, &count);
             }
@@ -531,7 +533,7 @@ static void ut_processes_test(void) {
     char data[32 * 1024];
     ut_stream_memory_if output;
     ut_streams.write_only(&output, data, countof(data));
-    const char* cmd = "cmd /c dir 2>nul >nul";;
+    const char* cmd = "cmd /c dir 2>nul >nul";
     errno_t r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
     ut_streams.write_only(&output, data, countof(data));

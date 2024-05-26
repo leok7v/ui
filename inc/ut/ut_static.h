@@ -13,24 +13,25 @@ begin_c
 #define _msvc_symbol_prefix_ "_"
 #endif
 
-#pragma comment(linker, "/include:_static_force_symbol_reference_")
+#pragma comment(linker, "/include:ut_force_symbol_reference")
 
-void* _static_force_symbol_reference_(void* symbol);
+void* ut_force_symbol_reference(void* symbol);
 
-#define _msvc_ctor_(_sym_prefix, func)                                    \
+#define _msvc_ctor_(sym_prefix, func)                                    \
   void func(void);                                                        \
-  int32_t (* _array ## func)(void);                                       \
+  int32_t (* ut_array ## func)(void);                                     \
   int32_t func ## _wrapper(void);                                         \
   int32_t func ## _wrapper(void) { func();                                \
-    _static_force_symbol_reference_((void*)_array ## func);               \
-    _static_force_symbol_reference_((void*)func ## _wrapper); return 0; } \
-  __pragma(comment(linker, "/include:" _sym_prefix # func "_wrapper"))    \
+  ut_force_symbol_reference((void*)ut_array ## func);                     \
+  ut_force_symbol_reference((void*)func ## _wrapper); return 0; }         \
+  extern int32_t (* ut_array ## func)(void);                              \
+  __pragma(comment(linker, "/include:" sym_prefix # func "_wrapper"))     \
   __pragma(section(".CRT$XCU", read))                                     \
   __declspec(allocate(".CRT$XCU"))                                        \
-    int32_t (* _array ## func)(void) = func ## _wrapper;
+    int32_t (* ut_array ## func)(void) = func ## _wrapper;
 
 #define ut_static_init2_(func, line) _msvc_ctor_(_msvc_symbol_prefix_, \
-    func ## _constructor_##line)                                     \
+    func ## _constructor_##line)                                       \
     void func ## _constructor_##line(void)
 
 #define ut_static_init1_(func, line) ut_static_init2_(func, line)
