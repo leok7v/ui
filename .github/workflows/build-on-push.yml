@@ -8,10 +8,14 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: recursive            
       - name: setup msbuild
         uses: microsoft/setup-msbuild@v2
       - name: build debug
@@ -30,6 +34,10 @@ jobs:
         run:  bin\debug\test1.exe --verbosity quiet
       - name: run release tests
         run:  bin\release\test1.exe --verbosity quiet
+      - name: Attest Build Provenance
+        uses: actions/attest-build-provenance@v1.1.2
+        with:
+          subject-path: 'bin\**\*.exe'
       - name: upload release artifact
         uses: actions/upload-artifact@v4
         with:
@@ -60,3 +68,4 @@ jobs:
             bin\debug\sample6.exe
             bin\debug\sample9.exe
           retention-days: 5
+          
