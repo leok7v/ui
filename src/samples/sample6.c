@@ -143,12 +143,16 @@ static void delete_midi_file(void) {
 static void load_gif(void) {
     void* data = null;
     int64_t bytes = 0;
-    int r = ut_mem.map_resource("groot_gif", &data, &bytes);
+    errno_t r = ut_mem.map_resource("groot_gif", &data, &bytes);
     fatal_if_not_zero(r);
-    // load_animated_gif() calls realloc(delays) w/o first malloc()
-    gif.delays = malloc(sizeof(int32_t));
+    // load_animated_gif() calls realloc(delays) w/o first alloc()
+    r = ut_heap.allocate(null, (void**)&gif.delays, sizeof(int32_t), false);
+    swear(r == 0 && gif.delays != null);
     gif.pixels = load_animated_gif(data, bytes, &gif.delays,
         &gif.w, &gif.h, &gif.frames, &gif.bpp, 4);
+    if (gif.pixels == null || gif.bpp != 4 || gif.frames < 1) {
+        traceln("%s", stbi_failure_reason());
+    }
     fatal_if(gif.pixels == null || gif.bpp != 4 || gif.frames < 1);
     // resources cannot be unmapped do not call ut_mem.unmap()
 }
@@ -226,19 +230,22 @@ static void init(void) {
     int h = 0;
     int bpp = 0; // bytes (!) per pixel
     void* pixels = load_image(data, bytes, &w, &h, &bpp, 0);
+    if (pixels == null) {
+        traceln("%s", stbi_failure_reason());
+    }
     fatal_if_null(pixels);
     ui_gdi.image_init(&background, w, h, bpp, pixels);
-    free(pixels);
+    stbi_image_free(pixels);
 }
 
 static void fini(void) {
-    ui_gdi.image_dispose(&background);
-    free(gif.pixels);
-    free(gif.delays);
     ut_event.set(animation.quit);
     ut_thread.join(animation.thread, -1);
     ut_event.dispose(animation.quit);
     midi.stop(&mds);
+    ui_gdi.image_dispose(&background);
+    stbi_image_free(gif.pixels);
+    stbi_image_free(gif.delays);
     midi.close(&mds);
     delete_midi_file();
 }
@@ -266,7 +273,7 @@ static int  console(void) {
 }
 
 ui_app_t ui_app = {
-    .class_name = "sample4",
+    .class_name = "sample6",
     .dark_mode = true,
     .init = init,
     .fini = fini,

@@ -2013,10 +2013,10 @@ static const DWORD ut_config_access =
     KEY_ENUMERATE_SUB_KEYS|DELETE;
 
 static errno_t ut_config_get_reg_key(const char* name, HKEY *key) {
-    errno_t r = 0;
     char path[256] = {0};
     strprintf(path, "%s\\%s", ut_config_app, name);
-    if (RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, ut_config_access, key) != 0) {
+    errno_t r = RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, ut_config_access, key);
+    if (r != 0) {
         const DWORD option = REG_OPTION_NON_VOLATILE;
         r = RegCreateKeyExA(HKEY_CURRENT_USER, path, 0, null, option,
                             ut_config_access, null, key, null);

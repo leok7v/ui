@@ -177,7 +177,7 @@ static void init(void) {
 }
 
 ui_app_t ui_app = {
-    .class_name = "sample2",
+    .class_name = "sample7",
     .init = init,
     .dark_mode = true,
     .window_sizing = {

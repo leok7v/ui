@@ -49,7 +49,7 @@ static void load_images(void) {
         void* pixels = load_image(data, bytes, &w, &h, &bpp, 0);
         fatal_if_null(pixels);
         ui_gdi.image_init(&image[i], w, h, bpp, pixels);
-        free(pixels);
+        stbi_image_free(pixels);
         // do not unmap resources:
         if (i == 0) { ut_mem.unmap(data, bytes); }
     }

@@ -565,9 +565,12 @@ static void ui_app_paint(ui_view_t* view) {
 }
 
 static void ui_app_measure_and_layout(ui_view_t* view) {
-    assert(ui_app.crc.w > 0 && ui_app.crc.h > 0 && ui_app_window() != null);
-    ui_view.measure_children(view);
-    ui_view.layout_children(view);
+    // restore from minimized calls ui_app.crc.w,h == 0
+    if (ui_app.crc.w > 0 && ui_app.crc.h > 0 && ui_app_window() != null) {
+        ui_view.measure_children(view);
+        ui_view.layout_children(view);
+        ui_app_layout_dirty = false;
+    }
 }
 
 static void ui_app_toast_mouse(int32_t m, int64_t f);
@@ -800,7 +803,6 @@ static void ui_app_paint_on_canvas(HDC hdc) {
     ui_gdi.y = 0;
     ui_app_update_crc();
     if (ui_app_layout_dirty) {
-        ui_app_layout_dirty = false;
         ui_app_view_layout();
     }
     ui_font_t  f = ui_gdi.set_font(ui_app.fonts.regular.font);
@@ -2042,6 +2044,7 @@ static int ui_app_win_main(void) {
 //  ui_app_dump_dpi();
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
+    // TODO: use size_frame and caption_height in ui_caption.c
     int32_t size_frame = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
     int32_t caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION, (uint32_t)ui_app.dpi.process);
     wr.x -= size_frame;
@@ -2065,14 +2068,16 @@ static int ui_app_win_main(void) {
         ui_app_init_fonts(ui_app.dpi.window);
         thread_t thread = ut_thread.start(ui_app_redraw_thread, null);
         r = ui_app_message_loop();
+        // ui_app.fini() must be called before ui_app_dispose()
+        if (ui_app.fini != null) { ui_app.fini(); }
         fatal_if_false(SetEvent(ui_app_event_quit));
         ut_thread.join(thread, -1);
         ui_app_dispose();
         if (r == 0 && ui_app.exit_code != 0) { r = ui_app.exit_code; }
     } else {
         r = ui_app.main();
+        if (ui_app.fini != null) { ui_app.fini(); }
     }
-    if (ui_app.fini != null) { ui_app.fini(); }
     return r;
 }
 
