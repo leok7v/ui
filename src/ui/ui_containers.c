@@ -429,7 +429,7 @@ static void ui_container_layout(ui_view_t* p) {
     debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
-static void ui_container_paint(ui_view_t* v) {
+static void ui_paint_container(ui_view_t* v) {
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
 //      traceln("%s [%d] 0x%016llX", v->text, v->background_id, v->background);
@@ -439,21 +439,28 @@ static void ui_container_paint(ui_view_t* v) {
     }
 }
 
+static void ui_view_container_init(ui_view_t* v) {
+    ui_view_init(v);
+    v->background = ui_color_transparent;
+    v->insets  = (ui_gaps_t){ .left  = 0.25, .top    = 0.25,
+                              .right = 0.25, .bottom = 0.25 };
+}
+
 void ui_view_init_span(ui_view_t* v) {
     swear(v->type == ui_view_span, "type %4.4s 0x%08X", &v->type, v->type);
-    ui_view_init_container(v);
-    v->measure = ui_span_measure;
-    v->layout  = ui_span_layout;
+    ui_view_container_init(v);
+    if (v->measure == null) { v->measure = ui_span_measure; }
+    if (v->layout  == null) { v->layout  = ui_span_layout; }
+    if (v->paint   == null) { v->paint   = ui_paint_container; }
     if (v->text[0] == 0) { strprintf(v->text, "ui_span"); }
 }
 
 void ui_view_init_list(ui_view_t* v) {
     swear(v->type == ui_view_list, "type %4.4s 0x%08X", &v->type, v->type);
-    ui_view_init_container(v);
-    // TODO: not sure about default insets
-    v->insets  = (ui_gaps_t){ .left = 0.5, .top = 0.25, .right = 0.5, .bottom = 0.25 };
-    v->measure = ui_list_measure;
-    v->layout  = ui_list_layout;
+    ui_view_container_init(v);
+    if (v->measure == null) { v->measure = ui_list_measure; }
+    if (v->layout  == null) { v->layout  = ui_list_layout; }
+    if (v->paint   == null) { v->paint   = ui_paint_container; }
     if (v->text[0] == 0) { strprintf(v->text, "ui_list"); }
 }
 
@@ -469,13 +476,10 @@ void ui_view_init_spacer(ui_view_t* v) {
 
 void ui_view_init_container(ui_view_t* v) {
     ui_view_init(v);
-    v->background = ui_color_transparent;
-    v->insets  = (ui_gaps_t){ .left  = 0.25, .top    = 0.25,
-                              .right = 0.25, .bottom = 0.25 };
-    // do not overwrite if already set
+    ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_container_measure; }
     if (v->layout  == null) { v->layout  = ui_container_layout; }
-    if (v->paint   == null) { v->paint   = ui_container_paint; }
+    if (v->paint   == null) { v->paint   = ui_paint_container; }
     if (v->text[0] == 0) { strprintf(v->text, "ui_container"); }
 }
 
