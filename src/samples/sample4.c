@@ -92,7 +92,7 @@ static void download(void) {
 
 static void init(void) {
     ui_app.title = title;
-    ui_app.view->paint = paint;
+    ui_app.content->paint = paint;
     strprintf(filename, "%s\\mandrill-4.2.03.png",
         ui_app.known_folder(ui.folder.pictures));
     download();

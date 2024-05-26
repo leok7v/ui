@@ -9,7 +9,7 @@
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest ui_glyph_upper_right_drop_shadowed_white_square
+#define ui_caption_glyph_rest ui_glyph_two_joined_squares
 #define ui_caption_glyph_menu ui_glyph_trigram_for_heaven
 #define ui_caption_glyph_mini ui_glyph_heavy_minus_sign
 #define ui_caption_glyph_maxi ui_glyph_white_large_square
@@ -22,9 +22,9 @@ static void ui_caption_toggle_full(void) {
     ui_app.request_layout();
 }
 
-static void ui_app_view_character(ui_view_t* v, const char utf8[]) {
-    swear(v == ui_app.view);
-    // TODO: inside ui_app.c instead of here
+static void ui_caption_esc_full_screen(ui_view_t* v, const char utf8[]) {
+    swear(v == ui_caption.view.parent);
+    // TODO: inside ui_app.c instead of here?
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
 }
 
@@ -55,7 +55,8 @@ static void ui_caption_full(ui_button_t* unused(b)) {
     ui_caption_toggle_full();
 }
 
-static int64_t ui_caption_hit_test(int32_t x, int32_t y) {
+static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
+    swear(v == &ui_caption.view);
     ui_point_t pt = { x, y };
     if (ui_app.is_full_screen) {
         return ui.hit_test.client;
@@ -81,6 +82,19 @@ static ui_color_t ui_caption_color(void) {
     return c;
 }
 
+static void ui_caption_before_measure(ui_view_t* unused(v)) {
+    ui_caption.title.hidden = false;
+}
+
+static void ui_caption_after_measure(ui_view_t* v) {
+    ui_caption.title.hidden = v->w > ui_app.crc.w;
+    v->w = ui_app.crc.w;
+}
+
+static void ui_caption_after_layout(ui_view_t* v) {
+    v->x = 0;
+}
+
 static void ui_caption_paint(ui_view_t* v) {
     ui_color_t background = ui_caption_color();
     ui_gdi.fill_with(v->x, v->y, v->w, v->h, background);
@@ -91,7 +105,7 @@ static void ui_caption_init(ui_view_t* v) {
     ui_view_init_span(v);
     ui_caption.view.insets = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_caption.view.hidden = false;
-    ui_app.view->character = ui_app_view_character; // ESC for full screen
+    v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,
         &ui_caption.icon,
         &ui_caption.menu,
@@ -116,8 +130,11 @@ static void ui_caption_init(ui_view_t* v) {
         .right = 0.75,  .bottom = 0.125
     };
     ui_caption.icon.icon  = ui_app.icon;
-    ui_caption.view.max_w = INT32_MAX;
-    ui_caption.view.align = ui.align.top;
+    ui_caption.view.align = ui.align.left;
+    // TODO: this does not help because parent layout will set x and w again
+    ui_caption.view.before_measure = ui_caption_before_measure;
+    ui_caption.view.after_measure  = ui_caption_after_measure;
+    ui_caption.view.after_layout   = ui_caption_after_layout;
     strprintf(ui_caption.view.text, "ui_caption");
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;

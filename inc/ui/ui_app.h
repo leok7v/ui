@@ -53,7 +53,9 @@ typedef struct {
     int32_t height; // client height
     // not to call ut_clock.seconds() too often:
     fp64_t now;     // ssb "seconds since boot" updated on each message
-    ui_view_t* view;      // show_window() changes ui.hidden
+    ui_view_t* root; // show_window() changes ui.hidden
+    ui_view_t* content;
+    ui_view_t* caption;
     ui_view_t* focus;   // does not affect message routing - free for all
     ui_fonts_t fonts;
     ui_cursor_t cursor; // current cursor
@@ -69,6 +71,9 @@ typedef struct {
     bool alt;
     bool ctrl;
     bool shift;
+    // mouse buttons state
+    bool mouse_left;  // left or if buttons are swapped - right button pressed
+    bool mouse_right; // context button pressed
     ui_point_t mouse; // mouse/touchpad pointer
     ui_canvas_t canvas;  // set by message.paint
     struct { // animation state

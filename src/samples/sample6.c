@@ -213,10 +213,10 @@ static void startup(void* unused(ignored)) {
 
 static void init(void) {
     ui_app.title = title;
-    ui_app.view->paint     = paint;
-    ui_app.view->character = character;
-    ui_app.view->message   = message;
-    ui_app.view->mouse     = mouse;
+    ui_app.content->paint     = paint;
+    ui_app.content->character = character;
+    ui_app.content->message   = message;
+    ui_app.content->mouse     = mouse;
     ui_app.opened        = opened;
     animation.seed = (uint32_t)ut_clock.nanoseconds();
     animation.x = -1;

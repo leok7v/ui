@@ -40,9 +40,9 @@ static void every_sec(ui_view_t* unused(view)) {
 static void opened(void) {
     static ui_fm_t fm;
     ui_gdi.update_fm(&fm, ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1));
-    ui_app.view->every_sec = every_sec;
+    ui_app.content->every_sec = every_sec;
     label.fm = &fm;
-    ui_view.add(ui_app.view, &label, null);
+    ui_view.add(ui_app.content, &label, null);
 }
 static void init(void) {
     ui_app.title = title;

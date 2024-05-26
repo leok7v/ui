@@ -108,8 +108,8 @@ static void paint(ui_view_t* view) {
 
 }
 
-static void timer(ui_view_t* unused(view), ui_timer_t id) {
-    assert(view == ui_app.view);
+static void timer(ui_view_t* view, ui_timer_t id) {
+    swear(view == ui_app.content);
     // there are at least 3 timers notifications coming here:
     // 1 seconds, 100ms and 10ms:
     if (id == timer10ms) {
@@ -166,10 +166,10 @@ static void do_not_start_minimized(void) {
 static void init(void) {
     ui_app.title = title;
     ut_thread.realtime(); // both main thread and timer thread
-    ui_app.view->timer = timer;
     ui_app.closed = closed;
     ui_app.opened = opened;
-    ui_app.view->paint = paint;
+    ui_app.content->timer = timer;
+    ui_app.content->paint = paint;
     // no minimize/maximize title bar and system menu
     ui_app.no_min = true;
     ui_app.no_max = true;

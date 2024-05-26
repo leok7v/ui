@@ -389,6 +389,22 @@ static void ui_view_kill_focus(ui_view_t* v) {
     }
 }
 
+static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
+    int64_t ht = ui.hit_test.nowhere;
+    if (!ui_view.is_hidden(v) && v->hit_test != null) {
+         ht = v->hit_test(v, cx, cy);
+    }
+    if (ht == ui.hit_test.nowhere) {
+        ui_view_for_each(v, c, {
+            if (!c->hidden) {
+                ht = ui_view_hit_test(c, cx, cy);
+                if (ht != ui.hit_test.nowhere) { break; }
+            }
+        });
+    }
+    return ht;
+}
+
 static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
     if (!ui_view.is_hidden(v) &&
        (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
@@ -420,7 +436,6 @@ static void ui_view_mouse_wheel(ui_view_t* v, int32_t dx, int32_t dy) {
 
 static void ui_view_measure_children(ui_view_t* v) {
     if (!ui_view.is_hidden(v)) {
-        ui_view_resolve_color_ids(v);
         ui_view_for_each(v, c, { ui_view_measure_children(c); });
         if (v->before_measure != null) { v->before_measure(v); }
         if (v->measure != null) {
@@ -434,8 +449,6 @@ static void ui_view_measure_children(ui_view_t* v) {
 
 static void ui_view_layout_children(ui_view_t* v) {
     if (!v->hidden) {
-        ui_view_resolve_color_ids(v);
-        if (v->before_layout != null) { v->before_layout(v); }
         if (v->layout != null) { v->layout(v); }
         if (v->after_layout != null) { v->after_layout(v); }
         ui_view_for_each(v, c, { ui_view_layout_children(c); });
@@ -670,6 +683,7 @@ ui_view_if ui_view = {
     .timer              = ui_view_timer,
     .every_sec          = ui_view_every_sec,
     .every_100ms        = ui_view_every_100ms,
+    .hit_test           = ui_view_hit_test,
     .key_pressed        = ui_view_key_pressed,
     .key_released       = ui_view_key_released,
     .character          = ui_view_character,

@@ -2,14 +2,32 @@
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
 
+static int64_t hit_test(ui_view_t* unused(v), int32_t x, int32_t y) {
+    ui_point_t pt = { x, y };
+    if (ui_view.inside(v, &pt)) {
+        if (y < v->fm->em.h && ui_app.caption->hidden) {
+            ui_app.caption->hidden = false;
+            ui_app.request_layout();
+        } else if (y > v->fm->em.h && !ui_app.caption->hidden) {
+            ui_app.caption->hidden = true;
+            ui_app.request_layout();
+        }
+        return ui.hit_test.caption;
+    }
+    return ui.hit_test.nowhere;
+}
+
 static void opened(void) {
+    ui_app.content->insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    static ui_label_t hello = ui_label(0.0, "Hello");
+    hello.padding = (ui_gaps_t){ 0, 0, 0, 0 };
     static ui_fm_t fm;
     ui_gdi.update_fm(&fm, ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1));
-    static ui_label_t hello = ui_label(0.0, "Hello");
     hello.fm = &fm;
     ui_app.set_layered_window(ui_colors.dkgray1, 0.75f);
-    if (ui_app.no_decor) { ui_view.add_last(ui_app.view, &ui_caption.view); }
-    ui_view.add_last(ui_app.view, &hello);
+    ui_view.add_last(ui_app.content, &hello);
+    ui_app.caption->hidden = true;
+    ui_app.content->hit_test = hit_test;
 }
 
 static void init(void) {

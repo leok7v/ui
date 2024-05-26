@@ -186,7 +186,7 @@ static void paint_frames(ui_view_t* v) {
 
 static void null_paint(ui_view_t* v) {
     ui_view_for_each(v, c, { null_paint(c); });
-    if (v != ui_app.view) {
+    if (v != ui_app.content) {
         v->paint = null;
     }
 }
@@ -301,8 +301,8 @@ void ui_edit_next_fuzz(ui_edit_t* e);
 static void opened(void) {
 //  ui_app.view->measure     = measure;
 //  ui_app.view->layout      = layout;
-    ui_app.view->paint       = paint;
-    ui_app.view->key_pressed = key_pressed;
+    ui_app.content->paint       = paint;
+    ui_app.content->key_pressed = key_pressed;
     scaled_fonts();
     label.fm = &ui_app.fonts.mono;
     strprintf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
@@ -329,7 +329,7 @@ static void opened(void) {
     static ui_view_t span    = ui_view(span);
     static ui_view_t spacer1 = ui_view(spacer);
     static ui_view_t spacer2 = ui_view(spacer);
-    ui_view.add(ui_app.view,
+    ui_view.add(ui_app.content,
         ui_view.add(&span,
             ui_view.add(&left,
                 &edit0,

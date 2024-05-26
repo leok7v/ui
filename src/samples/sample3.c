@@ -14,14 +14,15 @@ static volatile bool rendering;
 static volatile bool stop;
 static volatile fp64_t render_time;
 
-#define glyph_two_squares "\xE2\xA7\x89" // "Two Joined Squares"
 
 static void toggle_full_screen(ui_button_t* b) {
     b->pressed = !b->pressed;
     ui_app.full_screen(b->pressed);
+    strprintf(b->text, "%s", !b->pressed ?
+        ui_glyph_square_four_corners : ui_glyph_two_joined_squares);
 }
 
-ui_button_on_click(button_fs, glyph_two_squares, 1.0, {
+ui_button_on_click(button_fs, ui_glyph_square_four_corners, 1.0, {
     toggle_full_screen(button_fs);
 });
 
@@ -56,9 +57,8 @@ static void stop_rendering(void) {
 }
 
 static void measure(ui_view_t* view) {
-    // called on window resize
-    assert(view->w == ui_app.crc.w);
-    assert(view->h == ui_app.crc.h);
+    view->w = ui_app.crc.w;
+    view->h = ui_app.crc.h;
     const int w = view->w;
     const int h = view->h;
     ui_image_t* im = &image[index];
@@ -108,11 +108,11 @@ static void opened(void) {
         "increase size of pixels[][%d * %d * 4]", ui_app.crc.w, ui_app.crc.h);
     ui_app.fini = fini;
     ui_app.closed = closed;
-    ui_view.add(ui_app.view, &button_fs, null);
-    ui_app.view->layout    = layout;
-    ui_app.view->measure   = measure;
-    ui_app.view->paint     = paint;
-    ui_app.view->character = character;
+    ui_view.add(ui_app.content, &button_fs, null);
+    ui_app.content->layout    = layout;
+    ui_app.content->measure   = measure;
+    ui_app.content->paint     = paint;
+    ui_app.content->character = character;
     wake = ut_event.create();
     quit = ut_event.create();
     // images:

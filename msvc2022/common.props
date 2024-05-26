@@ -53,6 +53,8 @@
       <!-- function '...' differs in parameter lists from '...' -->
       <TreatSpecificWarningsAsErrors>4700;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
       <!-- used uninitialized local variable '...' -->
+      <TreatSpecificWarningsAsErrors>4431;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
+      <!-- missing type specifier - int assumed. Note: C no longer supports default-int -->
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
       <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>

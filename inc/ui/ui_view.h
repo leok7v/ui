@@ -48,19 +48,16 @@ typedef struct ui_view_s {
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
-    void (*measure)(ui_view_t* view); // determine w, h (bottom up)
-    void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
-    void (*paint)(ui_view_t* view);
     // before methods: called before measure()/layout()/paint()
     void (*before_measure)(ui_view_t* view);
-    void (*before_layout)(ui_view_t* view);
-    void (*before_paint)(ui_view_t* view);
-    // after methods: called after measure()/layout()/paint()
+    void (*measure)(ui_view_t* view); // determine w, h (bottom up)
     void (*after_measure)(ui_view_t* view);
+    void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
     void (*after_layout)(ui_view_t* view);
+    void (*before_paint)(ui_view_t* view); // with resolved color_ids
+    void (*paint)(ui_view_t* view);
     void (*after_paint)(ui_view_t* view);
-    // debug paint (if .debug set to true)
-    void (*debug_paint)(ui_view_t* view);
+    void (*debug_paint)(ui_view_t* view); // called if .debug is set to true
     // any message:
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
@@ -86,7 +83,7 @@ typedef struct ui_view_s {
     void (*timer)(ui_view_t* view, ui_timer_t id);
     void (*every_100ms)(ui_view_t* view); // ~10 x times per second
     void (*every_sec)(ui_view_t* view); // ~once a second
-    int64_t (*hit_test)(int32_t x, int32_t y); // default: ui.hit_test.client
+    int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
     fp64_t armed_until; // ut_clock.seconds() - when to release
     bool hidden; // paint() is not called on hidden
     bool armed;
@@ -141,6 +138,7 @@ typedef struct ui_view_if {
     void (*timer)(ui_view_t* view, ui_timer_t id);
     void (*every_sec)(ui_view_t* view);
     void (*every_100ms)(ui_view_t* view);
+    int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
     void (*key_pressed)(ui_view_t* view, int64_t v_key);
     void (*key_released)(ui_view_t* view, int64_t v_key);
     void (*character)(ui_view_t* view, const char* utf8);

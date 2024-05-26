@@ -161,7 +161,7 @@ static ui_view_t panel_right  = ui_view(container);
 
 static void panel_paint(ui_view_t* v) {
     if (v->color == ui_color_transparent) {
-        v->color = ui_app.view->color;
+        v->color = ui_app.content->color;
     }
     ui_gdi.push(v->x, v->y);
     ui_gdi.set_clip(v->x, v->y, v->w, v->h);
@@ -389,11 +389,11 @@ static void init_panel(ui_view_t* panel, const char* text, ui_color_t color,
 }
 
 static void opened(void) {
-    ui_app.view->measure     = measure;
-    ui_app.view->layout      = layout;
-    ui_app.view->character   = character;
-    ui_app.view->key_pressed = keyboard; // virtual_keys
-    ui_app.view->mouse_wheel = mouse_wheel;
+    ui_app.content->measure     = measure;
+    ui_app.content->layout      = layout;
+    ui_app.content->character   = character;
+    ui_app.content->key_pressed = keyboard; // virtual_keys
+    ui_app.content->mouse_wheel = mouse_wheel;
     panel_center.mouse = mouse;
     int n = countof(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
@@ -436,7 +436,7 @@ static void opened(void) {
         &label_multiline,
         null
     );
-    ui_view.add(ui_app.view,
+    ui_view.add(ui_app.content,
         &panel_top,
         &panel_center,
         &panel_right,

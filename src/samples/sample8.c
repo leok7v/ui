@@ -105,9 +105,8 @@ static void opened(void) {
     static ui_button_t button_about     = ui_button("&About",      11.0, toggle_about);
     static ui_slider_t slider_insets    = ui_slider("Insets:  %d",  5.5, 0, 3, insets_callback);
     static ui_slider_t slider_padding   = ui_slider("Padding: %d",  5.5, 0, 3, padding_callback);
-    ui_view.add(ui_app.view,
+    ui_view.add(ui_app.content,
         ui_view.add(&list,
-           &ui_caption, // hack
             ui_view.add(&span,
                 &test,
                 ui_view.add(&tools,
