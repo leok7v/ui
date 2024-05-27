@@ -235,7 +235,7 @@ static void every_100ms(void) {
 //  traceln("");
     static ui_view_t* last;
     if (last != ui_app.focus) { ui_app.request_redraw(); }
-    last = ui_app.focus;
+//  last = ui_app.focus;
 }
 
 // limiting vertical height of SLE to 3 lines of text:
@@ -351,6 +351,8 @@ static void opened(void) {
             null),
         null),
     null);
+    ui_view_for_each(&right, it, { it->align = ui.align.left; });
+    edit2.view.max_w = ui.infinity;
     span.max_w = ui.infinity;
     span.max_h = ui.infinity;
     label.align = ui.align.left;

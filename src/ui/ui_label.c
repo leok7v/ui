@@ -56,7 +56,6 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 
 void ui_view_init_label(ui_view_t* v) {
     assert(v->type == ui_view_label);
-    ui_view_init(v);
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
     v->paint        = ui_label_paint;

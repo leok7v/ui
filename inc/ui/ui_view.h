@@ -109,8 +109,6 @@ typedef struct ui_view_s {
 // OK for text editing. Thus edit uses raw mouse events to react
 // on clicks and fp64_t clicks.
 
-void ui_view_init(ui_view_t* view);
-
 typedef struct ui_view_if {
     // children va_args must be null terminated
     ui_view_t* (*add)(ui_view_t* parent, ...);

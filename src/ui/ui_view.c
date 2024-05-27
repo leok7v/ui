@@ -181,6 +181,8 @@ static void ui_measure_view(ui_view_t* v) {
         // TODO: minimum view 1x1 em?
         v->w = i.left + v->fm->em.w + i.right;
         v->h = i.top + v->fm->em.h + i.bottom;
+        v->w = ut_min(v->w, ui.gaps_em2px(v->fm->em.w, v->min_w_em));
+        v->h = ut_min(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
     }
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
@@ -597,9 +599,9 @@ static void ui_view_debug_paint(ui_view_t* v) {
     ui_gdi.pop();
 }
 
-#pragma push_macro("ui_view_alone")
+#pragma push_macro("ui_view_no_siblings")
 
-#define ui_view_alone(v) do {                          \
+#define ui_view_no_siblings(v) do {                    \
     swear((v)->parent == null && (v)->child == null && \
           (v)->prev == null && (v)->next == null);     \
 } while (0)
@@ -645,13 +647,16 @@ static void ui_view_test(void) {
     ui_view.remove(&c2);                            ui_view_verify(&p0);
     ui_view.remove(&c3);                            ui_view_verify(&p0);
     ui_view.remove(&c4);                            ui_view_verify(&p0);
-    ui_view_alone(&p0); ui_view_alone(&c1); ui_view_alone(&c4);
+    ui_view_no_siblings(&p0);
+    ui_view_no_siblings(&c1);
+    ui_view_no_siblings(&c4);
     ui_view.remove(&g1);                            ui_view_verify(&c2);
     ui_view.remove(&g2);                            ui_view_verify(&c2);
     ui_view.remove(&g3);                            ui_view_verify(&c3);
     ui_view.remove(&g4);                            ui_view_verify(&c3);
-    ui_view_alone(&c2); ui_view_alone(&c3);
-    ui_view_alone(&g1); ui_view_alone(&g2); ui_view_alone(&g3); ui_view_alone(&g4);
+    ui_view_no_siblings(&c2); ui_view_no_siblings(&c3);
+    ui_view_no_siblings(&g1); ui_view_no_siblings(&g2);
+    ui_view_no_siblings(&g3); ui_view_no_siblings(&g4);
     // a bit more intuitive (for a human) nested way to initialize tree:
     ui_view.add(&p0,
         &c1,
@@ -660,18 +665,15 @@ static void ui_view_test(void) {
         &c4);
     ui_view_verify(&p0);
     ui_view_disband(&p0);
-    ui_view_alone(&p0);
-    ui_view_alone(&c1); ui_view_alone(&c2); ui_view_alone(&c3); ui_view_alone(&c4);
-    ui_view_alone(&g1); ui_view_alone(&g2); ui_view_alone(&g3); ui_view_alone(&g4);
+    ui_view_no_siblings(&p0);
+    ui_view_no_siblings(&c1); ui_view_no_siblings(&c2);
+    ui_view_no_siblings(&c3); ui_view_no_siblings(&c4);
+    ui_view_no_siblings(&g1); ui_view_no_siblings(&g2);
+    ui_view_no_siblings(&g3); ui_view_no_siblings(&g4);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
-#pragma pop_macro("ui_view_alone")
-
-void ui_view_init(ui_view_t* v) { // TODO: remove all together
-    assert(v->fm != null);
-    if (v->fm == null) { v->fm = &ui_app.fonts.regular; }
-}
+#pragma pop_macro("ui_view_no_siblings")
 
 ui_view_if ui_view = {
     .add                = ui_view_add,

@@ -181,9 +181,8 @@ static void ui_button_measured(ui_view_t* v) {
 
 void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    ui_view_init(v);
     v->mouse         = ui_button_mouse;
-    v->measured = ui_button_measured;
+    v->measured      = ui_button_measured;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;

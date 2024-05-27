@@ -195,7 +195,6 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
 
 void ui_view_init_slider(ui_view_t* v) {
     assert(v->type == ui_view_slider);
-    ui_view_init(v);
     ui_view.set_text(v, v->text);
     v->measured = ui_slider_measured;
     v->layout      = ui_slider_layout;

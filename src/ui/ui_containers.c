@@ -495,7 +495,6 @@ static void ui_paint_container(ui_view_t* v) {
 }
 
 static void ui_view_container_init(ui_view_t* v) {
-    ui_view_init(v);
     v->background = ui_colors.transparent;
     v->insets  = (ui_gaps_t){ .left  = 0.25, .top    = 0.25,
                               .right = 0.25, .bottom = 0.25 };
@@ -521,7 +520,6 @@ void ui_view_init_list(ui_view_t* v) {
 
 void ui_view_init_spacer(ui_view_t* v) {
     swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
-    ui_view_init(v);
     v->w = 0;
     v->h = 0;
     v->max_w = ui.infinity;
@@ -530,7 +528,6 @@ void ui_view_init_spacer(ui_view_t* v) {
 }
 
 void ui_view_init_container(ui_view_t* v) {
-    ui_view_init(v);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_container_measure; }
     if (v->layout  == null) { v->layout  = ui_container_layout; }

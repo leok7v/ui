@@ -1733,7 +1733,10 @@ void ui_edit_init(ui_edit_t* e) {
     e->view.color_id = ui_color_id_window_text;
     e->view.background_id = ui_color_id_window;
     e->view.fm = &ui_app.fonts.regular;
-    ui_view_init(&e->view);
+    e->view.insets  = (ui_gaps_t){ 0.5, 0.5, 0.5, 0.5 };
+    e->view.padding = (ui_gaps_t){ 0.5, 0.5, 0.5, 0.5 };
+    e->view.min_w_em = 1.0;
+    e->view.min_h_em = 1.0;
     e->view.type = ui_view_text;
     e->view.focusable = true;
     e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
@@ -1744,43 +1747,43 @@ void ui_edit_init(ui_edit_t* e) {
 //  TODO: remove?
 // ui_rgb(168, 168, 150); // TODO: ui_colors.text ?
 // e->view.color   = e->view.color;
-    e->caret        = (ui_point_t){-1, -1};
-    e->view.message = ui_edit_message;
-    e->view.paint   = ui_edit_paint;
-    e->view.measure = ui_edit_measure;
-    e->view.layout  = ui_edit_layout;
+    e->caret                = (ui_point_t){-1, -1};
+    e->view.message         = ui_edit_message;
+    e->view.paint           = ui_edit_paint;
+    e->view.measure         = ui_edit_measure;
+    e->view.layout          = ui_edit_layout;
     #ifdef EDIT_USE_TAP
-    e->view.tap     = ui_edit_tap;
+    e->view.tap             = ui_edit_tap;
     #else
-    e->view.mouse   = ui_edit_mouse;
+    e->view.mouse           = ui_edit_mouse;
     #endif
-    e->view.press        = ui_edit_press;
-    e->view.character    = ui_edit_character;
-    e->view.set_focus    = ui_edit_set_focus;
-    e->view.kill_focus   = ui_edit_kill_focus;
-    e->view.key_pressed  = ui_edit_key_pressed;
-    e->view.mouse_wheel  = ui_edit_mousewheel;
-    e->set_font          = ui_edit_set_font;
-    e->move              = ui_edit_move;
-    e->paste             = ui_edit_paste;
-    e->copy              = ui_edit_copy;
-    e->erase             = ui_edit_erase;
-    e->cut_to_clipboard  = ui_edit_clipboard_cut;
-    e->copy_to_clipboard = ui_edit_clipboard_copy;
+    e->view.press           = ui_edit_press;
+    e->view.character       = ui_edit_character;
+    e->view.set_focus       = ui_edit_set_focus;
+    e->view.kill_focus      = ui_edit_kill_focus;
+    e->view.key_pressed     = ui_edit_key_pressed;
+    e->view.mouse_wheel     = ui_edit_mousewheel;
+    e->set_font             = ui_edit_set_font;
+    e->move                 = ui_edit_move;
+    e->paste                = ui_edit_paste;
+    e->copy                 = ui_edit_copy;
+    e->erase                = ui_edit_erase;
+    e->cut_to_clipboard     = ui_edit_clipboard_cut;
+    e->copy_to_clipboard    = ui_edit_clipboard_copy;
     e->paste_from_clipboard = ui_edit_clipboard_paste;
-    e->select_all        = ui_edit_select_all;
-    e->key_down          = ui_edit_key_down;
-    e->key_up            = ui_edit_key_up;
-    e->key_left          = ui_edit_key_left;
-    e->key_right         = ui_edit_key_right;
-    e->key_pageup        = ui_edit_key_pageup;
-    e->key_pagedw        = ui_edit_key_pagedw;
-    e->key_home          = ui_edit_key_home;
-    e->key_end           = ui_edit_key_end;
-    e->key_delete        = ui_edit_key_delete;
-    e->key_backspace     = ui_edit_key_backspace;
-    e->key_enter         = ui_edit_key_enter;
-    e->fuzz              = null;
+    e->select_all           = ui_edit_select_all;
+    e->key_down             = ui_edit_key_down;
+    e->key_up               = ui_edit_key_up;
+    e->key_left             = ui_edit_key_left;
+    e->key_right            = ui_edit_key_right;
+    e->key_pageup           = ui_edit_key_pageup;
+    e->key_pagedw           = ui_edit_key_pagedw;
+    e->key_home             = ui_edit_key_home;
+    e->key_end              = ui_edit_key_end;
+    e->key_delete           = ui_edit_key_delete;
+    e->key_backspace        = ui_edit_key_backspace;
+    e->key_enter            = ui_edit_key_enter;
+    e->fuzz                 = null;
     // Expected manifest.xml containing UTF-8 code page
     // for Translate message and WM_CHAR to deliver UTF-8 characters
     // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page

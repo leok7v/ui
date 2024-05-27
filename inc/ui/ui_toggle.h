@@ -25,6 +25,7 @@ void ui_view_init_toggle(ui_view_t* view);
         .type = ui_view_toggle, .init = ui_view_init_toggle,   \
         .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
         .text = s, .callback = name ## _callback,              \
+        .min_w_em = 1.0, .min_h_em = 1.0,                      \
         .padding = { .left  = 0.25, .top = 0.25,               \
                      .right = 0.25, .bottom = 0.25, },         \
         .insets  = { .left  = 0.25, .top = 0.25,               \
@@ -35,6 +36,7 @@ void ui_view_init_toggle(ui_view_t* view);
     .type = ui_view_toggle, .init = ui_view_init_toggle,   \
     .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
     .text = s, .callback = call_back,                      \
+    .min_w_em = 1.0, .min_h_em = 1.0,                      \
     .padding = { .left  = 0.25, .top = 0.25,               \
                  .right = 0.25, .bottom = 0.25, },         \
     .insets  = { .left  = 0.25, .top = 0.25,               \

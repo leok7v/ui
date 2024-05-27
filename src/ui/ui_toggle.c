@@ -91,7 +91,6 @@ static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)
 
 void ui_view_init_toggle(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    ui_view_init(v);
     ui_view.set_text(v, v->text);
     v->mouse         = ui_toggle_mouse;
     v->paint         = ui_toggle_paint;
@@ -105,7 +104,6 @@ void ui_view_init_toggle(ui_view_t* v) {
 
 void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
        void (*callback)(ui_toggle_t* b)) {
-    ui_view_init(t);
     strprintf(t->text, "%s", label);
     t->min_w_em = ems;
     t->callback = callback;

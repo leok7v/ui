@@ -13,26 +13,28 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 
 // ui_button_on_click can only be used on static button variables
 
-#define ui_button_on_click(name, s, min_width_em, ...)           \
-    static void name ## _callback(ui_button_t* name) {           \
-        (void)name; /* no warning if unused */                   \
-        { __VA_ARGS__ }                                          \
-    }                                                            \
-    static                                                       \
-    ui_button_t name = {                                         \
-        .type = ui_view_button, .init = ui_view_init_button,     \
-        .fm = &ui_app.fonts.regular, .min_w_em = min_width_em,   \
-        .text = s, .callback = name ## _callback,                \
-        .padding = { .left  = 0.25, .top = 0.25,                 \
-                     .right = 0.25, .bottom = 0.25, },           \
-        .insets  = { .left  = 0.25, .top = 0.25,                 \
-                     .right = 0.25, .bottom = 0.25, }            \
+#define ui_button_on_click(name, s, min_width_em, ...)         \
+    static void name ## _callback(ui_button_t* name) {         \
+        (void)name; /* no warning if unused */                 \
+        { __VA_ARGS__ }                                        \
+    }                                                          \
+    static                                                     \
+    ui_button_t name = {                                       \
+        .type = ui_view_button, .init = ui_view_init_button,   \
+        .fm = &ui_app.fonts.regular,                           \
+        .text = s, .callback = name ## _callback,              \
+        .min_w_em = min_width_em, .min_h_em = 1.0,             \
+        .padding = { .left  = 0.25, .top = 0.25,               \
+                     .right = 0.25, .bottom = 0.25, },         \
+        .insets  = { .left  = 0.25, .top = 0.25,               \
+                     .right = 0.25, .bottom = 0.25, }          \
     }
 
 #define ui_button(s, min_width_em, call_back) {              \
     .type = ui_view_button, .init = ui_view_init_button,     \
-    .fm = &ui_app.fonts.regular, .min_w_em = min_width_em,   \
+    .fm = &ui_app.fonts.regular,                             \
     .text = s, .callback = call_back,                        \
+    .min_w_em = min_width_em, .min_h_em = 1.0,               \
     .padding = { .left  = 0.25, .top = 0.25,                 \
                  .right = 0.25, .bottom = 0.25, },           \
     .insets  = { .left  = 0.25, .top = 0.25,                 \

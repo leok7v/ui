@@ -1048,8 +1048,6 @@ typedef struct ui_view_s {
 // OK for text editing. Thus edit uses raw mouse events to react
 // on clicks and fp64_t clicks.
 
-void ui_view_init(ui_view_t* view);
-
 typedef struct ui_view_if {
     // children va_args must be null terminated
     ui_view_t* (*add)(ui_view_t* parent, ...);
@@ -1324,14 +1322,15 @@ typedef ui_view_t ui_label_t;
 
 void ui_view_init_label(ui_view_t* view);
 
-#define ui_label(min_width_em, s) {                          \
-      .type = ui_view_label, .init = ui_view_init_label,     \
-      .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-      .text = s,                                             \
-      .padding = { .left  = 0.25, .top = 0.25,               \
-                   .right = 0.25, .bottom = 0.25, },         \
-      .insets  = { .left  = 0.25, .top = 0.25,               \
-                   .right = 0.25, .bottom = 0.25, }          \
+#define ui_label(min_width_em, s) {                      \
+      .type = ui_view_label, .init = ui_view_init_label, \
+      .fm = &ui_app.fonts.regular,                       \
+      .text = s,                                         \
+      .min_w_em = min_width_em, .min_h_em = 1.0,         \
+      .padding = { .left  = 0.25, .top = 0.25,           \
+                   .right = 0.25, .bottom = 0.25, },     \
+      .insets  = { .left  = 0.25, .top = 0.25,           \
+                   .right = 0.25, .bottom = 0.25, }      \
 }
 
 // text with "&" keyboard shortcuts:
@@ -1360,26 +1359,28 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 
 // ui_button_on_click can only be used on static button variables
 
-#define ui_button_on_click(name, s, min_width_em, ...)           \
-    static void name ## _callback(ui_button_t* name) {           \
-        (void)name; /* no warning if unused */                   \
-        { __VA_ARGS__ }                                          \
-    }                                                            \
-    static                                                       \
-    ui_button_t name = {                                         \
-        .type = ui_view_button, .init = ui_view_init_button,     \
-        .fm = &ui_app.fonts.regular, .min_w_em = min_width_em,   \
-        .text = s, .callback = name ## _callback,                \
-        .padding = { .left  = 0.25, .top = 0.25,                 \
-                     .right = 0.25, .bottom = 0.25, },           \
-        .insets  = { .left  = 0.25, .top = 0.25,                 \
-                     .right = 0.25, .bottom = 0.25, }            \
+#define ui_button_on_click(name, s, min_width_em, ...)         \
+    static void name ## _callback(ui_button_t* name) {         \
+        (void)name; /* no warning if unused */                 \
+        { __VA_ARGS__ }                                        \
+    }                                                          \
+    static                                                     \
+    ui_button_t name = {                                       \
+        .type = ui_view_button, .init = ui_view_init_button,   \
+        .fm = &ui_app.fonts.regular,                           \
+        .text = s, .callback = name ## _callback,              \
+        .min_w_em = min_width_em, .min_h_em = 1.0,             \
+        .padding = { .left  = 0.25, .top = 0.25,               \
+                     .right = 0.25, .bottom = 0.25, },         \
+        .insets  = { .left  = 0.25, .top = 0.25,               \
+                     .right = 0.25, .bottom = 0.25, }          \
     }
 
 #define ui_button(s, min_width_em, call_back) {              \
     .type = ui_view_button, .init = ui_view_init_button,     \
-    .fm = &ui_app.fonts.regular, .min_w_em = min_width_em,   \
+    .fm = &ui_app.fonts.regular,                             \
     .text = s, .callback = call_back,                        \
+    .min_w_em = min_width_em, .min_h_em = 1.0,               \
     .padding = { .left  = 0.25, .top = 0.25,                 \
                  .right = 0.25, .bottom = 0.25, },           \
     .insets  = { .left  = 0.25, .top = 0.25,                 \
@@ -1466,6 +1467,7 @@ void ui_view_init_toggle(ui_view_t* view);
         .type = ui_view_toggle, .init = ui_view_init_toggle,   \
         .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
         .text = s, .callback = name ## _callback,              \
+        .min_w_em = 1.0, .min_h_em = 1.0,                      \
         .padding = { .left  = 0.25, .top = 0.25,               \
                      .right = 0.25, .bottom = 0.25, },         \
         .insets  = { .left  = 0.25, .top = 0.25,               \
@@ -1476,6 +1478,7 @@ void ui_view_init_toggle(ui_view_t* view);
     .type = ui_view_toggle, .init = ui_view_init_toggle,   \
     .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
     .text = s, .callback = call_back,                      \
+    .min_w_em = 1.0, .min_h_em = 1.0,                      \
     .padding = { .left  = 0.25, .top = 0.25,               \
                  .right = 0.25, .bottom = 0.25, },         \
     .insets  = { .left  = 0.25, .top = 0.25,               \
@@ -1508,34 +1511,36 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
 
 // ui_slider_on_change can only be used on static slider variables
 
-#define ui_slider_on_change(name, s, min_width_em, vmn, vmx, ...)         \
-    static void name ## _callback(ui_slider_t* name) {                    \
-        (void)name; /* no warning if unused */                            \
-        { __VA_ARGS__ }                                                   \
-    }                                                                     \
-    static                                                                \
-    ui_slider_t name = {                                                  \
-        .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,    \
-                  .min_w_em = min_width_em, .init = ui_view_init_slider,  \
-                  .text = s, .callback = name ## _callback,               \
-                  .padding = { .left  = 0.25, .top = 0.25,                \
-                               .right = 0.25, .bottom = 0.25, },          \
-                  .insets  = { .left  = 0.25, .top = 0.25,                \
-                               .right = 0.25, .bottom = 0.25, }           \
-        },                                                                \
-        .value_min = vmn, .value_max = vmx, .value = vmn,                 \
+#define ui_slider_on_change(name, s, min_width_em, vmn, vmx, ...)      \
+    static void name ## _callback(ui_slider_t* name) {                 \
+        (void)name; /* no warning if unused */                         \
+        { __VA_ARGS__ }                                                \
+    }                                                                  \
+    static                                                             \
+    ui_slider_t name = {                                               \
+        .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular, \
+                  .init = ui_view_init_slider,                         \
+                  .text = s, .callback = name ## _callback,            \
+                  .min_w_em = min_width_em, .min_h_em = 1.0,           \
+                  .padding = { .left  = 0.25, .top = 0.25,             \
+                               .right = 0.25, .bottom = 0.25, },       \
+                  .insets  = { .left  = 0.25, .top = 0.25,             \
+                               .right = 0.25, .bottom = 0.25, }        \
+        },                                                             \
+        .value_min = vmn, .value_max = vmx, .value = vmn,              \
     }
 
-#define ui_slider(s, min_width_em, vmn, vmx, call_back) {                 \
-    .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,        \
-        .min_w_em = min_width_em, .text = s, .init = ui_view_init_slider, \
-        .callback = call_back,                                            \
-        .padding = { .left  = 0.25, .top = 0.25,                          \
-                     .right = 0.25, .bottom = 0.25, },                    \
-        .insets  = { .left  = 0.25, .top = 0.25,                          \
-                     .right = 0.25, .bottom = 0.25, }                     \
-    },                                                                    \
-    .value_min = vmn, .value_max = vmx, .value = vmn,                     \
+#define ui_slider(s, min_width_em, vmn, vmx, call_back) {              \
+    .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,     \
+        .text = s, .init = ui_view_init_slider,                        \
+        .callback = call_back,                                         \
+        .min_w_em = min_width_em, .min_h_em = 1.0,                     \
+        .padding = { .left  = 0.25, .top = 0.25,                       \
+                     .right = 0.25, .bottom = 0.25, },                 \
+        .insets  = { .left  = 0.25, .top = 0.25,                       \
+                     .right = 0.25, .bottom = 0.25, }                  \
+    },                                                                 \
+    .value_min = vmn, .value_max = vmx, .value = vmn,                  \
 }
 
 // _________________________________ ui_mbx.h _________________________________
@@ -4186,9 +4191,8 @@ static void ui_button_measured(ui_view_t* v) {
 
 void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    ui_view_init(v);
     v->mouse         = ui_button_mouse;
-    v->measured = ui_button_measured;
+    v->measured      = ui_button_measured;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;
@@ -5240,7 +5244,6 @@ static void ui_paint_container(ui_view_t* v) {
 }
 
 static void ui_view_container_init(ui_view_t* v) {
-    ui_view_init(v);
     v->background = ui_colors.transparent;
     v->insets  = (ui_gaps_t){ .left  = 0.25, .top    = 0.25,
                               .right = 0.25, .bottom = 0.25 };
@@ -5266,7 +5269,6 @@ void ui_view_init_list(ui_view_t* v) {
 
 void ui_view_init_spacer(ui_view_t* v) {
     swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
-    ui_view_init(v);
     v->w = 0;
     v->h = 0;
     v->max_w = ui.infinity;
@@ -5275,7 +5277,6 @@ void ui_view_init_spacer(ui_view_t* v) {
 }
 
 void ui_view_init_container(ui_view_t* v) {
-    ui_view_init(v);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_container_measure; }
     if (v->layout  == null) { v->layout  = ui_container_layout; }
@@ -7193,7 +7194,10 @@ void ui_edit_init(ui_edit_t* e) {
     e->view.color_id = ui_color_id_window_text;
     e->view.background_id = ui_color_id_window;
     e->view.fm = &ui_app.fonts.regular;
-    ui_view_init(&e->view);
+    e->view.insets  = (ui_gaps_t){ 0.5, 0.5, 0.5, 0.5 };
+    e->view.padding = (ui_gaps_t){ 0.5, 0.5, 0.5, 0.5 };
+    e->view.min_w_em = 1.0;
+    e->view.min_h_em = 1.0;
     e->view.type = ui_view_text;
     e->view.focusable = true;
     e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
@@ -7204,43 +7208,43 @@ void ui_edit_init(ui_edit_t* e) {
 //  TODO: remove?
 // ui_rgb(168, 168, 150); // TODO: ui_colors.text ?
 // e->view.color   = e->view.color;
-    e->caret        = (ui_point_t){-1, -1};
-    e->view.message = ui_edit_message;
-    e->view.paint   = ui_edit_paint;
-    e->view.measure = ui_edit_measure;
-    e->view.layout  = ui_edit_layout;
+    e->caret                = (ui_point_t){-1, -1};
+    e->view.message         = ui_edit_message;
+    e->view.paint           = ui_edit_paint;
+    e->view.measure         = ui_edit_measure;
+    e->view.layout          = ui_edit_layout;
     #ifdef EDIT_USE_TAP
-    e->view.tap     = ui_edit_tap;
+    e->view.tap             = ui_edit_tap;
     #else
-    e->view.mouse   = ui_edit_mouse;
+    e->view.mouse           = ui_edit_mouse;
     #endif
-    e->view.press        = ui_edit_press;
-    e->view.character    = ui_edit_character;
-    e->view.set_focus    = ui_edit_set_focus;
-    e->view.kill_focus   = ui_edit_kill_focus;
-    e->view.key_pressed  = ui_edit_key_pressed;
-    e->view.mouse_wheel  = ui_edit_mousewheel;
-    e->set_font          = ui_edit_set_font;
-    e->move              = ui_edit_move;
-    e->paste             = ui_edit_paste;
-    e->copy              = ui_edit_copy;
-    e->erase             = ui_edit_erase;
-    e->cut_to_clipboard  = ui_edit_clipboard_cut;
-    e->copy_to_clipboard = ui_edit_clipboard_copy;
+    e->view.press           = ui_edit_press;
+    e->view.character       = ui_edit_character;
+    e->view.set_focus       = ui_edit_set_focus;
+    e->view.kill_focus      = ui_edit_kill_focus;
+    e->view.key_pressed     = ui_edit_key_pressed;
+    e->view.mouse_wheel     = ui_edit_mousewheel;
+    e->set_font             = ui_edit_set_font;
+    e->move                 = ui_edit_move;
+    e->paste                = ui_edit_paste;
+    e->copy                 = ui_edit_copy;
+    e->erase                = ui_edit_erase;
+    e->cut_to_clipboard     = ui_edit_clipboard_cut;
+    e->copy_to_clipboard    = ui_edit_clipboard_copy;
     e->paste_from_clipboard = ui_edit_clipboard_paste;
-    e->select_all        = ui_edit_select_all;
-    e->key_down          = ui_edit_key_down;
-    e->key_up            = ui_edit_key_up;
-    e->key_left          = ui_edit_key_left;
-    e->key_right         = ui_edit_key_right;
-    e->key_pageup        = ui_edit_key_pageup;
-    e->key_pagedw        = ui_edit_key_pagedw;
-    e->key_home          = ui_edit_key_home;
-    e->key_end           = ui_edit_key_end;
-    e->key_delete        = ui_edit_key_delete;
-    e->key_backspace     = ui_edit_key_backspace;
-    e->key_enter         = ui_edit_key_enter;
-    e->fuzz              = null;
+    e->select_all           = ui_edit_select_all;
+    e->key_down             = ui_edit_key_down;
+    e->key_up               = ui_edit_key_up;
+    e->key_left             = ui_edit_key_left;
+    e->key_right            = ui_edit_key_right;
+    e->key_pageup           = ui_edit_key_pageup;
+    e->key_pagedw           = ui_edit_key_pagedw;
+    e->key_home             = ui_edit_key_home;
+    e->key_end              = ui_edit_key_end;
+    e->key_delete           = ui_edit_key_delete;
+    e->key_backspace        = ui_edit_key_backspace;
+    e->key_enter            = ui_edit_key_enter;
+    e->fuzz                 = null;
     // Expected manifest.xml containing UTF-8 code page
     // for Translate message and WM_CHAR to deliver UTF-8 characters
     // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
@@ -8242,7 +8246,6 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 
 void ui_view_init_label(ui_view_t* v) {
     assert(v->type == ui_view_label);
-    ui_view_init(v);
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
     v->paint        = ui_label_paint;
@@ -8518,7 +8521,6 @@ static void ui_mbx_layout(ui_view_t* view) {
 void ui_view_init_mbx(ui_view_t* view) {
     assert(view->type == ui_view_mbx);
     ui_mbx_t* mx = (ui_mbx_t*)view;
-    ui_view_init(view);
     view->measured = ui_mbx_measured;
     view->layout = ui_mbx_layout;
     mx->view.fm = &ui_app.fonts.H3;
@@ -8758,7 +8760,6 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
 
 void ui_view_init_slider(ui_view_t* v) {
     assert(v->type == ui_view_slider);
-    ui_view_init(v);
     ui_view.set_text(v, v->text);
     v->measured = ui_slider_measured;
     v->layout      = ui_slider_layout;
@@ -9042,7 +9043,6 @@ static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)
 
 void ui_view_init_toggle(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    ui_view_init(v);
     ui_view.set_text(v, v->text);
     v->mouse         = ui_toggle_mouse;
     v->paint         = ui_toggle_paint;
@@ -9056,7 +9056,6 @@ void ui_view_init_toggle(ui_view_t* v) {
 
 void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
        void (*callback)(ui_toggle_t* b)) {
-    ui_view_init(t);
     strprintf(t->text, "%s", label);
     t->min_w_em = ems;
     t->callback = callback;
@@ -9247,6 +9246,8 @@ static void ui_measure_view(ui_view_t* v) {
         // TODO: minimum view 1x1 em?
         v->w = i.left + v->fm->em.w + i.right;
         v->h = i.top + v->fm->em.h + i.bottom;
+        v->w = ut_min(v->w, ui.gaps_em2px(v->fm->em.w, v->min_w_em));
+        v->h = ut_min(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
     }
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
@@ -9663,9 +9664,9 @@ static void ui_view_debug_paint(ui_view_t* v) {
     ui_gdi.pop();
 }
 
-#pragma push_macro("ui_view_alone")
+#pragma push_macro("ui_view_no_siblings")
 
-#define ui_view_alone(v) do {                          \
+#define ui_view_no_siblings(v) do {                    \
     swear((v)->parent == null && (v)->child == null && \
           (v)->prev == null && (v)->next == null);     \
 } while (0)
@@ -9711,13 +9712,16 @@ static void ui_view_test(void) {
     ui_view.remove(&c2);                            ui_view_verify(&p0);
     ui_view.remove(&c3);                            ui_view_verify(&p0);
     ui_view.remove(&c4);                            ui_view_verify(&p0);
-    ui_view_alone(&p0); ui_view_alone(&c1); ui_view_alone(&c4);
+    ui_view_no_siblings(&p0);
+    ui_view_no_siblings(&c1);
+    ui_view_no_siblings(&c4);
     ui_view.remove(&g1);                            ui_view_verify(&c2);
     ui_view.remove(&g2);                            ui_view_verify(&c2);
     ui_view.remove(&g3);                            ui_view_verify(&c3);
     ui_view.remove(&g4);                            ui_view_verify(&c3);
-    ui_view_alone(&c2); ui_view_alone(&c3);
-    ui_view_alone(&g1); ui_view_alone(&g2); ui_view_alone(&g3); ui_view_alone(&g4);
+    ui_view_no_siblings(&c2); ui_view_no_siblings(&c3);
+    ui_view_no_siblings(&g1); ui_view_no_siblings(&g2);
+    ui_view_no_siblings(&g3); ui_view_no_siblings(&g4);
     // a bit more intuitive (for a human) nested way to initialize tree:
     ui_view.add(&p0,
         &c1,
@@ -9726,18 +9730,15 @@ static void ui_view_test(void) {
         &c4);
     ui_view_verify(&p0);
     ui_view_disband(&p0);
-    ui_view_alone(&p0);
-    ui_view_alone(&c1); ui_view_alone(&c2); ui_view_alone(&c3); ui_view_alone(&c4);
-    ui_view_alone(&g1); ui_view_alone(&g2); ui_view_alone(&g3); ui_view_alone(&g4);
+    ui_view_no_siblings(&p0);
+    ui_view_no_siblings(&c1); ui_view_no_siblings(&c2);
+    ui_view_no_siblings(&c3); ui_view_no_siblings(&c4);
+    ui_view_no_siblings(&g1); ui_view_no_siblings(&g2);
+    ui_view_no_siblings(&g3); ui_view_no_siblings(&g4);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
-#pragma pop_macro("ui_view_alone")
-
-void ui_view_init(ui_view_t* v) { // TODO: remove all together
-    assert(v->fm != null);
-    if (v->fm == null) { v->fm = &ui_app.fonts.regular; }
-}
+#pragma pop_macro("ui_view_no_siblings")
 
 ui_view_if ui_view = {
     .add                = ui_view_add,
