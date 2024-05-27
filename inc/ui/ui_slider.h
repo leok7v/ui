@@ -9,8 +9,8 @@ typedef struct ui_slider_s ui_slider_t;
 typedef struct ui_slider_s {
     ui_view_t view;
     int32_t step;
-    fp64_t time;   // time last button was pressed
-    ui_point_t tm; // text measurement (special case for %0*d)
+    fp64_t time; // time last button was pressed
+    ui_wh_t mt;  // text measurement (special case for %0*d)
     ui_button_t inc;
     ui_button_t dec;
     int32_t value;  // for ui_slider_t range slider control

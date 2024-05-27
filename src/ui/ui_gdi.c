@@ -142,6 +142,19 @@ static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h) {
     fatal_if_false(FillRect(ui_app_canvas(), &rc, (HBRUSH)b));
 }
 
+static void ui_gdi_line_with(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
+        ui_color_t c) {
+    int32_t x = ui_gdi.x;
+    int32_t y = ui_gdi.y;
+    ui_gdi.x = x0;
+    ui_gdi.y = y0;
+    ui_pen_t p = ui_gdi.set_colored_pen(c);
+    ui_gdi.line(x1, y1);
+    ui_gdi.set_pen(p);
+    ui_gdi.x = x;
+    ui_gdi.y = y;
+}
+
 static void ui_gdi_frame_with(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t c) {
     ui_brush_t b = ui_gdi.set_brush(ui_gdi.brush_hollow);
@@ -153,11 +166,15 @@ static void ui_gdi_frame_with(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_rect_with(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t border, ui_color_t fill) {
-    ui_brush_t b = ui_gdi.set_brush(ui_gdi.brush_color);
-    ui_color_t c = ui_gdi.set_brush_color(fill);
-    ui_pen_t p = ui_gdi.set_colored_pen(border);
+    const bool tf = ui_color_is_transparent(fill);   // transparent fill
+    const bool tb = ui_color_is_transparent(border); // transparent border
+    ui_brush_t b = tf ? ui_gdi.brush_hollow : ui_gdi.brush_color;
+    b = ui_gdi.set_brush(b);
+    ui_color_t c = tf ? ui_colors.transparent : ui_gdi.set_brush_color(fill);
+    ui_pen_t p = tb ? ui_gdi.set_pen(ui_gdi.pen_hollow) :
+                      ui_gdi.set_colored_pen(border);
     ui_gdi.rect(x, y, w, h);
-    ui_gdi.set_brush_color(c);
+    if (!tf) { ui_gdi.set_brush_color(c); }
     ui_gdi.set_pen(p);
     ui_gdi.set_brush(b);
 }
@@ -722,29 +739,29 @@ enum {
     ml_measure       = ml_draw|DT_CALCRECT
 };
 
-static ui_point_t ui_gdi_text_measure(ui_gdi_dtp_t* p) {
+static ui_wh_t ui_gdi_text_measure(ui_gdi_dtp_t* p) {
     ui_gdi_text_draw(p);
-    ui_point_t cell = {p->rc.right - p->rc.left, p->rc.bottom - p->rc.top};
-    return cell;
+    return (ui_wh_t){.w = p->rc.right - p->rc.left,
+                     .h = p->rc.bottom - p->rc.top};
 }
 
-static ui_point_t ui_gdi_measure_singleline(ui_font_t f, const char* format, ...) {
+static ui_wh_t ui_gdi_measure_singleline(ui_font_t f, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     ui_gdi_dtp_t p = { f, format, vl, {0, 0, 0, 0}, sl_measure };
-    ui_point_t cell = ui_gdi_text_measure(&p);
+    ui_wh_t mt = ui_gdi_text_measure(&p);
     va_end(vl);
-    return cell;
+    return mt;
 }
 
-static ui_point_t ui_gdi_measure_multiline(ui_font_t f, int32_t w, const char* format, ...) {
+static ui_wh_t ui_gdi_measure_multiline(ui_font_t f, int32_t w, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     uint32_t flags = w <= 0 ? ml_measure : ml_measure_break;
     ui_gdi_dtp_t p = { f, format, vl, {ui_gdi.x, ui_gdi.y, ui_gdi.x + (w <= 0 ? 1 : w), ui_gdi.y}, flags };
-    ui_point_t cell = ui_gdi_text_measure(&p);
+    ui_wh_t mt = ui_gdi_text_measure(&p);
     va_end(vl);
-    return cell;
+    return mt;
 }
 
 static void ui_gdi_vtext(const char* format, va_list vl) {
@@ -872,6 +889,7 @@ ui_gdi_if ui_gdi = {
     .frame                         = ui_gdi_frame,
     .rect                          = ui_gdi_rect,
     .fill                          = ui_gdi_fill,
+    .line_with                     = ui_gdi_line_with,
     .frame_with                    = ui_gdi_frame_with,
     .rect_with                     = ui_gdi_rect_with,
     .fill_with                     = ui_gdi_fill_with,

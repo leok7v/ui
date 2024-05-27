@@ -138,7 +138,7 @@ static void opened(void) {
     span.insets = (ui_gaps_t){ 0, 0, 0, 0 };
     test.max_w = ui.infinity;
     test.max_h = ui.infinity;
-    test.color = ui_color_transparent;
+    test.color = ui_colors.transparent;
     test.insets = (ui_gaps_t){ 0, 0, 0, 0 };
     test.background_id = ui_color_id_window;
     strprintf(test.text, "%s", "test");

@@ -4,8 +4,8 @@
 static void ui_label_paint(ui_view_t* v) {
     assert(v->type == ui_view_label);
     assert(!v->hidden);
-    // at later stages of layout text height can grow:
-    ui_gdi.push(v->x, v->y + v->label_dy);
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    ui_gdi.push(v->x + i.left, v->y + i.top);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
 //  traceln("%s h=%d dy=%d baseline=%d", v->text, v->h,
 //          v->label_dy, v->baseline);
@@ -26,8 +26,7 @@ static void ui_label_paint(ui_view_t* v) {
         ui_gdi.set_brush(ui_gdi.brush_hollow);
         int32_t cr = v->fm->em.h / 4; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
-        ui_gdi.rounded(v->x - cr, v->y + v->label_dy,
-                       v->w + 2 * cr, h, cr, cr);
+        ui_gdi.rounded(v->x - cr, v->y, v->w + 2 * cr, h, cr, cr);
     }
     ui_gdi.set_font(f);
     ui_gdi.pop();

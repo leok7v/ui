@@ -1,21 +1,20 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static void ui_slider_measure(ui_view_t* v) {
+static void ui_slider_measured(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     s->inc.fm = v->fm;
     s->dec.fm = v->fm;
-    ui_view.measure(v);
     ui_view.measure(&s->dec);
     ui_view.measure(&s->inc);
     assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
     const int32_t em = v->fm->em.w;
     const int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-    s->tm = ui_gdi.measure_text(v->fm->font, ui_view.nls(v), s->value_max);
-//  if (w > r->tm.x) { r->tm.x = w; }
-    s->tm.x = w != 0 ? w : s->tm.x;
-    v->w = s->dec.w + s->tm.x + s->inc.w + em * 2;
+    s->mt = ui_gdi.measure_text(v->fm->font, ui_view.nls(v), s->value_max);
+//  if (w > r->mt.x) { r->mt.x = w; }
+    s->mt.w = w != 0 ? w : s->mt.w;
+    v->w = s->dec.w + s->mt.w + s->inc.w + em * 2;
     v->h = s->inc.h;
 }
 
@@ -26,7 +25,7 @@ static void ui_slider_layout(ui_view_t* v) {
     const int32_t em = v->fm->em.w;
     s->dec.x = v->x;
     s->dec.y = v->y;
-    s->inc.x = v->x + s->dec.w + s->tm.x + em * 2;
+    s->inc.x = v->x + s->dec.w + s->mt.w + em * 2;
     s->inc.y = v->y;
 }
 
@@ -85,7 +84,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.set_brush_color(c0);
     const int32_t x = v->x + s->dec.w + em2;
     const int32_t y = v->y;
-    const int32_t w = s->tm.x + em;
+    const int32_t w = s->mt.w + em;
     const int32_t h = v->h;
     ui_gdi.rounded(x - em8, y, w + em4, h, em4, em4);
     if (ui_theme.are_apps_dark()) {
@@ -103,7 +102,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_pen_t pen_c1 = ui_gdi.create_pen(c1, em16);
     ui_gdi.set_pen(pen_c1);
     const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
-    fp64_t vw = (fp64_t)(s->tm.x + em) * (s->value - s->value_min) / range;
+    fp64_t vw = (fp64_t)(s->mt.w + em) * (s->value - s->value_min) / range;
     ui_gdi.rect(x, v->y, (int32_t)(vw + 0.5), v->h);
     ui_gdi.x += s->dec.w + em;
     ui_gdi.y = y;
@@ -130,7 +129,7 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             const int32_t x = ui_app.mouse.x - v->x - s->dec.w;
             const int32_t y = ui_app.mouse.y - v->y;
             const int32_t x0 = v->fm->em.w / 2;
-            const int32_t x1 = s->tm.x + v->fm->em.w;
+            const int32_t x1 = s->mt.w + v->fm->em.w;
             if (x0 <= x && x < x1 && 0 <= y && y < v->h) {
                 ui_app.focus = v;
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
@@ -198,10 +197,10 @@ void ui_view_init_slider(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_view_init(v);
     ui_view.set_text(v, v->text);
-    v->mouse       = ui_slider_mouse;
-    v->measure     = ui_slider_measure;
+    v->measured = ui_slider_measured;
     v->layout      = ui_slider_layout;
     v->paint       = ui_slider_paint;
+    v->mouse       = ui_slider_mouse;
     v->every_100ms = ui_slider_every_100ms;
     v->color_id    = ui_color_id_window_text;
     ui_slider_t* s = (ui_slider_t*)v;

@@ -28,7 +28,7 @@ static ui_point_t points[N]; // graph polyline coordinates
 
 static int32_t M = N;
 
-static void after_layout(ui_view_t* view) {
+static void layouted(ui_view_t* view) {
     if (view->w > 0) { M = ut_min(view->w, M); }
     traceln("M: %d", M);
 }
@@ -85,11 +85,14 @@ static void graph(ui_view_t* view, int ix, ui_color_t c, int y) {
 static void paint(ui_view_t* view) {
     stats(&ts[0]);
     stats(&ts[1]);
+    char paint_stats[256];
+    strprintf(paint_stats, "avg paint time %.1f ms %.1f fps",
+        ui_app.paint_avg * 1000, ui_app.paint_fps);
     ui_gdi.fill_with(0, 0, view->w, view->h, ui_colors.dkgray1);
     ui_gdi.y = view->fm->em.h;
     ui_gdi.x = view->w - ui_gdi.measure_text(ui_app.fonts.mono.font,
-        "avg paint time %.1f ms", ui_app.paint_avg * 1000).x - view->fm->em.w;
-    ui_gdi.print("avg paint time %.1f ms", ui_app.paint_avg * 1000);
+                paint_stats).w - view->fm->em.w;
+    ui_gdi.print("%s", paint_stats);
     ui_gdi.x = view->fm->em.w;
     ui_gdi.print("10ms window timer jitter ");
     ui_gdi.print("(\"sps\" stands for samples per second)");
@@ -179,7 +182,7 @@ static void init(void) {
     ui_app.opened = opened;
     ui_app.content->timer = timer;
     ui_app.content->paint = paint;
-    ui_app.content->after_layout = after_layout;
+    ui_app.content->layouted = layouted;
     // no minimize/maximize title bar and system menu
     ui_app.no_min = true;
     ui_app.no_max = true;

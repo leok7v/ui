@@ -88,7 +88,7 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
     // average measure_text() performance per character:
     // "ui_app.fonts.mono"    ~500us (microseconds)
     // "ui_app.fonts.regular" ~250us (microseconds)
-    int32_t x = n == 0 ? 0 : ui_gdi.measure_text(e->view.fm->font, "%.*s", n, s).x;
+    int32_t x = n == 0 ? 0 : ui_gdi.measure_text(e->view.fm->font, "%.*s", n, s).w;
 //  time = (ut_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
 //  static fp64_t length_sum;

@@ -47,7 +47,10 @@ typedef struct {
     void (*frame)(int32_t x, int32_t y, int32_t w, int32_t h); // ui_gdi.pen only
     void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.pen & brush
     void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.brush only
-    void (*frame_with)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
+    void (*line_with)(int32_t x0, int32_t y1, int32_t x2, int32_t y2,
+                      ui_color_t c);
+    void (*frame_with)(int32_t x, int32_t y, int32_t w, int32_t h,
+                      ui_color_t c);
     void (*rect_with)(int32_t x, int32_t y, int32_t w, int32_t h,
                       ui_color_t border, ui_color_t fill);
     void (*fill_with)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
@@ -91,10 +94,10 @@ typedef struct {
     // https://en.wikipedia.org/wiki/Em_(typography)
     void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics (pixel size of glyph "M")
     // get_em(f) returns { "M".w, "M".h - f.descent - (f.height - f.baseline)};
-    ui_point_t (*measure_text)(ui_font_t f, const char* format, ...);
+    ui_wh_t (*measure_text)(ui_font_t f, const char* format, ...);
     // width can be -1 which measures text with "\n" or
     // positive number of pixels
-    ui_point_t (*measure_multiline)(ui_font_t f, int32_t w, const char* format, ...);
+    ui_wh_t (*measure_multiline)(ui_font_t f, int32_t w, const char* format, ...);
     fp64_t height_multiplier; // see line_spacing()
     fp64_t (*line_spacing)(fp64_t height_multiplier); // default 1.0
     int32_t x; // incremented by text, print

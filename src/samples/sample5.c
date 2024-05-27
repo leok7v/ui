@@ -155,7 +155,7 @@ static void set_text(int32_t ix) {
     strprintf(last, "%s", label.text);
 }
 
-static void after_paint(void) {
+static void painted(void) {
     // because of blinking caret paint is called frequently
     int32_t ix = focused();
     if (ix >= 0) {
@@ -205,7 +205,7 @@ static void paint(ui_view_t* v) {
         ui_gdi.frame_with(e->x - 1, e->y - 1, e->w + 2, e->h + 2,
             i == ix ? c : ui_colors.dkgray4);
     }
-    after_paint();
+    painted();
     if (debug_layout) { paint_frames(v); }
     if (ix >= 0) {
         ro.pressed = edit[ix]->ro;
@@ -249,7 +249,7 @@ static void edit2_before_measure(ui_view_t* v) { // _3_lines_sle
     v->w = ro.w; // r/o button
 }
 
-static void edit2_after_measure(ui_view_t* v) {
+static void edit2_measured(ui_view_t* v) {
 //  traceln("WxH: %dx%d (%dx%d) em: %d lines: %d",
 //          edit[2]->view.w, edit[2]->view.h,
 //          edit[2]->width, edit[2]->height,
@@ -321,7 +321,7 @@ static void opened(void) {
     set_text(0); // need to be two lines for measure
     // edit[2] is SLE:
     edit[2]->view.before_measure = edit2_before_measure;
-    edit[2]->view.after_measure  = edit2_after_measure;
+    edit[2]->view.measured  = edit2_measured;
     edit[2]->sle = true;
     edit[2]->select_all(edit[2]);
     edit[2]->paste(edit[2], "Single line edit", -1);
@@ -351,6 +351,7 @@ static void opened(void) {
             null),
         null),
     null);
+    span.max_w = ui.infinity;
     span.max_h = ui.infinity;
     label.align = ui.align.left;
     edit2.view.align = ui.align.left;

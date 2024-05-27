@@ -33,9 +33,8 @@ static const char* ui_toggle_on_off_label(ui_view_t* v,
     return ut_nls.str(label);
 }
 
-static void ui_toggle_measure(ui_view_t* v) {
+static void ui_toggle_measured(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    ui_view.measure(v);
     v->w += v->fm->em.w * 2;
 }
 
@@ -95,8 +94,8 @@ void ui_view_init_toggle(ui_view_t* v) {
     ui_view_init(v);
     ui_view.set_text(v, v->text);
     v->mouse         = ui_toggle_mouse;
-    v->measure       = ui_toggle_measure;
     v->paint         = ui_toggle_paint;
+    v->measured = ui_toggle_measured;
     v->character     = ui_toggle_character;
     v->key_pressed   = ui_toggle_key_pressed;
     v->color_id      = ui_color_id_button_text;

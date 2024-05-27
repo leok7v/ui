@@ -2,7 +2,7 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static char title[128] = "Sample1: Hello";
+static char title[128] = "Polyglot";
 
 static const char* locales[] = { // 123 languages
     "af-ZA", "am-ET", "ar-SA", "as-IN", "az-AZ", "ba-RU", "be-BY", "bg-BG",
@@ -28,13 +28,15 @@ static void every_sec(ui_view_t* unused(view)) {
     static int32_t locale = 0;
     ut_nls.set_locale(locales[locale]);
     ui_view.localize(&label);
-    strprintf(title, "Hello %s%s %s [%s]",
-              ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead,
-              ui_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead,
-              ut_nls.str("Hello"), locales[locale]);
+    strprintf(title, "Polyglot [%s]", locales[locale]);
     ui_app.set_title(title);
     ui_app.request_layout();
     locale = (locale + 1) % countof(locales);
+}
+
+static void painted(ui_view_t* v) {
+    ui_gdi.rect_with(v->x, v->y, v->w, v->h, ui_colors.white, ui_colors.transparent);
+    ui_view.debug_paint(v);
 }
 
 static void opened(void) {
@@ -43,6 +45,7 @@ static void opened(void) {
     ui_app.content->every_sec = every_sec;
     label.fm = &fm;
     ui_view.add(ui_app.content, &label, null);
+//  label.painted = painted;
 }
 static void init(void) {
     ui_app.title = title;
@@ -54,7 +57,7 @@ ui_app_t ui_app = {
     .dark_mode = true,
     .init = init,
     .window_sizing = {
-        .min_w = 3.5f, // 3.5x1.5 inches
+        .min_w = 4.0f, // 4.0x1.5 inches
         .min_h = 1.5f,
         .ini_w = 4.0f, // 4x2 inches
         .ini_h = 2.0f

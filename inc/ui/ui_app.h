@@ -88,7 +88,6 @@ typedef struct {
     int32_t (*in2px)(fp32_t inches);
     // color: ui_color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
     errno_t (*set_layered_window)(ui_color_t color, float alpha);
-    int64_t (*hit_test)(int32_t x, int32_t y); // see ui.hit_test.*
     bool (*is_active)(void); // is application window active
     bool (*is_minimized)(void);
     bool (*is_maximized)(void);
@@ -149,6 +148,7 @@ typedef struct {
     fp64_t paint_time; // last paint duration in seconds
     fp64_t paint_max;  // max of last 128 paint
     fp64_t paint_avg;  // EMA of last 128 paints
+    fp64_t paint_fps;  // EMA of last 128 paints
 } ui_app_t;
 
 extern ui_app_t ui_app;

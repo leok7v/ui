@@ -4,7 +4,7 @@
 // On Unix the implementation should keep KV pairs in
 // key-named files inside .name/ folder
 
-static const char* ut_config_app = "Software\\apps";
+static const char* ut_config_apps = "Software\\leok7v\\ui\\apps";
 
 static const DWORD ut_config_access =
     KEY_READ|KEY_WRITE|KEY_SET_VALUE|KEY_QUERY_VALUE|
@@ -12,7 +12,7 @@ static const DWORD ut_config_access =
 
 static errno_t ut_config_get_reg_key(const char* name, HKEY *key) {
     char path[256] = {0};
-    strprintf(path, "%s\\%s", ut_config_app, name);
+    strprintf(path, "%s\\%s", ut_config_apps, name);
     errno_t r = RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, ut_config_access, key);
     if (r != 0) {
         const DWORD option = REG_OPTION_NON_VOLATILE;
@@ -49,7 +49,7 @@ static errno_t ut_config_remove(const char* name, const char* key) {
 static errno_t ut_config_clean(const char* name) {
     errno_t r = 0;
     HKEY k = null;
-    if (RegOpenKeyExA(HKEY_CURRENT_USER, ut_config_app,
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, ut_config_apps,
                                       0, ut_config_access, &k) == 0) {
        r = RegDeleteTreeA(k, name);
        fatal_if_not_zero(RegCloseKey(k));

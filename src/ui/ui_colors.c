@@ -164,6 +164,7 @@ ui_colors_if ui_colors = {
     .adjust_saturation        = ui_color_adjust_saturation,
     .multiply_brightness      = ui_color_brightness,
     .multiply_saturation      = ui_color_saturation,
+    .transparent      = ui_color_transparent,
     .none             = (ui_color_t)0xFFFFFFFFU, // aka CLR_INVALID in wingdi
     .text             = ui_rgb(240, 231, 220),
     .white            = ui_colors_white,

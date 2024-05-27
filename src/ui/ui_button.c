@@ -84,11 +84,11 @@ static void ui_button_paint(ui_view_t* v) {
     }
     if (v->disabled) { c = ui_app.get_color(ui_color_id_gray_text); }
     if (v->icon == null) {
-        ui_font_t  f = v->fm->font;
-        ui_point_t m = ui_gdi.measure_text(f, ui_view.nls(v));
+        ui_font_t f = v->fm->font;
+        ui_wh_t m = ui_gdi.measure_text(f, ui_view.nls(v));
         ui_gdi.set_text_color(c);
-        ui_gdi.x = v->x + (v->w - m.x) / 2;
-        ui_gdi.y = v->y + (v->h - m.y) / 2;
+        ui_gdi.x = v->x + (v->w - m.w) / 2;
+        ui_gdi.y = v->y + (v->h - m.h) / 2;
         f = ui_gdi.set_font(f);
         ui_gdi.text("%s", ui_view.nls(v));
         ui_gdi.set_font(f);
@@ -174,9 +174,8 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     if (a != v->armed) { ui_view.invalidate(v); }
 }
 
-static void ui_button_measure(ui_view_t* v) {
+static void ui_button_measured(ui_view_t* v) {
     assert(v->type == ui_view_button || v->type == ui_view_label);
-    ui_view.measure(v);
     if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
 }
 
@@ -184,7 +183,7 @@ void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
     ui_view_init(v);
     v->mouse         = ui_button_mouse;
-    v->measure       = ui_button_measure;
+    v->measured = ui_button_measured;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;

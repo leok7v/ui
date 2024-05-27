@@ -17,10 +17,16 @@ static int64_t hit_test(ui_view_t* unused(v), int32_t x, int32_t y) {
     return ui.hit_test.nowhere;
 }
 
+static void painted(ui_view_t* v) {
+    ui_view.debug_paint(v);
+    ui_gdi.frame_with(v->x, v->y, v->w, v->h, ui_colors.white);
+}
+
 static void opened(void) {
-    ui_app.content->insets = (ui_gaps_t){ 0, 0, 0, 0 };
+//  ui_app.content->insets = (ui_gaps_t){ 0, 0, 0, 0 };
     static ui_label_t hello = ui_label(0.0, "Hello");
-    hello.padding = (ui_gaps_t){ 0, 0, 0, 0 };
+//  hello.padding = (ui_gaps_t){ 0, 0, 0, 0 };
+//  hello.insets  = (ui_gaps_t){ 0, 0, 0, 0 };
     static ui_fm_t fm;
     ui_gdi.update_fm(&fm, ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1));
     hello.fm = &fm;
@@ -28,6 +34,7 @@ static void opened(void) {
     ui_view.add_last(ui_app.content, &hello);
     ui_app.caption->hidden = true;
     ui_app.content->hit_test = hit_test;
+    hello.painted = painted;
 }
 
 static void init(void) {
@@ -42,7 +49,7 @@ ui_app_t ui_app = {
     .dark_mode = true,
     .init = init,
     .window_sizing = {
-        .min_w =  2.0f, // 2x1 inches
+        .min_w =  1.8f, // 2x1 inches
         .min_h =  1.0f,
         .ini_w =  4.0f, // 4x2 inches
         .ini_h =  2.0f

@@ -156,27 +156,70 @@ static const char* ui_view_nls(ui_view_t* v) {
     return v->strid != 0 ? ut_nls.string(v->strid, v->text) : v->text;
 }
 
-static void ui_view_measure(ui_view_t* v) {
-    ui_font_t f = v->fm->font;
+static void ui_measure_view(ui_view_t* v) {
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+//  ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+//  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
+//               v->text, v->x, v->y, v->w, v->h,
+//               p.left, p.top, p.right, p.bottom,
+//               i.left, i.top, i.right, i.bottom);
     if (v->text[0] != 0) {
         v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
-        ui_point_t mt = { 0 };
+        ui_wh_t mt = { 0 };
         bool multiline = strchr(v->text, '\n') != null;
         if (v->type == ui_view_label && multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-            mt = ui_gdi.measure_multiline(f, w == 0 ? -1 : w, ui_view.nls(v));
+            mt = ui_gdi.measure_multiline(v->fm->font, w == 0 ? -1 : w,
+                                          ui_view.nls(v));
         } else {
-            mt = ui_gdi.measure_text(f, ui_view.nls(v));
+            mt = ui_gdi.measure_text(v->fm->font, ui_view.nls(v));
         }
-        v->h = mt.y;
-        v->w = ut_max(v->w, mt.x);
-        const int32_t i_lf = ui.gaps_em2px(v->fm->em.w, v->insets.left);
-        const int32_t i_tp = ui.gaps_em2px(v->fm->em.h, v->insets.top);
-        const int32_t i_rt = ui.gaps_em2px(v->fm->em.w, v->insets.right);
-        const int32_t i_bt = ui.gaps_em2px(v->fm->em.h, v->insets.bottom);
-        v->w += i_lf + i_rt;
-        v->h += i_tp + i_bt;
+//      traceln(" mt: %dx%d", mt.x, mt.y);
+        v->w = i.left + ut_max(v->w, mt.w) + i.right;
+        v->h = i.top + mt.h + i.bottom;
+    } else {
+        // TODO: minimum view 1x1 em?
+        v->w = i.left + v->fm->em.w + i.right;
+        v->h = i.top + v->fm->em.h + i.bottom;
     }
+//  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+}
+
+static void ui_view_measure(ui_view_t* v) {
+    if (!ui_view.is_hidden(v)) {
+        ui_view_for_each(v, c, { ui_view.measure(c); });
+        if (v->before_measure != null) { v->before_measure(v); }
+        if (v->measure != null && v->measure != ui_view_measure) {
+            v->measure(v);
+        } else {
+            ui_measure_view(v);
+        }
+        if (v->measured != null) { v->measured(v); }
+    }
+}
+
+static void ui_layout_view(ui_view_t* unused(v)) {
+//  ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+//  ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+//  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
+//               v->text, v->x, v->y, v->w, v->h,
+//               p.left, p.top, p.right, p.bottom,
+//               i.left, i.top, i.right, i.bottom);
+//  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+}
+
+static void ui_view_layout(ui_view_t* v) {
+//  traceln(">%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+    if (!ui_view.is_hidden(v)) {
+        if (v->layout != null && v->layout != ui_view_layout) {
+            v->layout(v);
+        } else {
+            ui_layout_view(v);
+        }
+        if (v->layouted != null) { v->layouted(v); }
+        ui_view_for_each(v, c, { ui_view.layout(c); });
+    }
+//  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
 
 static bool ui_view_inside(ui_view_t* v, const ui_point_t* pt) {
@@ -258,7 +301,7 @@ static void ui_view_localize(ui_view_t* v) {
 static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
     strprintf(hint->text, "%s", ut_nls.str(v->hint));
-    ui_view.measure_children(hint);
+    ui_view.measure(hint);
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->fm->em.w / 4;
     int32_t y = v->y + v->h + v->fm->em.h / 2 + hint->fm->em.h / 4;
     if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->fm->em.w / 2; }
@@ -358,9 +401,8 @@ static void ui_view_paint(ui_view_t* v) {
     assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     ui_view_resolve_color_ids(v);
     if (!v->hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
-        if (v->before_paint != null) { v->before_paint(v); }
         if (v->paint != null) { v->paint(v); }
-        if (v->after_paint != null) { v->after_paint(v); }
+        if (v->painted != null) { v->painted(v); }
         if (v->debug_paint != null && v->debug) { v->debug_paint(v); }
         if (v->debug) { ui_view.debug_paint(v); }
         ui_view_for_each(v, c, { ui_view_paint(c); });
@@ -430,27 +472,6 @@ static void ui_view_mouse_wheel(ui_view_t* v, int32_t dx, int32_t dy) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->mouse_wheel != null) { v->mouse_wheel(v, dx, dy); }
         ui_view_for_each(v, c, { ui_view_mouse_wheel(c, dx, dy); });
-    }
-}
-
-static void ui_view_measure_children(ui_view_t* v) {
-    if (!ui_view.is_hidden(v)) {
-        ui_view_for_each(v, c, { ui_view_measure_children(c); });
-        if (v->before_measure != null) { v->before_measure(v); }
-        if (v->measure != null) {
-            v->measure(v);
-        } else {
-            ui_view.measure(v);
-        }
-        if (v->after_measure != null) { v->after_measure(v); }
-    }
-}
-
-static void ui_view_layout_children(ui_view_t* v) {
-    if (!v->hidden) {
-        if (v->layout != null) { v->layout(v); }
-        if (v->after_layout != null) { v->after_layout(v); }
-        ui_view_for_each(v, c, { ui_view_layout_children(c); });
     }
 }
 
@@ -550,31 +571,25 @@ static void ui_view_debug_paint(ui_view_t* v) {
                      v->type == ui_view_spacer;
     if (v->type == ui_view_spacer) {
         ui_gdi.fill_with(v->x, v->y, v->w, v->h, ui_rgb(128, 128, 128));
-    } else if (container && v->color != ui_color_transparent) {
+    } else if (container && v->color != ui_colors.transparent) {
 //      traceln("%s 0x%08X", v->text, v->color);
         ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
     }
-    const int32_t p_lf = ui.gaps_em2px(v->fm->em.w, v->padding.left);
-    const int32_t p_tp = ui.gaps_em2px(v->fm->em.h, v->padding.top);
-    const int32_t p_rt = ui.gaps_em2px(v->fm->em.w, v->padding.right);
-    const int32_t p_bt = ui.gaps_em2px(v->fm->em.h, v->padding.bottom);
-    if (p_lf > 0) { ui_gdi.frame_with(v->x - p_lf, v->y, p_lf, v->h, ui_colors.green); }
-    if (p_rt > 0) { ui_gdi.frame_with(v->x + v->w, v->y, p_rt, v->h, ui_colors.green); }
-    if (p_tp > 0) { ui_gdi.frame_with(v->x, v->y - p_tp, v->w, p_tp, ui_colors.green); }
-    if (p_bt > 0) { ui_gdi.frame_with(v->x, v->y + v->h, v->w, p_bt, ui_colors.green); }
-    const int32_t i_lf = ui.gaps_em2px(v->fm->em.w, v->insets.left);
-    const int32_t i_tp = ui.gaps_em2px(v->fm->em.h, v->insets.top);
-    const int32_t i_rt = ui.gaps_em2px(v->fm->em.w, v->insets.right);
-    const int32_t i_bt = ui.gaps_em2px(v->fm->em.h, v->insets.bottom);
-    if (i_lf > 0) { ui_gdi.frame_with(v->x,               v->y,               i_lf, v->h, ui_colors.orange); }
-    if (i_rt > 0) { ui_gdi.frame_with(v->x + v->w - i_rt, v->y,               i_rt, v->h, ui_colors.orange); }
-    if (i_tp > 0) { ui_gdi.frame_with(v->x,               v->y,               v->w, i_tp, ui_colors.orange); }
-    if (i_bt > 0) { ui_gdi.frame_with(v->x,               v->y + v->h - i_bt, v->w, i_bt, ui_colors.orange); }
-    if (container && v->w > 0 && v->h > 0 && v->color != ui_color_transparent) {
+    ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    if (p.left   > 0) { ui_gdi.frame_with(v->x - p.left, v->y, p.left, v->h, ui_colors.green); }
+    if (p.right  > 0) { ui_gdi.frame_with(v->x + v->w, v->y, p.right, v->h, ui_colors.green); }
+    if (p.top    > 0) { ui_gdi.frame_with(v->x, v->y - p.top, v->w, p.top, ui_colors.green); }
+    if (p.bottom > 0) { ui_gdi.frame_with(v->x, v->y + v->h, v->w, p.bottom, ui_colors.green); }
+    if (i.left  > 0)  { ui_gdi.frame_with(v->x, v->y,               i.left, v->h, ui_colors.orange); }
+    if (i.right > 0)  { ui_gdi.frame_with(v->x + v->w - i.right, v->y, i.right, v->h, ui_colors.orange); }
+    if (i.top   > 0)  { ui_gdi.frame_with(v->x, v->y,            v->w, i.top, ui_colors.orange); }
+    if (i.bottom > 0) { ui_gdi.frame_with(v->x, v->y + v->h - i.bottom, v->w, i.bottom, ui_colors.orange); }
+    if (container && v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
         ui_gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
-        ui_point_t mt = ui_gdi.measure_text(v->fm->font, v->text);
-        ui_gdi.x += (v->w - mt.x) / 2;
-        ui_gdi.y += (v->h - mt.y) / 2;
+        ui_wh_t mt = ui_gdi.measure_text(v->fm->font, v->text);
+        ui_gdi.x += (v->w - mt.w) / 2;
+        ui_gdi.y += (v->h - mt.h) / 2;
         ui_font_t f = ui_gdi.set_font(v->fm->font);
         ui_gdi.text("%s", v->text);
         ui_gdi.set_font(f);
@@ -675,6 +690,7 @@ ui_view_if ui_view = {
     .set_text           = ui_view_set_text,
     .invalidate         = ui_view_invalidate,
     .measure            = ui_view_measure,
+    .layout             = ui_view_layout,
     .nls                = ui_view_nls,
     .localize           = ui_view_localize,
     .is_hidden          = ui_view_is_hidden,
@@ -692,8 +708,6 @@ ui_view_if ui_view = {
     .kill_hidden_focus  = ui_view_kill_hidden_focus,
     .mouse              = ui_view_mouse,
     .mouse_wheel        = ui_view_mouse_wheel,
-    .measure_children   = ui_view_measure_children,
-    .layout_children    = ui_view_layout_children,
     .hovering           = ui_view_hovering,
     .hover_changed      = ui_view_hover_changed,
     .is_shortcut_key    = ui_view_is_shortcut_key,

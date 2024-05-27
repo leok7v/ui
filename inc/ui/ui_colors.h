@@ -6,8 +6,8 @@ begin_c
 typedef uint64_t ui_color_t; // top 2 bits determine color format
 
 /* TODO: make ui_color_t uint64_t RGBA remove pens and brushes
-         support upto 16-16-16-15(A)bit per pixel color
-         components with 'transparent/hollow' bit
+         support upto 16-16-16-14(A)bit per pixel color
+         components with 'transparent' aka 'hollow' bit
 */
 
 #define ui_color_mask        ((ui_color_t)0xC000000000000000ULL)
@@ -63,6 +63,7 @@ typedef struct ui_colors_s {
     ui_color_t (*adjust_saturation)(ui_color_t c,fp32_t multiplier);
     ui_color_t (*multiply_brightness)(ui_color_t c, fp32_t multiplier);
     ui_color_t (*multiply_saturation)(ui_color_t c, fp32_t multiplier);
+    const ui_color_t transparent;
     const ui_color_t none; // aka CLR_INVALID in wingdi
     const ui_color_t text;
     const ui_color_t white;

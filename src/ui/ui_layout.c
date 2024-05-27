@@ -79,11 +79,13 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
             ui_view_for_each(view, c, {
                 if (!c->hidden) {
                     c->h = r->h; // all cells are same height
+/*
                     // TODO: label_dy needs to be transferred to containers
                     //       rationale: labels and buttons baselines must align
                     if (c->type == ui_view_label) { // lineup text baselines
                         c->label_dy = r->fm->baseline - c->fm->baseline;
                     }
+*/
                     c->w = mxw[i++];
                     r->w += c->w;
                     if (cols_seen > 0) { r->w += gap_h; }

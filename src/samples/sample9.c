@@ -160,7 +160,7 @@ static ui_view_t panel_center = ui_view(container);
 static ui_view_t panel_right  = ui_view(container);
 
 static void panel_paint(ui_view_t* v) {
-    if (v->color == ui_color_transparent) {
+    if (v->color == ui_colors.transparent) {
         v->color = ui_app.content->color;
     }
     ui_gdi.push(v->x, v->y);

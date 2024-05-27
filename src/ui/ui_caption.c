@@ -86,12 +86,12 @@ static void ui_caption_before_measure(ui_view_t* unused(v)) {
     ui_caption.title.hidden = false;
 }
 
-static void ui_caption_after_measure(ui_view_t* v) {
+static void ui_caption_measured(ui_view_t* v) {
     ui_caption.title.hidden = v->w > ui_app.crc.w;
     v->w = ui_app.crc.w;
 }
 
-static void ui_caption_after_layout(ui_view_t* v) {
+static void ui_caption_layouted(ui_view_t* v) {
     v->x = 0;
 }
 
@@ -133,8 +133,8 @@ static void ui_caption_init(ui_view_t* v) {
     ui_caption.view.align = ui.align.left;
     // TODO: this does not help because parent layout will set x and w again
     ui_caption.view.before_measure = ui_caption_before_measure;
-    ui_caption.view.after_measure  = ui_caption_after_measure;
-    ui_caption.view.after_layout   = ui_caption_after_layout;
+    ui_caption.view.measured  = ui_caption_measured;
+    ui_caption.view.layouted   = ui_caption_layouted;
     strprintf(ui_caption.view.text, "ui_caption");
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;

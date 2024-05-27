@@ -51,12 +51,11 @@ typedef struct ui_view_s {
     // before methods: called before measure()/layout()/paint()
     void (*before_measure)(ui_view_t* view);
     void (*measure)(ui_view_t* view); // determine w, h (bottom up)
-    void (*after_measure)(ui_view_t* view);
+    void (*measured)(ui_view_t* view); // called after measure()
     void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
-    void (*after_layout)(ui_view_t* view);
-    void (*before_paint)(ui_view_t* view); // with resolved color_ids
+    void (*layouted)(ui_view_t* view); // called after layout()
     void (*paint)(ui_view_t* view);
-    void (*after_paint)(ui_view_t* view);
+    void (*painted)(ui_view_t* view);  // called after paint()
     void (*debug_paint)(ui_view_t* view); // called if .debug is set to true
     // any message:
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
@@ -98,10 +97,8 @@ typedef struct ui_view_s {
     int32_t    color_id;  // 0 is default meaning use color
     ui_color_t background;    // interpretation depends on view type
     int32_t    background_id; // 0 is default meaning use background
-    bool       debug; // activates debug_paint() called after after_paint()
-    // TODO: get rid of label_dy
-    int32_t label_dy;  // vertical shift down (to line up baselines of diff fonts)
-    char    hint[256]; // tooltip hint text (to be shown while hovering over view)
+    bool       debug; // activates debug_paint() called after painted()
+    char hint[256]; // tooltip hint text (to be shown while hovering over view)
 } ui_view_t;
 
 // tap() / press() APIs guarantee that single tap() is not coming
@@ -130,7 +127,6 @@ typedef struct ui_view_if {
             const ui_ltrb_t* padding);
     void (*set_text)(ui_view_t* view, const char* text);
     void (*invalidate)(const ui_view_t* view); // prone to delays
-    void (*measure)(ui_view_t* view);     // if text[] != "" sets w, h
     bool (*is_hidden)(const ui_view_t* view);   // view or any parent is hidden
     bool (*is_disabled)(const ui_view_t* view); // view or any parent is disabled
     const char* (*nls)(ui_view_t* view);  // returns localized text
@@ -149,8 +145,8 @@ typedef struct ui_view_if {
     void (*hovering)(ui_view_t* view, bool start);
     void (*mouse)(ui_view_t* view, int32_t m, int64_t f);
     void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
-    void (*measure_children)(ui_view_t* view);
-    void (*layout_children)(ui_view_t* view);
+    void (*measure)(ui_view_t* view);
+    void (*layout)(ui_view_t* view);
     void (*hover_changed)(ui_view_t* view);
     bool (*is_shortcut_key)(ui_view_t* view, int64_t key);
     bool (*context_menu)(ui_view_t* view);

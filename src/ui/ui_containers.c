@@ -6,12 +6,27 @@ static bool ui_containers_debug = false;
 
 #pragma push_macro("debugln")
 #pragma push_macro("ui_layout_dump")
+#pragma push_macro("ui_layout_enter")
+#pragma push_macro("ui_layout_exit")
 
 // Usage of: ui_view_for_each_begin(p, c) { ... } ui_view_for_each_end(p, c)
 // makes code inside iterator debugger friendly and ensures correct __LINE__
 
 #define debugln(...) do {                                \
     if (ui_containers_debug) {  traceln(__VA_ARGS__); }  \
+} while (0)
+
+#define ui_layout_enter(v) do {                               \
+    ui_ltrb_t i_ = ui_view.gaps(v, &v->insets);               \
+    ui_ltrb_t p_ = ui_view.gaps(v, &v->padding);              \
+    debugln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d", \
+                 v->text, v->x, v->y, v->w, v->h,             \
+                 p_.left, p_.top, p_.right, p_.bottom,        \
+                 i_.left, i_.top, i_.right, i_.bottom);       \
+} while (0)
+
+#define ui_layout_exit(v) do {                                   \
+    debugln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h); \
 } while (0)
 
 static const char* ui_container_finite_int(int32_t v, char* text, int32_t count) {
@@ -34,12 +49,12 @@ static const char* ui_container_finite_int(int32_t v, char* text, int32_t count)
         ui_container_finite_int(v->max_w, maxw, countof(maxw)),               \
         ui_container_finite_int(v->max_h, maxh, countof(maxh)),               \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
-        v->insets.left, v->insets.top,v->insets.right, v->insets.bottom,      \
+        v->insets.left, v->insets.top, v->insets.right, v->insets.bottom,     \
         v->align);                                                            \
 } while (0)
 
 static void ui_span_measure(ui_view_t* p) {
-    debugln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
+    ui_layout_enter(p);
     swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     ui_ltrb_t insets;
     ui_view.inbox(p, null, &insets);
@@ -98,7 +113,7 @@ static void ui_span_measure(ui_view_t* p) {
         swear(p->max_w == 0 || p->max_w >= p->w,
               "max_w: %d is less than actual width: %d", p->max_w, p->w);
     }
-    debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
+    ui_layout_exit(p);
 }
 
 // after measure of the subtree is concluded the parent ui_span
@@ -115,16 +130,17 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
         // important c->h changed, cbx.h is no longer valid
         c->h = ut_max(c->h, pbx.h - padding.top - padding.bottom);
     }
+    int32_t min_y = pbx.y + padding.top;
     if ((c->align & ui.align.top) != 0) {
         assert(c->align == ui.align.top);
-        c->y = pbx.y + padding.top;
+        c->y = min_y;
     } else if ((c->align & ui.align.bottom) != 0) {
         assert(c->align == ui.align.bottom);
-        c->y = pbx.y + pbx.h - c->h - padding.bottom;
+        c->y = ut_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
     } else { // effective height (c->h might have been changed)
         assert(c->align == ui.align.center);
         const int32_t ch = padding.top + c->h + padding.bottom;
-        c->y = pbx.y + (pbx.h - ch) / 2 + padding.top;
+        c->y = ut_max(min_y, pbx.y + (pbx.h - ch) / 2 + padding.top);
     }
     c->x = x + padding.left;
     return c->x + c->w + padding.right;
@@ -221,6 +237,7 @@ static void ui_span_layout(ui_view_t* p) {
 }
 
 static void ui_list_measure(ui_view_t* p) {
+    debugln(">%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
     swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
@@ -285,6 +302,7 @@ static void ui_list_measure(ui_view_t* p) {
         p->h = h + insets.bottom;
         p->w = insets.left + w + insets.right;
     }
+    debugln("<%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
 static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
@@ -295,17 +313,17 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
     if (c->max_w == ui.infinity) {
         c->w = ut_max(c->w, pbx.w - padding.left - padding.right);
     }
+    int32_t min_x = pbx.x + padding.left;
     if ((c->align & ui.align.left) != 0) {
         assert(c->align == ui.align.left);
-        c->x = pbx.x + padding.left;
+        c->x = min_x;
     } else if ((c->align & ui.align.right) != 0) {
         assert(c->align == ui.align.right);
-        c->x = pbx.x + pbx.w - c->w - padding.right;
+        c->x = ut_max(min_x, pbx.x + pbx.w - c->w - padding.right);
     } else {
         assert(c->align == ui.align.center);
         const int32_t cw = padding.left + c->w + padding.right;
-        c->x = pbx.x + (pbx.w - cw) / 2 + padding.left;
-        assert(c->x == pbx.x + padding.left + (pbx.x + pbx.w - pbx.x - cw) / 2);
+        c->x = ut_max(min_x, pbx.x + (pbx.w - cw) / 2 + padding.left);
     }
     c->y = y + padding.top;
     return c->y + c->h + padding.bottom;
@@ -398,7 +416,7 @@ static void ui_list_layout(ui_view_t* p) {
 }
 
 static void ui_container_measure(ui_view_t* p) {
-    debugln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
+    ui_layout_enter(p);
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
@@ -415,17 +433,15 @@ static void ui_container_measure(ui_view_t* p) {
             p->h = ut_max(p->h, padding.top + c->h + padding.bottom);
         }
     } ui_view_for_each_end(p, c);
-    debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
+    ui_layout_exit(p);
 }
 
 static void ui_container_layout(ui_view_t* p) {
-    debugln(">%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
+    ui_layout_enter(p);
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
-    const int32_t tp = p->y + insets.top;
-    const int32_t bt = p->y + p->h - insets.bottom;
     ui_view_for_each_begin(p, c) {
         if (c->type != ui_view_spacer && !c->hidden) {
             ui_rect_t cbx; // child "out" box expanded by padding
@@ -447,26 +463,26 @@ static void ui_container_layout(ui_view_t* p) {
             swear((c->align & (ui.align.top|ui.align.bottom)) !=
                                (ui.align.top|ui.align.bottom),
                    "align: top|bottom 0x%02X", c->align);
+            int32_t min_x = pbx.x + padding.left;
             if ((c->align & ui.align.left) != 0) {
-                c->x = pbx.x + padding.left;
+                c->x = min_x;
             } else if ((c->align & ui.align.right) != 0) {
-                c->x = pbx.x + pbx.w - c->w - padding.right;
+                c->x = ut_max(min_x, pbx.x + pbx.w - c->w - padding.right);
             } else {
-                const int32_t w = pbx.x + pbx.w - pbx.x; // effective width
-                c->x = pbx.x + padding.left + (w - (padding.left + c->w + padding.right)) / 2;
+                c->x = ut_max(min_x, min_x + (pbx.w - (padding.left + c->w + padding.right)) / 2);
             }
+            int32_t min_y = pbx.y + padding.top;
             if ((c->align & ui.align.top) != 0) {
-                c->y = tp + padding.top;
+                c->y = min_y;
             } else if ((c->align & ui.align.bottom) != 0) {
-                c->y = bt - c->h - padding.bottom;
+                c->y = ut_max(min_y, pbx.x + pbx.h - c->h - padding.bottom);
             } else {
-                const int32_t h = bt - tp; // effective height
-                c->y = tp + padding.top + (h - (padding.top + c->h + padding.bottom)) / 2;
+                c->y = ut_max(min_y, min_y + (pbx.h - (padding.top + c->h + padding.bottom)) / 2);
             }
 //          debugln(" %s %d,%d %dx%d", c->text, c->x, c->y, c->w, c->h);
         }
     } ui_view_for_each_end(p, c);
-    debugln("<%s %d,%d %dx%d", p->text, p->x, p->y, p->w, p->h);
+    ui_layout_exit(p);
 }
 
 static void ui_paint_container(ui_view_t* v) {
@@ -480,7 +496,7 @@ static void ui_paint_container(ui_view_t* v) {
 
 static void ui_view_container_init(ui_view_t* v) {
     ui_view_init(v);
-    v->background = ui_color_transparent;
+    v->background = ui_colors.transparent;
     v->insets  = (ui_gaps_t){ .left  = 0.25, .top    = 0.25,
                               .right = 0.25, .bottom = 0.25 };
 }
@@ -522,5 +538,7 @@ void ui_view_init_container(ui_view_t* v) {
     if (v->text[0] == 0) { strprintf(v->text, "ui_container"); }
 }
 
+#pragma pop_macro("ui_layout_exit")
+#pragma pop_macro("ui_layout_enter")
 #pragma pop_macro("ui_layout_dump")
 #pragma pop_macro("debugln")

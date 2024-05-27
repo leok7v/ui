@@ -567,8 +567,8 @@ static void ui_app_paint(ui_view_t* view) {
 static void ui_app_measure_and_layout(ui_view_t* view) {
     // restore from minimized calls ui_app.crc.w,h == 0
     if (ui_app.crc.w > 0 && ui_app.crc.h > 0 && ui_app_window() != null) {
-        ui_view.measure_children(view);
-        ui_view.layout_children(view);
+        ui_view.measure(view);
+        ui_view.layout(view);
         ui_app_layout_dirty = false;
     }
 }
@@ -630,7 +630,7 @@ static void ui_app_toast_paint(void) {
         ui_gdi.image_init(&image_light, 1, 1, 3, pixels);
     }
     if (ui_app.animating.view != null) {
-        ui_view.measure_children(ui_app.animating.view);
+        ui_view.measure(ui_app.animating.view);
         ui_gdi.push(0, 0);
         bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
         const int32_t em_x = ui_app.animating.view->fm->em.w;
@@ -794,11 +794,33 @@ static void ui_app_view_active_frame_paint(void) {
     ui_gdi.frame_with(0, 0, ui_app.root->w - 0, ui_app.root->h - 0, c);
 }
 
+static void ui_app_paint_stats(void) {
+    if (ui_app.paint_count % 128 == 0) { ui_app.paint_max = 0; }
+    ui_app.paint_time = ut_clock.seconds() - ui_app.now;
+    ui_app.paint_max = ut_max(ui_app.paint_time, ui_app.paint_max);
+    if (ui_app.paint_avg == 0) {
+        ui_app.paint_avg = ui_app.paint_time;
+    } else { // EMA over 32 paint() calls
+        ui_app.paint_avg = ui_app.paint_avg * (1.0 - 1.0 / 32.0) +
+                        ui_app.paint_time / 32.0;
+    }
+    static fp64_t first_paint;
+    if (first_paint == 0) { first_paint = ui_app.now; }
+    fp64_t since_first_paint = ui_app.now - first_paint;
+    if (since_first_paint > 0) {
+        double fps = (double)ui_app.paint_count / since_first_paint;
+        if (ui_app.paint_fps == 0) {
+            ui_app.paint_fps = fps;
+        } else {
+            ui_app.paint_fps = ui_app.paint_fps * (1.0 - 1.0 / 32.0) + fps / 32.0;
+        }
+    }
+}
+
 static void ui_app_paint_on_canvas(HDC hdc) {
     ui_canvas_t canvas = ui_app.canvas;
     ui_app.canvas = (ui_canvas_t)hdc;
     ui_gdi.push(0, 0);
-    fp64_t time = ut_clock.seconds();
     ui_gdi.x = 0;
     ui_gdi.y = 0;
     ui_app_update_crc();
@@ -821,20 +843,12 @@ static void ui_app_paint_on_canvas(HDC hdc) {
     ui_gdi.set_text_color(c);
     ui_gdi.set_font(f);
     ui_app.paint_count++;
-    if (ui_app.paint_count % 128 == 0) { ui_app.paint_max = 0; }
-    ui_app.paint_time = ut_clock.seconds() - time;
-    ui_app.paint_max = ut_max(ui_app.paint_time, ui_app.paint_max);
-    if (ui_app.paint_avg == 0) {
-        ui_app.paint_avg = ui_app.paint_time;
-    } else { // EMA over 32 paint() calls
-        ui_app.paint_avg = ui_app.paint_avg * (1.0 - 1.0 / 32.0) +
-                        ui_app.paint_time / 32.0;
-    }
     if (ui_app.no_decor && !ui_app.is_full_screen && !ui_app.is_maximized()) {
         ui_app_view_active_frame_paint();
     }
     ui_gdi.pop();
     ui_app.canvas = canvas;
+    ui_app_paint_stats();
 }
 
 static void ui_app_wm_paint(void) {
@@ -1033,8 +1047,7 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
             // drop down to content hit test
         }
     }
-    int64_t ht = ui_view.hit_test(ui_app.content, cx, cy);
-    return ht == ui.hit_test.nowhere ? ui.hit_test.client : ht;
+    return ui_view.hit_test(ui_app.content, cx, cy);
 }
 
 static void ui_app_wm_activate(int64_t wp) {
@@ -1090,7 +1103,11 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_CLOSE        : ui_app.focus = null; // before WM_CLOSING
                                ui_app_post_message(ui.message.closing, 0, 0); return 0;
         case WM_DESTROY      : PostQuitMessage(ui_app.exit_code); break;
-        case WM_NCHITTEST    : return ui_app.hit_test(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+        case WM_NCHITTEST    : {
+            int64_t ht = ui_app_hit_test(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
+            if (ht != ui.hit_test.nowhere) { return ht; }
+            break; // drop to DefWindowProc
+        }
         case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
         case WM_KEYDOWN      : ui_app_alt_ctrl_shift(true, wp);
                                ui_view.key_pressed(ui_app.root, wp);
@@ -1487,7 +1504,7 @@ static void ui_app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
 
 static void ui_app_formatted_toast_va(fp64_t timeout, const char* format, va_list vl) {
     ui_app_show_toast(null, 0);
-    static ui_label_t label;
+    static ui_label_t label = ui_label(0.0, "");
     ui_label_init_va(&label, 0.0, format, vl);
     ui_app_show_toast(&label, timeout);
 }
@@ -1937,7 +1954,6 @@ static void ui_app_init(void) {
     ui_app.px2in                = ui_app_px2in;
     ui_app.in2px                = ui_app_in2px;
     ui_app.set_layered_window   = ui_app_set_layered_window;
-    ui_app.hit_test             = ui_app_hit_test;
     ui_app.is_active            = ui_app_is_active;
     ui_app.is_minimized         = ui_app_is_minimized;
     ui_app.is_maximized         = ui_app_is_maximized;
@@ -1986,7 +2002,7 @@ static void ui_app_init(void) {
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
     assert(ui_app.content->type == ui_view_container);
-    assert(ui_app.content->background == ui_color_transparent);
+    assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;
     ui_app.root->insets = (ui_gaps_t){ 0, 0, 0, 0 };
