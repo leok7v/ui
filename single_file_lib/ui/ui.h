@@ -988,13 +988,15 @@ typedef struct ui_view_s {
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     // before methods: called before measure()/layout()/paint()
-    void (*before_measure)(ui_view_t* view);
-    void (*measure)(ui_view_t* view); // determine w, h (bottom up)
+    void (*prepare)(ui_view_t* view);  // called before measure()
+    void (*measure)(ui_view_t* view);  // determine w, h (bottom up)
     void (*measured)(ui_view_t* view); // called after measure()
-    void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
-    void (*layouted)(ui_view_t* view); // called after layout()
+    void (*layout)(ui_view_t* view);   // set x, y possibly adjust w, h (top down)
+    void (*composed)(ui_view_t* view); // called after layout() ("laid_out")
     void (*paint)(ui_view_t* view);
     void (*painted)(ui_view_t* view);  // called after paint()
+    // composed() is effectively called right before paint() and
+    // can be used to prepare for painting w/o need to override paint()
     void (*debug_paint)(ui_view_t* view); // called if .debug is set to true
     // any message:
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
@@ -4290,7 +4292,7 @@ static ui_color_t ui_caption_color(void) {
     return c;
 }
 
-static void ui_caption_before_measure(ui_view_t* unused(v)) {
+static void ui_caption_prepare(ui_view_t* unused(v)) {
     ui_caption.title.hidden = false;
 }
 
@@ -4299,7 +4301,7 @@ static void ui_caption_measured(ui_view_t* v) {
     v->w = ui_app.crc.w;
 }
 
-static void ui_caption_layouted(ui_view_t* v) {
+static void ui_caption_composed(ui_view_t* v) {
     v->x = 0;
 }
 
@@ -4340,9 +4342,9 @@ static void ui_caption_init(ui_view_t* v) {
     ui_caption.icon.icon  = ui_app.icon;
     ui_caption.view.align = ui.align.left;
     // TODO: this does not help because parent layout will set x and w again
-    ui_caption.view.before_measure = ui_caption_before_measure;
+    ui_caption.view.prepare = ui_caption_prepare;
     ui_caption.view.measured  = ui_caption_measured;
-    ui_caption.view.layouted   = ui_caption_layouted;
+    ui_caption.view.composed   = ui_caption_composed;
     strprintf(ui_caption.view.text, "ui_caption");
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
@@ -7401,6 +7403,7 @@ static void ui_gdi_line_with(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
     int32_t y = ui_gdi.y;
     ui_gdi.x = x0;
     ui_gdi.y = y0;
+    ui_gdi.move_to(x0, y0);
     ui_pen_t p = ui_gdi.set_colored_pen(c);
     ui_gdi.line(x1, y1);
     ui_gdi.set_pen(p);
@@ -9251,7 +9254,7 @@ static void ui_measure_view(ui_view_t* v) {
 static void ui_view_measure(ui_view_t* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_for_each(v, c, { ui_view.measure(c); });
-        if (v->before_measure != null) { v->before_measure(v); }
+        if (v->prepare != null) { v->prepare(v); }
         if (v->measure != null && v->measure != ui_view_measure) {
             v->measure(v);
         } else {
@@ -9279,7 +9282,7 @@ static void ui_view_layout(ui_view_t* v) {
         } else {
             ui_layout_view(v);
         }
-        if (v->layouted != null) { v->layouted(v); }
+        if (v->composed != null) { v->composed(v); }
         ui_view_for_each(v, c, { ui_view.layout(c); });
     }
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);

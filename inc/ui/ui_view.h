@@ -49,13 +49,15 @@ typedef struct ui_view_s {
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     // before methods: called before measure()/layout()/paint()
-    void (*before_measure)(ui_view_t* view);
-    void (*measure)(ui_view_t* view); // determine w, h (bottom up)
+    void (*prepare)(ui_view_t* view);  // called before measure()
+    void (*measure)(ui_view_t* view);  // determine w, h (bottom up)
     void (*measured)(ui_view_t* view); // called after measure()
-    void (*layout)(ui_view_t* view); // set x, y possibly adjust w, h (top down)
-    void (*layouted)(ui_view_t* view); // called after layout()
+    void (*layout)(ui_view_t* view);   // set x, y possibly adjust w, h (top down)
+    void (*composed)(ui_view_t* view); // called after layout() ("laid_out")
     void (*paint)(ui_view_t* view);
     void (*painted)(ui_view_t* view);  // called after paint()
+    // composed() is effectively called right before paint() and
+    // can be used to prepare for painting w/o need to override paint()
     void (*debug_paint)(ui_view_t* view); // called if .debug is set to true
     // any message:
     bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,

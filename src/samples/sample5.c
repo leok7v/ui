@@ -240,7 +240,7 @@ static void every_100ms(void) {
 
 // limiting vertical height of SLE to 3 lines of text:
 
-static void edit2_before_measure(ui_view_t* v) { // _3_lines_sle
+static void edit2_prepare(ui_view_t* v) { // _3_lines_sle
     // UX design decision:
     // 3 vertical visible runs SLE is friendlier in UX term
     // than not implemented horizontal scroll.
@@ -320,7 +320,7 @@ static void opened(void) {
     ui_app.every_100ms = every_100ms;
     set_text(0); // need to be two lines for measure
     // edit[2] is SLE:
-    edit[2]->view.before_measure = edit2_before_measure;
+    edit[2]->view.prepare = edit2_prepare;
     edit[2]->view.measured  = edit2_measured;
     edit[2]->sle = true;
     edit[2]->select_all(edit[2]);

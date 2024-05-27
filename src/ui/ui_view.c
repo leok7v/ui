@@ -188,7 +188,7 @@ static void ui_measure_view(ui_view_t* v) {
 static void ui_view_measure(ui_view_t* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_for_each(v, c, { ui_view.measure(c); });
-        if (v->before_measure != null) { v->before_measure(v); }
+        if (v->prepare != null) { v->prepare(v); }
         if (v->measure != null && v->measure != ui_view_measure) {
             v->measure(v);
         } else {
@@ -216,7 +216,7 @@ static void ui_view_layout(ui_view_t* v) {
         } else {
             ui_layout_view(v);
         }
-        if (v->layouted != null) { v->layouted(v); }
+        if (v->composed != null) { v->composed(v); }
         ui_view_for_each(v, c, { ui_view.layout(c); });
     }
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);

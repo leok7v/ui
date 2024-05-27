@@ -148,6 +148,7 @@ static void ui_gdi_line_with(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
     int32_t y = ui_gdi.y;
     ui_gdi.x = x0;
     ui_gdi.y = y0;
+    ui_gdi.move_to(x0, y0);
     ui_pen_t p = ui_gdi.set_colored_pen(c);
     ui_gdi.line(x1, y1);
     ui_gdi.set_pen(p);

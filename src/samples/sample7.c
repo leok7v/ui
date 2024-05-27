@@ -5,17 +5,17 @@
 
 const char* title = "Sample7 : timers";
 
-enum { N = 1800 };
+enum { max_count = 1800 };
 
 static ui_timer_t timer10ms;
 static thread_t thread;
 static bool quit;
 
 typedef struct {
-    fp64_t time[N]; // circular buffer of timestamps
+    fp64_t time[max_count]; // circular buffer of timestamps
     int pos; // writing position in the buffer for next timer event
     int samples; // number of samples collected
-    fp64_t dt[N]; // delta(t) between 2 timer events
+    fp64_t dt[max_count]; // delta(t) between 2 timer events
     fp64_t min_dt;
     fp64_t max_dt;
     fp64_t avg;
@@ -24,24 +24,26 @@ typedef struct {
 
 static volatile time_stats_t ts[2];
 
-static ui_point_t points[N]; // graph polyline coordinates
+static ui_point_t points[max_count]; // graph polyline coordinates
 
-static int32_t M = N;
+static int32_t N = max_count;
 
-static void layouted(ui_view_t* view) {
-    if (view->w > 0) { M = ut_min(view->w, M); }
-    traceln("M: %d", M);
+static void composed(ui_view_t* view) {
+    if (view->w > 0) { N = ut_min(view->w, N); }
+    traceln("M: %d", N);
 }
 
-static void stats(volatile time_stats_t* t) {
-    int n = ut_min(M - 1, t->samples);
+static void stats(int32_t ix) {
+    volatile time_stats_t* t = &ts[ix];
+    assert(t->samples >= 2, "no samples");
+    int n = ut_min(N, t->samples);
     t->min_dt = 1.0; // 1 second is 100x of 10ms
     t->max_dt = 0;
     int j = 0;
     fp64_t sum = 0;
     for (int i = 0; i < n - 1; i++) {
-        int p0 = (t->pos - i - 1 + M) % M;
-        int p1 = (p0 - 1 + M) % M;
+        int p0 = (t->pos - i - 1 + n) % n;
+        int p1 = (p0 - 1 + n) % n;
         t->dt[j] = t->time[p0] - (t->time[p1] + 0.01); // expected 10ms
         t->min_dt = ut_min(t->dt[j], t->min_dt);
         t->max_dt = ut_max(t->dt[j], t->max_dt);
@@ -50,60 +52,67 @@ static void stats(volatile time_stats_t* t) {
     }
     t->avg = sum / (n - 1);
     j = 0;
-    t->spread = ut_max(fabs(t->max_dt), fabs(t->min_dt));
+    fp64_t d0 = fabs(t->min_dt);
+    fp64_t d1 = fabs(t->max_dt);
+    fp64_t spread = ut_max_fp64(d0, d1) * 2;
+    t->spread = ut_max(t->spread, spread);
+    if (t->samples % 1000 == 0) {
+        traceln("[%d] samples: %6d spread: %.6f min %.6f max %.6f",
+                ix, t->samples, t->spread, t->min_dt, t->max_dt);
+    }
 }
 
-static void graph(ui_view_t* view, int ix, ui_color_t c, int y) {
+static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
     volatile time_stats_t* t = &ts[ix];
     const int h2 = ui_app.crc.h / 2;
     const int h4 = h2 / 2;
     const int h8 = h4 / 2;
     ui_gdi.y = y - h8;
-    ui_gdi.set_colored_pen(ui_colors.white);
-    ui_gdi.move_to(0, y);
-    ui_gdi.line(ui_app.crc.w, y);
-    ui_gdi.set_colored_pen(c);
-    if (ts[0].samples > 2 && ts[1].samples > 2) {
+    ui_gdi.line_with(0, y, ui_app.crc.w, y, ui_colors.white);
+    ui_pen_t pen = ui_gdi.set_colored_pen(c);
+    if (t->samples > 2) {
         const fp64_t spread = ts[ix].spread;
-        int n = ut_min(M - 1, t->samples);
+        int n = ut_min(N, t->samples);
         int j = 0;
-        for (int i = 0; i < n - 1; i++) {
-            fp64_t v = t->dt[j] / spread;
+        for (int i = 0; i < n; i++) {
             points[j].x = n - 1 - i;
-            points[j].y = y + (int32_t)(v * h8);
+            points[j].y = y - (int32_t)(t->dt[j] * h8 / spread);
             j++;
         }
         ui_gdi.poly(points, n - 1);
-        ui_gdi.x = view->fm->em.w;
-        ui_gdi.y = y - h8 - view->fm->em.h;
+        ui_gdi.x = v->fm->em.w;
+        ui_gdi.y = y - h8 - v->fm->em.h;
         ui_gdi.println("min %.3f max %.3f avg %.3f ms  "
             "%.1f sps",
             t->min_dt * 1000, t->max_dt * 1000, t->avg, 1 / t->avg);
     }
+    ui_gdi.set_pen(pen);
 }
 
-static void paint(ui_view_t* view) {
-    stats(&ts[0]);
-    stats(&ts[1]);
-    char paint_stats[256];
-    strprintf(paint_stats, "avg paint time %.1f ms %.1f fps",
-        ui_app.paint_avg * 1000, ui_app.paint_fps);
-    ui_gdi.fill_with(0, 0, view->w, view->h, ui_colors.dkgray1);
-    ui_gdi.y = view->fm->em.h;
-    ui_gdi.x = view->w - ui_gdi.measure_text(ui_app.fonts.mono.font,
-                paint_stats).w - view->fm->em.w;
-    ui_gdi.print("%s", paint_stats);
-    ui_gdi.x = view->fm->em.w;
-    ui_gdi.print("10ms window timer jitter ");
-    ui_gdi.print("(\"sps\" stands for samples per second)");
-    const int h2 = ui_app.crc.h / 2;
-    const int h4 = h2 / 2;
-    graph(view, 0, ui_colors.tone_red, h4);
-    ui_gdi.y = h2;
-    ui_gdi.print("10ms r/t thread sleep jitter");
-    graph(view, 1, ui_colors.tone_green, h2 + h4);
-    ui_gdi.y = h2 - h4;
-
+static void paint(ui_view_t* v) {
+    for (int i = 0; i < countof(ts); i++) {
+        if (ts[i].samples >= 2) { stats(i); }
+    }
+    if (ts[0].spread > 0 && ts[1].spread > 0) {
+        char paint_stats[256];
+        strprintf(paint_stats, "avg paint time %.1f ms %.1f fps",
+            ui_app.paint_avg * 1000, ui_app.paint_fps);
+        ui_gdi.fill_with(0, 0, v->w, v->h, ui_colors.dkgray1);
+        ui_gdi.y = v->fm->em.h;
+        ui_gdi.x = v->w - ui_gdi.measure_text(ui_app.fonts.mono.font,
+                    paint_stats).w - v->fm->em.w;
+        ui_gdi.print("%s", paint_stats);
+        ui_gdi.x = v->fm->em.w;
+        ui_gdi.print("10ms window timer jitter ");
+        ui_gdi.print("(\"sps\" stands for samples per second)");
+        const int h2 = ui_app.crc.h / 2;
+        const int h4 = h2 / 2;
+        graph(v, 0, ui_colors.tone_red, h4);
+        ui_gdi.y = h2;
+        ui_gdi.print("10ms r/t thread sleep jitter");
+        graph(v, 1, ui_colors.tone_green, h2 + h4);
+        ui_gdi.y = h2 - h4;
+    }
 }
 
 static void timer_thread(void* p) {
@@ -113,7 +122,7 @@ static void timer_thread(void* p) {
     while (!*done) {
         ut_thread.sleep_for(0.0094);
         ts[1].time[ts[1].pos] = ut_clock.seconds();
-        ts[1].pos = (ts[1].pos + 1) % M;
+        ts[1].pos = (ts[1].pos + 1) % N;
         (ts[1].samples)++;
         ui_app.request_redraw();
     }
@@ -125,7 +134,7 @@ static void timer(ui_view_t* view, ui_timer_t id) {
     // 1 seconds, 100ms and 10ms:
     if (id == timer10ms) {
         ts[0].time[ts[0].pos] = ui_app.now;
-        ts[0].pos = (ts[0].pos + 1) % M;
+        ts[0].pos = (ts[0].pos + 1) % N;
         (ts[0].samples)++;
         ui_app.request_redraw();
     }
@@ -182,7 +191,7 @@ static void init(void) {
     ui_app.opened = opened;
     ui_app.content->timer = timer;
     ui_app.content->paint = paint;
-    ui_app.content->layouted = layouted;
+    ui_app.content->composed = composed;
     // no minimize/maximize title bar and system menu
     ui_app.no_min = true;
     ui_app.no_max = true;

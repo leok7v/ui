@@ -2,7 +2,7 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static char title[128] = "Polyglot";
+static char title[128] = "Polyglot"; // https://youtu.be/D36zd8yNTbQ
 
 static const char* locales[] = { // 123 languages
     "af-ZA", "am-ET", "ar-SA", "as-IN", "az-AZ", "ba-RU", "be-BY", "bg-BG",
