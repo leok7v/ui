@@ -867,8 +867,8 @@ static void ut_files_test(void) {
         ut_file_t* f = ut_files.invalid;
         fatal_if(ut_files.open(&f, tf, ut_files.o_rw | ut_files.o_append) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
-        thread_t thread1 = ut_thread.start(ut_files_test_append_thread, f);
-        thread_t thread2 = ut_thread.start(ut_files_test_append_thread, f);
+        ut_thread_t thread1 = ut_thread.start(ut_files_test_append_thread, f);
+        ut_thread_t thread2 = ut_thread.start(ut_files_test_append_thread, f);
         ut_thread.join(thread1, -1);
         ut_thread.join(thread2, -1);
         ut_files.close(f);

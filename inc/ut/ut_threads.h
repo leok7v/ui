@@ -22,24 +22,24 @@ typedef struct {
 
 extern ut_event_if ut_event;
 
-typedef struct ut_alligned_8 mutex_s { uint8_t content[40]; } mutex_t;
+typedef struct ut_alligned_8 mutex_s { uint8_t content[40]; } ut_mutex_t;
 
 typedef struct {
-    void (*init)(mutex_t* m);
-    void (*lock)(mutex_t* m);
-    void (*unlock)(mutex_t* m);
-    void (*dispose)(mutex_t* m);
+    void (*init)(ut_mutex_t* m);
+    void (*lock)(ut_mutex_t* m);
+    void (*unlock)(ut_mutex_t* m);
+    void (*dispose)(ut_mutex_t* m);
     void (*test)(void);
 } ut_mutex_if;
 
 extern ut_mutex_if ut_mutex;
 
-typedef struct thread_s * thread_t;
+typedef struct thread_s * ut_thread_t;
 
 typedef struct {
-    thread_t (*start)(void (*func)(void*), void* p); // never returns null
-    errno_t (*join)(thread_t thread, fp64_t timeout_seconds); // < 0 forever
-    void (*detach)(thread_t thread); // closes handle. thread is not joinable
+    ut_thread_t (*start)(void (*func)(void*), void* p); // never returns null
+    errno_t (*join)(ut_thread_t thread, fp64_t timeout_seconds); // < 0 forever
+    void (*detach)(ut_thread_t thread); // closes handle. thread is not joinable
     void (*name)(const char* name); // names the thread
     void (*realtime)(void); // bumps calling thread priority
     void (*yield)(void);    // pthread_yield() / Win32: SwitchToThread()

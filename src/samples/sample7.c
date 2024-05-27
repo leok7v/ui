@@ -8,7 +8,7 @@ const char* title = "Sample7 : timers";
 enum { max_count = 1800 };
 
 static ui_timer_t timer10ms;
-static thread_t thread;
+static ut_thread_t thread;
 static bool quit;
 
 typedef struct {
@@ -168,7 +168,7 @@ static void closed(void) {
     quit = false;
     // just to test that ExitProcess(0) works when there is
     // are detached threads
-    thread_t detached = ut_thread.start(detached_sleep, null);
+    ut_thread_t detached = ut_thread.start(detached_sleep, null);
     ut_thread.detach(detached);
     detached = ut_thread.start(detached_loop, null);
     ut_thread.detach(detached);

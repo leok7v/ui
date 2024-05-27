@@ -20,7 +20,7 @@ enum { max_speed = 3 };
 static struct {
     int32_t  index; // animation index 0..gif.frames - 1
     event_t  quit;
-    thread_t thread;
+    ut_thread_t thread;
     uint32_t seed; // for ut_num.random32()
     int32_t  x;
     int32_t  y;

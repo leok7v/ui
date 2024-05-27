@@ -2100,7 +2100,7 @@ static int ui_app_win_main(void) {
     if (!ui_app.no_ui) {
         ui_app_create_window(wr);
         ui_app_init_fonts(ui_app.dpi.window);
-        thread_t thread = ut_thread.start(ui_app_redraw_thread, null);
+        ut_thread_t thread = ut_thread.start(ui_app_redraw_thread, null);
         r = ui_app_message_loop();
         // ui_app.fini() must be called before ui_app_dispose()
         if (ui_app.fini != null) { ui_app.fini(); }

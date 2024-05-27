@@ -6,7 +6,7 @@ static volatile int index; // index of image to paint, !ix to render
 static ui_image_t image[2];
 static uint8_t pixels[2][4 * 4096 * 4096];
 
-static thread_t thread;
+static ut_thread_t thread;
 static event_t wake;
 static event_t quit;
 

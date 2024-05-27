@@ -113,20 +113,20 @@ ut_event_if ut_event = {
 
 // mutexes:
 
-static_assertion(sizeof(CRITICAL_SECTION) == sizeof(mutex_t));
+static_assertion(sizeof(CRITICAL_SECTION) == sizeof(ut_mutex_t));
 
-static void ut_mutex_init(mutex_t* m) {
+static void ut_mutex_init(ut_mutex_t* m) {
     CRITICAL_SECTION* cs = (CRITICAL_SECTION*)m;
     fatal_if_false(
         InitializeCriticalSectionAndSpinCount(cs, 4096)
     );
 }
 
-static void ut_mutex_lock(mutex_t* m) { EnterCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_lock(ut_mutex_t* m) { EnterCriticalSection((CRITICAL_SECTION*)m); }
 
-static void ut_mutex_unlock(mutex_t* m) { LeaveCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_unlock(ut_mutex_t* m) { LeaveCriticalSection((CRITICAL_SECTION*)m); }
 
-static void ut_mutex_dispose(mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_dispose(ut_mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTION*)m); }
 
 // test:
 
@@ -139,14 +139,14 @@ static void ut_mutex_test_check_time(fp64_t start, fp64_t expected) {
 }
 
 static void ut_mutex_test_lock_unlock(void* arg) {
-    mutex_t* mutex = (mutex_t*)arg;
+    ut_mutex_t* mutex = (ut_mutex_t*)arg;
     ut_mutex.lock(mutex);
     ut_thread.sleep_for(0.01); // Hold the mutex for 10ms
     ut_mutex.unlock(mutex);
 }
 
 static void ut_mutex_test(void) {
-    mutex_t mutex;
+    ut_mutex_t mutex;
     ut_mutex.init(&mutex);
     fp64_t start = ut_clock.seconds();
     ut_mutex.lock(&mutex);
@@ -154,7 +154,7 @@ static void ut_mutex_test(void) {
     // Lock and unlock should be immediate
     ut_mutex_test_check_time(start, 0);
     enum { count = 5 };
-    thread_t ts[count];
+    ut_thread_t ts[count];
     for (int32_t i = 0; i < countof(ts); i++) {
         ts[i] = ut_thread.start(ut_mutex_test_lock_unlock, &mutex);
     }
@@ -344,8 +344,8 @@ static void ut_thread_realtime(void) {
 
 static void ut_thread_yield(void) { SwitchToThread(); }
 
-static thread_t ut_thread_start(void (*func)(void*), void* p) {
-    thread_t t = (thread_t)CreateThread(null, 0,
+static ut_thread_t ut_thread_start(void (*func)(void*), void* p) {
+    ut_thread_t t = (ut_thread_t)CreateThread(null, 0,
         (LPTHREAD_START_ROUTINE)(void*)func, p, 0, null);
     not_null(t);
     return t;
@@ -356,7 +356,7 @@ static bool is_handle_valid(void* h) {
     return GetHandleInformation(h, &flags);
 }
 
-static errno_t ut_thread_join(thread_t t, fp64_t timeout) {
+static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
     const uint32_t ms = timeout < 0 ? INFINITE : (uint32_t)(timeout * 1000.0 + 0.5);
@@ -371,7 +371,7 @@ static errno_t ut_thread_join(thread_t t, fp64_t timeout) {
     return r;
 }
 
-static void ut_thread_detach(thread_t t) {
+static void ut_thread_detach(ut_thread_t t) {
     not_null(t);
     fatal_if_false(is_handle_valid(t));
     fatal_if_false(CloseHandle(t));
@@ -419,10 +419,10 @@ typedef struct ut_thread_philosophers_s ut_thread_philosophers_t;
 
 typedef struct {
     ut_thread_philosophers_t* ps;
-    mutex_t  fork;
-    mutex_t* left_fork;
-    mutex_t* right_fork;
-    thread_t thread;
+    ut_mutex_t  fork;
+    ut_mutex_t* left_fork;
+    ut_mutex_t* right_fork;
+    ut_thread_t thread;
     int32_t  id;
 } ut_thread_philosopher_t;
 
@@ -543,9 +543,9 @@ static void ut_thread_test(void) {
     // that execute blocking calls that e.g. write logs to the
     // internet service that hangs.
     // test detached threads
-    thread_t detached_sleep = ut_thread.start(ut_thread_detached_sleep, null);
+    ut_thread_t detached_sleep = ut_thread.start(ut_thread_detached_sleep, null);
     ut_thread.detach(detached_sleep);
-    thread_t detached_loop = ut_thread.start(ut_thread_detached_loop, null);
+    ut_thread_t detached_loop = ut_thread.start(ut_thread_detached_loop, null);
     ut_thread.detach(detached_loop);
     // leave detached threads sleeping and running till ExitProcess(0)
     // that should NOT hang.

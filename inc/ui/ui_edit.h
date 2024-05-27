@@ -87,7 +87,7 @@ typedef struct ui_edit_s {
     bool sle;      // Single Line Edit
     int32_t shown; // debug: caret show/hide counter 0|1
     // https://en.wikipedia.org/wiki/Fuzzing
-    volatile thread_t fuzzer;     // fuzzer thread != null when fuzzing
+    volatile ut_thread_t fuzzer;     // fuzzer thread != null when fuzzing
     volatile int32_t  fuzz_count; // fuzzer event count
     volatile int32_t  fuzz_last;  // last processed fuzz
     volatile bool     fuzz_quit;  // last processed fuzz
