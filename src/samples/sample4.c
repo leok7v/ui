@@ -81,7 +81,7 @@ static void download(void) {
         "Wikipedia-sipi-image-db-mandrill-4.2.03.png";
     if (!ut_files.exists(filename)) {
         char cmd[256];
-        strprintf(cmd, "curl.exe  --silent --fail --create-dirs "
+        ut_str_printf(cmd, "curl.exe  --silent --fail --create-dirs "
             "\"%s\" --output \"%s\" 2>nul >nul", url, filename);
         int r = system(cmd);
         if (r != 0) {
@@ -93,7 +93,7 @@ static void download(void) {
 static void init(void) {
     ui_app.title = title;
     ui_app.content->paint = paint;
-    strprintf(filename, "%s\\mandrill-4.2.03.png",
+    ut_str_printf(filename, "%s\\mandrill-4.2.03.png",
         ui_app.known_folder(ui.folder.pictures));
     download();
     load_images();

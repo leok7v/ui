@@ -443,7 +443,7 @@ static errno_t ut_files_mkdirs(const char* dir) {
 } while (0)
 
 #define ut_files_append_name(pn, pnc, fn, name) do {     \
-    if (strequ(fn, "\\") || strequ(fn, "/")) {           \
+    if (ut_str.equ(fn, "\\") || ut_str.equ(fn, "/")) {           \
         ut_str.format(pn, pnc, "\\%s", name);            \
     } else {                                             \
         ut_str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
@@ -468,7 +468,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
             // do NOT follow symlinks - it could be disastrous
             const char* name = ut_files.readdir(&folder, &st);
             if (name == null) { break; }
-            if (!strequ(name, ".") && !strequ(name, "..") &&
+            if (!ut_str.equ(name, ".") && !ut_str.equ(name, "..") &&
                 (st.type & ut_files.type_symlink) == 0 &&
                 (st.type & ut_files.type_folder) != 0) {
                 ut_files_realloc_path(r, pn, pnc, fn, name);
@@ -484,7 +484,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
             const char* name = ut_files.readdir(&folder, &st);
             if (name == null) { break; }
             // symlinks are already removed as normal files
-            if (!strequ(name, ".") && !strequ(name, "..") &&
+            if (!ut_str.equ(name, ".") && !ut_str.equ(name, "..") &&
                 (st.type & ut_files.type_folder) == 0) {
                 ut_files_realloc_path(r, pn, pnc, fn, name);
                 if (r == 0) {
@@ -553,10 +553,10 @@ static errno_t ut_files_symlink(const char* from, const char* to) {
 static const char* ut_files_bin(void) {
     static char program_files[ut_files_max_path];
     if (program_files[0] == 0) {
-        wchar_t* program_files_w = null;
+        uint16_t* program_files_w = null;
         fatal_if(SHGetKnownFolderPath(&FOLDERID_ProgramFilesX64, 0,
             null, &program_files_w) != 0);
-        int32_t len = (int32_t)wcslen(program_files_w);
+        int32_t len = (int32_t)ut_str.utf16len(program_files_w);
         assert(len < countof(program_files));
         fatal_if(len >= countof(program_files), "len=%d", len);
         for (int32_t i = 0; i <= len; i++) { // including zero terminator
@@ -697,20 +697,20 @@ static void folders_test(void) {
     errno_t r = ut_files.create_tmp(tmp_file, countof(tmp_file));
     fatal_if(r != 0, "ut_files.create_tmp() failed %s", ut_str.error(r));
     char tmp_dir[ut_files_max_path];
-    strprintf(tmp_dir, "%s.dir", tmp_file);
+    ut_str_printf(tmp_dir, "%s.dir", tmp_file);
     r = ut_files.mkdirs(tmp_dir);
     fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, ut_str.error(r));
     verbose("%s", tmp_dir);
     ut_folder_t folder;
     char pn[ut_files_max_path] = { 0 };
-    strprintf(pn, "%s/file", tmp_dir);
+    ut_str_printf(pn, "%s/file", tmp_dir);
     // cannot test symlinks because they are only
     // available to Administrators and in Developer mode
 //  char sym[ut_files_max_path] = { 0 };
     char hard[ut_files_max_path] = { 0 };
     char sub[ut_files_max_path] = { 0 };
-    strprintf(hard, "%s/hard", tmp_dir);
-    strprintf(sub, "%s/subd", tmp_dir);
+    ut_str_printf(hard, "%s/hard", tmp_dir);
+    ut_str_printf(sub, "%s/subd", tmp_dir);
     const char* content = "content";
     int64_t transferred = 0;
     r = ut_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
@@ -738,15 +738,15 @@ static void folders_test(void) {
         verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d %lld bytes %s%s",
                 name, year, month, day, hh, mm, ss, ms, mc,
                 bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
-        if (strequ(name, "file") || strequ(name, "hard")) {
+        if (ut_str.equ(name, "file") || ut_str.equ(name, "hard")) {
             swear(bytes == (int64_t)strlen(content),
                     "size of \"%s\": %lld is incorrect expected: %d",
                     name, bytes, transferred);
         }
-        if (strequ(name, ".") || strequ(name, "..")) {
+        if (ut_str.equ(name, ".") || ut_str.equ(name, "..")) {
             swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
         } else {
-            swear(strequ(name, "subd") == is_folder,
+            swear(ut_str.equ(name, "subd") == is_folder,
                   "\"%s\" is_folder: %d", name, is_folder);
             // empirically timestamps are imprecise on NTFS
             swear(at >= before, "access: %lld  >= %lld", at, before);
@@ -882,7 +882,7 @@ static void ut_files_test(void) {
         fatal_if(ut_files.chmod777(tf) != 0, "ut_files.chmod777(\"%s\") failed %s",
                  tf, ut_str.error(ut_runtime.err()));
         char folder[256] = { 0 };
-        strprintf(folder, "%s.folder\\subfolder", tf);
+        ut_str_printf(folder, "%s.folder\\subfolder", tf);
         fatal_if(ut_files.mkdirs(folder) != 0, "ut_files.mkdirs(\"%s\") failed %s",
             folder, ut_str.error(ut_runtime.err()));
         fatal_if(!ut_files.is_folder(folder), "\"%s\" is not a folder", folder);
@@ -901,7 +901,7 @@ static void ut_files_test(void) {
         // symlink
         if (ut_processes.is_elevated()) {
             char sym_link[ut_files_max_path];
-            strprintf(sym_link, "%s.sym_link", tf);
+            ut_str_printf(sym_link, "%s.sym_link", tf);
             fatal_if(ut_files.symlink(tf, sym_link) != 0,
                 "ut_files.symlink(\"%s\", \"%s\") failed %s",
                 tf, sym_link, ut_str.error(ut_runtime.err()));
@@ -913,7 +913,7 @@ static void ut_files_test(void) {
         }
         // hard link
         char hard_link[ut_files_max_path];
-        strprintf(hard_link, "%s.hard_link", tf);
+        ut_str_printf(hard_link, "%s.hard_link", tf);
         fatal_if(ut_files.link(tf, hard_link) != 0,
             "ut_files.link(\"%s\", \"%s\") failed %s",
             tf, hard_link, ut_str.error(ut_runtime.err()));

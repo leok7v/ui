@@ -14,11 +14,11 @@ typedef struct ut_processes_pidof_lambda_s {
 
 static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
-    int32_t n = ut_str.length(pname);
+    int32_t n = ut_str.len(pname);
     fatal_if(n + 5 >= countof(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
-    if (!ut_str.ends_with_nc(pname, -1, ".exe", -1)) {
+    if (!ut_str.i_ends(pname, ".exe")) {
         int32_t k = (int32_t)strlen(pname) + 5;
         char* exe = stack;
         ut_str.format(exe, k, "%s.exe", pname);
@@ -30,9 +30,9 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
     } else {
         base = name;
     }
-    uint16_t wide[1024];
-    fatal_if(strlen(base) >= countof(wide), "name too long: %s", base);
-    uint16_t* wn = ut_str.utf8_utf16(wide, base);
+    uint16_t wn[1024];
+    fatal_if(strlen(base) >= countof(wn), "name too long: %s", base);
+    ut_str.utf8to16(wn, countof(wn), base);
     size_t count = 0;
     uint64_t pid = 0;
     uint8_t* data = null;
@@ -56,14 +56,14 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
     if (r == 0 && data != null) {
         SYSTEM_PROCESS_INFORMATION* proc = (SYSTEM_PROCESS_INFORMATION*)data;
         while (proc != null) {
-            wchar_t* img = proc->ImageName.Buffer; // last name only, not a pathname!
+            uint16_t* img = proc->ImageName.Buffer; // last name only, not a pathname!
             bool match = img != null && wcsicmp(img, wn) == 0;
             if (match) {
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (base != name) {
                     char path[ut_files_max_path];
                     match = ut_processes.nameof(pid, path, countof(path)) == 0 &&
-                            ut_str.ends_with_nc(path, -1, name, -1);
+                            ut_str.i_ends(path, name);
 //                  traceln("\"%s\" -> \"%s\" match: %d", name, path, match);
                 }
             }
@@ -521,7 +521,7 @@ static void ut_processes_test(void) {
                 #pragma warning(suppress: 6011) // dereferencing null
                 r = ut_processes.nameof(pids[i], path, countof(path));
                 if (r != ERROR_NOT_FOUND) {
-                    assert(r == 0 && !strempty(path));
+                    assert(r == 0 && path[0] != 0);
                     verbose("%6d %s %s", pids[i], path, r == 0 ? "" : ut_str.error(r));
                 }
             }

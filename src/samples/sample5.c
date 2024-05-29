@@ -135,7 +135,7 @@ static ui_view_t bottom = ui_view(container);
 
 static void set_text(int32_t ix) {
     static char last[128];
-    strprintf(label.text, "%d:%d %d:%d %dx%d\n"
+    ut_str_printf(label.text, "%d:%d %d:%d %dx%d\n"
         "scroll %03d:%03d",
         edit[ix]->selection[0].pn, edit[ix]->selection[0].gp,
         edit[ix]->selection[1].pn, edit[ix]->selection[1].gp,
@@ -149,10 +149,10 @@ static void set_text(int32_t ix) {
             edit[ix]->scroll.pn, edit[ix]->scroll.rn);
     }
     // can be called before text.ui initialized
-    if (!strequ(last, label.text)) {
+    if (!ut_str.equ(last, label.text)) {
         ui_view.invalidate(&label);
     }
-    strprintf(last, "%s", label.text);
+    ut_str_printf(last, "%s", label.text);
 }
 
 static void painted(void) {
@@ -305,7 +305,7 @@ static void opened(void) {
     ui_app.content->key_pressed = key_pressed;
     scaled_fonts();
     label.fm = &ui_app.fonts.mono;
-    strprintf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
+    ut_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);
         edit[i]->view.padding = (ui_gaps_t){0.5, 0.5, 0.5, 0.5};

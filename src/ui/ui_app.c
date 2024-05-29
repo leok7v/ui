@@ -455,6 +455,7 @@ static void ui_app_window_dpi(void) {
     if (dpi == 0) { dpi = (int32_t)GetSystemDpiForProcess(GetCurrentProcess()); }
     if (dpi == 0) { dpi = (int32_t)GetDpiForSystem(); }
     ui_app.dpi.window = dpi;
+    traceln("ui_app.dpi.window: %d", ui_app.dpi.window);
 }
 
 static void ui_app_window_opening(void) {
@@ -466,7 +467,7 @@ static void ui_app_window_opening(void) {
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
     not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
-    strprintf(ui_app.root->text, "ui_app.root"); // debugging
+    ut_str_printf(ui_app.root->text, "ui_app.root"); // debugging
     ui_app_wm_timer(ui_app_timer_100ms_id);
     ui_app_wm_timer(ui_app_timer_1s_id);
     fatal_if(ReleaseDC(ui_app_window(), ui_app_canvas()) == 0);
@@ -818,6 +819,11 @@ static void ui_app_paint_stats(void) {
 }
 
 static void ui_app_paint_on_canvas(HDC hdc) {
+    // GM_ADVANCED: rectangles are right bottom inclusive
+    // TrueType fonts and arcs are affected by world transforms.
+    if (GetGraphicsMode(hdc) != GM_ADVANCED) {
+        SetGraphicsMode(hdc, GM_ADVANCED); // do it once
+    }
     ui_canvas_t canvas = ui_app.canvas;
     ui_app.canvas = (ui_canvas_t)hdc;
     ui_gdi.push(0, 0);
@@ -889,7 +895,7 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         ui_app.request_layout();
     } else if (lp != 0 &&
        (strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
-        wcscmp((const wchar_t*)lp, L"ImmersiveColorSet") == 0)) {
+        wcscmp((const uint16_t*)lp, L"ImmersiveColorSet") == 0)) {
         // expected:
         // SPI_SETICONTITLELOGFONT 0x22 ?
         // SPI_SETNONCLIENTMETRICS 0x2A ?
@@ -898,10 +904,10 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         ui_theme.refresh(ui_app.window);
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
-        wchar_t ln[LOCALE_NAME_MAX_LENGTH + 1];
+        uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
         int32_t n = GetUserDefaultLocaleName(ln, countof(ln));
         fatal_if_false(n > 0);
-        wchar_t rln[LOCALE_NAME_MAX_LENGTH + 1];
+        uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
         n = ResolveLocaleName(ln, rln, countof(rln));
         fatal_if_false(n > 0);
         LCID lcid = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
@@ -1298,10 +1304,10 @@ static void ui_app_create_window(const ui_rect_t r) {
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
     not_null(ui_app.window);
     assert(window == ui_app_window()); (void)window;
-    strprintf(ui_caption.title.text, "%s", ui_app.title);
+    ut_str_printf(ui_caption.title.text, "%s", ui_app.title);
     not_null(GetSystemMenu(ui_app_window(), false));
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
-//  traceln("ui_app.dpi.window=%d", ui_app.dpi.window);
+    traceln("ui_app.dpi.window: %d", ui_app.dpi.window);
     RECT wrc = ui_app_ui2rect(&r);
     fatal_if_false(GetWindowRect(ui_app_window(), &wrc));
     ui_app.wrc = ui_app_rect2ui(&wrc);
@@ -1667,7 +1673,7 @@ static void ui_app_bring_to_front(void) {
 }
 
 static void ui_app_set_title(const char* title) {
-    strprintf(ui_caption.title.text, "%s", title);
+    ut_str_printf(ui_caption.title.text, "%s", title);
     fatal_if_false(SetWindowTextA(ui_app_window(), title));
     if (!ui_caption.view.hidden) { ui_app.request_layout(); }
 }
@@ -1701,7 +1707,7 @@ static void ui_app_set_console_title(HWND cw) {
     GetWindowTextA((HWND)ui_app.window, text, countof(text));
     text[countof(text) - 1] = 0;
     char title[256];
-    strprintf(title, "%s - Console", text);
+    ut_str_printf(title, "%s - Console", text);
     fatal_if_false(SetWindowTextA(cw, title));
 }
 
@@ -1810,42 +1816,44 @@ static const char* ui_app_open_filename(const char* folder,
         const char* pairs[], int32_t n) {
     assert(pairs == null && n == 0 ||
            n >= 2 && n % 2 == 0);
-    wchar_t memory[32 * 1024];
-    wchar_t* filter = memory;
+    uint16_t memory[32 * 1024];
+    uint16_t* filter = memory;
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
         int32_t left = countof(memory) - 2;
-        wchar_t* s = memory;
+        uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
-            wchar_t* s0 = utf8to16(pairs[i + 0]);
-            wchar_t* s1 = utf8to16(pairs[i + 1]);
-            int32_t n0 = (int32_t)wcslen(s0);
-            int32_t n1 = (int32_t)wcslen(s1);
-            assert(n0 > 0 && n1 > 0);
-            fatal_if(n0 + n1 + 3 >= left, "too many filters");
-            memcpy(s, s0, (size_t)(n0 + 1) * 2);
+            uint16_t* s0 = s;
+            ut_str.utf8to16(s0, left, pairs[i + 0]);
+            int32_t n0 = (int32_t)ut_str.utf16len(s0);
+            assert(n0 > 0);
             s += n0 + 1;
             left -= n0 + 1;
-            memcpy(s, s1, (size_t)(n1 + 1) * 2);
+            uint16_t* s1 = s;
+            ut_str.utf8to16(s1, left, pairs[i + 0]);
+            int32_t n1 = (int32_t)ut_str.utf16len(s1);
+            assert(n1 > 0);
             s[n1] = 0;
             s += n1 + 1;
             left -= n1 + 1;
         }
         *s++ = 0;
     }
-    wchar_t path[MAX_PATH];
+    uint16_t dir[MAX_PATH];
+    ut_str.utf8to16(dir, countof(dir), folder);
+    uint16_t path[MAX_PATH];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
     ofn.hwndOwner = (HWND)ui_app.window;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
     ofn.lpstrFilter = filter;
-    ofn.lpstrInitialDir = utf8to16(folder);
+    ofn.lpstrInitialDir = dir;
     ofn.lpstrFile = path;
     ofn.nMaxFile = sizeof(path);
     static thread_local char text[MAX_PATH];
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        strprintf(text, "%s", utf16to8(path));
+        ut_str.utf16to8(text, countof(text), path);
     } else {
         text[0] = 0;
     }
@@ -1899,7 +1907,7 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
 
 static const char* ui_app_known_folder(int32_t kf) {
     // known folder ids order must match enum
-    static const GUID* kfrid[] = {
+    static const GUID* kf_ids[] = {
         &FOLDERID_Profile,
         &FOLDERID_Desktop,
         &FOLDERID_Documents,
@@ -1911,12 +1919,12 @@ static const char* ui_app_known_folder(int32_t kf) {
         &FOLDERID_ProgramFiles,
         &FOLDERID_ProgramData
     };
-    static char known_foders[countof(kfrid)][MAX_PATH];
-    fatal_if(!(0 <= kf && kf < countof(kfrid)), "invalid kf=%d", kf);
+    static char known_foders[countof(kf_ids)][MAX_PATH];
+    fatal_if(!(0 <= kf && kf < countof(kf_ids)), "invalid kf=%d", kf);
     if (known_foders[kf][0] == 0) {
-        wchar_t* path = null;
-        fatal_if_not_zero(SHGetKnownFolderPath(kfrid[kf], 0, null, &path));
-        strprintf(known_foders[kf], "%s", utf16to8(path));
+        uint16_t* path = null;
+        fatal_if_not_zero(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
+        ut_str.utf16to8(known_foders[kf], countof(known_foders[kf]), path);
         CoTaskMemFree(path);
 	}
     return known_foders[kf];
@@ -2014,8 +2022,8 @@ static void ui_app_init(void) {
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->hidden = !ui_app.no_decor;
     // for ui_view_debug_paint:
-    strprintf(ui_app.root->text, "ui_app.root");
-    strprintf(ui_app.content->text, "ui_app.content");
+    ut_str_printf(ui_app.root->text, "ui_app.root");
+    ut_str_printf(ui_app.content->text, "ui_app.content");
     ui_app.init();
 }
 

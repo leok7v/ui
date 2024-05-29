@@ -95,7 +95,7 @@ static void paint(ui_view_t* v) {
     }
     if (ts[0].spread > 0 && ts[1].spread > 0) {
         char paint_stats[256];
-        strprintf(paint_stats, "avg paint time %.1f ms %.1f fps",
+        ut_str_printf(paint_stats, "avg paint time %.1f ms %.1f fps",
             ui_app.paint_avg * 1000, ui_app.paint_fps);
         ui_gdi.fill_with(0, 0, v->w, v->h, ui_colors.dkgray1);
         ui_gdi.y = v->fm->em.h;

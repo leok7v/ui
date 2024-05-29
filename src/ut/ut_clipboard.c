@@ -5,13 +5,13 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
     errno_t r = 0;
     int32_t chars = ut_str.utf16_chars(utf8);
     int32_t bytes = (chars + 1) * 2;
-    wchar_t* utf16 = (wchar_t*)malloc((size_t)bytes);
+    uint16_t* utf16 = (uint16_t*)malloc((size_t)bytes);
     if (utf16 == null) {
         r = ERROR_OUTOFMEMORY;
     } else {
-        ut_str.utf8_utf16(utf16, utf8);
+        ut_str.utf8to16(utf16, bytes, utf8);
         assert(utf16[chars - 1] == 0);
-        const int32_t n = (int32_t)wcslen(utf16) + 1;
+        const int32_t n = (int32_t)ut_str.utf16len(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : (errno_t)GetLastError();
         if (r != 0) { traceln("OpenClipboard() failed %s", ut_str.error(r)); }
         if (r == 0) {
@@ -57,7 +57,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
         if (global == null) {
             r = (errno_t)GetLastError();
         } else {
-            wchar_t* utf16 = (wchar_t*)GlobalLock(global);
+            uint16_t* utf16 = (uint16_t*)GlobalLock(global);
             if (utf16 != null) {
                 int32_t utf8_bytes = ut_str.utf8_bytes(utf16);
                 if (utf8 != null) {
@@ -65,7 +65,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
                     if (decoded == null) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
-                        ut_str.utf16_utf8(decoded, utf16);
+                        ut_str.utf16to8(decoded, utf8_bytes, utf16);
                         int32_t n = ut_min(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, (size_t)n);
                         free(decoded);
@@ -90,7 +90,7 @@ static void ut_clipboard_test(void) {
     char text[256];
     int32_t bytes = countof(text);
     fatal_if_not_zero(ut_clipboard.get_text(text, &bytes));
-    swear(strequ(text, "Hello Clipboard"));
+    swear(ut_str.equ(text, "Hello Clipboard"));
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 

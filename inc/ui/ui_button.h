@@ -58,7 +58,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // or
 //
 // ui_button_t button = ui_view)button(button);
-// strprintf(button.text, "&Button");
+// ut_str_printf(button.text, "&Button");
 // button.min_w_em = 7.0;
 // button.callback = button_flipped;
 

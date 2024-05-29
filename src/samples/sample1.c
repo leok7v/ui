@@ -28,7 +28,7 @@ static void every_sec(ui_view_t* unused(view)) {
     static int32_t locale = 0;
     ut_nls.set_locale(locales[locale]);
     ui_view.localize(&label);
-    strprintf(title, "Polyglot [%s]", locales[locale]);
+    ut_str_printf(title, "Polyglot [%s]", locales[locale]);
     ui_app.set_title(title);
     ui_app.request_layout();
     locale = (locale + 1) % countof(locales);

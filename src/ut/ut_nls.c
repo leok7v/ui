@@ -25,16 +25,16 @@ static int32_t ut_nls_strings_count;
 static const char* ut_nls_ls[ut_nls_str_count_max]; // localized strings
 static const char* ut_nls_ns[ut_nls_str_count_max]; // neutral language strings
 
-static wchar_t* ut_nls_load_string(int32_t strid, LANGID langid) {
+static uint16_t* ut_nls_load_string(int32_t strid, LANGID langid) {
     assert(0 <= strid && strid < countof(ut_nls_ns));
-    wchar_t* r = null;
+    uint16_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
     HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
         MAKEINTRESOURCE(block), langid);
 //  traceln("FindResourceExA(block=%d langid=%04X)=%p", block, langid, res);
     uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
-    wchar_t* ws = memory == null ? null : (wchar_t*)LockResource(memory);
+    uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
 //  traceln("LockResource(block=%d langid=%04X)=%p", block, langid, ws);
     if (ws != null) {
         for (int32_t i = 0; i < 16 && r == null; i++) {
@@ -55,8 +55,10 @@ static wchar_t* ut_nls_load_string(int32_t strid, LANGID langid) {
     return r;
 }
 
-static const char* ut_nls_save_string(wchar_t* memory) {
-    const char* utf8 = utf16to8(memory);
+static const char* ut_nls_save_string(uint16_t* memory) {
+    const int32_t bytes = ut_str.utf8_bytes(memory);
+    char* utf8 = (char*)ut_stackalloc((size_t)bytes);
+    ut_str.utf16to8(utf8, bytes, memory);
     uintptr_t n = strlen(utf8) + 1;
     assert(n > 1);
     uintptr_t left = (uintptr_t)countof(ut_nls_strings_memory) -
@@ -77,7 +79,7 @@ static const char* ut_nls_localize_string(int32_t strid) {
         } else {
             LCID lcid = GetThreadLocale();
             LANGID langid = LANGIDFROMLCID(lcid);
-            wchar_t* ws = ut_nls_load_string(strid, langid);
+            uint16_t* ws = ut_nls_load_string(strid, langid);
             if (ws == null) { // try default dialect:
                 LANGID primary = PRIMARYLANGID(langid);
                 langid = MAKELANGID(primary, SUBLANG_NEUTRAL);
@@ -114,7 +116,7 @@ static const char* ut_nls_str(const char* s) {
 }
 
 static const char* ut_nls_locale(void) {
-    wchar_t wln[LOCALE_NAME_MAX_LENGTH + 1];
+    uint16_t wln[LOCALE_NAME_MAX_LENGTH + 1];
     LCID lcid = GetThreadLocale();
     int32_t n = LCIDToLocaleName(lcid, wln, countof(wln),
         LOCALE_ALLOW_NEUTRAL_NAMES);
@@ -123,17 +125,16 @@ static const char* ut_nls_locale(void) {
     if (n == 0) {
         // TODO: log error
     } else {
-        if (n == 0) {
-        } else {
-            strprintf(ln, "%s", utf16to8(wln));
-        }
+        ut_str.utf16to8(ln, countof(ln), wln);
     }
     return ln;
 }
 
 static void ut_nls_set_locale(const char* locale) {
-    wchar_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-    int32_t n = (int32_t)ResolveLocaleName(utf8to16(locale), rln, (DWORD)countof(rln));
+    uint16_t wln[LOCALE_NAME_MAX_LENGTH + 1];
+    ut_str.utf8to16(wln, countof(wln), locale);
+    uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
+    int32_t n = (int32_t)ResolveLocaleName(wln, rln, (DWORD)countof(rln));
     if (n == 0) {
         // TODO: log error
     } else {
@@ -155,7 +156,7 @@ static void ut_nls_init(void) {
         HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
             MAKEINTRESOURCE(block), langid);
         uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
-        wchar_t* ws = memory == null ? null : (wchar_t*)LockResource(memory);
+        uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
         if (ws == null) { break; }
         for (int32_t i = 0; i < 16; i++) {
             int32_t ix = strid + i;

@@ -18,7 +18,7 @@ static volatile fp64_t render_time;
 static void toggle_full_screen(ui_button_t* b) {
     b->pressed = !b->pressed;
     ui_app.full_screen(b->pressed);
-    strprintf(b->text, "%s", !b->pressed ?
+    ut_str_printf(b->text, "%s", !b->pressed ?
         ui_glyph_square_four_corners : ui_glyph_two_joined_squares);
 }
 
@@ -120,7 +120,7 @@ static void opened(void) {
     ui_gdi.image_init(&image[1], ui_app.crc.w, ui_app.crc.h, 4, pixels[1]);
     thread = ut_thread.start(renderer, null);
     request_rendering();
-    strprintf(button_fs.hint, "&Full Screen");
+    ut_str_printf(button_fs.hint, "&Full Screen");
     button_fs.shortcut = 'F';
 }
 

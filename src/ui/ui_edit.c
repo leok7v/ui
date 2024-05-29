@@ -898,8 +898,10 @@ static void ui_edit_insert_paragraph(ui_edit_t* e, int32_t pn) {
 static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
         const char* text, int32_t bytes) {
     assert(bytes > 0);
-    assert(strnchr(text, bytes, '\n') == null,
+    for (int32_t i = 0; i < bytes; i++) {
+        assert(text[i] != '\n',
            "text \"%s\" must not contain \\n character.", text);
+    }
     if (pg.pn == e->paragraphs) {
         ui_edit_insert_paragraph(e, pg.pn);
     }

@@ -21,9 +21,14 @@ typedef struct ui_region_s* ui_region_t;
 typedef struct ui_fm_s { // font metrics
     ui_font_t font;
     ui_wh_t em;        // "em" almost square w/o ascend/descent
+    // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
     int32_t height;    // font height in pixels
     int32_t baseline;  // font ascent; descent = height - baseline
+    int32_t ascent;    // font ascent
     int32_t descent;   // font descent
+    int32_t line_gap;  // internal_leading + external_leading
+    int32_t internal_leading; // accents and diacritical marks goes there
+    int32_t external_leading;
     bool mono;
 } ui_fm_t;
 

@@ -104,7 +104,7 @@ void ui_view_init_toggle(ui_view_t* v) {
 
 void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
        void (*callback)(ui_toggle_t* b)) {
-    strprintf(t->text, "%s", label);
+    ut_str_printf(t->text, "%s", label);
     t->min_w_em = ems;
     t->callback = callback;
     t->type = ui_view_toggle;

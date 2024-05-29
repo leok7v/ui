@@ -210,11 +210,11 @@ void ui_view_init_slider(ui_view_t* v) {
     s->dec = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
-    strprintf(s->dec.hint, "%s", accel);
+    ut_str_printf(s->dec.hint, "%s", accel);
     s->inc = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
-    strprintf(s->inc.hint, "%s", accel);
+    ut_str_printf(s->inc.hint, "%s", accel);
     ui_view.add(&s->view, &s->dec, &s->inc, null);
     ui_view.localize(&s->view);
 }
@@ -225,7 +225,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
     s->view.type = ui_view_slider;
-    strprintf(s->view.text, "%s", label);
+    ut_str_printf(s->view.text, "%s", label);
     s->view.callback = callback;
     s->view.min_w_em = min_w_em;
     s->value_min = value_min;

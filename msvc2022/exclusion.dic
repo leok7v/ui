@@ -147,7 +147,7 @@ strcitly
 strconcat
 strid
 strnchr
-strprintf
+ut_str_printf
 strtolc
 strtolowercase
 subd

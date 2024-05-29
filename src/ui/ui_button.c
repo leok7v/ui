@@ -196,7 +196,7 @@ void ui_view_init_button(ui_view_t* v) {
 void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
         void (*callback)(ui_button_t* b)) {
     b->type = ui_view_button;
-    strprintf(b->text, "%s", label);
+    ut_str_printf(b->text, "%s", label);
     b->callback = callback;
     b->min_w_em = ems;
     ui_view_init_button(b);

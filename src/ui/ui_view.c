@@ -284,7 +284,7 @@ static void ui_view_position_by_outbox(ui_view_t* v, const ui_rect_t* r,
 
 static void ui_view_set_text(ui_view_t* v, const char* text) {
     int32_t n = (int32_t)strlen(text);
-    strprintf(v->text, "%s", text);
+    ut_str_printf(v->text, "%s", text);
     v->strid = 0; // next call to nls() will localize this text
     for (int32_t i = 0; i < n; i++) {
         if (text[i] == '&' && i < n - 1 && text[i + 1] != '&') {
@@ -302,7 +302,7 @@ static void ui_view_localize(ui_view_t* v) {
 
 static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
-    strprintf(hint->text, "%s", ut_nls.str(v->hint));
+    ut_str_printf(hint->text, "%s", ut_nls.str(v->hint));
     ui_view.measure(hint);
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->fm->em.w / 4;
     int32_t y = v->y + v->h + v->fm->em.h / 2 + hint->fm->em.h / 4;

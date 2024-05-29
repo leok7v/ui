@@ -3,110 +3,56 @@
 
 begin_c
 
-// Since a lot of str*() operations are preprocessor defines
-// care should be exercised that arguments of macro invocations
-// do not have side effects or not computationally expensive.
-// None of the definitions are performance champions - if the
-// code needs extreme cpu cycle savings working with utf8 strings.
-//
-// str* macros and functions assume zero terminated UTF-8 strings
-// in C tradition. Use ut_str.* functions for non-zero terminated
-// strings.
+#define ut_str_printf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
 
-#define strempty(s) ((const void*)(s) == null || (s)[0] == 0)
-
-#define strconcat(a, b) _Pragma("warning(suppress: 6386)") \
-    (strcat(strcpy((char*)ut_stackalloc(strlen(a) + strlen(b) + 1), (a)), (b)))
-
-#define strequ(s1, s2)                                              \
-    ut_gcc_pragma(GCC diagnostic push)                              \
-    ut_gcc_pragma(GCC diagnostic ignored "-Wstring-compare")        \
-    (((const void*)(s1) == (const void*)(s2)) ||                    \
-    (((const void*)(s1) != null && (const void*)(s2) != null) &&    \
-    strcmp((s1), (s2)) == 0))                                       \
-    ut_gcc_pragma(GCC diagnostic pop)
-
-#define striequ(s1, s2)                                               \
-    ut_gcc_pragma(GCC diagnostic push)                                \
-    ut_gcc_pragma(GCC diagnostic ignored "-Wstring-compare")          \
-    (((const void*)(s1) == (const void*)(s2)) ||                      \
-    (((const void*)(s1) != null && (const void*)(s2) != null) &&      \
-    stricmp((s1), (s2)) == 0))                                        \
-    ut_gcc_pragma(GCC diagnostic pop)
-
-#define strstartswith(a, b) \
-    (strlen(a) >= strlen(b) && memcmp((a), (b), strlen(b)) == 0)
-
-#define strendswith(s1, s2) \
-    (strlen(s1) >= strlen(s2) && strcmp((s1) + strlen(s1) - strlen(s2), (s2)) == 0)
-
-#define strlength(s) ((int32_t)strlen(s)) // avoid code analysis noise
-// a lot of posix like API consumes "int" instead of size_t which
-// is acceptable for majority of char* zero terminated strings usage
-// since most of them work with filepath that are relatively short
-// and on Windows are limited to 260 chars or 32KB - 1 chars.
-
-#define strcopy(s1, s2) /* use with extreme caution */                      \
-    do {                                                                    \
-        static_assertion(countof(s1) > sizeof(void*));                      \
-        strncpy((s1), (s2), countof((s1)) - 1); s1[countof((s1)) - 1] = 0;  \
-} while (0)
-
-char* strnchr(const char* s, int32_t n, char ch);
-
-#define strtolowercase(s) \
-    ut_str.to_lowercase((char*)ut_stackalloc(strlen(s) + 1), strlen(s) + 1, s)
-
-#define utf16to8(utf16) ut_str.utf16_utf8((char*) \
-    ut_stackalloc((size_t)ut_str.utf8_bytes(utf16) + 1), utf16)
-
-#define utf8to16(s) ut_str.utf8_utf16((uint16_t*) \
-    ut_stackalloc((size_t)(ut_str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
-
-#define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
-
-#define strncasecmp _strnicmp
-#define strcasecmp _stricmp
-
-// ut_str.functions are capable of working with both 0x00 terminated
-// strings and UTF-8 strings of fixed length denoted by n1 and n2.
-// case insensitive functions with postfix _nc
-// operate only on ASCII characters. No ANSI no UTF-8
+// Most of ut_str.functions are duplicates of regular str*() runtime
+// with some minor adjustments and some extensions.
+// The length of the string is limited to 32 bits signed integer.
+// (I cannot imagine strstr() even on 2GB string size_t is uint64_t)
+// The strings are expected to be UTF-8 encoded.
+// Copy functions exit with fatal error if the destination buffer is too small.
+// It is responsibility of the caller to make sure it won't happen.
+// None of the functions are performance champions and are not intended to be.
+// It is perfectly normal to use strlen() strcpy() strcat() strstr() etc
+// instead of ut_str.*() where it is suitable.
 
 typedef struct {
     char* (*drop_const)(const char* s); // because of strstr() and alike
-    bool (*is_empty)(const char* s); // null or empty string
-    bool (*equal)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool (*equal_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    int32_t (*length)(const char* s);
-    // copy(s1, countof(s1), s2, /*bytes*/-1) means zero terminated
-    bool  (*copy)(char* d, int32_t capacity,
-                 const char* s, int32_t bytes); // false on overflow
-    char* (*first_char)(const char* s, int32_t bytes, char ch);
-    char* (*last_char)(const char* s, int32_t n, char ch); // strrchr
-    char* (*first)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool  (*to_lower)(char* d, int32_t capacity, const char* s, int32_t n);
-    bool  (*to_upper)(char* d, int32_t capacity, const char* s, int32_t n);
-    int32_t (*compare)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    int32_t (*compare_nc)(const char* s1, int32_t n1,
-                        const char* s2, int32_t n2);
-    bool (*starts_with)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool (*ends_with)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool (*ends_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool (*starts_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    // removes quotes from a head and tail of the string `s` if present
-    const char* (*unquote)(char* *s, int32_t n); // modifies `s` in place
+    int32_t (*len)(const char* s);
+    int32_t (*utf16len)(const uint16_t* ws);
+    int32_t (*cmp)(const char* s1, const char* s2);
+    int32_t (*i_cmp)(const char* s1, const char* s2); // ignore case
+    bool  (*equ)(const char* s1, const char* s2);
+    bool  (*i_equ)(const char* s1, const char* s2); // ignore case
+    char* (*chr)(const char* s, char ch);
+    char* (*r_chr)(const char* s, char ch); // strrchr
+    char* (*str)(const char* s1, const char* s2);
+    char* (*r_str)(const char* s1, const char* s2);
+    char* (*i_str)(const char* s1, const char* s2);
+    char* (*i_r_str)(const char* s1, const char* s2);
+    // string truncation is fatal use strlen() to ensure memory at call site
+    void  (*cpy)(char* d, int32_t capacity, const char* s);
+    void  (*cat)(char* d, int32_t capacity, const char* s);
+    void  (*lower)(char* d, int32_t capacity, const char* s); // ASCII only
+    void  (*upper)(char* d, int32_t capacity, const char* s); // ASCII only
+    bool  (*starts)(const char* s1, const char* s2); // s1 starts with s2
+    bool  (*ends)(const char* s1, const char* s2);   // s1 ends with s2
+    bool  (*i_starts)(const char* s1, const char* s2); // ignore case
+    bool  (*i_ends)(const char* s1, const char* s2);   // ignore case
     // utf8/utf16 conversion
-    int32_t   (*utf8_bytes)(const uint16_t* utf16);
-    int32_t   (*utf16_chars)(const char* s);
-    char*     (*utf16_utf8)(char* destination, const uint16_t* utf16);
-    uint16_t* (*utf8_utf16)(uint16_t* destination, const char* utf8);
+    int32_t (*utf8_bytes)(const uint16_t* utf16); // UTF-8 byte required
+    int32_t (*utf16_chars)(const char* s); // UTF-16 chars required
+    // utf8_bytes() and utf16_chars() return -1 on invalid UTF-8/UTF-16
+    // utf8_bytes(L"") returns 1 for zero termination
+    // utf16_chars("") returns 1 for zero termination
+    void (*utf16to8)(char* d, int32_t capacity, const uint16_t* utf16);
+    void (*utf8to16)(uint16_t* d, int32_t capacity, const char* utf8);
     // string formatting printf style:
     void (*format_va)(char* utf8, int32_t count, const char* format, va_list vl);
     void (*format)(char* utf8, int32_t count, const char* format, ...);
     // format "dg" digit grouped; see below for known grouping separators:
     const char* (*grouping_separator)(void); // locale
-    // Returned const char* pointer is shortliving thread local and
+    // Returned const char* pointer is short-living thread local and
     // intended to be used in the arguments list of .format() or .printf()
     // like functions, not stored or passed for prolonged call chains.
     // See implementation for details.
@@ -116,7 +62,7 @@ typedef struct {
     const char* (*int64_lc)(int64_t v);   // with locale separator
     const char* (*uint64_lc)(uint64_t v); // with locale separator
     const char* (*fp)(const char* format, fp64_t v); // respects locale
-    // errors to strings
+    // errors to strings (return thread local)
     const char* (*error)(int32_t error);     // en-US
     const char* (*error_nls)(int32_t error); // national locale string
     void (*test)(void);

@@ -122,6 +122,14 @@
 // https://www.compart.com/en/unicode/U+00A0
 #define ui_glyph_nbsp                                  "\xC2\xA0"
 
+// Em Quad
+// https://www.compart.com/en/unicode/U+2000
+#define ui_glyph_em_quad                               "\xE2\x80x81"
+
+// Three-Em Dash
+// https://www.compart.com/en/unicode/U+2E3B
+#define ui_glyph_three_em_dash                         "\xE2\xB8\xBB"
+
 // Infinity
 // https://www.compart.com/en/unicode/U+221E
 #define ui_glyph_infinity                              "\xE2\x88\x9E"

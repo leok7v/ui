@@ -89,9 +89,9 @@ static ui_mbx_t mbx = ui_mbx( // message box
 
 static const char* filter[] = {
     "All Files", "*",
-    "Image Files", ".png;.jpg",
-    "Text Files", ".txt;.doc;.ini",
-    "Executables", ".exe"
+    "Image Files", "*.png;*.jpg",
+    "Text Files", "*.txt;*.doc;*.ini",
+    "Executables", "*.exe"
 };
 
 static void open_file(ui_button_t* unused(b)) {
@@ -99,7 +99,7 @@ static void open_file(ui_button_t* unused(b)) {
         ui_app.known_folder(ui.folder.home),
         filter, countof(filter)); //  all files filer: null, 0
     if (fn[0] != 0) {
-        strprintf(toast_filename.text, "%s", fn);
+        ut_str_printf(toast_filename.text, "%s", fn);
         traceln("%s", fn);
         ui_app.show_toast(&toast_filename, 2.0);
     }
@@ -383,7 +383,7 @@ static void keyboard(ui_view_t* view, int64_t vk) {
 
 static void init_panel(ui_view_t* panel, const char* text, ui_color_t color,
         void (*paint)(ui_view_t*)) {
-    strprintf(panel->text, "%s", text);
+    ut_str_printf(panel->text, "%s", text);
     panel->color = color;
     panel->paint = paint;
 }
@@ -407,9 +407,9 @@ static void opened(void) {
     label_single_line.highlightable = true;
     label_single_line.flat = true;
     label_multiline.highlightable = true;
-    strprintf(label_multiline.hint, "%s",
+    ut_str_printf(label_multiline.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
-    strprintf(label_multiline.text, "%s",
+    ut_str_printf(label_multiline.text, "%s",
         ut_nls.string(str_help, label_multiline.text));
     toast_filename.fm = &ui_app.fonts.H1;
     about.fm = &ui_app.fonts.H3;
@@ -422,8 +422,8 @@ static void opened(void) {
     zoomer = (ui_slider_t)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
         zoomer_callback);
 #endif
-    strcopy(button_mbx.hint, "Show Yes/No message box");
-    strcopy(button_about.hint, "Show About message box");
+    strcpy(button_mbx.hint, "Show Yes/No message box");
+    strcpy(button_about.hint, "Show About message box");
     ui_view.add(&panel_right,
         &button_locale,
         &button_full_screen,

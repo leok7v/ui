@@ -12,7 +12,7 @@ static const DWORD ut_config_access =
 
 static errno_t ut_config_get_reg_key(const char* name, HKEY *key) {
     char path[256] = {0};
-    strprintf(path, "%s\\%s", ut_config_apps, name);
+    ut_str_printf(path, "%s\\%s", ut_config_apps, name);
     errno_t r = RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, ut_config_access, key);
     if (r != 0) {
         const DWORD option = REG_OPTION_NON_VOLATILE;

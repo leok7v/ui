@@ -75,13 +75,13 @@ void ui_view_init_mbx(ui_view_t* view) {
     int32_t n = 0;
     while (mx->options[n] != null && n < countof(mx->button) - 1) {
         mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
-        strprintf(mx->button[n].text, "%s", mx->options[n]);
+        ut_str_printf(mx->button[n].text, "%s", mx->options[n]);
         n++;
     }
     swear(n <= countof(mx->button), "inhumane: %d buttons is too many", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
     mx->label = (ui_label_t)ui_label(0, "");
-    strprintf(mx->label.text, "%s", mx->view.text);
+    ut_str_printf(mx->label.text, "%s", mx->view.text);
     ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);

@@ -212,7 +212,7 @@ static const char* ut_args_basename(void) {
             if (*s == '\\' || *s == '/') { b = s + 1; }
             s++;
         }
-        int32_t n = ut_str.length(b);
+        int32_t n = ut_str.len(b);
         swear(n < countof(basename));
         strncpy(basename, b, countof(basename) - 1);
         char* d = basename + n - 1;
@@ -233,10 +233,11 @@ static void ut_args_WinMain(void) {
     swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
     swear(ut_args_memory == null);
     const uint16_t* wcl = GetCommandLineW();
-    int32_t n = (int32_t)wcslen(wcl);
+    int32_t n = (int32_t)ut_str.utf16len(wcl);
     char* cl = null;
     fatal_if_not_zero(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
-    ut_args_parse(ut_str.utf16_utf8(cl, wcl));
+    ut_str.utf16to8(cl, n * 2 + 1, wcl);
+    ut_args_parse(cl);
     ut_heap.deallocate(null, cl);
     ut_args.env = (const char**)(void*)_environ;
 }

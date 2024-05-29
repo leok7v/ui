@@ -506,7 +506,7 @@ void ui_view_init_span(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_span_measure; }
     if (v->layout  == null) { v->layout  = ui_span_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { strprintf(v->text, "ui_span"); }
+    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_span"); }
 }
 
 void ui_view_init_list(ui_view_t* v) {
@@ -515,7 +515,7 @@ void ui_view_init_list(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_list_measure; }
     if (v->layout  == null) { v->layout  = ui_list_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { strprintf(v->text, "ui_list"); }
+    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_list"); }
 }
 
 void ui_view_init_spacer(ui_view_t* v) {
@@ -524,7 +524,7 @@ void ui_view_init_spacer(ui_view_t* v) {
     v->h = 0;
     v->max_w = ui.infinity;
     v->max_h = ui.infinity;
-    if (v->text[0] == 0) { strprintf(v->text, "ui_spacer"); }
+    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_spacer"); }
 }
 
 void ui_view_init_container(ui_view_t* v) {
@@ -532,7 +532,7 @@ void ui_view_init_container(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_container_measure; }
     if (v->layout  == null) { v->layout  = ui_container_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { strprintf(v->text, "ui_container"); }
+    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_container"); }
 }
 
 #pragma pop_macro("ui_layout_exit")

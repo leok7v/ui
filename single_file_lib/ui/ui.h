@@ -150,9 +150,14 @@ typedef struct ui_region_s* ui_region_t;
 typedef struct ui_fm_s { // font metrics
     ui_font_t font;
     ui_wh_t em;        // "em" almost square w/o ascend/descent
+    // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
     int32_t height;    // font height in pixels
     int32_t baseline;  // font ascent; descent = height - baseline
+    int32_t ascent;    // font ascent
     int32_t descent;   // font descent
+    int32_t line_gap;  // internal_leading + external_leading
+    int32_t internal_leading; // accents and diacritical marks goes there
+    int32_t external_leading;
     bool mono;
 } ui_fm_t;
 
@@ -891,6 +896,14 @@ extern ui_gdi_if ui_gdi;
 // https://www.compart.com/en/unicode/U+00A0
 #define ui_glyph_nbsp                                  "\xC2\xA0"
 
+// Em Quad
+// https://www.compart.com/en/unicode/U+2000
+#define ui_glyph_em_quad                               "\xE2\x80x81"
+
+// Three-Em Dash
+// https://www.compart.com/en/unicode/U+2E3B
+#define ui_glyph_three_em_dash                         "\xE2\xB8\xBB"
+
 // Infinity
 // https://www.compart.com/en/unicode/U+221E
 #define ui_glyph_infinity                              "\xE2\x88\x9E"
@@ -993,7 +1006,7 @@ typedef struct ui_view_s {
     void (*measure)(ui_view_t* view);  // determine w, h (bottom up)
     void (*measured)(ui_view_t* view); // called after measure()
     void (*layout)(ui_view_t* view);   // set x, y possibly adjust w, h (top down)
-    void (*composed)(ui_view_t* view); // called after layout() ("laid_out")
+    void (*composed)(ui_view_t* view); // after layout() is done (laid out)
     void (*paint)(ui_view_t* view);
     void (*painted)(ui_view_t* view);  // called after paint()
     // composed() is effectively called right before paint() and
@@ -1405,7 +1418,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // or
 //
 // ui_button_t button = ui_view)button(button);
-// strprintf(button.text, "&Button");
+// ut_str_printf(button.text, "&Button");
 // button.min_w_em = 7.0;
 // button.callback = button_flipped;
 
@@ -2307,6 +2320,7 @@ static void ui_app_window_dpi(void) {
     if (dpi == 0) { dpi = (int32_t)GetSystemDpiForProcess(GetCurrentProcess()); }
     if (dpi == 0) { dpi = (int32_t)GetDpiForSystem(); }
     ui_app.dpi.window = dpi;
+    traceln("ui_app.dpi.window: %d", ui_app.dpi.window);
 }
 
 static void ui_app_window_opening(void) {
@@ -2318,7 +2332,7 @@ static void ui_app_window_opening(void) {
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
     not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
-    strprintf(ui_app.root->text, "ui_app.root"); // debugging
+    ut_str_printf(ui_app.root->text, "ui_app.root"); // debugging
     ui_app_wm_timer(ui_app_timer_100ms_id);
     ui_app_wm_timer(ui_app_timer_1s_id);
     fatal_if(ReleaseDC(ui_app_window(), ui_app_canvas()) == 0);
@@ -2670,6 +2684,11 @@ static void ui_app_paint_stats(void) {
 }
 
 static void ui_app_paint_on_canvas(HDC hdc) {
+    // GM_ADVANCED: rectangles are right bottom inclusive
+    // TrueType fonts and arcs are affected by world transforms.
+    if (GetGraphicsMode(hdc) != GM_ADVANCED) {
+        SetGraphicsMode(hdc, GM_ADVANCED); // do it once
+    }
     ui_canvas_t canvas = ui_app.canvas;
     ui_app.canvas = (ui_canvas_t)hdc;
     ui_gdi.push(0, 0);
@@ -2741,7 +2760,7 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         ui_app.request_layout();
     } else if (lp != 0 &&
        (strcmp((const char*)lp, "ImmersiveColorSet") == 0 ||
-        wcscmp((const wchar_t*)lp, L"ImmersiveColorSet") == 0)) {
+        wcscmp((const uint16_t*)lp, L"ImmersiveColorSet") == 0)) {
         // expected:
         // SPI_SETICONTITLELOGFONT 0x22 ?
         // SPI_SETNONCLIENTMETRICS 0x2A ?
@@ -2750,10 +2769,10 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         ui_theme.refresh(ui_app.window);
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
-        wchar_t ln[LOCALE_NAME_MAX_LENGTH + 1];
+        uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
         int32_t n = GetUserDefaultLocaleName(ln, countof(ln));
         fatal_if_false(n > 0);
-        wchar_t rln[LOCALE_NAME_MAX_LENGTH + 1];
+        uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
         n = ResolveLocaleName(ln, rln, countof(rln));
         fatal_if_false(n > 0);
         LCID lcid = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
@@ -3150,10 +3169,10 @@ static void ui_app_create_window(const ui_rect_t r) {
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
     not_null(ui_app.window);
     assert(window == ui_app_window()); (void)window;
-    strprintf(ui_caption.title.text, "%s", ui_app.title);
+    ut_str_printf(ui_caption.title.text, "%s", ui_app.title);
     not_null(GetSystemMenu(ui_app_window(), false));
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
-//  traceln("ui_app.dpi.window=%d", ui_app.dpi.window);
+    traceln("ui_app.dpi.window: %d", ui_app.dpi.window);
     RECT wrc = ui_app_ui2rect(&r);
     fatal_if_false(GetWindowRect(ui_app_window(), &wrc));
     ui_app.wrc = ui_app_rect2ui(&wrc);
@@ -3519,7 +3538,7 @@ static void ui_app_bring_to_front(void) {
 }
 
 static void ui_app_set_title(const char* title) {
-    strprintf(ui_caption.title.text, "%s", title);
+    ut_str_printf(ui_caption.title.text, "%s", title);
     fatal_if_false(SetWindowTextA(ui_app_window(), title));
     if (!ui_caption.view.hidden) { ui_app.request_layout(); }
 }
@@ -3553,7 +3572,7 @@ static void ui_app_set_console_title(HWND cw) {
     GetWindowTextA((HWND)ui_app.window, text, countof(text));
     text[countof(text) - 1] = 0;
     char title[256];
-    strprintf(title, "%s - Console", text);
+    ut_str_printf(title, "%s - Console", text);
     fatal_if_false(SetWindowTextA(cw, title));
 }
 
@@ -3662,42 +3681,44 @@ static const char* ui_app_open_filename(const char* folder,
         const char* pairs[], int32_t n) {
     assert(pairs == null && n == 0 ||
            n >= 2 && n % 2 == 0);
-    wchar_t memory[32 * 1024];
-    wchar_t* filter = memory;
+    uint16_t memory[32 * 1024];
+    uint16_t* filter = memory;
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
         int32_t left = countof(memory) - 2;
-        wchar_t* s = memory;
+        uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
-            wchar_t* s0 = utf8to16(pairs[i + 0]);
-            wchar_t* s1 = utf8to16(pairs[i + 1]);
-            int32_t n0 = (int32_t)wcslen(s0);
-            int32_t n1 = (int32_t)wcslen(s1);
-            assert(n0 > 0 && n1 > 0);
-            fatal_if(n0 + n1 + 3 >= left, "too many filters");
-            memcpy(s, s0, (size_t)(n0 + 1) * 2);
+            uint16_t* s0 = s;
+            ut_str.utf8to16(s0, left, pairs[i + 0]);
+            int32_t n0 = (int32_t)ut_str.utf16len(s0);
+            assert(n0 > 0);
             s += n0 + 1;
             left -= n0 + 1;
-            memcpy(s, s1, (size_t)(n1 + 1) * 2);
+            uint16_t* s1 = s;
+            ut_str.utf8to16(s1, left, pairs[i + 0]);
+            int32_t n1 = (int32_t)ut_str.utf16len(s1);
+            assert(n1 > 0);
             s[n1] = 0;
             s += n1 + 1;
             left -= n1 + 1;
         }
         *s++ = 0;
     }
-    wchar_t path[MAX_PATH];
+    uint16_t dir[MAX_PATH];
+    ut_str.utf8to16(dir, countof(dir), folder);
+    uint16_t path[MAX_PATH];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
     ofn.hwndOwner = (HWND)ui_app.window;
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
     ofn.lpstrFilter = filter;
-    ofn.lpstrInitialDir = utf8to16(folder);
+    ofn.lpstrInitialDir = dir;
     ofn.lpstrFile = path;
     ofn.nMaxFile = sizeof(path);
     static thread_local char text[MAX_PATH];
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        strprintf(text, "%s", utf16to8(path));
+        ut_str.utf16to8(text, countof(text), path);
     } else {
         text[0] = 0;
     }
@@ -3751,7 +3772,7 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
 
 static const char* ui_app_known_folder(int32_t kf) {
     // known folder ids order must match enum
-    static const GUID* kfrid[] = {
+    static const GUID* kf_ids[] = {
         &FOLDERID_Profile,
         &FOLDERID_Desktop,
         &FOLDERID_Documents,
@@ -3763,12 +3784,12 @@ static const char* ui_app_known_folder(int32_t kf) {
         &FOLDERID_ProgramFiles,
         &FOLDERID_ProgramData
     };
-    static char known_foders[countof(kfrid)][MAX_PATH];
-    fatal_if(!(0 <= kf && kf < countof(kfrid)), "invalid kf=%d", kf);
+    static char known_foders[countof(kf_ids)][MAX_PATH];
+    fatal_if(!(0 <= kf && kf < countof(kf_ids)), "invalid kf=%d", kf);
     if (known_foders[kf][0] == 0) {
-        wchar_t* path = null;
-        fatal_if_not_zero(SHGetKnownFolderPath(kfrid[kf], 0, null, &path));
-        strprintf(known_foders[kf], "%s", utf16to8(path));
+        uint16_t* path = null;
+        fatal_if_not_zero(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
+        ut_str.utf16to8(known_foders[kf], countof(known_foders[kf]), path);
         CoTaskMemFree(path);
 	}
     return known_foders[kf];
@@ -3866,8 +3887,8 @@ static void ui_app_init(void) {
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->hidden = !ui_app.no_decor;
     // for ui_view_debug_paint:
-    strprintf(ui_app.root->text, "ui_app.root");
-    strprintf(ui_app.content->text, "ui_app.content");
+    ut_str_printf(ui_app.root->text, "ui_app.root");
+    ut_str_printf(ui_app.content->text, "ui_app.content");
     ui_app.init();
 }
 
@@ -4207,7 +4228,7 @@ void ui_view_init_button(ui_view_t* v) {
 void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
         void (*callback)(ui_button_t* b)) {
     b->type = ui_view_button;
-    strprintf(b->text, "%s", label);
+    ut_str_printf(b->text, "%s", label);
     b->callback = callback;
     b->min_w_em = ems;
     ui_view_init_button(b);
@@ -4252,7 +4273,7 @@ static void ui_caption_mini(ui_button_t* unused(b)) {
 }
 
 static void ui_caption_maximize_or_restore(void) {
-    strprintf(ui_caption.maxi.text, "%s",
+    ut_str_printf(ui_caption.maxi.text, "%s",
         ui_app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
 }
@@ -4350,7 +4371,7 @@ static void ui_caption_init(ui_view_t* v) {
     ui_caption.view.prepare = ui_caption_prepare;
     ui_caption.view.measured  = ui_caption_measured;
     ui_caption.view.composed   = ui_caption_composed;
-    strprintf(ui_caption.view.text, "ui_caption");
+    ut_str_printf(ui_caption.view.text, "ui_caption");
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
 }
@@ -5256,7 +5277,7 @@ void ui_view_init_span(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_span_measure; }
     if (v->layout  == null) { v->layout  = ui_span_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { strprintf(v->text, "ui_span"); }
+    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_span"); }
 }
 
 void ui_view_init_list(ui_view_t* v) {
@@ -5265,7 +5286,7 @@ void ui_view_init_list(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_list_measure; }
     if (v->layout  == null) { v->layout  = ui_list_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { strprintf(v->text, "ui_list"); }
+    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_list"); }
 }
 
 void ui_view_init_spacer(ui_view_t* v) {
@@ -5274,7 +5295,7 @@ void ui_view_init_spacer(ui_view_t* v) {
     v->h = 0;
     v->max_w = ui.infinity;
     v->max_h = ui.infinity;
-    if (v->text[0] == 0) { strprintf(v->text, "ui_spacer"); }
+    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_spacer"); }
 }
 
 void ui_view_init_container(ui_view_t* v) {
@@ -5282,7 +5303,7 @@ void ui_view_init_container(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_container_measure; }
     if (v->layout  == null) { v->layout  = ui_container_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { strprintf(v->text, "ui_container"); }
+    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_container"); }
 }
 
 #pragma pop_macro("ui_layout_exit")
@@ -6360,8 +6381,10 @@ static void ui_edit_insert_paragraph(ui_edit_t* e, int32_t pn) {
 static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
         const char* text, int32_t bytes) {
     assert(bytes > 0);
-    assert(strnchr(text, bytes, '\n') == null,
+    for (int32_t i = 0; i < bytes; i++) {
+        assert(text[i] != '\n',
            "text \"%s\" must not contain \\n character.", text);
+    }
     if (pg.pn == e->paragraphs) {
         ui_edit_insert_paragraph(e, pg.pn);
     }
@@ -7817,7 +7840,7 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t 
     int32_t n = GetObjectA(ui_app.fonts.regular.font, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
-    strprintf(lf.lfFaceName, "%s", family);
+    ut_str_printf(lf.lfFaceName, "%s", family);
     if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)quality;
     } else {
@@ -7858,29 +7881,36 @@ static ui_font_t ui_gdi_set_font(ui_font_t f) {
     return (ui_font_t)SelectFont(ui_app_canvas(), (HFONT)f);
 }
 
-#define ui_gdi_with_hdc(code) do {                      \
-    not_null(ui_app_window());                          \
-    HDC hdc = ui_app_canvas() != null ?                 \
-              ui_app_canvas() : GetDC(ui_app_window()); \
-    not_null(hdc);                                      \
-    code                                                \
-    if (ui_app_canvas() == null) {                      \
-        ReleaseDC(ui_app_window(), hdc);                \
-    }                                                   \
+static HDC ui_gdi_get_dc(void) {
+    not_null(ui_app_window());
+    HDC hdc = ui_app_canvas() != null ?
+              ui_app_canvas() : GetDC(ui_app_window());
+    not_null(hdc);
+    if (GetGraphicsMode(hdc) != GM_ADVANCED) {
+        SetGraphicsMode(hdc, GM_ADVANCED);
+    }
+    return hdc;
+}
+
+static void ui_gdi_release_dc(HDC hdc) {
+    if (ui_app_canvas() == null) {
+        ReleaseDC(ui_app_window(), hdc);
+    }
+}
+
+#define ui_gdi_with_hdc(code) do {           \
+    HDC hdc = ui_gdi_get_dc();               \
+    code                                     \
+    ui_gdi_release_dc(hdc);                  \
 } while (0)
 
-#define ui_gdi_hdc_with_font(f, ...) do {               \
-    not_null(f);                                        \
-    not_null(ui_app_window());                          \
-    HDC hdc = ui_app_canvas() != null ?                 \
-              ui_app_canvas() : GetDC(ui_app_window()); \
-    not_null(hdc);                                      \
-    HFONT _font_ = SelectFont(hdc, (HFONT)f);           \
-    { __VA_ARGS__ }                                     \
-    SelectFont(hdc, _font_);                            \
-    if (ui_app_canvas() == null) {                      \
-        ReleaseDC(ui_app_window(), hdc);                \
-    }                                                   \
+#define ui_gdi_hdc_with_font(f, ...) do {    \
+    not_null(f);                             \
+    HDC hdc = ui_gdi_get_dc();               \
+    HFONT font_ = SelectFont(hdc, (HFONT)f); \
+    { __VA_ARGS__ }                          \
+    SelectFont(hdc, font_);                  \
+    ui_gdi_release_dc(hdc);                  \
 } while (0)
 
 static int32_t ui_gdi_baseline(ui_font_t f) {
@@ -7899,28 +7929,94 @@ static int32_t ui_gdi_descent(ui_font_t f) {
     return tm.tmDescent;
 }
 
+static void ui_gdi_dump_tm(HDC hdc) {
+    TEXTMETRICA tm = {0};
+    fatal_if_false(GetTextMetricsA(hdc, &tm));
+    traceln("tm .height: %d           tm .ascent: %d           tm .descent: %d",
+            tm.tmHeight, tm.tmAscent, tm.tmDescent);
+    traceln("tm .internal_leading: %d tm .external_leading: %d tm .ave_char_width: %d",
+            tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
+    traceln("tm .max_char_width: %d   tm .weight: %d           tm .overhang: %d",
+            tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
+    traceln("tm .digitized_aspect_x: %d tm .digitized_aspect_y: %d tm .first_char: %d",
+            tm.tmDigitizedAspectX, tm.tmDigitizedAspectY, tm.tmFirstChar);
+    traceln("tm .last_char: %d        tm .default_char: %d     tm .break_char: %d",
+            tm.tmLastChar, tm.tmDefaultChar, tm.tmBreakChar);
+    traceln("tm .italic: %d           tm .underlined: %d       tm .struck_out: %d",
+            tm.tmItalic, tm.tmUnderlined, tm.tmStruckOut);
+    traceln("tm .pitch_and_family: %d tm .char_set: %d",
+            tm.tmPitchAndFamily, tm.tmCharSet);
+    char pitch[64] = { 0 };
+    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
+    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
+    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
+    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
+    traceln("tm .pitch_and_family: %s", pitch);
+    if (tm.tmPitchAndFamily & TMPF_TRUETYPE) {
+        OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
+        uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
+        assert(bytes == sizeof(OUTLINETEXTMETRICA));
+        traceln("otm .otmSize: %d          otm .otmFiller: %d       otm .otmfsSelection: %u",
+                otm.otmSize, otm.otmFiller, otm.otmfsSelection);
+        traceln("otm .otmfsType: %u        otm .otmsCharSlopeRise: %d otm .otmsCharSlopeRun: %d",
+                otm.otmfsType, otm.otmsCharSlopeRise, otm.otmsCharSlopeRun);
+        traceln("otm .otmItalicAngle: %d   otm .otmEMSquare: %u     otm .otmAscent: %d",
+                otm.otmItalicAngle, otm.otmEMSquare, otm.otmAscent);
+        traceln("otm .otmDescent: %d       otm .otmLineGap: %u      otm .otmsCapEmHeight: %u",
+                otm.otmDescent, otm.otmLineGap, otm.otmsCapEmHeight);
+        traceln("otm .otmsXHeight: %u      otm .otmrcFontBox.left: %d otm .otmrcFontBox.top: %d",
+                otm.otmsXHeight, otm.otmrcFontBox.left, otm.otmrcFontBox.top);
+        traceln("otm .otmrcFontBox.right: %d otm .otmrcFontBox.bottom: %d otm .otmMacAscent: %d",
+                otm.otmrcFontBox.right, otm.otmrcFontBox.bottom, otm.otmMacAscent);
+        traceln("otm .otmMacDescent: %d    otm .otmMacLineGap: %u   otm .otmusMinimumPPEM: %u",
+                otm.otmMacDescent, otm.otmMacLineGap, otm.otmusMinimumPPEM);
+        traceln("otm .otmptSubscriptSize.x: %d otm .otmptSubscriptSize.y: %d otm .otmptSubscriptOffset.x: %d",
+                otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y, otm.otmptSubscriptOffset.x);
+        traceln("otm .otmptSubscriptOffset.y: %d otm .otmptSuperscriptSize.x: %d otm .otmptSuperscriptSize.y: %d",
+                otm.otmptSubscriptOffset.y, otm.otmptSuperscriptSize.x, otm.otmptSuperscriptSize.y);
+        traceln("otm .otmptSuperscriptOffset.x: %d otm .otmptSuperscriptOffset.y: %d otm .otmsStrikeoutSize: %u",
+                otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y, otm.otmsStrikeoutSize);
+        traceln("otm .otmsStrikeoutPosition: %d otm .otmsUnderscoreSize: %d otm .otmsUnderscorePosition: %d",
+                otm.otmsStrikeoutPosition, otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
+        traceln("dpi.system:            %d", ui_app.dpi.system);
+        traceln("dpi.process:           %d", ui_app.dpi.process);
+        traceln("dpi.window:            %d", ui_app.dpi.window);
+        traceln("dpi.monitor_raw:       %d", ui_app.dpi.monitor_raw);
+        traceln("dpi.monitor_effective: %d", ui_app.dpi.monitor_effective);
+        traceln("dpi.monitor_angular:   %d", ui_app.dpi.monitor_angular);
+    }
+}
+
 // get_em() is relatively expensive:
 // 24 microseconds Core i-7 3667U 2.0 GHz (2012)
-// but in small app with few views the number
-// of calls to get_em() is very small on layout.
-// Few dozens at most. No reason to cache or optimize.
 
 static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
     not_null(f);
     SIZE em = {0, 0}; // "M"
     *fm = (ui_fm_t){ .font = f };
     ui_gdi_hdc_with_font(f, {
+        // https://en.wikipedia.org/wiki/Quad_(typography)
+        // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
+        // https://stackoverflow.com/questions/27631736/meaning-of-top-ascent-baseline-descent-bottom-and-leading-in-androids-font
+        ui_gdi_dump_tm(hdc);
         // ui_glyph_nbsp and "M" have the same result
-        fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &em));
+        fatal_if_false(GetTextExtentPoint32A(hdc, "m", 1, &em));
+        traceln("em: %d %d", em.cx, em.cy);
+        SIZE eq = {0, 0}; // "M"
+        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &eq));
+        traceln("eq: %d %d", eq.cx, eq.cy);
         fm->height = ui_gdi.font_height(f);
         fm->descent = ui_gdi.descent(f);
         fm->baseline = ui_gdi.baseline(f);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-        SIZE e3 = {0}; // "\xE2\xB8\xBB" Three-Em Dash https://www.compart.com/en/unicode/U+2E3B
+        SIZE e3 = {0}; // Three-Em Dash
         fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        fatal_if_false(GetTextExtentPoint32A(hdc, "\xE2\xB8\xBB", 1, &e3));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
-
+        traceln("vl: %d %d", vl.cx, vl.cy);
+        traceln("e3: %d %d", e3.cx, e3.cy);
+        traceln("fm->mono: %d height: %d descent: %d baseline: %d", fm->mono, fm->height, fm->descent, fm->baseline);
+        traceln("");
     });
     assert(fm->baseline >= fm->height);
     const int32_t ascend = fm->descent - (fm->height - fm->baseline);
@@ -7938,13 +8034,33 @@ static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
         RECT* r, uint32_t format) { // ~70 microsecond Core i-7 3667U 2.0 GHz (2012)
     // if font == null, draws on HDC with selected font
     int32_t height = 0; // return value is the height of the text in logical units
+if (0) {
+    HDC hdc = ui_app_canvas();
+    if (hdc != null) {
+        SIZE em = {0, 0}; // "M"
+        fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &em));
+        traceln("em: %d %d", em.cx, em.cy);
+        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &em));
+        traceln("em: %d %d", em.cx, em.cy);
+        SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
+        SIZE e3 = {0}; // Three-Em Dash
+        fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        traceln("vl: %d %d", vl.cx, vl.cy);
+        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
+        traceln("e3: %d %d", e3.cx, e3.cy);
+    }
+}
+    int32_t count = ut_str.utf16_chars(s);
+    assert(0 < count && count < 4096, "be reasonable count: %d?", count);
+    uint16_t* ws = (uint16_t*)ut_stackalloc(count * 2);
+    ut_str.utf8to16(ws, count, s);
     if (font != null) {
         ui_gdi_hdc_with_font(font, {
-            height = DrawTextW(hdc, utf8to16(s), n, r, format);
+            height = DrawTextW(hdc, ws, n, r, format);
         });
     } else {
         ui_gdi_with_hdc({
-            height = DrawTextW(hdc, utf8to16(s), n, r, format);
+            height = DrawTextW(hdc, ws, n, r, format);
         });
     }
     return height;
@@ -8169,7 +8285,7 @@ ui_gdi_if ui_gdi = {
     .font_height                   = ui_gdi_font_height,
     .descent                       = ui_gdi_descent,
     .baseline                      = ui_gdi_baseline,
-    .update_fm                        = ui_gdi_update_fm,
+    .update_fm                     = ui_gdi_update_fm,
     .line_spacing                  = ui_gdi_line_spacing,
     .measure_text                  = ui_gdi_measure_singleline,
     .measure_multiline             = ui_gdi_measure_multiline,
@@ -8528,13 +8644,13 @@ void ui_view_init_mbx(ui_view_t* view) {
     int32_t n = 0;
     while (mx->options[n] != null && n < countof(mx->button) - 1) {
         mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
-        strprintf(mx->button[n].text, "%s", mx->options[n]);
+        ut_str_printf(mx->button[n].text, "%s", mx->options[n]);
         n++;
     }
     swear(n <= countof(mx->button), "inhumane: %d buttons is too many", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
     mx->label = (ui_label_t)ui_label(0, "");
-    strprintf(mx->label.text, "%s", mx->view.text);
+    ut_str_printf(mx->label.text, "%s", mx->view.text);
     ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);
@@ -8776,11 +8892,11 @@ void ui_view_init_slider(ui_view_t* v) {
     s->dec = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
-    strprintf(s->dec.hint, "%s", accel);
+    ut_str_printf(s->dec.hint, "%s", accel);
     s->inc = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
-    strprintf(s->inc.hint, "%s", accel);
+    ut_str_printf(s->inc.hint, "%s", accel);
     ui_view.add(&s->view, &s->dec, &s->inc, null);
     ui_view.localize(&s->view);
 }
@@ -8791,7 +8907,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
     s->view.type = ui_view_slider;
-    strprintf(s->view.text, "%s", label);
+    ut_str_printf(s->view.text, "%s", label);
     s->view.callback = callback;
     s->view.min_w_em = min_w_em;
     s->value_min = value_min;
@@ -9057,7 +9173,7 @@ void ui_view_init_toggle(ui_view_t* v) {
 
 void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
        void (*callback)(ui_toggle_t* b)) {
-    strprintf(t->text, "%s", label);
+    ut_str_printf(t->text, "%s", label);
     t->min_w_em = ems;
     t->callback = callback;
     t->type = ui_view_toggle;
@@ -9350,7 +9466,7 @@ static void ui_view_position_by_outbox(ui_view_t* v, const ui_rect_t* r,
 
 static void ui_view_set_text(ui_view_t* v, const char* text) {
     int32_t n = (int32_t)strlen(text);
-    strprintf(v->text, "%s", text);
+    ut_str_printf(v->text, "%s", text);
     v->strid = 0; // next call to nls() will localize this text
     for (int32_t i = 0; i < n; i++) {
         if (text[i] == '&' && i < n - 1 && text[i + 1] != '&') {
@@ -9368,7 +9484,7 @@ static void ui_view_localize(ui_view_t* v) {
 
 static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
-    strprintf(hint->text, "%s", ut_nls.str(v->hint));
+    ut_str_printf(hint->text, "%s", ut_nls.str(v->hint));
     ui_view.measure(hint);
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->fm->em.w / 4;
     int32_t y = v->y + v->h + v->fm->em.h / 2 + hint->fm->em.h / 4;

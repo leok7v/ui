@@ -141,17 +141,17 @@ static void opened(void) {
     test.color = ui_colors.transparent;
     test.insets = (ui_gaps_t){ 0, 0, 0, 0 };
     test.background_id = ui_color_id_window;
-    strprintf(test.text, "%s", "test");
+    ut_str_printf(test.text, "%s", "test");
 //  test.paint = ui_view.debug_paint;
     test.debug = true;
 
     // buttons to switch test content
     tools.max_h = ui.infinity;
     tools.color_id = ui_color_id_window;
-    strprintf(tools.text, "%s", "tools");
+    ut_str_printf(tools.text, "%s", "tools");
 //  tools.paint = ui_view.debug_paint;
     ui_view_for_each(&tools, it, { it->align = ui.align.left; });
-    strprintf(button_container.hint,
+    ut_str_printf(button_container.hint,
         "Shows ui_view(container) layout\n"
         "Resizing Window will allow\n"
         "too see how it behaves");
@@ -197,7 +197,7 @@ static void container_test(ui_view_t* parent) {
     container.max_h  = ui.infinity;
     container.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     container.background_id = ui_color_id_window;
-    strprintf(container.text, "container");
+    ut_str_printf(container.text, "container");
     ui_view_for_each(&container, it, {
         it->debug = true;
         it->color = ui_colors.onyx;
@@ -227,7 +227,7 @@ static void span_test(ui_view_t* parent) {
     span.max_w    = ui.infinity;
     span.max_h    = ui.infinity;
     span.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
-    strprintf(span.text, "span");
+    ut_str_printf(span.text, "span");
     span.background_id = ui_color_id_window;
     ui_view_for_each(&span, it, {
         it->debug   = true;
@@ -263,7 +263,7 @@ static void list_test(ui_view_t* parent) {
     list.max_h  = ui.infinity;
     list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     list.background_id = ui_color_id_window;
-    strprintf(list.text, "list");
+    ut_str_printf(list.text, "list");
     ui_view_for_each(&list, it, {
         it->debug   = true;
         it->color   = ui_colors.onyx;
@@ -276,18 +276,25 @@ static void list_test(ui_view_t* parent) {
     right.max_w = 0;
 }
 
+static void slider_callback(ui_view_t* v) {
+    ui_slider_t* slider = (ui_slider_t*)v;
+    traceln("value: %s", ut_str.uint64(slider->value));
+    ut_str_printf(v->text, "%s", ut_str.uint64(slider->value));
+    ui_app.request_layout();
+}
+
 static void controls_test(ui_view_t* parent) {
     ui_view.disband(parent);
     static ui_view_t  list     = ui_view(list);
     static ui_view_t  span     = ui_view(span);
     static ui_label_t  left    = ui_label(0, "Left");
     static ui_button_t button1 = ui_button("&Button", 0, null);
-    static ui_slider_t slider1 = ui_slider("Slider: %d", 0.0, 0, INT32_MAX, null);
+    static ui_slider_t slider1 = ui_slider("%d", 8.7f, 0, INT32_MAX, slider_callback);
     static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 0.0, null);
     static ui_label_t  right   = ui_label(0, "Right ");
     static ui_label_t  label   = ui_label(0, "Label");
     static ui_button_t button2 = ui_button("&Button", 0, null);
-    static ui_slider_t slider2 = ui_slider("Slider: %d", 0.0, 0, INT32_MAX, null);
+    static ui_slider_t slider2 = ui_slider("Slider: %d", 8.7f, 0, INT32_MAX, slider_callback);
     static ui_toggle_t toggle2 = ui_toggle("Toggle", 0.0, null);
     static ui_view_t   spacer  = ui_view(spacer);
     ui_view.add(&test,
@@ -309,7 +316,7 @@ static void controls_test(ui_view_t* parent) {
     list.debug  = true;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-    strprintf(list.text, "list");
+    ut_str_printf(list.text, "list");
     list.background_id = ui_color_id_window;
     ui_view_for_each(&list, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );
     ui_view_for_each(&span, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );

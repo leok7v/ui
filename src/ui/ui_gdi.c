@@ -557,7 +557,7 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t 
     int32_t n = GetObjectA(ui_app.fonts.regular.font, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
-    strprintf(lf.lfFaceName, "%s", family);
+    ut_str_printf(lf.lfFaceName, "%s", family);
     if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)quality;
     } else {
@@ -598,29 +598,36 @@ static ui_font_t ui_gdi_set_font(ui_font_t f) {
     return (ui_font_t)SelectFont(ui_app_canvas(), (HFONT)f);
 }
 
-#define ui_gdi_with_hdc(code) do {                      \
-    not_null(ui_app_window());                          \
-    HDC hdc = ui_app_canvas() != null ?                 \
-              ui_app_canvas() : GetDC(ui_app_window()); \
-    not_null(hdc);                                      \
-    code                                                \
-    if (ui_app_canvas() == null) {                      \
-        ReleaseDC(ui_app_window(), hdc);                \
-    }                                                   \
+static HDC ui_gdi_get_dc(void) {
+    not_null(ui_app_window());
+    HDC hdc = ui_app_canvas() != null ?
+              ui_app_canvas() : GetDC(ui_app_window());
+    not_null(hdc);
+    if (GetGraphicsMode(hdc) != GM_ADVANCED) {
+        SetGraphicsMode(hdc, GM_ADVANCED);
+    }
+    return hdc;
+}
+
+static void ui_gdi_release_dc(HDC hdc) {
+    if (ui_app_canvas() == null) {
+        ReleaseDC(ui_app_window(), hdc);
+    }
+}
+
+#define ui_gdi_with_hdc(code) do {           \
+    HDC hdc = ui_gdi_get_dc();               \
+    code                                     \
+    ui_gdi_release_dc(hdc);                  \
 } while (0)
 
-#define ui_gdi_hdc_with_font(f, ...) do {               \
-    not_null(f);                                        \
-    not_null(ui_app_window());                          \
-    HDC hdc = ui_app_canvas() != null ?                 \
-              ui_app_canvas() : GetDC(ui_app_window()); \
-    not_null(hdc);                                      \
-    HFONT _font_ = SelectFont(hdc, (HFONT)f);           \
-    { __VA_ARGS__ }                                     \
-    SelectFont(hdc, _font_);                            \
-    if (ui_app_canvas() == null) {                      \
-        ReleaseDC(ui_app_window(), hdc);                \
-    }                                                   \
+#define ui_gdi_hdc_with_font(f, ...) do {    \
+    not_null(f);                             \
+    HDC hdc = ui_gdi_get_dc();               \
+    HFONT font_ = SelectFont(hdc, (HFONT)f); \
+    { __VA_ARGS__ }                          \
+    SelectFont(hdc, font_);                  \
+    ui_gdi_release_dc(hdc);                  \
 } while (0)
 
 static int32_t ui_gdi_baseline(ui_font_t f) {
@@ -639,28 +646,94 @@ static int32_t ui_gdi_descent(ui_font_t f) {
     return tm.tmDescent;
 }
 
+static void ui_gdi_dump_tm(HDC hdc) {
+    TEXTMETRICA tm = {0};
+    fatal_if_false(GetTextMetricsA(hdc, &tm));
+    traceln("tm .height: %d           tm .ascent: %d           tm .descent: %d",
+            tm.tmHeight, tm.tmAscent, tm.tmDescent);
+    traceln("tm .internal_leading: %d tm .external_leading: %d tm .ave_char_width: %d",
+            tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
+    traceln("tm .max_char_width: %d   tm .weight: %d           tm .overhang: %d",
+            tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
+    traceln("tm .digitized_aspect_x: %d tm .digitized_aspect_y: %d tm .first_char: %d",
+            tm.tmDigitizedAspectX, tm.tmDigitizedAspectY, tm.tmFirstChar);
+    traceln("tm .last_char: %d        tm .default_char: %d     tm .break_char: %d",
+            tm.tmLastChar, tm.tmDefaultChar, tm.tmBreakChar);
+    traceln("tm .italic: %d           tm .underlined: %d       tm .struck_out: %d",
+            tm.tmItalic, tm.tmUnderlined, tm.tmStruckOut);
+    traceln("tm .pitch_and_family: %d tm .char_set: %d",
+            tm.tmPitchAndFamily, tm.tmCharSet);
+    char pitch[64] = { 0 };
+    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
+    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
+    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
+    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
+    traceln("tm .pitch_and_family: %s", pitch);
+    if (tm.tmPitchAndFamily & TMPF_TRUETYPE) {
+        OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
+        uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
+        assert(bytes == sizeof(OUTLINETEXTMETRICA));
+        traceln("otm .otmSize: %d          otm .otmFiller: %d       otm .otmfsSelection: %u",
+                otm.otmSize, otm.otmFiller, otm.otmfsSelection);
+        traceln("otm .otmfsType: %u        otm .otmsCharSlopeRise: %d otm .otmsCharSlopeRun: %d",
+                otm.otmfsType, otm.otmsCharSlopeRise, otm.otmsCharSlopeRun);
+        traceln("otm .otmItalicAngle: %d   otm .otmEMSquare: %u     otm .otmAscent: %d",
+                otm.otmItalicAngle, otm.otmEMSquare, otm.otmAscent);
+        traceln("otm .otmDescent: %d       otm .otmLineGap: %u      otm .otmsCapEmHeight: %u",
+                otm.otmDescent, otm.otmLineGap, otm.otmsCapEmHeight);
+        traceln("otm .otmsXHeight: %u      otm .otmrcFontBox.left: %d otm .otmrcFontBox.top: %d",
+                otm.otmsXHeight, otm.otmrcFontBox.left, otm.otmrcFontBox.top);
+        traceln("otm .otmrcFontBox.right: %d otm .otmrcFontBox.bottom: %d otm .otmMacAscent: %d",
+                otm.otmrcFontBox.right, otm.otmrcFontBox.bottom, otm.otmMacAscent);
+        traceln("otm .otmMacDescent: %d    otm .otmMacLineGap: %u   otm .otmusMinimumPPEM: %u",
+                otm.otmMacDescent, otm.otmMacLineGap, otm.otmusMinimumPPEM);
+        traceln("otm .otmptSubscriptSize.x: %d otm .otmptSubscriptSize.y: %d otm .otmptSubscriptOffset.x: %d",
+                otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y, otm.otmptSubscriptOffset.x);
+        traceln("otm .otmptSubscriptOffset.y: %d otm .otmptSuperscriptSize.x: %d otm .otmptSuperscriptSize.y: %d",
+                otm.otmptSubscriptOffset.y, otm.otmptSuperscriptSize.x, otm.otmptSuperscriptSize.y);
+        traceln("otm .otmptSuperscriptOffset.x: %d otm .otmptSuperscriptOffset.y: %d otm .otmsStrikeoutSize: %u",
+                otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y, otm.otmsStrikeoutSize);
+        traceln("otm .otmsStrikeoutPosition: %d otm .otmsUnderscoreSize: %d otm .otmsUnderscorePosition: %d",
+                otm.otmsStrikeoutPosition, otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
+        traceln("dpi.system:            %d", ui_app.dpi.system);
+        traceln("dpi.process:           %d", ui_app.dpi.process);
+        traceln("dpi.window:            %d", ui_app.dpi.window);
+        traceln("dpi.monitor_raw:       %d", ui_app.dpi.monitor_raw);
+        traceln("dpi.monitor_effective: %d", ui_app.dpi.monitor_effective);
+        traceln("dpi.monitor_angular:   %d", ui_app.dpi.monitor_angular);
+    }
+}
+
 // get_em() is relatively expensive:
 // 24 microseconds Core i-7 3667U 2.0 GHz (2012)
-// but in small app with few views the number
-// of calls to get_em() is very small on layout.
-// Few dozens at most. No reason to cache or optimize.
 
 static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
     not_null(f);
     SIZE em = {0, 0}; // "M"
     *fm = (ui_fm_t){ .font = f };
     ui_gdi_hdc_with_font(f, {
+        // https://en.wikipedia.org/wiki/Quad_(typography)
+        // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
+        // https://stackoverflow.com/questions/27631736/meaning-of-top-ascent-baseline-descent-bottom-and-leading-in-androids-font
+        ui_gdi_dump_tm(hdc);
         // ui_glyph_nbsp and "M" have the same result
-        fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &em));
+        fatal_if_false(GetTextExtentPoint32A(hdc, "m", 1, &em));
+        traceln("em: %d %d", em.cx, em.cy);
+        SIZE eq = {0, 0}; // "M"
+        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &eq));
+        traceln("eq: %d %d", eq.cx, eq.cy);
         fm->height = ui_gdi.font_height(f);
         fm->descent = ui_gdi.descent(f);
         fm->baseline = ui_gdi.baseline(f);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-        SIZE e3 = {0}; // "\xE2\xB8\xBB" Three-Em Dash https://www.compart.com/en/unicode/U+2E3B
+        SIZE e3 = {0}; // Three-Em Dash
         fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        fatal_if_false(GetTextExtentPoint32A(hdc, "\xE2\xB8\xBB", 1, &e3));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
-
+        traceln("vl: %d %d", vl.cx, vl.cy);
+        traceln("e3: %d %d", e3.cx, e3.cy);
+        traceln("fm->mono: %d height: %d descent: %d baseline: %d", fm->mono, fm->height, fm->descent, fm->baseline);
+        traceln("");
     });
     assert(fm->baseline >= fm->height);
     const int32_t ascend = fm->descent - (fm->height - fm->baseline);
@@ -678,13 +751,33 @@ static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
         RECT* r, uint32_t format) { // ~70 microsecond Core i-7 3667U 2.0 GHz (2012)
     // if font == null, draws on HDC with selected font
     int32_t height = 0; // return value is the height of the text in logical units
+if (0) {
+    HDC hdc = ui_app_canvas();
+    if (hdc != null) {
+        SIZE em = {0, 0}; // "M"
+        fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &em));
+        traceln("em: %d %d", em.cx, em.cy);
+        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &em));
+        traceln("em: %d %d", em.cx, em.cy);
+        SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
+        SIZE e3 = {0}; // Three-Em Dash
+        fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        traceln("vl: %d %d", vl.cx, vl.cy);
+        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
+        traceln("e3: %d %d", e3.cx, e3.cy);
+    }
+}
+    int32_t count = ut_str.utf16_chars(s);
+    assert(0 < count && count < 4096, "be reasonable count: %d?", count);
+    uint16_t* ws = (uint16_t*)ut_stackalloc(count * 2);
+    ut_str.utf8to16(ws, count, s);
     if (font != null) {
         ui_gdi_hdc_with_font(font, {
-            height = DrawTextW(hdc, utf8to16(s), n, r, format);
+            height = DrawTextW(hdc, ws, n, r, format);
         });
     } else {
         ui_gdi_with_hdc({
-            height = DrawTextW(hdc, utf8to16(s), n, r, format);
+            height = DrawTextW(hdc, ws, n, r, format);
         });
     }
     return height;
@@ -909,7 +1002,7 @@ ui_gdi_if ui_gdi = {
     .font_height                   = ui_gdi_font_height,
     .descent                       = ui_gdi_descent,
     .baseline                      = ui_gdi_baseline,
-    .update_fm                        = ui_gdi_update_fm,
+    .update_fm                     = ui_gdi_update_fm,
     .line_spacing                  = ui_gdi_line_spacing,
     .measure_text                  = ui_gdi_measure_singleline,
     .measure_multiline             = ui_gdi_measure_multiline,

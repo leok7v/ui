@@ -731,110 +731,56 @@ void ut_static_init_test(void);
 
 // _________________________________ ut_str.h _________________________________
 
-// Since a lot of str*() operations are preprocessor defines
-// care should be exercised that arguments of macro invocations
-// do not have side effects or not computationally expensive.
-// None of the definitions are performance champions - if the
-// code needs extreme cpu cycle savings working with utf8 strings.
-//
-// str* macros and functions assume zero terminated UTF-8 strings
-// in C tradition. Use ut_str.* functions for non-zero terminated
-// strings.
+#define ut_str_printf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
 
-#define strempty(s) ((const void*)(s) == null || (s)[0] == 0)
-
-#define strconcat(a, b) _Pragma("warning(suppress: 6386)") \
-    (strcat(strcpy((char*)ut_stackalloc(strlen(a) + strlen(b) + 1), (a)), (b)))
-
-#define strequ(s1, s2)                                              \
-    ut_gcc_pragma(GCC diagnostic push)                              \
-    ut_gcc_pragma(GCC diagnostic ignored "-Wstring-compare")        \
-    (((const void*)(s1) == (const void*)(s2)) ||                    \
-    (((const void*)(s1) != null && (const void*)(s2) != null) &&    \
-    strcmp((s1), (s2)) == 0))                                       \
-    ut_gcc_pragma(GCC diagnostic pop)
-
-#define striequ(s1, s2)                                               \
-    ut_gcc_pragma(GCC diagnostic push)                                \
-    ut_gcc_pragma(GCC diagnostic ignored "-Wstring-compare")          \
-    (((const void*)(s1) == (const void*)(s2)) ||                      \
-    (((const void*)(s1) != null && (const void*)(s2) != null) &&      \
-    stricmp((s1), (s2)) == 0))                                        \
-    ut_gcc_pragma(GCC diagnostic pop)
-
-#define strstartswith(a, b) \
-    (strlen(a) >= strlen(b) && memcmp((a), (b), strlen(b)) == 0)
-
-#define strendswith(s1, s2) \
-    (strlen(s1) >= strlen(s2) && strcmp((s1) + strlen(s1) - strlen(s2), (s2)) == 0)
-
-#define strlength(s) ((int32_t)strlen(s)) // avoid code analysis noise
-// a lot of posix like API consumes "int" instead of size_t which
-// is acceptable for majority of char* zero terminated strings usage
-// since most of them work with filepath that are relatively short
-// and on Windows are limited to 260 chars or 32KB - 1 chars.
-
-#define strcopy(s1, s2) /* use with extreme caution */                      \
-    do {                                                                    \
-        static_assertion(countof(s1) > sizeof(void*));                      \
-        strncpy((s1), (s2), countof((s1)) - 1); s1[countof((s1)) - 1] = 0;  \
-} while (0)
-
-char* strnchr(const char* s, int32_t n, char ch);
-
-#define strtolowercase(s) \
-    ut_str.to_lowercase((char*)ut_stackalloc(strlen(s) + 1), strlen(s) + 1, s)
-
-#define utf16to8(utf16) ut_str.utf16_utf8((char*) \
-    ut_stackalloc((size_t)ut_str.utf8_bytes(utf16) + 1), utf16)
-
-#define utf8to16(s) ut_str.utf8_utf16((uint16_t*) \
-    ut_stackalloc((size_t)(ut_str.utf16_chars(s) + 1) * sizeof(uint16_t)), s)
-
-#define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
-
-#define strncasecmp _strnicmp
-#define strcasecmp _stricmp
-
-// ut_str.functions are capable of working with both 0x00 terminated
-// strings and UTF-8 strings of fixed length denoted by n1 and n2.
-// case insensitive functions with postfix _nc
-// operate only on ASCII characters. No ANSI no UTF-8
+// Most of ut_str.functions are duplicates of regular str*() runtime
+// with some minor adjustments and some extensions.
+// The length of the string is limited to 32 bits signed integer.
+// (I cannot imagine strstr() even on 2GB string size_t is uint64_t)
+// The strings are expected to be UTF-8 encoded.
+// Copy functions exit with fatal error if the destination buffer is too small.
+// It is responsibility of the caller to make sure it won't happen.
+// None of the functions are performance champions and are not intended to be.
+// It is perfectly normal to use strlen() strcpy() strcat() strstr() etc
+// instead of ut_str.*() where it is suitable.
 
 typedef struct {
     char* (*drop_const)(const char* s); // because of strstr() and alike
-    bool (*is_empty)(const char* s); // null or empty string
-    bool (*equal)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool (*equal_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    int32_t (*length)(const char* s);
-    // copy(s1, countof(s1), s2, /*bytes*/-1) means zero terminated
-    bool  (*copy)(char* d, int32_t capacity,
-                 const char* s, int32_t bytes); // false on overflow
-    char* (*first_char)(const char* s, int32_t bytes, char ch);
-    char* (*last_char)(const char* s, int32_t n, char ch); // strrchr
-    char* (*first)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool  (*to_lower)(char* d, int32_t capacity, const char* s, int32_t n);
-    bool  (*to_upper)(char* d, int32_t capacity, const char* s, int32_t n);
-    int32_t (*compare)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    int32_t (*compare_nc)(const char* s1, int32_t n1,
-                        const char* s2, int32_t n2);
-    bool (*starts_with)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool (*ends_with)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool (*ends_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    bool (*starts_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    // removes quotes from a head and tail of the string `s` if present
-    const char* (*unquote)(char* *s, int32_t n); // modifies `s` in place
+    int32_t (*len)(const char* s);
+    int32_t (*utf16len)(const uint16_t* ws);
+    int32_t (*cmp)(const char* s1, const char* s2);
+    int32_t (*i_cmp)(const char* s1, const char* s2); // ignore case
+    bool  (*equ)(const char* s1, const char* s2);
+    bool  (*i_equ)(const char* s1, const char* s2); // ignore case
+    char* (*chr)(const char* s, char ch);
+    char* (*r_chr)(const char* s, char ch); // strrchr
+    char* (*str)(const char* s1, const char* s2);
+    char* (*r_str)(const char* s1, const char* s2);
+    char* (*i_str)(const char* s1, const char* s2);
+    char* (*i_r_str)(const char* s1, const char* s2);
+    // string truncation is fatal use strlen() to ensure memory at call site
+    void  (*cpy)(char* d, int32_t capacity, const char* s);
+    void  (*cat)(char* d, int32_t capacity, const char* s);
+    void  (*lower)(char* d, int32_t capacity, const char* s); // ASCII only
+    void  (*upper)(char* d, int32_t capacity, const char* s); // ASCII only
+    bool  (*starts)(const char* s1, const char* s2); // s1 starts with s2
+    bool  (*ends)(const char* s1, const char* s2);   // s1 ends with s2
+    bool  (*i_starts)(const char* s1, const char* s2); // ignore case
+    bool  (*i_ends)(const char* s1, const char* s2);   // ignore case
     // utf8/utf16 conversion
-    int32_t   (*utf8_bytes)(const uint16_t* utf16);
-    int32_t   (*utf16_chars)(const char* s);
-    char*     (*utf16_utf8)(char* destination, const uint16_t* utf16);
-    uint16_t* (*utf8_utf16)(uint16_t* destination, const char* utf8);
+    int32_t (*utf8_bytes)(const uint16_t* utf16); // UTF-8 byte required
+    int32_t (*utf16_chars)(const char* s); // UTF-16 chars required
+    // utf8_bytes() and utf16_chars() return -1 on invalid UTF-8/UTF-16
+    // utf8_bytes(L"") returns 1 for zero termination
+    // utf16_chars("") returns 1 for zero termination
+    void (*utf16to8)(char* d, int32_t capacity, const uint16_t* utf16);
+    void (*utf8to16)(uint16_t* d, int32_t capacity, const char* utf8);
     // string formatting printf style:
     void (*format_va)(char* utf8, int32_t count, const char* format, va_list vl);
     void (*format)(char* utf8, int32_t count, const char* format, ...);
     // format "dg" digit grouped; see below for known grouping separators:
     const char* (*grouping_separator)(void); // locale
-    // Returned const char* pointer is shortliving thread local and
+    // Returned const char* pointer is short-living thread local and
     // intended to be used in the arguments list of .format() or .printf()
     // like functions, not stored or passed for prolonged call chains.
     // See implementation for details.
@@ -844,7 +790,7 @@ typedef struct {
     const char* (*int64_lc)(int64_t v);   // with locale separator
     const char* (*uint64_lc)(uint64_t v); // with locale separator
     const char* (*fp)(const char* format, fp64_t v); // respects locale
-    // errors to strings
+    // errors to strings (return thread local)
     const char* (*error)(int32_t error);     // en-US
     const char* (*error_nls)(int32_t error); // national locale string
     void (*test)(void);
@@ -1334,7 +1280,7 @@ static const char* ut_args_basename(void) {
             if (*s == '\\' || *s == '/') { b = s + 1; }
             s++;
         }
-        int32_t n = ut_str.length(b);
+        int32_t n = ut_str.len(b);
         swear(n < countof(basename));
         strncpy(basename, b, countof(basename) - 1);
         char* d = basename + n - 1;
@@ -1355,10 +1301,11 @@ static void ut_args_WinMain(void) {
     swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
     swear(ut_args_memory == null);
     const uint16_t* wcl = GetCommandLineW();
-    int32_t n = (int32_t)wcslen(wcl);
+    int32_t n = (int32_t)ut_str.utf16len(wcl);
     char* cl = null;
     fatal_if_not_zero(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
-    ut_args_parse(ut_str.utf16_utf8(cl, wcl));
+    ut_str.utf16to8(cl, n * 2 + 1, wcl);
+    ut_args_parse(cl);
     ut_heap.deallocate(null, cl);
     ut_args.env = (const char**)(void*)_environ;
 }
@@ -1749,13 +1696,13 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
     errno_t r = 0;
     int32_t chars = ut_str.utf16_chars(utf8);
     int32_t bytes = (chars + 1) * 2;
-    wchar_t* utf16 = (wchar_t*)malloc((size_t)bytes);
+    uint16_t* utf16 = (uint16_t*)malloc((size_t)bytes);
     if (utf16 == null) {
         r = ERROR_OUTOFMEMORY;
     } else {
-        ut_str.utf8_utf16(utf16, utf8);
+        ut_str.utf8to16(utf16, bytes, utf8);
         assert(utf16[chars - 1] == 0);
-        const int32_t n = (int32_t)wcslen(utf16) + 1;
+        const int32_t n = (int32_t)ut_str.utf16len(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : (errno_t)GetLastError();
         if (r != 0) { traceln("OpenClipboard() failed %s", ut_str.error(r)); }
         if (r == 0) {
@@ -1801,7 +1748,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
         if (global == null) {
             r = (errno_t)GetLastError();
         } else {
-            wchar_t* utf16 = (wchar_t*)GlobalLock(global);
+            uint16_t* utf16 = (uint16_t*)GlobalLock(global);
             if (utf16 != null) {
                 int32_t utf8_bytes = ut_str.utf8_bytes(utf16);
                 if (utf8 != null) {
@@ -1809,7 +1756,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
                     if (decoded == null) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
-                        ut_str.utf16_utf8(decoded, utf16);
+                        ut_str.utf16to8(decoded, utf8_bytes, utf16);
                         int32_t n = ut_min(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, (size_t)n);
                         free(decoded);
@@ -1834,7 +1781,7 @@ static void ut_clipboard_test(void) {
     char text[256];
     int32_t bytes = countof(text);
     fatal_if_not_zero(ut_clipboard.get_text(text, &bytes));
-    swear(strequ(text, "Hello Clipboard"));
+    swear(ut_str.equ(text, "Hello Clipboard"));
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -2038,7 +1985,7 @@ static const DWORD ut_config_access =
 
 static errno_t ut_config_get_reg_key(const char* name, HKEY *key) {
     char path[256] = {0};
-    strprintf(path, "%s\\%s", ut_config_apps, name);
+    ut_str_printf(path, "%s\\%s", ut_config_apps, name);
     errno_t r = RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, ut_config_access, key);
     if (r != 0) {
         const DWORD option = REG_OPTION_NON_VOLATILE;
@@ -2185,7 +2132,7 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
     snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
     prefix[countof(prefix) - 1] = 0; // zero terminated
     char text[2 * 1024];
-    if (format != null && !strequ(format, "")) {
+    if (format != null && !ut_str.equ(format, "")) {
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wformat-nonliteral"
@@ -2217,7 +2164,8 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
     output[n + 1] = 0;
     // SetConsoleCP(CP_UTF8) is not guaranteed to be called
     uint16_t wide[countof(output)];
-    OutputDebugStringW(ut_str.utf8_utf16(wide, output));
+    ut_str.utf8to16(wide, countof(wide), output);
+    OutputDebugStringW(wide);
 }
 
 #else // posix version:
@@ -2234,7 +2182,7 @@ static void ut_debug_vprintf(const char* file, int32_t line, const char* func,
 static void ut_debug_perrno(const char* file, int32_t line,
     const char* func, int32_t err_no, const char* format, ...) {
     if (err_no != 0) {
-        if (format != null && !strequ(format, "")) {
+        if (format != null && !ut_str.equ(format, "")) {
             va_list vl;
             va_start(vl, format);
             ut_debug.println_va(file, line, func, format, vl);
@@ -2247,7 +2195,7 @@ static void ut_debug_perrno(const char* file, int32_t line,
 static void ut_debug_perror(const char* file, int32_t line,
     const char* func, int32_t error, const char* format, ...) {
     if (error != 0) {
-        if (format != null && !strequ(format, "")) {
+        if (format != null && !ut_str.equ(format, "")) {
             va_list vl;
             va_start(vl, format);
             ut_debug.println_va(file, line, func, format, vl);
@@ -2274,15 +2222,15 @@ static void ut_debug_breakpoint(void) {
 static int32_t ut_debug_verbosity_from_string(const char* s) {
     char* n = null;
     long v = strtol(ut_str.drop_const(s), &n, 10);
-    if (striequ(s, "quiet")) {
+    if (ut_str.i_equ(s, "quiet")) {
         return ut_debug.verbosity.quiet;
-    } else if (striequ(s, "info")) {
+    } else if (ut_str.i_equ(s, "info")) {
         return ut_debug.verbosity.info;
-    } else if (striequ(s, "verbose")) {
+    } else if (ut_str.i_equ(s, "verbose")) {
         return ut_debug.verbosity.verbose;
-    } else if (striequ(s, "debug")) {
+    } else if (ut_str.i_equ(s, "debug")) {
         return ut_debug.verbosity.debug;
-    } else if (striequ(s, "trace")) {
+    } else if (ut_str.i_equ(s, "trace")) {
         return ut_debug.verbosity.trace;
     } else if (n > s && ut_debug.verbosity.quiet <= v &&
                v <= ut_debug.verbosity.trace) {
@@ -2763,7 +2711,7 @@ static errno_t ut_files_mkdirs(const char* dir) {
 } while (0)
 
 #define ut_files_append_name(pn, pnc, fn, name) do {     \
-    if (strequ(fn, "\\") || strequ(fn, "/")) {           \
+    if (ut_str.equ(fn, "\\") || ut_str.equ(fn, "/")) {           \
         ut_str.format(pn, pnc, "\\%s", name);            \
     } else {                                             \
         ut_str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
@@ -2788,7 +2736,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
             // do NOT follow symlinks - it could be disastrous
             const char* name = ut_files.readdir(&folder, &st);
             if (name == null) { break; }
-            if (!strequ(name, ".") && !strequ(name, "..") &&
+            if (!ut_str.equ(name, ".") && !ut_str.equ(name, "..") &&
                 (st.type & ut_files.type_symlink) == 0 &&
                 (st.type & ut_files.type_folder) != 0) {
                 ut_files_realloc_path(r, pn, pnc, fn, name);
@@ -2804,7 +2752,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
             const char* name = ut_files.readdir(&folder, &st);
             if (name == null) { break; }
             // symlinks are already removed as normal files
-            if (!strequ(name, ".") && !strequ(name, "..") &&
+            if (!ut_str.equ(name, ".") && !ut_str.equ(name, "..") &&
                 (st.type & ut_files.type_folder) == 0) {
                 ut_files_realloc_path(r, pn, pnc, fn, name);
                 if (r == 0) {
@@ -2873,10 +2821,10 @@ static errno_t ut_files_symlink(const char* from, const char* to) {
 static const char* ut_files_bin(void) {
     static char program_files[ut_files_max_path];
     if (program_files[0] == 0) {
-        wchar_t* program_files_w = null;
+        uint16_t* program_files_w = null;
         fatal_if(SHGetKnownFolderPath(&FOLDERID_ProgramFilesX64, 0,
             null, &program_files_w) != 0);
-        int32_t len = (int32_t)wcslen(program_files_w);
+        int32_t len = (int32_t)ut_str.utf16len(program_files_w);
         assert(len < countof(program_files));
         fatal_if(len >= countof(program_files), "len=%d", len);
         for (int32_t i = 0; i <= len; i++) { // including zero terminator
@@ -3017,20 +2965,20 @@ static void folders_test(void) {
     errno_t r = ut_files.create_tmp(tmp_file, countof(tmp_file));
     fatal_if(r != 0, "ut_files.create_tmp() failed %s", ut_str.error(r));
     char tmp_dir[ut_files_max_path];
-    strprintf(tmp_dir, "%s.dir", tmp_file);
+    ut_str_printf(tmp_dir, "%s.dir", tmp_file);
     r = ut_files.mkdirs(tmp_dir);
     fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, ut_str.error(r));
     verbose("%s", tmp_dir);
     ut_folder_t folder;
     char pn[ut_files_max_path] = { 0 };
-    strprintf(pn, "%s/file", tmp_dir);
+    ut_str_printf(pn, "%s/file", tmp_dir);
     // cannot test symlinks because they are only
     // available to Administrators and in Developer mode
 //  char sym[ut_files_max_path] = { 0 };
     char hard[ut_files_max_path] = { 0 };
     char sub[ut_files_max_path] = { 0 };
-    strprintf(hard, "%s/hard", tmp_dir);
-    strprintf(sub, "%s/subd", tmp_dir);
+    ut_str_printf(hard, "%s/hard", tmp_dir);
+    ut_str_printf(sub, "%s/subd", tmp_dir);
     const char* content = "content";
     int64_t transferred = 0;
     r = ut_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
@@ -3058,15 +3006,15 @@ static void folders_test(void) {
         verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d %lld bytes %s%s",
                 name, year, month, day, hh, mm, ss, ms, mc,
                 bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
-        if (strequ(name, "file") || strequ(name, "hard")) {
+        if (ut_str.equ(name, "file") || ut_str.equ(name, "hard")) {
             swear(bytes == (int64_t)strlen(content),
                     "size of \"%s\": %lld is incorrect expected: %d",
                     name, bytes, transferred);
         }
-        if (strequ(name, ".") || strequ(name, "..")) {
+        if (ut_str.equ(name, ".") || ut_str.equ(name, "..")) {
             swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
         } else {
-            swear(strequ(name, "subd") == is_folder,
+            swear(ut_str.equ(name, "subd") == is_folder,
                   "\"%s\" is_folder: %d", name, is_folder);
             // empirically timestamps are imprecise on NTFS
             swear(at >= before, "access: %lld  >= %lld", at, before);
@@ -3202,7 +3150,7 @@ static void ut_files_test(void) {
         fatal_if(ut_files.chmod777(tf) != 0, "ut_files.chmod777(\"%s\") failed %s",
                  tf, ut_str.error(ut_runtime.err()));
         char folder[256] = { 0 };
-        strprintf(folder, "%s.folder\\subfolder", tf);
+        ut_str_printf(folder, "%s.folder\\subfolder", tf);
         fatal_if(ut_files.mkdirs(folder) != 0, "ut_files.mkdirs(\"%s\") failed %s",
             folder, ut_str.error(ut_runtime.err()));
         fatal_if(!ut_files.is_folder(folder), "\"%s\" is not a folder", folder);
@@ -3221,7 +3169,7 @@ static void ut_files_test(void) {
         // symlink
         if (ut_processes.is_elevated()) {
             char sym_link[ut_files_max_path];
-            strprintf(sym_link, "%s.sym_link", tf);
+            ut_str_printf(sym_link, "%s.sym_link", tf);
             fatal_if(ut_files.symlink(tf, sym_link) != 0,
                 "ut_files.symlink(\"%s\", \"%s\") failed %s",
                 tf, sym_link, ut_str.error(ut_runtime.err()));
@@ -3233,7 +3181,7 @@ static void ut_files_test(void) {
         }
         // hard link
         char hard_link[ut_files_max_path];
-        strprintf(hard_link, "%s.hard_link", tf);
+        ut_str_printf(hard_link, "%s.hard_link", tf);
         fatal_if(ut_files.link(tf, hard_link) != 0,
             "ut_files.link(\"%s\", \"%s\") failed %s",
             tf, hard_link, ut_str.error(ut_runtime.err()));
@@ -3851,16 +3799,16 @@ static int32_t ut_nls_strings_count;
 static const char* ut_nls_ls[ut_nls_str_count_max]; // localized strings
 static const char* ut_nls_ns[ut_nls_str_count_max]; // neutral language strings
 
-static wchar_t* ut_nls_load_string(int32_t strid, LANGID langid) {
+static uint16_t* ut_nls_load_string(int32_t strid, LANGID langid) {
     assert(0 <= strid && strid < countof(ut_nls_ns));
-    wchar_t* r = null;
+    uint16_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
     HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
         MAKEINTRESOURCE(block), langid);
 //  traceln("FindResourceExA(block=%d langid=%04X)=%p", block, langid, res);
     uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
-    wchar_t* ws = memory == null ? null : (wchar_t*)LockResource(memory);
+    uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
 //  traceln("LockResource(block=%d langid=%04X)=%p", block, langid, ws);
     if (ws != null) {
         for (int32_t i = 0; i < 16 && r == null; i++) {
@@ -3881,8 +3829,10 @@ static wchar_t* ut_nls_load_string(int32_t strid, LANGID langid) {
     return r;
 }
 
-static const char* ut_nls_save_string(wchar_t* memory) {
-    const char* utf8 = utf16to8(memory);
+static const char* ut_nls_save_string(uint16_t* memory) {
+    const int32_t bytes = ut_str.utf8_bytes(memory);
+    char* utf8 = (char*)ut_stackalloc((size_t)bytes);
+    ut_str.utf16to8(utf8, bytes, memory);
     uintptr_t n = strlen(utf8) + 1;
     assert(n > 1);
     uintptr_t left = (uintptr_t)countof(ut_nls_strings_memory) -
@@ -3903,7 +3853,7 @@ static const char* ut_nls_localize_string(int32_t strid) {
         } else {
             LCID lcid = GetThreadLocale();
             LANGID langid = LANGIDFROMLCID(lcid);
-            wchar_t* ws = ut_nls_load_string(strid, langid);
+            uint16_t* ws = ut_nls_load_string(strid, langid);
             if (ws == null) { // try default dialect:
                 LANGID primary = PRIMARYLANGID(langid);
                 langid = MAKELANGID(primary, SUBLANG_NEUTRAL);
@@ -3940,7 +3890,7 @@ static const char* ut_nls_str(const char* s) {
 }
 
 static const char* ut_nls_locale(void) {
-    wchar_t wln[LOCALE_NAME_MAX_LENGTH + 1];
+    uint16_t wln[LOCALE_NAME_MAX_LENGTH + 1];
     LCID lcid = GetThreadLocale();
     int32_t n = LCIDToLocaleName(lcid, wln, countof(wln),
         LOCALE_ALLOW_NEUTRAL_NAMES);
@@ -3949,17 +3899,16 @@ static const char* ut_nls_locale(void) {
     if (n == 0) {
         // TODO: log error
     } else {
-        if (n == 0) {
-        } else {
-            strprintf(ln, "%s", utf16to8(wln));
-        }
+        ut_str.utf16to8(ln, countof(ln), wln);
     }
     return ln;
 }
 
 static void ut_nls_set_locale(const char* locale) {
-    wchar_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-    int32_t n = (int32_t)ResolveLocaleName(utf8to16(locale), rln, (DWORD)countof(rln));
+    uint16_t wln[LOCALE_NAME_MAX_LENGTH + 1];
+    ut_str.utf8to16(wln, countof(wln), locale);
+    uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
+    int32_t n = (int32_t)ResolveLocaleName(wln, rln, (DWORD)countof(rln));
     if (n == 0) {
         // TODO: log error
     } else {
@@ -3981,7 +3930,7 @@ static void ut_nls_init(void) {
         HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
             MAKEINTRESOURCE(block), langid);
         uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
-        wchar_t* ws = memory == null ? null : (wchar_t*)LockResource(memory);
+        uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
         if (ws == null) { break; }
         for (int32_t i = 0; i < 16; i++) {
             int32_t ix = strid + i;
@@ -4251,11 +4200,11 @@ typedef struct ut_processes_pidof_lambda_s {
 
 static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
-    int32_t n = ut_str.length(pname);
+    int32_t n = ut_str.len(pname);
     fatal_if(n + 5 >= countof(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
-    if (!ut_str.ends_with_nc(pname, -1, ".exe", -1)) {
+    if (!ut_str.i_ends(pname, ".exe")) {
         int32_t k = (int32_t)strlen(pname) + 5;
         char* exe = stack;
         ut_str.format(exe, k, "%s.exe", pname);
@@ -4267,9 +4216,9 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
     } else {
         base = name;
     }
-    uint16_t wide[1024];
-    fatal_if(strlen(base) >= countof(wide), "name too long: %s", base);
-    uint16_t* wn = ut_str.utf8_utf16(wide, base);
+    uint16_t wn[1024];
+    fatal_if(strlen(base) >= countof(wn), "name too long: %s", base);
+    ut_str.utf8to16(wn, countof(wn), base);
     size_t count = 0;
     uint64_t pid = 0;
     uint8_t* data = null;
@@ -4293,14 +4242,14 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
     if (r == 0 && data != null) {
         SYSTEM_PROCESS_INFORMATION* proc = (SYSTEM_PROCESS_INFORMATION*)data;
         while (proc != null) {
-            wchar_t* img = proc->ImageName.Buffer; // last name only, not a pathname!
+            uint16_t* img = proc->ImageName.Buffer; // last name only, not a pathname!
             bool match = img != null && wcsicmp(img, wn) == 0;
             if (match) {
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (base != name) {
                     char path[ut_files_max_path];
                     match = ut_processes.nameof(pid, path, countof(path)) == 0 &&
-                            ut_str.ends_with_nc(path, -1, name, -1);
+                            ut_str.i_ends(path, name);
 //                  traceln("\"%s\" -> \"%s\" match: %d", name, path, match);
                 }
             }
@@ -4758,7 +4707,7 @@ static void ut_processes_test(void) {
                 #pragma warning(suppress: 6011) // dereferencing null
                 r = ut_processes.nameof(pids[i], path, countof(path));
                 if (r != ERROR_NOT_FOUND) {
-                    assert(r == 0 && !strempty(path));
+                    assert(r == 0 && path[0] != 0);
                     verbose("%6d %s %s", pids[i], path, r == 0 ? "" : ut_str.error(r));
                 }
             }
@@ -4948,12 +4897,158 @@ static char* ut_str_drop_const(const char* s) {
     return ut_inline_str_drop_const(s);
 }
 
-char* strnchr(const char* s, int32_t n, char ch) {
-    while (n > 0 && *s != 0) {
-        if (*s == ch) { return ut_inline_str_drop_const(s); }
-        s++; n--;
+static int32_t ut_str_len(const char* s) { return (int32_t)strlen(s); }
+
+static int32_t ut_str_utf16len(const uint16_t* ws) { return (int32_t)wcslen(ws); }
+
+
+static int32_t ut_str_cmp(const char* s1, const char* s2) {
+    return strcmp(s1, s2);
+}
+
+static int32_t ut_str_i_cmp(const char* s1, const char* s2) {
+    return stricmp(s1, s2);
+}
+
+static bool ut_str_equ(const char* s1, const char* s2) {
+    return strcmp(s1, s2) == 0;
+}
+
+static bool ut_str_i_equ(const char* s1, const char* s2) {
+    return stricmp(s1, s2) == 0;
+}
+
+static char* ut_str_chr(const char* s, char ch) {
+    return ut_str_drop_const(strchr(s, ch));
+}
+
+static char* ut_str_r_chr(const char* s, char ch) {
+    return ut_str_drop_const(strrchr(s, ch));
+}
+
+static char* ut_str_str(const char* s1, const char* s2) {
+    swear(s2[0] != 0);
+    return ut_str_drop_const(strstr(s1, s2));
+}
+
+static char* ut_str_i_str(const char* s1, const char* s2) {
+    int32_t n1 = ut_str.len(s1);
+    int32_t n2 = ut_str.len(s2);
+    if (n2 <= n1) {
+        const char* s = s1;
+        while (s + n2 <= s1 + n1) {
+            if (strnicmp(s, s2, n2) == 0) { return ut_str_drop_const(s); }
+            s++;
+        }
     }
     return null;
+}
+
+static char* ut_str_r_str(const char* s1, const char* s2) {
+    int32_t n1 = ut_str.len(s1);
+    int32_t n2 = ut_str.len(s2);
+    swear(n2 > 0);
+    if (n2 <= n1) {
+        const char* s = s1 + n1 - n2;
+        while (s >= s1) {
+            if (memcmp(s, s2, n2) == 0) { return ut_str_drop_const(s); }
+            s--;
+        }
+    }
+    return null;
+}
+
+static char* ut_str_i_r_str(const char* s1, const char* s2) {
+    int32_t n1 = ut_str.len(s1);
+    int32_t n2 = ut_str.len(s2);
+    swear(n2 > 0);
+    if (n2 <= n1) {
+        const char* s = s1 + n1 - n2;
+        while (s >= s1) {
+            if (strnicmp(s, s2, n2) == 0) { return ut_str_drop_const(s); }
+            s--;
+        }
+    }
+    return null;
+}
+
+static void ut_str_cpy(char* d, int32_t capacity, const char* s) {
+    int32_t n = ut_str.len(s);
+    swear(capacity > n);
+    memcpy(d, s, n + 1);
+}
+
+static void ut_str_cat(char* d, int32_t capacity, const char* s) {
+    int32_t n = ut_str.len(s);
+    swear(capacity > n);
+    int32_t k = ut_str.len(d);
+    memcpy(d + k, s, n + 1);
+}
+
+static void ut_str_lower(char* d, int32_t capacity, const char* s) {
+    int32_t n = ut_str.len(s);
+    swear(capacity > n);
+    for (int32_t i = 0; i < n; i++) { d[i] = (char)tolower(s[i]); }
+    d[n] = 0;
+}
+
+static void ut_str_upper(char* d, int32_t capacity, const char* s) {
+    int32_t n = ut_str.len(s);
+    swear(capacity > n);
+    for (int32_t i = 0; i < n; i++) { d[i] = (char)toupper(s[i]); }
+    d[n] = 0;
+}
+
+static bool ut_str_starts(const char* s1, const char* s2) {
+    return ut_str.str(s1, s2) == s1;
+}
+
+static bool ut_str_ends(const char* s1, const char* s2) {
+    return ut_str.r_str(s1, s2) == s1 + ut_str.len(s1) - ut_str.len(s2);
+}
+
+static bool ut_str_i_starts(const char* s1, const char* s2) {
+    return ut_str.i_str(s1, s2) == s1;
+}
+
+static bool ut_str_i_ends(const char* s1, const char* s2) {
+    return ut_str.i_r_str(s1, s2) == s1 + ut_str.len(s1) - ut_str.len(s2);
+}
+
+static int32_t ut_str_utf8_bytes(const uint16_t* utf16) {
+    // If cchWideChar argument is -1, the function WideCharToMultiByte
+    // includes the zero-terminating character in the conversion and
+    // the returned byte count.
+    int32_t required_bytes_count =
+        WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
+        utf16, -1, null, 0, null, null);
+    swear(required_bytes_count < 0 || required_bytes_count > 0);
+    return required_bytes_count;
+}
+
+static int32_t ut_str_utf16_chars(const char* utf8) {
+    // If cbMultiByte argument is -1, the function MultiByteToWideChar
+    // includes the zero-terminating character in the conversion and
+    // the returned byte count.
+    int32_t required_wide_chars_count =
+        MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
+    swear(required_wide_chars_count < 0 || required_wide_chars_count > 0);
+    return required_wide_chars_count;
+}
+
+static void ut_str_utf16to8(char* d, int32_t capacity, const uint16_t* utf16) {
+    const int32_t required = ut_str.utf8_bytes(utf16);
+    swear(required > 0 && capacity >= required);
+    int32_t bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
+                        utf16, -1, d, capacity, null, null);
+    swear(required == bytes);
+}
+
+static void ut_str_utf8to16(uint16_t* d, int32_t capacity, const char* utf8) {
+    const int32_t required = ut_str.utf16_chars(utf8);
+    swear(required > 0 && capacity >= required);
+    int32_t count = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, d, capacity);
+    swear(required == count);
 }
 
 static void ut_str_format_va(char* utf8, int32_t count, const char* format,
@@ -4977,7 +5072,7 @@ static void ut_str_format(char* utf8, int32_t count, const char* format, ...) {
 }
 
 static const char* ut_str_error_for_language(int32_t error, LANGID language) {
-    static thread_local char text[256];
+    static thread_local char text[1024];
     const DWORD format = FORMAT_MESSAGE_FROM_SYSTEM|
         FORMAT_MESSAGE_IGNORE_INSERTS;
     uint16_t s[256];
@@ -4987,16 +5082,16 @@ static const char* ut_str_error_for_language(int32_t error, LANGID language) {
             (va_list*)null) > 0) {
         s[countof(s) - 1] = 0;
         // remove trailing '\r\n'
-        int32_t k = (int32_t)wcslen(s);
+        int32_t k = (int32_t)ut_str.utf16len(s);
         if (k > 0 && s[k - 1] == '\n') { s[k - 1] = 0; }
-        k = (int32_t)wcslen(s);
+        k = (int32_t)ut_str.utf16len(s);
         if (k > 0 && s[k - 1] == '\r') { s[k - 1] = 0; }
-        char stack[2048];
-        fatal_if(k >= countof(stack), "error message too long");
-        strprintf(text, "0x%08X(%d) \"%s\"", error, error,
-                  ut_str.utf16_utf8(stack, s));
+        char message[512];
+        fatal_if(k >= countof(message), "error message too long");
+        ut_str.utf16to8(message, countof(message), s);
+        ut_str_printf(text, "0x%08X(%d) \"%s\"", error, error, message);
     } else {
-        strprintf(text, "0x%08X(%d)", error, error);
+        ut_str_printf(text, "0x%08X(%d)", error, error);
     }
     return text;
 }
@@ -5011,215 +5106,31 @@ static const char* ut_str_error_nls(int32_t error) {
     return ut_str_error_for_language(error, lang);
 }
 
-static int32_t ut_str_utf8_bytes(const uint16_t* utf16) {
-    int32_t required_bytes_count =
-        WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-        utf16, -1, null, 0, null, null);
-    swear(required_bytes_count > 0);
-    return required_bytes_count;
-}
-
-static int32_t ut_str_utf16_chars(const char* utf8) {
-    int32_t required_wide_chars_count =
-        MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
-    swear(required_wide_chars_count > 0);
-    return required_wide_chars_count;
-}
-
-static char* ut_str_utf16to8(char* s, const uint16_t* utf16) {
-    errno_t r = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS, utf16, -1, s,
-        ut_str.utf8_bytes(utf16), null, null);
-    fatal_if(r == 0, "WideCharToMultiByte() failed %s",
-            ut_str.error(ut_runtime.err()));
-    return s;
-}
-
-static uint16_t* ut_str_utf8to16(uint16_t* utf16, const char* s) {
-    errno_t r = MultiByteToWideChar(CP_UTF8, 0, s, -1, utf16,
-                                ut_str.utf16_chars(s));
-    fatal_if(r == 0, "WideCharToMultiByte() failed %s",
-            ut_str.error(ut_runtime.err()));
-    return utf16;
-}
-
-static bool ut_str_is_empty(const char* s) {
-    return strempty(s);
-}
-
-static bool ut_str_equal(const char* s1, int32_t n1, const char* s2, int32_t n2) {
-    if (n1 < 0) { n1 = ut_str.length(s1); }
-    if (n2 < 0) { n2 = ut_str.length(s2); }
-    return n1 == n2 && memcmp(s1, s2, (size_t)n1) == 0;
-}
-
-static bool ut_str_equal_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
-    if (n1 < 0 && n2 < 0) {
-        return striequ(s1, s2);
-    }
-    if (n1 < 0) { n1 = ut_str.length(s1); }
-    if (n2 < 0) { n2 = ut_str.length(s2); }
-    if (n1 != n2) { return false; }
-    for (int32_t i = 0; i < n1; i++) {
-        if (tolower(s1[i]) != tolower(s2[i])) { return false; }
-    }
-    return true;
-}
-
-static bool ut_str_starts_with(const char* s1, int32_t n1, const char* s2, int32_t n2) {
-    if (n1 < 0 && n2 < 0) { return strstartswith(s1, s2); }
-    if (n1 <= 0) { n1 = (int32_t)strlen(s1); }
-    if (n2 <= 0) { n2 = (int32_t)strlen(s2); }
-    return n1 >= n2 && memcmp(s1, s2, (size_t)n2) == 0;
-}
-
-static bool ut_str_ends_with(const char* s1, int32_t n1, const char* s2, int32_t n2) {
-    if (n1 < 0 && n2 < 0) {
-        return s1 != null && s2 != null && strendswith(s1, s2);
-    }
-    if (n1 <= 0) { n1 = (int32_t)strlen(s1); }
-    if (n2 <= 0) { n2 = (int32_t)strlen(s2); }
-    return n1 >= n2 && memcmp(s1 + n1 - n2, s2, (size_t)n2) == 0;
-}
-
-static bool ut_str_starts_with_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
-    if (n1 < 0 && n2 < 0) { return strstartswith(s1, s2); }
-    if (n1 <= 0) { n1 = (int32_t)strlen(s1); }
-    if (n2 <= 0) { n2 = (int32_t)strlen(s2); }
-    return n1 >= n2 && ut_str.compare_nc(s1, n2, s2, n2) == 0;
-}
-
-static bool ut_str_ends_with_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
-    if (n1 <= 0) { n1 = (int32_t)strlen(s1); }
-    if (n2 <= 0) { n2 = (int32_t)strlen(s2); }
-    return n1 >= n2 && ut_str.compare_nc(s1 + n1 - n2, n2, s2, n2) == 0;
-}
-
-static int32_t ut_str_length(const char* s) {
-    return strlength(s);
-}
-
-static bool ut_str_copy(char* d, int32_t capacity,
-                     const char* s, int32_t bytes) {
-    not_null(d);
-    not_null(s);
-    swear(capacity > 1, "capacity: %d", capacity);
-    if (bytes < 0) {
-        while (capacity > 1 && *s != 0) {
-            *d++ = *s++;
-            capacity--;
+static const char* ut_str_grouping_separator(void) {
+    #ifdef WINDOWS
+        // en-US Windows 10/11:
+        // grouping_separator == ","
+        // decimal_separator  == "."
+        static char grouping_separator[8];
+        if (grouping_separator[0] == 0x00) {
+            errno_t r = b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+                grouping_separator, sizeof(grouping_separator)));
+            swear(r == 0 && grouping_separator[0] != 0);
         }
-        *d = 0;
-        return *s == 0;
-    } else {
-        while (capacity > 1 && *s != 0 && bytes > 0) {
-            *d++ = *s++;
-            capacity--;
-            bytes--;
+        return grouping_separator;
+    #else
+        // en-US Windows 10/11:
+        // grouping_separator == ""
+        // decimal_separator  == "."
+        struct lconv *locale_info = localeconv();
+        const char* grouping_separator = null;
+        if (grouping_separator == null) {
+            grouping_separator = locale_info->thousands_sep;
+            swear(grouping_separator != null);
         }
-        *d = 0;
-        return *s == 0 || bytes == 0;
-    }
+        return grouping_separator;
+    #endif
 }
-
-static char* ut_str_first_char(const char* s, int32_t bytes, char ch) {
-    return bytes > 0 ? strnchr(s, bytes, ch) : strchr(s, ch);
-}
-
-static char* ut_str_last_char(const char* s, int32_t n, char ch) {
-    if (n < 0) { return strrchr(s, ch); }
-    for (int32_t i = n; i >= 0; i--) {
-        if (s[i] == ch) { return ut_inline_str_drop_const(&s[i]); }
-    }
-    return null;
-}
-
-static char* ut_str_first(const char* s1, int32_t n1, const char* s2,
-        int32_t n2) {
-    if (n1 < 0 && n2 < 0) { return strstr(s1, s2); }
-    if (n1 < 0) { n1 = ut_str.length(s1); }
-    if (n2 < 0) { n2 = ut_str.length(s2); }
-    for (int32_t i = 0; i <= n1 - n2; i++) {
-        if (memcmp(s1 + i, s2, (size_t)n2) == 0) {
-            return ut_inline_str_drop_const(&s1[i]);
-        }
-    }
-    return null;
-}
-
-static bool ut_str_to_lower(char* d, int32_t capacity, const char* s, int32_t n) {
-    swear(capacity > 1, "capacity: %d", capacity);
-    if (n < 0) {
-        while (*s != 0 && capacity > 1) {
-            *d++ = (char)tolower(*s++);
-            capacity--;
-        }
-        *d = 0;
-        return *s == 0;
-    } else {
-        while (capacity > 1 && n > 0) {
-            *d++ = (char)tolower(*s++);
-            capacity--;
-            n--;
-        }
-        *d = 0;
-        return n == 0;
-    }
-}
-
-static bool ut_str_to_upper(char* d, int32_t capacity, const char* s, int32_t n) {
-    swear(capacity > 1, "capacity: %d", capacity);
-    if (n < 0) {
-        while (*s != 0 && capacity > 1) {
-            *d++ = (char)toupper(*s++);
-            capacity--;
-        }
-        *d = 0;
-        return *s == 0;
-    } else {
-        while (capacity > 1 && n > 0) {
-            *d++ = (char)toupper(*s++);
-            capacity--;
-            n--;
-        }
-        *d = 0;
-        return n == 0;
-    }
-}
-
-static int32_t ut_str_compare(const char* s1, int32_t n1, const char* s2, int32_t n2) {
-    if (n2 < 0) {
-        return n1 > 0 ? strncmp(s1, s2, (size_t)n1) : strcmp(s1, s2);
-    } else {
-        if (n1 < 0) { n1 = ut_str.length(s1); }
-        if (n2 < 0) { n2 = ut_str.length(s2); }
-        return n1 == n2 ? memcmp(s1, s2, (size_t)n1) : n1 - n2;
-    }
-}
-
-static int32_t ut_str_compare_nc(const char* s1, int32_t n1, const char* s2, int32_t n2) {
-    if (n2 < 0) {
-        return n1 > 0 ? strncasecmp(s1, s2, (size_t)n1) : strcasecmp(s1, s2);
-    } else {
-        if (n1 < 0) { n1 = ut_str.length(s1); }
-        if (n2 < 0) { n2 = ut_str.length(s2); }
-        int32_t n = ut_min(n1, n2);
-        for (int32_t i = 0; i < n; i++) {
-            int32_t r = tolower(s1[i]) - tolower(s2[i]);
-            if (r != 0) { return r; }
-        }
-        return n1 - n2;
-    }
-}
-
-static const char* ut_str_unquote(char* *s, int32_t n) {
-    if (n < 0) { n = ut_str.length(*s); }
-    if (n > 0 && (*s)[0] == '\"' && (*s)[n - 1] == '\"') {
-        (*s)[n - 1] = 0x00;
-        (*s)++;
-    }
-    return *s;
-}
-
 
 #pragma push_macro("ut_thread_local_str_pool")
 
@@ -5254,70 +5165,85 @@ static const char* ut_str_unquote(char* *s, int32_t n) {
 
 static const char* ut_str_int64_dg(int64_t v, // digit_grouped
         bool uint, const char* gs) { // grouping separator: gs
+    // sprintf format %`lld may not be implemented or
+    // does not respect locale or UI separators...
+    // Do it hard way:
+    const int32_t m = (int32_t)strlen(gs);
+    swear(m < 5); // utf-8 4 bytes max
     // 64 calls per thread 32 or less bytes each because:
-    // "18446744073709551615" 21 characters
+    // "18446744073709551615" 21 characters + 6x4 groups:
     // "18'446'744'073'709'551'615" 27 characters
-    ut_thread_local_str_pool(text, count, 64, 32); // 2KB
-    // When sprintf format %`lld is not implemented do it hard way:
-    uint64_t n = uint || v >= 0 ? (uint64_t)v : (uint64_t)INT64_MIN;
+    enum { max_text_bytes = 64 };
+    ut_thread_local_str_pool(text, count, 64, max_text_bytes); // 4KB
+    int64_t abs64 = v < 0 ? -v : v; // incorrect for INT64_MIN
+    uint64_t n = uint ? (uint64_t)v :
+        (v != INT64_MIN ? (uint64_t)abs64 : (uint64_t)INT64_MIN);
     int32_t i = 0;
-    int groups[8]; // 2^63 - 1 ~= 9 x 10^19 upto 7 groups of 3 digits
-    while (n > 0) {
+    int32_t groups[8]; // 2^63 - 1 ~= 9 x 10^19 upto 7 groups of 3 digits
+    do {
         groups[i] = n % 1000;
         n = n / 1000;
         i++;
-    }
-    const int gc = i - 1; // group count
+    } while (n > 0);
+    const int32_t gc = i - 1; // group count
     char* s = text;
     if (v < 0 && !uint) { *s++ = '-'; } // sign
-    int k = 0;
+    int32_t r = max_text_bytes - 1;
     while (i > 0) {
         i--;
+        assert(r > 3 + m);
         if (i == gc) {
-            ut_str.format(s, 5, i > 0 ? "%d%s" : "%d", groups[i], gs);
+            ut_str.format(s, r, "%d%s", groups[i], gc > 0 ? gs : "");
         } else {
-            ut_str.format(s, 5, i > 0 ? "%03d%s" : "%03d", groups[i], gs);
+            ut_str.format(s, r, "%03d%s", groups[i], i > 0 ? gs : "");
         }
-        k = (int32_t)strlen(s);
+        int32_t k = (int32_t)strlen(s);
+        r -= k;
         s += k;
     }
     *s = 0;
     return text;
 }
 
+#pragma push_macro("ut_glyph_thin_space")
+#pragma push_macro("ut_glyph_mmsp")
+#pragma push_macro("ut_glyph_three_per_em")
+#pragma push_macro("ut_glyph_six_per_em")
+#pragma push_macro("ut_glyph_punctuation")
+#pragma push_macro("ut_glyph_hair_space")
+
+// Thin Space U+2009
+#define ut_glyph_thin_space     "\xE2\x80\x89"
+
+// Medium Mathematical Space (MMSP) U+205F
+#define ut_glyph_mmsp           "\xE2\x81\x9F"
+
+// Three-Per-Em Space U+2004
+#define ut_glyph_three_per_em   "\xE2\x80\x84"
+
+// Six-Per-Em Space U+2006
+#define ut_glyph_six_per_em     "\xE2\x80\x86"
+
+// Punctuation Space U+2008
+#define ut_glyph_punctuation    "\xE2\x80\x88"
+
+// Hair Space U+200A
+#define ut_glyph_hair_space     "\xE2\x80\x8A" // winner all other too wide
+
 static const char* ut_str_int64(int64_t v) {
-    return ut_str_int64_dg(v, false, "\xE2\x80\x89");
+    return ut_str_int64_dg(v, false, ut_glyph_hair_space);
 }
 
 const char* ut_str_uint64(uint64_t v) {
-    return ut_str_int64_dg(v, true, "\xE2\x80\x89");
+    return ut_str_int64_dg(v, true, ut_glyph_hair_space);
 }
 
-static const char* ut_str_grouping_separator(void) {
-    #ifdef WINDOWS
-        // en-US Windows 10/11:
-        // grouping_separator == ","
-        // decimal_separator  == "."
-        static char grouping_separator[8];
-        if (grouping_separator[0] == 0x00) {
-            errno_t r = b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
-                grouping_separator, sizeof(grouping_separator)));
-            swear(r == 0 && grouping_separator[0] != 0);
-        }
-        return grouping_separator;
-    #else
-        // en-US Windows 10/11:
-        // grouping_separator == ""
-        // decimal_separator  == "."
-        struct lconv *locale_info = localeconv();
-        const char* grouping_separator = null;
-        if (grouping_separator == null) {
-            grouping_separator = locale_info->thousands_sep;
-            swear(grouping_separator != null);
-        }
-        return grouping_separator;
-    #endif
-}
+#pragma pop_macro("ut_glyph_thin_space")
+#pragma pop_macro("ut_glyph_mmsp")
+#pragma pop_macro("ut_glyph_three_per_em")
+#pragma pop_macro("ut_glyph_six_per_em")
+#pragma pop_macro("ut_glyph_punctuation")
+#pragma pop_macro("ut_glyph_hair_space")
 
 static const char* ut_str_int64_lc(int64_t v) {
     return ut_str_int64_dg(v, false, ut_str_grouping_separator());
@@ -5367,6 +5293,27 @@ static const char* ut_str_fp(const char* format, fp64_t v) {
 #ifdef UT_TESTS
 
 static void ut_str_test(void) {
+    swear(ut_str.len("hello") == 5);
+    swear(ut_str.equ("hello", "hello"));
+    swear(!ut_str.equ("hello", "world"));
+    swear(ut_str.i_cmp("hello", "HeLLo") == 0);
+    char concat[32];
+    ut_str_printf(concat, "%s", "hello_");
+    ut_str.cat(concat, countof(concat), "_world");
+    swear(ut_str.equ(concat, "hello__world"));
+    swear(ut_str.equ("hello", "hello"));
+    swear(!ut_str.equ("hello", "world"));
+    swear(ut_str.i_equ("hello", "HeLlO"));
+    swear(ut_str.starts("hello world", "hello"));
+    swear(ut_str.ends("hello world", "world"));
+    swear(ut_str.i_starts("hello world", "HeLlO"));
+    swear(ut_str.i_ends("hello world", "WoRlD"));
+    char text[10] = {0};
+    ut_str.cpy(text, countof(text), "hello");
+    swear(ut_str.equ(text, "hello"));
+    char ls[20] = {0};
+    ut_str.lower(ls, countof(ls), "HeLlO WoRlD");
+    swear(ut_str.equ(ls, "hello world"));
     #pragma push_macro("glyph_chinese_one")
     #pragma push_macro("glyph_chinese_two")
     #pragma push_macro("glyph_teddy_bear")
@@ -5375,92 +5322,57 @@ static void ut_str_test(void) {
     #define glyph_chinese_two "\xE8\xB4\xB0"
     #define glyph_teddy_bear  "\xF0\x9F\xA7\xB8"
     #define glyph_ice_cube    "\xF0\x9F\xA7\x8A"
-    const char* null_string = null;
-    swear(strempty(null_string));
-    swear(strempty(""));
-    swear(!strempty("hello"));
-    swear(strequ("hello", "hello"));
-    swear(!strequ("hello", "world"));
-    swear(strcasecmp("hello", "HeLLo") == 0);
-    swear(strncasecmp("hello", "HeLLo", 4) == 0);
-    swear(strcasecmp("hello", "world") != 0);
-    swear(strncasecmp("hello", "world", 4) != 0);
-    swear(strequ(strconcat("hello_", "_world"), "hello__world"));
-    swear(ut_str.is_empty(null_string));
-    swear(ut_str.is_empty(""));
-    swear(!ut_str.is_empty("hello"));
-    swear(ut_str.equal("hello", -1, "hello", -1));
-    swear(ut_str.equal_nc("hello", -1, "HeLlO", -1));
-    swear(!ut_str.equal("hello", -1, "world", -1));
-    swear(!ut_str.equal("hello", -1, "hello", 4));
-    swear(!ut_str.equal("hello",  4, "hello", -1));
-    swear(ut_str.equal("hellO",  4, "hello", 4));
-    swear(ut_str.equal("abc", 1, "a", 1));
-    swear(!ut_str.equal("a", 1, "abc", 3));
-    swear(ut_str.starts_with("hello world", -1, "hello", -1));
-    swear(!ut_str.starts_with("hello world", -1, "world", -1));
-    swear(ut_str.ends_with("hello world", -1, "world", -1));
-    swear(!ut_str.ends_with("hello world", -1, "hello", -1));
-    swear(ut_str.length("hello") == 5);
-    char text[10];
-    swear(ut_str.copy(text, countof(text), "hello", -1));
-    swear(ut_str.equal(text, -1, "hello", -1));
-    swear(!ut_str.copy(text, 9, "0123456789", -1));
-    char lower[20];
-    swear(ut_str.to_lower(lower, countof(lower), "HeLlO WoRlD", -1));
-    swear(ut_str.equal(lower, -1, "hello world", -1));
     const char* utf8_str =
-            glyph_teddy_bear "0"
+            glyph_teddy_bear
+            "0"
             glyph_chinese_one glyph_chinese_two
             "3456789 "
             glyph_ice_cube;
-    const uint16_t* wide_str = utf8to16(utf8_str);
-    char utf8[100];
-    swear(ut_str.utf16_utf8(utf8, wide_str));
+    #pragma pop_macro("glyph_ice_cube")
+    #pragma pop_macro("glyph_teddy_bear")
+    #pragma pop_macro("glyph_chinese_two")
+    #pragma pop_macro("glyph_chinese_one")
+    uint16_t wide_str[100] = {0};
+    ut_str.utf8to16(wide_str, countof(wide_str), utf8_str);
+    char utf8[100] = {0};
+    ut_str.utf16to8(utf8, countof(utf8), wide_str);
     uint16_t utf16[100];
-    swear(ut_str.utf8_utf16(utf16, utf8));
-    swear(ut_str.equal(utf16to8(utf16), -1, utf8_str, -1));
+    ut_str.utf8to16(utf16, countof(utf16), utf8);
+    char narrow_str[100] = {0};
+    ut_str.utf16to8(narrow_str, countof(narrow_str), utf16);
+    swear(ut_str.equ(narrow_str, utf8_str));
     char formatted[100];
     ut_str.format(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
-    swear(ut_str.equal(formatted, -1, "n: 42, s: test", -1));
-    char truncated[9];
-    truncated[8] = 0xFF;
-    swear(!ut_str.copy(truncated, countof(truncated), "0123456789", -1));
-    swear(truncated[8] == 0);
-    char truncated_lower[9];
-    truncated_lower[8] = 0xFF;
-    ut_str.to_lower(truncated_lower, countof(truncated_lower), "HELLO012345", -1);
-    swear(truncated_lower[8] == 0);
-    char truncated_formatted[9];
-    truncated_formatted[8] = 0xFF;
-    ut_str.format(truncated_formatted, countof(truncated_formatted), "n: %d, s: %s", 42, "a long test string");
-    swear(truncated_formatted[8] == 0);
-    char very_short_str[1];
-    very_short_str[0] = 0xFF;
-    ut_str.format(very_short_str, countof(very_short_str), "%s", "test");
-    swear(very_short_str[0] == 0);
-    swear(ut_str.starts_with("example text", 7, "exam", 4));
-    swear(ut_str.starts_with_nc("example text", 7, "ExAm", 4));
-    swear(ut_str.ends_with("testing", 7, "ing", 3));
-    swear(ut_str.ends_with_nc("testing", 7, "InG", 3));
-    swear(ut_str.compare("hello", 5, "hello", 5) == 0);
-    swear(ut_str.compare_nc("Hello", 5, "hello", 5) == 0);
-    swear(ut_str.compare("ab", 2, "abc", 3) < 0);
-    swear(ut_str.compare_nc("abc", 3, "ABCD", 4) < 0);
+    swear(ut_str.equ(formatted, "n: 42, s: test"));
+    char copy[11] = {0};
+    copy[10] = 0xFF;
+    ut_str.cpy(copy, countof(copy), "0123456789");
+    swear(copy[10] == 0);
+    char lower[11] = {0};
+    lower[10] = 0xFF;
+    ut_str.lower(lower, countof(lower), "HELLO12345");
+    swear(lower[10] == 0);
+    swear(ut_str.equ(lower, "hello12345"));
     // numeric values digit grouping format:
-    swear(strequ("18,446,744,073,709,551,615",
+    swear(ut_str.equ("0", ut_str.int64_dg(0, true, ",")));
+    swear(ut_str.equ("-1", ut_str.int64_dg(-1, false, ",")));
+    swear(ut_str.equ("999", ut_str.int64_dg(999, true, ",")));
+    swear(ut_str.equ("-999", ut_str.int64_dg(-999, false, ",")));
+    swear(ut_str.equ("1,001", ut_str.int64_dg(1001, true, ",")));
+    swear(ut_str.equ("-1,001", ut_str.int64_dg(-1001, false, ",")));
+    swear(ut_str.equ("18,446,744,073,709,551,615",
         ut_str.int64_dg(UINT64_MAX, true, ",")
     ));
-    swear(strequ("9,223,372,036,854,775,807",
+    swear(ut_str.equ("9,223,372,036,854,775,807",
         ut_str.int64_dg(INT64_MAX, false, ",")
     ));
-    swear(strequ("-9,223,372,036,854,775,808",
+    swear(ut_str.equ("-9,223,372,036,854,775,808",
         ut_str.int64_dg(INT64_MIN, false, ",")
     ));
     //  see:
     // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
     uint32_t pi_fp32 = 0x40490FDBULL; // 3.14159274101257324
-    swear(strequ("3.141592741",
+    swear(ut_str.equ("3.141592741",
                 ut_str.fp("%.9f", *(fp32_t*)&pi_fp32)),
           "%s", ut_str.fp("%.9f", *(fp32_t*)&pi_fp32)
     );
@@ -5470,7 +5382,7 @@ static void ut_str_test(void) {
     //
     //  https://en.wikipedia.org/wiki/Double-precision_floating-point_format
     uint64_t pi_fp64 = 0x400921FB54442D18ULL;
-    swear(strequ("3.141592653589793116",
+    swear(ut_str.equ("3.141592653589793116",
                 ut_str.fp("%.18f", *(fp64_t*)&pi_fp64)),
           "%s", ut_str.fp("%.18f", *(fp64_t*)&pi_fp64)
     );
@@ -5482,10 +5394,6 @@ static void ut_str_test(void) {
     //  actual "pi" first 64 digits:
     //  3.1415926535897932384626433832795028841971693993751058209749445923
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
-    #pragma pop_macro("glyph_ice_cube")
-    #pragma pop_macro("glyph_teddy_bear")
-    #pragma pop_macro("glyph_chinese_two")
-    #pragma pop_macro("glyph_chinese_one")
 }
 
 #else
@@ -5496,27 +5404,30 @@ static void ut_str_test(void) {}
 
 ut_str_if ut_str = {
     .drop_const         = ut_str_drop_const,
-    .is_empty           = ut_str_is_empty,
-    .equal              = ut_str_equal,
-    .equal_nc           = ut_str_equal_nc,
-    .length             = ut_str_length,
-    .copy               = ut_str_copy,
-    .first_char         = ut_str_first_char,
-    .last_char          = ut_str_last_char,
-    .first              = ut_str_first,
-    .to_lower           = ut_str_to_lower,
-    .to_upper           = ut_str_to_upper,
-    .compare            = ut_str_compare,
-    .compare_nc         = ut_str_compare_nc,
-    .starts_with        = ut_str_starts_with,
-    .ends_with          = ut_str_ends_with,
-    .starts_with_nc     = ut_str_starts_with_nc,
-    .ends_with_nc       = ut_str_ends_with_nc,
-    .unquote            = ut_str_unquote,
+    .len                = ut_str_len,
+    .utf16len           = ut_str_utf16len,
+    .cmp                = ut_str_cmp,
+    .i_cmp              = ut_str_i_cmp,
+    .equ                = ut_str_equ,
+    .i_equ              = ut_str_i_equ,
+    .chr                = ut_str_chr,
+    .r_chr              = ut_str_r_chr,
+    .str                = ut_str_str,
+    .i_str              = ut_str_i_str,
+    .r_str              = ut_str_r_str,
+    .i_r_str            = ut_str_i_r_str,
+    .cpy                = ut_str_cpy,
+    .cat                = ut_str_cat,
+    .lower              = ut_str_lower,
+    .upper              = ut_str_upper,
+    .starts             = ut_str_starts,
+    .ends               = ut_str_ends,
+    .i_starts           = ut_str_i_starts,
+    .i_ends             = ut_str_i_ends,
     .utf8_bytes         = ut_str_utf8_bytes,
     .utf16_chars        = ut_str_utf16_chars,
-    .utf16_utf8         = ut_str_utf16to8,
-    .utf8_utf16         = ut_str_utf8to16,
+    .utf16to8           = ut_str_utf16to8,
+    .utf8to16           = ut_str_utf8to16,
     .format             = ut_str_format,
     .format_va          = ut_str_format_va,
     .error              = ut_str_error,
@@ -6019,10 +5930,10 @@ static void ut_thread_detach(ut_thread_t t) {
 }
 
 static void ut_thread_name(const char* name) {
-    uint16_t stack[1024];
-    fatal_if(ut_str.length(name) >= countof(stack), "name too long: %s", name);
-    uint16_t* wide = ut_str.utf8_utf16(stack, name);
-    HRESULT r = SetThreadDescription(GetCurrentThread(), wide);
+    uint16_t stack[128];
+    fatal_if(ut_str.len(name) >= countof(stack), "name too long: %s", name);
+    ut_str.utf8to16(stack, countof(stack), name);
+    HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
     // notoriously returns 0x10000000 for no good reason whatsoever
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
 }
@@ -6265,9 +6176,9 @@ static int32_t  vigil_test_failed_assertion_count;
 
 static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    fatal_if_not(strequ(file,  __FILE__), "file: %s", file);
+    fatal_if_not(ut_str.equ(file,  __FILE__), "file: %s", file);
     fatal_if_not(line > __LINE__, "line: %s", line);
-    assert(strequ(func, "vigil_test"), "func: %s", func);
+    assert(ut_str.equ(func, "vigil_test"), "func: %s", func);
     fatal_if(condition == null || condition[0] == 0);
     fatal_if(format == null || format[0] == 0);
     vigil_test_failed_assertion_count++;
@@ -6290,10 +6201,10 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     const int32_t en = errno;
     assert(er == 2, "ut_runtime.err: %d expected 2", er);
     assert(en == 2, "errno: %d expected 2", en);
-    fatal_if_not(strequ(file,  __FILE__), "file: %s", file);
+    fatal_if_not(ut_str.equ(file,  __FILE__), "file: %s", file);
     fatal_if_not(line > __LINE__, "line: %s", line);
-    assert(strequ(func, "vigil_test"), "func: %s", func);
-    assert(strequ(condition, "")); // not yet used expected to be ""
+    assert(ut_str.equ(func, "vigil_test"), "func: %s", func);
+    assert(ut_str.equ(condition, "")); // not yet used expected to be ""
     assert(format != null && format[0] != 0);
     vigil_test_fatal_calls_count++;
     if (ut_debug.verbosity.level > ut_debug.verbosity.trace) {

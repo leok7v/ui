@@ -53,7 +53,7 @@ typedef struct ui_view_s {
     void (*measure)(ui_view_t* view);  // determine w, h (bottom up)
     void (*measured)(ui_view_t* view); // called after measure()
     void (*layout)(ui_view_t* view);   // set x, y possibly adjust w, h (top down)
-    void (*composed)(ui_view_t* view); // called after layout() ("laid_out")
+    void (*composed)(ui_view_t* view); // after layout() is done (laid out)
     void (*paint)(ui_view_t* view);
     void (*painted)(ui_view_t* view);  // called after paint()
     // composed() is effectively called right before paint() and
