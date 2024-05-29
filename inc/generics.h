@@ -78,7 +78,6 @@ static inline void ut_max_undefined(void) { }
     unsigned long: ut_min_ulong, \
     default:  ut_min_undefined)(X, Y)
 
-
 // The expression (X) + (Y) is used in _Generic primarily for type promotion
 // and compatibility between different types of the two operands. In C, when
 // you perform an arithmetic operation like addition between two variables,

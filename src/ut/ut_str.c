@@ -289,6 +289,149 @@ static const char* ut_str_unquote(char* *s, int32_t n) {
 }
 
 
+#pragma push_macro("ut_thread_local_str_pool")
+
+// upto "n" strings of "count = "bytes" per thread
+// can be used in one call:
+
+#define ut_thread_local_str_pool(text_, count_, n_, bytes_) \
+    enum { count_ = bytes_ };                               \
+    static volatile int32_t ix_;                            \
+    static char strings_[n_][bytes_];                       \
+    char* text = strings_[                                  \
+        ut_atomics.increment_int32(&ix_) %                  \
+        countof(strings_)];
+
+// Posix and Win32 C runtime:
+//   #include <locale.h>
+//   struct lconv *locale_info = localeconv();
+//   const char* grouping_separator = locale_info->thousands_sep;
+//   const char* decimal_separator = locale_info->decimal_point;
+// en-US Windows 1x:
+// grouping_separator == ""
+// decimal_separator  == "."
+//
+// Win32 API:
+//   b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+//       grouping_separator, sizeof(grouping_separator)));
+//   b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
+//       decimal_separator, sizeof(decimal_separator)));
+// en-US Windows 1x:
+// grouping_separator == ","
+// decimal_separator  == "."
+
+static const char* ut_str_int64_dg(int64_t v, // digit_grouped
+        bool uint, const char* gs) { // grouping separator: gs
+    // 64 calls per thread 32 or less bytes each because:
+    // "18446744073709551615" 21 characters
+    // "18'446'744'073'709'551'615" 27 characters
+    ut_thread_local_str_pool(text, count, 64, 32); // 2KB
+    // When sprintf format %`lld is not implemented do it hard way:
+    uint64_t n = uint || v >= 0 ? (uint64_t)v : (uint64_t)INT64_MIN;
+    int32_t i = 0;
+    int groups[8]; // 2^63 - 1 ~= 9 x 10^19 upto 7 groups of 3 digits
+    while (n > 0) {
+        groups[i] = n % 1000;
+        n = n / 1000;
+        i++;
+    }
+    const int gc = i - 1; // group count
+    char* s = text;
+    if (v < 0 && !uint) { *s++ = '-'; } // sign
+    int k = 0;
+    while (i > 0) {
+        i--;
+        if (i == gc) {
+            ut_str.format(s, 5, i > 0 ? "%d%s" : "%d", groups[i], gs);
+        } else {
+            ut_str.format(s, 5, i > 0 ? "%03d%s" : "%03d", groups[i], gs);
+        }
+        k = (int32_t)strlen(s);
+        s += k;
+    }
+    *s = 0;
+    return text;
+}
+
+static const char* ut_str_int64(int64_t v) {
+    return ut_str_int64_dg(v, false, "\xE2\x80\x89");
+}
+
+const char* ut_str_uint64(uint64_t v) {
+    return ut_str_int64_dg(v, true, "\xE2\x80\x89");
+}
+
+static const char* ut_str_grouping_separator(void) {
+    #ifdef WINDOWS
+        // en-US Windows 10/11:
+        // grouping_separator == ","
+        // decimal_separator  == "."
+        static char grouping_separator[8];
+        if (grouping_separator[0] == 0x00) {
+            errno_t r = b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+                grouping_separator, sizeof(grouping_separator)));
+            swear(r == 0 && grouping_separator[0] != 0);
+        }
+        return grouping_separator;
+    #else
+        // en-US Windows 10/11:
+        // grouping_separator == ""
+        // decimal_separator  == "."
+        struct lconv *locale_info = localeconv();
+        const char* grouping_separator = null;
+        if (grouping_separator == null) {
+            grouping_separator = locale_info->thousands_sep;
+            swear(grouping_separator != null);
+        }
+        return grouping_separator;
+    #endif
+}
+
+static const char* ut_str_int64_lc(int64_t v) {
+    return ut_str_int64_dg(v, false, ut_str_grouping_separator());
+}
+
+const char* ut_str_uint64_lc(uint64_t v) {
+    return ut_str_int64_dg(v, true, ut_str_grouping_separator());
+}
+
+static const char* ut_str_fp(const char* format, fp64_t v) {
+    static char decimal_separator[8];
+    if (decimal_separator[0] == 0) {
+        errno_t r = b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
+            decimal_separator, sizeof(decimal_separator)));
+        swear(r == 0 && decimal_separator[0] != 0);
+    }
+    swear(strlen(decimal_separator) <= 4);
+    char f[128]; // formatted float point
+    // 32 calls per thread
+    ut_thread_local_str_pool(text, count, 32, countof(f) + 5);
+    // snprintf format does not handle thousands separators on all know runtimes
+    // and respects setlocale() on Un*x systems but in MS runtime only when
+    // _snprintf_l() is used.
+    f[0] = 0x00;
+    ut_str.format(f, countof(f), format, v);
+    f[countof(f) - 1] = 0x00;
+    char* s = f;
+    char* d = text;
+    while (*s != 0x00) {
+        if (*s == '.') {
+            const char* sep = decimal_separator;
+            while (*sep != 0x00) { *d++ = *sep++; }
+            s++;
+        } else {
+            *d++ = *s++;
+        }
+    }
+    *d = 0x00;
+    // TODO: It's possible to handle mantissa grouping but...
+    // Not clear if human expects it in 5 digits or 3 digits chunks
+    // and unfortunately locale does not specify how
+    return text;
+}
+
+#pragma pop_macro("ut_thread_local_str_pool")
+
 #ifdef UT_TESTS
 
 static void ut_str_test(void) {
@@ -372,6 +515,40 @@ static void ut_str_test(void) {
     swear(ut_str.compare_nc("Hello", 5, "hello", 5) == 0);
     swear(ut_str.compare("ab", 2, "abc", 3) < 0);
     swear(ut_str.compare_nc("abc", 3, "ABCD", 4) < 0);
+    // numeric values digit grouping format:
+    swear(strequ("18,446,744,073,709,551,615",
+        ut_str.int64_dg(UINT64_MAX, true, ",")
+    ));
+    swear(strequ("9,223,372,036,854,775,807",
+        ut_str.int64_dg(INT64_MAX, false, ",")
+    ));
+    swear(strequ("-9,223,372,036,854,775,808",
+        ut_str.int64_dg(INT64_MIN, false, ",")
+    ));
+    //  see:
+    // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
+    uint32_t pi_fp32 = 0x40490FDBULL; // 3.14159274101257324
+    swear(strequ("3.141592741",
+                ut_str.fp("%.9f", *(fp32_t*)&pi_fp32)),
+          "%s", ut_str.fp("%.9f", *(fp32_t*)&pi_fp32)
+    );
+    //  3.141592741
+    //  ********^ (*** true digits ^ first rounded digit)
+    //    123456 (%.6f)
+    //
+    //  https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+    uint64_t pi_fp64 = 0x400921FB54442D18ULL;
+    swear(strequ("3.141592653589793116",
+                ut_str.fp("%.18f", *(fp64_t*)&pi_fp64)),
+          "%s", ut_str.fp("%.18f", *(fp64_t*)&pi_fp64)
+    );
+    //  3.141592653589793116
+    //  *****************^ (*** true digits ^ first rounded digit)
+    //    123456789012345 (%.15f)
+    //  https://en.wikipedia.org/wiki/Double-precision_floating-point_format
+    //
+    //  actual "pi" first 64 digits:
+    //  3.1415926535897932384626433832795028841971693993751058209749445923
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #pragma pop_macro("glyph_ice_cube")
     #pragma pop_macro("glyph_teddy_bear")
@@ -386,31 +563,38 @@ static void ut_str_test(void) {}
 #endif
 
 ut_str_if ut_str = {
-    .error          = ut_str_error,
-    .error_nls      = ut_str_error_nls,
-    .utf8_bytes     = ut_str_utf8_bytes,
-    .utf16_chars    = ut_str_utf16_chars,
-    .utf16_utf8     = ut_str_utf16to8,
-    .utf8_utf16     = ut_str_utf8to16,
-    .format         = ut_str_format,
-    .format_va      = ut_str_format_va,
-    .is_empty       = ut_str_is_empty,
-    .equal          = ut_str_equal,
-    .equal_nc       = ut_str_equal_nc,
-    .length         = ut_str_length,
-    .copy           = ut_str_copy,
-    .first_char     = ut_str_first_char,
-    .last_char      = ut_str_last_char,
-    .first          = ut_str_first,
-    .to_lower       = ut_str_to_lower,
-    .to_upper       = ut_str_to_upper,
-    .compare        = ut_str_compare,
-    .compare_nc     = ut_str_compare_nc,
-    .starts_with    = ut_str_starts_with,
-    .ends_with      = ut_str_ends_with,
-    .starts_with_nc = ut_str_starts_with_nc,
-    .ends_with_nc   = ut_str_ends_with_nc,
-    .drop_const     = ut_str_drop_const,
-    .unquote        = ut_str_unquote,
-    .test           = ut_str_test
+    .drop_const         = ut_str_drop_const,
+    .is_empty           = ut_str_is_empty,
+    .equal              = ut_str_equal,
+    .equal_nc           = ut_str_equal_nc,
+    .length             = ut_str_length,
+    .copy               = ut_str_copy,
+    .first_char         = ut_str_first_char,
+    .last_char          = ut_str_last_char,
+    .first              = ut_str_first,
+    .to_lower           = ut_str_to_lower,
+    .to_upper           = ut_str_to_upper,
+    .compare            = ut_str_compare,
+    .compare_nc         = ut_str_compare_nc,
+    .starts_with        = ut_str_starts_with,
+    .ends_with          = ut_str_ends_with,
+    .starts_with_nc     = ut_str_starts_with_nc,
+    .ends_with_nc       = ut_str_ends_with_nc,
+    .unquote            = ut_str_unquote,
+    .utf8_bytes         = ut_str_utf8_bytes,
+    .utf16_chars        = ut_str_utf16_chars,
+    .utf16_utf8         = ut_str_utf16to8,
+    .utf8_utf16         = ut_str_utf8to16,
+    .format             = ut_str_format,
+    .format_va          = ut_str_format_va,
+    .error              = ut_str_error,
+    .error_nls          = ut_str_error_nls,
+    .grouping_separator = ut_str_grouping_separator,
+    .int64_dg           = ut_str_int64_dg,
+    .int64              = ut_str_int64,
+    .uint64             = ut_str_uint64,
+    .int64_lc           = ut_str_int64,
+    .uint64_lc          = ut_str_uint64,
+    .fp                 = ut_str_fp,
+    .test               = ut_str_test
 };

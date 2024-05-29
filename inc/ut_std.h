@@ -1,6 +1,7 @@
 #pragma once
 #include <ctype.h>
 #include <errno.h>
+#include <locale.h>
 #include <malloc.h>
 #include <stdarg.h>
 #include <stdbool.h>

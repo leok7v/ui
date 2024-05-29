@@ -22,12 +22,12 @@ static int run(void) {
         ut_debug.verbosity.level = ut_debug.verbosity.verbose;
     }
     ut_runtime.test();
-    traceln("all tests passed\n");
-    traceln("ut_args.v[0]: %s", ut_args.v[0]);
-    traceln("ut_args.basename(): %s", ut_args.basename());
-    for (int i = 1; i < ut_args.c; i++) {
-        traceln("ut_args.v[%d]: %s", i, ut_args.v[i]);
-    }
+    traceln("all tests passed\n\n");
+//  traceln("ut_args.basename(): %s", ut_args.basename());
+//  traceln("ut_args.v[0]: %s", ut_args.v[0]);
+//  for (int i = 1; i < ut_args.c; i++) {
+//      traceln("ut_args.v[%d]: %s", i, ut_args.v[i]);
+//  }
     //  $ .\bin\debug\test1.exe "Hello World" Hello World
     //  ut_args.v[0]: .\bin\debug\test1.exe
     //  ut_args.basename(): test1

@@ -74,15 +74,7 @@ char* strnchr(const char* s, int32_t n, char ch);
 // operate only on ASCII characters. No ANSI no UTF-8
 
 typedef struct {
-    const char* (*error)(int32_t error);     // en-US
-    const char* (*error_nls)(int32_t error); // national locale string
-    int32_t (*utf8_bytes)(const uint16_t* utf16);
-    int32_t (*utf16_chars)(const char* s);
-    char* (*utf16_utf8)(char* destination, const uint16_t* utf16);
-    uint16_t* (*utf8_utf16)(uint16_t* destination, const char* utf8);
-    // string formatting printf style:
-    void (*format_va)(char* utf8, int32_t count, const char* format, va_list vl);
-    void (*format)(char* utf8, int32_t count, const char* format, ...);
+    char* (*drop_const)(const char* s); // because of strstr() and alike
     bool (*is_empty)(const char* s); // null or empty string
     bool (*equal)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*equal_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
@@ -102,11 +94,43 @@ typedef struct {
     bool (*ends_with)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*ends_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
     bool (*starts_with_nc)(const char* s1, int32_t n1, const char* s2, int32_t n2);
-    char* (*drop_const)(const char* s);
     // removes quotes from a head and tail of the string `s` if present
     const char* (*unquote)(char* *s, int32_t n); // modifies `s` in place
+    // utf8/utf16 conversion
+    int32_t   (*utf8_bytes)(const uint16_t* utf16);
+    int32_t   (*utf16_chars)(const char* s);
+    char*     (*utf16_utf8)(char* destination, const uint16_t* utf16);
+    uint16_t* (*utf8_utf16)(uint16_t* destination, const char* utf8);
+    // string formatting printf style:
+    void (*format_va)(char* utf8, int32_t count, const char* format, va_list vl);
+    void (*format)(char* utf8, int32_t count, const char* format, ...);
+    // format "dg" digit grouped; see below for known grouping separators:
+    const char* (*grouping_separator)(void); // locale
+    // Returned const char* pointer is shortliving thread local and
+    // intended to be used in the arguments list of .format() or .printf()
+    // like functions, not stored or passed for prolonged call chains.
+    // See implementation for details.
+    const char* (*int64_dg)(int64_t v, bool uint, const char* gs);
+    const char* (*int64)(int64_t v);   // with UTF-8 thin space
+    const char* (*uint64)(uint64_t v); // with UTF-8 thin space
+    const char* (*int64_lc)(int64_t v);   // with locale separator
+    const char* (*uint64_lc)(uint64_t v); // with locale separator
+    const char* (*fp)(const char* format, fp64_t v); // respects locale
+    // errors to strings
+    const char* (*error)(int32_t error);     // en-US
+    const char* (*error_nls)(int32_t error); // national locale string
     void (*test)(void);
 } ut_str_if;
+
+// Known grouping separators
+// https://en.wikipedia.org/wiki/Decimal_separator#Digit_grouping
+// coma "," separated decimal
+// other commonly used separators:
+// underscore "_" (Fortran, Kotlin)
+// apostrophe "'" (C++14, Rebol, Red)
+// backtick "`"
+// space "\x20"
+// thin_space "\xE2\x80\x89" Unicode: U+2009
 
 extern ut_str_if ut_str;
 
