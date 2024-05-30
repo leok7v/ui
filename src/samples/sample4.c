@@ -85,7 +85,7 @@ static void download(void) {
             "\"%s\" --output \"%s\" 2>nul >nul", url, filename);
         int r = system(cmd);
         if (r != 0) {
-            traceln("download %s failed %d %s", filename, r, ut_str.error(r));
+            traceln("download %s failed %d %s", filename, r, strerr(r));
         }
     }
 }
@@ -94,7 +94,7 @@ static void init(void) {
     ui_app.title = title;
     ui_app.content->paint = paint;
     ut_str_printf(filename, "%s\\mandrill-4.2.03.png",
-        ui_app.known_folder(ui.folder.pictures));
+        ut_files.known_folder(ut_files.folder.pictures));
     download();
     load_images();
 }

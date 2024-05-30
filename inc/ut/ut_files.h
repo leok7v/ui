@@ -3,7 +3,10 @@
 
 begin_c
 
-enum { ut_files_max_path = 4 * 1024 }; // *)
+// space for "short" 260 utf-16 characters filename in utf-8 format:
+typedef struct ut_file_name_s { char s[1024]; } ut_file_name_t;
+
+enum { ut_files_max_path = (int32_t)sizeof(ut_file_name_t) }; // *)
 
 typedef struct ut_file_s ut_file_t;
 
@@ -38,6 +41,19 @@ typedef struct {
     int32_t const o_excl;   // create fails if file exists
     int32_t const o_trunc;  // open always truncates to empty
     int32_t const o_sync;
+    // known folders ids:
+    struct { // known folders:
+        int32_t const home;      // "c:\Users\<username>" or "/users/<username>"
+        int32_t const desktop;
+        int32_t const documents;
+        int32_t const downloads;
+        int32_t const music;
+        int32_t const pictures;
+        int32_t const videos;
+        int32_t const shared;    // "c:\Users\Public"
+        int32_t const bin;       // "c:\Program Files" aka "/bin" aka "/Applications"
+        int32_t const data;      // "c:\ProgramData" aka "/var" aka "/data"
+    } const folder;
     errno_t (*open)(ut_file_t* *file, const char* filename, int32_t flags);
     bool    (*is_valid)(ut_file_t* file); // checks both null and invalid
     errno_t (*seek)(ut_file_t* file, int64_t *position, int32_t method);
@@ -63,6 +79,7 @@ typedef struct {
     errno_t (*move)(const char* from, const char* to); // allows overwriting
     errno_t (*cwd)(char* folder, int32_t count); // get current working dir
     errno_t (*chdir)(const char* folder); // set working directory
+    const char* (*known_folder)(int32_t kf_id);
     const char* (*bin)(void);  // Windows: "c:\Program Files" Un*x: "/bin"
     const char* (*data)(void); // Windows: "c:\ProgramData" Un*x: /data or /var
     const char* (*tmp)(void);  // temporary folder (system or user)

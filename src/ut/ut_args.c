@@ -233,7 +233,7 @@ static void ut_args_WinMain(void) {
     swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
     swear(ut_args_memory == null);
     const uint16_t* wcl = GetCommandLineW();
-    int32_t n = (int32_t)ut_str.utf16len(wcl);
+    int32_t n = (int32_t)ut_str.len16(wcl);
     char* cl = null;
     fatal_if_not_zero(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
     ut_str.utf16to8(cl, n * 2 + 1, wcl);

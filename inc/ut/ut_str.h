@@ -3,7 +3,33 @@
 
 begin_c
 
+typedef struct str64_t {
+    char s[64];
+} str64_t;
+
+typedef struct str128_t {
+    char s[128];
+} str128_t;
+
+typedef struct str1024_t {
+    char s[1024];
+} str1024_t;
+
+typedef struct str32K_t {
+    char s[32 * 1024];
+} str32K_t;
+
+// truncating string printf:
+// char s[100]; ut_str_printf(s, "Hello %s", "world");
+// do not use with char* and char s[] parameters
+// because countof(s) will be sizeof(char*) not the size of the buffer.
+
 #define ut_str_printf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
+
+// shorthand:
+
+#define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
+#define strerr(r) (ut_str.error((r)).s)
 
 // The strings are expected to be UTF-8 encoded.
 // Copy functions fatal fail if the destination buffer is too small.
@@ -12,14 +38,14 @@ begin_c
 typedef struct {
     char* (*drop_const)(const char* s); // because of strstr() and alike
     int32_t (*len)(const char* s);
-    int32_t (*utf16len)(const uint16_t* ws);
-    // string truncation is fatal use strlen() to ensure memory at call site
-    void  (*lower)(char* d, int32_t capacity, const char* s); // ASCII only
-    void  (*upper)(char* d, int32_t capacity, const char* s); // ASCII only
-    bool  (*starts)(const char* s1, const char* s2); // s1 starts with s2
-    bool  (*ends)(const char* s1, const char* s2);   // s1 ends with s2
-    bool  (*i_starts)(const char* s1, const char* s2); // ignore case
-    bool  (*i_ends)(const char* s1, const char* s2);   // ignore case
+    int32_t (*len16)(const uint16_t* utf16);
+    bool (*starts)(const char* s1, const char* s2); // s1 starts with s2
+    bool (*ends)(const char* s1, const char* s2);   // s1 ends with s2
+    bool (*istarts)(const char* s1, const char* s2); // ignore case
+    bool (*iends)(const char* s1, const char* s2);   // ignore case
+    // string truncation is fatal use strlen() to check at call site
+    void (*lower)(char* d, int32_t capacity, const char* s); // ASCII only
+    void (*upper)(char* d, int32_t capacity, const char* s); // ASCII only
     // utf8/utf16 conversion
     int32_t (*utf8_bytes)(const uint16_t* utf16); // UTF-8 byte required
     int32_t (*utf16_chars)(const char* s); // UTF-16 chars required
@@ -37,15 +63,15 @@ typedef struct {
     // intended to be used in the arguments list of .format() or .printf()
     // like functions, not stored or passed for prolonged call chains.
     // See implementation for details.
-    const char* (*int64_dg)(int64_t v, bool uint, const char* gs);
-    const char* (*int64)(int64_t v);   // with UTF-8 thin space
-    const char* (*uint64)(uint64_t v); // with UTF-8 thin space
-    const char* (*int64_lc)(int64_t v);   // with locale separator
-    const char* (*uint64_lc)(uint64_t v); // with locale separator
-    const char* (*fp)(const char* format, fp64_t v); // respects locale
+    str64_t (*int64_dg)(int64_t v, bool uint, const char* gs);
+    str64_t (*int64)(int64_t v);   // with UTF-8 thin space
+    str64_t (*uint64)(uint64_t v); // with UTF-8 thin space
+    str64_t (*int64_lc)(int64_t v);   // with locale separator
+    str64_t (*uint64_lc)(uint64_t v); // with locale separator
+    str128_t (*fp)(const char* format, fp64_t v); // respects locale
     // errors to strings (return thread local)
-    const char* (*error)(int32_t error);     // en-US
-    const char* (*error_nls)(int32_t error); // national locale string
+    str1024_t (*error)(int32_t error);     // en-US
+    str1024_t (*error_nls)(int32_t error); // national locale string
     void (*test)(void);
 } ut_str_if;
 

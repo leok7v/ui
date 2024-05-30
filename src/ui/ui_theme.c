@@ -13,7 +13,7 @@ static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
     DWORD bytes = sizeof(light_theme);
     errno_t r = RegGetValueA(root, path, key, RRF_RT_DWORD, &type, v, &bytes);
     if (r != 0) {
-        traceln("RegGetValueA(%s\\%s) failed %s", path, key, ut_str.error(r));
+        traceln("RegGetValueA(%s\\%s) failed %s", path, key, strerr(r));
     }
     return r;
 }
@@ -83,7 +83,7 @@ static void ui_theme_refresh(void* window) {
         DWMWA_USE_IMMERSIVE_DARK_MODE, &dark_mode, sizeof(dark_mode));
     if (r != 0) {
         traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
-                "failed %s", ut_str.error(r));
+                "failed %s", strerr(r));
     }
     ui_app.request_layout();
 }

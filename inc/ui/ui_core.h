@@ -209,18 +209,6 @@ typedef struct ui_s {
         int32_t const f23;
         int32_t const f24;
     } const key;
-    struct { // known folders:
-        int32_t const home     ; // c:\Users\<username>
-        int32_t const desktop  ;
-        int32_t const documents;
-        int32_t const downloads;
-        int32_t const music    ;
-        int32_t const pictures ;
-        int32_t const videos   ;
-        int32_t const shared   ; // c:\Users\Public
-        int32_t const bin      ; // c:\Program Files
-        int32_t const data     ; // c:\ProgramData
-    } const folder;
     bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
     // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
     bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,

@@ -95,12 +95,12 @@ static const char* filter[] = {
 };
 
 static void open_file(ui_button_t* unused(b)) {
-    const char* fn = ui_app.open_filename(
-        ui_app.known_folder(ui.folder.home),
+    ut_file_name_t fn = ui_app.open_file_dialog(
+        ut_files.known_folder(ut_files.folder.home),
         filter, countof(filter)); //  all files filer: null, 0
-    if (fn[0] != 0) {
-        ut_str_printf(toast_filename.text, "%s", fn);
-        traceln("%s", fn);
+    if (fn.s[0] != 0) {
+        ut_str_printf(toast_filename.text, "%s", fn.s);
+        traceln("%s", fn.s);
         ui_app.show_toast(&toast_filename, 2.0);
     }
 }

@@ -149,18 +149,6 @@ ui_if ui = {
         .f23    = VK_F23,
         .f24    = VK_F24,
     },
-    .folder = {
-        .home      = 0, // c:\Users\<username>
-        .desktop   = 1,
-        .documents = 2,
-        .downloads = 3,
-        .music     = 4,
-        .pictures  = 5,
-        .videos    = 6,
-        .shared    = 7, // c:\Users\Public
-        .bin       = 8, // c:\Program Files
-        .data      = 9  // c:\ProgramData
-    },
     .point_in_rect  = ui_point_in_rect,
     .intersect_rect = ui_intersect_rect,
     .gaps_em2px     = ui_gaps_em2px

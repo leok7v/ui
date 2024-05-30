@@ -308,7 +308,7 @@ static void ui_app_save_console_pos(void) {
         CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
         int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
         if (r != 0) {
-            traceln("GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
+            traceln("GetConsoleScreenBufferInfoEx() %s", strerr(r));
         } else {
             ut_config.save(ui_app.class_name, "console_screen_buffer_infoex",
                             &info, (int32_t)sizeof(info));
@@ -507,7 +507,7 @@ static void ui_app_allow_dark_mode_for_app(void) {
     if (AllowDarkModeForApp != null) {
         errno_t r = b2e(AllowDarkModeForApp(true));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("AllowDarkModeForApp(true) failed %s", ut_str.error(r));
+            traceln("AllowDarkModeForApp(true) failed %s", strerr(r));
         }
     }
     enum { Default = 0, AllowDark = 1, ForceDark = 2, ForceLight = 3 };
@@ -519,7 +519,7 @@ static void ui_app_allow_dark_mode_for_app(void) {
         // 1814 ERROR_RESOURCE_NAME_NOT_FOUND
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
             traceln("SetPreferredAppMode(AllowDark) failed %s",
-                    ut_str.error(r));
+                    strerr(r));
         }
     }
 }
@@ -533,7 +533,7 @@ static void ui_app_allow_dark_mode_for_window(void) {
     if (AllowDarkModeForWindow != null) {
         int r = b2e(AllowDarkModeForWindow(ui_app_window(), true));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("AllowDarkModeForWindow(true) failed %s", ut_str.error(r));
+            traceln("AllowDarkModeForWindow(true) failed %s", strerr(r));
         }
     }
 }
@@ -1586,7 +1586,7 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
     if (r != 0) {
-        traceln("GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
+        traceln("GetConsoleScreenBufferInfoEx() %s", strerr(r));
     } else {
         // tricky because correct order of the calls
         // SetConsoleWindowInfo() SetConsoleScreenBufferSize() depends on
@@ -1598,14 +1598,14 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
         SMALL_RECT const minwin = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
         int r0 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : ut_runtime.err();
-//      if (r0 != 0) { traceln("SetConsoleWindowInfo() %s", ut_str.error(r0)); }
+//      if (r0 != 0) { traceln("SetConsoleWindowInfo() %s", strerr(r0)); }
         int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
-//      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", ut_str.error(r1)); }
+//      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
             r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
-            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", ut_str.error(r0)); }
+            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r0)); }
             r1 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : ut_runtime.err();
-            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", ut_str.error(r1)); }
+            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", strerr(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
     }
@@ -1623,14 +1623,14 @@ static void ui_app_console_largest(void) {
     /* DOES NOT WORK:
     DWORD mode = 0;
     r = GetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
-    fatal_if_not_zero(r, "GetConsoleMode() %s", ut_str.error(r));
+    fatal_if_not_zero(r, "GetConsoleMode() %s", strerr(r));
     mode &= ~ENABLE_AUTO_POSITION;
     r = SetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
-    fatal_if_not_zero(r, "SetConsoleMode() %s", ut_str.error(r));
+    fatal_if_not_zero(r, "SetConsoleMode() %s", strerr(r));
     */
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
+    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", strerr(r));
     COORD c = GetLargestConsoleWindowSize(console);
     if (c.X > 80) { c.X &= ~0x7; }
     if (c.Y > 24) { c.Y &= ~0x3; }
@@ -1638,10 +1638,10 @@ static void ui_app_console_largest(void) {
     if (c.Y > 24) { c.Y -= 4; }
     ui_app_set_console_size(c.X, c.Y);
     r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
+    fatal_if_not_zero(r, "GetConsoleScreenBufferInfoEx() %s", strerr(r));
     info.dwSize.Y = 9999; // maximum value at the moment of implementation
     r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    fatal_if_not_zero(r, "SetConsoleScreenBufferInfoEx() %s", ut_str.error(r));
+    fatal_if_not_zero(r, "SetConsoleScreenBufferInfoEx() %s", strerr(r));
     ui_app_save_console_pos();
 }
 
@@ -1812,11 +1812,11 @@ static void ui_app_show_window(int32_t show) {
     }
 }
 
-static const char* ui_app_open_filename(const char* folder,
+static ut_file_name_t ui_app_open_file_dialog(const char* folder,
         const char* pairs[], int32_t n) {
     assert(pairs == null && n == 0 ||
            n >= 2 && n % 2 == 0);
-    uint16_t memory[32 * 1024];
+    uint16_t memory[4 * 1024];
     uint16_t* filter = memory;
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
@@ -1826,13 +1826,13 @@ static const char* ui_app_open_filename(const char* folder,
         for (int32_t i = 0; i < n; i+= 2) {
             uint16_t* s0 = s;
             ut_str.utf8to16(s0, left, pairs[i + 0]);
-            int32_t n0 = (int32_t)ut_str.utf16len(s0);
+            int32_t n0 = (int32_t)ut_str.len16(s0);
             assert(n0 > 0);
             s += n0 + 1;
             left -= n0 + 1;
             uint16_t* s1 = s;
             ut_str.utf8to16(s1, left, pairs[i + 0]);
-            int32_t n1 = (int32_t)ut_str.utf16len(s1);
+            int32_t n1 = (int32_t)ut_str.len16(s1);
             assert(n1 > 0);
             s[n1] = 0;
             s += n1 + 1;
@@ -1851,13 +1851,13 @@ static const char* ui_app_open_filename(const char* folder,
     ofn.lpstrInitialDir = dir;
     ofn.lpstrFile = path;
     ofn.nMaxFile = sizeof(path);
-    static thread_local char text[MAX_PATH];
+    ut_file_name_t fn;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        ut_str.utf16to8(text, countof(text), path);
+        ut_str.utf16to8(fn.s, countof(fn.s), path);
     } else {
-        text[0] = 0;
+        fn.s[0] = 0;
     }
-    return text;
+    return fn;
 }
 
 // TODO: use clipboard instead?
@@ -1879,21 +1879,21 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     fatal_if_false(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
         im->w, im->h, SRCCOPY));
     errno_t r = b2e(OpenClipboard(GetDesktopWindow()));
-    if (r != 0) { traceln("OpenClipboard() failed %s", ut_str.error(r)); }
+    if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
     if (r == 0) {
         r = b2e(EmptyClipboard());
-        if (r != 0) { traceln("EmptyClipboard() failed %s", ut_str.error(r)); }
+        if (r != 0) { traceln("EmptyClipboard() failed %s", strerr(r)); }
     }
     if (r == 0) {
         r = b2e(SetClipboardData(CF_BITMAP, bitmap));
         if (r != 0) {
-            traceln("SetClipboardData() failed %s", ut_str.error(r));
+            traceln("SetClipboardData() failed %s", strerr(r));
         }
     }
     if (r == 0) {
         r = b2e(CloseClipboard());
         if (r != 0) {
-            traceln("CloseClipboard() failed %s", ut_str.error(r));
+            traceln("CloseClipboard() failed %s", strerr(r));
         }
     }
     not_null(SelectBitmap(dst, d));
@@ -1903,31 +1903,6 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     fatal_if_false(DeleteDC(src));
     fatal_if_false(ReleaseDC(null, canvas));
     return r;
-}
-
-static const char* ui_app_known_folder(int32_t kf) {
-    // known folder ids order must match enum
-    static const GUID* kf_ids[] = {
-        &FOLDERID_Profile,
-        &FOLDERID_Desktop,
-        &FOLDERID_Documents,
-        &FOLDERID_Downloads,
-        &FOLDERID_Music,
-        &FOLDERID_Pictures,
-        &FOLDERID_Videos,
-        &FOLDERID_Public,
-        &FOLDERID_ProgramFiles,
-        &FOLDERID_ProgramData
-    };
-    static char known_foders[countof(kf_ids)][MAX_PATH];
-    fatal_if(!(0 <= kf && kf < countof(kf_ids)), "invalid kf=%d", kf);
-    if (known_foders[kf][0] == 0) {
-        uint16_t* path = null;
-        fatal_if_not_zero(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
-        ut_str.utf16to8(known_foders[kf], countof(known_foders[kf]), path);
-        CoTaskMemFree(path);
-	}
-    return known_foders[kf];
 }
 
 static ui_view_t ui_app_view = ui_view(list);
@@ -1997,8 +1972,7 @@ static void ui_app_init(void) {
     ui_app.data_save            = ui_app_data_save;
     ui_app.data_size            = ui_app_data_size;
     ui_app.data_load            = ui_app_data_load;
-    ui_app.open_filename        = ui_app_open_filename;
-    ui_app.known_folder         = ui_app_known_folder;
+    ui_app.open_file_dialog     = ui_app_open_file_dialog;
     ui_app.is_stdout_redirected = ui_app_is_stdout_redirected;
     ui_app.is_console_visible   = ui_app_is_console_visible;
     ui_app.console_attach       = ui_app_console_attach;
@@ -2160,7 +2134,6 @@ int main(int argc, const char* argv[], const char** envp) {
 #pragma comment(lib, "dwmapi")
 #pragma comment(lib, "gdi32")
 #pragma comment(lib, "msimg32")
-#pragma comment(lib, "ole32")
 #pragma comment(lib, "shcore")
 #pragma comment(lib, "uxtheme")
 

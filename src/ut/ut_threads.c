@@ -366,7 +366,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     if (r == 0) {
         fatal_if_false(CloseHandle(t));
     } else {
-        traceln("failed to join thread %p %s", t, ut_str.error(r));
+        traceln("failed to join thread %p %s", t, strerr(r));
     }
     return r;
 }

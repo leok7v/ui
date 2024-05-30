@@ -80,3 +80,4 @@ ut_runtime_if ut_runtime = {
 #pragma comment(lib, "shlwapi")
 #pragma comment(lib, "kernel32")
 #pragma comment(lib, "user32") // clipboard
+#pragma comment(lib, "ole32")  // ut_files.known_folder CoMemFree

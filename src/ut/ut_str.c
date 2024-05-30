@@ -1,7 +1,7 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
-static inline char* ut_inline_str_drop_const(const char* s) {
+static char* ut_str_drop_const(const char* s) {
     #if defined(__GNUC__) || defined(__clang__)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wcast-qual"
@@ -12,53 +12,10 @@ static inline char* ut_inline_str_drop_const(const char* s) {
     #endif
 }
 
-static char* ut_str_drop_const(const char* s) {
-    return ut_inline_str_drop_const(s);
-}
-
 static int32_t ut_str_len(const char* s) { return (int32_t)strlen(s); }
 
-static int32_t ut_str_utf16len(const uint16_t* ws) { return (int32_t)wcslen(ws); }
-
-static char* ut_str_i_str(const char* s1, const char* s2) {
-    int32_t n1 = ut_str.len(s1);
-    int32_t n2 = ut_str.len(s2);
-    if (n2 <= n1) {
-        const char* s = s1;
-        while (s + n2 <= s1 + n1) {
-            if (strnicmp(s, s2, n2) == 0) { return ut_str_drop_const(s); }
-            s++;
-        }
-    }
-    return null;
-}
-
-static char* ut_str_r_str(const char* s1, const char* s2) {
-    int32_t n1 = ut_str.len(s1);
-    int32_t n2 = ut_str.len(s2);
-    swear(n2 > 0);
-    if (n2 <= n1) {
-        const char* s = s1 + n1 - n2;
-        while (s >= s1) {
-            if (memcmp(s, s2, n2) == 0) { return ut_str_drop_const(s); }
-            s--;
-        }
-    }
-    return null;
-}
-
-static char* ut_str_i_r_str(const char* s1, const char* s2) {
-    int32_t n1 = ut_str.len(s1);
-    int32_t n2 = ut_str.len(s2);
-    swear(n2 > 0);
-    if (n2 <= n1) {
-        const char* s = s1 + n1 - n2;
-        while (s >= s1) {
-            if (strnicmp(s, s2, n2) == 0) { return ut_str_drop_const(s); }
-            s--;
-        }
-    }
-    return null;
+static int32_t ut_str_utf16len(const uint16_t* utf16) {
+    return (int32_t)wcslen(utf16);
 }
 
 static void ut_str_lower(char* d, int32_t capacity, const char* s) {
@@ -76,19 +33,28 @@ static void ut_str_upper(char* d, int32_t capacity, const char* s) {
 }
 
 static bool ut_str_starts(const char* s1, const char* s2) {
-    return strstr(s1, s2) == s1;
+    int32_t n1 = (int32_t)strlen(s1);
+    int32_t n2 = (int32_t)strlen(s2);
+    return n1 >= n2 && memcmp(s1, s2, n2) == 0;
 }
 
 static bool ut_str_ends(const char* s1, const char* s2) {
-    return ut_str_r_str(s1, s2) == s1 + ut_str.len(s1) - ut_str.len(s2);
+    int32_t n1 = (int32_t)strlen(s1);
+    int32_t n2 = (int32_t)strlen(s2);
+    return n1 >= n2 && memcmp(s1 + n1 - n2, s2, n2) == 0;
 }
 
 static bool ut_str_i_starts(const char* s1, const char* s2) {
-    return ut_str_i_str(s1, s2) == s1;
+    int32_t n1 = (int32_t)strlen(s1);
+    int32_t n2 = (int32_t)strlen(s2);
+    return n1 >= n2 && strnicmp(s1, s2, n2) == 0;
+
 }
 
 static bool ut_str_i_ends(const char* s1, const char* s2) {
-    return ut_str_i_r_str(s1, s2) == s1 + ut_str.len(s1) - ut_str.len(s2);
+    int32_t n1 = (int32_t)strlen(s1);
+    int32_t n2 = (int32_t)strlen(s2);
+    return n1 >= n2 && strnicmp(s1 + n1 - n2, s2, n2) == 0;
 }
 
 static int32_t ut_str_utf8_bytes(const uint16_t* utf16) {
@@ -147,8 +113,8 @@ static void ut_str_format(char* utf8, int32_t count, const char* format, ...) {
     va_end(vl);
 }
 
-static const char* ut_str_error_for_language(int32_t error, LANGID language) {
-    static thread_local char text[1024];
+static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
+    str1024_t text;
     const DWORD format = FORMAT_MESSAGE_FROM_SYSTEM|
         FORMAT_MESSAGE_IGNORE_INSERTS;
     uint16_t s[256];
@@ -158,26 +124,26 @@ static const char* ut_str_error_for_language(int32_t error, LANGID language) {
             (va_list*)null) > 0) {
         s[countof(s) - 1] = 0;
         // remove trailing '\r\n'
-        int32_t k = (int32_t)ut_str.utf16len(s);
+        int32_t k = (int32_t)ut_str.len16(s);
         if (k > 0 && s[k - 1] == '\n') { s[k - 1] = 0; }
-        k = (int32_t)ut_str.utf16len(s);
+        k = (int32_t)ut_str.len16(s);
         if (k > 0 && s[k - 1] == '\r') { s[k - 1] = 0; }
         char message[512];
         fatal_if(k >= countof(message), "error message too long");
         ut_str.utf16to8(message, countof(message), s);
-        ut_str_printf(text, "0x%08X(%d) \"%s\"", error, error, message);
+        ut_str_printf(text.s, "0x%08X(%d) \"%s\"", error, error, message);
     } else {
-        ut_str_printf(text, "0x%08X(%d)", error, error);
+        ut_str_printf(text.s, "0x%08X(%d)", error, error);
     }
     return text;
 }
 
-static const char* ut_str_error(int32_t error) {
+static str1024_t ut_str_error(int32_t error) {
     const LANGID lang = MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT);
     return ut_str_error_for_language(error, lang);
 }
 
-static const char* ut_str_error_nls(int32_t error) {
+static str1024_t ut_str_error_nls(int32_t error) {
     const LANGID lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
     return ut_str_error_for_language(error, lang);
 }
@@ -208,19 +174,6 @@ static const char* ut_str_grouping_separator(void) {
     #endif
 }
 
-#pragma push_macro("ut_thread_local_str_pool")
-
-// upto "n" strings of "count = "bytes" per thread
-// can be used in one call:
-
-#define ut_thread_local_str_pool(text_, count_, n_, bytes_) \
-    enum { count_ = bytes_ };                               \
-    static volatile int32_t ix_;                            \
-    static char strings_[n_][bytes_];                       \
-    char* text = strings_[                                  \
-        ut_atomics.increment_int32(&ix_) %                  \
-        countof(strings_)];
-
 // Posix and Win32 C runtime:
 //   #include <locale.h>
 //   struct lconv *locale_info = localeconv();
@@ -239,7 +192,7 @@ static const char* ut_str_grouping_separator(void) {
 // grouping_separator == ","
 // decimal_separator  == "."
 
-static const char* ut_str_int64_dg(int64_t v, // digit_grouped
+static str64_t ut_str_int64_dg(int64_t v, // digit_grouped
         bool uint, const char* gs) { // grouping separator: gs
     // sprintf format %`lld may not be implemented or
     // does not respect locale or UI separators...
@@ -249,8 +202,8 @@ static const char* ut_str_int64_dg(int64_t v, // digit_grouped
     // 64 calls per thread 32 or less bytes each because:
     // "18446744073709551615" 21 characters + 6x4 groups:
     // "18'446'744'073'709'551'615" 27 characters
-    enum { max_text_bytes = 64 };
-    ut_thread_local_str_pool(text, count, 64, max_text_bytes); // 4KB
+    str64_t text;
+    enum { max_text_bytes = countof(text.s) };
     int64_t abs64 = v < 0 ? -v : v; // incorrect for INT64_MIN
     uint64_t n = uint ? (uint64_t)v :
         (v != INT64_MIN ? (uint64_t)abs64 : (uint64_t)INT64_MIN);
@@ -262,7 +215,7 @@ static const char* ut_str_int64_dg(int64_t v, // digit_grouped
         i++;
     } while (n > 0);
     const int32_t gc = i - 1; // group count
-    char* s = text;
+    char* s = text.s;
     if (v < 0 && !uint) { *s++ = '-'; } // sign
     int32_t r = max_text_bytes - 1;
     while (i > 0) {
@@ -281,23 +234,23 @@ static const char* ut_str_int64_dg(int64_t v, // digit_grouped
     return text;
 }
 
-static const char* ut_str_int64(int64_t v) {
+static str64_t ut_str_int64(int64_t v) {
     return ut_str_int64_dg(v, false, ut_glyph_hair_space);
 }
 
-const char* ut_str_uint64(uint64_t v) {
+static str64_t ut_str_uint64(uint64_t v) {
     return ut_str_int64_dg(v, true, ut_glyph_hair_space);
 }
 
-static const char* ut_str_int64_lc(int64_t v) {
+static str64_t ut_str_int64_lc(int64_t v) {
     return ut_str_int64_dg(v, false, ut_str_grouping_separator());
 }
 
-const char* ut_str_uint64_lc(uint64_t v) {
+static str64_t ut_str_uint64_lc(uint64_t v) {
     return ut_str_int64_dg(v, true, ut_str_grouping_separator());
 }
 
-static const char* ut_str_fp(const char* format, fp64_t v) {
+static str128_t ut_str_fp(const char* format, fp64_t v) {
     static char decimal_separator[8];
     if (decimal_separator[0] == 0) {
         errno_t r = b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
@@ -305,17 +258,16 @@ static const char* ut_str_fp(const char* format, fp64_t v) {
         swear(r == 0 && decimal_separator[0] != 0);
     }
     swear(strlen(decimal_separator) <= 4);
-    char f[128]; // formatted float point
-    // 32 calls per thread
-    ut_thread_local_str_pool(text, count, 32, countof(f) + 5);
+    str128_t f; // formatted float point
     // snprintf format does not handle thousands separators on all know runtimes
     // and respects setlocale() on Un*x systems but in MS runtime only when
     // _snprintf_l() is used.
-    f[0] = 0x00;
-    ut_str.format(f, countof(f), format, v);
-    f[countof(f) - 1] = 0x00;
-    char* s = f;
-    char* d = text;
+    f.s[0] = 0x00;
+    ut_str.format(f.s, countof(f.s), format, v);
+    f.s[countof(f.s) - 1] = 0x00;
+    str128_t text;
+    char* s = f.s;
+    char* d = text.s;
     while (*s != 0x00) {
         if (*s == '.') {
             const char* sep = decimal_separator;
@@ -332,32 +284,20 @@ static const char* ut_str_fp(const char* format, fp64_t v) {
     return text;
 }
 
-#pragma pop_macro("ut_thread_local_str_pool")
-
 #ifdef UT_TESTS
 
 static void ut_str_test(void) {
     swear(ut_str.len("hello") == 5);
-//  swear(ut_str.equ("hello", "hello"));
-//  swear(!ut_str.equ("hello", "world"));
-//  swear(ut_str.i_cmp("hello", "HeLLo") == 0);
-//  char concat[32];
-//  ut_str_printf(concat, "%s", "hello_");
-//  ut_str.cat(concat, countof(concat), "_world");
-//  swear(ut_str.equ(concat, "hello__world"));
-//  swear(ut_str.equ("hello", "hello"));
-//  swear(!ut_str.equ("hello", "world"));
-//  swear(ut_str.i_equ("hello", "HeLlO"));
     swear(ut_str.starts("hello world", "hello"));
     swear(ut_str.ends("hello world", "world"));
-    swear(ut_str.i_starts("hello world", "HeLlO"));
-    swear(ut_str.i_ends("hello world", "WoRlD"));
-//  char text[10] = {0};
-//  ut_str.cpy(text, countof(text), "hello");
-//  swear(ut_str.equ(text, "hello"));
+    swear(ut_str.istarts("hello world", "HeLlO"));
+    swear(ut_str.iends("hello world", "WoRlD"));
     char ls[20] = {0};
     ut_str.lower(ls, countof(ls), "HeLlO WoRlD");
     swear(strcmp(ls, "hello world") == 0);
+    char upper[11] = {0};
+    ut_str.upper(upper, countof(upper), "hello12345");
+    swear(strcmp(upper,  "HELLO12345") == 0);
     #pragma push_macro("glyph_chinese_one")
     #pragma push_macro("glyph_chinese_two")
     #pragma push_macro("glyph_teddy_bear")
@@ -388,37 +328,28 @@ static void ut_str_test(void) {
     char formatted[100];
     ut_str.format(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
     swear(strcmp(formatted, "n: 42, s: test") == 0);
-//  char copy[11] = {0};
- // copy[10] = 0xFF;
- // ut_str.cpy(copy, countof(copy), "0123456789");
- // swear(copy[10] == 0);
-    char lower[11] = {0};
-    lower[10] = 0xFF;
-    ut_str.lower(lower, countof(lower), "HELLO12345");
-    swear(lower[10] == 0);
-    swear(strcmp(lower, "hello12345") == 0);
     // numeric values digit grouping format:
-    swear(strcmp("0", ut_str.int64_dg(0, true, ",")) == 0);
-    swear(strcmp("-1", ut_str.int64_dg(-1, false, ",")) == 0);
-    swear(strcmp("999", ut_str.int64_dg(999, true, ",")) == 0);
-    swear(strcmp("-999", ut_str.int64_dg(-999, false, ",")) == 0);
-    swear(strcmp("1,001", ut_str.int64_dg(1001, true, ",")) == 0);
-    swear(strcmp("-1,001", ut_str.int64_dg(-1001, false, ",")) == 0);
+    swear(strcmp("0", ut_str.int64_dg(0, true, ",").s) == 0);
+    swear(strcmp("-1", ut_str.int64_dg(-1, false, ",").s) == 0);
+    swear(strcmp("999", ut_str.int64_dg(999, true, ",").s) == 0);
+    swear(strcmp("-999", ut_str.int64_dg(-999, false, ",").s) == 0);
+    swear(strcmp("1,001", ut_str.int64_dg(1001, true, ",").s) == 0);
+    swear(strcmp("-1,001", ut_str.int64_dg(-1001, false, ",").s) == 0);
     swear(strcmp("18,446,744,073,709,551,615",
-        ut_str.int64_dg(UINT64_MAX, true, ",")) == 0
+        ut_str.int64_dg(UINT64_MAX, true, ",").s) == 0
     );
     swear(strcmp("9,223,372,036,854,775,807",
-        ut_str.int64_dg(INT64_MAX, false, ",")) == 0
+        ut_str.int64_dg(INT64_MAX, false, ",").s) == 0
     );
     swear(strcmp("-9,223,372,036,854,775,808",
-        ut_str.int64_dg(INT64_MIN, false, ",")) == 0
+        ut_str.int64_dg(INT64_MIN, false, ",").s) == 0
     );
     //  see:
     // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
     uint32_t pi_fp32 = 0x40490FDBULL; // 3.14159274101257324
     swear(strcmp("3.141592741",
-                ut_str.fp("%.9f", *(fp32_t*)&pi_fp32)) == 0,
-          "%s", ut_str.fp("%.9f", *(fp32_t*)&pi_fp32)
+                ut_str.fp("%.9f", *(fp32_t*)&pi_fp32).s) == 0,
+          "%s", ut_str.fp("%.9f", *(fp32_t*)&pi_fp32).s
     );
     //  3.141592741
     //  ********^ (*** true digits ^ first rounded digit)
@@ -427,8 +358,8 @@ static void ut_str_test(void) {
     //  https://en.wikipedia.org/wiki/Double-precision_floating-point_format
     uint64_t pi_fp64 = 0x400921FB54442D18ULL;
     swear(strcmp("3.141592653589793116",
-                ut_str.fp("%.18f", *(fp64_t*)&pi_fp64)) == 0,
-          "%s", ut_str.fp("%.18f", *(fp64_t*)&pi_fp64)
+                ut_str.fp("%.18f", *(fp64_t*)&pi_fp64).s) == 0,
+          "%s", ut_str.fp("%.18f", *(fp64_t*)&pi_fp64).s
     );
     //  3.141592653589793116
     //  *****************^ (*** true digits ^ first rounded digit)
@@ -449,13 +380,13 @@ static void ut_str_test(void) {}
 ut_str_if ut_str = {
     .drop_const         = ut_str_drop_const,
     .len                = ut_str_len,
-    .utf16len           = ut_str_utf16len,
+    .len16           = ut_str_utf16len,
     .lower              = ut_str_lower,
     .upper              = ut_str_upper,
     .starts             = ut_str_starts,
     .ends               = ut_str_ends,
-    .i_starts           = ut_str_i_starts,
-    .i_ends             = ut_str_i_ends,
+    .istarts           = ut_str_i_starts,
+    .iends             = ut_str_i_ends,
     .utf8_bytes         = ut_str_utf8_bytes,
     .utf16_chars        = ut_str_utf16_chars,
     .utf16to8           = ut_str_utf16to8,
