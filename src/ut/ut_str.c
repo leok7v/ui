@@ -20,36 +20,6 @@ static int32_t ut_str_len(const char* s) { return (int32_t)strlen(s); }
 
 static int32_t ut_str_utf16len(const uint16_t* ws) { return (int32_t)wcslen(ws); }
 
-
-static int32_t ut_str_cmp(const char* s1, const char* s2) {
-    return strcmp(s1, s2);
-}
-
-static int32_t ut_str_i_cmp(const char* s1, const char* s2) {
-    return stricmp(s1, s2);
-}
-
-static bool ut_str_equ(const char* s1, const char* s2) {
-    return strcmp(s1, s2) == 0;
-}
-
-static bool ut_str_i_equ(const char* s1, const char* s2) {
-    return stricmp(s1, s2) == 0;
-}
-
-static char* ut_str_chr(const char* s, char ch) {
-    return ut_str_drop_const(strchr(s, ch));
-}
-
-static char* ut_str_r_chr(const char* s, char ch) {
-    return ut_str_drop_const(strrchr(s, ch));
-}
-
-static char* ut_str_str(const char* s1, const char* s2) {
-    swear(s2[0] != 0);
-    return ut_str_drop_const(strstr(s1, s2));
-}
-
 static char* ut_str_i_str(const char* s1, const char* s2) {
     int32_t n1 = ut_str.len(s1);
     int32_t n2 = ut_str.len(s2);
@@ -91,19 +61,6 @@ static char* ut_str_i_r_str(const char* s1, const char* s2) {
     return null;
 }
 
-static void ut_str_cpy(char* d, int32_t capacity, const char* s) {
-    int32_t n = ut_str.len(s);
-    swear(capacity > n);
-    memcpy(d, s, n + 1);
-}
-
-static void ut_str_cat(char* d, int32_t capacity, const char* s) {
-    int32_t n = ut_str.len(s);
-    swear(capacity > n);
-    int32_t k = ut_str.len(d);
-    memcpy(d + k, s, n + 1);
-}
-
 static void ut_str_lower(char* d, int32_t capacity, const char* s) {
     int32_t n = ut_str.len(s);
     swear(capacity > n);
@@ -119,19 +76,19 @@ static void ut_str_upper(char* d, int32_t capacity, const char* s) {
 }
 
 static bool ut_str_starts(const char* s1, const char* s2) {
-    return ut_str.str(s1, s2) == s1;
+    return strstr(s1, s2) == s1;
 }
 
 static bool ut_str_ends(const char* s1, const char* s2) {
-    return ut_str.r_str(s1, s2) == s1 + ut_str.len(s1) - ut_str.len(s2);
+    return ut_str_r_str(s1, s2) == s1 + ut_str.len(s1) - ut_str.len(s2);
 }
 
 static bool ut_str_i_starts(const char* s1, const char* s2) {
-    return ut_str.i_str(s1, s2) == s1;
+    return ut_str_i_str(s1, s2) == s1;
 }
 
 static bool ut_str_i_ends(const char* s1, const char* s2) {
-    return ut_str.i_r_str(s1, s2) == s1 + ut_str.len(s1) - ut_str.len(s2);
+    return ut_str_i_r_str(s1, s2) == s1 + ut_str.len(s1) - ut_str.len(s2);
 }
 
 static int32_t ut_str_utf8_bytes(const uint16_t* utf16) {
@@ -324,31 +281,6 @@ static const char* ut_str_int64_dg(int64_t v, // digit_grouped
     return text;
 }
 
-#pragma push_macro("ut_glyph_thin_space")
-#pragma push_macro("ut_glyph_mmsp")
-#pragma push_macro("ut_glyph_three_per_em")
-#pragma push_macro("ut_glyph_six_per_em")
-#pragma push_macro("ut_glyph_punctuation")
-#pragma push_macro("ut_glyph_hair_space")
-
-// Thin Space U+2009
-#define ut_glyph_thin_space     "\xE2\x80\x89"
-
-// Medium Mathematical Space (MMSP) U+205F
-#define ut_glyph_mmsp           "\xE2\x81\x9F"
-
-// Three-Per-Em Space U+2004
-#define ut_glyph_three_per_em   "\xE2\x80\x84"
-
-// Six-Per-Em Space U+2006
-#define ut_glyph_six_per_em     "\xE2\x80\x86"
-
-// Punctuation Space U+2008
-#define ut_glyph_punctuation    "\xE2\x80\x88"
-
-// Hair Space U+200A
-#define ut_glyph_hair_space     "\xE2\x80\x8A" // winner all other too wide
-
 static const char* ut_str_int64(int64_t v) {
     return ut_str_int64_dg(v, false, ut_glyph_hair_space);
 }
@@ -356,13 +288,6 @@ static const char* ut_str_int64(int64_t v) {
 const char* ut_str_uint64(uint64_t v) {
     return ut_str_int64_dg(v, true, ut_glyph_hair_space);
 }
-
-#pragma pop_macro("ut_glyph_thin_space")
-#pragma pop_macro("ut_glyph_mmsp")
-#pragma pop_macro("ut_glyph_three_per_em")
-#pragma pop_macro("ut_glyph_six_per_em")
-#pragma pop_macro("ut_glyph_punctuation")
-#pragma pop_macro("ut_glyph_hair_space")
 
 static const char* ut_str_int64_lc(int64_t v) {
     return ut_str_int64_dg(v, false, ut_str_grouping_separator());
@@ -413,26 +338,26 @@ static const char* ut_str_fp(const char* format, fp64_t v) {
 
 static void ut_str_test(void) {
     swear(ut_str.len("hello") == 5);
-    swear(ut_str.equ("hello", "hello"));
-    swear(!ut_str.equ("hello", "world"));
-    swear(ut_str.i_cmp("hello", "HeLLo") == 0);
-    char concat[32];
-    ut_str_printf(concat, "%s", "hello_");
-    ut_str.cat(concat, countof(concat), "_world");
-    swear(ut_str.equ(concat, "hello__world"));
-    swear(ut_str.equ("hello", "hello"));
-    swear(!ut_str.equ("hello", "world"));
-    swear(ut_str.i_equ("hello", "HeLlO"));
+//  swear(ut_str.equ("hello", "hello"));
+//  swear(!ut_str.equ("hello", "world"));
+//  swear(ut_str.i_cmp("hello", "HeLLo") == 0);
+//  char concat[32];
+//  ut_str_printf(concat, "%s", "hello_");
+//  ut_str.cat(concat, countof(concat), "_world");
+//  swear(ut_str.equ(concat, "hello__world"));
+//  swear(ut_str.equ("hello", "hello"));
+//  swear(!ut_str.equ("hello", "world"));
+//  swear(ut_str.i_equ("hello", "HeLlO"));
     swear(ut_str.starts("hello world", "hello"));
     swear(ut_str.ends("hello world", "world"));
     swear(ut_str.i_starts("hello world", "HeLlO"));
     swear(ut_str.i_ends("hello world", "WoRlD"));
-    char text[10] = {0};
-    ut_str.cpy(text, countof(text), "hello");
-    swear(ut_str.equ(text, "hello"));
+//  char text[10] = {0};
+//  ut_str.cpy(text, countof(text), "hello");
+//  swear(ut_str.equ(text, "hello"));
     char ls[20] = {0};
     ut_str.lower(ls, countof(ls), "HeLlO WoRlD");
-    swear(ut_str.equ(ls, "hello world"));
+    swear(strcmp(ls, "hello world") == 0);
     #pragma push_macro("glyph_chinese_one")
     #pragma push_macro("glyph_chinese_two")
     #pragma push_macro("glyph_teddy_bear")
@@ -459,40 +384,40 @@ static void ut_str_test(void) {
     ut_str.utf8to16(utf16, countof(utf16), utf8);
     char narrow_str[100] = {0};
     ut_str.utf16to8(narrow_str, countof(narrow_str), utf16);
-    swear(ut_str.equ(narrow_str, utf8_str));
+    swear(strcmp(narrow_str, utf8_str) == 0);
     char formatted[100];
     ut_str.format(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
-    swear(ut_str.equ(formatted, "n: 42, s: test"));
-    char copy[11] = {0};
-    copy[10] = 0xFF;
-    ut_str.cpy(copy, countof(copy), "0123456789");
-    swear(copy[10] == 0);
+    swear(strcmp(formatted, "n: 42, s: test") == 0);
+//  char copy[11] = {0};
+ // copy[10] = 0xFF;
+ // ut_str.cpy(copy, countof(copy), "0123456789");
+ // swear(copy[10] == 0);
     char lower[11] = {0};
     lower[10] = 0xFF;
     ut_str.lower(lower, countof(lower), "HELLO12345");
     swear(lower[10] == 0);
-    swear(ut_str.equ(lower, "hello12345"));
+    swear(strcmp(lower, "hello12345") == 0);
     // numeric values digit grouping format:
-    swear(ut_str.equ("0", ut_str.int64_dg(0, true, ",")));
-    swear(ut_str.equ("-1", ut_str.int64_dg(-1, false, ",")));
-    swear(ut_str.equ("999", ut_str.int64_dg(999, true, ",")));
-    swear(ut_str.equ("-999", ut_str.int64_dg(-999, false, ",")));
-    swear(ut_str.equ("1,001", ut_str.int64_dg(1001, true, ",")));
-    swear(ut_str.equ("-1,001", ut_str.int64_dg(-1001, false, ",")));
-    swear(ut_str.equ("18,446,744,073,709,551,615",
-        ut_str.int64_dg(UINT64_MAX, true, ",")
-    ));
-    swear(ut_str.equ("9,223,372,036,854,775,807",
-        ut_str.int64_dg(INT64_MAX, false, ",")
-    ));
-    swear(ut_str.equ("-9,223,372,036,854,775,808",
-        ut_str.int64_dg(INT64_MIN, false, ",")
-    ));
+    swear(strcmp("0", ut_str.int64_dg(0, true, ",")) == 0);
+    swear(strcmp("-1", ut_str.int64_dg(-1, false, ",")) == 0);
+    swear(strcmp("999", ut_str.int64_dg(999, true, ",")) == 0);
+    swear(strcmp("-999", ut_str.int64_dg(-999, false, ",")) == 0);
+    swear(strcmp("1,001", ut_str.int64_dg(1001, true, ",")) == 0);
+    swear(strcmp("-1,001", ut_str.int64_dg(-1001, false, ",")) == 0);
+    swear(strcmp("18,446,744,073,709,551,615",
+        ut_str.int64_dg(UINT64_MAX, true, ",")) == 0
+    );
+    swear(strcmp("9,223,372,036,854,775,807",
+        ut_str.int64_dg(INT64_MAX, false, ",")) == 0
+    );
+    swear(strcmp("-9,223,372,036,854,775,808",
+        ut_str.int64_dg(INT64_MIN, false, ",")) == 0
+    );
     //  see:
     // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
     uint32_t pi_fp32 = 0x40490FDBULL; // 3.14159274101257324
-    swear(ut_str.equ("3.141592741",
-                ut_str.fp("%.9f", *(fp32_t*)&pi_fp32)),
+    swear(strcmp("3.141592741",
+                ut_str.fp("%.9f", *(fp32_t*)&pi_fp32)) == 0,
           "%s", ut_str.fp("%.9f", *(fp32_t*)&pi_fp32)
     );
     //  3.141592741
@@ -501,8 +426,8 @@ static void ut_str_test(void) {
     //
     //  https://en.wikipedia.org/wiki/Double-precision_floating-point_format
     uint64_t pi_fp64 = 0x400921FB54442D18ULL;
-    swear(ut_str.equ("3.141592653589793116",
-                ut_str.fp("%.18f", *(fp64_t*)&pi_fp64)),
+    swear(strcmp("3.141592653589793116",
+                ut_str.fp("%.18f", *(fp64_t*)&pi_fp64)) == 0,
           "%s", ut_str.fp("%.18f", *(fp64_t*)&pi_fp64)
     );
     //  3.141592653589793116
@@ -525,18 +450,6 @@ ut_str_if ut_str = {
     .drop_const         = ut_str_drop_const,
     .len                = ut_str_len,
     .utf16len           = ut_str_utf16len,
-    .cmp                = ut_str_cmp,
-    .i_cmp              = ut_str_i_cmp,
-    .equ                = ut_str_equ,
-    .i_equ              = ut_str_i_equ,
-    .chr                = ut_str_chr,
-    .r_chr              = ut_str_r_chr,
-    .str                = ut_str_str,
-    .i_str              = ut_str_i_str,
-    .r_str              = ut_str_r_str,
-    .i_r_str            = ut_str_i_r_str,
-    .cpy                = ut_str_cpy,
-    .cat                = ut_str_cat,
     .lower              = ut_str_lower,
     .upper              = ut_str_upper,
     .starts             = ut_str_starts,

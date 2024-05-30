@@ -52,9 +52,9 @@ static int32_t  vigil_test_failed_assertion_count;
 
 static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    fatal_if_not(ut_str.equ(file,  __FILE__), "file: %s", file);
+    fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
     fatal_if_not(line > __LINE__, "line: %s", line);
-    assert(ut_str.equ(func, "vigil_test"), "func: %s", func);
+    assert(strcmp(func, "vigil_test") == 0, "func: %s", func);
     fatal_if(condition == null || condition[0] == 0);
     fatal_if(format == null || format[0] == 0);
     vigil_test_failed_assertion_count++;
@@ -77,10 +77,10 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     const int32_t en = errno;
     assert(er == 2, "ut_runtime.err: %d expected 2", er);
     assert(en == 2, "errno: %d expected 2", en);
-    fatal_if_not(ut_str.equ(file,  __FILE__), "file: %s", file);
+    fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
     fatal_if_not(line > __LINE__, "line: %s", line);
-    assert(ut_str.equ(func, "vigil_test"), "func: %s", func);
-    assert(ut_str.equ(condition, "")); // not yet used expected to be ""
+    assert(strcmp(func, "vigil_test") == 0, "func: %s", func);
+    assert(strcmp(condition, "") == 0); // not yet used expected to be ""
     assert(format != null && format[0] != 0);
     vigil_test_fatal_calls_count++;
     if (ut_debug.verbosity.level > ut_debug.verbosity.trace) {

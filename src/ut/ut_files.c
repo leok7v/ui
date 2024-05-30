@@ -443,7 +443,7 @@ static errno_t ut_files_mkdirs(const char* dir) {
 } while (0)
 
 #define ut_files_append_name(pn, pnc, fn, name) do {     \
-    if (ut_str.equ(fn, "\\") || ut_str.equ(fn, "/")) {           \
+    if (strcmp(fn, "\\") == 0 || strcmp(fn, "/") == 0) { \
         ut_str.format(pn, pnc, "\\%s", name);            \
     } else {                                             \
         ut_str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
@@ -468,7 +468,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
             // do NOT follow symlinks - it could be disastrous
             const char* name = ut_files.readdir(&folder, &st);
             if (name == null) { break; }
-            if (!ut_str.equ(name, ".") && !ut_str.equ(name, "..") &&
+            if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0 &&
                 (st.type & ut_files.type_symlink) == 0 &&
                 (st.type & ut_files.type_folder) != 0) {
                 ut_files_realloc_path(r, pn, pnc, fn, name);
@@ -484,7 +484,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
             const char* name = ut_files.readdir(&folder, &st);
             if (name == null) { break; }
             // symlinks are already removed as normal files
-            if (!ut_str.equ(name, ".") && !ut_str.equ(name, "..") &&
+            if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0 &&
                 (st.type & ut_files.type_folder) == 0) {
                 ut_files_realloc_path(r, pn, pnc, fn, name);
                 if (r == 0) {
@@ -738,15 +738,15 @@ static void folders_test(void) {
         verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d %lld bytes %s%s",
                 name, year, month, day, hh, mm, ss, ms, mc,
                 bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
-        if (ut_str.equ(name, "file") || ut_str.equ(name, "hard")) {
+        if (strcmp(name, "file") == 0 || strcmp(name, "hard") == 0) {
             swear(bytes == (int64_t)strlen(content),
                     "size of \"%s\": %lld is incorrect expected: %d",
                     name, bytes, transferred);
         }
-        if (ut_str.equ(name, ".") || ut_str.equ(name, "..")) {
+        if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
             swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
         } else {
-            swear(ut_str.equ(name, "subd") == is_folder,
+            swear((strcmp(name, "subd") == 0) == is_folder,
                   "\"%s\" is_folder: %d", name, is_folder);
             // empirically timestamps are imprecise on NTFS
             swear(at >= before, "access: %lld  >= %lld", at, before);

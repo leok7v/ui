@@ -88,7 +88,7 @@ static void ut_clipboard_test(void) {
     char text[256];
     int32_t bytes = countof(text);
     fatal_if_not_zero(ut_clipboard.get_text(text, &bytes));
-    swear(ut_str.equ(text, "Hello Clipboard"));
+    swear(strcmp(text, "Hello Clipboard") == 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 

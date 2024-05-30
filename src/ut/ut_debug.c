@@ -19,7 +19,7 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
     snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
     prefix[countof(prefix) - 1] = 0; // zero terminated
     char text[2 * 1024];
-    if (format != null && !ut_str.equ(format, "")) {
+    if (format != null && format[0] != 0) {
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wformat-nonliteral"
@@ -69,7 +69,7 @@ static void ut_debug_vprintf(const char* file, int32_t line, const char* func,
 static void ut_debug_perrno(const char* file, int32_t line,
     const char* func, int32_t err_no, const char* format, ...) {
     if (err_no != 0) {
-        if (format != null && !ut_str.equ(format, "")) {
+        if (format != null && format[0] != 0) {
             va_list vl;
             va_start(vl, format);
             ut_debug.println_va(file, line, func, format, vl);
@@ -82,7 +82,7 @@ static void ut_debug_perrno(const char* file, int32_t line,
 static void ut_debug_perror(const char* file, int32_t line,
     const char* func, int32_t error, const char* format, ...) {
     if (error != 0) {
-        if (format != null && !ut_str.equ(format, "")) {
+        if (format != null && format[0] != 0) {
             va_list vl;
             va_start(vl, format);
             ut_debug.println_va(file, line, func, format, vl);
@@ -108,16 +108,16 @@ static void ut_debug_breakpoint(void) {
 
 static int32_t ut_debug_verbosity_from_string(const char* s) {
     char* n = null;
-    long v = strtol(ut_str.drop_const(s), &n, 10);
-    if (ut_str.i_equ(s, "quiet")) {
+    long v = strtol(s, &n, 10);
+    if (stricmp(s, "quiet") == 0) {
         return ut_debug.verbosity.quiet;
-    } else if (ut_str.i_equ(s, "info")) {
+    } else if (stricmp(s, "info") == 0) {
         return ut_debug.verbosity.info;
-    } else if (ut_str.i_equ(s, "verbose")) {
+    } else if (stricmp(s, "verbose") == 0) {
         return ut_debug.verbosity.verbose;
-    } else if (ut_str.i_equ(s, "debug")) {
+    } else if (stricmp(s, "debug") == 0) {
         return ut_debug.verbosity.debug;
-    } else if (ut_str.i_equ(s, "trace")) {
+    } else if (stricmp(s, "trace") == 0) {
         return ut_debug.verbosity.trace;
     } else if (n > s && ut_debug.verbosity.quiet <= v &&
                v <= ut_debug.verbosity.trace) {

@@ -5,34 +5,15 @@ begin_c
 
 #define ut_str_printf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
 
-// Most of ut_str.functions are duplicates of regular str*() runtime
-// with some minor adjustments and some extensions.
-// The length of the string is limited to 32 bits signed integer.
-// (I cannot imagine strstr() even on 2GB string size_t is uint64_t)
 // The strings are expected to be UTF-8 encoded.
-// Copy functions exit with fatal error if the destination buffer is too small.
+// Copy functions fatal fail if the destination buffer is too small.
 // It is responsibility of the caller to make sure it won't happen.
-// None of the functions are performance champions and are not intended to be.
-// It is perfectly normal to use strlen() strcpy() strcat() strstr() etc
-// instead of ut_str.*() where it is suitable.
 
 typedef struct {
     char* (*drop_const)(const char* s); // because of strstr() and alike
     int32_t (*len)(const char* s);
     int32_t (*utf16len)(const uint16_t* ws);
-    int32_t (*cmp)(const char* s1, const char* s2);
-    int32_t (*i_cmp)(const char* s1, const char* s2); // ignore case
-    bool  (*equ)(const char* s1, const char* s2);
-    bool  (*i_equ)(const char* s1, const char* s2); // ignore case
-    char* (*chr)(const char* s, char ch);
-    char* (*r_chr)(const char* s, char ch); // strrchr
-    char* (*str)(const char* s1, const char* s2);
-    char* (*r_str)(const char* s1, const char* s2);
-    char* (*i_str)(const char* s1, const char* s2);
-    char* (*i_r_str)(const char* s1, const char* s2);
     // string truncation is fatal use strlen() to ensure memory at call site
-    void  (*cpy)(char* d, int32_t capacity, const char* s);
-    void  (*cat)(char* d, int32_t capacity, const char* s);
     void  (*lower)(char* d, int32_t capacity, const char* s); // ASCII only
     void  (*upper)(char* d, int32_t capacity, const char* s); // ASCII only
     bool  (*starts)(const char* s1, const char* s2); // s1 starts with s2

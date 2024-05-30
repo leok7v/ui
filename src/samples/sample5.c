@@ -149,7 +149,7 @@ static void set_text(int32_t ix) {
             edit[ix]->scroll.pn, edit[ix]->scroll.rn);
     }
     // can be called before text.ui initialized
-    if (!ut_str.equ(last, label.text)) {
+    if (strcmp(last, label.text) != 0) {
         ui_view.invalidate(&label);
     }
     ut_str_printf(last, "%s", label.text);
