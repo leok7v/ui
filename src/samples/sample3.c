@@ -19,10 +19,10 @@ static void toggle_full_screen(ui_button_t* b) {
     b->pressed = !b->pressed;
     ui_app.full_screen(b->pressed);
     ut_str_printf(b->text, "%s", !b->pressed ?
-        ui_glyph_square_four_corners : ui_glyph_two_joined_squares);
+        ut_glyph_square_four_corners : ut_glyph_two_joined_squares);
 }
 
-ui_button_on_click(button_fs, ui_glyph_square_four_corners, 1.0, {
+ui_button_on_click(button_fs, ut_glyph_square_four_corners, 1.0, {
     toggle_full_screen(button_fs);
 });
 

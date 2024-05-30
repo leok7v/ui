@@ -74,9 +74,9 @@ static ui_mbx_t mbx = ui_mbx( // message box
     "unless an alignment is specified by a child.\n"
     "\n"
     "When child.max_w = "
-    ui_glyph_infinity
+    ut_glyph_infinity
     "or child.max_h = "
-    ui_glyph_infinity
+    ut_glyph_infinity
     ",\n"
     "the child expands in the specified direction.\n"
     "\n"

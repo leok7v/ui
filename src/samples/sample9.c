@@ -42,8 +42,8 @@ static ui_label_t label_multiline = ui_label(19.0,
     "Click inside or +/- to zoom;\n"
     "right mouse click to zoom out;\n"
     "use touchpad or keyboard "
-    ui_glyph_leftwards_white_arrow ui_glyph_upwards_white_arrow
-    ui_glyph_downwards_white_arrow ui_glyph_rightwards_white_arrow
+    ut_glyph_leftwards_white_arrow ut_glyph_upwards_white_arrow
+    ut_glyph_downwards_white_arrow ut_glyph_rightwards_white_arrow
     " to pan");
 
 static ui_label_t about = ui_label(34.56f,
@@ -58,7 +58,7 @@ static ui_label_t about = ui_label(34.56f,
     "incorrect Simplified Chinese localization."
     "\n\n"
     "Press ESC or click the "
-    ui_glyph_multiplication_sign
+    ut_glyph_multiplication_sign
     " button in right top corner "
     "to dismiss this message or just wait - it will disappear by "
     "itself in 10 seconds.\n");
@@ -117,7 +117,7 @@ static void flip_full_screen(ui_button_t* b) {
     }
 }
 
-ui_button_on_click(button_full_screen, ui_glyph_two_joined_squares, 1, {
+ui_button_on_click(button_full_screen, ut_glyph_two_joined_squares, 1, {
     flip_full_screen(button_full_screen);
 });
 
@@ -131,7 +131,7 @@ static void flip_locale(ui_button_t* b) {
 }
 
 static ui_button_t button_locale = ui_button(
-    ui_glyph_kanji_onna_female "A", 1, flip_locale);
+    ut_glyph_kanji_onna_female "A", 1, flip_locale);
 
 ui_button_on_click(button_about, "&About", 7.5, {
     ui_app.show_toast(&about, 10.0);

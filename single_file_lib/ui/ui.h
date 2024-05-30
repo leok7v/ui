@@ -127,6 +127,9 @@ typedef double fp64_t;
 // does not implement (C99 optional) dynamic arrays on the stack:
 
 #define ut_stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
+
+// alloca() is messy and in general is a not a good idea.
+// try to avoid if possible. Stack sizes vary from 64KB to 8MB in 2024.
 // ________________________________ ui_core.h _________________________________
 
 #include "ut/ut_std.h"
@@ -771,186 +774,6 @@ typedef struct {
 
 extern ui_gdi_if ui_gdi;
 
-// _______________________________ ui_glyphs.h ________________________________
-
-#include "ut/ut_std.h"
-
-// Square Four Corners (caption full screen button)
-// https://www.compart.com/en/unicode/U+26F6
-#define ui_glyph_square_four_corners                    "\xE2\x9B\xB6"
-
-// White Large Square (caption maximize button)
-// https://www.compart.com/en/unicode/U+2B1C
-#define ui_glyph_white_large_square                     "\xE2\xAC\x9C"
-
-// N-Ary Times Operator (caption close button)
-// https://www.compart.com/en/unicode/U+2A09
-#define ui_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
-
-// Heavy Minus Sign (caption minimize button)
-// https://www.compart.com/en/unicode/U+2796
-#define ui_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
-
-// Heavy Plus Sign
-// https://www.compart.com/en/unicode/U+2795
-#define ui_glyph_heavy_plus_sign                        "\xE2\x9E\x95"
-
-// Heavy Multiplication X
-// https://www.compart.com/en/unicode/U+2716
-#define ui_glyph_heavy_multiplication_x                 "\xE2\x9C\x96"
-
-// Multiplication Sign
-// https://www.compart.com/en/unicode/U+00D7
-#define ui_glyph_multiplication_sign                    "\xC3\x97"
-
-// Trigram For Heaven (caption menu button)
-// https://www.compart.com/en/unicode/U+2630
-#define ui_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
-
-// Braille Pattern Dots-12345678 (tool bar drag handle like: msvc toolbars)
-// https://www.compart.com/en/unicode/U+28FF
-#define ui_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
-
-// White Square with Upper Left Quadrant
-// https://www.compart.com/en/unicode/U+25F0
-#define ui_glyph_white_square_with_upper_left_quadrant "\xE2\x97\xB0"
-
-// White Square with Lower Left Quadrant
-// https://www.compart.com/en/unicode/U+25F1
-#define ui_glyph_white_square_with_lower_left_quadrant "\xE2\x97\xB1"
-
-// White Square with Lower Right Quadrant
-// https://www.compart.com/en/unicode/U+25F2
-#define ui_glyph_white_square_with_lower_right_quadrant "\xE2\x97\xB2"
-
-// White Square with Upper Right Quadrant
-// https://www.compart.com/en/unicode/U+25F3
-#define ui_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
-
-// White Square with Vertical Bisecting Line
-// https://www.compart.com/en/unicode/U+25EB
-#define ui_glyph_white_square_with_vertical_bisecting_line "\xE2\x97\xAB"
-
-// Squared Minus (White Square with Horizontal Bisecting Line)
-// https://www.compart.com/en/unicode/U+229F
-#define ui_glyph_squared_minus                          "\xE2\x8A\x9F"
-
-// North East and South West Arrow
-// https://www.compart.com/en/unicode/U+2922
-#define ui_glyph_north_east_and_south_west_arrow        "\xE2\xA4\xA2"
-
-// South East Arrow to Corner
-// https://www.compart.com/en/unicode/U+21F2
-#define ui_glyph_south_east_white_arrow_to_corner       "\xE2\x87\xB2"
-
-// North West Arrow to Corner
-// https://www.compart.com/en/unicode/U+21F1
-#define ui_glyph_north_west_white_arrow_to_corner       "\xE2\x87\xB1"
-
-// Leftwards Arrow to Bar
-// https://www.compart.com/en/unicode/U+21E6
-#define ui_glyph_leftwards_white_arrow_to_bar           "\xE2\x87\xA6"
-
-// Rightwards Arrow to Bar
-// https://www.compart.com/en/unicode/U+21E8
-#define ui_glyph_rightwards_white_arrow_to_bar          "\xE2\x87\xA8"
-
-// Upwards White Arrow
-// https://www.compart.com/en/unicode/U+21E7
-#define ui_glyph_upwards_white_arrow                    "\xE2\x87\xA7"
-
-// Downwards White Arrow
-// https://www.compart.com/en/unicode/U+21E9
-#define ui_glyph_downwards_white_arrow                  "\xE2\x87\xA9"
-
-// Leftwards White Arrow
-// https://www.compart.com/en/unicode/U+21E4
-#define ui_glyph_leftwards_white_arrow                  "\xE2\x87\xA4"
-
-// Rightwards White Arrow
-// https://www.compart.com/en/unicode/U+21E5
-#define ui_glyph_rightwards_white_arrow                 "\xE2\x87\xA5"
-
-// Upwards White Arrow on Pedestal
-// https://www.compart.com/en/unicode/U+21EB
-#define ui_glyph_upwards_white_arrow_on_pedestal        "\xE2\x87\xAB"
-
-// Braille Pattern Dots-678
-// https://www.compart.com/en/unicode/U+28E0
-#define ui_glyph_3_dots_tiny_right_bottom_triangle      "\xE2\xA3\xA0"
-
-// Braille Pattern Dots-2345678
-// https://www.compart.com/en/unicode/U+28FE
-// Combining the two into:
-#define ui_glyph_dotted_right_bottom_triangle           "\xE2\xA3\xA0\xE2\xA3\xBE"
-
-// Two Joined Squares
-// https://www.compart.com/en/unicode/U+29C9
-#define ui_glyph_two_joined_squares                     "\xE2\xA7\x89"
-
-// Upper Right Drop-Shadowed White Square
-// https://www.compart.com/en/unicode/U+2750
-#define ui_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
-
-// No-Break Space (NBSP)
-// https://www.compart.com/en/unicode/U+00A0
-#define ui_glyph_nbsp                                  "\xC2\xA0"
-
-// Em Quad
-// https://www.compart.com/en/unicode/U+2000
-#define ui_glyph_em_quad                               "\xE2\x80x81"
-
-// Three-Em Dash
-// https://www.compart.com/en/unicode/U+2E3B
-#define ui_glyph_three_em_dash                         "\xE2\xB8\xBB"
-
-// Infinity
-// https://www.compart.com/en/unicode/U+221E
-#define ui_glyph_infinity                              "\xE2\x88\x9E"
-
-// Black Large Circle
-// https://www.compart.com/en/unicode/U+2B24
-#define ui_glyph_black_large_circle                    "\xE2\xAC\xA4"
-
-// Large Circle
-// https://www.compart.com/en/unicode/U+25EF
-#define ui_glyph_large_circle                          "\xE2\x97\xAF"
-
-// Heavy Leftwards Arrow with Equilateral Arrowhead
-// https://www.compart.com/en/unicode/U+1F818
-#define ui_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead           "\xF0\x9F\xA0\x98"
-
-// Heavy Rightwards Arrow with Equilateral Arrowhead
-// https://www.compart.com/en/unicode/U+1F81A
-#define ui_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead          "\xF0\x9F\xA0\x9A"
-
-// Heavy Leftwards Arrow with Large Equilateral Arrowhead
-// https://www.compart.com/en/unicode/U+1F81C
-#define ui_glyph_heavy_leftwards_arrow_with_large_equilateral_arrowhead     "\xF0\x9F\xA0\x9C"
-
-// Heavy Rightwards Arrow with Large Equilateral Arrowhead
-// https://www.compart.com/en/unicode/U+1F81E
-#define ui_glyph_heavy_rightwards_arrow_with_large_equilateral_arrowhead    "\xF0\x9F\xA0\x9E"
-
-// CJK Unified Ideograph-5973: Kanji Onna "Female"
-// https://www.compart.com/en/unicode/U+5973
-#define ui_glyph_kanji_onna_female                                          "\xE2\xBC\xA5"
-
-// Leftwards Arrow
-// https://www.compart.com/en/unicode/U+2190
-#define ui_glyph_leftward_arrow                                             "\xE2\x86\x90"
-
-// Upwards Arrow
-// https://www.compart.com/en/unicode/U+2191
-#define ui_glyph_upwards_arrow                                              "\xE2\x86\x91"
-
-// Rightwards Arrow
-// https://www.compart.com/en/unicode/U+2192
-#define ui_glyph_rightwards_arrow                                           "\xE2\x86\x92"
-
-// Downwards Arrow
-// https://www.compart.com/en/unicode/U+2193
-#define ui_glyph_downwards_arrow                                            "\xE2\x86\x93"
 // ________________________________ ui_view.h _________________________________
 
 #include "ut/ut_std.h"
@@ -2541,7 +2364,7 @@ static void ui_app_toast_paint(void) {
                 // micro "close" toast button:
                 ui_gdi.x = ui_app.animating.view->x + ui_app.animating.view->w;
                 ui_gdi.y = 0;
-                ui_gdi.text("%s", ui_glyph_multiplication_sign);
+                ui_gdi.text("%s", ut_glyph_multiplication_sign);
             }
         }
         ui_gdi.pop();
@@ -4245,12 +4068,12 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest ui_glyph_two_joined_squares
-#define ui_caption_glyph_menu ui_glyph_trigram_for_heaven
-#define ui_caption_glyph_mini ui_glyph_heavy_minus_sign
-#define ui_caption_glyph_maxi ui_glyph_white_large_square
-#define ui_caption_glyph_full ui_glyph_square_four_corners
-#define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
+#define ui_caption_glyph_rest ut_glyph_two_joined_squares
+#define ui_caption_glyph_menu ut_glyph_trigram_for_heaven
+#define ui_caption_glyph_mini ut_glyph_heavy_minus_sign
+#define ui_caption_glyph_maxi ut_glyph_white_large_square
+#define ui_caption_glyph_full ut_glyph_square_four_corners
+#define ui_caption_glyph_quit ut_glyph_n_ary_times_operator
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
@@ -4384,7 +4207,7 @@ ui_caption_t ui_caption =  {
         .hit_test = ui_caption_hit_test,
         .hidden = true
     },
-    .icon   = ui_button(ui_glyph_nbsp, 0.0, null),
+    .icon   = ui_button(ut_glyph_nbsp, 0.0, null),
     .title  = ui_label(0, ""),
     .spacer = ui_view(spacer),
     .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),
@@ -4803,7 +4626,7 @@ static bool ui_containers_debug = false;
 static const char* ui_container_finite_int(int32_t v, char* text, int32_t count) {
     swear(v >= 0);
     if (v == ui.infinity) {
-        ut_str.format(text, count, "%s", ui_glyph_infinity);
+        ut_str.format(text, count, "%s", ut_glyph_infinity);
     } else {
         ut_str.format(text, count, "%d", v);
     }
@@ -5520,18 +5343,19 @@ static uint64_t ui_edit_uint64(int32_t high, int32_t low) {
     return ((uint64_t)high << 32) | (uint64_t)low;
 }
 
+// TODO: 
 // All allocate/free functions assume 'fail fast' semantics
 // if underlying OS runs out of RAM it considered to be fatal.
 // It is possible to implement and hold committed 'safety region'
-// of RAM and free it to general pull or reuse it on malloc() or reallocate()
-// returning null, try to notify user about low memory conditions
-// and attempt to save edited work but all of the above may only
-// work if there is no other run-away code that consumes system
-// memory at a very high rate.
+// of RAM and free it to general pull or reuse it on alloc() or
+// reallocate() returning null, try to notify user about low memory
+// conditions and attempt to save edited work but all of the
+// above may only work if there is no other run-away code that
+// consumes system memory at a very high rate.
 
 static void* ui_edit_alloc(int32_t bytes) {
     void* p = null;
-    errno_t r = ut_heap.allocate(null, &p, bytes, false);
+    errno_t r = ut_heap.alloc(&p, bytes);
     swear(r == 0 && p != null); // fatal
     return p;
 }
@@ -5544,9 +5368,9 @@ static void ui_edit_allocate(void** pp, int32_t count, size_t element) {
 
 static void ui_edit_free(void** pp) {
     not_null(pp);
-    // free(null) is acceptable but may indicate unbalanced logic
+    // free(null) is acceptable but may indicate unbalanced caller logic
     not_null(*pp);
-    ut_heap.deallocate(null, *pp);
+    ut_heap.free(*pp);
     *pp = null;
 }
 
@@ -5556,7 +5380,7 @@ static void ui_edit_reallocate(void** pp, int32_t count, size_t element) {
     if (*pp == null) {
         ui_edit_allocate(pp, count, element);
     } else {
-        errno_t r = ut_heap.reallocate(null, pp, (int64_t)count * (int64_t)element, false);
+        errno_t r = ut_heap.realloc(pp, (int64_t)count * (int64_t)element);
         swear(r == 0 && *pp != null); // intentionally fatal
     }
 }
@@ -7955,7 +7779,7 @@ static void ui_gdi_dump_tm(HDC hdc) {
     if (tm.tmPitchAndFamily & TMPF_TRUETYPE) {
         OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
         uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-        assert(bytes == sizeof(OUTLINETEXTMETRICA));
+        swear(bytes == sizeof(OUTLINETEXTMETRICA));
         traceln("otm .otmSize: %d          otm .otmFiller: %d       otm .otmfsSelection: %u",
                 otm.otmSize, otm.otmFiller, otm.otmfsSelection);
         traceln("otm .otmfsType: %u        otm .otmsCharSlopeRise: %d otm .otmsCharSlopeRun: %d",
@@ -7999,11 +7823,11 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
         // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
         // https://stackoverflow.com/questions/27631736/meaning-of-top-ascent-baseline-descent-bottom-and-leading-in-androids-font
         ui_gdi_dump_tm(hdc);
-        // ui_glyph_nbsp and "M" have the same result
+        // ut_glyph_nbsp and "M" have the same result
         fatal_if_false(GetTextExtentPoint32A(hdc, "m", 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
         SIZE eq = {0, 0}; // "M"
-        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &eq));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &eq));
         traceln("eq: %d %d", eq.cx, eq.cy);
         fm->height = ui_gdi.font_height(f);
         fm->descent = ui_gdi.descent(f);
@@ -8011,7 +7835,7 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
         fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
         traceln("vl: %d %d", vl.cx, vl.cy);
         traceln("e3: %d %d", e3.cx, e3.cy);
@@ -8033,37 +7857,34 @@ static fp64_t ui_gdi_line_spacing(fp64_t height_multiplier) {
 static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
         RECT* r, uint32_t format) { // ~70 microsecond Core i-7 3667U 2.0 GHz (2012)
     // if font == null, draws on HDC with selected font
-    int32_t height = 0; // return value is the height of the text in logical units
 if (0) {
     HDC hdc = ui_app_canvas();
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
         fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
-        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &em));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
         fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         traceln("vl: %d %d", vl.cx, vl.cy);
-        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
         traceln("e3: %d %d", e3.cx, e3.cy);
     }
 }
     int32_t count = ut_str.utf16_chars(s);
     assert(0 < count && count < 4096, "be reasonable count: %d?", count);
-    uint16_t* ws = (uint16_t*)ut_stackalloc(count * 2);
+    uint16_t ws[4096];
+    swear(count <= countof(ws), "find another way to draw!");
     ut_str.utf8to16(ws, count, s);
+    int32_t h = 0; // return value is the height of the text
     if (font != null) {
-        ui_gdi_hdc_with_font(font, {
-            height = DrawTextW(hdc, ws, n, r, format);
-        });
-    } else {
-        ui_gdi_with_hdc({
-            height = DrawTextW(hdc, ws, n, r, format);
-        });
+        ui_gdi_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });
+    } else { // with already selected font
+        ui_gdi_with_hdc({ h = DrawTextW(hdc, ws, n, r, format); });
     }
-    return height;
+    return h;
 }
 
 typedef struct { // draw text parameters
@@ -8083,18 +7904,13 @@ typedef struct { // draw text parameters
 } ui_gdi_dtp_t;
 
 static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
-    int32_t n = 1024;
-    char* text = (char*)ut_stackalloc(n);
-    ut_str.format_va(text, n - 1, p->format, p->vl);
-    int32_t k = (int32_t)strlen(text);
-    // Microsoft returns -1 not posix required sizeof buffer
-    while (k >= n - 1 || k < 0) {
-        n = n * 2;
-        text = (char*)ut_stackalloc(n);
-        ut_str.format_va(text, n - 1, p->format, p->vl);
-        k = (int32_t)strlen(text);
-    }
-    assert(k >= 0 && k <= n, "k=%d n=%d fmt=%s", k, n, p->format);
+    not_null(p);
+    char text[4096]; // expected to be enough for single text draw
+    text[0] = 0;
+    ut_str.format_va(text, countof(text), p->format, p->vl);
+    text[countof(text) - 1] = 0;
+    int32_t k = (int32_t)ut_str.len(text);
+    swear(k > 0 && k < countof(text), "k=%d n=%d fmt=%s", k, p->format);
     // rectangle is always calculated - it makes draw text
     // much slower but UI layer is mostly uses bitmap caching:
     if ((p->flags & DT_CALCRECT) == 0) {
@@ -8436,7 +8252,8 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     #pragma warning(push) // mxw[] IntelliSense confusion
     #pragma warning(disable: 6385)
     #pragma warning(disable: 6386)
-    int32_t* mxw = (int32_t*)ut_stackalloc((size_t)cols * sizeof(int32_t));
+    int32_t mxw[1024]; // more than enough for sane humane UI
+    swear(cols <= countof(mxw));
     memset(mxw, 0, (size_t)cols * sizeof(int32_t));
     ui_view_for_each(view, row, {
         if (!row->hidden) {
@@ -8889,11 +8706,11 @@ void ui_view_init_slider(ui_view_t* v) {
         " Hold key while clicking\n"
         " Ctrl: x 10 Shift: x 100 \n"
         " Ctrl+Shift: x 1000 \n for step multiplier.";
-    s->dec = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
+    s->dec = (ui_button_t)ui_button(ut_glyph_heavy_minus_sign, 0,
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
     ut_str_printf(s->dec.hint, "%s", accel);
-    s->inc = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
+    s->inc = (ui_button_t)ui_button(ut_glyph_heavy_minus_sign, 0,
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
     ut_str_printf(s->inc.hint, "%s", accel);
@@ -9080,13 +8897,13 @@ static int ui_toggle_paint_on_off(ui_view_t* v) {
     int32_t x1 = v->x + v->fm->em.w * 3 / 4;
     while (x < x1) {
         ui_gdi.x = x;
-        ui_gdi.text("%s", ui_glyph_black_large_circle);
+        ui_gdi.text("%s", ut_glyph_black_large_circle);
         x++;
     }
     int32_t rx = ui_gdi.x;
     ui_gdi.x = v->pressed ? x : v->x;
     ui_color_t c = ui_gdi.set_text_color(v->color);
-    ui_gdi.text("%s", ui_glyph_black_large_circle);
+    ui_gdi.text("%s", ut_glyph_black_large_circle);
     ui_gdi.set_text_color(c);
     ui_gdi.pop();
     return rx;

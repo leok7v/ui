@@ -32,9 +32,6 @@ static bool muted;
 
 static midi_t mds;
 
-#define glyph_mute "\xF0\x9F\x94\x87"
-#define glyph_speaker "\xF0\x9F\x94\x88"
-
 static ui_image_t  background;
 
 static void init(void);
@@ -94,7 +91,7 @@ static void paint(ui_view_t* view) {
     ui_gdi.x = 0;
     ui_gdi.y = 0;
     ui_gdi.set_text_color(muted ? ui_colors.green : ui_colors.red);
-    ui_gdi.text("%s", muted ? glyph_speaker : glyph_mute);
+    ui_gdi.text("%s", muted ? ut_glyph_speaker : ut_glyph_mute);
     ui_gdi.set_font(f);
 }
 

@@ -11,13 +11,13 @@ static int ui_toggle_paint_on_off(ui_view_t* v) {
     int32_t x1 = v->x + v->fm->em.w * 3 / 4;
     while (x < x1) {
         ui_gdi.x = x;
-        ui_gdi.text("%s", ui_glyph_black_large_circle);
+        ui_gdi.text("%s", ut_glyph_black_large_circle);
         x++;
     }
     int32_t rx = ui_gdi.x;
     ui_gdi.x = v->pressed ? x : v->x;
     ui_color_t c = ui_gdi.set_text_color(v->color);
-    ui_gdi.text("%s", ui_glyph_black_large_circle);
+    ui_gdi.text("%s", ut_glyph_black_large_circle);
     ui_gdi.set_text_color(c);
     ui_gdi.pop();
     return rx;

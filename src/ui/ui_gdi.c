@@ -672,7 +672,7 @@ static void ui_gdi_dump_tm(HDC hdc) {
     if (tm.tmPitchAndFamily & TMPF_TRUETYPE) {
         OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
         uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-        assert(bytes == sizeof(OUTLINETEXTMETRICA));
+        swear(bytes == sizeof(OUTLINETEXTMETRICA));
         traceln("otm .otmSize: %d          otm .otmFiller: %d       otm .otmfsSelection: %u",
                 otm.otmSize, otm.otmFiller, otm.otmfsSelection);
         traceln("otm .otmfsType: %u        otm .otmsCharSlopeRise: %d otm .otmsCharSlopeRun: %d",
@@ -716,11 +716,11 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
         // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
         // https://stackoverflow.com/questions/27631736/meaning-of-top-ascent-baseline-descent-bottom-and-leading-in-androids-font
         ui_gdi_dump_tm(hdc);
-        // ui_glyph_nbsp and "M" have the same result
+        // ut_glyph_nbsp and "M" have the same result
         fatal_if_false(GetTextExtentPoint32A(hdc, "m", 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
         SIZE eq = {0, 0}; // "M"
-        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &eq));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &eq));
         traceln("eq: %d %d", eq.cx, eq.cy);
         fm->height = ui_gdi.font_height(f);
         fm->descent = ui_gdi.descent(f);
@@ -728,7 +728,7 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
         fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
         traceln("vl: %d %d", vl.cx, vl.cy);
         traceln("e3: %d %d", e3.cx, e3.cy);
@@ -750,37 +750,34 @@ static fp64_t ui_gdi_line_spacing(fp64_t height_multiplier) {
 static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
         RECT* r, uint32_t format) { // ~70 microsecond Core i-7 3667U 2.0 GHz (2012)
     // if font == null, draws on HDC with selected font
-    int32_t height = 0; // return value is the height of the text in logical units
 if (0) {
     HDC hdc = ui_app_canvas();
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
         fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
-        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_em_quad, 1, &em));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
         fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         traceln("vl: %d %d", vl.cx, vl.cy);
-        fatal_if_false(GetTextExtentPoint32A(hdc, ui_glyph_three_em_dash, 1, &e3));
+        fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
         traceln("e3: %d %d", e3.cx, e3.cy);
     }
 }
     int32_t count = ut_str.utf16_chars(s);
     assert(0 < count && count < 4096, "be reasonable count: %d?", count);
-    uint16_t* ws = (uint16_t*)ut_stackalloc(count * 2);
+    uint16_t ws[4096];
+    swear(count <= countof(ws), "find another way to draw!");
     ut_str.utf8to16(ws, count, s);
+    int32_t h = 0; // return value is the height of the text
     if (font != null) {
-        ui_gdi_hdc_with_font(font, {
-            height = DrawTextW(hdc, ws, n, r, format);
-        });
-    } else {
-        ui_gdi_with_hdc({
-            height = DrawTextW(hdc, ws, n, r, format);
-        });
+        ui_gdi_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });
+    } else { // with already selected font
+        ui_gdi_with_hdc({ h = DrawTextW(hdc, ws, n, r, format); });
     }
-    return height;
+    return h;
 }
 
 typedef struct { // draw text parameters
@@ -800,18 +797,13 @@ typedef struct { // draw text parameters
 } ui_gdi_dtp_t;
 
 static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
-    int32_t n = 1024;
-    char* text = (char*)ut_stackalloc(n);
-    ut_str.format_va(text, n - 1, p->format, p->vl);
-    int32_t k = (int32_t)strlen(text);
-    // Microsoft returns -1 not posix required sizeof buffer
-    while (k >= n - 1 || k < 0) {
-        n = n * 2;
-        text = (char*)ut_stackalloc(n);
-        ut_str.format_va(text, n - 1, p->format, p->vl);
-        k = (int32_t)strlen(text);
-    }
-    assert(k >= 0 && k <= n, "k=%d n=%d fmt=%s", k, n, p->format);
+    not_null(p);
+    char text[4096]; // expected to be enough for single text draw
+    text[0] = 0;
+    ut_str.format_va(text, countof(text), p->format, p->vl);
+    text[countof(text) - 1] = 0;
+    int32_t k = (int32_t)ut_str.len(text);
+    swear(k > 0 && k < countof(text), "k=%d n=%d fmt=%s", k, p->format);
     // rectangle is always calculated - it makes draw text
     // much slower but UI layer is mostly uses bitmap caching:
     if ((p->flags & DT_CALCRECT) == 0) {

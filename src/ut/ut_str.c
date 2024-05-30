@@ -444,7 +444,7 @@ static void ut_str_test(void) {
     const char* utf8_str =
             glyph_teddy_bear
             "0"
-            glyph_chinese_one glyph_chinese_two
+            ut_glyph_chinese_jin4 ut_glyph_chinese_gong
             "3456789 "
             glyph_ice_cube;
     #pragma pop_macro("glyph_ice_cube")

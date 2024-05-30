@@ -32,7 +32,7 @@ static bool ui_containers_debug = false;
 static const char* ui_container_finite_int(int32_t v, char* text, int32_t count) {
     swear(v >= 0);
     if (v == ui.infinity) {
-        ut_str.format(text, count, "%s", ui_glyph_infinity);
+        ut_str.format(text, count, "%s", ut_glyph_infinity);
     } else {
         ut_str.format(text, count, "%d", v);
     }

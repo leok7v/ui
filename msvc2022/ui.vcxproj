@@ -14,7 +14,6 @@
     <ClInclude Include="..\inc\ui\ui_caption.h" />
     <ClInclude Include="..\inc\ui\ui_containers.h" />
     <ClInclude Include="..\inc\ui\ui_edit.h" />
-    <ClInclude Include="..\inc\ui\ui_glyphs.h" />
     <ClInclude Include="..\inc\ui\ui.h" />
     <ClInclude Include="..\inc\ui\ui_app.h" />
     <ClInclude Include="..\inc\ui\ui_button.h" />

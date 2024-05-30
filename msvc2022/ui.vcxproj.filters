@@ -51,9 +51,6 @@
     <ClInclude Include="..\inc\ui\ui_view.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_glyphs.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ui\ui_caption.h">
       <Filter>inc\ui</Filter>
     </ClInclude>

@@ -676,7 +676,7 @@ static void ui_app_toast_paint(void) {
                 // micro "close" toast button:
                 ui_gdi.x = ui_app.animating.view->x + ui_app.animating.view->w;
                 ui_gdi.y = 0;
-                ui_gdi.text("%s", ui_glyph_multiplication_sign);
+                ui_gdi.text("%s", ut_glyph_multiplication_sign);
             }
         }
         ui_gdi.pop();

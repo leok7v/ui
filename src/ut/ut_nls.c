@@ -55,18 +55,16 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID langid) {
     return r;
 }
 
-static const char* ut_nls_save_string(uint16_t* memory) {
-    const int32_t bytes = ut_str.utf8_bytes(memory);
-    char* utf8 = (char*)ut_stackalloc((size_t)bytes);
-    ut_str.utf16to8(utf8, bytes, memory);
-    uintptr_t n = strlen(utf8) + 1;
-    assert(n > 1);
+static const char* ut_nls_save_string(uint16_t* utf16) {
+    const int32_t bytes = ut_str.utf8_bytes(utf16);
+    swear(bytes > 1);
+    char* s = ut_nls_strings_free;
     uintptr_t left = (uintptr_t)countof(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
-    fatal_if_false(left >= n, "string_memory[] overflow");
-    memcpy(ut_nls_strings_free, utf8, (size_t)n);
-    const char* s = ut_nls_strings_free;
-    ut_nls_strings_free += n;
+    fatal_if_false(left >= (uintptr_t)bytes, "string_memory[] overflow");
+    ut_str.utf16to8(s, (int32_t)left, utf16);
+    assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
+    ut_nls_strings_free += bytes;
     return s;
 }
 

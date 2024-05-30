@@ -2,13 +2,11 @@
 #include "ut/ut_win32.h"
 
 static errno_t ut_clipboard_put_text(const char* utf8) {
-    errno_t r = 0;
     int32_t chars = ut_str.utf16_chars(utf8);
     int32_t bytes = (chars + 1) * 2;
-    uint16_t* utf16 = (uint16_t*)malloc((size_t)bytes);
-    if (utf16 == null) {
-        r = ERROR_OUTOFMEMORY;
-    } else {
+    uint16_t* utf16 = null;
+    errno_t r = ut_heap.alloc((void**)&utf16, (size_t)bytes);
+    if (utf16 != null) {
         ut_str.utf8to16(utf16, bytes, utf8);
         assert(utf16[chars - 1] == 0);
         const int32_t n = (int32_t)ut_str.utf16len(utf16) + 1;
@@ -43,7 +41,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
                 traceln("CloseClipboard() failed %s", ut_str.error(r));
             }
         }
-        free(utf16);
+        ut_heap.free(utf16);
     }
     return r;
 }

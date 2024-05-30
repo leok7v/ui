@@ -9,6 +9,7 @@
 #include "ut/ut_debug.h"
 #include "ut/ut_files.h"
 #include "ut/ut_generics.h"
+#include "ut/ut_glyphs.h"
 #include "ut/ut_heap.h"
 #include "ut/ut_loader.h"
 #include "ut/ut_mem.h"

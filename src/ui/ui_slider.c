@@ -207,11 +207,11 @@ void ui_view_init_slider(ui_view_t* v) {
         " Hold key while clicking\n"
         " Ctrl: x 10 Shift: x 100 \n"
         " Ctrl+Shift: x 1000 \n for step multiplier.";
-    s->dec = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
+    s->dec = (ui_button_t)ui_button(ut_glyph_heavy_minus_sign, 0,
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
     ut_str_printf(s->dec.hint, "%s", accel);
-    s->inc = (ui_button_t)ui_button(ui_glyph_heavy_minus_sign, 0,
+    s->inc = (ui_button_t)ui_button(ut_glyph_heavy_minus_sign, 0,
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
     ut_str_printf(s->inc.hint, "%s", accel);

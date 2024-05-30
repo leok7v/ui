@@ -2,11 +2,6 @@
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
 
-#define glyph_chinese_one "\xE5\xA3\xB9"
-#define glyph_chinese_two "\xE8\xB4\xB0"
-#define glyph_teddy_bear  "\xF0\x9F\xA7\xB8"
-#define glyph_ice_cube    "\xF0\x9F\xA7\x8A"
-
 #define lorem_ipsum_canonique \
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do "         \
     "eiusmod  tempor incididunt ut labore et dolore magna aliqua.Ut enim ad "  \
@@ -29,11 +24,13 @@ static const char* test_content =
     "0         10        20        30        40        50        60        70        80        90\n"
     "01234567890123456789012345678901234567890abcdefghi01234567890123456789012345678901234567890123456789\n"
     "\n"
-    "0" glyph_chinese_one glyph_chinese_two "3456789\n"
+    "0" ut_glyph_chinese_jin4 ut_glyph_chinese_gong "3456789\n"
     "\n"
-    glyph_teddy_bear "\n"
-    glyph_teddy_bear glyph_ice_cube glyph_teddy_bear glyph_ice_cube glyph_teddy_bear glyph_ice_cube "\n"
-    glyph_teddy_bear glyph_ice_cube glyph_teddy_bear " - " glyph_ice_cube glyph_teddy_bear glyph_ice_cube "\n"
+    ut_glyph_teddy_bear "\n"
+    ut_glyph_teddy_bear ut_glyph_ice_cube ut_glyph_teddy_bear
+    ut_glyph_ice_cube ut_glyph_teddy_bear ut_glyph_ice_cube "\n"
+    ut_glyph_teddy_bear ut_glyph_ice_cube ut_glyph_teddy_bear " - "
+    ut_glyph_ice_cube ut_glyph_teddy_bear ut_glyph_ice_cube "\n"
     "\n"
     lorem_ipsum_canonique "\n"
     lorem_ipsum_canonique;

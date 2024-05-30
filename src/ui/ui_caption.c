@@ -9,12 +9,12 @@
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest ui_glyph_two_joined_squares
-#define ui_caption_glyph_menu ui_glyph_trigram_for_heaven
-#define ui_caption_glyph_mini ui_glyph_heavy_minus_sign
-#define ui_caption_glyph_maxi ui_glyph_white_large_square
-#define ui_caption_glyph_full ui_glyph_square_four_corners
-#define ui_caption_glyph_quit ui_glyph_n_ary_times_operator
+#define ui_caption_glyph_rest ut_glyph_two_joined_squares
+#define ui_caption_glyph_menu ut_glyph_trigram_for_heaven
+#define ui_caption_glyph_mini ut_glyph_heavy_minus_sign
+#define ui_caption_glyph_maxi ut_glyph_white_large_square
+#define ui_caption_glyph_full ut_glyph_square_four_corners
+#define ui_caption_glyph_quit ut_glyph_n_ary_times_operator
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
@@ -148,7 +148,7 @@ ui_caption_t ui_caption =  {
         .hit_test = ui_caption_hit_test,
         .hidden = true
     },
-    .icon   = ui_button(ui_glyph_nbsp, 0.0, null),
+    .icon   = ui_button(ut_glyph_nbsp, 0.0, null),
     .title  = ui_label(0, ""),
     .spacer = ui_view(spacer),
     .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),

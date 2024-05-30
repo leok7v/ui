@@ -117,6 +117,9 @@
     <ClInclude Include="..\inc\ut\ut_nls.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_glyphs.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="inc">

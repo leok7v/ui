@@ -37,18 +37,19 @@ static uint64_t ui_edit_uint64(int32_t high, int32_t low) {
     return ((uint64_t)high << 32) | (uint64_t)low;
 }
 
+// TODO: 
 // All allocate/free functions assume 'fail fast' semantics
 // if underlying OS runs out of RAM it considered to be fatal.
 // It is possible to implement and hold committed 'safety region'
-// of RAM and free it to general pull or reuse it on malloc() or reallocate()
-// returning null, try to notify user about low memory conditions
-// and attempt to save edited work but all of the above may only
-// work if there is no other run-away code that consumes system
-// memory at a very high rate.
+// of RAM and free it to general pull or reuse it on alloc() or
+// reallocate() returning null, try to notify user about low memory
+// conditions and attempt to save edited work but all of the
+// above may only work if there is no other run-away code that
+// consumes system memory at a very high rate.
 
 static void* ui_edit_alloc(int32_t bytes) {
     void* p = null;
-    errno_t r = ut_heap.allocate(null, &p, bytes, false);
+    errno_t r = ut_heap.alloc(&p, bytes);
     swear(r == 0 && p != null); // fatal
     return p;
 }
@@ -61,9 +62,9 @@ static void ui_edit_allocate(void** pp, int32_t count, size_t element) {
 
 static void ui_edit_free(void** pp) {
     not_null(pp);
-    // free(null) is acceptable but may indicate unbalanced logic
+    // free(null) is acceptable but may indicate unbalanced caller logic
     not_null(*pp);
-    ut_heap.deallocate(null, *pp);
+    ut_heap.free(*pp);
     *pp = null;
 }
 
@@ -73,7 +74,7 @@ static void ui_edit_reallocate(void** pp, int32_t count, size_t element) {
     if (*pp == null) {
         ui_edit_allocate(pp, count, element);
     } else {
-        errno_t r = ut_heap.reallocate(null, pp, (int64_t)count * (int64_t)element, false);
+        errno_t r = ut_heap.realloc(pp, (int64_t)count * (int64_t)element);
         swear(r == 0 && *pp != null); // intentionally fatal
     }
 }

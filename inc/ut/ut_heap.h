@@ -7,12 +7,12 @@ begin_c
 // malloc()/calloc()/realloc()/free() function calls with understanding
 // that they introduce serialization points in multi-threaded applications
 // and may be induce wait states that under pressure (all cores busy) may
-// result in prolonged wait states which may not be acceptable for real time
-// processing.
+// result in prolonged wait which may not be acceptable for real time
+// processing pipelines.
 //
 // heap_if.functions may or may not be faster than malloc()/free() ...
 //
-// Some callers may find realloc parameters more convenient to avoid
+// Some callers may find realloc() parameters more convenient to avoid
 // anti-pattern
 //      void* reallocated = realloc(p, new_size);
 //      if (reallocated != null) { p = reallocated; }
@@ -21,10 +21,18 @@ begin_c
 //      realloc(p /* when p == null */, ...)
 //
 // zero: true initializes allocated or reallocated tail memory to 0x00
+// be careful with zeroing heap memory. It will result in virtual
+// to physical memory mapping and may be expensive.
 
 typedef struct ut_heap_s ut_heap_t;
 
 typedef struct { // heap == null uses process serialized LFH
+    errno_t (*alloc)(void* *a, int64_t bytes);
+    errno_t (*alloc_zero)(void* *a, int64_t bytes);
+    errno_t (*realloc)(void* *a, int64_t bytes);
+    errno_t (*realloc_zero)(void* *a, int64_t bytes);
+    void    (*free)(void* a);
+    // heaps:
     ut_heap_t* (*create)(bool serialized);
     errno_t (*allocate)(ut_heap_t* heap, void* *a, int64_t bytes, bool zero);
     // reallocate may return ERROR_OUTOFMEMORY w/o changing 'a' *)

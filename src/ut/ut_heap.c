@@ -1,6 +1,28 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
+
+static errno_t ut_heap_alloc(void* *a, int64_t bytes) {
+    return ut_heap.allocate(null, a, bytes, false);
+}
+
+static errno_t ut_heap_alloc_zero(void* *a, int64_t bytes) {
+    return ut_heap.allocate(null, a, bytes, true);
+}
+
+static errno_t ut_heap_realloc(void* *a, int64_t bytes) {
+    return ut_heap.reallocate(null, a, bytes, false);
+}
+
+static errno_t ut_heap_realloc_zero(void* *a, int64_t bytes) {
+    return ut_heap.reallocate(null, a, bytes, true);
+}
+
+static void ut_heap_free(void* a) {
+    ut_heap.deallocate(null, a);
+}
+
+
 static ut_heap_t* ut_heap_create(bool serialized) {
     const DWORD options = serialized ? 0 : HEAP_NO_SERIALIZE;
     return (ut_heap_t*)HeapCreate(options, 0, 0);
@@ -53,11 +75,16 @@ static void ut_heap_test(void) {
 }
 
 ut_heap_if ut_heap = {
-    .create      = ut_heap_create,
-    .allocate    = ut_heap_allocate,
-    .reallocate  = ut_heap_reallocate,
-    .deallocate  = ut_heap_deallocate,
-    .bytes       = ut_heap_bytes,
-    .dispose     = ut_heap_dispose,
-    .test        = ut_heap_test
+    .alloc        = ut_heap_alloc,
+    .alloc_zero   = ut_heap_alloc_zero,
+    .realloc      = ut_heap_realloc,
+    .realloc_zero = ut_heap_realloc_zero,
+    .free         = ut_heap_free,
+    .create       = ut_heap_create,
+    .allocate     = ut_heap_allocate,
+    .reallocate   = ut_heap_reallocate,
+    .deallocate   = ut_heap_deallocate,
+    .bytes        = ut_heap_bytes,
+    .dispose      = ut_heap_dispose,
+    .test         = ut_heap_test
 };
