@@ -120,3 +120,6 @@ typedef double fp64_t;
 // does not implement (C99 optional) dynamic arrays on the stack:
 
 #define ut_stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
+
+// alloca() is messy and in general is a not a good idea.
+// try to avoid if possible. Stack sizes vary from 64KB to 8MB in 2024.
