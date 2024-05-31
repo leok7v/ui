@@ -116,21 +116,26 @@ static void ut_str_format(char* utf8, int32_t count, const char* format, ...) {
 static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
     str1024_t text;
     const DWORD format = FORMAT_MESSAGE_FROM_SYSTEM|
-        FORMAT_MESSAGE_IGNORE_INSERTS;
-    uint16_t s[256];
+                         FORMAT_MESSAGE_IGNORE_INSERTS;
+    uint16_t utf16[countof(text.s)];
     HRESULT hr = 0 <= error && error <= 0xFFFF ?
         HRESULT_FROM_WIN32((uint32_t)error) : (HRESULT)error;
-    if (FormatMessageW(format, null, (DWORD)hr, language, s, countof(s) - 1,
-            (va_list*)null) > 0) {
-        s[countof(s) - 1] = 0;
+    if (FormatMessageW(format, null, (DWORD)hr, language,
+            utf16, countof(utf16) - 1, (va_list*)null) > 0) {
+        utf16[countof(utf16) - 1] = 0;
         // remove trailing '\r\n'
-        int32_t k = (int32_t)ut_str.len16(s);
-        if (k > 0 && s[k - 1] == '\n') { s[k - 1] = 0; }
-        k = (int32_t)ut_str.len16(s);
-        if (k > 0 && s[k - 1] == '\r') { s[k - 1] = 0; }
-        char message[512];
-        fatal_if(k >= countof(message), "error message too long");
-        ut_str.utf16to8(message, countof(message), s);
+        int32_t k = (int32_t)ut_str.len16(utf16);
+        if (k > 0 && utf16[k - 1] == '\n') { utf16[k - 1] = 0; }
+        k = (int32_t)ut_str.len16(utf16);
+        if (k > 0 && utf16[k - 1] == '\r') { utf16[k - 1] = 0; }
+        char message[countof(text.s)];
+        const int32_t bytes = ut_str.utf8_bytes(utf16);
+        if (bytes >= countof(message)) {
+            strprintf(message, "error message is too long: %d bytes", bytes);
+        } else {
+            ut_str.utf16to8(message, countof(message), utf16);
+        }
+        // truncating printf to string:
         ut_str_printf(text.s, "0x%08X(%d) \"%s\"", error, error, message);
     } else {
         ut_str_printf(text.s, "0x%08X(%d)", error, error);
@@ -139,13 +144,13 @@ static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
 }
 
 static str1024_t ut_str_error(int32_t error) {
-    const LANGID lang = MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT);
-    return ut_str_error_for_language(error, lang);
+    const LANGID language = MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT);
+    return ut_str_error_for_language(error, language);
 }
 
 static str1024_t ut_str_error_nls(int32_t error) {
-    const LANGID lang = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
-    return ut_str_error_for_language(error, lang);
+    const LANGID language = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+    return ut_str_error_for_language(error, language);
 }
 
 static const char* ut_str_grouping_separator(void) {

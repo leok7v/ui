@@ -29,7 +29,7 @@ typedef struct str32K_t {
 // shorthand:
 
 #define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
-#define strerr(r) (ut_str.error((r)).s)
+#define strerr(r) (ut_str.error((r)).s) // use only as strpintf() parameter
 
 // The strings are expected to be UTF-8 encoded.
 // Copy functions fatal fail if the destination buffer is too small.
@@ -69,7 +69,7 @@ typedef struct {
     str64_t (*int64_lc)(int64_t v);   // with locale separator
     str64_t (*uint64_lc)(uint64_t v); // with locale separator
     str128_t (*fp)(const char* format, fp64_t v); // respects locale
-    // errors to strings (return thread local)
+    // errors to strings
     str1024_t (*error)(int32_t error);     // en-US
     str1024_t (*error_nls)(int32_t error); // national locale string
     void (*test)(void);

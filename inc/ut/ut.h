@@ -1,5 +1,6 @@
 #pragma once
 #include "ut/ut_std.h" // must be first
+#include "ut/ut_str.h" // defines str_*_t types
 // the rest is in alphabetical order (no inter dependencies)
 #include "ut/ut_args.h"
 #include "ut/ut_atomics.h"
@@ -16,7 +17,6 @@
 #include "ut/ut_nls.h"
 #include "ut/ut_num.h"
 #include "ut/ut_static.h"
-#include "ut/ut_str.h"
 #include "ut/ut_streams.h"
 #include "ut/ut_processes.h"
 #include "ut/ut_runtime.h"
