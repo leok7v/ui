@@ -32,7 +32,7 @@ static errno_t ut_mem_set_token_privilege(void* token,
     TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
     tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
     fatal_if_false(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid));
-    return b2e(AdjustTokenPrivileges(token, false, &tp,
+    return ut_b2e(AdjustTokenPrivileges(token, false, &tp,
                sizeof(TOKEN_PRIVILEGES), null, null));
 }
 
@@ -41,7 +41,7 @@ static errno_t ut_mem_adjust_process_privilege_manage_volume_name(void) {
     const uint32_t access = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
     const HANDLE process = GetCurrentProcess();
     HANDLE token = null;
-    errno_t r = b2e(OpenProcessToken(process, access, &token));
+    errno_t r = ut_b2e(OpenProcessToken(process, access, &token));
     if (r == 0) {
         #ifdef UNICODE
         const char* se_manage_volume_name = utf16to8(SE_MANAGE_VOLUME_NAME);
@@ -73,16 +73,16 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
         fatal_if_false(GetFileSizeEx(file, &eof));
         if (rw && *bytes > eof.QuadPart) { // increase file size
             const LARGE_INTEGER size = { .QuadPart = *bytes };
-            r = r != 0 ? r : (b2e(SetFilePointerEx(file, size, null, FILE_BEGIN)));
-            r = r != 0 ? r : (b2e(SetEndOfFile(file)));
+            r = r != 0 ? r : (ut_b2e(SetFilePointerEx(file, size, null, FILE_BEGIN)));
+            r = r != 0 ? r : (ut_b2e(SetEndOfFile(file)));
             // the following not guaranteed to work but helps with sparse files
-            r = r != 0 ? r : (b2e(SetFileValidData(file, *bytes)));
+            r = r != 0 ? r : (ut_b2e(SetFileValidData(file, *bytes)));
             // SetFileValidData() only works for Admin (verified) or System accounts
             if (r == ERROR_PRIVILEGE_NOT_HELD) { r = 0; } // ignore
             // SetFileValidData() is also semi-security hole because it allows to read
             // previously not zeroed disk content of other files
             const LARGE_INTEGER zero = { .QuadPart = 0 }; // rewind stream:
-            r = r != 0 ? r : (b2e(SetFilePointerEx(file, zero, null, FILE_BEGIN)));
+            r = r != 0 ? r : (ut_b2e(SetFilePointerEx(file, zero, null, FILE_BEGIN)));
         } else {
             *bytes = eof.QuadPart;
         }
@@ -164,7 +164,7 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                 // The default size is 345 pages (for example,
                 // this is 1,413,120 bytes on systems with a 4K page size).
                 SIZE_T min_mem = 0, max_mem = 0;
-                r = b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
+                r = ut_b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
                 if (r != 0) {
                     traceln("GetProcessWorkingSetSize() failed %s", strerr(r));
                 } else {
@@ -172,13 +172,13 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                     max_mem = (max_mem + page_size - 1) / page_size * page_size +
                                page_size * 16;
                     if (min_mem < max_mem) { min_mem = max_mem; }
-                    r = b2e(SetProcessWorkingSetSize(GetCurrentProcess(),
+                    r = ut_b2e(SetProcessWorkingSetSize(GetCurrentProcess(),
                             min_mem, max_mem));
                     if (r != 0) {
                         traceln("SetProcessWorkingSetSize(%lld, %lld) failed %s",
                             (uint64_t)min_mem, (uint64_t)max_mem, strerr(r));
                     } else {
-                        r = b2e(VirtualLock(a, bytes));
+                        r = ut_b2e(VirtualLock(a, bytes));
                     }
                 }
             }
@@ -205,14 +205,14 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     } else {
         if (a != null) {
             // in case it was successfully locked
-            r = b2e(VirtualUnlock(a, bytes));
+            r = ut_b2e(VirtualUnlock(a, bytes));
             if (r != 0) {
                 traceln("VirtualUnlock() failed %s", strerr(r));
             }
             // If the "dwFreeType" parameter is MEM_RELEASE, "dwSize" parameter
             // must be the base address returned by the VirtualAlloc function when
             // the region of pages is reserved.
-            r = b2e(VirtualFree(a, 0, MEM_RELEASE));
+            r = ut_b2e(VirtualFree(a, 0, MEM_RELEASE));
             if (r != 0) { traceln("VirtuaFree() failed %s", strerr(r)); }
         }
     }

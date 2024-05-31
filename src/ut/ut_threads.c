@@ -79,14 +79,6 @@ static void ut_event_test_check_time(fp64_t start, fp64_t expected) {
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
-static void bad_wait(void* p) {
-    ut_event_t e = (ut_event_t)p;
-    int32_t r = ut_event.wait_or_timeout(e, 9999.0);
-    traceln("r: %d", r);
-    traceln();
-}
-
-
 static void ut_event_test(void) {
     #ifdef UT_TESTS
     ut_event_t event = ut_event.create();
@@ -121,13 +113,6 @@ static void ut_event_test(void) {
     for (int32_t i = 0; i < countof(event_array); i++) {
         ut_event.dispose(event_array[i]);
     }
-    {
-        ut_event_t e1 = ut_event.create();
-        ut_thread_t t1 = ut_thread.start(bad_wait, e1);
-        ut_thread.sleep_for(0.5);
-        ut_event.dispose(e1);
-    }
-
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }

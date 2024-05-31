@@ -1260,8 +1260,9 @@ end_c
 
 #define ut_export __declspec(dllexport)
 
-#define b2e(call) ((errno_t)(call ? 0 : GetLastError())) // BOOL -> errno_t
+// Win32 API BOOL -> errno_t translation
 
+#define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
 
 
 #endif // WIN32
@@ -1921,7 +1922,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
             char* d = (char*)GlobalLock(global);
             not_null(d);
             memcpy(d, utf16, (size_t)n * 2);
-            r = b2e(SetClipboardData(CF_UNICODETEXT, global));
+            r = ut_b2e(SetClipboardData(CF_UNICODETEXT, global));
             GlobalUnlock(global);
             if (r != 0) {
                 traceln("SetClipboardData() failed %s", strerr(r));
@@ -1931,7 +1932,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
             }
         }
         if (r == 0) {
-            r = b2e(CloseClipboard());
+            r = ut_b2e(CloseClipboard());
             if (r != 0) {
                 traceln("CloseClipboard() failed %s", strerr(r));
             }
@@ -1943,7 +1944,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
 
 static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
     not_null(bytes);
-    errno_t r = b2e(OpenClipboard(GetDesktopWindow()));
+    errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
     if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
     if (r == 0) {
         HANDLE global = GetClipboardData(CF_UNICODETEXT);
@@ -1971,7 +1972,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
                 GlobalUnlock(global);
             }
         }
-        r = b2e(CloseClipboard());
+        r = ut_b2e(CloseClipboard());
     }
     return r;
 }
@@ -2507,7 +2508,7 @@ static bool ut_files_is_valid(ut_file_t* file) { // both null and ut_files.inval
 static errno_t ut_files_seek(ut_file_t* file, int64_t *position, int32_t method) {
     LARGE_INTEGER distance_to_move = { .QuadPart = *position };
     LARGE_INTEGER p = { 0 }; // pointer
-    errno_t r = b2e(SetFilePointerEx(file, distance_to_move, &p, (DWORD)method));
+    errno_t r = ut_b2e(SetFilePointerEx(file, distance_to_move, &p, (DWORD)method));
     if (r == 0) { *position = p.QuadPart; }
     return r;
 }
@@ -2589,7 +2590,7 @@ static errno_t ut_files_read(ut_file_t* file, void* data, int64_t bytes, int64_t
     while (bytes > 0 && r == 0) {
         DWORD chunk_size = (DWORD)(bytes > UINT32_MAX ? UINT32_MAX : bytes);
         DWORD bytes_read = 0;
-        r = b2e(ReadFile(file, data, chunk_size, &bytes_read, null));
+        r = ut_b2e(ReadFile(file, data, chunk_size, &bytes_read, null));
         if (r == 0) {
             *transferred += bytes_read;
             bytes -= bytes_read;
@@ -2605,7 +2606,7 @@ static errno_t ut_files_write(ut_file_t* file, const void* data, int64_t bytes, 
     while (bytes > 0 && r == 0) {
         DWORD chunk_size = (DWORD)(bytes > UINT32_MAX ? UINT32_MAX : bytes);
         DWORD bytes_read = 0;
-        r = b2e(WriteFile(file, data, chunk_size, &bytes_read, null));
+        r = ut_b2e(WriteFile(file, data, chunk_size, &bytes_read, null));
         if (r == 0) {
             *transferred += bytes_read;
             bytes -= bytes_read;
@@ -2616,7 +2617,7 @@ static errno_t ut_files_write(ut_file_t* file, const void* data, int64_t bytes, 
 }
 
 static errno_t ut_files_flush(ut_file_t* file) {
-    return b2e(FlushFileBuffers(file));
+    return ut_b2e(FlushFileBuffers(file));
 }
 
 static void ut_files_close(ut_file_t* file) {
@@ -2642,12 +2643,12 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
                 (UINT32_MAX) - 0xFFFF : (uint64_t)bytes;
             assert(0 < write && write < (uint64_t)UINT32_MAX);
             DWORD chunk = 0;
-            r = b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
+            r = ut_b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
             written += chunk;
             bytes -= chunk;
         }
         if (transferred != null) { *transferred = written; }
-        errno_t rc = b2e(CloseHandle(file));
+        errno_t rc = ut_b2e(CloseHandle(file));
         if (r == 0) { r = rc; }
     }
     return r;
@@ -2655,9 +2656,9 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
 
 static errno_t ut_files_unlink(const char* pathname) {
     if (ut_files.is_folder(pathname)) {
-        return b2e(RemoveDirectoryA(pathname));
+        return ut_b2e(RemoveDirectoryA(pathname));
     } else {
-        return b2e(DeleteFileA(pathname));
+        return ut_b2e(DeleteFileA(pathname));
     }
 }
 
@@ -2715,22 +2716,22 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     ACL* bigger = null;
     uint32_t bytes_needed = sizeof(ACCESS_ALLOWED_ACE) + GetLengthSid(sid)
                           - sizeof(DWORD);
-    errno_t r = b2e(GetAclInformation(acl, &info, sizeof(ACL_SIZE_INFORMATION),
+    errno_t r = ut_b2e(GetAclInformation(acl, &info, sizeof(ACL_SIZE_INFORMATION),
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
         const int64_t bytes = info.AclBytesInUse + bytes_needed;
         r = ut_heap.allocate(null, (void**)&bigger, bytes, true);
         if (r == 0) {
-            r = b2e(InitializeAcl((ACL*)bigger,
+            r = ut_b2e(InitializeAcl((ACL*)bigger,
                     info.AclBytesInUse + bytes_needed, ACL_REVISION));
         }
     }
     if (r == 0 && bigger != null) {
         for (int32_t i = 0; i < (int32_t)info.AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace;
-            r = b2e(GetAce(acl, (DWORD)i, (void**)&ace));
+            r = ut_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
-            r = b2e(AddAce(bigger, ACL_REVISION, MAXDWORD, ace,
+            r = ut_b2e(AddAce(bigger, ACL_REVISION, MAXDWORD, ace,
                            ace->Header.AceSize));
             if (r != 0) { break; }
         }
@@ -2745,7 +2746,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
             ace->Mask = mask;
             ace->SidStart = sizeof(ACCESS_ALLOWED_ACE);
             memcpy(&ace->SidStart, sid, GetLengthSid(sid));
-            r = b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
+            r = ut_b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
                            ace, bytes_needed));
             ut_heap.deallocate(null, ace);
         }
@@ -2761,7 +2762,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
     char account[128];
     char group[128];
     SID_NAME_USE use;
-    errno_t r = b2e(LookupAccountSidA(null, sid, account,
+    errno_t r = ut_b2e(LookupAccountSidA(null, sid, account,
                                      &l1, group, &l2, &use));
     if (r == 0) {
         traceln("%s/%s: type: %d, mask: 0x%X, flags:%d",
@@ -2778,7 +2779,7 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
     uint8_t stack[SECURITY_MAX_SID_SIZE];
     DWORD n = countof(stack);
     SID* sid = (SID*)stack;
-    errno_t r = b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
+    errno_t r = ut_b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
                                        null, sid, &n));
     if (r != 0) {
         return ERROR_INVALID_PARAMETER;
@@ -2790,7 +2791,7 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
         ACCESS_ALLOWED_ACE* found = null;
         for (int32_t i = 0; i < acl->AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace;
-            r = b2e(GetAce(acl, (DWORD)i, (void**)&ace));
+            r = ut_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
             if (EqualSid((SID*)&ace->SidStart, sid)) {
                 if (ace->Header.AceType == ACCESS_ALLOWED_ACE_TYPE &&
@@ -2857,7 +2858,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
     fatal_if_false(SetSecurityDescriptorDacl(sd, /* DaclPresent flag: */ true,
                                    acl, /* not a default DACL: */  false));
     // Change the security attributes
-    errno_t r = b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
+    errno_t r = ut_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
         traceln("chmod777(%s) failed %s", pathname, strerr(r));
     }
@@ -2880,7 +2881,7 @@ static errno_t ut_files_mkdirs(const char* dir) {
     while (r == 0 && next != null) {
         if (next > dir && *(next - 1) != ':') {
             memcpy(s, dir, (size_t)(next - dir));
-            r = b2e(CreateDirectoryA(s, null));
+            r = ut_b2e(CreateDirectoryA(s, null));
             if (r == ERROR_ALREADY_EXISTS) { r = 0; }
         }
         if (r == 0) {
@@ -2890,7 +2891,7 @@ static errno_t ut_files_mkdirs(const char* dir) {
         }
     }
     if (r == 0) {
-        r = b2e(CreateDirectoryA(dir, null));
+        r = ut_b2e(CreateDirectoryA(dir, null));
     }
     ut_heap.deallocate(null, s);
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
@@ -2997,7 +2998,7 @@ static const char* ut_files_basename(const char* pathname) {
 }
 
 static errno_t ut_files_copy(const char* s, const char* d) {
-    return b2e(CopyFileA(s, d, false));
+    return ut_b2e(CopyFileA(s, d, false));
 }
 
 static errno_t ut_files_move(const char* s, const char* d) {
@@ -3005,19 +3006,19 @@ static errno_t ut_files_move(const char* s, const char* d) {
         MOVEFILE_REPLACE_EXISTING |
         MOVEFILE_COPY_ALLOWED |
         MOVEFILE_WRITE_THROUGH;
-    return b2e(MoveFileExA(s, d, flags));
+    return ut_b2e(MoveFileExA(s, d, flags));
 }
 
 static errno_t ut_files_link(const char* from, const char* to) {
     // note reverse order of parameters:
-    return b2e(CreateHardLinkA(to, from, null));
+    return ut_b2e(CreateHardLinkA(to, from, null));
 }
 
 static errno_t ut_files_symlink(const char* from, const char* to) {
     // The correct order of parameters for CreateSymbolicLinkA is:
     // CreateSymbolicLinkA(symlink_to_create, existing_file, flags);
     DWORD flags = ut_files.is_folder(from) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
-    return b2e(CreateSymbolicLinkA(to, from, flags));
+    return ut_b2e(CreateSymbolicLinkA(to, from, flags));
 }
 
 static const char* ut_files_known_folder(int32_t kf) {
@@ -3069,13 +3070,13 @@ static const char* ut_files_tmp(void) {
 static errno_t ut_files_cwd(char* fn, int32_t count) {
     swear(count > 1);
     DWORD bytes = (DWORD)(count - 1);
-    errno_t r = b2e(GetCurrentDirectoryA(bytes, fn));
+    errno_t r = ut_b2e(GetCurrentDirectoryA(bytes, fn));
     fn[count - 1] = 0; // always
     return r;
 }
 
 static errno_t ut_files_chdir(const char* fn) {
-    return b2e(SetCurrentDirectoryA(fn));
+    return ut_b2e(SetCurrentDirectoryA(fn));
 }
 
 typedef struct ut_files_dir_s {
@@ -3824,7 +3825,7 @@ static errno_t ut_mem_set_token_privilege(void* token,
     TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
     tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
     fatal_if_false(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid));
-    return b2e(AdjustTokenPrivileges(token, false, &tp,
+    return ut_b2e(AdjustTokenPrivileges(token, false, &tp,
                sizeof(TOKEN_PRIVILEGES), null, null));
 }
 
@@ -3833,7 +3834,7 @@ static errno_t ut_mem_adjust_process_privilege_manage_volume_name(void) {
     const uint32_t access = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
     const HANDLE process = GetCurrentProcess();
     HANDLE token = null;
-    errno_t r = b2e(OpenProcessToken(process, access, &token));
+    errno_t r = ut_b2e(OpenProcessToken(process, access, &token));
     if (r == 0) {
         #ifdef UNICODE
         const char* se_manage_volume_name = utf16to8(SE_MANAGE_VOLUME_NAME);
@@ -3865,16 +3866,16 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
         fatal_if_false(GetFileSizeEx(file, &eof));
         if (rw && *bytes > eof.QuadPart) { // increase file size
             const LARGE_INTEGER size = { .QuadPart = *bytes };
-            r = r != 0 ? r : (b2e(SetFilePointerEx(file, size, null, FILE_BEGIN)));
-            r = r != 0 ? r : (b2e(SetEndOfFile(file)));
+            r = r != 0 ? r : (ut_b2e(SetFilePointerEx(file, size, null, FILE_BEGIN)));
+            r = r != 0 ? r : (ut_b2e(SetEndOfFile(file)));
             // the following not guaranteed to work but helps with sparse files
-            r = r != 0 ? r : (b2e(SetFileValidData(file, *bytes)));
+            r = r != 0 ? r : (ut_b2e(SetFileValidData(file, *bytes)));
             // SetFileValidData() only works for Admin (verified) or System accounts
             if (r == ERROR_PRIVILEGE_NOT_HELD) { r = 0; } // ignore
             // SetFileValidData() is also semi-security hole because it allows to read
             // previously not zeroed disk content of other files
             const LARGE_INTEGER zero = { .QuadPart = 0 }; // rewind stream:
-            r = r != 0 ? r : (b2e(SetFilePointerEx(file, zero, null, FILE_BEGIN)));
+            r = r != 0 ? r : (ut_b2e(SetFilePointerEx(file, zero, null, FILE_BEGIN)));
         } else {
             *bytes = eof.QuadPart;
         }
@@ -3956,7 +3957,7 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                 // The default size is 345 pages (for example,
                 // this is 1,413,120 bytes on systems with a 4K page size).
                 SIZE_T min_mem = 0, max_mem = 0;
-                r = b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
+                r = ut_b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
                 if (r != 0) {
                     traceln("GetProcessWorkingSetSize() failed %s", strerr(r));
                 } else {
@@ -3964,13 +3965,13 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                     max_mem = (max_mem + page_size - 1) / page_size * page_size +
                                page_size * 16;
                     if (min_mem < max_mem) { min_mem = max_mem; }
-                    r = b2e(SetProcessWorkingSetSize(GetCurrentProcess(),
+                    r = ut_b2e(SetProcessWorkingSetSize(GetCurrentProcess(),
                             min_mem, max_mem));
                     if (r != 0) {
                         traceln("SetProcessWorkingSetSize(%lld, %lld) failed %s",
                             (uint64_t)min_mem, (uint64_t)max_mem, strerr(r));
                     } else {
-                        r = b2e(VirtualLock(a, bytes));
+                        r = ut_b2e(VirtualLock(a, bytes));
                     }
                 }
             }
@@ -3997,14 +3998,14 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     } else {
         if (a != null) {
             // in case it was successfully locked
-            r = b2e(VirtualUnlock(a, bytes));
+            r = ut_b2e(VirtualUnlock(a, bytes));
             if (r != 0) {
                 traceln("VirtualUnlock() failed %s", strerr(r));
             }
             // If the "dwFreeType" parameter is MEM_RELEASE, "dwSize" parameter
             // must be the base address returned by the VirtualAlloc function when
             // the region of pages is reserved.
-            r = b2e(VirtualFree(a, 0, MEM_RELEASE));
+            r = ut_b2e(VirtualFree(a, 0, MEM_RELEASE));
             if (r != 0) { traceln("VirtuaFree() failed %s", strerr(r)); }
         }
     }
@@ -4541,7 +4542,7 @@ static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
     name[0] = 0;
     HANDLE p = OpenProcess(PROCESS_ALL_ACCESS, false, (DWORD)pid);
     if (p != null) {
-        r = b2e(GetModuleFileNameExA(p, null, name, count));
+        r = ut_b2e(GetModuleFileNameExA(p, null, name, count));
         name[count - 1] = 0; // ensure zero termination
         ut_processes_close_handle(p);
     } else {
@@ -4619,13 +4620,13 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     if (h != null) {
         char path[ut_files_max_path];
         path[0] = 0;
-        r = b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
+        r = ut_b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
         if (r == 0) {
             DWORD ix = WaitForSingleObject(h, milliseconds);
             r = ut_wait_ix2e(ix);
         } else {
             DWORD bytes = countof(path);
-            errno_t rq = b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
+            errno_t rq = ut_b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
             if (rq != 0) {
                 traceln("QueryFullProcessImageNameA(pid=%d, h=%p) "
                         "failed %s", pid, h, strerr(rq));
@@ -4680,7 +4681,7 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
     PSID administrators_group = null;
     // Allocate and initialize a SID of the administrators group.
     SID_IDENTIFIER_AUTHORITY administrators_group_authority = SECURITY_NT_AUTHORITY;
-    errno_t r = b2e(AllocateAndInitializeSid(&administrators_group_authority, 2,
+    errno_t r = ut_b2e(AllocateAndInitializeSid(&administrators_group_authority, 2,
                 SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
                 0, 0, 0, 0, 0, 0, &administrators_group));
     if (r != 0) {
@@ -4688,17 +4689,17 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
     }
     PSID system_ops = null;
     SID_IDENTIFIER_AUTHORITY system_ops_authority = SECURITY_NT_AUTHORITY;
-    r = b2e(AllocateAndInitializeSid(&system_ops_authority, 2,
+    r = ut_b2e(AllocateAndInitializeSid(&system_ops_authority, 2,
             SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_SYSTEM_OPS,
             0, 0, 0, 0, 0, 0, &system_ops));
     if (r != 0) {
         traceln("AllocateAndInitializeSid() failed %s", strerr(r));
     }
     if (administrators_group != null) {
-        r = b2e(CheckTokenMembership(null, administrators_group, &elevated));
+        r = ut_b2e(CheckTokenMembership(null, administrators_group, &elevated));
     }
     if (system_ops != null && !elevated) {
-        r = b2e(CheckTokenMembership(null, administrators_group, &elevated));
+        r = ut_b2e(CheckTokenMembership(null, administrators_group, &elevated));
     }
     if (administrators_group != null) { FreeSid(administrators_group); }
     if (system_ops != null) { FreeSid(system_ops); }
@@ -4717,7 +4718,7 @@ static errno_t ut_processes_restart_elevated(void) {
         sei.lpFile = path;
         sei.hwnd = null;
         sei.nShow = SW_NORMAL;
-        r = b2e(ShellExecuteExA(&sei));
+        r = ut_b2e(ShellExecuteExA(&sei));
         if (r == ERROR_CANCELLED) {
             traceln("The user unable or refused to allow privileges elevation");
         } else if (r == 0) {
@@ -4742,7 +4743,7 @@ static void ut_processes_close_pipes(STARTUPINFOA* si,
 static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
     char data[32 * 1024]; // Temporary buffer for reading
     DWORD available = 0;
-    errno_t r = b2e(PeekNamedPipe(pipe, null, sizeof(data), null,
+    errno_t r = ut_b2e(PeekNamedPipe(pipe, null, sizeof(data), null,
                                  &available, null));
     if (r != 0) {
         if (r != ERROR_BROKEN_PIPE) { // unexpected!
@@ -4752,7 +4753,7 @@ static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
         assert(r == ERROR_BROKEN_PIPE);
     } else if (available > 0) {
         DWORD bytes_read = 0;
-        r = b2e(ReadFile(pipe, data, sizeof(data), &bytes_read, null));
+        r = ut_b2e(ReadFile(pipe, data, sizeof(data), &bytes_read, null));
 //      traceln("r: %d bytes_read: %d", r, bytes_read);
         if (out != null) {
             if (r == 0) {
@@ -4774,7 +4775,7 @@ static errno_t ut_processes_child_write(ut_stream_if* in, HANDLE pipe) {
         in->read(in, data, sizeof(data), &bytes_read);
         while (r == 0 && bytes_read > 0) {
             DWORD bytes_written = 0;
-            r = b2e(WriteFile(pipe, data, (DWORD)bytes_read,
+            r = ut_b2e(WriteFile(pipe, data, (DWORD)bytes_read,
                              &bytes_written, null));
             traceln("r: %d bytes_written: %d", r, bytes_written);
             assert((int32_t)bytes_written <= bytes_read);
@@ -4801,9 +4802,9 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     HANDLE read_out = INVALID_HANDLE_VALUE;
     HANDLE read_err = INVALID_HANDLE_VALUE;
     HANDLE write_in = INVALID_HANDLE_VALUE;
-    errno_t ro = b2e(CreatePipe(&read_out, &si.hStdOutput, &sa, 0));
-    errno_t re = b2e(CreatePipe(&read_err, &si.hStdError,  &sa, 0));
-    errno_t ri = b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
+    errno_t ro = ut_b2e(CreatePipe(&read_out, &si.hStdOutput, &sa, 0));
+    errno_t re = ut_b2e(CreatePipe(&read_err, &si.hStdError,  &sa, 0));
+    errno_t ri = ut_b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
     if (ro != 0 || re != 0 || ri != 0) {
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         if (ro != 0) { traceln("CreatePipe() failed %s", strerr(ro)); r = ro; }
@@ -4811,7 +4812,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         if (ri != 0) { traceln("CreatePipe() failed %s", strerr(ri)); r = ri; }
     }
     if (r == 0) {
-        r = b2e(CreateProcessA(null, ut_str.drop_const(child->command),
+        r = ut_b2e(CreateProcessA(null, ut_str.drop_const(child->command),
                 null, null, true, CREATE_NO_WINDOW, null, null, &si, &pi));
         if (r != 0) {
             traceln("CreateProcess() failed %s", strerr(r));
@@ -4835,7 +4836,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         bool done = false;
         while (!done && r == 0) {
             if (child->timeout > 0 && ut_clock.seconds() > deadline) {
-                r = b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
+                r = ut_b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
                     traceln("TerminateProcess() failed %s", strerr(r));
                 } else {
@@ -4858,7 +4859,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         if (r == ERROR_BROKEN_PIPE) { r = 0; } // not an error
 //      if (r != 0) { traceln("pipe loop failed %s", strerr(r));}
         DWORD xc = 0;
-        errno_t rx = b2e(GetExitCodeProcess(pi.hProcess, &xc));
+        errno_t rx = ut_b2e(GetExitCodeProcess(pi.hProcess, &xc));
         if (rx == 0) {
             child->exit_code = xc;
         } else {
@@ -4931,7 +4932,7 @@ static errno_t ut_processes_spawn(const char* command) {
                 | CREATE_NEW_PROCESS_GROUP
                 | DETACHED_PROCESS;
     PROCESS_INFORMATION pi = {0};
-    r = b2e(CreateProcessA(null, ut_str.drop_const(command), null, null,
+    r = ut_b2e(CreateProcessA(null, ut_str.drop_const(command), null, null,
             /*bInheritHandles:*/false, flags, null, null, &si, &pi));
     if (r == 0) { // Close handles immediately
         fatal_if_false(CloseHandle(pi.hProcess));
@@ -5316,7 +5317,7 @@ static const char* ut_str_grouping_separator(void) {
         // decimal_separator  == "."
         static char grouping_separator[8];
         if (grouping_separator[0] == 0x00) {
-            errno_t r = b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+            errno_t r = ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
                 grouping_separator, sizeof(grouping_separator)));
             swear(r == 0 && grouping_separator[0] != 0);
         }
@@ -5345,9 +5346,9 @@ static const char* ut_str_grouping_separator(void) {
 // decimal_separator  == "."
 //
 // Win32 API:
-//   b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+//   ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
 //       grouping_separator, sizeof(grouping_separator)));
-//   b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
+//   ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
 //       decimal_separator, sizeof(decimal_separator)));
 // en-US Windows 1x:
 // grouping_separator == ","
@@ -5414,7 +5415,7 @@ static str64_t ut_str_uint64_lc(uint64_t v) {
 static str128_t ut_str_fp(const char* format, fp64_t v) {
     static char decimal_separator[8];
     if (decimal_separator[0] == 0) {
-        errno_t r = b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
+        errno_t r = ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
             decimal_separator, sizeof(decimal_separator)));
         swear(r == 0 && decimal_separator[0] != 0);
     }
@@ -5718,7 +5719,6 @@ static int32_t ut_event_wait_or_timeout(ut_event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(e, ms);
     swear(ix != WAIT_FAILED && ix != WAIT_ABANDONED, "ix: %d", ix);
-    traceln("ix: %d", ix);
     errno_t r = ut_wait_ix2e(ix);
     if (r != 0) { swear(ix == WAIT_TIMEOUT); }
     return r != 0 ? -1 : 0;
@@ -5755,14 +5755,6 @@ static void ut_event_test_check_time(fp64_t start, fp64_t expected) {
     swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
-
-static void bad_wait(void* p) {
-    ut_event_t e = (ut_event_t)p;
-    int32_t r = ut_event.wait_or_timeout(e, 9999.0);
-    traceln("r: %d", r);
-    traceln();
-}
-
 
 static void ut_event_test(void) {
     #ifdef UT_TESTS

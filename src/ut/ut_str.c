@@ -160,7 +160,7 @@ static const char* ut_str_grouping_separator(void) {
         // decimal_separator  == "."
         static char grouping_separator[8];
         if (grouping_separator[0] == 0x00) {
-            errno_t r = b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+            errno_t r = ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
                 grouping_separator, sizeof(grouping_separator)));
             swear(r == 0 && grouping_separator[0] != 0);
         }
@@ -189,9 +189,9 @@ static const char* ut_str_grouping_separator(void) {
 // decimal_separator  == "."
 //
 // Win32 API:
-//   b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+//   ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
 //       grouping_separator, sizeof(grouping_separator)));
-//   b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
+//   ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
 //       decimal_separator, sizeof(decimal_separator)));
 // en-US Windows 1x:
 // grouping_separator == ","
@@ -258,7 +258,7 @@ static str64_t ut_str_uint64_lc(uint64_t v) {
 static str128_t ut_str_fp(const char* format, fp64_t v) {
     static char decimal_separator[8];
     if (decimal_separator[0] == 0) {
-        errno_t r = b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
+        errno_t r = ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
             decimal_separator, sizeof(decimal_separator)));
         swear(r == 0 && decimal_separator[0] != 0);
     }

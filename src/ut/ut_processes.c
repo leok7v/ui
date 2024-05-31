@@ -95,7 +95,7 @@ static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
     name[0] = 0;
     HANDLE p = OpenProcess(PROCESS_ALL_ACCESS, false, (DWORD)pid);
     if (p != null) {
-        r = b2e(GetModuleFileNameExA(p, null, name, count));
+        r = ut_b2e(GetModuleFileNameExA(p, null, name, count));
         name[count - 1] = 0; // ensure zero termination
         ut_processes_close_handle(p);
     } else {
@@ -173,13 +173,13 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     if (h != null) {
         char path[ut_files_max_path];
         path[0] = 0;
-        r = b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
+        r = ut_b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
         if (r == 0) {
             DWORD ix = WaitForSingleObject(h, milliseconds);
             r = ut_wait_ix2e(ix);
         } else {
             DWORD bytes = countof(path);
-            errno_t rq = b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
+            errno_t rq = ut_b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
             if (rq != 0) {
                 traceln("QueryFullProcessImageNameA(pid=%d, h=%p) "
                         "failed %s", pid, h, strerr(rq));
@@ -234,7 +234,7 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
     PSID administrators_group = null;
     // Allocate and initialize a SID of the administrators group.
     SID_IDENTIFIER_AUTHORITY administrators_group_authority = SECURITY_NT_AUTHORITY;
-    errno_t r = b2e(AllocateAndInitializeSid(&administrators_group_authority, 2,
+    errno_t r = ut_b2e(AllocateAndInitializeSid(&administrators_group_authority, 2,
                 SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
                 0, 0, 0, 0, 0, 0, &administrators_group));
     if (r != 0) {
@@ -242,17 +242,17 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
     }
     PSID system_ops = null;
     SID_IDENTIFIER_AUTHORITY system_ops_authority = SECURITY_NT_AUTHORITY;
-    r = b2e(AllocateAndInitializeSid(&system_ops_authority, 2,
+    r = ut_b2e(AllocateAndInitializeSid(&system_ops_authority, 2,
             SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_SYSTEM_OPS,
             0, 0, 0, 0, 0, 0, &system_ops));
     if (r != 0) {
         traceln("AllocateAndInitializeSid() failed %s", strerr(r));
     }
     if (administrators_group != null) {
-        r = b2e(CheckTokenMembership(null, administrators_group, &elevated));
+        r = ut_b2e(CheckTokenMembership(null, administrators_group, &elevated));
     }
     if (system_ops != null && !elevated) {
-        r = b2e(CheckTokenMembership(null, administrators_group, &elevated));
+        r = ut_b2e(CheckTokenMembership(null, administrators_group, &elevated));
     }
     if (administrators_group != null) { FreeSid(administrators_group); }
     if (system_ops != null) { FreeSid(system_ops); }
@@ -271,7 +271,7 @@ static errno_t ut_processes_restart_elevated(void) {
         sei.lpFile = path;
         sei.hwnd = null;
         sei.nShow = SW_NORMAL;
-        r = b2e(ShellExecuteExA(&sei));
+        r = ut_b2e(ShellExecuteExA(&sei));
         if (r == ERROR_CANCELLED) {
             traceln("The user unable or refused to allow privileges elevation");
         } else if (r == 0) {
@@ -296,7 +296,7 @@ static void ut_processes_close_pipes(STARTUPINFOA* si,
 static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
     char data[32 * 1024]; // Temporary buffer for reading
     DWORD available = 0;
-    errno_t r = b2e(PeekNamedPipe(pipe, null, sizeof(data), null,
+    errno_t r = ut_b2e(PeekNamedPipe(pipe, null, sizeof(data), null,
                                  &available, null));
     if (r != 0) {
         if (r != ERROR_BROKEN_PIPE) { // unexpected!
@@ -306,7 +306,7 @@ static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
         assert(r == ERROR_BROKEN_PIPE);
     } else if (available > 0) {
         DWORD bytes_read = 0;
-        r = b2e(ReadFile(pipe, data, sizeof(data), &bytes_read, null));
+        r = ut_b2e(ReadFile(pipe, data, sizeof(data), &bytes_read, null));
 //      traceln("r: %d bytes_read: %d", r, bytes_read);
         if (out != null) {
             if (r == 0) {
@@ -328,7 +328,7 @@ static errno_t ut_processes_child_write(ut_stream_if* in, HANDLE pipe) {
         in->read(in, data, sizeof(data), &bytes_read);
         while (r == 0 && bytes_read > 0) {
             DWORD bytes_written = 0;
-            r = b2e(WriteFile(pipe, data, (DWORD)bytes_read,
+            r = ut_b2e(WriteFile(pipe, data, (DWORD)bytes_read,
                              &bytes_written, null));
             traceln("r: %d bytes_written: %d", r, bytes_written);
             assert((int32_t)bytes_written <= bytes_read);
@@ -355,9 +355,9 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     HANDLE read_out = INVALID_HANDLE_VALUE;
     HANDLE read_err = INVALID_HANDLE_VALUE;
     HANDLE write_in = INVALID_HANDLE_VALUE;
-    errno_t ro = b2e(CreatePipe(&read_out, &si.hStdOutput, &sa, 0));
-    errno_t re = b2e(CreatePipe(&read_err, &si.hStdError,  &sa, 0));
-    errno_t ri = b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
+    errno_t ro = ut_b2e(CreatePipe(&read_out, &si.hStdOutput, &sa, 0));
+    errno_t re = ut_b2e(CreatePipe(&read_err, &si.hStdError,  &sa, 0));
+    errno_t ri = ut_b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
     if (ro != 0 || re != 0 || ri != 0) {
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         if (ro != 0) { traceln("CreatePipe() failed %s", strerr(ro)); r = ro; }
@@ -365,7 +365,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         if (ri != 0) { traceln("CreatePipe() failed %s", strerr(ri)); r = ri; }
     }
     if (r == 0) {
-        r = b2e(CreateProcessA(null, ut_str.drop_const(child->command),
+        r = ut_b2e(CreateProcessA(null, ut_str.drop_const(child->command),
                 null, null, true, CREATE_NO_WINDOW, null, null, &si, &pi));
         if (r != 0) {
             traceln("CreateProcess() failed %s", strerr(r));
@@ -389,7 +389,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         bool done = false;
         while (!done && r == 0) {
             if (child->timeout > 0 && ut_clock.seconds() > deadline) {
-                r = b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
+                r = ut_b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
                     traceln("TerminateProcess() failed %s", strerr(r));
                 } else {
@@ -412,7 +412,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         if (r == ERROR_BROKEN_PIPE) { r = 0; } // not an error
 //      if (r != 0) { traceln("pipe loop failed %s", strerr(r));}
         DWORD xc = 0;
-        errno_t rx = b2e(GetExitCodeProcess(pi.hProcess, &xc));
+        errno_t rx = ut_b2e(GetExitCodeProcess(pi.hProcess, &xc));
         if (rx == 0) {
             child->exit_code = xc;
         } else {
@@ -485,7 +485,7 @@ static errno_t ut_processes_spawn(const char* command) {
                 | CREATE_NEW_PROCESS_GROUP
                 | DETACHED_PROCESS;
     PROCESS_INFORMATION pi = {0};
-    r = b2e(CreateProcessA(null, ut_str.drop_const(command), null, null,
+    r = ut_b2e(CreateProcessA(null, ut_str.drop_const(command), null, null,
             /*bInheritHandles:*/false, flags, null, null, &si, &pi));
     if (r == 0) { // Close handles immediately
         fatal_if_false(CloseHandle(pi.hProcess));

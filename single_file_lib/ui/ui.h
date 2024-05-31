@@ -2180,7 +2180,7 @@ static void ui_app_allow_dark_mode_for_app(void) {
     AllowDarkModeForApp_t AllowDarkModeForApp = (AllowDarkModeForApp_t)
             (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(132));
     if (AllowDarkModeForApp != null) {
-        errno_t r = b2e(AllowDarkModeForApp(true));
+        errno_t r = ut_b2e(AllowDarkModeForApp(true));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
             traceln("AllowDarkModeForApp(true) failed %s", strerr(r));
         }
@@ -2190,7 +2190,7 @@ static void ui_app_allow_dark_mode_for_app(void) {
     SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
             (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(135));
     if (SetPreferredAppMode != null) {
-        int r = b2e(SetPreferredAppMode(AllowDark));
+        int r = ut_b2e(SetPreferredAppMode(AllowDark));
         // 1814 ERROR_RESOURCE_NAME_NOT_FOUND
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
             traceln("SetPreferredAppMode(AllowDark) failed %s",
@@ -2206,7 +2206,7 @@ static void ui_app_allow_dark_mode_for_window(void) {
     AllowDarkModeForWindow_t AllowDarkModeForWindow = (AllowDarkModeForWindow_t)
         (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(133));
     if (AllowDarkModeForWindow != null) {
-        int r = b2e(AllowDarkModeForWindow(ui_app_window(), true));
+        int r = ut_b2e(AllowDarkModeForWindow(ui_app_window(), true));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
             traceln("AllowDarkModeForWindow(true) failed %s", strerr(r));
         }
@@ -2953,7 +2953,7 @@ static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
         assert(ui_color_is_8bit(color));
         c = ui_gdi.color_rgb(color);
     }
-    return b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
+    return ut_b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
 }
 
 static void ui_app_create_window(const ui_rect_t r) {
@@ -3553,20 +3553,20 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     fatal_if_false(SetBrushOrgEx(dst, 0, 0, &pt));
     fatal_if_false(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
         im->w, im->h, SRCCOPY));
-    errno_t r = b2e(OpenClipboard(GetDesktopWindow()));
+    errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
     if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
     if (r == 0) {
-        r = b2e(EmptyClipboard());
+        r = ut_b2e(EmptyClipboard());
         if (r != 0) { traceln("EmptyClipboard() failed %s", strerr(r)); }
     }
     if (r == 0) {
-        r = b2e(SetClipboardData(CF_BITMAP, bitmap));
+        r = ut_b2e(SetClipboardData(CF_BITMAP, bitmap));
         if (r != 0) {
             traceln("SetClipboardData() failed %s", strerr(r));
         }
     }
     if (r == 0) {
-        r = b2e(CloseClipboard());
+        r = ut_b2e(CloseClipboard());
         if (r != 0) {
             traceln("CloseClipboard() failed %s", strerr(r));
         }
@@ -8715,8 +8715,9 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 
 #define ut_export __declspec(dllexport)
 
-#define b2e(call) ((errno_t)(call ? 0 : GetLastError())) // BOOL -> errno_t
+// Win32 API BOOL -> errno_t translation
 
+#define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
 
 
 #endif // WIN32

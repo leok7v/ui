@@ -37,7 +37,7 @@ static bool ut_files_is_valid(ut_file_t* file) { // both null and ut_files.inval
 static errno_t ut_files_seek(ut_file_t* file, int64_t *position, int32_t method) {
     LARGE_INTEGER distance_to_move = { .QuadPart = *position };
     LARGE_INTEGER p = { 0 }; // pointer
-    errno_t r = b2e(SetFilePointerEx(file, distance_to_move, &p, (DWORD)method));
+    errno_t r = ut_b2e(SetFilePointerEx(file, distance_to_move, &p, (DWORD)method));
     if (r == 0) { *position = p.QuadPart; }
     return r;
 }
@@ -119,7 +119,7 @@ static errno_t ut_files_read(ut_file_t* file, void* data, int64_t bytes, int64_t
     while (bytes > 0 && r == 0) {
         DWORD chunk_size = (DWORD)(bytes > UINT32_MAX ? UINT32_MAX : bytes);
         DWORD bytes_read = 0;
-        r = b2e(ReadFile(file, data, chunk_size, &bytes_read, null));
+        r = ut_b2e(ReadFile(file, data, chunk_size, &bytes_read, null));
         if (r == 0) {
             *transferred += bytes_read;
             bytes -= bytes_read;
@@ -135,7 +135,7 @@ static errno_t ut_files_write(ut_file_t* file, const void* data, int64_t bytes, 
     while (bytes > 0 && r == 0) {
         DWORD chunk_size = (DWORD)(bytes > UINT32_MAX ? UINT32_MAX : bytes);
         DWORD bytes_read = 0;
-        r = b2e(WriteFile(file, data, chunk_size, &bytes_read, null));
+        r = ut_b2e(WriteFile(file, data, chunk_size, &bytes_read, null));
         if (r == 0) {
             *transferred += bytes_read;
             bytes -= bytes_read;
@@ -146,7 +146,7 @@ static errno_t ut_files_write(ut_file_t* file, const void* data, int64_t bytes, 
 }
 
 static errno_t ut_files_flush(ut_file_t* file) {
-    return b2e(FlushFileBuffers(file));
+    return ut_b2e(FlushFileBuffers(file));
 }
 
 static void ut_files_close(ut_file_t* file) {
@@ -172,12 +172,12 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
                 (UINT32_MAX) - 0xFFFF : (uint64_t)bytes;
             assert(0 < write && write < (uint64_t)UINT32_MAX);
             DWORD chunk = 0;
-            r = b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
+            r = ut_b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
             written += chunk;
             bytes -= chunk;
         }
         if (transferred != null) { *transferred = written; }
-        errno_t rc = b2e(CloseHandle(file));
+        errno_t rc = ut_b2e(CloseHandle(file));
         if (r == 0) { r = rc; }
     }
     return r;
@@ -185,9 +185,9 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
 
 static errno_t ut_files_unlink(const char* pathname) {
     if (ut_files.is_folder(pathname)) {
-        return b2e(RemoveDirectoryA(pathname));
+        return ut_b2e(RemoveDirectoryA(pathname));
     } else {
-        return b2e(DeleteFileA(pathname));
+        return ut_b2e(DeleteFileA(pathname));
     }
 }
 
@@ -245,22 +245,22 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     ACL* bigger = null;
     uint32_t bytes_needed = sizeof(ACCESS_ALLOWED_ACE) + GetLengthSid(sid)
                           - sizeof(DWORD);
-    errno_t r = b2e(GetAclInformation(acl, &info, sizeof(ACL_SIZE_INFORMATION),
+    errno_t r = ut_b2e(GetAclInformation(acl, &info, sizeof(ACL_SIZE_INFORMATION),
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
         const int64_t bytes = info.AclBytesInUse + bytes_needed;
         r = ut_heap.allocate(null, (void**)&bigger, bytes, true);
         if (r == 0) {
-            r = b2e(InitializeAcl((ACL*)bigger,
+            r = ut_b2e(InitializeAcl((ACL*)bigger,
                     info.AclBytesInUse + bytes_needed, ACL_REVISION));
         }
     }
     if (r == 0 && bigger != null) {
         for (int32_t i = 0; i < (int32_t)info.AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace;
-            r = b2e(GetAce(acl, (DWORD)i, (void**)&ace));
+            r = ut_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
-            r = b2e(AddAce(bigger, ACL_REVISION, MAXDWORD, ace,
+            r = ut_b2e(AddAce(bigger, ACL_REVISION, MAXDWORD, ace,
                            ace->Header.AceSize));
             if (r != 0) { break; }
         }
@@ -275,7 +275,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
             ace->Mask = mask;
             ace->SidStart = sizeof(ACCESS_ALLOWED_ACE);
             memcpy(&ace->SidStart, sid, GetLengthSid(sid));
-            r = b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
+            r = ut_b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
                            ace, bytes_needed));
             ut_heap.deallocate(null, ace);
         }
@@ -291,7 +291,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
     char account[128];
     char group[128];
     SID_NAME_USE use;
-    errno_t r = b2e(LookupAccountSidA(null, sid, account,
+    errno_t r = ut_b2e(LookupAccountSidA(null, sid, account,
                                      &l1, group, &l2, &use));
     if (r == 0) {
         traceln("%s/%s: type: %d, mask: 0x%X, flags:%d",
@@ -308,7 +308,7 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
     uint8_t stack[SECURITY_MAX_SID_SIZE];
     DWORD n = countof(stack);
     SID* sid = (SID*)stack;
-    errno_t r = b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
+    errno_t r = ut_b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
                                        null, sid, &n));
     if (r != 0) {
         return ERROR_INVALID_PARAMETER;
@@ -320,7 +320,7 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
         ACCESS_ALLOWED_ACE* found = null;
         for (int32_t i = 0; i < acl->AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace;
-            r = b2e(GetAce(acl, (DWORD)i, (void**)&ace));
+            r = ut_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
             if (EqualSid((SID*)&ace->SidStart, sid)) {
                 if (ace->Header.AceType == ACCESS_ALLOWED_ACE_TYPE &&
@@ -387,7 +387,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
     fatal_if_false(SetSecurityDescriptorDacl(sd, /* DaclPresent flag: */ true,
                                    acl, /* not a default DACL: */  false));
     // Change the security attributes
-    errno_t r = b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
+    errno_t r = ut_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
         traceln("chmod777(%s) failed %s", pathname, strerr(r));
     }
@@ -410,7 +410,7 @@ static errno_t ut_files_mkdirs(const char* dir) {
     while (r == 0 && next != null) {
         if (next > dir && *(next - 1) != ':') {
             memcpy(s, dir, (size_t)(next - dir));
-            r = b2e(CreateDirectoryA(s, null));
+            r = ut_b2e(CreateDirectoryA(s, null));
             if (r == ERROR_ALREADY_EXISTS) { r = 0; }
         }
         if (r == 0) {
@@ -420,7 +420,7 @@ static errno_t ut_files_mkdirs(const char* dir) {
         }
     }
     if (r == 0) {
-        r = b2e(CreateDirectoryA(dir, null));
+        r = ut_b2e(CreateDirectoryA(dir, null));
     }
     ut_heap.deallocate(null, s);
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
@@ -527,7 +527,7 @@ static const char* ut_files_basename(const char* pathname) {
 }
 
 static errno_t ut_files_copy(const char* s, const char* d) {
-    return b2e(CopyFileA(s, d, false));
+    return ut_b2e(CopyFileA(s, d, false));
 }
 
 static errno_t ut_files_move(const char* s, const char* d) {
@@ -535,19 +535,19 @@ static errno_t ut_files_move(const char* s, const char* d) {
         MOVEFILE_REPLACE_EXISTING |
         MOVEFILE_COPY_ALLOWED |
         MOVEFILE_WRITE_THROUGH;
-    return b2e(MoveFileExA(s, d, flags));
+    return ut_b2e(MoveFileExA(s, d, flags));
 }
 
 static errno_t ut_files_link(const char* from, const char* to) {
     // note reverse order of parameters:
-    return b2e(CreateHardLinkA(to, from, null));
+    return ut_b2e(CreateHardLinkA(to, from, null));
 }
 
 static errno_t ut_files_symlink(const char* from, const char* to) {
     // The correct order of parameters for CreateSymbolicLinkA is:
     // CreateSymbolicLinkA(symlink_to_create, existing_file, flags);
     DWORD flags = ut_files.is_folder(from) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
-    return b2e(CreateSymbolicLinkA(to, from, flags));
+    return ut_b2e(CreateSymbolicLinkA(to, from, flags));
 }
 
 static const char* ut_files_known_folder(int32_t kf) {
@@ -599,13 +599,13 @@ static const char* ut_files_tmp(void) {
 static errno_t ut_files_cwd(char* fn, int32_t count) {
     swear(count > 1);
     DWORD bytes = (DWORD)(count - 1);
-    errno_t r = b2e(GetCurrentDirectoryA(bytes, fn));
+    errno_t r = ut_b2e(GetCurrentDirectoryA(bytes, fn));
     fn[count - 1] = 0; // always
     return r;
 }
 
 static errno_t ut_files_chdir(const char* fn) {
-    return b2e(SetCurrentDirectoryA(fn));
+    return ut_b2e(SetCurrentDirectoryA(fn));
 }
 
 typedef struct ut_files_dir_s {
