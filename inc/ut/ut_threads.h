@@ -3,20 +3,20 @@
 
 begin_c
 
-typedef struct event_s * event_t;
+typedef struct ut_event_s* ut_event_t;
 
 typedef struct {
-    event_t (*create)(void); // never returns null
-    event_t (*create_manual)(void); // never returns null
-    void (*set)(event_t e);
-    void (*reset)(event_t e);
-    void (*wait)(event_t e);
+    ut_event_t (*create)(void); // never returns null
+    ut_event_t (*create_manual)(void); // never returns null
+    void (*set)(ut_event_t e);
+    void (*reset)(ut_event_t e);
+    void (*wait)(ut_event_t e);
     // returns 0 or -1 on timeout
-    int32_t (*wait_or_timeout)(event_t e, fp64_t seconds); // seconds < 0 forever
+    int32_t (*wait_or_timeout)(ut_event_t e, fp64_t seconds); // seconds < 0 forever
     // returns event index or -1 on timeout or abandon
-    int32_t (*wait_any)(int32_t n, event_t events[]); // -1 on abandon
-    int32_t (*wait_any_or_timeout)(int32_t n, event_t e[], fp64_t seconds);
-    void (*dispose)(event_t e);
+    int32_t (*wait_any)(int32_t n, ut_event_t events[]); // -1 on abandon
+    int32_t (*wait_any_or_timeout)(int32_t n, ut_event_t e[], fp64_t seconds);
+    void (*dispose)(ut_event_t e);
     void (*test)(void);
 } ut_event_if;
 
@@ -34,7 +34,7 @@ typedef struct {
 
 extern ut_mutex_if ut_mutex;
 
-typedef struct thread_s * ut_thread_t;
+typedef struct thread_s* ut_thread_t;
 
 typedef struct {
     ut_thread_t (*start)(void (*func)(void*), void* p); // never returns null

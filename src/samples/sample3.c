@@ -7,8 +7,8 @@ static ui_image_t image[2];
 static uint8_t pixels[2][4 * 4096 * 4096];
 
 static ut_thread_t thread;
-static event_t wake;
-static event_t quit;
+static ut_event_t wake;
+static ut_event_t quit;
 
 static volatile bool rendering;
 static volatile bool stop;
@@ -187,7 +187,7 @@ static void renderer(void* unused) {
     (void)unused;
     ut_thread.name("renderer");
     ut_thread.realtime();
-    event_t es[2] = {wake, quit};
+    ut_event_t es[2] = {wake, quit};
     for (;;) {
         int e = ut_event.wait_any(countof(es), es);
         if (e != 0) { break; }

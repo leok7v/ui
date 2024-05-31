@@ -1112,20 +1112,20 @@ extern ut_runtime_if ut_runtime;
 
 // _______________________________ ut_threads.h _______________________________
 
-typedef struct event_s * event_t;
+typedef struct ut_event_s* ut_event_t;
 
 typedef struct {
-    event_t (*create)(void); // never returns null
-    event_t (*create_manual)(void); // never returns null
-    void (*set)(event_t e);
-    void (*reset)(event_t e);
-    void (*wait)(event_t e);
+    ut_event_t (*create)(void); // never returns null
+    ut_event_t (*create_manual)(void); // never returns null
+    void (*set)(ut_event_t e);
+    void (*reset)(ut_event_t e);
+    void (*wait)(ut_event_t e);
     // returns 0 or -1 on timeout
-    int32_t (*wait_or_timeout)(event_t e, fp64_t seconds); // seconds < 0 forever
+    int32_t (*wait_or_timeout)(ut_event_t e, fp64_t seconds); // seconds < 0 forever
     // returns event index or -1 on timeout or abandon
-    int32_t (*wait_any)(int32_t n, event_t events[]); // -1 on abandon
-    int32_t (*wait_any_or_timeout)(int32_t n, event_t e[], fp64_t seconds);
-    void (*dispose)(event_t e);
+    int32_t (*wait_any)(int32_t n, ut_event_t events[]); // -1 on abandon
+    int32_t (*wait_any_or_timeout)(int32_t n, ut_event_t e[], fp64_t seconds);
+    void (*dispose)(ut_event_t e);
     void (*test)(void);
 } ut_event_if;
 
@@ -1143,7 +1143,7 @@ typedef struct {
 
 extern ut_mutex_if ut_mutex;
 
-typedef struct thread_s * ut_thread_t;
+typedef struct thread_s* ut_thread_t;
 
 typedef struct {
     ut_thread_t (*start)(void (*func)(void*), void* p); // never returns null
@@ -1262,14 +1262,6 @@ end_c
 
 #define b2e(call) ((errno_t)(call ? 0 : GetLastError())) // BOOL -> errno_t
 
-#define wait2e(ix) (errno_t)                                                     \
-    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
-      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
-        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
-          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
-        )                                                                        \
-      )                                                                          \
-    )
 
 
 #endif // WIN32
@@ -4606,9 +4598,21 @@ static errno_t ut_processes_pids(const char* pname, uint64_t* pids/*[size]*/,
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
+#pragma push_macro("ut_wait_ix2e")
+
+#define ut_wait_ix2e(ix) /* translate ix to error */ (errno_t)                   \
+    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
+      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
+        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
+          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
+        )                                                                        \
+      )                                                                          \
+    )
+
 static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
-    DWORD timeout_milliseconds = (DWORD)(timeout * 1000);
-    enum { access = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE };
+    DWORD milliseconds = timeout < 0 ? INFINITE : (DWORD)(timeout * 1000);
+    enum { access = PROCESS_QUERY_LIMITED_INFORMATION |
+                    PROCESS_TERMINATE | SYNCHRONIZE };
     assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
     errno_t r = ERROR_NOT_FOUND;
     HANDLE h = OpenProcess(access, 0, (DWORD)pid);
@@ -4617,8 +4621,8 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
         path[0] = 0;
         r = b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
         if (r == 0) {
-            DWORD ix = WaitForSingleObject(h, timeout_milliseconds);
-            r = wait2e(ix);
+            DWORD ix = WaitForSingleObject(h, milliseconds);
+            r = ut_wait_ix2e(ix);
         } else {
             DWORD bytes = countof(path);
             errno_t rq = b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
@@ -4649,6 +4653,8 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     if (r != 0) { errno = r; }
     return r;
 }
+
+#pragma pop_macro("ut_wait_ix2e")
 
 static bool ut_processes_kill_one(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
     errno_t r = ut_processes_kill(pid, lambda->timeout);
@@ -5673,50 +5679,70 @@ ut_streams_if ut_streams = {
 
 // events:
 
-static event_t ut_event_create(void) {
+static ut_event_t ut_event_create(void) {
     HANDLE e = CreateEvent(null, false, false, null);
     not_null(e);
-    return (event_t)e;
+    return (ut_event_t)e;
 }
 
-static event_t ut_event_create_manual(void) {
+static ut_event_t ut_event_create_manual(void) {
     HANDLE e = CreateEvent(null, true, false, null);
     not_null(e);
-    return (event_t)e;
+    return (ut_event_t)e;
 }
 
-static void ut_event_set(event_t e) {
+static void ut_event_set(ut_event_t e) {
     fatal_if_false(SetEvent((HANDLE)e));
 }
 
-static void ut_event_reset(event_t e) {
+static void ut_event_reset(ut_event_t e) {
     fatal_if_false(ResetEvent((HANDLE)e));
 }
 
-static int32_t ut_event_wait_or_timeout(event_t e, fp64_t seconds) {
+#pragma push_macro("ut_wait_ix2e")
+
+// WAIT_ABANDONED only reported for mutexes not events
+// WAIT_FAILED means event was invalid handle or was disposed
+// by another thread while the calling thread was waiting for it.
+
+#define ut_wait_ix2e(ix) /* translate ix to error */ (errno_t)                   \
+    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
+      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
+        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
+          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
+        )                                                                        \
+      )                                                                          \
+    )
+
+static int32_t ut_event_wait_or_timeout(ut_event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(e, ms);
-    errno_t r = wait2e(ix);
+    swear(ix != WAIT_FAILED && ix != WAIT_ABANDONED, "ix: %d", ix);
+    traceln("ix: %d", ix);
+    errno_t r = ut_wait_ix2e(ix);
+    if (r != 0) { swear(ix == WAIT_TIMEOUT); }
     return r != 0 ? -1 : 0;
 }
 
-static void ut_event_wait(event_t e) { ut_event_wait_or_timeout(e, -1); }
+static void ut_event_wait(ut_event_t e) { ut_event_wait_or_timeout(e, -1); }
 
-static int32_t ut_event_wait_any_or_timeout(int32_t n, event_t events[],
+static int32_t ut_event_wait_any_or_timeout(int32_t n, ut_event_t events[],
         fp64_t s) {
+    swear(n < 64); // Win32 API limit
     const uint32_t ms = s < 0 ? INFINITE : (uint32_t)(s * 1000.0 + 0.5);
     const HANDLE* es = (const HANDLE*)events;
     DWORD ix = WaitForMultipleObjects((DWORD)n, es, false, ms);
-    errno_t r = wait2e(ix);
-    // all WAIT_ABANDONED_0 and WAIT_IO_COMPLETION 0xC0 as -1
+    swear(ix != WAIT_FAILED && ix != WAIT_ABANDONED, "ix: %d", ix);
+    errno_t r = ut_wait_ix2e(ix);
+    if (r != 0) { swear(ix == WAIT_TIMEOUT); }
     return r != 0 ? -1 : (int32_t)ix;
 }
 
-static int32_t ut_event_wait_any(int32_t n, event_t e[]) {
+static int32_t ut_event_wait_any(int32_t n, ut_event_t e[]) {
     return ut_event_wait_any_or_timeout(n, e, -1);
 }
 
-static void ut_event_dispose(event_t handle) {
+static void ut_event_dispose(ut_event_t handle) {
     fatal_if_false(CloseHandle(handle));
 }
 
@@ -5730,9 +5756,17 @@ static void ut_event_test_check_time(fp64_t start, fp64_t expected) {
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
+static void bad_wait(void* p) {
+    ut_event_t e = (ut_event_t)p;
+    int32_t r = ut_event.wait_or_timeout(e, 9999.0);
+    traceln("r: %d", r);
+    traceln();
+}
+
+
 static void ut_event_test(void) {
     #ifdef UT_TESTS
-    event_t event = ut_event.create();
+    ut_event_t event = ut_event.create();
     fp64_t start = ut_clock.seconds();
     ut_event.set(event);
     ut_event.wait(event);
@@ -5744,7 +5778,7 @@ static void ut_event_test(void) {
     ut_event_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     enum { count = 5 };
-    event_t event_array[count];
+    ut_event_t event_array[count];
     for (int32_t i = 0; i < countof(event_array); i++) {
         event_array[i] = ut_event.create_manual();
     }
@@ -6031,7 +6065,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     fatal_if_false(is_handle_valid(t));
     const uint32_t ms = timeout < 0 ? INFINITE : (uint32_t)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, (DWORD)ms);
-    errno_t r = wait2e(ix);
+    errno_t r = ut_wait_ix2e(ix);
     assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");
     if (r == 0) {
         fatal_if_false(CloseHandle(t));
@@ -6040,6 +6074,8 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     }
     return r;
 }
+
+#pragma pop_macro("ut_wait_ix2e")
 
 static void ut_thread_detach(ut_thread_t t) {
     not_null(t);
@@ -6098,7 +6134,7 @@ typedef struct {
 
 typedef struct ut_thread_philosophers_s {
     ut_thread_philosopher_t philosopher[3];
-    event_t fed_up[3];
+    ut_event_t fed_up[3];
     uint32_t seed;
     volatile bool enough;
 } ut_thread_philosophers_t;

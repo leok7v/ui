@@ -30,14 +30,6 @@
 
 #define b2e(call) ((errno_t)(call ? 0 : GetLastError())) // BOOL -> errno_t
 
-#define wait2e(ix) (errno_t)                                                     \
-    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
-      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
-        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
-          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
-        )                                                                        \
-      )                                                                          \
-    )
 
 
 #endif // WIN32

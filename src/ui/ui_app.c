@@ -1422,7 +1422,7 @@ static void ui_app_redraw_thread(void* unused(p)) {
     ut_thread.realtime();
     ut_thread.name("ui_app.redraw");
     for (;;) {
-        event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
+        ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
         int32_t r = ut_event.wait_any(countof(es), es);
         if (r == 0) {
             if (ui_app_window() != null) {

@@ -3097,7 +3097,7 @@ static void ui_app_redraw_thread(void* unused(p)) {
     ut_thread.realtime();
     ut_thread.name("ui_app.redraw");
     for (;;) {
-        event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
+        ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
         int32_t r = ut_event.wait_any(countof(es), es);
         if (r == 0) {
             if (ui_app_window() != null) {
@@ -8717,14 +8717,6 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 
 #define b2e(call) ((errno_t)(call ? 0 : GetLastError())) // BOOL -> errno_t
 
-#define wait2e(ix) (errno_t)                                                     \
-    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
-      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
-        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
-          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
-        )                                                                        \
-      )                                                                          \
-    )
 
 
 #endif // WIN32

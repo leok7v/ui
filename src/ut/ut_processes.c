@@ -152,9 +152,21 @@ static errno_t ut_processes_pids(const char* pname, uint64_t* pids/*[size]*/,
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
+#pragma push_macro("ut_wait_ix2e")
+
+#define ut_wait_ix2e(ix) /* translate ix to error */ (errno_t)                   \
+    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
+      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
+        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
+          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
+        )                                                                        \
+      )                                                                          \
+    )
+
 static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
-    DWORD timeout_milliseconds = (DWORD)(timeout * 1000);
-    enum { access = PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE };
+    DWORD milliseconds = timeout < 0 ? INFINITE : (DWORD)(timeout * 1000);
+    enum { access = PROCESS_QUERY_LIMITED_INFORMATION |
+                    PROCESS_TERMINATE | SYNCHRONIZE };
     assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
     errno_t r = ERROR_NOT_FOUND;
     HANDLE h = OpenProcess(access, 0, (DWORD)pid);
@@ -163,8 +175,8 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
         path[0] = 0;
         r = b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
         if (r == 0) {
-            DWORD ix = WaitForSingleObject(h, timeout_milliseconds);
-            r = wait2e(ix);
+            DWORD ix = WaitForSingleObject(h, milliseconds);
+            r = ut_wait_ix2e(ix);
         } else {
             DWORD bytes = countof(path);
             errno_t rq = b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
@@ -195,6 +207,8 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     if (r != 0) { errno = r; }
     return r;
 }
+
+#pragma pop_macro("ut_wait_ix2e")
 
 static bool ut_processes_kill_one(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
     errno_t r = ut_processes_kill(pid, lambda->timeout);
