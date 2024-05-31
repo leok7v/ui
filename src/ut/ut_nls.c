@@ -1,5 +1,4 @@
 #include "ut/ut.h"
-#include "ui/ui.h"
 #include "ut/ut_win32.h"
 
 // Simplistic Win32 implementation of national language support.
