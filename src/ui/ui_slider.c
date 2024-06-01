@@ -211,7 +211,7 @@ void ui_view_init_slider(ui_view_t* v) {
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
     ut_str_printf(s->dec.hint, "%s", accel);
-    s->inc = (ui_button_t)ui_button(ut_glyph_heavy_minus_sign, 0,
+    s->inc = (ui_button_t)ui_button(ut_glyph_heavy_plus_sign, 0,
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
     ut_str_printf(s->inc.hint, "%s", accel);

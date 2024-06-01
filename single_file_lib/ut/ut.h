@@ -825,6 +825,36 @@ extern ut_generics_if ut_generics;
 // Speaker with Cancellation Stroke https://www.compart.com/en/unicode/U+1F507
 #define ut_glyph_mute                                                       "\xF0\x9F\x94\x87"
 
+// TODO: this is used for Font Metric Visualization
+
+// Full Block https://www.compart.com/en/unicode/U+2588
+#define ut_glyph_full_block                             "\xE2\x96\x88"
+
+// Black Square https://www.compart.com/en/unicode/U+25A0
+#define ut_glyph_black_square                           "\xE2\x96\xA0"
+
+// the appearance of a dragon walking
+// CJK Unified Ideograph-9F98 https://www.compart.com/en/unicode/U+9F98
+#define ut_glyph_walking_dragon                         "\xE9\xBE\x98"
+
+// possibly highest "diacritical marks" character (Vietnamese)
+// Latin Small Letter U with Horn and Hook Above https://www.compart.com/en/unicode/U+1EED
+#define ut_glyph_u_with_horn_and_hook_above             "\xC7\xAD"
+
+// possibly "long descender" character
+// Latin Small Letter Qp Digraph https://www.compart.com/en/unicode/U+0239
+#define ut_glyph_qp_digraph                             "\xC9\xB9"
+
+// another possibly "long descender" character
+// Cyrillic Small Letter Shha with Descender https://www.compart.com/en/unicode/U+0527
+#define ut_glyph_shha_with_descender                    "\xD4\xA7"
+
+// a"very long descender" character
+// Tibetan Mark Caret Yig Mgo Phur Shad Ma https://www.compart.com/en/unicode/U+0F06
+#define ut_glyph_caret_yig_mgo_phur_shad_ma             "\xE0\xBC\x86"
+
+// Tibetan Vowel Sign Vocalic Ll https://www.compart.com/en/unicode/U+0F79
+#define ut_glyph_vocalic_ll                             "\xE0\xBD\xB9"
 
 
 // ________________________________ ut_heap.h _________________________________

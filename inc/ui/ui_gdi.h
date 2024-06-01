@@ -91,8 +91,8 @@ typedef struct {
     int32_t (*font_height)(ui_font_t f); // font height in pixels
     int32_t (*descent)(ui_font_t f);     // font descent (glyphs below baseline)
     int32_t (*baseline)(ui_font_t f);    // height - baseline (aka ascent) = descent
-    // https://en.wikipedia.org/wiki/Em_(typography)
-    void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics (pixel size of glyph "M")
+    void (*dump_fm)(ui_font_t f); // dump font metrics
+    void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics
     // get_em(f) returns { "M".w, "M".h - f.descent - (f.height - f.baseline)};
     ui_wh_t (*measure_text)(ui_font_t f, const char* format, ...);
     // width can be -1 which measures text with "\n" or

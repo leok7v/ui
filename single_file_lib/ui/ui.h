@@ -152,17 +152,31 @@ typedef struct ui_region_s* ui_region_t;
 
 typedef struct ui_fm_s { // font metrics
     ui_font_t font;
-    ui_wh_t em;        // "em" almost square w/o ascend/descent
+    ui_wh_t em;        // "em" square point size expressed in pixels *)
     // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
+    ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
     int32_t height;    // font height in pixels
-    int32_t baseline;  // font ascent; descent = height - baseline
-    int32_t ascent;    // font ascent
-    int32_t descent;   // font descent
-    int32_t line_gap;  // internal_leading + external_leading
+    int32_t baseline;  // bottom of the glyphs sans descenders (align of multifont text)
+    int32_t ascent;    // The maximum glyphs extend above the baseline
+    int32_t descent;   // maximum height of descenders
     int32_t internal_leading; // accents and diacritical marks goes there
     int32_t external_leading;
+    int32_t average_char_width;
+    int32_t max_char_width;
+    int32_t line_gap;  // gap between lines of text
+    ui_wh_t subscript; // height
+    ui_point_t subscript_offset;
+    ui_wh_t superscript;    // height
+    ui_point_t superscript_offset;
+    int32_t underscore;     // height
+    int32_t underscore_position;
+    int32_t strike_through; // height
+    int32_t strike_through_position;
     bool mono;
 } ui_fm_t;
+
+// *)  .em square pixel size of glyph "m"
+//     https://en.wikipedia.org/wiki/Em_(typography)
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
@@ -733,8 +747,8 @@ typedef struct {
     int32_t (*font_height)(ui_font_t f); // font height in pixels
     int32_t (*descent)(ui_font_t f);     // font descent (glyphs below baseline)
     int32_t (*baseline)(ui_font_t f);    // height - baseline (aka ascent) = descent
-    // https://en.wikipedia.org/wiki/Em_(typography)
-    void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics (pixel size of glyph "M")
+    void (*dump_fm)(ui_font_t f); // dump font metrics
+    void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics
     // get_em(f) returns { "M".w, "M".h - f.descent - (f.height - f.baseline)};
     ui_wh_t (*measure_text)(ui_font_t f, const char* format, ...);
     // width can be -1 which measures text with "\n" or
@@ -1679,7 +1693,6 @@ end_c
 
 #pragma push_macro("ui_app_window")
 #pragma push_macro("ui_app_canvas")
-#pragma push_macro("ui_monospaced_font")
 
 #define ui_app_window() ((HWND)ui_app.window)
 #define ui_app_canvas() ((HDC)ui_app.canvas)
@@ -1838,41 +1851,54 @@ static void ui_app_dispose_fonts(void) {
     ui_gdi.delete_font(ui_app.fonts.mono.font);
 }
 
+static int32_t ui_app_px2pt(fp64_t px) {
+    return (int32_t)(px * 72.0 / (fp64_t)ui_app.dpi.window + 0.5);
+}
+
+static int32_t ui_app_pt2px(fp64_t pt) {
+    return (int32_t)(pt * (fp64_t)ui_app.dpi.window / 72.0 + 0.5);
+}
+
+static void ui_app_init_cursors(void) {
+    if (ui_app.cursor_arrow == null) {
+        ui_app.cursor_arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
+        ui_app.cursor_wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
+        ui_app.cursor_ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
+        ui_app.cursor_size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
+        ui_app.cursor_size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
+        ui_app.cursor_size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
+        ui_app.cursor_size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
+        ui_app.cursor_size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
+        ui_app.cursor = ui_app.cursor_arrow;
+    }
+}
+
 static void ui_app_init_fonts(int32_t dpi) {
     ui_app_update_ncm(dpi);
     if (ui_app.fonts.regular.font != null) { ui_app_dispose_fonts(); }
     LOGFONTW lf = ui_app_ncm.lfMessageFont;
     // lf.lfQuality is CLEARTYPE_QUALITY which looks bad on 4K monitors
     // Windows UI uses PROOF_QUALITY which is aliased w/o ClearType rainbows
-    lf.lfQuality = PROOF_QUALITY;
+    lf.lfQuality = ANTIALIASED_QUALITY; // PROOF_QUALITY;
     ui_gdi.update_fm(&ui_app.fonts.regular, (ui_font_t)CreateFontIndirectW(&lf));
+//  ui_gdi.dump_fm(ui_app.fonts.regular.font);
     const fp64_t fh = ui_app_ncm.lfMessageFont.lfHeight;
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.75);
+    lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
     ui_gdi.update_fm(&ui_app.fonts.H1, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.4);
+    lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
     ui_gdi.update_fm(&ui_app.fonts.H2, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.15);
+    lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
     ui_gdi.update_fm(&ui_app.fonts.H3, (ui_font_t)CreateFontIndirectW(&lf));
     lf = ui_app_ncm.lfMessageFont;
-    lf.lfPitchAndFamily = FIXED_PITCH;
+    lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
-    #define ui_monospaced_font L"Cascadia Code"
-    wcscpy(lf.lfFaceName, ui_monospaced_font);
+    ut_str.utf8to16(lf.lfFaceName, countof(lf.lfFaceName), "Cascadia Mono");
     ui_gdi.update_fm(&ui_app.fonts.mono, (ui_font_t)CreateFontIndirectW(&lf));
-    ui_app.cursor_arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
-    ui_app.cursor_wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
-    ui_app.cursor_ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
-    ui_app.cursor_size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
-    ui_app.cursor_size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
-    ui_app.cursor_size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
-    ui_app.cursor_size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
-    ui_app.cursor_size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
-    ui_app.cursor = ui_app.cursor_arrow;
 }
 
 static void ui_app_data_save(const char* name, const void* data, int32_t bytes) {
@@ -2130,12 +2156,12 @@ static void ui_app_window_dpi(void) {
     if (dpi == 0) { dpi = (int32_t)GetSystemDpiForProcess(GetCurrentProcess()); }
     if (dpi == 0) { dpi = (int32_t)GetDpiForSystem(); }
     ui_app.dpi.window = dpi;
-    traceln("ui_app.dpi.window: %d", ui_app.dpi.window);
 }
 
 static void ui_app_window_opening(void) {
     ui_app_window_dpi();
     ui_app_init_fonts(ui_app.dpi.window);
+    ui_app_init_cursors();
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
     ui_app.set_cursor(ui_app.cursor_arrow);
@@ -2496,9 +2522,9 @@ static void ui_app_paint_stats(void) {
 static void ui_app_paint_on_canvas(HDC hdc) {
     // GM_ADVANCED: rectangles are right bottom inclusive
     // TrueType fonts and arcs are affected by world transforms.
-    if (GetGraphicsMode(hdc) != GM_ADVANCED) {
-        SetGraphicsMode(hdc, GM_ADVANCED); // do it once
-    }
+//  if (GetGraphicsMode(hdc) != GM_ADVANCED) {
+//      SetGraphicsMode(hdc, GM_ADVANCED); // do it once
+//  }
     ui_canvas_t canvas = ui_app.canvas;
     ui_app.canvas = (ui_canvas_t)hdc;
     ui_gdi.push(0, 0);
@@ -2982,7 +3008,6 @@ static void ui_app_create_window(const ui_rect_t r) {
     ut_str_printf(ui_caption.title.text, "%s", ui_app.title);
     not_null(GetSystemMenu(ui_app_window(), false));
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
-    traceln("ui_app.dpi.window: %d", ui_app.dpi.window);
     RECT wrc = ui_app_ui2rect(&r);
     fatal_if_false(GetWindowRect(ui_app_window(), &wrc));
     ui_app.wrc = ui_app_rect2ui(&wrc);
@@ -3800,7 +3825,6 @@ int main(int argc, const char* argv[], const char** envp) {
     return r;
 }
 
-#pragma pop_macro("ui_monospaced_font")
 #pragma pop_macro("ui_app_canvas")
 #pragma pop_macro("ui_app_window")
 
@@ -7658,9 +7682,9 @@ static HDC ui_gdi_get_dc(void) {
     HDC hdc = ui_app_canvas() != null ?
               ui_app_canvas() : GetDC(ui_app_window());
     not_null(hdc);
-    if (GetGraphicsMode(hdc) != GM_ADVANCED) {
-        SetGraphicsMode(hdc, GM_ADVANCED);
-    }
+//  if (GetGraphicsMode(hdc) != GM_ADVANCED) {
+//      SetGraphicsMode(hdc, GM_ADVANCED);
+//  }
     return hdc;
 }
 
@@ -7701,98 +7725,138 @@ static int32_t ui_gdi_descent(ui_font_t f) {
     return tm.tmDescent;
 }
 
-static void ui_gdi_dump_tm(HDC hdc) {
+static void ui_gdi_dump_hdc_fm(HDC hdc) {
+    // https://en.wikipedia.org/wiki/Quad_(typography)
+    // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
+    // https://stackoverflow.com/questions/27631736/meaning-of-top-ascent-baseline-descent-bottom-and-leading-in-androids-font
+    // Amazingly same since Windows 3.1 1992
+    // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-textmetrica
+    // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-outlinetextmetrica
     TEXTMETRICA tm = {0};
     fatal_if_false(GetTextMetricsA(hdc, &tm));
-    traceln("tm .height: %d           tm .ascent: %d           tm .descent: %d",
-            tm.tmHeight, tm.tmAscent, tm.tmDescent);
-    traceln("tm .internal_leading: %d tm .external_leading: %d tm .ave_char_width: %d",
-            tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
-    traceln("tm .max_char_width: %d   tm .weight: %d           tm .overhang: %d",
-            tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
-    traceln("tm .digitized_aspect_x: %d tm .digitized_aspect_y: %d tm .first_char: %d",
-            tm.tmDigitizedAspectX, tm.tmDigitizedAspectY, tm.tmFirstChar);
-    traceln("tm .last_char: %d        tm .default_char: %d     tm .break_char: %d",
-            tm.tmLastChar, tm.tmDefaultChar, tm.tmBreakChar);
-    traceln("tm .italic: %d           tm .underlined: %d       tm .struck_out: %d",
-            tm.tmItalic, tm.tmUnderlined, tm.tmStruckOut);
-    traceln("tm .pitch_and_family: %d tm .char_set: %d",
-            tm.tmPitchAndFamily, tm.tmCharSet);
     char pitch[64] = { 0 };
-    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
-    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
-    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
-    if ((tm.tmPitchAndFamily & 0xF0) & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
-    traceln("tm .pitch_and_family: %s", pitch);
-    if (tm.tmPitchAndFamily & TMPF_TRUETYPE) {
-        OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
-        uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-        swear(bytes == sizeof(OUTLINETEXTMETRICA));
-        traceln("otm .otmSize: %d          otm .otmFiller: %d       otm .otmfsSelection: %u",
-                otm.otmSize, otm.otmFiller, otm.otmfsSelection);
-        traceln("otm .otmfsType: %u        otm .otmsCharSlopeRise: %d otm .otmsCharSlopeRun: %d",
-                otm.otmfsType, otm.otmsCharSlopeRise, otm.otmsCharSlopeRun);
-        traceln("otm .otmItalicAngle: %d   otm .otmEMSquare: %u     otm .otmAscent: %d",
-                otm.otmItalicAngle, otm.otmEMSquare, otm.otmAscent);
-        traceln("otm .otmDescent: %d       otm .otmLineGap: %u      otm .otmsCapEmHeight: %u",
-                otm.otmDescent, otm.otmLineGap, otm.otmsCapEmHeight);
-        traceln("otm .otmsXHeight: %u      otm .otmrcFontBox.left: %d otm .otmrcFontBox.top: %d",
-                otm.otmsXHeight, otm.otmrcFontBox.left, otm.otmrcFontBox.top);
-        traceln("otm .otmrcFontBox.right: %d otm .otmrcFontBox.bottom: %d otm .otmMacAscent: %d",
-                otm.otmrcFontBox.right, otm.otmrcFontBox.bottom, otm.otmMacAscent);
-        traceln("otm .otmMacDescent: %d    otm .otmMacLineGap: %u   otm .otmusMinimumPPEM: %u",
-                otm.otmMacDescent, otm.otmMacLineGap, otm.otmusMinimumPPEM);
-        traceln("otm .otmptSubscriptSize.x: %d otm .otmptSubscriptSize.y: %d otm .otmptSubscriptOffset.x: %d",
-                otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y, otm.otmptSubscriptOffset.x);
-        traceln("otm .otmptSubscriptOffset.y: %d otm .otmptSuperscriptSize.x: %d otm .otmptSuperscriptSize.y: %d",
-                otm.otmptSubscriptOffset.y, otm.otmptSuperscriptSize.x, otm.otmptSuperscriptSize.y);
-        traceln("otm .otmptSuperscriptOffset.x: %d otm .otmptSuperscriptOffset.y: %d otm .otmsStrikeoutSize: %u",
-                otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y, otm.otmsStrikeoutSize);
-        traceln("otm .otmsStrikeoutPosition: %d otm .otmsUnderscoreSize: %d otm .otmsUnderscorePosition: %d",
-                otm.otmsStrikeoutPosition, otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
-        traceln("dpi.system:            %d", ui_app.dpi.system);
-        traceln("dpi.process:           %d", ui_app.dpi.process);
-        traceln("dpi.window:            %d", ui_app.dpi.window);
-        traceln("dpi.monitor_raw:       %d", ui_app.dpi.monitor_raw);
-        traceln("dpi.monitor_effective: %d", ui_app.dpi.monitor_effective);
-        traceln("dpi.monitor_angular:   %d", ui_app.dpi.monitor_angular);
-    }
+    if (tm.tmPitchAndFamily & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
+    if (tm.tmPitchAndFamily & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
+    if (tm.tmPitchAndFamily & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
+    if (tm.tmPitchAndFamily & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
+    traceln("tm: .pitch_and_family: %s", pitch);
+    traceln(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
+            tm.tmHeight, tm.tmAscent, tm.tmDescent);
+    traceln(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
+            tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
+    traceln(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
+            tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
+    traceln(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
+            tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
+    swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
+    uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
+    swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    // unsupported XHeight CapEmHeight
+    // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
+    //             CharSlopeRise, CharSlopeRun, ItalicAngle
+    traceln("otm: .Ascent       : %2d   .Descent        : %2d",
+            otm.otmAscent, otm.otmDescent);
+    traceln(".otmLineGap        : %2u", otm.otmLineGap);
+    traceln(".FontBox.ltrb      :  %d,%d %2d,%2d",
+            otm.otmrcFontBox.left, otm.otmrcFontBox.top,
+            otm.otmrcFontBox.right, otm.otmrcFontBox.bottom);
+    traceln(".MinimumPPEM       : %2u    (minimum height in pixels)",
+            otm.otmusMinimumPPEM);
+    traceln(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
+            otm.otmptSubscriptOffset.x, otm.otmptSubscriptOffset.y,
+            otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y);
+    traceln(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
+            otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y,
+            otm.otmptSuperscriptSize.x,   otm.otmptSuperscriptSize.y);
+    traceln(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
+            otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
+    traceln(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
+            otm.otmsStrikeoutSize,  otm.otmsStrikeoutPosition);
+    int32_t h = otm.otmAscent + abs(tm.tmDescent); // without diacritical space above
+    fp32_t pts = (h * 72.0f)  / GetDeviceCaps(hdc, LOGPIXELSY);
+    traceln("height: %.1fpt", pts);
 }
 
-// get_em() is relatively expensive:
-// 24 microseconds Core i-7 3667U 2.0 GHz (2012)
+static void ui_gdi_dump_fm(ui_font_t f) {
+    not_null(f);
+    ui_gdi_hdc_with_font(f, { ui_gdi_dump_hdc_fm(hdc); });
+}
+
+static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
+    TEXTMETRICA tm = {0};
+    fatal_if_false(GetTextMetricsA(hdc, &tm));
+    swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
+    uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
+    swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    // "tm.tmAscent" The ascent (units above the base line) of characters
+    // and actually is "baseline" in other terminology
+    // "otm.otmAscent" The maximum distance characters in this font extend
+    // above the base line. This is the typographic ascent for the font.
+    fm->height   = tm.tmHeight;
+    fm->baseline = tm.tmAscent;
+    fm->ascent   = otm.otmAscent;
+    fm->descent  = tm.tmDescent;
+    fm->baseline = tm.tmAscent;
+    fm->internal_leading = tm.tmInternalLeading;
+    fm->external_leading = tm.tmExternalLeading;
+    fm->average_char_width = tm.tmAveCharWidth;
+    fm->max_char_width = tm.tmMaxCharWidth;
+    fm->line_gap = otm.otmLineGap;
+    fm->subscript.w = otm.otmptSubscriptSize.x;
+    fm->subscript.h = otm.otmptSubscriptSize.y;
+    fm->subscript_offset.x = otm.otmptSubscriptOffset.x;
+    fm->subscript_offset.y = otm.otmptSubscriptOffset.y;
+    fm->superscript.w = otm.otmptSuperscriptSize.x;
+    fm->superscript.h = otm.otmptSuperscriptSize.y;
+    fm->superscript_offset.x = otm.otmptSuperscriptOffset.x;
+    fm->superscript_offset.y = otm.otmptSuperscriptOffset.y;
+    fm->underscore = otm.otmsUnderscoreSize;
+    fm->underscore_position = otm.otmsUnderscorePosition;
+    fm->strike_through = otm.otmsStrikeoutSize;
+    fm->strike_through_position = otm.otmsStrikeoutPosition;
+    fm->box = (ui_rect_t){
+                otm.otmrcFontBox.left, otm.otmrcFontBox.top,
+                otm.otmrcFontBox.right - otm.otmrcFontBox.left,
+                otm.otmrcFontBox.bottom - otm.otmrcFontBox.top
+    };
+    // otm.Descent: The maximum distance characters in this font extend below
+    // the base line. This is the typographic descent for the font.
+    // Negative from the bottom (font.height)
+    // tm.Descent: The descent (units below the base line) of characters.
+    // Positive from the baseline down
+    assert(tm.tmDescent >= 0 && otm.otmDescent <= 0 &&
+           -otm.otmDescent <= tm.tmDescent,
+           "tm.tmDescent: %d otm.otmDescent: %d", tm.tmDescent, otm.otmDescent);
+    // "Mac" typography is ignored because it's usefulness is unclear.
+    // Italic angle/slant/run is ignored because at the moment edit
+    // view implementation does not support italics and thus does not
+    // need it. Easy to add if necessary.
+};
 
 static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
     not_null(f);
-    SIZE em = {0, 0}; // "M"
+    SIZE em = {0, 0}; // "m"
     *fm = (ui_fm_t){ .font = f };
+//  ui_gdi.dump_fm(f);
     ui_gdi_hdc_with_font(f, {
-        // https://en.wikipedia.org/wiki/Quad_(typography)
-        // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
-        // https://stackoverflow.com/questions/27631736/meaning-of-top-ascent-baseline-descent-bottom-and-leading-in-androids-font
-        ui_gdi_dump_tm(hdc);
+        ui_gdi_get_fm(hdc, fm);
         // ut_glyph_nbsp and "M" have the same result
         fatal_if_false(GetTextExtentPoint32A(hdc, "m", 1, &em));
-        traceln("em: %d %d", em.cx, em.cy);
-        SIZE eq = {0, 0}; // "M"
-        fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &eq));
-        traceln("eq: %d %d", eq.cx, eq.cy);
-        fm->height = ui_gdi.font_height(f);
-        fm->descent = ui_gdi.descent(f);
-        fm->baseline = ui_gdi.baseline(f);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-        SIZE e3 = {0}; // Three-Em Dash
         fatal_if_false(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        SIZE e3 = {0}; // Three-Em Dash
         fatal_if_false(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
-        traceln("vl: %d %d", vl.cx, vl.cy);
-        traceln("e3: %d %d", e3.cx, e3.cy);
-        traceln("fm->mono: %d height: %d descent: %d baseline: %d", fm->mono, fm->height, fm->descent, fm->baseline);
-        traceln("");
+//      traceln("vl: %d %d", vl.cx, vl.cy);
+//      traceln("e3: %d %d", e3.cx, e3.cy);
+//      traceln("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
+//              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
     });
-    assert(fm->baseline >= fm->height);
-    const int32_t ascend = fm->descent - (fm->height - fm->baseline);
-    fm->em = (ui_wh_t){em.cx, em.cy - ascend};
+    assert(fm->baseline <= fm->height);
+    fm->em = (ui_wh_t){ .w = fm->height, .h = fm->height };
+//  traceln("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
 
 static fp64_t ui_gdi_line_spacing(fp64_t height_multiplier) {
@@ -8049,6 +8113,7 @@ ui_gdi_if ui_gdi = {
     .font_height                   = ui_gdi_font_height,
     .descent                       = ui_gdi_descent,
     .baseline                      = ui_gdi_baseline,
+    .dump_fm                       = ui_gdi_dump_fm,
     .update_fm                     = ui_gdi_update_fm,
     .line_spacing                  = ui_gdi_line_spacing,
     .measure_text                  = ui_gdi_measure_singleline,
@@ -8658,7 +8723,7 @@ void ui_view_init_slider(ui_view_t* v) {
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
     ut_str_printf(s->dec.hint, "%s", accel);
-    s->inc = (ui_button_t)ui_button(ut_glyph_heavy_minus_sign, 0,
+    s->inc = (ui_button_t)ui_button(ut_glyph_heavy_plus_sign, 0,
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
     ut_str_printf(s->inc.hint, "%s", accel);

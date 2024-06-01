@@ -4,7 +4,6 @@
 
 #pragma push_macro("ui_app_window")
 #pragma push_macro("ui_app_canvas")
-#pragma push_macro("ui_monospaced_font")
 
 #define ui_app_window() ((HWND)ui_app.window)
 #define ui_app_canvas() ((HDC)ui_app.canvas)
@@ -163,41 +162,54 @@ static void ui_app_dispose_fonts(void) {
     ui_gdi.delete_font(ui_app.fonts.mono.font);
 }
 
+static int32_t ui_app_px2pt(fp64_t px) {
+    return (int32_t)(px * 72.0 / (fp64_t)ui_app.dpi.window + 0.5);
+}
+
+static int32_t ui_app_pt2px(fp64_t pt) {
+    return (int32_t)(pt * (fp64_t)ui_app.dpi.window / 72.0 + 0.5);
+}
+
+static void ui_app_init_cursors(void) {
+    if (ui_app.cursor_arrow == null) {
+        ui_app.cursor_arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
+        ui_app.cursor_wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
+        ui_app.cursor_ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
+        ui_app.cursor_size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
+        ui_app.cursor_size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
+        ui_app.cursor_size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
+        ui_app.cursor_size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
+        ui_app.cursor_size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
+        ui_app.cursor = ui_app.cursor_arrow;
+    }
+}
+
 static void ui_app_init_fonts(int32_t dpi) {
     ui_app_update_ncm(dpi);
     if (ui_app.fonts.regular.font != null) { ui_app_dispose_fonts(); }
     LOGFONTW lf = ui_app_ncm.lfMessageFont;
     // lf.lfQuality is CLEARTYPE_QUALITY which looks bad on 4K monitors
     // Windows UI uses PROOF_QUALITY which is aliased w/o ClearType rainbows
-    lf.lfQuality = PROOF_QUALITY;
+    lf.lfQuality = ANTIALIASED_QUALITY; // PROOF_QUALITY;
     ui_gdi.update_fm(&ui_app.fonts.regular, (ui_font_t)CreateFontIndirectW(&lf));
+//  ui_gdi.dump_fm(ui_app.fonts.regular.font);
     const fp64_t fh = ui_app_ncm.lfMessageFont.lfHeight;
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.75);
+    lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
     ui_gdi.update_fm(&ui_app.fonts.H1, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.4);
+    lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
     ui_gdi.update_fm(&ui_app.fonts.H2, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.15);
+    lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
     ui_gdi.update_fm(&ui_app.fonts.H3, (ui_font_t)CreateFontIndirectW(&lf));
     lf = ui_app_ncm.lfMessageFont;
-    lf.lfPitchAndFamily = FIXED_PITCH;
+    lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
-    #define ui_monospaced_font L"Cascadia Code"
-    wcscpy(lf.lfFaceName, ui_monospaced_font);
+    ut_str.utf8to16(lf.lfFaceName, countof(lf.lfFaceName), "Cascadia Mono");
     ui_gdi.update_fm(&ui_app.fonts.mono, (ui_font_t)CreateFontIndirectW(&lf));
-    ui_app.cursor_arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
-    ui_app.cursor_wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
-    ui_app.cursor_ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
-    ui_app.cursor_size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
-    ui_app.cursor_size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
-    ui_app.cursor_size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
-    ui_app.cursor_size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
-    ui_app.cursor_size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
-    ui_app.cursor = ui_app.cursor_arrow;
 }
 
 static void ui_app_data_save(const char* name, const void* data, int32_t bytes) {
@@ -455,12 +467,12 @@ static void ui_app_window_dpi(void) {
     if (dpi == 0) { dpi = (int32_t)GetSystemDpiForProcess(GetCurrentProcess()); }
     if (dpi == 0) { dpi = (int32_t)GetDpiForSystem(); }
     ui_app.dpi.window = dpi;
-    traceln("ui_app.dpi.window: %d", ui_app.dpi.window);
 }
 
 static void ui_app_window_opening(void) {
     ui_app_window_dpi();
     ui_app_init_fonts(ui_app.dpi.window);
+    ui_app_init_cursors();
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
     ui_app.set_cursor(ui_app.cursor_arrow);
@@ -821,9 +833,9 @@ static void ui_app_paint_stats(void) {
 static void ui_app_paint_on_canvas(HDC hdc) {
     // GM_ADVANCED: rectangles are right bottom inclusive
     // TrueType fonts and arcs are affected by world transforms.
-    if (GetGraphicsMode(hdc) != GM_ADVANCED) {
-        SetGraphicsMode(hdc, GM_ADVANCED); // do it once
-    }
+//  if (GetGraphicsMode(hdc) != GM_ADVANCED) {
+//      SetGraphicsMode(hdc, GM_ADVANCED); // do it once
+//  }
     ui_canvas_t canvas = ui_app.canvas;
     ui_app.canvas = (ui_canvas_t)hdc;
     ui_gdi.push(0, 0);
@@ -1307,7 +1319,6 @@ static void ui_app_create_window(const ui_rect_t r) {
     ut_str_printf(ui_caption.title.text, "%s", ui_app.title);
     not_null(GetSystemMenu(ui_app_window(), false));
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
-    traceln("ui_app.dpi.window: %d", ui_app.dpi.window);
     RECT wrc = ui_app_ui2rect(&r);
     fatal_if_false(GetWindowRect(ui_app_window(), &wrc));
     ui_app.wrc = ui_app_rect2ui(&wrc);
@@ -2125,7 +2136,6 @@ int main(int argc, const char* argv[], const char** envp) {
     return r;
 }
 
-#pragma pop_macro("ui_monospaced_font")
 #pragma pop_macro("ui_app_canvas")
 #pragma pop_macro("ui_app_window")
 

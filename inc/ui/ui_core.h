@@ -20,17 +20,31 @@ typedef struct ui_region_s* ui_region_t;
 
 typedef struct ui_fm_s { // font metrics
     ui_font_t font;
-    ui_wh_t em;        // "em" almost square w/o ascend/descent
+    ui_wh_t em;        // "em" square point size expressed in pixels *)
     // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
+    ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
     int32_t height;    // font height in pixels
-    int32_t baseline;  // font ascent; descent = height - baseline
-    int32_t ascent;    // font ascent
-    int32_t descent;   // font descent
-    int32_t line_gap;  // internal_leading + external_leading
+    int32_t baseline;  // bottom of the glyphs sans descenders (align of multifont text)
+    int32_t ascent;    // The maximum glyphs extend above the baseline
+    int32_t descent;   // maximum height of descenders
     int32_t internal_leading; // accents and diacritical marks goes there
     int32_t external_leading;
+    int32_t average_char_width;
+    int32_t max_char_width;
+    int32_t line_gap;  // gap between lines of text
+    ui_wh_t subscript; // height
+    ui_point_t subscript_offset;
+    ui_wh_t superscript;    // height
+    ui_point_t superscript_offset;
+    int32_t underscore;     // height
+    int32_t underscore_position;
+    int32_t strike_through; // height
+    int32_t strike_through_position;
     bool mono;
 } ui_fm_t;
+
+// *)  .em square pixel size of glyph "m"
+//     https://en.wikipedia.org/wiki/Em_(typography)
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
