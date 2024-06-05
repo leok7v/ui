@@ -611,7 +611,9 @@ static void ui_edit_paint_paragraph(ui_edit_t* e, int32_t pn) {
         char* text = e->para[pn].text + run[j].bp;
         ui_gdi.x = e->view.x;
         ui_edit_paint_selection(e, &run[j], text, pn, run[j].gp, run[j].gp + run[j].glyphs);
-        ui_gdi.text("%.*s", run[j].bytes, text);
+        if (run[j].bytes > 0) {
+            ui_gdi.text("%.*s", run[j].bytes, text);
+        }
         ui_gdi.y += e->view.fm->em.h;
     }
 }

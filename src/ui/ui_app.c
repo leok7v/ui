@@ -2012,9 +2012,38 @@ static void ui_app_init(void) {
     ui_app.init();
 }
 
+static void ui_app_set_dpi_awareness(void) {
+    // Mutually exclusive:
+    // BOOL SetProcessDpiAwarenessContext()
+    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setprocessdpiawarenesscontext
+    // and
+    // HRESULT SetProcessDpiAwareness()
+    // https://learn.microsoft.com/en-us/windows/win32/api/shellscalingapi/nf-shellscalingapi-setprocessdpiawareness
+    // Plus DPI awareness can be set by APP .exe shell properties, registry
+    // or Windows policy. See:
+    // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
+    DPI_AWARENESS_CONTEXT dpi_awareness_context_1 =
+        GetThreadDpiAwarenessContext();
+    // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
+    DWORD error = SetProcessDpiAwarenessContext(
+                    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) ?
+        0 : GetLastError();
+    if (error == ERROR_ACCESS_DENIED) {
+        traceln("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
+        // dpi awareness already set, manifest, registry, windows policy
+        // Try via Shell:
+        HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+        if (hr == E_ACCESSDENIED) {
+            traceln("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
+        }
+    }
+    DPI_AWARENESS_CONTEXT dpi_awareness_context_2 =
+        GetThreadDpiAwarenessContext();
+    swear(dpi_awareness_context_1 != dpi_awareness_context_2);
+}
+
 static void ui_app_init_windows(void) {
-    fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
-    not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
+    ui_app_set_dpi_awareness();
     InitCommonControls(); // otherwise GetOpenFileName does not work
     ui_app.dpi.process = (int32_t)GetSystemDpiForProcess(GetCurrentProcess());
     ui_app.dpi.system = (int32_t)GetDpiForSystem(); // default was 96DPI
@@ -2068,7 +2097,7 @@ static int ui_app_win_main(void) {
     ui_app.last_visibility = ui.visibility.defau1t;
     ui_app_init();
     int r = 0;
-//  ui_app_dump_dpi();
+    ui_app_dump_dpi();
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
     // TODO: use size_frame and caption_height in ui_caption.c
