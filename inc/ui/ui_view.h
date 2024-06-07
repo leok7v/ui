@@ -144,6 +144,9 @@ typedef struct ui_view_if {
     void (*hovering)(ui_view_t* v, bool start);
     void (*mouse)(ui_view_t* v, int32_t m, int64_t f);
     void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy);
+    void (*measure_text)(ui_view_t* v);
+    void (*measure_children)(ui_view_t* v);
+    void (*layout_children)(ui_view_t* v);
     void (*measure)(ui_view_t* v);
     void (*layout)(ui_view_t* v);
     void (*hover_changed)(ui_view_t* v);

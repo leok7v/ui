@@ -922,6 +922,9 @@ typedef struct ui_view_if {
     void (*hovering)(ui_view_t* v, bool start);
     void (*mouse)(ui_view_t* v, int32_t m, int64_t f);
     void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy);
+    void (*measure_text)(ui_view_t* v);
+    void (*measure_children)(ui_view_t* v);
+    void (*layout_children)(ui_view_t* v);
     void (*measure)(ui_view_t* v);
     void (*layout)(ui_view_t* v);
     void (*hover_changed)(ui_view_t* v);
@@ -1511,6 +1514,8 @@ typedef struct {
     ui_rect_t work_area; // current monitor work area
     int32_t width;  // client width
     int32_t height; // client height
+    int32_t caption_h; // caption height
+    ui_wh_t frame;     // frame size
     // not to call ut_clock.seconds() too often:
     fp64_t now;     // ssb "seconds since boot" updated on each message
     ui_view_t* root; // show_window() changes ui.hidden
@@ -2494,7 +2499,12 @@ static void ui_app_view_active_frame_paint(void) {
     ui_color_t c = ui_app.is_active() ?
         ui_app.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
         ui_app.get_color(ui_color_id_inactive_title);
-    ui_gdi.frame_with(0, 0, ui_app.root->w - 0, ui_app.root->h - 0, c);
+    assert(ui_app.frame.w == ui_app.frame.h);
+    const int32_t w = ui_app.wrc.w;
+    const int32_t h = ui_app.wrc.h;
+    for (int32_t i = 0; i < ui_app.frame.w; i++) {
+        ui_gdi.frame_with(i, i, w - i * 2, h - i * 2, c);
+    }
 }
 
 static void ui_app_paint_stats(void) {
@@ -2876,7 +2886,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_NCMBUTTONUP    :
         case WM_NCMBUTTONDBLCLK: {
             POINT pt = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
-//          traceln("%d %d", pt.x, pt.y);
+//          if (m == WM_NCRBUTTONDOWN) { traceln("WM_NCRBUTTONDOWN %d %d", pt.x, pt.y); }
             ScreenToClient(ui_app_window(), &pt);
             ui_app.mouse = ui_app_point2ui(&pt);
             ui_app_mouse(ui_app.root, m, wp);
@@ -2927,16 +2937,22 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
         }
         case WM_SYSCOMMAND:
+//          traceln("WM_SYSCOMMAND 0x%08llX %lld", wp, lp);
             if (wp == SC_MINIMIZE && ui_app.hide_on_minimize) {
                 ui_app.show_window(ui.visibility.min_na);
                 ui_app.show_window(ui.visibility.hide);
             } else  if (wp == SC_MINIMIZE && ui_app.no_decor) {
                 ui_app.show_window(ui.visibility.min_na);
             }
+//          if (wp == SC_KEYMENU) { traceln("SC_KEYMENU.WM_SYSCOMMAND %lld", lp); }
             // If the selection is in menu handle the key event
             if (wp == SC_KEYMENU && lp != 0x20) {
                 return 0; // This prevents the error/beep sound
             }
+//          if ((wp & 0xFFF0) == SC_MOUSEMENU) {
+//              traceln("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
+//              break;
+//          }
             break;
         case WM_ACTIVATE: ui_app_wm_activate(wp); break;
         case WM_WINDOWPOSCHANGING: {
@@ -3001,6 +3017,8 @@ static void ui_app_create_window(const ui_rect_t r) {
 //                            WS_MAXIMIZE|WS_MAXIMIZEBOX| // this does not work for popup
                               WS_MINIMIZE|WS_MINIMIZEBOX;
     uint32_t style = ui_app.no_decor ? WS_POPUP_EX : WS_OVERLAPPEDWINDOW;
+    // TODO: WS_EX_COMPOSITED | WS_EX_LAYERED is expensive
+    //       can be limited to translucent window only
     HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
         ui_app.class_name, ui_app.title, style,
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
@@ -3021,9 +3039,11 @@ static void ui_app_create_window(const ui_rect_t r) {
         BOOL immersive = TRUE;
         fatal_if_not_zero(DwmSetWindowAttribute(ui_app_window(),
             DWMWA_USE_IMMERSIVE_DARK_MODE, &immersive, sizeof(immersive)));
+        DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_ROUND;
+        DwmSetWindowAttribute(ui_app_window(), // will fail on Win10
+            DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
         // also available but not yet used:
 //      DWMWA_USE_HOSTBACKDROPBRUSH
-//      DWMWA_WINDOW_CORNER_PREFERENCE
 //      DWMWA_BORDER_COLOR
 //      DWMWA_CAPTION_COLOR
     }
@@ -3790,13 +3810,17 @@ static int ui_app_win_main(void) {
 //  ui_app_dump_dpi();
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
-    // TODO: use size_frame and caption_height in ui_caption.c
-    int32_t size_frame = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
-    int32_t caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION, (uint32_t)ui_app.dpi.process);
-    wr.x -= size_frame;
-    wr.w += size_frame * 2;
-    wr.y -= size_frame + caption_height;
-    wr.h += size_frame * 2 + caption_height;
+    // TODO: use .frame and .caption_h in ui_caption.c
+    ui_app.frame.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
+    ui_app.frame.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME, (uint32_t)ui_app.dpi.process);
+    ui_app.caption_h = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION, (uint32_t)ui_app.dpi.process);
+//  traceln("frame: %d,%d caption_height: %d", ui_app.frame.w, ui_app.frame.h, ui_app.caption_h);
+    // TODO: use AdjustWindowRectEx instead
+    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrectex
+    wr.x -= ui_app.frame.w;
+    wr.w += ui_app.frame.w * 2;
+    wr.y -= ui_app.frame.h + ui_app.caption_h;
+    wr.h += ui_app.frame.h * 2 + ui_app.caption_h;
     if (!ui_app_load_window_pos(&wr, &ui_app.last_visibility)) {
         // first time - center window
         wr.x = ui_app.work_area.x + (ui_app.work_area.w - wr.w) / 2;
@@ -3805,8 +3829,8 @@ static int ui_app_win_main(void) {
     }
     ui_app.root->hidden = true; // start with ui hidden
     ui_app.root->fm = &ui_app.fonts.regular;
-    ui_app.root->w = wr.w - size_frame * 2;
-    ui_app.root->h = wr.h - size_frame * 2 - caption_height;
+    ui_app.root->w = wr.w - ui_app.frame.w * 2;
+    ui_app.root->h = wr.h - ui_app.frame.h * 2 - ui_app.caption_h;
     ui_app_layout_dirty = true; // layout will be done before first paint
     not_null(ui_app.class_name);
     if (!ui_app.no_ui) {
@@ -4043,15 +4067,16 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     if (a != v->armed) { ui_view.invalidate(v); }
 }
 
-static void ui_button_measured(ui_view_t* v) {
+static void ui_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button || v->type == ui_view_label);
+    ui_view.measure_text(v);
     if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
 }
 
 void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
     v->mouse         = ui_button_mouse;
-    v->measured      = ui_button_measured;
+    v->measure       = ui_button_measure;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;
@@ -4084,7 +4109,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 
 #define ui_caption_glyph_rest ut_glyph_two_joined_squares
 #define ui_caption_glyph_menu ut_glyph_trigram_for_heaven
-#define ui_caption_glyph_mini ut_glyph_heavy_minus_sign
+#define ui_caption_glyph_mini ut_glyph_light_horizontal //ut_glyph_fullwidth_low_line
 #define ui_caption_glyph_maxi ut_glyph_white_large_square
 #define ui_caption_glyph_full ut_glyph_square_four_corners
 #define ui_caption_glyph_quit ut_glyph_n_ary_times_operator
@@ -4131,6 +4156,11 @@ static void ui_caption_full(ui_button_t* unused(b)) {
 static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
     swear(v == &ui_caption.view);
     ui_point_t pt = { x, y };
+//  traceln("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
+//      x, y,
+//      ui_caption.icon.x, ui_caption.icon.y,
+//      ui_caption.icon.w, ui_caption.icon.h,
+//      ui_view.inside(&ui_caption.icon, &pt));
     if (ui_app.is_full_screen) {
         return ui.hit_test.client;
     } else if (ui_view.inside(&ui_caption.icon, &pt)) {
@@ -4155,6 +4185,23 @@ static ui_color_t ui_caption_color(void) {
     return c;
 }
 
+static void ui_caption_button_measure(ui_view_t* v) {
+    assert(v->type == ui_view_button);
+    v->w = ui_app.caption_h;
+    v->h = ui_app.caption_h;
+}
+
+static void ui_caption_button_icon_paint(ui_view_t* v) {
+    int32_t w = v->w;
+    int32_t h = v->h;
+    swear(w == h && h == ui_app.caption_h);
+    while (h > 16 && (h & (h - 1)) != 0) { h--; }
+    w = h;
+    int32_t dx = (v->w - w) / 2;
+    int32_t dy = (v->h - h) / 2;
+    ui_gdi.draw_icon(v->x + dx, v->y + dy, w, h, v->icon);
+}
+
 static void ui_caption_prepare(ui_view_t* unused(v)) {
     ui_caption.title.hidden = false;
 }
@@ -4162,10 +4209,12 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 static void ui_caption_measured(ui_view_t* v) {
     ui_caption.title.hidden = v->w > ui_app.crc.w;
     v->w = ui_app.crc.w;
+    v->h = ui_app.caption_h;
 }
 
 static void ui_caption_composed(ui_view_t* v) {
-    v->x = 0;
+    v->x = ui_app.frame.w;
+    v->y = ui_app.frame.h;
 }
 
 static void ui_caption_paint(ui_view_t* v) {
@@ -4190,24 +4239,37 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.quit,
         null);
     ui_caption.view.color_id = ui_color_id_window_text;
-    static const ui_gaps_t p = { .left  = 0.125, .top    = 0.25,
-                                 .right = 0.125, .bottom = 0.25};
+    static const ui_gaps_t p0 = { .left  = 0.0,   .top    = 0.0,
+                                  .right = 0.0,   .bottom = 0.0};
+    static const ui_gaps_t pd = { .left  = 0.125, .top    = 0.0,
+                                  .right = 0.125, .bottom = 0.0};
+    static const ui_gaps_t in = { .left  = 0.0,   .top    = 0.0,
+                                  .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
-        c->fm = &ui_app.fonts.H3;
+        c->fm = &ui_app.fonts.regular;
         c->color_id = ui_caption.view.color_id;
-        c->flat = true;
-        c->padding = p;
+        if (c->type == ui_view_button) {
+            c->flat = true;
+            c->measure = ui_caption_button_measure;
+        }
+        c->padding = pd;
+        c->insets  = in;
+        c->h = ui_app.caption_h;
+        c->min_w_em = 0.5f;
+        c->min_h_em = 0.5f;
     });
-    ui_caption.view.insets = (ui_gaps_t) {
-        .left  = 0.125,  .top    = 0.25,
-        .right = 0.125,  .bottom = 0.25
-    };
-    ui_caption.icon.icon  = ui_app.icon;
+//  ui_caption.view.insets = (ui_gaps_t) {
+//      .left  = 0.125,  .top    = 0.25,
+//      .right = 0.125,  .bottom = 0.25
+//  };
+    ui_caption.icon.icon = ui_app.icon;
+    ui_caption.icon.padding = p0;
+    ui_caption.icon.paint = ui_caption_button_icon_paint;
     ui_caption.view.align = ui.align.left;
     // TODO: this does not help because parent layout will set x and w again
     ui_caption.view.prepare = ui_caption_prepare;
-    ui_caption.view.measured  = ui_caption_measured;
-    ui_caption.view.composed   = ui_caption_composed;
+    ui_caption.view.measured = ui_caption_measured;
+    ui_caption.view.composed = ui_caption_composed;
     ut_str_printf(ui_caption.view.text, "ui_caption");
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
@@ -9209,7 +9271,7 @@ static const char* ui_view_nls(ui_view_t* v) {
     return v->strid != 0 ? ut_nls.string(v->strid, v->text) : v->text;
 }
 
-static void ui_measure_view(ui_view_t* v) {
+static void ui_view_measure_text(ui_view_t* v) {
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
 //  ui_ltrb_t p = ui_view.gaps(v, &v->padding);
 //  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
@@ -9240,14 +9302,20 @@ static void ui_measure_view(ui_view_t* v) {
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
 
-static void ui_view_measure(ui_view_t* v) {
+static void ui_view_measure_children(ui_view_t* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_for_each(v, c, { ui_view.measure(c); });
+    }
+}
+
+static void ui_view_measure(ui_view_t* v) {
+    if (!ui_view.is_hidden(v)) {
+        ui_view_measure_children(v);
         if (v->prepare != null) { v->prepare(v); }
         if (v->measure != null && v->measure != ui_view_measure) {
             v->measure(v);
         } else {
-            ui_measure_view(v);
+            ui_view.measure_text(v);
         }
         if (v->measured != null) { v->measured(v); }
     }
@@ -9263,6 +9331,12 @@ static void ui_layout_view(ui_view_t* unused(v)) {
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
 
+static void ui_view_layout_children(ui_view_t* v) {
+    if (!ui_view.is_hidden(v)) {
+        ui_view_for_each(v, c, { ui_view.layout(c); });
+    }
+}
+
 static void ui_view_layout(ui_view_t* v) {
 //  traceln(">%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
@@ -9272,7 +9346,7 @@ static void ui_view_layout(ui_view_t* v) {
             ui_layout_view(v);
         }
         if (v->composed != null) { v->composed(v); }
-        ui_view_for_each(v, c, { ui_view.layout(c); });
+        ui_view_layout_children(v);
     }
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
@@ -9735,6 +9809,9 @@ ui_view_if ui_view = {
     .outbox             = ui_view_outbox,
     .set_text           = ui_view_set_text,
     .invalidate         = ui_view_invalidate,
+    .measure_text       = ui_view_measure_text,
+    .measure_children   = ui_view_measure_children,
+    .layout_children    = ui_view_layout_children,
     .measure            = ui_view_measure,
     .layout             = ui_view_layout,
     .nls                = ui_view_nls,

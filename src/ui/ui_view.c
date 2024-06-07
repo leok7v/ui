@@ -156,7 +156,7 @@ static const char* ui_view_nls(ui_view_t* v) {
     return v->strid != 0 ? ut_nls.string(v->strid, v->text) : v->text;
 }
 
-static void ui_measure_view(ui_view_t* v) {
+static void ui_view_measure_text(ui_view_t* v) {
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
 //  ui_ltrb_t p = ui_view.gaps(v, &v->padding);
 //  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
@@ -187,14 +187,20 @@ static void ui_measure_view(ui_view_t* v) {
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
 
-static void ui_view_measure(ui_view_t* v) {
+static void ui_view_measure_children(ui_view_t* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_for_each(v, c, { ui_view.measure(c); });
+    }
+}
+
+static void ui_view_measure(ui_view_t* v) {
+    if (!ui_view.is_hidden(v)) {
+        ui_view_measure_children(v);
         if (v->prepare != null) { v->prepare(v); }
         if (v->measure != null && v->measure != ui_view_measure) {
             v->measure(v);
         } else {
-            ui_measure_view(v);
+            ui_view.measure_text(v);
         }
         if (v->measured != null) { v->measured(v); }
     }
@@ -210,6 +216,12 @@ static void ui_layout_view(ui_view_t* unused(v)) {
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
 
+static void ui_view_layout_children(ui_view_t* v) {
+    if (!ui_view.is_hidden(v)) {
+        ui_view_for_each(v, c, { ui_view.layout(c); });
+    }
+}
+
 static void ui_view_layout(ui_view_t* v) {
 //  traceln(">%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
@@ -219,7 +231,7 @@ static void ui_view_layout(ui_view_t* v) {
             ui_layout_view(v);
         }
         if (v->composed != null) { v->composed(v); }
-        ui_view_for_each(v, c, { ui_view.layout(c); });
+        ui_view_layout_children(v);
     }
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
@@ -682,6 +694,9 @@ ui_view_if ui_view = {
     .outbox             = ui_view_outbox,
     .set_text           = ui_view_set_text,
     .invalidate         = ui_view_invalidate,
+    .measure_text       = ui_view_measure_text,
+    .measure_children   = ui_view_measure_children,
+    .layout_children    = ui_view_layout_children,
     .measure            = ui_view_measure,
     .layout             = ui_view_layout,
     .nls                = ui_view_nls,

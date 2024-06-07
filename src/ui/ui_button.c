@@ -174,15 +174,16 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     if (a != v->armed) { ui_view.invalidate(v); }
 }
 
-static void ui_button_measured(ui_view_t* v) {
+static void ui_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button || v->type == ui_view_label);
+    ui_view.measure_text(v);
     if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
 }
 
 void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
     v->mouse         = ui_button_mouse;
-    v->measured      = ui_button_measured;
+    v->measure       = ui_button_measure;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;

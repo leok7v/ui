@@ -806,7 +806,12 @@ static void ui_app_view_active_frame_paint(void) {
     ui_color_t c = ui_app.is_active() ?
         ui_app.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
         ui_app.get_color(ui_color_id_inactive_title);
-    ui_gdi.frame_with(0, 0, ui_app.root->w - 0, ui_app.root->h - 0, c);
+    assert(ui_app.frame.w == ui_app.frame.h);
+    const int32_t w = ui_app.wrc.w;
+    const int32_t h = ui_app.wrc.h;
+    for (int32_t i = 0; i < ui_app.frame.w; i++) {
+        ui_gdi.frame_with(i, i, w - i * 2, h - i * 2, c);
+    }
 }
 
 static void ui_app_paint_stats(void) {
@@ -1188,7 +1193,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_NCMBUTTONUP    :
         case WM_NCMBUTTONDBLCLK: {
             POINT pt = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
-//          traceln("%d %d", pt.x, pt.y);
+//          if (m == WM_NCRBUTTONDOWN) { traceln("WM_NCRBUTTONDOWN %d %d", pt.x, pt.y); }
             ScreenToClient(ui_app_window(), &pt);
             ui_app.mouse = ui_app_point2ui(&pt);
             ui_app_mouse(ui_app.root, m, wp);
@@ -1239,16 +1244,22 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
         }
         case WM_SYSCOMMAND:
+//          traceln("WM_SYSCOMMAND 0x%08llX %lld", wp, lp);
             if (wp == SC_MINIMIZE && ui_app.hide_on_minimize) {
                 ui_app.show_window(ui.visibility.min_na);
                 ui_app.show_window(ui.visibility.hide);
             } else  if (wp == SC_MINIMIZE && ui_app.no_decor) {
                 ui_app.show_window(ui.visibility.min_na);
             }
+//          if (wp == SC_KEYMENU) { traceln("SC_KEYMENU.WM_SYSCOMMAND %lld", lp); }
             // If the selection is in menu handle the key event
             if (wp == SC_KEYMENU && lp != 0x20) {
                 return 0; // This prevents the error/beep sound
             }
+//          if ((wp & 0xFFF0) == SC_MOUSEMENU) {
+//              traceln("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
+//              break;
+//          }
             break;
         case WM_ACTIVATE: ui_app_wm_activate(wp); break;
         case WM_WINDOWPOSCHANGING: {
@@ -1313,6 +1324,8 @@ static void ui_app_create_window(const ui_rect_t r) {
 //                            WS_MAXIMIZE|WS_MAXIMIZEBOX| // this does not work for popup
                               WS_MINIMIZE|WS_MINIMIZEBOX;
     uint32_t style = ui_app.no_decor ? WS_POPUP_EX : WS_OVERLAPPEDWINDOW;
+    // TODO: WS_EX_COMPOSITED | WS_EX_LAYERED is expensive
+    //       can be limited to translucent window only
     HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
         ui_app.class_name, ui_app.title, style,
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
@@ -1333,9 +1346,11 @@ static void ui_app_create_window(const ui_rect_t r) {
         BOOL immersive = TRUE;
         fatal_if_not_zero(DwmSetWindowAttribute(ui_app_window(),
             DWMWA_USE_IMMERSIVE_DARK_MODE, &immersive, sizeof(immersive)));
+        DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_ROUND;
+        DwmSetWindowAttribute(ui_app_window(), // will fail on Win10
+            DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
         // also available but not yet used:
 //      DWMWA_USE_HOSTBACKDROPBRUSH
-//      DWMWA_WINDOW_CORNER_PREFERENCE
 //      DWMWA_BORDER_COLOR
 //      DWMWA_CAPTION_COLOR
     }
@@ -2102,13 +2117,17 @@ static int ui_app_win_main(void) {
 //  ui_app_dump_dpi();
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
-    // TODO: use size_frame and caption_height in ui_caption.c
-    int32_t size_frame = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
-    int32_t caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION, (uint32_t)ui_app.dpi.process);
-    wr.x -= size_frame;
-    wr.w += size_frame * 2;
-    wr.y -= size_frame + caption_height;
-    wr.h += size_frame * 2 + caption_height;
+    // TODO: use .frame and .caption_h in ui_caption.c
+    ui_app.frame.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
+    ui_app.frame.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME, (uint32_t)ui_app.dpi.process);
+    ui_app.caption_h = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION, (uint32_t)ui_app.dpi.process);
+//  traceln("frame: %d,%d caption_height: %d", ui_app.frame.w, ui_app.frame.h, ui_app.caption_h);
+    // TODO: use AdjustWindowRectEx instead
+    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrectex
+    wr.x -= ui_app.frame.w;
+    wr.w += ui_app.frame.w * 2;
+    wr.y -= ui_app.frame.h + ui_app.caption_h;
+    wr.h += ui_app.frame.h * 2 + ui_app.caption_h;
     if (!ui_app_load_window_pos(&wr, &ui_app.last_visibility)) {
         // first time - center window
         wr.x = ui_app.work_area.x + (ui_app.work_area.w - wr.w) / 2;
@@ -2117,8 +2136,8 @@ static int ui_app_win_main(void) {
     }
     ui_app.root->hidden = true; // start with ui hidden
     ui_app.root->fm = &ui_app.fonts.regular;
-    ui_app.root->w = wr.w - size_frame * 2;
-    ui_app.root->h = wr.h - size_frame * 2 - caption_height;
+    ui_app.root->w = wr.w - ui_app.frame.w * 2;
+    ui_app.root->h = wr.h - ui_app.frame.h * 2 - ui_app.caption_h;
     ui_app_layout_dirty = true; // layout will be done before first paint
     not_null(ui_app.class_name);
     if (!ui_app.no_ui) {

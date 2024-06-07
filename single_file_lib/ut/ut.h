@@ -749,6 +749,22 @@ extern ut_generics_if ut_generics;
 // https://www.compart.com/en/unicode/U+2000
 #define ut_glyph_em_quad                               "\xE2\x80x81"
 
+// Hyphen https://www.compart.com/en/unicode/U+2010
+#define ut_glyph_hyphen                                "\xE2\x80\x90"
+
+// Non-Breaking Hyphen https://www.compart.com/en/unicode/U+2011
+#define ut_glyph_non_breaking_hyphen                   "\xE2\x80\x91"
+
+// Fullwidth Hyphen-Minus https://www.compart.com/en/unicode/U+FF0D
+#define ut_glyph_fullwidth_hyphen_minus                "\xEF\xBC\x8D"
+
+// Fullwidth Low Line https://www.compart.com/en/unicode/U+FF3F
+#define ut_glyph_fullwidth_low_line                    "\xEF\xBC\xBF"
+
+// #define ut_glyph_light_horizontal                     "\xE2\x94\x80"
+// Light Horizontal https://www.compart.com/en/unicode/U+2500
+#define ut_glyph_light_horizontal                     "\xE2\x94\x80"
+
 // Three-Em Dash https://www.compart.com/en/unicode/U+2E3B
 #define ut_glyph_three_em_dash                         "\xE2\xB8\xBB"
 
