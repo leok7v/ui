@@ -799,7 +799,7 @@ typedef struct ui_view_s ui_view_t;
 
 typedef struct ui_view_s {
     enum ui_view_type_t type;
-    void (*init)(ui_view_t* view); // called once before first layout
+    void (*init)(ui_view_t* v); // called once before first layout
     ui_view_t* parent;
     ui_view_t* child; // first child, circular doubly linked list
     ui_view_t* prev;  // left or top sibling
@@ -822,46 +822,47 @@ typedef struct ui_view_s {
     int32_t shortcut; // keyboard shortcut
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
-    void (*notify)(ui_view_t* view, void* p); // for the application use
+    void (*notify)(ui_view_t* v, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     // before methods: called before measure()/layout()/paint()
-    void (*prepare)(ui_view_t* view);  // called before measure()
-    void (*measure)(ui_view_t* view);  // determine w, h (bottom up)
-    void (*measured)(ui_view_t* view); // called after measure()
-    void (*layout)(ui_view_t* view);   // set x, y possibly adjust w, h (top down)
-    void (*composed)(ui_view_t* view); // after layout() is done (laid out)
-    void (*paint)(ui_view_t* view);
-    void (*painted)(ui_view_t* view);  // called after paint()
+    void (*prepare)(ui_view_t* v);  // called before measure()
+    void (*measure)(ui_view_t* v);  // determine w, h (bottom up)
+    void (*measured)(ui_view_t* v); // called after measure()
+    void (*layout)(ui_view_t* v);   // set x, y possibly adjust w, h (top down)
+    void (*composed)(ui_view_t* v); // after layout() is done (laid out)
+    void (*paint)(ui_view_t* v);
+    void (*painted)(ui_view_t* v);  // called after paint()
     // composed() is effectively called right before paint() and
     // can be used to prepare for painting w/o need to override paint()
-    void (*debug_paint)(ui_view_t* view); // called if .debug is set to true
+    void (*debug_paint)(ui_view_t* v); // called if .debug is set to true
     // any message:
-    bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
+    bool (*message)(ui_view_t* v, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
-    void (*click)(ui_view_t* view); // interpretation depends on a view
-    void (*callback)(ui_view_t* b); // view state change callback
-    void (*mouse)(ui_view_t* view, int32_t message, int64_t flags);
-    void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
+    void (*click)(ui_view_t* v);    // ui click callback - view action
+    void (*format)(ui_view_t* v);   // format a value to text (e.g. slider)
+    void (*callback)(ui_view_t* v); // state change callback
+    void (*mouse)(ui_view_t* v, int32_t message, int64_t flags);
+    void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy); // touchpad scroll
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
     // return true if consumed (halts further calls up the tree)
-    bool (*tap)(ui_view_t* view, int32_t ix);   // single click/tap inside ui
-    bool (*press)(ui_view_t* view, int32_t ix); // two finger click/tap or long press
-    void (*context_menu)(ui_view_t* view); // right mouse click or long press
-    bool (*set_focus)(ui_view_t* view); // returns true if focus is set
-    void (*kill_focus)(ui_view_t* view);
+    bool (*tap)(ui_view_t* v, int32_t ix);   // single click/tap inside ui
+    bool (*press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
+    void (*context_menu)(ui_view_t* v); // right mouse click or long press
+    bool (*set_focus)(ui_view_t* v); // returns true if focus is set
+    void (*kill_focus)(ui_view_t* v);
     // translated from key pressed/released to utf8:
-    void (*character)(ui_view_t* view, const char* utf8);
-    void (*key_pressed)(ui_view_t* view, int64_t key);
-    void (*key_released)(ui_view_t* view, int64_t key);
+    void (*character)(ui_view_t* v, const char* utf8);
+    void (*key_pressed)(ui_view_t* v, int64_t key);
+    void (*key_released)(ui_view_t* v, int64_t key);
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled views
-    void (*timer)(ui_view_t* view, ui_timer_t id);
-    void (*every_100ms)(ui_view_t* view); // ~10 x times per second
-    void (*every_sec)(ui_view_t* view); // ~once a second
+    void (*timer)(ui_view_t* v, ui_timer_t id);
+    void (*every_100ms)(ui_view_t* v); // ~10 x times per second
+    void (*every_sec)(ui_view_t* v); // ~once a second
     int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
     fp64_t armed_until; // ut_clock.seconds() - when to release
     bool hidden; // paint() is not called on hidden
@@ -894,43 +895,41 @@ typedef struct ui_view_if {
     void (*add_last)(ui_view_t* parent,  ui_view_t* child);
     void (*add_after)(ui_view_t* child,  ui_view_t* after);
     void (*add_before)(ui_view_t* child, ui_view_t* before);
-    void (*remove)(ui_view_t* view); // removes view from it`s parent
+    void (*remove)(ui_view_t* v); // removes view from it`s parent
     void (*remove_all)(ui_view_t* parent); // removes all children
     void (*disband)(ui_view_t* parent); // removes all children recursively
-    bool (*inside)(ui_view_t* view, const ui_point_t* pt);
-    ui_ltrb_t (*gaps)(ui_view_t* view, const ui_gaps_t* g); // gaps to pixels
-    void (*inbox)(ui_view_t* view, ui_rect_t* r, ui_ltrb_t* insets);
-    void (*outbox)(ui_view_t* view, ui_rect_t* r, ui_ltrb_t* padding);
-    void (*position_by_outbox)(ui_view_t* view, const ui_rect_t* r,
-            const ui_ltrb_t* padding);
-    void (*set_text)(ui_view_t* view, const char* text);
-    void (*invalidate)(const ui_view_t* view); // prone to delays
-    bool (*is_hidden)(const ui_view_t* view);   // view or any parent is hidden
-    bool (*is_disabled)(const ui_view_t* view); // view or any parent is disabled
-    const char* (*nls)(ui_view_t* view);  // returns localized text
-    void (*localize)(ui_view_t* view);    // set strid based ui .text field
-    void (*timer)(ui_view_t* view, ui_timer_t id);
-    void (*every_sec)(ui_view_t* view);
-    void (*every_100ms)(ui_view_t* view);
+    bool (*inside)(const ui_view_t* v, const ui_point_t* pt);
+    ui_ltrb_t (*gaps)(const ui_view_t* v, const ui_gaps_t* g); // gaps to pixels
+    void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);
+    void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
+    void (*set_text)(ui_view_t* v, const char* text);
+    void (*invalidate)(const ui_view_t* v); // prone to delays
+    bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
+    bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
+    const char* (*nls)(ui_view_t* v);  // returns localized text
+    void (*localize)(ui_view_t* v);    // set strid based ui .text field
+    void (*timer)(ui_view_t* v, ui_timer_t id);
+    void (*every_sec)(ui_view_t* v);
+    void (*every_100ms)(ui_view_t* v);
     int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
-    void (*key_pressed)(ui_view_t* view, int64_t v_key);
-    void (*key_released)(ui_view_t* view, int64_t v_key);
-    void (*character)(ui_view_t* view, const char* utf8);
-    void (*paint)(ui_view_t* view);
-    bool (*set_focus)(ui_view_t* view);
-    void (*kill_focus)(ui_view_t* view);
-    void (*kill_hidden_focus)(ui_view_t* view);
-    void (*hovering)(ui_view_t* view, bool start);
-    void (*mouse)(ui_view_t* view, int32_t m, int64_t f);
-    void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
-    void (*measure)(ui_view_t* view);
-    void (*layout)(ui_view_t* view);
-    void (*hover_changed)(ui_view_t* view);
-    bool (*is_shortcut_key)(ui_view_t* view, int64_t key);
-    bool (*context_menu)(ui_view_t* view);
-    bool (*tap)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
-    bool (*press)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
-    bool (*message)(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
+    void (*key_pressed)(ui_view_t* v, int64_t v_key);
+    void (*key_released)(ui_view_t* v, int64_t v_key);
+    void (*character)(ui_view_t* v, const char* utf8);
+    void (*paint)(ui_view_t* v);
+    bool (*set_focus)(ui_view_t* v);
+    void (*kill_focus)(ui_view_t* v);
+    void (*kill_hidden_focus)(ui_view_t* v);
+    void (*hovering)(ui_view_t* v, bool start);
+    void (*mouse)(ui_view_t* v, int32_t m, int64_t f);
+    void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy);
+    void (*measure)(ui_view_t* v);
+    void (*layout)(ui_view_t* v);
+    void (*hover_changed)(ui_view_t* v);
+    bool (*is_shortcut_key)(ui_view_t* v, int64_t key);
+    bool (*context_menu)(ui_view_t* v);
+    bool (*tap)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
+    bool (*press)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
+    bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp,
                                      int64_t* ret);
     void (*debug_paint)(ui_view_t* v);
     void (*test)(void);
@@ -1369,10 +1368,10 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .value_min = vmn, .value_max = vmx, .value = vmn,              \
     }
 
-#define ui_slider(s, min_width_em, vmn, vmx, call_back) {              \
+#define ui_slider(s, min_width_em, vmn, vmx, format_v, call_back) {    \
     .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,     \
         .text = s, .init = ui_view_init_slider,                        \
-        .callback = call_back,                                         \
+        .format = format_v, .callback = call_back,                     \
         .min_w_em = min_width_em, .min_h_em = 1.0,                     \
         .padding = { .left  = 0.25, .top = 0.25,                       \
                      .right = 0.25, .bottom = 0.25, },                 \
@@ -1802,12 +1801,14 @@ static void ui_app_dump_dpi(void) {
     traceln("ui_app.dpi.window           : %d", ui_app.dpi.window             );
     traceln("ui_app.dpi.system           : %d", ui_app.dpi.system             );
     traceln("ui_app.dpi.process          : %d", ui_app.dpi.process            );
-
-    traceln("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y, ui_app.mrc.w, ui_app.mrc.h);
-    traceln("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y, ui_app.wrc.w, ui_app.wrc.h);
-    traceln("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y, ui_app.crc.w, ui_app.crc.h);
-    traceln("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y, ui_app.work_area.w, ui_app.work_area.h);
-
+    traceln("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y,
+                                             ui_app.mrc.w, ui_app.mrc.h);
+    traceln("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y,
+                                             ui_app.wrc.w, ui_app.wrc.h);
+    traceln("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y,
+                                             ui_app.crc.w, ui_app.crc.h);
+    traceln("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y,
+                                             ui_app.work_area.w, ui_app.work_area.h);
     int32_t mxt_x = GetSystemMetrics(SM_CXMAXTRACK);
     int32_t mxt_y = GetSystemMetrics(SM_CYMAXTRACK);
     traceln("MAXTRACK: %d, %d", mxt_x, mxt_y);
@@ -3701,9 +3702,38 @@ static void ui_app_init(void) {
     ui_app.init();
 }
 
+static void ui_app_set_dpi_awareness(void) {
+    // Mutually exclusive:
+    // BOOL SetProcessDpiAwarenessContext()
+    // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-setprocessdpiawarenesscontext
+    // and
+    // HRESULT SetProcessDpiAwareness()
+    // https://learn.microsoft.com/en-us/windows/win32/api/shellscalingapi/nf-shellscalingapi-setprocessdpiawareness
+    // Plus DPI awareness can be set by APP .exe shell properties, registry
+    // or Windows policy. See:
+    // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
+    DPI_AWARENESS_CONTEXT dpi_awareness_context_1 =
+        GetThreadDpiAwarenessContext();
+    // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
+    DWORD error = SetProcessDpiAwarenessContext(
+                    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) ?
+        0 : GetLastError();
+    if (error == ERROR_ACCESS_DENIED) {
+        traceln("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
+        // dpi awareness already set, manifest, registry, windows policy
+        // Try via Shell:
+        HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
+        if (hr == E_ACCESSDENIED) {
+            traceln("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
+        }
+    }
+    DPI_AWARENESS_CONTEXT dpi_awareness_context_2 =
+        GetThreadDpiAwarenessContext();
+    swear(dpi_awareness_context_1 != dpi_awareness_context_2);
+}
+
 static void ui_app_init_windows(void) {
-    fatal_if_not_zero(SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE));
-    not_null(SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
+    ui_app_set_dpi_awareness();
     InitCommonControls(); // otherwise GetOpenFileName does not work
     ui_app.dpi.process = (int32_t)GetSystemDpiForProcess(GetCurrentProcess());
     ui_app.dpi.system = (int32_t)GetDpiForSystem(); // default was 96DPI
@@ -5889,7 +5919,9 @@ static void ui_edit_paint_paragraph(ui_edit_t* e, int32_t pn) {
         char* text = e->para[pn].text + run[j].bp;
         ui_gdi.x = e->view.x;
         ui_edit_paint_selection(e, &run[j], text, pn, run[j].gp, run[j].gp + run[j].glyphs);
-        ui_gdi.text("%.*s", run[j].bytes, text);
+        if (run[j].bytes > 0) {
+            ui_gdi.text("%.*s", run[j].bytes, text);
+        }
         ui_gdi.y += e->view.fm->em.h;
     }
 }
@@ -8513,68 +8545,69 @@ void ui_mbx_init(ui_mbx_t* mx, const char* options[],
 
 #include "ut/ut.h"
 
-static void ui_slider_measured(ui_view_t* v) {
+static int32_t ui_slider_width(const ui_slider_t* s) {
+    const int32_t em = s->view.fm->em.w;
+    const fp64_t min_w = (fp64_t)s->view.min_w_em;
+    const int32_t mw = (int32_t)(min_w * (fp64_t)em + 0.5);
+    const ui_ltrb_t i = ui_view.gaps(&s->view, &s->view.insets);
+//  traceln("sw: %d", i.left + ut_max(em, ut_max(mw, s->mt.w)) + i.right);
+    return i.left + ut_max(em, ut_max(mw, s->mt.w)) + i.right;
+}
+
+static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
+    char formatted[countof(s->view.text)];
+    const char* text = ut_nls.str(s->view.text);
+    ui_font_t f = s->view.fm->font;
+    ui_wh_t mt = s->view.fm->em;
+    if (s->view.format != null) {
+        s->view.format(&s->view);
+        strprintf(formatted, "%s", ut_nls.str(s->view.text));
+        mt = ui_gdi.measure_text(f, "%s", formatted);
+    } else if (text != null && strstr(text, "%d") != null) {
+        ui_wh_t mt_min = ui_gdi.measure_text(f, text, s->value_min);
+        ui_wh_t mt_max = ui_gdi.measure_text(f, text, s->value_max);
+        ui_wh_t mt_val = ui_gdi.measure_text(f, text, s->value);
+        mt.h = ut_max(mt_val.h, ut_max(mt_min.h, mt_max.h));
+        mt.w = ut_max(mt_val.w, ut_max(mt_min.w, mt_max.w));
+    } else if (text != null && text[0] != 0) {
+        mt = ui_gdi.measure_text(f, "%s", text);
+    }
+    return mt;
+}
+
+static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-    s->inc.fm = v->fm;
+    // dec and inc have same font metrics as a slider:
     s->dec.fm = v->fm;
+    s->inc.fm = v->fm;
     ui_view.measure(&s->dec);
     ui_view.measure(&s->inc);
-    assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
-    const int32_t em = v->fm->em.w;
-    const int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-    s->mt = ui_gdi.measure_text(v->fm->font, ui_view.nls(v), s->value_max);
-//  if (w > r->mt.x) { r->mt.x = w; }
-    s->mt.w = w != 0 ? w : s->mt.w;
-    v->w = s->dec.w + s->mt.w + s->inc.w + em * 2;
-    v->h = s->inc.h;
+    const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
+    const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
+    s->mt = ui_slider_measure_text(s);
+    assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
+    const int32_t sw = ui_slider_width(s);
+    if (s->dec.hidden) {
+        v->w = sw;
+    } else {
+        v->w = s->dec.w + dec_p.right + sw + inc_p.left + s->inc.w;
+//      traceln("s->dec.w + dec_p.right: %d sw: %d + inc_p.left + s->inc.w: %d = %d",
+//               s->dec.w + dec_p.right, sw, inc_p.left + s->inc.w, v->w);
+    }
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    v->h = i.top + v->fm->em.h + i.bottom;
+    v->h = ut_max(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
 }
 
 static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-    assert(s->inc.w == s->dec.w && s->inc.h == s->dec.h);
-    const int32_t em = v->fm->em.w;
+    // disregard inc/dec .hidden bit for layout:
     s->dec.x = v->x;
     s->dec.y = v->y;
-    s->inc.x = v->x + s->dec.w + s->mt.w + em * 2;
+    s->inc.x = v->x + v->w - s->inc.w;
     s->inc.y = v->y;
-}
-
-// TODO: generalize and move to ui_colors.c to avoid slider dup
-
-static ui_color_t ui_slider_gradient_darker(void) {
-    if (ui_theme.are_apps_dark()) {
-        return ui_colors.btn_gradient_darker;
-    } else {
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        uint32_t r = ui_color_r(c);
-        uint32_t g = ui_color_r(c);
-        uint32_t b = ui_color_r(c);
-        r = ut_max(0, ut_min(0xFF, (uint32_t)(r * 0.75)));
-        g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 0.75)));
-        b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 0.75)));
-        ui_color_t d = ui_rgb(r, g, b);
-//      traceln("c: 0%06X -> 0%06X", c, d);
-        return d;
-    }
-}
-
-static ui_color_t ui_slider_gradient_dark(void) {
-    if (ui_theme.are_apps_dark()) {
-        return ui_colors.btn_gradient_dark;
-    } else {
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        uint32_t r = ui_color_r(c);
-        uint32_t g = ui_color_r(c);
-        uint32_t b = ui_color_r(c);
-        r = ut_max(0, ut_min(0xFF, (uint32_t)(r * 1.25)));
-        g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 1.25)));
-        b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 1.25)));
-        ui_color_t d = ui_rgb(r, g, b);
-//      traceln("c: 0%06X -> 0%06X", c, d);
-        return d;
-    }
 }
 
 static void ui_slider_paint(ui_view_t* v) {
@@ -8582,51 +8615,55 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_slider_t* s = (ui_slider_t*)v;
     ui_gdi.push(v->x, v->y);
     ui_gdi.set_clip(v->x, v->y, v->w, v->h);
-    const int32_t em = v->fm->em.w;
-    const int32_t em2  = ut_max(1, em / 2);
-    const int32_t em4  = ut_max(1, em / 8);
-    const int32_t em8  = ut_max(1, em / 8);
-    const int32_t em16 = ut_max(1, em / 16);
-    ui_color_t c0 = ui_theme.are_apps_dark() ?
-                    ui_colors.dkgray3 :
-                    ui_app.get_color(ui_color_id_button_face);
-    ui_gdi.set_brush(ui_gdi.brush_color);
-    ui_pen_t pen_c0 = ui_gdi.create_pen(c0, em16);
-    ui_gdi.set_pen(pen_c0);
-    ui_gdi.set_brush_color(c0);
-    const int32_t x = v->x + s->dec.w + em2;
+    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
+    // dec button is sticking to the left into slider padding
+    const int32_t dec_w = s->dec.w + dec_p.right;
+    assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
+    const int32_t sw = ui_slider_width(s); // slider width
+    const int32_t dx = s->dec.hidden ? 0 : dec_w;
+    const int32_t x = v->x + dx;
     const int32_t y = v->y;
-    const int32_t w = s->mt.w + em;
+    const int32_t w = sw;
     const int32_t h = v->h;
-    ui_gdi.rounded(x - em8, y, w + em4, h, em4, em4);
-    if (ui_theme.are_apps_dark()) {
-        ui_gdi.gradient(x, y, w, h / 2, c0, ui_slider_gradient_darker(), true);
-        ui_gdi.gradient(x, y + h / 2, w, v->h - h / 2, ui_slider_gradient_dark(), c0, true);
-        ui_gdi.set_brush_color(ui_colors.dkgreen);
-    } else {
-        ui_gdi.gradient(x, y, w, h / 2, ui_slider_gradient_dark(), c0, true);
-        ui_gdi.gradient(x, y + h / 2, w, v->h - h / 2, c0, ui_slider_gradient_darker(), true);
-        ui_gdi.set_brush_color(ui_colors.jungle_green);
-    }
-    ui_color_t c1 = ui_theme.are_apps_dark() ?
-                    ui_colors.dkgray1 :
-                    ui_app.get_color(ui_color_id_button_face); // ???
-    ui_pen_t pen_c1 = ui_gdi.create_pen(c1, em16);
-    ui_gdi.set_pen(pen_c1);
+    // draw background:
+    fp32_t d = ui_theme.are_apps_dark() ? 0.50f : 0.25f;
+    ui_color_t d0 = ui_colors.darken(v->background, d);
+    d /= 4;
+    ui_color_t d1 = ui_colors.darken(v->background, d);
+//  traceln("view(x: %d  w: %d) dec (x: %d w: %d) inc (x: %d w: %d)",
+//          v->x, v->w, s->dec.x, s->dec.w, s->inc.x, s->inc.w);
+//  traceln("gradient(x: %d  w: %d)", x, w);
+    ui_gdi.gradient(x, y, w, h, d1, d0, true);
+    // draw value:
+    ui_color_t c = ui_theme.are_apps_dark() ?
+        ui_colors.dkgreen : ui_colors.jungle_green;
+    d0 = ui_colors.darken(c, 0.25f);
+    d1 = c;
     const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
-    fp64_t vw = (fp64_t)(s->mt.w + em) * (s->value - s->value_min) / range;
-    ui_gdi.rect(x, v->y, (int32_t)(vw + 0.5), v->h);
-    ui_gdi.x += s->dec.w + em;
-    ui_gdi.y = y;
-    ui_color_t c = ui_gdi.set_text_color(v->color);
+    assert(range > 0, "range: %.6f", range);
+    fp64_t vw = (fp64_t)sw * (s->value - s->value_min) / range;
+    ui_gdi.gradient(x, y, (int32_t)(vw + 0.5), h, d1, d0, true);
+    // text:
+    ui_wh_t mt = ui_slider_measure_text(s);
+    const int32_t cx = (sw - mt.w) / 2; // centering offset
+    ui_gdi.x = v->x + cx + i.left + (s->dec.hidden ? 0 : dec_w);
+    ui_gdi.y = v->y + i.top;
+    c = ui_gdi.set_text_color(v->color);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
-    const char* format = ut_nls.str(v->text);
-    ui_gdi.text(format, s->value);
+    const char* text = ut_nls.str(v->text);
+    if (s->view.format != null) {
+        s->view.format(v);
+        ui_gdi.text("%s", s->view.text);
+    } else if (text != null && strstr(text, "%d") != null) {
+        ui_gdi.text(text, s->value);
+    } else if (text != null && text[0] != 0) {
+        ui_gdi.text("%s", text);
+    }
     ui_gdi.set_font(f);
     ui_gdi.set_text_color(c);
+    // unclip
     ui_gdi.set_clip(0, 0, 0, 0);
-    ui_gdi.delete_pen(pen_c1);
-    ui_gdi.delete_pen(pen_c0);
     ui_gdi.pop();
 }
 
@@ -8638,14 +8675,19 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
         if (message == ui.message.left_button_pressed ||
             message == ui.message.right_button_pressed || drag) {
-            const int32_t x = ui_app.mouse.x - v->x - s->dec.w;
+            const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
+            const int32_t dec_w = s->dec.w + dec_p.right;
+            assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
+            const int32_t sw = ui_slider_width(s); // slider width
+            const int32_t dx = s->dec.hidden ? 0 : dec_w;
+            const int32_t vx = v->x + dx;
+            const int32_t x = ui_app.mouse.x - vx;
             const int32_t y = ui_app.mouse.y - v->y;
-            const int32_t x0 = v->fm->em.w / 2;
-            const int32_t x1 = s->mt.w + v->fm->em.w;
-            if (x0 <= x && x < x1 && 0 <= y && y < v->h) {
+//          traceln("0 < %d < %d", x, sw);
+            if (0 <= x && x < sw && 0 <= y && y < v->h) {
                 ui_app.focus = v;
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
-                fp64_t val = ((fp64_t)x - x0) * range / (fp64_t)(x1 - x0 - 1);
+                fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
                 s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
                 if (s->view.callback != null) { s->view.callback(&s->view); }
@@ -8696,9 +8738,9 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
             s->time = ui_app.now;
         } else if (ui_app.now - s->time > 1.0) {
             const int32_t sign = s->dec.armed ? -1 : +1;
-            int32_t sec = (int32_t)(ui_app.now - s->time + 0.5);
+            const int32_t sec = (int32_t)(ui_app.now - s->time + 0.5);
             int32_t mul = sec >= 1 ? 1 << (sec - 1) : 1;
-            const int64_t range = (int64_t)s->value_max - s->value_min;
+            const int64_t range = (int64_t)s->value_max - (int64_t)s->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
             ui_slider_inc_dec_value(s, sign, ut_max(mul, 1));
         }
@@ -8708,12 +8750,13 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
 void ui_view_init_slider(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_view.set_text(v, v->text);
-    v->measured = ui_slider_measured;
-    v->layout      = ui_slider_layout;
-    v->paint       = ui_slider_paint;
-    v->mouse       = ui_slider_mouse;
-    v->every_100ms = ui_slider_every_100ms;
-    v->color_id    = ui_color_id_window_text;
+    v->measure       = ui_slider_measure;
+    v->layout        = ui_slider_layout;
+    v->paint         = ui_slider_paint;
+    v->mouse         = ui_slider_mouse;
+    v->every_100ms   = ui_slider_every_100ms;
+    v->color_id      = ui_color_id_window_text;
+    v->background_id = ui_color_id_button_face;
     ui_slider_t* s = (ui_slider_t*)v;
     static const char* accel =
         " Hold key while clicking\n"
@@ -8726,6 +8769,11 @@ void ui_view_init_slider(ui_view_t* v) {
     s->inc = (ui_button_t)ui_button(ut_glyph_heavy_plus_sign, 0,
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
+    // inherit initial padding and insets from buttons.
+    // caller may change those later and it should be accounted to
+    // in measure() and layout()
+    v->insets = s->dec.insets;
+    v->padding = s->dec.padding;
     ut_str_printf(s->inc.hint, "%s", accel);
     ui_view.add(&s->view, &s->dec, &s->inc, null);
     ui_view.localize(&s->view);
@@ -9186,8 +9234,8 @@ static void ui_measure_view(ui_view_t* v) {
         // TODO: minimum view 1x1 em?
         v->w = i.left + v->fm->em.w + i.right;
         v->h = i.top + v->fm->em.h + i.bottom;
-        v->w = ut_min(v->w, ui.gaps_em2px(v->fm->em.w, v->min_w_em));
-        v->h = ut_min(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
+        v->w = ut_max(v->w, ui.gaps_em2px(v->fm->em.w, v->min_w_em));
+        v->h = ut_max(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
     }
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
@@ -9229,13 +9277,13 @@ static void ui_view_layout(ui_view_t* v) {
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
 
-static bool ui_view_inside(ui_view_t* v, const ui_point_t* pt) {
+static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
     const int32_t x = pt->x - v->x;
     const int32_t y = pt->y - v->y;
     return 0 <= x && x < v->w && 0 <= y && y < v->h;
 }
 
-static ui_ltrb_t ui_view_gaps(ui_view_t* v, const ui_gaps_t* g) {
+static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
     return (ui_ltrb_t) {
         .left   = ui.gaps_em2px(v->fm->em.w, g->left),
         .top    = ui.gaps_em2px(v->fm->em.h, g->top),
@@ -9244,7 +9292,7 @@ static ui_ltrb_t ui_view_gaps(ui_view_t* v, const ui_gaps_t* g) {
     };
 }
 
-static void ui_view_inbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
+static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
     swear(r != null || insets != null);
     swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t i = ui_view_gaps(v, &v->insets);
@@ -9259,7 +9307,7 @@ static void ui_view_inbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
     }
 }
 
-static void ui_view_outbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
+static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
     swear(r != null || padding != null);
     swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t p = ui_view_gaps(v, &v->padding);
@@ -9277,14 +9325,6 @@ static void ui_view_outbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
 //      traceln("%s %d,%d %dx%d", v->text,
 //          r->x, r->y, r->w, r->h);
     }
-}
-
-static void ui_view_position_by_outbox(ui_view_t* v, const ui_rect_t* r,
-            const ui_ltrb_t* padding) {
-    v->x = r->x + padding->left;
-    v->y = r->y + padding->top;
-    v->w = r->w - padding->left - padding->right;
-    v->h = r->h - padding->top  - padding->bottom;
 }
 
 static void ui_view_set_text(ui_view_t* v, const char* text) {
@@ -9693,7 +9733,6 @@ ui_view_if ui_view = {
     .gaps               = ui_view_gaps,
     .inbox              = ui_view_inbox,
     .outbox             = ui_view_outbox,
-    .position_by_outbox = ui_view_position_by_outbox,
     .set_text           = ui_view_set_text,
     .invalidate         = ui_view_invalidate,
     .measure            = ui_view_measure,

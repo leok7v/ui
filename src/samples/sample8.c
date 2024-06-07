@@ -52,6 +52,12 @@ static void toggle_controls(ui_button_t* b) {
     controls_test(&test);
 }
 
+static void slider_format(ui_view_t* v) {
+    ui_slider_t* slider = (ui_slider_t*)v;
+    ut_str_printf(v->text, "%s", ut_str.uint64(slider->value));
+//  traceln("v->text: %s", v->text);
+}
+
 static void insets_callback(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
     traceln("value: %d", slider->value);
@@ -103,8 +109,8 @@ static void opened(void) {
     static ui_button_t button_list      = ui_button("&List",       11.0, toggle_list);
     static ui_button_t button_controls  = ui_button("&Controls",   11.0, toggle_controls);
     static ui_button_t button_about     = ui_button("&About",      11.0, toggle_about);
-    static ui_slider_t slider_insets    = ui_slider("Insets:  %d",  5.5, 0, 3, insets_callback);
-    static ui_slider_t slider_padding   = ui_slider("Padding: %d",  5.5, 0, 3, padding_callback);
+    static ui_slider_t slider_insets    = ui_slider("Insets:  %d",  5.5, 0, 3, slider_format, insets_callback);
+    static ui_slider_t slider_padding   = ui_slider("Padding: %d",  5.5, 0, 3, slider_format, padding_callback);
     ui_view.add(ui_app.content,
         ui_view.add(&list,
             ui_view.add(&span,
@@ -121,15 +127,6 @@ static void opened(void) {
             null),
         null),
     null);
-    // TODO: ui_caption has a problem. Because app.view is simple container
-    //       ui_caption.view.align = top is not good.
-    //       Ideally, ui_caption should be a child of ui_app.root that
-    //       contains both ui_caption (possibly hidden) and  ui_app.view
-    //       and has vertical "list" layout. Looks like quite involving
-    //       change inside ui_app which uses ui_app.view everywhere as a root
-    //       Need to rename ui_app.view to ui_app.root and introduce ui_app.view
-    //       as it's second child.
-    ui_caption.view.align = ui.align.center; // hack
     list.max_w = ui.infinity;
     list.max_h = ui.infinity;
     list.insets = (ui_gaps_t){ 0, 0, 0, 0 };
@@ -278,9 +275,7 @@ static void list_test(ui_view_t* parent) {
 
 static void slider_callback(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
-    traceln("value: %s", ut_str.uint64(slider->value));
-    ut_str_printf(v->text, "%s", ut_str.uint64(slider->value));
-    ui_app.request_layout();
+    traceln("value: %d", slider->value);
 }
 
 static void controls_test(ui_view_t* parent) {
@@ -289,12 +284,14 @@ static void controls_test(ui_view_t* parent) {
     static ui_view_t  span     = ui_view(span);
     static ui_label_t  left    = ui_label(0, "Left");
     static ui_button_t button1 = ui_button("&Button", 0, null);
-    static ui_slider_t slider1 = ui_slider("%d", 8.7f, 0, INT32_MAX, slider_callback);
+    static ui_slider_t slider1 = ui_slider("%d", 8.7f, 0, INT32_MAX,
+                                           slider_format, slider_callback);
     static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 0.0, null);
     static ui_label_t  right   = ui_label(0, "Right ");
     static ui_label_t  label   = ui_label(0, "Label");
     static ui_button_t button2 = ui_button("&Button", 0, null);
-    static ui_slider_t slider2 = ui_slider("Slider: %d", 8.7f, 0, INT32_MAX, slider_callback);
+    static ui_slider_t slider2 = ui_slider("%d", 8.7f, 0, INT32_MAX,
+                                            slider_format, slider_callback);
     static ui_toggle_t toggle2 = ui_toggle("Toggle", 0.0, null);
     static ui_view_t   spacer  = ui_view(spacer);
     ui_view.add(&test,
@@ -320,4 +317,6 @@ static void controls_test(ui_view_t* parent) {
     list.background_id = ui_color_id_window;
     ui_view_for_each(&list, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );
     ui_view_for_each(&span, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );
+    slider2.dec.hidden = true;
+    slider2.inc.hidden = true;
 }

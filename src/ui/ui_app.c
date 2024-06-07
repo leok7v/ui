@@ -113,12 +113,14 @@ static void ui_app_dump_dpi(void) {
     traceln("ui_app.dpi.window           : %d", ui_app.dpi.window             );
     traceln("ui_app.dpi.system           : %d", ui_app.dpi.system             );
     traceln("ui_app.dpi.process          : %d", ui_app.dpi.process            );
-
-    traceln("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y, ui_app.mrc.w, ui_app.mrc.h);
-    traceln("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y, ui_app.wrc.w, ui_app.wrc.h);
-    traceln("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y, ui_app.crc.w, ui_app.crc.h);
-    traceln("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y, ui_app.work_area.w, ui_app.work_area.h);
-
+    traceln("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y,
+                                             ui_app.mrc.w, ui_app.mrc.h);
+    traceln("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y,
+                                             ui_app.wrc.w, ui_app.wrc.h);
+    traceln("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y,
+                                             ui_app.crc.w, ui_app.crc.h);
+    traceln("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y,
+                                             ui_app.work_area.w, ui_app.work_area.h);
     int32_t mxt_x = GetSystemMetrics(SM_CXMAXTRACK);
     int32_t mxt_y = GetSystemMetrics(SM_CYMAXTRACK);
     traceln("MAXTRACK: %d, %d", mxt_x, mxt_y);
@@ -2097,7 +2099,7 @@ static int ui_app_win_main(void) {
     ui_app.last_visibility = ui.visibility.defau1t;
     ui_app_init();
     int r = 0;
-    ui_app_dump_dpi();
+//  ui_app_dump_dpi();
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
     // TODO: use size_frame and caption_height in ui_caption.c

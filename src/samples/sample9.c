@@ -332,6 +332,11 @@ static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(flags)) {
     }
 }
 
+static void slider_format(ui_view_t* v) {
+    ui_slider_t* slider = (ui_slider_t*)v;
+    ut_str_printf(v->text, "%s", ut_str.uint64(slider->value));
+}
+
 static void zoomer_callback(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
     fp64_t z = 1;
@@ -420,7 +425,7 @@ static void opened(void) {
         zoomer_callback);
 #else
     zoomer = (ui_slider_t)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
-        zoomer_callback);
+        slider_format, zoomer_callback);
 #endif
     strcpy(button_mbx.hint, "Show Yes/No message box");
     strcpy(button_about.hint, "Show About message box");

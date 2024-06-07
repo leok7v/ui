@@ -44,10 +44,10 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .value_min = vmn, .value_max = vmx, .value = vmn,              \
     }
 
-#define ui_slider(s, min_width_em, vmn, vmx, call_back) {              \
+#define ui_slider(s, min_width_em, vmn, vmx, format_v, call_back) {    \
     .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,     \
         .text = s, .init = ui_view_init_slider,                        \
-        .callback = call_back,                                         \
+        .format = format_v, .callback = call_back,                     \
         .min_w_em = min_width_em, .min_h_em = 1.0,                     \
         .padding = { .left  = 0.25, .top = 0.25,                       \
                      .right = 0.25, .bottom = 0.25, },                 \

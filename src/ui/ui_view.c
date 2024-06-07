@@ -181,8 +181,8 @@ static void ui_measure_view(ui_view_t* v) {
         // TODO: minimum view 1x1 em?
         v->w = i.left + v->fm->em.w + i.right;
         v->h = i.top + v->fm->em.h + i.bottom;
-        v->w = ut_min(v->w, ui.gaps_em2px(v->fm->em.w, v->min_w_em));
-        v->h = ut_min(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
+        v->w = ut_max(v->w, ui.gaps_em2px(v->fm->em.w, v->min_w_em));
+        v->h = ut_max(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
     }
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
@@ -224,13 +224,13 @@ static void ui_view_layout(ui_view_t* v) {
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
 
-static bool ui_view_inside(ui_view_t* v, const ui_point_t* pt) {
+static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
     const int32_t x = pt->x - v->x;
     const int32_t y = pt->y - v->y;
     return 0 <= x && x < v->w && 0 <= y && y < v->h;
 }
 
-static ui_ltrb_t ui_view_gaps(ui_view_t* v, const ui_gaps_t* g) {
+static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
     return (ui_ltrb_t) {
         .left   = ui.gaps_em2px(v->fm->em.w, g->left),
         .top    = ui.gaps_em2px(v->fm->em.h, g->top),
@@ -239,7 +239,7 @@ static ui_ltrb_t ui_view_gaps(ui_view_t* v, const ui_gaps_t* g) {
     };
 }
 
-static void ui_view_inbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
+static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
     swear(r != null || insets != null);
     swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t i = ui_view_gaps(v, &v->insets);
@@ -254,7 +254,7 @@ static void ui_view_inbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
     }
 }
 
-static void ui_view_outbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
+static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
     swear(r != null || padding != null);
     swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t p = ui_view_gaps(v, &v->padding);
@@ -272,14 +272,6 @@ static void ui_view_outbox(ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
 //      traceln("%s %d,%d %dx%d", v->text,
 //          r->x, r->y, r->w, r->h);
     }
-}
-
-static void ui_view_position_by_outbox(ui_view_t* v, const ui_rect_t* r,
-            const ui_ltrb_t* padding) {
-    v->x = r->x + padding->left;
-    v->y = r->y + padding->top;
-    v->w = r->w - padding->left - padding->right;
-    v->h = r->h - padding->top  - padding->bottom;
 }
 
 static void ui_view_set_text(ui_view_t* v, const char* text) {
@@ -688,7 +680,6 @@ ui_view_if ui_view = {
     .gaps               = ui_view_gaps,
     .inbox              = ui_view_inbox,
     .outbox             = ui_view_outbox,
-    .position_by_outbox = ui_view_position_by_outbox,
     .set_text           = ui_view_set_text,
     .invalidate         = ui_view_invalidate,
     .measure            = ui_view_measure,

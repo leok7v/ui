@@ -21,7 +21,7 @@ typedef struct ui_view_s ui_view_t;
 
 typedef struct ui_view_s {
     enum ui_view_type_t type;
-    void (*init)(ui_view_t* view); // called once before first layout
+    void (*init)(ui_view_t* v); // called once before first layout
     ui_view_t* parent;
     ui_view_t* child; // first child, circular doubly linked list
     ui_view_t* prev;  // left or top sibling
@@ -44,46 +44,47 @@ typedef struct ui_view_s {
     int32_t shortcut; // keyboard shortcut
     int32_t strid; // 0 for not localized ui
     void* that;  // for the application use
-    void (*notify)(ui_view_t* view, void* p); // for the application use
+    void (*notify)(ui_view_t* v, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     // before methods: called before measure()/layout()/paint()
-    void (*prepare)(ui_view_t* view);  // called before measure()
-    void (*measure)(ui_view_t* view);  // determine w, h (bottom up)
-    void (*measured)(ui_view_t* view); // called after measure()
-    void (*layout)(ui_view_t* view);   // set x, y possibly adjust w, h (top down)
-    void (*composed)(ui_view_t* view); // after layout() is done (laid out)
-    void (*paint)(ui_view_t* view);
-    void (*painted)(ui_view_t* view);  // called after paint()
+    void (*prepare)(ui_view_t* v);  // called before measure()
+    void (*measure)(ui_view_t* v);  // determine w, h (bottom up)
+    void (*measured)(ui_view_t* v); // called after measure()
+    void (*layout)(ui_view_t* v);   // set x, y possibly adjust w, h (top down)
+    void (*composed)(ui_view_t* v); // after layout() is done (laid out)
+    void (*paint)(ui_view_t* v);
+    void (*painted)(ui_view_t* v);  // called after paint()
     // composed() is effectively called right before paint() and
     // can be used to prepare for painting w/o need to override paint()
-    void (*debug_paint)(ui_view_t* view); // called if .debug is set to true
+    void (*debug_paint)(ui_view_t* v); // called if .debug is set to true
     // any message:
-    bool (*message)(ui_view_t* view, int32_t message, int64_t wp, int64_t lp,
+    bool (*message)(ui_view_t* v, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
-    void (*click)(ui_view_t* view); // interpretation depends on a view
-    void (*callback)(ui_view_t* b); // view state change callback
-    void (*mouse)(ui_view_t* view, int32_t message, int64_t flags);
-    void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy); // touchpad scroll
+    void (*click)(ui_view_t* v);    // ui click callback - view action
+    void (*format)(ui_view_t* v);   // format a value to text (e.g. slider)
+    void (*callback)(ui_view_t* v); // state change callback
+    void (*mouse)(ui_view_t* v, int32_t message, int64_t flags);
+    void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy); // touchpad scroll
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
     // return true if consumed (halts further calls up the tree)
-    bool (*tap)(ui_view_t* view, int32_t ix);   // single click/tap inside ui
-    bool (*press)(ui_view_t* view, int32_t ix); // two finger click/tap or long press
-    void (*context_menu)(ui_view_t* view); // right mouse click or long press
-    bool (*set_focus)(ui_view_t* view); // returns true if focus is set
-    void (*kill_focus)(ui_view_t* view);
+    bool (*tap)(ui_view_t* v, int32_t ix);   // single click/tap inside ui
+    bool (*press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
+    void (*context_menu)(ui_view_t* v); // right mouse click or long press
+    bool (*set_focus)(ui_view_t* v); // returns true if focus is set
+    void (*kill_focus)(ui_view_t* v);
     // translated from key pressed/released to utf8:
-    void (*character)(ui_view_t* view, const char* utf8);
-    void (*key_pressed)(ui_view_t* view, int64_t key);
-    void (*key_released)(ui_view_t* view, int64_t key);
+    void (*character)(ui_view_t* v, const char* utf8);
+    void (*key_pressed)(ui_view_t* v, int64_t key);
+    void (*key_released)(ui_view_t* v, int64_t key);
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled views
-    void (*timer)(ui_view_t* view, ui_timer_t id);
-    void (*every_100ms)(ui_view_t* view); // ~10 x times per second
-    void (*every_sec)(ui_view_t* view); // ~once a second
+    void (*timer)(ui_view_t* v, ui_timer_t id);
+    void (*every_100ms)(ui_view_t* v); // ~10 x times per second
+    void (*every_sec)(ui_view_t* v); // ~once a second
     int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
     fp64_t armed_until; // ut_clock.seconds() - when to release
     bool hidden; // paint() is not called on hidden
@@ -116,43 +117,41 @@ typedef struct ui_view_if {
     void (*add_last)(ui_view_t* parent,  ui_view_t* child);
     void (*add_after)(ui_view_t* child,  ui_view_t* after);
     void (*add_before)(ui_view_t* child, ui_view_t* before);
-    void (*remove)(ui_view_t* view); // removes view from it`s parent
+    void (*remove)(ui_view_t* v); // removes view from it`s parent
     void (*remove_all)(ui_view_t* parent); // removes all children
     void (*disband)(ui_view_t* parent); // removes all children recursively
-    bool (*inside)(ui_view_t* view, const ui_point_t* pt);
-    ui_ltrb_t (*gaps)(ui_view_t* view, const ui_gaps_t* g); // gaps to pixels
-    void (*inbox)(ui_view_t* view, ui_rect_t* r, ui_ltrb_t* insets);
-    void (*outbox)(ui_view_t* view, ui_rect_t* r, ui_ltrb_t* padding);
-    void (*position_by_outbox)(ui_view_t* view, const ui_rect_t* r,
-            const ui_ltrb_t* padding);
-    void (*set_text)(ui_view_t* view, const char* text);
-    void (*invalidate)(const ui_view_t* view); // prone to delays
-    bool (*is_hidden)(const ui_view_t* view);   // view or any parent is hidden
-    bool (*is_disabled)(const ui_view_t* view); // view or any parent is disabled
-    const char* (*nls)(ui_view_t* view);  // returns localized text
-    void (*localize)(ui_view_t* view);    // set strid based ui .text field
-    void (*timer)(ui_view_t* view, ui_timer_t id);
-    void (*every_sec)(ui_view_t* view);
-    void (*every_100ms)(ui_view_t* view);
+    bool (*inside)(const ui_view_t* v, const ui_point_t* pt);
+    ui_ltrb_t (*gaps)(const ui_view_t* v, const ui_gaps_t* g); // gaps to pixels
+    void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);
+    void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
+    void (*set_text)(ui_view_t* v, const char* text);
+    void (*invalidate)(const ui_view_t* v); // prone to delays
+    bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
+    bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
+    const char* (*nls)(ui_view_t* v);  // returns localized text
+    void (*localize)(ui_view_t* v);    // set strid based ui .text field
+    void (*timer)(ui_view_t* v, ui_timer_t id);
+    void (*every_sec)(ui_view_t* v);
+    void (*every_100ms)(ui_view_t* v);
     int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
-    void (*key_pressed)(ui_view_t* view, int64_t v_key);
-    void (*key_released)(ui_view_t* view, int64_t v_key);
-    void (*character)(ui_view_t* view, const char* utf8);
-    void (*paint)(ui_view_t* view);
-    bool (*set_focus)(ui_view_t* view);
-    void (*kill_focus)(ui_view_t* view);
-    void (*kill_hidden_focus)(ui_view_t* view);
-    void (*hovering)(ui_view_t* view, bool start);
-    void (*mouse)(ui_view_t* view, int32_t m, int64_t f);
-    void (*mouse_wheel)(ui_view_t* view, int32_t dx, int32_t dy);
-    void (*measure)(ui_view_t* view);
-    void (*layout)(ui_view_t* view);
-    void (*hover_changed)(ui_view_t* view);
-    bool (*is_shortcut_key)(ui_view_t* view, int64_t key);
-    bool (*context_menu)(ui_view_t* view);
-    bool (*tap)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
-    bool (*press)(ui_view_t* view, int32_t ix); // 0: left 1: middle 2: right
-    bool (*message)(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
+    void (*key_pressed)(ui_view_t* v, int64_t v_key);
+    void (*key_released)(ui_view_t* v, int64_t v_key);
+    void (*character)(ui_view_t* v, const char* utf8);
+    void (*paint)(ui_view_t* v);
+    bool (*set_focus)(ui_view_t* v);
+    void (*kill_focus)(ui_view_t* v);
+    void (*kill_hidden_focus)(ui_view_t* v);
+    void (*hovering)(ui_view_t* v, bool start);
+    void (*mouse)(ui_view_t* v, int32_t m, int64_t f);
+    void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy);
+    void (*measure)(ui_view_t* v);
+    void (*layout)(ui_view_t* v);
+    void (*hover_changed)(ui_view_t* v);
+    bool (*is_shortcut_key)(ui_view_t* v, int64_t key);
+    bool (*context_menu)(ui_view_t* v);
+    bool (*tap)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
+    bool (*press)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
+    bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp,
                                      int64_t* ret);
     void (*debug_paint)(ui_view_t* v);
     void (*test)(void);
