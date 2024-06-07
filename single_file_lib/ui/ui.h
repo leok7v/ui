@@ -1165,10 +1165,10 @@ void ui_view_init_label(ui_view_t* view);
       .fm = &ui_app.fonts.regular,                       \
       .text = s,                                         \
       .min_w_em = min_width_em, .min_h_em = 1.0,         \
-      .padding = { .left  = 0.25, .top = 0.25,           \
-                   .right = 0.25, .bottom = 0.25, },     \
-      .insets  = { .left  = 0.25, .top = 0.25,           \
-                   .right = 0.25, .bottom = 0.25, }      \
+      .padding = { .left  = 0.125, .top    = 0.25,       \
+                   .right = 0.125, .bottom = 0.25, },    \
+      .insets  = { .left  = 0.125, .top    = 0.25,       \
+                   .right = 0.125, .bottom = 0.25, }     \
 }
 
 // text with "&" keyboard shortcuts:
@@ -1176,7 +1176,7 @@ void ui_view_init_label(ui_view_t* view);
 void ui_label_init(ui_label_t* t, fp32_t min_w_em, const char* format, ...);
 void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_list vl);
 
-// use this macro for initilizization:
+// use this macro for initialization:
 //    ui_label_t label = ui_label(min_width_em, s);
 // or:
 //    label = (ui_label_t)ui_label(min_width_em, s);
@@ -1208,10 +1208,10 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
         .fm = &ui_app.fonts.regular,                           \
         .text = s, .callback = name ## _callback,              \
         .min_w_em = min_width_em, .min_h_em = 1.0,             \
-        .padding = { .left  = 0.25, .top = 0.25,               \
-                     .right = 0.25, .bottom = 0.25, },         \
-        .insets  = { .left  = 0.25, .top = 0.25,               \
-                     .right = 0.25, .bottom = 0.25, }          \
+        .padding = { .left  = 0.125, .top    = 0.25,           \
+                     .right = 0.125, .bottom = 0.25, },        \
+        .insets  = { .left  = 0.125, .top    = 0.25,           \
+                     .right = 0.125, .bottom = 0.25, }         \
     }
 
 #define ui_button(s, min_width_em, call_back) {              \
@@ -1219,10 +1219,10 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     .fm = &ui_app.fonts.regular,                             \
     .text = s, .callback = call_back,                        \
     .min_w_em = min_width_em, .min_h_em = 1.0,               \
-    .padding = { .left  = 0.25, .top = 0.25,                 \
-                 .right = 0.25, .bottom = 0.25, },           \
-    .insets  = { .left  = 0.25, .top = 0.25,                 \
-                 .right = 0.25, .bottom = 0.25, }            \
+    .padding = { .left  = 0.125, .top    = 0.25,             \
+                 .right = 0.125, .bottom = 0.25, },          \
+    .insets  = { .left  = 0.125, .top    = 0.25,             \
+                 .right = 0.125, .bottom = 0.25, }           \
 }
 
 // usage:
@@ -1306,10 +1306,10 @@ void ui_view_init_toggle(ui_view_t* view);
         .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
         .text = s, .callback = name ## _callback,              \
         .min_w_em = 1.0, .min_h_em = 1.0,                      \
-        .padding = { .left  = 0.25, .top = 0.25,               \
-                     .right = 0.25, .bottom = 0.25, },         \
-        .insets  = { .left  = 0.25, .top = 0.25,               \
-                     .right = 0.25, .bottom = 0.25, }          \
+        .padding = { .left  = 0.125, .top    = 0.25,           \
+                     .right = 0.125, .bottom = 0.25 },         \
+        .insets  = { .left  = 0.125, .top    = 0.25,           \
+                     .right = 0.125, .bottom = 0.25 }          \
     }
 
 #define ui_toggle(s, min_width_em, call_back) {            \
@@ -1317,10 +1317,10 @@ void ui_view_init_toggle(ui_view_t* view);
     .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
     .text = s, .callback = call_back,                      \
     .min_w_em = 1.0, .min_h_em = 1.0,                      \
-    .padding = { .left  = 0.25, .top = 0.25,               \
-                 .right = 0.25, .bottom = 0.25, },         \
-    .insets  = { .left  = 0.25, .top = 0.25,               \
-                 .right = 0.25, .bottom = 0.25, }          \
+    .padding = { .left  = 0.125, .top    = 0.25,           \
+                 .right = 0.125, .bottom = 0.25 },         \
+    .insets  = { .left  = 0.125, .top    = 0.25,           \
+                 .right = 0.125, .bottom = 0.25 }          \
 }
 
 // _______________________________ ui_slider.h ________________________________
@@ -1360,10 +1360,10 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
                   .init = ui_view_init_slider,                         \
                   .text = s, .callback = name ## _callback,            \
                   .min_w_em = min_width_em, .min_h_em = 1.0,           \
-                  .padding = { .left  = 0.25, .top = 0.25,             \
-                               .right = 0.25, .bottom = 0.25, },       \
-                  .insets  = { .left  = 0.25, .top = 0.25,             \
-                               .right = 0.25, .bottom = 0.25, }        \
+                  .padding = { .left  = 0.125, .top    = 0.25,         \
+                               .right = 0.125, .bottom = 0.25 },       \
+                  .insets  = { .left  = 0.125, .top    = 0.25,         \
+                               .right = 0.125, .bottom = 0.25 }        \
         },                                                             \
         .value_min = vmn, .value_max = vmx, .value = vmn,              \
     }
@@ -1373,10 +1373,10 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .text = s, .init = ui_view_init_slider,                        \
         .format = format_v, .callback = call_back,                     \
         .min_w_em = min_width_em, .min_h_em = 1.0,                     \
-        .padding = { .left  = 0.25, .top = 0.25,                       \
-                     .right = 0.25, .bottom = 0.25, },                 \
-        .insets  = { .left  = 0.25, .top = 0.25,                       \
-                     .right = 0.25, .bottom = 0.25, }                  \
+        .padding = { .left  = 0.125, .top    = 0.25,                   \
+                     .right = 0.125, .bottom = 0.25, },                \
+        .insets  = { .left  = 0.125, .top    = 0.25,                   \
+                     .right = 0.125, .bottom = 0.25, }                 \
     },                                                                 \
     .value_min = vmn, .value_max = vmx, .value = vmn,                  \
 }
@@ -1418,10 +1418,10 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
         .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
                   .fm = &ui_app.fonts.regular,                   \
                   .text = s, .callback = name ## _callback,      \
-                  .padding = { .left  = 0.25, .top = 0.25,       \
-                               .right = 0.25, .bottom = 0.25, }, \
-                  .insets  = { .left  = 0.25, .top = 0.25,       \
-                               .right = 0.25, .bottom = 0.25, }  \
+                  .padding = { .left  = 0.125, .top    = 0.25,   \
+                               .right = 0.125, .bottom = 0.25 }, \
+                  .insets  = { .left  = 0.125, .top    = 0.25,   \
+                               .right = 0.125, .bottom = 0.25 }  \
                 },                                               \
         .options = name ## _options                              \
     }
@@ -1430,10 +1430,10 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
     .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
               .fm = &ui_app.fonts.regular,                   \
               .text = s, .callback = call_back,              \
-              .padding = { .left  = 0.25, .top = 0.25,       \
-                           .right = 0.25, .bottom = 0.25, }, \
-              .insets  = { .left  = 0.25, .top = 0.25,       \
-                           .right = 0.25, .bottom = 0.25, }  \
+              .padding = { .left  = 0.125, .top    = 0.25,   \
+                           .right = 0.125, .bottom = 0.25 }, \
+              .insets  = { .left  = 0.125, .top    = 0.25,   \
+                           .right = 0.125, .bottom = 0.25 }  \
     },                                                       \
     .options = (const char*[]){ __VA_ARGS__, null },         \
 }
@@ -4190,8 +4190,8 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.quit,
         null);
     ui_caption.view.color_id = ui_color_id_window_text;
-    static const ui_gaps_t p = { .left  = 0.25, .top    = 0.25,
-                                 .right = 0.25, .bottom = 0.25};
+    static const ui_gaps_t p = { .left  = 0.125, .top    = 0.25,
+                                 .right = 0.125, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
         c->fm = &ui_app.fonts.H3;
         c->color_id = ui_caption.view.color_id;
@@ -4199,8 +4199,8 @@ static void ui_caption_init(ui_view_t* v) {
         c->padding = p;
     });
     ui_caption.view.insets = (ui_gaps_t) {
-        .left  = 0.75,  .top    = 0.125,
-        .right = 0.75,  .bottom = 0.125
+        .left  = 0.125,  .top    = 0.25,
+        .right = 0.125,  .bottom = 0.25
     };
     ui_caption.icon.icon  = ui_app.icon;
     ui_caption.view.align = ui.align.left;
@@ -5104,8 +5104,8 @@ static void ui_paint_container(ui_view_t* v) {
 
 static void ui_view_container_init(ui_view_t* v) {
     v->background = ui_colors.transparent;
-    v->insets  = (ui_gaps_t){ .left  = 0.25, .top    = 0.25,
-                              .right = 0.25, .bottom = 0.25 };
+    v->insets  = (ui_gaps_t){ .left  = 0.125, .top    = 0.25,
+                              .right = 0.125, .bottom = 0.25 };
 }
 
 void ui_view_init_span(ui_view_t* v) {

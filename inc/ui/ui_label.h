@@ -13,10 +13,10 @@ void ui_view_init_label(ui_view_t* view);
       .fm = &ui_app.fonts.regular,                       \
       .text = s,                                         \
       .min_w_em = min_width_em, .min_h_em = 1.0,         \
-      .padding = { .left  = 0.25, .top = 0.25,           \
-                   .right = 0.25, .bottom = 0.25, },     \
-      .insets  = { .left  = 0.25, .top = 0.25,           \
-                   .right = 0.25, .bottom = 0.25, }      \
+      .padding = { .left  = 0.125, .top    = 0.25,       \
+                   .right = 0.125, .bottom = 0.25, },    \
+      .insets  = { .left  = 0.125, .top    = 0.25,       \
+                   .right = 0.125, .bottom = 0.25, }     \
 }
 
 // text with "&" keyboard shortcuts:
@@ -24,7 +24,7 @@ void ui_view_init_label(ui_view_t* view);
 void ui_label_init(ui_label_t* t, fp32_t min_w_em, const char* format, ...);
 void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_list vl);
 
-// use this macro for initilizization:
+// use this macro for initialization:
 //    ui_label_t label = ui_label(min_width_em, s);
 // or:
 //    label = (ui_label_t)ui_label(min_width_em, s);

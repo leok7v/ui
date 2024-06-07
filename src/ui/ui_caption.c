@@ -117,8 +117,8 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.quit,
         null);
     ui_caption.view.color_id = ui_color_id_window_text;
-    static const ui_gaps_t p = { .left  = 0.25, .top    = 0.25,
-                                 .right = 0.25, .bottom = 0.25};
+    static const ui_gaps_t p = { .left  = 0.125, .top    = 0.25,
+                                 .right = 0.125, .bottom = 0.25};
     ui_view_for_each(&ui_caption.view, c, {
         c->fm = &ui_app.fonts.H3;
         c->color_id = ui_caption.view.color_id;
@@ -126,8 +126,8 @@ static void ui_caption_init(ui_view_t* v) {
         c->padding = p;
     });
     ui_caption.view.insets = (ui_gaps_t) {
-        .left  = 0.75,  .top    = 0.125,
-        .right = 0.75,  .bottom = 0.125
+        .left  = 0.125,  .top    = 0.25,
+        .right = 0.125,  .bottom = 0.25
     };
     ui_caption.icon.icon  = ui_app.icon;
     ui_caption.view.align = ui.align.left;

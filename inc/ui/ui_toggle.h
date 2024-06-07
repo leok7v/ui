@@ -26,10 +26,10 @@ void ui_view_init_toggle(ui_view_t* view);
         .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
         .text = s, .callback = name ## _callback,              \
         .min_w_em = 1.0, .min_h_em = 1.0,                      \
-        .padding = { .left  = 0.25, .top = 0.25,               \
-                     .right = 0.25, .bottom = 0.25, },         \
-        .insets  = { .left  = 0.25, .top = 0.25,               \
-                     .right = 0.25, .bottom = 0.25, }          \
+        .padding = { .left  = 0.125, .top    = 0.25,           \
+                     .right = 0.125, .bottom = 0.25 },         \
+        .insets  = { .left  = 0.125, .top    = 0.25,           \
+                     .right = 0.125, .bottom = 0.25 }          \
     }
 
 #define ui_toggle(s, min_width_em, call_back) {            \
@@ -37,10 +37,10 @@ void ui_view_init_toggle(ui_view_t* view);
     .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
     .text = s, .callback = call_back,                      \
     .min_w_em = 1.0, .min_h_em = 1.0,                      \
-    .padding = { .left  = 0.25, .top = 0.25,               \
-                 .right = 0.25, .bottom = 0.25, },         \
-    .insets  = { .left  = 0.25, .top = 0.25,               \
-                 .right = 0.25, .bottom = 0.25, }          \
+    .padding = { .left  = 0.125, .top    = 0.25,           \
+                 .right = 0.125, .bottom = 0.25 },         \
+    .insets  = { .left  = 0.125, .top    = 0.25,           \
+                 .right = 0.125, .bottom = 0.25 }          \
 }
 
 end_c

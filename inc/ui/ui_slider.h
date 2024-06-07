@@ -36,10 +36,10 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
                   .init = ui_view_init_slider,                         \
                   .text = s, .callback = name ## _callback,            \
                   .min_w_em = min_width_em, .min_h_em = 1.0,           \
-                  .padding = { .left  = 0.25, .top = 0.25,             \
-                               .right = 0.25, .bottom = 0.25, },       \
-                  .insets  = { .left  = 0.25, .top = 0.25,             \
-                               .right = 0.25, .bottom = 0.25, }        \
+                  .padding = { .left  = 0.125, .top    = 0.25,         \
+                               .right = 0.125, .bottom = 0.25 },       \
+                  .insets  = { .left  = 0.125, .top    = 0.25,         \
+                               .right = 0.125, .bottom = 0.25 }        \
         },                                                             \
         .value_min = vmn, .value_max = vmx, .value = vmn,              \
     }
@@ -49,10 +49,10 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .text = s, .init = ui_view_init_slider,                        \
         .format = format_v, .callback = call_back,                     \
         .min_w_em = min_width_em, .min_h_em = 1.0,                     \
-        .padding = { .left  = 0.25, .top = 0.25,                       \
-                     .right = 0.25, .bottom = 0.25, },                 \
-        .insets  = { .left  = 0.25, .top = 0.25,                       \
-                     .right = 0.25, .bottom = 0.25, }                  \
+        .padding = { .left  = 0.125, .top    = 0.25,                   \
+                     .right = 0.125, .bottom = 0.25, },                \
+        .insets  = { .left  = 0.125, .top    = 0.25,                   \
+                     .right = 0.125, .bottom = 0.25, }                 \
     },                                                                 \
     .value_min = vmn, .value_max = vmx, .value = vmn,                  \
 }

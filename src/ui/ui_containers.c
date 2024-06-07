@@ -496,8 +496,8 @@ static void ui_paint_container(ui_view_t* v) {
 
 static void ui_view_container_init(ui_view_t* v) {
     v->background = ui_colors.transparent;
-    v->insets  = (ui_gaps_t){ .left  = 0.25, .top    = 0.25,
-                              .right = 0.25, .bottom = 0.25 };
+    v->insets  = (ui_gaps_t){ .left  = 0.125, .top    = 0.25,
+                              .right = 0.125, .bottom = 0.25 };
 }
 
 void ui_view_init_span(ui_view_t* v) {
