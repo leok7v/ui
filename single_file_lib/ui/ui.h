@@ -1512,10 +1512,8 @@ typedef struct {
     ui_rect_t crc;  // client rectangle
     ui_rect_t mrc;  // monitor rectangle
     ui_rect_t work_area; // current monitor work area
-    int32_t width;  // client width
-    int32_t height; // client height
-    int32_t caption_h; // caption height
-    ui_wh_t frame;     // frame size
+    int32_t caption_height; // caption height
+    ui_wh_t border;    // frame border size
     // not to call ut_clock.seconds() too often:
     fp64_t now;     // ssb "seconds since boot" updated on each message
     ui_view_t* root; // show_window() changes ui.hidden
@@ -1845,8 +1843,6 @@ static void ui_app_update_crc(void) {
     RECT rc = {0};
     fatal_if_false(GetClientRect(ui_app_window(), &rc));
     ui_app.crc = ui_app_rect2ui(&rc);
-    ui_app.width = ui_app.crc.w;
-    ui_app.height = ui_app.crc.h;
 }
 
 static void ui_app_dispose_fonts(void) {
@@ -2358,16 +2354,16 @@ static void ui_app_toast_paint(void) {
             ui_app_measure_and_layout(ui_app.animating.view);
             if (ui_theme.are_apps_dark()) {
                 fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
-                ui_gdi.alpha_blend(0, 0, ui_app.width, ui_app.height, &image_dark, alpha);
+                ui_gdi.alpha_blend(0, 0, ui_app.crc.w, ui_app.crc.h, &image_dark, alpha);
             } else {
                 traceln("TODO:");
             }
-            ui_app.animating.view->x = (ui_app.width - ui_app.animating.view->w) / 2;
+            ui_app.animating.view->x = (ui_app.crc.w - ui_app.animating.view->w) / 2;
         } else {
             ui_app.animating.view->x = ui_app.animating.x;
             ui_app.animating.view->y = ui_app.animating.y;
             ui_app_measure_and_layout(ui_app.animating.view);
-            int32_t mx = ui_app.width - ui_app.animating.view->w - em_x;
+            int32_t mx = ui_app.crc.w - ui_app.animating.view->w - em_x;
             ui_app.animating.view->x = ut_min(mx, ut_max(0, ui_app.animating.x - ui_app.animating.view->w / 2));
             ui_app.animating.view->y = ut_min(ui_app.crc.h - em_y, ut_max(0, ui_app.animating.y));
         }
@@ -2473,10 +2469,6 @@ static void ui_app_animate_start(ui_app_animate_function_t f, int32_t steps) {
 }
 
 static void ui_app_view_paint(ui_view_t* v) {
-    // A view can be bigger then client rectangle but shouldn't be smaller
-    // or shifted:
-    assert(v == ui_app.root && v->x == 0 && v->y == 0 &&
-           v->w >= ui_app.crc.w && v->h >= ui_app.crc.h);
     v->color = ui_app.get_color(v->color_id);
     if (v->background_id > 0) {
         v->background = ui_app.get_color(v->background_id);
@@ -2490,8 +2482,10 @@ static void ui_app_view_paint(ui_view_t* v) {
 static void ui_app_view_layout(void) {
     not_null(ui_app.window);
     not_null(ui_app.canvas);
-    ui_app.root->w = ui_app.crc.w; // crc is window client rectangle
-    ui_app.root->h = ui_app.crc.h;
+    ui_app.root->x = ui_app.border.w;
+    ui_app.root->y = ui_app.border.h;
+    ui_app.root->w = ui_app.crc.w - ui_app.border.w * 2;
+    ui_app.root->h = ui_app.crc.h - ui_app.border.h * 2;
     ui_app_measure_and_layout(ui_app.root);
 }
 
@@ -2499,10 +2493,10 @@ static void ui_app_view_active_frame_paint(void) {
     ui_color_t c = ui_app.is_active() ?
         ui_app.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
         ui_app.get_color(ui_color_id_inactive_title);
-    assert(ui_app.frame.w == ui_app.frame.h);
+    assert(ui_app.border.w == ui_app.border.h);
     const int32_t w = ui_app.wrc.w;
     const int32_t h = ui_app.wrc.h;
-    for (int32_t i = 0; i < ui_app.frame.w; i++) {
+    for (int32_t i = 0; i < ui_app.border.w; i++) {
         ui_gdi.frame_with(i, i, w - i * 2, h - i * 2, c);
     }
 }
@@ -3081,13 +3075,9 @@ static void ui_app_create_window(const ui_rect_t r) {
     }
     ui_theme.refresh(ui_app.window);
     if (ui_app.visibility != ui.visibility.hide) {
-        ui_app.root->w = ui_app.wrc.w;
-        ui_app.root->h = ui_app.wrc.h;
         AnimateWindow(ui_app_window(), 250, AW_ACTIVATE);
         ui_app.show_window(ui_app.visibility);
         ui_app_update_crc();
-//      ui_app.root->w = ui_app.crc.w; // ui_app.crc is "client rectangle"
-//      ui_app.root->h = ui_app.crc.h;
     }
     // even if it is hidden:
     ui_app_post_message(ui.message.opening, 0, 0);
@@ -3810,17 +3800,22 @@ static int ui_app_win_main(void) {
 //  ui_app_dump_dpi();
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
-    // TODO: use .frame and .caption_h in ui_caption.c
-    ui_app.frame.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
-    ui_app.frame.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME, (uint32_t)ui_app.dpi.process);
-    ui_app.caption_h = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION, (uint32_t)ui_app.dpi.process);
-//  traceln("frame: %d,%d caption_height: %d", ui_app.frame.w, ui_app.frame.h, ui_app.caption_h);
+    // TODO: use .frame and .caption_height in ui_caption.c
+    ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
+    ui_app.border.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME, (uint32_t)ui_app.dpi.process);
+    // border is too think (5 pixels) narrow down to 3x3
+    const int32_t max_border = ui_app.dpi.window <= 100 ? 1 : 
+        (ui_app.dpi.window >= 192 ? 3 : 2);
+    ui_app.border.w = ut_min(max_border, ui_app.border.w);
+    ui_app.border.h = ut_min(max_border, ui_app.border.h);
+    ui_app.caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION, (uint32_t)ui_app.dpi.process);
+//  traceln("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
     // TODO: use AdjustWindowRectEx instead
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrectex
-    wr.x -= ui_app.frame.w;
-    wr.w += ui_app.frame.w * 2;
-    wr.y -= ui_app.frame.h + ui_app.caption_h;
-    wr.h += ui_app.frame.h * 2 + ui_app.caption_h;
+    wr.x -= ui_app.border.w;
+    wr.w += ui_app.border.w * 2;
+    wr.y -= ui_app.border.h + ui_app.caption_height;
+    wr.h += ui_app.border.h * 2 + ui_app.caption_height;
     if (!ui_app_load_window_pos(&wr, &ui_app.last_visibility)) {
         // first time - center window
         wr.x = ui_app.work_area.x + (ui_app.work_area.w - wr.w) / 2;
@@ -3829,8 +3824,8 @@ static int ui_app_win_main(void) {
     }
     ui_app.root->hidden = true; // start with ui hidden
     ui_app.root->fm = &ui_app.fonts.regular;
-    ui_app.root->w = wr.w - ui_app.frame.w * 2;
-    ui_app.root->h = wr.h - ui_app.frame.h * 2 - ui_app.caption_h;
+    ui_app.root->w = wr.w - ui_app.border.w * 2;
+    ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint
     not_null(ui_app.class_name);
     if (!ui_app.no_ui) {
@@ -3900,54 +3895,6 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
         v->armed_until = 0;
         v->armed = false;
         ui_view.invalidate(v);
-    }
-}
-
-// TODO: generalize and move to ui_colors.c to avoid slider dup
-
-static ui_color_t ui_button_gradient_darker(void) {
-    if (ui_theme.are_apps_dark()) {
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        // 0x1E1E1E
-        // 0x333333 button face
-        ui_color_t d0 = ui_colors.darken(c, 0.50f);
-        return d0;
-//      traceln("ui_color_id_button_face: 0x%06X", c);
-//      traceln("ui_colors.btn_gradient_darker: 0x%06X", ui_colors.btn_gradient_darker);
-//      return ui_colors.btn_gradient_darker;
-    } else {
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        uint32_t r = ui_color_r(c);
-        uint32_t g = ui_color_r(c);
-        uint32_t b = ui_color_r(c);
-        r = ut_max(0, ut_min(0xFF, (uint32_t)(r * 0.75)));
-        g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 0.75)));
-        b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 0.75)));
-        ui_color_t d = ui_rgb(r, g, b);
-        traceln("c: 0x%06X -> 0x%06X", c, d);
-        return d;
-    }
-}
-
-static ui_color_t ui_button_gradient_dark(void) {
-    if (ui_theme.are_apps_dark()) {
-        // 0x302D2D
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        ui_color_t d1 = ui_colors.darken(c, 0.125f);
-        return d1;
-//      traceln("ui_colors.btn_gradient_dark: 0x%06X", ui_colors.btn_gradient_dark);
-//      return ui_colors.btn_gradient_dark;
-    } else {
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        uint32_t r = ui_color_r(c);
-        uint32_t g = ui_color_r(c);
-        uint32_t b = ui_color_r(c);
-        r = ut_max(0, ut_min(0xFF, (uint32_t)(r * 1.25)));
-        g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 1.25)));
-        b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 1.25)));
-        ui_color_t d = ui_rgb(r, g, b);
-//      traceln("c: 0%06X -> 0%06X", c, d);
-        return d;
     }
 }
 
@@ -4187,14 +4134,14 @@ static ui_color_t ui_caption_color(void) {
 
 static void ui_caption_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    v->w = ui_app.caption_h;
-    v->h = ui_app.caption_h;
+    v->w = ui_app.caption_height;
+    v->h = ui_app.caption_height;
 }
 
 static void ui_caption_button_icon_paint(ui_view_t* v) {
     int32_t w = v->w;
     int32_t h = v->h;
-    swear(w == h && h == ui_app.caption_h);
+    swear(w == h && h == ui_app.caption_height);
     while (h > 16 && (h & (h - 1)) != 0) { h--; }
     w = h;
     int32_t dx = (v->w - w) / 2;
@@ -4209,12 +4156,12 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 static void ui_caption_measured(ui_view_t* v) {
     ui_caption.title.hidden = v->w > ui_app.crc.w;
     v->w = ui_app.crc.w;
-    v->h = ui_app.caption_h;
+    v->h = ui_app.caption_height;
 }
 
 static void ui_caption_composed(ui_view_t* v) {
-    v->x = ui_app.frame.w;
-    v->y = ui_app.frame.h;
+    v->x = ui_app.border.w;
+    v->y = ui_app.border.h;
 }
 
 static void ui_caption_paint(ui_view_t* v) {
@@ -4254,7 +4201,7 @@ static void ui_caption_init(ui_view_t* v) {
         }
         c->padding = pd;
         c->insets  = in;
-        c->h = ui_app.caption_h;
+        c->h = ui_app.caption_height;
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
@@ -8288,9 +8235,9 @@ void ui_view_init_label(ui_view_t* v) {
     assert(v->type == ui_view_label);
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
-    v->paint        = ui_label_paint;
-    v->character    = ui_label_character;
-    v->context_menu = ui_label_context_menu;
+    v->paint         = ui_label_paint;
+    v->character     = ui_label_character;
+    v->context_menu  = ui_label_context_menu;
 }
 
 void ui_label_init_va(ui_label_t* v, fp32_t min_w_em,
@@ -9004,7 +8951,8 @@ ui_theme_if ui_theme = {
 #include "ut/ut.h"
 
 static int ui_toggle_paint_on_off(ui_view_t* v) {
-    ui_gdi.push(v->x, v->y);
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    ui_gdi.push(v->x + i.left, v->y + i.top);
     ui_color_t b = v->background;
     if (!ui_theme.are_apps_dark()) { b = ui_colors.darken(b, 0.25f); }
     ui_color_t background = v->pressed ? ui_colors.tone_green : b;
@@ -9044,7 +8992,8 @@ static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
     char text[countof(v->text)];
     const char* label = ui_toggle_on_off_label(v, text, countof(text));
-    ui_gdi.push(v->x, v->y);
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    ui_gdi.push(v->x + i.left, v->y + i.top);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
     ui_gdi.x = ui_toggle_paint_on_off(v) + v->fm->em.w * 3 / 4;
     ui_color_t c = ui_gdi.set_text_color(v->color);
@@ -9096,7 +9045,7 @@ void ui_view_init_toggle(ui_view_t* v) {
     ui_view.set_text(v, v->text);
     v->mouse         = ui_toggle_mouse;
     v->paint         = ui_toggle_paint;
-    v->measured = ui_toggle_measured;
+    v->measured      = ui_toggle_measured;
     v->character     = ui_toggle_character;
     v->key_pressed   = ui_toggle_key_pressed;
     v->color_id      = ui_color_id_button_text;

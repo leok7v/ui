@@ -2,7 +2,8 @@
 #include "ui/ui.h"
 
 static int ui_toggle_paint_on_off(ui_view_t* v) {
-    ui_gdi.push(v->x, v->y);
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    ui_gdi.push(v->x + i.left, v->y + i.top);
     ui_color_t b = v->background;
     if (!ui_theme.are_apps_dark()) { b = ui_colors.darken(b, 0.25f); }
     ui_color_t background = v->pressed ? ui_colors.tone_green : b;
@@ -42,7 +43,8 @@ static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
     char text[countof(v->text)];
     const char* label = ui_toggle_on_off_label(v, text, countof(text));
-    ui_gdi.push(v->x, v->y);
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    ui_gdi.push(v->x + i.left, v->y + i.top);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
     ui_gdi.x = ui_toggle_paint_on_off(v) + v->fm->em.w * 3 / 4;
     ui_color_t c = ui_gdi.set_text_color(v->color);
@@ -94,7 +96,7 @@ void ui_view_init_toggle(ui_view_t* v) {
     ui_view.set_text(v, v->text);
     v->mouse         = ui_toggle_mouse;
     v->paint         = ui_toggle_paint;
-    v->measured = ui_toggle_measured;
+    v->measured      = ui_toggle_measured;
     v->character     = ui_toggle_character;
     v->key_pressed   = ui_toggle_key_pressed;
     v->color_id      = ui_color_id_button_text;

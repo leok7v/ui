@@ -58,9 +58,9 @@ void ui_view_init_label(ui_view_t* v) {
     assert(v->type == ui_view_label);
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
-    v->paint        = ui_label_paint;
-    v->character    = ui_label_character;
-    v->context_menu = ui_label_context_menu;
+    v->paint         = ui_label_paint;
+    v->character     = ui_label_character;
+    v->context_menu  = ui_label_context_menu;
 }
 
 void ui_label_init_va(ui_label_t* v, fp32_t min_w_em,

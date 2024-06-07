@@ -10,54 +10,6 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     }
 }
 
-// TODO: generalize and move to ui_colors.c to avoid slider dup
-
-static ui_color_t ui_button_gradient_darker(void) {
-    if (ui_theme.are_apps_dark()) {
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        // 0x1E1E1E
-        // 0x333333 button face
-        ui_color_t d0 = ui_colors.darken(c, 0.50f);
-        return d0;
-//      traceln("ui_color_id_button_face: 0x%06X", c);
-//      traceln("ui_colors.btn_gradient_darker: 0x%06X", ui_colors.btn_gradient_darker);
-//      return ui_colors.btn_gradient_darker;
-    } else {
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        uint32_t r = ui_color_r(c);
-        uint32_t g = ui_color_r(c);
-        uint32_t b = ui_color_r(c);
-        r = ut_max(0, ut_min(0xFF, (uint32_t)(r * 0.75)));
-        g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 0.75)));
-        b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 0.75)));
-        ui_color_t d = ui_rgb(r, g, b);
-        traceln("c: 0x%06X -> 0x%06X", c, d);
-        return d;
-    }
-}
-
-static ui_color_t ui_button_gradient_dark(void) {
-    if (ui_theme.are_apps_dark()) {
-        // 0x302D2D
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        ui_color_t d1 = ui_colors.darken(c, 0.125f);
-        return d1;
-//      traceln("ui_colors.btn_gradient_dark: 0x%06X", ui_colors.btn_gradient_dark);
-//      return ui_colors.btn_gradient_dark;
-    } else {
-        ui_color_t c = ui_app.get_color(ui_color_id_button_face);
-        uint32_t r = ui_color_r(c);
-        uint32_t g = ui_color_r(c);
-        uint32_t b = ui_color_r(c);
-        r = ut_max(0, ut_min(0xFF, (uint32_t)(r * 1.25)));
-        g = ut_max(0, ut_min(0xFF, (uint32_t)(g * 1.25)));
-        b = ut_max(0, ut_min(0xFF, (uint32_t)(b * 1.25)));
-        ui_color_t d = ui_rgb(r, g, b);
-//      traceln("c: 0%06X -> 0%06X", c, d);
-        return d;
-    }
-}
-
 static void ui_button_paint(ui_view_t* v) {
     assert(v->type == ui_view_button);
     assert(!v->hidden);

@@ -89,14 +89,14 @@ static ui_color_t ui_caption_color(void) {
 
 static void ui_caption_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    v->w = ui_app.caption_h;
-    v->h = ui_app.caption_h;
+    v->w = ui_app.caption_height;
+    v->h = ui_app.caption_height;
 }
 
 static void ui_caption_button_icon_paint(ui_view_t* v) {
     int32_t w = v->w;
     int32_t h = v->h;
-    swear(w == h && h == ui_app.caption_h);
+    swear(w == h && h == ui_app.caption_height);
     while (h > 16 && (h & (h - 1)) != 0) { h--; }
     w = h;
     int32_t dx = (v->w - w) / 2;
@@ -111,12 +111,12 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 static void ui_caption_measured(ui_view_t* v) {
     ui_caption.title.hidden = v->w > ui_app.crc.w;
     v->w = ui_app.crc.w;
-    v->h = ui_app.caption_h;
+    v->h = ui_app.caption_height;
 }
 
 static void ui_caption_composed(ui_view_t* v) {
-    v->x = ui_app.frame.w;
-    v->y = ui_app.frame.h;
+    v->x = ui_app.border.w;
+    v->y = ui_app.border.h;
 }
 
 static void ui_caption_paint(ui_view_t* v) {
@@ -156,7 +156,7 @@ static void ui_caption_init(ui_view_t* v) {
         }
         c->padding = pd;
         c->insets  = in;
-        c->h = ui_app.caption_h;
+        c->h = ui_app.caption_height;
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });

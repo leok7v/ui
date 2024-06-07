@@ -49,10 +49,8 @@ typedef struct {
     ui_rect_t crc;  // client rectangle
     ui_rect_t mrc;  // monitor rectangle
     ui_rect_t work_area; // current monitor work area
-    int32_t width;  // client width
-    int32_t height; // client height
-    int32_t caption_h; // caption height
-    ui_wh_t frame;     // frame size
+    int32_t caption_height; // caption height
+    ui_wh_t border;    // frame border size
     // not to call ut_clock.seconds() too often:
     fp64_t now;     // ssb "seconds since boot" updated on each message
     ui_view_t* root; // show_window() changes ui.hidden
