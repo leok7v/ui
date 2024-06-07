@@ -245,8 +245,9 @@ static void right_paint(ui_view_t* v) {
     ui_gdi.set_font(ui_app.fonts.H3.font);
     ui_gdi.textln("H3 %s", ut_nls.str("Header"));
     ui_gdi.set_font(font);
-    ui_gdi.textln("%s %dx%d", ut_nls.str("Client area"),
-                  ui_app.crc.w, ui_app.crc.h);
+    ui_gdi.textln("%s %dx%d root: %d,%d %dx%d", ut_nls.str("Client area"),
+                  ui_app.crc.w, ui_app.crc.h,
+                  ui_app.root->x, ui_app.root->y, ui_app.root->w, ui_app.root->h);
     ui_gdi.textln("%s %dx%d dpi: %d", ut_nls.str("Window"),
                   ui_app.wrc.w, ui_app.wrc.h, ui_app.dpi.window);
     ui_gdi.textln("%s %dx%d dpi: %d ang %d raw %d",
@@ -286,8 +287,8 @@ static void measure(ui_view_t* v) {
     panel_border = ut_max(1, v->fm->em.h / 4);
     frame_border = ut_max(1, v->fm->em.h / 8);
     assert(panel_border > 0 && frame_border > 0);
-    const int32_t w = ui_app.crc.w;
-    const int32_t h = ui_app.crc.h;
+    const int32_t w = ui_app.root->w;
+    const int32_t h = ui_app.root->h;
     // measure ui elements
     panel_top.w = (int32_t)(0.70 * w);
     panel_top.h = v->fm->em.h * 2;
@@ -301,7 +302,7 @@ static void measure(ui_view_t* v) {
 
 static void layout(ui_view_t* unused(view)) {
     assert(view->fm->em.w > 0 && view->fm->em.h > 0);
-    const int32_t h = ui_app.crc.h;
+    const int32_t h = ui_app.root->h;
     panel_top.x = 0;
     panel_top.y = 0;
     panel_bottom.x = 0;

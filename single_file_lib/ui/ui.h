@@ -2358,14 +2358,14 @@ static void ui_app_toast_paint(void) {
             } else {
                 traceln("TODO:");
             }
-            ui_app.animating.view->x = (ui_app.crc.w - ui_app.animating.view->w) / 2;
+            ui_app.animating.view->x = (ui_app.root->w - ui_app.animating.view->w) / 2;
         } else {
             ui_app.animating.view->x = ui_app.animating.x;
             ui_app.animating.view->y = ui_app.animating.y;
             ui_app_measure_and_layout(ui_app.animating.view);
-            int32_t mx = ui_app.crc.w - ui_app.animating.view->w - em_x;
+            int32_t mx = ui_app.root->w - ui_app.animating.view->w - em_x;
             ui_app.animating.view->x = ut_min(mx, ut_max(0, ui_app.animating.x - ui_app.animating.view->w / 2));
-            ui_app.animating.view->y = ut_min(ui_app.crc.h - em_y, ut_max(0, ui_app.animating.y));
+            ui_app.animating.view->y = ut_min(ui_app.root->h - em_y, ut_max(0, ui_app.animating.y));
         }
         int32_t x = ui_app.animating.view->x - em_x;
         int32_t y = ui_app.animating.view->y - em_y / 2;
@@ -2729,7 +2729,8 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
     int32_t cx = x - ui_app.wrc.x; // client coordinates
     int32_t cy = y - ui_app.wrc.y;
     if (ui_app.no_decor) {
-        int32_t bt = ut_max(4, ui_app.in2px(1.0 / 16.0));
+        assert(ui_app.border.w == ui_app.border.h);
+        int32_t border = ui_app.border.w * 2; // makes it easier to resize window
         if (ui_app.animating.view != null) {
             return ui.hit_test.client; // message box or toast is up
         } else if (ui_app.is_maximized()) {
@@ -2737,23 +2738,23 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
             return ht == ui.hit_test.nowhere ? ui.hit_test.client : ht;
         } else if (ui_app.is_full_screen) {
             return ui.hit_test.client;
-        } else if (cx < bt && cy < bt) {
+        } else if (cx < border && cy < border) {
             return ui.hit_test.top_left;
-        } else if (cx > ui_app.crc.w - bt && cy < bt) {
+        } else if (cx > ui_app.crc.w - border && cy < border) {
             return ui.hit_test.top_right;
-        } else if (cy < bt) {
+        } else if (cy < border) {
             return ui.hit_test.top;
         } else if (!ui_caption.view.hidden && cy < ui_caption.view.h) {
             return ui_caption.view.hit_test(&ui_caption.view, cx, cy);
-        } else if (cx > ui_app.crc.w - bt && cy > ui_app.crc.h - bt) {
+        } else if (cx > ui_app.crc.w - border && cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom_right;
-        } else if (cx < bt && cy > ui_app.crc.h - bt) {
+        } else if (cx < border && cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom_left;
-        } else if (cx < bt) {
+        } else if (cx < border) {
             return ui.hit_test.left;
-        } else if (cx > ui_app.crc.w - bt) {
+        } else if (cx > ui_app.crc.w - border) {
             return ui.hit_test.right;
-        } else if (cy > ui_app.crc.h - bt) {
+        } else if (cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom;
         } else {
             // drop down to content hit test
@@ -4154,14 +4155,15 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 }
 
 static void ui_caption_measured(ui_view_t* v) {
-    ui_caption.title.hidden = v->w > ui_app.crc.w;
-    v->w = ui_app.crc.w;
+    // do not show title if there is not enough space
+    ui_caption.title.hidden = v->w > ui_app.root->w;
+    v->w = ui_app.root->w;
     v->h = ui_app.caption_height;
 }
 
 static void ui_caption_composed(ui_view_t* v) {
-    v->x = ui_app.border.w;
-    v->y = ui_app.border.h;
+    v->x = ui_app.root->x;
+    v->y = ui_app.root->y;
 }
 
 static void ui_caption_paint(ui_view_t* v) {
@@ -4898,23 +4900,12 @@ static void ui_list_measure(ui_view_t* p) {
               max_h, insets.bottom, max_h + insets.bottom);
         max_h += insets.bottom;
     }
-//  TODO: childrens max_w is infinity does NOT mean
-//        max_w of the parent is infinity? if this is correct remove
-//        commented section
-//  swear(max_h == 0 || max_h >= h, "max_h is less than actual height h");
-//  if (max_h != h) { // only if max_h differs from actual height
-//      p->max_h = ut_max(max_h, p->max_h);
-//  }
     if (p->hidden) {
         p->w = 0;
         p->h = 0;
     } else if (p == ui_app.root) {
-        // ui_app.root is special case (expanded to a window)
-        // TODO: when get_min_max() start taking content into account
-        //       the code below may be changed to asserts() and removed
-        //       after confirming the rest of the logic
-        p->w = ui_app.no_decor ? ui_app.wrc.w : ui_app.crc.w;
-        p->h = ui_app.no_decor ? ui_app.wrc.h : ui_app.crc.h;
+        // ui_app.root is special occupying whole window client rectangle
+        // sans borders and caption thus it should not be re-measured
     } else {
         p->h = h + insets.bottom;
         p->w = insets.left + w + insets.right;

@@ -104,13 +104,24 @@ static void opened(void) {
     static ui_view_t list = ui_view(list);
     static ui_view_t span = ui_view(span);
     static ui_view_t tools = ui_view(list);
-    static ui_button_t button_container = ui_button("&Container",  11.0, toggle_container);
-    static ui_button_t button_span      = ui_button("&Span",       11.0, toggle_span);
-    static ui_button_t button_list      = ui_button("&List",       11.0, toggle_list);
-    static ui_button_t button_controls  = ui_button("&Controls",   11.0, toggle_controls);
-    static ui_button_t button_about     = ui_button("&About",      11.0, toggle_about);
-    static ui_slider_t slider_insets    = ui_slider("Insets:  %d",  5.5, 0, 3, slider_format, insets_callback);
-    static ui_slider_t slider_padding   = ui_slider("Padding: %d",  5.5, 0, 3, slider_format, padding_callback);
+    static ui_button_t button_container =
+           ui_button("&Container",  9.2f, toggle_container);
+    static ui_button_t button_span =
+           ui_button("&Span",       9.2f, toggle_span);
+    static ui_button_t button_list =
+           ui_button("&List",       9.2f, toggle_list);
+    static ui_button_t button_controls =
+           ui_button("&Controls",   9.2f, toggle_controls);
+    static ui_button_t button_about =
+           ui_button("&About",      9.2f, toggle_about);
+    static ui_slider_t slider_insets =
+           ui_slider("Insets:  %d", 6.0f, 0, 7, 
+                                          slider_format,
+                                          insets_callback);
+    static ui_slider_t slider_padding =
+           ui_slider("Padding: %d", 6.0f, 0, 7, 
+                                          slider_format,
+                                          padding_callback);
     ui_view.add(ui_app.content,
         ui_view.add(&list,
             ui_view.add(&span,

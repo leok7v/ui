@@ -56,19 +56,19 @@ static void stats(int32_t ix) {
     fp64_t d1 = fabs(t->max_dt);
     fp64_t spread = ut_max_fp64(d0, d1) * 2;
     t->spread = ut_max(t->spread, spread);
-    if (t->samples % 1000 == 0) {
-        traceln("[%d] samples: %6d spread: %.6f min %.6f max %.6f",
-                ix, t->samples, t->spread, t->min_dt, t->max_dt);
-    }
+//  if (t->samples % 1000 == 0) {
+//      traceln("[%d] samples: %6d spread: %.6f min %.6f max %.6f",
+//              ix, t->samples, t->spread, t->min_dt, t->max_dt);
+//  }
 }
 
 static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
     volatile time_stats_t* t = &ts[ix];
-    const int h2 = ui_app.crc.h / 2;
+    const int h2 = ui_app.root->h / 2;
     const int h4 = h2 / 2;
     const int h8 = h4 / 2;
     ui_gdi.y = y - h8;
-    ui_gdi.line_with(0, y, ui_app.crc.w, y, ui_colors.white);
+    ui_gdi.line_with(0, y, ui_app.root->w, y, ui_colors.white);
     ui_pen_t pen = ui_gdi.set_colored_pen(c);
     if (t->samples > 2) {
         const fp64_t spread = ts[ix].spread;
@@ -105,7 +105,7 @@ static void paint(ui_view_t* v) {
         ui_gdi.x = v->fm->em.w;
         ui_gdi.print("10ms window timer jitter ");
         ui_gdi.print("(\"sps\" stands for samples per second)");
-        const int h2 = ui_app.crc.h / 2;
+        const int h2 = ui_app.root->h / 2;
         const int h4 = h2 / 2;
         graph(v, 0, ui_colors.tone_red, h4);
         ui_gdi.y = h2;

@@ -109,14 +109,15 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 }
 
 static void ui_caption_measured(ui_view_t* v) {
-    ui_caption.title.hidden = v->w > ui_app.crc.w;
-    v->w = ui_app.crc.w;
+    // do not show title if there is not enough space
+    ui_caption.title.hidden = v->w > ui_app.root->w;
+    v->w = ui_app.root->w;
     v->h = ui_app.caption_height;
 }
 
 static void ui_caption_composed(ui_view_t* v) {
-    v->x = ui_app.border.w;
-    v->y = ui_app.border.h;
+    v->x = ui_app.root->x;
+    v->y = ui_app.root->y;
 }
 
 static void ui_caption_paint(ui_view_t* v) {

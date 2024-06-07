@@ -57,8 +57,8 @@ static void stop_rendering(void) {
 }
 
 static void measure(ui_view_t* view) {
-    view->w = ui_app.crc.w;
-    view->h = ui_app.crc.h;
+    view->w = ui_app.root->w;
+    view->h = ui_app.root->h;
     const int w = view->w;
     const int h = view->h;
     ui_image_t* im = &image[index];
@@ -104,8 +104,8 @@ static void fini(void) {
 }
 
 static void opened(void) {
-    fatal_if(ui_app.crc.w * ui_app.crc.h * 4 > countof(pixels[0]),
-        "increase size of pixels[][%d * %d * 4]", ui_app.crc.w, ui_app.crc.h);
+    fatal_if(ui_app.root->w * ui_app.root->h * 4 > countof(pixels[0]),
+        "increase size of pixels[][%d * %d * 4]", ui_app.root->w, ui_app.root->h);
     ui_app.fini = fini;
     ui_app.closed = closed;
     ui_view.add(ui_app.content, &button_fs, null);
@@ -116,8 +116,8 @@ static void opened(void) {
     wake = ut_event.create();
     quit = ut_event.create();
     // images:
-    ui_gdi.image_init(&image[0], ui_app.crc.w, ui_app.crc.h, 4, pixels[0]);
-    ui_gdi.image_init(&image[1], ui_app.crc.w, ui_app.crc.h, 4, pixels[1]);
+    ui_gdi.image_init(&image[0], ui_app.root->w, ui_app.root->h, 4, pixels[0]);
+    ui_gdi.image_init(&image[1], ui_app.root->w, ui_app.root->h, 4, pixels[1]);
     thread = ut_thread.start(renderer, null);
     request_rendering();
     ut_str_printf(button_fs.hint, "&Full Screen");

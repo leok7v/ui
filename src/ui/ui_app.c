@@ -667,14 +667,14 @@ static void ui_app_toast_paint(void) {
             } else {
                 traceln("TODO:");
             }
-            ui_app.animating.view->x = (ui_app.crc.w - ui_app.animating.view->w) / 2;
+            ui_app.animating.view->x = (ui_app.root->w - ui_app.animating.view->w) / 2;
         } else {
             ui_app.animating.view->x = ui_app.animating.x;
             ui_app.animating.view->y = ui_app.animating.y;
             ui_app_measure_and_layout(ui_app.animating.view);
-            int32_t mx = ui_app.crc.w - ui_app.animating.view->w - em_x;
+            int32_t mx = ui_app.root->w - ui_app.animating.view->w - em_x;
             ui_app.animating.view->x = ut_min(mx, ut_max(0, ui_app.animating.x - ui_app.animating.view->w / 2));
-            ui_app.animating.view->y = ut_min(ui_app.crc.h - em_y, ut_max(0, ui_app.animating.y));
+            ui_app.animating.view->y = ut_min(ui_app.root->h - em_y, ut_max(0, ui_app.animating.y));
         }
         int32_t x = ui_app.animating.view->x - em_x;
         int32_t y = ui_app.animating.view->y - em_y / 2;
@@ -1038,7 +1038,8 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
     int32_t cx = x - ui_app.wrc.x; // client coordinates
     int32_t cy = y - ui_app.wrc.y;
     if (ui_app.no_decor) {
-        int32_t bt = ut_max(4, ui_app.in2px(1.0 / 16.0));
+        assert(ui_app.border.w == ui_app.border.h);
+        int32_t border = ui_app.border.w * 2; // makes it easier to resize window
         if (ui_app.animating.view != null) {
             return ui.hit_test.client; // message box or toast is up
         } else if (ui_app.is_maximized()) {
@@ -1046,23 +1047,23 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
             return ht == ui.hit_test.nowhere ? ui.hit_test.client : ht;
         } else if (ui_app.is_full_screen) {
             return ui.hit_test.client;
-        } else if (cx < bt && cy < bt) {
+        } else if (cx < border && cy < border) {
             return ui.hit_test.top_left;
-        } else if (cx > ui_app.crc.w - bt && cy < bt) {
+        } else if (cx > ui_app.crc.w - border && cy < border) {
             return ui.hit_test.top_right;
-        } else if (cy < bt) {
+        } else if (cy < border) {
             return ui.hit_test.top;
         } else if (!ui_caption.view.hidden && cy < ui_caption.view.h) {
             return ui_caption.view.hit_test(&ui_caption.view, cx, cy);
-        } else if (cx > ui_app.crc.w - bt && cy > ui_app.crc.h - bt) {
+        } else if (cx > ui_app.crc.w - border && cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom_right;
-        } else if (cx < bt && cy > ui_app.crc.h - bt) {
+        } else if (cx < border && cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom_left;
-        } else if (cx < bt) {
+        } else if (cx < border) {
             return ui.hit_test.left;
-        } else if (cx > ui_app.crc.w - bt) {
+        } else if (cx > ui_app.crc.w - border) {
             return ui.hit_test.right;
-        } else if (cy > ui_app.crc.h - bt) {
+        } else if (cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom;
         } else {
             // drop down to content hit test

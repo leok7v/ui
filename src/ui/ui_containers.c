@@ -281,23 +281,12 @@ static void ui_list_measure(ui_view_t* p) {
               max_h, insets.bottom, max_h + insets.bottom);
         max_h += insets.bottom;
     }
-//  TODO: childrens max_w is infinity does NOT mean
-//        max_w of the parent is infinity? if this is correct remove
-//        commented section
-//  swear(max_h == 0 || max_h >= h, "max_h is less than actual height h");
-//  if (max_h != h) { // only if max_h differs from actual height
-//      p->max_h = ut_max(max_h, p->max_h);
-//  }
     if (p->hidden) {
         p->w = 0;
         p->h = 0;
     } else if (p == ui_app.root) {
-        // ui_app.root is special case (expanded to a window)
-        // TODO: when get_min_max() start taking content into account
-        //       the code below may be changed to asserts() and removed
-        //       after confirming the rest of the logic
-        p->w = ui_app.no_decor ? ui_app.wrc.w : ui_app.crc.w;
-        p->h = ui_app.no_decor ? ui_app.wrc.h : ui_app.crc.h;
+        // ui_app.root is special occupying whole window client rectangle
+        // sans borders and caption thus it should not be re-measured
     } else {
         p->h = h + insets.bottom;
         p->w = insets.left + w + insets.right;

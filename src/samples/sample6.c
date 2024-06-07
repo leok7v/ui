@@ -175,24 +175,26 @@ static void animate(void) {
             if (animation.x - gif.w / 2 < 0) {
                 animation.x = gif.w / 2;
                 animation.speed_x = -animation.speed_x;
-            } else if (animation.x + gif.w / 2 >= ui_app.crc.w) {
-                animation.x = ui_app.crc.w - gif.w / 2 - 1;
+            } else if (animation.x + gif.w / 2 >= ui_app.root->w) {
+                animation.x = ui_app.root->w - gif.w / 2 - 1;
                 animation.speed_x = -animation.speed_x;
             }
             if (animation.y - gif.h / 2 < 0) {
                 animation.y = gif.h / 2;
                 animation.speed_y = -animation.speed_y;
-            } else if (animation.y + gif.h / 2 >= ui_app.crc.h) {
-                animation.y = ui_app.crc.h - gif.h / 2 - 1;
+            } else if (animation.y + gif.h / 2 >= ui_app.root->h) {
+                animation.y = ui_app.root->h - gif.h / 2 - 1;
                 animation.speed_y = -animation.speed_y;
             }
             int inc = ut_num.random32(&animation.seed) % 2 == 0 ? -1 : +1;
             if (ut_num.random32(&animation.seed) % 2 == 0) {
-                if (1 <= animation.speed_x + inc && animation.speed_x + inc < max_speed) {
+                if (1 <= animation.speed_x + inc && 
+                    animation.speed_x + inc < max_speed) {
                     animation.speed_x += inc;
                 }
             } else {
-                if (1 <= animation.speed_y + inc && animation.speed_y + inc < max_speed) {
+                if (1 <= animation.speed_y + inc && 
+                    animation.speed_y + inc < max_speed) {
                     animation.speed_y += inc;
                 }
             }
