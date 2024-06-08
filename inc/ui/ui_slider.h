@@ -11,11 +11,13 @@ typedef struct ui_slider_s {
     int32_t step;
     fp64_t time; // time last button was pressed
     ui_wh_t mt;  // text measurement (special case for %0*d)
-    ui_button_t inc;
-    ui_button_t dec;
+    ui_button_t inc; // can be hidden
+    ui_button_t dec; // can be hidden
     int32_t value;  // for ui_slider_t range slider control
     int32_t value_min;
     int32_t value_max;
+    // style:
+    bool notched; // true if marked with a notches and has a thumb
 } ui_slider_t;
 
 void ui_view_init_slider(ui_view_t* view);

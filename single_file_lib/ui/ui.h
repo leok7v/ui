@@ -1340,11 +1340,13 @@ typedef struct ui_slider_s {
     int32_t step;
     fp64_t time; // time last button was pressed
     ui_wh_t mt;  // text measurement (special case for %0*d)
-    ui_button_t inc;
-    ui_button_t dec;
+    ui_button_t inc; // can be hidden
+    ui_button_t dec; // can be hidden
     int32_t value;  // for ui_slider_t range slider control
     int32_t value_min;
     int32_t value_max;
+    // style:
+    bool notched; // true if marked with a notches and has a thumb
 } ui_slider_t;
 
 void ui_view_init_slider(ui_view_t* view);
@@ -2736,7 +2738,9 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
     int32_t cy = y - ui_app.wrc.y;
     if (ui_app.no_decor) {
         assert(ui_app.border.w == ui_app.border.h);
-        int32_t border = ui_app.border.w * 2; // makes it easier to resize window
+        // on 96dpi monitors ui_app.border is 1x1
+        // make it easier for the user to resize window
+        int32_t border = ut_max(4, ui_app.border.w * 2);
         if (ui_app.animating.view != null) {
             return ui.hit_test.client; // message box or toast is up
         } else if (ui_app.is_maximized()) {

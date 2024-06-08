@@ -1043,7 +1043,9 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
     int32_t cy = y - ui_app.wrc.y;
     if (ui_app.no_decor) {
         assert(ui_app.border.w == ui_app.border.h);
-        int32_t border = ui_app.border.w * 2; // makes it easier to resize window
+        // on 96dpi monitors ui_app.border is 1x1
+        // make it easier for the user to resize window
+        int32_t border = ut_max(4, ui_app.border.w * 2);
         if (ui_app.animating.view != null) {
             return ui.hit_test.client; // message box or toast is up
         } else if (ui_app.is_maximized()) {
