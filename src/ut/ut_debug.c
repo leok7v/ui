@@ -9,14 +9,26 @@ static const char* ut_debug_abbreviate(const char* file) {
 
 #ifdef WINDOWS
 
+static int32_t ut_debug_max_file_line;
+static int32_t ut_debug_max_function;
+
 static void ut_debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
-    char prefix[2 * 1024];
     // full path is useful in MSVC debugger output pane (clickable)
     // for all other scenarios short filename without path is preferable:
     const char* name = IsDebuggerPresent() ? file : ut_files.basename(file);
+    char file_line[1024];
+    snprintf(file_line, countof(file_line) - 1, "%s(%d):", name, line);
+    file_line[countof(file_line) - 1] = 0;
+    ut_debug_max_file_line = ut_max(ut_debug_max_file_line,
+                                    (int32_t)strlen(file_line));
+    ut_debug_max_function  = ut_max(ut_debug_max_function,
+                                    (int32_t)strlen(func));
+    char prefix[2 * 1024];
     // snprintf() does not guarantee zero termination on truncation
-    snprintf(prefix, countof(prefix) - 1, "%s(%d): %s", name, line, func);
+    snprintf(prefix, countof(prefix) - 1, "%-*s %-*s",
+            ut_debug_max_file_line, file_line,
+            ut_debug_max_function,  func);
     prefix[countof(prefix) - 1] = 0; // zero terminated
     char text[2 * 1024];
     if (format != null && format[0] != 0) {
