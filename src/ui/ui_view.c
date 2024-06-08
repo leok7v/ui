@@ -163,9 +163,10 @@ static void ui_view_measure_text(ui_view_t* v) {
 //               v->text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
 //               i.left, i.top, i.right, i.bottom);
+    v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
+    v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
+    ui_wh_t mt = { 0, 0 };
     if (v->text[0] != 0) {
-        v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
-        ui_wh_t mt = { 0 };
         bool multiline = strchr(v->text, '\n') != null;
         if (v->type == ui_view_label && multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
@@ -174,16 +175,9 @@ static void ui_view_measure_text(ui_view_t* v) {
         } else {
             mt = ui_gdi.measure_text(v->fm->font, ui_view.nls(v));
         }
-//      traceln(" mt: %dx%d", mt.x, mt.y);
-        v->w = i.left + ut_max(v->w, mt.w) + i.right;
-        v->h = i.top + mt.h + i.bottom;
-    } else {
-        // TODO: minimum view 1x1 em?
-        v->w = i.left + v->fm->em.w + i.right;
-        v->h = i.top + v->fm->em.h + i.bottom;
-        v->w = ut_max(v->w, ui.gaps_em2px(v->fm->em.w, v->min_w_em));
-        v->h = ut_max(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
     }
+    v->w = i.left + ut_max(v->w, mt.w) + i.right;
+    v->h = i.top  + ut_max(v->h, mt.h) + i.bottom;
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
 

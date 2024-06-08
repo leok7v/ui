@@ -404,25 +404,83 @@ static void ui_list_layout(ui_view_t* p) {
     debugln("<%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
+static void ui_container_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
+    *row = 0; *col = 0; // makes code analysis happier
+    if (c->align == (ui.align.left|ui.align.top)) {
+        *row = 0; *col = 0;
+    } else if (c->align == ui.align.top) {
+        *row = 0; *col = 1;
+    } else if (c->align == (ui.align.right|ui.align.top)) {
+        *row = 0; *col = 2;
+    } else if (c->align == ui.align.left) {
+        *row = 1; *col = 0;
+    } else if (c->align == ui.align.center) {
+        *row = 1; *col = 1;
+    } else if (c->align == ui.align.right) {
+        *row = 1; *col = 2;
+    } else if (c->align == (ui.align.left|ui.align.bottom)) {
+        *row = 2; *col = 0;
+    } else if (c->align == ui.align.bottom) {
+        *row = 2; *col = 1;
+    } else if (c->align == (ui.align.right|ui.align.bottom)) {
+        *row = 2; *col = 2;
+    } else {
+        swear(false, "invalid child align: 0x%02X", c->align);
+    }
+}
+
 static void ui_container_measure(ui_view_t* p) {
+    debugln(">%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
     ui_layout_enter(p);
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
-    // empty container minimum size:
-    p->w = insets.left + insets.right;
-    p->h = insets.top + insets.bottom;
+    ui_wh_t sides[3][3] = { {0, 0} };
     ui_view_for_each_begin(p, c) {
         if (!c->hidden) {
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
-            p->w = ut_max(p->w, padding.left + c->w + padding.right);
-            p->h = ut_max(p->h, padding.top + c->h + padding.bottom);
+            int32_t row = 0;
+            int32_t col = 0;
+            ui_container_child_3x3(c, &row, &col);
+            sides[row][col].w = ut_max(sides[row][col].w, cbx.w);
+            sides[row][col].h = ut_max(sides[row][col].h, cbx.h);
         }
     } ui_view_for_each_end(p, c);
+#ifdef UI_CONTAINER_TRACE
+    for (int32_t r = 0; r < countof(sides); r++) {
+        char text[1024];
+        text[0] = 0;
+        for (int32_t c = 0; c < countof(sides[r]); c++) {
+            char line[128];
+            strprintf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
+            strcat(text, line);
+        }
+        traceln("sides[%d] %s", r, text);
+    }
+#endif
+    ui_wh_t wh = {0, 0};
+    for (int32_t r = 0; r < 3; r++) {
+        int32_t sum_w = 0;
+        for (int32_t c = 0; c < 3; c++) {
+            sum_w += sides[r][c].w;
+        }
+        wh.w = ut_max(wh.w, sum_w);
+    }
+    for (int32_t c = 0; c < 3; c++) {
+        int32_t sum_h = 0;
+        for (int32_t r = 0; r < 3; r++) {
+            sum_h += sides[r][c].h;
+        }
+        wh.h = ut_max(wh.h, sum_h);
+    }
+//  traceln("wh %dx%d", wh.w, wh.h);
+    p->w = insets.left + wh.w + insets.right;
+    p->h = insets.top  + wh.h + insets.bottom;
     ui_layout_exit(p);
+    debugln("<%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
 static void ui_container_layout(ui_view_t* p) {
@@ -485,8 +543,10 @@ static void ui_paint_container(ui_view_t* v) {
 
 static void ui_view_container_init(ui_view_t* v) {
     v->background = ui_colors.transparent;
-    v->insets  = (ui_gaps_t){ .left  = 0.125, .top    = 0.25,
-                              .right = 0.125, .bottom = 0.25 };
+    v->insets  = (ui_gaps_t){
+        .left  = 0.25, .top    = 0.0625,
+        .right = 0.25, .bottom = 0.1875
+    };
 }
 
 void ui_view_init_span(ui_view_t* v) {

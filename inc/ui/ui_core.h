@@ -24,7 +24,7 @@ typedef struct ui_fm_s { // font metrics
     // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
     ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
     int32_t height;    // font height in pixels
-    int32_t baseline;  // bottom of the glyphs sans descenders (align of multifont text)
+    int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
     int32_t ascent;    // The maximum glyphs extend above the baseline
     int32_t descent;   // maximum height of descenders
     int32_t internal_leading; // accents and diacritical marks goes there

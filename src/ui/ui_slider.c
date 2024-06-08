@@ -93,9 +93,10 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.gradient(x, y, w, h, d1, d0, true);
     // draw value:
     ui_color_t c = ui_theme.are_apps_dark() ?
-        ui_colors.dkgreen : ui_colors.jungle_green;
-    d0 = ui_colors.darken(c, 0.25f);
+        ui_colors.darken(ui_colors.green, 1.0f / 128.0f) :
+        ui_colors.jungle_green;
     d1 = c;
+    d0 = ui_colors.darken(c, 1.0f / 64.0f);
     const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
     assert(range > 0, "range: %.6f", range);
     fp64_t vw = (fp64_t)sw * (s->value - s->value_min) / range;
@@ -103,7 +104,7 @@ static void ui_slider_paint(ui_view_t* v) {
     // text:
     ui_wh_t mt = ui_slider_measure_text(s);
     const int32_t cx = (sw - mt.w) / 2; // centering offset
-    ui_gdi.x = v->x + cx + i.left + (s->dec.hidden ? 0 : dec_w);
+    ui_gdi.x = v->x + cx + (s->dec.hidden ? 0 : dec_w);
     ui_gdi.y = v->y + i.top;
     c = ui_gdi.set_text_color(v->color);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
@@ -218,11 +219,11 @@ void ui_view_init_slider(ui_view_t* v) {
         " Hold key while clicking\n"
         " Ctrl: x 10 Shift: x 100 \n"
         " Ctrl+Shift: x 1000 \n for step multiplier.";
-    s->dec = (ui_button_t)ui_button(ut_glyph_heavy_minus_sign, 0,
+    s->dec = (ui_button_t)ui_button(ut_glyph_fullwidth_hyphen_minus, 0, // ut_glyph_heavy_minus_sign
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
     ut_str_printf(s->dec.hint, "%s", accel);
-    s->inc = (ui_button_t)ui_button(ut_glyph_heavy_plus_sign, 0,
+    s->inc = (ui_button_t)ui_button(ut_glyph_fullwidth_plus_sign, 0, // ut_glyph_heavy_plus_sign
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
     // inherit initial padding and insets from buttons.

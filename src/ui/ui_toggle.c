@@ -1,27 +1,21 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static int ui_toggle_paint_on_off(ui_view_t* v) {
-    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    ui_gdi.push(v->x + i.left, v->y + i.top);
-    ui_color_t b = v->background;
-    if (!ui_theme.are_apps_dark()) { b = ui_colors.darken(b, 0.25f); }
-    ui_color_t background = v->pressed ? ui_colors.tone_green : b;
-    ui_gdi.set_text_color(background);
-    int32_t x = v->x;
-    int32_t x1 = v->x + v->fm->em.w * 3 / 4;
-    while (x < x1) {
-        ui_gdi.x = x;
-        ui_gdi.text("%s", ut_glyph_black_large_circle);
-        x++;
-    }
-    int32_t rx = ui_gdi.x;
-    ui_gdi.x = v->pressed ? x : v->x;
-    ui_color_t c = ui_gdi.set_text_color(v->color);
-    ui_gdi.text("%s", ut_glyph_black_large_circle);
-    ui_gdi.set_text_color(c);
-    ui_gdi.pop();
-    return rx;
+static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
+    ui_color_t c = v->background;
+    if (!ui_theme.are_apps_dark()) { c = ui_colors.darken(c, 0.25f); }
+    ui_color_t b = v->pressed ? ui_colors.tone_green : c;
+    const int32_t bl = v->fm->baseline;
+    const int32_t a = v->fm->ascent;
+    const int32_t d = v->fm->descent;
+//  traceln("v->fm baseline: %d ascent: %d descent: %d", bl, a, d);
+    const int32_t w = v->fm->em.w;
+    const int32_t r = a + d / 2;
+    y += bl - r + d / 4;
+    ui_gdi.rounded_with(x, y, w, r, r, r, b, b);
+    int32_t x1 = v->pressed ? x + w - r : x;
+    ui_gdi.rounded_with(x1, y, r, r, r, r, v->color, v->color);
+    return x + w;
 }
 
 static const char* ui_toggle_on_off_label(ui_view_t* v,
@@ -46,7 +40,8 @@ static void ui_toggle_paint(ui_view_t* v) {
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     ui_gdi.push(v->x + i.left, v->y + i.top);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
-    ui_gdi.x = ui_toggle_paint_on_off(v) + v->fm->em.w * 3 / 4;
+    ui_gdi.x = ui_toggle_paint_on_off(v, ui_gdi.x, ui_gdi.y);
+    ui_gdi.x += v->fm->em.w / 4;
     ui_color_t c = ui_gdi.set_text_color(v->color);
     ui_gdi.text("%s", label);
     ui_gdi.set_text_color(c);

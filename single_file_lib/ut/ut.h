@@ -666,6 +666,16 @@ extern ut_generics_if ut_generics;
 // Heavy Plus Sign https://www.compart.com/en/unicode/U+2795
 #define ut_glyph_heavy_plus_sign                        "\xE2\x9E\x95"
 
+// Halfwidth Katakana-Hiragana Prolonged Sound Mark https://www.compart.com/en/unicode/U+FF70
+#define ut_glyph_prolonged_sound_mark                   "\xEF\xBD\xB0"
+
+// Fullwidth Plus Sign https://www.compart.com/en/unicode/U+FF0B
+#define ut_glyph_fullwidth_plus_sign                    "\xEF\xBC\x8B"
+
+// Fullwidth Hyphen-Minus https://www.compart.com/en/unicode/U+FF0D
+#define ut_glyph_fullwidth_hyphen_minus                "\xEF\xBC\x8D"
+
+
 // Heavy Multiplication X https://www.compart.com/en/unicode/U+2716
 #define ut_glyph_heavy_multiplication_x                 "\xE2\x9C\x96"
 
@@ -754,9 +764,6 @@ extern ut_generics_if ut_generics;
 
 // Non-Breaking Hyphen https://www.compart.com/en/unicode/U+2011
 #define ut_glyph_non_breaking_hyphen                   "\xE2\x80\x91"
-
-// Fullwidth Hyphen-Minus https://www.compart.com/en/unicode/U+FF0D
-#define ut_glyph_fullwidth_hyphen_minus                "\xEF\xBC\x8D"
 
 // Fullwidth Low Line https://www.compart.com/en/unicode/U+FF3F
 #define ut_glyph_fullwidth_low_line                    "\xEF\xBC\xBF"

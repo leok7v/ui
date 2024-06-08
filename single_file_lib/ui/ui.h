@@ -156,7 +156,7 @@ typedef struct ui_fm_s { // font metrics
     // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
     ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
     int32_t height;    // font height in pixels
-    int32_t baseline;  // bottom of the glyphs sans descenders (align of multifont text)
+    int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
     int32_t ascent;    // The maximum glyphs extend above the baseline
     int32_t descent;   // maximum height of descenders
     int32_t internal_leading; // accents and diacritical marks goes there
@@ -712,7 +712,9 @@ typedef struct {
     void (*fill_with)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
     void (*poly)(ui_point_t* points, int32_t count);
     void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t rx, int32_t ry); // see RoundRect, pen, brush
+        int32_t rx, int32_t ry); // see RoundRect with pen, brush
+    void (*rounded_with)(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t rx, int32_t ry, ui_color_t border, ui_color_t fill);
     void (*gradient)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical);
     // draw images: (x,y remains untouched after drawing)
@@ -1168,10 +1170,10 @@ void ui_view_init_label(ui_view_t* view);
       .fm = &ui_app.fonts.regular,                       \
       .text = s,                                         \
       .min_w_em = min_width_em, .min_h_em = 1.0,         \
-      .padding = { .left  = 0.125, .top    = 0.25,       \
-                   .right = 0.125, .bottom = 0.25, },    \
-      .insets  = { .left  = 0.125, .top    = 0.25,       \
-                   .right = 0.125, .bottom = 0.25, }     \
+      .padding = { .left  = 0.25, .top    = 0.25,        \
+                   .right = 0.25, .bottom = 0.25, },     \
+      .insets  = { .left  = 0.25, .top    = 0.0625,      \
+                   .right = 0.25, .bottom = 0.1875 }     \
 }
 
 // text with "&" keyboard shortcuts:
@@ -1211,10 +1213,10 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
         .fm = &ui_app.fonts.regular,                           \
         .text = s, .callback = name ## _callback,              \
         .min_w_em = min_width_em, .min_h_em = 1.0,             \
-        .padding = { .left  = 0.125, .top    = 0.25,           \
-                     .right = 0.125, .bottom = 0.25, },        \
-        .insets  = { .left  = 0.125, .top    = 0.25,           \
-                     .right = 0.125, .bottom = 0.25, }         \
+        .padding = { .left  = 0.25, .top    = 0.25,            \
+                     .right = 0.25, .bottom = 0.25, },         \
+        .insets  = { .left  = 0.25, .top    = 0.0625,          \
+                     .right = 0.25, .bottom = 0.1875 }         \
     }
 
 #define ui_button(s, min_width_em, call_back) {              \
@@ -1222,10 +1224,10 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     .fm = &ui_app.fonts.regular,                             \
     .text = s, .callback = call_back,                        \
     .min_w_em = min_width_em, .min_h_em = 1.0,               \
-    .padding = { .left  = 0.125, .top    = 0.25,             \
-                 .right = 0.125, .bottom = 0.25, },          \
-    .insets  = { .left  = 0.125, .top    = 0.25,             \
-                 .right = 0.125, .bottom = 0.25, }           \
+    .padding = { .left  = 0.25, .top    = 0.25,              \
+                 .right = 0.25, .bottom = 0.25, },           \
+    .insets  = { .left  = 0.25, .top    = 0.0625,            \
+                 .right = 0.25, .bottom = 0.1875 }           \
 }
 
 // usage:
@@ -1276,7 +1278,7 @@ typedef struct  {
     ui_color_t (*get_color)(int32_t color_id);
     bool (*is_system_dark)(void);
     bool (*are_apps_dark)(void);
-    void (*refresh)(void* window);
+    void (*refresh)(void);
     void (*test)(void);
 } ui_theme_if;
 
@@ -1309,10 +1311,10 @@ void ui_view_init_toggle(ui_view_t* view);
         .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
         .text = s, .callback = name ## _callback,              \
         .min_w_em = 1.0, .min_h_em = 1.0,                      \
-        .padding = { .left  = 0.125, .top    = 0.25,           \
-                     .right = 0.125, .bottom = 0.25 },         \
-        .insets  = { .left  = 0.125, .top    = 0.25,           \
-                     .right = 0.125, .bottom = 0.25 }          \
+        .padding = { .left  = 0.25, .top    = 0.25,            \
+                     .right = 0.25, .bottom = 0.25 },          \
+        .insets  = { .left  = 0.25, .top    = 0.0625,          \
+                     .right = 0.25, .bottom = 0.1875 }         \
     }
 
 #define ui_toggle(s, min_width_em, call_back) {            \
@@ -1320,10 +1322,10 @@ void ui_view_init_toggle(ui_view_t* view);
     .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
     .text = s, .callback = call_back,                      \
     .min_w_em = 1.0, .min_h_em = 1.0,                      \
-    .padding = { .left  = 0.125, .top    = 0.25,           \
-                 .right = 0.125, .bottom = 0.25 },         \
-    .insets  = { .left  = 0.125, .top    = 0.25,           \
-                 .right = 0.125, .bottom = 0.25 }          \
+    .padding = { .left  = 0.25, .top    = 0.25,            \
+                 .right = 0.25, .bottom = 0.25 },          \
+    .insets  = { .left  = 0.25, .top    = 0.0625,          \
+                 .right = 0.25, .bottom = 0.1875 }         \
 }
 
 // _______________________________ ui_slider.h ________________________________
@@ -1664,7 +1666,7 @@ typedef struct ui_view_s ui_view_t;
 // void opened(void) {
 //     ui_view.add(ui_app.view, ..., null);
 //     ui_app.view->insets = (ui_gaps_t) {
-//         .left = 0.25,  .top = 0.25,
+//         .left  = 0.25, .top    = 0.25,
 //         .right = 0.25, .bottom = 0.25 };
 //     ui_app.view->color = ui_colors.dark_scarlet;
 // }
@@ -2320,7 +2322,7 @@ static void ui_app_tap_press(int32_t m, int64_t wp, int64_t lp) {
     }
 }
 
-enum { ui_app_animation_steps = 15 };
+enum { ui_app_animation_steps = 63 };
 
 static void ui_app_toast_paint(void) {
     static ui_image_t image_dark;
@@ -2359,6 +2361,8 @@ static void ui_app_toast_paint(void) {
                 traceln("TODO:");
             }
             ui_app.animating.view->x = (ui_app.root->w - ui_app.animating.view->w) / 2;
+//          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
+//                  ui_app.animating.y, ui_app.animating.view->y);
         } else {
             ui_app.animating.view->x = ui_app.animating.x;
             ui_app.animating.view->y = ui_app.animating.y;
@@ -2366,6 +2370,8 @@ static void ui_app_toast_paint(void) {
             int32_t mx = ui_app.root->w - ui_app.animating.view->w - em_x;
             ui_app.animating.view->x = ut_min(mx, ut_max(0, ui_app.animating.x - ui_app.animating.view->w / 2));
             ui_app.animating.view->y = ut_min(ui_app.root->h - em_y, ut_max(0, ui_app.animating.y));
+//          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
+//                  ui_app.animating.y, ui_app.animating.view->y);
         }
         int32_t x = ui_app.animating.view->x - em_x;
         int32_t y = ui_app.animating.view->y - em_y / 2;
@@ -2607,7 +2613,7 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         // SPI_SETNONCLIENTMETRICS 0x2A ?
 //      traceln("wp: 0x%08X", wp);
         // actual wp == 0x0000
-        ui_theme.refresh(ui_app.window);
+        ui_theme.refresh();
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
@@ -2616,8 +2622,8 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
         n = ResolveLocaleName(ln, rln, countof(rln));
         fatal_if_false(n > 0);
-        LCID lcid = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
-        fatal_if_false(SetThreadLocale(lcid));
+        LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
+        fatal_if_false(SetThreadLocale(lc_id));
     }
 }
 
@@ -2811,7 +2817,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     }
     switch (m) {
         case WM_GETMINMAXINFO: ui_app_get_min_max_info((MINMAXINFO*)lp); break;
-        case WM_THEMECHANGED : break;
+        case WM_THEMECHANGED : ui_theme.refresh(); break;
         case WM_SETTINGCHANGE: ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
         case WM_CLOSE        : ui_app.focus = null; // before WM_CLOSING
                                ui_app_post_message(ui.message.closing, 0, 0); return 0;
@@ -3074,7 +3080,7 @@ static void ui_app_create_window(const ui_rect_t r) {
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE };
         SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, swp);
     }
-    ui_theme.refresh(ui_app.window);
+    ui_theme.refresh();
     if (ui_app.visibility != ui.visibility.hide) {
         AnimateWindow(ui_app_window(), 250, AW_ACTIVATE);
         ui_app.show_window(ui_app.visibility);
@@ -3805,7 +3811,7 @@ static int ui_app_win_main(void) {
     ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
     ui_app.border.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME, (uint32_t)ui_app.dpi.process);
     // border is too think (5 pixels) narrow down to 3x3
-    const int32_t max_border = ui_app.dpi.window <= 100 ? 1 : 
+    const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :
         (ui_app.dpi.window >= 192 ? 3 : 2);
     ui_app.border.w = ut_min(max_border, ui_app.border.w);
     ui_app.border.h = ut_min(max_border, ui_app.border.h);
@@ -3924,30 +3930,47 @@ static void ui_button_paint(ui_view_t* v) {
         c = ui_app.get_color(ui_color_id_hot_tracking_color);
     }
     if (v->disabled) { c = ui_app.get_color(ui_color_id_gray_text); }
+    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const int32_t t_w = v->w - i.left - i.right;
+    const int32_t t_h = v->h - i.top - i.bottom;
+//  traceln("%s align=%02X", v->text, v->align);
     if (v->icon == null) {
         ui_font_t f = v->fm->font;
         ui_wh_t m = ui_gdi.measure_text(f, ui_view.nls(v));
+        int32_t t_x = 0;
+        if (v->align & ui.align.left) {
+            t_x = 0;
+        } else if (v->align == ui.align.center) {
+            t_x = (t_w - m.w) / 2;
+        } else if (v->align & ui.align.right) {
+            t_x = t_w - m.w - i.right;
+        }
+        int32_t t_y = 0;
+        if (v->align & ui.align.top) {
+            t_y = 0;
+        } else if (v->align == ui.align.center) {
+            t_y = (t_h - m.h) / 2;
+        } else if (v->align & ui.align.bottom) {
+            t_y = t_h - m.h - i.bottom;
+        }
+        ui_gdi.x = v->x + i.left + t_x;
+        ui_gdi.y = v->y + i.top  + t_y;
         ui_gdi.set_text_color(c);
-        ui_gdi.x = v->x + (v->w - m.w) / 2;
-        ui_gdi.y = v->y + (v->h - m.h) / 2;
         f = ui_gdi.set_font(f);
         ui_gdi.text("%s", ui_view.nls(v));
         ui_gdi.set_font(f);
     } else {
-        ui_gdi.draw_icon(v->x, v->y, v->w, v->h, v->icon);
+        ui_gdi.draw_icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
     }
-    const int32_t pw = ut_max(1, v->fm->em.h / 8); // pen width
-    ui_color_t color = v->armed ? ui_colors.lighten(v->background, 0.125f) : d1;
+    ui_color_t color = v->armed ? 
+        ui_colors.lighten(v->background, 0.125f) : d1;
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {
-        ui_pen_t p = ui_gdi.create_pen(color, pw);
-        ui_gdi.set_pen(p);
-        ui_gdi.set_brush(ui_gdi.brush_hollow);
         int32_t r = ut_max(3, v->fm->em.h / 4);
         if (r % 2 == 0) { r++; }
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, r);
-        ui_gdi.delete_pen(p);
+        ui_gdi.rounded_with(v->x, v->y, v->w, v->h, r, r,
+                            color, ui_colors.transparent);
     }
     ui_gdi.pop();
 }
@@ -4057,7 +4080,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 
 #define ui_caption_glyph_rest ut_glyph_two_joined_squares
 #define ui_caption_glyph_menu ut_glyph_trigram_for_heaven
-#define ui_caption_glyph_mini ut_glyph_light_horizontal //ut_glyph_fullwidth_low_line
+#define ui_caption_glyph_mini ut_glyph_fullwidth_hyphen_minus //ut_glyph_fullwidth_low_line
 #define ui_caption_glyph_maxi ut_glyph_white_large_square
 #define ui_caption_glyph_full ut_glyph_square_four_corners
 #define ui_caption_glyph_quit ut_glyph_n_ary_times_operator
@@ -5023,25 +5046,83 @@ static void ui_list_layout(ui_view_t* p) {
     debugln("<%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
+static void ui_container_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
+    *row = 0; *col = 0; // makes code analysis happier
+    if (c->align == (ui.align.left|ui.align.top)) {
+        *row = 0; *col = 0;
+    } else if (c->align == ui.align.top) {
+        *row = 0; *col = 1;
+    } else if (c->align == (ui.align.right|ui.align.top)) {
+        *row = 0; *col = 2;
+    } else if (c->align == ui.align.left) {
+        *row = 1; *col = 0;
+    } else if (c->align == ui.align.center) {
+        *row = 1; *col = 1;
+    } else if (c->align == ui.align.right) {
+        *row = 1; *col = 2;
+    } else if (c->align == (ui.align.left|ui.align.bottom)) {
+        *row = 2; *col = 0;
+    } else if (c->align == ui.align.bottom) {
+        *row = 2; *col = 1;
+    } else if (c->align == (ui.align.right|ui.align.bottom)) {
+        *row = 2; *col = 2;
+    } else {
+        swear(false, "invalid child align: 0x%02X", c->align);
+    }
+}
+
 static void ui_container_measure(ui_view_t* p) {
+    debugln(">%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
     ui_layout_enter(p);
     swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
-    // empty container minimum size:
-    p->w = insets.left + insets.right;
-    p->h = insets.top + insets.bottom;
+    ui_wh_t sides[3][3] = { {0, 0} };
     ui_view_for_each_begin(p, c) {
         if (!c->hidden) {
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
-            p->w = ut_max(p->w, padding.left + c->w + padding.right);
-            p->h = ut_max(p->h, padding.top + c->h + padding.bottom);
+            int32_t row = 0;
+            int32_t col = 0;
+            ui_container_child_3x3(c, &row, &col);
+            sides[row][col].w = ut_max(sides[row][col].w, cbx.w);
+            sides[row][col].h = ut_max(sides[row][col].h, cbx.h);
         }
     } ui_view_for_each_end(p, c);
+#ifdef UI_CONTAINER_TRACE
+    for (int32_t r = 0; r < countof(sides); r++) {
+        char text[1024];
+        text[0] = 0;
+        for (int32_t c = 0; c < countof(sides[r]); c++) {
+            char line[128];
+            strprintf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
+            strcat(text, line);
+        }
+        traceln("sides[%d] %s", r, text);
+    }
+#endif
+    ui_wh_t wh = {0, 0};
+    for (int32_t r = 0; r < 3; r++) {
+        int32_t sum_w = 0;
+        for (int32_t c = 0; c < 3; c++) {
+            sum_w += sides[r][c].w;
+        }
+        wh.w = ut_max(wh.w, sum_w);
+    }
+    for (int32_t c = 0; c < 3; c++) {
+        int32_t sum_h = 0;
+        for (int32_t r = 0; r < 3; r++) {
+            sum_h += sides[r][c].h;
+        }
+        wh.h = ut_max(wh.h, sum_h);
+    }
+//  traceln("wh %dx%d", wh.w, wh.h);
+    p->w = insets.left + wh.w + insets.right;
+    p->h = insets.top  + wh.h + insets.bottom;
     ui_layout_exit(p);
+    debugln("<%s (%d,%d) %dx%d", p->text, p->x, p->y, p->w, p->h);
 }
 
 static void ui_container_layout(ui_view_t* p) {
@@ -5104,8 +5185,10 @@ static void ui_paint_container(ui_view_t* v) {
 
 static void ui_view_container_init(ui_view_t* v) {
     v->background = ui_colors.transparent;
-    v->insets  = (ui_gaps_t){ .left  = 0.125, .top    = 0.25,
-                              .right = 0.125, .bottom = 0.25 };
+    v->insets  = (ui_gaps_t){
+        .left  = 0.25, .top    = 0.0625,
+        .right = 0.25, .bottom = 0.1875
+    };
 }
 
 void ui_view_init_span(ui_view_t* v) {
@@ -7314,6 +7397,23 @@ static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
     fatal_if_false(RoundRect(ui_app_canvas(), x, y, x + w, y + h, rx, ry));
 }
 
+static void ui_gdi_rounded_with(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t rx, int32_t ry,
+        ui_color_t border, ui_color_t fill) {
+    const bool tf = ui_color_is_transparent(fill);   // transparent fill
+    const bool tb = ui_color_is_transparent(border); // transparent border
+    ui_brush_t b = tf ? ui_gdi.brush_hollow : ui_gdi.brush_color;
+    b = ui_gdi.set_brush(b);
+    ui_color_t c = tf ? ui_colors.transparent : ui_gdi.set_brush_color(fill);
+    ui_pen_t p = tb ? ui_gdi.set_pen(ui_gdi.pen_hollow) :
+                      ui_gdi.set_colored_pen(border);
+    ui_gdi.rounded(x, y, w, h, rx, ry);
+    if (!tf) { ui_gdi.set_brush_color(c); }
+    ui_gdi.set_pen(p);
+    ui_gdi.set_brush(b);
+}
+
+
 static void ui_gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical) {
     TRIVERTEX vertex[2] = {0};
@@ -8132,6 +8232,7 @@ ui_gdi_if ui_gdi = {
     .fill_with                     = ui_gdi_fill_with,
     .poly                          = ui_gdi_poly,
     .rounded                       = ui_gdi_rounded,
+    .rounded_with                  = ui_gdi_rounded_with,
     .gradient                      = ui_gdi_gradient,
     .draw_greyscale                = ui_gdi_draw_greyscale,
     .draw_bgr                      = ui_gdi_draw_bgr,
@@ -8637,9 +8738,10 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.gradient(x, y, w, h, d1, d0, true);
     // draw value:
     ui_color_t c = ui_theme.are_apps_dark() ?
-        ui_colors.dkgreen : ui_colors.jungle_green;
-    d0 = ui_colors.darken(c, 0.25f);
+        ui_colors.darken(ui_colors.green, 1.0f / 128.0f) :
+        ui_colors.jungle_green;
     d1 = c;
+    d0 = ui_colors.darken(c, 1.0f / 64.0f);
     const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
     assert(range > 0, "range: %.6f", range);
     fp64_t vw = (fp64_t)sw * (s->value - s->value_min) / range;
@@ -8647,7 +8749,7 @@ static void ui_slider_paint(ui_view_t* v) {
     // text:
     ui_wh_t mt = ui_slider_measure_text(s);
     const int32_t cx = (sw - mt.w) / 2; // centering offset
-    ui_gdi.x = v->x + cx + i.left + (s->dec.hidden ? 0 : dec_w);
+    ui_gdi.x = v->x + cx + (s->dec.hidden ? 0 : dec_w);
     ui_gdi.y = v->y + i.top;
     c = ui_gdi.set_text_color(v->color);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
@@ -8762,11 +8864,11 @@ void ui_view_init_slider(ui_view_t* v) {
         " Hold key while clicking\n"
         " Ctrl: x 10 Shift: x 100 \n"
         " Ctrl+Shift: x 1000 \n for step multiplier.";
-    s->dec = (ui_button_t)ui_button(ut_glyph_heavy_minus_sign, 0,
+    s->dec = (ui_button_t)ui_button(ut_glyph_fullwidth_hyphen_minus, 0, // ut_glyph_heavy_minus_sign
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
     ut_str_printf(s->dec.hint, "%s", accel);
-    s->inc = (ui_button_t)ui_button(ut_glyph_heavy_plus_sign, 0,
+    s->inc = (ui_button_t)ui_button(ut_glyph_fullwidth_plus_sign, 0, // ut_glyph_heavy_plus_sign
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
     // inherit initial padding and insets from buttons.
@@ -8904,14 +9006,15 @@ static bool ui_theme_is_system_dark(void) {
     return !ui_theme_use_light_theme("SystemUsesLightTheme");
 }
 
-static void ui_theme_refresh(void* window) {
+static void ui_theme_refresh(void) {
+    swear(ui_app.window != null);
     ui_theme_dark = -1;
     BOOL dark_mode = ui_theme.are_apps_dark();
     static const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     /* 20 == DWMWA_USE_IMMERSIVE_DARK_MODE in Windows 11 SDK.
        This value was undocumented for Windows 10 versions 2004
        and later, supported for Windows 11 Build 22000 and later. */
-    errno_t r = DwmSetWindowAttribute((HWND)window,
+    errno_t r = DwmSetWindowAttribute((HWND)ui_app.window,
         DWMWA_USE_IMMERSIVE_DARK_MODE, &dark_mode, sizeof(dark_mode));
     if (r != 0) {
         traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
@@ -8941,27 +9044,21 @@ ui_theme_if ui_theme = {
 
 #include "ut/ut.h"
 
-static int ui_toggle_paint_on_off(ui_view_t* v) {
-    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    ui_gdi.push(v->x + i.left, v->y + i.top);
-    ui_color_t b = v->background;
-    if (!ui_theme.are_apps_dark()) { b = ui_colors.darken(b, 0.25f); }
-    ui_color_t background = v->pressed ? ui_colors.tone_green : b;
-    ui_gdi.set_text_color(background);
-    int32_t x = v->x;
-    int32_t x1 = v->x + v->fm->em.w * 3 / 4;
-    while (x < x1) {
-        ui_gdi.x = x;
-        ui_gdi.text("%s", ut_glyph_black_large_circle);
-        x++;
-    }
-    int32_t rx = ui_gdi.x;
-    ui_gdi.x = v->pressed ? x : v->x;
-    ui_color_t c = ui_gdi.set_text_color(v->color);
-    ui_gdi.text("%s", ut_glyph_black_large_circle);
-    ui_gdi.set_text_color(c);
-    ui_gdi.pop();
-    return rx;
+static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
+    ui_color_t c = v->background;
+    if (!ui_theme.are_apps_dark()) { c = ui_colors.darken(c, 0.25f); }
+    ui_color_t b = v->pressed ? ui_colors.tone_green : c;
+    const int32_t bl = v->fm->baseline;
+    const int32_t a = v->fm->ascent;
+    const int32_t d = v->fm->descent;
+//  traceln("v->fm baseline: %d ascent: %d descent: %d", bl, a, d);
+    const int32_t w = v->fm->em.w;
+    const int32_t r = a + d / 2;
+    y += bl - r + d / 4;
+    ui_gdi.rounded_with(x, y, w, r, r, r, b, b);
+    int32_t x1 = v->pressed ? x + w - r : x;
+    ui_gdi.rounded_with(x1, y, r, r, r, r, v->color, v->color);
+    return x + w;
 }
 
 static const char* ui_toggle_on_off_label(ui_view_t* v,
@@ -8986,7 +9083,8 @@ static void ui_toggle_paint(ui_view_t* v) {
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     ui_gdi.push(v->x + i.left, v->y + i.top);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
-    ui_gdi.x = ui_toggle_paint_on_off(v) + v->fm->em.w * 3 / 4;
+    ui_gdi.x = ui_toggle_paint_on_off(v, ui_gdi.x, ui_gdi.y);
+    ui_gdi.x += v->fm->em.w / 4;
     ui_color_t c = ui_gdi.set_text_color(v->color);
     ui_gdi.text("%s", label);
     ui_gdi.set_text_color(c);
@@ -9218,9 +9316,10 @@ static void ui_view_measure_text(ui_view_t* v) {
 //               v->text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
 //               i.left, i.top, i.right, i.bottom);
+    v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
+    v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
+    ui_wh_t mt = { 0, 0 };
     if (v->text[0] != 0) {
-        v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
-        ui_wh_t mt = { 0 };
         bool multiline = strchr(v->text, '\n') != null;
         if (v->type == ui_view_label && multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
@@ -9229,16 +9328,9 @@ static void ui_view_measure_text(ui_view_t* v) {
         } else {
             mt = ui_gdi.measure_text(v->fm->font, ui_view.nls(v));
         }
-//      traceln(" mt: %dx%d", mt.x, mt.y);
-        v->w = i.left + ut_max(v->w, mt.w) + i.right;
-        v->h = i.top + mt.h + i.bottom;
-    } else {
-        // TODO: minimum view 1x1 em?
-        v->w = i.left + v->fm->em.w + i.right;
-        v->h = i.top + v->fm->em.h + i.bottom;
-        v->w = ut_max(v->w, ui.gaps_em2px(v->fm->em.w, v->min_w_em));
-        v->h = ut_max(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
     }
+    v->w = i.left + ut_max(v->w, mt.w) + i.right;
+    v->h = i.top  + ut_max(v->h, mt.h) + i.bottom;
 //  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
 }
 

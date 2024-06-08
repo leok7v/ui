@@ -13,10 +13,10 @@ void ui_view_init_label(ui_view_t* view);
       .fm = &ui_app.fonts.regular,                       \
       .text = s,                                         \
       .min_w_em = min_width_em, .min_h_em = 1.0,         \
-      .padding = { .left  = 0.125, .top    = 0.25,       \
-                   .right = 0.125, .bottom = 0.25, },    \
-      .insets  = { .left  = 0.125, .top    = 0.25,       \
-                   .right = 0.125, .bottom = 0.25, }     \
+      .padding = { .left  = 0.25, .top    = 0.25,        \
+                   .right = 0.25, .bottom = 0.25, },     \
+      .insets  = { .left  = 0.25, .top    = 0.0625,      \
+                   .right = 0.25, .bottom = 0.1875 }     \
 }
 
 // text with "&" keyboard shortcuts:

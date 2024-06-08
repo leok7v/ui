@@ -629,7 +629,7 @@ static void ui_app_tap_press(int32_t m, int64_t wp, int64_t lp) {
     }
 }
 
-enum { ui_app_animation_steps = 15 };
+enum { ui_app_animation_steps = 63 };
 
 static void ui_app_toast_paint(void) {
     static ui_image_t image_dark;
@@ -668,6 +668,8 @@ static void ui_app_toast_paint(void) {
                 traceln("TODO:");
             }
             ui_app.animating.view->x = (ui_app.root->w - ui_app.animating.view->w) / 2;
+//          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
+//                  ui_app.animating.y, ui_app.animating.view->y);
         } else {
             ui_app.animating.view->x = ui_app.animating.x;
             ui_app.animating.view->y = ui_app.animating.y;
@@ -675,6 +677,8 @@ static void ui_app_toast_paint(void) {
             int32_t mx = ui_app.root->w - ui_app.animating.view->w - em_x;
             ui_app.animating.view->x = ut_min(mx, ut_max(0, ui_app.animating.x - ui_app.animating.view->w / 2));
             ui_app.animating.view->y = ut_min(ui_app.root->h - em_y, ut_max(0, ui_app.animating.y));
+//          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
+//                  ui_app.animating.y, ui_app.animating.view->y);
         }
         int32_t x = ui_app.animating.view->x - em_x;
         int32_t y = ui_app.animating.view->y - em_y / 2;
@@ -916,7 +920,7 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         // SPI_SETNONCLIENTMETRICS 0x2A ?
 //      traceln("wp: 0x%08X", wp);
         // actual wp == 0x0000
-        ui_theme.refresh(ui_app.window);
+        ui_theme.refresh();
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
@@ -925,8 +929,8 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
         n = ResolveLocaleName(ln, rln, countof(rln));
         fatal_if_false(n > 0);
-        LCID lcid = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
-        fatal_if_false(SetThreadLocale(lcid));
+        LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
+        fatal_if_false(SetThreadLocale(lc_id));
     }
 }
 
@@ -1120,7 +1124,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     }
     switch (m) {
         case WM_GETMINMAXINFO: ui_app_get_min_max_info((MINMAXINFO*)lp); break;
-        case WM_THEMECHANGED : break;
+        case WM_THEMECHANGED : ui_theme.refresh(); break;
         case WM_SETTINGCHANGE: ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
         case WM_CLOSE        : ui_app.focus = null; // before WM_CLOSING
                                ui_app_post_message(ui.message.closing, 0, 0); return 0;
@@ -1383,7 +1387,7 @@ static void ui_app_create_window(const ui_rect_t r) {
                      SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE };
         SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, swp);
     }
-    ui_theme.refresh(ui_app.window);
+    ui_theme.refresh();
     if (ui_app.visibility != ui.visibility.hide) {
         AnimateWindow(ui_app_window(), 250, AW_ACTIVATE);
         ui_app.show_window(ui_app.visibility);
@@ -2114,7 +2118,7 @@ static int ui_app_win_main(void) {
     ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
     ui_app.border.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME, (uint32_t)ui_app.dpi.process);
     // border is too think (5 pixels) narrow down to 3x3
-    const int32_t max_border = ui_app.dpi.window <= 100 ? 1 : 
+    const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :
         (ui_app.dpi.window >= 192 ? 3 : 2);
     ui_app.border.w = ut_min(max_border, ui_app.border.w);
     ui_app.border.h = ut_min(max_border, ui_app.border.h);

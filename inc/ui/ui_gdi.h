@@ -56,7 +56,9 @@ typedef struct {
     void (*fill_with)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
     void (*poly)(ui_point_t* points, int32_t count);
     void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t rx, int32_t ry); // see RoundRect, pen, brush
+        int32_t rx, int32_t ry); // see RoundRect with pen, brush
+    void (*rounded_with)(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t rx, int32_t ry, ui_color_t border, ui_color_t fill);
     void (*gradient)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical);
     // draw images: (x,y remains untouched after drawing)

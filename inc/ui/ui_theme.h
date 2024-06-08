@@ -24,7 +24,7 @@ typedef struct  {
     ui_color_t (*get_color)(int32_t color_id);
     bool (*is_system_dark)(void);
     bool (*are_apps_dark)(void);
-    void (*refresh)(void* window);
+    void (*refresh)(void);
     void (*test)(void);
 } ui_theme_if;
 

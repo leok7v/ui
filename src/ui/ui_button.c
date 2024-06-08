@@ -35,30 +35,47 @@ static void ui_button_paint(ui_view_t* v) {
         c = ui_app.get_color(ui_color_id_hot_tracking_color);
     }
     if (v->disabled) { c = ui_app.get_color(ui_color_id_gray_text); }
+    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const int32_t t_w = v->w - i.left - i.right;
+    const int32_t t_h = v->h - i.top - i.bottom;
+//  traceln("%s align=%02X", v->text, v->align);
     if (v->icon == null) {
         ui_font_t f = v->fm->font;
         ui_wh_t m = ui_gdi.measure_text(f, ui_view.nls(v));
+        int32_t t_x = 0;
+        if (v->align & ui.align.left) {
+            t_x = 0;
+        } else if (v->align == ui.align.center) {
+            t_x = (t_w - m.w) / 2;
+        } else if (v->align & ui.align.right) {
+            t_x = t_w - m.w - i.right;
+        }
+        int32_t t_y = 0;
+        if (v->align & ui.align.top) {
+            t_y = 0;
+        } else if (v->align == ui.align.center) {
+            t_y = (t_h - m.h) / 2;
+        } else if (v->align & ui.align.bottom) {
+            t_y = t_h - m.h - i.bottom;
+        }
+        ui_gdi.x = v->x + i.left + t_x;
+        ui_gdi.y = v->y + i.top  + t_y;
         ui_gdi.set_text_color(c);
-        ui_gdi.x = v->x + (v->w - m.w) / 2;
-        ui_gdi.y = v->y + (v->h - m.h) / 2;
         f = ui_gdi.set_font(f);
         ui_gdi.text("%s", ui_view.nls(v));
         ui_gdi.set_font(f);
     } else {
-        ui_gdi.draw_icon(v->x, v->y, v->w, v->h, v->icon);
+        ui_gdi.draw_icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
     }
-    const int32_t pw = ut_max(1, v->fm->em.h / 8); // pen width
-    ui_color_t color = v->armed ? ui_colors.lighten(v->background, 0.125f) : d1;
+    ui_color_t color = v->armed ? 
+        ui_colors.lighten(v->background, 0.125f) : d1;
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {
-        ui_pen_t p = ui_gdi.create_pen(color, pw);
-        ui_gdi.set_pen(p);
-        ui_gdi.set_brush(ui_gdi.brush_hollow);
         int32_t r = ut_max(3, v->fm->em.h / 4);
         if (r % 2 == 0) { r++; }
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, r);
-        ui_gdi.delete_pen(p);
+        ui_gdi.rounded_with(v->x, v->y, v->w, v->h, r, r,
+                            color, ui_colors.transparent);
     }
     ui_gdi.pop();
 }

@@ -50,7 +50,7 @@ typedef struct ui_view_s ui_view_t;
 // void opened(void) {
 //     ui_view.add(ui_app.view, ..., null);
 //     ui_app.view->insets = (ui_gaps_t) {
-//         .left = 0.25,  .top = 0.25,
+//         .left  = 0.25, .top    = 0.25,
 //         .right = 0.25, .bottom = 0.25 };
 //     ui_app.view->color = ui_colors.dark_scarlet;
 // }

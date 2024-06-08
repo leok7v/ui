@@ -203,6 +203,23 @@ static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
     fatal_if_false(RoundRect(ui_app_canvas(), x, y, x + w, y + h, rx, ry));
 }
 
+static void ui_gdi_rounded_with(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t rx, int32_t ry,
+        ui_color_t border, ui_color_t fill) {
+    const bool tf = ui_color_is_transparent(fill);   // transparent fill
+    const bool tb = ui_color_is_transparent(border); // transparent border
+    ui_brush_t b = tf ? ui_gdi.brush_hollow : ui_gdi.brush_color;
+    b = ui_gdi.set_brush(b);
+    ui_color_t c = tf ? ui_colors.transparent : ui_gdi.set_brush_color(fill);
+    ui_pen_t p = tb ? ui_gdi.set_pen(ui_gdi.pen_hollow) :
+                      ui_gdi.set_colored_pen(border);
+    ui_gdi.rounded(x, y, w, h, rx, ry);
+    if (!tf) { ui_gdi.set_brush_color(c); }
+    ui_gdi.set_pen(p);
+    ui_gdi.set_brush(b);
+}
+
+
 static void ui_gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical) {
     TRIVERTEX vertex[2] = {0};
@@ -1021,6 +1038,7 @@ ui_gdi_if ui_gdi = {
     .fill_with                     = ui_gdi_fill_with,
     .poly                          = ui_gdi_poly,
     .rounded                       = ui_gdi_rounded,
+    .rounded_with                  = ui_gdi_rounded_with,
     .gradient                      = ui_gdi_gradient,
     .draw_greyscale                = ui_gdi_draw_greyscale,
     .draw_bgr                      = ui_gdi_draw_bgr,

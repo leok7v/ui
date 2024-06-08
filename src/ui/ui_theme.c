@@ -72,14 +72,15 @@ static bool ui_theme_is_system_dark(void) {
     return !ui_theme_use_light_theme("SystemUsesLightTheme");
 }
 
-static void ui_theme_refresh(void* window) {
+static void ui_theme_refresh(void) {
+    swear(ui_app.window != null);
     ui_theme_dark = -1;
     BOOL dark_mode = ui_theme.are_apps_dark();
     static const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     /* 20 == DWMWA_USE_IMMERSIVE_DARK_MODE in Windows 11 SDK.
        This value was undocumented for Windows 10 versions 2004
        and later, supported for Windows 11 Build 22000 and later. */
-    errno_t r = DwmSetWindowAttribute((HWND)window,
+    errno_t r = DwmSetWindowAttribute((HWND)ui_app.window,
         DWMWA_USE_IMMERSIVE_DARK_MODE, &dark_mode, sizeof(dark_mode));
     if (r != 0) {
         traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
