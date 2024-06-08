@@ -224,7 +224,7 @@ static int32_t ui_app_data_load(const char* name, void* data, int32_t bytes) {
     return ut_config.load(ui_app.class_name, name, data, bytes);
 }
 
-typedef begin_packed struct ui_app_wiw_s { // "where is window"
+typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
     // coordinates in pixels relative (0,0) top left corner
     // of primary monitor from GetWindowPlacement
     int32_t    bytes;
@@ -239,7 +239,7 @@ typedef begin_packed struct ui_app_wiw_s { // "where is window"
     int32_t    dpi;          // of the monitor on which window (x,y) is located
     int32_t    flags;        // WPF_SETMINPOSITION. WPF_RESTORETOMAXIMIZED
     int32_t    show;         // show command
-} end_packed ui_app_wiw_t;
+} ut_end_packed ui_app_wiw_t;
 
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
         HDC unused(hdc), RECT* unused(rc1), LPARAM that) {

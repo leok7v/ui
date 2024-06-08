@@ -78,16 +78,16 @@ typedef double fp64_t;
     #endif
 #endif
 
-// begin_packed end_packed
-// usage: typedef begin_packed struct foo_s { ... } end_packed foo_t;
+// ut_begin_packed ut_end_packed
+// usage: typedef ut_begin_packed struct foo_s { ... } ut_end_packed foo_t;
 
 #if defined(__GNUC__) || defined(__clang__)
 #define attribute_packed __attribute__((packed))
-#define begin_packed
-#define end_packed attribute_packed
+#define ut_begin_packed
+#define ut_end_packed attribute_packed
 #else
-#define begin_packed ut_pragma( pack(push, 1) )
-#define end_packed ut_pragma( pack(pop) )
+#define ut_begin_packed ut_pragma( pack(push, 1) )
+#define ut_end_packed ut_pragma( pack(pop) )
 #define attribute_packed
 #endif
 

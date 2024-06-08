@@ -4,6 +4,16 @@
 
 static const char* title = "Sample8: Panels";
 
+enum { version = 0x101 };
+
+typedef ut_begin_packed struct app_data_t {
+    int32_t version;
+    int32_t menu_used;
+    int32_t selected_view;
+} ut_end_packed app_data_t;
+
+static app_data_t app_data = { .version = version };
+
 static void init(void);
 static void opened(void);
 static void container_test(ui_view_t* parent);
@@ -11,8 +21,18 @@ static void span_test(ui_view_t* parent);
 static void list_test(ui_view_t* parent);
 static void controls_test(ui_view_t* parent);
 
+static void fini(void) {
+    ui_app.data_save("sample8", &app_data, sizeof(app_data));
+}
+
 static void init(void) {
+    app_data_t data = {0};
+    if (ui_app.data_load("sample8", &data, sizeof(data)) == sizeof(data) &&
+        data.version == version) {
+        app_data = data;
+    }
     ui_app.title  = title;
+    ui_app.fini   = fini;
     ui_app.opened = opened;
 }
 
@@ -33,24 +53,28 @@ static ui_view_t test = ui_view(container);
 static void toggle_container(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
+    app_data.selected_view = 0;
     container_test(&test);
 }
 
 static void toggle_span(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
+    app_data.selected_view = 1;
     span_test(&test);
 }
 
 static void toggle_list(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
+    app_data.selected_view = 2;
     list_test(&test);
 }
 
 static void toggle_controls(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
+    app_data.selected_view = 3;
     controls_test(&test);
 }
 
@@ -90,30 +114,37 @@ static void dark_light(ui_toggle_t* b) {
     ui_app.light_mode = b->pressed;
     ui_app.dark_mode = !b->pressed;
     ui_theme.refresh();
-    strprintf(b->text, "%s", b->pressed ? "Light" : "Dark");
+    strprintf(b->text, "%s", b->pressed ? "Dark" : "Light");
+    ui_app.request_layout();
+}
+
+static ui_view_t tools = ui_view(list);
+
+static void toggle_tools(ui_button_t* b) {
+    b->pressed = !b->pressed;
+    tools.hidden = !b->pressed;
+    app_data.menu_used = 1;
     ui_app.request_layout();
 }
 
 static void opened(void) {
     static ui_view_t list = ui_view(list);
     static ui_view_t span = ui_view(span);
-    static ui_view_t tools = ui_view(list);
     static ui_button_t button_container =
-           ui_button("&Container",  3.0f, toggle_container);
+           ui_button("&Container", 3.0f, toggle_container);
     static ui_button_t button_span =
-           ui_button("&Span",       3.0f, toggle_span);
+           ui_button("&Span",      3.0f, toggle_span);
     static ui_button_t button_list =
-           ui_button("&List",       3.0f, toggle_list);
+           ui_button("&List",      3.0f, toggle_list);
     static ui_button_t button_controls =
-           ui_button("Con&trols",   3.0f, toggle_controls);
+           ui_button("Con&trols",  3.0f, toggle_controls);
     static ui_toggle_t toggle_light =
-           ui_toggle("&Dark",       3.0f, dark_light);
+           ui_toggle("Light",      3.0f, dark_light);
     static ui_button_t button_about =
-           ui_button("&About",      3.0f, toggle_about);
+           ui_button("&About",     3.0f, toggle_about);
     ui_view.add(ui_app.content,
         ui_view.add(&list,
             ui_view.add(&span,
-                &test,
                 ui_view.add(&tools,
                     &button_container,
                     &button_span,
@@ -122,6 +153,7 @@ static void opened(void) {
                     &toggle_light,
                     &button_about,
                 null),
+                &test,
             null),
         null),
     null);
@@ -152,10 +184,20 @@ static void opened(void) {
         "Shows ui_view(container) layout\n"
         "Resizing Window will allow\n"
         "too see how it behaves");
-//  toggle_container(&button_container);
-//  toggle_list(&button_list);
-//  toggle_span(&button_span);
-    toggle_controls(&button_controls);
+    switch (app_data.selected_view) {
+        case  1: toggle_span(&button_span); break;
+        case  2: toggle_list(&button_list); break;
+        case  3: toggle_controls(&button_controls); break;
+        case  0: // drop to default:
+        default: toggle_container(&button_container); break;
+    }
+    ui_caption.menu.callback = toggle_tools;
+    tools.hidden = true;
+    if (app_data.menu_used == 0) {
+        ui_app.toast(4.5, "For tools click "
+                          ut_glyph_trigram_for_heaven
+                          " menu button");
+    }
 }
 
 static ui_view_t* align(ui_view_t* v, int32_t align) {
