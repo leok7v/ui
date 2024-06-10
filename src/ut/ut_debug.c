@@ -12,14 +12,34 @@ static const char* ut_debug_abbreviate(const char* file) {
 static int32_t ut_debug_max_file_line;
 static int32_t ut_debug_max_function;
 
+static void ut_debug_output(const char* s, int32_t count) {
+    bool intercepted = false;
+    if (ut_debug.tee != null) { intercepted = ut_debug.tee(s, count); }
+    if (!intercepted) {
+        // For link.exe /Subsystem:Windows code stdout/stderr are often closed
+        if (stderr != null && fileno(stderr) >= 0) {
+            fprintf(stderr, "%s", s);
+        }
+        // SetConsoleCP(CP_UTF8) is not guaranteed to be called
+        uint16_t* wide = ut_stackalloc((count + 1) * sizeof(uint16_t));
+        ut_str.utf8to16(wide, count, s);
+        OutputDebugStringW(wide);
+    }
+}
+
 static void ut_debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
-    // full path is useful in MSVC debugger output pane (clickable)
-    // for all other scenarios short filename without path is preferable:
-    const char* name = IsDebuggerPresent() ? file : ut_files.basename(file);
     char file_line[1024];
-    snprintf(file_line, countof(file_line) - 1, "%s(%d):", name, line);
-    file_line[countof(file_line) - 1] = 0;
+    if (line == 0 && file == null || file[0] == 0x00) {
+        file_line[0] = 0x00;
+    } else {
+        if (file == null) { file = ""; } // backtrace can have null files
+        // full path is useful in MSVC debugger output pane (clickable)
+        // for all other scenarios short filename without path is preferable:
+        const char* name = IsDebuggerPresent() ? file : ut_files.basename(file);
+        snprintf(file_line, countof(file_line) - 1, "%s(%d):", name, line);
+    }
+    file_line[countof(file_line) - 1] = 0x00; // always zero terminated'
     ut_debug_max_file_line = ut_max(ut_debug_max_file_line,
                                     (int32_t)strlen(file_line));
     ut_debug_max_function  = ut_max(ut_debug_max_function,
@@ -53,18 +73,11 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         output[n - 1] = 0;
         n--;
     }
-    // For link.exe /Subsystem:Windows code stdout/stderr are often closed
-    if (stderr != null && fileno(stderr) >= 0) {
-        fprintf(stderr, "%s\n", output);
-    }
     assert(n + 1 < countof(output));
-    // OutputDebugString() needs \n
+    // Win32 OutputDebugString() needs \n
     output[n + 0] = '\n';
     output[n + 1] = 0;
-    // SetConsoleCP(CP_UTF8) is not guaranteed to be called
-    uint16_t wide[countof(output)];
-    ut_str.utf8to16(wide, countof(wide), output);
-    OutputDebugStringW(wide);
+    ut_debug.output(output, n + 2); // including 0x00
 }
 
 #else // posix version:
@@ -157,6 +170,8 @@ ut_debug_if ut_debug = {
         .trace   =  4,
     },
     .verbosity_from_string = ut_debug_verbosity_from_string,
+    .tee                   = null,
+    .output                = ut_debug_output,
     .println               = ut_debug_println,
     .println_va            = ut_debug_println_va,
     .perrno                = ut_debug_perrno,

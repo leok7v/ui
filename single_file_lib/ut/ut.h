@@ -298,6 +298,65 @@ extern ut_args_if ut_args;
 */
 
 
+// _________________________________ ut_bt.h __________________________________
+
+// "bt" stands for Stack Back Trace (not British Telecom)
+
+
+enum { ut_bt_max_depth = 32 };    // increase if not enough
+enum { ut_bt_max_symbol = 1024 }; // MSFT symbol size limit
+
+typedef struct thread_s* ut_thread_t;
+
+typedef char ut_bt_symbol_t[ut_bt_max_symbol];
+typedef char ut_bt_file_t[512];
+
+typedef struct ut_bt_s {
+    int32_t frames; // 0 if capture() failed
+    uint32_t hash;
+    errno_t  last_error; // set by capture() or symbolize()
+    void* stack[ut_bt_max_depth];
+    ut_bt_symbol_t symbol[ut_bt_max_depth];
+    ut_bt_file_t file[ut_bt_max_depth];
+    int32_t line[ut_bt_max_depth];
+    bool symbolized;
+} ut_bt_t;
+
+//  calling .trace(bt, /*stop:*/"*")
+//  stops backtrace dumping at any of the known Microsoft runtime
+//  symbols:
+//    "main",
+//    "WinMain",
+//    "BaseThreadInitThunk",
+//    "RtlUserThreadStart",
+//    "mainCRTStartup",
+//    "WinMainCRTStartup",
+//    "invoke_main"
+// .trace(bt, null)
+// provides complete backtrace to the bottom of stack
+
+typedef struct {
+    void (*capture)(ut_bt_t *bt, int32_t skip); // number of frames to skip
+    void (*context)(ut_thread_t thread, const void* context, ut_bt_t *bt);
+    void (*symbolize)(ut_bt_t *bt);
+    // dump backtrace into traceln():
+    void (*trace)(const ut_bt_t* bt, const char* stop);
+    void (*trace_self)(const char* stop);
+    void (*trace_all_but_self)(void); // trace all threads
+    const char* (*string)(const ut_bt_t* bt, char* text, int32_t count);
+    void (*test)(void);
+} ut_bt_if;
+
+extern ut_bt_if ut_bt;
+
+#define ut_bt_here() do {   \
+    ut_bt_t bt_ = {0};      \
+    ut_bt.capture(&bt_, 0); \
+    ut_bt.symbolize(&bt_);  \
+    ut_bt.trace(&bt_, "*"); \
+} while (0)
+
+
 // _______________________________ ut_atomics.h _______________________________
 
 // Will be deprecated soon after Microsoft fully supports <stdatomic.h>
@@ -426,6 +485,9 @@ typedef struct {
 typedef struct {
     ut_verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
+    // "T" connector for outside write; return false to proceed with default
+    bool (*tee)(const char* s, int32_t count); // return true to intercept
+    void (*output)(const char* s, int32_t count);
     void (*println_va)(const char* file, int32_t line, const char* func,
         const char* format, va_list vl);
     void (*println)(const char* file, int32_t line, const char* func,
@@ -1173,9 +1235,9 @@ typedef struct {
     void (*set)(ut_event_t e);
     void (*reset)(ut_event_t e);
     void (*wait)(ut_event_t e);
-    // returns 0 or -1 on timeout
+    // returns 0 on success or -1 on timeout
     int32_t (*wait_or_timeout)(ut_event_t e, fp64_t seconds); // seconds < 0 forever
-    // returns event index or -1 on timeout or abandon
+    // returns event index or -1 on timeout or -2 on abandon
     int32_t (*wait_any)(int32_t n, ut_event_t events[]); // -1 on abandon
     int32_t (*wait_any_or_timeout)(int32_t n, ut_event_t e[], fp64_t seconds);
     void (*dispose)(ut_event_t e);
@@ -1200,14 +1262,18 @@ typedef struct thread_s* ut_thread_t;
 
 typedef struct {
     ut_thread_t (*start)(void (*func)(void*), void* p); // never returns null
-    errno_t (*join)(ut_thread_t thread, fp64_t timeout_seconds); // < 0 forever
-    void (*detach)(ut_thread_t thread); // closes handle. thread is not joinable
-    void (*name)(const char* name); // names the thread
-    void (*realtime)(void); // bumps calling thread priority
-    void (*yield)(void);    // pthread_yield() / Win32: SwitchToThread()
-    void (*sleep_for)(fp64_t seconds);
-    int32_t (*id)(void);    // gettid()
-    void (*test)(void);
+    errno_t     (*join)(ut_thread_t thread, fp64_t timeout_seconds); // < 0 forever
+    void        (*detach)(ut_thread_t thread); // closes handle. thread is not joinable
+    void        (*name)(const char* name); // names the thread
+    void        (*realtime)(void); // bumps calling thread priority
+    void        (*yield)(void);    // pthread_yield() / Win32: SwitchToThread()
+    void        (*sleep_for)(fp64_t seconds);
+    uint64_t    (*id_of)(ut_thread_t t);
+    uint64_t    (*id)(void); // gettid()
+    ut_thread_t (*self)(void); // Pseudo Handle may differ in access to .open(.id())
+    errno_t     (*open)(ut_thread_t* t, uint64_t id);
+    void        (*close)(ut_thread_t t);
+    void        (*test)(void);
 } ut_thread_if;
 
 extern ut_thread_if ut_thread;
@@ -1306,6 +1372,9 @@ end_c
 #include <dwmapi.h>
 #include <ShellScalingApi.h>
 #include <VersionHelpers.h>
+#include <dbghelp.h>
+#include <tlhelp32.h>
+#include <winnt.h>
 
 #pragma warning(pop)
 
@@ -1948,6 +2017,474 @@ ut_atomics_if ut_atomics = {
 // command line option are required
 // even in C17 mode in spring of 2024
 
+// _________________________________ ut_bt.c __________________________________
+
+static void* ut_bt_process;
+static DWORD ut_bt_pid;
+
+typedef ut_begin_packed struct symbol_info_s {
+    SYMBOL_INFO info; char name[ut_bt_max_symbol];
+} ut_end_packed symbol_info_t;
+
+#pragma push_macro("ut_bt_load_dll")
+
+#define ut_bt_load_dll(fn)           \
+do {                                        \
+    if (GetModuleHandleA(fn) == null) {     \
+        fatal_if_false(LoadLibraryA(fn));   \
+    }                                       \
+} while (0)
+
+static void ut_bt_init(void) {
+    if (ut_bt_process == null) {
+        ut_bt_load_dll("dbghelp.dll");
+        ut_bt_load_dll("imagehlp.dll");
+        DWORD options = SymGetOptions();
+//      options |= SYMOPT_DEBUG;
+        options |= SYMOPT_NO_PROMPTS;
+        options |= SYMOPT_LOAD_LINES;
+        options |= SYMOPT_UNDNAME;
+        options |= SYMOPT_LOAD_ANYTHING;
+        swear(SymSetOptions(options));
+        ut_bt_pid = GetProcessId(GetCurrentProcess());
+        swear(ut_bt_pid != 0);
+        ut_bt_process = OpenProcess(PROCESS_ALL_ACCESS, false,
+                                           ut_bt_pid);
+        swear(ut_bt_process != null);
+        swear(SymInitialize(ut_bt_process, null, true), "%s",
+                            ut_str.error(ut_runtime.err()));
+    }
+}
+
+#pragma pop_macro("ut_bt_load_dll")
+
+static void ut_bt_capture(ut_bt_t* bt, int32_t skip) {
+    ut_bt_init();
+    SetLastError(0);
+    bt->frames = CaptureStackBackTrace(1 + skip, countof(bt->stack),
+        bt->stack, (DWORD*)&bt->hash);
+    bt->last_error = GetLastError();
+}
+
+static bool ut_bt_function(DWORD64 pc, SYMBOL_INFO* si) {
+    // find DLL exported function
+    bool found = false;
+    const DWORD64 module_base = SymGetModuleBase64(ut_bt_process, pc);
+    if (module_base != 0) {
+        const DWORD flags = GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT |
+                            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS;
+        HMODULE module_handle = null;
+        if (GetModuleHandleExA(flags, (const char*)pc, &module_handle)) {
+            DWORD bytes = 0;
+            IMAGE_EXPORT_DIRECTORY* dir = (IMAGE_EXPORT_DIRECTORY*)
+                    ImageDirectoryEntryToDataEx(module_handle, true,
+                            IMAGE_DIRECTORY_ENTRY_EXPORT, &bytes, null);
+            if (dir) {
+                uint8_t* m = (uint8_t*)module_handle;
+                DWORD* functions = (DWORD*)(m + dir->AddressOfFunctions);
+                DWORD* names = (DWORD*)(m + dir->AddressOfNames);
+                WORD* ordinals = (WORD*)(m + dir->AddressOfNameOrdinals);
+                DWORD64 address = 0; // closest address
+                DWORD64 min_distance = (DWORD64)-1;
+                const char* function = NULL; // closest function name
+                for (DWORD i = 0; i < dir->NumberOfNames; i++) {
+                    // function address
+                    DWORD64 fa = (DWORD64)(m + functions[ordinals[i]]);
+                    if (fa <= pc) {
+                        DWORD64 distance = pc - fa;
+                        if (distance < min_distance) {
+                            min_distance = distance;
+                            address = fa;
+                            function = (const char*)(m + names[i]);
+                        }
+                    }
+                }
+                if (function != null) {
+                    si->ModBase = (uint64_t)m;
+                    snprintf(si->Name, si->MaxNameLen - 1, "%s", function);
+                    si->Name[si->MaxNameLen - 1] = 0x00;
+                    si->NameLen = (DWORD)strlen(si->Name);
+                    si->Address = address;
+                    found = true;
+                }
+            }
+        }
+    }
+    return found;
+}
+
+// SimpleStackWalker::showVariablesAt() can be implemented if needed like this:
+// https://accu.org/journals/overload/29/165/orr/
+// https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code
+// https://github.com/rogerorr/articles/blob/main/Debugging_Optimised_Code/SimpleStackWalker.cpp#L301
+
+static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
+        int32_t i, DWORD64 pc, DWORD inline_context, symbol_info_t* si) {
+    si->info.Name[0] = 0;
+    si->info.NameLen = 0;
+    bt->file[i][0] = 0;
+    bt->line[i] = 0;
+    bt->symbol[i][0] = 0;
+    DWORD64 displacement = 0;
+    if (SymFromInlineContext(ut_bt_process, pc, inline_context,
+                            &displacement, &si->info)) {
+        strprintf(bt->symbol[i], "%s", si->info.Name);
+    } else {
+        bt->last_error = GetLastError();
+    }
+    IMAGEHLP_LINE64 li = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
+    DWORD offset = 0;
+    if (SymGetLineFromInlineContext(ut_bt_process,
+                                    pc, inline_context, 0,
+                                    &offset, &li)) {
+        strprintf(bt->file[i], "%s", li.FileName);
+        bt->line[i] = li.LineNumber;
+    }
+}
+
+// Too see kernel addresses in Stack Back Traces:
+//
+// Windows Registry Editor Version 5.00
+// [HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management]
+// "DisablePagingExecutive"=dword:00000001
+//
+// https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2003/cc757875(v=ws.10)
+
+static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
+    const DWORD64 pc = (DWORD64)bt->stack[i];
+    symbol_info_t si = {
+        .info = { .SizeOfStruct = sizeof(SYMBOL_INFO),
+                  .MaxNameLen = countof(si.name) }
+    };
+    bt->file[i][0] = 0;
+    bt->line[i] = 0;
+    bt->symbol[i][0] = 0;
+    DWORD64 offsetFromSymbol = 0;
+    const DWORD inline_count =
+        SymAddrIncludeInlineTrace(ut_bt_process, pc);
+    if (inline_count > 0) {
+        DWORD ic = 0; // inline context
+        DWORD fi = 0; // frame index
+        if (SymQueryInlineTrace(ut_bt_process,
+                                pc, 0, pc, pc, &ic, &fi)) {
+            for (DWORD k = 0; k < inline_count; k++, ic++) {
+                ut_bt_symbolize_inline_frame(bt, i, pc, ic, &si);
+                i++;
+            }
+        }
+    } else {
+        if (SymFromAddr(ut_bt_process, pc, &offsetFromSymbol, &si.info)) {
+            strprintf(bt->symbol[i], "%s", si.info.Name);
+            DWORD d = 0; // displacement
+            IMAGEHLP_LINE64 ln = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
+            if (SymGetLineFromAddr64(ut_bt_process, pc, &d, &ln)) {
+                bt->line[i] = ln.LineNumber;
+                strprintf(bt->file[i], "%s", ln.FileName);
+            } else {
+                bt->last_error = ut_runtime.err();
+                if (ut_bt_function(pc, &si.info)) {
+                    GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
+                        countof(bt->file[i]) - 1);
+                    bt->file[i][countof(bt->file[i]) - 1] = 0;
+                    bt->line[i]    = 0;
+                } else  {
+                    bt->file[i][0] = 0x00;
+                    bt->line[i]    = 0;
+                }
+            }
+            i++;
+        } else {
+            bt->last_error = ut_runtime.err();
+            if (ut_bt_function(pc, &si.info)) {
+                strprintf(bt->symbol[i], "%s", si.info.Name);
+                GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
+                    countof(bt->file[i]) - 1);
+                bt->file[i][countof(bt->file[i]) - 1] = 0;
+                bt->last_error = 0;
+                i++;
+            } else {
+                // will not do i++
+            }
+        }
+    }
+    return i;
+}
+
+static void ut_bt_symbolize_backtrace(ut_bt_t* bt) {
+    assert(!bt->symbolized);
+    bt->last_error = 0;
+    ut_bt_init();
+    // ut_bt_symbolize_frame() may produce zero, one or many frames
+    int32_t n = bt->frames;
+    void* stack[countof(bt->stack)];
+    memcpy(stack, bt->stack, n * sizeof(stack[0]));
+    bt->frames = 0;
+    for (int32_t i = 0; i < n && bt->frames < countof(bt->stack); i++) {
+        bt->stack[bt->frames] = stack[i];
+        bt->frames = ut_bt_symbolize_frame(bt, i);
+    }
+    bt->symbolized = true;
+}
+
+static void ut_bt_symbolize(ut_bt_t* bt) {
+    if (!bt->symbolized) { ut_bt_symbolize_backtrace(bt); }
+}
+
+static const char* ut_bt_stops[] = {
+    "main",
+    "WinMain",
+    "BaseThreadInitThunk",
+    "RtlUserThreadStart",
+    "mainCRTStartup",
+    "WinMainCRTStartup",
+    "invoke_main",
+    "NdrInterfacePointerMemorySize",
+    null
+};
+
+#define glyph_called_from "\xE2\xA4\xA3" // &nwarhk; "North West Arrow with Hook"
+
+static void ut_bt_trace(const ut_bt_t* bt, const char* stop) {
+    assert(bt->symbolized, "need ut_bt.symbolize(bt)");
+    const char** alt = stop != null && strcmp(stop, "*") == 0 ?
+                       ut_bt_stops : null;
+    for (int32_t i = 0; i < bt->frames; i++) {
+        ut_debug.println(bt->file[i], bt->line[i], bt->symbol[i],
+            glyph_called_from "%s",
+            i == i < bt->frames - 1 ? "\n" : ""); // extra \n for last line
+        if (stop != null && strcmp(bt->symbol[i], stop) == 0) { break; }
+        const char** s = alt;
+        while (s != null && *s != null && strcmp(bt->symbol[i], *s) != 0) { s++; }
+        if (s != null && *s != null)  { break; }
+    }
+}
+
+static const char* ut_bt_string(const ut_bt_t* bt,
+        char* text, int32_t count) {
+    assert(bt->symbolized, "need ut_bt.symbolize(bt)");
+    char s[1024];
+    char* p = text;
+    int32_t n = count;
+    for (int32_t i = 0; i < bt->frames && n > 128; i++) {
+        int32_t line = bt->line[i];
+        const char* file = bt->file[i];
+        const char* name = bt->symbol[i];
+        if (file[0] != 0 && name[0] != 0) {
+            strprintf(s, "%s(%d): %s\n", file, line, name);
+        } else if (file[0] == 0 && name[0] != 0) {
+            strprintf(s, "%s\n", name);
+        }
+        s[countof(s) - 1] = 0;
+        int32_t k = (int32_t)strlen(s);
+        if (k < n) {
+            memcpy(p, s, (size_t)k + 1);
+            p += k;
+            n -= k;
+        }
+    }
+    return text;
+}
+
+typedef char thread_name_t[32];
+
+static void ut_bt_thread_name(HANDLE thread, ut_bt_t* bt,
+        char* name, int32_t count) {
+    name[0] = 0;
+    wchar_t* thread_name = null;
+    if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
+        ut_str.utf16to8(name, count, thread_name);
+        LocalFree(thread_name);
+    }
+    if (bt->frames > 0) {
+        if (name[0] == 0) { // use bottom symbol name instead
+            ut_str.format(name, count, "%s", bt->symbol[bt->frames - 1]);
+            assert(bt->symbol[bt->frames - 1][0] != 0);
+        }
+    }
+}
+
+static void ut_bt_context(ut_thread_t thread, const void* ctx,
+        ut_bt_t* bt) {
+    CONTEXT* context = (CONTEXT*)ctx;
+    STACKFRAME64 stack_frame = { 0 };
+    int machine_type = IMAGE_FILE_MACHINE_UNKNOWN;
+    #if defined(_M_IX86)
+        #error "Unsupported platform"
+    #elif defined(_M_X64)
+        machine_type = IMAGE_FILE_MACHINE_AMD64;
+        stack_frame = (STACKFRAME64){
+            .AddrPC    = {.Offset = context->Rip, .Mode = AddrModeFlat},
+            .AddrFrame = {.Offset = context->Rbp, .Mode = AddrModeFlat},
+            .AddrStack = {.Offset = context->Rsp, .Mode = AddrModeFlat}
+        };
+    #elif defined(_M_IA64)
+        int machine_type = IMAGE_FILE_MACHINE_IA64;
+        stack_frame = (STACKFRAME64){
+            .AddrPC     = {.Offset = context->StIIP, .Mode = AddrModeFlat},
+            .AddrFrame  = {.Offset = context->IntSp, .Mode = AddrModeFlat},
+            .AddrBStore = {.Offset = context->RsBSP, .Mode = AddrModeFlat},
+            .AddrStack  = {.Offset = context->IntSp, .Mode = AddrModeFlat}
+        }
+    #elif defined(_M_ARM64)
+        machine_type = IMAGE_FILE_MACHINE_ARM64;
+        stack_frame = (STACKFRAME64){
+            .AddrPC    = {.Offset = context->Pc, .Mode = AddrModeFlat},
+            .AddrFrame = {.Offset = context->Fp, .Mode = AddrModeFlat},
+            .AddrStack = {.Offset = context->Sp, .Mode = AddrModeFlat}
+        };
+    #else
+        #error "Unsupported platform"
+    #endif
+    ut_bt_init();
+    while (StackWalk64(machine_type, ut_bt_process,
+            (HANDLE)thread, &stack_frame, context, null,
+            SymFunctionTableAccess64, SymGetModuleBase64, null)) {
+        DWORD64 pc = stack_frame.AddrPC.Offset;
+        if (pc == 0) { break; }
+        if (bt->frames < countof(bt->stack)) {
+            bt->stack[bt->frames] = (void*)pc;
+            bt->frames = ut_bt_symbolize_frame(bt, bt->frames);
+        }
+    }
+    bt->symbolized = true;
+}
+
+static void ut_bt_thread(HANDLE thread, ut_bt_t* bt) {
+    bt->frames = 0;
+    // cannot suspend callers thread
+    swear(ut_thread.id_of(thread) != ut_thread.id());
+    if (SuspendThread(thread) != (DWORD)-1) {
+        CONTEXT context = { .ContextFlags = CONTEXT_FULL };
+        GetThreadContext(thread, &context);
+        ut_bt.context(thread, &context, bt);
+        if (ResumeThread(thread) == (DWORD)-1) {
+            traceln("ResumeThread() failed %s", ut_str.error(ut_runtime.err()));
+            ExitProcess(0xBD);
+        }
+    }
+}
+
+static void ut_bt_trace_self(const char* stop) {
+    ut_bt_t bt = {{0}};
+    ut_bt.capture(&bt, 2);
+    ut_bt.symbolize(&bt);
+    ut_bt.trace(&bt, stop);
+}
+
+static void ut_bt_trace_all_but_self(void) {
+    ut_bt_init();
+    assert(ut_bt_process != null && ut_bt_pid != 0);
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) {
+        traceln("CreateToolhelp32Snapshot failed %s",
+                ut_str.error(ut_runtime.err()));
+    } else {
+        THREADENTRY32 te = { .dwSize = sizeof(THREADENTRY32) };
+        if (!Thread32First(snapshot, &te)) {
+            traceln("Thread32First failed %s", ut_str.error(ut_runtime.err()));
+        } else {
+            do {
+                if (te.th32OwnerProcessID == ut_bt_pid) {
+                    static const DWORD flags = THREAD_ALL_ACCESS |
+                       THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT;
+                    uint32_t tid = te.th32ThreadID;
+                    if (tid != (uint32_t)ut_thread.id()) {
+                        HANDLE thread = OpenThread(flags, false, tid);
+                        if (thread != null) {
+                            ut_bt_t bt = {0};
+                            ut_bt_thread(thread, &bt);
+                            char name[64];
+                            ut_bt_thread_name(thread, &bt,
+                                                    name, countof(name));
+                            traceln("> Thread \"%s\" tid: 0x%08X (%d):",
+                                                name, tid, tid);
+                            if (bt.frames > 0) {
+                                ut_bt.trace(&bt, "*");
+                            }
+                            traceln("< Thread \"%s\" tid: 0x%08X (%d) :",
+                                                name, tid, tid);
+                            fatal_if_not_zero(ut_b2e(CloseHandle(thread)));
+                        }
+                    }
+                }
+            } while (Thread32Next(snapshot, &te));
+        }
+        CloseHandle(snapshot);
+    }
+}
+
+#ifdef UT_TESTS
+
+static bool (*ut_bt_debug_tee)(const char* s, int32_t count);
+
+static char  ut_bt_test_output[16 * 1024];
+static char* ut_bt_test_output_p;
+
+static bool ut_bt_tee(const char* s, int32_t count) {
+    if (count > 0 && s[count - 1] == 0) { // zero terminated
+        int32_t k = (int32_t)(uintptr_t)(
+            ut_bt_test_output_p - ut_bt_test_output);
+        int32_t space = countof(ut_bt_test_output) - k;
+        if (count < space) {
+            memcpy(ut_bt_test_output_p, s, count);
+            ut_bt_test_output_p += count - 1; // w/o 0x00
+        }
+    } else {
+        ut_debug.breakpoint(); // incorrect output() cannot append
+    }
+    return true; // intercepted, do not do OutputDebugString()
+}
+
+static void ut_bt_test_thread(void* e) {
+    ut_event.wait(*(ut_event_t*)e);
+}
+
+static void ut_bt_test(void) {
+    ut_bt_debug_tee = ut_debug.tee;
+    ut_bt_test_output_p = ut_bt_test_output;
+    ut_bt_test_output[0] = 0x00;
+    ut_debug.tee = ut_bt_tee;
+    ut_bt_t bt = {{0}};
+    ut_bt.capture(&bt, 0);
+    // ut_bt_test <- ut_runtime_test <- run <- main
+    swear(bt.frames >= 3);
+    ut_bt.symbolize(&bt);
+    ut_bt.trace(&bt, null);
+    ut_bt.trace(&bt, "main");
+    ut_bt.trace(&bt, null);
+    ut_bt.trace(&bt, "main");
+    ut_event_t e = ut_event.create();
+    ut_thread_t thread = ut_thread.start(ut_bt_test_thread, &e);
+    ut_bt.trace_all_but_self();
+    ut_event.set(e);
+    ut_thread.join(thread, -1.0);
+    ut_event.dispose(e);
+    ut_debug.tee = ut_bt_debug_tee;
+    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+        ut_debug.output(ut_bt_test_output,
+            (int32_t)strlen(ut_bt_test_output) + 1);
+    }
+    swear(strstr(ut_bt_test_output, "ut_bt_test_thread") != null);
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+}
+
+#else
+
+static void ut_bt_test(void) { }
+
+#endif
+
+ut_bt_if ut_bt = {
+    .capture            = ut_bt_capture,
+    .context            = ut_bt_context,
+    .symbolize          = ut_bt_symbolize,
+    .trace              = ut_bt_trace,
+    .trace_self         = ut_bt_trace_self,
+    .trace_all_but_self = ut_bt_trace_all_but_self,
+    .string             = ut_bt_string,
+    .test               = ut_bt_test
+};
+
 // ______________________________ ut_clipboard.c ______________________________
 
 static errno_t ut_clipboard_put_text(const char* utf8) {
@@ -2381,14 +2918,34 @@ static const char* ut_debug_abbreviate(const char* file) {
 static int32_t ut_debug_max_file_line;
 static int32_t ut_debug_max_function;
 
+static void ut_debug_output(const char* s, int32_t count) {
+    bool intercepted = false;
+    if (ut_debug.tee != null) { intercepted = ut_debug.tee(s, count); }
+    if (!intercepted) {
+        // For link.exe /Subsystem:Windows code stdout/stderr are often closed
+        if (stderr != null && fileno(stderr) >= 0) {
+            fprintf(stderr, "%s", s);
+        }
+        // SetConsoleCP(CP_UTF8) is not guaranteed to be called
+        uint16_t* wide = ut_stackalloc((count + 1) * sizeof(uint16_t));
+        ut_str.utf8to16(wide, count, s);
+        OutputDebugStringW(wide);
+    }
+}
+
 static void ut_debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
-    // full path is useful in MSVC debugger output pane (clickable)
-    // for all other scenarios short filename without path is preferable:
-    const char* name = IsDebuggerPresent() ? file : ut_files.basename(file);
     char file_line[1024];
-    snprintf(file_line, countof(file_line) - 1, "%s(%d):", name, line);
-    file_line[countof(file_line) - 1] = 0;
+    if (line == 0 && file == null || file[0] == 0x00) {
+        file_line[0] = 0x00;
+    } else {
+        if (file == null) { file = ""; } // backtrace can have null files
+        // full path is useful in MSVC debugger output pane (clickable)
+        // for all other scenarios short filename without path is preferable:
+        const char* name = IsDebuggerPresent() ? file : ut_files.basename(file);
+        snprintf(file_line, countof(file_line) - 1, "%s(%d):", name, line);
+    }
+    file_line[countof(file_line) - 1] = 0x00; // always zero terminated'
     ut_debug_max_file_line = ut_max(ut_debug_max_file_line,
                                     (int32_t)strlen(file_line));
     ut_debug_max_function  = ut_max(ut_debug_max_function,
@@ -2422,18 +2979,11 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         output[n - 1] = 0;
         n--;
     }
-    // For link.exe /Subsystem:Windows code stdout/stderr are often closed
-    if (stderr != null && fileno(stderr) >= 0) {
-        fprintf(stderr, "%s\n", output);
-    }
     assert(n + 1 < countof(output));
-    // OutputDebugString() needs \n
+    // Win32 OutputDebugString() needs \n
     output[n + 0] = '\n';
     output[n + 1] = 0;
-    // SetConsoleCP(CP_UTF8) is not guaranteed to be called
-    uint16_t wide[countof(output)];
-    ut_str.utf8to16(wide, countof(wide), output);
-    OutputDebugStringW(wide);
+    ut_debug.output(output, n + 2); // including 0x00
 }
 
 #else // posix version:
@@ -2526,6 +3076,8 @@ ut_debug_if ut_debug = {
         .trace   =  4,
     },
     .verbosity_from_string = ut_debug_verbosity_from_string,
+    .tee                   = null,
+    .output                = ut_debug_output,
     .println               = ut_debug_println,
     .println_va            = ut_debug_println_va,
     .perrno                = ut_debug_perrno,
@@ -3668,7 +4220,6 @@ static void ut_heap_free(void* a) {
     ut_heap.deallocate(null, a);
 }
 
-
 static ut_heap_t* ut_heap_create(bool serialized) {
     const DWORD options = serialized ? 0 : HEAP_NO_SERIALIZE;
     return (ut_heap_t*)HeapCreate(options, 0, 0);
@@ -3678,7 +4229,7 @@ static void ut_heap_dispose(ut_heap_t* h) {
     fatal_if_false(HeapDestroy((HANDLE)h));
 }
 
-static inline HANDLE mem_heap(ut_heap_t* h) {
+static inline HANDLE ut_heap_or_process_heap(ut_heap_t* h) {
     static HANDLE process_heap;
     if (process_heap == null) { process_heap = GetProcessHeap(); }
     return h != null ? (HANDLE)h : process_heap;
@@ -3686,8 +4237,15 @@ static inline HANDLE mem_heap(ut_heap_t* h) {
 
 static errno_t ut_heap_allocate(ut_heap_t* h, void* *p, int64_t bytes, bool zero) {
     swear(bytes > 0);
+    #ifdef DEBUG
+        static bool enabled;
+        if (!enabled) {
+            enabled = true;
+            HeapSetInformation(null, HeapEnableTerminationOnCorruption, null, 0);
+        }
+    #endif
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
-    *p = HeapAlloc(mem_heap(h), flags, (SIZE_T)bytes);
+    *p = HeapAlloc(ut_heap_or_process_heap(h), flags, (SIZE_T)bytes);
     return *p == null ? ERROR_OUTOFMEMORY : 0;
 }
 
@@ -3696,18 +4254,18 @@ static errno_t ut_heap_reallocate(ut_heap_t* h, void* *p, int64_t bytes,
     swear(bytes > 0);
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
     void* a = *p == null ? // HeapReAlloc(..., null, bytes) may not work
-        HeapAlloc(mem_heap(h), flags, (SIZE_T)bytes) :
-        HeapReAlloc(mem_heap(h), flags, *p, (SIZE_T)bytes);
+        HeapAlloc(ut_heap_or_process_heap(h), flags, (SIZE_T)bytes) :
+        HeapReAlloc(ut_heap_or_process_heap(h), flags, *p, (SIZE_T)bytes);
     if (a != null) { *p = a; }
     return a == null ? ERROR_OUTOFMEMORY : 0;
 }
 
 static void ut_heap_deallocate(ut_heap_t* h, void* a) {
-    fatal_if_false(HeapFree(mem_heap(h), 0, a));
+    fatal_if_false(HeapFree(ut_heap_or_process_heap(h), 0, a));
 }
 
 static int64_t ut_heap_bytes(ut_heap_t* h, void* a) {
-    SIZE_T bytes = HeapSize(mem_heap(h), 0, a);
+    SIZE_T bytes = HeapSize(ut_heap_or_process_heap(h), 0, a);
     fatal_if(bytes == (SIZE_T)-1);
     return (int64_t)bytes;
 }
@@ -3715,7 +4273,21 @@ static int64_t ut_heap_bytes(ut_heap_t* h, void* a) {
 static void ut_heap_test(void) {
     #ifdef UT_TESTS
     // TODO: allocate, reallocate deallocate, create, dispose
-    traceln("TODO");
+    void*   a[1024]; // addresses
+    int32_t b[1024]; // bytes
+    uint32_t seed = 0x1;
+    for (int i = 0; i < 1024; i++) {
+        b[i] = (int32_t)(ut_num.random32(&seed) % 1024) + 1;
+        errno_t r = ut_heap.alloc(&a[i], b[i]);
+        swear(r == 0);
+    }
+    for (int i = 0; i < 1024; i++) {
+        ut_heap.free(a[i]);
+    }
+    HeapCompact(ut_heap_or_process_heap(null), 0);
+    // "There is no extended error information for HeapValidate;
+    //  do not call GetLastError."
+    swear(HeapValidate(ut_heap_or_process_heap(null), 0, null));
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
 }
@@ -5016,6 +5588,8 @@ static const char* ut_processes_name(void) {
     return module_name;
 }
 
+#ifdef UT_TESTS
+
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                       \
@@ -5079,6 +5653,12 @@ static void ut_processes_test(void) {
 
 #pragma pop_macro("verbose")
 
+#else
+
+static void ut_processes_test(void) { }
+
+#endif
+
 ut_processes_if ut_processes = {
     .pid                 = ut_processes_pid,
     .pids                = ut_processes_pids,
@@ -5135,6 +5715,7 @@ ut_static_init(runtime) {
 static void ut_runtime_test(void) { // in alphabetical order
     ut_args.test();
     ut_atomics.test();
+    ut_bt.test();
     ut_clipboard.test();
     ut_clock.test();
     ut_config.test();
@@ -5177,6 +5758,10 @@ ut_runtime_if ut_runtime = {
 #pragma comment(lib, "kernel32")
 #pragma comment(lib, "user32") // clipboard
 #pragma comment(lib, "ole32")  // ut_files.known_folder CoMemFree
+#pragma comment(lib, "dbghelp")
+#pragma comment(lib, "imagehlp")
+
+
 
 // _______________________________ ut_static.c ________________________________
 
@@ -5336,17 +5921,31 @@ static void ut_str_format(char* utf8, int32_t count, const char* format, ...) {
 }
 
 static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
-    str1024_t text;
-    const DWORD format = FORMAT_MESSAGE_FROM_SYSTEM|
-                         FORMAT_MESSAGE_IGNORE_INSERTS;
-    uint16_t utf16[countof(text.s)];
+    DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+    HMODULE module = null;
     HRESULT hr = 0 <= error && error <= 0xFFFF ?
         HRESULT_FROM_WIN32((uint32_t)error) : (HRESULT)error;
-    if (FormatMessageW(format, null, (DWORD)hr, language,
-            utf16, countof(utf16) - 1, (va_list*)null) > 0) {
-        utf16[countof(utf16) - 1] = 0;
+    if ((error & 0xC0000000U) == 0xC0000000U) {
+        // https://stackoverflow.com/questions/25566234/how-to-convert-specific-ntstatus-value-to-the-hresult
+        static HMODULE ntdll; // RtlNtStatusToDosError implies linking to ntdll
+        if (ntdll == null) { ntdll = GetModuleHandleA("ntdll.dll"); }
+        if (ntdll == null) { ntdll = LoadLibraryA("ntdll.dll"); }
+        module = ntdll;
+        hr = HRESULT_FROM_WIN32(RtlNtStatusToDosError((NTSTATUS)error));
+        flags |= FORMAT_MESSAGE_FROM_HMODULE;
+    }
+    str1024_t text;
+    uint16_t utf16[countof(text.s)];
+    DWORD count = FormatMessageW(flags, module, hr, language,
+            utf16, countof(utf16) - 1, (va_list*)null);
+    utf16[countof(utf16) - 1] = 0; // always
+    // If FormatMessageW() succeeds, the return value is the number of utf16
+    // characters stored in the output buffer, excluding the terminating zero.
+    if (count > 0) {
+        swear(count < countof(utf16));
+        utf16[count] = 0;
         // remove trailing '\r\n'
-        int32_t k = (int32_t)ut_str.len16(utf16);
+        int32_t k = count;
         if (k > 0 && utf16[k - 1] == '\n') { utf16[k - 1] = 0; }
         k = (int32_t)ut_str.len16(utf16);
         if (k > 0 && utf16[k - 1] == '\r') { utf16[k - 1] = 0; }
@@ -5782,25 +6381,25 @@ static void ut_event_reset(ut_event_t e) {
 
 static int32_t ut_event_wait_or_timeout(ut_event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
-    DWORD ix = WaitForSingleObject(e, ms);
-    swear(ix != WAIT_FAILED && ix != WAIT_ABANDONED, "ix: %d", ix);
-    errno_t r = ut_wait_ix2e(ix);
-    if (r != 0) { swear(ix == WAIT_TIMEOUT); }
-    return r != 0 ? -1 : 0;
+    DWORD i = WaitForSingleObject(e, ms);
+    swear(i != WAIT_FAILED, "i: %d", i);
+    errno_t r = ut_wait_ix2e(i);
+    if (r != 0) { swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
 static void ut_event_wait(ut_event_t e) { ut_event_wait_or_timeout(e, -1); }
 
-static int32_t ut_event_wait_any_or_timeout(int32_t n, ut_event_t events[],
-        fp64_t s) {
+static int32_t ut_event_wait_any_or_timeout(int32_t n,
+        ut_event_t events[], fp64_t s) {
     swear(n < 64); // Win32 API limit
     const uint32_t ms = s < 0 ? INFINITE : (uint32_t)(s * 1000.0 + 0.5);
     const HANDLE* es = (const HANDLE*)events;
-    DWORD ix = WaitForMultipleObjects((DWORD)n, es, false, ms);
-    swear(ix != WAIT_FAILED && ix != WAIT_ABANDONED, "ix: %d", ix);
-    errno_t r = ut_wait_ix2e(ix);
-    if (r != 0) { swear(ix == WAIT_TIMEOUT); }
-    return r != 0 ? -1 : (int32_t)ix;
+    DWORD i = WaitForMultipleObjects((DWORD)n, es, false, ms);
+    swear(i != WAIT_FAILED, "i: %d", i);
+    errno_t r = ut_wait_ix2e(i);
+    if (r != 0) { swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
 static int32_t ut_event_wait_any(int32_t n, ut_event_t e[]) {
@@ -5830,30 +6429,31 @@ static void ut_event_test(void) {
     ut_event_test_check_time(start, 0); // Event should be immediate
     ut_event.reset(event);
     start = ut_clock.seconds();
-    const fp64_t timeout_seconds = 0.01;
+    const fp64_t timeout_seconds = 1.0 / 8.0;
     int32_t result = ut_event.wait_or_timeout(event, timeout_seconds);
     ut_event_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     enum { count = 5 };
-    ut_event_t event_array[count];
-    for (int32_t i = 0; i < countof(event_array); i++) {
-        event_array[i] = ut_event.create_manual();
+    ut_event_t events[count];
+    for (int32_t i = 0; i < countof(events); i++) {
+        events[i] = ut_event.create_manual();
     }
     start = ut_clock.seconds();
-    ut_event.set(event_array[2]); // Set the third event
-    int32_t index = ut_event.wait_any(countof(event_array), event_array);
+    ut_event.set(events[2]); // Set the third event
+    int32_t index = ut_event.wait_any(countof(events), events);
+    swear(index == 2);
     ut_event_test_check_time(start, 0);
     swear(index == 2); // Third event should be triggered
-    ut_event.reset(event_array[2]); // Reset the third event
+    ut_event.reset(events[2]); // Reset the third event
     start = ut_clock.seconds();
-    result = ut_event.wait_any_or_timeout(countof(event_array),
-        event_array, timeout_seconds);
+    result = ut_event.wait_any_or_timeout(countof(events), events, timeout_seconds);
+    swear(result == -1);
     ut_event_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     // Clean up
     ut_event.dispose(event);
-    for (int32_t i = 0; i < countof(event_array); i++) {
-        ut_event.dispose(event_array[i]);
+    for (int32_t i = 0; i < countof(events); i++) {
+        ut_event.dispose(events[i]);
     }
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
@@ -6170,9 +6770,36 @@ static void ut_thread_sleep_for(fp64_t seconds) {
     NtDelayExecution(false, &delay);
 }
 
-static int32_t ut_thread_id(void) {
-    return (int32_t)GetThreadId(GetCurrentThread());
+static uint64_t ut_thread_id_of(ut_thread_t t) {
+    return (uint64_t)GetThreadId((HANDLE)t);
 }
+
+static uint64_t ut_thread_id(void) {
+    return (uint64_t)GetThreadId(GetCurrentThread());
+}
+
+static ut_thread_t ut_thread_self(void) {
+    // GetCurrentThread() returns pseudo-handle, not a real handle
+    // if real handle is ever needed may do
+    // ut_thread_t t = ut_thread.open(ut_thread.id()) and
+    // ut_thread.close(t) instead.
+    return (ut_thread_t)GetCurrentThread();
+}
+
+static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
+    // GetCurrentThread() returns pseudo-handle, not a real handle
+    // if real handle is ever needed may do ut_thread_id_of() and
+    //  instead, though it will mean
+    // CloseHangle is needed.
+    *t = (ut_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
+    return *t == null ? (errno_t)GetLastError() : 0;
+}
+
+static void ut_thread_close(ut_thread_t t) {
+    not_null(t);
+    fatal_if_not_zero(ut_b2e(CloseHandle((HANDLE)t)));
+}
+
 
 #ifdef UT_TESTS
 
@@ -6186,7 +6813,7 @@ typedef struct {
     ut_mutex_t* left_fork;
     ut_mutex_t* right_fork;
     ut_thread_t thread;
-    int32_t  id;
+    uint64_t    id;
 } ut_thread_philosopher_t;
 
 typedef struct ut_thread_philosophers_s {
@@ -6329,7 +6956,11 @@ ut_thread_if ut_thread = {
     .realtime  = ut_thread_realtime,
     .yield     = ut_thread_yield,
     .sleep_for = ut_thread_sleep_for,
+    .id_of     = ut_thread_id_of,
     .id        = ut_thread_id,
+    .self      = ut_thread_self,
+    .open      = ut_thread_open,
+    .close     = ut_thread_close,
     .test      = ut_thread_test
 };
 // ________________________________ ut_vigil.c ________________________________

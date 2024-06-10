@@ -78,6 +78,9 @@
     <ClInclude Include="..\inc\ut\ut_clipboard.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_bt.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\test\test1.rc">

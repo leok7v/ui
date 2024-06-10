@@ -21,6 +21,9 @@
 #include <dwmapi.h>
 #include <ShellScalingApi.h>
 #include <VersionHelpers.h>
+#include <dbghelp.h>
+#include <tlhelp32.h>
+#include <winnt.h>
 
 #pragma warning(pop)
 

@@ -40,25 +40,25 @@ static void ut_event_reset(ut_event_t e) {
 
 static int32_t ut_event_wait_or_timeout(ut_event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
-    DWORD ix = WaitForSingleObject(e, ms);
-    swear(ix != WAIT_FAILED && ix != WAIT_ABANDONED, "ix: %d", ix);
-    errno_t r = ut_wait_ix2e(ix);
-    if (r != 0) { swear(ix == WAIT_TIMEOUT); }
-    return r != 0 ? -1 : 0;
+    DWORD i = WaitForSingleObject(e, ms);
+    swear(i != WAIT_FAILED, "i: %d", i);
+    errno_t r = ut_wait_ix2e(i);
+    if (r != 0) { swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
 static void ut_event_wait(ut_event_t e) { ut_event_wait_or_timeout(e, -1); }
 
-static int32_t ut_event_wait_any_or_timeout(int32_t n, ut_event_t events[],
-        fp64_t s) {
+static int32_t ut_event_wait_any_or_timeout(int32_t n,
+        ut_event_t events[], fp64_t s) {
     swear(n < 64); // Win32 API limit
     const uint32_t ms = s < 0 ? INFINITE : (uint32_t)(s * 1000.0 + 0.5);
     const HANDLE* es = (const HANDLE*)events;
-    DWORD ix = WaitForMultipleObjects((DWORD)n, es, false, ms);
-    swear(ix != WAIT_FAILED && ix != WAIT_ABANDONED, "ix: %d", ix);
-    errno_t r = ut_wait_ix2e(ix);
-    if (r != 0) { swear(ix == WAIT_TIMEOUT); }
-    return r != 0 ? -1 : (int32_t)ix;
+    DWORD i = WaitForMultipleObjects((DWORD)n, es, false, ms);
+    swear(i != WAIT_FAILED, "i: %d", i);
+    errno_t r = ut_wait_ix2e(i);
+    if (r != 0) { swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
 static int32_t ut_event_wait_any(int32_t n, ut_event_t e[]) {
@@ -88,30 +88,31 @@ static void ut_event_test(void) {
     ut_event_test_check_time(start, 0); // Event should be immediate
     ut_event.reset(event);
     start = ut_clock.seconds();
-    const fp64_t timeout_seconds = 0.01;
+    const fp64_t timeout_seconds = 1.0 / 8.0;
     int32_t result = ut_event.wait_or_timeout(event, timeout_seconds);
     ut_event_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     enum { count = 5 };
-    ut_event_t event_array[count];
-    for (int32_t i = 0; i < countof(event_array); i++) {
-        event_array[i] = ut_event.create_manual();
+    ut_event_t events[count];
+    for (int32_t i = 0; i < countof(events); i++) {
+        events[i] = ut_event.create_manual();
     }
     start = ut_clock.seconds();
-    ut_event.set(event_array[2]); // Set the third event
-    int32_t index = ut_event.wait_any(countof(event_array), event_array);
+    ut_event.set(events[2]); // Set the third event
+    int32_t index = ut_event.wait_any(countof(events), events);
+    swear(index == 2);
     ut_event_test_check_time(start, 0);
     swear(index == 2); // Third event should be triggered
-    ut_event.reset(event_array[2]); // Reset the third event
+    ut_event.reset(events[2]); // Reset the third event
     start = ut_clock.seconds();
-    result = ut_event.wait_any_or_timeout(countof(event_array),
-        event_array, timeout_seconds);
+    result = ut_event.wait_any_or_timeout(countof(events), events, timeout_seconds);
+    swear(result == -1);
     ut_event_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     // Clean up
     ut_event.dispose(event);
-    for (int32_t i = 0; i < countof(event_array); i++) {
-        ut_event.dispose(event_array[i]);
+    for (int32_t i = 0; i < countof(events); i++) {
+        ut_event.dispose(events[i]);
     }
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
     #endif
@@ -428,9 +429,36 @@ static void ut_thread_sleep_for(fp64_t seconds) {
     NtDelayExecution(false, &delay);
 }
 
-static int32_t ut_thread_id(void) {
-    return (int32_t)GetThreadId(GetCurrentThread());
+static uint64_t ut_thread_id_of(ut_thread_t t) {
+    return (uint64_t)GetThreadId((HANDLE)t);
 }
+
+static uint64_t ut_thread_id(void) {
+    return (uint64_t)GetThreadId(GetCurrentThread());
+}
+
+static ut_thread_t ut_thread_self(void) {
+    // GetCurrentThread() returns pseudo-handle, not a real handle
+    // if real handle is ever needed may do
+    // ut_thread_t t = ut_thread.open(ut_thread.id()) and
+    // ut_thread.close(t) instead.
+    return (ut_thread_t)GetCurrentThread();
+}
+
+static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
+    // GetCurrentThread() returns pseudo-handle, not a real handle
+    // if real handle is ever needed may do ut_thread_id_of() and
+    //  instead, though it will mean
+    // CloseHangle is needed.
+    *t = (ut_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
+    return *t == null ? (errno_t)GetLastError() : 0;
+}
+
+static void ut_thread_close(ut_thread_t t) {
+    not_null(t);
+    fatal_if_not_zero(ut_b2e(CloseHandle((HANDLE)t)));
+}
+
 
 #ifdef UT_TESTS
 
@@ -444,7 +472,7 @@ typedef struct {
     ut_mutex_t* left_fork;
     ut_mutex_t* right_fork;
     ut_thread_t thread;
-    int32_t  id;
+    uint64_t    id;
 } ut_thread_philosopher_t;
 
 typedef struct ut_thread_philosophers_s {
@@ -587,6 +615,10 @@ ut_thread_if ut_thread = {
     .realtime  = ut_thread_realtime,
     .yield     = ut_thread_yield,
     .sleep_for = ut_thread_sleep_for,
+    .id_of     = ut_thread_id_of,
     .id        = ut_thread_id,
+    .self      = ut_thread_self,
+    .open      = ut_thread_open,
+    .close     = ut_thread_close,
     .test      = ut_thread_test
 };

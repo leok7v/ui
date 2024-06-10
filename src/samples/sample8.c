@@ -110,6 +110,11 @@ static void toggle_about(ui_button_t* unused(b)) {
     ui_app.show_toast(&mbx.view, 10.0);
 }
 
+static void crash(ui_button_t* b) {
+    void* p = (void*)b->click; // null
+    memcpy(p, b->text, 4); // will crash
+}
+
 static void dark_light(ui_toggle_t* b) {
     ui_app.light_mode = b->pressed;
     ui_app.dark_mode = !b->pressed;
@@ -142,6 +147,8 @@ static void opened(void) {
            ui_toggle("Light",      3.0f, dark_light);
     static ui_button_t button_about =
            ui_button("&About",     3.0f, toggle_about);
+    static ui_button_t button_crash =
+           ui_button("Crash",      3.0f, crash);
     ui_view.add(ui_app.content,
         ui_view.add(&list,
             ui_view.add(&span,
@@ -151,6 +158,7 @@ static void opened(void) {
                     &button_list,
                     &button_controls,
                     &toggle_light,
+                    &button_crash,
                     &button_about,
                 null),
                 &test,

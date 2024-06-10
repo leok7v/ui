@@ -2,7 +2,7 @@
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
 
-static volatile int index; // index of image to paint, !ix to render
+static volatile int32_t index; // index of image to paint, !ix to render
 static ui_image_t image[2];
 static uint8_t pixels[2][4 * 4096 * 4096];
 
@@ -27,7 +27,7 @@ ui_button_on_click(button_fs, ut_glyph_square_four_corners, 1.0, {
 });
 
 static void paint(ui_view_t* view) {
-    int k = index;
+    int32_t k = index;
     ui_gdi.draw_image(0, 0, view->w, view->h, &image[k]);
     ui_gdi.x = view->fm->em.w;
     ui_gdi.y = view->fm->em.h / 4;
@@ -59,8 +59,8 @@ static void stop_rendering(void) {
 static void measure(ui_view_t* view) {
     view->w = ui_app.root->w;
     view->h = ui_app.root->h;
-    const int w = view->w;
-    const int h = view->h;
+    const int32_t w = view->w;
+    const int32_t h = view->h;
     ui_image_t* im = &image[index];
     if (w != im->w || h != im->h) {
         stop_rendering();
@@ -142,19 +142,19 @@ ui_app_t ui_app = {
     }
 };
 
-static fp64_t scale(int x, int n, fp64_t low, fp64_t hi) {
+static fp64_t scale(int32_t x, int32_t n, fp64_t low, fp64_t hi) {
     return x / (fp64_t)(n - 1) * (hi - low) + low;
 }
 
 static void mandelbrot(ui_image_t* im) {
     fp64_t time = ut_clock.seconds();
-    for (int r = 0; r < im->h && !stop; r++) {
+    for (int32_t r = 0; r < im->h && !stop; r++) {
         fp64_t y0 = scale(r, im->h, -1.12, 1.12);
-        for (int c = 0; c < im->w && !stop; c++) {
+        for (int32_t c = 0; c < im->w && !stop; c++) {
             fp64_t x0 = scale(c, im->w, -2.00, 0.47);
             fp64_t x = 0;
             fp64_t y = 0;
-            int iteration = 0;
+            int32_t iteration = 0;
             enum { max_iteration = 100 };
             while (x* x + y * y <= 2 * 2 && iteration < max_iteration && !stop) {
                 fp64_t t = x * x - y * y + x0;
@@ -189,9 +189,9 @@ static void renderer(void* unused) {
     ut_thread.realtime();
     ut_event_t es[2] = {wake, quit};
     for (;;) {
-        int e = ut_event.wait_any(countof(es), es);
-        if (e != 0) { break; }
-        int k = !index;
+        int32_t ix = ut_event.wait_any(countof(es), es);
+        if (ix != 0) { break; }
+        int32_t k = !index;
         mandelbrot(&image[k]);
         if (!stop) { index = !index; ui_app.request_redraw(); }
         stop = false;

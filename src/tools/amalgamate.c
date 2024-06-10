@@ -37,8 +37,6 @@ static char src[256];
 static char mem[1024 * 1023];
 static char* brk = mem;
 
-
-
 #define fatal_if(x, ...) do {                                   \
     if (x) {                                                    \
         fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); \
@@ -47,7 +45,6 @@ static char* brk = mem;
         exit(1);                                                \
     }                                                           \
 } while (0)
-
 
 static const char* basename(const char* filename) {
     const char* s = strrchr(filename, '\\');

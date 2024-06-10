@@ -82,6 +82,7 @@
   <ItemGroup>
     <ClInclude Include="..\inc\ut\ut_args.h" />
     <ClInclude Include="..\inc\ut\ut_atomics.h" />
+    <ClInclude Include="..\inc\ut\ut_bt.h" />
     <ClInclude Include="..\inc\ut\ut_clock.h" />
     <ClInclude Include="..\inc\ut\ut_config.h" />
     <ClInclude Include="..\inc\ut\ut_debug.h" />

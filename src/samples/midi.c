@@ -6,7 +6,7 @@
 
 #pragma comment(lib, "winmm")
 
-static int32_t tid; // mi is thread sensitive
+static uint64_t tid; // mi is thread sensitive
 
 ut_static_init(midi) {
     tid = ut_thread.id(); // main() thread

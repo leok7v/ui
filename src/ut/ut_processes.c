@@ -504,6 +504,8 @@ static const char* ut_processes_name(void) {
     return module_name;
 }
 
+#ifdef UT_TESTS
+
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                       \
@@ -566,6 +568,12 @@ static void ut_processes_test(void) {
 }
 
 #pragma pop_macro("verbose")
+
+#else
+
+static void ut_processes_test(void) { }
+
+#endif
 
 ut_processes_if ut_processes = {
     .pid                 = ut_processes_pid,

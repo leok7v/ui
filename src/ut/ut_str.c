@@ -114,17 +114,31 @@ static void ut_str_format(char* utf8, int32_t count, const char* format, ...) {
 }
 
 static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
-    str1024_t text;
-    const DWORD format = FORMAT_MESSAGE_FROM_SYSTEM|
-                         FORMAT_MESSAGE_IGNORE_INSERTS;
-    uint16_t utf16[countof(text.s)];
+    DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+    HMODULE module = null;
     HRESULT hr = 0 <= error && error <= 0xFFFF ?
         HRESULT_FROM_WIN32((uint32_t)error) : (HRESULT)error;
-    if (FormatMessageW(format, null, (DWORD)hr, language,
-            utf16, countof(utf16) - 1, (va_list*)null) > 0) {
-        utf16[countof(utf16) - 1] = 0;
+    if ((error & 0xC0000000U) == 0xC0000000U) {
+        // https://stackoverflow.com/questions/25566234/how-to-convert-specific-ntstatus-value-to-the-hresult
+        static HMODULE ntdll; // RtlNtStatusToDosError implies linking to ntdll
+        if (ntdll == null) { ntdll = GetModuleHandleA("ntdll.dll"); }
+        if (ntdll == null) { ntdll = LoadLibraryA("ntdll.dll"); }
+        module = ntdll;
+        hr = HRESULT_FROM_WIN32(RtlNtStatusToDosError((NTSTATUS)error));
+        flags |= FORMAT_MESSAGE_FROM_HMODULE;
+    }
+    str1024_t text;
+    uint16_t utf16[countof(text.s)];
+    DWORD count = FormatMessageW(flags, module, hr, language,
+            utf16, countof(utf16) - 1, (va_list*)null);
+    utf16[countof(utf16) - 1] = 0; // always
+    // If FormatMessageW() succeeds, the return value is the number of utf16
+    // characters stored in the output buffer, excluding the terminating zero.
+    if (count > 0) {
+        swear(count < countof(utf16));
+        utf16[count] = 0;
         // remove trailing '\r\n'
-        int32_t k = (int32_t)ut_str.len16(utf16);
+        int32_t k = count;
         if (k > 0 && utf16[k - 1] == '\n') { utf16[k - 1] = 0; }
         k = (int32_t)ut_str.len16(utf16);
         if (k > 0 && utf16[k - 1] == '\r') { utf16[k - 1] = 0; }

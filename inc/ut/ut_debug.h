@@ -24,6 +24,9 @@ typedef struct {
 typedef struct {
     ut_verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
+    // "T" connector for outside write; return false to proceed with default
+    bool (*tee)(const char* s, int32_t count); // return true to intercept
+    void (*output)(const char* s, int32_t count);
     void (*println_va)(const char* file, int32_t line, const char* func,
         const char* format, va_list vl);
     void (*println)(const char* file, int32_t line, const char* func,

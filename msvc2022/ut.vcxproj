@@ -13,6 +13,7 @@
   <ItemGroup>
     <ClInclude Include="..\inc\ut\ut_args.h" />
     <ClInclude Include="..\inc\ut\ut_atomics.h" />
+    <ClInclude Include="..\inc\ut\ut_bt.h" />
     <ClInclude Include="..\inc\ut\ut_clipboard.h" />
     <ClInclude Include="..\inc\ut\ut_clock.h" />
     <ClInclude Include="..\inc\ut\ut_config.h" />
@@ -43,6 +44,7 @@
   <ItemGroup>
     <ClCompile Include="..\src\ut\ut_args.c" />
     <ClCompile Include="..\src\ut\ut_atomics.c" />
+    <ClCompile Include="..\src\ut\ut_bt.c" />
     <ClCompile Include="..\src\ut\ut_clipboard.c" />
     <ClCompile Include="..\src\ut\ut_clock.c" />
     <ClCompile Include="..\src\ut\ut_config.c" />

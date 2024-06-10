@@ -1506,20 +1506,19 @@ typedef struct {
     bool no_clip;    // allows to resize window above hosting monitor size
     bool hide_on_minimize; // like task manager minimize means hide
     bool aero;     // retro Windows 7 decoration (just for the fun of it)
-    ui_icon_t icon; // may be null
-    int32_t exit_code; // application exit code
-    int32_t tid; // main thread id
-    // drawing context:
-    ui_dpi_t dpi;
     ui_window_t window;
+    ui_icon_t icon; // may be null
+    uint64_t  tid; // main thread id
+    int32_t   exit_code; // application exit code
+    ui_dpi_t  dpi;
     ui_rect_t wrc;  // window rectangle including non-client area
     ui_rect_t crc;  // client rectangle
     ui_rect_t mrc;  // monitor rectangle
     ui_rect_t work_area; // current monitor work area
-    int32_t caption_height; // caption height
-    ui_wh_t border;    // frame border size
+    int32_t   caption_height; // caption height
+    ui_wh_t   border;    // frame border size
     // not to call ut_clock.seconds() too often:
-    fp64_t now;     // ssb "seconds since boot" updated on each message
+    fp64_t     now;  // ssb "seconds since boot" updated on each message
     ui_view_t* root; // show_window() changes ui.hidden
     ui_view_t* content;
     ui_view_t* caption;
@@ -3145,8 +3144,8 @@ static void ui_app_redraw_thread(void* unused(p)) {
     ut_thread.name("ui_app.redraw");
     for (;;) {
         ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
-        int32_t r = ut_event.wait_any(countof(es), es);
-        if (r == 0) {
+        int32_t ix = ut_event.wait_any(countof(es), es);
+        if (ix == 0) {
             if (ui_app_window() != null) {
                 InvalidateRect(ui_app_window(), null, false);
             }
@@ -3800,7 +3799,45 @@ static ui_rect_t ui_app_window_initial_rectangle(void) {
     return r;
 }
 
-static int ui_app_win_main(void) {
+static FILE* ui_app_crash_log;
+
+static bool ui_app_write_backtrace(const char* s, int32_t n) {
+    if (n > 0 && s[n - 1] == 0) { n--; }
+    if (n > 0 && ui_app_crash_log != null) {
+        fwrite(s, n, 1, ui_app_crash_log);
+    }
+    return false;
+}
+
+static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
+    char fn[1024];
+    DWORD ex = ep->ExceptionRecord->ExceptionCode; // exception code
+    // T-connector for intercepting ut_debug.output:
+    bool (*tee)(const char* s, int32_t n) = ut_debug.tee;
+    ut_debug.tee = ui_app_write_backtrace;
+    const char* home = ut_files.known_folder(ut_files.folder.home);
+    if (home != null) {
+        const char* name = ui_app.class_name  != null ?
+                           ui_app.class_name : "ui_app";
+        strprintf(fn, "%s\\%s_crash_log.txt", home, name);
+        ui_app_crash_log = fopen(fn, "w");
+    }
+    traceln("Exception: %s", ut_str.error(ex));
+    ut_bt.trace_self("*");
+    ut_bt.trace_all_but_self();
+    ut_debug.tee = tee;
+    if (ui_app_crash_log != null) {
+        fclose(ui_app_crash_log);
+        char cmd[1024];
+        strprintf(cmd, "cmd.exe /c start notepad \"%s\"", fn);
+        system(cmd);
+    }
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+
+static int ui_app_win_main(HINSTANCE instance) {
+    // IDI_ICON 101:
+    ui_app.icon = (ui_icon_t)LoadIconA(instance, MAKEINTRESOURCE(101));
     not_null(ui_app.init);
     ui_app_init_windows();
     ui_gdi.init();
@@ -3812,8 +3849,10 @@ static int ui_app_win_main(void) {
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
     // TODO: use .frame and .caption_height in ui_caption.c
-    ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME, (uint32_t)ui_app.dpi.process);
-    ui_app.border.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME, (uint32_t)ui_app.dpi.process);
+    ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME,
+                                (uint32_t)ui_app.dpi.process);
+    ui_app.border.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME,
+                                (uint32_t)ui_app.dpi.process);
     // border is too think (5 pixels) narrow down to 3x3
     const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :
         (ui_app.dpi.window >= 192 ? 3 : 2);
@@ -3861,21 +3900,21 @@ static int ui_app_win_main(void) {
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE unused(previous),
         char* unused(command), int show) {
-    ui_app.tid = ut_thread.id();
+    SetUnhandledExceptionFilter(ui_app_exception_filter);
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
     fatal_if_not_zero(CoInitializeEx(0, co_init));
     SetConsoleCP(CP_UTF8);
+    ui_app.tid = ut_thread.id();
     ut_nls.init();
     ui_app.visibility = show;
     ut_args.WinMain();
-    // IDI_ICON 101:
-    ui_app.icon = (ui_icon_t)LoadIconA(instance, MAKEINTRESOURCE(101));
-    int32_t r = ui_app_win_main();
+    int32_t r = ui_app_win_main(instance);
     ut_args.fini();
     return r;
 }
 
 int main(int argc, const char* argv[], const char** envp) {
+    SetUnhandledExceptionFilter(ui_app_exception_filter);
     fatal_if_not_zero(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
     ut_args.main(argc, argv, envp);
     ut_nls.init();
@@ -8940,6 +8979,9 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 #include <dwmapi.h>
 #include <ShellScalingApi.h>
 #include <VersionHelpers.h>
+#include <dbghelp.h>
+#include <tlhelp32.h>
+#include <winnt.h>
 
 #pragma warning(pop)
 

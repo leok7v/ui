@@ -39,6 +39,7 @@ ut_static_init(runtime) {
 static void ut_runtime_test(void) { // in alphabetical order
     ut_args.test();
     ut_atomics.test();
+    ut_bt.test();
     ut_clipboard.test();
     ut_clock.test();
     ut_config.test();
@@ -81,3 +82,7 @@ ut_runtime_if ut_runtime = {
 #pragma comment(lib, "kernel32")
 #pragma comment(lib, "user32") // clipboard
 #pragma comment(lib, "ole32")  // ut_files.known_folder CoMemFree
+#pragma comment(lib, "dbghelp")
+#pragma comment(lib, "imagehlp")
+
+

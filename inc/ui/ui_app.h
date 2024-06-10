@@ -39,20 +39,19 @@ typedef struct {
     bool no_clip;    // allows to resize window above hosting monitor size
     bool hide_on_minimize; // like task manager minimize means hide
     bool aero;     // retro Windows 7 decoration (just for the fun of it)
-    ui_icon_t icon; // may be null
-    int32_t exit_code; // application exit code
-    int32_t tid; // main thread id
-    // drawing context:
-    ui_dpi_t dpi;
     ui_window_t window;
+    ui_icon_t icon; // may be null
+    uint64_t  tid; // main thread id
+    int32_t   exit_code; // application exit code
+    ui_dpi_t  dpi;
     ui_rect_t wrc;  // window rectangle including non-client area
     ui_rect_t crc;  // client rectangle
     ui_rect_t mrc;  // monitor rectangle
     ui_rect_t work_area; // current monitor work area
-    int32_t caption_height; // caption height
-    ui_wh_t border;    // frame border size
+    int32_t   caption_height; // caption height
+    ui_wh_t   border;    // frame border size
     // not to call ut_clock.seconds() too often:
-    fp64_t now;     // ssb "seconds since boot" updated on each message
+    fp64_t     now;  // ssb "seconds since boot" updated on each message
     ui_view_t* root; // show_window() changes ui.hidden
     ui_view_t* content;
     ui_view_t* caption;

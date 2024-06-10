@@ -78,5 +78,8 @@
     <ClInclude Include="..\single_file_lib\ut\ut.h">
       <Filter>single_file_lib\ut</Filter>
     </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_bt.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
