@@ -205,6 +205,7 @@ static void opened(void) {
         default: toggle_container(&button_container); break;
     }
     ui_caption.menu.callback = toggle_tools;
+    ui_caption.icon.hidden = true;
     tools.hidden = true;
     if (app_data.menu_used == 0) {
         ui_app.toast(4.5, "For tools click "

@@ -65,7 +65,8 @@ static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
 //      ui_view.inside(&ui_caption.icon, &pt));
     if (ui_app.is_full_screen) {
         return ui.hit_test.client;
-    } else if (ui_view.inside(&ui_caption.icon, &pt)) {
+    } else if (!ui_caption.icon.hidden &&
+                ui_view.inside(&ui_caption.icon, &pt)) {
         return ui.hit_test.system_menu;
     } else {
         ui_view_for_each(&ui_caption.view, c, {

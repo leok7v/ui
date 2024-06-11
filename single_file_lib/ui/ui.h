@@ -1274,13 +1274,25 @@ enum {
     ui_color_id_window_text         = 13
 };
 
+enum {
+    ui_theme_app_mode_default     = 0,
+    ui_theme_app_mode_allow_dark  = 1,
+    ui_theme_app_mode_force_dark  = 2,
+    ui_theme_app_mode_force_light = 3
+};
+
 typedef struct  {
     ui_color_t (*get_color)(int32_t color_id);
     bool (*is_system_dark)(void);
     bool (*are_apps_dark)(void);
+    void (*set_preferred_app_mode)(int32_t mode);
+    void (*flush_menu_themes)(void);
+    void (*allow_dark_mode_for_app)(bool allow);
+    void (*allow_dark_mode_for_window)(bool allow);
     void (*refresh)(void);
     void (*test)(void);
 } ui_theme_if;
+
 
 extern ui_theme_if ui_theme;
 
@@ -2203,47 +2215,6 @@ static void ui_app_window_closing(void) {
     }
 }
 
-static void ui_app_allow_dark_mode_for_app(void) {
-    // https://github.com/rizonesoft/Notepad3/tree/96a48bd829a3f3192bbc93cd6944cafb3228b96d/src/DarkMode
-    HMODULE uxtheme = GetModuleHandleA("uxtheme.dll");
-    not_null(uxtheme);
-    typedef BOOL (__stdcall *AllowDarkModeForApp_t)(bool allow);
-    AllowDarkModeForApp_t AllowDarkModeForApp = (AllowDarkModeForApp_t)
-            (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(132));
-    if (AllowDarkModeForApp != null) {
-        errno_t r = ut_b2e(AllowDarkModeForApp(true));
-        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("AllowDarkModeForApp(true) failed %s", strerr(r));
-        }
-    }
-    enum { Default = 0, AllowDark = 1, ForceDark = 2, ForceLight = 3 };
-    typedef BOOL (__stdcall *SetPreferredAppMode_t)(bool allow);
-    SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
-            (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(135));
-    if (SetPreferredAppMode != null) {
-        int r = ut_b2e(SetPreferredAppMode(AllowDark));
-        // 1814 ERROR_RESOURCE_NAME_NOT_FOUND
-        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("SetPreferredAppMode(AllowDark) failed %s",
-                    strerr(r));
-        }
-    }
-}
-
-static void ui_app_allow_dark_mode_for_window(void) {
-    HMODULE uxtheme = GetModuleHandleA("uxtheme.dll");
-    not_null(uxtheme);
-    typedef BOOL (__stdcall *AllowDarkModeForWindow_t)(HWND hWnd, bool allow);
-    AllowDarkModeForWindow_t AllowDarkModeForWindow = (AllowDarkModeForWindow_t)
-        (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(133));
-    if (AllowDarkModeForWindow != null) {
-        int r = ut_b2e(AllowDarkModeForWindow(ui_app_window(), true));
-        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("AllowDarkModeForWindow(true) failed %s", strerr(r));
-        }
-    }
-}
-
 static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
     const ui_window_sizing_t* ws = &ui_app.window_sizing;
     const ui_rect_t* wa = &ui_app.work_area;
@@ -2789,6 +2760,22 @@ static void ui_app_update_mouse_buttons_state(void) {
                           & 0x8000) != 0;
 }
 
+void SetDarkMenuTheme(HMENU hMenu) {
+    MENUINFO mi = { sizeof(MENUINFO) };
+    mi.fMask = MIM_BACKGROUND;
+    mi.hbrBack = CreateSolidBrush(RGB(0, 0, 0));
+    SetMenuInfo(hMenu, &mi);
+
+    int count = GetMenuItemCount(hMenu);
+    for (int i = 0; i < count; ++i) {
+        MENUITEMINFO mii = { sizeof(MENUITEMINFO) };
+        mii.fMask = MIIM_FTYPE | MIIM_STATE;
+        mii.fType = MFT_STRING;
+        mii.fState = MFS_DEFAULT;
+        SetMenuItemInfo(hMenu, i, TRUE, &mii);
+    }
+}
+
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
     ui_app.now = ut_clock.seconds();
@@ -2940,24 +2927,27 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             }
             break;
         }
-        case WM_SYSCOMMAND:
-//          traceln("WM_SYSCOMMAND 0x%08llX %lld", wp, lp);
-            if (wp == SC_MINIMIZE && ui_app.hide_on_minimize) {
+        case WM_SYSCOMMAND: {
+            uint16_t sys_cmd = (uint16_t)(wp & 0xFF0);
+//          traceln("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
+//                  wp, lp, lp, sys_cmd);
+            if (sys_cmd == SC_MINIMIZE && ui_app.hide_on_minimize) {
                 ui_app.show_window(ui.visibility.min_na);
                 ui_app.show_window(ui.visibility.hide);
-            } else  if (wp == SC_MINIMIZE && ui_app.no_decor) {
+            } else  if (sys_cmd == SC_MINIMIZE && ui_app.no_decor) {
                 ui_app.show_window(ui.visibility.min_na);
             }
-//          if (wp == SC_KEYMENU) { traceln("SC_KEYMENU.WM_SYSCOMMAND %lld", lp); }
+//          if (sys_cmd == SC_KEYMENU) { traceln("SC_KEYMENU lp: %lld", lp); }
             // If the selection is in menu handle the key event
-            if (wp == SC_KEYMENU && lp != 0x20) {
+            if (sys_cmd == SC_KEYMENU && lp != 0x20) {
                 return 0; // This prevents the error/beep sound
             }
-//          if ((wp & 0xFFF0) == SC_MOUSEMENU) {
+            if (sys_cmd == SC_MOUSEMENU) {
 //              traceln("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
-//              break;
-//          }
+                break;
+            }
             break;
+        }
         case WM_ACTIVATE: ui_app_wm_activate(wp); break;
         case WM_WINDOWPOSCHANGING: {
             #ifdef QUICK_DEBUG
@@ -4184,7 +4174,8 @@ static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
 //      ui_view.inside(&ui_caption.icon, &pt));
     if (ui_app.is_full_screen) {
         return ui.hit_test.client;
-    } else if (ui_view.inside(&ui_caption.icon, &pt)) {
+    } else if (!ui_caption.icon.hidden &&
+                ui_view.inside(&ui_caption.icon, &pt)) {
         return ui.hit_test.system_menu;
     } else {
         ui_view_for_each(&ui_caption.view, c, {
@@ -9064,6 +9055,78 @@ static bool ui_theme_use_light_theme(const char* key) {
 #pragma pop_macro("ux_theme_reg_cv")
 #pragma pop_macro("ux_theme_reg_default_colors")
 
+static HMODULE ui_theme_uxtheme(void) {
+    static HMODULE uxtheme;
+    if (uxtheme == null) {
+        uxtheme = GetModuleHandleA("uxtheme.dll");
+        if (uxtheme == null) {
+            uxtheme = LoadLibraryA("uxtheme.dll");
+        }
+    }
+    not_null(uxtheme);
+    return uxtheme;
+}
+
+static void* ui_theme_uxtheme_func(uint16_t ordinal) {
+    HMODULE uxtheme = ui_theme_uxtheme();
+    void* proc = (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(ordinal));
+    not_null(proc);
+    return proc;
+}
+
+static void ui_theme_set_preferred_app_mode(int32_t mode) {
+    typedef BOOL (__stdcall *SetPreferredAppMode_t)(int32_t mode);
+    SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
+            (SetPreferredAppMode_t)ui_theme_uxtheme_func(135);
+    errno_t r = ut_b2e(SetPreferredAppMode(mode));
+    // On Win11: 10.0.22631
+    // SetPreferredAppMode(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
+    // "The specified program requires a newer version of Windows."
+    if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
+        traceln("SetPreferredAppMode(AllowDark) failed %s", strerr(r));
+    }
+}
+
+// https://stackoverflow.com/questions/75835069/dark-system-contextmenu-in-window
+
+static void ui_theme_flush_menu_themes(void) {
+    typedef BOOL (__stdcall *FlushMenuThemes_t)(void);
+    FlushMenuThemes_t FlushMenuThemes = (FlushMenuThemes_t)
+            (FlushMenuThemes_t)ui_theme_uxtheme_func(136);
+    errno_t r = ut_b2e(FlushMenuThemes());
+    if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
+        traceln("FlushMenuThemes(AllowDark) failed %s", strerr(r));
+    }
+}
+
+static void ui_theme_allow_dark_mode_for_app(bool allow) {
+    // https://github.com/rizonesoft/Notepad3/tree/96a48bd829a3f3192bbc93cd6944cafb3228b96d/src/DarkMode
+    typedef BOOL (__stdcall *AllowDarkModeForApp_t)(bool allow);
+    AllowDarkModeForApp_t AllowDarkModeForApp =
+            (AllowDarkModeForApp_t)ui_theme_uxtheme_func(132);
+    if (AllowDarkModeForApp != null) {
+        errno_t r = ut_b2e(AllowDarkModeForApp(allow));
+        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
+            traceln("AllowDarkModeForApp(true) failed %s", strerr(r));
+        }
+    }
+}
+
+static void ui_theme_allow_dark_mode_for_window(bool allow) {
+    typedef BOOL (__stdcall *AllowDarkModeForWindow_t)(HWND hWnd, bool allow);
+    AllowDarkModeForWindow_t AllowDarkModeForWindow =
+        (AllowDarkModeForWindow_t)ui_theme_uxtheme_func(133);
+    if (AllowDarkModeForWindow != null) {
+        int r = ut_b2e(AllowDarkModeForWindow((HWND)ui_app.window, allow));
+        // On Win11: 10.0.22631
+        // AllowDarkModeForWindow(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
+        // "The specified program requires a newer version of Windows."
+        if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
+            traceln("AllowDarkModeForWindow(true) failed %s", strerr(r));
+        }
+    }
+}
+
 static bool ui_theme_are_apps_dark(void) {
     return !ui_theme_use_light_theme("AppsUseLightTheme");
 }
@@ -9086,6 +9149,11 @@ static void ui_theme_refresh(void) {
         traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
                 "failed %s", strerr(r));
     }
+    ui_theme.allow_dark_mode_for_app(dark_mode);
+    ui_theme.allow_dark_mode_for_window(dark_mode);
+    ui_theme.set_preferred_app_mode(dark_mode ?
+        ui_theme_app_mode_force_dark : ui_theme_app_mode_force_light);
+    ui_theme.flush_menu_themes();
     ui_app.request_layout();
 }
 
@@ -9102,6 +9170,10 @@ ui_theme_if ui_theme = {
     .get_color                    = ui_theme_get_color,
     .is_system_dark               = ui_theme_is_system_dark,
     .are_apps_dark                = ui_theme_are_apps_dark,
+    .set_preferred_app_mode       = ui_theme_set_preferred_app_mode,
+    .flush_menu_themes            = ui_theme_flush_menu_themes,
+    .allow_dark_mode_for_app      = ui_theme_allow_dark_mode_for_app,
+    .allow_dark_mode_for_window   = ui_theme_allow_dark_mode_for_window,
     .refresh                      = ui_theme_refresh,
 };
 

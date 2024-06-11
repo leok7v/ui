@@ -509,47 +509,6 @@ static void ui_app_window_closing(void) {
     }
 }
 
-static void ui_app_allow_dark_mode_for_app(void) {
-    // https://github.com/rizonesoft/Notepad3/tree/96a48bd829a3f3192bbc93cd6944cafb3228b96d/src/DarkMode
-    HMODULE uxtheme = GetModuleHandleA("uxtheme.dll");
-    not_null(uxtheme);
-    typedef BOOL (__stdcall *AllowDarkModeForApp_t)(bool allow);
-    AllowDarkModeForApp_t AllowDarkModeForApp = (AllowDarkModeForApp_t)
-            (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(132));
-    if (AllowDarkModeForApp != null) {
-        errno_t r = ut_b2e(AllowDarkModeForApp(true));
-        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("AllowDarkModeForApp(true) failed %s", strerr(r));
-        }
-    }
-    enum { Default = 0, AllowDark = 1, ForceDark = 2, ForceLight = 3 };
-    typedef BOOL (__stdcall *SetPreferredAppMode_t)(bool allow);
-    SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
-            (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(135));
-    if (SetPreferredAppMode != null) {
-        int r = ut_b2e(SetPreferredAppMode(AllowDark));
-        // 1814 ERROR_RESOURCE_NAME_NOT_FOUND
-        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("SetPreferredAppMode(AllowDark) failed %s",
-                    strerr(r));
-        }
-    }
-}
-
-static void ui_app_allow_dark_mode_for_window(void) {
-    HMODULE uxtheme = GetModuleHandleA("uxtheme.dll");
-    not_null(uxtheme);
-    typedef BOOL (__stdcall *AllowDarkModeForWindow_t)(HWND hWnd, bool allow);
-    AllowDarkModeForWindow_t AllowDarkModeForWindow = (AllowDarkModeForWindow_t)
-        (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(133));
-    if (AllowDarkModeForWindow != null) {
-        int r = ut_b2e(AllowDarkModeForWindow(ui_app_window(), true));
-        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("AllowDarkModeForWindow(true) failed %s", strerr(r));
-        }
-    }
-}
-
 static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
     const ui_window_sizing_t* ws = &ui_app.window_sizing;
     const ui_rect_t* wa = &ui_app.work_area;
@@ -1095,6 +1054,22 @@ static void ui_app_update_mouse_buttons_state(void) {
                           & 0x8000) != 0;
 }
 
+void SetDarkMenuTheme(HMENU hMenu) {
+    MENUINFO mi = { sizeof(MENUINFO) };
+    mi.fMask = MIM_BACKGROUND;
+    mi.hbrBack = CreateSolidBrush(RGB(0, 0, 0));
+    SetMenuInfo(hMenu, &mi);
+
+    int count = GetMenuItemCount(hMenu);
+    for (int i = 0; i < count; ++i) {
+        MENUITEMINFO mii = { sizeof(MENUITEMINFO) };
+        mii.fMask = MIIM_FTYPE | MIIM_STATE;
+        mii.fType = MFT_STRING;
+        mii.fState = MFS_DEFAULT;
+        SetMenuItemInfo(hMenu, i, TRUE, &mii);
+    }
+}
+
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
     ui_app.now = ut_clock.seconds();
@@ -1246,24 +1221,27 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             }
             break;
         }
-        case WM_SYSCOMMAND:
-//          traceln("WM_SYSCOMMAND 0x%08llX %lld", wp, lp);
-            if (wp == SC_MINIMIZE && ui_app.hide_on_minimize) {
+        case WM_SYSCOMMAND: {
+            uint16_t sys_cmd = (uint16_t)(wp & 0xFF0);
+//          traceln("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
+//                  wp, lp, lp, sys_cmd);
+            if (sys_cmd == SC_MINIMIZE && ui_app.hide_on_minimize) {
                 ui_app.show_window(ui.visibility.min_na);
                 ui_app.show_window(ui.visibility.hide);
-            } else  if (wp == SC_MINIMIZE && ui_app.no_decor) {
+            } else  if (sys_cmd == SC_MINIMIZE && ui_app.no_decor) {
                 ui_app.show_window(ui.visibility.min_na);
             }
-//          if (wp == SC_KEYMENU) { traceln("SC_KEYMENU.WM_SYSCOMMAND %lld", lp); }
+//          if (sys_cmd == SC_KEYMENU) { traceln("SC_KEYMENU lp: %lld", lp); }
             // If the selection is in menu handle the key event
-            if (wp == SC_KEYMENU && lp != 0x20) {
+            if (sys_cmd == SC_KEYMENU && lp != 0x20) {
                 return 0; // This prevents the error/beep sound
             }
-//          if ((wp & 0xFFF0) == SC_MOUSEMENU) {
+            if (sys_cmd == SC_MOUSEMENU) {
 //              traceln("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
-//              break;
-//          }
+                break;
+            }
             break;
+        }
         case WM_ACTIVATE: ui_app_wm_activate(wp); break;
         case WM_WINDOWPOSCHANGING: {
             #ifdef QUICK_DEBUG

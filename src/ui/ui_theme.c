@@ -64,6 +64,78 @@ static bool ui_theme_use_light_theme(const char* key) {
 #pragma pop_macro("ux_theme_reg_cv")
 #pragma pop_macro("ux_theme_reg_default_colors")
 
+static HMODULE ui_theme_uxtheme(void) {
+    static HMODULE uxtheme;
+    if (uxtheme == null) {
+        uxtheme = GetModuleHandleA("uxtheme.dll");
+        if (uxtheme == null) {
+            uxtheme = LoadLibraryA("uxtheme.dll");
+        }
+    }
+    not_null(uxtheme);
+    return uxtheme;
+}
+
+static void* ui_theme_uxtheme_func(uint16_t ordinal) {
+    HMODULE uxtheme = ui_theme_uxtheme();
+    void* proc = (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(ordinal));
+    not_null(proc);
+    return proc;
+}
+
+static void ui_theme_set_preferred_app_mode(int32_t mode) {
+    typedef BOOL (__stdcall *SetPreferredAppMode_t)(int32_t mode);
+    SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
+            (SetPreferredAppMode_t)ui_theme_uxtheme_func(135);
+    errno_t r = ut_b2e(SetPreferredAppMode(mode));
+    // On Win11: 10.0.22631
+    // SetPreferredAppMode(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
+    // "The specified program requires a newer version of Windows."
+    if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
+        traceln("SetPreferredAppMode(AllowDark) failed %s", strerr(r));
+    }
+}
+
+// https://stackoverflow.com/questions/75835069/dark-system-contextmenu-in-window
+
+static void ui_theme_flush_menu_themes(void) {
+    typedef BOOL (__stdcall *FlushMenuThemes_t)(void);
+    FlushMenuThemes_t FlushMenuThemes = (FlushMenuThemes_t)
+            (FlushMenuThemes_t)ui_theme_uxtheme_func(136);
+    errno_t r = ut_b2e(FlushMenuThemes());
+    if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
+        traceln("FlushMenuThemes(AllowDark) failed %s", strerr(r));
+    }
+}
+
+static void ui_theme_allow_dark_mode_for_app(bool allow) {
+    // https://github.com/rizonesoft/Notepad3/tree/96a48bd829a3f3192bbc93cd6944cafb3228b96d/src/DarkMode
+    typedef BOOL (__stdcall *AllowDarkModeForApp_t)(bool allow);
+    AllowDarkModeForApp_t AllowDarkModeForApp =
+            (AllowDarkModeForApp_t)ui_theme_uxtheme_func(132);
+    if (AllowDarkModeForApp != null) {
+        errno_t r = ut_b2e(AllowDarkModeForApp(allow));
+        if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
+            traceln("AllowDarkModeForApp(true) failed %s", strerr(r));
+        }
+    }
+}
+
+static void ui_theme_allow_dark_mode_for_window(bool allow) {
+    typedef BOOL (__stdcall *AllowDarkModeForWindow_t)(HWND hWnd, bool allow);
+    AllowDarkModeForWindow_t AllowDarkModeForWindow =
+        (AllowDarkModeForWindow_t)ui_theme_uxtheme_func(133);
+    if (AllowDarkModeForWindow != null) {
+        int r = ut_b2e(AllowDarkModeForWindow((HWND)ui_app.window, allow));
+        // On Win11: 10.0.22631
+        // AllowDarkModeForWindow(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
+        // "The specified program requires a newer version of Windows."
+        if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
+            traceln("AllowDarkModeForWindow(true) failed %s", strerr(r));
+        }
+    }
+}
+
 static bool ui_theme_are_apps_dark(void) {
     return !ui_theme_use_light_theme("AppsUseLightTheme");
 }
@@ -86,6 +158,11 @@ static void ui_theme_refresh(void) {
         traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
                 "failed %s", strerr(r));
     }
+    ui_theme.allow_dark_mode_for_app(dark_mode);
+    ui_theme.allow_dark_mode_for_window(dark_mode);
+    ui_theme.set_preferred_app_mode(dark_mode ?
+        ui_theme_app_mode_force_dark : ui_theme_app_mode_force_light);
+    ui_theme.flush_menu_themes();
     ui_app.request_layout();
 }
 
@@ -102,6 +179,10 @@ ui_theme_if ui_theme = {
     .get_color                    = ui_theme_get_color,
     .is_system_dark               = ui_theme_is_system_dark,
     .are_apps_dark                = ui_theme_are_apps_dark,
+    .set_preferred_app_mode       = ui_theme_set_preferred_app_mode,
+    .flush_menu_themes            = ui_theme_flush_menu_themes,
+    .allow_dark_mode_for_app      = ui_theme_allow_dark_mode_for_app,
+    .allow_dark_mode_for_window   = ui_theme_allow_dark_mode_for_window,
     .refresh                      = ui_theme_refresh,
 };
 
