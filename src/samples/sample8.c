@@ -136,17 +136,19 @@ static void crash(ui_button_t* b) {
 }
 
 static void dark_light(ui_toggle_t* b) {
+    click_tools(&tools); // hide tools
     ui_app.light_mode = b->pressed;
     ui_app.dark_mode = !b->pressed;
     ui_theme.refresh();
     strprintf(b->text, "%s", b->pressed ? "Dark" : "Light");
     ui_app.request_layout();
-    click_tools(&tools); // hide tools
 }
 
 static void opened(void) {
     static ui_view_t list = ui_view(list);
     static ui_view_t span = ui_view(span);
+    static ui_toggle_t toggle_light =
+           ui_toggle("Light",      3.0f, dark_light);
     static ui_button_t button_container =
            ui_button("&Container", 3.0f, click_container);
     static ui_button_t button_span =
@@ -155,8 +157,6 @@ static void opened(void) {
            ui_button("&List",      3.0f, click_list);
     static ui_button_t button_controls =
            ui_button("Con&trols",  3.0f, click_controls);
-    static ui_toggle_t toggle_light =
-           ui_toggle("Light",      3.0f, dark_light);
     static ui_button_t button_about =
            ui_button("&About",     3.0f, click_about);
     static ui_button_t button_crash =
@@ -165,11 +165,11 @@ static void opened(void) {
         ui_view.add(&list,
             ui_view.add(&span,
                 ui_view.add(&tools,
+                    &toggle_light,
                     &button_container,
                     &button_span,
                     &button_list,
                     &button_controls,
-                    &toggle_light,
                     &button_crash,
                     &button_about,
                 null),
