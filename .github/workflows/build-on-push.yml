@@ -19,15 +19,9 @@ jobs:
       - name: setup msbuild
         uses: microsoft/setup-msbuild@v2
       - name: build debug
-        run:  >
-            msbuild msvc2022\ui.sln -t:rebuild -verbosity:quiet
-                                    -property:Configuration=debug
-                                    -property:Platform=x64
+        run:  msbuild msvc2022\ui.sln -t:rebuild -verbosity:quiet -property:Configuration=debug -property:Platform=x64
       - name: build release
-        run:  >
-            msbuild msvc2022\ui.sln -t:rebuild -verbosity:quiet
-                                    -property:Configuration=release
-                                    -property:Platform=x64
+        run:  msbuild msvc2022\ui.sln -t:rebuild -verbosity:quiet -property:Configuration=release -property:Platform=x64
       - name: short sha
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)"  >> $GITHUB_OUTPUT
