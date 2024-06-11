@@ -3822,8 +3822,15 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
         strprintf(fn, "%s\\%s_crash_log.txt", home, name);
         ui_app_crash_log = fopen(fn, "w");
     }
-    traceln("Exception: %s", ut_str.error(ex));
-    ut_bt.trace_self("*");
+    ut_debug.println(null, 0, null,
+        "To file and issue report copy this log and");
+    ut_debug.println(null, 0, null,
+        "paste it here: https://github.com/leok7v/ui/discussions/4");
+    ut_debug.println(null, 0, null,
+        "%s exception: %s", ut_args.basename(), ut_str.error(ex));
+    ut_bt_t bt = {{0}};
+    ut_bt.context(ut_thread.self(), ep->ContextRecord, &bt);
+    ut_bt.trace(&bt, "*");
     ut_bt.trace_all_but_self();
     ut_debug.tee = tee;
     if (ui_app_crash_log != null) {

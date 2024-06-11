@@ -4,6 +4,7 @@
 
 static void vigil_breakpoint_and_abort(void) {
     ut_debug.breakpoint(); // only if debugger is present
+    ut_debug.raise(ut_debug.exception.noncontinuable);
     ut_runtime.abort();
 }
 

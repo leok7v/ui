@@ -4,9 +4,10 @@
 
 // see: https://developercommunity.visualstudio.com/t/C11--C17-include-stdatomich-issue/10620622
 
-#define ATOMICS_HAS_STDATOMIC_H
+#pragma warning(push)
+#pragma warning(disable: 4746) // volatile access of 'int32_var' is subject to /volatile:<iso|ms> setting; consider using __iso_volatile_load/store intrinsic functions
 
-#ifndef ATOMICS_HAS_STDATOMIC_H
+#ifndef UT_ATOMICS_HAS_STDATOMIC_H
 
 static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
     return InterlockedIncrement((volatile LONG*)a);
@@ -53,7 +54,13 @@ static bool ut_atomics_compare_exchange_int32(volatile int32_t* a,
         (LONG)v, (LONG)comparand) == comparand;
 }
 
-static void memory_fence(void) { _mm_mfence(); }
+static void memory_fence(void) {
+#ifdef _M_ARM64
+atomic_thread_fence(memory_order_seq_cst);
+#else
+_mm_mfence();
+#endif
+}
 
 #else
 
@@ -128,7 +135,7 @@ static void memory_fence(void) { atomic_thread_fence(memory_order_seq_cst); }
 
 #endif // __INTELLISENSE__
 
-#endif // ATOMICS_HAS_STDATOMIC_H
+#endif // UT_ATOMICS_HAS_STDATOMIC_H
 
 static int32_t ut_atomics_load_int32(volatile int32_t* a) {
     return ut_atomics.add_int32(a, 0);
@@ -284,3 +291,5 @@ ut_atomics_if ut_atomics = {
 // cl.exe /std:c11 /experimental:c11atomics
 // command line option are required
 // even in C17 mode in spring of 2024
+
+#pragma warning(pop)

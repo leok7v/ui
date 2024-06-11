@@ -497,7 +497,33 @@ typedef struct {
     void (*perror)(const char* file, int32_t line,
         const char* func, int32_t error, const char* format, ...);
     bool (*is_debugger_present)(void);
-    void (*breakpoint)(void);
+    void (*breakpoint)(void); // noop if debugger is not present
+    void (*raise)(uint32_t exception);
+    struct  {
+        uint32_t const access_violation;
+        uint32_t const datatype_misalignment;
+        uint32_t const breakpoint;
+        uint32_t const single_step;
+        uint32_t const array_bounds;
+        uint32_t const float_denormal_operand;
+        uint32_t const float_divide_by_zero;
+        uint32_t const float_inexact_result;
+        uint32_t const float_invalid_operation;
+        uint32_t const float_overflow;
+        uint32_t const float_stack_check;
+        uint32_t const float_underflow;
+        uint32_t const int_divide_by_zero;
+        uint32_t const int_overflow;
+        uint32_t const priv_instruction;
+        uint32_t const in_page_error;
+        uint32_t const illegal_instruction;
+        uint32_t const noncontinuable;
+        uint32_t const stack_overflow;
+        uint32_t const invalid_disposition;
+        uint32_t const guard_page;
+        uint32_t const invalid_handle;
+        uint32_t const possible_deadlock;
+    } exception;
     void (*test)(void);
 } ut_debug_if;
 
@@ -1736,9 +1762,10 @@ ut_args_if ut_args = {
 
 // see: https://developercommunity.visualstudio.com/t/C11--C17-include-stdatomich-issue/10620622
 
-#define ATOMICS_HAS_STDATOMIC_H
+#pragma warning(push)
+#pragma warning(disable: 4746) // volatile access of 'int32_var' is subject to /volatile:<iso|ms> setting; consider using __iso_volatile_load/store intrinsic functions
 
-#ifndef ATOMICS_HAS_STDATOMIC_H
+#ifndef UT_ATOMICS_HAS_STDATOMIC_H
 
 static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
     return InterlockedIncrement((volatile LONG*)a);
@@ -1785,7 +1812,13 @@ static bool ut_atomics_compare_exchange_int32(volatile int32_t* a,
         (LONG)v, (LONG)comparand) == comparand;
 }
 
-static void memory_fence(void) { _mm_mfence(); }
+static void memory_fence(void) {
+#ifdef _M_ARM64
+atomic_thread_fence(memory_order_seq_cst);
+#else
+_mm_mfence();
+#endif
+}
 
 #else
 
@@ -1860,7 +1893,7 @@ static void memory_fence(void) { atomic_thread_fence(memory_order_seq_cst); }
 
 #endif // __INTELLISENSE__
 
-#endif // ATOMICS_HAS_STDATOMIC_H
+#endif // UT_ATOMICS_HAS_STDATOMIC_H
 
 static int32_t ut_atomics_load_int32(volatile int32_t* a) {
     return ut_atomics.add_int32(a, 0);
@@ -2016,6 +2049,8 @@ ut_atomics_if ut_atomics = {
 // cl.exe /std:c11 /experimental:c11atomics
 // command line option are required
 // even in C17 mode in spring of 2024
+
+#pragma warning(pop)
 
 // _________________________________ ut_bt.c __________________________________
 
@@ -2285,22 +2320,17 @@ static const char* ut_bt_string(const ut_bt_t* bt,
     return text;
 }
 
-typedef char thread_name_t[32];
+typedef struct { char name[32]; } ut_bt_thread_name_t;
 
-static void ut_bt_thread_name(HANDLE thread, ut_bt_t* bt,
-        char* name, int32_t count) {
-    name[0] = 0;
+static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
+    ut_bt_thread_name_t tn;
+    tn.name[0] = 0;
     wchar_t* thread_name = null;
     if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
-        ut_str.utf16to8(name, count, thread_name);
+        ut_str.utf16to8(tn.name, countof(tn.name), thread_name);
         LocalFree(thread_name);
     }
-    if (bt->frames > 0) {
-        if (name[0] == 0) { // use bottom symbol name instead
-            ut_str.format(name, count, "%s", bt->symbol[bt->frames - 1]);
-            assert(bt->symbol[bt->frames - 1][0] != 0);
-        }
-    }
+    return tn;
 }
 
 static void ut_bt_context(ut_thread_t thread, const void* ctx,
@@ -2310,6 +2340,13 @@ static void ut_bt_context(ut_thread_t thread, const void* ctx,
     int machine_type = IMAGE_FILE_MACHINE_UNKNOWN;
     #if defined(_M_IX86)
         #error "Unsupported platform"
+    #elif defined(_M_ARM64)
+        machine_type = IMAGE_FILE_MACHINE_ARM64;
+        stack_frame = (STACKFRAME64){
+            .AddrPC    = {.Offset = context->Pc, .Mode = AddrModeFlat},
+            .AddrFrame = {.Offset = context->Fp, .Mode = AddrModeFlat},
+            .AddrStack = {.Offset = context->Sp, .Mode = AddrModeFlat}
+        };
     #elif defined(_M_X64)
         machine_type = IMAGE_FILE_MACHINE_AMD64;
         stack_frame = (STACKFRAME64){
@@ -2393,16 +2430,13 @@ static void ut_bt_trace_all_but_self(void) {
                         if (thread != null) {
                             ut_bt_t bt = {0};
                             ut_bt_thread(thread, &bt);
-                            char name[64];
-                            ut_bt_thread_name(thread, &bt,
-                                                    name, countof(name));
-                            traceln("> Thread \"%s\" tid: 0x%08X (%d):",
-                                                name, tid, tid);
+                            ut_bt_thread_name_t tn = ut_bt_thread_name(thread);
+                            ut_debug.println(">Thread", tid, tn.name,
+                                "id 0x%08X (%d)", tid, tid);
                             if (bt.frames > 0) {
                                 ut_bt.trace(&bt, "*");
                             }
-                            traceln("< Thread \"%s\" tid: 0x%08X (%d) :",
-                                                name, tid, tid);
+                            ut_debug.println("<Thread", tid, tn.name, "");
                             fatal_if_not_zero(ut_b2e(CloseHandle(thread)));
                         }
                     }
@@ -2464,11 +2498,7 @@ static void ut_bt_test(void) {
         ut_debug.output(ut_bt_test_output,
             (int32_t)strlen(ut_bt_test_output) + 1);
     }
-    #ifdef DEBUG
-        swear(strstr(ut_bt_test_output, "ut_bt_test_thread") != null);
-    #else // release may have no debug symbols:
-        swear(strstr(ut_bt_test_output, "WaitForSingleObjectEx") != null);
-    #endif
+    swear(strstr(ut_bt_test_output, "WaitForSingleObject") != null);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -2939,6 +2969,7 @@ static void ut_debug_output(const char* s, int32_t count) {
 
 static void ut_debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
+    if (func == null) { func = ""; }
     char file_line[1024];
     if (line == 0 && file == null || file[0] == 0x00) {
         file_line[0] = 0x00;
@@ -3041,6 +3072,10 @@ static void ut_debug_breakpoint(void) {
     if (ut_debug.is_debugger_present()) { DebugBreak(); }
 }
 
+static void ut_debug_raise(uint32_t exception) {
+    RaiseException(exception, EXCEPTION_NONCONTINUABLE, 0, null);
+}
+
 static int32_t ut_debug_verbosity_from_string(const char* s) {
     char* n = null;
     long v = strtol(s, &n, 10);
@@ -3070,6 +3105,10 @@ static void ut_debug_test(void) {
     #endif
 }
 
+#ifndef STATUS_POSSIBLE_DEADLOCK
+#define STATUS_POSSIBLE_DEADLOCK 0xC0000194uL
+#endif
+
 ut_debug_if ut_debug = {
     .verbosity = {
         .level   =  0,
@@ -3088,6 +3127,32 @@ ut_debug_if ut_debug = {
     .perror                = ut_debug_perror,
     .is_debugger_present   = ut_debug_is_debugger_present,
     .breakpoint            = ut_debug_breakpoint,
+    .raise                 = ut_debug_raise,
+    .exception             = {
+        .access_violation        = EXCEPTION_ACCESS_VIOLATION,
+        .datatype_misalignment   = EXCEPTION_DATATYPE_MISALIGNMENT,
+        .breakpoint              = EXCEPTION_BREAKPOINT,
+        .single_step             = EXCEPTION_SINGLE_STEP,
+        .array_bounds            = EXCEPTION_ARRAY_BOUNDS_EXCEEDED,
+        .float_denormal_operand  = EXCEPTION_FLT_DENORMAL_OPERAND,
+        .float_divide_by_zero    = EXCEPTION_FLT_DIVIDE_BY_ZERO,
+        .float_inexact_result    = EXCEPTION_FLT_INEXACT_RESULT,
+        .float_invalid_operation = EXCEPTION_FLT_INVALID_OPERATION,
+        .float_overflow          = EXCEPTION_FLT_OVERFLOW,
+        .float_stack_check       = EXCEPTION_FLT_STACK_CHECK,
+        .float_underflow         = EXCEPTION_FLT_UNDERFLOW,
+        .int_divide_by_zero      = EXCEPTION_INT_DIVIDE_BY_ZERO,
+        .int_overflow            = EXCEPTION_INT_OVERFLOW,
+        .priv_instruction        = EXCEPTION_PRIV_INSTRUCTION,
+        .in_page_error           = EXCEPTION_IN_PAGE_ERROR,
+        .illegal_instruction     = EXCEPTION_ILLEGAL_INSTRUCTION,
+        .noncontinuable          = EXCEPTION_NONCONTINUABLE_EXCEPTION,
+        .stack_overflow          = EXCEPTION_STACK_OVERFLOW,
+        .invalid_disposition     = EXCEPTION_INVALID_DISPOSITION,
+        .guard_page              = EXCEPTION_GUARD_PAGE,
+        .invalid_handle          = EXCEPTION_INVALID_HANDLE,
+        .possible_deadlock       = EXCEPTION_POSSIBLE_DEADLOCK
+    },
     .test                  = ut_debug_test
 };
 
@@ -4861,7 +4926,8 @@ ut_nls_if ut_nls = {
 };
 // _________________________________ ut_num.c _________________________________
 
-#include <immintrin.h> // _tzcnt_u32
+#include <intrin.h>
+//#include <immintrin.h> // _tzcnt_u32
 
 static inline ut_num128_t ut_num_add128_inline(const ut_num128_t a, const ut_num128_t b) {
     ut_num128_t r = a;
@@ -4955,22 +5021,29 @@ static uint64_t ut_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
 }
 
 static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
-    #pragma push_macro("ut_ctz")
-    #define ut_ctz(x) ((int32_t)_tzcnt_u32(x))
-    uint32_t t = u | v;
-    if (u == 0 || v == 0) { return t; }
-    int32_t g = ut_ctz(t);
-    while (u != 0) {
-        u >>= ut_ctz(u);
-        v >>= ut_ctz(v);
-        if (u >= v) {
-            u = (u - v) / 2;
-        } else {
-            v = (v - u) / 2;
-        }
+    #pragma push_macro("ut_trailing_zeros")
+    #ifdef _M_ARM64
+    #define ut_trailing_zeros(x) (_CountTrailingZeros(x))
+    #else
+    #define ut_trailing_zeros(x) ((int32_t)_tzcnt_u32(x))
+    #endif
+    if (u == 0) {
+        return v;
+    } else if (v == 0) {
+        return u;
     }
-    return v << g;
-    #pragma pop_macro("ut_ctz")
+    uint32_t i = ut_trailing_zeros(u);  u >>= i;
+    uint32_t j = ut_trailing_zeros(v);  v >>= j;
+    uint32_t k = ut_min(i, j);
+    for (;;) {
+        assert(u % 2 == 1, "u = %d should be odd", u);
+        assert(v % 2 == 1, "v = %d should be odd", v);
+        if (u > v) { uint32_t swap = u; u = v; v = swap; }
+        v -= u;
+        if (v == 0) { return u << k; }
+        v >>= ut_trailing_zeros(v);
+    }
+    #pragma pop_macro("ut_trailing_zeros")
 }
 
 static uint32_t ut_num_random32(uint32_t* state) {
@@ -5028,9 +5101,20 @@ static uint64_t ut_num_hash64(const char *data, int64_t len) {
     return hash;
 }
 
+static uint32_t ctz_2(uint32_t x) {
+    if (x == 0) return 32;
+    unsigned n = 0;
+    while ((x & 1) == 0) {
+        x >>= 1;
+        n++;
+    }
+    return n;
+}
+
 static void ut_num_test(void) {
     #ifdef UT_TESTS
     {
+        swear(ut_num.gcd32(1000000000, 24000000) == 8000000);
         // https://asecuritysite.com/encryption/nprimes?y=64
         // https://www.rapidtables.com/convert/number/decimal-to-hex.html
         uint64_t p = 15843490434539008357u; // prime
@@ -6974,6 +7058,7 @@ ut_thread_if ut_thread = {
 
 static void vigil_breakpoint_and_abort(void) {
     ut_debug.breakpoint(); // only if debugger is present
+    ut_debug.raise(ut_debug.exception.noncontinuable);
     ut_runtime.abort();
 }
 

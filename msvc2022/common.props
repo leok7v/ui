@@ -28,6 +28,9 @@
       <!-- Spectre mitigation -->
       <DisableSpecificWarnings>6262;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <!-- EXCESSIVESTACKUSAGE -->
+      <DisableSpecificWarnings>4746;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <!-- volatile access of 'var' is subject to /volatile:<iso|ms>
+            setting; consider using __iso_volatile_load/store intrinsic functions -->
       <!-- Theat these warning as errors (because they are): -->
       <TreatSpecificWarningsAsErrors>4133;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
       <!-- incompatible types -->
@@ -56,7 +59,7 @@
       <TreatSpecificWarningsAsErrors>4431;%(TreatSpecificWarningsAsErrors)</TreatSpecificWarningsAsErrors>
       <!-- missing type specifier - int assumed. Note: C no longer supports default-int -->
       <DebugInformationFormat>OldStyle</DebugInformationFormat>
-      <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/std:c17 /volatile:ms /experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
@@ -67,17 +70,17 @@
       <PreprocessorDefinitions>NDEBUG;$(DefineConstants);%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
-    <OutDir>$(ProjectDir)..\bin\$(Configuration)\</OutDir>
-    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
+  <PropertyGroup Condition="'$(Configuration)'=='debug'">
+    <OutDir>$(ProjectDir)..\bin\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <UseDebugLibraries>true</UseDebugLibraries>
     <Optimization>Disabled</Optimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
-    <OutDir>$(ProjectDir)..\bin\$(Configuration)\</OutDir>
-    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(ProjectName)\</IntDir>
+  <PropertyGroup Condition="'$(Configuration)'=='release'">
+    <OutDir>$(ProjectDir)..\bin\$(Configuration)\$(Platform)\</OutDir>
+    <IntDir>$(ProjectDir)..\build\$(Configuration)\$(Platform)\$(ProjectName)\</IntDir>
     <GenerateManifest>false</GenerateManifest>
     <UseDebugLibraries>false</UseDebugLibraries>
     <Optimization>Full</Optimization>
@@ -86,7 +89,7 @@
   <PropertyGroup>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|x64'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='debug'">
     <ClCompile>
       <PreprocessorDefinitions>_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -94,7 +97,6 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <Optimization>Disabled</Optimization>
-      <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
       <SupportJustMyCode>false</SupportJustMyCode>
     </ClCompile>
     <ResourceCompile>
@@ -107,7 +109,7 @@
       <AssemblyDebug>true</AssemblyDebug>
     </Link>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
+  <ItemDefinitionGroup Condition="'$(Configuration)'=='release'">
     <ClCompile>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -115,7 +117,6 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
       <Optimization>Full</Optimization>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalOptions>/experimental:c11atomics %(AdditionalOptions)</AdditionalOptions>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
     </ClCompile>

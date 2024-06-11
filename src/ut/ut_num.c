@@ -1,5 +1,6 @@
 #include "ut/ut.h"
-#include <immintrin.h> // _tzcnt_u32
+#include <intrin.h>
+//#include <immintrin.h> // _tzcnt_u32
 
 static inline ut_num128_t ut_num_add128_inline(const ut_num128_t a, const ut_num128_t b) {
     ut_num128_t r = a;
@@ -93,22 +94,29 @@ static uint64_t ut_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
 }
 
 static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
-    #pragma push_macro("ut_ctz")
-    #define ut_ctz(x) ((int32_t)_tzcnt_u32(x))
-    uint32_t t = u | v;
-    if (u == 0 || v == 0) { return t; }
-    int32_t g = ut_ctz(t);
-    while (u != 0) {
-        u >>= ut_ctz(u);
-        v >>= ut_ctz(v);
-        if (u >= v) {
-            u = (u - v) / 2;
-        } else {
-            v = (v - u) / 2;
-        }
+    #pragma push_macro("ut_trailing_zeros")
+    #ifdef _M_ARM64
+    #define ut_trailing_zeros(x) (_CountTrailingZeros(x))
+    #else
+    #define ut_trailing_zeros(x) ((int32_t)_tzcnt_u32(x))
+    #endif
+    if (u == 0) {
+        return v;
+    } else if (v == 0) {
+        return u;
     }
-    return v << g;
-    #pragma pop_macro("ut_ctz")
+    uint32_t i = ut_trailing_zeros(u);  u >>= i;
+    uint32_t j = ut_trailing_zeros(v);  v >>= j;
+    uint32_t k = ut_min(i, j);
+    for (;;) {
+        assert(u % 2 == 1, "u = %d should be odd", u);
+        assert(v % 2 == 1, "v = %d should be odd", v);
+        if (u > v) { uint32_t swap = u; u = v; v = swap; }
+        v -= u;
+        if (v == 0) { return u << k; }
+        v >>= ut_trailing_zeros(v);
+    }
+    #pragma pop_macro("ut_trailing_zeros")
 }
 
 static uint32_t ut_num_random32(uint32_t* state) {
@@ -166,9 +174,20 @@ static uint64_t ut_num_hash64(const char *data, int64_t len) {
     return hash;
 }
 
+static uint32_t ctz_2(uint32_t x) {
+    if (x == 0) return 32;
+    unsigned n = 0;
+    while ((x & 1) == 0) {
+        x >>= 1;
+        n++;
+    }
+    return n;
+}
+
 static void ut_num_test(void) {
     #ifdef UT_TESTS
     {
+        swear(ut_num.gcd32(1000000000, 24000000) == 8000000);
         // https://asecuritysite.com/encryption/nprimes?y=64
         // https://www.rapidtables.com/convert/number/decimal-to-hex.html
         uint64_t p = 15843490434539008357u; // prime

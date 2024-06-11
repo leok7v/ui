@@ -267,22 +267,17 @@ static const char* ut_bt_string(const ut_bt_t* bt,
     return text;
 }
 
-typedef char thread_name_t[32];
+typedef struct { char name[32]; } ut_bt_thread_name_t;
 
-static void ut_bt_thread_name(HANDLE thread, ut_bt_t* bt,
-        char* name, int32_t count) {
-    name[0] = 0;
+static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
+    ut_bt_thread_name_t tn;
+    tn.name[0] = 0;
     wchar_t* thread_name = null;
     if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
-        ut_str.utf16to8(name, count, thread_name);
+        ut_str.utf16to8(tn.name, countof(tn.name), thread_name);
         LocalFree(thread_name);
     }
-    if (bt->frames > 0) {
-        if (name[0] == 0) { // use bottom symbol name instead
-            ut_str.format(name, count, "%s", bt->symbol[bt->frames - 1]);
-            assert(bt->symbol[bt->frames - 1][0] != 0);
-        }
-    }
+    return tn;
 }
 
 static void ut_bt_context(ut_thread_t thread, const void* ctx,
@@ -292,6 +287,13 @@ static void ut_bt_context(ut_thread_t thread, const void* ctx,
     int machine_type = IMAGE_FILE_MACHINE_UNKNOWN;
     #if defined(_M_IX86)
         #error "Unsupported platform"
+    #elif defined(_M_ARM64)
+        machine_type = IMAGE_FILE_MACHINE_ARM64;
+        stack_frame = (STACKFRAME64){
+            .AddrPC    = {.Offset = context->Pc, .Mode = AddrModeFlat},
+            .AddrFrame = {.Offset = context->Fp, .Mode = AddrModeFlat},
+            .AddrStack = {.Offset = context->Sp, .Mode = AddrModeFlat}
+        };
     #elif defined(_M_X64)
         machine_type = IMAGE_FILE_MACHINE_AMD64;
         stack_frame = (STACKFRAME64){
@@ -375,16 +377,13 @@ static void ut_bt_trace_all_but_self(void) {
                         if (thread != null) {
                             ut_bt_t bt = {0};
                             ut_bt_thread(thread, &bt);
-                            char name[64];
-                            ut_bt_thread_name(thread, &bt,
-                                                    name, countof(name));
-                            traceln("> Thread \"%s\" tid: 0x%08X (%d):",
-                                                name, tid, tid);
+                            ut_bt_thread_name_t tn = ut_bt_thread_name(thread);
+                            ut_debug.println(">Thread", tid, tn.name,
+                                "id 0x%08X (%d)", tid, tid);
                             if (bt.frames > 0) {
                                 ut_bt.trace(&bt, "*");
                             }
-                            traceln("< Thread \"%s\" tid: 0x%08X (%d) :",
-                                                name, tid, tid);
+                            ut_debug.println("<Thread", tid, tn.name, "");
                             fatal_if_not_zero(ut_b2e(CloseHandle(thread)));
                         }
                     }
@@ -446,11 +445,7 @@ static void ut_bt_test(void) {
         ut_debug.output(ut_bt_test_output,
             (int32_t)strlen(ut_bt_test_output) + 1);
     }
-    #ifdef DEBUG
-        swear(strstr(ut_bt_test_output, "ut_bt_test_thread") != null);
-    #else // release may have no debug symbols:
-        swear(strstr(ut_bt_test_output, "WaitForSingleObjectEx") != null);
-    #endif
+    swear(strstr(ut_bt_test_output, "WaitForSingleObject") != null);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 

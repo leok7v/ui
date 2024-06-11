@@ -15,13 +15,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive            
+          submodules: recursive
       - name: setup msbuild
         uses: microsoft/setup-msbuild@v2
       - name: build debug
-        run:  msbuild msvc2022\ui.sln -t:rebuild -verbosity:quiet -property:Configuration=debug
+        run:  msbuild msvc2022\ui.sln -t:rebuild -verbosity:quiet \
+                                      -property:Configuration=debug \
+                                      -property:Platform=x64
       - name: build release
-        run:  msbuild msvc2022\ui.sln -t:rebuild -verbosity:quiet -property:Configuration=release
+        run:  msbuild msvc2022\ui.sln -t:rebuild -verbosity:quiet \
+                                      -property:Configuration=release \
+                                      -property:Platform=x64
       - name: short sha
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)"  >> $GITHUB_OUTPUT
@@ -31,9 +35,9 @@ jobs:
         env:
           sha_short: ${{ steps.vars.outputs.sha_short }}
       - name: run debug tests
-        run:  bin\debug\test1.exe --verbosity quiet
+        run:  bin\debug\x64\test1.exe --verbosity quiet
       - name: run release tests
-        run:  bin\release\test1.exe --verbosity quiet
+        run:  bin\release\x64\test1.exe --verbosity quiet
       - name: Attest Build Provenance
         uses: actions/attest-build-provenance@v1.1.2
         with:
@@ -43,13 +47,12 @@ jobs:
         with:
           name: ui.release.zip
           path: |
-            bin\release\*.exe
+            bin\release\**\*.exe
           retention-days: 5
       - name: upload debug artifact
         uses: actions/upload-artifact@v4
         with:
           name: ui.debug.zip
           path: |
-            bin\debug\*.exe
+            bin\debug\**\*.exe
           retention-days: 5
-          

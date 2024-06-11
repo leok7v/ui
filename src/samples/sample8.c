@@ -111,8 +111,13 @@ static void toggle_about(ui_button_t* unused(b)) {
 }
 
 static void crash(ui_button_t* b) {
-    void* p = (void*)b->click; // null
-    memcpy(p, b->text, 4); // will crash
+    // two random ways to crash in release configuration
+    if (ut_clock.nanoseconds() % 2 == 0) {
+        swear(false, "should crash in release configuration");
+    } else {
+        void* p = (void*)b->click; // null
+        memcpy(p, b->text, 4);
+    }
 }
 
 static void dark_light(ui_toggle_t* b) {

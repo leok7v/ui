@@ -29,6 +29,7 @@ static void ut_debug_output(const char* s, int32_t count) {
 
 static void ut_debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list vl) {
+    if (func == null) { func = ""; }
     char file_line[1024];
     if (line == 0 && file == null || file[0] == 0x00) {
         file_line[0] = 0x00;
@@ -131,6 +132,10 @@ static void ut_debug_breakpoint(void) {
     if (ut_debug.is_debugger_present()) { DebugBreak(); }
 }
 
+static void ut_debug_raise(uint32_t exception) {
+    RaiseException(exception, EXCEPTION_NONCONTINUABLE, 0, null);
+}
+
 static int32_t ut_debug_verbosity_from_string(const char* s) {
     char* n = null;
     long v = strtol(s, &n, 10);
@@ -160,6 +165,10 @@ static void ut_debug_test(void) {
     #endif
 }
 
+#ifndef STATUS_POSSIBLE_DEADLOCK
+#define STATUS_POSSIBLE_DEADLOCK 0xC0000194uL
+#endif
+
 ut_debug_if ut_debug = {
     .verbosity = {
         .level   =  0,
@@ -178,5 +187,31 @@ ut_debug_if ut_debug = {
     .perror                = ut_debug_perror,
     .is_debugger_present   = ut_debug_is_debugger_present,
     .breakpoint            = ut_debug_breakpoint,
+    .raise                 = ut_debug_raise,
+    .exception             = {
+        .access_violation        = EXCEPTION_ACCESS_VIOLATION,
+        .datatype_misalignment   = EXCEPTION_DATATYPE_MISALIGNMENT,
+        .breakpoint              = EXCEPTION_BREAKPOINT,
+        .single_step             = EXCEPTION_SINGLE_STEP,
+        .array_bounds            = EXCEPTION_ARRAY_BOUNDS_EXCEEDED,
+        .float_denormal_operand  = EXCEPTION_FLT_DENORMAL_OPERAND,
+        .float_divide_by_zero    = EXCEPTION_FLT_DIVIDE_BY_ZERO,
+        .float_inexact_result    = EXCEPTION_FLT_INEXACT_RESULT,
+        .float_invalid_operation = EXCEPTION_FLT_INVALID_OPERATION,
+        .float_overflow          = EXCEPTION_FLT_OVERFLOW,
+        .float_stack_check       = EXCEPTION_FLT_STACK_CHECK,
+        .float_underflow         = EXCEPTION_FLT_UNDERFLOW,
+        .int_divide_by_zero      = EXCEPTION_INT_DIVIDE_BY_ZERO,
+        .int_overflow            = EXCEPTION_INT_OVERFLOW,
+        .priv_instruction        = EXCEPTION_PRIV_INSTRUCTION,
+        .in_page_error           = EXCEPTION_IN_PAGE_ERROR,
+        .illegal_instruction     = EXCEPTION_ILLEGAL_INSTRUCTION,
+        .noncontinuable          = EXCEPTION_NONCONTINUABLE_EXCEPTION,
+        .stack_overflow          = EXCEPTION_STACK_OVERFLOW,
+        .invalid_disposition     = EXCEPTION_INVALID_DISPOSITION,
+        .guard_page              = EXCEPTION_GUARD_PAGE,
+        .invalid_handle          = EXCEPTION_INVALID_HANDLE,
+        .possible_deadlock       = EXCEPTION_POSSIBLE_DEADLOCK
+    },
     .test                  = ut_debug_test
 };

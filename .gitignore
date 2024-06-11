@@ -1,7 +1,7 @@
 # User files
 *.vcxproj.user
 inc/ut/version.h
-bin/
-build/
-lib/
+bin/**
+build/**
+lib/**
 msvc2022/.vs/*

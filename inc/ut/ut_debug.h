@@ -36,7 +36,33 @@ typedef struct {
     void (*perror)(const char* file, int32_t line,
         const char* func, int32_t error, const char* format, ...);
     bool (*is_debugger_present)(void);
-    void (*breakpoint)(void);
+    void (*breakpoint)(void); // noop if debugger is not present
+    void (*raise)(uint32_t exception);
+    struct  {
+        uint32_t const access_violation;
+        uint32_t const datatype_misalignment;
+        uint32_t const breakpoint;
+        uint32_t const single_step;
+        uint32_t const array_bounds;
+        uint32_t const float_denormal_operand;
+        uint32_t const float_divide_by_zero;
+        uint32_t const float_inexact_result;
+        uint32_t const float_invalid_operation;
+        uint32_t const float_overflow;
+        uint32_t const float_stack_check;
+        uint32_t const float_underflow;
+        uint32_t const int_divide_by_zero;
+        uint32_t const int_overflow;
+        uint32_t const priv_instruction;
+        uint32_t const in_page_error;
+        uint32_t const illegal_instruction;
+        uint32_t const noncontinuable;
+        uint32_t const stack_overflow;
+        uint32_t const invalid_disposition;
+        uint32_t const guard_page;
+        uint32_t const invalid_handle;
+        uint32_t const possible_deadlock;
+    } exception;
     void (*test)(void);
 } ut_debug_if;
 
