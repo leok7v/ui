@@ -568,6 +568,38 @@ static void ui_app_mouse(ui_view_t* view, int32_t m, int64_t f) {
     }
 }
 
+
+static void ui_app_show_sys_menu(int32_t x, int32_t y) {
+    HMENU sys_menu = GetSystemMenu(ui_app_window(), false);
+    if (sys_menu != null) {
+        // TPM_RIGHTBUTTON means both left and right click to select menu item
+        const DWORD flags = TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON |
+                            TPM_RETURNCMD | TPM_VERPOSANIMATION;
+        int32_t sys_cmd = TrackPopupMenu(sys_menu, flags, x, y, 0,
+                                         ui_app_window(), null);
+        if (sys_cmd != 0) {
+            ui_app.post(WM_SYSCOMMAND, sys_cmd, 0);
+        }
+    }
+}
+
+static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
+    POINT screen = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
+    POINT client = screen;
+    ScreenToClient(ui_app_window(), &client);
+    ui_app.mouse = ui_app_point2ui(&client);
+    if (!ui_app.caption->hidden && ui_view.inside(ui_app.caption, &ui_app.mouse)) {
+        uint16_t context = ui_app.mouse_swapped ?
+            WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
+        if (m == context) {
+//          traceln("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
+            ui_app_show_sys_menu(screen.x, screen.y);
+        }
+    } else {
+        ui_app_mouse(ui_app.root, m, wp);
+    }
+}
+
 static void ui_app_tap_press(int32_t m, int64_t wp, int64_t lp) {
     ui_app.mouse.x = GET_X_LPARAM(lp);
     ui_app.mouse.y = GET_Y_LPARAM(lp);
@@ -620,12 +652,9 @@ static void ui_app_toast_paint(void) {
 //          traceln("step=%d of %d y=%d", ui_app.animating.step,
 //                  ui_app_toast_steps, ui_app.animating.view->y);
             ui_app_measure_and_layout(ui_app.animating.view);
-            if (ui_theme.are_apps_dark()) {
-                fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
-                ui_gdi.alpha_blend(0, 0, ui_app.crc.w, ui_app.crc.h, &image_dark, alpha);
-            } else {
-                traceln("TODO:");
-            }
+            // dim main window (as `disabled`):
+            fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
+            ui_gdi.alpha_blend(0, 0, ui_app.crc.w, ui_app.crc.h, &image_dark, alpha);
             ui_app.animating.view->x = (ui_app.root->w - ui_app.animating.view->w) / 2;
 //          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
 //                  ui_app.animating.y, ui_app.animating.view->y);
@@ -1047,27 +1076,11 @@ static void ui_app_wm_activate(int64_t wp) {
 }
 
 static void ui_app_update_mouse_buttons_state(void) {
-    bool swapped = GetSystemMetrics(SM_SWAPBUTTON) != 0;
-    ui_app.mouse_left  = (GetAsyncKeyState(swapped ? VK_RBUTTON : VK_LBUTTON)
-                          & 0x8000) != 0;
-    ui_app.mouse_right = (GetAsyncKeyState(swapped ? VK_LBUTTON : VK_RBUTTON)
-                          & 0x8000) != 0;
-}
-
-void SetDarkMenuTheme(HMENU hMenu) {
-    MENUINFO mi = { sizeof(MENUINFO) };
-    mi.fMask = MIM_BACKGROUND;
-    mi.hbrBack = CreateSolidBrush(RGB(0, 0, 0));
-    SetMenuInfo(hMenu, &mi);
-
-    int count = GetMenuItemCount(hMenu);
-    for (int i = 0; i < count; ++i) {
-        MENUITEMINFO mii = { sizeof(MENUITEMINFO) };
-        mii.fMask = MIIM_FTYPE | MIIM_STATE;
-        mii.fType = MFT_STRING;
-        mii.fState = MFS_DEFAULT;
-        SetMenuItemInfo(hMenu, i, TRUE, &mii);
-    }
+    ui_app.mouse_swapped = GetSystemMetrics(SM_SWAPBUTTON) != 0;
+    ui_app.mouse_left  = (GetAsyncKeyState(ui_app.mouse_swapped ?
+                          VK_RBUTTON : VK_LBUTTON) & 0x8000) != 0;
+    ui_app.mouse_right = (GetAsyncKeyState(ui_app.mouse_swapped ?
+                          VK_LBUTTON : VK_RBUTTON) & 0x8000) != 0;
 }
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
@@ -1169,14 +1182,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_NCRBUTTONDBLCLK:
         case WM_NCMBUTTONDOWN  :
         case WM_NCMBUTTONUP    :
-        case WM_NCMBUTTONDBLCLK: {
-            POINT pt = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
-//          if (m == WM_NCRBUTTONDOWN) { traceln("WM_NCRBUTTONDOWN %d %d", pt.x, pt.y); }
-            ScreenToClient(ui_app_window(), &pt);
-            ui_app.mouse = ui_app_point2ui(&pt);
-            ui_app_mouse(ui_app.root, m, wp);
-            break;
-        }
+        case WM_NCMBUTTONDBLCLK: ui_app_nc_mouse_buttons(m, wp, lp); break;
         case WM_MOUSEHOVER   : // see TrackMouseEvent()
         case WM_MOUSEMOVE    :
         case WM_LBUTTONDOWN  :

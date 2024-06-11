@@ -71,6 +71,7 @@ typedef struct {
     bool ctrl;
     bool shift;
     // mouse buttons state
+    bool mouse_swapped;
     bool mouse_left;  // left or if buttons are swapped - right button pressed
     bool mouse_right; // context button pressed
     ui_point_t mouse; // mouse/touchpad pointer
@@ -83,7 +84,7 @@ typedef struct {
         int32_t y; // screen coordinates for tooltip
     } animating;
     // inch to pixels and reverse translation via ui_app.dpi.window
-    fp32_t   (*px2in)(int32_t pixels);
+    fp32_t  (*px2in)(int32_t pixels);
     int32_t (*in2px)(fp32_t inches);
     // color: ui_color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
     errno_t (*set_layered_window)(ui_color_t color, float alpha);
