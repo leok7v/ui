@@ -95,9 +95,6 @@
 // Combining the two into:
 #define ut_glyph_dotted_right_bottom_triangle           "\xE2\xA3\xA0\xE2\xA3\xBE"
 
-// Two Joined Squares https://www.compart.com/en/unicode/U+29C9
-#define ut_glyph_two_joined_squares                     "\xE2\xA7\x89"
-
 // Upper Right Drop-Shadowed White Square https://www.compart.com/en/unicode/U+2750
 #define ut_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
 
@@ -228,3 +225,178 @@
 
 // Tibetan Vowel Sign Vocalic Ll https://www.compart.com/en/unicode/U+0F79
 #define ut_glyph_vocalic_ll                             "\xE0\xBD\xB9"
+
+// https://www.compart.com/en/unicode/U+1F4A3
+#define ut_glyph_bomb "\xF0\x9F\x92\xA3"
+
+// https://www.compart.com/en/unicode/U+1F4A1
+#define ut_glyph_electric_light_bulb "\xF0\x9F\x92\xA1"
+
+// https://www.compart.com/en/unicode/U+1F4E2
+#define ut_glyph_public_address_loudspeaker "\xF0\x9F\x93\xA2"
+
+// https://www.compart.com/en/unicode/U+1F517
+#define ut_glyph_link_symbol "\xF0\x9F\x94\x97"
+
+// https://www.compart.com/en/unicode/U+1F571
+#define ut_glyph_black_skull_and_crossbones "\xF0\x9F\x95\xB1"
+
+// https://www.compart.com/en/unicode/U+1F5B5
+#define ut_glyph_screen "\xF0\x9F\x96\xB5"
+
+// https://www.compart.com/en/unicode/U+1F5D7
+#define ut_glyph_overlap "\xF0\x9F\x97\x97"
+
+// https://www.compart.com/en/unicode/U+1F5D6
+#define ut_glyph_maximize "\xF0\x9F\x97\x96"
+
+// https://www.compart.com/en/unicode/U+1F5D5
+#define ut_glyph_minimize "\xF0\x9F\x97\x95"
+
+// Desktop Window
+// https://compart.com/en/unicode/U+1F5D4
+#define ut_glyph_desktop_window "\xF0\x9F\x97\x94"
+
+// https://www.compart.com/en/unicode/U+1F5D9
+#define ut_glyph_cancellation_x "\xF0\x9F\x97\x99"
+
+// https://www.compart.com/en/unicode/U+1F5DF
+#define ut_glyph_page_with_circled_text "\xF0\x9F\x97\x9F"
+
+// https://www.compart.com/en/unicode/U+1F533
+#define ut_glyph_white_square_button "\xF0\x9F\x94\xB3"
+
+// https://www.compart.com/en/unicode/U+1F532
+#define ut_glyph_black_square_button "\xF0\x9F\x94\xB2"
+
+// https://www.compart.com/en/unicode/U+1F5F9
+#define ut_glyph_ballot_box_with_bold_check "\xF0\x9F\x97\xB9"
+
+// https://www.compart.com/en/unicode/U+1F5F8
+#define ut_glyph_light_check_mark "\xF0\x9F\x97\xB8"
+
+// https://compart.com/en/unicode/U+1F4BB
+#define ut_glyph_personal_computer "\xF0\x9F\x92\xBB"
+
+// https://compart.com/en/unicode/U+1F4DC
+#define ut_glyph_desktop_computer "\xF0\x9F\x93\x9C"
+
+// https://compart.com/en/unicode/U+1F4DD
+#define ut_glyph_printer "\xF0\x9F\x93\x9D"
+
+// https://compart.com/en/unicode/U+1F4F9
+#define ut_glyph_video_camera "\xF0\x9F\x93\xB9"
+
+// https://compart.com/en/unicode/U+1F4F8
+#define ut_glyph_camera "\xF0\x9F\x93\xB8"
+
+// https://compart.com/en/unicode/U+1F505
+#define ut_glyph_high_brightness "\xF0\x9F\x94\x85"
+
+// https://compart.com/en/unicode/U+1F506
+#define ut_glyph_low_brightness "\xF0\x9F\x94\x86"
+
+// https://compart.com/en/unicode/U+1F507
+#define ut_glyph_speaker_with_cancellation_stroke "\xF0\x9F\x94\x87"
+
+// https://compart.com/en/unicode/U+1F509
+#define ut_glyph_speaker_with_one_sound_wave "\xF0\x9F\x94\x89"
+
+// Right-Pointing Magnifying Glass
+// https://compart.com/en/unicode/U+1F50E
+#define ut_glyph_right_pointing_magnifying_glass "\xF0\x9F\x94\x8E"
+
+// Radio Button
+// https://compart.com/en/unicode/U+1F518
+#define ut_glyph_radio_button "\xF0\x9F\x94\x98"
+
+// https://compart.com/en/unicode/U+1F525
+#define ut_glyph_fire "\xF0\x9F\x94\xA5"
+
+// Gear
+// https://compart.com/en/unicode/U+2699
+#define ut_glyph_gear "\xE2\x9A\x99"
+
+// Nut and Bolt
+// https://compart.com/en/unicode/U+1F529
+#define ut_glyph_nut_and_bolt "\xF0\x9F\x94\xA9"
+
+// Hammer and Wrench
+// https://compart.com/en/unicode/U+1F6E0
+#define ut_glyph_hammer_and_wrench "\xF0\x9F\x9B\xA0"
+
+// https://compart.com/en/unicode/U+1F53E
+#define ut_glyph_upwards_button "\xF0\x9F\x94\xBE"
+
+// https://compart.com/en/unicode/U+1F53F
+#define ut_glyph_downwards_button "\xF0\x9F\x94\xBF"
+
+// https://compart.com/en/unicode/U+1F5C7
+#define ut_glyph_litter_in_bin_sign "\xF0\x9F\x97\x87"
+
+// Checker Board
+// https://compart.com/en/unicode/U+1F67E
+#define ut_glyph_checker_board "\xF0\x9F\x9A\xBE"
+
+// Reverse Checker Board
+// https://compart.com/en/unicode/U+1F67F
+#define ut_glyph_reverse_checker_board "\xF0\x9F\x9A\xBF"
+
+// Clipboard
+// https://compart.com/en/unicode/U+1F4CB
+#define ut_glyph_clipboard "\xF0\x9F\x93\x8B"
+
+// Two Joined Squares https://www.compart.com/en/unicode/U+29C9
+#define ut_glyph_two_joined_squares "\xE2\xA7\x89"
+
+// White Heavy Check Mark
+// https://compart.com/en/unicode/U+2705
+#define ut_glyph_white_heavy_check_mark "\xE2\x9C\x85"
+
+// Negative Squared Cross Mark
+// https://compart.com/en/unicode/U+274E
+#define ut_glyph_negative_squared_cross_mark "\xE2\x9D\x8E"
+
+// Lower Right Drop-Shadowed White Square
+// https://compart.com/en/unicode/U+274F
+#define ut_glyph_lower_right_drop_shadowed_white_square "\xE2\x9D\x8F"
+
+// Upper Right Drop-Shadowed White Square
+// https://compart.com/en/unicode/U+2750
+#define ut_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
+
+// Lower Right Shadowed White Square
+// https://compart.com/en/unicode/U+2751
+#define ut_glyph_lower_right_shadowed_white_square "\xE2\x9D\x91"
+
+// Upper Right Shadowed White Square
+// https://compart.com/en/unicode/U+2752
+#define ut_glyph_upper_right_shadowed_white_square "\xE2\x9D\x92"
+
+// Left Double Wiggly Fence
+// https://compart.com/en/unicode/U+29DA
+#define ut_glyph_left_double_wiggly_fence "\xE2\xA7\x9A"
+
+// Right Double Wiggly Fence
+// https://compart.com/en/unicode/U+29DB
+#define ut_glyph_right_double_wiggly_fence "\xE2\xA7\x9B"
+
+// Logical Or
+// https://compart.com/en/unicode/U+2228
+#define ut_glyph_logical_or "\xE2\x88\xA8"
+
+// Logical And
+// https://compart.com/en/unicode/U+2227
+#define ut_glyph_logical_and "\xE2\x88\xA7"
+
+// Double Vertical Bar (Pause)
+// https://compart.com/en/unicode/U+23F8
+#define ut_glyph_double_vertical_bar "\xE2\x8F\xB8"
+
+// Black Square For Stop
+// https://compart.com/en/unicode/U+23F9
+#define ut_glyph_black_square_for_stop "\xE2\x8F\xB9"
+
+// Black Circle For Record
+// https://compart.com/en/unicode/U+23FA
+#define ut_glyph_black_circle_for_record "\xE2\x8F\xBA"
