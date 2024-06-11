@@ -50,32 +50,45 @@ ui_app_t ui_app = {
 
 static ui_view_t test = ui_view(container);
 
-static void toggle_container(ui_button_t* b) {
+static ui_view_t tools = ui_view(list);
+
+static void click_tools(ui_button_t* b) {
+    b->pressed = !b->pressed;
+    tools.hidden = !b->pressed;
+    app_data.menu_used = 1;
+    ui_app.request_layout();
+}
+
+static void click_container(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
     app_data.selected_view = 0;
     container_test(&test);
+    click_tools(&tools); // hide tools
 }
 
-static void toggle_span(ui_button_t* b) {
+static void click_span(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
     app_data.selected_view = 1;
     span_test(&test);
+    click_tools(&tools); // hide tools
 }
 
-static void toggle_list(ui_button_t* b) {
+static void click_list(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
     app_data.selected_view = 2;
     list_test(&test);
+    click_tools(&tools); // hide tools
 }
 
-static void toggle_controls(ui_button_t* b) {
+static void click_controls(ui_button_t* b) {
     ui_view_for_each(b->parent, c, { c->pressed = false; });
     b->pressed = !b->pressed;
     app_data.selected_view = 3;
     controls_test(&test);
+    click_tools(&tools); // hide tools
 }
 
 static ui_mbx_t mbx = ui_mbx( // message box
@@ -106,11 +119,13 @@ static ui_mbx_t mbx = ui_mbx( // message box
     "Press ESC to close this message.",
     null, null);
 
-static void toggle_about(ui_button_t* unused(b)) {
+static void click_about(ui_button_t* unused(b)) {
     ui_app.show_toast(&mbx.view, 10.0);
+    click_tools(&tools); // hide tools
 }
 
 static void crash(ui_button_t* b) {
+    click_tools(&tools); // hide tools
     // two random ways to crash in release configuration
     if (ut_clock.nanoseconds() % 2 == 0) {
         swear(false, "should crash in release configuration");
@@ -126,32 +141,24 @@ static void dark_light(ui_toggle_t* b) {
     ui_theme.refresh();
     strprintf(b->text, "%s", b->pressed ? "Dark" : "Light");
     ui_app.request_layout();
-}
-
-static ui_view_t tools = ui_view(list);
-
-static void toggle_tools(ui_button_t* b) {
-    b->pressed = !b->pressed;
-    tools.hidden = !b->pressed;
-    app_data.menu_used = 1;
-    ui_app.request_layout();
+    click_tools(&tools); // hide tools
 }
 
 static void opened(void) {
     static ui_view_t list = ui_view(list);
     static ui_view_t span = ui_view(span);
     static ui_button_t button_container =
-           ui_button("&Container", 3.0f, toggle_container);
+           ui_button("&Container", 3.0f, click_container);
     static ui_button_t button_span =
-           ui_button("&Span",      3.0f, toggle_span);
+           ui_button("&Span",      3.0f, click_span);
     static ui_button_t button_list =
-           ui_button("&List",      3.0f, toggle_list);
+           ui_button("&List",      3.0f, click_list);
     static ui_button_t button_controls =
-           ui_button("Con&trols",  3.0f, toggle_controls);
+           ui_button("Con&trols",  3.0f, click_controls);
     static ui_toggle_t toggle_light =
            ui_toggle("Light",      3.0f, dark_light);
     static ui_button_t button_about =
-           ui_button("&About",     3.0f, toggle_about);
+           ui_button("&About",     3.0f, click_about);
     static ui_button_t button_crash =
            ui_button("Crash",      3.0f, crash);
     ui_view.add(ui_app.content,
@@ -198,13 +205,13 @@ static void opened(void) {
         "Resizing Window will allow\n"
         "too see how it behaves");
     switch (app_data.selected_view) {
-        case  1: toggle_span(&button_span); break;
-        case  2: toggle_list(&button_list); break;
-        case  3: toggle_controls(&button_controls); break;
+        case  1: click_span(&button_span); break;
+        case  2: click_list(&button_list); break;
+        case  3: click_controls(&button_controls); break;
         case  0: // drop to default:
-        default: toggle_container(&button_container); break;
+        default: click_container(&button_container); break;
     }
-    ui_caption.menu.callback = toggle_tools;
+    ui_caption.menu.callback = click_tools;
     ui_caption.icon.hidden = true;
     tools.hidden = true;
     if (app_data.menu_used == 0) {
