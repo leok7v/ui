@@ -711,10 +711,12 @@ typedef struct {
                       ui_color_t border, ui_color_t fill);
     void (*fill_with)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
     void (*poly)(ui_point_t* points, int32_t count);
+    void (*circle_with)(int32_t center_x, int32_t center_y, int32_t odd_radius,
+        ui_color_t border, ui_color_t fill);
     void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t rx, int32_t ry); // see RoundRect with pen, brush
     void (*rounded_with)(int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t rx, int32_t ry, ui_color_t border, ui_color_t fill);
+        int32_t odd_radius, ui_color_t border, ui_color_t fill);
     void (*gradient)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical);
     // draw images: (x,y remains untouched after drawing)
@@ -4009,14 +4011,14 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         ui_gdi.draw_icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
     }
-    ui_color_t color = v->armed ? 
+    ui_color_t color = v->armed ?
         ui_colors.lighten(v->background, 0.125f) : d1;
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {
         int32_t r = ut_max(3, v->fm->em.h / 4);
         if (r % 2 == 0) { r++; }
-        ui_gdi.rounded_with(v->x, v->y, v->w, v->h, r, r,
+        ui_gdi.rounded_with(v->x, v->y, v->w, v->h, r,
                             color, ui_colors.transparent);
     }
     ui_gdi.pop();
@@ -5489,7 +5491,7 @@ static uint64_t ui_edit_uint64(int32_t high, int32_t low) {
     return ((uint64_t)high << 32) | (uint64_t)low;
 }
 
-// TODO: 
+// TODO:
 // All allocate/free functions assume 'fail fast' semantics
 // if underlying OS runs out of RAM it considered to be fatal.
 // It is possible to implement and hold committed 'safety region'
@@ -7458,7 +7460,7 @@ static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
     fatal_if_false(RoundRect(ui_app_canvas(), x, y, x + w, y + h, rx, ry));
 }
 
-static void ui_gdi_rounded_with(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_gdi_rounded_with_xxx(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t rx, int32_t ry,
         ui_color_t border, ui_color_t fill) {
     const bool tf = ui_color_is_transparent(fill);   // transparent fill
@@ -7474,6 +7476,89 @@ static void ui_gdi_rounded_with(int32_t x, int32_t y, int32_t w, int32_t h,
     ui_gdi.set_brush(b);
 }
 
+static void ui_gdi_circle_with(int32_t x, int32_t y, int32_t radius,
+        ui_color_t border, ui_color_t fill) {
+    ui_gdi.push(x, y);
+    swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
+    // Win32 GDI even radius drawing looks ugly squarish and asymmetrical.
+    swear(radius % 2 == 1, "radius: %d must be odd");
+    if (ui_color_is_transparent(border)) {
+        assert(!ui_color_is_transparent(fill));
+        border = fill;
+    }
+    assert(!ui_color_is_transparent(border));
+    const bool tf = ui_color_is_transparent(fill);   // transparent fill
+    ui_brush_t brush = tf ? ui_gdi.set_brush(ui_gdi.brush_hollow) :
+                        ui_gdi.set_brush(ui_gdi.brush_color);
+    ui_color_t c = tf ? ui_colors.transparent : ui_gdi.set_brush_color(fill);
+    ui_pen_t p = ui_gdi.set_colored_pen(border);
+    HDC hdc = (HDC)ui_app.canvas;
+    int32_t l = x - radius;
+    int32_t t = y - radius;
+    int32_t r = x + radius + 1;
+    int32_t b = y + radius + 1;
+    Ellipse(hdc, l, t, r, b);
+//  SetPixel(hdc, x, y, RGB(255, 255, 255));
+    ui_gdi.set_pen(p);
+    if (!tf) { ui_gdi.set_brush_color(c); }
+    ui_gdi.set_brush(brush);
+    ui_gdi.pop();
+}
+
+static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t radius, ui_color_t fill) {
+    ui_gdi.push(x, y);
+    int32_t r = x + w - 1; // right
+    int32_t b = y + h - 1; // bottom
+    ui_gdi_circle_with(x + radius, y + radius, radius, fill, fill);
+    ui_gdi_circle_with(r - radius, y + radius, radius, fill, fill);
+    ui_gdi_circle_with(x + radius, b - radius, radius, fill, fill);
+    ui_gdi_circle_with(r - radius, b - radius, radius, fill, fill);
+    // rectangles
+    ui_gdi.fill_with(x + radius, y, w - radius * 2, h, fill);
+    r = x + w - radius;
+    ui_gdi.fill_with(x, y + radius, radius, h - radius * 2, fill);
+    ui_gdi.fill_with(r, y + radius, radius, h - radius * 2, fill);
+    ui_gdi.pop();
+}
+
+static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t radius, ui_color_t border) {
+    ui_gdi.push(x, y);
+    {
+        int32_t r = x + w - 1; // right
+        int32_t b = y + h - 1; // bottom
+        ui_gdi.set_clip(x, y, radius + 1, radius + 1);
+        ui_gdi_circle_with(x + radius, y + radius, radius, border, ui_colors.transparent);
+        ui_gdi.set_clip(r - radius, y, radius + 1, radius + 1);
+        ui_gdi_circle_with(r - radius, y + radius, radius, border, ui_colors.transparent);
+        ui_gdi.set_clip(x, b - radius, radius + 1, radius + 1);
+        ui_gdi_circle_with(x + radius, b - radius, radius, border, ui_colors.transparent);
+        ui_gdi.set_clip(r - radius, b - radius, radius + 1, radius + 1);
+        ui_gdi_circle_with(r - radius, b - radius, radius, border, ui_colors.transparent);
+        ui_gdi.set_clip(0, 0, 0, 0);
+    }
+    {
+        int32_t r = x + w - 1; // right
+        int32_t b = y + h - 1; // bottom
+        ui_gdi.line_with(x + radius, y, r - radius + 1, y, border);
+        ui_gdi.line_with(x + radius, b, r - radius + 1, b, border);
+        ui_gdi.line_with(x, y + radius, x, b - radius + 1, border);
+        ui_gdi.line_with(r, y + radius, r, b - radius + 1, border);
+    }
+    ui_gdi.pop();
+}
+
+static void ui_gdi_rounded_with(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t radius, ui_color_t border, ui_color_t fill) {
+    swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
+    if (!ui_color_is_transparent(fill)) {
+        ui_gdi_fill_rounded(x, y, w, h, radius, fill);
+    }
+    if (!ui_color_is_transparent(border)) {
+        ui_gdi_rounded_border(x, y, w, h, radius, border);
+    }
+}
 
 static void ui_gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical) {
@@ -8294,6 +8379,7 @@ ui_gdi_if ui_gdi = {
     .rect_with                     = ui_gdi_rect_with,
     .fill_with                     = ui_gdi_fill_with,
     .poly                          = ui_gdi_poly,
+    .circle_with                   = ui_gdi_circle_with,
     .rounded                       = ui_gdi_rounded,
     .rounded_with                  = ui_gdi_rounded_with,
     .gradient                      = ui_gdi_gradient,
@@ -9199,12 +9285,18 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     const int32_t a = v->fm->ascent;
     const int32_t d = v->fm->descent;
 //  traceln("v->fm baseline: %d ascent: %d descent: %d", bl, a, d);
-    const int32_t w = v->fm->em.w;
-    const int32_t r = a + d / 2;
-    y += bl - r + d / 4;
-    ui_gdi.rounded_with(x, y, w, r, r, r, b, b);
+    const int32_t w = v->fm->em.w * 3 / 4;
+    int32_t h = a + d;
+    int32_t r = h / 2;
+    if (r % 2 == 0) { r--; }
+    h = r * 2 + 1;
+    y += bl - h;
+    int32_t y1 = y + h - r + 1;
+    ui_gdi.circle_with(x, y1, r, b, b);
+    ui_gdi.circle_with(x + w - r, y1, r, b, b);
+    ui_gdi.fill_with(x, y1 - r, w - r + 1, h, b);
     int32_t x1 = v->pressed ? x + w - r : x;
-    ui_gdi.rounded_with(x1, y, r, r, r, r, v->color, v->color);
+    ui_gdi.circle_with(x1, y1, r, v->color, v->color);
     return x + w;
 }
 

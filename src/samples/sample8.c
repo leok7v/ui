@@ -148,19 +148,19 @@ static void opened(void) {
     static ui_view_t list = ui_view(list);
     static ui_view_t span = ui_view(span);
     static ui_toggle_t toggle_light =
-           ui_toggle("Light",      3.0f, dark_light);
+           ui_toggle("Light",      4.25f, dark_light);
     static ui_button_t button_container =
-           ui_button("&Container", 3.0f, click_container);
+           ui_button("&Container", 4.25f, click_container);
     static ui_button_t button_span =
-           ui_button("&Span",      3.0f, click_span);
+           ui_button("&Span",      4.25f, click_span);
     static ui_button_t button_list =
-           ui_button("&List",      3.0f, click_list);
+           ui_button("&List",      4.25f, click_list);
     static ui_button_t button_controls =
-           ui_button("Con&trols",  3.0f, click_controls);
+           ui_button("Con&trols",  4.25f, click_controls);
     static ui_button_t button_about =
-           ui_button("&About",     3.0f, click_about);
+           ui_button("&About",     4.25f, click_about);
     static ui_button_t button_crash =
-           ui_button("Crash",      3.0f, crash);
+           ui_button("Crash",      4.25f, crash);
     ui_view.add(ui_app.content,
         ui_view.add(&list,
             ui_view.add(&span,

@@ -9,12 +9,18 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     const int32_t a = v->fm->ascent;
     const int32_t d = v->fm->descent;
 //  traceln("v->fm baseline: %d ascent: %d descent: %d", bl, a, d);
-    const int32_t w = v->fm->em.w;
-    const int32_t r = a + d / 2;
-    y += bl - r + d / 4;
-    ui_gdi.rounded_with(x, y, w, r, r, r, b, b);
+    const int32_t w = v->fm->em.w * 3 / 4;
+    int32_t h = a + d;
+    int32_t r = h / 2;
+    if (r % 2 == 0) { r--; }
+    h = r * 2 + 1;
+    y += bl - h;
+    int32_t y1 = y + h - r + 1;
+    ui_gdi.circle_with(x, y1, r, b, b);
+    ui_gdi.circle_with(x + w - r, y1, r, b, b);
+    ui_gdi.fill_with(x, y1 - r, w - r + 1, h, b);
     int32_t x1 = v->pressed ? x + w - r : x;
-    ui_gdi.rounded_with(x1, y, r, r, r, r, v->color, v->color);
+    ui_gdi.circle_with(x1, y1, r, v->color, v->color);
     return x + w;
 }
 

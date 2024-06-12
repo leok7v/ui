@@ -67,14 +67,14 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         ui_gdi.draw_icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
     }
-    ui_color_t color = v->armed ? 
+    ui_color_t color = v->armed ?
         ui_colors.lighten(v->background, 0.125f) : d1;
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {
         int32_t r = ut_max(3, v->fm->em.h / 4);
         if (r % 2 == 0) { r++; }
-        ui_gdi.rounded_with(v->x, v->y, v->w, v->h, r, r,
+        ui_gdi.rounded_with(v->x, v->y, v->w, v->h, r,
                             color, ui_colors.transparent);
     }
     ui_gdi.pop();

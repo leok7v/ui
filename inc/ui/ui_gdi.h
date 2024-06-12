@@ -55,10 +55,12 @@ typedef struct {
                       ui_color_t border, ui_color_t fill);
     void (*fill_with)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
     void (*poly)(ui_point_t* points, int32_t count);
+    void (*circle_with)(int32_t center_x, int32_t center_y, int32_t odd_radius,
+        ui_color_t border, ui_color_t fill);
     void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t rx, int32_t ry); // see RoundRect with pen, brush
     void (*rounded_with)(int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t rx, int32_t ry, ui_color_t border, ui_color_t fill);
+        int32_t odd_radius, ui_color_t border, ui_color_t fill);
     void (*gradient)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical);
     // draw images: (x,y remains untouched after drawing)

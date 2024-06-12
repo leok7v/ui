@@ -203,7 +203,7 @@ static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
     fatal_if_false(RoundRect(ui_app_canvas(), x, y, x + w, y + h, rx, ry));
 }
 
-static void ui_gdi_rounded_with(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_gdi_rounded_with_xxx(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t rx, int32_t ry,
         ui_color_t border, ui_color_t fill) {
     const bool tf = ui_color_is_transparent(fill);   // transparent fill
@@ -219,6 +219,89 @@ static void ui_gdi_rounded_with(int32_t x, int32_t y, int32_t w, int32_t h,
     ui_gdi.set_brush(b);
 }
 
+static void ui_gdi_circle_with(int32_t x, int32_t y, int32_t radius,
+        ui_color_t border, ui_color_t fill) {
+    ui_gdi.push(x, y);
+    swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
+    // Win32 GDI even radius drawing looks ugly squarish and asymmetrical.
+    swear(radius % 2 == 1, "radius: %d must be odd");
+    if (ui_color_is_transparent(border)) {
+        assert(!ui_color_is_transparent(fill));
+        border = fill;
+    }
+    assert(!ui_color_is_transparent(border));
+    const bool tf = ui_color_is_transparent(fill);   // transparent fill
+    ui_brush_t brush = tf ? ui_gdi.set_brush(ui_gdi.brush_hollow) :
+                        ui_gdi.set_brush(ui_gdi.brush_color);
+    ui_color_t c = tf ? ui_colors.transparent : ui_gdi.set_brush_color(fill);
+    ui_pen_t p = ui_gdi.set_colored_pen(border);
+    HDC hdc = (HDC)ui_app.canvas;
+    int32_t l = x - radius;
+    int32_t t = y - radius;
+    int32_t r = x + radius + 1;
+    int32_t b = y + radius + 1;
+    Ellipse(hdc, l, t, r, b);
+//  SetPixel(hdc, x, y, RGB(255, 255, 255));
+    ui_gdi.set_pen(p);
+    if (!tf) { ui_gdi.set_brush_color(c); }
+    ui_gdi.set_brush(brush);
+    ui_gdi.pop();
+}
+
+static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t radius, ui_color_t fill) {
+    ui_gdi.push(x, y);
+    int32_t r = x + w - 1; // right
+    int32_t b = y + h - 1; // bottom
+    ui_gdi_circle_with(x + radius, y + radius, radius, fill, fill);
+    ui_gdi_circle_with(r - radius, y + radius, radius, fill, fill);
+    ui_gdi_circle_with(x + radius, b - radius, radius, fill, fill);
+    ui_gdi_circle_with(r - radius, b - radius, radius, fill, fill);
+    // rectangles
+    ui_gdi.fill_with(x + radius, y, w - radius * 2, h, fill);
+    r = x + w - radius;
+    ui_gdi.fill_with(x, y + radius, radius, h - radius * 2, fill);
+    ui_gdi.fill_with(r, y + radius, radius, h - radius * 2, fill);
+    ui_gdi.pop();
+}
+
+static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t radius, ui_color_t border) {
+    ui_gdi.push(x, y);
+    {
+        int32_t r = x + w - 1; // right
+        int32_t b = y + h - 1; // bottom
+        ui_gdi.set_clip(x, y, radius + 1, radius + 1);
+        ui_gdi_circle_with(x + radius, y + radius, radius, border, ui_colors.transparent);
+        ui_gdi.set_clip(r - radius, y, radius + 1, radius + 1);
+        ui_gdi_circle_with(r - radius, y + radius, radius, border, ui_colors.transparent);
+        ui_gdi.set_clip(x, b - radius, radius + 1, radius + 1);
+        ui_gdi_circle_with(x + radius, b - radius, radius, border, ui_colors.transparent);
+        ui_gdi.set_clip(r - radius, b - radius, radius + 1, radius + 1);
+        ui_gdi_circle_with(r - radius, b - radius, radius, border, ui_colors.transparent);
+        ui_gdi.set_clip(0, 0, 0, 0);
+    }
+    {
+        int32_t r = x + w - 1; // right
+        int32_t b = y + h - 1; // bottom
+        ui_gdi.line_with(x + radius, y, r - radius + 1, y, border);
+        ui_gdi.line_with(x + radius, b, r - radius + 1, b, border);
+        ui_gdi.line_with(x, y + radius, x, b - radius + 1, border);
+        ui_gdi.line_with(r, y + radius, r, b - radius + 1, border);
+    }
+    ui_gdi.pop();
+}
+
+static void ui_gdi_rounded_with(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t radius, ui_color_t border, ui_color_t fill) {
+    swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
+    if (!ui_color_is_transparent(fill)) {
+        ui_gdi_fill_rounded(x, y, w, h, radius, fill);
+    }
+    if (!ui_color_is_transparent(border)) {
+        ui_gdi_rounded_border(x, y, w, h, radius, border);
+    }
+}
 
 static void ui_gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical) {
@@ -1039,6 +1122,7 @@ ui_gdi_if ui_gdi = {
     .rect_with                     = ui_gdi_rect_with,
     .fill_with                     = ui_gdi_fill_with,
     .poly                          = ui_gdi_poly,
+    .circle_with                   = ui_gdi_circle_with,
     .rounded                       = ui_gdi_rounded,
     .rounded_with                  = ui_gdi_rounded_with,
     .gradient                      = ui_gdi_gradient,
