@@ -860,16 +860,18 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     ut_str.format_va(text, countof(text), p->format, p->vl);
     text[countof(text) - 1] = 0;
     int32_t k = (int32_t)ut_str.len(text);
-    swear(k > 0 && k < countof(text), "k=%d n=%d fmt=%s", k, p->format);
-    // rectangle is always calculated - it makes draw text
-    // much slower but UI layer is mostly uses bitmap caching:
-    if ((p->flags & DT_CALCRECT) == 0) {
-        // no actual drawing just calculate rectangle
-        bool b = ui_gdi_draw_utf16(p->font, text, -1, &p->rc, p->flags | DT_CALCRECT);
+    if (k > 0) {
+        swear(k > 0 && k < countof(text), "k=%d n=%d fmt=%s", k, p->format);
+        // rectangle is always calculated - it makes draw text
+        // much slower but UI layer is mostly uses bitmap caching:
+        if ((p->flags & DT_CALCRECT) == 0) {
+            // no actual drawing just calculate rectangle
+            bool b = ui_gdi_draw_utf16(p->font, text, -1, &p->rc, p->flags | DT_CALCRECT);
+            assert(b, "draw_text_utf16(%s) failed", text); (void)b;
+        }
+        bool b = ui_gdi_draw_utf16(p->font, text, -1, &p->rc, p->flags);
         assert(b, "draw_text_utf16(%s) failed", text); (void)b;
     }
-    bool b = ui_gdi_draw_utf16(p->font, text, -1, &p->rc, p->flags);
-    assert(b, "draw_text_utf16(%s) failed", text); (void)b;
 }
 
 enum {
