@@ -199,6 +199,32 @@ extern ui_view_if ui_view;
 // #define code(...) { __VA_ARGS__ }
 // is way easier on preprocessor
 
+// ui_view_insets (fractions of 1/2 to keep float calculations precise):
+#define ui_view_i_lr (0.375f)    // 3/4 of "em.w" on left and right
+#define ui_view_i_t  (0.109375f) // 7/64 top
+#define ui_view_i_b  (0.140625f) // 9/64 bottom
+
+// Most of UI elements are lowercase latin with Capital letter
+// to boot. The ascent/descent of the latin fonts lack vertical
+// symmetry and thus the top inset is chosen to be a bit smaller
+// than the bottom:
+//
+// i_t + i_b = 16/64 = 1/4
+//                   = 5px for 20px font
+//                   = 3px for 12px font
+// for 20px font i_t + i_b is 1/4 of 20 equal 5px:
+// i_t: (int32_t)(20 * 0.109375 + 0.5)   2px
+// i_b: (int32_t)(20 * (0.109375f + 0.140625) - i_t + 0.5) 3px
+//
+// for 12px font i_t + i_b is 1/4 of 12 equal 3px:
+// i_t: (int32_t)(12 * 0.109375 + 0.5)   1px for 12px font
+// i_b: (int32_t)(12 * (0.109375f + 0.140625) - i_t + 0.5) 2px
+
+// ui_view_padding
+#define ui_view_p_l (0.375f)
+#define ui_view_p_r (0.375f)
+#define ui_view_p_t (0.25f)
+#define ui_view_p_b (0.25f)
 
 #define ui_view_call_init(v) do {                   \
     if ((v)->init != null) {                        \

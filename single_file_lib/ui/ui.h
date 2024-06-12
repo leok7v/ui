@@ -981,6 +981,32 @@ extern ui_view_if ui_view;
 // #define code(...) { __VA_ARGS__ }
 // is way easier on preprocessor
 
+// ui_view_insets (fractions of 1/2 to keep float calculations precise):
+#define ui_view_i_lr (0.375f)    // 3/4 of "em.w" on left and right
+#define ui_view_i_t  (0.109375f) // 7/64 top
+#define ui_view_i_b  (0.140625f) // 9/64 bottom
+
+// Most of UI elements are lowercase latin with Capital letter
+// to boot. The ascent/descent of the latin fonts lack vertical
+// symmetry and thus the top inset is chosen to be a bit smaller
+// than the bottom:
+//
+// i_t + i_b = 16/64 = 1/4
+//                   = 5px for 20px font
+//                   = 3px for 12px font
+// for 20px font i_t + i_b is 1/4 of 20 equal 5px:
+// i_t: (int32_t)(20 * 0.109375 + 0.5)   2px
+// i_b: (int32_t)(20 * (0.109375f + 0.140625) - i_t + 0.5) 3px
+//
+// for 12px font i_t + i_b is 1/4 of 12 equal 3px:
+// i_t: (int32_t)(12 * 0.109375 + 0.5)   1px for 12px font
+// i_b: (int32_t)(12 * (0.109375f + 0.140625) - i_t + 0.5) 2px
+
+// ui_view_padding
+#define ui_view_p_l (0.375f)
+#define ui_view_p_r (0.375f)
+#define ui_view_p_t (0.25f)
+#define ui_view_p_b (0.25f)
 
 #define ui_view_call_init(v) do {                   \
     if ((v)->init != null) {                        \
@@ -1167,15 +1193,22 @@ typedef ui_view_t ui_label_t;
 
 void ui_view_init_label(ui_view_t* view);
 
-#define ui_label(min_width_em, s) {                      \
-      .type = ui_view_label, .init = ui_view_init_label, \
-      .fm = &ui_app.fonts.regular,                       \
-      .text = s,                                         \
-      .min_w_em = min_width_em, .min_h_em = 1.0,         \
-      .padding = { .left  = 0.25, .top    = 0.25,        \
-                   .right = 0.25, .bottom = 0.25, },     \
-      .insets  = { .left  = 0.25, .top    = 0.0625,      \
-                   .right = 0.25, .bottom = 0.1875 }     \
+// label insets and padding left/rigt are intentionaly
+// smaller than button/slider/toggle controls
+
+#define ui_label(min_width_em, s) {                    \
+    .type = ui_view_label, .init = ui_view_init_label, \
+    .fm = &ui_app.fonts.regular,                       \
+    .text = s,                                         \
+    .min_w_em = min_width_em, .min_h_em = 1.0,         \
+    .insets  = {                                       \
+        .left  = 0.25f, .top    = ui_view_i_t,         \
+        .right = 0.25f, .bottom = ui_view_i_b          \
+    },                                                 \
+    .padding = {                                       \
+        .left  = 0.25, .top    = ui_view_p_t,          \
+        .right = 0.25, .bottom = ui_view_p_b,          \
+    }                                                  \
 }
 
 // text with "&" keyboard shortcuts:
@@ -1204,32 +1237,42 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 
 // ui_button_on_click can only be used on static button variables
 
-#define ui_button_on_click(name, s, min_width_em, ...)         \
-    static void name ## _callback(ui_button_t* name) {         \
-        (void)name; /* no warning if unused */                 \
-        { __VA_ARGS__ }                                        \
-    }                                                          \
-    static                                                     \
-    ui_button_t name = {                                       \
-        .type = ui_view_button, .init = ui_view_init_button,   \
-        .fm = &ui_app.fonts.regular,                           \
-        .text = s, .callback = name ## _callback,              \
-        .min_w_em = min_width_em, .min_h_em = 1.0,             \
-        .padding = { .left  = 0.25, .top    = 0.25,            \
-                     .right = 0.25, .bottom = 0.25, },         \
-        .insets  = { .left  = 0.25, .top    = 0.0625,          \
-                     .right = 0.25, .bottom = 0.1875 }         \
+#define ui_button_on_click(name, s, min_width_em, ...)      \
+    static void name ## _callback(ui_button_t* name) {      \
+        (void)name; /* no warning if unused */              \
+        { __VA_ARGS__ }                                     \
+    }                                                       \
+    static                                                  \
+    ui_button_t name = {                                    \
+        .type = ui_view_button,                             \
+        .init = ui_view_init_button,                        \
+        .fm = &ui_app.fonts.regular,                        \
+        .text = s, .callback = name ## _callback,           \
+        .min_w_em = min_width_em, .min_h_em = 1.0,          \
+        .insets  = {                                        \
+            .left  = ui_view_i_lr, .top    = ui_view_i_t,   \
+            .right = ui_view_i_lr, .bottom = ui_view_i_b    \
+        },                                                  \
+        .padding = {                                        \
+            .left  = ui_view_p_l, .top    = ui_view_p_t,    \
+            .right = ui_view_p_r, .bottom = ui_view_p_b,    \
+        }                                                   \
     }
 
-#define ui_button(s, min_width_em, call_back) {              \
-    .type = ui_view_button, .init = ui_view_init_button,     \
-    .fm = &ui_app.fonts.regular,                             \
-    .text = s, .callback = call_back,                        \
-    .min_w_em = min_width_em, .min_h_em = 1.0,               \
-    .padding = { .left  = 0.25, .top    = 0.25,              \
-                 .right = 0.25, .bottom = 0.25, },           \
-    .insets  = { .left  = 0.25, .top    = 0.0625,            \
-                 .right = 0.25, .bottom = 0.1875 }           \
+#define ui_button(s, min_width_em, call_back) {             \
+    .type = ui_view_button,                                 \
+    .init = ui_view_init_button,                            \
+    .fm = &ui_app.fonts.regular,                            \
+    .text = s, .callback = call_back,                       \
+    .min_w_em = min_width_em, .min_h_em = 1.0,              \
+    .insets  = {                                            \
+        .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
+        .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+    },                                                      \
+    .padding = {                                            \
+        .left  = ui_view_p_l, .top    = ui_view_p_t,        \
+        .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+    }                                                       \
 }
 
 // usage:
@@ -1314,32 +1357,44 @@ void ui_view_init_toggle(ui_view_t* view);
 
 // ui_toggle_on_switch can only be used on static toggle variables
 
-#define ui_toggle_on_switch(name, s, min_width_em, ...)        \
-    static void name ## _callback(ui_toggle_t* name) {         \
-        (void)name; /* no warning if unused */                 \
-        { __VA_ARGS__ }                                        \
-    }                                                          \
-    static                                                     \
-    ui_toggle_t name = {                                       \
-        .type = ui_view_toggle, .init = ui_view_init_toggle,   \
-        .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-        .text = s, .callback = name ## _callback,              \
-        .min_w_em = 1.0, .min_h_em = 1.0,                      \
-        .padding = { .left  = 0.25, .top    = 0.25,            \
-                     .right = 0.25, .bottom = 0.25 },          \
-        .insets  = { .left  = 0.25, .top    = 0.0625,          \
-                     .right = 0.25, .bottom = 0.1875 }         \
+#define ui_toggle_on_switch(name, s, min_width_em, ...)     \
+    static void name ## _callback(ui_toggle_t* name) {      \
+        (void)name; /* no warning if unused */              \
+        { __VA_ARGS__ }                                     \
+    }                                                       \
+    static                                                  \
+    ui_toggle_t name = {                                    \
+        .type = ui_view_toggle,                             \
+        .init = ui_view_init_toggle,                        \
+        .fm = &ui_app.fonts.regular,                        \
+        .min_w_em = min_width_em,                           \
+        .text = s, .callback = name ## _callback,           \
+        .min_w_em = 1.0, .min_h_em = 1.0,                   \
+        .insets  = {                                        \
+            .left  = ui_view_i_lr, .top    = ui_view_i_t,   \
+            .right = ui_view_i_lr, .bottom = ui_view_i_b    \
+        },                                                  \
+        .padding = {                                        \
+            .left  = ui_view_p_l, .top    = ui_view_p_t,    \
+            .right = ui_view_p_r, .bottom = ui_view_p_b,    \
+        }                                                   \
     }
 
-#define ui_toggle(s, min_width_em, call_back) {            \
-    .type = ui_view_toggle, .init = ui_view_init_toggle,   \
-    .fm = &ui_app.fonts.regular, .min_w_em = min_width_em, \
-    .text = s, .callback = call_back,                      \
-    .min_w_em = 1.0, .min_h_em = 1.0,                      \
-    .padding = { .left  = 0.25, .top    = 0.25,            \
-                 .right = 0.25, .bottom = 0.25 },          \
-    .insets  = { .left  = 0.25, .top    = 0.0625,          \
-                 .right = 0.25, .bottom = 0.1875 }         \
+#define ui_toggle(s, min_width_em, call_back) {             \
+    .type = ui_view_toggle,                                 \
+    .init = ui_view_init_toggle,                            \
+    .fm = &ui_app.fonts.regular,                            \
+    .min_w_em = min_width_em,                               \
+    .text = s, .callback = call_back,                       \
+    .min_w_em = 1.0, .min_h_em = 1.0,                       \
+    .insets  = {                                            \
+        .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
+        .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+    },                                                      \
+    .padding = {                                            \
+        .left  = ui_view_p_l, .top    = ui_view_p_t,        \
+        .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+    }                                                       \
 }
 
 // _______________________________ ui_slider.h ________________________________
@@ -1370,36 +1425,45 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
 
 // ui_slider_on_change can only be used on static slider variables
 
-#define ui_slider_on_change(name, s, min_width_em, vmn, vmx, ...)      \
-    static void name ## _callback(ui_slider_t* name) {                 \
-        (void)name; /* no warning if unused */                         \
-        { __VA_ARGS__ }                                                \
-    }                                                                  \
-    static                                                             \
-    ui_slider_t name = {                                               \
-        .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular, \
-                  .init = ui_view_init_slider,                         \
-                  .text = s, .callback = name ## _callback,            \
-                  .min_w_em = min_width_em, .min_h_em = 1.0,           \
-                  .padding = { .left  = 0.125, .top    = 0.25,         \
-                               .right = 0.125, .bottom = 0.25 },       \
-                  .insets  = { .left  = 0.125, .top    = 0.25,         \
-                               .right = 0.125, .bottom = 0.25 }        \
-        },                                                             \
-        .value_min = vmn, .value_max = vmx, .value = vmn,              \
+#define ui_slider_on_change(name, s, min_width_em, vmn, vmx, ...)   \
+    static void name ## _callback(ui_slider_t* name) {              \
+        (void)name; /* no warning if unused */                      \
+        { __VA_ARGS__ }                                             \
+    }                                                               \
+    static                                                          \
+    ui_slider_t name = {                                            \
+        .view = {                                                   \
+            .type = ui_view_slider, .fm = &ui_app.fonts.regular,    \
+            .init = ui_view_init_slider,                            \
+            .text = s, .callback = name ## _callback,               \
+            .min_w_em = min_width_em, .min_h_em = 1.0,              \
+            .insets  = {                                            \
+                .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
+                .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+            },                                                      \
+            .padding = {                                            \
+                .left  = ui_view_p_l, .top    = ui_view_p_t,        \
+                .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+            }                                                       \
+        },                                                          \
+        .value_min = vmn, .value_max = vmx, .value = vmn,           \
     }
 
-#define ui_slider(s, min_width_em, vmn, vmx, format_v, call_back) {    \
-    .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,     \
-        .text = s, .init = ui_view_init_slider,                        \
-        .format = format_v, .callback = call_back,                     \
-        .min_w_em = min_width_em, .min_h_em = 1.0,                     \
-        .padding = { .left  = 0.125, .top    = 0.25,                   \
-                     .right = 0.125, .bottom = 0.25, },                \
-        .insets  = { .left  = 0.125, .top    = 0.25,                   \
-                     .right = 0.125, .bottom = 0.25, }                 \
-    },                                                                 \
-    .value_min = vmn, .value_max = vmx, .value = vmn,                  \
+#define ui_slider(s, min_width_em, vmn, vmx, format_v, call_back) { \
+    .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,  \
+        .text = s, .init = ui_view_init_slider,                     \
+        .format = format_v, .callback = call_back,                  \
+        .min_w_em = min_width_em, .min_h_em = 1.0,                  \
+            .insets  = {                                            \
+                .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
+                .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+            },                                                      \
+            .padding = {                                            \
+                .left  = ui_view_p_l, .top    = ui_view_p_t,        \
+                .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+            }                                                       \
+    },                                                              \
+    .value_min = vmn, .value_max = vmx, .value = vmn,               \
 }
 
 // _________________________________ ui_mbx.h _________________________________
@@ -1436,27 +1500,30 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
     }                                                            \
     static                                                       \
     ui_mbx_t name = {                                            \
-        .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
-                  .fm = &ui_app.fonts.regular,                   \
-                  .text = s, .callback = name ## _callback,      \
-                  .padding = { .left  = 0.125, .top    = 0.25,   \
-                               .right = 0.125, .bottom = 0.25 }, \
-                  .insets  = { .left  = 0.125, .top    = 0.25,   \
-                               .right = 0.125, .bottom = 0.25 }  \
-                },                                               \
+        .view = {                                                \
+            .type = ui_view_mbx,                                 \
+            .init = ui_view_init_mbx,                            \
+            .fm = &ui_app.fonts.regular,                         \
+            .text = s, .callback = name ## _callback,            \
+            .padding = { .left  = 0.125, .top    = 0.25,         \
+                         .right = 0.125, .bottom = 0.25 },       \
+            .insets  = { .left  = 0.125, .top    = 0.25,         \
+                         .right = 0.125, .bottom = 0.25 }        \
+        },                                                       \
         .options = name ## _options                              \
     }
 
-#define ui_mbx(s, call_back, ...) {                          \
-    .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
-              .fm = &ui_app.fonts.regular,                   \
-              .text = s, .callback = call_back,              \
-              .padding = { .left  = 0.125, .top    = 0.25,   \
-                           .right = 0.125, .bottom = 0.25 }, \
-              .insets  = { .left  = 0.125, .top    = 0.25,   \
-                           .right = 0.125, .bottom = 0.25 }  \
-    },                                                       \
-    .options = (const char*[]){ __VA_ARGS__, null },         \
+#define ui_mbx(s, call_back, ...) {                         \
+    .view = {                                               \
+        .type = ui_view_mbx, .init = ui_view_init_mbx,      \
+        .fm = &ui_app.fonts.regular,                        \
+        .text = s, .callback = call_back,                   \
+        .padding = { .left  = 0.125, .top    = 0.25,        \
+                     .right = 0.125, .bottom = 0.25 },      \
+        .insets  = { .left  = 0.125, .top    = 0.25,        \
+                     .right = 0.125, .bottom = 0.25 }       \
+    },                                                      \
+    .options = (const char*[]){ __VA_ARGS__, null },        \
 }
 
 // _______________________________ ui_caption.h _______________________________
@@ -9396,6 +9463,8 @@ void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
 
 #include "ut/ut.h"
 
+static bool ui_view_debug_measure_text;
+
 static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 #pragma push_macro("ui_view_for_each")
@@ -9552,12 +9621,12 @@ static const char* ui_view_nls(ui_view_t* v) {
 }
 
 static void ui_view_measure_text(ui_view_t* v) {
+    if (ui_view_debug_measure_text) {
+        traceln(">%s em: %dx%d min: %.1fx%.1f", v->text,
+            v->fm->em.w, v->fm->em.h,
+            v->min_w_em, v->min_h_em);
+    }
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-//  ui_ltrb_t p = ui_view.gaps(v, &v->padding);
-//  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
-//               v->text, v->x, v->y, v->w, v->h,
-//               p.left, p.top, p.right, p.bottom,
-//               i.left, i.top, i.right, i.bottom);
     v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
     ui_wh_t mt = { 0, 0 };
@@ -9571,9 +9640,19 @@ static void ui_view_measure_text(ui_view_t* v) {
             mt = ui_gdi.measure_text(v->fm->font, ui_view.nls(v));
         }
     }
+    if (ui_view_debug_measure_text) {
+        ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        traceln(" %s %d,%d %dx%d mt: %d %d p: %d %d %d %d  i: %d %d %d %d",
+                     v->text, v->x, v->y, v->w, v->h,
+                     mt.w, mt.h,
+                     p.left, p.top, p.right, p.bottom,
+                     i.left, i.top, i.right, i.bottom);
+    }
     v->w = i.left + ut_max(v->w, mt.w) + i.right;
     v->h = i.top  + ut_max(v->h, mt.h) + i.bottom;
-//  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+    if (ui_view_debug_measure_text) {
+        traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+    }
 }
 
 static void ui_view_measure_children(ui_view_t* v) {
@@ -9632,11 +9711,15 @@ static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
 }
 
 static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
+    fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
+    fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
+    int32_t em_w = (int32_t)(v->fm->em.w * gw + 0.5);
+    int32_t em_h = (int32_t)(v->fm->em.h * gh + 0.5);
+    int32_t left   = ui.gaps_em2px(v->fm->em.w, g->left);
+    int32_t top    = ui.gaps_em2px(v->fm->em.h, g->top);
     return (ui_ltrb_t) {
-        .left   = ui.gaps_em2px(v->fm->em.w, g->left),
-        .top    = ui.gaps_em2px(v->fm->em.h, g->top),
-        .right  = ui.gaps_em2px(v->fm->em.w, g->right),
-        .bottom = ui.gaps_em2px(v->fm->em.h, g->bottom)
+        .left   = left,         .top    = top,
+        .right  = em_w - left,  .bottom = em_h - top
     };
 }
 

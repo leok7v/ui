@@ -8,15 +8,22 @@ typedef ui_view_t ui_label_t;
 
 void ui_view_init_label(ui_view_t* view);
 
-#define ui_label(min_width_em, s) {                      \
-      .type = ui_view_label, .init = ui_view_init_label, \
-      .fm = &ui_app.fonts.regular,                       \
-      .text = s,                                         \
-      .min_w_em = min_width_em, .min_h_em = 1.0,         \
-      .padding = { .left  = 0.25, .top    = 0.25,        \
-                   .right = 0.25, .bottom = 0.25, },     \
-      .insets  = { .left  = 0.25, .top    = 0.0625,      \
-                   .right = 0.25, .bottom = 0.1875 }     \
+// label insets and padding left/rigt are intentionaly
+// smaller than button/slider/toggle controls
+
+#define ui_label(min_width_em, s) {                    \
+    .type = ui_view_label, .init = ui_view_init_label, \
+    .fm = &ui_app.fonts.regular,                       \
+    .text = s,                                         \
+    .min_w_em = min_width_em, .min_h_em = 1.0,         \
+    .insets  = {                                       \
+        .left  = 0.25f, .top    = ui_view_i_t,         \
+        .right = 0.25f, .bottom = ui_view_i_b          \
+    },                                                 \
+    .padding = {                                       \
+        .left  = 0.25, .top    = ui_view_p_t,          \
+        .right = 0.25, .bottom = ui_view_p_b,          \
+    }                                                  \
 }
 
 // text with "&" keyboard shortcuts:

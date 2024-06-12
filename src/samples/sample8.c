@@ -219,6 +219,8 @@ static void opened(void) {
                           ut_glyph_trigram_for_heaven
                           " menu button");
     }
+    traceln("TODO: caption: dark/light bomb debug views about (i)");
+    traceln("TODO: serialize dark light and debug views state");
 }
 
 static ui_view_t* align(ui_view_t* v, int32_t align) {

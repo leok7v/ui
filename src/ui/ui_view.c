@@ -1,6 +1,8 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
+static bool ui_view_debug_measure_text;
+
 static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 #pragma push_macro("ui_view_for_each")
@@ -157,12 +159,12 @@ static const char* ui_view_nls(ui_view_t* v) {
 }
 
 static void ui_view_measure_text(ui_view_t* v) {
+    if (ui_view_debug_measure_text) {
+        traceln(">%s em: %dx%d min: %.1fx%.1f", v->text,
+            v->fm->em.w, v->fm->em.h,
+            v->min_w_em, v->min_h_em);
+    }
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-//  ui_ltrb_t p = ui_view.gaps(v, &v->padding);
-//  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
-//               v->text, v->x, v->y, v->w, v->h,
-//               p.left, p.top, p.right, p.bottom,
-//               i.left, i.top, i.right, i.bottom);
     v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
     ui_wh_t mt = { 0, 0 };
@@ -176,9 +178,19 @@ static void ui_view_measure_text(ui_view_t* v) {
             mt = ui_gdi.measure_text(v->fm->font, ui_view.nls(v));
         }
     }
+    if (ui_view_debug_measure_text) {
+        ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        traceln(" %s %d,%d %dx%d mt: %d %d p: %d %d %d %d  i: %d %d %d %d",
+                     v->text, v->x, v->y, v->w, v->h,
+                     mt.w, mt.h,
+                     p.left, p.top, p.right, p.bottom,
+                     i.left, i.top, i.right, i.bottom);
+    }
     v->w = i.left + ut_max(v->w, mt.w) + i.right;
     v->h = i.top  + ut_max(v->h, mt.h) + i.bottom;
-//  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+    if (ui_view_debug_measure_text) {
+        traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+    }
 }
 
 static void ui_view_measure_children(ui_view_t* v) {
@@ -237,11 +249,15 @@ static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
 }
 
 static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
+    fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
+    fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
+    int32_t em_w = (int32_t)(v->fm->em.w * gw + 0.5);
+    int32_t em_h = (int32_t)(v->fm->em.h * gh + 0.5);
+    int32_t left   = ui.gaps_em2px(v->fm->em.w, g->left);
+    int32_t top    = ui.gaps_em2px(v->fm->em.h, g->top);
     return (ui_ltrb_t) {
-        .left   = ui.gaps_em2px(v->fm->em.w, g->left),
-        .top    = ui.gaps_em2px(v->fm->em.h, g->top),
-        .right  = ui.gaps_em2px(v->fm->em.w, g->right),
-        .bottom = ui.gaps_em2px(v->fm->em.h, g->bottom)
+        .left   = left,         .top    = top,
+        .right  = em_w - left,  .bottom = em_h - top
     };
 }
 

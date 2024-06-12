@@ -33,27 +33,30 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
     }                                                            \
     static                                                       \
     ui_mbx_t name = {                                            \
-        .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
-                  .fm = &ui_app.fonts.regular,                   \
-                  .text = s, .callback = name ## _callback,      \
-                  .padding = { .left  = 0.125, .top    = 0.25,   \
-                               .right = 0.125, .bottom = 0.25 }, \
-                  .insets  = { .left  = 0.125, .top    = 0.25,   \
-                               .right = 0.125, .bottom = 0.25 }  \
-                },                                               \
+        .view = {                                                \
+            .type = ui_view_mbx,                                 \
+            .init = ui_view_init_mbx,                            \
+            .fm = &ui_app.fonts.regular,                         \
+            .text = s, .callback = name ## _callback,            \
+            .padding = { .left  = 0.125, .top    = 0.25,         \
+                         .right = 0.125, .bottom = 0.25 },       \
+            .insets  = { .left  = 0.125, .top    = 0.25,         \
+                         .right = 0.125, .bottom = 0.25 }        \
+        },                                                       \
         .options = name ## _options                              \
     }
 
-#define ui_mbx(s, call_back, ...) {                          \
-    .view = { .type = ui_view_mbx, .init = ui_view_init_mbx, \
-              .fm = &ui_app.fonts.regular,                   \
-              .text = s, .callback = call_back,              \
-              .padding = { .left  = 0.125, .top    = 0.25,   \
-                           .right = 0.125, .bottom = 0.25 }, \
-              .insets  = { .left  = 0.125, .top    = 0.25,   \
-                           .right = 0.125, .bottom = 0.25 }  \
-    },                                                       \
-    .options = (const char*[]){ __VA_ARGS__, null },         \
+#define ui_mbx(s, call_back, ...) {                         \
+    .view = {                                               \
+        .type = ui_view_mbx, .init = ui_view_init_mbx,      \
+        .fm = &ui_app.fonts.regular,                        \
+        .text = s, .callback = call_back,                   \
+        .padding = { .left  = 0.125, .top    = 0.25,        \
+                     .right = 0.125, .bottom = 0.25 },      \
+        .insets  = { .left  = 0.125, .top    = 0.25,        \
+                     .right = 0.125, .bottom = 0.25 }       \
+    },                                                      \
+    .options = (const char*[]){ __VA_ARGS__, null },        \
 }
 
 end_c
