@@ -4,12 +4,14 @@
 
 static const char* title = "Sample8: Panels";
 
-enum { version = 0x101 };
+enum { version = 0x102 };
 
 typedef ut_begin_packed struct app_data_t {
     int32_t version;
     int32_t menu_used;
     int32_t selected_view;
+    int32_t light;
+    int32_t debug;
 } ut_end_packed app_data_t;
 
 static app_data_t app_data = { .version = version };
@@ -50,43 +52,51 @@ ui_app_t ui_app = {
 
 static ui_view_t test = ui_view(container);
 
-static ui_view_t tools = ui_view(list);
+static ui_view_t tools_list = ui_view(list);
 
-static void click_tools(ui_button_t* b) {
+static void tools(ui_button_t* b) {
     b->pressed = !b->pressed;
     traceln("b->pressed: %d", b->pressed);
-    tools.hidden = !b->pressed;
+    tools_list.hidden = !b->pressed;
     app_data.menu_used = 1;
     ui_app.request_layout();
 }
 
 static void switch_view(ui_button_t* b, int32_t ix,
-        void (*buid_view)(ui_view_t* v)) {
+        void (*build_view)(ui_view_t* v)) {
     if (!b->pressed) {
-        tools.hidden = true;
+        tools_list.hidden = true;
         ui_caption.menu.pressed = false;
         ui_view_for_each(b->parent, c, { c->pressed = false; });
         b->pressed = !b->pressed;
         app_data.selected_view = ix;
-        buid_view(&test);
+        build_view(&test);
     }
 }
 
-static void click_container(ui_button_t* b) {
+static void container(ui_button_t* b) {
     switch_view(b, 0, container_test);
 }
 
-static void click_span(ui_button_t* b) {
+static void span(ui_button_t* b) {
     switch_view(b, 1, span_test);
 }
 
-static void click_list(ui_button_t* b) {
+static void list(ui_button_t* b) {
     switch_view(b, 2, list_test);
 }
 
-static void click_controls(ui_button_t* b) {
+static void controls(ui_button_t* b) {
     switch_view(b, 3, controls_test);
 }
+
+static void debug(ui_button_t* b) {
+    b->pressed = !b->pressed;
+    app_data.debug = b->pressed;
+}
+
+static ui_button_t button_debug =
+        ui_button(ut_glyph_lady_beetle, 0.0f, debug);
 
 static ui_mbx_t mbx = ui_mbx( // message box
     "Orange frames represent container, span, or list\n"
@@ -116,7 +126,7 @@ static ui_mbx_t mbx = ui_mbx( // message box
     "Press ESC to close this message.",
     null, null);
 
-static void click_about(ui_button_t* unused(b)) {
+static void about(ui_button_t* unused(b)) {
     ui_app.show_toast(&mbx.view, 10.0);
 }
 
@@ -137,10 +147,6 @@ static void dark_light(ui_toggle_t* b) {
     ui_theme.refresh();
 }
 
-ui_button_on_click(button_debug, ut_glyph_lady_beetle, 0.0f, {
-    button_debug->pressed = !button_debug->pressed;
-});
-
 static void insert_into_caption(ui_button_t* b, const char* hint) {
     strprintf(b->hint, "%s", hint);
     b->flat = true;
@@ -149,20 +155,20 @@ static void insert_into_caption(ui_button_t* b, const char* hint) {
 }
 
 static void opened(void) {
-    static ui_view_t list = ui_view(list);
-    static ui_view_t span = ui_view(span);
+    static ui_view_t list_view = ui_view(list);
+    static ui_view_t span_view = ui_view(span);
     static ui_button_t button_container =
-           ui_button("&Container", 4.25f, click_container);
+           ui_button("&Container", 4.25f, container);
     static ui_button_t button_span =
-           ui_button("&Span",      4.25f, click_span);
+           ui_button("&Span",      4.25f, span);
     static ui_button_t button_list =
-           ui_button("&List",      4.25f, click_list);
+           ui_button("&List",      4.25f, list);
     static ui_button_t button_controls =
-           ui_button("Con&trols",  4.25f, click_controls);
+           ui_button("Con&trols",  4.25f, controls);
     ui_view.add(ui_app.content,
-        ui_view.add(&list,
-            ui_view.add(&span,
-                ui_view.add(&tools,
+        ui_view.add(&list_view,
+            ui_view.add(&span_view,
+                ui_view.add(&tools_list,
                     &button_container,
                     &button_span,
                     &button_list,
@@ -172,12 +178,12 @@ static void opened(void) {
             null),
         null),
     null);
-    list.max_w = ui.infinity;
-    list.max_h = ui.infinity;
-    list.insets = (ui_gaps_t){ 0, 0, 0, 0 };
-    span.max_w = ui.infinity;
-    span.max_h = ui.infinity;
-    span.insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    list_view.max_w = ui.infinity;
+    list_view.max_h = ui.infinity;
+    list_view.insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    span_view.max_w = ui.infinity;
+    span_view.max_h = ui.infinity;
+    span_view.insets = (ui_gaps_t){ 0, 0, 0, 0 };
     test.max_w = ui.infinity;
     test.max_h = ui.infinity;
     test.color = ui_colors.transparent;
@@ -187,11 +193,11 @@ static void opened(void) {
 //  test.paint = ui_view.debug_paint;
     test.debug = true;
     // buttons to switch test content
-    tools.max_h = ui.infinity;
-    tools.color_id = ui_color_id_window;
-    ut_str_printf(tools.text, "%s", "tools");
-//  tools.paint = ui_view.debug_paint;
-    ui_view_for_each(&tools, it, {
+    tools_list.max_h = ui.infinity;
+    tools_list.color_id = ui_color_id_window;
+    ut_str_printf(tools_list.text, "%s", "Tools");
+//  tools_list.paint = ui_view.debug_paint;
+    ui_view_for_each(&tools_list, it, {
         it->align = ui.align.left;
         it->padding.bottom = 0;
     });
@@ -200,15 +206,15 @@ static void opened(void) {
         "Resizing Window will allow\n"
         "too see how it behaves");
     switch (app_data.selected_view) {
-        case  1: click_span(&button_span); break;
-        case  2: click_list(&button_list); break;
-        case  3: click_controls(&button_controls); break;
+        case  1: span(&button_span); break;
+        case  2: list(&button_list); break;
+        case  3: controls(&button_controls); break;
         case  0: // drop to default:
-        default: click_container(&button_container); break;
+        default: container(&button_container); break;
     }
-    ui_caption.menu.callback = click_tools;
+    ui_caption.menu.callback = tools;
     ui_caption.icon.hidden = true;
-    tools.hidden = true;
+    tools_list.hidden = true;
     if (app_data.menu_used == 0) {
         ui_app.toast(4.5, "For tools click "
                           ut_glyph_trigram_for_heaven
@@ -216,7 +222,7 @@ static void opened(void) {
     }
     // caption buttons:
     static ui_button_t button_info =
-           ui_button(ut_glyph_circled_information_source, 0.0f, click_about);
+           ui_button(ut_glyph_circled_information_source, 0.0f, about);
     static ui_button_t button_light =
            ui_button(ut_glyph_electric_light_bulb, 0.0f, dark_light);
     static ui_button_t button_bomb =
@@ -226,6 +232,8 @@ static void opened(void) {
     insert_into_caption(&button_light, "Dark/Light Mode");
     insert_into_caption(&button_bomb, "Intentionally Crash");
     traceln("TODO: serialize dark light and debug views state");
+    if (app_data.light) { dark_light(&button_light); }
+    if (app_data.debug) { debug(&button_debug); }
 }
 
 static ui_view_t* align(ui_view_t* v, int32_t align) {
