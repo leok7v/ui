@@ -31,7 +31,7 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
 
 static const char* ui_toggle_on_off_label(ui_view_t* v,
         char* label, int32_t count)  {
-    ut_str.format(label, count, "%s", ui_view.nls(v));
+    ut_str.format(label, count, "%s", ui_view.string(v));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, v->pressed ? "On " : "Off", 3);
@@ -46,7 +46,7 @@ static void ui_toggle_measured(ui_view_t* v) {
 
 static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    char text[countof(v->text)];
+    char text[countof(v->string_)];
     const char* label = ui_toggle_on_off_label(v, text, countof(text));
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     ui_gdi.push(v->x + i.left, v->y + i.top);
@@ -99,7 +99,6 @@ static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)
 
 void ui_view_init_toggle(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    ui_view.set_text(v, v->text);
     v->mouse         = ui_toggle_mouse;
     v->paint         = ui_toggle_paint;
     v->measured      = ui_toggle_measured;
@@ -107,12 +106,11 @@ void ui_view_init_toggle(ui_view_t* v) {
     v->key_pressed   = ui_toggle_key_pressed;
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
-    ui_view.localize(v);
 }
 
 void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
        void (*callback)(ui_toggle_t* b)) {
-    ut_str_printf(t->text, "%s", label);
+    ui_view.set_text(t, "%s", label);
     t->min_w_em = ems;
     t->callback = callback;
     t->type = ui_view_toggle;

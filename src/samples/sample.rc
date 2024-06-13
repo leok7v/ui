@@ -61,6 +61,9 @@ STRINGTABLE {
     str_average           , L"平均"
     str_maximum           , L"最大"
     str_restore_from_fs   , L"从全屏恢复"
+    str_about_hint        , L"显示关于消息框"
+    str_yes_no_hint       , L"显示是/否消息框"
+    str_fs_label          , L"全屏"
 }
 
 // Order of languages is important. (ENGLISH, NEUTRAL) must be last.
@@ -636,7 +639,6 @@ STRINGTABLE {
     str_full_screen       , L"Full Screen (ESC to restore)"
     str_yes               , L"&Yes"
     str_no                , L"&No"
-
     str_hello             , L"Hello"
     str_slider_accel      , L" Hold key while clicking\n Ctrl: x 10 Shift: x 100 \n Ctrl+Shift: x 1000 \n for step multiplier."
     str_file_open         , L"&Open"
@@ -662,4 +664,7 @@ STRINGTABLE {
     str_average           , L"avg"
     str_maximum           , L"max"
     str_restore_from_fs   , L"Restore from &Full Screen"
+    str_about_hint        , L"Show About message box"
+    str_yes_no_hint       , L"Show Yes/No message box"
+    str_fs_label          , L"&Full Screen"
 }

@@ -1292,7 +1292,7 @@ typedef struct { // i18n national language support
     // strid("foo") returns 0 if there is no matching ENGLISH NEUTRAL
     // STRINGTABLE entry
     int32_t (*strid)(const char* s);
-    // given strid > 0 returns localized string or defau1t value
+    // given strid > 0 returns localized string or default value
     const char* (*string)(int32_t strid, const char* defau1t);
 } ut_nls_if;
 

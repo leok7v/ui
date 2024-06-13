@@ -136,7 +136,7 @@ static void crash(ui_button_t* b) {
         swear(false, "should crash in release configuration");
     } else {
         void* p = (void*)b->click; // null
-        memcpy(p, b->text, 4);
+        memcpy(p, (void*)b, 4);
     }
 }
 
@@ -148,7 +148,7 @@ static void dark_light(ui_toggle_t* b) {
 }
 
 static void insert_into_caption(ui_button_t* b, const char* hint) {
-    strprintf(b->hint, "%s", hint);
+    ut_str_printf(b->hint, "%s", hint);
     b->flat = true;
     b->padding = (ui_gaps_t){0,0,0,0};
     ui_view.add_before(b,  &ui_caption.mini);
@@ -189,13 +189,13 @@ static void opened(void) {
     test.color = ui_colors.transparent;
     test.insets = (ui_gaps_t){ 0, 0, 0, 0 };
     test.background_id = ui_color_id_window;
-    ut_str_printf(test.text, "%s", "test");
+    ui_view.set_text(&test, "%s", "test");
 //  test.paint = ui_view.debug_paint;
     test.debug = true;
     // buttons to switch test content
     tools_list.max_h = ui.infinity;
     tools_list.color_id = ui_color_id_window;
-    ut_str_printf(tools_list.text, "%s", "Tools");
+    ui_view.set_text(&tools_list, "%s", "Tools");
 //  tools_list.paint = ui_view.debug_paint;
     ui_view_for_each(&tools_list, it, {
         it->align = ui.align.left;
@@ -272,7 +272,7 @@ static void container_test(ui_view_t* parent) {
     container.max_h  = ui.infinity;
     container.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     container.background_id = ui_color_id_window;
-    ut_str_printf(container.text, "container");
+    ui_view.set_text(&container, "container");
     ui_view_for_each(&container, it, {
         it->debug = true;
         it->color = ui_colors.onyx;
@@ -302,7 +302,7 @@ static void span_test(ui_view_t* parent) {
     span.max_w    = ui.infinity;
     span.max_h    = ui.infinity;
     span.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
-    ut_str_printf(span.text, "span");
+    ui_view.set_text(&span, "span");
     span.background_id = ui_color_id_window;
     ui_view_for_each(&span, it, {
         it->debug   = true;
@@ -338,7 +338,7 @@ static void list_test(ui_view_t* parent) {
     list.max_h  = ui.infinity;
     list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     list.background_id = ui_color_id_window;
-    ut_str_printf(list.text, "list");
+    ui_view.set_text(&list, "list");
     ui_view_for_each(&list, it, {
         it->debug   = true;
         it->color   = ui_colors.onyx;
@@ -353,7 +353,7 @@ static void list_test(ui_view_t* parent) {
 
 static void slider_format(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
-    ut_str_printf(v->text, "%s", ut_str.uint64(slider->value));
+    ui_view.set_text(v, "%s", ut_str.uint64(slider->value));
 }
 
 static void slider_callback(ui_view_t* v) {
@@ -396,7 +396,7 @@ static void controls_test(ui_view_t* parent) {
     list.debug  = true;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-    ut_str_printf(list.text, "list");
+    ui_view.set_text(&list, "list");
     list.background_id = ui_color_id_window;
 //  ui_view_for_each(&list, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );
 //  ui_view_for_each(&span, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );

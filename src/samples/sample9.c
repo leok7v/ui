@@ -99,7 +99,7 @@ static void open_file(ui_button_t* unused(b)) {
         ut_files.known_folder(ut_files.folder.home),
         filter, countof(filter)); //  all files filer: null, 0
     if (fn.s[0] != 0) {
-        ut_str_printf(toast_filename.text, "%s", fn.s);
+        ui_view.set_text(&toast_filename, "%s", fn.s);
         traceln("%s", fn.s);
         ui_app.show_toast(&toast_filename, 2.0);
     }
@@ -125,10 +125,7 @@ ui_button_on_click(button_full_screen,
 static void flip_locale(ui_button_t* b) {
     b->pressed = !b->pressed;
     ut_nls.set_locale(b->pressed ? "zh-CN" : "en-US");
-    // TODO: label_multiline does not get localized automatically.
-    //       investigate why...
-    //      (comment out next line and put some printfs around)
-    ui_view.localize(&label_multiline);
+//  ui_view.localize(&label_multiline);
     ui_app.request_layout(); // because center panel layout changed
 }
 
@@ -196,7 +193,7 @@ static void panel_paint(ui_view_t* v) {
     ui_color_t color = ui_gdi.set_text_color(v->color);
     ui_gdi.x = v->x + panel_border + ut_max(1, v->fm->em.w / 2);
     ui_gdi.y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);
-    ui_gdi.text("%d,%d %dx%d %s", v->x, v->y, v->w, v->h, v->text);
+    ui_gdi.text("%d,%d %dx%d %s", v->x, v->y, v->w, v->h, ui_view.string(v));
     ui_gdi.set_text_color(color);
     ui_gdi.set_clip(0, 0, 0, 0);
     ui_gdi.delete_pen(p);
@@ -352,7 +349,7 @@ static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(flags)) {
 
 static void slider_format(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
-    ut_str_printf(v->text, "%s", ut_str.uint64(slider->value));
+    ui_view.set_text(v, "%s", ut_str.uint64(slider->value));
 }
 
 static void zoomer_callback(ui_view_t* v) {
@@ -406,7 +403,7 @@ static void keyboard(ui_view_t* view, int64_t vk) {
 
 static void init_panel(ui_view_t* panel, const char* text, ui_color_t color,
         void (*paint)(ui_view_t*)) {
-    ut_str_printf(panel->text, "%s", text);
+    ui_view.set_text(panel, "%s", text);
     panel->color = color;
     panel->paint = paint;
 }
@@ -432,8 +429,7 @@ static void opened(void) {
     label_multiline.highlightable = true;
     ut_str_printf(label_multiline.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
-    ut_str_printf(label_multiline.text, "%s",
-        ut_nls.string(str_help, label_multiline.text));
+    ui_view.set_text(&label_multiline, "%s", ut_nls.string(str_help, ""));
     toast_filename.fm = &ui_app.fonts.H1;
     about.fm = &ui_app.fonts.H3;
     button_locale.shortcut = 'l';
@@ -445,8 +441,8 @@ static void opened(void) {
     zoomer = (ui_slider_t)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
         slider_format, zoomer_callback);
 #endif
-    strcpy(button_mbx.hint, "Show Yes/No message box");
-    strcpy(button_about.hint, "Show About message box");
+    ut_str_printf(button_mbx.hint, "Show Yes/No message box");
+    ut_str_printf(button_about.hint, "Show About message box");
     ui_view.add(&panel_right,
         &button_locale,
         &button_full_screen,

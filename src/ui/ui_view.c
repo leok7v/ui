@@ -154,13 +154,20 @@ static void ui_view_invalidate(const ui_view_t* v) {
     ui_app.invalidate(&rc);
 }
 
-static const char* ui_view_nls(ui_view_t* v) {
-    return v->strid != 0 ? ut_nls.string(v->strid, v->text) : v->text;
+static const char* ui_view_string(ui_view_t* v) {
+    if (v->strid == 0) {
+        int32_t id = ut_nls.strid(v->string_);
+        v->strid = id > 0 ? id : -1;
+    }
+    return v->strid < 0 ? v->string_ : // not localized
+        ut_nls.string(v->strid, v->string_);
 }
 
 static void ui_view_measure_text(ui_view_t* v) {
+    v->strid = 0;
+    const char* s = ui_view.string(v);
     if (ui_view_debug_measure_text) {
-        traceln(">%s em: %dx%d min: %.1fx%.1f", v->text,
+        traceln(">%s em: %dx%d min: %.1fx%.1f", s,
             v->fm->em.w, v->fm->em.h,
             v->min_w_em, v->min_h_em);
     }
@@ -168,20 +175,20 @@ static void ui_view_measure_text(ui_view_t* v) {
     v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
     ui_wh_t mt = { 0, 0 };
-    if (v->text[0] != 0) {
-        bool multiline = strchr(v->text, '\n') != null;
+    if (s[0] != 0) {
+        bool multiline = strchr(s, '\n') != null;
         if (v->type == ui_view_label && multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-            mt = ui_gdi.measure_multiline(v->fm->font, w == 0 ? -1 : w,
-                                          ui_view.nls(v));
+            int32_t mw = w == 0 ? -1 : w;
+            mt = ui_gdi.measure_multiline(v->fm->font, mw, "%s", s);
         } else {
-            mt = ui_gdi.measure_text(v->fm->font, ui_view.nls(v));
+            mt = ui_gdi.measure_text(v->fm->font, "%s", s);
         }
     }
     if (ui_view_debug_measure_text) {
         ui_ltrb_t p = ui_view.gaps(v, &v->padding);
         traceln(" %s %d,%d %dx%d mt: %d %d p: %d %d %d %d  i: %d %d %d %d",
-                     v->text, v->x, v->y, v->w, v->h,
+                     s, v->x, v->y, v->w, v->h,
                      mt.w, mt.h,
                      p.left, p.top, p.right, p.bottom,
                      i.left, i.top, i.right, i.bottom);
@@ -189,7 +196,7 @@ static void ui_view_measure_text(ui_view_t* v) {
     v->w = i.left + ut_max(v->w, mt.w) + i.right;
     v->h = i.top  + ut_max(v->h, mt.h) + i.bottom;
     if (ui_view_debug_measure_text) {
-        traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+        traceln("<%s %d,%d %dx%d", s, v->x, v->y, v->w, v->h);
     }
 }
 
@@ -296,33 +303,43 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     }
 }
 
-static void ui_view_set_text(ui_view_t* v, const char* text) {
-    int32_t n = (int32_t)strlen(text);
-    ut_str_printf(v->text, "%s", text);
-    v->strid = 0; // next call to nls() will localize this text
+static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list vl) {
+    char* s = v->string_;
+    ut_str.format_va(s, countof(v->string_), format, vl);
+    int32_t n = (int32_t)strlen(s);
+    v->strid = 0; // next call to nls() will localize it
+    // TODO: we need both "&Keyboard Shortcut" and no shortcut
+    //       strings. In here, bit that tells the story and DrawText
     for (int32_t i = 0; i < n; i++) {
-        if (text[i] == '&' && i < n - 1 && text[i + 1] != '&') {
-            v->shortcut = text[i + 1];
+        if (s[i] == '&' && i < n - 1 &&
+            s[i + 1] != '&') {
+            v->shortcut = s[i + 1];
             break;
         }
     }
+    ui_app.request_layout();
 }
 
-static void ui_view_localize(ui_view_t* v) {
-    if (v->text[0] != 0) {
-        v->strid = ut_nls.strid(v->text);
-    }
+static void ui_view_set_text(ui_view_t* v, const char* format, ...) {
+    va_list vl;
+    va_start(vl, format);
+    ui_view.set_text_va(v, format, vl);
+    va_end(vl);
 }
 
 static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
-    ut_str_printf(hint->text, "%s", ut_nls.str(v->hint));
+    ui_view.set_text(hint, v->hint);
     ui_view.measure(hint);
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->fm->em.w / 4;
     int32_t y = v->y + v->h + hint->fm->em.h / 4;
-    if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->fm->em.w / 2; }
+    if (x + hint->w > ui_app.crc.w) {
+        x = ui_app.crc.w - hint->w - hint->fm->em.w / 2;
+    }
     if (x < 0) { x = hint->fm->em.w / 2; }
-    if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->fm->em.h / 2; }
+    if (y + hint->h > ui_app.crc.h) {
+        y = ui_app.crc.h - hint->h - hint->fm->em.h / 2;
+    }
     if (y < 0) { y = hint->fm->em.h / 2; }
     // show_tooltip will center horizontally
     ui_app.show_tooltip(hint, x + hint->w / 2, y, 0);
@@ -604,11 +621,11 @@ static void ui_view_debug_paint(ui_view_t* v) {
     if (i.bottom > 0) { ui_gdi.frame_with(v->x, v->y + v->h - i.bottom, v->w, i.bottom, ui_colors.orange); }
     if (container && v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
         ui_gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
-        ui_wh_t mt = ui_gdi.measure_text(v->fm->font, v->text);
+        ui_wh_t mt = ui_gdi.measure_text(v->fm->font, ui_view.string(v));
         ui_gdi.x += (v->w - mt.w) / 2;
         ui_gdi.y += (v->h - mt.h) / 2;
         ui_font_t f = ui_gdi.set_font(v->fm->font);
-        ui_gdi.text("%s", v->text);
+        ui_gdi.text("%s", ui_view.string(v));
         ui_gdi.set_font(f);
     }
     ui_gdi.pop();
@@ -704,14 +721,14 @@ ui_view_if ui_view = {
     .inbox              = ui_view_inbox,
     .outbox             = ui_view_outbox,
     .set_text           = ui_view_set_text,
+    .set_text_va        = ui_view_set_text_va,
     .invalidate         = ui_view_invalidate,
     .measure_text       = ui_view_measure_text,
     .measure_children   = ui_view_measure_children,
     .layout_children    = ui_view_layout_children,
     .measure            = ui_view_measure,
     .layout             = ui_view_layout,
-    .nls                = ui_view_nls,
-    .localize           = ui_view_localize,
+    .string             = ui_view_string,
     .is_hidden          = ui_view_is_hidden,
     .is_disabled        = ui_view_is_disabled,
     .timer              = ui_view_timer,

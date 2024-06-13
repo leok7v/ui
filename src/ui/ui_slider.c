@@ -11,13 +11,13 @@ static int32_t ui_slider_width(const ui_slider_t* s) {
 }
 
 static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
-    char formatted[countof(s->view.text)];
-    const char* text = ut_nls.str(s->view.text);
+    char formatted[countof(s->view.string_)];
+    const char* text = ui_view.string(&s->view);
     ui_font_t f = s->view.fm->font;
     ui_wh_t mt = s->view.fm->em;
     if (s->view.format != null) {
         s->view.format(&s->view);
-        strprintf(formatted, "%s", ut_nls.str(s->view.text));
+        strprintf(formatted, "%s", text);
         mt = ui_gdi.measure_text(f, "%s", formatted);
     } else if (text != null && strstr(text, "%d") != null) {
         ui_wh_t mt_min = ui_gdi.measure_text(f, text, s->value_min);
@@ -108,10 +108,10 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.y = v->y + i.top;
     c = ui_gdi.set_text_color(v->color);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
-    const char* text = ut_nls.str(v->text);
+    const char* text = ui_view.string(v);
     if (s->view.format != null) {
         s->view.format(v);
-        ui_gdi.text("%s", s->view.text);
+        ui_gdi.text("%s", text);
     } else if (text != null && strstr(text, "%d") != null) {
         ui_gdi.text(text, s->value);
     } else if (text != null && text[0] != 0) {
@@ -206,7 +206,6 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
 
 void ui_view_init_slider(ui_view_t* v) {
     assert(v->type == ui_view_slider);
-    ui_view.set_text(v, v->text);
     v->measure       = ui_slider_measure;
     v->layout        = ui_slider_layout;
     v->paint         = ui_slider_paint;
@@ -233,7 +232,6 @@ void ui_view_init_slider(ui_view_t* v) {
     v->padding = s->dec.padding;
     ut_str_printf(s->inc.hint, "%s", accel);
     ui_view.add(&s->view, &s->dec, &s->inc, null);
-    ui_view.localize(&s->view);
 }
 
 void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
@@ -242,7 +240,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
     s->view.type = ui_view_slider;
-    ut_str_printf(s->view.text, "%s", label);
+    ui_view.set_text(&s->view, "%s", label);
     s->view.callback = callback;
     s->view.min_w_em = min_w_em;
     s->value_min = value_min;

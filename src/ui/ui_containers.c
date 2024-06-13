@@ -23,7 +23,7 @@ static int32_t ui_layout_nesting;
     ui_ltrb_t p_ = ui_view.gaps(v, &v->padding);                 \
     debugln("%*c>%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d", \
             ui_layout_nesting, 0x20,                             \
-            v->text, v->x, v->y, v->w, v->h,                     \
+            ui_view.string(v), v->x, v->y, v->w, v->h,           \
             p_.left, p_.top, p_.right, p_.bottom,                \
             i_.left, i_.top, i_.right, i_.bottom);               \
     ui_layout_nesting += 4;                                      \
@@ -33,12 +33,12 @@ static int32_t ui_layout_nesting;
     ui_layout_nesting -= 4;                                      \
     debugln("%*c<%s %d,%d %dx%d",                                \
             ui_layout_nesting, 0x20,                             \
-            v->text, v->x, v->y, v->w, v->h);                    \
+            ui_view.string(v), v->x, v->y, v->w, v->h);          \
 } while (0)
 
 #define ui_layout_clild(v) do {                                  \
     debugln("%*c %s %d,%d %dx%d", ui_layout_nesting, 0x20,       \
-            c->text, c->x, c->y, c->w, c->h);                    \
+            ui_view.string(c), c->x, c->y, c->w, c->h);          \
 } while (0)
 
 static const char* ui_container_finite_int(int32_t v, char* text, int32_t count) {
@@ -568,7 +568,7 @@ void ui_view_init_span(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_span_measure; }
     if (v->layout  == null) { v->layout  = ui_span_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_span"); }
+    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_span"); }
 }
 
 void ui_view_init_list(ui_view_t* v) {
@@ -577,7 +577,7 @@ void ui_view_init_list(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_list_measure; }
     if (v->layout  == null) { v->layout  = ui_list_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_list"); }
+    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_list"); }
 }
 
 void ui_view_init_spacer(ui_view_t* v) {
@@ -586,7 +586,7 @@ void ui_view_init_spacer(ui_view_t* v) {
     v->h = 0;
     v->max_w = ui.infinity;
     v->max_h = ui.infinity;
-    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_spacer"); }
+    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_spacer"); }
 }
 
 void ui_view_init_container(ui_view_t* v) {
@@ -594,7 +594,7 @@ void ui_view_init_container(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_container_measure; }
     if (v->layout  == null) { v->layout  = ui_container_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_container"); }
+    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_container"); }
 }
 
 #pragma pop_macro("ui_layout_exit")

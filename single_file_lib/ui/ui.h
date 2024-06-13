@@ -819,12 +819,13 @@ typedef struct ui_view_s {
     int32_t max_h; // > 0 maximum height in pixels
     fp32_t  min_w_em; // > 0 minimum width  of a view in "em"s
     fp32_t  min_h_em; // > 0 minimum height of a view in "em"s
-    char text[2048];
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
     ui_fm_t* fm; // font metrics
     int32_t shortcut; // keyboard shortcut
-    int32_t strid; // 0 for not localized ui
+    int32_t strid;    // 0 for not yet localized, -1 no localization
+    // use: ui_view.string(v) and ui_view.set_string()
+    char string_[1024]; // do not access directly
     void* that;  // for the application use
     void (*notify)(ui_view_t* v, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
@@ -906,12 +907,12 @@ typedef struct ui_view_if {
     ui_ltrb_t (*gaps)(const ui_view_t* v, const ui_gaps_t* g); // gaps to pixels
     void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);
     void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
-    void (*set_text)(ui_view_t* v, const char* text);
+    void (*set_text)(ui_view_t* v, const char* format, ...);
+    void (*set_text_va)(ui_view_t* v, const char* format, va_list va);
     void (*invalidate)(const ui_view_t* v); // prone to delays
     bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
     bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
-    const char* (*nls)(ui_view_t* v);  // returns localized text
-    void (*localize)(ui_view_t* v);    // set strid based ui .text field
+    const char* (*string)(ui_view_t* v);  // returns localized text
     void (*timer)(ui_view_t* v, ui_timer_t id);
     void (*every_sec)(ui_view_t* v);
     void (*every_100ms)(ui_view_t* v);
@@ -1199,7 +1200,7 @@ void ui_view_init_label(ui_view_t* view);
 #define ui_label(min_width_em, s) {                    \
     .type = ui_view_label, .init = ui_view_init_label, \
     .fm = &ui_app.fonts.regular,                       \
-    .text = s,                                         \
+    .string_ = s,                                      \
     .min_w_em = min_width_em, .min_h_em = 1.0,         \
     .insets  = {                                       \
         .left  = 0.25f, .top    = ui_view_i_t,         \
@@ -1247,7 +1248,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
         .type = ui_view_button,                             \
         .init = ui_view_init_button,                        \
         .fm = &ui_app.fonts.regular,                        \
-        .text = s, .callback = name ## _callback,           \
+        .string_ = s, .callback = name ## _callback,        \
         .min_w_em = min_width_em, .min_h_em = 1.0,          \
         .insets  = {                                        \
             .left  = ui_view_i_lr, .top    = ui_view_i_t,   \
@@ -1263,7 +1264,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     .type = ui_view_button,                                 \
     .init = ui_view_init_button,                            \
     .fm = &ui_app.fonts.regular,                            \
-    .text = s, .callback = call_back,                       \
+    .string_ = s, .callback = call_back,                    \
     .min_w_em = min_width_em, .min_h_em = 1.0,              \
     .insets  = {                                            \
         .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
@@ -1292,7 +1293,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // or
 //
 // ui_button_t button = ui_view)button(button);
-// ut_str_printf(button.text, "&Button");
+// ui_view.set_text(button.text, "&Button");
 // button.min_w_em = 7.0;
 // button.callback = button_flipped;
 
@@ -1368,7 +1369,7 @@ void ui_view_init_toggle(ui_view_t* view);
         .init = ui_view_init_toggle,                        \
         .fm = &ui_app.fonts.regular,                        \
         .min_w_em = min_width_em,                           \
-        .text = s, .callback = name ## _callback,           \
+        .string_ = s, .callback = name ## _callback,        \
         .min_w_em = 1.0, .min_h_em = 1.0,                   \
         .insets  = {                                        \
             .left  = ui_view_i_lr, .top    = ui_view_i_t,   \
@@ -1385,7 +1386,7 @@ void ui_view_init_toggle(ui_view_t* view);
     .init = ui_view_init_toggle,                            \
     .fm = &ui_app.fonts.regular,                            \
     .min_w_em = min_width_em,                               \
-    .text = s, .callback = call_back,                       \
+    .string_ = s, .callback = call_back,                    \
     .min_w_em = 1.0, .min_h_em = 1.0,                       \
     .insets  = {                                            \
         .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
@@ -1435,7 +1436,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .view = {                                                   \
             .type = ui_view_slider, .fm = &ui_app.fonts.regular,    \
             .init = ui_view_init_slider,                            \
-            .text = s, .callback = name ## _callback,               \
+            .string_ = s, .callback = name ## _callback,            \
             .min_w_em = min_width_em, .min_h_em = 1.0,              \
             .insets  = {                                            \
                 .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
@@ -1451,7 +1452,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
 
 #define ui_slider(s, min_width_em, vmn, vmx, format_v, call_back) { \
     .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,  \
-        .text = s, .init = ui_view_init_slider,                     \
+        .string_ = s, .init = ui_view_init_slider,                  \
         .format = format_v, .callback = call_back,                  \
         .min_w_em = min_width_em, .min_h_em = 1.0,                  \
             .insets  = {                                            \
@@ -1504,7 +1505,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
             .type = ui_view_mbx,                                 \
             .init = ui_view_init_mbx,                            \
             .fm = &ui_app.fonts.regular,                         \
-            .text = s, .callback = name ## _callback,            \
+            .string_ = s, .callback = name ## _callback,         \
             .padding = { .left  = 0.125, .top    = 0.25,         \
                          .right = 0.125, .bottom = 0.25 },       \
             .insets  = { .left  = 0.125, .top    = 0.25,         \
@@ -1517,7 +1518,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
     .view = {                                               \
         .type = ui_view_mbx, .init = ui_view_init_mbx,      \
         .fm = &ui_app.fonts.regular,                        \
-        .text = s, .callback = call_back,                   \
+        .string_ = s, .callback = call_back,                \
         .padding = { .left  = 0.125, .top    = 0.25,        \
                      .right = 0.125, .bottom = 0.25 },      \
         .insets  = { .left  = 0.125, .top    = 0.25,        \
@@ -2255,7 +2256,7 @@ static void ui_app_window_opening(void) {
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
     not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
-    ut_str_printf(ui_app.root->text, "ui_app.root"); // debugging
+    ui_view.set_text(ui_app.root, "ui_app.root"); // debugging
     ui_app_wm_timer(ui_app_timer_100ms_id);
     ui_app_wm_timer(ui_app_timer_1s_id);
     fatal_if(ReleaseDC(ui_app_window(), ui_app_canvas()) == 0);
@@ -3098,7 +3099,7 @@ static void ui_app_create_window(const ui_rect_t r) {
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
     not_null(ui_app.window);
     assert(window == ui_app_window()); (void)window;
-    ut_str_printf(ui_caption.title.text, "%s", ui_app.title);
+    ui_view.set_text(&ui_caption.title, "%s", ui_app.title);
     not_null(GetSystemMenu(ui_app_window(), false));
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
     RECT wrc = ui_app_ui2rect(&r);
@@ -3275,7 +3276,6 @@ static void ui_app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         }
         // allow unparented ui for toast and tooltip
         ui_view_call_init(view);
-        ui_view.localize(view);
         ui_app_animate_start(ui_app_toast_dim, ui_app_animation_steps);
         ui_app.animating.view = view;
         ui_app.animating.time = timeout > 0 ? ui_app.now + timeout : 0;
@@ -3464,9 +3464,8 @@ static void ui_app_bring_to_front(void) {
 }
 
 static void ui_app_set_title(const char* title) {
-    ut_str_printf(ui_caption.title.text, "%s", title);
-    fatal_if_false(SetWindowTextA(ui_app_window(), title));
-    if (!ui_caption.view.hidden) { ui_app.request_layout(); }
+    ui_view.set_text(&ui_caption.title, "%s", title);
+    fatal_if_false(SetWindowTextA(ui_app_window(), ut_nls.str(title)));
 }
 
 static ui_color_t ui_app_get_color(int32_t color_id) {
@@ -3787,8 +3786,8 @@ static void ui_app_init(void) {
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->hidden = !ui_app.no_decor;
     // for ui_view_debug_paint:
-    ut_str_printf(ui_app.root->text, "ui_app.root");
-    ut_str_printf(ui_app.content->text, "ui_app.content");
+    ui_view.set_text(ui_app.root, "ui_app.root");
+    ui_view.set_text(ui_app.content, "ui_app.content");
     ui_app.init();
 }
 
@@ -4056,7 +4055,7 @@ static void ui_button_paint(ui_view_t* v) {
 //  traceln("%s align=%02X", v->text, v->align);
     if (v->icon == null) {
         ui_font_t f = v->fm->font;
-        ui_wh_t m = ui_gdi.measure_text(f, ui_view.nls(v));
+        ui_wh_t m = ui_gdi.measure_text(f, ui_view.string(v));
         int32_t t_x = 0;
         if (v->align & ui.align.left) {
             t_x = 0;
@@ -4077,7 +4076,7 @@ static void ui_button_paint(ui_view_t* v) {
         ui_gdi.y = v->y + i.top  + t_y;
         ui_gdi.set_text_color(c);
         f = ui_gdi.set_font(f);
-        ui_gdi.text("%s", ui_view.nls(v));
+        ui_gdi.text("%s", ui_view.string(v));
         ui_gdi.set_font(f);
     } else {
         ui_gdi.draw_icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
@@ -4174,14 +4173,12 @@ void ui_view_init_button(ui_view_t* v) {
     v->key_pressed   = ui_button_key_pressed;
     v->color_id      = ui_color_id_window_text;
     v->background_id = ui_color_id_button_face;
-    ui_view.set_text(v, v->text);
-    ui_view.localize(v);
 }
 
 void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
         void (*callback)(ui_button_t* b)) {
     b->type = ui_view_button;
-    ut_str_printf(b->text, "%s", label);
+    ui_view.set_text(b, "%s", label);
     b->callback = callback;
     b->min_w_em = ems;
     ui_view_init_button(b);
@@ -4226,7 +4223,7 @@ static void ui_caption_mini(ui_button_t* unused(b)) {
 }
 
 static void ui_caption_maximize_or_restore(void) {
-    ut_str_printf(ui_caption.maxi.text, "%s",
+    ui_view.set_text(&ui_caption.maxi, "%s",
         ui_app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
     ut_str_printf(ui_caption.maxi.hint, "%s",
@@ -4367,7 +4364,7 @@ static void ui_caption_init(ui_view_t* v) {
     ui_caption.view.prepare = ui_caption_prepare;
     ui_caption.view.measured = ui_caption_measured;
     ui_caption.view.composed = ui_caption_composed;
-    ut_str_printf(ui_caption.view.text, "ui_caption");
+    ui_view.set_text(&ui_caption.view, "ui_caption"); // for debugging
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
 }
@@ -4790,7 +4787,7 @@ static int32_t ui_layout_nesting;
     ui_ltrb_t p_ = ui_view.gaps(v, &v->padding);                 \
     debugln("%*c>%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d", \
             ui_layout_nesting, 0x20,                             \
-            v->text, v->x, v->y, v->w, v->h,                     \
+            ui_view.string(v), v->x, v->y, v->w, v->h,           \
             p_.left, p_.top, p_.right, p_.bottom,                \
             i_.left, i_.top, i_.right, i_.bottom);               \
     ui_layout_nesting += 4;                                      \
@@ -4800,12 +4797,12 @@ static int32_t ui_layout_nesting;
     ui_layout_nesting -= 4;                                      \
     debugln("%*c<%s %d,%d %dx%d",                                \
             ui_layout_nesting, 0x20,                             \
-            v->text, v->x, v->y, v->w, v->h);                    \
+            ui_view.string(v), v->x, v->y, v->w, v->h);          \
 } while (0)
 
 #define ui_layout_clild(v) do {                                  \
     debugln("%*c %s %d,%d %dx%d", ui_layout_nesting, 0x20,       \
-            c->text, c->x, c->y, c->w, c->h);                    \
+            ui_view.string(c), c->x, c->y, c->w, c->h);          \
 } while (0)
 
 static const char* ui_container_finite_int(int32_t v, char* text, int32_t count) {
@@ -5335,7 +5332,7 @@ void ui_view_init_span(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_span_measure; }
     if (v->layout  == null) { v->layout  = ui_span_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_span"); }
+    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_span"); }
 }
 
 void ui_view_init_list(ui_view_t* v) {
@@ -5344,7 +5341,7 @@ void ui_view_init_list(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_list_measure; }
     if (v->layout  == null) { v->layout  = ui_list_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_list"); }
+    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_list"); }
 }
 
 void ui_view_init_spacer(ui_view_t* v) {
@@ -5353,7 +5350,7 @@ void ui_view_init_spacer(ui_view_t* v) {
     v->h = 0;
     v->max_w = ui.infinity;
     v->max_h = ui.infinity;
-    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_spacer"); }
+    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_spacer"); }
 }
 
 void ui_view_init_container(ui_view_t* v) {
@@ -5361,7 +5358,7 @@ void ui_view_init_container(ui_view_t* v) {
     if (v->measure == null) { v->measure = ui_container_measure; }
     if (v->layout  == null) { v->layout  = ui_container_layout; }
     if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (v->text[0] == 0) { ut_str_printf(v->text, "ui_container"); }
+    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_container"); }
 }
 
 #pragma pop_macro("ui_layout_exit")
@@ -8497,6 +8494,7 @@ ui_gdi_if ui_gdi = {
 static void ui_label_paint(ui_view_t* v) {
     assert(v->type == ui_view_label);
     assert(!v->hidden);
+    const char* s = ui_view.string(v);
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     ui_gdi.push(v->x + i.left, v->y + i.top);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
@@ -8507,12 +8505,12 @@ static void ui_label_paint(ui_view_t* v) {
     ui_gdi.set_text_color(c);
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
-    bool multiline = strchr(v->text, '\n') != null;
+    bool multiline = strchr(s, '\n') != null;
     if (!multiline) {
-        ui_gdi.text("%s", ui_view.nls(v));
+        ui_gdi.text("%s", ui_view.string(v));
     } else {
         int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-        ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(v));
+        ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.string(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
         ui_gdi.set_colored_pen(ui_app.get_color(ui_color_id_highlight));
@@ -8528,7 +8526,7 @@ static void ui_label_paint(ui_view_t* v) {
 static void ui_label_context_menu(ui_view_t* v) {
     assert(v->type == ui_view_label);
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        ut_clipboard.put_text(ui_view.nls(v));
+        ut_clipboard.put_text(ui_view.string(v));
         static bool first_time = true;
         ui_app.toast(first_time ? 2.2 : 0.5,
             ut_nls.str("Text copied to clipboard"));
@@ -8542,7 +8540,7 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {
-            ut_clipboard.put_text(ui_view.nls(v)); // 3 is ASCII for Ctrl+C
+            ut_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
         }
     }
 }
@@ -8558,7 +8556,7 @@ void ui_view_init_label(ui_view_t* v) {
 
 void ui_label_init_va(ui_label_t* v, fp32_t min_w_em,
         const char* format, va_list vl) {
-    ut_str.format_va(v->text, countof(v->text), format, vl);
+    ui_view.set_text(v, format, vl);
     v->min_w_em = min_w_em;
     v->type = ui_view_label;
     ui_view_init_label(v);
@@ -8831,24 +8829,20 @@ void ui_view_init_mbx(ui_view_t* view) {
     int32_t n = 0;
     while (mx->options[n] != null && n < countof(mx->button) - 1) {
         mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
-        ut_str_printf(mx->button[n].text, "%s", mx->options[n]);
+        ui_view.set_text(&mx->button[n], "%s", mx->options[n]);
         n++;
     }
     swear(n <= countof(mx->button), "inhumane: %d buttons is too many", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
     mx->label = (ui_label_t)ui_label(0, "");
-    ut_str_printf(mx->label.text, "%s", mx->view.text);
+    ui_view.set_text(&mx->label, "%s", ui_view.string(&mx->view));
     ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);
         mx->button[i].fm = mx->view.fm;
-        ui_view.localize(&mx->button[i]);
-        // TODO: remove assert below
-        assert(mx->button[i].parent == &mx->view);
     }
     mx->label.fm = mx->view.fm;
-    ui_view.localize(&mx->label);
-    mx->view.text[0] = 0;
+    ui_view.set_text(&mx->view, "");
     mx->option = -1;
 }
 
@@ -8861,8 +8855,8 @@ void ui_mbx_init(ui_mbx_t* mx, const char* options[],
     mx->options = options;
     va_list vl;
     va_start(vl, format);
-    ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
-    ui_label_init(&mx->label, 0.0, mx->view.text);
+    ui_view.set_text_va(&mx->view, format, vl);
+    ui_label_init(&mx->label, 0.0, ui_view.string(&mx->view));
     va_end(vl);
     ui_view_init_mbx(&mx->view);
 }
@@ -8880,13 +8874,13 @@ static int32_t ui_slider_width(const ui_slider_t* s) {
 }
 
 static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
-    char formatted[countof(s->view.text)];
-    const char* text = ut_nls.str(s->view.text);
+    char formatted[countof(s->view.string_)];
+    const char* text = ui_view.string(&s->view);
     ui_font_t f = s->view.fm->font;
     ui_wh_t mt = s->view.fm->em;
     if (s->view.format != null) {
         s->view.format(&s->view);
-        strprintf(formatted, "%s", ut_nls.str(s->view.text));
+        strprintf(formatted, "%s", text);
         mt = ui_gdi.measure_text(f, "%s", formatted);
     } else if (text != null && strstr(text, "%d") != null) {
         ui_wh_t mt_min = ui_gdi.measure_text(f, text, s->value_min);
@@ -8977,10 +8971,10 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.y = v->y + i.top;
     c = ui_gdi.set_text_color(v->color);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
-    const char* text = ut_nls.str(v->text);
+    const char* text = ui_view.string(v);
     if (s->view.format != null) {
         s->view.format(v);
-        ui_gdi.text("%s", s->view.text);
+        ui_gdi.text("%s", text);
     } else if (text != null && strstr(text, "%d") != null) {
         ui_gdi.text(text, s->value);
     } else if (text != null && text[0] != 0) {
@@ -9075,7 +9069,6 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
 
 void ui_view_init_slider(ui_view_t* v) {
     assert(v->type == ui_view_slider);
-    ui_view.set_text(v, v->text);
     v->measure       = ui_slider_measure;
     v->layout        = ui_slider_layout;
     v->paint         = ui_slider_paint;
@@ -9102,7 +9095,6 @@ void ui_view_init_slider(ui_view_t* v) {
     v->padding = s->dec.padding;
     ut_str_printf(s->inc.hint, "%s", accel);
     ui_view.add(&s->view, &s->dec, &s->inc, null);
-    ui_view.localize(&s->view);
 }
 
 void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
@@ -9111,7 +9103,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
     s->view.type = ui_view_slider;
-    ut_str_printf(s->view.text, "%s", label);
+    ui_view.set_text(&s->view, "%s", label);
     s->view.callback = callback;
     s->view.min_w_em = min_w_em;
     s->value_min = value_min;
@@ -9382,7 +9374,7 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
 
 static const char* ui_toggle_on_off_label(ui_view_t* v,
         char* label, int32_t count)  {
-    ut_str.format(label, count, "%s", ui_view.nls(v));
+    ut_str.format(label, count, "%s", ui_view.string(v));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, v->pressed ? "On " : "Off", 3);
@@ -9397,7 +9389,7 @@ static void ui_toggle_measured(ui_view_t* v) {
 
 static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    char text[countof(v->text)];
+    char text[countof(v->string_)];
     const char* label = ui_toggle_on_off_label(v, text, countof(text));
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     ui_gdi.push(v->x + i.left, v->y + i.top);
@@ -9450,7 +9442,6 @@ static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)
 
 void ui_view_init_toggle(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    ui_view.set_text(v, v->text);
     v->mouse         = ui_toggle_mouse;
     v->paint         = ui_toggle_paint;
     v->measured      = ui_toggle_measured;
@@ -9458,12 +9449,11 @@ void ui_view_init_toggle(ui_view_t* v) {
     v->key_pressed   = ui_toggle_key_pressed;
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
-    ui_view.localize(v);
 }
 
 void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
        void (*callback)(ui_toggle_t* b)) {
-    ut_str_printf(t->text, "%s", label);
+    ui_view.set_text(t, "%s", label);
     t->min_w_em = ems;
     t->callback = callback;
     t->type = ui_view_toggle;
@@ -9626,13 +9616,20 @@ static void ui_view_invalidate(const ui_view_t* v) {
     ui_app.invalidate(&rc);
 }
 
-static const char* ui_view_nls(ui_view_t* v) {
-    return v->strid != 0 ? ut_nls.string(v->strid, v->text) : v->text;
+static const char* ui_view_string(ui_view_t* v) {
+    if (v->strid == 0) {
+        int32_t id = ut_nls.strid(v->string_);
+        v->strid = id > 0 ? id : -1;
+    }
+    return v->strid < 0 ? v->string_ : // not localized
+        ut_nls.string(v->strid, v->string_);
 }
 
 static void ui_view_measure_text(ui_view_t* v) {
+    v->strid = 0;
+    const char* s = ui_view.string(v);
     if (ui_view_debug_measure_text) {
-        traceln(">%s em: %dx%d min: %.1fx%.1f", v->text,
+        traceln(">%s em: %dx%d min: %.1fx%.1f", s,
             v->fm->em.w, v->fm->em.h,
             v->min_w_em, v->min_h_em);
     }
@@ -9640,20 +9637,20 @@ static void ui_view_measure_text(ui_view_t* v) {
     v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
     ui_wh_t mt = { 0, 0 };
-    if (v->text[0] != 0) {
-        bool multiline = strchr(v->text, '\n') != null;
+    if (s[0] != 0) {
+        bool multiline = strchr(s, '\n') != null;
         if (v->type == ui_view_label && multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-            mt = ui_gdi.measure_multiline(v->fm->font, w == 0 ? -1 : w,
-                                          ui_view.nls(v));
+            int32_t mw = w == 0 ? -1 : w;
+            mt = ui_gdi.measure_multiline(v->fm->font, mw, "%s", s);
         } else {
-            mt = ui_gdi.measure_text(v->fm->font, ui_view.nls(v));
+            mt = ui_gdi.measure_text(v->fm->font, "%s", s);
         }
     }
     if (ui_view_debug_measure_text) {
         ui_ltrb_t p = ui_view.gaps(v, &v->padding);
         traceln(" %s %d,%d %dx%d mt: %d %d p: %d %d %d %d  i: %d %d %d %d",
-                     v->text, v->x, v->y, v->w, v->h,
+                     s, v->x, v->y, v->w, v->h,
                      mt.w, mt.h,
                      p.left, p.top, p.right, p.bottom,
                      i.left, i.top, i.right, i.bottom);
@@ -9661,7 +9658,7 @@ static void ui_view_measure_text(ui_view_t* v) {
     v->w = i.left + ut_max(v->w, mt.w) + i.right;
     v->h = i.top  + ut_max(v->h, mt.h) + i.bottom;
     if (ui_view_debug_measure_text) {
-        traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+        traceln("<%s %d,%d %dx%d", s, v->x, v->y, v->w, v->h);
     }
 }
 
@@ -9768,33 +9765,43 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     }
 }
 
-static void ui_view_set_text(ui_view_t* v, const char* text) {
-    int32_t n = (int32_t)strlen(text);
-    ut_str_printf(v->text, "%s", text);
-    v->strid = 0; // next call to nls() will localize this text
+static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list vl) {
+    char* s = v->string_;
+    ut_str.format_va(s, countof(v->string_), format, vl);
+    int32_t n = (int32_t)strlen(s);
+    v->strid = 0; // next call to nls() will localize it
+    // TODO: we need both "&Keyboard Shortcut" and no shortcut
+    //       strings. In here, bit that tells the story and DrawText
     for (int32_t i = 0; i < n; i++) {
-        if (text[i] == '&' && i < n - 1 && text[i + 1] != '&') {
-            v->shortcut = text[i + 1];
+        if (s[i] == '&' && i < n - 1 &&
+            s[i + 1] != '&') {
+            v->shortcut = s[i + 1];
             break;
         }
     }
+    ui_app.request_layout();
 }
 
-static void ui_view_localize(ui_view_t* v) {
-    if (v->text[0] != 0) {
-        v->strid = ut_nls.strid(v->text);
-    }
+static void ui_view_set_text(ui_view_t* v, const char* format, ...) {
+    va_list vl;
+    va_start(vl, format);
+    ui_view.set_text_va(v, format, vl);
+    va_end(vl);
 }
 
 static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_view_call_init(hint);
-    ut_str_printf(hint->text, "%s", ut_nls.str(v->hint));
+    ui_view.set_text(hint, v->hint);
     ui_view.measure(hint);
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->fm->em.w / 4;
     int32_t y = v->y + v->h + hint->fm->em.h / 4;
-    if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->fm->em.w / 2; }
+    if (x + hint->w > ui_app.crc.w) {
+        x = ui_app.crc.w - hint->w - hint->fm->em.w / 2;
+    }
     if (x < 0) { x = hint->fm->em.w / 2; }
-    if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->fm->em.h / 2; }
+    if (y + hint->h > ui_app.crc.h) {
+        y = ui_app.crc.h - hint->h - hint->fm->em.h / 2;
+    }
     if (y < 0) { y = hint->fm->em.h / 2; }
     // show_tooltip will center horizontally
     ui_app.show_tooltip(hint, x + hint->w / 2, y, 0);
@@ -10076,11 +10083,11 @@ static void ui_view_debug_paint(ui_view_t* v) {
     if (i.bottom > 0) { ui_gdi.frame_with(v->x, v->y + v->h - i.bottom, v->w, i.bottom, ui_colors.orange); }
     if (container && v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
         ui_gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
-        ui_wh_t mt = ui_gdi.measure_text(v->fm->font, v->text);
+        ui_wh_t mt = ui_gdi.measure_text(v->fm->font, ui_view.string(v));
         ui_gdi.x += (v->w - mt.w) / 2;
         ui_gdi.y += (v->h - mt.h) / 2;
         ui_font_t f = ui_gdi.set_font(v->fm->font);
-        ui_gdi.text("%s", v->text);
+        ui_gdi.text("%s", ui_view.string(v));
         ui_gdi.set_font(f);
     }
     ui_gdi.pop();
@@ -10176,14 +10183,14 @@ ui_view_if ui_view = {
     .inbox              = ui_view_inbox,
     .outbox             = ui_view_outbox,
     .set_text           = ui_view_set_text,
+    .set_text_va        = ui_view_set_text_va,
     .invalidate         = ui_view_invalidate,
     .measure_text       = ui_view_measure_text,
     .measure_children   = ui_view_measure_children,
     .layout_children    = ui_view_layout_children,
     .measure            = ui_view_measure,
     .layout             = ui_view_layout,
-    .nls                = ui_view_nls,
-    .localize           = ui_view_localize,
+    .string             = ui_view_string,
     .is_hidden          = ui_view_is_hidden,
     .is_disabled        = ui_view_is_disabled,
     .timer              = ui_view_timer,

@@ -75,24 +75,20 @@ void ui_view_init_mbx(ui_view_t* view) {
     int32_t n = 0;
     while (mx->options[n] != null && n < countof(mx->button) - 1) {
         mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
-        ut_str_printf(mx->button[n].text, "%s", mx->options[n]);
+        ui_view.set_text(&mx->button[n], "%s", mx->options[n]);
         n++;
     }
     swear(n <= countof(mx->button), "inhumane: %d buttons is too many", n);
     if (n > countof(mx->button)) { n = countof(mx->button); }
     mx->label = (ui_label_t)ui_label(0, "");
-    ut_str_printf(mx->label.text, "%s", mx->view.text);
+    ui_view.set_text(&mx->label, "%s", ui_view.string(&mx->view));
     ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);
         mx->button[i].fm = mx->view.fm;
-        ui_view.localize(&mx->button[i]);
-        // TODO: remove assert below
-        assert(mx->button[i].parent == &mx->view);
     }
     mx->label.fm = mx->view.fm;
-    ui_view.localize(&mx->label);
-    mx->view.text[0] = 0;
+    ui_view.set_text(&mx->view, "");
     mx->option = -1;
 }
 
@@ -105,8 +101,8 @@ void ui_mbx_init(ui_mbx_t* mx, const char* options[],
     mx->options = options;
     va_list vl;
     va_start(vl, format);
-    ut_str.format_va(mx->view.text, countof(mx->view.text), format, vl);
-    ui_label_init(&mx->label, 0.0, mx->view.text);
+    ui_view.set_text_va(&mx->view, format, vl);
+    ui_label_init(&mx->label, 0.0, ui_view.string(&mx->view));
     va_end(vl);
     ui_view_init_mbx(&mx->view);
 }

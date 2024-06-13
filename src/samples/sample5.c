@@ -135,7 +135,7 @@ static ui_view_t bottom = ui_view(container);
 
 static void set_text(int32_t ix) {
     static char last[128];
-    ut_str_printf(label.text, "%d:%d %d:%d %dx%d\n"
+    ui_view.set_text(&label, "%d:%d %d:%d %dx%d\n"
         "scroll %03d:%03d",
         edit[ix]->selection[0].pn, edit[ix]->selection[0].gp,
         edit[ix]->selection[1].pn, edit[ix]->selection[1].gp,
@@ -149,10 +149,10 @@ static void set_text(int32_t ix) {
             edit[ix]->scroll.pn, edit[ix]->scroll.rn);
     }
     // can be called before text.ui initialized
-    if (strcmp(last, label.text) != 0) {
+    if (strcmp(last, ui_view.string(&label)) != 0) {
         ui_view.invalidate(&label);
     }
-    ut_str_printf(last, "%s", label.text);
+    ut_str_printf(last, "%s", ui_view.string(&label));
 }
 
 static void painted(void) {
@@ -178,7 +178,7 @@ static void paint_frames(ui_view_t* v) {
     ui_gdi.push(v->x, v->y + v->h - v->fm->em.h);
     ui_gdi.frame_with(v->x, v->y, v->w, v->h, fc[color]);
     ui_color_t c = ui_gdi.set_text_color(fc[color]);
-    ui_gdi.print("%s", v->text);
+    ui_gdi.print("%s", ui_view.string(v));
     ui_gdi.set_text_color(c);
     ui_gdi.pop();
     color = (color + 1) % countof(fc);

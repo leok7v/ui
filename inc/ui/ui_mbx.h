@@ -37,7 +37,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
             .type = ui_view_mbx,                                 \
             .init = ui_view_init_mbx,                            \
             .fm = &ui_app.fonts.regular,                         \
-            .text = s, .callback = name ## _callback,            \
+            .string_ = s, .callback = name ## _callback,         \
             .padding = { .left  = 0.125, .top    = 0.25,         \
                          .right = 0.125, .bottom = 0.25 },       \
             .insets  = { .left  = 0.125, .top    = 0.25,         \
@@ -50,7 +50,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
     .view = {                                               \
         .type = ui_view_mbx, .init = ui_view_init_mbx,      \
         .fm = &ui_app.fonts.regular,                        \
-        .text = s, .callback = call_back,                   \
+        .string_ = s, .callback = call_back,                \
         .padding = { .left  = 0.125, .top    = 0.25,        \
                      .right = 0.125, .bottom = 0.25 },      \
         .insets  = { .left  = 0.125, .top    = 0.25,        \

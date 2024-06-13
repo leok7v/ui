@@ -37,7 +37,7 @@ static void ui_caption_mini(ui_button_t* unused(b)) {
 }
 
 static void ui_caption_maximize_or_restore(void) {
-    ut_str_printf(ui_caption.maxi.text, "%s",
+    ui_view.set_text(&ui_caption.maxi, "%s",
         ui_app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
     ut_str_printf(ui_caption.maxi.hint, "%s",
@@ -178,7 +178,7 @@ static void ui_caption_init(ui_view_t* v) {
     ui_caption.view.prepare = ui_caption_prepare;
     ui_caption.view.measured = ui_caption_measured;
     ui_caption.view.composed = ui_caption_composed;
-    ut_str_printf(ui_caption.view.text, "ui_caption");
+    ui_view.set_text(&ui_caption.view, "ui_caption"); // for debugging
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
 }

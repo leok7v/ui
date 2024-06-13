@@ -4,6 +4,7 @@
 static void ui_label_paint(ui_view_t* v) {
     assert(v->type == ui_view_label);
     assert(!v->hidden);
+    const char* s = ui_view.string(v);
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     ui_gdi.push(v->x + i.left, v->y + i.top);
     ui_font_t f = ui_gdi.set_font(v->fm->font);
@@ -14,12 +15,12 @@ static void ui_label_paint(ui_view_t* v) {
     ui_gdi.set_text_color(c);
     // paint for text also does lightweight re-layout
     // which is useful for simplifying dynamic text changes
-    bool multiline = strchr(v->text, '\n') != null;
+    bool multiline = strchr(s, '\n') != null;
     if (!multiline) {
-        ui_gdi.text("%s", ui_view.nls(v));
+        ui_gdi.text("%s", ui_view.string(v));
     } else {
         int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-        ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.nls(v));
+        ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.string(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
         ui_gdi.set_colored_pen(ui_app.get_color(ui_color_id_highlight));
@@ -35,7 +36,7 @@ static void ui_label_paint(ui_view_t* v) {
 static void ui_label_context_menu(ui_view_t* v) {
     assert(v->type == ui_view_label);
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        ut_clipboard.put_text(ui_view.nls(v));
+        ut_clipboard.put_text(ui_view.string(v));
         static bool first_time = true;
         ui_app.toast(first_time ? 2.2 : 0.5,
             ut_nls.str("Text copied to clipboard"));
@@ -49,7 +50,7 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {
-            ut_clipboard.put_text(ui_view.nls(v)); // 3 is ASCII for Ctrl+C
+            ut_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
         }
     }
 }
@@ -65,7 +66,7 @@ void ui_view_init_label(ui_view_t* v) {
 
 void ui_label_init_va(ui_label_t* v, fp32_t min_w_em,
         const char* format, va_list vl) {
-    ut_str.format_va(v->text, countof(v->text), format, vl);
+    ui_view.set_text(v, format, vl);
     v->min_w_em = min_w_em;
     v->type = ui_view_label;
     ui_view_init_label(v);

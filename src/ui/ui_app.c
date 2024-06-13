@@ -479,7 +479,7 @@ static void ui_app_window_opening(void) {
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
     not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
-    ut_str_printf(ui_app.root->text, "ui_app.root"); // debugging
+    ui_view.set_text(ui_app.root, "ui_app.root"); // debugging
     ui_app_wm_timer(ui_app_timer_100ms_id);
     ui_app_wm_timer(ui_app_timer_1s_id);
     fatal_if(ReleaseDC(ui_app_window(), ui_app_canvas()) == 0);
@@ -1322,7 +1322,7 @@ static void ui_app_create_window(const ui_rect_t r) {
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
     not_null(ui_app.window);
     assert(window == ui_app_window()); (void)window;
-    ut_str_printf(ui_caption.title.text, "%s", ui_app.title);
+    ui_view.set_text(&ui_caption.title, "%s", ui_app.title);
     not_null(GetSystemMenu(ui_app_window(), false));
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
     RECT wrc = ui_app_ui2rect(&r);
@@ -1499,7 +1499,6 @@ static void ui_app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         }
         // allow unparented ui for toast and tooltip
         ui_view_call_init(view);
-        ui_view.localize(view);
         ui_app_animate_start(ui_app_toast_dim, ui_app_animation_steps);
         ui_app.animating.view = view;
         ui_app.animating.time = timeout > 0 ? ui_app.now + timeout : 0;
@@ -1688,9 +1687,8 @@ static void ui_app_bring_to_front(void) {
 }
 
 static void ui_app_set_title(const char* title) {
-    ut_str_printf(ui_caption.title.text, "%s", title);
-    fatal_if_false(SetWindowTextA(ui_app_window(), title));
-    if (!ui_caption.view.hidden) { ui_app.request_layout(); }
+    ui_view.set_text(&ui_caption.title, "%s", title);
+    fatal_if_false(SetWindowTextA(ui_app_window(), ut_nls.str(title)));
 }
 
 static ui_color_t ui_app_get_color(int32_t color_id) {
@@ -2011,8 +2009,8 @@ static void ui_app_init(void) {
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->hidden = !ui_app.no_decor;
     // for ui_view_debug_paint:
-    ut_str_printf(ui_app.root->text, "ui_app.root");
-    ut_str_printf(ui_app.content->text, "ui_app.content");
+    ui_view.set_text(ui_app.root, "ui_app.root");
+    ui_view.set_text(ui_app.content, "ui_app.content");
     ui_app.init();
 }
 

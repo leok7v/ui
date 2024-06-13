@@ -3,6 +3,8 @@
 // String ids must be sequential starting from 1 (not zero!) and
 // be compact sequential integers set (should be compact)
 
+#define str_do_not_use         0
+
 #define str_restore            1
 #define str_maximize           2
 #define str_minimize           3
@@ -13,7 +15,6 @@
 #define str_full_screen        8
 #define str_yes                9
 #define str_no                10
-
 #define str_hello             11
 #define str_slider_accel      12
 #define str_file_open         13
@@ -39,3 +40,6 @@
 #define str_average           33
 #define str_maximum           34
 #define str_restore_from_fs   35
+#define str_about_hint        36
+#define str_yes_no_hint       37
+#define str_fs_label          38

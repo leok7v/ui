@@ -37,12 +37,13 @@ typedef struct ui_view_s {
     int32_t max_h; // > 0 maximum height in pixels
     fp32_t  min_w_em; // > 0 minimum width  of a view in "em"s
     fp32_t  min_h_em; // > 0 minimum height of a view in "em"s
-    char text[2048];
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
     ui_fm_t* fm; // font metrics
     int32_t shortcut; // keyboard shortcut
-    int32_t strid; // 0 for not localized ui
+    int32_t strid;    // 0 for not yet localized, -1 no localization
+    // use: ui_view.string(v) and ui_view.set_string()
+    char string_[1024]; // do not access directly
     void* that;  // for the application use
     void (*notify)(ui_view_t* v, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
@@ -124,12 +125,12 @@ typedef struct ui_view_if {
     ui_ltrb_t (*gaps)(const ui_view_t* v, const ui_gaps_t* g); // gaps to pixels
     void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);
     void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
-    void (*set_text)(ui_view_t* v, const char* text);
+    void (*set_text)(ui_view_t* v, const char* format, ...);
+    void (*set_text_va)(ui_view_t* v, const char* format, va_list va);
     void (*invalidate)(const ui_view_t* v); // prone to delays
     bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
     bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
-    const char* (*nls)(ui_view_t* v);  // returns localized text
-    void (*localize)(ui_view_t* v);    // set strid based ui .text field
+    const char* (*string)(ui_view_t* v);  // returns localized text
     void (*timer)(ui_view_t* v, ui_timer_t id);
     void (*every_sec)(ui_view_t* v);
     void (*every_100ms)(ui_view_t* v);

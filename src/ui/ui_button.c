@@ -41,7 +41,7 @@ static void ui_button_paint(ui_view_t* v) {
 //  traceln("%s align=%02X", v->text, v->align);
     if (v->icon == null) {
         ui_font_t f = v->fm->font;
-        ui_wh_t m = ui_gdi.measure_text(f, ui_view.nls(v));
+        ui_wh_t m = ui_gdi.measure_text(f, ui_view.string(v));
         int32_t t_x = 0;
         if (v->align & ui.align.left) {
             t_x = 0;
@@ -62,7 +62,7 @@ static void ui_button_paint(ui_view_t* v) {
         ui_gdi.y = v->y + i.top  + t_y;
         ui_gdi.set_text_color(c);
         f = ui_gdi.set_font(f);
-        ui_gdi.text("%s", ui_view.nls(v));
+        ui_gdi.text("%s", ui_view.string(v));
         ui_gdi.set_font(f);
     } else {
         ui_gdi.draw_icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
@@ -159,14 +159,12 @@ void ui_view_init_button(ui_view_t* v) {
     v->key_pressed   = ui_button_key_pressed;
     v->color_id      = ui_color_id_window_text;
     v->background_id = ui_color_id_button_face;
-    ui_view.set_text(v, v->text);
-    ui_view.localize(v);
 }
 
 void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
         void (*callback)(ui_button_t* b)) {
     b->type = ui_view_button;
-    ut_str_printf(b->text, "%s", label);
+    ui_view.set_text(b, "%s", label);
     b->callback = callback;
     b->min_w_em = ems;
     ui_view_init_button(b);
