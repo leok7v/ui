@@ -742,6 +742,10 @@ extern ut_generics_if ut_generics;
 // Square Four Corners https://www.compart.com/en/unicode/U+26F6
 #define ut_glyph_square_four_corners                    "\xE2\x9B\xB6"
 
+// Circled Cross Formee
+// https://codepoints.net/U+1F902
+#define ut_glyph_circled_cross_formee                   "\xF0\x9F\xA4\x82"
+
 // White Large Square https://www.compart.com/en/unicode/U+2B1C
 #define ut_glyph_white_large_square                     "\xE2\xAC\x9C"
 

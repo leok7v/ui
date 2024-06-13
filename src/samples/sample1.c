@@ -22,10 +22,10 @@ static const char* locales[] = { // 123 languages
     "ur-PK", "uz-UZ", "vi-VN", "wo-SN", "xh-ZA", "yo-NG", "zu-ZA"
 };
 
+static int32_t locale;
 static ui_label_t label = ui_label(0.0, "Hello");
 
 static void every_sec(ui_view_t* unused(view)) {
-    static int32_t locale = 0;
     ut_nls.set_locale(locales[locale]);
     ut_str_printf(title, "Polyglot [%s]", locales[locale]);
     ui_app.set_title(title);
@@ -44,6 +44,7 @@ static void opened(void) {
     ui_app.content->every_sec = every_sec;
     label.fm = &fm;
     ui_view.add(ui_app.content, &label, null);
+    locale = (int32_t)(ut_clock.nanoseconds() & 0xFFFF % countof(locales));
 //  label.painted = painted;
 }
 static void init(void) {
