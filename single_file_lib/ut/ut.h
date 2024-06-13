@@ -1139,6 +1139,43 @@ extern ut_generics_if ut_generics;
 // https://compart.com/en/unicode/U+23FA
 #define ut_glyph_black_circle_for_record "\xE2\x8F\xBA"
 
+// Negative Squared Latin Capital Letter "I"
+// https://compart.com/en/unicode/U+1F158
+#define ut_glyph_negative_squared_latin_capital_letter_i "\xF0\x9F\x85\x98"
+#define ut_glyph_info ut_glyph_negative_squared_latin_capital_letter_i
+
+// Circled Information Source
+// https://compart.com/en/unicode/U+1F6C8
+#define ut_glyph_circled_information_source "\xF0\x9F\x9B\x88"
+
+// Information Source
+// https://compart.com/en/unicode/U+2139
+#define ut_glyph_information_source "\xE2\x84\xB9"
+
+// Squared Cool
+// https://compart.com/en/unicode/U+1F192
+#define ut_glyph_squared_cool "\xF0\x9F\x86\x92"
+
+// Squared OK
+// https://compart.com/en/unicode/U+1F197
+#define ut_glyph_squared_ok "\xF0\x9F\x86\x97"
+
+// Squared Free
+// https://compart.com/en/unicode/U+1F193
+#define ut_glyph_squared_free "\xF0\x9F\x86\x93"
+
+// Squared New
+// https://compart.com/en/unicode/U+1F195
+#define ut_glyph_squared_new "\xF0\x9F\x86\x95"
+
+// Lady Beetle
+// https://compart.com/en/unicode/U+1F41E
+#define ut_glyph_lady_beetle "\xF0\x9F\x90\x9E"
+
+// Brain
+// https://compart.com/en/unicode/U+1F9E0
+#define ut_glyph_brain "\xF0\x9F\xA7\xA0"
+
 
 // ________________________________ ut_heap.h _________________________________
 

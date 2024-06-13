@@ -40,6 +40,9 @@ static void ui_caption_maximize_or_restore(void) {
     ut_str_printf(ui_caption.maxi.text, "%s",
         ui_app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
+    ut_str_printf(ui_caption.maxi.hint, "%s",
+        ui_app.is_maximized() ?
+        ut_nls.str("Restore") : ut_nls.str("Maximize"));
 }
 
 static void ui_caption_maxi(ui_button_t* unused(b)) {
@@ -162,10 +165,11 @@ static void ui_caption_init(ui_view_t* v) {
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
-//  ui_caption.view.insets = (ui_gaps_t) {
-//      .left  = 0.125,  .top    = 0.25,
-//      .right = 0.125,  .bottom = 0.25
-//  };
+    strprintf(ui_caption.menu.hint, "%s", ut_nls.str("Menu"));
+    strprintf(ui_caption.mini.hint, "%s", ut_nls.str("Minimize"));
+    strprintf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
+    strprintf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
+    strprintf(ui_caption.quit.hint, "%s", ut_nls.str("Close"));
     ui_caption.icon.icon = ui_app.icon;
     ui_caption.icon.padding = p0;
     ui_caption.icon.paint = ui_caption_button_icon_paint;

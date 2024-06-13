@@ -2413,14 +2413,8 @@ static void ui_app_toast_paint(void) {
         ui_view.measure(ui_app.animating.view);
         ui_gdi.push(0, 0);
         bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        const int32_t em_x = ui_app.animating.view->fm->em.w;
-        const int32_t em_y = ui_app.animating.view->fm->em.h;
-        ui_gdi.set_brush(ui_gdi.brush_color);
-        if (ui_theme.are_apps_dark()) {
-            ui_gdi.set_brush_color(ui_colors.toast);
-        } else {
-            ui_gdi.set_brush_color(ui_app.get_color(ui_color_id_button_face));
-        }
+        const int32_t em_w = ui_app.animating.view->fm->em.w;
+        const int32_t em_h = ui_app.animating.view->fm->em.h;
         if (!tooltip) {
             assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
@@ -2438,23 +2432,32 @@ static void ui_app_toast_paint(void) {
             ui_app.animating.view->x = ui_app.animating.x;
             ui_app.animating.view->y = ui_app.animating.y;
             ui_app_measure_and_layout(ui_app.animating.view);
-            int32_t mx = ui_app.root->w - ui_app.animating.view->w - em_x;
-            ui_app.animating.view->x = ut_min(mx, ut_max(0, ui_app.animating.x - ui_app.animating.view->w / 2));
-            ui_app.animating.view->y = ut_min(ui_app.root->h - em_y, ut_max(0, ui_app.animating.y));
+            int32_t mx = ui_app.root->w - ui_app.animating.view->w - em_w;
+            int32_t cx = ui_app.animating.x - ui_app.animating.view->w / 2;
+            ui_app.animating.view->x = ut_min(mx, ut_max(0, cx));
+            ui_app.animating.view->y = ut_min(
+                ui_app.root->h - em_h, ut_max(0, ui_app.animating.y));
 //          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
 //                  ui_app.animating.y, ui_app.animating.view->y);
         }
-        int32_t x = ui_app.animating.view->x - em_x;
-        int32_t y = ui_app.animating.view->y - em_y / 2;
-        int32_t w = ui_app.animating.view->w + em_x * 2;
-        int32_t h = ui_app.animating.view->h + em_y;
-        ui_gdi.rounded(x, y, w, h, em_x, em_y);
-        if (!tooltip) { ui_app.animating.view->y += em_y / 4; }
+        int32_t x = ui_app.animating.view->x - em_w / 4;
+        int32_t y = ui_app.animating.view->y - em_h / 8;
+        int32_t w = ui_app.animating.view->w + em_w / 2;
+        int32_t h = ui_app.animating.view->h + em_h / 4;
+        int32_t radius = em_w / 2;
+        if (radius % 2 == 0) { radius++; }
+        ui_color_t color = ui_theme.are_apps_dark() ?
+            ui_colors.toast :
+            ui_app.get_color(ui_color_id_button_face);
+        ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
+        ui_gdi.rounded_with(x, y, w, h, radius, tint, tint);
+        if (!tooltip) { ui_app.animating.view->y += em_h / 4; }
         ui_app_paint(ui_app.animating.view);
         if (!tooltip) {
-            if (ui_app.animating.view->y == em_y / 4) {
+            if (ui_app.animating.view->y == em_h / 4) {
                 // micro "close" toast button:
-                ui_gdi.x = ui_app.animating.view->x + ui_app.animating.view->w;
+                int32_t r = ui_app.animating.view->x + ui_app.animating.view->w;
+                ui_gdi.x = r - em_w / 2;
                 ui_gdi.y = 0;
                 ui_gdi.text("%s", ut_glyph_multiplication_sign);
             }
@@ -2483,7 +2486,8 @@ static void ui_app_toast_mouse(int32_t m, int64_t flags) {
                    m == ui.message.right_button_pressed;
     if (ui_app.animating.view != null && pressed) {
         const ui_fm_t* fm = ui_app.animating.view->fm;
-        int32_t x = ui_app.animating.view->x + ui_app.animating.view->w;
+        int32_t right = ui_app.animating.view->x + ui_app.animating.view->w;
+        int32_t x = right - fm->em.w / 2;
         if (x <= ui_app.mouse.x && ui_app.mouse.x <= x + fm->em.w &&
             0 <= ui_app.mouse.y && ui_app.mouse.y <= fm->em.h) {
             ui_app_toast_cancel();
@@ -4225,6 +4229,9 @@ static void ui_caption_maximize_or_restore(void) {
     ut_str_printf(ui_caption.maxi.text, "%s",
         ui_app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
+    ut_str_printf(ui_caption.maxi.hint, "%s",
+        ui_app.is_maximized() ?
+        ut_nls.str("Restore") : ut_nls.str("Maximize"));
 }
 
 static void ui_caption_maxi(ui_button_t* unused(b)) {
@@ -4347,10 +4354,11 @@ static void ui_caption_init(ui_view_t* v) {
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
-//  ui_caption.view.insets = (ui_gaps_t) {
-//      .left  = 0.125,  .top    = 0.25,
-//      .right = 0.125,  .bottom = 0.25
-//  };
+    strprintf(ui_caption.menu.hint, "%s", ut_nls.str("Menu"));
+    strprintf(ui_caption.mini.hint, "%s", ut_nls.str("Minimize"));
+    strprintf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
+    strprintf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
+    strprintf(ui_caption.quit.hint, "%s", ut_nls.str("Close"));
     ui_caption.icon.icon = ui_app.icon;
     ui_caption.icon.padding = p0;
     ui_caption.icon.paint = ui_caption_button_icon_paint;
@@ -9364,9 +9372,11 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_gdi.fill_with(x, y1 - r, w - r + 1, h, b);
     int32_t x1 = v->pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
-    ui_color_t f = ui_theme.are_apps_dark() ? // foreground fill
+    ui_color_t fill = ui_theme.are_apps_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
-    ui_gdi.circle_with(x1, y1, r, v->color, f);
+    ui_color_t border = ui_theme.are_apps_dark() ?
+        ui_colors.darken(fill, 0.5f) : ui_colors.lighten(fill, 0.5f);
+    ui_gdi.circle_with(x1, y1, r, border, fill);
     return x + w;
 }
 
@@ -9781,7 +9791,7 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ut_str_printf(hint->text, "%s", ut_nls.str(v->hint));
     ui_view.measure(hint);
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->fm->em.w / 4;
-    int32_t y = v->y + v->h + v->fm->em.h / 2 + hint->fm->em.h / 4;
+    int32_t y = v->y + v->h + hint->fm->em.h / 4;
     if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->fm->em.w / 2; }
     if (x < 0) { x = hint->fm->em.w / 2; }
     if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->fm->em.h / 2; }
@@ -9794,6 +9804,7 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
     if (start && ui_app.animating.view == null && v->hint[0] != 0 &&
        !ui_view.is_hidden(v)) {
+        hint.padding = (ui_gaps_t){0, 0, 0, 0};
         ui_view_show_hint(v, &hint);
     } else if (!start && ui_app.animating.view == &hint) {
         ui_app.show_tooltip(null, -1, -1, 0);

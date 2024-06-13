@@ -21,9 +21,11 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_gdi.fill_with(x, y1 - r, w - r + 1, h, b);
     int32_t x1 = v->pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
-    ui_color_t f = ui_theme.are_apps_dark() ? // foreground fill
+    ui_color_t fill = ui_theme.are_apps_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
-    ui_gdi.circle_with(x1, y1, r, v->color, f);
+    ui_color_t border = ui_theme.are_apps_dark() ?
+        ui_colors.darken(fill, 0.5f) : ui_colors.lighten(fill, 0.5f);
+    ui_gdi.circle_with(x1, y1, r, border, fill);
     return x + w;
 }
 

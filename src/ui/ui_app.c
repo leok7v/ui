@@ -637,14 +637,8 @@ static void ui_app_toast_paint(void) {
         ui_view.measure(ui_app.animating.view);
         ui_gdi.push(0, 0);
         bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        const int32_t em_x = ui_app.animating.view->fm->em.w;
-        const int32_t em_y = ui_app.animating.view->fm->em.h;
-        ui_gdi.set_brush(ui_gdi.brush_color);
-        if (ui_theme.are_apps_dark()) {
-            ui_gdi.set_brush_color(ui_colors.toast);
-        } else {
-            ui_gdi.set_brush_color(ui_app.get_color(ui_color_id_button_face));
-        }
+        const int32_t em_w = ui_app.animating.view->fm->em.w;
+        const int32_t em_h = ui_app.animating.view->fm->em.h;
         if (!tooltip) {
             assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
@@ -662,23 +656,32 @@ static void ui_app_toast_paint(void) {
             ui_app.animating.view->x = ui_app.animating.x;
             ui_app.animating.view->y = ui_app.animating.y;
             ui_app_measure_and_layout(ui_app.animating.view);
-            int32_t mx = ui_app.root->w - ui_app.animating.view->w - em_x;
-            ui_app.animating.view->x = ut_min(mx, ut_max(0, ui_app.animating.x - ui_app.animating.view->w / 2));
-            ui_app.animating.view->y = ut_min(ui_app.root->h - em_y, ut_max(0, ui_app.animating.y));
+            int32_t mx = ui_app.root->w - ui_app.animating.view->w - em_w;
+            int32_t cx = ui_app.animating.x - ui_app.animating.view->w / 2;
+            ui_app.animating.view->x = ut_min(mx, ut_max(0, cx));
+            ui_app.animating.view->y = ut_min(
+                ui_app.root->h - em_h, ut_max(0, ui_app.animating.y));
 //          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
 //                  ui_app.animating.y, ui_app.animating.view->y);
         }
-        int32_t x = ui_app.animating.view->x - em_x;
-        int32_t y = ui_app.animating.view->y - em_y / 2;
-        int32_t w = ui_app.animating.view->w + em_x * 2;
-        int32_t h = ui_app.animating.view->h + em_y;
-        ui_gdi.rounded(x, y, w, h, em_x, em_y);
-        if (!tooltip) { ui_app.animating.view->y += em_y / 4; }
+        int32_t x = ui_app.animating.view->x - em_w / 4;
+        int32_t y = ui_app.animating.view->y - em_h / 8;
+        int32_t w = ui_app.animating.view->w + em_w / 2;
+        int32_t h = ui_app.animating.view->h + em_h / 4;
+        int32_t radius = em_w / 2;
+        if (radius % 2 == 0) { radius++; }
+        ui_color_t color = ui_theme.are_apps_dark() ?
+            ui_colors.toast :
+            ui_app.get_color(ui_color_id_button_face);
+        ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
+        ui_gdi.rounded_with(x, y, w, h, radius, tint, tint);
+        if (!tooltip) { ui_app.animating.view->y += em_h / 4; }
         ui_app_paint(ui_app.animating.view);
         if (!tooltip) {
-            if (ui_app.animating.view->y == em_y / 4) {
+            if (ui_app.animating.view->y == em_h / 4) {
                 // micro "close" toast button:
-                ui_gdi.x = ui_app.animating.view->x + ui_app.animating.view->w;
+                int32_t r = ui_app.animating.view->x + ui_app.animating.view->w;
+                ui_gdi.x = r - em_w / 2;
                 ui_gdi.y = 0;
                 ui_gdi.text("%s", ut_glyph_multiplication_sign);
             }
@@ -707,7 +710,8 @@ static void ui_app_toast_mouse(int32_t m, int64_t flags) {
                    m == ui.message.right_button_pressed;
     if (ui_app.animating.view != null && pressed) {
         const ui_fm_t* fm = ui_app.animating.view->fm;
-        int32_t x = ui_app.animating.view->x + ui_app.animating.view->w;
+        int32_t right = ui_app.animating.view->x + ui_app.animating.view->w;
+        int32_t x = right - fm->em.w / 2;
         if (x <= ui_app.mouse.x && ui_app.mouse.x <= x + fm->em.w &&
             0 <= ui_app.mouse.y && ui_app.mouse.y <= fm->em.h) {
             ui_app_toast_cancel();

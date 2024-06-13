@@ -319,7 +319,7 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ut_str_printf(hint->text, "%s", ut_nls.str(v->hint));
     ui_view.measure(hint);
     int32_t x = v->x + v->w / 2 - hint->w / 2 + hint->fm->em.w / 4;
-    int32_t y = v->y + v->h + v->fm->em.h / 2 + hint->fm->em.h / 4;
+    int32_t y = v->y + v->h + hint->fm->em.h / 4;
     if (x + hint->w > ui_app.crc.w) { x = ui_app.crc.w - hint->w - hint->fm->em.w / 2; }
     if (x < 0) { x = hint->fm->em.w / 2; }
     if (y + hint->h > ui_app.crc.h) { y = ui_app.crc.h - hint->h - hint->fm->em.h / 2; }
@@ -332,6 +332,7 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
     if (start && ui_app.animating.view == null && v->hint[0] != 0 &&
        !ui_view.is_hidden(v)) {
+        hint.padding = (ui_gaps_t){0, 0, 0, 0};
         ui_view_show_hint(v, &hint);
     } else if (!start && ui_app.animating.view == &hint) {
         ui_app.show_tooltip(null, -1, -1, 0);
