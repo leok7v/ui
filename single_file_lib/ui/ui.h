@@ -689,25 +689,11 @@ typedef struct {
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
     void (*image_dispose)(ui_image_t* image);
     ui_color_t (*set_text_color)(ui_color_t c);
-//  ui_brush_t (*create_brush)(ui_color_t c);
-//  void    (*delete_brush)(ui_brush_t b);
-//  ui_color_t (*set_brush_color)(ui_color_t c);
-//  ui_brush_t (*set_brush)(ui_brush_t b); // color or hollow
-//  ui_pen_t (*set_colored_pen)(ui_color_t c); // always 1px wide
-//  ui_pen_t (*create_pen)(ui_color_t c, int32_t pixels); // pixels wide pen
-//  ui_pen_t (*set_pen)(ui_pen_t p);
-//  void  (*delete_pen)(ui_pen_t p);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
     void (*push)(int32_t x, int32_t y); // also calls SaveDC(ui_app.canvas)
     void (*pop)(void); // also calls RestoreDC(-1, ui_app.canvas)
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
-    // TODO: remove
-//  ui_point_t (*move_to)(int32_t x, int32_t y); // returns previous (x, y)
-//  void (*line_to)(int32_t x, int32_t y); // line to x, y with ui_gdi.pen moves x, y
-//  void (*frame)(int32_t x, int32_t y, int32_t w, int32_t h); // ui_gdi.pen only
-//  void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.pen & brush
-//  void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.brush only
     void (*line_with)(int32_t x0, int32_t y1, int32_t x2, int32_t y2,
                       ui_color_t c);
     void (*frame_with)(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -743,7 +729,7 @@ typedef struct {
     void (*draw_icon)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_icon_t icon);
     // text:
-    void (*cleartype)(bool on);
+    void (*cleartype)(bool on); // system wide change: don't use
     void (*font_smoothing_contrast)(int32_t c); // [1000..2202] or -1 for 1400 default
     ui_font_t (*create_font)(const char* family, int32_t height, int32_t quality);
     ui_font_t (*font)(ui_font_t f, int32_t height, int32_t quality); // custom font, quality: -1 as is
@@ -7488,37 +7474,6 @@ static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h) {
     fatal_if_false(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h));
 }
 
-static ui_point_t ui_gdi_move_to(int32_t x, int32_t y) {
-    traceln("deprecated");
-    POINT pt = (POINT){ .x = ui_gdi.x, .y = ui_gdi.y };
-    fatal_if_false(MoveToEx(ui_gdi_hdc(), x, y, &pt));
-    ui_gdi.x = x;
-    ui_gdi.y = y;
-    ui_point_t p = { pt.x, pt.y };
-    return p;
-}
-
-static void ui_gdi_line_to(int32_t x, int32_t y) {
-    traceln("deprecated");
-    fatal_if_false(LineTo(ui_gdi_hdc(), x, y));
-    ui_gdi.x = x;
-    ui_gdi.y = y;
-}
-
-static void ui_gdi_frame(int32_t x, int32_t y, int32_t w, int32_t h) {
-    traceln("deprecated");
-    ui_brush_t b = ui_gdi_set_brush(ui_gdi.brush_hollow);
-    ui_gdi_rect(x, y, w, h);
-    ui_gdi_set_brush(b);
-}
-
-static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h) {
-    traceln("deprecated");
-    RECT rc = { x, y, x + w, y + h };
-    ui_brush_t b = (ui_brush_t)GetCurrentObject(ui_gdi_hdc(), OBJ_BRUSH);
-    fatal_if_false(FillRect(ui_gdi_hdc(), &rc, (HBRUSH)b));
-}
-
 static void ui_gdi_line_with(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
         ui_color_t c) {
     int32_t x = ui_gdi.x;
@@ -8054,7 +8009,8 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t height, int32_t quality) {
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
-    if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
+    if (ui_gdi_font_quality_default <= quality &&
+        quality <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)quality;
     } else {
         fatal_if(quality != -1, "use -1 for do not care quality");
@@ -8483,32 +8439,16 @@ ui_gdi_if ui_gdi = {
     .draw_image                    = ui_gdi_draw_image,
     .draw_icon                     = ui_gdi_draw_icon,
     .set_text_color                = ui_gdi_set_text_color,
-//  TODO: remove
-//  .create_brush                  = ui_gdi_create_brush,
-//  .delete_brush                  = ui_gdi_delete_brush,
-//  .set_brush                     = ui_gdi_set_brush,
-//  .set_brush_color               = ui_gdi_set_brush_color,
-//  .set_colored_pen               = ui_gdi_set_colored_pen,
-//  .create_pen                    = ui_gdi_create_pen,
-//  .set_pen                       = ui_gdi_set_pen,
-//  .delete_pen                    = ui_gdi_delete_pen,
     .set_clip                      = ui_gdi_set_clip,
     .push                          = ui_gdi_push,
     .pop                           = ui_gdi_pop,
     .pixel                         = ui_gdi_pixel,
-//  TODO: remove
-//  .move_to                       = ui_gdi_move_to,
-//  .line_to                       = ui_gdi_line_to,
-//  .frame                         = ui_gdi_frame,
-//  .rect                          = ui_gdi_rect,
-//  .fill                          = ui_gdi_fill,
     .line_with                     = ui_gdi_line_with,
     .frame_with                    = ui_gdi_frame_with,
     .rect_with                     = ui_gdi_rect_with,
     .fill_with                     = ui_gdi_fill_with,
     .poly                          = ui_gdi_poly,
     .circle_with                   = ui_gdi_circle_with,
-//  .rounded                       = ui_gdi_rounded,
     .rounded_with                  = ui_gdi_rounded_with,
     .gradient                      = ui_gdi_gradient,
     .draw_greyscale                = ui_gdi_draw_greyscale,

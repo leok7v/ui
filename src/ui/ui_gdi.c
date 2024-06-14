@@ -167,37 +167,6 @@ static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h) {
     fatal_if_false(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h));
 }
 
-static ui_point_t ui_gdi_move_to(int32_t x, int32_t y) {
-    traceln("deprecated");
-    POINT pt = (POINT){ .x = ui_gdi.x, .y = ui_gdi.y };
-    fatal_if_false(MoveToEx(ui_gdi_hdc(), x, y, &pt));
-    ui_gdi.x = x;
-    ui_gdi.y = y;
-    ui_point_t p = { pt.x, pt.y };
-    return p;
-}
-
-static void ui_gdi_line_to(int32_t x, int32_t y) {
-    traceln("deprecated");
-    fatal_if_false(LineTo(ui_gdi_hdc(), x, y));
-    ui_gdi.x = x;
-    ui_gdi.y = y;
-}
-
-static void ui_gdi_frame(int32_t x, int32_t y, int32_t w, int32_t h) {
-    traceln("deprecated");
-    ui_brush_t b = ui_gdi_set_brush(ui_gdi.brush_hollow);
-    ui_gdi_rect(x, y, w, h);
-    ui_gdi_set_brush(b);
-}
-
-static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h) {
-    traceln("deprecated");
-    RECT rc = { x, y, x + w, y + h };
-    ui_brush_t b = (ui_brush_t)GetCurrentObject(ui_gdi_hdc(), OBJ_BRUSH);
-    fatal_if_false(FillRect(ui_gdi_hdc(), &rc, (HBRUSH)b));
-}
-
 static void ui_gdi_line_with(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
         ui_color_t c) {
     int32_t x = ui_gdi.x;
@@ -733,7 +702,8 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t height, int32_t quality) {
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
-    if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
+    if (ui_gdi_font_quality_default <= quality &&
+        quality <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)quality;
     } else {
         fatal_if(quality != -1, "use -1 for do not care quality");
@@ -1162,32 +1132,16 @@ ui_gdi_if ui_gdi = {
     .draw_image                    = ui_gdi_draw_image,
     .draw_icon                     = ui_gdi_draw_icon,
     .set_text_color                = ui_gdi_set_text_color,
-//  TODO: remove
-//  .create_brush                  = ui_gdi_create_brush,
-//  .delete_brush                  = ui_gdi_delete_brush,
-//  .set_brush                     = ui_gdi_set_brush,
-//  .set_brush_color               = ui_gdi_set_brush_color,
-//  .set_colored_pen               = ui_gdi_set_colored_pen,
-//  .create_pen                    = ui_gdi_create_pen,
-//  .set_pen                       = ui_gdi_set_pen,
-//  .delete_pen                    = ui_gdi_delete_pen,
     .set_clip                      = ui_gdi_set_clip,
     .push                          = ui_gdi_push,
     .pop                           = ui_gdi_pop,
     .pixel                         = ui_gdi_pixel,
-//  TODO: remove
-//  .move_to                       = ui_gdi_move_to,
-//  .line_to                       = ui_gdi_line_to,
-//  .frame                         = ui_gdi_frame,
-//  .rect                          = ui_gdi_rect,
-//  .fill                          = ui_gdi_fill,
     .line_with                     = ui_gdi_line_with,
     .frame_with                    = ui_gdi_frame_with,
     .rect_with                     = ui_gdi_rect_with,
     .fill_with                     = ui_gdi_fill_with,
     .poly                          = ui_gdi_poly,
     .circle_with                   = ui_gdi_circle_with,
-//  .rounded                       = ui_gdi_rounded,
     .rounded_with                  = ui_gdi_rounded_with,
     .gradient                      = ui_gdi_gradient,
     .draw_greyscale                = ui_gdi_draw_greyscale,
