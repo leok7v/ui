@@ -87,7 +87,7 @@ static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
 
 static void ui_button_callback(ui_button_t* b) {
     assert(b->type == ui_view_button);
-    ui_app.show_tooltip(null, -1, -1, 0);
+    ui_app.show_hint(null, -1, -1, 0);
     if (b->callback != null) { b->callback(b); }
 }
 
@@ -132,7 +132,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
         message == ui.message.right_button_pressed) {
         v->armed = ui_button_hit_test(b, ui_app.mouse);
         if (v->armed) { ui_app.focus = v; }
-        if (v->armed) { ui_app.show_tooltip(null, -1, -1, 0); }
+        if (v->armed) { ui_app.show_hint(null, -1, -1, 0); }
     }
     if (message == ui.message.left_button_released ||
         message == ui.message.right_button_released) {

@@ -342,7 +342,7 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     }
     if (y < 0) { y = hint->fm->em.h / 2; }
     // show_tooltip will center horizontally
-    ui_app.show_tooltip(hint, x + hint->w / 2, y, 0);
+    ui_app.show_hint(hint, x + hint->w / 2, y, 0);
 }
 
 static void ui_view_hovering(ui_view_t* v, bool start) {
@@ -352,7 +352,7 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
         hint.padding = (ui_gaps_t){0, 0, 0, 0};
         ui_view_show_hint(v, &hint);
     } else if (!start && ui_app.animating.view == &hint) {
-        ui_app.show_tooltip(null, -1, -1, 0);
+        ui_app.show_hint(null, -1, -1, 0);
     }
 }
 

@@ -561,8 +561,8 @@ static void ui_app_mouse(ui_view_t* view, int32_t m, int64_t f) {
         ui_view.mouse(ui_app.animating.view, m, f);
     } else if (ui_app.animating.view != null && ui_app.animating.view->mouse == null) {
         ui_app_toast_mouse(m, f);
-        bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        if (tooltip) { ui_view.mouse(view, m, f); }
+        bool hint = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
+        if (hint) { ui_view.mouse(view, m, f); }
     } else {
         ui_view.mouse(view, m, f);
     }
@@ -636,10 +636,10 @@ static void ui_app_toast_paint(void) {
     if (ui_app.animating.view != null) {
         ui_view.measure(ui_app.animating.view);
         ui_gdi.push(0, 0);
-        bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
+        bool hint = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
         const int32_t em_w = ui_app.animating.view->fm->em.w;
         const int32_t em_h = ui_app.animating.view->fm->em.h;
-        if (!tooltip) {
+        if (!hint) {
             assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
             ui_app.animating.view->y = ui_app.animating.view->h * step / (ui_app_animation_steps - 1);
@@ -675,9 +675,9 @@ static void ui_app_toast_paint(void) {
             ui_app.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
         ui_gdi.rounded_with(x, y, w, h, radius, tint, tint);
-        if (!tooltip) { ui_app.animating.view->y += em_h / 4; }
+        if (!hint) { ui_app.animating.view->y += em_h / 4; }
         ui_app_paint(ui_app.animating.view);
-        if (!tooltip) {
+        if (!hint) {
             if (ui_app.animating.view->y == em_h / 4) {
                 // micro "close" toast button:
                 int32_t r = ui_app.animating.view->x + ui_app.animating.view->w;
@@ -1489,7 +1489,7 @@ static void ui_app_quit(int32_t exit_code) {
     ui_app.close(); // close and destroy app only window
 }
 
-static void ui_app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
+static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
         fp64_t timeout) {
     if (view != null) {
         ui_app.animating.x = x;
@@ -1497,9 +1497,10 @@ static void ui_app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         if (view->type == ui_view_mbx) {
             ((ui_mbx_t*)view)->option = -1;
         }
-        // allow unparented ui for toast and tooltip
+        // allow unparented ui for toast and hint
         ui_view_call_init(view);
-        ui_app_animate_start(ui_app_toast_dim, ui_app_animation_steps);
+        const int32_t steps = x < 0 && y < 0 ? ui_app_animation_steps : 1;
+        ui_app_animate_start(ui_app_toast_dim, steps);
         ui_app.animating.view = view;
         ui_app.animating.time = timeout > 0 ? ui_app.now + timeout : 0;
         ui_app.focus = null;
@@ -1509,16 +1510,16 @@ static void ui_app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
 }
 
 static void ui_app_show_toast(ui_view_t* view, fp64_t timeout) {
-    ui_app_show_tooltip_or_toast(view, -1, -1, timeout);
+    ui_app_show_hint_or_toast(view, -1, -1, timeout);
 }
 
-static void ui_app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
+static void ui_app_show_hint(ui_view_t* view, int32_t x, int32_t y,
         fp64_t timeout) {
     if (view != null) {
-        ui_app_show_tooltip_or_toast(view, x, y, timeout);
+        ui_app_show_hint_or_toast(view, x, y, timeout);
     } else if (ui_app.animating.view != null && ui_app.animating.x >= 0 &&
                ui_app.animating.y >= 0) {
-        ui_app_toast_cancel(); // only cancel tooltips not toasts
+        ui_app_toast_cancel(); // only cancel hints not toasts
     }
 }
 
@@ -1974,7 +1975,7 @@ static void ui_app_init(void) {
     ui_app.post                 = ui_app_post_message;
     ui_app.show_window          = ui_app_show_window;
     ui_app.show_toast           = ui_app_show_toast;
-    ui_app.show_tooltip         = ui_app_show_tooltip;
+    ui_app.show_hint            = ui_app_show_hint;
     ui_app.toast_va             = ui_app_formatted_toast_va;
     ui_app.toast                = ui_app_formatted_toast;
     ui_app.create_caret         = ui_app_create_caret;

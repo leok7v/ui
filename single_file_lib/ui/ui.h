@@ -1666,7 +1666,7 @@ typedef struct {
     void (*post)(int32_t message, int64_t wp, int64_t lp);
     void (*show_window)(int32_t show); // see show_window enum
     void (*show_toast)(ui_view_t* toast, fp64_t seconds); // toast(null) to cancel
-    void (*show_tooltip)(ui_view_t* tooltip, int32_t x, int32_t y, fp64_t seconds);
+    void (*show_hint)(ui_view_t* tooltip, int32_t x, int32_t y, fp64_t seconds);
     void (*toast_va)(fp64_t seconds, const char* format, va_list vl);
     void (*toast)(fp64_t seconds, const char* format, ...);
     // caret calls must be balanced by caller
@@ -2338,8 +2338,8 @@ static void ui_app_mouse(ui_view_t* view, int32_t m, int64_t f) {
         ui_view.mouse(ui_app.animating.view, m, f);
     } else if (ui_app.animating.view != null && ui_app.animating.view->mouse == null) {
         ui_app_toast_mouse(m, f);
-        bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        if (tooltip) { ui_view.mouse(view, m, f); }
+        bool hint = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
+        if (hint) { ui_view.mouse(view, m, f); }
     } else {
         ui_view.mouse(view, m, f);
     }
@@ -2413,10 +2413,10 @@ static void ui_app_toast_paint(void) {
     if (ui_app.animating.view != null) {
         ui_view.measure(ui_app.animating.view);
         ui_gdi.push(0, 0);
-        bool tooltip = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
+        bool hint = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
         const int32_t em_w = ui_app.animating.view->fm->em.w;
         const int32_t em_h = ui_app.animating.view->fm->em.h;
-        if (!tooltip) {
+        if (!hint) {
             assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
             ui_app.animating.view->y = ui_app.animating.view->h * step / (ui_app_animation_steps - 1);
@@ -2452,9 +2452,9 @@ static void ui_app_toast_paint(void) {
             ui_app.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
         ui_gdi.rounded_with(x, y, w, h, radius, tint, tint);
-        if (!tooltip) { ui_app.animating.view->y += em_h / 4; }
+        if (!hint) { ui_app.animating.view->y += em_h / 4; }
         ui_app_paint(ui_app.animating.view);
-        if (!tooltip) {
+        if (!hint) {
             if (ui_app.animating.view->y == em_h / 4) {
                 // micro "close" toast button:
                 int32_t r = ui_app.animating.view->x + ui_app.animating.view->w;
@@ -3266,7 +3266,7 @@ static void ui_app_quit(int32_t exit_code) {
     ui_app.close(); // close and destroy app only window
 }
 
-static void ui_app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
+static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
         fp64_t timeout) {
     if (view != null) {
         ui_app.animating.x = x;
@@ -3274,9 +3274,10 @@ static void ui_app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
         if (view->type == ui_view_mbx) {
             ((ui_mbx_t*)view)->option = -1;
         }
-        // allow unparented ui for toast and tooltip
+        // allow unparented ui for toast and hint
         ui_view_call_init(view);
-        ui_app_animate_start(ui_app_toast_dim, ui_app_animation_steps);
+        const int32_t steps = x < 0 && y < 0 ? ui_app_animation_steps : 1;
+        ui_app_animate_start(ui_app_toast_dim, steps);
         ui_app.animating.view = view;
         ui_app.animating.time = timeout > 0 ? ui_app.now + timeout : 0;
         ui_app.focus = null;
@@ -3286,16 +3287,16 @@ static void ui_app_show_tooltip_or_toast(ui_view_t* view, int32_t x, int32_t y,
 }
 
 static void ui_app_show_toast(ui_view_t* view, fp64_t timeout) {
-    ui_app_show_tooltip_or_toast(view, -1, -1, timeout);
+    ui_app_show_hint_or_toast(view, -1, -1, timeout);
 }
 
-static void ui_app_show_tooltip(ui_view_t* view, int32_t x, int32_t y,
+static void ui_app_show_hint(ui_view_t* view, int32_t x, int32_t y,
         fp64_t timeout) {
     if (view != null) {
-        ui_app_show_tooltip_or_toast(view, x, y, timeout);
+        ui_app_show_hint_or_toast(view, x, y, timeout);
     } else if (ui_app.animating.view != null && ui_app.animating.x >= 0 &&
                ui_app.animating.y >= 0) {
-        ui_app_toast_cancel(); // only cancel tooltips not toasts
+        ui_app_toast_cancel(); // only cancel hints not toasts
     }
 }
 
@@ -3751,7 +3752,7 @@ static void ui_app_init(void) {
     ui_app.post                 = ui_app_post_message;
     ui_app.show_window          = ui_app_show_window;
     ui_app.show_toast           = ui_app_show_toast;
-    ui_app.show_tooltip         = ui_app_show_tooltip;
+    ui_app.show_hint            = ui_app_show_hint;
     ui_app.toast_va             = ui_app_formatted_toast_va;
     ui_app.toast                = ui_app_formatted_toast;
     ui_app.create_caret         = ui_app_create_caret;
@@ -4101,7 +4102,7 @@ static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
 
 static void ui_button_callback(ui_button_t* b) {
     assert(b->type == ui_view_button);
-    ui_app.show_tooltip(null, -1, -1, 0);
+    ui_app.show_hint(null, -1, -1, 0);
     if (b->callback != null) { b->callback(b); }
 }
 
@@ -4146,7 +4147,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
         message == ui.message.right_button_pressed) {
         v->armed = ui_button_hit_test(b, ui_app.mouse);
         if (v->armed) { ui_app.focus = v; }
-        if (v->armed) { ui_app.show_tooltip(null, -1, -1, 0); }
+        if (v->armed) { ui_app.show_hint(null, -1, -1, 0); }
     }
     if (message == ui.message.left_button_released ||
         message == ui.message.right_button_released) {
@@ -9804,7 +9805,7 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     }
     if (y < 0) { y = hint->fm->em.h / 2; }
     // show_tooltip will center horizontally
-    ui_app.show_tooltip(hint, x + hint->w / 2, y, 0);
+    ui_app.show_hint(hint, x + hint->w / 2, y, 0);
 }
 
 static void ui_view_hovering(ui_view_t* v, bool start) {
@@ -9814,7 +9815,7 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
         hint.padding = (ui_gaps_t){0, 0, 0, 0};
         ui_view_show_hint(v, &hint);
     } else if (!start && ui_app.animating.view == &hint) {
-        ui_app.show_tooltip(null, -1, -1, 0);
+        ui_app.show_hint(null, -1, -1, 0);
     }
 }
 
