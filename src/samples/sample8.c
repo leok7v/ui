@@ -231,7 +231,6 @@ static void opened(void) {
     insert_into_caption(&button_debug, "Debug");
     insert_into_caption(&button_light, "Dark/Light Mode");
     insert_into_caption(&button_bomb, "Intentionally Crash");
-    traceln("TODO: serialize dark light and debug views state");
     if (app_data.light) { dark_light(&button_light); }
     if (app_data.debug) { debug(&button_debug); }
 }

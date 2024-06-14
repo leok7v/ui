@@ -2,13 +2,8 @@
 #include "ui/ui.h"
 #include "ut/ut_win32.h"
 
-#pragma push_macro("ui_app_window")
-#pragma push_macro("ui_app_canvas")
 #pragma push_macro("ui_gdi_with_hdc")
 #pragma push_macro("ui_gdi_hdc_with_font")
-
-#define ui_app_window() ((HWND)ui_app.window)
-#define ui_app_canvas() ((HDC)ui_app.canvas)
 
 typedef struct ui_gdi_xyc_s {
     int32_t x;
@@ -92,17 +87,17 @@ static COLORREF ui_gdi_color_ref(ui_color_t c) {
 }
 
 static ui_color_t ui_gdi_set_text_color(ui_color_t c) {
-    return SetTextColor(ui_app_canvas(), ui_gdi_color_ref(c));
+    return SetTextColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
 }
 
 static ui_pen_t ui_gdi_set_pen(ui_pen_t p) {
     not_null(p);
-    return (ui_pen_t)SelectPen(ui_app_canvas(), (HPEN)p);
+    return (ui_pen_t)SelectPen(ui_gdi_hdc(), (HPEN)p);
 }
 
 static ui_pen_t ui_gdi_set_colored_pen(ui_color_t c) {
-    ui_pen_t p = (ui_pen_t)SelectPen(ui_app_canvas(), GetStockPen(DC_PEN));
-    SetDCPenColor(ui_app_canvas(), ui_gdi_color_ref(c));
+    ui_pen_t p = (ui_pen_t)SelectPen(ui_gdi_hdc(), GetStockPen(DC_PEN));
+    SetDCPenColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
     return p;
 }
 
@@ -127,11 +122,11 @@ static void ui_gdi_delete_brush(ui_brush_t b) {
 
 static ui_brush_t ui_gdi_set_brush(ui_brush_t b) {
     not_null(b);
-    return (ui_brush_t)SelectBrush(ui_app_canvas(), b);
+    return (ui_brush_t)SelectBrush(ui_gdi_hdc(), b);
 }
 
 static ui_color_t ui_gdi_set_brush_color(ui_color_t c) {
-    return SetDCBrushColor(ui_app_canvas(), ui_gdi_color_ref(c));
+    return SetDCBrushColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
 }
 
 static void ui_gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
@@ -140,7 +135,7 @@ static void ui_gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
         ui_gdi.clip = (ui_region_t)CreateRectRgn(x, y, x + w, y + h);
         not_null(ui_gdi.clip);
     }
-    fatal_if(SelectClipRgn(ui_app_canvas(), (HRGN)ui_gdi.clip) == ERROR);
+    fatal_if(SelectClipRgn(ui_gdi_hdc(), (HRGN)ui_gdi.clip) == ERROR);
 }
 
 static void ui_gdi_push(int32_t x, int32_t y) {
@@ -148,7 +143,7 @@ static void ui_gdi_push(int32_t x, int32_t y) {
     fatal_if(ui_gdi_top >= countof(ui_gdi_stack));
     ui_gdi_stack[ui_gdi_top].x = ui_gdi.x;
     ui_gdi_stack[ui_gdi_top].y = ui_gdi.y;
-    fatal_if(SaveDC(ui_app_canvas()) == 0);
+    fatal_if(SaveDC(ui_gdi_hdc()) == 0);
     ui_gdi_top++;
     ui_gdi.x = x;
     ui_gdi.y = y;
@@ -160,17 +155,17 @@ static void ui_gdi_pop(void) {
     ui_gdi_top--;
     ui_gdi.x = ui_gdi_stack[ui_gdi_top].x;
     ui_gdi.y = ui_gdi_stack[ui_gdi_top].y;
-    fatal_if_false(RestoreDC(ui_app_canvas(), -1));
+    fatal_if_false(RestoreDC(ui_gdi_hdc(), -1));
 }
 
 static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
     not_null(ui_app.canvas);
-    fatal_if_false(SetPixel(ui_app_canvas(), x, y, ui_gdi_color_ref(c)));
+    fatal_if_false(SetPixel(ui_gdi_hdc(), x, y, ui_gdi_color_ref(c)));
 }
 
 static ui_point_t ui_gdi_move_to(int32_t x, int32_t y) {
     POINT pt = (POINT){ .x = ui_gdi.x, .y = ui_gdi.y };
-    fatal_if_false(MoveToEx(ui_app_canvas(), x, y, &pt));
+    fatal_if_false(MoveToEx(ui_gdi_hdc(), x, y, &pt));
     ui_gdi.x = x;
     ui_gdi.y = y;
     ui_point_t p = { pt.x, pt.y };
@@ -178,7 +173,7 @@ static ui_point_t ui_gdi_move_to(int32_t x, int32_t y) {
 }
 
 static void ui_gdi_line(int32_t x, int32_t y) {
-    fatal_if_false(LineTo(ui_app_canvas(), x, y));
+    fatal_if_false(LineTo(ui_gdi_hdc(), x, y));
     ui_gdi.x = x;
     ui_gdi.y = y;
 }
@@ -190,13 +185,13 @@ static void ui_gdi_frame(int32_t x, int32_t y, int32_t w, int32_t h) {
 }
 
 static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h) {
-    fatal_if_false(Rectangle(ui_app_canvas(), x, y, x + w, y + h));
+    fatal_if_false(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h));
 }
 
 static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h) {
     RECT rc = { x, y, x + w, y + h };
-    ui_brush_t b = (ui_brush_t)GetCurrentObject(ui_app_canvas(), OBJ_BRUSH);
-    fatal_if_false(FillRect(ui_app_canvas(), &rc, (HBRUSH)b));
+    ui_brush_t b = (ui_brush_t)GetCurrentObject(ui_gdi_hdc(), OBJ_BRUSH);
+    fatal_if_false(FillRect(ui_gdi_hdc(), &rc, (HBRUSH)b));
 }
 
 static void ui_gdi_line_with(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
@@ -251,13 +246,13 @@ static void ui_gdi_poly(ui_point_t* points, int32_t count) {
     static_assert(sizeof(points->x) == sizeof(((POINT*)0)->x), "ui_point_t");
     static_assert(sizeof(points->y) == sizeof(((POINT*)0)->y), "ui_point_t");
     static_assert(sizeof(points[0]) == sizeof(*((POINT*)0)), "ui_point_t");
-    assert(ui_app_canvas() != null && count > 1);
-    fatal_if_false(Polyline(ui_app_canvas(), (POINT*)points, count));
+    assert(ui_gdi_hdc() != null && count > 1);
+    fatal_if_false(Polyline(ui_gdi_hdc(), (POINT*)points, count));
 }
 
 static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t rx, int32_t ry) {
-    fatal_if_false(RoundRect(ui_app_canvas(), x, y, x + w, y + h, rx, ry));
+    fatal_if_false(RoundRect(ui_gdi_hdc(), x, y, x + w, y + h, rx, ry));
 }
 
 static void ui_gdi_rounded_with_xxx(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -379,7 +374,7 @@ static void ui_gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
     GRADIENT_RECT gRect = {0, 1};
     const uint32_t mode = vertical ?
         GRADIENT_FILL_RECT_V : GRADIENT_FILL_RECT_H;
-    GradientFill(ui_app_canvas(), vertex, 2, &gRect, 1, mode);
+    GradientFill(ui_gdi_hdc(), vertex, 2, &gRect, 1, mode);
 }
 
 static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
@@ -418,10 +413,10 @@ static void ui_gdi_draw_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh
         bih->biHeight = -ih; // top down image
         bih->biSizeImage = (DWORD)(w * abs(h));
         POINT pt = { 0 };
-        fatal_if_false(SetBrushOrgEx(ui_app_canvas(), 0, 0, &pt));
-        fatal_if(StretchDIBits(ui_app_canvas(), sx, sy, sw, sh, x, y, w, h,
+        fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
+        fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
             pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
-        fatal_if_false(SetBrushOrgEx(ui_app_canvas(), pt.x, pt.y, &pt));
+        fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
@@ -454,10 +449,10 @@ static void ui_gdi_draw_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
     if (w > 0 && h != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 3);
         POINT pt = { 0 };
-        fatal_if_false(SetBrushOrgEx(ui_app_canvas(), 0, 0, &pt));
-        fatal_if(StretchDIBits(ui_app_canvas(), sx, sy, sw, sh, x, y, w, h,
+        fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
+        fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
-        fatal_if_false(SetBrushOrgEx(ui_app_canvas(), pt.x, pt.y, &pt));
+        fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
@@ -470,10 +465,10 @@ static void ui_gdi_draw_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
     if (w > 0 && h != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 4);
         POINT pt = { 0 };
-        fatal_if_false(SetBrushOrgEx(ui_app_canvas(), 0, 0, &pt));
-        fatal_if(StretchDIBits(ui_app_canvas(), sx, sy, sw, sh, x, y, w, h,
+        fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
+        fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
-        fatal_if_false(SetBrushOrgEx(ui_app_canvas(), pt.x, pt.y, &pt));
+        fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
@@ -493,15 +488,15 @@ static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
 static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp) {
     fatal_if(image->bitmap != null, "image_dispose() not called?");
-    // not using GetWindowDC(ui_app_window()) will allow to initialize images
+    // not using GetWindowDC(ui_app.window) will allow to initialize images
     // before window is created
-    HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app_window());
+    HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
     BITMAPINFO local = { {sizeof(BITMAPINFOHEADER)} };
     BITMAPINFO* bi = bpp == 1 ? ui_gdi_greyscale_bitmap_info() : &local;
     image->bitmap = (ui_bitmap_t)CreateDIBSection(c, ui_gdi_init_bitmap_info(w, h, bpp, bi),
                                                DIB_RGB_COLORS, &image->pixels, null, 0x0);
     fatal_if(image->bitmap == null || image->pixels == null);
-//  fatal_if_false(ReleaseDC(ui_app_window(), c));
+//  fatal_if_false(ReleaseDC(ui_app.window, c));
     fatal_if_false(DeleteDC(c));
 }
 
@@ -639,8 +634,8 @@ static void ui_gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_image_t* image, fp64_t alpha) {
     assert(image->bpp > 0);
     assert(0 <= alpha && alpha <= 1);
-    not_null(ui_app_canvas());
-    HDC c = CreateCompatibleDC(ui_app_canvas());
+    not_null(ui_gdi_hdc());
+    HDC c = CreateCompatibleDC(ui_gdi_hdc());
     not_null(c);
     HBITMAP zero1x1 = SelectBitmap((HDC)c, (HBITMAP)image->bitmap);
     BLENDFUNCTION bf = { 0 };
@@ -654,7 +649,7 @@ static void ui_gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
         bf.BlendFlags = 0;
         bf.AlphaFormat = 0;
     }
-    fatal_if_false(AlphaBlend(ui_app_canvas(), x, y, w, h,
+    fatal_if_false(AlphaBlend(ui_gdi_hdc(), x, y, w, h,
         c, 0, 0, image->w, image->h, bf));
     SelectBitmap((HDC)c, zero1x1);
     fatal_if_false(DeleteDC(c));
@@ -663,17 +658,17 @@ static void ui_gdi_alpha_blend(int32_t x, int32_t y, int32_t w, int32_t h,
 static void ui_gdi_draw_image(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_image_t* image) {
     assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
-    not_null(ui_app_canvas());
+    not_null(ui_gdi_hdc());
     if (image->bpp == 1) { // StretchBlt() is bad for greyscale
         BITMAPINFO* bi = ui_gdi_greyscale_bitmap_info();
-        fatal_if(StretchDIBits(ui_app_canvas(), x, y, w, h, 0, 0, image->w, image->h,
+        fatal_if(StretchDIBits(ui_gdi_hdc(), x, y, w, h, 0, 0, image->w, image->h,
             image->pixels, ui_gdi_init_bitmap_info(image->w, image->h, 1, bi),
             DIB_RGB_COLORS, SRCCOPY) == 0);
     } else {
-        HDC c = CreateCompatibleDC(ui_app_canvas());
+        HDC c = CreateCompatibleDC(ui_gdi_hdc());
         not_null(c);
         HBITMAP zero1x1 = SelectBitmap(c, image->bitmap);
-        fatal_if_false(StretchBlt(ui_app_canvas(), x, y, w, h,
+        fatal_if_false(StretchBlt(ui_gdi_hdc(), x, y, w, h,
             c, 0, 0, image->w, image->h, SRCCOPY));
         SelectBitmap(c, zero1x1);
         fatal_if_false(DeleteDC(c));
@@ -682,7 +677,7 @@ static void ui_gdi_draw_image(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_icon_t icon) {
-    DrawIconEx(ui_app_canvas(), x, y, (HICON)icon, w, h, 0, NULL, DI_NORMAL | DI_COMPAT);
+    DrawIconEx(ui_gdi_hdc(), x, y, (HICON)icon, w, h, 0, NULL, DI_NORMAL | DI_COMPAT);
 }
 
 static void ui_gdi_cleartype(bool on) {
@@ -752,20 +747,22 @@ static void ui_gdi_delete_font(ui_font_t f) {
 
 static ui_font_t ui_gdi_set_font(ui_font_t f) {
     not_null(f);
-    return (ui_font_t)SelectFont(ui_app_canvas(), (HFONT)f);
+    return (ui_font_t)SelectFont(ui_gdi_hdc(), (HFONT)f);
 }
 
+// guaranteed to return dc != null even if not painting
+
 static HDC ui_gdi_get_dc(void) {
-    not_null(ui_app_window());
-    HDC hdc = ui_app_canvas() != null ?
-              ui_app_canvas() : GetDC(ui_app_window());
+    not_null(ui_app.window);
+    HDC hdc = ui_gdi_hdc() != null ?
+              ui_gdi_hdc() : GetDC((HWND)ui_app.window);
     not_null(hdc);
     return hdc;
 }
 
 static void ui_gdi_release_dc(HDC hdc) {
-    if (ui_app_canvas() == null) {
-        ReleaseDC(ui_app_window(), hdc);
+    if (ui_gdi_hdc() == null) {
+        ReleaseDC((HWND)ui_app.window, hdc);
     }
 }
 
@@ -945,7 +942,7 @@ static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
         RECT* r, uint32_t format) { // ~70 microsecond Core i-7 3667U 2.0 GHz (2012)
     // if font == null, draws on HDC with selected font
 if (0) {
-    HDC hdc = ui_app_canvas();
+    HDC hdc = ui_gdi_hdc();
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
         fatal_if_false(GetTextExtentPoint32A(hdc, "M", 1, &em));
@@ -1212,5 +1209,3 @@ ui_gdi_if ui_gdi = {
 
 #pragma pop_macro("ui_gdi_hdc_with_font")
 #pragma pop_macro("ui_gdi_with_hdc")
-#pragma pop_macro("ui_app_canvas")
-#pragma pop_macro("ui_app_window")
