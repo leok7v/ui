@@ -69,7 +69,6 @@ static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
     const int h8 = h4 / 2;
     ui_gdi.y = y - h8;
     ui_gdi.line_with(0, y, ui_app.root->w, y, ui_colors.white);
-    ui_pen_t pen = ui_gdi.set_colored_pen(c);
     if (t->samples > 2) {
         const fp64_t spread = ts[ix].spread;
         int n = ut_min(N, t->samples);
@@ -79,14 +78,13 @@ static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
             points[j].y = y - (int32_t)(t->dt[j] * h8 / spread);
             j++;
         }
-        ui_gdi.poly(points, n - 1);
+        ui_gdi.poly(points, n - 1, c);
         ui_gdi.x = v->fm->em.w;
         ui_gdi.y = y - h8 - v->fm->em.h;
         ui_gdi.println("min %.3f max %.3f avg %.3f ms  "
             "%.1f sps",
             t->min_dt * 1000, t->max_dt * 1000, t->avg, 1 / t->avg);
     }
-    ui_gdi.set_pen(pen);
 }
 
 static void paint(ui_view_t* v) {

@@ -304,20 +304,24 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
 }
 
 static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list vl) {
+    char t[countof(v->string_)];
+    ut_str.format_va(t, countof(t), format, vl);
     char* s = v->string_;
-    ut_str.format_va(s, countof(v->string_), format, vl);
-    int32_t n = (int32_t)strlen(s);
-    v->strid = 0; // next call to nls() will localize it
-    // TODO: we need both "&Keyboard Shortcut" and no shortcut
-    //       strings. In here, bit that tells the story and DrawText
-    for (int32_t i = 0; i < n; i++) {
-        if (s[i] == '&' && i < n - 1 &&
-            s[i + 1] != '&') {
-            v->shortcut = s[i + 1];
-            break;
+    if (strcmp(s, t) != 0) {
+        int32_t n = (int32_t)strlen(t);
+        memcpy(s, t, n + 1);
+        v->strid = 0; // next call to nls() will localize it
+        // TODO: we need both "&Keyboard Shortcut" and no shortcut
+        //       strings. In here, bit that tells the story and DrawText
+        for (int32_t i = 0; i < n; i++) {
+            if (s[i] == '&' && i < n - 1 &&
+                s[i + 1] != '&') {
+                v->shortcut = s[i + 1];
+                break;
+            }
         }
+        ui_app.request_layout();
     }
-    ui_app.request_layout();
 }
 
 static void ui_view_set_text(ui_view_t* v, const char* format, ...) {

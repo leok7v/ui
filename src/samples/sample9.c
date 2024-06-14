@@ -165,22 +165,19 @@ static void panel_paint(ui_view_t* v) {
     ui_gdi.push(v->x, v->y);
     ui_gdi.set_clip(v->x, v->y, v->w, v->h);
     ui_gdi.fill_with(v->x, v->y, v->w, v->h, ui_colors.dkgray1);
-    ui_pen_t p = ui_gdi.create_pen(ui_colors.dkgray4, panel_border);
-    ui_gdi.set_pen(p);
-    ui_gdi.move_to(v->x, v->y);
+    ui_color_t c = ui_colors.dkgray4;
     if (v == &panel_right) {
-        ui_gdi.line(v->x + v->w, v->y);
-        ui_gdi.line(v->x + v->w, v->y + v->h);
-        ui_gdi.line(v->x, v->y + v->h);
-        ui_gdi.line(v->x, v->y);
+        ui_gdi.line_with(v->x, v->y, v->x + v->w, v->y, c);
+        ui_gdi.line_with(v->x + v->w, v->y, v->x + v->w, v->y + v->h, c);
+        ui_gdi.line_with(v->x + v->w, v->y + v->h, v->x, v->y + v->h, c);
+        ui_gdi.line_with(v->x, v->y + v->h, v->x, v->y, c);
     } else if (v == &panel_top || v == &panel_bottom) {
-        ui_gdi.line(v->x, v->y + v->h);
-        ui_gdi.line(v->x + v->w, v->y + v->h);
-        ui_gdi.move_to(v->x + v->w, v->y);
-        ui_gdi.line(v->x, v->y);
+        ui_gdi.line_with(v->x, v->y, v->x, v->y + v->h, c);
+        ui_gdi.line_with(v->x, v->y + v->h, v->x + v->w, v->y + v->h, c);
+        ui_gdi.line_with(v->x + v->w, v->y, v->x, v->y, c);
     } else {
         assert(v == &panel_center);
-        ui_gdi.line(v->x, v->y + v->h);
+        ui_gdi.line_with(v->x, v->y, v->x, v->y + v->h, c);
     }
     int32_t x = v->x + panel_border + ut_max(1, v->fm->em.w / 8);
     int32_t y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);
@@ -193,7 +190,6 @@ static void panel_paint(ui_view_t* v) {
     ui_gdi.text("%d,%d %dx%d %s", v->x, v->y, v->w, v->h, ui_view.string(v));
     ui_gdi.set_text_color(color);
     ui_gdi.set_clip(0, 0, 0, 0);
-    ui_gdi.delete_pen(p);
     ui_gdi.pop();
 }
 

@@ -33,24 +33,25 @@ typedef struct {
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
     void (*image_dispose)(ui_image_t* image);
     ui_color_t (*set_text_color)(ui_color_t c);
-    ui_brush_t (*create_brush)(ui_color_t c);
-    void    (*delete_brush)(ui_brush_t b);
-    ui_color_t (*set_brush_color)(ui_color_t c);
-    ui_brush_t (*set_brush)(ui_brush_t b); // color or hollow
-    ui_pen_t (*set_colored_pen)(ui_color_t c); // always 1px wide
-    ui_pen_t (*create_pen)(ui_color_t c, int32_t pixels); // pixels wide pen
-    ui_pen_t (*set_pen)(ui_pen_t p);
-    void  (*delete_pen)(ui_pen_t p);
+//  ui_brush_t (*create_brush)(ui_color_t c);
+//  void    (*delete_brush)(ui_brush_t b);
+//  ui_color_t (*set_brush_color)(ui_color_t c);
+//  ui_brush_t (*set_brush)(ui_brush_t b); // color or hollow
+//  ui_pen_t (*set_colored_pen)(ui_color_t c); // always 1px wide
+//  ui_pen_t (*create_pen)(ui_color_t c, int32_t pixels); // pixels wide pen
+//  ui_pen_t (*set_pen)(ui_pen_t p);
+//  void  (*delete_pen)(ui_pen_t p);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
     void (*push)(int32_t x, int32_t y); // also calls SaveDC(ui_app.canvas)
     void (*pop)(void); // also calls RestoreDC(-1, ui_app.canvas)
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
-    ui_point_t (*move_to)(int32_t x, int32_t y); // returns previous (x, y)
-    void (*line)(int32_t x, int32_t y); // line to x, y with ui_gdi.pen moves x, y
-    void (*frame)(int32_t x, int32_t y, int32_t w, int32_t h); // ui_gdi.pen only
-    void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.pen & brush
-    void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.brush only
+    // TODO: remove
+//  ui_point_t (*move_to)(int32_t x, int32_t y); // returns previous (x, y)
+//  void (*line_to)(int32_t x, int32_t y); // line to x, y with ui_gdi.pen moves x, y
+//  void (*frame)(int32_t x, int32_t y, int32_t w, int32_t h); // ui_gdi.pen only
+//  void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.pen & brush
+//  void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h);  // ui_gdi.brush only
     void (*line_with)(int32_t x0, int32_t y1, int32_t x2, int32_t y2,
                       ui_color_t c);
     void (*frame_with)(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -58,11 +59,11 @@ typedef struct {
     void (*rect_with)(int32_t x, int32_t y, int32_t w, int32_t h,
                       ui_color_t border, ui_color_t fill);
     void (*fill_with)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
-    void (*poly)(ui_point_t* points, int32_t count);
+    void (*poly)(ui_point_t* points, int32_t count, ui_color_t c);
     void (*circle_with)(int32_t center_x, int32_t center_y, int32_t odd_radius,
         ui_color_t border, ui_color_t fill);
-    void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t rx, int32_t ry); // see RoundRect with pen, brush
+//  void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
+//      int32_t rx, int32_t ry); // see RoundRect with pen, brush
     void (*rounded_with)(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t odd_radius, ui_color_t border, ui_color_t fill);
     void (*gradient)(int32_t x, int32_t y, int32_t w, int32_t h,

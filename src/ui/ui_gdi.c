@@ -36,6 +36,16 @@ static void ui_gdi_init(void) {
     ui_gdi.pen_hollow = (ui_pen_t)GetStockPen(NULL_PEN);
 }
 
+static ui_pen_t ui_gdi_set_pen(ui_pen_t p) {
+    not_null(p);
+    return (ui_pen_t)SelectPen(ui_gdi_hdc(), (HPEN)p);
+}
+
+static ui_brush_t ui_gdi_set_brush(ui_brush_t b) {
+    not_null(b);
+    return (ui_brush_t)SelectBrush(ui_gdi_hdc(), b);
+}
+
 static void ui_gdi_begin(ui_image_t* image) {
     swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
     swear(ui_gdi_top == 0);
@@ -49,8 +59,8 @@ static void ui_gdi_begin(ui_image_t* image) {
         swear(ui_gdi_context.bitmap == null);
     }
     ui_gdi_context.font = ui_gdi.set_font(ui_app.fonts.regular.font);
-    ui_gdi_context.pen = ui_gdi.set_pen(ui_gdi.pen_hollow);
-    ui_gdi_context.brush = ui_gdi.set_brush(ui_gdi.brush_hollow);
+    ui_gdi_context.pen = ui_gdi_set_pen(ui_gdi.pen_hollow);
+    ui_gdi_context.brush = ui_gdi_set_brush(ui_gdi.brush_hollow);
     fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
         &ui_gdi_context.brush_origin));
     ui_color_t tc = ui_app.get_color(ui_color_id_window_text);
@@ -64,8 +74,8 @@ static void ui_gdi_end(void) {
     fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(),
                    ui_gdi_context.brush_origin.x,
                    ui_gdi_context.brush_origin.y, null));
-    ui_gdi.set_brush(ui_gdi_context.brush);
-    ui_gdi.set_pen(ui_gdi_context.pen);
+    ui_gdi_set_brush(ui_gdi_context.brush);
+    ui_gdi_set_pen(ui_gdi_context.pen);
     ui_gdi.set_text_color(ui_gdi_context.text_color);
     SetBkMode(ui_gdi_hdc(), ui_gdi_context.background_mode);
     SetStretchBltMode(ui_gdi_hdc(), ui_gdi_context.stretch_mode);
@@ -88,11 +98,6 @@ static COLORREF ui_gdi_color_ref(ui_color_t c) {
 
 static ui_color_t ui_gdi_set_text_color(ui_color_t c) {
     return SetTextColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
-}
-
-static ui_pen_t ui_gdi_set_pen(ui_pen_t p) {
-    not_null(p);
-    return (ui_pen_t)SelectPen(ui_gdi_hdc(), (HPEN)p);
 }
 
 static ui_pen_t ui_gdi_set_colored_pen(ui_color_t c) {
@@ -118,11 +123,6 @@ static ui_brush_t ui_gdi_create_brush(ui_color_t c) {
 
 static void ui_gdi_delete_brush(ui_brush_t b) {
     DeleteBrush((HBRUSH)b);
-}
-
-static ui_brush_t ui_gdi_set_brush(ui_brush_t b) {
-    not_null(b);
-    return (ui_brush_t)SelectBrush(ui_gdi_hdc(), b);
 }
 
 static ui_color_t ui_gdi_set_brush_color(ui_color_t c) {
@@ -163,7 +163,12 @@ static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
     fatal_if_false(SetPixel(ui_gdi_hdc(), x, y, ui_gdi_color_ref(c)));
 }
 
+static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h) {
+    fatal_if_false(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h));
+}
+
 static ui_point_t ui_gdi_move_to(int32_t x, int32_t y) {
+    traceln("deprecated");
     POINT pt = (POINT){ .x = ui_gdi.x, .y = ui_gdi.y };
     fatal_if_false(MoveToEx(ui_gdi_hdc(), x, y, &pt));
     ui_gdi.x = x;
@@ -172,23 +177,22 @@ static ui_point_t ui_gdi_move_to(int32_t x, int32_t y) {
     return p;
 }
 
-static void ui_gdi_line(int32_t x, int32_t y) {
+static void ui_gdi_line_to(int32_t x, int32_t y) {
+    traceln("deprecated");
     fatal_if_false(LineTo(ui_gdi_hdc(), x, y));
     ui_gdi.x = x;
     ui_gdi.y = y;
 }
 
 static void ui_gdi_frame(int32_t x, int32_t y, int32_t w, int32_t h) {
-    ui_brush_t b = ui_gdi.set_brush(ui_gdi.brush_hollow);
-    ui_gdi.rect(x, y, w, h);
-    ui_gdi.set_brush(b);
-}
-
-static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h) {
-    fatal_if_false(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h));
+    traceln("deprecated");
+    ui_brush_t b = ui_gdi_set_brush(ui_gdi.brush_hollow);
+    ui_gdi_rect(x, y, w, h);
+    ui_gdi_set_brush(b);
 }
 
 static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h) {
+    traceln("deprecated");
     RECT rc = { x, y, x + w, y + h };
     ui_brush_t b = (ui_brush_t)GetCurrentObject(ui_gdi_hdc(), OBJ_BRUSH);
     fatal_if_false(FillRect(ui_gdi_hdc(), &rc, (HBRUSH)b));
@@ -198,23 +202,24 @@ static void ui_gdi_line_with(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
         ui_color_t c) {
     int32_t x = ui_gdi.x;
     int32_t y = ui_gdi.y;
-    ui_gdi.x = x0;
-    ui_gdi.y = y0;
-    ui_gdi.move_to(x0, y0);
-    ui_pen_t p = ui_gdi.set_colored_pen(c);
-    ui_gdi.line(x1, y1);
-    ui_gdi.set_pen(p);
+    POINT pt = (POINT){ .x = ui_gdi.x, .y = ui_gdi.y };
+    fatal_if_false(MoveToEx(ui_gdi_hdc(), x0, y0, &pt));
+    ui_pen_t p = ui_gdi_set_colored_pen(c);
+    fatal_if_false(LineTo(ui_gdi_hdc(), x1, y1));
+    ui_gdi_set_pen(p);
     ui_gdi.x = x;
     ui_gdi.y = y;
+    // TODO: totally out of sync:
+//  assert(pt.x == ui_gdi.x && pt.y == ui_gdi.y);
 }
 
 static void ui_gdi_frame_with(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t c) {
-    ui_brush_t b = ui_gdi.set_brush(ui_gdi.brush_hollow);
-    ui_pen_t p = ui_gdi.set_colored_pen(c);
-    ui_gdi.rect(x, y, w, h);
-    ui_gdi.set_pen(p);
-    ui_gdi.set_brush(b);
+    ui_brush_t b = ui_gdi_set_brush(ui_gdi.brush_hollow);
+    ui_pen_t p = ui_gdi_set_colored_pen(c);
+    ui_gdi_rect(x, y, w, h);
+    ui_gdi_set_pen(p);
+    ui_gdi_set_brush(b);
 }
 
 static void ui_gdi_rect_with(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -222,32 +227,36 @@ static void ui_gdi_rect_with(int32_t x, int32_t y, int32_t w, int32_t h,
     const bool tf = ui_color_is_transparent(fill);   // transparent fill
     const bool tb = ui_color_is_transparent(border); // transparent border
     ui_brush_t b = tf ? ui_gdi.brush_hollow : ui_gdi.brush_color;
-    b = ui_gdi.set_brush(b);
-    ui_color_t c = tf ? ui_colors.transparent : ui_gdi.set_brush_color(fill);
-    ui_pen_t p = tb ? ui_gdi.set_pen(ui_gdi.pen_hollow) :
-                      ui_gdi.set_colored_pen(border);
-    ui_gdi.rect(x, y, w, h);
-    if (!tf) { ui_gdi.set_brush_color(c); }
-    ui_gdi.set_pen(p);
-    ui_gdi.set_brush(b);
+    b = ui_gdi_set_brush(b);
+    ui_color_t c = tf ? ui_colors.transparent : ui_gdi_set_brush_color(fill);
+    ui_pen_t p = tb ? ui_gdi_set_pen(ui_gdi.pen_hollow) :
+                      ui_gdi_set_colored_pen(border);
+    ui_gdi_rect(x, y, w, h);
+    if (!tf) { ui_gdi_set_brush_color(c); }
+    ui_gdi_set_pen(p);
+    ui_gdi_set_brush(b);
 }
 
 static void ui_gdi_fill_with(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t c) {
-    ui_brush_t b = ui_gdi.set_brush(ui_gdi.brush_color);
-    c = ui_gdi.set_brush_color(c);
-    ui_gdi.fill(x, y, w, h);
-    ui_gdi.set_brush_color(c);
-    ui_gdi.set_brush(b);
+    ui_brush_t b = ui_gdi_set_brush(ui_gdi.brush_color);
+    c = ui_gdi_set_brush_color(c);
+    RECT rc = { x, y, x + w, y + h };
+    HBRUSH brush = (HBRUSH)GetCurrentObject(ui_gdi_hdc(), OBJ_BRUSH);
+    fatal_if_false(FillRect(ui_gdi_hdc(), &rc, brush));
+    ui_gdi_set_brush_color(c);
+    ui_gdi_set_brush(b);
 }
 
-static void ui_gdi_poly(ui_point_t* points, int32_t count) {
+static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
     // make sure ui_point_t and POINT have the same memory layout:
     static_assert(sizeof(points->x) == sizeof(((POINT*)0)->x), "ui_point_t");
     static_assert(sizeof(points->y) == sizeof(((POINT*)0)->y), "ui_point_t");
     static_assert(sizeof(points[0]) == sizeof(*((POINT*)0)), "ui_point_t");
     assert(ui_gdi_hdc() != null && count > 1);
+    ui_pen_t pen = ui_gdi_set_colored_pen(c);
     fatal_if_false(Polyline(ui_gdi_hdc(), (POINT*)points, count));
+    ui_gdi_set_pen(pen);
 }
 
 static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -261,14 +270,14 @@ static void ui_gdi_rounded_with_xxx(int32_t x, int32_t y, int32_t w, int32_t h,
     const bool tf = ui_color_is_transparent(fill);   // transparent fill
     const bool tb = ui_color_is_transparent(border); // transparent border
     ui_brush_t b = tf ? ui_gdi.brush_hollow : ui_gdi.brush_color;
-    b = ui_gdi.set_brush(b);
-    ui_color_t c = tf ? ui_colors.transparent : ui_gdi.set_brush_color(fill);
-    ui_pen_t p = tb ? ui_gdi.set_pen(ui_gdi.pen_hollow) :
-                      ui_gdi.set_colored_pen(border);
-    ui_gdi.rounded(x, y, w, h, rx, ry);
-    if (!tf) { ui_gdi.set_brush_color(c); }
-    ui_gdi.set_pen(p);
-    ui_gdi.set_brush(b);
+    b = ui_gdi_set_brush(b);
+    ui_color_t c = tf ? ui_colors.transparent : ui_gdi_set_brush_color(fill);
+    ui_pen_t p = tb ? ui_gdi_set_pen(ui_gdi.pen_hollow) :
+                      ui_gdi_set_colored_pen(border);
+    ui_gdi_rounded(x, y, w, h, rx, ry);
+    if (!tf) { ui_gdi_set_brush_color(c); }
+    ui_gdi_set_pen(p);
+    ui_gdi_set_brush(b);
 }
 
 static void ui_gdi_circle_with(int32_t x, int32_t y, int32_t radius,
@@ -283,10 +292,10 @@ static void ui_gdi_circle_with(int32_t x, int32_t y, int32_t radius,
     }
     assert(!ui_color_is_transparent(border));
     const bool tf = ui_color_is_transparent(fill);   // transparent fill
-    ui_brush_t brush = tf ? ui_gdi.set_brush(ui_gdi.brush_hollow) :
-                        ui_gdi.set_brush(ui_gdi.brush_color);
-    ui_color_t c = tf ? ui_colors.transparent : ui_gdi.set_brush_color(fill);
-    ui_pen_t p = ui_gdi.set_colored_pen(border);
+    ui_brush_t brush = tf ? ui_gdi_set_brush(ui_gdi.brush_hollow) :
+                        ui_gdi_set_brush(ui_gdi.brush_color);
+    ui_color_t c = tf ? ui_colors.transparent : ui_gdi_set_brush_color(fill);
+    ui_pen_t p = ui_gdi_set_colored_pen(border);
     HDC hdc = (HDC)ui_app.canvas;
     int32_t l = x - radius;
     int32_t t = y - radius;
@@ -294,9 +303,9 @@ static void ui_gdi_circle_with(int32_t x, int32_t y, int32_t radius,
     int32_t b = y + radius + 1;
     Ellipse(hdc, l, t, r, b);
 //  SetPixel(hdc, x, y, RGB(255, 255, 255));
-    ui_gdi.set_pen(p);
-    if (!tf) { ui_gdi.set_brush_color(c); }
-    ui_gdi.set_brush(brush);
+    ui_gdi_set_pen(p);
+    if (!tf) { ui_gdi_set_brush_color(c); }
+    ui_gdi_set_brush(brush);
     ui_gdi.pop();
 }
 
@@ -1153,30 +1162,32 @@ ui_gdi_if ui_gdi = {
     .draw_image                    = ui_gdi_draw_image,
     .draw_icon                     = ui_gdi_draw_icon,
     .set_text_color                = ui_gdi_set_text_color,
-    .create_brush                  = ui_gdi_create_brush,
-    .delete_brush                  = ui_gdi_delete_brush,
-    .set_brush                     = ui_gdi_set_brush,
-    .set_brush_color               = ui_gdi_set_brush_color,
-    .set_colored_pen               = ui_gdi_set_colored_pen,
-    .create_pen                    = ui_gdi_create_pen,
-    .set_pen                       = ui_gdi_set_pen,
-    .delete_pen                    = ui_gdi_delete_pen,
+//  TODO: remove
+//  .create_brush                  = ui_gdi_create_brush,
+//  .delete_brush                  = ui_gdi_delete_brush,
+//  .set_brush                     = ui_gdi_set_brush,
+//  .set_brush_color               = ui_gdi_set_brush_color,
+//  .set_colored_pen               = ui_gdi_set_colored_pen,
+//  .create_pen                    = ui_gdi_create_pen,
+//  .set_pen                       = ui_gdi_set_pen,
+//  .delete_pen                    = ui_gdi_delete_pen,
     .set_clip                      = ui_gdi_set_clip,
     .push                          = ui_gdi_push,
     .pop                           = ui_gdi_pop,
     .pixel                         = ui_gdi_pixel,
-    .move_to                       = ui_gdi_move_to,
-    .line                          = ui_gdi_line,
-    .frame                         = ui_gdi_frame,
-    .rect                          = ui_gdi_rect,
-    .fill                          = ui_gdi_fill,
+//  TODO: remove
+//  .move_to                       = ui_gdi_move_to,
+//  .line_to                       = ui_gdi_line_to,
+//  .frame                         = ui_gdi_frame,
+//  .rect                          = ui_gdi_rect,
+//  .fill                          = ui_gdi_fill,
     .line_with                     = ui_gdi_line_with,
     .frame_with                    = ui_gdi_frame_with,
     .rect_with                     = ui_gdi_rect_with,
     .fill_with                     = ui_gdi_fill_with,
     .poly                          = ui_gdi_poly,
     .circle_with                   = ui_gdi_circle_with,
-    .rounded                       = ui_gdi_rounded,
+//  .rounded                       = ui_gdi_rounded,
     .rounded_with                  = ui_gdi_rounded_with,
     .gradient                      = ui_gdi_gradient,
     .draw_greyscale                = ui_gdi_draw_greyscale,
