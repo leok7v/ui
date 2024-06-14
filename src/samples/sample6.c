@@ -68,9 +68,7 @@ static void paint(ui_view_t* view) {
         animation.x = (view->w - gif.w) / 2;
         animation.y = (view->h - gif.h) / 2;
     }
-    ui_gdi.set_brush(ui_gdi.brush_color);
-    ui_gdi.set_brush_color(ui_colors.black);
-    ui_gdi.fill(0, 0, view->w, view->h);
+    ui_gdi.fill_with(0, 0, view->w, view->h, ui_colors.black);
     int32_t w = ut_min(view->w, background.w);
     int32_t h = ut_min(view->h, background.h);
     int32_t x = (view->w - w) / 2;

@@ -23,11 +23,11 @@ static void ui_label_paint(ui_view_t* v) {
         ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.string(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
-        ui_gdi.set_colored_pen(ui_app.get_color(ui_color_id_highlight));
-        ui_gdi.set_brush(ui_gdi.brush_hollow);
-        int32_t cr = v->fm->em.h / 4; // corner radius
+        ui_color_t highlight = ui_app.get_color(ui_color_id_highlight);
+        int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
-        ui_gdi.rounded(v->x - cr, v->y, v->w + 2 * cr, h, cr, cr);
+        ui_gdi.rounded_with(v->x - radius, v->y, v->w + 2 * radius, h,
+                       radius, highlight, ui_colors.transparent);
     }
     ui_gdi.set_font(f);
     ui_gdi.pop();

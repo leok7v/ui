@@ -184,12 +184,9 @@ static void panel_paint(ui_view_t* v) {
     }
     int32_t x = v->x + panel_border + ut_max(1, v->fm->em.w / 8);
     int32_t y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);
-    ui_pen_t s = ui_gdi.set_colored_pen(v->color);
-    ui_gdi.set_brush(ui_gdi.brush_hollow);
-    ui_gdi.rounded(x, y, v->fm->em.w * 12, v->fm->em.h,
-                   ut_max(1, v->fm->em.h / 4),
-                   ut_max(1, v->fm->em.h / 4));
-    ui_gdi.set_pen(s);
+    const int32_t radius = (v->fm->em.h / 4) | 0x1;
+    ui_gdi.rounded_with(x, y, v->fm->em.w * 12, v->fm->em.h,
+           radius,  v->color, ui_colors.transparent);
     ui_color_t color = ui_gdi.set_text_color(v->color);
     ui_gdi.x = v->x + panel_border + ut_max(1, v->fm->em.w / 2);
     ui_gdi.y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);

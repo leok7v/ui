@@ -677,6 +677,10 @@ typedef struct {
     ui_pen_t pen_hollow;
     ui_region_t clip;
     void (*init)(void);
+    void (*begin)(ui_image_t* image_or_null);
+    // all paint must be done in between
+    void (*end)(void);
+    // TODO: move to ui_colors
     uint32_t (*color_rgb)(ui_color_t c); // rgb color
     // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
     void (*image_init)(ui_image_t* image, int32_t w, int32_t h, int32_t bpp,
@@ -2607,40 +2611,26 @@ static void ui_app_paint_stats(void) {
 }
 
 static void ui_app_paint_on_canvas(HDC hdc) {
-    // GM_ADVANCED: rectangles are right bottom inclusive
-    // TrueType fonts and arcs are affected by world transforms.
-//  if (GetGraphicsMode(hdc) != GM_ADVANCED) {
-//      SetGraphicsMode(hdc, GM_ADVANCED); // do it once
-//  }
     ui_canvas_t canvas = ui_app.canvas;
     ui_app.canvas = (ui_canvas_t)hdc;
-    ui_gdi.push(0, 0);
-    ui_gdi.x = 0;
-    ui_gdi.y = 0;
     ui_app_update_crc();
     if (ui_app_layout_dirty) {
         ui_app_view_layout();
     }
-    ui_font_t  f = ui_gdi.set_font(ui_app.fonts.regular.font);
-    ui_color_t c = ui_gdi.set_text_color(ui_app.get_color(ui_color_id_window_text));
-    int32_t bm = SetBkMode(ui_app_canvas(), TRANSPARENT);
-    int32_t stretch_mode = SetStretchBltMode(ui_app_canvas(), HALFTONE);
-    ui_point_t pt = {0};
-    fatal_if_false(SetBrushOrgEx(ui_app_canvas(), 0, 0, (POINT*)&pt));
-    ui_brush_t br = ui_gdi.set_brush(ui_gdi.brush_hollow);
+    ui_gdi.begin(null);
+    ui_gdi.push(0, 0);
+    ui_gdi.x = 0;
+    ui_gdi.y = 0;
     ui_app_paint(ui_app.root);
     if (ui_app.animating.view != null) { ui_app_toast_paint(); }
-    fatal_if_false(SetBrushOrgEx(ui_app_canvas(), pt.x, pt.y, null));
-    SetStretchBltMode(ui_app_canvas(), stretch_mode);
-    SetBkMode(ui_app_canvas(), bm);
-    ui_gdi.set_brush(br);
-    ui_gdi.set_text_color(c);
-    ui_gdi.set_font(f);
-    ui_app.paint_count++;
-    if (ui_app.no_decor && !ui_app.is_full_screen && !ui_app.is_maximized()) {
+    // active frame on top of everything:
+    if (ui_app.no_decor && !ui_app.is_full_screen &&
+        !ui_app.is_maximized()) {
         ui_app_view_active_frame_paint();
     }
     ui_gdi.pop();
+    ui_gdi.end();
+    ui_app.paint_count++;
     ui_app.canvas = canvas;
     ui_app_paint_stats();
 }
@@ -7349,10 +7339,67 @@ typedef struct ui_gdi_xyc_s {
 static int32_t ui_gdi_top;
 static ui_gdi_xyc_t ui_gdi_stack[256];
 
+typedef struct ui_gdi_context_s {
+    HDC hdc; // window canvas() or memory DC
+    int32_t background_mode;
+    int32_t stretch_mode;
+    ui_pen_t pen;
+    ui_font_t font;
+    ui_color_t text_color;
+    POINT brush_origin;
+    ui_brush_t brush;
+    HBITMAP bitmap;
+} ui_gdi_context_t;
+
+static ui_gdi_context_t ui_gdi_context;
+
+#define ui_gdi_hdc() (ui_gdi_context.hdc)
+
 static void ui_gdi_init(void) {
     ui_gdi.brush_hollow = (ui_brush_t)GetStockBrush(HOLLOW_BRUSH);
     ui_gdi.brush_color  = (ui_brush_t)GetStockBrush(DC_BRUSH);
     ui_gdi.pen_hollow = (ui_pen_t)GetStockPen(NULL_PEN);
+}
+
+static void ui_gdi_begin(ui_image_t* image) {
+    swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
+    swear(ui_gdi_top == 0);
+    if (image != null) {
+        swear(image->bitmap != null);
+        ui_gdi_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
+        ui_gdi_context.bitmap = SelectBitmap(ui_gdi_hdc(),
+                                             (HBITMAP)image->bitmap);
+    } else {
+        ui_gdi_context.hdc = (HDC)ui_app.canvas;
+        swear(ui_gdi_context.bitmap == null);
+    }
+    ui_gdi_context.font = ui_gdi.set_font(ui_app.fonts.regular.font);
+    ui_gdi_context.pen = ui_gdi.set_pen(ui_gdi.pen_hollow);
+    ui_gdi_context.brush = ui_gdi.set_brush(ui_gdi.brush_hollow);
+    fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
+        &ui_gdi_context.brush_origin));
+    ui_color_t tc = ui_app.get_color(ui_color_id_window_text);
+    ui_gdi_context.text_color = ui_gdi.set_text_color(tc);
+    ui_gdi_context.background_mode = SetBkMode(ui_gdi_hdc(), TRANSPARENT);
+    ui_gdi_context.stretch_mode = SetStretchBltMode(ui_gdi_hdc(), HALFTONE);
+}
+
+static void ui_gdi_end(void) {
+    swear(ui_gdi_top == 0);
+    fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(),
+                   ui_gdi_context.brush_origin.x,
+                   ui_gdi_context.brush_origin.y, null));
+    ui_gdi.set_brush(ui_gdi_context.brush);
+    ui_gdi.set_pen(ui_gdi_context.pen);
+    ui_gdi.set_text_color(ui_gdi_context.text_color);
+    SetBkMode(ui_gdi_hdc(), ui_gdi_context.background_mode);
+    SetStretchBltMode(ui_gdi_hdc(), ui_gdi_context.stretch_mode);
+    if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
+        swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
+        SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.bitmap);
+        fatal_if_false(DeleteDC(ui_gdi_context.hdc));
+    }
+    memset(&ui_gdi_context, 0x00, sizeof(ui_gdi_context));
 }
 
 static uint32_t ui_gdi_color_rgb(ui_color_t c) {
@@ -8033,9 +8080,6 @@ static HDC ui_gdi_get_dc(void) {
     HDC hdc = ui_app_canvas() != null ?
               ui_app_canvas() : GetDC(ui_app_window());
     not_null(hdc);
-//  if (GetGraphicsMode(hdc) != GM_ADVANCED) {
-//      SetGraphicsMode(hdc, GM_ADVANCED);
-//  }
     return hdc;
 }
 
@@ -8422,6 +8466,8 @@ static void ui_gdi_image_dispose(ui_image_t* image) {
 ui_gdi_if ui_gdi = {
     .height_multiplier             = 1.0,
     .init                          = ui_gdi_init,
+    .begin                         = ui_gdi_begin,
+    .end                           = ui_gdi_end,
     .color_rgb                     = ui_gdi_color_rgb,
     .image_init                    = ui_gdi_image_init,
     .image_init_rgbx               = ui_gdi_image_init_rgbx,
@@ -8514,11 +8560,11 @@ static void ui_label_paint(ui_view_t* v) {
         ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.string(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
-        ui_gdi.set_colored_pen(ui_app.get_color(ui_color_id_highlight));
-        ui_gdi.set_brush(ui_gdi.brush_hollow);
-        int32_t cr = v->fm->em.h / 4; // corner radius
+        ui_color_t highlight = ui_app.get_color(ui_color_id_highlight);
+        int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
-        ui_gdi.rounded(v->x - cr, v->y, v->w + 2 * cr, h, cr, cr);
+        ui_gdi.rounded_with(v->x - radius, v->y, v->w + 2 * radius, h,
+                       radius, highlight, ui_colors.transparent);
     }
     ui_gdi.set_font(f);
     ui_gdi.pop();

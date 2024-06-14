@@ -194,9 +194,7 @@ static void null_paint(ui_view_t* v) {
 static void paint(ui_view_t* v) {
 //  traceln("");
     if (debug_layout) { null_paint(v); }
-    ui_gdi.set_brush(ui_gdi.brush_color);
-    ui_gdi.set_brush_color(ui_colors.black);
-    ui_gdi.fill(0, 0, v->w, v->h);
+    ui_gdi.fill_with(0, 0, v->w, v->h, ui_colors.black);
     int32_t ix = focused();
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_view_t* e = &edit[i]->view;

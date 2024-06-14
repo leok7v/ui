@@ -830,40 +830,26 @@ static void ui_app_paint_stats(void) {
 }
 
 static void ui_app_paint_on_canvas(HDC hdc) {
-    // GM_ADVANCED: rectangles are right bottom inclusive
-    // TrueType fonts and arcs are affected by world transforms.
-//  if (GetGraphicsMode(hdc) != GM_ADVANCED) {
-//      SetGraphicsMode(hdc, GM_ADVANCED); // do it once
-//  }
     ui_canvas_t canvas = ui_app.canvas;
     ui_app.canvas = (ui_canvas_t)hdc;
-    ui_gdi.push(0, 0);
-    ui_gdi.x = 0;
-    ui_gdi.y = 0;
     ui_app_update_crc();
     if (ui_app_layout_dirty) {
         ui_app_view_layout();
     }
-    ui_font_t  f = ui_gdi.set_font(ui_app.fonts.regular.font);
-    ui_color_t c = ui_gdi.set_text_color(ui_app.get_color(ui_color_id_window_text));
-    int32_t bm = SetBkMode(ui_app_canvas(), TRANSPARENT);
-    int32_t stretch_mode = SetStretchBltMode(ui_app_canvas(), HALFTONE);
-    ui_point_t pt = {0};
-    fatal_if_false(SetBrushOrgEx(ui_app_canvas(), 0, 0, (POINT*)&pt));
-    ui_brush_t br = ui_gdi.set_brush(ui_gdi.brush_hollow);
+    ui_gdi.begin(null);
+    ui_gdi.push(0, 0);
+    ui_gdi.x = 0;
+    ui_gdi.y = 0;
     ui_app_paint(ui_app.root);
     if (ui_app.animating.view != null) { ui_app_toast_paint(); }
-    fatal_if_false(SetBrushOrgEx(ui_app_canvas(), pt.x, pt.y, null));
-    SetStretchBltMode(ui_app_canvas(), stretch_mode);
-    SetBkMode(ui_app_canvas(), bm);
-    ui_gdi.set_brush(br);
-    ui_gdi.set_text_color(c);
-    ui_gdi.set_font(f);
-    ui_app.paint_count++;
-    if (ui_app.no_decor && !ui_app.is_full_screen && !ui_app.is_maximized()) {
+    // active frame on top of everything:
+    if (ui_app.no_decor && !ui_app.is_full_screen &&
+        !ui_app.is_maximized()) {
         ui_app_view_active_frame_paint();
     }
     ui_gdi.pop();
+    ui_gdi.end();
+    ui_app.paint_count++;
     ui_app.canvas = canvas;
     ui_app_paint_stats();
 }

@@ -19,10 +19,67 @@ typedef struct ui_gdi_xyc_s {
 static int32_t ui_gdi_top;
 static ui_gdi_xyc_t ui_gdi_stack[256];
 
+typedef struct ui_gdi_context_s {
+    HDC hdc; // window canvas() or memory DC
+    int32_t background_mode;
+    int32_t stretch_mode;
+    ui_pen_t pen;
+    ui_font_t font;
+    ui_color_t text_color;
+    POINT brush_origin;
+    ui_brush_t brush;
+    HBITMAP bitmap;
+} ui_gdi_context_t;
+
+static ui_gdi_context_t ui_gdi_context;
+
+#define ui_gdi_hdc() (ui_gdi_context.hdc)
+
 static void ui_gdi_init(void) {
     ui_gdi.brush_hollow = (ui_brush_t)GetStockBrush(HOLLOW_BRUSH);
     ui_gdi.brush_color  = (ui_brush_t)GetStockBrush(DC_BRUSH);
     ui_gdi.pen_hollow = (ui_pen_t)GetStockPen(NULL_PEN);
+}
+
+static void ui_gdi_begin(ui_image_t* image) {
+    swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
+    swear(ui_gdi_top == 0);
+    if (image != null) {
+        swear(image->bitmap != null);
+        ui_gdi_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
+        ui_gdi_context.bitmap = SelectBitmap(ui_gdi_hdc(),
+                                             (HBITMAP)image->bitmap);
+    } else {
+        ui_gdi_context.hdc = (HDC)ui_app.canvas;
+        swear(ui_gdi_context.bitmap == null);
+    }
+    ui_gdi_context.font = ui_gdi.set_font(ui_app.fonts.regular.font);
+    ui_gdi_context.pen = ui_gdi.set_pen(ui_gdi.pen_hollow);
+    ui_gdi_context.brush = ui_gdi.set_brush(ui_gdi.brush_hollow);
+    fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
+        &ui_gdi_context.brush_origin));
+    ui_color_t tc = ui_app.get_color(ui_color_id_window_text);
+    ui_gdi_context.text_color = ui_gdi.set_text_color(tc);
+    ui_gdi_context.background_mode = SetBkMode(ui_gdi_hdc(), TRANSPARENT);
+    ui_gdi_context.stretch_mode = SetStretchBltMode(ui_gdi_hdc(), HALFTONE);
+}
+
+static void ui_gdi_end(void) {
+    swear(ui_gdi_top == 0);
+    fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(),
+                   ui_gdi_context.brush_origin.x,
+                   ui_gdi_context.brush_origin.y, null));
+    ui_gdi.set_brush(ui_gdi_context.brush);
+    ui_gdi.set_pen(ui_gdi_context.pen);
+    ui_gdi.set_text_color(ui_gdi_context.text_color);
+    SetBkMode(ui_gdi_hdc(), ui_gdi_context.background_mode);
+    SetStretchBltMode(ui_gdi_hdc(), ui_gdi_context.stretch_mode);
+    if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
+        swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
+        SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.bitmap);
+        fatal_if_false(DeleteDC(ui_gdi_context.hdc));
+    }
+    memset(&ui_gdi_context, 0x00, sizeof(ui_gdi_context));
 }
 
 static uint32_t ui_gdi_color_rgb(ui_color_t c) {
@@ -703,9 +760,6 @@ static HDC ui_gdi_get_dc(void) {
     HDC hdc = ui_app_canvas() != null ?
               ui_app_canvas() : GetDC(ui_app_window());
     not_null(hdc);
-//  if (GetGraphicsMode(hdc) != GM_ADVANCED) {
-//      SetGraphicsMode(hdc, GM_ADVANCED);
-//  }
     return hdc;
 }
 
@@ -1092,6 +1146,8 @@ static void ui_gdi_image_dispose(ui_image_t* image) {
 ui_gdi_if ui_gdi = {
     .height_multiplier             = 1.0,
     .init                          = ui_gdi_init,
+    .begin                         = ui_gdi_begin,
+    .end                           = ui_gdi_end,
     .color_rgb                     = ui_gdi_color_rgb,
     .image_init                    = ui_gdi_image_init,
     .image_init_rgbx               = ui_gdi_image_init_rgbx,
