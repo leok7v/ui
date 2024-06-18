@@ -6133,6 +6133,9 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             // selection_color is MSVC dark mode selection color
             // TODO: need light mode selection color tpp
             ui_color_t selection_color = ui_rgb(0x26, 0x4F, 0x78); // ui_rgb(64, 72, 96);
+            if (!e->focused || !ui_app.has_focus()) {
+                selection_color = ui_colors.darken(selection_color, 0.1f);
+            }
             const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->view.insets);
             int32_t x = e->view.x + insets.left;
             ui_gdi.fill(x + x0, y,
@@ -6906,8 +6909,10 @@ static void ui_edit_focus_on_click(ui_edit_t* e, int32_t x, int32_t y) {
         ui_app.focus = &e->view;
         bool set = e->view.set_focus(&e->view);
         fatal_if(!set);
-    }
-    if (ui_app.has_focus() && e->focused && e->mouse != 0) {
+        // first click on unfocused edit should set focus but
+        // not set caret, because setting caret on click will
+        // destroy selection and this is bad UX
+    } else if (ui_app.has_focus() && e->focused && e->mouse != 0) {
         e->mouse = 0;
         ui_edit_click(e, x, y);
     }
@@ -7242,7 +7247,6 @@ static void ui_edit_layout(ui_view_t* v) { // top down
         ui_edit_destroy_caret(e);
         ui_edit_create_caret(e);
         ui_edit_show_caret(e);
-        ui_edit_move_caret(e, e->selection[1]);
     }
 //  traceln("<%d,%d %dx%d", v->y, v->y, v->w, v->h);
 }
@@ -7342,8 +7346,8 @@ void ui_edit_init(ui_edit_t* e) {
     e->key_up               = ui_edit_key_up;
     e->key_left             = ui_edit_key_left;
     e->key_right            = ui_edit_key_right;
-    e->key_page_up           = ui_edit_key_page_up;
-    e->key_page_down           = ui_edit_key_page_down;
+    e->key_page_up          = ui_edit_key_page_up;
+    e->key_page_down        = ui_edit_key_page_down;
     e->key_home             = ui_edit_key_home;
     e->key_end              = ui_edit_key_end;
     e->key_delete           = ui_edit_key_delete;
