@@ -1180,6 +1180,14 @@ extern ut_generics_if ut_generics;
 // https://compart.com/en/unicode/U+1F9E0
 #define ut_glyph_brain "\xF0\x9F\xA7\xA0"
 
+// South West Arrow with Hook
+// https://www.compart.com/en/unicode/U+2926
+#define ut_glyph_south_west_arrow_with_hook "\xE2\xA4\xA6"
+
+// North West Arrow with Hook
+// https://www.compart.com/en/unicode/U+2923
+#define ut_glyph_north_west_arrow_with_hook "\xE2\xA4\xA3"
+
 
 // ________________________________ ut_heap.h _________________________________
 
@@ -2490,22 +2498,24 @@ static const char* ut_bt_stops[] = {
     null
 };
 
-#define glyph_called_from "\xE2\xA4\xA3" // &nwarhk; "North West Arrow with Hook"
-
 static void ut_bt_trace(const ut_bt_t* bt, const char* stop) {
+    #pragma push_macro("ut_bt_glyph_called_from")
+    #define ut_bt_glyph_called_from ut_glyph_north_west_arrow_with_hook
     assert(bt->symbolized, "need ut_bt.symbolize(bt)");
     const char** alt = stop != null && strcmp(stop, "*") == 0 ?
                        ut_bt_stops : null;
     for (int32_t i = 0; i < bt->frames; i++) {
         ut_debug.println(bt->file[i], bt->line[i], bt->symbol[i],
-            glyph_called_from "%s",
+            ut_bt_glyph_called_from "%s",
             i == i < bt->frames - 1 ? "\n" : ""); // extra \n for last line
         if (stop != null && strcmp(bt->symbol[i], stop) == 0) { break; }
         const char** s = alt;
         while (s != null && *s != null && strcmp(bt->symbol[i], *s) != 0) { s++; }
         if (s != null && *s != null)  { break; }
     }
+    #pragma pop_macro("ut_bt_glyph_called_from")
 }
+
 
 static const char* ut_bt_string(const ut_bt_t* bt,
         char* text, int32_t count) {

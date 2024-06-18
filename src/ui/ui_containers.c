@@ -91,8 +91,8 @@ static void ui_span_measure(ui_view_t* p) {
             if (c->max_w == ui.infinity) {
                 max_w = ui.infinity;
             } else if (max_w < ui.infinity && c->max_w != 0) {
-                swear(c->max_w >= cbx.w, "Constraint violation: "
-                        "c->max_w %d < cbx.w %d, ", c->max_w, cbx.w);
+                swear(c->max_w >= c->w, "c->max_w %d < c->w %d ",
+                      c->max_w, c->w);
                 max_w += c->max_w;
             } else if (max_w < ui.infinity) {
                 swear(0 <= max_w + cbx.w &&
@@ -172,7 +172,7 @@ static void ui_span_layout(ui_view_t* p) {
                 spacers++;
             } else {
                 x = ui_span_place_child(c, pbx, x);
-                swear(c->max_w == 0 || c->max_w > c->w,
+                swear(c->max_w == 0 || c->max_w >= c->w,
                       "max_w:%d < w:%d", c->max_w, c->w);
                 if (c->max_w > 0) {
                     max_w_count++;
@@ -272,8 +272,8 @@ static void ui_list_measure(ui_view_t* p) {
                 if (c->max_h == ui.infinity) {
                     max_h = ui.infinity;
                 } else if (max_h < ui.infinity && c->max_h != 0) {
-                    swear(c->max_h >= cbx.h, "c->max_h:%d < cbx.h: %d",
-                          c->max_h, cbx.h);
+                    swear(c->max_h >= c->h, "c->max_h:%d < c->h: %d",
+                          c->max_h, c->h);
                     max_h += c->max_h;
                 } else if (max_h < ui.infinity) {
                     swear(0 <= max_h + cbx.h &&
@@ -351,7 +351,7 @@ static void ui_list_layout(ui_view_t* p) {
             spacers++;
         } else {
             y = ui_list_place_child(c, pbx, y);
-            swear(c->max_h == 0 || c->max_h > c->h,
+            swear(c->max_h == 0 || c->max_h >= c->h,
                   "max_h:%d < h:%d", c->max_h, c->h);
             if (c->max_h > 0) {
                 // clamp max_h to the effective parent height

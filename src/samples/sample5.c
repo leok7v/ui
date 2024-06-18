@@ -51,13 +51,13 @@ static void scaled_fonts(void) {
     ui_gdi.update_fm(&pf, ui_gdi.font(ui_app.fonts.regular.font, h, -1));
 }
 
-ui_button_on_click(full_screen, "&Full Screen", 7.5, {
+ui_button_on_click(full_screen, "&Full Screen", 9.0f, {
     ui_app.full_screen(!ui_app.is_full_screen);
 });
 
-ui_button_on_click(quit, "&Quit", 7.5, { ui_app.close(); });
+ui_button_on_click(quit, "&Quit", 9.0f, { ui_app.close(); });
 
-ui_button_on_click(fuzz, "Fu&zz", 7.5, {
+ui_button_on_click(fuzz, "Fu&zz", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->fuzz(edit[ix]);
@@ -66,7 +66,7 @@ ui_button_on_click(fuzz, "Fu&zz", 7.5, {
     }
 });
 
-ui_toggle_on_switch(ro, "&Read Only", 7.5, {
+ui_toggle_on_switch(ro, "&Read Only", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->ro = ro->pressed;
@@ -75,7 +75,7 @@ ui_toggle_on_switch(ro, "&Read Only", 7.5, {
     }
 });
 
-ui_toggle_on_switch(mono, "&Mono", 7.5, {
+ui_toggle_on_switch(mono, "&Mono", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->set_font(edit[ix], mono->pressed ? &mf : &pf);
@@ -85,7 +85,7 @@ ui_toggle_on_switch(mono, "&Mono", 7.5, {
     }
 });
 
-ui_toggle_on_switch(sl, "&Single Line", 7.5, {
+ui_toggle_on_switch(sl, "&Single Line", 9.0f, {
     int32_t ix = focused();
     if (ix == 2) {
         sl->pressed = true; // always single line
@@ -124,9 +124,9 @@ static void font_reset(void) {
     ui_app.request_layout();
 }
 
-ui_button_on_click(fp, "Font Ctrl+", 7.5, { font_plus(); });
+ui_button_on_click(fp, "Font Ctrl+", 9.0f, { font_plus(); });
 
-ui_button_on_click(fm, "Font Ctrl-", 7.5, { font_minus(); });
+ui_button_on_click(fm, "Font Ctrl-", 9.0f, { font_minus(); });
 
 static ui_label_t label = ui_label(0.0, "...");
 
@@ -219,7 +219,10 @@ static void edit2_prepare(ui_view_t* v) { // _3_lines_sle
     // than not implemented horizontal scroll.
     assert(v == &edit[2]->view);
 //  traceln("WxH: %dx%d <- r/o button", ro.view.w, ro.view.h);
-    v->w = ro.w; // r/o button
+//  v->max_w = full_screen.w;
+//  const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+//  v->max_h = insets.top + v->fm->height * 3 + insets.bottom;
+//  v->min_w_em = full_screen.min_w_em;
 }
 
 static void edit2_measured(ui_view_t* v) {
@@ -227,10 +230,17 @@ static void edit2_measured(ui_view_t* v) {
 //          edit[2]->view.w, edit[2]->view.h,
 //          edit[2]->width, edit[2]->height,
 //          edit[2]->view.fm->em.h, edit[2]->view.h / edit[2]->view.fm->em.h);
-    int32_t max_lines = edit[2]->focused ? 3 : 1;
-    if (v->h > v->fm->em.h * max_lines) {
-        v->h = v->fm->em.h * max_lines;
-    }
+    assert(v == &edit[2]->view);
+//  traceln("SLE: v->w %d := full_screen.w %d", v->w, full_screen.w);
+//  full_screen.debug = true;
+//  v->debug = true;
+//  v->w = full_screen.w;
+
+
+//  int32_t max_lines = edit[2]->focused ? 3 : 1;
+//  if (v->h < v->fm->em.h * max_lines) {
+//      v->h = v->fm->em.h * max_lines;
+//  }
 }
 
 static void key_pressed(ui_view_t* unused(view), int64_t key) {
@@ -293,11 +303,11 @@ static void opened(void) {
     ui_app.every_100ms = every_100ms;
     set_text(0); // need to be two lines for measure
     // edit[2] is SLE:
-    edit[2]->view.prepare = edit2_prepare;
-    edit[2]->view.measured  = edit2_measured;
+    edit[2]->view.prepare  = edit2_prepare;
+    edit[2]->view.measured = edit2_measured;
     edit[2]->sle = true;
     edit[2]->select_all(edit[2]);
-    edit[2]->paste(edit[2], "Single line edit", -1);
+    edit[2]->paste(edit[2], "Single line", -1);
     edit[2]->enter = edit_enter;
     static ui_view_t span    = ui_view(span);
     static ui_view_t spacer1 = ui_view(spacer);

@@ -3169,7 +3169,9 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
-static void ui_app_request_redraw(void) { SetEvent(ui_app_event_invalidate); } // < 2us
+static void ui_app_request_redraw(void) {  // < 2us
+    SetEvent(ui_app_event_invalidate);
+}
 
 static void ui_app_draw(void) { UpdateWindow(ui_app_window()); }
 
@@ -4859,8 +4861,8 @@ static void ui_span_measure(ui_view_t* p) {
             if (c->max_w == ui.infinity) {
                 max_w = ui.infinity;
             } else if (max_w < ui.infinity && c->max_w != 0) {
-                swear(c->max_w >= cbx.w, "Constraint violation: "
-                        "c->max_w %d < cbx.w %d, ", c->max_w, cbx.w);
+                swear(c->max_w >= c->w, "c->max_w %d < c->w %d ",
+                      c->max_w, c->w);
                 max_w += c->max_w;
             } else if (max_w < ui.infinity) {
                 swear(0 <= max_w + cbx.w &&
@@ -4940,7 +4942,7 @@ static void ui_span_layout(ui_view_t* p) {
                 spacers++;
             } else {
                 x = ui_span_place_child(c, pbx, x);
-                swear(c->max_w == 0 || c->max_w > c->w,
+                swear(c->max_w == 0 || c->max_w >= c->w,
                       "max_w:%d < w:%d", c->max_w, c->w);
                 if (c->max_w > 0) {
                     max_w_count++;
@@ -5040,8 +5042,8 @@ static void ui_list_measure(ui_view_t* p) {
                 if (c->max_h == ui.infinity) {
                     max_h = ui.infinity;
                 } else if (max_h < ui.infinity && c->max_h != 0) {
-                    swear(c->max_h >= cbx.h, "c->max_h:%d < cbx.h: %d",
-                          c->max_h, cbx.h);
+                    swear(c->max_h >= c->h, "c->max_h:%d < c->h: %d",
+                          c->max_h, c->h);
                     max_h += c->max_h;
                 } else if (max_h < ui.infinity) {
                     swear(0 <= max_h + cbx.h &&
@@ -5119,7 +5121,7 @@ static void ui_list_layout(ui_view_t* p) {
             spacers++;
         } else {
             y = ui_list_place_child(c, pbx, y);
-            swear(c->max_h == 0 || c->max_h > c->h,
+            swear(c->max_h == 0 || c->max_h >= c->h,
                   "max_h:%d < h:%d", c->max_h, c->h);
             if (c->max_h > 0) {
                 // clamp max_h to the effective parent height
@@ -5610,7 +5612,6 @@ static void ui_edit_reallocate(void** pp, int32_t count, size_t element) {
 }
 
 static void ui_edit_invalidate(ui_edit_t* e) {
-//  traceln("");
     ui_view.invalidate(&e->view);
 }
 
@@ -5929,7 +5930,6 @@ static void ui_edit_dispose_paragraphs_layout(ui_edit_t* e) {
 static void ui_edit_layout_now(ui_edit_t* e) {
     if (e->view.measure != null && e->view.layout != null && e->view.w > 0) {
         ui_edit_dispose_paragraphs_layout(e);
-        e->view.measure(&e->view);
         e->view.layout(&e->view);
         ui_edit_invalidate(e);
     }
@@ -6007,7 +6007,8 @@ static int32_t ui_edit_runs_between(ui_edit_t* e, const ui_edit_pg_t pg0,
 static ui_edit_pg_t ui_edit_scroll_pg(ui_edit_t* e) {
     int32_t runs = 0;
     const ui_edit_run_t* run = ui_edit_paragraph_runs(e, e->scroll.pn, &runs);
-    assert(0 <= e->scroll.rn && e->scroll.rn < runs);
+    assert(0 <= e->scroll.rn && e->scroll.rn < runs,
+            "e->scroll.rn: %d runs: %d", e->scroll.rn, runs);
     return (ui_edit_pg_t) { .pn = e->scroll.pn, .gp = run[e->scroll.rn].gp };
 }
 
@@ -6126,7 +6127,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             int32_t x0 = ui_edit_text_width(e, text, ofs0);
             int32_t x1 = ui_edit_text_width(e, text, ofs1);
             // selection_color is MSVC dark mode selection color
-            // TODO: need ligh mode selection color tpp
+            // TODO: need light mode selection color tpp
             ui_color_t selection_color = ui_rgb(0x26, 0x4F, 0x78); // ui_rgb(64, 72, 96);
             const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->view.insets);
             int32_t x = e->view.x + insets.left;
@@ -6146,6 +6147,10 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
         ui_edit_paint_selection(e, y, &run[j], text, pn,
                                 run[j].gp, run[j].gp + run[j].glyphs);
         ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
+        if (j < runs - 1) {
+            ui_gdi.text(ta, x + e->w, y, "%s",
+                        ut_glyph_south_west_arrow_with_hook);
+        }
         y += e->view.fm->height;
     }
     return y;
@@ -6305,8 +6310,8 @@ static char* ui_edit_ensure(ui_edit_t* e, int32_t pn, int32_t bytes,
 static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
         ui_edit_pg_t from, ui_edit_pg_t to,
         char* text, int32_t* bytes) {
-    #pragma push_macro("clip_append")
-    #define clip_append(a, ab, mx, text, bytes) do {           \
+    #pragma push_macro("ui_edit_clip_append")
+    #define ui_edit_clip_append(a, ab, mx, text, bytes) do {   \
         int32_t ba = (int32_t)(bytes); /* bytes to append */   \
         if (a != null) {                                       \
             assert(ab <= mx);                                  \
@@ -6339,7 +6344,7 @@ static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
         const int32_t bp0 = e->para[pn0].g2b[gp0];
         if (pn0 == pn1) { // inside same paragraph
             const int32_t bp1 = e->para[pn0].g2b[gp1];
-            clip_append(a, ab, limit, s0 + bp0, bp1 - bp0);
+            ui_edit_clip_append(a, ab, limit, s0 + bp0, bp1 - bp0);
             if (cut) {
                 if (e->para[pn0].capacity == 0) {
                     int32_t n = bytes0 - (bp1 - bp0);
@@ -6354,16 +6359,17 @@ static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
                 e->para[pn0].glyphs = -1; // will relayout
             }
         } else {
-            clip_append(a, ab, limit, s0 + bp0, bytes0 - bp0);
-            clip_append(a, ab, limit, "\n", 1);
+            ui_edit_clip_append(a, ab, limit, s0 + bp0, bytes0 - bp0);
+            ui_edit_clip_append(a, ab, limit, "\n", 1);
             for (int32_t i = pn0 + 1; i < pn1; i++) {
-                clip_append(a, ab, limit, e->para[i].text, e->para[i].bytes);
-                clip_append(a, ab, limit, "\n", 1);
+                ui_edit_clip_append(a, ab, limit, e->para[i].text,
+                                                  e->para[i].bytes);
+                ui_edit_clip_append(a, ab, limit, "\n", 1);
             }
             const int32_t bytes1 = e->para[pn1].bytes;
             ui_edit_paragraph_g2b(e, pn1);
             const int32_t bp1 = e->para[pn1].g2b[gp1];
-            clip_append(a, ab, limit, s1, bp1);
+            ui_edit_clip_append(a, ab, limit, s1, bp1);
             if (cut) {
                 int32_t total = bp0 + bytes1 - bp1;
                 s0 = ui_edit_ensure(e, pn0, total, bp0);
@@ -6389,12 +6395,16 @@ static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
             }
         }
         if (t == ui_edit_uint64(e->paragraphs, 0)) {
-            clip_append(a, ab, limit, "\n", 1);
+            ui_edit_clip_append(a, ab, limit, "\n", 1);
         }
         if (a != null) { assert(a == text + limit); }
         e->paragraphs -= deleted;
         from.pn = pn0;
         from.gp = gp0;
+        e->selection[0] = from;
+        e->selection[1] = from;
+        // traceln("from: %d.%d", from.pn, from.gp);
+        ui_edit_scroll_into_view(e, from);
     } else {
         from.pn = -1;
         from.gp = -1;
@@ -6403,7 +6413,7 @@ static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
     (void)limit; // unused in release
     ui_edit_if_sle_layout(e);
     return from;
-    #pragma pop_macro("clip_append")
+    #pragma pop_macro("ui_edit_clip_append")
 }
 
 static void ui_edit_insert_paragraph(ui_edit_t* e, int32_t pn) {
@@ -6958,7 +6968,7 @@ static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
     assert(!v->hidden);
     assert(!v->disabled);
     ui_edit_t* e = (ui_edit_t*)v;
-    const int32_t x = ui_app.mouse.x - e->view.x;
+    const int32_t x = ui_app.mouse.x - e->view.x - e->inside.left;
     const int32_t y = ui_app.mouse.y - e->view.y - e->inside.top;
     bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
     if (inside) {
@@ -7149,21 +7159,24 @@ static void ui_edit_clipboard_paste(ui_edit_t* e) {
     }
 }
 
+static void ui_edit_insets(ui_edit_t* e) {
+    ui_view_t* v = &e->view;
+    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+    e->inside = (ui_ltrb_t){
+        .left   = insets.left,
+        .top    = insets.top,
+        .right  = v->w - insets.right,
+        .bottom = v->h - insets.bottom
+    };
+    e->w = e->inside.right  - e->inside.left;
+    e->h = e->inside.bottom - e->inside.top;
+}
+
 static void ui_edit_measure(ui_view_t* v) { // bottom up
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     v->w = 0;
     v->h = 0;
-    // see if SLE already has text[]
-    if (e->sle && e->paragraphs > 0 && e->para[0].bytes > 0) {
-        int32_t w = ui_edit_text_width(e, e->para[0].text, e->para[0].bytes);
-        if (v->max_w != 0) { w = ut_min(v->max_w, w); }
-        if (v->min_w_em != 0) {
-            int32_t min_w_px = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
-            w = ut_max(min_w_px, w);
-        }
-        v->w = w;
-    }
     // enforce minimum size - it makes it checking corner cases much simpler
     // and it's hard to edit anything in a smaller area - will result in bad UX
     if (v->w < v->fm->em.w * 4) { v->w = v->fm->em.w * 4; }
@@ -7171,13 +7184,7 @@ static void ui_edit_measure(ui_view_t* v) { // bottom up
     const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
     v->w += insets.left + insets.right;
     v->h += insets.top  + insets.bottom;
-    e->w = e->inside.right  - e->inside.left;
-    e->h = e->inside.bottom - e->inside.top;
-    if (e->sle) { // for SLE if more than one run resize vertical:
-        int32_t runs = ut_max(ui_edit_paragraph_run_count(e, 0), 1);
-        if (v->h < v->fm->height * runs) { v->h = v->fm->height * runs; }
-    }
-//  traceln("%dx%d", v->w, v->h);
+    ui_edit_insets(e);
 }
 
 static void ui_edit_layout(ui_view_t* v) { // top down
@@ -7188,23 +7195,9 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     // glyph position in scroll_pn paragraph:
     const ui_edit_pg_t scroll = v->w == 0 ?
         (ui_edit_pg_t){0, 0} : ui_edit_scroll_pg(e);
-    // the optimization of layout disposal with cached
-    // width and height cannot guarantee correct layout
-    // in other changing conditions, e.g. moving UI
-    // between monitors with different DPI or font
-    // changes by the caller (Ctrl +/- 0)...
-//  if (view->w > 0 && view->w != view->w) {
-//      ui_edit_dispose_paragraphs_layout(e);
-//  }
     // always dispose paragraphs layout:
     ui_edit_dispose_paragraphs_layout(e);
-    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
-    e->inside = (ui_ltrb_t){
-        .left   = insets.left,
-        .top    = insets.top,
-        .right  = v->w - insets.right,
-        .bottom = v->h - insets.bottom
-    };
+    ui_edit_insets(e);
     int32_t sle_height = 0;
     if (e->sle) {
         int32_t runs = ut_max(ui_edit_paragraph_run_count(e, 0), 1);
@@ -7252,7 +7245,7 @@ static void ui_edit_paint(ui_view_t* v) {
                      v->x + v->w - 1, v->y + v->h, ui_colors.red);
 #endif
     ui_gdi.set_clip(v->x + e->inside.left, v->y + e->inside.top,
-                    e->w, e->h);
+                    e->w + e->inside.right, e->h);
     const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
     int32_t x = v->x + insets.left;
     int32_t y = v->y + insets.top;

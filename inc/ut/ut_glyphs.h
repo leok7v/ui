@@ -441,3 +441,11 @@
 // Brain
 // https://compart.com/en/unicode/U+1F9E0
 #define ut_glyph_brain "\xF0\x9F\xA7\xA0"
+
+// South West Arrow with Hook
+// https://www.compart.com/en/unicode/U+2926
+#define ut_glyph_south_west_arrow_with_hook "\xE2\xA4\xA6"
+
+// North West Arrow with Hook
+// https://www.compart.com/en/unicode/U+2923
+#define ut_glyph_north_west_arrow_with_hook "\xE2\xA4\xA3"

@@ -1415,7 +1415,9 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
-static void ui_app_request_redraw(void) { SetEvent(ui_app_event_invalidate); } // < 2us
+static void ui_app_request_redraw(void) {  // < 2us
+    SetEvent(ui_app_event_invalidate);
+}
 
 static void ui_app_draw(void) { UpdateWindow(ui_app_window()); }
 
