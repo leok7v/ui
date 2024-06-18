@@ -5,9 +5,9 @@
 #pragma push_macro("ui_gdi_with_hdc")
 #pragma push_macro("ui_gdi_hdc_with_font")
 
-static ui_brush_t ui_gdi_brush_hollow;
-static ui_brush_t ui_gdi_brush_color;
-static ui_pen_t   ui_gdi_pen_hollow;
+static ui_brush_t  ui_gdi_brush_hollow;
+static ui_brush_t  ui_gdi_brush_color;
+static ui_pen_t    ui_gdi_pen_hollow;
 static ui_region_t ui_gdi_clip;
 
 typedef struct ui_gdi_context_s {
@@ -82,7 +82,7 @@ static void ui_gdi_begin(ui_image_t* image) {
     ui_gdi_context.brush = ui_gdi_set_brush(ui_gdi_brush_hollow);
     fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
         &ui_gdi_context.brush_origin));
-    ui_color_t tc = ui_app.get_color(ui_color_id_window_text);
+    ui_color_t tc = ui_colors.get_color(ui_color_id_window_text);
     ui_gdi_context.text_color = ui_gdi_set_text_color(tc);
     ui_gdi_context.background_mode = SetBkMode(ui_gdi_hdc(), TRANSPARENT);
     ui_gdi_context.stretch_mode = SetStretchBltMode(ui_gdi_hdc(), HALFTONE);
@@ -938,7 +938,7 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
     if (!ta->measure) {
         if (ui_color_is_undefined(c)) {
             swear(ta->color_id > 0);
-            c = ui_theme.get_color(ta->color_id);
+            c = ui_colors.get_color(ta->color_id);
         } else {
             swear(ta->color_id == 0);
         }

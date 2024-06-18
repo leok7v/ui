@@ -28,7 +28,7 @@ enum {
 };
 
 typedef struct  {
-    ui_color_t (*get_color)(int32_t color_id);
+    bool (*is_app_dark)(void);
     bool (*is_system_dark)(void);
     bool (*are_apps_dark)(void);
     void (*set_preferred_app_mode)(int32_t mode);

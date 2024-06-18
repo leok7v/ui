@@ -20,7 +20,7 @@ static void ui_label_paint(ui_view_t* v) {
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
-        ui_color_t highlight = ui_app.get_color(ui_color_id_highlight);
+        ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
         int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
         ui_gdi.rounded(v->x - radius, v->y, v->w + 2 * radius, h,

@@ -3,7 +3,7 @@
 
 static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_color_t c = v->background;
-    if (!ui_theme.are_apps_dark()) { c = ui_colors.darken(c, 0.25f); }
+    if (!ui_theme.is_app_dark()) { c = ui_colors.darken(c, 0.25f); }
     ui_color_t b = v->pressed ? ui_colors.tone_green : c;
     const int32_t bl = v->fm->baseline;
     const int32_t a = v->fm->ascent;
@@ -21,9 +21,9 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_gdi.fill(x, y1 - r, w - r + 1, h, b);
     int32_t x1 = v->pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
-    ui_color_t fill = ui_theme.are_apps_dark() ?
+    ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
-    ui_color_t border = ui_theme.are_apps_dark() ?
+    ui_color_t border = ui_theme.is_app_dark() ?
         ui_colors.darken(fill, 0.5f) : ui_colors.lighten(fill, 0.5f);
     ui_gdi.circle(x1, y1, r, border, fill);
     return x + w;

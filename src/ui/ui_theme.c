@@ -18,29 +18,6 @@ static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
     return r;
 }
 
-static struct {
-    const char* name;
-    ui_color_t  dark;
-    ui_color_t  light;
-} ui_theme_colors[] = { // empirical
-    { .name = "Undefiled"        ,.dark = ui_color_undefined, .light = ui_color_undefined },
-    { .name = "ActiveTitle"      ,.dark = 0x001F1F1F, .light = 0x00D1B499 },
-    { .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 },
-    { .name = "ButtonText"       ,.dark = 0x00F6F3EE, .light = 0x00000000 },
-    { .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D },
-    { .name = "Hilight"          ,.dark = 0x00626262, .light = 0x00D77800 },
-    { .name = "HilightText"      ,.dark = 0x00000000, .light = 0x00FFFFFF },
-    { .name = "HotTrackingColor" ,.dark = 0x00B77878, .light = 0x00CC6600 },
-    { .name = "InactiveTitle"    ,.dark = 0x002B2B2B, .light = 0x00DBCDBF },
-    { .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 },
-    { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
-    { .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 },
-//  { .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF }, // too contrast
-    { .name = "Window"           ,.dark = 0x00121212, .light = 0x00E0E0E0 },
-    { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
-};
-
-
 #pragma push_macro("ux_theme_reg_cv")
 #pragma push_macro("ux_theme_reg_default_colors")
 
@@ -145,10 +122,15 @@ static bool ui_theme_is_system_dark(void) {
     return !ui_theme_use_light_theme("SystemUsesLightTheme");
 }
 
+static bool ui_theme_is_app_dark(void) {
+    if (ui_theme_dark < 0) { ui_theme_dark = ui_theme.are_apps_dark(); }
+    return ui_theme_dark;
+}
+
 static void ui_theme_refresh(void) {
     swear(ui_app.window != null);
     ui_theme_dark = -1;
-    BOOL dark_mode = ui_theme.are_apps_dark();
+    BOOL dark_mode = ui_theme_is_app_dark(); // must be 32-bit "BOOL"
     static const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     /* 20 == DWMWA_USE_IMMERSIVE_DARK_MODE in Windows 11 SDK.
        This value was undocumented for Windows 10 versions 2004
@@ -167,17 +149,8 @@ static void ui_theme_refresh(void) {
     ui_app.request_layout();
 }
 
-static ui_color_t ui_theme_get_color(int32_t color_id) {
-    swear(0 < color_id && color_id < countof(ui_theme_colors));
-    if (ui_theme_dark < 0) {
-        ui_theme_dark = ui_theme.are_apps_dark();
-    }
-    return ui_theme_dark ? ui_theme_colors[color_id].dark :
-                           ui_theme_colors[color_id].light;
-}
-
 ui_theme_if ui_theme = {
-    .get_color                    = ui_theme_get_color,
+    .is_app_dark                  = ui_theme_is_app_dark,
     .is_system_dark               = ui_theme_is_system_dark,
     .are_apps_dark                = ui_theme_are_apps_dark,
     .set_preferred_app_mode       = ui_theme_set_preferred_app_mode,

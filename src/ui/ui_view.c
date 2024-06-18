@@ -447,10 +447,10 @@ static void ui_view_character(ui_view_t* v, const char* utf8) {
 
 static void ui_view_resolve_color_ids(ui_view_t* v) {
     if (v->color_id > 0) {
-        v->color = ui_app.get_color(v->color_id);
+        v->color = ui_colors.get_color(v->color_id);
     }
     if (v->background_id > 0) {
-        v->background = ui_app.get_color(v->background_id);
+        v->background = ui_colors.get_color(v->background_id);
     }
 }
 

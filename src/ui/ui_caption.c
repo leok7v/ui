@@ -86,8 +86,8 @@ static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
 
 static ui_color_t ui_caption_color(void) {
     ui_color_t c = ui_app.is_active() ?
-        ui_theme.get_color(ui_color_id_active_title) :
-        ui_theme.get_color(ui_color_id_inactive_title);
+        ui_colors.get_color(ui_color_id_active_title) :
+        ui_colors.get_color(ui_color_id_inactive_title);
     return c;
 }
 

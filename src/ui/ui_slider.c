@@ -93,7 +93,7 @@ static void ui_slider_paint(ui_view_t* v) {
     const int32_t w = sw;
     const int32_t h = v->h;
     // draw background:
-    fp32_t d = ui_theme.are_apps_dark() ? 0.50f : 0.25f;
+    fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     d /= 4;
     ui_color_t d1 = ui_colors.darken(v->background, d);
@@ -102,7 +102,7 @@ static void ui_slider_paint(ui_view_t* v) {
 //  traceln("gradient(x: %d  w: %d)", x, w);
     ui_gdi.gradient(x, y, w, h, d1, d0, true);
     // draw value:
-    ui_color_t c = ui_theme.are_apps_dark() ?
+    ui_color_t c = ui_theme.is_app_dark() ?
         ui_colors.darken(ui_colors.green, 1.0f / 128.0f) :
         ui_colors.jungle_green;
     d1 = c;

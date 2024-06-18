@@ -670,9 +670,9 @@ static void ui_app_toast_paint(void) {
         int32_t h = ui_app.animating.view->h + em_h / 4;
         int32_t radius = em_w / 2;
         if (radius % 2 == 0) { radius++; }
-        ui_color_t color = ui_theme.are_apps_dark() ?
+        ui_color_t color = ui_theme.is_app_dark() ?
             ui_colors.toast :
-            ui_app.get_color(ui_color_id_button_face);
+            ui_colors.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
         ui_gdi.rounded(x, y, w, h, radius, tint, tint);
         if (!hint) { ui_app.animating.view->y += em_h / 4; }
@@ -780,9 +780,9 @@ static void ui_app_animate_start(ui_app_animate_function_t f, int32_t steps) {
 }
 
 static void ui_app_view_paint(ui_view_t* v) {
-    v->color = ui_app.get_color(v->color_id);
+    v->color = ui_colors.get_color(v->color_id);
     if (v->background_id > 0) {
-        v->background = ui_app.get_color(v->background_id);
+        v->background = ui_colors.get_color(v->background_id);
     }
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
@@ -809,8 +809,8 @@ static void ui_app_view_layout(void) {
 
 static void ui_app_view_active_frame_paint(void) {
     ui_color_t c = ui_app.is_active() ?
-        ui_app.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
-        ui_app.get_color(ui_color_id_inactive_title);
+        ui_colors.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
+        ui_colors.get_color(ui_color_id_inactive_title);
     assert(ui_app.border.w == ui_app.border.h);
     const int32_t w = ui_app.wrc.w;
     const int32_t h = ui_app.wrc.h;
@@ -1686,10 +1686,6 @@ static void ui_app_set_title(const char* title) {
     fatal_if_false(SetWindowTextA(ui_app_window(), ut_nls.str(title)));
 }
 
-static ui_color_t ui_app_get_color(int32_t color_id) {
-    return ui_theme.get_color(color_id); // SysGetColor() does not work on Win10
-}
-
 static void ui_app_capture_mouse(bool on) {
     static int32_t mouse_capture;
     if (on) {
@@ -1951,7 +1947,6 @@ static void ui_app_init(void) {
     ui_app.has_focus            = ui_app_has_focus;
     ui_app.request_focus        = ui_app_request_focus;
     ui_app.activate             = ui_app_activate;
-    ui_app.get_color            = ui_app_get_color;
     ui_app.set_title            = ui_app_set_title;
     ui_app.capture_mouse        = ui_app_capture_mouse;
     ui_app.move_and_resize      = ui_app_move_and_resize;

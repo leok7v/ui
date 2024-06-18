@@ -430,6 +430,7 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
                              )
 
 typedef struct ui_colors_s {
+    ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
     void       (*rgb_to_hsi)(fp64_t r, fp64_t g, fp64_t b, fp64_t *h, fp64_t *s, fp64_t *i);
     ui_color_t (*hsi_to_rgb)(fp64_t h, fp64_t s, fp64_t i,  uint8_t a);
     // interpolate():
@@ -443,207 +444,192 @@ typedef struct ui_colors_s {
     ui_color_t (*adjust_saturation)(ui_color_t c,fp32_t multiplier);
     ui_color_t (*multiply_brightness)(ui_color_t c, fp32_t multiplier);
     ui_color_t (*multiply_saturation)(ui_color_t c, fp32_t multiplier);
-    const ui_color_t transparent;
-    const ui_color_t none; // aka CLR_INVALID in wingdi
-    const ui_color_t text;
-    const ui_color_t white;
-    const ui_color_t black;
-    const ui_color_t red;
-    const ui_color_t green;
-    const ui_color_t blue;
-    const ui_color_t yellow;
-    const ui_color_t cyan;
-    const ui_color_t magenta;
-    const ui_color_t gray;
+    ui_color_t const transparent;
+    ui_color_t const none; // aka CLR_INVALID in wingdi.h
+    ui_color_t const text;
+    ui_color_t const white;
+    ui_color_t const black;
+    ui_color_t const red;
+    ui_color_t const green;
+    ui_color_t const blue;
+    ui_color_t const yellow;
+    ui_color_t const cyan;
+    ui_color_t const magenta;
+    ui_color_t const gray;
     // darker shades of grey:
-    const ui_color_t dkgray1; // 30 / 255 = 11.7%
-    const ui_color_t dkgray2; // 38 / 255 = 15%
-    const ui_color_t dkgray3; // 45 / 255 = 17.6%
-    const ui_color_t dkgray4; // 63 / 255 = 24.0%
+    ui_color_t const dkgray1; // 30 / 255 = 11.7%
+    ui_color_t const dkgray2; // 38 / 255 = 15%
+    ui_color_t const dkgray3; // 45 / 255 = 17.6%
+    ui_color_t const dkgray4; // 63 / 255 = 24.0%
     // tone down RGB colors:
-    const ui_color_t tone_white;
-    const ui_color_t tone_red;
-    const ui_color_t tone_green;
-    const ui_color_t tone_blue;
-    const ui_color_t tone_yellow;
-    const ui_color_t tone_cyan;
-    const ui_color_t tone_magenta;
-    // miscelaneous:
-    const ui_color_t orange;
-    const ui_color_t dkgreen;
-    const ui_color_t pink;
-    const ui_color_t ochre;
-    const ui_color_t gold;
-    const ui_color_t teal;
-    const ui_color_t wheat;
-    const ui_color_t tan;
-    const ui_color_t brown;
-    const ui_color_t maroon;
-    const ui_color_t barbie_pink;
-    const ui_color_t steel_pink;
-    const ui_color_t salmon_pink;
-    const ui_color_t gainsboro;
-    const ui_color_t light_gray;
-    const ui_color_t silver;
-    const ui_color_t dark_gray;
-    const ui_color_t dim_gray;
-    const ui_color_t light_slate_gray;
-    const ui_color_t slate_gray;
+    ui_color_t const tone_white;
+    ui_color_t const tone_red;
+    ui_color_t const tone_green;
+    ui_color_t const tone_blue;
+    ui_color_t const tone_yellow;
+    ui_color_t const tone_cyan;
+    ui_color_t const tone_magenta;
+    // miscellaneous:
+    ui_color_t const orange;
+    ui_color_t const dkgreen;
+    ui_color_t const pink;
+    ui_color_t const ochre;
+    ui_color_t const gold;
+    ui_color_t const teal;
+    ui_color_t const wheat;
+    ui_color_t const tan;
+    ui_color_t const brown;
+    ui_color_t const maroon;
+    ui_color_t const barbie_pink;
+    ui_color_t const steel_pink;
+    ui_color_t const salmon_pink;
+    ui_color_t const gainsboro;
+    ui_color_t const light_gray;
+    ui_color_t const silver;
+    ui_color_t const dark_gray;
+    ui_color_t const dim_gray;
+    ui_color_t const light_slate_gray;
+    ui_color_t const slate_gray;
     // highlights:
-    const ui_color_t text_highlight; // bluish off-white
-    const ui_color_t blue_highlight;
-    const ui_color_t off_white;
+    ui_color_t const text_highlight; // bluish off-white
+    ui_color_t const blue_highlight;
+    ui_color_t const off_white;
     // button and other UI colors
-    const ui_color_t btn_gradient_darker;
-    const ui_color_t btn_gradient_dark;
-    const ui_color_t btn_hover_highlight;
-    const ui_color_t btn_disabled;
-    const ui_color_t btn_armed;
-    const ui_color_t btn_text;
-    const ui_color_t toast; // toast background
-
+    ui_color_t const btn_gradient_darker;
+    ui_color_t const btn_gradient_dark;
+    ui_color_t const btn_hover_highlight;
+    ui_color_t const btn_disabled;
+    ui_color_t const btn_armed;
+    ui_color_t const btn_text;
+    ui_color_t const toast; // toast background
     /* Named colors */
-
     /* Main Panel Backgrounds */
-    const ui_color_t ennui_black; // rgb(18, 18, 18) 0x121212
-    const ui_color_t charcoal;
-    const ui_color_t onyx;
-    const ui_color_t gunmetal;
-    const ui_color_t jet_black;
-    const ui_color_t outer_space;
-    const ui_color_t eerie_black;
-    const ui_color_t oil;
-    const ui_color_t black_coral;
-    const ui_color_t obsidian;
-
+    ui_color_t const ennui_black; // rgb(18, 18, 18) 0x121212
+    ui_color_t const charcoal;
+    ui_color_t const onyx;
+    ui_color_t const gunmetal;
+    ui_color_t const jet_black;
+    ui_color_t const outer_space;
+    ui_color_t const eerie_black;
+    ui_color_t const oil;
+    ui_color_t const black_coral;
+    ui_color_t const obsidian;
     /* Secondary Panels or Sidebars */
-    const ui_color_t raisin_black;
-    const ui_color_t dark_charcoal;
-    const ui_color_t dark_jungle_green;
-    const ui_color_t pine_tree;
-    const ui_color_t rich_black;
-    const ui_color_t eclipse;
-    const ui_color_t cafe_noir;
-
+    ui_color_t const raisin_black;
+    ui_color_t const dark_charcoal;
+    ui_color_t const dark_jungle_green;
+    ui_color_t const pine_tree;
+    ui_color_t const rich_black;
+    ui_color_t const eclipse;
+    ui_color_t const cafe_noir;
     /* Flat Buttons */
-    const ui_color_t prussian_blue;
-    const ui_color_t midnight_green;
-    const ui_color_t charleston_green;
-    const ui_color_t rich_black_fogra;
-    const ui_color_t dark_liver;
-    const ui_color_t dark_slate_gray;
-    const ui_color_t black_olive;
-    const ui_color_t cadet;
-
+    ui_color_t const prussian_blue;
+    ui_color_t const midnight_green;
+    ui_color_t const charleston_green;
+    ui_color_t const rich_black_fogra;
+    ui_color_t const dark_liver;
+    ui_color_t const dark_slate_gray;
+    ui_color_t const black_olive;
+    ui_color_t const cadet;
     /* Button highlights (hover) */
-    const ui_color_t dark_sienna;
-    const ui_color_t bistre_brown;
-    const ui_color_t dark_puce;
-    const ui_color_t wenge;
-
+    ui_color_t const dark_sienna;
+    ui_color_t const bistre_brown;
+    ui_color_t const dark_puce;
+    ui_color_t const wenge;
     /* Raised button effects */
-    const ui_color_t dark_scarlet;
-    const ui_color_t burnt_umber;
-    const ui_color_t caput_mortuum;
-    const ui_color_t barn_red;
-
+    ui_color_t const dark_scarlet;
+    ui_color_t const burnt_umber;
+    ui_color_t const caput_mortuum;
+    ui_color_t const barn_red;
     /* Text and Icons */
-    const ui_color_t platinum;
-    const ui_color_t anti_flash_white;
-    const ui_color_t silver_sand;
-    const ui_color_t quick_silver;
-
+    ui_color_t const platinum;
+    ui_color_t const anti_flash_white;
+    ui_color_t const silver_sand;
+    ui_color_t const quick_silver;
     /* Links and Selections */
-    const ui_color_t dark_powder_blue;
-    const ui_color_t sapphire_blue;
-    const ui_color_t international_klein_blue;
-    const ui_color_t zaffre;
-
+    ui_color_t const dark_powder_blue;
+    ui_color_t const sapphire_blue;
+    ui_color_t const international_klein_blue;
+    ui_color_t const zaffre;
     /* Additional Colors */
-    const ui_color_t fish_belly;
-    const ui_color_t rusty_red;
-    const ui_color_t falu_red;
-    const ui_color_t cordovan;
-    const ui_color_t dark_raspberry;
-    const ui_color_t deep_magenta;
-    const ui_color_t byzantium;
-    const ui_color_t amethyst;
-    const ui_color_t wisteria;
-    const ui_color_t lavender_purple;
-    const ui_color_t opera_mauve;
-    const ui_color_t mauve_taupe;
-    const ui_color_t rich_lavender;
-    const ui_color_t pansy_purple;
-    const ui_color_t violet_eggplant;
-    const ui_color_t jazzberry_jam;
-    const ui_color_t dark_orchid;
-    const ui_color_t electric_purple;
-    const ui_color_t sky_magenta;
-    const ui_color_t brilliant_rose;
-    const ui_color_t fuchsia_purple;
-    const ui_color_t french_raspberry;
-    const ui_color_t wild_watermelon;
-    const ui_color_t neon_carrot;
-    const ui_color_t burnt_orange;
-    const ui_color_t carrot_orange;
-    const ui_color_t tiger_orange;
-    const ui_color_t giant_onion;
-    const ui_color_t rust;
-    const ui_color_t copper_red;
-    const ui_color_t dark_tangerine;
-    const ui_color_t bright_marigold;
-    const ui_color_t bone;
-
+    ui_color_t const fish_belly;
+    ui_color_t const rusty_red;
+    ui_color_t const falu_red;
+    ui_color_t const cordovan;
+    ui_color_t const dark_raspberry;
+    ui_color_t const deep_magenta;
+    ui_color_t const byzantium;
+    ui_color_t const amethyst;
+    ui_color_t const wisteria;
+    ui_color_t const lavender_purple;
+    ui_color_t const opera_mauve;
+    ui_color_t const mauve_taupe;
+    ui_color_t const rich_lavender;
+    ui_color_t const pansy_purple;
+    ui_color_t const violet_eggplant;
+    ui_color_t const jazzberry_jam;
+    ui_color_t const dark_orchid;
+    ui_color_t const electric_purple;
+    ui_color_t const sky_magenta;
+    ui_color_t const brilliant_rose;
+    ui_color_t const fuchsia_purple;
+    ui_color_t const french_raspberry;
+    ui_color_t const wild_watermelon;
+    ui_color_t const neon_carrot;
+    ui_color_t const burnt_orange;
+    ui_color_t const carrot_orange;
+    ui_color_t const tiger_orange;
+    ui_color_t const giant_onion;
+    ui_color_t const rust;
+    ui_color_t const copper_red;
+    ui_color_t const dark_tangerine;
+    ui_color_t const bright_marigold;
+    ui_color_t const bone;
     /* Earthy Tones */
-    const ui_color_t sienna;
-    const ui_color_t sandy_brown;
-    const ui_color_t golden_brown;
-    const ui_color_t camel;
-    const ui_color_t burnt_sienna;
-    const ui_color_t khaki;
-    const ui_color_t dark_khaki;
-
+    ui_color_t const sienna;
+    ui_color_t const sandy_brown;
+    ui_color_t const golden_brown;
+    ui_color_t const camel;
+    ui_color_t const burnt_sienna;
+    ui_color_t const khaki;
+    ui_color_t const dark_khaki;
     /* Greens */
-    const ui_color_t fern_green;
-    const ui_color_t moss_green;
-    const ui_color_t myrtle_green;
-    const ui_color_t pine_green;
-    const ui_color_t jungle_green;
-    const ui_color_t sacramento_green;
-
+    ui_color_t const fern_green;
+    ui_color_t const moss_green;
+    ui_color_t const myrtle_green;
+    ui_color_t const pine_green;
+    ui_color_t const jungle_green;
+    ui_color_t const sacramento_green;
     /* Blues */
-    const ui_color_t yale_blue;
-    const ui_color_t cobalt_blue;
-    const ui_color_t persian_blue;
-    const ui_color_t royal_blue;
-    const ui_color_t iceberg;
-    const ui_color_t blue_yonder;
-
+    ui_color_t const yale_blue;
+    ui_color_t const cobalt_blue;
+    ui_color_t const persian_blue;
+    ui_color_t const royal_blue;
+    ui_color_t const iceberg;
+    ui_color_t const blue_yonder;
     /* Miscellaneous */
-    const ui_color_t cocoa_brown;
-    const ui_color_t cinnamon_satin;
-    const ui_color_t fallow;
-    const ui_color_t cafe_au_lait;
-    const ui_color_t liver;
-    const ui_color_t shadow;
-    const ui_color_t cool_grey;
-    const ui_color_t payne_grey;
-
+    ui_color_t const cocoa_brown;
+    ui_color_t const cinnamon_satin;
+    ui_color_t const fallow;
+    ui_color_t const cafe_au_lait;
+    ui_color_t const liver;
+    ui_color_t const shadow;
+    ui_color_t const cool_grey;
+    ui_color_t const payne_grey;
     /* Lighter Tones for Contrast */
-    const ui_color_t timberwolf;
-    const ui_color_t silver_chalice;
-    const ui_color_t roman_silver;
-
+    ui_color_t const timberwolf;
+    ui_color_t const silver_chalice;
+    ui_color_t const roman_silver;
     /* Dark Mode Specific Highlights */
-    const ui_color_t electric_lavender;
-    const ui_color_t magenta_haze;
-    const ui_color_t cyber_grape;
-    const ui_color_t purple_navy;
-    const ui_color_t liberty;
-    const ui_color_t purple_mountain_majesty;
-    const ui_color_t ceil;
-    const ui_color_t moonstone_blue;
-    const ui_color_t independence;
+    ui_color_t const electric_lavender;
+    ui_color_t const magenta_haze;
+    ui_color_t const cyber_grape;
+    ui_color_t const purple_navy;
+    ui_color_t const liberty;
+    ui_color_t const purple_mountain_majesty;
+    ui_color_t const ceil;
+    ui_color_t const moonstone_blue;
+    ui_color_t const independence;
 } ui_colors_if;
 
 extern ui_colors_if ui_colors;
@@ -1313,7 +1299,7 @@ enum {
 };
 
 typedef struct  {
-    ui_color_t (*get_color)(int32_t color_id);
+    bool (*is_app_dark)(void);
     bool (*is_system_dark)(void);
     bool (*are_apps_dark)(void);
     void (*set_preferred_app_mode)(int32_t mode);
@@ -1635,7 +1621,6 @@ typedef struct {
     bool (*is_maximized)(void);
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
-    ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
     void (*set_title)(const char* title);
     void (*capture_mouse)(bool on); // capture mouse global input on/of
     void (*move_and_resize)(const ui_rect_t* rc);
@@ -2440,9 +2425,9 @@ static void ui_app_toast_paint(void) {
         int32_t h = ui_app.animating.view->h + em_h / 4;
         int32_t radius = em_w / 2;
         if (radius % 2 == 0) { radius++; }
-        ui_color_t color = ui_theme.are_apps_dark() ?
+        ui_color_t color = ui_theme.is_app_dark() ?
             ui_colors.toast :
-            ui_app.get_color(ui_color_id_button_face);
+            ui_colors.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
         ui_gdi.rounded(x, y, w, h, radius, tint, tint);
         if (!hint) { ui_app.animating.view->y += em_h / 4; }
@@ -2550,9 +2535,9 @@ static void ui_app_animate_start(ui_app_animate_function_t f, int32_t steps) {
 }
 
 static void ui_app_view_paint(ui_view_t* v) {
-    v->color = ui_app.get_color(v->color_id);
+    v->color = ui_colors.get_color(v->color_id);
     if (v->background_id > 0) {
-        v->background = ui_app.get_color(v->background_id);
+        v->background = ui_colors.get_color(v->background_id);
     }
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
@@ -2579,8 +2564,8 @@ static void ui_app_view_layout(void) {
 
 static void ui_app_view_active_frame_paint(void) {
     ui_color_t c = ui_app.is_active() ?
-        ui_app.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
-        ui_app.get_color(ui_color_id_inactive_title);
+        ui_colors.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
+        ui_colors.get_color(ui_color_id_inactive_title);
     assert(ui_app.border.w == ui_app.border.h);
     const int32_t w = ui_app.wrc.w;
     const int32_t h = ui_app.wrc.h;
@@ -3456,10 +3441,6 @@ static void ui_app_set_title(const char* title) {
     fatal_if_false(SetWindowTextA(ui_app_window(), ut_nls.str(title)));
 }
 
-static ui_color_t ui_app_get_color(int32_t color_id) {
-    return ui_theme.get_color(color_id); // SysGetColor() does not work on Win10
-}
-
 static void ui_app_capture_mouse(bool on) {
     static int32_t mouse_capture;
     if (on) {
@@ -3721,7 +3702,6 @@ static void ui_app_init(void) {
     ui_app.has_focus            = ui_app_has_focus;
     ui_app.request_focus        = ui_app_request_focus;
     ui_app.activate             = ui_app_activate;
-    ui_app.get_color            = ui_app_get_color;
     ui_app.set_title            = ui_app_set_title;
     ui_app.capture_mouse        = ui_app_capture_mouse;
     ui_app.move_and_resize      = ui_app_move_and_resize;
@@ -4029,7 +4009,7 @@ static void ui_button_paint(ui_view_t* v) {
     int32_t h = sign * (v->h - 2);
     int32_t x = (v->x + (int32_t)pressed * v->w) + sign;
     int32_t y = (v->y + (int32_t)pressed * v->h) + sign;
-    fp32_t d = ui_theme.are_apps_dark() ? 0.50f : 0.25f;
+    fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     d /= 4;
     ui_color_t d1 = ui_colors.darken(v->background, d);
@@ -4040,9 +4020,9 @@ static void ui_button_paint(ui_view_t* v) {
     if (!v->flat && v->armed) {
         c = ui_colors.btn_armed;
     }else if (!v->flat && v->hover && !v->armed) {
-        c = ui_app.get_color(ui_color_id_hot_tracking_color);
+        c = ui_colors.get_color(ui_color_id_hot_tracking_color);
     }
-    if (v->disabled) { c = ui_app.get_color(ui_color_id_gray_text); }
+    if (v->disabled) { c = ui_colors.get_color(ui_color_id_gray_text); }
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     const int32_t t_w = v->w - i.left - i.right;
     const int32_t t_h = v->h - i.top - i.bottom;
@@ -4264,8 +4244,8 @@ static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
 
 static ui_color_t ui_caption_color(void) {
     ui_color_t c = ui_app.is_active() ?
-        ui_theme.get_color(ui_color_id_active_title) :
-        ui_theme.get_color(ui_color_id_inactive_title);
+        ui_colors.get_color(ui_color_id_active_title) :
+        ui_colors.get_color(ui_color_id_inactive_title);
     return c;
 }
 
@@ -4533,6 +4513,36 @@ static ui_color_t ui_color_adjust_saturation(ui_color_t c,
     return ui_color_interpolate(c, gray, 1 - multiplier);
 }
 
+static struct {
+    const char* name;
+    ui_color_t  dark;
+    ui_color_t  light;
+} ui_theme_colors[] = { // empirical
+    { .name = "Undefiled"        ,.dark = ui_color_undefined, .light = ui_color_undefined },
+    { .name = "ActiveTitle"      ,.dark = 0x001F1F1F, .light = 0x00D1B499 },
+    { .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 },
+    { .name = "ButtonText"       ,.dark = 0x00F6F3EE, .light = 0x00000000 },
+    { .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D },
+    { .name = "Hilight"          ,.dark = 0x00626262, .light = 0x00D77800 },
+    { .name = "HilightText"      ,.dark = 0x00000000, .light = 0x00FFFFFF },
+    { .name = "HotTrackingColor" ,.dark = 0x00B77878, .light = 0x00CC6600 },
+    { .name = "InactiveTitle"    ,.dark = 0x002B2B2B, .light = 0x00DBCDBF },
+    { .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 },
+    { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
+    { .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 },
+//  { .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF }, // too contrast
+    { .name = "Window"           ,.dark = 0x00121212, .light = 0x00E0E0E0 },
+    { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
+};
+
+static ui_color_t ui_colors_get_color(int32_t color_id) {
+    // SysGetColor() does not work on Win10
+    swear(0 < color_id && color_id < countof(ui_theme_colors));
+    return ui_theme.is_app_dark() ?
+           ui_theme_colors[color_id].dark :
+           ui_theme_colors[color_id].light;
+}
+
 enum { // TODO: get rid of it?
     ui_colors_white     = ui_rgb(255, 255, 255),
     ui_colors_off_white = ui_rgb(192, 192, 192),
@@ -4545,6 +4555,7 @@ enum { // TODO: get rid of it?
 };
 
 ui_colors_if ui_colors = {
+    .get_color                = ui_colors_get_color,
     .rgb_to_hsi               = ui_color_rgb_to_hsi,
     .hsi_to_rgb               = ui_color_hsi_to_rgb,
     .interpolate              = ui_color_interpolate,
@@ -7364,9 +7375,9 @@ void ui_edit_init(ui_edit_t* e) {
 #pragma push_macro("ui_gdi_with_hdc")
 #pragma push_macro("ui_gdi_hdc_with_font")
 
-static ui_brush_t ui_gdi_brush_hollow;
-static ui_brush_t ui_gdi_brush_color;
-static ui_pen_t   ui_gdi_pen_hollow;
+static ui_brush_t  ui_gdi_brush_hollow;
+static ui_brush_t  ui_gdi_brush_color;
+static ui_pen_t    ui_gdi_pen_hollow;
 static ui_region_t ui_gdi_clip;
 
 typedef struct ui_gdi_context_s {
@@ -7441,7 +7452,7 @@ static void ui_gdi_begin(ui_image_t* image) {
     ui_gdi_context.brush = ui_gdi_set_brush(ui_gdi_brush_hollow);
     fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
         &ui_gdi_context.brush_origin));
-    ui_color_t tc = ui_app.get_color(ui_color_id_window_text);
+    ui_color_t tc = ui_colors.get_color(ui_color_id_window_text);
     ui_gdi_context.text_color = ui_gdi_set_text_color(tc);
     ui_gdi_context.background_mode = SetBkMode(ui_gdi_hdc(), TRANSPARENT);
     ui_gdi_context.stretch_mode = SetStretchBltMode(ui_gdi_hdc(), HALFTONE);
@@ -8297,7 +8308,7 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
     if (!ta->measure) {
         if (ui_color_is_undefined(c)) {
             swear(ta->color_id > 0);
-            c = ui_theme.get_color(ta->color_id);
+            c = ui_colors.get_color(ta->color_id);
         } else {
             swear(ta->color_id == 0);
         }
@@ -8468,7 +8479,7 @@ static void ui_label_paint(ui_view_t* v) {
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
-        ui_color_t highlight = ui_app.get_color(ui_color_id_highlight);
+        ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
         int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
         ui_gdi.rounded(v->x - radius, v->y, v->w + 2 * radius, h,
@@ -8909,7 +8920,7 @@ static void ui_slider_paint(ui_view_t* v) {
     const int32_t w = sw;
     const int32_t h = v->h;
     // draw background:
-    fp32_t d = ui_theme.are_apps_dark() ? 0.50f : 0.25f;
+    fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     d /= 4;
     ui_color_t d1 = ui_colors.darken(v->background, d);
@@ -8918,7 +8929,7 @@ static void ui_slider_paint(ui_view_t* v) {
 //  traceln("gradient(x: %d  w: %d)", x, w);
     ui_gdi.gradient(x, y, w, h, d1, d0, true);
     // draw value:
-    ui_color_t c = ui_theme.are_apps_dark() ?
+    ui_color_t c = ui_theme.is_app_dark() ?
         ui_colors.darken(ui_colors.green, 1.0f / 128.0f) :
         ui_colors.jungle_green;
     d1 = c;
@@ -9135,29 +9146,6 @@ static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
     return r;
 }
 
-static struct {
-    const char* name;
-    ui_color_t  dark;
-    ui_color_t  light;
-} ui_theme_colors[] = { // empirical
-    { .name = "Undefiled"        ,.dark = ui_color_undefined, .light = ui_color_undefined },
-    { .name = "ActiveTitle"      ,.dark = 0x001F1F1F, .light = 0x00D1B499 },
-    { .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 },
-    { .name = "ButtonText"       ,.dark = 0x00F6F3EE, .light = 0x00000000 },
-    { .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D },
-    { .name = "Hilight"          ,.dark = 0x00626262, .light = 0x00D77800 },
-    { .name = "HilightText"      ,.dark = 0x00000000, .light = 0x00FFFFFF },
-    { .name = "HotTrackingColor" ,.dark = 0x00B77878, .light = 0x00CC6600 },
-    { .name = "InactiveTitle"    ,.dark = 0x002B2B2B, .light = 0x00DBCDBF },
-    { .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 },
-    { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
-    { .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 },
-//  { .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF }, // too contrast
-    { .name = "Window"           ,.dark = 0x00121212, .light = 0x00E0E0E0 },
-    { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
-};
-
-
 #pragma push_macro("ux_theme_reg_cv")
 #pragma push_macro("ux_theme_reg_default_colors")
 
@@ -9262,10 +9250,15 @@ static bool ui_theme_is_system_dark(void) {
     return !ui_theme_use_light_theme("SystemUsesLightTheme");
 }
 
+static bool ui_theme_is_app_dark(void) {
+    if (ui_theme_dark < 0) { ui_theme_dark = ui_theme.are_apps_dark(); }
+    return ui_theme_dark;
+}
+
 static void ui_theme_refresh(void) {
     swear(ui_app.window != null);
     ui_theme_dark = -1;
-    BOOL dark_mode = ui_theme.are_apps_dark();
+    BOOL dark_mode = ui_theme_is_app_dark(); // must be 32-bit "BOOL"
     static const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
     /* 20 == DWMWA_USE_IMMERSIVE_DARK_MODE in Windows 11 SDK.
        This value was undocumented for Windows 10 versions 2004
@@ -9284,17 +9277,8 @@ static void ui_theme_refresh(void) {
     ui_app.request_layout();
 }
 
-static ui_color_t ui_theme_get_color(int32_t color_id) {
-    swear(0 < color_id && color_id < countof(ui_theme_colors));
-    if (ui_theme_dark < 0) {
-        ui_theme_dark = ui_theme.are_apps_dark();
-    }
-    return ui_theme_dark ? ui_theme_colors[color_id].dark :
-                           ui_theme_colors[color_id].light;
-}
-
 ui_theme_if ui_theme = {
-    .get_color                    = ui_theme_get_color,
+    .is_app_dark                  = ui_theme_is_app_dark,
     .is_system_dark               = ui_theme_is_system_dark,
     .are_apps_dark                = ui_theme_are_apps_dark,
     .set_preferred_app_mode       = ui_theme_set_preferred_app_mode,
@@ -9311,7 +9295,7 @@ ui_theme_if ui_theme = {
 
 static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_color_t c = v->background;
-    if (!ui_theme.are_apps_dark()) { c = ui_colors.darken(c, 0.25f); }
+    if (!ui_theme.is_app_dark()) { c = ui_colors.darken(c, 0.25f); }
     ui_color_t b = v->pressed ? ui_colors.tone_green : c;
     const int32_t bl = v->fm->baseline;
     const int32_t a = v->fm->ascent;
@@ -9329,9 +9313,9 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_gdi.fill(x, y1 - r, w - r + 1, h, b);
     int32_t x1 = v->pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
-    ui_color_t fill = ui_theme.are_apps_dark() ?
+    ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
-    ui_color_t border = ui_theme.are_apps_dark() ?
+    ui_color_t border = ui_theme.is_app_dark() ?
         ui_colors.darken(fill, 0.5f) : ui_colors.lighten(fill, 0.5f);
     ui_gdi.circle(x1, y1, r, border, fill);
     return x + w;
@@ -9870,10 +9854,10 @@ static void ui_view_character(ui_view_t* v, const char* utf8) {
 
 static void ui_view_resolve_color_ids(ui_view_t* v) {
     if (v->color_id > 0) {
-        v->color = ui_app.get_color(v->color_id);
+        v->color = ui_colors.get_color(v->color_id);
     }
     if (v->background_id > 0) {
-        v->background = ui_app.get_color(v->background_id);
+        v->background = ui_colors.get_color(v->background_id);
     }
 }
 

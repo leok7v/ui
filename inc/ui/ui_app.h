@@ -93,7 +93,6 @@ typedef struct {
     bool (*is_maximized)(void);
     bool (*has_focus)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
-    ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
     void (*set_title)(const char* title);
     void (*capture_mouse)(bool on); // capture mouse global input on/of
     void (*move_and_resize)(const ui_rect_t* rc);

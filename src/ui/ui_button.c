@@ -21,7 +21,7 @@ static void ui_button_paint(ui_view_t* v) {
     int32_t h = sign * (v->h - 2);
     int32_t x = (v->x + (int32_t)pressed * v->w) + sign;
     int32_t y = (v->y + (int32_t)pressed * v->h) + sign;
-    fp32_t d = ui_theme.are_apps_dark() ? 0.50f : 0.25f;
+    fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     d /= 4;
     ui_color_t d1 = ui_colors.darken(v->background, d);
@@ -32,9 +32,9 @@ static void ui_button_paint(ui_view_t* v) {
     if (!v->flat && v->armed) {
         c = ui_colors.btn_armed;
     }else if (!v->flat && v->hover && !v->armed) {
-        c = ui_app.get_color(ui_color_id_hot_tracking_color);
+        c = ui_colors.get_color(ui_color_id_hot_tracking_color);
     }
-    if (v->disabled) { c = ui_app.get_color(ui_color_id_gray_text); }
+    if (v->disabled) { c = ui_colors.get_color(ui_color_id_gray_text); }
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     const int32_t t_w = v->w - i.left - i.right;
     const int32_t t_h = v->h - i.top - i.bottom;

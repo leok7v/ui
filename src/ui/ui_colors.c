@@ -143,6 +143,36 @@ static ui_color_t ui_color_adjust_saturation(ui_color_t c,
     return ui_color_interpolate(c, gray, 1 - multiplier);
 }
 
+static struct {
+    const char* name;
+    ui_color_t  dark;
+    ui_color_t  light;
+} ui_theme_colors[] = { // empirical
+    { .name = "Undefiled"        ,.dark = ui_color_undefined, .light = ui_color_undefined },
+    { .name = "ActiveTitle"      ,.dark = 0x001F1F1F, .light = 0x00D1B499 },
+    { .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 },
+    { .name = "ButtonText"       ,.dark = 0x00F6F3EE, .light = 0x00000000 },
+    { .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D },
+    { .name = "Hilight"          ,.dark = 0x00626262, .light = 0x00D77800 },
+    { .name = "HilightText"      ,.dark = 0x00000000, .light = 0x00FFFFFF },
+    { .name = "HotTrackingColor" ,.dark = 0x00B77878, .light = 0x00CC6600 },
+    { .name = "InactiveTitle"    ,.dark = 0x002B2B2B, .light = 0x00DBCDBF },
+    { .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 },
+    { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
+    { .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 },
+//  { .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF }, // too contrast
+    { .name = "Window"           ,.dark = 0x00121212, .light = 0x00E0E0E0 },
+    { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
+};
+
+static ui_color_t ui_colors_get_color(int32_t color_id) {
+    // SysGetColor() does not work on Win10
+    swear(0 < color_id && color_id < countof(ui_theme_colors));
+    return ui_theme.is_app_dark() ?
+           ui_theme_colors[color_id].dark :
+           ui_theme_colors[color_id].light;
+}
+
 enum { // TODO: get rid of it?
     ui_colors_white     = ui_rgb(255, 255, 255),
     ui_colors_off_white = ui_rgb(192, 192, 192),
@@ -155,6 +185,7 @@ enum { // TODO: get rid of it?
 };
 
 ui_colors_if ui_colors = {
+    .get_color                = ui_colors_get_color,
     .rgb_to_hsi               = ui_color_rgb_to_hsi,
     .hsi_to_rgb               = ui_color_hsi_to_rgb,
     .interpolate              = ui_color_interpolate,
