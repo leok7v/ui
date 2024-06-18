@@ -8,13 +8,13 @@ typedef ui_view_t ui_label_t;
 
 void ui_view_init_label(ui_view_t* view);
 
-// label insets and padding left/rigt are intentionaly
+// label insets and padding left/right are intentionally
 // smaller than button/slider/toggle controls
 
 #define ui_label(min_width_em, s) {                    \
     .type = ui_view_label, .init = ui_view_init_label, \
     .fm = &ui_app.fonts.regular,                       \
-    .string_ = s,                                      \
+    .p.text = s,                                       \
     .min_w_em = min_width_em, .min_h_em = 1.0,         \
     .insets  = {                                       \
         .left  = 0.25f, .top    = ui_view_i_t,         \

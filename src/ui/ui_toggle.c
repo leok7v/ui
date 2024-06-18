@@ -46,18 +46,14 @@ static void ui_toggle_measured(ui_view_t* v) {
 
 static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    char text[countof(v->string_)];
+    char text[countof(v->p.text)];
     const char* label = ui_toggle_on_off_label(v, text, countof(text));
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    ui_gdi.push(v->x + i.left, v->y + i.top);
-    ui_font_t f = ui_gdi.set_font(v->fm->font);
-    ui_gdi.x = ui_toggle_paint_on_off(v, ui_gdi.x, ui_gdi.y);
-    ui_gdi.x += v->fm->em.w / 4;
-    ui_color_t c = ui_gdi.set_text_color(v->color);
-    ui_gdi.text("%s", label);
-    ui_gdi.set_text_color(c);
-    ui_gdi.set_font(f);
-    ui_gdi.pop();
+    const int32_t tx = v->x + i.left;
+    const int32_t ty = v->y + i.top;
+    const int32_t x = ui_toggle_paint_on_off(v, tx, ty) + v->fm->em.w / 4;
+    const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
+    ui_gdi.draw_text(&ta, x, ty, "%s", ut_nls.str(label));
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {

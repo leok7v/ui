@@ -1,8 +1,9 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "single_file_lib/ut/ut.h"
-#include "single_file_lib/ui/ui.h"
+#include "ut/ut.h"
+#include "ui/ui.h"
+// #include "single_file_lib/ut/ut.h"
+// #include "single_file_lib/ui/ui.h"
 
-static bool debug_layout = false;
 
 const char* title = "Sample5";
 
@@ -43,10 +44,10 @@ static void focus_back_to_edit(void) {
 static void scaled_fonts(void) {
     assert(0 <= fx && fx < countof(fs));
     if (mf.font != null) { ui_gdi.delete_font(mf.font); }
-    int32_t h = (int32_t)(ui_gdi.font_height(ui_app.fonts.mono.font) * fs[fx] + 0.5);
+    int32_t h = (int32_t)(ui_app.fonts.mono.height * fs[fx] + 0.5);
     ui_gdi.update_fm(&mf, ui_gdi.font(ui_app.fonts.mono.font, h, -1));
     if (pf.font != null) { ui_gdi.delete_font(pf.font); }
-    h = (int32_t)(ui_gdi.font_height(ui_app.fonts.regular.font) * fs[fx] + 0.5);
+    h = (int32_t)(ui_app.fonts.regular.height * fs[fx] + 0.5);
     ui_gdi.update_fm(&pf, ui_gdi.font(ui_app.fonts.regular.font, h, -1));
 }
 
@@ -168,32 +169,7 @@ static void painted(void) {
     }
 }
 
-static void paint_frames(ui_view_t* v) {
-    ui_view_for_each(v, c, { paint_frames(c); });
-    ui_color_t fc[] = {
-        ui_colors.red, ui_colors.green, ui_colors.blue, ui_colors.red,
-        ui_colors.yellow, ui_colors.cyan, ui_colors.magenta
-    };
-    static int32_t color;
-    ui_gdi.push(v->x, v->y + v->h - v->fm->em.h);
-    ui_gdi.frame_with(v->x, v->y, v->w, v->h, fc[color]);
-    ui_color_t c = ui_gdi.set_text_color(fc[color]);
-    ui_gdi.print("%s", ui_view.string(v));
-    ui_gdi.set_text_color(c);
-    ui_gdi.pop();
-    color = (color + 1) % countof(fc);
-}
-
-static void null_paint(ui_view_t* v) {
-    ui_view_for_each(v, c, { null_paint(c); });
-    if (v != ui_app.content) {
-        v->paint = null;
-    }
-}
-
 static void paint(ui_view_t* v) {
-//  traceln("");
-    if (debug_layout) { null_paint(v); }
     ui_gdi.fill_with(0, 0, v->w, v->h, ui_colors.black);
     int32_t ix = focused();
     for (int32_t i = 0; i < countof(edit); i++) {
@@ -204,7 +180,6 @@ static void paint(ui_view_t* v) {
             i == ix ? c : ui_colors.dkgray4);
     }
     painted();
-    if (debug_layout) { paint_frames(v); }
     if (ix >= 0) {
         ro.pressed = edit[ix]->ro;
         sl.pressed = edit[ix]->sle;

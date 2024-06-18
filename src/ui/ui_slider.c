@@ -10,23 +10,33 @@ static int32_t ui_slider_width(const ui_slider_t* s) {
     return i.left + ut_max(em, ut_max(mw, s->mt.w)) + i.right;
 }
 
+static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
+    va_list vl;
+    va_start(vl, format);
+    const ui_gdi_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
+    ui_wh_t wh = ui_gdi.draw_text_va(&ta, 0, 0, format, vl);
+    va_end(vl);
+    return wh;
+}
+
 static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
-    char formatted[countof(s->view.string_)];
+    char formatted[countof(s->view.p.text)];
     const char* text = ui_view.string(&s->view);
-    ui_font_t f = s->view.fm->font;
     ui_wh_t mt = s->view.fm->em;
     if (s->view.format != null) {
         s->view.format(&s->view);
         strprintf(formatted, "%s", text);
-        mt = ui_gdi.measure_text(f, "%s", formatted);
-    } else if (text != null && strstr(text, "%d") != null) {
-        ui_wh_t mt_min = ui_gdi.measure_text(f, text, s->value_min);
-        ui_wh_t mt_max = ui_gdi.measure_text(f, text, s->value_max);
-        ui_wh_t mt_val = ui_gdi.measure_text(f, text, s->value);
+        mt = measure_text(s->view.fm, "%s", formatted);
+        // TODO: format string 0x08X?
+    } else if (text != null && (strstr(text, "%d") != null ||
+                                strstr(text, "%u") != null)) {
+        ui_wh_t mt_min = measure_text(s->view.fm, text, s->value_min);
+        ui_wh_t mt_max = measure_text(s->view.fm, text, s->value_max);
+        ui_wh_t mt_val = measure_text(s->view.fm, text, s->value);
         mt.h = ut_max(mt_val.h, ut_max(mt_min.h, mt_max.h));
         mt.w = ut_max(mt_val.w, ut_max(mt_min.w, mt_max.w));
     } else if (text != null && text[0] != 0) {
-        mt = ui_gdi.measure_text(f, "%s", text);
+        mt = measure_text(s->view.fm, "%s", text);
     }
     return mt;
 }
@@ -69,7 +79,7 @@ static void ui_slider_layout(ui_view_t* v) {
 static void ui_slider_paint(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-    ui_gdi.push(v->x, v->y);
+//  ui_gdi.push(v->x, v->y);
     ui_gdi.set_clip(v->x, v->y, v->w, v->h);
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
@@ -102,26 +112,27 @@ static void ui_slider_paint(ui_view_t* v) {
     fp64_t vw = (fp64_t)sw * (s->value - s->value_min) / range;
     ui_gdi.gradient(x, y, (int32_t)(vw + 0.5), h, d1, d0, true);
     // text:
-    ui_wh_t mt = ui_slider_measure_text(s);
-    const int32_t cx = (sw - mt.w) / 2; // centering offset
-    ui_gdi.x = v->x + cx + (s->dec.hidden ? 0 : dec_w);
-    ui_gdi.y = v->y + i.top;
-    c = ui_gdi.set_text_color(v->color);
-    ui_font_t f = ui_gdi.set_font(v->fm->font);
     const char* text = ui_view.string(v);
+    char formatted[countof(v->p.text)];
     if (s->view.format != null) {
         s->view.format(v);
-        ui_gdi.text("%s", text);
-    } else if (text != null && strstr(text, "%d") != null) {
-        ui_gdi.text(text, s->value);
-    } else if (text != null && text[0] != 0) {
-        ui_gdi.text("%s", text);
+        s->view.p.strid = 0; // nls again
+        text = ui_view.string(v);
+    } else if (text != null && (strstr(text, "%d") != null) ||
+                                strstr(text, "%u") != null) {
+        ut_str.format(formatted, countof(formatted), text, s->value);
+        s->view.p.strid = 0; // nls again
+        text = ut_nls.str(formatted);
     }
-    ui_gdi.set_font(f);
-    ui_gdi.set_text_color(c);
+    ui_wh_t mt = ui_slider_measure_text(s);
+    const int32_t cx = (sw - mt.w) / 2; // centering offset
+    const int32_t tx = v->x + cx + (s->dec.hidden ? 0 : dec_w);
+    const int32_t ty = v->y + i.top;
+    const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
+    ui_gdi.draw_text(&ta, tx, ty, "%s", text);
     // unclip
     ui_gdi.set_clip(0, 0, 0, 0);
-    ui_gdi.pop();
+//  ui_gdi.pop();
 }
 
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {

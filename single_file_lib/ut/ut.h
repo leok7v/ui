@@ -1290,11 +1290,11 @@ typedef struct { // i18n national language support
     void (*init)(void);
     const char* (*locale)(void);  // "en-US" "zh-CN" etc...
     // force locale for debugging and testing:
-    void (*set_locale)(const char* locale); // only for calling thread
+    errno_t (*set_locale)(const char* locale); // only for calling thread
     // nls(s) is same as string(strid(s), s)
     const char* (*str)(const char* defau1t); // returns localized string
-    // strid("foo") returns 0 if there is no matching ENGLISH NEUTRAL
-    // STRINGTABLE entry
+    // strid("foo") returns -1 if there is no matching
+    // ENGLISH NEUTRAL STRINGTABLE entry
     int32_t (*strid)(const char* s);
     // given strid > 0 returns localized string or default value
     const char* (*string)(int32_t strid, const char* defau1t);
@@ -4981,17 +4981,17 @@ static int32_t ut_nls_strings_count;
 static const char* ut_nls_ls[ut_nls_str_count_max]; // localized strings
 static const char* ut_nls_ns[ut_nls_str_count_max]; // neutral language strings
 
-static uint16_t* ut_nls_load_string(int32_t strid, LANGID langid) {
+static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
     assert(0 <= strid && strid < countof(ut_nls_ns));
     uint16_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
     HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
-        MAKEINTRESOURCE(block), langid);
-//  traceln("FindResourceExA(block=%d langid=%04X)=%p", block, langid, res);
+        MAKEINTRESOURCE(block), lang_id);
+//  traceln("FindResourceExA(block=%d lang_id=%04X)=%p", block, lang_id, res);
     uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
     uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
-//  traceln("LockResource(block=%d langid=%04X)=%p", block, langid, ws);
+//  traceln("LockResource(block=%d lang_id=%04X)=%p", block, lang_id, ws);
     if (ws != null) {
         for (int32_t i = 0; i < 16 && r == null; i++) {
             if (ws[0] != 0) {
@@ -4999,7 +4999,7 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID langid) {
                 ws++;
                 assert(ws[count - 1] == 0, "use rc.exe /n command line option");
                 if (i == index) { // the string has been found
-//                  traceln("%04X found %s", langid, utf16to8(ws));
+//                  traceln("%04X found %s", lang_id, utf16to8(ws));
                     r = ws;
                 }
                 ws += count;
@@ -5024,91 +5024,95 @@ static const char* ut_nls_save_string(uint16_t* utf16) {
     return s;
 }
 
-static const char* ut_nls_localize_string(int32_t strid) {
-    assert(0 < strid && strid < countof(ut_nls_ns));
-    const char* r = null;
+static const char* ut_nls_localized_string(int32_t strid) {
+    swear(0 < strid && strid < countof(ut_nls_ns));
+    const char* s = null;
     if (0 < strid && strid < countof(ut_nls_ns)) {
         if (ut_nls_ls[strid] != null) {
-            r = ut_nls_ls[strid];
+            s = ut_nls_ls[strid];
         } else {
-            LCID lcid = GetThreadLocale();
-            LANGID langid = LANGIDFROMLCID(lcid);
-            uint16_t* ws = ut_nls_load_string(strid, langid);
-            if (ws == null) { // try default dialect:
-                LANGID primary = PRIMARYLANGID(langid);
-                langid = MAKELANGID(primary, SUBLANG_NEUTRAL);
-                ws = ut_nls_load_string(strid, langid);
+            LCID lc_id = GetThreadLocale();
+            LANGID lang_id = LANGIDFROMLCID(lc_id);
+            uint16_t* utf16 = ut_nls_load_string(strid, lang_id);
+            if (utf16 == null) { // try default dialect:
+                LANGID primary = PRIMARYLANGID(lang_id);
+                lang_id = MAKELANGID(primary, SUBLANG_NEUTRAL);
+                utf16 = ut_nls_load_string(strid, lang_id);
             }
-            if (ws != null && ws[0] != 0x0000) {
-                r = ut_nls_save_string(ws);
-                ut_nls_ls[strid] = r;
+            if (utf16 != null && utf16[0] != 0x0000) {
+                s = ut_nls_save_string(utf16);
+                ut_nls_ls[strid] = s;
             }
         }
     }
-    return r;
+    return s;
 }
 
 static int32_t ut_nls_strid(const char* s) {
-    int32_t strid = 0;
-    for (int32_t i = 1; i < ut_nls_strings_count && strid == 0; i++) {
+    int32_t strid = -1;
+    for (int32_t i = 1; i < ut_nls_strings_count && strid == -1; i++) {
         if (ut_nls_ns[i] != null && strcmp(s, ut_nls_ns[i]) == 0) {
             strid = i;
-            ut_nls_localize_string(strid); // to save it, ignore result
+            ut_nls_localized_string(strid); // to save it, ignore result
         }
     }
     return strid;
 }
 
 static const char* ut_nls_string(int32_t strid, const char* defau1t) {
-    const char* r = ut_nls_localize_string(strid);
+    const char* r = ut_nls_localized_string(strid);
     return r == null ? defau1t : r;
 }
 
 static const char* ut_nls_str(const char* s) {
     int32_t id = ut_nls_strid(s);
-    return id == 0 ? s : ut_nls_string(id, s);
+    return id < 0 ? s : ut_nls_string(id, s);
 }
 
 static const char* ut_nls_locale(void) {
-    uint16_t wln[LOCALE_NAME_MAX_LENGTH + 1];
-    LCID lcid = GetThreadLocale();
-    int32_t n = LCIDToLocaleName(lcid, wln, countof(wln),
+    uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
+    LCID lc_id = GetThreadLocale();
+    int32_t n = LCIDToLocaleName(lc_id, utf16, countof(utf16),
         LOCALE_ALLOW_NEUTRAL_NAMES);
     static char ln[LOCALE_NAME_MAX_LENGTH * 4 + 1];
     ln[0] = 0;
     if (n == 0) {
         // TODO: log error
     } else {
-        ut_str.utf16to8(ln, countof(ln), wln);
+        ut_str.utf16to8(ln, countof(ln), utf16);
     }
     return ln;
 }
 
-static void ut_nls_set_locale(const char* locale) {
-    uint16_t wln[LOCALE_NAME_MAX_LENGTH + 1];
-    ut_str.utf8to16(wln, countof(wln), locale);
-    uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-    int32_t n = (int32_t)ResolveLocaleName(wln, rln, (DWORD)countof(rln));
+static errno_t ut_nls_set_locale(const char* locale) {
+    errno_t r = 0;
+    uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
+    ut_str.utf8to16(utf16, countof(utf16), locale);
+    uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1]; // resolved locale name
+    int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)countof(rln));
     if (n == 0) {
-        // TODO: log error
+        r = ut_runtime.err();
+        traceln("ResolveLocaleName(\"%s\") failed %s", locale, ut_str.error(r));
     } else {
-        LCID lcid = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
-        if (lcid == 0) {
-            // TODO: log error
+        LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
+        if (lc_id == 0) {
+            r = ut_runtime.err();
+            traceln("LocaleNameToLCID(\"%s\") failed %s", locale, ut_str.error(r));
         } else {
-            fatal_if_false(SetThreadLocale(lcid));
+            fatal_if_false(SetThreadLocale(lc_id));
             memset((void*)ut_nls_ls, 0, sizeof(ut_nls_ls)); // start all over
         }
     }
+    return r;
 }
 
 static void ut_nls_init(void) {
     static_assert(countof(ut_nls_ns) % 16 == 0, "countof(ns) must be multiple of 16");
-    LANGID langid = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
+    LANGID lang_id = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
     for (int32_t strid = 0; strid < countof(ut_nls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
         HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
-            MAKEINTRESOURCE(block), langid);
+            MAKEINTRESOURCE(block), lang_id);
         uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
         uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
         if (ws == null) { break; }
@@ -5120,7 +5124,7 @@ static void ut_nls_init(void) {
                 fatal_if_false(ws[count - 1] == 0, "use rc.exe /n");
                 ut_nls_ns[ix] = ut_nls_save_string(ws);
                 ut_nls_strings_count = ix + 1;
-//              traceln("ns[%d] := %d \"%s\"", ix, strlen(ns[ix]), ns[ix]);
+//              traceln("ns[%d] := %d \"%s\"", ix, strlen(ut_nls_ns[ix]), ut_nls_ns[ix]);
                 ws += count;
             } else {
                 ws++;

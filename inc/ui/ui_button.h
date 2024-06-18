@@ -23,7 +23,8 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
         .type = ui_view_button,                             \
         .init = ui_view_init_button,                        \
         .fm = &ui_app.fonts.regular,                        \
-        .string_ = s, .callback = name ## _callback,        \
+        .p.text = s,                                        \
+        .callback = name ## _callback,                      \
         .min_w_em = min_width_em, .min_h_em = 1.0,          \
         .insets  = {                                        \
             .left  = ui_view_i_lr, .top    = ui_view_i_t,   \
@@ -39,7 +40,8 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     .type = ui_view_button,                                 \
     .init = ui_view_init_button,                            \
     .fm = &ui_app.fonts.regular,                            \
-    .string_ = s, .callback = call_back,                    \
+    .p.text = s,                                            \
+    .callback = call_back,                                  \
     .min_w_em = min_width_em, .min_h_em = 1.0,              \
     .insets  = {                                            \
         .left  = ui_view_i_lr, .top    = ui_view_i_t,       \

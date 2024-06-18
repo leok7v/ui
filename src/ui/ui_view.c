@@ -155,16 +155,36 @@ static void ui_view_invalidate(const ui_view_t* v) {
 }
 
 static const char* ui_view_string(ui_view_t* v) {
-    if (v->strid == 0) {
-        int32_t id = ut_nls.strid(v->string_);
-        v->strid = id > 0 ? id : -1;
+    if (v->p.strid == 0) {
+        int32_t id = ut_nls.strid(v->p.text);
+        v->p.strid = id > 0 ? id : -1;
     }
-    return v->strid < 0 ? v->string_ : // not localized
-        ut_nls.string(v->strid, v->string_);
+    return v->p.strid < 0 ? v->p.text : // not localized
+        ut_nls.string(v->p.strid, v->p.text);
+}
+
+static ui_wh_t ui_view_text_metrics_va(int32_t x, int32_t y,
+        bool multiline, int32_t w, const ui_fm_t* fm,
+        const char* format, va_list va) {
+    const ui_gdi_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
+                             .measure = true };
+    return multiline ?
+        ui_gdi.draw_multiline_va(&ta, x, y, w, format, va) :
+        ui_gdi.draw_text_va(&ta, x, y, format, va);
+}
+
+static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
+        bool multiline, int32_t w, const ui_fm_t* fm,
+        const char* format, ...) {
+    va_list va;
+    va_start(va, format);
+    ui_wh_t wh = ui_view_text_metrics_va(x, y, multiline, w, fm, format, va);
+    va_end(va);
+    return wh;
 }
 
 static void ui_view_measure_text(ui_view_t* v) {
-    v->strid = 0;
+    v->p.strid = 0;
     const char* s = ui_view.string(v);
     if (ui_view_debug_measure_text) {
         traceln(">%s em: %dx%d min: %.1fx%.1f", s,
@@ -179,10 +199,9 @@ static void ui_view_measure_text(ui_view_t* v) {
         bool multiline = strchr(s, '\n') != null;
         if (v->type == ui_view_label && multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-            int32_t mw = w == 0 ? -1 : w;
-            mt = ui_gdi.measure_multiline(v->fm->font, mw, "%s", s);
+            mt = ui_view_text_metrics(v->x, v->y, true,  w, v->fm, "%s", s);
         } else {
-            mt = ui_gdi.measure_text(v->fm->font, "%s", s);
+            mt = ui_view_text_metrics(v->x, v->y, false, 0, v->fm, "%s", s);
         }
     }
     if (ui_view_debug_measure_text) {
@@ -304,13 +323,13 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
 }
 
 static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list vl) {
-    char t[countof(v->string_)];
+    char t[countof(v->p.text)];
     ut_str.format_va(t, countof(t), format, vl);
-    char* s = v->string_;
+    char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);
         memcpy(s, t, n + 1);
-        v->strid = 0; // next call to nls() will localize it
+        v->p.strid = 0; // next call to nls() will localize it
         // TODO: we need both "&Keyboard Shortcut" and no shortcut
         //       strings. In here, bit that tells the story and DrawText
         for (int32_t i = 0; i < n; i++) {
@@ -516,12 +535,12 @@ static void ui_view_mouse_wheel(ui_view_t* v, int32_t dx, int32_t dy) {
 static void ui_view_hover_changed(ui_view_t* v) {
     if (!v->hidden) {
         if (!v->hover) {
-            v->hover_when = 0;
+            v->p.hover_when = 0;
             ui_view.hovering(v, false); // cancel hover
         } else {
             swear(ui_view_hover_delay >= 0);
-            if (v->hover_when >= 0) {
-                v->hover_when = ui_app.now + ui_view_hover_delay;
+            if (v->p.hover_when >= 0) {
+                v->p.hover_when = ui_app.now + ui_view_hover_delay;
             }
         }
     }
@@ -584,8 +603,8 @@ static bool ui_view_context_menu(ui_view_t* v) {
 static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
     if (!view->hidden) {
-        if (view->hover_when > 0 && ui_app.now > view->hover_when) {
-            view->hover_when = -1; // "already called"
+        if (view->p.hover_when > 0 && ui_app.now > view->p.hover_when) {
+            view->p.hover_when = -1; // "already called"
             ui_view.hovering(view, true);
         }
     }
@@ -602,7 +621,7 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
 }
 
 static void ui_view_debug_paint(ui_view_t* v) {
-    ui_gdi.push(v->x, v->y);
+//  ui_gdi.push(v->x, v->y);
     bool container = v->type == ui_view_container ||
                      v->type == ui_view_span ||
                      v->type == ui_view_list ||
@@ -624,15 +643,14 @@ static void ui_view_debug_paint(ui_view_t* v) {
     if (i.top   > 0)  { ui_gdi.frame_with(v->x, v->y,            v->w, i.top, ui_colors.orange); }
     if (i.bottom > 0) { ui_gdi.frame_with(v->x, v->y + v->h - i.bottom, v->w, i.bottom, ui_colors.orange); }
     if (container && v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
-        ui_gdi.set_text_color(ui_color_rgb(v->color) ^ 0xFFFFFF);
-        ui_wh_t mt = ui_gdi.measure_text(v->fm->font, ui_view.string(v));
-        ui_gdi.x += (v->w - mt.w) / 2;
-        ui_gdi.y += (v->h - mt.h) / 2;
-        ui_font_t f = ui_gdi.set_font(v->fm->font);
-        ui_gdi.text("%s", ui_view.string(v));
-        ui_gdi.set_font(f);
+        ui_wh_t mt = ui_view_text_metrics(v->x, v->y, false, 0, v->fm, "%s", ui_view.string(v));
+        const int32_t tx = ui_gdi.x + (v->w - mt.w) / 2;
+        const int32_t ty = ui_gdi.y + (v->h - mt.h) / 2;
+        const ui_color_t c = ui_color_rgb(v->color) ^ 0xFFFFFF;
+        const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
+        ui_gdi.draw_text(&ta, tx, ty, "%s", ui_view.string(v));
     }
-    ui_gdi.pop();
+//  ui_gdi.pop();
 }
 
 #pragma push_macro("ui_view_no_siblings")
@@ -727,6 +745,8 @@ ui_view_if ui_view = {
     .set_text           = ui_view_set_text,
     .set_text_va        = ui_view_set_text_va,
     .invalidate         = ui_view_invalidate,
+    .text_metrics_va    = ui_view_text_metrics_va,
+    .text_metrics       = ui_view_text_metrics,
     .measure_text       = ui_view_measure_text,
     .measure_children   = ui_view_measure_children,
     .layout_children    = ui_view_layout_children,

@@ -85,12 +85,11 @@ static void paint(ui_view_t* view) {
         ui_gdi.alpha_blend(x, y, gif.w, gif.h, &frame, 1.0);
         ui_gdi.image_dispose(&frame);
     }
-    ui_font_t f = ui_gdi.set_font(ui_app.fonts.H1.font);
-    ui_gdi.x = 0;
-    ui_gdi.y = 0;
-    ui_gdi.set_text_color(muted ? ui_colors.green : ui_colors.red);
-    ui_gdi.text("%s", muted ? ut_glyph_speaker : ut_glyph_mute);
-    ui_gdi.set_font(f);
+    ui_gdi_ta_t ta = ui_gdi.ta.H1;
+    ta.color_id = 0;
+    ta.color = muted ? ui_colors.green : ui_colors.red;
+    ui_gdi.draw_text(&ta, 0, 0, "%s", muted ?
+        ut_glyph_speaker : ut_glyph_mute);
 }
 
 static void character(ui_view_t* unused(view), const char* utf8) {
@@ -113,11 +112,6 @@ static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(f)) {
             midi.play(&mds);
         }
     }
-}
-
-static void opened(void) {
-    midi.open(&mds, ui_app.window, midi_file());
-    midi.play(&mds);
 }
 
 static bool message(ui_view_t* unused(view), int32_t m, int64_t wp, int64_t lp,
@@ -186,12 +180,12 @@ static void animate(void) {
             }
             int inc = ut_num.random32(&animation.seed) % 2 == 0 ? -1 : +1;
             if (ut_num.random32(&animation.seed) % 2 == 0) {
-                if (1 <= animation.speed_x + inc && 
+                if (1 <= animation.speed_x + inc &&
                     animation.speed_x + inc < max_speed) {
                     animation.speed_x += inc;
                 }
             } else {
-                if (1 <= animation.speed_y + inc && 
+                if (1 <= animation.speed_y + inc &&
                     animation.speed_y + inc < max_speed) {
                     animation.speed_y += inc;
                 }
@@ -200,12 +194,22 @@ static void animate(void) {
     }
 }
 
-static void startup(void* unused(ignored)) {
+static void animated_gif_loader(void* unused(ignored)) {
     ui_cursor_t cursor = ui_app.cursor;
     ui_app.set_cursor(ui_app.cursor_wait);
     load_gif();
     ui_app.set_cursor(cursor);
     animate();
+}
+
+static void opened(void) {
+    animation.seed = (uint32_t)ut_clock.nanoseconds();
+    animation.x = -1;
+    animation.y = -1;
+    animation.quit = ut_event.create();
+    animation.thread = ut_thread.start(animated_gif_loader, null);
+    midi.open(&mds, ui_app.window, midi_file());
+    midi.play(&mds);
 }
 
 static void init(void) {
@@ -214,12 +218,7 @@ static void init(void) {
     ui_app.content->character = character;
     ui_app.content->message   = message;
     ui_app.content->mouse     = mouse;
-    ui_app.opened        = opened;
-    animation.seed = (uint32_t)ut_clock.nanoseconds();
-    animation.x = -1;
-    animation.y = -1;
-    animation.quit = ut_event.create();
-    animation.thread = ut_thread.start(startup, null);
+    ui_app.opened             = opened;
     void* data = null;
     int64_t bytes = 0;
     fatal_if_not_zero(ut_mem.map_resource("sample_png", &data, &bytes));

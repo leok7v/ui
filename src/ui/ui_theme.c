@@ -24,7 +24,7 @@ static struct {
     ui_color_t  light;
 } ui_theme_colors[] = { // empirical
     { .name = "Undefiled"        ,.dark = ui_color_undefined, .light = ui_color_undefined },
-    { .name = "ActiveTitle"      ,.dark = 0x00000000, .light = 0x00D1B499 },
+    { .name = "ActiveTitle"      ,.dark = 0x001F1F1F, .light = 0x00D1B499 },
     { .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 },
     { .name = "ButtonText"       ,.dark = 0x00F6F3EE, .light = 0x00000000 },
     { .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D },
@@ -35,7 +35,8 @@ static struct {
     { .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 },
     { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
     { .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 },
-    { .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF },
+//  { .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF }, // too contrast
+    { .name = "Window"           ,.dark = 0x00121212, .light = 0x00E0E0E0 },
     { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
 };
 

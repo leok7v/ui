@@ -78,8 +78,9 @@ typedef struct ui_edit_s {
     ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
     int32_t last_x;    // last_x for up/down caret movement
     int32_t mouse;     // bit 0 and bit 1 for LEFT and RIGHT buttons down
-    int32_t top;       // y coordinate of the top of view
-    int32_t bottom;    // '' (ditto) of the bottom
+    ui_ltrb_t inside;  // inside insets space
+    int32_t w;         // inside.right - inside.left
+    int32_t h;         // inside.bottom - inside.top
     // number of fully (not partially clipped) visible `runs' from top to bottom:
     int32_t visible_runs;
     bool focused;  // is focused and created caret
@@ -92,10 +93,10 @@ typedef struct ui_edit_s {
     volatile int32_t  fuzz_last;  // last processed fuzz
     volatile bool     fuzz_quit;  // last processed fuzz
     // random32 starts with 1 but client can seed it with (ut_clock.nanoseconds() | 1)
-    uint32_t fuzz_seed;    // fuzzer random32 seed (must start with odd number)
+    uint32_t fuzz_seed;   // fuzzer random32 seed (must start with odd number)
     // paragraphs memory:
-    int32_t capacity;      // number of bytes allocated for `para` array below
-    int32_t paragraphs;    // number of lines in the text
+    int32_t capacity;     // number of bytes allocated for `para` array below
+    int32_t paragraphs;   // number of lines in the text
     ui_edit_para_t* para; // para[paragraphs]
 } ui_edit_t;
 

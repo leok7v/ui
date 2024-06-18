@@ -46,6 +46,19 @@ static ui_brush_t ui_gdi_set_brush(ui_brush_t b) {
     return (ui_brush_t)SelectBrush(ui_gdi_hdc(), b);
 }
 
+static uint32_t ui_gdi_color_rgb(ui_color_t c) {
+    assert(ui_color_is_8bit(c));
+    return (COLORREF)(c & 0xFFFFFFFF);
+}
+
+static COLORREF ui_gdi_color_ref(ui_color_t c) {
+    return ui_gdi.color_rgb(c);
+}
+
+static ui_color_t ui_gdi_set_text_color(ui_color_t c) {
+    return SetTextColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
+}
+
 static void ui_gdi_begin(ui_image_t* image) {
     swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
     swear(ui_gdi_top == 0);
@@ -64,7 +77,7 @@ static void ui_gdi_begin(ui_image_t* image) {
     fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
         &ui_gdi_context.brush_origin));
     ui_color_t tc = ui_app.get_color(ui_color_id_window_text);
-    ui_gdi_context.text_color = ui_gdi.set_text_color(tc);
+    ui_gdi_context.text_color = ui_gdi_set_text_color(tc);
     ui_gdi_context.background_mode = SetBkMode(ui_gdi_hdc(), TRANSPARENT);
     ui_gdi_context.stretch_mode = SetStretchBltMode(ui_gdi_hdc(), HALFTONE);
 }
@@ -76,7 +89,7 @@ static void ui_gdi_end(void) {
                    ui_gdi_context.brush_origin.y, null));
     ui_gdi_set_brush(ui_gdi_context.brush);
     ui_gdi_set_pen(ui_gdi_context.pen);
-    ui_gdi.set_text_color(ui_gdi_context.text_color);
+    ui_gdi_set_text_color(ui_gdi_context.text_color);
     SetBkMode(ui_gdi_hdc(), ui_gdi_context.background_mode);
     SetStretchBltMode(ui_gdi_hdc(), ui_gdi_context.stretch_mode);
     if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
@@ -85,19 +98,6 @@ static void ui_gdi_end(void) {
         fatal_if_false(DeleteDC(ui_gdi_context.hdc));
     }
     memset(&ui_gdi_context, 0x00, sizeof(ui_gdi_context));
-}
-
-static uint32_t ui_gdi_color_rgb(ui_color_t c) {
-    assert(ui_color_is_8bit(c));
-    return (COLORREF)(c & 0xFFFFFFFF);
-}
-
-static COLORREF ui_gdi_color_ref(ui_color_t c) {
-    return ui_gdi.color_rgb(c);
-}
-
-static ui_color_t ui_gdi_set_text_color(ui_color_t c) {
-    return SetTextColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
 }
 
 static ui_pen_t ui_gdi_set_colored_pen(ui_color_t c) {
@@ -138,6 +138,7 @@ static void ui_gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
     fatal_if(SelectClipRgn(ui_gdi_hdc(), (HRGN)ui_gdi.clip) == ERROR);
 }
 
+#if 0
 static void ui_gdi_push(int32_t x, int32_t y) {
     assert(ui_gdi_top < countof(ui_gdi_stack));
     fatal_if(ui_gdi_top >= countof(ui_gdi_stack));
@@ -157,6 +158,7 @@ static void ui_gdi_pop(void) {
     ui_gdi.y = ui_gdi_stack[ui_gdi_top].y;
     fatal_if_false(RestoreDC(ui_gdi_hdc(), -1));
 }
+#endif
 
 static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
     not_null(ui_app.canvas);
@@ -251,7 +253,7 @@ static void ui_gdi_rounded_with_xxx(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_circle_with(int32_t x, int32_t y, int32_t radius,
         ui_color_t border, ui_color_t fill) {
-    ui_gdi.push(x, y);
+//  ui_gdi.push(x, y);
     swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
     // Win32 GDI even radius drawing looks ugly squarish and asymmetrical.
     swear(radius % 2 == 1, "radius: %d must be odd");
@@ -275,12 +277,12 @@ static void ui_gdi_circle_with(int32_t x, int32_t y, int32_t radius,
     ui_gdi_set_pen(p);
     if (!tf) { ui_gdi_set_brush_color(c); }
     ui_gdi_set_brush(brush);
-    ui_gdi.pop();
+//  ui_gdi.pop();
 }
 
 static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t fill) {
-    ui_gdi.push(x, y);
+//  ui_gdi.push(x, y);
     int32_t r = x + w - 1; // right
     int32_t b = y + h - 1; // bottom
     ui_gdi_circle_with(x + radius, y + radius, radius, fill, fill);
@@ -292,12 +294,12 @@ static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
     r = x + w - radius;
     ui_gdi.fill_with(x, y + radius, radius, h - radius * 2, fill);
     ui_gdi.fill_with(r, y + radius, radius, h - radius * 2, fill);
-    ui_gdi.pop();
+//  ui_gdi.pop();
 }
 
 static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border) {
-    ui_gdi.push(x, y);
+//  ui_gdi.push(x, y);
     {
         int32_t r = x + w - 1; // right
         int32_t b = y + h - 1; // bottom
@@ -319,7 +321,7 @@ static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_gdi.line_with(x, y + radius, x, b - radius + 1, border);
         ui_gdi.line_with(r, y + radius, r, b - radius + 1, border);
     }
-    ui_gdi.pop();
+//  ui_gdi.pop();
 }
 
 static void ui_gdi_rounded_with(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -711,15 +713,6 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t height, int32_t quality) {
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
 
-static int32_t ui_gdi_font_height(ui_font_t f) {
-    assert(f != null);
-    LOGFONTA lf = {0};
-    int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    fatal_if_false(n == (int32_t)sizeof(lf));
-    assert(lf.lfHeight < 0);
-    return abs(lf.lfHeight);
-}
-
 static void ui_gdi_delete_font(ui_font_t f) {
     fatal_if_false(DeleteFont(f));
 }
@@ -759,22 +752,6 @@ static void ui_gdi_release_dc(HDC hdc) {
     SelectFont(hdc, font_);                  \
     ui_gdi_release_dc(hdc);                  \
 } while (0)
-
-static int32_t ui_gdi_baseline(ui_font_t f) {
-    TEXTMETRICA tm;
-    ui_gdi_hdc_with_font(f, {
-        fatal_if_false(GetTextMetricsA(hdc, &tm));
-    });
-    return tm.tmAscent;
-}
-
-static int32_t ui_gdi_descent(ui_font_t f) {
-    TEXTMETRICA tm;
-    ui_gdi_hdc_with_font(f, {
-        fatal_if_false(GetTextMetricsA(hdc, &tm));
-    });
-    return tm.tmDescent;
-}
 
 static void ui_gdi_dump_hdc_fm(HDC hdc) {
     // https://en.wikipedia.org/wiki/Quad_(typography)
@@ -910,13 +887,6 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
 //  traceln("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
 
-static fp64_t ui_gdi_line_spacing(fp64_t height_multiplier) {
-    assert(0.1 <= height_multiplier && height_multiplier <= 2.0);
-    fp64_t hm = ui_gdi.height_multiplier;
-    ui_gdi.height_multiplier = height_multiplier;
-    return hm;
-}
-
 static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
         RECT* r, uint32_t format) { // ~70 microsecond Core i-7 3667U 2.0 GHz (2012)
     // if font == null, draws on HDC with selected font
@@ -951,7 +921,7 @@ if (0) {
 }
 
 typedef struct { // draw text parameters
-    ui_font_t font;
+    const ui_fm_t* fm;
     const char* format; // format string
     va_list vl;
     RECT rc;
@@ -961,7 +931,7 @@ typedef struct { // draw text parameters
     // DT_END_ELLIPSIS useful for clipping
     // DT_LEFT, DT_RIGHT, DT_CENTER useful for paragraphs
     // DT_WORDBREAK is not good (GDI does not break nicely)
-    // DT_BOTTOM, DT_VCENTER limited usablity in wierd cases (layout is better)
+    // DT_BOTTOM, DT_VCENTER limited usability in weird cases (layout is better)
     // DT_NOPREFIX not to draw underline at "&Keyboard shortcuts
     // DT_SINGLELINE versus multiline
 } ui_gdi_dtp_t;
@@ -979,11 +949,14 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
         // much slower but UI layer is mostly uses bitmap caching:
         if ((p->flags & DT_CALCRECT) == 0) {
             // no actual drawing just calculate rectangle
-            bool b = ui_gdi_draw_utf16(p->font, text, -1, &p->rc, p->flags | DT_CALCRECT);
+            bool b = ui_gdi_draw_utf16(p->fm->font, text, -1, &p->rc, p->flags | DT_CALCRECT);
             assert(b, "draw_text_utf16(%s) failed", text); (void)b;
         }
-        bool b = ui_gdi_draw_utf16(p->font, text, -1, &p->rc, p->flags);
+        bool b = ui_gdi_draw_utf16(p->fm->font, text, -1, &p->rc, p->flags);
         assert(b, "draw_text_utf16(%s) failed", text); (void)b;
+    } else {
+        p->rc.right = p->rc.left;
+        p->rc.bottom = p->rc.top + p->fm->height;
     }
 }
 
@@ -997,44 +970,51 @@ enum {
     ml_measure       = ml_draw|DT_CALCRECT
 };
 
+#if 0
+
 static ui_wh_t ui_gdi_text_measure(ui_gdi_dtp_t* p) {
     ui_gdi_text_draw(p);
     return (ui_wh_t){.w = p->rc.right - p->rc.left,
                      .h = p->rc.bottom - p->rc.top};
 }
 
-static ui_wh_t ui_gdi_measure_singleline(ui_font_t f, const char* format, ...) {
+static ui_wh_t ui_gdi_measure_singleline(const ui_fm_t* fm, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
-    ui_gdi_dtp_t p = { f, format, vl, {0, 0, 0, 0}, sl_measure };
+    ui_gdi_dtp_t p = { fm, format, vl, {0, 0, 0, 0}, sl_measure };
     ui_wh_t mt = ui_gdi_text_measure(&p);
     va_end(vl);
     return mt;
 }
 
-static ui_wh_t ui_gdi_measure_multiline(ui_font_t f, int32_t w, const char* format, ...) {
+static ui_wh_t ui_gdi_measure_multiline(const ui_fm_t* fm, int32_t w, const char* format, ...) {
     va_list vl;
     va_start(vl, format);
     uint32_t flags = w <= 0 ? ml_measure : ml_measure_break;
-    ui_gdi_dtp_t p = { f, format, vl, {ui_gdi.x, ui_gdi.y, ui_gdi.x + (w <= 0 ? 1 : w), ui_gdi.y}, flags };
+    ui_gdi_dtp_t p = { fm, format, vl, {ui_gdi.x, ui_gdi.y, ui_gdi.x + (w <= 0 ? 1 : w), ui_gdi.y}, flags };
     ui_wh_t mt = ui_gdi_text_measure(&p);
     va_end(vl);
     return mt;
 }
 
+// TODO: remove below
+
 static void ui_gdi_vtext(const char* format, va_list vl) {
+    traceln("deprecated");
     ui_gdi_dtp_t p = { null, format, vl, {ui_gdi.x, ui_gdi.y, 0, 0}, sl_draw };
     ui_gdi_text_draw(&p);
     ui_gdi.x += p.rc.right - p.rc.left;
 }
 
 static void ui_gdi_vtextln(const char* format, va_list vl) {
+    traceln("deprecated");
     ui_gdi_dtp_t p = { null, format, vl, {ui_gdi.x, ui_gdi.y, ui_gdi.x, ui_gdi.y}, sl_draw };
     ui_gdi_text_draw(&p);
     ui_gdi.y += (int32_t)((p.rc.bottom - p.rc.top) * ui_gdi.height_multiplier + 0.5f);
 }
 
 static void ui_gdi_text(const char* format, ...) {
+    traceln("deprecated");
     va_list vl;
     va_start(vl, format);
     ui_gdi.vtext(format, vl);
@@ -1042,6 +1022,7 @@ static void ui_gdi_text(const char* format, ...) {
 }
 
 static void ui_gdi_textln(const char* format, ...) {
+    traceln("deprecated");
     va_list vl;
     va_start(vl, format);
     ui_gdi.vtextln(format, vl);
@@ -1049,6 +1030,7 @@ static void ui_gdi_textln(const char* format, ...) {
 }
 
 static ui_point_t ui_gdi_multiline(int32_t w, const char* f, ...) {
+    traceln("deprecated");
     va_list vl;
     va_start(vl, f);
     uint32_t flags = w <= 0 ? ml_draw : ml_draw_break;
@@ -1060,6 +1042,7 @@ static ui_point_t ui_gdi_multiline(int32_t w, const char* f, ...) {
 }
 
 static void ui_gdi_vprint(const char* format, va_list vl) {
+    traceln("deprecated");
     not_null(ui_app.fonts.mono.font);
     ui_font_t f = ui_gdi.set_font(ui_app.fonts.mono.font);
     ui_gdi.vtext(format, vl);
@@ -1067,6 +1050,7 @@ static void ui_gdi_vprint(const char* format, va_list vl) {
 }
 
 static void ui_gdi_print(const char* format, ...) {
+    traceln("deprecated");
     va_list vl;
     va_start(vl, format);
     ui_gdi.vprint(format, vl);
@@ -1074,6 +1058,7 @@ static void ui_gdi_print(const char* format, ...) {
 }
 
 static void ui_gdi_vprintln(const char* format, va_list vl) {
+    traceln("deprecated");
     not_null(ui_app.fonts.mono.font);
     ui_font_t f = ui_gdi.set_font(ui_app.fonts.mono.font);
     ui_gdi.vtextln(format, vl);
@@ -1081,10 +1066,74 @@ static void ui_gdi_vprintln(const char* format, va_list vl) {
 }
 
 static void ui_gdi_println(const char* format, ...) {
+    traceln("deprecated");
     va_list vl;
     va_start(vl, format);
     ui_gdi.vprintln(format, vl);
     va_end(vl);
+}
+
+// TODO: remove above ^^^
+#endif
+
+static ui_wh_t ui_gdi_draw_text_with_flags(const ui_gdi_ta_t* ta,
+        int32_t x, int32_t y, int32_t w,
+        const char* format, va_list vl, uint32_t flags) {
+    const int32_t right = w == 0 ? 0 : x + w;
+    ui_gdi_dtp_t p = {
+        .fm = ta->fm,
+        .format = format,
+        .vl = vl,
+        .rc = {.left = x, .top = y, .right = right, .bottom = 0 },
+        .flags = flags
+    };
+
+    ui_color_t c = ta->color;
+    if (!ta->measure) {
+        if (ui_color_is_undefined(c)) {
+            swear(ta->color_id > 0);
+            c = ui_theme.get_color(ta->color_id);
+        } else {
+            swear(ta->color_id == 0);
+        }
+        c = ui_gdi_set_text_color(c);
+    }
+    ui_gdi_text_draw(&p);
+    if (!ta->measure) { ui_gdi_set_text_color(c); } // restore color
+    return (ui_wh_t){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
+}
+
+static ui_wh_t ui_gdi_draw_text_va(const ui_gdi_ta_t* ta,
+        int32_t x, int32_t y,  const char* format, va_list vl) {
+    const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
+    return ui_gdi_draw_text_with_flags(ta, x, y, 0, format, vl, flags);
+}
+
+static ui_wh_t ui_gdi_draw_text(const ui_gdi_ta_t* ta,
+        int32_t x, int32_t y, const char* format, ...) {
+    const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
+    va_list vl;
+    va_start(vl, format);
+    ui_wh_t wh = ui_gdi_draw_text_with_flags(ta, x, y, 0, format, vl, flags);
+    va_end(vl);
+    return wh;
+}
+
+static ui_wh_t ui_gdi_draw_multiline_va(const ui_gdi_ta_t* ta,
+        int32_t x, int32_t y, int32_t w, const char* format, va_list va) {
+    const uint32_t flags = ta->measure ?
+                            (w <= 0 ? ml_measure : ml_measure_break) :
+                            (w <= 0 ? ml_draw    : ml_draw_break);
+    return ui_gdi_draw_text_with_flags(ta, x, y, w, format, va, flags);
+}
+
+static ui_wh_t ui_gdi_draw_multiline(const ui_gdi_ta_t* ta,
+        int32_t x, int32_t y, int32_t w, const char* format, ...) {
+    va_list va;
+    va_start(va, format);
+    ui_wh_t wh = ui_gdi_draw_multiline_va(ta, x, y, w, format, va);
+    va_end(va);
+    return wh;
 }
 
 // to enable load_image() function
@@ -1120,7 +1169,39 @@ static void ui_gdi_image_dispose(ui_image_t* image) {
 }
 
 ui_gdi_if ui_gdi = {
-    .height_multiplier             = 1.0,
+    .ta = {
+        .regular = {
+            .color_id = ui_color_id_window_text,
+            .color    = ui_color_undefined,
+            .fm       = &ui_app.fonts.regular,
+            .measure  = false
+        },
+        .mono = {
+            .color_id = ui_color_id_window_text,
+            .color    = ui_color_undefined,
+            .fm       = &ui_app.fonts.mono,
+            .measure  = false
+        },
+        .H1 = {
+            .color_id = ui_color_id_window_text,
+            .color    = ui_color_undefined,
+            .fm       = &ui_app.fonts.H1,
+            .measure  = false
+        },
+        .H2 = {
+            .color_id = ui_color_id_window_text,
+            .color    = ui_color_undefined,
+            .fm       = &ui_app.fonts.H2,
+            .measure  = false
+        },
+        .H3 = {
+            .color_id = ui_color_id_window_text,
+            .color    = ui_color_undefined,
+            .fm       = &ui_app.fonts.H3,
+            .measure  = false
+        }
+    },
+//  .height_multiplier             = 1.0,
     .init                          = ui_gdi_init,
     .begin                         = ui_gdi_begin,
     .end                           = ui_gdi_end,
@@ -1131,10 +1212,10 @@ ui_gdi_if ui_gdi = {
     .alpha_blend                   = ui_gdi_alpha_blend,
     .draw_image                    = ui_gdi_draw_image,
     .draw_icon                     = ui_gdi_draw_icon,
-    .set_text_color                = ui_gdi_set_text_color,
+//  .set_text_color                = ui_gdi_set_text_color,
     .set_clip                      = ui_gdi_set_clip,
-    .push                          = ui_gdi_push,
-    .pop                           = ui_gdi_pop,
+//  .push                          = ui_gdi_push,
+//  .pop                           = ui_gdi_pop,
     .pixel                         = ui_gdi_pixel,
     .line_with                     = ui_gdi_line_with,
     .frame_with                    = ui_gdi_frame_with,
@@ -1153,23 +1234,23 @@ ui_gdi_if ui_gdi = {
     .font                          = ui_gdi_font,
     .delete_font                   = ui_gdi_delete_font,
     .set_font                      = ui_gdi_set_font,
-    .font_height                   = ui_gdi_font_height,
-    .descent                       = ui_gdi_descent,
-    .baseline                      = ui_gdi_baseline,
     .dump_fm                       = ui_gdi_dump_fm,
     .update_fm                     = ui_gdi_update_fm,
-    .line_spacing                  = ui_gdi_line_spacing,
-    .measure_text                  = ui_gdi_measure_singleline,
-    .measure_multiline             = ui_gdi_measure_multiline,
-    .vtext                         = ui_gdi_vtext,
-    .vtextln                       = ui_gdi_vtextln,
-    .text                          = ui_gdi_text,
-    .textln                        = ui_gdi_textln,
-    .vprint                        = ui_gdi_vprint,
-    .vprintln                      = ui_gdi_vprintln,
-    .print                         = ui_gdi_print,
-    .println                       = ui_gdi_println,
-    .multiline                     = ui_gdi_multiline
+//  .measure_text                  = ui_gdi_measure_singleline,
+//  .measure_multiline             = ui_gdi_measure_multiline,
+//  .vtext                         = ui_gdi_vtext,
+//  .vtextln                       = ui_gdi_vtextln,
+//  .text                          = ui_gdi_text,
+//  .textln                        = ui_gdi_textln,
+//  .vprint                        = ui_gdi_vprint,
+//  .vprintln                      = ui_gdi_vprintln,
+//  .print                         = ui_gdi_print,
+//  .println                       = ui_gdi_println,
+//  .multiline                     = ui_gdi_multiline,
+    .draw_text_va                  = ui_gdi_draw_text_va,
+    .draw_text                     = ui_gdi_draw_text,
+    .draw_multiline_va             = ui_gdi_draw_multiline_va,
+    .draw_multiline                = ui_gdi_draw_multiline
 };
 
 #pragma pop_macro("ui_gdi_hdc_with_font")

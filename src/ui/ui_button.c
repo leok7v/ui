@@ -3,8 +3,8 @@
 
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     assert(v->type == ui_view_button);
-    if (v->armed_until != 0 && ui_app.now > v->armed_until) {
-        v->armed_until = 0;
+    if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
+        v->p.armed_until = 0;
         v->armed = false;
         ui_view.invalidate(v);
     }
@@ -13,9 +13,9 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 static void ui_button_paint(ui_view_t* v) {
     assert(v->type == ui_view_button);
     assert(!v->hidden);
-    ui_gdi.push(v->x, v->y);
+//  ui_gdi.push(v->x, v->y);
     bool pressed = (v->armed ^ v->pressed) == 0;
-    if (v->armed_until != 0) { pressed = true; }
+    if (v->p.armed_until != 0) { pressed = true; }
     int32_t sign = 1 - pressed * 2; // -1, +1
     int32_t w = sign * (v->w - 2);
     int32_t h = sign * (v->h - 2);
@@ -40,30 +40,28 @@ static void ui_button_paint(ui_view_t* v) {
     const int32_t t_h = v->h - i.top - i.bottom;
 //  traceln("%s align=%02X", v->text, v->align);
     if (v->icon == null) {
-        ui_font_t f = v->fm->font;
-        ui_wh_t m = ui_gdi.measure_text(f, ui_view.string(v));
+        const ui_wh_t wh = ui_view.text_metrics(0, 0, false, 0, v->fm, "%s",
+                                                ui_view.string(v));
         int32_t t_x = 0;
         if (v->align & ui.align.left) {
             t_x = 0;
         } else if (v->align == ui.align.center) {
-            t_x = (t_w - m.w) / 2;
+            t_x = (t_w - wh.w) / 2;
         } else if (v->align & ui.align.right) {
-            t_x = t_w - m.w - i.right;
+            t_x = t_w - wh.w - i.right;
         }
         int32_t t_y = 0;
         if (v->align & ui.align.top) {
             t_y = 0;
         } else if (v->align == ui.align.center) {
-            t_y = (t_h - m.h) / 2;
+            t_y = (t_h - wh.h) / 2;
         } else if (v->align & ui.align.bottom) {
-            t_y = t_h - m.h - i.bottom;
+            t_y = t_h - wh.h - i.bottom;
         }
-        ui_gdi.x = v->x + i.left + t_x;
-        ui_gdi.y = v->y + i.top  + t_y;
-        ui_gdi.set_text_color(c);
-        f = ui_gdi.set_font(f);
-        ui_gdi.text("%s", ui_view.string(v));
-        ui_gdi.set_font(f);
+        const int32_t tx = v->x + i.left + t_x;
+        const int32_t ty = v->y + i.top  + t_y;
+        const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
+        ui_gdi.draw_text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
         ui_gdi.draw_icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
     }
@@ -77,7 +75,7 @@ static void ui_button_paint(ui_view_t* v) {
         ui_gdi.rounded_with(v->x, v->y, v->w, v->h, r,
                             color, ui_colors.transparent);
     }
-    ui_gdi.pop();
+//  ui_gdi.pop();
 }
 
 static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
@@ -98,7 +96,7 @@ static void ui_button_trigger(ui_view_t* v) {
     v->armed = true;
     ui_view.invalidate(v);
     ui_app.draw();
-    v->armed_until = ui_app.now + 0.250;
+    v->p.armed_until = ui_app.now + 0.250;
     ui_button_callback(b);
     ui_view.invalidate(v);
 }

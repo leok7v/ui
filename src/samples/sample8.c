@@ -144,6 +144,7 @@ static void dark_light(ui_toggle_t* b) {
     b->pressed = !b->pressed;
     ui_app.light_mode = b->pressed;
     ui_app.dark_mode = !b->pressed;
+    app_data.light = ui_app.light_mode;
     ui_theme.refresh();
 }
 

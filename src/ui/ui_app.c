@@ -635,7 +635,7 @@ static void ui_app_toast_paint(void) {
     }
     if (ui_app.animating.view != null) {
         ui_view.measure(ui_app.animating.view);
-        ui_gdi.push(0, 0);
+//      ui_gdi.push(0, 0);
         bool hint = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
         const int32_t em_w = ui_app.animating.view->fm->em.w;
         const int32_t em_h = ui_app.animating.view->fm->em.h;
@@ -681,12 +681,18 @@ static void ui_app_toast_paint(void) {
             if (ui_app.animating.view->y == em_h / 4) {
                 // micro "close" toast button:
                 int32_t r = ui_app.animating.view->x + ui_app.animating.view->w;
-                ui_gdi.x = r - em_w / 2;
-                ui_gdi.y = 0;
-                ui_gdi.text("%s", ut_glyph_multiplication_sign);
+                const int32_t tx = r - em_w / 2;
+                const int32_t ty = 0;
+                const ui_gdi_ta_t ta = {
+                    .fm = &ui_app.fonts.regular,
+                    .color = ui_color_undefined,
+                    .color_id = ui_color_id_window_text
+                };
+                ui_gdi.draw_text(&ta, tx, ty, "%s",
+                                 ut_glyph_multiplication_sign);
             }
         }
-        ui_gdi.pop();
+//      ui_gdi.pop();
     }
 }
 
@@ -787,10 +793,17 @@ static void ui_app_view_paint(ui_view_t* v) {
 static void ui_app_view_layout(void) {
     not_null(ui_app.window);
     not_null(ui_app.canvas);
-    ui_app.root->x = ui_app.border.w;
-    ui_app.root->y = ui_app.border.h;
-    ui_app.root->w = ui_app.crc.w - ui_app.border.w * 2;
-    ui_app.root->h = ui_app.crc.h - ui_app.border.h * 2;
+    if (ui_app.no_decor) {
+        ui_app.root->x = ui_app.border.w;
+        ui_app.root->y = ui_app.border.h;
+        ui_app.root->w = ui_app.crc.w - ui_app.border.w * 2;
+        ui_app.root->h = ui_app.crc.h - ui_app.border.h * 2;
+    } else {
+        ui_app.root->x = 0;
+        ui_app.root->y = 0;
+        ui_app.root->w = ui_app.crc.w;
+        ui_app.root->h = ui_app.crc.h;
+    }
     ui_app_measure_and_layout(ui_app.root);
 }
 
@@ -837,7 +850,7 @@ static void ui_app_paint_on_canvas(HDC hdc) {
         ui_app_view_layout();
     }
     ui_gdi.begin(null);
-    ui_gdi.push(0, 0);
+//  ui_gdi.push(0, 0);
     ui_gdi.x = 0;
     ui_gdi.y = 0;
     ui_app_paint(ui_app.root);
@@ -847,7 +860,7 @@ static void ui_app_paint_on_canvas(HDC hdc) {
         !ui_app.is_maximized()) {
         ui_app_view_active_frame_paint();
     }
-    ui_gdi.pop();
+//  ui_gdi.pop();
     ui_gdi.end();
     ui_app.paint_count++;
     ui_app.canvas = canvas;
@@ -1987,11 +2000,13 @@ static void ui_app_init(void) {
     assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;
-    ui_app.root->insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_app.root->insets  = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_app.root->padding = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_app.root->paint = ui_app_view_paint;
     ui_app.root->max_w = ui.infinity;
     ui_app.root->max_h = ui.infinity;
-    ui_app.content->insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_app.content->insets  = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_app.content->padding = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->hidden = !ui_app.no_decor;
@@ -2134,17 +2149,20 @@ static int ui_app_win_main(HINSTANCE instance) {
 //  ui_app_dump_dpi();
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
+    ui_app.caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION,
+                                (uint32_t)ui_app.dpi.process);
     // TODO: use .frame and .caption_height in ui_caption.c
     ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME,
                                 (uint32_t)ui_app.dpi.process);
     ui_app.border.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME,
                                 (uint32_t)ui_app.dpi.process);
-    // border is too think (5 pixels) narrow down to 3x3
-    const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :
-        (ui_app.dpi.window >= 192 ? 3 : 2);
-    ui_app.border.w = ut_min(max_border, ui_app.border.w);
-    ui_app.border.h = ut_min(max_border, ui_app.border.h);
-    ui_app.caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION, (uint32_t)ui_app.dpi.process);
+    if (ui_app.no_decor) {
+        // border is too think (5 pixels) narrow down to 3x3
+        const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :
+            (ui_app.dpi.window >= 192 ? 3 : 2);
+        ui_app.border.w = ut_min(max_border, ui_app.border.w);
+        ui_app.border.h = ut_min(max_border, ui_app.border.h);
+    }
 //  traceln("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
     // TODO: use AdjustWindowRectEx instead
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrectex

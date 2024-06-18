@@ -27,7 +27,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
 
 // ui_slider_on_change can only be used on static slider variables
 
-#define ui_slider_on_change(name, s, min_width_em, vmn, vmx, ...)   \
+#define ui_slider_on_change(name, s, min_width_em, vmn, vmx, format_v, ...) \
     static void name ## _callback(ui_slider_t* name) {              \
         (void)name; /* no warning if unused */                      \
         { __VA_ARGS__ }                                             \
@@ -37,7 +37,9 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .view = {                                                   \
             .type = ui_view_slider, .fm = &ui_app.fonts.regular,    \
             .init = ui_view_init_slider,                            \
-            .string_ = s, .callback = name ## _callback,            \
+            .p.text = s,                                            \
+            .format = format_v,                                     \
+            .callback = name ## _callback,                          \
             .min_w_em = min_width_em, .min_h_em = 1.0,              \
             .insets  = {                                            \
                 .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
@@ -53,8 +55,10 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
 
 #define ui_slider(s, min_width_em, vmn, vmx, format_v, call_back) { \
     .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,  \
-        .string_ = s, .init = ui_view_init_slider,                  \
-        .format = format_v, .callback = call_back,                  \
+        .init = ui_view_init_slider,                                \
+        .p.text = s,                                                \
+        .callback = call_back,                                      \
+        .format = format_v,                                         \
         .min_w_em = min_width_em, .min_h_em = 1.0,                  \
             .insets  = {                                            \
                 .left  = ui_view_i_lr, .top    = ui_view_i_t,       \

@@ -95,12 +95,13 @@ static void ui_caption_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button);
     v->w = ui_app.caption_height;
     v->h = ui_app.caption_height;
+//  traceln("%dx%d", v->w, v->h);
 }
 
 static void ui_caption_button_icon_paint(ui_view_t* v) {
     int32_t w = v->w;
     int32_t h = v->h;
-    swear(w == h && h == ui_app.caption_height);
+//  swear(w == h && h == ui_app.caption_height);
     while (h > 16 && (h & (h - 1)) != 0) { h--; }
     w = h;
     int32_t dx = (v->w - w) / 2;
@@ -115,8 +116,9 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 static void ui_caption_measured(ui_view_t* v) {
     // do not show title if there is not enough space
     ui_caption.title.hidden = v->w > ui_app.root->w;
-    v->w = ui_app.root->w;
-    v->h = ui_app.caption_height;
+    v->w = ui_app.root->w - ui_app.border.w * 2;
+    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+    v->h = insets.top + ui_app.caption_height + insets.bottom;
 }
 
 static void ui_caption_composed(ui_view_t* v) {
@@ -132,7 +134,7 @@ static void ui_caption_paint(ui_view_t* v) {
 static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
-    ui_caption.view.insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_caption.view.insets = (ui_gaps_t){ 0.125, 0.25, 0.125, 0.25 };
     ui_caption.view.hidden = false;
     v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,

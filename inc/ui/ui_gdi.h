@@ -15,11 +15,25 @@ enum {  // TODO: ui_ namespace and into gdi int32_t const
     ui_gdi_font_quality_cleartype_natural = 6
 };
 
+typedef struct ui_gdi_ta_s { // text attributes
+    const ui_fm_t* fm; // font metrics
+    int32_t color_id;  // <= 0 use color
+    ui_color_t color;  // ui_colors.undefined() use color_id
+    bool measure;      // measure only do not draw
+} ui_gdi_ta_t;
+
 typedef struct {
     ui_brush_t  brush_color;
     ui_brush_t  brush_hollow;
     ui_pen_t pen_hollow;
     ui_region_t clip;
+    struct {
+        ui_gdi_ta_t const regular;
+        ui_gdi_ta_t const mono;
+        ui_gdi_ta_t const H1;
+        ui_gdi_ta_t const H2;
+        ui_gdi_ta_t const H3;
+    } const ta;
     void (*init)(void);
     void (*begin)(ui_image_t* image_or_null);
     // all paint must be done in between
@@ -32,11 +46,11 @@ typedef struct {
     void (*image_init_rgbx)(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
     void (*image_dispose)(ui_image_t* image);
-    ui_color_t (*set_text_color)(ui_color_t c);
+//  ui_color_t (*set_text_color)(ui_color_t c);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
-    void (*push)(int32_t x, int32_t y); // also calls SaveDC(ui_app.canvas)
-    void (*pop)(void); // also calls RestoreDC(-1, ui_app.canvas)
+//  void (*push)(int32_t x, int32_t y); // also calls SaveDC(ui_app.canvas)
+//  void (*pop)(void); // also calls RestoreDC(-1, ui_app.canvas)
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
     void (*line_with)(int32_t x0, int32_t y1, int32_t x2, int32_t y2,
                       ui_color_t c);
@@ -78,26 +92,35 @@ typedef struct {
     ui_font_t (*create_font)(const char* family, int32_t height, int32_t quality);
     ui_font_t (*font)(ui_font_t f, int32_t height, int32_t quality); // custom font, quality: -1 as is
     void      (*delete_font)(ui_font_t f);
+
+// TODO: remove
     ui_font_t (*set_font)(ui_font_t f);
+
     // IMPORTANT: relationship between font_height(), baseline(), descent()
     // E.g. for monospaced font on dpi=96 (monitor_raw=101) and font_height=15
     // the get_em() is: 9 20 font_height(): 15 baseline: 16 descent: 4
     // Monospaced fonts are not `em` "M" square!
-    int32_t (*font_height)(ui_font_t f); // font height in pixels
-    int32_t (*descent)(ui_font_t f);     // font descent (glyphs below baseline)
-    int32_t (*baseline)(ui_font_t f);    // height - baseline (aka ascent) = descent
+//  int32_t (*font_height)(ui_font_t f); // font height in pixels
+//  int32_t (*descent)(ui_font_t f);     // font descent (glyphs below baseline)
+//  int32_t (*baseline)(ui_font_t f);    // height - baseline (aka ascent) = descent
     void (*dump_fm)(ui_font_t f); // dump font metrics
     void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics
-    // get_em(f) returns { "M".w, "M".h - f.descent - (f.height - f.baseline)};
-    ui_wh_t (*measure_text)(ui_font_t f, const char* format, ...);
-    // width can be -1 which measures text with "\n" or
-    // positive number of pixels
-    ui_wh_t (*measure_multiline)(ui_font_t f, int32_t w, const char* format, ...);
-    fp64_t height_multiplier; // see line_spacing()
-    fp64_t (*line_spacing)(fp64_t height_multiplier); // default 1.0
+
+    // TODO: remove
     int32_t x; // incremented by text, print
     int32_t y; // incremented by textln, println
+
+
+#if 0
+    fp64_t height_multiplier; // see line_spacing()
+
+// TODO: remove
+    ui_wh_t (*measure_text)(const ui_fm_t* fm, const char* format, ...);
+    // width can be -1 which measures text with "\n" or
+    // positive number of pixels
+    ui_wh_t (*measure_multiline)(const ui_fm_t* fm, int32_t w, const char* format, ...);
     // proportional:
+// TODO: remove
     void (*vtext)(const char* format, va_list vl); // x += width
     void (*text)(const char* format, ...);         // x += width
     // ui_gdi.y += height * line_spacing
@@ -111,6 +134,16 @@ typedef struct {
     void (*println)(const char* format, ...);
     // multiline(null, format, ...) only increments ui_gdi.y
     ui_point_t (*multiline)(int32_t width, const char* format, ...);
+#endif
+// replacement:
+    ui_wh_t (*draw_text_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+        const char* format, va_list vl);
+    ui_wh_t (*draw_text)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+        const char* format, ...);
+    ui_wh_t (*draw_multiline_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+        int32_t w, const char* format, va_list vl); // "w" can be zero
+    ui_wh_t (*draw_multiline)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+        int32_t w, const char* format, ...);
 } ui_gdi_if;
 
 extern ui_gdi_if ui_gdi;

@@ -19,8 +19,17 @@ enum ui_view_type_t {
 
 typedef struct ui_view_s ui_view_t;
 
+typedef struct ui_view_private_s { // do not access directly
+    char text[1024]; // utf8 zero terminated
+    int32_t strid;    // 0 for not yet localized, -1 no localization
+    fp64_t armed_until; // ut_clock.seconds() - when to release
+    fp64_t hover_when;  // time in seconds when to call hovered()
+    // use: ui_view.string(v) and ui_view.set_string()
+} ui_view_private_t;
+
 typedef struct ui_view_s {
     enum ui_view_type_t type;
+    ui_view_private_t p; // private
     void (*init)(ui_view_t* v); // called once before first layout
     ui_view_t* parent;
     ui_view_t* child; // first child, circular doubly linked list
@@ -41,9 +50,6 @@ typedef struct ui_view_s {
     // updated on layout() call
     ui_fm_t* fm; // font metrics
     int32_t shortcut; // keyboard shortcut
-    int32_t strid;    // 0 for not yet localized, -1 no localization
-    // use: ui_view.string(v) and ui_view.set_string()
-    char string_[1024]; // do not access directly
     void* that;  // for the application use
     void (*notify)(ui_view_t* v, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
@@ -87,7 +93,6 @@ typedef struct ui_view_s {
     void (*every_100ms)(ui_view_t* v); // ~10 x times per second
     void (*every_sec)(ui_view_t* v); // ~once a second
     int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
-    fp64_t armed_until; // ut_clock.seconds() - when to release
     bool hidden; // paint() is not called on hidden
     bool armed;
     bool hover;
@@ -96,7 +101,6 @@ typedef struct ui_view_s {
     bool focusable; // can be target for keyboard focus
     bool flat;      // no-border appearance of views
     bool highlightable; // paint highlight rectangle when hover over label
-    fp64_t  hover_when;   // time in seconds when to call hovered()
     ui_color_t color;     // interpretation depends on view type
     int32_t    color_id;  // 0 is default meaning use color
     ui_color_t background;    // interpretation depends on view type
@@ -145,6 +149,10 @@ typedef struct ui_view_if {
     void (*hovering)(ui_view_t* v, bool start);
     void (*mouse)(ui_view_t* v, int32_t m, int64_t f);
     void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy);
+    ui_wh_t (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
+        const ui_fm_t* fm, const char* format, va_list va);
+    ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
+        const ui_fm_t* fm, const char* format, ...);
     void (*measure_text)(ui_view_t* v);
     void (*measure_children)(ui_view_t* v);
     void (*layout_children)(ui_view_t* v);

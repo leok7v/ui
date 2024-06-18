@@ -6,21 +6,17 @@ static void ui_label_paint(ui_view_t* v) {
     assert(!v->hidden);
     const char* s = ui_view.string(v);
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    ui_gdi.push(v->x + i.left, v->y + i.top);
-    ui_font_t f = ui_gdi.set_font(v->fm->font);
-//  traceln("%s h=%d dy=%d baseline=%d", v->text, v->h,
-//          v->label_dy, v->baseline);
     ui_color_t c = v->hover && v->highlightable ?
         ui_app.get_color(ui_color_id_highlight) : v->color;
-    ui_gdi.set_text_color(c);
-    // paint for text also does lightweight re-layout
-    // which is useful for simplifying dynamic text changes
-    bool multiline = strchr(s, '\n') != null;
-    if (!multiline) {
-        ui_gdi.text("%s", ui_view.string(v));
-    } else {
+    const int32_t tx = v->x + i.left;
+    const int32_t ty = v->y + i.top;
+    const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
+    const bool multiline = strchr(s, '\n') != null;
+    if (multiline) {
         int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-        ui_gdi.multiline(w == 0 ? -1 : w, "%s", ui_view.string(v));
+        ui_gdi.draw_multiline(&ta, tx, ty, w, "%s", ui_view.string(v));
+    } else {
+        ui_gdi.draw_text(&ta, tx, ty, "%s", ui_view.string(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
         ui_color_t highlight = ui_app.get_color(ui_color_id_highlight);
@@ -29,8 +25,6 @@ static void ui_label_paint(ui_view_t* v) {
         ui_gdi.rounded_with(v->x - radius, v->y, v->w + 2 * radius, h,
                        radius, highlight, ui_colors.transparent);
     }
-    ui_gdi.set_font(f);
-    ui_gdi.pop();
 }
 
 static void ui_label_context_menu(ui_view_t* v) {
