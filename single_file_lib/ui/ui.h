@@ -1614,7 +1614,6 @@ typedef struct {
     // inch to pixels and reverse translation via ui_app.dpi.window
     fp32_t  (*px2in)(int32_t pixels);
     int32_t (*in2px)(fp32_t inches);
-    // color: ui_color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
     errno_t (*set_layered_window)(ui_color_t color, float alpha);
     bool (*is_active)(void); // is application window active
     bool (*is_minimized)(void);
@@ -4274,7 +4273,7 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 static void ui_caption_measured(ui_view_t* v) {
     // do not show title if there is not enough space
     ui_caption.title.hidden = v->w > ui_app.root->w;
-    v->w = ui_app.root->w - ui_app.border.w * 2;
+    v->w = ui_app.root->w;
     const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
 }

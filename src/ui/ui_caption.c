@@ -116,7 +116,7 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 static void ui_caption_measured(ui_view_t* v) {
     // do not show title if there is not enough space
     ui_caption.title.hidden = v->w > ui_app.root->w;
-    v->w = ui_app.root->w - ui_app.border.w * 2;
+    v->w = ui_app.root->w;
     const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
 }

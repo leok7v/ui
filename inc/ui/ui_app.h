@@ -86,7 +86,6 @@ typedef struct {
     // inch to pixels and reverse translation via ui_app.dpi.window
     fp32_t  (*px2in)(int32_t pixels);
     int32_t (*in2px)(fp32_t inches);
-    // color: ui_color_undefined or R8G8B8, alpha: [0..1.0] or -1.0
     errno_t (*set_layered_window)(ui_color_t color, float alpha);
     bool (*is_active)(void); // is application window active
     bool (*is_minimized)(void);
