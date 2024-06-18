@@ -60,16 +60,16 @@ void ui_view_init_label(ui_view_t* v) {
 }
 
 void ui_label_init_va(ui_label_t* v, fp32_t min_w_em,
-        const char* format, va_list vl) {
-    ui_view.set_text(v, format, vl);
+        const char* format, va_list va) {
+    ui_view.set_text(v, format, va);
     v->min_w_em = min_w_em;
     v->type = ui_view_label;
     ui_view_init_label(v);
 }
 
 void ui_label_init(ui_label_t* v, fp32_t min_w_em, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ui_label_init_va(v, min_w_em, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ui_label_init_va(v, min_w_em, format, va);
+    va_end(va);
 }

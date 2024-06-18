@@ -99,10 +99,10 @@ void ui_mbx_init(ui_mbx_t* mx, const char* options[],
     mx->view.layout   = ui_mbx_layout;
     mx->view.color_id = ui_color_id_window;
     mx->options = options;
-    va_list vl;
-    va_start(vl, format);
-    ui_view.set_text_va(&mx->view, format, vl);
+    va_list va;
+    va_start(va, format);
+    ui_view.set_text_va(&mx->view, format, va);
     ui_label_init(&mx->label, 0.0, ui_view.string(&mx->view));
-    va_end(vl);
+    va_end(va);
     ui_view_init_mbx(&mx->view);
 }

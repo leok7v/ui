@@ -10,10 +10,10 @@ static void vigil_breakpoint_and_abort(void) {
 
 static int32_t vigil_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ut_debug.println_va(file, line, func, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ut_debug.println_va(file, line, func, format, va);
+    va_end(va);
     ut_debug.println(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
     const bool always_true = ut_runtime.abort != null;
@@ -25,10 +25,10 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     const int32_t er = ut_runtime.err();
     const int32_t en = errno;
-    va_list vl;
-    va_start(vl, format);
-    ut_debug.println_va(file, line, func, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ut_debug.println_va(file, line, func, format, va);
+    va_end(va);
     // report last errors:
     if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
     if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
@@ -60,10 +60,10 @@ static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
     fatal_if(format == null || format[0] == 0);
     vigil_test_failed_assertion_count++;
     if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
-        va_list vl;
-        va_start(vl, format);
-        ut_debug.println_va(file, line, func, format, vl);
-        va_end(vl);
+        va_list va;
+        va_start(va, format);
+        ut_debug.println_va(file, line, func, format, va);
+        va_end(va);
         ut_debug.println(file, line, func, "assertion failed: %s (expected)\n",
                      condition);
     }
@@ -85,10 +85,10 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     assert(format != null && format[0] != 0);
     vigil_test_fatal_calls_count++;
     if (ut_debug.verbosity.level > ut_debug.verbosity.trace) {
-        va_list vl;
-        va_start(vl, format);
-        ut_debug.println_va(file, line, func, format, vl);
-        va_end(vl);
+        va_list va;
+        va_start(va, format);
+        ut_debug.println_va(file, line, func, format, va);
+        va_end(va);
         if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
         if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {

@@ -63,17 +63,17 @@ static void stats(int32_t ix) {
 }
 
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    *x += ui_gdi.draw_text_va(&ui_gdi.ta.mono, *x, *y, format, vl).w;
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    *x += ui_gdi.draw_text_va(&ui_gdi.ta.mono, *x, *y, format, va).w;
+    va_end(va);
 }
 
 static void println(int32_t *x, int32_t *y, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    *y += ui_gdi.draw_text_va(&ui_gdi.ta.mono, *x, *y, format, vl).h;
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    *y += ui_gdi.draw_text_va(&ui_gdi.ta.mono, *x, *y, format, va).h;
+    va_end(va);
 }
 
 static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {

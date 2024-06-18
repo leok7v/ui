@@ -94,12 +94,12 @@ static void ut_str_utf8to16(uint16_t* d, int32_t capacity, const char* utf8) {
 }
 
 static void ut_str_format_va(char* utf8, int32_t count, const char* format,
-        va_list vl) {
+        va_list va) {
     #if defined(__GNUC__) || defined(__clang__)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wformat-nonliteral"
     #endif
-    vsnprintf(utf8, (size_t)count, format, vl);
+    vsnprintf(utf8, (size_t)count, format, va);
     utf8[count - 1] = 0;
     #if defined(__GNUC__) || defined(__clang__)
     #pragma GCC diagnostic pop
@@ -107,10 +107,10 @@ static void ut_str_format_va(char* utf8, int32_t count, const char* format,
 }
 
 static void ut_str_format(char* utf8, int32_t count, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ut_str.format_va(utf8, count, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ut_str.format_va(utf8, count, format, va);
+    va_end(va);
 }
 
 static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {

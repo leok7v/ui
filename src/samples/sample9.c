@@ -161,17 +161,17 @@ static ui_view_t panel_right  = ui_view(container);
 static const ui_gdi_ta_t* ta = &ui_gdi.ta.regular;
 
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    *x += ui_gdi.draw_text_va(ta, *x, *y, format, vl).w;
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    *x += ui_gdi.draw_text_va(ta, *x, *y, format, va).w;
+    va_end(va);
 }
 
 static void println(int32_t *x, int32_t *y, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    *y += ui_gdi.draw_text_va(ta, *x, *y, format, vl).h;
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    *y += ui_gdi.draw_text_va(ta, *x, *y, format, va).h;
+    va_end(va);
 }
 
 static void after(ui_view_t* v, const char* format, ...) {

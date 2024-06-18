@@ -121,27 +121,27 @@ typedef struct {
     ui_wh_t (*measure_multiline)(const ui_fm_t* fm, int32_t w, const char* format, ...);
     // proportional:
 // TODO: remove
-    void (*vtext)(const char* format, va_list vl); // x += width
+    void (*vtext)(const char* format, va_list va); // x += width
     void (*text)(const char* format, ...);         // x += width
     // ui_gdi.y += height * line_spacing
-    void (*vtextln)(const char* format, va_list vl);
+    void (*vtextln)(const char* format, va_list va);
     void (*textln)(const char* format, ...);
     // mono:
-    void (*vprint)(const char* format,va_list vl); // x += width
+    void (*vprint)(const char* format,va_list va); // x += width
     void (*print)(const char* format, ...);        // x += width
     // ui_gdi.y += height * line_spacing
-    void (*vprintln)(const char* format, va_list vl);
+    void (*vprintln)(const char* format, va_list va);
     void (*println)(const char* format, ...);
     // multiline(null, format, ...) only increments ui_gdi.y
     ui_point_t (*multiline)(int32_t width, const char* format, ...);
 #endif
 // replacement:
     ui_wh_t (*draw_text_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
-        const char* format, va_list vl);
+        const char* format, va_list va);
     ui_wh_t (*draw_text)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
         const char* format, ...);
     ui_wh_t (*draw_multiline_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
-        int32_t w, const char* format, va_list vl); // "w" can be zero
+        int32_t w, const char* format, va_list va); // "w" can be zero
     ui_wh_t (*draw_multiline)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
         int32_t w, const char* format, ...);
 } ui_gdi_if;

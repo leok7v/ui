@@ -266,10 +266,10 @@ static void ut_args_test_verify(const char* cl, int32_t expected, ...) {
     ut_args.v = null;
     ut_args_memory = null;
     ut_args_parse(cl);
-    va_list vl;
-    va_start(vl, expected);
+    va_list va;
+    va_start(va, expected);
     for (int32_t i = 0; i < expected; i++) {
-        const char* s = va_arg(vl, const char*);
+        const char* s = va_arg(va, const char*);
 //      if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //          traceln("ut_args.v[%d]: `%s` expected: `%s`", i, ut_args.v[i], s);
 //      }
@@ -278,7 +278,7 @@ static void ut_args_test_verify(const char* cl, int32_t expected, ...) {
         swear(strcmp(ai, s) == 0, "ut_args.v[%d]: `%s` expected: `%s`",
               i, ai, s);
     }
-    va_end(vl);
+    va_end(va);
     ut_args.fini();
     // restore command line arguments:
     ut_args.c = argc;

@@ -11,11 +11,11 @@ static int32_t ui_slider_width(const ui_slider_t* s) {
 }
 
 static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
+    va_list va;
+    va_start(va, format);
     const ui_gdi_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
-    ui_wh_t wh = ui_gdi.draw_text_va(&ta, 0, 0, format, vl);
-    va_end(vl);
+    ui_wh_t wh = ui_gdi.draw_text_va(&ta, 0, 0, format, va);
+    va_end(va);
     return wh;
 }
 

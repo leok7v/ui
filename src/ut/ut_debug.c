@@ -28,7 +28,7 @@ static void ut_debug_output(const char* s, int32_t count) {
 }
 
 static void ut_debug_println_va(const char* file, int32_t line, const char* func,
-        const char* format, va_list vl) {
+        const char* format, va_list va) {
     if (func == null) { func = ""; }
     char file_line[1024];
     if (line == 0 && file == null || file[0] == 0x00) {
@@ -57,7 +57,7 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wformat-nonliteral"
         #endif
-        vsnprintf(text, countof(text) - 1, format, vl);
+        vsnprintf(text, countof(text) - 1, format, va);
         text[countof(text) - 1] = 0;
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic pop
@@ -84,9 +84,9 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
 #else // posix version:
 
 static void ut_debug_vprintf(const char* file, int32_t line, const char* func,
-        const char* format, va_list vl) {
+        const char* format, va_list va) {
     fprintf(stderr, "%s(%d): %s ", file, line, func);
-    vfprintf(stderr, format, vl);
+    vfprintf(stderr, format, va);
     fprintf(stderr, "\n");
 }
 
@@ -96,10 +96,10 @@ static void ut_debug_perrno(const char* file, int32_t line,
     const char* func, int32_t err_no, const char* format, ...) {
     if (err_no != 0) {
         if (format != null && format[0] != 0) {
-            va_list vl;
-            va_start(vl, format);
-            ut_debug.println_va(file, line, func, format, vl);
-            va_end(vl);
+            va_list va;
+            va_start(va, format);
+            ut_debug.println_va(file, line, func, format, va);
+            va_end(va);
         }
         ut_debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
     }
@@ -109,10 +109,10 @@ static void ut_debug_perror(const char* file, int32_t line,
     const char* func, int32_t error, const char* format, ...) {
     if (error != 0) {
         if (format != null && format[0] != 0) {
-            va_list vl;
-            va_start(vl, format);
-            ut_debug.println_va(file, line, func, format, vl);
-            va_end(vl);
+            va_list va;
+            va_start(va, format);
+            ut_debug.println_va(file, line, func, format, va);
+            va_end(va);
         }
         ut_debug.println(file, line, func, "error: %s", strerr(error));
     }
@@ -120,10 +120,10 @@ static void ut_debug_perror(const char* file, int32_t line,
 
 static void ut_debug_println(const char* file, int32_t line, const char* func,
         const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ut_debug.println_va(file, line, func, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ut_debug.println_va(file, line, func, format, va);
+    va_end(va);
 }
 
 static bool ut_debug_is_debugger_present(void) { return IsDebuggerPresent(); }

@@ -1522,18 +1522,18 @@ static void ui_app_show_hint(ui_view_t* view, int32_t x, int32_t y,
     }
 }
 
-static void ui_app_formatted_toast_va(fp64_t timeout, const char* format, va_list vl) {
+static void ui_app_formatted_toast_va(fp64_t timeout, const char* format, va_list va) {
     ui_app_show_toast(null, 0);
     static ui_label_t label = ui_label(0.0, "");
-    ui_label_init_va(&label, 0.0, format, vl);
+    ui_label_init_va(&label, 0.0, format, va);
     ui_app_show_toast(&label, timeout);
 }
 
 static void ui_app_formatted_toast(fp64_t timeout, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ui_app_formatted_toast_va(timeout, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ui_app_formatted_toast_va(timeout, format, va);
+    va_end(va);
 }
 
 static void ui_app_create_caret(int32_t w, int32_t h) {

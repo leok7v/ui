@@ -32,15 +32,15 @@ static void ui_view_verify(ui_view_t* p) {
 }
 
 static ui_view_t* ui_view_add(ui_view_t* p, ...) {
-    va_list vl;
-    va_start(vl, p);
-    ui_view_t* c = va_arg(vl, ui_view_t*);
+    va_list va;
+    va_start(va, p);
+    ui_view_t* c = va_arg(va, ui_view_t*);
     while (c != null) {
         swear(c->parent == null && c->prev == null && c->next == null);
         ui_view.add_last(p, c);
-        c = va_arg(vl, ui_view_t*);
+        c = va_arg(va, ui_view_t*);
     }
-    va_end(vl);
+    va_end(va);
     ui_view_call_init(p);
     ui_app.request_layout();
     return p;
@@ -322,9 +322,9 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     }
 }
 
-static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list vl) {
+static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     char t[countof(v->p.text)];
-    ut_str.format_va(t, countof(t), format, vl);
+    ut_str.format_va(t, countof(t), format, va);
     char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);
@@ -344,10 +344,10 @@ static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list vl) {
 }
 
 static void ui_view_set_text(ui_view_t* v, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ui_view.set_text_va(v, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ui_view.set_text_va(v, format, va);
+    va_end(va);
 }
 
 static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {

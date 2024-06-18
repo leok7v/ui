@@ -29,7 +29,7 @@ void ui_view_init_label(ui_view_t* view);
 // text with "&" keyboard shortcuts:
 
 void ui_label_init(ui_label_t* t, fp32_t min_w_em, const char* format, ...);
-void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_list vl);
+void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_list va);
 
 // use this macro for initialization:
 //    ui_label_t label = ui_label(min_width_em, s);

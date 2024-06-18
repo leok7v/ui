@@ -118,7 +118,7 @@ typedef struct {
     void (*show_window)(int32_t show); // see show_window enum
     void (*show_toast)(ui_view_t* toast, fp64_t seconds); // toast(null) to cancel
     void (*show_hint)(ui_view_t* tooltip, int32_t x, int32_t y, fp64_t seconds);
-    void (*toast_va)(fp64_t seconds, const char* format, va_list vl);
+    void (*toast_va)(fp64_t seconds, const char* format, va_list va);
     void (*toast)(fp64_t seconds, const char* format, ...);
     // caret calls must be balanced by caller
     void (*create_caret)(int32_t w, int32_t h);

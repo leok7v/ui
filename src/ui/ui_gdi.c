@@ -923,7 +923,7 @@ if (0) {
 typedef struct { // draw text parameters
     const ui_fm_t* fm;
     const char* format; // format string
-    va_list vl;
+    va_list va;
     RECT rc;
     uint32_t flags; // flags:
     // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-drawtextw
@@ -940,7 +940,7 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     not_null(p);
     char text[4096]; // expected to be enough for single text draw
     text[0] = 0;
-    ut_str.format_va(text, countof(text), p->format, p->vl);
+    ut_str.format_va(text, countof(text), p->format, p->va);
     text[countof(text) - 1] = 0;
     int32_t k = (int32_t)ut_str.len(text);
     if (k > 0) {
@@ -979,98 +979,98 @@ static ui_wh_t ui_gdi_text_measure(ui_gdi_dtp_t* p) {
 }
 
 static ui_wh_t ui_gdi_measure_singleline(const ui_fm_t* fm, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ui_gdi_dtp_t p = { fm, format, vl, {0, 0, 0, 0}, sl_measure };
+    va_list va;
+    va_start(va, format);
+    ui_gdi_dtp_t p = { fm, format, va, {0, 0, 0, 0}, sl_measure };
     ui_wh_t mt = ui_gdi_text_measure(&p);
-    va_end(vl);
+    va_end(va);
     return mt;
 }
 
 static ui_wh_t ui_gdi_measure_multiline(const ui_fm_t* fm, int32_t w, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
+    va_list va;
+    va_start(va, format);
     uint32_t flags = w <= 0 ? ml_measure : ml_measure_break;
-    ui_gdi_dtp_t p = { fm, format, vl, {ui_gdi.x, ui_gdi.y, ui_gdi.x + (w <= 0 ? 1 : w), ui_gdi.y}, flags };
+    ui_gdi_dtp_t p = { fm, format, va, {ui_gdi.x, ui_gdi.y, ui_gdi.x + (w <= 0 ? 1 : w), ui_gdi.y}, flags };
     ui_wh_t mt = ui_gdi_text_measure(&p);
-    va_end(vl);
+    va_end(va);
     return mt;
 }
 
 // TODO: remove below
 
-static void ui_gdi_vtext(const char* format, va_list vl) {
+static void ui_gdi_vtext(const char* format, va_list va) {
     traceln("deprecated");
-    ui_gdi_dtp_t p = { null, format, vl, {ui_gdi.x, ui_gdi.y, 0, 0}, sl_draw };
+    ui_gdi_dtp_t p = { null, format, va, {ui_gdi.x, ui_gdi.y, 0, 0}, sl_draw };
     ui_gdi_text_draw(&p);
     ui_gdi.x += p.rc.right - p.rc.left;
 }
 
-static void ui_gdi_vtextln(const char* format, va_list vl) {
+static void ui_gdi_vtextln(const char* format, va_list va) {
     traceln("deprecated");
-    ui_gdi_dtp_t p = { null, format, vl, {ui_gdi.x, ui_gdi.y, ui_gdi.x, ui_gdi.y}, sl_draw };
+    ui_gdi_dtp_t p = { null, format, va, {ui_gdi.x, ui_gdi.y, ui_gdi.x, ui_gdi.y}, sl_draw };
     ui_gdi_text_draw(&p);
     ui_gdi.y += (int32_t)((p.rc.bottom - p.rc.top) * ui_gdi.height_multiplier + 0.5f);
 }
 
 static void ui_gdi_text(const char* format, ...) {
     traceln("deprecated");
-    va_list vl;
-    va_start(vl, format);
-    ui_gdi.vtext(format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ui_gdi.vtext(format, va);
+    va_end(va);
 }
 
 static void ui_gdi_textln(const char* format, ...) {
     traceln("deprecated");
-    va_list vl;
-    va_start(vl, format);
-    ui_gdi.vtextln(format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ui_gdi.vtextln(format, va);
+    va_end(va);
 }
 
 static ui_point_t ui_gdi_multiline(int32_t w, const char* f, ...) {
     traceln("deprecated");
-    va_list vl;
+    va_list va;
     va_start(vl, f);
     uint32_t flags = w <= 0 ? ml_draw : ml_draw_break;
     ui_gdi_dtp_t p = { null, f, vl, {ui_gdi.x, ui_gdi.y, ui_gdi.x + (w <= 0 ? 1 : w), ui_gdi.y}, flags };
     ui_gdi_text_draw(&p);
-    va_end(vl);
+    va_end(va);
     ui_point_t c = { p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
     return c;
 }
 
-static void ui_gdi_vprint(const char* format, va_list vl) {
+static void ui_gdi_vprint(const char* format, va_list va) {
     traceln("deprecated");
     not_null(ui_app.fonts.mono.font);
     ui_font_t f = ui_gdi.set_font(ui_app.fonts.mono.font);
-    ui_gdi.vtext(format, vl);
+    ui_gdi.vtext(format, va);
     ui_gdi.set_font(f);
 }
 
 static void ui_gdi_print(const char* format, ...) {
     traceln("deprecated");
-    va_list vl;
-    va_start(vl, format);
-    ui_gdi.vprint(format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ui_gdi.vprint(format, va);
+    va_end(va);
 }
 
-static void ui_gdi_vprintln(const char* format, va_list vl) {
+static void ui_gdi_vprintln(const char* format, va_list va) {
     traceln("deprecated");
     not_null(ui_app.fonts.mono.font);
     ui_font_t f = ui_gdi.set_font(ui_app.fonts.mono.font);
-    ui_gdi.vtextln(format, vl);
+    ui_gdi.vtextln(format, va);
     ui_gdi.set_font(f);
 }
 
 static void ui_gdi_println(const char* format, ...) {
     traceln("deprecated");
-    va_list vl;
-    va_start(vl, format);
-    ui_gdi.vprintln(format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ui_gdi.vprintln(format, va);
+    va_end(va);
 }
 
 // TODO: remove above ^^^
@@ -1078,12 +1078,12 @@ static void ui_gdi_println(const char* format, ...) {
 
 static ui_wh_t ui_gdi_draw_text_with_flags(const ui_gdi_ta_t* ta,
         int32_t x, int32_t y, int32_t w,
-        const char* format, va_list vl, uint32_t flags) {
+        const char* format, va_list va, uint32_t flags) {
     const int32_t right = w == 0 ? 0 : x + w;
     ui_gdi_dtp_t p = {
         .fm = ta->fm,
         .format = format,
-        .vl = vl,
+        .va = va,
         .rc = {.left = x, .top = y, .right = right, .bottom = 0 },
         .flags = flags
     };
@@ -1104,18 +1104,18 @@ static ui_wh_t ui_gdi_draw_text_with_flags(const ui_gdi_ta_t* ta,
 }
 
 static ui_wh_t ui_gdi_draw_text_va(const ui_gdi_ta_t* ta,
-        int32_t x, int32_t y,  const char* format, va_list vl) {
+        int32_t x, int32_t y,  const char* format, va_list va) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
-    return ui_gdi_draw_text_with_flags(ta, x, y, 0, format, vl, flags);
+    return ui_gdi_draw_text_with_flags(ta, x, y, 0, format, va, flags);
 }
 
 static ui_wh_t ui_gdi_draw_text(const ui_gdi_ta_t* ta,
         int32_t x, int32_t y, const char* format, ...) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
-    va_list vl;
-    va_start(vl, format);
-    ui_wh_t wh = ui_gdi_draw_text_with_flags(ta, x, y, 0, format, vl, flags);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ui_wh_t wh = ui_gdi_draw_text_with_flags(ta, x, y, 0, format, va, flags);
+    va_end(va);
     return wh;
 }
 

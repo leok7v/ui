@@ -4,7 +4,7 @@
 begin_c
 
 // debug interface essentially is:
-// vfprintf(stderr, format, vl)
+// vfprintf(stderr, format, va)
 // fprintf(stderr, format, ...)
 // with the additional convience:
 // 1. writing to system log (e.g. OutputDebugString() on Windows)
@@ -28,7 +28,7 @@ typedef struct {
     bool (*tee)(const char* s, int32_t count); // return true to intercept
     void (*output)(const char* s, int32_t count);
     void (*println_va)(const char* file, int32_t line, const char* func,
-        const char* format, va_list vl);
+        const char* format, va_list va);
     void (*println)(const char* file, int32_t line, const char* func,
         const char* format, ...);
     void (*perrno)(const char* file, int32_t line,

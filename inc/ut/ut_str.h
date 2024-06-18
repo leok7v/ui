@@ -55,7 +55,7 @@ typedef struct {
     void (*utf16to8)(char* d, int32_t capacity, const uint16_t* utf16);
     void (*utf8to16)(uint16_t* d, int32_t capacity, const char* utf8);
     // string formatting printf style:
-    void (*format_va)(char* utf8, int32_t count, const char* format, va_list vl);
+    void (*format_va)(char* utf8, int32_t count, const char* format, va_list va);
     void (*format)(char* utf8, int32_t count, const char* format, ...);
     // format "dg" digit grouped; see below for known grouping separators:
     const char* (*grouping_separator)(void); // locale

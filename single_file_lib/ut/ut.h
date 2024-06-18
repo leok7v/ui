@@ -183,7 +183,7 @@ typedef struct {
     void (*utf16to8)(char* d, int32_t capacity, const uint16_t* utf16);
     void (*utf8to16)(uint16_t* d, int32_t capacity, const char* utf8);
     // string formatting printf style:
-    void (*format_va)(char* utf8, int32_t count, const char* format, va_list vl);
+    void (*format_va)(char* utf8, int32_t count, const char* format, va_list va);
     void (*format)(char* utf8, int32_t count, const char* format, ...);
     // format "dg" digit grouped; see below for known grouping separators:
     const char* (*grouping_separator)(void); // locale
@@ -465,7 +465,7 @@ extern ut_config_if ut_config;
 // ________________________________ ut_debug.h ________________________________
 
 // debug interface essentially is:
-// vfprintf(stderr, format, vl)
+// vfprintf(stderr, format, va)
 // fprintf(stderr, format, ...)
 // with the additional convience:
 // 1. writing to system log (e.g. OutputDebugString() on Windows)
@@ -489,7 +489,7 @@ typedef struct {
     bool (*tee)(const char* s, int32_t count); // return true to intercept
     void (*output)(const char* s, int32_t count);
     void (*println_va)(const char* file, int32_t line, const char* func,
-        const char* format, va_list vl);
+        const char* format, va_list va);
     void (*println)(const char* file, int32_t line, const char* func,
         const char* format, ...);
     void (*perrno)(const char* file, int32_t line,
@@ -1900,10 +1900,10 @@ static void ut_args_test_verify(const char* cl, int32_t expected, ...) {
     ut_args.v = null;
     ut_args_memory = null;
     ut_args_parse(cl);
-    va_list vl;
-    va_start(vl, expected);
+    va_list va;
+    va_start(va, expected);
     for (int32_t i = 0; i < expected; i++) {
-        const char* s = va_arg(vl, const char*);
+        const char* s = va_arg(va, const char*);
 //      if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //          traceln("ut_args.v[%d]: `%s` expected: `%s`", i, ut_args.v[i], s);
 //      }
@@ -1912,7 +1912,7 @@ static void ut_args_test_verify(const char* cl, int32_t expected, ...) {
         swear(strcmp(ai, s) == 0, "ut_args.v[%d]: `%s` expected: `%s`",
               i, ai, s);
     }
-    va_end(vl);
+    va_end(va);
     ut_args.fini();
     // restore command line arguments:
     ut_args.c = argc;
@@ -3181,7 +3181,7 @@ static void ut_debug_output(const char* s, int32_t count) {
 }
 
 static void ut_debug_println_va(const char* file, int32_t line, const char* func,
-        const char* format, va_list vl) {
+        const char* format, va_list va) {
     if (func == null) { func = ""; }
     char file_line[1024];
     if (line == 0 && file == null || file[0] == 0x00) {
@@ -3210,7 +3210,7 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wformat-nonliteral"
         #endif
-        vsnprintf(text, countof(text) - 1, format, vl);
+        vsnprintf(text, countof(text) - 1, format, va);
         text[countof(text) - 1] = 0;
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic pop
@@ -3237,9 +3237,9 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
 #else // posix version:
 
 static void ut_debug_vprintf(const char* file, int32_t line, const char* func,
-        const char* format, va_list vl) {
+        const char* format, va_list va) {
     fprintf(stderr, "%s(%d): %s ", file, line, func);
-    vfprintf(stderr, format, vl);
+    vfprintf(stderr, format, va);
     fprintf(stderr, "\n");
 }
 
@@ -3249,10 +3249,10 @@ static void ut_debug_perrno(const char* file, int32_t line,
     const char* func, int32_t err_no, const char* format, ...) {
     if (err_no != 0) {
         if (format != null && format[0] != 0) {
-            va_list vl;
-            va_start(vl, format);
-            ut_debug.println_va(file, line, func, format, vl);
-            va_end(vl);
+            va_list va;
+            va_start(va, format);
+            ut_debug.println_va(file, line, func, format, va);
+            va_end(va);
         }
         ut_debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
     }
@@ -3262,10 +3262,10 @@ static void ut_debug_perror(const char* file, int32_t line,
     const char* func, int32_t error, const char* format, ...) {
     if (error != 0) {
         if (format != null && format[0] != 0) {
-            va_list vl;
-            va_start(vl, format);
-            ut_debug.println_va(file, line, func, format, vl);
-            va_end(vl);
+            va_list va;
+            va_start(va, format);
+            ut_debug.println_va(file, line, func, format, va);
+            va_end(va);
         }
         ut_debug.println(file, line, func, "error: %s", strerr(error));
     }
@@ -3273,10 +3273,10 @@ static void ut_debug_perror(const char* file, int32_t line,
 
 static void ut_debug_println(const char* file, int32_t line, const char* func,
         const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ut_debug.println_va(file, line, func, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ut_debug.println_va(file, line, func, format, va);
+    va_end(va);
 }
 
 static bool ut_debug_is_debugger_present(void) { return IsDebuggerPresent(); }
@@ -6206,12 +6206,12 @@ static void ut_str_utf8to16(uint16_t* d, int32_t capacity, const char* utf8) {
 }
 
 static void ut_str_format_va(char* utf8, int32_t count, const char* format,
-        va_list vl) {
+        va_list va) {
     #if defined(__GNUC__) || defined(__clang__)
     #pragma GCC diagnostic push
     #pragma GCC diagnostic ignored "-Wformat-nonliteral"
     #endif
-    vsnprintf(utf8, (size_t)count, format, vl);
+    vsnprintf(utf8, (size_t)count, format, va);
     utf8[count - 1] = 0;
     #if defined(__GNUC__) || defined(__clang__)
     #pragma GCC diagnostic pop
@@ -6219,10 +6219,10 @@ static void ut_str_format_va(char* utf8, int32_t count, const char* format,
 }
 
 static void ut_str_format(char* utf8, int32_t count, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ut_str.format_va(utf8, count, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ut_str.format_va(utf8, count, format, va);
+    va_end(va);
 }
 
 static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
@@ -7281,10 +7281,10 @@ static void vigil_breakpoint_and_abort(void) {
 
 static int32_t vigil_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    va_list vl;
-    va_start(vl, format);
-    ut_debug.println_va(file, line, func, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ut_debug.println_va(file, line, func, format, va);
+    va_end(va);
     ut_debug.println(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
     const bool always_true = ut_runtime.abort != null;
@@ -7296,10 +7296,10 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     const int32_t er = ut_runtime.err();
     const int32_t en = errno;
-    va_list vl;
-    va_start(vl, format);
-    ut_debug.println_va(file, line, func, format, vl);
-    va_end(vl);
+    va_list va;
+    va_start(va, format);
+    ut_debug.println_va(file, line, func, format, va);
+    va_end(va);
     // report last errors:
     if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
     if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
@@ -7331,10 +7331,10 @@ static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
     fatal_if(format == null || format[0] == 0);
     vigil_test_failed_assertion_count++;
     if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
-        va_list vl;
-        va_start(vl, format);
-        ut_debug.println_va(file, line, func, format, vl);
-        va_end(vl);
+        va_list va;
+        va_start(va, format);
+        ut_debug.println_va(file, line, func, format, va);
+        va_end(va);
         ut_debug.println(file, line, func, "assertion failed: %s (expected)\n",
                      condition);
     }
@@ -7356,10 +7356,10 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     assert(format != null && format[0] != 0);
     vigil_test_fatal_calls_count++;
     if (ut_debug.verbosity.level > ut_debug.verbosity.trace) {
-        va_list vl;
-        va_start(vl, format);
-        ut_debug.println_va(file, line, func, format, vl);
-        va_end(vl);
+        va_list va;
+        va_start(va, format);
+        ut_debug.println_va(file, line, func, format, va);
+        va_end(va);
         if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
         if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {
