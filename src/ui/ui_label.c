@@ -7,7 +7,8 @@ static void ui_label_paint(ui_view_t* v) {
     const char* s = ui_view.string(v);
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     ui_color_t c = v->hover && v->highlightable ?
-        ui_app.get_color(ui_color_id_highlight) : v->color;
+        ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
+        v->color;
     const int32_t tx = v->x + i.left;
     const int32_t ty = v->y + i.top;
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
