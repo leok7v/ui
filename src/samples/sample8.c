@@ -123,7 +123,8 @@ static ui_mbx_t mbx = ui_mbx( // message box
     "\n"
     "Experiment with resizing the application window.\n"
     "\n"
-    "Press ESC to close this message.",
+    "Press ESC to close this message."
+    "\n",
     null, null);
 
 static void about(ui_button_t* unused(b)) {

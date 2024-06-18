@@ -226,7 +226,7 @@ static void right_layout(ui_view_t* v) {
 
 static void right_paint(ui_view_t* v) {
     panel_paint(v);
-    ui_gdi_ta_t* restore = ta;
+    const ui_gdi_ta_t* restore = ta;
     after(&button_locale, "&Locale %s", button_locale.pressed ?
         "zh-CN" : "en-US");
     after(&button_full_screen, "%s",
