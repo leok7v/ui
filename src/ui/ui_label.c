@@ -15,15 +15,15 @@ static void ui_label_paint(ui_view_t* v) {
     const bool multiline = strchr(s, '\n') != null;
     if (multiline) {
         int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-        ui_gdi.draw_multiline(&ta, tx, ty, w, "%s", ui_view.string(v));
+        ui_gdi.multiline(&ta, tx, ty, w, "%s", ui_view.string(v));
     } else {
-        ui_gdi.draw_text(&ta, tx, ty, "%s", ui_view.string(v));
+        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
     if (v->hover && !v->flat && v->highlightable) {
         ui_color_t highlight = ui_app.get_color(ui_color_id_highlight);
         int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
-        ui_gdi.rounded_with(v->x - radius, v->y, v->w + 2 * radius, h,
+        ui_gdi.rounded(v->x - radius, v->y, v->w + 2 * radius, h,
                        radius, highlight, ui_colors.transparent);
     }
 }

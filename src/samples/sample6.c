@@ -68,13 +68,13 @@ static void paint(ui_view_t* view) {
         animation.x = (view->w - gif.w) / 2;
         animation.y = (view->h - gif.h) / 2;
     }
-    ui_gdi.fill_with(0, 0, view->w, view->h, ui_colors.black);
+    ui_gdi.fill(0, 0, view->w, view->h, ui_colors.black);
     int32_t w = ut_min(view->w, background.w);
     int32_t h = ut_min(view->h, background.h);
     int32_t x = (view->w - w) / 2;
     int32_t y = (view->h - h) / 2;
     ui_gdi.set_clip(0, 0, view->w, view->h);
-    ui_gdi.draw_image(x, y, w, h, &background);
+    ui_gdi.image(x, y, w, h, &background);
     ui_gdi.set_clip(0, 0, 0, 0);
     if (gif.pixels != null) {
         uint8_t* p = gif.pixels + gif.w * gif.h * gif.bpp * animation.index;
@@ -82,13 +82,13 @@ static void paint(ui_view_t* view) {
         ui_gdi.image_init(&frame, gif.w, gif.h, gif.bpp, p);
         x = animation.x - gif.w / 2;
         y = animation.y - gif.h / 2;
-        ui_gdi.alpha_blend(x, y, gif.w, gif.h, &frame, 1.0);
+        ui_gdi.alpha(x, y, gif.w, gif.h, &frame, 1.0);
         ui_gdi.image_dispose(&frame);
     }
     ui_gdi_ta_t ta = ui_gdi.ta.H1;
     ta.color_id = 0;
     ta.color = muted ? ui_colors.green : ui_colors.red;
-    ui_gdi.draw_text(&ta, 0, 0, "%s", muted ?
+    ui_gdi.text(&ta, 0, 0, "%s", muted ?
         ut_glyph_speaker : ut_glyph_mute);
 }
 

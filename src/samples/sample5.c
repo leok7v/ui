@@ -170,13 +170,13 @@ static void painted(void) {
 }
 
 static void paint(ui_view_t* v) {
-    ui_gdi.fill_with(0, 0, v->w, v->h, ui_colors.black);
+    ui_gdi.fill(0, 0, v->w, v->h, ui_colors.black);
     int32_t ix = focused();
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_view_t* e = &edit[i]->view;
         ui_color_t c = edit[i]->ro ?
             ui_colors.tone_red : ui_colors.btn_hover_highlight;
-        ui_gdi.frame_with(e->x - 1, e->y - 1, e->w + 2, e->h + 2,
+        ui_gdi.frame(e->x - 1, e->y - 1, e->w + 2, e->h + 2,
             i == ix ? c : ui_colors.dkgray4);
     }
     painted();

@@ -120,7 +120,8 @@ static const char* ut_nls_locale(void) {
     static char ln[LOCALE_NAME_MAX_LENGTH * 4 + 1];
     ln[0] = 0;
     if (n == 0) {
-        // TODO: log error
+        errno_t r = ut_runtime.err();
+        traceln("LCIDToLocaleName(0x%04X) failed %s", lc_id, ut_str.error(r));
     } else {
         ut_str.utf16to8(ln, countof(ln), utf16);
     }

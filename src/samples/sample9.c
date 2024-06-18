@@ -163,14 +163,14 @@ static const ui_gdi_ta_t* ta = &ui_gdi.ta.regular;
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *x += ui_gdi.draw_text_va(ta, *x, *y, format, va).w;
+    *x += ui_gdi.text_va(ta, *x, *y, format, va).w;
     va_end(va);
 }
 
 static void println(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *y += ui_gdi.draw_text_va(ta, *x, *y, format, va).h;
+    *y += ui_gdi.text_va(ta, *x, *y, format, va).h;
     va_end(va);
 }
 
@@ -180,7 +180,7 @@ static void after(ui_view_t* v, const char* format, ...) {
     int32_t y = v->y + insets.top;
     va_list va;
     va_start(va, format);
-    ui_gdi.draw_text_va(ta, x, y, format, va);
+    ui_gdi.text_va(ta, x, y, format, va);
     va_end(va);
 }
 
@@ -188,29 +188,29 @@ static void panel_paint(ui_view_t* v) {
     if (v->color == ui_colors.transparent) {
         v->color = ui_app.content->color;
     }
-    ui_gdi.fill_with(v->x, v->y, v->w, v->h, ui_colors.dkgray1);
+    ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.dkgray1);
     ui_color_t c = ui_colors.dkgray4;
     if (v == &panel_right) {
-        ui_gdi.line_with(v->x, v->y, v->x + v->w, v->y, c);
-        ui_gdi.line_with(v->x + v->w, v->y, v->x + v->w, v->y + v->h, c);
-        ui_gdi.line_with(v->x + v->w, v->y + v->h, v->x, v->y + v->h, c);
-        ui_gdi.line_with(v->x, v->y + v->h, v->x, v->y, c);
+        ui_gdi.line(v->x, v->y, v->x + v->w, v->y, c);
+        ui_gdi.line(v->x + v->w, v->y, v->x + v->w, v->y + v->h, c);
+        ui_gdi.line(v->x + v->w, v->y + v->h, v->x, v->y + v->h, c);
+        ui_gdi.line(v->x, v->y + v->h, v->x, v->y, c);
     } else if (v == &panel_top || v == &panel_bottom) {
-        ui_gdi.line_with(v->x, v->y, v->x, v->y + v->h, c);
-        ui_gdi.line_with(v->x, v->y + v->h, v->x + v->w, v->y + v->h, c);
-        ui_gdi.line_with(v->x + v->w, v->y, v->x, v->y, c);
+        ui_gdi.line(v->x, v->y, v->x, v->y + v->h, c);
+        ui_gdi.line(v->x, v->y + v->h, v->x + v->w, v->y + v->h, c);
+        ui_gdi.line(v->x + v->w, v->y, v->x, v->y, c);
     } else {
         assert(v == &panel_center);
-        ui_gdi.line_with(v->x, v->y, v->x, v->y + v->h, c);
+        ui_gdi.line(v->x, v->y, v->x, v->y + v->h, c);
     }
     int32_t x = v->x + panel_border + ut_max(1, v->fm->em.w / 8);
     int32_t y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);
     const int32_t radius = (v->fm->em.h / 4) | 0x1;
-    ui_gdi.rounded_with(x, y, v->fm->em.w * 12, v->fm->em.h,
+    ui_gdi.rounded(x, y, v->fm->em.w * 12, v->fm->em.h,
            radius,  v->color, ui_colors.transparent);
     x = v->x + panel_border + ut_max(1, v->fm->em.w / 2);
     y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);
-    ui_gdi.draw_text(ta, x, y, "%d,%d %dx%d %s",
+    ui_gdi.text(ta, x, y, "%d,%d %dx%d %s",
                      v->x, v->y, v->w, v->h, ui_view.string(v));
 }
 
@@ -281,11 +281,11 @@ static void right_paint(ui_view_t* v) {
 
 static void center_paint(ui_view_t* view) {
 //  ui_gdi.set_clip(view->x, view->y, view->w, view->h);
-    ui_gdi.fill_with(view->x, view->y, view->w, view->h, ui_colors.black);
+    ui_gdi.fill(view->x, view->y, view->w, view->h, ui_colors.black);
     int x = (view->w - image.w) / 2;
     int y = (view->h - image.h) / 2;
-//  ui_gdi.alpha_blend(view->x + x, view->y + y, image.w, image.h, &image, 0.5);
-    ui_gdi.draw_image(view->x + x, view->y + y, image.w, image.h, &image);
+//  ui_gdi.alpha(view->x + x, view->y + y, image.w, image.h, &image, 0.5);
+    ui_gdi.image(view->x + x, view->y + y, image.w, image.h, &image);
 //  ui_gdi.set_clip(0, 0, 0, 0);
 }
 

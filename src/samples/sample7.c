@@ -65,14 +65,14 @@ static void stats(int32_t ix) {
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *x += ui_gdi.draw_text_va(&ui_gdi.ta.mono, *x, *y, format, va).w;
+    *x += ui_gdi.text_va(&ui_gdi.ta.mono, *x, *y, format, va).w;
     va_end(va);
 }
 
 static void println(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *y += ui_gdi.draw_text_va(&ui_gdi.ta.mono, *x, *y, format, va).h;
+    *y += ui_gdi.text_va(&ui_gdi.ta.mono, *x, *y, format, va).h;
     va_end(va);
 }
 
@@ -81,8 +81,7 @@ static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
     const int h2 = ui_app.root->h / 2;
     const int h4 = h2 / 2;
     const int h8 = h4 / 2;
-    ui_gdi.y = y - h8;
-    ui_gdi.line_with(0, y, ui_app.root->w, y, ui_colors.white);
+    ui_gdi.line(0, y, ui_app.root->w, y, ui_colors.white);
     if (t->samples > 2) {
         const fp64_t spread = ts[ix].spread;
         int n = ut_min(N, t->samples);

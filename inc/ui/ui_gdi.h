@@ -5,7 +5,7 @@ begin_c
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
-enum {  // TODO: ui_ namespace and into gdi int32_t const
+enum {  // TODO: into gdi int32_t const
     ui_gdi_font_quality_default = 0,
     ui_gdi_font_quality_draft = 1,
     ui_gdi_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
@@ -23,10 +23,6 @@ typedef struct ui_gdi_ta_s { // text attributes
 } ui_gdi_ta_t;
 
 typedef struct {
-    ui_brush_t  brush_color;
-    ui_brush_t  brush_hollow;
-    ui_pen_t pen_hollow;
-    ui_region_t clip;
     struct {
         ui_gdi_ta_t const regular;
         ui_gdi_ta_t const mono;
@@ -35,6 +31,7 @@ typedef struct {
         ui_gdi_ta_t const H3;
     } const ta;
     void (*init)(void);
+    void (*fini)(void);
     void (*begin)(ui_image_t* image_or_null);
     // all paint must be done in between
     void (*end)(void);
@@ -46,103 +43,56 @@ typedef struct {
     void (*image_init_rgbx)(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
     void (*image_dispose)(ui_image_t* image);
-//  ui_color_t (*set_text_color)(ui_color_t c);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
-//  void (*push)(int32_t x, int32_t y); // also calls SaveDC(ui_app.canvas)
-//  void (*pop)(void); // also calls RestoreDC(-1, ui_app.canvas)
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
-    void (*line_with)(int32_t x0, int32_t y1, int32_t x2, int32_t y2,
+    void (*line)(int32_t x0, int32_t y1, int32_t x2, int32_t y2,
                       ui_color_t c);
-    void (*frame_with)(int32_t x, int32_t y, int32_t w, int32_t h,
+    void (*frame)(int32_t x, int32_t y, int32_t w, int32_t h,
                       ui_color_t c);
-    void (*rect_with)(int32_t x, int32_t y, int32_t w, int32_t h,
+    void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h,
                       ui_color_t border, ui_color_t fill);
-    void (*fill_with)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
+    void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
     void (*poly)(ui_point_t* points, int32_t count, ui_color_t c);
-    void (*circle_with)(int32_t center_x, int32_t center_y, int32_t odd_radius,
+    void (*circle)(int32_t center_x, int32_t center_y, int32_t odd_radius,
         ui_color_t border, ui_color_t fill);
-//  void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
-//      int32_t rx, int32_t ry); // see RoundRect with pen, brush
-    void (*rounded_with)(int32_t x, int32_t y, int32_t w, int32_t h,
+    void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t odd_radius, ui_color_t border, ui_color_t fill);
     void (*gradient)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical);
-    // draw images: (x,y remains untouched after drawing)
-    // draw_greyscale() sx, sy, sw, sh screen rectangle
+    // greyscale() sx, sy, sw, sh screen rectangle
     // x, y, w, h rectangle inside pixels[ih][iw] uint8_t array
-    void (*draw_greyscale)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+    void (*greyscale)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
-    void (*draw_bgr)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+    void (*bgr)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
-    void (*draw_bgrx)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+    void (*bgrx)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
-    void (*alpha_blend)(int32_t x, int32_t y, int32_t w, int32_t h,
-        ui_image_t* image, fp64_t alpha);
-    void (*draw_image)(int32_t x, int32_t y, int32_t w, int32_t h,
+    void (*alpha)(int32_t x, int32_t y, int32_t w, int32_t h,
+        ui_image_t* image, fp64_t alpha); // alpha blend image
+    void (*image)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_image_t* image);
-    void (*draw_icon)(int32_t x, int32_t y, int32_t w, int32_t h,
+    void (*icon)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_icon_t icon);
     // text:
     void (*cleartype)(bool on); // system wide change: don't use
     void (*font_smoothing_contrast)(int32_t c); // [1000..2202] or -1 for 1400 default
     ui_font_t (*create_font)(const char* family, int32_t height, int32_t quality);
-    ui_font_t (*font)(ui_font_t f, int32_t height, int32_t quality); // custom font, quality: -1 as is
+    // custom font, quality: -1 "as is"
+    ui_font_t (*font)(ui_font_t f, int32_t height, int32_t quality);
     void      (*delete_font)(ui_font_t f);
-
-// TODO: remove
-    ui_font_t (*set_font)(ui_font_t f);
-
-    // IMPORTANT: relationship between font_height(), baseline(), descent()
-    // E.g. for monospaced font on dpi=96 (monitor_raw=101) and font_height=15
-    // the get_em() is: 9 20 font_height(): 15 baseline: 16 descent: 4
-    // Monospaced fonts are not `em` "M" square!
-//  int32_t (*font_height)(ui_font_t f); // font height in pixels
-//  int32_t (*descent)(ui_font_t f);     // font descent (glyphs below baseline)
-//  int32_t (*baseline)(ui_font_t f);    // height - baseline (aka ascent) = descent
     void (*dump_fm)(ui_font_t f); // dump font metrics
     void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics
-
-    // TODO: remove
-    int32_t x; // incremented by text, print
-    int32_t y; // incremented by textln, println
-
-
-#if 0
-    fp64_t height_multiplier; // see line_spacing()
-
-// TODO: remove
-    ui_wh_t (*measure_text)(const ui_fm_t* fm, const char* format, ...);
-    // width can be -1 which measures text with "\n" or
-    // positive number of pixels
-    ui_wh_t (*measure_multiline)(const ui_fm_t* fm, int32_t w, const char* format, ...);
-    // proportional:
-// TODO: remove
-    void (*vtext)(const char* format, va_list va); // x += width
-    void (*text)(const char* format, ...);         // x += width
-    // ui_gdi.y += height * line_spacing
-    void (*vtextln)(const char* format, va_list va);
-    void (*textln)(const char* format, ...);
-    // mono:
-    void (*vprint)(const char* format,va_list va); // x += width
-    void (*print)(const char* format, ...);        // x += width
-    // ui_gdi.y += height * line_spacing
-    void (*vprintln)(const char* format, va_list va);
-    void (*println)(const char* format, ...);
-    // multiline(null, format, ...) only increments ui_gdi.y
-    ui_point_t (*multiline)(int32_t width, const char* format, ...);
-#endif
-// replacement:
-    ui_wh_t (*draw_text_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*text_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
         const char* format, va_list va);
-    ui_wh_t (*draw_text)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*text)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
         const char* format, ...);
-    ui_wh_t (*draw_multiline_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*multiline_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
         int32_t w, const char* format, va_list va); // "w" can be zero
-    ui_wh_t (*draw_multiline)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*multiline)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
         int32_t w, const char* format, ...);
 } ui_gdi_if;
 

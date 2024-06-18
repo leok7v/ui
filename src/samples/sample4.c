@@ -56,20 +56,20 @@ static void load_images(void) {
 }
 
 static void paint(ui_view_t* view) {
-    ui_gdi.fill_with(0, 0, view->w, view->h, ui_colors.black);
+    ui_gdi.fill(0, 0, view->w, view->h, ui_colors.black);
     if (image[1].w > 0 && image[1].h > 0) {
         int w = ut_min(view->w, image[1].w);
         int h = ut_min(view->h, image[1].h);
         int x = (view->w - w) / 2;
         int y = (view->h - h) / 2;
         ui_gdi.set_clip(0, 0, view->w, view->h);
-        ui_gdi.draw_image(x, y, w, h, &image[1]);
+        ui_gdi.image(x, y, w, h, &image[1]);
         ui_gdi.set_clip(0, 0, 0, 0);
     }
     if (image[0].w > 0 && image[0].h > 0) {
         int x = (view->w - image[0].w) / 2;
         int y = (view->h - image[0].h) / 2;
-        ui_gdi.draw_image(x, y, image[0].w, image[0].h, &image[0]);
+        ui_gdi.image(x, y, image[0].w, image[0].h, &image[0]);
     }
 }
 

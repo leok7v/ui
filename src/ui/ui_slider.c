@@ -14,7 +14,7 @@ static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
     va_list va;
     va_start(va, format);
     const ui_gdi_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
-    ui_wh_t wh = ui_gdi.draw_text_va(&ta, 0, 0, format, va);
+    ui_wh_t wh = ui_gdi.text_va(&ta, 0, 0, format, va);
     va_end(va);
     return wh;
 }
@@ -129,7 +129,7 @@ static void ui_slider_paint(ui_view_t* v) {
     const int32_t tx = v->x + cx + (s->dec.hidden ? 0 : dec_w);
     const int32_t ty = v->y + i.top;
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
-    ui_gdi.draw_text(&ta, tx, ty, "%s", text);
+    ui_gdi.text(&ta, tx, ty, "%s", text);
     // unclip
     ui_gdi.set_clip(0, 0, 0, 0);
 //  ui_gdi.pop();

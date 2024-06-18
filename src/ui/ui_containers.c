@@ -548,7 +548,7 @@ static void ui_container_layout(ui_view_t* p) {
 static void ui_paint_container(ui_view_t* v) {
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
-        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
+        ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     } else {
 //      traceln("%s undefined", v->text);
     }

@@ -27,14 +27,14 @@ ui_button_on_click(button_fs, ut_glyph_square_four_corners, 1.0, {
 
 static void paint(ui_view_t* view) {
     int32_t k = index;
-    ui_gdi.draw_image(0, 0, view->w, view->h, &image[k]);
+    ui_gdi.image(0, 0, view->w, view->h, &image[k]);
     int32_t tx = view->fm->em.w;
     int32_t ty = view->fm->em.h / 4;
     const ui_gdi_ta_t ta = { .fm = view->fm, .color = ui_colors.orange };
-    ui_gdi.draw_text(&ta, tx, ty, "%s",
+    ui_gdi.text(&ta, tx, ty, "%s",
                      "Try Full Screen Button there --->");
     ty = view->h - view->fm->em.h * 3 / 2;
-    ui_gdi.draw_text(&ta, tx, ty,
+    ui_gdi.text(&ta, tx, ty,
         "render time %.1f ms / avg paint time %.1f ms",
         render_time * 1000, ui_app.paint_avg * 1000);
     if (!rendering) {

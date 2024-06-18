@@ -169,8 +169,8 @@ static ui_wh_t ui_view_text_metrics_va(int32_t x, int32_t y,
     const ui_gdi_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
                              .measure = true };
     return multiline ?
-        ui_gdi.draw_multiline_va(&ta, x, y, w, format, va) :
-        ui_gdi.draw_text_va(&ta, x, y, format, va);
+        ui_gdi.multiline_va(&ta, x, y, w, format, va) :
+        ui_gdi.text_va(&ta, x, y, format, va);
 }
 
 static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
@@ -627,28 +627,28 @@ static void ui_view_debug_paint(ui_view_t* v) {
                      v->type == ui_view_list ||
                      v->type == ui_view_spacer;
     if (v->type == ui_view_spacer) {
-        ui_gdi.fill_with(v->x, v->y, v->w, v->h, ui_rgb(128, 128, 128));
+        ui_gdi.fill(v->x, v->y, v->w, v->h, ui_rgb(128, 128, 128));
     } else if (container && v->color != ui_colors.transparent) {
 //      traceln("%s 0x%08X", v->text, v->color);
-        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
+        ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     }
     ui_ltrb_t p = ui_view.gaps(v, &v->padding);
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    if (p.left   > 0) { ui_gdi.frame_with(v->x - p.left, v->y, p.left, v->h, ui_colors.green); }
-    if (p.right  > 0) { ui_gdi.frame_with(v->x + v->w, v->y, p.right, v->h, ui_colors.green); }
-    if (p.top    > 0) { ui_gdi.frame_with(v->x, v->y - p.top, v->w, p.top, ui_colors.green); }
-    if (p.bottom > 0) { ui_gdi.frame_with(v->x, v->y + v->h, v->w, p.bottom, ui_colors.green); }
-    if (i.left  > 0)  { ui_gdi.frame_with(v->x, v->y,               i.left, v->h, ui_colors.orange); }
-    if (i.right > 0)  { ui_gdi.frame_with(v->x + v->w - i.right, v->y, i.right, v->h, ui_colors.orange); }
-    if (i.top   > 0)  { ui_gdi.frame_with(v->x, v->y,            v->w, i.top, ui_colors.orange); }
-    if (i.bottom > 0) { ui_gdi.frame_with(v->x, v->y + v->h - i.bottom, v->w, i.bottom, ui_colors.orange); }
+    if (p.left   > 0) { ui_gdi.frame(v->x - p.left, v->y, p.left, v->h, ui_colors.green); }
+    if (p.right  > 0) { ui_gdi.frame(v->x + v->w, v->y, p.right, v->h, ui_colors.green); }
+    if (p.top    > 0) { ui_gdi.frame(v->x, v->y - p.top, v->w, p.top, ui_colors.green); }
+    if (p.bottom > 0) { ui_gdi.frame(v->x, v->y + v->h, v->w, p.bottom, ui_colors.green); }
+    if (i.left  > 0)  { ui_gdi.frame(v->x, v->y,               i.left, v->h, ui_colors.orange); }
+    if (i.right > 0)  { ui_gdi.frame(v->x + v->w - i.right, v->y, i.right, v->h, ui_colors.orange); }
+    if (i.top   > 0)  { ui_gdi.frame(v->x, v->y,            v->w, i.top, ui_colors.orange); }
+    if (i.bottom > 0) { ui_gdi.frame(v->x, v->y + v->h - i.bottom, v->w, i.bottom, ui_colors.orange); }
     if (container && v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
         ui_wh_t mt = ui_view_text_metrics(v->x, v->y, false, 0, v->fm, "%s", ui_view.string(v));
-        const int32_t tx = ui_gdi.x + (v->w - mt.w) / 2;
-        const int32_t ty = ui_gdi.y + (v->h - mt.h) / 2;
+        const int32_t tx = v->x + (v->w - mt.w) / 2;
+        const int32_t ty = v->y + (v->h - mt.h) / 2;
         const ui_color_t c = ui_color_rgb(v->color) ^ 0xFFFFFF;
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
-        ui_gdi.draw_text(&ta, tx, ty, "%s", ui_view.string(v));
+        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
 //  ui_gdi.pop();
 }

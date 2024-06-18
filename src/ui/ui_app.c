@@ -648,7 +648,7 @@ static void ui_app_toast_paint(void) {
             ui_app_measure_and_layout(ui_app.animating.view);
             // dim main window (as `disabled`):
             fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
-            ui_gdi.alpha_blend(0, 0, ui_app.crc.w, ui_app.crc.h, &image_dark, alpha);
+            ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h, &image_dark, alpha);
             ui_app.animating.view->x = (ui_app.root->w - ui_app.animating.view->w) / 2;
 //          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
 //                  ui_app.animating.y, ui_app.animating.view->y);
@@ -674,7 +674,7 @@ static void ui_app_toast_paint(void) {
             ui_colors.toast :
             ui_app.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
-        ui_gdi.rounded_with(x, y, w, h, radius, tint, tint);
+        ui_gdi.rounded(x, y, w, h, radius, tint, tint);
         if (!hint) { ui_app.animating.view->y += em_h / 4; }
         ui_app_paint(ui_app.animating.view);
         if (!hint) {
@@ -688,7 +688,7 @@ static void ui_app_toast_paint(void) {
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
                 };
-                ui_gdi.draw_text(&ta, tx, ty, "%s",
+                ui_gdi.text(&ta, tx, ty, "%s",
                                  ut_glyph_multiplication_sign);
             }
         }
@@ -786,7 +786,7 @@ static void ui_app_view_paint(ui_view_t* v) {
     }
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
-        ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
+        ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     }
 }
 
@@ -815,7 +815,7 @@ static void ui_app_view_active_frame_paint(void) {
     const int32_t w = ui_app.wrc.w;
     const int32_t h = ui_app.wrc.h;
     for (int32_t i = 0; i < ui_app.border.w; i++) {
-        ui_gdi.frame_with(i, i, w - i * 2, h - i * 2, c);
+        ui_gdi.frame(i, i, w - i * 2, h - i * 2, c);
     }
 }
 
@@ -850,9 +850,6 @@ static void ui_app_paint_on_canvas(HDC hdc) {
         ui_app_view_layout();
     }
     ui_gdi.begin(null);
-//  ui_gdi.push(0, 0);
-    ui_gdi.x = 0;
-    ui_gdi.y = 0;
     ui_app_paint(ui_app.root);
     if (ui_app.animating.view != null) { ui_app_toast_paint(); }
     // active frame on top of everything:
@@ -860,7 +857,6 @@ static void ui_app_paint_on_canvas(HDC hdc) {
         !ui_app.is_maximized()) {
         ui_app_view_active_frame_paint();
     }
-//  ui_gdi.pop();
     ui_gdi.end();
     ui_app.paint_count++;
     ui_app.canvas = canvas;
@@ -1460,7 +1456,6 @@ static int32_t ui_app_message_loop(void) {
 
 static void ui_app_dispose(void) {
     ui_app_dispose_fonts();
-    if (ui_gdi.clip != null) { DeleteRgn(ui_gdi.clip); }
     fatal_if_false(CloseHandle(ui_app_event_quit));
     fatal_if_false(CloseHandle(ui_app_event_invalidate));
 }
@@ -2197,6 +2192,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         r = ui_app.main();
         if (ui_app.fini != null) { ui_app.fini(); }
     }
+    ui_gdi.fini();
     return r;
 }
 

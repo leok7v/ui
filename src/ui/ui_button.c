@@ -61,9 +61,9 @@ static void ui_button_paint(ui_view_t* v) {
         const int32_t tx = v->x + i.left + t_x;
         const int32_t ty = v->y + i.top  + t_y;
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
-        ui_gdi.draw_text(&ta, tx, ty, "%s", ui_view.string(v));
+        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
-        ui_gdi.draw_icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
+        ui_gdi.icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
     }
     ui_color_t color = v->armed ?
         ui_colors.lighten(v->background, 0.125f) : d1;
@@ -72,7 +72,7 @@ static void ui_button_paint(ui_view_t* v) {
     if (!v->flat) {
         int32_t r = ut_max(3, v->fm->em.h / 4);
         if (r % 2 == 0) { r++; }
-        ui_gdi.rounded_with(v->x, v->y, v->w, v->h, r,
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r,
                             color, ui_colors.transparent);
     }
 //  ui_gdi.pop();

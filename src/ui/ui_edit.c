@@ -91,7 +91,7 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
     // "ui_app.fonts.regular" ~250us (microseconds)
     const ui_gdi_ta_t ta = { .fm = e->view.fm, .color = e->view.color,
                              .measure = true };
-    int32_t x = n == 0 ? 0 : ui_gdi.draw_text(&ta, 0, 0, "%.*s", n, s).w;
+    int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
 //  TODO: remove
 //  int32_t x = n == 0 ? 0 : ui_gdi.measure_text(e->view.fm, "%.*s", n, s).w;
 
@@ -600,7 +600,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             ui_color_t selection_color = ui_rgb(0x26, 0x4F, 0x78); // ui_rgb(64, 72, 96);
             const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->view.insets);
             int32_t x = e->view.x + insets.left;
-            ui_gdi.fill_with(x + x0, y,
+            ui_gdi.fill(x + x0, y,
                              x1 - x0, e->view.fm->height, selection_color);
         }
     }
@@ -615,7 +615,7 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
         char* text = e->para[pn].text + run[j].bp;
         ui_edit_paint_selection(e, y, &run[j], text, pn,
                                 run[j].gp, run[j].gp + run[j].glyphs);
-        ui_gdi.draw_text(ta, x, y, "%.*s", run[j].bytes, text);
+        ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
         y += e->view.fm->height;
     }
     return y;
@@ -1713,12 +1713,12 @@ static void ui_edit_paint(ui_view_t* v) {
     ui_edit_t* e = (ui_edit_t*)v;
     // TODO: remove
 //  ui_gdi.push(v->x, v->y + e->inside.top);
-    ui_gdi.fill_with(v->x, v->y, v->w, v->h, v->background);
+    ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
 #if 0 // TODO: remove
     v->debug = false;
-    ui_gdi.line_with(v->x + e->inside.left + e->w, v->y,
+    ui_gdi.line(v->x + e->inside.left + e->w, v->y,
                      v->x + e->inside.left + e->w, v->y + v->h, ui_colors.green);
-    ui_gdi.line_with(v->x + v->w - 1, v->y,
+    ui_gdi.line(v->x + v->w - 1, v->y,
                      v->x + v->w - 1, v->y + v->h, ui_colors.red);
 #endif
     ui_gdi.set_clip(v->x + e->inside.left, v->y + e->inside.top,
@@ -1730,7 +1730,7 @@ static void ui_edit_paint(ui_view_t* v) {
     const int32_t pn = e->scroll.pn;
     const int32_t bottom = v->y + e->inside.bottom;
     assert(pn <= e->paragraphs);
-    for (int32_t i = pn; i < e->paragraphs && ui_gdi.y < bottom; i++) {
+    for (int32_t i = pn; i < e->paragraphs && y < bottom; i++) {
         y = ui_edit_paint_paragraph(e, &ta, x, y, i);
     }
 //  ui_gdi.set_font(f);
