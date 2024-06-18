@@ -143,7 +143,7 @@ ui_button_on_click(button_mbx, "&Message Box", 7.5, {
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
 
 // ui_toggle label can include "___" for "ON ": "OFF" state
-ui_toggle_on_switch(scroll, "Scroll &Direction:", 0, {});
+ui_toggle_on_off(scroll, "Scroll &Direction:", 0, {});
 
 #else
 

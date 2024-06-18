@@ -61,8 +61,8 @@ typedef struct ui_edit_s {
     void (*key_up)(ui_edit_t* e);
     void (*key_left)(ui_edit_t* e);
     void (*key_right)(ui_edit_t* e);
-    void (*key_pageup)(ui_edit_t* e);
-    void (*key_pagedw)(ui_edit_t* e);
+    void (*key_page_up)(ui_edit_t* e);
+    void (*key_page_down)(ui_edit_t* e);
     void (*key_home)(ui_edit_t* e);
     void (*key_end)(ui_edit_t* e);
     void (*key_delete)(ui_edit_t* e);
@@ -83,9 +83,10 @@ typedef struct ui_edit_s {
     int32_t h;         // inside.bottom - inside.top
     // number of fully (not partially clipped) visible `runs' from top to bottom:
     int32_t visible_runs;
-    bool focused;  // is focused and created caret
-    bool ro;       // Read Only
-    bool sle;      // Single Line Edit
+    bool focused;     // is focused and created caret
+    bool ro;          // Read Only
+    bool sle;         // Single Line Edit
+    bool hide_word_wrap; // do not paint word wrap
     int32_t shown; // debug: caret show/hide counter 0|1
     // https://en.wikipedia.org/wiki/Fuzzing
     volatile ut_thread_t fuzzer;     // fuzzer thread != null when fuzzing

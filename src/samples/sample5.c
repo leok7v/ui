@@ -66,7 +66,7 @@ ui_button_on_click(fuzz, "Fu&zz", 9.0f, {
     }
 });
 
-ui_toggle_on_switch(ro, "&Read Only", 9.0f, {
+ui_toggle_on_off(ro, "&Read Only", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->ro = ro->pressed;
@@ -75,7 +75,17 @@ ui_toggle_on_switch(ro, "&Read Only", 9.0f, {
     }
 });
 
-ui_toggle_on_switch(mono, "&Mono", 9.0f, {
+ui_toggle_on_off(ww, "Hide &Word Wrap", 9.0f, {
+    int32_t ix = focused();
+    if (ix >= 0) {
+        edit[ix]->hide_word_wrap = ww->pressed;
+//      traceln("edit[%d].hide_word_wrap: %d", ix, edit[ix]->hide_word_wrap);
+        focus_back_to_edit();
+    }
+});
+
+
+ui_toggle_on_off(mono, "&Mono", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->set_font(edit[ix], mono->pressed ? &mf : &pf);
@@ -85,7 +95,7 @@ ui_toggle_on_switch(mono, "&Mono", 9.0f, {
     }
 });
 
-ui_toggle_on_switch(sl, "&Single Line", 9.0f, {
+ui_toggle_on_off(sl, "&Single Line", 9.0f, {
     int32_t ix = focused();
     if (ix == 2) {
         sl->pressed = true; // always single line
@@ -211,38 +221,6 @@ static void every_100ms(void) {
 //  last = ui_app.focus;
 }
 
-// limiting vertical height of SLE to 3 lines of text:
-
-static void edit2_prepare(ui_view_t* v) { // _3_lines_sle
-    // UX design decision:
-    // 3 vertical visible runs SLE is friendlier in UX term
-    // than not implemented horizontal scroll.
-    assert(v == &edit[2]->view);
-//  traceln("WxH: %dx%d <- r/o button", ro.view.w, ro.view.h);
-//  v->max_w = full_screen.w;
-//  const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
-//  v->max_h = insets.top + v->fm->height * 3 + insets.bottom;
-//  v->min_w_em = full_screen.min_w_em;
-}
-
-static void edit2_measured(ui_view_t* v) {
-//  traceln("WxH: %dx%d (%dx%d) em: %d lines: %d",
-//          edit[2]->view.w, edit[2]->view.h,
-//          edit[2]->width, edit[2]->height,
-//          edit[2]->view.fm->em.h, edit[2]->view.h / edit[2]->view.fm->em.h);
-    assert(v == &edit[2]->view);
-//  traceln("SLE: v->w %d := full_screen.w %d", v->w, full_screen.w);
-//  full_screen.debug = true;
-//  v->debug = true;
-//  v->w = full_screen.w;
-
-
-//  int32_t max_lines = edit[2]->focused ? 3 : 1;
-//  if (v->h < v->fm->em.h * max_lines) {
-//      v->h = v->fm->em.h * max_lines;
-//  }
-}
-
 static void key_pressed(ui_view_t* unused(view), int64_t key) {
     if (ui_app.has_focus() && key == ui.key.escape) { ui_app.close(); }
     int32_t ix = focused();
@@ -302,9 +280,6 @@ static void opened(void) {
     ui_app.focus = &edit[0]->view;
     ui_app.every_100ms = every_100ms;
     set_text(0); // need to be two lines for measure
-    // edit[2] is SLE:
-    edit[2]->view.prepare  = edit2_prepare;
-    edit[2]->view.measured = edit2_measured;
     edit[2]->sle = true;
     edit[2]->select_all(edit[2]);
     edit[2]->paste(edit[2], "Single line", -1);
@@ -329,6 +304,7 @@ static void opened(void) {
                 &mono,
                 &sl,
                 &ro,
+                &ww,
                 &edit2,
                 &spacer2,
             null),
