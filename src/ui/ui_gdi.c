@@ -188,6 +188,7 @@ static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t c) {
+//  traceln("%d,%d %dx%d 0x%08X", x, y, w, h, (uint32_t)c);
     ui_brush_t b = ui_gdi_set_brush(ui_gdi_brush_color);
     c = ui_gdi_set_brush_color(c);
     RECT rc = { x, y, x + w, y + h };

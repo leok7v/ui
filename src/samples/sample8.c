@@ -180,6 +180,15 @@ static void opened(void) {
             null),
         null),
     null);
+//  ui_app.root->background = ui_rgb(0x2E, 0x2E, 0x2E);
+//  ui_app.root->background_id = 0;
+//  ui_app.content->background = ui_rgb(0x2E, 0x2E, 0x2E);
+//  ui_app.content->background_id = 0;
+//  list_view.background = ui_rgb(0x2E, 0x2E, 0x2E);
+//  list_view.background_id = 0;
+//  span_view.background = ui_rgb(0x2E, 0x2E, 0x2E);
+//  span_view.background_id = 0;
+
     list_view.max_w = ui.infinity;
     list_view.max_h = ui.infinity;
     list_view.insets = (ui_gaps_t){ 0, 0, 0, 0 };
@@ -218,7 +227,8 @@ static void opened(void) {
     ui_caption.icon.hidden = true;
     tools_list.hidden = true;
     if (app_data.menu_used == 0) {
-        ui_app.toast(4.5, "For tools click "
+        ui_app.toast(4.5, ut_glyph_leftward_arrow
+                          " click "
                           ut_glyph_trigram_for_heaven
                           " menu button");
     }
@@ -395,6 +405,8 @@ static void controls_test(ui_view_t* parent) {
         null),
     null);
     list.debug  = true;
+//  list.background = ui_rgb(0x2E, 0x2E, 0x2E);
+//  list.background_id = 0;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
     ui_view.set_text(&list, "list");

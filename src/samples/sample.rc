@@ -64,6 +64,8 @@ STRINGTABLE {
     str_about_hint        , L"显示关于消息框"
     str_yes_no_hint       , L"显示是/否消息框"
     str_fs_label          , L"全屏"
+//  str_copied            , L"copied to clipboard"
+    str_copied            , L"复制到剪贴板"
 }
 
 // Order of languages is important. (ENGLISH, NEUTRAL) must be last.
@@ -667,4 +669,5 @@ STRINGTABLE {
     str_about_hint        , L"Show About message box"
     str_yes_no_hint       , L"Show Yes/No message box"
     str_fs_label          , L"&Full Screen"
+    str_copied            , L"copied to clipboard"
 }

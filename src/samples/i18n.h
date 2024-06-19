@@ -43,3 +43,4 @@
 #define str_about_hint        36
 #define str_yes_no_hint       37
 #define str_fs_label          38
+#define str_copied            39

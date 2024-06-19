@@ -161,7 +161,8 @@ static struct {
     { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
     { .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 },
 //  { .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF }, // too contrast
-    { .name = "Window"           ,.dark = 0x00121212, .light = 0x00E0E0E0 },
+//  { .name = "Window"           ,.dark = 0x00121212, .light = 0x00E0E0E0 },
+    { .name = "Window"           ,.dark = 0x002E2E2E, .light = 0x00E0E0E0 },
     { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
 };
 

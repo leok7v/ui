@@ -32,10 +32,14 @@ static void ui_label_context_menu(ui_view_t* v) {
     assert(v->type == ui_view_label);
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ut_clipboard.put_text(ui_view.string(v));
-        static bool first_time = true;
-        ui_app.toast(first_time ? 2.2 : 0.5,
-            ut_nls.str("Text copied to clipboard"));
-        first_time = false;
+        static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
+        int32_t x = v->x + v->w / 2;
+        int32_t y = v->y + v->h;
+        ui_app.show_hint(&hint, x, y, 0.75);
+//      static bool first_time = true;
+//      ui_app.toast(first_time ? 2.2 : 0.5,
+//          ut_nls.str("Text copied to clipboard"));
+//      first_time = false;
     }
 }
 

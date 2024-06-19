@@ -1729,7 +1729,9 @@ typedef struct ui_view_s ui_view_t;
 #define ui_view(view_type) {            \
     .type = (ui_view_ ## view_type),    \
     .init = ui_view_init_ ## view_type, \
-    .fm   = &ui_app.fonts.regular       \
+    .fm   = &ui_app.fonts.regular,      \
+    .color = ui_color_transparent,      \
+    .color_id = 0                       \
 }
 
 void ui_view_init_container(ui_view_t* view);
@@ -4537,7 +4539,8 @@ static struct {
     { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
     { .name = "TitleText"        ,.dark = 0x00FFFFFF, .light = 0x00000000 },
 //  { .name = "Window"           ,.dark = 0x00000000, .light = 0x00FFFFFF }, // too contrast
-    { .name = "Window"           ,.dark = 0x00121212, .light = 0x00E0E0E0 },
+//  { .name = "Window"           ,.dark = 0x00121212, .light = 0x00E0E0E0 },
+    { .name = "Window"           ,.dark = 0x002E2E2E, .light = 0x00E0E0E0 },
     { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
 };
 
@@ -7575,6 +7578,7 @@ static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t c) {
+//  traceln("%d,%d %dx%d 0x%08X", x, y, w, h, (uint32_t)c);
     ui_brush_t b = ui_gdi_set_brush(ui_gdi_brush_color);
     c = ui_gdi_set_brush_color(c);
     RECT rc = { x, y, x + w, y + h };
@@ -8508,10 +8512,14 @@ static void ui_label_context_menu(ui_view_t* v) {
     assert(v->type == ui_view_label);
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ut_clipboard.put_text(ui_view.string(v));
-        static bool first_time = true;
-        ui_app.toast(first_time ? 2.2 : 0.5,
-            ut_nls.str("Text copied to clipboard"));
-        first_time = false;
+        static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
+        int32_t x = v->x + v->w / 2;
+        int32_t y = v->y + v->h;
+        ui_app.show_hint(&hint, x, y, 0.75);
+//      static bool first_time = true;
+//      ui_app.toast(first_time ? 2.2 : 0.5,
+//          ut_nls.str("Text copied to clipboard"));
+//      first_time = false;
     }
 }
 
