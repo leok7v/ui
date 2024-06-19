@@ -163,7 +163,7 @@ typedef struct {
     //      "Executables", ".exe",
     //      "All Files", "*"};
     // const char* fn = ui_app.open_filename("C:\\", filter, countof(filter));
-    ut_file_name_t (*open_file_dialog)(const char* folder, const char* filter[], int32_t n);
+    const char* (*open_file)(const char* folder, const char* filter[], int32_t n);
     bool (*is_stdout_redirected)(void);
     bool (*is_console_visible)(void);
     int  (*console_attach)(void); // attempts to attach to parent terminal

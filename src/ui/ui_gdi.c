@@ -641,32 +641,33 @@ static_assertion(ui_gdi_font_quality_antialiased == ANTIALIASED_QUALITY);
 static_assertion(ui_gdi_font_quality_cleartype == CLEARTYPE_QUALITY);
 static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
-static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t quality) {
-    assert(height > 0);
+static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
+    assert(h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(ui_app.fm.regular.font, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
-    lf.lfHeight = -height;
+    lf.lfHeight = -h;
     ut_str_printf(lf.lfFaceName, "%s", family);
-    if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
-        lf.lfQuality = (uint8_t)quality;
+    if (ui_gdi_font_quality_default <= q &&
+        q <= ui_gdi_font_quality_cleartype_natural) {
+        lf.lfQuality = (uint8_t)q;
     } else {
-        fatal_if(quality != -1, "use -1 for do not care quality");
+        fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
 
-static ui_font_t ui_gdi_font(ui_font_t f, int32_t height, int32_t quality) {
-    assert(f != null && height > 0);
+static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
+    assert(f != null && h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
-    lf.lfHeight = -height;
-    if (ui_gdi_font_quality_default <= quality &&
-        quality <= ui_gdi_font_quality_cleartype_natural) {
-        lf.lfQuality = (uint8_t)quality;
+    lf.lfHeight = -h;
+    if (ui_gdi_font_quality_default <= q &&
+        q <= ui_gdi_font_quality_cleartype_natural) {
+        lf.lfQuality = (uint8_t)q;
     } else {
-        fatal_if(quality != -1, "use -1 for do not care quality");
+        fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
@@ -1048,41 +1049,41 @@ ui_gdi_if ui_gdi = {
             .measure  = false
         }
     },
-    .init                          = ui_gdi_init,
-    .begin                         = ui_gdi_begin,
-    .end                           = ui_gdi_end,
-    .color_rgb                     = ui_gdi_color_rgb,
-    .image_init                    = ui_gdi_image_init,
-    .image_init_rgbx               = ui_gdi_image_init_rgbx,
-    .image_dispose                 = ui_gdi_image_dispose,
-    .alpha                   = ui_gdi_alpha,
+    .init                     = ui_gdi_init,
+    .begin                    = ui_gdi_begin,
+    .end                      = ui_gdi_end,
+    .color_rgb                = ui_gdi_color_rgb,
+    .image_init               = ui_gdi_image_init,
+    .image_init_rgbx          = ui_gdi_image_init_rgbx,
+    .image_dispose            = ui_gdi_image_dispose,
+    .alpha                    = ui_gdi_alpha,
     .image                    = ui_gdi_image,
     .icon                     = ui_gdi_icon,
-    .set_clip                      = ui_gdi_set_clip,
-    .pixel                         = ui_gdi_pixel,
+    .set_clip                 = ui_gdi_set_clip,
+    .pixel                    = ui_gdi_pixel,
     .line                     = ui_gdi_line,
     .frame                    = ui_gdi_frame,
     .rect                     = ui_gdi_rect,
     .fill                     = ui_gdi_fill,
-    .poly                          = ui_gdi_poly,
+    .poly                     = ui_gdi_poly,
     .circle                   = ui_gdi_circle,
     .rounded                  = ui_gdi_rounded,
-    .gradient                      = ui_gdi_gradient,
+    .gradient                 = ui_gdi_gradient,
     .greyscale                = ui_gdi_greyscale,
     .bgr                      = ui_gdi_bgr,
     .bgrx                     = ui_gdi_bgrx,
-    .cleartype                     = ui_gdi_cleartype,
-    .font_smoothing_contrast       = ui_gdi_font_smoothing_contrast,
-    .create_font                   = ui_gdi_create_font,
-    .font                          = ui_gdi_font,
-    .delete_font                   = ui_gdi_delete_font,
-    .dump_fm                       = ui_gdi_dump_fm,
-    .update_fm                     = ui_gdi_update_fm,
+    .cleartype                = ui_gdi_cleartype,
+    .font_smoothing_contrast  = ui_gdi_font_smoothing_contrast,
+    .create_font              = ui_gdi_create_font,
+    .font                     = ui_gdi_font,
+    .delete_font              = ui_gdi_delete_font,
+    .dump_fm                  = ui_gdi_dump_fm,
+    .update_fm                = ui_gdi_update_fm,
     .text_va                  = ui_gdi_text_va,
     .text                     = ui_gdi_text,
     .multiline_va             = ui_gdi_multiline_va,
     .multiline                = ui_gdi_multiline,
-    .fini                          = ui_gdi_fini
+    .fini                     = ui_gdi_fini
 };
 
 #pragma pop_macro("ui_gdi_hdc_with_font")

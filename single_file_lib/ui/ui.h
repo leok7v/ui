@@ -1662,7 +1662,7 @@ typedef struct {
     //      "Executables", ".exe",
     //      "All Files", "*"};
     // const char* fn = ui_app.open_filename("C:\\", filter, countof(filter));
-    ut_file_name_t (*open_file_dialog)(const char* folder, const char* filter[], int32_t n);
+    const char* (*open_file)(const char* folder, const char* filter[], int32_t n);
     bool (*is_stdout_redirected)(void);
     bool (*is_console_visible)(void);
     int  (*console_attach)(void); // attempts to attach to parent terminal
@@ -3574,7 +3574,7 @@ static void ui_app_show_window(int32_t show) {
     }
 }
 
-static ut_file_name_t ui_app_open_file_dialog(const char* folder,
+static const char* ui_app_open_file(const char* folder,
         const char* pairs[], int32_t n) {
     swear(ut_thread.id() == ui_app.tid);
     assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
@@ -3593,7 +3593,7 @@ static ut_file_name_t ui_app_open_file_dialog(const char* folder,
             s += n0 + 1;
             left -= n0 + 1;
             uint16_t* s1 = s;
-            ut_str.utf8to16(s1, left, pairs[i + 0]);
+            ut_str.utf8to16(s1, left, pairs[i + 1]);
             int32_t n1 = (int32_t)ut_str.len16(s1);
             assert(n1 > 0);
             s[n1] = 0;
@@ -3621,7 +3621,7 @@ static ut_file_name_t ui_app_open_file_dialog(const char* folder,
     } else {
         fn.s[0] = 0;
     }
-    return fn;
+    return fn.s;
 }
 
 // TODO: use clipboard instead?
@@ -3735,7 +3735,7 @@ static void ui_app_init(void) {
     ui_app.data_save            = ui_app_data_save;
     ui_app.data_size            = ui_app_data_size;
     ui_app.data_load            = ui_app_data_load;
-    ui_app.open_file_dialog     = ui_app_open_file_dialog;
+    ui_app.open_file            = ui_app_open_file;
     ui_app.is_stdout_redirected = ui_app_is_stdout_redirected;
     ui_app.is_console_visible   = ui_app_is_console_visible;
     ui_app.console_attach       = ui_app_console_attach;
@@ -8071,32 +8071,33 @@ static_assertion(ui_gdi_font_quality_antialiased == ANTIALIASED_QUALITY);
 static_assertion(ui_gdi_font_quality_cleartype == CLEARTYPE_QUALITY);
 static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
-static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t quality) {
-    assert(height > 0);
+static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
+    assert(h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(ui_app.fm.regular.font, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
-    lf.lfHeight = -height;
+    lf.lfHeight = -h;
     ut_str_printf(lf.lfFaceName, "%s", family);
-    if (ui_gdi_font_quality_default <= quality && quality <= ui_gdi_font_quality_cleartype_natural) {
-        lf.lfQuality = (uint8_t)quality;
+    if (ui_gdi_font_quality_default <= q &&
+        q <= ui_gdi_font_quality_cleartype_natural) {
+        lf.lfQuality = (uint8_t)q;
     } else {
-        fatal_if(quality != -1, "use -1 for do not care quality");
+        fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
 
-static ui_font_t ui_gdi_font(ui_font_t f, int32_t height, int32_t quality) {
-    assert(f != null && height > 0);
+static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
+    assert(f != null && h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
-    lf.lfHeight = -height;
-    if (ui_gdi_font_quality_default <= quality &&
-        quality <= ui_gdi_font_quality_cleartype_natural) {
-        lf.lfQuality = (uint8_t)quality;
+    lf.lfHeight = -h;
+    if (ui_gdi_font_quality_default <= q &&
+        q <= ui_gdi_font_quality_cleartype_natural) {
+        lf.lfQuality = (uint8_t)q;
     } else {
-        fatal_if(quality != -1, "use -1 for do not care quality");
+        fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
@@ -8478,41 +8479,41 @@ ui_gdi_if ui_gdi = {
             .measure  = false
         }
     },
-    .init                          = ui_gdi_init,
-    .begin                         = ui_gdi_begin,
-    .end                           = ui_gdi_end,
-    .color_rgb                     = ui_gdi_color_rgb,
-    .image_init                    = ui_gdi_image_init,
-    .image_init_rgbx               = ui_gdi_image_init_rgbx,
-    .image_dispose                 = ui_gdi_image_dispose,
-    .alpha                   = ui_gdi_alpha,
+    .init                     = ui_gdi_init,
+    .begin                    = ui_gdi_begin,
+    .end                      = ui_gdi_end,
+    .color_rgb                = ui_gdi_color_rgb,
+    .image_init               = ui_gdi_image_init,
+    .image_init_rgbx          = ui_gdi_image_init_rgbx,
+    .image_dispose            = ui_gdi_image_dispose,
+    .alpha                    = ui_gdi_alpha,
     .image                    = ui_gdi_image,
     .icon                     = ui_gdi_icon,
-    .set_clip                      = ui_gdi_set_clip,
-    .pixel                         = ui_gdi_pixel,
+    .set_clip                 = ui_gdi_set_clip,
+    .pixel                    = ui_gdi_pixel,
     .line                     = ui_gdi_line,
     .frame                    = ui_gdi_frame,
     .rect                     = ui_gdi_rect,
     .fill                     = ui_gdi_fill,
-    .poly                          = ui_gdi_poly,
+    .poly                     = ui_gdi_poly,
     .circle                   = ui_gdi_circle,
     .rounded                  = ui_gdi_rounded,
-    .gradient                      = ui_gdi_gradient,
+    .gradient                 = ui_gdi_gradient,
     .greyscale                = ui_gdi_greyscale,
     .bgr                      = ui_gdi_bgr,
     .bgrx                     = ui_gdi_bgrx,
-    .cleartype                     = ui_gdi_cleartype,
-    .font_smoothing_contrast       = ui_gdi_font_smoothing_contrast,
-    .create_font                   = ui_gdi_create_font,
-    .font                          = ui_gdi_font,
-    .delete_font                   = ui_gdi_delete_font,
-    .dump_fm                       = ui_gdi_dump_fm,
-    .update_fm                     = ui_gdi_update_fm,
+    .cleartype                = ui_gdi_cleartype,
+    .font_smoothing_contrast  = ui_gdi_font_smoothing_contrast,
+    .create_font              = ui_gdi_create_font,
+    .font                     = ui_gdi_font,
+    .delete_font              = ui_gdi_delete_font,
+    .dump_fm                  = ui_gdi_dump_fm,
+    .update_fm                = ui_gdi_update_fm,
     .text_va                  = ui_gdi_text_va,
     .text                     = ui_gdi_text,
     .multiline_va             = ui_gdi_multiline_va,
     .multiline                = ui_gdi_multiline,
-    .fini                          = ui_gdi_fini
+    .fini                     = ui_gdi_fini
 };
 
 #pragma pop_macro("ui_gdi_hdc_with_font")

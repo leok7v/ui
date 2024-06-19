@@ -95,13 +95,13 @@ static const char* filter[] = {
 };
 
 static void open_file(ui_button_t* unused(b)) {
-    ut_file_name_t fn = ui_app.open_file_dialog(
-        ut_files.known_folder(ut_files.folder.home),
-        filter, countof(filter)); //  all files filer: null, 0
-    if (fn.s[0] != 0) {
-        ui_view.set_text(&toast_filename, "%s", fn.s);
-        traceln("%s", fn.s);
-        ui_app.show_toast(&toast_filename, 2.0);
+    const char* home = ut_files.known_folder(ut_files.folder.home);
+    //  all files filer: null, 0
+    const char* fn = ui_app.open_file(home, filter, countof(filter));
+    if (fn[0] != 0) {
+        ui_view.set_text(&toast_filename, "\n%s\n", fn);
+        traceln("\"%s\"", fn);
+        ui_app.show_toast(&toast_filename, 3.3);
     }
 }
 
@@ -428,8 +428,6 @@ static void opened(void) {
     ut_str_printf(label_multiline.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
     ui_view.set_text(&label_multiline, "%s", ut_nls.string(str_help, ""));
-    toast_filename.fm = &ui_app.fm.H1;
-    about.fm = &ui_app.fm.H3;
     button_locale.shortcut = 'l';
     button_full_screen.shortcut = 'f';
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
