@@ -22,7 +22,7 @@ typedef struct {
 
 extern ut_event_if ut_event;
 
-typedef struct ut_alligned_8 mutex_s { uint8_t content[40]; } ut_mutex_t;
+typedef struct ut_aligned_8 mutex_s { uint8_t content[40]; } ut_mutex_t;
 
 typedef struct {
     void (*init)(ut_mutex_t* m);

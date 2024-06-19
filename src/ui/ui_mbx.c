@@ -96,8 +96,8 @@ void ui_mbx_init(ui_mbx_t* mx, const char* options[],
         const char* format, ...) {
     mx->view.type = ui_view_mbx;
     mx->view.measured  = ui_mbx_measured;
-    mx->view.layout   = ui_mbx_layout;
-    mx->view.color_id = ui_color_id_window;
+    mx->view.layout    = ui_mbx_layout;
+    mx->view.color_id  = ui_color_id_window;
     mx->options = options;
     va_list va;
     va_start(va, format);

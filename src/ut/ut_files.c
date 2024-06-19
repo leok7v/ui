@@ -86,7 +86,7 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_sy
             r = (errno_t)GetLastError();
         } else {
             char* name = null;
-            r = ut_heap.allocate(null, (void**)&name, n + 2, false);
+            r = ut_heap.allocate(null, (void**)&name, (int64_t)n + 2, false);
             if (r == 0) {
                 n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
                 if (n == 0) {
@@ -169,7 +169,7 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
         const uint8_t* p = (const uint8_t*)data;
         while (r == 0 && bytes > 0) {
             uint64_t write = bytes >= UINT32_MAX ?
-                (UINT32_MAX) - 0xFFFF : (uint64_t)bytes;
+                (uint64_t)(UINT32_MAX) - 0xFFFFuLL : (uint64_t)bytes;
             assert(0 < write && write < (uint64_t)UINT32_MAX);
             DWORD chunk = 0;
             r = ut_b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
@@ -241,14 +241,14 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
 
 static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
                                  ACL** free_me, byte flags) {
-    ACL_SIZE_INFORMATION info;
+    ACL_SIZE_INFORMATION info = {0};
     ACL* bigger = null;
     uint32_t bytes_needed = sizeof(ACCESS_ALLOWED_ACE) + GetLengthSid(sid)
                           - sizeof(DWORD);
     errno_t r = ut_b2e(GetAclInformation(acl, &info, sizeof(ACL_SIZE_INFORMATION),
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
-        const int64_t bytes = info.AclBytesInUse + bytes_needed;
+        const int64_t bytes = (int64_t)(info.AclBytesInUse + bytes_needed);
         r = ut_heap.allocate(null, (void**)&bigger, bytes, true);
         if (r == 0) {
             r = ut_b2e(InitializeAcl((ACL*)bigger,
@@ -257,7 +257,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     }
     if (r == 0 && bigger != null) {
         for (int32_t i = 0; i < (int32_t)info.AceCount; i++) {
-            ACCESS_ALLOWED_ACE* ace;
+            ACCESS_ALLOWED_ACE* ace = null;
             r = ut_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
             r = ut_b2e(AddAce(bigger, ACL_REVISION, MAXDWORD, ace,
@@ -305,7 +305,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
 
 static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
-    uint8_t stack[SECURITY_MAX_SID_SIZE];
+    uint8_t stack[SECURITY_MAX_SID_SIZE] = {0};
     DWORD n = countof(stack);
     SID* sid = (SID*)stack;
     errno_t r = ut_b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
@@ -319,7 +319,7 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
     if (r == 0) {
         ACCESS_ALLOWED_ACE* found = null;
         for (int32_t i = 0; i < acl->AceCount; i++) {
-            ACCESS_ALLOWED_ACE* ace;
+            ACCESS_ALLOWED_ACE* ace = null;
             r = ut_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
             if (EqualSid((SID*)&ace->SidStart, sid)) {
@@ -380,7 +380,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
     ACL* acl = null;
     fatal_if_not_zero(SetEntriesInAclA(1, ea, null, &acl));
     // Initialize a security descriptor.
-    uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH];
+    uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH] = {0};
     SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)stack;
     fatal_if_false(InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION));
     // Add the ACL to the security descriptor.
@@ -619,7 +619,7 @@ static errno_t ut_files_opendir(ut_folder_t* folder, const char* folder_name) {
     ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
     int32_t n = (int32_t)strlen(folder_name);
     char* fn = null;
-    errno_t r = ut_heap.allocate(null, (void**)&fn, n + 3, false); // extra room for "\*" suffix
+    errno_t r = ut_heap.allocate(null, (void**)&fn, (int64_t)n + 3, false); // extra room for "\*" suffix
     if (r == 0) {
         ut_str.format(fn, n + 3, "%s\\*", folder_name);
         fn[n + 2] = 0;
@@ -662,7 +662,7 @@ static void ut_files_closedir(ut_folder_t* folder) {
 
 #ifdef UT_TESTS
 
-// TODO: chage fatal_if() to swear()
+// TODO: change fatal_if() to swear()
 
 #define ut_files_test_failed " failed %s", strerr(ut_runtime.err())
 
@@ -799,7 +799,7 @@ static void folders_test(void) {
 
 static void ut_files_test_append_thread(void* p) {
     ut_file_t* f = (ut_file_t*)p;
-    uint8_t data[256];
+    uint8_t data[256] = {0};
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     int64_t transferred = 0;
     fatal_if(ut_files.write(f, data, countof(data), &transferred) != 0 ||
@@ -812,7 +812,7 @@ static void ut_files_test(void) {
     char tf[256]; // temporary file
     fatal_if(ut_files.create_tmp(tf, countof(tf)) != 0,
             "ut_files.create_tmp()" ut_files_test_failed);
-    uint8_t data[256];
+    uint8_t data[256] = {0};
     int64_t transferred = 0;
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     {

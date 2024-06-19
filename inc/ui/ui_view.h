@@ -125,6 +125,7 @@ typedef struct ui_view_if {
     void (*remove)(ui_view_t* v); // removes view from it`s parent
     void (*remove_all)(ui_view_t* parent); // removes all children
     void (*disband)(ui_view_t* parent); // removes all children recursively
+    bool (*is_parent_of)(const ui_view_t* p, const ui_view_t* c);
     bool (*inside)(const ui_view_t* v, const ui_point_t* pt);
     ui_ltrb_t (*gaps)(const ui_view_t* v, const ui_gaps_t* g); // gaps to pixels
     void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);

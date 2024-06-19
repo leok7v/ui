@@ -79,6 +79,7 @@ static bool ends_with(const char* s1, const char* s2) {
 typedef struct { const char* a[1024]; int32_t n; } set_t;
 
 static set_t files;
+static set_t includes;
 
 static bool set_has(set_t* set, const char* s) {
     for (int32_t i = 0; i < set->n; i++) {
@@ -134,9 +135,19 @@ static const char* include(char* s) {
     return null;
 }
 
+
+static bool already_included(const char* s) {
+    const char* include = "#include\x20\"";
+    if (strstr(s, include) != s) { return false; }
+    if (set_has(&includes, s)) { return true; }
+    set_add(&includes, s);
+    return false;
+}
+
 static bool ignore(const char* s) {
     return strequ(s, "#pragma once") ||
-           strequ(s, "begin_c") || strequ(s, "end_c");
+           strequ(s, "begin_c") || strequ(s, "end_c") ||
+           already_included(s);
 }
 
 static void parse(const char* fn) {

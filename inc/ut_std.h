@@ -87,14 +87,14 @@ typedef double fp64_t;
 #define attribute_packed
 #endif
 
-// usage: typedef struct ut_alligned_8 foo_s { ... } foo_t;
+// usage: typedef struct ut_aligned_8 foo_s { ... } foo_t;
 
 #if defined(__GNUC__) || defined(__clang__)
-#define ut_alligned_8 __attribute__((aligned(8)))
+#define ut_aligned_8 __attribute__((aligned(8)))
 #elif defined(_MSC_VER)
-#define ut_alligned_8 __declspec(align(8))
+#define ut_aligned_8 __declspec(align(8))
 #else
-#define ut_alligned_8
+#define ut_aligned_8
 #endif
 
 

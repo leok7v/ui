@@ -23,7 +23,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 // ui_mbx_on_choice can only be used on static mbx variables
 
 
-#define ui_mbx_on_choice(name, s, code, ...)                     \
+#define ui_mbx_choice(name, s, code, ...)                        \
                                                                  \
     static char* name ## _options[] = { __VA_ARGS__, null };     \
                                                                  \

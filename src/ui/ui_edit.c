@@ -329,7 +329,7 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
 }
 
 static int32_t ui_edit_paragraph_run_count(ui_edit_t* e, int32_t pn) {
-    swear(0 <= pn && pn < e->paragraphs && e->view.w > 0);
+    swear(e->view.w > 0);
     int32_t runs = 0;
     if (e->view.w > 0 && 0 <= pn && pn < e->paragraphs) {
         (void)ui_edit_paragraph_runs(e, pn, &runs);
@@ -746,17 +746,20 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
 
 static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
     // single line edit control cannot move caret past fist paragraph
-    bool can_move = !e->sle || pg.pn < e->paragraphs;
-    if (can_move) {
-        ui_edit_scroll_into_view(e, pg);
-        ui_point_t pt = e->view.w > 0 ? // width == 0 means no measure/layout yet
-            ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
-        ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
-        e->selection[1] = pg;
-        if (!ui_app.shift && e->mouse == 0) {
-            e->selection[0] = e->selection[1];
+    if (e->paragraphs == 0) {
+        ui_edit_set_caret(e, e->inside.left, e->inside.top);
+    } else {
+        if (!e->sle || pg.pn < e->paragraphs) {
+            ui_edit_scroll_into_view(e, pg);
+            ui_point_t pt = e->view.w > 0 ? // width == 0 means no measure/layout yet
+                ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
+            ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
+            e->selection[1] = pg;
+            if (!ui_app.shift && e->mouse == 0) {
+                e->selection[0] = e->selection[1];
+            }
+            ui_edit_invalidate(e);
         }
-        ui_edit_invalidate(e);
     }
 }
 
@@ -875,8 +878,6 @@ static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
         e->paragraphs -= deleted;
         from.pn = pn0;
         from.gp = gp0;
-        e->selection[0] = from;
-        e->selection[1] = from;
         // traceln("from: %d.%d", from.pn, from.gp);
         ui_edit_scroll_into_view(e, from);
     } else {
@@ -1347,7 +1348,9 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
 }
 
 static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
-    if (e->selection[0].pn == e->selection[1].pn &&
+    if (e->paragraphs == 0) {
+        // do nothing
+    } else if (e->selection[0].pn == e->selection[1].pn &&
         e->selection[0].gp == e->selection[1].gp) {
         ui_edit_select_word(e, x, y);
     } else {
@@ -1362,26 +1365,36 @@ static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
         if (p.pn > e->paragraphs) { p.pn = ut_max(0, e->paragraphs); }
-        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
+        int32_t glyphs = e->paragraphs == 0 ? 0 : ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         ui_edit_move_caret(e, p);
     }
 }
 
 static void ui_edit_focus_on_click(ui_edit_t* e, int32_t x, int32_t y) {
-    if (ui_app.has_focus() && !e->focused && e->mouse != 0) {
-        if (ui_app.focus != null && ui_app.focus->kill_focus != null) {
-            ui_app.focus->kill_focus(ui_app.focus);
+    // was edit control focused before click arrives?
+    const bool app_has_focus = ui_app.has_focus();
+    bool focused = false;
+    if (e->mouse != 0) {
+        if (app_has_focus && !e->focused) {
+            if (ui_app.focus != null && ui_app.focus->kill_focus != null) {
+                ui_app.focus->kill_focus(ui_app.focus);
+            }
+            ui_app.focus = &e->view;
+            bool set = e->view.set_focus(&e->view);
+            fatal_if(!set);
+            focused = true;
         }
-        ui_app.focus = &e->view;
-        bool set = e->view.set_focus(&e->view);
-        fatal_if(!set);
-        // first click on unfocused edit should set focus but
-        // not set caret, because setting caret on click will
-        // destroy selection and this is bad UX
-    } else if (ui_app.has_focus() && e->focused && e->mouse != 0) {
-        e->mouse = 0;
-        ui_edit_click(e, x, y);
+        bool empty = memcmp(&e->selection[0], &e->selection[1],
+                                sizeof(e->selection[0])) == 0;
+        if (focused && !empty) {
+            // first click on unfocused edit should set focus but
+            // not set caret, because setting caret on click will
+            // destroy selection and this is bad UX
+        } else if (app_has_focus && e->focused) {
+            e->mouse = 0;
+            ui_edit_click(e, x, y);
+        }
     }
 }
 
@@ -1462,7 +1475,7 @@ static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
 }
 
 static void ui_edit_mouse_wheel(ui_view_t* v, int32_t unused(dx), int32_t dy) {
-    // TODO: may make a use of dx in single line not-word-breaked edit control
+    // TODO: maybe make a use of dx in single line no-word-break edit control?
     if (ui_app.focus == v) {
         assert(v->type == ui_view_text);
         ui_edit_t* e = (ui_edit_t*)v;
@@ -1533,6 +1546,10 @@ static void ui_edit_cut_copy(ui_edit_t* e, bool cut) {
     if (n > 0) {
         char* text = ui_edit_alloc(n + 1);
         ui_edit_pg_t pg = ui_edit_op(e, cut, from, to, text, &n);
+        static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
+        int32_t x = e->view.x + e->view.w / 2;
+        int32_t y = e->view.y + e->view.h / 2;
+        ui_app.show_hint(&hint, x, y, 0.5);
         if (cut && pg.pn >= 0 && pg.gp >= 0) {
             e->selection[0] = pg;
             e->selection[1] = pg;
@@ -1638,16 +1655,17 @@ static void ui_edit_clipboard_paste(ui_edit_t* e) {
 static void ui_edit_prepare_sle(ui_edit_t* e) {
     ui_view_t* v = &e->view;
     swear(e->sle && v->w > 0);
-    // sinlge line edit is capable of resizing itself to two
+    // shingle line edit is capable of resizing itself to two
     // lines of text (and shrinking back) to avoid horizontal scroll
-    int32_t runs = ut_min(2, ui_edit_paragraph_run_count(e, 0));
+    int32_t runs = ut_max(1, ut_min(2, ui_edit_paragraph_run_count(e, 0)));
     const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
     int32_t h = insets.top + v->fm->height * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
     if (v->min_h_em != min_h_em) {
         v->min_h_em = min_h_em;
-//      traceln("%dx%d runs: %d h: %d min_h_em: %.1f", v->w, v->h, runs, h, min_h_em);
+//      traceln("%p %-10s %dx%d runs: %d h: %d min_h_em := %.1f", v, v->p.text, v->w, v->h, runs, h, min_h_em);
     }
+//  traceln("%p %-10s %dx%d runs: %d h: %d min_h_em: %.1f", v, v->p.text, v->w, v->h, runs, h, min_h_em);
 }
 
 static void ui_edit_insets(ui_edit_t* e) {
@@ -1675,6 +1693,9 @@ static void ui_edit_measure(ui_view_t* v) { // bottom up
     if (v->w < v->fm->em.w * 4) { v->w = i.left + v->fm->em.w * 4 + i.right; }
     if (v->h < v->fm->height)   { v->h = i.top + v->fm->height + i.bottom; }
     ui_edit_insets(e);
+//  if (e->sle) {
+//      traceln("%p %10s %dx%d min_h_em: %.1f", v, v->p.text, v->w, v->h, v->min_h_em);
+//  }
 }
 
 static void ui_edit_layout(ui_view_t* v) { // top down
@@ -1693,19 +1714,25 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     e->h = e->inside.bottom - e->inside.top;
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
-    e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
-    assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
-    if (e->sle) { // single line edit (if changed on the fly):
-        e->selection[0].pn = 0; // only has single paragraph
-        e->selection[1].pn = 0;
-        // scroll line on top of current cursor position into view
-//      int32_t rn = ui_edit_pg_to_pr(e, e->selection[1]).rn;
-//      traceln("scroll.rn: %d rn: %d", e->scroll.rn, rn);
-        if (e->scroll.rn > 0) {
+    if (e->paragraphs == 0) {
+        e->selection[0] = (ui_edit_pg_t){0, 0};
+        e->selection[1] = e->selection[0];
+    } else {
+        e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
+        assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
+        if (e->sle) { // single line edit (if changed on the fly):
+            e->selection[0].pn = 0; // only has single paragraph
+            e->selection[1].pn = 0;
+            // scroll line on top of current cursor position into view
+//          int32_t rn = ui_edit_pg_to_pr(e, e->selection[1]).rn;
+//          traceln("scroll.rn: %d rn: %d", e->scroll.rn, rn);
             const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
-            ui_edit_pg_t top = scroll;
-            top.gp = ut_max(0, top.gp - run[e->scroll.rn].glyphs);
-            ui_edit_scroll_into_view(e, top);
+            if (runs <= 2 && e->scroll.rn == 1) {
+                ui_edit_pg_t top = scroll;
+//              traceln("run[scroll.rn: %d].glyphs: %d", e->scroll.rn, run[e->scroll.rn].glyphs);
+                top.gp = ut_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
+                ui_edit_scroll_into_view(e, top);
+            }
         }
     }
     if (e->focused) {
@@ -1766,8 +1793,6 @@ static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
     return false;
 }
 
-__declspec(dllimport) unsigned int __stdcall GetACP(void);
-
 void ui_edit_init(ui_edit_t* e) {
     memset(e, 0, sizeof(*e));
     e->view.color_id = ui_color_id_window_text;
@@ -1821,14 +1846,4 @@ void ui_edit_init(ui_edit_t* e) {
     e->key_backspace        = ui_edit_key_backspace;
     e->key_enter            = ui_edit_key_enter;
     e->fuzz                 = null;
-    // Expected manifest.xml containing UTF-8 code page
-    // for Translate message and WM_CHAR to deliver UTF-8 characters
-    // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
-    if (GetACP() != 65001) {
-        traceln("codepage: %d UTF-8 will not be supported", GetACP());
-    }
-    // at the moment of writing there is no API call to inform Windows about process
-    // preferred codepage except manifest.xml file in resource #1.
-    // Absence of manifest.xml will result to ancient and useless ANSI 1252 codepage
-    // TODO: may be change quick.h to use CreateWindowW() and translate UTF16 to UTF8
 }

@@ -274,6 +274,17 @@ static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
     return 0 <= x && x < v->w && 0 <= y && y < v->h;
 }
 
+static bool ui_view_is_parent_of(const ui_view_t* parent,
+        const ui_view_t* child) {
+    swear(parent != null && child != null);
+    const ui_view_t* p = child->parent;
+    while (p != null) {
+        if (parent == p) { return true; }
+        p = p->parent;
+    }
+    return false;
+}
+
 static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
     fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
     fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
@@ -328,7 +339,7 @@ static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);
-        memcpy(s, t, n + 1);
+        memcpy(s, t, (size_t)n + 1);
         v->p.strid = 0; // next call to nls() will localize it
         // TODO: we need both "&Keyboard Shortcut" and no shortcut
         //       strings. In here, bit that tells the story and DrawText
@@ -384,9 +395,10 @@ static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
     // If there is not focused UI control in Alt+key [Alt] is optional.
     // If there is focused control only Alt+Key is accepted as shortcut
     char ch = 0x20 <= key && key <= 0x7F ? (char)toupper((char)key) : 0x00;
-    bool need_alt = ui_app.focus != null && ui_app.focus != v;
+    bool needs_alt = ui_app.focus != null && ui_app.focus != v &&
+         !ui_view.is_parent_of(ui_app.focus, v);
     bool keyboard_shortcut = ch != 0x00 && v->shortcut != 0x00 &&
-         (ui_app.alt || !need_alt) && toupper(v->shortcut) == ch;
+         (ui_app.alt || ui_app.ctrl || !needs_alt) && toupper(v->shortcut) == ch;
     return keyboard_shortcut;
 }
 
@@ -739,6 +751,7 @@ ui_view_if ui_view = {
     .remove_all         = ui_view_remove_all,
     .disband            = ui_view_disband,
     .inside             = ui_view_inside,
+    .is_parent_of       = ui_view_is_parent_of,
     .gaps               = ui_view_gaps,
     .inbox              = ui_view_inbox,
     .outbox             = ui_view_outbox,

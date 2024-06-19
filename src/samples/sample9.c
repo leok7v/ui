@@ -65,7 +65,7 @@ static ui_label_t about = ui_label(34.56f,
 
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
 
-ui_mbx_on_choice(mbx, // message box
+ui_mbx_choice(mbx, // message box
     "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
     "is it the longest English language word or not?", {
     traceln("option=%d", option); // -1 or index of { "&Yes", "&No" }

@@ -269,20 +269,27 @@ static void opened(void) {
     ut_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);
-        edit[i]->view.padding = (ui_gaps_t){0.5, 0.5, 0.5, 0.5};
+//      edit[i]->view.padding = (ui_gaps_t){0.5, 0.5, 0.5, 0.5};
         edit[i]->view.max_w = ui.infinity;
         if (i < 2) { edit[i]->view.max_h = ui.infinity; }
         edit[i]->view.fm = &pf;
         edit[i]->fuzz = ui_edit_fuzz;
         edit[i]->next_fuzz = ui_edit_next_fuzz;
-        ui_edit_init_with_lorem_ipsum(edit[i]);
+        if (i < 2) {
+            ui_edit_init_with_lorem_ipsum(edit[i]);
+        }
     }
     ui_app.focus = &edit[0]->view;
     ui_app.every_100ms = every_100ms;
     set_text(0); // need to be two lines for measure
     edit[2]->sle = true;
-    edit[2]->select_all(edit[2]);
-    edit[2]->paste(edit[2], "Single line", -1);
+
+    ut_str_printf(edit[0]->view.p.text, "edit.#0#");
+    ut_str_printf(edit[1]->view.p.text, "edit.#1#");
+    ut_str_printf(edit[2]->view.p.text, "edit.sle");
+
+//  edit[2]->select_all(edit[2]);
+//  edit[2]->paste(edit[2], "Single line", -1);
     edit[2]->enter = edit_enter;
     static ui_view_t span    = ui_view(span);
     static ui_view_t spacer1 = ui_view(spacer);

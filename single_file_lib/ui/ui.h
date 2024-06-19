@@ -94,14 +94,14 @@ typedef double fp64_t;
 #define attribute_packed
 #endif
 
-// usage: typedef struct ut_alligned_8 foo_s { ... } foo_t;
+// usage: typedef struct ut_aligned_8 foo_s { ... } foo_t;
 
 #if defined(__GNUC__) || defined(__clang__)
-#define ut_alligned_8 __attribute__((aligned(8)))
+#define ut_aligned_8 __attribute__((aligned(8)))
 #elif defined(_MSC_VER)
-#define ut_alligned_8 __declspec(align(8))
+#define ut_aligned_8 __declspec(align(8))
 #else
-#define ut_alligned_8
+#define ut_aligned_8
 #endif
 
 
@@ -378,10 +378,9 @@ extern ui_if ui;
 // is font size based and this is where the idea is inherited from.
 
 
+
+
 // _______________________________ ui_colors.h ________________________________
-
-#include "ut/ut_std.h"
-
 
 typedef uint64_t ui_color_t; // top 2 bits determine color format
 
@@ -640,10 +639,9 @@ extern ui_colors_if ui_colors;
 // it would be super cool to implement a plethora of palettes
 // with named colors and app "themes" that can be switched
 
+
+
 // _________________________________ ui_gdi.h _________________________________
-
-#include "ut/ut_std.h"
-
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
@@ -740,10 +738,9 @@ typedef struct {
 
 extern ui_gdi_if ui_gdi;
 
+
+
 // ________________________________ ui_view.h _________________________________
-
-#include "ut/ut_std.h"
-
 
 enum ui_view_type_t {
     ui_view_container = 'vwct',
@@ -867,6 +864,7 @@ typedef struct ui_view_if {
     void (*remove)(ui_view_t* v); // removes view from it`s parent
     void (*remove_all)(ui_view_t* parent); // removes all children
     void (*disband)(ui_view_t* parent); // removes all children recursively
+    bool (*is_parent_of)(const ui_view_t* p, const ui_view_t* c);
     bool (*inside)(const ui_view_t* v, const ui_point_t* pt);
     ui_ltrb_t (*gaps)(const ui_view_t* v, const ui_gaps_t* g); // gaps to pixels
     void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);
@@ -1130,10 +1128,9 @@ typedef struct ui_edit_s {
 
 void ui_edit_init(ui_edit_t* e);
 
+
+
 // _______________________________ ui_layout.h ________________________________
-
-#include "ut/ut_std.h"
-
 
  // TODO: ui_ namespace
 
@@ -1155,10 +1152,9 @@ typedef struct {
 
 extern layouts_if layouts;
 
+
+
 // ________________________________ ui_label.h ________________________________
-
-#include "ut/ut_std.h"
-
 
 typedef ui_view_t ui_label_t;
 
@@ -1194,10 +1190,9 @@ void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_lis
 // which is subtle C difference of constant and
 // variable initialization and I did not find universal way
 
+
+
 // _______________________________ ui_button.h ________________________________
-
-#include "ut/ut_std.h"
-
 
 typedef ui_view_t ui_button_t;
 
@@ -1314,11 +1309,10 @@ typedef struct  {
 
 extern ui_theme_if ui_theme;
 
+
+
+
 // _______________________________ ui_toggle.h ________________________________
-
-#include "ut/ut_std.h"
-
-
 
 typedef ui_view_t ui_toggle_t;
 
@@ -1372,10 +1366,9 @@ void ui_view_init_toggle(ui_view_t* view);
     }                                                       \
 }
 
+
+
 // _______________________________ ui_slider.h ________________________________
-
-#include "ut/ut_std.h"
-
 
 typedef struct ui_slider_s ui_slider_t;
 
@@ -1445,10 +1438,9 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     .value_min = vmn, .value_max = vmx, .value = vmn,               \
 }
 
+
+
 // _________________________________ ui_mbx.h _________________________________
-
-#include "ut/ut_std.h"
-
 
 // Options like:
 //   "Yes"|"No"|"Abort"|"Retry"|"Ignore"|"Cancel"|"Try"|"Continue"
@@ -1469,7 +1461,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 // ui_mbx_on_choice can only be used on static mbx variables
 
 
-#define ui_mbx_on_choice(name, s, code, ...)                     \
+#define ui_mbx_choice(name, s, code, ...)                        \
                                                                  \
     static char* name ## _options[] = { __VA_ARGS__, null };     \
                                                                  \
@@ -1527,10 +1519,9 @@ typedef struct ui_caption_s {
 
 extern ui_caption_t ui_caption;
 
+
+
 // _________________________________ ui_app.h _________________________________
-
-#include "ut/ut_std.h"
-
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
@@ -1983,7 +1974,7 @@ typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
     // coordinates in pixels relative (0,0) top left corner
     // of primary monitor from GetWindowPlacement
     int32_t    bytes;
-    int32_t    padding;      // to allign rects and points to 8 bytes
+    int32_t    padding;      // to align rectangles and points to 8 bytes
     ui_rect_t  placement;
     ui_rect_t  mrc;          // monitor rectangle
     ui_rect_t  work_area;    // monitor work area (mrc sans taskbar etc)
@@ -2518,7 +2509,6 @@ static void ui_app_animate_step(ui_app_animate_function_t f, int32_t step, int32
     } else if (f == null) {
         cancel = true;
     }
-    ui_app.focus = null;
     if (cancel) {
         if (ui_app_animate.timer != 0) { ui_app.kill_timer(ui_app_animate.timer); }
         ui_app_animate.step = 0;
@@ -3096,9 +3086,9 @@ static void ui_app_create_window(const ui_rect_t r) {
 //      DWMWA_CAPTION_COLOR
     }
     if (ui_app.aero) { // It makes app look like retro Windows 7 Aero style :)
-        enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
+        enum DWMNCRENDERINGPOLICY rp = DWMNCRP_DISABLED;
         (void)DwmSetWindowAttribute(ui_app_window(),
-            DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
+            DWMWA_NCRENDERING_POLICY, &rp, sizeof(rp));
     }
     // always start with window hidden and let application show it
     ui_app.show_window(ui.visibility.hide);
@@ -3145,7 +3135,7 @@ static void ui_app_full_screen(bool on) {
         ui_app_show_task_bar(!on);
         if (on) {
             style = GetWindowLongA(ui_app_window(), GWL_STYLE);
-            // becasue WS_POPUP is defined as 0x80000000L:
+            // because WS_POPUP is defined as 0x80000000L:
             long s = (long)((uint32_t)style | WS_POPUP | WS_VISIBLE);
             s &= ~WS_OVERLAPPEDWINDOW;
             ui_app_set_window_long(GWL_STYLE, s);
@@ -3162,9 +3152,9 @@ static void ui_app_full_screen(bool on) {
             enum { swp = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
                          SWP_NOZORDER | SWP_NOOWNERZORDER };
             fatal_if_false(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, swp));
-            enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_ENABLED;
+            enum DWMNCRENDERINGPOLICY rp = DWMNCRP_ENABLED;
             fatal_if_not_zero(DwmSetWindowAttribute(ui_app_window(),
-                DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp)));
+                DWMWA_NCRENDERING_POLICY, &rp, sizeof(rp)));
         }
         ui_app.is_full_screen = on;
     }
@@ -3247,6 +3237,7 @@ static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
         ui_app.animating.y = y;
         if (view->type == ui_view_mbx) {
             ((ui_mbx_t*)view)->option = -1;
+            ui_app.focus = view;
         }
         // allow unparented ui for toast and hint
         ui_view_call_init(view);
@@ -3254,7 +3245,6 @@ static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
         ui_app_animate_start(ui_app_toast_dim, steps);
         ui_app.animating.view = view;
         ui_app.animating.time = timeout > 0 ? ui_app.now + timeout : 0;
-        ui_app.focus = null;
     } else {
         ui_app_toast_cancel();
     }
@@ -3359,18 +3349,18 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
         // current Window Size (in pixels) ConsoleWindowSize(in characters)
         // and SetConsoleScreenBufferSize().
         // After a lot of experimentation and reading docs most sensible option
-        // is to try both calls in two differen orders.
+        // is to try both calls in two different orders.
         COORD c = {w, h};
-        SMALL_RECT const minwin = { 0, 0, c.X - 1, c.Y - 1 };
+        SMALL_RECT const min_win = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
-        int r0 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : ut_runtime.err();
+        int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
 //      if (r0 != 0) { traceln("SetConsoleWindowInfo() %s", strerr(r0)); }
         int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
 //      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
             r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
             if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r0)); }
-            r1 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : ut_runtime.err();
+            r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
             if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", strerr(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
@@ -3463,7 +3453,8 @@ static void ui_app_move_and_resize(const ui_rect_t* rc) {
 }
 
 static void ui_app_set_console_title(HWND cw) {
-    char text[256];
+    swear(ut_thread.id() == ui_app.tid);
+    static char text[256];
     text[0] = 0;
     GetWindowTextA((HWND)ui_app.window, text, countof(text));
     text[countof(text) - 1] = 0;
@@ -3575,9 +3566,9 @@ static void ui_app_show_window(int32_t show) {
 
 static ut_file_name_t ui_app_open_file_dialog(const char* folder,
         const char* pairs[], int32_t n) {
-    assert(pairs == null && n == 0 ||
-           n >= 2 && n % 2 == 0);
-    uint16_t memory[4 * 1024];
+    swear(ut_thread.id() == ui_app.tid);
+    assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
+    static uint16_t memory[4 * 1024];
     uint16_t* filter = memory;
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
@@ -3601,9 +3592,10 @@ static ut_file_name_t ui_app_open_file_dialog(const char* folder,
         }
         *s++ = 0;
     }
-    uint16_t dir[MAX_PATH];
+    static uint16_t dir[ut_files_max_path];
+    dir[0] = 0;
     ut_str.utf8to16(dir, countof(dir), folder);
-    uint16_t path[MAX_PATH];
+    static uint16_t path[ut_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
     ofn.hwndOwner = (HWND)ui_app.window;
@@ -3612,7 +3604,8 @@ static ut_file_name_t ui_app_open_file_dialog(const char* folder,
     ofn.lpstrInitialDir = dir;
     ofn.lpstrFile = path;
     ofn.nMaxFile = sizeof(path);
-    ut_file_name_t fn;
+    static ut_file_name_t fn;
+    fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
         ut_str.utf16to8(fn.s, countof(fn.s), path);
     } else {
@@ -3956,6 +3949,17 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE unused(previous),
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
     fatal_if_not_zero(CoInitializeEx(0, co_init));
     SetConsoleCP(CP_UTF8);
+    // Expected manifest.xml containing UTF-8 code page
+    // for Translate message and WM_CHAR to deliver UTF-8 characters
+    // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
+    if (GetACP() != 65001) {
+        traceln("codepage: %d UTF-8 will not be supported", GetACP());
+    }
+    // at the moment of writing there is no API call to inform Windows about process
+    // preferred codepage except manifest.xml file in resource #1.
+    // Absence of manifest.xml will result to ancient and useless ANSI 1252 codepage
+    // TODO: may need to change CreateWindowA() to CreateWindowW() and
+    // translate UTF16 to UTF8
     ui_app.tid = ut_thread.id();
     ut_nls.init();
     ui_app.visibility = show;
@@ -5862,7 +5866,7 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
 }
 
 static int32_t ui_edit_paragraph_run_count(ui_edit_t* e, int32_t pn) {
-    swear(0 <= pn && pn < e->paragraphs && e->view.w > 0);
+    swear(e->view.w > 0);
     int32_t runs = 0;
     if (e->view.w > 0 && 0 <= pn && pn < e->paragraphs) {
         (void)ui_edit_paragraph_runs(e, pn, &runs);
@@ -6279,17 +6283,20 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
 
 static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
     // single line edit control cannot move caret past fist paragraph
-    bool can_move = !e->sle || pg.pn < e->paragraphs;
-    if (can_move) {
-        ui_edit_scroll_into_view(e, pg);
-        ui_point_t pt = e->view.w > 0 ? // width == 0 means no measure/layout yet
-            ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
-        ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
-        e->selection[1] = pg;
-        if (!ui_app.shift && e->mouse == 0) {
-            e->selection[0] = e->selection[1];
+    if (e->paragraphs == 0) {
+        ui_edit_set_caret(e, e->inside.left, e->inside.top);
+    } else {
+        if (!e->sle || pg.pn < e->paragraphs) {
+            ui_edit_scroll_into_view(e, pg);
+            ui_point_t pt = e->view.w > 0 ? // width == 0 means no measure/layout yet
+                ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
+            ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
+            e->selection[1] = pg;
+            if (!ui_app.shift && e->mouse == 0) {
+                e->selection[0] = e->selection[1];
+            }
+            ui_edit_invalidate(e);
         }
-        ui_edit_invalidate(e);
     }
 }
 
@@ -6408,8 +6415,6 @@ static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
         e->paragraphs -= deleted;
         from.pn = pn0;
         from.gp = gp0;
-        e->selection[0] = from;
-        e->selection[1] = from;
         // traceln("from: %d.%d", from.pn, from.gp);
         ui_edit_scroll_into_view(e, from);
     } else {
@@ -6880,7 +6885,9 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
 }
 
 static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
-    if (e->selection[0].pn == e->selection[1].pn &&
+    if (e->paragraphs == 0) {
+        // do nothing
+    } else if (e->selection[0].pn == e->selection[1].pn &&
         e->selection[0].gp == e->selection[1].gp) {
         ui_edit_select_word(e, x, y);
     } else {
@@ -6895,26 +6902,36 @@ static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
         if (p.pn > e->paragraphs) { p.pn = ut_max(0, e->paragraphs); }
-        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
+        int32_t glyphs = e->paragraphs == 0 ? 0 : ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         ui_edit_move_caret(e, p);
     }
 }
 
 static void ui_edit_focus_on_click(ui_edit_t* e, int32_t x, int32_t y) {
-    if (ui_app.has_focus() && !e->focused && e->mouse != 0) {
-        if (ui_app.focus != null && ui_app.focus->kill_focus != null) {
-            ui_app.focus->kill_focus(ui_app.focus);
+    // was edit control focused before click arrives?
+    const bool app_has_focus = ui_app.has_focus();
+    bool focused = false;
+    if (e->mouse != 0) {
+        if (app_has_focus && !e->focused) {
+            if (ui_app.focus != null && ui_app.focus->kill_focus != null) {
+                ui_app.focus->kill_focus(ui_app.focus);
+            }
+            ui_app.focus = &e->view;
+            bool set = e->view.set_focus(&e->view);
+            fatal_if(!set);
+            focused = true;
         }
-        ui_app.focus = &e->view;
-        bool set = e->view.set_focus(&e->view);
-        fatal_if(!set);
-        // first click on unfocused edit should set focus but
-        // not set caret, because setting caret on click will
-        // destroy selection and this is bad UX
-    } else if (ui_app.has_focus() && e->focused && e->mouse != 0) {
-        e->mouse = 0;
-        ui_edit_click(e, x, y);
+        bool empty = memcmp(&e->selection[0], &e->selection[1],
+                                sizeof(e->selection[0])) == 0;
+        if (focused && !empty) {
+            // first click on unfocused edit should set focus but
+            // not set caret, because setting caret on click will
+            // destroy selection and this is bad UX
+        } else if (app_has_focus && e->focused) {
+            e->mouse = 0;
+            ui_edit_click(e, x, y);
+        }
     }
 }
 
@@ -6995,7 +7012,7 @@ static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
 }
 
 static void ui_edit_mouse_wheel(ui_view_t* v, int32_t unused(dx), int32_t dy) {
-    // TODO: may make a use of dx in single line not-word-breaked edit control
+    // TODO: maybe make a use of dx in single line no-word-break edit control?
     if (ui_app.focus == v) {
         assert(v->type == ui_view_text);
         ui_edit_t* e = (ui_edit_t*)v;
@@ -7066,6 +7083,10 @@ static void ui_edit_cut_copy(ui_edit_t* e, bool cut) {
     if (n > 0) {
         char* text = ui_edit_alloc(n + 1);
         ui_edit_pg_t pg = ui_edit_op(e, cut, from, to, text, &n);
+        static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
+        int32_t x = e->view.x + e->view.w / 2;
+        int32_t y = e->view.y + e->view.h / 2;
+        ui_app.show_hint(&hint, x, y, 0.5);
         if (cut && pg.pn >= 0 && pg.gp >= 0) {
             e->selection[0] = pg;
             e->selection[1] = pg;
@@ -7171,16 +7192,17 @@ static void ui_edit_clipboard_paste(ui_edit_t* e) {
 static void ui_edit_prepare_sle(ui_edit_t* e) {
     ui_view_t* v = &e->view;
     swear(e->sle && v->w > 0);
-    // sinlge line edit is capable of resizing itself to two
+    // shingle line edit is capable of resizing itself to two
     // lines of text (and shrinking back) to avoid horizontal scroll
-    int32_t runs = ut_min(2, ui_edit_paragraph_run_count(e, 0));
+    int32_t runs = ut_max(1, ut_min(2, ui_edit_paragraph_run_count(e, 0)));
     const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
     int32_t h = insets.top + v->fm->height * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
     if (v->min_h_em != min_h_em) {
         v->min_h_em = min_h_em;
-//      traceln("%dx%d runs: %d h: %d min_h_em: %.1f", v->w, v->h, runs, h, min_h_em);
+//      traceln("%p %-10s %dx%d runs: %d h: %d min_h_em := %.1f", v, v->p.text, v->w, v->h, runs, h, min_h_em);
     }
+//  traceln("%p %-10s %dx%d runs: %d h: %d min_h_em: %.1f", v, v->p.text, v->w, v->h, runs, h, min_h_em);
 }
 
 static void ui_edit_insets(ui_edit_t* e) {
@@ -7208,6 +7230,9 @@ static void ui_edit_measure(ui_view_t* v) { // bottom up
     if (v->w < v->fm->em.w * 4) { v->w = i.left + v->fm->em.w * 4 + i.right; }
     if (v->h < v->fm->height)   { v->h = i.top + v->fm->height + i.bottom; }
     ui_edit_insets(e);
+//  if (e->sle) {
+//      traceln("%p %10s %dx%d min_h_em: %.1f", v, v->p.text, v->w, v->h, v->min_h_em);
+//  }
 }
 
 static void ui_edit_layout(ui_view_t* v) { // top down
@@ -7226,19 +7251,25 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     e->h = e->inside.bottom - e->inside.top;
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
-    e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
-    assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
-    if (e->sle) { // single line edit (if changed on the fly):
-        e->selection[0].pn = 0; // only has single paragraph
-        e->selection[1].pn = 0;
-        // scroll line on top of current cursor position into view
-//      int32_t rn = ui_edit_pg_to_pr(e, e->selection[1]).rn;
-//      traceln("scroll.rn: %d rn: %d", e->scroll.rn, rn);
-        if (e->scroll.rn > 0) {
+    if (e->paragraphs == 0) {
+        e->selection[0] = (ui_edit_pg_t){0, 0};
+        e->selection[1] = e->selection[0];
+    } else {
+        e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
+        assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
+        if (e->sle) { // single line edit (if changed on the fly):
+            e->selection[0].pn = 0; // only has single paragraph
+            e->selection[1].pn = 0;
+            // scroll line on top of current cursor position into view
+//          int32_t rn = ui_edit_pg_to_pr(e, e->selection[1]).rn;
+//          traceln("scroll.rn: %d rn: %d", e->scroll.rn, rn);
             const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
-            ui_edit_pg_t top = scroll;
-            top.gp = ut_max(0, top.gp - run[e->scroll.rn].glyphs);
-            ui_edit_scroll_into_view(e, top);
+            if (runs <= 2 && e->scroll.rn == 1) {
+                ui_edit_pg_t top = scroll;
+//              traceln("run[scroll.rn: %d].glyphs: %d", e->scroll.rn, run[e->scroll.rn].glyphs);
+                top.gp = ut_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
+                ui_edit_scroll_into_view(e, top);
+            }
         }
     }
     if (e->focused) {
@@ -7299,8 +7330,6 @@ static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
     return false;
 }
 
-__declspec(dllimport) unsigned int __stdcall GetACP(void);
-
 void ui_edit_init(ui_edit_t* e) {
     memset(e, 0, sizeof(*e));
     e->view.color_id = ui_color_id_window_text;
@@ -7354,16 +7383,6 @@ void ui_edit_init(ui_edit_t* e) {
     e->key_backspace        = ui_edit_key_backspace;
     e->key_enter            = ui_edit_key_enter;
     e->fuzz                 = null;
-    // Expected manifest.xml containing UTF-8 code page
-    // for Translate message and WM_CHAR to deliver UTF-8 characters
-    // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
-    if (GetACP() != 65001) {
-        traceln("codepage: %d UTF-8 will not be supported", GetACP());
-    }
-    // at the moment of writing there is no API call to inform Windows about process
-    // preferred codepage except manifest.xml file in resource #1.
-    // Absence of manifest.xml will result to ancient and useless ANSI 1252 codepage
-    // TODO: may be change quick.h to use CreateWindowW() and translate UTF16 to UTF8
 }
 // _________________________________ ui_gdi.c _________________________________
 
@@ -8812,8 +8831,8 @@ void ui_mbx_init(ui_mbx_t* mx, const char* options[],
         const char* format, ...) {
     mx->view.type = ui_view_mbx;
     mx->view.measured  = ui_mbx_measured;
-    mx->view.layout   = ui_mbx_layout;
-    mx->view.color_id = ui_color_id_window;
+    mx->view.layout    = ui_mbx_layout;
+    mx->view.color_id  = ui_color_id_window;
     mx->options = options;
     va_list va;
     va_start(va, format);
@@ -9679,6 +9698,17 @@ static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
     return 0 <= x && x < v->w && 0 <= y && y < v->h;
 }
 
+static bool ui_view_is_parent_of(const ui_view_t* parent,
+        const ui_view_t* child) {
+    swear(parent != null && child != null);
+    const ui_view_t* p = child->parent;
+    while (p != null) {
+        if (parent == p) { return true; }
+        p = p->parent;
+    }
+    return false;
+}
+
 static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
     fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
     fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
@@ -9733,7 +9763,7 @@ static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);
-        memcpy(s, t, n + 1);
+        memcpy(s, t, (size_t)n + 1);
         v->p.strid = 0; // next call to nls() will localize it
         // TODO: we need both "&Keyboard Shortcut" and no shortcut
         //       strings. In here, bit that tells the story and DrawText
@@ -9789,9 +9819,10 @@ static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
     // If there is not focused UI control in Alt+key [Alt] is optional.
     // If there is focused control only Alt+Key is accepted as shortcut
     char ch = 0x20 <= key && key <= 0x7F ? (char)toupper((char)key) : 0x00;
-    bool need_alt = ui_app.focus != null && ui_app.focus != v;
+    bool needs_alt = ui_app.focus != null && ui_app.focus != v &&
+         !ui_view.is_parent_of(ui_app.focus, v);
     bool keyboard_shortcut = ch != 0x00 && v->shortcut != 0x00 &&
-         (ui_app.alt || !need_alt) && toupper(v->shortcut) == ch;
+         (ui_app.alt || ui_app.ctrl || !needs_alt) && toupper(v->shortcut) == ch;
     return keyboard_shortcut;
 }
 
@@ -10144,6 +10175,7 @@ ui_view_if ui_view = {
     .remove_all         = ui_view_remove_all,
     .disband            = ui_view_disband,
     .inside             = ui_view_inside,
+    .is_parent_of       = ui_view_is_parent_of,
     .gaps               = ui_view_gaps,
     .inbox              = ui_view_inbox,
     .outbox             = ui_view_outbox,

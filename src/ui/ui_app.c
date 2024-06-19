@@ -228,7 +228,7 @@ typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
     // coordinates in pixels relative (0,0) top left corner
     // of primary monitor from GetWindowPlacement
     int32_t    bytes;
-    int32_t    padding;      // to allign rects and points to 8 bytes
+    int32_t    padding;      // to align rectangles and points to 8 bytes
     ui_rect_t  placement;
     ui_rect_t  mrc;          // monitor rectangle
     ui_rect_t  work_area;    // monitor work area (mrc sans taskbar etc)
@@ -763,7 +763,6 @@ static void ui_app_animate_step(ui_app_animate_function_t f, int32_t step, int32
     } else if (f == null) {
         cancel = true;
     }
-    ui_app.focus = null;
     if (cancel) {
         if (ui_app_animate.timer != 0) { ui_app.kill_timer(ui_app_animate.timer); }
         ui_app_animate.step = 0;
@@ -1341,9 +1340,9 @@ static void ui_app_create_window(const ui_rect_t r) {
 //      DWMWA_CAPTION_COLOR
     }
     if (ui_app.aero) { // It makes app look like retro Windows 7 Aero style :)
-        enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_DISABLED;
+        enum DWMNCRENDERINGPOLICY rp = DWMNCRP_DISABLED;
         (void)DwmSetWindowAttribute(ui_app_window(),
-            DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp));
+            DWMWA_NCRENDERING_POLICY, &rp, sizeof(rp));
     }
     // always start with window hidden and let application show it
     ui_app.show_window(ui.visibility.hide);
@@ -1390,7 +1389,7 @@ static void ui_app_full_screen(bool on) {
         ui_app_show_task_bar(!on);
         if (on) {
             style = GetWindowLongA(ui_app_window(), GWL_STYLE);
-            // becasue WS_POPUP is defined as 0x80000000L:
+            // because WS_POPUP is defined as 0x80000000L:
             long s = (long)((uint32_t)style | WS_POPUP | WS_VISIBLE);
             s &= ~WS_OVERLAPPEDWINDOW;
             ui_app_set_window_long(GWL_STYLE, s);
@@ -1407,9 +1406,9 @@ static void ui_app_full_screen(bool on) {
             enum { swp = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
                          SWP_NOZORDER | SWP_NOOWNERZORDER };
             fatal_if_false(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, swp));
-            enum DWMNCRENDERINGPOLICY ncrp = DWMNCRP_ENABLED;
+            enum DWMNCRENDERINGPOLICY rp = DWMNCRP_ENABLED;
             fatal_if_not_zero(DwmSetWindowAttribute(ui_app_window(),
-                DWMWA_NCRENDERING_POLICY, &ncrp, sizeof(ncrp)));
+                DWMWA_NCRENDERING_POLICY, &rp, sizeof(rp)));
         }
         ui_app.is_full_screen = on;
     }
@@ -1492,6 +1491,7 @@ static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
         ui_app.animating.y = y;
         if (view->type == ui_view_mbx) {
             ((ui_mbx_t*)view)->option = -1;
+            ui_app.focus = view;
         }
         // allow unparented ui for toast and hint
         ui_view_call_init(view);
@@ -1499,7 +1499,6 @@ static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
         ui_app_animate_start(ui_app_toast_dim, steps);
         ui_app.animating.view = view;
         ui_app.animating.time = timeout > 0 ? ui_app.now + timeout : 0;
-        ui_app.focus = null;
     } else {
         ui_app_toast_cancel();
     }
@@ -1604,18 +1603,18 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
         // current Window Size (in pixels) ConsoleWindowSize(in characters)
         // and SetConsoleScreenBufferSize().
         // After a lot of experimentation and reading docs most sensible option
-        // is to try both calls in two differen orders.
+        // is to try both calls in two different orders.
         COORD c = {w, h};
-        SMALL_RECT const minwin = { 0, 0, c.X - 1, c.Y - 1 };
+        SMALL_RECT const min_win = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
-        int r0 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : ut_runtime.err();
+        int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
 //      if (r0 != 0) { traceln("SetConsoleWindowInfo() %s", strerr(r0)); }
         int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
 //      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
             r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
             if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r0)); }
-            r1 = SetConsoleWindowInfo(console, true, &minwin) ? 0 : ut_runtime.err();
+            r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
             if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", strerr(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
@@ -1708,7 +1707,8 @@ static void ui_app_move_and_resize(const ui_rect_t* rc) {
 }
 
 static void ui_app_set_console_title(HWND cw) {
-    char text[256];
+    swear(ut_thread.id() == ui_app.tid);
+    static char text[256];
     text[0] = 0;
     GetWindowTextA((HWND)ui_app.window, text, countof(text));
     text[countof(text) - 1] = 0;
@@ -1820,9 +1820,9 @@ static void ui_app_show_window(int32_t show) {
 
 static ut_file_name_t ui_app_open_file_dialog(const char* folder,
         const char* pairs[], int32_t n) {
-    assert(pairs == null && n == 0 ||
-           n >= 2 && n % 2 == 0);
-    uint16_t memory[4 * 1024];
+    swear(ut_thread.id() == ui_app.tid);
+    assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
+    static uint16_t memory[4 * 1024];
     uint16_t* filter = memory;
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
@@ -1846,9 +1846,10 @@ static ut_file_name_t ui_app_open_file_dialog(const char* folder,
         }
         *s++ = 0;
     }
-    uint16_t dir[MAX_PATH];
+    static uint16_t dir[ut_files_max_path];
+    dir[0] = 0;
     ut_str.utf8to16(dir, countof(dir), folder);
-    uint16_t path[MAX_PATH];
+    static uint16_t path[ut_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
     ofn.hwndOwner = (HWND)ui_app.window;
@@ -1857,7 +1858,8 @@ static ut_file_name_t ui_app_open_file_dialog(const char* folder,
     ofn.lpstrInitialDir = dir;
     ofn.lpstrFile = path;
     ofn.nMaxFile = sizeof(path);
-    ut_file_name_t fn;
+    static ut_file_name_t fn;
+    fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
         ut_str.utf16to8(fn.s, countof(fn.s), path);
     } else {
@@ -2201,6 +2203,17 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE unused(previous),
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
     fatal_if_not_zero(CoInitializeEx(0, co_init));
     SetConsoleCP(CP_UTF8);
+    // Expected manifest.xml containing UTF-8 code page
+    // for Translate message and WM_CHAR to deliver UTF-8 characters
+    // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
+    if (GetACP() != 65001) {
+        traceln("codepage: %d UTF-8 will not be supported", GetACP());
+    }
+    // at the moment of writing there is no API call to inform Windows about process
+    // preferred codepage except manifest.xml file in resource #1.
+    // Absence of manifest.xml will result to ancient and useless ANSI 1252 codepage
+    // TODO: may need to change CreateWindowA() to CreateWindowW() and
+    // translate UTF16 to UTF8
     ui_app.tid = ut_thread.id();
     ut_nls.init();
     ui_app.visibility = show;
