@@ -49,6 +49,23 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
                               ((ui_color_t)((uint32_t)((uint8_t)(a))) << 24)) \
                              )
 
+enum {
+    ui_color_id_undefined           =  0,
+    ui_color_id_active_title        =  1,
+    ui_color_id_button_face         =  2,
+    ui_color_id_button_text         =  3,
+    ui_color_id_gray_text           =  4,
+    ui_color_id_highlight           =  5,
+    ui_color_id_highlight_text      =  6,
+    ui_color_id_hot_tracking_color  =  7,
+    ui_color_id_inactive_title      =  8,
+    ui_color_id_inactive_title_text =  9,
+    ui_color_id_menu_highlight      = 10,
+    ui_color_id_title_text          = 11,
+    ui_color_id_window              = 12,
+    ui_color_id_window_text         = 13
+};
+
 typedef struct ui_colors_s {
     ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
     void       (*rgb_to_hsi)(fp64_t r, fp64_t g, fp64_t b, fp64_t *h, fp64_t *s, fp64_t *i);

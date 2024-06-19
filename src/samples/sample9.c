@@ -65,7 +65,7 @@ static ui_label_t about = ui_label(34.56f,
 
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
 
-ui_mbx_choice(mbx, // message box
+ui_mbx_chosen(mbx, // message box
     "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
     "is it the longest English language word or not?", {
     traceln("option=%d", option); // -1 or index of { "&Yes", "&No" }
@@ -105,11 +105,9 @@ static void open_file(ui_button_t* unused(b)) {
     }
 }
 
-ui_button_on_click(button_open_file, "&Open", 7.5, {
-    open_file(button_open_file);
-});
+ui_button_t button_open_file = ui_button("&Open", 7.5, open_file);
 
-static void flip_full_screen(ui_button_t* b) {
+static void flip_full_clicked(ui_button_t* b) {
     b->pressed = !b->pressed;
     ui_app.full_screen(b->pressed);
     if (b->pressed) {
@@ -117,41 +115,31 @@ static void flip_full_screen(ui_button_t* b) {
     }
 }
 
-ui_button_on_click(button_full_screen,
-                   ut_glyph_square_four_corners, 1, {
-    flip_full_screen(button_full_screen);
-});
+static ui_button_t button_full_screen = ui_button(
+        ut_glyph_square_four_corners, 1, flip_full_clicked);
 
 static void flip_locale(ui_button_t* b) {
     b->pressed = !b->pressed;
     fatal_if_not_zero(ut_nls.set_locale(b->pressed ? "zh-CN" : "en-US"));
-//  ui_view.localize(&label_multiline);
     ui_app.request_layout(); // because center panel layout changed
 }
 
 static ui_button_t button_locale = ui_button(
     ut_glyph_kanji_onna_female "A", 1, flip_locale);
 
-ui_button_on_click(button_about, "&About", 7.5, {
+static void about_clicked(ui_button_t* unused(b)) {
     ui_app.show_toast(&about, 10.0);
-});
+}
 
-ui_button_on_click(button_mbx, "&Message Box", 7.5, {
+static ui_button_t button_about = ui_button("&About", 7.5, about_clicked);
+
+ui_button_clicked(button_mbx, "&Message Box", 7.5, {
     ui_app.show_toast(&mbx.view, 0);
 });
-
-#ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
-
-// ui_toggle label can include "___" for "ON ": "OFF" state
-ui_toggle_on_off(scroll, "Scroll &Direction:", 0, {});
-
-#else
 
 static ui_toggle_t scroll = ui_toggle("Scroll &Direction:",
                                       /* min_w_em: */ 0.0f,
                                       /* callback:*/ null);
-
-#endif
 
 static ui_view_t panel_top    = ui_view(container);
 static ui_view_t panel_bottom = ui_view(container);
@@ -290,7 +278,7 @@ static void center_paint(ui_view_t* view) {
 }
 
 static void measure(ui_view_t* v) {
-    v->fm = &ui_app.fonts.mono;
+    v->fm = &ui_app.fm.mono;
     panel_border = ut_max(1, v->fm->em.h / 4);
     frame_border = ut_max(1, v->fm->em.h / 8);
     assert(panel_border > 0 && frame_border > 0);
@@ -385,7 +373,7 @@ static void character(ui_view_t* view, const char* utf8) {
     if (ch == 'q' || ch == 'Q') {
         ui_app.close();
     } else if (ch == 033 && ui_app.is_full_screen) {
-        button_full_screen_callback(&button_full_screen);
+        flip_full_clicked(&button_full_screen);
     } else if (ch == '+' || ch == '=') {
         zoom /= 2; refresh();
     } else if (ch == '-' || ch == '_') {
@@ -440,8 +428,8 @@ static void opened(void) {
     ut_str_printf(label_multiline.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
     ui_view.set_text(&label_multiline, "%s", ut_nls.string(str_help, ""));
-    toast_filename.fm = &ui_app.fonts.H1;
-    about.fm = &ui_app.fonts.H3;
+    toast_filename.fm = &ui_app.fm.H1;
+    about.fm = &ui_app.fm.H3;
     button_locale.shortcut = 'l';
     button_full_screen.shortcut = 'f';
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS

@@ -111,7 +111,7 @@ static void paint(ui_view_t* v) {
         ui_gdi_ta_t ta = ui_gdi.ta.mono;
         ta.measure = true;
         ui_wh_t wh = ui_view.text_metrics(0, 0, false, 0,
-                        &ui_app.fonts.mono, "%s", paint_stats);
+                        &ui_app.fm.mono, "%s", paint_stats);
         int32_t x = v->w - wh.w - v->fm->em.w;
         int32_t y = v->fm->em.h;
         print(&x, &y, "%s", paint_stats);

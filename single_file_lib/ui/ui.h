@@ -150,31 +150,6 @@ typedef struct ui_pen_s*    ui_pen_t;
 typedef struct ui_cursor_s* ui_cursor_t;
 typedef struct ui_region_s* ui_region_t;
 
-typedef struct ui_fm_s { // font metrics
-    ui_font_t font;
-    ui_wh_t em;        // "em" square point size expressed in pixels *)
-    // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
-    ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
-    int32_t height;    // font height in pixels
-    int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
-    int32_t ascent;    // The maximum glyphs extend above the baseline
-    int32_t descent;   // maximum height of descenders
-    int32_t internal_leading; // accents and diacritical marks goes there
-    int32_t external_leading;
-    int32_t average_char_width;
-    int32_t max_char_width;
-    int32_t line_gap;  // gap between lines of text
-    ui_wh_t subscript; // height
-    ui_point_t subscript_offset;
-    ui_wh_t superscript;    // height
-    ui_point_t superscript_offset;
-    int32_t underscore;     // height
-    int32_t underscore_position;
-    int32_t strike_through; // height
-    int32_t strike_through_position;
-    bool mono;
-} ui_fm_t;
-
 // *)  .em square pixel size of glyph "m"
 //     https://en.wikipedia.org/wiki/Em_(typography)
 
@@ -189,43 +164,6 @@ typedef struct ui_image_s { // TODO: ui_ namespace
     void* pixels;
 } ui_image_t;
 
-typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
-    int32_t system;  // system dpi
-    int32_t process; // process dpi
-    // 15" diagonal monitor 3840x2160 175% scaled
-    // monitor dpi effective 168, angular 248 raw 284
-    int32_t monitor_effective; // effective with regard of user scaling
-    int32_t monitor_raw;       // with regard of physical screen size
-    int32_t monitor_angular;   // diagonal raw
-    int32_t window;            // main window dpi
-} ui_dpi_t;
-
-typedef struct ui_fonts_s {
-    // font handles re-created "em" + font geometry filled on scale change
-    ui_fm_t regular; // proportional UI font
-    ui_fm_t mono; // monospaced  UI font
-    ui_fm_t H1; // bold header font
-    ui_fm_t H2;
-    ui_fm_t H3;
-} ui_fonts_t;
-
-// in inches (because monitors customary are)
-// it is not in points (1/72 inch) like font size
-// because it is awkward to express large area
-// size in typography measurements.
-
-typedef struct ui_window_sizing_s {
-    fp32_t ini_w; // initial window width in inches
-    fp32_t ini_h; // 0,0 means set to min_w, min_h
-    fp32_t min_w; // minimum window width in inches
-    fp32_t min_h; // 0,0 means - do not care use content size
-    fp32_t max_w; // maximum window width in inches
-    fp32_t max_h; // 0,0 means as big as user wants
-    // "sizing" "estimate or measure something's dimensions."
-	// initial window sizing only used on the first invocation
-	// actual user sizing is stored in the configuration and used
-	// on all launches except the very first.
-} ui_window_sizing_t;
 
 // ui_gaps_t are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.
@@ -427,6 +365,23 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
                               (ui_rgb(r, g, b)) |                             \
                               ((ui_color_t)((uint32_t)((uint8_t)(a))) << 24)) \
                              )
+
+enum {
+    ui_color_id_undefined           =  0,
+    ui_color_id_active_title        =  1,
+    ui_color_id_button_face         =  2,
+    ui_color_id_button_text         =  3,
+    ui_color_id_gray_text           =  4,
+    ui_color_id_highlight           =  5,
+    ui_color_id_highlight_text      =  6,
+    ui_color_id_hot_tracking_color  =  7,
+    ui_color_id_inactive_title      =  8,
+    ui_color_id_inactive_title_text =  9,
+    ui_color_id_menu_highlight      = 10,
+    ui_color_id_title_text          = 11,
+    ui_color_id_window              = 12,
+    ui_color_id_window_text         = 13
+};
 
 typedef struct ui_colors_s {
     ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
@@ -654,6 +609,41 @@ enum {  // TODO: into gdi int32_t const
     ui_gdi_font_quality_cleartype = 5,
     ui_gdi_font_quality_cleartype_natural = 6
 };
+
+typedef struct ui_fm_s { // font metrics
+    ui_font_t font;
+    ui_wh_t em;        // "em" square point size expressed in pixels *)
+    // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
+    ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
+    int32_t height;    // font height in pixels
+    int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
+    int32_t ascent;    // The maximum glyphs extend above the baseline
+    int32_t descent;   // maximum height of descenders
+    int32_t internal_leading; // accents and diacritical marks goes there
+    int32_t external_leading;
+    int32_t average_char_width;
+    int32_t max_char_width;
+    int32_t line_gap;  // gap between lines of text
+    ui_wh_t subscript; // height
+    ui_point_t subscript_offset;
+    ui_wh_t superscript;    // height
+    ui_point_t superscript_offset;
+    int32_t underscore;     // height
+    int32_t underscore_position;
+    int32_t strike_through; // height
+    int32_t strike_through_position;
+    bool mono;
+} ui_fm_t;
+
+typedef struct ui_fms_s {
+    // when font handles are re-created on system scaling change
+    // metrics "em" and font geometry filled
+    ui_fm_t regular; // proportional UI font
+    ui_fm_t mono; // monospaced  UI font
+    ui_fm_t H1; // bold header font
+    ui_fm_t H2;
+    ui_fm_t H3;
+} ui_fms_t;
 
 typedef struct ui_gdi_ta_s { // text attributes
     const ui_fm_t* fm; // font metrics
@@ -952,6 +942,7 @@ extern ui_view_if ui_view;
 #define ui_view_i_lr (0.375f)    // 3/4 of "em.w" on left and right
 #define ui_view_i_t  (0.109375f) // 7/64 top
 #define ui_view_i_b  (0.140625f) // 9/64 bottom
+#define ui_view_i_button_lr (0.75f) // wider left/right insets for buttons
 
 // Most of UI elements are lowercase latin with Capital letter
 // to boot. The ascent/descent of the latin fonts lack vertical
@@ -1165,7 +1156,7 @@ void ui_view_init_label(ui_view_t* view);
 
 #define ui_label(min_width_em, s) {                    \
     .type = ui_view_label, .init = ui_view_init_label, \
-    .fm = &ui_app.fonts.regular,                       \
+    .fm = &ui_app.fm.regular,                          \
     .p.text = s,                                       \
     .min_w_em = min_width_em, .min_h_em = 1.0,         \
     .insets  = {                                       \
@@ -1201,51 +1192,53 @@ void ui_view_init_button(ui_view_t* view);
 void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     void (*callback)(ui_button_t* b));
 
-// ui_button_on_click can only be used on static button variables
+// ui_button_clicked can only be used on static button variables
 
-#define ui_button_on_click(name, s, min_width_em, ...)      \
-    static void name ## _callback(ui_button_t* name) {      \
-        (void)name; /* no warning if unused */              \
-        { __VA_ARGS__ }                                     \
-    }                                                       \
-    static                                                  \
-    ui_button_t name = {                                    \
-        .type = ui_view_button,                             \
-        .init = ui_view_init_button,                        \
-        .fm = &ui_app.fonts.regular,                        \
-        .p.text = s,                                        \
-        .callback = name ## _callback,                      \
-        .min_w_em = min_width_em, .min_h_em = 1.0,          \
-        .insets  = {                                        \
-            .left  = ui_view_i_lr, .top    = ui_view_i_t,   \
-            .right = ui_view_i_lr, .bottom = ui_view_i_b    \
-        },                                                  \
-        .padding = {                                        \
-            .left  = ui_view_p_l, .top    = ui_view_p_t,    \
-            .right = ui_view_p_r, .bottom = ui_view_p_b,    \
-        }                                                   \
+#define ui_button_clicked(name, s, min_width_em, ...)               \
+    static void name ## _clicked(ui_button_t* name) {               \
+        (void)name; /* no warning if unused */                      \
+        { __VA_ARGS__ }                                             \
+    }                                                               \
+    static                                                          \
+    ui_button_t name = {                                            \
+        .type = ui_view_button,                                     \
+        .init = ui_view_init_button,                                \
+        .fm = &ui_app.fm.regular,                                   \
+        .p.text = s,                                                \
+        .callback = name ## _clicked,                               \
+        .color_id = ui_color_id_button_text,                        \
+        .min_w_em = min_width_em, .min_h_em = 1.0,                  \
+        .insets  = {                                                \
+            .left  = ui_view_i_button_lr, .top    = ui_view_i_t,    \
+            .right = ui_view_i_button_lr, .bottom = ui_view_i_b     \
+        },                                                          \
+        .padding = {                                                \
+            .left  = ui_view_p_l, .top    = ui_view_p_t,            \
+            .right = ui_view_p_r, .bottom = ui_view_p_b,            \
+        }                                                           \
     }
 
-#define ui_button(s, min_width_em, call_back) {             \
-    .type = ui_view_button,                                 \
-    .init = ui_view_init_button,                            \
-    .fm = &ui_app.fonts.regular,                            \
-    .p.text = s,                                            \
-    .callback = call_back,                                  \
-    .min_w_em = min_width_em, .min_h_em = 1.0,              \
-    .insets  = {                                            \
-        .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
-        .right = ui_view_i_lr, .bottom = ui_view_i_b        \
-    },                                                      \
-    .padding = {                                            \
-        .left  = ui_view_p_l, .top    = ui_view_p_t,        \
-        .right = ui_view_p_r, .bottom = ui_view_p_b,        \
-    }                                                       \
+#define ui_button(s, min_width_em, clicked) {                       \
+    .type = ui_view_button,                                         \
+    .init = ui_view_init_button,                                    \
+    .fm = &ui_app.fm.regular,                                       \
+    .p.text = s,                                                    \
+    .callback = clicked,                                            \
+    .color_id = ui_color_id_button_text,                            \
+    .min_w_em = min_width_em, .min_h_em = 1.0,                      \
+    .insets  = {                                                    \
+        .left  = ui_view_i_button_lr, .top    = ui_view_i_t,        \
+        .right = ui_view_i_button_lr, .bottom = ui_view_i_b         \
+    },                                                              \
+    .padding = {                                                    \
+        .left  = ui_view_p_l, .top    = ui_view_p_t,                \
+        .right = ui_view_p_r, .bottom = ui_view_p_b,                \
+    }                                                               \
 }
 
 // usage:
 //
-// ui_button_on_click(button, "&Button", 7.0, {
+// ui_button_clicked(button, "&Button", 7.0, {
 //      button->pressed = !button->pressed;
 // })
 //
@@ -1271,23 +1264,6 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 
 
 enum {
-    ui_color_id_undefined           =  0,
-    ui_color_id_active_title        =  1,
-    ui_color_id_button_face         =  2,
-    ui_color_id_button_text         =  3,
-    ui_color_id_gray_text           =  4,
-    ui_color_id_highlight           =  5,
-    ui_color_id_highlight_text      =  6,
-    ui_color_id_hot_tracking_color  =  7,
-    ui_color_id_inactive_title      =  8,
-    ui_color_id_inactive_title_text =  9,
-    ui_color_id_menu_highlight      = 10,
-    ui_color_id_title_text          = 11,
-    ui_color_id_window              = 12,
-    ui_color_id_window_text         = 13
-};
-
-enum {
     ui_theme_app_mode_default     = 0,
     ui_theme_app_mode_allow_dark  = 1,
     ui_theme_app_mode_force_dark  = 2,
@@ -1311,7 +1287,6 @@ extern ui_theme_if ui_theme;
 
 
 
-
 // _______________________________ ui_toggle.h ________________________________
 
 typedef ui_view_t ui_toggle_t;
@@ -1325,7 +1300,7 @@ void ui_view_init_toggle(ui_view_t* view);
 // ui_toggle_on_off can only be used on static toggle variables
 
 #define ui_toggle_on_off(name, s, min_width_em, ...)        \
-    static void name ## _callback(ui_toggle_t* name) {      \
+    static void name ## _on_off(ui_toggle_t* name) {        \
         (void)name; /* no warning if unused */              \
         { __VA_ARGS__ }                                     \
     }                                                       \
@@ -1333,10 +1308,10 @@ void ui_view_init_toggle(ui_view_t* view);
     ui_toggle_t name = {                                    \
         .type = ui_view_toggle,                             \
         .init = ui_view_init_toggle,                        \
-        .fm = &ui_app.fonts.regular,                        \
+        .fm = &ui_app.fm.regular,                           \
         .min_w_em = min_width_em,                           \
         .p.text = s,                                        \
-        .callback = name ## _callback,                      \
+        .callback = name ## _on_off,                        \
         .min_w_em = 1.0, .min_h_em = 1.0,                   \
         .insets  = {                                        \
             .left  = ui_view_i_lr, .top    = ui_view_i_t,   \
@@ -1348,13 +1323,13 @@ void ui_view_init_toggle(ui_view_t* view);
         }                                                   \
     }
 
-#define ui_toggle(s, min_width_em, call_back) {             \
+#define ui_toggle(s, min_width_em, on_off) {                \
     .type = ui_view_toggle,                                 \
     .init = ui_view_init_toggle,                            \
-    .fm = &ui_app.fonts.regular,                            \
+    .fm = &ui_app.fm.regular,                               \
     .min_w_em = min_width_em,                               \
     .p.text = s,                                            \
-    .callback = call_back,                                  \
+    .callback = on_off,                                     \
     .min_w_em = 1.0, .min_h_em = 1.0,                       \
     .insets  = {                                            \
         .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
@@ -1391,21 +1366,22 @@ void ui_view_init_slider(ui_view_t* view);
 void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* r));
 
-// ui_slider_on_change can only be used on static slider variables
+// ui_slider_changed can only be used on static slider variables
 
-#define ui_slider_on_change(name, s, min_width_em, vmn, vmx, format_v, ...) \
-    static void name ## _callback(ui_slider_t* name) {              \
+#define ui_slider_changed(name, s, min_width_em, mn,  mx, fmt, ...) \
+    static void name ## _changed(ui_slider_t* name) {               \
         (void)name; /* no warning if unused */                      \
         { __VA_ARGS__ }                                             \
     }                                                               \
     static                                                          \
     ui_slider_t name = {                                            \
         .view = {                                                   \
-            .type = ui_view_slider, .fm = &ui_app.fonts.regular,    \
+            .type = ui_view_slider,                                 \
             .init = ui_view_init_slider,                            \
+            .fm = &ui_app.fm.regular,                               \
             .p.text = s,                                            \
-            .format = format_v,                                     \
-            .callback = name ## _callback,                          \
+            .format = fmt,                                          \
+            .callback = name ## _changed,                           \
             .min_w_em = min_width_em, .min_h_em = 1.0,              \
             .insets  = {                                            \
                 .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
@@ -1416,15 +1392,17 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
                 .right = ui_view_p_r, .bottom = ui_view_p_b,        \
             }                                                       \
         },                                                          \
-        .value_min = vmn, .value_max = vmx, .value = vmn,           \
+        .value_min = mn, .value_max = mx, .value = mn,              \
     }
 
-#define ui_slider(s, min_width_em, vmn, vmx, format_v, call_back) { \
-    .view = { .type = ui_view_slider, .fm = &ui_app.fonts.regular,  \
+#define ui_slider(s, min_width_em, mn, mx, fmt, changed) {          \
+    .view = {                                                       \
+        .type = ui_view_slider,                                     \
         .init = ui_view_init_slider,                                \
+        .fm = &ui_app.fm.regular,                                   \
         .p.text = s,                                                \
-        .callback = call_back,                                      \
-        .format = format_v,                                         \
+        .callback = changed,                                        \
+        .format = fmt,                                              \
         .min_w_em = min_width_em, .min_h_em = 1.0,                  \
             .insets  = {                                            \
                 .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
@@ -1435,7 +1413,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
                 .right = ui_view_p_r, .bottom = ui_view_p_b,        \
             }                                                       \
     },                                                              \
-    .value_min = vmn, .value_max = vmx, .value = vmn,               \
+    .value_min = mn, .value_max = mx, .value = mn,                  \
 }
 
 
@@ -1461,11 +1439,11 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 // ui_mbx_on_choice can only be used on static mbx variables
 
 
-#define ui_mbx_choice(name, s, code, ...)                        \
+#define ui_mbx_chosen(name, s, code, ...)                        \
                                                                  \
     static char* name ## _options[] = { __VA_ARGS__, null };     \
                                                                  \
-    static void name ## _callback(ui_mbx_t* m, int32_t option) { \
+    static void name ## _chosen(ui_mbx_t* m, int32_t option) {   \
         (void)m; (void)option; /* no warnings if unused */       \
         code                                                     \
     }                                                            \
@@ -1474,9 +1452,9 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
         .view = {                                                \
             .type = ui_view_mbx,                                 \
             .init = ui_view_init_mbx,                            \
-            .fm = &ui_app.fonts.regular,                         \
+            .fm = &ui_app.fm.regular,                            \
             .p.text = s,                                         \
-            .callback = name ## _callback,                       \
+            .callback = name ## _chosen,                         \
             .padding = { .left  = 0.125, .top    = 0.25,         \
                          .right = 0.125, .bottom = 0.25 },       \
             .insets  = { .left  = 0.125, .top    = 0.25,         \
@@ -1485,12 +1463,12 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
         .options = name ## _options                              \
     }
 
-#define ui_mbx(s, call_back, ...) {                         \
+#define ui_mbx(s, chosen, ...) {                            \
     .view = {                                               \
         .type = ui_view_mbx, .init = ui_view_init_mbx,      \
-        .fm = &ui_app.fonts.regular,                        \
+        .fm = &ui_app.fm.regular,                           \
         .p.text = s,                                        \
-        .callback = call_back,                              \
+        .callback = chosen,                                 \
         .padding = { .left  = 0.125, .top    = 0.25,        \
                      .right = 0.125, .bottom = 0.25 },      \
         .insets  = { .left  = 0.125, .top    = 0.25,        \
@@ -1511,6 +1489,7 @@ typedef struct ui_caption_s {
     ui_label_t title;
     ui_view_t spacer;
     ui_button_t menu; // use: ui_caption.button_menu.cb := your callback
+    ui_button_t mode; // switch between dark/ligh mode
     ui_button_t mini;
     ui_button_t maxi;
     ui_button_t full;
@@ -1524,6 +1503,35 @@ extern ui_caption_t ui_caption;
 // _________________________________ ui_app.h _________________________________
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
+
+typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
+    int32_t system;  // system dpi
+    int32_t process; // process dpi
+    // 15" diagonal monitor 3840x2160 175% scaled
+    // monitor dpi effective 168, angular 248 raw 284
+    int32_t monitor_effective; // effective with regard of user scaling
+    int32_t monitor_raw;       // with regard of physical screen size
+    int32_t monitor_angular;   // diagonal raw
+    int32_t window;            // main window dpi
+} ui_dpi_t;
+
+// in inches (because monitors customary are)
+// it is not in points (1/72 inch) like font size
+// because it is awkward to express large area
+// size in typography measurements.
+
+typedef struct ui_window_sizing_s {
+    fp32_t ini_w; // initial window width in inches
+    fp32_t ini_h; // 0,0 means set to min_w, min_h
+    fp32_t min_w; // minimum window width in inches
+    fp32_t min_h; // 0,0 means - do not care use content size
+    fp32_t max_w; // maximum window width in inches
+    fp32_t max_h; // 0,0 means as big as user wants
+    // "sizing" "estimate or measure something's dimensions."
+	// initial window sizing only used on the first invocation
+	// actual user sizing is stored in the configuration and used
+	// on all launches except the very first.
+} ui_window_sizing_t;
 
 typedef struct {
     // implemented by client:
@@ -1576,7 +1584,7 @@ typedef struct {
     ui_view_t* content;
     ui_view_t* caption;
     ui_view_t* focus;   // does not affect message routing - free for all
-    ui_fonts_t fonts;
+    ui_fms_t   fm;
     ui_cursor_t cursor; // current cursor
     ui_cursor_t cursor_arrow;
     ui_cursor_t cursor_wait;
@@ -1729,7 +1737,7 @@ typedef struct ui_view_s ui_view_t;
 #define ui_view(view_type) {            \
     .type = (ui_view_ ## view_type),    \
     .init = ui_view_init_ ## view_type, \
-    .fm   = &ui_app.fonts.regular,      \
+    .fm   = &ui_app.fm.regular,      \
     .color = ui_color_transparent,      \
     .color_id = 0                       \
 }
@@ -1903,11 +1911,11 @@ static void ui_app_update_crc(void) {
 }
 
 static void ui_app_dispose_fonts(void) {
-    ui_gdi.delete_font(ui_app.fonts.regular.font);
-    ui_gdi.delete_font(ui_app.fonts.H1.font);
-    ui_gdi.delete_font(ui_app.fonts.H2.font);
-    ui_gdi.delete_font(ui_app.fonts.H3.font);
-    ui_gdi.delete_font(ui_app.fonts.mono.font);
+    ui_gdi.delete_font(ui_app.fm.regular.font);
+    ui_gdi.delete_font(ui_app.fm.H1.font);
+    ui_gdi.delete_font(ui_app.fm.H2.font);
+    ui_gdi.delete_font(ui_app.fm.H3.font);
+    ui_gdi.delete_font(ui_app.fm.mono.font);
 }
 
 static int32_t ui_app_px2pt(fp64_t px) {
@@ -1934,30 +1942,30 @@ static void ui_app_init_cursors(void) {
 
 static void ui_app_init_fonts(int32_t dpi) {
     ui_app_update_ncm(dpi);
-    if (ui_app.fonts.regular.font != null) { ui_app_dispose_fonts(); }
+    if (ui_app.fm.regular.font != null) { ui_app_dispose_fonts(); }
     LOGFONTW lf = ui_app_ncm.lfMessageFont;
     // lf.lfQuality is CLEARTYPE_QUALITY which looks bad on 4K monitors
     // Windows UI uses PROOF_QUALITY which is aliased w/o ClearType rainbows
     lf.lfQuality = ANTIALIASED_QUALITY; // PROOF_QUALITY;
-    ui_gdi.update_fm(&ui_app.fonts.regular, (ui_font_t)CreateFontIndirectW(&lf));
-//  ui_gdi.dump_fm(ui_app.fonts.regular.font);
+    ui_gdi.update_fm(&ui_app.fm.regular, (ui_font_t)CreateFontIndirectW(&lf));
+//  ui_gdi.dump_fm(ui_app.fm.regular.font);
     const fp64_t fh = ui_app_ncm.lfMessageFont.lfHeight;
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
-    ui_gdi.update_fm(&ui_app.fonts.H1, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_gdi.update_fm(&ui_app.fm.H1, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
-    ui_gdi.update_fm(&ui_app.fonts.H2, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_gdi.update_fm(&ui_app.fm.H2, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
-    ui_gdi.update_fm(&ui_app.fonts.H3, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_gdi.update_fm(&ui_app.fm.H3, (ui_font_t)CreateFontIndirectW(&lf));
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
     ut_str.utf8to16(lf.lfFaceName, countof(lf.lfFaceName), "Cascadia Mono");
-    ui_gdi.update_fm(&ui_app.fonts.mono, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
 }
 
 static void ui_app_data_save(const char* name, const void* data, int32_t bytes) {
@@ -2432,7 +2440,7 @@ static void ui_app_toast_paint(void) {
                 const int32_t tx = r - em_w / 2;
                 const int32_t ty = 0;
                 const ui_gdi_ta_t ta = {
-                    .fm = &ui_app.fonts.regular,
+                    .fm = &ui_app.fm.regular,
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
                 };
@@ -3919,7 +3927,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         ui_app_bring_window_inside_monitor(&ui_app.mrc, &wr);
     }
     ui_app.root->hidden = true; // start with ui hidden
-    ui_app.root->fm = &ui_app.fonts.regular;
+    ui_app.root->fm = &ui_app.fm.regular;
     ui_app.root->w = wr.w - ui_app.border.w * 2;
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint
@@ -4061,8 +4069,8 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         ui_gdi.icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
     }
-    ui_color_t color = v->armed ?
-        ui_colors.lighten(v->background, 0.125f) : d1;
+    ui_color_t color = ui_colors.get_color(ui_color_id_gray_text);
+    if (v->armed) { color = ui_colors.lighten(color, 0.125f); }
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {
@@ -4170,17 +4178,21 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 
 #pragma push_macro("ui_caption_glyph_rest")
 #pragma push_macro("ui_caption_glyph_menu")
+#pragma push_macro("ui_caption_glyph_dark")
+#pragma push_macro("ui_caption_glyph_light")
 #pragma push_macro("ui_caption_glyph_mini")
 #pragma push_macro("ui_caption_glyph_maxi")
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest ut_glyph_desktop_window
-#define ui_caption_glyph_menu ut_glyph_trigram_for_heaven
-#define ui_caption_glyph_mini ut_glyph_minimize
-#define ui_caption_glyph_maxi ut_glyph_maximize
-#define ui_caption_glyph_full ut_glyph_square_four_corners
-#define ui_caption_glyph_quit ut_glyph_cancellation_x
+#define ui_caption_glyph_rest  ut_glyph_desktop_window
+#define ui_caption_glyph_menu  ut_glyph_trigram_for_heaven
+#define ui_caption_glyph_dark  ut_glyph_crescent_moon
+#define ui_caption_glyph_light ut_glyph_white_sun_with_rays
+#define ui_caption_glyph_mini  ut_glyph_minimize
+#define ui_caption_glyph_maxi  ut_glyph_maximize
+#define ui_caption_glyph_full  ut_glyph_square_four_corners
+#define ui_caption_glyph_quit  ut_glyph_cancellation_x
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
@@ -4200,6 +4212,24 @@ static void ui_caption_quit(ui_button_t* unused(b)) {
 
 static void ui_caption_mini(ui_button_t* unused(b)) {
     ui_app.show_window(ui.visibility.minimize);
+}
+
+static void ui_caption_mode_appearance(void) {
+    if (ui_theme.is_app_dark()) {
+        ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_light);
+        ut_str_printf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
+    } else {
+        ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_dark);
+        ut_str_printf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Dark Mode"));
+    }
+}
+
+static void ui_caption_mode(ui_button_t* unused(b)) {
+    bool was_dark = ui_theme.is_app_dark();
+    ui_app.light_mode =  was_dark;
+    ui_app.dark_mode  = !was_dark;
+    ui_theme.refresh();
+    ui_caption_mode_appearance();
 }
 
 static void ui_caption_maximize_or_restore(void) {
@@ -4308,6 +4338,7 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.menu,
         &ui_caption.title,
         &ui_caption.spacer,
+        &ui_caption.mode,
         &ui_caption.mini,
         &ui_caption.maxi,
         &ui_caption.full,
@@ -4316,24 +4347,29 @@ static void ui_caption_init(ui_view_t* v) {
     ui_caption.view.color_id = ui_color_id_window_text;
     static const ui_gaps_t p0 = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
-    static const ui_gaps_t pd = { .left  = 0.125, .top    = 0.0,
-                                  .right = 0.125, .bottom = 0.0};
+    static const ui_gaps_t pd = { .left  = 0.25,  .top    = 0.0,
+                                  .right = 0.25,  .bottom = 0.0};
+    static const ui_gaps_t pb = { .left  = 0.25,  .top    = 0.0,
+                                  .right = 0.25,  .bottom = 0.0};
     static const ui_gaps_t in = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
-        c->fm = &ui_app.fonts.regular;
+        c->fm = &ui_app.fm.regular;
         c->color_id = ui_caption.view.color_id;
         if (c->type == ui_view_button) {
+            c->padding = pb;
             c->flat = true;
             c->measure = ui_caption_button_measure;
+        } else {
+            c->padding = pd;
         }
-        c->padding = pd;
         c->insets  = in;
         c->h = ui_app.caption_height;
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
     strprintf(ui_caption.menu.hint, "%s", ut_nls.str("Menu"));
+    strprintf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
     strprintf(ui_caption.mini.hint, "%s", ut_nls.str("Minimize"));
     strprintf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
     strprintf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
@@ -4349,12 +4385,13 @@ static void ui_caption_init(ui_view_t* v) {
     ui_view.set_text(&ui_caption.view, "ui_caption"); // for debugging
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
+    ui_caption_mode_appearance();
 }
 
 ui_caption_t ui_caption =  {
     .view = {
         .type     = ui_view_span,
-        .fm       = &ui_app.fonts.regular,
+        .fm       = &ui_app.fm.regular,
         .init     = ui_caption_init,
         .hit_test = ui_caption_hit_test,
         .hidden = true
@@ -4363,6 +4400,7 @@ ui_caption_t ui_caption =  {
     .title  = ui_label(0, ""),
     .spacer = ui_view(spacer),
     .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),
+    .mode   = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mode),
     .mini   = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mini),
     .maxi   = ui_button(ui_caption_glyph_maxi, 0.0, ui_caption_maxi),
     .full   = ui_button(ui_caption_glyph_full, 0.0, ui_caption_full),
@@ -4371,6 +4409,8 @@ ui_caption_t ui_caption =  {
 
 #pragma pop_macro("ui_caption_glyph_rest")
 #pragma pop_macro("ui_caption_glyph_menu")
+#pragma pop_macro("ui_caption_glyph_dark")
+#pragma pop_macro("ui_caption_glyph_light")
 #pragma pop_macro("ui_caption_glyph_mini")
 #pragma pop_macro("ui_caption_glyph_maxi")
 #pragma pop_macro("ui_caption_glyph_full")
@@ -5626,8 +5666,8 @@ static void ui_edit_invalidate(ui_edit_t* e) {
 static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
 //  fp64_t time = ut_clock.seconds();
     // average GDI measure_text() performance per character:
-    // "ui_app.fonts.mono"    ~500us (microseconds)
-    // "ui_app.fonts.regular" ~250us (microseconds)
+    // "ui_app.fm.mono"    ~500us (microseconds)
+    // "ui_app.fm.regular" ~250us (microseconds)
     const ui_gdi_ta_t ta = { .fm = e->view.fm, .color = e->view.color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
@@ -7337,7 +7377,7 @@ void ui_edit_init(ui_edit_t* e) {
     memset(e, 0, sizeof(*e));
     e->view.color_id = ui_color_id_window_text;
     e->view.background_id = ui_color_id_window;
-    e->view.fm = &ui_app.fonts.regular;
+    e->view.fm = &ui_app.fm.regular;
     e->view.insets  = (ui_gaps_t){ 0.25, 0.25, 0.50, 0.25 };
     e->view.padding = (ui_gaps_t){ 0.25, 0.25, 0.25, 0.25 };
     e->view.min_w_em = 1.0;
@@ -7467,7 +7507,7 @@ static void ui_gdi_begin(ui_image_t* image) {
         ui_gdi_context.hdc = (HDC)ui_app.canvas;
         swear(ui_gdi_context.bitmap == null);
     }
-    ui_gdi_context.font  = ui_gdi_set_font(ui_app.fonts.regular.font);
+    ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.regular.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
     ui_gdi_context.brush = ui_gdi_set_brush(ui_gdi_brush_hollow);
     fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
@@ -8034,7 +8074,7 @@ static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUAL
 static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t quality) {
     assert(height > 0);
     LOGFONTA lf = {0};
-    int32_t n = GetObjectA(ui_app.fonts.regular.font, sizeof(lf), &lf);
+    int32_t n = GetObjectA(ui_app.fm.regular.font, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
     ut_str_printf(lf.lfFaceName, "%s", family);
@@ -8410,31 +8450,31 @@ ui_gdi_if ui_gdi = {
         .regular = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.regular,
+            .fm       = &ui_app.fm.regular,
             .measure  = false
         },
         .mono = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.mono,
+            .fm       = &ui_app.fm.mono,
             .measure  = false
         },
         .H1 = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.H1,
+            .fm       = &ui_app.fm.H1,
             .measure  = false
         },
         .H2 = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.H2,
+            .fm       = &ui_app.fm.H2,
             .measure  = false
         },
         .H3 = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.H3,
+            .fm       = &ui_app.fm.H3,
             .measure  = false
         }
     },
@@ -8814,7 +8854,7 @@ void ui_view_init_mbx(ui_view_t* view) {
     ui_mbx_t* mx = (ui_mbx_t*)view;
     view->measured = ui_mbx_measured;
     view->layout = ui_mbx_layout;
-    mx->view.fm = &ui_app.fonts.regular;
+    mx->view.fm = &ui_app.fm.regular;
     int32_t n = 0;
     while (mx->options[n] != null && n < countof(mx->button) - 1) {
         mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
@@ -9341,7 +9381,7 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
     ui_color_t border = ui_theme.is_app_dark() ?
-        ui_colors.darken(fill, 0.5f) : ui_colors.lighten(fill, 0.5f);
+        ui_colors.darken(fill, 0.0625f) : ui_colors.lighten(fill, 0.0625f);
     ui_gdi.circle(x1, y1, r, border, fill);
     return x + w;
 }

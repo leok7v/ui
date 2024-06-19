@@ -44,20 +44,20 @@ static void focus_back_to_edit(void) {
 static void scaled_fonts(void) {
     assert(0 <= fx && fx < countof(fs));
     if (mf.font != null) { ui_gdi.delete_font(mf.font); }
-    int32_t h = (int32_t)(ui_app.fonts.mono.height * fs[fx] + 0.5);
-    ui_gdi.update_fm(&mf, ui_gdi.font(ui_app.fonts.mono.font, h, -1));
+    int32_t h = (int32_t)(ui_app.fm.mono.height * fs[fx] + 0.5);
+    ui_gdi.update_fm(&mf, ui_gdi.font(ui_app.fm.mono.font, h, -1));
     if (pf.font != null) { ui_gdi.delete_font(pf.font); }
-    h = (int32_t)(ui_app.fonts.regular.height * fs[fx] + 0.5);
-    ui_gdi.update_fm(&pf, ui_gdi.font(ui_app.fonts.regular.font, h, -1));
+    h = (int32_t)(ui_app.fm.regular.height * fs[fx] + 0.5);
+    ui_gdi.update_fm(&pf, ui_gdi.font(ui_app.fm.regular.font, h, -1));
 }
 
-ui_button_on_click(full_screen, "&Full Screen", 9.0f, {
+ui_button_clicked(full_screen, "&Full Screen", 9.0f, {
     ui_app.full_screen(!ui_app.is_full_screen);
 });
 
-ui_button_on_click(quit, "&Quit", 9.0f, { ui_app.close(); });
+ui_button_clicked(quit, "&Quit", 9.0f, { ui_app.close(); });
 
-ui_button_on_click(fuzz, "Fu&zz", 9.0f, {
+ui_button_clicked(fuzz, "Fu&zz", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->fuzz(edit[ix]);
@@ -134,9 +134,9 @@ static void font_reset(void) {
     ui_app.request_layout();
 }
 
-ui_button_on_click(fp, "Font Ctrl+", 9.0f, { font_plus(); });
+ui_button_clicked(fp, "Font Ctrl+", 9.0f, { font_plus(); });
 
-ui_button_on_click(fm, "Font Ctrl-", 9.0f, { font_minus(); });
+ui_button_clicked(fm, "Font Ctrl-", 9.0f, { font_minus(); });
 
 static ui_label_t label = ui_label(0.0, "...");
 
@@ -265,7 +265,7 @@ static void opened(void) {
     ui_app.content->paint       = paint;
     ui_app.content->key_pressed = key_pressed;
     scaled_fonts();
-    label.fm = &ui_app.fonts.mono;
+    label.fm = &ui_app.fm.mono;
     ut_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_init(edit[i]);

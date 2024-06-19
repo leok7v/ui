@@ -213,6 +213,7 @@ extern ui_view_if ui_view;
 #define ui_view_i_lr (0.375f)    // 3/4 of "em.w" on left and right
 #define ui_view_i_t  (0.109375f) // 7/64 top
 #define ui_view_i_b  (0.140625f) // 9/64 bottom
+#define ui_view_i_button_lr (0.75f) // wider left/right insets for buttons
 
 // Most of UI elements are lowercase latin with Capital letter
 // to boot. The ascent/descent of the latin fonts lack vertical

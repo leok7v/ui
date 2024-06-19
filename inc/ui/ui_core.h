@@ -18,31 +18,6 @@ typedef struct ui_pen_s*    ui_pen_t;
 typedef struct ui_cursor_s* ui_cursor_t;
 typedef struct ui_region_s* ui_region_t;
 
-typedef struct ui_fm_s { // font metrics
-    ui_font_t font;
-    ui_wh_t em;        // "em" square point size expressed in pixels *)
-    // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
-    ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
-    int32_t height;    // font height in pixels
-    int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
-    int32_t ascent;    // The maximum glyphs extend above the baseline
-    int32_t descent;   // maximum height of descenders
-    int32_t internal_leading; // accents and diacritical marks goes there
-    int32_t external_leading;
-    int32_t average_char_width;
-    int32_t max_char_width;
-    int32_t line_gap;  // gap between lines of text
-    ui_wh_t subscript; // height
-    ui_point_t subscript_offset;
-    ui_wh_t superscript;    // height
-    ui_point_t superscript_offset;
-    int32_t underscore;     // height
-    int32_t underscore_position;
-    int32_t strike_through; // height
-    int32_t strike_through_position;
-    bool mono;
-} ui_fm_t;
-
 // *)  .em square pixel size of glyph "m"
 //     https://en.wikipedia.org/wiki/Em_(typography)
 
@@ -57,43 +32,6 @@ typedef struct ui_image_s { // TODO: ui_ namespace
     void* pixels;
 } ui_image_t;
 
-typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
-    int32_t system;  // system dpi
-    int32_t process; // process dpi
-    // 15" diagonal monitor 3840x2160 175% scaled
-    // monitor dpi effective 168, angular 248 raw 284
-    int32_t monitor_effective; // effective with regard of user scaling
-    int32_t monitor_raw;       // with regard of physical screen size
-    int32_t monitor_angular;   // diagonal raw
-    int32_t window;            // main window dpi
-} ui_dpi_t;
-
-typedef struct ui_fonts_s {
-    // font handles re-created "em" + font geometry filled on scale change
-    ui_fm_t regular; // proportional UI font
-    ui_fm_t mono; // monospaced  UI font
-    ui_fm_t H1; // bold header font
-    ui_fm_t H2;
-    ui_fm_t H3;
-} ui_fonts_t;
-
-// in inches (because monitors customary are)
-// it is not in points (1/72 inch) like font size
-// because it is awkward to express large area
-// size in typography measurements.
-
-typedef struct ui_window_sizing_s {
-    fp32_t ini_w; // initial window width in inches
-    fp32_t ini_h; // 0,0 means set to min_w, min_h
-    fp32_t min_w; // minimum window width in inches
-    fp32_t min_h; // 0,0 means - do not care use content size
-    fp32_t max_w; // maximum window width in inches
-    fp32_t max_h; // 0,0 means as big as user wants
-    // "sizing" "estimate or measure something's dimensions."
-	// initial window sizing only used on the first invocation
-	// actual user sizing is stored in the configuration and used
-	// on all launches except the very first.
-} ui_window_sizing_t;
 
 // ui_gaps_t are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.

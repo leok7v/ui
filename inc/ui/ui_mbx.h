@@ -23,11 +23,11 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 // ui_mbx_on_choice can only be used on static mbx variables
 
 
-#define ui_mbx_choice(name, s, code, ...)                        \
+#define ui_mbx_chosen(name, s, code, ...)                        \
                                                                  \
     static char* name ## _options[] = { __VA_ARGS__, null };     \
                                                                  \
-    static void name ## _callback(ui_mbx_t* m, int32_t option) { \
+    static void name ## _chosen(ui_mbx_t* m, int32_t option) {   \
         (void)m; (void)option; /* no warnings if unused */       \
         code                                                     \
     }                                                            \
@@ -36,9 +36,9 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
         .view = {                                                \
             .type = ui_view_mbx,                                 \
             .init = ui_view_init_mbx,                            \
-            .fm = &ui_app.fonts.regular,                         \
+            .fm = &ui_app.fm.regular,                            \
             .p.text = s,                                         \
-            .callback = name ## _callback,                       \
+            .callback = name ## _chosen,                         \
             .padding = { .left  = 0.125, .top    = 0.25,         \
                          .right = 0.125, .bottom = 0.25 },       \
             .insets  = { .left  = 0.125, .top    = 0.25,         \
@@ -47,12 +47,12 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
         .options = name ## _options                              \
     }
 
-#define ui_mbx(s, call_back, ...) {                         \
+#define ui_mbx(s, chosen, ...) {                            \
     .view = {                                               \
         .type = ui_view_mbx, .init = ui_view_init_mbx,      \
-        .fm = &ui_app.fonts.regular,                        \
+        .fm = &ui_app.fm.regular,                           \
         .p.text = s,                                        \
-        .callback = call_back,                              \
+        .callback = chosen,                                 \
         .padding = { .left  = 0.125, .top    = 0.25,        \
                      .right = 0.125, .bottom = 0.25 },      \
         .insets  = { .left  = 0.125, .top    = 0.25,        \

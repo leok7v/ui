@@ -15,6 +15,41 @@ enum {  // TODO: into gdi int32_t const
     ui_gdi_font_quality_cleartype_natural = 6
 };
 
+typedef struct ui_fm_s { // font metrics
+    ui_font_t font;
+    ui_wh_t em;        // "em" square point size expressed in pixels *)
+    // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
+    ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
+    int32_t height;    // font height in pixels
+    int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
+    int32_t ascent;    // The maximum glyphs extend above the baseline
+    int32_t descent;   // maximum height of descenders
+    int32_t internal_leading; // accents and diacritical marks goes there
+    int32_t external_leading;
+    int32_t average_char_width;
+    int32_t max_char_width;
+    int32_t line_gap;  // gap between lines of text
+    ui_wh_t subscript; // height
+    ui_point_t subscript_offset;
+    ui_wh_t superscript;    // height
+    ui_point_t superscript_offset;
+    int32_t underscore;     // height
+    int32_t underscore_position;
+    int32_t strike_through; // height
+    int32_t strike_through_position;
+    bool mono;
+} ui_fm_t;
+
+typedef struct ui_fms_s {
+    // when font handles are re-created on system scaling change
+    // metrics "em" and font geometry filled
+    ui_fm_t regular; // proportional UI font
+    ui_fm_t mono; // monospaced  UI font
+    ui_fm_t H1; // bold header font
+    ui_fm_t H2;
+    ui_fm_t H3;
+} ui_fms_t;
+
 typedef struct ui_gdi_ta_s { // text attributes
     const ui_fm_t* fm; // font metrics
     int32_t color_id;  // <= 0 use color

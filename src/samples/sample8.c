@@ -235,15 +235,11 @@ static void opened(void) {
     // caption buttons:
     static ui_button_t button_info =
            ui_button(ut_glyph_circled_information_source, 0.0f, about);
-    static ui_button_t button_light =
-           ui_button(ut_glyph_electric_light_bulb, 0.0f, dark_light);
     static ui_button_t button_bomb =
            ui_button(ut_glyph_bomb, 0.0f, crash);
-    insert_into_caption(&button_info, "About");
+    insert_into_caption(&button_info,  "About");
     insert_into_caption(&button_debug, "Debug");
-    insert_into_caption(&button_light, "Dark/Light Mode");
-    insert_into_caption(&button_bomb, "Intentionally Crash");
-    if (app_data.light) { dark_light(&button_light); }
+    insert_into_caption(&button_bomb,  "Intentionally Crash");
     if (app_data.debug) { debug(&button_debug); }
 }
 
@@ -287,7 +283,7 @@ static void container_test(ui_view_t* parent) {
     ui_view_for_each(&container, it, {
         it->debug = true;
         it->color = ui_colors.onyx;
-//      it->fm    = &ui_app.fonts.H1;
+//      it->fm    = &ui_app.fm.H1;
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
     });
 }
@@ -320,7 +316,7 @@ static void span_test(ui_view_t* parent) {
         it->color   = ui_colors.onyx;
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
-//      it->fm      = &ui_app.fonts.H1;
+//      it->fm      = &ui_app.fm.H1;
 //      traceln("%s 0x%02X", it->text, it->align);
     });
     top.max_h = 0;
@@ -356,7 +352,7 @@ static void list_test(ui_view_t* parent) {
         // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_w   = ui.infinity;
-//      it->fm      = &ui_app.fonts.H1;
+//      it->fm      = &ui_app.fm.H1;
     });
     left.max_w = 0;
     right.max_w = 0;
@@ -411,8 +407,8 @@ static void controls_test(ui_view_t* parent) {
     list.max_h  = ui.infinity;
     ui_view.set_text(&list, "list");
     list.background_id = ui_color_id_window;
-//  ui_view_for_each(&list, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );
-//  ui_view_for_each(&span, it, { it->fm = &ui_app.fonts.H1; it->debug = false; } );
+//  ui_view_for_each(&list, it, { it->fm = &ui_app.fm.H1; it->debug = false; } );
+//  ui_view_for_each(&span, it, { it->fm = &ui_app.fm.H1; it->debug = false; } );
     slider2.dec.hidden = true;
     slider2.inc.hidden = true;
 }

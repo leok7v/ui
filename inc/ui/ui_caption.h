@@ -10,6 +10,7 @@ typedef struct ui_caption_s {
     ui_label_t title;
     ui_view_t spacer;
     ui_button_t menu; // use: ui_caption.button_menu.cb := your callback
+    ui_button_t mode; // switch between dark/ligh mode
     ui_button_t mini;
     ui_button_t maxi;
     ui_button_t full;

@@ -21,7 +21,7 @@ static void toggle_full_screen(ui_button_t* b) {
         ut_glyph_square_four_corners : ut_glyph_two_joined_squares);
 }
 
-ui_button_on_click(button_fs, ut_glyph_square_four_corners, 1.0, {
+ui_button_clicked(button_fs, ut_glyph_square_four_corners, 1.0, {
     toggle_full_screen(button_fs);
 });
 

@@ -24,7 +24,7 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
     ui_color_t border = ui_theme.is_app_dark() ?
-        ui_colors.darken(fill, 0.5f) : ui_colors.lighten(fill, 0.5f);
+        ui_colors.darken(fill, 0.0625f) : ui_colors.lighten(fill, 0.0625f);
     ui_gdi.circle(x1, y1, r, border, fill);
     return x + w;
 }

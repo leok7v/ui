@@ -4,17 +4,21 @@
 
 #pragma push_macro("ui_caption_glyph_rest")
 #pragma push_macro("ui_caption_glyph_menu")
+#pragma push_macro("ui_caption_glyph_dark")
+#pragma push_macro("ui_caption_glyph_light")
 #pragma push_macro("ui_caption_glyph_mini")
 #pragma push_macro("ui_caption_glyph_maxi")
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest ut_glyph_desktop_window
-#define ui_caption_glyph_menu ut_glyph_trigram_for_heaven
-#define ui_caption_glyph_mini ut_glyph_minimize
-#define ui_caption_glyph_maxi ut_glyph_maximize
-#define ui_caption_glyph_full ut_glyph_square_four_corners
-#define ui_caption_glyph_quit ut_glyph_cancellation_x
+#define ui_caption_glyph_rest  ut_glyph_desktop_window
+#define ui_caption_glyph_menu  ut_glyph_trigram_for_heaven
+#define ui_caption_glyph_dark  ut_glyph_crescent_moon
+#define ui_caption_glyph_light ut_glyph_white_sun_with_rays
+#define ui_caption_glyph_mini  ut_glyph_minimize
+#define ui_caption_glyph_maxi  ut_glyph_maximize
+#define ui_caption_glyph_full  ut_glyph_square_four_corners
+#define ui_caption_glyph_quit  ut_glyph_cancellation_x
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
@@ -34,6 +38,24 @@ static void ui_caption_quit(ui_button_t* unused(b)) {
 
 static void ui_caption_mini(ui_button_t* unused(b)) {
     ui_app.show_window(ui.visibility.minimize);
+}
+
+static void ui_caption_mode_appearance(void) {
+    if (ui_theme.is_app_dark()) {
+        ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_light);
+        ut_str_printf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
+    } else {
+        ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_dark);
+        ut_str_printf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Dark Mode"));
+    }
+}
+
+static void ui_caption_mode(ui_button_t* unused(b)) {
+    bool was_dark = ui_theme.is_app_dark();
+    ui_app.light_mode =  was_dark;
+    ui_app.dark_mode  = !was_dark;
+    ui_theme.refresh();
+    ui_caption_mode_appearance();
 }
 
 static void ui_caption_maximize_or_restore(void) {
@@ -142,6 +164,7 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.menu,
         &ui_caption.title,
         &ui_caption.spacer,
+        &ui_caption.mode,
         &ui_caption.mini,
         &ui_caption.maxi,
         &ui_caption.full,
@@ -150,24 +173,29 @@ static void ui_caption_init(ui_view_t* v) {
     ui_caption.view.color_id = ui_color_id_window_text;
     static const ui_gaps_t p0 = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
-    static const ui_gaps_t pd = { .left  = 0.125, .top    = 0.0,
-                                  .right = 0.125, .bottom = 0.0};
+    static const ui_gaps_t pd = { .left  = 0.25,  .top    = 0.0,
+                                  .right = 0.25,  .bottom = 0.0};
+    static const ui_gaps_t pb = { .left  = 0.25,  .top    = 0.0,
+                                  .right = 0.25,  .bottom = 0.0};
     static const ui_gaps_t in = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
-        c->fm = &ui_app.fonts.regular;
+        c->fm = &ui_app.fm.regular;
         c->color_id = ui_caption.view.color_id;
         if (c->type == ui_view_button) {
+            c->padding = pb;
             c->flat = true;
             c->measure = ui_caption_button_measure;
+        } else {
+            c->padding = pd;
         }
-        c->padding = pd;
         c->insets  = in;
         c->h = ui_app.caption_height;
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
     strprintf(ui_caption.menu.hint, "%s", ut_nls.str("Menu"));
+    strprintf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
     strprintf(ui_caption.mini.hint, "%s", ut_nls.str("Minimize"));
     strprintf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
     strprintf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
@@ -183,12 +211,13 @@ static void ui_caption_init(ui_view_t* v) {
     ui_view.set_text(&ui_caption.view, "ui_caption"); // for debugging
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
+    ui_caption_mode_appearance();
 }
 
 ui_caption_t ui_caption =  {
     .view = {
         .type     = ui_view_span,
-        .fm       = &ui_app.fonts.regular,
+        .fm       = &ui_app.fm.regular,
         .init     = ui_caption_init,
         .hit_test = ui_caption_hit_test,
         .hidden = true
@@ -197,6 +226,7 @@ ui_caption_t ui_caption =  {
     .title  = ui_label(0, ""),
     .spacer = ui_view(spacer),
     .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),
+    .mode   = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mode),
     .mini   = ui_button(ui_caption_glyph_mini, 0.0, ui_caption_mini),
     .maxi   = ui_button(ui_caption_glyph_maxi, 0.0, ui_caption_maxi),
     .full   = ui_button(ui_caption_glyph_full, 0.0, ui_caption_full),
@@ -205,6 +235,8 @@ ui_caption_t ui_caption =  {
 
 #pragma pop_macro("ui_caption_glyph_rest")
 #pragma pop_macro("ui_caption_glyph_menu")
+#pragma pop_macro("ui_caption_glyph_dark")
+#pragma pop_macro("ui_caption_glyph_light")
 #pragma pop_macro("ui_caption_glyph_mini")
 #pragma pop_macro("ui_caption_glyph_maxi")
 #pragma pop_macro("ui_caption_glyph_full")

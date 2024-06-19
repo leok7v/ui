@@ -5,6 +5,35 @@ begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
+typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
+    int32_t system;  // system dpi
+    int32_t process; // process dpi
+    // 15" diagonal monitor 3840x2160 175% scaled
+    // monitor dpi effective 168, angular 248 raw 284
+    int32_t monitor_effective; // effective with regard of user scaling
+    int32_t monitor_raw;       // with regard of physical screen size
+    int32_t monitor_angular;   // diagonal raw
+    int32_t window;            // main window dpi
+} ui_dpi_t;
+
+// in inches (because monitors customary are)
+// it is not in points (1/72 inch) like font size
+// because it is awkward to express large area
+// size in typography measurements.
+
+typedef struct ui_window_sizing_s {
+    fp32_t ini_w; // initial window width in inches
+    fp32_t ini_h; // 0,0 means set to min_w, min_h
+    fp32_t min_w; // minimum window width in inches
+    fp32_t min_h; // 0,0 means - do not care use content size
+    fp32_t max_w; // maximum window width in inches
+    fp32_t max_h; // 0,0 means as big as user wants
+    // "sizing" "estimate or measure something's dimensions."
+	// initial window sizing only used on the first invocation
+	// actual user sizing is stored in the configuration and used
+	// on all launches except the very first.
+} ui_window_sizing_t;
+
 typedef struct {
     // implemented by client:
     const char* class_name;
@@ -56,7 +85,7 @@ typedef struct {
     ui_view_t* content;
     ui_view_t* caption;
     ui_view_t* focus;   // does not affect message routing - free for all
-    ui_fonts_t fonts;
+    ui_fms_t   fm;
     ui_cursor_t cursor; // current cursor
     ui_cursor_t cursor_arrow;
     ui_cursor_t cursor_wait;

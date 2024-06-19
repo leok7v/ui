@@ -60,7 +60,7 @@ typedef struct ui_view_s ui_view_t;
 #define ui_view(view_type) {            \
     .type = (ui_view_ ## view_type),    \
     .init = ui_view_init_ ## view_type, \
-    .fm   = &ui_app.fonts.regular,      \
+    .fm   = &ui_app.fm.regular,      \
     .color = ui_color_transparent,      \
     .color_id = 0                       \
 }

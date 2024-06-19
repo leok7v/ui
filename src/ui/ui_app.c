@@ -155,11 +155,11 @@ static void ui_app_update_crc(void) {
 }
 
 static void ui_app_dispose_fonts(void) {
-    ui_gdi.delete_font(ui_app.fonts.regular.font);
-    ui_gdi.delete_font(ui_app.fonts.H1.font);
-    ui_gdi.delete_font(ui_app.fonts.H2.font);
-    ui_gdi.delete_font(ui_app.fonts.H3.font);
-    ui_gdi.delete_font(ui_app.fonts.mono.font);
+    ui_gdi.delete_font(ui_app.fm.regular.font);
+    ui_gdi.delete_font(ui_app.fm.H1.font);
+    ui_gdi.delete_font(ui_app.fm.H2.font);
+    ui_gdi.delete_font(ui_app.fm.H3.font);
+    ui_gdi.delete_font(ui_app.fm.mono.font);
 }
 
 static int32_t ui_app_px2pt(fp64_t px) {
@@ -186,30 +186,30 @@ static void ui_app_init_cursors(void) {
 
 static void ui_app_init_fonts(int32_t dpi) {
     ui_app_update_ncm(dpi);
-    if (ui_app.fonts.regular.font != null) { ui_app_dispose_fonts(); }
+    if (ui_app.fm.regular.font != null) { ui_app_dispose_fonts(); }
     LOGFONTW lf = ui_app_ncm.lfMessageFont;
     // lf.lfQuality is CLEARTYPE_QUALITY which looks bad on 4K monitors
     // Windows UI uses PROOF_QUALITY which is aliased w/o ClearType rainbows
     lf.lfQuality = ANTIALIASED_QUALITY; // PROOF_QUALITY;
-    ui_gdi.update_fm(&ui_app.fonts.regular, (ui_font_t)CreateFontIndirectW(&lf));
-//  ui_gdi.dump_fm(ui_app.fonts.regular.font);
+    ui_gdi.update_fm(&ui_app.fm.regular, (ui_font_t)CreateFontIndirectW(&lf));
+//  ui_gdi.dump_fm(ui_app.fm.regular.font);
     const fp64_t fh = ui_app_ncm.lfMessageFont.lfHeight;
 //  traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
-    ui_gdi.update_fm(&ui_app.fonts.H1, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_gdi.update_fm(&ui_app.fm.H1, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
-    ui_gdi.update_fm(&ui_app.fonts.H2, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_gdi.update_fm(&ui_app.fm.H2, (ui_font_t)CreateFontIndirectW(&lf));
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
-    ui_gdi.update_fm(&ui_app.fonts.H3, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_gdi.update_fm(&ui_app.fm.H3, (ui_font_t)CreateFontIndirectW(&lf));
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
     ut_str.utf8to16(lf.lfFaceName, countof(lf.lfFaceName), "Cascadia Mono");
-    ui_gdi.update_fm(&ui_app.fonts.mono, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
 }
 
 static void ui_app_data_save(const char* name, const void* data, int32_t bytes) {
@@ -684,7 +684,7 @@ static void ui_app_toast_paint(void) {
                 const int32_t tx = r - em_w / 2;
                 const int32_t ty = 0;
                 const ui_gdi_ta_t ta = {
-                    .fm = &ui_app.fonts.regular,
+                    .fm = &ui_app.fm.regular,
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
                 };
@@ -2171,7 +2171,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         ui_app_bring_window_inside_monitor(&ui_app.mrc, &wr);
     }
     ui_app.root->hidden = true; // start with ui hidden
-    ui_app.root->fm = &ui_app.fonts.regular;
+    ui_app.root->fm = &ui_app.fm.regular;
     ui_app.root->w = wr.w - ui_app.border.w * 2;
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint

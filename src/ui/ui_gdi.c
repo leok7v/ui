@@ -77,7 +77,7 @@ static void ui_gdi_begin(ui_image_t* image) {
         ui_gdi_context.hdc = (HDC)ui_app.canvas;
         swear(ui_gdi_context.bitmap == null);
     }
-    ui_gdi_context.font  = ui_gdi_set_font(ui_app.fonts.regular.font);
+    ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.regular.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
     ui_gdi_context.brush = ui_gdi_set_brush(ui_gdi_brush_hollow);
     fatal_if_false(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
@@ -644,7 +644,7 @@ static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUAL
 static ui_font_t ui_gdi_create_font(const char* family, int32_t height, int32_t quality) {
     assert(height > 0);
     LOGFONTA lf = {0};
-    int32_t n = GetObjectA(ui_app.fonts.regular.font, sizeof(lf), &lf);
+    int32_t n = GetObjectA(ui_app.fm.regular.font, sizeof(lf), &lf);
     fatal_if_false(n == (int32_t)sizeof(lf));
     lf.lfHeight = -height;
     ut_str_printf(lf.lfFaceName, "%s", family);
@@ -1020,31 +1020,31 @@ ui_gdi_if ui_gdi = {
         .regular = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.regular,
+            .fm       = &ui_app.fm.regular,
             .measure  = false
         },
         .mono = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.mono,
+            .fm       = &ui_app.fm.mono,
             .measure  = false
         },
         .H1 = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.H1,
+            .fm       = &ui_app.fm.H1,
             .measure  = false
         },
         .H2 = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.H2,
+            .fm       = &ui_app.fm.H2,
             .measure  = false
         },
         .H3 = {
             .color_id = ui_color_id_window_text,
             .color    = ui_color_undefined,
-            .fm       = &ui_app.fonts.H3,
+            .fm       = &ui_app.fm.H3,
             .measure  = false
         }
     },

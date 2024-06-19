@@ -449,3 +449,24 @@
 // North West Arrow with Hook
 // https://www.compart.com/en/unicode/U+2923
 #define ut_glyph_north_west_arrow_with_hook "\xE2\xA4\xA3"
+
+// White Sun with Rays
+// https://www.compart.com/en/unicode/U+263C
+#define ut_glyph_white_sun_with_rays "\xE2\x98\xBC"
+
+// Black Sun with Rays
+// https://www.compart.com/en/unicode/U+2600
+#define ut_glyph_black_sun_with_rays "\xE2\x98\x80"
+
+// Sun Behind Cloud
+// https://www.compart.com/en/unicode/U+26C5
+#define ut_glyph_sun_behind_cloud "\xE2\x9B\x85"
+
+// White Sun
+// https://www.compart.com/en/unicode/U+1F323
+#define ut_glyph_white_sun "\xF0\x9F\x8C\xA3"
+
+// Crescent Moon
+// https://www.compart.com/en/unicode/U+1F319
+#define ut_glyph_crescent_moon "\xF0\x9F\x8C\x99"
+

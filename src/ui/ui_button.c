@@ -65,8 +65,8 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         ui_gdi.icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
     }
-    ui_color_t color = v->armed ?
-        ui_colors.lighten(v->background, 0.125f) : d1;
+    ui_color_t color = ui_colors.get_color(ui_color_id_gray_text);
+    if (v->armed) { color = ui_colors.lighten(color, 0.125f); }
     if (v->hover && !v->armed) { color = ui_colors.blue; }
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {

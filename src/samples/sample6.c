@@ -101,8 +101,8 @@ static void character(ui_view_t* unused(view), const char* utf8) {
 static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(f)) {
     if ((m == ui.message.left_button_pressed ||
         m == ui.message.right_button_pressed) &&
-        0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fonts.H1.em.w &&
-        0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fonts.H1.em.h) {
+        0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fm.H1.em.w &&
+        0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fm.H1.em.h) {
         muted = !muted;
         if (muted) {
             midi.stop(&mds);

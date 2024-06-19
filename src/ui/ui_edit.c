@@ -86,8 +86,8 @@ static void ui_edit_invalidate(ui_edit_t* e) {
 static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
 //  fp64_t time = ut_clock.seconds();
     // average GDI measure_text() performance per character:
-    // "ui_app.fonts.mono"    ~500us (microseconds)
-    // "ui_app.fonts.regular" ~250us (microseconds)
+    // "ui_app.fm.mono"    ~500us (microseconds)
+    // "ui_app.fm.regular" ~250us (microseconds)
     const ui_gdi_ta_t ta = { .fm = e->view.fm, .color = e->view.color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
@@ -1797,7 +1797,7 @@ void ui_edit_init(ui_edit_t* e) {
     memset(e, 0, sizeof(*e));
     e->view.color_id = ui_color_id_window_text;
     e->view.background_id = ui_color_id_window;
-    e->view.fm = &ui_app.fonts.regular;
+    e->view.fm = &ui_app.fm.regular;
     e->view.insets  = (ui_gaps_t){ 0.25, 0.25, 0.50, 0.25 };
     e->view.padding = (ui_gaps_t){ 0.25, 0.25, 0.25, 0.25 };
     e->view.min_w_em = 1.0;
