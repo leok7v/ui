@@ -148,14 +148,14 @@ static void set_text(int32_t ix) {
     static char last[128];
     ui_view.set_text(&label, "%d:%d %d:%d %dx%d\n"
         "scroll %03d:%03d",
-        edit[ix]->selection[0].pn, edit[ix]->selection[0].gp,
-        edit[ix]->selection[1].pn, edit[ix]->selection[1].gp,
+        edit[ix]->selection.a[0].pn, edit[ix]->selection.a[0].gp,
+        edit[ix]->selection.a[1].pn, edit[ix]->selection.a[1].gp,
         edit[ix]->view.w, edit[ix]->view.h,
         edit[ix]->scroll.pn, edit[ix]->scroll.rn);
     if (0) {
         traceln("%d:%d %d:%d %dx%d scroll %03d:%03d",
-            edit[ix]->selection[0].pn, edit[ix]->selection[0].gp,
-            edit[ix]->selection[1].pn, edit[ix]->selection[1].gp,
+            edit[ix]->selection.a[0].pn, edit[ix]->selection.a[0].gp,
+            edit[ix]->selection.a[1].pn, edit[ix]->selection.a[1].gp,
             edit[ix]->view.w, edit[ix]->view.h,
             edit[ix]->scroll.pn, edit[ix]->scroll.rn);
     }

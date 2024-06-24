@@ -22,6 +22,7 @@ static void container_test(ui_view_t* parent);
 static void span_test(ui_view_t* parent);
 static void list_test(ui_view_t* parent);
 static void controls_test(ui_view_t* parent);
+static void edit1_test(ui_view_t* parent);
 
 static void fini(void) {
     ui_app.data_save("sample8", &app_data, sizeof(app_data));
@@ -88,6 +89,10 @@ static void list(ui_button_t* b) {
 
 static void controls(ui_button_t* b) {
     switch_view(b, 3, controls_test);
+}
+
+static void edit1(ui_button_t* b) {
+    switch_view(b, 4, edit1_test);
 }
 
 static void debug(ui_button_t* b) {
@@ -167,6 +172,8 @@ static void opened(void) {
            ui_button("&List",      4.25f, list);
     static ui_button_t button_controls =
            ui_button("Con&trols",  4.25f, controls);
+    static ui_button_t button_edit1 =
+           ui_button("Edit&1",  4.25f, edit1);
     ui_view.add(ui_app.content,
         ui_view.add(&list_view,
             ui_view.add(&span_view,
@@ -175,6 +182,7 @@ static void opened(void) {
                     &button_span,
                     &button_list,
                     &button_controls,
+                    &button_edit1,
                 null),
                 &test,
             null),
@@ -217,9 +225,10 @@ static void opened(void) {
         "Resizing Window will allow\n"
         "too see how it behaves");
     switch (app_data.selected_view) {
-        case  1: span(&button_span); break;
-        case  2: list(&button_list); break;
-        case  3: controls(&button_controls); break;
+        case  1: span(&button_span);           break;
+        case  2: list(&button_list);           break;
+        case  3: controls(&button_controls);   break;
+        case  4: edit1(&button_edit1);         break;
         case  0: // drop to default:
         default: container(&button_container); break;
     }
@@ -358,6 +367,8 @@ static void list_test(ui_view_t* parent) {
     right.max_w = 0;
 }
 
+// controls test
+
 static void slider_format(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
     ui_view.set_text(v, "%s", ut_str.uint64(slider->value));
@@ -412,3 +423,23 @@ static void controls_test(ui_view_t* parent) {
     slider2.dec.hidden = true;
     slider2.inc.hidden = true;
 }
+
+// edit1 test
+
+static void edit1_test(ui_view_t* parent) {
+    ui_view.disband(parent);
+    static ui_view_t  list     = ui_view(list);
+    static ui_edit_t  edit;
+    ui_edit_init(&edit);
+    ui_view.add(&test,
+        ui_view.add(&list,
+            &edit.view,
+        null),
+    null);
+    edit.view.debug  = true;
+    list.max_w  = ui.infinity;
+    list.max_h  = ui.infinity;
+    edit.view.max_w  = ui.infinity;
+    edit.view.max_h  = ui.infinity;
+}
+

@@ -1,11 +1,14 @@
 #pragma once
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
+#include "ut/ut.h"
 #include "ui/ui.h"
 
 begin_c
 
 // important ui_edit_t will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
+
+typedef struct ui_edit_s ui_edit_t;
 
 typedef struct ui_edit_run_s {
     int32_t bp;     // position in bytes  since start of the paragraph
@@ -20,20 +23,20 @@ typedef struct ui_edit_run_s {
 // heap and reallocated there.
 
 typedef struct ui_edit_para_s { // "paragraph"
-    char* text;          // text[bytes] utf-8
-    int32_t capacity;   // if != 0 text copied to heap allocated bytes
-    int32_t bytes;       // number of bytes in utf-8 text
-    int32_t glyphs;      // number of glyphs in text <= bytes
-    int32_t runs;        // number of runs in this paragraph
-    ui_edit_run_t* run; // [runs] array of pointers (heap)
-    int32_t* g2b;        // [bytes + 1] glyph to uint8_t positions g2b[0] = 0
+    char*   text;          // text[bytes] utf-8 can be r/o or heap allocated:
+    int32_t capacity;      // if capacity != 0 text is copied to the heap
+    int32_t bytes;         // number of bytes in utf-8 text
+    int32_t glyphs;        // number of glyphs in text <= bytes
+    int32_t runs;          // number of runs in this paragraph
+    ui_edit_run_t* run;    // [runs] array of pointers (heap)
+    int32_t* g2b;          // [bytes + 1] glyph to uint8_t positions g2b[0] = 0
     int32_t  g2b_capacity; // number of bytes on heap allocated for g2b[]
 } ui_edit_para_t;
 
 typedef struct ui_edit_pg_s { // page/glyph coordinates
     // humans used to line:column coordinates in text
-    int32_t pn; // paragraph number ("line number")
-    int32_t gp; // glyph position ("column")
+    int32_t pn; // zero based paragraph number ("line number")
+    int32_t gp; // zero based glyph position ("column")
 } ui_edit_pg_t;
 
 typedef struct ui_edit_pr_s { // page/run coordinates
@@ -41,7 +44,10 @@ typedef struct ui_edit_pr_s { // page/run coordinates
     int32_t rn; // run number inside paragraph
 } ui_edit_pr_t;
 
-typedef struct ui_edit_s ui_edit_t;
+typedef union ut_begin_packed ui_edit_range_s {
+    struct { ui_edit_pg_t from; ui_edit_pg_t to; };
+    ui_edit_pg_t a[2];
+} ut_end_packed ui_edit_range_t; // "from"[0] "to"[1]
 
 typedef struct ui_edit_s {
     ui_view_t view;
@@ -73,7 +79,7 @@ typedef struct ui_edit_s {
     // fuzzer test:
     void (*fuzz)(ui_edit_t* e);      // start/stop fuzzing test
     void (*next_fuzz)(ui_edit_t* e); // next fuzz input event(s)
-    ui_edit_pg_t selection[2]; // from selection[0] to selection[1]
+    ui_edit_range_t selection; // "from" selection[0] "to" selection[1]
     ui_point_t caret; // (-1, -1) off
     ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
     int32_t last_x;    // last_x for up/down caret movement
