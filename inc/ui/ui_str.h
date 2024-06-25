@@ -2,7 +2,7 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include <stdint.h>
 
-typedef struct ui_str_s {
+typedef struct ut_begin_packed ui_str_s {
     uint8_t* u;    // always correct utf8 bytes not zero terminated(!) sequence
     // s.g2b[s.g + 1] glyph to byte position inside s.u[]
     // s.g2b[0] == 0, s.g2b[s.glyphs] == s.bytes
@@ -10,13 +10,15 @@ typedef struct ui_str_s {
     int32_t  b;    // number of bytes
     int32_t  c;    // when capacity is zero .u is not heap allocated
     int32_t  g;    // number of glyphs
-} ui_str_t;
+} ut_end_packed ui_str_t;
 
 typedef struct ui_str_if {
-    bool (*init)(ui_str_t* s, const char* utf8, int32_t bytes, bool heap);
+    bool (*init)(ui_str_t* s, const uint8_t* utf8, int32_t bytes, bool heap);
     int32_t (*bytes)(ui_str_t* s, int32_t from, int32_t to); // glyphs
+    bool (*expand)(ui_str_t* s, int32_t capacity); // reallocate
+    void (*shrink)(ui_str_t* s); // get rid of extra heap memory
     bool (*replace)(ui_str_t* s, int32_t from, int32_t to,
-                    const char* utf8, int32_t bytes); // [from..to[ exclusive
+                    const uint8_t* utf8, int32_t bytes); // [from..to[ exclusive
     void (*test)(void);
     void (*free)(ui_str_t* s);
 } ui_str_if;

@@ -1344,7 +1344,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include <stdint.h>
 
-typedef struct ui_str_s {
+typedef struct ut_begin_packed ui_str_s {
     uint8_t* u;    // always correct utf8 bytes not zero terminated(!) sequence
     // s.g2b[s.g + 1] glyph to byte position inside s.u[]
     // s.g2b[0] == 0, s.g2b[s.glyphs] == s.bytes
@@ -1352,13 +1352,15 @@ typedef struct ui_str_s {
     int32_t  b;    // number of bytes
     int32_t  c;    // when capacity is zero .u is not heap allocated
     int32_t  g;    // number of glyphs
-} ui_str_t;
+} ut_end_packed ui_str_t;
 
 typedef struct ui_str_if {
-    bool (*init)(ui_str_t* s, const char* utf8, int32_t bytes, bool heap);
+    bool (*init)(ui_str_t* s, const uint8_t* utf8, int32_t bytes, bool heap);
     int32_t (*bytes)(ui_str_t* s, int32_t from, int32_t to); // glyphs
+    bool (*expand)(ui_str_t* s, int32_t capacity); // reallocate
+    void (*shrink)(ui_str_t* s); // get rid of extra heap memory
     bool (*replace)(ui_str_t* s, int32_t from, int32_t to,
-                    const char* utf8, int32_t bytes); // [from..to[ exclusive
+                    const uint8_t* utf8, int32_t bytes); // [from..to[ exclusive
     void (*test)(void);
     void (*free)(ui_str_t* s);
 } ui_str_if;
@@ -7519,46 +7521,25 @@ void ui_edit_init(ui_edit_t* e) {
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 
-#pragma push_macro("ui_edit_str_check_zeros")
+static bool ui_edit_debug_dump;
 
-
-#ifdef DEBUG
-
-// ui_edit_str_check_zeros only works for packed structs:
-
-#define ui_edit_str_check_zeros(a_, b_) do {                            \
-    for (int32_t i_ = 0; i_ < (b_); i_++) {                             \
-        assert(((const uint8_t*)(a_))[i_] == 0x00);                     \
-    }                                                                   \
-} while (0)
-
-#else
-
-#define ui_edit_str_check_zeros(a, b)      do { } while (0)
-
-#endif
-
-
-typedef struct ui_edit_text_s ui_edit_text_t;
+typedef struct ui_edit_doc_s ui_edit_doc_t;
 
 typedef struct ui_edit_notify_s ui_edit_notify_t;
 
-typedef struct ui_edit_replace_s ui_edit_replace_t;
+typedef struct ui_edit_to_do_s ui_edit_to_do_t;
 
-typedef struct ui_edit_replace_s {
-    ui_edit_replace_t* prev;
-    ui_edit_replace_t* next;
-     // text replaced by paste or erased by cut
-    const ui_edit_range_t* range; // == null: entire document
-    ui_str_t text;
-    bool can_coalesce; // can be coalesced with previous operation
-} ui_edit_replace_t;
+typedef struct ut_begin_packed ui_edit_paragraph_s { // "paragraph"
+    ui_str_t str;
+    int32_t runs;       // number of runs in this paragraph
+    ui_edit_run_t* run; // [runs] array of pointers (heap)
+} ut_end_packed ui_edit_paragraph_t;
 
 typedef struct ui_edit_notify_s {
     void (*before)(ui_edit_notify_t* notify,
-                   const ui_edit_text_t* d, const ui_edit_range_t* range);
+                   const ui_edit_doc_t* d, const ui_edit_range_t* range);
     void (*after)(ui_edit_notify_t* notify,
-                  const ui_edit_text_t* d, const ui_edit_range_t* range);
+                  const ui_edit_doc_t* d, const ui_edit_range_t* range);
 } ui_edit_notify_t;
 
 typedef struct ui_edit_observer_s ui_edit_observer_t;
@@ -7570,130 +7551,137 @@ typedef struct ui_edit_observer_s {
 } ui_edit_observer_t;
 
 typedef struct ui_edit_text_s {
-    // replaces the range with text and pushes
-    // undo ui_edit_replace_t struct into undo/redo stack
-    // possibly coalescing it with previous replace
-    void (*replace)(ui_edit_text_t* t, const ui_edit_range_t* range,
-                    const ui_str_t* utf8, bool can_coalesce);
-    int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* range);
-    void (*copy)(ui_edit_text_t* t, const ui_edit_range_t* range,
-                 ui_str_t* utf8); // retrieves range into string
-    // redo() performs the operation pushes it into stack
-    void (*redo)(ui_edit_text_t* t);
-    // undo() pops operation from stack and undo it
-    void (*undo)(ui_edit_text_t* t);
-    void (*add)(ui_edit_text_t* t, ui_edit_notify_t* notify);
-    void (*remove)(ui_edit_text_t* t, ui_edit_notify_t* notify);
-    struct { // private: implementation
-        int32_t capacity;       // number of bytes allocated for `para` array below
-        int32_t paragraphs;     // number of lines in the text
-        ui_edit_para_t* para;   // para[paragraphs]
-        ui_edit_replace_t* head;  // points position on stack
-        ui_edit_replace_t* stack; // heap allocated stack of saved operations
-        ui_edit_observer_t* observers;
-    } p;
+    int32_t paragraphs;         // number of paragraphs
+    ui_edit_paragraph_t* para;  // para[paragraphs]
 } ui_edit_text_t;
 
+typedef struct ui_edit_to_do_s { // undo/redo action
+    ui_edit_range_t  range;
+    ui_edit_text_t   text;
+    ui_edit_to_do_t* next; // inside undo or redo list
+} ui_edit_to_do_t;
+
+typedef struct ui_edit_doc_s {
+    // replaces the range with text and pushes
+    // undo ui_edit_to_do_t struct into undo/redo stack
+    // possibly coalescing it with previous replace
+    ui_edit_text_t   text;
+    ui_edit_to_do_t* undo; // undo stack
+    ui_edit_to_do_t* redo; // redo stack
+    ui_edit_observer_t* observers;
+} ui_edit_doc_t;
+
 typedef struct ui_edit_text_if {
-    void (*init)(ui_edit_text_t* t);
-    void (*fini)(ui_edit_text_t* t);
-    void (*test)(void);
+    bool    (*init)(ui_edit_text_t *t, const uint8_t* s, int32_t b, bool heap);
+    int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* r);
+    void    (*free)(ui_edit_text_t* t);
 } ui_edit_text_if;
 
 ui_edit_text_if ui_edit_text;
 
-#if 0
+typedef struct ui_edit_doc_if {
+    bool (*init)(ui_edit_doc_t* d);
+    bool (*replace)(ui_edit_doc_t* d,
+                    const ui_edit_range_t* range,
+                    const uint8_t* u, int32_t b,
+                    ui_edit_to_do_t* undo);
+    int32_t (*bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
+    bool    (*copy)(ui_edit_doc_t* d, const ui_edit_range_t* range,
+                    ui_edit_text_t* text); // retrieves range into string
+    // redo() performs the operation pushes it into stack
+    void (*redo)(ui_edit_doc_t* d);
+    // undo() pops operation from stack and undo it
+    void (*undo)(ui_edit_doc_t* d);
+    void (*subscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
+    void (*unsubscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
+    void (*dispose)(ui_edit_doc_t* d);
+    void (*test)(void);
+} ui_edit_doc_if;
 
-static int32_t ui_edit_text_glyphs(const char* utf8, int32_t bytes) { // or -1
-    return ui_edit_text_g2b(utf8, bytes, null);
+ui_edit_doc_if ui_edit_doc;
+
+static void ui_edit_pg_dump(const ui_edit_pg_t* pg) {
+    traceln("pn:%d gp:%d", pg->pn, pg->gp);
 }
 
-static int32_t ui_edit_text_gp_to_bytes(const char* s, int32_t bytes, int32_t gp) {
-    int32_t c = 0;
-    int32_t i = 0;
-    if (bytes > 0) {
-        while (c < gp) {
-            assert(i < bytes);
-            const int32_t b = ui_edit_text_glyph_bytes(s + i, bytes - i);
-            swear(b > 0 && i + b <= bytes);
-            i += b;
-            c++;
-        }
+static void ui_edit_range_dump(const ui_edit_range_t* r) {
+    traceln("from {pn:%d gp:%d} to {pn:%d gp:%d}",
+            r->from.pn, r->from.gp, r->to.pn, r->to.gp);
+}
+
+static void ui_edit_text_dump(const ui_edit_text_t* t) {
+    for (int32_t i = 0; i < t->paragraphs; i++) {
+        const ui_edit_paragraph_t* p = &t->para[i];
+        traceln("para[%d].%d: %.*s", i, p->str.b, p->str.b, p->str.u);
     }
-    assert(i <= bytes);
-    return i;
 }
 
-static bool ui_edit_text_paragraph_g2b_ensure(ui_edit_para_t* p, int32_t n) {
-    bool ok = true;
-    enum { _4_bytes = (int32_t)sizeof(int32_t) };
-    assert(p->g2b_capacity % _4_bytes == 0);
-    const int64_t bytes = (int64_t)n * _4_bytes;
-    assert(bytes < INT32_MAX);
-    if (n > p->g2b_capacity / _4_bytes) {
-        if (ut_heap.realloc((void**)&p->g2b, bytes) == 0) {
-            p->g2b_capacity = (int32_t)bytes;
-        } else {
-            ok = false;
-        }
+static void ui_edit_doc_dump(const ui_edit_doc_t* d) {
+    for (int32_t i = 0; i < d->text.paragraphs; i++) {
+        const ui_edit_paragraph_t* p = &d->text.para[i];
+        traceln("para[%d].%d: %.*s", i, p->str.b, p->str.b, p->str.u);
     }
-    return ok;
+    // TODO: undo/redo stacks and observers
 }
 
-static bool ui_edit_text_paragraph_rebuild_g2b(ui_edit_para_t* p) {
-    errno_t r = 0;
-    bool ok = true;
-    const int32_t bytes = p->bytes;
-    const char* utf8 = p->text;
-    r = ui_edit_text_paragraph_g2b_ensure(p, 128);
-    if (r == 0) {
-        p->g2b[0] = 0; // first glyph starts at 0
-        int32_t i = 0;
-        int32_t k = 1;
-        // g2b[k] start postion in uint8_t offset from utf8 text of glyph[k]
-        while (i < bytes && ok) {
-            const int32_t b = ui_edit_text_glyph_bytes(utf8 + i, bytes - i);
-            ok = b > 0 && i + b <= bytes;
-            if (!ok) { break; }
-            if (k >= p->g2b_capacity / (int32_t)sizeof(int32_t)) {
-                ok = ui_edit_text_paragraph_g2b_ensure(p, k + 128) == 0;
-            }
-            if (!ok) { break; }
-            i += b;
-            p->g2b[k] = i;
-            k++;
-        }
-        // if !ok the paragraph will be cut short but still correct
-        p->glyphs = k - 1;
-        p->bytes  = i;
-    }
-    return ok;
-}
+#pragma push_macro("ui_edit_check_zeros")
+#pragma push_macro("ui_edit_check_pg_inside_text")
+#pragma push_macro("ui_edit_check_range_inside_text")
 
-static ui_edit_range_t ui_edit_text_range_or_all(const ui_edit_text_t* t,
+#ifdef DEBUG
+
+// ui_edit_check_zeros only works for packed structs:
+
+#define ui_edit_check_zeros(a_, b_) do {                                    \
+    for (int32_t i_ = 0; i_ < (b_); i_++) {                                 \
+        assert(((const uint8_t*)(a_))[i_] == 0x00);                         \
+    }                                                                       \
+} while (0)
+
+#define ui_edit_check_pg_inside_text(t_, pg_)                               \
+    assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->paragraphs &&                \
+           0 <= (pg_)->gp && (pg_)->gp <= (t_)->para[(pg_)->pn].str.g)
+
+#define ui_edit_check_range_inside_text(t_, r_) do {                        \
+    assert((r_)->from.pn <= (r_)->to.pn);                                   \
+    assert((r_)->from.pn <  (r_)->to.pn || (r_)->from.gp <= (r_)->to.gp);   \
+    ui_edit_check_pg_inside_text(t_, (&(r_)->from));                        \
+    ui_edit_check_pg_inside_text(t_, (&(r_)->to));                          \
+} while (0)
+
+#else
+
+#define ui_edit_check_zeros(a, b)             do { } while (0)
+#define ui_edit_check_pg_inside_text(t, pg)   do { } while (0)
+#define ui_edit_check_range_inside_text(t, r) do { } while (0)
+
+#endif
+
+static ui_edit_range_t ui_edit_doc_range_or_all(const ui_edit_text_t* t,
         const ui_edit_range_t* range) {
     ui_edit_range_t r;
     if (range != null) {
         r = *range;
     } else {
+        assert(t->paragraphs >= 1);
         r.from.pn = 0;
         r.from.gp = 0;
-        r.to.pn = t->p.paragraphs;
-        r.to.gp = 0;
+        r.to.pn = t->paragraphs - 1;
+        r.to.gp = t->para[r.to.pn].str.g;
     }
     return r;
 }
 
-static int ui_edit_text_compare_pg(ui_edit_pg_t pg1, ui_edit_pg_t pg2) {
+static int ui_edit_doc_compare_pg(ui_edit_pg_t pg1, ui_edit_pg_t pg2) {
     int64_t d = (((int64_t)pg1.pn << 32) | pg1.gp) -
                 (((int64_t)pg2.pn << 32) | pg2.gp);
     return d < 0 ? -1 : d > 0 ? 1 : 0;
 }
 
-static ui_edit_range_t ui_edit_text_ordered_range(ui_edit_range_t r) {
+static ui_edit_range_t ui_edit_doc_ordered_range(ui_edit_range_t r) {
     uint64_t f = ((uint64_t)r.from.pn << 32) | r.from.gp;
     uint64_t t = ((uint64_t)r.to.pn   << 32) | r.to.gp;
-    if (ui_edit_text_compare_pg(r.from, r.to) > 0) {
+    if (ui_edit_doc_compare_pg(r.from, r.to) > 0) {
         uint64_t swap = t; t = f; f = swap;
         r.from.pn = (int32_t)(f >> 32);
         r.from.gp = (int32_t)(f);
@@ -7703,158 +7691,334 @@ static ui_edit_range_t ui_edit_text_ordered_range(ui_edit_range_t r) {
     return r;
 }
 
-static ui_edit_replace_t* ui_edit_text_push_undo(ui_edit_text_t* t) {
-    ui_edit_replace_t* u = null;
-    (void)ut_heap.alloc_zero((void**)&u, sizeof(ui_edit_replace_t));
-    if (u != null) {
-        u->prev = null;
-        u->next = t->p.stack;
-        if (t->p.stack != null) { t->p.stack->prev = u; }
-        t->p.stack = u;
-    }
-    return u;
-}
-
-static void ui_edit_text_pop_undo(ui_edit_text_t* t) {
-    swear(t->p.stack != null);
-    ui_edit_replace_t* u = t->p.stack;
-    t->p.stack = t->p.stack->next;
-    t->p.stack->prev = null;
-    if (u->text.capacity > 0) { ut_heap.free(u->text.utf8); }
-    ui_edit_text_free(&u);
-}
-
-static void ui_edit_text_free_paragraph(ui_edit_para_t* p) {
-    if (p->capacity > 0) {
-        ui_edit_text_free((void**)&p->text);
+static bool ui_edit_doc_realloc_paragraphs(ui_edit_paragraph_t* *para,
+        int32_t old_np, int32_t new_np) {
+    ui_edit_paragraph_t* p = *para;
+    for (int32_t i = new_np; i < old_np; i++) { ui_str.free(&p[i].str); }
+    bool ok = true;
+    if (new_np == 0) {
+        ut_heap.free(p);
+        *para = null;
     } else {
-        p->text = null;
-    }
-    if (p->g2b_capacity > 0) { ui_edit_text_free((void**)&p->g2b); }
-    if (p->runs > 0) { ui_edit_text_free((void**)&p->run); }
-}
-
-static void ui_edit_text_cut(ui_edit_text_t* t,
-        const ui_edit_range_t r) {
-    // first paragraph:
-    ui_edit_para_t* p = &t->p.para[r.from.pn];
-    int32_t ix0 = p->g2b[r.from.gp];
-    int32_t ix1 = r.from.pn == r.to.pn ? p->g2b[r.to.gp] : p->bytes;
-    int32_t bytes = ix1 - ix0;
-    memcpy(p->text + ix0, p->text + ix1, p->bytes - ix1);
-    p->bytes -= bytes;
-    // TODO: do NOT need to rebuild whole g2b
-    //       optimize with memcpy
-    ui_edit_text_paragraph_rebuild_g2b(p);
-    // in between paragraphs:
-    int32_t deleted = 0;
-    for (int32_t pn = r.from.pn + 1; pn <= r.to.pn - 1; pn++) {
-        ui_edit_text_free_paragraph(&t->p.para[pn]);
-        deleted++;
-    }
-    if (r.from.pn != r.to.pn) {
-        // last paragraph:
-        p = &t->p.para[r.to.pn];
-        ix0 = 0;
-        ix1 = p->g2b[r.to.gp];
-        bytes = ix1 - ix0;
-        memcpy(p->text + ix0, p->text + ix1, p->bytes - ix1);
-        p->bytes -= bytes;
-        // TODO: do NOT need to rebuild whole g2b
-        //       optimize with memcpy
-        ui_edit_text_paragraph_rebuild_g2b(p);
-        // remove deleted paragraphs
-        if (deleted > 0) {
-            memcpy(&t->p.para[r.from.pn + 1],
-                   &t->p.para[r.from.pn + 1 + deleted],
-                   (t->p.paragraphs - r.to.pn - 1) * sizeof(ui_edit_para_t));
-            t->p.paragraphs -= deleted;
-        }
-    }
-}
-
-static errno_t ui_edit_text_insert_instead(ui_edit_text_t* t,
-        const ui_edit_range_t r, const ui_str_t* str) {
-    (void)t;
-    (void)r;
-    (void)str;
-    return 0;
-}
-
-static bool ui_edit_text_replace(ui_edit_text_t* t,
-        const ui_edit_range_t* range,
-        const ui_str_t* str, bool can_coalesce) {
-    errno_t err = 0;
-    ui_edit_range_t r = ui_edit_text_ordered_range(
-                        ui_edit_text_range_or_all(t, range));
-    bool empty_range = ui_edit_text_compare_pg(r.from, r.to) == 0;
-    // caller required not to make a call replacing empty range
-    // with empty string
-    swear(!empty_range || str->bytes != 0);
-    // if range .to is past last paragraph
-    // append to the end of previous paragraph:
-    assert(t->p.paragraphs > 0);
-    if (r.to.pn == t->p.paragraphs) {
-        assert(r.to.gp == 0);
-        r.to.pn = t->p.paragraphs - 1;
-        r.to.gp = t->p.para[r.to.pn].glyphs;
-        if (empty_range) { r.from = r.to; }
-    }
-    ui_edit_replace_t* undo = ui_edit_text_push_undo(t);
-    if (undo != null) {
-        undo->can_coalesce = can_coalesce;
-        if (!empty_range) {
-            const int32_t bytes = t->bytes(t, &r);
-            err = ui_edit_text_alloc((void**)&undo->text.utf8, bytes);
-            if (err == 0) {
-                undo->text.bytes = bytes;
-                undo->text.capacity = bytes;
-                t->copy(t, &r, &undo->text);
-            } else {
-                ui_edit_text_pop_undo(t);
-                undo = null;
+        ok = ut_heap.realloc_zero((void**)&p, new_np *
+                                  sizeof(ui_edit_paragraph_t)) == 0;
+        if (ok) {
+            for (int32_t i = old_np; i < new_np; i++) {
+                ok = ui_str.init(&p[i].str, null, 0, false);
+                swear(ok, "because .init(\"\", 0) does NOT allocate memory");
             }
-        } else {
-            undo->text.bytes = 0;
-            undo->text.capacity = 0;
-            undo->text.utf8 = "";
-        }
-    };
-    if (err == 0) {
-        if (str->bytes == 0) {
-            ui_edit_text_cut(t, r); // always succeeds
-        } else {
-            err = ui_edit_text_insert_instead(t, r, str);
+            *para = p;
         }
     }
-    if (err != 0 && undo != null) {
-        ui_edit_text_pop_undo(t);
-    }
-    return err == 0;
+    return ok;
 }
 
+static bool ui_edit_text_init(ui_edit_text_t *t,
+        const uint8_t* s, int32_t b, bool heap) {
+    // When text comes from the source that lifetime is shorter
+    // than text itself (e.g. paste from clipboard) the parameter
+    // heap: true allows to make a copy of data on the heap
+    if (b < 0) { b = (int32_t)strlen((const char*)s); }
+    // if caller is concerned with best performance - it should pass b >= 0
+    int32_t ps = 0; // number of paragraphs
+    int32_t np = ut_max(b / 64, 2); // initial number of allocated paragraphs
+    ui_edit_paragraph_t* para = null;
+    bool ok = ui_edit_doc_realloc_paragraphs(&para, 0, np);
+    if (ok) {
+        bool lf = false;
+        int32_t i = 0;
+        while (ok && i < b) {
+            int32_t k = i;
+            while (k < b && s[k] != '\n') { k++; }
+            lf = k < b && s[k] == '\n';
+            if (ps >= np) {
+                int32_t np1_5 = np * 3 / 2; // np * 1.5
+                assert(np1_5 > np);
+                ok = ui_edit_doc_realloc_paragraphs(&para, np, np1_5);
+                if (ok) { np = np1_5; }
+            }
+            if (ok) {
+                // insider knowledge about ui_str allocation behaviour:
+                assert(para[ps].str.c == 0 && para[ps].str.b == 0 &&
+                       para[ps].str.g2b[0] == 0);
+                ui_str.free(&para[ps].str);
+                // str.init may allocate str.g2b[] on the heap and may fail
+                const int32_t bytes = k - i; assert(bytes >= 0);
+                const uint8_t* u = bytes == 0 ? null : s + i;
+                ok = ui_str.init(&para[ps].str, u, bytes, heap && bytes > 0);
+                if (ok) { ps++; }
+            }
+            i = k + lf;
+        }
+        if (ok && lf) { // last paragraph ended with line feed
+            if (ps + 1 >= np) {
+                ok = ui_edit_doc_realloc_paragraphs(&para, np, np + 1);
+                if (ok) { np = np + 1; }
+            }
+            if (ok) { ps++; }
+        }
+    }
+    if (ok && ps == 0) { // special case empty string to a single paragraph
+        assert(b <= 0 && (b == 0 || s[0] == 0x00));
+        ps = 1; // para[0].str is already initialized as empty str
+        ok = ui_edit_doc_realloc_paragraphs(&para, np, 1);
+        swear(ok, "shrinking para[] above");
+    }
+    if (ok) {
+        assert(ps > 0);
+        t->paragraphs = ps;
+        t->para = para;
+    } else if (para != null) {
+        ok = ui_edit_doc_realloc_paragraphs(&para, np, 0); // free()
+        swear(ok);
+        ut_heap.free(para);
+        t->paragraphs = 0;
+        t->para = null;
+    }
+    return ok;
+}
 
-#endif
+static void ui_edit_text_free(ui_edit_text_t* t) {
+    if (t->paragraphs != 0) {
+        ui_edit_doc_realloc_paragraphs(&t->para, t->paragraphs, 0);
+        ut_heap.free(t->para);
+        t->paragraphs = 0;
+        t->para = null;
+    } else {
+        assert(t->paragraphs == 0);
+        assert(t->para == null);
+    }
+}
 
-static bool ui_edit_text_add(ui_edit_text_t* t, ui_edit_notify_t* notify) {
+static int32_t ui_edit_text_bytes(const ui_edit_text_t* t,
+        const ui_edit_range_t* range) {
+    const ui_edit_range_t r =
+        ui_edit_doc_ordered_range(ui_edit_doc_range_or_all(t, range));
+    ui_edit_check_range_inside_text(t, &r);
+    int32_t bytes = 0;
+    for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
+        const ui_edit_paragraph_t* p = &t->para[pn];
+        if (pn == r.from.pn && pn == r.to.pn) {
+            bytes += p->str.g2b[r.to.gp] - p->str.g2b[r.from.gp];
+        } else if (pn == r.from.pn) {
+            bytes += p->str.b - p->str.g2b[r.from.gp];
+        } else if (pn == r.to.pn) {
+            bytes += p->str.g2b[r.to.gp];
+        } else {
+            bytes += p->str.b;
+        }
+    }
+    return bytes;
+}
+
+static int32_t ui_edit_doc_bytes(const ui_edit_doc_t* d,
+        const ui_edit_range_t* r) {
+    return ui_edit_text.bytes(&d->text, r);
+}
+
+static bool ui_edit_doc_remove(ui_edit_doc_t* d,
+        const ui_edit_range_t* range) {
+    ui_edit_range_t r =
+        ui_edit_doc_ordered_range(ui_edit_doc_range_or_all(&d->text, range));
+    ui_edit_check_range_inside_text(&d->text, &r);
+    // first paragraph:
+    ui_edit_paragraph_t* p0 = &d->text.para[r.from.pn];
+    ui_edit_paragraph_t* p1 = &d->text.para[r.to.pn];
+    bool ok = // move first and last paragraphs to the heap
+        ui_str.expand(&p0->str, p0->str.b) ||
+        ui_str.expand(&p1->str, p1->str.b); // if p0 == p1 this is no-op
+    if (ok) {
+        ui_str_t merge = {0}; // merge of p0 and p1
+        if (p0 != p1) {
+            ok = ui_str.init(&merge, p0->str.u, p0->str.g2b[r.from.gp], true); // allocate on heap
+            if (ok) {
+                ok = ui_str.replace(&merge, merge.g, merge.g,
+                                    p1->str.u + p1->str.g2b[r.to.gp],
+                                    p1->str.b - p1->str.g2b[r.to.gp]);
+            }
+        }
+        if (ok) {
+            if (p1 != p0) {
+                int32_t deleted = 0;
+                for (int32_t pn = r.from.pn + 1; pn <= r.to.pn; pn++) {
+                    ui_str.free(&d->text.para[pn].str);
+                    deleted++;
+                }
+                ui_str.free(&d->text.para[r.from.pn].str);
+                d->text.para[r.from.pn].str = merge;
+                // remove deleted paragraphs:
+                if (deleted > 0 && d->text.paragraphs - r.to.pn - 1 > 0) {
+                    memcpy(&d->text.para[r.from.pn + 1],
+                           &d->text.para[r.from.pn + 1 + deleted],
+                           (d->text.paragraphs - r.to.pn - 1) *
+                            sizeof(ui_edit_paragraph_t));
+                }
+                d->text.paragraphs -= deleted;
+            } else {
+                ok = ui_str.replace(&p0->str, r.from.gp, r.to.gp, null, 0);
+            }
+        } else if (merge.c > 0 || merge.g > 0) {
+            ui_str.free(&merge);
+        }
+        assert(d->text.paragraphs >= 1);
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_insert(ui_edit_doc_t* d,
+        const ui_edit_pg_t* i, // insertion point
+        const ui_edit_text_t* ins) {
+    ui_edit_check_pg_inside_text(&d->text, i);
+    bool ok = true;
+    int32_t np = d->text.paragraphs + ins->paragraphs - 1;
+    ui_edit_paragraph_t* para = null;
+    ok = ui_edit_doc_realloc_paragraphs(&para, 0, np);
+    if (ok) {
+        // para[] will hold pointers to the original strings
+        // from the document and copies of text->para[] strings:
+        for (int32_t pn = 0; pn < np; pn++) { ui_str.free(&para[pn].str); }
+        const ui_str_t* f = null; // first string "ins" is inserted
+        for (int32_t pn = 0; ok && pn < np; pn++) {
+            const ui_str_t* s = &d->text.para[pn].str;
+            if (pn < i->pn) {
+                para[pn].str = *s;
+            } else if (i->pn <= pn && pn < i->pn + ins->paragraphs) {
+                // insert `ins` into `i` insertion point
+                if (pn == i->pn) {
+                    ok = ui_str.init(&para[pn].str, s->u, s->b, true);
+                    if (ok) {
+                        assert(0 <= i->gp && i->gp <= s->g);
+                        // if there is continuation paragraph cut the tail
+                        // it will be reinserted below as `f`
+                        const int32_t to = ins->paragraphs > 1 ? s->g : i->gp;
+                        ok = ui_str.replace(&para[pn].str, i->gp, to,
+                            ins->para[0].str.u, ins->para[0].str.b);
+                        f = s;
+                    }
+                } else if (ins->paragraphs > 1 &&
+                    pn == i->pn + ins->paragraphs - 1) {
+                    const ui_str_t* e = // last string of text
+                        &ins->para[ins->paragraphs - 1].str;
+                    assert(f != null);
+                    ok = ui_str.init(&para[pn].str, f->u, f->b, true);
+                    if (ok) {
+                        ok = ui_str.replace(&para[pn].str, 0, i->gp,
+                                            e->u, e->b);
+                    }
+                } else { // not first not last paragraph of the `ins` text
+                    const ui_str_t* p = // string of text
+                        &d->text.para[pn - ins->paragraphs - 1].str;
+                    ok = ui_str.init(&para[pn].str, p->u, p->b, true);
+                }
+            }
+        }
+        if (!ok) { // free allocated strings in partial result
+            for (int32_t pn = 0; pn < np; pn++) {
+                if (i->pn < pn && pn < i->pn + ins->paragraphs) {
+                    // not all strings in this range actually initialized
+                    if (para[pn].str.c > 0 || para[pn].str.g > 0) {
+                        ui_str.free(&para[pn].str);
+                    }
+                }
+            }
+        }
+        if (ok) {
+            ut_heap.free(d->text.para); // free old paragraphs
+            d->text.para = para;
+            d->text.paragraphs = np;
+        }
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_replace_with_text(ui_edit_doc_t* d,
+        const ui_edit_range_t* range, const ui_edit_text_t* text,
+        ui_edit_to_do_t* undo) {
+    ui_edit_range_t r =
+        ui_edit_doc_ordered_range(ui_edit_doc_range_or_all(&d->text, range));
+    if (ui_edit_debug_dump) {
+        traceln(">");
+        traceln("doc:");
+        ui_edit_doc_dump(d);
+        traceln("");
+        traceln("range: ");
+        ui_edit_range_dump(&r);
+        traceln("");
+        traceln("text: ");
+        ui_edit_text_dump(text);
+        traceln("");
+    }
+    ui_edit_check_range_inside_text(&d->text, &r);
+    bool empty_range = ui_edit_doc_compare_pg(r.from, r.to) == 0;
+    bool ok = ui_edit_doc.copy(d, &r, &undo->text);
+    if (ui_edit_debug_dump) {
+        traceln("copy: (undo->text)");
+        ui_edit_text_dump(&undo->text);
+        traceln("");
+    }
+    if (ok) {
+        if (empty_range) {
+            ok = ui_edit_doc_insert(d, &r.from, text);
+        } else {
+            ok = ui_edit_doc_insert(d, &r.to, text);
+            if (ok) {
+                ui_edit_range_t inserted = { .from = r.to, .to = r.to };
+                inserted.to.pn += text->paragraphs - 1;
+                inserted.to.gp  = text->para[text->paragraphs - 1].str.g;
+                ui_edit_check_range_inside_text(&d->text, &inserted);
+                if (!ui_edit_doc_remove(d, &r)) {
+                    // remove inserted text:
+                    (void)ui_edit_doc_remove(d, &inserted);
+                }
+            }
+        }
+        if (ok) {
+            undo->range.from  = r.from;
+            undo->range.to.pn = r.from.pn + text->paragraphs - 1;
+            if (undo->range.from.pn == undo->range.to.pn) {
+                undo->range.to.gp = undo->range.from.gp +
+                                    text->para[text->paragraphs - 1].str.g;
+            } else {
+                undo->range.to.gp = text->para[text->paragraphs - 1].str.g;
+            }
+            if (ui_edit_debug_dump) {
+                traceln("doc:");
+                ui_edit_doc_dump(d);
+                traceln("undo: ");
+                ui_edit_range_dump(&undo->range);
+                ui_edit_text_dump(&undo->text);
+            }
+            ui_edit_check_range_inside_text(&d->text, &undo->range);
+        }
+    }
+    if (!ok && undo->text.paragraphs > 0) {
+        ui_edit_text.free(&undo->text);
+    }
+    if (ui_edit_debug_dump) {
+        traceln("<");
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_subscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
     // TODO: not sure about double linked list.
     // heap allocated resizable array may serve better and may be easier to maintain
     bool ok = true;
-    ui_edit_observer_t* o = t->p.observers;
+    ui_edit_observer_t* o = t->observers;
     if (o == null) {
-        ok = ut_heap.alloc((void**)&t->p.observers, sizeof(*o)) == 0;
-        if (ok) { o = t->p.observers; }
+        ok = ut_heap.alloc_zero((void**)&t->observers, sizeof(*o)) == 0;
+        if (ok) { o = t->observers; }
     } else {
         while (o->next != null) { swear(o->notify != notify); o = o->next; }
-        ok = ut_heap.alloc((void**)&o->next, sizeof(*o)) == 0;
+        ok = ut_heap.alloc_zero((void**)&o->next, sizeof(*o)) == 0;
         if (ok) { o->next->prev = o; o = o->next; }
     }
     if (ok) { o->notify = notify; }
     return ok;
 }
 
-static void ui_edit_text_remove(ui_edit_text_t* t, ui_edit_notify_t* notify) {
-    ui_edit_observer_t* o = t->p.observers;
+static void ui_edit_doc_unsubscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
+    ui_edit_observer_t* o = t->observers;
     bool removed = false;
     while (o != null) {
         ui_edit_observer_t* n = o->next;
@@ -7862,7 +8026,7 @@ static void ui_edit_text_remove(ui_edit_text_t* t, ui_edit_notify_t* notify) {
             assert(!removed);
             if (o->prev != null) { o->prev->next = n; }
             if (o->next != null) { o->next->prev = o->prev; }
-            if (o == t->p.observers) { t->p.observers = n; }
+            if (o == t->observers) { t->observers = n; }
             ut_heap.free(o);
             removed = true;
         }
@@ -7871,119 +8035,328 @@ static void ui_edit_text_remove(ui_edit_text_t* t, ui_edit_notify_t* notify) {
     swear(removed);
 }
 
-static int32_t ui_edit_text_bytes(const ui_edit_text_t* t, const ui_edit_range_t* range) {
-    (void)t; // TODO: remove
-    (void)range; // TODO: remove
-    swear(false, "implement me");
-    return 0;
-}
-
-static bool ui_edit_text_replace(ui_edit_text_t* t,
-        const ui_edit_range_t* r,
-        const ui_str_t* s, bool can_coalesce) {
-    (void)t; // TODO: remove
-    (void)r; // TODO: remove
-    (void)s; // TODO: remove
-    (void)can_coalesce; // TODO: remove
-    return true;
-}
-
-static void ui_edit_text_redo(ui_edit_text_t* t) {
-    (void)t; // TODO: remove
-}
-
-static void ui_edit_text_undo(ui_edit_text_t* t) {
-    (void)t; // TODO: remove
-}
-
-static void ui_edit_text_test(void);
-
-static void ui_edit_text_init(ui_edit_text_t* t) {
-    memset(t, 0x00, sizeof(t));
-    t->replace = ui_edit_text_replace;
-    t->redo   = ui_edit_text_redo;
-    t->undo   = ui_edit_text_undo;
-    t->bytes  = ui_edit_text_bytes;
-    t->add    = ui_edit_text_add;
-    t->remove = ui_edit_text_remove;
-}
-
-static void ui_edit_text_fini(ui_edit_text_t* t) {
-    for (int32_t i = 0; i < t->p.paragraphs; i++) {
-        if (t->p.para[i].capacity > 0) {
-            ut_heap.free(t->p.para[i].text);
-            t->p.para[i].text = null;
-            t->p.para[i].capacity = 0;
+static bool ui_edit_doc_copy(const ui_edit_doc_t* d,
+        const ui_edit_range_t* range, ui_edit_text_t* t) {
+    ui_edit_check_zeros(t, sizeof(*t));
+    memset(t, 0x00, sizeof(*t));
+    ui_edit_range_t r =
+        ui_edit_doc_ordered_range(ui_edit_doc_range_or_all(&d->text, range));
+    ui_edit_check_range_inside_text(&d->text, &r);
+    int32_t np = r.to.pn - r.from.pn + 1;
+    bool ok = ui_edit_doc_realloc_paragraphs(&t->para, 0, np);
+    if (ok) { t->paragraphs = np; }
+    for (int32_t pn = r.from.pn; ok && pn <= r.to.pn; pn++) {
+        const ui_edit_paragraph_t* p = &d->text.para[pn];
+        const uint8_t* u = p->str.u;
+        int32_t bytes = 0;
+        if (pn == r.from.pn && pn == r.to.pn) {
+            bytes = p->str.g2b[r.to.gp] - p->str.g2b[r.from.gp];
+            u += p->str.g2b[r.from.gp];
+        } else if (pn == r.from.pn) {
+            bytes = p->str.b - p->str.g2b[r.from.gp];
+            u += p->str.g2b[r.from.gp];
+        } else if (pn == r.to.pn) {
+            bytes = p->str.g2b[r.to.gp];
+        } else {
+            bytes = p->str.b;
         }
-        if (t->p.para[i].g2b != null) {
-            ut_heap.free(t->p.para[i].g2b);
-            t->p.para[i].g2b = null;
-            t->p.para[i].capacity = 0;
+        ui_str.free(&t->para[pn - r.from.pn].str);
+        ok = ui_str.init(&t->para[pn - r.from.pn].str,
+                          bytes == 0 ? null : u, bytes, true);
+    }
+    if (!ok) {
+        ui_edit_text.free(t);
+        ui_edit_check_zeros(t, sizeof(*t));
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_replace(ui_edit_doc_t* d,
+        const ui_edit_range_t* r, const uint8_t* u, int32_t b,
+        ui_edit_to_do_t* undo) {
+    ui_edit_text_t t = {0};
+    bool ok = ui_edit_text.init(&t, u, b, false);
+    if (ok) {
+        ok = ui_edit_doc_replace_with_text(d, r, &t, undo);
+        ui_edit_text.free(&t);
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_do(ui_edit_doc_t* d, ui_edit_to_do_t* to_do,
+        ui_edit_to_do_t* *stack) {
+    const ui_edit_range_t* r = &to_do->range;
+    ui_edit_to_do_t* redo = null;
+    bool ok = ut_heap.alloc_zero((void**)&redo, sizeof(ui_edit_to_do_t));
+    if (ok) {
+        ok = ui_edit_doc_replace_with_text(d, r, &to_do->text, redo);
+        if (ok) {
+            ui_edit_text.free(&to_do->text);
+            ut_heap.free(to_do);
+        }
+        if (ok) {
+            redo->next = *stack;
+            *stack = redo;
+        } else {
+            if (redo->text.paragraphs > 0) {
+                ui_edit_text.free(&redo->text);
+            }
+            ut_heap.free(redo);
         }
     }
-    if (t->p.para != null) {
-        ut_heap.free(t->p.para);
-        t->p.para = null;
-    }
-    t->p.para = null;
-    t->p.paragraphs = 0;
-    t->replace = null;
-    t->redo    = null;
-    t->undo    = null;
-    t->bytes   = null;
-    t->add     = null;
-    t->remove  = null;
-    ui_edit_str_check_zeros(t, sizeof(*t));
-//  ut_runtime.exit(0);
+    return ok;
 }
 
-static void ui_edit_text_test(void) {
-if (1) return;
-    ui_edit_range_t r = { .from = {0,0}, .to = {0,0} };
-    static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
-    swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
-    ui_edit_text_t edit_text = {0};
-    ui_edit_text_t* t = &edit_text;
+static void ui_edit_doc_redo(ui_edit_doc_t* d) {
+    ui_edit_to_do_t* to_do = d->redo;
+    if (to_do != null) {
+        d->redo = d->redo->next;
+        ui_edit_doc_do(d, to_do, &d->undo);
+    }
+}
+
+static void ui_edit_doc_undo(ui_edit_doc_t* d) {
+    ui_edit_to_do_t* to_do = d->undo;
+    if (to_do != null) {
+        d->undo = d->undo->next;
+        ui_edit_doc_do(d, to_do, &d->redo);
+    }
+}
+
+static void ui_edit_doc_test(void);
+
+static bool ui_edit_doc_init(ui_edit_doc_t* d) {
+    bool ok = true;
+    ui_edit_check_zeros(d, sizeof(*d));
+    memset(d, 0x00, sizeof(d));
+    ok = ut_heap.alloc_zero((void**)&d->text.para, sizeof(ui_edit_paragraph_t)) == 0;
+    if (ok) {
+        d->text.paragraphs = 1;
+        ok = ui_str.init(&d->text.para[0].str, null, 0, false);
+    }
+    return ok;
+}
+
+static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
+    for (int32_t i = 0; i < d->text.paragraphs; i++) {
+        ui_str.free(&d->text.para[i].str);
+    }
+    if (d->text.para != null) {
+        ut_heap.free(d->text.para);
+        d->text.para = null;
+    }
+    d->text.paragraphs  = 0;
+    ui_edit_check_zeros(d, sizeof(*d));
+}
+
+static void ui_edit_doc_test_big_text(void) {
+    enum { MB10 = 10 * 1000 * 1000 };
+    uint8_t* text = null;
+    ut_heap.alloc(&text, MB10);
+    memset(text, 'a', MB10 - 1);
+    uint8_t* p = text;
+    uint32_t seed = 0x1;
+    for (;;) {
+        int32_t n = ut_num.random32(&seed) % 40 + 40;
+        if (p + n >= text + MB10) { break; }
+        p += n;
+        *p = '\n';
+    }
+    text[MB10 - 1] = 0x00;
+//  fp64_t time = ut_clock.seconds();
+    ui_edit_text_t t = {0};
+    bool ok = ui_edit_text.init(&t, text, MB10, false);
+    swear(ok);
+    ui_edit_text.free(&t);
+//  time = ut_clock.seconds() - time;
+//  traceln("10MB of text split into %d paragraphs in %.3f seconds",
+//          paragraphs, time);
+    // release: 10MB of text split into 168,108 paragraphs in 0.130 seconds
+    ut_heap.free(text);
+}
+
+static void ui_edit_doc_test_paragraphs(void) {
+    // ui_edit_doc_to_paragraphs() is about 1 microsecond
+    for (int i = 0; i < 100; i++)
+    {
+        {   // empty string to paragraphs:
+            ui_edit_text_t t = {0};
+            bool ok = ui_edit_text.init(&t, null, 0, false);
+            swear(ok);
+            swear(t.para != null && t.paragraphs == 1);
+            swear(t.para[0].str.u[0] == 0 &&
+                  t.para[0].str.c == 0);
+            swear(t.para[0].str.b == 0 &&
+                  t.para[0].str.g == 0);
+            ui_edit_text.free(&t);
+        }
+        {   // string without "\n"
+            const uint8_t* hello = (const uint8_t*)"hello";
+            const int32_t n = (int32_t)strlen((const char*)hello);
+            ui_edit_text_t t = {0};
+            bool ok = ui_edit_text.init(&t, hello, n, false);
+            swear(ok);
+            swear(t.para != null && t.paragraphs == 1);
+            swear(t.para[0].str.u == hello);
+            swear(t.para[0].str.c == 0);
+            swear(t.para[0].str.b == n);
+            swear(t.para[0].str.g == n);
+            ui_edit_text.free(&t);
+        }
+        {   // string with "\n" at the end
+            const uint8_t* hello = (const uint8_t*)"hello\n";
+            ui_edit_text_t t = {0};
+            bool ok = ui_edit_text.init(&t, hello, -1, false);
+            swear(ok);
+            swear(t.para != null && t.paragraphs == 2);
+            swear(t.para[0].str.u == hello);
+            swear(t.para[0].str.c == 0);
+            swear(t.para[0].str.b == 5);
+            swear(t.para[0].str.g == 5);
+            swear(t.para[1].str.u[0] == 0x00);
+            swear(t.para[0].str.c == 0);
+            swear(t.para[1].str.b == 0);
+            swear(t.para[1].str.g == 0);
+            ui_edit_text.free(&t);
+        }
+        {   // two string separated by "\n"
+            const uint8_t* hello = (const uint8_t*)"hello\nworld";
+            const uint8_t* world = hello + 6;
+            ui_edit_text_t t = {0};
+            bool ok = ui_edit_text.init(&t, hello, -1, false);
+            swear(ok);
+            swear(t.para != null && t.paragraphs == 2);
+            swear(t.para[0].str.u == hello);
+            swear(t.para[0].str.c == 0);
+            swear(t.para[0].str.b == 5);
+            swear(t.para[0].str.g == 5);
+            swear(t.para[1].str.u == world);
+            swear(t.para[0].str.c == 0);
+            swear(t.para[1].str.b == 5);
+            swear(t.para[1].str.g == 5);
+            ui_edit_text.free(&t);
+        }
+    }
+    for (int i = 0; i < 10; i++) {
+        ui_edit_doc_test_big_text();
+    }
+    traceln("done");
+}
+
+static void ui_edit_doc_test(void) {
+    {
+        ui_edit_range_t r = { .from = {0,0}, .to = {0,0} };
+        static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
+        swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
+    }
+    #ifdef UI_EDIT_DOC_TEST_PARAGRAPHS
+        ui_edit_doc_test_paragraphs();
+    #else
+        (void)(void*)ui_edit_doc_test_paragraphs; // unused
+    #endif
+    ui_edit_doc_t edit_doc = {0};
+    ui_edit_doc_t* d = &edit_doc;
     ui_edit_notify_t notify1 = {0};
     ui_edit_notify_t notify2 = {0};
-    ui_edit_text.init(t);
-    swear(t->add != null);
-    swear(t->remove != null);
-    t->add(t, &notify1);
-    t->add(t, &notify2);
-/*
-    swear(t->bytes(t, null) == 0, "expected empty");
-    ui_str_t str = {
-        .utf8 = "hello", .bytes = 5, .capacity = 0
-    };
-    t->replace(t, null, &str, true);
-    swear(t->bytes(t, null) == 5, "expected 5 bytes");
-    char utf8[6];
-    swear(countof(utf8) > t->bytes(t, null));
-    str.utf8 = utf8;
-    str.bytes = t->bytes(t, null);
-    str.capacity = 0; // capacity > 0 only if heap allocated
-    t->copy(t, null, &str);
-    str.utf8[str.bytes] = 0x00; // zero terminate post copy()
-    swear(strcmp(str.utf8, "hello") == 0, "expected 'hello'");
-    t->undo(t);
-    swear(t->bytes(t, null) == 0, "expected empty text");
-*/
-    t->remove(t, &notify1);
-    t->remove(t, &notify2);
-    ui_edit_text.fini(t);
+    bool ok = ui_edit_doc.init(d);
+    swear(ok);
+    ui_edit_doc.subscribe(d, &notify1);
+    ui_edit_doc.subscribe(d, &notify2);
+    swear(ui_edit_doc.bytes(d, null) == 0, "expected empty");
+
+    // TODO: These two test cases use insider knowledge
+    //       and implemented before ui_edit_doc.replace().
+    //       The benefit of keeping them is to ensure that
+    //       internal representation of document did not change.
+    {   // two string separated by "\n"
+        const uint8_t* hello = (const uint8_t*)"hello\nworld";
+        ok = ui_edit_text.init(&d->text, hello, -1, false);
+        swear(ok);
+        ui_edit_text_t t = {0};
+        ok = ui_edit_doc.copy(d, null, &t);
+        swear(t.paragraphs == 2);
+        swear(t.para[0].str.b == 5);
+        swear(t.para[0].str.g == 5);
+        swear(memcmp(t.para[0].str.u, "hello", 5) == 0);
+        swear(t.para[1].str.b == 5);
+        swear(t.para[1].str.g == 5);
+        swear(memcmp(t.para[1].str.u, "world", 5) == 0);
+        ui_edit_text.free(&t);
+        ui_edit_text.free(&d->text);
+    }
+    // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
+    {   // two string separated by "\n"
+        const uint8_t* s = (const uint8_t*)"Goodbye" "\n" "Cruel" "\n" "Universe";
+        ok = ui_edit_text.init(&d->text, s, -1, false);
+        swear(ok);
+        ui_edit_text_t t = {0};
+        ok = ui_edit_doc.copy(d, null, &t);
+        ui_edit_text.free(&t);
+        ui_edit_range_t r = { .from = {.pn = 0, .gp = 4},
+                              .to   = {.pn = 2, .gp = 3} };
+        ok = ui_edit_doc_remove(d, &r);
+        swear(ok);
+        swear(d->text.paragraphs == 1);
+        swear(d->text.para[0].str.b == 9);
+        swear(d->text.para[0].str.g == 9);
+        swear(memcmp(d->text.para[0].str.u, "Goodverse", 9) == 0);
+        ok = ui_edit_doc_remove(d, null); // everything
+        swear(d->text.paragraphs == 1);
+        swear(d->text.para[0].str.b == 0);
+        swear(d->text.para[0].str.g == 0);
+        ui_edit_text.free(&d->text);
+    }
+    {
+        // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
+        const uint8_t* s = (const uint8_t*)"GoodbyeCruelUniverse";
+        ok = ui_edit_text.init(&d->text, s, -1, false);
+        ui_edit_range_t r = { .from = {.pn = 0, .gp =  7},
+                              .to   = {.pn = 0, .gp = 12} };
+        ui_edit_to_do_t undo = {0};
+        ok = ui_edit_doc.replace(d, &r, (const uint8_t*)"X\nY", -1, &undo);
+        swear(ok);
+        if (ui_edit_debug_dump) { ui_edit_doc_dump(d); }
+        ui_edit_to_do_t redo = {0};
+        ok = ui_edit_doc_replace_with_text(d, &undo.range, &undo.text, &redo);
+        swear(ok);
+        if (ui_edit_debug_dump) { ui_edit_doc_dump(d); }
+        ui_edit_text.free(&undo.text);
+        swear(ui_edit_doc.bytes(d, null) == 20, "expected 20 bytes");
+        ok = ui_edit_doc_replace_with_text(d, &redo.range, &redo.text, &undo);
+        swear(ok);
+        if (ui_edit_debug_dump) { ui_edit_doc_dump(d); }
+        ui_edit_text.free(&undo.text);
+        ui_edit_text.free(&redo.text);
+    }
+    ui_edit_doc.unsubscribe(d, &notify1);
+    ui_edit_doc.unsubscribe(d, &notify2);
+    ui_edit_doc.dispose(d);
 }
 
 ui_edit_text_if ui_edit_text = {
-    .init = ui_edit_text_init,
-    .fini = ui_edit_text_fini,
-    .test = ui_edit_text_test
+    .init  = ui_edit_text_init,
+    .bytes = ui_edit_text_bytes,
+    .free  = ui_edit_text_free
 };
 
-// Uncomment following line for quick and dirty test run:
-ut_static_init(ui_edit_text) { ui_edit_text.test(); }
 
-#pragma pop_macro("ui_edit_str_check_zeros")
+ui_edit_doc_if ui_edit_doc = {
+    .init        = ui_edit_doc_init,
+    .replace     = ui_edit_doc_replace,
+    .bytes       = ui_edit_doc_bytes,
+    .copy        = ui_edit_doc_copy,
+    .redo        = ui_edit_doc_redo,
+    .undo        = ui_edit_doc_undo,
+    .subscribe   = ui_edit_doc_subscribe,
+    .unsubscribe = ui_edit_doc_unsubscribe,
+    .dispose     = ui_edit_doc_dispose,
+    .test        = ui_edit_doc_test
+};
+
+#pragma pop_macro("ui_edit_check_zeros")
+
+// Uncomment following line for quick and dirty test run:
+ut_static_init(ui_edit_text) { ui_edit_doc.test(); }
 // _________________________________ ui_gdi.c _________________________________
 
 #include "ut/ut.h"
@@ -9714,24 +10087,26 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 
-static int32_t const g2b_0[1] = {0};    // g2b_0[0] is always zero
-static int32_t const g2b_1[2] = {0, 1}; // single ASCII character
+static int32_t ui_str_g2b_ascii[1024]; // ui_str_g2b_ascii[i] == i for all "i"
+static int8_t* ui_str_empty = (int8_t*)"";
 
-static bool    ui_str_init(ui_str_t* s, const char* u, int32_t b,
-                                bool heap);
+static bool    ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b, bool heap);
 static int32_t ui_str_bytes(ui_str_t* s, int32_t f, int32_t t);
+static bool    ui_str_expand(ui_str_t* s, int32_t c);
+static void    ui_str_shrink(ui_str_t* s);
 static bool    ui_str_replace(ui_str_t* s, int32_t f, int32_t t,
-                                   const char* u, int32_t b);
+                              const uint8_t* u, int32_t b);
 static void    ui_str_test(void);
 static void    ui_str_free(ui_str_t* s);
 
 ui_str_if ui_str = {
     .init    = ui_str_init,
     .bytes   = ui_str_bytes,
+    .expand  = ui_str_expand,
+    .shrink  = ui_str_shrink,
     .replace = ui_str_replace,
     .test    = ui_str_test,
     .free    = ui_str_free
-
 };
 
 #pragma push_macro("ui_str_check")
@@ -9750,7 +10125,14 @@ ui_str_if ui_str = {
     /* s->g2b[] may be null (not heap allocated) when .b == 0 */    \
     if (s->g == 0) { assert(s->b == 0); }                           \
     if (s->g > 0) {                                                 \
-        assert(s->g2b[0] == 0); assert(s->g2b[s->g] == s->b);       \
+        assert(s->g2b[0] == 0 && s->g2b[s->g] == s->b);             \
+    }                                                               \
+    for (int32_t i = 1; i < s->g; i++) {                            \
+        assert(0 < s->g2b[i] - s->g2b[i - 1] &&                     \
+                   s->g2b[i] - s->g2b[i - 1] <= 4);                 \
+        assert(s->g2b[i] - s->g2b[i - 1] ==                         \
+            ui_edit_text_glyph_bytes(                               \
+            s->u + s->g2b[i - 1], s->g2b[i] - s->g2b[i - 1]));      \
     }                                                               \
 } while (0)
 
@@ -9761,7 +10143,7 @@ ui_str_if ui_str = {
 } while (0)
 
 #define ui_str_check_empty(u, b) do {                               \
-    if (b == 0) { assert(u != null || u[0] == 0x00); }              \
+    if (b == 0) { assert(u != null && u[0] == 0x00); }              \
     if (u == null || u[0] == 0x00) { assert(b == 0); }              \
 } while (0)
 
@@ -9785,10 +10167,13 @@ ui_str_if ui_str = {
 // ui_str_foo(*, "...", -1) treat as 0x00 terminated
 // ui_str_foo(*, null, 0) treat as ("", 0)
 
-#define ui_str_parameters(u, b) do {                                        \
-    if (u == null) { u = (char*)""; }                                       \
-    if (b < 0)  { assert(strlen(u) < INT32_MAX); b = (int32_t)strlen(u); }  \
-    ui_str_check_empty(u, b);                                               \
+#define ui_str_parameters(u, b) do {                        \
+    if (u == null) { u = (const uint8_t*)ui_str_empty; }    \
+    if (b < 0)  {                                           \
+        assert(strlen((const char*)u) < INT32_MAX);         \
+        b = (int32_t)strlen((const char*)u);                \
+    }                                                       \
+    ui_str_check_empty(u, b);                               \
 } while (0)
 
 static int32_t ui_edit_text_glyph_bytes(const uint8_t* u, int32_t b) {
@@ -9821,13 +10206,13 @@ static int32_t ui_edit_text_glyph_bytes(const uint8_t* u, int32_t b) {
 }
 
 static void ui_str_free(ui_str_t* s) {
-    if (s->g2b != null && s->g2b != g2b_0 && s->g2b != g2b_1) {
+    if (s->g2b != null && s->g2b != ui_str_g2b_ascii) {
         ut_heap.free(s->g2b);
     } else {
-        // despite "const" qualifiers check if overwritten:
-        assert(g2b_0[0] == 0);
-        assert(g2b_1[0] == 0);
-        assert(g2b_1[1] == 1);
+        // check if overwritten by bugs in the code:
+        for (int32_t i = 0; i < countof(ui_str_g2b_ascii); i++) {
+            assert(ui_str_g2b_ascii[i] == i);
+        }
     }
     s->g2b = null;
     s->g = 0;
@@ -9872,49 +10257,34 @@ static bool ui_str_init_g2b(ui_str_t* s) {
     return ok;
 }
 
-static bool ui_str_init_ro(ui_str_t* s, const char* u, int32_t b) {
+static bool ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b,
+        bool heap) {
+    enum { n = countof(ui_str_g2b_ascii) };
+    if (ui_str_g2b_ascii[n - 1] != n - 1) {
+        for (int32_t i = 0; i < n; i++) { ui_str_g2b_ascii[i] = i; }
+    }
     bool ok = true;
     ui_str_check_zeros(s, sizeof(*s)); // caller must zero out
     memset(s, 0x00, sizeof(*s));
-    if (u == null) { u = (char*)""; }
-    // ui_str_init(*, *, "...", -1) treat as 0x00 terminated:
-    if (b < 0)  { assert(strlen(u) < INT32_MAX); b = (int32_t)strlen(u); }
     ui_str_parameters(u, b);
     if (b == 0) { // cast below intentionally removes "const" qualifier
-        s->g2b = (int32_t*)g2b_0; // simplifies use cases
+        s->g2b = (int32_t*)ui_str_g2b_ascii; // simplifies use cases
         s->u = (uint8_t*)u;
-        assert(s->c == 0 && s->g == 0 && u[0] == 0x00);
+        assert(s->c == 0 && u[0] == 0x00);
     } else if (b == 1 && u[0] <= 0x7F) {
-        s->g2b = (int32_t*)g2b_1; // simplifies use cases
+        s->g2b = (int32_t*)ui_str_g2b_ascii; // simplifies use cases
         s->u = (uint8_t*)u;
         s->g = 1;
         s->b = 1;
-    } else { // cast below intentionally removes "const" qualifier
-        assert(b > 0);
-        s->u = (uint8_t*)u;
-        s->b = b;
-        s->c = 0; // means "u" is pointing to outside of heap memory
-        ok = ui_str_init_g2b(s);
-    }
-    if (!ok) { ui_str_free(s); }
-    return ok;
-}
-
-static bool ui_str_init_heap(ui_str_t* s, const char* u, int32_t b) {
-    bool ok = true;
-    ui_str_check_zeros(s, sizeof(*s)); // caller must zero out
-    memset(s, 0x00, sizeof(*s));
-    ui_str_parameters(u, b);
-    if (b == 0) { // cast below intentionally removes "const" qualifier
-        s->g2b = (int32_t*)g2b_0; // simplifies use cases
-        s->u = (uint8_t*)u;
-        assert(s->c == 0 && u[0] == 0x00);
     } else {
-        ok = ut_heap.alloc((void**)&s->u, b) == 0;
+        if (heap) {
+            ok = ut_heap.alloc((void**)&s->u, b) == 0;
+            if (ok) { s->c = b; memcpy(s->u, u, b); }
+        } else {
+            s->u = (uint8_t*)u;
+        }
         if (ok) {
-            memcpy(s->u, u, b);
             s->b = b;
-            s->c = b;
             ok = ui_str_init_g2b(s);
         }
     }
@@ -9922,16 +10292,21 @@ static bool ui_str_init_heap(ui_str_t* s, const char* u, int32_t b) {
     return ok;
 }
 
-static bool ui_str_init(ui_str_t* s, const char* u, int32_t b,
-        bool heap) {
-    return heap ? ui_str_init_heap(s, u, b) : ui_str_init_ro(s, u, b);
-}
-
 static int32_t ui_str_bytes(ui_str_t* s,
         int32_t f, int32_t t) { // glyph positions
     ui_str_check_from_to(s, f, t);
     ui_str_check(s);
     return s->g2b[t] - s->g2b[f];
+}
+
+static bool ui_str_move_g2b_to_heap(ui_str_t* s) {
+    bool ok = true;
+    if (s->g2b == ui_str_g2b_ascii && s->g > 0) {
+        const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
+        ok = ut_heap.alloc(&s->g2b, bytes) == 0;
+        if (ok) { memcpy(s->g2b, ui_str_g2b_ascii, bytes); }
+    }
+    return ok;
 }
 
 static bool ui_str_move_to_heap(ui_str_t* s, int32_t c) {
@@ -9947,14 +10322,43 @@ static bool ui_str_move_to_heap(ui_str_t* s, int32_t c) {
         ok = ut_heap.realloc((void**)&s->u, c) == 0;
     }
     if (ok) { s->c = c; }
+    if (ok) { ok = ui_str_move_g2b_to_heap(s); }
+    return ok;
+}
+
+static bool ui_str_expand(ui_str_t* s, int32_t c) {
+    swear(c > 0);
+    bool ok = ui_str_move_to_heap(s, c);
+    if (ok && c > s->c) {
+        if (ut_heap.realloc((void**)&s->u, c) == 0) {
+            s->c = c;
+        } else {
+            ok = false;
+        }
+    }
     return ok;
 }
 
 static void ui_str_shrink(ui_str_t* s) {
-    if (s->c > s->b) {
-        bool ok = ut_heap.realloc((void**)&s->u, s->b) == 0;
-        swear(ok, "smaller size is always expected to be ok");
+    if (s->c > s->b) { // s->c == 0 for empty and single byte ASCII strings
+        assert(s->u != (const uint8_t*)ui_str_empty);
+        if (s->b == 0) {
+            ut_heap.free(s->u);
+            s->u = (uint8_t*)ui_str_empty;
+        } else {
+            bool ok = ut_heap.realloc((void**)&s->u, s->b) == 0;
+            swear(ok, "smaller size is always expected to be ok");
+        }
         s->c = s->b;
+        // Optimize memory for short ASCII only strings:
+        if (s->g < countof(ui_str_g2b_ascii) - 1 && s->g == s->b) {
+            // If this is an ascii only utf8 string shorter than
+            // ui_str_g2b_ascii it does not need .g2b[] allocated:
+            if (s->g2b != ui_str_g2b_ascii) {
+                ut_heap.free(s->g2b);
+                s->g2b = (int32_t*)ui_str_g2b_ascii;
+            }
+        }
     }
 }
 
@@ -9970,19 +10374,25 @@ static bool ui_str_remove(ui_str_t* s, int32_t f, int32_t t) {
             const int32_t bytes_to_shift = s->b - s->g2b[t];
             assert(0 <= bytes_to_shift && bytes_to_shift <= s->b);
             memcpy(s->u + s->g2b[f], s->u + s->g2b[t], bytes_to_shift);
-            memcpy(s->g2b + f, s->g2b + t, (s->g - t + 1) * sizeof(int32_t));
-            for (int32_t i = f; i <= s->g; i++) {
-                s->g2b[i] -= bytes_to_remove;
+            if (s->g2b != ui_str_g2b_ascii) {
+                memcpy(s->g2b + f, s->g2b + t, (s->g - t + 1) * sizeof(int32_t));
+                for (int32_t i = f; i <= s->g; i++) {
+                    s->g2b[i] -= bytes_to_remove;
+                }
+            } else {
+                // no need to shrink g2b[] for ASCII only strings:
+                for (int32_t i = 0; i <= s->g; i++) { assert(s->g2b[i] == i); }
             }
             s->b -= bytes_to_remove;
             s->g -= t - f;
         }
     }
+    ui_str_check(s);
     return ok;
 }
 
 static bool ui_str_replace(ui_str_t* s,
-        int32_t f, int32_t t, const char* u, int32_t b) {
+        int32_t f, int32_t t, const uint8_t* u, int32_t b) {
     const int64_t _4_bytes = (int64_t)sizeof(int32_t);
     bool ok = true; // optimistic approach
     ui_str_check_from_to(s, f, t);
@@ -9996,7 +10406,7 @@ static bool ui_str_replace(ui_str_t* s,
     } else { // remove and insert
         ui_str_t ins = {0};
         // ui_str_init_ro() verifies utf-8 and calculates g2b[]:
-        ok = ui_str_init_ro(&ins, u, b);
+        ok = ui_str_init(&ins, u, b, false);
         const int32_t glyphs_to_insert = ins.g; // only for readability
         const int32_t glyphs_to_remove = t - f; // only for readability
         if (ok) {
@@ -10013,22 +10423,20 @@ static bool ui_str_replace(ui_str_t* s,
                     memcpy(s->u + s->g2b[f] + bytes_to_insert,
                            s->u + s->g2b[f] + bytes_to_remove,
                            s->b - s->g2b[f] - bytes_to_remove);
+                    assert(s->g2b != ui_str_g2b_ascii);
                     memcpy(s->g2b + f + glyphs_to_insert,
                            s->g2b + f + glyphs_to_remove,
                            (s->g - t + 1) * _4_bytes);
+                    memcpy(s->u + s->g2b[f], ins.u, ins.b);
                 } else {
+                    assert(s->g2b != ui_str_g2b_ascii);
                     const int32_t g = s->g + glyphs_to_insert -
                                              glyphs_to_remove;
-                    if (s->g2b == g2b_0) {
-                        assert(s->g == 0);
-                        ok = ut_heap.alloc(&s->g2b, (g + 1) * _4_bytes) == 0;
-                        s->g2b[0] = 0;
-                    } else {
-                        assert(g > s->g);
-                        ok = ut_heap.realloc(&s->g2b, (g + 1) * _4_bytes) == 0;
-                    }
+                    assert(g > s->g);
+                    ok = ut_heap.realloc(&s->g2b, (g + 1) * _4_bytes) == 0;
                     // need to shift bytes staring with s.g2b[t] toward the end
                     if (ok) {
+                        assert(s->g2b != ui_str_g2b_ascii);
                         memmove(s->u + s->g2b[f] + bytes_to_insert,
                                 s->u + s->g2b[f] + bytes_to_remove,
                                 s->b - s->g2b[f] - bytes_to_remove);
@@ -10039,16 +10447,15 @@ static bool ui_str_replace(ui_str_t* s,
                     }
                 }
                 if (ok) {
-                    swear(ins.g2b != null && s->g2b != null,
-                          "pacify IntelliSense code analysis false negative");
+                    assert(s->g2b != ui_str_g2b_ascii);
                     for (int32_t i = f; i <= f + glyphs_to_insert; i++) {
                         s->g2b[i] = ins.g2b[i - f] + s->g2b[f];
                     }
+                    s->b += bytes_to_insert - bytes_to_remove;
+                    s->g += glyphs_to_insert - glyphs_to_remove;
                     for (int32_t i = f + glyphs_to_insert + 1; i <= s->g; i++) {
                         s->g2b[i] += bytes_to_insert - bytes_to_remove;
                     }
-                    s->b += bytes_to_insert - bytes_to_remove;
-                    s->g += glyphs_to_insert - glyphs_to_remove;
                     s->g2b[s->g] = s->b;
                 }
             }
@@ -10056,6 +10463,7 @@ static bool ui_str_replace(ui_str_t* s,
         }
     }
     ui_str_shrink(s);
+    ui_str_check(s);
     return ok;
 }
 
@@ -10078,14 +10486,14 @@ static bool ui_str_replace(ui_str_t* s,
 
 static void ui_str_test_replace(void) { // exhaustive permutations
     // Exhaustive 9,765,625 replace permutations may take
-    // up to 3 minutes of CPU time in release.
+    // up to 5 minutes of CPU time in release.
     // Recommended to be invoked at least once after making any
     // changes to ui_str.replace and around.
     // Menu: Debug / Windows / Show Diagnostic Tools allows to watch
     //       memory pressure for whole 3 minutes making sure code is
     //       not leaking memory profusely.
     const char* gs[] = { // glyphs
-        "", ui_edit_usd, ui_edit_gbp, ui_edit_euro, ui_edit_money_bag
+        ui_str_empty, ui_edit_usd, ui_edit_gbp, ui_edit_euro, ui_edit_money_bag
     };
     const int32_t gb[] = {0, 1, 2, 3, 4}; // number of bytes per codepoint
     enum { n = countof(gs) };
@@ -10120,7 +10528,7 @@ static void ui_str_test_replace(void) { // exhaustive permutations
         }
         ui_str_t s = {0};
         // reference constructor does not copy to heap:
-        bool ok = ui_str_init_ro(&s, src, -1);
+        bool ok = ui_str_init(&s, (const uint8_t*)src, -1, false);
         swear(ok);
         for (int32_t f = 0; f <= s.g; f++) { // from
             for (int32_t t = f; t <= s.g; t++) { // to
@@ -10151,9 +10559,9 @@ static void ui_str_test_replace(void) { // exhaustive permutations
                         "e1: \"%s\" e2: \"%s\"",
                         s.b, s.c, s.b, s.u, s.g, f, t, rep, e1, e2);
                     ui_str_t c = {0}; // copy
-                    ok = ui_str_init_heap(&c, src, -1);
+                    ok = ui_str_init(&c, (const uint8_t*)src, -1, true);
                     swear(ok);
-                    ok = ui_str_replace(&c, f, t, rep, -1);
+                    ok = ui_str_replace(&c, f, t, (const uint8_t*)rep, -1);
                     swear(ok);
                     swear(memcmp(c.u, e1, c.b) == 0,
                            "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
@@ -10204,7 +10612,7 @@ static void ui_str_test(void) {
     ui_str_test_glyph_bytes();
     {
         ui_str_t s = {0};
-        bool ok = ui_str_init_ro(&s, "hello", -1);
+        bool ok = ui_str_init(&s, (const uint8_t*)"hello", -1, false);
         swear(ok);
         swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
         swear(s.g == 5 && s.g2b != null);
@@ -10214,13 +10622,14 @@ static void ui_str_test(void) {
         ui_str_free(&s);
     }
     const char* currencies = ui_edit_usd  ui_edit_gbp
-                                ui_edit_euro ui_edit_money_bag;
+                             ui_edit_euro ui_edit_money_bag;
+    const uint8_t* money = (const uint8_t*)currencies;
     {
         ui_str_t s = {0};
         const int32_t n = (int32_t)strlen(currencies);
-        bool ok = ui_str_init_heap(&s, currencies, n);
+        bool ok = ui_str_init(&s, money, n, true);
         swear(ok);
-        swear(s.b == n && s.c == s.b && memcmp(s.u, currencies, s.b) == 0);
+        swear(s.b == n && s.c == s.b && memcmp(s.u, money, s.b) == 0);
         swear(s.g == 4 && s.g2b != null);
         const int32_t g2b[] = {0, 1, 3, 6, 10};
         for (int32_t i = 0; i <= s.g; i++) {
@@ -10230,9 +10639,9 @@ static void ui_str_test(void) {
     }
     {
         ui_str_t s = {0};
-        bool ok = ui_str_init_ro(&s, "hello", -1);
+        bool ok = ui_str_init(&s, (const uint8_t*)"hello", -1, false);
         swear(ok);
-        ok = ui_str_replace(&s, 1, 4, "", 0);
+        ok = ui_str_replace(&s, 1, 4, null, 0);
         swear(ok);
         swear(s.b == 2 && memcmp(s.u, "ho", 2) == 0);
         swear(s.g == 2 && s.g2b[0] == 0 && s.g2b[1] == 1 && s.g2b[2] == 2);
@@ -10240,23 +10649,25 @@ static void ui_str_test(void) {
     }
     {
         ui_str_t s = {0};
-        bool ok = ui_str_init_ro(&s, "Hello world", -1);
+        bool ok = ui_str_init(&s, (const uint8_t*)"Hello world", -1, false);
         swear(ok);
-        ok = ui_str_replace(&s, 5, 6, " cruel ", -1);
+        ok = ui_str_replace(&s, 5, 6, (const uint8_t*)" cruel ", -1);
         swear(ok);
-        ok = ui_str_replace(&s, 0, 5, "Goodbye", -1);
+        ok = ui_str_replace(&s, 0, 5, (const uint8_t*)"Goodbye", -1);
         swear(ok);
-        ok = ui_str_replace(&s, s.g - 5, s.g, "Universe", -1);
+        ok = ui_str_replace(&s, s.g - 5, s.g, (const uint8_t*)"Universe", -1);
         swear(ok);
         swear(s.g == 22 && s.g2b[0] == 0 && s.g2b[s.g] == s.b);
         for (int32_t i = 1; i < s.g; i++) {
             swear(s.g2b[i] == i); // because every glyph is ASCII
         }
-        swear(memcmp(s.u, "Goodbye cruel Universe", 6) == 0);
+        swear(memcmp(s.u, "Goodbye cruel Universe", 22) == 0);
         ui_str_free(&s);
     }
     #ifdef UI_STR_TEST_REPLACE_ALL_PERMUTATIONS
         ui_str_test_replace();
+    #else
+        (void)(void*)ui_str_test_replace; // mitigate unused warning
     #endif
 }
 
@@ -10273,7 +10684,7 @@ static void ui_str_test(void) {
 #pragma pop_macro("ui_str_check_from_to")
 #pragma pop_macro("ui_str_check")
 
-// For quick test uncomment:
+// For quick and dirty test uncomment next line:
 // ut_static_init(ui_str) { ui_str.test(); }
 // ________________________________ ui_theme.c ________________________________
 

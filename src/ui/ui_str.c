@@ -2,24 +2,26 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static int32_t const g2b_0[1] = {0};    // g2b_0[0] is always zero
-static int32_t const g2b_1[2] = {0, 1}; // single ASCII character
+static int32_t ui_str_g2b_ascii[1024]; // ui_str_g2b_ascii[i] == i for all "i"
+static int8_t* ui_str_empty = (int8_t*)"";
 
-static bool    ui_str_init(ui_str_t* s, const char* u, int32_t b,
-                                bool heap);
+static bool    ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b, bool heap);
 static int32_t ui_str_bytes(ui_str_t* s, int32_t f, int32_t t);
+static bool    ui_str_expand(ui_str_t* s, int32_t c);
+static void    ui_str_shrink(ui_str_t* s);
 static bool    ui_str_replace(ui_str_t* s, int32_t f, int32_t t,
-                                   const char* u, int32_t b);
+                              const uint8_t* u, int32_t b);
 static void    ui_str_test(void);
 static void    ui_str_free(ui_str_t* s);
 
 ui_str_if ui_str = {
     .init    = ui_str_init,
     .bytes   = ui_str_bytes,
+    .expand  = ui_str_expand,
+    .shrink  = ui_str_shrink,
     .replace = ui_str_replace,
     .test    = ui_str_test,
     .free    = ui_str_free
-
 };
 
 #pragma push_macro("ui_str_check")
@@ -38,7 +40,14 @@ ui_str_if ui_str = {
     /* s->g2b[] may be null (not heap allocated) when .b == 0 */    \
     if (s->g == 0) { assert(s->b == 0); }                           \
     if (s->g > 0) {                                                 \
-        assert(s->g2b[0] == 0); assert(s->g2b[s->g] == s->b);       \
+        assert(s->g2b[0] == 0 && s->g2b[s->g] == s->b);             \
+    }                                                               \
+    for (int32_t i = 1; i < s->g; i++) {                            \
+        assert(0 < s->g2b[i] - s->g2b[i - 1] &&                     \
+                   s->g2b[i] - s->g2b[i - 1] <= 4);                 \
+        assert(s->g2b[i] - s->g2b[i - 1] ==                         \
+            ui_edit_text_glyph_bytes(                               \
+            s->u + s->g2b[i - 1], s->g2b[i] - s->g2b[i - 1]));      \
     }                                                               \
 } while (0)
 
@@ -49,7 +58,7 @@ ui_str_if ui_str = {
 } while (0)
 
 #define ui_str_check_empty(u, b) do {                               \
-    if (b == 0) { assert(u != null || u[0] == 0x00); }              \
+    if (b == 0) { assert(u != null && u[0] == 0x00); }              \
     if (u == null || u[0] == 0x00) { assert(b == 0); }              \
 } while (0)
 
@@ -73,10 +82,13 @@ ui_str_if ui_str = {
 // ui_str_foo(*, "...", -1) treat as 0x00 terminated
 // ui_str_foo(*, null, 0) treat as ("", 0)
 
-#define ui_str_parameters(u, b) do {                                        \
-    if (u == null) { u = (char*)""; }                                       \
-    if (b < 0)  { assert(strlen(u) < INT32_MAX); b = (int32_t)strlen(u); }  \
-    ui_str_check_empty(u, b);                                               \
+#define ui_str_parameters(u, b) do {                        \
+    if (u == null) { u = (const uint8_t*)ui_str_empty; }    \
+    if (b < 0)  {                                           \
+        assert(strlen((const char*)u) < INT32_MAX);         \
+        b = (int32_t)strlen((const char*)u);                \
+    }                                                       \
+    ui_str_check_empty(u, b);                               \
 } while (0)
 
 static int32_t ui_edit_text_glyph_bytes(const uint8_t* u, int32_t b) {
@@ -109,13 +121,13 @@ static int32_t ui_edit_text_glyph_bytes(const uint8_t* u, int32_t b) {
 }
 
 static void ui_str_free(ui_str_t* s) {
-    if (s->g2b != null && s->g2b != g2b_0 && s->g2b != g2b_1) {
+    if (s->g2b != null && s->g2b != ui_str_g2b_ascii) {
         ut_heap.free(s->g2b);
     } else {
-        // despite "const" qualifiers check if overwritten:
-        assert(g2b_0[0] == 0);
-        assert(g2b_1[0] == 0);
-        assert(g2b_1[1] == 1);
+        // check if overwritten by bugs in the code:
+        for (int32_t i = 0; i < countof(ui_str_g2b_ascii); i++) {
+            assert(ui_str_g2b_ascii[i] == i);
+        }
     }
     s->g2b = null;
     s->g = 0;
@@ -160,49 +172,34 @@ static bool ui_str_init_g2b(ui_str_t* s) {
     return ok;
 }
 
-static bool ui_str_init_ro(ui_str_t* s, const char* u, int32_t b) {
+static bool ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b,
+        bool heap) {
+    enum { n = countof(ui_str_g2b_ascii) };
+    if (ui_str_g2b_ascii[n - 1] != n - 1) {
+        for (int32_t i = 0; i < n; i++) { ui_str_g2b_ascii[i] = i; }
+    }
     bool ok = true;
     ui_str_check_zeros(s, sizeof(*s)); // caller must zero out
     memset(s, 0x00, sizeof(*s));
-    if (u == null) { u = (char*)""; }
-    // ui_str_init(*, *, "...", -1) treat as 0x00 terminated:
-    if (b < 0)  { assert(strlen(u) < INT32_MAX); b = (int32_t)strlen(u); }
     ui_str_parameters(u, b);
     if (b == 0) { // cast below intentionally removes "const" qualifier
-        s->g2b = (int32_t*)g2b_0; // simplifies use cases
+        s->g2b = (int32_t*)ui_str_g2b_ascii; // simplifies use cases
         s->u = (uint8_t*)u;
-        assert(s->c == 0 && s->g == 0 && u[0] == 0x00);
+        assert(s->c == 0 && u[0] == 0x00);
     } else if (b == 1 && u[0] <= 0x7F) {
-        s->g2b = (int32_t*)g2b_1; // simplifies use cases
+        s->g2b = (int32_t*)ui_str_g2b_ascii; // simplifies use cases
         s->u = (uint8_t*)u;
         s->g = 1;
         s->b = 1;
-    } else { // cast below intentionally removes "const" qualifier
-        assert(b > 0);
-        s->u = (uint8_t*)u;
-        s->b = b;
-        s->c = 0; // means "u" is pointing to outside of heap memory
-        ok = ui_str_init_g2b(s);
-    }
-    if (!ok) { ui_str_free(s); }
-    return ok;
-}
-
-static bool ui_str_init_heap(ui_str_t* s, const char* u, int32_t b) {
-    bool ok = true;
-    ui_str_check_zeros(s, sizeof(*s)); // caller must zero out
-    memset(s, 0x00, sizeof(*s));
-    ui_str_parameters(u, b);
-    if (b == 0) { // cast below intentionally removes "const" qualifier
-        s->g2b = (int32_t*)g2b_0; // simplifies use cases
-        s->u = (uint8_t*)u;
-        assert(s->c == 0 && u[0] == 0x00);
     } else {
-        ok = ut_heap.alloc((void**)&s->u, b) == 0;
+        if (heap) {
+            ok = ut_heap.alloc((void**)&s->u, b) == 0;
+            if (ok) { s->c = b; memcpy(s->u, u, b); }
+        } else {
+            s->u = (uint8_t*)u;
+        }
         if (ok) {
-            memcpy(s->u, u, b);
             s->b = b;
-            s->c = b;
             ok = ui_str_init_g2b(s);
         }
     }
@@ -210,16 +207,21 @@ static bool ui_str_init_heap(ui_str_t* s, const char* u, int32_t b) {
     return ok;
 }
 
-static bool ui_str_init(ui_str_t* s, const char* u, int32_t b,
-        bool heap) {
-    return heap ? ui_str_init_heap(s, u, b) : ui_str_init_ro(s, u, b);
-}
-
 static int32_t ui_str_bytes(ui_str_t* s,
         int32_t f, int32_t t) { // glyph positions
     ui_str_check_from_to(s, f, t);
     ui_str_check(s);
     return s->g2b[t] - s->g2b[f];
+}
+
+static bool ui_str_move_g2b_to_heap(ui_str_t* s) {
+    bool ok = true;
+    if (s->g2b == ui_str_g2b_ascii && s->g > 0) {
+        const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
+        ok = ut_heap.alloc(&s->g2b, bytes) == 0;
+        if (ok) { memcpy(s->g2b, ui_str_g2b_ascii, bytes); }
+    }
+    return ok;
 }
 
 static bool ui_str_move_to_heap(ui_str_t* s, int32_t c) {
@@ -235,14 +237,43 @@ static bool ui_str_move_to_heap(ui_str_t* s, int32_t c) {
         ok = ut_heap.realloc((void**)&s->u, c) == 0;
     }
     if (ok) { s->c = c; }
+    if (ok) { ok = ui_str_move_g2b_to_heap(s); }
+    return ok;
+}
+
+static bool ui_str_expand(ui_str_t* s, int32_t c) {
+    swear(c > 0);
+    bool ok = ui_str_move_to_heap(s, c);
+    if (ok && c > s->c) {
+        if (ut_heap.realloc((void**)&s->u, c) == 0) {
+            s->c = c;
+        } else {
+            ok = false;
+        }
+    }
     return ok;
 }
 
 static void ui_str_shrink(ui_str_t* s) {
-    if (s->c > s->b) {
-        bool ok = ut_heap.realloc((void**)&s->u, s->b) == 0;
-        swear(ok, "smaller size is always expected to be ok");
+    if (s->c > s->b) { // s->c == 0 for empty and single byte ASCII strings
+        assert(s->u != (const uint8_t*)ui_str_empty);
+        if (s->b == 0) {
+            ut_heap.free(s->u);
+            s->u = (uint8_t*)ui_str_empty;
+        } else {
+            bool ok = ut_heap.realloc((void**)&s->u, s->b) == 0;
+            swear(ok, "smaller size is always expected to be ok");
+        }
         s->c = s->b;
+        // Optimize memory for short ASCII only strings:
+        if (s->g < countof(ui_str_g2b_ascii) - 1 && s->g == s->b) {
+            // If this is an ascii only utf8 string shorter than
+            // ui_str_g2b_ascii it does not need .g2b[] allocated:
+            if (s->g2b != ui_str_g2b_ascii) {
+                ut_heap.free(s->g2b);
+                s->g2b = (int32_t*)ui_str_g2b_ascii;
+            }
+        }
     }
 }
 
@@ -258,19 +289,25 @@ static bool ui_str_remove(ui_str_t* s, int32_t f, int32_t t) {
             const int32_t bytes_to_shift = s->b - s->g2b[t];
             assert(0 <= bytes_to_shift && bytes_to_shift <= s->b);
             memcpy(s->u + s->g2b[f], s->u + s->g2b[t], bytes_to_shift);
-            memcpy(s->g2b + f, s->g2b + t, (s->g - t + 1) * sizeof(int32_t));
-            for (int32_t i = f; i <= s->g; i++) {
-                s->g2b[i] -= bytes_to_remove;
+            if (s->g2b != ui_str_g2b_ascii) {
+                memcpy(s->g2b + f, s->g2b + t, (s->g - t + 1) * sizeof(int32_t));
+                for (int32_t i = f; i <= s->g; i++) {
+                    s->g2b[i] -= bytes_to_remove;
+                }
+            } else {
+                // no need to shrink g2b[] for ASCII only strings:
+                for (int32_t i = 0; i <= s->g; i++) { assert(s->g2b[i] == i); }
             }
             s->b -= bytes_to_remove;
             s->g -= t - f;
         }
     }
+    ui_str_check(s);
     return ok;
 }
 
 static bool ui_str_replace(ui_str_t* s,
-        int32_t f, int32_t t, const char* u, int32_t b) {
+        int32_t f, int32_t t, const uint8_t* u, int32_t b) {
     const int64_t _4_bytes = (int64_t)sizeof(int32_t);
     bool ok = true; // optimistic approach
     ui_str_check_from_to(s, f, t);
@@ -284,7 +321,7 @@ static bool ui_str_replace(ui_str_t* s,
     } else { // remove and insert
         ui_str_t ins = {0};
         // ui_str_init_ro() verifies utf-8 and calculates g2b[]:
-        ok = ui_str_init_ro(&ins, u, b);
+        ok = ui_str_init(&ins, u, b, false);
         const int32_t glyphs_to_insert = ins.g; // only for readability
         const int32_t glyphs_to_remove = t - f; // only for readability
         if (ok) {
@@ -301,22 +338,20 @@ static bool ui_str_replace(ui_str_t* s,
                     memcpy(s->u + s->g2b[f] + bytes_to_insert,
                            s->u + s->g2b[f] + bytes_to_remove,
                            s->b - s->g2b[f] - bytes_to_remove);
+                    assert(s->g2b != ui_str_g2b_ascii);
                     memcpy(s->g2b + f + glyphs_to_insert,
                            s->g2b + f + glyphs_to_remove,
                            (s->g - t + 1) * _4_bytes);
+                    memcpy(s->u + s->g2b[f], ins.u, ins.b);
                 } else {
+                    assert(s->g2b != ui_str_g2b_ascii);
                     const int32_t g = s->g + glyphs_to_insert -
                                              glyphs_to_remove;
-                    if (s->g2b == g2b_0) {
-                        assert(s->g == 0);
-                        ok = ut_heap.alloc(&s->g2b, (g + 1) * _4_bytes) == 0;
-                        s->g2b[0] = 0;
-                    } else {
-                        assert(g > s->g);
-                        ok = ut_heap.realloc(&s->g2b, (g + 1) * _4_bytes) == 0;
-                    }
+                    assert(g > s->g);
+                    ok = ut_heap.realloc(&s->g2b, (g + 1) * _4_bytes) == 0;
                     // need to shift bytes staring with s.g2b[t] toward the end
                     if (ok) {
+                        assert(s->g2b != ui_str_g2b_ascii);
                         memmove(s->u + s->g2b[f] + bytes_to_insert,
                                 s->u + s->g2b[f] + bytes_to_remove,
                                 s->b - s->g2b[f] - bytes_to_remove);
@@ -327,16 +362,15 @@ static bool ui_str_replace(ui_str_t* s,
                     }
                 }
                 if (ok) {
-                    swear(ins.g2b != null && s->g2b != null,
-                          "pacify IntelliSense code analysis false negative");
+                    assert(s->g2b != ui_str_g2b_ascii);
                     for (int32_t i = f; i <= f + glyphs_to_insert; i++) {
                         s->g2b[i] = ins.g2b[i - f] + s->g2b[f];
                     }
+                    s->b += bytes_to_insert - bytes_to_remove;
+                    s->g += glyphs_to_insert - glyphs_to_remove;
                     for (int32_t i = f + glyphs_to_insert + 1; i <= s->g; i++) {
                         s->g2b[i] += bytes_to_insert - bytes_to_remove;
                     }
-                    s->b += bytes_to_insert - bytes_to_remove;
-                    s->g += glyphs_to_insert - glyphs_to_remove;
                     s->g2b[s->g] = s->b;
                 }
             }
@@ -344,6 +378,7 @@ static bool ui_str_replace(ui_str_t* s,
         }
     }
     ui_str_shrink(s);
+    ui_str_check(s);
     return ok;
 }
 
@@ -366,14 +401,14 @@ static bool ui_str_replace(ui_str_t* s,
 
 static void ui_str_test_replace(void) { // exhaustive permutations
     // Exhaustive 9,765,625 replace permutations may take
-    // up to 3 minutes of CPU time in release.
+    // up to 5 minutes of CPU time in release.
     // Recommended to be invoked at least once after making any
     // changes to ui_str.replace and around.
     // Menu: Debug / Windows / Show Diagnostic Tools allows to watch
     //       memory pressure for whole 3 minutes making sure code is
     //       not leaking memory profusely.
     const char* gs[] = { // glyphs
-        "", ui_edit_usd, ui_edit_gbp, ui_edit_euro, ui_edit_money_bag
+        ui_str_empty, ui_edit_usd, ui_edit_gbp, ui_edit_euro, ui_edit_money_bag
     };
     const int32_t gb[] = {0, 1, 2, 3, 4}; // number of bytes per codepoint
     enum { n = countof(gs) };
@@ -408,7 +443,7 @@ static void ui_str_test_replace(void) { // exhaustive permutations
         }
         ui_str_t s = {0};
         // reference constructor does not copy to heap:
-        bool ok = ui_str_init_ro(&s, src, -1);
+        bool ok = ui_str_init(&s, (const uint8_t*)src, -1, false);
         swear(ok);
         for (int32_t f = 0; f <= s.g; f++) { // from
             for (int32_t t = f; t <= s.g; t++) { // to
@@ -439,9 +474,9 @@ static void ui_str_test_replace(void) { // exhaustive permutations
                         "e1: \"%s\" e2: \"%s\"",
                         s.b, s.c, s.b, s.u, s.g, f, t, rep, e1, e2);
                     ui_str_t c = {0}; // copy
-                    ok = ui_str_init_heap(&c, src, -1);
+                    ok = ui_str_init(&c, (const uint8_t*)src, -1, true);
                     swear(ok);
-                    ok = ui_str_replace(&c, f, t, rep, -1);
+                    ok = ui_str_replace(&c, f, t, (const uint8_t*)rep, -1);
                     swear(ok);
                     swear(memcmp(c.u, e1, c.b) == 0,
                            "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
@@ -492,7 +527,7 @@ static void ui_str_test(void) {
     ui_str_test_glyph_bytes();
     {
         ui_str_t s = {0};
-        bool ok = ui_str_init_ro(&s, "hello", -1);
+        bool ok = ui_str_init(&s, (const uint8_t*)"hello", -1, false);
         swear(ok);
         swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
         swear(s.g == 5 && s.g2b != null);
@@ -502,13 +537,14 @@ static void ui_str_test(void) {
         ui_str_free(&s);
     }
     const char* currencies = ui_edit_usd  ui_edit_gbp
-                                ui_edit_euro ui_edit_money_bag;
+                             ui_edit_euro ui_edit_money_bag;
+    const uint8_t* money = (const uint8_t*)currencies;
     {
         ui_str_t s = {0};
         const int32_t n = (int32_t)strlen(currencies);
-        bool ok = ui_str_init_heap(&s, currencies, n);
+        bool ok = ui_str_init(&s, money, n, true);
         swear(ok);
-        swear(s.b == n && s.c == s.b && memcmp(s.u, currencies, s.b) == 0);
+        swear(s.b == n && s.c == s.b && memcmp(s.u, money, s.b) == 0);
         swear(s.g == 4 && s.g2b != null);
         const int32_t g2b[] = {0, 1, 3, 6, 10};
         for (int32_t i = 0; i <= s.g; i++) {
@@ -518,9 +554,9 @@ static void ui_str_test(void) {
     }
     {
         ui_str_t s = {0};
-        bool ok = ui_str_init_ro(&s, "hello", -1);
+        bool ok = ui_str_init(&s, (const uint8_t*)"hello", -1, false);
         swear(ok);
-        ok = ui_str_replace(&s, 1, 4, "", 0);
+        ok = ui_str_replace(&s, 1, 4, null, 0);
         swear(ok);
         swear(s.b == 2 && memcmp(s.u, "ho", 2) == 0);
         swear(s.g == 2 && s.g2b[0] == 0 && s.g2b[1] == 1 && s.g2b[2] == 2);
@@ -528,23 +564,25 @@ static void ui_str_test(void) {
     }
     {
         ui_str_t s = {0};
-        bool ok = ui_str_init_ro(&s, "Hello world", -1);
+        bool ok = ui_str_init(&s, (const uint8_t*)"Hello world", -1, false);
         swear(ok);
-        ok = ui_str_replace(&s, 5, 6, " cruel ", -1);
+        ok = ui_str_replace(&s, 5, 6, (const uint8_t*)" cruel ", -1);
         swear(ok);
-        ok = ui_str_replace(&s, 0, 5, "Goodbye", -1);
+        ok = ui_str_replace(&s, 0, 5, (const uint8_t*)"Goodbye", -1);
         swear(ok);
-        ok = ui_str_replace(&s, s.g - 5, s.g, "Universe", -1);
+        ok = ui_str_replace(&s, s.g - 5, s.g, (const uint8_t*)"Universe", -1);
         swear(ok);
         swear(s.g == 22 && s.g2b[0] == 0 && s.g2b[s.g] == s.b);
         for (int32_t i = 1; i < s.g; i++) {
             swear(s.g2b[i] == i); // because every glyph is ASCII
         }
-        swear(memcmp(s.u, "Goodbye cruel Universe", 6) == 0);
+        swear(memcmp(s.u, "Goodbye cruel Universe", 22) == 0);
         ui_str_free(&s);
     }
     #ifdef UI_STR_TEST_REPLACE_ALL_PERMUTATIONS
         ui_str_test_replace();
+    #else
+        (void)(void*)ui_str_test_replace; // mitigate unused warning
     #endif
 }
 
@@ -561,5 +599,5 @@ static void ui_str_test(void) {
 #pragma pop_macro("ui_str_check_from_to")
 #pragma pop_macro("ui_str_check")
 
-// For quick test uncomment:
+// For quick and dirty test uncomment next line:
 // ut_static_init(ui_str) { ui_str.test(); }
