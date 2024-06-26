@@ -68,6 +68,10 @@ typedef struct ui_edit_doc_s {
 typedef struct ui_edit_text_if {
     bool    (*init)(ui_edit_text_t* t, const uint8_t* s, int32_t b, bool heap);
     int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* r);
+    int     (*compare_pg)(ui_edit_pg_t pg1, ui_edit_pg_t pg2);
+    ui_edit_range_t (*all_on_null)(const ui_edit_text_t* t,
+                                   const ui_edit_range_t* r);
+    ui_edit_range_t (*ordered)(ui_edit_range_t r);
     void    (*dispose)(ui_edit_text_t* t);
 } ui_edit_text_if;
 
@@ -126,7 +130,7 @@ typedef struct ui_edit_para_s { // "paragraph"
 
 typedef struct ui_edit_s {
     ui_view_t view;
-    ui_edit_t* doc; // document
+    ui_edit_doc_t* doc; // document
     ui_edit_range_t selection; // "from" selection[0] "to" selection[1]
     ui_point_t caret; // (-1, -1) off
     ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
@@ -156,6 +160,7 @@ typedef struct ui_edit_s {
 } ui_edit_t;
 
 typedef struct ui_edit_if {
+    void (*init)(ui_edit_t* e, ui_edit_doc_t* d);
     void (*set_font)(ui_edit_t* e, ui_fm_t* fm); // see notes below (*)
     void (*move)(ui_edit_t* e, ui_edit_pg_t pg); // move caret clear selection
     // replace selected text. If bytes < 0 text is treated as zero terminated
@@ -221,7 +226,5 @@ extern ui_edit_if ui_edit;
                  input that is too wide. If caller wants to limit vertical space it
                  will need to hook .measure() function of SLE and do the math there.
 */
-
-void ui_edit_init(ui_edit_t* e);
 
 end_c

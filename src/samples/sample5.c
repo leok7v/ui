@@ -18,7 +18,11 @@ static ui_fm_t pf; // proportional font
 static ui_edit_t edit0;
 static ui_edit_t edit1;
 static ui_edit_t edit2;
+static ui_edit_doc_t edit_doc_0;
+static ui_edit_doc_t edit_doc_1;
+static ui_edit_doc_t edit_doc_2;
 static ui_edit_t* edit[] = { &edit0, &edit1, &edit2 };
+static ui_edit_doc_t* doc[] = { &edit_doc_0, &edit_doc_1, &edit_doc_2 };
 
 static int32_t focused(void) {
     // ui_app.focus can point to a button, thus see which edit
@@ -268,7 +272,8 @@ static void opened(void) {
     label.fm = &ui_app.fm.mono;
     ut_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
-        ui_edit_init(edit[i]);
+        ui_edit_doc.init(doc[i]);
+        ui_edit.init(edit[i], doc[i]);
 //      edit[i]->view.padding = (ui_gaps_t){0.5, 0.5, 0.5, 0.5};
         edit[i]->view.max_w = ui.infinity;
         if (i < 2) { edit[i]->view.max_h = ui.infinity; }

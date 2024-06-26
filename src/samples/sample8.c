@@ -428,9 +428,13 @@ static void controls_test(ui_view_t* parent) {
 
 static void edit1_test(ui_view_t* parent) {
     ui_view.disband(parent);
-    static ui_view_t  list     = ui_view(list);
-    static ui_edit_t  edit;
-    ui_edit_init(&edit);
+    static ui_view_t  list = ui_view(list);
+    static ui_edit_t  edit = {0};
+    static ui_edit_doc_t doc = {0};
+    if (doc.text.np == 0) {
+        ui_edit_doc.init(&doc);
+        ui_edit.init(&edit, &doc);
+    }
     ui_view.add(&test,
         ui_view.add(&list,
             &edit.view,

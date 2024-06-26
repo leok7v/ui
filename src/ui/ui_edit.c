@@ -1802,8 +1802,9 @@ static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
     return false;
 }
 
-void ui_edit_init(ui_edit_t* e) {
+static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     memset(e, 0, sizeof(*e));
+    e->doc = d;
     e->view.color_id = ui_color_id_window_text;
     e->view.background_id = ui_color_id_window;
     e->view.fm = &ui_app.fm.regular;
@@ -1837,6 +1838,7 @@ void ui_edit_init(ui_edit_t* e) {
 }
 
 ui_edit_if ui_edit = {
+    .init                 = ui_edit_init,
     .set_font             = ui_edit_set_font,
     .move                 = ui_edit_move,
     .paste                = ui_edit_paste,

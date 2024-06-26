@@ -77,7 +77,7 @@ static ui_edit_range_t ui_edit_range_all_on_null(const ui_edit_text_t* t,
     return r;
 }
 
-static int ui_edit_doc_compare_pg(ui_edit_pg_t pg1, ui_edit_pg_t pg2) {
+static int ui_edit_compare_pg(ui_edit_pg_t pg1, ui_edit_pg_t pg2) {
     int64_t d = (((int64_t)pg1.pn << 32) | pg1.gp) -
                 (((int64_t)pg2.pn << 32) | pg2.gp);
     return d < 0 ? -1 : d > 0 ? 1 : 0;
@@ -86,7 +86,7 @@ static int ui_edit_doc_compare_pg(ui_edit_pg_t pg1, ui_edit_pg_t pg2) {
 static ui_edit_range_t ui_edit_ordered_range(ui_edit_range_t r) {
     uint64_t f = ((uint64_t)r.from.pn << 32) | r.from.gp;
     uint64_t t = ((uint64_t)r.to.pn   << 32) | r.to.gp;
-    if (ui_edit_doc_compare_pg(r.from, r.to) > 0) {
+    if (ui_edit_text.compare_pg(r.from, r.to) > 0) {
         uint64_t swap = t; t = f; f = swap;
         r.from.pn = (int32_t)(f >> 32);
         r.from.gp = (int32_t)(f);
@@ -205,7 +205,7 @@ static void ui_edit_doc_dispose_to_do(ui_edit_to_do_t* to_do) {
 static int32_t ui_edit_text_bytes(const ui_edit_text_t* t,
         const ui_edit_range_t* range) {
     const ui_edit_range_t r =
-        ui_edit_ordered_range(ui_edit_range_all_on_null(t, range));
+        ui_edit_text.ordered(ui_edit_text.all_on_null(t, range));
     ui_edit_check_range_inside_text(t, &r);
     int32_t bytes = 0;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
@@ -231,7 +231,7 @@ static int32_t ui_edit_doc_bytes(const ui_edit_doc_t* d,
 static int32_t ui_edit_doc_utf8bytes(const ui_edit_doc_t* d,
         const ui_edit_range_t* range) {
     const ui_edit_range_t r =
-        ui_edit_ordered_range(ui_edit_range_all_on_null(&d->text, range));
+        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
     int32_t bytes = ui_edit_text.bytes(&d->text, &r);
     // "\n" after each paragraph and 0x00
     return bytes + r.to.pn - r.from.pn + 1;
@@ -240,7 +240,7 @@ static int32_t ui_edit_doc_utf8bytes(const ui_edit_doc_t* d,
 static bool ui_edit_doc_remove(ui_edit_doc_t* d,
         const ui_edit_range_t* range) {
     ui_edit_range_t r =
-        ui_edit_ordered_range(ui_edit_range_all_on_null(&d->text, range));
+        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
     ui_edit_check_range_inside_text(&d->text, &r);
     // first paragraph:
     ui_str_t* p0 = &d->text.ps[r.from.pn];
@@ -388,7 +388,7 @@ static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
         const ui_edit_range_t* range, const ui_edit_text_t* text,
         ui_edit_to_do_t* undo) {
     ui_edit_range_t r =
-        ui_edit_ordered_range(ui_edit_range_all_on_null(&d->text, range));
+        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
     if (ui_edit_debug_dump) {
         traceln("--->");
         traceln("doc:");
@@ -403,7 +403,7 @@ static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
     }
     ui_edit_check_range_inside_text(&d->text, &r);
     ui_edit_notify_before(d, range, text);
-    bool empty_range = ui_edit_doc_compare_pg(r.from, r.to) == 0;
+    bool empty_range = ui_edit_text.compare_pg(r.from, r.to) == 0;
     bool ok = true;
     if (undo != null) {
         ui_edit_doc.copy_text(d, &r, &undo->text);
@@ -501,7 +501,7 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
     ui_edit_check_zeros(t, sizeof(*t));
     memset(t, 0x00, sizeof(*t));
     ui_edit_range_t r =
-        ui_edit_ordered_range(ui_edit_range_all_on_null(&d->text, range));
+        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
     ui_edit_check_range_inside_text(&d->text, &r);
     int32_t np = r.to.pn - r.from.pn + 1;
     bool ok = ui_edit_doc_realloc_ps(&t->ps, 0, np);
@@ -535,7 +535,7 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
 static void ui_edit_doc_copy(const ui_edit_doc_t* d,
         const ui_edit_range_t* range, char* text) {
     ui_edit_range_t r =
-        ui_edit_ordered_range(ui_edit_range_all_on_null(&d->text, range));
+        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
     ui_edit_check_range_inside_text(&d->text, &r);
     char* t = text;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
@@ -1035,9 +1035,12 @@ static void ui_edit_doc_test(void) {
 }
 
 ui_edit_text_if ui_edit_text = {
-    .init    = ui_edit_text_init,
-    .bytes   = ui_edit_text_bytes,
-    .dispose = ui_edit_text_dispose
+    .init        = ui_edit_text_init,
+    .bytes       = ui_edit_text_bytes,
+    .compare_pg  = ui_edit_compare_pg,
+    .all_on_null = ui_edit_range_all_on_null,
+    .ordered     = ui_edit_ordered_range,
+    .dispose     = ui_edit_text_dispose
 };
 
 ui_edit_doc_if ui_edit_doc = {
