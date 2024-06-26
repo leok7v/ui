@@ -111,6 +111,8 @@ typedef struct ui_edit_run_s {
     int32_t bytes;  // number of bytes in this `run`
     int32_t glyphs; // number of glyphs in this `run`
     int32_t pixels; // width in pixels
+    // TODO: remove (introduced to simplify transition to doc)
+    const ui_str_t* str; // temporary pointer to ui_edit_doc. string
 } ui_edit_run_t;
 
 // ui_edit_para_t.initially text will point to readonly memory
@@ -118,19 +120,10 @@ typedef struct ui_edit_run_s {
 // heap and reallocated there.
 
 typedef struct ui_edit_para_s { // "paragraph" view
-    // TODO: remove
     int32_t runs;          // number of runs in this paragraph
     ui_edit_run_t* run;    // [runs] array of pointers (heap)
-    char*   text;          // text[bytes] utf-8 can be r/o or heap allocated:
-    int32_t capacity;      // if capacity != 0 text is copied to the heap
-    int32_t bytes;         // number of bytes in utf-8 text
-    int32_t glyphs;        // number of glyphs in text <= bytes
-    int32_t* g2b;          // [bytes + 1] glyph to uint8_t positions g2b[0] = 0
-    int32_t  g2b_capacity; // number of bytes on heap allocated for g2b[]
-    // TODO: remove ^^^
-    // synchronized to .doc:
-    int32_t runs_1;          // number of runs in this paragraph
-    ui_edit_run_t* run_1;    // [runs] array of pointers (heap)
+    // TODO: remove (introduced to simplify transition to doc)
+    const ui_str_t* str;   // temporary pointer to ui_edit_doc. string
 } ui_edit_para_t;
 
 typedef struct ui_edit_notify_view_s {

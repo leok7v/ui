@@ -252,8 +252,8 @@ static void key_pressed(ui_view_t* unused(view), int64_t key) {
 
 static void edit_enter(ui_edit_t* e) {
     assert(e->sle);
-    if (!ui_app.shift) { // ignore shift ENRER:
-        traceln("text: %.*s", e->para[0].bytes, e->para[0].text);
+    if (!ui_app.shift) { // ignore shift ENTER:
+        traceln("text: %.*s", e->para[0].str->b, e->para[0].str->u);
     }
 }
 
@@ -281,6 +281,8 @@ static void opened(void) {
         ui_edit.fuzz = ui_edit_fuzz;
         ui_edit.next_fuzz = ui_edit_next_fuzz;
         if (i < 2) {
+            // TODO: remove next line, added temporarely:
+            ui_edit_doc.replace(edit[i]->doc, null, null, 0);
             ui_edit_init_with_lorem_ipsum(edit[i]);
         }
     }

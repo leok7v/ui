@@ -14,6 +14,9 @@ typedef struct ut_begin_packed ui_str_s {
 
 typedef struct ui_str_if {
     bool (*init)(ui_str_t* s, const uint8_t* utf8, int32_t bytes, bool heap);
+    int32_t (*utf8bytes)(const uint8_t* utf8, int32_t bytes); // 0 on error
+    int32_t (*glyphs)(const uint8_t* utf8, int32_t bytes); // -1 on error
+    int32_t (*gp_to_bp)(const uint8_t* s, int32_t bytes, int32_t gp); // -1
     int32_t (*bytes)(ui_str_t* s, int32_t from, int32_t to); // glyphs
     bool (*expand)(ui_str_t* s, int32_t capacity); // reallocate
     void (*shrink)(ui_str_t* s); // get rid of extra heap memory

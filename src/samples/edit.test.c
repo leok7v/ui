@@ -147,7 +147,6 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
 }
 
 void ui_edit_init_with_lorem_ipsum(ui_edit_t* e) {
-    fatal_if(e->paragraphs != 0);
     static char text[64 * 1024];
     ui_edit_lorem_ipsum_generator_params_t p = {
         .text = text,

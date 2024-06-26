@@ -6,6 +6,9 @@ static int32_t ui_str_g2b_ascii[1024]; // ui_str_g2b_ascii[i] == i for all "i"
 static int8_t* ui_str_empty = (int8_t*)"";
 
 static bool    ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b, bool heap);
+static int32_t ui_str_utf8_bytes(const uint8_t* u, int32_t b);
+static int32_t ui_str_glyphs(const uint8_t* utf8, int32_t bytes);
+static int32_t ui_str_gp_to_bp(const uint8_t* s, int32_t bytes, int32_t gp);
 static int32_t ui_str_bytes(ui_str_t* s, int32_t f, int32_t t);
 static bool    ui_str_expand(ui_str_t* s, int32_t c);
 static void    ui_str_shrink(ui_str_t* s);
@@ -15,13 +18,16 @@ static void    ui_str_test(void);
 static void    ui_str_free(ui_str_t* s);
 
 ui_str_if ui_str = {
-    .init    = ui_str_init,
-    .bytes   = ui_str_bytes,
-    .expand  = ui_str_expand,
-    .shrink  = ui_str_shrink,
-    .replace = ui_str_replace,
-    .test    = ui_str_test,
-    .free    = ui_str_free
+    .init      = ui_str_init,
+    .utf8bytes = ui_str_utf8_bytes,
+    .glyphs    = ui_str_glyphs,
+    .gp_to_bp  = ui_str_gp_to_bp,
+    .bytes     = ui_str_bytes,
+    .expand    = ui_str_expand,
+    .shrink    = ui_str_shrink,
+    .replace   = ui_str_replace,
+    .test      = ui_str_test,
+    .free      = ui_str_free
 };
 
 #pragma push_macro("ui_str_check")
@@ -46,7 +52,7 @@ ui_str_if ui_str = {
         assert(0 < s->g2b[i] - s->g2b[i - 1] &&                     \
                    s->g2b[i] - s->g2b[i - 1] <= 4);                 \
         assert(s->g2b[i] - s->g2b[i - 1] ==                         \
-            ui_edit_text_glyph_bytes(                               \
+            ui_str_utf8_bytes(                               \
             s->u + s->g2b[i - 1], s->g2b[i] - s->g2b[i - 1]));      \
     }                                                               \
 } while (0)
@@ -91,7 +97,7 @@ ui_str_if ui_str = {
     ui_str_check_empty(u, b);                               \
 } while (0)
 
-static int32_t ui_edit_text_glyph_bytes(const uint8_t* u, int32_t b) {
+static int32_t ui_str_utf8_bytes(const uint8_t* u, int32_t b) {
     swear(b >= 1, "should not be called with bytes < 1");
     // based on:
     // https://stackoverflow.com/questions/66715611/check-for-valid-utf-8-encoding-in-c
@@ -118,6 +124,34 @@ static int32_t ui_edit_text_glyph_bytes(const uint8_t* u, int32_t b) {
         }
     }
     return 0; // invalid utf8 sequence
+}
+
+static int32_t ui_str_glyphs(const uint8_t* utf8, int32_t bytes) {
+    bool ok = true;
+    int32_t i = 0;
+    int32_t k = 1;
+    while (i < bytes && ok) {
+        const int32_t b = ui_str_utf8_bytes(utf8 + i, bytes - i);
+        ok = 0 < b && i + b <= bytes;
+        if (ok) { i += b; k++; }
+    }
+    return ok ? k - 1 : -1;
+}
+
+static int32_t ui_str_gp_to_bp(const uint8_t* utf8, int32_t bytes, int32_t gp) {
+    bool ok = true;
+    int32_t c = 0;
+    int32_t i = 0;
+    if (bytes > 0) {
+        while (c < gp && ok) {
+            assert(i < bytes);
+            const int32_t b = ui_str_utf8_bytes(utf8 + i, bytes - i);
+            ok = 0 < b && i + b <= bytes;
+            if (ok) { i += b; c++; }
+        }
+    }
+    assert(i <= bytes);
+    return ok ? i : -1;
 }
 
 static void ui_str_free(ui_str_t* s) {
@@ -151,10 +185,10 @@ static bool ui_str_init_g2b(ui_str_t* s) {
     int32_t k = 1; // glyph number
     // g2b[k] start postion in uint8_t offset from utf8 text of glyph[k]
     while (i < s->b && ok) {
-        const int32_t bytes = ui_edit_text_glyph_bytes(s->u + i, s->b - i);
-        ok = bytes > 0 && i + bytes <= s->b;
+        const int32_t b = ui_str_utf8_bytes(s->u + i, s->b - i);
+        ok = b > 0 && i + b <= s->b;
         if (ok) {
-            i += bytes;
+            i += b;
             s->g2b[k] = i;
             k++;
         }
@@ -494,7 +528,7 @@ static void ui_str_test_replace(void) { // exhaustive permutations
 static void ui_str_test_glyph_bytes(void) {
     #pragma push_macro("glyph_bytes_test")
     #define glyph_bytes_test(s, b, expectancy) \
-        swear(ui_edit_text_glyph_bytes((const uint8_t*)s, b) == expectancy)
+        swear(ui_str_utf8_bytes((const uint8_t*)s, b) == expectancy)
     // Valid Sequences
     glyph_bytes_test("a", 1, 1);
     glyph_bytes_test(ui_edit_gbp, 2, 2);
