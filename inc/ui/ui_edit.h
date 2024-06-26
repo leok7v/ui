@@ -117,20 +117,31 @@ typedef struct ui_edit_run_s {
 // with .allocated == 0; as text is modified it is copied to
 // heap and reallocated there.
 
-typedef struct ui_edit_para_s { // "paragraph"
+typedef struct ui_edit_para_s { // "paragraph" view
+    // TODO: remove
+    int32_t runs;          // number of runs in this paragraph
+    ui_edit_run_t* run;    // [runs] array of pointers (heap)
     char*   text;          // text[bytes] utf-8 can be r/o or heap allocated:
     int32_t capacity;      // if capacity != 0 text is copied to the heap
     int32_t bytes;         // number of bytes in utf-8 text
     int32_t glyphs;        // number of glyphs in text <= bytes
-    int32_t runs;          // number of runs in this paragraph
-    ui_edit_run_t* run;    // [runs] array of pointers (heap)
     int32_t* g2b;          // [bytes + 1] glyph to uint8_t positions g2b[0] = 0
     int32_t  g2b_capacity; // number of bytes on heap allocated for g2b[]
+    // TODO: remove ^^^
+    // synchronized to .doc:
+    int32_t runs_1;          // number of runs in this paragraph
+    ui_edit_run_t* run_1;    // [runs] array of pointers (heap)
 } ui_edit_para_t;
+
+typedef struct ui_edit_notify_view_s {
+    ui_edit_notify_t notify;
+    ui_edit_t* edit;
+} ui_edit_notify_view_t;
 
 typedef struct ui_edit_s {
     ui_view_t view;
     ui_edit_doc_t* doc; // document
+    ui_edit_notify_view_t listener;
     ui_edit_range_t selection; // "from" selection[0] "to" selection[1]
     ui_point_t caret; // (-1, -1) off
     ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
@@ -155,7 +166,7 @@ typedef struct ui_edit_s {
     uint32_t fuzz_seed;   // fuzzer random32 seed (must start with odd number)
     // paragraphs memory:
     int32_t capacity;     // number of bytes allocated for `para` array below
-    int32_t paragraphs;   // number of lines in the text
+    int32_t paragraphs;   // number of lines aka paragraphs in the text
     ui_edit_para_t* para; // para[paragraphs]
 } ui_edit_t;
 
@@ -189,6 +200,7 @@ typedef struct ui_edit_if {
     // fuzzer test:
     void (*fuzz)(ui_edit_t* e);      // start/stop fuzzing test
     void (*next_fuzz)(ui_edit_t* e); // next fuzz input event(s)
+    void (*dispose)(ui_edit_t* e);
 } ui_edit_if;
 
 extern ui_edit_if ui_edit;

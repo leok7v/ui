@@ -1099,20 +1099,31 @@ typedef struct ui_edit_run_s {
 // with .allocated == 0; as text is modified it is copied to
 // heap and reallocated there.
 
-typedef struct ui_edit_para_s { // "paragraph"
+typedef struct ui_edit_para_s { // "paragraph" view
+    // TODO: remove
+    int32_t runs;          // number of runs in this paragraph
+    ui_edit_run_t* run;    // [runs] array of pointers (heap)
     char*   text;          // text[bytes] utf-8 can be r/o or heap allocated:
     int32_t capacity;      // if capacity != 0 text is copied to the heap
     int32_t bytes;         // number of bytes in utf-8 text
     int32_t glyphs;        // number of glyphs in text <= bytes
-    int32_t runs;          // number of runs in this paragraph
-    ui_edit_run_t* run;    // [runs] array of pointers (heap)
     int32_t* g2b;          // [bytes + 1] glyph to uint8_t positions g2b[0] = 0
     int32_t  g2b_capacity; // number of bytes on heap allocated for g2b[]
+    // TODO: remove ^^^
+    // synchronized to .doc:
+    int32_t runs_1;          // number of runs in this paragraph
+    ui_edit_run_t* run_1;    // [runs] array of pointers (heap)
 } ui_edit_para_t;
+
+typedef struct ui_edit_notify_view_s {
+    ui_edit_notify_t notify;
+    ui_edit_t* edit;
+} ui_edit_notify_view_t;
 
 typedef struct ui_edit_s {
     ui_view_t view;
     ui_edit_doc_t* doc; // document
+    ui_edit_notify_view_t listener;
     ui_edit_range_t selection; // "from" selection[0] "to" selection[1]
     ui_point_t caret; // (-1, -1) off
     ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
@@ -1137,7 +1148,7 @@ typedef struct ui_edit_s {
     uint32_t fuzz_seed;   // fuzzer random32 seed (must start with odd number)
     // paragraphs memory:
     int32_t capacity;     // number of bytes allocated for `para` array below
-    int32_t paragraphs;   // number of lines in the text
+    int32_t paragraphs;   // number of lines aka paragraphs in the text
     ui_edit_para_t* para; // para[paragraphs]
 } ui_edit_t;
 
@@ -1171,6 +1182,7 @@ typedef struct ui_edit_if {
     // fuzzer test:
     void (*fuzz)(ui_edit_t* e);      // start/stop fuzzing test
     void (*next_fuzz)(ui_edit_t* e); // next fuzz input event(s)
+    void (*dispose)(ui_edit_t* e);
 } ui_edit_if;
 
 extern ui_edit_if ui_edit;
@@ -7546,9 +7558,35 @@ static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
     return false;
 }
 
+static void ui_edit_listener(ui_edit_t* e, bool after, const ui_edit_doc_t* d,
+        const ui_edit_range_t* r, const ui_edit_text_t* t) {
+    (void)e; // TODO: remove me
+    (void)d; // TODO: remove me
+    (void)r; // TODO: remove me
+    (void)t; // TODO: remove me
+    traceln("after: %d", after);
+}
+
+static void ui_edit_before(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
+        const ui_edit_range_t* r, const ui_edit_text_t* t) {
+    ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
+    ui_edit_listener(n->edit, false, d, r, t);
+}
+
+static void ui_edit_after(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
+        const ui_edit_range_t* r, const ui_edit_text_t* t) {
+    ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
+    ui_edit_listener(n->edit, false, d, r, t);
+}
+
 static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     memset(e, 0, sizeof(*e));
     e->doc = d;
+    e->listener.edit = e;
+    e->listener.notify.before = ui_edit_before;
+    e->listener.notify.after  = ui_edit_after;
+    static_assertion(offsetof(ui_edit_notify_view_t, notify) == 0);
+    ui_edit_doc.subscribe(d, &e->listener.notify);
     e->view.color_id = ui_color_id_window_text;
     e->view.background_id = ui_color_id_window;
     e->view.fm = &ui_app.fm.regular;
@@ -7568,17 +7606,23 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->view.paint           = ui_edit_paint;
     e->view.measure         = ui_edit_measure;
     e->view.layout          = ui_edit_layout;
-    #ifdef EDIT_USE_TAP
-    e->view.tap             = ui_edit_tap;
-    #else
-    e->view.mouse           = ui_edit_mouse;
-    #endif
     e->view.press           = ui_edit_press;
     e->view.character       = ui_edit_character;
     e->view.set_focus       = ui_edit_set_focus;
     e->view.kill_focus      = ui_edit_kill_focus;
     e->view.key_pressed     = ui_edit_key_pressed;
     e->view.mouse_wheel     = ui_edit_mouse_wheel;
+    #ifdef EDIT_USE_TAP
+        e->view.tap         = ui_edit_tap;
+    #else
+        e->view.mouse       = ui_edit_mouse;
+    #endif
+}
+
+static void ui_edit_dispose(ui_edit_t* e) {
+    ui_edit_doc.unsubscribe(e->doc, &e->listener.notify);
+    traceln("TODO: free runs");
+    memset(e, 0, sizeof(*e));
 }
 
 ui_edit_if ui_edit = {
@@ -7603,7 +7647,8 @@ ui_edit_if ui_edit = {
     .key_delete           = ui_edit_key_delete,
     .key_backspace        = ui_edit_key_backspace,
     .key_enter            = ui_edit_key_enter,
-    .fuzz                 = null
+    .fuzz                 = null,
+    .dispose              = ui_edit_dispose
 };
 // ______________________________ ui_edit_text.c ______________________________
 

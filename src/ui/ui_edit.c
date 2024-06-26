@@ -1802,9 +1802,35 @@ static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
     return false;
 }
 
+static void ui_edit_listener(ui_edit_t* e, bool after, const ui_edit_doc_t* d,
+        const ui_edit_range_t* r, const ui_edit_text_t* t) {
+    (void)e; // TODO: remove me
+    (void)d; // TODO: remove me
+    (void)r; // TODO: remove me
+    (void)t; // TODO: remove me
+    traceln("after: %d", after);
+}
+
+static void ui_edit_before(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
+        const ui_edit_range_t* r, const ui_edit_text_t* t) {
+    ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
+    ui_edit_listener(n->edit, false, d, r, t);
+}
+
+static void ui_edit_after(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
+        const ui_edit_range_t* r, const ui_edit_text_t* t) {
+    ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
+    ui_edit_listener(n->edit, false, d, r, t);
+}
+
 static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     memset(e, 0, sizeof(*e));
     e->doc = d;
+    e->listener.edit = e;
+    e->listener.notify.before = ui_edit_before;
+    e->listener.notify.after  = ui_edit_after;
+    static_assertion(offsetof(ui_edit_notify_view_t, notify) == 0);
+    ui_edit_doc.subscribe(d, &e->listener.notify);
     e->view.color_id = ui_color_id_window_text;
     e->view.background_id = ui_color_id_window;
     e->view.fm = &ui_app.fm.regular;
@@ -1824,17 +1850,23 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->view.paint           = ui_edit_paint;
     e->view.measure         = ui_edit_measure;
     e->view.layout          = ui_edit_layout;
-    #ifdef EDIT_USE_TAP
-    e->view.tap             = ui_edit_tap;
-    #else
-    e->view.mouse           = ui_edit_mouse;
-    #endif
     e->view.press           = ui_edit_press;
     e->view.character       = ui_edit_character;
     e->view.set_focus       = ui_edit_set_focus;
     e->view.kill_focus      = ui_edit_kill_focus;
     e->view.key_pressed     = ui_edit_key_pressed;
     e->view.mouse_wheel     = ui_edit_mouse_wheel;
+    #ifdef EDIT_USE_TAP
+        e->view.tap         = ui_edit_tap;
+    #else
+        e->view.mouse       = ui_edit_mouse;
+    #endif
+}
+
+static void ui_edit_dispose(ui_edit_t* e) {
+    ui_edit_doc.unsubscribe(e->doc, &e->listener.notify);
+    traceln("TODO: free runs");
+    memset(e, 0, sizeof(*e));
 }
 
 ui_edit_if ui_edit = {
@@ -1859,5 +1891,6 @@ ui_edit_if ui_edit = {
     .key_delete           = ui_edit_key_delete,
     .key_backspace        = ui_edit_key_backspace,
     .key_enter            = ui_edit_key_enter,
-    .fuzz                 = null
+    .fuzz                 = null,
+    .dispose              = ui_edit_dispose
 };
