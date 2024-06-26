@@ -7923,9 +7923,14 @@ static bool ui_edit_doc_insert(ui_edit_doc_t* d,
                     const ui_str_t* e = // last string of text
                         &ins->para[ins->paragraphs - 1].str;
                     assert(f != null);
-                    ok = ui_str.init(&para[pn].str, f->u, f->b, true);
-                    if (ok) {
-                        ok = ui_str.replace(&para[pn].str, 0, i->gp, e->u, e->b);
+                    if (f != null) {
+                        ok = ui_str.init(&para[pn].str, f->u, f->b, true);
+                        if (ok) {
+                            ok = ui_str.replace(&para[pn].str, 0, i->gp, e->u, e->b);
+                        }
+                    } else {
+                        assert(false, "should not ever be executed");
+                        ok = ui_str.init(&para[pn].str, e->u, e->b, true);
                     }
                 } else if (i->pn < pn && pn < i->pn + ins->paragraphs - 1) {
                     int32_t ix = pn - i->pn;
@@ -8621,9 +8626,9 @@ static void ui_edit_doc_test(void) {
     #else
         (void)(void*)ui_edit_doc_test_paragraphs; // unused
     #endif
-//  enum { n = 1000 };
+    enum { n = 1000 };
     // use n = 10,000,000 and Diagnostic Tools to watch for memory leaks
-    enum { n = 10 * 1000 };
+//  enum { n = 10 * 1000 * 1000 };
     for (int32_t i = 0; i < n; i++) {
         ui_edit_doc_test_0();
         ui_edit_doc_test_1();
