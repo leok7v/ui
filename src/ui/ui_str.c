@@ -216,7 +216,7 @@ static int32_t ui_str_bytes(ui_str_t* s,
 
 static bool ui_str_move_g2b_to_heap(ui_str_t* s) {
     bool ok = true;
-    if (s->g2b == ui_str_g2b_ascii && s->g > 0) {
+    if (s->g2b == ui_str_g2b_ascii) { // even for s->g == 0
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
         ok = ut_heap.alloc(&s->g2b, bytes) == 0;
         if (ok) { memcpy(s->g2b, ui_str_g2b_ascii, bytes); }
