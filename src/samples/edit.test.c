@@ -166,10 +166,10 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_t* e) {
         p.seed = (int32_t)ut_clock.nanoseconds() | 0x1; // must be odd
     #endif
     ui_edit_lorem_ipsum_generator(p);
-    e->paste(e, test_content, (int32_t)strlen(test_content));
-    e->paste(e, "\n\n", 2);
-    e->paste(e, p.text, (int32_t)strlen(p.text));
-    e->move(e, (ui_edit_pg_t){ .pn = 0, .gp = 0});
+    ui_edit.paste(e, test_content, (int32_t)strlen(test_content));
+    ui_edit.paste(e, "\n\n", 2);
+    ui_edit.paste(e, p.text, (int32_t)strlen(p.text));
+    ui_edit.move(e, (ui_edit_pg_t){ .pn = 0, .gp = 0});
 }
 
 void ui_edit_next_fuzz(ui_edit_t* e) {

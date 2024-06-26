@@ -60,7 +60,7 @@ ui_button_clicked(quit, "&Quit", 9.0f, { ui_app.close(); });
 ui_button_clicked(fuzz, "Fu&zz", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
-        edit[ix]->fuzz(edit[ix]);
+        ui_edit.fuzz(edit[ix]);
         fuzz->pressed = edit[ix]->fuzzer != null;
         focus_back_to_edit();
     }
@@ -88,7 +88,7 @@ ui_toggle_on_off(ww, "Hide &Word Wrap", 9.0f, {
 ui_toggle_on_off(mono, "&Mono", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
-        edit[ix]->set_font(edit[ix], mono->pressed ? &mf : &pf);
+        ui_edit.set_font(edit[ix], mono->pressed ? &mf : &pf);
         focus_back_to_edit();
     } else {
         mono->pressed = !mono->pressed;
@@ -104,8 +104,8 @@ ui_toggle_on_off(sl, "&Single Line", 9.0f, {
         e->sle = sl->pressed;
 //      traceln("edit[%d].multiline: %d", ix, e->multiline);
         if (e->sle) {
-            e->select_all(e);
-            e->paste(e, "Hello World! Single Line Edit", -1);
+            ui_edit.select_all(e);
+            ui_edit.paste(e, "Hello World! Single Line Edit", -1);
         }
         ui_app.request_layout();
         focus_back_to_edit();
@@ -202,10 +202,10 @@ static void open_file(const char* pathname) {
     int64_t bytes = 0;
     if (ut_mem.map_ro(pathname, &file, &bytes) == 0) {
         if (0 < bytes && bytes <= INT64_MAX) {
-            edit[0]->select_all(edit[0]);
-            edit[0]->paste(edit[0], file, (int32_t)bytes);
+            ui_edit.select_all(edit[0]);
+            ui_edit.paste(edit[0], file, (int32_t)bytes);
             ui_edit_pg_t start = { .pn = 0, .gp = 0 };
-            edit[0]->move(edit[0], start);
+            ui_edit.move(edit[0], start);
         }
         ut_mem.unmap(file, bytes);
     } else {
@@ -228,9 +228,9 @@ static void key_pressed(ui_view_t* unused(view), int64_t key) {
         if (ix >= 0) {
             ui_edit_t* e = edit[ix];
             if (ui_app.ctrl && ui_app.shift && e->fuzzer == null) {
-                e->fuzz(e); // start on Ctrl+Shift+F5
+                ui_edit.fuzz(e); // start on Ctrl+Shift+F5
             } else if (e->fuzzer != null) {
-                e->fuzz(e); // stop on F5
+                ui_edit.fuzz(e); // stop on F5
             }
         }
     }
@@ -273,8 +273,8 @@ static void opened(void) {
         edit[i]->view.max_w = ui.infinity;
         if (i < 2) { edit[i]->view.max_h = ui.infinity; }
         edit[i]->view.fm = &pf;
-        edit[i]->fuzz = ui_edit_fuzz;
-        edit[i]->next_fuzz = ui_edit_next_fuzz;
+        ui_edit.fuzz = ui_edit_fuzz;
+        ui_edit.next_fuzz = ui_edit_next_fuzz;
         if (i < 2) {
             ui_edit_init_with_lorem_ipsum(edit[i]);
         }
@@ -290,7 +290,7 @@ static void opened(void) {
 
 //  edit[2]->select_all(edit[2]);
 //  edit[2]->paste(edit[2], "Single line", -1);
-    edit[2]->enter = edit_enter;
+    ui_edit.enter = edit_enter;
     static ui_view_t span    = ui_view(span);
     static ui_view_t spacer1 = ui_view(spacer);
     static ui_view_t spacer2 = ui_view(spacer);

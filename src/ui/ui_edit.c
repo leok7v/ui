@@ -1200,10 +1200,10 @@ static void ui_edit_key_delete(ui_edit_t* e) {
     uint64_t eof = ui_edit_uint64(e->paragraphs, 0);
     if (f == t && t != eof) {
         ui_edit_pg_t s1 = e->selection.a[1];
-        e->key_right(e);
+        ui_edit.key_right(e);
         e->selection.a[1] = s1;
     }
-    e->erase(e);
+    ui_edit.erase(e);
 }
 
 static void ui_edit_key_backspace(ui_edit_t* e) {
@@ -1211,21 +1211,21 @@ static void ui_edit_key_backspace(ui_edit_t* e) {
     uint64_t t = ui_edit_uint64(e->selection.a[1].pn, e->selection.a[1].gp);
     if (t != 0 && f == t) {
         ui_edit_pg_t s1 = e->selection.a[1];
-        e->key_left(e);
+        ui_edit.key_left(e);
         e->selection.a[1] = s1;
     }
-    e->erase(e);
+    ui_edit.erase(e);
 }
 
 static void ui_edit_key_enter(ui_edit_t* e) {
     assert(!e->ro);
     if (!e->sle) {
-        e->erase(e);
+        ui_edit.erase(e);
         e->selection.a[1] = ui_edit_insert_paragraph_break(e, e->selection.a[1]);
         e->selection.a[0] = e->selection.a[1];
         ui_edit_move_caret(e, e->selection.a[1]);
     } else { // single line edit callback
-        if (e->enter != null) { e->enter(e); }
+        if (ui_edit.enter != null) { ui_edit.enter(e); }
     }
 }
 
@@ -1234,32 +1234,32 @@ static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
     ui_edit_t* e = (ui_edit_t*)v;
     if (e->focused) {
         if (key == ui.key.down && e->selection.a[1].pn < e->paragraphs) {
-            e->key_down(e);
+            ui_edit.key_down(e);
         } else if (key == ui.key.up && e->paragraphs > 0) {
-            e->key_up(e);
+            ui_edit.key_up(e);
         } else if (key == ui.key.left) {
-            e->key_left(e);
+            ui_edit.key_left(e);
         } else if (key == ui.key.right) {
-            e->key_right(e);
+            ui_edit.key_right(e);
         } else if (key == ui.key.pageup) {
-            e->key_page_up(e);
+            ui_edit.key_page_up(e);
         } else if (key == ui.key.pagedw) {
-            e->key_page_down(e);
+            ui_edit.key_page_down(e);
         } else if (key == ui.key.home) {
-            e->key_home(e);
+            ui_edit.key_home(e);
         } else if (key == ui.key.end) {
-            e->key_end(e);
+            ui_edit.key_end(e);
         } else if (key == ui.key.del && !e->ro) {
-            e->key_delete(e);
+            ui_edit.key_delete(e);
         } else if (key == ui.key.back && !e->ro) {
-            e->key_backspace(e);
+            ui_edit.key_backspace(e);
         } else if (key == ui.key.enter && !e->ro) {
-            e->key_enter(e);
+            ui_edit.key_enter(e);
         } else {
             // ignore other keys
         }
     }
-    if (e->fuzzer != null) { e->next_fuzz(e); }
+    if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
 }
 
 static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
@@ -1271,22 +1271,22 @@ static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
     if (e->focused) {
         char ch = utf8[0];
         if (ui_app.ctrl) {
-            if (ch == ui_edit_ctl('a')) { e->select_all(e); }
-            if (ch == ui_edit_ctl('c')) { e->copy_to_clipboard(e); }
+            if (ch == ui_edit_ctl('a')) { ui_edit.select_all(e); }
+            if (ch == ui_edit_ctl('c')) { ui_edit.copy_to_clipboard(e); }
             if (!e->ro) {
-                if (ch == ui_edit_ctl('x')) { e->cut_to_clipboard(e); }
-                if (ch == ui_edit_ctl('v')) { e->paste_from_clipboard(e); }
+                if (ch == ui_edit_ctl('x')) { ui_edit.cut_to_clipboard(e); }
+                if (ch == ui_edit_ctl('v')) { ui_edit.paste_from_clipboard(e); }
             }
         }
         if (0x20 <= ch && !e->ro) { // 0x20 space
             int32_t bytes = ui_edit_glyph_bytes(ch);
-            e->erase(e); // remove selected text to be replaced by glyph
+            ui_edit.erase(e); // remove selected text to be replaced by glyph
             e->selection.a[1] = ui_edit_insert_inline(e, e->selection.a[1], utf8, bytes);
             e->selection.a[0] = e->selection.a[1];
             ui_edit_move_caret(e, e->selection.a[1]);
         }
         ui_edit_invalidate(e);
-        if (e->fuzzer != null) { e->next_fuzz(e); }
+        if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
     }
     #pragma pop_macro("ui_edit_ctl")
 }
@@ -1632,7 +1632,7 @@ static ui_edit_pg_t ui_edit_paste_text(ui_edit_t* e,
 static void ui_edit_paste(ui_edit_t* e, const char* s, int32_t n) {
     if (!e->ro) {
         if (n < 0) { n = (int32_t)strlen(s); }
-        e->erase(e);
+        ui_edit.erase(e);
         e->selection.a[1] = ui_edit_paste_text(e, s, n);
         e->selection.a[0] = e->selection.a[1];
         if (e->view.w > 0) { ui_edit_move_caret(e, e->selection.a[1]); }
@@ -1652,7 +1652,7 @@ static void ui_edit_clipboard_paste(ui_edit_t* e) {
                 bytes--; // clipboard includes zero terminator
             }
             if (bytes > 0) {
-                e->erase(e);
+                ui_edit.erase(e);
                 pg = ui_edit_paste_text(e, text, bytes);
                 ui_edit_move_caret(e, pg);
             }
@@ -1834,25 +1834,28 @@ void ui_edit_init(ui_edit_t* e) {
     e->view.kill_focus      = ui_edit_kill_focus;
     e->view.key_pressed     = ui_edit_key_pressed;
     e->view.mouse_wheel     = ui_edit_mouse_wheel;
-    e->set_font             = ui_edit_set_font;
-    e->move                 = ui_edit_move;
-    e->paste                = ui_edit_paste;
-    e->copy                 = ui_edit_copy;
-    e->erase                = ui_edit_erase;
-    e->cut_to_clipboard     = ui_edit_clipboard_cut;
-    e->copy_to_clipboard    = ui_edit_clipboard_copy;
-    e->paste_from_clipboard = ui_edit_clipboard_paste;
-    e->select_all           = ui_edit_select_all;
-    e->key_down             = ui_edit_key_down;
-    e->key_up               = ui_edit_key_up;
-    e->key_left             = ui_edit_key_left;
-    e->key_right            = ui_edit_key_right;
-    e->key_page_up          = ui_edit_key_page_up;
-    e->key_page_down        = ui_edit_key_page_down;
-    e->key_home             = ui_edit_key_home;
-    e->key_end              = ui_edit_key_end;
-    e->key_delete           = ui_edit_key_delete;
-    e->key_backspace        = ui_edit_key_backspace;
-    e->key_enter            = ui_edit_key_enter;
-    e->fuzz                 = null;
 }
+
+ui_edit_if ui_edit = {
+    .set_font             = ui_edit_set_font,
+    .move                 = ui_edit_move,
+    .paste                = ui_edit_paste,
+    .copy                 = ui_edit_copy,
+    .erase                = ui_edit_erase,
+    .cut_to_clipboard     = ui_edit_clipboard_cut,
+    .copy_to_clipboard    = ui_edit_clipboard_copy,
+    .paste_from_clipboard = ui_edit_clipboard_paste,
+    .select_all           = ui_edit_select_all,
+    .key_down             = ui_edit_key_down,
+    .key_up               = ui_edit_key_up,
+    .key_left             = ui_edit_key_left,
+    .key_right            = ui_edit_key_right,
+    .key_page_up          = ui_edit_key_page_up,
+    .key_page_down        = ui_edit_key_page_down,
+    .key_home             = ui_edit_key_home,
+    .key_end              = ui_edit_key_end,
+    .key_delete           = ui_edit_key_delete,
+    .key_backspace        = ui_edit_key_backspace,
+    .key_enter            = ui_edit_key_enter,
+    .fuzz                 = null
+};
