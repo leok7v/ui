@@ -71,8 +71,7 @@ static void ui_button_paint(ui_view_t* v) {
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {
         int32_t r = ut_max(3, v->fm->em.h / 4);
-        if (r % 2 == 0) { r++; }
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r,
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r | 0x1, // odd radius
                             color, ui_colors.transparent);
     }
 //  ui_gdi.pop();

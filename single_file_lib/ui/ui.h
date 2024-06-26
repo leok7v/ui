@@ -4247,8 +4247,7 @@ static void ui_button_paint(ui_view_t* v) {
     if (v->disabled) { color = ui_colors.dkgray1; }
     if (!v->flat) {
         int32_t r = ut_max(3, v->fm->em.h / 4);
-        if (r % 2 == 0) { r++; }
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r,
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r | 0x1, // odd radius
                             color, ui_colors.transparent);
     }
 //  ui_gdi.pop();
@@ -11195,31 +11194,36 @@ ui_theme_if ui_theme = {
 #include "ut/ut.h"
 
 static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
-    ui_color_t c = v->background;
-    if (!ui_theme.is_app_dark()) { c = ui_colors.darken(c, 0.25f); }
+    ui_color_t c = ui_colors.darken(v->background,
+        !ui_theme.is_app_dark() ? 0.125f : 0.5f);
     ui_color_t b = v->pressed ? ui_colors.tone_green : c;
     const int32_t bl = v->fm->baseline;
     const int32_t a = v->fm->ascent;
     const int32_t d = v->fm->descent;
-//  traceln("v->fm baseline: %d ascent: %d descent: %d", bl, a, d);
-    const int32_t w = v->fm->em.w * 3 / 4;
+    const int32_t w = v->fm->em.w;
     int32_t h = a + d;
-    int32_t r = h / 2;
-    if (r % 2 == 0) { r--; }
+    int32_t r = (h / 2) | 0x1; // must be odd
+//  traceln("v->fm baseline: %d ascent: %d descent: %d "
+//          "W x H: %dx%d r: %d", bl, a, d, w, h, r);
     h = r * 2 + 1;
     y += bl - h;
-    int32_t y1 = y + h - r + 1;
-    ui_gdi.circle(x, y1, r, b, b);
-    ui_gdi.circle(x + w - r, y1, r, b, b);
+    int32_t y1 = y + h - r + 2;
+    ui_color_t dim = ui_theme.is_app_dark() ?
+        ui_colors.darken(v->color, 0.5) :
+        ui_colors.lighten(v->color, 0.5);
+    ui_gdi.circle(x, y1, r, dim, b);
+    ui_gdi.circle(x + w - r, y1, r, dim, b);
     ui_gdi.fill(x, y1 - r, w - r + 1, h, b);
+    ui_gdi.line(x, y1 - r, x + w - r + 1, y1 - r, dim);
+    ui_gdi.line(x, y1 + r, x + w - r + 1, y1 + r, dim);
     int32_t x1 = v->pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
     ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
     ui_color_t border = ui_theme.is_app_dark() ?
         ui_colors.darken(fill, 0.0625f) : ui_colors.lighten(fill, 0.0625f);
-    ui_gdi.circle(x1, y1, r, border, fill);
-    return x + w;
+    ui_gdi.circle(x1, y1, r - 2, border, fill);
+    return x + w + 2;
 }
 
 static const char* ui_toggle_on_off_label(ui_view_t* v,
