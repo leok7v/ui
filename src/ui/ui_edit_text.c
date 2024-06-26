@@ -4,78 +4,6 @@
 
 static bool ui_edit_debug_dump;
 
-typedef struct ui_edit_doc_s ui_edit_doc_t;
-
-typedef struct ui_edit_notify_s ui_edit_notify_t;
-
-typedef struct ui_edit_to_do_s ui_edit_to_do_t;
-
-typedef struct ui_edit_text_s {
-    int32_t paragraphs; // number of paragraphs
-    ui_str_t* para;  // para[paragraphs]
-} ui_edit_text_t;
-
-typedef struct ui_edit_notify_s { // called before and after replace()
-    void (*before)(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
-            const ui_edit_range_t* range, const ui_edit_text_t* t);
-    void (*after)(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
-            const ui_edit_range_t* range, const ui_edit_text_t* t);
-} ui_edit_notify_t;
-
-typedef struct ui_edit_observer_s ui_edit_listener_t;
-
-typedef struct ui_edit_observer_s {
-    ui_edit_notify_t* notify;
-    ui_edit_listener_t* prev;
-    ui_edit_listener_t* next;
-} ui_edit_listener_t;
-
-typedef struct ui_edit_to_do_s { // undo/redo action
-    ui_edit_range_t  range;
-    ui_edit_text_t   text;
-    ui_edit_to_do_t* next; // inside undo or redo list
-} ui_edit_to_do_t;
-
-typedef struct ui_edit_doc_s {
-    ui_edit_text_t   text;
-    ui_edit_to_do_t* undo; // undo stack
-    ui_edit_to_do_t* redo; // redo stack
-    ui_edit_listener_t* listeners;
-} ui_edit_doc_t;
-
-typedef struct ui_edit_text_if {
-    bool    (*init)(ui_edit_text_t* t, const uint8_t* s, int32_t b, bool heap);
-    int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* r);
-    void    (*dispose)(ui_edit_text_t* t);
-} ui_edit_text_if;
-
-ui_edit_text_if ui_edit_text;
-
-typedef struct ui_edit_doc_if {
-    bool (*init)(ui_edit_doc_t* d);
-    bool (*replace_text)(ui_edit_doc_t* d, const ui_edit_range_t* r,
-            const ui_edit_text_t* t, ui_edit_to_do_t* undo_or_null);
-    bool (*replace)(ui_edit_doc_t* d, const ui_edit_range_t* r,
-                    const uint8_t* utf8, int32_t bytes);
-    int32_t (*bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
-    bool    (*copy_text)(ui_edit_doc_t* d, const ui_edit_range_t* range,
-                    ui_edit_text_t* text); // retrieves range into string
-    int32_t (*utf8bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
-    // utf8 must be at least ui_edit_doc.utf8bytes()
-    void    (*copy)(ui_edit_doc_t* d, const ui_edit_range_t* range,
-                    char* utf8);
-    // undo() and push reverse into redo stack
-    bool (*undo)(ui_edit_doc_t* d); // false if there is nothing to redo
-    // redo() and push reverse into undo stack
-    bool (*redo)(ui_edit_doc_t* d); // false if there is nothing to undo
-    bool (*subscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
-    void (*unsubscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
-    void (*dispose_to_do)(ui_edit_to_do_t* to_do);
-    void (*dispose)(ui_edit_doc_t* d);
-    void (*test)(void);
-} ui_edit_doc_if;
-
-ui_edit_doc_if ui_edit_doc;
 
 static void ui_edit_pg_dump(const ui_edit_pg_t* pg) {
     traceln("pn:%d gp:%d", pg->pn, pg->gp);
@@ -87,16 +15,16 @@ static void ui_edit_range_dump(const ui_edit_range_t* r) {
 }
 
 static void ui_edit_text_dump(const ui_edit_text_t* t) {
-    for (int32_t i = 0; i < t->paragraphs; i++) {
-        const ui_str_t* p = &t->para[i];
-        traceln("para[%d].%d: %.*s", i, p->b, p->b, p->u);
+    for (int32_t i = 0; i < t->np; i++) {
+        const ui_str_t* p = &t->ps[i];
+        traceln("ps[%d].%d: %.*s", i, p->b, p->b, p->u);
     }
 }
 
 static void ui_edit_doc_dump(const ui_edit_doc_t* d) {
-    for (int32_t i = 0; i < d->text.paragraphs; i++) {
-        const ui_str_t* p = &d->text.para[i];
-        traceln("para[%d].%d: %.*s", i, p->b, p->b, p->u);
+    for (int32_t i = 0; i < d->text.np; i++) {
+        const ui_str_t* p = &d->text.ps[i];
+        traceln("ps[%d].%d: %.*s", i, p->b, p->b, p->u);
     }
     // TODO: undo/redo stacks and listeners
 }
@@ -116,8 +44,8 @@ static void ui_edit_doc_dump(const ui_edit_doc_t* d) {
 } while (0)
 
 #define ui_edit_check_pg_inside_text(t_, pg_)                               \
-    assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->paragraphs &&                \
-           0 <= (pg_)->gp && (pg_)->gp <= (t_)->para[(pg_)->pn].g)
+    assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->np &&                        \
+           0 <= (pg_)->gp && (pg_)->gp <= (t_)->ps[(pg_)->pn].g)
 
 #define ui_edit_check_range_inside_text(t_, r_) do {                        \
     assert((r_)->from.pn <= (r_)->to.pn);                                   \
@@ -140,11 +68,11 @@ static ui_edit_range_t ui_edit_range_all_on_null(const ui_edit_text_t* t,
     if (range != null) {
         r = *range;
     } else {
-        assert(t->paragraphs >= 1);
+        assert(t->np >= 1);
         r.from.pn = 0;
         r.from.gp = 0;
-        r.to.pn = t->paragraphs - 1;
-        r.to.gp = t->para[r.to.pn].g;
+        r.to.pn = t->np - 1;
+        r.to.gp = t->ps[r.to.pn].g;
     }
     return r;
 }
@@ -168,23 +96,22 @@ static ui_edit_range_t ui_edit_ordered_range(ui_edit_range_t r) {
     return r;
 }
 
-static bool ui_edit_doc_realloc_paragraphs(ui_str_t* *para,
-        int32_t old_np, int32_t new_np) {
-    ui_str_t* p = *para;
+static bool ui_edit_doc_realloc_ps(ui_str_t* *ps,
+        int32_t old_np, int32_t new_np) { // reallocate paragraphs
+    ui_str_t* p = *ps;
     for (int32_t i = new_np; i < old_np; i++) { ui_str.free(&p[i]); }
     bool ok = true;
     if (new_np == 0) {
         ut_heap.free(p);
-        *para = null;
+        *ps = null;
     } else {
-        ok = ut_heap.realloc_zero((void**)&p, new_np *
-                                  sizeof(ui_str_t)) == 0;
+        ok = ut_heap.realloc_zero((void**)&p, new_np * sizeof(ui_str_t)) == 0;
         if (ok) {
             for (int32_t i = old_np; i < new_np; i++) {
                 ok = ui_str.init(&p[i], null, 0, false);
                 swear(ok, "because .init(\"\", 0) does NOT allocate memory");
             }
-            *para = p;
+            *ps = p;
         }
     }
     return ok;
@@ -199,10 +126,10 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
     memset(t, 0x00, sizeof(*t));
     if (b < 0) { b = (int32_t)strlen((const char*)s); }
     // if caller is concerned with best performance - it should pass b >= 0
-    int32_t ps = 0; // number of paragraphs
-    int32_t np = ut_max(b / 64, 2); // initial number of allocated paragraphs
-    ui_str_t* para = null;
-    bool ok = ui_edit_doc_realloc_paragraphs(&para, 0, np);
+    int32_t np = 0; // number of paragraphs
+    int32_t n = ut_max(b / 64, 2); // initial number of allocated paragraphs
+    ui_str_t* ps = null; // ps[n]
+    bool ok = ui_edit_doc_realloc_ps(&ps, 0, n);
     if (ok) {
         bool lf = false;
         int32_t i = 0;
@@ -210,66 +137,65 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
             int32_t k = i;
             while (k < b && s[k] != '\n') { k++; }
             lf = k < b && s[k] == '\n';
-            if (ps >= np) {
-                int32_t np1_5 = np * 3 / 2; // np * 1.5
-                assert(np1_5 > np);
-                ok = ui_edit_doc_realloc_paragraphs(&para, np, np1_5);
-                if (ok) { np = np1_5; }
+            if (np >= n) {
+                int32_t n1_5 = n * 3 / 2; // n * 1.5
+                assert(n1_5 > n);
+                ok = ui_edit_doc_realloc_ps(&ps, n, n1_5);
+                if (ok) { n = n1_5; }
             }
             if (ok) {
                 // insider knowledge about ui_str allocation behaviour:
-                assert(para[ps].c == 0 && para[ps].b == 0 &&
-                       para[ps].g2b[0] == 0);
-                ui_str.free(&para[ps]);
+                assert(ps[np].c == 0 && ps[np].b == 0 &&
+                       ps[np].g2b[0] == 0);
+                ui_str.free(&ps[np]);
                 // str.init may allocate str.g2b[] on the heap and may fail
                 const int32_t bytes = k - i; assert(bytes >= 0);
                 const uint8_t* u = bytes == 0 ? null : s + i;
-                ok = ui_str.init(&para[ps], u, bytes, heap && bytes > 0);
-                if (ok) { ps++; }
+                ok = ui_str.init(&ps[np], u, bytes, heap && bytes > 0);
+                if (ok) { np++; }
             }
             i = k + lf;
         }
         if (ok && lf) { // last paragraph ended with line feed
-            if (ps + 1 >= np) {
-                ok = ui_edit_doc_realloc_paragraphs(&para, np, np + 1);
-                if (ok) { np = np + 1; }
+            if (np + 1 >= n) {
+                ok = ui_edit_doc_realloc_ps(&ps, n, n + 1);
+                if (ok) { n = n + 1; }
             }
-            if (ok) { ps++; }
+            if (ok) { np++; }
         }
     }
-    if (ok && ps == 0) { // special case empty string to a single paragraph
+    if (ok && np == 0) { // special case empty string to a single paragraph
         assert(b <= 0 && (b == 0 || s[0] == 0x00));
-        ps = 1; // para[0].str is already initialized as empty str
-        ok = ui_edit_doc_realloc_paragraphs(&para, np, 1);
-        swear(ok, "shrinking para[] above");
+        np = 1; // ps[0] is already initialized as empty str
+        ok = ui_edit_doc_realloc_ps(&ps, n, 1);
+        swear(ok, "shrinking ps[] above");
     }
     if (ok) {
-        assert(ps > 0);
-        t->paragraphs = ps;
-        t->para = para;
-    } else if (para != null) {
-        ok = ui_edit_doc_realloc_paragraphs(&para, np, 0); // free()
+        assert(np > 0);
+        t->np = np;
+        t->ps = ps;
+    } else if (ps != null) {
+        ok = ui_edit_doc_realloc_ps(&ps, n, 0); // free()
         swear(ok);
-        ut_heap.free(para);
-        t->paragraphs = 0;
-        t->para = null;
+        ut_heap.free(ps);
+        t->np = 0;
+        t->ps = null;
     }
     return ok;
 }
 
-
 static void ui_edit_text_dispose(ui_edit_text_t* t) {
-    if (t->paragraphs != 0) {
-        ui_edit_doc_realloc_paragraphs(&t->para, t->paragraphs, 0);
-        assert(t->para == null);
-        t->paragraphs = 0;
+    if (t->np != 0) {
+        ui_edit_doc_realloc_ps(&t->ps, t->np, 0);
+        assert(t->ps == null);
+        t->np = 0;
     } else {
-        assert(t->paragraphs == 0 && t->para == null);
+        assert(t->np == 0 && t->ps == null);
     }
 }
 
 static void ui_edit_doc_dispose_to_do(ui_edit_to_do_t* to_do) {
-    if (to_do->text.paragraphs > 0) {
+    if (to_do->text.np > 0) {
         ui_edit_text_dispose(&to_do->text);
     }
     memset(&to_do->range, 0x00, sizeof(to_do->range));
@@ -283,7 +209,7 @@ static int32_t ui_edit_text_bytes(const ui_edit_text_t* t,
     ui_edit_check_range_inside_text(t, &r);
     int32_t bytes = 0;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
-        const ui_str_t* p = &t->para[pn];
+        const ui_str_t* p = &t->ps[pn];
         if (pn == r.from.pn && pn == r.to.pn) {
             bytes += p->g2b[r.to.gp] - p->g2b[r.from.gp];
         } else if (pn == r.from.pn) {
@@ -317,8 +243,8 @@ static bool ui_edit_doc_remove(ui_edit_doc_t* d,
         ui_edit_ordered_range(ui_edit_range_all_on_null(&d->text, range));
     ui_edit_check_range_inside_text(&d->text, &r);
     // first paragraph:
-    ui_str_t* p0 = &d->text.para[r.from.pn];
-    ui_str_t* p1 = &d->text.para[r.to.pn];
+    ui_str_t* p0 = &d->text.ps[r.from.pn];
+    ui_str_t* p1 = &d->text.ps[r.to.pn];
     bool ok = // move first and last paragraphs to the heap
         ui_str.expand(p0, p0->b + 1) ||
         ui_str.expand(p1, p1->b + 1); // if p0 == p1 this is no-op
@@ -338,26 +264,26 @@ static bool ui_edit_doc_remove(ui_edit_doc_t* d,
             if (p1 != p0) {
                 int32_t deleted = 0;
                 for (int32_t pn = r.from.pn + 1; pn <= r.to.pn; pn++) {
-                    ui_str.free(&d->text.para[pn]);
+                    ui_str.free(&d->text.ps[pn]);
                     deleted++;
                 }
-                ui_str.free(&d->text.para[r.from.pn]);
-                d->text.para[r.from.pn] = merge;
+                ui_str.free(&d->text.ps[r.from.pn]);
+                d->text.ps[r.from.pn] = merge;
                 // remove deleted paragraphs:
-                if (deleted > 0 && d->text.paragraphs - r.to.pn - 1 > 0) {
-                    memcpy(&d->text.para[r.from.pn + 1],
-                           &d->text.para[r.from.pn + 1 + deleted],
-                           (d->text.paragraphs - r.to.pn - 1) *
+                if (deleted > 0 && d->text.np - r.to.pn - 1 > 0) {
+                    memcpy(&d->text.ps[r.from.pn + 1],
+                           &d->text.ps[r.from.pn + 1 + deleted],
+                           (d->text.np - r.to.pn - 1) *
                             sizeof(ui_str_t));
                 }
-                d->text.paragraphs -= deleted;
+                d->text.np -= deleted;
             } else {
                 ok = ui_str.replace(p0, r.from.gp, r.to.gp, null, 0);
             }
         } else if (merge.c > 0 || merge.g > 0) {
             ui_str.free(&merge);
         }
-        assert(d->text.paragraphs >= 1);
+        assert(d->text.np >= 1);
     }
     return ok;
 }
@@ -367,50 +293,50 @@ static bool ui_edit_doc_insert(ui_edit_doc_t* d,
         const ui_edit_text_t* ins) {
     ui_edit_check_pg_inside_text(&d->text, i);
     bool ok = true;
-    int32_t np = d->text.paragraphs + ins->paragraphs - 1;
-    ui_str_t* para = null;
-    ok = ui_edit_doc_realloc_paragraphs(&para, 0, np);
+    int32_t np = d->text.np + ins->np - 1;
+    ui_str_t* ps = null;
+    ok = ui_edit_doc_realloc_ps(&ps, 0, np);
     ui_str_t* f = null; // first string "ins" is merged with
     if (ok) {
-        // para[] will hold pointers to the original strings
-        // from the document and copies of text->para[] strings:
-        for (int32_t pn = 0; pn < np; pn++) { ui_str.free(&para[pn]); }
+        // ps[] will hold pointers to the original strings
+        // from the document and copies of text->ps[] strings:
+        for (int32_t pn = 0; pn < np; pn++) { ui_str.free(&ps[pn]); }
         for (int32_t pn = 0; ok && pn < np; pn++) {
-            ui_str_t* s = &d->text.para[pn];
-            if (pn < i->pn || i->pn + ins->paragraphs <= pn) {
-                para[pn] = *s;
-            } else if (i->pn <= pn && pn < i->pn + ins->paragraphs) {
+            ui_str_t* s = &d->text.ps[pn];
+            if (pn < i->pn || i->pn + ins->np <= pn) {
+                ps[pn] = *s;
+            } else if (i->pn <= pn && pn < i->pn + ins->np) {
                 // insert `ins` into `i` insertion point
                 if (pn == i->pn) {
-                    ok = ui_str.init(&para[pn], s->u, s->b, true);
+                    ok = ui_str.init(&ps[pn], s->u, s->b, true);
                     if (ok) {
                         assert(0 <= i->gp && i->gp <= s->g);
                         // if there is continuation paragraph cut the tail
                         // it will be reinserted below as `f`
-                        const int32_t to = ins->paragraphs > 1 ? s->g : i->gp;
-                        ok = ui_str.replace(&para[pn], i->gp, to,
-                            ins->para[0].u, ins->para[0].b);
+                        const int32_t to = ins->np > 1 ? s->g : i->gp;
+                        ok = ui_str.replace(&ps[pn], i->gp, to,
+                                            ins->ps[0].u, ins->ps[0].b);
                         f = s;
                     }
-                } else if (ins->paragraphs > 1 &&
-                    pn == i->pn + ins->paragraphs - 1) {
+                } else if (ins->np > 1 &&
+                    pn == i->pn + ins->np - 1) {
                     // last string of text
-                    const ui_str_t* e = &ins->para[ins->paragraphs - 1];
+                    const ui_str_t* e = &ins->ps[ins->np - 1];
                     assert(f != null);
                     if (f != null) {
-                        ok = ui_str.init(&para[pn], f->u, f->b, true);
+                        ok = ui_str.init(&ps[pn], f->u, f->b, true);
                         if (ok) {
-                            ok = ui_str.replace(&para[pn], 0, i->gp, e->u, e->b);
+                            ok = ui_str.replace(&ps[pn], 0, i->gp, e->u, e->b);
                         }
                     } else {
                         assert(false, "should not ever be executed");
-                        ok = ui_str.init(&para[pn], e->u, e->b, true);
+                        ok = ui_str.init(&ps[pn], e->u, e->b, true);
                     }
-                } else if (i->pn < pn && pn < i->pn + ins->paragraphs - 1) {
+                } else if (i->pn < pn && pn < i->pn + ins->np - 1) {
                     int32_t ix = pn - i->pn;
-                    assert(0 < ix && ix < ins->paragraphs - 1);
-                    const ui_str_t* p = &ins->para[ix];
-                    ok = ui_str.init(&para[pn], p->u, p->b, true);
+                    assert(0 < ix && ix < ins->np - 1);
+                    const ui_str_t* p = &ins->ps[ix];
+                    ok = ui_str.init(&ps[pn], p->u, p->b, true);
                 } else {
                     assert(false, "should be handled above");
                 }
@@ -418,19 +344,19 @@ static bool ui_edit_doc_insert(ui_edit_doc_t* d,
         }
         if (!ok) { // free allocated strings in partial result
             for (int32_t pn = 0; pn < np; pn++) {
-                if (i->pn < pn && pn < i->pn + ins->paragraphs) {
+                if (i->pn < pn && pn < i->pn + ins->np) {
                     // not all strings in this range actually initialized
-                    if (para[pn].c > 0 || para[pn].g > 0) {
-                        ui_str.free(&para[pn]);
+                    if (ps[pn].c > 0 || ps[pn].g > 0) {
+                        ui_str.free(&ps[pn]);
                     }
                 }
             }
         }
         if (ok) {
             if (f != null) { ui_str.free(f); }
-            ut_heap.free(d->text.para); // free old paragraphs
-            d->text.para = para;
-            d->text.paragraphs = np;
+            ut_heap.free(d->text.ps); // free old paragraphs
+            d->text.ps = ps;
+            d->text.np = np;
         }
     }
     return ok;
@@ -497,8 +423,8 @@ static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
                 if (!ui_edit_doc_remove(d, &r)) {
                     // remove inserted text:
                     ui_edit_range_t inserted = { .from = r.to, .to = r.to };
-                    inserted.to.pn += text->paragraphs - 1;
-                    inserted.to.gp  = text->para[text->paragraphs - 1].g;
+                    inserted.to.pn += text->np - 1;
+                    inserted.to.gp  = text->ps[text->np - 1].g;
                     ui_edit_check_range_inside_text(&d->text, &inserted);
                     (void)ui_edit_doc_remove(d, &inserted);
                 }
@@ -510,12 +436,12 @@ static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
         }
         if (ok && undo != null) {
             undo->range.from  = r.from;
-            undo->range.to.pn = r.from.pn + text->paragraphs - 1;
+            undo->range.to.pn = r.from.pn + text->np - 1;
             if (undo->range.from.pn == undo->range.to.pn) {
                 undo->range.to.gp = undo->range.from.gp +
-                                    text->para[text->paragraphs - 1].g;
+                                    text->ps[text->np - 1].g;
             } else {
-                undo->range.to.gp = text->para[text->paragraphs - 1].g;
+                undo->range.to.gp = text->ps[text->np - 1].g;
             }
             if (ui_edit_debug_dump) {
                 traceln("undo: ");
@@ -578,10 +504,10 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
         ui_edit_ordered_range(ui_edit_range_all_on_null(&d->text, range));
     ui_edit_check_range_inside_text(&d->text, &r);
     int32_t np = r.to.pn - r.from.pn + 1;
-    bool ok = ui_edit_doc_realloc_paragraphs(&t->para, 0, np);
-    if (ok) { t->paragraphs = np; }
+    bool ok = ui_edit_doc_realloc_ps(&t->ps, 0, np);
+    if (ok) { t->np = np; }
     for (int32_t pn = r.from.pn; ok && pn <= r.to.pn; pn++) {
-        const ui_str_t* p = &d->text.para[pn];
+        const ui_str_t* p = &d->text.ps[pn];
         const uint8_t* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -595,8 +521,8 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
         } else {
             bytes = p->b;
         }
-        assert(t->para[pn - r.from.pn].g == 0);
-        ui_str.replace(&t->para[pn - r.from.pn], 0, 0,
+        assert(t->ps[pn - r.from.pn].g == 0);
+        ui_str.replace(&t->ps[pn - r.from.pn], 0, 0,
                           bytes == 0 ? null : u, bytes);
     }
     if (!ok) {
@@ -613,7 +539,7 @@ static void ui_edit_doc_copy(const ui_edit_doc_t* d,
     ui_edit_check_range_inside_text(&d->text, &r);
     char* t = text;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
-        const ui_str_t* p = &d->text.para[pn];
+        const ui_str_t* p = &d->text.ps[pn];
         const uint8_t* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -671,12 +597,12 @@ static bool ui_edit_doc_replace(ui_edit_doc_t* d, const ui_edit_range_t* r,
 static bool ui_edit_text_dup(ui_edit_text_t* d, const ui_edit_text_t* s) {
     ui_edit_check_zeros(d, sizeof(*d));
     memset(d, 0x00, sizeof(*d));
-    bool ok = ui_edit_doc_realloc_paragraphs(&d->para, 0, s->paragraphs);
+    bool ok = ui_edit_doc_realloc_ps(&d->ps, 0, s->np);
     if (ok) {
-        d->paragraphs = s->paragraphs;
-        for (int32_t i = 0; ok && i < s->paragraphs; i++) {
-            const ui_str_t* p = &s->para[i];
-            ok = ui_str.replace(&d->para[i], 0, 0, p->u, p->b);
+        d->np = s->np;
+        for (int32_t i = 0; ok && i < s->np; i++) {
+            const ui_str_t* p = &s->ps[i];
+            ok = ui_str.replace(&d->ps[i], 0, 0, p->u, p->b);
         }
     }
     if (!ok) {
@@ -686,16 +612,15 @@ static bool ui_edit_text_dup(ui_edit_text_t* d, const ui_edit_text_t* s) {
 }
 
 static bool ui_edit_text_equal(ui_edit_text_t* s1, const ui_edit_text_t* s2) {
-    bool equal =  s1->paragraphs != s2->paragraphs;
-    for (int32_t i = 0; equal && i < s1->paragraphs; i++) {
-        const ui_str_t* p1 = &s1->para[i];
-        const ui_str_t* p2 = &s2->para[i];
+    bool equal =  s1->np != s2->np;
+    for (int32_t i = 0; equal && i < s1->np; i++) {
+        const ui_str_t* p1 = &s1->ps[i];
+        const ui_str_t* p2 = &s2->ps[i];
         equal = p1->b == p2->b &&
                 memcmp(p1->u, p2->u, p1->b) == 0;
     }
     return true;
 }
-
 
 static bool ui_edit_doc_do(ui_edit_doc_t* d, ui_edit_to_do_t* to_do,
         ui_edit_to_do_t* *stack) {
@@ -741,29 +666,27 @@ static bool ui_edit_doc_undo(ui_edit_doc_t* d) {
     }
 }
 
-static void ui_edit_doc_test(void);
-
 static bool ui_edit_doc_init(ui_edit_doc_t* d) {
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
     memset(d, 0x00, sizeof(d));
-    ok = ut_heap.alloc_zero((void**)&d->text.para, sizeof(ui_str_t)) == 0;
+    ok = ut_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_str_t)) == 0;
     if (ok) {
-        d->text.paragraphs = 1;
-        ok = ui_str.init(&d->text.para[0], null, 0, false);
+        d->text.np = 1;
+        ok = ui_str.init(&d->text.ps[0], null, 0, false);
     }
     return ok;
 }
 
 static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
-    for (int32_t i = 0; i < d->text.paragraphs; i++) {
-        ui_str.free(&d->text.para[i]);
+    for (int32_t i = 0; i < d->text.np; i++) {
+        ui_str.free(&d->text.ps[i]);
     }
-    if (d->text.para != null) {
-        ut_heap.free(d->text.para);
-        d->text.para = null;
+    if (d->text.ps != null) {
+        ut_heap.free(d->text.ps);
+        d->text.ps = null;
     }
-    d->text.paragraphs  = 0;
+    d->text.np  = 0;
     while (d->undo != null) {
         ui_edit_to_do_t* next = d->undo->next;
         d->undo->next = null;
@@ -823,11 +746,11 @@ static void ui_edit_doc_test_paragraphs(void) {
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, null, 0, false);
             swear(ok);
-            swear(t.para != null && t.paragraphs == 1);
-            swear(t.para[0].u[0] == 0 &&
-                  t.para[0].c == 0);
-            swear(t.para[0].b == 0 &&
-                  t.para[0].g == 0);
+            swear(t.ps != null && t.np == 1);
+            swear(t.ps[0].u[0] == 0 &&
+                  t.ps[0].c == 0);
+            swear(t.ps[0].b == 0 &&
+                  t.ps[0].g == 0);
             ui_edit_text.dispose(&t);
         }
         {   // string without "\n"
@@ -836,11 +759,11 @@ static void ui_edit_doc_test_paragraphs(void) {
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, hello, n, false);
             swear(ok);
-            swear(t.para != null && t.paragraphs == 1);
-            swear(t.para[0].u == hello);
-            swear(t.para[0].c == 0);
-            swear(t.para[0].b == n);
-            swear(t.para[0].g == n);
+            swear(t.ps != null && t.np == 1);
+            swear(t.ps[0].u == hello);
+            swear(t.ps[0].c == 0);
+            swear(t.ps[0].b == n);
+            swear(t.ps[0].g == n);
             ui_edit_text.dispose(&t);
         }
         {   // string with "\n" at the end
@@ -848,15 +771,15 @@ static void ui_edit_doc_test_paragraphs(void) {
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
             swear(ok);
-            swear(t.para != null && t.paragraphs == 2);
-            swear(t.para[0].u == hello);
-            swear(t.para[0].c == 0);
-            swear(t.para[0].b == 5);
-            swear(t.para[0].g == 5);
-            swear(t.para[1].u[0] == 0x00);
-            swear(t.para[0].c == 0);
-            swear(t.para[1].b == 0);
-            swear(t.para[1].g == 0);
+            swear(t.ps != null && t.np == 2);
+            swear(t.ps[0].u == hello);
+            swear(t.ps[0].c == 0);
+            swear(t.ps[0].b == 5);
+            swear(t.ps[0].g == 5);
+            swear(t.ps[1].u[0] == 0x00);
+            swear(t.ps[0].c == 0);
+            swear(t.ps[1].b == 0);
+            swear(t.ps[1].g == 0);
             ui_edit_text.dispose(&t);
         }
         {   // two string separated by "\n"
@@ -865,15 +788,15 @@ static void ui_edit_doc_test_paragraphs(void) {
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
             swear(ok);
-            swear(t.para != null && t.paragraphs == 2);
-            swear(t.para[0].u == hello);
-            swear(t.para[0].c == 0);
-            swear(t.para[0].b == 5);
-            swear(t.para[0].g == 5);
-            swear(t.para[1].u == world);
-            swear(t.para[0].c == 0);
-            swear(t.para[1].b == 5);
-            swear(t.para[1].g == 5);
+            swear(t.ps != null && t.np == 2);
+            swear(t.ps[0].u == hello);
+            swear(t.ps[0].c == 0);
+            swear(t.ps[0].b == 5);
+            swear(t.ps[0].g == 5);
+            swear(t.ps[1].u == world);
+            swear(t.ps[0].c == 0);
+            swear(t.ps[1].b == 5);
+            swear(t.ps[1].g == 5);
             ui_edit_text.dispose(&t);
         }
     }
@@ -930,14 +853,14 @@ static void ui_edit_doc_test_3(void) {
         const int32_t bytes = (int32_t)strlen((const char*)s);
         swear(before + 1 == before_and_after.count_before);
         swear(after  + 1 == before_and_after.count_after);
-        swear(d->text.paragraphs == 1);
+        swear(d->text.np == 1);
         swear(ui_edit_doc.bytes(d, null) == bytes);
         ui_edit_text_t t = {0};
         swear(ui_edit_doc.copy_text(d, null, &t));
-        swear(t.paragraphs == 1);
-        swear(t.para[0].b == bytes);
-        swear(t.para[0].g == bytes);
-        swear(memcmp(t.para[0].u, s, t.para[0].b) == 0);
+        swear(t.np == 1);
+        swear(t.ps[0].b == bytes);
+        swear(t.ps[0].g == bytes);
+        swear(memcmp(t.ps[0].u, s, t.ps[0].b) == 0);
         // with "\n" and 0x00 at the end:
         int32_t utf8bytes = ui_edit_doc.utf8bytes(d, null);
         char* p = null;
@@ -1022,13 +945,13 @@ static void ui_edit_doc_test_2(void) {
         swear(ui_edit_doc.replace(d, null, hello, -1));
         ui_edit_text_t t = {0};
         swear(ui_edit_doc.copy_text(d, null, &t));
-        swear(t.paragraphs == 2);
-        swear(t.para[0].b == 5);
-        swear(t.para[0].g == 5);
-        swear(memcmp(t.para[0].u, "hello", 5) == 0);
-        swear(t.para[1].b == 5);
-        swear(t.para[1].g == 5);
-        swear(memcmp(t.para[1].u, "world", 5) == 0);
+        swear(t.np == 2);
+        swear(t.ps[0].b == 5);
+        swear(t.ps[0].g == 5);
+        swear(memcmp(t.ps[0].u, "hello", 5) == 0);
+        swear(t.ps[1].b == 5);
+        swear(t.ps[1].g == 5);
+        swear(memcmp(t.ps[1].u, "world", 5) == 0);
         ui_edit_text.dispose(&t);
         ui_edit_doc.unsubscribe(d, &notify1);
         ui_edit_doc.unsubscribe(d, &before_and_after.notify);
@@ -1048,14 +971,14 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_range_t r = { .from = {.pn = 0, .gp = 4},
                               .to   = {.pn = 2, .gp = 3} };
         swear(ui_edit_doc_remove(d, &r));
-        swear(d->text.paragraphs == 1);
-        swear(d->text.para[0].b == 9);
-        swear(d->text.para[0].g == 9);
-        swear(memcmp(d->text.para[0].u, "Goodverse", 9) == 0);
+        swear(d->text.np == 1);
+        swear(d->text.ps[0].b == 9);
+        swear(d->text.ps[0].g == 9);
+        swear(memcmp(d->text.ps[0].u, "Goodverse", 9) == 0);
         swear(ui_edit_doc_remove(d, null));
-        swear(d->text.paragraphs == 1);
-        swear(d->text.para[0].b == 0);
-        swear(d->text.para[0].g == 0);
+        swear(d->text.np == 1);
+        swear(d->text.ps[0].b == 0);
+        swear(d->text.ps[0].g == 0);
         ui_edit_doc.dispose(d);
     }
     // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
@@ -1100,9 +1023,9 @@ static void ui_edit_doc_test(void) {
     #else
         (void)(void*)ui_edit_doc_test_paragraphs; // unused
     #endif
-//  enum { n = 1000 };
+    enum { n = 1000 };
     // use n = 10,000,000 and Diagnostic Tools to watch for memory leaks
-    enum { n = 10 * 1000 * 1000 };
+//  enum { n = 10 * 1000 * 1000 };
     for (int32_t i = 0; i < n; i++) {
         ui_edit_doc_test_0();
         ui_edit_doc_test_1();
@@ -1117,10 +1040,9 @@ ui_edit_text_if ui_edit_text = {
     .dispose = ui_edit_text_dispose
 };
 
-
 ui_edit_doc_if ui_edit_doc = {
     .init               = ui_edit_doc_init,
-    .replace_text  = ui_edit_doc_replace_text,
+    .replace_text       = ui_edit_doc_replace_text,
     .replace            = ui_edit_doc_replace,
     .bytes              = ui_edit_doc_bytes,
     .copy_text          = ui_edit_doc_copy_text,

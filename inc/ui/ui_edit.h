@@ -8,6 +8,97 @@ begin_c
 // important ui_edit_t will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
 
+typedef struct ui_str_s ui_str_t;
+
+typedef struct ui_edit_doc_s ui_edit_doc_t;
+
+typedef struct ui_edit_notify_s ui_edit_notify_t;
+
+typedef struct ui_edit_to_do_s ui_edit_to_do_t;
+
+typedef struct ui_edit_pg_s { // page/glyph coordinates
+    // humans used to line:column coordinates in text
+    int32_t pn; // zero based paragraph number ("line number")
+    int32_t gp; // zero based glyph position ("column")
+} ui_edit_pg_t;
+
+typedef struct ui_edit_pr_s { // page/run coordinates
+    int32_t pn; // paragraph number
+    int32_t rn; // run number inside paragraph
+} ui_edit_pr_t;
+
+typedef union ut_begin_packed ui_edit_range_s {
+    struct { ui_edit_pg_t from; ui_edit_pg_t to; };
+    ui_edit_pg_t a[2];
+} ut_end_packed ui_edit_range_t; // "from"[0] "to"[1]
+
+typedef struct ui_edit_text_s {
+    int32_t np;   // number of paragraphs
+    ui_str_t* ps; // ps[np] paragraphs
+} ui_edit_text_t;
+
+typedef struct ui_edit_notify_s { // called before and after replace()
+    void (*before)(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
+            const ui_edit_range_t* range, const ui_edit_text_t* t);
+    void (*after)(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
+            const ui_edit_range_t* range, const ui_edit_text_t* t);
+} ui_edit_notify_t;
+
+typedef struct ui_edit_observer_s ui_edit_listener_t;
+
+typedef struct ui_edit_observer_s {
+    ui_edit_notify_t* notify;
+    ui_edit_listener_t* prev;
+    ui_edit_listener_t* next;
+} ui_edit_listener_t;
+
+typedef struct ui_edit_to_do_s { // undo/redo action
+    ui_edit_range_t  range;
+    ui_edit_text_t   text;
+    ui_edit_to_do_t* next; // inside undo or redo list
+} ui_edit_to_do_t;
+
+typedef struct ui_edit_doc_s {
+    ui_edit_text_t   text;
+    ui_edit_to_do_t* undo; // undo stack
+    ui_edit_to_do_t* redo; // redo stack
+    ui_edit_listener_t* listeners;
+} ui_edit_doc_t;
+
+typedef struct ui_edit_text_if {
+    bool    (*init)(ui_edit_text_t* t, const uint8_t* s, int32_t b, bool heap);
+    int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* r);
+    void    (*dispose)(ui_edit_text_t* t);
+} ui_edit_text_if;
+
+extern ui_edit_text_if ui_edit_text;
+
+typedef struct ui_edit_doc_if {
+    bool    (*init)(ui_edit_doc_t* d);
+    bool    (*replace_text)(ui_edit_doc_t* d, const ui_edit_range_t* r,
+                const ui_edit_text_t* t, ui_edit_to_do_t* undo_or_null);
+    bool    (*replace)(ui_edit_doc_t* d, const ui_edit_range_t* r,
+                const uint8_t* utf8, int32_t bytes);
+    int32_t (*bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
+    bool    (*copy_text)(ui_edit_doc_t* d, const ui_edit_range_t* range,
+                ui_edit_text_t* text); // retrieves range into string
+    int32_t (*utf8bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
+    // utf8 must be at least ui_edit_doc.utf8bytes()
+    void    (*copy)(ui_edit_doc_t* d, const ui_edit_range_t* range,
+                char* utf8);
+    // undo() and push reverse into redo stack
+    bool (*undo)(ui_edit_doc_t* d); // false if there is nothing to redo
+    // redo() and push reverse into undo stack
+    bool (*redo)(ui_edit_doc_t* d); // false if there is nothing to undo
+    bool (*subscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
+    void (*unsubscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
+    void (*dispose_to_do)(ui_edit_to_do_t* to_do);
+    void (*dispose)(ui_edit_doc_t* d);
+    void (*test)(void);
+} ui_edit_doc_if;
+
+extern ui_edit_doc_if ui_edit_doc;
+
 typedef struct ui_edit_s ui_edit_t;
 
 typedef struct ui_edit_run_s {
@@ -32,22 +123,6 @@ typedef struct ui_edit_para_s { // "paragraph"
     int32_t* g2b;          // [bytes + 1] glyph to uint8_t positions g2b[0] = 0
     int32_t  g2b_capacity; // number of bytes on heap allocated for g2b[]
 } ui_edit_para_t;
-
-typedef struct ui_edit_pg_s { // page/glyph coordinates
-    // humans used to line:column coordinates in text
-    int32_t pn; // zero based paragraph number ("line number")
-    int32_t gp; // zero based glyph position ("column")
-} ui_edit_pg_t;
-
-typedef struct ui_edit_pr_s { // page/run coordinates
-    int32_t pn; // paragraph number
-    int32_t rn; // run number inside paragraph
-} ui_edit_pr_t;
-
-typedef union ut_begin_packed ui_edit_range_s {
-    struct { ui_edit_pg_t from; ui_edit_pg_t to; };
-    ui_edit_pg_t a[2];
-} ut_end_packed ui_edit_range_t; // "from"[0] "to"[1]
 
 typedef struct ui_edit_s {
     ui_view_t view;
