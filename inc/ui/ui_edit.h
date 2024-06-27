@@ -169,7 +169,9 @@ typedef struct ui_edit_if {
     void (*move)(ui_edit_t* e, ui_edit_pg_t pg); // move caret clear selection
     // replace selected text. If bytes < 0 text is treated as zero terminated
     void (*paste)(ui_edit_t* e, const char* text, int32_t bytes);
-    errno_t (*copy)(ui_edit_t* e, char* text, int32_t* bytes); // copy whole text
+    // call save(e, null, &bytes) to retrieve number of utf8
+    // bytes required to save whole text including 0x00 terminating bytes
+    errno_t (*save)(ui_edit_t* e, char* text, int32_t* bytes);
     void (*copy_to_clipboard)(ui_edit_t* e); // selected text to clipboard
     void (*cut_to_clipboard)(ui_edit_t* e);  // copy selected text to clipboard and erase it
     // replace selected text with content of clipboard:

@@ -107,7 +107,7 @@ static void vigil_test(void) {
     int32_t en = errno;
     int32_t er = ut_runtime.err();
     errno = 2; // ENOENT
-    ut_runtime.seterr(2); // ERROR_FILE_NOT_FOUND
+    ut_runtime.set_err(2); // ERROR_FILE_NOT_FOUND
     vigil.failed_assertion  = vigil_test_failed_assertion;
     vigil.fatal_termination = vigil_test_fatal_termination;
     int32_t count = vigil_test_fatal_calls_count;
@@ -125,7 +125,7 @@ static void vigil_test(void) {
     // swear() is triggered in both debug and release configurations:
     fatal_if_not(vigil_test_failed_assertion_count == count + 1);
     errno = en;
-    ut_runtime.seterr(er);
+    ut_runtime.set_err(er);
     vigil = vigil_test_saved;
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }

@@ -1269,7 +1269,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
 }
 
 static long ui_app_set_window_long(int32_t index, long value) {
-    ut_runtime.seterr(0);
+    ut_runtime.set_err(0);
     long r = SetWindowLongA(ui_app_window(), index, value); // r previous value
     fatal_if_not_zero(ut_runtime.err());
     return r;
@@ -1663,7 +1663,7 @@ static void ui_app_make_topmost(void) {
 }
 
 static void ui_app_activate(void) {
-    ut_runtime.seterr(0);
+    ut_runtime.set_err(0);
     HWND previous = SetActiveWindow(ui_app_window());
     if (previous == null) { fatal_if_not_zero(ut_runtime.err()); }
 }
@@ -1928,7 +1928,7 @@ static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
     assert(ut_thread.id() == ui_app.tid, "cannot be called from background thread");
-    ut_runtime.seterr(0);
+    ut_runtime.set_err(0);
     w = SetFocus((HWND)w); // w previous focused window
     if (w == null) { fatal_if_not_zero(ut_runtime.err()); }
 }

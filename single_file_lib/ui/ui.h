@@ -1151,7 +1151,9 @@ typedef struct ui_edit_if {
     void (*move)(ui_edit_t* e, ui_edit_pg_t pg); // move caret clear selection
     // replace selected text. If bytes < 0 text is treated as zero terminated
     void (*paste)(ui_edit_t* e, const char* text, int32_t bytes);
-    errno_t (*copy)(ui_edit_t* e, char* text, int32_t* bytes); // copy whole text
+    // call save(e, null, &bytes) to retrieve number of utf8
+    // bytes required to save whole text including 0x00 terminating bytes
+    errno_t (*save)(ui_edit_t* e, char* text, int32_t* bytes);
     void (*copy_to_clipboard)(ui_edit_t* e); // selected text to clipboard
     void (*cut_to_clipboard)(ui_edit_t* e);  // copy selected text to clipboard and erase it
     // replace selected text with content of clipboard:
@@ -3197,7 +3199,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
 }
 
 static long ui_app_set_window_long(int32_t index, long value) {
-    ut_runtime.seterr(0);
+    ut_runtime.set_err(0);
     long r = SetWindowLongA(ui_app_window(), index, value); // r previous value
     fatal_if_not_zero(ut_runtime.err());
     return r;
@@ -3591,7 +3593,7 @@ static void ui_app_make_topmost(void) {
 }
 
 static void ui_app_activate(void) {
-    ut_runtime.seterr(0);
+    ut_runtime.set_err(0);
     HWND previous = SetActiveWindow(ui_app_window());
     if (previous == null) { fatal_if_not_zero(ut_runtime.err()); }
 }
@@ -3856,7 +3858,7 @@ static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
     assert(ut_thread.id() == ui_app.tid, "cannot be called from background thread");
-    ut_runtime.seterr(0);
+    ut_runtime.set_err(0);
     w = SetFocus((HWND)w); // w previous focused window
     if (w == null) { fatal_if_not_zero(ut_runtime.err()); }
 }
@@ -7210,25 +7212,27 @@ static void ui_edit_cut_copy(ui_edit_t* e, bool cut) {
 }
 
 static void ui_edit_select_all(ui_edit_t* e) {
-    e->selection.a[0] = (ui_edit_pg_t ){.pn = 0, .gp = 0};
-    e->selection.a[1] = (ui_edit_pg_t ){.pn = e->paragraphs, .gp = 0};
+    e->selection = ui_edit_text.all_on_null(&e->doc->text, null);
     ui_edit_invalidate(e);
 }
 
-static int32_t ui_edit_copy(ui_edit_t* e, char* text, int32_t* bytes) {
+static int32_t ui_edit_save(ui_edit_t* e, char* text, int32_t* bytes) {
     not_null(bytes);
+    enum {
+        error_insufficient_buffer = 122, // ERROR_INSUFFICIENT_BUFFER
+        error_more_data = 234            // ERROR_MORE_DATA
+    };
     int32_t r = 0;
-    const ui_edit_pg_t from = {.pn = 0, .gp = 0};
-    const ui_edit_pg_t to = {.pn = e->paragraphs, .gp = 0};
-    int32_t n = 0; // bytes between from..to
-    ui_edit_op(e, false, from, to, null, &n);
-    if (text != null) {
-        int32_t m = ut_min(n, *bytes);
-        enum { error_insufficient_buffer = 122 }; //  ERROR_INSUFFICIENT_BUFFER
-        if (m < n) { r = error_insufficient_buffer; }
-        ui_edit_op(e, false, from, to, (uint8_t*)text, &m);
+    const int32_t utf8bytes = ui_edit_doc.utf8bytes(e->doc, null);
+    if (text == null) {
+        *bytes = utf8bytes;
+        r = ut_runtime.error.more_data;
+    } else if (*bytes < utf8bytes) {
+        r = ut_runtime.error.insufficient_buffer;
+    } else {
+        ui_edit_doc.copy(e->doc, null, text);
+        assert(text[utf8bytes - 1] == 0x00);
     }
-    *bytes = n;
     return r;
 }
 
@@ -7536,7 +7540,7 @@ ui_edit_if ui_edit = {
     .set_font             = ui_edit_set_font,
     .move                 = ui_edit_move,
     .paste                = ui_edit_paste,
-    .copy                 = ui_edit_copy,
+    .save                 = ui_edit_save,
     .erase                = ui_edit_erase,
     .cut_to_clipboard     = ui_edit_clipboard_cut,
     .copy_to_clipboard    = ui_edit_clipboard_copy,
