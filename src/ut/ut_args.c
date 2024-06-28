@@ -157,7 +157,12 @@ static void ut_args_parse(const char* s) {
     if (*s == quote) {
         s++;
         while (*s != 0x00 && *s != quote && d < e) { *d++ = *s++; }
-        while (*s != 0x00) { s++; }
+        if (*s == quote) { // // closing quote
+            s++; // skip closing quote
+            *d++ = 0x00;
+        } else {
+            while (*s != 0x00) { s++; }
+        }
     } else {
         while (*s != 0x00 && *s != space && *s != tab && d < e) {
             *d++ = *s++;
