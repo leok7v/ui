@@ -166,6 +166,14 @@ static struct {
     { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
 };
 
+// TODO: add
+// Accent Color BGR: B16300  RGB: 0063B1 light blue
+// [HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
+// "AccentColor"=dword:ffb16300
+// Windows used as accent almost on everything
+// see here: https://github.com/leok7v/ui/discussions/5
+
+
 static ui_color_t ui_colors_get_color(int32_t color_id) {
     // SysGetColor() does not work on Win10
     swear(0 < color_id && color_id < countof(ui_theme_colors));
