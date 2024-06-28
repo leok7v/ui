@@ -460,5 +460,6 @@ static void edit1_test(ui_view_t* parent) {
     edit.view.fm    = &ui_app.fm.H1;
     edit.view.max_w = ui.infinity;
     edit.view.max_h = ui.infinity;
+    ui_app.focus = &edit.view;
 }
 
