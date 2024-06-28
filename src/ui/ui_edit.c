@@ -58,6 +58,7 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const uint8_t* s, int32_t n) {
 
 static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         const int32_t width, bool allow_zero) {
+//  traceln("[%d.%d] width: %d", pn, rn, width);
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pn && pn < dt->np);
     ui_edit_para_t* p = &e->para[pn];
@@ -1640,8 +1641,15 @@ static void ui_edit_insets(ui_edit_t* e) {
         .right  = v->w - insets.right,
         .bottom = v->h - insets.bottom
     };
+    const int32_t width = e->w; // previous width
     e->w = e->inside.right  - e->inside.left;
     e->h = e->inside.bottom - e->inside.top;
+//  traceln(" %d,%d %dx%d width: %d := %d", v->y, v->y, v->w, v->h, width, e->w);
+    if (e->w != width) {
+        // TODO: number of runs remains the same just need to zero them out instead:
+        ui_edit_dispose_runs(e);
+        ui_edit_allocate_runs(e);
+    }
 }
 
 static void ui_edit_measure(ui_view_t* v) { // bottom up
@@ -1655,28 +1663,26 @@ static void ui_edit_measure(ui_view_t* v) { // bottom up
     // and it's hard to edit anything in a smaller area - will result in bad UX
     if (v->w < v->fm->em.w * 4) { v->w = i.left + v->fm->em.w * 4 + i.right; }
     if (v->h < v->fm->height)   { v->h = i.top + v->fm->height + i.bottom; }
-    ui_edit_insets(e);
 //  if (e->sle) {
 //      traceln("%p %10s %dx%d min_h_em: %.1f", v, v->p.text, v->w, v->h, v->min_h_em);
 //  }
-    traceln("%p %10s %dx%d min_h_em: %.1f", v, v->p.text, v->w, v->h, v->min_h_em);
+//  traceln("%p %10s %dx%d min_h_em: %.1f", v, v->p.text, v->w, v->h, v->min_h_em);
 }
 
 static void ui_edit_layout(ui_view_t* v) { // top down
-    traceln(">%d,%d %dx%d", v->y, v->y, v->w, v->h);
+//  traceln(">%d,%d %dx%d", v->y, v->y, v->w, v->h);
     assert(v->type == ui_view_text);
     assert(v->w > 0 && v->h > 0); // could be `if'
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_text_t* dt = &e->doc->text; // document text
+    ui_edit_insets(e);
+    e->visible_runs =  // fully visible runs
+        (e->inside.bottom - e->inside.top) / e->view.fm->height;
+    // number of runs in e->scroll.pn may have changed with e->w change
+    int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
     // glyph position in scroll_pn paragraph:
     const ui_edit_pg_t scroll = v->w == 0 ?
         (ui_edit_pg_t){0, 0} : ui_edit_scroll_pg(e);
-    ui_edit_insets(e);
-    e->visible_runs = (e->inside.bottom - e->inside.top) / e->view.fm->height; // fully visible
-    e->w = e->inside.right  - e->inside.left;
-    e->h = e->inside.bottom - e->inside.top;
-    // number of runs in e->scroll.pn may have changed with e->w change
-    int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
     if (dt->np == 0) {
         e->selection.a[0] = (ui_edit_pg_t){0, 0};
         e->selection.a[1] = e->selection.a[0];
@@ -1705,7 +1711,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
         ui_edit_create_caret(e);
         ui_edit_show_caret(e);
     }
-    traceln("<%d,%d %dx%d", v->y, v->y, v->w, v->h);
+//  traceln("<%d,%d %dx%d", v->y, v->y, v->w, v->h);
 }
 
 static void ui_edit_paint(ui_view_t* v) {
