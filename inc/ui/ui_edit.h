@@ -37,11 +37,28 @@ typedef struct ui_edit_text_s {
     ui_str_t* ps; // ps[np] paragraphs
 } ui_edit_text_t;
 
+typedef struct ui_edit_notify_info_s {
+    bool ok; // false if ui_edit.replace() failed (bad utf8 or no memory)
+    const ui_edit_doc_t*   const d;
+    const ui_edit_range_t* const r; // range to be replaced
+    const ui_edit_range_t* const x; // extended range (replacement)
+    const ui_edit_text_t*  const t; // replacement text
+    // d->text.np number of paragraphs may change after replace
+    // before/after: [pnf..pnt] is inside [0..d->text.np-1]
+    int32_t const pnf; // paragraph number from
+    int32_t const pnt; // paragraph number to. (inclusive)
+    // one can safely assume that ps[pnf] was modified
+    // except empty range replace with empty text (which shouldn't be)
+    // d->text.ps[pnf..pnf + deleted] were deleted
+    // d->text.ps[pnf..pnf + inserted] were inserted
+    int32_t const deleted;  // number of deleted  paragraphs (before: 0)
+    int32_t const inserted; // paragraph inserted paragraphs (before: 0)
+} ui_edit_notify_info_t;
+
 typedef struct ui_edit_notify_s { // called before and after replace()
-    void (*before)(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
-            const ui_edit_range_t* range, const ui_edit_text_t* t);
-    void (*after)(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
-            const ui_edit_range_t* range, const ui_edit_text_t* t);
+    void (*before)(ui_edit_notify_t* notify, const ui_edit_notify_info_t* ni);
+    // after() is called even if replace() failed with ok: false
+    void (*after)(ui_edit_notify_t* notify, const ui_edit_notify_info_t* ni);
 } ui_edit_notify_t;
 
 typedef struct ui_edit_observer_s ui_edit_listener_t;
@@ -65,20 +82,40 @@ typedef struct ui_edit_doc_s {
     ui_edit_listener_t* listeners;
 } ui_edit_doc_t;
 
+typedef struct ui_edit_range_if {
+    int (*compare)(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2);
+    ui_edit_range_t (*all_on_null)(const ui_edit_text_t* t,
+                                   const ui_edit_range_t* r);
+    ui_edit_range_t (*order)(const ui_edit_range_t r);
+    ui_edit_range_t (*ordered)(const ui_edit_text_t* t,
+                               const ui_edit_range_t* r);
+    bool            (*is_valid)(const ui_edit_range_t r);
+    // end() last paragraph, last glyph in text
+    ui_edit_pg_t    (*end)(const ui_edit_text_t* t);
+    uint64_t        (*uint64)(const ui_edit_pg_t pg); // (p << 32 | g)
+    ui_edit_pg_t    (*pg)(uint64_t ui64); // p: (ui64 >> 32) g: (int32_t)ui64
+    bool            (*inside)(const ui_edit_text_t* t,
+                              const ui_edit_range_t r);
+    ui_edit_range_t (*intersect)(const ui_edit_range_t r1,
+                                 const ui_edit_range_t r2);
+    const ui_edit_range_t* const invalid_range; // {{-1,-1},{-1,-1}}
+} ui_edit_range_if;
+
+extern ui_edit_range_if ui_edit_range;
+
 typedef struct ui_edit_text_if {
     bool    (*init)(ui_edit_text_t* t, const uint8_t* s, int32_t b, bool heap);
     int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* r);
-    int     (*compare_pg)(ui_edit_pg_t pg1, ui_edit_pg_t pg2);
-    ui_edit_range_t (*all_on_null)(const ui_edit_text_t* t,
-                                   const ui_edit_range_t* r);
-    ui_edit_range_t (*ordered)(ui_edit_range_t r);
     void    (*dispose)(ui_edit_text_t* t);
 } ui_edit_text_if;
 
 extern ui_edit_text_if ui_edit_text;
 
 typedef struct ui_edit_doc_if {
-    bool    (*init)(ui_edit_doc_t* d);
+    // init(utf8, bytes, heap:false) must have longer lifetime
+    // than document, otherwise use heap: true to copy
+    bool    (*init)(ui_edit_doc_t* d, const uint8_t* utf8_or_null,
+                    int32_t bytes, bool heap);
     bool    (*replace_text)(ui_edit_doc_t* d, const ui_edit_range_t* r,
                 const ui_edit_text_t* t, ui_edit_to_do_t* undo_or_null);
     bool    (*replace)(ui_edit_doc_t* d, const ui_edit_range_t* r,
@@ -111,8 +148,6 @@ typedef struct ui_edit_run_s {
     int32_t bytes;  // number of bytes in this `run`
     int32_t glyphs; // number of glyphs in this `run`
     int32_t pixels; // width in pixels
-    // TODO: remove (introduced to simplify transition to doc)
-    const ui_str_t* str; // temporary pointer to ui_edit_doc. string
 } ui_edit_run_t;
 
 // ui_edit_para_t.initially text will point to readonly memory
@@ -122,13 +157,12 @@ typedef struct ui_edit_run_s {
 typedef struct ui_edit_para_s { // "paragraph" view
     int32_t runs;          // number of runs in this paragraph
     ui_edit_run_t* run;    // [runs] array of pointers (heap)
-    // TODO: remove (introduced to simplify transition to doc)
-    const ui_str_t* str;   // temporary pointer to ui_edit_doc. string
 } ui_edit_para_t;
 
 typedef struct ui_edit_notify_view_s {
     ui_edit_notify_t notify;
-    ui_edit_t* edit;
+    void*            that; // specific for listener
+    uintptr_t        data; // before -> after listener data
 } ui_edit_notify_view_t;
 
 typedef struct ui_edit_s {
@@ -158,9 +192,7 @@ typedef struct ui_edit_s {
     // random32 starts with 1 but client can seed it with (ut_clock.nanoseconds() | 1)
     uint32_t fuzz_seed;   // fuzzer random32 seed (must start with odd number)
     // paragraphs memory:
-    int32_t capacity;     // number of bytes allocated for `para` array below
-    int32_t paragraphs;   // number of lines aka paragraphs in the text
-    ui_edit_para_t* para; // para[paragraphs]
+    ui_edit_para_t* para; // para[e->doc->text.np]
 } ui_edit_t;
 
 typedef struct ui_edit_if {

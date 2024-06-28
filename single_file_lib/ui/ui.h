@@ -1019,11 +1019,28 @@ typedef struct ui_edit_text_s {
     ui_str_t* ps; // ps[np] paragraphs
 } ui_edit_text_t;
 
+typedef struct ui_edit_notify_info_s {
+    bool ok; // false if ui_edit.replace() failed (bad utf8 or no memory)
+    const ui_edit_doc_t*   const d;
+    const ui_edit_range_t* const r; // range to be replaced
+    const ui_edit_range_t* const x; // extended range (replacement)
+    const ui_edit_text_t*  const t; // replacement text
+    // d->text.np number of paragraphs may change after replace
+    // before/after: [pnf..pnt] is inside [0..d->text.np-1]
+    int32_t const pnf; // paragraph number from
+    int32_t const pnt; // paragraph number to. (inclusive)
+    // one can safely assume that ps[pnf] was modified
+    // except empty range replace with empty text (which shouldn't be)
+    // d->text.ps[pnf..pnf + deleted] were deleted
+    // d->text.ps[pnf..pnf + inserted] were inserted
+    int32_t const deleted;  // number of deleted  paragraphs (before: 0)
+    int32_t const inserted; // paragraph inserted paragraphs (before: 0)
+} ui_edit_notify_info_t;
+
 typedef struct ui_edit_notify_s { // called before and after replace()
-    void (*before)(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
-            const ui_edit_range_t* range, const ui_edit_text_t* t);
-    void (*after)(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
-            const ui_edit_range_t* range, const ui_edit_text_t* t);
+    void (*before)(ui_edit_notify_t* notify, const ui_edit_notify_info_t* ni);
+    // after() is called even if replace() failed with ok: false
+    void (*after)(ui_edit_notify_t* notify, const ui_edit_notify_info_t* ni);
 } ui_edit_notify_t;
 
 typedef struct ui_edit_observer_s ui_edit_listener_t;
@@ -1047,20 +1064,40 @@ typedef struct ui_edit_doc_s {
     ui_edit_listener_t* listeners;
 } ui_edit_doc_t;
 
+typedef struct ui_edit_range_if {
+    int (*compare)(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2);
+    ui_edit_range_t (*all_on_null)(const ui_edit_text_t* t,
+                                   const ui_edit_range_t* r);
+    ui_edit_range_t (*order)(const ui_edit_range_t r);
+    ui_edit_range_t (*ordered)(const ui_edit_text_t* t,
+                               const ui_edit_range_t* r);
+    bool            (*is_valid)(const ui_edit_range_t r);
+    // end() last paragraph, last glyph in text
+    ui_edit_pg_t    (*end)(const ui_edit_text_t* t);
+    uint64_t        (*uint64)(const ui_edit_pg_t pg); // (p << 32 | g)
+    ui_edit_pg_t    (*pg)(uint64_t ui64); // p: (ui64 >> 32) g: (int32_t)ui64
+    bool            (*inside)(const ui_edit_text_t* t,
+                              const ui_edit_range_t r);
+    ui_edit_range_t (*intersect)(const ui_edit_range_t r1,
+                                 const ui_edit_range_t r2);
+    const ui_edit_range_t* const invalid_range; // {{-1,-1},{-1,-1}}
+} ui_edit_range_if;
+
+extern ui_edit_range_if ui_edit_range;
+
 typedef struct ui_edit_text_if {
     bool    (*init)(ui_edit_text_t* t, const uint8_t* s, int32_t b, bool heap);
     int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* r);
-    int     (*compare_pg)(ui_edit_pg_t pg1, ui_edit_pg_t pg2);
-    ui_edit_range_t (*all_on_null)(const ui_edit_text_t* t,
-                                   const ui_edit_range_t* r);
-    ui_edit_range_t (*ordered)(ui_edit_range_t r);
     void    (*dispose)(ui_edit_text_t* t);
 } ui_edit_text_if;
 
 extern ui_edit_text_if ui_edit_text;
 
 typedef struct ui_edit_doc_if {
-    bool    (*init)(ui_edit_doc_t* d);
+    // init(utf8, bytes, heap:false) must have longer lifetime
+    // than document, otherwise use heap: true to copy
+    bool    (*init)(ui_edit_doc_t* d, const uint8_t* utf8_or_null,
+                    int32_t bytes, bool heap);
     bool    (*replace_text)(ui_edit_doc_t* d, const ui_edit_range_t* r,
                 const ui_edit_text_t* t, ui_edit_to_do_t* undo_or_null);
     bool    (*replace)(ui_edit_doc_t* d, const ui_edit_range_t* r,
@@ -1093,8 +1130,6 @@ typedef struct ui_edit_run_s {
     int32_t bytes;  // number of bytes in this `run`
     int32_t glyphs; // number of glyphs in this `run`
     int32_t pixels; // width in pixels
-    // TODO: remove (introduced to simplify transition to doc)
-    const ui_str_t* str; // temporary pointer to ui_edit_doc. string
 } ui_edit_run_t;
 
 // ui_edit_para_t.initially text will point to readonly memory
@@ -1104,13 +1139,12 @@ typedef struct ui_edit_run_s {
 typedef struct ui_edit_para_s { // "paragraph" view
     int32_t runs;          // number of runs in this paragraph
     ui_edit_run_t* run;    // [runs] array of pointers (heap)
-    // TODO: remove (introduced to simplify transition to doc)
-    const ui_str_t* str;   // temporary pointer to ui_edit_doc. string
 } ui_edit_para_t;
 
 typedef struct ui_edit_notify_view_s {
     ui_edit_notify_t notify;
-    ui_edit_t* edit;
+    void*            that; // specific for listener
+    uintptr_t        data; // before -> after listener data
 } ui_edit_notify_view_t;
 
 typedef struct ui_edit_s {
@@ -1140,9 +1174,7 @@ typedef struct ui_edit_s {
     // random32 starts with 1 but client can seed it with (ut_clock.nanoseconds() | 1)
     uint32_t fuzz_seed;   // fuzzer random32 seed (must start with odd number)
     // paragraphs memory:
-    int32_t capacity;     // number of bytes allocated for `para` array below
-    int32_t paragraphs;   // number of lines aka paragraphs in the text
-    ui_edit_para_t* para; // para[paragraphs]
+    ui_edit_para_t* para; // para[e->doc->text.np]
 } ui_edit_t;
 
 typedef struct ui_edit_if {
@@ -3472,6 +3504,7 @@ static void ui_app_show_caret(void) {
 }
 
 static void ui_app_move_caret(int32_t x, int32_t y) {
+//  traceln("SetCaretPos(%d, %d)", x, y);
     fatal_if_false(SetCaretPos(x, y));
 }
 
@@ -4757,6 +4790,14 @@ static struct {
     { .name = "WindowText"       ,.dark = 0x00FFFFFF, .light = 0x00000000 },
 };
 
+// TODO: add
+// Accent Color BGR: B16300  RGB: 0063B1 light blue
+// [HKEY_CURRENT_USER\Software\Microsoft\Windows\DWM]
+// "AccentColor"=dword:ffb16300
+// Windows used as accent almost on everything
+// see here: https://github.com/leok7v/ui/discussions/5
+
+
 static ui_color_t ui_colors_get_color(int32_t color_id) {
     // SysGetColor() does not work on Win10
     swear(0 < color_id && color_id < countof(ui_theme_colors));
@@ -5785,11 +5826,6 @@ static void ui_edit_layout(ui_view_t* v);
 // characters. Thus even if edit is monospaced glyph measurements are used
 // in text layout.
 
-static uint64_t ui_edit_uint64(int32_t high, int32_t low) {
-    assert(high >= 0 && low >= 0);
-    return ((uint64_t)high << 32) | (uint64_t)low;
-}
-
 static void ui_edit_invalidate(ui_edit_t* e) {
     ui_view.invalidate(&e->view);
 }
@@ -5816,15 +5852,18 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const uint8_t* s, int32_t n) {
 
 static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         const int32_t width, bool allow_zero) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pn && pn < dt->np);
     ui_edit_para_t* p = &e->para[pn];
+    const ui_str_t* str = &dt->ps[pn];
     int32_t k = 1; // at least 1 glyph
     // offsets inside a run in glyphs and bytes from start of the paragraph:
     int32_t gp = p->run[rn].gp;
     int32_t bp = p->run[rn].bp;
-    if (gp < p->str->g - 1) {
-        const uint8_t* text = p->str->u + bp;
-        const int32_t glyphs_in_this_run = p->str->g - gp;
-        int32_t* g2b = &p->str->g2b[gp];
+    if (gp < str->g - 1) {
+        const uint8_t* text = str->u + bp;
+        const int32_t glyphs_in_this_run = str->g - gp;
+        int32_t* g2b = &str->g2b[gp];
         // 4 is maximum number of bytes in a UTF-8 sequence
         int32_t gc = ut_min(4, glyphs_in_this_run);
         int32_t w = ui_edit_text_width(e, text, g2b[gc] - bp);
@@ -5834,7 +5873,7 @@ static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         }
         if (w < width) {
             k = gc;
-            assert(1 <= k && k <= p->str->g - gp);
+            assert(1 <= k && k <= str->g - gp);
         } else {
             int32_t i = 0;
             int32_t j = gc;
@@ -5847,11 +5886,11 @@ static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
                 if (px < width) { i = k + 1; } else { j = k; }
                 if (!allow_zero && (i + j) / 2 == 0) { break; }
                 k = (i + j) / 2;
-                assert(allow_zero || 1 <= k && k <= p->str->g - gp);
+                assert(allow_zero || 1 <= k && k <= str->g - gp);
             }
         }
     }
-    assert(allow_zero || 1 <= k && k <= p->str->g - gp);
+    assert(allow_zero || 1 <= k && k <= str->g - gp);
     return k;
 }
 
@@ -5861,7 +5900,9 @@ static int32_t ui_edit_word_break(ui_edit_t* e, int32_t pn, int32_t rn) {
 
 static int32_t ui_edit_glyph_at_x(ui_edit_t* e, int32_t pn, int32_t rn,
         int32_t x) {
-    if (x == 0 || e->para[pn].str->b == 0) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pn && pn < dt->np);
+    if (x == 0 || dt->ps[pn].b == 0) {
         return 0;
     } else {
         return ui_edit_word_break_at(e, pn, rn, x + 1, true);
@@ -5869,13 +5910,16 @@ static int32_t ui_edit_glyph_at_x(ui_edit_t* e, int32_t pn, int32_t rn,
 }
 
 static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_t* e, ui_edit_pg_t p) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_glyph_t g = { .s = (const uint8_t*)"", .bytes = 0 };
-    if (p.pn == e->paragraphs) {
+    if (p.pn == dt->np) {
         assert(p.gp == 0); // last empty paragraph
     } else {
-        const int32_t bytes = e->para[p.pn].str->b;
-        const uint8_t* s = e->para[p.pn].str->u;
-        const int32_t bp = e->para[p.pn].str->g2b[p.gp];
+        assert(0 <= p.pn && p.pn < dt->np);
+        const ui_str_t* str = &dt->ps[p.pn];
+        const int32_t bytes = str->b;
+        const uint8_t* s = str->u;
+        const int32_t bp = str->g2b[p.gp];
         if (bp < bytes) {
             g.s = s + bp;
             g.bytes = ui_str.utf8bytes(g.s, bytes - bp);
@@ -5892,8 +5936,10 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
         int32_t* runs) {
 //  fp64_t time = ut_clock.seconds();
     assert(e->view.w > 0);
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pn && pn < dt->np);
     const ui_edit_run_t* r = null;
-    if (pn == e->paragraphs) {
+    if (pn == dt->np) {
         static const ui_edit_run_t eof_run = { 0 };
         *runs = 1;
         r = &eof_run;
@@ -5901,36 +5947,38 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
         *runs = e->para[pn].runs;
         r = e->para[pn].run;
     } else {
-        assert(0 <= pn && pn < e->paragraphs);
+        assert(0 <= pn && pn < dt->np);
         ui_edit_para_t* p = &e->para[pn];
+        const ui_str_t* str = &dt->ps[pn];
         if (p->run == null) {
             assert(p->runs == 0 && p->run == null);
-            const int32_t max_runs = p->str->b + 1;
+            const int32_t max_runs = str->b + 1;
             bool ok = ut_heap.alloc((void**)&p->run, max_runs *
                                     sizeof(ui_edit_run_t)) == 0;
             swear(ok);
             ui_edit_run_t* run = p->run;
             run[0].bp = 0;
             run[0].gp = 0;
-            int32_t gc = p->str->b == 0 ? 0 : ui_edit_word_break(e, pn, 0);
-            if (gc == p->str->g) { // whole paragraph fits into width
+            int32_t gc = str->b == 0 ? 0 : ui_edit_word_break(e, pn, 0);
+//          traceln("[%d] gc: %d str.b: %d str.g: %d", pn, gc, str->b, str->g);
+            if (gc == str->g) { // whole paragraph fits into width
                 p->runs = 1;
-                run[0].bytes  = p->str->b;
-                run[0].glyphs = p->str->g;
-                int32_t pixels = ui_edit_text_width(e, p->str->u, p->str->g2b[gc]);
+                run[0].bytes  = str->b;
+                run[0].glyphs = str->g;
+                int32_t pixels = ui_edit_text_width(e, str->u, str->g2b[gc]);
                 run[0].pixels = pixels;
             } else {
-                assert(gc < p->str->g);
+                assert(gc < str->g);
                 int32_t rc = 0; // runs count
                 int32_t ix = 0; // glyph index from to start of paragraph
-                const uint8_t* text = p->str->u;
-                int32_t bytes = p->str->b;
+                const uint8_t* text = str->u;
+                int32_t bytes = str->b;
                 while (bytes > 0) {
                     assert(rc < max_runs);
-                    run[rc].bp = (int32_t)(text - p->str->u);
+                    run[rc].bp = (int32_t)(text - str->u);
                     run[rc].gp = ix;
                     int32_t glyphs = ui_edit_word_break(e, pn, rc);
-                    int32_t utf8bytes = p->str->g2b[ix + glyphs] - run[rc].bp;
+                    int32_t utf8bytes = str->g2b[ix + glyphs] - run[rc].bp;
                     int32_t pixels = ui_edit_text_width(e, text, utf8bytes);
                     if (glyphs > 1 && utf8bytes < bytes && text[utf8bytes - 1] != 0x20) {
                         // try to find word break SPACE character. utf8 space is 0x20
@@ -5969,24 +6017,28 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
 
 static int32_t ui_edit_paragraph_run_count(ui_edit_t* e, int32_t pn) {
     swear(e->view.w > 0);
+    ui_edit_text_t* dt = &e->doc->text; // document text
     int32_t runs = 0;
-    if (e->view.w > 0 && 0 <= pn && pn < e->paragraphs) {
+    if (e->view.w > 0 && 0 <= pn && pn < dt->np) {
         (void)ui_edit_paragraph_runs(e, pn, &runs);
     }
     return runs;
 }
 
 static int32_t ui_edit_glyphs_in_paragraph(ui_edit_t* e, int32_t pn) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pn && pn < dt->np);
     (void)ui_edit_paragraph_run_count(e, pn); // word break into runs
-    return e->para[pn].str->g;
+    return dt->ps[pn].g;
 }
 
 static void ui_edit_create_caret(ui_edit_t* e) {
     fatal_if(e->focused);
     assert(ui_app.is_active());
     assert(ui_app.has_focus());
-    int32_t caret_width = ut_min(2, ut_max(1, ui_app.dpi.monitor_effective / 100));
-//  traceln("%d,%d", caret_width, e->view.fm->height);
+    fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
+    int32_t caret_width = ut_min(3, ut_max(1, (int32_t)px));
+//  traceln("%d,%d px: %.3f", caret_width, e->view.fm->height, px);
     ui_app.create_caret(caret_width, e->view.fm->height);
     e->focused = true; // means caret was created
 }
@@ -6002,7 +6054,11 @@ static void ui_edit_show_caret(ui_edit_t* e) {
     if (e->focused) {
         assert(ui_app.is_active());
         assert(ui_app.has_focus());
-        ui_app.move_caret(e->view.x + e->caret.x, e->view.y + e->caret.y);
+        assert((e->caret.x < 0) == (e->caret.y < 0));
+        const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->view.insets);
+        int32_t x = e->caret.x < 0 ? insets.left : e->caret.x;
+        int32_t y = e->caret.y < 0 ? insets.top  : e->caret.y;
+        ui_app.move_caret(e->view.x + x, e->view.y + y);
         // TODO: it is possible to support unblinking caret if desired
         // do not set blink time - use global default
 //      fatal_if_false(SetCaretBlinkTime(500));
@@ -6022,10 +6078,33 @@ static void ui_edit_hide_caret(ui_edit_t* e) {
     }
 }
 
-static void ui_edit_dispose_paragraphs_layout(ui_edit_t* e) {
+static void ui_edit_allocate_runs(ui_edit_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    traceln("e->para[%d]", dt->np);
+    assert(e->para == null);
+    assert(dt->np > 0);
+    assert(e->para == null);
+    bool done = ut_heap.alloc_zero((void**)&e->para,
+                dt->np * sizeof(e->para[0])) == 0;
+    swear(done);
+    traceln("e->para[%d]", dt->np);
+}
+
+static void ui_edit_dispose_runs(ui_edit_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    traceln("e->para[%d] := null", dt->np);
+    assert(e->para != null);
+    for (int32_t i = 0; i < dt->np; i++) {
+        if (e->para[i].run != null) {
+            assert(e->para[i].runs > 0);
+            ut_heap.free(e->para[i].run);
+            e->para[i].run = null;
+        } else {
+            assert(e->para[i].runs == 0);
+        }
+    }
     ut_heap.free(e->para);
     e->para = null;
-    e->paragraphs = 0;
 }
 
 static void ui_edit_layout_now(ui_edit_t* e) {
@@ -6044,7 +6123,7 @@ static void ui_edit_if_sle_layout(ui_edit_t* e) {
 }
 
 static void ui_edit_set_font(ui_edit_t* e, ui_fm_t* f) {
-    ui_edit_dispose_paragraphs_layout(e);
+    ui_edit_dispose_runs(e);
     e->scroll.rn = 0;
     e->view.fm = f;
     ui_edit_layout_now(e);
@@ -6054,18 +6133,21 @@ static void ui_edit_set_font(ui_edit_t* e, ui_fm_t* f) {
 // Paragraph number, glyph number -> run number
 
 static ui_edit_pr_t ui_edit_pg_to_pr(ui_edit_t* e, const ui_edit_pg_t pg) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pg.pn && pg.pn < dt->np);
+    const ui_str_t* str = &dt->ps[pg.pn];
     ui_edit_pr_t pr = { .pn = pg.pn, .rn = -1 };
-    if (pg.pn == e->paragraphs || e->para[pg.pn].str->b == 0) { // last or empty
+    if (pg.pn == dt->np || str->b == 0) { // last or empty
         assert(pg.gp == 0);
         pr.rn = 0;
     } else {
-        assert(0 <= pg.pn && pg.pn < e->paragraphs);
+        assert(0 <= pg.pn && pg.pn < dt->np);
         int32_t runs = 0;
         const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pg.pn, &runs);
-        if (pg.gp == e->para[pg.pn].str->g + 1) {
+        if (pg.gp == str->g + 1) {
             pr.rn = runs - 1; // TODO: past last glyph ??? is this correct?
         } else {
-            assert(0 <= pg.gp && pg.gp <= e->para[pg.pn].str->g);
+            assert(0 <= pg.gp && pg.gp <= str->g);
             for (int32_t j = 0; j < runs && pr.rn < 0; j++) {
                 const int32_t last_run = j == runs - 1;
                 const int32_t start = run[j].gp;
@@ -6082,7 +6164,7 @@ static ui_edit_pr_t ui_edit_pg_to_pr(ui_edit_t* e, const ui_edit_pg_t pg) {
 
 static int32_t ui_edit_runs_between(ui_edit_t* e, const ui_edit_pg_t pg0,
         const ui_edit_pg_t pg1) {
-    assert(ui_edit_uint64(pg0.pn, pg0.gp) <= ui_edit_uint64(pg1.pn, pg1.gp));
+    assert(ui_edit_range.uint64(pg0) <= ui_edit_range.uint64(pg1));
     int32_t rn0 = ui_edit_pg_to_pr(e, pg0).rn;
     int32_t rn1 = ui_edit_pg_to_pr(e, pg1).rn;
     int32_t rc = 0;
@@ -6119,8 +6201,11 @@ static int32_t ui_edit_first_visible_run(ui_edit_t* e, int32_t pn) {
 // ui_edit::pg_to_xy() paragraph # glyph # -> (x,y) in [0,0  width x height]
 
 static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_point_t pt = { .x = -1, .y = 0 };
-    for (int32_t i = e->scroll.pn; i < e->paragraphs && pt.x < 0; i++) {
+    for (int32_t i = e->scroll.pn; i < dt->np && pt.x < 0; i++) {
+        assert(0 <= i && i < dt->np);
+        const ui_str_t* str = &dt->ps[i];
         int32_t runs = 0;
         const ui_edit_run_t* run = ui_edit_paragraph_runs(e, i, &runs);
         for (int32_t j = ui_edit_first_visible_run(e, i); j < runs; j++) {
@@ -6129,9 +6214,9 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
             if (i == pg.pn) {
                 // in the last `run` of a paragraph x after last glyph is OK
                 if (run[j].gp <= pg.gp && pg.gp < run[j].gp + gc + last_run) {
-                    const uint8_t* s = e->para[i].str->u + run[j].bp;
-                    int32_t ofs = ui_str.gp_to_bp(s,
-                            run[j].bytes - run[j].bp, pg.gp - run[j].gp);
+                    const uint8_t* s = str->u + run[j].bp;
+                    const uint32_t bp2e = str->b - run[j].bp; // to end of str
+                    int32_t ofs = ui_str.gp_to_bp(s, bp2e, pg.gp - run[j].gp);
                     swear(ofs >= 0);
                     pt.x = ui_edit_text_width(e, s, ofs);
                     break;
@@ -6140,7 +6225,7 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
             pt.y += e->view.fm->height;
         }
     }
-    if (pg.pn == e->paragraphs) { pt.x = e->inside.left; }
+    if (pg.pn == dt->np) { pt.x = e->inside.left; }
     if (0 <= pt.x && pt.x < e->w && 0 <= pt.y && pt.y < e->h) {
         // all good, inside visible rectangle or right after it
     } else {
@@ -6150,15 +6235,18 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
 }
 
 static int32_t ui_edit_glyph_width_px(ui_edit_t* e, const ui_edit_pg_t pg) {
-    const uint8_t* text = e->para[pg.pn].str->u;
-    int32_t gc = e->para[pg.pn].str->g;
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pg.pn && pg.pn < dt->np);
+    const ui_str_t* str = &dt->ps[pg.pn];
+    const uint8_t* text = str->u;
+    int32_t gc = str->g;
     if (pg.gp == 0 &&  gc == 0) {
         return 0; // empty paragraph
     } else if (pg.gp < gc) {
-        const int32_t bp = ui_str.gp_to_bp(text, e->para[pg.pn].str->b, pg.gp);
+        const int32_t bp = ui_str.gp_to_bp(text, str->b, pg.gp);
         swear(bp >= 0);
         const uint8_t* s = text + bp;
-        int32_t bytes_in_glyph = ui_str.utf8bytes(s, e->para[pg.pn].str->b - bp);
+        int32_t bytes_in_glyph = ui_str.utf8bytes(s, str->b - bp);
         swear(bytes_in_glyph > 0);
         int32_t x = ui_edit_text_width(e, s, bytes_in_glyph);
         return x;
@@ -6171,14 +6259,17 @@ static int32_t ui_edit_glyph_width_px(ui_edit_t* e, const ui_edit_pg_t pg) {
 // xy_to_pg() (x,y) (0,0, width x height) -> paragraph # glyph #
 
 static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t pg = {-1, -1};
     int32_t py = 0; // paragraph `y' coordinate
-    for (int32_t i = e->scroll.pn; i < e->paragraphs && pg.pn < 0; i++) {
+    for (int32_t i = e->scroll.pn; i < dt->np && pg.pn < 0; i++) {
+        assert(0 <= i && i < dt->np);
+        const ui_str_t* str = &dt->ps[i];
         int32_t runs = 0;
         const ui_edit_run_t* run = ui_edit_paragraph_runs(e, i, &runs);
         for (int32_t j = ui_edit_first_visible_run(e, i); j < runs && pg.pn < 0; j++) {
             const ui_edit_run_t* r = &run[j];
-            const uint8_t* s = e->para[i].str->u + run[j].bp;
+            const uint8_t* s = str->u + run[j].bp;
             if (py <= y && y < py + e->view.fm->height) {
                 int32_t w = ui_edit_text_width(e, s, r->bytes);
                 pg.pn = i;
@@ -6203,7 +6294,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
         if (py > e->view.h) { break; }
     }
     if (pg.pn < 0 && pg.gp < 0) {
-        pg.pn = e->paragraphs;
+        pg.pn = dt->np;
         pg.gp = 0;
     }
     return pg;
@@ -6211,15 +6302,17 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
 
 static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t* r,
         const uint8_t* text, int32_t pn, int32_t c0, int32_t c1) {
-    uint64_t s0 = ui_edit_uint64(e->selection.a[0].pn, e->selection.a[0].gp);
-    uint64_t e0 = ui_edit_uint64(e->selection.a[1].pn, e->selection.a[1].gp);
+    uint64_t s0 = ui_edit_range.uint64(e->selection.a[0]);
+    uint64_t e0 = ui_edit_range.uint64(e->selection.a[1]);
     if (s0 > e0) {
         uint64_t swap = e0;
         e0 = s0;
         s0 = swap;
     }
-    uint64_t s1 = ui_edit_uint64(pn, c0);
-    uint64_t e1 = ui_edit_uint64(pn, c1);
+    const ui_edit_pg_t pnc0 = {.pn = pn, .gp = c0};
+    const ui_edit_pg_t pnc1 = {.pn = pn, .gp = c1};
+    uint64_t s1 = ui_edit_range.uint64(pnc0);
+    uint64_t e1 = ui_edit_range.uint64(pnc1);
     if (s0 <= e1 && s1 <= e0) {
         uint64_t start = ut_max(s0, s1) - (uint64_t)c0;
         uint64_t end = ut_min(e0, e1) - (uint64_t)c0;
@@ -6247,11 +6340,14 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
 
 static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
         const ui_gdi_ta_t* ta, int32_t x, int32_t y, int32_t pn) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pn && pn < dt->np);
+    const ui_str_t* str = &dt->ps[pn];
     int32_t runs = 0;
     const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
     for (int32_t j = ui_edit_first_visible_run(e, pn);
                  j < runs && y < e->view.y + e->inside.bottom; j++) {
-        const uint8_t* text = e->para[pn].str->u + run[j].bp;
+        const uint8_t* text = str->u + run[j].bp;
         ui_edit_paint_selection(e, y, &run[j], text, pn,
                                 run[j].gp, run[j].gp + run[j].glyphs);
         ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
@@ -6279,18 +6375,19 @@ static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
 // scroll position increments moves down (south)
 
 static void ui_edit_scroll_up(ui_edit_t* e, int32_t run_count) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 < run_count, "does it make sense to have 0 scroll?");
-    const ui_edit_pg_t eof = {.pn = e->paragraphs, .gp = 0};
-    while (run_count > 0 && e->scroll.pn < e->paragraphs) {
+    const ui_edit_pg_t end = ui_edit_range.end(dt);
+    while (run_count > 0 && e->scroll.pn < dt->np) {
         ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
-        int32_t between = ui_edit_runs_between(e, scroll, eof);
+        int32_t between = ui_edit_runs_between(e, scroll, end);
         if (between <= e->visible_runs - 1) {
             run_count = 0; // enough
         } else {
             int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
             if (e->scroll.rn < runs - 1) {
                 e->scroll.rn++;
-            } else if (e->scroll.pn < e->paragraphs) {
+            } else if (e->scroll.pn < dt->np) {
                 e->scroll.pn++;
                 e->scroll.rn = 0;
             }
@@ -6325,33 +6422,35 @@ static void ui_edit_scroll_down(ui_edit_t* e, int32_t run_count) {
 }
 
 static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
-    if (e->paragraphs > 0 && e->inside.bottom > 0) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pg.pn && pg.pn < dt->np);
+    if (dt->np > 0 && e->inside.bottom > 0) {
         if (e->sle) { assert(pg.pn == 0); }
         const int32_t rn = ui_edit_pg_to_pr(e, pg).rn;
-        const uint64_t scroll = ui_edit_uint64(e->scroll.pn, e->scroll.rn);
-        const uint64_t caret  = ui_edit_uint64(pg.pn, rn);
+        const uint64_t scroll = (uint64_t)e->scroll.pn << 32 | e->scroll.rn;
+        const uint64_t caret  = (uint64_t)pg.pn << 32 | rn;
         uint64_t last = 0;
         int32_t py = 0;
         const int32_t pn = e->scroll.pn;
         const int32_t bottom = e->inside.bottom;
-        for (int32_t i = pn; i < e->paragraphs && py < bottom; i++) {
+        for (int32_t i = pn; i < dt->np && py < bottom; i++) {
             int32_t runs = ui_edit_paragraph_run_count(e, i);
             const int32_t fvr = ui_edit_first_visible_run(e, i);
             for (int32_t j = fvr; j < runs && py < bottom; j++) {
-                last = ui_edit_uint64(i, j);
+                last = (uint64_t)i << 32 | j;
                 py += e->view.fm->height;
             }
         }
         int32_t sle_runs = e->sle && e->view.w > 0 ?
             ui_edit_paragraph_run_count(e, 0) : 0;
-        assert(e->paragraphs > 0);
-        ui_edit_pg_t last_paragraph = {.pn = e->paragraphs - 1,
-            .gp = e->para[e->paragraphs - 1].str->g };
-        ui_edit_pr_t lp = ui_edit_pg_to_pr(e, last_paragraph);
-        uint64_t eof = ui_edit_uint64(e->paragraphs - 1, lp.rn);
+        assert(dt->np > 0);
+        ui_edit_pg_t end = ui_edit_range.end(dt);
+        ui_edit_pr_t lp = ui_edit_pg_to_pr(e, end);
+// TODO: ???
+        uint64_t eof = (uint64_t)(dt->np - 1) << 32 | lp.rn;
         if (last == eof && py <= bottom - e->view.fm->height) {
             // vertical white space for EOF on the screen
-            last = ui_edit_uint64(e->paragraphs, 0);
+            last = (uint64_t)dt->np << 32 | 0;
         }
         if (scroll <= caret && caret < last) {
             // no scroll
@@ -6379,11 +6478,13 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
 }
 
 static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pg.pn && pg.pn < dt->np);
     // single line edit control cannot move caret past fist paragraph
-    if (e->paragraphs == 0) {
+    if (dt->np == 0) {
         ui_edit_set_caret(e, e->inside.left, e->inside.top);
     } else {
-        if (!e->sle || pg.pn < e->paragraphs) {
+        if (!e->sle || pg.pn < dt->np) {
             ui_edit_scroll_into_view(e, pg);
             ui_point_t pt = e->view.w > 0 ? // width == 0 means no measure/layout yet
                 ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
@@ -6436,19 +6537,19 @@ static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
     uint8_t* a = text; // append
     int32_t ab = 0; // appended bytes
     int32_t limit = bytes != null ? *bytes : 0; // max byes in text
-    uint64_t f = ui_edit_uint64(from.pn, from.gp);
-    uint64_t t = ui_edit_uint64(to.pn, to.gp);
+    uint64_t f = ui_edit_range.uint64(from.pn, from.gp);
+    uint64_t t = ui_edit_range.uint64(to.pn, to.gp);
     if (f != t) {
-        ui_edit_dispose_paragraphs_layout(e);
+        ui_edit_dispose_paragraphs(e);
         if (f > t) { uint64_t swap = t; t = f; f = swap; }
         int32_t pn0 = (int32_t)(f >> 32);
         int32_t gp0 = (int32_t)(f);
         int32_t pn1 = (int32_t)(t >> 32);
         int32_t gp1 = (int32_t)(t);
-        assert(e->paragraphs > 0);
-        if (pn1 == e->paragraphs && e->paragraphs > 0) { // last empty paragraph
+        assert(dt->np > 0);
+        if (pn1 == dt->np && dt->np > 0) { // last empty paragraph
             assert(gp1 == 0);
-            pn1 = e->paragraphs - 1;
+            pn1 = dt->np - 1;
             gp1 = ui_edit_g2b(e->para[pn1].text, e->para[pn1].bytes, null);
         }
         const int32_t bytes0 = e->para[pn0].bytes;
@@ -6495,7 +6596,7 @@ static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
         }
         int32_t deleted = cut ? pn1 - pn0 : 0;
         if (deleted > 0) {
-            assert(pn0 + deleted < e->paragraphs);
+            assert(pn0 + deleted < dt->np);
             for (int32_t i = pn0 + 1; i <= pn0 + deleted; i++) {
                 if (e->para[i].capacity > 0) {
                     ui_edit_free((void**)&e->para[i].text);
@@ -6508,18 +6609,18 @@ static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
                     ui_edit_free((void**)&e->para[i].run);
                 }
             }
-            for (int32_t i = pn0 + 1; i < e->paragraphs - deleted; i++) {
+            for (int32_t i = pn0 + 1; i < dt->np - deleted; i++) {
                 e->para[i] = e->para[i + deleted];
             }
-            for (int32_t i = e->paragraphs - deleted; i < e->paragraphs; i++) {
+            for (int32_t i = dt->np - deleted; i < dt->np; i++) {
                 memset(&e->para[i], 0, sizeof(e->para[i]));
             }
         }
-        if (t == ui_edit_uint64(e->paragraphs, 0)) {
+        if (t == ui_edit_range.uint64(dt->np, 0)) {
             ui_edit_clip_append(a, ab, limit, "\n", 1);
         }
         if (a != null) { assert(a == text + limit); }
-        e->paragraphs -= deleted;
+        dt->np -= deleted;
         from.pn = pn0;
         from.gp = gp0;
         // traceln("from: %d.%d", from.pn, from.gp);
@@ -6553,14 +6654,15 @@ static void ui_edit_insert_paragraph(ui_edit_t* e, int32_t pn) {
     (void)e; // TODO: remove
     (void)pn; // TODO: remove
 #if 0
-    ui_edit_dispose_paragraphs_layout(e);
-    if (e->paragraphs + 1 > e->capacity / (int32_t)sizeof(ui_edit_para_t)) {
-        int32_t n = (e->paragraphs + 1) * 3 / 2; // 1.5 times
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    ui_edit_dispose_paragraphs(e);
+    if (dt->np + 1 > e->capacity / (int32_t)sizeof(ui_edit_para_t)) {
+        int32_t n = (dt->np + 1) * 3 / 2; // 1.5 times
         ui_edit_reallocate((void**)&e->para, n, sizeof(ui_edit_para_t));
         e->capacity = n * (int32_t)sizeof(ui_edit_para_t);
     }
-    e->paragraphs++;
-    for (int32_t i = e->paragraphs - 1; i > pn; i--) {
+    dt->np++;
+    for (int32_t i = dt->np - 1; i > pn; i--) {
         e->para[i] = e->para[i - 1];
     }
     ui_edit_para_t* p = &e->para[pn];
@@ -6627,13 +6729,14 @@ static void ui_edit_key_left(ui_edit_t* e) {
 }
 
 static void ui_edit_key_right(ui_edit_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t to = e->selection.a[1];
-    if (to.pn < e->paragraphs) {
+    if (to.pn < dt->np) {
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, to.pn);
         if (to.gp < glyphs) {
             to.gp++;
             ui_edit_scroll_into_view(e, to);
-        } else if (!e->sle) {
+        } else if (!e->sle && to.pn < dt->np - 1) {
             to.pn++;
             to.gp = 0;
             ui_edit_scroll_into_view(e, to);
@@ -6660,12 +6763,13 @@ static void ui_edit_reuse_last_x(ui_edit_t* e, ui_point_t* pt) {
 }
 
 static void ui_edit_key_up(ui_edit_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     const ui_edit_pg_t pg = e->selection.a[1];
     ui_edit_pg_t to = pg;
-    if (to.pn == e->paragraphs) {
+    if (to.pn == dt->np) {
         assert(to.gp == 0); // positioned past EOF
         to.pn--;
-        to.gp = e->para[to.pn].str->g;
+        to.gp = dt->ps[to.pn].g;
         ui_edit_scroll_into_view(e, to);
         ui_point_t pt = ui_edit_pg_to_xy(e, to);
         pt.x = 0;
@@ -6695,6 +6799,7 @@ static void ui_edit_key_up(ui_edit_t* e) {
 }
 
 static void ui_edit_key_down(ui_edit_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     const ui_edit_pg_t pg = e->selection.a[1];
     ui_point_t pt = ui_edit_pg_to_xy(e, pg);
     ui_edit_reuse_last_x(e, &pt);
@@ -6708,7 +6813,7 @@ static void ui_edit_key_down(ui_edit_t* e) {
     }
     ui_edit_pg_t to = ui_edit_xy_to_pg(e, pt.x, pt.y);
     if (to.pn < 0 && to.gp < 0) {
-        to.pn = e->paragraphs; // advance past EOF
+        to.pn = dt->np; // advance past EOF
         to.gp = 0;
     }
     ui_edit_move_caret(e, to);
@@ -6749,9 +6854,10 @@ static void ui_edit_key_home(ui_edit_t* e) {
 }
 
 static void ui_edit_key_end(ui_edit_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     if (ui_app.ctrl) {
         int32_t py = e->inside.bottom;
-        for (int32_t i = e->paragraphs - 1; i >= 0 && py >= e->view.fm->height; i--) {
+        for (int32_t i = dt->np - 1; i >= 0 && py >= e->view.fm->height; i--) {
             int32_t runs = ui_edit_paragraph_run_count(e, i);
             for (int32_t j = runs - 1; j >= 0 && py >= e->view.fm->height; j--) {
                 py -= e->view.fm->height;
@@ -6761,25 +6867,24 @@ static void ui_edit_key_end(ui_edit_t* e) {
                 }
             }
         }
-        e->selection.a[1].pn = e->paragraphs;
-        e->selection.a[1].gp = 0;
-    } else if (e->selection.a[1].pn == e->paragraphs) {
-        assert(e->selection.a[1].gp == 0);
+        e->selection.a[1] = ui_edit_range.end(dt);
     } else {
         int32_t pn = e->selection.a[1].pn;
         int32_t gp = e->selection.a[1].gp;
+        assert(0 <= pn && pn < dt->np);
+        const ui_str_t* str = &dt->ps[pn];
         int32_t runs = 0;
         const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
         int32_t rn = ui_edit_pg_to_pr(e, e->selection.a[1]).rn;
         assert(0 <= rn && rn < runs);
         if (rn == runs - 1) {
-            e->selection.a[1].gp = e->para[pn].str->g;
-        } else if (e->selection.a[1].gp == e->para[pn].str->g) {
+            e->selection.a[1].gp = str->g;
+        } else if (e->selection.a[1].gp == str->g) {
             // at the end of paragraph do nothing (or move caret to EOF?)
-        } else if (e->para[pn].str->g > 0 && gp != run[rn].glyphs - 1) {
+        } else if (str->g > 0 && gp != run[rn].glyphs - 1) {
             e->selection.a[1].gp = run[rn].gp + run[rn].glyphs - 1;
         } else {
-            e->selection.a[1].gp = e->para[pn].str->g;
+            e->selection.a[1].gp = str->g;
         }
     }
     if (!ui_app.shift) {
@@ -6807,10 +6912,11 @@ static void ui_edit_key_page_up(ui_edit_t* e) {
 }
 
 static void ui_edit_key_page_down(ui_edit_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     int32_t n = ut_max(1, e->visible_runs - 1);
     ui_edit_pg_t scr = ui_edit_scroll_pg(e);
-    ui_edit_pg_t eof = {.pn = e->paragraphs, .gp = 0};
-    int32_t m = ui_edit_runs_between(e, scr, eof);
+    ui_edit_pg_t end = ui_edit_range.end(dt);
+    int32_t m = ui_edit_runs_between(e, scr, end);
     if (m > n) {
         ui_point_t pt = ui_edit_pg_to_xy(e, e->selection.a[1]);
         ui_edit_pr_t scroll = e->scroll;
@@ -6820,15 +6926,16 @@ static void ui_edit_key_page_down(ui_edit_t* e) {
             ui_edit_move_caret(e, pg);
         }
     } else {
-        ui_edit_move_caret(e, eof);
+        ui_edit_move_caret(e, end);
     }
 }
 
 static void ui_edit_key_delete(ui_edit_t* e) {
-    uint64_t f = ui_edit_uint64(e->selection.a[0].pn, e->selection.a[0].gp);
-    uint64_t t = ui_edit_uint64(e->selection.a[1].pn, e->selection.a[1].gp);
-    uint64_t eof = ui_edit_uint64(e->paragraphs, 0);
-    if (f == t && t != eof) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    uint64_t f = ui_edit_range.uint64(e->selection.a[0]);
+    uint64_t t = ui_edit_range.uint64(e->selection.a[1]);
+    uint64_t end = ui_edit_range.uint64(ui_edit_range.end(dt));
+    if (f == t && t != end) {
         ui_edit_pg_t s1 = e->selection.a[1];
         ui_edit.key_right(e);
         e->selection.a[1] = s1;
@@ -6837,8 +6944,8 @@ static void ui_edit_key_delete(ui_edit_t* e) {
 }
 
 static void ui_edit_key_backspace(ui_edit_t* e) {
-    uint64_t f = ui_edit_uint64(e->selection.a[0].pn, e->selection.a[0].gp);
-    uint64_t t = ui_edit_uint64(e->selection.a[1].pn, e->selection.a[1].gp);
+    uint64_t f = ui_edit_range.uint64(e->selection.a[0]);
+    uint64_t t = ui_edit_range.uint64(e->selection.a[1]);
     if (t != 0 && f == t) {
         ui_edit_pg_t s1 = e->selection.a[1];
         ui_edit.key_left(e);
@@ -6862,10 +6969,11 @@ static void ui_edit_key_enter(ui_edit_t* e) {
 static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
+    ui_edit_text_t* dt = &e->doc->text; // document text
     if (e->focused) {
-        if (key == ui.key.down && e->selection.a[1].pn < e->paragraphs) {
+        if (key == ui.key.down && e->selection.a[1].pn < dt->np) {
             ui_edit.key_down(e);
-        } else if (key == ui.key.up && e->paragraphs > 0) {
+        } else if (key == ui.key.up && dt->np > 0) {
             ui_edit.key_up(e);
         } else if (key == ui.key.left) {
             ui_edit.key_left(e);
@@ -6929,12 +7037,13 @@ static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
 }
 
 static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        if (p.pn >= e->paragraphs) { p.pn = ut_max(0, e->paragraphs - 1); }
+        if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
-        if (p.pn == e->paragraphs || glyphs == 0) {
+        if (p.pn == dt->np || glyphs == 0) {
             // last paragraph is empty - nothing to select on fp64_t click
         } else {
             ui_edit_glyph_t glyph = ui_edit_glyph_at(e, p);
@@ -6974,12 +7083,13 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
 }
 
 static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        if (p.pn > e->paragraphs) { p.pn = ut_max(0, e->paragraphs); }
+        if (p.pn > dt->np) { p.pn = ut_max(0, dt->np); }
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
-        if (p.pn == e->paragraphs || glyphs == 0) {
+        if (p.pn == dt->np || glyphs == 0) {
             // last paragraph is empty - nothing to select on fp64_t click
         } else if (p.pn == e->selection.a[0].pn &&
                 ((e->selection.a[0].gp <= p.gp && p.gp <= e->selection.a[1].gp) ||
@@ -6994,25 +7104,28 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
 }
 
 static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
-    if (e->paragraphs == 0) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    traceln("select paragraph needs more state management pre double click");
+    if (dt->np == 0) {
         // do nothing
     } else if (e->selection.a[0].pn == e->selection.a[1].pn &&
         e->selection.a[0].gp == e->selection.a[1].gp) {
         ui_edit_select_word(e, x, y);
     } else {
         if (e->selection.a[0].pn == e->selection.a[1].pn &&
-               e->selection.a[0].pn <= e->paragraphs) {
+               e->selection.a[0].pn <= dt->np) {
             ui_edit_select_paragraph(e, x, y);
         }
     }
 }
 
 static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        assert(e->paragraphs > 0);
-        if (p.pn >= e->paragraphs) { p.pn = ut_max(0, e->paragraphs - 1); }
-        int32_t glyphs = e->paragraphs == 0 ? 0 : ui_edit_glyphs_in_paragraph(e, p.pn);
+        assert(dt->np > 0);
+        if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
+        int32_t glyphs = dt->np == 0 ? 0 : ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         ui_edit_move_caret(e, p);
     }
@@ -7174,7 +7287,7 @@ static void ui_edit_kill_focus(ui_view_t* v) {
 }
 
 static void ui_edit_erase(ui_edit_t* e) {
-    ui_edit_range_t r = ui_edit_text.ordered(e->selection);
+    ui_edit_range_t r = ui_edit_range.order(e->selection);
     if (ui_edit_doc.replace(e->doc, &r, null, 0)) {
         e->selection = r;
         e->selection.to = e->selection.from;
@@ -7190,7 +7303,7 @@ static void ui_edit_cut_copy(ui_edit_t* e, bool cut) {
     ui_edit_op(e, false, from, to, null, &n);
     if (n > 0) {
         uint8_t* text = null;
-        bool ok = ut_heap.alloc((void**)&text, n + 1);
+        bool ok = ut_heap.alloc((void**)&text, n + 1) == 0;
         swear(ok);
         ui_edit_pg_t pg = ui_edit_op(e, cut, from, to, text, &n);
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
@@ -7212,7 +7325,7 @@ static void ui_edit_cut_copy(ui_edit_t* e, bool cut) {
 }
 
 static void ui_edit_select_all(ui_edit_t* e) {
-    e->selection = ui_edit_text.all_on_null(&e->doc->text, null);
+    e->selection = ui_edit_range.all_on_null(&e->doc->text, null);
     ui_edit_invalidate(e);
 }
 
@@ -7245,28 +7358,20 @@ static void ui_edit_clipboard_copy(ui_edit_t* e) {
 }
 
 static ui_edit_pg_t ui_edit_paste_text(ui_edit_t* e,
-        const uint8_t* s, int32_t n) {
+        const uint8_t* text, int32_t bytes) {
     assert(!e->ro);
-    ui_edit_pg_t pg = e->selection.a[1];
-    int32_t i = 0;
-    const uint8_t* text = s;
-    while (i < n) {
-        int32_t b = i;
-        while (b < n && s[b] != '\n') { b++; }
-        bool lf = b < n && s[b] == '\n';
-        int32_t next = b + 1;
-        if (b > i && s[b - 1] == '\r') { b--; } // CR LF
-        if (b > i) {
-            pg = ui_edit_insert_inline(e, pg, text, b - i);
-        }
-        if (lf && e->sle) {
-            break;
-        } else if (lf) {
-            pg = ui_edit_insert_paragraph_break(e, pg);
-        }
-        text = s + next;
-        i = next;
+    ui_edit_text_t t = {0};
+    ui_edit_text.init(&t, text, bytes, false);
+    ui_edit_range_t r = ui_edit_range.all_on_null(&t, null);
+    ui_edit_doc.replace(e->doc, &e->selection, text, bytes);
+    ui_edit_pg_t pg = e->selection.from;
+    pg.pn += r.to.pn;
+    if (e->selection.from.pn == e->selection.to.pn && r.to.pn == 0) {
+        pg.gp = e->selection.from.gp + r.to.gp;
+    } else {
+        pg.gp = r.to.gp;
     }
+    ui_edit_text.dispose(&t);
     return pg;
 }
 
@@ -7287,7 +7392,7 @@ static void ui_edit_clipboard_paste(ui_edit_t* e) {
         ut_clipboard.get_text(null, &bytes);
         if (bytes > 0) {
             uint8_t* text = null;
-            bool ok = ut_heap.alloc((void**)&text, bytes);
+            bool ok = ut_heap.alloc((void**)&text, bytes) == 0;
             swear(ok);
             int32_t r = ut_clipboard.get_text((char*)text, &bytes);
             fatal_if_not_zero(r);
@@ -7348,13 +7453,15 @@ static void ui_edit_measure(ui_view_t* v) { // bottom up
 //  if (e->sle) {
 //      traceln("%p %10s %dx%d min_h_em: %.1f", v, v->p.text, v->w, v->h, v->min_h_em);
 //  }
+    traceln("%p %10s %dx%d min_h_em: %.1f", v, v->p.text, v->w, v->h, v->min_h_em);
 }
 
 static void ui_edit_layout(ui_view_t* v) { // top down
-//  traceln(">%d,%d %dx%d", v->y, v->y, v->w, v->h);
+    traceln(">%d,%d %dx%d", v->y, v->y, v->w, v->h);
     assert(v->type == ui_view_text);
     assert(v->w > 0 && v->h > 0); // could be `if'
     ui_edit_t* e = (ui_edit_t*)v;
+    ui_edit_text_t* dt = &e->doc->text; // document text
     // glyph position in scroll_pn paragraph:
     const ui_edit_pg_t scroll = v->w == 0 ?
         (ui_edit_pg_t){0, 0} : ui_edit_scroll_pg(e);
@@ -7364,7 +7471,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     e->h = e->inside.bottom - e->inside.top;
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
-    if (e->paragraphs == 0) {
+    if (dt->np == 0) {
         e->selection.a[0] = (ui_edit_pg_t){0, 0};
         e->selection.a[1] = e->selection.a[0];
     } else {
@@ -7392,13 +7499,14 @@ static void ui_edit_layout(ui_view_t* v) { // top down
         ui_edit_create_caret(e);
         ui_edit_show_caret(e);
     }
-//  traceln("<%d,%d %dx%d", v->y, v->y, v->w, v->h);
+    traceln("<%d,%d %dx%d", v->y, v->y, v->w, v->h);
 }
 
 static void ui_edit_paint(ui_view_t* v) {
     assert(v->type == ui_view_text);
     assert(!v->hidden);
     ui_edit_t* e = (ui_edit_t*)v;
+    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     ui_gdi.set_clip(v->x + e->inside.left,  v->y + e->inside.top,
                     e->w + e->inside.right, e->h);
@@ -7408,8 +7516,8 @@ static void ui_edit_paint(ui_view_t* v) {
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
     const int32_t pn = e->scroll.pn;
     const int32_t bottom = v->y + e->inside.bottom;
-    assert(pn <= e->paragraphs);
-    for (int32_t i = pn; i < e->paragraphs && y < bottom; i++) {
+    assert(pn <= dt->np);
+    for (int32_t i = pn; i < dt->np && y < bottom; i++) {
         y = ui_edit_paint_paragraph(e, &ta, x, y, i);
     }
     ui_gdi.set_clip(0, 0, 0, 0);
@@ -7443,55 +7551,104 @@ static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
     return false;
 }
 
-static void ui_edit_sync_runs(ui_edit_t* e) {
-    // TODO: brutal force for now (quite easy to optimize)
-    if (e->para != null) {
-        ui_edit_dispose_paragraphs_layout(e);
-    }
-    e->paragraphs = e->doc->text.np;
-    e->para = null;
-    bool ok = ut_heap.alloc_zero((void**)&e->para, e->paragraphs * sizeof(e->para[0])) == 0;
-    swear(ok);
-    for (int32_t i = 0; i < e->paragraphs; i++) {
-        e->para[i].run = null;
-        e->para[i].runs = 0;
-        e->para[i].str = &e->doc->text.ps[i];
-    }
-}
-
-static void ui_edit_listener(ui_edit_t* e, bool after, const ui_edit_doc_t* d,
+static void ui_edit_listener(ui_edit_t* e, bool before,
+        bool ok, const ui_edit_doc_t* d,
         const ui_edit_range_t* r, const ui_edit_text_t* t) {
     (void)e; // TODO: remove me
+    (void)ok; // TODO: remove me
     (void)d; // TODO: remove me
     (void)r; // TODO: remove me
     (void)t; // TODO: remove me
-    (void)after; // TODO: remove me
+    ui_edit_text_t* dt = &e->doc->text; // document text
 //  traceln("after: %d", after);
-//  traceln("e->paragraphs: %d", e->paragraphs);
-//  traceln("e->doc->text.np: %d", e->doc->text.np);
+//  traceln("dt->np: %d", dt->np);
+//  traceln("dt->np: %d", dt->np);
 //  traceln("e->para: %p", e->para);
     // TODO: brutal force for now (quite easy to optimize)
-    ui_edit_sync_runs(e);
+    if (before) {
+        assert(e->para != null);
+        ui_edit_dispose_runs(e);
+        assert(e->para == null);
+    } else { // after
+        assert(e->para == null);
+        ui_edit_allocate_runs(e);
+        assert(e->para != null);
+        // bring selection inside the document after replace()
+        // TODO: this is very crude and naive version. Must be much
+        //       more UX intelligent, smooth and do bring into view
+        //       only for focused view.
+        //       Shouldn't touch selection at all if it is not
+        //       affected by replace() initiated by a neighboring
+        //       editor.
+        ui_edit_range_t all =
+            ui_edit_range.all_on_null(&e->doc->text, null);
+        ui_edit_range_t intersect =
+            ui_edit_range.intersect(all, e->selection);
+        if (ui_edit_range.is_valid(intersect)) {
+            e->selection = intersect;
+        } else {
+            assert(dt->np >= 1);
+            if (e->selection.a[0].pn >= dt->np) {
+                e->selection.a[0].pn = ut_max(0, dt->np - 1);
+            }
+            const int32_t g_in_last_p = dt->ps[dt->np - 1].g;
+            if (e->selection.a[0].gp > g_in_last_p) {
+                e->selection.a[0].gp = g_in_last_p;
+            }
+            if (e->selection.a[1].pn >= e->selection.a[0].pn) {
+                e->selection.a[1].pn = e->selection.a[0].pn;
+            }
+            const int32_t g_in_p = dt->ps[e->selection.a[1].pn].g;
+            if (e->selection.a[0].gp > g_in_p) {
+                e->selection.a[0].gp = g_in_p;
+            }
+            assert(ui_edit_range.inside(&e->doc->text, e->selection));
+        }
+    }
     ui_edit_invalidate(e);
 }
 
-static void ui_edit_before(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
-        const ui_edit_range_t* r, const ui_edit_text_t* t) {
+static void ui_edit_before(ui_edit_notify_t* notify,
+         const ui_edit_notify_info_t* ni) {
     ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
-    ui_edit_listener(n->edit, false, d, r, t);
+    ui_edit_t* e = (ui_edit_t*)n->that;
+    swear(e->doc == ni->d);
+    const ui_edit_text_t* dt = &e->doc->text; // document text
+    // number of paragraphs before replace():
+    n->data = (uintptr_t)dt->np; assert(dt->np > 0);
+
+    // brutal resize run[runs]; TODO: make real resize
+    assert(e->para != null);
+    ui_edit_dispose_runs(e);
+    assert(e->para == null);
+
 }
 
-static void ui_edit_after(ui_edit_notify_t* notify, const ui_edit_doc_t* d,
-        const ui_edit_range_t* r, const ui_edit_text_t* t) {
+static void ui_edit_after(ui_edit_notify_t* notify,
+         const ui_edit_notify_info_t* ni) {
+    assert(ni->d->text.np > 0);
     ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
-    ui_edit_listener(n->edit, true, d, r, t);
+    ui_edit_t* e = (ui_edit_t*)n->that;
+    // number of paragraphs before replace():
+    const int32_t np = (int32_t)n->data;
+    swear(ni->d->text.np == np - ni->deleted + ni->inserted);
+
+    // brutal resize run[runs]; TODO: make real resize
+    assert(e->para == null);
+    ui_edit_allocate_runs(e);
+    assert(e->para != null);
+
+    e->selection = *ni->x;
+    ui_edit_scroll_into_view(e, e->selection.to);
 }
 
 static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     memset(e, 0, sizeof(*e));
+    assert(d != null && d->text.np > 0);
     e->doc = d;
     assert(d->text.np > 0);
-    e->listener.edit = e;
+    e->listener.that = (void*)e;
+    e->listener.data = 0;
     e->listener.notify.before = ui_edit_before;
     e->listener.notify.after  = ui_edit_after;
     static_assertion(offsetof(ui_edit_notify_view_t, notify) == 0);
@@ -7526,7 +7683,7 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     #else
         e->view.mouse       = ui_edit_mouse;
     #endif
-    ui_edit_sync_runs(e);
+    ui_edit_allocate_runs(e);
 }
 
 static void ui_edit_dispose(ui_edit_t* e) {
@@ -7566,7 +7723,6 @@ ui_edit_if ui_edit = {
 #include "ut/ut.h"
 
 static bool ui_edit_debug_dump;
-
 
 static void ui_edit_pg_dump(const ui_edit_pg_t* pg) {
     traceln("pn:%d gp:%d", pg->pn, pg->gp);
@@ -7640,16 +7796,17 @@ static ui_edit_range_t ui_edit_range_all_on_null(const ui_edit_text_t* t,
     return r;
 }
 
-static int ui_edit_compare_pg(ui_edit_pg_t pg1, ui_edit_pg_t pg2) {
+static int ui_edit_compare(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2) {
     int64_t d = (((int64_t)pg1.pn << 32) | pg1.gp) -
                 (((int64_t)pg2.pn << 32) | pg2.gp);
     return d < 0 ? -1 : d > 0 ? 1 : 0;
 }
 
-static ui_edit_range_t ui_edit_ordered_range(ui_edit_range_t r) {
+static ui_edit_range_t ui_edit_order_range(const ui_edit_range_t range) {
+    ui_edit_range_t r = range;
     uint64_t f = ((uint64_t)r.from.pn << 32) | r.from.gp;
     uint64_t t = ((uint64_t)r.to.pn   << 32) | r.to.gp;
-    if (ui_edit_text.compare_pg(r.from, r.to) > 0) {
+    if (ui_edit_range.compare(r.from, r.to) > 0) {
         uint64_t swap = t; t = f; f = swap;
         r.from.pn = (int32_t)(f >> 32);
         r.from.gp = (int32_t)(f);
@@ -7657,6 +7814,82 @@ static ui_edit_range_t ui_edit_ordered_range(ui_edit_range_t r) {
         r.to.gp   = (int32_t)(t);
     }
     return r;
+}
+
+static ui_edit_range_t ui_edit_range_ordered(const ui_edit_text_t* t,
+        const ui_edit_range_t* r) {
+    return ui_edit_range.order(ui_edit_range.all_on_null(t, r));
+}
+
+static bool ui_edit_is_valid_range(const ui_edit_range_t r) {
+    if (0 <= r.from.pn && 0 <= r.to.pn &&
+        0 <= r.from.gp && 0 <= r.to.gp) {
+        ui_edit_range_t o = ui_edit_range.order(r);
+        return ui_edit_range.compare(o.from, o.to) <= 0;
+    } else {
+        return false;
+    }
+}
+
+static ui_edit_pg_t ui_edit_range_end(const ui_edit_text_t* t) {
+    return (ui_edit_pg_t){ .pn = t->np - 1, .gp = t->ps[t->np - 1].g };
+}
+
+static uint64_t ui_edit_range_uint64(const ui_edit_pg_t pg) {
+    assert(pg.pn >= 0 && pg.gp >= 0);
+    return ((uint64_t)pg.pn << 32) | (uint64_t)pg.gp;
+}
+
+static ui_edit_pg_t ui_edit_range_pg(uint64_t uint64) {
+    assert((int32_t)(uint64 >> 32) >= 0 && (int32_t)uint64 >= 0);
+    return (ui_edit_pg_t){ .pn = (int32_t)(uint64 >> 32), .gp = (int32_t)uint64 };
+}
+
+static bool ui_edit_range_inside_text(const ui_edit_text_t* t,
+        const ui_edit_range_t r) {
+    return ui_edit_range.is_valid(r) &&
+            0 <= r.from.pn && r.from.pn <= r.to.pn && r.to.pn < t->np &&
+            0 <= r.from.gp && r.from.gp <= r.to.gp &&
+            r.to.gp <= t->ps[r.to.pn - 1].g;
+}
+
+static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
+    const ui_edit_range_t r2) {
+    if (ui_edit_range.is_valid(r1) && ui_edit_range.is_valid(r2)) {
+        ui_edit_range_t o1 = ui_edit_range.order(r1);
+        ui_edit_range_t o2 = ui_edit_range.order(r1);
+        uint64_t f1 = ((uint64_t)o1.from.pn << 32) | o1.from.gp;
+        uint64_t t1 = ((uint64_t)o1.to.pn   << 32) | o1.to.gp;
+        uint64_t f2 = ((uint64_t)o2.from.pn << 32) | o2.from.gp;
+        uint64_t t2 = ((uint64_t)o2.to.pn   << 32) | o2.to.gp;
+        if (f1 <= f2 && f2 <= t1) { // f2 is inside r1
+            if (t2 <= t1) { // r2 is fully inside r1
+                return r2;
+            } else { // r2 is partially inside r1
+                ui_edit_range_t r = {0};
+                r.from.pn = (int32_t)(f2 >> 32);
+                r.from.gp = (int32_t)(f2);
+                r.to.pn   = (int32_t)(t1 >> 32);
+                r.to.gp   = (int32_t)(t1);
+                return r;
+            }
+        } else if (f2 <= f1 && f1 <= t2) { // f1 is inside r2
+            if (t1 <= t2) { // r1 is fully inside r2
+                return r1;
+            } else { // r1 is partially inside r2
+                ui_edit_range_t r = {0};
+                r.from.pn = (int32_t)(f1 >> 32);
+                r.from.gp = (int32_t)(f1);
+                r.to.pn   = (int32_t)(t2 >> 32);
+                r.to.gp   = (int32_t)(t2);
+                return r;
+            }
+        } else {
+            return *ui_edit_range.invalid_range;
+        }
+    } else {
+        return *ui_edit_range.invalid_range;
+    }
 }
 
 static bool ui_edit_doc_realloc_ps(ui_str_t* *ps,
@@ -7711,9 +7944,11 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
                 assert(ps[np].c == 0 && ps[np].b == 0 &&
                        ps[np].g2b[0] == 0);
                 ui_str.free(&ps[np]);
-                // str.init may allocate str.g2b[] on the heap and may fail
-                const int32_t bytes = k - i; assert(bytes >= 0);
+                // process "\r\n" strings
+                const int32_t  e = k > i && s[i] == '\r' ? k - 1 : k;
+                const int32_t  bytes = e - i; assert(bytes >= 0);
                 const uint8_t* u = bytes == 0 ? null : s + i;
+                // str.init may allocate str.g2b[] on the heap and may fail
                 ok = ui_str.init(&ps[np], u, bytes, heap && bytes > 0);
                 if (ok) { np++; }
             }
@@ -7767,8 +8002,7 @@ static void ui_edit_doc_dispose_to_do(ui_edit_to_do_t* to_do) {
 
 static int32_t ui_edit_text_bytes(const ui_edit_text_t* t,
         const ui_edit_range_t* range) {
-    const ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(t, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(t, range);
     ui_edit_check_range_inside_text(t, &r);
     int32_t bytes = 0;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
@@ -7793,8 +8027,7 @@ static int32_t ui_edit_doc_bytes(const ui_edit_doc_t* d,
 
 static int32_t ui_edit_doc_utf8bytes(const ui_edit_doc_t* d,
         const ui_edit_range_t* range) {
-    const ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     int32_t bytes = ui_edit_text.bytes(&d->text, &r);
     // "\n" after each paragraph and 0x00
     return bytes + r.to.pn - r.from.pn + 1;
@@ -7802,8 +8035,7 @@ static int32_t ui_edit_doc_utf8bytes(const ui_edit_doc_t* d,
 
 static bool ui_edit_doc_remove(ui_edit_doc_t* d,
         const ui_edit_range_t* range) {
-    ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     // first paragraph:
     ui_str_t* p0 = &d->text.ps[r.from.pn];
@@ -7871,16 +8103,14 @@ static bool ui_edit_doc_insert(ui_edit_doc_t* d,
             } else if (i->pn <= pn && pn < i->pn + ins->np) {
                 // insert `ins` into `i` insertion point
                 if (pn == i->pn) {
-                    ok = ui_str.init(&ps[pn], s->u, s->b, true);
-                    if (ok) {
-                        assert(0 <= i->gp && i->gp <= s->g);
-                        // if there is continuation paragraph cut the tail
-                        // it will be reinserted below as `f`
-                        const int32_t to = ins->np > 1 ? s->g : i->gp;
-                        ok = ui_str.replace(&ps[pn], i->gp, to,
-                                            ins->ps[0].u, ins->ps[0].b);
-                        f = s;
-                    }
+                    ps[pn] = *s;
+                    assert(0 <= i->gp && i->gp <= s->g);
+                    // if there is continuation paragraph cut the tail
+                    // it will be reinserted below as `f`
+                    const int32_t to = ins->np > 1 ? s->g : i->gp;
+                    ok = ui_str.replace(&ps[pn], i->gp, to,
+                                        ins->ps[0].u, ins->ps[0].b);
+                    f = s;
                 } else if (ins->np > 1 &&
                     pn == i->pn + ins->np - 1) {
                     // last string of text
@@ -7916,7 +8146,8 @@ static bool ui_edit_doc_insert(ui_edit_doc_t* d,
             }
         }
         if (ok) {
-            if (f != null) { ui_str.free(f); }
+// TODO: watch memory leaks
+//          if (f != null) { ui_str.free(f); }
             ut_heap.free(d->text.ps); // free old paragraphs
             d->text.ps = ps;
             d->text.np = np;
@@ -7926,22 +8157,22 @@ static bool ui_edit_doc_insert(ui_edit_doc_t* d,
 }
 
 static void ui_edit_notify_before(ui_edit_doc_t* d,
-        const ui_edit_range_t* range, const ui_edit_text_t* text) {
+        const ui_edit_notify_info_t* ni) {
     ui_edit_listener_t* o = d->listeners;
     while (o != null) {
         if (o->notify != null && o->notify->before != null) {
-            o->notify->before(o->notify, d, range, text);
+            o->notify->before(o->notify, ni);
         }
         o = o->next;
     }
 }
 
 static void ui_edit_notify_after(ui_edit_doc_t* d,
-        const ui_edit_range_t* range, const ui_edit_text_t* text) {
+        const ui_edit_notify_info_t* ni) {
     ui_edit_listener_t* o = d->listeners;
     while (o != null) {
         if (o->notify != null && o->notify->after != null) {
-            o->notify->after(o->notify, d, range, text);
+            o->notify->after(o->notify, ni);
         }
         o = o->next;
     }
@@ -7950,8 +8181,8 @@ static void ui_edit_notify_after(ui_edit_doc_t* d,
 static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
         const ui_edit_range_t* range, const ui_edit_text_t* text,
         ui_edit_to_do_t* undo) {
-    ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    assert(text->np > 0);
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     if (ui_edit_debug_dump) {
         traceln("--->");
         traceln("doc:");
@@ -7965,8 +8196,24 @@ static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
         traceln("");
     }
     ui_edit_check_range_inside_text(&d->text, &r);
-    ui_edit_notify_before(d, range, text);
-    bool empty_range = ui_edit_text.compare_pg(r.from, r.to) == 0;
+    ui_edit_range_t x = r;
+    x.to.pn = r.from.pn + text->np - 1;
+    if (r.from.pn == r.to.pn && text->np == 1) {
+        x.to.gp = r.from.gp + text->ps[0].g;
+    } else {
+        x.to.gp = text->ps[text->np - 1].g;
+    }
+    const ui_edit_notify_info_t ni_before = {
+        .ok = true, .d = d, .r = &r, .x = &x, .t = text,
+        .pnf = r.from.pn, .pnt = r.to.pn,
+        .deleted = 0, .inserted = 0
+    };
+    traceln("before: text->np: %d ps[%d..%d]",
+            text->np, ni_before.pnf, ni_before.pnt);
+    ui_edit_range_dump(&r);
+    ui_edit_range_dump(&x);
+    ui_edit_notify_before(d, &ni_before);
+    bool empty_range = ui_edit_range.compare(r.from, r.to) == 0;
     bool ok = true;
     if (undo != null) {
         ui_edit_doc.copy_text(d, &r, &undo->text);
@@ -8015,11 +8262,19 @@ static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
         }
     }
     if (!ok && undo != null) { ui_edit_doc.dispose_to_do(undo); }
+    const ui_edit_notify_info_t ni_after = {
+        .ok = ok, .d = d, .r = &r, .x = &x, .t = text,
+        .pnf = r.from.pn, .pnt = x.to.pn,
+        .deleted = r.to.pn - r.from.pn,
+        .inserted = text->np - 1
+    };
+    traceln("after: text->np: %d ps[%d..%d] "
+            "deleted: %d inserted: %d",
+            text->np, ni_after.pnf, ni_after.pnt,
+            ni_after.deleted, ni_after.inserted);
+    ui_edit_notify_after(d, &ni_after);
     if (ui_edit_debug_dump) {
         traceln("<---");
-    }
-    if (ok) {
-        ui_edit_notify_after(d, range, text);
     }
     return ok;
 }
@@ -8063,8 +8318,7 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
         const ui_edit_range_t* range, ui_edit_text_t* t) {
     ui_edit_check_zeros(t, sizeof(*t));
     memset(t, 0x00, sizeof(*t));
-    ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     int32_t np = r.to.pn - r.from.pn + 1;
     bool ok = ui_edit_doc_realloc_ps(&t->ps, 0, np);
@@ -8097,8 +8351,7 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
 
 static void ui_edit_doc_copy(const ui_edit_doc_t* d,
         const ui_edit_range_t* range, char* text) {
-    ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     char* t = text;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
@@ -8229,14 +8482,23 @@ static bool ui_edit_doc_undo(ui_edit_doc_t* d) {
     }
 }
 
-static bool ui_edit_doc_init(ui_edit_doc_t* d) {
+static bool ui_edit_doc_init(ui_edit_doc_t* d, const uint8_t* utf8,
+        int32_t bytes, bool heap) {
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
     memset(d, 0x00, sizeof(d));
-    ok = ut_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_str_t)) == 0;
+    assert(bytes >= 0);
+    assert((utf8 == null) == (bytes == 0));
     if (ok) {
-        d->text.np = 1;
-        ok = ui_str.init(&d->text.ps[0], null, 0, false);
+        if (bytes == 0) { // empty string
+            ok = ut_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_str_t)) == 0;
+            if (ok) {
+                d->text.np = 1;
+                ok = ui_str.init(&d->text.ps[0], null, 0, false);
+            }
+        } else {
+            ok = ui_edit_text.init(&d->text, utf8, bytes, heap);
+        }
     }
     return ok;
 }
@@ -8376,21 +8638,15 @@ typedef struct ui_edit_doc_test_notify_s {
 } ui_edit_doc_test_notify_t;
 
 static void ui_edit_doc_test_before(ui_edit_notify_t* n,
-        const ui_edit_doc_t*   unused(d),
-        const ui_edit_range_t* unused(r),
-        const ui_edit_text_t*  unused(t)) {
-    ui_edit_doc_test_notify_t* notify =
-        (ui_edit_doc_test_notify_t*)n;
+        const ui_edit_notify_info_t* unused(ni)) {
+    ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
     notify->count_before++;
 //  traceln("before: %d", notify->count_before);
 }
 
 static void ui_edit_doc_test_after(ui_edit_notify_t* n,
-        const ui_edit_doc_t*   unused(d),
-        const ui_edit_range_t* unused(r),
-        const ui_edit_text_t*  unused(t)) {
-    ui_edit_doc_test_notify_t* notify =
-        (ui_edit_doc_test_notify_t*)n;
+        const ui_edit_notify_info_t* unused(ni)) {
+    ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
     notify->count_after++;
 //  traceln("after: %d", notify->count_after);
 }
@@ -8407,7 +8663,7 @@ static void ui_edit_doc_test_3(void) {
         ui_edit_doc_test_notify_t before_and_after = {0};
         before_and_after.notify.before = ui_edit_doc_test_before;
         before_and_after.notify.after  = ui_edit_doc_test_after;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         swear(ui_edit_doc.subscribe(d, &before_and_after.notify));
         const uint8_t* s = (const uint8_t*)"Goodbye Cruel Universe";
         const int32_t before = before_and_after.count_before;
@@ -8440,7 +8696,7 @@ static void ui_edit_doc_test_3(void) {
     {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         const uint8_t* s = (const uint8_t*)
             "Hello World"
             "\n"
@@ -8467,7 +8723,7 @@ static void ui_edit_doc_test_3(void) {
 static void ui_edit_doc_test_0(void) {
     ui_edit_doc_t edit_doc = {0};
     ui_edit_doc_t* d = &edit_doc;
-    swear(ui_edit_doc.init(d));
+    swear(ui_edit_doc.init(d, null, 0, false));
     ui_edit_text_t ins_text = {0};
     swear(ui_edit_text.init(&ins_text, (const uint8_t*)"a", 1, false));
     ui_edit_to_do_t undo = {0};
@@ -8480,7 +8736,7 @@ static void ui_edit_doc_test_0(void) {
 static void ui_edit_doc_test_1(void) {
     ui_edit_doc_t edit_doc = {0};
     ui_edit_doc_t* d = &edit_doc;
-    swear(ui_edit_doc.init(d));
+    swear(ui_edit_doc.init(d, null, 0, false));
     ui_edit_text_t ins_text = {0};
     swear(ui_edit_text.init(&ins_text, (const uint8_t*)"a", 1, false));
     ui_edit_to_do_t undo = {0};
@@ -8494,7 +8750,7 @@ static void ui_edit_doc_test_2(void) {
     {   // two string separated by "\n"
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         ui_edit_notify_t notify1 = {0};
         ui_edit_notify_t notify2 = {0};
         ui_edit_doc_test_notify_t before_and_after = {0};
@@ -8525,7 +8781,7 @@ static void ui_edit_doc_test_2(void) {
     {   // three string separated by "\n"
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         const uint8_t* s = (const uint8_t*)"Goodbye" "\n" "Cruel" "\n" "Universe";
         swear(ui_edit_doc.replace(d, null, s, -1));
         ui_edit_text_t t = {0};
@@ -8548,7 +8804,7 @@ static void ui_edit_doc_test_2(void) {
     {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
         for (int32_t i = 0; i < countof(ins); i++) {
             const uint8_t* s = (const uint8_t*)"GoodbyeCruelUniverse";
@@ -8597,13 +8853,29 @@ static void ui_edit_doc_test(void) {
     }
 }
 
+static const ui_edit_range_t ui_edit_invalid_range = {
+    .from = { .pn = -1, .gp = -1},
+    .to   = { .pn = -1, .gp = -1}
+};
+
+ui_edit_range_if ui_edit_range = {
+    .compare        = ui_edit_compare,
+    .all_on_null   = ui_edit_range_all_on_null,
+    .order         = ui_edit_order_range,
+    .ordered       = ui_edit_range_ordered,
+    .is_valid      = ui_edit_is_valid_range,
+    .end           = ui_edit_range_end,
+    .uint64        = ui_edit_range_uint64,
+    .pg            = ui_edit_range_pg,
+    .inside        = ui_edit_range_inside_text,
+    .intersect     = ui_edit_range_intersect,
+    .invalid_range = &ui_edit_invalid_range
+};
+
 ui_edit_text_if ui_edit_text = {
-    .init        = ui_edit_text_init,
-    .bytes       = ui_edit_text_bytes,
-    .compare_pg  = ui_edit_compare_pg,
-    .all_on_null = ui_edit_range_all_on_null,
-    .ordered     = ui_edit_ordered_range,
-    .dispose     = ui_edit_text_dispose
+    .init          = ui_edit_text_init,
+    .bytes         = ui_edit_text_bytes,
+    .dispose       = ui_edit_text_dispose,
 };
 
 ui_edit_doc_if ui_edit_doc = {
@@ -8626,7 +8898,7 @@ ui_edit_doc_if ui_edit_doc = {
 #pragma pop_macro("ui_edit_check_zeros")
 
 // Uncomment following line for quick and dirty test run:
-ut_static_init(ui_edit_text) { ui_edit_doc.test(); }
+// ut_static_init(ui_edit_text) { ui_edit_doc.test(); }
 // _________________________________ ui_gdi.c _________________________________
 
 #include "ut/ut.h"
@@ -10482,6 +10754,7 @@ static int32_t ui_str_utf8_bytes(const uint8_t* u, int32_t b) {
 }
 
 static int32_t ui_str_glyphs(const uint8_t* utf8, int32_t bytes) {
+    swear(bytes >= 0);
     bool ok = true;
     int32_t i = 0;
     int32_t k = 1;
@@ -10494,6 +10767,7 @@ static int32_t ui_str_glyphs(const uint8_t* utf8, int32_t bytes) {
 }
 
 static int32_t ui_str_gp_to_bp(const uint8_t* utf8, int32_t bytes, int32_t gp) {
+    swear(bytes >= 0);
     bool ok = true;
     int32_t c = 0;
     int32_t i = 0;

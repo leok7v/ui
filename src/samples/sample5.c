@@ -253,7 +253,7 @@ static void key_pressed(ui_view_t* unused(view), int64_t key) {
 static void edit_enter(ui_edit_t* e) {
     assert(e->sle);
     if (!ui_app.shift) { // ignore shift ENTER:
-        traceln("text: %.*s", e->para[0].str->b, e->para[0].str->u);
+        traceln("text: %.*s", e->doc->text.ps[0].b, e->doc->text.ps[0].u);
     }
 }
 
@@ -272,7 +272,7 @@ static void opened(void) {
     label.fm = &ui_app.fm.mono;
     ut_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
-        ui_edit_doc.init(doc[i]);
+        ui_edit_doc.init(doc[i], null, 0, false);
         ui_edit.init(edit[i], doc[i]);
 //      edit[i]->view.padding = (ui_gaps_t){0.5, 0.5, 0.5, 0.5};
         edit[i]->view.max_w = ui.infinity;

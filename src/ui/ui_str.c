@@ -127,6 +127,7 @@ static int32_t ui_str_utf8_bytes(const uint8_t* u, int32_t b) {
 }
 
 static int32_t ui_str_glyphs(const uint8_t* utf8, int32_t bytes) {
+    swear(bytes >= 0);
     bool ok = true;
     int32_t i = 0;
     int32_t k = 1;
@@ -139,6 +140,7 @@ static int32_t ui_str_glyphs(const uint8_t* utf8, int32_t bytes) {
 }
 
 static int32_t ui_str_gp_to_bp(const uint8_t* utf8, int32_t bytes, int32_t gp) {
+    swear(bytes >= 0);
     bool ok = true;
     int32_t c = 0;
     int32_t i = 0;

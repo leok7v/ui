@@ -1542,6 +1542,7 @@ static void ui_app_show_caret(void) {
 }
 
 static void ui_app_move_caret(int32_t x, int32_t y) {
+//  traceln("SetCaretPos(%d, %d)", x, y);
     fatal_if_false(SetCaretPos(x, y));
 }
 

@@ -4,7 +4,6 @@
 
 static bool ui_edit_debug_dump;
 
-
 static void ui_edit_pg_dump(const ui_edit_pg_t* pg) {
     traceln("pn:%d gp:%d", pg->pn, pg->gp);
 }
@@ -77,16 +76,17 @@ static ui_edit_range_t ui_edit_range_all_on_null(const ui_edit_text_t* t,
     return r;
 }
 
-static int ui_edit_compare_pg(ui_edit_pg_t pg1, ui_edit_pg_t pg2) {
+static int ui_edit_compare(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2) {
     int64_t d = (((int64_t)pg1.pn << 32) | pg1.gp) -
                 (((int64_t)pg2.pn << 32) | pg2.gp);
     return d < 0 ? -1 : d > 0 ? 1 : 0;
 }
 
-static ui_edit_range_t ui_edit_ordered_range(ui_edit_range_t r) {
+static ui_edit_range_t ui_edit_order_range(const ui_edit_range_t range) {
+    ui_edit_range_t r = range;
     uint64_t f = ((uint64_t)r.from.pn << 32) | r.from.gp;
     uint64_t t = ((uint64_t)r.to.pn   << 32) | r.to.gp;
-    if (ui_edit_text.compare_pg(r.from, r.to) > 0) {
+    if (ui_edit_range.compare(r.from, r.to) > 0) {
         uint64_t swap = t; t = f; f = swap;
         r.from.pn = (int32_t)(f >> 32);
         r.from.gp = (int32_t)(f);
@@ -94,6 +94,82 @@ static ui_edit_range_t ui_edit_ordered_range(ui_edit_range_t r) {
         r.to.gp   = (int32_t)(t);
     }
     return r;
+}
+
+static ui_edit_range_t ui_edit_range_ordered(const ui_edit_text_t* t,
+        const ui_edit_range_t* r) {
+    return ui_edit_range.order(ui_edit_range.all_on_null(t, r));
+}
+
+static bool ui_edit_is_valid_range(const ui_edit_range_t r) {
+    if (0 <= r.from.pn && 0 <= r.to.pn &&
+        0 <= r.from.gp && 0 <= r.to.gp) {
+        ui_edit_range_t o = ui_edit_range.order(r);
+        return ui_edit_range.compare(o.from, o.to) <= 0;
+    } else {
+        return false;
+    }
+}
+
+static ui_edit_pg_t ui_edit_range_end(const ui_edit_text_t* t) {
+    return (ui_edit_pg_t){ .pn = t->np - 1, .gp = t->ps[t->np - 1].g };
+}
+
+static uint64_t ui_edit_range_uint64(const ui_edit_pg_t pg) {
+    assert(pg.pn >= 0 && pg.gp >= 0);
+    return ((uint64_t)pg.pn << 32) | (uint64_t)pg.gp;
+}
+
+static ui_edit_pg_t ui_edit_range_pg(uint64_t uint64) {
+    assert((int32_t)(uint64 >> 32) >= 0 && (int32_t)uint64 >= 0);
+    return (ui_edit_pg_t){ .pn = (int32_t)(uint64 >> 32), .gp = (int32_t)uint64 };
+}
+
+static bool ui_edit_range_inside_text(const ui_edit_text_t* t,
+        const ui_edit_range_t r) {
+    return ui_edit_range.is_valid(r) &&
+            0 <= r.from.pn && r.from.pn <= r.to.pn && r.to.pn < t->np &&
+            0 <= r.from.gp && r.from.gp <= r.to.gp &&
+            r.to.gp <= t->ps[r.to.pn - 1].g;
+}
+
+static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
+    const ui_edit_range_t r2) {
+    if (ui_edit_range.is_valid(r1) && ui_edit_range.is_valid(r2)) {
+        ui_edit_range_t o1 = ui_edit_range.order(r1);
+        ui_edit_range_t o2 = ui_edit_range.order(r1);
+        uint64_t f1 = ((uint64_t)o1.from.pn << 32) | o1.from.gp;
+        uint64_t t1 = ((uint64_t)o1.to.pn   << 32) | o1.to.gp;
+        uint64_t f2 = ((uint64_t)o2.from.pn << 32) | o2.from.gp;
+        uint64_t t2 = ((uint64_t)o2.to.pn   << 32) | o2.to.gp;
+        if (f1 <= f2 && f2 <= t1) { // f2 is inside r1
+            if (t2 <= t1) { // r2 is fully inside r1
+                return r2;
+            } else { // r2 is partially inside r1
+                ui_edit_range_t r = {0};
+                r.from.pn = (int32_t)(f2 >> 32);
+                r.from.gp = (int32_t)(f2);
+                r.to.pn   = (int32_t)(t1 >> 32);
+                r.to.gp   = (int32_t)(t1);
+                return r;
+            }
+        } else if (f2 <= f1 && f1 <= t2) { // f1 is inside r2
+            if (t1 <= t2) { // r1 is fully inside r2
+                return r1;
+            } else { // r1 is partially inside r2
+                ui_edit_range_t r = {0};
+                r.from.pn = (int32_t)(f1 >> 32);
+                r.from.gp = (int32_t)(f1);
+                r.to.pn   = (int32_t)(t2 >> 32);
+                r.to.gp   = (int32_t)(t2);
+                return r;
+            }
+        } else {
+            return *ui_edit_range.invalid_range;
+        }
+    } else {
+        return *ui_edit_range.invalid_range;
+    }
 }
 
 static bool ui_edit_doc_realloc_ps(ui_str_t* *ps,
@@ -148,9 +224,11 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
                 assert(ps[np].c == 0 && ps[np].b == 0 &&
                        ps[np].g2b[0] == 0);
                 ui_str.free(&ps[np]);
-                // str.init may allocate str.g2b[] on the heap and may fail
-                const int32_t bytes = k - i; assert(bytes >= 0);
+                // process "\r\n" strings
+                const int32_t  e = k > i && s[i] == '\r' ? k - 1 : k;
+                const int32_t  bytes = e - i; assert(bytes >= 0);
                 const uint8_t* u = bytes == 0 ? null : s + i;
+                // str.init may allocate str.g2b[] on the heap and may fail
                 ok = ui_str.init(&ps[np], u, bytes, heap && bytes > 0);
                 if (ok) { np++; }
             }
@@ -204,8 +282,7 @@ static void ui_edit_doc_dispose_to_do(ui_edit_to_do_t* to_do) {
 
 static int32_t ui_edit_text_bytes(const ui_edit_text_t* t,
         const ui_edit_range_t* range) {
-    const ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(t, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(t, range);
     ui_edit_check_range_inside_text(t, &r);
     int32_t bytes = 0;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
@@ -230,8 +307,7 @@ static int32_t ui_edit_doc_bytes(const ui_edit_doc_t* d,
 
 static int32_t ui_edit_doc_utf8bytes(const ui_edit_doc_t* d,
         const ui_edit_range_t* range) {
-    const ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     int32_t bytes = ui_edit_text.bytes(&d->text, &r);
     // "\n" after each paragraph and 0x00
     return bytes + r.to.pn - r.from.pn + 1;
@@ -239,8 +315,7 @@ static int32_t ui_edit_doc_utf8bytes(const ui_edit_doc_t* d,
 
 static bool ui_edit_doc_remove(ui_edit_doc_t* d,
         const ui_edit_range_t* range) {
-    ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     // first paragraph:
     ui_str_t* p0 = &d->text.ps[r.from.pn];
@@ -308,16 +383,14 @@ static bool ui_edit_doc_insert(ui_edit_doc_t* d,
             } else if (i->pn <= pn && pn < i->pn + ins->np) {
                 // insert `ins` into `i` insertion point
                 if (pn == i->pn) {
-                    ok = ui_str.init(&ps[pn], s->u, s->b, true);
-                    if (ok) {
-                        assert(0 <= i->gp && i->gp <= s->g);
-                        // if there is continuation paragraph cut the tail
-                        // it will be reinserted below as `f`
-                        const int32_t to = ins->np > 1 ? s->g : i->gp;
-                        ok = ui_str.replace(&ps[pn], i->gp, to,
-                                            ins->ps[0].u, ins->ps[0].b);
-                        f = s;
-                    }
+                    ps[pn] = *s;
+                    assert(0 <= i->gp && i->gp <= s->g);
+                    // if there is continuation paragraph cut the tail
+                    // it will be reinserted below as `f`
+                    const int32_t to = ins->np > 1 ? s->g : i->gp;
+                    ok = ui_str.replace(&ps[pn], i->gp, to,
+                                        ins->ps[0].u, ins->ps[0].b);
+                    f = s;
                 } else if (ins->np > 1 &&
                     pn == i->pn + ins->np - 1) {
                     // last string of text
@@ -353,7 +426,8 @@ static bool ui_edit_doc_insert(ui_edit_doc_t* d,
             }
         }
         if (ok) {
-            if (f != null) { ui_str.free(f); }
+// TODO: watch memory leaks
+//          if (f != null) { ui_str.free(f); }
             ut_heap.free(d->text.ps); // free old paragraphs
             d->text.ps = ps;
             d->text.np = np;
@@ -363,22 +437,22 @@ static bool ui_edit_doc_insert(ui_edit_doc_t* d,
 }
 
 static void ui_edit_notify_before(ui_edit_doc_t* d,
-        const ui_edit_range_t* range, const ui_edit_text_t* text) {
+        const ui_edit_notify_info_t* ni) {
     ui_edit_listener_t* o = d->listeners;
     while (o != null) {
         if (o->notify != null && o->notify->before != null) {
-            o->notify->before(o->notify, d, range, text);
+            o->notify->before(o->notify, ni);
         }
         o = o->next;
     }
 }
 
 static void ui_edit_notify_after(ui_edit_doc_t* d,
-        const ui_edit_range_t* range, const ui_edit_text_t* text) {
+        const ui_edit_notify_info_t* ni) {
     ui_edit_listener_t* o = d->listeners;
     while (o != null) {
         if (o->notify != null && o->notify->after != null) {
-            o->notify->after(o->notify, d, range, text);
+            o->notify->after(o->notify, ni);
         }
         o = o->next;
     }
@@ -387,8 +461,8 @@ static void ui_edit_notify_after(ui_edit_doc_t* d,
 static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
         const ui_edit_range_t* range, const ui_edit_text_t* text,
         ui_edit_to_do_t* undo) {
-    ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    assert(text->np > 0);
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     if (ui_edit_debug_dump) {
         traceln("--->");
         traceln("doc:");
@@ -402,8 +476,24 @@ static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
         traceln("");
     }
     ui_edit_check_range_inside_text(&d->text, &r);
-    ui_edit_notify_before(d, range, text);
-    bool empty_range = ui_edit_text.compare_pg(r.from, r.to) == 0;
+    ui_edit_range_t x = r;
+    x.to.pn = r.from.pn + text->np - 1;
+    if (r.from.pn == r.to.pn && text->np == 1) {
+        x.to.gp = r.from.gp + text->ps[0].g;
+    } else {
+        x.to.gp = text->ps[text->np - 1].g;
+    }
+    const ui_edit_notify_info_t ni_before = {
+        .ok = true, .d = d, .r = &r, .x = &x, .t = text,
+        .pnf = r.from.pn, .pnt = r.to.pn,
+        .deleted = 0, .inserted = 0
+    };
+    traceln("before: text->np: %d ps[%d..%d]",
+            text->np, ni_before.pnf, ni_before.pnt);
+    ui_edit_range_dump(&r);
+    ui_edit_range_dump(&x);
+    ui_edit_notify_before(d, &ni_before);
+    bool empty_range = ui_edit_range.compare(r.from, r.to) == 0;
     bool ok = true;
     if (undo != null) {
         ui_edit_doc.copy_text(d, &r, &undo->text);
@@ -452,11 +542,19 @@ static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
         }
     }
     if (!ok && undo != null) { ui_edit_doc.dispose_to_do(undo); }
+    const ui_edit_notify_info_t ni_after = {
+        .ok = ok, .d = d, .r = &r, .x = &x, .t = text,
+        .pnf = r.from.pn, .pnt = x.to.pn,
+        .deleted = r.to.pn - r.from.pn,
+        .inserted = text->np - 1
+    };
+    traceln("after: text->np: %d ps[%d..%d] "
+            "deleted: %d inserted: %d",
+            text->np, ni_after.pnf, ni_after.pnt,
+            ni_after.deleted, ni_after.inserted);
+    ui_edit_notify_after(d, &ni_after);
     if (ui_edit_debug_dump) {
         traceln("<---");
-    }
-    if (ok) {
-        ui_edit_notify_after(d, range, text);
     }
     return ok;
 }
@@ -500,8 +598,7 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
         const ui_edit_range_t* range, ui_edit_text_t* t) {
     ui_edit_check_zeros(t, sizeof(*t));
     memset(t, 0x00, sizeof(*t));
-    ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     int32_t np = r.to.pn - r.from.pn + 1;
     bool ok = ui_edit_doc_realloc_ps(&t->ps, 0, np);
@@ -534,8 +631,7 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
 
 static void ui_edit_doc_copy(const ui_edit_doc_t* d,
         const ui_edit_range_t* range, char* text) {
-    ui_edit_range_t r =
-        ui_edit_text.ordered(ui_edit_text.all_on_null(&d->text, range));
+    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     char* t = text;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
@@ -666,14 +762,23 @@ static bool ui_edit_doc_undo(ui_edit_doc_t* d) {
     }
 }
 
-static bool ui_edit_doc_init(ui_edit_doc_t* d) {
+static bool ui_edit_doc_init(ui_edit_doc_t* d, const uint8_t* utf8,
+        int32_t bytes, bool heap) {
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
     memset(d, 0x00, sizeof(d));
-    ok = ut_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_str_t)) == 0;
+    assert(bytes >= 0);
+    assert((utf8 == null) == (bytes == 0));
     if (ok) {
-        d->text.np = 1;
-        ok = ui_str.init(&d->text.ps[0], null, 0, false);
+        if (bytes == 0) { // empty string
+            ok = ut_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_str_t)) == 0;
+            if (ok) {
+                d->text.np = 1;
+                ok = ui_str.init(&d->text.ps[0], null, 0, false);
+            }
+        } else {
+            ok = ui_edit_text.init(&d->text, utf8, bytes, heap);
+        }
     }
     return ok;
 }
@@ -813,21 +918,15 @@ typedef struct ui_edit_doc_test_notify_s {
 } ui_edit_doc_test_notify_t;
 
 static void ui_edit_doc_test_before(ui_edit_notify_t* n,
-        const ui_edit_doc_t*   unused(d),
-        const ui_edit_range_t* unused(r),
-        const ui_edit_text_t*  unused(t)) {
-    ui_edit_doc_test_notify_t* notify =
-        (ui_edit_doc_test_notify_t*)n;
+        const ui_edit_notify_info_t* unused(ni)) {
+    ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
     notify->count_before++;
 //  traceln("before: %d", notify->count_before);
 }
 
 static void ui_edit_doc_test_after(ui_edit_notify_t* n,
-        const ui_edit_doc_t*   unused(d),
-        const ui_edit_range_t* unused(r),
-        const ui_edit_text_t*  unused(t)) {
-    ui_edit_doc_test_notify_t* notify =
-        (ui_edit_doc_test_notify_t*)n;
+        const ui_edit_notify_info_t* unused(ni)) {
+    ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
     notify->count_after++;
 //  traceln("after: %d", notify->count_after);
 }
@@ -844,7 +943,7 @@ static void ui_edit_doc_test_3(void) {
         ui_edit_doc_test_notify_t before_and_after = {0};
         before_and_after.notify.before = ui_edit_doc_test_before;
         before_and_after.notify.after  = ui_edit_doc_test_after;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         swear(ui_edit_doc.subscribe(d, &before_and_after.notify));
         const uint8_t* s = (const uint8_t*)"Goodbye Cruel Universe";
         const int32_t before = before_and_after.count_before;
@@ -877,7 +976,7 @@ static void ui_edit_doc_test_3(void) {
     {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         const uint8_t* s = (const uint8_t*)
             "Hello World"
             "\n"
@@ -904,7 +1003,7 @@ static void ui_edit_doc_test_3(void) {
 static void ui_edit_doc_test_0(void) {
     ui_edit_doc_t edit_doc = {0};
     ui_edit_doc_t* d = &edit_doc;
-    swear(ui_edit_doc.init(d));
+    swear(ui_edit_doc.init(d, null, 0, false));
     ui_edit_text_t ins_text = {0};
     swear(ui_edit_text.init(&ins_text, (const uint8_t*)"a", 1, false));
     ui_edit_to_do_t undo = {0};
@@ -917,7 +1016,7 @@ static void ui_edit_doc_test_0(void) {
 static void ui_edit_doc_test_1(void) {
     ui_edit_doc_t edit_doc = {0};
     ui_edit_doc_t* d = &edit_doc;
-    swear(ui_edit_doc.init(d));
+    swear(ui_edit_doc.init(d, null, 0, false));
     ui_edit_text_t ins_text = {0};
     swear(ui_edit_text.init(&ins_text, (const uint8_t*)"a", 1, false));
     ui_edit_to_do_t undo = {0};
@@ -931,7 +1030,7 @@ static void ui_edit_doc_test_2(void) {
     {   // two string separated by "\n"
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         ui_edit_notify_t notify1 = {0};
         ui_edit_notify_t notify2 = {0};
         ui_edit_doc_test_notify_t before_and_after = {0};
@@ -962,7 +1061,7 @@ static void ui_edit_doc_test_2(void) {
     {   // three string separated by "\n"
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         const uint8_t* s = (const uint8_t*)"Goodbye" "\n" "Cruel" "\n" "Universe";
         swear(ui_edit_doc.replace(d, null, s, -1));
         ui_edit_text_t t = {0};
@@ -985,7 +1084,7 @@ static void ui_edit_doc_test_2(void) {
     {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d));
+        swear(ui_edit_doc.init(d, null, 0, false));
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
         for (int32_t i = 0; i < countof(ins); i++) {
             const uint8_t* s = (const uint8_t*)"GoodbyeCruelUniverse";
@@ -1034,13 +1133,29 @@ static void ui_edit_doc_test(void) {
     }
 }
 
+static const ui_edit_range_t ui_edit_invalid_range = {
+    .from = { .pn = -1, .gp = -1},
+    .to   = { .pn = -1, .gp = -1}
+};
+
+ui_edit_range_if ui_edit_range = {
+    .compare        = ui_edit_compare,
+    .all_on_null   = ui_edit_range_all_on_null,
+    .order         = ui_edit_order_range,
+    .ordered       = ui_edit_range_ordered,
+    .is_valid      = ui_edit_is_valid_range,
+    .end           = ui_edit_range_end,
+    .uint64        = ui_edit_range_uint64,
+    .pg            = ui_edit_range_pg,
+    .inside        = ui_edit_range_inside_text,
+    .intersect     = ui_edit_range_intersect,
+    .invalid_range = &ui_edit_invalid_range
+};
+
 ui_edit_text_if ui_edit_text = {
-    .init        = ui_edit_text_init,
-    .bytes       = ui_edit_text_bytes,
-    .compare_pg  = ui_edit_compare_pg,
-    .all_on_null = ui_edit_range_all_on_null,
-    .ordered     = ui_edit_ordered_range,
-    .dispose     = ui_edit_text_dispose
+    .init          = ui_edit_text_init,
+    .bytes         = ui_edit_text_bytes,
+    .dispose       = ui_edit_text_dispose,
 };
 
 ui_edit_doc_if ui_edit_doc = {
@@ -1063,4 +1178,4 @@ ui_edit_doc_if ui_edit_doc = {
 #pragma pop_macro("ui_edit_check_zeros")
 
 // Uncomment following line for quick and dirty test run:
-ut_static_init(ui_edit_text) { ui_edit_doc.test(); }
+// ut_static_init(ui_edit_text) { ui_edit_doc.test(); }

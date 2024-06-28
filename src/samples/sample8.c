@@ -428,11 +428,25 @@ static void controls_test(ui_view_t* parent) {
 
 static void edit1_test(ui_view_t* parent) {
     ui_view.disband(parent);
+    static void* text;
+    static int64_t bytes;
+    if (text == null) {
+        if (ut_args.c > 1) {
+            if (ut_files.exists(ut_args.v[1])) {
+                errno_t r = ut_mem.map_ro(ut_args.v[1], &text, &bytes);
+                if (r != 0) {
+                    traceln("ut_mem.map_ro(%s) failed %s", ut_args.v[1], ut_str.error(r));
+                }
+            } else {
+                traceln("file \"%s\" does not exist", ut_args.v[1]);
+            }
+        }
+    }
     static ui_view_t  list = ui_view(list);
     static ui_edit_t  edit = {0};
     static ui_edit_doc_t doc = {0};
     if (doc.text.np == 0) {
-        ui_edit_doc.init(&doc);
+        swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
         ui_edit.init(&edit, &doc);
     }
     ui_view.add(&test,
@@ -440,10 +454,11 @@ static void edit1_test(ui_view_t* parent) {
             &edit.view,
         null),
     null);
-    edit.view.debug  = true;
-    list.max_w  = ui.infinity;
-    list.max_h  = ui.infinity;
-    edit.view.max_w  = ui.infinity;
-    edit.view.max_h  = ui.infinity;
+    list.max_w      = ui.infinity;
+    list.max_h      = ui.infinity;
+    edit.view.debug = true;
+    edit.view.fm    = &ui_app.fm.H1;
+    edit.view.max_w = ui.infinity;
+    edit.view.max_h = ui.infinity;
 }
 
