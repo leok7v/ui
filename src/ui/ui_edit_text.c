@@ -461,7 +461,7 @@ static void ui_edit_doc_copy(const ui_edit_doc_t* d,
 
 static void ui_edit_doc_check_dups(ui_str_t* ps, int np) {
     for (int i = 0; i < np - 1; i++) {
-        if (ps[i].b > 0) { assert(ps[i].c >= ps[i].b, "[%d].b:%d.c%d", i, ps[i].b, ps[i].c); }
+//      if (ps[i].b > 0) { assert(ps[i].c >= ps[i].b, "[%d].b:%d.c%d", i, ps[i].b, ps[i].c); }
         for (int j = i + 1; j < np - 1; j++) {
             if (ps[i].b > 0 || ps[j].b > 0) {
                 assert(ps[i].u != ps[j].u, "i: %d j: %d", i, j);

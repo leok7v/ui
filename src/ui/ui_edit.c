@@ -61,7 +61,9 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const uint8_t* s, int32_t n) {
 
 static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         const int32_t width, bool allow_zero) {
-//  traceln("[%d.%d] width: %d", pn, rn, width);
+//  traceln(">[%d.%d] width: %d", pn, rn, width);
+    int count = 0;
+    int chars = 0;
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pn && pn < dt->np);
     ui_edit_para_t* p = &e->para[pn];
@@ -77,9 +79,13 @@ static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         // 4 is maximum number of bytes in a UTF-8 sequence
         int32_t gc = ut_min(4, glyphs_in_this_run);
         int32_t w = ui_edit_text_width(e, text, g2b[gc] - bp);
+        count++;
+        chars += g2b[gc] - bp;
         while (gc < glyphs_in_this_run && w < width) {
             gc = ut_min(gc * 4, glyphs_in_this_run);
             w = ui_edit_text_width(e, text, g2b[gc] - bp);
+            count++;
+            chars += g2b[gc] - bp;
         }
         if (w < width) {
             k = gc;
@@ -92,6 +98,8 @@ static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
                 assert(allow_zero || 1 <= k && k < gc + 1);
                 const int32_t n = g2b[k + 1] - bp;
                 int32_t px = ui_edit_text_width(e, text, n);
+                count++;
+                chars += n;
                 if (px == width) { break; }
                 if (px < width) { i = k + 1; } else { j = k; }
                 if (!allow_zero && (i + j) / 2 == 0) { break; }
@@ -101,6 +109,8 @@ static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         }
     }
     assert(allow_zero || 1 <= k && k <= str->g - gp);
+//  traceln("<[%d.%d] width: %d k: %d count: %d chars: %d", 
+//          pn, rn, width, k, count, chars);
     return k;
 }
 
@@ -669,7 +679,6 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
         assert(dt->np > 0);
         ui_edit_pg_t end = ui_edit_range.end(dt);
         ui_edit_pr_t lp = ui_edit_pg_to_pr(e, end);
-// TODO: ???
         uint64_t eof = (uint64_t)(dt->np - 1) << 32 | lp.rn;
         if (last == eof && py <= bottom - e->view.fm->height) {
             // vertical white space for EOF on the screen
@@ -721,190 +730,9 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
     }
 }
 
-#if 0 // TODO: remove
-
-static uint8_t* ui_edit_ensure(ui_edit_t* e, int32_t pn, int32_t bytes,
-        int32_t preserve) {
-    assert(bytes >= 0 && preserve <= bytes);
-    if (bytes <= e->para[pn].capacity) {
-        // enough memory already capacity - do nothing
-    } else if (e->para[pn].capacity > 0) {
-        assert(preserve <= e->para[pn].capacity);
-        ui_edit_reallocate((void**)&e->para[pn].text, bytes, 1);
-        fatal_if_null(e->para[pn].text);
-        e->para[pn].capacity = bytes;
-    } else {
-        assert(e->para[pn].capacity == 0);
-        uint8_t* text = ui_edit_alloc(bytes);
-        e->para[pn].capacity = bytes;
-        memcpy(text, e->para[pn].text, (size_t)preserve);
-        e->para[pn].text = text;
-        e->para[pn].bytes = preserve;
-    }
-    return e->para[pn].text;
-}
-
-static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
-        ui_edit_pg_t from, ui_edit_pg_t to,
-        uint8_t* text, int32_t* bytes) {
-    #pragma push_macro("ui_edit_clip_append")
-    #define ui_edit_clip_append(a, ab, mx, text, bytes) do {   \
-        int32_t ba = (int32_t)(bytes); /* bytes to append */   \
-        if (a != null) {                                       \
-            assert(ab <= mx);                                  \
-            memcpy(a, text, (size_t)ba);                       \
-            a += ba;                                           \
-        }                                                      \
-        ab += ba;                                              \
-    } while (0)
-    uint8_t* a = text; // append
-    int32_t ab = 0; // appended bytes
-    int32_t limit = bytes != null ? *bytes : 0; // max byes in text
-    uint64_t f = ui_edit_range.uint64(from.pn, from.gp);
-    uint64_t t = ui_edit_range.uint64(to.pn, to.gp);
-    if (f != t) {
-        ui_edit_dispose_paragraphs(e);
-        if (f > t) { uint64_t swap = t; t = f; f = swap; }
-        int32_t pn0 = (int32_t)(f >> 32);
-        int32_t gp0 = (int32_t)(f);
-        int32_t pn1 = (int32_t)(t >> 32);
-        int32_t gp1 = (int32_t)(t);
-        assert(dt->np > 0);
-        if (pn1 == dt->np && dt->np > 0) { // last empty paragraph
-            assert(gp1 == 0);
-            pn1 = dt->np - 1;
-            gp1 = ui_edit_g2b(e->para[pn1].text, e->para[pn1].bytes, null);
-        }
-        const int32_t bytes0 = e->para[pn0].bytes;
-        uint8_t* s0 = e->para[pn0].text;
-        uint8_t* s1 = e->para[pn1].text;
-        ui_edit_paragraph_g2b(e, pn0);
-        const int32_t bp0 = e->para[pn0].g2b[gp0];
-        if (pn0 == pn1) { // inside same paragraph
-            const int32_t bp1 = e->para[pn0].g2b[gp1];
-            ui_edit_clip_append(a, ab, limit, s0 + bp0, bp1 - bp0);
-            if (cut) {
-                if (e->para[pn0].capacity == 0) {
-                    int32_t n = bytes0 - (bp1 - bp0);
-                    s0 = ui_edit_alloc(n);
-                    memcpy(s0, e->para[pn0].text, (size_t)bp0);
-                    e->para[pn0].text = s0;
-                    e->para[pn0].capacity = n;
-                }
-                assert(bytes0 - bp1 >= 0);
-                memcpy(s0 + bp0, s1 + bp1, (size_t)(bytes0 - bp1));
-                e->para[pn0].bytes -= (bp1 - bp0);
-                e->para[pn0].glyphs = -1; // will relayout
-            }
-        } else {
-            ui_edit_clip_append(a, ab, limit, s0 + bp0, bytes0 - bp0);
-            ui_edit_clip_append(a, ab, limit, "\n", 1);
-            for (int32_t i = pn0 + 1; i < pn1; i++) {
-                ui_edit_clip_append(a, ab, limit, e->para[i].text,
-                                                  e->para[i].bytes);
-                ui_edit_clip_append(a, ab, limit, "\n", 1);
-            }
-            const int32_t bytes1 = e->para[pn1].bytes;
-            ui_edit_paragraph_g2b(e, pn1);
-            const int32_t bp1 = e->para[pn1].g2b[gp1];
-            ui_edit_clip_append(a, ab, limit, s1, bp1);
-            if (cut) {
-                int32_t total = bp0 + bytes1 - bp1;
-                s0 = ui_edit_ensure(e, pn0, total, bp0);
-                assert(bytes1 - bp1 >= 0);
-                memcpy(s0 + bp0, s1 + bp1, (size_t)(bytes1 - bp1));
-                e->para[pn0].bytes = bp0 + bytes1 - bp1;
-                e->para[pn0].glyphs = -1; // will relayout
-            }
-        }
-        int32_t deleted = cut ? pn1 - pn0 : 0;
-        if (deleted > 0) {
-            assert(pn0 + deleted < dt->np);
-            for (int32_t i = pn0 + 1; i <= pn0 + deleted; i++) {
-                if (e->para[i].capacity > 0) {
-                    ui_edit_free((void**)&e->para[i].text);
-                }
-                if (e->para[i].g2b != null) {
-                    ui_edit_free((void**)&e->para[i].g2b);
-                    assert(e->para[i].runs == 0);
-                }
-                if (e->para[i].run != null) {
-                    ui_edit_free((void**)&e->para[i].run);
-                }
-            }
-            for (int32_t i = pn0 + 1; i < dt->np - deleted; i++) {
-                e->para[i] = e->para[i + deleted];
-            }
-            for (int32_t i = dt->np - deleted; i < dt->np; i++) {
-                memset(&e->para[i], 0, sizeof(e->para[i]));
-            }
-        }
-        if (t == ui_edit_range.uint64(dt->np, 0)) {
-            ui_edit_clip_append(a, ab, limit, "\n", 1);
-        }
-        if (a != null) { assert(a == text + limit); }
-        dt->np -= deleted;
-        from.pn = pn0;
-        from.gp = gp0;
-        // traceln("from: %d.%d", from.pn, from.gp);
-        ui_edit_scroll_into_view(e, from);
-    } else {
-        from.pn = -1;
-        from.gp = -1;
-    }
-    if (bytes != null) { *bytes = ab; }
-    (void)limit; // unused in release
-    ui_edit_if_sle_layout(e);
-    return from;
-    #pragma pop_macro("ui_edit_clip_append")
-}
-
-#endif
-
-static ui_edit_pg_t ui_edit_op(ui_edit_t* e, bool cut,
-        ui_edit_pg_t from, ui_edit_pg_t to,
-        uint8_t* text, int32_t* bytes) {
-    (void)e; // TODO: remove
-    (void)text; // TODO: remove
-    (void)bytes; // TODO: remove
-    traceln("from: %d.%d to: %d.%d cut: %d", from.pn, from.gp, to.pn, to.gp, cut);
-    traceln("TODO: implement using ui_edit_doc.replace()");
-    return from;
-}
-
-static void ui_edit_insert_paragraph(ui_edit_t* e, int32_t pn) {
-    // TODO: implement using ui_edit_doc.replace()
-    (void)e; // TODO: remove
-    (void)pn; // TODO: remove
-#if 0
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_edit_dispose_paragraphs(e);
-    if (dt->np + 1 > e->capacity / (int32_t)sizeof(ui_edit_para_t)) {
-        int32_t n = (dt->np + 1) * 3 / 2; // 1.5 times
-        ui_edit_reallocate((void**)&e->para, n, sizeof(ui_edit_para_t));
-        e->capacity = n * (int32_t)sizeof(ui_edit_para_t);
-    }
-    dt->np++;
-    for (int32_t i = dt->np - 1; i > pn; i--) {
-        e->para[i] = e->para[i - 1];
-    }
-    ui_edit_para_t* p = &e->para[pn];
-    p->text = null;
-    p->bytes = 0;
-    p->glyphs = -1;
-    p->capacity = 0;
-    p->runs = 0;
-    p->run = null;
-    p->g2b = null;
-    p->g2b_capacity = 0;
-#endif
-}
-
-// insert_inline() inserts text (not containing \n paragraph
-// break inside a paragraph)
-
 static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
         const uint8_t* text, int32_t bytes) {
+    // insert_inline() inserts text (not containing '\n' in it)
     assert(bytes > 0);
     for (int32_t i = 0; i < bytes; i++) { assert(text[i] != '\n'); }
     ui_edit_range_t r = { .from = pg, .to = pg };
@@ -1476,7 +1304,9 @@ static void ui_edit_mouse_wheel(ui_view_t* v, int32_t unused(dx), int32_t dy) {
 //        much mode "modeless" in spirit of cut/copy/paste. But opinions
 //        and editing habits vary. Easy to implement.
         ui_edit_pg_t pg = ui_edit_xy_to_pg(e, e->caret.x, e->caret.y);
-        ui_edit_move_caret(e, pg);
+        if (pg.pn >= 0 && pg.gp >= 0) {
+            ui_edit_move_caret(e, pg);
+        }
     }
 }
 
@@ -1519,34 +1349,6 @@ static void ui_edit_erase(ui_edit_t* e) {
     }
 }
 
-static void ui_edit_cut_copy(ui_edit_t* e, bool cut) {
-    const ui_edit_pg_t from = e->selection.a[0];
-    const ui_edit_pg_t to = e->selection.a[1];
-    int32_t n = 0; // bytes between from..to
-    ui_edit_op(e, false, from, to, null, &n);
-    if (n > 0) {
-        uint8_t* text = null;
-        bool ok = ut_heap.alloc((void**)&text, n + 1) == 0;
-        swear(ok);
-        ui_edit_pg_t pg = ui_edit_op(e, cut, from, to, text, &n);
-        static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
-        int32_t x = e->view.x + e->view.w / 2;
-        int32_t y = e->view.y + e->view.h / 2;
-        ui_app.show_hint(&hint, x, y, 0.5);
-        if (cut && pg.pn >= 0 && pg.gp >= 0) {
-            e->selection.a[0] = pg;
-            e->selection.a[1] = pg;
-            ui_edit_move_caret(e, pg);
-        }
-        text[n] = 0; // make it zero terminated
-        ut_clipboard.put_text((const char*)text);
-        assert(n == (int32_t)strlen((const char*)text),
-              "n=%d strlen(cb)=%d cb=\"%s\"",
-               n, (int32_t)strlen((const char*)text), text);
-        ut_heap.free(text);
-    }
-}
-
 static void ui_edit_select_all(ui_edit_t* e) {
     e->selection = ui_edit_range.all_on_null(&e->doc->text, null);
     ui_edit_invalidate(e);
@@ -1572,12 +1374,34 @@ static int32_t ui_edit_save(ui_edit_t* e, char* text, int32_t* bytes) {
     return r;
 }
 
-static void ui_edit_clipboard_cut(ui_edit_t* e) {
-    if (!e->ro) { ui_edit_cut_copy(e, true); }
-}
 
 static void ui_edit_clipboard_copy(ui_edit_t* e) {
-    ui_edit_cut_copy(e, false);
+    int32_t utf8bytes = ui_edit_doc.utf8bytes(e->doc, &e->selection);
+    if (utf8bytes > 0) {
+        uint8_t* text = null;
+        bool ok = ut_heap.alloc((void**)&text, utf8bytes) == 0;
+        swear(ok);
+        ui_edit_doc.copy(e->doc, &e->selection, (char*)text);
+        assert(text[utf8bytes - 1] == 0x00); // verify zero termination
+        ut_clipboard.put_text((const char*)text);
+        ut_heap.free(text);
+        static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
+        int32_t x = e->view.x + e->caret.x;
+        int32_t y = e->view.y + e->caret.y - e->view.fm->height;
+        if (y < ui_app.content->y) {
+            y += e->view.fm->height * 2;
+        }
+        if (y > ui_app.content->y + ui_app.content->h - e->view.fm->height) {
+            y = e->caret.y;
+        }
+        ui_app.show_hint(&hint, x, y, 0.5);
+    }
+}
+
+static void ui_edit_clipboard_cut(ui_edit_t* e) {
+    int32_t utf8bytes = ui_edit_doc.utf8bytes(e->doc, &e->selection);
+    if (utf8bytes > 0) { ui_edit_clipboard_copy(e); }
+    if (!e->ro) { ui_edit.erase(e); }
 }
 
 static ui_edit_pg_t ui_edit_paste_text(ui_edit_t* e,
@@ -1780,7 +1604,7 @@ static bool ui_edit_reallocate_runs(ui_edit_t* e, int32_t p, int32_t np) {
     // d->text.np already changed to `new_np`.
     // It has to manipulate e->para[] array w/o calling
     // ui_edit_invalidate_runs() ui_edit_deallocate_runs()
-    // because they assume that e->para[] aray is in sync
+    // because they assume that e->para[] array is in sync
     // d->text.np.
     ui_edit_text_t* dt = &e->doc->text; // document text
     bool ok = true;
