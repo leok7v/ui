@@ -23,9 +23,6 @@ typedef struct ui_str_if {
     void (*shrink)(ui_str_t* s); // get rid of extra heap memory
     bool (*replace)(ui_str_t* s, int32_t from, int32_t to, // glyphs
                     const uint8_t* utf8, int32_t bytes); // [from..to[ exclusive
-    bool (*concatenate)(ui_str_t* d, const ui_str_t* s1, const ui_str_t* s2);
-    bool (*substring)(ui_str_t* d, const ui_str_t* s,
-                    int32_t f, int32_t t); // glyphs [from..to[ exclusive
     void (*test)(void);
     void (*free)(ui_str_t* s);
     ui_str_t empty;

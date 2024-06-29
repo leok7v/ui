@@ -93,6 +93,7 @@ typedef struct ui_edit_range_if {
     bool            (*is_empty)(const ui_edit_range_t r);
     // end() last paragraph, last glyph in text
     ui_edit_pg_t    (*end)(const ui_edit_text_t* t);
+    ui_edit_range_t (*end_range)(const ui_edit_text_t* t);
     uint64_t        (*uint64)(const ui_edit_pg_t pg); // (p << 32 | g)
     ui_edit_pg_t    (*pg)(uint64_t ui64); // p: (ui64 >> 32) g: (int32_t)ui64
     bool            (*inside)(const ui_edit_text_t* t,

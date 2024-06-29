@@ -32,8 +32,6 @@ ui_str_if ui_str = {
     .expand      = ui_str_expand,
     .shrink      = ui_str_shrink,
     .replace     = ui_str_replace,
-    .concatenate = ui_edit_str_concatenate,
-    .substring   = ui_edit_str_substring,
     .test        = ui_str_test,
     .free        = ui_str_free,
     .empty       = { .u = (uint8_t*)ui_str_empty,
@@ -233,11 +231,6 @@ static bool ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b,
         s->g2b = (int32_t*)ui_str_g2b_ascii; // simplifies use cases
         s->u = (uint8_t*)u;
         assert(s->c == 0 && u[0] == 0x00);
-    } else if (b == 1 && u[0] <= 0x7F) {
-        s->g2b = (int32_t*)ui_str_g2b_ascii; // simplifies use cases
-        s->u = (uint8_t*)u;
-        s->g = 1;
-        s->b = 1;
     } else {
         if (heap) {
             ok = ut_heap.alloc((void**)&s->u, b) == 0;
@@ -247,10 +240,15 @@ static bool ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b,
         }
         if (ok) {
             s->b = b;
-            ok = ui_str_init_g2b(s);
+            if (b == 1 && u[0] <= 0x7F) {
+                s->g2b = (int32_t*)ui_str_g2b_ascii; // simplifies use cases
+                s->g = 1;
+            } else {
+                ok = ui_str_init_g2b(s);
+            }
         }
     }
-    if (!ok) { ui_str_free(s); }
+    if (ok) { ui_str.shrink(s); } else { ui_str.free(s); }
     return ok;
 }
 
@@ -281,14 +279,11 @@ static bool ui_str_move_to_heap(ui_str_t* s, int32_t c) {
     if (s->c == 0) { // s->u points outside of the heap
         const uint8_t* o = s->u;
         ok = ut_heap.alloc((void**)&s->u, c) == 0;
-        if (ok) {
-            memmove(s->u, o, s->b);
-        }
+        if (ok) { memmove(s->u, o, s->b); }
     } else if (s->c < c) {
         ok = ut_heap.realloc((void**)&s->u, c) == 0;
     }
     if (ok) { s->c = c; }
-    if (ok) { ok = ui_str_move_g2b_to_heap(s); }
     return ok;
 }
 
@@ -324,6 +319,8 @@ static void ui_str_shrink(ui_str_t* s) {
                 ut_heap.free(s->g2b);
                 s->g2b = (int32_t*)ui_str_g2b_ascii;
             }
+        } else {
+            traceln("none ASCII");
         }
     }
 }
@@ -355,20 +352,6 @@ static bool ui_str_remove(ui_str_t* s, int32_t f, int32_t t) {
     }
     ui_str_check(s);
     return ok;
-}
-
-static bool ui_edit_str_concatenate(ui_str_t* d, const ui_str_t* s1,
-        const ui_str_t* s2) {
-    return ui_str.init(d, s1->u, s1->b, false) &&
-           ui_str.replace(d, d->g, d->g, s2->u, s2->b);
-}
-
-static bool ui_edit_str_substring(ui_str_t* d, const ui_str_t* s,
-        int32_t f, int32_t t) {
-    swear(f <= t);
-    const int32_t b = s->g2b[t] - s->g2b[f];
-    const uint8_t* u = b == 0 ? null : s->u + s->g2b[f];
-    return ui_str.init(d, u, b, false);
 }
 
 static bool ui_str_replace(ui_str_t* s,
@@ -403,12 +386,14 @@ static bool ui_str_replace(ui_str_t* s,
                     memmove(s->u + s->g2b[f] + bytes_to_insert,
                            s->u + s->g2b[f] + bytes_to_remove,
                            s->b - s->g2b[f] - bytes_to_remove);
+                    ui_str_move_g2b_to_heap(s);
                     assert(s->g2b != ui_str_g2b_ascii);
                     memmove(s->g2b + f + glyphs_to_insert,
                            s->g2b + f + glyphs_to_remove,
                            (s->g - t + 1) * _4_bytes);
                     memmove(s->u + s->g2b[f], ins.u, ins.b);
                 } else {
+                    ui_str_move_g2b_to_heap(s);
                     assert(s->g2b != ui_str_g2b_ascii);
                     const int32_t g = s->g + glyphs_to_insert -
                                              glyphs_to_remove;
@@ -416,7 +401,6 @@ static bool ui_str_replace(ui_str_t* s,
                     ok = ut_heap.realloc(&s->g2b, (g + 1) * _4_bytes) == 0;
                     // need to shift bytes staring with s.g2b[t] toward the end
                     if (ok) {
-                        assert(s->g2b != ui_str_g2b_ascii);
                         memmove(s->u + s->g2b[f] + bytes_to_insert,
                                 s->u + s->g2b[f] + bytes_to_remove,
                                 s->b - s->g2b[f] - bytes_to_remove);
