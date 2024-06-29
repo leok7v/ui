@@ -14,16 +14,21 @@ typedef struct ut_begin_packed ui_str_s {
 
 typedef struct ui_str_if {
     bool (*init)(ui_str_t* s, const uint8_t* utf8, int32_t bytes, bool heap);
+    void (*swap)(ui_str_t* s1, ui_str_t* s2);
     int32_t (*utf8bytes)(const uint8_t* utf8, int32_t bytes); // 0 on error
     int32_t (*glyphs)(const uint8_t* utf8, int32_t bytes); // -1 on error
     int32_t (*gp_to_bp)(const uint8_t* s, int32_t bytes, int32_t gp); // -1
     int32_t (*bytes)(ui_str_t* s, int32_t from, int32_t to); // glyphs
     bool (*expand)(ui_str_t* s, int32_t capacity); // reallocate
     void (*shrink)(ui_str_t* s); // get rid of extra heap memory
-    bool (*replace)(ui_str_t* s, int32_t from, int32_t to,
+    bool (*replace)(ui_str_t* s, int32_t from, int32_t to, // glyphs
                     const uint8_t* utf8, int32_t bytes); // [from..to[ exclusive
+    bool (*concatenate)(ui_str_t* d, const ui_str_t* s1, const ui_str_t* s2);
+    bool (*substring)(ui_str_t* d, const ui_str_t* s,
+                    int32_t f, int32_t t); // glyphs [from..to[ exclusive
     void (*test)(void);
     void (*free)(ui_str_t* s);
+    ui_str_t empty;
 } ui_str_if;
 
 extern ui_str_if ui_str;

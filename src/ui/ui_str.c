@@ -3,9 +3,10 @@
 #include "ui/ui.h"
 
 static int32_t ui_str_g2b_ascii[1024]; // ui_str_g2b_ascii[i] == i for all "i"
-static int8_t* ui_str_empty = (int8_t*)"";
+static int8_t  ui_str_empty[1] = {0x00};
 
 static bool    ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b, bool heap);
+static void    ui_str_swap(ui_str_t* s1, ui_str_t* s2);
 static int32_t ui_str_utf8_bytes(const uint8_t* u, int32_t b);
 static int32_t ui_str_glyphs(const uint8_t* utf8, int32_t bytes);
 static int32_t ui_str_gp_to_bp(const uint8_t* s, int32_t bytes, int32_t gp);
@@ -14,20 +15,30 @@ static bool    ui_str_expand(ui_str_t* s, int32_t c);
 static void    ui_str_shrink(ui_str_t* s);
 static bool    ui_str_replace(ui_str_t* s, int32_t f, int32_t t,
                               const uint8_t* u, int32_t b);
+static bool    ui_edit_str_concatenate(ui_str_t* d, const ui_str_t* s1,
+                                       const ui_str_t* s2);
+static bool    ui_edit_str_substring(ui_str_t* d, const ui_str_t* s,
+                                     int32_t f, int32_t t);
 static void    ui_str_test(void);
 static void    ui_str_free(ui_str_t* s);
 
 ui_str_if ui_str = {
-    .init      = ui_str_init,
-    .utf8bytes = ui_str_utf8_bytes,
-    .glyphs    = ui_str_glyphs,
-    .gp_to_bp  = ui_str_gp_to_bp,
-    .bytes     = ui_str_bytes,
-    .expand    = ui_str_expand,
-    .shrink    = ui_str_shrink,
-    .replace   = ui_str_replace,
-    .test      = ui_str_test,
-    .free      = ui_str_free
+    .init        = ui_str_init,
+    .swap        = ui_str_swap,
+    .utf8bytes   = ui_str_utf8_bytes,
+    .glyphs      = ui_str_glyphs,
+    .gp_to_bp    = ui_str_gp_to_bp,
+    .bytes       = ui_str_bytes,
+    .expand      = ui_str_expand,
+    .shrink      = ui_str_shrink,
+    .replace     = ui_str_replace,
+    .concatenate = ui_edit_str_concatenate,
+    .substring   = ui_edit_str_substring,
+    .test        = ui_str_test,
+    .free        = ui_str_free,
+    .empty       = { .u = (uint8_t*)ui_str_empty,
+                     .g2b = ui_str_g2b_ascii,
+                     .c = 0, .b = 0, .g = 0 }
 };
 
 #pragma push_macro("ui_str_check")
@@ -230,7 +241,7 @@ static bool ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b,
     } else {
         if (heap) {
             ok = ut_heap.alloc((void**)&s->u, b) == 0;
-            if (ok) { s->c = b; memcpy(s->u, u, b); }
+            if (ok) { s->c = b; memmove(s->u, u, b); }
         } else {
             s->u = (uint8_t*)u;
         }
@@ -241,6 +252,10 @@ static bool ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b,
     }
     if (!ok) { ui_str_free(s); }
     return ok;
+}
+
+static void ui_str_swap(ui_str_t* s1, ui_str_t* s2) {
+    ui_str_t s = *s1; *s1 = *s2; *s2 = s;
 }
 
 static int32_t ui_str_bytes(ui_str_t* s,
@@ -255,7 +270,7 @@ static bool ui_str_move_g2b_to_heap(ui_str_t* s) {
     if (s->g2b == ui_str_g2b_ascii) { // even for s->g == 0
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
         ok = ut_heap.alloc(&s->g2b, bytes) == 0;
-        if (ok) { memcpy(s->g2b, ui_str_g2b_ascii, bytes); }
+        if (ok) { memmove(s->g2b, ui_str_g2b_ascii, bytes); }
     }
     return ok;
 }
@@ -267,7 +282,7 @@ static bool ui_str_move_to_heap(ui_str_t* s, int32_t c) {
         const uint8_t* o = s->u;
         ok = ut_heap.alloc((void**)&s->u, c) == 0;
         if (ok) {
-            memcpy(s->u, o, s->b);
+            memmove(s->u, o, s->b);
         }
     } else if (s->c < c) {
         ok = ut_heap.realloc((void**)&s->u, c) == 0;
@@ -324,9 +339,9 @@ static bool ui_str_remove(ui_str_t* s, int32_t f, int32_t t) {
         if (ok) {
             const int32_t bytes_to_shift = s->b - s->g2b[t];
             assert(0 <= bytes_to_shift && bytes_to_shift <= s->b);
-            memcpy(s->u + s->g2b[f], s->u + s->g2b[t], bytes_to_shift);
+            memmove(s->u + s->g2b[f], s->u + s->g2b[t], bytes_to_shift);
             if (s->g2b != ui_str_g2b_ascii) {
-                memcpy(s->g2b + f, s->g2b + t, (s->g - t + 1) * sizeof(int32_t));
+                memmove(s->g2b + f, s->g2b + t, (s->g - t + 1) * sizeof(int32_t));
                 for (int32_t i = f; i <= s->g; i++) {
                     s->g2b[i] -= bytes_to_remove;
                 }
@@ -340,6 +355,20 @@ static bool ui_str_remove(ui_str_t* s, int32_t f, int32_t t) {
     }
     ui_str_check(s);
     return ok;
+}
+
+static bool ui_edit_str_concatenate(ui_str_t* d, const ui_str_t* s1,
+        const ui_str_t* s2) {
+    return ui_str.init(d, s1->u, s1->b, false) &&
+           ui_str.replace(d, d->g, d->g, s2->u, s2->b);
+}
+
+static bool ui_edit_str_substring(ui_str_t* d, const ui_str_t* s,
+        int32_t f, int32_t t) {
+    swear(f <= t);
+    const int32_t b = s->g2b[t] - s->g2b[f];
+    const uint8_t* u = b == 0 ? null : s->u + s->g2b[f];
+    return ui_str.init(d, u, b, false);
 }
 
 static bool ui_str_replace(ui_str_t* s,
@@ -371,14 +400,14 @@ static bool ui_str_replace(ui_str_t* s,
                 // reusing ins.u[0..ins.b-1] and ins.g2b[0..ins.g]
                 // moving memory using memmove() left to right:
                 if (bytes_to_insert <= bytes_to_remove) {
-                    memcpy(s->u + s->g2b[f] + bytes_to_insert,
+                    memmove(s->u + s->g2b[f] + bytes_to_insert,
                            s->u + s->g2b[f] + bytes_to_remove,
                            s->b - s->g2b[f] - bytes_to_remove);
                     assert(s->g2b != ui_str_g2b_ascii);
-                    memcpy(s->g2b + f + glyphs_to_insert,
+                    memmove(s->g2b + f + glyphs_to_insert,
                            s->g2b + f + glyphs_to_remove,
                            (s->g - t + 1) * _4_bytes);
-                    memcpy(s->u + s->g2b[f], ins.u, ins.b);
+                    memmove(s->u + s->g2b[f], ins.u, ins.b);
                 } else {
                     assert(s->g2b != ui_str_g2b_ascii);
                     const int32_t g = s->g + glyphs_to_insert -
@@ -394,7 +423,7 @@ static bool ui_str_replace(ui_str_t* s,
                         memmove(s->g2b + f + glyphs_to_insert,
                                 s->g2b + f + glyphs_to_remove,
                                 (s->g - t + 1) * _4_bytes);
-                        memcpy(s->u + s->g2b[f], ins.u, ins.b);
+                        memmove(s->u + s->g2b[f], ins.u, ins.b);
                     }
                 }
                 if (ok) {

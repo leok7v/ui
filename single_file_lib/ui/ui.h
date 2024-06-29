@@ -1072,6 +1072,7 @@ typedef struct ui_edit_range_if {
     ui_edit_range_t (*ordered)(const ui_edit_text_t* t,
                                const ui_edit_range_t* r);
     bool            (*is_valid)(const ui_edit_range_t r);
+    bool            (*is_empty)(const ui_edit_range_t r);
     // end() last paragraph, last glyph in text
     ui_edit_pg_t    (*end)(const ui_edit_text_t* t);
     uint64_t        (*uint64)(const ui_edit_pg_t pg); // (p << 32 | g)
@@ -1136,9 +1137,9 @@ typedef struct ui_edit_run_s {
 // with .allocated == 0; as text is modified it is copied to
 // heap and reallocated there.
 
-typedef struct ui_edit_para_s { // "paragraph" view
-    int32_t runs;          // number of runs in this paragraph
-    ui_edit_run_t* run;    // [runs] array of pointers (heap)
+typedef struct ui_edit_para_s { // "paragraph" view consists of wrapped runs
+    int32_t runs;       // number of runs in this paragraph
+    ui_edit_run_t* run; // heap allocated array[runs]
 } ui_edit_para_t;
 
 typedef struct ui_edit_notify_view_s {
@@ -1479,16 +1480,21 @@ typedef struct ut_begin_packed ui_str_s {
 
 typedef struct ui_str_if {
     bool (*init)(ui_str_t* s, const uint8_t* utf8, int32_t bytes, bool heap);
+    void (*swap)(ui_str_t* s1, ui_str_t* s2);
     int32_t (*utf8bytes)(const uint8_t* utf8, int32_t bytes); // 0 on error
     int32_t (*glyphs)(const uint8_t* utf8, int32_t bytes); // -1 on error
     int32_t (*gp_to_bp)(const uint8_t* s, int32_t bytes, int32_t gp); // -1
     int32_t (*bytes)(ui_str_t* s, int32_t from, int32_t to); // glyphs
     bool (*expand)(ui_str_t* s, int32_t capacity); // reallocate
     void (*shrink)(ui_str_t* s); // get rid of extra heap memory
-    bool (*replace)(ui_str_t* s, int32_t from, int32_t to,
+    bool (*replace)(ui_str_t* s, int32_t from, int32_t to, // glyphs
                     const uint8_t* utf8, int32_t bytes); // [from..to[ exclusive
+    bool (*concatenate)(ui_str_t* d, const ui_str_t* s1, const ui_str_t* s2);
+    bool (*substring)(ui_str_t* d, const ui_str_t* s,
+                    int32_t f, int32_t t); // glyphs [from..to[ exclusive
     void (*test)(void);
     void (*free)(ui_str_t* s);
+    ui_str_t empty;
 } ui_str_if;
 
 extern ui_str_if ui_str;
@@ -5800,6 +5806,9 @@ ui_if ui = {
 // TODO: back/forward navigation
 // TODO: exit/save keyboard shortcuts?
 // TODO: iBeam cursor
+// TODO: horizontal scroll: trivial to implement:
+//       add horizontal_scroll to e->w and paint
+//       paragraphs in a horizontally shifted clip
 
 // http://worrydream.com/refs/Tesler%20-%20A%20Personal%20History%20of%20Modeless%20Text%20Editing%20and%20Cut-Copy-Paste.pdf
 // https://web.archive.org/web/20221216044359/http://worrydream.com/refs/Tesler%20-%20A%20Personal%20History%20of%20Modeless%20Text%20Editing%20and%20Cut-Copy-Paste.pdf
@@ -6081,31 +6090,48 @@ static void ui_edit_hide_caret(ui_edit_t* e) {
 
 static void ui_edit_allocate_runs(ui_edit_t* e) {
     ui_edit_text_t* dt = &e->doc->text; // document text
-    traceln("e->para[%d]", dt->np);
+//  traceln("e->para[%d]", dt->np);
     assert(e->para == null);
     assert(dt->np > 0);
     assert(e->para == null);
     bool done = ut_heap.alloc_zero((void**)&e->para,
                 dt->np * sizeof(e->para[0])) == 0;
-    swear(done);
-    traceln("e->para[%d]", dt->np);
+    swear(done, "out of memory - cannot continue");
 }
 
-static void ui_edit_dispose_runs(ui_edit_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    traceln("e->para[%d] := null", dt->np);
-    assert(e->para != null);
-    for (int32_t i = 0; i < dt->np; i++) {
-        if (e->para[i].run != null) {
-            assert(e->para[i].runs > 0);
-            ut_heap.free(e->para[i].run);
-            e->para[i].run = null;
-        } else {
-            assert(e->para[i].runs == 0);
-        }
+static void ui_edit_invalidate_run(ui_edit_t* e, int32_t i) {
+    if (e->para[i].run != null) {
+        assert(e->para[i].runs > 0);
+        ut_heap.free(e->para[i].run);
+        e->para[i].run = null;
+        e->para[i].runs = 0;
+    } else {
+        assert(e->para[i].runs == 0);
     }
+}
+
+static void ui_edit_invalidate_runs(ui_edit_t* e, int32_t f, int32_t t,
+        int32_t np) { // [from..to] inclusive inside [0..np - 1]
+//  traceln("[%d:%d] of %d", f, t, np); // inclusive
+    swear(e->para != null && f <= t && 0 <= f && t < np);
+    for (int32_t i = f; i <= t; i++) { ui_edit_invalidate_run(e, i); }
+}
+
+static void ui_edit_invalidate_all_runs(ui_edit_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    ui_edit_invalidate_runs(e, 0, dt->np - 1, dt->np);
+}
+
+static void ui_edit_dispose_runs(ui_edit_t* e, int32_t np) {
+    traceln("e->para[%d] := null", np);
+    assert(e->para != null);
+    ui_edit_invalidate_runs(e, 0, np - 1, np);
     ut_heap.free(e->para);
     e->para = null;
+}
+
+static void ui_edit_dispose_all_runs(ui_edit_t* e) {
+    ui_edit_dispose_runs(e, e->doc->text.np);
 }
 
 static void ui_edit_layout_now(ui_edit_t* e) {
@@ -6124,7 +6150,7 @@ static void ui_edit_if_sle_layout(ui_edit_t* e) {
 }
 
 static void ui_edit_set_font(ui_edit_t* e, ui_fm_t* f) {
-    ui_edit_dispose_runs(e);
+    ui_edit_invalidate_all_runs(e);
     e->scroll.rn = 0;
     e->view.fm = f;
     ui_edit_layout_now(e);
@@ -6293,10 +6319,6 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
             }
         }
         if (py > e->view.h) { break; }
-    }
-    if (pg.pn < 0 && pg.gp < 0) {
-        pg.pn = dt->np;
-        pg.gp = 0;
     }
     return pg;
 }
@@ -6786,21 +6808,23 @@ static void ui_edit_key_up(ui_edit_t* e) {
         ui_edit_reuse_last_x(e, &pt);
         assert(pt.y >= 0);
         to = ui_edit_xy_to_pg(e, pt.x, pt.y);
-        assert(to.pn >= 0 && to.gp >= 0);
-        int32_t rn0 = ui_edit_pg_to_pr(e, pg).rn;
-        int32_t rn1 = ui_edit_pg_to_pr(e, to).rn;
-        if (rn1 > 0 && rn0 == rn1) { // same run
-            assert(to.gp > 0, "word break must not break on zero gp");
-            int32_t runs = 0;
-            const ui_edit_run_t* run = ui_edit_paragraph_runs(e, to.pn, &runs);
-            to.gp = run[rn1].gp;
+        if (to.pn >= 0 && to.gp >= 0) {
+            int32_t rn0 = ui_edit_pg_to_pr(e, pg).rn;
+            int32_t rn1 = ui_edit_pg_to_pr(e, to).rn;
+            if (rn1 > 0 && rn0 == rn1) { // same run
+                assert(to.gp > 0, "word break must not break on zero gp");
+                int32_t runs = 0;
+                const ui_edit_run_t* run = ui_edit_paragraph_runs(e, to.pn, &runs);
+                to.gp = run[rn1].gp;
+            }
         }
     }
-    ui_edit_move_caret(e, to);
+    if (to.pn >= 0 && to.gp >= 0) {
+        ui_edit_move_caret(e, to);
+    }
 }
 
 static void ui_edit_key_down(ui_edit_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
     const ui_edit_pg_t pg = e->selection.a[1];
     ui_point_t pt = ui_edit_pg_to_xy(e, pg);
     ui_edit_reuse_last_x(e, &pt);
@@ -6813,11 +6837,9 @@ static void ui_edit_key_down(ui_edit_t* e) {
         pt.y += e->view.fm->height;
     }
     ui_edit_pg_t to = ui_edit_xy_to_pg(e, pt.x, pt.y);
-    if (to.pn < 0 && to.gp < 0) {
-        to.pn = dt->np; // advance past EOF
-        to.gp = 0;
+    if (to.pn >= 0 && to.gp >= 0) {
+        ui_edit_move_caret(e, to);
     }
-    ui_edit_move_caret(e, to);
 }
 
 static void ui_edit_key_home(ui_edit_t* e) {
@@ -7289,7 +7311,7 @@ static void ui_edit_kill_focus(ui_view_t* v) {
 
 static void ui_edit_erase(ui_edit_t* e) {
     ui_edit_range_t r = ui_edit_range.order(e->selection);
-    if (ui_edit_doc.replace(e->doc, &r, null, 0)) {
+    if (!ui_edit_range.is_empty(r) && ui_edit_doc.replace(e->doc, &r, null, 0)) {
         e->selection = r;
         e->selection.to = e->selection.from;
         ui_edit_move_caret(e, e->selection.from);
@@ -7439,11 +7461,7 @@ static void ui_edit_insets(ui_edit_t* e) {
     e->w = e->inside.right  - e->inside.left;
     e->h = e->inside.bottom - e->inside.top;
 //  traceln(" %d,%d %dx%d width: %d := %d", v->y, v->y, v->w, v->h, width, e->w);
-    if (e->w != width) {
-        // TODO: number of runs remains the same just need to zero them out instead:
-        ui_edit_dispose_runs(e);
-        ui_edit_allocate_runs(e);
-    }
+    if (e->w != width) { ui_edit_invalidate_all_runs(e); }
 }
 
 static void ui_edit_measure(ui_view_t* v) { // bottom up
@@ -7557,62 +7575,47 @@ static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
     return false;
 }
 
-static void ui_edit_listener(ui_edit_t* e, bool before,
-        bool ok, const ui_edit_doc_t* d,
-        const ui_edit_range_t* r, const ui_edit_text_t* t) {
-    (void)e; // TODO: remove me
-    (void)ok; // TODO: remove me
-    (void)d; // TODO: remove me
-    (void)r; // TODO: remove me
-    (void)t; // TODO: remove me
+static bool ui_edit_reallocate_runs(ui_edit_t* e, int32_t p, int32_t np) {
+    // This function is called in after() callback when
+    // d->text.np already changed to `new_np`.
+    // It has to manipulate e->para[] array w/o calling
+    // ui_edit_invalidate_runs() ui_edit_deallocate_runs()
+    // because they assume that e->para[] aray is in sync
+    // d->text.np.
     ui_edit_text_t* dt = &e->doc->text; // document text
-//  traceln("after: %d", after);
-//  traceln("dt->np: %d", dt->np);
-//  traceln("dt->np: %d", dt->np);
-//  traceln("e->para: %p", e->para);
-    // TODO: brutal force for now (quite easy to optimize)
-    if (before) {
-        assert(e->para != null);
-        ui_edit_dispose_runs(e);
-        assert(e->para == null);
-    } else { // after
-        assert(e->para == null);
-        ui_edit_allocate_runs(e);
-        assert(e->para != null);
-        // bring selection inside the document after replace()
-        // TODO: this is very crude and naive version. Must be much
-        //       more UX intelligent, smooth and do bring into view
-        //       only for focused view.
-        //       Shouldn't touch selection at all if it is not
-        //       affected by replace() initiated by a neighboring
-        //       editor.
-        ui_edit_range_t all =
-            ui_edit_range.all_on_null(&e->doc->text, null);
-        ui_edit_range_t intersect =
-            ui_edit_range.intersect(all, e->selection);
-        if (ui_edit_range.is_valid(intersect)) {
-            e->selection = intersect;
-        } else {
-            assert(dt->np >= 1);
-            if (e->selection.a[0].pn >= dt->np) {
-                e->selection.a[0].pn = ut_max(0, dt->np - 1);
+    bool ok = true;
+    int32_t old_np = np;     // old (before) number of paragraphs
+    int32_t new_np = dt->np; // new (after)  number of paragraphs
+    assert(old_np > 0 && new_np > 0 && e->para != null);
+    assert(0 <= p && p < old_np);
+    if (old_np == new_np) {
+        ui_edit_invalidate_run(e, p);
+    } else if (new_np < old_np) { // shrinking - delete runs
+        const int32_t d = old_np - new_np; // `d` delta > 0
+        if (p + d < old_np - 1) {
+            const int32_t n = ut_max(0, old_np - p - d - 1);
+            memcpy(e->para + p + 1, e->para + p + 1 + d, n * sizeof(e->para[0]));
+        }
+        if (p < new_np) { ui_edit_invalidate_run(e, p); }
+        ok = ut_heap.realloc((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
+        swear(ok, "shrinking");
+    } else { // growing - insert runs
+        ui_edit_invalidate_run(e, p);
+        int32_t d = new_np - old_np;  // `d` delta > 0
+        ok = ut_heap.realloc_zero((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
+        if (ok) {
+            const int32_t n = ut_max(0, new_np - p - d - 1);
+            memmove(e->para + p + 1 + d, e->para + p + 1, n * sizeof(e->para[0]));
+            const int32_t m = ut_min(new_np, p + 1 + d);
+            for (int32_t i = p + 1; i < m; i++) {
+                e->para[i].run = null;
+                e->para[i].runs = 0;
             }
-            const int32_t g_in_last_p = dt->ps[dt->np - 1].g;
-            if (e->selection.a[0].gp > g_in_last_p) {
-                e->selection.a[0].gp = g_in_last_p;
-            }
-            if (e->selection.a[1].pn >= e->selection.a[0].pn) {
-                e->selection.a[1].pn = e->selection.a[0].pn;
-            }
-            const int32_t g_in_p = dt->ps[e->selection.a[1].pn].g;
-            if (e->selection.a[0].gp > g_in_p) {
-                e->selection.a[0].gp = g_in_p;
-            }
-            assert(ui_edit_range.inside(&e->doc->text, e->selection));
         }
     }
-    ui_edit_invalidate(e);
+    return ok;
 }
+
 
 static void ui_edit_before(ui_edit_notify_t* notify,
          const ui_edit_notify_info_t* ni) {
@@ -7622,12 +7625,6 @@ static void ui_edit_before(ui_edit_notify_t* notify,
     const ui_edit_text_t* dt = &e->doc->text; // document text
     // number of paragraphs before replace():
     n->data = (uintptr_t)dt->np; assert(dt->np > 0);
-
-    // brutal resize run[runs]; TODO: make real resize
-    assert(e->para != null);
-    ui_edit_dispose_runs(e);
-    assert(e->para == null);
-
 }
 
 static void ui_edit_after(ui_edit_notify_t* notify,
@@ -7638,14 +7635,10 @@ static void ui_edit_after(ui_edit_notify_t* notify,
     // number of paragraphs before replace():
     const int32_t np = (int32_t)n->data;
     swear(ni->d->text.np == np - ni->deleted + ni->inserted);
-
-    // brutal resize run[runs]; TODO: make real resize
-    assert(e->para == null);
-    ui_edit_allocate_runs(e);
-    assert(e->para != null);
-
+    ui_edit_reallocate_runs(e, ni->r->from.pn, np);
     e->selection = *ni->x;
     ui_edit_scroll_into_view(e, e->selection.to);
+    ui_edit_invalidate(e);
 }
 
 static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
@@ -7802,13 +7795,13 @@ static ui_edit_range_t ui_edit_range_all_on_null(const ui_edit_text_t* t,
     return r;
 }
 
-static int ui_edit_compare(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2) {
+static int ui_edit_range_compare(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2) {
     int64_t d = (((int64_t)pg1.pn << 32) | pg1.gp) -
                 (((int64_t)pg2.pn << 32) | pg2.gp);
     return d < 0 ? -1 : d > 0 ? 1 : 0;
 }
 
-static ui_edit_range_t ui_edit_order_range(const ui_edit_range_t range) {
+static ui_edit_range_t ui_edit_range_order(const ui_edit_range_t range) {
     ui_edit_range_t r = range;
     uint64_t f = ((uint64_t)r.from.pn << 32) | r.from.gp;
     uint64_t t = ((uint64_t)r.to.pn   << 32) | r.to.gp;
@@ -7827,7 +7820,7 @@ static ui_edit_range_t ui_edit_range_ordered(const ui_edit_text_t* t,
     return ui_edit_range.order(ui_edit_range.all_on_null(t, r));
 }
 
-static bool ui_edit_is_valid_range(const ui_edit_range_t r) {
+static bool ui_edit_range_is_valid(const ui_edit_range_t r) {
     if (0 <= r.from.pn && 0 <= r.to.pn &&
         0 <= r.from.gp && 0 <= r.to.gp) {
         ui_edit_range_t o = ui_edit_range.order(r);
@@ -7835,6 +7828,10 @@ static bool ui_edit_is_valid_range(const ui_edit_range_t r) {
     } else {
         return false;
     }
+}
+
+static bool ui_edit_range_is_empty(const ui_edit_range_t r) {
+    return r.from.pn == r.to.pn && r.from.gp == r.to.gp;
 }
 
 static ui_edit_pg_t ui_edit_range_end(const ui_edit_text_t* t) {
@@ -7898,7 +7895,7 @@ static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
     }
 }
 
-static bool ui_edit_doc_realloc_ps(ui_str_t* *ps,
+static bool ui_edit_doc_realloc_ps_no_init(ui_str_t* *ps,
         int32_t old_np, int32_t new_np) { // reallocate paragraphs
     ui_str_t* p = *ps;
     for (int32_t i = new_np; i < old_np; i++) { ui_str.free(&p[i]); }
@@ -7908,12 +7905,18 @@ static bool ui_edit_doc_realloc_ps(ui_str_t* *ps,
         *ps = null;
     } else {
         ok = ut_heap.realloc_zero((void**)&p, new_np * sizeof(ui_str_t)) == 0;
-        if (ok) {
-            for (int32_t i = old_np; i < new_np; i++) {
-                ok = ui_str.init(&p[i], null, 0, false);
-                swear(ok, "because .init(\"\", 0) does NOT allocate memory");
-            }
-            *ps = p;
+        if (ok) { *ps = p; }
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_realloc_ps(ui_str_t* *ps,
+        int32_t old_np, int32_t new_np) { // reallocate paragraphs
+    bool ok = ui_edit_doc_realloc_ps_no_init(ps, old_np, new_np);
+    if (ok) {
+        for (int32_t i = old_np; i < new_np; i++) {
+            ok = ui_str.init(&(*ps)[i], null, 0, false);
+            swear(ok, "because .init(\"\", 0) does NOT allocate memory");
         }
     }
     return ok;
@@ -7951,7 +7954,7 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
                        ps[np].g2b[0] == 0);
                 ui_str.free(&ps[np]);
                 // process "\r\n" strings
-                const int32_t  e = k > i && s[i] == '\r' ? k - 1 : k;
+                const int32_t  e = k > i && s[k - 1] == '\r' ? k - 1 : k;
                 const int32_t  bytes = e - i; assert(bytes >= 0);
                 const uint8_t* u = bytes == 0 ? null : s + i;
                 // str.init may allocate str.g2b[] on the heap and may fail
@@ -8039,129 +8042,6 @@ static int32_t ui_edit_doc_utf8bytes(const ui_edit_doc_t* d,
     return bytes + r.to.pn - r.from.pn + 1;
 }
 
-static bool ui_edit_doc_remove(ui_edit_doc_t* d,
-        const ui_edit_range_t* range) {
-    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
-    ui_edit_check_range_inside_text(&d->text, &r);
-    // first paragraph:
-    ui_str_t* p0 = &d->text.ps[r.from.pn];
-    ui_str_t* p1 = &d->text.ps[r.to.pn];
-    bool ok = // move first and last paragraphs to the heap
-        ui_str.expand(p0, p0->b + 1) ||
-        ui_str.expand(p1, p1->b + 1); // if p0 == p1 this is no-op
-    if (ok) {
-        ui_str_t merge = {0}; // merge of p0 and p1
-        if (p0 != p1) {
-            int32_t bytes = p0->g2b[r.from.gp];
-            uint8_t* u = bytes == 0 ? null : p0->u;
-            ok = ui_str.init(&merge, u, bytes, true); // allocate on heap
-            if (ok) {
-                bytes = p1->b - p1->g2b[r.to.gp];
-                u = bytes == 0 ? null : p1->u + p1->g2b[r.to.gp];
-                ok = ui_str.replace(&merge, merge.g, merge.g, u, bytes);
-            }
-        }
-        if (ok) {
-            if (p1 != p0) {
-                int32_t deleted = 0;
-                for (int32_t pn = r.from.pn + 1; pn <= r.to.pn; pn++) {
-                    ui_str.free(&d->text.ps[pn]);
-                    deleted++;
-                }
-                ui_str.free(&d->text.ps[r.from.pn]);
-                d->text.ps[r.from.pn] = merge;
-                // remove deleted paragraphs:
-                if (deleted > 0 && d->text.np - r.to.pn - 1 > 0) {
-                    memcpy(&d->text.ps[r.from.pn + 1],
-                           &d->text.ps[r.from.pn + 1 + deleted],
-                           (d->text.np - r.to.pn - 1) *
-                            sizeof(ui_str_t));
-                }
-                d->text.np -= deleted;
-            } else {
-                ok = ui_str.replace(p0, r.from.gp, r.to.gp, null, 0);
-            }
-        } else if (merge.c > 0 || merge.g > 0) {
-            ui_str.free(&merge);
-        }
-        assert(d->text.np >= 1);
-    }
-    return ok;
-}
-
-static bool ui_edit_doc_insert(ui_edit_doc_t* d,
-        const ui_edit_pg_t* i, // insertion point
-        const ui_edit_text_t* ins) {
-    ui_edit_check_pg_inside_text(&d->text, i);
-    bool ok = true;
-    int32_t np = d->text.np + ins->np - 1;
-    ui_str_t* ps = null;
-    ok = ui_edit_doc_realloc_ps(&ps, 0, np);
-    ui_str_t* f = null; // first string "ins" is merged with
-    if (ok) {
-        // ps[] will hold pointers to the original strings
-        // from the document and copies of text->ps[] strings:
-        for (int32_t pn = 0; pn < np; pn++) { ui_str.free(&ps[pn]); }
-        for (int32_t pn = 0; ok && pn < np; pn++) {
-            ui_str_t* s = &d->text.ps[pn];
-            if (pn < i->pn || i->pn + ins->np <= pn) {
-                ps[pn] = *s;
-            } else if (i->pn <= pn && pn < i->pn + ins->np) {
-                // insert `ins` into `i` insertion point
-                if (pn == i->pn) {
-                    ps[pn] = *s;
-                    assert(0 <= i->gp && i->gp <= s->g);
-                    // if there is continuation paragraph cut the tail
-                    // it will be reinserted below as `f`
-                    const int32_t to = ins->np > 1 ? s->g : i->gp;
-                    ok = ui_str.replace(&ps[pn], i->gp, to,
-                                        ins->ps[0].u, ins->ps[0].b);
-                    f = s;
-                } else if (ins->np > 1 &&
-                    pn == i->pn + ins->np - 1) {
-                    // last string of text
-                    const ui_str_t* e = &ins->ps[ins->np - 1];
-                    assert(f != null);
-                    if (f != null) {
-                        ok = ui_str.init(&ps[pn], f->u, f->b, true);
-                        if (ok) {
-                            ok = ui_str.replace(&ps[pn], 0, i->gp, e->u, e->b);
-                        }
-                    } else {
-                        assert(false, "should not ever be executed");
-                        ok = ui_str.init(&ps[pn], e->u, e->b, true);
-                    }
-                } else if (i->pn < pn && pn < i->pn + ins->np - 1) {
-                    int32_t ix = pn - i->pn;
-                    assert(0 < ix && ix < ins->np - 1);
-                    const ui_str_t* p = &ins->ps[ix];
-                    ok = ui_str.init(&ps[pn], p->u, p->b, true);
-                } else {
-                    assert(false, "should be handled above");
-                }
-            }
-        }
-        if (!ok) { // free allocated strings in partial result
-            for (int32_t pn = 0; pn < np; pn++) {
-                if (i->pn < pn && pn < i->pn + ins->np) {
-                    // not all strings in this range actually initialized
-                    if (ps[pn].c > 0 || ps[pn].g > 0) {
-                        ui_str.free(&ps[pn]);
-                    }
-                }
-            }
-        }
-        if (ok) {
-// TODO: watch memory leaks
-//          if (f != null) { ui_str.free(f); }
-            ut_heap.free(d->text.ps); // free old paragraphs
-            d->text.ps = ps;
-            d->text.np = np;
-        }
-    }
-    return ok;
-}
-
 static void ui_edit_notify_before(ui_edit_doc_t* d,
         const ui_edit_notify_info_t* ni) {
     ui_edit_listener_t* o = d->listeners;
@@ -8182,107 +8062,6 @@ static void ui_edit_notify_after(ui_edit_doc_t* d,
         }
         o = o->next;
     }
-}
-
-static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
-        const ui_edit_range_t* range, const ui_edit_text_t* text,
-        ui_edit_to_do_t* undo) {
-    assert(text->np > 0);
-    const ui_edit_range_t r = ui_edit_range.ordered(&d->text, range);
-    if (ui_edit_debug_dump) {
-        traceln("--->");
-        traceln("doc:");
-        ui_edit_doc_dump(d);
-        traceln("");
-        traceln("range: ");
-        ui_edit_range_dump(&r);
-        traceln("");
-        traceln("text: ");
-        ui_edit_text_dump(text);
-        traceln("");
-    }
-    ui_edit_check_range_inside_text(&d->text, &r);
-    ui_edit_range_t x = r;
-    x.to.pn = r.from.pn + text->np - 1;
-    if (r.from.pn == r.to.pn && text->np == 1) {
-        x.to.gp = r.from.gp + text->ps[0].g;
-    } else {
-        x.to.gp = text->ps[text->np - 1].g;
-    }
-    const ui_edit_notify_info_t ni_before = {
-        .ok = true, .d = d, .r = &r, .x = &x, .t = text,
-        .pnf = r.from.pn, .pnt = r.to.pn,
-        .deleted = 0, .inserted = 0
-    };
-    traceln("before: text->np: %d ps[%d..%d]",
-            text->np, ni_before.pnf, ni_before.pnt);
-    ui_edit_range_dump(&r);
-    ui_edit_range_dump(&x);
-    ui_edit_notify_before(d, &ni_before);
-    bool empty_range = ui_edit_range.compare(r.from, r.to) == 0;
-    bool ok = true;
-    if (undo != null) {
-        ui_edit_doc.copy_text(d, &r, &undo->text);
-        if (ui_edit_debug_dump) {
-            traceln("copy: (undo->text)");
-            ui_edit_text_dump(&undo->text);
-            traceln("");
-        }
-    }
-    if (ok) {
-        if (empty_range) {
-            ok = ui_edit_doc_insert(d, &r.from, text);
-        } else {
-            ok = ui_edit_doc_insert(d, &r.to, text);
-            if (ok) {
-                // TODO: manually test reinsertion
-                if (!ui_edit_doc_remove(d, &r)) {
-                    // remove inserted text:
-                    ui_edit_range_t inserted = { .from = r.to, .to = r.to };
-                    inserted.to.pn += text->np - 1;
-                    inserted.to.gp  = text->ps[text->np - 1].g;
-                    ui_edit_check_range_inside_text(&d->text, &inserted);
-                    (void)ui_edit_doc_remove(d, &inserted);
-                }
-            }
-        }
-        if (ok & ui_edit_debug_dump) {
-            traceln("doc:");
-            ui_edit_doc_dump(d);
-        }
-        if (ok && undo != null) {
-            undo->range.from  = r.from;
-            undo->range.to.pn = r.from.pn + text->np - 1;
-            if (undo->range.from.pn == undo->range.to.pn) {
-                undo->range.to.gp = undo->range.from.gp +
-                                    text->ps[text->np - 1].g;
-            } else {
-                undo->range.to.gp = text->ps[text->np - 1].g;
-            }
-            if (ui_edit_debug_dump) {
-                traceln("undo: ");
-                ui_edit_range_dump(&undo->range);
-                ui_edit_text_dump(&undo->text);
-            }
-            ui_edit_check_range_inside_text(&d->text, &undo->range);
-        }
-    }
-    if (!ok && undo != null) { ui_edit_doc.dispose_to_do(undo); }
-    const ui_edit_notify_info_t ni_after = {
-        .ok = ok, .d = d, .r = &r, .x = &x, .t = text,
-        .pnf = r.from.pn, .pnt = x.to.pn,
-        .deleted = r.to.pn - r.from.pn,
-        .inserted = text->np - 1
-    };
-    traceln("after: text->np: %d ps[%d..%d] "
-            "deleted: %d inserted: %d",
-            text->np, ni_after.pnf, ni_after.pnt,
-            ni_after.deleted, ni_after.inserted);
-    ui_edit_notify_after(d, &ni_after);
-    if (ui_edit_debug_dump) {
-        traceln("<---");
-    }
-    return ok;
 }
 
 static bool ui_edit_doc_subscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
@@ -8345,8 +8124,8 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
             bytes = p->b;
         }
         assert(t->ps[pn - r.from.pn].g == 0);
-        ui_str.replace(&t->ps[pn - r.from.pn], 0, 0,
-                          bytes == 0 ? null : u, bytes);
+        const uint8_t* u_or_null = bytes == 0 ? null : u;
+        ui_str.replace(&t->ps[pn - r.from.pn], 0, 0, u_or_null, bytes);
     }
     if (!ok) {
         ui_edit_text.dispose(t);
@@ -8387,29 +8166,269 @@ static void ui_edit_doc_copy(const ui_edit_doc_t* d,
     (void)utf8_bytes;
 }
 
-static bool ui_edit_doc_replace(ui_edit_doc_t* d, const ui_edit_range_t* r,
-        const uint8_t* u, int32_t b) {
-    ui_edit_text_t t = {0};
+static bool ui_edit_doc_insert_2_or_more_lines(ui_edit_doc_t* d, int32_t pn,
+        const ui_str_t* s, const ui_edit_text_t* it, const ui_str_t* e) {
+    ui_edit_text_t* dt = &d->text;
+    const int32_t np = dt->np + it->np - 1;
+    ui_str_t* ps = null; // ps[np]
+    bool ok = ui_edit_doc_realloc_ps_no_init(&ps, 0, np);
+    if (ok) {
+        memcpy(ps, dt->ps, pn * sizeof(ui_str_t));
+        ok = ui_str.init(&ps[pn], s->u, s->b, true);
+        for (int32_t i = 1; ok && i < it->np - 1; i++) {
+            ok = ui_str.init(&ps[pn + i], it->ps[i].u, it->ps[i].b, true);
+        }
+        if (ok) {
+            const int32_t ix = pn + it->np - 1; // last `it` index
+            ok = ui_str.init(&ps[ix], e->u, e->b, true);
+        }
+        memcpy(ps + pn + it->np, dt->ps + pn + 1,
+               (dt->np - pn - 1) * sizeof(ui_str_t));
+        if (ok) {
+            dt->np = np;
+            dt->ps = ps;
+        } else { // free allocated memory:
+            for (int32_t i = 0; i < it->np; i++) {
+                ui_str.free(&ps[pn + i]);
+                ps[pn + i] = ui_str.empty;
+            }
+            ui_edit_doc_realloc_ps_no_init(&ps, np, 0);
+        }
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_insert_1(ui_edit_doc_t* d,
+        const ui_edit_pg_t ip, // insertion point
+        const ui_edit_text_t* insert) {
+    ui_edit_text_t* dt = &d->text;
+    assert(0 <= ip.pn && ip.pn < dt->np);
+    ui_str_t* str = &dt->ps[ip.pn]; // string in document text
+    assert(insert->np == 1);
+    ui_str_t* ins = &insert->ps[0]; // string to insert
+    assert(0 <= ip.gp && ip.gp <= str->g);
+    // ui_str.replace() is all or nothing:
+    return ui_str.replace(str, ip.gp, ip.gp, ins->u, ins->b);
+}
+
+static bool ui_edit_substr_append(ui_str_t* d, const ui_str_t* s1, int32_t gp1,
+    const ui_str_t* s2) { // s1[0:gp1] + s2
+    const int32_t b = s1->g2b[gp1];
+    bool ok = ui_str.init(d, b == 0 ? null : s1->u, b, false);
+    if (ok) {
+        ok = ui_str.replace(d, d->g, d->g, s2->u, s2->b);
+    } else {
+        *d = ui_str.empty;
+    }
+    return ok;
+}
+
+static bool ui_edit_append_substr(ui_str_t* d, const ui_str_t* s1,
+    const ui_str_t* s2, int32_t gp2) {  // s1 + s2[gp1:*]
+    bool ok = ui_str.init(d, s1->b == 0 ? null : s1->u, s1->b, false);
+    if (ok) {
+        const int32_t o = s2->g2b[gp2]; // offset (bytes)
+        const int32_t b = s2->b - o;
+        ok = ui_str.replace(d, d->g, d->g, b == 0 ? null : s2->u + o, b);
+    } else {
+        *d = ui_str.empty;
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_insert(ui_edit_doc_t* d,
+        const ui_edit_pg_t ip, const ui_edit_text_t* it,
+        ui_edit_to_do_t* undo) {
+    bool ok = true;
+    if (ok) {
+        if (it->np == 1) {
+            undo->range = (ui_edit_range_t){ .from = ip, .to = ip };
+            undo->range.to.gp += it->ps[it->np - 1].g;
+            ok = ui_edit_doc_insert_1(d, ip, it);
+        } else {
+            ui_edit_text_t* dt = &d->text;
+            ui_str_t* str = &dt->ps[ip.pn];
+            ui_str_t s = {0}; // start of `it` `insert text`
+            ui_str_t e = {0}; // end   of `it` `insert text`
+            if (ui_edit_substr_append(&s, str, ip.gp, &it->ps[0]) &&
+                ui_edit_append_substr(&e, &it->ps[it->np - 1], str, ip.gp)) {
+                ok = ui_edit_doc_insert_2_or_more_lines(d, ip.pn, &s, it, &e);
+            }
+            if (ok) {
+                ui_edit_range_t r = { .from = ip, .to = ip };
+                r.to.pn += it->np - 1;
+                r.to.gp  = it->ps[it->np - 1].g;
+                undo->range = r;
+                // text from `it` moved to document, do not dispose it
+            }
+        }
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_remove_lines(ui_edit_doc_t* d,
+    ui_str_t* merge, int32_t from, int32_t to) {
+    ui_edit_text_t* dt = &d->text;
+    bool ok = true;
+    for (int32_t pn = from + 1; pn <= to; pn++) {
+        ui_str.free(&dt->ps[pn]);
+    }
+    if (dt->np - to - 1 > 0) {
+        memcpy(&dt->ps[from + 1], &dt->ps[to + 1],
+                (dt->np - to - 1) * sizeof(ui_str_t));
+    }
+    dt->np -= to - from;
+    if (ok) {
+        ui_str.swap(&dt->ps[from], merge);
+    }
+    return ok;
+}
+
+static bool ui_edit_doc_insert_remove(ui_edit_doc_t* d,
+        const ui_edit_range_t r, const ui_edit_text_t* it,
+        ui_edit_to_do_t* undo) {
+    ui_edit_text_t* dt = &d->text;
+    bool ok = true;
+    bool empty_text = it->np == 1 && it->ps[0].g == 0;
+    if (it->np == 1 && r.from.pn == r.to.pn) {
+        ok = ui_str.replace(&dt->ps[r.from.pn], r.from.gp, r.to.gp, it->ps[0].u, it->ps[0].b);
+    } else {
+        ui_str_t merge = {0};
+        ui_str_t* s = &dt->ps[r.from.pn];
+        ui_str_t* e = &dt->ps[r.to.pn];
+        const int32_t  o = e->g2b[r.to.gp];
+        const int32_t  b = e->b - o;
+        const uint8_t* u = b == 0 ? null : e->u + o;
+        ok = ui_edit_substr_append(&merge, s, r.from.gp, &it->ps[it->np - 1]) &&
+             ui_str.replace(&merge, merge.g, merge.g, u, b);
+        if (ok) {
+            if (!empty_text) { ok = ui_edit_doc_insert(d, r.to, it, undo); }
+            if (ok) {
+                ok = ui_edit_doc_remove_lines(d, &merge, r.from.pn, r.to.pn);
+            }
+        }
+        ui_str.free(&merge);
+    }
+    return ok;
+}
+
+static ui_edit_to_do_t* ui_edit_doc_create_undo(ui_edit_doc_t* d,
+        const ui_edit_range_t r) {
     ui_edit_to_do_t* undo = null;
     bool ok = ut_heap.alloc_zero((void**)&undo, sizeof(ui_edit_to_do_t)) == 0;
     if (ok) {
-        ok = ui_edit_text.init(&t, u, b, false);
+        ok = ui_edit_doc.copy_text(d, &r, &undo->text);
+        if (!ok) { ut_heap.free(undo); undo = null; }
     }
-    if (ok) {
-        ok = ui_edit_doc.replace_text(d, r, &t, undo);
-        ui_edit_text.dispose(&t);
+    return undo;
+}
+
+static void ui_edit_doc_before_replace_text(ui_edit_doc_t* d,
+        const ui_edit_range_t r, const ui_edit_text_t* t) {
+    if (ui_edit_debug_dump) {
+        traceln("--->");
+        traceln("doc:");
+        ui_edit_doc_dump(d);
+        traceln("");
+        traceln("range: ");
+        ui_edit_range_dump(&r);
+        traceln("");
+        traceln("text: ");
+        ui_edit_text_dump(t);
+        traceln("");
     }
-    if (ok) {
+    ui_edit_check_range_inside_text(&d->text, &r);
+    ui_edit_range_t x = r;
+    x.to.pn = r.from.pn + t->np - 1;
+    if (r.from.pn == r.to.pn && t->np == 1) {
+        x.to.gp = r.from.gp + t->ps[0].g;
+    } else {
+        x.to.gp = t->ps[t->np - 1].g;
+    }
+    const ui_edit_notify_info_t ni_before = {
+        .ok = true, .d = d, .r = &r, .x = &x, .t = t,
+        .pnf = r.from.pn, .pnt = r.to.pn,
+        .deleted = 0, .inserted = 0
+    };
+//  traceln("before: text->np: %d ps[%d..%d]",
+//          text->np, ni_before.pnf, ni_before.pnt);
+//  ui_edit_range_dump(&r);
+//  ui_edit_range_dump(&x);
+    ui_edit_notify_before(d, &ni_before);
+}
+
+static void ui_edit_doc_after_replace_text(ui_edit_doc_t* d,
+        bool ok,
+        const ui_edit_range_t r,
+        const ui_edit_text_t* t) {
+    ui_edit_range_t x = r;
+    x.to.pn = r.from.pn + t->np - 1;
+    if (r.from.pn == r.to.pn && t->np == 1) {
+        x.to.gp = r.from.gp + t->ps[0].g;
+    } else {
+        x.to.gp = t->ps[t->np - 1].g;
+    }
+    const ui_edit_notify_info_t ni_after = {
+        .ok = ok, .d = d, .r = &r, .x = &x, .t = t,
+        .pnf = r.from.pn, .pnt = x.to.pn,
+        .deleted = r.to.pn - r.from.pn,
+        .inserted = t->np - 1
+    };
+//  traceln("after: d->text.np: %d text->np: %d ps[%d..%d] "
+//          "deleted: %d inserted: %d",
+//          d->text.np, text->np, ni_after.pnf, ni_after.pnt,
+//          ni_after.deleted, ni_after.inserted);
+    ui_edit_notify_after(d, &ni_after);
+}
+
+static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
+        const ui_edit_range_t* range, const ui_edit_text_t* it,
+        ui_edit_to_do_t* undo) {
+    ui_edit_text_t* dt = &d->text;
+    const ui_edit_range_t r = ui_edit_range.ordered(dt, range);
+    ui_edit_doc_before_replace_text(d, r, it);
+    bool ok = true;
+    if (ui_edit_range.is_empty(r)) {
+        ok = ui_edit_doc_insert(d, r.from, it, undo);
+    } else {
+        ok = ui_edit_doc_insert_remove(d, r, it, undo);
+    }
+    if (ok && undo != null) {
         undo->next = d->undo;
         d->undo = undo;
         // redo stack is not valid after new replace, empty it:
         while (d->redo != null) {
+            ui_edit_to_do_t* next = d->redo->next;
             ui_edit_doc.dispose_to_do(d->redo);
-            d->redo = d->redo->next;
+            ut_heap.free(d->redo);
+            d->redo = next;
         }
-    } else {
-        if (undo != null) {
-            ui_edit_doc.dispose_to_do(d->undo);
+    }
+    ui_edit_doc_after_replace_text(d, ok, r, it);
+    return ok;
+}
+
+static bool ui_edit_utf8_to_heap_text(const uint8_t* u, int32_t b,
+        ui_edit_text_t* it) {
+    assert((b == 0) == (u == null || u[0] == 0x00));
+    return ui_edit_text.init(it, b != 0 ? u : null, b, true);
+}
+
+static bool ui_edit_doc_replace(ui_edit_doc_t* d,
+        const ui_edit_range_t* range, const uint8_t* u, int32_t b) {
+    ui_edit_text_t* dt = &d->text;
+    const ui_edit_range_t r = ui_edit_range.ordered(dt, range);
+    ui_edit_to_do_t* undo = ui_edit_doc_create_undo(d, r);
+    bool ok = undo != null;
+    if (ok) {
+        ui_edit_text_t it = {0};
+        ok = ui_edit_utf8_to_heap_text(u, b, &it);
+        if (ok) {
+            ok = ui_edit_doc_replace_text(d, &r, &it, undo);
+            ui_edit_text.dispose(&it);
+        }
+        if (!ok) {
+            ui_edit_doc.dispose_to_do(undo);
             ut_heap.free(undo);
         }
     }
@@ -8542,6 +8561,8 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
     }
     ui_edit_check_zeros(d, sizeof(*d));
 }
+
+// tests:
 
 static void ui_edit_doc_test_big_text(void) {
     enum { MB10 = 10 * 1000 * 1000 };
@@ -8795,12 +8816,12 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_text.dispose(&t);
         ui_edit_range_t r = { .from = {.pn = 0, .gp = 4},
                               .to   = {.pn = 2, .gp = 3} };
-        swear(ui_edit_doc_remove(d, &r));
+        swear(ui_edit_doc.replace(d, &r, null, 0));
         swear(d->text.np == 1);
         swear(d->text.ps[0].b == 9);
         swear(d->text.ps[0].g == 9);
         swear(memcmp(d->text.ps[0].u, "Goodverse", 9) == 0);
-        swear(ui_edit_doc_remove(d, null));
+        swear(ui_edit_doc.replace(d, null, null, 0)); // remove all
         swear(d->text.np == 1);
         swear(d->text.ps[0].b == 0);
         swear(d->text.ps[0].g == 0);
@@ -8865,11 +8886,12 @@ static const ui_edit_range_t ui_edit_invalid_range = {
 };
 
 ui_edit_range_if ui_edit_range = {
-    .compare        = ui_edit_compare,
+    .compare       = ui_edit_range_compare,
     .all_on_null   = ui_edit_range_all_on_null,
-    .order         = ui_edit_order_range,
+    .order         = ui_edit_range_order,
     .ordered       = ui_edit_range_ordered,
-    .is_valid      = ui_edit_is_valid_range,
+    .is_valid      = ui_edit_range_is_valid,
+    .is_empty      = ui_edit_range_is_empty,
     .end           = ui_edit_range_end,
     .uint64        = ui_edit_range_uint64,
     .pg            = ui_edit_range_pg,
@@ -10636,9 +10658,10 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 #include "ut/ut.h"
 
 static int32_t ui_str_g2b_ascii[1024]; // ui_str_g2b_ascii[i] == i for all "i"
-static int8_t* ui_str_empty = (int8_t*)"";
+static int8_t  ui_str_empty[1] = {0x00};
 
 static bool    ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b, bool heap);
+static void    ui_str_swap(ui_str_t* s1, ui_str_t* s2);
 static int32_t ui_str_utf8_bytes(const uint8_t* u, int32_t b);
 static int32_t ui_str_glyphs(const uint8_t* utf8, int32_t bytes);
 static int32_t ui_str_gp_to_bp(const uint8_t* s, int32_t bytes, int32_t gp);
@@ -10647,20 +10670,30 @@ static bool    ui_str_expand(ui_str_t* s, int32_t c);
 static void    ui_str_shrink(ui_str_t* s);
 static bool    ui_str_replace(ui_str_t* s, int32_t f, int32_t t,
                               const uint8_t* u, int32_t b);
+static bool    ui_edit_str_concatenate(ui_str_t* d, const ui_str_t* s1,
+                                       const ui_str_t* s2);
+static bool    ui_edit_str_substring(ui_str_t* d, const ui_str_t* s,
+                                     int32_t f, int32_t t);
 static void    ui_str_test(void);
 static void    ui_str_free(ui_str_t* s);
 
 ui_str_if ui_str = {
-    .init      = ui_str_init,
-    .utf8bytes = ui_str_utf8_bytes,
-    .glyphs    = ui_str_glyphs,
-    .gp_to_bp  = ui_str_gp_to_bp,
-    .bytes     = ui_str_bytes,
-    .expand    = ui_str_expand,
-    .shrink    = ui_str_shrink,
-    .replace   = ui_str_replace,
-    .test      = ui_str_test,
-    .free      = ui_str_free
+    .init        = ui_str_init,
+    .swap        = ui_str_swap,
+    .utf8bytes   = ui_str_utf8_bytes,
+    .glyphs      = ui_str_glyphs,
+    .gp_to_bp    = ui_str_gp_to_bp,
+    .bytes       = ui_str_bytes,
+    .expand      = ui_str_expand,
+    .shrink      = ui_str_shrink,
+    .replace     = ui_str_replace,
+    .concatenate = ui_edit_str_concatenate,
+    .substring   = ui_edit_str_substring,
+    .test        = ui_str_test,
+    .free        = ui_str_free,
+    .empty       = { .u = (uint8_t*)ui_str_empty,
+                     .g2b = ui_str_g2b_ascii,
+                     .c = 0, .b = 0, .g = 0 }
 };
 
 #pragma push_macro("ui_str_check")
@@ -10863,7 +10896,7 @@ static bool ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b,
     } else {
         if (heap) {
             ok = ut_heap.alloc((void**)&s->u, b) == 0;
-            if (ok) { s->c = b; memcpy(s->u, u, b); }
+            if (ok) { s->c = b; memmove(s->u, u, b); }
         } else {
             s->u = (uint8_t*)u;
         }
@@ -10874,6 +10907,10 @@ static bool ui_str_init(ui_str_t* s, const uint8_t* u, int32_t b,
     }
     if (!ok) { ui_str_free(s); }
     return ok;
+}
+
+static void ui_str_swap(ui_str_t* s1, ui_str_t* s2) {
+    ui_str_t s = *s1; *s1 = *s2; *s2 = s;
 }
 
 static int32_t ui_str_bytes(ui_str_t* s,
@@ -10888,7 +10925,7 @@ static bool ui_str_move_g2b_to_heap(ui_str_t* s) {
     if (s->g2b == ui_str_g2b_ascii) { // even for s->g == 0
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
         ok = ut_heap.alloc(&s->g2b, bytes) == 0;
-        if (ok) { memcpy(s->g2b, ui_str_g2b_ascii, bytes); }
+        if (ok) { memmove(s->g2b, ui_str_g2b_ascii, bytes); }
     }
     return ok;
 }
@@ -10900,7 +10937,7 @@ static bool ui_str_move_to_heap(ui_str_t* s, int32_t c) {
         const uint8_t* o = s->u;
         ok = ut_heap.alloc((void**)&s->u, c) == 0;
         if (ok) {
-            memcpy(s->u, o, s->b);
+            memmove(s->u, o, s->b);
         }
     } else if (s->c < c) {
         ok = ut_heap.realloc((void**)&s->u, c) == 0;
@@ -10957,9 +10994,9 @@ static bool ui_str_remove(ui_str_t* s, int32_t f, int32_t t) {
         if (ok) {
             const int32_t bytes_to_shift = s->b - s->g2b[t];
             assert(0 <= bytes_to_shift && bytes_to_shift <= s->b);
-            memcpy(s->u + s->g2b[f], s->u + s->g2b[t], bytes_to_shift);
+            memmove(s->u + s->g2b[f], s->u + s->g2b[t], bytes_to_shift);
             if (s->g2b != ui_str_g2b_ascii) {
-                memcpy(s->g2b + f, s->g2b + t, (s->g - t + 1) * sizeof(int32_t));
+                memmove(s->g2b + f, s->g2b + t, (s->g - t + 1) * sizeof(int32_t));
                 for (int32_t i = f; i <= s->g; i++) {
                     s->g2b[i] -= bytes_to_remove;
                 }
@@ -10973,6 +11010,20 @@ static bool ui_str_remove(ui_str_t* s, int32_t f, int32_t t) {
     }
     ui_str_check(s);
     return ok;
+}
+
+static bool ui_edit_str_concatenate(ui_str_t* d, const ui_str_t* s1,
+        const ui_str_t* s2) {
+    return ui_str.init(d, s1->u, s1->b, false) &&
+           ui_str.replace(d, d->g, d->g, s2->u, s2->b);
+}
+
+static bool ui_edit_str_substring(ui_str_t* d, const ui_str_t* s,
+        int32_t f, int32_t t) {
+    swear(f <= t);
+    const int32_t b = s->g2b[t] - s->g2b[f];
+    const uint8_t* u = b == 0 ? null : s->u + s->g2b[f];
+    return ui_str.init(d, u, b, false);
 }
 
 static bool ui_str_replace(ui_str_t* s,
@@ -11004,14 +11055,14 @@ static bool ui_str_replace(ui_str_t* s,
                 // reusing ins.u[0..ins.b-1] and ins.g2b[0..ins.g]
                 // moving memory using memmove() left to right:
                 if (bytes_to_insert <= bytes_to_remove) {
-                    memcpy(s->u + s->g2b[f] + bytes_to_insert,
+                    memmove(s->u + s->g2b[f] + bytes_to_insert,
                            s->u + s->g2b[f] + bytes_to_remove,
                            s->b - s->g2b[f] - bytes_to_remove);
                     assert(s->g2b != ui_str_g2b_ascii);
-                    memcpy(s->g2b + f + glyphs_to_insert,
+                    memmove(s->g2b + f + glyphs_to_insert,
                            s->g2b + f + glyphs_to_remove,
                            (s->g - t + 1) * _4_bytes);
-                    memcpy(s->u + s->g2b[f], ins.u, ins.b);
+                    memmove(s->u + s->g2b[f], ins.u, ins.b);
                 } else {
                     assert(s->g2b != ui_str_g2b_ascii);
                     const int32_t g = s->g + glyphs_to_insert -
@@ -11027,7 +11078,7 @@ static bool ui_str_replace(ui_str_t* s,
                         memmove(s->g2b + f + glyphs_to_insert,
                                 s->g2b + f + glyphs_to_remove,
                                 (s->g - t + 1) * _4_bytes);
-                        memcpy(s->u + s->g2b[f], ins.u, ins.b);
+                        memmove(s->u + s->g2b[f], ins.u, ins.b);
                     }
                 }
                 if (ok) {

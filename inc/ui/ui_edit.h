@@ -90,6 +90,7 @@ typedef struct ui_edit_range_if {
     ui_edit_range_t (*ordered)(const ui_edit_text_t* t,
                                const ui_edit_range_t* r);
     bool            (*is_valid)(const ui_edit_range_t r);
+    bool            (*is_empty)(const ui_edit_range_t r);
     // end() last paragraph, last glyph in text
     ui_edit_pg_t    (*end)(const ui_edit_text_t* t);
     uint64_t        (*uint64)(const ui_edit_pg_t pg); // (p << 32 | g)
@@ -154,9 +155,9 @@ typedef struct ui_edit_run_s {
 // with .allocated == 0; as text is modified it is copied to
 // heap and reallocated there.
 
-typedef struct ui_edit_para_s { // "paragraph" view
-    int32_t runs;          // number of runs in this paragraph
-    ui_edit_run_t* run;    // [runs] array of pointers (heap)
+typedef struct ui_edit_para_s { // "paragraph" view consists of wrapped runs
+    int32_t runs;       // number of runs in this paragraph
+    ui_edit_run_t* run; // heap allocated array[runs]
 } ui_edit_para_t;
 
 typedef struct ui_edit_notify_view_s {
