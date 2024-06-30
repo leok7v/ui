@@ -6980,7 +6980,11 @@ static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
         if (s->b == s->g && s->g < countof(ui_edit_str_g2b_ascii) - 1) {
-            traceln("why is it moving to heap?");
+//          traceln("forcefully moving to heap");
+            // this is usually done in the process of concatenation
+            // of 2 ascii strings when result is known to be longer
+            // than countof(ui_edit_str_g2b_ascii) - 1 but the
+            // first string in concatenation is short. It's OK.
         }
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
         ok = ut_heap.alloc(&s->g2b, bytes) == 0;
