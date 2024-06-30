@@ -76,6 +76,7 @@ typedef struct {
     ui_rect_t wrc;  // window rectangle including non-client area
     ui_rect_t crc;  // client rectangle
     ui_rect_t mrc;  // monitor rectangle
+    ui_rect_t prc;  // previously invalidated paint rectagle inside crc
     ui_rect_t work_area; // current monitor work area
     int32_t   caption_height; // caption height
     ui_wh_t   border;    // frame border size

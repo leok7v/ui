@@ -165,22 +165,9 @@ static void set_text(int32_t ix) {
     }
     // can be called before text.ui initialized
     if (strcmp(last, ui_view.string(&label)) != 0) {
-        ui_view.invalidate(&label);
+        ui_view.invalidate(&label, null);
     }
     ut_str_printf(last, "%s", ui_view.string(&label));
-}
-
-static void painted(void) {
-    // because of blinking caret paint is called frequently
-    int32_t ix = focused();
-    if (ix >= 0) {
-        bool fuzzing = edit[ix]->fuzzer != null;
-        if (fuzz.pressed != fuzzing) {
-            fuzz.pressed = fuzzing;
-            ui_view.invalidate(&fuzz);
-        }
-        set_text(ix);
-    }
 }
 
 static void paint(ui_view_t* v) {
@@ -193,7 +180,14 @@ static void paint(ui_view_t* v) {
         ui_gdi.frame(e->x - 1, e->y - 1, e->w + 2, e->h + 2,
             i == ix ? c : ui_colors.dkgray4);
     }
-    painted();
+    if (ix >= 0) {
+        bool fuzzing = edit[ix]->fuzzer != null;
+        if (fuzz.pressed != fuzzing) {
+            fuzz.pressed = fuzzing;
+            ui_view.invalidate(&fuzz, null);
+        }
+        set_text(ix);
+    }
     if (ix >= 0) {
         ro.pressed = edit[ix]->ro;
         sl.pressed = edit[ix]->sle;

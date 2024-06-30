@@ -1,12 +1,17 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
+static void ui_button_invalidate(ui_view_t* v) {
+    ui_rect_t rc = (ui_rect_t){v->x, v->y, v->w, v->h};
+    ui_view.invalidate(v, &rc);
+}
+
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     assert(v->type == ui_view_button);
     if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
         v->armed = false;
-        ui_view.invalidate(v);
+        ui_button_invalidate(v);
     }
 }
 
@@ -93,11 +98,11 @@ static void ui_button_trigger(ui_view_t* v) {
     assert(!v->hidden && !v->disabled);
     ui_button_t* b = (ui_button_t*)v;
     v->armed = true;
-    ui_view.invalidate(v);
+    ui_button_invalidate(v);
     ui_app.draw();
     v->p.armed_until = ui_app.now + 0.250;
     ui_button_callback(b);
-    ui_view.invalidate(v);
+    ui_button_invalidate(v);
 }
 
 static void ui_button_character(ui_view_t* v, const char* utf8) {
@@ -137,7 +142,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
         v->armed = false;
     }
     if (on) { ui_button_callback(b); }
-    if (a != v->armed) { ui_view.invalidate(v); }
+    if (a != v->armed) { ui_button_invalidate(v); }
 }
 
 static void ui_button_measure(ui_view_t* v) {

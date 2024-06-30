@@ -861,7 +861,10 @@ typedef struct ui_view_if {
     void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
     void (*set_text)(ui_view_t* v, const char* format, ...);
     void (*set_text_va)(ui_view_t* v, const char* format, va_list va);
-    void (*invalidate)(const ui_view_t* v); // prone to delays
+    // ui_view.invalidate() prone to 30ms delays don't use in r/t video code
+    // ui_view.invalidate(v, ui_app.crc) invalidates whole client rect but
+    // ui_view.redraw() (fast non blocking) is much better instead
+    void (*invalidate)(const ui_view_t* v, const ui_rect_t* rect_or_null);
     bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
     bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
     const char* (*string)(ui_view_t* v);  // returns localized text
@@ -1844,6 +1847,7 @@ typedef struct {
     ui_rect_t wrc;  // window rectangle including non-client area
     ui_rect_t crc;  // client rectangle
     ui_rect_t mrc;  // monitor rectangle
+    ui_rect_t prc;  // previously invalidated paint rectagle inside crc
     ui_rect_t work_area; // current monitor work area
     int32_t   caption_height; // caption height
     ui_wh_t   border;    // frame border size
@@ -2892,6 +2896,8 @@ static void ui_app_wm_paint(void) {
     if (ui_app.window != null) {
         PAINTSTRUCT ps = {0};
         BeginPaint(ui_app_window(), &ps);
+        ui_app.prc = ui_app_rect2ui(&ps.rcPaint);
+//      traceln("%d,%d %dx%d", ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h);
         ui_app_paint_on_canvas(ps.hdc);
         EndPaint(ui_app_window(), &ps);
     }
@@ -4275,12 +4281,17 @@ int main(int argc, const char* argv[], const char** envp) {
 
 #include "ut/ut.h"
 
+static void ui_button_invalidate(ui_view_t* v) {
+    ui_rect_t rc = (ui_rect_t){v->x, v->y, v->w, v->h};
+    ui_view.invalidate(v, &rc);
+}
+
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     assert(v->type == ui_view_button);
     if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
         v->armed = false;
-        ui_view.invalidate(v);
+        ui_button_invalidate(v);
     }
 }
 
@@ -4367,11 +4378,11 @@ static void ui_button_trigger(ui_view_t* v) {
     assert(!v->hidden && !v->disabled);
     ui_button_t* b = (ui_button_t*)v;
     v->armed = true;
-    ui_view.invalidate(v);
+    ui_button_invalidate(v);
     ui_app.draw();
     v->p.armed_until = ui_app.now + 0.250;
     ui_button_callback(b);
-    ui_view.invalidate(v);
+    ui_button_invalidate(v);
 }
 
 static void ui_button_character(ui_view_t* v, const char* utf8) {
@@ -4411,7 +4422,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
         v->armed = false;
     }
     if (on) { ui_button_callback(b); }
-    if (a != v->armed) { ui_view.invalidate(v); }
+    if (a != v->armed) { ui_button_invalidate(v); }
 }
 
 static void ui_button_measure(ui_view_t* v) {
@@ -7838,7 +7849,7 @@ static void ui_edit_layout(ui_view_t* v);
 // in text layout.
 
 static void ui_edit_invalidate(ui_edit_t* e) {
-    ui_view.invalidate(&e->view);
+    ui_view.invalidate(&e->view, null);
 }
 
 static int32_t ui_edit_text_width(ui_edit_t* e, const uint8_t* s, int32_t n) {
@@ -8384,7 +8395,9 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
 static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
     if (e->caret.x != x || e->caret.y != y) {
         if (e->focused && ui_app.has_focus()) {
+//            ui_app.hide_caret();
             ui_app.move_caret(e->view.x + x, e->view.y + y);
+//            ui_app.show_caret();
         }
         e->caret.x = x;
         e->caret.y = y;
@@ -8512,7 +8525,7 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
             if (!ui_app.shift && e->mouse == 0) {
                 e->selection.a[0] = e->selection.a[1];
             }
-            ui_edit_invalidate(e);
+//          ui_edit_invalidate(e);
         }
     }
 }
@@ -8841,17 +8854,25 @@ static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
 static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
     assert(view->type == ui_view_text);
     assert(!view->hidden && !view->disabled);
-    #pragma push_macro("ui_edit_ctl")
-    #define ui_edit_ctl(c) ((char)((c) - 'a' + 1))
+    #pragma push_macro("ui_edit_ctrl")
+    #define ui_edit_ctrl(c) ((char)((c) - 'a' + 1))
     ui_edit_t* e = (ui_edit_t*)view;
     if (e->focused) {
         char ch = utf8[0];
         if (ui_app.ctrl) {
-            if (ch == ui_edit_ctl('a')) { ui_edit.select_all(e); }
-            if (ch == ui_edit_ctl('c')) { ui_edit.copy_to_clipboard(e); }
+            if (ch == ui_edit_ctrl('a')) { ui_edit.select_all(e); }
+            if (ch == ui_edit_ctrl('c')) { ui_edit.copy_to_clipboard(e); }
             if (!e->ro) {
-                if (ch == ui_edit_ctl('x')) { ui_edit.cut_to_clipboard(e); }
-                if (ch == ui_edit_ctl('v')) { ui_edit.paste_from_clipboard(e); }
+                if (ch == ui_edit_ctrl('x')) { ui_edit.cut_to_clipboard(e); }
+                if (ch == ui_edit_ctrl('v')) { ui_edit.paste_from_clipboard(e); }
+                if (ch == ui_edit_ctrl('y')) { ui_edit_doc.redo(e->doc); }
+                if (ch == ui_edit_ctrl('z') || ch == ui_edit_ctrl('Z')) {
+                    if (ui_app.shift) { // Ctrl+Shift+Z
+                        ui_edit_doc.redo(e->doc);
+                    } else { // Ctrl+Z
+                        ui_edit_doc.undo(e->doc);
+                    }
+                }
             }
         }
         if (0x20 <= ch && !e->ro) { // 0x20 space
@@ -8871,7 +8892,7 @@ static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
         ui_edit_invalidate(e);
         if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
     }
-    #pragma pop_macro("ui_edit_ctl")
+    #pragma pop_macro("ui_edit_ctrl")
 }
 
 static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
@@ -9419,14 +9440,22 @@ static void ui_edit_before(ui_edit_notify_t* notify,
 
 static void ui_edit_after(ui_edit_notify_t* notify,
          const ui_edit_notify_info_t* ni) {
-    assert(ni->d->text.np > 0);
+    const ui_edit_text_t* dt = &ni->d->text; // document text
+    assert(dt->np > 0);
     ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
     ui_edit_t* e = (ui_edit_t*)n->that;
+    assert(ni->d == e->doc);
     // number of paragraphs before replace():
     const int32_t np = (int32_t)n->data;
-    swear(ni->d->text.np == np - ni->deleted + ni->inserted);
+    swear(dt->np == np - ni->deleted + ni->inserted);
     ui_edit_reallocate_runs(e, ni->r->from.pn, np);
     e->selection = *ni->x;
+    // this is needed by undo/redo: trim selection
+    ui_edit_pg_t* pg = e->selection.a;
+    for (int32_t i = 0; i < countof(e->selection.a); i++) {
+        pg[i].pn = ut_max(0, ut_min(dt->np - 1, pg[i].pn));
+        pg[i].gp = ut_max(0, ut_min(dt->ps[pg[i].pn].g, pg[i].gp));
+    }
     ui_edit_scroll_into_view(e, e->selection.to);
     ui_edit_invalidate(e);
 }
@@ -10973,6 +11002,22 @@ void ui_mbx_init(ui_mbx_t* mx, const char* options[],
 
 #include "ut/ut.h"
 
+static void ui_slider_invalidate(const ui_slider_t* s) {
+    const ui_view_t* v = &s->view;
+    ui_rect_t rc = (ui_rect_t){v->x, v->y, v->w, v->h};
+    ui_view.invalidate(v, &rc);
+    if (!s->dec.hidden) {
+        const ui_view_t* b = &s->dec;
+        rc = (ui_rect_t){b->x, b->y, b->w, b->h};
+        ui_view.invalidate(&s->dec, &rc);
+    }
+    if (!s->inc.hidden) {
+        const ui_view_t* b = &s->inc;
+        rc = (ui_rect_t){b->x, b->y, b->w, b->h};
+        ui_view.invalidate(&s->dec, &rc);
+    }
+}
+
 static int32_t ui_slider_width(const ui_slider_t* s) {
     const int32_t em = s->view.fm->em.w;
     const fp64_t min_w = (fp64_t)s->view.min_w_em;
@@ -11131,7 +11176,7 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
                 s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
                 if (s->view.callback != null) { s->view.callback(&s->view); }
-                ui_view.invalidate(v);
+                ui_slider_invalidate(s);
             }
         }
     }
@@ -11151,7 +11196,7 @@ static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
         if (s->value != v) {
             s->value = v;
             if (s->view.callback != null) { s->view.callback(&s->view); }
-            ui_view.invalidate(&s->view);
+            ui_slider_invalidate(s);
         }
     }
 }
@@ -11704,13 +11749,17 @@ static void ui_view_disband(ui_view_t* p) {
     ui_app.request_layout();
 }
 
-static void ui_view_invalidate(const ui_view_t* v) {
-    ui_rect_t rc = { v->x, v->y, v->w, v->h};
-    rc.x -= v->fm->em.w;
-    rc.y -= v->fm->em.h;
-    rc.w += v->fm->em.w * 2;
-    rc.h += v->fm->em.h * 2;
-    ui_app.invalidate(&rc);
+static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
+    ui_rect_t rc = {0};
+    if (r == null) {
+        rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
+        rc.x -= v->fm->em.w;
+        rc.y -= v->fm->em.h;
+        rc.w += v->fm->em.w * 2;
+        rc.h += v->fm->em.h * 2;
+//      traceln("invalidate %d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+    }
+    ui_app.invalidate(r == null ? &rc : r);
 }
 
 static const char* ui_view_string(ui_view_t* v) {

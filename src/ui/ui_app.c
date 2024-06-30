@@ -867,6 +867,8 @@ static void ui_app_wm_paint(void) {
     if (ui_app.window != null) {
         PAINTSTRUCT ps = {0};
         BeginPaint(ui_app_window(), &ps);
+        ui_app.prc = ui_app_rect2ui(&ps.rcPaint);
+//      traceln("%d,%d %dx%d", ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h);
         ui_app_paint_on_canvas(ps.hdc);
         EndPaint(ui_app_window(), &ps);
     }

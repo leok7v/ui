@@ -38,7 +38,7 @@ static void ui_edit_layout(ui_view_t* v);
 // in text layout.
 
 static void ui_edit_invalidate(ui_edit_t* e) {
-    ui_view.invalidate(&e->view);
+    ui_view.invalidate(&e->view, null);
 }
 
 static int32_t ui_edit_text_width(ui_edit_t* e, const uint8_t* s, int32_t n) {
@@ -584,7 +584,9 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
 static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
     if (e->caret.x != x || e->caret.y != y) {
         if (e->focused && ui_app.has_focus()) {
+//            ui_app.hide_caret();
             ui_app.move_caret(e->view.x + x, e->view.y + y);
+//            ui_app.show_caret();
         }
         e->caret.x = x;
         e->caret.y = y;
@@ -712,7 +714,7 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
             if (!ui_app.shift && e->mouse == 0) {
                 e->selection.a[0] = e->selection.a[1];
             }
-            ui_edit_invalidate(e);
+//          ui_edit_invalidate(e);
         }
     }
 }
@@ -1041,17 +1043,25 @@ static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
 static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
     assert(view->type == ui_view_text);
     assert(!view->hidden && !view->disabled);
-    #pragma push_macro("ui_edit_ctl")
-    #define ui_edit_ctl(c) ((char)((c) - 'a' + 1))
+    #pragma push_macro("ui_edit_ctrl")
+    #define ui_edit_ctrl(c) ((char)((c) - 'a' + 1))
     ui_edit_t* e = (ui_edit_t*)view;
     if (e->focused) {
         char ch = utf8[0];
         if (ui_app.ctrl) {
-            if (ch == ui_edit_ctl('a')) { ui_edit.select_all(e); }
-            if (ch == ui_edit_ctl('c')) { ui_edit.copy_to_clipboard(e); }
+            if (ch == ui_edit_ctrl('a')) { ui_edit.select_all(e); }
+            if (ch == ui_edit_ctrl('c')) { ui_edit.copy_to_clipboard(e); }
             if (!e->ro) {
-                if (ch == ui_edit_ctl('x')) { ui_edit.cut_to_clipboard(e); }
-                if (ch == ui_edit_ctl('v')) { ui_edit.paste_from_clipboard(e); }
+                if (ch == ui_edit_ctrl('x')) { ui_edit.cut_to_clipboard(e); }
+                if (ch == ui_edit_ctrl('v')) { ui_edit.paste_from_clipboard(e); }
+                if (ch == ui_edit_ctrl('y')) { ui_edit_doc.redo(e->doc); }
+                if (ch == ui_edit_ctrl('z') || ch == ui_edit_ctrl('Z')) {
+                    if (ui_app.shift) { // Ctrl+Shift+Z
+                        ui_edit_doc.redo(e->doc);
+                    } else { // Ctrl+Z
+                        ui_edit_doc.undo(e->doc);
+                    }
+                }
             }
         }
         if (0x20 <= ch && !e->ro) { // 0x20 space
@@ -1071,7 +1081,7 @@ static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
         ui_edit_invalidate(e);
         if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
     }
-    #pragma pop_macro("ui_edit_ctl")
+    #pragma pop_macro("ui_edit_ctrl")
 }
 
 static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
@@ -1619,14 +1629,22 @@ static void ui_edit_before(ui_edit_notify_t* notify,
 
 static void ui_edit_after(ui_edit_notify_t* notify,
          const ui_edit_notify_info_t* ni) {
-    assert(ni->d->text.np > 0);
+    const ui_edit_text_t* dt = &ni->d->text; // document text
+    assert(dt->np > 0);
     ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
     ui_edit_t* e = (ui_edit_t*)n->that;
+    assert(ni->d == e->doc);
     // number of paragraphs before replace():
     const int32_t np = (int32_t)n->data;
-    swear(ni->d->text.np == np - ni->deleted + ni->inserted);
+    swear(dt->np == np - ni->deleted + ni->inserted);
     ui_edit_reallocate_runs(e, ni->r->from.pn, np);
     e->selection = *ni->x;
+    // this is needed by undo/redo: trim selection
+    ui_edit_pg_t* pg = e->selection.a;
+    for (int32_t i = 0; i < countof(e->selection.a); i++) {
+        pg[i].pn = ut_max(0, ut_min(dt->np - 1, pg[i].pn));
+        pg[i].gp = ut_max(0, ut_min(dt->ps[pg[i].pn].g, pg[i].gp));
+    }
     ui_edit_scroll_into_view(e, e->selection.to);
     ui_edit_invalidate(e);
 }

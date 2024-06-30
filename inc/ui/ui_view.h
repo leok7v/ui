@@ -132,7 +132,10 @@ typedef struct ui_view_if {
     void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
     void (*set_text)(ui_view_t* v, const char* format, ...);
     void (*set_text_va)(ui_view_t* v, const char* format, va_list va);
-    void (*invalidate)(const ui_view_t* v); // prone to delays
+    // ui_view.invalidate() prone to 30ms delays don't use in r/t video code
+    // ui_view.invalidate(v, ui_app.crc) invalidates whole client rect but
+    // ui_view.redraw() (fast non blocking) is much better instead
+    void (*invalidate)(const ui_view_t* v, const ui_rect_t* rect_or_null);
     bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
     bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
     const char* (*string)(ui_view_t* v);  // returns localized text

@@ -1,6 +1,22 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
+static void ui_slider_invalidate(const ui_slider_t* s) {
+    const ui_view_t* v = &s->view;
+    ui_rect_t rc = (ui_rect_t){v->x, v->y, v->w, v->h};
+    ui_view.invalidate(v, &rc);
+    if (!s->dec.hidden) {
+        const ui_view_t* b = &s->dec;
+        rc = (ui_rect_t){b->x, b->y, b->w, b->h};
+        ui_view.invalidate(&s->dec, &rc);
+    }
+    if (!s->inc.hidden) {
+        const ui_view_t* b = &s->inc;
+        rc = (ui_rect_t){b->x, b->y, b->w, b->h};
+        ui_view.invalidate(&s->dec, &rc);
+    }
+}
+
 static int32_t ui_slider_width(const ui_slider_t* s) {
     const int32_t em = s->view.fm->em.w;
     const fp64_t min_w = (fp64_t)s->view.min_w_em;
@@ -159,7 +175,7 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
                 s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
                 if (s->view.callback != null) { s->view.callback(&s->view); }
-                ui_view.invalidate(v);
+                ui_slider_invalidate(s);
             }
         }
     }
@@ -179,7 +195,7 @@ static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
         if (s->value != v) {
             s->value = v;
             if (s->view.callback != null) { s->view.callback(&s->view); }
-            ui_view.invalidate(&s->view);
+            ui_slider_invalidate(s);
         }
     }
 }

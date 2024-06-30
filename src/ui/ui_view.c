@@ -145,13 +145,17 @@ static void ui_view_disband(ui_view_t* p) {
     ui_app.request_layout();
 }
 
-static void ui_view_invalidate(const ui_view_t* v) {
-    ui_rect_t rc = { v->x, v->y, v->w, v->h};
-    rc.x -= v->fm->em.w;
-    rc.y -= v->fm->em.h;
-    rc.w += v->fm->em.w * 2;
-    rc.h += v->fm->em.h * 2;
-    ui_app.invalidate(&rc);
+static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
+    ui_rect_t rc = {0};
+    if (r == null) {
+        rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
+        rc.x -= v->fm->em.w;
+        rc.y -= v->fm->em.h;
+        rc.w += v->fm->em.w * 2;
+        rc.h += v->fm->em.h * 2;
+//      traceln("invalidate %d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+    }
+    ui_app.invalidate(r == null ? &rc : r);
 }
 
 static const char* ui_view_string(ui_view_t* v) {
