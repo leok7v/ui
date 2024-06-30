@@ -1534,25 +1534,55 @@ static void ui_app_formatted_toast(fp64_t timeout, const char* format, ...) {
     va_end(va);
 }
 
+static int32_t ui_app_caret_w;
+static int32_t ui_app_caret_h;
+static int32_t ui_app_caret_x = -1;
+static int32_t ui_app_caret_y = -1;
+static bool    ui_app_caret_shown;
+
 static void ui_app_create_caret(int32_t w, int32_t h) {
+    ui_app_caret_w = w;
+    ui_app_caret_h = h;
     fatal_if_false(CreateCaret(ui_app_window(), null, w, h));
     assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
 }
 
+static void ui_app_invalidate_caret(void) {
+    if (ui_app_caret_w >  0 && ui_app_caret_h >  0 &&
+        ui_app_caret_x >= 0 && ui_app_caret_y >= 0 &&
+        ui_app_caret_shown) {
+        RECT rc = { ui_app_caret_x, ui_app_caret_y,
+                    ui_app_caret_x + ui_app_caret_w,
+                    ui_app_caret_y + ui_app_caret_h };
+        fatal_if_false(InvalidateRect(ui_app_window(), &rc, false));
+    }
+}
+
 static void ui_app_show_caret(void) {
+    assert(!ui_app_caret_shown);
     fatal_if_false(ShowCaret(ui_app_window()));
+    ui_app_caret_shown = true;
+    ui_app_invalidate_caret();
 }
 
 static void ui_app_move_caret(int32_t x, int32_t y) {
-//  traceln("SetCaretPos(%d, %d)", x, y);
+    ui_app_invalidate_caret(); // where is was
+    ui_app_caret_x = x;
+    ui_app_caret_y = y;
     fatal_if_false(SetCaretPos(x, y));
+    ui_app_invalidate_caret(); // where it is now
 }
 
 static void ui_app_hide_caret(void) {
+    assert(ui_app_caret_shown);
     fatal_if_false(HideCaret(ui_app_window()));
+    ui_app_invalidate_caret();
+    ui_app_caret_shown = false;
 }
 
 static void ui_app_destroy_caret(void) {
+    ui_app_caret_w = 0;
+    ui_app_caret_h = 0;
     fatal_if_false(DestroyCaret());
 }
 

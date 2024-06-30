@@ -3563,25 +3563,55 @@ static void ui_app_formatted_toast(fp64_t timeout, const char* format, ...) {
     va_end(va);
 }
 
+static int32_t ui_app_caret_w;
+static int32_t ui_app_caret_h;
+static int32_t ui_app_caret_x = -1;
+static int32_t ui_app_caret_y = -1;
+static bool    ui_app_caret_shown;
+
 static void ui_app_create_caret(int32_t w, int32_t h) {
+    ui_app_caret_w = w;
+    ui_app_caret_h = h;
     fatal_if_false(CreateCaret(ui_app_window(), null, w, h));
     assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
 }
 
+static void ui_app_invalidate_caret(void) {
+    if (ui_app_caret_w >  0 && ui_app_caret_h >  0 &&
+        ui_app_caret_x >= 0 && ui_app_caret_y >= 0 &&
+        ui_app_caret_shown) {
+        RECT rc = { ui_app_caret_x, ui_app_caret_y,
+                    ui_app_caret_x + ui_app_caret_w,
+                    ui_app_caret_y + ui_app_caret_h };
+        fatal_if_false(InvalidateRect(ui_app_window(), &rc, false));
+    }
+}
+
 static void ui_app_show_caret(void) {
+    assert(!ui_app_caret_shown);
     fatal_if_false(ShowCaret(ui_app_window()));
+    ui_app_caret_shown = true;
+    ui_app_invalidate_caret();
 }
 
 static void ui_app_move_caret(int32_t x, int32_t y) {
-//  traceln("SetCaretPos(%d, %d)", x, y);
+    ui_app_invalidate_caret(); // where is was
+    ui_app_caret_x = x;
+    ui_app_caret_y = y;
     fatal_if_false(SetCaretPos(x, y));
+    ui_app_invalidate_caret(); // where it is now
 }
 
 static void ui_app_hide_caret(void) {
+    assert(ui_app_caret_shown);
     fatal_if_false(HideCaret(ui_app_window()));
+    ui_app_invalidate_caret();
+    ui_app_caret_shown = false;
 }
 
 static void ui_app_destroy_caret(void) {
+    ui_app_caret_w = 0;
+    ui_app_caret_h = 0;
     fatal_if_false(DestroyCaret());
 }
 
@@ -8525,7 +8555,6 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
             if (!ui_app.shift && e->mouse == 0) {
                 e->selection.a[0] = e->selection.a[1];
             }
-//          ui_edit_invalidate(e);
         }
     }
 }
@@ -8549,7 +8578,6 @@ static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
     r.to.gp += g;
     e->selection = r;
     ui_edit_move_caret(e, e->selection.from);
-    ui_edit_invalidate(e);
     return r.to;
 }
 
@@ -8889,7 +8917,6 @@ static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
                         utf8[0], utf8[1], utf8[2], utf8[3]);
             }
         }
-        ui_edit_invalidate(e);
         if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
     }
     #pragma pop_macro("ui_edit_ctrl")
@@ -9354,7 +9381,11 @@ static void ui_edit_paint(ui_view_t* v) {
     const int32_t bottom = v->y + e->inside.bottom;
     assert(pn <= dt->np);
     for (int32_t i = pn; i < dt->np && y < bottom; i++) {
-        y = ui_edit_paint_paragraph(e, &ta, x, y, i);
+        if (ui_app.prc.y <= y && y <= ui_app.prc.y + ui_app.prc.h) {
+            y = ui_edit_paint_paragraph(e, &ta, x, y, i);
+        } else {
+            y += v->fm->height;
+        }
     }
     ui_gdi.set_clip(0, 0, 0, 0);
 }

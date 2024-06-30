@@ -714,7 +714,6 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
             if (!ui_app.shift && e->mouse == 0) {
                 e->selection.a[0] = e->selection.a[1];
             }
-//          ui_edit_invalidate(e);
         }
     }
 }
@@ -738,7 +737,6 @@ static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
     r.to.gp += g;
     e->selection = r;
     ui_edit_move_caret(e, e->selection.from);
-    ui_edit_invalidate(e);
     return r.to;
 }
 
@@ -1078,7 +1076,6 @@ static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
                         utf8[0], utf8[1], utf8[2], utf8[3]);
             }
         }
-        ui_edit_invalidate(e);
         if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
     }
     #pragma pop_macro("ui_edit_ctrl")
@@ -1543,7 +1540,11 @@ static void ui_edit_paint(ui_view_t* v) {
     const int32_t bottom = v->y + e->inside.bottom;
     assert(pn <= dt->np);
     for (int32_t i = pn; i < dt->np && y < bottom; i++) {
-        y = ui_edit_paint_paragraph(e, &ta, x, y, i);
+        if (ui_app.prc.y <= y && y <= ui_app.prc.y + ui_app.prc.h) {
+            y = ui_edit_paint_paragraph(e, &ta, x, y, i);
+        } else {
+            y += v->fm->height;
+        }
     }
     ui_gdi.set_clip(0, 0, 0, 0);
 }
