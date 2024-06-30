@@ -4,6 +4,20 @@
 
 #undef UI_EDIT_STR_TEST
 #undef UI_EDIT_DOC_TEST
+#undef UI_STR_TEST_REPLACE_ALL_PERMUTATIONS
+#undef UI_EDIT_DOC_TEST_PARAGRAPHS
+
+#if 0 // flip to 1 to run tests
+
+#define UI_EDIT_STR_TEST
+#define UI_EDIT_DOC_TEST
+
+#if 1 // flip to 1 to run exhausting lengthy tests
+#define UI_STR_TEST_REPLACE_ALL_PERMUTATIONS
+#define UI_EDIT_DOC_TEST_PARAGRAPHS
+#endif
+
+#endif
 
 #pragma push_macro("ui_edit_check_zeros")
 #pragma push_macro("ui_edit_check_pg_inside_text")
@@ -1070,7 +1084,7 @@ static bool ui_edit_str_init(ui_edit_str_t* s, const uint8_t* u, int32_t b,
     memset(s, 0x00, sizeof(*s));
     ui_edit_str_parameters(u, b);
     if (b == 0) { // cast below intentionally removes "const" qualifier
-        s->g2b = (int32_t*)ui_edit_str_g2b_ascii; // simplifies use cases
+        s->g2b = (int32_t*)ui_edit_str_g2b_ascii;
         s->u = (uint8_t*)u;
         assert(s->c == 0 && u[0] == 0x00);
     } else {
@@ -1083,7 +1097,7 @@ static bool ui_edit_str_init(ui_edit_str_t* s, const uint8_t* u, int32_t b,
         if (ok) {
             s->b = b;
             if (b == 1 && u[0] <= 0x7F) {
-                s->g2b = (int32_t*)ui_edit_str_g2b_ascii; // simplifies use cases
+                s->g2b = (int32_t*)ui_edit_str_g2b_ascii;
                 s->g = 1;
             } else {
                 ok = ui_edit_str_init_g2b(s);
@@ -1108,6 +1122,9 @@ static int32_t ui_edit_str_bytes(ui_edit_str_t* s,
 static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
+        if (s->b == s->g && s->g < countof(ui_edit_str_g2b_ascii) - 1) {
+            traceln("why is it moving to heap?");
+        }
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
         ok = ut_heap.alloc(&s->g2b, bytes) == 0;
         if (ok) { memmove(s->g2b, ui_edit_str_g2b_ascii, bytes); }
@@ -1153,16 +1170,19 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
             swear(ok, "smaller size is always expected to be ok");
         }
         s->c = s->b;
-        // Optimize memory for short ASCII only strings:
-        if (s->g < countof(ui_edit_str_g2b_ascii) - 1 && s->g == s->b) {
+    }
+    // Optimize memory for short ASCII only strings:
+    if (s->g2b != ui_edit_str_g2b_ascii) {
+        if (s->g == s->b && s->g < countof(ui_edit_str_g2b_ascii) - 1) {
             // If this is an ascii only utf8 string shorter than
             // ui_edit_str_g2b_ascii it does not need .g2b[] allocated:
             if (s->g2b != ui_edit_str_g2b_ascii) {
                 ut_heap.free(s->g2b);
-                s->g2b = (int32_t*)ui_edit_str_g2b_ascii;
+                s->g2b = ui_edit_str_g2b_ascii;
             }
         } else {
-            traceln("none ASCII");
+//          const int32_t b64 = ut_min(s->b, 64);
+//          traceln("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
         }
     }
 }
@@ -1215,12 +1235,19 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
         const int32_t glyphs_to_insert = ins.g; // only for readability
         const int32_t glyphs_to_remove = t - f; // only for readability
         if (ok) {
+            const int32_t bytes = s->b + bytes_to_insert - bytes_to_remove;
             assert(ins.g2b != null); // pacify code analysis
-            assert(s->b + bytes_to_insert - bytes_to_remove > 0);
-            const int32_t c = ut_max(s->b,
-                s->b + bytes_to_insert - bytes_to_remove);
+            assert(bytes > 0);
+            const int32_t c = ut_max(s->b, bytes);
+            // keep g2b == ui_edit_str_g2b_ascii as much as possible
+            const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
+                                   ins.g2b == ui_edit_str_g2b_ascii &&
+                                   bytes < countof(ui_edit_str_g2b_ascii) - 1;
             ok = ui_edit_str_move_to_heap(s, c);
             if (ok) {
+                if (!all_ascii) {
+                    ui_edit_str_move_g2b_to_heap(s);
+                }
                 // insert ui_edit_str_t "ins" at glyph position "f"
                 // reusing ins.u[0..ins.b-1] and ins.g2b[0..ins.g]
                 // moving memory using memmove() left to right:
@@ -1228,41 +1255,71 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                     memmove(s->u + s->g2b[f] + bytes_to_insert,
                            s->u + s->g2b[f] + bytes_to_remove,
                            s->b - s->g2b[f] - bytes_to_remove);
-                    ui_edit_str_move_g2b_to_heap(s);
-                    assert(s->g2b != ui_edit_str_g2b_ascii);
-                    memmove(s->g2b + f + glyphs_to_insert,
-                           s->g2b + f + glyphs_to_remove,
-                           (s->g - t + 1) * _4_bytes);
+                    if (all_ascii) {
+                        assert(s->g2b == ui_edit_str_g2b_ascii);
+                    } else {
+                        assert(s->g2b != ui_edit_str_g2b_ascii);
+                        memmove(s->g2b + f + glyphs_to_insert,
+                               s->g2b + f + glyphs_to_remove,
+                               (s->g - t + 1) * _4_bytes);
+                    }
                     memmove(s->u + s->g2b[f], ins.u, ins.b);
                 } else {
-                    ui_edit_str_move_g2b_to_heap(s);
-                    assert(s->g2b != ui_edit_str_g2b_ascii);
-                    const int32_t g = s->g + glyphs_to_insert -
-                                             glyphs_to_remove;
-                    assert(g > s->g);
-                    ok = ut_heap.realloc(&s->g2b, (g + 1) * _4_bytes) == 0;
+                    if (all_ascii) {
+                        assert(s->g2b == ui_edit_str_g2b_ascii);
+                    } else {
+                        assert(s->g2b != ui_edit_str_g2b_ascii);
+                        const int32_t g = s->g + glyphs_to_insert -
+                                                 glyphs_to_remove;
+                        assert(g > s->g);
+                        ok = ut_heap.realloc(&s->g2b, (g + 1) * _4_bytes) == 0;
+                    }
                     // need to shift bytes staring with s.g2b[t] toward the end
                     if (ok) {
                         memmove(s->u + s->g2b[f] + bytes_to_insert,
                                 s->u + s->g2b[f] + bytes_to_remove,
                                 s->b - s->g2b[f] - bytes_to_remove);
-                        memmove(s->g2b + f + glyphs_to_insert,
-                                s->g2b + f + glyphs_to_remove,
-                                (s->g - t + 1) * _4_bytes);
+                        if (all_ascii) {
+                            assert(s->g2b == ui_edit_str_g2b_ascii);
+                        } else {
+                            assert(s->g2b != ui_edit_str_g2b_ascii);
+                            memmove(s->g2b + f + glyphs_to_insert,
+                                    s->g2b + f + glyphs_to_remove,
+                                    (s->g - t + 1) * _4_bytes);
+                        }
                         memmove(s->u + s->g2b[f], ins.u, ins.b);
                     }
                 }
                 if (ok) {
-                    assert(s->g2b != ui_edit_str_g2b_ascii);
-                    for (int32_t i = f; i <= f + glyphs_to_insert; i++) {
-                        s->g2b[i] = ins.g2b[i - f] + s->g2b[f];
+                    if (!all_ascii) {
+                        assert(s->g2b != ui_edit_str_g2b_ascii);
+                        for (int32_t i = f; i <= f + glyphs_to_insert; i++) {
+                            s->g2b[i] = ins.g2b[i - f] + s->g2b[f];
+                        }
+                    } else {
+                        assert(s->g2b == ui_edit_str_g2b_ascii);
+                        for (int32_t i = f; i <= f + glyphs_to_insert; i++) {
+                            assert(ui_edit_str_g2b_ascii[i] == i);
+                            assert(ins.g2b[i - f] + s->g2b[f] == i);
+                        }
                     }
                     s->b += bytes_to_insert - bytes_to_remove;
                     s->g += glyphs_to_insert - glyphs_to_remove;
-                    for (int32_t i = f + glyphs_to_insert + 1; i <= s->g; i++) {
-                        s->g2b[i] += bytes_to_insert - bytes_to_remove;
+                    assert(s->b == bytes);
+                    if (!all_ascii) {
+                        assert(s->g2b != ui_edit_str_g2b_ascii);
+                        for (int32_t i = f + glyphs_to_insert + 1; i <= s->g; i++) {
+                            s->g2b[i] += bytes_to_insert - bytes_to_remove;
+                        }
+                        s->g2b[s->g] = s->b;
+                    } else {
+                        assert(s->g2b == ui_edit_str_g2b_ascii);
+                        for (int32_t i = f + glyphs_to_insert + 1; i <= s->g; i++) {
+                            assert(s->g2b[i] == i);
+                            assert(ui_edit_str_g2b_ascii[i] == i);
+                        }
+                        assert(s->g2b[s->g] == s->b);
                     }
-                    s->g2b[s->g] = s->b;
                 }
             }
             ui_edit_str_free(&ins);
