@@ -60,9 +60,6 @@
     <ClInclude Include="..\inc\ut\ut_std.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_str.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut_streams.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
@@ -91,6 +88,9 @@
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_bt.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_str.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
   </ItemGroup>
@@ -142,9 +142,6 @@
     <ClCompile Include="..\src\ut\ut_static.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\ut_str.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\ut\ut_streams.c">
       <Filter>src\ut</Filter>
     </ClCompile>
@@ -164,6 +161,9 @@
       <Filter>src\ut</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ut\ut_bt.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\ut_str.c">
       <Filter>src\ut</Filter>
     </ClCompile>
   </ItemGroup>

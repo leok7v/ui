@@ -63,10 +63,10 @@
     <ClInclude Include="..\inc\ui\ui_theme.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_edit.h">
+    <ClInclude Include="..\inc\ui\ui_edit_view.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_str.h">
+    <ClInclude Include="..\inc\ui\ui_edit_doc.h">
       <Filter>inc\ui</Filter>
     </ClInclude>
   </ItemGroup>
@@ -113,13 +113,10 @@
     <ClCompile Include="..\src\ui\ui_theme.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\ui_edit.c">
+    <ClCompile Include="..\src\ui\ui_edit_view.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\ui_edit_text.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui_str.c">
+    <ClCompile Include="..\src\ui\ui_edit_doc.c">
       <Filter>src\ui</Filter>
     </ClCompile>
   </ItemGroup>

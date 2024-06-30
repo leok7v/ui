@@ -81,7 +81,9 @@ static void ui_theme_flush_menu_themes(void) {
     FlushMenuThemes_t FlushMenuThemes = (FlushMenuThemes_t)
             (FlushMenuThemes_t)ui_theme_uxtheme_func(136);
     errno_t r = ut_b2e(FlushMenuThemes());
-    if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
+    // FlushMenuThemes() works but returns ERROR_OLD_WIN_VERSION
+    // on newest Windows 11 but it is not documented thus no complains.
+    if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
         traceln("FlushMenuThemes(AllowDark) failed %s", strerr(r));
     }
 }
