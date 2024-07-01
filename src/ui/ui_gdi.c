@@ -770,11 +770,14 @@ static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     // and actually is "baseline" in other terminology
     // "otm.otmAscent" The maximum distance characters in this font extend
     // above the base line. This is the typographic ascent for the font.
+    // otm.otmEMSquare usually is 2048 which is size of rasterizer
     fm->height   = tm.tmHeight;
     fm->baseline = tm.tmAscent;
     fm->ascent   = otm.otmAscent;
     fm->descent  = tm.tmDescent;
     fm->baseline = tm.tmAscent;
+    fm->x_height = otm.otmsXHeight;
+    fm->cap_em_height = otm.otmsCapEmHeight;
     fm->internal_leading = tm.tmInternalLeading;
     fm->external_leading = tm.tmExternalLeading;
     fm->average_char_width = tm.tmAveCharWidth;

@@ -620,8 +620,10 @@ typedef struct ui_fm_s { // font metrics
     ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
     int32_t height;    // font height in pixels
     int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
-    int32_t ascent;    // The maximum glyphs extend above the baseline
+    int32_t ascent;    // the maximum glyphs extend above the baseline
     int32_t descent;   // maximum height of descenders
+    int32_t x_height;  // small letters height
+    int32_t cap_em_height;    // Capital letter "M" height
     int32_t internal_leading; // accents and diacritical marks goes there
     int32_t external_leading;
     int32_t average_char_width;
@@ -637,6 +639,23 @@ typedef struct ui_fm_s { // font metrics
     int32_t strike_through_position;
     bool mono;
 } ui_fm_t;
+
+/* see: https://github.com/leok7v/ui/wiki/Typography-Line-Terms
+   https://en.wikipedia.org/wiki/Typeface#Font_metrics
+
+   Example em55x55 H1 font @ 192dpi:
+    _   _                   _              ___    <- y:0
+   (_)_(_)                 | |             ___ /\    "diacritics circumflex"
+     / \   __ _ _   _ _ __ | |_ ___ _ __       ||
+    / _ \ / _` | | | | '_ \| __/ _ \ '_ \      ||    .ascend:30
+   / ___ \ (_| | |_| | |_) | ||  __/ | | |     ||     max extend above baseline
+  /_/   \_\__, |\__, | .__/ \__\___|_| |_| ___ || <- .baseline:44
+           __/ | __/ | |                       ||    .descend:11
+          |___/ |___/|_|                   ___ \/     max height of descenders
+                                                  <- .height:55
+  em: 55x55
+  ascender for "diacritics circumflex" is (h:55 - a:30 - d:11) = 14
+*/
 
 typedef struct ui_fms_s {
     // when font handles are re-created on system scaling change
@@ -773,7 +792,9 @@ typedef struct ui_view_s {
     int32_t h;
     ui_gaps_t insets;
     ui_gaps_t padding;
-    int32_t align; // see ui.alignment values
+    // see ui.alignment values
+    int32_t align; // align inside parent
+    int32_t text_align; // align of the text inside control
     int32_t max_w; // > 0 maximum width in pixels the view agrees to
     int32_t max_h; // > 0 maximum height in pixels
     fp32_t  min_w_em; // > 0 minimum width  of a view in "em"s
@@ -4331,10 +4352,14 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 static void ui_button_paint(ui_view_t* v) {
     assert(v->type == ui_view_button);
     assert(!v->hidden);
+    if (strcmp(v->p.text, "&Button") == 0 && v->fm == &ui_app.fm.H1) {
+        traceln("v->fm: .h: %d .a:%d .d:%d .b:%d",
+            v->fm->height, v->fm->ascent, v->fm->descent, v->fm->baseline);
+    }
     bool pressed = (v->armed ^ v->pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
-    int32_t w = v->w - 2;
-    int32_t h = v->h - 2;
+    int32_t w = v->w;
+    int32_t h = v->h;
     int32_t x = v->x;
     int32_t y = v->y;
     const int32_t r = (0x1 | ut_max(3, v->fm->em.h / 4));  // odd radius
@@ -4351,9 +4376,16 @@ static void ui_button_paint(ui_view_t* v) {
             ui_gdi.gradient(x, y, w, h, d1, d0, true);
         }
     } else {
+        // `bc` border color
+        ui_color_t bc = ui_colors.get_color(ui_color_id_gray_text);
+        if (v->armed) { bc = ui_colors.lighten(bc, 0.125f); }
+        if (v->disabled) { bc = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        if (v->hover && !v->armed) {
+            bc = ui_colors.get_color(ui_color_id_hot_tracking);
+        }
         ui_color_t d1 = ui_colors.darken(v->background, d2);
-        ui_color_t fc = ui_colors.interpolate(d0, d1, 0.5f);
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, ui_colors.transparent, fc);
+        ui_color_t fc = ui_colors.interpolate(d0, d1, 0.5f); // fill color
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
     }
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     const int32_t t_w = v->w - i.left - i.right;
@@ -4361,20 +4393,24 @@ static void ui_button_paint(ui_view_t* v) {
     if (v->icon == null) {
         const ui_wh_t wh = ui_view.text_metrics(0, 0,
                 false, 0, v->fm, "%s", ui_view.string(v));
-        int32_t t_x = 0;
-        if (v->align & ui.align.left) {
+        int32_t t_x = (t_w - wh.w) / 2;
+        const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
+        const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
+        if (h_align & ui.align.left) {
             t_x = 0;
-        } else if (v->align == ui.align.center) {
-            t_x = (t_w - wh.w) / 2;
-        } else if (v->align & ui.align.right) {
+        } else if (h_align & ui.align.right) {
             t_x = t_w - wh.w - i.right;
         }
-        int32_t t_y = 0;
-        if (v->align & ui.align.top) {
+        assert(wh.h == v->fm->height, "wh.h:%d fm.height:%d",
+               wh.h, v->fm->height);
+        int32_t t_y = (t_h - v->fm->ascent) / 2 - (v->fm->baseline  - v->fm->ascent);
+    int32_t t_y_1 = (t_h - wh.h) / 2;
+if (strcmp(v->p.text, "&Button") == 0 && v->fm == &ui_app.fm.H1) {
+    traceln("t_y:%d t_y_1:%d", t_y, t_y_1);
+}
+        if (v_align & ui.align.top) {
             t_y = 0;
-        } else if (v->align == ui.align.center) {
-            t_y = (t_h - wh.h) / 2;
-        } else if (v->align & ui.align.bottom) {
+        } else if (v_align & ui.align.bottom) {
             t_y = t_h - wh.h - i.bottom;
         }
         const int32_t tx = v->x + i.left + t_x;
@@ -4389,19 +4425,27 @@ static void ui_button_paint(ui_view_t* v) {
         }
         if (v->disabled) { c = ui_colors.get_color(ui_color_id_gray_text); }
 //      traceln("text_color: %08X", (uint32_t)c);
+static bool debug;
+        debug = true;
+        if (v->debug || debug) {
+            const int32_t y_0 = y + i.top;
+            const int32_t y_b = y_0 + v->fm->baseline;
+            const int32_t y_a = y_b - v->fm->ascent;
+            const int32_t y_h = y_0 + v->fm->height;
+            const int32_t y_x = y_b - v->fm->x_height;
+            const int32_t y_d = y_b + v->fm->descent;
+            ui_gdi.line(x, y_0, x + w, y_0, ui_colors.orange);
+            ui_gdi.line(x, y_a, x + w, y_a, ui_colors.green);
+            ui_gdi.line(x, y_x, x + w, y_x, ui_colors.orange);
+            ui_gdi.line(x, y_b, x + w, y_b, ui_colors.red);
+            // next two lines overlap:
+            ui_gdi.line(x, y_d, x + w / 2, y_d, ui_colors.blue);
+            ui_gdi.line(x + w / 2, y_h, x + w, y_h, ui_colors.yellow);
+        }
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
         ui_gdi.icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
-    }
-    ui_color_t color = ui_colors.get_color(ui_color_id_gray_text);
-    if (v->armed) { color = ui_colors.lighten(color, 0.125f); }
-    if (v->disabled) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
-    if (v->hover && !v->armed) {
-        color = ui_colors.get_color(ui_color_id_hot_tracking);
-    }
-    if (!v->flat) {
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, color, ui_colors.transparent);
     }
 }
 
@@ -10330,11 +10374,14 @@ static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     // and actually is "baseline" in other terminology
     // "otm.otmAscent" The maximum distance characters in this font extend
     // above the base line. This is the typographic ascent for the font.
+    // otm.otmEMSquare usually is 2048 which is size of rasterizer
     fm->height   = tm.tmHeight;
     fm->baseline = tm.tmAscent;
     fm->ascent   = otm.otmAscent;
     fm->descent  = tm.tmDescent;
     fm->baseline = tm.tmAscent;
+    fm->x_height = otm.otmsXHeight;
+    fm->cap_em_height = otm.otmsCapEmHeight;
     fm->internal_leading = tm.tmInternalLeading;
     fm->external_leading = tm.tmExternalLeading;
     fm->average_char_width = tm.tmAveCharWidth;
@@ -11817,22 +11864,24 @@ static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
 static void ui_view_measure_text(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
+    const ui_fm_t* fm = v->fm;
+ui_view_debug_measure_text = true;
     if (ui_view_debug_measure_text) {
         traceln(">%s em: %dx%d min: %.1fx%.1f", s,
-            v->fm->em.w, v->fm->em.h,
+            fm->em.w, fm->em.h,
             v->min_w_em, v->min_h_em);
     }
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
-    v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
+    v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
+    v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     ui_wh_t mt = { 0, 0 };
     if (s[0] != 0) {
         bool multiline = strchr(s, '\n') != null;
         if (v->type == ui_view_label && multiline) {
-            int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-            mt = ui_view_text_metrics(v->x, v->y, true,  w, v->fm, "%s", s);
+            int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)fm->em.w + 0.5);
+            mt = ui_view_text_metrics(v->x, v->y, true,  w, fm, "%s", s);
         } else {
-            mt = ui_view_text_metrics(v->x, v->y, false, 0, v->fm, "%s", s);
+            mt = ui_view_text_metrics(v->x, v->y, false, 0, fm, "%s", s);
         }
     }
     if (ui_view_debug_measure_text) {
@@ -11843,10 +11892,24 @@ static void ui_view_measure_text(ui_view_t* v) {
                      p.left, p.top, p.right, p.bottom,
                      i.left, i.top, i.right, i.bottom);
     }
+    // because existense of glyphs like unicode codepoint
+    // https://compart.com/en/unicode/U+1E1C
+    // Latin Capital Letter E with Cedilla and Breve
+    // and desire to vertically center center text inside
+    // buttons, labels, toggles and sliders it is necessary
+    // to extend vertical space to accomodate centering:
+    assert(mt.h == fm->height);
+    assert(fm->height == fm->descent + fm->baseline);
+    const int32_t ascender_height = fm->baseline - fm->ascent;
+    assert(ascender_height + fm->ascent + fm->descent == fm->height);
+    const int32_t mx = ut_max(fm->descent, ascender_height);
+    const int32_t ex = ut_max(fm->ascent + mx * 2, fm->height); // extended h
     v->w = i.left + ut_max(v->w, mt.w) + i.right;
-    v->h = i.top  + ut_max(v->h, mt.h) + i.bottom;
+    v->h = i.top  + ut_max(v->h, ex)   + i.bottom;
     if (ui_view_debug_measure_text) {
-        traceln("<%s %d,%d %dx%d", s, v->x, v->y, v->w, v->h);
+        traceln("<%s %d,%d %dx%d %p \"%.*s\"", s, v->x, v->y, v->w, v->h, v,
+                ut_min(64, strlen(v->p.text)), v->p.text);
+        traceln("");
     }
 }
 

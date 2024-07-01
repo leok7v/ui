@@ -371,7 +371,10 @@ static void list_test(ui_view_t* parent) {
 
 static void slider_format(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
-    ui_view.set_text(v, "%s", ut_str.uint64(slider->value));
+    ui_view.set_text(v, "%s %s %s",
+        ut_glyph_E_with_cedilla_and_breve,
+        ut_str.uint64(slider->value),
+        ut_glyph_E_with_cedilla_and_breve);
 }
 
 static void slider_callback(ui_view_t* v) {
@@ -408,17 +411,24 @@ static void controls_test(ui_view_t* parent) {
     static ui_view_t   list    = ui_view(list);
     static ui_view_t   span    = ui_view(span);
     static ui_toggle_t large   = ui_toggle("&Large", 0.0, controls_large);
-    static ui_label_t  left    = ui_label(0, "Left");
-    static ui_button_t button1 = ui_button("&Button",  0, null);
+    static ui_label_t  left    = ui_label(0, "Left ");
+    static ui_button_t button1 = ui_button("&Button ", 0, null);
+    static ui_button_t buttonE = ui_button(ut_glyph_E_with_cedilla_and_breve,
+                                           1.0f, null);
     static ui_slider_t slider1 = ui_slider("%d", 3.3f, 0, UINT16_MAX,
                                            slider_format, slider_callback);
-    static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 0.0, null);
+    static ui_slider_t sliderE = ui_slider(ut_glyph_E_with_cedilla_and_breve,
+                                           2.1f, 0, 4, null, null);
+    static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 0, null);
+    static ui_toggle_t toggleE = ui_toggle(ut_glyph_E_with_cedilla_and_breve, 0, null);
     static ui_label_t  right   = ui_label(0, "Right ");
-    static ui_label_t  label   = ui_label(0, "Label");
-    static ui_button_t button2 = ui_button("&Button",  0, null);
-    static ui_slider_t slider2 = ui_slider("%d", 3.3f, 0, UINT16_MAX,
+    static ui_label_t  labelE  = ui_label(1, ut_glyph_E_with_cedilla_and_breve);
+    // vertical
+    static ui_label_t  label   = ui_label(6.5f, "Label");
+    static ui_button_t button2 = ui_button("Button", 6.5f, null);
+    static ui_slider_t slider2 = ui_slider("%d", 6.5f, 0, UINT16_MAX,
                                             slider_format, slider_callback);
-    static ui_toggle_t toggle2 = ui_toggle("&Guides", 0.0, controls_guides);
+    static ui_toggle_t toggle2 = ui_toggle("&Guides", 6.5f, controls_guides);
     static ui_view_t   spacer  = ui_view(spacer);
     ui_view.add(&test,
         ui_view.add(&list,
@@ -426,27 +436,35 @@ static void controls_test(ui_view_t* parent) {
                 align(&large,        ui.align.top),
                 align(&left,         ui.align.top),
                 align(&button1,      ui.align.top),
+                align(&buttonE,      ui.align.top),
                 align(&right,        ui.align.top),
+                align(&labelE,       ui.align.top),
                 align(&slider1.view, ui.align.top),
                 align(&toggle1,      ui.align.top),
+                align(&sliderE.view, ui.align.top),
+                align(&toggleE,      ui.align.top),
             null),
             align(&label,        ui.align.left),
             align(&button2,      ui.align.left),
-//          align(&slider2.view, ui.align.left),
+            align(&slider2.view, ui.align.left),
             align(&toggle2,      ui.align.left),
             align(&spacer,       ui.align.left),
         null),
     null);
     span.align = ui.align.left;
     list.debug = true;
-  list.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
-  list.background_id = 0;
+//  list.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
+//  list.background_id = 0;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
     ui_view.set_text(&list, "list");
     list.background_id = ui_color_id_window;
     slider2.dec.hidden = true;
     slider2.inc.hidden = true;
+toggle2.pressed = true;
+large.pressed = true;
+controls_guides(&toggle2);
+controls_large(&large);
 }
 
 // edit1 test

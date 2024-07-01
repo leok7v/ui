@@ -41,7 +41,9 @@ typedef struct ui_view_s {
     int32_t h;
     ui_gaps_t insets;
     ui_gaps_t padding;
-    int32_t align; // see ui.alignment values
+    // see ui.alignment values
+    int32_t align; // align inside parent
+    int32_t text_align; // align of the text inside control
     int32_t max_w; // > 0 maximum width in pixels the view agrees to
     int32_t max_h; // > 0 maximum height in pixels
     fp32_t  min_w_em; // > 0 minimum width  of a view in "em"s

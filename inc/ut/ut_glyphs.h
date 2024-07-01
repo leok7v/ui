@@ -470,3 +470,7 @@
 // https://www.compart.com/en/unicode/U+1F319
 #define ut_glyph_crescent_moon "\xF0\x9F\x8C\x99"
 
+// Latin Capital Letter E with Cedilla and Breve
+// https://compart.com/en/unicode/U+1E1C
+#define ut_glyph_E_with_cedilla_and_breve "\xE1\xB8\x9C"
+

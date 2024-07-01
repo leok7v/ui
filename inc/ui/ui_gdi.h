@@ -22,8 +22,10 @@ typedef struct ui_fm_s { // font metrics
     ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
     int32_t height;    // font height in pixels
     int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
-    int32_t ascent;    // The maximum glyphs extend above the baseline
+    int32_t ascent;    // the maximum glyphs extend above the baseline
     int32_t descent;   // maximum height of descenders
+    int32_t x_height;  // small letters height
+    int32_t cap_em_height;    // Capital letter "M" height
     int32_t internal_leading; // accents and diacritical marks goes there
     int32_t external_leading;
     int32_t average_char_width;
@@ -39,6 +41,23 @@ typedef struct ui_fm_s { // font metrics
     int32_t strike_through_position;
     bool mono;
 } ui_fm_t;
+
+/* see: https://github.com/leok7v/ui/wiki/Typography-Line-Terms
+   https://en.wikipedia.org/wiki/Typeface#Font_metrics
+
+   Example em55x55 H1 font @ 192dpi:
+    _   _                   _              ___    <- y:0
+   (_)_(_)                 | |             ___ /\    "diacritics circumflex"
+     / \   __ _ _   _ _ __ | |_ ___ _ __       ||
+    / _ \ / _` | | | | '_ \| __/ _ \ '_ \      ||    .ascend:30
+   / ___ \ (_| | |_| | |_) | ||  __/ | | |     ||     max extend above baseline
+  /_/   \_\__, |\__, | .__/ \__\___|_| |_| ___ || <- .baseline:44
+           __/ | __/ | |                       ||    .descend:11
+          |___/ |___/|_|                   ___ \/     max height of descenders
+                                                  <- .height:55
+  em: 55x55
+  ascender for "diacritics circumflex" is (h:55 - a:30 - d:11) = 14
+*/
 
 typedef struct ui_fms_s {
     // when font handles are re-created on system scaling change

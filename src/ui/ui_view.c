@@ -190,22 +190,24 @@ static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
 static void ui_view_measure_text(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
+    const ui_fm_t* fm = v->fm;
+ui_view_debug_measure_text = true;
     if (ui_view_debug_measure_text) {
         traceln(">%s em: %dx%d min: %.1fx%.1f", s,
-            v->fm->em.w, v->fm->em.h,
+            fm->em.w, fm->em.h,
             v->min_w_em, v->min_h_em);
     }
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
-    v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
+    v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
+    v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     ui_wh_t mt = { 0, 0 };
     if (s[0] != 0) {
         bool multiline = strchr(s, '\n') != null;
         if (v->type == ui_view_label && multiline) {
-            int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-            mt = ui_view_text_metrics(v->x, v->y, true,  w, v->fm, "%s", s);
+            int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)fm->em.w + 0.5);
+            mt = ui_view_text_metrics(v->x, v->y, true,  w, fm, "%s", s);
         } else {
-            mt = ui_view_text_metrics(v->x, v->y, false, 0, v->fm, "%s", s);
+            mt = ui_view_text_metrics(v->x, v->y, false, 0, fm, "%s", s);
         }
     }
     if (ui_view_debug_measure_text) {
@@ -216,10 +218,24 @@ static void ui_view_measure_text(ui_view_t* v) {
                      p.left, p.top, p.right, p.bottom,
                      i.left, i.top, i.right, i.bottom);
     }
+    // because existense of glyphs like unicode codepoint
+    // https://compart.com/en/unicode/U+1E1C
+    // Latin Capital Letter E with Cedilla and Breve
+    // and desire to vertically center center text inside
+    // buttons, labels, toggles and sliders it is necessary
+    // to extend vertical space to accomodate centering:
+    assert(mt.h == fm->height);
+    assert(fm->height == fm->descent + fm->baseline);
+    const int32_t ascender_height = fm->baseline - fm->ascent;
+    assert(ascender_height + fm->ascent + fm->descent == fm->height);
+    const int32_t mx = ut_max(fm->descent, ascender_height);
+    const int32_t ex = ut_max(fm->ascent + mx * 2, fm->height); // extended h
     v->w = i.left + ut_max(v->w, mt.w) + i.right;
-    v->h = i.top  + ut_max(v->h, mt.h) + i.bottom;
+    v->h = i.top  + ut_max(v->h, ex)   + i.bottom;
     if (ui_view_debug_measure_text) {
-        traceln("<%s %d,%d %dx%d", s, v->x, v->y, v->w, v->h);
+        traceln("<%s %d,%d %dx%d %p \"%.*s\"", s, v->x, v->y, v->w, v->h, v,
+                ut_min(64, strlen(v->p.text)), v->p.text);
+        traceln("");
     }
 }
 
