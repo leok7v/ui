@@ -671,7 +671,7 @@ static void ui_app_toast_paint(void) {
         int32_t radius = em_w / 2;
         if (radius % 2 == 0) { radius++; }
         ui_color_t color = ui_theme.is_app_dark() ?
-            ui_colors.toast :
+            ui_color_rgb(45, 45, 48) : // TODO: hard coded
             ui_colors.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
         ui_gdi.rounded(x, y, w, h, radius, tint, tint);
@@ -1327,7 +1327,11 @@ static void ui_app_create_window(const ui_rect_t r) {
 //  TODO: investigate that it holds for Light Theme too
     // DWMWA_CAPTION_COLOR is supported starting with Windows 11 Build 22000.
     if (IsWindowsVersionOrGreater(10, 0, 22000)) {
-        COLORREF caption_color = (COLORREF)ui_gdi.color_rgb(ui_colors.dkgray3);
+        // TODO: dark grey hardcoded: 45 / 255 = 17.6%
+        //       should be taken from
+        //       ui_color_id_active_title
+        //       ui_color_id_inactive_title
+        COLORREF caption_color = (COLORREF)ui_gdi.color_rgb(ui_color_rgb(45, 45, 48));
         fatal_if_not_zero(DwmSetWindowAttribute(ui_app_window(),
             DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
         BOOL immersive = TRUE;
@@ -1425,6 +1429,7 @@ static void ui_app_draw(void) { UpdateWindow(ui_app_window()); }
 static void ui_app_invalidate_rect(const ui_rect_t* r) {
     RECT rc = ui_app_ui2rect(r);
     InvalidateRect(ui_app_window(), &rc, false);
+//  ut_bt_here();
 }
 
 // InvalidateRect() may wait for up to 30 milliseconds

@@ -30,7 +30,7 @@ static void opened(void) {
     static ui_fm_t fm;
     ui_gdi.update_fm(&fm, ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1));
     hello.fm = &fm;
-    ui_app.set_layered_window(ui_colors.dkgray1, 0.75f);
+    ui_app.set_layered_window(ui_color_rgb(30, 30, 30), 0.75f);
     ui_view.add_last(ui_app.content, &hello);
     ui_app.caption->hidden = true;
     ui_app.content->hit_test = hit_test;

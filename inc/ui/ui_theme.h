@@ -22,7 +22,6 @@ typedef struct  {
     void (*test)(void);
 } ui_theme_if;
 
-
 extern ui_theme_if ui_theme;
 
 end_c

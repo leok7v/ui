@@ -176,8 +176,8 @@ static void panel_paint(ui_view_t* v) {
     if (v->color == ui_colors.transparent) {
         v->color = ui_app.content->color;
     }
-    ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.dkgray1);
-    ui_color_t c = ui_colors.dkgray4;
+    ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(30, 30, 30));
+    ui_color_t c = ui_color_rgb(63, 63, 70);
     if (v == &panel_right) {
         ui_gdi.line(v->x, v->y, v->x + v->w, v->y, c);
         ui_gdi.line(v->x + v->w, v->y, v->x + v->w, v->y + v->h, c);
@@ -418,7 +418,7 @@ static void opened(void) {
     static_assert(countof(pixels) == countof(pixels[0]), "square");
     ui_gdi.image_init(&image, n, n, (int32_t)sizeof(pixels[0][0]), (uint8_t*)pixels);
     init_panel(&panel_top,    "top",    ui_colors.orange, panel_paint);
-    init_panel(&panel_center, "center", ui_colors.off_white, center_paint);
+    init_panel(&panel_center, "center", ui_colors.white, center_paint);
     init_panel(&panel_bottom, "bottom", ui_colors.tone_blue, panel_paint);
     init_panel(&panel_right,  "right",  ui_colors.tone_green, right_paint);
     panel_right.layout = right_layout;
@@ -490,14 +490,14 @@ static void mandelbrot(ui_image_t* im) {
                 iteration++;
             }
             static ui_color_t palette[16] = {
-                ui_rgb( 66,  30,  15),  ui_rgb( 25,   7,  26),
-                ui_rgb(  9,   1,  47),  ui_rgb(  4,   4,  73),
-                ui_rgb(  0,   7, 100),  ui_rgb( 12,  44, 138),
-                ui_rgb( 24,  82, 177),  ui_rgb( 57, 125, 209),
-                ui_rgb(134, 181, 229),  ui_rgb(211, 236, 248),
-                ui_rgb(241, 233, 191),  ui_rgb(248, 201,  95),
-                ui_rgb(255, 170,   0),  ui_rgb(204, 128,   0),
-                ui_rgb(153,  87,   0),  ui_rgb(106,  52,   3)
+                ui_color_rgb( 66,  30,  15),  ui_color_rgb( 25,   7,  26),
+                ui_color_rgb(  9,   1,  47),  ui_color_rgb(  4,   4,  73),
+                ui_color_rgb(  0,   7, 100),  ui_color_rgb( 12,  44, 138),
+                ui_color_rgb( 24,  82, 177),  ui_color_rgb( 57, 125, 209),
+                ui_color_rgb(134, 181, 229),  ui_color_rgb(211, 236, 248),
+                ui_color_rgb(241, 233, 191),  ui_color_rgb(248, 201,  95),
+                ui_color_rgb(255, 170,   0),  ui_color_rgb(204, 128,   0),
+                ui_color_rgb(153,  87,   0),  ui_color_rgb(106,  52,   3)
             };
             ui_color_t color = palette[iteration % countof(palette)];
             uint8_t* px = &((uint8_t*)im->pixels)[r * im->w * 4 + c * 4];

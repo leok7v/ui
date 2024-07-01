@@ -5,7 +5,7 @@ begin_c
 
 typedef uint64_t ui_color_t; // top 2 bits determine color format
 
-/* TODO: make ui_color_t uint64_t RGBA remove pens and brushes
+/* TODO: make ui_color_t uint64_t RGBA or better yet fp32_t RGBA
          support upto 16-16-16-14(A)bit per pixel color
          components with 'transparent' aka 'hollow' bit
 */
@@ -15,11 +15,11 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
 #define ui_color_transparent ((ui_color_t)0x4000000000000000ULL)
 #define ui_color_hdr         ((ui_color_t)0xC000000000000000ULL)
 
-#define ui_color_is_8bit(c)         ( ((c) &  ui_color_mask) == 0)
-#define ui_color_is_hdr(c)          ( ((c) &  ui_color_mask) == ui_color_hdr)
-#define ui_color_is_undefined(c)    ( ((c) &  ui_color_mask) == ui_color_undefined)
-#define ui_color_is_transparent(c)  ((((c) &  ui_color_mask) == ui_color_transparent) && \
-                                    ( ((c) & ~ui_color_mask) == 0))
+#define ui_color_is_8bit(c)        ( ((c) &  ui_color_mask) == 0)
+#define ui_color_is_hdr(c)         ( ((c) &  ui_color_mask) == ui_color_hdr)
+#define ui_color_is_undefined(c)   ( ((c) &  ui_color_mask) == ui_color_undefined)
+#define ui_color_is_transparent(c) ((((c) &  ui_color_mask) == ui_color_transparent) && \
+                                   ( ((c) & ~ui_color_mask) == 0))
 // if any other special colors or formats need to be introduced
 // (c) & ~ui_color_mask) has 2^62 possible extensions bits
 
@@ -34,20 +34,21 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
 #define ui_color_g(c)        ((uint8_t)(((c) >>  8) & 0xFFU))
 #define ui_color_b(c)        ((uint8_t)(((c) >> 16) & 0xFFU))
 
-#define ui_color_rgb(c)      ((uint32_t)( (c) & 0x00FFFFFFU))
-#define ui_color_rgba(c)     ((uint32_t)( (c) & 0xFFFFFFFFU))
-#define ui_color_rgbFF(c)    ((uint32_t)(((c) & 0x00FFFFFFU)) | 0xFF000000U)
+#define ui_color_is_rgb(c)   ((uint32_t)( (c) & 0x00FFFFFFU))
+#define ui_color_is_rgba(c)  ((uint32_t)( (c) & 0xFFFFFFFFU))
+#define ui_color_is_rgbFF(c) ((uint32_t)(((c) & 0x00FFFFFFU)) | 0xFF000000U)
 
-#define ui_rgb(r, g, b) ((ui_color_t)(                      \
-                         (((uint32_t)(uint8_t)(r))      ) | \
-                         (((uint32_t)(uint8_t)(g)) <<  8) | \
-                         (((uint32_t)(uint8_t)(b)) << 16)))
+#define ui_color_rgb(r, g, b) ((ui_color_t)(                     \
+                              (((uint32_t)(uint8_t)(r))      ) | \
+                              (((uint32_t)(uint8_t)(g)) <<  8) | \
+                              (((uint32_t)(uint8_t)(b)) << 16)))
 
 
-#define ui_rgba(r, g, b, a)  ((ui_color_t)(                                   \
-                              (ui_rgb(r, g, b)) |                             \
-                              ((ui_color_t)((uint32_t)((uint8_t)(a))) << 24)) \
-                             )
+#define ui_color_rgba(r, g, b, a)                     \
+    ( (ui_color_t)(                                   \
+      (ui_color_rgb(r, g, b)) |                       \
+      ((ui_color_t)((uint32_t)((uint8_t)(a))) << 24)) \
+    )
 
 enum {
     ui_color_id_undefined           =  0,
@@ -57,14 +58,32 @@ enum {
     ui_color_id_gray_text           =  4,
     ui_color_id_highlight           =  5,
     ui_color_id_highlight_text      =  6,
-    ui_color_id_hot_tracking_color  =  7,
+    ui_color_id_hot_tracking        =  7,
     ui_color_id_inactive_title      =  8,
     ui_color_id_inactive_title_text =  9,
     ui_color_id_menu_highlight      = 10,
     ui_color_id_title_text          = 11,
     ui_color_id_window              = 12,
-    ui_color_id_window_text         = 13
+    ui_color_id_window_text         = 13,
+    ui_color_id_accent              = 14
 };
+
+typedef struct ui_control_colors_s {
+    ui_color_t text;
+    ui_color_t background;
+    ui_color_t border;
+    ui_color_t accent; // aka highlight
+    ui_color_t gradient_top;
+    ui_color_t gradient_bottom;
+} control_colors_t;
+
+typedef struct ui_control_state_colors_s {
+    control_colors_t disabled;
+    control_colors_t enabled;
+    control_colors_t hover;
+    control_colors_t armed;
+    control_colors_t pressed;
+} ui_control_state_colors_t;
 
 typedef struct ui_colors_s {
     ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
@@ -75,12 +94,14 @@ typedef struct ui_colors_s {
     //    alpha is interpolated as well
     ui_color_t (*interpolate)(ui_color_t c0, ui_color_t c1, fp32_t multiplier);
     ui_color_t (*gray_with_same_intensity)(ui_color_t c);
+    // multiplier ]0.0..1.0] excluding zero
     // lighten() and darken() ignore alpha (use interpolate for alpha colors)
     ui_color_t (*lighten)(ui_color_t rgb, fp32_t multiplier); // interpolate toward white
     ui_color_t (*darken)(ui_color_t  rgb, fp32_t multiplier); // interpolate toward black
-    ui_color_t (*adjust_saturation)(ui_color_t c,fp32_t multiplier);
+    ui_color_t (*adjust_saturation)(ui_color_t c,   fp32_t multiplier);
     ui_color_t (*multiply_brightness)(ui_color_t c, fp32_t multiplier);
     ui_color_t (*multiply_saturation)(ui_color_t c, fp32_t multiplier);
+    ui_control_state_colors_t* controls; // colors for UI controls
     ui_color_t const transparent;
     ui_color_t const none; // aka CLR_INVALID in wingdi.h
     ui_color_t const text;
@@ -93,11 +114,6 @@ typedef struct ui_colors_s {
     ui_color_t const cyan;
     ui_color_t const magenta;
     ui_color_t const gray;
-    // darker shades of grey:
-    ui_color_t const dkgray1; // 30 / 255 = 11.7%
-    ui_color_t const dkgray2; // 38 / 255 = 15%
-    ui_color_t const dkgray3; // 45 / 255 = 17.6%
-    ui_color_t const dkgray4; // 63 / 255 = 24.0%
     // tone down RGB colors:
     ui_color_t const tone_white;
     ui_color_t const tone_red;
@@ -108,7 +124,7 @@ typedef struct ui_colors_s {
     ui_color_t const tone_magenta;
     // miscellaneous:
     ui_color_t const orange;
-    ui_color_t const dkgreen;
+    ui_color_t const dark_green;
     ui_color_t const pink;
     ui_color_t const ochre;
     ui_color_t const gold;
@@ -127,18 +143,6 @@ typedef struct ui_colors_s {
     ui_color_t const dim_gray;
     ui_color_t const light_slate_gray;
     ui_color_t const slate_gray;
-    // highlights:
-    ui_color_t const text_highlight; // bluish off-white
-    ui_color_t const blue_highlight;
-    ui_color_t const off_white;
-    // button and other UI colors
-    ui_color_t const btn_gradient_darker;
-    ui_color_t const btn_gradient_dark;
-    ui_color_t const btn_hover_highlight;
-    ui_color_t const btn_disabled;
-    ui_color_t const btn_armed;
-    ui_color_t const btn_text;
-    ui_color_t const toast; // toast background
     /* Named colors */
     /* Main Panel Backgrounds */
     ui_color_t const ennui_black; // rgb(18, 18, 18) 0x121212

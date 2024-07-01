@@ -163,14 +163,14 @@ static void mandelbrot(ui_image_t* im) {
                 iteration++;
             }
             static ui_color_t palette[16] = {
-                ui_rgb( 66,  30,  15),  ui_rgb( 25,   7,  26),
-                ui_rgb(  9,   1,  47),  ui_rgb(  4,   4,  73),
-                ui_rgb(  0,   7, 100),  ui_rgb( 12,  44, 138),
-                ui_rgb( 24,  82, 177),  ui_rgb( 57, 125, 209),
-                ui_rgb(134, 181, 229),  ui_rgb(211, 236, 248),
-                ui_rgb(241, 233, 191),  ui_rgb(248, 201,  95),
-                ui_rgb(255, 170,   0),  ui_rgb(204, 128,   0),
-                ui_rgb(153,  87,   0),  ui_rgb(106,  52,   3)
+                ui_color_rgb( 66,  30,  15),  ui_color_rgb( 25,   7,  26),
+                ui_color_rgb(  9,   1,  47),  ui_color_rgb(  4,   4,  73),
+                ui_color_rgb(  0,   7, 100),  ui_color_rgb( 12,  44, 138),
+                ui_color_rgb( 24,  82, 177),  ui_color_rgb( 57, 125, 209),
+                ui_color_rgb(134, 181, 229),  ui_color_rgb(211, 236, 248),
+                ui_color_rgb(241, 233, 191),  ui_color_rgb(248, 201,  95),
+                ui_color_rgb(255, 170,   0),  ui_color_rgb(204, 128,   0),
+                ui_color_rgb(153,  87,   0),  ui_color_rgb(106,  52,   3)
             };
             ui_color_t color = palette[iteration % countof(palette)];
             uint8_t* px = &((uint8_t*)im->pixels)[r * im->w * 4 + c * 4];

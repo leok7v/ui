@@ -188,13 +188,13 @@ static void opened(void) {
             null),
         null),
     null);
-//  ui_app.root->background = ui_rgb(0x2E, 0x2E, 0x2E);
+//  ui_app.root->background = ui_color_rgb(0x2E, 0x2E, 0x2E);
 //  ui_app.root->background_id = 0;
-//  ui_app.content->background = ui_rgb(0x2E, 0x2E, 0x2E);
+//  ui_app.content->background = ui_color_rgb(0x2E, 0x2E, 0x2E);
 //  ui_app.content->background_id = 0;
-//  list_view.background = ui_rgb(0x2E, 0x2E, 0x2E);
+//  list_view.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
 //  list_view.background_id = 0;
-//  span_view.background = ui_rgb(0x2E, 0x2E, 0x2E);
+//  span_view.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
 //  span_view.background_id = 0;
 
     list_view.max_w = ui.infinity;
@@ -379,10 +379,35 @@ static void slider_callback(ui_view_t* v) {
     traceln("value: %d", slider->value);
 }
 
+static void controls_set_guides(ui_view_t* v, bool on_off) {
+    ui_view_for_each(v, it, {
+        controls_set_guides(it, on_off);
+        it->debug = on_off;
+    } );
+}
+
+static void controls_guides(ui_view_t* v) {
+    controls_set_guides(v->parent->parent->parent, v->pressed);
+    ui_app.request_redraw();
+}
+
+static void controls_set_large(ui_view_t* v, bool on_off) {
+    ui_view_for_each(v, it, {
+        controls_set_large(it, on_off);
+        it->fm = on_off ? &ui_app.fm.H1 : &ui_app.fm.regular;
+    });
+}
+
+static void controls_large(ui_view_t* v) {
+    controls_set_large(v->parent->parent->parent, v->pressed);
+    ui_app.request_layout();
+}
+
 static void controls_test(ui_view_t* parent) {
     ui_view.disband(parent);
-    static ui_view_t  list     = ui_view(list);
-    static ui_view_t  span     = ui_view(span);
+    static ui_view_t   list    = ui_view(list);
+    static ui_view_t   span    = ui_view(span);
+    static ui_toggle_t large   = ui_toggle("&Large", 0.0, controls_large);
     static ui_label_t  left    = ui_label(0, "Left");
     static ui_button_t button1 = ui_button("&Button",  0, null);
     static ui_slider_t slider1 = ui_slider("%d", 3.3f, 0, UINT16_MAX,
@@ -393,11 +418,12 @@ static void controls_test(ui_view_t* parent) {
     static ui_button_t button2 = ui_button("&Button",  0, null);
     static ui_slider_t slider2 = ui_slider("%d", 3.3f, 0, UINT16_MAX,
                                             slider_format, slider_callback);
-    static ui_toggle_t toggle2 = ui_toggle("Toggle", 0.0, null);
+    static ui_toggle_t toggle2 = ui_toggle("&Guides", 0.0, controls_guides);
     static ui_view_t   spacer  = ui_view(spacer);
     ui_view.add(&test,
         ui_view.add(&list,
             ui_view.add(&span,
+                align(&large,        ui.align.top),
                 align(&left,         ui.align.top),
                 align(&button1,      ui.align.top),
                 align(&right,        ui.align.top),
@@ -406,20 +432,19 @@ static void controls_test(ui_view_t* parent) {
             null),
             align(&label,        ui.align.left),
             align(&button2,      ui.align.left),
-            align(&slider2.view, ui.align.left),
+//          align(&slider2.view, ui.align.left),
             align(&toggle2,      ui.align.left),
             align(&spacer,       ui.align.left),
         null),
     null);
-    list.debug  = true;
-//  list.background = ui_rgb(0x2E, 0x2E, 0x2E);
-//  list.background_id = 0;
+    span.align = ui.align.left;
+    list.debug = true;
+  list.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
+  list.background_id = 0;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
     ui_view.set_text(&list, "list");
     list.background_id = ui_color_id_window;
-//  ui_view_for_each(&list, it, { it->fm = &ui_app.fm.H1; it->debug = false; } );
-//  ui_view_for_each(&span, it, { it->fm = &ui_app.fm.H1; it->debug = false; } );
     slider2.dec.hidden = true;
     slider2.inc.hidden = true;
 }

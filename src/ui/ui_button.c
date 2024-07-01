@@ -1,52 +1,49 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static void ui_button_invalidate(ui_view_t* v) {
-    ui_rect_t rc = (ui_rect_t){v->x, v->y, v->w, v->h};
-    ui_view.invalidate(v, &rc);
-}
-
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     assert(v->type == ui_view_button);
     if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
         v->armed = false;
-        ui_button_invalidate(v);
+        ui_view.invalidate(v, null);
+        traceln("ui_view.invalidate(v, null)");
     }
 }
 
 static void ui_button_paint(ui_view_t* v) {
     assert(v->type == ui_view_button);
     assert(!v->hidden);
-//  ui_gdi.push(v->x, v->y);
     bool pressed = (v->armed ^ v->pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
-    int32_t sign = 1 - pressed * 2; // -1, +1
-    int32_t w = sign * (v->w - 2);
-    int32_t h = sign * (v->h - 2);
-    int32_t x = (v->x + (int32_t)pressed * v->w) + sign;
-    int32_t y = (v->y + (int32_t)pressed * v->h) + sign;
-    fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
+    int32_t w = v->w - 2;
+    int32_t h = v->h - 2;
+    int32_t x = v->x;
+    int32_t y = v->y;
+    const int32_t r = (0x1 | ut_max(3, v->fm->em.h / 4));  // odd radius
+    const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
-    d /= 4;
-    ui_color_t d1 = ui_colors.darken(v->background, d);
-    if (!v->flat || v->hover) {
-        ui_gdi.gradient(x, y, w, h, d0, d1, true);
+    const fp32_t d2 = d / 2;
+    if (v->flat) {
+        ui_color_t d1 = ui_theme.is_app_dark() ?
+                ui_colors.lighten(v->background, d2) :
+                ui_colors.darken(v->background,  d2);
+        if (!pressed) {
+            ui_gdi.gradient(x, y, w, h, d0, d1, true);
+        } else {
+            ui_gdi.gradient(x, y, w, h, d1, d0, true);
+        }
+    } else {
+        ui_color_t d1 = ui_colors.darken(v->background, d2);
+        ui_color_t fc = ui_colors.interpolate(d0, d1, 0.5f);
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, ui_colors.transparent, fc);
     }
-    ui_color_t c = v->color;
-    if (!v->flat && v->armed) {
-        c = ui_colors.btn_armed;
-    }else if (!v->flat && v->hover && !v->armed) {
-        c = ui_colors.get_color(ui_color_id_hot_tracking_color);
-    }
-    if (v->disabled) { c = ui_colors.get_color(ui_color_id_gray_text); }
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     const int32_t t_w = v->w - i.left - i.right;
     const int32_t t_h = v->h - i.top - i.bottom;
-//  traceln("%s align=%02X", v->text, v->align);
     if (v->icon == null) {
-        const ui_wh_t wh = ui_view.text_metrics(0, 0, false, 0, v->fm, "%s",
-                                                ui_view.string(v));
+        const ui_wh_t wh = ui_view.text_metrics(0, 0,
+                false, 0, v->fm, "%s", ui_view.string(v));
         int32_t t_x = 0;
         if (v->align & ui.align.left) {
             t_x = 0;
@@ -65,6 +62,16 @@ static void ui_button_paint(ui_view_t* v) {
         }
         const int32_t tx = v->x + i.left + t_x;
         const int32_t ty = v->y + i.top  + t_y;
+        ui_color_t c = v->color;
+//      traceln("v->hover: %d armed: %d c: %08X", v->hover, v->armed, (uint32_t)c);
+        if (v->hover && !v->armed) {
+    //      c = ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black;
+            c = ui_theme.is_app_dark() ? ui_color_rgb(0xFF, 0xE0, 0xE0) :
+                                         ui_color_rgb(0x00, 0x40, 0xFF);
+//          traceln("text_color: %08X", c);
+        }
+        if (v->disabled) { c = ui_colors.get_color(ui_color_id_gray_text); }
+//      traceln("text_color: %08X", (uint32_t)c);
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
@@ -72,14 +79,13 @@ static void ui_button_paint(ui_view_t* v) {
     }
     ui_color_t color = ui_colors.get_color(ui_color_id_gray_text);
     if (v->armed) { color = ui_colors.lighten(color, 0.125f); }
-    if (v->hover && !v->armed) { color = ui_colors.blue; }
-    if (v->disabled) { color = ui_colors.dkgray1; }
-    if (!v->flat) {
-        int32_t r = ut_max(3, v->fm->em.h / 4);
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r | 0x1, // odd radius
-                            color, ui_colors.transparent);
+    if (v->disabled) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+    if (v->hover && !v->armed) {
+        color = ui_colors.get_color(ui_color_id_hot_tracking);
     }
-//  ui_gdi.pop();
+    if (!v->flat) {
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, color, ui_colors.transparent);
+    }
 }
 
 static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
@@ -98,11 +104,11 @@ static void ui_button_trigger(ui_view_t* v) {
     assert(!v->hidden && !v->disabled);
     ui_button_t* b = (ui_button_t*)v;
     v->armed = true;
-    ui_button_invalidate(v);
+    ui_view.invalidate(v, null);
     ui_app.draw();
     v->p.armed_until = ui_app.now + 0.250;
     ui_button_callback(b);
-    ui_button_invalidate(v);
+    ui_view.invalidate(v, null);
 }
 
 static void ui_button_character(ui_view_t* v, const char* utf8) {
@@ -116,7 +122,6 @@ static void ui_button_character(ui_view_t* v, const char* utf8) {
 
 static void ui_button_key_pressed(ui_view_t* view, int64_t key) {
     if (ui_app.alt && ui_view.is_shortcut_key(view, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(v, key));
         ui_button_trigger(view);
     }
 }
@@ -142,7 +147,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
         v->armed = false;
     }
     if (on) { ui_button_callback(b); }
-    if (a != v->armed) { ui_button_invalidate(v); }
+    if (a != v->armed) { ui_view.invalidate(v, null); }
 }
 
 static void ui_button_measure(ui_view_t* v) {
@@ -159,7 +164,7 @@ void ui_view_init_button(ui_view_t* v) {
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;
     v->key_pressed   = ui_button_key_pressed;
-    v->color_id      = ui_color_id_window_text;
+    v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
 }
 

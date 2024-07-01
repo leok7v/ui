@@ -63,8 +63,15 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const uint8_t* s, int32_t n) {
 
 static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         const int32_t width, bool allow_zero) {
-    int count = 0;
-    int chars = 0;
+    // TODO: in sqlite.c 156,000 LoC it takes 11 seconds to get all runs()
+    //       on average ui_edit_word_break_at() takes 4 x ui_edit_text_width()
+    //       measurements and they are slow. If we can reduce this amount
+    //       (not clear how) at least 2 times it will be a win.
+    //       Another way is background thread runs() processing but this is
+    //       involving a lot of complexity.
+    //       MSVC devend() edits sqlite3.c w/o any visible delays
+    int32_t count = 0; // stats logging
+    int32_t chars = 0;
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pn && pn < dt->np);
     ui_edit_paragraph_t* p = &e->para[pn];
@@ -547,7 +554,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             int32_t x1 = ui_edit_text_width(e, text, ofs1);
             // selection_color is MSVC dark mode selection color
             // TODO: need light mode selection color tpp
-            ui_color_t selection_color = ui_rgb(0x26, 0x4F, 0x78); // ui_rgb(64, 72, 96);
+            ui_color_t selection_color = ui_color_rgb(0x26, 0x4F, 0x78); // ui_color_rgb(64, 72, 96);
             if (!e->focused || !ui_app.has_focus()) {
                 selection_color = ui_colors.darken(selection_color, 0.1f);
             }

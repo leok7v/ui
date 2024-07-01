@@ -164,7 +164,6 @@ typedef struct ui_image_s { // TODO: ui_ namespace
     void* pixels;
 } ui_image_t;
 
-
 // ui_gaps_t are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.
 // Pay attention that "em" is not square. "M" measurement
@@ -322,7 +321,7 @@ extern ui_if ui;
 
 typedef uint64_t ui_color_t; // top 2 bits determine color format
 
-/* TODO: make ui_color_t uint64_t RGBA remove pens and brushes
+/* TODO: make ui_color_t uint64_t RGBA or better yet fp32_t RGBA
          support upto 16-16-16-14(A)bit per pixel color
          components with 'transparent' aka 'hollow' bit
 */
@@ -332,11 +331,11 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
 #define ui_color_transparent ((ui_color_t)0x4000000000000000ULL)
 #define ui_color_hdr         ((ui_color_t)0xC000000000000000ULL)
 
-#define ui_color_is_8bit(c)         ( ((c) &  ui_color_mask) == 0)
-#define ui_color_is_hdr(c)          ( ((c) &  ui_color_mask) == ui_color_hdr)
-#define ui_color_is_undefined(c)    ( ((c) &  ui_color_mask) == ui_color_undefined)
-#define ui_color_is_transparent(c)  ((((c) &  ui_color_mask) == ui_color_transparent) && \
-                                    ( ((c) & ~ui_color_mask) == 0))
+#define ui_color_is_8bit(c)        ( ((c) &  ui_color_mask) == 0)
+#define ui_color_is_hdr(c)         ( ((c) &  ui_color_mask) == ui_color_hdr)
+#define ui_color_is_undefined(c)   ( ((c) &  ui_color_mask) == ui_color_undefined)
+#define ui_color_is_transparent(c) ((((c) &  ui_color_mask) == ui_color_transparent) && \
+                                   ( ((c) & ~ui_color_mask) == 0))
 // if any other special colors or formats need to be introduced
 // (c) & ~ui_color_mask) has 2^62 possible extensions bits
 
@@ -351,20 +350,21 @@ typedef uint64_t ui_color_t; // top 2 bits determine color format
 #define ui_color_g(c)        ((uint8_t)(((c) >>  8) & 0xFFU))
 #define ui_color_b(c)        ((uint8_t)(((c) >> 16) & 0xFFU))
 
-#define ui_color_rgb(c)      ((uint32_t)( (c) & 0x00FFFFFFU))
-#define ui_color_rgba(c)     ((uint32_t)( (c) & 0xFFFFFFFFU))
-#define ui_color_rgbFF(c)    ((uint32_t)(((c) & 0x00FFFFFFU)) | 0xFF000000U)
+#define ui_color_is_rgb(c)   ((uint32_t)( (c) & 0x00FFFFFFU))
+#define ui_color_is_rgba(c)  ((uint32_t)( (c) & 0xFFFFFFFFU))
+#define ui_color_is_rgbFF(c) ((uint32_t)(((c) & 0x00FFFFFFU)) | 0xFF000000U)
 
-#define ui_rgb(r, g, b) ((ui_color_t)(                      \
-                         (((uint32_t)(uint8_t)(r))      ) | \
-                         (((uint32_t)(uint8_t)(g)) <<  8) | \
-                         (((uint32_t)(uint8_t)(b)) << 16)))
+#define ui_color_rgb(r, g, b) ((ui_color_t)(                     \
+                              (((uint32_t)(uint8_t)(r))      ) | \
+                              (((uint32_t)(uint8_t)(g)) <<  8) | \
+                              (((uint32_t)(uint8_t)(b)) << 16)))
 
 
-#define ui_rgba(r, g, b, a)  ((ui_color_t)(                                   \
-                              (ui_rgb(r, g, b)) |                             \
-                              ((ui_color_t)((uint32_t)((uint8_t)(a))) << 24)) \
-                             )
+#define ui_color_rgba(r, g, b, a)                     \
+    ( (ui_color_t)(                                   \
+      (ui_color_rgb(r, g, b)) |                       \
+      ((ui_color_t)((uint32_t)((uint8_t)(a))) << 24)) \
+    )
 
 enum {
     ui_color_id_undefined           =  0,
@@ -374,14 +374,32 @@ enum {
     ui_color_id_gray_text           =  4,
     ui_color_id_highlight           =  5,
     ui_color_id_highlight_text      =  6,
-    ui_color_id_hot_tracking_color  =  7,
+    ui_color_id_hot_tracking        =  7,
     ui_color_id_inactive_title      =  8,
     ui_color_id_inactive_title_text =  9,
     ui_color_id_menu_highlight      = 10,
     ui_color_id_title_text          = 11,
     ui_color_id_window              = 12,
-    ui_color_id_window_text         = 13
+    ui_color_id_window_text         = 13,
+    ui_color_id_accent              = 14
 };
+
+typedef struct ui_control_colors_s {
+    ui_color_t text;
+    ui_color_t background;
+    ui_color_t border;
+    ui_color_t accent; // aka highlight
+    ui_color_t gradient_top;
+    ui_color_t gradient_bottom;
+} control_colors_t;
+
+typedef struct ui_control_state_colors_s {
+    control_colors_t disabled;
+    control_colors_t enabled;
+    control_colors_t hover;
+    control_colors_t armed;
+    control_colors_t pressed;
+} ui_control_state_colors_t;
 
 typedef struct ui_colors_s {
     ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
@@ -392,12 +410,14 @@ typedef struct ui_colors_s {
     //    alpha is interpolated as well
     ui_color_t (*interpolate)(ui_color_t c0, ui_color_t c1, fp32_t multiplier);
     ui_color_t (*gray_with_same_intensity)(ui_color_t c);
+    // multiplier ]0.0..1.0] excluding zero
     // lighten() and darken() ignore alpha (use interpolate for alpha colors)
     ui_color_t (*lighten)(ui_color_t rgb, fp32_t multiplier); // interpolate toward white
     ui_color_t (*darken)(ui_color_t  rgb, fp32_t multiplier); // interpolate toward black
-    ui_color_t (*adjust_saturation)(ui_color_t c,fp32_t multiplier);
+    ui_color_t (*adjust_saturation)(ui_color_t c,   fp32_t multiplier);
     ui_color_t (*multiply_brightness)(ui_color_t c, fp32_t multiplier);
     ui_color_t (*multiply_saturation)(ui_color_t c, fp32_t multiplier);
+    ui_control_state_colors_t* controls; // colors for UI controls
     ui_color_t const transparent;
     ui_color_t const none; // aka CLR_INVALID in wingdi.h
     ui_color_t const text;
@@ -410,11 +430,6 @@ typedef struct ui_colors_s {
     ui_color_t const cyan;
     ui_color_t const magenta;
     ui_color_t const gray;
-    // darker shades of grey:
-    ui_color_t const dkgray1; // 30 / 255 = 11.7%
-    ui_color_t const dkgray2; // 38 / 255 = 15%
-    ui_color_t const dkgray3; // 45 / 255 = 17.6%
-    ui_color_t const dkgray4; // 63 / 255 = 24.0%
     // tone down RGB colors:
     ui_color_t const tone_white;
     ui_color_t const tone_red;
@@ -425,7 +440,7 @@ typedef struct ui_colors_s {
     ui_color_t const tone_magenta;
     // miscellaneous:
     ui_color_t const orange;
-    ui_color_t const dkgreen;
+    ui_color_t const dark_green;
     ui_color_t const pink;
     ui_color_t const ochre;
     ui_color_t const gold;
@@ -444,18 +459,6 @@ typedef struct ui_colors_s {
     ui_color_t const dim_gray;
     ui_color_t const light_slate_gray;
     ui_color_t const slate_gray;
-    // highlights:
-    ui_color_t const text_highlight; // bluish off-white
-    ui_color_t const blue_highlight;
-    ui_color_t const off_white;
-    // button and other UI colors
-    ui_color_t const btn_gradient_darker;
-    ui_color_t const btn_gradient_dark;
-    ui_color_t const btn_hover_highlight;
-    ui_color_t const btn_disabled;
-    ui_color_t const btn_armed;
-    ui_color_t const btn_text;
-    ui_color_t const toast; // toast background
     /* Named colors */
     /* Main Panel Backgrounds */
     ui_color_t const ennui_black; // rgb(18, 18, 18) 0x121212
@@ -1629,7 +1632,6 @@ typedef struct  {
     void (*test)(void);
 } ui_theme_if;
 
-
 extern ui_theme_if ui_theme;
 
 
@@ -2700,7 +2702,7 @@ static void ui_app_toast_paint(void) {
         int32_t radius = em_w / 2;
         if (radius % 2 == 0) { radius++; }
         ui_color_t color = ui_theme.is_app_dark() ?
-            ui_colors.toast :
+            ui_color_rgb(45, 45, 48) : // TODO: hard coded
             ui_colors.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
         ui_gdi.rounded(x, y, w, h, radius, tint, tint);
@@ -3356,7 +3358,11 @@ static void ui_app_create_window(const ui_rect_t r) {
 //  TODO: investigate that it holds for Light Theme too
     // DWMWA_CAPTION_COLOR is supported starting with Windows 11 Build 22000.
     if (IsWindowsVersionOrGreater(10, 0, 22000)) {
-        COLORREF caption_color = (COLORREF)ui_gdi.color_rgb(ui_colors.dkgray3);
+        // TODO: dark grey hardcoded: 45 / 255 = 17.6%
+        //       should be taken from
+        //       ui_color_id_active_title
+        //       ui_color_id_inactive_title
+        COLORREF caption_color = (COLORREF)ui_gdi.color_rgb(ui_color_rgb(45, 45, 48));
         fatal_if_not_zero(DwmSetWindowAttribute(ui_app_window(),
             DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
         BOOL immersive = TRUE;
@@ -3454,6 +3460,7 @@ static void ui_app_draw(void) { UpdateWindow(ui_app_window()); }
 static void ui_app_invalidate_rect(const ui_rect_t* r) {
     RECT rc = ui_app_ui2rect(r);
     InvalidateRect(ui_app_window(), &rc, false);
+//  ut_bt_here();
 }
 
 // InvalidateRect() may wait for up to 30 milliseconds
@@ -4311,52 +4318,49 @@ int main(int argc, const char* argv[], const char** envp) {
 
 #include "ut/ut.h"
 
-static void ui_button_invalidate(ui_view_t* v) {
-    ui_rect_t rc = (ui_rect_t){v->x, v->y, v->w, v->h};
-    ui_view.invalidate(v, &rc);
-}
-
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     assert(v->type == ui_view_button);
     if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
         v->armed = false;
-        ui_button_invalidate(v);
+        ui_view.invalidate(v, null);
+        traceln("ui_view.invalidate(v, null)");
     }
 }
 
 static void ui_button_paint(ui_view_t* v) {
     assert(v->type == ui_view_button);
     assert(!v->hidden);
-//  ui_gdi.push(v->x, v->y);
     bool pressed = (v->armed ^ v->pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
-    int32_t sign = 1 - pressed * 2; // -1, +1
-    int32_t w = sign * (v->w - 2);
-    int32_t h = sign * (v->h - 2);
-    int32_t x = (v->x + (int32_t)pressed * v->w) + sign;
-    int32_t y = (v->y + (int32_t)pressed * v->h) + sign;
-    fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
+    int32_t w = v->w - 2;
+    int32_t h = v->h - 2;
+    int32_t x = v->x;
+    int32_t y = v->y;
+    const int32_t r = (0x1 | ut_max(3, v->fm->em.h / 4));  // odd radius
+    const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
-    d /= 4;
-    ui_color_t d1 = ui_colors.darken(v->background, d);
-    if (!v->flat || v->hover) {
-        ui_gdi.gradient(x, y, w, h, d0, d1, true);
+    const fp32_t d2 = d / 2;
+    if (v->flat) {
+        ui_color_t d1 = ui_theme.is_app_dark() ?
+                ui_colors.lighten(v->background, d2) :
+                ui_colors.darken(v->background,  d2);
+        if (!pressed) {
+            ui_gdi.gradient(x, y, w, h, d0, d1, true);
+        } else {
+            ui_gdi.gradient(x, y, w, h, d1, d0, true);
+        }
+    } else {
+        ui_color_t d1 = ui_colors.darken(v->background, d2);
+        ui_color_t fc = ui_colors.interpolate(d0, d1, 0.5f);
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, ui_colors.transparent, fc);
     }
-    ui_color_t c = v->color;
-    if (!v->flat && v->armed) {
-        c = ui_colors.btn_armed;
-    }else if (!v->flat && v->hover && !v->armed) {
-        c = ui_colors.get_color(ui_color_id_hot_tracking_color);
-    }
-    if (v->disabled) { c = ui_colors.get_color(ui_color_id_gray_text); }
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     const int32_t t_w = v->w - i.left - i.right;
     const int32_t t_h = v->h - i.top - i.bottom;
-//  traceln("%s align=%02X", v->text, v->align);
     if (v->icon == null) {
-        const ui_wh_t wh = ui_view.text_metrics(0, 0, false, 0, v->fm, "%s",
-                                                ui_view.string(v));
+        const ui_wh_t wh = ui_view.text_metrics(0, 0,
+                false, 0, v->fm, "%s", ui_view.string(v));
         int32_t t_x = 0;
         if (v->align & ui.align.left) {
             t_x = 0;
@@ -4375,6 +4379,16 @@ static void ui_button_paint(ui_view_t* v) {
         }
         const int32_t tx = v->x + i.left + t_x;
         const int32_t ty = v->y + i.top  + t_y;
+        ui_color_t c = v->color;
+//      traceln("v->hover: %d armed: %d c: %08X", v->hover, v->armed, (uint32_t)c);
+        if (v->hover && !v->armed) {
+    //      c = ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black;
+            c = ui_theme.is_app_dark() ? ui_color_rgb(0xFF, 0xE0, 0xE0) :
+                                         ui_color_rgb(0x00, 0x40, 0xFF);
+//          traceln("text_color: %08X", c);
+        }
+        if (v->disabled) { c = ui_colors.get_color(ui_color_id_gray_text); }
+//      traceln("text_color: %08X", (uint32_t)c);
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
@@ -4382,14 +4396,13 @@ static void ui_button_paint(ui_view_t* v) {
     }
     ui_color_t color = ui_colors.get_color(ui_color_id_gray_text);
     if (v->armed) { color = ui_colors.lighten(color, 0.125f); }
-    if (v->hover && !v->armed) { color = ui_colors.blue; }
-    if (v->disabled) { color = ui_colors.dkgray1; }
-    if (!v->flat) {
-        int32_t r = ut_max(3, v->fm->em.h / 4);
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r | 0x1, // odd radius
-                            color, ui_colors.transparent);
+    if (v->disabled) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+    if (v->hover && !v->armed) {
+        color = ui_colors.get_color(ui_color_id_hot_tracking);
     }
-//  ui_gdi.pop();
+    if (!v->flat) {
+        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, color, ui_colors.transparent);
+    }
 }
 
 static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
@@ -4408,11 +4421,11 @@ static void ui_button_trigger(ui_view_t* v) {
     assert(!v->hidden && !v->disabled);
     ui_button_t* b = (ui_button_t*)v;
     v->armed = true;
-    ui_button_invalidate(v);
+    ui_view.invalidate(v, null);
     ui_app.draw();
     v->p.armed_until = ui_app.now + 0.250;
     ui_button_callback(b);
-    ui_button_invalidate(v);
+    ui_view.invalidate(v, null);
 }
 
 static void ui_button_character(ui_view_t* v, const char* utf8) {
@@ -4426,7 +4439,6 @@ static void ui_button_character(ui_view_t* v, const char* utf8) {
 
 static void ui_button_key_pressed(ui_view_t* view, int64_t key) {
     if (ui_app.alt && ui_view.is_shortcut_key(view, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(v, key));
         ui_button_trigger(view);
     }
 }
@@ -4452,7 +4464,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
         v->armed = false;
     }
     if (on) { ui_button_callback(b); }
-    if (a != v->armed) { ui_button_invalidate(v); }
+    if (a != v->armed) { ui_view.invalidate(v, null); }
 }
 
 static void ui_button_measure(ui_view_t* v) {
@@ -4469,7 +4481,7 @@ void ui_view_init_button(ui_view_t* v) {
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;
     v->key_pressed   = ui_button_key_pressed;
-    v->color_id      = ui_color_id_window_text;
+    v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
 }
 
@@ -4781,7 +4793,7 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
     assert(0 <= r && r <= 255);
     assert(0 <= g && g <= 255);
     assert(0 <= b && b <= 255);
-    return ui_rgba((uint8_t)r, (uint8_t)g, (uint8_t)b, a);
+    return ui_color_rgba((uint8_t)r, (uint8_t)g, (uint8_t)b, a);
 }
 
 static ui_color_t ui_color_brightness(ui_color_t c, fp32_t multiplier) {
@@ -4825,7 +4837,7 @@ static ui_color_t ui_color_interpolate(ui_color_t c0, ui_color_t c1,
 
 static ui_color_t ui_color_gray_with_same_intensity(ui_color_t c) {
     uint8_t intensity = (ui_color_r(c) + ui_color_g(c) + ui_color_b(c)) / 3;
-    return ui_rgba(intensity, intensity, intensity, ui_color_a(c));
+    return ui_color_rgba(intensity, intensity, intensity, ui_color_a(c));
 }
 
 // Adjust brightness by interpolating towards black or white
@@ -4845,17 +4857,17 @@ static ui_color_t ui_color_gray_with_same_intensity(ui_color_t c) {
 static ui_color_t ui_color_adjust_brightness(ui_color_t c,
         fp32_t multiplier, bool lighten) {
     ui_color_t target = lighten ?
-        ui_rgba(255, 255, 255, ui_color_a(c)) :
-        ui_rgba(  0,   0,   0, ui_color_a(c));
+        ui_color_rgba(255, 255, 255, ui_color_a(c)) :
+        ui_color_rgba(  0,   0,   0, ui_color_a(c));
     return ui_color_interpolate(c, target, multiplier);
 }
 
 static ui_color_t ui_color_lighten(ui_color_t c, fp32_t multiplier) {
-    const ui_color_t target = ui_rgba(255, 255, 255, ui_color_a(c));
+    const ui_color_t target = ui_color_rgba(255, 255, 255, ui_color_a(c));
     return ui_color_interpolate(c, target, multiplier);
 }
 static ui_color_t ui_color_darken(ui_color_t c, fp32_t multiplier) {
-    const ui_color_t target = ui_rgba(0, 0, 0, ui_color_a(c));
+    const ui_color_t target = ui_color_rgba(0, 0, 0, ui_color_a(c));
     return ui_color_interpolate(c, target, multiplier);
 }
 
@@ -4879,11 +4891,13 @@ static struct {
     { .name = "Undefiled"        ,.dark = ui_color_undefined, .light = ui_color_undefined },
     { .name = "ActiveTitle"      ,.dark = 0x001F1F1F, .light = 0x00D1B499 },
     { .name = "ButtonFace"       ,.dark = 0x00333333, .light = 0x00F0F0F0 },
-    { .name = "ButtonText"       ,.dark = 0x00F6F3EE, .light = 0x00000000 },
+    { .name = "ButtonText"       ,.dark = 0x00C8C8C8, .light = 0x00161616 },
+//  { .name = "ButtonText"       ,.dark = 0x00F6F3EE, .light = 0x00000000 },
     { .name = "GrayText"         ,.dark = 0x00666666, .light = 0x006D6D6D },
     { .name = "Hilight"          ,.dark = 0x00626262, .light = 0x00D77800 },
     { .name = "HilightText"      ,.dark = 0x00000000, .light = 0x00FFFFFF },
-    { .name = "HotTrackingColor" ,.dark = 0x00B77878, .light = 0x00CC6600 },
+    { .name = "HotTrackingColor" ,.dark = 0x00B16300, .light = 0x00FF0000 }, // automatic Win11 "accent" ABRG: 0xFFB16300
+//  { .name = "HotTrackingColor" ,.dark = 0x00B77878, .light = 0x00CC6600 },
     { .name = "InactiveTitle"    ,.dark = 0x002B2B2B, .light = 0x00DBCDBF },
     { .name = "InactiveTitleText",.dark = 0x00969696, .light = 0x00000000 },
     { .name = "MenuHilight"      ,.dark = 0x00002642, .light = 0x00FF9933 },
@@ -4910,17 +4924,6 @@ static ui_color_t ui_colors_get_color(int32_t color_id) {
            ui_theme_colors[color_id].light;
 }
 
-enum { // TODO: get rid of it?
-    ui_colors_white     = ui_rgb(255, 255, 255),
-    ui_colors_off_white = ui_rgb(192, 192, 192),
-    ui_colors_dkgray0   = ui_rgb(16, 16, 16),
-    ui_colors_dkgray1   = ui_rgb(30, 30, 30),
-    ui_colors_dkgray2   = ui_rgb(37, 38, 38),
-    ui_colors_dkgray3   = ui_rgb(45, 45, 48),
-    ui_colors_dkgray4   = ui_rgb(63, 63, 70),
-    ui_colors_blue_highlight = ui_rgb(128, 128, 255)
-};
-
 ui_colors_if ui_colors = {
     .get_color                = ui_colors_get_color,
     .rgb_to_hsi               = ui_color_rgb_to_hsi,
@@ -4934,203 +4937,184 @@ ui_colors_if ui_colors = {
     .multiply_saturation      = ui_color_saturation,
     .transparent      = ui_color_transparent,
     .none             = (ui_color_t)0xFFFFFFFFU, // aka CLR_INVALID in wingdi
-    .text             = ui_rgb(240, 231, 220),
-    .white            = ui_colors_white,
-    .black            = ui_rgb(0,     0,   0),
-    .red              = ui_rgb(255,   0,   0),
-    .green            = ui_rgb(0,   255,   0),
-    .blue             = ui_rgb(0,   0,   255),
-    .yellow           = ui_rgb(255, 255,   0),
-    .cyan             = ui_rgb(0,   255, 255),
-    .magenta          = ui_rgb(255,   0, 255),
-    .gray             = ui_rgb(128, 128, 128),
-    .dkgray1          = ui_colors_dkgray1,
-    .dkgray2          = ui_colors_dkgray2,
-    .dkgray3          = ui_colors_dkgray3,
-    .dkgray4          = ui_colors_dkgray4,
+    .text             = ui_color_rgb(240, 231, 220),
+    .white            = ui_color_rgb(255, 255, 255),
+    .black            = ui_color_rgb(0,     0,   0),
+    .red              = ui_color_rgb(255,   0,   0),
+    .green            = ui_color_rgb(0,   255,   0),
+    .blue             = ui_color_rgb(0,   0,   255),
+    .yellow           = ui_color_rgb(255, 255,   0),
+    .cyan             = ui_color_rgb(0,   255, 255),
+    .magenta          = ui_color_rgb(255,   0, 255),
+    .gray             = ui_color_rgb(128, 128, 128),
     // tone down RGB colors:
-    .tone_white       = ui_rgb(164, 164, 164),
-    .tone_red         = ui_rgb(192,  64,  64),
-    .tone_green       = ui_rgb(64,  192,  64),
-    .tone_blue        = ui_rgb(64,   64, 192),
-    .tone_yellow      = ui_rgb(192, 192,  64),
-    .tone_cyan        = ui_rgb(64,  192, 192),
-    .tone_magenta     = ui_rgb(192,  64, 192),
+    .tone_white       = ui_color_rgb(164, 164, 164),
+    .tone_red         = ui_color_rgb(192,  64,  64),
+    .tone_green       = ui_color_rgb(64,  192,  64),
+    .tone_blue        = ui_color_rgb(64,   64, 192),
+    .tone_yellow      = ui_color_rgb(192, 192,  64),
+    .tone_cyan        = ui_color_rgb(64,  192, 192),
+    .tone_magenta     = ui_color_rgb(192,  64, 192),
     // miscellaneous:
-    .orange           = ui_rgb(255, 165,   0), // 0xFFA500
-    .dkgreen          = ui_rgb(  1,  50,  32), // 0x013220
-    .pink             = ui_rgb(255, 192, 203), // 0xFFC0CB
-    .ochre            = ui_rgb(204, 119,  34), // 0xCC7722
-    .gold             = ui_rgb(255, 215,   0), // 0xFFD700
-    .teal             = ui_rgb(  0, 128, 128), // 0x008080
-    .wheat            = ui_rgb(245, 222, 179), // 0xF5DEB3
-    .tan              = ui_rgb(210, 180, 140), // 0xD2B48C
-    .brown            = ui_rgb(165,  42,  42), // 0xA52A2A
-    .maroon           = ui_rgb(128,   0,   0), // 0x800000
-    .barbie_pink      = ui_rgb(224,  33, 138), // 0xE0218A
-    .steel_pink       = ui_rgb(204,  51, 204), // 0xCC33CC
-    .salmon_pink      = ui_rgb(255, 145, 164), // 0xFF91A4
-    .gainsboro        = ui_rgb(220, 220, 220), // 0xDCDCDC
-    .light_gray       = ui_rgb(211, 211, 211), // 0xD3D3D3
-    .silver           = ui_rgb(192, 192, 192), // 0xC0C0C0
-    .dark_gray        = ui_rgb(169, 169, 169), // 0xA9A9A9
-    .dim_gray         = ui_rgb(105, 105, 105), // 0x696969
-    .light_slate_gray = ui_rgb(119, 136, 153), // 0x778899
-    .slate_gray       = ui_rgb(112, 128, 144), // 0x708090
-
-    // highlights:
-    .text_highlight      = ui_rgb(190, 200, 255), // bluish off-white
-    .blue_highlight      = ui_colors_blue_highlight,
-    .off_white           = ui_colors_off_white,
-
-    .btn_gradient_darker = ui_colors_dkgray1,
-    .btn_gradient_dark   = ui_colors_dkgray3,
-    .btn_hover_highlight = ui_colors_blue_highlight,
-    .btn_disabled        = ui_colors_dkgray4,
-    .btn_armed           = ui_colors_white,
-    .btn_text            = ui_colors_off_white,
-    .toast               = ui_colors_dkgray3, // ui_rgb(8, 40, 24), // toast background
-
+    .orange           = ui_color_rgb(255, 165,   0), // 0xFFA500
+    .dark_green          = ui_color_rgb(  1,  50,  32), // 0x013220
+    .pink             = ui_color_rgb(255, 192, 203), // 0xFFC0CB
+    .ochre            = ui_color_rgb(204, 119,  34), // 0xCC7722
+    .gold             = ui_color_rgb(255, 215,   0), // 0xFFD700
+    .teal             = ui_color_rgb(  0, 128, 128), // 0x008080
+    .wheat            = ui_color_rgb(245, 222, 179), // 0xF5DEB3
+    .tan              = ui_color_rgb(210, 180, 140), // 0xD2B48C
+    .brown            = ui_color_rgb(165,  42,  42), // 0xA52A2A
+    .maroon           = ui_color_rgb(128,   0,   0), // 0x800000
+    .barbie_pink      = ui_color_rgb(224,  33, 138), // 0xE0218A
+    .steel_pink       = ui_color_rgb(204,  51, 204), // 0xCC33CC
+    .salmon_pink      = ui_color_rgb(255, 145, 164), // 0xFF91A4
+    .gainsboro        = ui_color_rgb(220, 220, 220), // 0xDCDCDC
+    .light_gray       = ui_color_rgb(211, 211, 211), // 0xD3D3D3
+    .silver           = ui_color_rgb(192, 192, 192), // 0xC0C0C0
+    .dark_gray        = ui_color_rgb(169, 169, 169), // 0xA9A9A9
+    .dim_gray         = ui_color_rgb(105, 105, 105), // 0x696969
+    .light_slate_gray = ui_color_rgb(119, 136, 153), // 0x778899
+    .slate_gray       = ui_color_rgb(112, 128, 144), // 0x708090
     /* Main Panel Backgrounds */
-    .ennui_black                = ui_rgb( 18,  18,  18), // 0x1212121
-    .charcoal                   = ui_rgb( 54,  69,  79), // 0x36454F
-    .onyx                       = ui_rgb( 53,  56,  57), // 0x353839
-    .gunmetal                   = ui_rgb( 42,  52,  57), // 0x2A3439
-    .jet_black                  = ui_rgb( 52,  52,  52), // 0x343434
-    .outer_space                = ui_rgb( 65,  74,  76), // 0x414A4C
-    .eerie_black                = ui_rgb( 27,  27,  27), // 0x1B1B1B
-    .oil                        = ui_rgb( 59,  60,  54), // 0x3B3C36
-    .black_coral                = ui_rgb( 84,  98, 111), // 0x54626F
-    .obsidian                   = ui_rgb( 58,  50,  45), // 0x3A322D
-
+    .ennui_black                = ui_color_rgb( 18,  18,  18), // 0x1212121
+    .charcoal                   = ui_color_rgb( 54,  69,  79), // 0x36454F
+    .onyx                       = ui_color_rgb( 53,  56,  57), // 0x353839
+    .gunmetal                   = ui_color_rgb( 42,  52,  57), // 0x2A3439
+    .jet_black                  = ui_color_rgb( 52,  52,  52), // 0x343434
+    .outer_space                = ui_color_rgb( 65,  74,  76), // 0x414A4C
+    .eerie_black                = ui_color_rgb( 27,  27,  27), // 0x1B1B1B
+    .oil                        = ui_color_rgb( 59,  60,  54), // 0x3B3C36
+    .black_coral                = ui_color_rgb( 84,  98, 111), // 0x54626F
+    .obsidian                   = ui_color_rgb( 58,  50,  45), // 0x3A322D
     /* Secondary Panels or Sidebars */
-    .raisin_black               = ui_rgb( 39,  38,  53), // 0x272635
-    .dark_charcoal              = ui_rgb( 48,  48,  48), // 0x303030
-    .dark_jungle_green          = ui_rgb( 26,  36,  33), // 0x1A2421
-    .pine_tree                  = ui_rgb( 42,  47,  35), // 0x2A2F23
-    .rich_black                 = ui_rgb(  0,  64,  64), // 0x004040
-    .eclipse                    = ui_rgb( 63,  57,  57), // 0x3F3939
-    .cafe_noir                  = ui_rgb( 75,  54,  33), // 0x4B3621
+    .raisin_black               = ui_color_rgb( 39,  38,  53), // 0x272635
+    .dark_charcoal              = ui_color_rgb( 48,  48,  48), // 0x303030
+    .dark_jungle_green          = ui_color_rgb( 26,  36,  33), // 0x1A2421
+    .pine_tree                  = ui_color_rgb( 42,  47,  35), // 0x2A2F23
+    .rich_black                 = ui_color_rgb(  0,  64,  64), // 0x004040
+    .eclipse                    = ui_color_rgb( 63,  57,  57), // 0x3F3939
+    .cafe_noir                  = ui_color_rgb( 75,  54,  33), // 0x4B3621
 
     /* Flat Buttons */
-    .prussian_blue              = ui_rgb(  0,  49,  83), // 0x003153
-    .midnight_green             = ui_rgb(  0,  73,  83), // 0x004953
-    .charleston_green           = ui_rgb( 35,  43,  43), // 0x232B2B
-    .rich_black_fogra           = ui_rgb( 10,  15,  13), // 0x0A0F0D
-    .dark_liver                 = ui_rgb( 83,  75,  79), // 0x534B4F
-    .dark_slate_gray            = ui_rgb( 47,  79,  79), // 0x2F4F4F
-    .black_olive                = ui_rgb( 59,  60,  54), // 0x3B3C36
-    .cadet                      = ui_rgb( 83, 104, 114), // 0x536872
+    .prussian_blue              = ui_color_rgb(  0,  49,  83), // 0x003153
+    .midnight_green             = ui_color_rgb(  0,  73,  83), // 0x004953
+    .charleston_green           = ui_color_rgb( 35,  43,  43), // 0x232B2B
+    .rich_black_fogra           = ui_color_rgb( 10,  15,  13), // 0x0A0F0D
+    .dark_liver                 = ui_color_rgb( 83,  75,  79), // 0x534B4F
+    .dark_slate_gray            = ui_color_rgb( 47,  79,  79), // 0x2F4F4F
+    .black_olive                = ui_color_rgb( 59,  60,  54), // 0x3B3C36
+    .cadet                      = ui_color_rgb( 83, 104, 114), // 0x536872
 
     /* Button highlights (hover) */
-    .dark_sienna                = ui_rgb( 60,  20,  20), // 0x3C1414
-    .bistre_brown               = ui_rgb(150, 113,  23), // 0x967117
-    .dark_puce                  = ui_rgb( 79,  58,  60), // 0x4F3A3C
-    .wenge                      = ui_rgb(100,  84,  82), // 0x645452
+    .dark_sienna                = ui_color_rgb( 60,  20,  20), // 0x3C1414
+    .bistre_brown               = ui_color_rgb(150, 113,  23), // 0x967117
+    .dark_puce                  = ui_color_rgb( 79,  58,  60), // 0x4F3A3C
+    .wenge                      = ui_color_rgb(100,  84,  82), // 0x645452
 
     /* Raised button effects */
-    .dark_scarlet               = ui_rgb( 86,   3,  25), // 0x560319
-    .burnt_umber                = ui_rgb(138,  51,  36), // 0x8A3324
-    .caput_mortuum              = ui_rgb( 89,  39,  32), // 0x592720
-    .barn_red                   = ui_rgb(124,  10,   2), // 0x7C0A02
+    .dark_scarlet               = ui_color_rgb( 86,   3,  25), // 0x560319
+    .burnt_umber                = ui_color_rgb(138,  51,  36), // 0x8A3324
+    .caput_mortuum              = ui_color_rgb( 89,  39,  32), // 0x592720
+    .barn_red                   = ui_color_rgb(124,  10,   2), // 0x7C0A02
 
     /* Text and Icons */
-    .platinum                   = ui_rgb(229, 228, 226), // 0xE5E4E2
-    .anti_flash_white           = ui_rgb(242, 243, 244), // 0xF2F3F4
-    .silver_sand                = ui_rgb(191, 193, 194), // 0xBFC1C2
-    .quick_silver               = ui_rgb(166, 166, 166), // 0xA6A6A6
+    .platinum                   = ui_color_rgb(229, 228, 226), // 0xE5E4E2
+    .anti_flash_white           = ui_color_rgb(242, 243, 244), // 0xF2F3F4
+    .silver_sand                = ui_color_rgb(191, 193, 194), // 0xBFC1C2
+    .quick_silver               = ui_color_rgb(166, 166, 166), // 0xA6A6A6
 
     /* Links and Selections */
-    .dark_powder_blue           = ui_rgb(  0,  51, 153), // 0x003399
-    .sapphire_blue              = ui_rgb( 15,  82, 186), // 0x0F52BA
-    .international_klein_blue   = ui_rgb(  0,  47, 167), // 0x002FA7
-    .zaffre                     = ui_rgb(  0,  20, 168), // 0x0014A8
+    .dark_powder_blue           = ui_color_rgb(  0,  51, 153), // 0x003399
+    .sapphire_blue              = ui_color_rgb( 15,  82, 186), // 0x0F52BA
+    .international_klein_blue   = ui_color_rgb(  0,  47, 167), // 0x002FA7
+    .zaffre                     = ui_color_rgb(  0,  20, 168), // 0x0014A8
 
     /* Additional Colors */
-    .fish_belly                 = ui_rgb(232, 241, 212), // 0xE8F1D4
-    .rusty_red                  = ui_rgb(218,  44,  67), // 0xDA2C43
-    .falu_red                   = ui_rgb(128,  24,  24), // 0x801818
-    .cordovan                   = ui_rgb(137,  63,  69), // 0x893F45
-    .dark_raspberry             = ui_rgb(135,  38,  87), // 0x872657
-    .deep_magenta               = ui_rgb(204,   0, 204), // 0xCC00CC
-    .byzantium                  = ui_rgb(112,  41,  99), // 0x702963
-    .amethyst                   = ui_rgb(153, 102, 204), // 0x9966CC
-    .wisteria                   = ui_rgb(201, 160, 220), // 0xC9A0DC
-    .lavender_purple            = ui_rgb(150, 123, 182), // 0x967BB6
-    .opera_mauve                = ui_rgb(183, 132, 167), // 0xB784A7
-    .mauve_taupe                = ui_rgb(145,  95, 109), // 0x915F6D
-    .rich_lavender              = ui_rgb(167, 107, 207), // 0xA76BCF
-    .pansy_purple               = ui_rgb(120,  24,  74), // 0x78184A
-    .violet_eggplant            = ui_rgb(153,  17, 153), // 0x991199
-    .jazzberry_jam              = ui_rgb(165,  11,  94), // 0xA50B5E
-    .dark_orchid                = ui_rgb(153,  50, 204), // 0x9932CC
-    .electric_purple            = ui_rgb(191,   0, 255), // 0xBF00FF
-    .sky_magenta                = ui_rgb(207, 113, 175), // 0xCF71AF
-    .brilliant_rose             = ui_rgb(230, 103, 206), // 0xE667CE
-    .fuchsia_purple             = ui_rgb(204,  57, 123), // 0xCC397B
-    .french_raspberry           = ui_rgb(199,  44,  72), // 0xC72C48
-    .wild_watermelon            = ui_rgb(252, 108, 133), // 0xFC6C85
-    .neon_carrot                = ui_rgb(255, 163,  67), // 0xFFA343
-    .burnt_orange               = ui_rgb(204,  85,   0), // 0xCC5500
-    .carrot_orange              = ui_rgb(237, 145,  33), // 0xED9121
-    .tiger_orange               = ui_rgb(253, 106,   2), // 0xFD6A02
-    .giant_onion                = ui_rgb(176, 181, 137), // 0xB0B589
-    .rust                       = ui_rgb(183,  65,  14), // 0xB7410E
-    .copper_red                 = ui_rgb(203, 109,  81), // 0xCB6D51
-    .dark_tangerine             = ui_rgb(255, 168,  18), // 0xFFA812
-    .bright_marigold            = ui_rgb(252, 192,   6), // 0xFCC006
-    .bone                       = ui_rgb(227, 218, 201), // 0xE3DAC9
+    .fish_belly                 = ui_color_rgb(232, 241, 212), // 0xE8F1D4
+    .rusty_red                  = ui_color_rgb(218,  44,  67), // 0xDA2C43
+    .falu_red                   = ui_color_rgb(128,  24,  24), // 0x801818
+    .cordovan                   = ui_color_rgb(137,  63,  69), // 0x893F45
+    .dark_raspberry             = ui_color_rgb(135,  38,  87), // 0x872657
+    .deep_magenta               = ui_color_rgb(204,   0, 204), // 0xCC00CC
+    .byzantium                  = ui_color_rgb(112,  41,  99), // 0x702963
+    .amethyst                   = ui_color_rgb(153, 102, 204), // 0x9966CC
+    .wisteria                   = ui_color_rgb(201, 160, 220), // 0xC9A0DC
+    .lavender_purple            = ui_color_rgb(150, 123, 182), // 0x967BB6
+    .opera_mauve                = ui_color_rgb(183, 132, 167), // 0xB784A7
+    .mauve_taupe                = ui_color_rgb(145,  95, 109), // 0x915F6D
+    .rich_lavender              = ui_color_rgb(167, 107, 207), // 0xA76BCF
+    .pansy_purple               = ui_color_rgb(120,  24,  74), // 0x78184A
+    .violet_eggplant            = ui_color_rgb(153,  17, 153), // 0x991199
+    .jazzberry_jam              = ui_color_rgb(165,  11,  94), // 0xA50B5E
+    .dark_orchid                = ui_color_rgb(153,  50, 204), // 0x9932CC
+    .electric_purple            = ui_color_rgb(191,   0, 255), // 0xBF00FF
+    .sky_magenta                = ui_color_rgb(207, 113, 175), // 0xCF71AF
+    .brilliant_rose             = ui_color_rgb(230, 103, 206), // 0xE667CE
+    .fuchsia_purple             = ui_color_rgb(204,  57, 123), // 0xCC397B
+    .french_raspberry           = ui_color_rgb(199,  44,  72), // 0xC72C48
+    .wild_watermelon            = ui_color_rgb(252, 108, 133), // 0xFC6C85
+    .neon_carrot                = ui_color_rgb(255, 163,  67), // 0xFFA343
+    .burnt_orange               = ui_color_rgb(204,  85,   0), // 0xCC5500
+    .carrot_orange              = ui_color_rgb(237, 145,  33), // 0xED9121
+    .tiger_orange               = ui_color_rgb(253, 106,   2), // 0xFD6A02
+    .giant_onion                = ui_color_rgb(176, 181, 137), // 0xB0B589
+    .rust                       = ui_color_rgb(183,  65,  14), // 0xB7410E
+    .copper_red                 = ui_color_rgb(203, 109,  81), // 0xCB6D51
+    .dark_tangerine             = ui_color_rgb(255, 168,  18), // 0xFFA812
+    .bright_marigold            = ui_color_rgb(252, 192,   6), // 0xFCC006
+    .bone                       = ui_color_rgb(227, 218, 201), // 0xE3DAC9
 
     /* Earthy Tones */
-    .sienna                     = ui_rgb(160,  82,  45), // 0xA0522D
-    .sandy_brown                = ui_rgb(244, 164,  96), // 0xF4A460
-    .golden_brown               = ui_rgb(153, 101,  21), // 0x996515
-    .camel                      = ui_rgb(193, 154, 107), // 0xC19A6B
-    .burnt_sienna               = ui_rgb(238, 124,  88), // 0xEE7C58
-    .khaki                      = ui_rgb(195, 176, 145), // 0xC3B091
-    .dark_khaki                 = ui_rgb(189, 183, 107), // 0xBDB76B
+    .sienna                     = ui_color_rgb(160,  82,  45), // 0xA0522D
+    .sandy_brown                = ui_color_rgb(244, 164,  96), // 0xF4A460
+    .golden_brown               = ui_color_rgb(153, 101,  21), // 0x996515
+    .camel                      = ui_color_rgb(193, 154, 107), // 0xC19A6B
+    .burnt_sienna               = ui_color_rgb(238, 124,  88), // 0xEE7C58
+    .khaki                      = ui_color_rgb(195, 176, 145), // 0xC3B091
+    .dark_khaki                 = ui_color_rgb(189, 183, 107), // 0xBDB76B
 
     /* Greens */
-    .fern_green                 = ui_rgb( 79, 121,  66), // 0x4F7942
-    .moss_green                 = ui_rgb(138, 154,  91), // 0x8A9A5B
-    .myrtle_green               = ui_rgb( 49, 120, 115), // 0x317873
-    .pine_green                 = ui_rgb(  1, 121, 111), // 0x01796F
-    .jungle_green               = ui_rgb( 41, 171, 135), // 0x29AB87
-    .sacramento_green           = ui_rgb(  4,  57,  39), // 0x043927
+    .fern_green                 = ui_color_rgb( 79, 121,  66), // 0x4F7942
+    .moss_green                 = ui_color_rgb(138, 154,  91), // 0x8A9A5B
+    .myrtle_green               = ui_color_rgb( 49, 120, 115), // 0x317873
+    .pine_green                 = ui_color_rgb(  1, 121, 111), // 0x01796F
+    .jungle_green               = ui_color_rgb( 41, 171, 135), // 0x29AB87
+    .sacramento_green           = ui_color_rgb(  4,  57,  39), // 0x043927
 
     /* Blues */
-    .yale_blue                  = ui_rgb( 15,  77, 146), // 0x0F4D92
-    .cobalt_blue                = ui_rgb(  0,  71, 171), // 0x0047AB
-    .persian_blue               = ui_rgb( 28,  57, 187), // 0x1C39BB
-    .royal_blue                 = ui_rgb( 65, 105, 225), // 0x4169E1
-    .iceberg                    = ui_rgb(113, 166, 210), // 0x71A6D2
-    .blue_yonder                = ui_rgb( 80, 114, 167), // 0x5072A7
+    .yale_blue                  = ui_color_rgb( 15,  77, 146), // 0x0F4D92
+    .cobalt_blue                = ui_color_rgb(  0,  71, 171), // 0x0047AB
+    .persian_blue               = ui_color_rgb( 28,  57, 187), // 0x1C39BB
+    .royal_blue                 = ui_color_rgb( 65, 105, 225), // 0x4169E1
+    .iceberg                    = ui_color_rgb(113, 166, 210), // 0x71A6D2
+    .blue_yonder                = ui_color_rgb( 80, 114, 167), // 0x5072A7
 
     /* Miscellaneous */
-    .cocoa_brown                = ui_rgb(210, 105,  30), // 0xD2691E
-    .cinnamon_satin             = ui_rgb(205,  96, 126), // 0xCD607E
-    .fallow                     = ui_rgb(193, 154, 107), // 0xC19A6B
-    .cafe_au_lait               = ui_rgb(166, 123,  91), // 0xA67B5B
-    .liver                      = ui_rgb(103,  76,  71), // 0x674C47
-    .shadow                     = ui_rgb(138, 121,  93), // 0x8A795D
-    .cool_grey                  = ui_rgb(140, 146, 172), // 0x8C92AC
-    .payne_grey                 = ui_rgb( 83, 104, 120), // 0x536878
+    .cocoa_brown                = ui_color_rgb(210, 105,  30), // 0xD2691E
+    .cinnamon_satin             = ui_color_rgb(205,  96, 126), // 0xCD607E
+    .fallow                     = ui_color_rgb(193, 154, 107), // 0xC19A6B
+    .cafe_au_lait               = ui_color_rgb(166, 123,  91), // 0xA67B5B
+    .liver                      = ui_color_rgb(103,  76,  71), // 0x674C47
+    .shadow                     = ui_color_rgb(138, 121,  93), // 0x8A795D
+    .cool_grey                  = ui_color_rgb(140, 146, 172), // 0x8C92AC
+    .payne_grey                 = ui_color_rgb( 83, 104, 120), // 0x536878
 
     /* Lighter Tones for Contrast */
-    .timberwolf                 = ui_rgb(219, 215, 210), // 0xDBD7D2
-    .silver_chalice             = ui_rgb(172, 172, 172), // 0xACACAC
-    .roman_silver               = ui_rgb(131, 137, 150), // 0x838996
+    .timberwolf                 = ui_color_rgb(219, 215, 210), // 0xDBD7D2
+    .silver_chalice             = ui_color_rgb(172, 172, 172), // 0xACACAC
+    .roman_silver               = ui_color_rgb(131, 137, 150), // 0x838996
 
     /* Dark Mode Specific Highlights */
-    .electric_lavender          = ui_rgb(244, 191, 255), // 0xF4BFFF
-    .magenta_haze               = ui_rgb(159,  69, 118), // 0x9F4576
-    .cyber_grape                = ui_rgb( 88,  66, 124), // 0x58427C
-    .purple_navy                = ui_rgb( 78,  81, 128), // 0x4E5180
-    .liberty                    = ui_rgb( 84,  90, 167), // 0x545AA7
-    .purple_mountain_majesty    = ui_rgb(150, 120, 182), // 0x9678B6
-    .ceil                       = ui_rgb(146, 161, 207), // 0x92A1CF
-    .moonstone_blue             = ui_rgb(115, 169, 194), // 0x73A9C2
-    .independence               = ui_rgb( 76,  81, 109)  // 0x4C516D
+    .electric_lavender          = ui_color_rgb(244, 191, 255), // 0xF4BFFF
+    .magenta_haze               = ui_color_rgb(159,  69, 118), // 0x9F4576
+    .cyber_grape                = ui_color_rgb( 88,  66, 124), // 0x58427C
+    .purple_navy                = ui_color_rgb( 78,  81, 128), // 0x4E5180
+    .liberty                    = ui_color_rgb( 84,  90, 167), // 0x545AA7
+    .purple_mountain_majesty    = ui_color_rgb(150, 120, 182), // 0x9678B6
+    .ceil                       = ui_color_rgb(146, 161, 207), // 0x92A1CF
+    .moonstone_blue             = ui_color_rgb(115, 169, 194), // 0x73A9C2
+    .independence               = ui_color_rgb( 76,  81, 109)  // 0x4C516D
 };
 
 // _____________________________ ui_containers.c ______________________________
@@ -7904,8 +7888,15 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const uint8_t* s, int32_t n) {
 
 static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         const int32_t width, bool allow_zero) {
-    int count = 0;
-    int chars = 0;
+    // TODO: in sqlite.c 156,000 LoC it takes 11 seconds to get all runs()
+    //       on average ui_edit_word_break_at() takes 4 x ui_edit_text_width()
+    //       measurements and they are slow. If we can reduce this amount
+    //       (not clear how) at least 2 times it will be a win.
+    //       Another way is background thread runs() processing but this is
+    //       involving a lot of complexity.
+    //       MSVC devend() edits sqlite3.c w/o any visible delays
+    int32_t count = 0; // stats logging
+    int32_t chars = 0;
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pn && pn < dt->np);
     ui_edit_paragraph_t* p = &e->para[pn];
@@ -8388,7 +8379,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             int32_t x1 = ui_edit_text_width(e, text, ofs1);
             // selection_color is MSVC dark mode selection color
             // TODO: need light mode selection color tpp
-            ui_color_t selection_color = ui_rgb(0x26, 0x4F, 0x78); // ui_rgb(64, 72, 96);
+            ui_color_t selection_color = ui_color_rgb(0x26, 0x4F, 0x78); // ui_color_rgb(64, 72, 96);
             if (!e->focused || !ui_app.has_focus()) {
                 selection_color = ui_colors.darken(selection_color, 0.1f);
             }
@@ -9780,7 +9771,6 @@ static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
 
 static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
         ui_color_t border, ui_color_t fill) {
-//  ui_gdi.push(x, y);
     swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
     // Win32 GDI even radius drawing looks ugly squarish and asymmetrical.
     swear(radius % 2 == 1, "radius: %d must be odd");
@@ -9804,12 +9794,10 @@ static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
     ui_gdi_set_pen(p);
     if (!tf) { ui_gdi_set_brush_color(c); }
     ui_gdi_set_brush(brush);
-//  ui_gdi.pop();
 }
 
 static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t fill) {
-//  ui_gdi.push(x, y);
     int32_t r = x + w - 1; // right
     int32_t b = y + h - 1; // bottom
     ui_gdi_circle(x + radius, y + radius, radius, fill, fill);
@@ -9821,12 +9809,10 @@ static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
     r = x + w - radius;
     ui_gdi.fill(x, y + radius, radius, h - radius * 2, fill);
     ui_gdi.fill(r, y + radius, radius, h - radius * 2, fill);
-//  ui_gdi.pop();
 }
 
 static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border) {
-//  ui_gdi.push(x, y);
     {
         int32_t r = x + w - 1; // right
         int32_t b = y + h - 1; // bottom
@@ -9845,15 +9831,14 @@ static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t b = y + h - 1; // bottom
         ui_gdi.line(x + radius, y, r - radius + 1, y, border);
         ui_gdi.line(x + radius, b, r - radius + 1, b, border);
-        ui_gdi.line(x, y + radius, x, b - radius + 1, border);
-        ui_gdi.line(r, y + radius, r, b - radius + 1, border);
+        ui_gdi.line(x - 1, y + radius, x - 1, b - radius + 1, border);
+        ui_gdi.line(r + 1, y + radius, r + 1, b - radius + 1, border);
     }
-//  ui_gdi.pop();
 }
 
 static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border, ui_color_t fill) {
-    swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
+    swear(!ui_color_is_transparent(border) || !ui_color_is_transparent(fill));
     if (!ui_color_is_transparent(fill)) {
         ui_gdi_fill_rounded(x, y, w, h, radius, fill);
     }
@@ -11035,27 +11020,21 @@ void ui_mbx_init(ui_mbx_t* mx, const char* options[],
 
 static void ui_slider_invalidate(const ui_slider_t* s) {
     const ui_view_t* v = &s->view;
-    ui_rect_t rc = (ui_rect_t){v->x, v->y, v->w, v->h};
-    ui_view.invalidate(v, &rc);
-    if (!s->dec.hidden) {
-        const ui_view_t* b = &s->dec;
-        rc = (ui_rect_t){b->x, b->y, b->w, b->h};
-        ui_view.invalidate(&s->dec, &rc);
-    }
-    if (!s->inc.hidden) {
-        const ui_view_t* b = &s->inc;
-        rc = (ui_rect_t){b->x, b->y, b->w, b->h};
-        ui_view.invalidate(&s->dec, &rc);
-    }
+    ui_view.invalidate(v, null);
+    if (!s->dec.hidden) { ui_view.invalidate(&s->dec, null); }
+    if (!s->inc.hidden) { ui_view.invalidate(&s->dec, null); }
 }
 
-static int32_t ui_slider_width(const ui_slider_t* s) {
+static int32_t ui_slider_width_without_insets(const ui_slider_t* s) {
     const int32_t em = s->view.fm->em.w;
     const fp64_t min_w = (fp64_t)s->view.min_w_em;
     const int32_t mw = (int32_t)(min_w * (fp64_t)em + 0.5);
+    return ut_max(em, ut_max(mw, s->mt.w));
+}
+
+static int32_t ui_slider_width_with_insets(const ui_slider_t* s) {
     const ui_ltrb_t i = ui_view.gaps(&s->view, &s->view.insets);
-//  traceln("sw: %d", i.left + ut_max(em, ut_max(mw, s->mt.w)) + i.right);
-    return i.left + ut_max(em, ut_max(mw, s->mt.w)) + i.right;
+    return i.left + ui_slider_width_without_insets(s) + i.right;
 }
 
 static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
@@ -11101,13 +11080,11 @@ static void ui_slider_measure(ui_view_t* v) {
     const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
     s->mt = ui_slider_measure_text(s);
     assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
-    const int32_t sw = ui_slider_width(s);
+    const int32_t sw = ui_slider_width_with_insets(s);
     if (s->dec.hidden) {
         v->w = sw;
     } else {
         v->w = s->dec.w + dec_p.right + sw + inc_p.left + s->inc.w;
-//      traceln("s->dec.w + dec_p.right: %d sw: %d + inc_p.left + s->inc.w: %d = %d",
-//               s->dec.w + dec_p.right, sw, inc_p.left + s->inc.w, v->w);
     }
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     v->h = i.top + v->fm->em.h + i.bottom;
@@ -11127,28 +11104,21 @@ static void ui_slider_layout(ui_view_t* v) {
 static void ui_slider_paint(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-//  ui_gdi.push(v->x, v->y);
     ui_gdi.set_clip(v->x, v->y, v->w, v->h);
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
     assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
-    const int32_t sw = ui_slider_width(s); // slider width
     const int32_t dx = s->dec.hidden ? 0 : dec_w;
-    const int32_t x = v->x + dx;
-    const int32_t y = v->y;
-    const int32_t w = sw;
-    const int32_t h = v->h;
+    const int32_t x = v->x + dx + i.left;
+    const int32_t w = ui_slider_width_without_insets(s);
     // draw background:
     fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     d /= 4;
     ui_color_t d1 = ui_colors.darken(v->background, d);
-//  traceln("view(x: %d  w: %d) dec (x: %d w: %d) inc (x: %d w: %d)",
-//          v->x, v->w, s->dec.x, s->dec.w, s->inc.x, s->inc.w);
-//  traceln("gradient(x: %d  w: %d)", x, w);
-    ui_gdi.gradient(x, y, w, h, d1, d0, true);
+    ui_gdi.gradient(x, v->y, w, v->h, d1, d0, true);
     // draw value:
     ui_color_t c = ui_theme.is_app_dark() ?
         ui_colors.darken(ui_colors.green, 1.0f / 128.0f) :
@@ -11157,8 +11127,16 @@ static void ui_slider_paint(ui_view_t* v) {
     d0 = ui_colors.darken(c, 1.0f / 64.0f);
     const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
     assert(range > 0, "range: %.6f", range);
-    fp64_t vw = (fp64_t)sw * (s->value - s->value_min) / range;
-    ui_gdi.gradient(x, y, (int32_t)(vw + 0.5), h, d1, d0, true);
+    const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
+    const int32_t wi = (int32_t)(vw + 0.5);
+    ui_gdi.gradient(x, v->y, wi, v->h, d1, d0, true);
+    if (!v->flat) {
+        ui_color_t color = v->hover ?
+            ui_colors.get_color(ui_color_id_hot_tracking) :
+            ui_colors.get_color(ui_color_id_gray_text);
+        if (v->disabled) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        ui_gdi.frame(x, v->y, w, v->h, color);
+    }
     // text:
     const char* text = ui_view.string(v);
     char formatted[countof(v->p.text)];
@@ -11173,14 +11151,15 @@ static void ui_slider_paint(ui_view_t* v) {
         text = ut_nls.str(formatted);
     }
     ui_wh_t mt = ui_slider_measure_text(s);
+    const int32_t sw = ui_slider_width_with_insets(s); // slider width
     const int32_t cx = (sw - mt.w) / 2; // centering offset
     const int32_t tx = v->x + cx + (s->dec.hidden ? 0 : dec_w);
     const int32_t ty = v->y + i.top;
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
+    const ui_color_t text_color = !v->hover ? v->color :
+            (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
+    const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, tx, ty, "%s", text);
-    // unclip
     ui_gdi.set_clip(0, 0, 0, 0);
-//  ui_gdi.pop();
 }
 
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
@@ -11194,12 +11173,11 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
             assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
-            const int32_t sw = ui_slider_width(s); // slider width
+            const int32_t sw = ui_slider_width_with_insets(s); // slider width
             const int32_t dx = s->dec.hidden ? 0 : dec_w;
             const int32_t vx = v->x + dx;
             const int32_t x = ui_app.mouse.x - vx;
             const int32_t y = ui_app.mouse.y - v->y;
-//          traceln("0 < %d < %d", x, sw);
             if (0 <= x && x < sw && 0 <= y && y < v->h) {
                 ui_app.focus = v;
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
@@ -11255,7 +11233,9 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
         } else if (ui_app.now - s->time > 1.0) {
             const int32_t sign = s->dec.armed ? -1 : +1;
             const int32_t sec = (int32_t)(ui_app.now - s->time + 0.5);
-            int32_t mul = sec >= 1 ? 1 << (sec - 1) : 1;
+            int32_t initial = ui_app.shift && ui_app.ctrl ? 1000 :
+                ui_app.shift ? 100 : ui_app.ctrl ? 10 : 1;
+            int32_t mul = sec >= 1 ? initial << (sec - 1) : initial;
             const int64_t range = (int64_t)s->value_max - (int64_t)s->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
             ui_slider_inc_dec_value(s, sign, ut_max(mul, 1));
@@ -11284,13 +11264,22 @@ void ui_view_init_slider(ui_view_t* v) {
     s->inc = (ui_button_t)ui_button(ut_glyph_fullwidth_plus_sign, 0, // ut_glyph_heavy_plus_sign
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
+    ui_view.add(&s->view, &s->dec, &s->inc, null);
+    // single glyph buttons less insets look better:
+    ui_view_for_each(&s->view, it, {
+        it->insets.left   = 0.125f;
+        it->insets.right  = 0.125f;
+    });
     // inherit initial padding and insets from buttons.
     // caller may change those later and it should be accounted to
     // in measure() and layout()
-    v->insets = s->dec.insets;
+    v->insets  = s->dec.insets;
     v->padding = s->dec.padding;
+    s->dec.padding.right = 0.125f;
+    s->inc.padding.left  = 0.125f;
     ut_str_printf(s->inc.hint, "%s", accel);
-    ui_view.add(&s->view, &s->dec, &s->inc, null);
+    v->color_id      = ui_color_id_button_text;
+    v->background_id = ui_color_id_button_face;
 }
 
 void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
@@ -11526,24 +11515,26 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     const int32_t w = v->fm->em.w;
     int32_t h = a + d;
     int32_t r = (h / 2) | 0x1; // must be odd
-//  traceln("v->fm baseline: %d ascent: %d descent: %d "
-//          "W x H: %dx%d r: %d", bl, a, d, w, h, r);
     h = r * 2 + 1;
     y += bl - h;
+    x += r;
     int32_t y1 = y + h - r + 2;
-    ui_color_t dim = ui_theme.is_app_dark() ?
+    ui_color_t border = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5) :
         ui_colors.lighten(v->color, 0.5);
-    ui_gdi.circle(x, y1, r, dim, b);
-    ui_gdi.circle(x + w - r, y1, r, dim, b);
+    if (v->hover) {
+        border = ui_colors.get_color(ui_color_id_hot_tracking);
+    }
+    ui_gdi.circle(x, y1, r, border, b);
+    ui_gdi.circle(x + w - r, y1, r, border, b);
     ui_gdi.fill(x, y1 - r, w - r + 1, h, b);
-    ui_gdi.line(x, y1 - r, x + w - r + 1, y1 - r, dim);
-    ui_gdi.line(x, y1 + r, x + w - r + 1, y1 + r, dim);
+    ui_gdi.line(x, y1 - r, x + w - r + 1, y1 - r, border);
+    ui_gdi.line(x, y1 + r, x + w - r + 1, y1 + r, border);
     int32_t x1 = v->pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
     ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
-    ui_color_t border = ui_theme.is_app_dark() ?
+    border = ui_theme.is_app_dark() ?
         ui_colors.darken(fill, 0.0625f) : ui_colors.lighten(fill, 0.0625f);
     ui_gdi.circle(x1, y1, r - 2, border, fill);
     return x + w + 2;
@@ -11572,13 +11563,15 @@ static void ui_toggle_paint(ui_view_t* v) {
     const int32_t tx = v->x + i.left;
     const int32_t ty = v->y + i.top;
     const int32_t x = ui_toggle_paint_on_off(v, tx, ty) + v->fm->em.w / 4;
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
+    const ui_color_t text_color = !v->hover ? v->color :
+            (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
+    const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, x, ty, "%s", ut_nls.str(label));
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {
     assert(t->type == ui_view_toggle);
-    ui_app.request_redraw();
+    ui_view.invalidate((ui_view_t*)t, null);
     t->pressed = !t->pressed;
     if (t->callback != null) { t->callback(t); }
 }
@@ -11594,7 +11587,6 @@ static void ui_toggle_character(ui_view_t* v, const char* utf8) {
 
 static void ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     if (ui_app.alt && ui_view.is_shortcut_key(v, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_toggle_flip((ui_toggle_t*)v);
     }
 }
@@ -12160,17 +12152,13 @@ static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
         ui_rect_t r = { v->x, v->y, v->w, v->h};
         bool hover = v->hover;
         v->hover = ui.point_in_rect(&ui_app.mouse, &r);
-        // inflate view rectangle:
-        r.x -= v->w / 4;
-        r.y -= v->h / 4;
-        r.w += v->w / 2;
-        r.h += v->h / 2;
-        if (hover != v->hover) { ui_app.invalidate(&r); }
+        if (hover != v->hover) { ui_view.invalidate(v, null); }
         if (hover != v->hover) {
+//          traceln("hover_changed() %d := %d %p \"%.8s\"", hover, v->hover, v, v->p.text);
             ui_view.hover_changed(v);
         }
     }
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+    if (!ui_view.is_hidden(v)) {
         if (v->mouse != null) { v->mouse(v, m, f); }
         ui_view_for_each(v, c, { ui_view_mouse(c, m, f); });
     }
@@ -12272,15 +12260,13 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
 }
 
 static void ui_view_debug_paint(ui_view_t* v) {
-//  ui_gdi.push(v->x, v->y);
     bool container = v->type == ui_view_container ||
                      v->type == ui_view_span ||
                      v->type == ui_view_list ||
                      v->type == ui_view_spacer;
     if (v->type == ui_view_spacer) {
-        ui_gdi.fill(v->x, v->y, v->w, v->h, ui_rgb(128, 128, 128));
+        ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
     } else if (container && v->color != ui_colors.transparent) {
-//      traceln("%s 0x%08X", v->text, v->color);
         ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     }
     ui_ltrb_t p = ui_view.gaps(v, &v->padding);
@@ -12297,11 +12283,10 @@ static void ui_view_debug_paint(ui_view_t* v) {
         ui_wh_t mt = ui_view_text_metrics(v->x, v->y, false, 0, v->fm, "%s", ui_view.string(v));
         const int32_t tx = v->x + (v->w - mt.w) / 2;
         const int32_t ty = v->y + (v->h - mt.h) / 2;
-        const ui_color_t c = ui_color_rgb(v->color) ^ 0xFFFFFF;
+        const ui_color_t c = ui_color_is_rgb(v->color) ^ 0xFFFFFF;
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
-//  ui_gdi.pop();
 }
 
 #pragma push_macro("ui_view_no_siblings")

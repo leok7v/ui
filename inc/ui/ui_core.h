@@ -32,7 +32,6 @@ typedef struct ui_image_s { // TODO: ui_ namespace
     void* pixels;
 } ui_image_t;
 
-
 // ui_gaps_t are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.
 // Pay attention that "em" is not square. "M" measurement

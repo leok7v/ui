@@ -3,27 +3,21 @@
 
 static void ui_slider_invalidate(const ui_slider_t* s) {
     const ui_view_t* v = &s->view;
-    ui_rect_t rc = (ui_rect_t){v->x, v->y, v->w, v->h};
-    ui_view.invalidate(v, &rc);
-    if (!s->dec.hidden) {
-        const ui_view_t* b = &s->dec;
-        rc = (ui_rect_t){b->x, b->y, b->w, b->h};
-        ui_view.invalidate(&s->dec, &rc);
-    }
-    if (!s->inc.hidden) {
-        const ui_view_t* b = &s->inc;
-        rc = (ui_rect_t){b->x, b->y, b->w, b->h};
-        ui_view.invalidate(&s->dec, &rc);
-    }
+    ui_view.invalidate(v, null);
+    if (!s->dec.hidden) { ui_view.invalidate(&s->dec, null); }
+    if (!s->inc.hidden) { ui_view.invalidate(&s->dec, null); }
 }
 
-static int32_t ui_slider_width(const ui_slider_t* s) {
+static int32_t ui_slider_width_without_insets(const ui_slider_t* s) {
     const int32_t em = s->view.fm->em.w;
     const fp64_t min_w = (fp64_t)s->view.min_w_em;
     const int32_t mw = (int32_t)(min_w * (fp64_t)em + 0.5);
+    return ut_max(em, ut_max(mw, s->mt.w));
+}
+
+static int32_t ui_slider_width_with_insets(const ui_slider_t* s) {
     const ui_ltrb_t i = ui_view.gaps(&s->view, &s->view.insets);
-//  traceln("sw: %d", i.left + ut_max(em, ut_max(mw, s->mt.w)) + i.right);
-    return i.left + ut_max(em, ut_max(mw, s->mt.w)) + i.right;
+    return i.left + ui_slider_width_without_insets(s) + i.right;
 }
 
 static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
@@ -69,13 +63,11 @@ static void ui_slider_measure(ui_view_t* v) {
     const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
     s->mt = ui_slider_measure_text(s);
     assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
-    const int32_t sw = ui_slider_width(s);
+    const int32_t sw = ui_slider_width_with_insets(s);
     if (s->dec.hidden) {
         v->w = sw;
     } else {
         v->w = s->dec.w + dec_p.right + sw + inc_p.left + s->inc.w;
-//      traceln("s->dec.w + dec_p.right: %d sw: %d + inc_p.left + s->inc.w: %d = %d",
-//               s->dec.w + dec_p.right, sw, inc_p.left + s->inc.w, v->w);
     }
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     v->h = i.top + v->fm->em.h + i.bottom;
@@ -95,28 +87,21 @@ static void ui_slider_layout(ui_view_t* v) {
 static void ui_slider_paint(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-//  ui_gdi.push(v->x, v->y);
     ui_gdi.set_clip(v->x, v->y, v->w, v->h);
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
     assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
-    const int32_t sw = ui_slider_width(s); // slider width
     const int32_t dx = s->dec.hidden ? 0 : dec_w;
-    const int32_t x = v->x + dx;
-    const int32_t y = v->y;
-    const int32_t w = sw;
-    const int32_t h = v->h;
+    const int32_t x = v->x + dx + i.left;
+    const int32_t w = ui_slider_width_without_insets(s);
     // draw background:
     fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     d /= 4;
     ui_color_t d1 = ui_colors.darken(v->background, d);
-//  traceln("view(x: %d  w: %d) dec (x: %d w: %d) inc (x: %d w: %d)",
-//          v->x, v->w, s->dec.x, s->dec.w, s->inc.x, s->inc.w);
-//  traceln("gradient(x: %d  w: %d)", x, w);
-    ui_gdi.gradient(x, y, w, h, d1, d0, true);
+    ui_gdi.gradient(x, v->y, w, v->h, d1, d0, true);
     // draw value:
     ui_color_t c = ui_theme.is_app_dark() ?
         ui_colors.darken(ui_colors.green, 1.0f / 128.0f) :
@@ -125,8 +110,16 @@ static void ui_slider_paint(ui_view_t* v) {
     d0 = ui_colors.darken(c, 1.0f / 64.0f);
     const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
     assert(range > 0, "range: %.6f", range);
-    fp64_t vw = (fp64_t)sw * (s->value - s->value_min) / range;
-    ui_gdi.gradient(x, y, (int32_t)(vw + 0.5), h, d1, d0, true);
+    const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
+    const int32_t wi = (int32_t)(vw + 0.5);
+    ui_gdi.gradient(x, v->y, wi, v->h, d1, d0, true);
+    if (!v->flat) {
+        ui_color_t color = v->hover ?
+            ui_colors.get_color(ui_color_id_hot_tracking) :
+            ui_colors.get_color(ui_color_id_gray_text);
+        if (v->disabled) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        ui_gdi.frame(x, v->y, w, v->h, color);
+    }
     // text:
     const char* text = ui_view.string(v);
     char formatted[countof(v->p.text)];
@@ -141,14 +134,15 @@ static void ui_slider_paint(ui_view_t* v) {
         text = ut_nls.str(formatted);
     }
     ui_wh_t mt = ui_slider_measure_text(s);
+    const int32_t sw = ui_slider_width_with_insets(s); // slider width
     const int32_t cx = (sw - mt.w) / 2; // centering offset
     const int32_t tx = v->x + cx + (s->dec.hidden ? 0 : dec_w);
     const int32_t ty = v->y + i.top;
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
+    const ui_color_t text_color = !v->hover ? v->color :
+            (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
+    const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, tx, ty, "%s", text);
-    // unclip
     ui_gdi.set_clip(0, 0, 0, 0);
-//  ui_gdi.pop();
 }
 
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
@@ -162,12 +156,11 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
             assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
-            const int32_t sw = ui_slider_width(s); // slider width
+            const int32_t sw = ui_slider_width_with_insets(s); // slider width
             const int32_t dx = s->dec.hidden ? 0 : dec_w;
             const int32_t vx = v->x + dx;
             const int32_t x = ui_app.mouse.x - vx;
             const int32_t y = ui_app.mouse.y - v->y;
-//          traceln("0 < %d < %d", x, sw);
             if (0 <= x && x < sw && 0 <= y && y < v->h) {
                 ui_app.focus = v;
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
@@ -223,7 +216,9 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
         } else if (ui_app.now - s->time > 1.0) {
             const int32_t sign = s->dec.armed ? -1 : +1;
             const int32_t sec = (int32_t)(ui_app.now - s->time + 0.5);
-            int32_t mul = sec >= 1 ? 1 << (sec - 1) : 1;
+            int32_t initial = ui_app.shift && ui_app.ctrl ? 1000 :
+                ui_app.shift ? 100 : ui_app.ctrl ? 10 : 1;
+            int32_t mul = sec >= 1 ? initial << (sec - 1) : initial;
             const int64_t range = (int64_t)s->value_max - (int64_t)s->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
             ui_slider_inc_dec_value(s, sign, ut_max(mul, 1));
@@ -252,13 +247,22 @@ void ui_view_init_slider(ui_view_t* v) {
     s->inc = (ui_button_t)ui_button(ut_glyph_fullwidth_plus_sign, 0, // ut_glyph_heavy_plus_sign
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
+    ui_view.add(&s->view, &s->dec, &s->inc, null);
+    // single glyph buttons less insets look better:
+    ui_view_for_each(&s->view, it, {
+        it->insets.left   = 0.125f;
+        it->insets.right  = 0.125f;
+    });
     // inherit initial padding and insets from buttons.
     // caller may change those later and it should be accounted to
     // in measure() and layout()
-    v->insets = s->dec.insets;
+    v->insets  = s->dec.insets;
     v->padding = s->dec.padding;
+    s->dec.padding.right = 0.125f;
+    s->inc.padding.left  = 0.125f;
     ut_str_printf(s->inc.hint, "%s", accel);
-    ui_view.add(&s->view, &s->dec, &s->inc, null);
+    v->color_id      = ui_color_id_button_text;
+    v->background_id = ui_color_id_button_face;
 }
 
 void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,

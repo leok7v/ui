@@ -11,24 +11,26 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     const int32_t w = v->fm->em.w;
     int32_t h = a + d;
     int32_t r = (h / 2) | 0x1; // must be odd
-//  traceln("v->fm baseline: %d ascent: %d descent: %d "
-//          "W x H: %dx%d r: %d", bl, a, d, w, h, r);
     h = r * 2 + 1;
     y += bl - h;
+    x += r;
     int32_t y1 = y + h - r + 2;
-    ui_color_t dim = ui_theme.is_app_dark() ?
+    ui_color_t border = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5) :
         ui_colors.lighten(v->color, 0.5);
-    ui_gdi.circle(x, y1, r, dim, b);
-    ui_gdi.circle(x + w - r, y1, r, dim, b);
+    if (v->hover) {
+        border = ui_colors.get_color(ui_color_id_hot_tracking);
+    }
+    ui_gdi.circle(x, y1, r, border, b);
+    ui_gdi.circle(x + w - r, y1, r, border, b);
     ui_gdi.fill(x, y1 - r, w - r + 1, h, b);
-    ui_gdi.line(x, y1 - r, x + w - r + 1, y1 - r, dim);
-    ui_gdi.line(x, y1 + r, x + w - r + 1, y1 + r, dim);
+    ui_gdi.line(x, y1 - r, x + w - r + 1, y1 - r, border);
+    ui_gdi.line(x, y1 + r, x + w - r + 1, y1 + r, border);
     int32_t x1 = v->pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
     ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
-    ui_color_t border = ui_theme.is_app_dark() ?
+    border = ui_theme.is_app_dark() ?
         ui_colors.darken(fill, 0.0625f) : ui_colors.lighten(fill, 0.0625f);
     ui_gdi.circle(x1, y1, r - 2, border, fill);
     return x + w + 2;
@@ -57,13 +59,15 @@ static void ui_toggle_paint(ui_view_t* v) {
     const int32_t tx = v->x + i.left;
     const int32_t ty = v->y + i.top;
     const int32_t x = ui_toggle_paint_on_off(v, tx, ty) + v->fm->em.w / 4;
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
+    const ui_color_t text_color = !v->hover ? v->color :
+            (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
+    const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, x, ty, "%s", ut_nls.str(label));
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {
     assert(t->type == ui_view_toggle);
-    ui_app.request_redraw();
+    ui_view.invalidate((ui_view_t*)t, null);
     t->pressed = !t->pressed;
     if (t->callback != null) { t->callback(t); }
 }
@@ -79,7 +83,6 @@ static void ui_toggle_character(ui_view_t* v, const char* utf8) {
 
 static void ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     if (ui_app.alt && ui_view.is_shortcut_key(v, key)) {
-//      traceln("key: 0x%02X shortcut: %d", key, ui_view.is_shortcut_key(view, key));
         ui_toggle_flip((ui_toggle_t*)v);
     }
 }

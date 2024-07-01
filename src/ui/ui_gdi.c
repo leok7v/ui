@@ -211,7 +211,6 @@ static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
 
 static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
         ui_color_t border, ui_color_t fill) {
-//  ui_gdi.push(x, y);
     swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
     // Win32 GDI even radius drawing looks ugly squarish and asymmetrical.
     swear(radius % 2 == 1, "radius: %d must be odd");
@@ -235,12 +234,10 @@ static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
     ui_gdi_set_pen(p);
     if (!tf) { ui_gdi_set_brush_color(c); }
     ui_gdi_set_brush(brush);
-//  ui_gdi.pop();
 }
 
 static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t fill) {
-//  ui_gdi.push(x, y);
     int32_t r = x + w - 1; // right
     int32_t b = y + h - 1; // bottom
     ui_gdi_circle(x + radius, y + radius, radius, fill, fill);
@@ -252,12 +249,10 @@ static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
     r = x + w - radius;
     ui_gdi.fill(x, y + radius, radius, h - radius * 2, fill);
     ui_gdi.fill(r, y + radius, radius, h - radius * 2, fill);
-//  ui_gdi.pop();
 }
 
 static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border) {
-//  ui_gdi.push(x, y);
     {
         int32_t r = x + w - 1; // right
         int32_t b = y + h - 1; // bottom
@@ -276,15 +271,14 @@ static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t b = y + h - 1; // bottom
         ui_gdi.line(x + radius, y, r - radius + 1, y, border);
         ui_gdi.line(x + radius, b, r - radius + 1, b, border);
-        ui_gdi.line(x, y + radius, x, b - radius + 1, border);
-        ui_gdi.line(r, y + radius, r, b - radius + 1, border);
+        ui_gdi.line(x - 1, y + radius, x - 1, b - radius + 1, border);
+        ui_gdi.line(r + 1, y + radius, r + 1, b - radius + 1, border);
     }
-//  ui_gdi.pop();
 }
 
 static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border, ui_color_t fill) {
-    swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
+    swear(!ui_color_is_transparent(border) || !ui_color_is_transparent(fill));
     if (!ui_color_is_transparent(fill)) {
         ui_gdi_fill_rounded(x, y, w, h, radius, fill);
     }

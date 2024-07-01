@@ -525,17 +525,13 @@ static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
         ui_rect_t r = { v->x, v->y, v->w, v->h};
         bool hover = v->hover;
         v->hover = ui.point_in_rect(&ui_app.mouse, &r);
-        // inflate view rectangle:
-        r.x -= v->w / 4;
-        r.y -= v->h / 4;
-        r.w += v->w / 2;
-        r.h += v->h / 2;
-        if (hover != v->hover) { ui_app.invalidate(&r); }
+        if (hover != v->hover) { ui_view.invalidate(v, null); }
         if (hover != v->hover) {
+//          traceln("hover_changed() %d := %d %p \"%.8s\"", hover, v->hover, v, v->p.text);
             ui_view.hover_changed(v);
         }
     }
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+    if (!ui_view.is_hidden(v)) {
         if (v->mouse != null) { v->mouse(v, m, f); }
         ui_view_for_each(v, c, { ui_view_mouse(c, m, f); });
     }
@@ -637,15 +633,13 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
 }
 
 static void ui_view_debug_paint(ui_view_t* v) {
-//  ui_gdi.push(v->x, v->y);
     bool container = v->type == ui_view_container ||
                      v->type == ui_view_span ||
                      v->type == ui_view_list ||
                      v->type == ui_view_spacer;
     if (v->type == ui_view_spacer) {
-        ui_gdi.fill(v->x, v->y, v->w, v->h, ui_rgb(128, 128, 128));
+        ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
     } else if (container && v->color != ui_colors.transparent) {
-//      traceln("%s 0x%08X", v->text, v->color);
         ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     }
     ui_ltrb_t p = ui_view.gaps(v, &v->padding);
@@ -662,11 +656,10 @@ static void ui_view_debug_paint(ui_view_t* v) {
         ui_wh_t mt = ui_view_text_metrics(v->x, v->y, false, 0, v->fm, "%s", ui_view.string(v));
         const int32_t tx = v->x + (v->w - mt.w) / 2;
         const int32_t ty = v->y + (v->h - mt.h) / 2;
-        const ui_color_t c = ui_color_rgb(v->color) ^ 0xFFFFFF;
+        const ui_color_t c = ui_color_is_rgb(v->color) ^ 0xFFFFFF;
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
-//  ui_gdi.pop();
 }
 
 #pragma push_macro("ui_view_no_siblings")
