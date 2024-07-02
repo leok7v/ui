@@ -65,7 +65,7 @@ ui_button_clicked(fuzz, "Fu&zz", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         ui_edit.fuzz(edit[ix]);
-        fuzz->pressed = edit[ix]->fuzzer != null;
+        fuzz->state.pressed = edit[ix]->fuzzer != null;
         focus_back_to_edit();
     }
 });
@@ -73,7 +73,7 @@ ui_button_clicked(fuzz, "Fu&zz", 9.0f, {
 ui_toggle_on_off(ro, "&Read Only", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
-        edit[ix]->ro = ro->pressed;
+        edit[ix]->ro = ro->state.pressed;
 //      traceln("edit[%d].readonly: %d", ix, edit[ix]->ro);
         focus_back_to_edit();
     }
@@ -82,7 +82,7 @@ ui_toggle_on_off(ro, "&Read Only", 9.0f, {
 ui_toggle_on_off(ww, "Hide &Word Wrap", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
-        edit[ix]->hide_word_wrap = ww->pressed;
+        edit[ix]->hide_word_wrap = ww->state.pressed;
 //      traceln("edit[%d].hide_word_wrap: %d", ix, edit[ix]->hide_word_wrap);
         focus_back_to_edit();
     }
@@ -92,20 +92,20 @@ ui_toggle_on_off(ww, "Hide &Word Wrap", 9.0f, {
 ui_toggle_on_off(mono, "&Mono", 9.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
-        ui_edit.set_font(edit[ix], mono->pressed ? &mf : &pf);
+        ui_edit.set_font(edit[ix], mono->state.pressed ? &mf : &pf);
         focus_back_to_edit();
     } else {
-        mono->pressed = !mono->pressed;
+        mono->state.pressed = !mono->state.pressed;
     }
 });
 
 ui_toggle_on_off(sl, "&Single Line", 9.0f, {
     int32_t ix = focused();
     if (ix == 2) {
-        sl->pressed = true; // always single line
+        sl->state.pressed = true; // always single line
     } else if (0 <= ix && ix < 2) {
         ui_edit_t* e = edit[ix];
-        e->sle = sl->pressed;
+        e->sle = sl->state.pressed;
 //      traceln("edit[%d].multiline: %d", ix, e->multiline);
         if (e->sle) {
             ui_edit.select_all(e);
@@ -182,16 +182,16 @@ static void paint(ui_view_t* v) {
     }
     if (ix >= 0) {
         bool fuzzing = edit[ix]->fuzzer != null;
-        if (fuzz.pressed != fuzzing) {
-            fuzz.pressed = fuzzing;
+        if (fuzz.state.pressed != fuzzing) {
+            fuzz.state.pressed = fuzzing;
             ui_view.invalidate(&fuzz, null);
         }
         set_text(ix);
     }
     if (ix >= 0) {
-        ro.pressed = edit[ix]->ro;
-        sl.pressed = edit[ix]->sle;
-        mono.pressed = edit[ix]->view.fm->font == mf.font;
+        ro.state.pressed = edit[ix]->ro;
+        sl.state.pressed = edit[ix]->sle;
+        mono.state.pressed = edit[ix]->view.fm->font == mf.font;
     }
 }
 

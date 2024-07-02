@@ -108,9 +108,9 @@ static void open_file(ui_button_t* unused(b)) {
 ui_button_t button_open_file = ui_button("&Open", 7.5, open_file);
 
 static void flip_full_clicked(ui_button_t* b) {
-    b->pressed = !b->pressed;
-    ui_app.full_screen(b->pressed);
-    if (b->pressed) {
+    b->state.pressed = !b->state.pressed;
+    ui_app.full_screen(b->state.pressed);
+    if (b->state.pressed) {
         ui_app.toast(1.75, "Press ESC to exit full screen");
     }
 }
@@ -119,8 +119,8 @@ static ui_button_t button_full_screen = ui_button(
         ut_glyph_square_four_corners, 1, flip_full_clicked);
 
 static void flip_locale(ui_button_t* b) {
-    b->pressed = !b->pressed;
-    fatal_if_not_zero(ut_nls.set_locale(b->pressed ? "zh-CN" : "en-US"));
+    b->state.pressed = !b->state.pressed;
+    fatal_if_not_zero(ut_nls.set_locale(b->state.pressed ? "zh-CN" : "en-US"));
     ui_app.request_layout(); // because center panel layout changed
 }
 
@@ -215,7 +215,7 @@ static void right_layout(ui_view_t* v) {
 static void right_paint(ui_view_t* v) {
     panel_paint(v);
     const ui_gdi_ta_t* restore = ta;
-    after(&button_locale, "&Locale %s", button_locale.pressed ?
+    after(&button_locale, "&Locale %s", button_locale.state.pressed ?
         "zh-CN" : "en-US");
     after(&button_full_screen, "%s",
         ui_app.is_full_screen ?
@@ -262,7 +262,7 @@ static void right_paint(ui_view_t* v) {
             ut_nls.str("max"), ui_app.paint_max * 1000.0,
             ut_nls.str("avg"), ui_app.paint_avg * 1000.0);
     after(&zoomer.view, "%.16f", zoom);
-    after(&scroll, "%s", scroll.pressed ?
+    after(&scroll, "%s", scroll.state.pressed ?
         ut_nls.str("Natural") : ut_nls.str("Reverse"));
     ta = restore;
 }
@@ -361,8 +361,8 @@ static void zoomer_callback(ui_view_t* v) {
 
 static void mouse_wheel(ui_view_t* unused, int32_t dx, int32_t dy) {
     (void)unused;
-    if (!scroll.pressed) { dy = -dy; }
-    if (!scroll.pressed) { dx = -dx; }
+    if (!scroll.state.pressed) { dy = -dy; }
+    if (!scroll.state.pressed) { dx = -dx; }
     sx = sx + zoom * dx / image.w;
     sy = sy + zoom * dy / image.h;
     refresh();
@@ -422,9 +422,9 @@ static void opened(void) {
     init_panel(&panel_bottom, "bottom", ui_colors.tone_blue, panel_paint);
     init_panel(&panel_right,  "right",  ui_colors.tone_green, right_paint);
     panel_right.layout = right_layout;
-    label_single_line.highlightable = true;
-    label_single_line.flat = true;
-    label_multiline.highlightable = true;
+    label_single_line.state.highlightable = true;
+    label_single_line.state.flat = true;
+    label_multiline.state.highlightable = true;
     ut_str_printf(label_multiline.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
     ui_view.set_text(&label_multiline, "%s", ut_nls.string(str_help, ""));

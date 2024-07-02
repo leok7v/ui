@@ -1,8 +1,6 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static bool ui_view_debug_measure_text;
-
 static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 #pragma push_macro("ui_view_for_each")
@@ -191,15 +189,27 @@ static void ui_view_measure_text(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
     const ui_fm_t* fm = v->fm;
-ui_view_debug_measure_text = true;
-    if (ui_view_debug_measure_text) {
-        traceln(">%s em: %dx%d min: %.1fx%.1f", s,
-            fm->em.w, fm->em.h,
-            v->min_w_em, v->min_h_em);
-    }
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
+v->debug.measure_text = true; // xxx
+    if (v->debug.measure_text) {
+        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
+                "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
+            v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
+            i.left, i.top, i.right, i.bottom,
+            p.left, p.top, p.right, p.bottom,
+            ut_min(64, strlen(s)), s);
+        const ui_gaps_t in = v->insets;
+        const ui_gaps_t pd = v->padding;
+        traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+                " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
+            in.left, in.top, in.right, in.bottom,
+            in.left, + in.right, in.top + in.bottom,
+            pd.left, pd.top, pd.right, pd.bottom,
+            pd.left, + pd.right, pd.top + pd.bottom);
+    }
     ui_wh_t mt = { 0, 0 };
     if (s[0] != 0) {
         bool multiline = strchr(s, '\n') != null;
@@ -209,32 +219,14 @@ ui_view_debug_measure_text = true;
         } else {
             mt = ui_view_text_metrics(v->x, v->y, false, 0, fm, "%s", s);
         }
+        if (v->debug.measure_text) {
+            traceln(" mt: %d %d", mt.w, mt.h);
+        }
+        v->w = ut_max(v->w, i.left + mt.w + i.right);
+        v->h = ut_max(v->h, i.top  + mt.h + i.bottom);
     }
-    if (ui_view_debug_measure_text) {
-        ui_ltrb_t p = ui_view.gaps(v, &v->padding);
-        traceln(" %s %d,%d %dx%d mt: %d %d p: %d %d %d %d  i: %d %d %d %d",
-                     s, v->x, v->y, v->w, v->h,
-                     mt.w, mt.h,
-                     p.left, p.top, p.right, p.bottom,
-                     i.left, i.top, i.right, i.bottom);
-    }
-    // because existense of glyphs like unicode codepoint
-    // https://compart.com/en/unicode/U+1E1C
-    // Latin Capital Letter E with Cedilla and Breve
-    // and desire to vertically center center text inside
-    // buttons, labels, toggles and sliders it is necessary
-    // to extend vertical space to accomodate centering:
-    assert(mt.h == fm->height);
-    assert(fm->height == fm->descent + fm->baseline);
-    const int32_t ascender_height = fm->baseline - fm->ascent;
-    assert(ascender_height + fm->ascent + fm->descent == fm->height);
-    const int32_t mx = ut_max(fm->descent, ascender_height);
-    const int32_t ex = ut_max(fm->ascent + mx * 2, fm->height); // extended h
-    v->w = i.left + ut_max(v->w, mt.w) + i.right;
-    v->h = i.top  + ut_max(v->h, ex)   + i.bottom;
-    if (ui_view_debug_measure_text) {
-        traceln("<%s %d,%d %dx%d %p \"%.*s\"", s, v->x, v->y, v->w, v->h, v,
-                ut_min(64, strlen(v->p.text)), v->p.text);
+    if (v->debug.measure_text) {
+        traceln("<%dx%d", v->w, v->h);
         traceln("");
     }
 }
@@ -423,19 +415,19 @@ static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
 }
 
 static bool ui_view_is_hidden(const ui_view_t* v) {
-    bool hidden = v->hidden;
+    bool hidden = v->state.hidden;
     while (!hidden && v->parent != null) {
         v = v->parent;
-        hidden = v->hidden;
+        hidden = v->state.hidden;
     }
     return hidden;
 }
 
 static bool ui_view_is_disabled(const ui_view_t* v) {
-    bool disabled = v->disabled;
+    bool disabled = v->state.disabled;
     while (!disabled && v->parent != null) {
         v = v->parent;
-        disabled = v->disabled;
+        disabled = v->state.disabled;
     }
     return disabled;
 }
@@ -489,34 +481,51 @@ static void ui_view_resolve_color_ids(ui_view_t* v) {
 static void ui_view_paint(ui_view_t* v) {
     assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     ui_view_resolve_color_ids(v);
-    if (!v->hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
+    if (v->debug.paint_rect) {
+        const char* s = ui_view.string(v);
+        traceln("%d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
+                ut_min(64, strlen(s)), s);
+    }
+    if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
         if (v->paint != null) { v->paint(v); }
         if (v->painted != null) { v->painted(v); }
-        if (v->debug_paint != null && v->debug) { v->debug_paint(v); }
-        if (v->debug) { ui_view.debug_paint(v); }
+        if (v->debug.paint && v->debug_paint != null) { v->debug_paint(v); }
         ui_view_for_each(v, c, { ui_view_paint(c); });
     }
 }
 
 static bool ui_view_set_focus(ui_view_t* v) {
     bool set = false;
-   ui_view_for_each(v, c, {
-        set = ui_view_set_focus(c);
-        if (set) { break; }
-    });
-    if (!set && !ui_view.is_hidden(v) && !ui_view.is_disabled(v) &&
-        v->focusable && v->set_focus != null &&
-       (ui_app.focus == v || ui_app.focus == null)) {
-        set = v->set_focus(v);
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        // attempt to set focus on deepest child first
+        ui_view_for_each(v, c, {
+            set = ui_view_set_focus(c);
+            if (set) { break; }
+        });
+        // if no children claimed focus and control itself is
+        // focusable set focus on it:
+        if (!set && v->state.focusable) {
+            ui_view_t* focused = ui_app.focus;
+            ui_app.focus = null;
+            if (focused != null) { ui_view.kill_focus(focused); }
+            if (v->set_focus != null) {
+                set = v->set_focus(v);
+            } else {
+                traceln("setting focus to view that does not implement set_focus()");
+                ui_app.focus = v;
+                set = true;
+            }
+        }
     }
     return set;
 }
 
 static void ui_view_kill_focus(ui_view_t* v) {
+    // notify all the focusable children that the focus is lost
     ui_view_for_each(v, c, { ui_view_kill_focus(c); });
-    if (v->kill_focus != null && v->focusable) {
-        v->kill_focus(v);
-    }
+    // notify all the view itself that the focus is lost even if
+    // it is not .focusable itself:
+    if (v->kill_focus != null) { v->kill_focus(v); }
 }
 
 static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
@@ -526,7 +535,7 @@ static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
     }
     if (ht == ui.hit_test.nowhere) {
         ui_view_for_each(v, c, {
-            if (!c->hidden) {
+            if (!c->state.hidden) {
                 ht = ui_view_hit_test(c, cx, cy);
                 if (ht != ui.hit_test.nowhere) { break; }
             }
@@ -536,20 +545,35 @@ static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
 }
 
 static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
-    if (!ui_view.is_hidden(v) &&
-       (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
-        ui_rect_t r = { v->x, v->y, v->w, v->h};
-        bool hover = v->hover;
-        v->hover = ui.point_in_rect(&ui_app.mouse, &r);
-        if (hover != v->hover) { ui_view.invalidate(v, null); }
-        if (hover != v->hover) {
-//          traceln("hover_changed() %d := %d %p \"%.8s\"", hover, v->hover, v, v->p.text);
-            ui_view.hover_changed(v);
-        }
-    }
     if (!ui_view.is_hidden(v)) {
-        if (v->mouse != null) { v->mouse(v, m, f); }
-        ui_view_for_each(v, c, { ui_view_mouse(c, m, f); });
+        const bool moving = m == ui.message.mouse_hover ||
+                            m == ui.message.mouse_move;
+        const bool click  = m == ui.message.left_button_pressed ||
+                            m == ui.message.left_button_released ||
+                            m == ui.message.right_button_pressed ||
+                            m == ui.message.right_button_released ||
+                            m == ui.message.left_double_click ||
+                            m == ui.message.right_double_click;
+        if (moving) {
+            ui_rect_t r = { v->x, v->y, v->w, v->h};
+            bool hover = v->state.hover;
+            v->state.hover = ui.point_in_rect(&ui_app.mouse, &r);
+            if (hover != v->state.hover) { ui_view.invalidate(v, null); }
+            if (hover != v->state.hover) {
+//              traceln("hover_changed() %d := %d %p \"%.8s\"",
+//                       hover, v->state.hover, v, v->p.text);
+                ui_view.hover_changed(v);
+            }
+        }
+        // mouse hover and move are dispatched even to disable controls
+        if (!ui_view.is_disabled(v) || moving) {
+            if (v->mouse != null) { v->mouse(v, m, f); }
+            ui_view_for_each(v, c, { ui_view_mouse(c, m, f); } );
+        }
+        if (!ui_view.is_disabled(v) && click && v->state.focusable &&
+             ui_view.inside(v, &ui_app.mouse)) {
+            ui_view.set_focus(v);
+        }
     }
 }
 
@@ -561,8 +585,8 @@ static void ui_view_mouse_wheel(ui_view_t* v, int32_t dx, int32_t dy) {
 }
 
 static void ui_view_hover_changed(ui_view_t* v) {
-    if (!v->hidden) {
-        if (!v->hover) {
+    if (!v->state.hidden) {
+        if (!v->state.hover) {
             v->p.hover_when = 0;
             ui_view.hovering(v, false); // cancel hover
         } else {
@@ -577,7 +601,7 @@ static void ui_view_hover_changed(ui_view_t* v) {
 static void ui_view_kill_hidden_focus(ui_view_t* v) {
     // removes focus from hidden or disabled ui controls
     if (ui_app.focus != null) {
-        if (ui_app.focus == v && (v->disabled || v->hidden)) {
+        if (ui_app.focus == v && (v->state.disabled || v->state.hidden)) {
             ui_app.focus = null;
             // even for disabled or hidden view notify about kill_focus:
             v->kill_focus(v);
@@ -620,7 +644,7 @@ static bool ui_view_context_menu(ui_view_t* v) {
         });
         ui_rect_t r = { v->x, v->y, v->w, v->h};
         if (ui.point_in_rect(&ui_app.mouse, &r)) {
-            if (!v->hidden && !v->disabled && v->context_menu != null) {
+            if (!v->state.hidden && !v->state.disabled && v->context_menu != null) {
                 v->context_menu(v);
             }
         }
@@ -630,7 +654,7 @@ static bool ui_view_context_menu(ui_view_t* v) {
 
 static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
-    if (!view->hidden) {
+    if (!view->state.hidden) {
         if (view->p.hover_when > 0 && ui_app.now > view->p.hover_when) {
             view->p.hover_when = -1; // "already called"
             ui_view.hovering(view, true);

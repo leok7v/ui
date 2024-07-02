@@ -1045,12 +1045,12 @@ static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
     if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
 }
 
-static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
-    assert(view->type == ui_view_text);
-    assert(!view->hidden && !view->disabled);
+static void ui_edit_character(ui_view_t* v, const char* utf8) {
+    assert(v->type == ui_view_text);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     #pragma push_macro("ui_edit_ctrl")
     #define ui_edit_ctrl(c) ((char)((c) - 'a' + 1))
-    ui_edit_t* e = (ui_edit_t*)view;
+    ui_edit_t* e = (ui_edit_t*)v;
     if (e->focused) {
         char ch = utf8[0];
         if (ui_app.ctrl) {
@@ -1263,8 +1263,7 @@ static bool ui_edit_press(ui_view_t* v, int32_t ix) {
 
 static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
     assert(v->type == ui_view_text);
-    assert(!v->hidden);
-    assert(!v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - e->view.x - e->inside.left;
     const int32_t y = ui_app.mouse.y - e->view.y - e->inside.top;
@@ -1312,7 +1311,7 @@ static bool ui_edit_set_focus(ui_view_t* v) {
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     assert(ui_app.focus == v || ui_app.focus == null);
-    assert(v->focusable);
+    assert(v->state.focusable);
     ui_app.focus = v;
     if (ui_app.has_focus() && !e->focused) {
         ui_edit_create_caret(e);
@@ -1533,7 +1532,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
 
 static void ui_edit_paint(ui_view_t* v) {
     assert(v->type == ui_view_text);
-    assert(!v->hidden);
+    assert(!ui_view.is_hidden(v));
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
@@ -1568,7 +1567,7 @@ static void ui_edit_move(ui_edit_t* e, ui_edit_pg_t pg) {
 static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
         int64_t unused(lp), int64_t* unused(rt)) {
     ui_edit_t* e = (ui_edit_t*)v;
-    if (ui_app.is_active() && ui_app.has_focus() && !v->hidden) {
+    if (ui_app.is_active() && ui_app.has_focus() && !ui_view.is_hidden(v)) {
         if (e->focused != (ui_app.focus == v)) {
             if (e->focused) {
                 v->kill_focus(v);
@@ -1676,7 +1675,7 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->view.min_w_em = 1.0;
     e->view.min_h_em = 1.0;
     e->view.type = ui_view_text;
-    e->view.focusable = true;
+    e->view.state.focusable = true;
     e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
     e->last_x    = -1;
     e->focused   = false;

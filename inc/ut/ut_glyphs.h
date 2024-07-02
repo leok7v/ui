@@ -104,11 +104,31 @@
 
 // No-Break Space (NBSP)
 // https://www.compart.com/en/unicode/U+00A0
-#define ut_glyph_nbsp                                  "\xC2\xA0"
+#define ut_glyph_nbsp                                   "\xC2\xA0"
+
+// Word Joiner (WJ)
+// https://compart.com/en/unicode/U+2060
+#define ut_glyph_word_joiner                            "\xE2\x81\xA0"
+
+// Zero Width Space (ZWSP)
+// https://compart.com/en/unicode/U+200B
+#define ut_glyph_zwsp                                  "\xE2\x80\x8B"
+
+// En Quad
+// https://compart.com/en/unicode/U+2000
+#define ut_glyph_en_quad "\xE2\x80\x80"
 
 // Em Quad
-// https://www.compart.com/en/unicode/U+2000
-#define ut_glyph_em_quad                               "\xE2\x80x81"
+// https://compart.com/en/unicode/U+2001
+#define ut_glyph_em_quad "\xE2\x80\x81"
+
+// En Space
+// https://compart.com/en/unicode/U+2002
+#define ut_glyph_en_space "\xE2\x80\x82"
+
+// Em Space
+// https://compart.com/en/unicode/U+2003
+#define ut_glyph_em_space "\xE2\x80\x83"
 
 // Hyphen https://www.compart.com/en/unicode/U+2010
 #define ut_glyph_hyphen                                "\xE2\x80\x90"
@@ -473,4 +493,29 @@
 // Latin Capital Letter E with Cedilla and Breve
 // https://compart.com/en/unicode/U+1E1C
 #define ut_glyph_E_with_cedilla_and_breve "\xE1\xB8\x9C"
+
+// Box Drawings Heavy Vertical and Horizontal
+// https://compart.com/en/unicode/U+254B
+#define ut_glyph_box_drawings_heavy_vertical_and_horizontal "\xE2\x95\x8B"
+
+// Box Drawings Light Diagonal Cross
+// https://compart.com/en/unicode/U+2573
+#define ut_glyph_box_drawings_light_diagonal_cross "\xE2\x95\xB3"
+
+// Combining Enclosing Square
+// https://compart.com/en/unicode/U+20DE
+#define ut_glyph_combining_enclosing_square "\xE2\x83\x9E"
+
+// Combining Enclosing Screen
+// https://compart.com/en/unicode/U+20E2
+#define ut_glyph_combining_enclosing_screen "\xE2\x83\xA2"
+
+// Combining Enclosing Keycap
+// https://compart.com/en/unicode/U+20E3
+#define ut_glyph_combining_enclosing_keycap "\xE2\x83\xA3"
+
+// Combining Enclosing Circle
+// https://compart.com/en/unicode/U+20DD
+#define ut_glyph_combining_enclosing_circle "\xE2\x83\x9D"
+
 

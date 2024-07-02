@@ -588,7 +588,8 @@ static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
     POINT client = screen;
     ScreenToClient(ui_app_window(), &client);
     ui_app.mouse = ui_app_point2ui(&client);
-    if (!ui_app.caption->hidden && ui_view.inside(ui_app.caption, &ui_app.mouse)) {
+    if (!ui_view.is_hidden(ui_app.caption) &&
+         ui_view.inside(ui_app.caption, &ui_app.mouse)) {
         uint16_t context = ui_app.mouse_swapped ?
             WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
         if (m == context) {
@@ -708,6 +709,13 @@ static void ui_app_toast_cancel(void) {
     ui_app.animating.time = 0;
     ui_app.animating.x = -1;
     ui_app.animating.y = -1;
+    if (ui_app.animating.focused != null) {
+        if (!ui_view.set_focus(ui_app.animating.focused)) {
+            ui_app.focus = null;
+        }
+    } else {
+        ui_app.focus = null;
+    }
     ui_app.request_redraw();
 }
 
@@ -878,13 +886,14 @@ static void ui_app_wm_paint(void) {
 // https://chromium.googlesource.com/chromium/src.git/+/62.0.3178.1/ui/views/win/hwnd_message_handler.cc#1847
 
 static void ui_app_window_position_changed(const WINDOWPOS* wp) {
-    ui_app.root->hidden = !IsWindowVisible(ui_app_window());
+    ui_app.root->state.hidden = !IsWindowVisible(ui_app_window());
     const bool moved  = (wp->flags & SWP_NOMOVE) == 0;
     const bool sized  = (wp->flags & SWP_NOSIZE) == 0;
     const bool hiding = (wp->flags & SWP_HIDEWINDOW) != 0 ||
                         (wp->x == -32000 && wp->y == -32000);
     HMONITOR monitor = MonitorFromWindow(ui_app_window(), MONITOR_DEFAULTTONULL);
-    if (!ui_app.root->hidden && (moved || sized) && !hiding && monitor != null) {
+    if (!ui_app.root->state.hidden && (moved || sized) &&
+        !hiding && monitor != null) {
         RECT wrc = ui_app_ui2rect(&ui_app.wrc);
         fatal_if_false(GetWindowRect(ui_app_window(), &wrc));
         ui_app.wrc = ui_app_rect2ui(&wrc);
@@ -1047,9 +1056,11 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
             return ui.hit_test.top_right;
         } else if (cy < border) {
             return ui.hit_test.top;
-        } else if (!ui_caption.view.hidden && cy < ui_caption.view.h) {
+        } else if (!ui_view.is_hidden(&ui_caption.view) &&
+                    cy < ui_caption.view.h) {
             return ui_caption.view.hit_test(&ui_caption.view, cx, cy);
-        } else if (cx > ui_app.crc.w - border && cy > ui_app.crc.h - border) {
+        } else if (cx > ui_app.crc.w - border &&
+                   cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom_right;
         } else if (cx < border && cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom_left;
@@ -1113,29 +1124,29 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         return 0;
     }
     switch (m) {
-        case WM_GETMINMAXINFO: ui_app_get_min_max_info((MINMAXINFO*)lp); break;
-        case WM_THEMECHANGED : ui_theme.refresh(); break;
-        case WM_SETTINGCHANGE: ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
-        case WM_CLOSE        : ui_app.focus = null; // before WM_CLOSING
-                               ui_app_post_message(ui.message.closing, 0, 0); return 0;
-        case WM_DESTROY      : PostQuitMessage(ui_app.exit_code); break;
-        case WM_NCHITTEST    : {
+        case WM_GETMINMAXINFO:  ui_app_get_min_max_info((MINMAXINFO*)lp); break;
+        case WM_THEMECHANGED :  ui_theme.refresh(); break;
+        case WM_SETTINGCHANGE:  ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
+        case WM_CLOSE        :  ui_app.focus = null; // before WM_CLOSING
+                                ui_app_post_message(ui.message.closing, 0, 0); return 0;
+        case WM_DESTROY      :  PostQuitMessage(ui_app.exit_code); break;
+        case WM_NCHITTEST    :  {
             int64_t ht = ui_app_hit_test(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
             if (ht != ui.hit_test.nowhere) { return ht; }
             break; // drop to DefWindowProc
         }
-        case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
-        case WM_KEYDOWN      : ui_app_alt_ctrl_shift(true, wp);
-                               ui_view.key_pressed(ui_app.root, wp);
-                               break;
+        case WM_SYSKEYDOWN:     // for ALT (aka VK_MENU)
+        case WM_KEYDOWN      :  ui_app_alt_ctrl_shift(true, wp);
+                                ui_view.key_pressed(ui_app.root, wp);
+                                break;
         case WM_SYSKEYUP:
-        case WM_KEYUP        : ui_app_alt_ctrl_shift(false, wp);
-                               ui_view.key_released(ui_app.root, wp);
-                               break;
-        case WM_TIMER        : ui_app_wm_timer((ui_timer_t)wp);
-                               break;
-        case WM_ERASEBKGND   : return true; // no DefWindowProc()
-        case WM_SETCURSOR    : // TODO: investigate more in regards to wait cursor
+        case WM_KEYUP        :  ui_app_alt_ctrl_shift(false, wp);
+                                ui_view.key_released(ui_app.root, wp);
+                                break;
+        case WM_TIMER        :  ui_app_wm_timer((ui_timer_t)wp);
+                                break;
+        case WM_ERASEBKGND   :  return true; // no DefWindowProc()
+        case WM_SETCURSOR    :  // TODO: investigate more in regards to wait cursor
             if (LOWORD(lp) == HTCLIENT) { // see WM_NCHITTEST
                 SetCursor((HCURSOR)ui_app.cursor);
                 return true; // must NOT call DefWindowProc()
@@ -1144,17 +1155,19 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
         // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
 //      case WM_UNICHAR      : // only UTF-32 via PostMessage
-        case WM_CHAR         : ui_app_wm_char(ui_app.root, (const char*)&wp);
-                               break; // TODO: CreateWindowW() and utf16->utf8
-        case WM_PRINTCLIENT  : ui_app_paint_on_canvas((HDC)wp); break;
+        case WM_CHAR         :  ui_app_wm_char(ui_app.root, (const char*)&wp);
+                                break; // TODO: CreateWindowW() and utf16->utf8
+        case WM_PRINTCLIENT  :  ui_app_paint_on_canvas((HDC)wp); break;
         case WM_SETFOCUS     :
-            if (!ui_app.root->hidden) {
+            if (!ui_app.root->state.hidden) {
                 assert(GetActiveWindow() == ui_app_window());
                 ui_view.set_focus(ui_app.root);
             }
             break;
-        case WM_KILLFOCUS    : if (!ui_app.root->hidden) { ui_view.kill_focus(ui_app.root); }
-                               break;
+        case WM_KILLFOCUS    :  if (!ui_app.root->state.hidden) {
+                                    ui_view.kill_focus(ui_app.root);
+                                }
+                                break;
         case WM_NCCALCSIZE:
 //          NCCALCSIZE_PARAMS* szp = (NCCALCSIZE_PARAMS*)lp;
 //          traceln("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
@@ -1167,33 +1180,33 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                 return 0;
             }
             break;
-        case WM_PAINT        : ui_app_wm_paint(); break;
-        case WM_CONTEXTMENU  : (void)ui_view.context_menu(ui_app.root); break;
+        case WM_PAINT        :  ui_app_wm_paint(); break;
+        case WM_CONTEXTMENU  :  (void)ui_view.context_menu(ui_app.root); break;
         case WM_MOUSEWHEEL   :
             ui_view.mouse_wheel(ui_app.root, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
         case WM_MOUSEHWHEEL  :
             ui_view.mouse_wheel(ui_app.root, GET_WHEEL_DELTA_WPARAM(wp), 0); break;
-        case WM_NCMOUSEMOVE    :
-        case WM_NCLBUTTONDOWN  :
-        case WM_NCLBUTTONUP    :
-        case WM_NCLBUTTONDBLCLK:
-        case WM_NCRBUTTONDOWN  :
-        case WM_NCRBUTTONUP    :
-        case WM_NCRBUTTONDBLCLK:
-        case WM_NCMBUTTONDOWN  :
-        case WM_NCMBUTTONUP    :
-        case WM_NCMBUTTONDBLCLK: ui_app_nc_mouse_buttons(m, wp, lp); break;
-        case WM_MOUSEHOVER   : // see TrackMouseEvent()
-        case WM_MOUSEMOVE    :
-        case WM_LBUTTONDOWN  :
-        case WM_LBUTTONUP    :
-        case WM_LBUTTONDBLCLK:
-        case WM_RBUTTONDOWN  :
-        case WM_RBUTTONUP    :
-        case WM_RBUTTONDBLCLK:
-        case WM_MBUTTONDOWN  :
-        case WM_MBUTTONUP    :
-        case WM_MBUTTONDBLCLK: {
+        case WM_NCMOUSEMOVE     :
+        case WM_NCLBUTTONDOWN   :
+        case WM_NCLBUTTONUP     :
+        case WM_NCLBUTTONDBLCLK :
+        case WM_NCRBUTTONDOWN   :
+        case WM_NCRBUTTONUP     :
+        case WM_NCRBUTTONDBLCLK :
+        case WM_NCMBUTTONDOWN   :
+        case WM_NCMBUTTONUP     :
+        case WM_NCMBUTTONDBLCLK :   ui_app_nc_mouse_buttons(m, wp, lp); break;
+        case WM_MOUSEHOVER      :   // see TrackMouseEvent()
+        case WM_MOUSEMOVE       :
+        case WM_LBUTTONDOWN     :
+        case WM_LBUTTONUP       :
+        case WM_LBUTTONDBLCLK   :
+        case WM_RBUTTONDOWN     :
+        case WM_RBUTTONUP       :
+        case WM_RBUTTONDBLCLK   :
+        case WM_MBUTTONDOWN     :
+        case WM_MBUTTONUP       :
+        case WM_MBUTTONDBLCLK   : {
             ui_app.mouse.x = GET_X_LPARAM(lp);
             ui_app.mouse.y = GET_Y_LPARAM(lp);
 //          traceln("%d %d", ui_app.mouse.x, ui_app.mouse.y);
@@ -1211,23 +1224,28 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                     "size %d,%d *may/must* be adjusted",
                     ui_app.dpi.window, dpi, cell.x, cell.y);
             #endif
-            if (ui_app_timer_1s_id != 0 && !ui_app.root->hidden) { ui_app.request_layout(); }
-            // IMPORTANT: return true because otherwise linear, see
+            if (ui_app_timer_1s_id != 0 && !ui_app.root->state.hidden) {
+                ui_app.request_layout();
+            }
+            // IMPORTANT: return true because:
+            // "Returning TRUE indicates that a new size has been computed.
+            //  Returning FALSE indicates that the message will not be handled,
+            // and the default linear DPI scaling will apply to the window."
             // https://learn.microsoft.com/en-us/windows/win32/hidpi/wm-getdpiscaledsize
             return true;
         }
-        case WM_DPICHANGED: {
+        case WM_DPICHANGED  : {
 //          traceln("WM_DPICHANGED");
             ui_app_window_dpi();
             ui_app_init_fonts(ui_app.dpi.window);
-            if (ui_app_timer_1s_id != 0 && !ui_app.root->hidden) {
+            if (ui_app_timer_1s_id != 0 && !ui_app.root->state.hidden) {
                 ui_app.request_layout();
             } else {
                 ui_app_layout_dirty = true;
             }
             break;
         }
-        case WM_SYSCOMMAND: {
+        case WM_SYSCOMMAND  : {
             uint16_t sys_cmd = (uint16_t)(wp & 0xFF0);
 //          traceln("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
 //                  wp, lp, lp, sys_cmd);
@@ -1248,7 +1266,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             }
             break;
         }
-        case WM_ACTIVATE: ui_app_wm_activate(wp); break;
+        case WM_ACTIVATE         : ui_app_wm_activate(wp); break;
         case WM_WINDOWPOSCHANGING: {
             #ifdef QUICK_DEBUG
                 WINDOWPOS* pos = (WINDOWPOS*)lp;
@@ -1496,6 +1514,7 @@ static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
     if (view != null) {
         ui_app.animating.x = x;
         ui_app.animating.y = y;
+        ui_app.animating.focused = ui_app.focus;
         if (view->type == ui_view_mbx) {
             ((ui_mbx_t*)view)->option = -1;
             ui_app.focus = view;
@@ -2041,7 +2060,7 @@ static void ui_app_init(void) {
     ui_app.content->padding = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
-    ui_app.caption->hidden = !ui_app.no_decor;
+    ui_app.caption->state.hidden = !ui_app.no_decor;
     // for ui_view_debug_paint:
     ui_view.set_text(ui_app.root, "ui_app.root");
     ui_view.set_text(ui_app.content, "ui_app.content");
@@ -2208,7 +2227,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         wr.y = ui_app.work_area.y + (ui_app.work_area.h - wr.h) / 2;
         ui_app_bring_window_inside_monitor(&ui_app.mrc, &wr);
     }
-    ui_app.root->hidden = true; // start with ui hidden
+    ui_app.root->state.hidden = true; // start with ui hidden
     ui_app.root->fm = &ui_app.fm.regular;
     ui_app.root->w = wr.w - ui_app.border.w * 2;
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;

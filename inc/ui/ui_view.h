@@ -95,20 +95,27 @@ typedef struct ui_view_s {
     void (*every_100ms)(ui_view_t* v); // ~10 x times per second
     void (*every_sec)(ui_view_t* v); // ~once a second
     int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
-    bool hidden; // paint() is not called on hidden
-    bool armed;
-    bool hover;
-    bool pressed;   // for ui_button_t and ui_toggle_t
-    bool disabled;  // mouse, keyboard, key_up/down not called on disabled
-    bool focusable; // can be target for keyboard focus
-    bool flat;      // no-border appearance of views
-    bool highlightable; // paint highlight rectangle when hover over label
+    struct {
+        bool hidden;    // measure()/ layout() paint() is not called on
+        bool disabled;  // mouse, keyboard, key_up/down not called on
+        bool armed;     // button is pressed but not yet released
+        bool hover;     // cursor hovering over the control
+        bool pressed;   // for ui_button_t and ui_toggle_t
+        bool focusable; // can be target for keyboard focus
+        bool flat;      // no-border appearance of views
+        bool highlightable; // paint highlight rectangle when hover over label
+    } state;
     ui_color_t color;     // interpretation depends on view type
     int32_t    color_id;  // 0 is default meaning use color
     ui_color_t background;    // interpretation depends on view type
     int32_t    background_id; // 0 is default meaning use background
-    bool       debug; // activates debug_paint() called after painted()
     char hint[256]; // tooltip hint text (to be shown while hovering over view)
+    struct {
+        bool   paint;        // call debug_paint() called after painted()
+        bool   paint_rect;   // trace paint view rect
+        bool   measure_text; // trace text measurement
+        bool   paint_fm;     // paint font metrics
+    } debug; // debug flags
 } ui_view_t;
 
 // tap() / press() APIs guarantee that single tap() is not coming
@@ -215,9 +222,9 @@ extern ui_view_if ui_view;
 // is way easier on preprocessor
 
 // ui_view_insets (fractions of 1/2 to keep float calculations precise):
-#define ui_view_i_lr (0.375f)    // 3/4 of "em.w" on left and right
-#define ui_view_i_t  (0.109375f) // 7/64 top
-#define ui_view_i_b  (0.140625f) // 9/64 bottom
+#define ui_view_i_lr (0.375f) // 3/4 of "em.w" on left and right
+#define ui_view_i_t  (0.125f) // 1/8 was (0.109375f) 7/64 top
+#define ui_view_i_b  (0.125f) // 1/8 was (0.140625f) 9/64 bottom
 #define ui_view_i_button_lr (0.75f) // wider left/right insets for buttons
 
 // Most of UI elements are lowercase latin with Capital letter

@@ -846,20 +846,27 @@ typedef struct ui_view_s {
     void (*every_100ms)(ui_view_t* v); // ~10 x times per second
     void (*every_sec)(ui_view_t* v); // ~once a second
     int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
-    bool hidden; // paint() is not called on hidden
-    bool armed;
-    bool hover;
-    bool pressed;   // for ui_button_t and ui_toggle_t
-    bool disabled;  // mouse, keyboard, key_up/down not called on disabled
-    bool focusable; // can be target for keyboard focus
-    bool flat;      // no-border appearance of views
-    bool highlightable; // paint highlight rectangle when hover over label
+    struct {
+        bool hidden;    // measure()/ layout() paint() is not called on
+        bool disabled;  // mouse, keyboard, key_up/down not called on
+        bool armed;     // button is pressed but not yet released
+        bool hover;     // cursor hovering over the control
+        bool pressed;   // for ui_button_t and ui_toggle_t
+        bool focusable; // can be target for keyboard focus
+        bool flat;      // no-border appearance of views
+        bool highlightable; // paint highlight rectangle when hover over label
+    } state;
     ui_color_t color;     // interpretation depends on view type
     int32_t    color_id;  // 0 is default meaning use color
     ui_color_t background;    // interpretation depends on view type
     int32_t    background_id; // 0 is default meaning use background
-    bool       debug; // activates debug_paint() called after painted()
     char hint[256]; // tooltip hint text (to be shown while hovering over view)
+    struct {
+        bool   paint;        // call debug_paint() called after painted()
+        bool   paint_rect;   // trace paint view rect
+        bool   measure_text; // trace text measurement
+        bool   paint_fm;     // paint font metrics
+    } debug; // debug flags
 } ui_view_t;
 
 // tap() / press() APIs guarantee that single tap() is not coming
@@ -966,9 +973,9 @@ extern ui_view_if ui_view;
 // is way easier on preprocessor
 
 // ui_view_insets (fractions of 1/2 to keep float calculations precise):
-#define ui_view_i_lr (0.375f)    // 3/4 of "em.w" on left and right
-#define ui_view_i_t  (0.109375f) // 7/64 top
-#define ui_view_i_b  (0.140625f) // 9/64 bottom
+#define ui_view_i_lr (0.375f) // 3/4 of "em.w" on left and right
+#define ui_view_i_t  (0.125f) // 1/8 was (0.109375f) 7/64 top
+#define ui_view_i_b  (0.125f) // 1/8 was (0.140625f) 9/64 bottom
 #define ui_view_i_button_lr (0.75f) // wider left/right insets for buttons
 
 // Most of UI elements are lowercase latin with Capital letter
@@ -1535,13 +1542,13 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // usage:
 //
 // ui_button_clicked(button, "&Button", 7.0, {
-//      button->pressed = !button->pressed;
+//      button->state.pressed = !button->state.pressed;
 // })
 //
 // or:
 //
 // static void button_flipped(ui_button_t* b) {
-//      b->pressed = !b->pressed;
+//      b->state.pressed = !b->state.pressed;
 // }
 //
 // ui_button_t button = ui_button(7.0, "&Button", button_flipped);
@@ -1902,6 +1909,7 @@ typedef struct {
     ui_canvas_t canvas;  // set by message.paint
     struct { // animation state
         ui_view_t* view;
+        ui_view_t* focused; // focused view before animation started
         int32_t step;
         fp64_t time; // closing time or zero
         int32_t x; // (x,y) for tooltip (-1,y) for toast
@@ -2640,7 +2648,8 @@ static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
     POINT client = screen;
     ScreenToClient(ui_app_window(), &client);
     ui_app.mouse = ui_app_point2ui(&client);
-    if (!ui_app.caption->hidden && ui_view.inside(ui_app.caption, &ui_app.mouse)) {
+    if (!ui_view.is_hidden(ui_app.caption) &&
+         ui_view.inside(ui_app.caption, &ui_app.mouse)) {
         uint16_t context = ui_app.mouse_swapped ?
             WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
         if (m == context) {
@@ -2760,6 +2769,13 @@ static void ui_app_toast_cancel(void) {
     ui_app.animating.time = 0;
     ui_app.animating.x = -1;
     ui_app.animating.y = -1;
+    if (ui_app.animating.focused != null) {
+        if (!ui_view.set_focus(ui_app.animating.focused)) {
+            ui_app.focus = null;
+        }
+    } else {
+        ui_app.focus = null;
+    }
     ui_app.request_redraw();
 }
 
@@ -2930,13 +2946,14 @@ static void ui_app_wm_paint(void) {
 // https://chromium.googlesource.com/chromium/src.git/+/62.0.3178.1/ui/views/win/hwnd_message_handler.cc#1847
 
 static void ui_app_window_position_changed(const WINDOWPOS* wp) {
-    ui_app.root->hidden = !IsWindowVisible(ui_app_window());
+    ui_app.root->state.hidden = !IsWindowVisible(ui_app_window());
     const bool moved  = (wp->flags & SWP_NOMOVE) == 0;
     const bool sized  = (wp->flags & SWP_NOSIZE) == 0;
     const bool hiding = (wp->flags & SWP_HIDEWINDOW) != 0 ||
                         (wp->x == -32000 && wp->y == -32000);
     HMONITOR monitor = MonitorFromWindow(ui_app_window(), MONITOR_DEFAULTTONULL);
-    if (!ui_app.root->hidden && (moved || sized) && !hiding && monitor != null) {
+    if (!ui_app.root->state.hidden && (moved || sized) &&
+        !hiding && monitor != null) {
         RECT wrc = ui_app_ui2rect(&ui_app.wrc);
         fatal_if_false(GetWindowRect(ui_app_window(), &wrc));
         ui_app.wrc = ui_app_rect2ui(&wrc);
@@ -3099,9 +3116,11 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
             return ui.hit_test.top_right;
         } else if (cy < border) {
             return ui.hit_test.top;
-        } else if (!ui_caption.view.hidden && cy < ui_caption.view.h) {
+        } else if (!ui_view.is_hidden(&ui_caption.view) &&
+                    cy < ui_caption.view.h) {
             return ui_caption.view.hit_test(&ui_caption.view, cx, cy);
-        } else if (cx > ui_app.crc.w - border && cy > ui_app.crc.h - border) {
+        } else if (cx > ui_app.crc.w - border &&
+                   cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom_right;
         } else if (cx < border && cy > ui_app.crc.h - border) {
             return ui.hit_test.bottom_left;
@@ -3165,29 +3184,29 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         return 0;
     }
     switch (m) {
-        case WM_GETMINMAXINFO: ui_app_get_min_max_info((MINMAXINFO*)lp); break;
-        case WM_THEMECHANGED : ui_theme.refresh(); break;
-        case WM_SETTINGCHANGE: ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
-        case WM_CLOSE        : ui_app.focus = null; // before WM_CLOSING
-                               ui_app_post_message(ui.message.closing, 0, 0); return 0;
-        case WM_DESTROY      : PostQuitMessage(ui_app.exit_code); break;
-        case WM_NCHITTEST    : {
+        case WM_GETMINMAXINFO:  ui_app_get_min_max_info((MINMAXINFO*)lp); break;
+        case WM_THEMECHANGED :  ui_theme.refresh(); break;
+        case WM_SETTINGCHANGE:  ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
+        case WM_CLOSE        :  ui_app.focus = null; // before WM_CLOSING
+                                ui_app_post_message(ui.message.closing, 0, 0); return 0;
+        case WM_DESTROY      :  PostQuitMessage(ui_app.exit_code); break;
+        case WM_NCHITTEST    :  {
             int64_t ht = ui_app_hit_test(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
             if (ht != ui.hit_test.nowhere) { return ht; }
             break; // drop to DefWindowProc
         }
-        case WM_SYSKEYDOWN: // for ALT (aka VK_MENU)
-        case WM_KEYDOWN      : ui_app_alt_ctrl_shift(true, wp);
-                               ui_view.key_pressed(ui_app.root, wp);
-                               break;
+        case WM_SYSKEYDOWN:     // for ALT (aka VK_MENU)
+        case WM_KEYDOWN      :  ui_app_alt_ctrl_shift(true, wp);
+                                ui_view.key_pressed(ui_app.root, wp);
+                                break;
         case WM_SYSKEYUP:
-        case WM_KEYUP        : ui_app_alt_ctrl_shift(false, wp);
-                               ui_view.key_released(ui_app.root, wp);
-                               break;
-        case WM_TIMER        : ui_app_wm_timer((ui_timer_t)wp);
-                               break;
-        case WM_ERASEBKGND   : return true; // no DefWindowProc()
-        case WM_SETCURSOR    : // TODO: investigate more in regards to wait cursor
+        case WM_KEYUP        :  ui_app_alt_ctrl_shift(false, wp);
+                                ui_view.key_released(ui_app.root, wp);
+                                break;
+        case WM_TIMER        :  ui_app_wm_timer((ui_timer_t)wp);
+                                break;
+        case WM_ERASEBKGND   :  return true; // no DefWindowProc()
+        case WM_SETCURSOR    :  // TODO: investigate more in regards to wait cursor
             if (LOWORD(lp) == HTCLIENT) { // see WM_NCHITTEST
                 SetCursor((HCURSOR)ui_app.cursor);
                 return true; // must NOT call DefWindowProc()
@@ -3196,17 +3215,19 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
         // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
 //      case WM_UNICHAR      : // only UTF-32 via PostMessage
-        case WM_CHAR         : ui_app_wm_char(ui_app.root, (const char*)&wp);
-                               break; // TODO: CreateWindowW() and utf16->utf8
-        case WM_PRINTCLIENT  : ui_app_paint_on_canvas((HDC)wp); break;
+        case WM_CHAR         :  ui_app_wm_char(ui_app.root, (const char*)&wp);
+                                break; // TODO: CreateWindowW() and utf16->utf8
+        case WM_PRINTCLIENT  :  ui_app_paint_on_canvas((HDC)wp); break;
         case WM_SETFOCUS     :
-            if (!ui_app.root->hidden) {
+            if (!ui_app.root->state.hidden) {
                 assert(GetActiveWindow() == ui_app_window());
                 ui_view.set_focus(ui_app.root);
             }
             break;
-        case WM_KILLFOCUS    : if (!ui_app.root->hidden) { ui_view.kill_focus(ui_app.root); }
-                               break;
+        case WM_KILLFOCUS    :  if (!ui_app.root->state.hidden) {
+                                    ui_view.kill_focus(ui_app.root);
+                                }
+                                break;
         case WM_NCCALCSIZE:
 //          NCCALCSIZE_PARAMS* szp = (NCCALCSIZE_PARAMS*)lp;
 //          traceln("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
@@ -3219,33 +3240,33 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                 return 0;
             }
             break;
-        case WM_PAINT        : ui_app_wm_paint(); break;
-        case WM_CONTEXTMENU  : (void)ui_view.context_menu(ui_app.root); break;
+        case WM_PAINT        :  ui_app_wm_paint(); break;
+        case WM_CONTEXTMENU  :  (void)ui_view.context_menu(ui_app.root); break;
         case WM_MOUSEWHEEL   :
             ui_view.mouse_wheel(ui_app.root, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
         case WM_MOUSEHWHEEL  :
             ui_view.mouse_wheel(ui_app.root, GET_WHEEL_DELTA_WPARAM(wp), 0); break;
-        case WM_NCMOUSEMOVE    :
-        case WM_NCLBUTTONDOWN  :
-        case WM_NCLBUTTONUP    :
-        case WM_NCLBUTTONDBLCLK:
-        case WM_NCRBUTTONDOWN  :
-        case WM_NCRBUTTONUP    :
-        case WM_NCRBUTTONDBLCLK:
-        case WM_NCMBUTTONDOWN  :
-        case WM_NCMBUTTONUP    :
-        case WM_NCMBUTTONDBLCLK: ui_app_nc_mouse_buttons(m, wp, lp); break;
-        case WM_MOUSEHOVER   : // see TrackMouseEvent()
-        case WM_MOUSEMOVE    :
-        case WM_LBUTTONDOWN  :
-        case WM_LBUTTONUP    :
-        case WM_LBUTTONDBLCLK:
-        case WM_RBUTTONDOWN  :
-        case WM_RBUTTONUP    :
-        case WM_RBUTTONDBLCLK:
-        case WM_MBUTTONDOWN  :
-        case WM_MBUTTONUP    :
-        case WM_MBUTTONDBLCLK: {
+        case WM_NCMOUSEMOVE     :
+        case WM_NCLBUTTONDOWN   :
+        case WM_NCLBUTTONUP     :
+        case WM_NCLBUTTONDBLCLK :
+        case WM_NCRBUTTONDOWN   :
+        case WM_NCRBUTTONUP     :
+        case WM_NCRBUTTONDBLCLK :
+        case WM_NCMBUTTONDOWN   :
+        case WM_NCMBUTTONUP     :
+        case WM_NCMBUTTONDBLCLK :   ui_app_nc_mouse_buttons(m, wp, lp); break;
+        case WM_MOUSEHOVER      :   // see TrackMouseEvent()
+        case WM_MOUSEMOVE       :
+        case WM_LBUTTONDOWN     :
+        case WM_LBUTTONUP       :
+        case WM_LBUTTONDBLCLK   :
+        case WM_RBUTTONDOWN     :
+        case WM_RBUTTONUP       :
+        case WM_RBUTTONDBLCLK   :
+        case WM_MBUTTONDOWN     :
+        case WM_MBUTTONUP       :
+        case WM_MBUTTONDBLCLK   : {
             ui_app.mouse.x = GET_X_LPARAM(lp);
             ui_app.mouse.y = GET_Y_LPARAM(lp);
 //          traceln("%d %d", ui_app.mouse.x, ui_app.mouse.y);
@@ -3263,23 +3284,28 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                     "size %d,%d *may/must* be adjusted",
                     ui_app.dpi.window, dpi, cell.x, cell.y);
             #endif
-            if (ui_app_timer_1s_id != 0 && !ui_app.root->hidden) { ui_app.request_layout(); }
-            // IMPORTANT: return true because otherwise linear, see
+            if (ui_app_timer_1s_id != 0 && !ui_app.root->state.hidden) {
+                ui_app.request_layout();
+            }
+            // IMPORTANT: return true because:
+            // "Returning TRUE indicates that a new size has been computed.
+            //  Returning FALSE indicates that the message will not be handled,
+            // and the default linear DPI scaling will apply to the window."
             // https://learn.microsoft.com/en-us/windows/win32/hidpi/wm-getdpiscaledsize
             return true;
         }
-        case WM_DPICHANGED: {
+        case WM_DPICHANGED  : {
 //          traceln("WM_DPICHANGED");
             ui_app_window_dpi();
             ui_app_init_fonts(ui_app.dpi.window);
-            if (ui_app_timer_1s_id != 0 && !ui_app.root->hidden) {
+            if (ui_app_timer_1s_id != 0 && !ui_app.root->state.hidden) {
                 ui_app.request_layout();
             } else {
                 ui_app_layout_dirty = true;
             }
             break;
         }
-        case WM_SYSCOMMAND: {
+        case WM_SYSCOMMAND  : {
             uint16_t sys_cmd = (uint16_t)(wp & 0xFF0);
 //          traceln("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
 //                  wp, lp, lp, sys_cmd);
@@ -3300,7 +3326,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             }
             break;
         }
-        case WM_ACTIVATE: ui_app_wm_activate(wp); break;
+        case WM_ACTIVATE         : ui_app_wm_activate(wp); break;
         case WM_WINDOWPOSCHANGING: {
             #ifdef QUICK_DEBUG
                 WINDOWPOS* pos = (WINDOWPOS*)lp;
@@ -3548,6 +3574,7 @@ static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
     if (view != null) {
         ui_app.animating.x = x;
         ui_app.animating.y = y;
+        ui_app.animating.focused = ui_app.focus;
         if (view->type == ui_view_mbx) {
             ((ui_mbx_t*)view)->option = -1;
             ui_app.focus = view;
@@ -4093,7 +4120,7 @@ static void ui_app_init(void) {
     ui_app.content->padding = (ui_gaps_t){ 0, 0, 0, 0 };
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
-    ui_app.caption->hidden = !ui_app.no_decor;
+    ui_app.caption->state.hidden = !ui_app.no_decor;
     // for ui_view_debug_paint:
     ui_view.set_text(ui_app.root, "ui_app.root");
     ui_view.set_text(ui_app.content, "ui_app.content");
@@ -4260,7 +4287,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         wr.y = ui_app.work_area.y + (ui_app.work_area.h - wr.h) / 2;
         ui_app_bring_window_inside_monitor(&ui_app.mrc, &wr);
     }
-    ui_app.root->hidden = true; // start with ui hidden
+    ui_app.root->state.hidden = true; // start with ui hidden
     ui_app.root->fm = &ui_app.fm.regular;
     ui_app.root->w = wr.w - ui_app.border.w * 2;
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
@@ -4343,7 +4370,7 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     assert(v->type == ui_view_button);
     if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
-        v->armed = false;
+        v->state.armed = false;
         ui_view.invalidate(v, null);
         traceln("ui_view.invalidate(v, null)");
     }
@@ -4351,12 +4378,12 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 
 static void ui_button_paint(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    assert(!v->hidden);
+    assert(!ui_view.is_hidden(v));
     if (strcmp(v->p.text, "&Button") == 0 && v->fm == &ui_app.fm.H1) {
         traceln("v->fm: .h: %d .a:%d .d:%d .b:%d",
             v->fm->height, v->fm->ascent, v->fm->descent, v->fm->baseline);
     }
-    bool pressed = (v->armed ^ v->pressed) == 0;
+    bool pressed = (v->state.armed ^ v->state.pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
     int32_t w = v->w;
     int32_t h = v->h;
@@ -4366,7 +4393,7 @@ static void ui_button_paint(ui_view_t* v) {
     const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     const fp32_t d2 = d / 2;
-    if (v->flat) {
+    if (v->state.flat) {
         ui_color_t d1 = ui_theme.is_app_dark() ?
                 ui_colors.lighten(v->background, d2) :
                 ui_colors.darken(v->background,  d2);
@@ -4378,9 +4405,9 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         // `bc` border color
         ui_color_t bc = ui_colors.get_color(ui_color_id_gray_text);
-        if (v->armed) { bc = ui_colors.lighten(bc, 0.125f); }
-        if (v->disabled) { bc = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
-        if (v->hover && !v->armed) {
+        if (v->state.armed) { bc = ui_colors.lighten(bc, 0.125f); }
+        if (ui_view.is_disabled(v)) { bc = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        if (v->state.hover && !v->state.armed) {
             bc = ui_colors.get_color(ui_color_id_hot_tracking);
         }
         ui_color_t d1 = ui_colors.darken(v->background, d2);
@@ -4416,18 +4443,17 @@ if (strcmp(v->p.text, "&Button") == 0 && v->fm == &ui_app.fm.H1) {
         const int32_t tx = v->x + i.left + t_x;
         const int32_t ty = v->y + i.top  + t_y;
         ui_color_t c = v->color;
-//      traceln("v->hover: %d armed: %d c: %08X", v->hover, v->armed, (uint32_t)c);
-        if (v->hover && !v->armed) {
+//      traceln("v->state.hover: %d state.armed: %d c: %08X", v->state.hover, v->state.armed, (uint32_t)c);
+        if (v->state.hover && !v->state.armed) {
     //      c = ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black;
             c = ui_theme.is_app_dark() ? ui_color_rgb(0xFF, 0xE0, 0xE0) :
                                          ui_color_rgb(0x00, 0x40, 0xFF);
 //          traceln("text_color: %08X", c);
         }
-        if (v->disabled) { c = ui_colors.get_color(ui_color_id_gray_text); }
+        if (ui_view.is_disabled(v)) { c = ui_colors.get_color(ui_color_id_gray_text); }
 //      traceln("text_color: %08X", (uint32_t)c);
-static bool debug;
-        debug = true;
-        if (v->debug || debug) {
+v->debug.paint_fm = true; // xxx
+        if (v->debug.paint_fm) {
             const int32_t y_0 = y + i.top;
             const int32_t y_b = y_0 + v->fm->baseline;
             const int32_t y_a = y_b - v->fm->ascent;
@@ -4462,9 +4488,9 @@ static void ui_button_callback(ui_button_t* b) {
 
 static void ui_button_trigger(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_button_t* b = (ui_button_t*)v;
-    v->armed = true;
+    v->state.armed = true;
     ui_view.invalidate(v, null);
     ui_app.draw();
     v->p.armed_until = ui_app.now + 0.250;
@@ -4474,7 +4500,7 @@ static void ui_button_trigger(ui_view_t* v) {
 
 static void ui_button_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_button);
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     char ch = utf8[0]; // TODO: multibyte shortcuts?
     if (ui_view.is_shortcut_key(v, ch)) {
         ui_button_trigger(v);
@@ -4492,23 +4518,23 @@ static void ui_button_key_pressed(ui_view_t* view, int64_t key) {
 static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     assert(v->type == ui_view_button);
     (void)flags; // unused
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_button_t* b = (ui_button_t*)v;
-    bool a = v->armed;
+    bool a = v->state.armed;
     bool on = false;
     if (message == ui.message.left_button_pressed ||
         message == ui.message.right_button_pressed) {
-        v->armed = ui_button_hit_test(b, ui_app.mouse);
-        if (v->armed) { ui_app.focus = v; }
-        if (v->armed) { ui_app.show_hint(null, -1, -1, 0); }
+        v->state.armed = ui_button_hit_test(b, ui_app.mouse);
+        if (v->state.armed) { ui_app.focus = v; }
+        if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
     }
     if (message == ui.message.left_button_released ||
         message == ui.message.right_button_released) {
-        if (v->armed) { on = ui_button_hit_test(b, ui_app.mouse); }
-        v->armed = false;
+        if (v->state.armed) { on = ui_button_hit_test(b, ui_app.mouse); }
+        v->state.armed = false;
     }
     if (on) { ui_button_callback(b); }
-    if (a != v->armed) { ui_view.invalidate(v, null); }
+    if (a != v->state.armed) { ui_view.invalidate(v, null); }
 }
 
 static void ui_button_measure(ui_view_t* v) {
@@ -4562,7 +4588,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
-    ui_caption.view.hidden = ui_app.is_full_screen;
+    ui_caption.view.state.hidden = ui_app.is_full_screen;
     ui_app.request_layout();
 }
 
@@ -4630,7 +4656,7 @@ static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
 //      ui_view.inside(&ui_caption.icon, &pt));
     if (ui_app.is_full_screen) {
         return ui.hit_test.client;
-    } else if (!ui_caption.icon.hidden &&
+    } else if (!ui_caption.icon.state.hidden &&
                 ui_view.inside(&ui_caption.icon, &pt)) {
         return ui.hit_test.system_menu;
     } else {
@@ -4672,12 +4698,12 @@ static void ui_caption_button_icon_paint(ui_view_t* v) {
 }
 
 static void ui_caption_prepare(ui_view_t* unused(v)) {
-    ui_caption.title.hidden = false;
+    ui_caption.title.state.hidden = false;
 }
 
 static void ui_caption_measured(ui_view_t* v) {
     // do not show title if there is not enough space
-    ui_caption.title.hidden = v->w > ui_app.root->w;
+    ui_caption.title.state.hidden = v->w > ui_app.root->w;
     v->w = ui_app.root->w;
     const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
@@ -4697,7 +4723,7 @@ static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
     ui_caption.view.insets = (ui_gaps_t){ 0.125, 0.25, 0.125, 0.25 };
-    ui_caption.view.hidden = false;
+    ui_caption.view.state.hidden = false;
     v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,
         &ui_caption.icon,
@@ -4724,7 +4750,7 @@ static void ui_caption_init(ui_view_t* v) {
         c->color_id = ui_caption.view.color_id;
         if (c->type == ui_view_button) {
             c->padding = pb;
-            c->flat = true;
+            c->state.flat = true;
             c->measure = ui_caption_button_measure;
         } else {
             c->padding = pd;
@@ -4760,7 +4786,7 @@ ui_caption_t ui_caption =  {
         .fm       = &ui_app.fm.regular,
         .init     = ui_caption_init,
         .hit_test = ui_caption_hit_test,
-        .hidden = true
+        .state.hidden = true
     },
     .icon   = ui_button(ut_glyph_nbsp, 0.0, null),
     .title  = ui_label(0, ""),
@@ -5240,7 +5266,7 @@ static void ui_span_measure(ui_view_t* p) {
     ui_view_for_each_begin(p, c) {
         swear(c->max_w == 0 || c->max_w >= c->w,
               "max_w: %d w: %d", c->max_w, c->w);
-        if (c->hidden) {
+        if (ui_view.is_hidden(c)) {
             // nothing
         } else if (c->type == ui_view_spacer) {
             c->padding = (ui_gaps_t){ 0, 0, 0, 0 };
@@ -5275,7 +5301,7 @@ static void ui_span_measure(ui_view_t* p) {
         max_w += insets.right;
     }
     swear(max_w == 0 || max_w >= w, "max_w: %d w: %d", max_w, w);
-    if (p->hidden) {
+    if (ui_view.is_hidden(p)) {
         p->w = 0;
         p->h = 0;
     } else {
@@ -5327,7 +5353,7 @@ static void ui_span_layout(ui_view_t* p) {
     int32_t max_w_count = 0;
     int32_t x = p->x + insets.left;
     ui_view_for_each_begin(p, c) {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (c->type == ui_view_spacer) {
                 c->x = x;
                 c->y = pbx.y;
@@ -5349,7 +5375,8 @@ static void ui_span_layout(ui_view_t* p) {
     int32_t max_w_sum = 0;
     if (xw > 0 && max_w_count > 0) {
         ui_view_for_each_begin(p, c) {
-            if (!c->hidden && c->type != ui_view_spacer && c->max_w > 0) {
+            if (!ui_view.is_hidden(c) && c->type != ui_view_spacer &&
+                 c->max_w > 0) {
                 max_w_sum += ut_min(c->max_w, xw);
                 ui_layout_clild(c);
             }
@@ -5359,13 +5386,11 @@ static void ui_span_layout(ui_view_t* p) {
         x = p->x + insets.left;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
-            if (!c->hidden) {
+            if (!ui_view.is_hidden(c)) {
                 ui_rect_t cbx; // child "out" box expanded by padding
                 ui_ltrb_t padding;
                 ui_view.outbox(c, &cbx, &padding);
-                if (c->hidden) {
-                    // nothing
-                } else if (c->type == ui_view_spacer) {
+                if (c->type == ui_view_spacer) {
                     swear(padding.left == 0 && padding.right == 0);
                 } else if (c->max_w > 0) {
                     const int32_t max_w = ut_min(c->max_w, xw);
@@ -5392,7 +5417,7 @@ static void ui_span_layout(ui_view_t* p) {
         int32_t partial = xw / spacers;
         x = p->x + insets.left;
         ui_view_for_each_begin(p, c) {
-            if (!c->hidden) {
+            if (!ui_view.is_hidden(c)) {
                 ui_rect_t cbx; // child "out" box expanded by padding
                 ui_ltrb_t padding;
                 ui_view.outbox(c, &cbx, &padding);
@@ -5423,7 +5448,7 @@ static void ui_list_measure(ui_view_t* p) {
     ui_view_for_each_begin(p, c) {
         swear(c->max_h == 0 || c->max_h >= c->h, "max_h: %d h: %d",
               c->max_h, c->h);
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (c->type == ui_view_spacer) {
                 c->padding = (ui_gaps_t){ 0, 0, 0, 0 };
                 c->h = 0; // layout will distribute excess here
@@ -5457,7 +5482,7 @@ static void ui_list_measure(ui_view_t* p) {
               max_h, insets.bottom, max_h + insets.bottom);
         max_h += insets.bottom;
     }
-    if (p->hidden) {
+    if (ui_view.is_hidden(p)) {
         p->w = 0;
         p->h = 0;
     } else if (p == ui_app.root) {
@@ -5505,7 +5530,7 @@ static void ui_list_layout(ui_view_t* p) {
     int32_t max_h_count = 0;
     int32_t y = pbx.y;
     ui_view_for_each_begin(p, c) {
-        if (c->hidden) {
+        if (ui_view.is_hidden(c)) {
             // nothing
         } else if (c->type == ui_view_spacer) {
             c->x = pbx.x;
@@ -5526,7 +5551,8 @@ static void ui_list_layout(ui_view_t* p) {
     int32_t xh = ut_max(0, pbx.y + pbx.h - y); // excess height
     if (xh > 0 && max_h_count > 0) {
         ui_view_for_each_begin(p, c) {
-            if (!c->hidden && c->type != ui_view_spacer && c->max_h > 0) {
+            if (!ui_view.is_hidden(c) && c->type != ui_view_spacer && 
+                 c->max_h > 0) {
                 max_h_sum += ut_min(c->max_h, xh);
             }
         } ui_view_for_each_end(p, c);
@@ -5535,7 +5561,7 @@ static void ui_list_layout(ui_view_t* p) {
         y = pbx.y;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
-            if (!c->hidden) {
+            if (!ui_view.is_hidden(c)) {
                 ui_rect_t cbx; // child "out" box expanded by padding
                 ui_ltrb_t padding;
                 ui_view.outbox(c, &cbx, &padding);
@@ -5562,7 +5588,7 @@ static void ui_list_layout(ui_view_t* p) {
         int32_t partial = xh / spacers;
         y = pbx.y;
         ui_view_for_each_begin(p, c) {
-            if (!c->hidden) {
+            if (!ui_view.is_hidden(c)) {
                 ui_rect_t cbx; // child "out" box expanded by padding
                 ui_ltrb_t padding;
                 ui_view.outbox(c, &cbx, &padding);
@@ -5615,7 +5641,7 @@ static void ui_container_measure(ui_view_t* p) {
     ui_view.inbox(p, &pbx, &insets);
     ui_wh_t sides[3][3] = { {0, 0} };
     ui_view_for_each_begin(p, c) {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
@@ -5667,7 +5693,7 @@ static void ui_container_layout(ui_view_t* p) {
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
     ui_view_for_each_begin(p, c) {
-        if (c->type != ui_view_spacer && !c->hidden) {
+        if (c->type != ui_view_spacer && !ui_view.is_hidden(c)) {
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
@@ -8914,12 +8940,12 @@ static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
     if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
 }
 
-static void ui_edit_character(ui_view_t* unused(view), const char* utf8) {
-    assert(view->type == ui_view_text);
-    assert(!view->hidden && !view->disabled);
+static void ui_edit_character(ui_view_t* v, const char* utf8) {
+    assert(v->type == ui_view_text);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     #pragma push_macro("ui_edit_ctrl")
     #define ui_edit_ctrl(c) ((char)((c) - 'a' + 1))
-    ui_edit_t* e = (ui_edit_t*)view;
+    ui_edit_t* e = (ui_edit_t*)v;
     if (e->focused) {
         char ch = utf8[0];
         if (ui_app.ctrl) {
@@ -9132,8 +9158,7 @@ static bool ui_edit_press(ui_view_t* v, int32_t ix) {
 
 static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
     assert(v->type == ui_view_text);
-    assert(!v->hidden);
-    assert(!v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - e->view.x - e->inside.left;
     const int32_t y = ui_app.mouse.y - e->view.y - e->inside.top;
@@ -9181,7 +9206,7 @@ static bool ui_edit_set_focus(ui_view_t* v) {
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     assert(ui_app.focus == v || ui_app.focus == null);
-    assert(v->focusable);
+    assert(v->state.focusable);
     ui_app.focus = v;
     if (ui_app.has_focus() && !e->focused) {
         ui_edit_create_caret(e);
@@ -9402,7 +9427,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
 
 static void ui_edit_paint(ui_view_t* v) {
     assert(v->type == ui_view_text);
-    assert(!v->hidden);
+    assert(!ui_view.is_hidden(v));
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
@@ -9437,7 +9462,7 @@ static void ui_edit_move(ui_edit_t* e, ui_edit_pg_t pg) {
 static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
         int64_t unused(lp), int64_t* unused(rt)) {
     ui_edit_t* e = (ui_edit_t*)v;
-    if (ui_app.is_active() && ui_app.has_focus() && !v->hidden) {
+    if (ui_app.is_active() && ui_app.has_focus() && !ui_view.is_hidden(v)) {
         if (e->focused != (ui_app.focus == v)) {
             if (e->focused) {
                 v->kill_focus(v);
@@ -9545,7 +9570,7 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->view.min_w_em = 1.0;
     e->view.min_h_em = 1.0;
     e->view.type = ui_view_text;
-    e->view.focusable = true;
+    e->view.state.focusable = true;
     e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
     e->last_x    = -1;
     e->focused   = false;
@@ -10695,10 +10720,10 @@ ui_gdi_if ui_gdi = {
 
 static void ui_label_paint(ui_view_t* v) {
     assert(v->type == ui_view_label);
-    assert(!v->hidden);
+    assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    ui_color_t c = v->hover && v->highlightable ?
+    ui_color_t c = v->state.hover && v->state.highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
         v->color;
     const int32_t tx = v->x + i.left;
@@ -10711,7 +10736,7 @@ static void ui_label_paint(ui_view_t* v) {
     } else {
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
-    if (v->hover && !v->flat && v->highlightable) {
+    if (v->state.hover && !v->state.flat && v->state.highlightable) {
         ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
         int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
@@ -10737,7 +10762,7 @@ static void ui_label_context_menu(ui_view_t* v) {
 
 static void ui_label_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_label);
-    if (v->hover && !ui_view.is_hidden(v)) {
+    if (v->state.hover && !ui_view.is_hidden(v)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {
@@ -10787,7 +10812,7 @@ static void measurements_horizontal(ui_view_t* view, int32_t gap) {
     view->h = 0;
     bool seen = false;
     ui_view_for_each(view, c, {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (seen) { view->w += gap; }
             view->w += c->w;
             view->h = ut_max(view->h, c->h);
@@ -10801,7 +10826,7 @@ static void measurements_vertical(ui_view_t* view, int32_t gap) {
     view->h = 0;
     bool seen = false;
     ui_view_for_each(view, c, {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (seen) { view->h += gap; }
             view->h += c->h;
             view->w = ut_max(view->w, c->w);
@@ -10810,9 +10835,9 @@ static void measurements_vertical(ui_view_t* view, int32_t gap) {
     });
 }
 
-static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
+static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
     int32_t cols = 0;
-    ui_view_for_each(view, r, {
+    ui_view_for_each(v, r, {
         int32_t n = 0;
         ui_view_for_each(r, c, { n++; });
         if (cols == 0) { cols = n; }
@@ -10824,33 +10849,33 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     int32_t mxw[1024]; // more than enough for sane humane UI
     swear(cols <= countof(mxw));
     memset(mxw, 0, (size_t)cols * sizeof(int32_t));
-    ui_view_for_each(view, row, {
-        if (!row->hidden) {
-            row->h = 0;
-            row->fm->baseline = 0;
+    ui_view_for_each(v, r, {
+        if (!ui_view.is_hidden(r)) {
+            r->h = 0;
+            r->fm->baseline = 0;
             int32_t i = 0;
-            ui_view_for_each(row, col, {
-                if (!col->hidden) {
-                    mxw[i] = ut_max(mxw[i], col->w);
-                    row->h = ut_max(row->h, col->h);
-//                  traceln("[%d] row.fm->baseline: %d col.fm->baseline: %d ",
-//                          i, row->fm->baseline, col->fm->baseline);
-                    row->fm->baseline = ut_max(row->fm->baseline, col->fm->baseline);
+            ui_view_for_each(r, c, {
+                if (!ui_view.is_hidden(c)) {
+                    mxw[i] = ut_max(mxw[i], c->w);
+                    r->h = ut_max(r->h, c->h);
+//                  traceln("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
+//                          i, r->fm->baseline, c->fm->baseline);
+                    r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
                 }
                 i++;
             });
         }
     });
-    view->h = 0;
-    view->w = 0;
+    v->h = 0;
+    v->w = 0;
     int32_t rows_seen = 0; // number of visible rows so far
-    ui_view_for_each(view, r, {
-        if (!r->hidden) {
+    ui_view_for_each(v, r, {
+        if (!ui_view.is_hidden(r)) {
             r->w = 0;
             int32_t i = 0;
             int32_t cols_seen = 0; // number of visible columns so far
-            ui_view_for_each(view, c, {
-                if (!c->hidden) {
+            ui_view_for_each(v, c, {
+                if (!ui_view.is_hidden(c)) {
                     c->h = r->h; // all cells are same height
 /*
                     // TODO: label_dy needs to be transferred to containers
@@ -10862,12 +10887,12 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
                     c->w = mxw[i++];
                     r->w += c->w;
                     if (cols_seen > 0) { r->w += gap_h; }
-                    view->w = ut_max(view->w, r->w);
+                    v->w = ut_max(v->w, r->w);
                     cols_seen++;
                 }
             });
-            view->h += r->h;
-            if (rows_seen > 0) { view->h += gap_v; }
+            v->h += r->h;
+            if (rows_seen > 0) { v->h += gap_v; }
             rows_seen++;
         }
     });
@@ -10896,7 +10921,7 @@ static void layouts_horizontal(ui_view_t* view, int32_t x, int32_t y,
     assert(view->child != null, "not a single child?");
     bool seen = false;
     ui_view_for_each(view, c, {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (seen) { x += gap; }
             c->x = x;
             c->y = y;
@@ -10911,7 +10936,7 @@ static void layouts_vertical(ui_view_t* view, int32_t x, int32_t y,
     assert(view->child != null, "not a single child?");
     bool seen = false;
     ui_view_for_each(view, c, {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (seen) { y += gap; }
             c->x = x;
             c->y = y;
@@ -10926,21 +10951,21 @@ static void layouts_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     int32_t x = view->x;
     int32_t y = view->y;
     bool row_seen = false;
-    ui_view_for_each(view, row, {
-        if (!row->hidden) {
+    ui_view_for_each(view, r, {
+        if (!ui_view.is_hidden(r)) {
             if (row_seen) { y += gap_v; }
             int32_t xc = x;
             bool col_seen = false;
-            ui_view_for_each(row, col, {
-                if (!col->hidden) {
+            ui_view_for_each(r, c, {
+                if (!ui_view.is_hidden(c)) {
                     if (col_seen) { xc += gap_h; }
-                    col->x = xc;
-                    col->y = y;
-                    xc += col->w;
+                    c->x = xc;
+                    c->y = y;
+                    xc += c->w;
                     col_seen = true;
                 }
             });
-            y += row->h;
+            y += r->h;
             row_seen = true;
         }
     });
@@ -11068,8 +11093,8 @@ void ui_mbx_init(ui_mbx_t* mx, const char* options[],
 static void ui_slider_invalidate(const ui_slider_t* s) {
     const ui_view_t* v = &s->view;
     ui_view.invalidate(v, null);
-    if (!s->dec.hidden) { ui_view.invalidate(&s->dec, null); }
-    if (!s->inc.hidden) { ui_view.invalidate(&s->dec, null); }
+    if (!s->dec.state.hidden) { ui_view.invalidate(&s->dec, null); }
+    if (!s->inc.state.hidden) { ui_view.invalidate(&s->dec, null); }
 }
 
 static int32_t ui_slider_width_without_insets(const ui_slider_t* s) {
@@ -11126,9 +11151,9 @@ static void ui_slider_measure(ui_view_t* v) {
     const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
     const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
     s->mt = ui_slider_measure_text(s);
-    assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
+    assert(s->dec.state.hidden == s->inc.state.hidden, "not the same");
     const int32_t sw = ui_slider_width_with_insets(s);
-    if (s->dec.hidden) {
+    if (s->dec.state.hidden) {
         v->w = sw;
     } else {
         v->w = s->dec.w + dec_p.right + sw + inc_p.left + s->inc.w;
@@ -11141,7 +11166,7 @@ static void ui_slider_measure(ui_view_t* v) {
 static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-    // disregard inc/dec .hidden bit for layout:
+    // disregard inc/dec .state.hidden bit for layout:
     s->dec.x = v->x;
     s->dec.y = v->y;
     s->inc.x = v->x + v->w - s->inc.w;
@@ -11156,8 +11181,8 @@ static void ui_slider_paint(ui_view_t* v) {
     const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
-    assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
-    const int32_t dx = s->dec.hidden ? 0 : dec_w;
+    assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+    const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
     const int32_t x = v->x + dx + i.left;
     const int32_t w = ui_slider_width_without_insets(s);
     // draw background:
@@ -11177,11 +11202,11 @@ static void ui_slider_paint(ui_view_t* v) {
     const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
     const int32_t wi = (int32_t)(vw + 0.5);
     ui_gdi.gradient(x, v->y, wi, v->h, d1, d0, true);
-    if (!v->flat) {
-        ui_color_t color = v->hover ?
+    if (!v->state.flat) {
+        ui_color_t color = v->state.hover ?
             ui_colors.get_color(ui_color_id_hot_tracking) :
             ui_colors.get_color(ui_color_id_gray_text);
-        if (v->disabled) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        if (ui_view.is_disabled(v)) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
         ui_gdi.frame(x, v->y, w, v->h, color);
     }
     // text:
@@ -11200,9 +11225,9 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_wh_t mt = ui_slider_measure_text(s);
     const int32_t sw = ui_slider_width_with_insets(s); // slider width
     const int32_t cx = (sw - mt.w) / 2; // centering offset
-    const int32_t tx = v->x + cx + (s->dec.hidden ? 0 : dec_w);
+    const int32_t tx = v->x + cx + (s->dec.state.hidden ? 0 : dec_w);
     const int32_t ty = v->y + i.top;
-    const ui_color_t text_color = !v->hover ? v->color :
+    const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, tx, ty, "%s", text);
@@ -11210,7 +11235,7 @@ static void ui_slider_paint(ui_view_t* v) {
 }
 
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
-    if (!v->hidden && !v->disabled) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         assert(v->type == ui_view_slider);
         ui_slider_t* s = (ui_slider_t*)v;
         bool drag = message == ui.message.mouse_move &&
@@ -11219,9 +11244,9 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             message == ui.message.right_button_pressed || drag) {
             const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
-            assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
+            assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
             const int32_t sw = ui_slider_width_with_insets(s); // slider width
-            const int32_t dx = s->dec.hidden ? 0 : dec_w;
+            const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
             const int32_t vx = v->x + dx;
             const int32_t x = ui_app.mouse.x - vx;
             const int32_t y = ui_app.mouse.y - v->y;
@@ -11272,13 +11297,13 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
     ui_slider_t* s = (ui_slider_t*)v;
     if (ui_view.is_hidden(v) || ui_view.is_disabled(v)) {
         s->time = 0;
-    } else if (!s->dec.armed && !s->inc.armed) {
+    } else if (!s->dec.state.armed && !s->inc.state.armed) {
         s->time = 0;
     } else {
         if (s->time == 0) {
             s->time = ui_app.now;
         } else if (ui_app.now - s->time > 1.0) {
-            const int32_t sign = s->dec.armed ? -1 : +1;
+            const int32_t sign = s->dec.state.armed ? -1 : +1;
             const int32_t sec = (int32_t)(ui_app.now - s->time + 0.5);
             int32_t initial = ui_app.shift && ui_app.ctrl ? 1000 :
                 ui_app.shift ? 100 : ui_app.ctrl ? 10 : 1;
@@ -11555,7 +11580,7 @@ ui_theme_if ui_theme = {
 static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_color_t c = ui_colors.darken(v->background,
         !ui_theme.is_app_dark() ? 0.125f : 0.5f);
-    ui_color_t b = v->pressed ? ui_colors.tone_green : c;
+    ui_color_t b = v->state.pressed ? ui_colors.tone_green : c;
     const int32_t bl = v->fm->baseline;
     const int32_t a = v->fm->ascent;
     const int32_t d = v->fm->descent;
@@ -11569,7 +11594,7 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_color_t border = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5) :
         ui_colors.lighten(v->color, 0.5);
-    if (v->hover) {
+    if (v->state.hover) {
         border = ui_colors.get_color(ui_color_id_hot_tracking);
     }
     ui_gdi.circle(x, y1, r, border, b);
@@ -11577,7 +11602,7 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_gdi.fill(x, y1 - r, w - r + 1, h, b);
     ui_gdi.line(x, y1 - r, x + w - r + 1, y1 - r, border);
     ui_gdi.line(x, y1 + r, x + w - r + 1, y1 + r, border);
-    int32_t x1 = v->pressed ? x + w - r : x;
+    int32_t x1 = v->state.pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
     ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
@@ -11592,7 +11617,7 @@ static const char* ui_toggle_on_off_label(ui_view_t* v,
     ut_str.format(label, count, "%s", ui_view.string(v));
     char* s = strstr(label, "___");
     if (s != null) {
-        memcpy(s, v->pressed ? "On " : "Off", 3);
+        memcpy(s, v->state.pressed ? "On " : "Off", 3);
     }
     return ut_nls.str(label);
 }
@@ -11610,7 +11635,7 @@ static void ui_toggle_paint(ui_view_t* v) {
     const int32_t tx = v->x + i.left;
     const int32_t ty = v->y + i.top;
     const int32_t x = ui_toggle_paint_on_off(v, tx, ty) + v->fm->em.w / 4;
-    const ui_color_t text_color = !v->hover ? v->color :
+    const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, x, ty, "%s", ut_nls.str(label));
@@ -11619,13 +11644,13 @@ static void ui_toggle_paint(ui_view_t* v) {
 static void ui_toggle_flip(ui_toggle_t* t) {
     assert(t->type == ui_view_toggle);
     ui_view.invalidate((ui_view_t*)t, null);
-    t->pressed = !t->pressed;
+    t->state.pressed = !t->state.pressed;
     if (t->callback != null) { t->callback(t); }
 }
 
 static void ui_toggle_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_toggle);
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     char ch = utf8[0];
     if (ui_view.is_shortcut_key(v, ch)) {
          ui_toggle_flip((ui_toggle_t*)v);
@@ -11640,7 +11665,7 @@ static void ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
 
 static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)) {
     assert(v->type == ui_view_toggle);
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     if (message == ui.message.left_button_pressed ||
         message == ui.message.right_button_pressed) {
         int32_t x = ui_app.mouse.x - v->x;
@@ -11674,8 +11699,6 @@ void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
 // ________________________________ ui_view.c _________________________________
 
 #include "ut/ut.h"
-
-static bool ui_view_debug_measure_text;
 
 static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
@@ -11865,15 +11888,27 @@ static void ui_view_measure_text(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
     const ui_fm_t* fm = v->fm;
-ui_view_debug_measure_text = true;
-    if (ui_view_debug_measure_text) {
-        traceln(">%s em: %dx%d min: %.1fx%.1f", s,
-            fm->em.w, fm->em.h,
-            v->min_w_em, v->min_h_em);
-    }
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
+v->debug.measure_text = true; // xxx
+    if (v->debug.measure_text) {
+        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
+                "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
+            v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
+            i.left, i.top, i.right, i.bottom,
+            p.left, p.top, p.right, p.bottom,
+            ut_min(64, strlen(s)), s);
+        const ui_gaps_t in = v->insets;
+        const ui_gaps_t pd = v->padding;
+        traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+                " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
+            in.left, in.top, in.right, in.bottom,
+            in.left, + in.right, in.top + in.bottom,
+            pd.left, pd.top, pd.right, pd.bottom,
+            pd.left, + pd.right, pd.top + pd.bottom);
+    }
     ui_wh_t mt = { 0, 0 };
     if (s[0] != 0) {
         bool multiline = strchr(s, '\n') != null;
@@ -11883,32 +11918,14 @@ ui_view_debug_measure_text = true;
         } else {
             mt = ui_view_text_metrics(v->x, v->y, false, 0, fm, "%s", s);
         }
+        if (v->debug.measure_text) {
+            traceln(" mt: %d %d", mt.w, mt.h);
+        }
+        v->w = ut_max(v->w, i.left + mt.w + i.right);
+        v->h = ut_max(v->h, i.top  + mt.h + i.bottom);
     }
-    if (ui_view_debug_measure_text) {
-        ui_ltrb_t p = ui_view.gaps(v, &v->padding);
-        traceln(" %s %d,%d %dx%d mt: %d %d p: %d %d %d %d  i: %d %d %d %d",
-                     s, v->x, v->y, v->w, v->h,
-                     mt.w, mt.h,
-                     p.left, p.top, p.right, p.bottom,
-                     i.left, i.top, i.right, i.bottom);
-    }
-    // because existense of glyphs like unicode codepoint
-    // https://compart.com/en/unicode/U+1E1C
-    // Latin Capital Letter E with Cedilla and Breve
-    // and desire to vertically center center text inside
-    // buttons, labels, toggles and sliders it is necessary
-    // to extend vertical space to accomodate centering:
-    assert(mt.h == fm->height);
-    assert(fm->height == fm->descent + fm->baseline);
-    const int32_t ascender_height = fm->baseline - fm->ascent;
-    assert(ascender_height + fm->ascent + fm->descent == fm->height);
-    const int32_t mx = ut_max(fm->descent, ascender_height);
-    const int32_t ex = ut_max(fm->ascent + mx * 2, fm->height); // extended h
-    v->w = i.left + ut_max(v->w, mt.w) + i.right;
-    v->h = i.top  + ut_max(v->h, ex)   + i.bottom;
-    if (ui_view_debug_measure_text) {
-        traceln("<%s %d,%d %dx%d %p \"%.*s\"", s, v->x, v->y, v->w, v->h, v,
-                ut_min(64, strlen(v->p.text)), v->p.text);
+    if (v->debug.measure_text) {
+        traceln("<%dx%d", v->w, v->h);
         traceln("");
     }
 }
@@ -12097,19 +12114,19 @@ static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
 }
 
 static bool ui_view_is_hidden(const ui_view_t* v) {
-    bool hidden = v->hidden;
+    bool hidden = v->state.hidden;
     while (!hidden && v->parent != null) {
         v = v->parent;
-        hidden = v->hidden;
+        hidden = v->state.hidden;
     }
     return hidden;
 }
 
 static bool ui_view_is_disabled(const ui_view_t* v) {
-    bool disabled = v->disabled;
+    bool disabled = v->state.disabled;
     while (!disabled && v->parent != null) {
         v = v->parent;
-        disabled = v->disabled;
+        disabled = v->state.disabled;
     }
     return disabled;
 }
@@ -12163,34 +12180,51 @@ static void ui_view_resolve_color_ids(ui_view_t* v) {
 static void ui_view_paint(ui_view_t* v) {
     assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     ui_view_resolve_color_ids(v);
-    if (!v->hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
+    if (v->debug.paint_rect) {
+        const char* s = ui_view.string(v);
+        traceln("%d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
+                ut_min(64, strlen(s)), s);
+    }
+    if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
         if (v->paint != null) { v->paint(v); }
         if (v->painted != null) { v->painted(v); }
-        if (v->debug_paint != null && v->debug) { v->debug_paint(v); }
-        if (v->debug) { ui_view.debug_paint(v); }
+        if (v->debug.paint && v->debug_paint != null) { v->debug_paint(v); }
         ui_view_for_each(v, c, { ui_view_paint(c); });
     }
 }
 
 static bool ui_view_set_focus(ui_view_t* v) {
     bool set = false;
-   ui_view_for_each(v, c, {
-        set = ui_view_set_focus(c);
-        if (set) { break; }
-    });
-    if (!set && !ui_view.is_hidden(v) && !ui_view.is_disabled(v) &&
-        v->focusable && v->set_focus != null &&
-       (ui_app.focus == v || ui_app.focus == null)) {
-        set = v->set_focus(v);
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        // attempt to set focus on deepest child first
+        ui_view_for_each(v, c, {
+            set = ui_view_set_focus(c);
+            if (set) { break; }
+        });
+        // if no children claimed focus and control itself is
+        // focusable set focus on it:
+        if (!set && v->state.focusable) {
+            ui_view_t* focused = ui_app.focus;
+            ui_app.focus = null;
+            if (focused != null) { ui_view.kill_focus(focused); }
+            if (v->set_focus != null) {
+                set = v->set_focus(v);
+            } else {
+                traceln("setting focus to view that does not implement set_focus()");
+                ui_app.focus = v;
+                set = true;
+            }
+        }
     }
     return set;
 }
 
 static void ui_view_kill_focus(ui_view_t* v) {
+    // notify all the focusable children that the focus is lost
     ui_view_for_each(v, c, { ui_view_kill_focus(c); });
-    if (v->kill_focus != null && v->focusable) {
-        v->kill_focus(v);
-    }
+    // notify all the view itself that the focus is lost even if
+    // it is not .focusable itself:
+    if (v->kill_focus != null) { v->kill_focus(v); }
 }
 
 static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
@@ -12200,7 +12234,7 @@ static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
     }
     if (ht == ui.hit_test.nowhere) {
         ui_view_for_each(v, c, {
-            if (!c->hidden) {
+            if (!c->state.hidden) {
                 ht = ui_view_hit_test(c, cx, cy);
                 if (ht != ui.hit_test.nowhere) { break; }
             }
@@ -12210,20 +12244,35 @@ static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
 }
 
 static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
-    if (!ui_view.is_hidden(v) &&
-       (m == ui.message.mouse_hover || m == ui.message.mouse_move)) {
-        ui_rect_t r = { v->x, v->y, v->w, v->h};
-        bool hover = v->hover;
-        v->hover = ui.point_in_rect(&ui_app.mouse, &r);
-        if (hover != v->hover) { ui_view.invalidate(v, null); }
-        if (hover != v->hover) {
-//          traceln("hover_changed() %d := %d %p \"%.8s\"", hover, v->hover, v, v->p.text);
-            ui_view.hover_changed(v);
-        }
-    }
     if (!ui_view.is_hidden(v)) {
-        if (v->mouse != null) { v->mouse(v, m, f); }
-        ui_view_for_each(v, c, { ui_view_mouse(c, m, f); });
+        const bool moving = m == ui.message.mouse_hover ||
+                            m == ui.message.mouse_move;
+        const bool click  = m == ui.message.left_button_pressed ||
+                            m == ui.message.left_button_released ||
+                            m == ui.message.right_button_pressed ||
+                            m == ui.message.right_button_released ||
+                            m == ui.message.left_double_click ||
+                            m == ui.message.right_double_click;
+        if (moving) {
+            ui_rect_t r = { v->x, v->y, v->w, v->h};
+            bool hover = v->state.hover;
+            v->state.hover = ui.point_in_rect(&ui_app.mouse, &r);
+            if (hover != v->state.hover) { ui_view.invalidate(v, null); }
+            if (hover != v->state.hover) {
+//              traceln("hover_changed() %d := %d %p \"%.8s\"",
+//                       hover, v->state.hover, v, v->p.text);
+                ui_view.hover_changed(v);
+            }
+        }
+        // mouse hover and move are dispatched even to disable controls
+        if (!ui_view.is_disabled(v) || moving) {
+            if (v->mouse != null) { v->mouse(v, m, f); }
+            ui_view_for_each(v, c, { ui_view_mouse(c, m, f); } );
+        }
+        if (!ui_view.is_disabled(v) && click && v->state.focusable &&
+             ui_view.inside(v, &ui_app.mouse)) {
+            ui_view.set_focus(v);
+        }
     }
 }
 
@@ -12235,8 +12284,8 @@ static void ui_view_mouse_wheel(ui_view_t* v, int32_t dx, int32_t dy) {
 }
 
 static void ui_view_hover_changed(ui_view_t* v) {
-    if (!v->hidden) {
-        if (!v->hover) {
+    if (!v->state.hidden) {
+        if (!v->state.hover) {
             v->p.hover_when = 0;
             ui_view.hovering(v, false); // cancel hover
         } else {
@@ -12251,7 +12300,7 @@ static void ui_view_hover_changed(ui_view_t* v) {
 static void ui_view_kill_hidden_focus(ui_view_t* v) {
     // removes focus from hidden or disabled ui controls
     if (ui_app.focus != null) {
-        if (ui_app.focus == v && (v->disabled || v->hidden)) {
+        if (ui_app.focus == v && (v->state.disabled || v->state.hidden)) {
             ui_app.focus = null;
             // even for disabled or hidden view notify about kill_focus:
             v->kill_focus(v);
@@ -12294,7 +12343,7 @@ static bool ui_view_context_menu(ui_view_t* v) {
         });
         ui_rect_t r = { v->x, v->y, v->w, v->h};
         if (ui.point_in_rect(&ui_app.mouse, &r)) {
-            if (!v->hidden && !v->disabled && v->context_menu != null) {
+            if (!v->state.hidden && !v->state.disabled && v->context_menu != null) {
                 v->context_menu(v);
             }
         }
@@ -12304,7 +12353,7 @@ static bool ui_view_context_menu(ui_view_t* v) {
 
 static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
-    if (!view->hidden) {
+    if (!view->state.hidden) {
         if (view->p.hover_when > 0 && ui_app.now > view->p.hover_when) {
             view->p.hover_when = -1; // "already called"
             ui_view.hovering(view, true);

@@ -3,10 +3,10 @@
 
 static void ui_label_paint(ui_view_t* v) {
     assert(v->type == ui_view_label);
-    assert(!v->hidden);
+    assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    ui_color_t c = v->hover && v->highlightable ?
+    ui_color_t c = v->state.hover && v->state.highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
         v->color;
     const int32_t tx = v->x + i.left;
@@ -19,7 +19,7 @@ static void ui_label_paint(ui_view_t* v) {
     } else {
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
-    if (v->hover && !v->flat && v->highlightable) {
+    if (v->state.hover && !v->state.flat && v->state.highlightable) {
         ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
         int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
@@ -45,7 +45,7 @@ static void ui_label_context_menu(ui_view_t* v) {
 
 static void ui_label_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_label);
-    if (v->hover && !ui_view.is_hidden(v)) {
+    if (v->state.hover && !ui_view.is_hidden(v)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {

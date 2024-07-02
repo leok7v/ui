@@ -58,13 +58,13 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // usage:
 //
 // ui_button_clicked(button, "&Button", 7.0, {
-//      button->pressed = !button->pressed;
+//      button->state.pressed = !button->state.pressed;
 // })
 //
 // or:
 //
 // static void button_flipped(ui_button_t* b) {
-//      b->pressed = !b->pressed;
+//      b->state.pressed = !b->state.pressed;
 // }
 //
 // ui_button_t button = ui_button(7.0, "&Button", button_flipped);

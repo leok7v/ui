@@ -4,7 +4,7 @@
 static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_color_t c = ui_colors.darken(v->background,
         !ui_theme.is_app_dark() ? 0.125f : 0.5f);
-    ui_color_t b = v->pressed ? ui_colors.tone_green : c;
+    ui_color_t b = v->state.pressed ? ui_colors.tone_green : c;
     const int32_t bl = v->fm->baseline;
     const int32_t a = v->fm->ascent;
     const int32_t d = v->fm->descent;
@@ -18,7 +18,7 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_color_t border = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5) :
         ui_colors.lighten(v->color, 0.5);
-    if (v->hover) {
+    if (v->state.hover) {
         border = ui_colors.get_color(ui_color_id_hot_tracking);
     }
     ui_gdi.circle(x, y1, r, border, b);
@@ -26,7 +26,7 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_gdi.fill(x, y1 - r, w - r + 1, h, b);
     ui_gdi.line(x, y1 - r, x + w - r + 1, y1 - r, border);
     ui_gdi.line(x, y1 + r, x + w - r + 1, y1 + r, border);
-    int32_t x1 = v->pressed ? x + w - r : x;
+    int32_t x1 = v->state.pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
     ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
@@ -41,7 +41,7 @@ static const char* ui_toggle_on_off_label(ui_view_t* v,
     ut_str.format(label, count, "%s", ui_view.string(v));
     char* s = strstr(label, "___");
     if (s != null) {
-        memcpy(s, v->pressed ? "On " : "Off", 3);
+        memcpy(s, v->state.pressed ? "On " : "Off", 3);
     }
     return ut_nls.str(label);
 }
@@ -59,7 +59,7 @@ static void ui_toggle_paint(ui_view_t* v) {
     const int32_t tx = v->x + i.left;
     const int32_t ty = v->y + i.top;
     const int32_t x = ui_toggle_paint_on_off(v, tx, ty) + v->fm->em.w / 4;
-    const ui_color_t text_color = !v->hover ? v->color :
+    const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, x, ty, "%s", ut_nls.str(label));
@@ -68,13 +68,13 @@ static void ui_toggle_paint(ui_view_t* v) {
 static void ui_toggle_flip(ui_toggle_t* t) {
     assert(t->type == ui_view_toggle);
     ui_view.invalidate((ui_view_t*)t, null);
-    t->pressed = !t->pressed;
+    t->state.pressed = !t->state.pressed;
     if (t->callback != null) { t->callback(t); }
 }
 
 static void ui_toggle_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_toggle);
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     char ch = utf8[0];
     if (ui_view.is_shortcut_key(v, ch)) {
          ui_toggle_flip((ui_toggle_t*)v);
@@ -89,7 +89,7 @@ static void ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
 
 static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)) {
     assert(v->type == ui_view_toggle);
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     if (message == ui.message.left_button_pressed ||
         message == ui.message.right_button_pressed) {
         int32_t x = ui_app.mouse.x - v->x;

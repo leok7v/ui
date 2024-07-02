@@ -15,9 +15,9 @@ static volatile bool stop;
 static volatile fp64_t render_time;
 
 static void toggle_full_screen(ui_button_t* b) {
-    b->pressed = !b->pressed;
-    ui_app.full_screen(b->pressed);
-    ui_view.set_text(b, "%s", !b->pressed ?
+    b->state.pressed = !b->state.pressed;
+    ui_app.full_screen(b->state.pressed);
+    ui_view.set_text(b, "%s", !b->state.pressed ?
         ut_glyph_square_four_corners : ut_glyph_two_joined_squares);
 }
 

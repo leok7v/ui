@@ -15,7 +15,7 @@ static void measurements_horizontal(ui_view_t* view, int32_t gap) {
     view->h = 0;
     bool seen = false;
     ui_view_for_each(view, c, {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (seen) { view->w += gap; }
             view->w += c->w;
             view->h = ut_max(view->h, c->h);
@@ -29,7 +29,7 @@ static void measurements_vertical(ui_view_t* view, int32_t gap) {
     view->h = 0;
     bool seen = false;
     ui_view_for_each(view, c, {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (seen) { view->h += gap; }
             view->h += c->h;
             view->w = ut_max(view->w, c->w);
@@ -38,9 +38,9 @@ static void measurements_vertical(ui_view_t* view, int32_t gap) {
     });
 }
 
-static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
+static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
     int32_t cols = 0;
-    ui_view_for_each(view, r, {
+    ui_view_for_each(v, r, {
         int32_t n = 0;
         ui_view_for_each(r, c, { n++; });
         if (cols == 0) { cols = n; }
@@ -52,33 +52,33 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     int32_t mxw[1024]; // more than enough for sane humane UI
     swear(cols <= countof(mxw));
     memset(mxw, 0, (size_t)cols * sizeof(int32_t));
-    ui_view_for_each(view, row, {
-        if (!row->hidden) {
-            row->h = 0;
-            row->fm->baseline = 0;
+    ui_view_for_each(v, r, {
+        if (!ui_view.is_hidden(r)) {
+            r->h = 0;
+            r->fm->baseline = 0;
             int32_t i = 0;
-            ui_view_for_each(row, col, {
-                if (!col->hidden) {
-                    mxw[i] = ut_max(mxw[i], col->w);
-                    row->h = ut_max(row->h, col->h);
-//                  traceln("[%d] row.fm->baseline: %d col.fm->baseline: %d ",
-//                          i, row->fm->baseline, col->fm->baseline);
-                    row->fm->baseline = ut_max(row->fm->baseline, col->fm->baseline);
+            ui_view_for_each(r, c, {
+                if (!ui_view.is_hidden(c)) {
+                    mxw[i] = ut_max(mxw[i], c->w);
+                    r->h = ut_max(r->h, c->h);
+//                  traceln("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
+//                          i, r->fm->baseline, c->fm->baseline);
+                    r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
                 }
                 i++;
             });
         }
     });
-    view->h = 0;
-    view->w = 0;
+    v->h = 0;
+    v->w = 0;
     int32_t rows_seen = 0; // number of visible rows so far
-    ui_view_for_each(view, r, {
-        if (!r->hidden) {
+    ui_view_for_each(v, r, {
+        if (!ui_view.is_hidden(r)) {
             r->w = 0;
             int32_t i = 0;
             int32_t cols_seen = 0; // number of visible columns so far
-            ui_view_for_each(view, c, {
-                if (!c->hidden) {
+            ui_view_for_each(v, c, {
+                if (!ui_view.is_hidden(c)) {
                     c->h = r->h; // all cells are same height
 /*
                     // TODO: label_dy needs to be transferred to containers
@@ -90,12 +90,12 @@ static void measurements_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
                     c->w = mxw[i++];
                     r->w += c->w;
                     if (cols_seen > 0) { r->w += gap_h; }
-                    view->w = ut_max(view->w, r->w);
+                    v->w = ut_max(v->w, r->w);
                     cols_seen++;
                 }
             });
-            view->h += r->h;
-            if (rows_seen > 0) { view->h += gap_v; }
+            v->h += r->h;
+            if (rows_seen > 0) { v->h += gap_v; }
             rows_seen++;
         }
     });
@@ -124,7 +124,7 @@ static void layouts_horizontal(ui_view_t* view, int32_t x, int32_t y,
     assert(view->child != null, "not a single child?");
     bool seen = false;
     ui_view_for_each(view, c, {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (seen) { x += gap; }
             c->x = x;
             c->y = y;
@@ -139,7 +139,7 @@ static void layouts_vertical(ui_view_t* view, int32_t x, int32_t y,
     assert(view->child != null, "not a single child?");
     bool seen = false;
     ui_view_for_each(view, c, {
-        if (!c->hidden) {
+        if (!ui_view.is_hidden(c)) {
             if (seen) { y += gap; }
             c->x = x;
             c->y = y;
@@ -154,21 +154,21 @@ static void layouts_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
     int32_t x = view->x;
     int32_t y = view->y;
     bool row_seen = false;
-    ui_view_for_each(view, row, {
-        if (!row->hidden) {
+    ui_view_for_each(view, r, {
+        if (!ui_view.is_hidden(r)) {
             if (row_seen) { y += gap_v; }
             int32_t xc = x;
             bool col_seen = false;
-            ui_view_for_each(row, col, {
-                if (!col->hidden) {
+            ui_view_for_each(r, c, {
+                if (!ui_view.is_hidden(c)) {
                     if (col_seen) { xc += gap_h; }
-                    col->x = xc;
-                    col->y = y;
-                    xc += col->w;
+                    c->x = xc;
+                    c->y = y;
+                    xc += c->w;
                     col_seen = true;
                 }
             });
-            y += row->h;
+            y += r->h;
             row_seen = true;
         }
     });

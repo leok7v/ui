@@ -5,11 +5,11 @@
 static int64_t hit_test(ui_view_t* unused(v), int32_t x, int32_t y) {
     ui_point_t pt = { x, y };
     if (ui_view.inside(v, &pt)) {
-        if (y < v->fm->em.h && ui_app.caption->hidden) {
-            ui_app.caption->hidden = false;
+        if (y < v->fm->em.h && ui_app.caption->state.hidden) {
+            ui_app.caption->state.hidden = false;
             ui_app.request_layout();
-        } else if (y > v->fm->em.h && !ui_app.caption->hidden) {
-            ui_app.caption->hidden = true;
+        } else if (y > v->fm->em.h && !ui_app.caption->state.hidden) {
+            ui_app.caption->state.hidden = true;
             ui_app.request_layout();
         }
         return ui.hit_test.caption;
@@ -32,7 +32,7 @@ static void opened(void) {
     hello.fm = &fm;
     ui_app.set_layered_window(ui_color_rgb(30, 30, 30), 0.75f);
     ui_view.add_last(ui_app.content, &hello);
-    ui_app.caption->hidden = true;
+    ui_app.caption->state.hidden = true;
     ui_app.content->hit_test = hit_test;
     hello.painted = painted;
 }
@@ -42,7 +42,7 @@ static void init(void) {
     ui_app.opened = opened;
     // for custom caption or no caption .no_decor can be set to true
     ui_app.no_decor = true;
-    ui_caption.menu.hidden = true;
+    ui_caption.menu.state.hidden = true;
 }
 
 ui_app_t ui_app = {

@@ -108,6 +108,7 @@ typedef struct {
     ui_canvas_t canvas;  // set by message.paint
     struct { // animation state
         ui_view_t* view;
+        ui_view_t* focused; // focused view before animation started
         int32_t step;
         fp64_t time; // closing time or zero
         int32_t x; // (x,y) for tooltip (-1,y) for toast

@@ -22,7 +22,7 @@
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
-    ui_caption.view.hidden = ui_app.is_full_screen;
+    ui_caption.view.state.hidden = ui_app.is_full_screen;
     ui_app.request_layout();
 }
 
@@ -90,7 +90,7 @@ static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
 //      ui_view.inside(&ui_caption.icon, &pt));
     if (ui_app.is_full_screen) {
         return ui.hit_test.client;
-    } else if (!ui_caption.icon.hidden &&
+    } else if (!ui_caption.icon.state.hidden &&
                 ui_view.inside(&ui_caption.icon, &pt)) {
         return ui.hit_test.system_menu;
     } else {
@@ -132,12 +132,12 @@ static void ui_caption_button_icon_paint(ui_view_t* v) {
 }
 
 static void ui_caption_prepare(ui_view_t* unused(v)) {
-    ui_caption.title.hidden = false;
+    ui_caption.title.state.hidden = false;
 }
 
 static void ui_caption_measured(ui_view_t* v) {
     // do not show title if there is not enough space
-    ui_caption.title.hidden = v->w > ui_app.root->w;
+    ui_caption.title.state.hidden = v->w > ui_app.root->w;
     v->w = ui_app.root->w;
     const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
@@ -157,7 +157,7 @@ static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
     ui_caption.view.insets = (ui_gaps_t){ 0.125, 0.25, 0.125, 0.25 };
-    ui_caption.view.hidden = false;
+    ui_caption.view.state.hidden = false;
     v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,
         &ui_caption.icon,
@@ -184,7 +184,7 @@ static void ui_caption_init(ui_view_t* v) {
         c->color_id = ui_caption.view.color_id;
         if (c->type == ui_view_button) {
             c->padding = pb;
-            c->flat = true;
+            c->state.flat = true;
             c->measure = ui_caption_button_measure;
         } else {
             c->padding = pd;
@@ -220,7 +220,7 @@ ui_caption_t ui_caption =  {
         .fm       = &ui_app.fm.regular,
         .init     = ui_caption_init,
         .hit_test = ui_caption_hit_test,
-        .hidden = true
+        .state.hidden = true
     },
     .icon   = ui_button(ut_glyph_nbsp, 0.0, null),
     .title  = ui_label(0, ""),

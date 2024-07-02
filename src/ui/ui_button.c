@@ -5,7 +5,7 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     assert(v->type == ui_view_button);
     if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
-        v->armed = false;
+        v->state.armed = false;
         ui_view.invalidate(v, null);
         traceln("ui_view.invalidate(v, null)");
     }
@@ -13,12 +13,12 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 
 static void ui_button_paint(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    assert(!v->hidden);
+    assert(!ui_view.is_hidden(v));
     if (strcmp(v->p.text, "&Button") == 0 && v->fm == &ui_app.fm.H1) {
         traceln("v->fm: .h: %d .a:%d .d:%d .b:%d",
             v->fm->height, v->fm->ascent, v->fm->descent, v->fm->baseline);
     }
-    bool pressed = (v->armed ^ v->pressed) == 0;
+    bool pressed = (v->state.armed ^ v->state.pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
     int32_t w = v->w;
     int32_t h = v->h;
@@ -28,7 +28,7 @@ static void ui_button_paint(ui_view_t* v) {
     const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     const fp32_t d2 = d / 2;
-    if (v->flat) {
+    if (v->state.flat) {
         ui_color_t d1 = ui_theme.is_app_dark() ?
                 ui_colors.lighten(v->background, d2) :
                 ui_colors.darken(v->background,  d2);
@@ -40,9 +40,9 @@ static void ui_button_paint(ui_view_t* v) {
     } else {
         // `bc` border color
         ui_color_t bc = ui_colors.get_color(ui_color_id_gray_text);
-        if (v->armed) { bc = ui_colors.lighten(bc, 0.125f); }
-        if (v->disabled) { bc = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
-        if (v->hover && !v->armed) {
+        if (v->state.armed) { bc = ui_colors.lighten(bc, 0.125f); }
+        if (ui_view.is_disabled(v)) { bc = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        if (v->state.hover && !v->state.armed) {
             bc = ui_colors.get_color(ui_color_id_hot_tracking);
         }
         ui_color_t d1 = ui_colors.darken(v->background, d2);
@@ -78,18 +78,17 @@ if (strcmp(v->p.text, "&Button") == 0 && v->fm == &ui_app.fm.H1) {
         const int32_t tx = v->x + i.left + t_x;
         const int32_t ty = v->y + i.top  + t_y;
         ui_color_t c = v->color;
-//      traceln("v->hover: %d armed: %d c: %08X", v->hover, v->armed, (uint32_t)c);
-        if (v->hover && !v->armed) {
+//      traceln("v->state.hover: %d state.armed: %d c: %08X", v->state.hover, v->state.armed, (uint32_t)c);
+        if (v->state.hover && !v->state.armed) {
     //      c = ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black;
             c = ui_theme.is_app_dark() ? ui_color_rgb(0xFF, 0xE0, 0xE0) :
                                          ui_color_rgb(0x00, 0x40, 0xFF);
 //          traceln("text_color: %08X", c);
         }
-        if (v->disabled) { c = ui_colors.get_color(ui_color_id_gray_text); }
+        if (ui_view.is_disabled(v)) { c = ui_colors.get_color(ui_color_id_gray_text); }
 //      traceln("text_color: %08X", (uint32_t)c);
-static bool debug;
-        debug = true;
-        if (v->debug || debug) {
+v->debug.paint_fm = true; // xxx
+        if (v->debug.paint_fm) {
             const int32_t y_0 = y + i.top;
             const int32_t y_b = y_0 + v->fm->baseline;
             const int32_t y_a = y_b - v->fm->ascent;
@@ -124,9 +123,9 @@ static void ui_button_callback(ui_button_t* b) {
 
 static void ui_button_trigger(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_button_t* b = (ui_button_t*)v;
-    v->armed = true;
+    v->state.armed = true;
     ui_view.invalidate(v, null);
     ui_app.draw();
     v->p.armed_until = ui_app.now + 0.250;
@@ -136,7 +135,7 @@ static void ui_button_trigger(ui_view_t* v) {
 
 static void ui_button_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_button);
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     char ch = utf8[0]; // TODO: multibyte shortcuts?
     if (ui_view.is_shortcut_key(v, ch)) {
         ui_button_trigger(v);
@@ -154,23 +153,23 @@ static void ui_button_key_pressed(ui_view_t* view, int64_t key) {
 static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     assert(v->type == ui_view_button);
     (void)flags; // unused
-    assert(!v->hidden && !v->disabled);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_button_t* b = (ui_button_t*)v;
-    bool a = v->armed;
+    bool a = v->state.armed;
     bool on = false;
     if (message == ui.message.left_button_pressed ||
         message == ui.message.right_button_pressed) {
-        v->armed = ui_button_hit_test(b, ui_app.mouse);
-        if (v->armed) { ui_app.focus = v; }
-        if (v->armed) { ui_app.show_hint(null, -1, -1, 0); }
+        v->state.armed = ui_button_hit_test(b, ui_app.mouse);
+        if (v->state.armed) { ui_app.focus = v; }
+        if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
     }
     if (message == ui.message.left_button_released ||
         message == ui.message.right_button_released) {
-        if (v->armed) { on = ui_button_hit_test(b, ui_app.mouse); }
-        v->armed = false;
+        if (v->state.armed) { on = ui_button_hit_test(b, ui_app.mouse); }
+        v->state.armed = false;
     }
     if (on) { ui_button_callback(b); }
-    if (a != v->armed) { ui_view.invalidate(v, null); }
+    if (a != v->state.armed) { ui_view.invalidate(v, null); }
 }
 
 static void ui_button_measure(ui_view_t* v) {

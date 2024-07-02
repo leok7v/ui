@@ -4,8 +4,8 @@
 static void ui_slider_invalidate(const ui_slider_t* s) {
     const ui_view_t* v = &s->view;
     ui_view.invalidate(v, null);
-    if (!s->dec.hidden) { ui_view.invalidate(&s->dec, null); }
-    if (!s->inc.hidden) { ui_view.invalidate(&s->dec, null); }
+    if (!s->dec.state.hidden) { ui_view.invalidate(&s->dec, null); }
+    if (!s->inc.state.hidden) { ui_view.invalidate(&s->dec, null); }
 }
 
 static int32_t ui_slider_width_without_insets(const ui_slider_t* s) {
@@ -62,9 +62,9 @@ static void ui_slider_measure(ui_view_t* v) {
     const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
     const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
     s->mt = ui_slider_measure_text(s);
-    assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
+    assert(s->dec.state.hidden == s->inc.state.hidden, "not the same");
     const int32_t sw = ui_slider_width_with_insets(s);
-    if (s->dec.hidden) {
+    if (s->dec.state.hidden) {
         v->w = sw;
     } else {
         v->w = s->dec.w + dec_p.right + sw + inc_p.left + s->inc.w;
@@ -77,7 +77,7 @@ static void ui_slider_measure(ui_view_t* v) {
 static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-    // disregard inc/dec .hidden bit for layout:
+    // disregard inc/dec .state.hidden bit for layout:
     s->dec.x = v->x;
     s->dec.y = v->y;
     s->inc.x = v->x + v->w - s->inc.w;
@@ -92,8 +92,8 @@ static void ui_slider_paint(ui_view_t* v) {
     const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
-    assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
-    const int32_t dx = s->dec.hidden ? 0 : dec_w;
+    assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+    const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
     const int32_t x = v->x + dx + i.left;
     const int32_t w = ui_slider_width_without_insets(s);
     // draw background:
@@ -113,11 +113,11 @@ static void ui_slider_paint(ui_view_t* v) {
     const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
     const int32_t wi = (int32_t)(vw + 0.5);
     ui_gdi.gradient(x, v->y, wi, v->h, d1, d0, true);
-    if (!v->flat) {
-        ui_color_t color = v->hover ?
+    if (!v->state.flat) {
+        ui_color_t color = v->state.hover ?
             ui_colors.get_color(ui_color_id_hot_tracking) :
             ui_colors.get_color(ui_color_id_gray_text);
-        if (v->disabled) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
+        if (ui_view.is_disabled(v)) { color = ui_color_rgb(30, 30, 30); } // TODO: hardcoded
         ui_gdi.frame(x, v->y, w, v->h, color);
     }
     // text:
@@ -136,9 +136,9 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_wh_t mt = ui_slider_measure_text(s);
     const int32_t sw = ui_slider_width_with_insets(s); // slider width
     const int32_t cx = (sw - mt.w) / 2; // centering offset
-    const int32_t tx = v->x + cx + (s->dec.hidden ? 0 : dec_w);
+    const int32_t tx = v->x + cx + (s->dec.state.hidden ? 0 : dec_w);
     const int32_t ty = v->y + i.top;
-    const ui_color_t text_color = !v->hover ? v->color :
+    const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, tx, ty, "%s", text);
@@ -146,7 +146,7 @@ static void ui_slider_paint(ui_view_t* v) {
 }
 
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
-    if (!v->hidden && !v->disabled) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         assert(v->type == ui_view_slider);
         ui_slider_t* s = (ui_slider_t*)v;
         bool drag = message == ui.message.mouse_move &&
@@ -155,9 +155,9 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             message == ui.message.right_button_pressed || drag) {
             const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
-            assert(s->dec.hidden == s->inc.hidden, "hidden or not together");
+            assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
             const int32_t sw = ui_slider_width_with_insets(s); // slider width
-            const int32_t dx = s->dec.hidden ? 0 : dec_w;
+            const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
             const int32_t vx = v->x + dx;
             const int32_t x = ui_app.mouse.x - vx;
             const int32_t y = ui_app.mouse.y - v->y;
@@ -208,13 +208,13 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
     ui_slider_t* s = (ui_slider_t*)v;
     if (ui_view.is_hidden(v) || ui_view.is_disabled(v)) {
         s->time = 0;
-    } else if (!s->dec.armed && !s->inc.armed) {
+    } else if (!s->dec.state.armed && !s->inc.state.armed) {
         s->time = 0;
     } else {
         if (s->time == 0) {
             s->time = ui_app.now;
         } else if (ui_app.now - s->time > 1.0) {
-            const int32_t sign = s->dec.armed ? -1 : +1;
+            const int32_t sign = s->dec.state.armed ? -1 : +1;
             const int32_t sec = (int32_t)(ui_app.now - s->time + 0.5);
             int32_t initial = ui_app.shift && ui_app.ctrl ? 1000 :
                 ui_app.shift ? 100 : ui_app.ctrl ? 10 : 1;
