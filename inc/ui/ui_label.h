@@ -6,7 +6,7 @@ begin_c
 
 typedef ui_view_t ui_label_t;
 
-void ui_view_init_label(ui_view_t* view);
+void ui_view_init_label(ui_view_t* v);
 
 // label insets and padding left/right are intentionally
 // smaller than button/slider/toggle controls

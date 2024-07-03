@@ -105,10 +105,10 @@ typedef struct ui_view_s {
         bool armed;     // button is pressed but not yet released
         bool hover;     // cursor hovering over the control
         bool pressed;   // for ui_button_t and ui_toggle_t
-        bool focusable; // can be target for keyboard focus
-        bool flat;      // no-border appearance of views
-        bool highlightable; // paint highlight rectangle when hover over label
     } state;
+    bool flat;      // no-border appearance of views
+    bool focusable; // can be target for keyboard focus
+    bool highlightable; // paint highlight rectangle when hover over label
     ui_color_t color;     // interpretation depends on view type
     int32_t    color_id;  // 0 is default meaning use color
     ui_color_t background;    // interpretation depends on view type

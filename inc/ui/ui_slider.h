@@ -23,7 +23,7 @@ typedef struct ui_slider_s {
     bool notched; // true if marked with a notches and has a thumb
 } ui_slider_t;
 
-void ui_view_init_slider(ui_view_t* view);
+void ui_view_init_slider(ui_view_t* v);
 
 void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* r));

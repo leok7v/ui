@@ -19,7 +19,7 @@ typedef struct {
     const char** options;
 } ui_mbx_t;
 
-void ui_view_init_mbx(ui_view_t* view);
+void ui_view_init_mbx(ui_view_t* v);
 
 void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 

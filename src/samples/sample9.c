@@ -422,9 +422,9 @@ static void opened(void) {
     init_panel(&panel_bottom, "bottom", ui_colors.tone_blue, panel_paint);
     init_panel(&panel_right,  "right",  ui_colors.tone_green, right_paint);
     panel_right.layout = right_layout;
-    label_single_line.state.highlightable = true;
-    label_single_line.state.flat = true;
-    label_multiline.state.highlightable = true;
+    label_single_line.highlightable = true;
+    label_single_line.flat = true;
+    label_multiline.highlightable = true;
     ut_str_printf(label_multiline.hint, "%s",
         "Ctrl+C or Right Mouse click to copy text to clipboard");
     ui_view.set_text(&label_multiline, "%s", ut_nls.string(str_help, ""));

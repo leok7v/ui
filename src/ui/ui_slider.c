@@ -147,7 +147,7 @@ if (s->debug.trace.mt) {
     const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
     const int32_t wi = (int32_t)(vw + 0.5);
     ui_gdi.gradient(x, v->y, wi, v->h, d1, d0, true);
-    if (!v->state.flat) {
+    if (!v->flat) {
         ui_color_t color = v->state.hover ?
             ui_colors.get_color(ui_color_id_hot_tracking) :
             ui_colors.get_color(ui_color_id_gray_text);
@@ -338,11 +338,11 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
         int32_t value_min, int32_t value_max,
         void (*callback)(ui_view_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
-    assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
+    if (min_w_em < 6.0) { traceln("6.0 em minimum"); }
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
     s->callback = callback;
-    s->min_w_em = min_w_em;
+    s->min_w_em = ut_max(6.0f, min_w_em);
     s->value_min = value_min;
     s->value_max = value_max;
     s->value = value_min;

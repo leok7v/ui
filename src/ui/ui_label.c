@@ -5,7 +5,7 @@ static void ui_label_paint(ui_view_t* v) {
     assert(v->type == ui_view_label);
     assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
-    ui_color_t c = v->state.hover && v->state.highlightable ?
+    ui_color_t c = v->state.hover && v->highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
         v->color;
     const int32_t tx = v->x + v->text.xy.x;
@@ -18,7 +18,7 @@ static void ui_label_paint(ui_view_t* v) {
     } else {
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
-    if (v->state.hover && !v->state.flat && v->state.highlightable) {
+    if (v->state.hover && !v->flat && v->highlightable) {
         ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
         int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;

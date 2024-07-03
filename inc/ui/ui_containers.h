@@ -47,9 +47,9 @@ typedef struct ui_view_s ui_view_t;
     .color_id = 0                       \
 }
 
-void ui_view_init_stack(ui_view_t* view);
-void ui_view_init_span(ui_view_t* view);
-void ui_view_init_list(ui_view_t* view);
-void ui_view_init_spacer(ui_view_t* view);
+void ui_view_init_stack(ui_view_t* v);
+void ui_view_init_span(ui_view_t* v);
+void ui_view_init_list(ui_view_t* v);
+void ui_view_init_spacer(ui_view_t* v);
 
 end_c

@@ -1451,6 +1451,8 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
+static bool ui_app_set_focus(ui_view_t* unused(v)) { return false; }
+
 static void ui_app_request_redraw(void) {  // < 2us
     SetEvent(ui_app_event_invalidate);
 }
@@ -2068,6 +2070,10 @@ static void ui_app_init(void) {
     ui_app.root    = &ui_app_view;
     ui_app.content = &ui_app_content;
     ui_app.caption = &ui_caption.view;
+    ui_app.root->focusable = true;
+    ui_app.content->focusable = true;
+    ui_app.root->set_focus    = ui_app_set_focus; // children only
+    ui_app.content->set_focus = ui_app_set_focus; // children only
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
     assert(ui_app.content->type == ui_view_stack);

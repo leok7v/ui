@@ -7,7 +7,6 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
         v->p.armed_until = 0;
         v->state.armed = false;
         ui_view.invalidate(v, null);
-        traceln("ui_view.invalidate(v, null)");
     }
 }
 
@@ -24,7 +23,7 @@ static void ui_button_paint(ui_view_t* v) {
     const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     const fp32_t d2 = d / 2;
-    if (v->state.flat) {
+    if (v->flat) {
         if (v->state.hover) {
             ui_color_t d1 = ui_theme.is_app_dark() ?
                     ui_colors.lighten(v->background, d2) :
@@ -96,15 +95,17 @@ static void ui_button_trigger(ui_view_t* v) {
 static void ui_button_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_button);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
-    char ch = utf8[0]; // TODO: multibyte shortcuts?
+    char ch = utf8[0]; // TODO: multibyte utf8 shortcuts?
     if (ui_view.is_shortcut_key(v, ch)) {
         ui_button_trigger(v);
     }
 }
 
-static void ui_button_key_pressed(ui_view_t* view, int64_t key) {
-    if (ui_app.alt && ui_view.is_shortcut_key(view, key)) {
-        ui_button_trigger(view);
+static void ui_button_key_pressed(ui_view_t* v, int64_t key) {
+    assert(v->type == ui_view_button);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    if (ui_app.alt && ui_view.is_shortcut_key(v, key)) {
+        ui_button_trigger(v);
     }
 }
 
@@ -115,21 +116,26 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     (void)flags; // unused
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_button_t* b = (ui_button_t*)v;
-    bool a = v->state.armed;
-    bool on = false;
-    if (message == ui.message.left_button_pressed ||
-        message == ui.message.right_button_pressed) {
+    const bool was_armed = v->state.armed;
+    const bool pressed =
+        message == ui.message.left_button_pressed ||
+        message == ui.message.right_button_pressed;
+    if (pressed && !v->state.armed && !v->p.armed_until) {
         v->state.armed = ui_button_hit_test(b, ui_app.mouse);
+        if (was_armed != v->state.armed) { ui_view.invalidate(v, null); }
         if (v->state.armed) { ui_app.focus = v; }
         if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
     }
-    if (message == ui.message.left_button_released ||
-        message == ui.message.right_button_released) {
-        if (v->state.armed) { on = ui_button_hit_test(b, ui_app.mouse); }
-        v->state.armed = false;
+    const bool released =
+        message == ui.message.left_button_released ||
+        message == ui.message.right_button_released;
+    if (released && v->state.armed && !v->p.armed_until) {
+        if (ui_button_hit_test(b, ui_app.mouse)) {
+            ui_view.invalidate(v, null);
+            v->p.armed_until = ui_app.now + 0.250;
+            ui_button_callback(b);
+        }
     }
-    if (on) { ui_button_callback(b); }
-    if (a != v->state.armed) { ui_view.invalidate(v, null); }
 }
 
 static void ui_button_measure(ui_view_t* v) {

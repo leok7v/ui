@@ -863,10 +863,10 @@ typedef struct ui_view_s {
         bool armed;     // button is pressed but not yet released
         bool hover;     // cursor hovering over the control
         bool pressed;   // for ui_button_t and ui_toggle_t
-        bool focusable; // can be target for keyboard focus
-        bool flat;      // no-border appearance of views
-        bool highlightable; // paint highlight rectangle when hover over label
     } state;
+    bool flat;      // no-border appearance of views
+    bool focusable; // can be target for keyboard focus
+    bool highlightable; // paint highlight rectangle when hover over label
     ui_color_t color;     // interpretation depends on view type
     int32_t    color_id;  // 0 is default meaning use color
     ui_color_t background;    // interpretation depends on view type
@@ -1458,7 +1458,7 @@ extern layouts_if layouts;
 
 typedef ui_view_t ui_label_t;
 
-void ui_view_init_label(ui_view_t* view);
+void ui_view_init_label(ui_view_t* v);
 
 // label insets and padding left/right are intentionally
 // smaller than button/slider/toggle controls
@@ -1496,7 +1496,7 @@ void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_lis
 
 typedef ui_view_t ui_button_t;
 
-void ui_view_init_button(ui_view_t* view);
+void ui_view_init_button(ui_view_t* v);
 
 void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     void (*callback)(ui_button_t* b));
@@ -1590,7 +1590,7 @@ typedef struct ui_slider_s {
     bool notched; // true if marked with a notches and has a thumb
 } ui_slider_t;
 
-void ui_view_init_slider(ui_view_t* view);
+void ui_view_init_slider(ui_view_t* v);
 
 void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* r));
@@ -1681,7 +1681,7 @@ typedef ui_view_t ui_toggle_t;
 void ui_toggle_init(ui_toggle_t* b, const char* label, fp32_t ems,
     void (*callback)(ui_toggle_t* b));
 
-void ui_view_init_toggle(ui_view_t* view);
+void ui_view_init_toggle(ui_view_t* v);
 
 // ui_toggle_on_off can only be used on static toggle variables
 
@@ -1746,7 +1746,7 @@ typedef struct {
     const char** options;
 } ui_mbx_t;
 
-void ui_view_init_mbx(ui_view_t* view);
+void ui_view_init_mbx(ui_view_t* v);
 
 void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 
@@ -2043,10 +2043,10 @@ typedef struct ui_view_s ui_view_t;
     .color_id = 0                       \
 }
 
-void ui_view_init_stack(ui_view_t* view);
-void ui_view_init_span(ui_view_t* view);
-void ui_view_init_list(ui_view_t* view);
-void ui_view_init_spacer(ui_view_t* view);
+void ui_view_init_stack(ui_view_t* v);
+void ui_view_init_span(ui_view_t* v);
+void ui_view_init_list(ui_view_t* v);
+void ui_view_init_spacer(ui_view_t* v);
 
 
 end_c
@@ -3508,6 +3508,8 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
+static bool ui_app_set_focus(ui_view_t* unused(v)) { return false; }
+
 static void ui_app_request_redraw(void) {  // < 2us
     SetEvent(ui_app_event_invalidate);
 }
@@ -4125,6 +4127,10 @@ static void ui_app_init(void) {
     ui_app.root    = &ui_app_view;
     ui_app.content = &ui_app_content;
     ui_app.caption = &ui_caption.view;
+    ui_app.root->focusable = true;
+    ui_app.content->focusable = true;
+    ui_app.root->set_focus    = ui_app_set_focus; // children only
+    ui_app.content->set_focus = ui_app_set_focus; // children only
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
     assert(ui_app.content->type == ui_view_stack);
@@ -4397,7 +4403,6 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
         v->p.armed_until = 0;
         v->state.armed = false;
         ui_view.invalidate(v, null);
-        traceln("ui_view.invalidate(v, null)");
     }
 }
 
@@ -4414,7 +4419,7 @@ static void ui_button_paint(ui_view_t* v) {
     const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     const fp32_t d2 = d / 2;
-    if (v->state.flat) {
+    if (v->flat) {
         if (v->state.hover) {
             ui_color_t d1 = ui_theme.is_app_dark() ?
                     ui_colors.lighten(v->background, d2) :
@@ -4486,15 +4491,17 @@ static void ui_button_trigger(ui_view_t* v) {
 static void ui_button_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_button);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
-    char ch = utf8[0]; // TODO: multibyte shortcuts?
+    char ch = utf8[0]; // TODO: multibyte utf8 shortcuts?
     if (ui_view.is_shortcut_key(v, ch)) {
         ui_button_trigger(v);
     }
 }
 
-static void ui_button_key_pressed(ui_view_t* view, int64_t key) {
-    if (ui_app.alt && ui_view.is_shortcut_key(view, key)) {
-        ui_button_trigger(view);
+static void ui_button_key_pressed(ui_view_t* v, int64_t key) {
+    assert(v->type == ui_view_button);
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    if (ui_app.alt && ui_view.is_shortcut_key(v, key)) {
+        ui_button_trigger(v);
     }
 }
 
@@ -4505,21 +4512,26 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     (void)flags; // unused
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_button_t* b = (ui_button_t*)v;
-    bool a = v->state.armed;
-    bool on = false;
-    if (message == ui.message.left_button_pressed ||
-        message == ui.message.right_button_pressed) {
+    const bool was_armed = v->state.armed;
+    const bool pressed =
+        message == ui.message.left_button_pressed ||
+        message == ui.message.right_button_pressed;
+    if (pressed && !v->state.armed && !v->p.armed_until) {
         v->state.armed = ui_button_hit_test(b, ui_app.mouse);
+        if (was_armed != v->state.armed) { ui_view.invalidate(v, null); }
         if (v->state.armed) { ui_app.focus = v; }
         if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
     }
-    if (message == ui.message.left_button_released ||
-        message == ui.message.right_button_released) {
-        if (v->state.armed) { on = ui_button_hit_test(b, ui_app.mouse); }
-        v->state.armed = false;
+    const bool released =
+        message == ui.message.left_button_released ||
+        message == ui.message.right_button_released;
+    if (released && v->state.armed && !v->p.armed_until) {
+        if (ui_button_hit_test(b, ui_app.mouse)) {
+            ui_view.invalidate(v, null);
+            v->p.armed_until = ui_app.now + 0.250;
+            ui_button_callback(b);
+        }
     }
-    if (on) { ui_button_callback(b); }
-    if (a != v->state.armed) { ui_view.invalidate(v, null); }
 }
 
 static void ui_button_measure(ui_view_t* v) {
@@ -4699,7 +4711,7 @@ static void ui_caption_measured(ui_view_t* v) {
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
             it->fm = &ui_app.fm.mono;
-            it->state.flat = true;
+            it->flat = true;
             ui_caption_button_measure(it);
         }
     });
@@ -9229,7 +9241,7 @@ static bool ui_edit_set_focus(ui_view_t* v) {
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     assert(ui_app.focus == v || ui_app.focus == null);
-    assert(v->state.focusable);
+    assert(v->focusable);
     ui_app.focus = v;
     if (ui_app.has_focus() && !e->focused) {
         ui_edit_create_caret(e);
@@ -9593,7 +9605,7 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->min_w_em = 1.0;
     e->min_h_em = 1.0;
     e->type = ui_view_text;
-    e->state.focusable = true;
+    e->focusable = true;
     e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
     e->last_x    = -1;
     e->focused   = false;
@@ -10745,7 +10757,7 @@ static void ui_label_paint(ui_view_t* v) {
     assert(v->type == ui_view_label);
     assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
-    ui_color_t c = v->state.hover && v->state.highlightable ?
+    ui_color_t c = v->state.hover && v->highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
         v->color;
     const int32_t tx = v->x + v->text.xy.x;
@@ -10758,7 +10770,7 @@ static void ui_label_paint(ui_view_t* v) {
     } else {
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
-    if (v->state.hover && !v->state.flat && v->state.highlightable) {
+    if (v->state.hover && !v->flat && v->highlightable) {
         ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
         int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
@@ -11255,7 +11267,7 @@ if (s->debug.trace.mt) {
     const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
     const int32_t wi = (int32_t)(vw + 0.5);
     ui_gdi.gradient(x, v->y, wi, v->h, d1, d0, true);
-    if (!v->state.flat) {
+    if (!v->flat) {
         ui_color_t color = v->state.hover ?
             ui_colors.get_color(ui_color_id_hot_tracking) :
             ui_colors.get_color(ui_color_id_gray_text);
@@ -11446,11 +11458,11 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
         int32_t value_min, int32_t value_max,
         void (*callback)(ui_view_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
-    assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
+    if (min_w_em < 6.0) { traceln("6.0 em minimum"); }
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
     s->callback = callback;
-    s->min_w_em = min_w_em;
+    s->min_w_em = ut_max(6.0f, min_w_em);
     s->value_min = value_min;
     s->value_max = value_max;
     s->value = value_min;
@@ -12165,6 +12177,18 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     }
 }
 
+static void ui_view_update_shortcut(ui_view_t* v) {
+    if (ui_view.is_control(v) && v->type != ui_view_text &&
+        v->shortcut == 0x00) {
+        const char* s = ui_view.string(v);
+        const char* a = strchr(s, '&');
+        if (a != null && a[1] != 0 && a[1] != '&') {
+            // TODO: utf-8 shortcuts? possible
+            v->shortcut = a[1];
+        }
+    }
+}
+
 static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     char t[countof(v->p.text)];
     ut_str.format_va(t, countof(t), format, va);
@@ -12172,16 +12196,8 @@ static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);
         memcpy(s, t, (size_t)n + 1);
-        v->p.strid = 0; // next call to nls() will localize it
-        // TODO: we need both "&Keyboard Shortcut" and no shortcut
-        //       strings. In here, bit that tells the story and DrawText
-        for (int32_t i = 0; i < n; i++) {
-            if (s[i] == '&' && i < n - 1 &&
-                s[i + 1] != '&') {
-                v->shortcut = s[i + 1];
-                break;
-            }
-        }
+        v->p.strid = 0;  // next call to nls() will localize it
+        ui_view_update_shortcut(v);
         ui_app.request_layout();
     }
 }
@@ -12270,7 +12286,10 @@ static void ui_view_every_100ms(ui_view_t* v) {
 
 static void ui_view_key_pressed(ui_view_t* v, int64_t k) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        if (v->key_pressed != null) { v->key_pressed(v, k); }
+        if (v->key_pressed != null) {
+            ui_view_update_shortcut(v);
+            v->key_pressed(v, k);
+        }
         ui_view_for_each(v, c, { ui_view_key_pressed(c, k); });
     }
 }
@@ -12284,7 +12303,10 @@ static void ui_view_key_released(ui_view_t* v, int64_t k) {
 
 static void ui_view_character(ui_view_t* v, const char* utf8) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        if (v->character != null) { v->character(v, utf8); }
+        if (v->character != null) {
+            ui_view_update_shortcut(v);
+            v->character(v, utf8);
+        }
         ui_view_for_each(v, c, { ui_view_character(c, utf8); });
     }
 }
@@ -12326,14 +12348,15 @@ static bool ui_view_set_focus(ui_view_t* v) {
         });
         // if no children claimed focus and control itself is
         // focusable set focus on it:
-        if (!set && v->state.focusable) {
+        if (!set && v->focusable) {
             ui_view_t* focused = ui_app.focus;
             ui_app.focus = null;
             if (focused != null) { ui_view.kill_focus(focused); }
             if (v->set_focus != null) {
                 set = v->set_focus(v);
             } else {
-                traceln("setting focus to view that does not implement set_focus()");
+                traceln("setting focus to view %s that does "
+                        "not implement set_focus()", v->p.text);
                 ui_app.focus = v;
                 set = true;
             }
@@ -12392,7 +12415,7 @@ static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
             if (v->mouse != null) { v->mouse(v, m, f); }
             ui_view_for_each(v, c, { ui_view_mouse(c, m, f); } );
         }
-        if (!ui_view.is_disabled(v) && click && v->state.focusable &&
+        if (!ui_view.is_disabled(v) && click && v->focusable &&
              ui_view.inside(v, &ui_app.mouse)) {
             ui_view.set_focus(v);
         }

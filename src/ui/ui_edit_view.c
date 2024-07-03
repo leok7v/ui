@@ -1329,7 +1329,7 @@ static bool ui_edit_set_focus(ui_view_t* v) {
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     assert(ui_app.focus == v || ui_app.focus == null);
-    assert(v->state.focusable);
+    assert(v->focusable);
     ui_app.focus = v;
     if (ui_app.has_focus() && !e->focused) {
         ui_edit_create_caret(e);
@@ -1693,7 +1693,7 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->min_w_em = 1.0;
     e->min_h_em = 1.0;
     e->type = ui_view_text;
-    e->state.focusable = true;
+    e->focusable = true;
     e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
     e->last_x    = -1;
     e->focused   = false;

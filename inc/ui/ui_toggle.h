@@ -10,7 +10,7 @@ typedef ui_view_t ui_toggle_t;
 void ui_toggle_init(ui_toggle_t* b, const char* label, fp32_t ems,
     void (*callback)(ui_toggle_t* b));
 
-void ui_view_init_toggle(ui_view_t* view);
+void ui_view_init_toggle(ui_view_t* v);
 
 // ui_toggle_on_off can only be used on static toggle variables
 

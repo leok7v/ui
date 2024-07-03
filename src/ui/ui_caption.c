@@ -148,7 +148,7 @@ static void ui_caption_measured(ui_view_t* v) {
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
             it->fm = &ui_app.fm.mono;
-            it->state.flat = true;
+            it->flat = true;
             ui_caption_button_measure(it);
         }
     });

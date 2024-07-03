@@ -156,7 +156,7 @@ static void dark_light(ui_toggle_t* b) {
 
 static void insert_into_caption(ui_button_t* b, const char* hint) {
     ut_str_printf(b->hint, "%s", hint);
-    b->state.flat = true;
+    b->flat = true;
     b->padding = (ui_gaps_t){0,0,0,0};
     b->insets  = (ui_gaps_t){0,0,0,0};
     b->align   = ui.align.top;
@@ -443,7 +443,7 @@ static void controls_test(ui_view_t* parent) {
     static ui_button_t button1 = ui_button("&Button", 6.0f, null);
     static ui_button_t buttonE = ui_button(test_string,
                                            6.0f, null);
-    static ui_slider_t slider1 = ui_slider("%d", 8.0f, 0, UINT16_MAX,
+    static ui_slider_t slider1 = ui_slider("%d", 6.0f, 0, UINT16_MAX,
                                            slider_format, slider_callback);
     static ui_slider_t sliderE = ui_slider(test_string,
                                            6.0f, 0, 4, null, null);
@@ -492,7 +492,6 @@ static void controls_test(ui_view_t* parent) {
 // slider3.dec.debug.paint.gaps = true;
  //slider3.view.debug.trace.mt = true;
 // gaps.debug.trace.mt = true;
-//buttonE.debug.trace.mt = true;
     list.debug.paint.gaps = true;
     span.align = ui.align.left;
 //  list.background = ui_color_rgb(0x2E, 0x2E, 0x2E);

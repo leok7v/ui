@@ -378,6 +378,18 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     }
 }
 
+static void ui_view_update_shortcut(ui_view_t* v) {
+    if (ui_view.is_control(v) && v->type != ui_view_text &&
+        v->shortcut == 0x00) {
+        const char* s = ui_view.string(v);
+        const char* a = strchr(s, '&');
+        if (a != null && a[1] != 0 && a[1] != '&') {
+            // TODO: utf-8 shortcuts? possible
+            v->shortcut = a[1];
+        }
+    }
+}
+
 static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     char t[countof(v->p.text)];
     ut_str.format_va(t, countof(t), format, va);
@@ -385,16 +397,8 @@ static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);
         memcpy(s, t, (size_t)n + 1);
-        v->p.strid = 0; // next call to nls() will localize it
-        // TODO: we need both "&Keyboard Shortcut" and no shortcut
-        //       strings. In here, bit that tells the story and DrawText
-        for (int32_t i = 0; i < n; i++) {
-            if (s[i] == '&' && i < n - 1 &&
-                s[i + 1] != '&') {
-                v->shortcut = s[i + 1];
-                break;
-            }
-        }
+        v->p.strid = 0;  // next call to nls() will localize it
+        ui_view_update_shortcut(v);
         ui_app.request_layout();
     }
 }
@@ -483,7 +487,10 @@ static void ui_view_every_100ms(ui_view_t* v) {
 
 static void ui_view_key_pressed(ui_view_t* v, int64_t k) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        if (v->key_pressed != null) { v->key_pressed(v, k); }
+        if (v->key_pressed != null) {
+            ui_view_update_shortcut(v);
+            v->key_pressed(v, k);
+        }
         ui_view_for_each(v, c, { ui_view_key_pressed(c, k); });
     }
 }
@@ -497,7 +504,10 @@ static void ui_view_key_released(ui_view_t* v, int64_t k) {
 
 static void ui_view_character(ui_view_t* v, const char* utf8) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        if (v->character != null) { v->character(v, utf8); }
+        if (v->character != null) {
+            ui_view_update_shortcut(v);
+            v->character(v, utf8);
+        }
         ui_view_for_each(v, c, { ui_view_character(c, utf8); });
     }
 }
@@ -539,14 +549,15 @@ static bool ui_view_set_focus(ui_view_t* v) {
         });
         // if no children claimed focus and control itself is
         // focusable set focus on it:
-        if (!set && v->state.focusable) {
+        if (!set && v->focusable) {
             ui_view_t* focused = ui_app.focus;
             ui_app.focus = null;
             if (focused != null) { ui_view.kill_focus(focused); }
             if (v->set_focus != null) {
                 set = v->set_focus(v);
             } else {
-                traceln("setting focus to view that does not implement set_focus()");
+                traceln("setting focus to view %s that does "
+                        "not implement set_focus()", v->p.text);
                 ui_app.focus = v;
                 set = true;
             }
@@ -605,7 +616,7 @@ static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
             if (v->mouse != null) { v->mouse(v, m, f); }
             ui_view_for_each(v, c, { ui_view_mouse(c, m, f); } );
         }
-        if (!ui_view.is_disabled(v) && click && v->state.focusable &&
+        if (!ui_view.is_disabled(v) && click && v->focusable &&
              ui_view.inside(v, &ui_app.mouse)) {
             ui_view.set_focus(v);
         }
