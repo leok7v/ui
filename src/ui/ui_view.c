@@ -731,6 +731,7 @@ static bool ui_view_is_spacer(const ui_view_t* v) {
 static bool ui_view_is_control(const ui_view_t* v) {
     return  v->type == ui_view_text   ||
             v->type == ui_view_label  ||
+            v->type == ui_view_toggle ||
             v->type == ui_view_button ||
             v->type == ui_view_slider ||
             v->type == ui_view_mbx;

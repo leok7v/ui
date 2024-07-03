@@ -487,11 +487,11 @@ static void controls_test(ui_view_t* parent) {
             align(&spacer,       ui.align.left),
         null),
     null);
-// slider1.view.debug.trace.mt = true;
-// slider3.dec.debug.trace.mt = true;
-// slider3.dec.debug.paint.gaps = true;
- //slider3.view.debug.trace.mt = true;
-// gaps.debug.trace.mt = true;
+//  slider1.view.debug.trace.mt = true;
+//  slider3.dec.debug.trace.mt = true;
+//  slider3.dec.debug.paint.gaps = true;
+//  slider3.view.debug.trace.mt = true;
+//  gaps.debug.trace.mt = true;
     list.debug.paint.gaps = true;
     span.align = ui.align.left;
 //  list.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
