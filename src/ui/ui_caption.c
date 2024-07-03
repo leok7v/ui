@@ -11,12 +11,12 @@
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest  ut_glyph_desktop_window
+#define ui_caption_glyph_rest  ut_glyph_white_square_with_upper_right_quadrant // instead of ut_glyph_desktop_window
 #define ui_caption_glyph_menu  ut_glyph_trigram_for_heaven
 #define ui_caption_glyph_dark  ut_glyph_crescent_moon
 #define ui_caption_glyph_light ut_glyph_white_sun_with_rays
 #define ui_caption_glyph_mini  ut_glyph_minimize
-#define ui_caption_glyph_maxi  ut_glyph_maximize
+#define ui_caption_glyph_maxi  ut_glyph_white_square_with_lower_left_quadrant // instead of ut_glyph_maximize
 #define ui_caption_glyph_full  ut_glyph_square_four_corners
 #define ui_caption_glyph_quit  ut_glyph_cancellation_x
 
@@ -113,17 +113,25 @@ static ui_color_t ui_caption_color(void) {
     return c;
 }
 
+static const ui_gaps_t ui_caption_button_button_padding =
+    { .left  = 0.25,  .top    = 0.0,
+      .right = 0.25,  .bottom = 0.0};
+
 static void ui_caption_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    v->w = ui_app.caption_height;
-    v->h = ui_app.caption_height;
-//  traceln("%dx%d", v->w, v->h);
+    ui_view.measure_control(v);
+    const int32_t dx = ui_app.caption_height - v->w;
+    const int32_t dy = ui_app.caption_height - v->h;
+    v->w += dx;
+    v->h += dy;
+    v->text.xy.x += dx / 2;
+    v->text.xy.y += dy / 2;
+    v->padding = ui_caption_button_button_padding;
 }
 
 static void ui_caption_button_icon_paint(ui_view_t* v) {
     int32_t w = v->w;
     int32_t h = v->h;
-//  swear(w == h && h == ui_app.caption_height);
     while (h > 16 && (h & (h - 1)) != 0) { h--; }
     w = h;
     int32_t dx = (v->w - w) / 2;
@@ -136,6 +144,14 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 }
 
 static void ui_caption_measured(ui_view_t* v) {
+    // remeasure all child buttons with hard override:
+    ui_view_for_each(v, it, {
+        if (it->type == ui_view_button) {
+            it->fm = &ui_app.fm.mono;
+            it->state.flat = true;
+            ui_caption_button_measure(it);
+        }
+    });
     // do not show title if there is not enough space
     ui_caption.title.state.hidden = v->w > ui_app.root->w;
     v->w = ui_app.root->w;
@@ -156,7 +172,7 @@ static void ui_caption_paint(ui_view_t* v) {
 static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
-    ui_caption.view.insets = (ui_gaps_t){ 0.125, 0.25, 0.125, 0.25 };
+    ui_caption.view.insets = (ui_gaps_t){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
     v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,
@@ -175,18 +191,12 @@ static void ui_caption_init(ui_view_t* v) {
                                   .right = 0.0,   .bottom = 0.0};
     static const ui_gaps_t pd = { .left  = 0.25,  .top    = 0.0,
                                   .right = 0.25,  .bottom = 0.0};
-    static const ui_gaps_t pb = { .left  = 0.25,  .top    = 0.0,
-                                  .right = 0.25,  .bottom = 0.0};
     static const ui_gaps_t in = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
         c->fm = &ui_app.fm.regular;
         c->color_id = ui_caption.view.color_id;
-        if (c->type == ui_view_button) {
-            c->padding = pb;
-            c->state.flat = true;
-            c->measure = ui_caption_button_measure;
-        } else {
+        if (c->type != ui_view_button) {
             c->padding = pd;
         }
         c->insets  = in;
@@ -200,15 +210,14 @@ static void ui_caption_init(ui_view_t* v) {
     strprintf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
     strprintf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
     strprintf(ui_caption.quit.hint, "%s", ut_nls.str("Close"));
-    ui_caption.icon.icon = ui_app.icon;
-    ui_caption.icon.padding = p0;
-    ui_caption.icon.paint = ui_caption_button_icon_paint;
-    ui_caption.view.align = ui.align.left;
-    // TODO: this does not help because parent layout will set x and w again
-    ui_caption.view.prepare = ui_caption_prepare;
+    ui_caption.icon.icon     = ui_app.icon;
+    ui_caption.icon.padding  = p0;
+    ui_caption.icon.paint    = ui_caption_button_icon_paint;
+    ui_caption.view.align    = ui.align.left;
+    ui_caption.view.prepare  = ui_caption_prepare;
     ui_caption.view.measured = ui_caption_measured;
     ui_caption.view.composed = ui_caption_composed;
-    ui_view.set_text(&ui_caption.view, "ui_caption"); // for debugging
+    ui_view.set_text(&ui_caption.view, "#ui_caption"); // for debugging
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
     ui_caption_mode_appearance();

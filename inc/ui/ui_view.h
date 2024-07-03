@@ -41,6 +41,10 @@ typedef struct ui_view_s {
     int32_t h;
     ui_gaps_t insets;
     ui_gaps_t padding;
+    struct { // ui_view.measure_text() fills these attributes:
+        ui_point_t xy; // text offset inside view
+        ui_wh_t    mt; // text width and height
+    } text;
     // see ui.alignment values
     int32_t align; // align inside parent
     int32_t text_align; // align of the text inside control
@@ -51,7 +55,7 @@ typedef struct ui_view_s {
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
     ui_fm_t* fm; // font metrics
-    int32_t shortcut; // keyboard shortcut
+    int32_t  shortcut; // keyboard shortcut
     void* that;  // for the application use
     void (*notify)(ui_view_t* v, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
@@ -174,8 +178,8 @@ typedef struct ui_view_if {
         const ui_fm_t* fm, const char* format, va_list va);
     ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, ...);
-    // measure_text() returns x,y inside view according to text_align:
-    ui_point_t (*measure_text)(ui_view_t* v);
+    // measure_control(): control is special case with v->text.mt and .xy
+    void (*measure_control)(ui_view_t* v);
     void (*measure_children)(ui_view_t* v);
     void (*layout_children)(ui_view_t* v);
     void (*measure)(ui_view_t* v);

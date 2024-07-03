@@ -792,6 +792,10 @@ typedef struct ui_view_s {
     int32_t h;
     ui_gaps_t insets;
     ui_gaps_t padding;
+    struct { // ui_view.measure_text() fills these attributes:
+        ui_point_t xy; // text offset inside view
+        ui_wh_t    mt; // text width and height
+    } text;
     // see ui.alignment values
     int32_t align; // align inside parent
     int32_t text_align; // align of the text inside control
@@ -802,7 +806,7 @@ typedef struct ui_view_s {
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
     ui_fm_t* fm; // font metrics
-    int32_t shortcut; // keyboard shortcut
+    int32_t  shortcut; // keyboard shortcut
     void* that;  // for the application use
     void (*notify)(ui_view_t* v, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
@@ -925,8 +929,8 @@ typedef struct ui_view_if {
         const ui_fm_t* fm, const char* format, va_list va);
     ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, ...);
-    // measure_text() returns x,y inside view according to text_align:
-    ui_point_t (*measure_text)(ui_view_t* v);
+    // measure_control(): control is special case with v->text.mt and .xy
+    void (*measure_control)(ui_view_t* v);
     void (*measure_children)(ui_view_t* v);
     void (*layout_children)(ui_view_t* v);
     void (*measure)(ui_view_t* v);
@@ -1824,6 +1828,7 @@ typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
     int32_t monitor_effective; // effective with regard of user scaling
     int32_t monitor_raw;       // with regard of physical screen size
     int32_t monitor_angular;   // diagonal raw
+    int32_t monitor_max;       // maximum of effective,raw,angular
     int32_t window;            // main window dpi
 } ui_dpi_t;
 
@@ -2122,6 +2127,7 @@ static void ui_app_update_ncm(int32_t dpi) {
 }
 
 static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
+    dpi->monitor_max = 72;
     for (int32_t mtd = MDT_EFFECTIVE_DPI; mtd <= MDT_RAW_DPI; mtd++) {
         uint32_t dpi_x = 0;
         uint32_t dpi_y = 0;
@@ -2138,22 +2144,33 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
             r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
         }
         if (r == 0) {
-//          const char* names[] = {"EFFECTIVE_DPI", "ANGULAR_DPI","RAW_DPI"};
-//          traceln("%s %d %d", names[mtd], dpi_x, dpi_y);
             // EFFECTIVE_DPI 168 168 (with regard of user scaling)
             // ANGULAR_DPI 247 248 (diagonal)
             // RAW_DPI 283 284 (horizontal, vertical)
+            // Parallels Desktop 16.5.0 (49183) on macOS Mac Book Air
+            // EFFECTIVE_DPI 192 192 (with regard of user scaling)
+            // ANGULAR_DPI 224 224 (diagonal)
+            // RAW_DPI 72 72
+            const int32_t max_xy = (int32_t)ut_max(dpi_x, dpi_y);
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
-                    dpi->monitor_effective = (int32_t)ut_max(dpi_x, dpi_y); break;
+                    dpi->monitor_effective = max_xy;
+//                  traceln("ui_app.dpi.monitor_effective := max(%d,%d)", dpi_x, dpi_y);
+                    break;
                 case MDT_ANGULAR_DPI:
-                    dpi->monitor_angular = (int32_t)ut_max(dpi_x, dpi_y); break;
+                    dpi->monitor_angular = max_xy;
+//                  traceln("ui_app.dpi.monitor_angular := max(%d,%d)", dpi_x, dpi_y);
+                    break;
                 case MDT_RAW_DPI:
-                    dpi->monitor_raw = (int32_t)ut_max(dpi_x, dpi_y); break;
+                    dpi->monitor_raw = max_xy;
+//                  traceln("ui_app.dpi.monitor_raw := max(%d,%d)", dpi_x, dpi_y);
+                    break;
                 default: assert(false);
             }
+            dpi->monitor_max = ut_max(dpi->monitor_max, max_xy);
         }
     }
+//  traceln("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
 }
 
 #ifndef QUICK_DEBUG
@@ -2162,6 +2179,7 @@ static void ui_app_dump_dpi(void) {
     traceln("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
     traceln("ui_app.dpi.monitor_angular  : %d", ui_app.dpi.monitor_angular    );
     traceln("ui_app.dpi.monitor_raw      : %d", ui_app.dpi.monitor_raw        );
+    traceln("ui_app.dpi.monitor_max      : %d", ui_app.dpi.monitor_max        );
     traceln("ui_app.dpi.window           : %d", ui_app.dpi.window             );
     traceln("ui_app.dpi.system           : %d", ui_app.dpi.system             );
     traceln("ui_app.dpi.process          : %d", ui_app.dpi.process            );
@@ -2178,8 +2196,8 @@ static void ui_app_dump_dpi(void) {
     traceln("MAXTRACK: %d, %d", mxt_x, mxt_y);
     int32_t scr_x = GetSystemMetrics(SM_CXSCREEN);
     int32_t scr_y = GetSystemMetrics(SM_CYSCREEN);
-    fp64_t monitor_x = (fp64_t)scr_x / (fp64_t)ui_app.dpi.monitor_raw;
-    fp64_t monitor_y = (fp64_t)scr_y / (fp64_t)ui_app.dpi.monitor_raw;
+    fp64_t monitor_x = (fp64_t)scr_x / (fp64_t)ui_app.dpi.monitor_max;
+    fp64_t monitor_y = (fp64_t)scr_y / (fp64_t)ui_app.dpi.monitor_max;
     traceln("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
 }
 
@@ -2337,7 +2355,7 @@ static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump)
             .x = GetSystemMetrics(SM_CXMAXTRACK),
             .y = GetSystemMetrics(SM_CYMAXTRACK)
         },
-        .dpi = ui_app.dpi.monitor_raw,
+        .dpi = ui_app.dpi.monitor_max,
         .flags = (int32_t)wpl.flags,
         .show  = (int32_t)wpl.showCmd
     };
@@ -2435,8 +2453,8 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
             rect->y = (wiw.placement.y - wiw.mrc.y) * ui_app.mrc.h / wiw.mrc.h;
             // adjust according to monitors DPI difference:
             // (w, h) theoretically could be as large as 0xFFFF
-            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_raw;
-            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_raw;
+            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_max;
+            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_max;
             rect->w = (int32_t)(w / wiw.dpi);
             rect->h = (int32_t)(h / wiw.dpi);
         }
@@ -2464,8 +2482,8 @@ static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
             rect->y = (wiw.placement.y - wiw.mrc.y) * ui_app.mrc.h / wiw.mrc.h;
             // adjust according to monitors DPI difference:
             // (w, h) theoretically could be as large as 0xFFFF
-            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_raw;
-            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_raw;
+            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_max;
+            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_max;
             rect->w = (int32_t)(w / wiw.dpi);
             rect->h = (int32_t)(h / wiw.dpi);
         }
@@ -3888,14 +3906,16 @@ static int ui_app_console_create(void) {
 }
 
 static fp32_t ui_app_px2in(int32_t pixels) {
-    assert(ui_app.dpi.monitor_raw > 0);
-    return ui_app.dpi.monitor_raw > 0 ?
-           (fp32_t)pixels / (fp32_t)ui_app.dpi.monitor_raw : 0;
+    assert(ui_app.dpi.monitor_max > 0);
+//  traceln("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+    return ui_app.dpi.monitor_max > 0 ?
+           (fp32_t)pixels / (fp32_t)ui_app.dpi.monitor_max : 0;
 }
 
 static int32_t ui_app_in2px(fp32_t inches) {
-    assert(ui_app.dpi.monitor_raw > 0);
-    return (int32_t)(inches * (fp32_t)ui_app.dpi.monitor_raw + 0.5f);
+    assert(ui_app.dpi.monitor_max > 0);
+//  traceln("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+    return (int32_t)(inches * (fp64_t)ui_app.dpi.monitor_max + 0.5);
 }
 
 static void ui_app_request_layout(void) {
@@ -4158,6 +4178,8 @@ static void ui_app_init_windows(void) {
     ui_app.dpi.monitor_effective = ui_app.dpi.system;
     ui_app.dpi.monitor_angular = ui_app.dpi.system;
     ui_app.dpi.monitor_raw = ui_app.dpi.system;
+    ui_app.dpi.monitor_max = ui_app.dpi.system;
+traceln("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
     static const RECT nowhere = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
     ui_rect_t r = ui_app_rect2ui(&nowhere);
     ui_app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
@@ -4250,15 +4272,18 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app_init();
     int r = 0;
 //  ui_app_dump_dpi();
+    // It is possible (but not trivial) to ask DWM to create taller tittle bar:
+    // https://learn.microsoft.com/en-us/windows/win32/dwm/customframe
+    // TODO: if any app need to make to app store they will probably ask for it
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
     ui_app.caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION,
                                 (uint32_t)ui_app.dpi.process);
-    // TODO: use .frame and .caption_height in ui_caption.c
     ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME,
                                 (uint32_t)ui_app.dpi.process);
     ui_app.border.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME,
                                 (uint32_t)ui_app.dpi.process);
+
     if (ui_app.no_decor) {
         // border is too think (5 pixels) narrow down to 3x3
         const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :
@@ -4382,13 +4407,15 @@ static void ui_button_paint(ui_view_t* v) {
     ui_color_t d0 = ui_colors.darken(v->background, d);
     const fp32_t d2 = d / 2;
     if (v->state.flat) {
-        ui_color_t d1 = ui_theme.is_app_dark() ?
-                ui_colors.lighten(v->background, d2) :
-                ui_colors.darken(v->background,  d2);
-        if (!pressed) {
-            ui_gdi.gradient(x, y, w, h, d0, d1, true);
-        } else {
-            ui_gdi.gradient(x, y, w, h, d1, d0, true);
+        if (v->state.hover) {
+            ui_color_t d1 = ui_theme.is_app_dark() ?
+                    ui_colors.lighten(v->background, d2) :
+                    ui_colors.darken(v->background,  d2);
+            if (!pressed) {
+                ui_gdi.gradient(x, y, w, h, d0, d1, true);
+            } else {
+                ui_gdi.gradient(x, y, w, h, d1, d0, true);
+            }
         }
     } else {
         // `bc` border color
@@ -4402,10 +4429,9 @@ static void ui_button_paint(ui_view_t* v) {
         ui_color_t fc = ui_colors.interpolate(d0, d1, 0.5f); // fill color
         ui_gdi.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
     }
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    ui_point_t t = { .x = i.left, .y = i.top };
+    const int32_t tx = v->x + v->text.xy.x;
+    const int32_t ty = v->y + v->text.xy.y;
     if (v->icon == null) {
-        t = ui_view.measure_text(v);
         ui_color_t c = v->color;
         if (v->state.hover && !v->state.armed) {
             c = ui_theme.is_app_dark() ? ui_color_rgb(0xFF, 0xE0, 0xE0) :
@@ -4416,11 +4442,13 @@ static void ui_button_paint(ui_view_t* v) {
             ui_view.debug_paint_fm(v);
         }
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
-        ui_gdi.text(&ta, v->x + t.x, v->y + t.y, "%s", ui_view.string(v));
+        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
+        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
         const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                                .h = v->h - i.top - i.bottom };
-        ui_gdi.icon(v->x + t.x, v->y + t.y, i_wh.w, i_wh.h, v->icon);
+        // TODO: icon text alignment
+        ui_gdi.icon(tx, ty + v->text.xy.y, i_wh.w, i_wh.h, v->icon);
     }
 }
 
@@ -4487,8 +4515,8 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
 }
 
 static void ui_button_measure(ui_view_t* v) {
-    assert(v->type == ui_view_button || v->type == ui_view_label);
-    ui_view.measure_text(v);
+    assert(v->type == ui_view_button);
+    ui_view.measure_control(v);
     if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
 }
 
@@ -4526,12 +4554,12 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest  ut_glyph_desktop_window
+#define ui_caption_glyph_rest  ut_glyph_white_square_with_upper_right_quadrant // instead of ut_glyph_desktop_window
 #define ui_caption_glyph_menu  ut_glyph_trigram_for_heaven
 #define ui_caption_glyph_dark  ut_glyph_crescent_moon
 #define ui_caption_glyph_light ut_glyph_white_sun_with_rays
 #define ui_caption_glyph_mini  ut_glyph_minimize
-#define ui_caption_glyph_maxi  ut_glyph_maximize
+#define ui_caption_glyph_maxi  ut_glyph_white_square_with_lower_left_quadrant // instead of ut_glyph_maximize
 #define ui_caption_glyph_full  ut_glyph_square_four_corners
 #define ui_caption_glyph_quit  ut_glyph_cancellation_x
 
@@ -4628,17 +4656,25 @@ static ui_color_t ui_caption_color(void) {
     return c;
 }
 
+static const ui_gaps_t ui_caption_button_button_padding =
+    { .left  = 0.25,  .top    = 0.0,
+      .right = 0.25,  .bottom = 0.0};
+
 static void ui_caption_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    v->w = ui_app.caption_height;
-    v->h = ui_app.caption_height;
-//  traceln("%dx%d", v->w, v->h);
+    ui_view.measure_control(v);
+    const int32_t dx = ui_app.caption_height - v->w;
+    const int32_t dy = ui_app.caption_height - v->h;
+    v->w += dx;
+    v->h += dy;
+    v->text.xy.x += dx / 2;
+    v->text.xy.y += dy / 2;
+    v->padding = ui_caption_button_button_padding;
 }
 
 static void ui_caption_button_icon_paint(ui_view_t* v) {
     int32_t w = v->w;
     int32_t h = v->h;
-//  swear(w == h && h == ui_app.caption_height);
     while (h > 16 && (h & (h - 1)) != 0) { h--; }
     w = h;
     int32_t dx = (v->w - w) / 2;
@@ -4651,6 +4687,14 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 }
 
 static void ui_caption_measured(ui_view_t* v) {
+    // remeasure all child buttons with hard override:
+    ui_view_for_each(v, it, {
+        if (it->type == ui_view_button) {
+            it->fm = &ui_app.fm.mono;
+            it->state.flat = true;
+            ui_caption_button_measure(it);
+        }
+    });
     // do not show title if there is not enough space
     ui_caption.title.state.hidden = v->w > ui_app.root->w;
     v->w = ui_app.root->w;
@@ -4671,7 +4715,7 @@ static void ui_caption_paint(ui_view_t* v) {
 static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
-    ui_caption.view.insets = (ui_gaps_t){ 0.125, 0.25, 0.125, 0.25 };
+    ui_caption.view.insets = (ui_gaps_t){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
     v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,
@@ -4690,18 +4734,12 @@ static void ui_caption_init(ui_view_t* v) {
                                   .right = 0.0,   .bottom = 0.0};
     static const ui_gaps_t pd = { .left  = 0.25,  .top    = 0.0,
                                   .right = 0.25,  .bottom = 0.0};
-    static const ui_gaps_t pb = { .left  = 0.25,  .top    = 0.0,
-                                  .right = 0.25,  .bottom = 0.0};
     static const ui_gaps_t in = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
         c->fm = &ui_app.fm.regular;
         c->color_id = ui_caption.view.color_id;
-        if (c->type == ui_view_button) {
-            c->padding = pb;
-            c->state.flat = true;
-            c->measure = ui_caption_button_measure;
-        } else {
+        if (c->type != ui_view_button) {
             c->padding = pd;
         }
         c->insets  = in;
@@ -4715,15 +4753,14 @@ static void ui_caption_init(ui_view_t* v) {
     strprintf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
     strprintf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
     strprintf(ui_caption.quit.hint, "%s", ut_nls.str("Close"));
-    ui_caption.icon.icon = ui_app.icon;
-    ui_caption.icon.padding = p0;
-    ui_caption.icon.paint = ui_caption_button_icon_paint;
-    ui_caption.view.align = ui.align.left;
-    // TODO: this does not help because parent layout will set x and w again
-    ui_caption.view.prepare = ui_caption_prepare;
+    ui_caption.icon.icon     = ui_app.icon;
+    ui_caption.icon.padding  = p0;
+    ui_caption.icon.paint    = ui_caption_button_icon_paint;
+    ui_caption.view.align    = ui.align.left;
+    ui_caption.view.prepare  = ui_caption_prepare;
     ui_caption.view.measured = ui_caption_measured;
     ui_caption.view.composed = ui_caption_composed;
-    ui_view.set_text(&ui_caption.view, "ui_caption"); // for debugging
+    ui_view.set_text(&ui_caption.view, "#ui_caption"); // for debugging
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
     ui_caption_mode_appearance();
@@ -11835,7 +11872,7 @@ static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
     return wh;
 }
 
-static ui_point_t ui_view_measure_text(ui_view_t* v) {
+static void ui_view_measure_control(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
     const ui_fm_t* fm = v->fm;
@@ -11859,59 +11896,59 @@ static ui_point_t ui_view_measure_text(ui_view_t* v) {
             pd.left, pd.top, pd.right, pd.bottom,
             pd.left, + pd.right, pd.top + pd.bottom);
     }
-    ui_wh_t mt = { .w = 0, .h = fm->height };
+    v->text.mt = (ui_wh_t){ .w = 0, .h = fm->height };
     bool multiline = false;
     if (s[0] != 0) {
         multiline = strchr(s, '\n') != null;
         if (v->type == ui_view_label && multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)fm->em.w + 0.5);
-            mt = ui_view.text_metrics(v->x, v->y, true,  w, fm, "%s", s);
+            v->text.mt = ui_view.text_metrics(v->x, v->y, true,  w, fm, "%s", s);
         } else {
-            mt = ui_view.text_metrics(v->x, v->y, false, 0, fm, "%s", s);
+            v->text.mt = ui_view.text_metrics(v->x, v->y, false, 0, fm, "%s", s);
         }
         if (v->debug.trace.mt) {
-            traceln(" mt: %d %d", mt.w, mt.h);
+            traceln(" mt: %d %d", v->text.mt.w, v->text.mt.h);
         }
-        v->w = ut_max(v->w, i.left + mt.w + i.right);
-        v->h = ut_max(v->h, i.top  + mt.h + i.bottom);
+        v->w = ut_max(v->w, i.left + v->text.mt.w + i.right);
+        v->h = ut_max(v->h, i.top  + v->text.mt.h + i.bottom);
     }
     // text_align:
-    ui_point_t t = { .x = -1, .y = -1 };
+    v->text.xy = (ui_point_t){ .x = -1, .y = -1 };
     // i_wh the inside insets w x h:
     const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                            .h = v->h - i.top - i.bottom };
     const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
     const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
-    t.x = i.left + (i_wh.w - mt.w) / 2;
+    v->text.xy.x = i.left + (i_wh.w - v->text.mt.w) / 2;
     if (h_align & ui.align.left) {
-        t.x = i.left;
+        v->text.xy.x = i.left;
     } else if (h_align & ui.align.right) {
-        t.x = i_wh.w - mt.w - i.right;
+        v->text.xy.x = i_wh.w - v->text.mt.w - i.right;
     }
     // vertical centering is trickier.
     // mt.h is height of all measured lines of text
-    t.y = i.top + (i_wh.h - mt.h) / 2;
+    v->text.xy.y = i.top + (i_wh.h - v->text.mt.h) / 2;
     if (v_align & ui.align.top) {
-        t.y = i.top;
+        v->text.xy.y = i.top;
     } else if (v_align & ui.align.bottom) {
-        t.y = i_wh.h - mt.h - i.bottom;
+        v->text.xy.y = i_wh.h - v->text.mt.h - i.bottom;
     } else if (!multiline) {
         // UI controls should have x-height line in the dead center
         // of the control to be visually balanced.
         // y offset of "x-line" of the glyph:
         const int32_t y_of_x_line = fm->baseline - fm->x_height;
-        const int32_t dy = mt.h / 2 - y_of_x_line; // offset of center to x-line
-        t.y += dy / 2;
+        // `dy` offset of the center to x-line (middle of glyph cell)
+        const int32_t dy = v->text.mt.h / 2 - y_of_x_line;
+        v->text.xy.y += dy / 2;
         if (v->debug.trace.mt) {
             traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
-                      y_of_x_line, mt.h, dy);
+                      y_of_x_line, v->text.mt.h, dy);
         }
     }
     if (v->debug.trace.mt) {
-        traceln("<%dx%d text_align x,y: %d,%d", v->w, v->h, t.x, t.y);
-        traceln("");
+        traceln("<%dx%d text_align x,y: %d,%d",
+                v->w, v->h, v->text.xy.x, v->text.xy.y);
     }
-    return t;
 }
 
 static void ui_view_measure_children(ui_view_t* v) {
@@ -11927,7 +11964,7 @@ static void ui_view_measure(ui_view_t* v) {
         if (v->measure != null && v->measure != ui_view_measure) {
             v->measure(v);
         } else {
-            ui_view.measure_text(v);
+            ui_view.measure_control(v);
         }
         if (v->measured != null) { v->measured(v); }
     }
@@ -12418,7 +12455,7 @@ static void ui_view_debug_paint_gaps(ui_view_t* v) {
 static void ui_view_debug_paint_fm(ui_view_t* v) {
     if (v->debug.paint.fm && v->p.text[0] != 0 &&
        !ui_view_is_container(v) && !ui_view_is_spacer(v)) {
-        const ui_point_t t = ui_view.measure_text(v);
+        const ui_point_t t = v->text.xy;
         const int32_t x = v->x;
         const int32_t y = v->y;
         const int32_t w = v->w;
@@ -12539,7 +12576,7 @@ ui_view_if ui_view = {
     .invalidate         = ui_view_invalidate,
     .text_metrics_va    = ui_view_text_metrics_va,
     .text_metrics       = ui_view_text_metrics,
-    .measure_text       = ui_view_measure_text,
+    .measure_control    = ui_view_measure_control,
     .measure_children   = ui_view_measure_children,
     .layout_children    = ui_view_layout_children,
     .measure            = ui_view_measure,

@@ -70,6 +70,7 @@ static void ui_app_update_ncm(int32_t dpi) {
 }
 
 static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
+    dpi->monitor_max = 72;
     for (int32_t mtd = MDT_EFFECTIVE_DPI; mtd <= MDT_RAW_DPI; mtd++) {
         uint32_t dpi_x = 0;
         uint32_t dpi_y = 0;
@@ -86,22 +87,33 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
             r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
         }
         if (r == 0) {
-//          const char* names[] = {"EFFECTIVE_DPI", "ANGULAR_DPI","RAW_DPI"};
-//          traceln("%s %d %d", names[mtd], dpi_x, dpi_y);
             // EFFECTIVE_DPI 168 168 (with regard of user scaling)
             // ANGULAR_DPI 247 248 (diagonal)
             // RAW_DPI 283 284 (horizontal, vertical)
+            // Parallels Desktop 16.5.0 (49183) on macOS Mac Book Air
+            // EFFECTIVE_DPI 192 192 (with regard of user scaling)
+            // ANGULAR_DPI 224 224 (diagonal)
+            // RAW_DPI 72 72
+            const int32_t max_xy = (int32_t)ut_max(dpi_x, dpi_y);
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
-                    dpi->monitor_effective = (int32_t)ut_max(dpi_x, dpi_y); break;
+                    dpi->monitor_effective = max_xy;
+//                  traceln("ui_app.dpi.monitor_effective := max(%d,%d)", dpi_x, dpi_y);
+                    break;
                 case MDT_ANGULAR_DPI:
-                    dpi->monitor_angular = (int32_t)ut_max(dpi_x, dpi_y); break;
+                    dpi->monitor_angular = max_xy;
+//                  traceln("ui_app.dpi.monitor_angular := max(%d,%d)", dpi_x, dpi_y);
+                    break;
                 case MDT_RAW_DPI:
-                    dpi->monitor_raw = (int32_t)ut_max(dpi_x, dpi_y); break;
+                    dpi->monitor_raw = max_xy;
+//                  traceln("ui_app.dpi.monitor_raw := max(%d,%d)", dpi_x, dpi_y);
+                    break;
                 default: assert(false);
             }
+            dpi->monitor_max = ut_max(dpi->monitor_max, max_xy);
         }
     }
+//  traceln("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
 }
 
 #ifndef QUICK_DEBUG
@@ -110,6 +122,7 @@ static void ui_app_dump_dpi(void) {
     traceln("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
     traceln("ui_app.dpi.monitor_angular  : %d", ui_app.dpi.monitor_angular    );
     traceln("ui_app.dpi.monitor_raw      : %d", ui_app.dpi.monitor_raw        );
+    traceln("ui_app.dpi.monitor_max      : %d", ui_app.dpi.monitor_max        );
     traceln("ui_app.dpi.window           : %d", ui_app.dpi.window             );
     traceln("ui_app.dpi.system           : %d", ui_app.dpi.system             );
     traceln("ui_app.dpi.process          : %d", ui_app.dpi.process            );
@@ -126,8 +139,8 @@ static void ui_app_dump_dpi(void) {
     traceln("MAXTRACK: %d, %d", mxt_x, mxt_y);
     int32_t scr_x = GetSystemMetrics(SM_CXSCREEN);
     int32_t scr_y = GetSystemMetrics(SM_CYSCREEN);
-    fp64_t monitor_x = (fp64_t)scr_x / (fp64_t)ui_app.dpi.monitor_raw;
-    fp64_t monitor_y = (fp64_t)scr_y / (fp64_t)ui_app.dpi.monitor_raw;
+    fp64_t monitor_x = (fp64_t)scr_x / (fp64_t)ui_app.dpi.monitor_max;
+    fp64_t monitor_y = (fp64_t)scr_y / (fp64_t)ui_app.dpi.monitor_max;
     traceln("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
 }
 
@@ -285,7 +298,7 @@ static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump)
             .x = GetSystemMetrics(SM_CXMAXTRACK),
             .y = GetSystemMetrics(SM_CYMAXTRACK)
         },
-        .dpi = ui_app.dpi.monitor_raw,
+        .dpi = ui_app.dpi.monitor_max,
         .flags = (int32_t)wpl.flags,
         .show  = (int32_t)wpl.showCmd
     };
@@ -383,8 +396,8 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
             rect->y = (wiw.placement.y - wiw.mrc.y) * ui_app.mrc.h / wiw.mrc.h;
             // adjust according to monitors DPI difference:
             // (w, h) theoretically could be as large as 0xFFFF
-            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_raw;
-            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_raw;
+            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_max;
+            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_max;
             rect->w = (int32_t)(w / wiw.dpi);
             rect->h = (int32_t)(h / wiw.dpi);
         }
@@ -412,8 +425,8 @@ static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
             rect->y = (wiw.placement.y - wiw.mrc.y) * ui_app.mrc.h / wiw.mrc.h;
             // adjust according to monitors DPI difference:
             // (w, h) theoretically could be as large as 0xFFFF
-            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_raw;
-            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_raw;
+            const int64_t w = (int64_t)wiw.placement.w * ui_app.dpi.monitor_max;
+            const int64_t h = (int64_t)wiw.placement.h * ui_app.dpi.monitor_max;
             rect->w = (int32_t)(w / wiw.dpi);
             rect->h = (int32_t)(h / wiw.dpi);
         }
@@ -1836,14 +1849,16 @@ static int ui_app_console_create(void) {
 }
 
 static fp32_t ui_app_px2in(int32_t pixels) {
-    assert(ui_app.dpi.monitor_raw > 0);
-    return ui_app.dpi.monitor_raw > 0 ?
-           (fp32_t)pixels / (fp32_t)ui_app.dpi.monitor_raw : 0;
+    assert(ui_app.dpi.monitor_max > 0);
+//  traceln("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+    return ui_app.dpi.monitor_max > 0 ?
+           (fp32_t)pixels / (fp32_t)ui_app.dpi.monitor_max : 0;
 }
 
 static int32_t ui_app_in2px(fp32_t inches) {
-    assert(ui_app.dpi.monitor_raw > 0);
-    return (int32_t)(inches * (fp32_t)ui_app.dpi.monitor_raw + 0.5f);
+    assert(ui_app.dpi.monitor_max > 0);
+//  traceln("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+    return (int32_t)(inches * (fp64_t)ui_app.dpi.monitor_max + 0.5);
 }
 
 static void ui_app_request_layout(void) {
@@ -2106,6 +2121,8 @@ static void ui_app_init_windows(void) {
     ui_app.dpi.monitor_effective = ui_app.dpi.system;
     ui_app.dpi.monitor_angular = ui_app.dpi.system;
     ui_app.dpi.monitor_raw = ui_app.dpi.system;
+    ui_app.dpi.monitor_max = ui_app.dpi.system;
+traceln("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
     static const RECT nowhere = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
     ui_rect_t r = ui_app_rect2ui(&nowhere);
     ui_app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
@@ -2198,15 +2215,18 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app_init();
     int r = 0;
 //  ui_app_dump_dpi();
+    // It is possible (but not trivial) to ask DWM to create taller tittle bar:
+    // https://learn.microsoft.com/en-us/windows/win32/dwm/customframe
+    // TODO: if any app need to make to app store they will probably ask for it
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
     ui_rect_t wr = ui_app_window_initial_rectangle();
     ui_app.caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION,
                                 (uint32_t)ui_app.dpi.process);
-    // TODO: use .frame and .caption_height in ui_caption.c
     ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME,
                                 (uint32_t)ui_app.dpi.process);
     ui_app.border.h = (int32_t)GetSystemMetricsForDpi(SM_CYSIZEFRAME,
                                 (uint32_t)ui_app.dpi.process);
+
     if (ui_app.no_decor) {
         // border is too think (5 pixels) narrow down to 3x3
         const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :

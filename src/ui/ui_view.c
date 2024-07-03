@@ -185,7 +185,7 @@ static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
     return wh;
 }
 
-static ui_point_t ui_view_measure_text(ui_view_t* v) {
+static void ui_view_measure_control(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
     const ui_fm_t* fm = v->fm;
@@ -209,59 +209,59 @@ static ui_point_t ui_view_measure_text(ui_view_t* v) {
             pd.left, pd.top, pd.right, pd.bottom,
             pd.left, + pd.right, pd.top + pd.bottom);
     }
-    ui_wh_t mt = { .w = 0, .h = fm->height };
+    v->text.mt = (ui_wh_t){ .w = 0, .h = fm->height };
     bool multiline = false;
     if (s[0] != 0) {
         multiline = strchr(s, '\n') != null;
         if (v->type == ui_view_label && multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)fm->em.w + 0.5);
-            mt = ui_view.text_metrics(v->x, v->y, true,  w, fm, "%s", s);
+            v->text.mt = ui_view.text_metrics(v->x, v->y, true,  w, fm, "%s", s);
         } else {
-            mt = ui_view.text_metrics(v->x, v->y, false, 0, fm, "%s", s);
+            v->text.mt = ui_view.text_metrics(v->x, v->y, false, 0, fm, "%s", s);
         }
         if (v->debug.trace.mt) {
-            traceln(" mt: %d %d", mt.w, mt.h);
+            traceln(" mt: %d %d", v->text.mt.w, v->text.mt.h);
         }
-        v->w = ut_max(v->w, i.left + mt.w + i.right);
-        v->h = ut_max(v->h, i.top  + mt.h + i.bottom);
+        v->w = ut_max(v->w, i.left + v->text.mt.w + i.right);
+        v->h = ut_max(v->h, i.top  + v->text.mt.h + i.bottom);
     }
     // text_align:
-    ui_point_t t = { .x = -1, .y = -1 };
+    v->text.xy = (ui_point_t){ .x = -1, .y = -1 };
     // i_wh the inside insets w x h:
     const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                            .h = v->h - i.top - i.bottom };
     const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
     const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
-    t.x = i.left + (i_wh.w - mt.w) / 2;
+    v->text.xy.x = i.left + (i_wh.w - v->text.mt.w) / 2;
     if (h_align & ui.align.left) {
-        t.x = i.left;
+        v->text.xy.x = i.left;
     } else if (h_align & ui.align.right) {
-        t.x = i_wh.w - mt.w - i.right;
+        v->text.xy.x = i_wh.w - v->text.mt.w - i.right;
     }
     // vertical centering is trickier.
     // mt.h is height of all measured lines of text
-    t.y = i.top + (i_wh.h - mt.h) / 2;
+    v->text.xy.y = i.top + (i_wh.h - v->text.mt.h) / 2;
     if (v_align & ui.align.top) {
-        t.y = i.top;
+        v->text.xy.y = i.top;
     } else if (v_align & ui.align.bottom) {
-        t.y = i_wh.h - mt.h - i.bottom;
+        v->text.xy.y = i_wh.h - v->text.mt.h - i.bottom;
     } else if (!multiline) {
         // UI controls should have x-height line in the dead center
         // of the control to be visually balanced.
         // y offset of "x-line" of the glyph:
         const int32_t y_of_x_line = fm->baseline - fm->x_height;
-        const int32_t dy = mt.h / 2 - y_of_x_line; // offset of center to x-line
-        t.y += dy / 2;
+        // `dy` offset of the center to x-line (middle of glyph cell)
+        const int32_t dy = v->text.mt.h / 2 - y_of_x_line;
+        v->text.xy.y += dy / 2;
         if (v->debug.trace.mt) {
             traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
-                      y_of_x_line, mt.h, dy);
+                      y_of_x_line, v->text.mt.h, dy);
         }
     }
     if (v->debug.trace.mt) {
-        traceln("<%dx%d text_align x,y: %d,%d", v->w, v->h, t.x, t.y);
-        traceln("");
+        traceln("<%dx%d text_align x,y: %d,%d",
+                v->w, v->h, v->text.xy.x, v->text.xy.y);
     }
-    return t;
 }
 
 static void ui_view_measure_children(ui_view_t* v) {
@@ -277,7 +277,7 @@ static void ui_view_measure(ui_view_t* v) {
         if (v->measure != null && v->measure != ui_view_measure) {
             v->measure(v);
         } else {
-            ui_view.measure_text(v);
+            ui_view.measure_control(v);
         }
         if (v->measured != null) { v->measured(v); }
     }
@@ -768,7 +768,7 @@ static void ui_view_debug_paint_gaps(ui_view_t* v) {
 static void ui_view_debug_paint_fm(ui_view_t* v) {
     if (v->debug.paint.fm && v->p.text[0] != 0 &&
        !ui_view_is_container(v) && !ui_view_is_spacer(v)) {
-        const ui_point_t t = ui_view.measure_text(v);
+        const ui_point_t t = v->text.xy;
         const int32_t x = v->x;
         const int32_t y = v->y;
         const int32_t w = v->w;
@@ -889,7 +889,7 @@ ui_view_if ui_view = {
     .invalidate         = ui_view_invalidate,
     .text_metrics_va    = ui_view_text_metrics_va,
     .text_metrics       = ui_view_text_metrics,
-    .measure_text       = ui_view_measure_text,
+    .measure_control    = ui_view_measure_control,
     .measure_children   = ui_view_measure_children,
     .layout_children    = ui_view_layout_children,
     .measure            = ui_view_measure,

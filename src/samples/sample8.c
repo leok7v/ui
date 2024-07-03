@@ -158,6 +158,8 @@ static void insert_into_caption(ui_button_t* b, const char* hint) {
     ut_str_printf(b->hint, "%s", hint);
     b->state.flat = true;
     b->padding = (ui_gaps_t){0,0,0,0};
+    b->insets  = (ui_gaps_t){0,0,0,0};
+    b->align   = ui.align.top;
     ui_view.add_before(b,  &ui_caption.mini);
 }
 
@@ -497,7 +499,7 @@ static void controls_test(ui_view_t* parent) {
             align(&spacer,       ui.align.left),
         null),
     null);
-buttonE.debug.trace.mt = true;
+//buttonE.debug.trace.mt = true;
     list.debug.paint.gaps = true;
     span.align = ui.align.left;
 //  list.background = ui_color_rgb(0x2E, 0x2E, 0x2E);

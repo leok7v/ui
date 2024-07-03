@@ -781,6 +781,18 @@ extern ut_generics_if ut_generics;
 // Braille Pattern Dots-12345678  https://www.compart.com/en/unicode/U+28FF
 #define ut_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
 
+// White Square Containing Black Medium Square
+// https://compart.com/en/unicode/U+1F795
+#define ut_glyph_white_square_containing_black_medium_square "\xF0\x9F\x9E\x95"
+
+// White Medium Square
+// https://compart.com/en/unicode/U+25FB
+#define ut_glyph_white_medium_square                   "\xE2\x97\xBB"
+
+// White Square with Upper Right Quadrant
+// https://compart.com/en/unicode/U+25F3
+#define ut_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
+
 // White Square with Upper Left Quadrant https://www.compart.com/en/unicode/U+25F0
 #define ut_glyph_white_square_with_upper_left_quadrant "\xE2\x97\xB0"
 

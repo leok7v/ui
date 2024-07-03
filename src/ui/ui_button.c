@@ -25,13 +25,15 @@ static void ui_button_paint(ui_view_t* v) {
     ui_color_t d0 = ui_colors.darken(v->background, d);
     const fp32_t d2 = d / 2;
     if (v->state.flat) {
-        ui_color_t d1 = ui_theme.is_app_dark() ?
-                ui_colors.lighten(v->background, d2) :
-                ui_colors.darken(v->background,  d2);
-        if (!pressed) {
-            ui_gdi.gradient(x, y, w, h, d0, d1, true);
-        } else {
-            ui_gdi.gradient(x, y, w, h, d1, d0, true);
+        if (v->state.hover) {
+            ui_color_t d1 = ui_theme.is_app_dark() ?
+                    ui_colors.lighten(v->background, d2) :
+                    ui_colors.darken(v->background,  d2);
+            if (!pressed) {
+                ui_gdi.gradient(x, y, w, h, d0, d1, true);
+            } else {
+                ui_gdi.gradient(x, y, w, h, d1, d0, true);
+            }
         }
     } else {
         // `bc` border color
@@ -45,10 +47,9 @@ static void ui_button_paint(ui_view_t* v) {
         ui_color_t fc = ui_colors.interpolate(d0, d1, 0.5f); // fill color
         ui_gdi.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
     }
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    ui_point_t t = { .x = i.left, .y = i.top };
+    const int32_t tx = v->x + v->text.xy.x;
+    const int32_t ty = v->y + v->text.xy.y;
     if (v->icon == null) {
-        t = ui_view.measure_text(v);
         ui_color_t c = v->color;
         if (v->state.hover && !v->state.armed) {
             c = ui_theme.is_app_dark() ? ui_color_rgb(0xFF, 0xE0, 0xE0) :
@@ -59,11 +60,13 @@ static void ui_button_paint(ui_view_t* v) {
             ui_view.debug_paint_fm(v);
         }
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
-        ui_gdi.text(&ta, v->x + t.x, v->y + t.y, "%s", ui_view.string(v));
+        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
+        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
         const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                                .h = v->h - i.top - i.bottom };
-        ui_gdi.icon(v->x + t.x, v->y + t.y, i_wh.w, i_wh.h, v->icon);
+        // TODO: icon text alignment
+        ui_gdi.icon(tx, ty + v->text.xy.y, i_wh.w, i_wh.h, v->icon);
     }
 }
 
@@ -130,8 +133,8 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
 }
 
 static void ui_button_measure(ui_view_t* v) {
-    assert(v->type == ui_view_button || v->type == ui_view_label);
-    ui_view.measure_text(v);
+    assert(v->type == ui_view_button);
+    ui_view.measure_control(v);
     if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
 }
 

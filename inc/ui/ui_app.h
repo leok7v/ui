@@ -13,6 +13,7 @@ typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
     int32_t monitor_effective; // effective with regard of user scaling
     int32_t monitor_raw;       // with regard of physical screen size
     int32_t monitor_angular;   // diagonal raw
+    int32_t monitor_max;       // maximum of effective,raw,angular
     int32_t window;            // main window dpi
 } ui_dpi_t;
 
