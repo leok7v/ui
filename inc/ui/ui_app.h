@@ -156,6 +156,8 @@ typedef struct {
     void (*move_caret)(int32_t x, int32_t y);
     void (*hide_caret)(void);
     void (*destroy_caret)(void);
+    // beep sounds:
+    void (*beep)(int32_t kind);
     // registry interface:
     void (*data_save)(const char* name, const void* data, int32_t bytes);
     int32_t (*data_size)(const char* name);

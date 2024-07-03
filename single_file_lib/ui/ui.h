@@ -177,6 +177,11 @@ typedef struct ui_gaps_s { // in partial "em"s
 } ui_gaps_t;
 
 typedef struct ui_s {
+    bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
+    // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
+    bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,
+                                                   const ui_rect_t* r1);
+    int32_t (*gaps_em2px)(int32_t em, fp32_t ratio);
     const int32_t infinity; // = INT32_MAX, look better
     struct { // align bitset
         int32_t const center; // = 0, default
@@ -292,11 +297,13 @@ typedef struct ui_s {
         int32_t const f23;
         int32_t const f24;
     } const key;
-    bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
-    // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
-    bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,
-                                                   const ui_rect_t* r1);
-    int32_t (*gaps_em2px)(int32_t em, fp32_t ratio);
+    struct {
+        int32_t const ok;
+        int32_t const info;
+        int32_t const question;
+        int32_t const warning;
+        int32_t const error;
+    } beep;
 } ui_if;
 
 extern ui_if ui;
@@ -308,7 +315,7 @@ extern ui_if ui;
 // density in DPIs. Humanoid would expect the gaps around
 // larger font text to grow with font size increase.
 // SwingUI and MacOS is using "pt" for padding which does
-// not account to font size changes. MacOS does wierd stuff
+// not account to font size changes. MacOS does weird stuff
 // with font increase - it actually decreases GPU resolution.
 // Android uses "dp" which is pretty much the same as scaled
 // "pixels" on MacOS. Windows used to use "dialog units" which
@@ -1962,6 +1969,8 @@ typedef struct {
     void (*move_caret)(int32_t x, int32_t y);
     void (*hide_caret)(void);
     void (*destroy_caret)(void);
+    // beep sounds:
+    void (*beep)(int32_t kind);
     // registry interface:
     void (*data_save)(const char* name, const void* data, int32_t bytes);
     int32_t (*data_size)(const char* name);
@@ -3671,6 +3680,13 @@ static void ui_app_destroy_caret(void) {
     fatal_if_false(DestroyCaret());
 }
 
+static void ui_app_beep(int32_t kind) {
+    static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
+                          MB_ICONWARNING, MB_ICONERROR};
+    swear(0 <= kind && kind < countof(beep_id));
+    fatal_if_false(MessageBeep(beep_id[kind]));
+}
+
 static void ui_app_enable_sys_command_close(void) {
     EnableMenuItem(GetSystemMenu(GetConsoleWindow(), false),
         SC_CLOSE, MF_BYCOMMAND | MF_ENABLED);
@@ -4096,6 +4112,7 @@ static void ui_app_init(void) {
     ui_app.move_caret           = ui_app_move_caret;
     ui_app.hide_caret           = ui_app_hide_caret;
     ui_app.destroy_caret        = ui_app_destroy_caret;
+    ui_app.beep                 = ui_app_beep;
     ui_app.data_save            = ui_app_data_save;
     ui_app.data_size            = ui_app_data_size;
     ui_app.data_load            = ui_app_data_load;
@@ -5808,6 +5825,9 @@ static int32_t ui_gaps_em2px(int32_t em, fp32_t ratio) {
 }
 
 ui_if ui = {
+    .point_in_rect  = ui_point_in_rect,
+    .intersect_rect = ui_intersect_rect,
+    .gaps_em2px     = ui_gaps_em2px,
     .infinity = INT32_MAX,
     .align = {
         .center = 0,
@@ -5922,9 +5942,13 @@ ui_if ui = {
         .f23    = VK_F23,
         .f24    = VK_F24,
     },
-    .point_in_rect  = ui_point_in_rect,
-    .intersect_rect = ui_intersect_rect,
-    .gaps_em2px     = ui_gaps_em2px
+    .beep = {
+        .ok         = 0,
+        .info       = 1,
+        .question   = 2,
+        .warning    = 3,
+        .error      = 4
+    }
 };
 
 // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
@@ -6718,6 +6742,7 @@ static bool ui_edit_doc_redo(ui_edit_doc_t* d) {
         return false;
     } else {
         d->redo = d->redo->next;
+        to_do->next = null;
         return ui_edit_doc_do(d, to_do, &d->undo);
     }
 }
@@ -6728,6 +6753,7 @@ static bool ui_edit_doc_undo(ui_edit_doc_t* d) {
         return false;
     } else {
         d->undo = d->undo->next;
+        to_do->next = null;
         return ui_edit_doc_do(d, to_do, &d->redo);
     }
 }
@@ -7877,7 +7903,7 @@ ui_edit_doc_if ui_edit_doc = {
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 
-// TODO: undo/redo
+// TODO: undo/redo coalescing
 // TODO: back/forward navigation
 // TODO: exit/save keyboard shortcuts?
 // TODO: iBeam cursor
@@ -8434,8 +8460,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             }
             const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
-            ui_gdi.fill(x + x0, y,
-                             x1 - x0, e->fm->height, selection_color);
+            ui_gdi.fill(x + x0, y, x1 - x0, e->fm->height, selection_color);
         }
     }
 }
@@ -8597,6 +8622,9 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
             }
         }
     }
+    // TODO: brutal need to get rectangle from selection[0:1] to
+    //       new selection and invalidate only that rectangle
+    ui_edit_invalidate(e);
 }
 
 static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
@@ -8919,6 +8947,22 @@ static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
     if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
 }
 
+
+static void ui_edit_undo(ui_edit_t* e) {
+    if (e->doc->undo != null) {
+        ui_edit_doc.undo(e->doc);
+    } else {
+        ui_app.beep(ui.beep.error);
+    }
+}
+static void ui_edit_redo(ui_edit_t* e) {
+    if (e->doc->redo != null) {
+        ui_edit_doc.redo(e->doc);
+    } else {
+        ui_app.beep(ui.beep.error);
+    }
+}
+
 static void ui_edit_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_text);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
@@ -8933,12 +8977,12 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
             if (!e->ro) {
                 if (ch == ui_edit_ctrl('x')) { ui_edit.cut_to_clipboard(e); }
                 if (ch == ui_edit_ctrl('v')) { ui_edit.paste_from_clipboard(e); }
-                if (ch == ui_edit_ctrl('y')) { ui_edit_doc.redo(e->doc); }
+                if (ch == ui_edit_ctrl('y')) { ui_edit_redo(e); }
                 if (ch == ui_edit_ctrl('z') || ch == ui_edit_ctrl('Z')) {
                     if (ui_app.shift) { // Ctrl+Shift+Z
-                        ui_edit_doc.redo(e->doc);
+                        ui_edit_redo(e);
                     } else { // Ctrl+Z
-                        ui_edit_doc.undo(e->doc);
+                        ui_edit_undo(e);
                     }
                 }
             }

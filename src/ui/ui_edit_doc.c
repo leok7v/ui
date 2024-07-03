@@ -787,6 +787,7 @@ static bool ui_edit_doc_redo(ui_edit_doc_t* d) {
         return false;
     } else {
         d->redo = d->redo->next;
+        to_do->next = null;
         return ui_edit_doc_do(d, to_do, &d->undo);
     }
 }
@@ -797,6 +798,7 @@ static bool ui_edit_doc_undo(ui_edit_doc_t* d) {
         return false;
     } else {
         d->undo = d->undo->next;
+        to_do->next = null;
         return ui_edit_doc_do(d, to_do, &d->redo);
     }
 }

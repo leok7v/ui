@@ -35,6 +35,9 @@ static int32_t ui_gaps_em2px(int32_t em, fp32_t ratio) {
 }
 
 ui_if ui = {
+    .point_in_rect  = ui_point_in_rect,
+    .intersect_rect = ui_intersect_rect,
+    .gaps_em2px     = ui_gaps_em2px,
     .infinity = INT32_MAX,
     .align = {
         .center = 0,
@@ -149,9 +152,13 @@ ui_if ui = {
         .f23    = VK_F23,
         .f24    = VK_F24,
     },
-    .point_in_rect  = ui_point_in_rect,
-    .intersect_rect = ui_intersect_rect,
-    .gaps_em2px     = ui_gaps_em2px
+    .beep = {
+        .ok         = 0,
+        .info       = 1,
+        .question   = 2,
+        .warning    = 3,
+        .error      = 4
+    }
 };
 
 // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow

@@ -1623,6 +1623,13 @@ static void ui_app_destroy_caret(void) {
     fatal_if_false(DestroyCaret());
 }
 
+static void ui_app_beep(int32_t kind) {
+    static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
+                          MB_ICONWARNING, MB_ICONERROR};
+    swear(0 <= kind && kind < countof(beep_id));
+    fatal_if_false(MessageBeep(beep_id[kind]));
+}
+
 static void ui_app_enable_sys_command_close(void) {
     EnableMenuItem(GetSystemMenu(GetConsoleWindow(), false),
         SC_CLOSE, MF_BYCOMMAND | MF_ENABLED);
@@ -2048,6 +2055,7 @@ static void ui_app_init(void) {
     ui_app.move_caret           = ui_app_move_caret;
     ui_app.hide_caret           = ui_app_hide_caret;
     ui_app.destroy_caret        = ui_app_destroy_caret;
+    ui_app.beep                 = ui_app_beep;
     ui_app.data_save            = ui_app_data_save;
     ui_app.data_size            = ui_app_data_size;
     ui_app.data_load            = ui_app_data_load;

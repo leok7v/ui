@@ -45,6 +45,11 @@ typedef struct ui_gaps_s { // in partial "em"s
 } ui_gaps_t;
 
 typedef struct ui_s {
+    bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
+    // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
+    bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,
+                                                   const ui_rect_t* r1);
+    int32_t (*gaps_em2px)(int32_t em, fp32_t ratio);
     const int32_t infinity; // = INT32_MAX, look better
     struct { // align bitset
         int32_t const center; // = 0, default
@@ -160,11 +165,13 @@ typedef struct ui_s {
         int32_t const f23;
         int32_t const f24;
     } const key;
-    bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
-    // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
-    bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,
-                                                   const ui_rect_t* r1);
-    int32_t (*gaps_em2px)(int32_t em, fp32_t ratio);
+    struct {
+        int32_t const ok;
+        int32_t const info;
+        int32_t const question;
+        int32_t const warning;
+        int32_t const error;
+    } beep;
 } ui_if;
 
 extern ui_if ui;
@@ -176,7 +183,7 @@ extern ui_if ui;
 // density in DPIs. Humanoid would expect the gaps around
 // larger font text to grow with font size increase.
 // SwingUI and MacOS is using "pt" for padding which does
-// not account to font size changes. MacOS does wierd stuff
+// not account to font size changes. MacOS does weird stuff
 // with font increase - it actually decreases GPU resolution.
 // Android uses "dp" which is pretty much the same as scaled
 // "pixels" on MacOS. Windows used to use "dialog units" which

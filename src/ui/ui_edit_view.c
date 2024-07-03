@@ -3,7 +3,7 @@
 #include "ui/ui.h"
 #include "ui/ui_edit_doc.h"
 
-// TODO: undo/redo
+// TODO: undo/redo coalescing
 // TODO: back/forward navigation
 // TODO: exit/save keyboard shortcuts?
 // TODO: iBeam cursor
@@ -560,8 +560,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             }
             const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
-            ui_gdi.fill(x + x0, y,
-                             x1 - x0, e->fm->height, selection_color);
+            ui_gdi.fill(x + x0, y, x1 - x0, e->fm->height, selection_color);
         }
     }
 }
@@ -723,6 +722,9 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
             }
         }
     }
+    // TODO: brutal need to get rectangle from selection[0:1] to
+    //       new selection and invalidate only that rectangle
+    ui_edit_invalidate(e);
 }
 
 static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
@@ -1045,6 +1047,22 @@ static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
     if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
 }
 
+
+static void ui_edit_undo(ui_edit_t* e) {
+    if (e->doc->undo != null) {
+        ui_edit_doc.undo(e->doc);
+    } else {
+        ui_app.beep(ui.beep.error);
+    }
+}
+static void ui_edit_redo(ui_edit_t* e) {
+    if (e->doc->redo != null) {
+        ui_edit_doc.redo(e->doc);
+    } else {
+        ui_app.beep(ui.beep.error);
+    }
+}
+
 static void ui_edit_character(ui_view_t* v, const char* utf8) {
     assert(v->type == ui_view_text);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
@@ -1059,12 +1077,12 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
             if (!e->ro) {
                 if (ch == ui_edit_ctrl('x')) { ui_edit.cut_to_clipboard(e); }
                 if (ch == ui_edit_ctrl('v')) { ui_edit.paste_from_clipboard(e); }
-                if (ch == ui_edit_ctrl('y')) { ui_edit_doc.redo(e->doc); }
+                if (ch == ui_edit_ctrl('y')) { ui_edit_redo(e); }
                 if (ch == ui_edit_ctrl('z') || ch == ui_edit_ctrl('Z')) {
                     if (ui_app.shift) { // Ctrl+Shift+Z
-                        ui_edit_doc.redo(e->doc);
+                        ui_edit_redo(e);
                     } else { // Ctrl+Z
-                        ui_edit_doc.undo(e->doc);
+                        ui_edit_undo(e);
                     }
                 }
             }
