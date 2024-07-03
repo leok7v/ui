@@ -5,7 +5,6 @@ static void ui_label_paint(ui_view_t* v) {
     assert(v->type == ui_view_label);
     assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
-    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     ui_color_t c = v->state.hover && v->state.highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
         v->color;

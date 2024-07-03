@@ -713,8 +713,8 @@ static void ui_app_toast_paint(void) {
 static void ui_app_toast_cancel(void) {
     if (ui_app.animating.view != null && ui_app.animating.view->type == ui_view_mbx) {
         ui_mbx_t* mx = (ui_mbx_t*)ui_app.animating.view;
-        if (mx->option < 0 && mx->view.callback != null) {
-            mx->view.callback(&mx->view);
+        if (mx->option < 0 && mx->callback != null) {
+            mx->callback(&mx->view);
         }
     }
     ui_app.animating.step = 0;

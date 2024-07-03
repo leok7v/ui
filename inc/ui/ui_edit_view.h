@@ -48,17 +48,22 @@ typedef struct ui_edit_notify_view_s {
 } ui_edit_notify_view_t;
 
 typedef struct ui_edit_s {
-    ui_view_t view;
+    union {
+        ui_view_t view;
+        struct ui_view_s;
+    };
     ui_edit_doc_t* doc; // document
     ui_edit_notify_view_t listener;
     ui_edit_range_t selection; // "from" selection[0] "to" selection[1]
     ui_point_t caret; // (-1, -1) off
     ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
     int32_t last_x;    // last_x for up/down caret movement
-    int32_t mouse;     // bit 0 and bit 1 for LEFT and RIGHT buttons down
     ui_ltrb_t inside;  // inside insets space
-    int32_t w;         // inside.right - inside.left
-    int32_t h;         // inside.bottom - inside.top
+    struct {
+        int32_t w;         // inside.right - inside.left
+        int32_t h;         // inside.bottom - inside.top
+        int32_t mouse;     // bit 0 and bit 1 for LEFT and RIGHT buttons down
+    } edit;
     // number of fully (not partially clipped) visible `runs' from top to bottom:
     int32_t visible_runs;
     bool focused;     // is focused and created caret

@@ -46,11 +46,11 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const uint8_t* s, int32_t n) {
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
     // "ui_app.fm.regular" ~250us (microseconds) DirectWrite ~100us
-    const ui_gdi_ta_t ta = { .fm = e->view.fm, .color = e->view.color,
+    const ui_gdi_ta_t ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
 //  TODO: remove
-//  int32_t x = n == 0 ? 0 : ui_gdi.measure_text(e->view.fm, "%.*s", n, s).w;
+//  int32_t x = n == 0 ? 0 : ui_gdi.measure_text(e->fm, "%.*s", n, s).w;
 
 //  time = (ut_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
@@ -121,7 +121,7 @@ static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
 }
 
 static int32_t ui_edit_word_break(ui_edit_t* e, int32_t pn, int32_t rn) {
-    return ui_edit_word_break_at(e, pn, rn, e->w, false);
+    return ui_edit_word_break_at(e, pn, rn, e->edit.w, false);
 }
 
 static int32_t ui_edit_glyph_at_x(ui_edit_t* e, int32_t pn, int32_t rn,
@@ -160,7 +160,7 @@ static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_t* e, ui_edit_pg_t p) {
 static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
         int32_t* runs) {
 //  fp64_t time = ut_clock.seconds();
-    assert(e->view.w > 0);
+    assert(e->w > 0);
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pn && pn < dt->np);
     const ui_edit_run_t* r = null;
@@ -238,10 +238,10 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
 }
 
 static int32_t ui_edit_paragraph_run_count(ui_edit_t* e, int32_t pn) {
-    swear(e->view.w > 0);
+    swear(e->w > 0);
     ui_edit_text_t* dt = &e->doc->text; // document text
     int32_t runs = 0;
-    if (e->view.w > 0 && 0 <= pn && pn < dt->np) {
+    if (e->w > 0 && 0 <= pn && pn < dt->np) {
         (void)ui_edit_paragraph_runs(e, pn, &runs);
     }
     return runs;
@@ -260,7 +260,7 @@ static void ui_edit_create_caret(ui_edit_t* e) {
     assert(ui_app.has_focus());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
     int32_t caret_width = ut_min(3, ut_max(1, (int32_t)px));
-    ui_app.create_caret(caret_width, e->view.fm->height);
+    ui_app.create_caret(caret_width, e->fm->height);
     e->focused = true; // means caret was created
 }
 
@@ -275,10 +275,10 @@ static void ui_edit_show_caret(ui_edit_t* e) {
         assert(ui_app.is_active());
         assert(ui_app.has_focus());
         assert((e->caret.x < 0) == (e->caret.y < 0));
-        const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->view.insets);
+        const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
         int32_t x = e->caret.x < 0 ? insets.left : e->caret.x;
         int32_t y = e->caret.y < 0 ? insets.top  : e->caret.y;
-        ui_app.move_caret(e->view.x + x, e->view.y + y);
+        ui_app.move_caret(e->x + x, e->y + y);
         // TODO: it is possible to support unblinking caret if desired
         // do not set blink time - use global default
 //      fatal_if_false(SetCaretBlinkTime(500));
@@ -340,8 +340,8 @@ static void ui_edit_dispose_all_runs(ui_edit_t* e) {
 }
 
 static void ui_edit_layout_now(ui_edit_t* e) {
-    if (e->view.measure != null && e->view.layout != null && e->view.w > 0) {
-        e->view.layout(&e->view);
+    if (e->measure != null && e->layout != null && e->w > 0) {
+        e->layout(&e->view);
         ui_edit_invalidate(e);
     }
 }
@@ -349,7 +349,7 @@ static void ui_edit_layout_now(ui_edit_t* e) {
 static void ui_edit_if_sle_layout(ui_edit_t* e) {
     // only for single line edit controls that were already initialized
     // and measured horizontally at least once.
-    if (e->sle && e->view.layout != null && e->view.w > 0) {
+    if (e->sle && e->layout != null && e->w > 0) {
         ui_edit_layout_now(e);
     }
 }
@@ -357,7 +357,7 @@ static void ui_edit_if_sle_layout(ui_edit_t* e) {
 static void ui_edit_set_font(ui_edit_t* e, ui_fm_t* f) {
     ui_edit_invalidate_all_runs(e);
     e->scroll.rn = 0;
-    e->view.fm = f;
+    e->fm = f;
     ui_edit_layout_now(e);
     ui_app.request_layout();
 }
@@ -454,14 +454,14 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
                     break;
                 }
             }
-            pt.y += e->view.fm->height;
+            pt.y += e->fm->height;
         }
     }
     if (pg.pn == dt->np) { pt.x = e->inside.left; }
-    if (0 <= pt.x && pt.x < e->w && 0 <= pt.y && pt.y < e->h) {
+    if (0 <= pt.x && pt.x < e->edit.w && 0 <= pt.y && pt.y < e->edit.h) {
         // all good, inside visible rectangle or right after it
     } else {
-        traceln("(%d,%d) outside of %dx%d", pt.x, pt.y, e->w, e->h);
+        traceln("(%d,%d) outside of %dx%d", pt.x, pt.y, e->edit.w, e->edit.h);
     }
     return pt;
 }
@@ -502,7 +502,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
         for (int32_t j = ui_edit_first_visible_run(e, i); j < runs && pg.pn < 0; j++) {
             const ui_edit_run_t* r = &run[j];
             const uint8_t* s = str->u + run[j].bp;
-            if (py <= y && y < py + e->view.fm->height) {
+            if (py <= y && y < py + e->fm->height) {
                 int32_t w = ui_edit_text_width(e, s, r->bytes);
                 pg.pn = i;
                 if (x >= w) {
@@ -520,10 +520,10 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
                     }
                 }
             } else {
-                py += e->view.fm->height;
+                py += e->fm->height;
             }
         }
-        if (py > e->view.h) { break; }
+        if (py > e->h) { break; }
     }
     return pg;
 }
@@ -558,10 +558,10 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             if (!e->focused || !ui_app.has_focus()) {
                 selection_color = ui_colors.darken(selection_color, 0.1f);
             }
-            const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->view.insets);
-            int32_t x = e->view.x + insets.left;
+            const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
+            int32_t x = e->x + insets.left;
             ui_gdi.fill(x + x0, y,
-                             x1 - x0, e->view.fm->height, selection_color);
+                             x1 - x0, e->fm->height, selection_color);
         }
     }
 }
@@ -574,16 +574,16 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
     int32_t runs = 0;
     const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
     for (int32_t j = ui_edit_first_visible_run(e, pn);
-                 j < runs && y < e->view.y + e->inside.bottom; j++) {
+                 j < runs && y < e->y + e->inside.bottom; j++) {
         const uint8_t* text = str->u + run[j].bp;
         ui_edit_paint_selection(e, y, &run[j], text, pn,
                                 run[j].gp, run[j].gp + run[j].glyphs);
         ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
         if (j < runs - 1 && !e->hide_word_wrap) {
-            ui_gdi.text(ta, x + e->w, y, "%s",
+            ui_gdi.text(ta, x + e->edit.w, y, "%s",
                         ut_glyph_south_west_arrow_with_hook);
         }
-        y += e->view.fm->height;
+        y += e->fm->height;
     }
     return y;
 }
@@ -592,7 +592,7 @@ static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
     if (e->caret.x != x || e->caret.y != y) {
         if (e->focused && ui_app.has_focus()) {
 //            ui_app.hide_caret();
-            ui_app.move_caret(e->view.x + x, e->view.y + y);
+            ui_app.move_caret(e->x + x, e->y + y);
 //            ui_app.show_caret();
         }
         e->caret.x = x;
@@ -667,16 +667,16 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
             const int32_t fvr = ui_edit_first_visible_run(e, i);
             for (int32_t j = fvr; j < runs && py < bottom; j++) {
                 last = (uint64_t)i << 32 | j;
-                py += e->view.fm->height;
+                py += e->fm->height;
             }
         }
-        int32_t sle_runs = e->sle && e->view.w > 0 ?
+        int32_t sle_runs = e->sle && e->w > 0 ?
             ui_edit_paragraph_run_count(e, 0) : 0;
         assert(dt->np > 0);
         ui_edit_pg_t end = ui_edit_range.end(dt);
         ui_edit_pr_t lp = ui_edit_pg_to_pr(e, end);
         uint64_t eof = (uint64_t)(dt->np - 1) << 32 | lp.rn;
-        if (last == eof && py <= bottom - e->view.fm->height) {
+        if (last == eof && py <= bottom - e->fm->height) {
             // vertical white space for EOF on the screen
             last = (uint64_t)dt->np << 32 | 0;
         }
@@ -685,7 +685,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
         } else if (caret < scroll) {
             e->scroll.pn = pg.pn;
             e->scroll.rn = rn;
-        } else if (e->sle && sle_runs * e->view.fm->height <= e->view.h) {
+        } else if (e->sle && sle_runs * e->fm->height <= e->h) {
             // single line edit control fits vertically - no scroll
         } else {
             assert(caret >= last);
@@ -693,7 +693,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
             e->scroll.rn = rn;
             while (e->scroll.pn > 0 || e->scroll.rn > 0) {
                 ui_point_t pt = ui_edit_pg_to_xy(e, pg);
-                if (pt.y + e->view.fm->height > bottom - e->view.fm->height) { break; }
+                if (pt.y + e->fm->height > bottom - e->fm->height) { break; }
                 if (e->scroll.rn > 0) {
                     e->scroll.rn--;
                 } else {
@@ -714,11 +714,11 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
     } else {
         if (!e->sle || pg.pn < dt->np) {
             ui_edit_scroll_into_view(e, pg);
-            ui_point_t pt = e->view.w > 0 ? // width == 0 means no measure/layout yet
+            ui_point_t pt = e->w > 0 ? // width == 0 means no measure/layout yet
                 ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
             ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
             e->selection.a[1] = pg;
-            if (!ui_app.shift && e->mouse == 0) {
+            if (!ui_app.shift && e->edit.mouse == 0) {
                 e->selection.a[0] = e->selection.a[1];
             }
         }
@@ -797,8 +797,8 @@ static void ui_edit_reuse_last_x(ui_edit_t* e, ui_point_t* pt) {
     // movements alleviates this unpleasant UX experience to some degree.
     if (pt->x > 0) {
         if (e->last_x > 0) {
-            int32_t prev = e->last_x - e->view.fm->em.w;
-            int32_t next = e->last_x + e->view.fm->em.w;
+            int32_t prev = e->last_x - e->fm->em.w;
+            int32_t next = e->last_x + e->fm->em.w;
             if (prev <= pt->x && pt->x <= next) {
                 pt->x = e->last_x;
             }
@@ -856,7 +856,7 @@ static void ui_edit_key_down(ui_edit_t* e) {
     if (!e->sle && run_count >= e->visible_runs - 1) {
         ui_edit_scroll_up(e, 1);
     } else {
-        pt.y += e->view.fm->height;
+        pt.y += e->fm->height;
     }
     ui_edit_pg_t to = ui_edit_xy_to_pg(e, pt.x, pt.y);
     if (to.pn >= 0 && to.gp >= 0) {
@@ -902,11 +902,11 @@ static void ui_edit_key_end(ui_edit_t* e) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     if (ui_app.ctrl) {
         int32_t py = e->inside.bottom;
-        for (int32_t i = dt->np - 1; i >= 0 && py >= e->view.fm->height; i--) {
+        for (int32_t i = dt->np - 1; i >= 0 && py >= e->fm->height; i--) {
             int32_t runs = ui_edit_paragraph_run_count(e, i);
-            for (int32_t j = runs - 1; j >= 0 && py >= e->view.fm->height; j--) {
-                py -= e->view.fm->height;
-                if (py < e->view.fm->height) {
+            for (int32_t j = runs - 1; j >= 0 && py >= e->fm->height; j--) {
+                py -= e->fm->height;
+                if (py < e->fm->height) {
                     e->scroll.pn = i;
                     e->scroll.rn = j;
                 }
@@ -1128,7 +1128,7 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
                 }
                 e->selection.a[1] = to;
                 ui_edit_invalidate(e);
-                e->mouse = 0;
+                e->edit.mouse = 0;
             }
         }
     }
@@ -1151,7 +1151,7 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
             e->selection.a[1].pn++;
         }
         ui_edit_invalidate(e);
-        e->mouse = 0;
+        e->edit.mouse = 0;
     }
 }
 
@@ -1187,13 +1187,13 @@ static void ui_edit_focus_on_click(ui_edit_t* e, int32_t x, int32_t y) {
     // was edit control focused before click arrives?
     const bool app_has_focus = ui_app.has_focus();
     bool focused = false;
-    if (e->mouse != 0) {
+    if (e->edit.mouse != 0) {
         if (app_has_focus && !e->focused) {
             if (ui_app.focus != null && ui_app.focus->kill_focus != null) {
                 ui_app.focus->kill_focus(ui_app.focus);
             }
             ui_app.focus = &e->view;
-            bool set = e->view.set_focus(&e->view);
+            bool set = e->set_focus(&e->view);
             fatal_if(!set);
             focused = true;
         }
@@ -1204,7 +1204,7 @@ static void ui_edit_focus_on_click(ui_edit_t* e, int32_t x, int32_t y) {
             // not set caret, because setting caret on click will
             // destroy selection and this is bad UX
         } else if (app_has_focus && e->focused) {
-            e->mouse = 0;
+            e->edit.mouse = 0;
             ui_edit_click(e, x, y);
         }
     }
@@ -1212,14 +1212,14 @@ static void ui_edit_focus_on_click(ui_edit_t* e, int32_t x, int32_t y) {
 
 static void ui_edit_mouse_button_down(ui_edit_t* e, int32_t m,
         int32_t x, int32_t y) {
-    if (m == ui.message.left_button_pressed)  { e->mouse |= (1 << 0); }
-    if (m == ui.message.right_button_pressed) { e->mouse |= (1 << 1); }
+    if (m == ui.message.left_button_pressed)  { e->edit.mouse |= (1 << 0); }
+    if (m == ui.message.right_button_pressed) { e->edit.mouse |= (1 << 1); }
     ui_edit_focus_on_click(e, x, y);
 }
 
 static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t m) {
-    if (m == ui.message.left_button_released)  { e->mouse &= ~(1 << 0); }
-    if (m == ui.message.right_button_released) { e->mouse &= ~(1 << 1); }
+    if (m == ui.message.left_button_released)  { e->edit.mouse &= ~(1 << 0); }
+    if (m == ui.message.right_button_released) { e->edit.mouse &= ~(1 << 1); }
 }
 
 #ifdef EDIT_USE_TAP
@@ -1227,13 +1227,13 @@ static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t m) {
 static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
     if (ix == 0) {
         ui_edit_t* e = (ui_edit_t*)v;
-        const int32_t x = ui_app.mouse.x - e->view.x;
-        const int32_t y = ui_app.mouse.y - e->view.y - e->inside.top;
+        const int32_t x = ui_app.mouse.x - e->x;
+        const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
-            e->mouse = 0x1;
+            e->edit.mouse = 0x1;
             ui_edit_focus_on_click(e, x, y);
-            e->mouse = 0x0;
+            e->edit.mouse = 0x0;
         }
         return inside;
     } else {
@@ -1246,14 +1246,14 @@ static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
 static bool ui_edit_press(ui_view_t* v, int32_t ix) {
     if (ix == 0) {
         ui_edit_t* e = (ui_edit_t*)v;
-        const int32_t x = ui_app.mouse.x - e->view.x;
-        const int32_t y = ui_app.mouse.y - e->view.y - e->inside.top;
+        const int32_t x = ui_app.mouse.x - e->x;
+        const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
-            e->mouse = 0x1;
+            e->edit.mouse = 0x1;
             ui_edit_focus_on_click(e, x, y);
             ui_edit_double_click(e, x, y);
-            e->mouse = 0x0;
+            e->edit.mouse = 0x0;
         }
         return inside;
     } else {
@@ -1265,8 +1265,8 @@ static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
     assert(v->type == ui_view_text);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_edit_t* e = (ui_edit_t*)v;
-    const int32_t x = ui_app.mouse.x - e->view.x - e->inside.left;
-    const int32_t y = ui_app.mouse.y - e->view.y - e->inside.top;
+    const int32_t x = ui_app.mouse.x - e->x - e->inside.left;
+    const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
     bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
     if (inside) {
         if (m == ui.message.left_button_pressed ||
@@ -1378,12 +1378,12 @@ static void ui_edit_clipboard_copy(ui_edit_t* e) {
         ut_clipboard.put_text((const char*)text);
         ut_heap.free(text);
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
-        int32_t x = e->view.x + e->caret.x;
-        int32_t y = e->view.y + e->caret.y - e->view.fm->height;
+        int32_t x = e->x + e->caret.x;
+        int32_t y = e->y + e->caret.y - e->fm->height;
         if (y < ui_app.content->y) {
-            y += e->view.fm->height * 2;
+            y += e->fm->height * 2;
         }
-        if (y > ui_app.content->y + ui_app.content->h - e->view.fm->height) {
+        if (y > ui_app.content->y + ui_app.content->h - e->fm->height) {
             y = e->caret.y;
         }
         ui_app.show_hint(&hint, x, y, 0.5);
@@ -1420,7 +1420,7 @@ static void ui_edit_paste(ui_edit_t* e, const char* s, int32_t n) {
         ui_edit.erase(e);
         e->selection.a[1] = ui_edit_paste_text(e, (const uint8_t*)s, n);
         e->selection.a[0] = e->selection.a[1];
-        if (e->view.w > 0) { ui_edit_move_caret(e, e->selection.a[1]); }
+        if (e->w > 0) { ui_edit_move_caret(e, e->selection.a[1]); }
     }
 }
 
@@ -1471,10 +1471,10 @@ static void ui_edit_insets(ui_edit_t* e) {
         .right  = v->w - insets.right,
         .bottom = v->h - insets.bottom
     };
-    const int32_t width = e->w; // previous width
-    e->w = e->inside.right  - e->inside.left;
-    e->h = e->inside.bottom - e->inside.top;
-    if (e->w != width) { ui_edit_invalidate_all_runs(e); }
+    const int32_t width = e->edit.w; // previous width
+    e->edit.w = e->inside.right  - e->inside.left;
+    e->edit.h = e->inside.bottom - e->inside.top;
+    if (e->edit.w != width) { ui_edit_invalidate_all_runs(e); }
 }
 
 static void ui_edit_measure(ui_view_t* v) { // bottom up
@@ -1497,7 +1497,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_insets(e);
     e->visible_runs =  // fully visible runs
-        (e->inside.bottom - e->inside.top) / e->view.fm->height;
+        (e->inside.bottom - e->inside.top) / e->fm->height;
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
     // glyph position in scroll_pn paragraph:
@@ -1537,7 +1537,7 @@ static void ui_edit_paint(ui_view_t* v) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     ui_gdi.set_clip(v->x + e->inside.left,  v->y + e->inside.top,
-                    e->w + e->inside.right, e->h);
+                    e->edit.w + e->inside.right, e->edit.h);
     const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
     int32_t x = v->x + insets.left;
     int32_t y = v->y + insets.top;
@@ -1556,7 +1556,7 @@ static void ui_edit_paint(ui_view_t* v) {
 }
 
 static void ui_edit_move(ui_edit_t* e, ui_edit_pg_t pg) {
-    if (e->view.w > 0) {
+    if (e->w > 0) {
         ui_edit_move_caret(e, pg); // may select text on move
     } else {
         e->selection.a[1] = pg;
@@ -1667,35 +1667,35 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->listener.notify.after  = ui_edit_after;
     static_assertion(offsetof(ui_edit_notify_view_t, notify) == 0);
     ui_edit_doc.subscribe(d, &e->listener.notify);
-    e->view.color_id = ui_color_id_window_text;
-    e->view.background_id = ui_color_id_window;
-    e->view.fm = &ui_app.fm.regular;
-    e->view.insets  = (ui_gaps_t){ 0.25, 0.25, 0.50, 0.25 };
-    e->view.padding = (ui_gaps_t){ 0.25, 0.25, 0.25, 0.25 };
-    e->view.min_w_em = 1.0;
-    e->view.min_h_em = 1.0;
-    e->view.type = ui_view_text;
-    e->view.state.focusable = true;
+    e->color_id = ui_color_id_window_text;
+    e->background_id = ui_color_id_window;
+    e->fm = &ui_app.fm.regular;
+    e->insets  = (ui_gaps_t){ 0.25, 0.25, 0.50, 0.25 };
+    e->padding = (ui_gaps_t){ 0.25, 0.25, 0.25, 0.25 };
+    e->min_w_em = 1.0;
+    e->min_h_em = 1.0;
+    e->type = ui_view_text;
+    e->state.focusable = true;
     e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
     e->last_x    = -1;
     e->focused   = false;
     e->sle       = false;
     e->ro        = false;
     e->caret                = (ui_point_t){-1, -1};
-    e->view.message         = ui_edit_message;
-    e->view.paint           = ui_edit_paint;
-    e->view.measure         = ui_edit_measure;
-    e->view.layout          = ui_edit_layout;
-    e->view.press           = ui_edit_press;
-    e->view.character       = ui_edit_character;
-    e->view.set_focus       = ui_edit_set_focus;
-    e->view.kill_focus      = ui_edit_kill_focus;
-    e->view.key_pressed     = ui_edit_key_pressed;
-    e->view.mouse_wheel     = ui_edit_mouse_wheel;
+    e->message         = ui_edit_message;
+    e->paint           = ui_edit_paint;
+    e->measure         = ui_edit_measure;
+    e->layout          = ui_edit_layout;
+    e->press           = ui_edit_press;
+    e->character       = ui_edit_character;
+    e->set_focus       = ui_edit_set_focus;
+    e->kill_focus      = ui_edit_kill_focus;
+    e->key_pressed     = ui_edit_key_pressed;
+    e->mouse_wheel     = ui_edit_mouse_wheel;
     #ifdef EDIT_USE_TAP
-        e->view.tap         = ui_edit_tap;
+        e->tap         = ui_edit_tap;
     #else
-        e->view.mouse       = ui_edit_mouse;
+        e->mouse       = ui_edit_mouse;
     #endif
     ui_edit_allocate_runs(e);
 }
