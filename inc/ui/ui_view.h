@@ -54,7 +54,7 @@ typedef struct ui_view_s {
     fp32_t  min_h_em; // > 0 minimum height of a view in "em"s
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
-    ui_fm_t* fm; // font metrics
+    const ui_fm_t* fm; // font metrics
     int32_t  shortcut; // keyboard shortcut
     void* that;  // for the application use
     void (*notify)(ui_view_t* v, void* p); // for the application use
@@ -236,32 +236,12 @@ extern ui_view_if ui_view;
 // is way easier on preprocessor
 
 // ui_view_insets (fractions of 1/2 to keep float calculations precise):
-#define ui_view_i_lr (0.375f) // 3/4 of "em.w" on left and right
-#define ui_view_i_t  (0.125f) // 1/8 was (0.109375f) 7/64 top
-#define ui_view_i_b  (0.125f) // 1/8 was (0.140625f) 9/64 bottom
-#define ui_view_i_button_lr (0.75f) // wider left/right insets for buttons
-
-// Most of UI elements are lowercase latin with Capital letter
-// to boot. The ascent/descent of the latin fonts lack vertical
-// symmetry and thus the top inset is chosen to be a bit smaller
-// than the bottom:
-//
-// i_t + i_b = 16/64 = 1/4
-//                   = 5px for 20px font
-//                   = 3px for 12px font
-// for 20px font i_t + i_b is 1/4 of 20 equal 5px:
-// i_t: (int32_t)(20 * 0.109375 + 0.5)   2px
-// i_b: (int32_t)(20 * (0.109375f + 0.140625) - i_t + 0.5) 3px
-//
-// for 12px font i_t + i_b is 1/4 of 12 equal 3px:
-// i_t: (int32_t)(12 * 0.109375 + 0.5)   1px for 12px font
-// i_b: (int32_t)(12 * (0.109375f + 0.140625) - i_t + 0.5) 2px
+#define ui_view_i_lr (0.750f) // 3/4 of "em.w" on left and right
+#define ui_view_i_tb (0.125f) // 1/8 em
 
 // ui_view_padding
-#define ui_view_p_l (0.375f)
-#define ui_view_p_r (0.375f)
-#define ui_view_p_t (0.25f)
-#define ui_view_p_b (0.25f)
+#define ui_view_p_lr (0.375f)
+#define ui_view_p_tb (0.250f)
 
 #define ui_view_call_init(v) do {                   \
     if ((v)->init != null) {                        \

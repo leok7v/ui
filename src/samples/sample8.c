@@ -422,20 +422,6 @@ static void controls_large(ui_view_t* v) {
 
 static void controls_test(ui_view_t* parent) {
     ui_view.disband(parent);
-#if 0
-    #define test_string                                         \
-            ut_glyph_E_with_cedilla_and_breve                   \
-            ut_glyph_box_drawings_heavy_vertical_and_horizontal \
-            ut_glyph_box_drawings_light_diagonal_cross          \
-            ut_glyph_combining_enclosing_circle                 \
-            ut_glyph_box_drawings_light_diagonal_cross          \
-            ut_glyph_combining_enclosing_keycap                 \
-            ut_glyph_box_drawings_light_diagonal_cross          \
-            ut_glyph_combining_enclosing_screen                 \
-            ut_glyph_box_drawings_light_diagonal_cross          \
-            ut_glyph_combining_enclosing_square
-#endif
-#if 1
     #define test_string                                         \
             ut_glyph_E_with_cedilla_and_breve                   \
             ut_glyph_box_drawings_heavy_vertical_and_horizontal \
@@ -449,7 +435,6 @@ static void controls_test(ui_view_t* parent) {
             ut_glyph_en_quad                                    \
             ut_glyph_combining_enclosing_circle                 \
             ut_glyph_en_quad
-#endif
     static ui_view_t   list    = ui_view(list);
     static ui_view_t   span    = ui_view(span);
     // horizontal inside span
@@ -458,7 +443,7 @@ static void controls_test(ui_view_t* parent) {
     static ui_button_t button1 = ui_button("&Button", 6.0f, null);
     static ui_button_t buttonE = ui_button(test_string,
                                            6.0f, null);
-    static ui_slider_t slider1 = ui_slider("%d", 3.3f, 0, UINT16_MAX,
+    static ui_slider_t slider1 = ui_slider("%d", 8.0f, 0, UINT16_MAX,
                                            slider_format, slider_callback);
     static ui_slider_t sliderE = ui_slider(test_string,
                                            6.0f, 0, 4, null, null);
@@ -471,6 +456,8 @@ static void controls_test(ui_view_t* parent) {
     static ui_label_t  label   = ui_label(min_w_in_em, "Label");
     static ui_button_t button2 = ui_button("Button", min_w_in_em, null);
     static ui_slider_t slider2 = ui_slider("%d", min_w_in_em, 0, UINT16_MAX,
+                                            slider_format, slider_callback);
+    static ui_slider_t slider3 = ui_slider("%d", min_w_in_em, 0, UINT16_MAX,
                                             slider_format, slider_callback);
     static ui_toggle_t gaps    = ui_toggle("&Gaps", min_w_in_em,
                                             controls_gaps);
@@ -494,11 +481,17 @@ static void controls_test(ui_view_t* parent) {
             align(&label,        ui.align.left),
             align(&button2,      ui.align.left),
             align(&slider2.view, ui.align.left),
+            align(&slider3.view, ui.align.left),
             align(&gaps,         ui.align.left),
             align(&fm,           ui.align.left),
             align(&spacer,       ui.align.left),
         null),
     null);
+// slider1.view.debug.trace.mt = true;
+// slider3.dec.debug.trace.mt = true;
+// slider3.dec.debug.paint.gaps = true;
+ //slider3.view.debug.trace.mt = true;
+// gaps.debug.trace.mt = true;
 //buttonE.debug.trace.mt = true;
     list.debug.paint.gaps = true;
     span.align = ui.align.left;
@@ -510,9 +503,9 @@ static void controls_test(ui_view_t* parent) {
     list.background_id = ui_color_id_window;
     slider2.dec.state.hidden = true;
     slider2.inc.state.hidden = true;
-gaps.state.pressed = true;
+//gaps.state.pressed = true;
 large.state.pressed = true;
-controls_gaps(&gaps);
+//controls_gaps(&gaps);
 controls_large(&large);
 }
 

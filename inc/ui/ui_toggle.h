@@ -29,12 +29,12 @@ void ui_view_init_toggle(ui_view_t* view);
         .callback = name ## _on_off,                        \
         .min_w_em = 1.0, .min_h_em = 1.0,                   \
         .insets  = {                                        \
-            .left  = ui_view_i_lr, .top    = ui_view_i_t,   \
-            .right = ui_view_i_lr, .bottom = ui_view_i_b    \
+            .left  = ui_view_i_lr, .top    = ui_view_i_tb,  \
+            .right = ui_view_i_lr, .bottom = ui_view_i_tb   \
         },                                                  \
         .padding = {                                        \
-            .left  = ui_view_p_l, .top    = ui_view_p_t,    \
-            .right = ui_view_p_r, .bottom = ui_view_p_b,    \
+            .left  = ui_view_p_lr, .top    = ui_view_p_tb,  \
+            .right = ui_view_p_lr, .bottom = ui_view_p_tb,  \
         }                                                   \
     }
 
@@ -47,12 +47,12 @@ void ui_view_init_toggle(ui_view_t* view);
     .callback = on_off,                                     \
     .min_w_em = 1.0, .min_h_em = 1.0,                       \
     .insets  = {                                            \
-        .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
-        .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+        .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+        .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
     },                                                      \
     .padding = {                                            \
-        .left  = ui_view_p_l, .top    = ui_view_p_t,        \
-        .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+        .left  = ui_view_p_lr, .top    = ui_view_p_tb,      \
+        .right = ui_view_p_lr, .bottom = ui_view_p_tb,      \
     }                                                       \
 }
 

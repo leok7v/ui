@@ -13,46 +13,46 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 
 // ui_button_clicked can only be used on static button variables
 
-#define ui_button_clicked(name, s, min_width_em, ...)               \
-    static void name ## _clicked(ui_button_t* name) {               \
-        (void)name; /* no warning if unused */                      \
-        { __VA_ARGS__ }                                             \
-    }                                                               \
-    static                                                          \
-    ui_button_t name = {                                            \
-        .type = ui_view_button,                                     \
-        .init = ui_view_init_button,                                \
-        .fm = &ui_app.fm.regular,                                   \
-        .p.text = s,                                                \
-        .callback = name ## _clicked,                               \
-        .color_id = ui_color_id_button_text,                        \
-        .min_w_em = min_width_em, .min_h_em = 1.0,                  \
-        .insets  = {                                                \
-            .left  = ui_view_i_button_lr, .top    = ui_view_i_t,    \
-            .right = ui_view_i_button_lr, .bottom = ui_view_i_b     \
-        },                                                          \
-        .padding = {                                                \
-            .left  = ui_view_p_l, .top    = ui_view_p_t,            \
-            .right = ui_view_p_r, .bottom = ui_view_p_b,            \
-        }                                                           \
+#define ui_button_clicked(name, s, min_width_em, ...)       \
+    static void name ## _clicked(ui_button_t* name) {       \
+        (void)name; /* no warning if unused */              \
+        { __VA_ARGS__ }                                     \
+    }                                                       \
+    static                                                  \
+    ui_button_t name = {                                    \
+        .type = ui_view_button,                             \
+        .init = ui_view_init_button,                        \
+        .fm = &ui_app.fm.regular,                           \
+        .p.text = s,                                        \
+        .callback = name ## _clicked,                       \
+        .color_id = ui_color_id_button_text,                \
+        .min_w_em = min_width_em, .min_h_em = 1.0,          \
+        .insets  = {                                        \
+            .left  = ui_view_i_lr, .top    = ui_view_i_tb,  \
+            .right = ui_view_i_lr, .bottom = ui_view_i_tb   \
+        },                                                  \
+        .padding = {                                        \
+            .left  = ui_view_p_lr, .top    = ui_view_p_tb,  \
+            .right = ui_view_p_lr, .bottom = ui_view_p_tb,  \
+        }                                                   \
     }
 
-#define ui_button(s, min_width_em, clicked) {                       \
-    .type = ui_view_button,                                         \
-    .init = ui_view_init_button,                                    \
-    .fm = &ui_app.fm.regular,                                       \
-    .p.text = s,                                                    \
-    .callback = clicked,                                            \
-    .color_id = ui_color_id_button_text,                            \
-    .min_w_em = min_width_em, .min_h_em = 1.0,                      \
-    .insets  = {                                                    \
-        .left  = ui_view_i_button_lr, .top    = ui_view_i_t,        \
-        .right = ui_view_i_button_lr, .bottom = ui_view_i_b         \
-    },                                                              \
-    .padding = {                                                    \
-        .left  = ui_view_p_l, .top    = ui_view_p_t,                \
-        .right = ui_view_p_r, .bottom = ui_view_p_b,                \
-    }                                                               \
+#define ui_button(s, min_width_em, clicked) {               \
+    .type = ui_view_button,                                 \
+    .init = ui_view_init_button,                            \
+    .fm = &ui_app.fm.regular,                               \
+    .p.text = s,                                            \
+    .callback = clicked,                                    \
+    .color_id = ui_color_id_button_text,                    \
+    .min_w_em = min_width_em, .min_h_em = 1.0,              \
+    .insets  = {                                            \
+        .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+        .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
+    },                                                      \
+    .padding = {                                            \
+        .left  = ui_view_p_lr, .top    = ui_view_p_tb,      \
+        .right = ui_view_p_lr, .bottom = ui_view_p_tb,      \
+    }                                                       \
 }
 
 // usage:

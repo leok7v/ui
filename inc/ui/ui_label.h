@@ -17,12 +17,12 @@ void ui_view_init_label(ui_view_t* view);
     .p.text = s,                                       \
     .min_w_em = min_width_em, .min_h_em = 1.0,         \
     .insets  = {                                       \
-        .left  = 0.25f, .top    = ui_view_i_t,         \
-        .right = 0.25f, .bottom = ui_view_i_b          \
+        .left  = ui_view_i_lr, .top    = ui_view_i_tb, \
+        .right = ui_view_i_lr, .bottom = ui_view_i_tb  \
     },                                                 \
     .padding = {                                       \
-        .left  = 0.25, .top    = ui_view_p_t,          \
-        .right = 0.25, .bottom = ui_view_p_b,          \
+        .left  = ui_view_p_lr, .top    = ui_view_p_tb, \
+        .right = ui_view_p_lr, .bottom = ui_view_p_tb, \
     }                                                  \
 }
 

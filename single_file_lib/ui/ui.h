@@ -805,7 +805,7 @@ typedef struct ui_view_s {
     fp32_t  min_h_em; // > 0 minimum height of a view in "em"s
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
-    ui_fm_t* fm; // font metrics
+    const ui_fm_t* fm; // font metrics
     int32_t  shortcut; // keyboard shortcut
     void* that;  // for the application use
     void (*notify)(ui_view_t* v, void* p); // for the application use
@@ -987,32 +987,12 @@ extern ui_view_if ui_view;
 // is way easier on preprocessor
 
 // ui_view_insets (fractions of 1/2 to keep float calculations precise):
-#define ui_view_i_lr (0.375f) // 3/4 of "em.w" on left and right
-#define ui_view_i_t  (0.125f) // 1/8 was (0.109375f) 7/64 top
-#define ui_view_i_b  (0.125f) // 1/8 was (0.140625f) 9/64 bottom
-#define ui_view_i_button_lr (0.75f) // wider left/right insets for buttons
-
-// Most of UI elements are lowercase latin with Capital letter
-// to boot. The ascent/descent of the latin fonts lack vertical
-// symmetry and thus the top inset is chosen to be a bit smaller
-// than the bottom:
-//
-// i_t + i_b = 16/64 = 1/4
-//                   = 5px for 20px font
-//                   = 3px for 12px font
-// for 20px font i_t + i_b is 1/4 of 20 equal 5px:
-// i_t: (int32_t)(20 * 0.109375 + 0.5)   2px
-// i_b: (int32_t)(20 * (0.109375f + 0.140625) - i_t + 0.5) 3px
-//
-// for 12px font i_t + i_b is 1/4 of 12 equal 3px:
-// i_t: (int32_t)(12 * 0.109375 + 0.5)   1px for 12px font
-// i_b: (int32_t)(12 * (0.109375f + 0.140625) - i_t + 0.5) 2px
+#define ui_view_i_lr (0.750f) // 3/4 of "em.w" on left and right
+#define ui_view_i_tb (0.125f) // 1/8 em
 
 // ui_view_padding
-#define ui_view_p_l (0.375f)
-#define ui_view_p_r (0.375f)
-#define ui_view_p_t (0.25f)
-#define ui_view_p_b (0.25f)
+#define ui_view_p_lr (0.375f)
+#define ui_view_p_tb (0.250f)
 
 #define ui_view_call_init(v) do {                   \
     if ((v)->init != null) {                        \
@@ -1477,12 +1457,12 @@ void ui_view_init_label(ui_view_t* view);
     .p.text = s,                                       \
     .min_w_em = min_width_em, .min_h_em = 1.0,         \
     .insets  = {                                       \
-        .left  = 0.25f, .top    = ui_view_i_t,         \
-        .right = 0.25f, .bottom = ui_view_i_b          \
+        .left  = ui_view_i_lr, .top    = ui_view_i_tb, \
+        .right = ui_view_i_lr, .bottom = ui_view_i_tb  \
     },                                                 \
     .padding = {                                       \
-        .left  = 0.25, .top    = ui_view_p_t,          \
-        .right = 0.25, .bottom = ui_view_p_b,          \
+        .left  = ui_view_p_lr, .top    = ui_view_p_tb, \
+        .right = ui_view_p_lr, .bottom = ui_view_p_tb, \
     }                                                  \
 }
 
@@ -1511,46 +1491,46 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 
 // ui_button_clicked can only be used on static button variables
 
-#define ui_button_clicked(name, s, min_width_em, ...)               \
-    static void name ## _clicked(ui_button_t* name) {               \
-        (void)name; /* no warning if unused */                      \
-        { __VA_ARGS__ }                                             \
-    }                                                               \
-    static                                                          \
-    ui_button_t name = {                                            \
-        .type = ui_view_button,                                     \
-        .init = ui_view_init_button,                                \
-        .fm = &ui_app.fm.regular,                                   \
-        .p.text = s,                                                \
-        .callback = name ## _clicked,                               \
-        .color_id = ui_color_id_button_text,                        \
-        .min_w_em = min_width_em, .min_h_em = 1.0,                  \
-        .insets  = {                                                \
-            .left  = ui_view_i_button_lr, .top    = ui_view_i_t,    \
-            .right = ui_view_i_button_lr, .bottom = ui_view_i_b     \
-        },                                                          \
-        .padding = {                                                \
-            .left  = ui_view_p_l, .top    = ui_view_p_t,            \
-            .right = ui_view_p_r, .bottom = ui_view_p_b,            \
-        }                                                           \
+#define ui_button_clicked(name, s, min_width_em, ...)       \
+    static void name ## _clicked(ui_button_t* name) {       \
+        (void)name; /* no warning if unused */              \
+        { __VA_ARGS__ }                                     \
+    }                                                       \
+    static                                                  \
+    ui_button_t name = {                                    \
+        .type = ui_view_button,                             \
+        .init = ui_view_init_button,                        \
+        .fm = &ui_app.fm.regular,                           \
+        .p.text = s,                                        \
+        .callback = name ## _clicked,                       \
+        .color_id = ui_color_id_button_text,                \
+        .min_w_em = min_width_em, .min_h_em = 1.0,          \
+        .insets  = {                                        \
+            .left  = ui_view_i_lr, .top    = ui_view_i_tb,  \
+            .right = ui_view_i_lr, .bottom = ui_view_i_tb   \
+        },                                                  \
+        .padding = {                                        \
+            .left  = ui_view_p_lr, .top    = ui_view_p_tb,  \
+            .right = ui_view_p_lr, .bottom = ui_view_p_tb,  \
+        }                                                   \
     }
 
-#define ui_button(s, min_width_em, clicked) {                       \
-    .type = ui_view_button,                                         \
-    .init = ui_view_init_button,                                    \
-    .fm = &ui_app.fm.regular,                                       \
-    .p.text = s,                                                    \
-    .callback = clicked,                                            \
-    .color_id = ui_color_id_button_text,                            \
-    .min_w_em = min_width_em, .min_h_em = 1.0,                      \
-    .insets  = {                                                    \
-        .left  = ui_view_i_button_lr, .top    = ui_view_i_t,        \
-        .right = ui_view_i_button_lr, .bottom = ui_view_i_b         \
-    },                                                              \
-    .padding = {                                                    \
-        .left  = ui_view_p_l, .top    = ui_view_p_t,                \
-        .right = ui_view_p_r, .bottom = ui_view_p_b,                \
-    }                                                               \
+#define ui_button(s, min_width_em, clicked) {               \
+    .type = ui_view_button,                                 \
+    .init = ui_view_init_button,                            \
+    .fm = &ui_app.fm.regular,                               \
+    .p.text = s,                                            \
+    .callback = clicked,                                    \
+    .color_id = ui_color_id_button_text,                    \
+    .min_w_em = min_width_em, .min_h_em = 1.0,              \
+    .insets  = {                                            \
+        .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+        .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
+    },                                                      \
+    .padding = {                                            \
+        .left  = ui_view_p_lr, .top    = ui_view_p_tb,      \
+        .right = ui_view_p_lr, .bottom = ui_view_p_tb,      \
+    }                                                       \
 }
 
 // usage:
@@ -1582,7 +1562,10 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 typedef struct ui_slider_s ui_slider_t;
 
 typedef struct ui_slider_s {
-    ui_view_t view;
+    union {
+        ui_view_t view;
+        struct ui_view_s;
+    };
     int32_t step;
     fp64_t time; // time last button was pressed
     ui_wh_t mt;  // text measurement (special case for %0*d)
@@ -1618,12 +1601,12 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
             .callback = name ## _changed,                           \
             .min_w_em = min_width_em, .min_h_em = 1.0,              \
             .insets  = {                                            \
-                .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
-                .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+                .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+                .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
             },                                                      \
             .padding = {                                            \
-                .left  = ui_view_p_l, .top    = ui_view_p_t,        \
-                .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+                .left  = ui_view_p_lr, .top    = ui_view_p_tb,      \
+                .right = ui_view_p_lr, .bottom = ui_view_p_tb,      \
             }                                                       \
         },                                                          \
         .value_min = mn, .value_max = mx, .value = mn,              \
@@ -1639,12 +1622,12 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .format = fmt,                                              \
         .min_w_em = min_width_em, .min_h_em = 1.0,                  \
             .insets  = {                                            \
-                .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
-                .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+                .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+                .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
             },                                                      \
             .padding = {                                            \
-                .left  = ui_view_p_l, .top    = ui_view_p_t,        \
-                .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+                .left  = ui_view_p_lr, .top    = ui_view_p_tb,      \
+                .right = ui_view_p_lr, .bottom = ui_view_p_tb,      \
             }                                                       \
     },                                                              \
     .value_min = mn, .value_max = mx, .value = mn,                  \
@@ -1705,12 +1688,12 @@ void ui_view_init_toggle(ui_view_t* view);
         .callback = name ## _on_off,                        \
         .min_w_em = 1.0, .min_h_em = 1.0,                   \
         .insets  = {                                        \
-            .left  = ui_view_i_lr, .top    = ui_view_i_t,   \
-            .right = ui_view_i_lr, .bottom = ui_view_i_b    \
+            .left  = ui_view_i_lr, .top    = ui_view_i_tb,  \
+            .right = ui_view_i_lr, .bottom = ui_view_i_tb   \
         },                                                  \
         .padding = {                                        \
-            .left  = ui_view_p_l, .top    = ui_view_p_t,    \
-            .right = ui_view_p_r, .bottom = ui_view_p_b,    \
+            .left  = ui_view_p_lr, .top    = ui_view_p_tb,  \
+            .right = ui_view_p_lr, .bottom = ui_view_p_tb,  \
         }                                                   \
     }
 
@@ -1723,12 +1706,12 @@ void ui_view_init_toggle(ui_view_t* view);
     .callback = on_off,                                     \
     .min_w_em = 1.0, .min_h_em = 1.0,                       \
     .insets  = {                                            \
-        .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
-        .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+        .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+        .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
     },                                                      \
     .padding = {                                            \
-        .left  = ui_view_p_l, .top    = ui_view_p_t,        \
-        .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+        .left  = ui_view_p_lr, .top    = ui_view_p_tb,      \
+        .right = ui_view_p_lr, .bottom = ui_view_p_tb,      \
     }                                                       \
 }
 
@@ -1741,10 +1724,13 @@ void ui_view_init_toggle(ui_view_t* view);
 // maximum number of choices presentable to human is 4.
 
 typedef struct {
-    ui_view_t   view;
-    ui_label_t  label;
-    ui_button_t button[4];
-    int32_t option; // -1 or option chosen by user
+    union {
+        ui_view_t view;
+        struct ui_view_s;
+    };
+    ui_label_t   label;
+    ui_button_t  button[4];
+    int32_t      option; // -1 or option chosen by user
     const char** options;
 } ui_mbx_t;
 
@@ -4179,7 +4165,7 @@ static void ui_app_init_windows(void) {
     ui_app.dpi.monitor_angular = ui_app.dpi.system;
     ui_app.dpi.monitor_raw = ui_app.dpi.system;
     ui_app.dpi.monitor_max = ui_app.dpi.system;
-traceln("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
+//  traceln("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
     static const RECT nowhere = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
     ui_rect_t r = ui_app_rect2ui(&nowhere);
     ui_app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
@@ -4517,7 +4503,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
 static void ui_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button);
     ui_view.measure_control(v);
-    if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
+//  if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
 }
 
 void ui_view_init_button(ui_view_t* v) {
@@ -10714,8 +10700,8 @@ static void ui_label_paint(ui_view_t* v) {
     ui_color_t c = v->state.hover && v->state.highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
         v->color;
-    const int32_t tx = v->x + i.left;
-    const int32_t ty = v->y + i.top;
+    const int32_t tx = v->x + v->text.xy.x;
+    const int32_t ty = v->y + v->text.xy.y;
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
     const bool multiline = strchr(s, '\n') != null;
     if (multiline) {
@@ -10741,10 +10727,6 @@ static void ui_label_context_menu(ui_view_t* v) {
         int32_t x = v->x + v->w / 2;
         int32_t y = v->y + v->h;
         ui_app.show_hint(&hint, x, y, 0.75);
-//      static bool first_time = true;
-//      ui_app.toast(first_time ? 2.2 : 0.5,
-//          ut_nls.str("Text copied to clipboard"));
-//      first_time = false;
     }
 }
 
@@ -10761,11 +10743,12 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 
 void ui_view_init_label(ui_view_t* v) {
     assert(v->type == ui_view_label);
-    v->color_id      = ui_color_id_button_text;
-    v->background_id = ui_color_id_button_face;
     v->paint         = ui_label_paint;
     v->character     = ui_label_character;
     v->context_menu  = ui_label_context_menu;
+    v->color_id      = ui_color_id_button_text;
+    v->background_id = ui_color_id_button_face;
+    v->text_align    = ui.align.left;
 }
 
 void ui_label_init_va(ui_label_t* v, fp32_t min_w_em,
@@ -10840,7 +10823,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
     ui_view_for_each(v, r, {
         if (!ui_view.is_hidden(r)) {
             r->h = 0;
-            r->fm->baseline = 0;
+//          r->fm->baseline = 0;
             int32_t i = 0;
             ui_view_for_each(r, c, {
                 if (!ui_view.is_hidden(c)) {
@@ -10848,7 +10831,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
                     r->h = ut_max(r->h, c->h);
 //                  traceln("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
 //                          i, r->fm->baseline, c->fm->baseline);
-                    r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
+//                  r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
                 }
                 i++;
             });
@@ -10971,12 +10954,12 @@ layouts_if layouts = {
 
 static void ui_mbx_button(ui_button_t* b) {
     ui_mbx_t* mx = (ui_mbx_t*)b->parent;
-    assert(mx->view.type == ui_view_mbx);
+    assert(mx->type == ui_view_mbx);
     mx->option = -1;
     for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
         if (b == &mx->button[i]) {
             mx->option = i;
-            if (mx->view.callback != null) { mx->view.callback(&mx->view); }
+            if (mx->callback != null) { mx->callback(&mx->view); }
         }
     }
     ui_app.show_toast(null, 0);
@@ -11039,7 +11022,7 @@ void ui_view_init_mbx(ui_view_t* view) {
     ui_mbx_t* mx = (ui_mbx_t*)view;
     view->measured = ui_mbx_measured;
     view->layout = ui_mbx_layout;
-    mx->view.fm = &ui_app.fm.regular;
+    mx->fm = &ui_app.fm.regular;
     int32_t n = 0;
     while (mx->options[n] != null && n < countof(mx->button) - 1) {
         mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
@@ -11053,19 +11036,19 @@ void ui_view_init_mbx(ui_view_t* view) {
     ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);
-        mx->button[i].fm = mx->view.fm;
+        mx->button[i].fm = mx->fm;
     }
-    mx->label.fm = mx->view.fm;
+    mx->label.fm = mx->fm;
     ui_view.set_text(&mx->view, "");
     mx->option = -1;
 }
 
 void ui_mbx_init(ui_mbx_t* mx, const char* options[],
         const char* format, ...) {
-    mx->view.type = ui_view_mbx;
-    mx->view.measured  = ui_mbx_measured;
-    mx->view.layout    = ui_mbx_layout;
-    mx->view.color_id  = ui_color_id_window;
+    mx->type = ui_view_mbx;
+    mx->measured  = ui_mbx_measured;
+    mx->layout    = ui_mbx_layout;
+    mx->color_id  = ui_color_id_window;
     mx->options = options;
     va_list va;
     va_start(va, format);
@@ -11085,16 +11068,15 @@ static void ui_slider_invalidate(const ui_slider_t* s) {
     if (!s->inc.state.hidden) { ui_view.invalidate(&s->dec, null); }
 }
 
-static int32_t ui_slider_width_without_insets(const ui_slider_t* s) {
-    const int32_t em = s->view.fm->em.w;
-    const fp64_t min_w = (fp64_t)s->view.min_w_em;
-    const int32_t mw = (int32_t)(min_w * (fp64_t)em + 0.5);
-    return ut_max(em, ut_max(mw, s->mt.w));
-}
-
-static int32_t ui_slider_width_with_insets(const ui_slider_t* s) {
-    const ui_ltrb_t i = ui_view.gaps(&s->view, &s->view.insets);
-    return i.left + ui_slider_width_without_insets(s) + i.right;
+static int32_t ui_slider_width(const ui_slider_t* s) {
+    const ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
+    int32_t w = s->w - i.left - i.right;
+    if (!s->dec.state.hidden) {
+        const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
+        const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
+        w -= s->dec.w + s->inc.w + dec_p.right + inc_p.left;
+    }
+    return w;
 }
 
 static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
@@ -11107,23 +11089,45 @@ static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
 }
 
 static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
-    char formatted[countof(s->view.p.text)];
+    char formatted[countof(s->p.text)];
+    const ui_fm_t* fm = s->fm;
     const char* text = ui_view.string(&s->view);
-    ui_wh_t mt = s->view.fm->em;
-    if (s->view.format != null) {
-        s->view.format(&s->view);
+    ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
+    ui_wh_t mt = s->fm->em;
+    if (s->debug.trace.mt) {
+        const ui_ltrb_t p = ui_view.gaps(&s->view, &s->padding);
+        traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
+                "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
+            s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
+            i.left, i.top, i.right, i.bottom,
+            p.left, p.top, p.right, p.bottom,
+            ut_min(64, strlen(text)), text);
+        const ui_gaps_t in = s->insets;
+        const ui_gaps_t pd = s->padding;
+        traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+                " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
+            in.left, in.top, in.right, in.bottom,
+            in.left + in.right, in.top + in.bottom,
+            pd.left, pd.top, pd.right, pd.bottom,
+            pd.left + pd.right, pd.top + pd.bottom);
+    }
+    if (s->format != null) {
+        s->format(&s->view);
         strprintf(formatted, "%s", text);
-        mt = measure_text(s->view.fm, "%s", formatted);
+        mt = measure_text(s->fm, "%s", formatted);
         // TODO: format string 0x08X?
     } else if (text != null && (strstr(text, "%d") != null ||
                                 strstr(text, "%u") != null)) {
-        ui_wh_t mt_min = measure_text(s->view.fm, text, s->value_min);
-        ui_wh_t mt_max = measure_text(s->view.fm, text, s->value_max);
-        ui_wh_t mt_val = measure_text(s->view.fm, text, s->value);
+        ui_wh_t mt_min = measure_text(s->fm, text, s->value_min);
+        ui_wh_t mt_max = measure_text(s->fm, text, s->value_max);
+        ui_wh_t mt_val = measure_text(s->fm, text, s->value);
         mt.h = ut_max(mt_val.h, ut_max(mt_min.h, mt_max.h));
         mt.w = ut_max(mt_val.w, ut_max(mt_min.w, mt_max.w));
     } else if (text != null && text[0] != 0) {
-        mt = measure_text(s->view.fm, "%s", text);
+        mt = measure_text(s->fm, "%s", text);
+    }
+    if (s->debug.trace.mt) {
+        traceln(" mt: %dx%d", mt.w, mt.h);
     }
     return mt;
 }
@@ -11131,40 +11135,47 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
 static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-    // dec and inc have same font metrics as a slider:
-    s->dec.fm = v->fm;
-    s->inc.fm = v->fm;
-    ui_view.measure(&s->dec);
-    ui_view.measure(&s->inc);
-    const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
-    const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
-    s->mt = ui_slider_measure_text(s);
-    assert(s->dec.state.hidden == s->inc.state.hidden, "not the same");
-    const int32_t sw = ui_slider_width_with_insets(s);
-    if (s->dec.state.hidden) {
-        v->w = sw;
-    } else {
-        v->w = s->dec.w + dec_p.right + sw + inc_p.left + s->inc.w;
-    }
+    const ui_fm_t* fm = v->fm;
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    v->h = i.top + v->fm->em.h + i.bottom;
-    v->h = ut_max(v->h, ui.gaps_em2px(v->fm->em.h, v->min_h_em));
+    // slider cannot be smaller than 2*em
+    const fp32_t min_w_em = ut_max(2.0f, v->min_w_em);
+    v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)   min_w_em + 0.5);
+    v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
+    // dec and inc have same font metrics as a slider:
+    s->dec.fm = fm;
+    s->inc.fm = fm;
+    assert(s->dec.state.hidden == s->inc.state.hidden, "not the same");
+    s->text.mt = ui_slider_measure_text(s);
+    if (s->dec.state.hidden) {
+        v->w = ut_max(v->w, i.left + s->mt.w + i.right);
+    } else {
+        ui_view.measure(&s->dec); // remeasure with inherited metrics
+        ui_view.measure(&s->inc);
+        const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
+        const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
+        v->w = ut_max(v->w, s->dec.w + dec_p.right + s->mt.w + inc_p.left + s->inc.w);
+    }
+    v->h = ut_max(v->h, i.top + fm->em.h + i.bottom);
+    if (s->debug.trace.mt) {
+        traceln("<%dx%d", s->w, s->h);
+    }
 }
 
 static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     // disregard inc/dec .state.hidden bit for layout:
-    s->dec.x = v->x;
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    s->dec.x = v->x + i.left;
     s->dec.y = v->y;
-    s->inc.x = v->x + v->w - s->inc.w;
+    s->inc.x = v->x + v->w - i.right - s->inc.w;
     s->inc.y = v->y;
 }
 
 static void ui_slider_paint(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
-    ui_gdi.set_clip(v->x, v->y, v->w, v->h);
+    const ui_fm_t* fm = v->fm;
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
@@ -11172,7 +11183,13 @@ static void ui_slider_paint(ui_view_t* v) {
     assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
     const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
     const int32_t x = v->x + dx + i.left;
-    const int32_t w = ui_slider_width_without_insets(s);
+if (s->debug.trace.mt) {
+    traceln(" %x", x);
+}
+    const int32_t w = ui_slider_width(s);
+    if (s->debug.trace.mt) {
+        traceln(" %d", w);
+    }
     // draw background:
     fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
@@ -11200,31 +11217,60 @@ static void ui_slider_paint(ui_view_t* v) {
     // text:
     const char* text = ui_view.string(v);
     char formatted[countof(v->p.text)];
-    if (s->view.format != null) {
-        s->view.format(v);
-        s->view.p.strid = 0; // nls again
+    if (s->format != null) {
+        s->format(v);
+        s->p.strid = 0; // nls again
         text = ui_view.string(v);
-    } else if (text != null && (strstr(text, "%d") != null) ||
-                                strstr(text, "%u") != null) {
+    } else if (text != null &&
+        (strstr(text, "%d") != null || strstr(text, "%u") != null)) {
         ut_str.format(formatted, countof(formatted), text, s->value);
-        s->view.p.strid = 0; // nls again
+        s->p.strid = 0; // nls again
         text = ut_nls.str(formatted);
     }
-    ui_wh_t mt = ui_slider_measure_text(s);
-    const int32_t sw = ui_slider_width_with_insets(s); // slider width
-    const int32_t cx = (sw - mt.w) / 2; // centering offset
-    const int32_t tx = v->x + cx + (s->dec.state.hidden ? 0 : dec_w);
-    const int32_t ty = v->y + i.top;
+    // text is actual value now, remeasure:
+    v->text.mt = ui_slider_measure_text(s);
+    // text_align:
+    v->text.xy = (ui_point_t){ .x = -1, .y = -1 };
+    // i_wh the inside insets w x h:
+    const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
+                           .h = v->h - i.top  - i.bottom };
+    const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
+    const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
+    v->text.xy.x = i.left + (i_wh.w - v->text.mt.w) / 2;
+    if (h_align & ui.align.left) {
+        v->text.xy.x = i.left;
+    } else if (h_align & ui.align.right) {
+        v->text.xy.x = i_wh.w - v->text.mt.w - i.right;
+    }
+    // vertical centering is trickier.
+    // mt.h is height of all measured lines of text
+    v->text.xy.y = i.top + (i_wh.h - v->text.mt.h) / 2;
+    if (v_align & ui.align.top) {
+        v->text.xy.y = i.top;
+    } else if (v_align & ui.align.bottom) {
+        v->text.xy.y = i_wh.h - v->text.mt.h - i.bottom;
+    } else {
+        const int32_t y_of_x_line = fm->baseline - fm->x_height;
+        // `dy` offset of the center to x-line (middle of glyph cell)
+        const int32_t dy = v->text.mt.h / 2 - y_of_x_line;
+        v->text.xy.y += dy / 2;
+        if (v->debug.trace.mt) {
+            traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
+                      y_of_x_line, v->text.mt.h, dy);
+        }
+    }
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
+    const ui_gdi_ta_t ta = { .fm = fm, .color = text_color };
+    const int32_t tx = v->x + v->text.xy.x;
+    const int32_t ty = v->y + v->text.xy.y;
     ui_gdi.text(&ta, tx, ty, "%s", text);
-    ui_gdi.set_clip(0, 0, 0, 0);
 }
 
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         assert(v->type == ui_view_slider);
+        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
         ui_slider_t* s = (ui_slider_t*)v;
         bool drag = message == ui.message.mouse_move &&
             (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
@@ -11233,18 +11279,18 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
             assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
-            const int32_t sw = ui_slider_width_with_insets(s); // slider width
-            const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
-            const int32_t vx = v->x + dx;
+            const int32_t sw = ui_slider_width(s); // slider width
+            const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
+            const int32_t vx = v->x + i.left + dx;
             const int32_t x = ui_app.mouse.x - vx;
-            const int32_t y = ui_app.mouse.y - v->y;
+            const int32_t y = ui_app.mouse.y - (v->y + i.top);
             if (0 <= x && x < sw && 0 <= y && y < v->h) {
                 ui_app.focus = v;
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
                 fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
                 s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
-                if (s->view.callback != null) { s->view.callback(&s->view); }
+                if (s->callback != null) { s->callback(&s->view); }
                 ui_slider_invalidate(s);
             }
         }
@@ -11264,7 +11310,7 @@ static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
         }
         if (s->value != v) {
             s->value = v;
-            if (s->view.callback != null) { s->view.callback(&s->view); }
+            if (s->callback != null) { s->callback(&s->view); }
             ui_slider_invalidate(s);
         }
     }
@@ -11336,7 +11382,13 @@ void ui_view_init_slider(ui_view_t* v) {
     v->insets  = s->dec.insets;
     v->padding = s->dec.padding;
     s->dec.padding.right = 0.125f;
+    s->dec.padding.left  = 0;
     s->inc.padding.left  = 0.125f;
+    s->inc.padding.right = 0;
+    s->dec.min_h_em = 1.0f + ui_view_i_tb * 2;
+    s->dec.min_w_em = 1.0f + ui_view_i_tb * 2;
+    s->inc.min_h_em = 1.0f + ui_view_i_tb * 2;
+    s->inc.min_w_em = 1.0f + ui_view_i_tb * 2;
     ut_str_printf(s->inc.hint, "%s", accel);
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
@@ -11347,10 +11399,10 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
         void (*callback)(ui_view_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
     assert(min_w_em >= 3.0, "allow 1em for each of [-] and [+] buttons");
-    s->view.type = ui_view_slider;
+    s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
-    s->view.callback = callback;
-    s->view.min_w_em = min_w_em;
+    s->callback = callback;
+    s->min_w_em = min_w_em;
     s->value_min = value_min;
     s->value_max = value_max;
     s->value = value_min;
@@ -11892,9 +11944,9 @@ static void ui_view_measure_control(ui_view_t* v) {
         traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
-            in.left, + in.right, in.top + in.bottom,
+            in.left + in.right, in.top + in.bottom,
             pd.left, pd.top, pd.right, pd.bottom,
-            pd.left, + pd.right, pd.top + pd.bottom);
+            pd.left + pd.right, pd.top + pd.bottom);
     }
     v->text.mt = (ui_wh_t){ .w = 0, .h = fm->height };
     bool multiline = false;

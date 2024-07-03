@@ -7,7 +7,10 @@ begin_c
 typedef struct ui_slider_s ui_slider_t;
 
 typedef struct ui_slider_s {
-    ui_view_t view;
+    union {
+        ui_view_t view;
+        struct ui_view_s;
+    };
     int32_t step;
     fp64_t time; // time last button was pressed
     ui_wh_t mt;  // text measurement (special case for %0*d)
@@ -43,12 +46,12 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
             .callback = name ## _changed,                           \
             .min_w_em = min_width_em, .min_h_em = 1.0,              \
             .insets  = {                                            \
-                .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
-                .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+                .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+                .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
             },                                                      \
             .padding = {                                            \
-                .left  = ui_view_p_l, .top    = ui_view_p_t,        \
-                .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+                .left  = ui_view_p_lr, .top    = ui_view_p_tb,      \
+                .right = ui_view_p_lr, .bottom = ui_view_p_tb,      \
             }                                                       \
         },                                                          \
         .value_min = mn, .value_max = mx, .value = mn,              \
@@ -64,12 +67,12 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .format = fmt,                                              \
         .min_w_em = min_width_em, .min_h_em = 1.0,                  \
             .insets  = {                                            \
-                .left  = ui_view_i_lr, .top    = ui_view_i_t,       \
-                .right = ui_view_i_lr, .bottom = ui_view_i_b        \
+                .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+                .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
             },                                                      \
             .padding = {                                            \
-                .left  = ui_view_p_l, .top    = ui_view_p_t,        \
-                .right = ui_view_p_r, .bottom = ui_view_p_b,        \
+                .left  = ui_view_p_lr, .top    = ui_view_p_tb,      \
+                .right = ui_view_p_lr, .bottom = ui_view_p_tb,      \
             }                                                       \
     },                                                              \
     .value_min = mn, .value_max = mx, .value = mn,                  \

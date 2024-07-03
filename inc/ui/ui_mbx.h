@@ -9,10 +9,13 @@ begin_c
 // maximum number of choices presentable to human is 4.
 
 typedef struct {
-    ui_view_t   view;
-    ui_label_t  label;
-    ui_button_t button[4];
-    int32_t option; // -1 or option chosen by user
+    union {
+        ui_view_t view;
+        struct ui_view_s;
+    };
+    ui_label_t   label;
+    ui_button_t  button[4];
+    int32_t      option; // -1 or option chosen by user
     const char** options;
 } ui_mbx_t;
 

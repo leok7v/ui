@@ -135,7 +135,7 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
 static void ui_button_measure(ui_view_t* v) {
     assert(v->type == ui_view_button);
     ui_view.measure_control(v);
-    if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
+//  if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
 }
 
 void ui_view_init_button(ui_view_t* v) {

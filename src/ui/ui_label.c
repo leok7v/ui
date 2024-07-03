@@ -9,8 +9,8 @@ static void ui_label_paint(ui_view_t* v) {
     ui_color_t c = v->state.hover && v->state.highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
         v->color;
-    const int32_t tx = v->x + i.left;
-    const int32_t ty = v->y + i.top;
+    const int32_t tx = v->x + v->text.xy.x;
+    const int32_t ty = v->y + v->text.xy.y;
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
     const bool multiline = strchr(s, '\n') != null;
     if (multiline) {
@@ -36,10 +36,6 @@ static void ui_label_context_menu(ui_view_t* v) {
         int32_t x = v->x + v->w / 2;
         int32_t y = v->y + v->h;
         ui_app.show_hint(&hint, x, y, 0.75);
-//      static bool first_time = true;
-//      ui_app.toast(first_time ? 2.2 : 0.5,
-//          ut_nls.str("Text copied to clipboard"));
-//      first_time = false;
     }
 }
 
@@ -56,11 +52,12 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 
 void ui_view_init_label(ui_view_t* v) {
     assert(v->type == ui_view_label);
-    v->color_id      = ui_color_id_button_text;
-    v->background_id = ui_color_id_button_face;
     v->paint         = ui_label_paint;
     v->character     = ui_label_character;
     v->context_menu  = ui_label_context_menu;
+    v->color_id      = ui_color_id_button_text;
+    v->background_id = ui_color_id_button_face;
+    v->text_align    = ui.align.left;
 }
 
 void ui_label_init_va(ui_label_t* v, fp32_t min_w_em,

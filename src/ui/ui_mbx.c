@@ -3,12 +3,12 @@
 
 static void ui_mbx_button(ui_button_t* b) {
     ui_mbx_t* mx = (ui_mbx_t*)b->parent;
-    assert(mx->view.type == ui_view_mbx);
+    assert(mx->type == ui_view_mbx);
     mx->option = -1;
     for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
         if (b == &mx->button[i]) {
             mx->option = i;
-            if (mx->view.callback != null) { mx->view.callback(&mx->view); }
+            if (mx->callback != null) { mx->callback(&mx->view); }
         }
     }
     ui_app.show_toast(null, 0);
@@ -71,7 +71,7 @@ void ui_view_init_mbx(ui_view_t* view) {
     ui_mbx_t* mx = (ui_mbx_t*)view;
     view->measured = ui_mbx_measured;
     view->layout = ui_mbx_layout;
-    mx->view.fm = &ui_app.fm.regular;
+    mx->fm = &ui_app.fm.regular;
     int32_t n = 0;
     while (mx->options[n] != null && n < countof(mx->button) - 1) {
         mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
@@ -85,19 +85,19 @@ void ui_view_init_mbx(ui_view_t* view) {
     ui_view.add_last(&mx->view, &mx->label);
     for (int32_t i = 0; i < n; i++) {
         ui_view.add_last(&mx->view, &mx->button[i]);
-        mx->button[i].fm = mx->view.fm;
+        mx->button[i].fm = mx->fm;
     }
-    mx->label.fm = mx->view.fm;
+    mx->label.fm = mx->fm;
     ui_view.set_text(&mx->view, "");
     mx->option = -1;
 }
 
 void ui_mbx_init(ui_mbx_t* mx, const char* options[],
         const char* format, ...) {
-    mx->view.type = ui_view_mbx;
-    mx->view.measured  = ui_mbx_measured;
-    mx->view.layout    = ui_mbx_layout;
-    mx->view.color_id  = ui_color_id_window;
+    mx->type = ui_view_mbx;
+    mx->measured  = ui_mbx_measured;
+    mx->layout    = ui_mbx_layout;
+    mx->color_id  = ui_color_id_window;
     mx->options = options;
     va_list va;
     va_start(va, format);

@@ -55,7 +55,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
     ui_view_for_each(v, r, {
         if (!ui_view.is_hidden(r)) {
             r->h = 0;
-            r->fm->baseline = 0;
+//          r->fm->baseline = 0;
             int32_t i = 0;
             ui_view_for_each(r, c, {
                 if (!ui_view.is_hidden(c)) {
@@ -63,7 +63,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
                     r->h = ut_max(r->h, c->h);
 //                  traceln("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
 //                          i, r->fm->baseline, c->fm->baseline);
-                    r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
+//                  r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
                 }
                 i++;
             });

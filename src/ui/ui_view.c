@@ -205,9 +205,9 @@ static void ui_view_measure_control(ui_view_t* v) {
         traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
-            in.left, + in.right, in.top + in.bottom,
+            in.left + in.right, in.top + in.bottom,
             pd.left, pd.top, pd.right, pd.bottom,
-            pd.left, + pd.right, pd.top + pd.bottom);
+            pd.left + pd.right, pd.top + pd.bottom);
     }
     v->text.mt = (ui_wh_t){ .w = 0, .h = fm->height };
     bool multiline = false;
