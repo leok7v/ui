@@ -18,7 +18,7 @@ static int64_t hit_test(ui_view_t* unused(v), int32_t x, int32_t y) {
 }
 
 static void painted(ui_view_t* v) {
-    ui_view.debug_paint(v);
+    ui_view.debug_paint_gaps(v);
     ui_gdi.frame(v->x, v->y, v->w, v->h, ui_colors.white);
 }
 

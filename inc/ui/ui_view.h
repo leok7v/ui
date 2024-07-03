@@ -4,7 +4,7 @@
 begin_c
 
 enum ui_view_type_t {
-    ui_view_container = 'vwct',
+    ui_view_stack     = 'vwst',
     ui_view_label     = 'vwlb',
     ui_view_mbx       = 'vwmb',
     ui_view_button    = 'vwbt',
@@ -111,10 +111,15 @@ typedef struct ui_view_s {
     int32_t    background_id; // 0 is default meaning use background
     char hint[256]; // tooltip hint text (to be shown while hovering over view)
     struct {
-        bool   paint;        // call debug_paint() called after painted()
-        bool   paint_rect;   // trace paint view rect
-        bool   measure_text; // trace text measurement
-        bool   paint_fm;     // paint font metrics
+        struct {
+            bool prc; // paint rect
+            bool mt;  // measure text
+        } trace;
+        struct { // after painted():
+            bool call; // v->debug_paint()
+            bool gaps; // call debug_paint_gaps()
+            bool fm;   // paint font metrics
+        } paint;
     } debug; // debug flags
 } ui_view_t;
 
@@ -147,6 +152,9 @@ typedef struct ui_view_if {
     void (*invalidate)(const ui_view_t* v, const ui_rect_t* rect_or_null);
     bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
     bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
+    bool (*is_control)(const ui_view_t* v);
+    bool (*is_container)(const ui_view_t* v);
+    bool (*is_spacer)(const ui_view_t* v);
     const char* (*string)(ui_view_t* v);  // returns localized text
     void (*timer)(ui_view_t* v, ui_timer_t id);
     void (*every_sec)(ui_view_t* v);
@@ -166,7 +174,8 @@ typedef struct ui_view_if {
         const ui_fm_t* fm, const char* format, va_list va);
     ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, ...);
-    void (*measure_text)(ui_view_t* v);
+    // measure_text() returns x,y inside view according to text_align:
+    ui_point_t (*measure_text)(ui_view_t* v);
     void (*measure_children)(ui_view_t* v);
     void (*layout_children)(ui_view_t* v);
     void (*measure)(ui_view_t* v);
@@ -178,7 +187,8 @@ typedef struct ui_view_if {
     bool (*press)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
     bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp,
                                      int64_t* ret);
-    void (*debug_paint)(ui_view_t* v);
+    void (*debug_paint_gaps)(ui_view_t* v); // insets padding
+    void (*debug_paint_fm)(ui_view_t* v);   // text font metrics
     void (*test)(void);
 } ui_view_if;
 

@@ -1971,7 +1971,7 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
 }
 
 static ui_view_t ui_app_view = ui_view(list);
-static ui_view_t ui_app_content = ui_view(container);
+static ui_view_t ui_app_content = ui_view(stack);
 
 static bool ui_app_is_active(void) { return GetActiveWindow() == ui_app_window(); }
 
@@ -2047,7 +2047,7 @@ static void ui_app_init(void) {
     ui_app.caption = &ui_caption.view;
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
-    assert(ui_app.content->type == ui_view_container);
+    assert(ui_app.content->type == ui_view_stack);
     assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;

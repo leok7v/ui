@@ -146,7 +146,7 @@ static ui_label_t label = ui_label(0.0, "...");
 
 static ui_view_t left   = ui_view(list);
 static ui_view_t right  = ui_view(list);
-static ui_view_t bottom = ui_view(container);
+static ui_view_t bottom = ui_view(stack);
 
 static void set_text(int32_t ix) {
     static char last[128];

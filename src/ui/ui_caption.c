@@ -95,7 +95,7 @@ static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
         return ui.hit_test.system_menu;
     } else {
         ui_view_for_each(&ui_caption.view, c, {
-            bool ignore = c->type == ui_view_container ||
+            bool ignore = c->type == ui_view_stack ||
                           c->type == ui_view_spacer ||
                           c->type == ui_view_label;
             if (!ignore && ui_view.inside(c, &pt)) {

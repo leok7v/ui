@@ -13,7 +13,7 @@ static const fp64_t ui_view_hover_delay = 1.5; // seconds
 static inline void ui_view_check_type(ui_view_t* v) {
     // little endian:
     static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
-    static_assertion((ui_view_container & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
+    static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
     swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
           "not a view: %4.4s 0x%08X (forgotten &static_view?)",
           &v->type, v->type);
@@ -185,15 +185,14 @@ static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
     return wh;
 }
 
-static void ui_view_measure_text(ui_view_t* v) {
+static ui_point_t ui_view_measure_text(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
     const ui_fm_t* fm = v->fm;
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
-v->debug.measure_text = true; // xxx
-    if (v->debug.measure_text) {
+    if (v->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
         traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
@@ -210,25 +209,59 @@ v->debug.measure_text = true; // xxx
             pd.left, pd.top, pd.right, pd.bottom,
             pd.left, + pd.right, pd.top + pd.bottom);
     }
-    ui_wh_t mt = { 0, 0 };
+    ui_wh_t mt = { .w = 0, .h = fm->height };
+    bool multiline = false;
     if (s[0] != 0) {
-        bool multiline = strchr(s, '\n') != null;
+        multiline = strchr(s, '\n') != null;
         if (v->type == ui_view_label && multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)fm->em.w + 0.5);
-            mt = ui_view_text_metrics(v->x, v->y, true,  w, fm, "%s", s);
+            mt = ui_view.text_metrics(v->x, v->y, true,  w, fm, "%s", s);
         } else {
-            mt = ui_view_text_metrics(v->x, v->y, false, 0, fm, "%s", s);
+            mt = ui_view.text_metrics(v->x, v->y, false, 0, fm, "%s", s);
         }
-        if (v->debug.measure_text) {
+        if (v->debug.trace.mt) {
             traceln(" mt: %d %d", mt.w, mt.h);
         }
         v->w = ut_max(v->w, i.left + mt.w + i.right);
         v->h = ut_max(v->h, i.top  + mt.h + i.bottom);
     }
-    if (v->debug.measure_text) {
-        traceln("<%dx%d", v->w, v->h);
+    // text_align:
+    ui_point_t t = { .x = -1, .y = -1 };
+    // i_wh the inside insets w x h:
+    const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
+                           .h = v->h - i.top - i.bottom };
+    const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
+    const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
+    t.x = i.left + (i_wh.w - mt.w) / 2;
+    if (h_align & ui.align.left) {
+        t.x = i.left;
+    } else if (h_align & ui.align.right) {
+        t.x = i_wh.w - mt.w - i.right;
+    }
+    // vertical centering is trickier.
+    // mt.h is height of all measured lines of text
+    t.y = i.top + (i_wh.h - mt.h) / 2;
+    if (v_align & ui.align.top) {
+        t.y = i.top;
+    } else if (v_align & ui.align.bottom) {
+        t.y = i_wh.h - mt.h - i.bottom;
+    } else if (!multiline) {
+        // UI controls should have x-height line in the dead center
+        // of the control to be visually balanced.
+        // y offset of "x-line" of the glyph:
+        const int32_t y_of_x_line = fm->baseline - fm->x_height;
+        const int32_t dy = mt.h / 2 - y_of_x_line; // offset of center to x-line
+        t.y += dy / 2;
+        if (v->debug.trace.mt) {
+            traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
+                      y_of_x_line, mt.h, dy);
+        }
+    }
+    if (v->debug.trace.mt) {
+        traceln("<%dx%d text_align x,y: %d,%d", v->w, v->h, t.x, t.y);
         traceln("");
     }
+    return t;
 }
 
 static void ui_view_measure_children(ui_view_t* v) {
@@ -481,7 +514,7 @@ static void ui_view_resolve_color_ids(ui_view_t* v) {
 static void ui_view_paint(ui_view_t* v) {
     assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     ui_view_resolve_color_ids(v);
-    if (v->debug.paint_rect) {
+    if (v->debug.trace.prc) {
         const char* s = ui_view.string(v);
         traceln("%d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
                 ut_min(64, strlen(s)), s);
@@ -489,7 +522,9 @@ static void ui_view_paint(ui_view_t* v) {
     if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
         if (v->paint != null) { v->paint(v); }
         if (v->painted != null) { v->painted(v); }
-        if (v->debug.paint && v->debug_paint != null) { v->debug_paint(v); }
+        if (v->debug.paint.gaps) { ui_view.debug_paint_gaps(v); }
+        if (v->debug.paint.fm)   { ui_view.debug_paint_fm(v); }
+        if (v->debug.paint.call && v->debug_paint != null) { v->debug_paint(v); }
         ui_view_for_each(v, c, { ui_view_paint(c); });
     }
 }
@@ -672,33 +707,90 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     return false;
 }
 
-static void ui_view_debug_paint(ui_view_t* v) {
-    bool container = v->type == ui_view_container ||
-                     v->type == ui_view_span ||
-                     v->type == ui_view_list ||
-                     v->type == ui_view_spacer;
-    if (v->type == ui_view_spacer) {
-        ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
-    } else if (container && v->color != ui_colors.transparent) {
-        ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
+static bool ui_view_is_container(const ui_view_t* v) {
+    return  v->type == ui_view_stack ||
+            v->type == ui_view_span  ||
+            v->type == ui_view_list;
+}
+
+static bool ui_view_is_spacer(const ui_view_t* v) {
+    return  v->type == ui_view_spacer;
+}
+
+static bool ui_view_is_control(const ui_view_t* v) {
+    return  v->type == ui_view_text   ||
+            v->type == ui_view_label  ||
+            v->type == ui_view_button ||
+            v->type == ui_view_slider ||
+            v->type == ui_view_mbx;
+}
+
+static void ui_view_debug_paint_gaps(ui_view_t* v) {
+    if (v->debug.paint.gaps) {
+        if (v->type == ui_view_spacer) {
+            ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
+        }
+        ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+        ui_color_t c = ui_colors.green;
+        const int32_t pl = p.left;
+        const int32_t pr = p.right;
+        const int32_t pt = p.top;
+        const int32_t pb = p.bottom;
+        if (pl > 0) { ui_gdi.frame(v->x - pl, v->y, pl, v->h, c); }
+        if (pr > 0) { ui_gdi.frame(v->x + v->w, v->y, pr, v->h, c); }
+        if (pt > 0) { ui_gdi.frame(v->x, v->y - pt, v->w, pt, c); }
+        if (p.bottom > 0) {
+            ui_gdi.frame(v->x, v->y + v->h, v->w, pb, c);
+        }
+        c = ui_colors.orange;
+        const int32_t il = i.left;
+        const int32_t ir = i.right;
+        const int32_t it = i.top;
+        const int32_t ib = i.bottom;
+        if (il > 0) { ui_gdi.frame(v->x, v->y, il, v->h, c); }
+        if (ir > 0) { ui_gdi.frame(v->x + v->w - ir, v->y, ir, v->h, c); }
+        if (it > 0) { ui_gdi.frame(v->x, v->y, v->w, it, c); }
+        if (ib > 0) { ui_gdi.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
+        if ((ui_view.is_container(v) || ui_view.is_spacer(v)) &&
+            v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
+            ui_wh_t mt = ui_view_text_metrics(v->x, v->y, false, 0,
+                                              v->fm, "%s", ui_view.string(v));
+            const int32_t tx = v->x + (v->w - mt.w) / 2;
+            const int32_t ty = v->y + (v->h - mt.h) / 2;
+            c = ui_color_is_rgb(v->color) ^ 0xFFFFFF;
+            const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
+            ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
+        }
     }
-    ui_ltrb_t p = ui_view.gaps(v, &v->padding);
-    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    if (p.left   > 0) { ui_gdi.frame(v->x - p.left, v->y, p.left, v->h, ui_colors.green); }
-    if (p.right  > 0) { ui_gdi.frame(v->x + v->w, v->y, p.right, v->h, ui_colors.green); }
-    if (p.top    > 0) { ui_gdi.frame(v->x, v->y - p.top, v->w, p.top, ui_colors.green); }
-    if (p.bottom > 0) { ui_gdi.frame(v->x, v->y + v->h, v->w, p.bottom, ui_colors.green); }
-    if (i.left  > 0)  { ui_gdi.frame(v->x, v->y,               i.left, v->h, ui_colors.orange); }
-    if (i.right > 0)  { ui_gdi.frame(v->x + v->w - i.right, v->y, i.right, v->h, ui_colors.orange); }
-    if (i.top   > 0)  { ui_gdi.frame(v->x, v->y,            v->w, i.top, ui_colors.orange); }
-    if (i.bottom > 0) { ui_gdi.frame(v->x, v->y + v->h - i.bottom, v->w, i.bottom, ui_colors.orange); }
-    if (container && v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
-        ui_wh_t mt = ui_view_text_metrics(v->x, v->y, false, 0, v->fm, "%s", ui_view.string(v));
-        const int32_t tx = v->x + (v->w - mt.w) / 2;
-        const int32_t ty = v->y + (v->h - mt.h) / 2;
-        const ui_color_t c = ui_color_is_rgb(v->color) ^ 0xFFFFFF;
-        const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
-        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
+}
+
+static void ui_view_debug_paint_fm(ui_view_t* v) {
+    if (v->debug.paint.fm && v->p.text[0] != 0 &&
+       !ui_view_is_container(v) && !ui_view_is_spacer(v)) {
+        const ui_point_t t = ui_view.measure_text(v);
+        const int32_t x = v->x;
+        const int32_t y = v->y;
+        const int32_t w = v->w;
+        const int32_t y_0 = y + t.y;
+        const int32_t y_b = y_0 + v->fm->baseline;
+        const int32_t y_a = y_b - v->fm->ascent;
+        const int32_t y_h = y_0 + v->fm->height;
+        const int32_t y_x = y_b - v->fm->x_height;
+        const int32_t y_d = y_b + v->fm->descent;
+        // fm.height y == 0 line is painted one pixel higher:
+        ui_gdi.line(x, y_0 - 1, x + w, y_0 - 1, ui_colors.red);
+        ui_gdi.line(x, y_a, x + w, y_a, ui_colors.green);
+        ui_gdi.line(x, y_x, x + w, y_x, ui_colors.orange);
+        ui_gdi.line(x, y_b, x + w, y_b, ui_colors.red);
+        ui_gdi.line(x, y_d, x + w, y_d, ui_colors.green);
+        if (y_h != y_d) {
+            ui_gdi.line(x, y_d, x + w, y_d, ui_colors.green);
+            ui_gdi.line(x, y_h, x + w, y_h, ui_colors.red);
+        } else {
+            ui_gdi.line(x, y_h, x + w, y_h, ui_colors.orange);
+        }
+        // fm.height line painted _under_ the actual height
     }
 }
 
@@ -710,15 +802,15 @@ static void ui_view_debug_paint(ui_view_t* v) {
 } while (0)
 
 static void ui_view_test(void) {
-    ui_view_t p0 = ui_view(container);
-    ui_view_t c1 = ui_view(container);
-    ui_view_t c2 = ui_view(container);
-    ui_view_t c3 = ui_view(container);
-    ui_view_t c4 = ui_view(container);
-    ui_view_t g1 = ui_view(container);
-    ui_view_t g2 = ui_view(container);
-    ui_view_t g3 = ui_view(container);
-    ui_view_t g4 = ui_view(container);
+    ui_view_t p0 = ui_view(stack);
+    ui_view_t c1 = ui_view(stack);
+    ui_view_t c2 = ui_view(stack);
+    ui_view_t c3 = ui_view(stack);
+    ui_view_t c4 = ui_view(stack);
+    ui_view_t g1 = ui_view(stack);
+    ui_view_t g2 = ui_view(stack);
+    ui_view_t g3 = ui_view(stack);
+    ui_view_t g4 = ui_view(stack);
     // add grand children to children:
     ui_view.add(&c2, &g1, &g2, null);               ui_view_verify(&c2);
     ui_view.add(&c3, &g3, &g4, null);               ui_view_verify(&c3);
@@ -805,6 +897,9 @@ ui_view_if ui_view = {
     .string             = ui_view_string,
     .is_hidden          = ui_view_is_hidden,
     .is_disabled        = ui_view_is_disabled,
+    .is_control         = ui_view_is_control,
+    .is_container       = ui_view_is_container,
+    .is_spacer          = ui_view_is_spacer,
     .timer              = ui_view_timer,
     .every_sec          = ui_view_every_sec,
     .every_100ms        = ui_view_every_100ms,
@@ -825,7 +920,8 @@ ui_view_if ui_view = {
     .tap                = ui_view_tap,
     .press              = ui_view_press,
     .message            = ui_view_message,
-    .debug_paint        = ui_view_debug_paint,
+    .debug_paint_gaps   = ui_view_debug_paint_gaps,
+    .debug_paint_fm     = ui_view_debug_paint_fm,
     .test               = ui_view_test
 };
 

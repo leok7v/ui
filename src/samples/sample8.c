@@ -18,7 +18,7 @@ static app_data_t app_data = { .version = version };
 
 static void init(void);
 static void opened(void);
-static void container_test(ui_view_t* parent);
+static void stack_test(ui_view_t* parent);
 static void span_test(ui_view_t* parent);
 static void list_test(ui_view_t* parent);
 static void controls_test(ui_view_t* parent);
@@ -51,7 +51,7 @@ ui_app_t ui_app = {
     }
 };
 
-static ui_view_t test = ui_view(container);
+static ui_view_t test = ui_view(stack);
 
 static ui_view_t tools_list = ui_view(list);
 
@@ -75,8 +75,8 @@ static void switch_view(ui_button_t* b, int32_t ix,
     }
 }
 
-static void container(ui_button_t* b) {
-    switch_view(b, 0, container_test);
+static void stack(ui_button_t* b) {
+    switch_view(b, 0, stack_test);
 }
 
 static void span(ui_button_t* b) {
@@ -104,7 +104,7 @@ static ui_button_t button_debug =
         ui_button(ut_glyph_lady_beetle, 0.0f, debug);
 
 static ui_mbx_t mbx = ui_mbx( // message box
-    "Orange frames represent container, span, or list\n"
+    "Orange frames represent stack, span, or list\n"
     "components. Green frames indicate padding for\n"
     "children.\n"
     "\n"
@@ -164,8 +164,8 @@ static void insert_into_caption(ui_button_t* b, const char* hint) {
 static void opened(void) {
     static ui_view_t list_view = ui_view(list);
     static ui_view_t span_view = ui_view(span);
-    static ui_button_t button_container =
-           ui_button("&Container", 4.25f, container);
+    static ui_button_t button_stack =
+           ui_button("&Stack", 4.25f, stack);
     static ui_button_t button_span =
            ui_button("&Span",      4.25f, span);
     static ui_button_t button_list =
@@ -173,12 +173,12 @@ static void opened(void) {
     static ui_button_t button_controls =
            ui_button("Con&trols",  4.25f, controls);
     static ui_button_t button_edit1 =
-           ui_button("Edit&1",  4.25f, edit1);
+           ui_button("Edit &1",  4.25f, edit1);
     ui_view.add(ui_app.content,
         ui_view.add(&list_view,
             ui_view.add(&span_view,
                 ui_view.add(&tools_list,
-                    &button_container,
+                    &button_stack,
                     &button_span,
                     &button_list,
                     &button_controls,
@@ -210,7 +210,7 @@ static void opened(void) {
     test.background_id = ui_color_id_window;
     ui_view.set_text(&test, "%s", "test");
 //  test.paint = ui_view.debug_paint;
-    test.debug.paint = true;
+    test.debug.paint.gaps = true;
     // buttons to switch test content
     tools_list.max_h = ui.infinity;
     tools_list.color_id = ui_color_id_window;
@@ -220,8 +220,8 @@ static void opened(void) {
         it->align = ui.align.left;
         it->padding.bottom = 0;
     });
-    ut_str_printf(button_container.hint,
-        "Shows ui_view(container) layout\n"
+    ut_str_printf(button_stack.hint,
+        "Shows ui_view(stack) layout\n"
         "Resizing Window will allow\n"
         "too see how it behaves");
     switch (app_data.selected_view) {
@@ -230,7 +230,7 @@ static void opened(void) {
         case  3: controls(&button_controls);   break;
         case  4: edit1(&button_edit1);         break;
         case  0: // drop to default:
-        default: container(&button_container); break;
+        default: stack(&button_stack);         break;
     }
     ui_caption.menu.callback = tools;
     ui_caption.icon.state.hidden = true;
@@ -257,9 +257,9 @@ static ui_view_t* align(ui_view_t* v, int32_t align) {
     return v;
 }
 
-static void container_test(ui_view_t* parent) {
+static void stack_test(ui_view_t* parent) {
     ui_view.disband(parent);
-    static ui_view_t  container    = ui_view(container);
+    static ui_view_t  stack        = ui_view(stack);
     static ui_label_t left         = ui_label(0, " left ");
     static ui_label_t right        = ui_label(0, " right ");
     static ui_label_t top          = ui_label(0, " top ");
@@ -269,9 +269,9 @@ static void container_test(ui_view_t* parent) {
     static ui_label_t right_top    = ui_label(0, " right|top ");
     static ui_label_t left_bottom  = ui_label(0, " left|bottom ");
     static ui_label_t center       = ui_label(0, " center ");
-    container.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    stack.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     ui_view.add(parent,
-        ui_view.add(&container,
+        ui_view.add(&stack,
             align(&left,         ui.align.left),
             align(&right,        ui.align.right),
             align(&top,          ui.align.top),
@@ -283,14 +283,14 @@ static void container_test(ui_view_t* parent) {
             align(&center,       ui.align.center),
         null),
     null);
-    container.debug.paint = true;
-    container.max_w  = ui.infinity;
-    container.max_h  = ui.infinity;
-    container.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
-    container.background_id = ui_color_id_window;
-    ui_view.set_text(&container, "container");
-    ui_view_for_each(&container, it, {
-        it->debug.paint = true;
+    stack.debug.paint.gaps = true;
+    stack.max_w  = ui.infinity;
+    stack.max_h  = ui.infinity;
+    stack.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    stack.background_id = ui_color_id_window;
+    ui_view.set_text(&stack, "#stack");
+    ui_view_for_each(&stack, it, {
+        it->debug.paint.gaps = true;
         it->color = ui_colors.onyx;
 //      it->fm    = &ui_app.fm.H1;
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
@@ -314,14 +314,14 @@ static void span_test(ui_view_t* parent) {
             align(&right,  ui.align.center),
         null),
     null);
-    span.debug.paint = true;
+    span.debug.paint.gaps = true;
     span.max_w    = ui.infinity;
     span.max_h    = ui.infinity;
     span.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
-    ui_view.set_text(&span, "span");
+    ui_view.set_text(&span, "#span");
     span.background_id = ui_color_id_window;
     ui_view_for_each(&span, it, {
-        it->debug.paint = true;
+        it->debug.paint.gaps = true;
         it->color   = ui_colors.onyx;
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
@@ -349,14 +349,14 @@ static void list_test(ui_view_t* parent) {
             align(&bottom, ui.align.center),
         null),
     null);
-    list.debug.paint = true;
+    list.debug.paint.gaps = true;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
     list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
     list.background_id = ui_color_id_window;
-    ui_view.set_text(&list, "list");
+    ui_view.set_text(&list, "#list");
     ui_view_for_each(&list, it, {
-        it->debug.paint = true;
+        it->debug.paint.gaps = true;
         it->color   = ui_colors.onyx;
         // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
@@ -382,15 +382,27 @@ static void slider_callback(ui_view_t* v) {
     traceln("value: %d", slider->value);
 }
 
-static void controls_set_guides(ui_view_t* v, bool on_off) {
+static void controls_set_gaps(ui_view_t* v, bool on_off) {
     ui_view_for_each(v, it, {
-        controls_set_guides(it, on_off);
-        it->debug.paint = on_off;
+        controls_set_gaps(it, on_off);
+        it->debug.paint.gaps = on_off;
     } );
 }
 
-static void controls_guides(ui_view_t* v) {
-    controls_set_guides(v->parent->parent->parent, v->state.pressed);
+static void controls_gaps(ui_view_t* v) {
+    controls_set_gaps(v->parent->parent->parent, v->state.pressed);
+    ui_app.request_redraw();
+}
+
+static void controls_set_fm(ui_view_t* v, bool on_off) {
+    ui_view_for_each(v, it, {
+        controls_set_fm(it, on_off);
+        it->debug.paint.fm = on_off;
+    } );
+}
+
+static void controls_fm(ui_view_t* v) {
+    controls_set_fm(v->parent->parent->parent, v->state.pressed);
     ui_app.request_redraw();
 }
 
@@ -436,31 +448,32 @@ static void controls_test(ui_view_t* parent) {
             ut_glyph_combining_enclosing_circle                 \
             ut_glyph_en_quad
 #endif
-
-
     static ui_view_t   list    = ui_view(list);
     static ui_view_t   span    = ui_view(span);
+    // horizontal inside span
     static ui_toggle_t large   = ui_toggle("&Large", 0.0, controls_large);
-    static ui_label_t  left    = ui_label(0, "Left ");
-    static ui_button_t button1 = ui_button("&Button ", 0, null);
+    static ui_label_t  left    = ui_label(0, "Left");
+    static ui_button_t button1 = ui_button("&Button", 6.0f, null);
     static ui_button_t buttonE = ui_button(test_string,
-                                           1.0f, null);
+                                           6.0f, null);
     static ui_slider_t slider1 = ui_slider("%d", 3.3f, 0, UINT16_MAX,
                                            slider_format, slider_callback);
     static ui_slider_t sliderE = ui_slider(test_string,
-                                           2.1f, 0, 4, null, null);
+                                           6.0f, 0, 4, null, null);
     static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 0, null);
     static ui_toggle_t toggleE = ui_toggle(test_string, 0, null);
     static ui_label_t  right   = ui_label(0, "Right ");
     static ui_label_t  labelE  = ui_label(1, test_string);
-    // vertical
+    // vertical inside list
     #define min_w_in_em (8.5f)
     static ui_label_t  label   = ui_label(min_w_in_em, "Label");
     static ui_button_t button2 = ui_button("Button", min_w_in_em, null);
     static ui_slider_t slider2 = ui_slider("%d", min_w_in_em, 0, UINT16_MAX,
                                             slider_format, slider_callback);
-    static ui_toggle_t toggle2 = ui_toggle("&Guides", min_w_in_em,
-                                            controls_guides);
+    static ui_toggle_t gaps    = ui_toggle("&Gaps", min_w_in_em,
+                                            controls_gaps);
+    static ui_toggle_t fm      = ui_toggle("&Font Metrics", min_w_in_em,
+                                            controls_fm);
     static ui_view_t   spacer  = ui_view(spacer);
     ui_view.add(&test,
         ui_view.add(&list,
@@ -479,23 +492,25 @@ static void controls_test(ui_view_t* parent) {
             align(&label,        ui.align.left),
             align(&button2,      ui.align.left),
             align(&slider2.view, ui.align.left),
-            align(&toggle2,      ui.align.left),
+            align(&gaps,         ui.align.left),
+            align(&fm,           ui.align.left),
             align(&spacer,       ui.align.left),
         null),
     null);
-    list.debug.paint = true;
+buttonE.debug.trace.mt = true;
+    list.debug.paint.gaps = true;
     span.align = ui.align.left;
 //  list.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
 //  list.background_id = 0;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-    ui_view.set_text(&list, "list");
+    ui_view.set_text(&list, "#list");
     list.background_id = ui_color_id_window;
     slider2.dec.state.hidden = true;
     slider2.inc.state.hidden = true;
-toggle2.state.pressed = true;
+gaps.state.pressed = true;
 large.state.pressed = true;
-controls_guides(&toggle2);
+controls_gaps(&gaps);
 controls_large(&large);
 }
 
@@ -531,7 +546,7 @@ static void edit1_test(ui_view_t* parent) {
     null);
     list.max_w      = ui.infinity;
     list.max_h      = ui.infinity;
-    edit.view.debug.paint = true;
+    edit.view.debug.paint.gaps = true;
     edit.view.fm    = &ui_app.fm.H1;
     edit.view.max_w = ui.infinity;
     edit.view.max_h = ui.infinity;

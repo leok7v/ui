@@ -14,16 +14,12 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 static void ui_button_paint(ui_view_t* v) {
     assert(v->type == ui_view_button);
     assert(!ui_view.is_hidden(v));
-    if (strcmp(v->p.text, "&Button") == 0 && v->fm == &ui_app.fm.H1) {
-        traceln("v->fm: .h: %d .a:%d .d:%d .b:%d",
-            v->fm->height, v->fm->ascent, v->fm->descent, v->fm->baseline);
-    }
     bool pressed = (v->state.armed ^ v->state.pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
-    int32_t w = v->w;
-    int32_t h = v->h;
-    int32_t x = v->x;
-    int32_t y = v->y;
+    const int32_t w = v->w;
+    const int32_t h = v->h;
+    const int32_t x = v->x;
+    const int32_t y = v->y;
     const int32_t r = (0x1 | ut_max(3, v->fm->em.h / 4));  // odd radius
     const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
@@ -50,63 +46,24 @@ static void ui_button_paint(ui_view_t* v) {
         ui_gdi.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
     }
     const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    const int32_t t_w = v->w - i.left - i.right;
-    const int32_t t_h = v->h - i.top - i.bottom;
+    ui_point_t t = { .x = i.left, .y = i.top };
     if (v->icon == null) {
-        const ui_wh_t wh = ui_view.text_metrics(0, 0,
-                false, 0, v->fm, "%s", ui_view.string(v));
-        int32_t t_x = (t_w - wh.w) / 2;
-        const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
-        const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
-        if (h_align & ui.align.left) {
-            t_x = 0;
-        } else if (h_align & ui.align.right) {
-            t_x = t_w - wh.w - i.right;
-        }
-        assert(wh.h == v->fm->height, "wh.h:%d fm.height:%d",
-               wh.h, v->fm->height);
-        int32_t t_y = (t_h - v->fm->ascent) / 2 - (v->fm->baseline  - v->fm->ascent);
-    int32_t t_y_1 = (t_h - wh.h) / 2;
-if (strcmp(v->p.text, "&Button") == 0 && v->fm == &ui_app.fm.H1) {
-    traceln("t_y:%d t_y_1:%d", t_y, t_y_1);
-}
-        if (v_align & ui.align.top) {
-            t_y = 0;
-        } else if (v_align & ui.align.bottom) {
-            t_y = t_h - wh.h - i.bottom;
-        }
-        const int32_t tx = v->x + i.left + t_x;
-        const int32_t ty = v->y + i.top  + t_y;
+        t = ui_view.measure_text(v);
         ui_color_t c = v->color;
-//      traceln("v->state.hover: %d state.armed: %d c: %08X", v->state.hover, v->state.armed, (uint32_t)c);
         if (v->state.hover && !v->state.armed) {
-    //      c = ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black;
             c = ui_theme.is_app_dark() ? ui_color_rgb(0xFF, 0xE0, 0xE0) :
                                          ui_color_rgb(0x00, 0x40, 0xFF);
-//          traceln("text_color: %08X", c);
         }
         if (ui_view.is_disabled(v)) { c = ui_colors.get_color(ui_color_id_gray_text); }
-//      traceln("text_color: %08X", (uint32_t)c);
-v->debug.paint_fm = true; // xxx
-        if (v->debug.paint_fm) {
-            const int32_t y_0 = y + i.top;
-            const int32_t y_b = y_0 + v->fm->baseline;
-            const int32_t y_a = y_b - v->fm->ascent;
-            const int32_t y_h = y_0 + v->fm->height;
-            const int32_t y_x = y_b - v->fm->x_height;
-            const int32_t y_d = y_b + v->fm->descent;
-            ui_gdi.line(x, y_0, x + w, y_0, ui_colors.orange);
-            ui_gdi.line(x, y_a, x + w, y_a, ui_colors.green);
-            ui_gdi.line(x, y_x, x + w, y_x, ui_colors.orange);
-            ui_gdi.line(x, y_b, x + w, y_b, ui_colors.red);
-            // next two lines overlap:
-            ui_gdi.line(x, y_d, x + w / 2, y_d, ui_colors.blue);
-            ui_gdi.line(x + w / 2, y_h, x + w, y_h, ui_colors.yellow);
+        if (v->debug.paint.fm) {
+            ui_view.debug_paint_fm(v);
         }
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
-        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
+        ui_gdi.text(&ta, v->x + t.x, v->y + t.y, "%s", ui_view.string(v));
     } else {
-        ui_gdi.icon(v->x + i.left, v->y + i.top, t_w, t_h, v->icon);
+        const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
+                               .h = v->h - i.top - i.bottom };
+        ui_gdi.icon(v->x + t.x, v->y + t.y, i_wh.w, i_wh.h, v->icon);
     }
 }
 

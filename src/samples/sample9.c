@@ -141,10 +141,10 @@ static ui_toggle_t scroll = ui_toggle("Scroll &Direction:",
                                       /* min_w_em: */ 0.0f,
                                       /* callback:*/ null);
 
-static ui_view_t panel_top    = ui_view(container);
-static ui_view_t panel_bottom = ui_view(container);
-static ui_view_t panel_center = ui_view(container);
-static ui_view_t panel_right  = ui_view(container);
+static ui_view_t panel_top    = ui_view(stack);
+static ui_view_t panel_bottom = ui_view(stack);
+static ui_view_t panel_center = ui_view(stack);
+static ui_view_t panel_right  = ui_view(stack);
 
 static const ui_gdi_ta_t* ta = &ui_gdi.ta.regular;
 

@@ -41,7 +41,7 @@ static int32_t ui_layout_nesting;
             ui_view.string(c), c->x, c->y, c->w, c->h);          \
 } while (0)
 
-static const char* ui_container_finite_int(int32_t v, char* text, int32_t count) {
+static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
     swear(v >= 0);
     if (v == ui.infinity) {
         ut_str.format(text, count, "%s", ut_glyph_infinity);
@@ -58,8 +58,8 @@ static const char* ui_container_finite_int(int32_t v, char* text, int32_t count)
         "padding { %.3f %.3f %.3f %.3f } "                                    \
         "insets { %.3f %.3f %.3f %.3f } align: 0x%02X",                       \
         v->text, &v->type, v->x, v->y, v->w, v->h,                            \
-        ui_container_finite_int(v->max_w, maxw, countof(maxw)),               \
-        ui_container_finite_int(v->max_h, maxh, countof(maxh)),               \
+        ui_stack_finite_int(v->max_w, maxw, countof(maxw)),               \
+        ui_stack_finite_int(v->max_h, maxh, countof(maxh)),               \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
         v->insets.left, v->insets.top, v->insets.right, v->insets.bottom,     \
         v->align);                                                            \
@@ -361,7 +361,7 @@ static void ui_list_layout(ui_view_t* p) {
     int32_t xh = ut_max(0, pbx.y + pbx.h - y); // excess height
     if (xh > 0 && max_h_count > 0) {
         ui_view_for_each_begin(p, c) {
-            if (!ui_view.is_hidden(c) && c->type != ui_view_spacer && 
+            if (!ui_view.is_hidden(c) && c->type != ui_view_spacer &&
                  c->max_h > 0) {
                 max_h_sum += ut_min(c->max_h, xh);
             }
@@ -418,7 +418,7 @@ static void ui_list_layout(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_container_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
+static void ui_stack_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
     *row = 0; *col = 0; // makes code analysis happier
     if (c->align == (ui.align.left|ui.align.top)) {
         *row = 0; *col = 0;
@@ -443,9 +443,9 @@ static void ui_container_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
     }
 }
 
-static void ui_container_measure(ui_view_t* p) {
+static void ui_stack_measure(ui_view_t* p) {
     ui_layout_enter(p);
-    swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
+    swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -457,7 +457,7 @@ static void ui_container_measure(ui_view_t* p) {
             ui_view.outbox(c, &cbx, &padding);
             int32_t row = 0;
             int32_t col = 0;
-            ui_container_child_3x3(c, &row, &col);
+            ui_stack_child_3x3(c, &row, &col);
             sides[row][col].w = ut_max(sides[row][col].w, cbx.w);
             sides[row][col].h = ut_max(sides[row][col].h, cbx.h);
             ui_layout_clild(c);
@@ -496,9 +496,9 @@ static void ui_container_measure(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_container_layout(ui_view_t* p) {
+static void ui_stack_layout(ui_view_t* p) {
     ui_layout_enter(p);
-    swear(p->type == ui_view_container, "type %4.4s 0x%08X", &p->type, p->type);
+    swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -545,7 +545,7 @@ static void ui_container_layout(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_paint_container(ui_view_t* v) {
+static void ui_container_paint(ui_view_t* v) {
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
         ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
@@ -557,8 +557,10 @@ static void ui_paint_container(ui_view_t* v) {
 static void ui_view_container_init(ui_view_t* v) {
     v->background = ui_colors.transparent;
     v->insets  = (ui_gaps_t){
-        .left  = 0.25, .top    = 0.0625,
-        .right = 0.25, .bottom = 0.1875
+       .left  = 0.25, .top    = 0.125,
+        .right = 0.25, .bottom = 0.125
+//      .left  = 0.25, .top    = 0.0625,  // TODO: why?
+//      .right = 0.25, .bottom = 0.1875
     };
 }
 
@@ -567,7 +569,7 @@ void ui_view_init_span(ui_view_t* v) {
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_span_measure; }
     if (v->layout  == null) { v->layout  = ui_span_layout; }
-    if (v->paint   == null) { v->paint   = ui_paint_container; }
+    if (v->paint   == null) { v->paint   = ui_container_paint; }
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_span"); }
 }
 
@@ -576,7 +578,7 @@ void ui_view_init_list(ui_view_t* v) {
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_list_measure; }
     if (v->layout  == null) { v->layout  = ui_list_layout; }
-    if (v->paint   == null) { v->paint   = ui_paint_container; }
+    if (v->paint   == null) { v->paint   = ui_container_paint; }
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_list"); }
 }
 
@@ -589,12 +591,12 @@ void ui_view_init_spacer(ui_view_t* v) {
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_spacer"); }
 }
 
-void ui_view_init_container(ui_view_t* v) {
+void ui_view_init_stack(ui_view_t* v) {
     ui_view_container_init(v);
-    if (v->measure == null) { v->measure = ui_container_measure; }
-    if (v->layout  == null) { v->layout  = ui_container_layout; }
-    if (v->paint   == null) { v->paint   = ui_paint_container; }
-    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_container"); }
+    if (v->measure == null) { v->measure = ui_stack_measure; }
+    if (v->layout  == null) { v->layout  = ui_stack_layout; }
+    if (v->paint   == null) { v->paint   = ui_container_paint; }
+    if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_stack"); }
 }
 
 #pragma pop_macro("ui_layout_exit")

@@ -35,7 +35,7 @@ static void every_sec(ui_view_t* unused(view)) {
 
 static void painted(ui_view_t* v) {
     ui_gdi.rect(v->x, v->y, v->w, v->h, ui_colors.white, ui_colors.transparent);
-    ui_view.debug_paint(v);
+    ui_view.debug_paint_gaps(v);
 }
 
 static void opened(void) {
