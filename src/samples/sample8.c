@@ -507,8 +507,8 @@ static void edit1_test(ui_view_t* parent) {
             }
         }
     }
-    static ui_view_t  list = ui_view(list);
-    static ui_edit_t  edit = {0};
+    static ui_view_t list = ui_view(list);
+    static ui_edit_t edit = {0};
     static ui_edit_doc_t doc = {0};
     if (doc.text.np == 0) {
         swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
@@ -521,10 +521,10 @@ static void edit1_test(ui_view_t* parent) {
     null);
     list.max_w      = ui.infinity;
     list.max_h      = ui.infinity;
-    edit.view.debug.paint.gaps = true;
-    edit.view.fm    = &ui_app.fm.H1;
+    edit.view.fm    = &ui_app.fm.mono;
     edit.view.max_w = ui.infinity;
     edit.view.max_h = ui.infinity;
     ui_app.focus = &edit.view;
+//  edit.view.debug.paint.gaps = true;
 }
 

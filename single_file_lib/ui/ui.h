@@ -8596,14 +8596,18 @@ static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
 static void ui_edit_scroll_up(ui_edit_t* e, int32_t run_count) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 < run_count, "does it make sense to have 0 scroll?");
-    const ui_edit_pg_t end = ui_edit_range.end(dt);
+//  const ui_edit_pg_t end = ui_edit_range.end(dt);
     while (run_count > 0 && e->scroll.pn < dt->np) {
-        ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
-        int32_t between = ui_edit_runs_between(e, scroll, end);
+        const ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
+        const ui_edit_pg_t next = (ui_edit_pg_t){
+            .pn = ut_min(scroll.pn + e->visible_runs + 1, dt->np - 1),
+            .gp = 0
+        };
+        const int32_t between = ui_edit_runs_between(e, scroll, next);
         if (between <= e->visible_runs - 1) {
             run_count = 0; // enough
         } else {
-            int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
+            const int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
             if (e->scroll.rn < runs - 1) {
                 e->scroll.rn++;
             } else if (e->scroll.pn < dt->np) {
@@ -8845,7 +8849,7 @@ static void ui_edit_key_down(ui_edit_t* e) {
     ui_edit_reuse_last_x(e, &pt);
     // scroll runs guaranteed to be already layout for current state of view:
     ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
-    int32_t run_count = ui_edit_runs_between(e, scroll, pg);
+    const int32_t run_count = ui_edit_runs_between(e, scroll, pg);
     if (!e->sle && run_count >= e->visible_runs - 1) {
         ui_edit_scroll_up(e, 1);
     } else {
@@ -8934,8 +8938,11 @@ static void ui_edit_key_end(ui_edit_t* e) {
 static void ui_edit_key_page_up(ui_edit_t* e) {
     int32_t n = ut_max(1, e->visible_runs - 1);
     ui_edit_pg_t scr = ui_edit_scroll_pg(e);
-    ui_edit_pg_t bof = {.pn = 0, .gp = 0};
-    int32_t m = ui_edit_runs_between(e, bof, scr);
+    const ui_edit_pg_t prev = (ui_edit_pg_t){
+        .pn = ut_max(scr.pn - e->visible_runs - 1, 0),
+        .gp = 0
+    };
+    const int32_t m = ui_edit_runs_between(e, prev, scr);
     if (m > n) {
         ui_point_t pt = ui_edit_pg_to_xy(e, e->selection.a[1]);
         ui_edit_pr_t scroll = e->scroll;
@@ -8945,25 +8952,30 @@ static void ui_edit_key_page_up(ui_edit_t* e) {
             ui_edit_move_caret(e, pg);
         }
     } else {
+        const ui_edit_pg_t bof = {.pn = 0, .gp = 0};
         ui_edit_move_caret(e, bof);
     }
 }
 
 static void ui_edit_key_page_down(ui_edit_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    int32_t n = ut_max(1, e->visible_runs - 1);
-    ui_edit_pg_t scr = ui_edit_scroll_pg(e);
-    ui_edit_pg_t end = ui_edit_range.end(dt);
-    int32_t m = ui_edit_runs_between(e, scr, end);
+    const ui_edit_text_t* dt = &e->doc->text; // document text
+    const int32_t n = ut_max(1, e->visible_runs - 1);
+    const ui_edit_pg_t scr = ui_edit_scroll_pg(e);
+    const ui_edit_pg_t next = (ui_edit_pg_t){
+        .pn = ut_min(scr.pn + e->visible_runs + 1, dt->np - 1),
+        .gp = 0
+    };
+    const int32_t m = ui_edit_runs_between(e, scr, next);
     if (m > n) {
-        ui_point_t pt = ui_edit_pg_to_xy(e, e->selection.a[1]);
-        ui_edit_pr_t scroll = e->scroll;
+        const ui_point_t pt = ui_edit_pg_to_xy(e, e->selection.a[1]);
+        const ui_edit_pr_t scroll = e->scroll;
         ui_edit_scroll_up(e, n);
         if (scroll.pn != e->scroll.pn || scroll.rn != e->scroll.rn) {
             ui_edit_pg_t pg = ui_edit_xy_to_pg(e, pt.x, pt.y);
             ui_edit_move_caret(e, pg);
         }
     } else {
+        const ui_edit_pg_t end = ui_edit_range.end(dt);
         ui_edit_move_caret(e, end);
     }
 }
