@@ -15,7 +15,7 @@ void ui_view_init_label(ui_view_t* v);
     .type = ui_view_label, .init = ui_view_init_label, \
     .fm = &ui_app.fm.regular,                          \
     .p.text = s,                                       \
-    .min_w_em = min_width_em, .min_h_em = 1.0,         \
+    .min_w_em = min_width_em, .min_h_em = 1.25f,       \
     .insets  = {                                       \
         .left  = ui_view_i_lr, .top    = ui_view_i_tb, \
         .right = ui_view_i_lr, .bottom = ui_view_i_tb  \

@@ -1475,7 +1475,7 @@ void ui_view_init_label(ui_view_t* v);
     .type = ui_view_label, .init = ui_view_init_label, \
     .fm = &ui_app.fm.regular,                          \
     .p.text = s,                                       \
-    .min_w_em = min_width_em, .min_h_em = 1.0,         \
+    .min_w_em = min_width_em, .min_h_em = 1.25f,       \
     .insets  = {                                       \
         .left  = ui_view_i_lr, .top    = ui_view_i_tb, \
         .right = ui_view_i_lr, .bottom = ui_view_i_tb  \
@@ -1524,7 +1524,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
         .p.text = s,                                        \
         .callback = name ## _clicked,                       \
         .color_id = ui_color_id_button_text,                \
-        .min_w_em = min_width_em, .min_h_em = 1.0,          \
+        .min_w_em = min_width_em, .min_h_em = 1.25f,        \
         .insets  = {                                        \
             .left  = ui_view_i_lr, .top    = ui_view_i_tb,  \
             .right = ui_view_i_lr, .bottom = ui_view_i_tb   \
@@ -1542,7 +1542,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     .p.text = s,                                            \
     .callback = clicked,                                    \
     .color_id = ui_color_id_button_text,                    \
-    .min_w_em = min_width_em, .min_h_em = 1.0,              \
+    .min_w_em = min_width_em, .min_h_em = 1.25f,            \
     .insets  = {                                            \
         .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
         .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
@@ -1619,7 +1619,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
             .p.text = s,                                            \
             .format = fmt,                                          \
             .callback = name ## _changed,                           \
-            .min_w_em = min_width_em, .min_h_em = 1.0,              \
+            .min_w_em = min_width_em, .min_h_em = 1.25f,            \
             .insets  = {                                            \
                 .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
                 .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
@@ -1640,7 +1640,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .p.text = s,                                                \
         .callback = changed,                                        \
         .format = fmt,                                              \
-        .min_w_em = min_width_em, .min_h_em = 1.0,                  \
+        .min_w_em = min_width_em, .min_h_em = 1.25f,                \
             .insets  = {                                            \
                 .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
                 .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
@@ -1703,12 +1703,11 @@ void ui_view_init_toggle(ui_view_t* v);
         .type = ui_view_toggle,                             \
         .init = ui_view_init_toggle,                        \
         .fm = &ui_app.fm.regular,                           \
-        .min_w_em = min_width_em,                           \
+        .min_w_em = min_width_em,  .min_h_em = 1.25f,       \
         .p.text = s,                                        \
         .callback = name ## _on_off,                        \
-        .min_w_em = 1.0, .min_h_em = 1.0,                   \
         .insets  = {                                        \
-            .left  = ui_view_i_lr, .top    = ui_view_i_tb,  \
+            .left  = 1.75f,        .top    = ui_view_i_tb,  \
             .right = ui_view_i_lr, .bottom = ui_view_i_tb   \
         },                                                  \
         .padding = {                                        \
@@ -1721,12 +1720,11 @@ void ui_view_init_toggle(ui_view_t* v);
     .type = ui_view_toggle,                                 \
     .init = ui_view_init_toggle,                            \
     .fm = &ui_app.fm.regular,                               \
-    .min_w_em = min_width_em,                               \
     .p.text = s,                                            \
     .callback = on_off,                                     \
-    .min_w_em = 1.0, .min_h_em = 1.0,                       \
+    .min_w_em = min_width_em,  .min_h_em = 1.25f,           \
     .insets  = {                                            \
-        .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+        .left  = 1.75f,        .top    = ui_view_i_tb,      \
         .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
     },                                                      \
     .padding = {                                            \
@@ -1811,7 +1809,7 @@ typedef struct ui_caption_s {
     ui_label_t title;
     ui_view_t spacer;
     ui_button_t menu; // use: ui_caption.button_menu.cb := your callback
-    ui_button_t mode; // switch between dark/ligh mode
+    ui_button_t mode; // switch between dark/light mode
     ui_button_t mini;
     ui_button_t maxi;
     ui_button_t full;
@@ -11737,14 +11735,16 @@ static int32_t ui_toggle_paint_on_off(ui_view_t* v, int32_t x, int32_t y) {
     ui_color_t c = ui_colors.darken(v->background,
         !ui_theme.is_app_dark() ? 0.125f : 0.5f);
     ui_color_t b = v->state.pressed ? ui_colors.tone_green : c;
-    const int32_t bl = v->fm->baseline;
-    const int32_t a = v->fm->ascent;
-    const int32_t d = v->fm->descent;
-    const int32_t w = v->fm->em.w;
+//  const int32_t bl = v->fm->baseline;
+//  const int32_t xl = bl - v->fm->x_height;
+    const int32_t a  = v->fm->ascent;
+    const int32_t d  = v->fm->descent;
+    const int32_t w  = v->fm->em.w;
     int32_t h = a + d;
     int32_t r = (h / 2) | 0x1; // must be odd
     h = r * 2 + 1;
-    y += bl - h;
+//  y += bl - h;
+
     x += r;
     int32_t y1 = y + h - r + 2;
     ui_color_t border = ui_theme.is_app_dark() ?
@@ -11779,23 +11779,30 @@ static const char* ui_toggle_on_off_label(ui_view_t* v,
 }
 
 static void ui_toggle_measure(ui_view_t* v) {
+    if (v->min_w_em < 3.0f) {
+        traceln("3.0f em minimum width");
+        v->min_w_em = 4.0f;
+    }
     ui_view.measure_control(v);
     assert(v->type == ui_view_toggle);
-    v->w += v->fm->em.w * 2;
 }
 
 static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    char text[countof(v->p.text)];
-    const char* label = ui_toggle_on_off_label(v, text, countof(text));
+    char txt[countof(v->p.text)];
+    const char* label = ui_toggle_on_off_label(v, txt, countof(txt));
+    const char* text = ut_nls.str(label);
+    ui_view_text_metrics_t tm = {0};
+    ui_view.text_measure(v, text, &tm);
+    ui_view.text_align(v, &tm);
     ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    const int32_t tx = v->x + i.left;
-    const int32_t ty = v->y + i.top;
-    const int32_t x = ui_toggle_paint_on_off(v, tx, ty) + v->fm->em.w / 4;
+    const int32_t tx = v->x;
+    const int32_t ty = v->y + i.top + tm.xy.y;
+    ui_toggle_paint_on_off(v, tx, ty);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
-    ui_gdi.text(&ta, x, ty, "%s", ut_nls.str(label));
+    ui_gdi.text(&ta, v->x + tm.xy.x, v->y + tm.xy.y, "%s", text);
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {
@@ -11843,6 +11850,7 @@ void ui_view_init_toggle(ui_view_t* v) {
     v->key_pressed   = ui_toggle_key_pressed;
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
+    v->text_align    = ui.align.left;
 }
 
 void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,

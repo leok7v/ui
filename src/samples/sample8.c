@@ -12,6 +12,9 @@ typedef ut_begin_packed struct app_data_t {
     int32_t selected_view;
     int32_t light;
     int32_t debug;
+    int32_t large; // show large H3 controls
+    int32_t gaps;  // draw controls padding and insets
+    int32_t fm;    // draw controls font metrics
 } ut_end_packed app_data_t;
 
 static app_data_t app_data = { .version = version };
@@ -146,14 +149,6 @@ static void crash(ui_button_t* b) {
     }
 }
 
-static void dark_light(ui_toggle_t* b) {
-    b->state.pressed = !b->state.pressed;
-    ui_app.light_mode = b->state.pressed;
-    ui_app.dark_mode = !b->state.pressed;
-    app_data.light = ui_app.light_mode;
-    ui_theme.refresh();
-}
-
 static void insert_into_caption(ui_button_t* b, const char* hint) {
     ut_str_printf(b->hint, "%s", hint);
     b->flat = true;
@@ -161,6 +156,10 @@ static void insert_into_caption(ui_button_t* b, const char* hint) {
     b->insets  = (ui_gaps_t){0,0,0,0};
     b->align   = ui.align.top;
     ui_view.add_before(b,  &ui_caption.mini);
+}
+
+static void ui_app_root_composed(ui_view_t* unused(v)) {
+    app_data.light = !ui_theme.is_app_dark();
 }
 
 static void opened(void) {
@@ -190,15 +189,6 @@ static void opened(void) {
             null),
         null),
     null);
-//  ui_app.root->background = ui_color_rgb(0x2E, 0x2E, 0x2E);
-//  ui_app.root->background_id = 0;
-//  ui_app.content->background = ui_color_rgb(0x2E, 0x2E, 0x2E);
-//  ui_app.content->background_id = 0;
-//  list_view.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
-//  list_view.background_id = 0;
-//  span_view.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
-//  span_view.background_id = 0;
-
     list_view.max_w = ui.infinity;
     list_view.max_h = ui.infinity;
     list_view.insets = (ui_gaps_t){ 0, 0, 0, 0 };
@@ -252,6 +242,10 @@ static void opened(void) {
     insert_into_caption(&button_debug, "Debug");
     insert_into_caption(&button_bomb,  "Intentionally Crash");
     if (app_data.debug) { debug(&button_debug); }
+    ui_app.root->composed = ui_app_root_composed;
+    if (!ui_theme.is_app_dark() != app_data.light) {
+        ui_caption.mode.callback(&ui_caption.mode);
+    }
 }
 
 static ui_view_t* align(ui_view_t* v, int32_t align) {
@@ -391,6 +385,7 @@ static void controls_set_gaps(ui_view_t* v, bool on_off) {
 static void controls_gaps(ui_view_t* v) {
     controls_set_gaps(v->parent->parent->parent, v->state.pressed);
     ui_app.request_redraw();
+    app_data.gaps = v->state.pressed;
 }
 
 static void controls_set_fm(ui_view_t* v, bool on_off) {
@@ -403,6 +398,7 @@ static void controls_set_fm(ui_view_t* v, bool on_off) {
 static void controls_fm(ui_view_t* v) {
     controls_set_fm(v->parent->parent->parent, v->state.pressed);
     ui_app.request_redraw();
+    app_data.fm = v->state.pressed;
 }
 
 static void controls_set_large(ui_view_t* v, bool on_off) {
@@ -414,6 +410,7 @@ static void controls_set_large(ui_view_t* v, bool on_off) {
 
 static void controls_large(ui_view_t* v) {
     controls_set_large(v->parent->parent->parent, v->state.pressed);
+    app_data.large = v->state.pressed;
     ui_app.request_layout();
 }
 
@@ -423,39 +420,24 @@ static void button_pressed(ui_view_t* v) {
 }
 
 static void controls_test(ui_view_t* parent) {
-    ui_view.disband(parent);
-#if 0
-    #define wild_string                                         \
-            ut_glyph_E_with_cedilla_and_breve                   \
-            ut_glyph_box_drawings_heavy_vertical_and_horizontal \
-            ut_glyph_box_drawings_light_diagonal_cross          \
-            ut_glyph_zwsp                                       \
-            ut_glyph_combining_enclosing_circle                 \
-            ut_glyph_zwsp                                       \
-            ut_glyph_combining_enclosing_square                 \
-            ut_glyph_zwsp                                       \
-            ut_glyph_combining_enclosing_screen                 \
-            ut_glyph_en_quad                                    \
-            ut_glyph_combining_enclosing_circle
-#else
-    #define wild_string                                         \
-        "A"  ut_glyph_zwsp  \
-        ut_glyph_combining_enclosing_circle  \
-        "B" ut_glyph_box_drawings_light_diagonal_cross \
+    #define wild_string                                 \
+        "A"  ut_glyph_zwsp                              \
+        ut_glyph_combining_enclosing_circle             \
+        "B" ut_glyph_box_drawings_light_diagonal_cross  \
         ut_glyph_E_with_cedilla_and_breve
-#endif
+    ui_view.disband(parent);
     static ui_view_t   list    = ui_view(list);
     static ui_view_t   span    = ui_view(span);
     // horizontal inside span
-    static ui_toggle_t large   = ui_toggle("&Large", 0.0, controls_large);
+    static ui_toggle_t large   = ui_toggle("&Large", 3.0f, controls_large);
     static ui_label_t  left    = ui_label(0, "Left");
     static ui_button_t button1 = ui_button("&Button", 0, button_pressed);
     static ui_label_t  right   = ui_label(0, "Right");
-    static ui_button_t egypt   = ui_button("\xC3\x84\x67\x79\x70\x74\x65\x6E",
-                                           0, null);
     static ui_slider_t slider1 = ui_slider("%d", 6.0f, 0, UINT16_MAX,
                                            slider_format, slider_callback);
-    static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 0, null);
+    static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 4.0f, null);
+    static ui_button_t egypt   = ui_button("\xC3\x84\x67\x79\x70\x74\x65\x6E",
+                                           0, null);
     static ui_label_t  wild    = ui_label(1, wild_string);
     // vertical inside list
     #define min_w_in_em (8.5f)
@@ -477,10 +459,10 @@ static void controls_test(ui_view_t* parent) {
                 align(&left,         ui.align.top),
                 align(&button1,      ui.align.top),
                 align(&right,        ui.align.top),
-                align(&egypt,        ui.align.top),
-                align(&wild,         ui.align.top),
                 align(&slider1.view, ui.align.top),
                 align(&toggle1,      ui.align.top),
+                align(&egypt,        ui.align.top),
+                align(&wild,         ui.align.top),
             null),
             align(&label,        ui.align.left),
             align(&button2,      ui.align.left),
@@ -499,9 +481,11 @@ static void controls_test(ui_view_t* parent) {
     list.background_id = ui_color_id_window;
     slider2.dec.state.hidden = true;
     slider2.inc.state.hidden = true;
-//  gaps.state.pressed = true;
-//  controls_gaps(&gaps);
-    large.state.pressed = true;
+    fm.state.pressed = app_data.fm;
+    controls_fm(&fm);
+    gaps.state.pressed = app_data.gaps;
+    controls_gaps(&gaps);
+    large.state.pressed = app_data.large;
     controls_large(&large);
 }
 

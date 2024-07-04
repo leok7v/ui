@@ -26,7 +26,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
         .p.text = s,                                        \
         .callback = name ## _clicked,                       \
         .color_id = ui_color_id_button_text,                \
-        .min_w_em = min_width_em, .min_h_em = 1.0,          \
+        .min_w_em = min_width_em, .min_h_em = 1.25f,        \
         .insets  = {                                        \
             .left  = ui_view_i_lr, .top    = ui_view_i_tb,  \
             .right = ui_view_i_lr, .bottom = ui_view_i_tb   \
@@ -44,7 +44,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     .p.text = s,                                            \
     .callback = clicked,                                    \
     .color_id = ui_color_id_button_text,                    \
-    .min_w_em = min_width_em, .min_h_em = 1.0,              \
+    .min_w_em = min_width_em, .min_h_em = 1.25f,            \
     .insets  = {                                            \
         .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
         .right = ui_view_i_lr, .bottom = ui_view_i_tb       \

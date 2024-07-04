@@ -44,7 +44,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
             .p.text = s,                                            \
             .format = fmt,                                          \
             .callback = name ## _changed,                           \
-            .min_w_em = min_width_em, .min_h_em = 1.0,              \
+            .min_w_em = min_width_em, .min_h_em = 1.25f,            \
             .insets  = {                                            \
                 .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
                 .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
@@ -65,7 +65,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .p.text = s,                                                \
         .callback = changed,                                        \
         .format = fmt,                                              \
-        .min_w_em = min_width_em, .min_h_em = 1.0,                  \
+        .min_w_em = min_width_em, .min_h_em = 1.25f,                \
             .insets  = {                                            \
                 .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
                 .right = ui_view_i_lr, .bottom = ui_view_i_tb       \

@@ -24,12 +24,11 @@ void ui_view_init_toggle(ui_view_t* v);
         .type = ui_view_toggle,                             \
         .init = ui_view_init_toggle,                        \
         .fm = &ui_app.fm.regular,                           \
-        .min_w_em = min_width_em,                           \
+        .min_w_em = min_width_em,  .min_h_em = 1.25f,       \
         .p.text = s,                                        \
         .callback = name ## _on_off,                        \
-        .min_w_em = 1.0, .min_h_em = 1.0,                   \
         .insets  = {                                        \
-            .left  = ui_view_i_lr, .top    = ui_view_i_tb,  \
+            .left  = 1.75f,        .top    = ui_view_i_tb,  \
             .right = ui_view_i_lr, .bottom = ui_view_i_tb   \
         },                                                  \
         .padding = {                                        \
@@ -42,12 +41,11 @@ void ui_view_init_toggle(ui_view_t* v);
     .type = ui_view_toggle,                                 \
     .init = ui_view_init_toggle,                            \
     .fm = &ui_app.fm.regular,                               \
-    .min_w_em = min_width_em,                               \
     .p.text = s,                                            \
     .callback = on_off,                                     \
-    .min_w_em = 1.0, .min_h_em = 1.0,                       \
+    .min_w_em = min_width_em,  .min_h_em = 1.25f,           \
     .insets  = {                                            \
-        .left  = ui_view_i_lr, .top    = ui_view_i_tb,      \
+        .left  = 1.75f,        .top    = ui_view_i_tb,      \
         .right = ui_view_i_lr, .bottom = ui_view_i_tb       \
     },                                                      \
     .padding = {                                            \
