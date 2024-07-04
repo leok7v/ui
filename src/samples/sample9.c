@@ -387,7 +387,8 @@ static void character(ui_view_t* view, const char* utf8) {
     }
 }
 
-static void keyboard(ui_view_t* view, int64_t vk) {
+static bool keyboard(ui_view_t* view, int64_t vk) {
+    bool swallow = true;
     if (vk == ui.key.up) {
         mouse_wheel(view, 0, +image.h / 8);
     } else if (vk == ui.key.down) {
@@ -396,7 +397,10 @@ static void keyboard(ui_view_t* view, int64_t vk) {
         mouse_wheel(view, +image.w / 8, 0);
     } else if (vk == ui.key.right) {
         mouse_wheel(view, -image.w / 8, 0);
+    } else {
+        swallow = false;
     }
+    return swallow;
 }
 
 static void init_panel(ui_view_t* panel, const char* text, ui_color_t color,

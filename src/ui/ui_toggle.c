@@ -81,10 +81,10 @@ static void ui_toggle_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-static void ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
-    if (ui_app.alt && ui_view.is_shortcut_key(v, key)) {
-        ui_toggle_flip((ui_toggle_t*)v);
-    }
+static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
+    const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
+    if (trigger) { ui_toggle_flip((ui_toggle_t*)v); }
+    return trigger; // swallow if true
 }
 
 static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)) {

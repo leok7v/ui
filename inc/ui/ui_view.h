@@ -91,8 +91,8 @@ typedef struct ui_view_s {
     void (*kill_focus)(ui_view_t* v);
     // translated from key pressed/released to utf8:
     void (*character)(ui_view_t* v, const char* utf8);
-    void (*key_pressed)(ui_view_t* v, int64_t key);
-    void (*key_released)(ui_view_t* v, int64_t key);
+    bool (*key_pressed)(ui_view_t* v, int64_t key);  // return true to stop
+    bool (*key_released)(ui_view_t* v, int64_t key); // processing
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled views
     void (*timer)(ui_view_t* v, ui_timer_t id);
@@ -164,8 +164,9 @@ typedef struct ui_view_if {
     void (*every_sec)(ui_view_t* v);
     void (*every_100ms)(ui_view_t* v);
     int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
-    void (*key_pressed)(ui_view_t* v, int64_t v_key);
-    void (*key_released)(ui_view_t* v, int64_t v_key);
+    // key_pressed() key_released() return true to stop further processing
+    bool (*key_pressed)(ui_view_t* v, int64_t v_key);
+    bool (*key_released)(ui_view_t* v, int64_t v_key);
     void (*character)(ui_view_t* v, const char* utf8);
     void (*paint)(ui_view_t* v);
     bool (*set_focus)(ui_view_t* v);

@@ -373,10 +373,7 @@ static void list_test(ui_view_t* parent) {
 
 static void slider_format(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
-    ui_view.set_text(v, "%s %s %s",
-        ut_glyph_E_with_cedilla_and_breve,
-        ut_str.uint64(slider->value),
-        ut_glyph_E_with_cedilla_and_breve);
+    ui_view.set_text(v, "%s", ut_str.uint64(slider->value));
 }
 
 static void slider_callback(ui_view_t* v) {
@@ -420,9 +417,15 @@ static void controls_large(ui_view_t* v) {
     ui_app.request_layout();
 }
 
+static void button_pressed(ui_view_t* v) {
+    traceln("'%c' 0x%02X %d, %s", v->shortcut, v->shortcut, v->shortcut,
+                                  v->p.text);
+}
+
 static void controls_test(ui_view_t* parent) {
     ui_view.disband(parent);
-    #define test_string                                         \
+#if 0
+    #define wild_string                                         \
             ut_glyph_E_with_cedilla_and_breve                   \
             ut_glyph_box_drawings_heavy_vertical_and_horizontal \
             ut_glyph_box_drawings_light_diagonal_cross          \
@@ -433,24 +436,27 @@ static void controls_test(ui_view_t* parent) {
             ut_glyph_zwsp                                       \
             ut_glyph_combining_enclosing_screen                 \
             ut_glyph_en_quad                                    \
-            ut_glyph_combining_enclosing_circle                 \
-            ut_glyph_en_quad
+            ut_glyph_combining_enclosing_circle
+#else
+    #define wild_string                                         \
+        "A"  ut_glyph_zwsp  \
+        ut_glyph_combining_enclosing_circle  \
+        "B" ut_glyph_box_drawings_light_diagonal_cross \
+        ut_glyph_E_with_cedilla_and_breve
+#endif
     static ui_view_t   list    = ui_view(list);
     static ui_view_t   span    = ui_view(span);
     // horizontal inside span
     static ui_toggle_t large   = ui_toggle("&Large", 0.0, controls_large);
     static ui_label_t  left    = ui_label(0, "Left");
-    static ui_button_t button1 = ui_button("&Button", 6.0f, null);
-    static ui_button_t buttonE = ui_button(test_string,
-                                           6.0f, null);
+    static ui_button_t button1 = ui_button("&Button", 0, button_pressed);
+    static ui_label_t  right   = ui_label(0, "Right");
+    static ui_button_t egypt   = ui_button("\xC3\x84\x67\x79\x70\x74\x65\x6E",
+                                           0, null);
     static ui_slider_t slider1 = ui_slider("%d", 6.0f, 0, UINT16_MAX,
                                            slider_format, slider_callback);
-    static ui_slider_t sliderE = ui_slider(test_string,
-                                           6.0f, 0, 4, null, null);
     static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 0, null);
-    static ui_toggle_t toggleE = ui_toggle(test_string, 0, null);
-    static ui_label_t  right   = ui_label(0, "Right ");
-    static ui_label_t  labelE  = ui_label(1, test_string);
+    static ui_label_t  wild    = ui_label(1, wild_string);
     // vertical inside list
     #define min_w_in_em (8.5f)
     static ui_label_t  label   = ui_label(min_w_in_em, "Label");
@@ -470,13 +476,11 @@ static void controls_test(ui_view_t* parent) {
                 align(&large,        ui.align.top),
                 align(&left,         ui.align.top),
                 align(&button1,      ui.align.top),
-                align(&buttonE,      ui.align.top),
                 align(&right,        ui.align.top),
-                align(&labelE,       ui.align.top),
+                align(&egypt,        ui.align.top),
+                align(&wild,         ui.align.top),
                 align(&slider1.view, ui.align.top),
                 align(&toggle1,      ui.align.top),
-                align(&sliderE.view, ui.align.top),
-                align(&toggleE,      ui.align.top),
             null),
             align(&label,        ui.align.left),
             align(&button2,      ui.align.left),
@@ -487,25 +491,18 @@ static void controls_test(ui_view_t* parent) {
             align(&spacer,       ui.align.left),
         null),
     null);
-//  slider1.view.debug.trace.mt = true;
-//  slider3.dec.debug.trace.mt = true;
-//  slider3.dec.debug.paint.gaps = true;
-//  slider3.view.debug.trace.mt = true;
-//  gaps.debug.trace.mt = true;
     list.debug.paint.gaps = true;
     span.align = ui.align.left;
-//  list.background = ui_color_rgb(0x2E, 0x2E, 0x2E);
-//  list.background_id = 0;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
     ui_view.set_text(&list, "#list");
     list.background_id = ui_color_id_window;
     slider2.dec.state.hidden = true;
     slider2.inc.state.hidden = true;
-//gaps.state.pressed = true;
-large.state.pressed = true;
-//controls_gaps(&gaps);
-controls_large(&large);
+//  gaps.state.pressed = true;
+//  controls_gaps(&gaps);
+    large.state.pressed = true;
+    controls_large(&large);
 }
 
 // edit1 test

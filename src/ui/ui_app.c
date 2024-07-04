@@ -1107,6 +1107,8 @@ static void ui_app_update_mouse_buttons_state(void) {
                           VK_LBUTTON : VK_RBUTTON) & 0x8000) != 0;
 }
 
+bool trace_messages;
+
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
     ui_app.now = ut_clock.seconds();
@@ -1148,7 +1150,15 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             if (ht != ui.hit_test.nowhere) { return ht; }
             break; // drop to DefWindowProc
         }
-        case WM_SYSKEYDOWN:     // for ALT (aka VK_MENU)
+        case WM_SYSKEYDOWN   :  ui_app_alt_ctrl_shift(true, wp);
+                                if (ui_view.key_pressed(ui_app.root, wp)) {
+                                    return 0; // no DefWindowProc()
+                                }
+                                if (wp == VK_MENU) { return 0; }
+                                break;
+        case WM_SYSCHAR      :  if (wp == VK_MENU) { return 0; } // no DefWindowProc()
+                                break;
+        case WM_UNICHAR      :  traceln("???"); break;
         case WM_KEYDOWN      :  ui_app_alt_ctrl_shift(true, wp);
                                 ui_view.key_pressed(ui_app.root, wp);
                                 break;
@@ -1295,6 +1305,17 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_WINDOWPOSCHANGED:
             ui_app_window_position_changed((WINDOWPOS*)lp);
             break;
+        #ifdef UI_APP_DEBUGING_ALT_KEYBOARD_SHORTCUTS
+        case WM_PARENTNOTIFY  : traceln("WM_PARENTNOTIFY");     break;
+        case WM_ENTERMENULOOP : traceln("WM_ENTERMENULOOP");    return 0;
+        case WM_EXITMENULOOP  : traceln("WM_EXITMENULOOP");     trace_messages = false; return 0;
+        case WM_INITMENU      : traceln("WM_INITMENU");         return 0;
+        case WM_MENUCHAR      : traceln("WM_MENUCHAR");         return MNC_CLOSE << 16;
+        case WM_CAPTURECHANGED: traceln("WM_CAPTURECHANGED");   break;
+        case WM_MENUSELECT    : traceln("WM_MENUSELECT");       return 0;
+        #else
+        case WM_MENUCHAR      : return MNC_CLOSE << 16; // prevents beep on Alt+Shortcut
+        #endif
         default:
             break;
     }
@@ -1485,9 +1506,61 @@ static void ui_app_redraw_thread(void* unused(p)) {
     }
 }
 
+static bool ui_app_trace_utf16_keyboard_input; // = true;
+
+static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
+    // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
+    if (ui_app_trace_utf16_keyboard_input) {
+        swear(m == WM_KEYDOWN || m == WM_KEYUP ||
+              m == WM_SYSKEYDOWN || m == WM_SYSKEYUP);
+        uint16_t vk_code   = LOWORD(wp);
+        uint16_t key_flags = HIWORD(lp);
+        uint16_t scan_code = LOBYTE(key_flags);
+        if ((key_flags & KF_EXTENDED) == KF_EXTENDED) {
+            scan_code = MAKEWORD(scan_code, 0xE0);
+        }
+        // previous key-state flag, 1 on autorepeat
+        bool was_key_down = (key_flags & KF_REPEAT) == KF_REPEAT;
+        // repeat count, > 0 if several key down messages was combined into one
+        uint16_t repeat_count = LOWORD(lp);
+        // transition-state flag, 1 on key up
+        bool is_key_released = (key_flags & KF_UP) == KF_UP;
+        // if we want to distinguish these keys:
+        switch (vk_code) {
+            case VK_SHIFT:   // converts to VK_LSHIFT or VK_RSHIFT
+            case VK_CONTROL: // converts to VK_LCONTROL or VK_RCONTROL
+            case VK_MENU:    // converts to VK_LMENU or VK_RMENU
+                vk_code = LOWORD(MapVirtualKeyW(scan_code, MAPVK_VSC_TO_VK_EX));
+                break;
+            default: break;
+        }
+        static BYTE keyboard_state[256];
+        uint16_t utf16[2];
+        HKL keyboard_layout = GetKeyboardLayout(0);
+        // HKL low word Language Identifier
+        //     high word device handle to the physical layout of the keyboard
+        fatal_if_false(GetKeyboardState(keyboard_state));
+        // Map virtual key to scan code
+        UINT virtualKey = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX,
+                                          keyboard_layout);
+        // Translate scan code to character
+        int result = ToUnicodeEx(virtualKey, scan_code, keyboard_state,
+                                 utf16, countof(utf16), 0, keyboard_layout);
+        if (result > 0) {
+            traceln("0x%04X04X is_key_released: %d down: %d repeat: %d",
+                     utf16[0], utf16[1], is_key_released, was_key_down,
+                     repeat_count);
+        }
+    }
+}
+
 static int32_t ui_app_message_loop(void) {
     MSG msg = {0};
     while (GetMessage(&msg, null, 0, 0)) {
+        if (msg.message == WM_KEYDOWN || msg.message == WM_KEYUP ||
+            msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP) {
+            ui_app_decode_keyboard(msg.message, msg.wParam, msg.lParam);
+        }
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }

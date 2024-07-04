@@ -849,8 +849,8 @@ typedef struct ui_view_s {
     void (*kill_focus)(ui_view_t* v);
     // translated from key pressed/released to utf8:
     void (*character)(ui_view_t* v, const char* utf8);
-    void (*key_pressed)(ui_view_t* v, int64_t key);
-    void (*key_released)(ui_view_t* v, int64_t key);
+    bool (*key_pressed)(ui_view_t* v, int64_t key);  // return true to stop
+    bool (*key_released)(ui_view_t* v, int64_t key); // processing
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled views
     void (*timer)(ui_view_t* v, ui_timer_t id);
@@ -922,8 +922,9 @@ typedef struct ui_view_if {
     void (*every_sec)(ui_view_t* v);
     void (*every_100ms)(ui_view_t* v);
     int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
-    void (*key_pressed)(ui_view_t* v, int64_t v_key);
-    void (*key_released)(ui_view_t* v, int64_t v_key);
+    // key_pressed() key_released() return true to stop further processing
+    bool (*key_pressed)(ui_view_t* v, int64_t v_key);
+    bool (*key_released)(ui_view_t* v, int64_t v_key);
     void (*character)(ui_view_t* v, const char* utf8);
     void (*paint)(ui_view_t* v);
     bool (*set_focus)(ui_view_t* v);
@@ -3164,6 +3165,8 @@ static void ui_app_update_mouse_buttons_state(void) {
                           VK_LBUTTON : VK_RBUTTON) & 0x8000) != 0;
 }
 
+bool trace_messages;
+
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
     ui_app.now = ut_clock.seconds();
@@ -3205,7 +3208,15 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             if (ht != ui.hit_test.nowhere) { return ht; }
             break; // drop to DefWindowProc
         }
-        case WM_SYSKEYDOWN:     // for ALT (aka VK_MENU)
+        case WM_SYSKEYDOWN   :  ui_app_alt_ctrl_shift(true, wp);
+                                if (ui_view.key_pressed(ui_app.root, wp)) {
+                                    return 0; // no DefWindowProc()
+                                }
+                                if (wp == VK_MENU) { return 0; }
+                                break;
+        case WM_SYSCHAR      :  if (wp == VK_MENU) { return 0; } // no DefWindowProc()
+                                break;
+        case WM_UNICHAR      :  traceln("???"); break;
         case WM_KEYDOWN      :  ui_app_alt_ctrl_shift(true, wp);
                                 ui_view.key_pressed(ui_app.root, wp);
                                 break;
@@ -3352,6 +3363,17 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_WINDOWPOSCHANGED:
             ui_app_window_position_changed((WINDOWPOS*)lp);
             break;
+        #ifdef UI_APP_DEBUGING_ALT_KEYBOARD_SHORTCUTS
+        case WM_PARENTNOTIFY  : traceln("WM_PARENTNOTIFY");     break;
+        case WM_ENTERMENULOOP : traceln("WM_ENTERMENULOOP");    return 0;
+        case WM_EXITMENULOOP  : traceln("WM_EXITMENULOOP");     trace_messages = false; return 0;
+        case WM_INITMENU      : traceln("WM_INITMENU");         return 0;
+        case WM_MENUCHAR      : traceln("WM_MENUCHAR");         return MNC_CLOSE << 16;
+        case WM_CAPTURECHANGED: traceln("WM_CAPTURECHANGED");   break;
+        case WM_MENUSELECT    : traceln("WM_MENUSELECT");       return 0;
+        #else
+        case WM_MENUCHAR      : return MNC_CLOSE << 16; // prevents beep on Alt+Shortcut
+        #endif
         default:
             break;
     }
@@ -3542,9 +3564,61 @@ static void ui_app_redraw_thread(void* unused(p)) {
     }
 }
 
+static bool ui_app_trace_utf16_keyboard_input; // = true;
+
+static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
+    // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
+    if (ui_app_trace_utf16_keyboard_input) {
+        swear(m == WM_KEYDOWN || m == WM_KEYUP ||
+              m == WM_SYSKEYDOWN || m == WM_SYSKEYUP);
+        uint16_t vk_code   = LOWORD(wp);
+        uint16_t key_flags = HIWORD(lp);
+        uint16_t scan_code = LOBYTE(key_flags);
+        if ((key_flags & KF_EXTENDED) == KF_EXTENDED) {
+            scan_code = MAKEWORD(scan_code, 0xE0);
+        }
+        // previous key-state flag, 1 on autorepeat
+        bool was_key_down = (key_flags & KF_REPEAT) == KF_REPEAT;
+        // repeat count, > 0 if several key down messages was combined into one
+        uint16_t repeat_count = LOWORD(lp);
+        // transition-state flag, 1 on key up
+        bool is_key_released = (key_flags & KF_UP) == KF_UP;
+        // if we want to distinguish these keys:
+        switch (vk_code) {
+            case VK_SHIFT:   // converts to VK_LSHIFT or VK_RSHIFT
+            case VK_CONTROL: // converts to VK_LCONTROL or VK_RCONTROL
+            case VK_MENU:    // converts to VK_LMENU or VK_RMENU
+                vk_code = LOWORD(MapVirtualKeyW(scan_code, MAPVK_VSC_TO_VK_EX));
+                break;
+            default: break;
+        }
+        static BYTE keyboard_state[256];
+        uint16_t utf16[2];
+        HKL keyboard_layout = GetKeyboardLayout(0);
+        // HKL low word Language Identifier
+        //     high word device handle to the physical layout of the keyboard
+        fatal_if_false(GetKeyboardState(keyboard_state));
+        // Map virtual key to scan code
+        UINT virtualKey = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX,
+                                          keyboard_layout);
+        // Translate scan code to character
+        int result = ToUnicodeEx(virtualKey, scan_code, keyboard_state,
+                                 utf16, countof(utf16), 0, keyboard_layout);
+        if (result > 0) {
+            traceln("0x%04X04X is_key_released: %d down: %d repeat: %d",
+                     utf16[0], utf16[1], is_key_released, was_key_down,
+                     repeat_count);
+        }
+    }
+}
+
 static int32_t ui_app_message_loop(void) {
     MSG msg = {0};
     while (GetMessage(&msg, null, 0, 0)) {
+        if (msg.message == WM_KEYDOWN || msg.message == WM_KEYUP ||
+            msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP) {
+            ui_app_decode_keyboard(msg.message, msg.wParam, msg.lParam);
+        }
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }
@@ -4497,12 +4571,12 @@ static void ui_button_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-static void ui_button_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
     assert(v->type == ui_view_button);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
-    if (ui_app.alt && ui_view.is_shortcut_key(v, key)) {
-        ui_button_trigger(v);
-    }
+    const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
+    if (trigger) { ui_button_trigger(v); }
+    return trigger; // swallow if true
 }
 
 /* processes mouse clicks and invokes callback  */
@@ -8925,7 +8999,8 @@ static void ui_edit_key_enter(ui_edit_t* e) {
     }
 }
 
-static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_edit_key_pressed(ui_view_t* v, int64_t key) {
+    bool swallow = true;
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_text_t* dt = &e->doc->text; // document text
@@ -8953,10 +9028,11 @@ static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
         } else if (key == ui.key.enter && !e->ro) {
             ui_edit.key_enter(e);
         } else {
-            // ignore other keys
+            swallow = false; // ignore other keys
         }
     }
     if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
+    return swallow;
 }
 
 
@@ -11757,10 +11833,10 @@ static void ui_toggle_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-static void ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
-    if (ui_app.alt && ui_view.is_shortcut_key(v, key)) {
-        ui_toggle_flip((ui_toggle_t*)v);
-    }
+static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
+    const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
+    if (trigger) { ui_toggle_flip((ui_toggle_t*)v); }
+    return trigger; // swallow if true
 }
 
 static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)) {
@@ -12284,21 +12360,37 @@ static void ui_view_every_100ms(ui_view_t* v) {
     ui_view_for_each(v, c, { ui_view_every_100ms(c); });
 }
 
-static void ui_view_key_pressed(ui_view_t* v, int64_t k) {
+static bool ui_view_key_pressed(ui_view_t* v, int64_t k) {
+    bool done = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->key_pressed != null) {
             ui_view_update_shortcut(v);
-            v->key_pressed(v, k);
+            done = v->key_pressed(v, k);
         }
-        ui_view_for_each(v, c, { ui_view_key_pressed(c, k); });
+        if (!done) {
+            ui_view_for_each(v, c, {
+                done = ui_view_key_pressed(c, k);
+                if (done) { break; }
+            });
+        }
     }
+    return done;
 }
 
-static void ui_view_key_released(ui_view_t* v, int64_t k) {
+static bool ui_view_key_released(ui_view_t* v, int64_t k) {
+    bool done = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        if (v->key_released != null) { v->key_released(v, k); }
-        ui_view_for_each(v, c, { ui_view_key_released(c, k); });
+        if (v->key_released != null) {
+            done = v->key_released(v, k);
+        }
+        if (!done) {
+            ui_view_for_each(v, c, {
+                done = ui_view_key_released(c, k);
+                if (done) { break; }
+            });
+        }
     }
+    return done;
 }
 
 static void ui_view_character(ui_view_t* v, const char* utf8) {

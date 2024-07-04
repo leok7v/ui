@@ -485,21 +485,37 @@ static void ui_view_every_100ms(ui_view_t* v) {
     ui_view_for_each(v, c, { ui_view_every_100ms(c); });
 }
 
-static void ui_view_key_pressed(ui_view_t* v, int64_t k) {
+static bool ui_view_key_pressed(ui_view_t* v, int64_t k) {
+    bool done = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->key_pressed != null) {
             ui_view_update_shortcut(v);
-            v->key_pressed(v, k);
+            done = v->key_pressed(v, k);
         }
-        ui_view_for_each(v, c, { ui_view_key_pressed(c, k); });
+        if (!done) {
+            ui_view_for_each(v, c, {
+                done = ui_view_key_pressed(c, k);
+                if (done) { break; }
+            });
+        }
     }
+    return done;
 }
 
-static void ui_view_key_released(ui_view_t* v, int64_t k) {
+static bool ui_view_key_released(ui_view_t* v, int64_t k) {
+    bool done = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        if (v->key_released != null) { v->key_released(v, k); }
-        ui_view_for_each(v, c, { ui_view_key_released(c, k); });
+        if (v->key_released != null) {
+            done = v->key_released(v, k);
+        }
+        if (!done) {
+            ui_view_for_each(v, c, {
+                done = ui_view_key_released(c, k);
+                if (done) { break; }
+            });
+        }
     }
+    return done;
 }
 
 static void ui_view_character(ui_view_t* v, const char* utf8) {

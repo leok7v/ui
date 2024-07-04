@@ -101,12 +101,12 @@ static void ui_button_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-static void ui_button_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
     assert(v->type == ui_view_button);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
-    if (ui_app.alt && ui_view.is_shortcut_key(v, key)) {
-        ui_button_trigger(v);
-    }
+    const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
+    if (trigger) { ui_button_trigger(v); }
+    return trigger; // swallow if true
 }
 
 /* processes mouse clicks and invokes callback  */

@@ -864,6 +864,10 @@ extern ut_generics_if ut_generics;
 // https://compart.com/en/unicode/U+200B
 #define ut_glyph_zwsp                                  "\xE2\x80\x8B"
 
+// Zero Width Joiner (ZWJ)
+// https://compart.com/en/unicode/u+200D
+#define ut_glyph_zwj                                   "\xE2\x80\x8D"
+
 // En Quad
 // https://compart.com/en/unicode/U+2000
 #define ut_glyph_en_quad "\xE2\x80\x80"

@@ -219,7 +219,8 @@ static void every_100ms(void) {
 //  last = ui_app.focus;
 }
 
-static void key_pressed(ui_view_t* unused(view), int64_t key) {
+static bool key_pressed(ui_view_t* unused(view), int64_t key) {
+    bool swallow = false;
     if (ui_app.has_focus() && key == ui.key.escape) { ui_app.close(); }
     int32_t ix = focused();
     if (key == ui.key.f5) {
@@ -231,17 +232,22 @@ static void key_pressed(ui_view_t* unused(view), int64_t key) {
                 ui_edit.fuzz(e); // stop on F5
             }
         }
+        swallow = true;
     }
     if (ui_app.ctrl) {
         if (key == ui.key.minus) {
             font_minus();
+            swallow = true;
         } else if (key == ui.key.plus) {
             font_plus();
+            swallow = true;
         } else if (key == '0') {
             font_reset();
+            swallow = true;
         }
     }
     if (ix >= 0) { set_text(ix); }
+    return swallow;
 }
 
 static void edit_enter(ui_edit_t* e) {

@@ -1013,7 +1013,8 @@ static void ui_edit_key_enter(ui_edit_t* e) {
     }
 }
 
-static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_edit_key_pressed(ui_view_t* v, int64_t key) {
+    bool swallow = true;
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_text_t* dt = &e->doc->text; // document text
@@ -1041,10 +1042,11 @@ static void ui_edit_key_pressed(ui_view_t* v, int64_t key) {
         } else if (key == ui.key.enter && !e->ro) {
             ui_edit.key_enter(e);
         } else {
-            // ignore other keys
+            swallow = false; // ignore other keys
         }
     }
     if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
+    return swallow;
 }
 
 
