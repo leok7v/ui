@@ -27,6 +27,12 @@ typedef struct ui_view_private_s { // do not access directly
     // use: ui_view.string(v) and ui_view.set_string()
 } ui_view_private_t;
 
+typedef struct ui_view_text_metrics_s { // ui_view.measure_text() fills these attributes:
+    ui_wh_t    mt; // text width and height
+    ui_point_t xy; // text offset inside view
+    bool multiline; // text contains "\n"
+} ui_view_text_metrics_t;
+
 typedef struct ui_view_s {
     enum ui_view_type_t type;
     ui_view_private_t p; // private
@@ -41,10 +47,7 @@ typedef struct ui_view_s {
     int32_t h;
     ui_gaps_t insets;
     ui_gaps_t padding;
-    struct { // ui_view.measure_text() fills these attributes:
-        ui_point_t xy; // text offset inside view
-        ui_wh_t    mt; // text width and height
-    } text;
+    ui_view_text_metrics_t text;
     // see ui.alignment values
     int32_t align; // align inside parent
     int32_t text_align; // align of the text inside control
@@ -179,6 +182,10 @@ typedef struct ui_view_if {
         const ui_fm_t* fm, const char* format, va_list va);
     ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, ...);
+    void (*text_measure)(ui_view_t* v, const char* s,
+        ui_view_text_metrics_t* tm);
+    void (*text_align)(ui_view_t* v, ui_view_text_metrics_t* tm);
+    void (*measure_text)(ui_view_t* v); // fills v->text.mt and .xy
     // measure_control(): control is special case with v->text.mt and .xy
     void (*measure_control)(ui_view_t* v);
     void (*measure_children)(ui_view_t* v);

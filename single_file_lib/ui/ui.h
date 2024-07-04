@@ -785,6 +785,12 @@ typedef struct ui_view_private_s { // do not access directly
     // use: ui_view.string(v) and ui_view.set_string()
 } ui_view_private_t;
 
+typedef struct ui_view_text_metrics_s { // ui_view.measure_text() fills these attributes:
+    ui_wh_t    mt; // text width and height
+    ui_point_t xy; // text offset inside view
+    bool multiline; // text contains "\n"
+} ui_view_text_metrics_t;
+
 typedef struct ui_view_s {
     enum ui_view_type_t type;
     ui_view_private_t p; // private
@@ -799,10 +805,7 @@ typedef struct ui_view_s {
     int32_t h;
     ui_gaps_t insets;
     ui_gaps_t padding;
-    struct { // ui_view.measure_text() fills these attributes:
-        ui_point_t xy; // text offset inside view
-        ui_wh_t    mt; // text width and height
-    } text;
+    ui_view_text_metrics_t text;
     // see ui.alignment values
     int32_t align; // align inside parent
     int32_t text_align; // align of the text inside control
@@ -937,6 +940,10 @@ typedef struct ui_view_if {
         const ui_fm_t* fm, const char* format, va_list va);
     ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, ...);
+    void (*text_measure)(ui_view_t* v, const char* s,
+        ui_view_text_metrics_t* tm);
+    void (*text_align)(ui_view_t* v, ui_view_text_metrics_t* tm);
+    void (*measure_text)(ui_view_t* v); // fills v->text.mt and .xy
     // measure_control(): control is special case with v->text.mt and .xy
     void (*measure_control)(ui_view_t* v);
     void (*measure_children)(ui_view_t* v);
@@ -11363,43 +11370,16 @@ if (s->debug.trace.mt) {
         s->p.strid = 0; // nls again
         text = ut_nls.str(formatted);
     }
-    // text is actual value now, remeasure:
-    v->text.mt = ui_slider_measure_text(s);
-    // text_align:
-    v->text.xy = (ui_point_t){ .x = -1, .y = -1 };
-    // i_wh the inside insets w x h:
-    const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
-                           .h = v->h - i.top  - i.bottom };
-    const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
-    const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
-    v->text.xy.x = i.left + (i_wh.w - v->text.mt.w) / 2;
-    if (h_align & ui.align.left) {
-        v->text.xy.x = i.left;
-    } else if (h_align & ui.align.right) {
-        v->text.xy.x = i_wh.w - v->text.mt.w - i.right;
-    }
-    // vertical centering is trickier.
-    // mt.h is height of all measured lines of text
-    v->text.xy.y = i.top + (i_wh.h - v->text.mt.h) / 2;
-    if (v_align & ui.align.top) {
-        v->text.xy.y = i.top;
-    } else if (v_align & ui.align.bottom) {
-        v->text.xy.y = i_wh.h - v->text.mt.h - i.bottom;
-    } else {
-        const int32_t y_of_x_line = fm->baseline - fm->x_height;
-        // `dy` offset of the center to x-line (middle of glyph cell)
-        const int32_t dy = v->text.mt.h / 2 - y_of_x_line;
-        v->text.xy.y += dy / 2;
-        if (v->debug.trace.mt) {
-            traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
-                      y_of_x_line, v->text.mt.h, dy);
-        }
-    }
+    // because current value was formatted into `text` need to
+    // remeasure and align text again:
+    ui_view_text_metrics_t tm = {0};
+    ui_view.text_measure(v, text, &tm);
+    ui_view.text_align(v, &tm);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_gdi_ta_t ta = { .fm = fm, .color = text_color };
-    const int32_t tx = v->x + v->text.xy.x;
-    const int32_t ty = v->y + v->text.xy.y;
+    const int32_t tx = v->x + tm.xy.x;
+    const int32_t ty = v->y + tm.xy.y;
     ui_gdi.text(&ta, tx, ty, "%s", text);
 }
 
@@ -11798,7 +11778,8 @@ static const char* ui_toggle_on_off_label(ui_view_t* v,
     return ut_nls.str(label);
 }
 
-static void ui_toggle_measured(ui_view_t* v) {
+static void ui_toggle_measure(ui_view_t* v) {
+    ui_view.measure_control(v);
     assert(v->type == ui_view_toggle);
     v->w += v->fm->em.w * 2;
 }
@@ -11857,7 +11838,7 @@ void ui_view_init_toggle(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
     v->mouse         = ui_toggle_mouse;
     v->paint         = ui_toggle_paint;
-    v->measured      = ui_toggle_measured;
+    v->measure       = ui_toggle_measure;
     v->character     = ui_toggle_character;
     v->key_pressed   = ui_toggle_key_pressed;
     v->color_id      = ui_color_id_button_text;
@@ -12060,6 +12041,60 @@ static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
     return wh;
 }
 
+static void ui_view_text_measure(ui_view_t* v, const char* s,
+        ui_view_text_metrics_t* tm) {
+    const ui_fm_t* fm = v->fm;
+    tm->mt = (ui_wh_t){ .w = 0, .h = fm->height };
+    if (s[0] == 0) {
+        tm->multiline = false;
+    } else {
+        tm->multiline = strchr(s, '\n') != null;
+        if (v->type == ui_view_label && tm->multiline) {
+            int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)fm->em.w + 0.5);
+            tm->mt = ui_view.text_metrics(v->x, v->y, true,  w, fm, "%s", s);
+        } else {
+            tm->mt = ui_view.text_metrics(v->x, v->y, false, 0, fm, "%s", s);
+        }
+    }
+}
+
+static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
+    const ui_fm_t* fm = v->fm;
+    tm->xy = (ui_point_t){ .x = -1, .y = -1 };
+    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    // i_wh the inside insets w x h:
+    const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
+                           .h = v->h - i.top - i.bottom };
+    const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
+    const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
+    tm->xy.x = i.left + (i_wh.w - tm->mt.w) / 2;
+    if (h_align & ui.align.left) {
+        tm->xy.x = i.left;
+    } else if (h_align & ui.align.right) {
+        tm->xy.x = i_wh.w - tm->mt.w - i.right;
+    }
+    // vertical centering is trickier.
+    // mt.h is height of all measured lines of text
+    tm->xy.y = i.top + (i_wh.h - tm->mt.h) / 2;
+    if (v_align & ui.align.top) {
+        tm->xy.y = i.top;
+    } else if (v_align & ui.align.bottom) {
+        tm->xy.y = i_wh.h - tm->mt.h - i.bottom;
+    } else if (!tm->multiline) {
+        // UI controls should have x-height line in the dead center
+        // of the control to be visually balanced.
+        // y offset of "x-line" of the glyph:
+        const int32_t y_of_x_line = fm->baseline - fm->x_height;
+        // `dy` offset of the center to x-line (middle of glyph cell)
+        const int32_t dy = tm->mt.h / 2 - y_of_x_line;
+        tm->xy.y += dy / 2;
+        if (v->debug.trace.mt) {
+            traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
+                      y_of_x_line, tm->mt.h, dy);
+        }
+    }
+}
+
 static void ui_view_measure_control(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
@@ -12084,55 +12119,13 @@ static void ui_view_measure_control(ui_view_t* v) {
             pd.left, pd.top, pd.right, pd.bottom,
             pd.left + pd.right, pd.top + pd.bottom);
     }
-    v->text.mt = (ui_wh_t){ .w = 0, .h = fm->height };
-    bool multiline = false;
-    if (s[0] != 0) {
-        multiline = strchr(s, '\n') != null;
-        if (v->type == ui_view_label && multiline) {
-            int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)fm->em.w + 0.5);
-            v->text.mt = ui_view.text_metrics(v->x, v->y, true,  w, fm, "%s", s);
-        } else {
-            v->text.mt = ui_view.text_metrics(v->x, v->y, false, 0, fm, "%s", s);
-        }
-        if (v->debug.trace.mt) {
-            traceln(" mt: %d %d", v->text.mt.w, v->text.mt.h);
-        }
-        v->w = ut_max(v->w, i.left + v->text.mt.w + i.right);
-        v->h = ut_max(v->h, i.top  + v->text.mt.h + i.bottom);
+    ui_view_text_measure(v, s, &v->text);
+    if (v->debug.trace.mt) {
+        traceln(" mt: %d %d", v->text.mt.w, v->text.mt.h);
     }
-    // text_align:
-    v->text.xy = (ui_point_t){ .x = -1, .y = -1 };
-    // i_wh the inside insets w x h:
-    const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
-                           .h = v->h - i.top - i.bottom };
-    const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
-    const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
-    v->text.xy.x = i.left + (i_wh.w - v->text.mt.w) / 2;
-    if (h_align & ui.align.left) {
-        v->text.xy.x = i.left;
-    } else if (h_align & ui.align.right) {
-        v->text.xy.x = i_wh.w - v->text.mt.w - i.right;
-    }
-    // vertical centering is trickier.
-    // mt.h is height of all measured lines of text
-    v->text.xy.y = i.top + (i_wh.h - v->text.mt.h) / 2;
-    if (v_align & ui.align.top) {
-        v->text.xy.y = i.top;
-    } else if (v_align & ui.align.bottom) {
-        v->text.xy.y = i_wh.h - v->text.mt.h - i.bottom;
-    } else if (!multiline) {
-        // UI controls should have x-height line in the dead center
-        // of the control to be visually balanced.
-        // y offset of "x-line" of the glyph:
-        const int32_t y_of_x_line = fm->baseline - fm->x_height;
-        // `dy` offset of the center to x-line (middle of glyph cell)
-        const int32_t dy = v->text.mt.h / 2 - y_of_x_line;
-        v->text.xy.y += dy / 2;
-        if (v->debug.trace.mt) {
-            traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
-                      y_of_x_line, v->text.mt.h, dy);
-        }
-    }
+    v->w = ut_max(v->w, i.left + v->text.mt.w + i.right);
+    v->h = ut_max(v->h, i.top  + v->text.mt.h + i.bottom);
+    ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
         traceln("<%dx%d text_align x,y: %d,%d",
                 v->w, v->h, v->text.xy.x, v->text.xy.y);
@@ -12792,6 +12785,8 @@ ui_view_if ui_view = {
     .invalidate         = ui_view_invalidate,
     .text_metrics_va    = ui_view_text_metrics_va,
     .text_metrics       = ui_view_text_metrics,
+    .text_measure       = ui_view_text_measure,
+    .text_align         = ui_view_text_align,
     .measure_control    = ui_view_measure_control,
     .measure_children   = ui_view_measure_children,
     .layout_children    = ui_view_layout_children,

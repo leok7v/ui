@@ -167,43 +167,16 @@ if (s->debug.trace.mt) {
         s->p.strid = 0; // nls again
         text = ut_nls.str(formatted);
     }
-    // text is actual value now, remeasure:
-    v->text.mt = ui_slider_measure_text(s);
-    // text_align:
-    v->text.xy = (ui_point_t){ .x = -1, .y = -1 };
-    // i_wh the inside insets w x h:
-    const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
-                           .h = v->h - i.top  - i.bottom };
-    const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
-    const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
-    v->text.xy.x = i.left + (i_wh.w - v->text.mt.w) / 2;
-    if (h_align & ui.align.left) {
-        v->text.xy.x = i.left;
-    } else if (h_align & ui.align.right) {
-        v->text.xy.x = i_wh.w - v->text.mt.w - i.right;
-    }
-    // vertical centering is trickier.
-    // mt.h is height of all measured lines of text
-    v->text.xy.y = i.top + (i_wh.h - v->text.mt.h) / 2;
-    if (v_align & ui.align.top) {
-        v->text.xy.y = i.top;
-    } else if (v_align & ui.align.bottom) {
-        v->text.xy.y = i_wh.h - v->text.mt.h - i.bottom;
-    } else {
-        const int32_t y_of_x_line = fm->baseline - fm->x_height;
-        // `dy` offset of the center to x-line (middle of glyph cell)
-        const int32_t dy = v->text.mt.h / 2 - y_of_x_line;
-        v->text.xy.y += dy / 2;
-        if (v->debug.trace.mt) {
-            traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
-                      y_of_x_line, v->text.mt.h, dy);
-        }
-    }
+    // because current value was formatted into `text` need to
+    // remeasure and align text again:
+    ui_view_text_metrics_t tm = {0};
+    ui_view.text_measure(v, text, &tm);
+    ui_view.text_align(v, &tm);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_gdi_ta_t ta = { .fm = fm, .color = text_color };
-    const int32_t tx = v->x + v->text.xy.x;
-    const int32_t ty = v->y + v->text.xy.y;
+    const int32_t tx = v->x + tm.xy.x;
+    const int32_t ty = v->y + tm.xy.y;
     ui_gdi.text(&ta, tx, ty, "%s", text);
 }
 
