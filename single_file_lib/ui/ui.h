@@ -4512,6 +4512,7 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
         v->state.armed = false;
         ui_view.invalidate(v, null);
     }
+    if (v->p.armed_until != 0) { ui_app.show_hint(null, -1, -1, 0); }
 }
 
 static void ui_button_paint(ui_view_t* v) {
@@ -4627,18 +4628,20 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     if (pressed && !v->state.armed && !v->p.armed_until) {
         v->state.armed = ui_button_hit_test(b, ui_app.mouse);
         if (was_armed != v->state.armed) { ui_view.invalidate(v, null); }
-        if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
     }
     const bool released =
         message == ui.message.left_button_released ||
         message == ui.message.right_button_released;
-    if (released && v->state.armed && !v->p.armed_until) {
+    if (released && v->state.armed && v->p.armed_until == 0) {
         if (ui_button_hit_test(b, ui_app.mouse)) {
             ui_view.invalidate(v, null);
-            v->p.armed_until = ui_app.now + 0.250;
             ui_button_callback(b);
         }
+        if (v->state.armed && v->p.armed_until == 0) {
+            v->p.armed_until = ui_app.now + 0.250;
+        }
     }
+    if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
 }
 
 static void ui_button_measure(ui_view_t* v) {
@@ -11538,13 +11541,7 @@ static void ui_slider_paint(ui_view_t* v) {
     assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
     const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
     const int32_t x = v->x + dx + i.left;
-if (s->debug.trace.mt) {
-    traceln(" %x", x);
-}
     const int32_t w = ui_slider_width(s);
-    if (s->debug.trace.mt) {
-        traceln(" %d", w);
-    }
     // draw background:
     fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
@@ -12077,6 +12074,8 @@ static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 #pragma push_macro("ui_view_for_each")
 
+static void ui_view_update_shortcut(ui_view_t* v);
+
 // adding and removing views is not expected to be frequent
 // actions by application code (human factor - UI design)
 // thus extra checks and verifications are there even in
@@ -12095,6 +12094,7 @@ static void ui_view_verify(ui_view_t* p) {
     ui_view_check_type(p);
     ui_view_for_each(p, c, {
         ui_view_check_type(c);
+        ui_view_update_shortcut(c);
         swear(c->parent == p);
         swear(c == c->next->prev);
         swear(c == c->prev->next);

@@ -123,13 +123,7 @@ static void ui_slider_paint(ui_view_t* v) {
     assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
     const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
     const int32_t x = v->x + dx + i.left;
-if (s->debug.trace.mt) {
-    traceln(" %x", x);
-}
     const int32_t w = ui_slider_width(s);
-    if (s->debug.trace.mt) {
-        traceln(" %d", w);
-    }
     // draw background:
     fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);

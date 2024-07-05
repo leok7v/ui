@@ -415,8 +415,12 @@ static void controls_large(ui_view_t* v) {
 }
 
 static void button_pressed(ui_view_t* v) {
-    traceln("'%c' 0x%02X %d, %s", v->shortcut, v->shortcut, v->shortcut,
-                                  v->p.text);
+    if (v->shortcut != 0) {
+        traceln("'%c' 0x%02X %d, %s", v->shortcut, v->shortcut, v->shortcut,
+                                      v->p.text);
+    } else {
+        traceln("%s", v->p.text);
+    }
 }
 
 static void controls_test(ui_view_t* parent) {

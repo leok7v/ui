@@ -5,6 +5,8 @@ static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 #pragma push_macro("ui_view_for_each")
 
+static void ui_view_update_shortcut(ui_view_t* v);
+
 // adding and removing views is not expected to be frequent
 // actions by application code (human factor - UI design)
 // thus extra checks and verifications are there even in
@@ -23,6 +25,7 @@ static void ui_view_verify(ui_view_t* p) {
     ui_view_check_type(p);
     ui_view_for_each(p, c, {
         ui_view_check_type(c);
+        ui_view_update_shortcut(c);
         swear(c->parent == p);
         swear(c == c->next->prev);
         swear(c == c->prev->next);
