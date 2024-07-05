@@ -66,7 +66,7 @@ static void measure(ui_view_t* view) {
         stop_rendering();
         im = &image[!index];
         ui_gdi.image_dispose(im);
-        fatal_if(w * h * 4 > ut_count_of(pixels[!index]),
+        ut_fatal_if(w * h * 4 > ut_count_of(pixels[!index]),
             "increase size of pixels[][%d * %d * 4]", w, h);
         ui_gdi.image_init(im, w, h, 4, pixels[!index]);
         request_rendering();
@@ -104,7 +104,7 @@ static void fini(void) {
 }
 
 static void opened(void) {
-    fatal_if(ui_app.root->w * ui_app.root->h * 4 > ut_count_of(pixels[0]),
+    ut_fatal_if(ui_app.root->w * ui_app.root->h * 4 > ut_count_of(pixels[0]),
         "increase size of pixels[][%d * %d * 4]", ui_app.root->w, ui_app.root->h);
     ui_app.fini = fini;
     ui_app.closed = closed;

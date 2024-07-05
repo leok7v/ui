@@ -120,7 +120,7 @@ static ui_button_t button_full_screen = ui_button(
 
 static void flip_locale(ui_button_t* b) {
     b->state.pressed = !b->state.pressed;
-    fatal_if_not_zero(ut_nls.set_locale(b->state.pressed ? "zh-CN" : "en-US"));
+    ut_fatal_if_error(ut_nls.set_locale(b->state.pressed ? "zh-CN" : "en-US"));
     ui_app.request_layout(); // because center panel layout changed
 }
 

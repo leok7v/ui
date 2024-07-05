@@ -30,7 +30,7 @@ static void force_inline ut_static_init_function(void) {
 ut_static_init(static_init_test) { ut_static_init_function(); }
 
 void ut_static_init_test(void) {
-    fatal_if(ut_static_init_function_called != 1,
+    ut_fatal_if(ut_static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }

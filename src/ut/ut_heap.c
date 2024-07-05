@@ -28,7 +28,7 @@ static ut_heap_t* ut_heap_create(bool serialized) {
 }
 
 static void ut_heap_dispose(ut_heap_t* h) {
-    fatal_if_false(HeapDestroy((HANDLE)h));
+    ut_fatal_if_error(ut_b2e(HeapDestroy((HANDLE)h)));
 }
 
 static inline HANDLE ut_heap_or_process_heap(ut_heap_t* h) {
@@ -63,12 +63,12 @@ static errno_t ut_heap_reallocate(ut_heap_t* h, void* *p, int64_t bytes,
 }
 
 static void ut_heap_deallocate(ut_heap_t* h, void* a) {
-    fatal_if_false(HeapFree(ut_heap_or_process_heap(h), 0, a));
+    ut_fatal_if_error(ut_b2e(HeapFree(ut_heap_or_process_heap(h), 0, a)));
 }
 
 static int64_t ut_heap_bytes(ut_heap_t* h, void* a) {
     SIZE_T bytes = HeapSize(ut_heap_or_process_heap(h), 0, a);
-    fatal_if(bytes == (SIZE_T)-1);
+    ut_fatal_if(bytes == (SIZE_T)-1);
     return (int64_t)bytes;
 }
 

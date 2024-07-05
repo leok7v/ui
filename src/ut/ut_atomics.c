@@ -83,8 +83,8 @@ _mm_mfence();
 // int_fast32_t: Fastest integer type with at least 32 bits.
 // int_least32_t: Smallest integer type with at least 32 bits.
 
-static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
-static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
+ut_static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
+ut_static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
 
 static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
     return atomic_fetch_add((volatile atomic_int_fast32_t*)a, 1) + 1;
@@ -146,12 +146,12 @@ static int64_t ut_atomics_load_int64(volatile int64_t* a) {
 }
 
 static void* ut_atomics_exchange_ptr(volatile void* *a, void* v) {
-    static_assertion(sizeof(void*) == sizeof(uint64_t));
+    ut_static_assertion(sizeof(void*) == sizeof(uint64_t));
     return (void*)(intptr_t)ut_atomics.exchange_int64((int64_t*)a, (int64_t)v);
 }
 
 static bool ut_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
-    static_assertion(sizeof(void*) == sizeof(int64_t));
+    ut_static_assertion(sizeof(void*) == sizeof(int64_t));
     return ut_atomics.compare_exchange_int64((int64_t*)a,
         (int64_t)comparand, (int64_t)v);
 }
@@ -255,8 +255,8 @@ static void ut_atomics_test(void) {
 
 #ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type)
 
-static_assertion(sizeof(void*) == sizeof(int64_t));
-static_assertion(sizeof(void*) == sizeof(uintptr_t));
+ut_static_assertion(sizeof(void*) == sizeof(int64_t));
+ut_static_assertion(sizeof(void*) == sizeof(uintptr_t));
 
 ut_atomics_if ut_atomics = {
     .exchange_ptr    = ut_atomics_exchange_ptr,

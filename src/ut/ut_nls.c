@@ -60,7 +60,7 @@ static const char* ut_nls_save_string(uint16_t* utf16) {
     char* s = ut_nls_strings_free;
     uintptr_t left = (uintptr_t)ut_count_of(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
-    fatal_if_false(left >= (uintptr_t)bytes, "string_memory[] overflow");
+    ut_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
     ut_str.utf16to8(s, (int32_t)left, utf16);
     assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
     ut_nls_strings_free += bytes;
@@ -143,7 +143,7 @@ static errno_t ut_nls_set_locale(const char* locale) {
             r = ut_runtime.err();
             traceln("LocaleNameToLCID(\"%s\") failed %s", locale, ut_str.error(r));
         } else {
-            fatal_if_false(SetThreadLocale(lc_id));
+            ut_fatal_if_error(ut_b2e(SetThreadLocale(lc_id)));
             memset((void*)ut_nls_ls, 0, sizeof(ut_nls_ls)); // start all over
         }
     }
@@ -166,7 +166,7 @@ static void ut_nls_init(void) {
             uint16_t count = ws[0];
             if (count > 0) {
                 ws++;
-                fatal_if_false(ws[count - 1] == 0, "use rc.exe /n");
+                ut_fatal_if(ws[count - 1] != 0, "use rc.exe /n");
                 ut_nls_ns[ix] = ut_nls_save_string(ws);
                 ut_nls_strings_count = ix + 1;
 //              traceln("ns[%d] := %d \"%s\"", ix, strlen(ut_nls_ns[ix]), ut_nls_ns[ix]);

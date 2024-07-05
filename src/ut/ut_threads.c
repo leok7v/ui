@@ -5,22 +5,22 @@
 
 static ut_event_t ut_event_create(void) {
     HANDLE e = CreateEvent(null, false, false, null);
-    not_null(e);
+    ut_not_null(e);
     return (ut_event_t)e;
 }
 
 static ut_event_t ut_event_create_manual(void) {
     HANDLE e = CreateEvent(null, true, false, null);
-    not_null(e);
+    ut_not_null(e);
     return (ut_event_t)e;
 }
 
 static void ut_event_set(ut_event_t e) {
-    fatal_if_false(SetEvent((HANDLE)e));
+    ut_fatal_if_error(ut_b2e(SetEvent((HANDLE)e)));
 }
 
 static void ut_event_reset(ut_event_t e) {
-    fatal_if_false(ResetEvent((HANDLE)e));
+    ut_fatal_if_error(ut_b2e(ResetEvent((HANDLE)e)));
 }
 
 #pragma push_macro("ut_wait_ix2e")
@@ -66,7 +66,7 @@ static int32_t ut_event_wait_any(int32_t n, ut_event_t e[]) {
 }
 
 static void ut_event_dispose(ut_event_t handle) {
-    fatal_if_false(CloseHandle(handle));
+    ut_fatal_if_error(ut_b2e(CloseHandle(handle)));
 }
 
 // test:
@@ -133,20 +133,24 @@ ut_event_if ut_event = {
 
 // mutexes:
 
-static_assertion(sizeof(CRITICAL_SECTION) == sizeof(ut_mutex_t));
+ut_static_assertion(sizeof(CRITICAL_SECTION) == sizeof(ut_mutex_t));
 
 static void ut_mutex_init(ut_mutex_t* m) {
     CRITICAL_SECTION* cs = (CRITICAL_SECTION*)m;
-    fatal_if_false(
-        InitializeCriticalSectionAndSpinCount(cs, 4096)
-    );
+    ut_fatal_if_error(ut_b2e(InitializeCriticalSectionAndSpinCount(cs, 4096)));
 }
 
-static void ut_mutex_lock(ut_mutex_t* m) { EnterCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_lock(ut_mutex_t* m) {
+    EnterCriticalSection((CRITICAL_SECTION*)m);
+}
 
-static void ut_mutex_unlock(ut_mutex_t* m) { LeaveCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_unlock(ut_mutex_t* m) {
+    LeaveCriticalSection((CRITICAL_SECTION*)m);
+}
 
-static void ut_mutex_dispose(ut_mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_dispose(ut_mutex_t* m) {
+    DeleteCriticalSection((CRITICAL_SECTION*)m);
+}
 
 // test:
 
@@ -204,7 +208,7 @@ static void* ut_thread_ntdll(void) {
     if (ntdll == null) {
         ntdll = ut_loader.open("ntdll.dll", 0);
     }
-    not_null(ntdll);
+    ut_not_null(ntdll);
     return ntdll;
 }
 
@@ -225,7 +229,7 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
     unsigned long min100ns = 16 * 10 * 1000;
     unsigned long max100ns =  1 * 10 * 1000;
     unsigned long cur100ns =  0;
-    fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+    ut_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
     uint64_t max_ns = max100ns * 100uLL;
 //  uint64_t min_ns = min100ns * 100uLL;
 //  uint64_t cur_ns = cur100ns * 100uLL;
@@ -240,8 +244,8 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
     // note that maximum resolution is actually < minimum
     nanoseconds = ut_max(max_ns, nanoseconds);
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
-    fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
-    fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+    ut_fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
+    ut_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
 //  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      min_ns = min100ns * 100uLL;
 //      max_ns = max100ns * 100uLL; // the smallest interval
@@ -260,8 +264,8 @@ static void ut_thread_power_throttling_disable_for_process(void) {
         pt.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
         pt.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
         pt.StateMask = 0;
-        fatal_if_false(SetProcessInformation(GetCurrentProcess(),
-            ProcessPowerThrottling, &pt, sizeof(pt)));
+        ut_fatal_if_error(ut_b2e(SetProcessInformation(GetCurrentProcess(),
+            ProcessPowerThrottling, &pt, sizeof(pt))));
         // PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
         // does not work on Win10. There is no easy way to
         // distinguish Windows 11 from 10 (Microsoft great engineering)
@@ -279,8 +283,8 @@ static void ut_thread_power_throttling_disable_for_thread(HANDLE thread) {
     pt.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
     pt.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
     pt.StateMask = 0;
-    fatal_if_false(SetThreadInformation(thread, ThreadPowerThrottling,
-        &pt, sizeof(pt)));
+    ut_fatal_if_error(ut_b2e(SetThreadInformation(thread,
+        ThreadPowerThrottling, &pt, sizeof(pt))));
 }
 
 static void ut_thread_disable_power_throttling(void) {
@@ -319,7 +323,7 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
         // number of lpi entries == 27 on 6 core / 12 logical processors system
         int32_t n = bytes / sizeof(lpi[0]);
         assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
-        fatal_if_false(GetLogicalProcessorInformation(&lpi[0], &bytes));
+        ut_fatal_if_error(ut_b2e(GetLogicalProcessorInformation(&lpi[0], &bytes)));
         for (int32_t i = 0; i < n; i++) {
 //          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //              traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
@@ -349,16 +353,16 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
 }
 
 static void ut_thread_realtime(void) {
-    fatal_if_false(SetPriorityClass(GetCurrentProcess(),
-        REALTIME_PRIORITY_CLASS));
-    fatal_if_false(SetThreadPriority(GetCurrentThread(),
-        THREAD_PRIORITY_TIME_CRITICAL));
-    fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
-        /* bDisablePriorityBoost = */ false));
+    ut_fatal_if_error(ut_b2e(SetPriorityClass(GetCurrentProcess(),
+        REALTIME_PRIORITY_CLASS)));
+    ut_fatal_if_error(ut_b2e(SetThreadPriority(GetCurrentThread(),
+        THREAD_PRIORITY_TIME_CRITICAL)));
+    ut_fatal_if_error(ut_b2e(SetThreadPriorityBoost(GetCurrentThread(),
+        /* bDisablePriorityBoost = */ false)));
     // desired: 0.5ms = 500us (microsecond) = 50,000ns
     ut_thread_set_timer_resolution((uint64_t)ut_clock.nsec_in_usec * 500ULL);
-    fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
-        ut_thread_next_physical_processor_affinity_mask()));
+    ut_fatal_if_error(ut_b2e(SetThreadAffinityMask(GetCurrentThread(),
+        ut_thread_next_physical_processor_affinity_mask())));
     ut_thread_disable_power_throttling();
 }
 
@@ -367,7 +371,7 @@ static void ut_thread_yield(void) { SwitchToThread(); }
 static ut_thread_t ut_thread_start(void (*func)(void*), void* p) {
     ut_thread_t t = (ut_thread_t)CreateThread(null, 0,
         (LPTHREAD_START_ROUTINE)(void*)func, p, 0, null);
-    not_null(t);
+    ut_not_null(t);
     return t;
 }
 
@@ -377,14 +381,14 @@ static bool is_handle_valid(void* h) {
 }
 
 static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
-    not_null(t);
-    fatal_if_false(is_handle_valid(t));
+    ut_not_null(t);
+    ut_fatal_if(!is_handle_valid(t));
     const uint32_t ms = timeout < 0 ? INFINITE : (uint32_t)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, (DWORD)ms);
     errno_t r = ut_wait_ix2e(ix);
     assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");
     if (r == 0) {
-        fatal_if_false(CloseHandle(t));
+        ut_fatal_if_error(ut_b2e(CloseHandle(t)));
     } else {
         traceln("failed to join thread %p %s", t, strerr(r));
     }
@@ -394,18 +398,18 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
 #pragma pop_macro("ut_wait_ix2e")
 
 static void ut_thread_detach(ut_thread_t t) {
-    not_null(t);
-    fatal_if_false(is_handle_valid(t));
-    fatal_if_false(CloseHandle(t));
+    ut_not_null(t);
+    ut_fatal_if(!is_handle_valid(t));
+    ut_fatal_if_error(ut_b2e(CloseHandle(t)));
 }
 
 static void ut_thread_name(const char* name) {
     uint16_t stack[128];
-    fatal_if(ut_str.len(name) >= ut_count_of(stack), "name too long: %s", name);
+    ut_fatal_if(ut_str.len(name) >= ut_count_of(stack), "name too long: %s", name);
     ut_str.utf8to16(stack, ut_count_of(stack), name);
     HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
     // notoriously returns 0x10000000 for no good reason whatsoever
-    if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
+    ut_fatal_if(!SUCCEEDED(r));
 }
 
 static void ut_thread_sleep_for(fp64_t seconds) {
@@ -422,7 +426,7 @@ static void ut_thread_sleep_for(fp64_t seconds) {
         void* ntdll = ut_thread_ntdll();
         NtDelayExecution = (nt_delay_execution_t)
             ut_loader.sym(ntdll, "NtDelayExecution");
-        not_null(NtDelayExecution);
+        ut_not_null(NtDelayExecution);
     }
     // If "alertable" is set, sleep_for() can break earlier
     // as a result of NtAlertThread call.
@@ -455,8 +459,8 @@ static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
 }
 
 static void ut_thread_close(ut_thread_t t) {
-    not_null(t);
-    fatal_if_not_zero(ut_b2e(CloseHandle((HANDLE)t)));
+    ut_not_null(t);
+    ut_fatal_if_error(ut_b2e(CloseHandle((HANDLE)t)));
 }
 
 

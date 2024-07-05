@@ -20,13 +20,14 @@ static void* ut_loader_all;
 static void* ut_loader_sym_all(const char* name) {
     void* sym = null;
     DWORD bytes = 0;
-    fatal_if_false(EnumProcessModules(GetCurrentProcess(), null, 0, &bytes));
+    ut_fatal_if_error(ut_b2e(EnumProcessModules(GetCurrentProcess(),
+                                                null, 0, &bytes)));
     assert(bytes % sizeof(HMODULE) == 0);
     assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
     HMODULE* modules = null;
-    fatal_if_not_zero(ut_heap.allocate(null, (void**)&modules, bytes, false));
-    fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes,
-                                                                   &bytes));
+    ut_fatal_if_error(ut_heap.allocate(null, (void**)&modules, bytes, false));
+    ut_fatal_if_error(ut_b2e(EnumProcessModules(GetCurrentProcess(),
+                                                modules, bytes, &bytes)));
     const int32_t n = bytes / (int32_t)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
         sym = ut_loader.sym(modules[i], name);
@@ -50,7 +51,7 @@ static void* ut_loader_sym(void* handle, const char* name) {
 
 static void ut_loader_close(void* handle) {
     if (handle != &ut_loader_all) {
-        fatal_if_false(FreeLibrary(handle));
+        ut_fatal_if_error(ut_b2e(FreeLibrary(handle)));
     }
 }
 
@@ -84,7 +85,7 @@ static void ut_loader_test(void) {
     long min_resolution = 0;
     long max_resolution = 0; // lowest possible delay between timer events
     long cur_resolution = 0;
-    fatal_if(query_timer_resolution(
+    ut_fatal_if(query_timer_resolution(
         &min_resolution, &max_resolution, &cur_resolution) != 0);
 //  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      traceln("timer resolution min: %.3f max: %.3f cur: %.3f millisecond",

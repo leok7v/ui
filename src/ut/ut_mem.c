@@ -14,7 +14,7 @@ static errno_t ut_mem_map_view_of_file(HANDLE file,
         DWORD access = rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
         address = MapViewOfFile(mapping, access, 0, 0, (SIZE_T)*bytes);
         if (address == null) { r = ut_runtime.err(); }
-        fatal_if_false(CloseHandle(mapping));
+        ut_fatal_if_error(ut_b2e(CloseHandle(mapping)));
     }
     if (r == 0) {
         *data = address;
@@ -31,7 +31,7 @@ static errno_t ut_mem_set_token_privilege(void* token,
             const char* name, bool e) {
     TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
     tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
-    fatal_if_false(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid));
+    ut_fatal_if_error(ut_b2e(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid)));
     return ut_b2e(AdjustTokenPrivileges(token, false, &tp,
                sizeof(TOKEN_PRIVILEGES), null, null));
 }
@@ -49,7 +49,7 @@ static errno_t ut_mem_adjust_process_privilege_manage_volume_name(void) {
         const char* se_manage_volume_name = SE_MANAGE_VOLUME_NAME;
         #endif
         r = ut_mem_set_token_privilege(token, se_manage_volume_name, true);
-        fatal_if_false(CloseHandle(token));
+        ut_fatal_if_error(ut_b2e(CloseHandle(token)));
     }
     return r;
 }
@@ -70,7 +70,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
         r = ut_runtime.err();
     } else {
         LARGE_INTEGER eof = { .QuadPart = 0 };
-        fatal_if_false(GetFileSizeEx(file, &eof));
+        ut_fatal_if_error(ut_b2e(GetFileSizeEx(file, &eof)));
         if (rw && *bytes > eof.QuadPart) { // increase file size
             const LARGE_INTEGER size = { .QuadPart = *bytes };
             r = r != 0 ? r : (ut_b2e(SetFilePointerEx(file, size, null, FILE_BEGIN)));
@@ -87,7 +87,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
             *bytes = eof.QuadPart;
         }
         r = r != 0 ? r : ut_mem_map_view_of_file(file, data, bytes, rw);
-        fatal_if_false(CloseHandle(file));
+        ut_fatal_if_error(ut_b2e(CloseHandle(file)));
     }
     return r;
 }
@@ -104,7 +104,7 @@ static void ut_mem_unmap(void* data, int64_t bytes) {
     assert(data != null && bytes > 0);
     (void)bytes; /* unused only need for posix version */
     if (data != null && bytes > 0) {
-        fatal_if_false(UnmapViewOfFile(data));
+        ut_fatal_if_error(ut_b2e(UnmapViewOfFile(data)));
     }
 }
 

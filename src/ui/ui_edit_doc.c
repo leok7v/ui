@@ -1979,7 +1979,7 @@ static void ui_edit_doc_test_4(void) {
 static void ui_edit_doc_test(void) {
     {
         ui_edit_range_t r = { .from = {0,0}, .to = {0,0} };
-        static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
+        ut_static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
         swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
     }
     #ifdef UI_EDIT_DOC_TEST_PARAGRAPHS

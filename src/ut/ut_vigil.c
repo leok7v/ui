@@ -21,14 +21,15 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
     return 0;
 }
 
-static int32_t vigil_fatal_termination(const char* file, int32_t line,
-        const char* func, const char* condition, const char* format, ...) {
+static int32_t vigil_fatal_termination_va(const char* file, int32_t line,
+        const char* func, const char* condition, errno_t r,
+        const char* format, va_list va) {
     const int32_t er = ut_runtime.err();
     const int32_t en = errno;
-    va_list va;
-    va_start(va, format);
     ut_debug.println_va(file, line, func, format, va);
-    va_end(va);
+    if (r != er && r != 0) {
+        ut_debug.perror(file, line, func, r, "");
+    }
     // report last errors:
     if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
     if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
@@ -42,23 +43,46 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     return 0;
 }
 
+
+static int32_t vigil_fatal_termination(const char* file, int32_t line,
+        const char* func, const char* condition, const char* format, ...) {
+    va_list va;
+    va_start(va, format);
+    vigil_fatal_termination_va(file, line, func, condition, 0, format, va);
+    va_end(va);
+    return 0;
+}
+
+static int32_t vigil_fatal_if_error(const char* file, int32_t line,
+    const char* func, const char* condition, errno_t r,
+    const char* format, ...) {
+    if (r != 0) {
+        va_list va;
+        va_start(va, format);
+        vigil_fatal_termination_va(file, line, func, condition, r, format, va);
+        va_end(va);
+    }
+    return 0;
+}
+
+
 #ifdef UT_TESTS
 
-static vigil_if vigil_test_saved;
-static int32_t  vigil_test_failed_assertion_count;
+static ut_vigil_if  ut_vigil_test_saved;
+static int32_t      ut_vigil_test_failed_assertion_count;
 
-#pragma push_macro("vigil")
+#pragma push_macro("ut_vigil")
 // intimate knowledge of vigil.*() functions used in macro definitions
-#define vigil vigil_test_saved
+#define ut_vigil ut_vigil_test_saved
 
 static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
-    fatal_if_not(line > __LINE__, "line: %s", line);
+    ut_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
+    ut_fatal_if_not(line > __LINE__, "line: %s", line);
     assert(strcmp(func, "vigil_test") == 0, "func: %s", func);
-    fatal_if(condition == null || condition[0] == 0);
-    fatal_if(format == null || format[0] == 0);
-    vigil_test_failed_assertion_count++;
+    ut_fatal_if(condition == null || condition[0] == 0);
+    ut_fatal_if(format == null || format[0] == 0);
+    ut_vigil_test_failed_assertion_count++;
     if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
         va_list va;
         va_start(va, format);
@@ -78,8 +102,8 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     const int32_t en = errno;
     assert(er == 2, "ut_runtime.err: %d expected 2", er);
     assert(en == 2, "errno: %d expected 2", en);
-    fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
-    fatal_if_not(line > __LINE__, "line: %s", line);
+    ut_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
+    ut_fatal_if_not(line > __LINE__, "line: %s", line);
     assert(strcmp(func, "vigil_test") == 0, "func: %s", func);
     assert(strcmp(condition, "") == 0); // not yet used expected to be ""
     assert(format != null && format[0] != 0);
@@ -100,33 +124,33 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     return 0;
 }
 
-#pragma pop_macro("vigil")
+#pragma pop_macro("ut_vigil")
 
 static void vigil_test(void) {
-    vigil_test_saved = vigil;
+    ut_vigil_test_saved = ut_vigil;
     int32_t en = errno;
     int32_t er = ut_runtime.err();
     errno = 2; // ENOENT
     ut_runtime.set_err(2); // ERROR_FILE_NOT_FOUND
-    vigil.failed_assertion  = vigil_test_failed_assertion;
-    vigil.fatal_termination = vigil_test_fatal_termination;
+    ut_vigil.failed_assertion  = vigil_test_failed_assertion;
+    ut_vigil.fatal_termination = vigil_test_fatal_termination;
     int32_t count = vigil_test_fatal_calls_count;
-    fatal("testing: %s call", "fatal()");
+    ut_fatal("testing: %s call", "fatal()");
     assert(vigil_test_fatal_calls_count == count + 1);
-    count = vigil_test_failed_assertion_count;
+    count = ut_vigil_test_failed_assertion_count;
     assert(false, "testing: assert(%s)", "false");
     #ifdef DEBUG // verify that assert() is only compiled in DEBUG:
-        fatal_if_not(vigil_test_failed_assertion_count == count + 1);
+        ut_fatal_if_not(ut_vigil_test_failed_assertion_count == count + 1);
     #else // not RELEASE buid:
-        fatal_if_not(vigil_test_failed_assertion_count == count);
+        ut_fatal_if_not(ut_vigil_test_failed_assertion_count == count);
     #endif
-    count = vigil_test_failed_assertion_count;
+    count = ut_vigil_test_failed_assertion_count;
     swear(false, "testing: swear(%s)", "false");
     // swear() is triggered in both debug and release configurations:
-    fatal_if_not(vigil_test_failed_assertion_count == count + 1);
+    ut_fatal_if_not(ut_vigil_test_failed_assertion_count == count + 1);
     errno = en;
     ut_runtime.set_err(er);
-    vigil = vigil_test_saved;
+    ut_vigil = ut_vigil_test_saved;
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -136,8 +160,9 @@ static void vigil_test(void) { }
 
 #endif
 
-vigil_if vigil = {
+ut_vigil_if ut_vigil = {
     .failed_assertion  = vigil_failed_assertion,
     .fatal_termination = vigil_fatal_termination,
+    .fatal_if_error    = vigil_fatal_if_error,
     .test = vigil_test
 };

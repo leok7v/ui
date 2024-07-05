@@ -14,8 +14,8 @@ static void ui_view_update_shortcut(ui_view_t* v);
 
 static inline void ui_view_check_type(ui_view_t* v) {
     // little endian:
-    static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
-    static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
+    ut_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
+    ut_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
     swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
           "not a view: %4.4s 0x%08X (forgotten &static_view?)",
           &v->type, v->type);
@@ -84,7 +84,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     swear(c->parent == null && c->prev == null && c->next == null);
-    not_null(a->parent);
+    ut_not_null(a->parent);
     c->parent = a->parent;
     c->next = a->next;
     c->prev = a;
@@ -98,7 +98,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     swear(c->parent == null && c->prev == null && c->next == null);
-    not_null(b->parent);
+    ut_not_null(b->parent);
     c->parent = b->parent;
     c->prev = b->prev;
     c->next = b;
@@ -111,8 +111,8 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
 }
 
 static void ui_view_remove(ui_view_t* c) {
-    not_null(c->parent);
-    not_null(c->parent->child);
+    ut_not_null(c->parent);
+    ut_not_null(c->parent->child);
     if (c->prev == c) {
         swear(c->next == c);
         c->parent->child = null;

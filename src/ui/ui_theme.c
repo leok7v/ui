@@ -50,14 +50,14 @@ static HMODULE ui_theme_uxtheme(void) {
             uxtheme = LoadLibraryA("uxtheme.dll");
         }
     }
-    not_null(uxtheme);
+    ut_not_null(uxtheme);
     return uxtheme;
 }
 
 static void* ui_theme_uxtheme_func(uint16_t ordinal) {
     HMODULE uxtheme = ui_theme_uxtheme();
     void* proc = (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(ordinal));
-    not_null(proc);
+    ut_not_null(proc);
     return proc;
 }
 

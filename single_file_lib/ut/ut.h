@@ -1659,19 +1659,19 @@ extern ut_thread_if ut_thread;
 // swear() - release configuration assert() in honor of:
 // https://github.com/munificent/vigil
 
-
-#define static_assertion(condition) static_assert(condition, #condition)
-
+#define ut_static_assertion(condition) static_assert(condition, #condition)
 
 typedef struct {
     int32_t (*failed_assertion)(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...);
     int32_t (*fatal_termination)(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...);
+    int32_t (*fatal_if_error)(const char* file, int32_t line, const char* func,
+        const char* condition, errno_t r, const char* format, ...);
     void (*test)(void);
-} vigil_if;
+} ut_vigil_if;
 
-extern vigil_if vigil;
+extern ut_vigil_if ut_vigil;
 
 #ifdef _MSC_VER
     #define ut_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
@@ -1680,38 +1680,40 @@ extern vigil_if vigil;
 #endif
 
 #if defined(DEBUG)
-  #define assert(b, ...) ut_suppress_constant_cond_exp          \
-    /* const cond */                                             \
-    (void)((!!(b)) || vigil.failed_assertion(__FILE__, __LINE__, \
+  #define assert(b, ...) ut_suppress_constant_cond_exp              \
+    /* const cond */                                                \
+    (void)((!!(b)) || ut_vigil.failed_assertion(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 #else
   #define assert(b, ...) ((void)0)
 #endif
 
-// swear() is both debug and release configuration assert
+// swear() is runtime assert() for both debug and release configurations
 
-#define swear(b, ...) ut_suppress_constant_cond_exp              \
-    /* const cond */                                             \
-    (void)((!!(b)) || vigil.failed_assertion(__FILE__, __LINE__, \
+#define swear(b, ...) ut_suppress_constant_cond_exp                 \
+    /* const cond */                                                \
+    (void)((!!(b)) || ut_vigil.failed_assertion(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 
-#define fatal(...) (void)(vigil.fatal_termination(               \
+#define ut_fatal(...) (void)(ut_vigil.fatal_termination(            \
     __FILE__, __LINE__,  __func__, "",  "" __VA_ARGS__))
 
-#define fatal_if(b, ...) ut_suppress_constant_cond_exp           \
-    /* const cond */                                             \
-    (void)((!(b)) || vigil.fatal_termination(__FILE__, __LINE__, \
+#define ut_fatal_if(b, ...) ut_suppress_constant_cond_exp           \
+    /* const cond */                                                \
+    (void)((!(b)) || ut_vigil.fatal_termination(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 
-#define fatal_if_not(b, ...) ut_suppress_constant_cond_exp        \
-    /* const cond */                                              \
-    (void)((!!(b)) || vigil.fatal_termination(__FILE__, __LINE__, \
+#define ut_fatal_if_not(b, ...) ut_suppress_constant_cond_exp        \
+    /* const cond */                                                 \
+    (void)((!!(b)) || ut_vigil.fatal_termination(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 
-#define fatal_if_false fatal_if_not
-#define fatal_if_not_zero(e, ...) fatal_if((e) != 0, "" __VA_ARGS__)
-#define fatal_if_null(e, ...) fatal_if((e) == null, "" __VA_ARGS__)
-#define not_null(e, ...) fatal_if_null(e, "" __VA_ARGS__)
+#define ut_not_null(e, ...) ut_fatal_if((e) == null, "" __VA_ARGS__)
+
+#define ut_fatal_if_error(r, ...) ut_suppress_constant_cond_exp      \
+    /* const cond */                                                 \
+    (void)(ut_vigil.fatal_if_error(__FILE__, __LINE__, __func__,     \
+                                   #r, r, "" __VA_ARGS__))
 
 
 end_c
@@ -1913,7 +1915,7 @@ static void ut_args_parse(const char* s) {
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int32_t)sizeof(void*) + (int32_t)sizeof(void*);
     const int32_t n = k + (len + 2) * (int32_t)sizeof(char);
-    fatal_if_not_zero(ut_heap.allocate(null, &ut_args_memory, n, true));
+    ut_fatal_if_error(ut_heap.allocate(null, &ut_args_memory, n, true));
     ut_args.c = 0;
     ut_args.v = (const char**)ut_args_memory;
     char* d = (char*)(((char*)ut_args.v) + k);
@@ -2006,7 +2008,7 @@ static void ut_args_WinMain(void) {
     const uint16_t* wcl = GetCommandLineW();
     int32_t n = (int32_t)ut_str.len16(wcl);
     char* cl = null;
-    fatal_if_not_zero(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
+    ut_fatal_if_error(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
     ut_str.utf16to8(cl, n * 2 + 1, wcl);
     ut_args_parse(cl);
     ut_heap.deallocate(null, cl);
@@ -2191,8 +2193,8 @@ _mm_mfence();
 // int_fast32_t: Fastest integer type with at least 32 bits.
 // int_least32_t: Smallest integer type with at least 32 bits.
 
-static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
-static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
+ut_static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
+ut_static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
 
 static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
     return atomic_fetch_add((volatile atomic_int_fast32_t*)a, 1) + 1;
@@ -2254,12 +2256,12 @@ static int64_t ut_atomics_load_int64(volatile int64_t* a) {
 }
 
 static void* ut_atomics_exchange_ptr(volatile void* *a, void* v) {
-    static_assertion(sizeof(void*) == sizeof(uint64_t));
+    ut_static_assertion(sizeof(void*) == sizeof(uint64_t));
     return (void*)(intptr_t)ut_atomics.exchange_int64((int64_t*)a, (int64_t)v);
 }
 
 static bool ut_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
-    static_assertion(sizeof(void*) == sizeof(int64_t));
+    ut_static_assertion(sizeof(void*) == sizeof(int64_t));
     return ut_atomics.compare_exchange_int64((int64_t*)a,
         (int64_t)comparand, (int64_t)v);
 }
@@ -2363,8 +2365,8 @@ static void ut_atomics_test(void) {
 
 #ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type)
 
-static_assertion(sizeof(void*) == sizeof(int64_t));
-static_assertion(sizeof(void*) == sizeof(uintptr_t));
+ut_static_assertion(sizeof(void*) == sizeof(int64_t));
+ut_static_assertion(sizeof(void*) == sizeof(uintptr_t));
 
 ut_atomics_if ut_atomics = {
     .exchange_ptr    = ut_atomics_exchange_ptr,
@@ -2413,11 +2415,11 @@ typedef ut_begin_packed struct symbol_info_s {
 
 #pragma push_macro("ut_bt_load_dll")
 
-#define ut_bt_load_dll(fn)           \
-do {                                        \
-    if (GetModuleHandleA(fn) == null) {     \
-        fatal_if_false(LoadLibraryA(fn));   \
-    }                                       \
+#define ut_bt_load_dll(fn)                              \
+do {                                                    \
+    if (GetModuleHandleA(fn) == null) {                 \
+        ut_fatal_if_error(ut_b2e(LoadLibraryA(fn)));    \
+    }                                                   \
 } while (0)
 
 static void ut_bt_init(void) {
@@ -2789,7 +2791,7 @@ static void ut_bt_trace_all_but_self(void) {
                                 ut_bt.trace(&bt, "*");
                             }
                             ut_debug.println("<Thread", tid, tn.name, "");
-                            fatal_if_not_zero(ut_b2e(CloseHandle(thread)));
+                            ut_fatal_if_error(ut_b2e(CloseHandle(thread)));
                         }
                     }
                 }
@@ -2897,7 +2899,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
         }
         if (r == 0) {
             char* d = (char*)GlobalLock(global);
-            not_null(d);
+            ut_not_null(d);
             memcpy(d, utf16, (size_t)n * 2);
             r = ut_b2e(SetClipboardData(CF_UNICODETEXT, global));
             GlobalUnlock(global);
@@ -2920,7 +2922,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
 }
 
 static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
-    not_null(bytes);
+    ut_not_null(bytes);
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
     if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
     if (r == 0) {
@@ -2957,10 +2959,10 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
 #ifdef UT_TESTS
 
 static void ut_clipboard_test(void) {
-    fatal_if_not_zero(ut_clipboard.put_text("Hello Clipboard"));
+    ut_fatal_if_error(ut_clipboard.put_text("Hello Clipboard"));
     char text[256];
     int32_t bytes = ut_count_of(text);
-    fatal_if_not_zero(ut_clipboard.get_text(text, &bytes));
+    ut_fatal_if_error(ut_clipboard.get_text(text, &bytes));
     swear(strcmp(text, "Hello Clipboard") == 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
@@ -3183,7 +3185,7 @@ static errno_t ut_config_save(const char* name,
     if (k != null) {
         r = RegSetValueExA(k, key, 0, REG_BINARY,
             (const uint8_t*)data, (DWORD)bytes);
-        fatal_if_not_zero(RegCloseKey(k));
+        ut_fatal_if_error(RegCloseKey(k));
     }
     return r;
 }
@@ -3194,7 +3196,7 @@ static errno_t ut_config_remove(const char* name, const char* key) {
     r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         r = RegDeleteValueA(k, key);
-        fatal_if_not_zero(RegCloseKey(k));
+        ut_fatal_if_error(RegCloseKey(k));
     }
     return r;
 }
@@ -3205,7 +3207,7 @@ static errno_t ut_config_clean(const char* name) {
     if (RegOpenKeyExA(HKEY_CURRENT_USER, ut_config_apps,
                                       0, ut_config_access, &k) == 0) {
        r = RegDeleteTreeA(k, name);
-       fatal_if_not_zero(RegCloseKey(k));
+       ut_fatal_if_error(RegCloseKey(k));
     }
     return r;
 }
@@ -3227,7 +3229,7 @@ static int32_t ut_config_size(const char* name, const char* key) {
         } else {
             bytes = (int32_t)cb;
         }
-        fatal_if_not_zero(RegCloseKey(k));
+        ut_fatal_if_error(RegCloseKey(k));
     }
     return bytes;
 }
@@ -3252,7 +3254,7 @@ static int32_t ut_config_load(const char* name,
         } else {
             read = (int32_t)cb;
         }
-        fatal_if_not_zero(RegCloseKey(k));
+        ut_fatal_if_error(RegCloseKey(k));
     }
     return read;
 }
@@ -3446,7 +3448,7 @@ static int32_t ut_debug_verbosity_from_string(const char* s) {
                v <= ut_debug.verbosity.trace) {
         return v;
     } else {
-        fatal("invalid verbosity: %s", s);
+        ut_fatal("invalid verbosity: %s", s);
         return ut_debug.verbosity.quiet;
     }
 }
@@ -3515,9 +3517,9 @@ ut_debug_if ut_debug = {
 // https://learn.microsoft.com/en-us/windows/win32/fileio/appending-one-file-to-another-file?redirectedfrom=MSDN
 
 // are posix and Win32 seek in agreement?
-static_assertion(SEEK_SET == FILE_BEGIN);
-static_assertion(SEEK_CUR == FILE_CURRENT);
-static_assertion(SEEK_END == FILE_END);
+ut_static_assertion(SEEK_SET == FILE_BEGIN);
+ut_static_assertion(SEEK_CUR == FILE_CURRENT);
+ut_static_assertion(SEEK_END == FILE_END);
 
 #ifndef O_SYNC
 #define O_SYNC (0x10000)
@@ -3587,7 +3589,7 @@ static int get_final_path_name_by_fd(int fd, char *buffer, int32_t bytes) {
 static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_symlink) {
     errno_t r = 0;
     BY_HANDLE_FILE_INFORMATION fi;
-    fatal_if_false(GetFileInformationByHandle(file, &fi));
+    ut_fatal_if_error(ut_b2e(GetFileInformationByHandle(file, &fi)));
     const bool symlink = (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
     if (follow_symlink && symlink) {
         const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
@@ -3660,7 +3662,7 @@ static errno_t ut_files_flush(ut_file_t* file) {
 }
 
 static void ut_files_close(ut_file_t* file) {
-    fatal_if_false(CloseHandle(file));
+    ut_fatal_if_error(ut_b2e(CloseHandle(file)));
 }
 
 static errno_t ut_files_write_fully(const char* filename, const void* data,
@@ -3876,8 +3878,8 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
 static errno_t ut_files_chmod777(const char* pathname) {
     SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
     PSID everyone = null; // Create a well-known SID for the Everyone group.
-    fatal_if_false(AllocateAndInitializeSid(&SIDAuthWorld, 1,
-             SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone));
+    ut_fatal_if_error(ut_b2e(AllocateAndInitializeSid(&SIDAuthWorld, 1,
+             SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone)));
     EXPLICIT_ACCESSA ea[1] = { { 0 } };
     // Initialize an EXPLICIT_ACCESS structure for an ACE.
     ea[0].grfAccessPermissions = 0xFFFFFFFF;
@@ -3888,14 +3890,15 @@ static errno_t ut_files_chmod777(const char* pathname) {
     ea[0].Trustee.ptstrName  = (LPSTR)everyone;
     // Create a new ACL that contains the new ACEs.
     ACL* acl = null;
-    fatal_if_not_zero(SetEntriesInAclA(1, ea, null, &acl));
+    ut_fatal_if_error(SetEntriesInAclA(1, ea, null, &acl));
     // Initialize a security descriptor.
     uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH] = {0};
     SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)stack;
-    fatal_if_false(InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION));
+    ut_fatal_if_error(ut_b2e(InitializeSecurityDescriptor(sd,
+        SECURITY_DESCRIPTOR_REVISION)));
     // Add the ACL to the security descriptor.
-    fatal_if_false(SetSecurityDescriptorDacl(sd, /* DaclPresent flag: */ true,
-                                   acl, /* not a default DACL: */  false));
+    ut_fatal_if_error(ut_b2e(SetSecurityDescriptorDacl(sd,
+        /* present flag: */ true, acl, /* not a default DACL: */  false)));
     // Change the security attributes
     errno_t r = ut_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
@@ -4075,10 +4078,10 @@ static const char* ut_files_known_folder(int32_t kf) {
         &FOLDERID_ProgramData
     };
     static ut_file_name_t known_folders[ut_countof(kf_ids)];
-    fatal_if(!(0 <= kf && kf < ut_count_of(kf_ids)), "invalid kf=%d", kf);
+    ut_fatal_if(!(0 <= kf && kf < ut_count_of(kf_ids)), "invalid kf=%d", kf);
     if (known_folders[kf].s[0] == 0) {
         uint16_t* path = null;
-        fatal_if_not_zero(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
+        ut_fatal_if_error(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
         ut_str.utf16to8(known_folders[kf].s, ut_count_of(known_folders[kf].s), path);
         CoTaskMemFree(path);
 	}
@@ -4101,7 +4104,7 @@ static const char* ut_files_tmp(void) {
         // the terminating null character. If the function fails, the
         // return value is zero.
         errno_t r = GetTempPathA(ut_count_of(tmp), tmp) == 0 ? ut_runtime.err() : 0;
-        fatal_if(r != 0, "GetTempPathA() failed %s", strerr(r));
+        ut_fatal_if(r != 0, "GetTempPathA() failed %s", strerr(r));
     }
     return tmp;
 }
@@ -4123,7 +4126,7 @@ typedef struct ut_files_dir_s {
     WIN32_FIND_DATAA find; // On Win64: 320 bytes
 } ut_files_dir_t;
 
-static_assertion(sizeof(ut_files_dir_t) <= sizeof(ut_folder_t));
+ut_static_assertion(sizeof(ut_files_dir_t) <= sizeof(ut_folder_t));
 
 static errno_t ut_files_opendir(ut_folder_t* folder, const char* folder_name) {
     ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
@@ -4165,14 +4168,14 @@ static const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
 
 static void ut_files_closedir(ut_folder_t* folder) {
     ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
-    fatal_if_false(FindClose(d->handle));
+    ut_fatal_if_error(ut_b2e(FindClose(d->handle)));
 }
 
 #pragma push_macro("files_test_failed")
 
 #ifdef UT_TESTS
 
-// TODO: change fatal_if() to swear()
+// TODO: change ut_fatal_if() to swear()
 
 #define ut_files_test_failed " failed %s", strerr(ut_runtime.err())
 
@@ -4216,18 +4219,18 @@ static void folders_test(void) {
     // Test cwd, setcwd
     const char* tmp = ut_files.tmp();
     char cwd[256] = { 0 };
-    fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
-    fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
+    ut_fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
+    ut_fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
                 tmp, strerr(ut_runtime.err()));
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
     char tmp_file[ut_files_max_path]; // create_tmp() is thread safe race free:
     errno_t r = ut_files.create_tmp(tmp_file, ut_count_of(tmp_file));
-    fatal_if(r != 0, "ut_files.create_tmp() failed %s", strerr(r));
+    ut_fatal_if(r != 0, "ut_files.create_tmp() failed %s", strerr(r));
     char tmp_dir[ut_files_max_path];
     ut_str_printf(tmp_dir, "%s.dir", tmp_file);
     r = ut_files.mkdirs(tmp_dir);
-    fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, strerr(r));
+    ut_fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, strerr(r));
     verbose("%s", tmp_dir);
     ut_folder_t folder;
     char pn[ut_files_max_path] = { 0 };
@@ -4242,15 +4245,15 @@ static void folders_test(void) {
     const char* content = "content";
     int64_t transferred = 0;
     r = ut_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
-    fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, strerr(r));
+    ut_fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, strerr(r));
     swear(transferred == (int64_t)strlen(content));
     r = ut_files.link(pn, hard);
-    fatal_if(r != 0, "ut_files.link(\"%s\", \"%s\") failed %s",
+    ut_fatal_if(r != 0, "ut_files.link(\"%s\", \"%s\") failed %s",
                       pn, hard, strerr(r));
     r = ut_files.mkdirs(sub);
-    fatal_if(r != 0, "ut_files.mkdirs(\"%s\") failed %s", sub, strerr(r));
+    ut_fatal_if(r != 0, "ut_files.mkdirs(\"%s\") failed %s", sub, strerr(r));
     r = ut_files.opendir(&folder, tmp_dir);
-    fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, strerr(r));
+    ut_fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, strerr(r));
     for (;;) {
         ut_files_stat_t st = { 0 };
         const char* name = ut_files.readdir(&folder, &st);
@@ -4295,12 +4298,12 @@ static void folders_test(void) {
     }
     ut_files.closedir(&folder);
     r = ut_files.rmdirs(tmp_dir);
-    fatal_if(r != 0, "ut_files.rmdirs(\"%s\") failed %s",
+    ut_fatal_if(r != 0, "ut_files.rmdirs(\"%s\") failed %s",
                      tmp_dir, strerr(r));
     r = ut_files.unlink(tmp_file);
-    fatal_if(r != 0, "ut_files.unlink(\"%s\") failed %s",
+    ut_fatal_if(r != 0, "ut_files.unlink(\"%s\") failed %s",
                      tmp_file, strerr(r));
-    fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
+    ut_fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
              cwd, strerr(ut_runtime.err()));
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
@@ -4312,7 +4315,7 @@ static void ut_files_test_append_thread(void* p) {
     uint8_t data[256] = {0};
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     int64_t transferred = 0;
-    fatal_if(ut_files.write(f, data, ut_count_of(data), &transferred) != 0 ||
+    ut_fatal_if(ut_files.write(f, data, ut_count_of(data), &transferred) != 0 ||
              transferred != ut_count_of(data), "ut_files.write()" ut_files_test_failed);
 }
 
@@ -4320,30 +4323,30 @@ static void ut_files_test(void) {
     folders_test();
     uint64_t now = ut_clock.microseconds(); // epoch time
     char tf[256]; // temporary file
-    fatal_if(ut_files.create_tmp(tf, ut_count_of(tf)) != 0,
+    ut_fatal_if(ut_files.create_tmp(tf, ut_count_of(tf)) != 0,
             "ut_files.create_tmp()" ut_files_test_failed);
     uint8_t data[256] = {0};
     int64_t transferred = 0;
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     {
         ut_file_t* f = ut_files.invalid;
-        fatal_if(ut_files.open(&f, tf,
+        ut_fatal_if(ut_files.open(&f, tf,
                  ut_files.o_wr | ut_files.o_create | ut_files.o_trunc) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
-        fatal_if(ut_files.write_fully(tf, data, ut_count_of(data), &transferred) != 0 ||
+        ut_fatal_if(ut_files.write_fully(tf, data, ut_count_of(data), &transferred) != 0 ||
                  transferred != ut_count_of(data),
                 "ut_files.write_fully()" ut_files_test_failed);
-        fatal_if(ut_files.open(&f, tf, ut_files.o_rd) != 0 ||
+        ut_fatal_if(ut_files.open(&f, tf, ut_files.o_rd) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
         for (int32_t i = 0; i < 256; i++) {
             for (int32_t j = 1; j < 256 - i; j++) {
                 uint8_t test[ut_countof(data)] = { 0 };
                 int64_t position = i;
-                fatal_if(ut_files.seek(f, &position, ut_files.seek_set) != 0 ||
+                ut_fatal_if(ut_files.seek(f, &position, ut_files.seek_set) != 0 ||
                          position != i,
                         "ut_files.seek(position: %lld) failed %s",
                          position, strerr(ut_runtime.err()));
-                fatal_if(ut_files.read(f, test, j, &transferred) != 0 ||
+                ut_fatal_if(ut_files.read(f, test, j, &transferred) != 0 ||
                          transferred != j,
                         "ut_files.read() transferred: %lld failed %s",
                         transferred, strerr(ut_runtime.err()));
@@ -4357,20 +4360,20 @@ static void ut_files_test(void) {
             }
         }
         swear((ut_files.o_rd | ut_files.o_wr) != ut_files.o_rw);
-        fatal_if(ut_files.open(&f, tf, ut_files.o_rw) != 0 || !ut_files.is_valid(f),
+        ut_fatal_if(ut_files.open(&f, tf, ut_files.o_rw) != 0 || !ut_files.is_valid(f),
                 "ut_files.open()" ut_files_test_failed);
         for (int32_t i = 0; i < 256; i++) {
             uint8_t val = ~data[i];
             int64_t pos = i;
-            fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
+            ut_fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
                     "ut_files.seek() failed %s", ut_runtime.err());
-            fatal_if(ut_files.write(f, &val, 1, &transferred) != 0 ||
+            ut_fatal_if(ut_files.write(f, &val, 1, &transferred) != 0 ||
                      transferred != 1, "ut_files.write()" ut_files_test_failed);
             pos = i;
-            fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
+            ut_fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
                     "ut_files.seek(pos: %lld i: %d) failed %s", pos, i, ut_runtime.err());
             uint8_t read_val = 0;
-            fatal_if(ut_files.read(f, &read_val, 1, &transferred) != 0 ||
+            ut_fatal_if(ut_files.read(f, &read_val, 1, &transferred) != 0 ||
                      transferred != 1, "ut_files.read()" ut_files_test_failed);
             swear(read_val == val, "Data mismatch at position %d", i);
         }
@@ -4385,7 +4388,7 @@ static void ut_files_test(void) {
         swear(before <= s.updated  && s.updated  <= after,
              "before: %lld created: %lld updated: %lld", before, s.updated, after);
         ut_files.close(f);
-        fatal_if(ut_files.open(&f, tf, ut_files.o_wr | ut_files.o_create | ut_files.o_trunc) != 0 ||
+        ut_fatal_if(ut_files.open(&f, tf, ut_files.o_wr | ut_files.o_create | ut_files.o_trunc) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
         ut_files.stat(f, &s, false);
         swear(s.size == 0, "File is not empty after truncation. .size: %lld", s.size);
@@ -4393,7 +4396,7 @@ static void ut_files_test(void) {
     }
     {  // Append test with threads
         ut_file_t* f = ut_files.invalid;
-        fatal_if(ut_files.open(&f, tf, ut_files.o_rw | ut_files.o_append) != 0 ||
+        ut_fatal_if(ut_files.open(&f, tf, ut_files.o_rw | ut_files.o_append) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
         ut_thread_t thread1 = ut_thread.start(ut_files_test_append_thread, f);
         ut_thread_t thread2 = ut_thread.start(ut_files_test_append_thread, f);
@@ -4402,39 +4405,39 @@ static void ut_files_test(void) {
         ut_files.close(f);
     }
     {   // write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
-        fatal_if(ut_files.write_fully(tf, data, ut_count_of(data), &transferred) != 0 ||
+        ut_fatal_if(ut_files.write_fully(tf, data, ut_count_of(data), &transferred) != 0 ||
                  transferred != ut_count_of(data),
                 "ut_files.write_fully() failed %s", ut_runtime.err());
-        fatal_if(!ut_files.exists(tf), "file \"%s\" does not exist", tf);
-        fatal_if(ut_files.is_folder(tf), "%s is a folder", tf);
-        fatal_if(ut_files.chmod777(tf) != 0, "ut_files.chmod777(\"%s\") failed %s",
+        ut_fatal_if(!ut_files.exists(tf), "file \"%s\" does not exist", tf);
+        ut_fatal_if(ut_files.is_folder(tf), "%s is a folder", tf);
+        ut_fatal_if(ut_files.chmod777(tf) != 0, "ut_files.chmod777(\"%s\") failed %s",
                  tf, strerr(ut_runtime.err()));
         char folder[256] = { 0 };
         ut_str_printf(folder, "%s.folder\\subfolder", tf);
-        fatal_if(ut_files.mkdirs(folder) != 0, "ut_files.mkdirs(\"%s\") failed %s",
+        ut_fatal_if(ut_files.mkdirs(folder) != 0, "ut_files.mkdirs(\"%s\") failed %s",
             folder, strerr(ut_runtime.err()));
-        fatal_if(!ut_files.is_folder(folder), "\"%s\" is not a folder", folder);
-        fatal_if(ut_files.chmod777(folder) != 0, "ut_files.chmod777(\"%s\") failed %s",
+        ut_fatal_if(!ut_files.is_folder(folder), "\"%s\" is not a folder", folder);
+        ut_fatal_if(ut_files.chmod777(folder) != 0, "ut_files.chmod777(\"%s\") failed %s",
                  folder, strerr(ut_runtime.err()));
-        fatal_if(ut_files.rmdirs(folder) != 0, "ut_files.rmdirs(\"%s\") failed %s",
+        ut_fatal_if(ut_files.rmdirs(folder) != 0, "ut_files.rmdirs(\"%s\") failed %s",
                  folder, strerr(ut_runtime.err()));
-        fatal_if(ut_files.exists(folder), "folder \"%s\" still exists", folder);
+        ut_fatal_if(ut_files.exists(folder), "folder \"%s\" still exists", folder);
     }
     {   // getcwd, chdir
         const char* tmp = ut_files.tmp();
         char cwd[256] = { 0 };
-        fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
-        fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
+        ut_fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
+        ut_fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
                  tmp, strerr(ut_runtime.err()));
         // symlink
         if (ut_processes.is_elevated()) {
             char sym_link[ut_files_max_path];
             ut_str_printf(sym_link, "%s.sym_link", tf);
-            fatal_if(ut_files.symlink(tf, sym_link) != 0,
+            ut_fatal_if(ut_files.symlink(tf, sym_link) != 0,
                 "ut_files.symlink(\"%s\", \"%s\") failed %s",
                 tf, sym_link, strerr(ut_runtime.err()));
-            fatal_if(!ut_files.is_symlink(sym_link), "\"%s\" is not a sym_link", sym_link);
-            fatal_if(ut_files.unlink(sym_link) != 0, "ut_files.unlink(\"%s\") failed %s",
+            ut_fatal_if(!ut_files.is_symlink(sym_link), "\"%s\" is not a sym_link", sym_link);
+            ut_fatal_if(ut_files.unlink(sym_link) != 0, "ut_files.unlink(\"%s\") failed %s",
                     sym_link, strerr(ut_runtime.err()));
         } else {
             traceln("Skipping ut_files.symlink test: process is not elevated");
@@ -4442,30 +4445,30 @@ static void ut_files_test(void) {
         // hard link
         char hard_link[ut_files_max_path];
         ut_str_printf(hard_link, "%s.hard_link", tf);
-        fatal_if(ut_files.link(tf, hard_link) != 0,
+        ut_fatal_if(ut_files.link(tf, hard_link) != 0,
             "ut_files.link(\"%s\", \"%s\") failed %s",
             tf, hard_link, strerr(ut_runtime.err()));
-        fatal_if(!ut_files.exists(hard_link), "\"%s\" does not exist", hard_link);
-        fatal_if(ut_files.unlink(hard_link) != 0, "ut_files.unlink(\"%s\") failed %s",
+        ut_fatal_if(!ut_files.exists(hard_link), "\"%s\" does not exist", hard_link);
+        ut_fatal_if(ut_files.unlink(hard_link) != 0, "ut_files.unlink(\"%s\") failed %s",
                  hard_link, strerr(ut_runtime.err()));
-        fatal_if(ut_files.exists(hard_link), "\"%s\" still exists", hard_link);
+        ut_fatal_if(ut_files.exists(hard_link), "\"%s\" still exists", hard_link);
         // copy, move:
-        fatal_if(ut_files.copy(tf, "copied_file") != 0,
+        ut_fatal_if(ut_files.copy(tf, "copied_file") != 0,
             "ut_files.copy(\"%s\", 'copied_file') failed %s",
             tf, strerr(ut_runtime.err()));
-        fatal_if(!ut_files.exists("copied_file"), "'copied_file' does not exist");
-        fatal_if(ut_files.move("copied_file", "moved_file") != 0,
+        ut_fatal_if(!ut_files.exists("copied_file"), "'copied_file' does not exist");
+        ut_fatal_if(ut_files.move("copied_file", "moved_file") != 0,
             "ut_files.move('copied_file', 'moved_file') failed %s",
             strerr(ut_runtime.err()));
-        fatal_if(ut_files.exists("copied_file"), "'copied_file' still exists");
-        fatal_if(!ut_files.exists("moved_file"), "'moved_file' does not exist");
-        fatal_if(ut_files.unlink("moved_file") != 0,
+        ut_fatal_if(ut_files.exists("copied_file"), "'copied_file' still exists");
+        ut_fatal_if(!ut_files.exists("moved_file"), "'moved_file' does not exist");
+        ut_fatal_if(ut_files.unlink("moved_file") != 0,
                 "ut_files.unlink('moved_file') failed %s",
                  strerr(ut_runtime.err()));
-        fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
+        ut_fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
                     cwd, strerr(ut_runtime.err()));
     }
-    fatal_if(ut_files.unlink(tf) != 0);
+    ut_fatal_if(ut_files.unlink(tf) != 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -4648,7 +4651,7 @@ static ut_heap_t* ut_heap_create(bool serialized) {
 }
 
 static void ut_heap_dispose(ut_heap_t* h) {
-    fatal_if_false(HeapDestroy((HANDLE)h));
+    ut_fatal_if_error(ut_b2e(HeapDestroy((HANDLE)h)));
 }
 
 static inline HANDLE ut_heap_or_process_heap(ut_heap_t* h) {
@@ -4683,12 +4686,12 @@ static errno_t ut_heap_reallocate(ut_heap_t* h, void* *p, int64_t bytes,
 }
 
 static void ut_heap_deallocate(ut_heap_t* h, void* a) {
-    fatal_if_false(HeapFree(ut_heap_or_process_heap(h), 0, a));
+    ut_fatal_if_error(ut_b2e(HeapFree(ut_heap_or_process_heap(h), 0, a)));
 }
 
 static int64_t ut_heap_bytes(ut_heap_t* h, void* a) {
     SIZE_T bytes = HeapSize(ut_heap_or_process_heap(h), 0, a);
-    fatal_if(bytes == (SIZE_T)-1);
+    ut_fatal_if(bytes == (SIZE_T)-1);
     return (int64_t)bytes;
 }
 
@@ -4750,13 +4753,14 @@ static void* ut_loader_all;
 static void* ut_loader_sym_all(const char* name) {
     void* sym = null;
     DWORD bytes = 0;
-    fatal_if_false(EnumProcessModules(GetCurrentProcess(), null, 0, &bytes));
+    ut_fatal_if_error(ut_b2e(EnumProcessModules(GetCurrentProcess(),
+                                                null, 0, &bytes)));
     assert(bytes % sizeof(HMODULE) == 0);
     assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
     HMODULE* modules = null;
-    fatal_if_not_zero(ut_heap.allocate(null, (void**)&modules, bytes, false));
-    fatal_if_false(EnumProcessModules(GetCurrentProcess(), modules, bytes,
-                                                                   &bytes));
+    ut_fatal_if_error(ut_heap.allocate(null, (void**)&modules, bytes, false));
+    ut_fatal_if_error(ut_b2e(EnumProcessModules(GetCurrentProcess(),
+                                                modules, bytes, &bytes)));
     const int32_t n = bytes / (int32_t)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
         sym = ut_loader.sym(modules[i], name);
@@ -4780,7 +4784,7 @@ static void* ut_loader_sym(void* handle, const char* name) {
 
 static void ut_loader_close(void* handle) {
     if (handle != &ut_loader_all) {
-        fatal_if_false(FreeLibrary(handle));
+        ut_fatal_if_error(ut_b2e(FreeLibrary(handle)));
     }
 }
 
@@ -4814,7 +4818,7 @@ static void ut_loader_test(void) {
     long min_resolution = 0;
     long max_resolution = 0; // lowest possible delay between timer events
     long cur_resolution = 0;
-    fatal_if(query_timer_resolution(
+    ut_fatal_if(query_timer_resolution(
         &min_resolution, &max_resolution, &cur_resolution) != 0);
 //  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      traceln("timer resolution min: %.3f max: %.3f cur: %.3f millisecond",
@@ -4866,7 +4870,7 @@ static errno_t ut_mem_map_view_of_file(HANDLE file,
         DWORD access = rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
         address = MapViewOfFile(mapping, access, 0, 0, (SIZE_T)*bytes);
         if (address == null) { r = ut_runtime.err(); }
-        fatal_if_false(CloseHandle(mapping));
+        ut_fatal_if_error(ut_b2e(CloseHandle(mapping)));
     }
     if (r == 0) {
         *data = address;
@@ -4883,7 +4887,7 @@ static errno_t ut_mem_set_token_privilege(void* token,
             const char* name, bool e) {
     TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
     tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
-    fatal_if_false(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid));
+    ut_fatal_if_error(ut_b2e(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid)));
     return ut_b2e(AdjustTokenPrivileges(token, false, &tp,
                sizeof(TOKEN_PRIVILEGES), null, null));
 }
@@ -4901,7 +4905,7 @@ static errno_t ut_mem_adjust_process_privilege_manage_volume_name(void) {
         const char* se_manage_volume_name = SE_MANAGE_VOLUME_NAME;
         #endif
         r = ut_mem_set_token_privilege(token, se_manage_volume_name, true);
-        fatal_if_false(CloseHandle(token));
+        ut_fatal_if_error(ut_b2e(CloseHandle(token)));
     }
     return r;
 }
@@ -4922,7 +4926,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
         r = ut_runtime.err();
     } else {
         LARGE_INTEGER eof = { .QuadPart = 0 };
-        fatal_if_false(GetFileSizeEx(file, &eof));
+        ut_fatal_if_error(ut_b2e(GetFileSizeEx(file, &eof)));
         if (rw && *bytes > eof.QuadPart) { // increase file size
             const LARGE_INTEGER size = { .QuadPart = *bytes };
             r = r != 0 ? r : (ut_b2e(SetFilePointerEx(file, size, null, FILE_BEGIN)));
@@ -4939,7 +4943,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
             *bytes = eof.QuadPart;
         }
         r = r != 0 ? r : ut_mem_map_view_of_file(file, data, bytes, rw);
-        fatal_if_false(CloseHandle(file));
+        ut_fatal_if_error(ut_b2e(CloseHandle(file)));
     }
     return r;
 }
@@ -4956,7 +4960,7 @@ static void ut_mem_unmap(void* data, int64_t bytes) {
     assert(data != null && bytes > 0);
     (void)bytes; /* unused only need for posix version */
     if (data != null && bytes > 0) {
-        fatal_if_false(UnmapViewOfFile(data));
+        ut_fatal_if_error(ut_b2e(UnmapViewOfFile(data)));
     }
 }
 
@@ -5157,7 +5161,7 @@ static const char* ut_nls_save_string(uint16_t* utf16) {
     char* s = ut_nls_strings_free;
     uintptr_t left = (uintptr_t)ut_count_of(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
-    fatal_if_false(left >= (uintptr_t)bytes, "string_memory[] overflow");
+    ut_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
     ut_str.utf16to8(s, (int32_t)left, utf16);
     assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
     ut_nls_strings_free += bytes;
@@ -5240,7 +5244,7 @@ static errno_t ut_nls_set_locale(const char* locale) {
             r = ut_runtime.err();
             traceln("LocaleNameToLCID(\"%s\") failed %s", locale, ut_str.error(r));
         } else {
-            fatal_if_false(SetThreadLocale(lc_id));
+            ut_fatal_if_error(ut_b2e(SetThreadLocale(lc_id)));
             memset((void*)ut_nls_ls, 0, sizeof(ut_nls_ls)); // start all over
         }
     }
@@ -5263,7 +5267,7 @@ static void ut_nls_init(void) {
             uint16_t count = ws[0];
             if (count > 0) {
                 ws++;
-                fatal_if_false(ws[count - 1] == 0, "use rc.exe /n");
+                ut_fatal_if(ws[count - 1] != 0, "use rc.exe /n");
                 ut_nls_ns[ix] = ut_nls_save_string(ws);
                 ut_nls_strings_count = ix + 1;
 //              traceln("ns[%d] := %d \"%s\"", ix, strlen(ut_nls_ns[ix]), ut_nls_ns[ix]);
@@ -5546,7 +5550,7 @@ typedef struct ut_processes_pidof_lambda_s {
 static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
     int32_t n = ut_str.len(pname);
-    fatal_if(n + 5 >= ut_count_of(stack), "name is too long: %s", pname);
+    ut_fatal_if(n + 5 >= ut_count_of(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
     if (!ut_str.iends(pname, ".exe")) {
@@ -5562,7 +5566,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         base = name;
     }
     uint16_t wn[1024];
-    fatal_if(strlen(base) >= ut_count_of(wn), "name too long: %s", base);
+    ut_fatal_if(strlen(base) >= ut_count_of(wn), "name too long: %s", base);
     ut_str.utf8to16(wn, ut_count_of(wn), base);
     size_t count = 0;
     uint64_t pid = 0;
@@ -5617,7 +5621,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
 }
 
 static void ut_processes_close_handle(HANDLE h) {
-    fatal_if_false(CloseHandle(h));
+    ut_fatal_if_error(ut_b2e(CloseHandle(h)));
 }
 
 static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
@@ -5905,15 +5909,15 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     }
     if (r == 0) {
         // not relevant: stdout can be written in other threads
-        fatal_if_false(CloseHandle(pi.hThread));
+        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hThread)));
         pi.hThread = null;
         // need to close si.hStdO* handles on caller side so,
         // when the process closes handles of the pipes, EOF happens
         // on caller side with io result ERROR_BROKEN_PIPE
         // indicating no more data can be read or written
-        fatal_if_false(CloseHandle(si.hStdOutput));
-        fatal_if_false(CloseHandle(si.hStdError));
-        fatal_if_false(CloseHandle(si.hStdInput));
+        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdOutput)));
+        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdError)));
+        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdInput)));
         si.hStdOutput = INVALID_HANDLE_VALUE;
         si.hStdError  = INVALID_HANDLE_VALUE;
         si.hStdInput  = INVALID_HANDLE_VALUE;
@@ -5951,7 +5955,8 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
             if (r != 0) { r = rx; } // report earliest error
         }
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
-        fatal_if_false(CloseHandle(pi.hProcess)); // expected never to fail
+        // expected never to fail
+        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hProcess)));
     }
     return r;
 }
@@ -5975,7 +5980,7 @@ static errno_t ut_processes_merge_write(ut_stream_if* stream, const void* data,
 
 static errno_t ut_processes_open(const char* command, int32_t *exit_code,
         ut_stream_if* output,  fp64_t timeout) {
-    not_null(output);
+    ut_not_null(output);
     ut_processes_io_merge_out_and_err_if merge_out_and_err = {
         .stream ={ .write = ut_processes_merge_write },
         .output = output,
@@ -6015,12 +6020,12 @@ static errno_t ut_processes_spawn(const char* command) {
                 | CREATE_NO_WINDOW
                 | CREATE_NEW_PROCESS_GROUP
                 | DETACHED_PROCESS;
-    PROCESS_INFORMATION pi = {0};
+    PROCESS_INFORMATION pi = { .hProcess = null, .hThread = null };
     r = ut_b2e(CreateProcessA(null, ut_str.drop_const(command), null, null,
             /*bInheritHandles:*/false, flags, null, null, &si, &pi));
     if (r == 0) { // Close handles immediately
-        fatal_if_false(CloseHandle(pi.hProcess));
-        fatal_if_false(CloseHandle(pi.hThread));
+        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hProcess)));
+        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hThread)));
     } else {
 //      traceln("CreateProcess() failed %s", strerr(r));
     }
@@ -6028,11 +6033,12 @@ static errno_t ut_processes_spawn(const char* command) {
 }
 
 static const char* ut_processes_name(void) {
-    static char module_name[ut_files_max_path];
-    if (module_name[0] == 0) {
-        fatal_if_false(GetModuleFileNameA(null, module_name, ut_count_of(module_name)));
+    static char mn[ut_files_max_path];
+    if (mn[0] == 0) {
+        ut_fatal_if_error(ut_b2e(GetModuleFileNameA(null, mn, 
+                                                    ut_count_of(mn))));
     }
-    return module_name;
+    return mn;
 }
 
 #ifdef UT_TESTS
@@ -6180,7 +6186,7 @@ static void ut_runtime_test(void) { // in alphabetical order
     ut_str.test();
     ut_streams.test();
     ut_thread.test();
-    vigil.test();
+    ut_vigil.test();
 }
 
 #else
@@ -6491,7 +6497,7 @@ static void force_inline ut_static_init_function(void) {
 ut_static_init(static_init_test) { ut_static_init_function(); }
 
 void ut_static_init_test(void) {
-    fatal_if(ut_static_init_function_called != 1,
+    ut_fatal_if(ut_static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
@@ -7042,22 +7048,22 @@ ut_streams_if ut_streams = {
 
 static ut_event_t ut_event_create(void) {
     HANDLE e = CreateEvent(null, false, false, null);
-    not_null(e);
+    ut_not_null(e);
     return (ut_event_t)e;
 }
 
 static ut_event_t ut_event_create_manual(void) {
     HANDLE e = CreateEvent(null, true, false, null);
-    not_null(e);
+    ut_not_null(e);
     return (ut_event_t)e;
 }
 
 static void ut_event_set(ut_event_t e) {
-    fatal_if_false(SetEvent((HANDLE)e));
+    ut_fatal_if_error(ut_b2e(SetEvent((HANDLE)e)));
 }
 
 static void ut_event_reset(ut_event_t e) {
-    fatal_if_false(ResetEvent((HANDLE)e));
+    ut_fatal_if_error(ut_b2e(ResetEvent((HANDLE)e)));
 }
 
 #pragma push_macro("ut_wait_ix2e")
@@ -7103,7 +7109,7 @@ static int32_t ut_event_wait_any(int32_t n, ut_event_t e[]) {
 }
 
 static void ut_event_dispose(ut_event_t handle) {
-    fatal_if_false(CloseHandle(handle));
+    ut_fatal_if_error(ut_b2e(CloseHandle(handle)));
 }
 
 // test:
@@ -7170,20 +7176,24 @@ ut_event_if ut_event = {
 
 // mutexes:
 
-static_assertion(sizeof(CRITICAL_SECTION) == sizeof(ut_mutex_t));
+ut_static_assertion(sizeof(CRITICAL_SECTION) == sizeof(ut_mutex_t));
 
 static void ut_mutex_init(ut_mutex_t* m) {
     CRITICAL_SECTION* cs = (CRITICAL_SECTION*)m;
-    fatal_if_false(
-        InitializeCriticalSectionAndSpinCount(cs, 4096)
-    );
+    ut_fatal_if_error(ut_b2e(InitializeCriticalSectionAndSpinCount(cs, 4096)));
 }
 
-static void ut_mutex_lock(ut_mutex_t* m) { EnterCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_lock(ut_mutex_t* m) {
+    EnterCriticalSection((CRITICAL_SECTION*)m);
+}
 
-static void ut_mutex_unlock(ut_mutex_t* m) { LeaveCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_unlock(ut_mutex_t* m) {
+    LeaveCriticalSection((CRITICAL_SECTION*)m);
+}
 
-static void ut_mutex_dispose(ut_mutex_t* m) { DeleteCriticalSection((CRITICAL_SECTION*)m); }
+static void ut_mutex_dispose(ut_mutex_t* m) {
+    DeleteCriticalSection((CRITICAL_SECTION*)m);
+}
 
 // test:
 
@@ -7241,7 +7251,7 @@ static void* ut_thread_ntdll(void) {
     if (ntdll == null) {
         ntdll = ut_loader.open("ntdll.dll", 0);
     }
-    not_null(ntdll);
+    ut_not_null(ntdll);
     return ntdll;
 }
 
@@ -7262,7 +7272,7 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
     unsigned long min100ns = 16 * 10 * 1000;
     unsigned long max100ns =  1 * 10 * 1000;
     unsigned long cur100ns =  0;
-    fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+    ut_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
     uint64_t max_ns = max100ns * 100uLL;
 //  uint64_t min_ns = min100ns * 100uLL;
 //  uint64_t cur_ns = cur100ns * 100uLL;
@@ -7277,8 +7287,8 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
     // note that maximum resolution is actually < minimum
     nanoseconds = ut_max(max_ns, nanoseconds);
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
-    fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
-    fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+    ut_fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
+    ut_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
 //  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //      min_ns = min100ns * 100uLL;
 //      max_ns = max100ns * 100uLL; // the smallest interval
@@ -7297,8 +7307,8 @@ static void ut_thread_power_throttling_disable_for_process(void) {
         pt.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
         pt.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
         pt.StateMask = 0;
-        fatal_if_false(SetProcessInformation(GetCurrentProcess(),
-            ProcessPowerThrottling, &pt, sizeof(pt)));
+        ut_fatal_if_error(ut_b2e(SetProcessInformation(GetCurrentProcess(),
+            ProcessPowerThrottling, &pt, sizeof(pt))));
         // PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
         // does not work on Win10. There is no easy way to
         // distinguish Windows 11 from 10 (Microsoft great engineering)
@@ -7316,8 +7326,8 @@ static void ut_thread_power_throttling_disable_for_thread(HANDLE thread) {
     pt.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
     pt.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
     pt.StateMask = 0;
-    fatal_if_false(SetThreadInformation(thread, ThreadPowerThrottling,
-        &pt, sizeof(pt)));
+    ut_fatal_if_error(ut_b2e(SetThreadInformation(thread,
+        ThreadPowerThrottling, &pt, sizeof(pt))));
 }
 
 static void ut_thread_disable_power_throttling(void) {
@@ -7356,7 +7366,7 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
         // number of lpi entries == 27 on 6 core / 12 logical processors system
         int32_t n = bytes / sizeof(lpi[0]);
         assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
-        fatal_if_false(GetLogicalProcessorInformation(&lpi[0], &bytes));
+        ut_fatal_if_error(ut_b2e(GetLogicalProcessorInformation(&lpi[0], &bytes)));
         for (int32_t i = 0; i < n; i++) {
 //          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //              traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
@@ -7386,16 +7396,16 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
 }
 
 static void ut_thread_realtime(void) {
-    fatal_if_false(SetPriorityClass(GetCurrentProcess(),
-        REALTIME_PRIORITY_CLASS));
-    fatal_if_false(SetThreadPriority(GetCurrentThread(),
-        THREAD_PRIORITY_TIME_CRITICAL));
-    fatal_if_false(SetThreadPriorityBoost(GetCurrentThread(),
-        /* bDisablePriorityBoost = */ false));
+    ut_fatal_if_error(ut_b2e(SetPriorityClass(GetCurrentProcess(),
+        REALTIME_PRIORITY_CLASS)));
+    ut_fatal_if_error(ut_b2e(SetThreadPriority(GetCurrentThread(),
+        THREAD_PRIORITY_TIME_CRITICAL)));
+    ut_fatal_if_error(ut_b2e(SetThreadPriorityBoost(GetCurrentThread(),
+        /* bDisablePriorityBoost = */ false)));
     // desired: 0.5ms = 500us (microsecond) = 50,000ns
     ut_thread_set_timer_resolution((uint64_t)ut_clock.nsec_in_usec * 500ULL);
-    fatal_if_false(SetThreadAffinityMask(GetCurrentThread(),
-        ut_thread_next_physical_processor_affinity_mask()));
+    ut_fatal_if_error(ut_b2e(SetThreadAffinityMask(GetCurrentThread(),
+        ut_thread_next_physical_processor_affinity_mask())));
     ut_thread_disable_power_throttling();
 }
 
@@ -7404,7 +7414,7 @@ static void ut_thread_yield(void) { SwitchToThread(); }
 static ut_thread_t ut_thread_start(void (*func)(void*), void* p) {
     ut_thread_t t = (ut_thread_t)CreateThread(null, 0,
         (LPTHREAD_START_ROUTINE)(void*)func, p, 0, null);
-    not_null(t);
+    ut_not_null(t);
     return t;
 }
 
@@ -7414,14 +7424,14 @@ static bool is_handle_valid(void* h) {
 }
 
 static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
-    not_null(t);
-    fatal_if_false(is_handle_valid(t));
+    ut_not_null(t);
+    ut_fatal_if(!is_handle_valid(t));
     const uint32_t ms = timeout < 0 ? INFINITE : (uint32_t)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, (DWORD)ms);
     errno_t r = ut_wait_ix2e(ix);
     assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");
     if (r == 0) {
-        fatal_if_false(CloseHandle(t));
+        ut_fatal_if_error(ut_b2e(CloseHandle(t)));
     } else {
         traceln("failed to join thread %p %s", t, strerr(r));
     }
@@ -7431,18 +7441,18 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
 #pragma pop_macro("ut_wait_ix2e")
 
 static void ut_thread_detach(ut_thread_t t) {
-    not_null(t);
-    fatal_if_false(is_handle_valid(t));
-    fatal_if_false(CloseHandle(t));
+    ut_not_null(t);
+    ut_fatal_if(!is_handle_valid(t));
+    ut_fatal_if_error(ut_b2e(CloseHandle(t)));
 }
 
 static void ut_thread_name(const char* name) {
     uint16_t stack[128];
-    fatal_if(ut_str.len(name) >= ut_count_of(stack), "name too long: %s", name);
+    ut_fatal_if(ut_str.len(name) >= ut_count_of(stack), "name too long: %s", name);
     ut_str.utf8to16(stack, ut_count_of(stack), name);
     HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
     // notoriously returns 0x10000000 for no good reason whatsoever
-    if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
+    ut_fatal_if(!SUCCEEDED(r));
 }
 
 static void ut_thread_sleep_for(fp64_t seconds) {
@@ -7459,7 +7469,7 @@ static void ut_thread_sleep_for(fp64_t seconds) {
         void* ntdll = ut_thread_ntdll();
         NtDelayExecution = (nt_delay_execution_t)
             ut_loader.sym(ntdll, "NtDelayExecution");
-        not_null(NtDelayExecution);
+        ut_not_null(NtDelayExecution);
     }
     // If "alertable" is set, sleep_for() can break earlier
     // as a result of NtAlertThread call.
@@ -7492,8 +7502,8 @@ static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
 }
 
 static void ut_thread_close(ut_thread_t t) {
-    not_null(t);
-    fatal_if_not_zero(ut_b2e(CloseHandle((HANDLE)t)));
+    ut_not_null(t);
+    ut_fatal_if_error(ut_b2e(CloseHandle((HANDLE)t)));
 }
 
 
@@ -7683,14 +7693,15 @@ static int32_t vigil_failed_assertion(const char* file, int32_t line,
     return 0;
 }
 
-static int32_t vigil_fatal_termination(const char* file, int32_t line,
-        const char* func, const char* condition, const char* format, ...) {
+static int32_t vigil_fatal_termination_va(const char* file, int32_t line,
+        const char* func, const char* condition, errno_t r,
+        const char* format, va_list va) {
     const int32_t er = ut_runtime.err();
     const int32_t en = errno;
-    va_list va;
-    va_start(va, format);
     ut_debug.println_va(file, line, func, format, va);
-    va_end(va);
+    if (r != er && r != 0) {
+        ut_debug.perror(file, line, func, r, "");
+    }
     // report last errors:
     if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
     if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
@@ -7704,23 +7715,46 @@ static int32_t vigil_fatal_termination(const char* file, int32_t line,
     return 0;
 }
 
+
+static int32_t vigil_fatal_termination(const char* file, int32_t line,
+        const char* func, const char* condition, const char* format, ...) {
+    va_list va;
+    va_start(va, format);
+    vigil_fatal_termination_va(file, line, func, condition, 0, format, va);
+    va_end(va);
+    return 0;
+}
+
+static int32_t vigil_fatal_if_error(const char* file, int32_t line,
+    const char* func, const char* condition, errno_t r,
+    const char* format, ...) {
+    if (r != 0) {
+        va_list va;
+        va_start(va, format);
+        vigil_fatal_termination_va(file, line, func, condition, r, format, va);
+        va_end(va);
+    }
+    return 0;
+}
+
+
 #ifdef UT_TESTS
 
-static vigil_if vigil_test_saved;
-static int32_t  vigil_test_failed_assertion_count;
+static ut_vigil_if  ut_vigil_test_saved;
+static int32_t      ut_vigil_test_failed_assertion_count;
 
-#pragma push_macro("vigil")
+#pragma push_macro("ut_vigil")
 // intimate knowledge of vigil.*() functions used in macro definitions
-#define vigil vigil_test_saved
+#define ut_vigil ut_vigil_test_saved
 
 static int32_t vigil_test_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
-    fatal_if_not(line > __LINE__, "line: %s", line);
+    ut_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
+    ut_fatal_if_not(line > __LINE__, "line: %s", line);
     assert(strcmp(func, "vigil_test") == 0, "func: %s", func);
-    fatal_if(condition == null || condition[0] == 0);
-    fatal_if(format == null || format[0] == 0);
-    vigil_test_failed_assertion_count++;
+    ut_fatal_if(condition == null || condition[0] == 0);
+    ut_fatal_if(format == null || format[0] == 0);
+    ut_vigil_test_failed_assertion_count++;
     if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
         va_list va;
         va_start(va, format);
@@ -7740,8 +7774,8 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     const int32_t en = errno;
     assert(er == 2, "ut_runtime.err: %d expected 2", er);
     assert(en == 2, "errno: %d expected 2", en);
-    fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
-    fatal_if_not(line > __LINE__, "line: %s", line);
+    ut_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
+    ut_fatal_if_not(line > __LINE__, "line: %s", line);
     assert(strcmp(func, "vigil_test") == 0, "func: %s", func);
     assert(strcmp(condition, "") == 0); // not yet used expected to be ""
     assert(format != null && format[0] != 0);
@@ -7762,33 +7796,33 @@ static int32_t vigil_test_fatal_termination(const char* file, int32_t line,
     return 0;
 }
 
-#pragma pop_macro("vigil")
+#pragma pop_macro("ut_vigil")
 
 static void vigil_test(void) {
-    vigil_test_saved = vigil;
+    ut_vigil_test_saved = ut_vigil;
     int32_t en = errno;
     int32_t er = ut_runtime.err();
     errno = 2; // ENOENT
     ut_runtime.set_err(2); // ERROR_FILE_NOT_FOUND
-    vigil.failed_assertion  = vigil_test_failed_assertion;
-    vigil.fatal_termination = vigil_test_fatal_termination;
+    ut_vigil.failed_assertion  = vigil_test_failed_assertion;
+    ut_vigil.fatal_termination = vigil_test_fatal_termination;
     int32_t count = vigil_test_fatal_calls_count;
-    fatal("testing: %s call", "fatal()");
+    ut_fatal("testing: %s call", "fatal()");
     assert(vigil_test_fatal_calls_count == count + 1);
-    count = vigil_test_failed_assertion_count;
+    count = ut_vigil_test_failed_assertion_count;
     assert(false, "testing: assert(%s)", "false");
     #ifdef DEBUG // verify that assert() is only compiled in DEBUG:
-        fatal_if_not(vigil_test_failed_assertion_count == count + 1);
+        ut_fatal_if_not(ut_vigil_test_failed_assertion_count == count + 1);
     #else // not RELEASE buid:
-        fatal_if_not(vigil_test_failed_assertion_count == count);
+        ut_fatal_if_not(ut_vigil_test_failed_assertion_count == count);
     #endif
-    count = vigil_test_failed_assertion_count;
+    count = ut_vigil_test_failed_assertion_count;
     swear(false, "testing: swear(%s)", "false");
     // swear() is triggered in both debug and release configurations:
-    fatal_if_not(vigil_test_failed_assertion_count == count + 1);
+    ut_fatal_if_not(ut_vigil_test_failed_assertion_count == count + 1);
     errno = en;
     ut_runtime.set_err(er);
-    vigil = vigil_test_saved;
+    ut_vigil = ut_vigil_test_saved;
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -7798,9 +7832,10 @@ static void vigil_test(void) { }
 
 #endif
 
-vigil_if vigil = {
+ut_vigil_if ut_vigil = {
     .failed_assertion  = vigil_failed_assertion,
     .fatal_termination = vigil_fatal_termination,
+    .fatal_if_error    = vigil_fatal_if_error,
     .test = vigil_test
 };
 

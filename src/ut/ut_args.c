@@ -147,7 +147,7 @@ static void ut_args_parse(const char* s) {
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int32_t)sizeof(void*) + (int32_t)sizeof(void*);
     const int32_t n = k + (len + 2) * (int32_t)sizeof(char);
-    fatal_if_not_zero(ut_heap.allocate(null, &ut_args_memory, n, true));
+    ut_fatal_if_error(ut_heap.allocate(null, &ut_args_memory, n, true));
     ut_args.c = 0;
     ut_args.v = (const char**)ut_args_memory;
     char* d = (char*)(((char*)ut_args.v) + k);
@@ -240,7 +240,7 @@ static void ut_args_WinMain(void) {
     const uint16_t* wcl = GetCommandLineW();
     int32_t n = (int32_t)ut_str.len16(wcl);
     char* cl = null;
-    fatal_if_not_zero(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
+    ut_fatal_if_error(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
     ut_str.utf16to8(cl, n * 2 + 1, wcl);
     ut_args_parse(cl);
     ut_heap.deallocate(null, cl);

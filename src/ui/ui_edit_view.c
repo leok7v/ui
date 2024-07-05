@@ -279,7 +279,7 @@ static int32_t ui_edit_glyphs_in_paragraph(ui_edit_t* e, int32_t pn) {
 }
 
 static void ui_edit_create_caret(ui_edit_t* e) {
-    fatal_if(e->focused);
+    ut_fatal_if(e->focused);
     assert(ui_app.is_active());
     assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
@@ -289,7 +289,7 @@ static void ui_edit_create_caret(ui_edit_t* e) {
 }
 
 static void ui_edit_destroy_caret(ui_edit_t* e) {
-    fatal_if(!e->focused);
+    ut_fatal_if(!e->focused);
     ui_app.destroy_caret();
     e->focused = false; // means caret was destroyed
 }
@@ -1330,7 +1330,7 @@ static void ui_edit_select_all(ui_edit_t* e) {
 }
 
 static int32_t ui_edit_save(ui_edit_t* e, char* text, int32_t* bytes) {
-    not_null(bytes);
+    ut_not_null(bytes);
     enum {
         error_insufficient_buffer = 122, // ERROR_INSUFFICIENT_BUFFER
         error_more_data = 234            // ERROR_MORE_DATA
@@ -1416,7 +1416,7 @@ static void ui_edit_clipboard_paste(ui_edit_t* e) {
             bool ok = ut_heap.alloc((void**)&text, bytes) == 0;
             swear(ok);
             int32_t r = ut_clipboard.get_text(text, &bytes);
-            fatal_if_not_zero(r);
+            ut_fatal_if_error(r);
             if (bytes > 0 && text[bytes - 1] == 0) {
                 bytes--; // clipboard includes zero terminator
             }
@@ -1702,7 +1702,7 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->listener.data = 0;
     e->listener.notify.before = ui_edit_before;
     e->listener.notify.after  = ui_edit_after;
-    static_assertion(offsetof(ui_edit_notify_view_t, notify) == 0);
+    ut_static_assertion(offsetof(ui_edit_notify_view_t, notify) == 0);
     ui_edit_doc.subscribe(d, &e->listener.notify);
     e->color_id = ui_color_id_window_text;
     e->background_id = ui_color_id_window;

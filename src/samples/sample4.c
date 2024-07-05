@@ -12,7 +12,7 @@ static char filename[260]; // c:\Users\user\Pictures\mandrill-4.2.03.png
 static void init(void);
 
 static int  console(void) {
-    fatal_if(true, "%s only SUBSYSTEM:WINDOWS", ut_args.basename());
+    ut_fatal_if(true, "%s only SUBSYSTEM:WINDOWS", ut_args.basename());
     return 1;
 }
 
@@ -42,12 +42,12 @@ static void load_images(void) {
         } else {
             r = ut_mem.map_resource("sample_png", &data, &bytes);
         }
-        fatal_if_not_zero(r);
+        ut_fatal_if_error(r);
         int w = 0;
         int h = 0;
         int bpp = 0; // bytes (!) per pixel
         void* pixels = load_image(data, bytes, &w, &h, &bpp, 0);
-        fatal_if_null(pixels);
+        ut_not_null(pixels);
         ui_gdi.image_init(&image[i], w, h, bpp, pixels);
         stbi_image_free(pixels);
         // do not unmap resources:

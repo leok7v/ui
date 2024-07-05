@@ -18,7 +18,7 @@ typedef struct midi_s_ {
     MCI_PLAY_PARMS pp;
 } midi_t_;
 
-static_assertion(sizeof(midi_t) >= sizeof(midi_t_) + sizeof(int64_t));
+ut_static_assertion(sizeof(midi_t) >= sizeof(midi_t_) + sizeof(int64_t));
 
 static void midi_warn_if_error_(int r, const char* call, const char* func,
         int line) {
@@ -36,7 +36,7 @@ static void midi_warn_if_error_(int r, const char* call, const char* func,
 
 #define midi_fatal_if_error(call) do {                                  \
     int _r_ = call; midi_warn_if_error_(r, #call, __func__, __LINE__);  \
-    fatal_if_not_zero(r);                                               \
+    ut_fatal_if_error(r);                                               \
 } while (0)
 
 static errno_t midi_open(midi_t* m, void* window, const char* filename) {

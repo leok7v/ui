@@ -15,7 +15,7 @@ typedef struct ut_processes_pidof_lambda_s {
 static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
     int32_t n = ut_str.len(pname);
-    fatal_if(n + 5 >= ut_count_of(stack), "name is too long: %s", pname);
+    ut_fatal_if(n + 5 >= ut_count_of(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
     if (!ut_str.iends(pname, ".exe")) {
@@ -31,7 +31,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         base = name;
     }
     uint16_t wn[1024];
-    fatal_if(strlen(base) >= ut_count_of(wn), "name too long: %s", base);
+    ut_fatal_if(strlen(base) >= ut_count_of(wn), "name too long: %s", base);
     ut_str.utf8to16(wn, ut_count_of(wn), base);
     size_t count = 0;
     uint64_t pid = 0;
@@ -86,7 +86,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
 }
 
 static void ut_processes_close_handle(HANDLE h) {
-    fatal_if_false(CloseHandle(h));
+    ut_fatal_if_error(ut_b2e(CloseHandle(h)));
 }
 
 static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
@@ -374,15 +374,15 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     }
     if (r == 0) {
         // not relevant: stdout can be written in other threads
-        fatal_if_false(CloseHandle(pi.hThread));
+        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hThread)));
         pi.hThread = null;
         // need to close si.hStdO* handles on caller side so,
         // when the process closes handles of the pipes, EOF happens
         // on caller side with io result ERROR_BROKEN_PIPE
         // indicating no more data can be read or written
-        fatal_if_false(CloseHandle(si.hStdOutput));
-        fatal_if_false(CloseHandle(si.hStdError));
-        fatal_if_false(CloseHandle(si.hStdInput));
+        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdOutput)));
+        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdError)));
+        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdInput)));
         si.hStdOutput = INVALID_HANDLE_VALUE;
         si.hStdError  = INVALID_HANDLE_VALUE;
         si.hStdInput  = INVALID_HANDLE_VALUE;
@@ -420,7 +420,8 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
             if (r != 0) { r = rx; } // report earliest error
         }
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
-        fatal_if_false(CloseHandle(pi.hProcess)); // expected never to fail
+        // expected never to fail
+        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hProcess)));
     }
     return r;
 }
@@ -444,7 +445,7 @@ static errno_t ut_processes_merge_write(ut_stream_if* stream, const void* data,
 
 static errno_t ut_processes_open(const char* command, int32_t *exit_code,
         ut_stream_if* output,  fp64_t timeout) {
-    not_null(output);
+    ut_not_null(output);
     ut_processes_io_merge_out_and_err_if merge_out_and_err = {
         .stream ={ .write = ut_processes_merge_write },
         .output = output,
@@ -484,12 +485,12 @@ static errno_t ut_processes_spawn(const char* command) {
                 | CREATE_NO_WINDOW
                 | CREATE_NEW_PROCESS_GROUP
                 | DETACHED_PROCESS;
-    PROCESS_INFORMATION pi = {0};
+    PROCESS_INFORMATION pi = { .hProcess = null, .hThread = null };
     r = ut_b2e(CreateProcessA(null, ut_str.drop_const(command), null, null,
             /*bInheritHandles:*/false, flags, null, null, &si, &pi));
     if (r == 0) { // Close handles immediately
-        fatal_if_false(CloseHandle(pi.hProcess));
-        fatal_if_false(CloseHandle(pi.hThread));
+        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hProcess)));
+        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hThread)));
     } else {
 //      traceln("CreateProcess() failed %s", strerr(r));
     }
@@ -497,11 +498,12 @@ static errno_t ut_processes_spawn(const char* command) {
 }
 
 static const char* ut_processes_name(void) {
-    static char module_name[ut_files_max_path];
-    if (module_name[0] == 0) {
-        fatal_if_false(GetModuleFileNameA(null, module_name, ut_count_of(module_name)));
+    static char mn[ut_files_max_path];
+    if (mn[0] == 0) {
+        ut_fatal_if_error(ut_b2e(GetModuleFileNameA(null, mn, 
+                                                    ut_count_of(mn))));
     }
-    return module_name;
+    return mn;
 }
 
 #ifdef UT_TESTS

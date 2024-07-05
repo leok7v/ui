@@ -55,10 +55,10 @@ typedef struct {
 } ui_edit_lorem_ipsum_generator_params_t;
 
 static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t p) {
-    fatal_if(p.count < 1024); // at least 1KB expected
-    fatal_if_false(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
-    fatal_if_false(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
-    fatal_if_false(2 < p.min_words && p.min_words <= p.max_words);
+    ut_fatal_if(p.count < 1024); // at least 1KB expected
+    ut_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
+    ut_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
+    ut_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
     static const char* words[] = {
         "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing",
         "elit", "quisque", "faucibus", "ex", "sapien", "vitae", "pellentesque",

@@ -30,7 +30,7 @@ static errno_t ut_config_save(const char* name,
     if (k != null) {
         r = RegSetValueExA(k, key, 0, REG_BINARY,
             (const uint8_t*)data, (DWORD)bytes);
-        fatal_if_not_zero(RegCloseKey(k));
+        ut_fatal_if_error(RegCloseKey(k));
     }
     return r;
 }
@@ -41,7 +41,7 @@ static errno_t ut_config_remove(const char* name, const char* key) {
     r = ut_config_get_reg_key(name, &k);
     if (k != null) {
         r = RegDeleteValueA(k, key);
-        fatal_if_not_zero(RegCloseKey(k));
+        ut_fatal_if_error(RegCloseKey(k));
     }
     return r;
 }
@@ -52,7 +52,7 @@ static errno_t ut_config_clean(const char* name) {
     if (RegOpenKeyExA(HKEY_CURRENT_USER, ut_config_apps,
                                       0, ut_config_access, &k) == 0) {
        r = RegDeleteTreeA(k, name);
-       fatal_if_not_zero(RegCloseKey(k));
+       ut_fatal_if_error(RegCloseKey(k));
     }
     return r;
 }
@@ -74,7 +74,7 @@ static int32_t ut_config_size(const char* name, const char* key) {
         } else {
             bytes = (int32_t)cb;
         }
-        fatal_if_not_zero(RegCloseKey(k));
+        ut_fatal_if_error(RegCloseKey(k));
     }
     return bytes;
 }
@@ -99,7 +99,7 @@ static int32_t ut_config_load(const char* name,
         } else {
             read = (int32_t)cb;
         }
-        fatal_if_not_zero(RegCloseKey(k));
+        ut_fatal_if_error(RegCloseKey(k));
     }
     return read;
 }

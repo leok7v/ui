@@ -51,12 +51,12 @@ static const char* midi_file(void) {
         void* data = null;
         int64_t bytes = 0;
         int r = ut_mem.map_resource("mr_blue_sky_midi", &data, &bytes);
-        fatal_if_not_zero(r);
-        fatal_if_not_zero(ut_files.create_tmp(filename,
+        ut_fatal_if_error(r);
+        ut_fatal_if_error(ut_files.create_tmp(filename,
                                       ut_count_of(filename)));
         assert(filename[0] != 0);
         int64_t written = 0;
-        fatal_if_not_zero(ut_files.write_fully(filename, data, bytes,
+        ut_fatal_if_error(ut_files.write_fully(filename, data, bytes,
                                                         &written));
         assert(written == bytes);
     }
@@ -126,14 +126,14 @@ static bool message(ui_view_t* unused(view), int32_t m, int64_t wp, int64_t lp,
 }
 
 static void delete_midi_file(void) {
-    fatal_if_not_zero(ut_files.unlink(midi_file()));
+    ut_fatal_if_error(ut_files.unlink(midi_file()));
 }
 
 static void load_gif(void) {
     void* data = null;
     int64_t bytes = 0;
     errno_t r = ut_mem.map_resource("groot_gif", &data, &bytes);
-    fatal_if_not_zero(r);
+    ut_fatal_if_error(r);
     // load_animated_gif() calls realloc(delays) w/o first alloc()
     r = ut_heap.allocate(null, (void**)&gif.delays, sizeof(int32_t), false);
     swear(r == 0 && gif.delays != null);
@@ -142,7 +142,7 @@ static void load_gif(void) {
     if (gif.pixels == null || gif.bpp != 4 || gif.frames < 1) {
         traceln("%s", stbi_failure_reason());
     }
-    fatal_if(gif.pixels == null || gif.bpp != 4 || gif.frames < 1);
+    ut_fatal_if(gif.pixels == null || gif.bpp != 4 || gif.frames < 1);
     // resources cannot be unmapped do not call ut_mem.unmap()
 }
 
@@ -221,7 +221,7 @@ static void init(void) {
     ui_app.opened             = opened;
     void* data = null;
     int64_t bytes = 0;
-    fatal_if_not_zero(ut_mem.map_resource("sample_png", &data, &bytes));
+    ut_fatal_if_error(ut_mem.map_resource("sample_png", &data, &bytes));
     int w = 0;
     int h = 0;
     int bpp = 0; // bytes (!) per pixel
@@ -229,7 +229,7 @@ static void init(void) {
     if (pixels == null) {
         traceln("%s", stbi_failure_reason());
     }
-    fatal_if_null(pixels);
+    ut_not_null(pixels);
     ui_gdi.image_init(&background, w, h, bpp, pixels);
     stbi_image_free(pixels);
 }
@@ -264,7 +264,7 @@ static void* load_animated_gif(const uint8_t* data, int64_t bytes,
 
 
 static int  console(void) {
-    fatal_if(true, "%s only SUBSYSTEM:WINDOWS", ut_args.basename());
+    ut_fatal_if(true, "%s only SUBSYSTEM:WINDOWS", ut_args.basename());
     return 1;
 }
 

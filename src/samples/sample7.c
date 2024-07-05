@@ -155,9 +155,9 @@ static void timer(ui_view_t* view, ui_timer_t id) {
 
 static void opened(void) {
     timer10ms = ui_app.set_timer((uintptr_t)&timer10ms, 10);
-    fatal_if(timer10ms == 0);
+    ut_fatal_if(timer10ms == 0);
     thread = ut_thread.start(timer_thread, &quit);
-    fatal_if_null(thread);
+    ut_not_null(thread);
 }
 
 static void detached_sleep(void* unused(p)) {
@@ -176,7 +176,7 @@ static void detached_loop(void* unused(p)) {
 static void closed(void) {
     ui_app.kill_timer(timer10ms);
     quit = true;
-    fatal_if_not_zero(ut_thread.join(thread, -1));
+    ut_fatal_if_error(ut_thread.join(thread, -1));
     thread = null;
     quit = false;
     // just to test that ExitProcess(0) works when there is

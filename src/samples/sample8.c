@@ -147,7 +147,10 @@ static void crash(ui_button_t* unused(b)) {
         int32_t  a[5];
         int32_t* p = a;
         traceln("%d\n", ut_count_of(a));
+        #pragma warning(push)            // this is intentional for testing
+        #pragma warning(disable: 4723)   // potential division by zero
         traceln("%d\n", ut_count_of(p)); // expected "division by zero"
+        #pragma warning(pop)
     }
 }
 

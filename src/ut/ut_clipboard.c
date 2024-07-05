@@ -24,7 +24,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
         }
         if (r == 0) {
             char* d = (char*)GlobalLock(global);
-            not_null(d);
+            ut_not_null(d);
             memcpy(d, utf16, (size_t)n * 2);
             r = ut_b2e(SetClipboardData(CF_UNICODETEXT, global));
             GlobalUnlock(global);
@@ -47,7 +47,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
 }
 
 static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
-    not_null(bytes);
+    ut_not_null(bytes);
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
     if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
     if (r == 0) {
@@ -84,10 +84,10 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
 #ifdef UT_TESTS
 
 static void ut_clipboard_test(void) {
-    fatal_if_not_zero(ut_clipboard.put_text("Hello Clipboard"));
+    ut_fatal_if_error(ut_clipboard.put_text("Hello Clipboard"));
     char text[256];
     int32_t bytes = ut_count_of(text);
-    fatal_if_not_zero(ut_clipboard.get_text(text, &bytes));
+    ut_fatal_if_error(ut_clipboard.get_text(text, &bytes));
     swear(strcmp(text, "Hello Clipboard") == 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }

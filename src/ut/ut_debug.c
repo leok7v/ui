@@ -153,7 +153,7 @@ static int32_t ut_debug_verbosity_from_string(const char* s) {
                v <= ut_debug.verbosity.trace) {
         return v;
     } else {
-        fatal("invalid verbosity: %s", s);
+        ut_fatal("invalid verbosity: %s", s);
         return ut_debug.verbosity.quiet;
     }
 }
