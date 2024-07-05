@@ -19,8 +19,8 @@ static bool ui_containers_debug = false;
 static int32_t ui_layout_nesting;
 
 #define ui_layout_enter(v) do {                                  \
-    ui_ltrb_t i_ = ui_view.gaps(v, &v->insets);                  \
-    ui_ltrb_t p_ = ui_view.gaps(v, &v->padding);                 \
+    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);                  \
+    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);                 \
     debugln("%*c>%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d", \
             ui_layout_nesting, 0x20,                             \
             ui_view.string(v), v->x, v->y, v->w, v->h,           \
@@ -79,7 +79,7 @@ static void ui_span_measure(ui_view_t* p) {
         if (ui_view.is_hidden(c)) {
             // nothing
         } else if (c->type == ui_view_spacer) {
-            c->padding = (ui_gaps_t){ 0, 0, 0, 0 };
+            c->padding = (ui_margins_t){ 0, 0, 0, 0 };
             c->w = 0; // layout will distribute excess here
             c->h = 0; // starts with zero
             max_w = ui.infinity; // spacer make width greedy
@@ -128,7 +128,7 @@ static void ui_span_measure(ui_view_t* p) {
 // and ui_span.max_w agreement
 
 static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
-    ui_ltrb_t padding = ui_view.gaps(c, &c->padding);
+    ui_ltrb_t padding = ui_view.margins(c, &c->padding);
     // setting child`s max_h to infinity means that child`s height is
     // *always* fill vertical view size of the parent
     // childs.h can exceed parent.h (vertical overflow) - is not
@@ -260,7 +260,7 @@ static void ui_list_measure(ui_view_t* p) {
               c->max_h, c->h);
         if (!ui_view.is_hidden(c)) {
             if (c->type == ui_view_spacer) {
-                c->padding = (ui_gaps_t){ 0, 0, 0, 0 };
+                c->padding = (ui_margins_t){ 0, 0, 0, 0 };
                 c->h = 0; // layout will distribute excess here
                 max_h = ui.infinity; // spacer make height greedy
             } else {
@@ -306,7 +306,7 @@ static void ui_list_measure(ui_view_t* p) {
 }
 
 static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
-    ui_ltrb_t padding = ui_view.gaps(c, &c->padding);
+    ui_ltrb_t padding = ui_view.margins(c, &c->padding);
     // setting child`s max_w to infinity means that child`s height is
     // *always* fill vertical view size of the parent
     // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
@@ -556,7 +556,7 @@ static void ui_container_paint(ui_view_t* v) {
 
 static void ui_view_container_init(ui_view_t* v) {
     v->background = ui_colors.transparent;
-    v->insets  = (ui_gaps_t){
+    v->insets  = (ui_margins_t){
        .left  = 0.25, .top    = 0.125,
         .right = 0.25, .bottom = 0.125
 //      .left  = 0.25, .top    = 0.0625,  // TODO: why?

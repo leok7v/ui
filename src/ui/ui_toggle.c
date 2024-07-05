@@ -2,7 +2,7 @@
 #include "ui/ui.h"
 
 static void ui_toggle_paint_on_off(ui_view_t* v) {
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     int32_t x = v->x;
     int32_t y = v->y + i.top;
     ui_color_t c = ui_colors.darken(v->background,

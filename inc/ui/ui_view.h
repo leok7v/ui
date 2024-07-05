@@ -45,8 +45,8 @@ typedef struct ui_view_s {
     int32_t y;
     int32_t w;
     int32_t h;
-    ui_gaps_t insets;
-    ui_gaps_t padding;
+    ui_margins_t insets;
+    ui_margins_t padding;
     ui_view_text_metrics_t text;
     // see ui.alignment values
     int32_t align; // align inside parent
@@ -124,7 +124,7 @@ typedef struct ui_view_s {
         } trace;
         struct { // after painted():
             bool call; // v->debug_paint()
-            bool gaps; // call debug_paint_gaps()
+            bool margins; // call debug_paint_margins()
             bool fm;   // paint font metrics
         } paint;
     } debug; // debug flags
@@ -148,7 +148,7 @@ typedef struct ui_view_if {
     void (*disband)(ui_view_t* parent); // removes all children recursively
     bool (*is_parent_of)(const ui_view_t* p, const ui_view_t* c);
     bool (*inside)(const ui_view_t* v, const ui_point_t* pt);
-    ui_ltrb_t (*gaps)(const ui_view_t* v, const ui_gaps_t* g); // gaps to pixels
+    ui_ltrb_t (*margins)(const ui_view_t* v, const ui_margins_t* g); // to pixels
     void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);
     void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
     void (*set_text)(ui_view_t* v, const char* format, ...);
@@ -199,7 +199,7 @@ typedef struct ui_view_if {
     bool (*press)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
     bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp,
                                      int64_t* ret);
-    void (*debug_paint_gaps)(ui_view_t* v); // insets padding
+    void (*debug_paint_margins)(ui_view_t* v); // insets padding
     void (*debug_paint_fm)(ui_view_t* v);   // text font metrics
     void (*test)(void);
 } ui_view_if;

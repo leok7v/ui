@@ -13,7 +13,7 @@ typedef ut_begin_packed struct app_data_t {
     int32_t light;
     int32_t debug;
     int32_t large; // show large H3 controls
-    int32_t gaps;  // draw controls padding and insets
+    int32_t margins;  // draw controls padding and insets
     int32_t fm;    // draw controls font metrics
 } ut_end_packed app_data_t;
 
@@ -154,8 +154,8 @@ static void crash(ui_button_t* unused(b)) {
 static void insert_into_caption(ui_button_t* b, const char* hint) {
     ut_str_printf(b->hint, "%s", hint);
     b->flat = true;
-    b->padding = (ui_gaps_t){0,0,0,0};
-    b->insets  = (ui_gaps_t){0,0,0,0};
+    b->padding = (ui_margins_t){0,0,0,0};
+    b->insets  = (ui_margins_t){0,0,0,0};
     b->align   = ui.align.top;
     ui_view.add_before(b,  &ui_caption.mini);
 }
@@ -193,18 +193,18 @@ static void opened(void) {
     null);
     list_view.max_w = ui.infinity;
     list_view.max_h = ui.infinity;
-    list_view.insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    list_view.insets = (ui_margins_t){ 0, 0, 0, 0 };
     span_view.max_w = ui.infinity;
     span_view.max_h = ui.infinity;
-    span_view.insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    span_view.insets = (ui_margins_t){ 0, 0, 0, 0 };
     test.max_w = ui.infinity;
     test.max_h = ui.infinity;
     test.color = ui_colors.transparent;
-    test.insets = (ui_gaps_t){ 0, 0, 0, 0 };
+    test.insets = (ui_margins_t){ 0, 0, 0, 0 };
     test.background_id = ui_color_id_window;
     ui_view.set_text(&test, "%s", "test");
 //  test.paint = ui_view.debug_paint;
-    test.debug.paint.gaps = true;
+    test.debug.paint.margins = true;
     // buttons to switch test content
     tools_list.max_h = ui.infinity;
     tools_list.color_id = ui_color_id_window;
@@ -267,7 +267,7 @@ static void stack_test(ui_view_t* parent) {
     static ui_label_t right_top    = ui_label(0, " right|top ");
     static ui_label_t left_bottom  = ui_label(0, " left|bottom ");
     static ui_label_t center       = ui_label(0, " center ");
-    stack.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    stack.insets = (ui_margins_t){ 1.0, 0.5, 0.25, 2.0 };
     ui_view.add(parent,
         ui_view.add(&stack,
             align(&left,         ui.align.left),
@@ -281,17 +281,17 @@ static void stack_test(ui_view_t* parent) {
             align(&center,       ui.align.center),
         null),
     null);
-    stack.debug.paint.gaps = true;
+    stack.debug.paint.margins = true;
     stack.max_w  = ui.infinity;
     stack.max_h  = ui.infinity;
-    stack.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    stack.insets = (ui_margins_t){ 1.0, 0.5, 0.25, 2.0 };
     stack.background_id = ui_color_id_window;
     ui_view.set_text(&stack, "#stack");
     ui_view_for_each(&stack, it, {
-        it->debug.paint.gaps = true;
+        it->debug.paint.margins = true;
         it->color = ui_colors.onyx;
 //      it->fm    = &ui_app.fm.H1;
-        it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
+        it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
     });
 }
 
@@ -312,16 +312,16 @@ static void span_test(ui_view_t* parent) {
             align(&right,  ui.align.center),
         null),
     null);
-    span.debug.paint.gaps = true;
+    span.debug.paint.margins = true;
     span.max_w    = ui.infinity;
     span.max_h    = ui.infinity;
-    span.insets   = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    span.insets   = (ui_margins_t){ 1.0, 0.5, 0.25, 2.0 };
     ui_view.set_text(&span, "#span");
     span.background_id = ui_color_id_window;
     ui_view_for_each(&span, it, {
-        it->debug.paint.gaps = true;
+        it->debug.paint.margins = true;
         it->color   = ui_colors.onyx;
-        it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
+        it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
 //      it->fm      = &ui_app.fm.H1;
 //      traceln("%s 0x%02X", it->text, it->align);
@@ -347,17 +347,17 @@ static void list_test(ui_view_t* parent) {
             align(&bottom, ui.align.center),
         null),
     null);
-    list.debug.paint.gaps = true;
+    list.debug.paint.margins = true;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-    list.insets = (ui_gaps_t){ 1.0, 0.5, 0.25, 2.0 };
+    list.insets = (ui_margins_t){ 1.0, 0.5, 0.25, 2.0 };
     list.background_id = ui_color_id_window;
     ui_view.set_text(&list, "#list");
     ui_view_for_each(&list, it, {
-        it->debug.paint.gaps = true;
+        it->debug.paint.margins = true;
         it->color   = ui_colors.onyx;
         // TODO: labels, buttons etc should define their own default padding != 0
-        it->padding = (ui_gaps_t){ 2.0, 0.25, 0.5, 1.0 };
+        it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_w   = ui.infinity;
 //      it->fm      = &ui_app.fm.H1;
     });
@@ -377,17 +377,17 @@ static void slider_callback(ui_view_t* v) {
     traceln("value: %d", slider->value);
 }
 
-static void controls_set_gaps(ui_view_t* v, bool on_off) {
+static void controls_set_margins(ui_view_t* v, bool on_off) {
     ui_view_for_each(v, it, {
-        controls_set_gaps(it, on_off);
-        it->debug.paint.gaps = on_off;
+        controls_set_margins(it, on_off);
+        it->debug.paint.margins = on_off;
     } );
 }
 
-static void controls_gaps(ui_view_t* v) {
-    controls_set_gaps(v->parent->parent->parent, v->state.pressed);
+static void controls_margins(ui_view_t* v) {
+    controls_set_margins(v->parent->parent->parent, v->state.pressed);
     ui_app.request_redraw();
-    app_data.gaps = v->state.pressed;
+    app_data.margins = v->state.pressed;
 }
 
 static void controls_set_fm(ui_view_t* v, bool on_off) {
@@ -453,8 +453,8 @@ static void controls_test(ui_view_t* parent) {
                                             slider_format, slider_callback);
     static ui_slider_t slider3 = ui_slider("%d", min_w_in_em, 0, UINT16_MAX,
                                             slider_format, slider_callback);
-    static ui_toggle_t gaps    = ui_toggle("&Gaps", min_w_in_em,
-                                            controls_gaps);
+    static ui_toggle_t margins    = ui_toggle("&margins", min_w_in_em,
+                                            controls_margins);
     static ui_toggle_t fm      = ui_toggle("&Font Metrics", min_w_in_em,
                                             controls_fm);
     static ui_view_t   spacer  = ui_view(spacer);
@@ -474,12 +474,12 @@ static void controls_test(ui_view_t* parent) {
             align(&button2,      ui.align.left),
             align(&slider2.view, ui.align.left),
             align(&slider3.view, ui.align.left),
-            align(&gaps,         ui.align.left),
+            align(&margins,         ui.align.left),
             align(&fm,           ui.align.left),
             align(&spacer,       ui.align.left),
         null),
     null);
-    list.debug.paint.gaps = true;
+    list.debug.paint.margins = true;
     span.align = ui.align.left;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
@@ -489,8 +489,8 @@ static void controls_test(ui_view_t* parent) {
     slider2.inc.state.hidden = true;
     fm.state.pressed = app_data.fm;
     controls_fm(&fm);
-    gaps.state.pressed = app_data.gaps;
-    controls_gaps(&gaps);
+    margins.state.pressed = app_data.margins;
+    controls_margins(&margins);
     large.state.pressed = app_data.large;
     controls_large(&large);
 }
@@ -531,7 +531,7 @@ static void edit1_test(ui_view_t* parent) {
     edit.view.max_w = ui.infinity;
     edit.view.max_h = ui.infinity;
     ui_app.focus = &edit.view;
-//  edit.view.debug.paint.gaps = true;
+//  edit.view.debug.paint.margins = true;
 //  edit.view.debug.trace.prc = true;
     ut_str_printf(edit.p.text, "#edit");
 }

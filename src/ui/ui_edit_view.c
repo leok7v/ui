@@ -49,7 +49,7 @@ static void ui_edit_invalidate_rect(const ui_edit_t* e, const ui_rect_t rc) {
 
 static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
     const ui_edit_range_t r = ui_edit_range.order(e->selection);
-    const ui_ltrb_t i = ui_view.gaps(&e->view, &e->insets);
+    const ui_ltrb_t i = ui_view.margins(&e->view, &e->insets);
     const ui_point_t p0 = ui_edit_pg_to_xy(e, r.from);
     const ui_point_t p1 = ui_edit_pg_to_xy(e, r.to);
     if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
@@ -299,7 +299,7 @@ static void ui_edit_show_caret(ui_edit_t* e) {
         assert(ui_app.is_active());
         assert(ui_app.has_focus());
         assert((e->caret.x < 0) == (e->caret.y < 0));
-        const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
+        const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
         int32_t x = e->caret.x < 0 ? insets.left : e->caret.x;
         int32_t y = e->caret.y < 0 ? insets.top  : e->caret.y;
         ui_app.move_caret(e->x + x, e->y + y);
@@ -1462,7 +1462,7 @@ static void ui_edit_prepare_sle(ui_edit_t* e) {
     // shingle line edit is capable of resizing itself to two
     // lines of text (and shrinking back) to avoid horizontal scroll
     int32_t runs = ut_max(1, ut_min(2, ui_edit_paragraph_run_count(e, 0)));
-    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     int32_t h = insets.top + v->fm->height * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
     if (v->min_h_em != min_h_em) {
@@ -1472,7 +1472,7 @@ static void ui_edit_prepare_sle(ui_edit_t* e) {
 
 static void ui_edit_insets(ui_edit_t* e) {
     ui_view_t* v = &e->view;
-    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     e->inside = (ui_ltrb_t){
         .left   = insets.left,
         .top    = insets.top,
@@ -1491,7 +1491,7 @@ static void ui_edit_measure(ui_view_t* v) { // bottom up
     if (v->w > 0 && e->sle) { ui_edit_prepare_sle(e); }
     v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // enforce minimum size - it makes it checking corner cases much simpler
     // and it's hard to edit anything in a smaller area - will result in bad UX
     if (v->w < v->fm->em.w * 4) { v->w = i.left + v->fm->em.w * 4 + i.right; }
@@ -1568,7 +1568,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             if (!e->focused || !ui_app.has_focus()) {
                 selection_color = ui_colors.darken(selection_color, 0.1f);
             }
-            const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
+            const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
             ui_gdi.fill(x + x0, y, x1 - x0, e->fm->height, selection_color);
         }
@@ -1609,7 +1609,7 @@ static void ui_edit_paint(ui_view_t* v) {
         // because last line of the view may extend over the bottom
         ui_gdi.set_clip(v->x, v->y, v->w, v->h);
         ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, v->background);
-        const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+        const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
         int32_t x = v->x + insets.left;
         int32_t y = v->y + insets.top;
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
@@ -1757,8 +1757,8 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->color_id = ui_color_id_window_text;
     e->background_id = ui_color_id_window;
     e->fm = &ui_app.fm.regular;
-    e->insets  = (ui_gaps_t){ 0.25, 0.25, 0.50, 0.25 };
-    e->padding = (ui_gaps_t){ 0.25, 0.25, 0.25, 0.25 };
+    e->insets  = (ui_margins_t){ 0.25, 0.25, 0.50, 0.25 };
+    e->padding = (ui_margins_t){ 0.25, 0.25, 0.25, 0.25 };
     e->min_w_em = 1.0;
     e->min_h_em = 1.0;
     e->type = ui_view_text;

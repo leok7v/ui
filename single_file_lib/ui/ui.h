@@ -176,7 +176,7 @@ typedef struct ui_image_s { // TODO: ui_ namespace
     void* pixels;
 } ui_image_t;
 
-// ui_gaps_t are used for padding and insets and expressed
+// ui_margins_t are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.
 // Pay attention that "em" is not square. "M" measurement
 // for most fonts are em.w = 0.5 * em.h
@@ -186,7 +186,7 @@ typedef struct ui_gaps_s { // in partial "em"s
     fp32_t top;
     fp32_t right;
     fp32_t bottom;
-} ui_gaps_t;
+} ui_margins_t;
 
 typedef struct ui_s {
     bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
@@ -320,11 +320,11 @@ typedef struct ui_s {
 
 extern ui_if ui;
 
-// ui_gaps_t in "em"s:
+// ui_margins_t in "em"s:
 //
 // The reason is that UI fonts may become larger smaller
 // for accessibility reasons with the same display
-// density in DPIs. Humanoid would expect the gaps around
+// density in DPIs. Humanoid would expect the margins around
 // larger font text to grow with font size increase.
 // SwingUI and MacOS is using "pt" for padding which does
 // not account to font size changes. MacOS does weird stuff
@@ -815,8 +815,8 @@ typedef struct ui_view_s {
     int32_t y;
     int32_t w;
     int32_t h;
-    ui_gaps_t insets;
-    ui_gaps_t padding;
+    ui_margins_t insets;
+    ui_margins_t padding;
     ui_view_text_metrics_t text;
     // see ui.alignment values
     int32_t align; // align inside parent
@@ -894,7 +894,7 @@ typedef struct ui_view_s {
         } trace;
         struct { // after painted():
             bool call; // v->debug_paint()
-            bool gaps; // call debug_paint_gaps()
+            bool margins; // call debug_paint_margins()
             bool fm;   // paint font metrics
         } paint;
     } debug; // debug flags
@@ -918,7 +918,7 @@ typedef struct ui_view_if {
     void (*disband)(ui_view_t* parent); // removes all children recursively
     bool (*is_parent_of)(const ui_view_t* p, const ui_view_t* c);
     bool (*inside)(const ui_view_t* v, const ui_point_t* pt);
-    ui_ltrb_t (*gaps)(const ui_view_t* v, const ui_gaps_t* g); // gaps to pixels
+    ui_ltrb_t (*margins)(const ui_view_t* v, const ui_margins_t* g); // to pixels
     void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);
     void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
     void (*set_text)(ui_view_t* v, const char* format, ...);
@@ -969,7 +969,7 @@ typedef struct ui_view_if {
     bool (*press)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
     bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp,
                                      int64_t* ret);
-    void (*debug_paint_gaps)(ui_view_t* v); // insets padding
+    void (*debug_paint_margins)(ui_view_t* v); // insets padding
     void (*debug_paint_fm)(ui_view_t* v);   // text font metrics
     void (*test)(void);
 } ui_view_if;
@@ -1347,8 +1347,8 @@ typedef struct ui_edit_if {
     // call save(e, null, &bytes) to retrieve number of utf8
     // bytes required to save whole text including 0x00 terminating bytes
     errno_t (*save)(ui_edit_t* e, char* text, int32_t* bytes);
-    void (*copy_to_clipboard)(ui_edit_t* e); // selected text to clipboard
-    void (*cut_to_clipboard)(ui_edit_t* e);  // copy selected text to clipboard and erase it
+    void (*copy_to_clipboard)(ui_edit_t* e);
+    void (*cut_to_clipboard)(ui_edit_t* e);
     // replace selected text with content of clipboard:
     void (*paste_from_clipboard)(ui_edit_t* e);
     void (*select_all)(ui_edit_t* e); // select whole text
@@ -1377,36 +1377,41 @@ extern ui_edit_if ui_edit;
 
 /*
     Notes:
-    set_font() - neither edit.view.font = font nor measure()/layout() functions
-                 do NOT dispose paragraphs layout unless geometry changed because
-                 it is quite expensive operation. But choosing different font
-                 on the fly needs to re-layout all paragraphs. Thus caller needs
-                 to set font via this function instead which also requests
-                 edit UI element re-layout.
+    set_font()
+        neither edit.view.font = font nor measure()/layout() functions
+        do NOT dispose paragraphs layout unless geometry changed because
+        it is quite expensive operation. But choosing different font
+        on the fly needs to re-layout all paragraphs. Thus caller needs
+        to set font via this function instead which also requests
+        edit UI element re-layout.
 
-    .ro        - readonly edit->ro is used to control readonly mode.
-                 If edit control is readonly its appearance does not change but it
-                 refuses to accept any changes to the rendered text.
+    .ro
+        readonly edit->ro is used to control readonly mode.
+        If edit control is readonly its appearance does not change but it
+        refuses to accept any changes to the rendered text.
 
-    .wb        - wordbreak this attribute was removed as poor UX human experience
-                 along with single line scroll editing. See note below about .sle.
+    .wb
+        wordbreak this attribute was removed as poor UX human experience
+        along with single line scroll editing. See note below about .sle.
 
-    .sle       - Single line edit control.
-                 Edit UI element does NOT support horizontal scroll and breaking
-                 words semantics as it is poor UX human experience. This is not
-                 how humans (apart of software developers) edit text.
-                 If content of the edit UI element is wider than the bounding box
-                 width the content is broken on word boundaries and vertical scrolling
-                 semantics is supported. Layouts containing edit control of the single
-                 line height are strongly encouraged to enlarge edit control layout
-                 vertically on as needed basis similar to Google Search Box behavior
-                 change implemented in 2023.
-                 If multiline is set to true by the callers code the edit UI layout
-                 snaps text to the top of x,y,w,h box otherwise the vertical space
-                 is distributed evenly between single line of text and top bottom gaps.
-                 IMPORTANT: SLE resizes itself vertically to accommodate for
-                 input that is too wide. If caller wants to limit vertical space it
-                 will need to hook .measure() function of SLE and do the math there.
+    .sle
+        single line edit control.
+        Edit UI element does NOT support horizontal scroll and breaking
+        words semantics as it is poor UX human experience. This is not
+        how humans (apart of software developers) edit text.
+        If content of the edit UI element is wider than the bounding box
+        width the content is broken on word boundaries and vertical scrolling
+        semantics is supported. Layouts containing edit control of the single
+        line height are strongly encouraged to enlarge edit control layout
+        vertically on as needed basis similar to Google Search Box behavior
+        change implemented in 2023.
+        If multiline is set to true by the callers code the edit UI layout
+        snaps text to the top of x,y,w,h box otherwise the vertical space
+        is distributed evenly between single line of text and top bottom
+        margins.
+        IMPORTANT: SLE resizes itself vertically to accommodate for
+        input that is too wide. If caller wants to limit vertical space it
+        will need to hook .measure() function of SLE and do the math there.
 */
 
 /*
@@ -2053,7 +2058,7 @@ typedef struct ui_view_s ui_view_t;
 //
 // void opened(void) {
 //     ui_view.add(ui_app.view, ..., null);
-//     ui_app.view->insets = (ui_gaps_t) {
+//     ui_app.view->insets = (ui_margins_t) {
 //         .left  = 0.25, .top    = 0.25,
 //         .right = 0.25, .bottom = 0.25 };
 //     ui_app.view->color = ui_colors.dark_scarlet;
@@ -4257,13 +4262,13 @@ static void ui_app_init(void) {
     assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;
-    ui_app.root->insets  = (ui_gaps_t){ 0, 0, 0, 0 };
-    ui_app.root->padding = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_app.root->insets  = (ui_margins_t){ 0, 0, 0, 0 };
+    ui_app.root->padding = (ui_margins_t){ 0, 0, 0, 0 };
     ui_app.root->paint = ui_app_view_paint;
     ui_app.root->max_w = ui.infinity;
     ui_app.root->max_h = ui.infinity;
-    ui_app.content->insets  = (ui_gaps_t){ 0, 0, 0, 0 };
-    ui_app.content->padding = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_app.content->insets  = (ui_margins_t){ 0, 0, 0, 0 };
+    ui_app.content->padding = (ui_margins_t){ 0, 0, 0, 0 };
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->state.hidden = !ui_app.no_decor;
@@ -4578,7 +4583,7 @@ static void ui_button_paint(ui_view_t* v) {
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
-        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
         const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                                .h = v->h - i.top - i.bottom };
         // TODO: icon text alignment
@@ -4798,7 +4803,7 @@ static ui_color_t ui_caption_color(void) {
     return c;
 }
 
-static const ui_gaps_t ui_caption_button_button_padding =
+static const ui_margins_t ui_caption_button_button_padding =
     { .left  = 0.25,  .top    = 0.0,
       .right = 0.25,  .bottom = 0.0};
 
@@ -4840,7 +4845,7 @@ static void ui_caption_measured(ui_view_t* v) {
     // do not show title if there is not enough space
     ui_caption.title.state.hidden = v->w > ui_app.root->w;
     v->w = ui_app.root->w;
-    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
 }
 
@@ -4857,7 +4862,7 @@ static void ui_caption_paint(ui_view_t* v) {
 static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
-    ui_caption.view.insets = (ui_gaps_t){ 0.125, 0.0, 0.125, 0.0 };
+    ui_caption.view.insets = (ui_margins_t){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
     v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,
@@ -4872,11 +4877,11 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.quit,
         null);
     ui_caption.view.color_id = ui_color_id_window_text;
-    static const ui_gaps_t p0 = { .left  = 0.0,   .top    = 0.0,
+    static const ui_margins_t p0 = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
-    static const ui_gaps_t pd = { .left  = 0.25,  .top    = 0.0,
+    static const ui_margins_t pd = { .left  = 0.25,  .top    = 0.0,
                                   .right = 0.25,  .bottom = 0.0};
-    static const ui_gaps_t in = { .left  = 0.0,   .top    = 0.0,
+    static const ui_margins_t in = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
         c->fm = &ui_app.fm.regular;
@@ -5337,8 +5342,8 @@ static bool ui_containers_debug = false;
 static int32_t ui_layout_nesting;
 
 #define ui_layout_enter(v) do {                                  \
-    ui_ltrb_t i_ = ui_view.gaps(v, &v->insets);                  \
-    ui_ltrb_t p_ = ui_view.gaps(v, &v->padding);                 \
+    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);                  \
+    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);                 \
     debugln("%*c>%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d", \
             ui_layout_nesting, 0x20,                             \
             ui_view.string(v), v->x, v->y, v->w, v->h,           \
@@ -5397,7 +5402,7 @@ static void ui_span_measure(ui_view_t* p) {
         if (ui_view.is_hidden(c)) {
             // nothing
         } else if (c->type == ui_view_spacer) {
-            c->padding = (ui_gaps_t){ 0, 0, 0, 0 };
+            c->padding = (ui_margins_t){ 0, 0, 0, 0 };
             c->w = 0; // layout will distribute excess here
             c->h = 0; // starts with zero
             max_w = ui.infinity; // spacer make width greedy
@@ -5446,7 +5451,7 @@ static void ui_span_measure(ui_view_t* p) {
 // and ui_span.max_w agreement
 
 static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
-    ui_ltrb_t padding = ui_view.gaps(c, &c->padding);
+    ui_ltrb_t padding = ui_view.margins(c, &c->padding);
     // setting child`s max_h to infinity means that child`s height is
     // *always* fill vertical view size of the parent
     // childs.h can exceed parent.h (vertical overflow) - is not
@@ -5578,7 +5583,7 @@ static void ui_list_measure(ui_view_t* p) {
               c->max_h, c->h);
         if (!ui_view.is_hidden(c)) {
             if (c->type == ui_view_spacer) {
-                c->padding = (ui_gaps_t){ 0, 0, 0, 0 };
+                c->padding = (ui_margins_t){ 0, 0, 0, 0 };
                 c->h = 0; // layout will distribute excess here
                 max_h = ui.infinity; // spacer make height greedy
             } else {
@@ -5624,7 +5629,7 @@ static void ui_list_measure(ui_view_t* p) {
 }
 
 static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
-    ui_ltrb_t padding = ui_view.gaps(c, &c->padding);
+    ui_ltrb_t padding = ui_view.margins(c, &c->padding);
     // setting child`s max_w to infinity means that child`s height is
     // *always* fill vertical view size of the parent
     // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
@@ -5874,7 +5879,7 @@ static void ui_container_paint(ui_view_t* v) {
 
 static void ui_view_container_init(ui_view_t* v) {
     v->background = ui_colors.transparent;
-    v->insets  = (ui_gaps_t){
+    v->insets  = (ui_margins_t){
        .left  = 0.25, .top    = 0.125,
         .right = 0.25, .bottom = 0.125
 //      .left  = 0.25, .top    = 0.0625,  // TODO: why?
@@ -8205,7 +8210,7 @@ static void ui_edit_invalidate_rect(const ui_edit_t* e, const ui_rect_t rc) {
 
 static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
     const ui_edit_range_t r = ui_edit_range.order(e->selection);
-    const ui_ltrb_t i = ui_view.gaps(&e->view, &e->insets);
+    const ui_ltrb_t i = ui_view.margins(&e->view, &e->insets);
     const ui_point_t p0 = ui_edit_pg_to_xy(e, r.from);
     const ui_point_t p1 = ui_edit_pg_to_xy(e, r.to);
     if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
@@ -8455,7 +8460,7 @@ static void ui_edit_show_caret(ui_edit_t* e) {
         assert(ui_app.is_active());
         assert(ui_app.has_focus());
         assert((e->caret.x < 0) == (e->caret.y < 0));
-        const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
+        const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
         int32_t x = e->caret.x < 0 ? insets.left : e->caret.x;
         int32_t y = e->caret.y < 0 ? insets.top  : e->caret.y;
         ui_app.move_caret(e->x + x, e->y + y);
@@ -9618,7 +9623,7 @@ static void ui_edit_prepare_sle(ui_edit_t* e) {
     // shingle line edit is capable of resizing itself to two
     // lines of text (and shrinking back) to avoid horizontal scroll
     int32_t runs = ut_max(1, ut_min(2, ui_edit_paragraph_run_count(e, 0)));
-    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     int32_t h = insets.top + v->fm->height * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
     if (v->min_h_em != min_h_em) {
@@ -9628,7 +9633,7 @@ static void ui_edit_prepare_sle(ui_edit_t* e) {
 
 static void ui_edit_insets(ui_edit_t* e) {
     ui_view_t* v = &e->view;
-    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     e->inside = (ui_ltrb_t){
         .left   = insets.left,
         .top    = insets.top,
@@ -9647,7 +9652,7 @@ static void ui_edit_measure(ui_view_t* v) { // bottom up
     if (v->w > 0 && e->sle) { ui_edit_prepare_sle(e); }
     v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // enforce minimum size - it makes it checking corner cases much simpler
     // and it's hard to edit anything in a smaller area - will result in bad UX
     if (v->w < v->fm->em.w * 4) { v->w = i.left + v->fm->em.w * 4 + i.right; }
@@ -9724,7 +9729,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             if (!e->focused || !ui_app.has_focus()) {
                 selection_color = ui_colors.darken(selection_color, 0.1f);
             }
-            const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
+            const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
             ui_gdi.fill(x + x0, y, x1 - x0, e->fm->height, selection_color);
         }
@@ -9765,7 +9770,7 @@ static void ui_edit_paint(ui_view_t* v) {
         // because last line of the view may extend over the bottom
         ui_gdi.set_clip(v->x, v->y, v->w, v->h);
         ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, v->background);
-        const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+        const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
         int32_t x = v->x + insets.left;
         int32_t y = v->y + insets.top;
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
@@ -9913,8 +9918,8 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->color_id = ui_color_id_window_text;
     e->background_id = ui_color_id_window;
     e->fm = &ui_app.fm.regular;
-    e->insets  = (ui_gaps_t){ 0.25, 0.25, 0.50, 0.25 };
-    e->padding = (ui_gaps_t){ 0.25, 0.25, 0.25, 0.25 };
+    e->insets  = (ui_margins_t){ 0.25, 0.25, 0.50, 0.25 };
+    e->padding = (ui_margins_t){ 0.25, 0.25, 0.25, 0.25 };
     e->min_w_em = 1.0;
     e->min_h_em = 1.0;
     e->type = ui_view_text;
@@ -11442,11 +11447,11 @@ static void ui_slider_invalidate(const ui_slider_t* s) {
 }
 
 static int32_t ui_slider_width(const ui_slider_t* s) {
-    const ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
+    const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
     int32_t w = s->w - i.left - i.right;
     if (!s->dec.state.hidden) {
-        const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
-        const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
+        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
         w -= s->dec.w + s->inc.w + dec_p.right + inc_p.left;
     }
     return w;
@@ -11465,18 +11470,18 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     char formatted[ut_countof(s->p.text)];
     const ui_fm_t* fm = s->fm;
     const char* text = ui_view.string(&s->view);
-    const ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
+    const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
     ui_wh_t mt = s->fm->em;
     if (s->debug.trace.mt) {
-        const ui_ltrb_t p = ui_view.gaps(&s->view, &s->padding);
+        const ui_ltrb_t p = ui_view.margins(&s->view, &s->padding);
         traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
             ut_min(64, strlen(text)), text);
-        const ui_gaps_t in = s->insets;
-        const ui_gaps_t pd = s->padding;
+        const ui_margins_t in = s->insets;
+        const ui_margins_t pd = s->padding;
         traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
@@ -11509,7 +11514,7 @@ static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // slider cannot be smaller than 2*em
     const fp32_t min_w_em = ut_max(2.0f, v->min_w_em);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)   min_w_em + 0.5);
@@ -11524,8 +11529,8 @@ static void ui_slider_measure(ui_view_t* v) {
     } else {
         ui_view.measure(&s->dec); // remeasure with inherited metrics
         ui_view.measure(&s->inc);
-        const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
-        const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
+        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
         v->w = ut_max(v->w, s->dec.w + dec_p.right + s->mt.w + inc_p.left + s->inc.w);
     }
     v->h = ut_max(v->h, i.top + fm->em.h + i.bottom);
@@ -11538,7 +11543,7 @@ static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     // disregard inc/dec .state.hidden bit for layout:
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     s->dec.x = v->x + i.left;
     s->dec.y = v->y;
     s->inc.x = v->x + v->w - i.right - s->inc.w;
@@ -11549,8 +11554,8 @@ static void ui_slider_paint(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
     assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
@@ -11610,13 +11615,13 @@ static void ui_slider_paint(ui_view_t* v) {
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         assert(v->type == ui_view_slider);
-        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
         ui_slider_t* s = (ui_slider_t*)v;
         bool drag = message == ui.message.mouse_move &&
             (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
         if (message == ui.message.left_button_pressed ||
             message == ui.message.right_button_pressed || drag) {
-            const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
+            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
             assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
             const int32_t sw = ui_slider_width(s); // slider width
@@ -11957,7 +11962,7 @@ ui_theme_if ui_theme = {
 #include "ut/ut.h"
 
 static void ui_toggle_paint_on_off(ui_view_t* v) {
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     int32_t x = v->x;
     int32_t y = v->y + i.top;
     ui_color_t c = ui_colors.darken(v->background,
@@ -12242,7 +12247,7 @@ static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
     } else {
         rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
         // expand view rectangle by padding
-        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
         rc.x -= p.left;
         rc.y -= p.top;
         rc.w += p.left + p.right;
@@ -12303,7 +12308,7 @@ static void ui_view_text_measure(ui_view_t* v, const char* s,
 static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
     const ui_fm_t* fm = v->fm;
     tm->xy = (ui_point_t){ .x = -1, .y = -1 };
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // i_wh the inside insets w x h:
     const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                            .h = v->h - i.top - i.bottom };
@@ -12341,19 +12346,19 @@ static void ui_view_measure_control(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
     const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
-        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
         traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
             ut_min(64, strlen(s)), s);
-        const ui_gaps_t in = v->insets;
-        const ui_gaps_t pd = v->padding;
+        const ui_margins_t in = v->insets;
+        const ui_margins_t pd = v->padding;
         traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
@@ -12394,8 +12399,8 @@ static void ui_view_measure(ui_view_t* v) {
 }
 
 static void ui_layout_view(ui_view_t* unused(v)) {
-//  ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-//  ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+//  ui_ltrb_t i = ui_view.margins(v, &v->insets);
+//  ui_ltrb_t p = ui_view.margins(v, &v->padding);
 //  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
 //               v->text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
@@ -12440,7 +12445,7 @@ static bool ui_view_is_parent_of(const ui_view_t* parent,
     return false;
 }
 
-static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
+static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* g) {
     const fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
     const fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
     const ui_wh_t* em = &v->fm->em;
@@ -12457,7 +12462,7 @@ static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
 static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
     swear(r != null || insets != null);
     swear(v->max_w >= 0 && v->max_h >= 0);
-    const ui_ltrb_t i = ui_view_gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view_margins(v, &v->insets);
     if (insets != null) { *insets = i; }
     if (r != null) {
         *r = (ui_rect_t) {
@@ -12472,7 +12477,7 @@ static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
 static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
     swear(r != null || padding != null);
     swear(v->max_w >= 0 && v->max_h >= 0);
-    const ui_ltrb_t p = ui_view_gaps(v, &v->padding);
+    const ui_ltrb_t p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
 //      traceln("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->text,
@@ -12543,7 +12548,7 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
     if (start && ui_app.animating.view == null && v->hint[0] != 0 &&
        !ui_view.is_hidden(v)) {
-        hint.padding = (ui_gaps_t){0, 0, 0, 0};
+        hint.padding = (ui_margins_t){0, 0, 0, 0};
         ui_view_show_hint(v, &hint);
     } else if (!start && ui_app.animating.view == &hint) {
         ui_app.show_hint(null, -1, -1, 0);
@@ -12660,7 +12665,7 @@ static void ui_view_paint(ui_view_t* v) {
     if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
         if (v->paint != null) { v->paint(v); }
         if (v->painted != null) { v->painted(v); }
-        if (v->debug.paint.gaps) { ui_view.debug_paint_gaps(v); }
+        if (v->debug.paint.margins) { ui_view.debug_paint_margins(v); }
         if (v->debug.paint.fm)   { ui_view.debug_paint_fm(v); }
         if (v->debug.paint.call && v->debug_paint != null) { v->debug_paint(v); }
         ui_view_for_each(v, c, { ui_view_paint(c); });
@@ -12865,13 +12870,13 @@ static bool ui_view_is_control(const ui_view_t* v) {
             v->type == ui_view_mbx;
 }
 
-static void ui_view_debug_paint_gaps(ui_view_t* v) {
-    if (v->debug.paint.gaps) {
+static void ui_view_debug_paint_margins(ui_view_t* v) {
+    if (v->debug.paint.margins) {
         if (v->type == ui_view_spacer) {
             ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
         }
-        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
-        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
         ui_color_t c = ui_colors.green;
         const int32_t pl = p.left;
         const int32_t pr = p.right;
@@ -13011,60 +13016,60 @@ static void ui_view_test(void) {
 #pragma pop_macro("ui_view_no_siblings")
 
 ui_view_if ui_view = {
-    .add                = ui_view_add,
-    .add_first          = ui_view_add_first,
-    .add_last           = ui_view_add_last,
-    .add_after          = ui_view_add_after,
-    .add_before         = ui_view_add_before,
-    .remove             = ui_view_remove,
-    .remove_all         = ui_view_remove_all,
-    .disband            = ui_view_disband,
-    .inside             = ui_view_inside,
-    .is_parent_of       = ui_view_is_parent_of,
-    .gaps               = ui_view_gaps,
-    .inbox              = ui_view_inbox,
-    .outbox             = ui_view_outbox,
-    .set_text           = ui_view_set_text,
-    .set_text_va        = ui_view_set_text_va,
-    .invalidate         = ui_view_invalidate,
-    .text_metrics_va    = ui_view_text_metrics_va,
-    .text_metrics       = ui_view_text_metrics,
-    .text_measure       = ui_view_text_measure,
-    .text_align         = ui_view_text_align,
-    .measure_control    = ui_view_measure_control,
-    .measure_children   = ui_view_measure_children,
-    .layout_children    = ui_view_layout_children,
-    .measure            = ui_view_measure,
-    .layout             = ui_view_layout,
-    .string             = ui_view_string,
-    .is_hidden          = ui_view_is_hidden,
-    .is_disabled        = ui_view_is_disabled,
-    .is_control         = ui_view_is_control,
-    .is_container       = ui_view_is_container,
-    .is_spacer          = ui_view_is_spacer,
-    .timer              = ui_view_timer,
-    .every_sec          = ui_view_every_sec,
-    .every_100ms        = ui_view_every_100ms,
-    .hit_test           = ui_view_hit_test,
-    .key_pressed        = ui_view_key_pressed,
-    .key_released       = ui_view_key_released,
-    .character          = ui_view_character,
-    .paint              = ui_view_paint,
-    .set_focus          = ui_view_set_focus,
-    .kill_focus         = ui_view_kill_focus,
-    .kill_hidden_focus  = ui_view_kill_hidden_focus,
-    .mouse              = ui_view_mouse,
-    .mouse_wheel        = ui_view_mouse_wheel,
-    .hovering           = ui_view_hovering,
-    .hover_changed      = ui_view_hover_changed,
-    .is_shortcut_key    = ui_view_is_shortcut_key,
-    .context_menu       = ui_view_context_menu,
-    .tap                = ui_view_tap,
-    .press              = ui_view_press,
-    .message            = ui_view_message,
-    .debug_paint_gaps   = ui_view_debug_paint_gaps,
-    .debug_paint_fm     = ui_view_debug_paint_fm,
-    .test               = ui_view_test
+    .add                 = ui_view_add,
+    .add_first           = ui_view_add_first,
+    .add_last            = ui_view_add_last,
+    .add_after           = ui_view_add_after,
+    .add_before          = ui_view_add_before,
+    .remove              = ui_view_remove,
+    .remove_all          = ui_view_remove_all,
+    .disband             = ui_view_disband,
+    .inside              = ui_view_inside,
+    .is_parent_of        = ui_view_is_parent_of,
+    .margins                = ui_view_margins,
+    .inbox               = ui_view_inbox,
+    .outbox              = ui_view_outbox,
+    .set_text            = ui_view_set_text,
+    .set_text_va         = ui_view_set_text_va,
+    .invalidate          = ui_view_invalidate,
+    .text_metrics_va     = ui_view_text_metrics_va,
+    .text_metrics        = ui_view_text_metrics,
+    .text_measure        = ui_view_text_measure,
+    .text_align          = ui_view_text_align,
+    .measure_control     = ui_view_measure_control,
+    .measure_children    = ui_view_measure_children,
+    .layout_children     = ui_view_layout_children,
+    .measure             = ui_view_measure,
+    .layout              = ui_view_layout,
+    .string              = ui_view_string,
+    .is_hidden           = ui_view_is_hidden,
+    .is_disabled         = ui_view_is_disabled,
+    .is_control          = ui_view_is_control,
+    .is_container        = ui_view_is_container,
+    .is_spacer           = ui_view_is_spacer,
+    .timer               = ui_view_timer,
+    .every_sec           = ui_view_every_sec,
+    .every_100ms         = ui_view_every_100ms,
+    .hit_test            = ui_view_hit_test,
+    .key_pressed         = ui_view_key_pressed,
+    .key_released        = ui_view_key_released,
+    .character           = ui_view_character,
+    .paint               = ui_view_paint,
+    .set_focus           = ui_view_set_focus,
+    .kill_focus          = ui_view_kill_focus,
+    .kill_hidden_focus   = ui_view_kill_hidden_focus,
+    .mouse               = ui_view_mouse,
+    .mouse_wheel         = ui_view_mouse_wheel,
+    .hovering            = ui_view_hovering,
+    .hover_changed       = ui_view_hover_changed,
+    .is_shortcut_key     = ui_view_is_shortcut_key,
+    .context_menu        = ui_view_context_menu,
+    .tap                 = ui_view_tap,
+    .press               = ui_view_press,
+    .message             = ui_view_message,
+    .debug_paint_margins = ui_view_debug_paint_margins,
+    .debug_paint_fm      = ui_view_debug_paint_fm,
+    .test                = ui_view_test
 };
 
 #ifdef UI_VIEW_TEST

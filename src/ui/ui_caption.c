@@ -113,7 +113,7 @@ static ui_color_t ui_caption_color(void) {
     return c;
 }
 
-static const ui_gaps_t ui_caption_button_button_padding =
+static const ui_margins_t ui_caption_button_button_padding =
     { .left  = 0.25,  .top    = 0.0,
       .right = 0.25,  .bottom = 0.0};
 
@@ -155,7 +155,7 @@ static void ui_caption_measured(ui_view_t* v) {
     // do not show title if there is not enough space
     ui_caption.title.state.hidden = v->w > ui_app.root->w;
     v->w = ui_app.root->w;
-    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
 }
 
@@ -172,7 +172,7 @@ static void ui_caption_paint(ui_view_t* v) {
 static void ui_caption_init(ui_view_t* v) {
     swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
-    ui_caption.view.insets = (ui_gaps_t){ 0.125, 0.0, 0.125, 0.0 };
+    ui_caption.view.insets = (ui_margins_t){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
     v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,
@@ -187,11 +187,11 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.quit,
         null);
     ui_caption.view.color_id = ui_color_id_window_text;
-    static const ui_gaps_t p0 = { .left  = 0.0,   .top    = 0.0,
+    static const ui_margins_t p0 = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
-    static const ui_gaps_t pd = { .left  = 0.25,  .top    = 0.0,
+    static const ui_margins_t pd = { .left  = 0.25,  .top    = 0.0,
                                   .right = 0.25,  .bottom = 0.0};
-    static const ui_gaps_t in = { .left  = 0.0,   .top    = 0.0,
+    static const ui_margins_t in = { .left  = 0.0,   .top    = 0.0,
                                   .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
         c->fm = &ui_app.fm.regular;

@@ -18,10 +18,10 @@ static int64_t hit_test(ui_view_t* unused(v), int32_t x, int32_t y) {
 }
 
 static void opened(void) {
-//  ui_app.content->insets = (ui_gaps_t){ 0, 0, 0, 0 };
+//  ui_app.content->insets = (ui_margins_t){ 0, 0, 0, 0 };
     static ui_label_t hello = ui_label(0.0, "Hello");
-//  hello.padding = (ui_gaps_t){ 0, 0, 0, 0 };
-//  hello.insets  = (ui_gaps_t){ 0, 0, 0, 0 };
+//  hello.padding = (ui_margins_t){ 0, 0, 0, 0 };
+//  hello.insets  = (ui_margins_t){ 0, 0, 0, 0 };
     static ui_fm_t fm;
     ui_gdi.update_fm(&fm, ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5f), -1));
     hello.fm = &fm;

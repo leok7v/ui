@@ -158,7 +158,7 @@ static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
     } else {
         rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
         // expand view rectangle by padding
-        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
         rc.x -= p.left;
         rc.y -= p.top;
         rc.w += p.left + p.right;
@@ -219,7 +219,7 @@ static void ui_view_text_measure(ui_view_t* v, const char* s,
 static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
     const ui_fm_t* fm = v->fm;
     tm->xy = (ui_point_t){ .x = -1, .y = -1 };
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // i_wh the inside insets w x h:
     const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                            .h = v->h - i.top - i.bottom };
@@ -257,19 +257,19 @@ static void ui_view_measure_control(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
     const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
-        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
         traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
             ut_min(64, strlen(s)), s);
-        const ui_gaps_t in = v->insets;
-        const ui_gaps_t pd = v->padding;
+        const ui_margins_t in = v->insets;
+        const ui_margins_t pd = v->padding;
         traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
@@ -310,8 +310,8 @@ static void ui_view_measure(ui_view_t* v) {
 }
 
 static void ui_layout_view(ui_view_t* unused(v)) {
-//  ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-//  ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+//  ui_ltrb_t i = ui_view.margins(v, &v->insets);
+//  ui_ltrb_t p = ui_view.margins(v, &v->padding);
 //  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
 //               v->text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
@@ -356,7 +356,7 @@ static bool ui_view_is_parent_of(const ui_view_t* parent,
     return false;
 }
 
-static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
+static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* g) {
     const fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
     const fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
     const ui_wh_t* em = &v->fm->em;
@@ -373,7 +373,7 @@ static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
 static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
     swear(r != null || insets != null);
     swear(v->max_w >= 0 && v->max_h >= 0);
-    const ui_ltrb_t i = ui_view_gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view_margins(v, &v->insets);
     if (insets != null) { *insets = i; }
     if (r != null) {
         *r = (ui_rect_t) {
@@ -388,7 +388,7 @@ static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
 static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
     swear(r != null || padding != null);
     swear(v->max_w >= 0 && v->max_h >= 0);
-    const ui_ltrb_t p = ui_view_gaps(v, &v->padding);
+    const ui_ltrb_t p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
 //      traceln("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->text,
@@ -459,7 +459,7 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
     if (start && ui_app.animating.view == null && v->hint[0] != 0 &&
        !ui_view.is_hidden(v)) {
-        hint.padding = (ui_gaps_t){0, 0, 0, 0};
+        hint.padding = (ui_margins_t){0, 0, 0, 0};
         ui_view_show_hint(v, &hint);
     } else if (!start && ui_app.animating.view == &hint) {
         ui_app.show_hint(null, -1, -1, 0);
@@ -576,7 +576,7 @@ static void ui_view_paint(ui_view_t* v) {
     if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
         if (v->paint != null) { v->paint(v); }
         if (v->painted != null) { v->painted(v); }
-        if (v->debug.paint.gaps) { ui_view.debug_paint_gaps(v); }
+        if (v->debug.paint.margins) { ui_view.debug_paint_margins(v); }
         if (v->debug.paint.fm)   { ui_view.debug_paint_fm(v); }
         if (v->debug.paint.call && v->debug_paint != null) { v->debug_paint(v); }
         ui_view_for_each(v, c, { ui_view_paint(c); });
@@ -781,13 +781,13 @@ static bool ui_view_is_control(const ui_view_t* v) {
             v->type == ui_view_mbx;
 }
 
-static void ui_view_debug_paint_gaps(ui_view_t* v) {
-    if (v->debug.paint.gaps) {
+static void ui_view_debug_paint_margins(ui_view_t* v) {
+    if (v->debug.paint.margins) {
         if (v->type == ui_view_spacer) {
             ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
         }
-        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
-        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
         ui_color_t c = ui_colors.green;
         const int32_t pl = p.left;
         const int32_t pr = p.right;
@@ -927,60 +927,60 @@ static void ui_view_test(void) {
 #pragma pop_macro("ui_view_no_siblings")
 
 ui_view_if ui_view = {
-    .add                = ui_view_add,
-    .add_first          = ui_view_add_first,
-    .add_last           = ui_view_add_last,
-    .add_after          = ui_view_add_after,
-    .add_before         = ui_view_add_before,
-    .remove             = ui_view_remove,
-    .remove_all         = ui_view_remove_all,
-    .disband            = ui_view_disband,
-    .inside             = ui_view_inside,
-    .is_parent_of       = ui_view_is_parent_of,
-    .gaps               = ui_view_gaps,
-    .inbox              = ui_view_inbox,
-    .outbox             = ui_view_outbox,
-    .set_text           = ui_view_set_text,
-    .set_text_va        = ui_view_set_text_va,
-    .invalidate         = ui_view_invalidate,
-    .text_metrics_va    = ui_view_text_metrics_va,
-    .text_metrics       = ui_view_text_metrics,
-    .text_measure       = ui_view_text_measure,
-    .text_align         = ui_view_text_align,
-    .measure_control    = ui_view_measure_control,
-    .measure_children   = ui_view_measure_children,
-    .layout_children    = ui_view_layout_children,
-    .measure            = ui_view_measure,
-    .layout             = ui_view_layout,
-    .string             = ui_view_string,
-    .is_hidden          = ui_view_is_hidden,
-    .is_disabled        = ui_view_is_disabled,
-    .is_control         = ui_view_is_control,
-    .is_container       = ui_view_is_container,
-    .is_spacer          = ui_view_is_spacer,
-    .timer              = ui_view_timer,
-    .every_sec          = ui_view_every_sec,
-    .every_100ms        = ui_view_every_100ms,
-    .hit_test           = ui_view_hit_test,
-    .key_pressed        = ui_view_key_pressed,
-    .key_released       = ui_view_key_released,
-    .character          = ui_view_character,
-    .paint              = ui_view_paint,
-    .set_focus          = ui_view_set_focus,
-    .kill_focus         = ui_view_kill_focus,
-    .kill_hidden_focus  = ui_view_kill_hidden_focus,
-    .mouse              = ui_view_mouse,
-    .mouse_wheel        = ui_view_mouse_wheel,
-    .hovering           = ui_view_hovering,
-    .hover_changed      = ui_view_hover_changed,
-    .is_shortcut_key    = ui_view_is_shortcut_key,
-    .context_menu       = ui_view_context_menu,
-    .tap                = ui_view_tap,
-    .press              = ui_view_press,
-    .message            = ui_view_message,
-    .debug_paint_gaps   = ui_view_debug_paint_gaps,
-    .debug_paint_fm     = ui_view_debug_paint_fm,
-    .test               = ui_view_test
+    .add                 = ui_view_add,
+    .add_first           = ui_view_add_first,
+    .add_last            = ui_view_add_last,
+    .add_after           = ui_view_add_after,
+    .add_before          = ui_view_add_before,
+    .remove              = ui_view_remove,
+    .remove_all          = ui_view_remove_all,
+    .disband             = ui_view_disband,
+    .inside              = ui_view_inside,
+    .is_parent_of        = ui_view_is_parent_of,
+    .margins                = ui_view_margins,
+    .inbox               = ui_view_inbox,
+    .outbox              = ui_view_outbox,
+    .set_text            = ui_view_set_text,
+    .set_text_va         = ui_view_set_text_va,
+    .invalidate          = ui_view_invalidate,
+    .text_metrics_va     = ui_view_text_metrics_va,
+    .text_metrics        = ui_view_text_metrics,
+    .text_measure        = ui_view_text_measure,
+    .text_align          = ui_view_text_align,
+    .measure_control     = ui_view_measure_control,
+    .measure_children    = ui_view_measure_children,
+    .layout_children     = ui_view_layout_children,
+    .measure             = ui_view_measure,
+    .layout              = ui_view_layout,
+    .string              = ui_view_string,
+    .is_hidden           = ui_view_is_hidden,
+    .is_disabled         = ui_view_is_disabled,
+    .is_control          = ui_view_is_control,
+    .is_container        = ui_view_is_container,
+    .is_spacer           = ui_view_is_spacer,
+    .timer               = ui_view_timer,
+    .every_sec           = ui_view_every_sec,
+    .every_100ms         = ui_view_every_100ms,
+    .hit_test            = ui_view_hit_test,
+    .key_pressed         = ui_view_key_pressed,
+    .key_released        = ui_view_key_released,
+    .character           = ui_view_character,
+    .paint               = ui_view_paint,
+    .set_focus           = ui_view_set_focus,
+    .kill_focus          = ui_view_kill_focus,
+    .kill_hidden_focus   = ui_view_kill_hidden_focus,
+    .mouse               = ui_view_mouse,
+    .mouse_wheel         = ui_view_mouse_wheel,
+    .hovering            = ui_view_hovering,
+    .hover_changed       = ui_view_hover_changed,
+    .is_shortcut_key     = ui_view_is_shortcut_key,
+    .context_menu        = ui_view_context_menu,
+    .tap                 = ui_view_tap,
+    .press               = ui_view_press,
+    .message             = ui_view_message,
+    .debug_paint_margins = ui_view_debug_paint_margins,
+    .debug_paint_fm      = ui_view_debug_paint_fm,
+    .test                = ui_view_test
 };
 
 #ifdef UI_VIEW_TEST

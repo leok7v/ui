@@ -91,8 +91,8 @@ typedef struct ui_edit_if {
     // call save(e, null, &bytes) to retrieve number of utf8
     // bytes required to save whole text including 0x00 terminating bytes
     errno_t (*save)(ui_edit_t* e, char* text, int32_t* bytes);
-    void (*copy_to_clipboard)(ui_edit_t* e); // selected text to clipboard
-    void (*cut_to_clipboard)(ui_edit_t* e);  // copy selected text to clipboard and erase it
+    void (*copy_to_clipboard)(ui_edit_t* e);
+    void (*cut_to_clipboard)(ui_edit_t* e);
     // replace selected text with content of clipboard:
     void (*paste_from_clipboard)(ui_edit_t* e);
     void (*select_all)(ui_edit_t* e); // select whole text
@@ -121,36 +121,41 @@ extern ui_edit_if ui_edit;
 
 /*
     Notes:
-    set_font() - neither edit.view.font = font nor measure()/layout() functions
-                 do NOT dispose paragraphs layout unless geometry changed because
-                 it is quite expensive operation. But choosing different font
-                 on the fly needs to re-layout all paragraphs. Thus caller needs
-                 to set font via this function instead which also requests
-                 edit UI element re-layout.
+    set_font()
+        neither edit.view.font = font nor measure()/layout() functions
+        do NOT dispose paragraphs layout unless geometry changed because
+        it is quite expensive operation. But choosing different font
+        on the fly needs to re-layout all paragraphs. Thus caller needs
+        to set font via this function instead which also requests
+        edit UI element re-layout.
 
-    .ro        - readonly edit->ro is used to control readonly mode.
-                 If edit control is readonly its appearance does not change but it
-                 refuses to accept any changes to the rendered text.
+    .ro
+        readonly edit->ro is used to control readonly mode.
+        If edit control is readonly its appearance does not change but it
+        refuses to accept any changes to the rendered text.
 
-    .wb        - wordbreak this attribute was removed as poor UX human experience
-                 along with single line scroll editing. See note below about .sle.
+    .wb
+        wordbreak this attribute was removed as poor UX human experience
+        along with single line scroll editing. See note below about .sle.
 
-    .sle       - Single line edit control.
-                 Edit UI element does NOT support horizontal scroll and breaking
-                 words semantics as it is poor UX human experience. This is not
-                 how humans (apart of software developers) edit text.
-                 If content of the edit UI element is wider than the bounding box
-                 width the content is broken on word boundaries and vertical scrolling
-                 semantics is supported. Layouts containing edit control of the single
-                 line height are strongly encouraged to enlarge edit control layout
-                 vertically on as needed basis similar to Google Search Box behavior
-                 change implemented in 2023.
-                 If multiline is set to true by the callers code the edit UI layout
-                 snaps text to the top of x,y,w,h box otherwise the vertical space
-                 is distributed evenly between single line of text and top bottom gaps.
-                 IMPORTANT: SLE resizes itself vertically to accommodate for
-                 input that is too wide. If caller wants to limit vertical space it
-                 will need to hook .measure() function of SLE and do the math there.
+    .sle
+        single line edit control.
+        Edit UI element does NOT support horizontal scroll and breaking
+        words semantics as it is poor UX human experience. This is not
+        how humans (apart of software developers) edit text.
+        If content of the edit UI element is wider than the bounding box
+        width the content is broken on word boundaries and vertical scrolling
+        semantics is supported. Layouts containing edit control of the single
+        line height are strongly encouraged to enlarge edit control layout
+        vertically on as needed basis similar to Google Search Box behavior
+        change implemented in 2023.
+        If multiline is set to true by the callers code the edit UI layout
+        snaps text to the top of x,y,w,h box otherwise the vertical space
+        is distributed evenly between single line of text and top bottom
+        margins.
+        IMPORTANT: SLE resizes itself vertically to accommodate for
+        input that is too wide. If caller wants to limit vertical space it
+        will need to hook .measure() function of SLE and do the math there.
 */
 
 /*

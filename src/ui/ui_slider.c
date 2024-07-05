@@ -9,11 +9,11 @@ static void ui_slider_invalidate(const ui_slider_t* s) {
 }
 
 static int32_t ui_slider_width(const ui_slider_t* s) {
-    const ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
+    const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
     int32_t w = s->w - i.left - i.right;
     if (!s->dec.state.hidden) {
-        const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
-        const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
+        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
         w -= s->dec.w + s->inc.w + dec_p.right + inc_p.left;
     }
     return w;
@@ -32,18 +32,18 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     char formatted[ut_countof(s->p.text)];
     const ui_fm_t* fm = s->fm;
     const char* text = ui_view.string(&s->view);
-    const ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
+    const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
     ui_wh_t mt = s->fm->em;
     if (s->debug.trace.mt) {
-        const ui_ltrb_t p = ui_view.gaps(&s->view, &s->padding);
+        const ui_ltrb_t p = ui_view.margins(&s->view, &s->padding);
         traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
             ut_min(64, strlen(text)), text);
-        const ui_gaps_t in = s->insets;
-        const ui_gaps_t pd = s->padding;
+        const ui_margins_t in = s->insets;
+        const ui_margins_t pd = s->padding;
         traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
@@ -76,7 +76,7 @@ static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // slider cannot be smaller than 2*em
     const fp32_t min_w_em = ut_max(2.0f, v->min_w_em);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)   min_w_em + 0.5);
@@ -91,8 +91,8 @@ static void ui_slider_measure(ui_view_t* v) {
     } else {
         ui_view.measure(&s->dec); // remeasure with inherited metrics
         ui_view.measure(&s->inc);
-        const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
-        const ui_ltrb_t inc_p = ui_view.gaps(&s->inc, &s->inc.padding);
+        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
         v->w = ut_max(v->w, s->dec.w + dec_p.right + s->mt.w + inc_p.left + s->inc.w);
     }
     v->h = ut_max(v->h, i.top + fm->em.h + i.bottom);
@@ -105,7 +105,7 @@ static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     // disregard inc/dec .state.hidden bit for layout:
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     s->dec.x = v->x + i.left;
     s->dec.y = v->y;
     s->inc.x = v->x + v->w - i.right - s->inc.w;
@@ -116,8 +116,8 @@ static void ui_slider_paint(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
-    const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
     assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
@@ -177,13 +177,13 @@ static void ui_slider_paint(ui_view_t* v) {
 static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         assert(v->type == ui_view_slider);
-        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
         ui_slider_t* s = (ui_slider_t*)v;
         bool drag = message == ui.message.mouse_move &&
             (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
         if (message == ui.message.left_button_pressed ||
             message == ui.message.right_button_pressed || drag) {
-            const ui_ltrb_t dec_p = ui_view.gaps(&s->dec, &s->dec.padding);
+            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
             assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
             const int32_t sw = ui_slider_width(s); // slider width

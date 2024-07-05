@@ -2174,13 +2174,13 @@ static void ui_app_init(void) {
     assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;
-    ui_app.root->insets  = (ui_gaps_t){ 0, 0, 0, 0 };
-    ui_app.root->padding = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_app.root->insets  = (ui_margins_t){ 0, 0, 0, 0 };
+    ui_app.root->padding = (ui_margins_t){ 0, 0, 0, 0 };
     ui_app.root->paint = ui_app_view_paint;
     ui_app.root->max_w = ui.infinity;
     ui_app.root->max_h = ui.infinity;
-    ui_app.content->insets  = (ui_gaps_t){ 0, 0, 0, 0 };
-    ui_app.content->padding = (ui_gaps_t){ 0, 0, 0, 0 };
+    ui_app.content->insets  = (ui_margins_t){ 0, 0, 0, 0 };
+    ui_app.content->padding = (ui_margins_t){ 0, 0, 0, 0 };
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->state.hidden = !ui_app.no_decor;

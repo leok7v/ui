@@ -163,7 +163,7 @@ static void println(int32_t *x, int32_t *y, const char* format, ...) {
 }
 
 static void after(ui_view_t* v, const char* format, ...) {
-    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     int32_t x = v->x + v->w + v->fm->em.w;
     int32_t y = v->y + insets.top;
     va_list va;

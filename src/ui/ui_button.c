@@ -62,7 +62,7 @@ static void ui_button_paint(ui_view_t* v) {
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
-        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
         const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                                .h = v->h - i.top - i.bottom };
         // TODO: icon text alignment

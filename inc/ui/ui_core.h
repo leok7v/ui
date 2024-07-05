@@ -32,7 +32,7 @@ typedef struct ui_image_s { // TODO: ui_ namespace
     void* pixels;
 } ui_image_t;
 
-// ui_gaps_t are used for padding and insets and expressed
+// ui_margins_t are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.
 // Pay attention that "em" is not square. "M" measurement
 // for most fonts are em.w = 0.5 * em.h
@@ -42,7 +42,7 @@ typedef struct ui_gaps_s { // in partial "em"s
     fp32_t top;
     fp32_t right;
     fp32_t bottom;
-} ui_gaps_t;
+} ui_margins_t;
 
 typedef struct ui_s {
     bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
@@ -176,11 +176,11 @@ typedef struct ui_s {
 
 extern ui_if ui;
 
-// ui_gaps_t in "em"s:
+// ui_margins_t in "em"s:
 //
 // The reason is that UI fonts may become larger smaller
 // for accessibility reasons with the same display
-// density in DPIs. Humanoid would expect the gaps around
+// density in DPIs. Humanoid would expect the margins around
 // larger font text to grow with font size increase.
 // SwingUI and MacOS is using "pt" for padding which does
 // not account to font size changes. MacOS does weird stuff
