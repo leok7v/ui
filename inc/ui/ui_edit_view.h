@@ -56,6 +56,7 @@ typedef struct ui_edit_s {
     ui_edit_notify_view_t listener;
     ui_edit_range_t selection; // "from" selection[0] "to" selection[1]
     ui_point_t caret; // (-1, -1) off
+    int32_t caret_width; // in pixels
     ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
     int32_t last_x;    // last_x for up/down caret movement
     ui_ltrb_t inside;  // inside insets space

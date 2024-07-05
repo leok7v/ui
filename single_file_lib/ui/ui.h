@@ -1300,6 +1300,7 @@ typedef struct ui_edit_s {
     ui_edit_notify_view_t listener;
     ui_edit_range_t selection; // "from" selection[0] "to" selection[1]
     ui_point_t caret; // (-1, -1) off
+    int32_t caret_width; // in pixels
     ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
     int32_t last_x;    // last_x for up/down caret movement
     ui_ltrb_t inside;  // inside insets space
@@ -8165,21 +8166,25 @@ static void ui_edit_invalidate_view(const ui_edit_t* e) {
 }
 
 static void ui_edit_invalidate_rect(const ui_edit_t* e, const ui_rect_t rc) {
+    assert(rc.w > 0 && rc.h > 0);
     ui_view.invalidate(&e->view, &rc);
 }
 
 static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
-    ui_edit_range_t r = ui_edit_range.order(e->selection);
-    ui_point_t p0 = ui_edit_pg_to_xy(e, r.from);
-    ui_point_t p1 = ui_edit_pg_to_xy(e, r.to);
-    if (p0.y == p1.y) {
-        return (ui_rect_t) { .x = p0.x, .y = p0.y,
-                             .w = p1.x - p0.x, .h = e->fm->height };
+    const ui_edit_range_t r = ui_edit_range.order(e->selection);
+    const ui_ltrb_t i = ui_view.gaps(&e->view, &e->insets);
+    const ui_point_t p0 = ui_edit_pg_to_xy(e, r.from);
+    const ui_point_t p1 = ui_edit_pg_to_xy(e, r.to);
+    if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
+        return (ui_rect_t) { .x = 0, .y = 0, .w = e->w, .h = e->h };
+    } else if (p0.y == p1.y) {
+        int32_t w = p1.x - p0.x != 0 ? p1.x - p0.x : e->caret_width;
+        return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
+                             .w = w, .h = e->fm->height };
     } else {
         const int32_t h = p1.y - p0.y + e->fm->height;
-        const ui_ltrb_t i = ui_view.gaps(&e->view, &e->insets);
-        return (ui_rect_t) { .x = i.left, .y = p0.y,
-                             .w = e->edit.w, .h = h };
+        return (ui_rect_t) { .x = 0, .y = i.top + p0.y,
+                             .w = e->w, .h = h };
     }
 }
 
@@ -8401,8 +8406,8 @@ static void ui_edit_create_caret(ui_edit_t* e) {
     assert(ui_app.is_active());
     assert(ui_app.has_focus());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
-    int32_t caret_width = ut_min(3, ut_max(1, (int32_t)px));
-    ui_app.create_caret(caret_width, e->fm->height);
+    e->caret_width = ut_min(3, ut_max(1, (int32_t)px));
+    ui_app.create_caret(e->caret_width, e->fm->height);
     e->focused = true; // means caret was created
 }
 
@@ -8576,8 +8581,10 @@ static int32_t ui_edit_first_visible_run(ui_edit_t* e, int32_t pn) {
 
 static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
     ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pg.pn && pg.pn < dt->np);
     ui_point_t pt = { .x = -1, .y = 0 };
-    for (int32_t i = e->scroll.pn; i < dt->np && pt.x < 0; i++) {
+    const int32_t pn = ut_min(ut_min(e->scroll.pn + e->visible_runs + 1, pg.pn + 1), dt->np - 1);
+    for (int32_t i = e->scroll.pn; i <= pn && pt.x < 0; i++) {
         assert(0 <= i && i < dt->np);
         const ui_edit_str_t* str = &dt->ps[i];
         int32_t runs = 0;
@@ -8603,7 +8610,9 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
     if (0 <= pt.x && pt.x < e->edit.w && 0 <= pt.y && pt.y < e->edit.h) {
         // all good, inside visible rectangle or right after it
     } else {
-        traceln("(%d,%d) outside of %dx%d", pt.x, pt.y, e->edit.w, e->edit.h);
+//      traceln("%d:%d (%d,%d) outside of %dx%d", pg.pn, pg.gp,
+//          pt.x, pt.y, e->edit.w, e->edit.h);
+        pt = (ui_point_t){-1, -1};
     }
     return pt;
 }
@@ -8670,71 +8679,10 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
     return pg;
 }
 
-static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t* r,
-        const char* text, int32_t pn, int32_t c0, int32_t c1) {
-    uint64_t s0 = ui_edit_range.uint64(e->selection.a[0]);
-    uint64_t e0 = ui_edit_range.uint64(e->selection.a[1]);
-    if (s0 > e0) {
-        uint64_t swap = e0;
-        e0 = s0;
-        s0 = swap;
-    }
-    const ui_edit_pg_t pnc0 = {.pn = pn, .gp = c0};
-    const ui_edit_pg_t pnc1 = {.pn = pn, .gp = c1};
-    uint64_t s1 = ui_edit_range.uint64(pnc0);
-    uint64_t e1 = ui_edit_range.uint64(pnc1);
-    if (s0 <= e1 && s1 <= e0) {
-        uint64_t start = ut_max(s0, s1) - (uint64_t)c0;
-        uint64_t end = ut_min(e0, e1) - (uint64_t)c0;
-        if (start < end) {
-            int32_t fro = (int32_t)start;
-            int32_t to  = (int32_t)end;
-            int32_t ofs0 = ui_edit_str.gp_to_bp(text, r->bytes, fro);
-            int32_t ofs1 = ui_edit_str.gp_to_bp(text, r->bytes, to);
-            swear(ofs0 >= 0 && ofs1 >= 0);
-            int32_t x0 = ui_edit_text_width(e, text, ofs0);
-            int32_t x1 = ui_edit_text_width(e, text, ofs1);
-            // selection_color is MSVC dark mode selection color
-            // TODO: need light mode selection color tpp
-            ui_color_t selection_color = ui_color_rgb(0x26, 0x4F, 0x78); // ui_color_rgb(64, 72, 96);
-            if (!e->focused || !ui_app.has_focus()) {
-                selection_color = ui_colors.darken(selection_color, 0.1f);
-            }
-            const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
-            int32_t x = e->x + insets.left;
-            ui_gdi.fill(x + x0, y, x1 - x0, e->fm->height, selection_color);
-        }
-    }
-}
-
-static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
-        const ui_gdi_ta_t* ta, int32_t x, int32_t y, int32_t pn) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    assert(0 <= pn && pn < dt->np);
-    const ui_edit_str_t* str = &dt->ps[pn];
-    int32_t runs = 0;
-    const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
-    for (int32_t j = ui_edit_first_visible_run(e, pn);
-                 j < runs && y < e->y + e->inside.bottom; j++) {
-        const char* text = str->u + run[j].bp;
-        ui_edit_paint_selection(e, y, &run[j], text, pn,
-                                run[j].gp, run[j].gp + run[j].glyphs);
-        ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
-        if (j < runs - 1 && !e->hide_word_wrap) {
-            ui_gdi.text(ta, x + e->edit.w, y, "%s",
-                        ut_glyph_south_west_arrow_with_hook);
-        }
-        y += e->fm->height;
-    }
-    return y;
-}
-
 static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
     if (e->caret.x != x || e->caret.y != y) {
         if (e->focused && ui_app.has_focus()) {
-//            ui_app.hide_caret();
             ui_app.move_caret(e->x + x, e->y + y);
-//            ui_app.show_caret();
         }
         e->caret.x = x;
         e->caret.y = y;
@@ -8793,6 +8741,7 @@ static void ui_edit_scroll_down(ui_edit_t* e, int32_t run_count) {
         run_count--;
     }
     ui_edit_if_sle_layout(e);
+    ui_edit_invalidate_view(e);
 }
 
 static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
@@ -8828,11 +8777,13 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
         if (scroll <= caret && caret < last) {
             // no scroll
         } else if (caret < scroll) {
+            ui_edit_invalidate_view(e);
             e->scroll.pn = pg.pn;
             e->scroll.rn = rn;
         } else if (e->sle && sle_runs * e->fm->height <= e->h) {
             // single line edit control fits vertically - no scroll
         } else {
+            ui_edit_invalidate_view(e);
             assert(caret >= last);
             e->scroll.pn = pg.pn;
             e->scroll.rn = rn;
@@ -9710,29 +9661,90 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     }
 }
 
+static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t* r,
+        const char* text, int32_t pn, int32_t c0, int32_t c1) {
+    uint64_t s0 = ui_edit_range.uint64(e->selection.a[0]);
+    uint64_t e0 = ui_edit_range.uint64(e->selection.a[1]);
+    if (s0 > e0) {
+        uint64_t swap = e0;
+        e0 = s0;
+        s0 = swap;
+    }
+    const ui_edit_pg_t pnc0 = {.pn = pn, .gp = c0};
+    const ui_edit_pg_t pnc1 = {.pn = pn, .gp = c1};
+    uint64_t s1 = ui_edit_range.uint64(pnc0);
+    uint64_t e1 = ui_edit_range.uint64(pnc1);
+    if (s0 <= e1 && s1 <= e0) {
+        uint64_t start = ut_max(s0, s1) - (uint64_t)c0;
+        uint64_t end = ut_min(e0, e1) - (uint64_t)c0;
+        if (start < end) {
+            int32_t fro = (int32_t)start;
+            int32_t to  = (int32_t)end;
+            int32_t ofs0 = ui_edit_str.gp_to_bp(text, r->bytes, fro);
+            int32_t ofs1 = ui_edit_str.gp_to_bp(text, r->bytes, to);
+            swear(ofs0 >= 0 && ofs1 >= 0);
+            int32_t x0 = ui_edit_text_width(e, text, ofs0);
+            int32_t x1 = ui_edit_text_width(e, text, ofs1);
+            // selection_color is MSVC dark mode selection color
+            // TODO: need light mode selection color tpp
+            ui_color_t selection_color = ui_color_rgb(0x26, 0x4F, 0x78); // ui_color_rgb(64, 72, 96);
+            if (!e->focused || !ui_app.has_focus()) {
+                selection_color = ui_colors.darken(selection_color, 0.1f);
+            }
+            const ui_ltrb_t insets = ui_view.gaps(&e->view, &e->insets);
+            int32_t x = e->x + insets.left;
+            ui_gdi.fill(x + x0, y, x1 - x0, e->fm->height, selection_color);
+        }
+    }
+}
+
+static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
+        const ui_gdi_ta_t* ta, int32_t x, int32_t y, int32_t pn) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    assert(0 <= pn && pn < dt->np);
+    const ui_edit_str_t* str = &dt->ps[pn];
+    int32_t runs = 0;
+    const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
+    for (int32_t j = ui_edit_first_visible_run(e, pn);
+                 j < runs && y < e->y + e->inside.bottom; j++) {
+        const char* text = str->u + run[j].bp;
+        ui_edit_paint_selection(e, y, &run[j], text, pn,
+                                run[j].gp, run[j].gp + run[j].glyphs);
+        ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
+        if (j < runs - 1 && !e->hide_word_wrap) {
+            ui_gdi.text(ta, x + e->edit.w, y, "%s",
+                        ut_glyph_south_west_arrow_with_hook);
+        }
+        y += e->fm->height;
+    }
+    return y;
+}
+
 static void ui_edit_paint(ui_view_t* v) {
     assert(v->type == ui_view_text);
     assert(!ui_view.is_hidden(v));
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
-    ui_gdi.set_clip(v->x + e->inside.left,  v->y + e->inside.top,
-                    e->edit.w + e->inside.right, e->edit.h);
-    const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
-    int32_t x = v->x + insets.left;
-    int32_t y = v->y + insets.top;
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
-    const int32_t pn = e->scroll.pn;
-    const int32_t bottom = v->y + e->inside.bottom;
-    assert(pn <= dt->np);
-    for (int32_t i = pn; i < dt->np && y < bottom; i++) {
-        if (ui_app.prc.y <= y && y <= ui_app.prc.y + ui_app.prc.h) {
-            y = ui_edit_paint_paragraph(e, &ta, x, y, i);
-        } else {
-            y += v->fm->height;
+    // drawing text is really expensive, only paint what's needed:
+    ui_rect_t vrc = (ui_rect_t){v->x, v->y, v->w, v->h};
+    ui_rect_t rc;
+    if (ui.intersect_rect(&rc, &vrc, &ui_app.prc)) {
+        ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, v->background);
+        const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
+        int32_t x = v->x + insets.left;
+        int32_t y = v->y + insets.top;
+        const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
+        const int32_t pn = e->scroll.pn;
+        const int32_t bottom = v->y + e->inside.bottom;
+        assert(pn <= dt->np);
+        for (int32_t i = pn; i < dt->np && y < bottom; i++) {
+            if (rc.y - v->fm->height <= y && y < rc.y + rc.h) {
+                y = ui_edit_paint_paragraph(e, &ta, x, y, i);
+            } else {
+                y += v->fm->height;
+            }
         }
     }
-    ui_gdi.set_clip(0, 0, 0, 0);
 }
 
 static void ui_edit_move(ui_edit_t* e, ui_edit_pg_t pg) {
