@@ -60,9 +60,9 @@ typedef struct ui_edit_s {
     int32_t last_x;    // last_x for up/down caret movement
     ui_ltrb_t inside;  // inside insets space
     struct {
-        int32_t w;     // inside.right - inside.left
-        int32_t h;     // inside.bottom - inside.top
-        int32_t mouse; // bit 0 and bit 1 for LEFT and RIGHT buttons down
+        int32_t w;       // inside.right - inside.left
+        int32_t h;       // inside.bottom - inside.top
+        int32_t buttons; // bit 0 and bit 1 for LEFT and RIGHT mouse buttons down
     } edit;
     // number of fully (not partially clipped) visible `runs' from top to bottom:
     int32_t visible_runs;

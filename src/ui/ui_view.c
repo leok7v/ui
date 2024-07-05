@@ -583,39 +583,27 @@ static void ui_view_paint(ui_view_t* v) {
     }
 }
 
-static bool ui_view_set_focus(ui_view_t* v) {
-    bool set = false;
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        // attempt to set focus on deepest child first
-        ui_view_for_each(v, c, {
-            set = ui_view_set_focus(c);
-            if (set) { break; }
-        });
-        // if no children claimed focus and control itself is
-        // focusable set focus on it:
-        if (!set && v->focusable) {
-            ui_view_t* focused = ui_app.focus;
-            ui_app.focus = null;
-            if (focused != null) { ui_view.kill_focus(focused); }
-            if (v->set_focus != null) {
-                set = v->set_focus(v);
-            } else {
-                traceln("setting focus to view %s that does "
-                        "not implement set_focus()", v->p.text);
-                ui_app.focus = v;
-                set = true;
-            }
-        }
-    }
-    return set;
+static bool ui_view_has_focus(const ui_view_t* v) {
+    return ui_app.focused() && ui_app.focus == v;
 }
 
-static void ui_view_kill_focus(ui_view_t* v) {
-    // notify all the focusable children that the focus is lost
-    ui_view_for_each(v, c, { ui_view_kill_focus(c); });
-    // notify all the view itself that the focus is lost even if
-    // it is not .focusable itself:
-    if (v->kill_focus != null) { v->kill_focus(v); }
+static void ui_view_set_focus(ui_view_t* v) {
+    if (ui_app.focus != v) {
+        ui_view_t* loosing = ui_app.focus;
+        ui_view_t* gaining = v;
+        if (gaining != null) {
+            swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
+                                        !ui_view.is_disabled(gaining));
+        }
+        if (loosing != null) { swear(loosing->focusable); }
+        ui_app.focus = v;
+        if (loosing != null && loosing->focus_lost != null) {
+            loosing->focus_lost(loosing);
+        }
+        if (gaining != null && gaining->focus_gained != null) {
+            gaining->focus_gained(gaining);
+        }
+    }
 }
 
 static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
@@ -655,14 +643,15 @@ static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
                 ui_view.hover_changed(v);
             }
         }
+        // setting focus must preceed mouse message delivery:
+        if (click && v->focusable && !ui_view.is_disabled(v) &&
+             ui_view.inside(v, &ui_app.mouse)) {
+            ui_view.set_focus(v);
+        }
         // mouse hover and move are dispatched even to disable controls
         if (!ui_view.is_disabled(v) || moving) {
             if (v->mouse != null) { v->mouse(v, m, f); }
             ui_view_for_each(v, c, { ui_view_mouse(c, m, f); } );
-        }
-        if (!ui_view.is_disabled(v) && click && v->focusable &&
-             ui_view.inside(v, &ui_app.mouse)) {
-            ui_view.set_focus(v);
         }
     }
 }
@@ -688,15 +677,15 @@ static void ui_view_hover_changed(ui_view_t* v) {
     }
 }
 
-static void ui_view_kill_hidden_focus(ui_view_t* v) {
+static void ui_view_lose_hidden_focus(ui_view_t* v) {
     // removes focus from hidden or disabled ui controls
     if (ui_app.focus != null) {
         if (ui_app.focus == v && (v->state.disabled || v->state.hidden)) {
-            ui_app.focus = null;
-            // even for disabled or hidden view notify about kill_focus:
-            v->kill_focus(v);
+            ui_view.set_focus(null);
         } else {
-            ui_view_for_each(v, c, { ui_view_kill_hidden_focus(c); });
+            ui_view_for_each(v, c, {
+                if (ui_app.focus != null) { ui_view_lose_hidden_focus(c); }
+            });
         }
     }
 }
@@ -937,7 +926,7 @@ ui_view_if ui_view = {
     .disband             = ui_view_disband,
     .inside              = ui_view_inside,
     .is_parent_of        = ui_view_is_parent_of,
-    .margins                = ui_view_margins,
+    .margins             = ui_view_margins,
     .inbox               = ui_view_inbox,
     .outbox              = ui_view_outbox,
     .set_text            = ui_view_set_text,
@@ -966,9 +955,9 @@ ui_view_if ui_view = {
     .key_released        = ui_view_key_released,
     .character           = ui_view_character,
     .paint               = ui_view_paint,
+    .has_focus           = ui_view_has_focus,
     .set_focus           = ui_view_set_focus,
-    .kill_focus          = ui_view_kill_focus,
-    .kill_hidden_focus   = ui_view_kill_hidden_focus,
+    .lose_hidden_focus   = ui_view_lose_hidden_focus,
     .mouse               = ui_view_mouse,
     .mouse_wheel         = ui_view_mouse_wheel,
     .hovering            = ui_view_hovering,

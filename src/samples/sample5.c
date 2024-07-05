@@ -41,7 +41,7 @@ static int32_t focused(void) {
 static void focus_back_to_edit(void) {
     const int32_t ix = focused();
     if (ix >= 0) {
-        ui_app.focus = &edit[ix]->view; // return focus where it was
+        ui_view.set_focus(&edit[ix]->view); // return focus where it was
     }
     ui_app.request_layout();
 }
@@ -56,13 +56,13 @@ static void scaled_fonts(void) {
     ui_gdi.update_fm(&pf, ui_gdi.font(ui_app.fm.regular.font, h, -1));
 }
 
-ui_button_clicked(full_screen, "&Full Screen", 9.0f, {
+ui_button_clicked(full_screen, "&Full Screen", 7.0f, {
     ui_app.full_screen(!ui_app.is_full_screen);
 });
 
-ui_button_clicked(quit, "&Quit", 9.0f, { ui_app.close(); });
+ui_button_clicked(quit, "&Quit", 7.0f, { ui_app.close(); });
 
-ui_button_clicked(fuzz, "Fu&zz", 9.0f, {
+ui_button_clicked(fuzz, "Fu&zz", 7.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         ui_edit.fuzz(edit[ix]);
@@ -71,7 +71,7 @@ ui_button_clicked(fuzz, "Fu&zz", 9.0f, {
     }
 });
 
-ui_toggle_on_off(ro, "&Read Only", 9.0f, {
+ui_toggle_on_off(ro, "&Read Only", 7.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->ro = ro->state.pressed;
@@ -80,7 +80,7 @@ ui_toggle_on_off(ro, "&Read Only", 9.0f, {
     }
 });
 
-ui_toggle_on_off(ww, "Hide &Word Wrap", 9.0f, {
+ui_toggle_on_off(ww, "Hide &Word Wrap", 7.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->hide_word_wrap = ww->state.pressed;
@@ -90,7 +90,7 @@ ui_toggle_on_off(ww, "Hide &Word Wrap", 9.0f, {
 });
 
 
-ui_toggle_on_off(mono, "&Mono", 9.0f, {
+ui_toggle_on_off(mono, "&Mono", 7.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         ui_edit.set_font(edit[ix], mono->state.pressed ? &mf : &pf);
@@ -100,7 +100,7 @@ ui_toggle_on_off(mono, "&Mono", 9.0f, {
     }
 });
 
-ui_toggle_on_off(sl, "&Single Line", 9.0f, {
+ui_toggle_on_off(sl, "&Single Line", 7.0f, {
     int32_t ix = focused();
     if (ix == 2) {
         sl->state.pressed = true; // always single line
@@ -139,9 +139,9 @@ static void font_reset(void) {
     ui_app.request_layout();
 }
 
-ui_button_clicked(fp, "Font Ctrl+", 9.0f, { font_plus(); });
+ui_button_clicked(fp, "Font Ctrl+", 7.0f, { font_plus(); });
 
-ui_button_clicked(fm, "Font Ctrl-", 9.0f, { font_minus(); });
+ui_button_clicked(fm, "Font Ctrl-", 7.0f, { font_minus(); });
 
 static ui_label_t label = ui_label(0.0, "...");
 
@@ -222,7 +222,7 @@ static void every_100ms(void) {
 
 static bool key_pressed(ui_view_t* unused(view), int64_t key) {
     bool swallow = false;
-    if (ui_app.has_focus() && key == ui.key.escape) { ui_app.close(); }
+    if (ui_app.focused() && key == ui.key.escape) { ui_app.close(); }
     int32_t ix = focused();
     if (key == ui.key.f5) {
         if (ix >= 0) {
@@ -284,7 +284,6 @@ static void opened(void) {
         ui_edit.fuzz = ui_edit_fuzz;
         ui_edit.next_fuzz = ui_edit_next_fuzz;
     }
-    ui_app.focus = &edit[0]->view;
     ui_app.every_100ms = every_100ms;
     set_text(0); // need to be two lines for measure
     edit[2]->sle = true;
@@ -332,6 +331,7 @@ static void opened(void) {
     left.max_h = ui.infinity;
     right.max_h = ui.infinity;
     if (ut_args.c > 1) { open_file(ut_args.v[1]); }
+    ui_view.set_focus(&edit[0]->view);
 }
 
 static void init(void) {

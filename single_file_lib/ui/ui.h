@@ -860,8 +860,8 @@ typedef struct ui_view_s {
     bool (*tap)(ui_view_t* v, int32_t ix);   // single click/tap inside ui
     bool (*press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
     void (*context_menu)(ui_view_t* v); // right mouse click or long press
-    bool (*set_focus)(ui_view_t* v); // returns true if focus is set
-    void (*kill_focus)(ui_view_t* v);
+    void (*focus_gained)(ui_view_t* v);
+    void (*focus_lost)(ui_view_t* v);
     // translated from key pressed/released to utf8:
     void (*character)(ui_view_t* v, const char* utf8);
     bool (*key_pressed)(ui_view_t* v, int64_t key);  // return true to stop
@@ -942,9 +942,9 @@ typedef struct ui_view_if {
     bool (*key_released)(ui_view_t* v, int64_t v_key);
     void (*character)(ui_view_t* v, const char* utf8);
     void (*paint)(ui_view_t* v);
-    bool (*set_focus)(ui_view_t* v);
-    void (*kill_focus)(ui_view_t* v);
-    void (*kill_hidden_focus)(ui_view_t* v);
+    bool (*has_focus)(const ui_view_t* v); // ui_app.focused() && ui_app.focus == v
+    void (*set_focus)(ui_view_t* view_or_null);
+    void (*lose_hidden_focus)(ui_view_t* v);
     void (*hovering)(ui_view_t* v, bool start);
     void (*mouse)(ui_view_t* v, int32_t m, int64_t f);
     void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy);
@@ -1316,9 +1316,9 @@ typedef struct ui_edit_s {
     int32_t last_x;    // last_x for up/down caret movement
     ui_ltrb_t inside;  // inside insets space
     struct {
-        int32_t w;     // inside.right - inside.left
-        int32_t h;     // inside.bottom - inside.top
-        int32_t mouse; // bit 0 and bit 1 for LEFT and RIGHT buttons down
+        int32_t w;       // inside.right - inside.left
+        int32_t h;       // inside.bottom - inside.top
+        int32_t buttons; // bit 0 and bit 1 for LEFT and RIGHT mouse buttons down
     } edit;
     // number of fully (not partially clipped) visible `runs' from top to bottom:
     int32_t visible_runs;
@@ -1930,7 +1930,7 @@ typedef struct {
     ui_view_t* root; // show_window() changes ui.hidden
     ui_view_t* content;
     ui_view_t* caption;
-    ui_view_t* focus;   // does not affect message routing - free for all
+    ui_view_t* focus; // does not affect message routing
     ui_fms_t   fm;
     ui_cursor_t cursor; // current cursor
     ui_cursor_t cursor_arrow;
@@ -1966,7 +1966,7 @@ typedef struct {
     bool (*is_active)(void); // is application window active
     bool (*is_minimized)(void);
     bool (*is_maximized)(void);
-    bool (*has_focus)(void); // application window has keyboard focus
+    bool (*focused)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
     void (*set_title)(const char* title);
     void (*capture_mouse)(bool on); // capture mouse global input on/of
@@ -2820,11 +2820,12 @@ static void ui_app_toast_cancel(void) {
     ui_app.animating.x = -1;
     ui_app.animating.y = -1;
     if (ui_app.animating.focused != null) {
-        if (!ui_view.set_focus(ui_app.animating.focused)) {
-            ui_app.focus = null;
-        }
+        ui_view.set_focus(ui_app.animating.focused->focusable &&
+           !ui_view.is_hidden(ui_app.animating.focused) &&
+           !ui_view.is_disabled(ui_app.animating.focused) ?
+            ui_app.animating.focused : null);
     } else {
-        ui_app.focus = null;
+        ui_view.set_focus(null);
     }
     ui_app.request_redraw();
 }
@@ -3229,7 +3230,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     const int64_t lp = (int64_t)l_param;
     int64_t ret = 0;
     ui_app_update_mouse_buttons_state();
-    ui_view.kill_hidden_focus(ui_app.root);
+    ui_view.lose_hidden_focus(ui_app.root);
     ui_app_click_detector((uint32_t)m, (WPARAM)wp, (LPARAM)lp);
     if (ui_view.message(ui_app.root, m, wp, lp, &ret)) {
         return (LRESULT)ret;
@@ -3249,7 +3250,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_GETMINMAXINFO:  ui_app_get_min_max_info((MINMAXINFO*)lp); break;
         case WM_THEMECHANGED :  ui_theme.refresh(); break;
         case WM_SETTINGCHANGE:  ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
-        case WM_CLOSE        :  ui_app.focus = null; // before WM_CLOSING
+        case WM_CLOSE        :  ui_view.set_focus(null); // before WM_CLOSING
                                 ui_app_post_message(ui.message.closing, 0, 0); return 0;
         case WM_DESTROY      :  PostQuitMessage(ui_app.exit_code); break;
         case WM_NCHITTEST    :  {
@@ -3293,11 +3294,15 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_SETFOCUS     :
             if (!ui_app.root->state.hidden) {
                 assert(GetActiveWindow() == ui_app_window());
-                ui_view.set_focus(ui_app.root);
+                if (ui_app.focus != null && ui_app.focus->focus_lost != null) {
+                    ui_app.focus->focus_gained(ui_app.focus);
+                }
             }
             break;
-        case WM_KILLFOCUS    :  if (!ui_app.root->state.hidden) {
-                                    ui_view.kill_focus(ui_app.root);
+        case WM_KILLFOCUS    :  if (!ui_app.root->state.hidden &&
+                                     ui_app.focus != null &&
+                                     ui_app.focus->focus_lost != null) {
+                                    ui_app.focus->focus_lost(ui_app.focus);
                                 }
                                 break;
         case WM_NCCALCSIZE:
@@ -4185,7 +4190,7 @@ static bool ui_app_is_minimized(void) { return IsIconic(ui_app_window()); }
 
 static bool ui_app_is_maximized(void) { return IsZoomed(ui_app_window()); }
 
-static bool ui_app_has_focus(void) { return GetFocus() == ui_app_window(); }
+static bool ui_app_focused(void) { return GetFocus() == ui_app_window(); }
 
 static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
@@ -4211,7 +4216,7 @@ static void ui_app_init(void) {
     ui_app.is_active            = ui_app_is_active;
     ui_app.is_minimized         = ui_app_is_minimized;
     ui_app.is_maximized         = ui_app_is_maximized;
-    ui_app.has_focus            = ui_app_has_focus;
+    ui_app.focused              = ui_app_focused;
     ui_app.request_focus        = ui_app_request_focus;
     ui_app.activate             = ui_app_activate;
     ui_app.set_title            = ui_app_set_title;
@@ -4252,10 +4257,6 @@ static void ui_app_init(void) {
     ui_app.root    = &ui_app_view;
     ui_app.content = &ui_app_content;
     ui_app.caption = &ui_caption.view;
-    ui_app.root->focusable = true;
-    ui_app.content->focusable = true;
-    ui_app.root->set_focus    = ui_app_set_focus; // children only
-    ui_app.content->set_focus = ui_app_set_focus; // children only
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
     assert(ui_app.content->type == ui_view_stack);
@@ -8442,7 +8443,7 @@ static int32_t ui_edit_glyphs_in_paragraph(ui_edit_t* e, int32_t pn) {
 static void ui_edit_create_caret(ui_edit_t* e) {
     fatal_if(e->focused);
     assert(ui_app.is_active());
-    assert(ui_app.has_focus());
+    assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
     e->caret_width = ut_min(3, ut_max(1, (int32_t)px));
     ui_app.create_caret(e->caret_width, e->fm->height);
@@ -8458,7 +8459,7 @@ static void ui_edit_destroy_caret(ui_edit_t* e) {
 static void ui_edit_show_caret(ui_edit_t* e) {
     if (e->focused) {
         assert(ui_app.is_active());
-        assert(ui_app.has_focus());
+        assert(ui_app.focused());
         assert((e->caret.x < 0) == (e->caret.y < 0));
         const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
         int32_t x = e->caret.x < 0 ? insets.left : e->caret.x;
@@ -8719,7 +8720,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
 
 static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
     if (e->caret.x != x || e->caret.y != y) {
-        if (e->focused && ui_app.has_focus()) {
+        if (e->focused && ui_app.focused()) {
             ui_app.move_caret(e->x + x, e->y + y);
         }
         e->caret.x = x;
@@ -8844,18 +8845,14 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pg.pn && pg.pn < dt->np);
     // single line edit control cannot move caret past fist paragraph
-    if (dt->np == 0) {
-        ui_edit_set_caret(e, e->inside.left, e->inside.top);
-    } else {
-        if (!e->sle || pg.pn < dt->np) {
-            ui_edit_scroll_into_view(e, pg);
-            ui_point_t pt = e->w > 0 ? // width == 0 means no measure/layout yet
-                ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
-            ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
-            e->selection.a[1] = pg;
-            if (!ui_app.shift && e->edit.mouse == 0) {
-                e->selection.a[0] = e->selection.a[1];
-            }
+    if (!e->sle || pg.pn < dt->np) {
+        ui_edit_scroll_into_view(e, pg);
+        ui_point_t pt = e->w > 0 ? // width == 0 means no measure/layout yet
+            ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
+        ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
+        e->selection.a[1] = pg;
+        if (!ui_app.shift && e->edit.buttons == 0) {
+            e->selection.a[0] = e->selection.a[1];
         }
     }
     ui_rect_t after = ui_edit_selection_rect(e);
@@ -9292,7 +9289,7 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
                 }
                 e->selection.a[1] = to;
                 ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-                e->edit.mouse = 0;
+                e->edit.buttons = 0;
             }
         }
     }
@@ -9316,16 +9313,13 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
             e->selection.a[1].pn++;
         }
         ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-        e->edit.mouse = 0;
+        e->edit.buttons = 0;
     }
 }
 
 static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_text_t* dt = &e->doc->text; // document text
-    traceln("TODO: select paragraph needs more state management pre double click");
-    if (dt->np == 0) {
-        // do nothing
-    } else if (e->selection.a[0].pn == e->selection.a[1].pn &&
+    if (e->selection.a[0].pn == e->selection.a[1].pn &&
         e->selection.a[0].gp == e->selection.a[1].gp) {
         ui_edit_select_word(e, x, y);
     } else {
@@ -9339,55 +9333,35 @@ static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
 static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
-    if (0 <= p.pn && 0 <= p.gp) {
+    if (0 <= p.pn && 0 <= p.gp && ui_view.has_focus(&e->view)) {
         assert(dt->np > 0);
         if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
-        int32_t glyphs = dt->np == 0 ? 0 : ui_edit_glyphs_in_paragraph(e, p.pn);
+        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         ui_edit_move_caret(e, p);
     }
 }
 
-static void ui_edit_focus_on_click(ui_edit_t* e, int32_t x, int32_t y) {
-    // was edit control focused before click arrives?
-    const bool app_has_focus = ui_app.has_focus();
-    bool focused = false;
-    if (e->edit.mouse != 0) {
-        if (app_has_focus && !e->focused) {
-            if (ui_app.focus != null && ui_app.focus->kill_focus != null) {
-                ui_app.focus->kill_focus(ui_app.focus);
-            }
-            ui_app.focus = &e->view;
-            bool set = e->set_focus(&e->view);
-            fatal_if(!set);
-            focused = true;
-        }
-        bool empty = memcmp(&e->selection.a[0], &e->selection.a[1],
-                                sizeof(e->selection.a[0])) == 0;
-        if (focused && !empty) {
-            // first click on unfocused edit should set focus but
-            // not set caret, because setting caret on click will
-            // destroy selection and this is bad UX
-        } else if (app_has_focus && e->focused) {
-            e->edit.mouse = 0;
-            ui_edit_click(e, x, y);
-        }
-    }
+static void ui_edit_on_click(ui_edit_t* e, int32_t x, int32_t y) {
+    e->edit.buttons = 0;
+    ui_edit_click(e, x, y);
 }
 
 static void ui_edit_mouse_button_down(ui_edit_t* e, int32_t m,
         int32_t x, int32_t y) {
-    if (m == ui.message.left_button_pressed)  { e->edit.mouse |= (1 << 0); }
-    if (m == ui.message.right_button_pressed) { e->edit.mouse |= (1 << 1); }
-    ui_edit_focus_on_click(e, x, y);
+    if (m == ui.message.left_button_pressed)  { e->edit.buttons |= (1 << 0); }
+    if (m == ui.message.right_button_pressed) { e->edit.buttons |= (1 << 1); }
+    ui_edit_on_click(e, x, y);
 }
 
 static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t m) {
-    if (m == ui.message.left_button_released)  { e->edit.mouse &= ~(1 << 0); }
-    if (m == ui.message.right_button_released) { e->edit.mouse &= ~(1 << 1); }
+    if (m == ui.message.left_button_released)  { e->edit.buttons &= ~(1 << 0); }
+    if (m == ui.message.right_button_released) { e->edit.buttons &= ~(1 << 1); }
 }
 
-#ifdef EDIT_USE_TAP
+#undef UI_EDIT_USE_TAP  // defining it leads to delays in caret movement
+
+#ifdef UI_EDIT_USE_TAP
 
 static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
     if (ix == 0) {
@@ -9396,9 +9370,9 @@ static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
         const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
-            e->edit.mouse = 0x1;
-            ui_edit_focus_on_click(e, x, y);
-            e->edit.mouse = 0x0;
+            e->edit.buttons = 0x1;
+            ui_edit_on_click(e, x, y);
+            e->edit.buttons = 0x0;
         }
         return inside;
     } else {
@@ -9406,7 +9380,7 @@ static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
     }
 }
 
-#endif // EDIT_USE_TAP
+#endif // UI_EDIT_USE_TAP
 
 static bool ui_edit_press(ui_view_t* v, int32_t ix) {
     if (ix == 0) {
@@ -9415,10 +9389,10 @@ static bool ui_edit_press(ui_view_t* v, int32_t ix) {
         const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
-            e->edit.mouse = 0x1;
-            ui_edit_focus_on_click(e, x, y);
+            e->edit.buttons = 0x1;
+            ui_edit_on_click(e, x, y);
             ui_edit_double_click(e, x, y);
-            e->edit.mouse = 0x0;
+            e->edit.buttons = 0x0;
         }
         return inside;
     } else {
@@ -9430,9 +9404,9 @@ static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
     assert(v->type == ui_view_text);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_edit_t* e = (ui_edit_t*)v;
-    const int32_t x = ui_app.mouse.x - e->x - e->inside.left;
-    const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
-    bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
+    const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
+    const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
+    bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
     if (inside) {
         if (m == ui.message.left_button_pressed ||
             m == ui.message.right_button_pressed) {
@@ -9472,21 +9446,21 @@ static void ui_edit_mouse_wheel(ui_view_t* v, int32_t unused(dx), int32_t dy) {
     }
 }
 
-static bool ui_edit_set_focus(ui_view_t* v) {
+static bool ui_edit_focus_gained(ui_view_t* v) {
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
-    assert(ui_app.focus == v || ui_app.focus == null);
     assert(v->focusable);
-    ui_app.focus = v;
-    if (ui_app.has_focus() && !e->focused) {
+    if (ui_app.focused() && !e->focused) {
         ui_edit_create_caret(e);
         ui_edit_show_caret(e);
         ui_edit_if_sle_layout(e);
     }
+    e->edit.buttons = 0;
+    ui_app.request_redraw();
     return true;
 }
 
-static void ui_edit_kill_focus(ui_view_t* v) {
+static void ui_edit_focus_lost(ui_view_t* v) {
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     if (e->focused) {
@@ -9494,7 +9468,8 @@ static void ui_edit_kill_focus(ui_view_t* v) {
         ui_edit_destroy_caret(e);
         ui_edit_if_sle_layout(e);
     }
-    if (ui_app.focus == v) { ui_app.focus = null; }
+    e->edit.buttons = 0;
+    ui_app.request_redraw();
 }
 
 static void ui_edit_erase(ui_edit_t* e) {
@@ -9663,31 +9638,25 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     assert(v->type == ui_view_text);
     assert(v->w > 0 && v->h > 0); // could be `if'
     ui_edit_t* e = (ui_edit_t*)v;
-    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_insets(e);
     e->visible_runs =  // fully visible runs
         (e->inside.bottom - e->inside.top) / e->fm->height;
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
     // glyph position in scroll_pn paragraph:
-    const ui_edit_pg_t scroll = v->w == 0 ?
-        (ui_edit_pg_t){0, 0} : ui_edit_scroll_pg(e);
-    if (dt->np == 0) {
-        e->selection.a[0] = (ui_edit_pg_t){0, 0};
-        e->selection.a[1] = e->selection.a[0];
-    } else {
-        e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
-        assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
-        if (e->sle) { // single line edit (if changed on the fly):
-            e->selection.a[0].pn = 0; // only has single paragraph
-            e->selection.a[1].pn = 0;
-            // scroll line on top of current cursor position into view
-            const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
-            if (runs <= 2 && e->scroll.rn == 1) {
-                ui_edit_pg_t top = scroll;
-                top.gp = ut_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
-                ui_edit_scroll_into_view(e, top);
-            }
+    const ui_edit_pg_t scroll = v->w == 0 ? (ui_edit_pg_t){0, 0} :
+                                            ui_edit_scroll_pg(e);
+    e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
+    assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
+    if (e->sle) { // single line edit (if changed on the fly):
+        e->selection.a[0].pn = 0; // only has single paragraph
+        e->selection.a[1].pn = 0;
+        // scroll line on top of current cursor position into view
+        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
+        if (runs <= 2 && e->scroll.rn == 1) {
+            ui_edit_pg_t top = scroll;
+            top.gp = ut_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
+            ui_edit_scroll_into_view(e, top);
         }
     }
     if (e->focused) {
@@ -9726,7 +9695,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             // selection_color is MSVC dark mode selection color
             // TODO: need light mode selection color tpp
             ui_color_t selection_color = ui_color_rgb(0x26, 0x4F, 0x78); // ui_color_rgb(64, 72, 96);
-            if (!e->focused || !ui_app.has_focus()) {
+            if (!e->focused || !ui_app.focused()) {
                 selection_color = ui_colors.darken(selection_color, 0.1f);
             }
             const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
@@ -9795,24 +9764,6 @@ static void ui_edit_move(ui_edit_t* e, ui_edit_pg_t pg) {
         e->selection.a[1] = pg;
     }
     e->selection.a[0] = e->selection.a[1];
-}
-
-static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
-        int64_t unused(lp), int64_t* unused(rt)) {
-    ui_edit_t* e = (ui_edit_t*)v;
-    if (ui_app.is_active() && ui_app.has_focus() && !ui_view.is_hidden(v)) {
-        if (e->focused != (ui_app.focus == v)) {
-            if (e->focused) {
-                v->kill_focus(v);
-            } else {
-                v->set_focus(v);
-            }
-        }
-    } else {
-        // do nothing: when app will become active and focused
-        //             it will react on app->focus changes
-    }
-    return false;
 }
 
 static bool ui_edit_reallocate_runs(ui_edit_t* e, int32_t p, int32_t np) {
@@ -9929,18 +9880,17 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->focused   = false;
     e->sle       = false;
     e->ro        = false;
-    e->caret                = (ui_point_t){-1, -1};
-    e->message         = ui_edit_message;
+    e->caret           = (ui_point_t){-1, -1};
     e->paint           = ui_edit_paint;
     e->measure         = ui_edit_measure;
     e->layout          = ui_edit_layout;
     e->press           = ui_edit_press;
     e->character       = ui_edit_character;
-    e->set_focus       = ui_edit_set_focus;
-    e->kill_focus      = ui_edit_kill_focus;
+    e->focus_gained    = ui_edit_focus_gained;
+    e->focus_lost      = ui_edit_focus_lost;
     e->key_pressed     = ui_edit_key_pressed;
     e->mouse_wheel     = ui_edit_mouse_wheel;
-    #ifdef EDIT_USE_TAP
+    #ifdef UI_EDIT_USE_TAP
         e->tap         = ui_edit_tap;
     #else
         e->mouse       = ui_edit_mouse;
@@ -12672,39 +12622,27 @@ static void ui_view_paint(ui_view_t* v) {
     }
 }
 
-static bool ui_view_set_focus(ui_view_t* v) {
-    bool set = false;
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        // attempt to set focus on deepest child first
-        ui_view_for_each(v, c, {
-            set = ui_view_set_focus(c);
-            if (set) { break; }
-        });
-        // if no children claimed focus and control itself is
-        // focusable set focus on it:
-        if (!set && v->focusable) {
-            ui_view_t* focused = ui_app.focus;
-            ui_app.focus = null;
-            if (focused != null) { ui_view.kill_focus(focused); }
-            if (v->set_focus != null) {
-                set = v->set_focus(v);
-            } else {
-                traceln("setting focus to view %s that does "
-                        "not implement set_focus()", v->p.text);
-                ui_app.focus = v;
-                set = true;
-            }
-        }
-    }
-    return set;
+static bool ui_view_has_focus(const ui_view_t* v) {
+    return ui_app.focused() && ui_app.focus == v;
 }
 
-static void ui_view_kill_focus(ui_view_t* v) {
-    // notify all the focusable children that the focus is lost
-    ui_view_for_each(v, c, { ui_view_kill_focus(c); });
-    // notify all the view itself that the focus is lost even if
-    // it is not .focusable itself:
-    if (v->kill_focus != null) { v->kill_focus(v); }
+static void ui_view_set_focus(ui_view_t* v) {
+    if (ui_app.focus != v) {
+        ui_view_t* loosing = ui_app.focus;
+        ui_view_t* gaining = v;
+        if (gaining != null) {
+            swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
+                                        !ui_view.is_disabled(gaining));
+        }
+        if (loosing != null) { swear(loosing->focusable); }
+        ui_app.focus = v;
+        if (loosing != null && loosing->focus_lost != null) {
+            loosing->focus_lost(loosing);
+        }
+        if (gaining != null && gaining->focus_gained != null) {
+            gaining->focus_gained(gaining);
+        }
+    }
 }
 
 static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
@@ -12744,14 +12682,15 @@ static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
                 ui_view.hover_changed(v);
             }
         }
+        // setting focus must preceed mouse message delivery:
+        if (click && v->focusable && !ui_view.is_disabled(v) &&
+             ui_view.inside(v, &ui_app.mouse)) {
+            ui_view.set_focus(v);
+        }
         // mouse hover and move are dispatched even to disable controls
         if (!ui_view.is_disabled(v) || moving) {
             if (v->mouse != null) { v->mouse(v, m, f); }
             ui_view_for_each(v, c, { ui_view_mouse(c, m, f); } );
-        }
-        if (!ui_view.is_disabled(v) && click && v->focusable &&
-             ui_view.inside(v, &ui_app.mouse)) {
-            ui_view.set_focus(v);
         }
     }
 }
@@ -12777,15 +12716,15 @@ static void ui_view_hover_changed(ui_view_t* v) {
     }
 }
 
-static void ui_view_kill_hidden_focus(ui_view_t* v) {
+static void ui_view_lose_hidden_focus(ui_view_t* v) {
     // removes focus from hidden or disabled ui controls
     if (ui_app.focus != null) {
         if (ui_app.focus == v && (v->state.disabled || v->state.hidden)) {
-            ui_app.focus = null;
-            // even for disabled or hidden view notify about kill_focus:
-            v->kill_focus(v);
+            ui_view.set_focus(null);
         } else {
-            ui_view_for_each(v, c, { ui_view_kill_hidden_focus(c); });
+            ui_view_for_each(v, c, {
+                if (ui_app.focus != null) { ui_view_lose_hidden_focus(c); }
+            });
         }
     }
 }
@@ -13026,7 +12965,7 @@ ui_view_if ui_view = {
     .disband             = ui_view_disband,
     .inside              = ui_view_inside,
     .is_parent_of        = ui_view_is_parent_of,
-    .margins                = ui_view_margins,
+    .margins             = ui_view_margins,
     .inbox               = ui_view_inbox,
     .outbox              = ui_view_outbox,
     .set_text            = ui_view_set_text,
@@ -13055,9 +12994,9 @@ ui_view_if ui_view = {
     .key_released        = ui_view_key_released,
     .character           = ui_view_character,
     .paint               = ui_view_paint,
+    .has_focus           = ui_view_has_focus,
     .set_focus           = ui_view_set_focus,
-    .kill_focus          = ui_view_kill_focus,
-    .kill_hidden_focus   = ui_view_kill_hidden_focus,
+    .lose_hidden_focus   = ui_view_lose_hidden_focus,
     .mouse               = ui_view_mouse,
     .mouse_wheel         = ui_view_mouse_wheel,
     .hovering            = ui_view_hovering,

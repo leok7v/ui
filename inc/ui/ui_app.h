@@ -86,7 +86,7 @@ typedef struct {
     ui_view_t* root; // show_window() changes ui.hidden
     ui_view_t* content;
     ui_view_t* caption;
-    ui_view_t* focus;   // does not affect message routing - free for all
+    ui_view_t* focus; // does not affect message routing
     ui_fms_t   fm;
     ui_cursor_t cursor; // current cursor
     ui_cursor_t cursor_arrow;
@@ -122,7 +122,7 @@ typedef struct {
     bool (*is_active)(void); // is application window active
     bool (*is_minimized)(void);
     bool (*is_maximized)(void);
-    bool (*has_focus)(void); // application window has keyboard focus
+    bool (*focused)(void); // application window has keyboard focus
     void (*activate)(void); // request application window activation
     void (*set_title)(const char* title);
     void (*capture_mouse)(bool on); // capture mouse global input on/of

@@ -530,9 +530,9 @@ static void edit1_test(ui_view_t* parent) {
     edit.view.fm    = &ui_app.fm.mono;
     edit.view.max_w = ui.infinity;
     edit.view.max_h = ui.infinity;
-    ui_app.focus = &edit.view;
 //  edit.view.debug.paint.margins = true;
 //  edit.view.debug.trace.prc = true;
     ut_str_printf(edit.p.text, "#edit");
+    ui_view.set_focus(&edit.view);
 }
 

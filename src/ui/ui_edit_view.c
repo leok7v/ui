@@ -281,7 +281,7 @@ static int32_t ui_edit_glyphs_in_paragraph(ui_edit_t* e, int32_t pn) {
 static void ui_edit_create_caret(ui_edit_t* e) {
     fatal_if(e->focused);
     assert(ui_app.is_active());
-    assert(ui_app.has_focus());
+    assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
     e->caret_width = ut_min(3, ut_max(1, (int32_t)px));
     ui_app.create_caret(e->caret_width, e->fm->height);
@@ -297,7 +297,7 @@ static void ui_edit_destroy_caret(ui_edit_t* e) {
 static void ui_edit_show_caret(ui_edit_t* e) {
     if (e->focused) {
         assert(ui_app.is_active());
-        assert(ui_app.has_focus());
+        assert(ui_app.focused());
         assert((e->caret.x < 0) == (e->caret.y < 0));
         const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
         int32_t x = e->caret.x < 0 ? insets.left : e->caret.x;
@@ -558,7 +558,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
 
 static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
     if (e->caret.x != x || e->caret.y != y) {
-        if (e->focused && ui_app.has_focus()) {
+        if (e->focused && ui_app.focused()) {
             ui_app.move_caret(e->x + x, e->y + y);
         }
         e->caret.x = x;
@@ -683,18 +683,14 @@ static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pg.pn && pg.pn < dt->np);
     // single line edit control cannot move caret past fist paragraph
-    if (dt->np == 0) {
-        ui_edit_set_caret(e, e->inside.left, e->inside.top);
-    } else {
-        if (!e->sle || pg.pn < dt->np) {
-            ui_edit_scroll_into_view(e, pg);
-            ui_point_t pt = e->w > 0 ? // width == 0 means no measure/layout yet
-                ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
-            ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
-            e->selection.a[1] = pg;
-            if (!ui_app.shift && e->edit.mouse == 0) {
-                e->selection.a[0] = e->selection.a[1];
-            }
+    if (!e->sle || pg.pn < dt->np) {
+        ui_edit_scroll_into_view(e, pg);
+        ui_point_t pt = e->w > 0 ? // width == 0 means no measure/layout yet
+            ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
+        ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
+        e->selection.a[1] = pg;
+        if (!ui_app.shift && e->edit.buttons == 0) {
+            e->selection.a[0] = e->selection.a[1];
         }
     }
     ui_rect_t after = ui_edit_selection_rect(e);
@@ -1131,7 +1127,7 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
                 }
                 e->selection.a[1] = to;
                 ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-                e->edit.mouse = 0;
+                e->edit.buttons = 0;
             }
         }
     }
@@ -1155,16 +1151,13 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
             e->selection.a[1].pn++;
         }
         ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-        e->edit.mouse = 0;
+        e->edit.buttons = 0;
     }
 }
 
 static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_text_t* dt = &e->doc->text; // document text
-    traceln("TODO: select paragraph needs more state management pre double click");
-    if (dt->np == 0) {
-        // do nothing
-    } else if (e->selection.a[0].pn == e->selection.a[1].pn &&
+    if (e->selection.a[0].pn == e->selection.a[1].pn &&
         e->selection.a[0].gp == e->selection.a[1].gp) {
         ui_edit_select_word(e, x, y);
     } else {
@@ -1178,55 +1171,35 @@ static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
 static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
-    if (0 <= p.pn && 0 <= p.gp) {
+    if (0 <= p.pn && 0 <= p.gp && ui_view.has_focus(&e->view)) {
         assert(dt->np > 0);
         if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
-        int32_t glyphs = dt->np == 0 ? 0 : ui_edit_glyphs_in_paragraph(e, p.pn);
+        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         ui_edit_move_caret(e, p);
     }
 }
 
-static void ui_edit_focus_on_click(ui_edit_t* e, int32_t x, int32_t y) {
-    // was edit control focused before click arrives?
-    const bool app_has_focus = ui_app.has_focus();
-    bool focused = false;
-    if (e->edit.mouse != 0) {
-        if (app_has_focus && !e->focused) {
-            if (ui_app.focus != null && ui_app.focus->kill_focus != null) {
-                ui_app.focus->kill_focus(ui_app.focus);
-            }
-            ui_app.focus = &e->view;
-            bool set = e->set_focus(&e->view);
-            fatal_if(!set);
-            focused = true;
-        }
-        bool empty = memcmp(&e->selection.a[0], &e->selection.a[1],
-                                sizeof(e->selection.a[0])) == 0;
-        if (focused && !empty) {
-            // first click on unfocused edit should set focus but
-            // not set caret, because setting caret on click will
-            // destroy selection and this is bad UX
-        } else if (app_has_focus && e->focused) {
-            e->edit.mouse = 0;
-            ui_edit_click(e, x, y);
-        }
-    }
+static void ui_edit_on_click(ui_edit_t* e, int32_t x, int32_t y) {
+    e->edit.buttons = 0;
+    ui_edit_click(e, x, y);
 }
 
 static void ui_edit_mouse_button_down(ui_edit_t* e, int32_t m,
         int32_t x, int32_t y) {
-    if (m == ui.message.left_button_pressed)  { e->edit.mouse |= (1 << 0); }
-    if (m == ui.message.right_button_pressed) { e->edit.mouse |= (1 << 1); }
-    ui_edit_focus_on_click(e, x, y);
+    if (m == ui.message.left_button_pressed)  { e->edit.buttons |= (1 << 0); }
+    if (m == ui.message.right_button_pressed) { e->edit.buttons |= (1 << 1); }
+    ui_edit_on_click(e, x, y);
 }
 
 static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t m) {
-    if (m == ui.message.left_button_released)  { e->edit.mouse &= ~(1 << 0); }
-    if (m == ui.message.right_button_released) { e->edit.mouse &= ~(1 << 1); }
+    if (m == ui.message.left_button_released)  { e->edit.buttons &= ~(1 << 0); }
+    if (m == ui.message.right_button_released) { e->edit.buttons &= ~(1 << 1); }
 }
 
-#ifdef EDIT_USE_TAP
+#undef UI_EDIT_USE_TAP  // defining it leads to delays in caret movement
+
+#ifdef UI_EDIT_USE_TAP
 
 static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
     if (ix == 0) {
@@ -1235,9 +1208,9 @@ static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
         const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
-            e->edit.mouse = 0x1;
-            ui_edit_focus_on_click(e, x, y);
-            e->edit.mouse = 0x0;
+            e->edit.buttons = 0x1;
+            ui_edit_on_click(e, x, y);
+            e->edit.buttons = 0x0;
         }
         return inside;
     } else {
@@ -1245,7 +1218,7 @@ static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
     }
 }
 
-#endif // EDIT_USE_TAP
+#endif // UI_EDIT_USE_TAP
 
 static bool ui_edit_press(ui_view_t* v, int32_t ix) {
     if (ix == 0) {
@@ -1254,10 +1227,10 @@ static bool ui_edit_press(ui_view_t* v, int32_t ix) {
         const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
-            e->edit.mouse = 0x1;
-            ui_edit_focus_on_click(e, x, y);
+            e->edit.buttons = 0x1;
+            ui_edit_on_click(e, x, y);
             ui_edit_double_click(e, x, y);
-            e->edit.mouse = 0x0;
+            e->edit.buttons = 0x0;
         }
         return inside;
     } else {
@@ -1269,9 +1242,9 @@ static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
     assert(v->type == ui_view_text);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_edit_t* e = (ui_edit_t*)v;
-    const int32_t x = ui_app.mouse.x - e->x - e->inside.left;
-    const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
-    bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
+    const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
+    const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
+    bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
     if (inside) {
         if (m == ui.message.left_button_pressed ||
             m == ui.message.right_button_pressed) {
@@ -1311,21 +1284,21 @@ static void ui_edit_mouse_wheel(ui_view_t* v, int32_t unused(dx), int32_t dy) {
     }
 }
 
-static bool ui_edit_set_focus(ui_view_t* v) {
+static bool ui_edit_focus_gained(ui_view_t* v) {
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
-    assert(ui_app.focus == v || ui_app.focus == null);
     assert(v->focusable);
-    ui_app.focus = v;
-    if (ui_app.has_focus() && !e->focused) {
+    if (ui_app.focused() && !e->focused) {
         ui_edit_create_caret(e);
         ui_edit_show_caret(e);
         ui_edit_if_sle_layout(e);
     }
+    e->edit.buttons = 0;
+    ui_app.request_redraw();
     return true;
 }
 
-static void ui_edit_kill_focus(ui_view_t* v) {
+static void ui_edit_focus_lost(ui_view_t* v) {
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     if (e->focused) {
@@ -1333,7 +1306,8 @@ static void ui_edit_kill_focus(ui_view_t* v) {
         ui_edit_destroy_caret(e);
         ui_edit_if_sle_layout(e);
     }
-    if (ui_app.focus == v) { ui_app.focus = null; }
+    e->edit.buttons = 0;
+    ui_app.request_redraw();
 }
 
 static void ui_edit_erase(ui_edit_t* e) {
@@ -1502,31 +1476,25 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     assert(v->type == ui_view_text);
     assert(v->w > 0 && v->h > 0); // could be `if'
     ui_edit_t* e = (ui_edit_t*)v;
-    ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_insets(e);
     e->visible_runs =  // fully visible runs
         (e->inside.bottom - e->inside.top) / e->fm->height;
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
     // glyph position in scroll_pn paragraph:
-    const ui_edit_pg_t scroll = v->w == 0 ?
-        (ui_edit_pg_t){0, 0} : ui_edit_scroll_pg(e);
-    if (dt->np == 0) {
-        e->selection.a[0] = (ui_edit_pg_t){0, 0};
-        e->selection.a[1] = e->selection.a[0];
-    } else {
-        e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
-        assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
-        if (e->sle) { // single line edit (if changed on the fly):
-            e->selection.a[0].pn = 0; // only has single paragraph
-            e->selection.a[1].pn = 0;
-            // scroll line on top of current cursor position into view
-            const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
-            if (runs <= 2 && e->scroll.rn == 1) {
-                ui_edit_pg_t top = scroll;
-                top.gp = ut_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
-                ui_edit_scroll_into_view(e, top);
-            }
+    const ui_edit_pg_t scroll = v->w == 0 ? (ui_edit_pg_t){0, 0} :
+                                            ui_edit_scroll_pg(e);
+    e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
+    assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
+    if (e->sle) { // single line edit (if changed on the fly):
+        e->selection.a[0].pn = 0; // only has single paragraph
+        e->selection.a[1].pn = 0;
+        // scroll line on top of current cursor position into view
+        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
+        if (runs <= 2 && e->scroll.rn == 1) {
+            ui_edit_pg_t top = scroll;
+            top.gp = ut_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
+            ui_edit_scroll_into_view(e, top);
         }
     }
     if (e->focused) {
@@ -1565,7 +1533,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             // selection_color is MSVC dark mode selection color
             // TODO: need light mode selection color tpp
             ui_color_t selection_color = ui_color_rgb(0x26, 0x4F, 0x78); // ui_color_rgb(64, 72, 96);
-            if (!e->focused || !ui_app.has_focus()) {
+            if (!e->focused || !ui_app.focused()) {
                 selection_color = ui_colors.darken(selection_color, 0.1f);
             }
             const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
@@ -1634,24 +1602,6 @@ static void ui_edit_move(ui_edit_t* e, ui_edit_pg_t pg) {
         e->selection.a[1] = pg;
     }
     e->selection.a[0] = e->selection.a[1];
-}
-
-static bool ui_edit_message(ui_view_t* v, int32_t unused(m), int64_t unused(wp),
-        int64_t unused(lp), int64_t* unused(rt)) {
-    ui_edit_t* e = (ui_edit_t*)v;
-    if (ui_app.is_active() && ui_app.has_focus() && !ui_view.is_hidden(v)) {
-        if (e->focused != (ui_app.focus == v)) {
-            if (e->focused) {
-                v->kill_focus(v);
-            } else {
-                v->set_focus(v);
-            }
-        }
-    } else {
-        // do nothing: when app will become active and focused
-        //             it will react on app->focus changes
-    }
-    return false;
 }
 
 static bool ui_edit_reallocate_runs(ui_edit_t* e, int32_t p, int32_t np) {
@@ -1768,18 +1718,17 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->focused   = false;
     e->sle       = false;
     e->ro        = false;
-    e->caret                = (ui_point_t){-1, -1};
-    e->message         = ui_edit_message;
+    e->caret           = (ui_point_t){-1, -1};
     e->paint           = ui_edit_paint;
     e->measure         = ui_edit_measure;
     e->layout          = ui_edit_layout;
     e->press           = ui_edit_press;
     e->character       = ui_edit_character;
-    e->set_focus       = ui_edit_set_focus;
-    e->kill_focus      = ui_edit_kill_focus;
+    e->focus_gained    = ui_edit_focus_gained;
+    e->focus_lost      = ui_edit_focus_lost;
     e->key_pressed     = ui_edit_key_pressed;
     e->mouse_wheel     = ui_edit_mouse_wheel;
-    #ifdef EDIT_USE_TAP
+    #ifdef UI_EDIT_USE_TAP
         e->tap         = ui_edit_tap;
     #else
         e->mouse       = ui_edit_mouse;

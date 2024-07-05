@@ -732,11 +732,12 @@ static void ui_app_toast_cancel(void) {
     ui_app.animating.x = -1;
     ui_app.animating.y = -1;
     if (ui_app.animating.focused != null) {
-        if (!ui_view.set_focus(ui_app.animating.focused)) {
-            ui_app.focus = null;
-        }
+        ui_view.set_focus(ui_app.animating.focused->focusable &&
+           !ui_view.is_hidden(ui_app.animating.focused) &&
+           !ui_view.is_disabled(ui_app.animating.focused) ?
+            ui_app.animating.focused : null);
     } else {
-        ui_app.focus = null;
+        ui_view.set_focus(null);
     }
     ui_app.request_redraw();
 }
@@ -1141,7 +1142,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     const int64_t lp = (int64_t)l_param;
     int64_t ret = 0;
     ui_app_update_mouse_buttons_state();
-    ui_view.kill_hidden_focus(ui_app.root);
+    ui_view.lose_hidden_focus(ui_app.root);
     ui_app_click_detector((uint32_t)m, (WPARAM)wp, (LPARAM)lp);
     if (ui_view.message(ui_app.root, m, wp, lp, &ret)) {
         return (LRESULT)ret;
@@ -1161,7 +1162,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_GETMINMAXINFO:  ui_app_get_min_max_info((MINMAXINFO*)lp); break;
         case WM_THEMECHANGED :  ui_theme.refresh(); break;
         case WM_SETTINGCHANGE:  ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
-        case WM_CLOSE        :  ui_app.focus = null; // before WM_CLOSING
+        case WM_CLOSE        :  ui_view.set_focus(null); // before WM_CLOSING
                                 ui_app_post_message(ui.message.closing, 0, 0); return 0;
         case WM_DESTROY      :  PostQuitMessage(ui_app.exit_code); break;
         case WM_NCHITTEST    :  {
@@ -1205,11 +1206,15 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_SETFOCUS     :
             if (!ui_app.root->state.hidden) {
                 assert(GetActiveWindow() == ui_app_window());
-                ui_view.set_focus(ui_app.root);
+                if (ui_app.focus != null && ui_app.focus->focus_lost != null) {
+                    ui_app.focus->focus_gained(ui_app.focus);
+                }
             }
             break;
-        case WM_KILLFOCUS    :  if (!ui_app.root->state.hidden) {
-                                    ui_view.kill_focus(ui_app.root);
+        case WM_KILLFOCUS    :  if (!ui_app.root->state.hidden &&
+                                     ui_app.focus != null &&
+                                     ui_app.focus->focus_lost != null) {
+                                    ui_app.focus->focus_lost(ui_app.focus);
                                 }
                                 break;
         case WM_NCCALCSIZE:
@@ -2097,7 +2102,7 @@ static bool ui_app_is_minimized(void) { return IsIconic(ui_app_window()); }
 
 static bool ui_app_is_maximized(void) { return IsZoomed(ui_app_window()); }
 
-static bool ui_app_has_focus(void) { return GetFocus() == ui_app_window(); }
+static bool ui_app_focused(void) { return GetFocus() == ui_app_window(); }
 
 static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
@@ -2123,7 +2128,7 @@ static void ui_app_init(void) {
     ui_app.is_active            = ui_app_is_active;
     ui_app.is_minimized         = ui_app_is_minimized;
     ui_app.is_maximized         = ui_app_is_maximized;
-    ui_app.has_focus            = ui_app_has_focus;
+    ui_app.focused              = ui_app_focused;
     ui_app.request_focus        = ui_app_request_focus;
     ui_app.activate             = ui_app_activate;
     ui_app.set_title            = ui_app_set_title;
@@ -2164,10 +2169,6 @@ static void ui_app_init(void) {
     ui_app.root    = &ui_app_view;
     ui_app.content = &ui_app_content;
     ui_app.caption = &ui_caption.view;
-    ui_app.root->focusable = true;
-    ui_app.content->focusable = true;
-    ui_app.root->set_focus    = ui_app_set_focus; // children only
-    ui_app.content->set_focus = ui_app_set_focus; // children only
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
     assert(ui_app.content->type == ui_view_stack);

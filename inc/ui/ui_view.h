@@ -90,8 +90,8 @@ typedef struct ui_view_s {
     bool (*tap)(ui_view_t* v, int32_t ix);   // single click/tap inside ui
     bool (*press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
     void (*context_menu)(ui_view_t* v); // right mouse click or long press
-    bool (*set_focus)(ui_view_t* v); // returns true if focus is set
-    void (*kill_focus)(ui_view_t* v);
+    void (*focus_gained)(ui_view_t* v);
+    void (*focus_lost)(ui_view_t* v);
     // translated from key pressed/released to utf8:
     void (*character)(ui_view_t* v, const char* utf8);
     bool (*key_pressed)(ui_view_t* v, int64_t key);  // return true to stop
@@ -172,9 +172,9 @@ typedef struct ui_view_if {
     bool (*key_released)(ui_view_t* v, int64_t v_key);
     void (*character)(ui_view_t* v, const char* utf8);
     void (*paint)(ui_view_t* v);
-    bool (*set_focus)(ui_view_t* v);
-    void (*kill_focus)(ui_view_t* v);
-    void (*kill_hidden_focus)(ui_view_t* v);
+    bool (*has_focus)(const ui_view_t* v); // ui_app.focused() && ui_app.focus == v
+    void (*set_focus)(ui_view_t* view_or_null);
+    void (*lose_hidden_focus)(ui_view_t* v);
     void (*hovering)(ui_view_t* v, bool start);
     void (*mouse)(ui_view_t* v, int32_t m, int64_t f);
     void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy);
