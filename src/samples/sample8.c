@@ -139,18 +139,23 @@ static void about(ui_button_t* unused(b)) {
     ui_app.show_toast(&mbx.view, 10.0);
 }
 
+static char* nil;
+
 static void crash(ui_button_t* unused(b)) {
     // two random ways to crash in release configuration
     if (ut_clock.nanoseconds() % 2 == 0) {
         swear(false, "should crash in release configuration");
     } else {
+        #if 0 // cl.exe compains even with disabled warnings
+        #pragma warning(push)            // this is intentional for testing
+        #pragma warning(disable: 4723)   // potential division by zero
         int32_t  a[5];
         int32_t* p = a;
         traceln("%d\n", ut_count_of(a));
-        #pragma warning(push)            // this is intentional for testing
-        #pragma warning(disable: 4723)   // potential division by zero
         traceln("%d\n", ut_count_of(p)); // expected "division by zero"
         #pragma warning(pop)
+        #endif
+        (*nil)++; // expected "access violation"
     }
 }
 
