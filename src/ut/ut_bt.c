@@ -447,7 +447,8 @@ static void ut_bt_test(void) {
         ut_debug.output(ut_bt_test_output,
             (int32_t)strlen(ut_bt_test_output) + 1);
     }
-    swear(strstr(ut_bt_test_output, "WaitForSingleObject") != null);
+    swear(strstr(ut_bt_test_output, "ut_bt_test") != null, 
+          "%s", ut_bt_test_output);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
