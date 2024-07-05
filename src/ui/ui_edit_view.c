@@ -1606,6 +1606,8 @@ static void ui_edit_paint(ui_view_t* v) {
     ui_rect_t vrc = (ui_rect_t){v->x, v->y, v->w, v->h};
     ui_rect_t rc;
     if (ui.intersect_rect(&rc, &vrc, &ui_app.prc)) {
+        // because last line of the view may extend over the bottom
+        ui_gdi.set_clip(v->x, v->y, v->w, v->h);
         ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, v->background);
         const ui_ltrb_t insets = ui_view.gaps(v, &v->insets);
         int32_t x = v->x + insets.left;
@@ -1621,6 +1623,7 @@ static void ui_edit_paint(ui_view_t* v) {
                 y += v->fm->height;
             }
         }
+        ui_gdi.set_clip(0, 0, 0, 0);
     }
 }
 
