@@ -43,6 +43,7 @@ static void focus_back_to_edit(void) {
     if (ix >= 0) {
         ui_app.focus = &edit[ix]->view; // return focus where it was
     }
+    ui_app.request_layout();
 }
 
 static void scaled_fonts(void) {
@@ -259,7 +260,7 @@ static void edit_enter(ui_edit_t* e) {
 
 // see edit.test.c
 
-void ui_edit_init_with_lorem_ipsum(ui_edit_t* e);
+void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t);
 void ui_edit_fuzz(ui_edit_t* e);
 void ui_edit_next_fuzz(ui_edit_t* e);
 
@@ -273,18 +274,15 @@ static void opened(void) {
     ut_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < countof(edit); i++) {
         ui_edit_doc.init(doc[i], null, 0, false);
+        if (i < 2) {
+            ui_edit_init_with_lorem_ipsum(&doc[i]->text);
+        }
         ui_edit.init(edit[i], doc[i]);
-//      edit[i]->view.padding = (ui_gaps_t){0.5, 0.5, 0.5, 0.5};
         edit[i]->view.max_w = ui.infinity;
         if (i < 2) { edit[i]->view.max_h = ui.infinity; }
         edit[i]->view.fm = &pf;
         ui_edit.fuzz = ui_edit_fuzz;
         ui_edit.next_fuzz = ui_edit_next_fuzz;
-        if (i < 2) {
-            // TODO: remove next line, added temporarely:
-            ui_edit_doc.replace(edit[i]->doc, null, null, 0);
-            ui_edit_init_with_lorem_ipsum(edit[i]);
-        }
     }
     ui_app.focus = &edit[0]->view;
     ui_app.every_100ms = every_100ms;

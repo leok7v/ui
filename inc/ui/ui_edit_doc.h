@@ -77,19 +77,17 @@ typedef struct ui_edit_doc_s {
 typedef struct ui_edit_doc_if {
     // init(utf8, bytes, heap:false) must have longer lifetime
     // than document, otherwise use heap: true to copy
-    bool    (*init)(ui_edit_doc_t* d, const uint8_t* utf8_or_null,
+    bool    (*init)(ui_edit_doc_t* d, const char* utf8_or_null,
                     int32_t bytes, bool heap);
-    bool    (*replace_text)(ui_edit_doc_t* d, const ui_edit_range_t* r,
-                const ui_edit_text_t* t, ui_edit_to_do_t* undo_or_null);
     bool    (*replace)(ui_edit_doc_t* d, const ui_edit_range_t* r,
-                const uint8_t* utf8, int32_t bytes);
+                const char* utf8, int32_t bytes);
     int32_t (*bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
     bool    (*copy_text)(ui_edit_doc_t* d, const ui_edit_range_t* range,
                 ui_edit_text_t* text); // retrieves range into string
     int32_t (*utf8bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
     // utf8 must be at least ui_edit_doc.utf8bytes()
     void    (*copy)(ui_edit_doc_t* d, const ui_edit_range_t* range,
-                char* utf8);
+                char* utf8, int32_t bytes);
     // undo() and push reverse into redo stack
     bool (*undo)(ui_edit_doc_t* d); // false if there is nothing to redo
     // redo() and push reverse into undo stack
@@ -105,16 +103,9 @@ extern ui_edit_doc_if ui_edit_doc;
 
 typedef struct ui_edit_range_if {
     int (*compare)(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2);
-    ui_edit_range_t (*all_on_null)(const ui_edit_text_t* t,
-                                   const ui_edit_range_t* r);
     ui_edit_range_t (*order)(const ui_edit_range_t r);
-    ui_edit_range_t (*ordered)(const ui_edit_text_t* t,
-                               const ui_edit_range_t* r);
     bool            (*is_valid)(const ui_edit_range_t r);
     bool            (*is_empty)(const ui_edit_range_t r);
-    // end() last paragraph, last glyph in text
-    ui_edit_pg_t    (*end)(const ui_edit_text_t* t);
-    ui_edit_range_t (*end_range)(const ui_edit_text_t* t);
     uint64_t        (*uint64)(const ui_edit_pg_t pg); // (p << 32 | g)
     ui_edit_pg_t    (*pg)(uint64_t ui64); // p: (ui64 >> 32) g: (int32_t)ui64
     bool            (*inside)(const ui_edit_text_t* t,
@@ -127,15 +118,33 @@ typedef struct ui_edit_range_if {
 extern ui_edit_range_if ui_edit_range;
 
 typedef struct ui_edit_text_if {
-    bool    (*init)(ui_edit_text_t* t, const uint8_t* s, int32_t b, bool heap);
+    bool    (*init)(ui_edit_text_t* t, const char* utf, int32_t b, bool heap);
+
     int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* r);
+    // end() last paragraph, last glyph in text
+    ui_edit_pg_t    (*end)(const ui_edit_text_t* t);
+    ui_edit_range_t (*end_range)(const ui_edit_text_t* t);
+    ui_edit_range_t (*all_on_null)(const ui_edit_text_t* t,
+                                   const ui_edit_range_t* r);
+    ui_edit_range_t (*ordered)(const ui_edit_text_t* t,
+                               const ui_edit_range_t* r);
+    bool    (*dup)(ui_edit_text_t* t, const ui_edit_text_t* s);
+    bool    (*equal)(const ui_edit_text_t* t1, const ui_edit_text_t* t2);
+    bool    (*copy_text)(const ui_edit_text_t* t, const ui_edit_range_t* range,
+                ui_edit_text_t* to);
+    void    (*copy)(const ui_edit_text_t* t, const ui_edit_range_t* range,
+                char* to, int32_t bytes);
+    bool    (*replace)(ui_edit_text_t* t, const ui_edit_range_t* r,
+                const ui_edit_text_t* text, ui_edit_to_do_t* undo_or_null);
+    bool    (*replace_utf8)(ui_edit_text_t* t, const ui_edit_range_t* r,
+                const char* utf8, int32_t bytes, ui_edit_to_do_t* undo_or_null);
     void    (*dispose)(ui_edit_text_t* t);
 } ui_edit_text_if;
 
 extern ui_edit_text_if ui_edit_text;
 
 typedef struct ut_begin_packed ui_edit_str_s {
-    uint8_t* u;    // always correct utf8 bytes not zero terminated(!) sequence
+    char* u;    // always correct utf8 bytes not zero terminated(!) sequence
     // s.g2b[s.g + 1] glyph to byte position inside s.u[]
     // s.g2b[0] == 0, s.g2b[s.glyphs] == s.bytes
     int32_t* g2b;  // g2b_0 or heap allocated glyphs to bytes indices
@@ -145,16 +154,16 @@ typedef struct ut_begin_packed ui_edit_str_s {
 } ut_end_packed ui_edit_str_t;
 
 typedef struct ui_edit_str_if {
-    bool (*init)(ui_edit_str_t* s, const uint8_t* utf8, int32_t bytes, bool heap);
+    bool (*init)(ui_edit_str_t* s, const char* utf8, int32_t bytes, bool heap);
     void (*swap)(ui_edit_str_t* s1, ui_edit_str_t* s2);
-    int32_t (*utf8bytes)(const uint8_t* utf8, int32_t bytes); // 0 on error
-    int32_t (*glyphs)(const uint8_t* utf8, int32_t bytes); // -1 on error
-    int32_t (*gp_to_bp)(const uint8_t* s, int32_t bytes, int32_t gp); // -1
+    int32_t (*utf8bytes)(const char* utf8, int32_t bytes); // 0 on error
+    int32_t (*glyphs)(const char* utf8, int32_t bytes); // -1 on error
+    int32_t (*gp_to_bp)(const char* s, int32_t bytes, int32_t gp); // -1
     int32_t (*bytes)(ui_edit_str_t* s, int32_t from, int32_t to); // glyphs
     bool (*expand)(ui_edit_str_t* s, int32_t capacity); // reallocate
     void (*shrink)(ui_edit_str_t* s); // get rid of extra heap memory
     bool (*replace)(ui_edit_str_t* s, int32_t from, int32_t to, // glyphs
-                    const uint8_t* utf8, int32_t bytes); // [from..to[ exclusive
+                    const char* utf8, int32_t bytes); // [from..to[ exclusive
     void (*test)(void);
     void (*free)(ui_edit_str_t* s);
     const ui_edit_str_t* const empty;

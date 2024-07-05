@@ -49,7 +49,7 @@ typedef struct ui_s {
     // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
     bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,
                                                    const ui_rect_t* r1);
-    int32_t (*gaps_em2px)(int32_t em, fp32_t ratio);
+    ui_rect_t (*combine_rect)(const ui_rect_t* r0, const ui_rect_t* r1);
     const int32_t infinity; // = INT32_MAX, look better
     struct { // align bitset
         int32_t const center; // = 0, default

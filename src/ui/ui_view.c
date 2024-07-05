@@ -145,15 +145,26 @@ static void ui_view_disband(ui_view_t* p) {
 
 static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
     ui_rect_t rc = {0};
-    if (r == null) {
+    if (r != null) {
+        rc = (ui_rect_t){
+            .x = v->x + r->x,
+            .y = v->y + r->y,
+            .w = r->w,
+            .h = r->h
+        };
+    } else {
         rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
-        rc.x -= v->fm->em.w;
-        rc.y -= v->fm->em.h;
-        rc.w += v->fm->em.w * 2;
-        rc.h += v->fm->em.h * 2;
-//      traceln("invalidate %d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+        // expand view rectangle by padding
+        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        rc.x -= p.left;
+        rc.y -= p.top;
+        rc.w += p.left + p.right;
+        rc.h += p.top + p.bottom;
     }
-    ui_app.invalidate(r == null ? &rc : r);
+    if (v->debug.trace.prc) {
+        traceln("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+    }
+    ui_app.invalidate(&rc);
 }
 
 static const char* ui_view_string(ui_view_t* v) {
@@ -205,7 +216,7 @@ static void ui_view_text_measure(ui_view_t* v, const char* s,
 static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
     const ui_fm_t* fm = v->fm;
     tm->xy = (ui_point_t){ .x = -1, .y = -1 };
-    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     // i_wh the inside insets w x h:
     const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                            .h = v->h - i.top - i.bottom };
@@ -243,7 +254,7 @@ static void ui_view_measure_control(ui_view_t* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
     const ui_fm_t* fm = v->fm;
-    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
@@ -343,12 +354,13 @@ static bool ui_view_is_parent_of(const ui_view_t* parent,
 }
 
 static ui_ltrb_t ui_view_gaps(const ui_view_t* v, const ui_gaps_t* g) {
-    fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
-    fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
-    int32_t em_w = (int32_t)(v->fm->em.w * gw + 0.5);
-    int32_t em_h = (int32_t)(v->fm->em.h * gh + 0.5);
-    int32_t left   = ui.gaps_em2px(v->fm->em.w, g->left);
-    int32_t top    = ui.gaps_em2px(v->fm->em.h, g->top);
+    const fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
+    const fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
+    const ui_wh_t* em = &v->fm->em;
+    const int32_t em_w = (int32_t)(em->w * gw + 0.5);
+    const int32_t em_h = (int32_t)(em->h * gh + 0.5);
+    const int32_t left = (int32_t)((fp64_t)em->w * (fp64_t)g->left + 0.5);
+    const int32_t top  = (int32_t)((fp64_t)em->h * (fp64_t)g->top  + 0.5);
     return (ui_ltrb_t) {
         .left   = left,         .top    = top,
         .right  = em_w - left,  .bottom = em_h - top
@@ -554,7 +566,8 @@ static void ui_view_paint(ui_view_t* v) {
     ui_view_resolve_color_ids(v);
     if (v->debug.trace.prc) {
         const char* s = ui_view.string(v);
-        traceln("%d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
+        traceln("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
+                ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h,
                 ut_min(64, strlen(s)), s);
     }
     if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
@@ -770,8 +783,8 @@ static void ui_view_debug_paint_gaps(ui_view_t* v) {
         if (v->type == ui_view_spacer) {
             ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
         }
-        ui_ltrb_t p = ui_view.gaps(v, &v->padding);
-        ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+        const ui_ltrb_t p = ui_view.gaps(v, &v->padding);
+        const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
         ui_color_t c = ui_colors.green;
         const int32_t pl = p.left;
         const int32_t pr = p.right;

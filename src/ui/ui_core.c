@@ -15,7 +15,7 @@ static bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
 }
 
 static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
-                                     const ui_rect_t* r1) {
+                                            const ui_rect_t* r1) {
     ui_rect_t r = {0};
     r.x = ut_max(r0->x, r1->x);  // Maximum of left edges
     r.y = ut_max(r0->y, r1->y);  // Maximum of top edges
@@ -30,14 +30,19 @@ static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
     return b;
 }
 
-static int32_t ui_gaps_em2px(int32_t em, fp32_t ratio) {
-    return em == 0 ? 0 : (int32_t)((fp64_t)em * (fp64_t)ratio + 0.5);
+static ui_rect_t ui_combine_rect(const ui_rect_t* r0, const ui_rect_t* r1) {
+    return (ui_rect_t) {
+        .x = ut_min(r0->x, r1->x),
+        .y = ut_min(r0->y, r1->y),
+        .w = ut_max(r0->x + r0->w, r1->x + r1->w) - ut_min(r0->x, r1->x),
+        .h = ut_max(r0->y + r0->h, r1->y + r1->h) - ut_min(r0->y, r1->y)
+    };
 }
 
 ui_if ui = {
     .point_in_rect  = ui_point_in_rect,
     .intersect_rect = ui_intersect_rect,
-    .gaps_em2px     = ui_gaps_em2px,
+    .combine_rect   = ui_combine_rect,
     .infinity = INT32_MAX,
     .align = {
         .center = 0,

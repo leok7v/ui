@@ -32,7 +32,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     char formatted[countof(s->p.text)];
     const ui_fm_t* fm = s->fm;
     const char* text = ui_view.string(&s->view);
-    ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
+    const ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
     ui_wh_t mt = s->fm->em;
     if (s->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.gaps(&s->view, &s->padding);
@@ -76,7 +76,7 @@ static void ui_slider_measure(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     const ui_fm_t* fm = v->fm;
-    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     // slider cannot be smaller than 2*em
     const fp32_t min_w_em = ut_max(2.0f, v->min_w_em);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)   min_w_em + 0.5);
@@ -105,7 +105,7 @@ static void ui_slider_layout(ui_view_t* v) {
     assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     // disregard inc/dec .state.hidden bit for layout:
-    ui_ltrb_t i = ui_view.gaps(v, &v->insets);
+    const ui_ltrb_t i = ui_view.gaps(v, &v->insets);
     s->dec.x = v->x + i.left;
     s->dec.y = v->y;
     s->inc.x = v->x + v->w - i.right - s->inc.w;

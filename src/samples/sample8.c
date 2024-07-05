@@ -526,5 +526,7 @@ static void edit1_test(ui_view_t* parent) {
     edit.view.max_h = ui.infinity;
     ui_app.focus = &edit.view;
 //  edit.view.debug.paint.gaps = true;
+//  edit.view.debug.trace.prc = true;
+    ut_str_printf(edit.p.text, "#edit");
 }
 

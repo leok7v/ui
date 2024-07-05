@@ -11,7 +11,7 @@
     "sint occaecat cupidatat non proident, sunt in culpa qui officia "         \
     "deserunt mollit anim id est laborum."
 
-static const char* test_content =
+static const char* content =
     "Good bye Universe...\n"
     "Hello World!\n"
     "\n"
@@ -146,7 +146,7 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
 //  traceln("%s\n", p.text);
 }
 
-void ui_edit_init_with_lorem_ipsum(ui_edit_t* e) {
+void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     static char text[64 * 1024];
     ui_edit_lorem_ipsum_generator_params_t p = {
         .text = text,
@@ -165,10 +165,11 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_t* e) {
         p.seed = (int32_t)ut_clock.nanoseconds() | 0x1; // must be odd
     #endif
     ui_edit_lorem_ipsum_generator(p);
-    ui_edit.paste(e, test_content, (int32_t)strlen(test_content));
-    ui_edit.paste(e, "\n\n", 2);
-    ui_edit.paste(e, p.text, (int32_t)strlen(p.text));
-    ui_edit.move(e, (ui_edit_pg_t){ .pn = 0, .gp = 0});
+    swear(ui_edit_text.replace_utf8(t, null, content, -1, null));
+    ui_edit_range_t end = ui_edit_text.end_range(t);
+    swear(ui_edit_text.replace_utf8(t, &end, "\n\n", -1, null));
+    end = ui_edit_text.end_range(t);
+    swear(ui_edit_text.replace_utf8(t, &end, p.text, -1, null));
 }
 
 void ui_edit_next_fuzz(ui_edit_t* e) {
