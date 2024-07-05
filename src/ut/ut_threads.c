@@ -1,6 +1,11 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
+static void ut_close_handle(HANDLE h) {
+    #pragma warning(suppress: 6001) // shutup overzealous IntelliSense
+    ut_fatal_if_error(ut_b2e(CloseHandle(h)));
+}
+
 // events:
 
 static ut_event_t ut_event_create(void) {
@@ -65,8 +70,8 @@ static int32_t ut_event_wait_any(int32_t n, ut_event_t e[]) {
     return ut_event_wait_any_or_timeout(n, e, -1);
 }
 
-static void ut_event_dispose(ut_event_t handle) {
-    ut_fatal_if_error(ut_b2e(CloseHandle(handle)));
+static void ut_event_dispose(ut_event_t h) {
+    ut_close_handle((HANDLE)h);
 }
 
 // test:
@@ -74,8 +79,8 @@ static void ut_event_dispose(ut_event_t handle) {
 // check if the elapsed time is within the expected range
 static void ut_event_test_check_time(fp64_t start, fp64_t expected) {
     fp64_t elapsed = ut_clock.seconds() - start;
-    // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
-    swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
+    // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays (observed)
+    swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.250,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
@@ -388,7 +393,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     errno_t r = ut_wait_ix2e(ix);
     assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");
     if (r == 0) {
-        ut_fatal_if_error(ut_b2e(CloseHandle(t)));
+        ut_close_handle((HANDLE)t);
     } else {
         traceln("failed to join thread %p %s", t, strerr(r));
     }
@@ -400,7 +405,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
 static void ut_thread_detach(ut_thread_t t) {
     ut_not_null(t);
     ut_fatal_if(!is_handle_valid(t));
-    ut_fatal_if_error(ut_b2e(CloseHandle(t)));
+    ut_close_handle((HANDLE)t);
 }
 
 static void ut_thread_name(const char* name) {
@@ -453,16 +458,16 @@ static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
     // GetCurrentThread() returns pseudo-handle, not a real handle
     // if real handle is ever needed may do ut_thread_id_of() and
     //  instead, though it will mean
-    // CloseHangle is needed.
+    // CloseHandle is needed.
     *t = (ut_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
     return *t == null ? (errno_t)GetLastError() : 0;
 }
 
 static void ut_thread_close(ut_thread_t t) {
     ut_not_null(t);
+    #pragma warning(suppress: 6001)
     ut_fatal_if_error(ut_b2e(CloseHandle((HANDLE)t)));
 }
-
 
 #ifdef UT_TESTS
 

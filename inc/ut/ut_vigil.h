@@ -1,7 +1,8 @@
 #pragma once
 #include "ut/ut_std.h"
-#include <assert.h> // unsures that it will not be included again
-#undef assert       // because better assert(b, ...) will be defined here
+#include <assert.h>
+// ^^^ ensures that <assert.h> will not be included and redefined again
+#undef assert // because better assert(b, ...) is be defined below
 
 begin_c
 
@@ -30,13 +31,17 @@ extern ut_vigil_if ut_vigil;
 #endif
 
 #if defined(DEBUG)
-  #define assert(b, ...) ut_suppress_constant_cond_exp              \
+  #define ut_assert(b, ...) ut_suppress_constant_cond_exp           \
     /* const cond */                                                \
     (void)((!!(b)) || ut_vigil.failed_assertion(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 #else
-  #define assert(b, ...) ((void)0)
+  #define ut_assert(b, ...) ((void)0)
 #endif
+
+// Microsoft runtime shows Abort/Retry/Ignore message box
+// on assert - really annoying
+#define assert(b, ...) ut_assert(b, __VA_ARGS__)
 
 // swear() is runtime assert() for both debug and release configurations
 
