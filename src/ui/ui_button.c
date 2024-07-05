@@ -123,7 +123,6 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     if (pressed && !v->state.armed && !v->p.armed_until) {
         v->state.armed = ui_button_hit_test(b, ui_app.mouse);
         if (was_armed != v->state.armed) { ui_view.invalidate(v, null); }
-        if (v->state.armed) { ui_app.focus = v; }
         if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
     }
     const bool released =

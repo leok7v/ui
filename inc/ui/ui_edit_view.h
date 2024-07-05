@@ -8,7 +8,6 @@ begin_c
 // important ui_edit_t will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
 
-
 typedef struct ui_edit_s ui_edit_t;
 
 typedef struct ui_edit_str_s ui_edit_str_t;
@@ -61,9 +60,9 @@ typedef struct ui_edit_s {
     int32_t last_x;    // last_x for up/down caret movement
     ui_ltrb_t inside;  // inside insets space
     struct {
-        int32_t w;         // inside.right - inside.left
-        int32_t h;         // inside.bottom - inside.top
-        int32_t mouse;     // bit 0 and bit 1 for LEFT and RIGHT buttons down
+        int32_t w;     // inside.right - inside.left
+        int32_t h;     // inside.bottom - inside.top
+        int32_t mouse; // bit 0 and bit 1 for LEFT and RIGHT buttons down
     } edit;
     // number of fully (not partially clipped) visible `runs' from top to bottom:
     int32_t visible_runs;
@@ -200,6 +199,5 @@ extern ui_edit_if ui_edit;
     the string content is intended to be used by any
     other API that expects zero terminated strings.
 */
-
 
 end_c

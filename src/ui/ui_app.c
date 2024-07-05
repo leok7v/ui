@@ -560,12 +560,21 @@ static void ui_app_measure_and_layout(ui_view_t* view) {
 
 static void ui_app_toast_mouse(int32_t m, int64_t f);
 static void ui_app_toast_character(const char* utf8);
+static bool ui_app_toast_key_pressed(int64_t key);
 
 static void ui_app_wm_char(ui_view_t* view, const char* utf8) {
     if (ui_app.animating.view != null) {
         ui_app_toast_character(utf8);
     } else {
         ui_view.character(view, utf8);
+    }
+}
+
+static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
+    if (ui_app.animating.view != null) {
+        return ui_app_toast_key_pressed(key);
+    } else {
+        return ui_view.key_pressed(v, key);
     }
 }
 
@@ -757,6 +766,16 @@ static void ui_app_toast_character(const char* utf8) {
         ui_app.show_toast(null, 0);
     } else {
         ui_view.character(ui_app.animating.view, utf8);
+    }
+}
+
+static bool ui_app_toast_key_pressed(int64_t key) {
+    if (ui_app.animating.view != null && key == 033) { // ESC traditionally in octal
+        ui_app_toast_cancel();
+        ui_app.show_toast(null, 0);
+        return true;
+    } else {
+        return ui_view.key_pressed(ui_app.animating.view, key);
     }
 }
 
@@ -1151,7 +1170,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break; // drop to DefWindowProc
         }
         case WM_SYSKEYDOWN   :  ui_app_alt_ctrl_shift(true, wp);
-                                if (ui_view.key_pressed(ui_app.root, wp)) {
+                                if (ui_app_wm_key_pressed(ui_app.root, wp)) {
                                     return 0; // no DefWindowProc()
                                 }
                                 if (wp == VK_MENU) { return 0; }
@@ -1160,7 +1179,9 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                                 break;
         case WM_UNICHAR      :  traceln("???"); break;
         case WM_KEYDOWN      :  ui_app_alt_ctrl_shift(true, wp);
-                                ui_view.key_pressed(ui_app.root, wp);
+                                if (ui_app_wm_key_pressed(ui_app.root, wp)) {
+                                    return 0; // no DefWindowProc()
+                                }
                                 break;
         case WM_SYSKEYUP:
         case WM_KEYUP        :  ui_app_alt_ctrl_shift(false, wp);

@@ -101,7 +101,6 @@ static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)
         int32_t x = ui_app.mouse.x - v->x;
         int32_t y = ui_app.mouse.y - v->y;
         if (0 <= x && x < v->w && 0 <= y && y < v->h) {
-            ui_app.focus = v;
             ui_toggle_flip((ui_toggle_t*)v);
         }
     }

@@ -198,7 +198,6 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             const int32_t x = ui_app.mouse.x - vx;
             const int32_t y = ui_app.mouse.y - (v->y + i.top);
             if (0 <= x && x < sw && 0 <= y && y < v->h) {
-                ui_app.focus = v;
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
                 fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);

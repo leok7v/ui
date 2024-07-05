@@ -1252,7 +1252,6 @@ extern ui_edit_str_if ui_edit_str;
 // important ui_edit_t will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
 
-
 typedef struct ui_edit_s ui_edit_t;
 
 typedef struct ui_edit_str_s ui_edit_str_t;
@@ -1305,9 +1304,9 @@ typedef struct ui_edit_s {
     int32_t last_x;    // last_x for up/down caret movement
     ui_ltrb_t inside;  // inside insets space
     struct {
-        int32_t w;         // inside.right - inside.left
-        int32_t h;         // inside.bottom - inside.top
-        int32_t mouse;     // bit 0 and bit 1 for LEFT and RIGHT buttons down
+        int32_t w;     // inside.right - inside.left
+        int32_t h;     // inside.bottom - inside.top
+        int32_t mouse; // bit 0 and bit 1 for LEFT and RIGHT buttons down
     } edit;
     // number of fully (not partially clipped) visible `runs' from top to bottom:
     int32_t visible_runs;
@@ -1444,7 +1443,6 @@ extern ui_edit_if ui_edit;
     the string content is intended to be used by any
     other API that expects zero terminated strings.
 */
-
 
 
 
@@ -2633,12 +2631,21 @@ static void ui_app_measure_and_layout(ui_view_t* view) {
 
 static void ui_app_toast_mouse(int32_t m, int64_t f);
 static void ui_app_toast_character(const char* utf8);
+static bool ui_app_toast_key_pressed(int64_t key);
 
 static void ui_app_wm_char(ui_view_t* view, const char* utf8) {
     if (ui_app.animating.view != null) {
         ui_app_toast_character(utf8);
     } else {
         ui_view.character(view, utf8);
+    }
+}
+
+static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
+    if (ui_app.animating.view != null) {
+        return ui_app_toast_key_pressed(key);
+    } else {
+        return ui_view.key_pressed(v, key);
     }
 }
 
@@ -2830,6 +2837,16 @@ static void ui_app_toast_character(const char* utf8) {
         ui_app.show_toast(null, 0);
     } else {
         ui_view.character(ui_app.animating.view, utf8);
+    }
+}
+
+static bool ui_app_toast_key_pressed(int64_t key) {
+    if (ui_app.animating.view != null && key == 033) { // ESC traditionally in octal
+        ui_app_toast_cancel();
+        ui_app.show_toast(null, 0);
+        return true;
+    } else {
+        return ui_view.key_pressed(ui_app.animating.view, key);
     }
 }
 
@@ -3224,7 +3241,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break; // drop to DefWindowProc
         }
         case WM_SYSKEYDOWN   :  ui_app_alt_ctrl_shift(true, wp);
-                                if (ui_view.key_pressed(ui_app.root, wp)) {
+                                if (ui_app_wm_key_pressed(ui_app.root, wp)) {
                                     return 0; // no DefWindowProc()
                                 }
                                 if (wp == VK_MENU) { return 0; }
@@ -3233,7 +3250,9 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                                 break;
         case WM_UNICHAR      :  traceln("???"); break;
         case WM_KEYDOWN      :  ui_app_alt_ctrl_shift(true, wp);
-                                ui_view.key_pressed(ui_app.root, wp);
+                                if (ui_app_wm_key_pressed(ui_app.root, wp)) {
+                                    return 0; // no DefWindowProc()
+                                }
                                 break;
         case WM_SYSKEYUP:
         case WM_KEYUP        :  ui_app_alt_ctrl_shift(false, wp);
@@ -4608,7 +4627,6 @@ static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
     if (pressed && !v->state.armed && !v->p.armed_until) {
         v->state.armed = ui_button_hit_test(b, ui_app.mouse);
         if (was_armed != v->state.armed) { ui_view.invalidate(v, null); }
-        if (v->state.armed) { ui_app.focus = v; }
         if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
     }
     const bool released =
@@ -11595,7 +11613,6 @@ static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
             const int32_t x = ui_app.mouse.x - vx;
             const int32_t y = ui_app.mouse.y - (v->y + i.top);
             if (0 <= x && x < sw && 0 <= y && y < v->h) {
-                ui_app.focus = v;
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
                 fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
@@ -12027,7 +12044,6 @@ static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)
         int32_t x = ui_app.mouse.x - v->x;
         int32_t y = ui_app.mouse.y - v->y;
         if (0 <= x && x < v->w && 0 <= y && y < v->h) {
-            ui_app.focus = v;
             ui_toggle_flip((ui_toggle_t*)v);
         }
     }
