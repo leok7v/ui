@@ -22,13 +22,13 @@ typedef struct str32K_t {
 // truncating string printf:
 // char s[100]; ut_str_printf(s, "Hello %s", "world");
 // do not use with char* and char s[] parameters
-// because countof(s) will be sizeof(char*) not the size of the buffer.
+// because ut_count_of(s) will be sizeof(char*) not the size of the buffer.
 
-#define ut_str_printf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
+#define ut_str_printf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
 
 // shorthand:
 
-#define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
+#define strprintf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
 #define strerr(r) (ut_str.error((r)).s) // use only as strpintf() parameter
 
 // The strings are expected to be UTF-8 encoded.

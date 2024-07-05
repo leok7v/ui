@@ -178,7 +178,7 @@ static struct {
 
 static ui_color_t ui_colors_get_color(int32_t color_id) {
     // SysGetColor() does not work on Win10
-    swear(0 < color_id && color_id < countof(ui_theme_colors));
+    swear(0 < color_id && color_id < ut_count_of(ui_theme_colors));
     return ui_theme.is_app_dark() ?
            ui_theme_colors[color_id].dark :
            ui_theme_colors[color_id].light;

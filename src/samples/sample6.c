@@ -53,7 +53,7 @@ static const char* midi_file(void) {
         int r = ut_mem.map_resource("mr_blue_sky_midi", &data, &bytes);
         fatal_if_not_zero(r);
         fatal_if_not_zero(ut_files.create_tmp(filename,
-                                      countof(filename)));
+                                      ut_count_of(filename)));
         assert(filename[0] != 0);
         int64_t written = 0;
         fatal_if_not_zero(ut_files.write_fully(filename, data, bytes,

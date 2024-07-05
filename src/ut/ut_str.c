@@ -128,26 +128,26 @@ static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
         flags |= FORMAT_MESSAGE_FROM_HMODULE;
     }
     str1024_t text;
-    uint16_t utf16[countof(text.s)];
+    uint16_t utf16[ut_countof(text.s)];
     DWORD count = FormatMessageW(flags, module, hr, language,
-            utf16, countof(utf16) - 1, (va_list*)null);
-    utf16[countof(utf16) - 1] = 0; // always
+            utf16, ut_count_of(utf16) - 1, (va_list*)null);
+    utf16[ut_count_of(utf16) - 1] = 0; // always
     // If FormatMessageW() succeeds, the return value is the number of utf16
     // characters stored in the output buffer, excluding the terminating zero.
     if (count > 0) {
-        swear(count < countof(utf16));
+        swear(count < ut_count_of(utf16));
         utf16[count] = 0;
         // remove trailing '\r\n'
         int32_t k = count;
         if (k > 0 && utf16[k - 1] == '\n') { utf16[k - 1] = 0; }
         k = (int32_t)ut_str.len16(utf16);
         if (k > 0 && utf16[k - 1] == '\r') { utf16[k - 1] = 0; }
-        char message[countof(text.s)];
+        char message[ut_countof(text.s)];
         const int32_t bytes = ut_str.utf8_bytes(utf16);
-        if (bytes >= countof(message)) {
+        if (bytes >= ut_count_of(message)) {
             strprintf(message, "error message is too long: %d bytes", bytes);
         } else {
-            ut_str.utf16to8(message, countof(message), utf16);
+            ut_str.utf16to8(message, ut_count_of(message), utf16);
         }
         // truncating printf to string:
         ut_str_printf(text.s, "0x%08X(%d) \"%s\"", error, error, message);
@@ -222,7 +222,7 @@ static str64_t ut_str_int64_dg(int64_t v, // digit_grouped
     // "18446744073709551615" 21 characters + 6x4 groups:
     // "18'446'744'073'709'551'615" 27 characters
     str64_t text;
-    enum { max_text_bytes = countof(text.s) };
+    enum { max_text_bytes = ut_countof(text.s) };
     int64_t abs64 = v < 0 ? -v : v; // incorrect for INT64_MIN
     uint64_t n = uint ? (uint64_t)v :
         (v != INT64_MIN ? (uint64_t)abs64 : (uint64_t)INT64_MIN);
@@ -282,8 +282,8 @@ static str128_t ut_str_fp(const char* format, fp64_t v) {
     // and respects setlocale() on Un*x systems but in MS runtime only when
     // _snprintf_l() is used.
     f.s[0] = 0x00;
-    ut_str.format(f.s, countof(f.s), format, v);
-    f.s[countof(f.s) - 1] = 0x00;
+    ut_str.format(f.s, ut_count_of(f.s), format, v);
+    f.s[ut_count_of(f.s) - 1] = 0x00;
     str128_t text;
     char* s = f.s;
     char* d = text.s;
@@ -312,10 +312,10 @@ static void ut_str_test(void) {
     swear(ut_str.istarts("hello world", "HeLlO"));
     swear(ut_str.iends("hello world", "WoRlD"));
     char ls[20] = {0};
-    ut_str.lower(ls, countof(ls), "HeLlO WoRlD");
+    ut_str.lower(ls, ut_count_of(ls), "HeLlO WoRlD");
     swear(strcmp(ls, "hello world") == 0);
     char upper[11] = {0};
-    ut_str.upper(upper, countof(upper), "hello12345");
+    ut_str.upper(upper, ut_count_of(upper), "hello12345");
     swear(strcmp(upper,  "HELLO12345") == 0);
     #pragma push_macro("glyph_chinese_one")
     #pragma push_macro("glyph_chinese_two")
@@ -336,16 +336,16 @@ static void ut_str_test(void) {
     #pragma pop_macro("glyph_chinese_two")
     #pragma pop_macro("glyph_chinese_one")
     uint16_t wide_str[100] = {0};
-    ut_str.utf8to16(wide_str, countof(wide_str), utf8_str);
+    ut_str.utf8to16(wide_str, ut_count_of(wide_str), utf8_str);
     char utf8[100] = {0};
-    ut_str.utf16to8(utf8, countof(utf8), wide_str);
+    ut_str.utf16to8(utf8, ut_count_of(utf8), wide_str);
     uint16_t utf16[100];
-    ut_str.utf8to16(utf16, countof(utf16), utf8);
+    ut_str.utf8to16(utf16, ut_count_of(utf16), utf8);
     char narrow_str[100] = {0};
-    ut_str.utf16to8(narrow_str, countof(narrow_str), utf16);
+    ut_str.utf16to8(narrow_str, ut_count_of(narrow_str), utf16);
     swear(strcmp(narrow_str, utf8_str) == 0);
     char formatted[100];
-    ut_str.format(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
+    ut_str.format(formatted, ut_count_of(formatted), "n: %d, s: %s", 42, "test");
     swear(strcmp(formatted, "n: 42, s: test") == 0);
     // numeric values digit grouping format:
     swear(strcmp("0", ut_str.int64_dg(0, true, ",").s) == 0);

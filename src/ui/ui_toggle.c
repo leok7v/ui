@@ -58,8 +58,8 @@ static void ui_toggle_measure(ui_view_t* v) {
 
 static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    char txt[countof(v->p.text)];
-    const char* label = ui_toggle_on_off_label(v, txt, countof(txt));
+    char txt[ut_countof(v->p.text)];
+    const char* label = ui_toggle_on_off_label(v, txt, ut_count_of(txt));
     const char* text = ut_nls.str(label);
     ui_view_text_metrics_t tm = {0};
     ui_view.text_measure(v, text, &tm);

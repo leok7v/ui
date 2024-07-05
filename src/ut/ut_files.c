@@ -306,7 +306,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
 static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
     uint8_t stack[SECURITY_MAX_SID_SIZE] = {0};
-    DWORD n = countof(stack);
+    DWORD n = ut_count_of(stack);
     SID* sid = (SID*)stack;
     errno_t r = ut_b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
                                        null, sid, &n));
@@ -564,12 +564,12 @@ static const char* ut_files_known_folder(int32_t kf) {
         &FOLDERID_ProgramFiles,
         &FOLDERID_ProgramData
     };
-    static ut_file_name_t known_folders[countof(kf_ids)];
-    fatal_if(!(0 <= kf && kf < countof(kf_ids)), "invalid kf=%d", kf);
+    static ut_file_name_t known_folders[ut_countof(kf_ids)];
+    fatal_if(!(0 <= kf && kf < ut_count_of(kf_ids)), "invalid kf=%d", kf);
     if (known_folders[kf].s[0] == 0) {
         uint16_t* path = null;
         fatal_if_not_zero(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
-        ut_str.utf16to8(known_folders[kf].s, countof(known_folders[kf].s), path);
+        ut_str.utf16to8(known_folders[kf].s, ut_count_of(known_folders[kf].s), path);
         CoTaskMemFree(path);
 	}
     return known_folders[kf].s;
@@ -590,7 +590,7 @@ static const char* ut_files_tmp(void) {
         // in chars, of the string copied to lpBuffer, not including
         // the terminating null character. If the function fails, the
         // return value is zero.
-        errno_t r = GetTempPathA(countof(tmp), tmp) == 0 ? ut_runtime.err() : 0;
+        errno_t r = GetTempPathA(ut_count_of(tmp), tmp) == 0 ? ut_runtime.err() : 0;
         fatal_if(r != 0, "GetTempPathA() failed %s", strerr(r));
     }
     return tmp;
@@ -640,7 +640,7 @@ static const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
     if (FindNextFileA(d->handle, &d->find)) {
         fn = d->find.cFileName;
         // Ensure zero termination
-        d->find.cFileName[countof(d->find.cFileName) - 1] = 0x00;
+        d->find.cFileName[ut_count_of(d->find.cFileName) - 1] = 0x00;
         if (s != null) {
             s->accessed = ut_files_ft2us(&d->find.ftLastAccessTime);
             s->created = ut_files_ft2us(&d->find.ftCreationTime);
@@ -712,7 +712,7 @@ static void folders_test(void) {
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
     char tmp_file[ut_files_max_path]; // create_tmp() is thread safe race free:
-    errno_t r = ut_files.create_tmp(tmp_file, countof(tmp_file));
+    errno_t r = ut_files.create_tmp(tmp_file, ut_count_of(tmp_file));
     fatal_if(r != 0, "ut_files.create_tmp() failed %s", strerr(r));
     char tmp_dir[ut_files_max_path];
     ut_str_printf(tmp_dir, "%s.dir", tmp_file);
@@ -802,15 +802,15 @@ static void ut_files_test_append_thread(void* p) {
     uint8_t data[256] = {0};
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     int64_t transferred = 0;
-    fatal_if(ut_files.write(f, data, countof(data), &transferred) != 0 ||
-             transferred != countof(data), "ut_files.write()" ut_files_test_failed);
+    fatal_if(ut_files.write(f, data, ut_count_of(data), &transferred) != 0 ||
+             transferred != ut_count_of(data), "ut_files.write()" ut_files_test_failed);
 }
 
 static void ut_files_test(void) {
     folders_test();
     uint64_t now = ut_clock.microseconds(); // epoch time
     char tf[256]; // temporary file
-    fatal_if(ut_files.create_tmp(tf, countof(tf)) != 0,
+    fatal_if(ut_files.create_tmp(tf, ut_count_of(tf)) != 0,
             "ut_files.create_tmp()" ut_files_test_failed);
     uint8_t data[256] = {0};
     int64_t transferred = 0;
@@ -820,14 +820,14 @@ static void ut_files_test(void) {
         fatal_if(ut_files.open(&f, tf,
                  ut_files.o_wr | ut_files.o_create | ut_files.o_trunc) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
-        fatal_if(ut_files.write_fully(tf, data, countof(data), &transferred) != 0 ||
-                 transferred != countof(data),
+        fatal_if(ut_files.write_fully(tf, data, ut_count_of(data), &transferred) != 0 ||
+                 transferred != ut_count_of(data),
                 "ut_files.write_fully()" ut_files_test_failed);
         fatal_if(ut_files.open(&f, tf, ut_files.o_rd) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
         for (int32_t i = 0; i < 256; i++) {
             for (int32_t j = 1; j < 256 - i; j++) {
-                uint8_t test[countof(data)] = { 0 };
+                uint8_t test[ut_countof(data)] = { 0 };
                 int64_t position = i;
                 fatal_if(ut_files.seek(f, &position, ut_files.seek_set) != 0 ||
                          position != i,
@@ -892,8 +892,8 @@ static void ut_files_test(void) {
         ut_files.close(f);
     }
     {   // write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
-        fatal_if(ut_files.write_fully(tf, data, countof(data), &transferred) != 0 ||
-                 transferred != countof(data),
+        fatal_if(ut_files.write_fully(tf, data, ut_count_of(data), &transferred) != 0 ||
+                 transferred != ut_count_of(data),
                 "ut_files.write_fully() failed %s", ut_runtime.err());
         fatal_if(!ut_files.exists(tf), "file \"%s\" does not exist", tf);
         fatal_if(ut_files.is_folder(tf), "%s is a folder", tf);

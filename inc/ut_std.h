@@ -48,9 +48,21 @@ typedef double fp64_t;
     #define end_c
 #endif
 
-#ifndef countof
-    #define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
-#endif
+// ut_countof() and ut_count_of() are suitable for
+// small < 2^31 element arrays
+
+// constexpr
+#define ut_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
+
+// ut_count_of() generates "Integer division by zero" exception
+// at runtime because ((void*)&(a) == &(a)[0]) does NOT evaluate
+// to constant expression in cl.exe version 19.40.33811
+#define ut_count_of(a) ((int32_t)(sizeof(a) / sizeof(a[1]) + \
+                        (1 - 1 / ((void*)&(a) == &(a)[0]))))
+// int a[5];
+// int *b = a;
+// printf("%d\n", ut_count_of(a));
+// printf("%d\n", ut_count_of(b)); // "Integer division by zero"
 
 #if defined(__GNUC__) || defined(__clang__)
     #define force_inline __attribute__((always_inline))

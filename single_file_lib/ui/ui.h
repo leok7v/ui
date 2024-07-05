@@ -55,9 +55,21 @@ typedef double fp64_t;
     #define end_c
 #endif
 
-#ifndef countof
-    #define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
-#endif
+// ut_countof() and ut_count_of() are suitable for
+// small < 2^31 element arrays
+
+// constexpr
+#define ut_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
+
+// ut_count_of() generates "Integer division by zero" exception
+// at runtime because ((void*)&(a) == &(a)[0]) does NOT evaluate
+// to constant expression in cl.exe version 19.40.33811
+#define ut_count_of(a) ((int32_t)(sizeof(a) / sizeof(a[1]) + \
+                        (1 - 1 / ((void*)&(a) == &(a)[0]))))
+// int a[5];
+// int *b = a;
+// printf("%d\n", ut_count_of(a));
+// printf("%d\n", ut_count_of(b)); // "Integer division by zero"
 
 #if defined(__GNUC__) || defined(__clang__)
     #define force_inline __attribute__((always_inline))
@@ -1183,7 +1195,7 @@ typedef struct ui_edit_str_if {
     void (*swap)(ui_edit_str_t* s1, ui_edit_str_t* s2);
     int32_t (*utf8bytes)(const char* utf8, int32_t bytes); // 0 on error
     int32_t (*glyphs)(const char* utf8, int32_t bytes); // -1 on error
-    int32_t (*gp_to_bp)(const char* s, int32_t bytes, int32_t gp); // -1
+    int32_t (*gp_to_bp)(const char* s, int32_t bytes, int32_t gp); // or -1
     int32_t (*bytes)(ui_edit_str_t* s, int32_t from, int32_t to); // glyphs
     bool (*expand)(ui_edit_str_t* s, int32_t capacity); // reallocate
     void (*shrink)(ui_edit_str_t* s); // get rid of extra heap memory
@@ -1994,7 +2006,7 @@ typedef struct {
     //     {"Text Files", ".txt;.doc;.ini",
     //      "Executables", ".exe",
     //      "All Files", "*"};
-    // const char* fn = ui_app.open_filename("C:\\", filter, countof(filter));
+    // const char* fn = ui_app.open_filename("C:\\", filter, ut_count_of(filter));
     const char* (*open_file)(const char* folder, const char* filter[], int32_t n);
     bool (*is_stdout_redirected)(void);
     bool (*is_console_visible)(void);
@@ -2292,7 +2304,7 @@ static void ui_app_init_fonts(int32_t dpi) {
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
-    ut_str.utf8to16(lf.lfFaceName, countof(lf.lfFaceName), "Cascadia Mono");
+    ut_str.utf8to16(lf.lfFaceName, ut_count_of(lf.lfFaceName), "Cascadia Mono");
     ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
 }
 
@@ -3024,10 +3036,10 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
-        int32_t n = GetUserDefaultLocaleName(ln, countof(ln));
+        int32_t n = GetUserDefaultLocaleName(ln, ut_count_of(ln));
         fatal_if_false(n > 0);
         uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-        n = ResolveLocaleName(ln, rln, countof(rln));
+        n = ResolveLocaleName(ln, rln, ut_count_of(rln));
         fatal_if_false(n > 0);
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
         fatal_if_false(SetThreadLocale(lc_id));
@@ -3587,7 +3599,7 @@ static void ui_app_redraw_thread(void* unused(p)) {
     ut_thread.name("ui_app.redraw");
     for (;;) {
         ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
-        int32_t ix = ut_event.wait_any(countof(es), es);
+        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
         if (ix == 0) {
             if (ui_app_window() != null) {
                 InvalidateRect(ui_app_window(), null, false);
@@ -3637,7 +3649,7 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
                                           keyboard_layout);
         // Translate scan code to character
         int result = ToUnicodeEx(virtualKey, scan_code, keyboard_state,
-                                 utf16, countof(utf16), 0, keyboard_layout);
+                                 utf16, ut_count_of(utf16), 0, keyboard_layout);
         if (result > 0) {
             traceln("0x%04X04X is_key_released: %d down: %d repeat: %d",
                      utf16[0], utf16[1], is_key_released, was_key_down,
@@ -3793,7 +3805,7 @@ static void ui_app_destroy_caret(void) {
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
-    swear(0 <= kind && kind < countof(beep_id));
+    swear(0 <= kind && kind < ut_count_of(beep_id));
     fatal_if_false(MessageBeep(beep_id[kind]));
 }
 
@@ -3954,8 +3966,8 @@ static void ui_app_set_console_title(HWND cw) {
     swear(ut_thread.id() == ui_app.tid);
     static char text[256];
     text[0] = 0;
-    GetWindowTextA((HWND)ui_app.window, text, countof(text));
-    text[countof(text) - 1] = 0;
+    GetWindowTextA((HWND)ui_app.window, text, ut_count_of(text));
+    text[ut_count_of(text) - 1] = 0;
     char title[256];
     ut_str_printf(title, "%s - Console", text);
     fatal_if_false(SetWindowTextA(cw, title));
@@ -4073,7 +4085,7 @@ static const char* ui_app_open_file(const char* folder,
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
-        int32_t left = countof(memory) - 2;
+        int32_t left = ut_count_of(memory) - 2;
         uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
             uint16_t* s0 = s;
@@ -4094,7 +4106,7 @@ static const char* ui_app_open_file(const char* folder,
     }
     static uint16_t dir[ut_files_max_path];
     dir[0] = 0;
-    ut_str.utf8to16(dir, countof(dir), folder);
+    ut_str.utf8to16(dir, ut_count_of(dir), folder);
     static uint16_t path[ut_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
@@ -4107,7 +4119,7 @@ static const char* ui_app_open_file(const char* folder,
     static ut_file_name_t fn;
     fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        ut_str.utf16to8(fn.s, countof(fn.s), path);
+        ut_str.utf16to8(fn.s, ut_count_of(fn.s), path);
     } else {
         fn.s[0] = 0;
     }
@@ -5104,7 +5116,7 @@ static struct {
 
 static ui_color_t ui_colors_get_color(int32_t color_id) {
     // SysGetColor() does not work on Win10
-    swear(0 < color_id && color_id < countof(ui_theme_colors));
+    swear(0 < color_id && color_id < ut_count_of(ui_theme_colors));
     return ui_theme.is_app_dark() ?
            ui_theme_colors[color_id].dark :
            ui_theme_colors[color_id].light;
@@ -5364,8 +5376,8 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
         "padding { %.3f %.3f %.3f %.3f } "                                    \
         "insets { %.3f %.3f %.3f %.3f } align: 0x%02X",                       \
         v->text, &v->type, v->x, v->y, v->w, v->h,                            \
-        ui_stack_finite_int(v->max_w, maxw, countof(maxw)),               \
-        ui_stack_finite_int(v->max_h, maxh, countof(maxh)),               \
+        ui_stack_finite_int(v->max_w, maxw, ut_count_of(maxw)),               \
+        ui_stack_finite_int(v->max_h, maxh, ut_count_of(maxh)),               \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
         v->insets.left, v->insets.top, v->insets.right, v->insets.bottom,     \
         v->align);                                                            \
@@ -5770,10 +5782,10 @@ static void ui_stack_measure(ui_view_t* p) {
         }
     } ui_view_for_each_end(p, c);
     if (ui_containers_debug) {
-        for (int32_t r = 0; r < countof(sides); r++) {
+        for (int32_t r = 0; r < ut_count_of(sides); r++) {
             char text[1024];
             text[0] = 0;
-            for (int32_t c = 0; c < countof(sides[r]); c++) {
+            for (int32_t c = 0; c < ut_count_of(sides[r]); c++) {
                 char line[128];
                 strprintf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
                 strcat(text, line);
@@ -7221,7 +7233,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
         ut_heap.free(s->g2b);
     } else {
         #ifdef UI_EDIT_STR_TEST // check ui_edit_str_g2b_ascii integrity
-            for (int32_t i = 0; i < countof(ui_edit_str_g2b_ascii); i++) {
+            for (int32_t i = 0; i < ut_count_of(ui_edit_str_g2b_ascii); i++) {
                 assert(ui_edit_str_g2b_ascii[i] == i);
             }
         #endif
@@ -7271,7 +7283,7 @@ static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
 
 static bool ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b,
         bool heap) {
-    enum { n = countof(ui_edit_str_g2b_ascii) };
+    enum { n = ut_countof(ui_edit_str_g2b_ascii) };
     if (ui_edit_str_g2b_ascii[n - 1] != n - 1) {
         for (int32_t i = 0; i < n; i++) { ui_edit_str_g2b_ascii[i] = i; }
     }
@@ -7318,11 +7330,11 @@ static int32_t ui_edit_str_bytes(ui_edit_str_t* s,
 static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
-        if (s->b == s->g && s->g < countof(ui_edit_str_g2b_ascii) - 1) {
+        if (s->b == s->g && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
 //          traceln("forcefully moving to heap");
             // this is usually done in the process of concatenation
             // of 2 ascii strings when result is known to be longer
-            // than countof(ui_edit_str_g2b_ascii) - 1 but the
+            // than ut_count_of(ui_edit_str_g2b_ascii) - 1 but the
             // first string in concatenation is short. It's OK.
         }
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
@@ -7373,7 +7385,7 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
     }
     // Optimize memory for short ASCII only strings:
     if (s->g2b != ui_edit_str_g2b_ascii) {
-        if (s->g == s->b && s->g < countof(ui_edit_str_g2b_ascii) - 1) {
+        if (s->g == s->b && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
             // If this is an ascii only utf8 string shorter than
             // ui_edit_str_g2b_ascii it does not need .g2b[] allocated:
             if (s->g2b != ui_edit_str_g2b_ascii) {
@@ -7442,7 +7454,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
             // keep g2b == ui_edit_str_g2b_ascii as much as possible
             const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
                                    ins.g2b == ui_edit_str_g2b_ascii &&
-                                   bytes < countof(ui_edit_str_g2b_ascii) - 1;
+                                   bytes < ut_count_of(ui_edit_str_g2b_ascii) - 1;
             ok = ui_edit_str_move_to_heap(s, c);
             if (ok) {
                 if (!all_ascii) {
@@ -7559,7 +7571,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
         "", ui_edit_usd, ui_edit_gbp, ui_edit_euro, ui_edit_money_bag
     };
     const int32_t gb[] = {0, 1, 2, 3, 4}; // number of bytes per codepoint
-    enum { n = countof(gs) };
+    enum { n = ut_countof(gs) };
     int32_t npn = 1; // n to the power of n
     for (int32_t i = 0; i < n; i++) { npn *= n; }
     int32_t gix_src[n] = {0};
@@ -7606,13 +7618,13 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                     char rep[128] = {0};
                     for (int32_t j = 0; j < n; j++) { strcat(rep, gs[gix_rep[j]]); }
                     char e1[128] = {0}; // expected based on s.g2b[]
-                    snprintf(e1, countof(e1), "%.*s%s%.*s",
+                    snprintf(e1, ut_count_of(e1), "%.*s%s%.*s",
                         s.g2b[f], src,
                         rep,
                         s.b - s.g2b[t], src + s.g2b[t]
                     );
                     char e2[128] = {0}; // expected based on gs[]
-                    snprintf(e2, countof(e1), "%.*s%s%.*s",
+                    snprintf(e2, ut_count_of(e1), "%.*s%s%.*s",
                         g2p[f], src,
                         rep,
                         (int32_t)strlen(src) - g2p[t], src + g2p[t]
@@ -7949,7 +7961,7 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
-        for (int32_t i = 0; i < countof(ins); i++) {
+        for (int32_t i = 0; i < ut_count_of(ins); i++) {
             swear(ui_edit_doc.init(d, null, 0, false));
             const char* s = "GoodbyeCruelUniverse";
             swear(ui_edit_doc.replace(d, null, s, -1));
@@ -9869,7 +9881,7 @@ static void ui_edit_after(ui_edit_notify_t* notify,
         e->selection = *ni->x;
         // this is needed by undo/redo: trim selection
         ui_edit_pg_t* pg = e->selection.a;
-        for (int32_t i = 0; i < countof(e->selection.a); i++) {
+        for (int32_t i = 0; i < ut_count_of(e->selection.a); i++) {
             pg[i].pn = ut_max(0, ut_min(dt->np - 1, pg[i].pn));
             pg[i].gp = ut_max(0, ut_min(dt->ps[pg[i].pn].g, pg[i].gp));
         }
@@ -10822,7 +10834,7 @@ if (0) {
     int32_t count = ut_str.utf16_chars(s);
     assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
-    swear(count <= countof(ws), "find another way to draw!");
+    swear(count <= ut_count_of(ws), "find another way to draw!");
     ut_str.utf8to16(ws, count, s);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
@@ -10853,11 +10865,11 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     not_null(p);
     char text[4096]; // expected to be enough for single text draw
     text[0] = 0;
-    ut_str.format_va(text, countof(text), p->format, p->va);
-    text[countof(text) - 1] = 0;
+    ut_str.format_va(text, ut_count_of(text), p->format, p->va);
+    text[ut_count_of(text) - 1] = 0;
     int32_t k = (int32_t)ut_str.len(text);
     if (k > 0) {
-        swear(k > 0 && k < countof(text), "k=%d n=%d fmt=%s", k, p->format);
+        swear(k > 0 && k < ut_count_of(text), "k=%d n=%d fmt=%s", k, p->format);
         // rectangle is always calculated - it makes draw text
         // much slower but UI layer is mostly uses bitmap caching:
         if ((p->flags & DT_CALCRECT) == 0) {
@@ -11176,7 +11188,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
     #pragma warning(disable: 6385)
     #pragma warning(disable: 6386)
     int32_t mxw[1024]; // more than enough for sane humane UI
-    swear(cols <= countof(mxw));
+    swear(cols <= ut_count_of(mxw));
     memset(mxw, 0, (size_t)cols * sizeof(int32_t));
     ui_view_for_each(v, r, {
         if (!ui_view.is_hidden(r)) {
@@ -11314,7 +11326,7 @@ static void ui_mbx_button(ui_button_t* b) {
     ui_mbx_t* mx = (ui_mbx_t*)b->parent;
     assert(mx->type == ui_view_mbx);
     mx->option = -1;
-    for (int32_t i = 0; i < countof(mx->button) && mx->option < 0; i++) {
+    for (int32_t i = 0; i < ut_count_of(mx->button) && mx->option < 0; i++) {
         if (b == &mx->button[i]) {
             mx->option = i;
             if (mx->callback != null) { mx->callback(&mx->view); }
@@ -11382,13 +11394,13 @@ void ui_view_init_mbx(ui_view_t* view) {
     view->layout = ui_mbx_layout;
     mx->fm = &ui_app.fm.regular;
     int32_t n = 0;
-    while (mx->options[n] != null && n < countof(mx->button) - 1) {
+    while (mx->options[n] != null && n < ut_count_of(mx->button) - 1) {
         mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
         ui_view.set_text(&mx->button[n], "%s", mx->options[n]);
         n++;
     }
-    swear(n <= countof(mx->button), "inhumane: %d buttons is too many", n);
-    if (n > countof(mx->button)) { n = countof(mx->button); }
+    swear(n <= ut_count_of(mx->button), "inhumane: %d buttons is too many", n);
+    if (n > ut_count_of(mx->button)) { n = ut_count_of(mx->button); }
     mx->label = (ui_label_t)ui_label(0, "");
     ui_view.set_text(&mx->label, "%s", ui_view.string(&mx->view));
     ui_view.add_last(&mx->view, &mx->label);
@@ -11447,7 +11459,7 @@ static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
 }
 
 static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
-    char formatted[countof(s->p.text)];
+    char formatted[ut_countof(s->p.text)];
     const ui_fm_t* fm = s->fm;
     const char* text = ui_view.string(&s->view);
     const ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
@@ -11568,14 +11580,14 @@ static void ui_slider_paint(ui_view_t* v) {
     }
     // text:
     const char* text = ui_view.string(v);
-    char formatted[countof(v->p.text)];
+    char formatted[ut_countof(v->p.text)];
     if (s->format != null) {
         s->format(v);
         s->p.strid = 0; // nls again
         text = ui_view.string(v);
     } else if (text != null &&
         (strstr(text, "%d") != null || strstr(text, "%u") != null)) {
-        ut_str.format(formatted, countof(formatted), text, s->value);
+        ut_str.format(formatted, ut_count_of(formatted), text, s->value);
         s->p.strid = 0; // nls again
         text = ut_nls.str(formatted);
     }
@@ -11998,8 +12010,8 @@ static void ui_toggle_measure(ui_view_t* v) {
 
 static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    char txt[countof(v->p.text)];
-    const char* label = ui_toggle_on_off_label(v, txt, countof(txt));
+    char txt[ut_countof(v->p.text)];
+    const char* label = ui_toggle_on_off_label(v, txt, ut_count_of(txt));
     const char* text = ut_nls.str(label);
     ui_view_text_metrics_t tm = {0};
     ui_view.text_measure(v, text, &tm);
@@ -12487,8 +12499,8 @@ static void ui_view_update_shortcut(ui_view_t* v) {
 }
 
 static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
-    char t[countof(v->p.text)];
-    ut_str.format_va(t, countof(t), format, va);
+    char t[ut_countof(v->p.text)];
+    ut_str.format_va(t, ut_count_of(t), format, va);
     char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);

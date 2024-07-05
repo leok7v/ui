@@ -52,9 +52,21 @@ typedef double fp64_t;
     #define end_c
 #endif
 
-#ifndef countof
-    #define countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
-#endif
+// ut_countof() and ut_count_of() are suitable for
+// small < 2^31 element arrays
+
+// constexpr
+#define ut_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
+
+// ut_count_of() generates "Integer division by zero" exception
+// at runtime because ((void*)&(a) == &(a)[0]) does NOT evaluate
+// to constant expression in cl.exe version 19.40.33811
+#define ut_count_of(a) ((int32_t)(sizeof(a) / sizeof(a[1]) + \
+                        (1 - 1 / ((void*)&(a) == &(a)[0]))))
+// int a[5];
+// int *b = a;
+// printf("%d\n", ut_count_of(a));
+// printf("%d\n", ut_count_of(b)); // "Integer division by zero"
 
 #if defined(__GNUC__) || defined(__clang__)
     #define force_inline __attribute__((always_inline))
@@ -150,13 +162,13 @@ typedef struct str32K_t {
 // truncating string printf:
 // char s[100]; ut_str_printf(s, "Hello %s", "world");
 // do not use with char* and char s[] parameters
-// because countof(s) will be sizeof(char*) not the size of the buffer.
+// because ut_count_of(s) will be sizeof(char*) not the size of the buffer.
 
-#define ut_str_printf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
+#define ut_str_printf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
 
 // shorthand:
 
-#define strprintf(s, ...) ut_str.format((s), countof(s), "" __VA_ARGS__)
+#define strprintf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
 #define strerr(r) (ut_str.error((r)).s) // use only as strpintf() parameter
 
 // The strings are expected to be UTF-8 encoded.
@@ -1972,8 +1984,8 @@ static const char* ut_args_basename(void) {
             s++;
         }
         int32_t n = ut_str.len(b);
-        swear(n < countof(basename));
-        strncpy(basename, b, countof(basename) - 1);
+        swear(n < ut_count_of(basename));
+        strncpy(basename, b, ut_count_of(basename) - 1);
         char* d = basename + n - 1;
         while (d > basename && *d != '.') { d--; }
         if (*d == '.') { *d = 0x00; }
@@ -2434,7 +2446,7 @@ static void ut_bt_init(void) {
 static void ut_bt_capture(ut_bt_t* bt, int32_t skip) {
     ut_bt_init();
     SetLastError(0);
-    bt->frames = CaptureStackBackTrace(1 + skip, countof(bt->stack),
+    bt->frames = CaptureStackBackTrace(1 + skip, ut_count_of(bt->stack),
         bt->stack, (DWORD*)&bt->hash);
     bt->last_error = GetLastError();
 }
@@ -2527,7 +2539,7 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
     const DWORD64 pc = (DWORD64)bt->stack[i];
     symbol_info_t si = {
         .info = { .SizeOfStruct = sizeof(SYMBOL_INFO),
-                  .MaxNameLen = countof(si.name) }
+                  .MaxNameLen = ut_count_of(si.name) }
     };
     bt->file[i][0] = 0;
     bt->line[i] = 0;
@@ -2557,8 +2569,8 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
                 bt->last_error = ut_runtime.err();
                 if (ut_bt_function(pc, &si.info)) {
                     GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
-                        countof(bt->file[i]) - 1);
-                    bt->file[i][countof(bt->file[i]) - 1] = 0;
+                        ut_count_of(bt->file[i]) - 1);
+                    bt->file[i][ut_count_of(bt->file[i]) - 1] = 0;
                     bt->line[i]    = 0;
                 } else  {
                     bt->file[i][0] = 0x00;
@@ -2571,8 +2583,8 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
             if (ut_bt_function(pc, &si.info)) {
                 strprintf(bt->symbol[i], "%s", si.info.Name);
                 GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
-                    countof(bt->file[i]) - 1);
-                bt->file[i][countof(bt->file[i]) - 1] = 0;
+                    ut_count_of(bt->file[i]) - 1);
+                bt->file[i][ut_count_of(bt->file[i]) - 1] = 0;
                 bt->last_error = 0;
                 i++;
             } else {
@@ -2589,10 +2601,10 @@ static void ut_bt_symbolize_backtrace(ut_bt_t* bt) {
     ut_bt_init();
     // ut_bt_symbolize_frame() may produce zero, one or many frames
     int32_t n = bt->frames;
-    void* stack[countof(bt->stack)];
+    void* stack[ut_countof(bt->stack)];
     memcpy(stack, bt->stack, n * sizeof(stack[0]));
     bt->frames = 0;
-    for (int32_t i = 0; i < n && bt->frames < countof(bt->stack); i++) {
+    for (int32_t i = 0; i < n && bt->frames < ut_count_of(bt->stack); i++) {
         bt->stack[bt->frames] = stack[i];
         bt->frames = ut_bt_symbolize_frame(bt, i);
     }
@@ -2649,7 +2661,7 @@ static const char* ut_bt_string(const ut_bt_t* bt,
         } else if (file[0] == 0 && name[0] != 0) {
             strprintf(s, "%s\n", name);
         }
-        s[countof(s) - 1] = 0;
+        s[ut_count_of(s) - 1] = 0;
         int32_t k = (int32_t)strlen(s);
         if (k < n) {
             memcpy(p, s, (size_t)k + 1);
@@ -2667,7 +2679,7 @@ static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
     tn.name[0] = 0;
     wchar_t* thread_name = null;
     if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
-        ut_str.utf16to8(tn.name, countof(tn.name), thread_name);
+        ut_str.utf16to8(tn.name, ut_count_of(tn.name), thread_name);
         LocalFree(thread_name);
     }
     return tn;
@@ -2718,7 +2730,7 @@ static void ut_bt_context(ut_thread_t thread, const void* ctx,
             SymFunctionTableAccess64, SymGetModuleBase64, null)) {
         DWORD64 pc = stack_frame.AddrPC.Offset;
         if (pc == 0) { break; }
-        if (bt->frames < countof(bt->stack)) {
+        if (bt->frames < ut_count_of(bt->stack)) {
             bt->stack[bt->frames] = (void*)pc;
             bt->frames = ut_bt_symbolize_frame(bt, bt->frames);
         }
@@ -2798,7 +2810,7 @@ static bool ut_bt_tee(const char* s, int32_t count) {
     if (count > 0 && s[count - 1] == 0) { // zero terminated
         int32_t k = (int32_t)(uintptr_t)(
             ut_bt_test_output_p - ut_bt_test_output);
-        int32_t space = countof(ut_bt_test_output) - k;
+        int32_t space = ut_count_of(ut_bt_test_output) - k;
         if (count < space) {
             memcpy(ut_bt_test_output_p, s, count);
             ut_bt_test_output_p += count - 1; // w/o 0x00
@@ -2838,7 +2850,7 @@ static void ut_bt_test(void) {
         ut_debug.output(ut_bt_test_output,
             (int32_t)strlen(ut_bt_test_output) + 1);
     }
-    swear(strstr(ut_bt_test_output, "ut_bt_test") != null, 
+    swear(strstr(ut_bt_test_output, "ut_bt_test") != null,
           "%s", ut_bt_test_output);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
@@ -2947,7 +2959,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
 static void ut_clipboard_test(void) {
     fatal_if_not_zero(ut_clipboard.put_text("Hello Clipboard"));
     char text[256];
-    int32_t bytes = countof(text);
+    int32_t bytes = ut_count_of(text);
     fatal_if_not_zero(ut_clipboard.get_text(text, &bytes));
     swear(strcmp(text, "Hello Clipboard") == 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
@@ -3319,27 +3331,27 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         // full path is useful in MSVC debugger output pane (clickable)
         // for all other scenarios short filename without path is preferable:
         const char* name = IsDebuggerPresent() ? file : ut_files.basename(file);
-        snprintf(file_line, countof(file_line) - 1, "%s(%d):", name, line);
+        snprintf(file_line, ut_count_of(file_line) - 1, "%s(%d):", name, line);
     }
-    file_line[countof(file_line) - 1] = 0x00; // always zero terminated'
+    file_line[ut_count_of(file_line) - 1] = 0x00; // always zero terminated'
     ut_debug_max_file_line = ut_max(ut_debug_max_file_line,
                                     (int32_t)strlen(file_line));
     ut_debug_max_function  = ut_max(ut_debug_max_function,
                                     (int32_t)strlen(func));
     char prefix[2 * 1024];
     // snprintf() does not guarantee zero termination on truncation
-    snprintf(prefix, countof(prefix) - 1, "%-*s %-*s",
+    snprintf(prefix, ut_count_of(prefix) - 1, "%-*s %-*s",
             ut_debug_max_file_line, file_line,
             ut_debug_max_function,  func);
-    prefix[countof(prefix) - 1] = 0; // zero terminated
+    prefix[ut_count_of(prefix) - 1] = 0; // zero terminated
     char text[2 * 1024];
     if (format != null && format[0] != 0) {
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wformat-nonliteral"
         #endif
-        vsnprintf(text, countof(text) - 1, format, va);
-        text[countof(text) - 1] = 0;
+        vsnprintf(text, ut_count_of(text) - 1, format, va);
+        text[ut_count_of(text) - 1] = 0;
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic pop
         #endif
@@ -3347,15 +3359,15 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         text[0] = 0;
     }
     char output[4 * 1024];
-    snprintf(output, countof(output) - 1, "%s %s", prefix, text);
-    output[countof(output) - 2] = 0;
+    snprintf(output, ut_count_of(output) - 1, "%s %s", prefix, text);
+    output[ut_count_of(output) - 2] = 0;
     // strip trailing \n which can be remnant of fprintf("...\n")
     int32_t n = (int32_t)strlen(output);
     while (n > 0 && (output[n - 1] == '\n' || output[n - 1] == '\r')) {
         output[n - 1] = 0;
         n--;
     }
-    assert(n + 1 < countof(output));
+    assert(n + 1 < ut_count_of(output));
     // Win32 OutputDebugString() needs \n
     output[n + 0] = '\n';
     output[n + 1] = 0;
@@ -3804,7 +3816,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
 static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
     uint8_t stack[SECURITY_MAX_SID_SIZE] = {0};
-    DWORD n = countof(stack);
+    DWORD n = ut_count_of(stack);
     SID* sid = (SID*)stack;
     errno_t r = ut_b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
                                        null, sid, &n));
@@ -4062,12 +4074,12 @@ static const char* ut_files_known_folder(int32_t kf) {
         &FOLDERID_ProgramFiles,
         &FOLDERID_ProgramData
     };
-    static ut_file_name_t known_folders[countof(kf_ids)];
-    fatal_if(!(0 <= kf && kf < countof(kf_ids)), "invalid kf=%d", kf);
+    static ut_file_name_t known_folders[ut_countof(kf_ids)];
+    fatal_if(!(0 <= kf && kf < ut_count_of(kf_ids)), "invalid kf=%d", kf);
     if (known_folders[kf].s[0] == 0) {
         uint16_t* path = null;
         fatal_if_not_zero(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
-        ut_str.utf16to8(known_folders[kf].s, countof(known_folders[kf].s), path);
+        ut_str.utf16to8(known_folders[kf].s, ut_count_of(known_folders[kf].s), path);
         CoTaskMemFree(path);
 	}
     return known_folders[kf].s;
@@ -4088,7 +4100,7 @@ static const char* ut_files_tmp(void) {
         // in chars, of the string copied to lpBuffer, not including
         // the terminating null character. If the function fails, the
         // return value is zero.
-        errno_t r = GetTempPathA(countof(tmp), tmp) == 0 ? ut_runtime.err() : 0;
+        errno_t r = GetTempPathA(ut_count_of(tmp), tmp) == 0 ? ut_runtime.err() : 0;
         fatal_if(r != 0, "GetTempPathA() failed %s", strerr(r));
     }
     return tmp;
@@ -4138,7 +4150,7 @@ static const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
     if (FindNextFileA(d->handle, &d->find)) {
         fn = d->find.cFileName;
         // Ensure zero termination
-        d->find.cFileName[countof(d->find.cFileName) - 1] = 0x00;
+        d->find.cFileName[ut_count_of(d->find.cFileName) - 1] = 0x00;
         if (s != null) {
             s->accessed = ut_files_ft2us(&d->find.ftLastAccessTime);
             s->created = ut_files_ft2us(&d->find.ftCreationTime);
@@ -4210,7 +4222,7 @@ static void folders_test(void) {
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
     char tmp_file[ut_files_max_path]; // create_tmp() is thread safe race free:
-    errno_t r = ut_files.create_tmp(tmp_file, countof(tmp_file));
+    errno_t r = ut_files.create_tmp(tmp_file, ut_count_of(tmp_file));
     fatal_if(r != 0, "ut_files.create_tmp() failed %s", strerr(r));
     char tmp_dir[ut_files_max_path];
     ut_str_printf(tmp_dir, "%s.dir", tmp_file);
@@ -4300,15 +4312,15 @@ static void ut_files_test_append_thread(void* p) {
     uint8_t data[256] = {0};
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     int64_t transferred = 0;
-    fatal_if(ut_files.write(f, data, countof(data), &transferred) != 0 ||
-             transferred != countof(data), "ut_files.write()" ut_files_test_failed);
+    fatal_if(ut_files.write(f, data, ut_count_of(data), &transferred) != 0 ||
+             transferred != ut_count_of(data), "ut_files.write()" ut_files_test_failed);
 }
 
 static void ut_files_test(void) {
     folders_test();
     uint64_t now = ut_clock.microseconds(); // epoch time
     char tf[256]; // temporary file
-    fatal_if(ut_files.create_tmp(tf, countof(tf)) != 0,
+    fatal_if(ut_files.create_tmp(tf, ut_count_of(tf)) != 0,
             "ut_files.create_tmp()" ut_files_test_failed);
     uint8_t data[256] = {0};
     int64_t transferred = 0;
@@ -4318,14 +4330,14 @@ static void ut_files_test(void) {
         fatal_if(ut_files.open(&f, tf,
                  ut_files.o_wr | ut_files.o_create | ut_files.o_trunc) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
-        fatal_if(ut_files.write_fully(tf, data, countof(data), &transferred) != 0 ||
-                 transferred != countof(data),
+        fatal_if(ut_files.write_fully(tf, data, ut_count_of(data), &transferred) != 0 ||
+                 transferred != ut_count_of(data),
                 "ut_files.write_fully()" ut_files_test_failed);
         fatal_if(ut_files.open(&f, tf, ut_files.o_rd) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
         for (int32_t i = 0; i < 256; i++) {
             for (int32_t j = 1; j < 256 - i; j++) {
-                uint8_t test[countof(data)] = { 0 };
+                uint8_t test[ut_countof(data)] = { 0 };
                 int64_t position = i;
                 fatal_if(ut_files.seek(f, &position, ut_files.seek_set) != 0 ||
                          position != i,
@@ -4390,8 +4402,8 @@ static void ut_files_test(void) {
         ut_files.close(f);
     }
     {   // write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
-        fatal_if(ut_files.write_fully(tf, data, countof(data), &transferred) != 0 ||
-                 transferred != countof(data),
+        fatal_if(ut_files.write_fully(tf, data, ut_count_of(data), &transferred) != 0 ||
+                 transferred != ut_count_of(data),
                 "ut_files.write_fully() failed %s", ut_runtime.err());
         fatal_if(!ut_files.exists(tf), "file \"%s\" does not exist", tf);
         fatal_if(ut_files.is_folder(tf), "%s is a folder", tf);
@@ -5110,7 +5122,7 @@ static const char* ut_nls_ls[ut_nls_str_count_max]; // localized strings
 static const char* ut_nls_ns[ut_nls_str_count_max]; // neutral language strings
 
 static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
-    assert(0 <= strid && strid < countof(ut_nls_ns));
+    assert(0 <= strid && strid < ut_count_of(ut_nls_ns));
     uint16_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
@@ -5143,7 +5155,7 @@ static const char* ut_nls_save_string(uint16_t* utf16) {
     const int32_t bytes = ut_str.utf8_bytes(utf16);
     swear(bytes > 1);
     char* s = ut_nls_strings_free;
-    uintptr_t left = (uintptr_t)countof(ut_nls_strings_memory) -
+    uintptr_t left = (uintptr_t)ut_count_of(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
     fatal_if_false(left >= (uintptr_t)bytes, "string_memory[] overflow");
     ut_str.utf16to8(s, (int32_t)left, utf16);
@@ -5153,9 +5165,9 @@ static const char* ut_nls_save_string(uint16_t* utf16) {
 }
 
 static const char* ut_nls_localized_string(int32_t strid) {
-    swear(0 < strid && strid < countof(ut_nls_ns));
+    swear(0 < strid && strid < ut_count_of(ut_nls_ns));
     const char* s = null;
-    if (0 < strid && strid < countof(ut_nls_ns)) {
+    if (0 < strid && strid < ut_count_of(ut_nls_ns)) {
         if (ut_nls_ls[strid] != null) {
             s = ut_nls_ls[strid];
         } else {
@@ -5200,7 +5212,7 @@ static const char* ut_nls_str(const char* s) {
 static const char* ut_nls_locale(void) {
     uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
     LCID lc_id = GetThreadLocale();
-    int32_t n = LCIDToLocaleName(lc_id, utf16, countof(utf16),
+    int32_t n = LCIDToLocaleName(lc_id, utf16, ut_count_of(utf16),
         LOCALE_ALLOW_NEUTRAL_NAMES);
     static char ln[LOCALE_NAME_MAX_LENGTH * 4 + 1];
     ln[0] = 0;
@@ -5208,7 +5220,7 @@ static const char* ut_nls_locale(void) {
         errno_t r = ut_runtime.err();
         traceln("LCIDToLocaleName(0x%04X) failed %s", lc_id, ut_str.error(r));
     } else {
-        ut_str.utf16to8(ln, countof(ln), utf16);
+        ut_str.utf16to8(ln, ut_count_of(ln), utf16);
     }
     return ln;
 }
@@ -5216,9 +5228,9 @@ static const char* ut_nls_locale(void) {
 static errno_t ut_nls_set_locale(const char* locale) {
     errno_t r = 0;
     uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
-    ut_str.utf8to16(utf16, countof(utf16), locale);
+    ut_str.utf8to16(utf16, ut_count_of(utf16), locale);
     uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1]; // resolved locale name
-    int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)countof(rln));
+    int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)ut_count_of(rln));
     if (n == 0) {
         r = ut_runtime.err();
         traceln("ResolveLocaleName(\"%s\") failed %s", locale, ut_str.error(r));
@@ -5236,9 +5248,10 @@ static errno_t ut_nls_set_locale(const char* locale) {
 }
 
 static void ut_nls_init(void) {
-    static_assert(countof(ut_nls_ns) % 16 == 0, "countof(ns) must be multiple of 16");
+    static_assert(ut_countof(ut_nls_ns) % 16 == 0, 
+                 "ut_count_of(ns) must be multiple of 16");
     LANGID lang_id = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
-    for (int32_t strid = 0; strid < countof(ut_nls_ns); strid += 16) {
+    for (int32_t strid = 0; strid < ut_count_of(ut_nls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
         HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
             MAKEINTRESOURCE(block), lang_id);
@@ -5533,7 +5546,7 @@ typedef struct ut_processes_pidof_lambda_s {
 static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
     int32_t n = ut_str.len(pname);
-    fatal_if(n + 5 >= countof(stack), "name is too long: %s", pname);
+    fatal_if(n + 5 >= ut_count_of(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
     if (!ut_str.iends(pname, ".exe")) {
@@ -5549,8 +5562,8 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         base = name;
     }
     uint16_t wn[1024];
-    fatal_if(strlen(base) >= countof(wn), "name too long: %s", base);
-    ut_str.utf8to16(wn, countof(wn), base);
+    fatal_if(strlen(base) >= ut_count_of(wn), "name too long: %s", base);
+    ut_str.utf8to16(wn, ut_count_of(wn), base);
     size_t count = 0;
     uint64_t pid = 0;
     uint8_t* data = null;
@@ -5580,7 +5593,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (base != name) {
                     char path[ut_files_max_path];
-                    match = ut_processes.nameof(pid, path, countof(path)) == 0 &&
+                    match = ut_processes.nameof(pid, path, ut_count_of(path)) == 0 &&
                             ut_str.iends(path, name);
 //                  traceln("\"%s\" -> \"%s\" match: %d", name, path, match);
                 }
@@ -5696,7 +5709,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
             DWORD ix = WaitForSingleObject(h, milliseconds);
             r = ut_wait_ix2e(ix);
         } else {
-            DWORD bytes = countof(path);
+            DWORD bytes = ut_count_of(path);
             errno_t rq = ut_b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
             if (rq != 0) {
                 traceln("QueryFullProcessImageNameA(pid=%d, h=%p) "
@@ -6017,7 +6030,7 @@ static errno_t ut_processes_spawn(const char* command) {
 static const char* ut_processes_name(void) {
     static char module_name[ut_files_max_path];
     if (module_name[0] == 0) {
-        fatal_if_false(GetModuleFileNameA(null, module_name, countof(module_name)));
+        fatal_if_false(GetModuleFileNameA(null, module_name, ut_count_of(module_name)));
     }
     return module_name;
 }
@@ -6035,7 +6048,7 @@ static const char* ut_processes_name(void) {
 static void ut_processes_test(void) {
     #ifdef UT_TESTS // in alphabetical order
     const char* names[] = { "svchost", "RuntimeBroker", "conhost" };
-    for (int32_t j = 0; j < countof(names); j++) {
+    for (int32_t j = 0; j < ut_count_of(names); j++) {
         int32_t size  = 0;
         int32_t count = 0;
         uint64_t* pids = null;
@@ -6053,7 +6066,7 @@ static void ut_processes_test(void) {
             for (int32_t i = 0; i < count; i++) {
                 char path[256] = {0};
                 #pragma warning(suppress: 6011) // dereferencing null
-                r = ut_processes.nameof(pids[i], path, countof(path));
+                r = ut_processes.nameof(pids[i], path, ut_count_of(path));
                 if (r != ERROR_NOT_FOUND) {
                     assert(r == 0 && path[0] != 0);
                     verbose("%6d %s %s", pids[i], path, strerr(r));
@@ -6066,19 +6079,19 @@ static void ut_processes_test(void) {
     int32_t xc = 0;
     char data[32 * 1024];
     ut_stream_memory_if output;
-    ut_streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, ut_count_of(data));
     const char* cmd = "cmd /c dir 2>nul >nul";
     errno_t r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    ut_streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, ut_count_of(data));
     cmd = "cmd /c dir \"folder that does not exist\\\"";
     r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    ut_streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, ut_count_of(data));
     cmd = "cmd /c dir";
     r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    ut_streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, ut_count_of(data));
     cmd = "cmd /c timeout 1";
     r = ut_processes.popen(cmd, &xc, &output.stream, 1.0E-9);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
@@ -6452,10 +6465,10 @@ static void*   ut_static_symbol_reference[1024];
 static int32_t ut_static_symbol_reference_count;
 
 void* ut_force_symbol_reference(void* symbol) {
-    assert(ut_static_symbol_reference_count <= countof(ut_static_symbol_reference),
+    assert(ut_static_symbol_reference_count <= ut_count_of(ut_static_symbol_reference),
         "increase size of ut_static_symbol_reference[%d] to at least %d",
-        countof(ut_static_symbol_reference), ut_static_symbol_reference);
-    if (ut_static_symbol_reference_count < countof(ut_static_symbol_reference)) {
+        ut_count_of(ut_static_symbol_reference), ut_static_symbol_reference);
+    if (ut_static_symbol_reference_count < ut_count_of(ut_static_symbol_reference)) {
         ut_static_symbol_reference[ut_static_symbol_reference_count] = symbol;
 //      traceln("ut_static_symbol_reference[%d] = %p", ut_static_symbol_reference_count,
 //               ut_static_symbol_reference[symbol_reference_count]);
@@ -6618,26 +6631,26 @@ static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
         flags |= FORMAT_MESSAGE_FROM_HMODULE;
     }
     str1024_t text;
-    uint16_t utf16[countof(text.s)];
+    uint16_t utf16[ut_countof(text.s)];
     DWORD count = FormatMessageW(flags, module, hr, language,
-            utf16, countof(utf16) - 1, (va_list*)null);
-    utf16[countof(utf16) - 1] = 0; // always
+            utf16, ut_count_of(utf16) - 1, (va_list*)null);
+    utf16[ut_count_of(utf16) - 1] = 0; // always
     // If FormatMessageW() succeeds, the return value is the number of utf16
     // characters stored in the output buffer, excluding the terminating zero.
     if (count > 0) {
-        swear(count < countof(utf16));
+        swear(count < ut_count_of(utf16));
         utf16[count] = 0;
         // remove trailing '\r\n'
         int32_t k = count;
         if (k > 0 && utf16[k - 1] == '\n') { utf16[k - 1] = 0; }
         k = (int32_t)ut_str.len16(utf16);
         if (k > 0 && utf16[k - 1] == '\r') { utf16[k - 1] = 0; }
-        char message[countof(text.s)];
+        char message[ut_countof(text.s)];
         const int32_t bytes = ut_str.utf8_bytes(utf16);
-        if (bytes >= countof(message)) {
+        if (bytes >= ut_count_of(message)) {
             strprintf(message, "error message is too long: %d bytes", bytes);
         } else {
-            ut_str.utf16to8(message, countof(message), utf16);
+            ut_str.utf16to8(message, ut_count_of(message), utf16);
         }
         // truncating printf to string:
         ut_str_printf(text.s, "0x%08X(%d) \"%s\"", error, error, message);
@@ -6712,7 +6725,7 @@ static str64_t ut_str_int64_dg(int64_t v, // digit_grouped
     // "18446744073709551615" 21 characters + 6x4 groups:
     // "18'446'744'073'709'551'615" 27 characters
     str64_t text;
-    enum { max_text_bytes = countof(text.s) };
+    enum { max_text_bytes = ut_countof(text.s) };
     int64_t abs64 = v < 0 ? -v : v; // incorrect for INT64_MIN
     uint64_t n = uint ? (uint64_t)v :
         (v != INT64_MIN ? (uint64_t)abs64 : (uint64_t)INT64_MIN);
@@ -6772,8 +6785,8 @@ static str128_t ut_str_fp(const char* format, fp64_t v) {
     // and respects setlocale() on Un*x systems but in MS runtime only when
     // _snprintf_l() is used.
     f.s[0] = 0x00;
-    ut_str.format(f.s, countof(f.s), format, v);
-    f.s[countof(f.s) - 1] = 0x00;
+    ut_str.format(f.s, ut_count_of(f.s), format, v);
+    f.s[ut_count_of(f.s) - 1] = 0x00;
     str128_t text;
     char* s = f.s;
     char* d = text.s;
@@ -6802,10 +6815,10 @@ static void ut_str_test(void) {
     swear(ut_str.istarts("hello world", "HeLlO"));
     swear(ut_str.iends("hello world", "WoRlD"));
     char ls[20] = {0};
-    ut_str.lower(ls, countof(ls), "HeLlO WoRlD");
+    ut_str.lower(ls, ut_count_of(ls), "HeLlO WoRlD");
     swear(strcmp(ls, "hello world") == 0);
     char upper[11] = {0};
-    ut_str.upper(upper, countof(upper), "hello12345");
+    ut_str.upper(upper, ut_count_of(upper), "hello12345");
     swear(strcmp(upper,  "HELLO12345") == 0);
     #pragma push_macro("glyph_chinese_one")
     #pragma push_macro("glyph_chinese_two")
@@ -6826,16 +6839,16 @@ static void ut_str_test(void) {
     #pragma pop_macro("glyph_chinese_two")
     #pragma pop_macro("glyph_chinese_one")
     uint16_t wide_str[100] = {0};
-    ut_str.utf8to16(wide_str, countof(wide_str), utf8_str);
+    ut_str.utf8to16(wide_str, ut_count_of(wide_str), utf8_str);
     char utf8[100] = {0};
-    ut_str.utf16to8(utf8, countof(utf8), wide_str);
+    ut_str.utf16to8(utf8, ut_count_of(utf8), wide_str);
     uint16_t utf16[100];
-    ut_str.utf8to16(utf16, countof(utf16), utf8);
+    ut_str.utf8to16(utf16, ut_count_of(utf16), utf8);
     char narrow_str[100] = {0};
-    ut_str.utf16to8(narrow_str, countof(narrow_str), utf16);
+    ut_str.utf16to8(narrow_str, ut_count_of(narrow_str), utf16);
     swear(strcmp(narrow_str, utf8_str) == 0);
     char formatted[100];
-    ut_str.format(formatted, countof(formatted), "n: %d, s: %s", 42, "test");
+    ut_str.format(formatted, ut_count_of(formatted), "n: %d, s: %s", 42, "test");
     swear(strcmp(formatted, "n: 42, s: test") == 0);
     // numeric values digit grouping format:
     swear(strcmp("0", ut_str.int64_dg(0, true, ",").s) == 0);
@@ -6988,17 +7001,17 @@ static void ut_streams_read_write(ut_stream_memory_if* s,
 static void ut_streams_test(void) {
     {   // read test
         uint8_t memory[256];
-        for (int32_t i = 0; i < countof(memory); i++) { memory[i] = (uint8_t)i; }
-        for (int32_t i = 1; i < countof(memory) - 1; i++) {
+        for (int32_t i = 0; i < ut_count_of(memory); i++) { memory[i] = (uint8_t)i; }
+        for (int32_t i = 1; i < ut_count_of(memory) - 1; i++) {
             ut_stream_memory_if ms; // memory stream
             ut_streams.read_only(&ms, memory, sizeof(memory));
             uint8_t data[256];
-            for (int32_t j = 0; j < countof(data); j++) { data[j] = 0xFF; }
+            for (int32_t j = 0; j < ut_count_of(data); j++) { data[j] = 0xFF; }
             int64_t transferred = 0;
             errno_t r = ms.stream.read(&ms.stream, data, i, &transferred);
             swear(r == 0 && transferred == i);
             for (int32_t j = 0; j < i; j++) { swear(data[j] == memory[j]); }
-            for (int32_t j = i; j < countof(data); j++) { swear(data[j] == 0xFF); }
+            for (int32_t j = i; j < ut_count_of(data); j++) { swear(data[j] == 0xFF); }
         }
     }
     {   // write test
@@ -7118,24 +7131,24 @@ static void ut_event_test(void) {
     swear(result == -1); // Timeout expected
     enum { count = 5 };
     ut_event_t events[count];
-    for (int32_t i = 0; i < countof(events); i++) {
+    for (int32_t i = 0; i < ut_count_of(events); i++) {
         events[i] = ut_event.create_manual();
     }
     start = ut_clock.seconds();
     ut_event.set(events[2]); // Set the third event
-    int32_t index = ut_event.wait_any(countof(events), events);
+    int32_t index = ut_event.wait_any(ut_count_of(events), events);
     swear(index == 2);
     ut_event_test_check_time(start, 0);
     swear(index == 2); // Third event should be triggered
     ut_event.reset(events[2]); // Reset the third event
     start = ut_clock.seconds();
-    result = ut_event.wait_any_or_timeout(countof(events), events, timeout_seconds);
+    result = ut_event.wait_any_or_timeout(ut_count_of(events), events, timeout_seconds);
     swear(result == -1);
     ut_event_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     // Clean up
     ut_event.dispose(event);
-    for (int32_t i = 0; i < countof(events); i++) {
+    for (int32_t i = 0; i < ut_count_of(events); i++) {
         ut_event.dispose(events[i]);
     }
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
@@ -7199,11 +7212,11 @@ static void ut_mutex_test(void) {
     ut_mutex_test_check_time(start, 0);
     enum { count = 5 };
     ut_thread_t ts[count];
-    for (int32_t i = 0; i < countof(ts); i++) {
+    for (int32_t i = 0; i < ut_count_of(ts); i++) {
         ts[i] = ut_thread.start(ut_mutex_test_lock_unlock, &mutex);
     }
     // Wait for all threads to finish
-    for (int32_t i = 0; i < countof(ts); i++) {
+    for (int32_t i = 0; i < ut_count_of(ts); i++) {
         ut_thread.join(ts[i], -1);
     }
     ut_mutex.dispose(&mutex);
@@ -7351,8 +7364,8 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
 //                  ut_thread_rel2str(lpi[i].Relationship));
 //          }
             if (lpi[i].Relationship == RelationProcessorCore) {
-                assert(cores < countof(affinity), "increase affinity[%d]", cores);
-                if (cores < countof(affinity)) {
+                assert(cores < ut_count_of(affinity), "increase affinity[%d]", cores);
+                if (cores < ut_count_of(affinity)) {
                     any |= lpi[i].ProcessorMask;
                     affinity[cores] = lpi[i].ProcessorMask;
                     cores++;
@@ -7425,8 +7438,8 @@ static void ut_thread_detach(ut_thread_t t) {
 
 static void ut_thread_name(const char* name) {
     uint16_t stack[128];
-    fatal_if(ut_str.len(name) >= countof(stack), "name too long: %s", name);
-    ut_str.utf8to16(stack, countof(stack), name);
+    fatal_if(ut_str.len(name) >= ut_count_of(stack), "name too long: %s", name);
+    ut_str.utf8to16(stack, ut_count_of(stack), name);
     HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
     // notoriously returns 0x10000000 for no good reason whatsoever
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
@@ -7542,7 +7555,7 @@ static void ut_thread_philosopher_eat(ut_thread_philosopher_t* p) {
 
 static void ut_thread_philosopher_routine(void* arg) {
     ut_thread_philosopher_t* p = (ut_thread_philosopher_t*)arg;
-    enum { n = countof(p->ps->philosopher) };
+    enum { n = ut_countof(p->ps->philosopher) };
     ut_thread.name("philosopher");
     ut_thread.realtime();
     while (!p->ps->enough) {
@@ -7580,7 +7593,7 @@ static void ut_thread_detached_loop(void* unused(p)) {
 
 static void ut_thread_test(void) {
     ut_thread_philosophers_t ps = { .seed = 1 };
-    enum { n = countof(ps.philosopher) };
+    enum { n = ut_countof(ps.philosopher) };
     // Initialize mutexes for forks
     for (int32_t i = 0; i < n; i++) {
         ut_thread_philosopher_t* p = &ps.philosopher[i];

@@ -158,7 +158,7 @@ typedef struct ui_edit_str_if {
     void (*swap)(ui_edit_str_t* s1, ui_edit_str_t* s2);
     int32_t (*utf8bytes)(const char* utf8, int32_t bytes); // 0 on error
     int32_t (*glyphs)(const char* utf8, int32_t bytes); // -1 on error
-    int32_t (*gp_to_bp)(const char* s, int32_t bytes, int32_t gp); // -1
+    int32_t (*gp_to_bp)(const char* s, int32_t bytes, int32_t gp); // or -1
     int32_t (*bytes)(ui_edit_str_t* s, int32_t from, int32_t to); // glyphs
     bool (*expand)(ui_edit_str_t* s, int32_t capacity); // reallocate
     void (*shrink)(ui_edit_str_t* s); // get rid of extra heap memory

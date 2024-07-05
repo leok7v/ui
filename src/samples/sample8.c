@@ -139,13 +139,15 @@ static void about(ui_button_t* unused(b)) {
     ui_app.show_toast(&mbx.view, 10.0);
 }
 
-static void crash(ui_button_t* b) {
+static void crash(ui_button_t* unused(b)) {
     // two random ways to crash in release configuration
     if (ut_clock.nanoseconds() % 2 == 0) {
         swear(false, "should crash in release configuration");
     } else {
-        void* p = (void*)b->click; // null
-        memcpy(p, (void*)b, 4);
+        int32_t  a[5];
+        int32_t* p = a;
+        traceln("%d\n", ut_count_of(a));
+        traceln("%d\n", ut_count_of(p)); // expected "division by zero"
     }
 }
 

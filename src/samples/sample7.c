@@ -101,7 +101,7 @@ static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
 }
 
 static void paint(ui_view_t* v) {
-    for (int i = 0; i < countof(ts); i++) {
+    for (int i = 0; i < ut_count_of(ts); i++) {
         if (ts[i].samples >= 2) { stats(i); }
     }
     if (ts[0].spread > 0 && ts[1].spread > 0) {

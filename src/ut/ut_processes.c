@@ -15,7 +15,7 @@ typedef struct ut_processes_pidof_lambda_s {
 static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
     int32_t n = ut_str.len(pname);
-    fatal_if(n + 5 >= countof(stack), "name is too long: %s", pname);
+    fatal_if(n + 5 >= ut_count_of(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
     if (!ut_str.iends(pname, ".exe")) {
@@ -31,8 +31,8 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         base = name;
     }
     uint16_t wn[1024];
-    fatal_if(strlen(base) >= countof(wn), "name too long: %s", base);
-    ut_str.utf8to16(wn, countof(wn), base);
+    fatal_if(strlen(base) >= ut_count_of(wn), "name too long: %s", base);
+    ut_str.utf8to16(wn, ut_count_of(wn), base);
     size_t count = 0;
     uint64_t pid = 0;
     uint8_t* data = null;
@@ -62,7 +62,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (base != name) {
                     char path[ut_files_max_path];
-                    match = ut_processes.nameof(pid, path, countof(path)) == 0 &&
+                    match = ut_processes.nameof(pid, path, ut_count_of(path)) == 0 &&
                             ut_str.iends(path, name);
 //                  traceln("\"%s\" -> \"%s\" match: %d", name, path, match);
                 }
@@ -178,7 +178,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
             DWORD ix = WaitForSingleObject(h, milliseconds);
             r = ut_wait_ix2e(ix);
         } else {
-            DWORD bytes = countof(path);
+            DWORD bytes = ut_count_of(path);
             errno_t rq = ut_b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
             if (rq != 0) {
                 traceln("QueryFullProcessImageNameA(pid=%d, h=%p) "
@@ -499,7 +499,7 @@ static errno_t ut_processes_spawn(const char* command) {
 static const char* ut_processes_name(void) {
     static char module_name[ut_files_max_path];
     if (module_name[0] == 0) {
-        fatal_if_false(GetModuleFileNameA(null, module_name, countof(module_name)));
+        fatal_if_false(GetModuleFileNameA(null, module_name, ut_count_of(module_name)));
     }
     return module_name;
 }
@@ -517,7 +517,7 @@ static const char* ut_processes_name(void) {
 static void ut_processes_test(void) {
     #ifdef UT_TESTS // in alphabetical order
     const char* names[] = { "svchost", "RuntimeBroker", "conhost" };
-    for (int32_t j = 0; j < countof(names); j++) {
+    for (int32_t j = 0; j < ut_count_of(names); j++) {
         int32_t size  = 0;
         int32_t count = 0;
         uint64_t* pids = null;
@@ -535,7 +535,7 @@ static void ut_processes_test(void) {
             for (int32_t i = 0; i < count; i++) {
                 char path[256] = {0};
                 #pragma warning(suppress: 6011) // dereferencing null
-                r = ut_processes.nameof(pids[i], path, countof(path));
+                r = ut_processes.nameof(pids[i], path, ut_count_of(path));
                 if (r != ERROR_NOT_FOUND) {
                     assert(r == 0 && path[0] != 0);
                     verbose("%6d %s %s", pids[i], path, strerr(r));
@@ -548,19 +548,19 @@ static void ut_processes_test(void) {
     int32_t xc = 0;
     char data[32 * 1024];
     ut_stream_memory_if output;
-    ut_streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, ut_count_of(data));
     const char* cmd = "cmd /c dir 2>nul >nul";
     errno_t r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    ut_streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, ut_count_of(data));
     cmd = "cmd /c dir \"folder that does not exist\\\"";
     r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    ut_streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, ut_count_of(data));
     cmd = "cmd /c dir";
     r = ut_processes.popen(cmd, &xc, &output.stream, 99999.0);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);
-    ut_streams.write_only(&output, data, countof(data));
+    ut_streams.write_only(&output, data, ut_count_of(data));
     cmd = "cmd /c timeout 1";
     r = ut_processes.popen(cmd, &xc, &output.stream, 1.0E-9);
     verbose("r: %d xc: %d output:\n%s", r, xc, data);

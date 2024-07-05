@@ -4,10 +4,10 @@ static void*   ut_static_symbol_reference[1024];
 static int32_t ut_static_symbol_reference_count;
 
 void* ut_force_symbol_reference(void* symbol) {
-    assert(ut_static_symbol_reference_count <= countof(ut_static_symbol_reference),
+    assert(ut_static_symbol_reference_count <= ut_count_of(ut_static_symbol_reference),
         "increase size of ut_static_symbol_reference[%d] to at least %d",
-        countof(ut_static_symbol_reference), ut_static_symbol_reference);
-    if (ut_static_symbol_reference_count < countof(ut_static_symbol_reference)) {
+        ut_count_of(ut_static_symbol_reference), ut_static_symbol_reference);
+    if (ut_static_symbol_reference_count < ut_count_of(ut_static_symbol_reference)) {
         ut_static_symbol_reference[ut_static_symbol_reference_count] = symbol;
 //      traceln("ut_static_symbol_reference[%d] = %p", ut_static_symbol_reference_count,
 //               ut_static_symbol_reference[symbol_reference_count]);

@@ -58,8 +58,8 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
         "padding { %.3f %.3f %.3f %.3f } "                                    \
         "insets { %.3f %.3f %.3f %.3f } align: 0x%02X",                       \
         v->text, &v->type, v->x, v->y, v->w, v->h,                            \
-        ui_stack_finite_int(v->max_w, maxw, countof(maxw)),               \
-        ui_stack_finite_int(v->max_h, maxh, countof(maxh)),               \
+        ui_stack_finite_int(v->max_w, maxw, ut_count_of(maxw)),               \
+        ui_stack_finite_int(v->max_h, maxh, ut_count_of(maxh)),               \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
         v->insets.left, v->insets.top, v->insets.right, v->insets.bottom,     \
         v->align);                                                            \
@@ -464,10 +464,10 @@ static void ui_stack_measure(ui_view_t* p) {
         }
     } ui_view_for_each_end(p, c);
     if (ui_containers_debug) {
-        for (int32_t r = 0; r < countof(sides); r++) {
+        for (int32_t r = 0; r < ut_count_of(sides); r++) {
             char text[1024];
             text[0] = 0;
-            for (int32_t c = 0; c < countof(sides[r]); c++) {
+            for (int32_t c = 0; c < ut_count_of(sides[r]); c++) {
                 char line[128];
                 strprintf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
                 strcat(text, line);

@@ -66,7 +66,7 @@ static void measure(ui_view_t* view) {
         stop_rendering();
         im = &image[!index];
         ui_gdi.image_dispose(im);
-        fatal_if(w * h * 4 > countof(pixels[!index]),
+        fatal_if(w * h * 4 > ut_count_of(pixels[!index]),
             "increase size of pixels[][%d * %d * 4]", w, h);
         ui_gdi.image_init(im, w, h, 4, pixels[!index]);
         request_rendering();
@@ -104,7 +104,7 @@ static void fini(void) {
 }
 
 static void opened(void) {
-    fatal_if(ui_app.root->w * ui_app.root->h * 4 > countof(pixels[0]),
+    fatal_if(ui_app.root->w * ui_app.root->h * 4 > ut_count_of(pixels[0]),
         "increase size of pixels[][%d * %d * 4]", ui_app.root->w, ui_app.root->h);
     ui_app.fini = fini;
     ui_app.closed = closed;
@@ -172,7 +172,7 @@ static void mandelbrot(ui_image_t* im) {
                 ui_color_rgb(255, 170,   0),  ui_color_rgb(204, 128,   0),
                 ui_color_rgb(153,  87,   0),  ui_color_rgb(106,  52,   3)
             };
-            ui_color_t color = palette[iteration % countof(palette)];
+            ui_color_t color = palette[iteration % ut_count_of(palette)];
             uint8_t* px = &((uint8_t*)im->pixels)[r * im->w * 4 + c * 4];
             px[3] = 0xFF;
             px[0] = (color >> 16) & 0xFF;
@@ -189,7 +189,7 @@ static void renderer(void* unused) {
     ut_thread.realtime();
     ut_event_t es[2] = {wake, quit};
     for (;;) {
-        int32_t ix = ut_event.wait_any(countof(es), es);
+        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
         if (ix != 0) { break; }
         int32_t k = !index;
         mandelbrot(&image[k]);

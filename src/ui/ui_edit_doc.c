@@ -1139,7 +1139,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
         ut_heap.free(s->g2b);
     } else {
         #ifdef UI_EDIT_STR_TEST // check ui_edit_str_g2b_ascii integrity
-            for (int32_t i = 0; i < countof(ui_edit_str_g2b_ascii); i++) {
+            for (int32_t i = 0; i < ut_count_of(ui_edit_str_g2b_ascii); i++) {
                 assert(ui_edit_str_g2b_ascii[i] == i);
             }
         #endif
@@ -1189,7 +1189,7 @@ static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
 
 static bool ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b,
         bool heap) {
-    enum { n = countof(ui_edit_str_g2b_ascii) };
+    enum { n = ut_countof(ui_edit_str_g2b_ascii) };
     if (ui_edit_str_g2b_ascii[n - 1] != n - 1) {
         for (int32_t i = 0; i < n; i++) { ui_edit_str_g2b_ascii[i] = i; }
     }
@@ -1236,11 +1236,11 @@ static int32_t ui_edit_str_bytes(ui_edit_str_t* s,
 static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
-        if (s->b == s->g && s->g < countof(ui_edit_str_g2b_ascii) - 1) {
+        if (s->b == s->g && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
 //          traceln("forcefully moving to heap");
             // this is usually done in the process of concatenation
             // of 2 ascii strings when result is known to be longer
-            // than countof(ui_edit_str_g2b_ascii) - 1 but the
+            // than ut_count_of(ui_edit_str_g2b_ascii) - 1 but the
             // first string in concatenation is short. It's OK.
         }
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
@@ -1291,7 +1291,7 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
     }
     // Optimize memory for short ASCII only strings:
     if (s->g2b != ui_edit_str_g2b_ascii) {
-        if (s->g == s->b && s->g < countof(ui_edit_str_g2b_ascii) - 1) {
+        if (s->g == s->b && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
             // If this is an ascii only utf8 string shorter than
             // ui_edit_str_g2b_ascii it does not need .g2b[] allocated:
             if (s->g2b != ui_edit_str_g2b_ascii) {
@@ -1360,7 +1360,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
             // keep g2b == ui_edit_str_g2b_ascii as much as possible
             const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
                                    ins.g2b == ui_edit_str_g2b_ascii &&
-                                   bytes < countof(ui_edit_str_g2b_ascii) - 1;
+                                   bytes < ut_count_of(ui_edit_str_g2b_ascii) - 1;
             ok = ui_edit_str_move_to_heap(s, c);
             if (ok) {
                 if (!all_ascii) {
@@ -1477,7 +1477,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
         "", ui_edit_usd, ui_edit_gbp, ui_edit_euro, ui_edit_money_bag
     };
     const int32_t gb[] = {0, 1, 2, 3, 4}; // number of bytes per codepoint
-    enum { n = countof(gs) };
+    enum { n = ut_countof(gs) };
     int32_t npn = 1; // n to the power of n
     for (int32_t i = 0; i < n; i++) { npn *= n; }
     int32_t gix_src[n] = {0};
@@ -1524,13 +1524,13 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                     char rep[128] = {0};
                     for (int32_t j = 0; j < n; j++) { strcat(rep, gs[gix_rep[j]]); }
                     char e1[128] = {0}; // expected based on s.g2b[]
-                    snprintf(e1, countof(e1), "%.*s%s%.*s",
+                    snprintf(e1, ut_count_of(e1), "%.*s%s%.*s",
                         s.g2b[f], src,
                         rep,
                         s.b - s.g2b[t], src + s.g2b[t]
                     );
                     char e2[128] = {0}; // expected based on gs[]
-                    snprintf(e2, countof(e1), "%.*s%s%.*s",
+                    snprintf(e2, ut_count_of(e1), "%.*s%s%.*s",
                         g2p[f], src,
                         rep,
                         (int32_t)strlen(src) - g2p[t], src + g2p[t]
@@ -1867,7 +1867,7 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
-        for (int32_t i = 0; i < countof(ins); i++) {
+        for (int32_t i = 0; i < ut_count_of(ins); i++) {
             swear(ui_edit_doc.init(d, null, 0, false));
             const char* s = "GoodbyeCruelUniverse";
             swear(ui_edit_doc.replace(d, null, s, -1));

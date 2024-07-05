@@ -29,7 +29,7 @@ static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
 }
 
 static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
-    char formatted[countof(s->p.text)];
+    char formatted[ut_countof(s->p.text)];
     const ui_fm_t* fm = s->fm;
     const char* text = ui_view.string(&s->view);
     const ui_ltrb_t i = ui_view.gaps(&s->view, &s->insets);
@@ -150,14 +150,14 @@ static void ui_slider_paint(ui_view_t* v) {
     }
     // text:
     const char* text = ui_view.string(v);
-    char formatted[countof(v->p.text)];
+    char formatted[ut_countof(v->p.text)];
     if (s->format != null) {
         s->format(v);
         s->p.strid = 0; // nls again
         text = ui_view.string(v);
     } else if (text != null &&
         (strstr(text, "%d") != null || strstr(text, "%u") != null)) {
-        ut_str.format(formatted, countof(formatted), text, s->value);
+        ut_str.format(formatted, ut_count_of(formatted), text, s->value);
         s->p.strid = 0; // nls again
         text = ut_nls.str(formatted);
     }

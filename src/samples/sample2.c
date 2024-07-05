@@ -31,9 +31,14 @@ static void opened(void) {
     ui_app.content->hit_test = hit_test;
 }
 
+static void character(ui_view_t* unused(v), const char* utf8) {
+    if (utf8[0] == 033) { ui_app.quit(0); }
+}
+
 static void init(void) {
     ui_app.title  = "Sample2: translucent";
     ui_app.opened = opened;
+    ui_app.root->character = character;
     // for custom caption or no caption .no_decor can be set to true
     ui_app.no_decor = true;
     ui_caption.menu.state.hidden = true;

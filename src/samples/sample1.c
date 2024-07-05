@@ -30,7 +30,7 @@ static void every_sec(ui_view_t* unused(view)) {
     ut_str_printf(title, "Polyglot [%s]", locales[locale]);
     ui_app.set_title(title);
     ui_app.request_layout();
-    locale = (locale + 1) % countof(locales);
+    locale = (locale + 1) % ut_count_of(locales);
 }
 
 static void painted(ui_view_t* v) {
@@ -44,7 +44,7 @@ static void opened(void) {
     ui_app.content->every_sec = every_sec;
     label.fm = &fm;
     ui_view.add(ui_app.content, &label, null);
-    locale = (int32_t)(ut_clock.nanoseconds() & 0xFFFF % countof(locales));
+    locale = (int32_t)(ut_clock.nanoseconds() & 0xFFFF % ut_count_of(locales));
 //  label.painted = painted;
 }
 static void init(void) {

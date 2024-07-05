@@ -97,7 +97,7 @@ static const char* filter[] = {
 static void open_file(ui_button_t* unused(b)) {
     const char* home = ut_files.known_folder(ut_files.folder.home);
     //  all files filer: null, 0
-    const char* fn = ui_app.open_file(home, filter, countof(filter));
+    const char* fn = ui_app.open_file(home, filter, ut_count_of(filter));
     if (fn[0] != 0) {
         ui_view.set_text(&toast_filename, "\n%s\n", fn);
         traceln("\"%s\"", fn);
@@ -319,7 +319,7 @@ static void zoom_out(void) {
 }
 
 static void zoom_in(int x, int y) {
-    assert(top < countof(stack));
+    assert(top < ut_count_of(stack));
     stack[top].x = sx;
     stack[top].y = sy;
     top++;
@@ -338,7 +338,7 @@ static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(flags)) {
             if (m == ui.message.right_button_pressed) {
                 if (zoom < 1) { zoom_out(); refresh(); }
             } else if (m == ui.message.left_button_pressed) {
-                if (top < countof(stack)) { zoom_in(x, y); refresh(); }
+                if (top < ut_count_of(stack)) { zoom_in(x, y); refresh(); }
             }
         }
         ui_app.request_redraw();
@@ -417,9 +417,9 @@ static void opened(void) {
     ui_app.content->key_pressed = keyboard; // virtual_keys
     ui_app.content->mouse_wheel = mouse_wheel;
     panel_center.mouse = mouse;
-    int n = countof(pixels);
+    int n = ut_count_of(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
-    static_assert(countof(pixels) == countof(pixels[0]), "square");
+    static_assert(ut_countof(pixels) == ut_countof(pixels[0]), "square");
     ui_gdi.image_init(&image, n, n, (int32_t)sizeof(pixels[0][0]), (uint8_t*)pixels);
     init_panel(&panel_top,    "top",    ui_colors.orange, panel_paint);
     init_panel(&panel_center, "center", ui_colors.white, center_paint);
@@ -435,10 +435,10 @@ static void opened(void) {
     button_locale.shortcut = 'l';
     button_full_screen.shortcut = 'f';
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
-    ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
+    ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, ut_count_of(stack) - 1,
         zoomer_callback);
 #else
-    zoomer = (ui_slider_t)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, countof(stack) - 1,
+    zoomer = (ui_slider_t)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, ut_count_of(stack) - 1,
         slider_format, zoomer_callback);
 #endif
     ut_str_printf(button_mbx.hint, "Show Yes/No message box");
@@ -503,7 +503,7 @@ static void mandelbrot(ui_image_t* im) {
                 ui_color_rgb(255, 170,   0),  ui_color_rgb(204, 128,   0),
                 ui_color_rgb(153,  87,   0),  ui_color_rgb(106,  52,   3)
             };
-            ui_color_t color = palette[iteration % countof(palette)];
+            ui_color_t color = palette[iteration % ut_count_of(palette)];
             uint8_t* px = &((uint8_t*)im->pixels)[r * im->w * 4 + c * 4];
             px[3] = 0xFF;
             px[0] = (color >> 16) & 0xFF;

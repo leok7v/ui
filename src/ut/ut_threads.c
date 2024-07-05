@@ -94,24 +94,24 @@ static void ut_event_test(void) {
     swear(result == -1); // Timeout expected
     enum { count = 5 };
     ut_event_t events[count];
-    for (int32_t i = 0; i < countof(events); i++) {
+    for (int32_t i = 0; i < ut_count_of(events); i++) {
         events[i] = ut_event.create_manual();
     }
     start = ut_clock.seconds();
     ut_event.set(events[2]); // Set the third event
-    int32_t index = ut_event.wait_any(countof(events), events);
+    int32_t index = ut_event.wait_any(ut_count_of(events), events);
     swear(index == 2);
     ut_event_test_check_time(start, 0);
     swear(index == 2); // Third event should be triggered
     ut_event.reset(events[2]); // Reset the third event
     start = ut_clock.seconds();
-    result = ut_event.wait_any_or_timeout(countof(events), events, timeout_seconds);
+    result = ut_event.wait_any_or_timeout(ut_count_of(events), events, timeout_seconds);
     swear(result == -1);
     ut_event_test_check_time(start, timeout_seconds);
     swear(result == -1); // Timeout expected
     // Clean up
     ut_event.dispose(event);
-    for (int32_t i = 0; i < countof(events); i++) {
+    for (int32_t i = 0; i < ut_count_of(events); i++) {
         ut_event.dispose(events[i]);
     }
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
@@ -175,11 +175,11 @@ static void ut_mutex_test(void) {
     ut_mutex_test_check_time(start, 0);
     enum { count = 5 };
     ut_thread_t ts[count];
-    for (int32_t i = 0; i < countof(ts); i++) {
+    for (int32_t i = 0; i < ut_count_of(ts); i++) {
         ts[i] = ut_thread.start(ut_mutex_test_lock_unlock, &mutex);
     }
     // Wait for all threads to finish
-    for (int32_t i = 0; i < countof(ts); i++) {
+    for (int32_t i = 0; i < ut_count_of(ts); i++) {
         ut_thread.join(ts[i], -1);
     }
     ut_mutex.dispose(&mutex);
@@ -327,8 +327,8 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
 //                  ut_thread_rel2str(lpi[i].Relationship));
 //          }
             if (lpi[i].Relationship == RelationProcessorCore) {
-                assert(cores < countof(affinity), "increase affinity[%d]", cores);
-                if (cores < countof(affinity)) {
+                assert(cores < ut_count_of(affinity), "increase affinity[%d]", cores);
+                if (cores < ut_count_of(affinity)) {
                     any |= lpi[i].ProcessorMask;
                     affinity[cores] = lpi[i].ProcessorMask;
                     cores++;
@@ -401,8 +401,8 @@ static void ut_thread_detach(ut_thread_t t) {
 
 static void ut_thread_name(const char* name) {
     uint16_t stack[128];
-    fatal_if(ut_str.len(name) >= countof(stack), "name too long: %s", name);
-    ut_str.utf8to16(stack, countof(stack), name);
+    fatal_if(ut_str.len(name) >= ut_count_of(stack), "name too long: %s", name);
+    ut_str.utf8to16(stack, ut_count_of(stack), name);
     HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
     // notoriously returns 0x10000000 for no good reason whatsoever
     if (!SUCCEEDED(r)) { fatal_if_not_zero(r); }
@@ -518,7 +518,7 @@ static void ut_thread_philosopher_eat(ut_thread_philosopher_t* p) {
 
 static void ut_thread_philosopher_routine(void* arg) {
     ut_thread_philosopher_t* p = (ut_thread_philosopher_t*)arg;
-    enum { n = countof(p->ps->philosopher) };
+    enum { n = ut_countof(p->ps->philosopher) };
     ut_thread.name("philosopher");
     ut_thread.realtime();
     while (!p->ps->enough) {
@@ -556,7 +556,7 @@ static void ut_thread_detached_loop(void* unused(p)) {
 
 static void ut_thread_test(void) {
     ut_thread_philosophers_t ps = { .seed = 1 };
-    enum { n = countof(ps.philosopher) };
+    enum { n = ut_countof(ps.philosopher) };
     // Initialize mutexes for forks
     for (int32_t i = 0; i < n; i++) {
         ut_thread_philosopher_t* p = &ps.philosopher[i];

@@ -1725,7 +1725,7 @@ static void ui_edit_after(ui_edit_notify_t* notify,
         e->selection = *ni->x;
         // this is needed by undo/redo: trim selection
         ui_edit_pg_t* pg = e->selection.a;
-        for (int32_t i = 0; i < countof(e->selection.a); i++) {
+        for (int32_t i = 0; i < ut_count_of(e->selection.a); i++) {
             pg[i].pn = ut_max(0, ut_min(dt->np - 1, pg[i].pn));
             pg[i].gp = ut_max(0, ut_min(dt->ps[pg[i].pn].g, pg[i].gp));
         }

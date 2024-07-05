@@ -167,7 +167,7 @@ typedef struct {
     //     {"Text Files", ".txt;.doc;.ini",
     //      "Executables", ".exe",
     //      "All Files", "*"};
-    // const char* fn = ui_app.open_filename("C:\\", filter, countof(filter));
+    // const char* fn = ui_app.open_filename("C:\\", filter, ut_count_of(filter));
     const char* (*open_file)(const char* folder, const char* filter[], int32_t n);
     bool (*is_stdout_redirected)(void);
     bool (*is_console_visible)(void);

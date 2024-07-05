@@ -221,7 +221,7 @@ static void ui_app_init_fonts(int32_t dpi) {
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
-    ut_str.utf8to16(lf.lfFaceName, countof(lf.lfFaceName), "Cascadia Mono");
+    ut_str.utf8to16(lf.lfFaceName, ut_count_of(lf.lfFaceName), "Cascadia Mono");
     ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
 }
 
@@ -953,10 +953,10 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
-        int32_t n = GetUserDefaultLocaleName(ln, countof(ln));
+        int32_t n = GetUserDefaultLocaleName(ln, ut_count_of(ln));
         fatal_if_false(n > 0);
         uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-        n = ResolveLocaleName(ln, rln, countof(rln));
+        n = ResolveLocaleName(ln, rln, ut_count_of(rln));
         fatal_if_false(n > 0);
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
         fatal_if_false(SetThreadLocale(lc_id));
@@ -1516,7 +1516,7 @@ static void ui_app_redraw_thread(void* unused(p)) {
     ut_thread.name("ui_app.redraw");
     for (;;) {
         ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
-        int32_t ix = ut_event.wait_any(countof(es), es);
+        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
         if (ix == 0) {
             if (ui_app_window() != null) {
                 InvalidateRect(ui_app_window(), null, false);
@@ -1566,7 +1566,7 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
                                           keyboard_layout);
         // Translate scan code to character
         int result = ToUnicodeEx(virtualKey, scan_code, keyboard_state,
-                                 utf16, countof(utf16), 0, keyboard_layout);
+                                 utf16, ut_count_of(utf16), 0, keyboard_layout);
         if (result > 0) {
             traceln("0x%04X04X is_key_released: %d down: %d repeat: %d",
                      utf16[0], utf16[1], is_key_released, was_key_down,
@@ -1722,7 +1722,7 @@ static void ui_app_destroy_caret(void) {
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
-    swear(0 <= kind && kind < countof(beep_id));
+    swear(0 <= kind && kind < ut_count_of(beep_id));
     fatal_if_false(MessageBeep(beep_id[kind]));
 }
 
@@ -1883,8 +1883,8 @@ static void ui_app_set_console_title(HWND cw) {
     swear(ut_thread.id() == ui_app.tid);
     static char text[256];
     text[0] = 0;
-    GetWindowTextA((HWND)ui_app.window, text, countof(text));
-    text[countof(text) - 1] = 0;
+    GetWindowTextA((HWND)ui_app.window, text, ut_count_of(text));
+    text[ut_count_of(text) - 1] = 0;
     char title[256];
     ut_str_printf(title, "%s - Console", text);
     fatal_if_false(SetWindowTextA(cw, title));
@@ -2002,7 +2002,7 @@ static const char* ui_app_open_file(const char* folder,
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
-        int32_t left = countof(memory) - 2;
+        int32_t left = ut_count_of(memory) - 2;
         uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
             uint16_t* s0 = s;
@@ -2023,7 +2023,7 @@ static const char* ui_app_open_file(const char* folder,
     }
     static uint16_t dir[ut_files_max_path];
     dir[0] = 0;
-    ut_str.utf8to16(dir, countof(dir), folder);
+    ut_str.utf8to16(dir, ut_count_of(dir), folder);
     static uint16_t path[ut_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
@@ -2036,7 +2036,7 @@ static const char* ui_app_open_file(const char* folder,
     static ut_file_name_t fn;
     fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        ut_str.utf16to8(fn.s, countof(fn.s), path);
+        ut_str.utf16to8(fn.s, ut_count_of(fn.s), path);
     } else {
         fn.s[0] = 0;
     }
