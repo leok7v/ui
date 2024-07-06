@@ -606,16 +606,15 @@ static void ui_view_set_focus(ui_view_t* v) {
     }
 }
 
-static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
-    ui_point_t pt = { cx, cy };
+static int64_t ui_view_hit_test(const ui_view_t* v, ui_point_t pt) {
     int64_t ht = ui.hit_test.nowhere;
     if (!ui_view.is_hidden(v) && v->hit_test != null) {
-         ht = v->hit_test(v, cx, cy);
+         ht = v->hit_test(v, pt);
     }
     if (ht == ui.hit_test.nowhere) {
         ui_view_for_each(v, c, {
             if (!c->state.hidden && ui_view.inside(c, &pt)) {
-                ht = ui_view_hit_test(c, cx, cy);
+                ht = ui_view_hit_test(c, pt);
                 if (ht != ui.hit_test.nowhere) { break; }
             }
         });

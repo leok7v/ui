@@ -101,7 +101,7 @@ typedef struct ui_view_s {
     void (*timer)(ui_view_t* v, ui_timer_t id);
     void (*every_100ms)(ui_view_t* v); // ~10 x times per second
     void (*every_sec)(ui_view_t* v); // ~once a second
-    int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
+    int64_t (*hit_test)(const ui_view_t* v, ui_point_t pt);
     struct {
         bool hidden;    // measure()/ layout() paint() is not called on
         bool disabled;  // mouse, keyboard, key_up/down not called on
@@ -166,7 +166,7 @@ typedef struct ui_view_if {
     void (*timer)(ui_view_t* v, ui_timer_t id);
     void (*every_sec)(ui_view_t* v);
     void (*every_100ms)(ui_view_t* v);
-    int64_t (*hit_test)(ui_view_t* v, int32_t x, int32_t y);
+    int64_t (*hit_test)(const ui_view_t* v, ui_point_t pt);
     // key_pressed() key_released() return true to stop further processing
     bool (*key_pressed)(ui_view_t* v, int64_t v_key);
     bool (*key_released)(ui_view_t* v, int64_t v_key);

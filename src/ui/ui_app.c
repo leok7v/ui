@@ -1071,9 +1071,8 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma pop_macro("ui_set_timer")
 }
 
-static int64_t ui_app_hit_test(int32_t x, int32_t y) {
-    int32_t cx = x - ui_app.wrc.x; // client coordinates
-    int32_t cy = y - ui_app.wrc.y;
+static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
+    swear(v == ui_app.root);
     if (ui_app.no_decor) {
         assert(ui_app.border.w == ui_app.border.h);
         // on 96dpi monitors ui_app.border is 1x1
@@ -1081,36 +1080,36 @@ static int64_t ui_app_hit_test(int32_t x, int32_t y) {
         int32_t border = ut_max(4, ui_app.border.w * 2);
         if (ui_app.animating.view != null) {
             return ui.hit_test.client; // message box or toast is up
+        } else if (!ui_view.is_hidden(&ui_caption.view) &&
+                    ui_view.inside(&ui_caption.view, &pt)) {
+            return ui_caption.view.hit_test(&ui_caption.view, pt);
         } else if (ui_app.is_maximized()) {
-            int64_t ht = ui_view.hit_test(ui_app.root, x, y);
+            int64_t ht = ui_view.hit_test(ui_app.content, pt);
             return ht == ui.hit_test.nowhere ? ui.hit_test.client : ht;
         } else if (ui_app.is_full_screen) {
             return ui.hit_test.client;
-        } else if (cx < border && cy < border) {
+        } else if (pt.x < border && pt.y < border) {
             return ui.hit_test.top_left;
-        } else if (cx > ui_app.crc.w - border && cy < border) {
+        } else if (pt.x > ui_app.crc.w - border && pt.y < border) {
             return ui.hit_test.top_right;
-        } else if (cy < border) {
+        } else if (pt.y < border) {
             return ui.hit_test.top;
-        } else if (!ui_view.is_hidden(&ui_caption.view) &&
-                    cy < ui_caption.view.h) {
-            return ui_caption.view.hit_test(&ui_caption.view, cx, cy);
-        } else if (cx > ui_app.crc.w - border &&
-                   cy > ui_app.crc.h - border) {
+        } else if (pt.x > ui_app.crc.w - border &&
+                   pt.y > ui_app.crc.h - border) {
             return ui.hit_test.bottom_right;
-        } else if (cx < border && cy > ui_app.crc.h - border) {
+        } else if (pt.x < border && pt.y > ui_app.crc.h - border) {
             return ui.hit_test.bottom_left;
-        } else if (cx < border) {
+        } else if (pt.x < border) {
             return ui.hit_test.left;
-        } else if (cx > ui_app.crc.w - border) {
+        } else if (pt.x > ui_app.crc.w - border) {
             return ui.hit_test.right;
-        } else if (cy > ui_app.crc.h - border) {
+        } else if (pt.y > ui_app.crc.h - border) {
             return ui.hit_test.bottom;
         } else {
             // drop down to content hit test
         }
     }
-    return ui_view.hit_test(ui_app.content, cx, cy);
+    return ui.hit_test.nowhere;
 }
 
 static void ui_app_wm_activate(int64_t wp) {
@@ -1169,9 +1168,9 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                                 ui_app_post_message(ui.message.closing, 0, 0); return 0;
         case WM_DESTROY      :  PostQuitMessage(ui_app.exit_code); break;
         case WM_NCHITTEST    :  {
-            int64_t ht = ui_app_hit_test(GET_X_LPARAM(lp), GET_Y_LPARAM(lp));
-            if (ht != ui.hit_test.nowhere) { return ht; }
-            break; // drop to DefWindowProc
+            ui_point_t pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
+                              GET_Y_LPARAM(lp) - ui_app.wrc.y };
+            return ui_view.hit_test(ui_app.root, pt); // never drop to DefWindowProc
         }
         case WM_SYSKEYDOWN   :  ui_app_alt_ctrl_shift(true, wp);
                                 if (ui_app_wm_key_pressed(ui_app.root, wp)) {
@@ -2176,6 +2175,7 @@ static void ui_app_init(void) {
     ui_app.root    = &ui_app_view;
     ui_app.content = &ui_app_content;
     ui_app.caption = &ui_caption.view;
+    ui_app.root->hit_test = ui_app_root_hit_test;
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
     assert(ui_app.content->type == ui_view_stack);
