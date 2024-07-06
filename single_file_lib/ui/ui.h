@@ -2808,27 +2808,29 @@ static void ui_app_toast_paint(void) {
 }
 
 static void ui_app_toast_cancel(void) {
-    if (ui_app.animating.view != null && ui_app.animating.view->type == ui_view_mbx) {
-        ui_mbx_t* mx = (ui_mbx_t*)ui_app.animating.view;
-        if (mx->option < 0 && mx->callback != null) {
-            mx->callback(&mx->view);
+    if (ui_app.animating.view != null) {
+        if (ui_app.animating.view->type == ui_view_mbx) {
+            ui_mbx_t* mx = (ui_mbx_t*)ui_app.animating.view;
+            if (mx->option < 0 && mx->callback != null) {
+                mx->callback(&mx->view);
+            }
         }
+        ui_app.animating.step = 0;
+        ui_app.animating.view = null;
+        ui_app.animating.time = 0;
+        ui_app.animating.x = -1;
+        ui_app.animating.y = -1;
+        if (ui_app.animating.focused != null) {
+            ui_view.set_focus(ui_app.animating.focused->focusable &&
+               !ui_view.is_hidden(ui_app.animating.focused) &&
+               !ui_view.is_disabled(ui_app.animating.focused) ?
+                ui_app.animating.focused : null);
+            ui_app.animating.focused = null;
+        } else {
+            ui_view.set_focus(null);
+        }
+        ui_app.request_redraw();
     }
-    ui_app.animating.step = 0;
-    ui_app.animating.view = null;
-    ui_app.animating.time = 0;
-    ui_app.animating.x = -1;
-    ui_app.animating.y = -1;
-    if (ui_app.animating.focused != null) {
-        ui_view.set_focus(ui_app.animating.focused->focusable &&
-           !ui_view.is_hidden(ui_app.animating.focused) &&
-           !ui_view.is_disabled(ui_app.animating.focused) ?
-            ui_app.animating.focused : null);
-        ui_app.animating.focused = null;
-    } else {
-        ui_view.set_focus(null);
-    }
-    ui_app.request_redraw();
 }
 
 static void ui_app_toast_mouse(int32_t m, int64_t flags) {
@@ -3718,11 +3720,10 @@ static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
     if (view != null) {
         ui_app.animating.x = x;
         ui_app.animating.y = y;
-        ui_app.animating.focused = null;
+        ui_app.animating.focused = ui_app.focus;
         if (view->type == ui_view_mbx) {
             ((ui_mbx_t*)view)->option = -1;
             if (view->focusable) {
-                 ui_app.animating.focused = ui_app.focus;
                  ui_view.set_focus(view);
             }
         }
@@ -4780,6 +4781,7 @@ static void ui_caption_full(ui_button_t* unused(b)) {
 static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
     swear(v == &ui_caption.view);
     ui_point_t pt = { x, y };
+    assert(ui_view.inside(v, &pt));
 //  traceln("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
 //      x, y,
 //      ui_caption.icon.x, ui_caption.icon.y,
@@ -12654,13 +12656,14 @@ static void ui_view_set_focus(ui_view_t* v) {
 }
 
 static int64_t ui_view_hit_test(ui_view_t* v, int32_t cx, int32_t cy) {
+    ui_point_t pt = { cx, cy };
     int64_t ht = ui.hit_test.nowhere;
     if (!ui_view.is_hidden(v) && v->hit_test != null) {
          ht = v->hit_test(v, cx, cy);
     }
     if (ht == ui.hit_test.nowhere) {
         ui_view_for_each(v, c, {
-            if (!c->state.hidden) {
+            if (!c->state.hidden && ui_view.inside(c, &pt)) {
                 ht = ui_view_hit_test(c, cx, cy);
                 if (ht != ui.hit_test.nowhere) { break; }
             }

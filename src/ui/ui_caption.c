@@ -83,6 +83,7 @@ static void ui_caption_full(ui_button_t* unused(b)) {
 static int64_t ui_caption_hit_test(ui_view_t* v, int32_t x, int32_t y) {
     swear(v == &ui_caption.view);
     ui_point_t pt = { x, y };
+    assert(ui_view.inside(v, &pt));
 //  traceln("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
 //      x, y,
 //      ui_caption.icon.x, ui_caption.icon.y,
