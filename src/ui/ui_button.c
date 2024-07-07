@@ -121,11 +121,11 @@ static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_button_mouse_click(ui_view_t* v, int32_t ix, bool pressed) {
+static void ui_button_mouse_click(ui_view_t* v, int32_t unused(ix),
+        bool pressed) {
+    // 'ix' ignored - button index acts on any mouse button
     ui_button_t* b = (ui_button_t*)v;
-    const bool inside = ui_view.inside(b, &ui_app.mouse);
-    assert(inside);
-    (void)ix; // ignored - button index acts on any mouse button
+    assert(ui_view.inside(b, &ui_app.mouse));
     ui_view.invalidate(v, null); // always on any press/release inside
     if (pressed && b->flip) {
         if (b->flip) { ui_button_callback(b); }
@@ -137,10 +137,6 @@ static void ui_button_mouse_click(ui_view_t* v, int32_t ix, bool pressed) {
     }
 }
 
-static void ui_hover_changed(ui_view_t* unused(v)) {
-    traceln();
-}
-
 void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
     v->mouse_click   = ui_button_mouse_click;
@@ -148,7 +144,6 @@ void ui_view_init_button(ui_view_t* v) {
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;
     v->key_pressed   = ui_button_key_pressed;
-//  v->hover_changed = ui_hover_changed;
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
     if (v->debug.id == null) { v->debug.id = "#button"; }

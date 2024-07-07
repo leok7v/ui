@@ -333,16 +333,16 @@ static void zoom_in(int x, int y) {
     sy += zoom * y / image.h;
 }
 
-static void mouse_click(ui_view_t* unused(v), bool left, bool pressed) {
+static void mouse_click(ui_view_t* unused(v), int32_t ix, bool pressed) {
     int mx = ui_app.mouse.x - panel_center.x;
     int my = ui_app.mouse.y - panel_center.y;
     if (0 <= mx && mx < panel_center.w && 0 <= my && my < panel_center.h) {
         int x = ui_app.mouse.x - (panel_center.w - image.w) / 2 - panel_center.x;
         int y = ui_app.mouse.y - (panel_center.h - image.h) / 2 - panel_center.y;
         if (0 <= x && x < image.w && 0 <= y && y < image.h) {
-            if (pressed && !left) {
+            if (pressed && ix == 2) {
                 if (zoom < 1) { zoom_out(); refresh(); }
-            } else if (pressed && left) {
+            } else if (pressed && ix == 0) {
                 if (top < ut_count_of(stack)) { zoom_in(x, y); refresh(); }
             }
         }

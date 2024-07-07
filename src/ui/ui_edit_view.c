@@ -56,8 +56,9 @@ static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
     if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
         return (ui_rect_t) { .x = 0, .y = 0, .w = e->w, .h = e->h };
     } else if (p0.y == p1.y) {
+        const int32_t max_w = ut_max(e->fm->max_char_width, e->fm->em.w);
         int32_t w = p1.x - p0.x != 0 ?
-                p1.x - p0.x + e->fm->em.w : e->caret_width;
+                p1.x - p0.x + max_w : e->caret_width;
         return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
                              .w = w, .h = e->fm->height };
     } else {
@@ -1515,7 +1516,9 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
 }
 
 static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
-        const ui_gdi_ta_t* ta, int32_t x, int32_t y, int32_t pn) {
+        const ui_gdi_ta_t* ta, int32_t x, int32_t y, int32_t pn,
+        ui_rect_t rc) {
+    static const char* ww = ut_glyph_south_west_arrow_with_hook;
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pn && pn < dt->np);
     const ui_edit_str_t* str = &dt->ps[pn];
@@ -1523,13 +1526,15 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
     const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
     for (int32_t j = ui_edit_first_visible_run(e, pn);
                  j < runs && y < e->y + e->inside.bottom; j++) {
-        const char* text = str->u + run[j].bp;
-        ui_edit_paint_selection(e, y, &run[j], text, pn,
-                                run[j].gp, run[j].gp + run[j].glyphs);
-        ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
-        if (j < runs - 1 && !e->hide_word_wrap) {
-            ui_gdi.text(ta, x + e->edit.w, y, "%s",
-                        ut_glyph_south_west_arrow_with_hook);
+//      traceln("[%d.%d] @%d,%d bytes: %d", pn, j, x, y, run[j].bytes);
+        if (rc.y - e->fm->height <= y && y < rc.y + rc.h) {
+            const char* text = str->u + run[j].bp;
+            ui_edit_paint_selection(e, y, &run[j], text, pn,
+                                    run[j].gp, run[j].gp + run[j].glyphs);
+            ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
+            if (j < runs - 1 && !e->hide_word_wrap) {
+                ui_gdi.text(ta, x + e->edit.w, y, "%s", ww);
+            }
         }
         y += e->fm->height;
     }
@@ -1556,11 +1561,7 @@ static void ui_edit_paint(ui_view_t* v) {
         const int32_t bottom = v->y + e->inside.bottom;
         assert(pn <= dt->np);
         for (int32_t i = pn; i < dt->np && y < bottom; i++) {
-            if (rc.y - v->fm->height <= y && y < rc.y + rc.h) {
-                y = ui_edit_paint_paragraph(e, &ta, x, y, i);
-            } else {
-                y += v->fm->height;
-            }
+            y = ui_edit_paint_paragraph(e, &ta, x, y, i, rc);
         }
         ui_gdi.set_clip(0, 0, 0, 0);
     }
