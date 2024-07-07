@@ -149,15 +149,22 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 
 static void ui_caption_measured(ui_view_t* v) {
     // remeasure all child buttons with hard override:
+    int32_t w = 0;
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
             it->fm = &ui_app.fm.mono;
             it->flat = true;
             ui_caption_button_measure(it);
         }
+        if (!it->state.hidden) {
+            const ui_ltrb_t p = ui_view.margins(it, &it->padding);
+            w += it->w + p.left + p.right;
+        }
     });
+    const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+    w += p.left + p.right;
     // do not show title if there is not enough space
-    ui_caption.title.state.hidden = v->w > ui_app.root->w;
+    ui_caption.title.state.hidden = w > ui_app.root->w;
     v->w = ui_app.root->w;
     const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
