@@ -69,6 +69,30 @@ typedef struct ui_fms_s {
     ui_fm_t H3;
 } ui_fms_t;
 
+// TODO: fonts
+#if 0
+
+typedef struct ui_fms_s {
+    struct {
+        ui_fm_t title;    // largest font
+        ui_fm_t subtitle; // larger then `H1`
+        ui_fm_t H1;       // largest header font
+        ui_fm_t H2;
+        ui_fm_t H3;       // larger then `normal`
+        ui_fm_t normal;   // larger then `normal`
+    } prop; // proportional
+    struct {
+        ui_fm_t title;    // largest font
+        ui_fm_t subtitle; // larger then `H1`
+        ui_fm_t H1;       // largest header font
+        ui_fm_t H2;
+        ui_fm_t H3;       // larger then `normal`
+        ui_fm_t normal;   // larger then `normal`
+    } mono; // monospaced
+} ui_fms_t;
+
+#endif
+
 typedef struct ui_gdi_ta_s { // text attributes
     const ui_fm_t* fm; // font metrics
     int32_t color_id;  // <= 0 use color

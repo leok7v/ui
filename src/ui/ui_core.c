@@ -66,18 +66,6 @@ ui_if ui = {
         .force_min = SW_FORCEMINIMIZE
     },
     .message = {
-//  TODO: remove
-//      .character             = WM_CHAR,
-//      .key_pressed           = WM_KEYDOWN,
-//      .key_released          = WM_KEYUP,
-//      .left_button_pressed   = WM_LBUTTONDOWN,
-//      .left_button_released  = WM_LBUTTONUP,
-//      .right_button_pressed  = WM_RBUTTONDOWN,
-//      .right_button_released = WM_RBUTTONUP,
-//      .mouse_move            = WM_MOUSEMOVE,
-//      .mouse_hover           = WM_MOUSEHOVER,
-//      .left_double_click     = WM_LBUTTONDBLCLK,
-//      .right_double_click    = WM_RBUTTONDBLCLK,
         .animate               = UI_WM_ANIMATE,
         .opening               = UI_WM_OPENING,
         .closing               = UI_WM_CLOSING

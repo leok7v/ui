@@ -514,6 +514,8 @@ static void controls_test(ui_view_t* parent) {
 
 // edit1 test
 
+#include <signal.h>
+
 static void edit1_test(ui_view_t* parent) {
     ui_view.disband(parent);
     static void* text;
@@ -552,4 +554,3 @@ static void edit1_test(ui_view_t* parent) {
     ut_str_printf(edit.p.text, "#edit");
     ui_view.set_focus(&edit.view);
 }
-

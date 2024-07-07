@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <locale.h>
 #include <malloc.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -54,11 +55,13 @@ typedef double fp64_t;
 // constexpr
 #define ut_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
 
-// ut_count_of() generates "Integer division by zero" exception
+// ut_count_of() generates "array bounds" exception
 // at runtime because ((void*)&(a) == &(a)[0]) does NOT evaluate
 // to constant expression in cl.exe version 19.40.33811
-#define ut_count_of(a) ((int32_t)(sizeof(a) / sizeof(a[1]) + \
-                        (1 - 1 / ((void*)&(a) == &(a)[0]))))
+#define ut_count_of(a) (int32_t)(sizeof((a)) / sizeof((a)[1]) +     \
+    (((void*)&(a) == &(a)[0]) ?                                     \
+    0 : (size_t)ut_debug.raise(ut_debug.exception.array_bounds)))
+// https://stackoverflow.com/questions/19452971/array-size-macro-that-rejects-pointers/
 // int a[5];
 // int *b = a;
 // printf("%d\n", ut_count_of(a));

@@ -113,6 +113,8 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
 static void ui_view_remove(ui_view_t* c) {
     ut_not_null(c->parent);
     ut_not_null(c->parent->child);
+    // if a view that has focus is removed from parent:
+    if (c == ui_app.focus) { ui_view.set_focus(null); }
     if (c->prev == c) {
         swear(c->next == c);
         c->parent->child = null;

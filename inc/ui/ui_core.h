@@ -74,17 +74,6 @@ typedef struct ui_s {
     } const visibility;
     // TODO: remove or move inside app
     struct { // message:
-//      int32_t const character; // translated from key pressed/released to utf8
-//      int32_t const key_pressed;
-//      int32_t const key_released;
-//      int32_t const left_button_pressed;
-//      int32_t const left_button_released;
-//      int32_t const right_button_pressed;
-//      int32_t const right_button_released;
-//      int32_t const mouse_move;
-//      int32_t const mouse_hover;
-//      int32_t const left_double_click;
-//      int32_t const right_double_click;
         int32_t const animate;
         int32_t const opening;
         int32_t const closing;

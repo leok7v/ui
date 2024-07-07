@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <locale.h>
 #include <malloc.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -61,11 +62,13 @@ typedef double fp64_t;
 // constexpr
 #define ut_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
 
-// ut_count_of() generates "Integer division by zero" exception
+// ut_count_of() generates "array bounds" exception
 // at runtime because ((void*)&(a) == &(a)[0]) does NOT evaluate
 // to constant expression in cl.exe version 19.40.33811
-#define ut_count_of(a) ((int32_t)(sizeof(a) / sizeof(a[1]) + \
-                        (1 - 1 / ((void*)&(a) == &(a)[0]))))
+#define ut_count_of(a) (int32_t)(sizeof((a)) / sizeof((a)[1]) +     \
+    (((void*)&(a) == &(a)[0]) ?                                     \
+    0 : (size_t)ut_debug.raise(ut_debug.exception.array_bounds)))
+// https://stackoverflow.com/questions/19452971/array-size-macro-that-rejects-pointers/
 // int a[5];
 // int *b = a;
 // printf("%d\n", ut_count_of(a));
@@ -218,17 +221,6 @@ typedef struct ui_s {
     } const visibility;
     // TODO: remove or move inside app
     struct { // message:
-//      int32_t const character; // translated from key pressed/released to utf8
-//      int32_t const key_pressed;
-//      int32_t const key_released;
-//      int32_t const left_button_pressed;
-//      int32_t const left_button_released;
-//      int32_t const right_button_pressed;
-//      int32_t const right_button_released;
-//      int32_t const mouse_move;
-//      int32_t const mouse_hover;
-//      int32_t const left_double_click;
-//      int32_t const right_double_click;
         int32_t const animate;
         int32_t const opening;
         int32_t const closing;
@@ -683,6 +675,30 @@ typedef struct ui_fms_s {
     ui_fm_t H2;
     ui_fm_t H3;
 } ui_fms_t;
+
+// TODO: fonts
+#if 0
+
+typedef struct ui_fms_s {
+    struct {
+        ui_fm_t title;    // largest font
+        ui_fm_t subtitle; // larger then `H1`
+        ui_fm_t H1;       // largest header font
+        ui_fm_t H2;
+        ui_fm_t H3;       // larger then `normal`
+        ui_fm_t normal;   // larger then `normal`
+    } prop; // proportional
+    struct {
+        ui_fm_t title;    // largest font
+        ui_fm_t subtitle; // larger then `H1`
+        ui_fm_t H1;       // largest header font
+        ui_fm_t H2;
+        ui_fm_t H3;       // larger then `normal`
+        ui_fm_t normal;   // larger then `normal`
+    } mono; // monospaced
+} ui_fms_t;
+
+#endif
 
 typedef struct ui_gdi_ta_s { // text attributes
     const ui_fm_t* fm; // font metrics
@@ -6201,18 +6217,6 @@ ui_if ui = {
         .force_min = SW_FORCEMINIMIZE
     },
     .message = {
-//  TODO: remove
-//      .character             = WM_CHAR,
-//      .key_pressed           = WM_KEYDOWN,
-//      .key_released          = WM_KEYUP,
-//      .left_button_pressed   = WM_LBUTTONDOWN,
-//      .left_button_released  = WM_LBUTTONUP,
-//      .right_button_pressed  = WM_RBUTTONDOWN,
-//      .right_button_released = WM_RBUTTONUP,
-//      .mouse_move            = WM_MOUSEMOVE,
-//      .mouse_hover           = WM_MOUSEHOVER,
-//      .left_double_click     = WM_LBUTTONDBLCLK,
-//      .right_double_click    = WM_RBUTTONDBLCLK,
         .animate               = UI_WM_ANIMATE,
         .opening               = UI_WM_OPENING,
         .closing               = UI_WM_CLOSING
@@ -12340,6 +12344,8 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
 static void ui_view_remove(ui_view_t* c) {
     ut_not_null(c->parent);
     ut_not_null(c->parent->child);
+    // if a view that has focus is removed from parent:
+    if (c == ui_app.focus) { ui_view.set_focus(null); }
     if (c->prev == c) {
         swear(c->next == c);
         c->parent->child = null;

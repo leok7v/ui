@@ -36,8 +36,8 @@ typedef struct {
     void (*perror)(const char* file, int32_t line,
         const char* func, int32_t error, const char* format, ...);
     bool (*is_debugger_present)(void);
-    void (*breakpoint)(void); // noop if debugger is not present
-    void (*raise)(uint32_t exception);
+    void (*breakpoint)(void); // no-op if debugger is not present
+    errno_t (*raise)(uint32_t exception);
     struct  {
         uint32_t const access_violation;
         uint32_t const datatype_misalignment;

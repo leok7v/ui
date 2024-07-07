@@ -132,8 +132,10 @@ static void ut_debug_breakpoint(void) {
     if (ut_debug.is_debugger_present()) { DebugBreak(); }
 }
 
-static void ut_debug_raise(uint32_t exception) {
+static errno_t ut_debug_raise(uint32_t exception) {
+    ut_runtime.set_err(0);
     RaiseException(exception, EXCEPTION_NONCONTINUABLE, 0, null);
+    return ut_runtime.err();
 }
 
 static int32_t ut_debug_verbosity_from_string(const char* s) {
