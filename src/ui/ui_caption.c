@@ -65,6 +65,10 @@ static void ui_caption_maximize_or_restore(void) {
     ut_str_printf(ui_caption.maxi.hint, "%s",
         ui_app.is_maximized() ?
         ut_nls.str("Restore") : ut_nls.str("Maximize"));
+    // non-decorated windows on Win32 are "popup" style
+    // that cannot be maximized. Full screen will serve
+    // the purpose of maximization.
+    ui_caption.maxi.state.hidden = ui_app.no_decor;
 }
 
 static void ui_caption_maxi(ui_button_t* unused(b)) {
@@ -221,6 +225,16 @@ static void ui_caption_init(ui_view_t* v) {
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
     ui_caption_mode_appearance();
+    ui_caption.icon.debug.id = "#caption.icon";
+    ui_caption.menu.debug.id = "#caption.menu";
+    ui_caption.mode.debug.id = "#caption.mode";
+    ui_caption.mini.debug.id = "#caption.mini";
+    ui_caption.maxi.debug.id = "#caption.maxi";
+    ui_caption.full.debug.id = "#caption.full";
+    ui_caption.quit.debug.id = "#caption.quit";
+    ui_caption.title.debug.id  = "#caption.title";
+    ui_caption.spacer.debug.id = "#caption.spacer";
+
 }
 
 ui_caption_t ui_caption =  {

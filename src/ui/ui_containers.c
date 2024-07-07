@@ -57,7 +57,8 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
     debugln("%s[%4.4s] %d,%d %dx%d, max[%sx%s] "                              \
         "padding { %.3f %.3f %.3f %.3f } "                                    \
         "insets { %.3f %.3f %.3f %.3f } align: 0x%02X",                       \
-        v->text, &v->type, v->x, v->y, v->w, v->h,                            \
+        ui_view_debug_id(v),                                                  \
+        &v->type, v->x, v->y, v->w, v->h,                                     \
         ui_stack_finite_int(v->max_w, maxw, ut_count_of(maxw)),               \
         ui_stack_finite_int(v->max_h, maxh, ut_count_of(maxh)),               \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
@@ -550,7 +551,7 @@ static void ui_container_paint(ui_view_t* v) {
         !ui_color_is_transparent(v->background)) {
         ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     } else {
-//      traceln("%s undefined", v->text);
+//      traceln("%s undefined", ui_view_debug_id(v));
     }
 }
 
@@ -571,6 +572,7 @@ void ui_view_init_span(ui_view_t* v) {
     if (v->layout  == null) { v->layout  = ui_span_layout; }
     if (v->paint   == null) { v->paint   = ui_container_paint; }
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_span"); }
+    if (v->debug.id == null) { v->debug.id = "#ui_span"; }
 }
 
 void ui_view_init_list(ui_view_t* v) {
@@ -580,6 +582,7 @@ void ui_view_init_list(ui_view_t* v) {
     if (v->layout  == null) { v->layout  = ui_list_layout; }
     if (v->paint   == null) { v->paint   = ui_container_paint; }
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_list"); }
+    if (v->debug.id == null) { v->debug.id = "#ui_list"; }
 }
 
 void ui_view_init_spacer(ui_view_t* v) {
@@ -589,6 +592,8 @@ void ui_view_init_spacer(ui_view_t* v) {
     v->max_w = ui.infinity;
     v->max_h = ui.infinity;
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_spacer"); }
+    if (v->debug.id == null) { v->debug.id = "#ui_spacer"; }
+
 }
 
 void ui_view_init_stack(ui_view_t* v) {
@@ -597,6 +602,7 @@ void ui_view_init_stack(ui_view_t* v) {
     if (v->layout  == null) { v->layout  = ui_stack_layout; }
     if (v->paint   == null) { v->paint   = ui_container_paint; }
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_stack"); }
+    if (v->debug.id == null) { v->debug.id = "#ui_stack"; }
 }
 
 #pragma pop_macro("ui_layout_exit")

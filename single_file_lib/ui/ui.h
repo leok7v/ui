@@ -216,6 +216,7 @@ typedef struct ui_s {
         int32_t const defau1t;  // use Windows STARTUPINFO value
         int32_t const force_min;// minimize even if dispatch thread not responding
     } const visibility;
+    // TODO: remove or move inside app
     struct { // message:
         int32_t const character; // translated from key pressed/released to utf8
         int32_t const key_pressed;
@@ -236,6 +237,7 @@ typedef struct ui_s {
         int32_t const dtap;
         int32_t const press;
    } const message;
+   // TODO: remove or move inside app
    struct { // mouse buttons bitset mask
         struct {
             int32_t const left;
@@ -851,8 +853,11 @@ typedef struct ui_view_s {
     void (*click)(ui_view_t* v);    // ui click callback - view action
     void (*format)(ui_view_t* v);   // format a value to text (e.g. slider)
     void (*callback)(ui_view_t* v); // state change callback
-    void (*mouse)(ui_view_t* v, int32_t message, int64_t flags);
-    void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy); // touchpad scroll
+    void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
+    void (*mouse_hover)(ui_view_t* v); // hover over
+    void (*mouse_move)(ui_view_t* v);
+    void (*mouse_click)(ui_view_t* v, bool left, bool pressed);
+    void (*double_click)(ui_view_t* v, bool left);
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
@@ -876,14 +881,17 @@ typedef struct ui_view_s {
         bool hidden;    // measure()/ layout() paint() is not called on
         bool disabled;  // mouse, keyboard, key_up/down not called on
         bool armed;     // button is pressed but not yet released
-        bool hover;     // cursor hovering over the control
+        bool hover;     // cursor is hovering over the control
         bool pressed;   // for ui_button_t and ui_toggle_t
     } state;
-    bool flat;      // no-border appearance of views
-    bool focusable; // can be target for keyboard focus
-    bool highlightable; // paint highlight rectangle when hover over label
-    ui_color_t color;     // interpretation depends on view type
-    int32_t    color_id;  // 0 is default meaning use color
+    // TODO: instead of flat color scheme: undefined colors for
+    // border rounded gradient etc.
+    bool flat;                // no-border appearance of controls
+    bool flip;                // flip button pressed / released
+    bool focusable;           // can be target for keyboard focus
+    bool highlightable;       // paint highlight rectangle when hover over label
+    ui_color_t color;         // interpretation depends on view type
+    int32_t    color_id;      // 0 is default meaning use color
     ui_color_t background;    // interpretation depends on view type
     int32_t    background_id; // 0 is default meaning use background
     char hint[256]; // tooltip hint text (to be shown while hovering over view)
@@ -893,10 +901,11 @@ typedef struct ui_view_s {
             bool mt;  // measure text
         } trace;
         struct { // after painted():
-            bool call; // v->debug_paint()
+            bool call;    // v->debug_paint()
             bool margins; // call debug_paint_margins()
-            bool fm;   // paint font metrics
+            bool fm;      // paint font metrics
         } paint;
+        const char* id; // for debugging purposes
     } debug; // debug flags
 } ui_view_t;
 
@@ -946,8 +955,11 @@ typedef struct ui_view_if {
     void (*set_focus)(ui_view_t* view_or_null);
     void (*lose_hidden_focus)(ui_view_t* v);
     void (*hovering)(ui_view_t* v, bool start);
-    void (*mouse)(ui_view_t* v, int32_t m, int64_t f);
-    void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy);
+    void (*mouse_hover)(ui_view_t* v); // hover over
+    void (*mouse_move)(ui_view_t* v);
+    void (*mouse_click)(ui_view_t* v, bool left, bool pressed);
+    void (*double_click)(ui_view_t* v, bool left);
+    void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     ui_wh_t (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, va_list va);
     ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
@@ -994,6 +1006,9 @@ extern ui_view_if ui_view;
     ui_view_for_each_begin(v, it)    \
     { __VA_ARGS__ }                  \
     ui_view_for_each_end(v, it)
+
+#define ui_view_debug_id(v) \
+    ((v)->debug.id != null ? (v)->debug.id : (v)->p.text)
 
 // #define code(statements) statements
 //
@@ -1581,13 +1596,20 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // usage:
 //
 // ui_button_clicked(button, "&Button", 7.0, {
-//      button->state.pressed = !button->state.pressed;
+//      if (button->state.pressed) {
+//          // do something on click that happens on release mouse button
+//      }
 // })
 //
 // or:
 //
 // static void button_flipped(ui_button_t* b) {
-//      b->state.pressed = !b->state.pressed;
+//      swear(b->flip == true); // 2 state button, clicked on mouse press button
+//      if (b->state.pressed) {
+//          // show something:
+//      } else {
+//          // show something else:
+//      }
 // }
 //
 // ui_button_t button = ui_button(7.0, "&Button", button_flipped);
@@ -1598,6 +1620,14 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // ui_view.set_text(button.text, "&Button");
 // button.min_w_em = 7.0;
 // button.callback = button_flipped;
+//
+// Note:
+// ui_button_clicked(button, "&Button", 7.0, {
+//      button->state.pressed = !button->state.pressed;
+//      // is similar to: button.flip = true but it leads thru
+//      // multiple button paint and click happens on mouse button
+//      // release not press
+// }
 
 
 
@@ -2101,8 +2131,8 @@ enum { ui_long_press_msec = 250 };
 static NONCLIENTMETRICSW ui_app_ncm = { sizeof(NONCLIENTMETRICSW) };
 static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
 
-static HANDLE ui_app_event_quit;
-static HANDLE ui_app_event_invalidate;
+static ut_event_t ui_app_event_quit;
+static ut_event_t ui_app_event_invalidate;
 
 static uintptr_t ui_app_timer_1s_id;
 static uintptr_t ui_app_timer_100ms_id;
@@ -2204,7 +2234,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
 //  traceln("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
 }
 
-#ifndef QUICK_DEBUG
+#ifndef UI_APP_DEBUG
 
 static void ui_app_dump_dpi(void) {
     traceln("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
@@ -2461,7 +2491,7 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
     bool loaded = ut_config.load(ui_app.class_name, "wiw", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
-        #ifdef QUICK_DEBUG
+        #ifdef UI_APP_DEBUG
             traceln("wiw.placement: %d,%d %dx%d", wiw.placement.x, wiw.placement.y,
                 wiw.placement.w, wiw.placement.h);
             traceln("wiw.mrc: %d,%d %dx%d", wiw.mrc.x, wiw.mrc.y, wiw.mrc.w, wiw.mrc.h);
@@ -2646,9 +2676,9 @@ static void ui_app_measure_and_layout(ui_view_t* view) {
     }
 }
 
-static void ui_app_toast_mouse(int32_t m, int64_t f);
 static void ui_app_toast_character(const char* utf8);
 static bool ui_app_toast_key_pressed(int64_t key);
+static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed);
 
 static void ui_app_wm_char(ui_view_t* view, const char* utf8) {
     if (ui_app.animating.view != null) {
@@ -2666,18 +2696,40 @@ static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
     }
 }
 
-static void ui_app_mouse(ui_view_t* view, int32_t m, int64_t f) {
-    if (ui_app.animating.view != null && ui_app.animating.view->mouse != null) {
-        ui_view.mouse(ui_app.animating.view, m, f);
-    } else if (ui_app.animating.view != null && ui_app.animating.view->mouse == null) {
-        ui_app_toast_mouse(m, f);
-        bool hint = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        if (hint) { ui_view.mouse(view, m, f); }
+static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
+    // override ui_app_update_mouse_buttons_state() (sic):
+    // because mouse message can be from the past
+    ui_app.mouse_left  = f & (ui_app.mouse_swapped ? MK_RBUTTON : MK_LBUTTON);
+    ui_app.mouse_right = f & (ui_app.mouse_swapped ? MK_LBUTTON : MK_RBUTTON);
+    ui_view_t* av = ui_app.animating.view;
+    if (m == ui.message.mouse_hover) {
+        ui_view.mouse_hover(av != null && av->mouse_hover != null ? av : v);
+    } else if (m == ui.message.mouse_move) {
+        ui_view.mouse_move(av != null && av->mouse_move != null ? av : v);
+    } else if (m == ui.message.left_button_pressed  ||
+               m == ui.message.left_button_released ||
+               m == ui.message.right_button_pressed ||
+               m == ui.message.right_button_released) {
+        const bool left =
+            m == ui.message.left_button_pressed  ||
+            m == ui.message.left_button_released;
+        const bool pressed =
+            m == ui.message.left_button_pressed ||
+            m == ui.message.right_button_pressed;
+        if (av != null) {
+            // because of "micro" close button:
+            ui_app_toast_mouse_click(ui_app.animating.view, left, pressed);
+        } else {
+            ui_view.mouse_click(v, left, pressed);
+        }
+    } else if (m == ui.message.left_double_click ||
+               m == ui.message.right_double_click) {
+        ui_view.double_click(av != null && av->double_click != null ? av : v,
+            m == ui.message.left_double_click);
     } else {
-        ui_view.mouse(view, m, f);
+        assert(false, "m: 0x%04X", m);
     }
 }
-
 
 static void ui_app_show_sys_menu(int32_t x, int32_t y) {
     HMENU sys_menu = GetSystemMenu(ui_app_window(), false);
@@ -2693,29 +2745,45 @@ static void ui_app_show_sys_menu(int32_t x, int32_t y) {
     }
 }
 
+static int32_t ui_app_nc_mouse_message(int32_t m) {
+    switch (m) {
+        case WM_NCMOUSEMOVE     : return WM_MOUSEMOVE;
+        case WM_NCLBUTTONDOWN   : return WM_LBUTTONDOWN;
+        case WM_NCLBUTTONUP     : return WM_LBUTTONUP;
+        case WM_NCLBUTTONDBLCLK : return WM_LBUTTONDBLCLK;
+        case WM_NCRBUTTONDOWN   : return WM_RBUTTONDOWN;
+        case WM_NCRBUTTONUP     : return WM_RBUTTONUP;
+        case WM_NCRBUTTONDBLCLK : return WM_RBUTTONDBLCLK;
+        case WM_NCMBUTTONDOWN   : return WM_MBUTTONDOWN;
+        case WM_NCMBUTTONUP     : return WM_MBUTTONUP;
+        case WM_NCMBUTTONDBLCLK : return WM_MBUTTONDBLCLK;
+        default: swear(false, "fix me m: %d", m);
+    }
+    return -1;
+}
+
 static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
     POINT screen = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
     POINT client = screen;
     ScreenToClient(ui_app_window(), &client);
     ui_app.mouse = ui_app_point2ui(&client);
-    if (!ui_view.is_hidden(ui_app.caption) &&
-         ui_view.inside(ui_app.caption, &ui_app.mouse)) {
-        uint16_t context = ui_app.mouse_swapped ?
-            WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
-        if (m == context) {
+    const bool inside = ui_view.inside(ui_app.caption, &ui_app.mouse);
+    if (!ui_view.is_hidden(ui_app.caption) && inside) {
+        uint16_t lr = ui_app.mouse_swapped ? WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
+        if (m == lr) {
 //          traceln("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
             ui_app_show_sys_menu(screen.x, screen.y);
         }
     } else {
-        ui_app_mouse(ui_app.root, m, wp);
+        ui_app_mouse(ui_app.root, ui_app_nc_mouse_message(m), wp);
     }
 }
 
 static void ui_app_tap_press(int32_t m, int64_t wp, int64_t lp) {
-    ui_app.mouse.x = GET_X_LPARAM(lp);
-    ui_app.mouse.y = GET_Y_LPARAM(lp);
-    // dispatch as generic mouse message:
-    ui_app_mouse(ui_app.root, (int32_t)m, wp);
+    ui_app.mouse = (ui_point_t){ GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+//  TODO: play with it and determine if generic tap message is needed
+//  dispatch as generic mouse message:
+//  ui_app_mouse(ui_app.root, m, wp);
     int32_t ix = (int32_t)wp;
     assert(0 <= ix && ix <= 2);
     // for now long press and fp64_t tap/fp64_t click
@@ -2833,21 +2901,21 @@ static void ui_app_toast_cancel(void) {
     }
 }
 
-static void ui_app_toast_mouse(int32_t m, int64_t flags) {
-    bool pressed = m == ui.message.left_button_pressed ||
-                   m == ui.message.right_button_pressed;
-    if (ui_app.animating.view != null && pressed) {
-        const ui_fm_t* fm = ui_app.animating.view->fm;
-        int32_t right = ui_app.animating.view->x + ui_app.animating.view->w;
-        int32_t x = right - fm->em.w / 2;
-        if (x <= ui_app.mouse.x && ui_app.mouse.x <= x + fm->em.w &&
-            0 <= ui_app.mouse.y && ui_app.mouse.y <= fm->em.h) {
+static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed) {
+    swear(v == ui_app.animating.view);
+    if (pressed) {
+        const ui_fm_t* fm = v->fm;
+        const int32_t right = v->x + v->w;
+        const int32_t x = right - fm->em.w / 2;
+        const int32_t mx = ui_app.mouse.x;
+        const int32_t my = ui_app.mouse.y;
+        // micro close button which is not a button
+        if (x <= mx && mx <= x + fm->em.w && 0 <= my && my <= fm->em.h) {
             ui_app_toast_cancel();
-        } else {
-            ui_view.mouse(ui_app.animating.view, m, flags);
         }
-    } else {
-        ui_view.mouse(ui_app.animating.view, m, flags);
+    }
+    if (ui_app.animating.view != null) { // could have been canceled above
+        ui_view.mouse_click(v, left, pressed);
     }
 }
 
@@ -3092,7 +3160,7 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     static ui_point_t click_at[3];
     static fp64_t     clicked[3]; // click time
     static bool       pressed[3];
-    static ui_timer_t timer_d[3]; // fp64_t tap
+    static ui_timer_t timer_d[3]; // double tap
     static ui_timer_t timer_p[3]; // long press
     bool up = false;
     int32_t ix = -1;
@@ -3217,7 +3285,157 @@ static void ui_app_update_mouse_buttons_state(void) {
                           VK_LBUTTON : VK_RBUTTON) & 0x8000) != 0;
 }
 
-bool trace_messages;
+#if 0
+        case WM_NCHITTEST    :  {
+            ui_point_t pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
+                              GET_Y_LPARAM(lp) - ui_app.wrc.y };
+            int64_t ht = ui_view.hit_test(ui_app.root, pt);
+            if (ht != ui.hit_test.nowhere) { return ht; }
+            break; // drop to DefWindowProc
+        }
+
+#endif
+
+static int64_t ui_app_wm_nc_hit_test(int64_t wp, int64_t lp) {
+    ui_point_t pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
+                      GET_Y_LPARAM(lp) - ui_app.wrc.y };
+    int64_t ht = ui_view.hit_test(ui_app.root, pt);
+    if (ht != ui.hit_test.nowhere) {
+        return ht;
+    } else {
+        return DefWindowProc(ui_app_window(), WM_NCHITTEST, wp, lp);
+    }
+}
+
+static int64_t ui_app_wm_sys_key_down(int64_t wp, int64_t lp) {
+    ui_app_alt_ctrl_shift(true, wp);
+    if (ui_app_wm_key_pressed(ui_app.root, wp) || wp == VK_MENU) {
+        return 0; // no DefWindowProc()
+    } else {
+        return DefWindowProc(ui_app_window(), WM_SYSKEYDOWN, wp, lp);
+    }
+}
+
+static void ui_app_wm_set_focus(void) {
+    if (!ui_app.root->state.hidden) {
+        assert(GetActiveWindow() == ui_app_window());
+        if (ui_app.focus != null && ui_app.focus->focus_lost != null) {
+            ui_app.focus->focus_gained(ui_app.focus);
+        }
+    }
+}
+
+static void ui_app_wm_kill_focus(void) {
+    if (!ui_app.root->state.hidden &&
+        ui_app.focus != null &&
+        ui_app.focus->focus_lost != null) {
+        ui_app.focus->focus_lost(ui_app.focus);
+    }
+}
+
+static int64_t ui_app_wm_nc_calculate_size(int64_t wp, int64_t lp) {
+//  NCCALCSIZE_PARAMS* szp = (NCCALCSIZE_PARAMS*)lp;
+//  traceln("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
+//      wp, ui_app.is_maximized(),
+//      szp->rgrc[0].left, szp->rgrc[0].top, szp->rgrc[0].right, szp->rgrc[0].bottom,
+//      szp->rgrc[1].left, szp->rgrc[1].top, szp->rgrc[1].right, szp->rgrc[1].bottom,
+//      szp->rgrc[2].left, szp->rgrc[2].top, szp->rgrc[2].right, szp->rgrc[2].bottom);
+    // adjust window client area frame for no_decor windows
+    if (wp == true && ui_app.no_decor && !ui_app.is_maximized()) {
+        return 0;
+    } else {
+        return DefWindowProc(ui_app_window(), WM_NCCALCSIZE, wp, lp);
+    }
+}
+
+static int64_t ui_app_wm_get_dpi_scaled_size(int64_t wp) {
+    // sent before WM_DPICHANGED
+    #ifdef UI_APP_DEBUG
+        int32_t dpi = wp;
+        SIZE* sz = (SIZE*)lp; // in/out
+        ui_point_t cell = { sz->cx, sz->cy };
+        traceln("WM_GETDPISCALEDSIZE dpi %d := %d "
+            "size %d,%d *may/must* be adjusted",
+            ui_app.dpi.window, dpi, cell.x, cell.y);
+    #else
+        (void)wp; // unused
+    #endif
+    if (ui_app_timer_1s_id != 0 && !ui_app.root->state.hidden) {
+        ui_app.request_layout();
+    }
+    // IMPORTANT: return true because:
+    // "Returning TRUE indicates that a new size has been computed.
+    //  Returning FALSE indicates that the message will not be handled,
+    //  and the default linear DPI scaling will apply to the window."
+    // https://learn.microsoft.com/en-us/windows/win32/hidpi/wm-getdpiscaledsize
+    return true;
+}
+
+static void ui_app_wm_dpi_changed(void) {
+    ui_app_window_dpi();
+    ui_app_init_fonts(ui_app.dpi.window);
+    if (ui_app_timer_1s_id != 0 && !ui_app.root->state.hidden) {
+        ui_app.request_layout();
+    } else {
+        ui_app_layout_dirty = true;
+    }
+}
+
+static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
+    uint16_t sys_cmd = (uint16_t)(wp & 0xFF0);
+//  traceln("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
+//          wp, lp, lp, sys_cmd);
+    if (sys_cmd == SC_MINIMIZE && ui_app.hide_on_minimize) {
+        ui_app.show_window(ui.visibility.min_na);
+        ui_app.show_window(ui.visibility.hide);
+    } else  if (sys_cmd == SC_MINIMIZE && ui_app.no_decor) {
+        ui_app.show_window(ui.visibility.min_na);
+    }
+//  if (sys_cmd == SC_KEYMENU) { traceln("SC_KEYMENU lp: %lld", lp); }
+    // If the selection is in menu handle the key event
+    if (sys_cmd == SC_KEYMENU && lp != 0x20) {
+        return true; // handled: This prevents the error/beep sound
+    }
+    if (sys_cmd == SC_MAXIMIZE && ui_app.no_decor) {
+        return true; // handled: prevent maximizing no decorations window
+    }
+//  if (sys_cmd == SC_MOUSEMENU) {
+//      traceln("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
+//  }
+    return false; // drop down to to DefWindowProc
+}
+
+static void ui_app_wm_window_position_changing(int64_t wp, int64_t lp) {
+    #ifdef UI_APP_DEBUG // TODO: ui_app.debug.trace.window_position?
+        WINDOWPOS* pos = (WINDOWPOS*)lp;
+        traceln("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
+        if (pos->flags & SWP_SHOWWINDOW) {
+            traceln("SWP_SHOWWINDOW");
+        } else if (pos->flags & SWP_HIDEWINDOW) {
+            traceln("SWP_HIDEWINDOW");
+        }
+    #else
+        (void)wp; // unused
+        (void)lp; // unused
+    #endif
+}
+
+static void ui_app_wm_mouse_clicks(int32_t m, int64_t wp, int64_t lp) {
+    // note: x, y is already in client coordinates
+    ui_app.mouse.x = GET_X_LPARAM(lp);
+    ui_app.mouse.y = GET_Y_LPARAM(lp);
+    ui_app_mouse(ui_app.root, m, wp);
+}
+
+static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
+    if (vertical) {
+        ui_point_t dx_dy = { 0, GET_WHEEL_DELTA_WPARAM(wp) };
+        ui_view.mouse_scroll(ui_app.root, dx_dy);
+    } else {
+        ui_point_t dx_dy = { GET_WHEEL_DELTA_WPARAM(wp), 0 };
+        ui_view.mouse_scroll(ui_app.root, dx_dy);
+    }
+}
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
@@ -3239,203 +3457,146 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     }
     if (m == ui.message.opening) { ui_app_window_opening(); return 0; }
     if (m == ui.message.closing) { ui_app_window_closing(); return 0; }
-    if (m == ui.message.tap || m == ui.message.dtap ||
-        m == ui.message.press) {
-            ui_app_tap_press(m, wp, lp);
-            return 0;
+    if (m == ui.message.tap || m == ui.message.dtap || m == ui.message.press) {
+        ui_app_tap_press(m, wp, lp);
+        return 0;
     }
     if (m == ui.message.animate) {
         ui_app_animate_step((ui_app_animate_function_t)lp, (int32_t)wp, -1);
         return 0;
     }
     switch (m) {
-        case WM_GETMINMAXINFO:  ui_app_get_min_max_info((MINMAXINFO*)lp); break;
-        case WM_THEMECHANGED :  ui_theme.refresh(); break;
-        case WM_SETTINGCHANGE:  ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp); break;
-        case WM_CLOSE        :  ui_view.set_focus(null); // before WM_CLOSING
-                                ui_app_post_message(ui.message.closing, 0, 0); return 0;
-        case WM_DESTROY      :  PostQuitMessage(ui_app.exit_code); break;
-        case WM_NCHITTEST    :  {
-            ui_point_t pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
-                              GET_Y_LPARAM(lp) - ui_app.wrc.y };
-            return ui_view.hit_test(ui_app.root, pt); // never drop to DefWindowProc
-        }
-        case WM_SYSKEYDOWN   :  ui_app_alt_ctrl_shift(true, wp);
-                                if (ui_app_wm_key_pressed(ui_app.root, wp)) {
-                                    return 0; // no DefWindowProc()
-                                }
-                                if (wp == VK_MENU) { return 0; }
-                                break;
-        case WM_SYSCHAR      :  if (wp == VK_MENU) { return 0; } // no DefWindowProc()
-                                break;
-        case WM_UNICHAR      :  traceln("???"); break;
-        case WM_KEYDOWN      :  ui_app_alt_ctrl_shift(true, wp);
-                                if (ui_app_wm_key_pressed(ui_app.root, wp)) {
-                                    return 0; // no DefWindowProc()
-                                }
-                                break;
-        case WM_SYSKEYUP:
-        case WM_KEYUP        :  ui_app_alt_ctrl_shift(false, wp);
-                                ui_view.key_released(ui_app.root, wp);
-                                break;
-        case WM_TIMER        :  ui_app_wm_timer((ui_timer_t)wp);
-                                break;
-        case WM_ERASEBKGND   :  return true; // no DefWindowProc()
-        case WM_SETCURSOR    :  // TODO: investigate more in regards to wait cursor
-            if (LOWORD(lp) == HTCLIENT) { // see WM_NCHITTEST
-                SetCursor((HCURSOR)ui_app.cursor);
-                return true; // must NOT call DefWindowProc()
-            }
+        case WM_GETMINMAXINFO:
+            ui_app_get_min_max_info((MINMAXINFO*)lp);
             break;
-        // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
-        // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
-//      case WM_UNICHAR      : // only UTF-32 via PostMessage
-        case WM_CHAR         :  ui_app_wm_char(ui_app.root, (const char*)&wp);
-                                break; // TODO: CreateWindowW() and utf16->utf8
-        case WM_PRINTCLIENT  :  ui_app_paint_on_canvas((HDC)wp); break;
-        case WM_SETFOCUS     :
-            if (!ui_app.root->state.hidden) {
-                assert(GetActiveWindow() == ui_app_window());
-                if (ui_app.focus != null && ui_app.focus->focus_lost != null) {
-                    ui_app.focus->focus_gained(ui_app.focus);
-                }
-            }
+        case WM_CLOSE        :
+            ui_view.set_focus(null); // before WM_CLOSING
+            ui_app_post_message(ui.message.closing, 0, 0);
+            return 0;
+        case WM_DESTROY      :
+            PostQuitMessage(ui_app.exit_code);
             break;
-        case WM_KILLFOCUS    :  if (!ui_app.root->state.hidden &&
-                                     ui_app.focus != null &&
-                                     ui_app.focus->focus_lost != null) {
-                                    ui_app.focus->focus_lost(ui_app.focus);
-                                }
-                                break;
-        case WM_NCCALCSIZE:
-//          NCCALCSIZE_PARAMS* szp = (NCCALCSIZE_PARAMS*)lp;
-//          traceln("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
-//              wp, ui_app.is_maximized(),
-//              szp->rgrc[0].left, szp->rgrc[0].top, szp->rgrc[0].right, szp->rgrc[0].bottom,
-//              szp->rgrc[1].left, szp->rgrc[1].top, szp->rgrc[1].right, szp->rgrc[1].bottom,
-//              szp->rgrc[2].left, szp->rgrc[2].top, szp->rgrc[2].right, szp->rgrc[2].bottom);
-            // adjust window client area frame for no_decor windows
-            if (wp == true && ui_app.no_decor && !ui_app.is_maximized()) {
-                return 0;
-            }
-            break;
-        case WM_PAINT        :  ui_app_wm_paint(); break;
-        case WM_CONTEXTMENU  :  (void)ui_view.context_menu(ui_app.root); break;
-        case WM_MOUSEWHEEL   :
-            ui_view.mouse_wheel(ui_app.root, 0, GET_WHEEL_DELTA_WPARAM(wp)); break;
-        case WM_MOUSEHWHEEL  :
-            ui_view.mouse_wheel(ui_app.root, GET_WHEEL_DELTA_WPARAM(wp), 0); break;
-        case WM_NCMOUSEMOVE     :
-        case WM_NCLBUTTONDOWN   :
-        case WM_NCLBUTTONUP     :
-        case WM_NCLBUTTONDBLCLK :
-        case WM_NCRBUTTONDOWN   :
-        case WM_NCRBUTTONUP     :
-        case WM_NCRBUTTONDBLCLK :
-        case WM_NCMBUTTONDOWN   :
-        case WM_NCMBUTTONUP     :
-        case WM_NCMBUTTONDBLCLK :   ui_app_nc_mouse_buttons(m, wp, lp); break;
-        case WM_MOUSEHOVER      :   // see TrackMouseEvent()
-        case WM_MOUSEMOVE       :
-        case WM_LBUTTONDOWN     :
-        case WM_LBUTTONUP       :
-        case WM_LBUTTONDBLCLK   :
-        case WM_RBUTTONDOWN     :
-        case WM_RBUTTONUP       :
-        case WM_RBUTTONDBLCLK   :
-        case WM_MBUTTONDOWN     :
-        case WM_MBUTTONUP       :
-        case WM_MBUTTONDBLCLK   : {
-            ui_app.mouse.x = GET_X_LPARAM(lp);
-            ui_app.mouse.y = GET_Y_LPARAM(lp);
-//          traceln("%d %d", ui_app.mouse.x, ui_app.mouse.y);
-            // note: ScreenToClient() is not needed for this messages
-            ui_app_mouse(ui_app.root, m, wp);
-            break;
-        }
-        case WM_GETDPISCALEDSIZE: { // sent before WM_DPICHANGED
-//          traceln("WM_GETDPISCALEDSIZE");
-            #ifdef QUICK_DEBUG
-                int32_t dpi = wp;
-                SIZE* sz = (SIZE*)lp; // in/out
-                ui_point_t cell = { sz->cx, sz->cy };
-                traceln("WM_GETDPISCALEDSIZE dpi %d := %d "
-                    "size %d,%d *may/must* be adjusted",
-                    ui_app.dpi.window, dpi, cell.x, cell.y);
-            #endif
-            if (ui_app_timer_1s_id != 0 && !ui_app.root->state.hidden) {
-                ui_app.request_layout();
-            }
-            // IMPORTANT: return true because:
-            // "Returning TRUE indicates that a new size has been computed.
-            //  Returning FALSE indicates that the message will not be handled,
-            // and the default linear DPI scaling will apply to the window."
-            // https://learn.microsoft.com/en-us/windows/win32/hidpi/wm-getdpiscaledsize
-            return true;
-        }
-        case WM_DPICHANGED  : {
-//          traceln("WM_DPICHANGED");
-            ui_app_window_dpi();
-            ui_app_init_fonts(ui_app.dpi.window);
-            if (ui_app_timer_1s_id != 0 && !ui_app.root->state.hidden) {
-                ui_app.request_layout();
-            } else {
-                ui_app_layout_dirty = true;
-            }
-            break;
-        }
-        case WM_SYSCOMMAND  : {
-            uint16_t sys_cmd = (uint16_t)(wp & 0xFF0);
-//          traceln("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
-//                  wp, lp, lp, sys_cmd);
-            if (sys_cmd == SC_MINIMIZE && ui_app.hide_on_minimize) {
-                ui_app.show_window(ui.visibility.min_na);
-                ui_app.show_window(ui.visibility.hide);
-            } else  if (sys_cmd == SC_MINIMIZE && ui_app.no_decor) {
-                ui_app.show_window(ui.visibility.min_na);
-            }
-//          if (sys_cmd == SC_KEYMENU) { traceln("SC_KEYMENU lp: %lld", lp); }
-            // If the selection is in menu handle the key event
-            if (sys_cmd == SC_KEYMENU && lp != 0x20) {
-                return 0; // This prevents the error/beep sound
-            }
-            if (sys_cmd == SC_MOUSEMENU) {
-//              traceln("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
-                break;
-            }
-            break;
-        }
-        case WM_ACTIVATE         : ui_app_wm_activate(wp); break;
-        case WM_WINDOWPOSCHANGING: {
-            #ifdef QUICK_DEBUG
-                WINDOWPOS* pos = (WINDOWPOS*)lp;
-//              traceln("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
-                if (pos->flags & SWP_SHOWWINDOW) {
-//                  traceln("SWP_SHOWWINDOW");
-                } else if (pos->flags & SWP_HIDEWINDOW) {
-//                  traceln("SWP_HIDEWINDOW");
-                }
-            #endif
-            break;
-        }
+        case WM_ACTIVATE         :
+            ui_app_wm_activate(wp);
+            break; // drop to DefWindowProc()
+        case WM_SYSCOMMAND  :
+            if (ui_app_wm_sys_command(wp, lp)) { return 0; }
+            break; // drop to DefWindowProc()
+        case WM_WINDOWPOSCHANGING:
+            ui_app_wm_window_position_changing(wp, lp);
+            break; // drop to DefWindowProc()
         case WM_WINDOWPOSCHANGED:
             ui_app_window_position_changed((WINDOWPOS*)lp);
+            break; // drop to DefWindowProc()
+        case WM_NCHITTEST    :
+            return ui_app_wm_nc_hit_test(wp, lp);
+        case WM_SYSKEYDOWN   :
+            return ui_app_wm_sys_key_down(wp, lp);
+        case WM_SYSCHAR      :
+            if (wp == VK_MENU) { return 0; } // swallow - no DefWindowProc()
+            break; // drop to DefWindowProc()
+        case WM_KEYDOWN      :
+            ui_app_alt_ctrl_shift(true, wp);
+            if (ui_app_wm_key_pressed(ui_app.root, wp)) { return 0; } // swallow
+            break; // drop to DefWindowProc()
+        case WM_SYSKEYUP:
+        case WM_KEYUP        :
+            ui_app_alt_ctrl_shift(false, wp);
+            ui_view.key_released(ui_app.root, wp);
+            break; // drop to DefWindowProc()
+        case WM_TIMER        :
+            ui_app_wm_timer((ui_timer_t)wp);
+            break; // drop to DefWindowProc()
+        case WM_ERASEBKGND   :
+            return true; // no DefWindowProc()
+        case WM_CHAR         :
+            ui_app_wm_char(ui_app.root, (const char*)&wp);
+            break; // TODO: CreateWindowW() and utf16->utf8
+        case WM_PRINTCLIENT  :
+            ui_app_paint_on_canvas((HDC)wp);
+            break; // drop to DefWindowProc()
+        case WM_SETFOCUS     :
+            ui_app_wm_set_focus();
+            break; // drop to DefWindowProc()
+        case WM_KILLFOCUS    :
+            ui_app_wm_kill_focus();
+            break; // drop to DefWindowProc()
+        case WM_NCCALCSIZE:
+            return ui_app_wm_nc_calculate_size(wp, lp);
+        case WM_PAINT        :
+            ui_app_wm_paint();
+            break; // drop to DefWindowProc()
+        case WM_CONTEXTMENU  :
+            (void)ui_view.context_menu(ui_app.root);
+            break; // drop to DefWindowProc()
+        case WM_THEMECHANGED :
+            ui_theme.refresh();
             break;
+        case WM_SETTINGCHANGE:
+            ui_app_setting_change((uintptr_t)wp, (uintptr_t)lp);
+            break;
+        case WM_GETDPISCALEDSIZE: // sent before WM_DPICHANGED
+            return ui_app_wm_get_dpi_scaled_size(wp);
+        case WM_DPICHANGED  :
+            ui_app_wm_dpi_changed();
+            break; // drop to DefWindowProc()
+        case WM_NCLBUTTONDOWN   : case WM_NCRBUTTONDOWN  : case WM_NCMBUTTONDOWN  :
+        case WM_NCLBUTTONUP     : case WM_NCRBUTTONUP    : case WM_NCMBUTTONUP    :
+        case WM_NCLBUTTONDBLCLK : case WM_NCRBUTTONDBLCLK: case WM_NCMBUTTONDBLCLK:
+        case WM_NCMOUSEMOVE     :
+            ui_app_nc_mouse_buttons(m, wp, lp);
+            break; // drop to DefWindowProc()
+        case WM_LBUTTONDOWN     : case WM_RBUTTONDOWN  : case WM_MBUTTONDOWN  :
+        case WM_LBUTTONUP       : case WM_RBUTTONUP    : case WM_MBUTTONUP    :
+        case WM_LBUTTONDBLCLK   : case WM_RBUTTONDBLCLK: case WM_MBUTTONDBLCLK:
+        case WM_MOUSEHOVER      :
+        case WM_MOUSEMOVE       :
+            ui_app_wm_mouse_clicks(m, wp, lp);
+            break; // drop to DefWindowProc()
+        case WM_MOUSEWHEEL   :
+            ui_app_wm_mouse_wheel(true, wp);
+            break; // drop to DefWindowProc()
+        case WM_MOUSEHWHEEL  :
+            ui_app_wm_mouse_wheel(false, wp);
+            break; // drop to DefWindowProc()
+        // debugging:
         #ifdef UI_APP_DEBUGING_ALT_KEYBOARD_SHORTCUTS
         case WM_PARENTNOTIFY  : traceln("WM_PARENTNOTIFY");     break;
         case WM_ENTERMENULOOP : traceln("WM_ENTERMENULOOP");    return 0;
-        case WM_EXITMENULOOP  : traceln("WM_EXITMENULOOP");     trace_messages = false; return 0;
+        case WM_EXITMENULOOP  : traceln("WM_EXITMENULOOP");     return 0;
         case WM_INITMENU      : traceln("WM_INITMENU");         return 0;
         case WM_MENUCHAR      : traceln("WM_MENUCHAR");         return MNC_CLOSE << 16;
         case WM_CAPTURECHANGED: traceln("WM_CAPTURECHANGED");   break;
         case WM_MENUSELECT    : traceln("WM_MENUSELECT");       return 0;
         #else
-        case WM_MENUCHAR      : return MNC_CLOSE << 16; // prevents beep on Alt+Shortcut
+        // ***Important***: prevents annoying beeps on Alt+Shortcut
+        case WM_MENUCHAR      : return MNC_CLOSE << 16;
+        // TODO: may be beeps are good if no UI controls reacted
         #endif
+        // TODO: investigate WM_SETCURSOR in regards to wait cursor
+        case WM_SETCURSOR    :
+            if (LOWORD(lp) == HTCLIENT) { // see WM_NCHITTEST
+                SetCursor((HCURSOR)ui_app.cursor);
+                return true; // must NOT call DefWindowProc()
+            }
+            break; // drop to DefWindowProc()
+        // TODO:
+        case WM_UNICHAR       : // only UTF-32 via PostMessage?
+            traceln("???");
+            // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
+            // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
+            break;
         default:
             break;
     }
     return DefWindowProcA(ui_app_window(), (UINT)m, (WPARAM)wp, lp);
+}
+
+static long ui_app_get_window_long(int32_t index) {
+    ut_runtime.set_err(0);
+    long v = GetWindowLongA(ui_app_window(), index);
+    ut_fatal_if_error(ut_runtime.err());
+    return v;
 }
 
 static long ui_app_set_window_long(int32_t index, long value) {
@@ -3443,6 +3604,20 @@ static long ui_app_set_window_long(int32_t index, long value) {
     long r = SetWindowLongA(ui_app_window(), index, value); // r previous value
     ut_fatal_if_error(ut_runtime.err());
     return r;
+}
+
+static void ui_app_modify_window_style(uint32_t include, uint32_t exclude) {
+    long s = ui_app_get_window_long(GWL_STYLE);
+    s &= ~exclude;
+    s |=  include;
+    ui_app_set_window_long(GWL_STYLE, s);
+}
+
+static DWORD ui_app_window_style(void) {
+    return ui_app.no_decor ? WS_POPUPWINDOW|
+                             WS_THICKFRAME|
+                             WS_MINIMIZEBOX
+                           : WS_OVERLAPPEDWINDOW;
 }
 
 static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
@@ -3461,9 +3636,74 @@ static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
     return ut_b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
 }
 
+static void ui_app_set_dwm_attribute(uint32_t mode, void* a, DWORD bytes) {
+    ut_fatal_if_error(DwmSetWindowAttribute(ui_app_window(), mode, a, bytes));
+}
+
+static void ui_app_init_dwm(void) {
+    if (IsWindowsVersionOrGreater(10, 0, 22000)) {
+        // do not call on Win10 - will fail
+        DWM_WINDOW_CORNER_PREFERENCE c = DWMWCP_ROUND;
+        ui_app_set_dwm_attribute(DWMWA_WINDOW_CORNER_PREFERENCE, &c, sizeof(c));
+        COLORREF cc = (COLORREF)ui_gdi.color_rgb(ui_color_rgb(45, 45, 48));
+        ui_app_set_dwm_attribute(DWMWA_CAPTION_COLOR, &cc, sizeof(cc));
+    }
+    BOOL e = true; // must be 32-bit BOOL because of sizeof()
+    ui_app_set_dwm_attribute(DWMWA_USE_IMMERSIVE_DARK_MODE, &e, sizeof(e));
+    // kudos for double negatives - so easy to make mistakes:
+    ui_app_set_dwm_attribute(DWMWA_TRANSITIONS_FORCEDISABLED, &e, sizeof(e));
+    enum DWMNCRENDERINGPOLICY rp = DWMNCRP_USEWINDOWSTYLE;
+    ui_app_set_dwm_attribute(DWMWA_NCRENDERING_POLICY, &rp, sizeof(rp));
+    if (ui_app.no_decor) {
+        ui_app_set_dwm_attribute(DWMWA_ALLOW_NCPAINT, &e, sizeof(e));
+        MARGINS margins = { 0, 0, 0, 0 };
+        ut_fatal_if_error(
+            DwmExtendFrameIntoClientArea(ui_app_window(), &margins)
+        );
+    }
+}
+
+static void ui_app_swp(HWND top, int32_t x, int32_t y, int32_t w, int32_t h,
+        uint32_t f) {
+    ut_fatal_if_error(ut_b2e(SetWindowPos(ui_app_window(), top, x, y, w, h, f)));
+}
+
+static void ui_app_swp_flags(uint32_t f) {
+    ut_fatal_if_error(ut_b2e(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, f)));
+}
+
+static void ui_app_disable_sys_menu_item(HMENU sys_menu, uint32_t item) {
+    const uint32_t f = MF_BYCOMMAND | MF_DISABLED;
+    ut_fatal_if_error(ut_b2e(EnableMenuItem(sys_menu, item, f)));
+}
+
+static void ui_app_init_sys_menu(void) {
+    // tried to remove unused items from system menu which leads to
+    // AllowDarkModeForWindow() failed 0x000005B0(1456) "A menu item was not found."
+    // SetPreferredAppMode() failed 0x000005B0(1456) "A menu item was not found."
+    // this is why they just disabled instead.
+    HMENU sys_menu = GetSystemMenu(ui_app_window(), false);
+    ut_not_null(sys_menu);
+    if (ui_app.no_min || ui_app.no_max) {
+        int32_t exclude = WS_SIZEBOX;
+        if (ui_app.no_min) { exclude = WS_MINIMIZEBOX; }
+        if (ui_app.no_max) { exclude = WS_MAXIMIZEBOX; }
+        ui_app_modify_window_style(0, exclude);
+        if (ui_app.no_min) { ui_app_disable_sys_menu_item(sys_menu, SC_MINIMIZE); }
+        if (ui_app.no_max) { ui_app_disable_sys_menu_item(sys_menu, SC_MAXIMIZE); }
+    }
+    if (ui_app.no_size) {
+        ui_app_disable_sys_menu_item(sys_menu, SC_SIZE);
+        ui_app_modify_window_style(0, WS_SIZEBOX);
+        const uint32_t f = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
+                           SWP_NOACTIVATE;
+        ui_app_swp_flags(f);
+    }
+}
+
 static void ui_app_create_window(const ui_rect_t r) {
     WNDCLASSA wc = { 0 };
-    wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_DBLCLKS;
+    wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_SAVEBITS | CS_DBLCLKS;
     wc.lpfnWndProc = ui_app_window_proc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 256 * 1024;
@@ -3475,76 +3715,19 @@ static void ui_app_create_window(const ui_rect_t r) {
     wc.lpszClassName = ui_app.class_name;
     ATOM atom = RegisterClassA(&wc);
     ut_fatal_if(atom == 0);
-    const DWORD WS_POPUP_EX = WS_POPUP|WS_SYSMENU|WS_THICKFRAME|
-//                            WS_MAXIMIZE|WS_MAXIMIZEBOX| // this does not work for popup
-                              WS_MINIMIZE|WS_MINIMIZEBOX;
-    uint32_t style = ui_app.no_decor ? WS_POPUP_EX : WS_OVERLAPPEDWINDOW;
-    // TODO: WS_EX_COMPOSITED | WS_EX_LAYERED is expensive
-    //       can be limited to translucent window only
     HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
-        ui_app.class_name, ui_app.title, style,
+        ui_app.class_name, ui_app.title, ui_app_window_style(),
         r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
     ut_not_null(ui_app.window);
-    assert(window == ui_app_window()); (void)window;
+    swear(window == ui_app_window());
+    ui_app.show_window(ui.visibility.hide);
     ui_view.set_text(&ui_caption.title, "%s", ui_app.title);
-    ut_not_null(GetSystemMenu(ui_app_window(), false));
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
     RECT wrc = ui_app_ui2rect(&r);
     ut_fatal_if_error(ut_b2e(GetWindowRect(ui_app_window(), &wrc)));
     ui_app.wrc = ui_app_rect2ui(&wrc);
-//  TODO: investigate that it holds for Light Theme too
-    // DWMWA_CAPTION_COLOR is supported starting with Windows 11 Build 22000.
-    if (IsWindowsVersionOrGreater(10, 0, 22000)) {
-        // TODO: dark grey hardcoded: 45 / 255 = 17.6%
-        //       should be taken from
-        //       ui_color_id_active_title
-        //       ui_color_id_inactive_title
-        COLORREF caption_color = (COLORREF)ui_gdi.color_rgb(ui_color_rgb(45, 45, 48));
-        ut_fatal_if_error(DwmSetWindowAttribute(ui_app_window(),
-            DWMWA_CAPTION_COLOR, &caption_color, sizeof(caption_color)));
-        BOOL immersive = TRUE;
-        ut_fatal_if_error(DwmSetWindowAttribute(ui_app_window(),
-            DWMWA_USE_IMMERSIVE_DARK_MODE, &immersive, sizeof(immersive)));
-        DWM_WINDOW_CORNER_PREFERENCE corner = DWMWCP_ROUND;
-        DwmSetWindowAttribute(ui_app_window(), // will fail on Win10
-            DWMWA_WINDOW_CORNER_PREFERENCE, &corner, sizeof(corner));
-        // also available but not yet used:
-//      DWMWA_USE_HOSTBACKDROPBRUSH
-//      DWMWA_BORDER_COLOR
-//      DWMWA_CAPTION_COLOR
-    }
-    if (ui_app.aero) { // It makes app look like retro Windows 7 Aero style :)
-        enum DWMNCRENDERINGPOLICY rp = DWMNCRP_DISABLED;
-        (void)DwmSetWindowAttribute(ui_app_window(),
-            DWMWA_NCRENDERING_POLICY, &rp, sizeof(rp));
-    }
-    // always start with window hidden and let application show it
-    ui_app.show_window(ui.visibility.hide);
-    if (ui_app.no_min || ui_app.no_max) {
-        int32_t exclude = WS_SIZEBOX;
-        if (ui_app.no_min) { exclude = WS_MINIMIZEBOX; }
-        if (ui_app.no_max) { exclude = WS_MAXIMIZEBOX; }
-        long s = GetWindowLongA(ui_app_window(), GWL_STYLE);
-        ui_app_set_window_long(GWL_STYLE, s & ~exclude);
-        // even for windows without maximize/minimize
-        // make sure "Minimize All Windows" still works:
-        // ???
-//      EnableMenuItem(GetSystemMenu(ui_app_window(), false),
-//          SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
-    } else if (!ui_app.no_min) {
-        EnableMenuItem(GetSystemMenu(ui_app_window(), false),
-            SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
-    } else if (!ui_app.no_max) {
-        EnableMenuItem(GetSystemMenu(ui_app_window(), false),
-            SC_MINIMIZE, MF_BYCOMMAND | MF_ENABLED);
-    }
-    if (ui_app.no_size) {
-        long s = GetWindowLong(ui_app_window(), GWL_STYLE);
-        ui_app_set_window_long(GWL_STYLE, s & ~WS_SIZEBOX);
-        enum { swp = SWP_FRAMECHANGED |
-                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE };
-        SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, swp);
-    }
+    ui_app_init_dwm();
+    ui_app_init_sys_menu();
     ui_theme.refresh();
     if (ui_app.visibility != ui.visibility.hide) {
         AnimateWindow(ui_app_window(), 250, AW_ACTIVATE);
@@ -3562,11 +3745,8 @@ static void ui_app_full_screen(bool on) {
     if (on != ui_app.is_full_screen) {
         ui_app_show_task_bar(!on);
         if (on) {
-            style = GetWindowLongA(ui_app_window(), GWL_STYLE);
-            // because WS_POPUP is defined as 0x80000000L:
-            long s = (long)((uint32_t)style | WS_POPUP | WS_VISIBLE);
-            s &= ~WS_OVERLAPPEDWINDOW;
-            ui_app_set_window_long(GWL_STYLE, s);
+            ui_app_modify_window_style(0, WS_OVERLAPPEDWINDOW|WS_POPUPWINDOW);
+            ui_app_modify_window_style(WS_POPUP | WS_VISIBLE, 0);
             wp.length = sizeof(wp);
             ut_fatal_if_error(ut_b2e(GetWindowPlacement(ui_app_window(), &wp)));
             WINDOWPLACEMENT nwp = wp;
@@ -3576,14 +3756,10 @@ static void ui_app_full_screen(bool on) {
             ut_fatal_if_error(ut_b2e(SetWindowPlacement(ui_app_window(), &nwp)));
         } else {
             ut_fatal_if_error(ut_b2e(SetWindowPlacement(ui_app_window(), &wp)));
-            ui_app_set_window_long(GWL_STYLE,  style | WS_OVERLAPPED);
-            enum { swp = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
-                         SWP_NOZORDER | SWP_NOOWNERZORDER };
-            ut_fatal_if_error(ut_b2e(SetWindowPos(ui_app_window(), null,
-                                                  0, 0, 0, 0, swp)));
-            enum DWMNCRENDERINGPOLICY rp = DWMNCRP_ENABLED;
-            ut_fatal_if_error(DwmSetWindowAttribute(ui_app_window(),
-                DWMWA_NCRENDERING_POLICY, &rp, sizeof(rp)));
+            ui_app_set_window_long(GWL_STYLE, ui_app_window_style());
+            enum { flags = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
+                           SWP_NOZORDER | SWP_NOOWNERZORDER };
+            ui_app_swp_flags(flags);
         }
         ui_app.is_full_screen = on;
     }
@@ -3595,7 +3771,10 @@ static void ui_app_request_redraw(void) {  // < 2us
     SetEvent(ui_app_event_invalidate);
 }
 
-static void ui_app_draw(void) { UpdateWindow(ui_app_window()); }
+static void ui_app_draw(void) {
+    traceln("avoid at all cost. bad performance, bad UX");
+    UpdateWindow(ui_app_window());
+}
 
 static void ui_app_invalidate_rect(const ui_rect_t* r) {
     RECT rc = ui_app_ui2rect(r);
@@ -3687,8 +3866,10 @@ static int32_t ui_app_message_loop(void) {
 
 static void ui_app_dispose(void) {
     ui_app_dispose_fonts();
-    ut_fatal_if_error(ut_b2e(CloseHandle(ui_app_event_quit)));
-    ut_fatal_if_error(ut_b2e(CloseHandle(ui_app_event_invalidate)));
+    ut_event.dispose(ui_app_event_quit);
+    ut_event.dispose(ui_app_event_invalidate);
+    ui_app_event_quit = null;
+    ui_app_event_invalidate = null;
 }
 
 static void ui_app_cursor_set(ui_cursor_t c) {
@@ -3930,8 +4111,7 @@ static void ui_app_make_topmost(void) {
     //  Places the window above all non-topmost windows.
     // The window maintains its topmost position even when it is deactivated.
     enum { swp = SWP_SHOWWINDOW | SWP_NOREPOSITION | SWP_NOMOVE | SWP_NOSIZE };
-    ut_fatal_if_error(ut_b2e(SetWindowPos(ui_app_window(), HWND_TOPMOST,
-                                          0, 0, 0, 0, swp)));
+    ui_app_swp(HWND_TOPMOST, 0, 0, 0, 0, swp);
 }
 
 static void ui_app_activate(void) {
@@ -3974,8 +4154,7 @@ static void ui_app_capture_mouse(bool on) {
 
 static void ui_app_move_and_resize(const ui_rect_t* rc) {
     enum { swp = SWP_NOZORDER | SWP_NOACTIVATE };
-    ut_fatal_if_error(ut_b2e(SetWindowPos(ui_app_window(), null,
-            rc->x, rc->y, rc->w, rc->h, swp)));
+    ui_app_swp(null, rc->x, rc->y, rc->w, rc->h, swp);
 }
 
 static void ui_app_set_console_title(HWND cw) {
@@ -4012,9 +4191,9 @@ static void ui_app_restore_console(int32_t *visibility) {
                 if (w > 0 && h > 0) { ui_app_set_console_size(w, h); }
     	    }
             // do not resize console window just restore it's position
-            enum { swp = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE };
+            enum { flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE };
             ut_fatal_if_error(ut_b2e(SetWindowPos(cw, null,
-                    rc.x, rc.y, rc.w, rc.h, swp)));
+                    rc.x, rc.y, rc.w, rc.h, flags)));
         } else {
             ui_app_console_largest();
         }
@@ -4081,9 +4260,9 @@ static void ui_app_show_window(int32_t show) {
         show == ui.visibility.min_na;
     if (!hiding) {
         ui_app.bring_to_foreground(); // this does not make it ActiveWindow
-        enum { swp = SWP_SHOWWINDOW | SWP_NOZORDER | SWP_NOSIZE |
-                     SWP_NOREPOSITION | SWP_NOMOVE };
-        SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, swp);
+        enum { flags = SWP_SHOWWINDOW | SWP_NOZORDER | SWP_NOSIZE |
+                       SWP_NOREPOSITION | SWP_NOMOVE };
+        ui_app_swp_flags(flags);
         ui_app.request_focus();
     } else if (show == ui.visibility.hide ||
                show == ui.visibility.minimize ||
@@ -4525,13 +4704,11 @@ int main(int argc, const char* argv[], const char** envp) {
 #pragma comment(lib, "msimg32")
 #pragma comment(lib, "shcore")
 #pragma comment(lib, "uxtheme")
-
 // _______________________________ ui_button.c ________________________________
 
 #include "ut/ut.h"
 
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
-    assert(v->type == ui_view_button);
     if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
         v->state.armed = false;
@@ -4541,8 +4718,6 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 }
 
 static void ui_button_paint(ui_view_t* v) {
-    assert(v->type == ui_view_button);
-    assert(!ui_view.is_hidden(v));
     bool pressed = (v->state.armed ^ v->state.pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
     const int32_t w = v->w;
@@ -4574,6 +4749,11 @@ static void ui_button_paint(ui_view_t* v) {
         }
         ui_color_t d1 = ui_colors.darken(v->background, d2);
         ui_color_t fc = ui_colors.interpolate(d0, d1, 0.5f); // fill color
+        if (v->state.armed) {
+            fc = ui_colors.lighten(fc, 0.250f);
+        } else if (v->state.hover) {
+            fc = ui_colors.darken(fc, 0.250f);
+        }
         ui_gdi.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
     }
     const int32_t tx = v->x + v->text.xy.x;
@@ -4599,32 +4779,42 @@ static void ui_button_paint(ui_view_t* v) {
     }
 }
 
-static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
-    assert(b->type == ui_view_button);
-    return ui_view.inside(b, &pt);
-}
-
 static void ui_button_callback(ui_button_t* b) {
-    assert(b->type == ui_view_button);
     ui_app.show_hint(null, -1, -1, 0);
+    // for flip buttons the state of the button flips
+    // *before* callback.
+    if (b->flip) { b->state.pressed = !b->state.pressed; }
+    const bool pressed = b->state.pressed;
     if (b->callback != null) { b->callback(b); }
+    if (pressed != b->state.pressed) {
+        if (b->flip) { // warn the client of strange logic:
+            traceln("strange flip the button with button.flip: true");
+            // if client wants to flip pressed state manually it
+            // should do it for the button.flip = false
+        }
+//      traceln("disarmed immediately");
+        b->p.armed_until = 0;
+        b->state.armed = false;
+    } else {
+        if (b->flip) {
+//          traceln("disarmed immediately");
+            b->p.armed_until = 0;
+            b->state.armed = false;
+        } else {
+//          traceln("will disarm in 1/4 seconds");
+            b->p.armed_until = ui_app.now + 0.250;
+        }
+    }
 }
 
 static void ui_button_trigger(ui_view_t* v) {
-    assert(v->type == ui_view_button);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_button_t* b = (ui_button_t*)v;
     v->state.armed = true;
     ui_view.invalidate(v, null);
-    ui_app.draw();
-    v->p.armed_until = ui_app.now + 0.250;
     ui_button_callback(b);
-    ui_view.invalidate(v, null);
 }
 
 static void ui_button_character(ui_view_t* v, const char* utf8) {
-    assert(v->type == ui_view_button);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     char ch = utf8[0]; // TODO: multibyte utf8 shortcuts?
     if (ui_view.is_shortcut_key(v, ch)) {
         ui_button_trigger(v);
@@ -4632,59 +4822,44 @@ static void ui_button_character(ui_view_t* v, const char* utf8) {
 }
 
 static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
-    assert(v->type == ui_view_button);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_button_trigger(v); }
     return trigger; // swallow if true
 }
 
-/* processes mouse clicks and invokes callback  */
-
-static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
-    assert(v->type == ui_view_button);
-    (void)flags; // unused
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+static void ui_button_mouse_click(ui_view_t* v, bool left, bool pressed) {
     ui_button_t* b = (ui_button_t*)v;
-    const bool was_armed = v->state.armed;
-    const bool pressed =
-        message == ui.message.left_button_pressed ||
-        message == ui.message.right_button_pressed;
-    if (pressed && !v->state.armed && !v->p.armed_until) {
-        v->state.armed = ui_button_hit_test(b, ui_app.mouse);
-        if (was_armed != v->state.armed) { ui_view.invalidate(v, null); }
-    }
-    const bool released =
-        message == ui.message.left_button_released ||
-        message == ui.message.right_button_released;
-    if (released && v->state.armed && v->p.armed_until == 0) {
-        if (ui_button_hit_test(b, ui_app.mouse)) {
-            ui_view.invalidate(v, null);
-            ui_button_callback(b);
-        }
-        if (v->state.armed && v->p.armed_until == 0) {
-            v->p.armed_until = ui_app.now + 0.250;
+    const bool inside = ui_view.inside(b, &ui_app.mouse);
+    if (inside) { // buttons do hear nearby other controls click by design
+        (void)left; // ignored - button acts on any left or right mouse click
+        ui_view.invalidate(v, null); // always on any press/release inside
+        if (pressed && b->flip) {
+            if (b->flip) { ui_button_callback(b); }
+        } else if (pressed) {
+            if (!v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
+            v->state.armed = true;
+        } else { // released
+            if (!b->flip) { ui_button_callback(b); }
         }
     }
-    if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
 }
 
-static void ui_button_measure(ui_view_t* v) {
-    assert(v->type == ui_view_button);
-    ui_view.measure_control(v);
-//  if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
+static void ui_hover_changed(ui_view_t* unused(v)) {
+    traceln();
 }
 
 void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    v->mouse         = ui_button_mouse;
-    v->measure       = ui_button_measure;
+    v->mouse_click   = ui_button_mouse_click;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;
     v->key_pressed   = ui_button_key_pressed;
+//  v->hover_changed = ui_hover_changed;
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
+    if (v->debug.id == null) { v->debug.id = "#button"; }
 }
 
 void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
@@ -4763,6 +4938,10 @@ static void ui_caption_maximize_or_restore(void) {
     ut_str_printf(ui_caption.maxi.hint, "%s",
         ui_app.is_maximized() ?
         ut_nls.str("Restore") : ut_nls.str("Maximize"));
+    // non-decorated windows on Win32 are "popup" style
+    // that cannot be maximized. Full screen will serve
+    // the purpose of maximization.
+    ui_caption.maxi.state.hidden = ui_app.no_decor;
 }
 
 static void ui_caption_maxi(ui_button_t* unused(b)) {
@@ -4919,6 +5098,16 @@ static void ui_caption_init(ui_view_t* v) {
     ui_caption_maximize_or_restore();
     ui_caption.view.paint = ui_caption_paint;
     ui_caption_mode_appearance();
+    ui_caption.icon.debug.id = "#caption.icon";
+    ui_caption.menu.debug.id = "#caption.menu";
+    ui_caption.mode.debug.id = "#caption.mode";
+    ui_caption.mini.debug.id = "#caption.mini";
+    ui_caption.maxi.debug.id = "#caption.maxi";
+    ui_caption.full.debug.id = "#caption.full";
+    ui_caption.quit.debug.id = "#caption.quit";
+    ui_caption.title.debug.id  = "#caption.title";
+    ui_caption.spacer.debug.id = "#caption.spacer";
+
 }
 
 ui_caption_t ui_caption =  {
@@ -5388,7 +5577,8 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
     debugln("%s[%4.4s] %d,%d %dx%d, max[%sx%s] "                              \
         "padding { %.3f %.3f %.3f %.3f } "                                    \
         "insets { %.3f %.3f %.3f %.3f } align: 0x%02X",                       \
-        v->text, &v->type, v->x, v->y, v->w, v->h,                            \
+        ui_view_debug_id(v),                                                  \
+        &v->type, v->x, v->y, v->w, v->h,                                     \
         ui_stack_finite_int(v->max_w, maxw, ut_count_of(maxw)),               \
         ui_stack_finite_int(v->max_h, maxh, ut_count_of(maxh)),               \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
@@ -5881,7 +6071,7 @@ static void ui_container_paint(ui_view_t* v) {
         !ui_color_is_transparent(v->background)) {
         ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     } else {
-//      traceln("%s undefined", v->text);
+//      traceln("%s undefined", ui_view_debug_id(v));
     }
 }
 
@@ -5902,6 +6092,7 @@ void ui_view_init_span(ui_view_t* v) {
     if (v->layout  == null) { v->layout  = ui_span_layout; }
     if (v->paint   == null) { v->paint   = ui_container_paint; }
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_span"); }
+    if (v->debug.id == null) { v->debug.id = "#ui_span"; }
 }
 
 void ui_view_init_list(ui_view_t* v) {
@@ -5911,6 +6102,7 @@ void ui_view_init_list(ui_view_t* v) {
     if (v->layout  == null) { v->layout  = ui_list_layout; }
     if (v->paint   == null) { v->paint   = ui_container_paint; }
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_list"); }
+    if (v->debug.id == null) { v->debug.id = "#ui_list"; }
 }
 
 void ui_view_init_spacer(ui_view_t* v) {
@@ -5920,6 +6112,8 @@ void ui_view_init_spacer(ui_view_t* v) {
     v->max_w = ui.infinity;
     v->max_h = ui.infinity;
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_spacer"); }
+    if (v->debug.id == null) { v->debug.id = "#ui_spacer"; }
+
 }
 
 void ui_view_init_stack(ui_view_t* v) {
@@ -5928,6 +6122,7 @@ void ui_view_init_stack(ui_view_t* v) {
     if (v->layout  == null) { v->layout  = ui_stack_layout; }
     if (v->paint   == null) { v->paint   = ui_container_paint; }
     if (ui_view.string(v)[0] == 0) { ui_view.set_text(v, "ui_stack"); }
+    if (v->debug.id == null) { v->debug.id = "#ui_stack"; }
 }
 
 #pragma pop_macro("ui_layout_exit")
@@ -5943,7 +6138,7 @@ void ui_view_init_stack(ui_view_t* v) {
 #define UI_WM_OPENING  (WM_APP + 0x7FFE)
 #define UI_WM_CLOSING  (WM_APP + 0x7FFD)
 #define UI_WM_TAP      (WM_APP + 0x7FFC)
-#define UI_WM_DTAP     (WM_APP + 0x7FFB) // fp64_t tap (aka click)
+#define UI_WM_DTAP     (WM_APP + 0x7FFB) // double tap (aka click)
 #define UI_WM_PRESS    (WM_APP + 0x7FFA)
 
 static bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
@@ -9354,16 +9549,14 @@ static void ui_edit_on_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_click(e, x, y);
 }
 
-static void ui_edit_mouse_button_down(ui_edit_t* e, int32_t m,
-        int32_t x, int32_t y) {
-    if (m == ui.message.left_button_pressed)  { e->edit.buttons |= (1 << 0); }
-    if (m == ui.message.right_button_pressed) { e->edit.buttons |= (1 << 1); }
-    ui_edit_on_click(e, x, y);
+static void ui_edit_mouse_button_down(ui_edit_t* e, bool left) {
+    if (left)  { e->edit.buttons |= (1 << 0); }
+    if (!left) { e->edit.buttons |= (1 << 1); }
 }
 
-static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t m) {
-    if (m == ui.message.left_button_released)  { e->edit.buttons &= ~(1 << 0); }
-    if (m == ui.message.right_button_released) { e->edit.buttons &= ~(1 << 1); }
+static void ui_edit_mouse_button_up(ui_edit_t* e, bool left) {
+    if (left)  { e->edit.buttons &= ~(1 << 0); }
+    if (!left) { e->edit.buttons &= ~(1 << 1); }
 }
 
 #undef UI_EDIT_USE_TAP  // defining it leads to delays in caret movement
@@ -9378,7 +9571,7 @@ static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
             e->edit.buttons = 0x1;
-            ui_edit_on_click(e, x, y);
+            ui_edit_click(e, x, y);
             e->edit.buttons = 0x0;
         }
         return inside;
@@ -9397,7 +9590,7 @@ static bool ui_edit_press(ui_view_t* v, int32_t ix) {
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
             e->edit.buttons = 0x1;
-            ui_edit_on_click(e, x, y);
+            ui_edit_click(e, x, y);
             ui_edit_double_click(e, x, y);
             e->edit.buttons = 0x0;
         }
@@ -9407,38 +9600,45 @@ static bool ui_edit_press(ui_view_t* v, int32_t ix) {
     }
 }
 
-static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
-    assert(v->type == ui_view_text);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+static void ui_edit_mouse_click(ui_view_t* v, bool left, bool pressed) {
+    ui_edit_t* e = (ui_edit_t*)v;
+    (void)left; // ignored for now no context menu (copy/paste/select...)
+    const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
+    const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
+    bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
+    if (inside) {
+        if (pressed) {
+            ui_edit_mouse_button_down(e, left);
+            ui_edit_on_click(e, x, y);
+        } else if (!pressed) {
+            ui_edit_mouse_button_up(e, left);
+        }
+    }
+}
+
+static void ui_edit_mouse_double_click(ui_view_t* v, bool unused(left)) {
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
     if (inside) {
-        if (m == ui.message.left_button_pressed ||
-            m == ui.message.right_button_pressed) {
-            ui_edit_mouse_button_down(e, m, x, y);
-        } else if (m == ui.message.left_button_released ||
-                   m == ui.message.right_button_released) {
-            ui_edit_mouse_button_up(e, m);
-        } else if (m == ui.message.left_double_click ||
-                   m == ui.message.right_double_click) {
-            ui_edit_double_click(e, x, y);
-        }
+        ui_edit_double_click(e, x, y);
     }
 }
 
-static void ui_edit_mouse_wheel(ui_view_t* v, int32_t unused(dx), int32_t dy) {
-    // TODO: maybe make a use of dx in single line no-word-break edit control?
-    if (ui_app.focus == v) {
-        assert(v->type == ui_view_text);
-        ui_edit_t* e = (ui_edit_t*)v;
-        int32_t lines = (abs(dy) + v->fm->height - 1) / v->fm->height;
-        if (dy > 0) {
-            ui_edit_scroll_down(e, lines);
-        } else if (dy < 0) {
-            ui_edit_scroll_up(e, lines);
-        }
+static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+    if (v->w > 0 && v->h > 0) {
+        const int32_t dy = dx_dy.y;
+        // TODO: maybe make a use of dx in single line no-word-break edit control?
+        if (ui_app.focus == v) {
+            assert(v->type == ui_view_text);
+            ui_edit_t* e = (ui_edit_t*)v;
+            int32_t lines = (abs(dy) + v->fm->height - 1) / v->fm->height;
+            if (dy > 0) {
+                ui_edit_scroll_down(e, lines);
+            } else if (dy < 0) {
+                ui_edit_scroll_up(e, lines);
+            }
 //  TODO: Ctrl UP/DW and caret of out of visible area scrolls are not
 //        implemented. Not sure they are very good UX experience.
 //        MacOS users may be used to scroll with touchpad, take a visual
@@ -9446,9 +9646,10 @@ static void ui_edit_mouse_wheel(ui_view_t* v, int32_t unused(dx), int32_t dy) {
 //        To me back forward stack navigation is much more intuitive and
 //        much mode "modeless" in spirit of cut/copy/paste. But opinions
 //        and editing habits vary. Easy to implement.
-        ui_edit_pg_t pg = ui_edit_xy_to_pg(e, e->caret.x, e->caret.y);
-        if (pg.pn >= 0 && pg.gp >= 0) {
-            ui_edit_move_caret(e, pg);
+            ui_edit_pg_t pg = ui_edit_xy_to_pg(e, e->caret.x, e->caret.y);
+            if (pg.pn >= 0 && pg.gp >= 0) {
+                ui_edit_move_caret(e, pg);
+            }
         }
     }
 }
@@ -9896,13 +10097,15 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->focus_gained    = ui_edit_focus_gained;
     e->focus_lost      = ui_edit_focus_lost;
     e->key_pressed     = ui_edit_key_pressed;
-    e->mouse_wheel     = ui_edit_mouse_wheel;
+    e->mouse_scroll    = ui_edit_mouse_scroll;
     #ifdef UI_EDIT_USE_TAP
         e->tap         = ui_edit_tap;
     #else
-        e->mouse       = ui_edit_mouse;
+        e->mouse_click  = ui_edit_mouse_click;
+        e->double_click = ui_edit_mouse_double_click;
     #endif
     ui_edit_allocate_runs(e);
+    if (e->debug.id == null) { e->debug.id = "#edit"; }
 }
 
 static void ui_edit_dispose(ui_edit_t* e) {
@@ -11290,109 +11493,107 @@ layouts_if layouts = {
 #include "ut/ut.h"
 
 static void ui_mbx_button(ui_button_t* b) {
-    ui_mbx_t* mx = (ui_mbx_t*)b->parent;
-    assert(mx->type == ui_view_mbx);
-    mx->option = -1;
-    for (int32_t i = 0; i < ut_count_of(mx->button) && mx->option < 0; i++) {
-        if (b == &mx->button[i]) {
-            mx->option = i;
-            if (mx->callback != null) { mx->callback(&mx->view); }
+    ui_mbx_t* m = (ui_mbx_t*)b->parent;
+    assert(m->type == ui_view_mbx);
+    m->option = -1;
+    for (int32_t i = 0; i < ut_count_of(m->button) && m->option < 0; i++) {
+        if (b == &m->button[i]) {
+            m->option = i;
+            if (m->callback != null) { m->callback(&m->view); }
         }
     }
     ui_app.show_toast(null, 0);
 }
 
-static void ui_mbx_measured(ui_view_t* view) {
-    ui_mbx_t* mx = (ui_mbx_t*)view;
-    assert(view->type == ui_view_mbx);
+static void ui_mbx_measured(ui_view_t* v) {
+    ui_mbx_t* m = (ui_mbx_t*)v;
     int32_t n = 0;
-    ui_view_for_each(view, c, { n++; });
+    ui_view_for_each(v, c, { n++; });
     n--; // number of buttons
-    const int32_t em_x = mx->label.fm->em.w;
-    const int32_t em_y = mx->label.fm->em.h;
-    const int32_t tw = mx->label.w;
-    const int32_t th = mx->label.h;
+    const int32_t em_x = m->label.fm->em.w;
+    const int32_t em_y = m->label.fm->em.h;
+    const int32_t tw = m->label.w;
+    const int32_t th = m->label.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
-            bw += mx->button[i].w;
+            bw += m->button[i].w;
         }
-        view->w = ut_max(tw, bw + em_x * 2);
-        view->h = th + mx->button[0].h + em_y + em_y / 2;
+        v->w = ut_max(tw, bw + em_x * 2);
+        v->h = th + m->button[0].h + em_y + em_y / 2;
     } else {
-        view->h = th + em_y / 2;
-        view->w = tw;
+        v->h = th + em_y / 2;
+        v->w = tw;
     }
 }
 
-static void ui_mbx_layout(ui_view_t* view) {
-    ui_mbx_t* mx = (ui_mbx_t*)view;
-    assert(view->type == ui_view_mbx);
+static void ui_mbx_layout(ui_view_t* v) {
+    ui_mbx_t* m = (ui_mbx_t*)v;
     int32_t n = 0;
-    ui_view_for_each(view, c, { n++; });
+    ui_view_for_each(v, c, { n++; });
     n--; // number of buttons
-    const int32_t em_y = mx->label.fm->em.h;
-    mx->label.x = view->x;
-    mx->label.y = view->y + em_y * 2 / 3;
-    const int32_t tw = mx->label.w;
-    const int32_t th = mx->label.h;
+    const int32_t em_y = m->label.fm->em.h;
+    m->label.x = v->x;
+    m->label.y = v->y + em_y * 2 / 3;
+    const int32_t tw = m->label.w;
+    const int32_t th = m->label.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
-            bw += mx->button[i].w;
+            bw += m->button[i].w;
         }
         // center text:
-        mx->label.x = view->x + (view->w - tw) / 2;
+        m->label.x = v->x + (v->w - tw) / 2;
         // spacing between buttons:
-        int32_t sp = (view->w - bw) / (n + 1);
+        int32_t sp = (v->w - bw) / (n + 1);
         int32_t x = sp;
         for (int32_t i = 0; i < n; i++) {
-            mx->button[i].x = view->x + x;
-            mx->button[i].y = view->y + th + em_y * 3 / 2;
-            x += mx->button[i].w + sp;
+            m->button[i].x = v->x + x;
+            m->button[i].y = v->y + th + em_y * 3 / 2;
+            x += m->button[i].w + sp;
         }
     }
 }
 
-void ui_view_init_mbx(ui_view_t* view) {
-    assert(view->type == ui_view_mbx);
-    ui_mbx_t* mx = (ui_mbx_t*)view;
-    view->measured = ui_mbx_measured;
-    view->layout = ui_mbx_layout;
-    mx->fm = &ui_app.fm.regular;
+void ui_view_init_mbx(ui_view_t* v) {
+    ui_mbx_t* m = (ui_mbx_t*)v;
+    v->measured = ui_mbx_measured;
+    v->layout = ui_mbx_layout;
+    m->fm = &ui_app.fm.regular;
     int32_t n = 0;
-    while (mx->options[n] != null && n < ut_count_of(mx->button) - 1) {
-        mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
-        ui_view.set_text(&mx->button[n], "%s", mx->options[n]);
+    while (m->options[n] != null && n < ut_count_of(m->button) - 1) {
+        m->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
+        ui_view.set_text(&m->button[n], "%s", m->options[n]);
         n++;
     }
-    swear(n <= ut_count_of(mx->button), "inhumane: %d buttons is too many", n);
-    if (n > ut_count_of(mx->button)) { n = ut_count_of(mx->button); }
-    mx->label = (ui_label_t)ui_label(0, "");
-    ui_view.set_text(&mx->label, "%s", ui_view.string(&mx->view));
-    ui_view.add_last(&mx->view, &mx->label);
+    swear(n <= ut_count_of(m->button), "inhumane: %d buttons is too many", n);
+    if (n > ut_count_of(m->button)) { n = ut_count_of(m->button); }
+    m->label = (ui_label_t)ui_label(0, "");
+    ui_view.set_text(&m->label, "%s", ui_view.string(&m->view));
+    ui_view.add_last(&m->view, &m->label);
     for (int32_t i = 0; i < n; i++) {
-        ui_view.add_last(&mx->view, &mx->button[i]);
-        mx->button[i].fm = mx->fm;
+        ui_view.add_last(&m->view, &m->button[i]);
+        m->button[i].fm = m->fm;
     }
-    mx->label.fm = mx->fm;
-    ui_view.set_text(&mx->view, "");
-    mx->option = -1;
+    m->label.fm = m->fm;
+    ui_view.set_text(&m->view, "");
+    m->option = -1;
+    if (m->debug.id == null) { m->debug.id = "#mbx"; }
 }
 
-void ui_mbx_init(ui_mbx_t* mx, const char* options[],
+void ui_mbx_init(ui_mbx_t* m, const char* options[],
         const char* format, ...) {
-    mx->type = ui_view_mbx;
-    mx->measured  = ui_mbx_measured;
-    mx->layout    = ui_mbx_layout;
-    mx->color_id  = ui_color_id_window;
-    mx->options = options;
+    m->type = ui_view_mbx;
+    m->measured  = ui_mbx_measured;
+    m->layout    = ui_mbx_layout;
+    m->color_id  = ui_color_id_window;
+    m->options = options;
     va_list va;
     va_start(va, format);
-    ui_view.set_text_va(&mx->view, format, va);
-    ui_label_init(&mx->label, 0.0, ui_view.string(&mx->view));
+    ui_view.set_text_va(&m->view, format, va);
+    ui_label_init(&m->label, 0.0, ui_view.string(&m->view));
     va_end(va);
-    ui_view_init_mbx(&mx->view);
+    ui_view_init_mbx(&m->view);
 }
 // _______________________________ ui_slider.c ________________________________
 
@@ -11571,31 +11772,49 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.text(&ta, tx, ty, "%s", text);
 }
 
-static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        assert(v->type == ui_view_slider);
+static void ui_slider_mouse_click(ui_view_t* v, bool unused(left), bool pressed) {
+    ui_slider_t* s = (ui_slider_t*)v;
+    if (pressed) {
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-        ui_slider_t* s = (ui_slider_t*)v;
-        bool drag = message == ui.message.mouse_move &&
-            (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
-        if (message == ui.message.left_button_pressed ||
-            message == ui.message.right_button_pressed || drag) {
-            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
-            const int32_t dec_w = s->dec.w + dec_p.right;
-            assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
-            const int32_t sw = ui_slider_width(s); // slider width
-            const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
-            const int32_t vx = v->x + i.left + dx;
-            const int32_t x = ui_app.mouse.x - vx;
-            const int32_t y = ui_app.mouse.y - (v->y + i.top);
-            if (0 <= x && x < sw && 0 <= y && y < v->h) {
-                const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
-                fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
-                int32_t vw = (int32_t)(val + s->value_min + 0.5);
-                s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
-                if (s->callback != null) { s->callback(&s->view); }
-                ui_slider_invalidate(s);
-            }
+        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const int32_t dec_w = s->dec.w + dec_p.right;
+        assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+        const int32_t sw = ui_slider_width(s); // slider width
+        const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
+        const int32_t vx = v->x + i.left + dx;
+        const int32_t x = ui_app.mouse.x - vx;
+        const int32_t y = ui_app.mouse.y - (v->y + i.top);
+        if (0 <= x && x < sw && 0 <= y && y < v->h) {
+            const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
+            fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
+            int32_t vw = (int32_t)(val + s->value_min + 0.5);
+            s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+            if (s->callback != null) { s->callback(&s->view); }
+            ui_slider_invalidate(s);
+        }
+    }
+}
+
+static void ui_slider_mouse_move(ui_view_t* v) {
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    ui_slider_t* s = (ui_slider_t*)v;
+    bool drag = ui_app.mouse_left || ui_app.mouse_right;
+    if (drag) {
+        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const int32_t dec_w = s->dec.w + dec_p.right;
+        assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+        const int32_t sw = ui_slider_width(s); // slider width
+        const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
+        const int32_t vx = v->x + i.left + dx;
+        const int32_t x = ui_app.mouse.x - vx;
+        const int32_t y = ui_app.mouse.y - (v->y + i.top);
+        if (0 <= x && x < sw && 0 <= y && y < v->h) {
+            const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
+            fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
+            int32_t vw = (int32_t)(val + s->value_min + 0.5);
+            s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+            if (s->callback != null) { s->callback(&s->view); }
+            ui_slider_invalidate(s);
         }
     }
 }
@@ -11657,7 +11876,8 @@ void ui_view_init_slider(ui_view_t* v) {
     v->measure       = ui_slider_measure;
     v->layout        = ui_slider_layout;
     v->paint         = ui_slider_paint;
-    v->mouse         = ui_slider_mouse;
+    v->mouse_click   = ui_slider_mouse_click;
+    v->mouse_move    = ui_slider_mouse_move;
     v->every_100ms   = ui_slider_every_100ms;
     v->color_id      = ui_color_id_window_text;
     v->background_id = ui_color_id_button_face;
@@ -11695,6 +11915,7 @@ void ui_view_init_slider(ui_view_t* v) {
     ut_str_printf(s->inc.hint, "%s", accel);
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
+    if (v->debug.id == null) { v->debug.id = "#slider"; }
 }
 
 void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
@@ -11991,15 +12212,12 @@ static void ui_toggle_paint(ui_view_t* v) {
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {
-    assert(t->type == ui_view_toggle);
     ui_view.invalidate((ui_view_t*)t, null);
     t->state.pressed = !t->state.pressed;
     if (t->callback != null) { t->callback(t); }
 }
 
 static void ui_toggle_character(ui_view_t* v, const char* utf8) {
-    assert(v->type == ui_view_toggle);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     char ch = utf8[0];
     if (ui_view.is_shortcut_key(v, ch)) {
          ui_toggle_flip((ui_toggle_t*)v);
@@ -12012,22 +12230,15 @@ static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)) {
-    assert(v->type == ui_view_toggle);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
-    if (message == ui.message.left_button_pressed ||
-        message == ui.message.right_button_pressed) {
-        int32_t x = ui_app.mouse.x - v->x;
-        int32_t y = ui_app.mouse.y - v->y;
-        if (0 <= x && x < v->w && 0 <= y && y < v->h) {
-            ui_toggle_flip((ui_toggle_t*)v);
-        }
+static void ui_toggle_mouse_click(ui_view_t* v, bool unused(left), bool pressed) {
+    if (pressed && ui_view.inside(v, &ui_app.mouse)) {
+        ui_toggle_flip((ui_toggle_t*)v);
     }
 }
 
 void ui_view_init_toggle(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    v->mouse         = ui_toggle_mouse;
+    v->mouse_click   = ui_toggle_mouse_click;
     v->paint         = ui_toggle_paint;
     v->measure       = ui_toggle_measure;
     v->character     = ui_toggle_character;
@@ -12035,6 +12246,7 @@ void ui_view_init_toggle(ui_view_t* v) {
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
     v->text_align    = ui.align.left;
+    if (v->debug.id == null) { v->debug.id = "#toggle"; }
 }
 
 void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
@@ -12195,27 +12407,31 @@ static void ui_view_disband(ui_view_t* p) {
 }
 
 static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
-    ui_rect_t rc = {0};
-    if (r != null) {
-        rc = (ui_rect_t){
-            .x = v->x + r->x,
-            .y = v->y + r->y,
-            .w = r->w,
-            .h = r->h
-        };
+    if (ui_view.is_hidden(v)) {
+        traceln("hidden: %s", ui_view_debug_id(v));
     } else {
-        rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
-        // expand view rectangle by padding
-        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
-        rc.x -= p.left;
-        rc.y -= p.top;
-        rc.w += p.left + p.right;
-        rc.h += p.top + p.bottom;
+        ui_rect_t rc = {0};
+        if (r != null) {
+            rc = (ui_rect_t){
+                .x = v->x + r->x,
+                .y = v->y + r->y,
+                .w = r->w,
+                .h = r->h
+            };
+        } else {
+            rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
+            // expand view rectangle by padding
+            const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+            rc.x -= p.left;
+            rc.y -= p.top;
+            rc.w += p.left + p.right;
+            rc.h += p.top + p.bottom;
+        }
+        if (v->debug.trace.prc) {
+            traceln("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+        }
+        ui_app.invalidate(&rc);
     }
-    if (v->debug.trace.prc) {
-        traceln("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
-    }
-    ui_app.invalidate(&rc);
 }
 
 static const char* ui_view_string(ui_view_t* v) {
@@ -12361,10 +12577,10 @@ static void ui_layout_view(ui_view_t* unused(v)) {
 //  ui_ltrb_t i = ui_view.margins(v, &v->insets);
 //  ui_ltrb_t p = ui_view.margins(v, &v->padding);
 //  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
-//               v->text, v->x, v->y, v->w, v->h,
+//               v->p.text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
 //               i.left, i.top, i.right, i.bottom);
-//  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+//  traceln("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static void ui_view_layout_children(ui_view_t* v) {
@@ -12374,7 +12590,7 @@ static void ui_view_layout_children(ui_view_t* v) {
 }
 
 static void ui_view_layout(ui_view_t* v) {
-//  traceln(">%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+//  traceln(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
         if (v->layout != null && v->layout != ui_view_layout) {
             v->layout(v);
@@ -12384,7 +12600,7 @@ static void ui_view_layout(ui_view_t* v) {
         if (v->composed != null) { v->composed(v); }
         ui_view_layout_children(v);
     }
-//  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+//  traceln("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
@@ -12439,7 +12655,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     const ui_ltrb_t p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
-//      traceln("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->text,
+//      traceln("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
 //          v->x, v->y, v->w, v->h,
 //          v->padding.left, v->padding.top, v->padding.right, v->padding.bottom);
         *r = (ui_rect_t) {
@@ -12448,7 +12664,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
             .w = v->w + p.left + p.right,
             .h = v->h + p.top  + p.bottom,
         };
-//      traceln("%s %d,%d %dx%d", v->text,
+//      traceln("%s %d,%d %dx%d", v->p.text,
 //          r->x, r->y, r->w, r->h);
     }
 }
@@ -12670,44 +12886,62 @@ static int64_t ui_view_hit_test(const ui_view_t* v, ui_point_t pt) {
     return ht;
 }
 
-static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
-    if (!ui_view.is_hidden(v)) {
-        const bool moving = m == ui.message.mouse_hover ||
-                            m == ui.message.mouse_move;
-        const bool click  = m == ui.message.left_button_pressed ||
-                            m == ui.message.left_button_released ||
-                            m == ui.message.right_button_pressed ||
-                            m == ui.message.right_button_released ||
-                            m == ui.message.left_double_click ||
-                            m == ui.message.right_double_click;
-        if (moving) {
-            ui_rect_t r = { v->x, v->y, v->w, v->h};
-            bool hover = v->state.hover;
-            v->state.hover = ui.point_in_rect(&ui_app.mouse, &r);
-            if (hover != v->state.hover) { ui_view.invalidate(v, null); }
-            if (hover != v->state.hover) {
-//              traceln("hover_changed() %d := %d %p \"%.8s\"",
-//                       hover, v->state.hover, v, v->p.text);
-                ui_view.hover_changed(v);
-            }
-        }
-        // setting focus must preceed mouse message delivery:
-        if (click && v->focusable && !ui_view.is_disabled(v) &&
-             ui_view.inside(v, &ui_app.mouse)) {
-            ui_view.set_focus(v);
-        }
-        // mouse hover and move are dispatched even to disable controls
-        if (!ui_view.is_disabled(v) || moving) {
-            if (v->mouse != null) { v->mouse(v, m, f); }
-            ui_view_for_each(v, c, { ui_view_mouse(c, m, f); } );
-        }
+static void ui_view_update_hover(ui_view_t* v, bool hidden) {
+    const bool hover  = v->state.hover;
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    v->state.hover = !ui_view.is_hidden(v) && inside;
+    if (hover != v->state.hover) {
+//      traceln("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
+        ui_view.hover_changed(v); // even for hidden
+        if (!hidden) { ui_view.invalidate(v, null); }
     }
 }
 
-static void ui_view_mouse_wheel(ui_view_t* v, int32_t dx, int32_t dy) {
+static void ui_view_mouse_hover(ui_view_t* v) {
+//  traceln("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//          ui_app.mouse_left  ? "L" : "_",
+//          ui_app.mouse_right ? "R" : "_");
+    // mouse hover over is dispatched even to disabled views
+    const bool hidden = ui_view.is_hidden(v);
+    ui_view_update_hover(v, hidden);
+    if (!hidden && v->mouse_hover != null) { v->mouse_hover(v); }
+    ui_view_for_each(v, c, { ui_view_mouse_hover(c); });
+}
+
+static void ui_view_mouse_move(ui_view_t* v) {
+//  traceln("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//          ui_app.mouse_left  ? "L" : "_",
+//          ui_app.mouse_right ? "R" : "_");
+    // mouse move is dispatched even to disabled views
+    const bool hidden = ui_view.is_hidden(v);
+    ui_view_update_hover(v, hidden);
+    if (!hidden && v->mouse_move != null) { v->mouse_move(v); }
+    ui_view_for_each(v, c, { ui_view_mouse_move(c); });
+}
+
+static void ui_view_double_click(ui_view_t* v, bool left) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        if (v->mouse_wheel != null) { v->mouse_wheel(v, dx, dy); }
-        ui_view_for_each(v, c, { ui_view_mouse_wheel(c, dx, dy); });
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (v->focusable && inside) { ui_view.set_focus(v); }
+        if (v->double_click != null) { v->double_click(v, left); }
+        ui_view_for_each(v, c, { ui_view_double_click(c, left); });
+    }
+}
+
+static void ui_view_mouse_click(ui_view_t* v, bool left, bool pressed) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (v->focusable && inside) { ui_view.set_focus(v); }
+        if (v->mouse_click != null) { v->mouse_click(v, left, pressed); }
+        ui_view_for_each(v, c, { ui_view_mouse_click(c, left, pressed); });
+    }
+}
+
+
+static void ui_view_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        if (v->mouse_scroll != null) { v->mouse_scroll(v, dx_dy); }
+        ui_view_for_each(v, c, { ui_view_mouse_scroll(c, dx_dy); });
     }
 }
 
@@ -13006,8 +13240,11 @@ ui_view_if ui_view = {
     .has_focus           = ui_view_has_focus,
     .set_focus           = ui_view_set_focus,
     .lose_hidden_focus   = ui_view_lose_hidden_focus,
-    .mouse               = ui_view_mouse,
-    .mouse_wheel         = ui_view_mouse_wheel,
+    .mouse_hover         = ui_view_mouse_hover,
+    .mouse_move          = ui_view_mouse_move,
+    .mouse_click         = ui_view_mouse_click,
+    .double_click        = ui_view_double_click,
+    .mouse_scroll        = ui_view_mouse_scroll,
     .hovering            = ui_view_hovering,
     .hover_changed       = ui_view_hover_changed,
     .is_shortcut_key     = ui_view_is_shortcut_key,

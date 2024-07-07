@@ -174,31 +174,49 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.text(&ta, tx, ty, "%s", text);
 }
 
-static void ui_slider_mouse(ui_view_t* v, int32_t message, int64_t f) {
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        assert(v->type == ui_view_slider);
+static void ui_slider_mouse_click(ui_view_t* v, bool unused(left), bool pressed) {
+    ui_slider_t* s = (ui_slider_t*)v;
+    if (pressed) {
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-        ui_slider_t* s = (ui_slider_t*)v;
-        bool drag = message == ui.message.mouse_move &&
-            (f & (ui.mouse.button.left|ui.mouse.button.right)) != 0;
-        if (message == ui.message.left_button_pressed ||
-            message == ui.message.right_button_pressed || drag) {
-            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
-            const int32_t dec_w = s->dec.w + dec_p.right;
-            assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
-            const int32_t sw = ui_slider_width(s); // slider width
-            const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
-            const int32_t vx = v->x + i.left + dx;
-            const int32_t x = ui_app.mouse.x - vx;
-            const int32_t y = ui_app.mouse.y - (v->y + i.top);
-            if (0 <= x && x < sw && 0 <= y && y < v->h) {
-                const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
-                fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
-                int32_t vw = (int32_t)(val + s->value_min + 0.5);
-                s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
-                if (s->callback != null) { s->callback(&s->view); }
-                ui_slider_invalidate(s);
-            }
+        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const int32_t dec_w = s->dec.w + dec_p.right;
+        assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+        const int32_t sw = ui_slider_width(s); // slider width
+        const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
+        const int32_t vx = v->x + i.left + dx;
+        const int32_t x = ui_app.mouse.x - vx;
+        const int32_t y = ui_app.mouse.y - (v->y + i.top);
+        if (0 <= x && x < sw && 0 <= y && y < v->h) {
+            const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
+            fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
+            int32_t vw = (int32_t)(val + s->value_min + 0.5);
+            s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+            if (s->callback != null) { s->callback(&s->view); }
+            ui_slider_invalidate(s);
+        }
+    }
+}
+
+static void ui_slider_mouse_move(ui_view_t* v) {
+    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    ui_slider_t* s = (ui_slider_t*)v;
+    bool drag = ui_app.mouse_left || ui_app.mouse_right;
+    if (drag) {
+        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const int32_t dec_w = s->dec.w + dec_p.right;
+        assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+        const int32_t sw = ui_slider_width(s); // slider width
+        const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
+        const int32_t vx = v->x + i.left + dx;
+        const int32_t x = ui_app.mouse.x - vx;
+        const int32_t y = ui_app.mouse.y - (v->y + i.top);
+        if (0 <= x && x < sw && 0 <= y && y < v->h) {
+            const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
+            fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
+            int32_t vw = (int32_t)(val + s->value_min + 0.5);
+            s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+            if (s->callback != null) { s->callback(&s->view); }
+            ui_slider_invalidate(s);
         }
     }
 }
@@ -260,7 +278,8 @@ void ui_view_init_slider(ui_view_t* v) {
     v->measure       = ui_slider_measure;
     v->layout        = ui_slider_layout;
     v->paint         = ui_slider_paint;
-    v->mouse         = ui_slider_mouse;
+    v->mouse_click   = ui_slider_mouse_click;
+    v->mouse_move    = ui_slider_mouse_move;
     v->every_100ms   = ui_slider_every_100ms;
     v->color_id      = ui_color_id_window_text;
     v->background_id = ui_color_id_button_face;
@@ -298,6 +317,7 @@ void ui_view_init_slider(ui_view_t* v) {
     ut_str_printf(s->inc.hint, "%s", accel);
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
+    if (v->debug.id == null) { v->debug.id = "#slider"; }
 }
 
 void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,

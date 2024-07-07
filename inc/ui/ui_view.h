@@ -81,8 +81,11 @@ typedef struct ui_view_s {
     void (*click)(ui_view_t* v);    // ui click callback - view action
     void (*format)(ui_view_t* v);   // format a value to text (e.g. slider)
     void (*callback)(ui_view_t* v); // state change callback
-    void (*mouse)(ui_view_t* v, int32_t message, int64_t flags);
-    void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy); // touchpad scroll
+    void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
+    void (*mouse_hover)(ui_view_t* v); // hover over
+    void (*mouse_move)(ui_view_t* v);
+    void (*mouse_click)(ui_view_t* v, bool left, bool pressed);
+    void (*double_click)(ui_view_t* v, bool left);
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
@@ -106,14 +109,17 @@ typedef struct ui_view_s {
         bool hidden;    // measure()/ layout() paint() is not called on
         bool disabled;  // mouse, keyboard, key_up/down not called on
         bool armed;     // button is pressed but not yet released
-        bool hover;     // cursor hovering over the control
+        bool hover;     // cursor is hovering over the control
         bool pressed;   // for ui_button_t and ui_toggle_t
     } state;
-    bool flat;      // no-border appearance of views
-    bool focusable; // can be target for keyboard focus
-    bool highlightable; // paint highlight rectangle when hover over label
-    ui_color_t color;     // interpretation depends on view type
-    int32_t    color_id;  // 0 is default meaning use color
+    // TODO: instead of flat color scheme: undefined colors for
+    // border rounded gradient etc.
+    bool flat;                // no-border appearance of controls
+    bool flip;                // flip button pressed / released
+    bool focusable;           // can be target for keyboard focus
+    bool highlightable;       // paint highlight rectangle when hover over label
+    ui_color_t color;         // interpretation depends on view type
+    int32_t    color_id;      // 0 is default meaning use color
     ui_color_t background;    // interpretation depends on view type
     int32_t    background_id; // 0 is default meaning use background
     char hint[256]; // tooltip hint text (to be shown while hovering over view)
@@ -123,10 +129,11 @@ typedef struct ui_view_s {
             bool mt;  // measure text
         } trace;
         struct { // after painted():
-            bool call; // v->debug_paint()
+            bool call;    // v->debug_paint()
             bool margins; // call debug_paint_margins()
-            bool fm;   // paint font metrics
+            bool fm;      // paint font metrics
         } paint;
+        const char* id; // for debugging purposes
     } debug; // debug flags
 } ui_view_t;
 
@@ -176,8 +183,11 @@ typedef struct ui_view_if {
     void (*set_focus)(ui_view_t* view_or_null);
     void (*lose_hidden_focus)(ui_view_t* v);
     void (*hovering)(ui_view_t* v, bool start);
-    void (*mouse)(ui_view_t* v, int32_t m, int64_t f);
-    void (*mouse_wheel)(ui_view_t* v, int32_t dx, int32_t dy);
+    void (*mouse_hover)(ui_view_t* v); // hover over
+    void (*mouse_move)(ui_view_t* v);
+    void (*mouse_click)(ui_view_t* v, bool left, bool pressed);
+    void (*double_click)(ui_view_t* v, bool left);
+    void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     ui_wh_t (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, va_list va);
     ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
@@ -224,6 +234,9 @@ extern ui_view_if ui_view;
     ui_view_for_each_begin(v, it)    \
     { __VA_ARGS__ }                  \
     ui_view_for_each_end(v, it)
+
+#define ui_view_debug_id(v) \
+    ((v)->debug.id != null ? (v)->debug.id : (v)->p.text)
 
 // #define code(statements) statements
 //

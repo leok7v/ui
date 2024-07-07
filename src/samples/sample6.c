@@ -98,9 +98,8 @@ static void character(ui_view_t* unused(view), const char* utf8) {
     }
 }
 
-static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(f)) {
-    if ((m == ui.message.left_button_pressed ||
-        m == ui.message.right_button_pressed) &&
+static void mouse_click(ui_view_t* unused(v), bool left, bool pressed) {
+    if (pressed &&
         0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fm.H1.em.w &&
         0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fm.H1.em.h) {
         muted = !muted;
@@ -214,11 +213,11 @@ static void opened(void) {
 
 static void init(void) {
     ui_app.title = title;
-    ui_app.content->paint     = paint;
-    ui_app.content->character = character;
-    ui_app.content->message   = message;
-    ui_app.content->mouse     = mouse;
-    ui_app.opened             = opened;
+    ui_app.content->paint       = paint;
+    ui_app.content->character   = character;
+    ui_app.content->message     = message;
+    ui_app.content->mouse_click = mouse_click;
+    ui_app.opened               = opened;
     void* data = null;
     int64_t bytes = 0;
     ut_fatal_if_error(ut_mem.map_resource("sample_png", &data, &bytes));

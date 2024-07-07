@@ -72,6 +72,7 @@ typedef struct ui_s {
         int32_t const defau1t;  // use Windows STARTUPINFO value
         int32_t const force_min;// minimize even if dispatch thread not responding
     } const visibility;
+    // TODO: remove or move inside app
     struct { // message:
         int32_t const character; // translated from key pressed/released to utf8
         int32_t const key_pressed;
@@ -92,6 +93,7 @@ typedef struct ui_s {
         int32_t const dtap;
         int32_t const press;
    } const message;
+   // TODO: remove or move inside app
    struct { // mouse buttons bitset mask
         struct {
             int32_t const left;

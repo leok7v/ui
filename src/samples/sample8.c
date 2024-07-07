@@ -45,6 +45,7 @@ static void init(void) {
 ui_app_t ui_app = {
     .class_name = "sample8",
     .no_decor = true,
+    .no_max   = true, // TODO: should be implied by no_decor
     .dark_mode = false,
     .light_mode = false,
     .init = init,
@@ -59,8 +60,10 @@ static ui_view_t test = ui_view(stack);
 static ui_view_t tools_list = ui_view(list);
 
 static void tools(ui_button_t* b) {
-    b->state.pressed = !b->state.pressed;
     traceln("b->state.pressed: %d", b->state.pressed);
+//  menu is "flip" button. It will do this:
+//  b->state.pressed = !b->state.pressed;
+//  automatically before callback.
     tools_list.state.hidden = !b->state.pressed;
     app_data.menu_used = 1;
     ui_app.request_layout();
@@ -103,7 +106,7 @@ static void debug(ui_button_t* b) {
     app_data.debug = b->state.pressed;
 }
 
-static ui_button_t button_debug =
+static ui_button_t button_bugs =
         ui_button(ut_glyph_lady_beetle, 0.0f, debug);
 
 static ui_mbx_t mbx = ui_mbx( // message box
@@ -235,6 +238,8 @@ static void opened(void) {
         default: stack(&button_stack);         break;
     }
     ui_caption.menu.callback = tools;
+    // 2-state button automatically flip .pressed state:
+    ui_caption.menu.flip = true;
     ui_caption.icon.state.hidden = true;
     tools_list.state.hidden = true;
     if (app_data.menu_used == 0) {
@@ -248,10 +253,13 @@ static void opened(void) {
            ui_button(ut_glyph_circled_information_source, 0.0f, about);
     static ui_button_t button_bomb =
            ui_button(ut_glyph_bomb, 0.0f, crash);
-    insert_into_caption(&button_info,  "About");
-    insert_into_caption(&button_debug, "Debug");
-    insert_into_caption(&button_bomb,  "Intentionally Crash");
-    if (app_data.debug) { debug(&button_debug); }
+    insert_into_caption(&button_info, "About");
+    insert_into_caption(&button_bugs, "Debug");
+    insert_into_caption(&button_bomb, "Intentionally Crash");
+    button_info.debug.id = "#caption.info";
+    button_bomb.debug.id = "#caption.bomb";
+    button_bugs.debug.id = "#caption.bug";
+    if (app_data.debug) { debug(&button_bugs); }
     ui_app.root->composed = ui_app_root_composed;
     if (!ui_theme.is_app_dark() != app_data.light) {
         ui_caption.mode.callback(&ui_caption.mode);
@@ -426,10 +434,11 @@ static void controls_large(ui_view_t* v) {
 
 static void button_pressed(ui_view_t* v) {
     if (v->shortcut != 0) {
-        traceln("'%c' 0x%02X %d, %s", v->shortcut, v->shortcut, v->shortcut,
-                                      v->p.text);
+        traceln("'%c' 0x%02X %d, %s \"%s\"",
+            v->shortcut, v->shortcut, v->shortcut,
+            ui_view_debug_id(v), v->p.text);
     } else {
-        traceln("%s", v->p.text);
+        traceln("%s \"%s\"", ui_view_debug_id(v), v->p.text);
     }
 }
 

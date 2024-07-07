@@ -6,7 +6,7 @@
 #define UI_WM_OPENING  (WM_APP + 0x7FFE)
 #define UI_WM_CLOSING  (WM_APP + 0x7FFD)
 #define UI_WM_TAP      (WM_APP + 0x7FFC)
-#define UI_WM_DTAP     (WM_APP + 0x7FFB) // fp64_t tap (aka click)
+#define UI_WM_DTAP     (WM_APP + 0x7FFB) // double tap (aka click)
 #define UI_WM_PRESS    (WM_APP + 0x7FFA)
 
 static bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {

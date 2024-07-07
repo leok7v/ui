@@ -2,7 +2,6 @@
 #include "ui/ui.h"
 
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
-    assert(v->type == ui_view_button);
     if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
         v->state.armed = false;
@@ -12,8 +11,6 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
 }
 
 static void ui_button_paint(ui_view_t* v) {
-    assert(v->type == ui_view_button);
-    assert(!ui_view.is_hidden(v));
     bool pressed = (v->state.armed ^ v->state.pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
     const int32_t w = v->w;
@@ -45,6 +42,11 @@ static void ui_button_paint(ui_view_t* v) {
         }
         ui_color_t d1 = ui_colors.darken(v->background, d2);
         ui_color_t fc = ui_colors.interpolate(d0, d1, 0.5f); // fill color
+        if (v->state.armed) {
+            fc = ui_colors.lighten(fc, 0.250f);
+        } else if (v->state.hover) {
+            fc = ui_colors.darken(fc, 0.250f);
+        }
         ui_gdi.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
     }
     const int32_t tx = v->x + v->text.xy.x;
@@ -70,32 +72,42 @@ static void ui_button_paint(ui_view_t* v) {
     }
 }
 
-static bool ui_button_hit_test(ui_button_t* b, ui_point_t pt) {
-    assert(b->type == ui_view_button);
-    return ui_view.inside(b, &pt);
-}
-
 static void ui_button_callback(ui_button_t* b) {
-    assert(b->type == ui_view_button);
     ui_app.show_hint(null, -1, -1, 0);
+    // for flip buttons the state of the button flips
+    // *before* callback.
+    if (b->flip) { b->state.pressed = !b->state.pressed; }
+    const bool pressed = b->state.pressed;
     if (b->callback != null) { b->callback(b); }
+    if (pressed != b->state.pressed) {
+        if (b->flip) { // warn the client of strange logic:
+            traceln("strange flip the button with button.flip: true");
+            // if client wants to flip pressed state manually it
+            // should do it for the button.flip = false
+        }
+//      traceln("disarmed immediately");
+        b->p.armed_until = 0;
+        b->state.armed = false;
+    } else {
+        if (b->flip) {
+//          traceln("disarmed immediately");
+            b->p.armed_until = 0;
+            b->state.armed = false;
+        } else {
+//          traceln("will disarm in 1/4 seconds");
+            b->p.armed_until = ui_app.now + 0.250;
+        }
+    }
 }
 
 static void ui_button_trigger(ui_view_t* v) {
-    assert(v->type == ui_view_button);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     ui_button_t* b = (ui_button_t*)v;
     v->state.armed = true;
     ui_view.invalidate(v, null);
-    ui_app.draw();
-    v->p.armed_until = ui_app.now + 0.250;
     ui_button_callback(b);
-    ui_view.invalidate(v, null);
 }
 
 static void ui_button_character(ui_view_t* v, const char* utf8) {
-    assert(v->type == ui_view_button);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     char ch = utf8[0]; // TODO: multibyte utf8 shortcuts?
     if (ui_view.is_shortcut_key(v, ch)) {
         ui_button_trigger(v);
@@ -103,59 +115,44 @@ static void ui_button_character(ui_view_t* v, const char* utf8) {
 }
 
 static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
-    assert(v->type == ui_view_button);
     assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_button_trigger(v); }
     return trigger; // swallow if true
 }
 
-/* processes mouse clicks and invokes callback  */
-
-static void ui_button_mouse(ui_view_t* v, int32_t message, int64_t flags) {
-    assert(v->type == ui_view_button);
-    (void)flags; // unused
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+static void ui_button_mouse_click(ui_view_t* v, bool left, bool pressed) {
     ui_button_t* b = (ui_button_t*)v;
-    const bool was_armed = v->state.armed;
-    const bool pressed =
-        message == ui.message.left_button_pressed ||
-        message == ui.message.right_button_pressed;
-    if (pressed && !v->state.armed && !v->p.armed_until) {
-        v->state.armed = ui_button_hit_test(b, ui_app.mouse);
-        if (was_armed != v->state.armed) { ui_view.invalidate(v, null); }
-    }
-    const bool released =
-        message == ui.message.left_button_released ||
-        message == ui.message.right_button_released;
-    if (released && v->state.armed && v->p.armed_until == 0) {
-        if (ui_button_hit_test(b, ui_app.mouse)) {
-            ui_view.invalidate(v, null);
-            ui_button_callback(b);
-        }
-        if (v->state.armed && v->p.armed_until == 0) {
-            v->p.armed_until = ui_app.now + 0.250;
+    const bool inside = ui_view.inside(b, &ui_app.mouse);
+    if (inside) { // buttons do hear nearby other controls click by design
+        (void)left; // ignored - button acts on any left or right mouse click
+        ui_view.invalidate(v, null); // always on any press/release inside
+        if (pressed && b->flip) {
+            if (b->flip) { ui_button_callback(b); }
+        } else if (pressed) {
+            if (!v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
+            v->state.armed = true;
+        } else { // released
+            if (!b->flip) { ui_button_callback(b); }
         }
     }
-    if (v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
 }
 
-static void ui_button_measure(ui_view_t* v) {
-    assert(v->type == ui_view_button);
-    ui_view.measure_control(v);
-//  if (v->w < v->h) { v->w = v->h; } // make square is narrow letter like "I"
+static void ui_hover_changed(ui_view_t* unused(v)) {
+    traceln();
 }
 
 void ui_view_init_button(ui_view_t* v) {
     assert(v->type == ui_view_button);
-    v->mouse         = ui_button_mouse;
-    v->measure       = ui_button_measure;
+    v->mouse_click   = ui_button_mouse_click;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;
     v->key_pressed   = ui_button_key_pressed;
+//  v->hover_changed = ui_hover_changed;
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
+    if (v->debug.id == null) { v->debug.id = "#button"; }
 }
 
 void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,

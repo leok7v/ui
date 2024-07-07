@@ -2,107 +2,105 @@
 #include "ui/ui.h"
 
 static void ui_mbx_button(ui_button_t* b) {
-    ui_mbx_t* mx = (ui_mbx_t*)b->parent;
-    assert(mx->type == ui_view_mbx);
-    mx->option = -1;
-    for (int32_t i = 0; i < ut_count_of(mx->button) && mx->option < 0; i++) {
-        if (b == &mx->button[i]) {
-            mx->option = i;
-            if (mx->callback != null) { mx->callback(&mx->view); }
+    ui_mbx_t* m = (ui_mbx_t*)b->parent;
+    assert(m->type == ui_view_mbx);
+    m->option = -1;
+    for (int32_t i = 0; i < ut_count_of(m->button) && m->option < 0; i++) {
+        if (b == &m->button[i]) {
+            m->option = i;
+            if (m->callback != null) { m->callback(&m->view); }
         }
     }
     ui_app.show_toast(null, 0);
 }
 
-static void ui_mbx_measured(ui_view_t* view) {
-    ui_mbx_t* mx = (ui_mbx_t*)view;
-    assert(view->type == ui_view_mbx);
+static void ui_mbx_measured(ui_view_t* v) {
+    ui_mbx_t* m = (ui_mbx_t*)v;
     int32_t n = 0;
-    ui_view_for_each(view, c, { n++; });
+    ui_view_for_each(v, c, { n++; });
     n--; // number of buttons
-    const int32_t em_x = mx->label.fm->em.w;
-    const int32_t em_y = mx->label.fm->em.h;
-    const int32_t tw = mx->label.w;
-    const int32_t th = mx->label.h;
+    const int32_t em_x = m->label.fm->em.w;
+    const int32_t em_y = m->label.fm->em.h;
+    const int32_t tw = m->label.w;
+    const int32_t th = m->label.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
-            bw += mx->button[i].w;
+            bw += m->button[i].w;
         }
-        view->w = ut_max(tw, bw + em_x * 2);
-        view->h = th + mx->button[0].h + em_y + em_y / 2;
+        v->w = ut_max(tw, bw + em_x * 2);
+        v->h = th + m->button[0].h + em_y + em_y / 2;
     } else {
-        view->h = th + em_y / 2;
-        view->w = tw;
+        v->h = th + em_y / 2;
+        v->w = tw;
     }
 }
 
-static void ui_mbx_layout(ui_view_t* view) {
-    ui_mbx_t* mx = (ui_mbx_t*)view;
-    assert(view->type == ui_view_mbx);
+static void ui_mbx_layout(ui_view_t* v) {
+    ui_mbx_t* m = (ui_mbx_t*)v;
     int32_t n = 0;
-    ui_view_for_each(view, c, { n++; });
+    ui_view_for_each(v, c, { n++; });
     n--; // number of buttons
-    const int32_t em_y = mx->label.fm->em.h;
-    mx->label.x = view->x;
-    mx->label.y = view->y + em_y * 2 / 3;
-    const int32_t tw = mx->label.w;
-    const int32_t th = mx->label.h;
+    const int32_t em_y = m->label.fm->em.h;
+    m->label.x = v->x;
+    m->label.y = v->y + em_y * 2 / 3;
+    const int32_t tw = m->label.w;
+    const int32_t th = m->label.h;
     if (n > 0) {
         int32_t bw = 0;
         for (int32_t i = 0; i < n; i++) {
-            bw += mx->button[i].w;
+            bw += m->button[i].w;
         }
         // center text:
-        mx->label.x = view->x + (view->w - tw) / 2;
+        m->label.x = v->x + (v->w - tw) / 2;
         // spacing between buttons:
-        int32_t sp = (view->w - bw) / (n + 1);
+        int32_t sp = (v->w - bw) / (n + 1);
         int32_t x = sp;
         for (int32_t i = 0; i < n; i++) {
-            mx->button[i].x = view->x + x;
-            mx->button[i].y = view->y + th + em_y * 3 / 2;
-            x += mx->button[i].w + sp;
+            m->button[i].x = v->x + x;
+            m->button[i].y = v->y + th + em_y * 3 / 2;
+            x += m->button[i].w + sp;
         }
     }
 }
 
-void ui_view_init_mbx(ui_view_t* view) {
-    assert(view->type == ui_view_mbx);
-    ui_mbx_t* mx = (ui_mbx_t*)view;
-    view->measured = ui_mbx_measured;
-    view->layout = ui_mbx_layout;
-    mx->fm = &ui_app.fm.regular;
+void ui_view_init_mbx(ui_view_t* v) {
+    ui_mbx_t* m = (ui_mbx_t*)v;
+    v->measured = ui_mbx_measured;
+    v->layout = ui_mbx_layout;
+    m->fm = &ui_app.fm.regular;
     int32_t n = 0;
-    while (mx->options[n] != null && n < ut_count_of(mx->button) - 1) {
-        mx->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
-        ui_view.set_text(&mx->button[n], "%s", mx->options[n]);
+    while (m->options[n] != null && n < ut_count_of(m->button) - 1) {
+        m->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
+        ui_view.set_text(&m->button[n], "%s", m->options[n]);
         n++;
     }
-    swear(n <= ut_count_of(mx->button), "inhumane: %d buttons is too many", n);
-    if (n > ut_count_of(mx->button)) { n = ut_count_of(mx->button); }
-    mx->label = (ui_label_t)ui_label(0, "");
-    ui_view.set_text(&mx->label, "%s", ui_view.string(&mx->view));
-    ui_view.add_last(&mx->view, &mx->label);
+    swear(n <= ut_count_of(m->button), "inhumane: %d buttons is too many", n);
+    if (n > ut_count_of(m->button)) { n = ut_count_of(m->button); }
+    m->label = (ui_label_t)ui_label(0, "");
+    ui_view.set_text(&m->label, "%s", ui_view.string(&m->view));
+    ui_view.add_last(&m->view, &m->label);
     for (int32_t i = 0; i < n; i++) {
-        ui_view.add_last(&mx->view, &mx->button[i]);
-        mx->button[i].fm = mx->fm;
+        ui_view.add_last(&m->view, &m->button[i]);
+        m->button[i].fm = m->fm;
     }
-    mx->label.fm = mx->fm;
-    ui_view.set_text(&mx->view, "");
-    mx->option = -1;
+    m->label.fm = m->fm;
+    ui_view.set_text(&m->view, "");
+    m->option = -1;
+    if (m->debug.id == null) { m->debug.id = "#mbx"; }
 }
 
-void ui_mbx_init(ui_mbx_t* mx, const char* options[],
+void ui_mbx_init(ui_mbx_t* m, const char* options[],
         const char* format, ...) {
-    mx->type = ui_view_mbx;
-    mx->measured  = ui_mbx_measured;
-    mx->layout    = ui_mbx_layout;
-    mx->color_id  = ui_color_id_window;
-    mx->options = options;
+    m->type = ui_view_mbx;
+    m->measured  = ui_mbx_measured;
+    m->layout    = ui_mbx_layout;
+    m->color_id  = ui_color_id_window;
+    m->options = options;
     va_list va;
     va_start(va, format);
-    ui_view.set_text_va(&mx->view, format, va);
-    ui_label_init(&mx->label, 0.0, ui_view.string(&mx->view));
+    ui_view.set_text_va(&m->view, format, va);
+    ui_label_init(&m->label, 0.0, ui_view.string(&m->view));
     va_end(va);
-    ui_view_init_mbx(&mx->view);
+    ui_view_init_mbx(&m->view);
 }

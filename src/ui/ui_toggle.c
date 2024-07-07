@@ -72,15 +72,12 @@ static void ui_toggle_paint(ui_view_t* v) {
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {
-    assert(t->type == ui_view_toggle);
     ui_view.invalidate((ui_view_t*)t, null);
     t->state.pressed = !t->state.pressed;
     if (t->callback != null) { t->callback(t); }
 }
 
 static void ui_toggle_character(ui_view_t* v, const char* utf8) {
-    assert(v->type == ui_view_toggle);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     char ch = utf8[0];
     if (ui_view.is_shortcut_key(v, ch)) {
          ui_toggle_flip((ui_toggle_t*)v);
@@ -93,22 +90,15 @@ static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_toggle_mouse(ui_view_t* v, int32_t message, int64_t unused(flags)) {
-    assert(v->type == ui_view_toggle);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
-    if (message == ui.message.left_button_pressed ||
-        message == ui.message.right_button_pressed) {
-        int32_t x = ui_app.mouse.x - v->x;
-        int32_t y = ui_app.mouse.y - v->y;
-        if (0 <= x && x < v->w && 0 <= y && y < v->h) {
-            ui_toggle_flip((ui_toggle_t*)v);
-        }
+static void ui_toggle_mouse_click(ui_view_t* v, bool unused(left), bool pressed) {
+    if (pressed && ui_view.inside(v, &ui_app.mouse)) {
+        ui_toggle_flip((ui_toggle_t*)v);
     }
 }
 
 void ui_view_init_toggle(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
-    v->mouse         = ui_toggle_mouse;
+    v->mouse_click   = ui_toggle_mouse_click;
     v->paint         = ui_toggle_paint;
     v->measure       = ui_toggle_measure;
     v->character     = ui_toggle_character;
@@ -116,6 +106,7 @@ void ui_view_init_toggle(ui_view_t* v) {
     v->color_id      = ui_color_id_button_text;
     v->background_id = ui_color_id_button_face;
     v->text_align    = ui.align.left;
+    if (v->debug.id == null) { v->debug.id = "#toggle"; }
 }
 
 void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,

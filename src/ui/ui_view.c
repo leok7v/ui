@@ -147,27 +147,31 @@ static void ui_view_disband(ui_view_t* p) {
 }
 
 static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
-    ui_rect_t rc = {0};
-    if (r != null) {
-        rc = (ui_rect_t){
-            .x = v->x + r->x,
-            .y = v->y + r->y,
-            .w = r->w,
-            .h = r->h
-        };
+    if (ui_view.is_hidden(v)) {
+        traceln("hidden: %s", ui_view_debug_id(v));
     } else {
-        rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
-        // expand view rectangle by padding
-        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
-        rc.x -= p.left;
-        rc.y -= p.top;
-        rc.w += p.left + p.right;
-        rc.h += p.top + p.bottom;
+        ui_rect_t rc = {0};
+        if (r != null) {
+            rc = (ui_rect_t){
+                .x = v->x + r->x,
+                .y = v->y + r->y,
+                .w = r->w,
+                .h = r->h
+            };
+        } else {
+            rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
+            // expand view rectangle by padding
+            const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+            rc.x -= p.left;
+            rc.y -= p.top;
+            rc.w += p.left + p.right;
+            rc.h += p.top + p.bottom;
+        }
+        if (v->debug.trace.prc) {
+            traceln("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+        }
+        ui_app.invalidate(&rc);
     }
-    if (v->debug.trace.prc) {
-        traceln("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
-    }
-    ui_app.invalidate(&rc);
 }
 
 static const char* ui_view_string(ui_view_t* v) {
@@ -313,10 +317,10 @@ static void ui_layout_view(ui_view_t* unused(v)) {
 //  ui_ltrb_t i = ui_view.margins(v, &v->insets);
 //  ui_ltrb_t p = ui_view.margins(v, &v->padding);
 //  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
-//               v->text, v->x, v->y, v->w, v->h,
+//               v->p.text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
 //               i.left, i.top, i.right, i.bottom);
-//  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+//  traceln("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static void ui_view_layout_children(ui_view_t* v) {
@@ -326,7 +330,7 @@ static void ui_view_layout_children(ui_view_t* v) {
 }
 
 static void ui_view_layout(ui_view_t* v) {
-//  traceln(">%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+//  traceln(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
         if (v->layout != null && v->layout != ui_view_layout) {
             v->layout(v);
@@ -336,7 +340,7 @@ static void ui_view_layout(ui_view_t* v) {
         if (v->composed != null) { v->composed(v); }
         ui_view_layout_children(v);
     }
-//  traceln("<%s %d,%d %dx%d", v->text, v->x, v->y, v->w, v->h);
+//  traceln("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
@@ -391,7 +395,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     const ui_ltrb_t p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
-//      traceln("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->text,
+//      traceln("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
 //          v->x, v->y, v->w, v->h,
 //          v->padding.left, v->padding.top, v->padding.right, v->padding.bottom);
         *r = (ui_rect_t) {
@@ -400,7 +404,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
             .w = v->w + p.left + p.right,
             .h = v->h + p.top  + p.bottom,
         };
-//      traceln("%s %d,%d %dx%d", v->text,
+//      traceln("%s %d,%d %dx%d", v->p.text,
 //          r->x, r->y, r->w, r->h);
     }
 }
@@ -622,44 +626,62 @@ static int64_t ui_view_hit_test(const ui_view_t* v, ui_point_t pt) {
     return ht;
 }
 
-static void ui_view_mouse(ui_view_t* v, int32_t m, int64_t f) {
-    if (!ui_view.is_hidden(v)) {
-        const bool moving = m == ui.message.mouse_hover ||
-                            m == ui.message.mouse_move;
-        const bool click  = m == ui.message.left_button_pressed ||
-                            m == ui.message.left_button_released ||
-                            m == ui.message.right_button_pressed ||
-                            m == ui.message.right_button_released ||
-                            m == ui.message.left_double_click ||
-                            m == ui.message.right_double_click;
-        if (moving) {
-            ui_rect_t r = { v->x, v->y, v->w, v->h};
-            bool hover = v->state.hover;
-            v->state.hover = ui.point_in_rect(&ui_app.mouse, &r);
-            if (hover != v->state.hover) { ui_view.invalidate(v, null); }
-            if (hover != v->state.hover) {
-//              traceln("hover_changed() %d := %d %p \"%.8s\"",
-//                       hover, v->state.hover, v, v->p.text);
-                ui_view.hover_changed(v);
-            }
-        }
-        // setting focus must preceed mouse message delivery:
-        if (click && v->focusable && !ui_view.is_disabled(v) &&
-             ui_view.inside(v, &ui_app.mouse)) {
-            ui_view.set_focus(v);
-        }
-        // mouse hover and move are dispatched even to disable controls
-        if (!ui_view.is_disabled(v) || moving) {
-            if (v->mouse != null) { v->mouse(v, m, f); }
-            ui_view_for_each(v, c, { ui_view_mouse(c, m, f); } );
-        }
+static void ui_view_update_hover(ui_view_t* v, bool hidden) {
+    const bool hover  = v->state.hover;
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    v->state.hover = !ui_view.is_hidden(v) && inside;
+    if (hover != v->state.hover) {
+//      traceln("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
+        ui_view.hover_changed(v); // even for hidden
+        if (!hidden) { ui_view.invalidate(v, null); }
     }
 }
 
-static void ui_view_mouse_wheel(ui_view_t* v, int32_t dx, int32_t dy) {
+static void ui_view_mouse_hover(ui_view_t* v) {
+//  traceln("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//          ui_app.mouse_left  ? "L" : "_",
+//          ui_app.mouse_right ? "R" : "_");
+    // mouse hover over is dispatched even to disabled views
+    const bool hidden = ui_view.is_hidden(v);
+    ui_view_update_hover(v, hidden);
+    if (!hidden && v->mouse_hover != null) { v->mouse_hover(v); }
+    ui_view_for_each(v, c, { ui_view_mouse_hover(c); });
+}
+
+static void ui_view_mouse_move(ui_view_t* v) {
+//  traceln("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//          ui_app.mouse_left  ? "L" : "_",
+//          ui_app.mouse_right ? "R" : "_");
+    // mouse move is dispatched even to disabled views
+    const bool hidden = ui_view.is_hidden(v);
+    ui_view_update_hover(v, hidden);
+    if (!hidden && v->mouse_move != null) { v->mouse_move(v); }
+    ui_view_for_each(v, c, { ui_view_mouse_move(c); });
+}
+
+static void ui_view_double_click(ui_view_t* v, bool left) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        if (v->mouse_wheel != null) { v->mouse_wheel(v, dx, dy); }
-        ui_view_for_each(v, c, { ui_view_mouse_wheel(c, dx, dy); });
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (v->focusable && inside) { ui_view.set_focus(v); }
+        if (v->double_click != null) { v->double_click(v, left); }
+        ui_view_for_each(v, c, { ui_view_double_click(c, left); });
+    }
+}
+
+static void ui_view_mouse_click(ui_view_t* v, bool left, bool pressed) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (v->focusable && inside) { ui_view.set_focus(v); }
+        if (v->mouse_click != null) { v->mouse_click(v, left, pressed); }
+        ui_view_for_each(v, c, { ui_view_mouse_click(c, left, pressed); });
+    }
+}
+
+
+static void ui_view_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        if (v->mouse_scroll != null) { v->mouse_scroll(v, dx_dy); }
+        ui_view_for_each(v, c, { ui_view_mouse_scroll(c, dx_dy); });
     }
 }
 
@@ -958,8 +980,11 @@ ui_view_if ui_view = {
     .has_focus           = ui_view_has_focus,
     .set_focus           = ui_view_set_focus,
     .lose_hidden_focus   = ui_view_lose_hidden_focus,
-    .mouse               = ui_view_mouse,
-    .mouse_wheel         = ui_view_mouse_wheel,
+    .mouse_hover         = ui_view_mouse_hover,
+    .mouse_move          = ui_view_mouse_move,
+    .mouse_click         = ui_view_mouse_click,
+    .double_click        = ui_view_double_click,
+    .mouse_scroll        = ui_view_mouse_scroll,
     .hovering            = ui_view_hovering,
     .hover_changed       = ui_view_hover_changed,
     .is_shortcut_key     = ui_view_is_shortcut_key,

@@ -1185,16 +1185,14 @@ static void ui_edit_on_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_click(e, x, y);
 }
 
-static void ui_edit_mouse_button_down(ui_edit_t* e, int32_t m,
-        int32_t x, int32_t y) {
-    if (m == ui.message.left_button_pressed)  { e->edit.buttons |= (1 << 0); }
-    if (m == ui.message.right_button_pressed) { e->edit.buttons |= (1 << 1); }
-    ui_edit_on_click(e, x, y);
+static void ui_edit_mouse_button_down(ui_edit_t* e, bool left) {
+    if (left)  { e->edit.buttons |= (1 << 0); }
+    if (!left) { e->edit.buttons |= (1 << 1); }
 }
 
-static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t m) {
-    if (m == ui.message.left_button_released)  { e->edit.buttons &= ~(1 << 0); }
-    if (m == ui.message.right_button_released) { e->edit.buttons &= ~(1 << 1); }
+static void ui_edit_mouse_button_up(ui_edit_t* e, bool left) {
+    if (left)  { e->edit.buttons &= ~(1 << 0); }
+    if (!left) { e->edit.buttons &= ~(1 << 1); }
 }
 
 #undef UI_EDIT_USE_TAP  // defining it leads to delays in caret movement
@@ -1209,7 +1207,7 @@ static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
             e->edit.buttons = 0x1;
-            ui_edit_on_click(e, x, y);
+            ui_edit_click(e, x, y);
             e->edit.buttons = 0x0;
         }
         return inside;
@@ -1228,7 +1226,7 @@ static bool ui_edit_press(ui_view_t* v, int32_t ix) {
         bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
         if (inside) {
             e->edit.buttons = 0x1;
-            ui_edit_on_click(e, x, y);
+            ui_edit_click(e, x, y);
             ui_edit_double_click(e, x, y);
             e->edit.buttons = 0x0;
         }
@@ -1238,38 +1236,45 @@ static bool ui_edit_press(ui_view_t* v, int32_t ix) {
     }
 }
 
-static void ui_edit_mouse(ui_view_t* v, int32_t m, int64_t unused(flags)) {
-    assert(v->type == ui_view_text);
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+static void ui_edit_mouse_click(ui_view_t* v, bool left, bool pressed) {
+    ui_edit_t* e = (ui_edit_t*)v;
+    (void)left; // ignored for now no context menu (copy/paste/select...)
+    const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
+    const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
+    bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
+    if (inside) {
+        if (pressed) {
+            ui_edit_mouse_button_down(e, left);
+            ui_edit_on_click(e, x, y);
+        } else if (!pressed) {
+            ui_edit_mouse_button_up(e, left);
+        }
+    }
+}
+
+static void ui_edit_mouse_double_click(ui_view_t* v, bool unused(left)) {
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
     if (inside) {
-        if (m == ui.message.left_button_pressed ||
-            m == ui.message.right_button_pressed) {
-            ui_edit_mouse_button_down(e, m, x, y);
-        } else if (m == ui.message.left_button_released ||
-                   m == ui.message.right_button_released) {
-            ui_edit_mouse_button_up(e, m);
-        } else if (m == ui.message.left_double_click ||
-                   m == ui.message.right_double_click) {
-            ui_edit_double_click(e, x, y);
-        }
+        ui_edit_double_click(e, x, y);
     }
 }
 
-static void ui_edit_mouse_wheel(ui_view_t* v, int32_t unused(dx), int32_t dy) {
-    // TODO: maybe make a use of dx in single line no-word-break edit control?
-    if (ui_app.focus == v) {
-        assert(v->type == ui_view_text);
-        ui_edit_t* e = (ui_edit_t*)v;
-        int32_t lines = (abs(dy) + v->fm->height - 1) / v->fm->height;
-        if (dy > 0) {
-            ui_edit_scroll_down(e, lines);
-        } else if (dy < 0) {
-            ui_edit_scroll_up(e, lines);
-        }
+static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+    if (v->w > 0 && v->h > 0) {
+        const int32_t dy = dx_dy.y;
+        // TODO: maybe make a use of dx in single line no-word-break edit control?
+        if (ui_app.focus == v) {
+            assert(v->type == ui_view_text);
+            ui_edit_t* e = (ui_edit_t*)v;
+            int32_t lines = (abs(dy) + v->fm->height - 1) / v->fm->height;
+            if (dy > 0) {
+                ui_edit_scroll_down(e, lines);
+            } else if (dy < 0) {
+                ui_edit_scroll_up(e, lines);
+            }
 //  TODO: Ctrl UP/DW and caret of out of visible area scrolls are not
 //        implemented. Not sure they are very good UX experience.
 //        MacOS users may be used to scroll with touchpad, take a visual
@@ -1277,9 +1282,10 @@ static void ui_edit_mouse_wheel(ui_view_t* v, int32_t unused(dx), int32_t dy) {
 //        To me back forward stack navigation is much more intuitive and
 //        much mode "modeless" in spirit of cut/copy/paste. But opinions
 //        and editing habits vary. Easy to implement.
-        ui_edit_pg_t pg = ui_edit_xy_to_pg(e, e->caret.x, e->caret.y);
-        if (pg.pn >= 0 && pg.gp >= 0) {
-            ui_edit_move_caret(e, pg);
+            ui_edit_pg_t pg = ui_edit_xy_to_pg(e, e->caret.x, e->caret.y);
+            if (pg.pn >= 0 && pg.gp >= 0) {
+                ui_edit_move_caret(e, pg);
+            }
         }
     }
 }
@@ -1727,13 +1733,15 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->focus_gained    = ui_edit_focus_gained;
     e->focus_lost      = ui_edit_focus_lost;
     e->key_pressed     = ui_edit_key_pressed;
-    e->mouse_wheel     = ui_edit_mouse_wheel;
+    e->mouse_scroll    = ui_edit_mouse_scroll;
     #ifdef UI_EDIT_USE_TAP
         e->tap         = ui_edit_tap;
     #else
-        e->mouse       = ui_edit_mouse;
+        e->mouse_click  = ui_edit_mouse_click;
+        e->double_click = ui_edit_mouse_double_click;
     #endif
     ui_edit_allocate_runs(e);
+    if (e->debug.id == null) { e->debug.id = "#edit"; }
 }
 
 static void ui_edit_dispose(ui_edit_t* e) {

@@ -137,9 +137,14 @@ ui_button_clicked(button_mbx, "&Message Box", 7.5, {
     ui_app.show_toast(&mbx.view, 0);
 });
 
+
+static void scroll_toggle(ui_button_t* unused(b)) {
+    ui_app.request_redraw();
+}
+
 static ui_toggle_t scroll = ui_toggle("Scroll &Direction:",
-                                      /* min_w_em: */ 0.0f,
-                                      /* callback:*/ null);
+                                      /* min_w_em: */ 3.0f,
+                              /* callback:*/ scroll_toggle);
 
 static ui_view_t panel_top    = ui_view(stack);
 static ui_view_t panel_bottom = ui_view(stack);
@@ -328,16 +333,16 @@ static void zoom_in(int x, int y) {
     sy += zoom * y / image.h;
 }
 
-static void mouse(ui_view_t* unused(view), int32_t m, int64_t unused(flags)) {
+static void mouse_click(ui_view_t* unused(v), bool left, bool pressed) {
     int mx = ui_app.mouse.x - panel_center.x;
     int my = ui_app.mouse.y - panel_center.y;
     if (0 <= mx && mx < panel_center.w && 0 <= my && my < panel_center.h) {
         int x = ui_app.mouse.x - (panel_center.w - image.w) / 2 - panel_center.x;
         int y = ui_app.mouse.y - (panel_center.h - image.h) / 2 - panel_center.y;
         if (0 <= x && x < image.w && 0 <= y && y < image.h) {
-            if (m == ui.message.right_button_pressed) {
+            if (pressed && !left) {
                 if (zoom < 1) { zoom_out(); refresh(); }
-            } else if (m == ui.message.left_button_pressed) {
+            } else if (pressed && left) {
                 if (top < ut_count_of(stack)) { zoom_in(x, y); refresh(); }
             }
         }
@@ -359,12 +364,12 @@ static void zoomer_callback(ui_view_t* v) {
     refresh();
 }
 
-static void mouse_wheel(ui_view_t* unused, int32_t dx, int32_t dy) {
+static void mouse_scroll(ui_view_t* unused, ui_point_t dx_dy) {
     (void)unused;
-    if (!scroll.state.pressed) { dy = -dy; }
-    if (!scroll.state.pressed) { dx = -dx; }
-    sx = sx + zoom * dx / image.w;
-    sy = sy + zoom * dy / image.h;
+    if (!scroll.state.pressed) { dx_dy.y = -dx_dy.y; }
+    if (!scroll.state.pressed) { dx_dy.x = -dx_dy.x; }
+    sx = sx + zoom * dx_dy.x / image.w;
+    sy = sy + zoom * dx_dy.y / image.h;
     refresh();
 }
 
@@ -379,9 +384,11 @@ static void character(ui_view_t* view, const char* utf8) {
     } else if (ch == '-' || ch == '_') {
         zoom = ut_min(zoom * 2, 1.0); refresh();
     } else if (ch == '<' || ch == ',') {
-        mouse_wheel(view, +image.w / 8, 0);
+        ui_point_t pt = {+image.w / 8, 0};
+        mouse_scroll(view, pt);
     } else if (ch == '>' || ch == '.') {
-        mouse_wheel(view, -image.w / 8, 0);
+        ui_point_t pt = {-image.w / 8, 0};
+        mouse_scroll(view, pt);
     } else if (ch == 3) { // Ctrl+C
         ut_clipboard.put_image(&image);
     }
@@ -390,13 +397,17 @@ static void character(ui_view_t* view, const char* utf8) {
 static bool keyboard(ui_view_t* view, int64_t vk) {
     bool swallow = true;
     if (vk == ui.key.up) {
-        mouse_wheel(view, 0, +image.h / 8);
+        ui_point_t pt = {0, +image.h / 8};
+        mouse_scroll(view, pt);
     } else if (vk == ui.key.down) {
-        mouse_wheel(view, 0, -image.h / 8);
+        ui_point_t pt = {0, -image.h / 8};
+        mouse_scroll(view, pt);
     } else if (vk == ui.key.left) {
-        mouse_wheel(view, +image.w / 8, 0);
+        ui_point_t pt = {+image.w / 8, 0};
+        mouse_scroll(view, pt);
     } else if (vk == ui.key.right) {
-        mouse_wheel(view, -image.w / 8, 0);
+        ui_point_t pt = {-image.w / 8, 0};
+        mouse_scroll(view, pt);
     } else {
         swallow = false;
     }
@@ -411,12 +422,12 @@ static void init_panel(ui_view_t* panel, const char* text, ui_color_t color,
 }
 
 static void opened(void) {
-    ui_app.content->measure     = measure;
-    ui_app.content->layout      = layout;
-    ui_app.content->character   = character;
-    ui_app.content->key_pressed = keyboard; // virtual_keys
-    ui_app.content->mouse_wheel = mouse_wheel;
-    panel_center.mouse = mouse;
+    ui_app.content->measure      = measure;
+    ui_app.content->layout       = layout;
+    ui_app.content->character    = character;
+    ui_app.content->key_pressed  = keyboard; // virtual_keys
+    ui_app.content->mouse_scroll = mouse_scroll;
+    panel_center.mouse_click = mouse_click;
     int n = ut_count_of(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(ut_countof(pixels) == ut_countof(pixels[0]), "square");

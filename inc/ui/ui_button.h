@@ -58,13 +58,20 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // usage:
 //
 // ui_button_clicked(button, "&Button", 7.0, {
-//      button->state.pressed = !button->state.pressed;
+//      if (button->state.pressed) {
+//          // do something on click that happens on release mouse button
+//      }
 // })
 //
 // or:
 //
 // static void button_flipped(ui_button_t* b) {
-//      b->state.pressed = !b->state.pressed;
+//      swear(b->flip == true); // 2 state button, clicked on mouse press button
+//      if (b->state.pressed) {
+//          // show something:
+//      } else {
+//          // show something else:
+//      }
 // }
 //
 // ui_button_t button = ui_button(7.0, "&Button", button_flipped);
@@ -75,6 +82,14 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // ui_view.set_text(button.text, "&Button");
 // button.min_w_em = 7.0;
 // button.callback = button_flipped;
+//
+// Note:
+// ui_button_clicked(button, "&Button", 7.0, {
+//      button->state.pressed = !button->state.pressed;
+//      // is similar to: button.flip = true but it leads thru
+//      // multiple button paint and click happens on mouse button
+//      // release not press
+// }
 
 
 end_c
