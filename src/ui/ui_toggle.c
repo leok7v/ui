@@ -90,7 +90,8 @@ static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_toggle_mouse_click(ui_view_t* v, bool unused(left), bool pressed) {
+static void ui_toggle_mouse_click(ui_view_t* v, int32_t unused(ix),
+        bool pressed) {
     if (pressed && ui_view.inside(v, &ui_app.mouse)) {
         ui_toggle_flip((ui_toggle_t*)v);
     }

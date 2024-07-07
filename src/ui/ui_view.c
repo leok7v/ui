@@ -659,24 +659,27 @@ static void ui_view_mouse_move(ui_view_t* v) {
     ui_view_for_each(v, c, { ui_view_mouse_move(c); });
 }
 
-static void ui_view_double_click(ui_view_t* v, bool left) {
+static void ui_view_double_click(ui_view_t* v, int32_t ix) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         const bool inside = ui_view.inside(v, &ui_app.mouse);
-        if (v->focusable && inside) { ui_view.set_focus(v); }
-        if (v->double_click != null) { v->double_click(v, left); }
-        ui_view_for_each(v, c, { ui_view_double_click(c, left); });
+        if (inside) {
+            if (v->focusable) { ui_view.set_focus(v); }
+            if (v->double_click != null) { v->double_click(v, ix); }
+        }
+        ui_view_for_each(v, c, { ui_view_double_click(c, ix); });
     }
 }
 
-static void ui_view_mouse_click(ui_view_t* v, bool left, bool pressed) {
+static void ui_view_mouse_click(ui_view_t* v, int32_t ix, bool pressed) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        ui_view_for_each(v, c, { ui_view_mouse_click(c, ix, pressed); });
         const bool inside = ui_view.inside(v, &ui_app.mouse);
-        if (v->focusable && inside) { ui_view.set_focus(v); }
-        if (v->mouse_click != null) { v->mouse_click(v, left, pressed); }
-        ui_view_for_each(v, c, { ui_view_mouse_click(c, left, pressed); });
+        if (inside) {
+            if (v->focusable) { ui_view.set_focus(v); }
+            if (v->mouse_click != null) { v->mouse_click(v, ix, pressed); }
+        }
     }
 }
-
 
 static void ui_view_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
@@ -712,45 +715,65 @@ static void ui_view_lose_hidden_focus(ui_view_t* v) {
     }
 }
 
-static bool ui_view_tap(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
-    bool done = false; // consumed
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v) &&
-        ui_view_inside(v, &ui_app.mouse)) {
-        ui_view_for_each(v, c, {
-            done = ui_view_tap(c, ix);
-            if (done) { break; }
-        });
-
-        if (v->tap != null && !done) { done = v->tap(v, ix); }
-    }
-    return done;
-}
-
-static bool ui_view_press(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
-    bool done = false; // consumed
+static bool ui_view_tap(ui_view_t* v, int32_t ix, bool pressed) {
+    bool swallow = false; // consumed
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
-            done = ui_view_press(c, ix);
-            if (done) { break; }
+            swallow = ui_view_tap(c, ix, pressed);
+            if (swallow) { break; }
         });
-        if (v->press != null && !done) { done = v->press(v, ix); }
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (!swallow && inside) {
+            if (v->focusable) { ui_view.set_focus(v); }
+            if (v->tap != null) { swallow = v->tap(v, ix, pressed); }
+        }
     }
-    return done;
+    return swallow;
+}
+
+static bool ui_view_long_press(ui_view_t* v, int32_t ix) {
+    bool swallow = false; // consumed
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        ui_view_for_each(v, c, {
+            swallow = ui_view_long_press(c, ix);
+            if (swallow) { break; }
+        });
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (!swallow && inside && v->long_press != null) {
+            swallow = v->long_press(v, ix);
+        }
+    }
+    return swallow;
+}
+
+static bool ui_view_double_tap(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
+    bool swallow = false; // consumed
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        ui_view_for_each(v, c, {
+            swallow = ui_view_double_tap(c, ix);
+            if (swallow) { break; }
+        });
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (!swallow && inside && v->double_tap != null) {
+            swallow = v->double_tap(v, ix);
+        }
+    }
+    return swallow;
 }
 
 static bool ui_view_context_menu(ui_view_t* v) {
+    bool swallow = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
-            if (ui_view_context_menu(c)) { return true; }
+            swallow = ui_view_context_menu(c);
+            if (swallow) { break; }
         });
-        ui_rect_t r = { v->x, v->y, v->w, v->h};
-        if (ui.point_in_rect(&ui_app.mouse, &r)) {
-            if (!v->state.hidden && !v->state.disabled && v->context_menu != null) {
-                v->context_menu(v);
-            }
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (!swallow && inside && v->context_menu != null) {
+            swallow = v->context_menu(v);
         }
     }
-    return false;
+    return swallow;
 }
 
 static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
@@ -990,7 +1013,8 @@ ui_view_if ui_view = {
     .is_shortcut_key     = ui_view_is_shortcut_key,
     .context_menu        = ui_view_context_menu,
     .tap                 = ui_view_tap,
-    .press               = ui_view_press,
+    .long_press          = ui_view_long_press,
+    .double_tap          = ui_view_double_tap,
     .message             = ui_view_message,
     .debug_paint_margins = ui_view_debug_paint_margins,
     .debug_paint_fm      = ui_view_debug_paint_fm,

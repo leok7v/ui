@@ -84,15 +84,16 @@ typedef struct ui_view_s {
     void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     void (*mouse_hover)(ui_view_t* v); // hover over
     void (*mouse_move)(ui_view_t* v);
-    void (*mouse_click)(ui_view_t* v, bool left, bool pressed);
-    void (*double_click)(ui_view_t* v, bool left);
+    void (*mouse_click)(ui_view_t* v,  int32_t ix, bool pressed);
+    void (*double_click)(ui_view_t* v, int32_t ix);
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
     // return true if consumed (halts further calls up the tree)
-    bool (*tap)(ui_view_t* v, int32_t ix);   // single click/tap inside ui
-    bool (*press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
-    void (*context_menu)(ui_view_t* v); // right mouse click or long press
+    bool (*tap)(ui_view_t* v, int32_t ix, bool pressed); // single click/tap inside ui
+    bool (*long_press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
+    bool (*double_tap)(ui_view_t* v, int32_t ix); // legacy double click
+    bool (*context_menu)(ui_view_t* v); // right mouse click or long press
     void (*focus_gained)(ui_view_t* v);
     void (*focus_lost)(ui_view_t* v);
     // translated from key pressed/released to utf8:
@@ -185,8 +186,10 @@ typedef struct ui_view_if {
     void (*hovering)(ui_view_t* v, bool start);
     void (*mouse_hover)(ui_view_t* v); // hover over
     void (*mouse_move)(ui_view_t* v);
-    void (*mouse_click)(ui_view_t* v, bool left, bool pressed);
-    void (*double_click)(ui_view_t* v, bool left);
+    // TODO: remove
+    void (*mouse_click)(ui_view_t* v,  int32_t ix, bool pressed);
+    void (*double_click)(ui_view_t* v, int32_t ix);
+    // TODO: remove ^^^
     void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     ui_wh_t (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, va_list va);
@@ -205,10 +208,12 @@ typedef struct ui_view_if {
     void (*hover_changed)(ui_view_t* v);
     bool (*is_shortcut_key)(ui_view_t* v, int64_t key);
     bool (*context_menu)(ui_view_t* v);
-    bool (*tap)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
-    bool (*press)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
-    bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp,
-                                     int64_t* ret);
+    // preferred to mouse_click() because of possibility of touch devices
+    // `ix` 0: left 1: middle 2: right
+    bool (*tap)(ui_view_t* v, int32_t ix, bool pressed);
+    bool (*long_press)(ui_view_t* v, int32_t ix);
+    bool (*double_tap)(ui_view_t* v, int32_t ix);
+    bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp, int64_t* ret);
     void (*debug_paint_margins)(ui_view_t* v); // insets padding
     void (*debug_paint_fm)(ui_view_t* v);   // text font metrics
     void (*test)(void);

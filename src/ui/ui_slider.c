@@ -174,7 +174,8 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.text(&ta, tx, ty, "%s", text);
 }
 
-static void ui_slider_mouse_click(ui_view_t* v, bool unused(left), bool pressed) {
+static void ui_slider_mouse_click(ui_view_t* v, int32_t unused(ix),
+        bool pressed) {
     ui_slider_t* s = (ui_slider_t*)v;
     if (pressed) {
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);

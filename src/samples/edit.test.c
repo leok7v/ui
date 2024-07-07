@@ -177,6 +177,8 @@ void ui_edit_next_fuzz(ui_edit_t* e) {
 }
 
 static void ui_edit_fuzzer(void* p) {
+    (void)p; // TODO: remove
+#if 0
     ui_edit_t* e = (ui_edit_t*)p;
     for (;;) {
         while (!e->fuzz_quit && e->fuzz_count == e->fuzz_last) {
@@ -234,6 +236,7 @@ static void ui_edit_fuzzer(void* p) {
             ui_app.post(ui.message.left_button_released, 0, (int64_t)(x | (y << 16)));
         }
     }
+#endif
 }
 
 void ui_edit_fuzz(ui_edit_t* e) {

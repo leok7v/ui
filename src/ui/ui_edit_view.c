@@ -3,6 +3,7 @@
 #include "ui/ui.h"
 #include "ui/ui_edit_doc.h"
 
+// TODO: find all "== dt->np" it is wrong pn < dt->np fix them all
 // TODO: undo/redo coalescing
 // TODO: back/forward navigation
 // TODO: exit/save keyboard shortcuts?
@@ -55,7 +56,8 @@ static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
     if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
         return (ui_rect_t) { .x = 0, .y = 0, .w = e->w, .h = e->h };
     } else if (p0.y == p1.y) {
-        int32_t w = p1.x - p0.x != 0 ? p1.x - p0.x : e->caret_width;
+        int32_t w = p1.x - p0.x != 0 ?
+                p1.x - p0.x + e->fm->em.w : e->caret_width;
         return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
                              .w = w, .h = e->fm->height };
     } else {
@@ -678,23 +680,30 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
     }
 }
 
+
+
+static void ui_edit_caret_to(ui_edit_t* e, const ui_edit_pg_t to) {
+    ui_edit_scroll_into_view(e, to);
+    ui_point_t pt =  ui_edit_pg_to_xy(e, to);
+    ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
+}
+
 static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
-    ui_rect_t before = ui_edit_selection_rect(e);
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    assert(0 <= pg.pn && pg.pn < dt->np);
-    // single line edit control cannot move caret past fist paragraph
-    if (!e->sle || pg.pn < dt->np) {
-        ui_edit_scroll_into_view(e, pg);
-        ui_point_t pt = e->w > 0 ? // width == 0 means no measure/layout yet
-            ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
-        ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
-        e->selection.a[1] = pg;
-        if (!ui_app.shift && e->edit.buttons == 0) {
-            e->selection.a[0] = e->selection.a[1];
+    if (e->w > 0) { // width == 0 means no measure/layout yet
+        ui_rect_t before = ui_edit_selection_rect(e);
+        ui_edit_text_t* dt = &e->doc->text; // document text
+        assert(0 <= pg.pn && pg.pn < dt->np);
+        // single line edit control cannot move caret past fist paragraph
+        if (!e->sle || pg.pn < dt->np) {
+            e->selection.a[1] = pg;
+            ui_edit_caret_to(e, pg);
+            if (!ui_app.shift && e->edit.buttons == 0) {
+                e->selection.a[0] = e->selection.a[1];
+            }
         }
+        ui_rect_t after = ui_edit_selection_rect(e);
+        ui_edit_invalidate_rect(e, ui.combine_rect(&before, &after));
     }
-    ui_rect_t after = ui_edit_selection_rect(e);
-    ui_edit_invalidate_rect(e, ui.combine_rect(&before, &after));
 }
 
 static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
@@ -1094,41 +1103,39 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
         if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
-        if (p.pn == dt->np || glyphs == 0) {
-            // last paragraph is empty - nothing to select on fp64_t click
-        } else {
-            ui_edit_glyph_t glyph = ui_edit_glyph_at(e, p);
-            bool not_a_white_space = glyph.bytes > 0 &&
-                *glyph.s > 0x20;
-            if (!not_a_white_space && p.gp > 0) {
-                p.gp--;
-                glyph = ui_edit_glyph_at(e, p);
-                not_a_white_space = glyph.bytes > 0 &&
-                    *glyph.s > 0x20;
-            }
-            if (glyph.bytes > 0 && *glyph.s > 0x20) {
-                ui_edit_pg_t from = p;
-                while (from.gp > 0) {
-                    from.gp--;
-                    ui_edit_glyph_t g = ui_edit_glyph_at(e, from);
-                    if (g.bytes == 0 || *g.s <= 0x20) {
-                        from.gp++;
-                        break;
-                    }
+        ui_edit_glyph_t glyph = ui_edit_glyph_at(e, p);
+        bool not_a_white_space = glyph.bytes > 0 && *glyph.s > 0x20;
+        if (!not_a_white_space && p.gp > 0) {
+            p.gp--;
+            glyph = ui_edit_glyph_at(e, p);
+            not_a_white_space = glyph.bytes > 0 && *glyph.s > 0x20;
+        }
+        if (glyph.bytes > 0 && *glyph.s > 0x20) {
+            ui_edit_pg_t from = p;
+            while (from.gp > 0) {
+                from.gp--;
+                ui_edit_glyph_t g = ui_edit_glyph_at(e, from);
+                if (g.bytes == 0 || *g.s <= 0x20) {
+                    from.gp++;
+//                  traceln("left while space @%d 0x%02X", from.gp, *g.s);
+                    break;
                 }
-                e->selection.a[0] = from;
-                ui_edit_pg_t to = p;
-                while (to.gp < glyphs) {
-                    to.gp++;
-                    ui_edit_glyph_t g = ui_edit_glyph_at(e, to);
-                    if (g.bytes == 0 || *g.s <= 0x20) {
-                        break;
-                    }
-                }
-                e->selection.a[1] = to;
-                ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-                e->edit.buttons = 0;
             }
+            e->selection.a[0] = from;
+            ui_edit_pg_t to = p;
+            while (to.gp < glyphs) {
+                to.gp++;
+                ui_edit_glyph_t g = ui_edit_glyph_at(e, to);
+                if (g.bytes == 0 || *g.s <= 0x20) {
+//                  traceln("right while space @%d 0x%02X", to.gp, *g.s);
+                    break;
+                }
+            }
+            e->selection.a[1] = to;
+            ui_edit_caret_to(e, to);
+//          traceln("e->selection.a[1] = %d.%d", to.pn, to.gp);
+            ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
+            e->edit.buttons = 0;
         }
     }
 }
@@ -1138,33 +1145,23 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        if (p.pn > dt->np) { p.pn = ut_max(0, dt->np); }
+        ui_edit_range_t r = ui_edit_text.ordered(dt, &e->selection);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
-        if (p.pn == dt->np || glyphs == 0) {
-            // last paragraph is empty - nothing to select on fp64_t click
-        } else if (p.pn == e->selection.a[0].pn &&
-                ((e->selection.a[0].gp <= p.gp && p.gp <= e->selection.a[1].gp) ||
-                 (e->selection.a[1].gp <= p.gp && p.gp <= e->selection.a[0].gp))) {
-            e->selection.a[0].gp = 0;
-            e->selection.a[1].gp = 0;
-            e->selection.a[1].pn++;
+        if (p.pn == r.a[0].pn && r.a[0].pn == r.a[1].pn &&
+            r.a[0].gp <= p.gp && p.gp <= r.a[1].gp) {
+            r.a[0].gp = 0;
+            if (p.pn < dt->np - 1) {
+                r.a[1].pn = p.pn + 1;
+                r.a[1].gp = 0;
+            } else {
+                r.a[1].gp = dt->ps[p.pn].g;
+            }
+            e->selection = r;
+            ui_edit_caret_to(e, r.to);
         }
         ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
         e->edit.buttons = 0;
-    }
-}
-
-static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    if (e->selection.a[0].pn == e->selection.a[1].pn &&
-        e->selection.a[0].gp == e->selection.a[1].gp) {
-        ui_edit_select_word(e, x, y);
-    } else {
-        if (e->selection.a[0].pn == e->selection.a[1].pn &&
-               e->selection.a[0].pn <= dt->np) {
-            ui_edit_select_paragraph(e, x, y);
-        }
     }
 }
 
@@ -1176,90 +1173,58 @@ static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
         if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
+//      traceln("move_caret: %d.%d", p.pn, p.gp);
         ui_edit_move_caret(e, p);
     }
 }
 
-static void ui_edit_on_click(ui_edit_t* e, int32_t x, int32_t y) {
-    e->edit.buttons = 0;
-    ui_edit_click(e, x, y);
+static void ui_edit_mouse_button_down(ui_edit_t* e, int32_t ix) {
+    e->edit.buttons |= (1 << ix);
 }
 
-static void ui_edit_mouse_button_down(ui_edit_t* e, bool left) {
-    if (left)  { e->edit.buttons |= (1 << 0); }
-    if (!left) { e->edit.buttons |= (1 << 1); }
+static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t ix) {
+    e->edit.buttons &= ~(1 << ix);
 }
 
-static void ui_edit_mouse_button_up(ui_edit_t* e, bool left) {
-    if (left)  { e->edit.buttons &= ~(1 << 0); }
-    if (!left) { e->edit.buttons &= ~(1 << 1); }
-}
-
-#undef UI_EDIT_USE_TAP  // defining it leads to delays in caret movement
-
-#ifdef UI_EDIT_USE_TAP
-
-static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
-    if (ix == 0) {
-        ui_edit_t* e = (ui_edit_t*)v;
-        const int32_t x = ui_app.mouse.x - e->x;
-        const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
-        bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
-        if (inside) {
-            e->edit.buttons = 0x1;
-            ui_edit_click(e, x, y);
-            e->edit.buttons = 0x0;
-        }
-        return inside;
-    } else {
-        return false; // do NOT consume event
-    }
-}
-
-#endif // UI_EDIT_USE_TAP
-
-static bool ui_edit_press(ui_view_t* v, int32_t ix) {
-    if (ix == 0) {
-        ui_edit_t* e = (ui_edit_t*)v;
-        const int32_t x = ui_app.mouse.x - e->x;
-        const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
-        bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
-        if (inside) {
-            e->edit.buttons = 0x1;
-            ui_edit_click(e, x, y);
-            ui_edit_double_click(e, x, y);
-            e->edit.buttons = 0x0;
-        }
-        return inside;
-    } else {
-        return false; // do NOT consume event
-    }
-}
-
-static void ui_edit_mouse_click(ui_view_t* v, bool left, bool pressed) {
+static bool ui_edit_tap(ui_view_t* v, int32_t unused(ix), bool pressed) {
+    // `ix` ignored for now till context menu (copy/paste/select...)
     ui_edit_t* e = (ui_edit_t*)v;
-    (void)left; // ignored for now no context menu (copy/paste/select...)
+    assert(ui_view.inside(v, &ui_app.mouse));
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
     if (inside) {
         if (pressed) {
-            ui_edit_mouse_button_down(e, left);
-            ui_edit_on_click(e, x, y);
+            e->edit.buttons = 0;
+            ui_edit_click(e, x, y);
+            ui_edit_mouse_button_down(e, ix);
         } else if (!pressed) {
-            ui_edit_mouse_button_up(e, left);
+            ui_edit_mouse_button_up(e, ix);
         }
     }
+    return true;
 }
 
-static void ui_edit_mouse_double_click(ui_view_t* v, bool unused(left)) {
+static bool ui_edit_long_press(ui_view_t* v, int32_t unused(ix)) {
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
-    if (inside) {
-        ui_edit_double_click(e, x, y);
+    if (inside && ui_edit_range.is_empty(e->selection)) {
+        ui_edit_select_word(e, x, y);
     }
+    return true;
+}
+
+static bool ui_edit_double_tap(ui_view_t* v, int32_t unused(ix)) {
+    ui_edit_t* e = (ui_edit_t*)v;
+    const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
+    const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
+    bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
+    if (inside && e->selection.a[0].pn == e->selection.a[1].pn) {
+        ui_edit_select_paragraph(e, x, y);
+    }
+    return false;
 }
 
 static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
@@ -1724,22 +1689,18 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->focused   = false;
     e->sle       = false;
     e->ro        = false;
-    e->caret           = (ui_point_t){-1, -1};
-    e->paint           = ui_edit_paint;
-    e->measure         = ui_edit_measure;
-    e->layout          = ui_edit_layout;
-    e->press           = ui_edit_press;
-    e->character       = ui_edit_character;
-    e->focus_gained    = ui_edit_focus_gained;
-    e->focus_lost      = ui_edit_focus_lost;
-    e->key_pressed     = ui_edit_key_pressed;
-    e->mouse_scroll    = ui_edit_mouse_scroll;
-    #ifdef UI_EDIT_USE_TAP
-        e->tap         = ui_edit_tap;
-    #else
-        e->mouse_click  = ui_edit_mouse_click;
-        e->double_click = ui_edit_mouse_double_click;
-    #endif
+    e->caret        = (ui_point_t){-1, -1};
+    e->paint        = ui_edit_paint;
+    e->measure      = ui_edit_measure;
+    e->layout       = ui_edit_layout;
+    e->tap          = ui_edit_tap;
+    e->long_press   = ui_edit_long_press;
+    e->double_tap   = ui_edit_double_tap;
+    e->character    = ui_edit_character;
+    e->focus_gained = ui_edit_focus_gained;
+    e->focus_lost   = ui_edit_focus_lost;
+    e->key_pressed  = ui_edit_key_pressed;
+    e->mouse_scroll = ui_edit_mouse_scroll;
     ui_edit_allocate_runs(e);
     if (e->debug.id == null) { e->debug.id = "#edit"; }
 }

@@ -103,8 +103,9 @@ typedef struct {
     bool shift;
     // mouse buttons state
     bool mouse_swapped;
-    bool mouse_left;  // left or if buttons are swapped - right button pressed
-    bool mouse_right; // context button pressed
+    bool mouse_left;   // left or if buttons are swapped - right button pressed
+    bool mouse_middle; // rarely useful
+    bool mouse_right;  // context button pressed
     ui_point_t mouse; // mouse/touchpad pointer
     ui_canvas_t canvas;  // set by message.paint
     struct { // animation state

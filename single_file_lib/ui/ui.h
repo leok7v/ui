@@ -218,24 +218,20 @@ typedef struct ui_s {
     } const visibility;
     // TODO: remove or move inside app
     struct { // message:
-        int32_t const character; // translated from key pressed/released to utf8
-        int32_t const key_pressed;
-        int32_t const key_released;
-        int32_t const left_button_pressed;
-        int32_t const left_button_released;
-        int32_t const right_button_pressed;
-        int32_t const right_button_released;
-        int32_t const mouse_move;
-        int32_t const mouse_hover;
-        int32_t const left_double_click;
-        int32_t const right_double_click;
+//      int32_t const character; // translated from key pressed/released to utf8
+//      int32_t const key_pressed;
+//      int32_t const key_released;
+//      int32_t const left_button_pressed;
+//      int32_t const left_button_released;
+//      int32_t const right_button_pressed;
+//      int32_t const right_button_released;
+//      int32_t const mouse_move;
+//      int32_t const mouse_hover;
+//      int32_t const left_double_click;
+//      int32_t const right_double_click;
         int32_t const animate;
         int32_t const opening;
         int32_t const closing;
-        // wp: 0,1,2 (left, middle, right) button index, lp: client x,y
-        int32_t const tap;
-        int32_t const dtap;
-        int32_t const press;
    } const message;
    // TODO: remove or move inside app
    struct { // mouse buttons bitset mask
@@ -856,15 +852,16 @@ typedef struct ui_view_s {
     void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     void (*mouse_hover)(ui_view_t* v); // hover over
     void (*mouse_move)(ui_view_t* v);
-    void (*mouse_click)(ui_view_t* v, bool left, bool pressed);
-    void (*double_click)(ui_view_t* v, bool left);
+    void (*mouse_click)(ui_view_t* v,  int32_t ix, bool pressed);
+    void (*double_click)(ui_view_t* v, int32_t ix);
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
     // return true if consumed (halts further calls up the tree)
-    bool (*tap)(ui_view_t* v, int32_t ix);   // single click/tap inside ui
-    bool (*press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
-    void (*context_menu)(ui_view_t* v); // right mouse click or long press
+    bool (*tap)(ui_view_t* v, int32_t ix, bool pressed); // single click/tap inside ui
+    bool (*long_press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
+    bool (*double_tap)(ui_view_t* v, int32_t ix); // legacy double click
+    bool (*context_menu)(ui_view_t* v); // right mouse click or long press
     void (*focus_gained)(ui_view_t* v);
     void (*focus_lost)(ui_view_t* v);
     // translated from key pressed/released to utf8:
@@ -957,8 +954,10 @@ typedef struct ui_view_if {
     void (*hovering)(ui_view_t* v, bool start);
     void (*mouse_hover)(ui_view_t* v); // hover over
     void (*mouse_move)(ui_view_t* v);
-    void (*mouse_click)(ui_view_t* v, bool left, bool pressed);
-    void (*double_click)(ui_view_t* v, bool left);
+    // TODO: remove
+    void (*mouse_click)(ui_view_t* v,  int32_t ix, bool pressed);
+    void (*double_click)(ui_view_t* v, int32_t ix);
+    // TODO: remove ^^^
     void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     ui_wh_t (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, va_list va);
@@ -977,10 +976,12 @@ typedef struct ui_view_if {
     void (*hover_changed)(ui_view_t* v);
     bool (*is_shortcut_key)(ui_view_t* v, int64_t key);
     bool (*context_menu)(ui_view_t* v);
-    bool (*tap)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
-    bool (*press)(ui_view_t* v, int32_t ix); // 0: left 1: middle 2: right
-    bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp,
-                                     int64_t* ret);
+    // preferred to mouse_click() because of possibility of touch devices
+    // `ix` 0: left 1: middle 2: right
+    bool (*tap)(ui_view_t* v, int32_t ix, bool pressed);
+    bool (*long_press)(ui_view_t* v, int32_t ix);
+    bool (*double_tap)(ui_view_t* v, int32_t ix);
+    bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp, int64_t* ret);
     void (*debug_paint_margins)(ui_view_t* v); // insets padding
     void (*debug_paint_fm)(ui_view_t* v);   // text font metrics
     void (*test)(void);
@@ -1977,8 +1978,9 @@ typedef struct {
     bool shift;
     // mouse buttons state
     bool mouse_swapped;
-    bool mouse_left;  // left or if buttons are swapped - right button pressed
-    bool mouse_right; // context button pressed
+    bool mouse_left;   // left or if buttons are swapped - right button pressed
+    bool mouse_middle; // rarely useful
+    bool mouse_right;  // context button pressed
     ui_point_t mouse; // mouse/touchpad pointer
     ui_canvas_t canvas;  // set by message.paint
     struct { // animation state
@@ -2126,7 +2128,7 @@ end_c
 #define ui_app_window() ((HWND)ui_app.window)
 #define ui_app_canvas() ((HDC)ui_app.canvas)
 
-enum { ui_long_press_msec = 250 };
+static WNDCLASSA ui_app_wc; // window class
 
 static NONCLIENTMETRICSW ui_app_ncm = { sizeof(NONCLIENTMETRICSW) };
 static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
@@ -2699,33 +2701,46 @@ static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
 static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
     // override ui_app_update_mouse_buttons_state() (sic):
     // because mouse message can be from the past
-    ui_app.mouse_left  = f & (ui_app.mouse_swapped ? MK_RBUTTON : MK_LBUTTON);
-    ui_app.mouse_right = f & (ui_app.mouse_swapped ? MK_LBUTTON : MK_RBUTTON);
+    ui_app.mouse_left   = f & (ui_app.mouse_swapped ? MK_RBUTTON : MK_LBUTTON);
+    ui_app.mouse_middle = f & MK_MBUTTON;
+    ui_app.mouse_right  = f & (ui_app.mouse_swapped ? MK_LBUTTON : MK_RBUTTON);
     ui_view_t* av = ui_app.animating.view;
-    if (m == ui.message.mouse_hover) {
+    if (m == WM_MOUSEHOVER) {
         ui_view.mouse_hover(av != null && av->mouse_hover != null ? av : v);
-    } else if (m == ui.message.mouse_move) {
+    } else if (m == WM_MOUSEMOVE) {
         ui_view.mouse_move(av != null && av->mouse_move != null ? av : v);
-    } else if (m == ui.message.left_button_pressed  ||
-               m == ui.message.left_button_released ||
-               m == ui.message.right_button_pressed ||
-               m == ui.message.right_button_released) {
-        const bool left =
-            m == ui.message.left_button_pressed  ||
-            m == ui.message.left_button_released;
+    } else if (m == WM_LBUTTONDOWN  ||
+               m == WM_LBUTTONUP    ||
+               m == WM_MBUTTONDOWN  ||
+               m == WM_MBUTTONUP    ||
+               m == WM_RBUTTONDOWN  ||
+               m == WM_RBUTTONUP) {
+        const int i =
+             (m == WM_LBUTTONDOWN || m == WM_LBUTTONUP) ? 0 :
+            ((m == WM_MBUTTONDOWN || m == WM_MBUTTONUP) ? 1 :
+            ((m == WM_RBUTTONDOWN || m == WM_RBUTTONUP) ? 2 : -1));
+        swear(i >= 0);
+        const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
         const bool pressed =
-            m == ui.message.left_button_pressed ||
-            m == ui.message.right_button_pressed;
+            m == WM_LBUTTONDOWN ||
+            m == WM_MBUTTONDOWN ||
+            m == WM_RBUTTONDOWN;
         if (av != null) {
             // because of "micro" close button:
-            ui_app_toast_mouse_click(ui_app.animating.view, left, pressed);
+            ui_app_toast_mouse_click(ui_app.animating.view, ix, pressed);
         } else {
-            ui_view.mouse_click(v, left, pressed);
+            ui_view.mouse_click(v, ix, pressed);
         }
-    } else if (m == ui.message.left_double_click ||
-               m == ui.message.right_double_click) {
-        ui_view.double_click(av != null && av->double_click != null ? av : v,
-            m == ui.message.left_double_click);
+    } else if (m == WM_LBUTTONDBLCLK ||
+               m == WM_MBUTTONDBLCLK ||
+               m == WM_RBUTTONDBLCLK) {
+        const int i =
+             (m == WM_LBUTTONDBLCLK) ? 0 :
+            ((m == WM_MBUTTONDBLCLK) ? 1 :
+            ((m == WM_RBUTTONDBLCLK) ? 2 : -1));
+        swear(i >= 0);
+        const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
+        ui_view.double_click(av != null && av->double_click != null ? av : v, ix);
     } else {
         assert(false, "m: 0x%04X", m);
     }
@@ -2751,12 +2766,12 @@ static int32_t ui_app_nc_mouse_message(int32_t m) {
         case WM_NCLBUTTONDOWN   : return WM_LBUTTONDOWN;
         case WM_NCLBUTTONUP     : return WM_LBUTTONUP;
         case WM_NCLBUTTONDBLCLK : return WM_LBUTTONDBLCLK;
-        case WM_NCRBUTTONDOWN   : return WM_RBUTTONDOWN;
-        case WM_NCRBUTTONUP     : return WM_RBUTTONUP;
-        case WM_NCRBUTTONDBLCLK : return WM_RBUTTONDBLCLK;
         case WM_NCMBUTTONDOWN   : return WM_MBUTTONDOWN;
         case WM_NCMBUTTONUP     : return WM_MBUTTONUP;
         case WM_NCMBUTTONDBLCLK : return WM_MBUTTONDBLCLK;
+        case WM_NCRBUTTONDOWN   : return WM_RBUTTONDOWN;
+        case WM_NCRBUTTONUP     : return WM_RBUTTONUP;
+        case WM_NCRBUTTONDBLCLK : return WM_RBUTTONDBLCLK;
         default: swear(false, "fix me m: %d", m);
     }
     return -1;
@@ -2776,26 +2791,6 @@ static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
         }
     } else {
         ui_app_mouse(ui_app.root, ui_app_nc_mouse_message(m), wp);
-    }
-}
-
-static void ui_app_tap_press(int32_t m, int64_t wp, int64_t lp) {
-    ui_app.mouse = (ui_point_t){ GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
-//  TODO: play with it and determine if generic tap message is needed
-//  dispatch as generic mouse message:
-//  ui_app_mouse(ui_app.root, m, wp);
-    int32_t ix = (int32_t)wp;
-    assert(0 <= ix && ix <= 2);
-    // for now long press and fp64_t tap/fp64_t click
-    // treated as press() call - can be separated if desired:
-    if (m == ui.message.tap) {
-        ui_view.tap(ui_app.root, ix);
-    } else if (m == ui.message.dtap) {
-        ui_view.press(ui_app.root, ix);
-    } else if (m == ui.message.press) {
-        ui_view.press(ui_app.root, ix);
-    } else {
-        assert(false, "unexpected message: 0x%04X", m);
     }
 }
 
@@ -3132,27 +3127,28 @@ static void ui_app_show_task_bar(bool show) {
 }
 
 static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
+    enum { tap = 1, long_press = 2, double_tap = 3 };
     // TODO: click detector does not handle WM_NCLBUTTONDOWN, ...
     //       it can be modified to do so if needed
     #pragma push_macro("ui_set_timer")
     #pragma push_macro("ui_kill_timer")
-    #pragma push_macro("ui_done")
+    #pragma push_macro("ui_timers_done")
 
-    #define ui_set_timer(t, ms) do {                \
-        assert(t == 0);                             \
-        t = ui_app_timer_set((uintptr_t)&t, ms);    \
+    #define ui_set_timer(t, ms) do {                 \
+        assert(t == 0);                              \
+        t = ui_app_timer_set((uintptr_t)&t, ms);     \
     } while (0)
 
     #define ui_kill_timer(t) do {                    \
         if (t != 0) { ui_app_timer_kill(t); t = 0; } \
     } while (0)
 
-    #define ui_done(ix) do {                        \
-        clicked[ix] = 0;                            \
-        pressed[ix] = false;                        \
-        click_at[ix] = (ui_point_t){0, 0};          \
-        ui_kill_timer(timer_p[ix]);                 \
-        ui_kill_timer(timer_d[ix]);                 \
+    #define ui_timers_done(ix) do {                  \
+        clicked[ix] = 0;                             \
+        pressed[ix] = false;                         \
+        click_at[ix] = (ui_point_t){0, 0};           \
+        ui_kill_timer(timer_p[ix]);                  \
+        ui_kill_timer(timer_d[ix]);                  \
     } while (0)
 
     // This function should work regardless to CS_BLKCLK being present
@@ -3164,65 +3160,75 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     static ui_timer_t timer_p[3]; // long press
     bool up = false;
     int32_t ix = -1;
-    uint32_t m = 0;
+    int32_t m = 0;
     switch (msg) {
-        case WM_LBUTTONDOWN  : ix = 0; m = (uint32_t)ui.message.tap;  break;
-        case WM_MBUTTONDOWN  : ix = 1; m = (uint32_t)ui.message.tap;  break;
-        case WM_RBUTTONDOWN  : ix = 2; m = (uint32_t)ui.message.tap;  break;
-        case WM_LBUTTONDBLCLK: ix = 0; m = (uint32_t)ui.message.dtap; break;
-        case WM_MBUTTONDBLCLK: ix = 1; m = (uint32_t)ui.message.dtap; break;
-        case WM_RBUTTONDBLCLK: ix = 2; m = (uint32_t)ui.message.dtap; break;
-        case WM_LBUTTONUP    : ix = 0; up = true; break;
-        case WM_MBUTTONUP    : ix = 1; up = true; break;
-        case WM_RBUTTONUP    : ix = 2; up = true; break;
+        case WM_LBUTTONDOWN  : ix = 0; m = tap;        break;
+        case WM_MBUTTONDOWN  : ix = 1; m = tap;        break;
+        case WM_RBUTTONDOWN  : ix = 2; m = tap;        break;
+        case WM_LBUTTONDBLCLK: ix = 0; m = double_tap; break;
+        case WM_MBUTTONDBLCLK: ix = 1; m = double_tap; break;
+        case WM_RBUTTONDBLCLK: ix = 2; m = double_tap; break;
+        case WM_LBUTTONUP    : ix = 0; m = tap; up = true; break;
+        case WM_MBUTTONUP    : ix = 1; m = tap; up = true; break;
+        case WM_RBUTTONUP    : ix = 2; m = tap; up = true; break;
     }
-    if (msg == WM_TIMER) { // long press && dtap
+    if (msg == WM_TIMER) { // long press && double tap
         for (int i = 0; i < 3; i++) {
             if (wp == timer_p[i]) {
-                lp = MAKELONG(click_at[i].x, click_at[i].y);
-                ui_app_post_message(ui.message.press, i, lp);
-                ui_done(i);
+                ui_app.mouse = (ui_point_t){ click_at[i].x, click_at[i].y };
+                ui_view.long_press(ui_app.root, i);
+                ui_timers_done(i);
             }
             if (wp == timer_d[i]) {
-                lp = MAKELONG(click_at[i].x, click_at[i].y);
-                ui_app_post_message(ui.message.tap, i, lp);
-                ui_done(i);
+                ui_timers_done(i);
             }
         }
     }
     if (ix != -1) {
-        const int32_t dtap_msec = (int32_t)GetDoubleClickTime();
-        const fp64_t double_click_dt = dtap_msec / 1000.0;
+        const int32_t double_click_msec = (int32_t)GetDoubleClickTime();
+        const fp64_t  double_click_dt = double_click_msec / 1000.0; // seconds
+//      traceln("double_click_msec: %d double_click_dt: %.3fs",
+//               double_click_msec, double_click_dt);
         const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
         ui_point_t pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
-        if ((int32_t)m == ui.message.tap) {
+        if (m == tap && !up) {
+            ui_view.tap(ui_app.root, ix, !up);
             if (ui_app.now  - clicked[ix]  <= double_click_dt &&
                 abs(pt.x - click_at[ix].x) <= double_click_x &&
                 abs(pt.y - click_at[ix].y) <= double_click_y) {
-                ui_app_post_message(ui.message.dtap, ix, lp);
-                ui_done(ix);
+                ui_app.mouse = (ui_point_t){ click_at[ix].x, click_at[ix].y };
+                ui_view.double_tap(ui_app.root, ix);
+                ui_timers_done(ix);
             } else {
-                ui_done(ix); // clear timers
+                ui_timers_done(ix); // clear timers
                 clicked[ix]  = ui_app.now;
                 click_at[ix] = pt;
                 pressed[ix]  = true;
-                ui_set_timer(timer_p[ix], ui_long_press_msec); // 0.25s
-                ui_set_timer(timer_d[ix], dtap_msec); // 0.5s
+                if ((ui_app_wc.style & CS_DBLCLKS) == 0) {
+                    // only if Windows are not detecting DLBCLKs
+                    ui_set_timer(timer_d[ix], double_click_msec);  // 0.5s
+                }
+                ui_set_timer(timer_p[ix], double_click_msec * 3 / 4); // 0.375s
             }
         } else if (up) {
-//          traceln("pressed[%d]: %d %.3f", ix, pressed[ix], ui_app.now - clicked[ix]);
-            if (pressed[ix] && ui_app.now - clicked[ix] > double_click_dt) {
-                ui_app_post_message(ui.message.dtap, ix, lp);
-                ui_done(ix);
+            fp64_t since_clicked = ui_app.now - clicked[ix];
+//          traceln("pressed[%d]: %d %.3f", ix, pressed[ix], since_clicked);
+            ui_view.tap(ui_app.root, ix, !up);
+            // only if Windows are not detecting DLBCLKs
+            if ((ui_app_wc.style & CS_DBLCLKS) == 0 &&
+                 pressed[ix] && since_clicked > double_click_dt) {
+                ui_view.double_tap(ui_app.root, ix);
+                ui_timers_done(ix);
             }
-            ui_kill_timer(timer_p[ix]); // long press is no the case
-        } else if ((int32_t)m == ui.message.dtap) {
-            ui_app_post_message(ui.message.dtap, ix, lp);
-            ui_done(ix);
+            ui_kill_timer(timer_p[ix]); // long press is not the case
+        } else if (m == double_tap) {
+            assert((ui_app_wc.style & CS_DBLCLKS) != 0);
+            ui_view.double_tap(ui_app.root, ix);
+            ui_timers_done(ix);
         }
     }
-    #pragma pop_macro("ui_done")
+    #pragma pop_macro("ui_timers_done")
     #pragma pop_macro("ui_kill_timer")
     #pragma pop_macro("ui_set_timer")
 }
@@ -3420,7 +3426,7 @@ static void ui_app_wm_window_position_changing(int64_t wp, int64_t lp) {
     #endif
 }
 
-static void ui_app_wm_mouse_clicks(int32_t m, int64_t wp, int64_t lp) {
+static void ui_app_wm_mouse(int32_t m, int64_t wp, int64_t lp) {
     // note: x, y is already in client coordinates
     ui_app.mouse.x = GET_X_LPARAM(lp);
     ui_app.mouse.y = GET_Y_LPARAM(lp);
@@ -3457,10 +3463,6 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     }
     if (m == ui.message.opening) { ui_app_window_opening(); return 0; }
     if (m == ui.message.closing) { ui_app_window_closing(); return 0; }
-    if (m == ui.message.tap || m == ui.message.dtap || m == ui.message.press) {
-        ui_app_tap_press(m, wp, lp);
-        return 0;
-    }
     if (m == ui.message.animate) {
         ui_app_animate_step((ui_app_animate_function_t)lp, (int32_t)wp, -1);
         return 0;
@@ -3549,9 +3551,14 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_LBUTTONDOWN     : case WM_RBUTTONDOWN  : case WM_MBUTTONDOWN  :
         case WM_LBUTTONUP       : case WM_RBUTTONUP    : case WM_MBUTTONUP    :
         case WM_LBUTTONDBLCLK   : case WM_RBUTTONDBLCLK: case WM_MBUTTONDBLCLK:
+//          if (m == WM_LBUTTONDOWN)   { traceln("WM_LBUTTONDOWN"); }
+//          if (m == WM_LBUTTONUP)     { traceln("WM_LBUTTONUP"); }
+//          if (m == WM_LBUTTONDBLCLK) { traceln("WM_LBUTTONDBLCLK"); }
+            ui_app_wm_mouse(m, wp, lp);
+            break; // drop to DefWindowProc()
         case WM_MOUSEHOVER      :
         case WM_MOUSEMOVE       :
-            ui_app_wm_mouse_clicks(m, wp, lp);
+            ui_app_wm_mouse(m, wp, lp);
             break; // drop to DefWindowProc()
         case WM_MOUSEWHEEL   :
             ui_app_wm_mouse_wheel(true, wp);
@@ -3702,22 +3709,24 @@ static void ui_app_init_sys_menu(void) {
 }
 
 static void ui_app_create_window(const ui_rect_t r) {
-    WNDCLASSA wc = { 0 };
-    wc.style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_SAVEBITS | CS_DBLCLKS;
-    wc.lpfnWndProc = ui_app_window_proc;
-    wc.cbClsExtra = 0;
-    wc.cbWndExtra = 256 * 1024;
-    wc.hInstance = GetModuleHandleA(null);
-    wc.hIcon = (HICON)ui_app.icon;
-    wc.hCursor = (HCURSOR)ui_app.cursor;
-    wc.hbrBackground = null;
-    wc.lpszMenuName = null;
-    wc.lpszClassName = ui_app.class_name;
-    ATOM atom = RegisterClassA(&wc);
+    WNDCLASSA* wc = &ui_app_wc;
+    // CS_DBLCLKS no longer needed. Because code detects long-press
+    // it does double click too. Editor uses both for word and paragraph select.
+    wc->style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_SAVEBITS;
+    wc->lpfnWndProc = ui_app_window_proc;
+    wc->cbClsExtra = 0;
+    wc->cbWndExtra = 256 * 1024;
+    wc->hInstance = GetModuleHandleA(null);
+    wc->hIcon = (HICON)ui_app.icon;
+    wc->hCursor = (HCURSOR)ui_app.cursor;
+    wc->hbrBackground = null;
+    wc->lpszMenuName = null;
+    wc->lpszClassName = ui_app.class_name;
+    ATOM atom = RegisterClassA(wc);
     ut_fatal_if(atom == 0);
     HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
         ui_app.class_name, ui_app.title, ui_app_window_style(),
-        r.x, r.y, r.w, r.h, null, null, wc.hInstance, null);
+        r.x, r.y, r.w, r.h, null, null, wc->hInstance, null);
     ut_not_null(ui_app.window);
     swear(window == ui_app_window());
     ui_app.show_window(ui.visibility.hide);
@@ -4828,20 +4837,19 @@ static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_button_mouse_click(ui_view_t* v, bool left, bool pressed) {
+static void ui_button_mouse_click(ui_view_t* v, int32_t ix, bool pressed) {
     ui_button_t* b = (ui_button_t*)v;
     const bool inside = ui_view.inside(b, &ui_app.mouse);
-    if (inside) { // buttons do hear nearby other controls click by design
-        (void)left; // ignored - button acts on any left or right mouse click
-        ui_view.invalidate(v, null); // always on any press/release inside
-        if (pressed && b->flip) {
-            if (b->flip) { ui_button_callback(b); }
-        } else if (pressed) {
-            if (!v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
-            v->state.armed = true;
-        } else { // released
-            if (!b->flip) { ui_button_callback(b); }
-        }
+    assert(inside);
+    (void)ix; // ignored - button index acts on any mouse button
+    ui_view.invalidate(v, null); // always on any press/release inside
+    if (pressed && b->flip) {
+        if (b->flip) { ui_button_callback(b); }
+    } else if (pressed) {
+        if (!v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
+        v->state.armed = true;
+    } else { // released
+        if (!b->flip) { ui_button_callback(b); }
     }
 }
 
@@ -6198,23 +6206,21 @@ ui_if ui = {
         .force_min = SW_FORCEMINIMIZE
     },
     .message = {
-        .character             = WM_CHAR,
-        .key_pressed           = WM_KEYDOWN,
-        .key_released          = WM_KEYUP,
-        .left_button_pressed   = WM_LBUTTONDOWN,
-        .left_button_released  = WM_LBUTTONUP,
-        .right_button_pressed  = WM_RBUTTONDOWN,
-        .right_button_released = WM_RBUTTONUP,
-        .mouse_move            = WM_MOUSEMOVE,
-        .mouse_hover           = WM_MOUSEHOVER,
-        .left_double_click     = WM_LBUTTONDBLCLK,
-        .right_double_click    = WM_RBUTTONDBLCLK,
+//  TODO: remove
+//      .character             = WM_CHAR,
+//      .key_pressed           = WM_KEYDOWN,
+//      .key_released          = WM_KEYUP,
+//      .left_button_pressed   = WM_LBUTTONDOWN,
+//      .left_button_released  = WM_LBUTTONUP,
+//      .right_button_pressed  = WM_RBUTTONDOWN,
+//      .right_button_released = WM_RBUTTONUP,
+//      .mouse_move            = WM_MOUSEMOVE,
+//      .mouse_hover           = WM_MOUSEHOVER,
+//      .left_double_click     = WM_LBUTTONDBLCLK,
+//      .right_double_click    = WM_RBUTTONDBLCLK,
         .animate               = UI_WM_ANIMATE,
         .opening               = UI_WM_OPENING,
-        .closing               = UI_WM_CLOSING,
-        .tap                   = UI_WM_TAP,
-        .dtap                  = UI_WM_DTAP,
-        .press                 = UI_WM_PRESS
+        .closing               = UI_WM_CLOSING
     },
     .mouse = {
         .button = {
@@ -8367,6 +8373,7 @@ ui_edit_doc_if ui_edit_doc = {
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 
+// TODO: find all "== dt->np" it is wrong pn < dt->np fix them all
 // TODO: undo/redo coalescing
 // TODO: back/forward navigation
 // TODO: exit/save keyboard shortcuts?
@@ -8419,7 +8426,8 @@ static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
     if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
         return (ui_rect_t) { .x = 0, .y = 0, .w = e->w, .h = e->h };
     } else if (p0.y == p1.y) {
-        int32_t w = p1.x - p0.x != 0 ? p1.x - p0.x : e->caret_width;
+        int32_t w = p1.x - p0.x != 0 ?
+                p1.x - p0.x + e->fm->em.w : e->caret_width;
         return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
                              .w = w, .h = e->fm->height };
     } else {
@@ -9042,23 +9050,30 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
     }
 }
 
+
+
+static void ui_edit_caret_to(ui_edit_t* e, const ui_edit_pg_t to) {
+    ui_edit_scroll_into_view(e, to);
+    ui_point_t pt =  ui_edit_pg_to_xy(e, to);
+    ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
+}
+
 static void ui_edit_move_caret(ui_edit_t* e, const ui_edit_pg_t pg) {
-    ui_rect_t before = ui_edit_selection_rect(e);
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    assert(0 <= pg.pn && pg.pn < dt->np);
-    // single line edit control cannot move caret past fist paragraph
-    if (!e->sle || pg.pn < dt->np) {
-        ui_edit_scroll_into_view(e, pg);
-        ui_point_t pt = e->w > 0 ? // width == 0 means no measure/layout yet
-            ui_edit_pg_to_xy(e, pg) : (ui_point_t){0, 0};
-        ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
-        e->selection.a[1] = pg;
-        if (!ui_app.shift && e->edit.buttons == 0) {
-            e->selection.a[0] = e->selection.a[1];
+    if (e->w > 0) { // width == 0 means no measure/layout yet
+        ui_rect_t before = ui_edit_selection_rect(e);
+        ui_edit_text_t* dt = &e->doc->text; // document text
+        assert(0 <= pg.pn && pg.pn < dt->np);
+        // single line edit control cannot move caret past fist paragraph
+        if (!e->sle || pg.pn < dt->np) {
+            e->selection.a[1] = pg;
+            ui_edit_caret_to(e, pg);
+            if (!ui_app.shift && e->edit.buttons == 0) {
+                e->selection.a[0] = e->selection.a[1];
+            }
         }
+        ui_rect_t after = ui_edit_selection_rect(e);
+        ui_edit_invalidate_rect(e, ui.combine_rect(&before, &after));
     }
-    ui_rect_t after = ui_edit_selection_rect(e);
-    ui_edit_invalidate_rect(e, ui.combine_rect(&before, &after));
 }
 
 static ui_edit_pg_t ui_edit_insert_inline(ui_edit_t* e, ui_edit_pg_t pg,
@@ -9458,41 +9473,39 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
         if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
-        if (p.pn == dt->np || glyphs == 0) {
-            // last paragraph is empty - nothing to select on fp64_t click
-        } else {
-            ui_edit_glyph_t glyph = ui_edit_glyph_at(e, p);
-            bool not_a_white_space = glyph.bytes > 0 &&
-                *glyph.s > 0x20;
-            if (!not_a_white_space && p.gp > 0) {
-                p.gp--;
-                glyph = ui_edit_glyph_at(e, p);
-                not_a_white_space = glyph.bytes > 0 &&
-                    *glyph.s > 0x20;
-            }
-            if (glyph.bytes > 0 && *glyph.s > 0x20) {
-                ui_edit_pg_t from = p;
-                while (from.gp > 0) {
-                    from.gp--;
-                    ui_edit_glyph_t g = ui_edit_glyph_at(e, from);
-                    if (g.bytes == 0 || *g.s <= 0x20) {
-                        from.gp++;
-                        break;
-                    }
+        ui_edit_glyph_t glyph = ui_edit_glyph_at(e, p);
+        bool not_a_white_space = glyph.bytes > 0 && *glyph.s > 0x20;
+        if (!not_a_white_space && p.gp > 0) {
+            p.gp--;
+            glyph = ui_edit_glyph_at(e, p);
+            not_a_white_space = glyph.bytes > 0 && *glyph.s > 0x20;
+        }
+        if (glyph.bytes > 0 && *glyph.s > 0x20) {
+            ui_edit_pg_t from = p;
+            while (from.gp > 0) {
+                from.gp--;
+                ui_edit_glyph_t g = ui_edit_glyph_at(e, from);
+                if (g.bytes == 0 || *g.s <= 0x20) {
+                    from.gp++;
+//                  traceln("left while space @%d 0x%02X", from.gp, *g.s);
+                    break;
                 }
-                e->selection.a[0] = from;
-                ui_edit_pg_t to = p;
-                while (to.gp < glyphs) {
-                    to.gp++;
-                    ui_edit_glyph_t g = ui_edit_glyph_at(e, to);
-                    if (g.bytes == 0 || *g.s <= 0x20) {
-                        break;
-                    }
-                }
-                e->selection.a[1] = to;
-                ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-                e->edit.buttons = 0;
             }
+            e->selection.a[0] = from;
+            ui_edit_pg_t to = p;
+            while (to.gp < glyphs) {
+                to.gp++;
+                ui_edit_glyph_t g = ui_edit_glyph_at(e, to);
+                if (g.bytes == 0 || *g.s <= 0x20) {
+//                  traceln("right while space @%d 0x%02X", to.gp, *g.s);
+                    break;
+                }
+            }
+            e->selection.a[1] = to;
+            ui_edit_caret_to(e, to);
+//          traceln("e->selection.a[1] = %d.%d", to.pn, to.gp);
+            ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
+            e->edit.buttons = 0;
         }
     }
 }
@@ -9502,33 +9515,23 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        if (p.pn > dt->np) { p.pn = ut_max(0, dt->np); }
+        ui_edit_range_t r = ui_edit_text.ordered(dt, &e->selection);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
-        if (p.pn == dt->np || glyphs == 0) {
-            // last paragraph is empty - nothing to select on fp64_t click
-        } else if (p.pn == e->selection.a[0].pn &&
-                ((e->selection.a[0].gp <= p.gp && p.gp <= e->selection.a[1].gp) ||
-                 (e->selection.a[1].gp <= p.gp && p.gp <= e->selection.a[0].gp))) {
-            e->selection.a[0].gp = 0;
-            e->selection.a[1].gp = 0;
-            e->selection.a[1].pn++;
+        if (p.pn == r.a[0].pn && r.a[0].pn == r.a[1].pn &&
+            r.a[0].gp <= p.gp && p.gp <= r.a[1].gp) {
+            r.a[0].gp = 0;
+            if (p.pn < dt->np - 1) {
+                r.a[1].pn = p.pn + 1;
+                r.a[1].gp = 0;
+            } else {
+                r.a[1].gp = dt->ps[p.pn].g;
+            }
+            e->selection = r;
+            ui_edit_caret_to(e, r.to);
         }
         ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
         e->edit.buttons = 0;
-    }
-}
-
-static void ui_edit_double_click(ui_edit_t* e, int32_t x, int32_t y) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    if (e->selection.a[0].pn == e->selection.a[1].pn &&
-        e->selection.a[0].gp == e->selection.a[1].gp) {
-        ui_edit_select_word(e, x, y);
-    } else {
-        if (e->selection.a[0].pn == e->selection.a[1].pn &&
-               e->selection.a[0].pn <= dt->np) {
-            ui_edit_select_paragraph(e, x, y);
-        }
     }
 }
 
@@ -9540,90 +9543,58 @@ static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
         if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
+//      traceln("move_caret: %d.%d", p.pn, p.gp);
         ui_edit_move_caret(e, p);
     }
 }
 
-static void ui_edit_on_click(ui_edit_t* e, int32_t x, int32_t y) {
-    e->edit.buttons = 0;
-    ui_edit_click(e, x, y);
+static void ui_edit_mouse_button_down(ui_edit_t* e, int32_t ix) {
+    e->edit.buttons |= (1 << ix);
 }
 
-static void ui_edit_mouse_button_down(ui_edit_t* e, bool left) {
-    if (left)  { e->edit.buttons |= (1 << 0); }
-    if (!left) { e->edit.buttons |= (1 << 1); }
+static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t ix) {
+    e->edit.buttons &= ~(1 << ix);
 }
 
-static void ui_edit_mouse_button_up(ui_edit_t* e, bool left) {
-    if (left)  { e->edit.buttons &= ~(1 << 0); }
-    if (!left) { e->edit.buttons &= ~(1 << 1); }
-}
-
-#undef UI_EDIT_USE_TAP  // defining it leads to delays in caret movement
-
-#ifdef UI_EDIT_USE_TAP
-
-static bool ui_edit_tap(ui_view_t* v, int32_t ix) {
-    if (ix == 0) {
-        ui_edit_t* e = (ui_edit_t*)v;
-        const int32_t x = ui_app.mouse.x - e->x;
-        const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
-        bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
-        if (inside) {
-            e->edit.buttons = 0x1;
-            ui_edit_click(e, x, y);
-            e->edit.buttons = 0x0;
-        }
-        return inside;
-    } else {
-        return false; // do NOT consume event
-    }
-}
-
-#endif // UI_EDIT_USE_TAP
-
-static bool ui_edit_press(ui_view_t* v, int32_t ix) {
-    if (ix == 0) {
-        ui_edit_t* e = (ui_edit_t*)v;
-        const int32_t x = ui_app.mouse.x - e->x;
-        const int32_t y = ui_app.mouse.y - e->y - e->inside.top;
-        bool inside = 0 <= x && x < v->w && 0 <= y && y < v->h;
-        if (inside) {
-            e->edit.buttons = 0x1;
-            ui_edit_click(e, x, y);
-            ui_edit_double_click(e, x, y);
-            e->edit.buttons = 0x0;
-        }
-        return inside;
-    } else {
-        return false; // do NOT consume event
-    }
-}
-
-static void ui_edit_mouse_click(ui_view_t* v, bool left, bool pressed) {
+static bool ui_edit_tap(ui_view_t* v, int32_t unused(ix), bool pressed) {
+    // `ix` ignored for now till context menu (copy/paste/select...)
     ui_edit_t* e = (ui_edit_t*)v;
-    (void)left; // ignored for now no context menu (copy/paste/select...)
+    assert(ui_view.inside(v, &ui_app.mouse));
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
     if (inside) {
         if (pressed) {
-            ui_edit_mouse_button_down(e, left);
-            ui_edit_on_click(e, x, y);
+            e->edit.buttons = 0;
+            ui_edit_click(e, x, y);
+            ui_edit_mouse_button_down(e, ix);
         } else if (!pressed) {
-            ui_edit_mouse_button_up(e, left);
+            ui_edit_mouse_button_up(e, ix);
         }
     }
+    return true;
 }
 
-static void ui_edit_mouse_double_click(ui_view_t* v, bool unused(left)) {
+static bool ui_edit_long_press(ui_view_t* v, int32_t unused(ix)) {
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
-    if (inside) {
-        ui_edit_double_click(e, x, y);
+    if (inside && ui_edit_range.is_empty(e->selection)) {
+        ui_edit_select_word(e, x, y);
     }
+    return true;
+}
+
+static bool ui_edit_double_tap(ui_view_t* v, int32_t unused(ix)) {
+    ui_edit_t* e = (ui_edit_t*)v;
+    const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
+    const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
+    bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
+    if (inside && e->selection.a[0].pn == e->selection.a[1].pn) {
+        ui_edit_select_paragraph(e, x, y);
+    }
+    return false;
 }
 
 static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
@@ -10088,22 +10059,18 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->focused   = false;
     e->sle       = false;
     e->ro        = false;
-    e->caret           = (ui_point_t){-1, -1};
-    e->paint           = ui_edit_paint;
-    e->measure         = ui_edit_measure;
-    e->layout          = ui_edit_layout;
-    e->press           = ui_edit_press;
-    e->character       = ui_edit_character;
-    e->focus_gained    = ui_edit_focus_gained;
-    e->focus_lost      = ui_edit_focus_lost;
-    e->key_pressed     = ui_edit_key_pressed;
-    e->mouse_scroll    = ui_edit_mouse_scroll;
-    #ifdef UI_EDIT_USE_TAP
-        e->tap         = ui_edit_tap;
-    #else
-        e->mouse_click  = ui_edit_mouse_click;
-        e->double_click = ui_edit_mouse_double_click;
-    #endif
+    e->caret        = (ui_point_t){-1, -1};
+    e->paint        = ui_edit_paint;
+    e->measure      = ui_edit_measure;
+    e->layout       = ui_edit_layout;
+    e->tap          = ui_edit_tap;
+    e->long_press   = ui_edit_long_press;
+    e->double_tap   = ui_edit_double_tap;
+    e->character    = ui_edit_character;
+    e->focus_gained = ui_edit_focus_gained;
+    e->focus_lost   = ui_edit_focus_lost;
+    e->key_pressed  = ui_edit_key_pressed;
+    e->mouse_scroll = ui_edit_mouse_scroll;
     ui_edit_allocate_runs(e);
     if (e->debug.id == null) { e->debug.id = "#edit"; }
 }
@@ -11259,15 +11226,17 @@ static void ui_label_paint(ui_view_t* v) {
     }
 }
 
-static void ui_label_context_menu(ui_view_t* v) {
-    assert(v->type == ui_view_label);
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+static bool ui_label_context_menu(ui_view_t* v) {
+    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    if (inside) {
         ut_clipboard.put_text(ui_view.string(v));
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
         int32_t x = v->x + v->w / 2;
         int32_t y = v->y + v->h;
         ui_app.show_hint(&hint, x, y, 0.75);
     }
+    return inside;
 }
 
 static void ui_label_character(ui_view_t* v, const char* utf8) {
@@ -11772,7 +11741,8 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.text(&ta, tx, ty, "%s", text);
 }
 
-static void ui_slider_mouse_click(ui_view_t* v, bool unused(left), bool pressed) {
+static void ui_slider_mouse_click(ui_view_t* v, int32_t unused(ix),
+        bool pressed) {
     ui_slider_t* s = (ui_slider_t*)v;
     if (pressed) {
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);
@@ -12230,7 +12200,8 @@ static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_toggle_mouse_click(ui_view_t* v, bool unused(left), bool pressed) {
+static void ui_toggle_mouse_click(ui_view_t* v, int32_t unused(ix),
+        bool pressed) {
     if (pressed && ui_view.inside(v, &ui_app.mouse)) {
         ui_toggle_flip((ui_toggle_t*)v);
     }
@@ -12919,24 +12890,27 @@ static void ui_view_mouse_move(ui_view_t* v) {
     ui_view_for_each(v, c, { ui_view_mouse_move(c); });
 }
 
-static void ui_view_double_click(ui_view_t* v, bool left) {
+static void ui_view_double_click(ui_view_t* v, int32_t ix) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         const bool inside = ui_view.inside(v, &ui_app.mouse);
-        if (v->focusable && inside) { ui_view.set_focus(v); }
-        if (v->double_click != null) { v->double_click(v, left); }
-        ui_view_for_each(v, c, { ui_view_double_click(c, left); });
+        if (inside) {
+            if (v->focusable) { ui_view.set_focus(v); }
+            if (v->double_click != null) { v->double_click(v, ix); }
+        }
+        ui_view_for_each(v, c, { ui_view_double_click(c, ix); });
     }
 }
 
-static void ui_view_mouse_click(ui_view_t* v, bool left, bool pressed) {
+static void ui_view_mouse_click(ui_view_t* v, int32_t ix, bool pressed) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        ui_view_for_each(v, c, { ui_view_mouse_click(c, ix, pressed); });
         const bool inside = ui_view.inside(v, &ui_app.mouse);
-        if (v->focusable && inside) { ui_view.set_focus(v); }
-        if (v->mouse_click != null) { v->mouse_click(v, left, pressed); }
-        ui_view_for_each(v, c, { ui_view_mouse_click(c, left, pressed); });
+        if (inside) {
+            if (v->focusable) { ui_view.set_focus(v); }
+            if (v->mouse_click != null) { v->mouse_click(v, ix, pressed); }
+        }
     }
 }
-
 
 static void ui_view_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
@@ -12972,45 +12946,65 @@ static void ui_view_lose_hidden_focus(ui_view_t* v) {
     }
 }
 
-static bool ui_view_tap(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
-    bool done = false; // consumed
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v) &&
-        ui_view_inside(v, &ui_app.mouse)) {
-        ui_view_for_each(v, c, {
-            done = ui_view_tap(c, ix);
-            if (done) { break; }
-        });
-
-        if (v->tap != null && !done) { done = v->tap(v, ix); }
-    }
-    return done;
-}
-
-static bool ui_view_press(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
-    bool done = false; // consumed
+static bool ui_view_tap(ui_view_t* v, int32_t ix, bool pressed) {
+    bool swallow = false; // consumed
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
-            done = ui_view_press(c, ix);
-            if (done) { break; }
+            swallow = ui_view_tap(c, ix, pressed);
+            if (swallow) { break; }
         });
-        if (v->press != null && !done) { done = v->press(v, ix); }
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (!swallow && inside) {
+            if (v->focusable) { ui_view.set_focus(v); }
+            if (v->tap != null) { swallow = v->tap(v, ix, pressed); }
+        }
     }
-    return done;
+    return swallow;
+}
+
+static bool ui_view_long_press(ui_view_t* v, int32_t ix) {
+    bool swallow = false; // consumed
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        ui_view_for_each(v, c, {
+            swallow = ui_view_long_press(c, ix);
+            if (swallow) { break; }
+        });
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (!swallow && inside && v->long_press != null) {
+            swallow = v->long_press(v, ix);
+        }
+    }
+    return swallow;
+}
+
+static bool ui_view_double_tap(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
+    bool swallow = false; // consumed
+    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
+        ui_view_for_each(v, c, {
+            swallow = ui_view_double_tap(c, ix);
+            if (swallow) { break; }
+        });
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (!swallow && inside && v->double_tap != null) {
+            swallow = v->double_tap(v, ix);
+        }
+    }
+    return swallow;
 }
 
 static bool ui_view_context_menu(ui_view_t* v) {
+    bool swallow = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
-            if (ui_view_context_menu(c)) { return true; }
+            swallow = ui_view_context_menu(c);
+            if (swallow) { break; }
         });
-        ui_rect_t r = { v->x, v->y, v->w, v->h};
-        if (ui.point_in_rect(&ui_app.mouse, &r)) {
-            if (!v->state.hidden && !v->state.disabled && v->context_menu != null) {
-                v->context_menu(v);
-            }
+        const bool inside = ui_view.inside(v, &ui_app.mouse);
+        if (!swallow && inside && v->context_menu != null) {
+            swallow = v->context_menu(v);
         }
     }
-    return false;
+    return swallow;
 }
 
 static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
@@ -13250,7 +13244,8 @@ ui_view_if ui_view = {
     .is_shortcut_key     = ui_view_is_shortcut_key,
     .context_menu        = ui_view_context_menu,
     .tap                 = ui_view_tap,
-    .press               = ui_view_press,
+    .long_press          = ui_view_long_press,
+    .double_tap          = ui_view_double_tap,
     .message             = ui_view_message,
     .debug_paint_margins = ui_view_debug_paint_margins,
     .debug_paint_fm      = ui_view_debug_paint_fm,

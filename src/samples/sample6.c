@@ -98,7 +98,7 @@ static void character(ui_view_t* unused(view), const char* utf8) {
     }
 }
 
-static void mouse_click(ui_view_t* unused(v), bool left, bool pressed) {
+static void mouse_click(ui_view_t* unused(v), int32_t ix, bool pressed) {
     if (pressed &&
         0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fm.H1.em.w &&
         0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fm.H1.em.h) {

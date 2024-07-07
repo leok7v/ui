@@ -121,20 +121,19 @@ static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_button_mouse_click(ui_view_t* v, bool left, bool pressed) {
+static void ui_button_mouse_click(ui_view_t* v, int32_t ix, bool pressed) {
     ui_button_t* b = (ui_button_t*)v;
     const bool inside = ui_view.inside(b, &ui_app.mouse);
-    if (inside) { // buttons do hear nearby other controls click by design
-        (void)left; // ignored - button acts on any left or right mouse click
-        ui_view.invalidate(v, null); // always on any press/release inside
-        if (pressed && b->flip) {
-            if (b->flip) { ui_button_callback(b); }
-        } else if (pressed) {
-            if (!v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
-            v->state.armed = true;
-        } else { // released
-            if (!b->flip) { ui_button_callback(b); }
-        }
+    assert(inside);
+    (void)ix; // ignored - button index acts on any mouse button
+    ui_view.invalidate(v, null); // always on any press/release inside
+    if (pressed && b->flip) {
+        if (b->flip) { ui_button_callback(b); }
+    } else if (pressed) {
+        if (!v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
+        v->state.armed = true;
+    } else { // released
+        if (!b->flip) { ui_button_callback(b); }
     }
 }
 

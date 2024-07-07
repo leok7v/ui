@@ -25,7 +25,7 @@ static const char* locales[] = { // 123 languages
 static int32_t locale;
 static ui_label_t label = ui_label(0.0, "Hello");
 
-static void every_sec(ui_view_t* unused(view)) {
+static void every_sec(ui_view_t* unused(v)) {
     ut_nls.set_locale(locales[locale]);
     ut_str_printf(title, "Polyglot [%s]", locales[locale]);
     ui_app.set_title(title);
@@ -33,9 +33,22 @@ static void every_sec(ui_view_t* unused(view)) {
     locale = (locale + 1) % ut_count_of(locales);
 }
 
-static void painted(ui_view_t* v) {
-    ui_gdi.rect(v->x, v->y, v->w, v->h, ui_colors.white, ui_colors.transparent);
-    ui_view.debug_paint_margins(v);
+static bool tap(ui_view_t* v, int32_t ix, bool pressed) {
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    traceln("ix: %d inside: %d %s", ix, inside, pressed ? "dw" : "up");
+    return inside;
+}
+
+static bool long_press(ui_view_t* v, int32_t ix) {
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    traceln("ix: %d inside: %d", ix, inside);
+    return inside;
+}
+
+static bool double_tap(ui_view_t* v, int32_t ix) {
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    traceln("ix: %d inside: %d", ix, inside);
+    return inside;
 }
 
 static void opened(void) {
@@ -45,7 +58,9 @@ static void opened(void) {
     label.fm = &fm;
     ui_view.add(ui_app.content, &label, null);
     locale = (int32_t)(ut_clock.nanoseconds() & 0xFFFF % ut_count_of(locales));
-//  label.painted = painted;
+    label.tap = tap;
+    label.long_press = long_press;
+    label.double_tap = double_tap;
 }
 static void init(void) {
     ui_app.title = title;
