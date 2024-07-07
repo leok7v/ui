@@ -5041,15 +5041,22 @@ static void ui_caption_prepare(ui_view_t* unused(v)) {
 
 static void ui_caption_measured(ui_view_t* v) {
     // remeasure all child buttons with hard override:
+    int32_t w = 0;
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
             it->fm = &ui_app.fm.mono;
             it->flat = true;
             ui_caption_button_measure(it);
         }
+        if (!it->state.hidden) {
+            const ui_ltrb_t p = ui_view.margins(it, &it->padding);
+            w += it->w + p.left + p.right;
+        }
     });
+    const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+    w += p.left + p.right;
     // do not show title if there is not enough space
-    ui_caption.title.state.hidden = v->w > ui_app.root->w;
+    ui_caption.title.state.hidden = w > ui_app.root->w;
     v->w = ui_app.root->w;
     const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
@@ -8459,13 +8466,13 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
 
 static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         const int32_t width, bool allow_zero) {
-    // TODO: in sqlite.c 156,000 LoC it takes 11 seconds to get all runs()
+    // TODO: in sqlite.c 257,674 lines it takes 11 seconds to get all runs()
     //       on average ui_edit_word_break_at() takes 4 x ui_edit_text_width()
     //       measurements and they are slow. If we can reduce this amount
     //       (not clear how) at least 2 times it will be a win.
     //       Another way is background thread runs() processing but this is
     //       involving a lot of complexity.
-    //       MSVC devend() edits sqlite3.c w/o any visible delays
+    //       MSVC devenv.exe edits sqlite3.c w/o any visible delays
     int32_t count = 0; // stats logging
     int32_t chars = 0;
     ui_edit_text_t* dt = &e->doc->text; // document text
@@ -8534,19 +8541,15 @@ static int32_t ui_edit_glyph_at_x(ui_edit_t* e, int32_t pn, int32_t rn,
 static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_t* e, ui_edit_pg_t p) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_glyph_t g = { .s = "", .bytes = 0 };
-    if (p.pn == dt->np) {
-        assert(p.gp == 0); // last empty paragraph
-    } else {
-        assert(0 <= p.pn && p.pn < dt->np);
-        const ui_edit_str_t* str = &dt->ps[p.pn];
-        const int32_t bytes = str->b;
-        const char* s = str->u;
-        const int32_t bp = str->g2b[p.gp];
-        if (bp < bytes) {
-            g.s = s + bp;
-            g.bytes = ui_edit_str.utf8bytes(g.s, bytes - bp);
-            swear(g.bytes > 0);
-        }
+    assert(0 <= p.pn && p.pn < dt->np);
+    const ui_edit_str_t* str = &dt->ps[p.pn];
+    const int32_t bytes = str->b;
+    const char* s = str->u;
+    const int32_t bp = str->g2b[p.gp];
+    if (bp < bytes) {
+        g.s = s + bp;
+        g.bytes = ui_edit_str.utf8bytes(g.s, bytes - bp);
+        swear(g.bytes > 0);
     }
     return g;
 }
@@ -8560,11 +8563,7 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pn && pn < dt->np);
     const ui_edit_run_t* r = null;
-    if (pn == dt->np) {
-        static const ui_edit_run_t eof_run = { 0 };
-        *runs = 1;
-        r = &eof_run;
-    } else if (e->para[pn].run != null) {
+    if (e->para[pn].run != null) {
         *runs = e->para[pn].runs;
         r = e->para[pn].run;
     } else {
@@ -8765,7 +8764,7 @@ static ui_edit_pr_t ui_edit_pg_to_pr(ui_edit_t* e, const ui_edit_pg_t pg) {
     assert(0 <= pg.pn && pg.pn < dt->np);
     const ui_edit_str_t* str = &dt->ps[pg.pn];
     ui_edit_pr_t pr = { .pn = pg.pn, .rn = -1 };
-    if (pg.pn == dt->np || str->b == 0) { // last or empty
+    if (str->b == 0) { // empty
         assert(pg.gp == 0);
         pr.rn = 0;
     } else {
@@ -8817,6 +8816,8 @@ static int32_t ui_edit_runs_between(ui_edit_t* e, const ui_edit_pg_t pg0,
 static ui_edit_pg_t ui_edit_scroll_pg(ui_edit_t* e) {
     int32_t runs = 0;
     const ui_edit_run_t* run = ui_edit_paragraph_runs(e, e->scroll.pn, &runs);
+    // layout may decrease number of runs when view is growing:
+    if (e->scroll.rn >= runs) { e->scroll.rn = runs - 1; }
     assert(0 <= e->scroll.rn && e->scroll.rn < runs,
             "e->scroll.rn: %d runs: %d", e->scroll.rn, runs);
     return (ui_edit_pg_t) { .pn = e->scroll.pn, .gp = run[e->scroll.rn].gp };
@@ -8832,7 +8833,8 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 <= pg.pn && pg.pn < dt->np);
     ui_point_t pt = { .x = -1, .y = 0 };
-    const int32_t pn = ut_min(ut_min(e->scroll.pn + e->visible_runs + 1, pg.pn + 1), dt->np - 1);
+    const int32_t spn = e->scroll.pn + e->visible_runs + 1;
+    const int32_t pn = ut_min(ut_min(spn, pg.pn + 1), dt->np - 1);
     for (int32_t i = e->scroll.pn; i <= pn && pt.x < 0; i++) {
         assert(0 <= i && i < dt->np);
         const ui_edit_str_t* str = &dt->ps[i];
@@ -8855,7 +8857,6 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
             pt.y += e->fm->height;
         }
     }
-    if (pg.pn == dt->np) { pt.x = e->inside.left; }
     if (0 <= pt.x && pt.x < e->edit.w && 0 <= pt.y && pt.y < e->edit.h) {
         // all good, inside visible rectangle or right after it
     } else {
@@ -8944,8 +8945,7 @@ static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
 static void ui_edit_scroll_up(ui_edit_t* e, int32_t run_count) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     assert(0 < run_count, "does it make sense to have 0 scroll?");
-//  const ui_edit_pg_t end = ui_edit_text.end(dt);
-    while (run_count > 0 && e->scroll.pn < dt->np) {
+    while (run_count > 0 && e->scroll.pn < dt->np - 1) {
         const ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
         const ui_edit_pg_t next = (ui_edit_pg_t){
             .pn = ut_min(scroll.pn + e->visible_runs + 1, dt->np - 1),
@@ -8958,7 +8958,7 @@ static void ui_edit_scroll_up(ui_edit_t* e, int32_t run_count) {
             const int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
             if (e->scroll.rn < runs - 1) {
                 e->scroll.rn++;
-            } else if (e->scroll.pn < dt->np) {
+            } else if (e->scroll.pn < dt->np - 1) {
                 e->scroll.pn++;
                 e->scroll.rn = 0;
             }
@@ -8995,8 +8995,8 @@ static void ui_edit_scroll_down(ui_edit_t* e, int32_t run_count) {
 
 static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
     ui_edit_text_t* dt = &e->doc->text; // document text
-    assert(0 <= pg.pn && pg.pn < dt->np);
-    if (dt->np > 0 && e->inside.bottom > 0) {
+    assert(0 <= pg.pn && pg.pn < dt->np && dt->np > 0);
+    if (e->inside.bottom > 0) {
         if (e->sle) { assert(pg.pn == 0); }
         const int32_t rn = ui_edit_pg_to_pr(e, pg).rn;
         const uint64_t scroll = (uint64_t)e->scroll.pn << 32 | e->scroll.rn;
@@ -9015,7 +9015,6 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
         }
         int32_t sle_runs = e->sle && e->w > 0 ?
             ui_edit_paragraph_run_count(e, 0) : 0;
-        assert(dt->np > 0);
         ui_edit_pg_t end = ui_edit_text.end(dt);
         ui_edit_pr_t lp = ui_edit_pg_to_pr(e, end);
         uint64_t eof = (uint64_t)(dt->np - 1) << 32 | lp.rn;
@@ -9049,8 +9048,6 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
         }
     }
 }
-
-
 
 static void ui_edit_caret_to(ui_edit_t* e, const ui_edit_pg_t to) {
     ui_edit_scroll_into_view(e, to);
@@ -9159,18 +9156,9 @@ static void ui_edit_reuse_last_x(ui_edit_t* e, ui_point_t* pt) {
 }
 
 static void ui_edit_key_up(ui_edit_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
     const ui_edit_pg_t pg = e->selection.a[1];
     ui_edit_pg_t to = pg;
-    if (to.pn == dt->np) {
-        assert(to.gp == 0); // positioned past EOF
-        to.pn--;
-        to.gp = dt->ps[to.pn].g;
-        ui_edit_scroll_into_view(e, to);
-        ui_point_t pt = ui_edit_pg_to_xy(e, to);
-        pt.x = 0;
-        to.gp = ui_edit_xy_to_pg(e, pt.x, pt.y).gp;
-    } else if (to.pn > 0 || ui_edit_pg_to_pr(e, to).rn > 0) {
+    if (to.pn > 0 || ui_edit_pg_to_pr(e, to).rn > 0) {
         // top of the text
         ui_point_t pt = ui_edit_pg_to_xy(e, to);
         if (pt.y == 0) {
@@ -9221,6 +9209,7 @@ static void ui_edit_key_home(ui_edit_t* e) {
         e->scroll.rn = 0;
         e->selection.a[1].pn = 0;
         e->selection.a[1].gp = 0;
+        ui_edit_invalidate_view(e);
     }
     const int32_t pn = e->selection.a[1].pn;
     int32_t runs = ui_edit_paragraph_run_count(e, pn);
@@ -9240,6 +9229,7 @@ static void ui_edit_key_home(ui_edit_t* e) {
             if (e->scroll.pn >= e->selection.a[1].pn) { // scroll in
                 e->scroll.pn = e->selection.a[1].pn;
                 e->scroll.rn = 0;
+                ui_edit_invalidate_view(e);
             }
         }
     }
@@ -9264,6 +9254,7 @@ static void ui_edit_key_end(ui_edit_t* e) {
             }
         }
         e->selection.a[1] = ui_edit_text.end(dt);
+        ui_edit_invalidate_view(e);
     } else {
         int32_t pn = e->selection.a[1].pn;
         int32_t gp = e->selection.a[1].gp;
@@ -9378,7 +9369,7 @@ static bool ui_edit_key_pressed(ui_view_t* v, int64_t key) {
     if (e->focused) {
         if (key == ui.key.down && e->selection.a[1].pn < dt->np) {
             ui_edit.key_down(e);
-        } else if (key == ui.key.up && dt->np > 0) {
+        } else if (key == ui.key.up && dt->np > 1) {
             ui_edit.key_up(e);
         } else if (key == ui.key.left) {
             ui_edit.key_left(e);
@@ -9470,7 +9461,7 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
+        assert(p.pn <= dt->np - 1);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         ui_edit_glyph_t glyph = ui_edit_glyph_at(e, p);
@@ -9539,8 +9530,7 @@ static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp && ui_view.has_focus(&e->view)) {
-        assert(dt->np > 0);
-        if (p.pn >= dt->np) { p.pn = ut_max(0, dt->np - 1); }
+        assert(dt->np > 0 && p.pn < dt->np);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
 //      traceln("move_caret: %d.%d", p.pn, p.gp);
@@ -9818,8 +9808,9 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     assert(v->w > 0 && v->h > 0); // could be `if'
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_insets(e);
-    e->visible_runs =  // fully visible runs
-        (e->inside.bottom - e->inside.top) / e->fm->height;
+    // fully visible runs
+    e->visible_runs = e->h / e->fm->height;
+    ui_edit_invalidate_run(e, e->scroll.pn);
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
     // glyph position in scroll_pn paragraph:
@@ -9838,6 +9829,8 @@ static void ui_edit_layout(ui_view_t* v) { // top down
             ui_edit_scroll_into_view(e, top);
         }
     }
+    ui_edit_scroll_into_view(e, e->selection.a[1]);
+    ui_edit_caret_to(e, e->selection.a[1]);
     if (e->focused) {
         // recreate caret because fm->height may have changed
         ui_edit_hide_caret(e);
@@ -9928,7 +9921,7 @@ static void ui_edit_paint(ui_view_t* v) {
         const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
         const int32_t pn = e->scroll.pn;
         const int32_t bottom = v->y + e->inside.bottom;
-        assert(pn <= dt->np);
+        assert(pn < dt->np);
         for (int32_t i = pn; i < dt->np && y < bottom; i++) {
             y = ui_edit_paint_paragraph(e, &ta, x, y, i, rc);
         }
@@ -9986,7 +9979,6 @@ static bool ui_edit_reallocate_runs(ui_edit_t* e, int32_t p, int32_t np) {
     return ok;
 }
 
-
 static void ui_edit_before(ui_edit_notify_t* notify,
          const ui_edit_notify_info_t* ni) {
     ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
@@ -9994,8 +9986,9 @@ static void ui_edit_before(ui_edit_notify_t* notify,
     swear(e->doc == ni->d);
     if (e->w > 0 && e->h > 0) {
         const ui_edit_text_t* dt = &e->doc->text; // document text
-        // number of paragraphs before replace():
-        n->data = (uintptr_t)dt->np; assert(dt->np > 0);
+        assert(dt->np > 0);
+        // `n->data` is number of paragraphs before replace():
+        n->data = (uintptr_t)dt->np;
         if (e->selection.from.pn != e->selection.to.pn) {
             ui_edit_invalidate_view(e);
         } else {
@@ -10006,11 +9999,10 @@ static void ui_edit_before(ui_edit_notify_t* notify,
 
 static void ui_edit_after(ui_edit_notify_t* notify,
          const ui_edit_notify_info_t* ni) {
-    const ui_edit_text_t* dt = &ni->d->text; // document text
-    assert(dt->np > 0);
     ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
     ui_edit_t* e = (ui_edit_t*)n->that;
-    assert(ni->d == e->doc);
+    const ui_edit_text_t* dt = &ni->d->text; // document text
+    assert(ni->d == e->doc && dt->np > 0);
     if (e->w > 0 && e->h > 0) {
         // number of paragraphs before replace():
         const int32_t np = (int32_t)n->data;
