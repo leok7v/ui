@@ -74,6 +74,8 @@ static void ut_event_dispose(ut_event_t h) {
     ut_close_handle((HANDLE)h);
 }
 
+#ifdef UT_TESTS
+
 // test:
 
 // check if the elapsed time is within the expected range
@@ -85,7 +87,6 @@ static void ut_event_test_check_time(fp64_t start, fp64_t expected) {
 }
 
 static void ut_event_test(void) {
-    #ifdef UT_TESTS
     ut_event_t event = ut_event.create();
     fp64_t start = ut_clock.seconds();
     ut_event.set(event);
@@ -120,8 +121,13 @@ static void ut_event_test(void) {
         ut_event.dispose(events[i]);
     }
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
-    #endif
 }
+
+#else
+
+static void ut_event_test(void) { }
+
+#endif
 
 ut_event_if ut_event = {
     .create              = ut_event_create,

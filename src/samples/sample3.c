@@ -38,12 +38,12 @@ static void paint(ui_view_t* view) {
         "render time %.1f ms / avg paint time %.1f ms",
         render_time * 1000, ui_app.paint_avg * 1000);
     if (!rendering) {
-        ui_app.set_cursor(ui_app.cursor_arrow);
+        ui_app.set_cursor(ui_app.cursors.arrow);
     }
 }
 
 static void request_rendering(void) {
-    ui_app.set_cursor(ui_app.cursor_wait);
+    ui_app.set_cursor(ui_app.cursors.wait);
     rendering = true;
     ut_event.set(wake);
 }
@@ -52,7 +52,7 @@ static void stop_rendering(void) {
     if (rendering) {
         stop = true;
         while (rendering || stop) { ut_thread.sleep_for(0.01); }
-        ui_app.set_cursor(ui_app.cursor_arrow);
+        ui_app.set_cursor(ui_app.cursors.arrow);
     }
 }
 

@@ -195,7 +195,7 @@ static void animate(void) {
 
 static void animated_gif_loader(void* unused(ignored)) {
     ui_cursor_t cursor = ui_app.cursor;
-    ui_app.set_cursor(ui_app.cursor_wait);
+    ui_app.set_cursor(ui_app.cursors.wait);
     load_gif();
     ui_app.set_cursor(cursor);
     animate();

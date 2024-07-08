@@ -35,7 +35,7 @@ typedef struct ui_window_sizing_s {
 	// on all launches except the very first.
 } ui_window_sizing_t;
 
-typedef struct {
+typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after methods
     // implemented by client:
     const char* class_name;
     // called before creating main window
@@ -54,9 +54,12 @@ typedef struct {
     // must be filled by application:
     const char* title;
     ui_window_sizing_t const window_sizing;
-    int32_t visibility; // initial window_visibility state
+    // TODO: struct {} visibility;
+    // see: ui.visibility.*
+    int32_t visibility;         // initial window_visibility state
     int32_t last_visibility;    // last window_visibility state from last run
     int32_t startup_visibility; // window_visibility from parent process
+    ui_canvas_t canvas;  // set by message.paint
     // ui flags:
     bool is_full_screen;
     bool no_ui;      // do not create application window at all
@@ -68,7 +71,6 @@ typedef struct {
     bool no_size;    // window w/o maximize button on title bar
     bool no_clip;    // allows to resize window above hosting monitor size
     bool hide_on_minimize; // like task manager minimize means hide
-    bool aero;     // retro Windows 7 decoration (just for the fun of it)
     ui_window_t window;
     ui_icon_t icon; // may be null
     uint64_t  tid; // main thread id
@@ -88,26 +90,29 @@ typedef struct {
     ui_view_t* caption;
     ui_view_t* focus; // does not affect message routing
     ui_fms_t   fm;
-    ui_cursor_t cursor; // current cursor
-    ui_cursor_t cursor_arrow;
-    ui_cursor_t cursor_wait;
-    ui_cursor_t cursor_ibeam;
-    ui_cursor_t cursor_size_nwse; // north west - south east
-    ui_cursor_t cursor_size_nesw; // north east - south west
-    ui_cursor_t cursor_size_we;   // west - east
-    ui_cursor_t cursor_size_ns;   // north - south
-    ui_cursor_t cursor_size_all;  // north - south
+    // TODO: struct {} keyboard
     // keyboard state now:
     bool alt;
     bool ctrl;
     bool shift;
+    // TODO: struct {} mouse
     // mouse buttons state
     bool mouse_swapped;
     bool mouse_left;   // left or if buttons are swapped - right button pressed
     bool mouse_middle; // rarely useful
     bool mouse_right;  // context button pressed
     ui_point_t mouse; // mouse/touchpad pointer
-    ui_canvas_t canvas;  // set by message.paint
+    ui_cursor_t cursor; // current cursor
+    struct {
+        ui_cursor_t arrow;
+        ui_cursor_t wait;
+        ui_cursor_t ibeam;
+        ui_cursor_t size_nwse; // north west - south east
+        ui_cursor_t size_nesw; // north east - south west
+        ui_cursor_t size_we;   // west - east
+        ui_cursor_t size_ns;   // north - south
+        ui_cursor_t size_all;  // north - south
+    } cursors;
     struct { // animation state
         ui_view_t* view;
         ui_view_t* focused; // focused view before animation started
@@ -116,6 +121,11 @@ typedef struct {
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
     } animating;
+    // call_later(..., delay_in_seconds, ...) can be scheduled from any thread executed
+    // on UI thread
+    void (*enqueue)(ut_react_call_t* c, fp64_t time);
+    void (*request_redraw)(void); // very fast <2 microseconds
+    void (*draw)(void); // paint window now - bad idea do not use
     // inch to pixels and reverse translation via ui_app.dpi.window
     fp32_t  (*px2in)(int32_t pixels);
     int32_t (*in2px)(fp32_t inches);
@@ -137,8 +147,6 @@ typedef struct {
     void (*request_layout)(void); // requests layout on UI tree before paint()
     void (*invalidate)(const ui_rect_t* rc);
     void (*full_screen)(bool on);
-    void (*request_redraw)(void); // very fast (5 microseconds) InvalidateRect(null)
-    void (*draw)(void);   // UpdateWindow()
     void (*set_cursor)(ui_cursor_t c);
     void (*close)(void); // attempts to close (can_close() permitting)
     // forced quit() even if can_close() returns false

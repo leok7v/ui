@@ -1926,7 +1926,7 @@ typedef struct ui_window_sizing_s {
 	// on all launches except the very first.
 } ui_window_sizing_t;
 
-typedef struct {
+typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after methods
     // implemented by client:
     const char* class_name;
     // called before creating main window
@@ -1945,9 +1945,12 @@ typedef struct {
     // must be filled by application:
     const char* title;
     ui_window_sizing_t const window_sizing;
-    int32_t visibility; // initial window_visibility state
+    // TODO: struct {} visibility;
+    // see: ui.visibility.*
+    int32_t visibility;         // initial window_visibility state
     int32_t last_visibility;    // last window_visibility state from last run
     int32_t startup_visibility; // window_visibility from parent process
+    ui_canvas_t canvas;  // set by message.paint
     // ui flags:
     bool is_full_screen;
     bool no_ui;      // do not create application window at all
@@ -1959,7 +1962,6 @@ typedef struct {
     bool no_size;    // window w/o maximize button on title bar
     bool no_clip;    // allows to resize window above hosting monitor size
     bool hide_on_minimize; // like task manager minimize means hide
-    bool aero;     // retro Windows 7 decoration (just for the fun of it)
     ui_window_t window;
     ui_icon_t icon; // may be null
     uint64_t  tid; // main thread id
@@ -1979,26 +1981,29 @@ typedef struct {
     ui_view_t* caption;
     ui_view_t* focus; // does not affect message routing
     ui_fms_t   fm;
-    ui_cursor_t cursor; // current cursor
-    ui_cursor_t cursor_arrow;
-    ui_cursor_t cursor_wait;
-    ui_cursor_t cursor_ibeam;
-    ui_cursor_t cursor_size_nwse; // north west - south east
-    ui_cursor_t cursor_size_nesw; // north east - south west
-    ui_cursor_t cursor_size_we;   // west - east
-    ui_cursor_t cursor_size_ns;   // north - south
-    ui_cursor_t cursor_size_all;  // north - south
+    // TODO: struct {} keyboard
     // keyboard state now:
     bool alt;
     bool ctrl;
     bool shift;
+    // TODO: struct {} mouse
     // mouse buttons state
     bool mouse_swapped;
     bool mouse_left;   // left or if buttons are swapped - right button pressed
     bool mouse_middle; // rarely useful
     bool mouse_right;  // context button pressed
     ui_point_t mouse; // mouse/touchpad pointer
-    ui_canvas_t canvas;  // set by message.paint
+    ui_cursor_t cursor; // current cursor
+    struct {
+        ui_cursor_t arrow;
+        ui_cursor_t wait;
+        ui_cursor_t ibeam;
+        ui_cursor_t size_nwse; // north west - south east
+        ui_cursor_t size_nesw; // north east - south west
+        ui_cursor_t size_we;   // west - east
+        ui_cursor_t size_ns;   // north - south
+        ui_cursor_t size_all;  // north - south
+    } cursors;
     struct { // animation state
         ui_view_t* view;
         ui_view_t* focused; // focused view before animation started
@@ -2007,6 +2012,11 @@ typedef struct {
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
     } animating;
+    // call_later(..., delay_in_seconds, ...) can be scheduled from any thread executed
+    // on UI thread
+    void (*enqueue)(ut_react_call_t* c, fp64_t time);
+    void (*request_redraw)(void); // very fast <2 microseconds
+    void (*draw)(void); // paint window now - bad idea do not use
     // inch to pixels and reverse translation via ui_app.dpi.window
     fp32_t  (*px2in)(int32_t pixels);
     int32_t (*in2px)(fp32_t inches);
@@ -2028,8 +2038,6 @@ typedef struct {
     void (*request_layout)(void); // requests layout on UI tree before paint()
     void (*invalidate)(const ui_rect_t* rc);
     void (*full_screen)(bool on);
-    void (*request_redraw)(void); // very fast (5 microseconds) InvalidateRect(null)
-    void (*draw)(void);   // UpdateWindow()
     void (*set_cursor)(ui_cursor_t c);
     void (*close)(void); // attempts to close (can_close() permitting)
     // forced quit() even if can_close() returns false
@@ -2152,6 +2160,8 @@ static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
 static ut_event_t ui_app_event_quit;
 static ut_event_t ui_app_event_invalidate;
 
+static ut_react_queue_t ui_app_queue;
+
 static uintptr_t ui_app_timer_1s_id;
 static uintptr_t ui_app_timer_100ms_id;
 
@@ -2169,6 +2179,10 @@ static struct {
 // Animation timer is Windows minimum of 10ms, but in reality the timer
 // messages are far from isochronous and more likely to arrive at 16 or
 // 32ms intervals and can be delayed.
+
+static void ui_app_enqueue(ut_react_call_t* c, fp64_t time) {
+    ut_react.enqueue(&ui_app_queue, c, time);
+}
 
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
@@ -2320,16 +2334,16 @@ static int32_t ui_app_pt2px(fp64_t pt) {
 }
 
 static void ui_app_init_cursors(void) {
-    if (ui_app.cursor_arrow == null) {
-        ui_app.cursor_arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
-        ui_app.cursor_wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
-        ui_app.cursor_ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
-        ui_app.cursor_size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
-        ui_app.cursor_size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
-        ui_app.cursor_size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
-        ui_app.cursor_size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
-        ui_app.cursor_size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
-        ui_app.cursor = ui_app.cursor_arrow;
+    if (ui_app.cursors.arrow == null) {
+        ui_app.cursors.arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
+        ui_app.cursors.wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
+        ui_app.cursors.ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
+        ui_app.cursors.size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
+        ui_app.cursors.size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
+        ui_app.cursors.size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
+        ui_app.cursors.size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
+        ui_app.cursors.size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
+        ui_app.cursor = ui_app.cursors.arrow;
     }
 }
 
@@ -2624,7 +2638,8 @@ static void ui_app_window_opening(void) {
     ui_app_init_cursors();
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
-    ui_app.set_cursor(ui_app.cursor_arrow);
+    assert(ui_app.cursors.arrow != null);
+    ui_app.set_cursor(ui_app.cursors.arrow);
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
     ut_not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
@@ -3462,6 +3477,7 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
     ui_app.now = ut_clock.seconds();
+    ut_react.dispatch(&ui_app_queue, ui_app.now);
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
     } else {
@@ -3885,6 +3901,7 @@ static int32_t ui_app_message_loop(void) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }
+    ut_react.flush(&ui_app_queue);
     assert(msg.message == WM_QUIT);
     return (int32_t)msg.wParam;
 }
@@ -4419,6 +4436,7 @@ static void ui_app_init(void) {
     ui_app_event_quit           = ut_event.create();
     ui_app_event_invalidate     = ut_event.create();
     ui_app.request_redraw       = ui_app_request_redraw;
+    ui_app.enqueue              = ui_app_enqueue;
     ui_app.draw                 = ui_app_draw;
     ui_app.px2in                = ui_app_px2in;
     ui_app.in2px                = ui_app_in2px;

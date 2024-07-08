@@ -16,6 +16,8 @@ static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
 static ut_event_t ui_app_event_quit;
 static ut_event_t ui_app_event_invalidate;
 
+static ut_react_queue_t ui_app_queue;
+
 static uintptr_t ui_app_timer_1s_id;
 static uintptr_t ui_app_timer_100ms_id;
 
@@ -33,6 +35,10 @@ static struct {
 // Animation timer is Windows minimum of 10ms, but in reality the timer
 // messages are far from isochronous and more likely to arrive at 16 or
 // 32ms intervals and can be delayed.
+
+static void ui_app_enqueue(ut_react_call_t* c, fp64_t time) {
+    ut_react.enqueue(&ui_app_queue, c, time);
+}
 
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
@@ -184,16 +190,16 @@ static int32_t ui_app_pt2px(fp64_t pt) {
 }
 
 static void ui_app_init_cursors(void) {
-    if (ui_app.cursor_arrow == null) {
-        ui_app.cursor_arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
-        ui_app.cursor_wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
-        ui_app.cursor_ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
-        ui_app.cursor_size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
-        ui_app.cursor_size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
-        ui_app.cursor_size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
-        ui_app.cursor_size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
-        ui_app.cursor_size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
-        ui_app.cursor = ui_app.cursor_arrow;
+    if (ui_app.cursors.arrow == null) {
+        ui_app.cursors.arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
+        ui_app.cursors.wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
+        ui_app.cursors.ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
+        ui_app.cursors.size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
+        ui_app.cursors.size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
+        ui_app.cursors.size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
+        ui_app.cursors.size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
+        ui_app.cursors.size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
+        ui_app.cursor = ui_app.cursors.arrow;
     }
 }
 
@@ -488,7 +494,8 @@ static void ui_app_window_opening(void) {
     ui_app_init_cursors();
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
-    ui_app.set_cursor(ui_app.cursor_arrow);
+    assert(ui_app.cursors.arrow != null);
+    ui_app.set_cursor(ui_app.cursors.arrow);
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
     ut_not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
@@ -1326,6 +1333,7 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
     ui_app.now = ut_clock.seconds();
+    ut_react.dispatch(&ui_app_queue, ui_app.now);
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
     } else {
@@ -1749,6 +1757,7 @@ static int32_t ui_app_message_loop(void) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }
+    ut_react.flush(&ui_app_queue);
     assert(msg.message == WM_QUIT);
     return (int32_t)msg.wParam;
 }
@@ -2283,6 +2292,7 @@ static void ui_app_init(void) {
     ui_app_event_quit           = ut_event.create();
     ui_app_event_invalidate     = ut_event.create();
     ui_app.request_redraw       = ui_app_request_redraw;
+    ui_app.enqueue              = ui_app_enqueue;
     ui_app.draw                 = ui_app_draw;
     ui_app.px2in                = ui_app_px2in;
     ui_app.in2px                = ui_app_in2px;

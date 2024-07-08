@@ -17,6 +17,7 @@
 #include "ut/ut_mem.h"
 #include "ut/ut_nls.h"
 #include "ut/ut_num.h"
+#include "ut/ut_react.h"
 #include "ut/ut_static.h"
 #include "ut/ut_streams.h"
 #include "ut/ut_processes.h"
