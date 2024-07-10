@@ -93,7 +93,7 @@
     <ClInclude Include="..\inc\ut\ut_str.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_react.h">
+    <ClInclude Include="..\inc\ut\ut_work.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
   </ItemGroup>
@@ -169,7 +169,7 @@
     <ClCompile Include="..\src\ut\ut_str.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\ut_react.c">
+    <ClCompile Include="..\src\ut\ut_work.c">
       <Filter>src\ut</Filter>
     </ClCompile>
   </ItemGroup>

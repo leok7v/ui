@@ -58,6 +58,7 @@ static void ut_runtime_test(void) { // in alphabetical order
     ut_streams.test();
     ut_thread.test();
     ut_vigil.test();
+    ut_worker.test();
 }
 
 #else

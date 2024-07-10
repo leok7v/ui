@@ -143,6 +143,8 @@ typedef double fp64_t;
 // alloca() is messy and in general is a not a good idea.
 // try to avoid if possible. Stack sizes vary from 64KB to 8MB in 2024.
 
+begin_c
+
 
 // _________________________________ ut_str.h _________________________________
 
@@ -1438,9 +1440,6 @@ typedef struct {
 extern ut_num_if ut_num;
 
 
-// ___________________________________ ut.h ___________________________________
-
-// the rest is in alphabetical order (no inter dependencies)
 
 
 // _______________________________ ut_static.h ________________________________
@@ -1726,105 +1725,166 @@ extern ut_vigil_if ut_vigil;
     (void)(ut_vigil.fatal_if_error(__FILE__, __LINE__, __func__,     \
                                    #r, r, "" __VA_ARGS__))
 
+// ___________________________________ ut.h ___________________________________
+
+// the rest is in alphabetical order (no inter dependencies)
 
 
-// ________________________________ ut_react.h ________________________________
+// ________________________________ ut_work.h _________________________________
 
-typedef struct ut_react_call_s ut_react_call_t;
-typedef struct ut_react_queue_s ut_react_queue_t;
+// Minimalistic "react" like work_queue or work items and
+// a thread based workers. See ut_worker_test() for usage.
 
-typedef struct ut_react_call_s {
-    void (*proc)(ut_react_call_t* c);
-    void*  data;   // extra data that will be passed to proc() call
-    fp64_t time;  // proc(data) call will be made after or at this time
-    bool   canceled; // := true on cancel() call
-    ut_react_queue_t* queue; // queue where the call is or was last scheduled
-    ut_react_call_t*  next;  // next element in the queue (implementation detail)
-} ut_react_call_t;
+typedef struct ut_event_s* ut_event_t;
+typedef struct ut_work_s   ut_work_t;
+typedef struct ut_work_queue_s  ut_work_queue_t;
 
-typedef struct ut_react_queue_s {
-    int64_t lock; // spinlock
-    ut_react_call_t* head;
-} ut_react_queue_t;
+typedef struct ut_work_s {
+    ut_work_queue_t* queue; // queue where the call is or was last scheduled
+    fp64_t when;       // proc() call will be made after or at this time
+    void (*work)(ut_work_t* c);
+    void*  data;       // extra data that will be passed to proc() call
+    ut_event_t  done;  // if not null signalled after calling proc() or canceling
+    ut_work_t*  next;  // next element in the queue (implementation detail)
+    bool   canceled;   // :true after .cancel()
+} ut_work_t;
 
-typedef struct ut_react_if {
-    void (*dispatch)(ut_react_queue_t* q, fp64_t now);
-    void (*enqueue)(ut_react_queue_t* q, ut_react_call_t* c, fp64_t time);
-    void (*cancel)(ut_react_call_t* c);
-    void (*flush)(ut_react_queue_t* q); // cancel all requests in the queue
-    void (*test)(void);
-} ut_react_if;
+typedef struct ut_work_queue_s {
+    ut_work_t* head;
+    int64_t    lock; // spinlock
+    //  .posted() and .set(wake) are called with unlocked queue:
+    void (*posted)(ut_work_t* c); // called after call is enqueued
+    ut_event_t wake; // if not null signalled after calling posted()
+} ut_work_queue_t;
 
-extern ut_react_if ut_react;
+// Note: .posted() can be used instead of .wake event when
+//       existing thread e.g. main application thread does
+//       GetMessage() queue.dispatch() DispatchMessage() loop
+//       and can implement .posted() as PostMessageA(WM_NULL)
+//       to wake up the thread waiting on GetMessage.
+
+typedef struct ut_work_queue_if {
+    void (*post)(ut_work_t* c);
+    bool (*get)(ut_work_queue_t*, ut_work_t* *c);
+    void (*call)(ut_work_t* c);
+    void (*dispatch)(ut_work_queue_t* q); // all ready messages
+    void (*cancel)(ut_work_t* c);
+    void (*flush)(ut_work_queue_t* q); // cancel all requests in the queue
+} ut_work_queue_if;
+
+typedef struct ut_worker_t {
+    ut_thread_t   thread;
+    ut_work_queue_t*   queue;
+    volatile bool quit; // := true request to end queue processing
+} ut_worker_t;
+
+typedef struct ut_worker_if {
+    void    (*start)(ut_worker_t* worker, ut_work_queue_t* queue);
+    void    (*post)(ut_worker_t* worker, ut_work_t *w);
+    errno_t (*join)(ut_worker_t* worker, fp64_t timeout); // -1.0 forever
+    void    (*test)(void);
+} ut_worker_if;
+
+extern ut_work_queue_if  ut_work_queue;
+extern ut_worker_if ut_worker;
+
+// worker thread waits for a queue's `wake` event with the timeout
+// infinity or if queue is not empty delta time till the head
+// item of the queue.
+//
+// Upon post() call the `wake` event is set and the worker thread
+// wakes up and dispatches all the items with .when less then now
+// calling function work() if it is not null and optionally signaling
+// .done event if it is not null.
+//
+// When all ready items in the queue are processed worker thread locks
+// the queue and if the head is present calculates next timeout based
+// on .when time of the head or sets timeout to infinity if the queue
+// is empty.
+//
+// Function .join() sets .quit to true signals .wake event and attempt
+// to join the worker .thread with specified timeout.
+// It is the responsibility of the caller to ensure that no other
+// work is posted after calling .join() because it will be lost.
 
 
 /*
     Usage examples:
 
-    // The dispatch_for() is just for testing purposes.
-    // Usually ut_react.dispatch(q) will be called inside each
+    // The dispatch_until() is just for testing purposes.
+    // Usually ut_work_queue.dispatch(q) will be called inside each
     // iteration of message loop of a dispatch [UI] thread.
 
-    static void dispatch_for(ut_react_queue_t* q, fp64_t seconds);
+    static void dispatch_until(ut_work_queue_t* q, int32_t* i, const int32_t n);
 
     // simple way of passing a single pointer to call_later
 
-    static void every_second(ut_react_call_t* c) {
-        int32_t* i = (int32_t*)c->data;
-        traceln("%d", *i);
+    static void every_100ms(ut_work_t* w) {
+        int32_t* i = (int32_t*)w->data;
+        traceln("i: %d", *i);
         (*i)++;
-        ut_react.enqueue(c->queue, c, ut_clock.seconds() + 1.0);
+        w->when = ut_clock.seconds() + 0.100;
+        ut_work_queue.post(w);
     }
 
     static void example_1(void) {
-        ut_react_queue_t q = {0};
+        ut_work_queue_t queue = {0};
         // if a single pointer will suffice
         int32_t i = 0;
-        ut_react_call_t c = {.proc = every_second, .data = &i };
-        ut_react.enqueue(&q, &c, ut_clock.seconds() + 1.0);
-        dispatch_for(&q, 3.0);
+        ut_work_t work = {
+            .queue = &queue,
+            .when  = ut_clock.seconds() + 0.100,
+            .work  = every_100ms,
+            .data  = &i
+        };
+        ut_work_queue.post(&work);
+        dispatch_until(&queue, &i, 4);
     }
 
-    // extending ut_react_call_t with extra data:
+    // extending ut_work_t with extra data:
 
-    typedef struct ut_call_ex_s {
+    typedef struct ut_work_ex_s {
         union {
-            ut_react_call_t base;
-            struct ut_react_call_s;
+            ut_work_t base;
+            struct ut_work_s;
         };
         struct { int32_t a; int32_t b; } s;
         int32_t i;
-    } ut_call_ex_t;
+    } ut_work_ex_t;
 
-    static void every_other_second(ut_react_call_t* c) {
-        ut_call_ex_t* ex = (ut_call_ex_t*)c;
-        traceln(".i: %d .extra: {.a: %d .b: %d} now: %.6f time: %.6f",
-                ex->i, ex->s.a, ex->s.b,
-                ut_clock.seconds(), c->time);
+    static void every_200ms(ut_work_t* w) {
+        ut_work_ex_t* ex = (ut_work_ex_t*)w;
+        traceln("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
         ex->i++;
         const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
-        ut_react.enqueue(c->queue, c, ut_clock.seconds() + 2.0);
+        w->when = ut_clock.seconds() + 0.200;
+        ut_work_queue.post(w);
     }
 
     static void example_2(void) {
-        ut_react_queue_t q = {0};
-        ut_call_ex_t ex = {
-            .proc = every_other_second,
+        ut_work_queue_t queue = {0};
+        ut_work_ex_t work = {
+            .queue = &queue,
+            .when  = ut_clock.seconds() + 0.200,
+            .work  = every_200ms,
+            .data  = null,
             .s = { .a = 1, .b = 2 },
             .i = 0
         };
-        ut_react.enqueue(&q, &ex.base, ut_clock.seconds() + 2.0);
-        dispatch_for(&q, 6.0);
+        ut_work_queue.post(&work.base);
+        dispatch_until(&queue, &work.i, 4);
     }
 
-    static void dispatch_for(ut_react_queue_t* q, fp64_t seconds) {
-        fp64_t deadline = ut_clock.seconds() + seconds;
-        while (q->head != null && ut_clock.seconds() < deadline) {
+    static void dispatch_until(ut_work_queue_t* q, int32_t* i, const int32_t n) {
+        while (q->head != null && *i < n) {
             ut_thread.sleep_for(0.0001); // 100 microseconds
-            ut_react.dispatch(q, ut_clock.seconds());
+            ut_work_queue.dispatch(q);
         }
-        ut_react.flush(q);
+        ut_work_queue.flush(q);
     }
+
+    // Hint:
+    // To monitor timing turn on MSVC Output / Show Timestamp (clock button)
 
 */
 
@@ -2397,9 +2457,7 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
     // Not a performance champion (because of mem_fence()) but serves
     // the purpose. mem_fence() can be reduced to mem_sfence()... sigh
     while (!ut_sync_bool_compare_and_swap(spinlock, 0, 1)) {
-        while (*spinlock) {
-            ut_builtin_cpu_pause();
-        }
+        while (*spinlock) { ut_builtin_cpu_pause(); }
     }
     ut_atomics.memory_fence();
     // not strictly necessary on strong mem model Intel/AMD but
@@ -6242,243 +6300,6 @@ ut_processes_if ut_processes = {
     .test                = ut_processes_test
 };
 
-// ________________________________ ut_react.c ________________________________
-
-static void ut_react_check_for_duplicates(ut_react_queue_t* q,
-        ut_react_call_t* c) {
-    ut_react_call_t* e = q->head;
-    bool found = false;
-    while (e != null && !found) {
-        found = e == c;
-        if (!found) { e = e->next; }
-    }
-    swear(!found);
-}
-
-static void ut_react_enqueue(ut_react_queue_t* q, ut_react_call_t* c, fp64_t t) {
-    assert(c->proc != null && t >= 0.0 && q != null && c != null);
-    ut_atomics.spinlock_acquire(&q->lock);
-    ut_react_check_for_duplicates(q, c);
-    c->queue = q;
-    c->time = t;
-    //  Enqueue in time sorted order least ->time first to save
-    //  time searching in fetching from queue which is more frequent.
-    if (q->head == null || q->head->time > t) {
-        c->next = q->head;
-        q->head = c;
-    } else {
-        ut_react_call_t* p = null;
-        ut_react_call_t* e = q->head;
-        while (e != null && e->time <= t) {
-            p = e;
-            e = e->next;
-        }
-        c->next = e;
-        if (p == null) { q->head = c; } else { p->next = c; }
-    }
-    ut_atomics.spinlock_release(&q->lock);
-}
-
-static void ut_react_cancel(ut_react_call_t* c) {
-    swear(!c->canceled && c->queue != null);
-    ut_react_queue_t* q = c->queue;
-    ut_atomics.spinlock_acquire(&q->lock);
-    if (q->head != null) {
-        ut_react_call_t* p = null;
-        ut_react_call_t* e = q->head;
-        while (e != null && !c->canceled) {
-            if (e == c) {
-                if (p == null) {
-                    q->head = e->next;
-                } else {
-                    p->next = e->next;
-                }
-                e->next = null;
-                e->canceled = true;
-            } else {
-                p = e;
-                e = e->next;
-            }
-        }
-    }
-    ut_atomics.spinlock_release(&q->lock);
-    swear(c->canceled);
-}
-
-static void ut_react_flush(ut_react_queue_t* q) {
-    while (q->head != null) { ut_react.cancel(q->head); }
-}
-
-static ut_react_call_t* ut_react_dequeue(ut_react_queue_t* q, fp64_t now) {
-    ut_react_call_t* c = null;
-    ut_atomics.spinlock_acquire(&q->lock);
-    if (q->head != null && q->head->time <= now) {
-        c = q->head;
-        q->head = c->next;
-        c->next = null;
-    }
-    ut_atomics.spinlock_release(&q->lock);
-    return c;
-}
-
-static void ut_react_dispatch(ut_react_queue_t* q, fp64_t now) {
-    ut_react_call_t* c = ut_react_dequeue(q, now);
-    while (c != null) {
-        assert(now >= c->time);
-        c->proc(c);
-        c = ut_react_dequeue(q, now);
-    }
-}
-
-#ifdef UT_TESTS
-
-// tests:
-
-// keep in mind that traceln() itself is subject of "astronomical"
-// wait state times in order of dozens of milliseconds.
-
-static int32_t ut_react_called;
-
-static void ut_react_never_called(ut_react_call_t* unused(c)) {
-    ut_react_called++;
-}
-
-static void ut_react_test_1(void) {
-    ut_react_called = 0;
-    // testing insertion time ordering of two events into queue
-    ut_react_queue_t q = {0};
-    ut_react_call_t c1 = {.proc = ut_react_never_called};
-    ut_react_call_t c2 = {.proc = ut_react_never_called};
-    ut_react.enqueue(&q, &c1, 1.0);
-    swear(q.head == &c1 && q.head->next == null);
-    ut_react.enqueue(&q, &c2, 0.5);
-    swear(q.head == &c2 && q.head->next == &c1);
-    ut_react.flush(&q);
-    // test that canceled events are not dispatched
-    swear(ut_react_called == 0 && c1.canceled && c2.canceled && q.head == null);
-    c1.canceled = false;
-    c2.canceled = false;
-    // test the ut_react.cancel() function
-    ut_react.enqueue(&q, &c1, 1.0);
-    ut_react.enqueue(&q, &c2, 0.5);
-    swear(q.head == &c2 && q.head->next == &c1);
-    ut_react.cancel(&c2);
-    swear(c2.canceled && q.head == &c1 && q.head->next == null);
-    c2.canceled = false;
-    ut_react.enqueue(&q, &c2, 1.0);
-    ut_react.cancel(&c1);
-    swear(c1.canceled && q.head == &c2 && q.head->next == null);
-    ut_react.flush(&q);
-    swear(ut_react_called == 0 && c1.canceled && c2.canceled && q.head == null);
-}
-
-// simple way of passing a single pointer to call_later
-
-static fp64_t ut_react_t0; // makes timinng a bit easier to read
-
-static void ut_react_every_millisecond(ut_react_call_t* c) {
-    int32_t* i = (int32_t*)c->data;
-    if (ut_debug.verbosity.level > ut_debug.verbosity.info) {
-        traceln("%d now: %.6f time: %.6f", *i,
-                ut_clock.seconds() - ut_react_t0, c->time - ut_react_t0);
-    }
-    (*i)++;
-    ut_react.enqueue(c->queue, c, ut_clock.seconds() + 0.001);
-}
-
-static void ut_react_test_2(void) {
-    ut_thread.realtime();
-    ut_react_t0 = ut_clock.seconds();
-    ut_react_queue_t q = {0};
-    // if a single pointer will suffice
-    int32_t i = 0;
-    ut_react_call_t c = {.proc = ut_react_every_millisecond, .data = &i };
-    ut_react.enqueue(&q, &c, ut_clock.seconds() + 0.001);
-    fp64_t deadline = ut_clock.seconds() + 0.010;
-    while (q.head != null && ut_clock.seconds() < deadline) {
-        ut_thread.sleep_for(0.0001); // 100 microseconds
-        ut_react.dispatch(&q, ut_clock.seconds());
-    }
-    ut_react.flush(&q);
-    swear(q.head == null);
-    swear(i > 0);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
-        traceln("called: %d times", i);
-    }
-}
-
-// extending ut_react_call_t with extra data:
-
-typedef struct ut_call_ex_s {
-    // nameless union opens up base fields into ut_call_ex_t
-    // it is not necessary at all
-    union {
-        ut_react_call_t base;
-        struct ut_react_call_s;
-    };
-    struct { int32_t a; int32_t b; } s;
-    int32_t i;
-} ut_call_ex_t;
-
-static void ut_react_every_other_millisecond(ut_react_call_t* c) {
-    ut_call_ex_t* ex = (ut_call_ex_t*)c;
-    if (ut_debug.verbosity.level > ut_debug.verbosity.info) {
-        traceln(".i: %d .extra: {.a: %d .b: %d} now: %.6f time: %.6f",
-                ex->i, ex->s.a, ex->s.b,
-                ut_clock.seconds() - ut_react_t0, c->time - ut_react_t0);
-    }
-    ex->i++;
-    const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
-    ut_react.enqueue(c->queue, c, ut_clock.seconds() + 0.002);
-}
-
-static void ut_react_test_3(void) {
-    ut_thread.realtime();
-    ut_static_assertion(offsetof(ut_call_ex_t, base) == 0);
-    ut_react_queue_t q = {0};
-    ut_call_ex_t ex = {
-        .proc = ut_react_every_other_millisecond,
-        .s = { .a = 1, .b = 2 },
-        .i = 0
-    };
-    ut_react.enqueue(&q, &ex.base, ut_clock.seconds() + 0.002);
-    fp64_t deadline = ut_clock.seconds() + 0.020;
-    while (q.head != null && ut_clock.seconds() < deadline) {
-        ut_thread.sleep_for(0.0001); // 100 microseconds
-        ut_react.dispatch(&q, ut_clock.seconds());
-    }
-    ut_react.flush(&q);
-    swear(q.head == null);
-    swear(ex.i > 0);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
-        traceln("called: %d times", ex.i);
-    }
-}
-
-static void ut_react_test(void) {
-//  uncomment one of the following lines to see the output
-//  ut_debug.verbosity.level = ut_debug.verbosity.info;
-//  ut_debug.verbosity.level = ut_debug.verbosity.verbose;
-    ut_react_test_1();
-    ut_react_test_2();
-    ut_react_test_3();
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
-}
-
-#else
-
-static void ut_react_test(void) {}
-
-#endif
-
-ut_react_if ut_react = {
-    .dispatch = ut_react_dispatch,
-    .enqueue  = ut_react_enqueue,
-    .cancel   = ut_react_cancel,
-    .flush    = ut_react_flush,
-    .test     = ut_react_test
-};
-
 // _______________________________ ut_runtime.c _______________________________
 
 // abort does NOT call atexit() functions and
@@ -6538,6 +6359,7 @@ static void ut_runtime_test(void) { // in alphabetical order
     ut_streams.test();
     ut_thread.test();
     ut_vigil.test();
+    ut_worker.test();
 }
 
 #else
@@ -8200,6 +8022,356 @@ ut_vigil_if ut_vigil = {
     .fatal_if_error    = vigil_fatal_if_error,
     .test = vigil_test
 };
+
+// ________________________________ ut_work.c _________________________________
+
+static void ut_work_queue_no_duplicates(ut_work_t* w) {
+    ut_work_t* e = w->queue->head;
+    bool found = false;
+    while (e != null && !found) {
+        found = e == w;
+        if (!found) { e = e->next; }
+    }
+    swear(!found);
+}
+
+static void ut_work_queue_post(ut_work_t* w) {
+    assert(w->queue != null && w != null && w->when >= 0.0);
+    ut_work_queue_t* q = w->queue;
+    ut_atomics.spinlock_acquire(&q->lock);
+    ut_work_queue_no_duplicates(w); // under lock
+    //  Enqueue in time sorted order least ->time first to save
+    //  time searching in fetching from queue which is more frequent.
+    if (q->head == null || q->head->when > w->when) {
+        w->next = q->head;
+        q->head = w;
+    } else {
+        ut_work_t* p = null;
+        ut_work_t* e = q->head;
+        while (e != null && e->when <= w->when) {
+            p = e;
+            e = e->next;
+        }
+        w->next = e;
+        if (p == null) { q->head = w; } else { p->next = w; }
+    }
+    ut_atomics.spinlock_release(&q->lock);
+    if (q->posted != null) { q->posted(w); }
+}
+
+static void ut_work_queue_cancel(ut_work_t* w) {
+    swear(!w->canceled && w->queue != null && w->queue->head != null);
+    ut_work_queue_t* q = w->queue;
+    ut_atomics.spinlock_acquire(&q->lock);
+    ut_work_t* p = null;
+    ut_work_t* e = q->head;
+    while (e != null && !w->canceled) {
+        if (e == w) {
+            if (p == null) {
+                q->head = e->next;
+            } else {
+                p->next = e->next;
+            }
+            e->next = null;
+            e->canceled = true;
+        } else {
+            p = e;
+            e = e->next;
+        }
+    }
+    ut_atomics.spinlock_release(&q->lock);
+    swear(w->canceled);
+    if (w->done != null) { ut_event.set(w->done); }
+}
+
+static void ut_work_queue_flush(ut_work_queue_t* q) {
+    while (q->head != null) { ut_work_queue.cancel(q->head); }
+}
+
+static bool ut_work_queue_get(ut_work_queue_t* q, ut_work_t* *r) {
+    ut_work_t* w = null;
+    ut_atomics.spinlock_acquire(&q->lock);
+    if (q->head != null && q->head->when <= ut_clock.seconds()) {
+        w = q->head;
+        q->head = w->next;
+        w->next = null;
+    }
+    ut_atomics.spinlock_release(&q->lock);
+    *r = w;
+    return w != null;
+}
+
+static void ut_work_queue_call(ut_work_t* w) {
+    if (w->work != null) { w->work(w); }
+    if (w->done != null) { ut_event.set(w->done); }
+}
+
+static void ut_work_queue_dispatch(ut_work_queue_t* q) {
+    ut_work_t* w = null;
+    while (ut_work_queue.get(q, &w)) { ut_work_queue.call(w); }
+}
+
+ut_work_queue_if ut_work_queue = {
+    .post     = ut_work_queue_post,
+    .get      = ut_work_queue_get,
+    .call     = ut_work_queue_call,
+    .dispatch = ut_work_queue_dispatch,
+    .cancel   = ut_work_queue_cancel,
+    .flush    = ut_work_queue_flush
+};
+
+static void ut_worker_thread(void* p) {
+    ut_thread.name("worker");
+    traceln(">");
+    ut_worker_t* worker = (ut_worker_t*)p;
+    ut_work_queue_t* q = worker->queue;
+    assert(q->wake != null);
+    for (;;) {
+        ut_work_queue.dispatch(q);
+        if (worker->quit) { break; }
+        ut_atomics.spinlock_acquire(&q->lock);
+        fp64_t when = q->head == null ? -1.0 : q->head->when;
+        ut_atomics.spinlock_release(&q->lock);
+        fp64_t timeout = when < 0.0 ? -1.0 : when - ut_clock.seconds();
+//      traceln("timeout: %.6f", timeout);
+        ut_event.wait_or_timeout(q->wake, timeout);
+    }
+    traceln("<");
+}
+
+static void ut_worker_start(ut_worker_t* w, ut_work_queue_t* q) {
+    assert(q->wake != null && !w->quit);
+    w->queue = q;
+    w->thread = ut_thread.start(ut_worker_thread, w);
+}
+
+static void ut_worker_post(ut_worker_t* worker, ut_work_t* w) {
+    assert(!worker->quit);
+    if (w->queue == null) { w->queue = worker->queue; }
+    assert(w->queue == worker->queue);
+    ut_work_queue.post(w);
+}
+
+static errno_t  ut_worker_join(ut_worker_t* w, fp64_t timeout) {
+    w->quit = true;
+    ut_event.set(w->queue->wake);
+    return ut_thread.join(w->thread, timeout);
+}
+
+static void ut_worker_test(void);
+
+ut_worker_if ut_worker = {
+    .start = ut_worker_start,
+    .post  = ut_worker_post,
+    .join  = ut_worker_join,
+    .test  = ut_worker_test
+};
+
+#ifdef UT_TESTS
+
+// tests:
+
+// keep in mind that traceln() may be blocking and is a subject
+// of "astronomical" wait state times in order of dozens of ms.
+
+static int32_t ut_test_called;
+
+static void ut_never_called(ut_work_t* unused(w)) {
+    ut_test_called++;
+}
+
+static void ut_work_queue_test_1(void) {
+    ut_test_called = 0;
+    // testing insertion time ordering of two events into queue
+    const fp64_t now = ut_clock.seconds();
+    ut_work_queue_t q = {0};
+    ut_work_t c1 = {
+        .queue = &q,
+        .work = ut_never_called,
+        .when = now + 1.0
+    };
+    ut_work_t c2 = {
+        .queue = &q,
+        .work = ut_never_called,
+        .when = now + 0.5
+    };
+    ut_work_queue.post(&c1);
+    swear(q.head == &c1 && q.head->next == null);
+    ut_work_queue.post(&c2);
+    swear(q.head == &c2 && q.head->next == &c1);
+    ut_work_queue.flush(&q);
+    // test that canceled events are not dispatched
+    swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+    c1.canceled = false;
+    c2.canceled = false;
+    // test the ut_work_queue.cancel() function
+    ut_work_queue.post(&c1);
+    ut_work_queue.post(&c2);
+    swear(q.head == &c2 && q.head->next == &c1);
+    ut_work_queue.cancel(&c2);
+    swear(c2.canceled && q.head == &c1 && q.head->next == null);
+    c2.canceled = false;
+    ut_work_queue.post(&c2);
+    ut_work_queue.cancel(&c1);
+    swear(c1.canceled && q.head == &c2 && q.head->next == null);
+    ut_work_queue.flush(&q);
+    swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+}
+
+// simple way of passing a single pointer to call_later
+
+static fp64_t ut_test_work_start; // makes timing debug traces easier to read
+
+static void ut_every_millisecond(ut_work_t* w) {
+    int32_t* i = (int32_t*)w->data;
+    fp64_t now = ut_clock.seconds();
+    if (ut_debug.verbosity.level > ut_debug.verbosity.info) {
+        const fp64_t since_start = now - ut_test_work_start;
+        const fp64_t dt = w->when - ut_test_work_start;
+        traceln("%d now: %.6f time: %.6f", *i, since_start, dt);
+    }
+    (*i)++;
+    // read ut_clock.seconds() again because traceln() above could block
+    w->when = ut_clock.seconds() + 0.001;
+    ut_work_queue.post(w);
+}
+
+static void ut_work_queue_test_2(void) {
+    ut_thread.realtime();
+    ut_test_work_start = ut_clock.seconds();
+    ut_work_queue_t q = {0};
+    // if a single pointer will suffice
+    int32_t i = 0;
+    ut_work_t c = {
+        .queue = &q,
+        .work = ut_every_millisecond,
+        .when = ut_test_work_start + 0.001,
+        .data = &i
+    };
+    ut_work_queue.post(&c);
+    while (q.head != null && i < 8) {
+        ut_thread.sleep_for(0.0001); // 100 microseconds
+        ut_work_queue.dispatch(&q);
+    }
+    ut_work_queue.flush(&q);
+    swear(q.head == null);
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
+        traceln("called: %d times", i);
+    }
+}
+
+// extending ut_work_t with extra data:
+
+typedef struct ut_work_ex_s {
+    // nameless union opens up base fields into ut_work_ex_t
+    // it is not necessary at all
+    union {
+        ut_work_t base;
+        struct ut_work_s;
+    };
+    struct { int32_t a; int32_t b; } s;
+    int32_t i;
+} ut_work_ex_t;
+
+static void ut_every_other_millisecond(ut_work_t* w) {
+    ut_work_ex_t* ex = (ut_work_ex_t*)w;
+    fp64_t now = ut_clock.seconds();
+    if (ut_debug.verbosity.level > ut_debug.verbosity.info) {
+        const fp64_t since_start = now - ut_test_work_start;
+        const fp64_t dt  = w->when - ut_test_work_start;
+        traceln(".i: %d .extra: {.a: %d .b: %d} now: %.6f time: %.6f",
+                ex->i, ex->s.a, ex->s.b, since_start, dt);
+    }
+    ex->i++;
+    const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
+    // read ut_clock.seconds() again because traceln() above could block
+    w->when = ut_clock.seconds() + 0.002;
+    ut_work_queue.post(w);
+}
+
+static void ut_work_queue_test_3(void) {
+    ut_thread.realtime();
+    ut_static_assertion(offsetof(ut_work_ex_t, base) == 0);
+    const fp64_t now = ut_clock.seconds();
+    ut_work_queue_t q = {0};
+    ut_work_ex_t ex = {
+        .queue = &q,
+        .work = ut_every_other_millisecond,
+        .when = now + 0.002,
+        .s = { .a = 1, .b = 2 },
+        .i = 0
+    };
+    ut_work_queue.post(&ex.base);
+    while (q.head != null && ex.i < 8) {
+        ut_thread.sleep_for(0.0001); // 100 microseconds
+        ut_work_queue.dispatch(&q);
+    }
+    ut_work_queue.flush(&q);
+    swear(q.head == null);
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
+        traceln("called: %d times", ex.i);
+    }
+}
+
+static void ut_work_queue_test(void) {
+    ut_work_queue_test_1();
+    ut_work_queue_test_2();
+    ut_work_queue_test_3();
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+}
+
+static int32_t ut_test_do_work_called;
+
+static void ut_test_do_work(ut_work_t* unused(w)) {
+    ut_test_do_work_called++;
+}
+
+static void ut_worker_test(void) {
+//  uncomment one of the following lines to see the output
+//  ut_debug.verbosity.level = ut_debug.verbosity.info;
+//  ut_debug.verbosity.level = ut_debug.verbosity.verbose;
+    ut_work_queue_test(); // first test ut_work_queue
+    ut_worker_t worker = {0};
+    ut_work_queue_t q = {
+        .wake   = ut_event.create(),
+        .posted = null
+    };
+    ut_worker.start(&worker, &q);
+    ut_work_t asap = {
+        .queue = &q,
+        .when  = 0, // A.S.A.P.
+        .done  = ut_event.create(),
+        .work  = ut_test_do_work
+    };
+    ut_work_t later = {
+        .queue = &q,
+        .when  = ut_clock.seconds() + 0.010, // 10ms
+        .done  = ut_event.create(),
+        .work  = ut_test_do_work
+    };
+    ut_worker.post(&worker, &asap);
+    ut_worker.post(&worker, &later);
+    // because `asap` and `later` are local variables
+    // code needs to wait for them to be processed inside
+    // this function before they goes out of scope
+    ut_event.wait(asap.done); // await(asap)
+    ut_event.dispose(asap.done); // responsibility of the caller
+    // wait for later:
+    ut_event.wait(later.done); // await(asap)
+    ut_event.dispose(later.done); // responsibility of the caller
+    // quit the worker thread:
+    ut_fatal_if_error(ut_worker.join(&worker, -1.0));
+    ut_event.dispose(q.wake); // responsibility of the caller
+    // does worker respect .when dispatch time?
+    swear(ut_clock.seconds() >= later.when);
+}
+
+#else
+
+static void ut_work_queue_test(void) {}
+static void ut_worker_test(void) {}
+
+#endif
 
 #endif // ut_implementation
 

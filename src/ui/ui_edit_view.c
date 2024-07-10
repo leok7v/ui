@@ -1085,7 +1085,7 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        assert(p.pn <= dt->np - 1);
+        swear(p.pn <= dt->np - 1);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
         ui_edit_glyph_t glyph = ui_edit_glyph_at(e, p);
@@ -1154,7 +1154,7 @@ static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp && ui_view.has_focus(&e->view)) {
-        assert(dt->np > 0 && p.pn < dt->np);
+        swear(dt->np > 0 && p.pn < dt->np);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
 //      traceln("move_caret: %d.%d", p.pn, p.gp);

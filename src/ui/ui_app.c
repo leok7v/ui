@@ -16,7 +16,7 @@ static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
 static ut_event_t ui_app_event_quit;
 static ut_event_t ui_app_event_invalidate;
 
-static ut_react_queue_t ui_app_queue;
+static ut_work_queue_t ui_app_queue;
 
 static uintptr_t ui_app_timer_1s_id;
 static uintptr_t ui_app_timer_100ms_id;
@@ -36,8 +36,11 @@ static struct {
 // messages are far from isochronous and more likely to arrive at 16 or
 // 32ms intervals and can be delayed.
 
-static void ui_app_enqueue(ut_react_call_t* c, fp64_t time) {
-    ut_react.enqueue(&ui_app_queue, c, time);
+static void ui_app_post_work(ut_work_t* w) {
+    if (w->queue == null) { w->queue = &ui_app_queue; }
+    // work iterm can be reused with the same queue
+    assert(w->queue == &ui_app_queue);
+    ut_work_queue.post(w);
 }
 
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
@@ -455,7 +458,7 @@ static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
     return tid;
 }
 
-static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
+static void ui_app_post(int32_t m, int64_t wp, int64_t lp) {
     ut_fatal_if_error(ut_b2e(PostMessageA(ui_app_window(), (UINT)m,
             (WPARAM)wp, (LPARAM)lp)));
 }
@@ -467,7 +470,7 @@ static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
 }
 
 static void ui_app_animate_timer(void) {
-    ui_app_post_message(ui.message.animate, (int64_t)ui_app_animate.step + 1,
+    ui_app.post(ui.message.animate, (int64_t)ui_app_animate.step + 1,
         (int64_t)(uintptr_t)ui_app_animate.f);
 }
 
@@ -1333,7 +1336,7 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
     ui_app.now = ut_clock.seconds();
-    ut_react.dispatch(&ui_app_queue, ui_app.now);
+    ut_work_queue.dispatch(&ui_app_queue);
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
     } else {
@@ -1361,7 +1364,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
         case WM_CLOSE        :
             ui_view.set_focus(null); // before WM_CLOSING
-            ui_app_post_message(ui.message.closing, 0, 0);
+            ui_app.post(ui.message.closing, 0, 0);
             return 0;
         case WM_DESTROY      :
             PostQuitMessage(ui_app.exit_code);
@@ -1632,7 +1635,7 @@ static void ui_app_create_window(const ui_rect_t r) {
         ui_app_update_crc();
     }
     // even if it is hidden:
-    ui_app_post_message(ui.message.opening, 0, 0);
+    ui_app.post(ui.message.opening, 0, 0);
 //  SetWindowTheme(ui_app_window(), L"DarkMode_Explorer", null); ???
 }
 
@@ -1747,8 +1750,14 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
     }
 }
 
+static void ui_app_queue_posted(ut_work_t* w) {
+    assert(w->queue == &ui_app_queue);
+    ui_app.post(WM_NULL, 0, 0); // wake up GetMessage
+}
+
 static int32_t ui_app_message_loop(void) {
     MSG msg = {0};
+    ui_app_queue.posted = ui_app_queue_posted;
     while (GetMessage(&msg, null, 0, 0)) {
         if (msg.message == WM_KEYDOWN || msg.message == WM_KEYUP ||
             msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP) {
@@ -1757,7 +1766,7 @@ static int32_t ui_app_message_loop(void) {
         TranslateMessage(&msg);
         DispatchMessageA(&msg);
     }
-    ut_react.flush(&ui_app_queue);
+    ut_work_queue.flush(&ui_app_queue);
     assert(msg.message == WM_QUIT);
     return (int32_t)msg.wParam;
 }
@@ -1781,7 +1790,7 @@ static void ui_app_cursor_set(ui_cursor_t c) {
 static void ui_app_close_window(void) {
     // TODO: fix me. Band aid - start up with maximized no_decor window is broken
     if (ui_app.is_maximized()) { ui_app.show_window(ui.visibility.restore); }
-    ui_app_post_message(WM_CLOSE, 0, 0);
+    ui_app.post(WM_CLOSE, 0, 0);
 }
 
 static void ui_app_quit(int32_t exit_code) {
@@ -2292,7 +2301,7 @@ static void ui_app_init(void) {
     ui_app_event_quit           = ut_event.create();
     ui_app_event_invalidate     = ut_event.create();
     ui_app.request_redraw       = ui_app_request_redraw;
-    ui_app.enqueue              = ui_app_enqueue;
+    ui_app.post_work            = ui_app_post_work;
     ui_app.draw                 = ui_app_draw;
     ui_app.px2in                = ui_app_px2in;
     ui_app.in2px                = ui_app_in2px;
@@ -2317,7 +2326,7 @@ static void ui_app_init(void) {
     ui_app.quit                 = ui_app_quit;
     ui_app.set_timer            = ui_app_timer_set;
     ui_app.kill_timer           = ui_app_timer_kill;
-    ui_app.post                 = ui_app_post_message;
+    ui_app.post                 = ui_app_post;
     ui_app.show_window          = ui_app_show_window;
     ui_app.show_toast           = ui_app_show_toast;
     ui_app.show_hint            = ui_app_show_hint;
@@ -2554,10 +2563,96 @@ static int ui_app_win_main(HINSTANCE instance) {
     return r;
 }
 
+#if 1 // TODO: remove
+
+    // The dispatch_until() is just for testing purposes.
+    // Usually ut_work_queue.dispatch(q) will be called inside each
+    // iteration of message loop of a dispatch [UI] thread.
+
+    static void dispatch_until(ut_work_queue_t* q, int32_t* i, const int32_t n);
+
+    // simple way of passing a single pointer to call_later
+
+    static void every_100ms(ut_work_t* w) {
+        int32_t* i = (int32_t*)w->data;
+        traceln("i: %d", *i);
+        (*i)++;
+        w->when = ut_clock.seconds() + 0.100;
+        ut_work_queue.post(w);
+    }
+
+    static void example_1(void) {
+        ut_work_queue_t queue = {0};
+        // if a single pointer will suffice
+        int32_t i = 0;
+        ut_work_t work = {
+            .queue = &queue,
+            .when  = ut_clock.seconds() + 0.100,
+            .work  = every_100ms,
+            .data  = &i
+        };
+        ut_work_queue.post(&work);
+        dispatch_until(&queue, &i, 4);
+    }
+
+    // extending ut_work_t with extra data:
+
+    typedef struct ut_work_ex_s {
+        union {
+            ut_work_t base;
+            struct ut_work_s;
+        };
+        struct { int32_t a; int32_t b; } s;
+        int32_t i;
+    } ut_work_ex_t;
+
+    static void every_200ms(ut_work_t* w) {
+        ut_work_ex_t* ex = (ut_work_ex_t*)w;
+        traceln("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
+        ex->i++;
+        const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
+        w->when = ut_clock.seconds() + 0.200;
+        ut_work_queue.post(w);
+    }
+
+    static void example_2(void) {
+        ut_work_queue_t queue = {0};
+        ut_work_ex_t work = {
+            .queue = &queue,
+            .when  = ut_clock.seconds() + 0.200,
+            .work  = every_200ms,
+            .data  = null,
+            .s = { .a = 1, .b = 2 },
+            .i = 0
+        };
+        ut_work_queue.post(&work.base);
+        dispatch_until(&queue, &work.i, 4);
+    }
+
+    static void dispatch_until(ut_work_queue_t* q, int32_t* i, const int32_t n) {
+        while (q->head != null && *i < n) {
+            ut_thread.sleep_for(0.0001); // 100 microseconds
+            ut_work_queue.dispatch(q);
+        }
+        ut_work_queue.flush(q);
+    }
+
+    // Hint:
+    // To monitor timing turn on MSVC Output / Show Timestamp (clock button)
+
+
+
+#endif
+
+
 #pragma warning(disable: 28251) // inconsistent annotations
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE unused(previous),
         char* unused(command), int show) {
+
+    example_1();
+    example_2();
+
     SetUnhandledExceptionFilter(ui_app_exception_filter);
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
     ut_fatal_if_error(CoInitializeEx(0, co_init));

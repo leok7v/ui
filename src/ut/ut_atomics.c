@@ -175,9 +175,7 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
     // Not a performance champion (because of mem_fence()) but serves
     // the purpose. mem_fence() can be reduced to mem_sfence()... sigh
     while (!ut_sync_bool_compare_and_swap(spinlock, 0, 1)) {
-        while (*spinlock) {
-            ut_builtin_cpu_pause();
-        }
+        while (*spinlock) { ut_builtin_cpu_pause(); }
     }
     ut_atomics.memory_fence();
     // not strictly necessary on strong mem model Intel/AMD but

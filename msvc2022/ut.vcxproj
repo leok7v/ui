@@ -35,7 +35,6 @@
     <ClInclude Include="..\inc\ut\ut_nls.h" />
     <ClInclude Include="..\inc\ut\ut_num.h" />
     <ClInclude Include="..\inc\ut\ut_processes.h" />
-    <ClInclude Include="..\inc\ut\ut_react.h" />
     <ClInclude Include="..\inc\ut\ut_runtime.h" />
     <ClInclude Include="..\inc\ut\ut_static.h" />
     <ClInclude Include="..\inc\ut\ut_std.h" />
@@ -45,6 +44,7 @@
     <ClInclude Include="..\inc\ut\ut.h" />
     <ClInclude Include="..\inc\ut\ut_vigil.h" />
     <ClInclude Include="..\inc\ut\ut_win32.h" />
+    <ClInclude Include="..\inc\ut\ut_work.h" />
     <ClInclude Include="..\inc\ut\version.h" />
   </ItemGroup>
   <ItemGroup>
@@ -66,7 +66,6 @@
     <ClCompile Include="..\src\ut\ut_nls.c" />
     <ClCompile Include="..\src\ut\ut_num.c" />
     <ClCompile Include="..\src\ut\ut_processes.c" />
-    <ClCompile Include="..\src\ut\ut_react.c" />
     <ClCompile Include="..\src\ut\ut_runtime.c" />
     <ClCompile Include="..\src\ut\ut_static.c" />
     <ClCompile Include="..\src\ut\ut_str.c" />
@@ -74,6 +73,7 @@
     <ClCompile Include="..\src\ut\ut_threads.c" />
     <ClCompile Include="..\src\ut\ut.c" />
     <ClCompile Include="..\src\ut\ut_vigil.c" />
+    <ClCompile Include="..\src\ut\ut_work.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="amalgamate.vcxproj">

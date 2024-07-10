@@ -123,7 +123,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     } animating;
     // call_later(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
-    void (*enqueue)(ut_react_call_t* c, fp64_t time);
+    void (*post_work)(ut_work_t* work); // .when == 0 meaning ASAP
     void (*request_redraw)(void); // very fast <2 microseconds
     void (*draw)(void); // paint window now - bad idea do not use
     // inch to pixels and reverse translation via ui_app.dpi.window
