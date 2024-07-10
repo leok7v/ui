@@ -123,8 +123,8 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     } animating;
     // call_later(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
-    void (*post_work)(ut_work_t* work); // .when == 0 meaning ASAP
-    void (*request_redraw)(void); // very fast <2 microseconds
+    void (*post)(ut_work_t* work); // work.when == 0 meaning ASAP
+    void (*request_redraw)(void);  // very fast <2 microseconds
     void (*draw)(void); // paint window now - bad idea do not use
     // inch to pixels and reverse translation via ui_app.dpi.window
     fp32_t  (*px2in)(int32_t pixels);
@@ -153,7 +153,6 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     void (*quit)(int32_t ec);  // ui_app.exit_code = ec; PostQuitMessage(ec);
     ui_timer_t (*set_timer)(uintptr_t id, int32_t milliseconds); // see notes
     void (*kill_timer)(ui_timer_t id);
-    void (*post)(int32_t message, int64_t wp, int64_t lp);
     void (*show_window)(int32_t show); // see show_window enum
     void (*show_toast)(ui_view_t* toast, fp64_t seconds); // toast(null) to cancel
     void (*show_hint)(ui_view_t* tooltip, int32_t x, int32_t y, fp64_t seconds);
@@ -189,6 +188,8 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     fp64_t paint_max;  // max of last 128 paint
     fp64_t paint_avg;  // EMA of last 128 paints
     fp64_t paint_fps;  // EMA of last 128 paints
+    fp64_t paint_last; // ut_clock.seconds() of last paint
+    fp64_t paint_dt_min; // minimum time between 2 paints
 } ui_app_t;
 
 extern ui_app_t ui_app;

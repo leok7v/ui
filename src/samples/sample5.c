@@ -264,7 +264,6 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t);
 void ui_edit_fuzz(ui_edit_t* e);
 void ui_edit_next_fuzz(ui_edit_t* e);
 
-
 static void opened(void) {
 //  ui_app.view->measure     = measure;
 //  ui_app.view->layout      = layout;

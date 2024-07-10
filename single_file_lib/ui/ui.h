@@ -8,6 +8,8 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <float.h>
+#include <limits.h>
 #include <locale.h>
 #include <malloc.h>
 #include <signal.h>
@@ -2016,8 +2018,8 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     } animating;
     // call_later(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
-    void (*post_work)(ut_work_t* work); // .when == 0 meaning ASAP
-    void (*request_redraw)(void); // very fast <2 microseconds
+    void (*post)(ut_work_t* work); // work.when == 0 meaning ASAP
+    void (*request_redraw)(void);  // very fast <2 microseconds
     void (*draw)(void); // paint window now - bad idea do not use
     // inch to pixels and reverse translation via ui_app.dpi.window
     fp32_t  (*px2in)(int32_t pixels);
@@ -2046,7 +2048,6 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     void (*quit)(int32_t ec);  // ui_app.exit_code = ec; PostQuitMessage(ec);
     ui_timer_t (*set_timer)(uintptr_t id, int32_t milliseconds); // see notes
     void (*kill_timer)(ui_timer_t id);
-    void (*post)(int32_t message, int64_t wp, int64_t lp);
     void (*show_window)(int32_t show); // see show_window enum
     void (*show_toast)(ui_view_t* toast, fp64_t seconds); // toast(null) to cancel
     void (*show_hint)(ui_view_t* tooltip, int32_t x, int32_t y, fp64_t seconds);
@@ -2082,6 +2083,8 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     fp64_t paint_max;  // max of last 128 paint
     fp64_t paint_avg;  // EMA of last 128 paints
     fp64_t paint_fps;  // EMA of last 128 paints
+    fp64_t paint_last; // ut_clock.seconds() of last paint
+    fp64_t paint_dt_min; // minimum time between 2 paints
 } ui_app_t;
 
 extern ui_app_t ui_app;
@@ -2161,6 +2164,7 @@ static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
 
 static ut_event_t ui_app_event_quit;
 static ut_event_t ui_app_event_invalidate;
+static ut_event_t ui_app_waitable_timer;
 
 static ut_work_queue_t ui_app_queue;
 
@@ -2182,12 +2186,72 @@ static struct {
 // messages are far from isochronous and more likely to arrive at 16 or
 // 32ms intervals and can be delayed.
 
-static void ui_app_post_work(ut_work_t* w) {
+static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
+    ut_fatal_if_error(ut_b2e(PostMessageA(ui_app_window(), (UINT)m,
+            (WPARAM)wp, (LPARAM)lp)));
+}
+
+static void ui_app_post(ut_work_t* w) {
     if (w->queue == null) { w->queue = &ui_app_queue; }
-    // work iterm can be reused with the same queue
+    // work item can be reused but only with the same queue
     assert(w->queue == &ui_app_queue);
     ut_work_queue.post(w);
 }
+
+static void ui_app_queue_posted(ut_work_t* w) {
+    assert(w->queue == &ui_app_queue);
+    assert(w->when >= 0);
+    fp64_t dt = w->when - ut_clock.seconds();
+    // wake up GetMessage
+    if (dt <= 0) {
+        ui_app_post_message(WM_NULL, 0, 0);
+    } else {
+        // Negative values indicate relative time in 100ns intervals
+        LARGE_INTEGER due_time = {0};
+        due_time.QuadPart = (LONGLONG)(-dt * 1.0E+7);
+        swear(due_time.QuadPart < 0, "dt: %.6f %lld", dt, due_time.QuadPart);
+        ut_fatal_if_error(ut_b2e(
+            SetWaitableTimer(ui_app_waitable_timer, &due_time, 0,
+                             null, null, 0))
+        );
+    }
+}
+
+static void ui_app_alarm_thread(void* unused(p)) {
+    ut_thread.realtime();
+    ut_thread.name("ui_app.alarm");
+    for (;;) {
+        ut_event_t es[] = { ui_app_waitable_timer, ui_app_event_quit };
+        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
+        if (ix == 0) {
+            ui_app_post_message(WM_NULL, 0, 0);
+        } else {
+            break;
+        }
+    }
+}
+
+
+// InvalidateRect() may wait for up to 30 milliseconds
+// which is unacceptable for video drawing at monitor
+// refresh rate
+
+static void ui_app_redraw_thread(void* unused(p)) {
+    ut_thread.realtime();
+    ut_thread.name("ui_app.redraw");
+    for (;;) {
+        ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
+        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
+        if (ix == 0) {
+            if (ui_app_window() != null) {
+                InvalidateRect(ui_app_window(), null, false);
+            }
+        } else {
+            break;
+        }
+    }
+}
+
 
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 // https://docs.microsoft.com/en-us/windows/win32/inputdev/wm-keydown
@@ -2604,11 +2668,6 @@ static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
     return tid;
 }
 
-static void ui_app_post(int32_t m, int64_t wp, int64_t lp) {
-    ut_fatal_if_error(ut_b2e(PostMessageA(ui_app_window(), (UINT)m,
-            (WPARAM)wp, (LPARAM)lp)));
-}
-
 static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
     ui_view.timer(view, id);
     if (id == ui_app_timer_1s_id) { ui_view.every_sec(view); }
@@ -2616,7 +2675,7 @@ static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
 }
 
 static void ui_app_animate_timer(void) {
-    ui_app.post(ui.message.animate, (int64_t)ui_app_animate.step + 1,
+    ui_app_post_message(ui.message.animate, (int64_t)ui_app_animate.step + 1,
         (int64_t)(uintptr_t)ui_app_animate.f);
 }
 
@@ -2791,7 +2850,7 @@ static void ui_app_show_sys_menu(int32_t x, int32_t y) {
         int32_t sys_cmd = TrackPopupMenu(sys_menu, flags, x, y, 0,
                                          ui_app_window(), null);
         if (sys_cmd != 0) {
-            ui_app.post(WM_SYSCOMMAND, sys_cmd, 0);
+            ui_app_post_message(WM_SYSCOMMAND, sys_cmd, 0);
         }
     }
 }
@@ -3070,6 +3129,17 @@ static void ui_app_paint_stats(void) {
             ui_app.paint_fps = ui_app.paint_fps * (1.0 - 1.0 / 32.0) + fps / 32.0;
         }
     }
+    if (ui_app.paint_last == 0) {
+        ui_app.paint_dt_min = 1.0 / 60.0; // 60Hz monitor
+    } else {
+        fp64_t since_last = ui_app.now - ui_app.paint_last;
+        if (since_last > 1.0 / 120.0) { // 240Hz monitor
+            ui_app.paint_dt_min = ut_min(ui_app.paint_dt_min, since_last);
+        }
+//      traceln("paint_dt_min: %.6f since_last: %.6f",
+//              ui_app.paint_dt_min, since_last);
+    }
+    ui_app.paint_last = ui_app.now;
 }
 
 static void ui_app_paint_on_canvas(HDC hdc) {
@@ -3327,17 +3397,6 @@ static void ui_app_update_mouse_buttons_state(void) {
                           VK_LBUTTON : VK_RBUTTON) & 0x8000) != 0;
 }
 
-#if 0
-        case WM_NCHITTEST    :  {
-            ui_point_t pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
-                              GET_Y_LPARAM(lp) - ui_app.wrc.y };
-            int64_t ht = ui_view.hit_test(ui_app.root, pt);
-            if (ht != ui.hit_test.nowhere) { return ht; }
-            break; // drop to DefWindowProc
-        }
-
-#endif
-
 static int64_t ui_app_wm_nc_hit_test(int64_t wp, int64_t lp) {
     ui_point_t pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
                       GET_Y_LPARAM(lp) - ui_app.wrc.y };
@@ -3510,7 +3569,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
         case WM_CLOSE        :
             ui_view.set_focus(null); // before WM_CLOSING
-            ui_app.post(ui.message.closing, 0, 0);
+            ui_app_post_message(ui.message.closing, 0, 0);
             return 0;
         case WM_DESTROY      :
             PostQuitMessage(ui_app.exit_code);
@@ -3781,7 +3840,7 @@ static void ui_app_create_window(const ui_rect_t r) {
         ui_app_update_crc();
     }
     // even if it is hidden:
-    ui_app.post(ui.message.opening, 0, 0);
+    ui_app_post_message(ui.message.opening, 0, 0);
 //  SetWindowTheme(ui_app_window(), L"DarkMode_Explorer", null); ???
 }
 
@@ -3826,26 +3885,6 @@ static void ui_app_invalidate_rect(const ui_rect_t* r) {
     RECT rc = ui_app_ui2rect(r);
     InvalidateRect(ui_app_window(), &rc, false);
 //  ut_bt_here();
-}
-
-// InvalidateRect() may wait for up to 30 milliseconds
-// which is unacceptable for video drawing at monitor
-// refresh rate
-
-static void ui_app_redraw_thread(void* unused(p)) {
-    ut_thread.realtime();
-    ut_thread.name("ui_app.redraw");
-    for (;;) {
-        ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
-        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
-        if (ix == 0) {
-            if (ui_app_window() != null) {
-                InvalidateRect(ui_app_window(), null, false);
-            }
-        } else {
-            break;
-        }
-    }
 }
 
 static bool ui_app_trace_utf16_keyboard_input; // = true;
@@ -3896,14 +3935,8 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
     }
 }
 
-static void ui_app_queue_posted(ut_work_t* w) {
-    assert(w->queue == &ui_app_queue);
-    ui_app.post(WM_NULL, 0, 0); // wake up GetMessage
-}
-
 static int32_t ui_app_message_loop(void) {
     MSG msg = {0};
-    ui_app_queue.posted = ui_app_queue_posted;
     while (GetMessage(&msg, null, 0, 0)) {
         if (msg.message == WM_KEYDOWN || msg.message == WM_KEYUP ||
             msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP) {
@@ -3919,9 +3952,7 @@ static int32_t ui_app_message_loop(void) {
 
 static void ui_app_dispose(void) {
     ui_app_dispose_fonts();
-    ut_event.dispose(ui_app_event_quit);
     ut_event.dispose(ui_app_event_invalidate);
-    ui_app_event_quit = null;
     ui_app_event_invalidate = null;
 }
 
@@ -3936,7 +3967,7 @@ static void ui_app_cursor_set(ui_cursor_t c) {
 static void ui_app_close_window(void) {
     // TODO: fix me. Band aid - start up with maximized no_decor window is broken
     if (ui_app.is_maximized()) { ui_app.show_window(ui.visibility.restore); }
-    ui_app.post(WM_CLOSE, 0, 0);
+    ui_app_post_message(WM_CLOSE, 0, 0);
 }
 
 static void ui_app_quit(int32_t exit_code) {
@@ -4444,10 +4475,10 @@ static void ui_app_request_focus(void) {
 }
 
 static void ui_app_init(void) {
-    ui_app_event_quit           = ut_event.create();
+    ui_app_event_quit           = ut_event.create_manual();
     ui_app_event_invalidate     = ut_event.create();
     ui_app.request_redraw       = ui_app_request_redraw;
-    ui_app.post_work            = ui_app_post_work;
+    ui_app.post                 = ui_app_post;
     ui_app.draw                 = ui_app_draw;
     ui_app.px2in                = ui_app_px2in;
     ui_app.in2px                = ui_app_in2px;
@@ -4472,7 +4503,6 @@ static void ui_app_init(void) {
     ui_app.quit                 = ui_app_quit;
     ui_app.set_timer            = ui_app_timer_set;
     ui_app.kill_timer           = ui_app_timer_kill;
-    ui_app.post                 = ui_app_post;
     ui_app.show_window          = ui_app_show_window;
     ui_app.show_toast           = ui_app_show_toast;
     ui_app.show_hint            = ui_app_show_hint;
@@ -4641,8 +4671,145 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
+#define UI_APP_TEST_POST
+
+#ifdef UI_APP_TEST_POST
+
+// The dispatch_until() is just for testing purposes.
+// Usually ut_work_queue.dispatch(q) will be called inside each
+// iteration of message loop of a dispatch [UI] thread.
+
+static void ui_app_test_dispatch_until(ut_work_queue_t* q, int32_t* i,
+        const int32_t n) {
+    while (q->head != null && *i < n) {
+        ut_thread.sleep_for(0.0001); // 100 microseconds
+        ut_work_queue.dispatch(q);
+    }
+    ut_work_queue.flush(q);
+}
+
+// simple way of passing a single pointer to call_later
+
+static void ui_app_test_every_100ms(ut_work_t* w) {
+    int32_t* i = (int32_t*)w->data;
+    traceln("i: %d", *i);
+    (*i)++;
+    w->when = ut_clock.seconds() + 0.100;
+    ut_work_queue.post(w);
+}
+
+static void ui_app_test_work_queue_1(void) {
+    ut_work_queue_t queue = {0};
+    // if a single pointer will suffice
+    int32_t i = 0;
+    ut_work_t work = {
+        .queue = &queue,
+        .when  = ut_clock.seconds() + 0.100,
+        .work  = ui_app_test_every_100ms,
+        .data  = &i
+    };
+    ut_work_queue.post(&work);
+    ui_app_test_dispatch_until(&queue, &i, 4);
+}
+
+// extending ut_work_t with extra data:
+
+typedef struct ut_work_ex_s {
+    union {
+        ut_work_t base;
+        struct ut_work_s;
+    };
+    struct { int32_t a; int32_t b; } s;
+    int32_t i;
+} ut_work_ex_t;
+
+static void ui_app_test_every_200ms(ut_work_t* w) {
+    ut_work_ex_t* ex = (ut_work_ex_t*)w;
+    traceln("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
+    ex->i++;
+    const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
+    w->when = ut_clock.seconds() + 0.200;
+    ut_work_queue.post(w);
+}
+
+static void ui_app_test_work_queue_2(void) {
+    ut_work_queue_t queue = {0};
+    ut_work_ex_t work = {
+        .queue = &queue,
+        .when  = ut_clock.seconds() + 0.200,
+        .work  = ui_app_test_every_200ms,
+        .data  = null,
+        .s = { .a = 1, .b = 2 },
+        .i = 0
+    };
+    ut_work_queue.post(&work.base);
+    ui_app_test_dispatch_until(&queue, &work.i, 4);
+}
+
+static fp64_t ui_app_test_timestamp_0;
+static fp64_t ui_app_test_timestamp_2;
+static fp64_t ui_app_test_timestamp_3;
+static fp64_t ui_app_test_timestamp_4;
+
+static void ui_app_test_in_1_second(ut_work_t* unused(work)) {
+    ui_app_test_timestamp_3 = ut_clock.seconds();
+    traceln("ETA 3 seconds");
+}
+
+static void ui_app_test_in_2_seconds(ut_work_t* unused(work)) {
+    ui_app_test_timestamp_2 = ut_clock.seconds();
+    traceln("ETA 2 seconds");
+    static ut_work_t invoke_in_1_seconds;
+    invoke_in_1_seconds = (ut_work_t){
+        .queue = null, // &ui_app_queue will be used
+        .when = ut_clock.seconds() + 1.0, // seconds
+        .work = ui_app_test_in_1_second
+    };
+    ui_app.post(&invoke_in_1_seconds);
+}
+
+static void ui_app_test_in_4_seconds(ut_work_t* unused(work)) {
+    ui_app_test_timestamp_4 = ut_clock.seconds();
+    traceln("ETA 4 seconds");
+//  expected sequence of callbacks:
+//  2:732 ui_app_test_in_2_seconds ETA 2 seconds
+//  3:724 ui_app_test_in_1_second  ETA 3 seconds
+//  4:735 ui_app_test_in_4_seconds ETA 4 seconds
+    fp64_t dt2 = ui_app_test_timestamp_2 - ui_app_test_timestamp_0;
+    fp64_t dt3 = ui_app_test_timestamp_3 - ui_app_test_timestamp_0;
+    fp64_t dt4 = ui_app_test_timestamp_4 - ui_app_test_timestamp_0;
+//  Assuming there were no huge startup delays:
+    swear(1.75 < dt2 < 2.25);
+    swear(2.75 < dt3 < 3.25);
+    swear(3.75 < dt4 < 4.25);
+}
+
+static void ui_app_test_post(void) {
+    ui_app_test_work_queue_1();
+    ui_app_test_work_queue_2();
+    traceln("see Output/Timestamps");
+    static ut_work_t invoke_in_2_seconds;
+    static ut_work_t invoke_in_4_seconds;
+    ui_app_test_timestamp_0 = ut_clock.seconds();
+    invoke_in_2_seconds = (ut_work_t){
+        .queue = null, // &ui_app_queue will be used
+        .when = ut_clock.seconds() + 2.0, // seconds
+        .work = ui_app_test_in_2_seconds
+    };
+    invoke_in_4_seconds = (ut_work_t){
+        .queue = null, // &ui_app_queue will be used
+        .when = ut_clock.seconds() + 4.0, // seconds
+        .work = ui_app_test_in_4_seconds
+    };
+    ui_app.post(&invoke_in_4_seconds);
+    ui_app.post(&invoke_in_2_seconds);
+}
+
+#endif
+
 static int ui_app_win_main(HINSTANCE instance) {
     // IDI_ICON 101:
+    ui_app_queue.posted = ui_app_queue_posted;
     ui_app.icon = (ui_icon_t)LoadIconA(instance, MAKEINTRESOURCE(101));
     ut_not_null(ui_app.init);
     ui_app_init_windows();
@@ -4690,115 +4857,40 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint
     ut_not_null(ui_app.class_name);
+    ui_app_waitable_timer = (ut_event_t)CreateWaitableTimerA(null, false, null);
+    ut_thread_t alarm  = ut_thread.start(ui_app_alarm_thread, null);
     if (!ui_app.no_ui) {
         ui_app_create_window(wr);
         ui_app_init_fonts(ui_app.dpi.window);
-        ut_thread_t thread = ut_thread.start(ui_app_redraw_thread, null);
+        ut_thread_t redraw = ut_thread.start(ui_app_redraw_thread, null);
+        #ifdef UI_APP_TEST_POST
+            ui_app_test_post();
+        #endif
         r = ui_app_message_loop();
         // ui_app.fini() must be called before ui_app_dispose()
         if (ui_app.fini != null) { ui_app.fini(); }
-        ut_fatal_if_error(ut_b2e(SetEvent(ui_app_event_quit)));
-        ut_thread.join(thread, -1);
+        ut_event.set(ui_app_event_quit);
+        ut_thread.join(redraw, -1);
         ui_app_dispose();
         if (r == 0 && ui_app.exit_code != 0) { r = ui_app.exit_code; }
     } else {
         r = ui_app.main();
         if (ui_app.fini != null) { ui_app.fini(); }
     }
+    ut_event.set(ui_app_event_quit);
+    ut_thread.join(alarm, -1);
+    ut_event.dispose(ui_app_event_quit);
+    ui_app_event_quit = null;
+    ut_event.dispose(ui_app_waitable_timer);
+    ui_app_waitable_timer = null;
     ui_gdi.fini();
     return r;
 }
-
-#if 1 // TODO: remove
-
-    // The dispatch_until() is just for testing purposes.
-    // Usually ut_work_queue.dispatch(q) will be called inside each
-    // iteration of message loop of a dispatch [UI] thread.
-
-    static void dispatch_until(ut_work_queue_t* q, int32_t* i, const int32_t n);
-
-    // simple way of passing a single pointer to call_later
-
-    static void every_100ms(ut_work_t* w) {
-        int32_t* i = (int32_t*)w->data;
-        traceln("i: %d", *i);
-        (*i)++;
-        w->when = ut_clock.seconds() + 0.100;
-        ut_work_queue.post(w);
-    }
-
-    static void example_1(void) {
-        ut_work_queue_t queue = {0};
-        // if a single pointer will suffice
-        int32_t i = 0;
-        ut_work_t work = {
-            .queue = &queue,
-            .when  = ut_clock.seconds() + 0.100,
-            .work  = every_100ms,
-            .data  = &i
-        };
-        ut_work_queue.post(&work);
-        dispatch_until(&queue, &i, 4);
-    }
-
-    // extending ut_work_t with extra data:
-
-    typedef struct ut_work_ex_s {
-        union {
-            ut_work_t base;
-            struct ut_work_s;
-        };
-        struct { int32_t a; int32_t b; } s;
-        int32_t i;
-    } ut_work_ex_t;
-
-    static void every_200ms(ut_work_t* w) {
-        ut_work_ex_t* ex = (ut_work_ex_t*)w;
-        traceln("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
-        ex->i++;
-        const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
-        w->when = ut_clock.seconds() + 0.200;
-        ut_work_queue.post(w);
-    }
-
-    static void example_2(void) {
-        ut_work_queue_t queue = {0};
-        ut_work_ex_t work = {
-            .queue = &queue,
-            .when  = ut_clock.seconds() + 0.200,
-            .work  = every_200ms,
-            .data  = null,
-            .s = { .a = 1, .b = 2 },
-            .i = 0
-        };
-        ut_work_queue.post(&work.base);
-        dispatch_until(&queue, &work.i, 4);
-    }
-
-    static void dispatch_until(ut_work_queue_t* q, int32_t* i, const int32_t n) {
-        while (q->head != null && *i < n) {
-            ut_thread.sleep_for(0.0001); // 100 microseconds
-            ut_work_queue.dispatch(q);
-        }
-        ut_work_queue.flush(q);
-    }
-
-    // Hint:
-    // To monitor timing turn on MSVC Output / Show Timestamp (clock button)
-
-
-
-#endif
-
 
 #pragma warning(disable: 28251) // inconsistent annotations
 
 int WINAPI WinMain(HINSTANCE instance, HINSTANCE unused(previous),
         char* unused(command), int show) {
-
-    example_1();
-    example_2();
-
     SetUnhandledExceptionFilter(ui_app_exception_filter);
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
     ut_fatal_if_error(CoInitializeEx(0, co_init));

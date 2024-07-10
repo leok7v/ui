@@ -5,6 +5,8 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <float.h>
+#include <limits.h>
 #include <locale.h>
 #include <malloc.h>
 #include <signal.h>
