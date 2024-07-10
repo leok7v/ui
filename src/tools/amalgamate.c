@@ -171,7 +171,12 @@ static void parse(const char* fn) {
         }
     }
     fclose(f);
-    if (ends_with(fn, "/std.h")) { printf("\nbegin_c\n"); }
+    // TODO: this is not a good way.
+    // because some later #include will get into
+    // begin_c end_c brackets. Why don't we just leave
+    // begin_c and end_c alone instead of messing with them?
+    // TODO: ut_begin_c ut_end_c ut_null ut_assert/swear/not_null/traceln...
+    if (ends_with(fn, "/ut_std.h")) { printf("\nbegin_c\n"); }
 }
 
 static void definition(void) {
