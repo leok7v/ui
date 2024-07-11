@@ -17,27 +17,21 @@ static void ut_work_queue_post(ut_work_t* w) {
     ut_work_queue_no_duplicates(w); // under lock
     //  Enqueue in time sorted order least ->time first to save
     //  time searching in fetching from queue which is more frequent.
-    bool changed = q->head == null || q->head->when > w->when;
-    if (changed) {
-        w->next = q->head;
+    ut_work_t* p = null;
+    ut_work_t* e = q->head;
+    while (e != null && e->when <= w->when) {
+        p = e;
+        e = e->next;
+    }
+    w->next = e;
+    bool head = p == null;
+    if (head) {
         q->head = w;
     } else {
-        ut_work_t* p = null;
-        ut_work_t* e = q->head;
-        while (e != null && e->when <= w->when) {
-            p = e;
-            e = e->next;
-        }
-        w->next = e;
-        changed = p == null;
-        if (changed) {
-            q->head = w;
-        } else {
-            p->next = w;
-        }
+        p->next = w;
     }
     ut_atomics.spinlock_release(&q->lock);
-    if (changed && q->changed != null) { ut_event.set(q->changed); }
+    if (head && q->changed != null) { ut_event.set(q->changed); }
 }
 
 static void ut_work_queue_cancel(ut_work_t* w) {
