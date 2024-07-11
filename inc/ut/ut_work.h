@@ -3,12 +3,12 @@
 
 begin_c
 
-// Minimalistic "react" like work_queue or work items and
+// Minimalistic "react"-like work_queue or work items and
 // a thread based workers. See ut_worker_test() for usage.
 
-typedef struct ut_event_s* ut_event_t;
-typedef struct ut_work_s   ut_work_t;
-typedef struct ut_work_queue_s  ut_work_queue_t;
+typedef struct ut_event_s*     ut_event_t;
+typedef struct ut_work_s       ut_work_t;
+typedef struct ut_work_queue_s ut_work_queue_t;
 
 typedef struct ut_work_s {
     ut_work_queue_t* queue; // queue where the call is or was last scheduled
@@ -17,22 +17,14 @@ typedef struct ut_work_s {
     void*  data;       // extra data that will be passed to proc() call
     ut_event_t  done;  // if not null signalled after calling proc() or canceling
     ut_work_t*  next;  // next element in the queue (implementation detail)
-    bool   canceled;   // :true after .cancel()
+    bool    canceled;  // set to true inside .cancel() call
 } ut_work_t;
 
 typedef struct ut_work_queue_s {
     ut_work_t* head;
     int64_t    lock; // spinlock
-    //  .posted() and .set(wake) are called with unlocked queue:
-    void (*posted)(ut_work_t* c); // called after call is enqueued
-    ut_event_t wake; // if not null signalled after calling posted()
+    ut_event_t changed; // if not null will be signaled when head changes
 } ut_work_queue_t;
-
-// Note: .posted() can be used instead of .wake event when
-//       existing thread e.g. main application thread does
-//       GetMessage() queue.dispatch() DispatchMessage() loop
-//       and can implement .posted() as PostMessageA(WM_NULL)
-//       to wake up the thread waiting on GetMessage.
 
 typedef struct ut_work_queue_if {
     void (*post)(ut_work_t* c);
@@ -43,20 +35,22 @@ typedef struct ut_work_queue_if {
     void (*flush)(ut_work_queue_t* q); // cancel all requests in the queue
 } ut_work_queue_if;
 
-typedef struct ut_worker_t {
-    ut_thread_t   thread;
-    ut_work_queue_t*   queue;
-    volatile bool quit; // := true request to end queue processing
+extern ut_work_queue_if  ut_work_queue;
+
+typedef struct ut_worker_s {
+    ut_work_queue_t queue;
+    ut_thread_t     thread;
+    ut_event_t      wake;
+    volatile bool   quit;
 } ut_worker_t;
 
 typedef struct ut_worker_if {
-    void    (*start)(ut_worker_t* worker, ut_work_queue_t* queue);
-    void    (*post)(ut_worker_t* worker, ut_work_t *w);
-    errno_t (*join)(ut_worker_t* worker, fp64_t timeout); // -1.0 forever
+    void    (*start)(ut_worker_t* tq);
+    void    (*post)(ut_worker_t* tq, ut_work_t* w);
+    errno_t (*join)(ut_worker_t* tq, fp64_t timeout);
     void    (*test)(void);
 } ut_worker_if;
 
-extern ut_work_queue_if  ut_work_queue;
 extern ut_worker_if ut_worker;
 
 // worker thread waits for a queue's `wake` event with the timeout
@@ -153,6 +147,26 @@ end_c
             ut_work_queue.dispatch(q);
         }
         ut_work_queue.flush(q);
+    }
+
+    // worker:
+
+    static void do_work(ut_work_t* w) {
+        // TODO: something useful
+    }
+
+    static void worker_test(void) {
+        ut_worker_t worker = { 0 };
+        ut_worker.start(&worker);
+        ut_work_t work = {
+            .when  = ut_clock.seconds() + 0.010, // 10ms
+            .done  = ut_event.create(),
+            .work  = do_work
+        };
+        ut_worker.post(&worker, &work);
+        ut_event.wait(work.done);    // await(work)
+        ut_event.dispose(work.done); // responsibility of the caller
+        ut_fatal_if_error(ut_worker.join(&worker, -1.0));
     }
 
     // Hint:

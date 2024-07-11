@@ -1734,12 +1734,12 @@ extern ut_vigil_if ut_vigil;
 
 // ________________________________ ut_work.h _________________________________
 
-// Minimalistic "react" like work_queue or work items and
+// Minimalistic "react"-like work_queue or work items and
 // a thread based workers. See ut_worker_test() for usage.
 
-typedef struct ut_event_s* ut_event_t;
-typedef struct ut_work_s   ut_work_t;
-typedef struct ut_work_queue_s  ut_work_queue_t;
+typedef struct ut_event_s*     ut_event_t;
+typedef struct ut_work_s       ut_work_t;
+typedef struct ut_work_queue_s ut_work_queue_t;
 
 typedef struct ut_work_s {
     ut_work_queue_t* queue; // queue where the call is or was last scheduled
@@ -1748,22 +1748,14 @@ typedef struct ut_work_s {
     void*  data;       // extra data that will be passed to proc() call
     ut_event_t  done;  // if not null signalled after calling proc() or canceling
     ut_work_t*  next;  // next element in the queue (implementation detail)
-    bool   canceled;   // :true after .cancel()
+    bool    canceled;  // set to true inside .cancel() call
 } ut_work_t;
 
 typedef struct ut_work_queue_s {
     ut_work_t* head;
     int64_t    lock; // spinlock
-    //  .posted() and .set(wake) are called with unlocked queue:
-    void (*posted)(ut_work_t* c); // called after call is enqueued
-    ut_event_t wake; // if not null signalled after calling posted()
+    ut_event_t changed; // if not null will be signaled when head changes
 } ut_work_queue_t;
-
-// Note: .posted() can be used instead of .wake event when
-//       existing thread e.g. main application thread does
-//       GetMessage() queue.dispatch() DispatchMessage() loop
-//       and can implement .posted() as PostMessageA(WM_NULL)
-//       to wake up the thread waiting on GetMessage.
 
 typedef struct ut_work_queue_if {
     void (*post)(ut_work_t* c);
@@ -1774,20 +1766,22 @@ typedef struct ut_work_queue_if {
     void (*flush)(ut_work_queue_t* q); // cancel all requests in the queue
 } ut_work_queue_if;
 
-typedef struct ut_worker_t {
-    ut_thread_t   thread;
-    ut_work_queue_t*   queue;
-    volatile bool quit; // := true request to end queue processing
+extern ut_work_queue_if  ut_work_queue;
+
+typedef struct ut_worker_s {
+    ut_work_queue_t queue;
+    ut_thread_t     thread;
+    ut_event_t      wake;
+    volatile bool   quit;
 } ut_worker_t;
 
 typedef struct ut_worker_if {
-    void    (*start)(ut_worker_t* worker, ut_work_queue_t* queue);
-    void    (*post)(ut_worker_t* worker, ut_work_t *w);
-    errno_t (*join)(ut_worker_t* worker, fp64_t timeout); // -1.0 forever
+    void    (*start)(ut_worker_t* tq);
+    void    (*post)(ut_worker_t* tq, ut_work_t* w);
+    errno_t (*join)(ut_worker_t* tq, fp64_t timeout);
     void    (*test)(void);
 } ut_worker_if;
 
-extern ut_work_queue_if  ut_work_queue;
 extern ut_worker_if ut_worker;
 
 // worker thread waits for a queue's `wake` event with the timeout
@@ -1883,6 +1877,26 @@ extern ut_worker_if ut_worker;
             ut_work_queue.dispatch(q);
         }
         ut_work_queue.flush(q);
+    }
+
+    // worker:
+
+    static void do_work(ut_work_t* w) {
+        // TODO: something useful
+    }
+
+    static void worker_test(void) {
+        ut_worker_t worker = { 0 };
+        ut_worker.start(&worker);
+        ut_work_t work = {
+            .when  = ut_clock.seconds() + 0.010, // 10ms
+            .done  = ut_event.create(),
+            .work  = do_work
+        };
+        ut_worker.post(&worker, &work);
+        ut_event.wait(work.done);    // await(work)
+        ut_event.dispose(work.done); // responsibility of the caller
+        ut_fatal_if_error(ut_worker.join(&worker, -1.0));
     }
 
     // Hint:
@@ -8044,7 +8058,8 @@ static void ut_work_queue_post(ut_work_t* w) {
     ut_work_queue_no_duplicates(w); // under lock
     //  Enqueue in time sorted order least ->time first to save
     //  time searching in fetching from queue which is more frequent.
-    if (q->head == null || q->head->when > w->when) {
+    bool changed = q->head == null || q->head->when > w->when;
+    if (changed) {
         w->next = q->head;
         q->head = w;
     } else {
@@ -8055,10 +8070,15 @@ static void ut_work_queue_post(ut_work_t* w) {
             e = e->next;
         }
         w->next = e;
-        if (p == null) { q->head = w; } else { p->next = w; }
+        changed = p == null;
+        if (changed) {
+            q->head = w;
+        } else {
+            p->next = w;
+        }
     }
     ut_atomics.spinlock_release(&q->lock);
-    if (q->posted != null) { q->posted(w); }
+    if (changed && q->changed != null) { ut_event.set(q->changed); }
 }
 
 static void ut_work_queue_cancel(ut_work_t* w) {
@@ -8067,11 +8087,13 @@ static void ut_work_queue_cancel(ut_work_t* w) {
     ut_atomics.spinlock_acquire(&q->lock);
     ut_work_t* p = null;
     ut_work_t* e = q->head;
+    bool changed = false; // head changed
     while (e != null && !w->canceled) {
         if (e == w) {
-            if (p == null) {
+            changed = p == null;
+            if (changed) {
                 q->head = e->next;
-            } else {
+        } else {
                 p->next = e->next;
             }
             e->next = null;
@@ -8084,6 +8106,7 @@ static void ut_work_queue_cancel(ut_work_t* w) {
     ut_atomics.spinlock_release(&q->lock);
     swear(w->canceled);
     if (w->done != null) { ut_event.set(w->done); }
+    if (changed && q->changed != null) { ut_event.set(q->changed); }
 }
 
 static void ut_work_queue_flush(ut_work_queue_t* q) {
@@ -8093,13 +8116,15 @@ static void ut_work_queue_flush(ut_work_queue_t* q) {
 static bool ut_work_queue_get(ut_work_queue_t* q, ut_work_t* *r) {
     ut_work_t* w = null;
     ut_atomics.spinlock_acquire(&q->lock);
-    if (q->head != null && q->head->when <= ut_clock.seconds()) {
+    bool changed = q->head != null && q->head->when <= ut_clock.seconds();
+    if (changed) {
         w = q->head;
         q->head = w->next;
         w->next = null;
     }
     ut_atomics.spinlock_release(&q->lock);
     *r = w;
+    if (changed && q->changed != null) { ut_event.set(q->changed); }
     return w != null;
 }
 
@@ -8124,40 +8149,52 @@ ut_work_queue_if ut_work_queue = {
 
 static void ut_worker_thread(void* p) {
     ut_thread.name("worker");
-    traceln(">");
     ut_worker_t* worker = (ut_worker_t*)p;
-    ut_work_queue_t* q = worker->queue;
-    assert(q->wake != null);
-    for (;;) {
+    ut_work_queue_t* q = &worker->queue;
+    while (!worker->quit) {
         ut_work_queue.dispatch(q);
-        if (worker->quit) { break; }
+        fp64_t timeout = -1.0; // forever
         ut_atomics.spinlock_acquire(&q->lock);
-        fp64_t when = q->head == null ? -1.0 : q->head->when;
+        if (q->head != null) {
+            timeout = ut_max(0, q->head->when - ut_clock.seconds());
+        }
         ut_atomics.spinlock_release(&q->lock);
-        fp64_t timeout = when < 0.0 ? -1.0 : when - ut_clock.seconds();
-//      traceln("timeout: %.6f", timeout);
-        ut_event.wait_or_timeout(q->wake, timeout);
+        // if another item is inserted into head after unlocking
+        // the `wake` event guaranteed to be signalled
+        if (!worker->quit && timeout != 0) {
+            ut_event.wait_or_timeout(worker->wake, timeout);
+        }
     }
-    traceln("<");
+    ut_work_queue.dispatch(q);
 }
 
-static void ut_worker_start(ut_worker_t* w, ut_work_queue_t* q) {
-    assert(q->wake != null && !w->quit);
-    w->queue = q;
-    w->thread = ut_thread.start(ut_worker_thread, w);
+static void ut_worker_start(ut_worker_t* worker) {
+    assert(worker->wake == null && !worker->quit);
+    worker->wake  = ut_event.create();
+    worker->queue = (ut_work_queue_t){
+        .head = null, .lock = 0, .changed = worker->wake
+    };
+    worker->thread = ut_thread.start(ut_worker_thread, worker);
+}
+
+static errno_t ut_worker_join(ut_worker_t* worker, fp64_t to) {
+    worker->quit = true;
+    ut_event.set(worker->wake);
+    errno_t r = ut_thread.join(worker->thread, to);
+    if (r == 0) {
+        ut_event.dispose(worker->wake);
+        worker->wake = null;
+        worker->thread = null;
+        worker->quit = false;
+        swear(worker->queue.head == null);
+    }
+    return r;
 }
 
 static void ut_worker_post(ut_worker_t* worker, ut_work_t* w) {
-    assert(!worker->quit);
-    if (w->queue == null) { w->queue = worker->queue; }
-    assert(w->queue == worker->queue);
+    assert(!worker->quit && worker->wake != null && worker->thread != null);
+    w->queue = &worker->queue;
     ut_work_queue.post(w);
-}
-
-static errno_t  ut_worker_join(ut_worker_t* w, fp64_t timeout) {
-    w->quit = true;
-    ut_event.set(w->queue->wake);
-    return ut_thread.join(w->thread, timeout);
 }
 
 static void ut_worker_test(void);
@@ -8333,20 +8370,14 @@ static void ut_worker_test(void) {
 //  ut_debug.verbosity.level = ut_debug.verbosity.info;
 //  ut_debug.verbosity.level = ut_debug.verbosity.verbose;
     ut_work_queue_test(); // first test ut_work_queue
-    ut_worker_t worker = {0};
-    ut_work_queue_t q = {
-        .wake   = ut_event.create(),
-        .posted = null
-    };
-    ut_worker.start(&worker, &q);
+    ut_worker_t worker = { 0 };
+    ut_worker.start(&worker);
     ut_work_t asap = {
-        .queue = &q,
         .when  = 0, // A.S.A.P.
         .done  = ut_event.create(),
         .work  = ut_test_do_work
     };
     ut_work_t later = {
-        .queue = &q,
         .when  = ut_clock.seconds() + 0.010, // 10ms
         .done  = ut_event.create(),
         .work  = ut_test_do_work
@@ -8359,11 +8390,10 @@ static void ut_worker_test(void) {
     ut_event.wait(asap.done); // await(asap)
     ut_event.dispose(asap.done); // responsibility of the caller
     // wait for later:
-    ut_event.wait(later.done); // await(asap)
+    ut_event.wait(later.done); // await(later)
     ut_event.dispose(later.done); // responsibility of the caller
     // quit the worker thread:
     ut_fatal_if_error(ut_worker.join(&worker, -1.0));
-    ut_event.dispose(q.wake); // responsibility of the caller
     // does worker respect .when dispatch time?
     swear(ut_clock.seconds() >= later.when);
 }

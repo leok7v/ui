@@ -2164,7 +2164,7 @@ static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
 
 static ut_event_t ui_app_event_quit;
 static ut_event_t ui_app_event_invalidate;
-static ut_event_t ui_app_waitable_timer;
+static ut_event_t ui_app_wt; // waitable timer;
 
 static ut_work_queue_t ui_app_queue;
 
@@ -2191,39 +2191,49 @@ static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
             (WPARAM)wp, (LPARAM)lp)));
 }
 
+static void ui_app_update_wt_timeout(void) {
+    fp64_t next_due_at = -1.0;
+    ut_atomics.spinlock_acquire(&ui_app_queue.lock);
+    if (ui_app_queue.head != null) {
+        next_due_at = ui_app_queue.head->when;
+    }
+    ut_atomics.spinlock_release(&ui_app_queue.lock);
+    if (next_due_at >= 0) {
+        static fp64_t last_next_due_at;
+        fp64_t dt = next_due_at - ut_clock.seconds();
+        if (dt <= 0) {
+            traceln("post(WM_NULL) dt: %.6f", dt);
+            ui_app_post_message(WM_NULL, 0, 0);
+        } else if (last_next_due_at != next_due_at) {
+            // Negative values indicate relative time in 100ns intervals
+            LARGE_INTEGER rt = {0}; // relative negative time
+            rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
+            traceln("dt: %.6f %lld", dt, rt.QuadPart);
+            swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
+            ut_fatal_if_error(ut_b2e(
+                SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0))
+            );
+        }
+        last_next_due_at = next_due_at;
+    }
+}
+
 static void ui_app_post(ut_work_t* w) {
     if (w->queue == null) { w->queue = &ui_app_queue; }
     // work item can be reused but only with the same queue
     assert(w->queue == &ui_app_queue);
     ut_work_queue.post(w);
-}
-
-static void ui_app_queue_posted(ut_work_t* w) {
-    assert(w->queue == &ui_app_queue);
-    assert(w->when >= 0);
-    fp64_t dt = w->when - ut_clock.seconds();
-    // wake up GetMessage
-    if (dt <= 0) {
-        ui_app_post_message(WM_NULL, 0, 0);
-    } else {
-        // Negative values indicate relative time in 100ns intervals
-        LARGE_INTEGER due_time = {0};
-        due_time.QuadPart = (LONGLONG)(-dt * 1.0E+7);
-        swear(due_time.QuadPart < 0, "dt: %.6f %lld", dt, due_time.QuadPart);
-        ut_fatal_if_error(ut_b2e(
-            SetWaitableTimer(ui_app_waitable_timer, &due_time, 0,
-                             null, null, 0))
-        );
-    }
+    ui_app_update_wt_timeout();
 }
 
 static void ui_app_alarm_thread(void* unused(p)) {
     ut_thread.realtime();
     ut_thread.name("ui_app.alarm");
     for (;;) {
-        ut_event_t es[] = { ui_app_waitable_timer, ui_app_event_quit };
+        ut_event_t es[] = { ui_app_wt, ui_app_event_quit };
         int32_t ix = ut_event.wait_any(ut_count_of(es), es);
         if (ix == 0) {
+            traceln("post(WM_NULL)");
             ui_app_post_message(WM_NULL, 0, 0);
         } else {
             break;
@@ -3540,13 +3550,15 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
+    if (message == WM_NULL) { traceln("got(WM_NULL)"); }
     ui_app.now = ut_clock.seconds();
-    ut_work_queue.dispatch(&ui_app_queue);
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
     } else {
         assert(ui_app_window() == window);
     }
+    ut_work_queue.dispatch(&ui_app_queue);
+    ui_app_update_wt_timeout(); // because head might have changed
     const int32_t m  = (int32_t)message;
     const int64_t wp = (int64_t)w_param;
     const int64_t lp = (int64_t)l_param;
@@ -4671,7 +4683,7 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
-#define UI_APP_TEST_POST
+#undef UI_APP_TEST_POST
 
 #ifdef UI_APP_TEST_POST
 
@@ -4809,7 +4821,6 @@ static void ui_app_test_post(void) {
 
 static int ui_app_win_main(HINSTANCE instance) {
     // IDI_ICON 101:
-    ui_app_queue.posted = ui_app_queue_posted;
     ui_app.icon = (ui_icon_t)LoadIconA(instance, MAKEINTRESOURCE(101));
     ut_not_null(ui_app.init);
     ui_app_init_windows();
@@ -4857,7 +4868,7 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint
     ut_not_null(ui_app.class_name);
-    ui_app_waitable_timer = (ut_event_t)CreateWaitableTimerA(null, false, null);
+    ui_app_wt = (ut_event_t)CreateWaitableTimerA(null, false, null);
     ut_thread_t alarm  = ut_thread.start(ui_app_alarm_thread, null);
     if (!ui_app.no_ui) {
         ui_app_create_window(wr);
@@ -4881,8 +4892,8 @@ static int ui_app_win_main(HINSTANCE instance) {
     ut_thread.join(alarm, -1);
     ut_event.dispose(ui_app_event_quit);
     ui_app_event_quit = null;
-    ut_event.dispose(ui_app_waitable_timer);
-    ui_app_waitable_timer = null;
+    ut_event.dispose(ui_app_wt);
+    ui_app_wt = null;
     ui_gdi.fini();
     return r;
 }
