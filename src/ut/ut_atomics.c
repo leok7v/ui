@@ -165,7 +165,7 @@ static bool ut_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, 
     (_InterlockedCompareExchange64(p, new_val, old_val) == old_val)
 
 // https://stackoverflow.com/questions/37063700/mm-pause-usage-in-gcc-on-intel
-#define ut_builtin_cpu_pause() do { YieldProcessor(); } while (1)
+#define ut_builtin_cpu_pause() do { YieldProcessor(); } while (0)
 
 static void spinlock_acquire(volatile int64_t* spinlock) {
     // Very basic implementation of a spinlock. This is currently
