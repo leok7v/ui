@@ -9,6 +9,7 @@
     </ClInclude>
     <ClInclude Include="..\single_file_lib\ui\ui.h" />
     <ClInclude Include="..\single_file_lib\ut\ut.h" />
+    <ClInclude Include="..\src\samples\ui_fuzz.h" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="res">
@@ -30,5 +31,6 @@
     <ClCompile Include="..\src\samples\ui.c" />
     <ClCompile Include="..\src\samples\edit.test.c" />
     <ClCompile Include="..\src\samples\ut.c" />
+    <ClCompile Include="..\src\samples\ui_fuzz.c" />
   </ItemGroup>
 </Project>

@@ -1017,7 +1017,6 @@ static bool ui_edit_key_pressed(ui_view_t* v, int64_t key) {
             swallow = false; // ignore other keys
         }
     }
-    if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
     return swallow;
 }
 
@@ -1075,7 +1074,6 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
                         utf8[0], utf8[1], utf8[2], utf8[3]);
             }
         }
-        if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
     }
     #pragma pop_macro("ui_edit_ctrl")
 }
@@ -1670,7 +1668,6 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->min_h_em = 1.0;
     e->type = ui_view_text;
     e->focusable = true;
-    e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
     e->last_x    = -1;
     e->focused   = false;
     e->sle       = false;

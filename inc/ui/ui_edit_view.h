@@ -71,13 +71,6 @@ typedef struct ui_edit_s {
     bool sle;         // Single Line Edit
     bool hide_word_wrap; // do not paint word wrap
     int32_t shown;    // debug: caret show/hide counter 0|1
-    // https://en.wikipedia.org/wiki/Fuzzing
-    volatile ut_thread_t fuzzer;     // fuzzer thread != null when fuzzing
-    volatile int32_t  fuzz_count; // fuzzer event count
-    volatile int32_t  fuzz_last;  // last processed fuzz
-    volatile bool     fuzz_quit;  // last processed fuzz
-    // random32 starts with 1 but client can seed it with (ut_clock.nanoseconds() | 1)
-    uint32_t fuzz_seed;   // fuzzer random32 seed (must start with odd number)
     // paragraphs memory:
     ui_edit_paragraph_t* para; // para[e->doc->text.np]
 } ui_edit_t;
@@ -113,7 +106,6 @@ typedef struct ui_edit_if {
     void (*enter)(ui_edit_t* e);
     // fuzzer test:
     void (*fuzz)(ui_edit_t* e);      // start/stop fuzzing test
-    void (*next_fuzz)(ui_edit_t* e); // next fuzz input event(s)
     void (*dispose)(ui_edit_t* e);
 } ui_edit_if;
 

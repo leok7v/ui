@@ -1364,13 +1364,6 @@ typedef struct ui_edit_s {
     bool sle;         // Single Line Edit
     bool hide_word_wrap; // do not paint word wrap
     int32_t shown;    // debug: caret show/hide counter 0|1
-    // https://en.wikipedia.org/wiki/Fuzzing
-    volatile ut_thread_t fuzzer;     // fuzzer thread != null when fuzzing
-    volatile int32_t  fuzz_count; // fuzzer event count
-    volatile int32_t  fuzz_last;  // last processed fuzz
-    volatile bool     fuzz_quit;  // last processed fuzz
-    // random32 starts with 1 but client can seed it with (ut_clock.nanoseconds() | 1)
-    uint32_t fuzz_seed;   // fuzzer random32 seed (must start with odd number)
     // paragraphs memory:
     ui_edit_paragraph_t* para; // para[e->doc->text.np]
 } ui_edit_t;
@@ -1406,7 +1399,6 @@ typedef struct ui_edit_if {
     void (*enter)(ui_edit_t* e);
     // fuzzer test:
     void (*fuzz)(ui_edit_t* e);      // start/stop fuzzing test
-    void (*next_fuzz)(ui_edit_t* e); // next fuzz input event(s)
     void (*dispose)(ui_edit_t* e);
 } ui_edit_if;
 
@@ -2203,7 +2195,7 @@ static void ui_app_update_wt_timeout(void) {
         static fp64_t last_next_due_at;
         fp64_t dt = next_due_at - ut_clock.seconds();
         if (dt <= 0) {
-            traceln("post(WM_NULL) dt: %.6f", dt);
+//          traceln("post(WM_NULL) dt: %.6f", dt);
             ui_app_post_message(WM_NULL, 0, 0);
         } else if (last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
@@ -2234,7 +2226,7 @@ static void ui_app_alarm_thread(void* unused(p)) {
         ut_event_t es[] = { ui_app_wt, ui_app_event_quit };
         int32_t ix = ut_event.wait_any(ut_count_of(es), es);
         if (ix == 0) {
-            traceln("post(WM_NULL)");
+//          traceln("post(WM_NULL)");
             ui_app_post_message(WM_NULL, 0, 0);
         } else {
             break;
@@ -2913,41 +2905,41 @@ static void ui_app_toast_paint(void) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
         ui_gdi.image_init(&image_light, 1, 1, 3, pixels);
     }
-    if (ui_app.animating.view != null) {
-        ui_view.measure(ui_app.animating.view);
-//      ui_gdi.push(0, 0);
+    ui_view_t* av = ui_app.animating.view;
+    if (av != null) {
+        ui_view.measure(av);
         bool hint = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
-        const int32_t em_w = ui_app.animating.view->fm->em.w;
-        const int32_t em_h = ui_app.animating.view->fm->em.h;
+        const int32_t em_w = av->fm->em.w;
+        const int32_t em_h = av->fm->em.h;
         if (!hint) {
             assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
-            ui_app.animating.view->y = ui_app.animating.view->h * step / (ui_app_animation_steps - 1);
+            av->y = av->h * step / (ui_app_animation_steps - 1);
 //          traceln("step=%d of %d y=%d", ui_app.animating.step,
-//                  ui_app_toast_steps, ui_app.animating.view->y);
-            ui_app_measure_and_layout(ui_app.animating.view);
+//                  ui_app_toast_steps, av->y);
+            ui_app_measure_and_layout(av);
             // dim main window (as `disabled`):
             fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
             ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h, &image_dark, alpha);
-            ui_app.animating.view->x = (ui_app.root->w - ui_app.animating.view->w) / 2;
-//          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
-//                  ui_app.animating.y, ui_app.animating.view->y);
+            av->x = (ui_app.root->w - av->w) / 2;
+//          traceln("ui_app.animating.y: %d av->y: %d",
+//                  ui_app.animating.y, av->y);
         } else {
-            ui_app.animating.view->x = ui_app.animating.x;
-            ui_app.animating.view->y = ui_app.animating.y;
-            ui_app_measure_and_layout(ui_app.animating.view);
-            int32_t mx = ui_app.root->w - ui_app.animating.view->w - em_w;
-            int32_t cx = ui_app.animating.x - ui_app.animating.view->w / 2;
-            ui_app.animating.view->x = ut_min(mx, ut_max(0, cx));
-            ui_app.animating.view->y = ut_min(
+            av->x = ui_app.animating.x;
+            av->y = ui_app.animating.y;
+            ui_app_measure_and_layout(av);
+            int32_t mx = ui_app.root->w - av->w - em_w;
+            int32_t cx = ui_app.animating.x - av->w / 2;
+            av->x = ut_min(mx, ut_max(0, cx));
+            av->y = ut_min(
                 ui_app.root->h - em_h, ut_max(0, ui_app.animating.y));
-//          traceln("ui_app.animating.y: %d ui_app.animating.view->y: %d",
-//                  ui_app.animating.y, ui_app.animating.view->y);
+//          traceln("ui_app.animating.y: %d av->y: %d",
+//                  ui_app.animating.y, av->y);
         }
-        int32_t x = ui_app.animating.view->x - em_w / 4;
-        int32_t y = ui_app.animating.view->y - em_h / 8;
-        int32_t w = ui_app.animating.view->w + em_w / 2;
-        int32_t h = ui_app.animating.view->h + em_h / 4;
+        int32_t x = av->x - em_w / 4;
+        int32_t y = av->y - em_h / 8;
+        int32_t w = av->w + em_w / 2;
+        int32_t h = av->h + em_h / 4;
         int32_t radius = em_w / 2;
         if (radius % 2 == 0) { radius++; }
         ui_color_t color = ui_theme.is_app_dark() ?
@@ -2955,12 +2947,12 @@ static void ui_app_toast_paint(void) {
             ui_colors.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
         ui_gdi.rounded(x, y, w, h, radius, tint, tint);
-        if (!hint) { ui_app.animating.view->y += em_h / 4; }
-        ui_app_paint(ui_app.animating.view);
+        if (!hint) { av->y += em_h / 4; }
+        ui_app_paint(av);
         if (!hint) {
-            if (ui_app.animating.view->y == em_h / 4) {
+            if (av->y == em_h / 4) {
                 // micro "close" toast button:
-                int32_t r = ui_app.animating.view->x + ui_app.animating.view->w;
+                int32_t r = av->x + av->w;
                 const int32_t tx = r - em_w / 2;
                 const int32_t ty = 0;
                 const ui_gdi_ta_t ta = {
@@ -2972,7 +2964,6 @@ static void ui_app_toast_paint(void) {
                                  ut_glyph_multiplication_sign);
             }
         }
-//      ui_gdi.pop();
     }
 }
 
@@ -2984,6 +2975,7 @@ static void ui_app_toast_cancel(void) {
                 mx->callback(&mx->view);
             }
         }
+        ui_app.animating.view->parent = null;
         ui_app.animating.step = 0;
         ui_app.animating.view = null;
         ui_app.animating.time = 0;
@@ -3551,7 +3543,7 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
-    if (message == WM_NULL) { traceln("got(WM_NULL)"); }
+//  if (message == WM_NULL) { traceln("got(WM_NULL)"); }
     ui_app.now = ut_clock.seconds();
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
@@ -3992,23 +3984,24 @@ static void ui_app_quit(int32_t exit_code) {
     ui_app.close(); // close and destroy app only window
 }
 
-static void ui_app_show_hint_or_toast(ui_view_t* view, int32_t x, int32_t y,
+static void ui_app_show_hint_or_toast(ui_view_t* v, int32_t x, int32_t y,
         fp64_t timeout) {
-    if (view != null) {
+    if (v != null) {
         ui_app.animating.x = x;
         ui_app.animating.y = y;
         ui_app.animating.focused = ui_app.focus;
-        if (view->type == ui_view_mbx) {
-            ((ui_mbx_t*)view)->option = -1;
-            if (view->focusable) {
-                 ui_view.set_focus(view);
+        if (v->type == ui_view_mbx) {
+            ((ui_mbx_t*)v)->option = -1;
+            if (v->focusable) {
+                 ui_view.set_focus(v);
             }
         }
         // allow unparented ui for toast and hint
-        ui_view_call_init(view);
+        ui_view_call_init(v);
         const int32_t steps = x < 0 && y < 0 ? ui_app_animation_steps : 1;
         ui_app_animate_start(ui_app_toast_dim, steps);
-        ui_app.animating.view = view;
+        ui_app.animating.view = v;
+        v->parent = ui_app.root;
         ui_app.animating.time = timeout > 0 ? ui_app.now + timeout : 0;
     } else {
         ui_app_toast_cancel();
@@ -9612,7 +9605,6 @@ static bool ui_edit_key_pressed(ui_view_t* v, int64_t key) {
             swallow = false; // ignore other keys
         }
     }
-    if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
     return swallow;
 }
 
@@ -9670,7 +9662,6 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
                         utf8[0], utf8[1], utf8[2], utf8[3]);
             }
         }
-        if (e->fuzzer != null) { ui_edit.next_fuzz(e); }
     }
     #pragma pop_macro("ui_edit_ctrl")
 }
@@ -10265,7 +10256,6 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     e->min_h_em = 1.0;
     e->type = ui_view_text;
     e->focusable = true;
-    e->fuzz_seed = 1; // client can seed it with (ut_clock.nanoseconds() | 1)
     e->last_x    = -1;
     e->focused   = false;
     e->sle       = false;

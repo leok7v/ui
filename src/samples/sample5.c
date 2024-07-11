@@ -1,11 +1,15 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 #include "ui/ui.h"
+#include "ui_fuzz.h"
 // #include "single_file_lib/ut/ut.h"
 // #include "single_file_lib/ui/ui.h"
 
-
 const char* title = "Sample5";
+
+static ui_view_t left   = ui_view(list);
+static ui_view_t right  = ui_view(list);
+static ui_view_t bottom = ui_view(stack);
 
 // font scale:
 static const fp64_t fs[] = {0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0};
@@ -63,12 +67,10 @@ ui_button_clicked(full_screen, "&Full Screen", 7.0f, {
 ui_button_clicked(quit, "&Quit", 7.0f, { ui_app.close(); });
 
 ui_button_clicked(fuzz, "Fu&zz", 7.0f, {
-    int32_t ix = focused();
-    if (ix >= 0) {
-        ui_edit.fuzz(edit[ix]);
-        fuzz->state.pressed = edit[ix]->fuzzer != null;
-        focus_back_to_edit();
-    }
+    if (ui_fuzz.thread == null) { ui_fuzzing.start(); }
+    fuzz->state.pressed  = ui_fuzz.thread != null;
+    right.state.disabled = ui_fuzz.thread != null;
+    focus_back_to_edit();
 });
 
 ui_toggle_on_off(ro, "&Read Only", 7.0f, {
@@ -145,10 +147,6 @@ ui_button_clicked(fm, "Font Ctrl-", 7.0f, { font_minus(); });
 
 static ui_label_t label = ui_label(0.0, "...");
 
-static ui_view_t left   = ui_view(list);
-static ui_view_t right  = ui_view(list);
-static ui_view_t bottom = ui_view(stack);
-
 static void set_text(int32_t ix) {
     static char last[128];
     ui_view.set_text(&label, "%d:%d %d:%d %dx%d\n"
@@ -182,11 +180,6 @@ static void paint(ui_view_t* v) {
             i == ix ? c : ui_color_rgb(63, 63, 70));
     }
     if (ix >= 0) {
-        bool fuzzing = edit[ix]->fuzzer != null;
-        if (fuzz.state.pressed != fuzzing) {
-            fuzz.state.pressed = fuzzing;
-            ui_view.invalidate(&fuzz, null);
-        }
         set_text(ix);
     }
     if (ix >= 0) {
@@ -225,13 +218,11 @@ static bool key_pressed(ui_view_t* unused(view), int64_t key) {
     if (ui_app.focused() && key == ui.key.escape) { ui_app.close(); }
     int32_t ix = focused();
     if (key == ui.key.f5) {
-        if (ix >= 0) {
-            ui_edit_t* e = edit[ix];
-            if (ui_app.ctrl && ui_app.shift && e->fuzzer == null) {
-                ui_edit.fuzz(e); // start on Ctrl+Shift+F5
-            } else if (e->fuzzer != null) {
-                ui_edit.fuzz(e); // stop on F5
-            }
+        if (ui_app.ctrl && ui_app.shift && ui_fuzz.thread == null) {
+            ui_fuzzing.start(); // on Ctrl+Shift+F5
+        } else if (ui_fuzz.thread != null) {
+            ui_fuzzing.stop(); // on F5
+            right.state.disabled = false;
         }
         swallow = true;
     }
@@ -261,8 +252,10 @@ static void edit_enter(ui_edit_t* e) {
 // see edit.test.c
 
 void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t);
-void ui_edit_fuzz(ui_edit_t* e);
-void ui_edit_next_fuzz(ui_edit_t* e);
+
+static bool can_close(void) {
+    return ui_fuzz.thread == null;
+}
 
 static void opened(void) {
 //  ui_app.view->measure     = measure;
@@ -281,17 +274,13 @@ static void opened(void) {
         edit[i]->view.max_w = ui.infinity;
         if (i < 2) { edit[i]->view.max_h = ui.infinity; }
         edit[i]->view.fm = &pf;
-        ui_edit.fuzz = ui_edit_fuzz;
-        ui_edit.next_fuzz = ui_edit_next_fuzz;
     }
     ui_app.every_100ms = every_100ms;
     set_text(0); // need to be two lines for measure
     edit[2]->sle = true;
-
     ut_str_printf(edit[0]->view.p.text, "edit.#0#");
     ut_str_printf(edit[1]->view.p.text, "edit.#1#");
     ut_str_printf(edit[2]->view.p.text, "edit.sle");
-
 //  edit[2]->select_all(edit[2]);
 //  edit[2]->paste(edit[2], "Single line", -1);
     ui_edit.enter = edit_enter;
@@ -337,6 +326,7 @@ static void opened(void) {
 static void init(void) {
     ui_app.title = title;
     ui_app.opened = opened;
+    ui_app.can_close = can_close;
 }
 
 ui_app_t ui_app = {
