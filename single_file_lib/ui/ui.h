@@ -953,6 +953,7 @@ typedef struct ui_view_if {
     // ui_view.invalidate(v, ui_app.crc) invalidates whole client rect but
     // ui_view.redraw() (fast non blocking) is much better instead
     void (*invalidate)(const ui_view_t* v, const ui_rect_t* rect_or_null);
+    bool (*is_orphan)(const ui_view_t* v);   // view parent chain has null
     bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
     bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
     bool (*is_control)(const ui_view_t* v);
@@ -12925,8 +12926,13 @@ static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
     return keyboard_shortcut;
 }
 
+static bool ui_view_is_orphan(const ui_view_t* v) {
+    while (v != ui_app.root && v != null) { v = v->parent; }
+    return v == null;
+}
+
 static bool ui_view_is_hidden(const ui_view_t* v) {
-    bool hidden = v->state.hidden;
+    bool hidden = v->state.hidden || ui_view.is_orphan(v);
     while (!hidden && v->parent != null) {
         v = v->parent;
         hidden = v->state.hidden;
@@ -13430,6 +13436,7 @@ ui_view_if ui_view = {
     .measure             = ui_view_measure,
     .layout              = ui_view_layout,
     .string              = ui_view_string,
+    .is_orphan           = ui_view_is_orphan,
     .is_hidden           = ui_view_is_hidden,
     .is_disabled         = ui_view_is_disabled,
     .is_control          = ui_view_is_control,

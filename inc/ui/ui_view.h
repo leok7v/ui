@@ -165,6 +165,7 @@ typedef struct ui_view_if {
     // ui_view.invalidate(v, ui_app.crc) invalidates whole client rect but
     // ui_view.redraw() (fast non blocking) is much better instead
     void (*invalidate)(const ui_view_t* v, const ui_rect_t* rect_or_null);
+    bool (*is_orphan)(const ui_view_t* v);   // view parent chain has null
     bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
     bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
     bool (*is_control)(const ui_view_t* v);
