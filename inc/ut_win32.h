@@ -35,5 +35,4 @@
 
 #define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
 
-
 #endif // WIN32

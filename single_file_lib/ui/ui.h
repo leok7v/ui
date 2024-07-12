@@ -44,6 +44,12 @@
 #define ut_msvc_pragma(x) ut_pragma(x)
 #endif
 
+#ifdef _MSC_VER
+    #define ut_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
+#else
+    #define ut_suppress_constant_cond_exp
+#endif
+
 // Type aliases for floating-point types similar to <stdint.h>
 typedef float  fp32_t;
 typedef double fp64_t;
@@ -12383,7 +12389,6 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 // Win32 API BOOL -> errno_t translation
 
 #define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
-
 
 #endif // WIN32
 

@@ -41,6 +41,12 @@
 #define ut_msvc_pragma(x) ut_pragma(x)
 #endif
 
+#ifdef _MSC_VER
+    #define ut_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
+#else
+    #define ut_suppress_constant_cond_exp
+#endif
+
 // Type aliases for floating-point types similar to <stdint.h>
 typedef float  fp32_t;
 typedef double fp64_t;
@@ -1683,12 +1689,6 @@ typedef struct {
 
 extern ut_vigil_if ut_vigil;
 
-#ifdef _MSC_VER
-    #define ut_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
-#else
-    #define ut_suppress_constant_cond_exp
-#endif
-
 #if defined(DEBUG)
   #define ut_assert(b, ...) ut_suppress_constant_cond_exp           \
     /* const cond */                                                \
@@ -1728,6 +1728,11 @@ extern ut_vigil_if ut_vigil;
     /* const cond */                                                 \
     (void)(ut_vigil.fatal_if_error(__FILE__, __LINE__, __func__,     \
                                    #r, r, "" __VA_ARGS__))
+
+#define ut_fatal_win32err(c, ...) ut_suppress_constant_cond_exp      \
+    /* const cond */                                                 \
+    (void)(ut_vigil.fatal_if_error(__FILE__, __LINE__, __func__,     \
+                                   #c, ut_b2e(c), "" __VA_ARGS__))
 
 // ___________________________________ ut.h ___________________________________
 
@@ -1948,7 +1953,6 @@ end_c
 // Win32 API BOOL -> errno_t translation
 
 #define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
-
 
 #endif // WIN32
 // ___________________________________ ut.c ___________________________________
@@ -7289,10 +7293,13 @@ ut_streams_if ut_streams = {
 
 // _______________________________ ut_threads.c _______________________________
 
-static void ut_close_handle(HANDLE h) {
-    #pragma warning(suppress: 6001) // shutup overzealous IntelliSense
-    ut_fatal_if_error(ut_b2e(CloseHandle(h)));
+// TODO: make available in ut_win32.h
+
+static inline void ut_win32_close_handle(void* h) {
+    #pragma warning(suppress: 6001) // shut up overzealous IntelliSense
+    ut_fatal_win32err(CloseHandle((HANDLE)h));
 }
+
 
 // events:
 
@@ -7309,11 +7316,11 @@ static ut_event_t ut_event_create_manual(void) {
 }
 
 static void ut_event_set(ut_event_t e) {
-    ut_fatal_if_error(ut_b2e(SetEvent((HANDLE)e)));
+    ut_fatal_win32err(SetEvent((HANDLE)e));
 }
 
 static void ut_event_reset(ut_event_t e) {
-    ut_fatal_if_error(ut_b2e(ResetEvent((HANDLE)e)));
+    ut_fatal_win32err(ResetEvent((HANDLE)e));
 }
 
 #pragma push_macro("ut_wait_ix2e")
@@ -7359,7 +7366,7 @@ static int32_t ut_event_wait_any(int32_t n, ut_event_t e[]) {
 }
 
 static void ut_event_dispose(ut_event_t h) {
-    ut_close_handle((HANDLE)h);
+    ut_win32_close_handle(h);
 }
 
 #ifdef UT_TESTS
@@ -7436,7 +7443,7 @@ ut_static_assertion(sizeof(CRITICAL_SECTION) == sizeof(ut_mutex_t));
 
 static void ut_mutex_init(ut_mutex_t* m) {
     CRITICAL_SECTION* cs = (CRITICAL_SECTION*)m;
-    ut_fatal_if_error(ut_b2e(InitializeCriticalSectionAndSpinCount(cs, 4096)));
+    ut_fatal_win32err(InitializeCriticalSectionAndSpinCount(cs, 4096));
 }
 
 static void ut_mutex_lock(ut_mutex_t* m) {
@@ -7563,8 +7570,8 @@ static void ut_thread_power_throttling_disable_for_process(void) {
         pt.Version = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
         pt.ControlMask = PROCESS_POWER_THROTTLING_EXECUTION_SPEED;
         pt.StateMask = 0;
-        ut_fatal_if_error(ut_b2e(SetProcessInformation(GetCurrentProcess(),
-            ProcessPowerThrottling, &pt, sizeof(pt))));
+        ut_fatal_win32err(SetProcessInformation(GetCurrentProcess(),
+            ProcessPowerThrottling, &pt, sizeof(pt)));
         // PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
         // does not work on Win10. There is no easy way to
         // distinguish Windows 11 from 10 (Microsoft great engineering)
@@ -7582,8 +7589,8 @@ static void ut_thread_power_throttling_disable_for_thread(HANDLE thread) {
     pt.Version = THREAD_POWER_THROTTLING_CURRENT_VERSION;
     pt.ControlMask = THREAD_POWER_THROTTLING_EXECUTION_SPEED;
     pt.StateMask = 0;
-    ut_fatal_if_error(ut_b2e(SetThreadInformation(thread,
-        ThreadPowerThrottling, &pt, sizeof(pt))));
+    ut_fatal_win32err(SetThreadInformation(thread,
+        ThreadPowerThrottling, &pt, sizeof(pt)));
 }
 
 static void ut_thread_disable_power_throttling(void) {
@@ -7622,7 +7629,7 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
         // number of lpi entries == 27 on 6 core / 12 logical processors system
         int32_t n = bytes / sizeof(lpi[0]);
         assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
-        ut_fatal_if_error(ut_b2e(GetLogicalProcessorInformation(&lpi[0], &bytes)));
+        ut_fatal_win32err(GetLogicalProcessorInformation(&lpi[0], &bytes));
         for (int32_t i = 0; i < n; i++) {
 //          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
 //              traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
@@ -7652,16 +7659,16 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
 }
 
 static void ut_thread_realtime(void) {
-    ut_fatal_if_error(ut_b2e(SetPriorityClass(GetCurrentProcess(),
-        REALTIME_PRIORITY_CLASS)));
-    ut_fatal_if_error(ut_b2e(SetThreadPriority(GetCurrentThread(),
-        THREAD_PRIORITY_TIME_CRITICAL)));
-    ut_fatal_if_error(ut_b2e(SetThreadPriorityBoost(GetCurrentThread(),
-        /* bDisablePriorityBoost = */ false)));
+    ut_fatal_win32err(SetPriorityClass(GetCurrentProcess(),
+        REALTIME_PRIORITY_CLASS));
+    ut_fatal_win32err(SetThreadPriority(GetCurrentThread(),
+        THREAD_PRIORITY_TIME_CRITICAL));
+    ut_fatal_win32err(SetThreadPriorityBoost(GetCurrentThread(),
+        /* bDisablePriorityBoost = */ false));
     // desired: 0.5ms = 500us (microsecond) = 50,000ns
     ut_thread_set_timer_resolution((uint64_t)ut_clock.nsec_in_usec * 500ULL);
-    ut_fatal_if_error(ut_b2e(SetThreadAffinityMask(GetCurrentThread(),
-        ut_thread_next_physical_processor_affinity_mask())));
+    ut_fatal_win32err(SetThreadAffinityMask(GetCurrentThread(),
+        ut_thread_next_physical_processor_affinity_mask()));
     ut_thread_disable_power_throttling();
 }
 
@@ -7687,7 +7694,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     errno_t r = ut_wait_ix2e(ix);
     assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");
     if (r == 0) {
-        ut_close_handle((HANDLE)t);
+        ut_win32_close_handle(t);
     } else {
         traceln("failed to join thread %p %s", t, strerr(r));
     }
@@ -7699,7 +7706,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
 static void ut_thread_detach(ut_thread_t t) {
     ut_not_null(t);
     ut_fatal_if(!is_handle_valid(t));
-    ut_close_handle((HANDLE)t);
+    ut_win32_close_handle(t);
 }
 
 static void ut_thread_name(const char* name) {
@@ -7759,8 +7766,7 @@ static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
 
 static void ut_thread_close(ut_thread_t t) {
     ut_not_null(t);
-    #pragma warning(suppress: 6001)
-    ut_fatal_if_error(ut_b2e(CloseHandle((HANDLE)t)));
+    ut_win32_close_handle((HANDLE)t);
 }
 
 #ifdef UT_TESTS

@@ -37,6 +37,12 @@
 #define ut_msvc_pragma(x) ut_pragma(x)
 #endif
 
+#ifdef _MSC_VER
+    #define ut_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
+#else
+    #define ut_suppress_constant_cond_exp
+#endif
+
 // Type aliases for floating-point types similar to <stdint.h>
 typedef float  fp32_t;
 typedef double fp64_t;

@@ -24,12 +24,6 @@ typedef struct {
 
 extern ut_vigil_if ut_vigil;
 
-#ifdef _MSC_VER
-    #define ut_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
-#else
-    #define ut_suppress_constant_cond_exp
-#endif
-
 #if defined(DEBUG)
   #define ut_assert(b, ...) ut_suppress_constant_cond_exp           \
     /* const cond */                                                \
@@ -69,5 +63,10 @@ extern ut_vigil_if ut_vigil;
     /* const cond */                                                 \
     (void)(ut_vigil.fatal_if_error(__FILE__, __LINE__, __func__,     \
                                    #r, r, "" __VA_ARGS__))
+
+#define ut_fatal_win32err(c, ...) ut_suppress_constant_cond_exp      \
+    /* const cond */                                                 \
+    (void)(ut_vigil.fatal_if_error(__FILE__, __LINE__, __func__,     \
+                                   #c, ut_b2e(c), "" __VA_ARGS__))
 
 end_c
