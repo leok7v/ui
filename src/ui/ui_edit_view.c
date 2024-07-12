@@ -173,7 +173,7 @@ static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_t* e, ui_edit_pg_t p) {
     const int32_t bp = str->g2b[p.gp];
     if (bp < bytes) {
         g.s = s + bp;
-        g.bytes = ui_edit_str.utf8bytes(g.s, bytes - bp);
+        g.bytes = ut_str.utf8bytes(g.s, bytes - bp);
         swear(g.bytes > 0);
     }
     return g;
@@ -230,7 +230,7 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
                         while (i > 0 && text[i - 1] != 0x20) { i--; }
                         if (i > 0 && i != utf8bytes) {
                             utf8bytes = i;
-                            glyphs = ui_edit_str.glyphs(text, utf8bytes);
+                            glyphs = ut_str.glyphs(text, utf8bytes);
                             assert(glyphs >= 0);
                             pixels = ui_edit_text_width(e, text, utf8bytes);
                         }
@@ -504,7 +504,7 @@ static int32_t ui_edit_glyph_width_px(ui_edit_t* e, const ui_edit_pg_t pg) {
         const int32_t bp = ui_edit_str.gp_to_bp(text, str->b, pg.gp);
         swear(bp >= 0);
         const char* s = text + bp;
-        int32_t bytes_in_glyph = ui_edit_str.utf8bytes(s, str->b - bp);
+        int32_t bytes_in_glyph = ut_str.utf8bytes(s, str->b - bp);
         swear(bytes_in_glyph > 0);
         int32_t x = ui_edit_text_width(e, s, bytes_in_glyph);
         return x;
@@ -1079,7 +1079,7 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
         }
         if (0x20 <= ch && !e->ro) { // 0x20 space
             int32_t len = (int32_t)strlen(utf8);
-            int32_t bytes = ui_edit_str.utf8bytes(utf8, len);
+            int32_t bytes = ut_str.utf8bytes(utf8, len);
             if (bytes > 0) {
                 ui_edit.erase(e); // remove selected text to be replaced by glyph
                 e->selection.a[1] = ui_edit_insert_inline(e,

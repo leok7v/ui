@@ -39,6 +39,8 @@ typedef struct {
     char* (*drop_const)(const char* s); // because of strstr() and alike
     int32_t (*len)(const char* s);
     int32_t (*len16)(const uint16_t* utf16);
+    int32_t (*utf8bytes)(const char* utf8, int32_t bytes); // 0 on error
+    int32_t (*glyphs)(const char* utf8, int32_t bytes); // -1 on error
     bool (*starts)(const char* s1, const char* s2); // s1 starts with s2
     bool (*ends)(const char* s1, const char* s2);   // s1 ends with s2
     bool (*istarts)(const char* s1, const char* s2); // ignore case

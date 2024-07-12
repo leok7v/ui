@@ -1230,8 +1230,6 @@ typedef struct ut_begin_packed ui_edit_str_s {
 typedef struct ui_edit_str_if {
     bool (*init)(ui_edit_str_t* s, const char* utf8, int32_t bytes, bool heap);
     void (*swap)(ui_edit_str_t* s1, ui_edit_str_t* s2);
-    int32_t (*utf8bytes)(const char* utf8, int32_t bytes); // 0 on error
-    int32_t (*glyphs)(const char* utf8, int32_t bytes); // -1 on error
     int32_t (*gp_to_bp)(const char* s, int32_t bytes, int32_t gp); // or -1
     int32_t (*bytes)(ui_edit_str_t* s, int32_t from, int32_t to); // glyphs
     bool (*expand)(ui_edit_str_t* s, int32_t capacity); // reallocate
@@ -7518,8 +7516,6 @@ static const ui_edit_str_t ui_edit_str_empty = {
 
 static bool    ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b, bool heap);
 static void    ui_edit_str_swap(ui_edit_str_t* s1, ui_edit_str_t* s2);
-static int32_t ui_edit_str_utf8_bytes(const char* u, int32_t b);
-static int32_t ui_edit_str_glyphs(const char* utf8, int32_t bytes);
 static int32_t ui_edit_str_gp_to_bp(const char* s, int32_t bytes, int32_t gp);
 static int32_t ui_edit_str_bytes(ui_edit_str_t* s, int32_t f, int32_t t);
 static bool    ui_edit_str_expand(ui_edit_str_t* s, int32_t c);
@@ -7532,8 +7528,6 @@ static void    ui_edit_str_free(ui_edit_str_t* s);
 ui_edit_str_if ui_edit_str = {
     .init        = ui_edit_str_init,
     .swap        = ui_edit_str_swap,
-    .utf8bytes   = ui_edit_str_utf8_bytes,
-    .glyphs      = ui_edit_str_glyphs,
     .gp_to_bp    = ui_edit_str_gp_to_bp,
     .bytes       = ui_edit_str_bytes,
     .expand      = ui_edit_str_expand,
@@ -7566,7 +7560,7 @@ ui_edit_str_if ui_edit_str = {
         assert(0 < s->g2b[i] - s->g2b[i - 1] &&                     \
                    s->g2b[i] - s->g2b[i - 1] <= 4);                 \
         assert(s->g2b[i] - s->g2b[i - 1] ==                         \
-            ui_edit_str_utf8_bytes(                                 \
+            ut_str.utf8bytes(                                 \
             s->u + s->g2b[i - 1], s->g2b[i] - s->g2b[i - 1]));      \
     }                                                               \
 } while (0)
@@ -7604,49 +7598,6 @@ ui_edit_str_if ui_edit_str = {
     ui_edit_str_check_empty(u, b);                                  \
 } while (0)
 
-static int32_t ui_edit_str_utf8_bytes(const char* s, int32_t b) {
-    swear(b >= 1, "should not be called with bytes < 1");
-    const uint8_t* const u = (const uint8_t*)s;
-    // based on:
-    // https://stackoverflow.com/questions/66715611/check-for-valid-utf-8-encoding-in-c
-    if ((u[0] & 0x80u) == 0x00u) { return 1; }
-    if (b > 1) {
-        uint32_t c = (u[0] << 8) | u[1];
-        // TODO: 0xC080 is a hack - consider removing
-        if (c == 0xC080) { return 2; } // 0xC080 as not zero terminating '\0'
-        if (0xC280 <= c && c <= 0xDFBF && (c & 0xE0C0) == 0xC080) { return 2; }
-        if (b > 2) {
-            c = (c << 8) | u[2];
-            // reject utf16 surrogates:
-            if (0xEDA080 <= c && c <= 0xEDBFBF) { return 0; }
-            if (0xE0A080 <= c && c <= 0xEFBFBF && (c & 0xF0C0C0) == 0xE08080) {
-                return 3;
-            }
-            if (b > 3) {
-                c = (c << 8) | u[3];
-                if (0xF0908080 <= c && c <= 0xF48FBFBF &&
-                    (c & 0xF8C0C0C0) == 0xF0808080) {
-                    return 4;
-                }
-            }
-        }
-    }
-    return 0; // invalid utf8 sequence
-}
-
-static int32_t ui_edit_str_glyphs(const char* utf8, int32_t bytes) {
-    swear(bytes >= 0);
-    bool ok = true;
-    int32_t i = 0;
-    int32_t k = 1;
-    while (i < bytes && ok) {
-        const int32_t b = ui_edit_str_utf8_bytes(utf8 + i, bytes - i);
-        ok = 0 < b && i + b <= bytes;
-        if (ok) { i += b; k++; }
-    }
-    return ok ? k - 1 : -1;
-}
-
 static int32_t ui_edit_str_gp_to_bp(const char* utf8, int32_t bytes, int32_t gp) {
     swear(bytes >= 0);
     bool ok = true;
@@ -7655,7 +7606,7 @@ static int32_t ui_edit_str_gp_to_bp(const char* utf8, int32_t bytes, int32_t gp)
     if (bytes > 0) {
         while (c < gp && ok) {
             assert(i < bytes);
-            const int32_t b = ui_edit_str_utf8_bytes(utf8 + i, bytes - i);
+            const int32_t b = ut_str.utf8bytes(utf8 + i, bytes - i);
             ok = 0 < b && i + b <= bytes;
             if (ok) { i += b; c++; }
         }
@@ -7696,7 +7647,7 @@ static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
     int32_t k = 1; // glyph number
     // g2b[k] start postion in uint8_t offset from utf8 text of glyph[k]
     while (i < s->b && ok) {
-        const int32_t b = ui_edit_str_utf8_bytes(s->u + i, s->b - i);
+        const int32_t b = ut_str.utf8bytes(s->u + i, s->b - i);
         ok = b > 0 && i + b <= s->b;
         if (ok) {
             i += b;
@@ -8090,7 +8041,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
 static void ui_edit_str_test_glyph_bytes(void) {
     #pragma push_macro("glyph_bytes_test")
     #define glyph_bytes_test(s, b, expectancy) \
-        swear(ui_edit_str_utf8_bytes(s, b) == expectancy)
+        swear(ut_str.utf8bytes(s, b) == expectancy)
     // Valid Sequences
     glyph_bytes_test("a", 1, 1);
     glyph_bytes_test(ui_edit_gbp, 2, 2);
@@ -8765,7 +8716,7 @@ static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_t* e, ui_edit_pg_t p) {
     const int32_t bp = str->g2b[p.gp];
     if (bp < bytes) {
         g.s = s + bp;
-        g.bytes = ui_edit_str.utf8bytes(g.s, bytes - bp);
+        g.bytes = ut_str.utf8bytes(g.s, bytes - bp);
         swear(g.bytes > 0);
     }
     return g;
@@ -8822,7 +8773,7 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
                         while (i > 0 && text[i - 1] != 0x20) { i--; }
                         if (i > 0 && i != utf8bytes) {
                             utf8bytes = i;
-                            glyphs = ui_edit_str.glyphs(text, utf8bytes);
+                            glyphs = ut_str.glyphs(text, utf8bytes);
                             assert(glyphs >= 0);
                             pixels = ui_edit_text_width(e, text, utf8bytes);
                         }
@@ -9096,7 +9047,7 @@ static int32_t ui_edit_glyph_width_px(ui_edit_t* e, const ui_edit_pg_t pg) {
         const int32_t bp = ui_edit_str.gp_to_bp(text, str->b, pg.gp);
         swear(bp >= 0);
         const char* s = text + bp;
-        int32_t bytes_in_glyph = ui_edit_str.utf8bytes(s, str->b - bp);
+        int32_t bytes_in_glyph = ut_str.utf8bytes(s, str->b - bp);
         swear(bytes_in_glyph > 0);
         int32_t x = ui_edit_text_width(e, s, bytes_in_glyph);
         return x;
@@ -9671,7 +9622,7 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
         }
         if (0x20 <= ch && !e->ro) { // 0x20 space
             int32_t len = (int32_t)strlen(utf8);
-            int32_t bytes = ui_edit_str.utf8bytes(utf8, len);
+            int32_t bytes = ut_str.utf8bytes(utf8, len);
             if (bytes > 0) {
                 ui_edit.erase(e); // remove selected text to be replaced by glyph
                 e->selection.a[1] = ui_edit_insert_inline(e,

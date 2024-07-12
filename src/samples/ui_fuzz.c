@@ -6,15 +6,15 @@
 
 
 static bool     ui_fuzzing_debug; // = true;
-static uint32_t ui_fuzz_seed;
-static bool     ui_fuzz_running;
-static bool     ui_fuzz_inside;
+static uint32_t ui_fuzzing_seed;
+static bool     ui_fuzzing_running;
+static bool     ui_fuzzing_inside;
 
 static ui_fuzzing_t ui_fuzzing_work;
 
 static void do_work(ut_work_t* unused(p)) {
     assert((ui_fuzzing_t*)p == &ui_fuzzing_work);
-    ui_fuzz_inside = true;
+    ui_fuzzing_inside = true;
     ui_app.alt = ui_fuzzing_work.alt;
     ui_app.ctrl = ui_fuzzing_work.ctrl;
     ui_app.shift = ui_fuzzing_work.shift;
@@ -50,14 +50,14 @@ static void do_work(ut_work_t* unused(p)) {
     } else {
         assert(false, "TODO: ?");
     }
-    if (ui_fuzz_running) {
+    if (ui_fuzzing_running) {
         if (ui_fuzzing.next == null) {
             ui_fuzzing.random(&ui_fuzzing_work);
         } else {
             ui_fuzzing.next(&ui_fuzzing_work);
         }
     }
-    ui_fuzz_inside = false;
+    ui_fuzzing_inside = false;
 }
 
 static void post_work(void) {
@@ -65,7 +65,7 @@ static void post_work(void) {
 }
 
 static void ui_fuzzing_alt_ctrl_shift(void) {
-    switch (ut_num.random32(&ui_fuzz_seed) % 8) {
+    switch (ut_num.random32(&ui_fuzzing_seed) % 8) {
         case 0: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 0; break;
         case 1: ui_fuzzing_work.alt = 1; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 0; break;
         case 2: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 1; ui_fuzzing_work.shift = 0; break;
@@ -79,7 +79,7 @@ static void ui_fuzzing_alt_ctrl_shift(void) {
 }
 
 static void ui_fuzzing_character(void) {
-    uint32_t rnd = ut_num.random32(&ui_fuzz_seed);
+    uint32_t rnd = ut_num.random32(&ui_fuzzing_seed);
     int ch = 0x20 + rnd % (128 - 0x20);
     if (ui_fuzzing_debug) {
         traceln("character(0x%02X %d %c)", ch, ch, ch);
@@ -112,7 +112,7 @@ static void ui_fuzzing_key(void) {
 //      ui.key.back,
     };
     ui_fuzzing_alt_ctrl_shift();
-    uint32_t ix = ut_num.random32(&ui_fuzz_seed) % ut_count_of(keys);
+    uint32_t ix = ut_num.random32(&ui_fuzzing_seed) % ut_count_of(keys);
     if (ui_fuzzing_debug) {
         traceln("key(%s)", keys[ix].name);
     }
@@ -124,14 +124,14 @@ static void ui_fuzzing_mouse(void) {
     // mouse events only inside edit control otherwise
     // they will start clicking buttons around
     ui_view_t* v = ui_app.content;
-    int32_t x = ut_num.random32(&ui_fuzz_seed) % v->w;
-    int32_t y = ut_num.random32(&ui_fuzz_seed) % v->h;
+    int32_t x = ut_num.random32(&ui_fuzzing_seed) % v->w;
+    int32_t y = ut_num.random32(&ui_fuzzing_seed) % v->h;
     static ui_point_t pt;
     pt = (ui_point_t){ x + v->x, y + v->y };
-    if (ut_num.random32(&ui_fuzz_seed) % 2) {
+    if (ut_num.random32(&ui_fuzzing_seed) % 2) {
         ui_fuzzing_work.left  = !ui_fuzzing_work.left;
     }
-    if (ut_num.random32(&ui_fuzz_seed) % 2) {
+    if (ut_num.random32(&ui_fuzzing_seed) % 2) {
         ui_fuzzing_work.right = !ui_fuzzing_work.right;
     }
     if (ui_fuzzing_debug) {
@@ -147,7 +147,7 @@ static void ui_fuzzing_next_random(void) {
     ui_fuzzing_work = (ui_fuzzing_t){
         .base = { .when = ut_clock.seconds() + 0.01, .ui_fuzzing_work = do_work },
     };
-    uint32_t rnd = ut_num.random32(&ui_fuzz_seed) % 100;
+    uint32_t rnd = ut_num.random32(&ui_fuzzing_seed) % 100;
     if (rnd < 95) { // 95%
         ui_fuzzing_character();
     } else if (rnd < 97) { // 2%
@@ -158,8 +158,8 @@ static void ui_fuzzing_next_random(void) {
 }
 
 static void ui_fuzzing_start(uint32_t seed) {
-    ui_fuzz_seed = seed | 0x1;
-    ui_fuzz_running = true;
+    ui_fuzzing_seed = seed | 0x1;
+    ui_fuzzing_running = true;
     if (ui_fuzzing.next == null) {
         ui_fuzzing.random(&ui_fuzzing_work);
     } else {
@@ -168,15 +168,15 @@ static void ui_fuzzing_start(uint32_t seed) {
 }
 
 static bool ui_fuzzing_is_running(void) {
-    return ui_fuzz_running;
+    return ui_fuzzing_running;
 }
 
 static bool ui_fuzzing_from_inside(void) {
-    return ui_fuzz_inside;
+    return ui_fuzzing_inside;
 }
 
 static void ui_fuzzing_stop(void) {
-    ui_fuzz_running = false;
+    ui_fuzzing_running = false;
 }
 
 static void ui_fuzzing_random(ui_fuzzing_t* f) {

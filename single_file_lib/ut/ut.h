@@ -186,6 +186,8 @@ typedef struct {
     char* (*drop_const)(const char* s); // because of strstr() and alike
     int32_t (*len)(const char* s);
     int32_t (*len16)(const uint16_t* utf16);
+    int32_t (*utf8bytes)(const char* utf8, int32_t bytes); // 0 on error
+    int32_t (*glyphs)(const char* utf8, int32_t bytes); // -1 on error
     bool (*starts)(const char* s1, const char* s2); // s1 starts with s2
     bool (*ends)(const char* s1, const char* s2);   // s1 ends with s2
     bool (*istarts)(const char* s1, const char* s2); // ignore case
@@ -6716,6 +6718,50 @@ static int32_t ut_str_utf16len(const uint16_t* utf16) {
     return (int32_t)wcslen(utf16);
 }
 
+static int32_t ut_str_utf8bytes(const char* s, int32_t b) {
+    assert(b >= 1, "should not be called with bytes < 1");
+    const uint8_t* const u = (const uint8_t*)s;
+    // based on:
+    // https://stackoverflow.com/questions/66715611/check-for-valid-utf-8-encoding-in-c
+    if (b >= 1 && (u[0] & 0x80u) == 0x00u) {
+        return 1;
+    } else if (b > 1) {
+        uint32_t c = (u[0] << 8) | u[1];
+        // TODO: 0xC080 is a hack - consider removing
+        if (c == 0xC080) { return 2; } // 0xC080 as not zero terminating '\0'
+        if (0xC280 <= c && c <= 0xDFBF && (c & 0xE0C0) == 0xC080) { return 2; }
+        if (b > 2) {
+            c = (c << 8) | u[2];
+            // reject utf16 surrogates:
+            if (0xEDA080 <= c && c <= 0xEDBFBF) { return 0; }
+            if (0xE0A080 <= c && c <= 0xEFBFBF && (c & 0xF0C0C0) == 0xE08080) {
+                return 3;
+            }
+            if (b > 3) {
+                c = (c << 8) | u[3];
+                if (0xF0908080 <= c && c <= 0xF48FBFBF &&
+                    (c & 0xF8C0C0C0) == 0xF0808080) {
+                    return 4;
+                }
+            }
+        }
+    }
+    return 0; // invalid utf8 sequence
+}
+
+static int32_t ut_str_glyphs(const char* utf8, int32_t bytes) {
+    swear(bytes >= 0);
+    bool ok = true;
+    int32_t i = 0;
+    int32_t k = 1;
+    while (i < bytes && ok) {
+        const int32_t b = ut_str.utf8bytes(utf8 + i, bytes - i);
+        ok = 0 < b && i + b <= bytes;
+        if (ok) { i += b; k++; }
+    }
+    return ok ? k - 1 : -1;
+}
+
 static void ut_str_lower(char* d, int32_t capacity, const char* s) {
     int32_t n = ut_str.len(s);
     swear(capacity > n);
@@ -7029,6 +7075,14 @@ static void ut_str_test(void) {
             ut_glyph_chinese_jin4 ut_glyph_chinese_gong
             "3456789 "
             glyph_ice_cube;
+    swear(ut_str.utf8bytes("\x01", 1) == 1);
+    swear(ut_str.utf8bytes("\x7F", 1) == 1);
+    swear(ut_str.utf8bytes("\x80", 1) == 0);
+//  swear(ut_str.utf8bytes(glyph_chinese_one, 0) == 0);
+    swear(ut_str.utf8bytes(glyph_chinese_one, 1) == 0);
+    swear(ut_str.utf8bytes(glyph_chinese_one, 2) == 0);
+    swear(ut_str.utf8bytes(glyph_chinese_one, 3) == 3);
+    swear(ut_str.utf8bytes(glyph_teddy_bear,  4) == 4);
     #pragma pop_macro("glyph_ice_cube")
     #pragma pop_macro("glyph_teddy_bear")
     #pragma pop_macro("glyph_chinese_two")
@@ -7097,13 +7151,15 @@ static void ut_str_test(void) {}
 ut_str_if ut_str = {
     .drop_const         = ut_str_drop_const,
     .len                = ut_str_len,
-    .len16           = ut_str_utf16len,
+    .len16              = ut_str_utf16len,
+    .utf8bytes          = ut_str_utf8bytes,
+    .glyphs             = ut_str_glyphs,
     .lower              = ut_str_lower,
     .upper              = ut_str_upper,
     .starts             = ut_str_starts,
     .ends               = ut_str_ends,
-    .istarts           = ut_str_i_starts,
-    .iends             = ut_str_i_ends,
+    .istarts            = ut_str_i_starts,
+    .iends              = ut_str_i_ends,
     .utf8_bytes         = ut_str_utf8_bytes,
     .utf16_chars        = ut_str_utf16_chars,
     .utf16to8           = ut_str_utf16to8,
