@@ -129,7 +129,6 @@
   <ItemGroup>
     <ClInclude Include="..\single_file_lib\ui\ui.h" />
     <ClInclude Include="..\src\samples\i18n.h" />
-    <ClInclude Include="..\src\samples\ui_fuzz.h" />
     <ClInclude Include="..\src\samples\version.h" />
     <ClInclude Include="..\single_file_lib\ut\ut.h" />
   </ItemGroup>
@@ -148,7 +147,6 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\src\samples\sample5.c" />
-    <ClCompile Include="..\src\samples\ui_fuzz.c" />
     <ClCompile Include="..\src\samples\ut.c">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|arm64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|arm64'">true</ExcludedFromBuild>

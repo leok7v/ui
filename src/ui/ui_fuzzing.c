@@ -1,9 +1,6 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 #include "ui/ui.h"
-#include "ut/ut_win32.h"
-#include "ui_fuzz.h"
-
 
 static bool     ui_fuzzing_debug; // = true;
 static uint32_t ui_fuzzing_seed;

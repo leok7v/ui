@@ -22,6 +22,9 @@ typedef struct ui_fuzzing_s {
     bool         right;
     bool         double_tap;
     bool         long_press;
+    // custom
+    int32_t      op;
+    void*        data;
 } ui_fuzzing_t;
 
 typedef struct ui_fuzzing_if {
