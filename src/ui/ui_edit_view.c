@@ -6,8 +6,9 @@
 // TODO: find all "== dt->np" it is wrong pn < dt->np fix them all
 // TODO: undo/redo coalescing
 // TODO: back/forward navigation
-// TODO: exit/save keyboard shortcuts?
-// TODO: iBeam cursor
+// TODO: exit (Ctrl+W?)/save(Ctrl+S, Ctrl+Shift+S) keyboard shortcuts?
+// TODO: ctrl left, ctrl right jump word ctrl+shift left/right select word?
+// TODO: iBeam cursor (definitely yes - see how MSVC does it)
 // TODO: vertical scrollbar ui
 // TODO: horizontal scroll: trivial to implement:
 //       add horizontal_scroll to e->w and paint
@@ -571,7 +572,7 @@ static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
         // caret in i.left .. e->view.w - i.right
         //          i.top  .. e->view.h - i.bottom
         // coordinate space
-        assert(i.left <= x && x < e->w && i.top <= y && y < e->h);
+        swear(i.left <= x && x < e->w && i.top <= y && y < e->h);
         e->caret.x = x;
         e->caret.y = y;
 // TODO: remove

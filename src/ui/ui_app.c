@@ -53,13 +53,15 @@ static void ui_app_update_wt_timeout(void) {
         static fp64_t last_next_due_at;
         fp64_t dt = next_due_at - ut_clock.seconds();
         if (dt <= 0) {
+// TODO: remove
 //          traceln("post(WM_NULL) dt: %.6f", dt);
             ui_app_post_message(WM_NULL, 0, 0);
         } else if (last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
             LARGE_INTEGER rt = {0}; // relative negative time
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
-            traceln("dt: %.6f %lld", dt, rt.QuadPart);
+// TODO: remove
+//          traceln("dt: %.6f %lld", dt, rt.QuadPart);
             swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
             ut_fatal_if_error(ut_b2e(
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0))
@@ -84,6 +86,7 @@ static void ui_app_alarm_thread(void* unused(p)) {
         ut_event_t es[] = { ui_app_wt, ui_app_event_quit };
         int32_t ix = ut_event.wait_any(ut_count_of(es), es);
         if (ix == 0) {
+// TODO: remove
 //          traceln("post(WM_NULL)");
             ui_app_post_message(WM_NULL, 0, 0);
         } else {
@@ -1401,6 +1404,7 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
+// TODO: remove
 //  if (message == WM_NULL) { traceln("got(WM_NULL)"); }
     ui_app.now = ut_clock.seconds();
     if (ui_app.window == null) {

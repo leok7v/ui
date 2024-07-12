@@ -2,14 +2,85 @@
 #include "single_file_lib/ut/ut.h"
 #include "single_file_lib/ui/ui.h"
 
+static const char* lorem_ipsum_words[] = {
+    "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing",
+    "elit", "quisque", "faucibus", "ex", "sapien", "vitae", "pellentesque",
+    "sem", "placerat", "in", "id", "cursus", "mi", "pretium", "tellus",
+    "duis", "convallis", "tempus", "leo", "eu", "aenean", "sed", "diam",
+    "urna", "tempor", "pulvinar", "vivamus", "fringilla", "lacus", "nec",
+    "metus", "bibendum", "egestas", "iaculis", "massa", "nisl",
+    "malesuada", "lacinia", "integer", "nunc", "posuere", "ut", "hendrerit",
+    "semper", "vel", "class", "aptent", "taciti", "sociosqu", "ad", "litora",
+    "torquent", "per", "conubia", "nostra", "inceptos",
+    "himenaeos", "orci", "varius", "natoque", "penatibus", "et", "magnis",
+    "dis", "parturient", "montes", "nascetur", "ridiculus", "mus", "donec",
+    "rhoncus", "eros", "lobortis", "nulla", "molestie", "mattis",
+    "scelerisque", "maximus", "eget", "fermentum", "odio", "phasellus",
+    "non", "purus", "est", "efficitur", "laoreet", "mauris", "pharetra",
+    "vestibulum", "fusce", "dictum", "risus", "blandit", "quis",
+    "suspendisse", "aliquet", "nisi", "sodales", "consequat", "magna",
+    "ante", "condimentum", "neque", "at", "luctus", "nibh", "finibus",
+    "facilisis", "dapibus", "etiam", "interdum", "tortor", "ligula",
+    "congue", "sollicitudin", "erat", "viverra", "ac", "tincidunt", "nam",
+    "porta", "elementum", "a", "enim", "euismod", "quam", "justo",
+    "lectus", "commodo", "augue", "arcu", "dignissim", "velit", "aliquam",
+    "imperdiet", "mollis", "nullam", "volutpat", "porttitor",
+    "ullamcorper", "rutrum", "gravida", "cras", "eleifend", "turpis",
+    "fames", "primis", "vulputate", "ornare", "sagittis", "vehicula",
+    "praesent", "dui", "felis", "venenatis", "ultrices", "proin", "libero",
+    "feugiat", "tristique", "accumsan", "maecenas", "potenti", "ultricies",
+    "habitant", "morbi", "senectus", "netus", "suscipit", "auctor",
+    "curabitur", "facilisi", "cubilia", "curae", "hac", "habitasse",
+    "platea", "dictumst"
+};
+
 #define lorem_ipsum_canonique \
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do "         \
     "eiusmod  tempor incididunt ut labore et dolore magna aliqua.Ut enim ad "  \
     "minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip " \
-    "ex ea commodo consequat.Duis aute irure dolor in reprehenderit in "       \
-    "voluptate velit esse cillum dolore eu fugiat nulla pariatur.Excepteur "   \
+    "ex ea commodo consequat. Duis aute irure dolor in reprehenderit in "      \
+    "voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur "  \
     "sint occaecat cupidatat non proident, sunt in culpa qui officia "         \
     "deserunt mollit anim id est laborum."
+
+#define lorem_ipsum_chinese \
+    "\xE6\x88\x91\xE6\x98\xAF\xE6\x94\xBE\xE7\xBD\xAE\xE6\x96\x87\xE6\x9C\xAC\xE7\x9A\x84\xE4" \
+    "\xBD\x8D\xE7\xBD\xAE\xE3\x80\x82\xE8\xBF\x99\xE9\x87\x8C\xE6\x94\xBE\xE7\xBD\xAE\xE4\xBA" \
+    "\x86\xE5\x81\x87\xE6\x96\x87\xE5\x81\x87\xE5\xAD\x97\xE3\x80\x82\xE5\xB8\x8C\xE6\x9C\x9B" \
+    "\xE8\xBF\x99\xE4\xBA\x9B\xE6\x96\x87\xE5\xAD\x97\xE5\x8F\xAF\xE4\xBB\xA5\xE5\xA1\xAB\xE5" \
+    "\x85\x85\xE7\xA9\xBA\xE7\x99\xBD\xE3\x80\x82";
+
+#define  lorem_ipsum_japanese \
+    "\xE3\x81\x93\xE3\x82\x8C\xE3\x81\xAF\xE3\x83\x80\xE3\x83\x9F\xE3\x83\xBC\xE3\x83\x86\xE3" \
+    "\x82\xAD\xE3\x82\xB9\xE3\x83\x88\xE3\x81\xA7\xE3\x81\x99\xE3\x80\x82\xE3\x81\x93\xE3\x81" \
+    "\x93\xE3\x81\xAB\xE6\x96\x87\xE7\xAB\xA0\xE3\x81\x8C\xE5\x85\xA5\xE3\x82\x8A\xE3\x81\xBE" \
+    "\xE3\x81\x99\xE3\x80\x82\xE8\xAA\xAD\xE3\x81\xBF\xE3\x82\x84\xE3\x81\x99\xE3\x81\x84\xE3" \
+    "\x82\x88\xE3\x81\x86\xE3\x81\xAB\xE3\x83\x80\xE3\x83\x9F\xE3\x83\xBC\xE3\x83\x86\xE3\x82" \
+    "\xAD\xE3\x82\xB9\xE3\x83\x88\xE3\x82\x92\xE4\xBD\xBF\xE7\x94\xA8\xE3\x81\x97\xE3\x81\xA6" \
+    "\xE3\x81\x84\xE3\x81\xBE\xE3\x81\x99\xE3\x80\x82";
+
+
+#define lorem_ipsum_korean \
+    "\xEC\x9D\xB4\xEA\xB2\x83\xEC\x9D\x80\x20\xEB\x8D\x94\xEB\xAF\xB8\x20\xED\x85\x8D\xEC\x8A" \
+    "\xA4\xED\x8A\xB8\xEC\x9E\x85\xEB\x8B\x88\xEB\x8B\xA4\x2E\x20\xEC\x97\xAC\xEA\xB8\xB0\xEC" \
+    "\x97\x90\x20\xEB\xAC\xB8\xEC\x9E\x90\xEA\xB0\x80\x20\xEB\x93\x9C\xEC\x96\xB4\xEA\xB0\x80" \
+    "\xEB\x8A\x94\x20\xEB\xAC\xB8\xEC\x9E\x90\xEA\xB0\x80\x20\xEC\x9E\x88\xEB\x8B\xA4\x2E\x20" \
+    "\xEC\x9D\xBD\xEA\xB8\xB0\x20\xEC\x89\xBD\xEA\xB2\x8C\x20\xEB\x8D\x94\xEB\xAF\xB8\x20\xED" \
+    "\x85\x8D\xEC\x8A\xA4\xED\x8A\xB8\xEB\xA5\xBC\x20\xEC\x82\xAC\xEC\x9A\xA9\xED\x95\xA9\xEB" \
+    "\x8B\x88\xEB\x8B\xA4\x2E";
+
+#define lorem_ipsum_emoji \
+    "\xF0\x9F\x8D\x95\xF0\x9F\x9A\x80\xF0\x9F\xA6\x84\xF0\x9F\x92\xBB\xF0\x9F\x8E\x89\xF0\x9F" \
+    "\x8C\x88\xF0\x9F\x90\xB1\xF0\x9F\x93\x9A\xF0\x9F\x8E\xA8\xF0\x9F\x8D\x94\xF0\x9F\x8D\xA6" \
+    "\xF0\x9F\x8E\xB8\xF0\x9F\xA7\xA9\xF0\x9F\x8D\xBF\xF0\x9F\x93\xB7\xF0\x9F\x8E\xA4\xF0\x9F" \
+    "\x91\xBE\xF0\x9F\x8C\xAE\xF0\x9F\x8E\x88\xF0\x9F\x9A\xB2\xF0\x9F\x8D\xA9\xF0\x9F\x8E\xAE" \
+    "\xF0\x9F\x8D\x89\xF0\x9F\x8E\xAC\xF0\x9F\x90\xB6\xF0\x9F\x93\xB1\xF0\x9F\x8E\xB9\xF0\x9F" \
+    "\xA6\x96\xF0\x9F\x8C\x9F\xF0\x9F\x8D\xAD\xF0\x9F\x8E\xA4\xF0\x9F\x8F\x96\xF0\x9F\xA6\x8B" \
+    "\xF0\x9F\x8E\xB2\xF0\x9F\x8E\xAF\xF0\x9F\x8D\xA3\xF0\x9F\x9A\x81\xF0\x9F\x8E\xAD\xF0\x9F" \
+    "\x91\x9F\xF0\x9F\x9A\x82\xF0\x9F\x8D\xAA\xF0\x9F\x8E\xBB\xF0\x9F\x9B\xB8\xF0\x9F\x8C\xBD" \
+    "\xF0\x9F\x93\x80\xF0\x9F\x9A\x80\xF0\x9F\xA7\x81\xF0\x9F\x93\xAF\xF0\x9F\x8C\xAF\xF0\x9F" \
+    "\x90\xA5\xF0\x9F\xA7\x83\xF0\x9F\x8D\xBB\xF0\x9F\x8E\xAE";
+
 
 static const char* content =
     "Good bye Universe...\n"
@@ -66,9 +137,9 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
         "duis", "convallis", "tempus", "leo", "eu", "aenean", "sed", "diam",
         "urna", "tempor", "pulvinar", "vivamus", "fringilla", "lacus", "nec",
         "metus", "bibendum", "egestas", "iaculis", "massa", "nisl",
-        "malesuada", "lacinia", "integer", "nunc", "posuere", "ut",
-        "hendrerit", "semper", "vel", "class", "aptent", "taciti", "sociosqu",
-        "ad", "litora", "torquent", "per", "conubia", "nostra", "inceptos",
+        "malesuada", "lacinia", "integer", "nunc", "posuere", "ut", "hendrerit",
+        "semper", "vel", "class", "aptent", "taciti", "sociosqu", "ad", "litora",
+        "torquent", "per", "conubia", "nostra", "inceptos",
         "himenaeos", "orci", "varius", "natoque", "penatibus", "et", "magnis",
         "dis", "parturient", "montes", "nascetur", "ridiculus", "mus", "donec",
         "rhoncus", "eros", "lobortis", "nulla", "molestie", "mattis",

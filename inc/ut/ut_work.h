@@ -13,7 +13,7 @@ typedef struct ut_work_queue_s ut_work_queue_t;
 typedef struct ut_work_s {
     ut_work_queue_t* queue; // queue where the call is or was last scheduled
     fp64_t when;       // proc() call will be made after or at this time
-    void (*work)(ut_work_t* c);
+    void (*ui_fuzzing_work)(ut_work_t* c);
     void*  data;       // extra data that will be passed to proc() call
     ut_event_t  done;  // if not null signalled after calling proc() or canceling
     ut_work_t*  next;  // next element in the queue (implementation detail)

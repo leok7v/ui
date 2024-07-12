@@ -2011,7 +2011,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     } animating;
     // call_later(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
-    void (*post)(ut_work_t* work); // work.when == 0 meaning ASAP
+    void (*post)(ut_work_t* ui_fuzzing_work); // work.when == 0 meaning ASAP
     void (*request_redraw)(void);  // very fast <2 microseconds
     void (*draw)(void); // paint window now - bad idea do not use
     // inch to pixels and reverse translation via ui_app.dpi.window
@@ -2195,13 +2195,15 @@ static void ui_app_update_wt_timeout(void) {
         static fp64_t last_next_due_at;
         fp64_t dt = next_due_at - ut_clock.seconds();
         if (dt <= 0) {
+// TODO: remove
 //          traceln("post(WM_NULL) dt: %.6f", dt);
             ui_app_post_message(WM_NULL, 0, 0);
         } else if (last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
             LARGE_INTEGER rt = {0}; // relative negative time
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
-            traceln("dt: %.6f %lld", dt, rt.QuadPart);
+// TODO: remove
+//          traceln("dt: %.6f %lld", dt, rt.QuadPart);
             swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
             ut_fatal_if_error(ut_b2e(
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0))
@@ -2226,6 +2228,7 @@ static void ui_app_alarm_thread(void* unused(p)) {
         ut_event_t es[] = { ui_app_wt, ui_app_event_quit };
         int32_t ix = ut_event.wait_any(ut_count_of(es), es);
         if (ix == 0) {
+// TODO: remove
 //          traceln("post(WM_NULL)");
             ui_app_post_message(WM_NULL, 0, 0);
         } else {
@@ -3543,6 +3546,7 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
+// TODO: remove
 //  if (message == WM_NULL) { traceln("got(WM_NULL)"); }
     ui_app.now = ut_clock.seconds();
     if (ui_app.window == null) {
@@ -8594,8 +8598,9 @@ ui_edit_doc_if ui_edit_doc = {
 // TODO: find all "== dt->np" it is wrong pn < dt->np fix them all
 // TODO: undo/redo coalescing
 // TODO: back/forward navigation
-// TODO: exit/save keyboard shortcuts?
-// TODO: iBeam cursor
+// TODO: exit (Ctrl+W?)/save(Ctrl+S, Ctrl+Shift+S) keyboard shortcuts?
+// TODO: ctrl left, ctrl right jump word ctrl+shift left/right select word?
+// TODO: iBeam cursor (definitely yes - see how MSVC does it)
 // TODO: vertical scrollbar ui
 // TODO: horizontal scroll: trivial to implement:
 //       add horizontal_scroll to e->w and paint
@@ -9104,6 +9109,9 @@ static int32_t ui_edit_glyph_width_px(ui_edit_t* e, const ui_edit_pg_t pg) {
 // xy_to_pg() (x,y) (0,0, width x height) -> paragraph # glyph #
 
 static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
+// TODO: remove
+//  const ui_ltrb_t i = ui_view.margins(&e->view, &e->view.insets);
+//  traceln("x,y: %d,%d insets left:%d right:%d", x, y, i.left, i.right);
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t pg = {-1, -1};
     int32_t py = 0; // paragraph `y' coordinate
@@ -9119,14 +9127,18 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
                 int32_t w = ui_edit_text_width(e, s, r->bytes);
                 pg.pn = i;
                 if (x >= w) {
-                    const int32_t last_run = j == runs - 1;
-                    pg.gp = r->gp + ut_max(0, r->glyphs - 1 + last_run);
+                    pg.gp = r->gp + r->glyphs;
                 } else {
                     pg.gp = r->gp + ui_edit_glyph_at_x(e, i, j, x);
+// TODO: remove
+//                  traceln("pg.gp: %d r->gp: %d ui_edit_glyph_at_x(%d, %d, x:%d)",
+//                          pg.gp, r->gp, i, j, x, ui_edit_glyph_at_x(e, i, j, x));
                     if (pg.gp < r->glyphs - 1) {
                         ui_edit_pg_t right = {pg.pn, pg.gp + 1};
                         int32_t x0 = ui_edit_pg_to_xy(e, pg).x;
                         int32_t x1 = ui_edit_pg_to_xy(e, right).x;
+// TODO: remove
+//                      traceln("x0: %d x1: %d", x0, x1);
                         if (x1 - x < x - x0) {
                             pg.gp++; // snap to closest glyph's 'x'
                         }
@@ -9138,6 +9150,8 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
         }
         if (py > e->h) { break; }
     }
+// TODO: remove
+//  traceln("x,y: %d,%d p:d %d:%d", x, y, pg.pn, pg.gp);
     return pg;
 }
 
@@ -9146,8 +9160,15 @@ static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
         if (e->focused && ui_app.focused()) {
             ui_app.move_caret(e->x + x, e->y + y);
         }
+        const ui_ltrb_t i = ui_view.margins(&e->view, &e->insets);
+        // caret in i.left .. e->view.w - i.right
+        //          i.top  .. e->view.h - i.bottom
+        // coordinate space
+        swear(i.left <= x && x < e->w && i.top <= y && y < e->h);
         e->caret.x = x;
         e->caret.y = y;
+// TODO: remove
+//      traceln("caret: %d, %d", x, y);
     }
 }
 
@@ -9683,9 +9704,11 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
         }
         if (glyph.bytes > 0 && *glyph.s > 0x20) {
             ui_edit_pg_t from = p;
+            char first_ascii = 0x00;
             while (from.gp > 0) {
                 from.gp--;
                 ui_edit_glyph_t g = ui_edit_glyph_at(e, from);
+                first_ascii = glyph.bytes == 1 ? *glyph.s : 0x00;
                 if (g.bytes == 0 || *g.s <= 0x20) {
                     from.gp++;
 //                  traceln("left while space @%d 0x%02X", from.gp, *g.s);
@@ -9697,7 +9720,9 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
             while (to.gp < glyphs) {
                 to.gp++;
                 ui_edit_glyph_t g = ui_edit_glyph_at(e, to);
-                if (g.bytes == 0 || *g.s <= 0x20) {
+                const bool starts_with_alnum = isalnum(first_ascii);
+                bool stop = starts_with_alnum && g.bytes == 1 && !isalnum(*g.s);
+                if (g.bytes == 0 || *g.s <= 0x20 || stop) {
 //                  traceln("right while space @%d 0x%02X", to.gp, *g.s);
                     break;
                 }
@@ -9737,14 +9762,18 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
 }
 
 static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
+    // x, y in 0..e->w, 0->e.h coordinate space
+    assert(0 <= x && x < e->w && 0 <= y && y < e->h);
     ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
-    if (0 <= p.pn && 0 <= p.gp && ui_view.has_focus(&e->view)) {
-        swear(dt->np > 0 && p.pn < dt->np);
-        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
-        if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
+    ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
+//  TODO: remove
+//  traceln("x,y: %d,%d p:d %d:%d", e->caret.x, e->caret.y, pg.pn, pg.gp);
+    if (0 <= pg.pn && 0 <= pg.gp && ui_view.has_focus(&e->view)) {
+        swear(dt->np > 0 && pg.pn < dt->np);
+        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
+        if (pg.gp > glyphs) { pg.gp = ut_max(0, glyphs); }
 //      traceln("move_caret: %d.%d", p.pn, p.gp);
-        ui_edit_move_caret(e, p);
+        ui_edit_move_caret(e, pg);
     }
 }
 
@@ -9763,6 +9792,8 @@ static bool ui_edit_tap(ui_view_t* v, int32_t unused(ix), bool pressed) {
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
+//  TODO: remove
+//  traceln("mouse: %d,%d x,y: %d %d inside: %d", ui_app.mouse.x, ui_app.mouse.y, x, y, inside);
     if (inside) {
         if (pressed) {
             e->edit.buttons = 0;
@@ -9781,7 +9812,7 @@ static bool ui_edit_long_press(ui_view_t* v, int32_t unused(ix)) {
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
     if (inside && ui_edit_range.is_empty(e->selection)) {
-        ui_edit_select_word(e, x, y);
+        ui_edit_select_paragraph(e, x, y);
     }
     return true;
 }
@@ -9792,7 +9823,7 @@ static bool ui_edit_double_tap(ui_view_t* v, int32_t unused(ix)) {
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
     if (inside && e->selection.a[0].pn == e->selection.a[1].pn) {
-        ui_edit_select_paragraph(e, x, y);
+        ui_edit_select_word(e, x, y);
     }
     return false;
 }
@@ -9817,9 +9848,16 @@ static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
 //        To me back forward stack navigation is much more intuitive and
 //        much mode "modeless" in spirit of cut/copy/paste. But opinions
 //        and editing habits vary. Easy to implement.
-            ui_edit_pg_t pg = ui_edit_xy_to_pg(e, e->caret.x, e->caret.y);
+            const int32_t x = e->caret.x - e->inside.left;
+            const int32_t y = e->caret.y - e->inside.top;
+            ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
+// TODO: remove
+//          traceln("x,y: %d,%d caret: %d,%d p:d %d:%d", x, y, e->caret.x, e->caret.y, pg.pn, pg.gp);
             if (pg.pn >= 0 && pg.gp >= 0) {
+                assert(pg.gp <= e->doc->text.ps[pg.pn].g);
                 ui_edit_move_caret(e, pg);
+            } else {
+                ui_edit_click(e, x, y);
             }
         }
     }

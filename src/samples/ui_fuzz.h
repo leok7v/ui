@@ -8,16 +8,28 @@ begin_c
 // https://en.wikipedia.org/wiki/Fuzzing
 // aka "Monkey" testing
 
-typedef struct ui_fuzz_s {
-    ut_thread_t   thread;
-    volatile bool quit;
-    uint32_t      seed;
-} ui_fuzz_t;
-
-extern ui_fuzz_t ui_fuzz;
+typedef struct ui_fuzzing_s {
+    ut_work_t    base;
+    const char*  utf8; // .character(utf8)
+    int32_t      key;  // .key_pressed(key)/.key_released(key)
+    ui_point_t*  pt;   // .move_move()
+    // key_press and character
+    bool         alt;
+    bool         ctrl;
+    bool         shift;
+    // mouse modifiers
+    bool         left; // tap() buttons:
+    bool         right;
+    bool         double_tap;
+    bool         long_press;
+} ui_fuzzing_t;
 
 typedef struct ui_fuzzing_if {
-    void (*start)(void);
+    void (*start)(uint32_t seed);
+    void (*next)(ui_fuzzing_t* f);   // client can override random (which is default)
+    void (*random)(ui_fuzzing_t* f); // called if `next` is null
+    bool (*is_running)(void);
+    bool (*from_inside)(void); // true if called originated inside fuzzing
     void (*stop)(void);
 } ui_fuzzing_if;
 

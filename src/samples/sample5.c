@@ -64,21 +64,32 @@ ui_button_clicked(full_screen, "&Full Screen", 7.0f, {
     ui_app.full_screen(!ui_app.is_full_screen);
 });
 
-ui_button_clicked(quit, "&Quit", 7.0f, { ui_app.close(); });
+ui_button_clicked(quit, "&Quit", 7.0f, {
+    if (!ui_fuzzing.from_inside()) { // ignore fuzzer clicks
+        ui_app.close();
+    }
+});
 
 ui_button_clicked(fuzz, "Fu&zz", 7.0f, {
-    if (ui_fuzz.thread == null) { ui_fuzzing.start(); }
-    fuzz->state.pressed  = ui_fuzz.thread != null;
-    right.state.disabled = ui_fuzz.thread != null;
-    focus_back_to_edit();
+    if (!ui_fuzzing.from_inside()) { // ignore fuzzer clicks
+        if (!ui_fuzzing.is_running()) {
+            ui_fuzzing.start(0x1);
+        } else {
+            ui_fuzzing.stop();
+        }
+        fuzz->state.pressed  = ui_fuzzing.is_running();
+        focus_back_to_edit();
+    }
 });
 
 ui_toggle_on_off(ro, "&Read Only", 7.0f, {
-    int32_t ix = focused();
-    if (ix >= 0) {
-        edit[ix]->ro = ro->state.pressed;
-//      traceln("edit[%d].readonly: %d", ix, edit[ix]->ro);
-        focus_back_to_edit();
+    if (!ui_fuzzing.from_inside()) { // ignore fuzzer clicks
+        int32_t ix = focused();
+        if (ix >= 0) {
+            edit[ix]->ro = ro->state.pressed;
+    //      traceln("edit[%d].readonly: %d", ix, edit[ix]->ro);
+            focus_back_to_edit();
+        }
     }
 });
 
@@ -103,19 +114,21 @@ ui_toggle_on_off(mono, "&Mono", 7.0f, {
 });
 
 ui_toggle_on_off(sl, "&Single Line", 7.0f, {
-    int32_t ix = focused();
-    if (ix == 2) {
-        sl->state.pressed = true; // always single line
-    } else if (0 <= ix && ix < 2) {
-        ui_edit_t* e = edit[ix];
-        e->sle = sl->state.pressed;
-//      traceln("edit[%d].multiline: %d", ix, e->multiline);
-        if (e->sle) {
-            ui_edit.select_all(e);
-            ui_edit.paste(e, "Hello World! Single Line Edit", -1);
+    if (!ui_fuzzing.from_inside()) { // ignore fuzzer clicks
+        int32_t ix = focused();
+        if (ix == 2) {
+            sl->state.pressed = true; // always single line
+        } else if (0 <= ix && ix < 2) {
+            ui_edit_t* e = edit[ix];
+            e->sle = sl->state.pressed;
+    //      traceln("edit[%d].multiline: %d", ix, e->multiline);
+            if (e->sle) {
+                ui_edit.select_all(e);
+                ui_edit.paste(e, "Hello World! Single Line Edit", -1);
+            }
+            ui_app.request_layout();
+            focus_back_to_edit();
         }
-        ui_app.request_layout();
-        focus_back_to_edit();
     }
 });
 
@@ -218,11 +231,10 @@ static bool key_pressed(ui_view_t* unused(view), int64_t key) {
     if (ui_app.focused() && key == ui.key.escape) { ui_app.close(); }
     int32_t ix = focused();
     if (key == ui.key.f5) {
-        if (ui_app.ctrl && ui_app.shift && ui_fuzz.thread == null) {
-            ui_fuzzing.start(); // on Ctrl+Shift+F5
-        } else if (ui_fuzz.thread != null) {
+        if (ui_app.ctrl && ui_app.shift && !ui_fuzzing.is_running()) {
+            ui_fuzzing.start(0); // on Ctrl+Shift+F5
+        } else if (ui_fuzzing.is_running()) {
             ui_fuzzing.stop(); // on F5
-            right.state.disabled = false;
         }
         swallow = true;
     }
@@ -254,7 +266,12 @@ static void edit_enter(ui_edit_t* e) {
 void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t);
 
 static bool can_close(void) {
-    return ui_fuzz.thread == null;
+    if (!ui_fuzzing.from_inside()) {
+        if (ui_fuzzing.is_running()) { ui_fuzzing.stop(); }
+        return true;
+    } else {
+        return false; // ignore Quit if fuzzing clicked on it
+    }
 }
 
 static void opened(void) {
@@ -276,7 +293,6 @@ static void opened(void) {
         edit[i]->view.fm = &pf;
     }
     ui_app.every_100ms = every_100ms;
-    set_text(0); // need to be two lines for measure
     edit[2]->sle = true;
     ut_str_printf(edit[0]->view.p.text, "edit.#0#");
     ut_str_printf(edit[1]->view.p.text, "edit.#1#");
@@ -319,8 +335,9 @@ static void opened(void) {
     left.max_w = ui.infinity;
     left.max_h = ui.infinity;
     right.max_h = ui.infinity;
-    if (ut_args.c > 1) { open_file(ut_args.v[1]); }
+    set_text(0); // need to be two lines for measure
     ui_view.set_focus(&edit[0]->view);
+    if (ut_args.c > 1) { open_file(ut_args.v[1]); }
 }
 
 static void init(void) {
