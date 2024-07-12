@@ -10398,13 +10398,17 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
 }
 
 static void ui_fuzzing_do_work(ut_work_t* p) {
-    ui_fuzzing_inside = true;
-    if (ui_fuzzing.custom != null) {
-        ui_fuzzing.custom((ui_fuzzing_t*)p);
+    if (ui_fuzzing_running) {
+        ui_fuzzing_inside = true;
+        if (ui_fuzzing.custom != null) {
+            ui_fuzzing.custom((ui_fuzzing_t*)p);
+        } else {
+            ui_fuzzing.dispatch((ui_fuzzing_t*)p);
+        }
+        ui_fuzzing_inside = false;
     } else {
-        ui_fuzzing.dispatch((ui_fuzzing_t*)p);
+        // fuzzing has been .stop()-ed drop it
     }
-    ui_fuzzing_inside = false;
 }
 
 static void ui_fuzzing_post(void) {
