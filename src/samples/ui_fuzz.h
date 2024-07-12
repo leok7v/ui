@@ -26,10 +26,14 @@ typedef struct ui_fuzzing_s {
 
 typedef struct ui_fuzzing_if {
     void (*start)(uint32_t seed);
-    void (*next)(ui_fuzzing_t* f);   // client can override random (which is default)
-    void (*random)(ui_fuzzing_t* f); // called if `next` is null
     bool (*is_running)(void);
     bool (*from_inside)(void); // true if called originated inside fuzzing
+    void (*random)(ui_fuzzing_t* f);   // called if `next` is null
+    void (*dispatch)(ui_fuzzing_t* f); // dispatch work
+    // next() called instead of random if not null
+    void (*next)(ui_fuzzing_t* f);
+    // custom() called instead of dispatch() if not null
+    void (*custom)(ui_fuzzing_t* f);
     void (*stop)(void);
 } ui_fuzzing_if;
 
