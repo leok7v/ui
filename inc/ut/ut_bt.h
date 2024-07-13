@@ -16,7 +16,7 @@ typedef char ut_bt_file_t[512];
 typedef struct ut_bt_s {
     int32_t frames; // 0 if capture() failed
     uint32_t hash;
-    errno_t  last_error; // set by capture() or symbolize()
+    errno_t  error; // last error set by capture() or symbolize()
     void* stack[ut_bt_max_depth];
     ut_bt_symbol_t symbol[ut_bt_max_depth];
     ut_bt_file_t file[ut_bt_max_depth];

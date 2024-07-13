@@ -23,21 +23,6 @@ static void ut_event_reset(ut_event_t e) {
     ut_fatal_win32err(ResetEvent((HANDLE)e));
 }
 
-#pragma push_macro("ut_wait_ix2e")
-
-// WAIT_ABANDONED only reported for mutexes not events
-// WAIT_FAILED means event was invalid handle or was disposed
-// by another thread while the calling thread was waiting for it.
-
-#define ut_wait_ix2e(ix) /* translate ix to error */ (errno_t)                   \
-    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
-      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
-        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
-          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
-        )                                                                        \
-      )                                                                          \
-    )
-
 static int32_t ut_event_wait_or_timeout(ut_event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
     DWORD i = WaitForSingleObject(e, ms);
@@ -401,8 +386,6 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     return r;
 }
 
-#pragma pop_macro("ut_wait_ix2e")
-
 static void ut_thread_detach(ut_thread_t t) {
     ut_not_null(t);
     ut_fatal_if(!is_handle_valid(t));
@@ -460,7 +443,7 @@ static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
     // if real handle is ever needed do ut_thread_id_of() instead
     // but don't forget to do ut_thread.close() after that.
     *t = (ut_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
-    return *t == null ? (errno_t)GetLastError() : 0;
+    return *t == null ? ut_runtime.err() : 0;
 }
 
 static void ut_thread_close(ut_thread_t t) {

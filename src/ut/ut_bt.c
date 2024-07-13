@@ -44,7 +44,7 @@ static void ut_bt_capture(ut_bt_t* bt, int32_t skip) {
     SetLastError(0);
     bt->frames = CaptureStackBackTrace(1 + skip, ut_count_of(bt->stack),
         bt->stack, (DWORD*)&bt->hash);
-    bt->last_error = GetLastError();
+    bt->error = ut_runtime.err();
 }
 
 static bool ut_bt_function(DWORD64 pc, SYMBOL_INFO* si) {
@@ -111,7 +111,7 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
                             &displacement, &si->info)) {
         strprintf(bt->symbol[i], "%s", si->info.Name);
     } else {
-        bt->last_error = GetLastError();
+        bt->error = ut_runtime.err();
     }
     IMAGEHLP_LINE64 li = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
     DWORD offset = 0;
@@ -162,7 +162,7 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
                 bt->line[i] = ln.LineNumber;
                 strprintf(bt->file[i], "%s", ln.FileName);
             } else {
-                bt->last_error = ut_runtime.err();
+                bt->error = ut_runtime.err();
                 if (ut_bt_function(pc, &si.info)) {
                     GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                         ut_count_of(bt->file[i]) - 1);
@@ -175,13 +175,13 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
             }
             i++;
         } else {
-            bt->last_error = ut_runtime.err();
+            bt->error = ut_runtime.err();
             if (ut_bt_function(pc, &si.info)) {
                 strprintf(bt->symbol[i], "%s", si.info.Name);
                 GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                     ut_count_of(bt->file[i]) - 1);
                 bt->file[i][ut_count_of(bt->file[i]) - 1] = 0;
-                bt->last_error = 0;
+                bt->error = 0;
                 i++;
             } else {
                 // will not do i++
@@ -193,7 +193,7 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
 
 static void ut_bt_symbolize_backtrace(ut_bt_t* bt) {
     assert(!bt->symbolized);
-    bt->last_error = 0;
+    bt->error = 0;
     ut_bt_init();
     // ut_bt_symbolize_frame() may produce zero, one or many frames
     int32_t n = bt->frames;

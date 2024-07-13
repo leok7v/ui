@@ -85,14 +85,14 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s,
         const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
         DWORD n = GetFinalPathNameByHandleA(file, null, 0, flags);
         if (n == 0) {
-            r = (errno_t)GetLastError();
+            r = ut_runtime.err();
         } else {
             char* name = null;
             r = ut_heap.allocate(null, (void**)&name, (int64_t)n + 2, false);
             if (r == 0) {
                 n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
                 if (n == 0) {
-                    r = (errno_t)GetLastError();
+                    r = ut_runtime.err();
                 } else {
                     ut_file_t* f = ut_files.invalid;
                     r = ut_files.open(&f, name, ut_files.o_rd);
@@ -179,7 +179,7 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
             bytes -= chunk;
         }
         if (transferred != null) { *transferred = written; }
-        errno_t rc = FlushFileBuffers(file);
+        errno_t rc = ut_b2e(FlushFileBuffers(file));
         if (r == 0) { r = rc; }
         ut_win32_close_handle(file);
     }
@@ -623,12 +623,13 @@ static errno_t ut_files_opendir(ut_folder_t* folder, const char* folder_name) {
     ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
     int32_t n = (int32_t)strlen(folder_name);
     char* fn = null;
-    errno_t r = ut_heap.allocate(null, (void**)&fn, (int64_t)n + 3, false); // extra room for "\*" suffix
+    // extra room for "\*" suffix
+    errno_t r = ut_heap.allocate(null, (void**)&fn, (int64_t)n + 3, false);
     if (r == 0) {
         ut_str.format(fn, n + 3, "%s\\*", folder_name);
         fn[n + 2] = 0;
         d->handle = FindFirstFileA(fn, &d->find);
-        if (d->handle == INVALID_HANDLE_VALUE) { r = (errno_t)GetLastError(); }
+        if (d->handle == INVALID_HANDLE_VALUE) { r = ut_runtime.err(); }
         ut_heap.deallocate(null, fn);
     }
     return r;

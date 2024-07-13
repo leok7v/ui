@@ -341,7 +341,7 @@ typedef char ut_bt_file_t[512];
 typedef struct ut_bt_s {
     int32_t frames; // 0 if capture() failed
     uint32_t hash;
-    errno_t  last_error; // set by capture() or symbolize()
+    errno_t  error; // last error set by capture() or symbolize()
     void* stack[ut_bt_max_depth];
     ut_bt_symbol_t symbol[ut_bt_max_depth];
     ut_bt_file_t file[ut_bt_max_depth];
@@ -1955,6 +1955,9 @@ end_c
 #define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
 
 void ut_win32_close_handle(void* h);
+/* translate ix to error */
+errno_t ut_wait_ix2e(uint32_t r);
+
 
 #endif // WIN32
 // ___________________________________ ut.c ___________________________________
@@ -2643,7 +2646,7 @@ static void ut_bt_capture(ut_bt_t* bt, int32_t skip) {
     SetLastError(0);
     bt->frames = CaptureStackBackTrace(1 + skip, ut_count_of(bt->stack),
         bt->stack, (DWORD*)&bt->hash);
-    bt->last_error = GetLastError();
+    bt->error = ut_runtime.err();
 }
 
 static bool ut_bt_function(DWORD64 pc, SYMBOL_INFO* si) {
@@ -2710,7 +2713,7 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
                             &displacement, &si->info)) {
         strprintf(bt->symbol[i], "%s", si->info.Name);
     } else {
-        bt->last_error = GetLastError();
+        bt->error = ut_runtime.err();
     }
     IMAGEHLP_LINE64 li = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
     DWORD offset = 0;
@@ -2761,7 +2764,7 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
                 bt->line[i] = ln.LineNumber;
                 strprintf(bt->file[i], "%s", ln.FileName);
             } else {
-                bt->last_error = ut_runtime.err();
+                bt->error = ut_runtime.err();
                 if (ut_bt_function(pc, &si.info)) {
                     GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                         ut_count_of(bt->file[i]) - 1);
@@ -2774,13 +2777,13 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
             }
             i++;
         } else {
-            bt->last_error = ut_runtime.err();
+            bt->error = ut_runtime.err();
             if (ut_bt_function(pc, &si.info)) {
                 strprintf(bt->symbol[i], "%s", si.info.Name);
                 GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                     ut_count_of(bt->file[i]) - 1);
                 bt->file[i][ut_count_of(bt->file[i]) - 1] = 0;
-                bt->last_error = 0;
+                bt->error = 0;
                 i++;
             } else {
                 // will not do i++
@@ -2792,7 +2795,7 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
 
 static void ut_bt_symbolize_backtrace(ut_bt_t* bt) {
     assert(!bt->symbolized);
-    bt->last_error = 0;
+    bt->error = 0;
     ut_bt_init();
     // ut_bt_symbolize_frame() may produce zero, one or many frames
     int32_t n = bt->frames;
@@ -3078,16 +3081,16 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
         ut_str.utf8to16(utf16, bytes, utf8);
         assert(utf16[chars - 1] == 0);
         const int32_t n = (int32_t)ut_str.len16(utf16) + 1;
-        r = OpenClipboard(GetDesktopWindow()) ? 0 : (errno_t)GetLastError();
+        r = OpenClipboard(GetDesktopWindow()) ? 0 : ut_runtime.err();
         if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
         if (r == 0) {
-            r = EmptyClipboard() ? 0 : (errno_t)GetLastError();
+            r = EmptyClipboard() ? 0 : ut_runtime.err();
             if (r != 0) { traceln("EmptyClipboard() failed %s", strerr(r)); }
         }
         void* global = null;
         if (r == 0) {
             global = GlobalAlloc(GMEM_MOVEABLE, (size_t)n * 2);
-            r = global != null ? 0 : (errno_t)GetLastError();
+            r = global != null ? 0 : ut_runtime.err();
             if (r != 0) { traceln("GlobalAlloc() failed %s", strerr(r)); }
         }
         if (r == 0) {
@@ -3121,7 +3124,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
     if (r == 0) {
         HANDLE global = GetClipboardData(CF_UNICODETEXT);
         if (global == null) {
-            r = (errno_t)GetLastError();
+            r = ut_runtime.err();
         } else {
             uint16_t* utf16 = (uint16_t*)GlobalLock(global);
             if (utf16 != null) {
@@ -3792,14 +3795,14 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s,
         const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
         DWORD n = GetFinalPathNameByHandleA(file, null, 0, flags);
         if (n == 0) {
-            r = (errno_t)GetLastError();
+            r = ut_runtime.err();
         } else {
             char* name = null;
             r = ut_heap.allocate(null, (void**)&name, (int64_t)n + 2, false);
             if (r == 0) {
                 n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
                 if (n == 0) {
-                    r = (errno_t)GetLastError();
+                    r = ut_runtime.err();
                 } else {
                     ut_file_t* f = ut_files.invalid;
                     r = ut_files.open(&f, name, ut_files.o_rd);
@@ -3886,7 +3889,7 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
             bytes -= chunk;
         }
         if (transferred != null) { *transferred = written; }
-        errno_t rc = FlushFileBuffers(file);
+        errno_t rc = ut_b2e(FlushFileBuffers(file));
         if (r == 0) { r = rc; }
         ut_win32_close_handle(file);
     }
@@ -4330,12 +4333,13 @@ static errno_t ut_files_opendir(ut_folder_t* folder, const char* folder_name) {
     ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
     int32_t n = (int32_t)strlen(folder_name);
     char* fn = null;
-    errno_t r = ut_heap.allocate(null, (void**)&fn, (int64_t)n + 3, false); // extra room for "\*" suffix
+    // extra room for "\*" suffix
+    errno_t r = ut_heap.allocate(null, (void**)&fn, (int64_t)n + 3, false);
     if (r == 0) {
         ut_str.format(fn, n + 3, "%s\\*", folder_name);
         fn[n + 2] = 0;
         d->handle = FindFirstFileA(fn, &d->find);
-        if (d->handle == INVALID_HANDLE_VALUE) { r = (errno_t)GetLastError(); }
+        if (d->handle == INVALID_HANDLE_VALUE) { r = ut_runtime.err(); }
         ut_heap.deallocate(null, fn);
     }
     return r;
@@ -5881,17 +5885,6 @@ static errno_t ut_processes_pids(const char* pname, uint64_t* pids/*[size]*/,
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
-#pragma push_macro("ut_wait_ix2e")
-
-#define ut_wait_ix2e(ix) /* translate ix to error */ (errno_t)                   \
-    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
-      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
-        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
-          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
-        )                                                                        \
-      )                                                                          \
-    )
-
 static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     DWORD milliseconds = timeout < 0 ? INFINITE : (DWORD)(timeout * 1000);
     enum { access = PROCESS_QUERY_LIMITED_INFORMATION |
@@ -5936,8 +5929,6 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     if (r != 0) { errno = r; }
     return r;
 }
-
-#pragma pop_macro("ut_wait_ix2e")
 
 static bool ut_processes_kill_one(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
     errno_t r = ut_processes_kill(pid, lambda->timeout);
@@ -7314,21 +7305,6 @@ static void ut_event_reset(ut_event_t e) {
     ut_fatal_win32err(ResetEvent((HANDLE)e));
 }
 
-#pragma push_macro("ut_wait_ix2e")
-
-// WAIT_ABANDONED only reported for mutexes not events
-// WAIT_FAILED means event was invalid handle or was disposed
-// by another thread while the calling thread was waiting for it.
-
-#define ut_wait_ix2e(ix) /* translate ix to error */ (errno_t)                   \
-    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
-      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
-        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
-          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
-        )                                                                        \
-      )                                                                          \
-    )
-
 static int32_t ut_event_wait_or_timeout(ut_event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
     DWORD i = WaitForSingleObject(e, ms);
@@ -7692,8 +7668,6 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     return r;
 }
 
-#pragma pop_macro("ut_wait_ix2e")
-
 static void ut_thread_detach(ut_thread_t t) {
     ut_not_null(t);
     ut_fatal_if(!is_handle_valid(t));
@@ -7751,7 +7725,7 @@ static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
     // if real handle is ever needed do ut_thread_id_of() instead
     // but don't forget to do ut_thread.close() after that.
     *t = (ut_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
-    return *t == null ? (errno_t)GetLastError() : 0;
+    return *t == null ? ut_runtime.err() : 0;
 }
 
 static void ut_thread_close(ut_thread_t t) {
@@ -8096,6 +8070,23 @@ ut_vigil_if ut_vigil = {
 void ut_win32_close_handle(void* h) {
     #pragma warning(suppress: 6001) // shut up overzealous IntelliSense
     ut_fatal_win32err(CloseHandle((HANDLE)h));
+}
+
+// WAIT_ABANDONED only reported for mutexes not events
+// WAIT_FAILED means event was invalid handle or was disposed
+// by another thread while the calling thread was waiting for it.
+
+/* translate ix to error */
+errno_t ut_wait_ix2e(uint32_t r) {
+    const int32_t ix = (int32_t)r;
+    return (errno_t)(
+          (int32_t)WAIT_OBJECT_0 <= ix && ix <= WAIT_OBJECT_0 + 63 ? 0 :
+          (ix == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :
+            (ix == WAIT_TIMEOUT ? ERROR_TIMEOUT :
+              (ix == WAIT_FAILED) ? ut_runtime.err() : ERROR_INVALID_HANDLE
+            )
+          )
+    );
 }
 
 // ________________________________ ut_work.c _________________________________

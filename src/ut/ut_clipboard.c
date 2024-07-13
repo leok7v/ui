@@ -10,16 +10,16 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
         ut_str.utf8to16(utf16, bytes, utf8);
         assert(utf16[chars - 1] == 0);
         const int32_t n = (int32_t)ut_str.len16(utf16) + 1;
-        r = OpenClipboard(GetDesktopWindow()) ? 0 : (errno_t)GetLastError();
+        r = OpenClipboard(GetDesktopWindow()) ? 0 : ut_runtime.err();
         if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
         if (r == 0) {
-            r = EmptyClipboard() ? 0 : (errno_t)GetLastError();
+            r = EmptyClipboard() ? 0 : ut_runtime.err();
             if (r != 0) { traceln("EmptyClipboard() failed %s", strerr(r)); }
         }
         void* global = null;
         if (r == 0) {
             global = GlobalAlloc(GMEM_MOVEABLE, (size_t)n * 2);
-            r = global != null ? 0 : (errno_t)GetLastError();
+            r = global != null ? 0 : ut_runtime.err();
             if (r != 0) { traceln("GlobalAlloc() failed %s", strerr(r)); }
         }
         if (r == 0) {
@@ -53,7 +53,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
     if (r == 0) {
         HANDLE global = GetClipboardData(CF_UNICODETEXT);
         if (global == null) {
-            r = (errno_t)GetLastError();
+            r = ut_runtime.err();
         } else {
             uint16_t* utf16 = (uint16_t*)GlobalLock(global);
             if (utf16 != null) {

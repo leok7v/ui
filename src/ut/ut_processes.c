@@ -148,17 +148,6 @@ static errno_t ut_processes_pids(const char* pname, uint64_t* pids/*[size]*/,
     return (int32_t)lambda.count == *count ? 0 : ERROR_MORE_DATA;
 }
 
-#pragma push_macro("ut_wait_ix2e")
-
-#define ut_wait_ix2e(ix) /* translate ix to error */ (errno_t)                   \
-    ((int32_t)WAIT_OBJECT_0 <= (int32_t)(ix) && (ix) <= WAIT_OBJECT_0 + 63 ? 0 : \
-      ((ix) == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :                          \
-        ((ix) == WAIT_TIMEOUT ? ERROR_TIMEOUT :                                  \
-          ((ix) == WAIT_FAILED) ? (errno_t)GetLastError() : ERROR_INVALID_HANDLE \
-        )                                                                        \
-      )                                                                          \
-    )
-
 static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     DWORD milliseconds = timeout < 0 ? INFINITE : (DWORD)(timeout * 1000);
     enum { access = PROCESS_QUERY_LIMITED_INFORMATION |
@@ -203,8 +192,6 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     if (r != 0) { errno = r; }
     return r;
 }
-
-#pragma pop_macro("ut_wait_ix2e")
 
 static bool ut_processes_kill_one(ut_processes_pidof_lambda_t* lambda, uint64_t pid) {
     errno_t r = ut_processes_kill(pid, lambda->timeout);

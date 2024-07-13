@@ -36,5 +36,8 @@
 #define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
 
 void ut_win32_close_handle(void* h);
+/* translate ix to error */
+errno_t ut_wait_ix2e(uint32_t r);
+
 
 #endif // WIN32

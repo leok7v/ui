@@ -2430,9 +2430,8 @@ static void ui_app_set_dpi_awareness(void) {
     DPI_AWARENESS_CONTEXT dpi_awareness_context_1 =
         GetThreadDpiAwarenessContext();
     // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
-    DWORD error = SetProcessDpiAwarenessContext(
-                    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) ?
-        0 : GetLastError();
+    errno_t error = ut_b2e(SetProcessDpiAwarenessContext(
+            DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     if (error == ERROR_ACCESS_DENIED) {
         traceln("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
         // dpi awareness already set, manifest, registry, windows policy
