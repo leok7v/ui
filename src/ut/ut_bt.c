@@ -10,11 +10,10 @@ typedef ut_begin_packed struct symbol_info_s {
 
 #pragma push_macro("ut_bt_load_dll")
 
-#define ut_bt_load_dll(fn)                              \
-do {                                                    \
-    if (GetModuleHandleA(fn) == null) {                 \
-        ut_fatal_if_error(ut_b2e(LoadLibraryA(fn)));    \
-    }                                                   \
+#define ut_bt_load_dll(fn) do {              \
+    if (GetModuleHandleA(fn) == null) {      \
+        ut_fatal_win32err(LoadLibraryA(fn)); \
+    }                                        \
 } while (0)
 
 static void ut_bt_init(void) {
@@ -386,13 +385,13 @@ static void ut_bt_trace_all_but_self(void) {
                                 ut_bt.trace(&bt, "*");
                             }
                             ut_debug.println("<Thread", tid, tn.name, "");
-                            ut_fatal_if_error(ut_b2e(CloseHandle(thread)));
+                            ut_win32_close_handle(thread);
                         }
                     }
                 }
             } while (Thread32Next(snapshot, &te));
         }
-        CloseHandle(snapshot);
+        ut_win32_close_handle(snapshot);
     }
 }
 

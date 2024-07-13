@@ -73,6 +73,7 @@
     <ClCompile Include="..\src\ut\ut_threads.c" />
     <ClCompile Include="..\src\ut\ut.c" />
     <ClCompile Include="..\src\ut\ut_vigil.c" />
+    <ClCompile Include="..\src\ut\ut_win32.c" />
     <ClCompile Include="..\src\ut\ut_work.c" />
   </ItemGroup>
   <ItemGroup>

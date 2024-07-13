@@ -38,8 +38,8 @@ static struct {
 // 32ms intervals and can be delayed.
 
 static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
-    ut_fatal_if_error(ut_b2e(PostMessageA(ui_app_window(), (UINT)m,
-            (WPARAM)wp, (LPARAM)lp)));
+    ut_fatal_win32err(PostMessageA(ui_app_window(), (UINT)m,
+            (WPARAM)wp, (LPARAM)lp));
 }
 
 static void ui_app_update_wt_timeout(void) {
@@ -63,8 +63,8 @@ static void ui_app_update_wt_timeout(void) {
 // TODO: remove
 //          traceln("dt: %.6f %lld", dt, rt.QuadPart);
             swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
-            ut_fatal_if_error(ut_b2e(
-                SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0))
+            ut_fatal_win32err(
+                SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
             );
         }
         last_next_due_at = next_due_at;
@@ -148,8 +148,8 @@ static RECT ui_app_ui2rect(const ui_rect_t* u) {
 
 static void ui_app_update_ncm(int32_t dpi) {
     // Only UTF-16 version supported SystemParametersInfoForDpi
-    ut_fatal_if_error(ut_b2e(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
-        sizeof(ui_app_ncm), &ui_app_ncm, 0, (DWORD)dpi)));
+    ut_fatal_win32err(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
+        sizeof(ui_app_ncm), &ui_app_ncm, 0, (DWORD)dpi));
 }
 
 static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
@@ -236,7 +236,7 @@ static bool ui_app_update_mi(const ui_rect_t* r, uint32_t flags) {
 //  HMONITOR mw = MonitorFromWindow(ui_app_window(), flags);
     if (monitor != null) {
         ui_app_update_monitor_dpi(monitor, &ui_app.dpi);
-        ut_fatal_if_error(ut_b2e(GetMonitorInfoA(monitor, &ui_app_mi)));
+        ut_fatal_win32err(GetMonitorInfoA(monitor, &ui_app_mi));
         ui_app.work_area = ui_app_rect2ui(&ui_app_mi.rcWork);
         ui_app.mrc = ui_app_rect2ui(&ui_app_mi.rcMonitor);
 //      ui_app_dump_dpi();
@@ -246,7 +246,7 @@ static bool ui_app_update_mi(const ui_rect_t* r, uint32_t flags) {
 
 static void ui_app_update_crc(void) {
     RECT rc = {0};
-    ut_fatal_if_error(ut_b2e(GetClientRect(ui_app_window(), &rc)));
+    ut_fatal_win32err(GetClientRect(ui_app_window(), &rc));
     ui_app.crc = ui_app_rect2ui(&rc);
 }
 
@@ -341,7 +341,7 @@ static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
         HDC unused(hdc), RECT* unused(rc1), LPARAM that) {
     ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
     MONITORINFOEX mi = { .cbSize = sizeof(MONITORINFOEX) };
-    ut_fatal_if_error(ut_b2e(GetMonitorInfoA(monitor, (MONITORINFO*)&mi)));
+    ut_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
     const int32_t min_x = ut_min(mi.rcMonitor.left, mi.rcMonitor.right);
     const int32_t min_y = ut_min(mi.rcMonitor.top,  mi.rcMonitor.bottom);
@@ -364,11 +364,11 @@ static void ui_app_enum_monitors(ui_app_wiw_t* wiw) {
 
 static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump) {
     RECT wr = {0};
-    ut_fatal_if_error(ut_b2e(GetWindowRect((HWND)wnd, &wr)));
+    ut_fatal_win32err(GetWindowRect((HWND)wnd, &wr));
     ui_rect_t wrc = ui_app_rect2ui(&wr);
     ui_app_update_mi(&wrc, MONITOR_DEFAULTTONEAREST);
     WINDOWPLACEMENT wpl = { .length = sizeof(wpl) };
-    ut_fatal_if_error(ut_b2e(GetWindowPlacement((HWND)wnd, &wpl)));
+    ut_fatal_win32err(GetWindowPlacement((HWND)wnd, &wpl));
     // note the replacement of wpl.rcNormalPosition with wrc:
     ui_app_wiw_t wiw = { // where is window
         .bytes = sizeof(ui_app_wiw_t),
@@ -520,7 +520,7 @@ static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
 }
 
 static void ui_app_timer_kill(ui_timer_t timer) {
-    ut_fatal_if_error(ut_b2e(KillTimer(ui_app_window(), timer)));
+    ut_fatal_win32err(KillTimer(ui_app_window(), timer));
 }
 
 static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
@@ -1052,7 +1052,7 @@ static void ui_app_window_position_changed(const WINDOWPOS* wp) {
     if (!ui_app.root->state.hidden && (moved || sized) &&
         !hiding && monitor != null) {
         RECT wrc = ui_app_ui2rect(&ui_app.wrc);
-        ut_fatal_if_error(ut_b2e(GetWindowRect(ui_app_window(), &wrc)));
+        ut_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
         ui_app.wrc = ui_app_rect2ui(&wrc);
         ui_app_update_mi(&ui_app.wrc, MONITOR_DEFAULTTONEAREST);
         ui_app_update_crc();
@@ -1084,7 +1084,7 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         n = ResolveLocaleName(ln, rln, ut_count_of(rln));
         ut_fatal_if(n <= 0);
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
-        ut_fatal_if_error(ut_b2e(SetThreadLocale(lc_id)));
+        ut_fatal_win32err(SetThreadLocale(lc_id));
     }
 }
 
@@ -1635,16 +1635,16 @@ static void ui_app_init_dwm(void) {
 
 static void ui_app_swp(HWND top, int32_t x, int32_t y, int32_t w, int32_t h,
         uint32_t f) {
-    ut_fatal_if_error(ut_b2e(SetWindowPos(ui_app_window(), top, x, y, w, h, f)));
+    ut_fatal_win32err(SetWindowPos(ui_app_window(), top, x, y, w, h, f));
 }
 
 static void ui_app_swp_flags(uint32_t f) {
-    ut_fatal_if_error(ut_b2e(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, f)));
+    ut_fatal_win32err(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, f));
 }
 
 static void ui_app_disable_sys_menu_item(HMENU sys_menu, uint32_t item) {
     const uint32_t f = MF_BYCOMMAND | MF_DISABLED;
-    ut_fatal_if_error(ut_b2e(EnableMenuItem(sys_menu, item, f)));
+    ut_fatal_win32err(EnableMenuItem(sys_menu, item, f));
 }
 
 static void ui_app_init_sys_menu(void) {
@@ -1696,7 +1696,7 @@ static void ui_app_create_window(const ui_rect_t r) {
     ui_view.set_text(&ui_caption.title, "%s", ui_app.title);
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
     RECT wrc = ui_app_ui2rect(&r);
-    ut_fatal_if_error(ut_b2e(GetWindowRect(ui_app_window(), &wrc)));
+    ut_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
     ui_app.wrc = ui_app_rect2ui(&wrc);
     ui_app_init_dwm();
     ui_app_init_sys_menu();
@@ -1720,14 +1720,14 @@ static void ui_app_full_screen(bool on) {
             ui_app_modify_window_style(0, WS_OVERLAPPEDWINDOW|WS_POPUPWINDOW);
             ui_app_modify_window_style(WS_POPUP | WS_VISIBLE, 0);
             wp.length = sizeof(wp);
-            ut_fatal_if_error(ut_b2e(GetWindowPlacement(ui_app_window(), &wp)));
+            ut_fatal_win32err(GetWindowPlacement(ui_app_window(), &wp));
             WINDOWPLACEMENT nwp = wp;
             nwp.showCmd = SW_SHOWNORMAL;
             nwp.rcNormalPosition = (RECT){ui_app.mrc.x, ui_app.mrc.y,
                 ui_app.mrc.x + ui_app.mrc.w, ui_app.mrc.y + ui_app.mrc.h};
-            ut_fatal_if_error(ut_b2e(SetWindowPlacement(ui_app_window(), &nwp)));
+            ut_fatal_win32err(SetWindowPlacement(ui_app_window(), &nwp));
         } else {
-            ut_fatal_if_error(ut_b2e(SetWindowPlacement(ui_app_window(), &wp)));
+            ut_fatal_win32err(SetWindowPlacement(ui_app_window(), &wp));
             ui_app_set_window_long(GWL_STYLE, ui_app_window_style());
             enum { flags = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
                            SWP_NOZORDER | SWP_NOOWNERZORDER };
@@ -1787,7 +1787,7 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
         HKL keyboard_layout = GetKeyboardLayout(0);
         // HKL low word Language Identifier
         //     high word device handle to the physical layout of the keyboard
-        ut_fatal_if_error(ut_b2e(GetKeyboardState(keyboard_state)));
+        ut_fatal_win32err(GetKeyboardState(keyboard_state));
         // Map virtual key to scan code
         UINT virtualKey = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX,
                                           keyboard_layout);
@@ -1907,7 +1907,7 @@ static bool    ui_app_caret_shown;
 static void ui_app_create_caret(int32_t w, int32_t h) {
     ui_app_caret_w = w;
     ui_app_caret_h = h;
-    ut_fatal_if_error(ut_b2e(CreateCaret(ui_app_window(), null, w, h)));
+    ut_fatal_win32err(CreateCaret(ui_app_window(), null, w, h));
     assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
 }
 
@@ -1918,13 +1918,13 @@ static void ui_app_invalidate_caret(void) {
         RECT rc = { ui_app_caret_x, ui_app_caret_y,
                     ui_app_caret_x + ui_app_caret_w,
                     ui_app_caret_y + ui_app_caret_h };
-        ut_fatal_if_error(ut_b2e(InvalidateRect(ui_app_window(), &rc, false)));
+        ut_fatal_win32err(InvalidateRect(ui_app_window(), &rc, false));
     }
 }
 
 static void ui_app_show_caret(void) {
     assert(!ui_app_caret_shown);
-    ut_fatal_if_error(ut_b2e(ShowCaret(ui_app_window())));
+    ut_fatal_win32err(ShowCaret(ui_app_window()));
     ui_app_caret_shown = true;
     ui_app_invalidate_caret();
 }
@@ -1933,13 +1933,13 @@ static void ui_app_move_caret(int32_t x, int32_t y) {
     ui_app_invalidate_caret(); // where is was
     ui_app_caret_x = x;
     ui_app_caret_y = y;
-    ut_fatal_if_error(ut_b2e(SetCaretPos(x, y)));
+    ut_fatal_win32err(SetCaretPos(x, y));
     ui_app_invalidate_caret(); // where it is now
 }
 
 static void ui_app_hide_caret(void) {
     assert(ui_app_caret_shown);
-    ut_fatal_if_error(ut_b2e(HideCaret(ui_app_window())));
+    ut_fatal_win32err(HideCaret(ui_app_window()));
     ui_app_invalidate_caret();
     ui_app_caret_shown = false;
 }
@@ -1947,14 +1947,14 @@ static void ui_app_hide_caret(void) {
 static void ui_app_destroy_caret(void) {
     ui_app_caret_w = 0;
     ui_app_caret_h = 0;
-    ut_fatal_if_error(ut_b2e(DestroyCaret()));
+    ut_fatal_win32err(DestroyCaret());
 }
 
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
     swear(0 <= kind && kind < ut_count_of(beep_id));
-    ut_fatal_if_error(ut_b2e(MessageBeep(beep_id[kind])));
+    ut_fatal_win32err(MessageBeep(beep_id[kind]));
 }
 
 static void ui_app_enable_sys_command_close(void) {
@@ -2074,7 +2074,7 @@ static void ui_app_activate(void) {
 
 static void ui_app_bring_to_foreground(void) {
     // SetForegroundWindow() does not activate window:
-    ut_fatal_if_error(ut_b2e(SetForegroundWindow(ui_app_window())));
+    ut_fatal_win32err(SetForegroundWindow(ui_app_window()));
 }
 
 static void ui_app_bring_to_front(void) {
@@ -2088,7 +2088,7 @@ static void ui_app_bring_to_front(void) {
 
 static void ui_app_set_title(const char* title) {
     ui_view.set_text(&ui_caption.title, "%s", title);
-    ut_fatal_if_error(ut_b2e(SetWindowTextA(ui_app_window(), ut_nls.str(title))));
+    ut_fatal_win32err(SetWindowTextA(ui_app_window(), ut_nls.str(title)));
 }
 
 static void ui_app_capture_mouse(bool on) {
@@ -2117,7 +2117,7 @@ static void ui_app_set_console_title(HWND cw) {
     text[ut_count_of(text) - 1] = 0;
     char title[256];
     ut_str_printf(title, "%s - Console", text);
-    ut_fatal_if_error(ut_b2e(SetWindowTextA(cw, title)));
+    ut_fatal_win32err(SetWindowTextA(cw, title));
 }
 
 static void ui_app_restore_console(int32_t *visibility) {
@@ -2144,8 +2144,8 @@ static void ui_app_restore_console(int32_t *visibility) {
     	    }
             // do not resize console window just restore it's position
             enum { flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE };
-            ut_fatal_if_error(ut_b2e(SetWindowPos(cw, null,
-                    rc.x, rc.y, rc.w, rc.h, flags)));
+            ut_fatal_win32err(SetWindowPos(cw, null,
+                    rc.x, rc.y, rc.w, rc.h, flags));
         } else {
             ui_app_console_largest();
         }
@@ -2288,9 +2288,9 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     HBITMAP s = SelectBitmap(src, im->bitmap); ut_not_null(s);
     HBITMAP d = SelectBitmap(dst, bitmap);     ut_not_null(d);
     POINT pt = { 0 };
-    ut_fatal_if_error(ut_b2e(SetBrushOrgEx(dst, 0, 0, &pt)));
-    ut_fatal_if_error(ut_b2e(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
-        im->w, im->h, SRCCOPY)));
+    ut_fatal_win32err(SetBrushOrgEx(dst, 0, 0, &pt));
+    ut_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
+        im->w, im->h, SRCCOPY));
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
     if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
     if (r == 0) {
@@ -2311,10 +2311,10 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     }
     ut_not_null(SelectBitmap(dst, d));
     ut_not_null(SelectBitmap(src, s));
-    ut_fatal_if_error(ut_b2e(DeleteBitmap(bitmap)));
-    ut_fatal_if_error(ut_b2e(DeleteDC(dst)));
-    ut_fatal_if_error(ut_b2e(DeleteDC(src)));
-    ut_fatal_if_error(ut_b2e(ReleaseDC(null, canvas)));
+    ut_fatal_win32err(DeleteBitmap(bitmap));
+    ut_fatal_win32err(DeleteDC(dst));
+    ut_fatal_win32err(DeleteDC(src));
+    ut_fatal_win32err(ReleaseDC(null, canvas));
     return r;
 }
 

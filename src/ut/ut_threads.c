@@ -1,14 +1,6 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
-// TODO: make available in ut_win32.h
-
-static inline void ut_win32_close_handle(void* h) {
-    #pragma warning(suppress: 6001) // shut up overzealous IntelliSense
-    ut_fatal_win32err(CloseHandle((HANDLE)h));
-}
-
-
 // events:
 
 static ut_event_t ut_event_create(void) {
@@ -464,10 +456,9 @@ static ut_thread_t ut_thread_self(void) {
 }
 
 static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
-    // GetCurrentThread() returns pseudo-handle, not a real handle
-    // if real handle is ever needed may do ut_thread_id_of() and
-    //  instead, though it will mean
-    // CloseHandle is needed.
+    // GetCurrentThread() returns pseudo-handle, not a real handle.
+    // if real handle is ever needed do ut_thread_id_of() instead
+    // but don't forget to do ut_thread.close() after that.
     *t = (ut_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
     return *t == null ? (errno_t)GetLastError() : 0;
 }

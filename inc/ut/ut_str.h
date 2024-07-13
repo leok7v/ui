@@ -29,7 +29,7 @@ typedef struct str32K_t {
 // shorthand:
 
 #define strprintf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
-#define strerr(r) (ut_str.error((r)).s) // use only as strpintf() parameter
+#define strerr(r) (ut_str.error((r)).s) // use only as ut_str_printf() parameter
 
 // The strings are expected to be UTF-8 encoded.
 // Copy functions fatal fail if the destination buffer is too small.

@@ -1,6 +1,7 @@
 #include "dirent.h"
 #include <stdio.h>
-#include "ut/ut_win32.h"
+#include <malloc.h>
+#include <Windows.h>
 
 #if defined(__GNUC__) || defined(__clang__) // TODO: remove and fix code
 #pragma GCC diagnostic ignored "-Wdeclaration-after-statement"

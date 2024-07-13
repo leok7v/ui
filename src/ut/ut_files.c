@@ -74,11 +74,13 @@ static int get_final_path_name_by_fd(int fd, char *buffer, int32_t bytes) {
 
 #endif
 
-static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_symlink) {
+static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s,
+                             bool follow_symlink) {
     errno_t r = 0;
     BY_HANDLE_FILE_INFORMATION fi;
-    ut_fatal_if_error(ut_b2e(GetFileInformationByHandle(file, &fi)));
-    const bool symlink = (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+    ut_fatal_win32err(GetFileInformationByHandle(file, &fi));
+    const bool symlink =
+        (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
     if (follow_symlink && symlink) {
         const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
         DWORD n = GetFinalPathNameByHandleA(file, null, 0, flags);
@@ -150,7 +152,7 @@ static errno_t ut_files_flush(ut_file_t* file) {
 }
 
 static void ut_files_close(ut_file_t* file) {
-    ut_fatal_if_error(ut_b2e(CloseHandle(file)));
+    ut_win32_close_handle(file);
 }
 
 static errno_t ut_files_write_fully(const char* filename, const void* data,
@@ -177,8 +179,9 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
             bytes -= chunk;
         }
         if (transferred != null) { *transferred = written; }
-        errno_t rc = ut_b2e(CloseHandle(file));
+        errno_t rc = FlushFileBuffers(file);
         if (r == 0) { r = rc; }
+        ut_win32_close_handle(file);
     }
     return r;
 }
@@ -366,8 +369,8 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
 static errno_t ut_files_chmod777(const char* pathname) {
     SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
     PSID everyone = null; // Create a well-known SID for the Everyone group.
-    ut_fatal_if_error(ut_b2e(AllocateAndInitializeSid(&SIDAuthWorld, 1,
-             SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone)));
+    ut_fatal_win32err(AllocateAndInitializeSid(&SIDAuthWorld, 1,
+             SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone));
     EXPLICIT_ACCESSA ea[1] = { { 0 } };
     // Initialize an EXPLICIT_ACCESS structure for an ACE.
     ea[0].grfAccessPermissions = 0xFFFFFFFF;
@@ -382,11 +385,11 @@ static errno_t ut_files_chmod777(const char* pathname) {
     // Initialize a security descriptor.
     uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH] = {0};
     SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)stack;
-    ut_fatal_if_error(ut_b2e(InitializeSecurityDescriptor(sd,
-        SECURITY_DESCRIPTOR_REVISION)));
+    ut_fatal_win32err(InitializeSecurityDescriptor(sd,
+        SECURITY_DESCRIPTOR_REVISION));
     // Add the ACL to the security descriptor.
-    ut_fatal_if_error(ut_b2e(SetSecurityDescriptorDacl(sd,
-        /* present flag: */ true, acl, /* not a default DACL: */  false)));
+    ut_fatal_win32err(SetSecurityDescriptorDacl(sd,
+        /* present flag: */ true, acl, /* not a default DACL: */  false));
     // Change the security attributes
     errno_t r = ut_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
@@ -656,7 +659,7 @@ static const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
 
 static void ut_files_closedir(ut_folder_t* folder) {
     ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
-    ut_fatal_if_error(ut_b2e(FindClose(d->handle)));
+    ut_fatal_win32err(FindClose(d->handle));
 }
 
 #pragma push_macro("files_test_failed")

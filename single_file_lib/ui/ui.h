@@ -2227,8 +2227,8 @@ static struct {
 // 32ms intervals and can be delayed.
 
 static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
-    ut_fatal_if_error(ut_b2e(PostMessageA(ui_app_window(), (UINT)m,
-            (WPARAM)wp, (LPARAM)lp)));
+    ut_fatal_win32err(PostMessageA(ui_app_window(), (UINT)m,
+            (WPARAM)wp, (LPARAM)lp));
 }
 
 static void ui_app_update_wt_timeout(void) {
@@ -2252,8 +2252,8 @@ static void ui_app_update_wt_timeout(void) {
 // TODO: remove
 //          traceln("dt: %.6f %lld", dt, rt.QuadPart);
             swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
-            ut_fatal_if_error(ut_b2e(
-                SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0))
+            ut_fatal_win32err(
+                SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
             );
         }
         last_next_due_at = next_due_at;
@@ -2337,8 +2337,8 @@ static RECT ui_app_ui2rect(const ui_rect_t* u) {
 
 static void ui_app_update_ncm(int32_t dpi) {
     // Only UTF-16 version supported SystemParametersInfoForDpi
-    ut_fatal_if_error(ut_b2e(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
-        sizeof(ui_app_ncm), &ui_app_ncm, 0, (DWORD)dpi)));
+    ut_fatal_win32err(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
+        sizeof(ui_app_ncm), &ui_app_ncm, 0, (DWORD)dpi));
 }
 
 static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
@@ -2425,7 +2425,7 @@ static bool ui_app_update_mi(const ui_rect_t* r, uint32_t flags) {
 //  HMONITOR mw = MonitorFromWindow(ui_app_window(), flags);
     if (monitor != null) {
         ui_app_update_monitor_dpi(monitor, &ui_app.dpi);
-        ut_fatal_if_error(ut_b2e(GetMonitorInfoA(monitor, &ui_app_mi)));
+        ut_fatal_win32err(GetMonitorInfoA(monitor, &ui_app_mi));
         ui_app.work_area = ui_app_rect2ui(&ui_app_mi.rcWork);
         ui_app.mrc = ui_app_rect2ui(&ui_app_mi.rcMonitor);
 //      ui_app_dump_dpi();
@@ -2435,7 +2435,7 @@ static bool ui_app_update_mi(const ui_rect_t* r, uint32_t flags) {
 
 static void ui_app_update_crc(void) {
     RECT rc = {0};
-    ut_fatal_if_error(ut_b2e(GetClientRect(ui_app_window(), &rc)));
+    ut_fatal_win32err(GetClientRect(ui_app_window(), &rc));
     ui_app.crc = ui_app_rect2ui(&rc);
 }
 
@@ -2530,7 +2530,7 @@ static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
         HDC unused(hdc), RECT* unused(rc1), LPARAM that) {
     ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
     MONITORINFOEX mi = { .cbSize = sizeof(MONITORINFOEX) };
-    ut_fatal_if_error(ut_b2e(GetMonitorInfoA(monitor, (MONITORINFO*)&mi)));
+    ut_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
     const int32_t min_x = ut_min(mi.rcMonitor.left, mi.rcMonitor.right);
     const int32_t min_y = ut_min(mi.rcMonitor.top,  mi.rcMonitor.bottom);
@@ -2553,11 +2553,11 @@ static void ui_app_enum_monitors(ui_app_wiw_t* wiw) {
 
 static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump) {
     RECT wr = {0};
-    ut_fatal_if_error(ut_b2e(GetWindowRect((HWND)wnd, &wr)));
+    ut_fatal_win32err(GetWindowRect((HWND)wnd, &wr));
     ui_rect_t wrc = ui_app_rect2ui(&wr);
     ui_app_update_mi(&wrc, MONITOR_DEFAULTTONEAREST);
     WINDOWPLACEMENT wpl = { .length = sizeof(wpl) };
-    ut_fatal_if_error(ut_b2e(GetWindowPlacement((HWND)wnd, &wpl)));
+    ut_fatal_win32err(GetWindowPlacement((HWND)wnd, &wpl));
     // note the replacement of wpl.rcNormalPosition with wrc:
     ui_app_wiw_t wiw = { // where is window
         .bytes = sizeof(ui_app_wiw_t),
@@ -2709,7 +2709,7 @@ static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
 }
 
 static void ui_app_timer_kill(ui_timer_t timer) {
-    ut_fatal_if_error(ut_b2e(KillTimer(ui_app_window(), timer)));
+    ut_fatal_win32err(KillTimer(ui_app_window(), timer));
 }
 
 static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
@@ -3241,7 +3241,7 @@ static void ui_app_window_position_changed(const WINDOWPOS* wp) {
     if (!ui_app.root->state.hidden && (moved || sized) &&
         !hiding && monitor != null) {
         RECT wrc = ui_app_ui2rect(&ui_app.wrc);
-        ut_fatal_if_error(ut_b2e(GetWindowRect(ui_app_window(), &wrc)));
+        ut_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
         ui_app.wrc = ui_app_rect2ui(&wrc);
         ui_app_update_mi(&ui_app.wrc, MONITOR_DEFAULTTONEAREST);
         ui_app_update_crc();
@@ -3273,7 +3273,7 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         n = ResolveLocaleName(ln, rln, ut_count_of(rln));
         ut_fatal_if(n <= 0);
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
-        ut_fatal_if_error(ut_b2e(SetThreadLocale(lc_id)));
+        ut_fatal_win32err(SetThreadLocale(lc_id));
     }
 }
 
@@ -3824,16 +3824,16 @@ static void ui_app_init_dwm(void) {
 
 static void ui_app_swp(HWND top, int32_t x, int32_t y, int32_t w, int32_t h,
         uint32_t f) {
-    ut_fatal_if_error(ut_b2e(SetWindowPos(ui_app_window(), top, x, y, w, h, f)));
+    ut_fatal_win32err(SetWindowPos(ui_app_window(), top, x, y, w, h, f));
 }
 
 static void ui_app_swp_flags(uint32_t f) {
-    ut_fatal_if_error(ut_b2e(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, f)));
+    ut_fatal_win32err(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, f));
 }
 
 static void ui_app_disable_sys_menu_item(HMENU sys_menu, uint32_t item) {
     const uint32_t f = MF_BYCOMMAND | MF_DISABLED;
-    ut_fatal_if_error(ut_b2e(EnableMenuItem(sys_menu, item, f)));
+    ut_fatal_win32err(EnableMenuItem(sys_menu, item, f));
 }
 
 static void ui_app_init_sys_menu(void) {
@@ -3885,7 +3885,7 @@ static void ui_app_create_window(const ui_rect_t r) {
     ui_view.set_text(&ui_caption.title, "%s", ui_app.title);
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
     RECT wrc = ui_app_ui2rect(&r);
-    ut_fatal_if_error(ut_b2e(GetWindowRect(ui_app_window(), &wrc)));
+    ut_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
     ui_app.wrc = ui_app_rect2ui(&wrc);
     ui_app_init_dwm();
     ui_app_init_sys_menu();
@@ -3909,14 +3909,14 @@ static void ui_app_full_screen(bool on) {
             ui_app_modify_window_style(0, WS_OVERLAPPEDWINDOW|WS_POPUPWINDOW);
             ui_app_modify_window_style(WS_POPUP | WS_VISIBLE, 0);
             wp.length = sizeof(wp);
-            ut_fatal_if_error(ut_b2e(GetWindowPlacement(ui_app_window(), &wp)));
+            ut_fatal_win32err(GetWindowPlacement(ui_app_window(), &wp));
             WINDOWPLACEMENT nwp = wp;
             nwp.showCmd = SW_SHOWNORMAL;
             nwp.rcNormalPosition = (RECT){ui_app.mrc.x, ui_app.mrc.y,
                 ui_app.mrc.x + ui_app.mrc.w, ui_app.mrc.y + ui_app.mrc.h};
-            ut_fatal_if_error(ut_b2e(SetWindowPlacement(ui_app_window(), &nwp)));
+            ut_fatal_win32err(SetWindowPlacement(ui_app_window(), &nwp));
         } else {
-            ut_fatal_if_error(ut_b2e(SetWindowPlacement(ui_app_window(), &wp)));
+            ut_fatal_win32err(SetWindowPlacement(ui_app_window(), &wp));
             ui_app_set_window_long(GWL_STYLE, ui_app_window_style());
             enum { flags = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
                            SWP_NOZORDER | SWP_NOOWNERZORDER };
@@ -3976,7 +3976,7 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
         HKL keyboard_layout = GetKeyboardLayout(0);
         // HKL low word Language Identifier
         //     high word device handle to the physical layout of the keyboard
-        ut_fatal_if_error(ut_b2e(GetKeyboardState(keyboard_state)));
+        ut_fatal_win32err(GetKeyboardState(keyboard_state));
         // Map virtual key to scan code
         UINT virtualKey = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX,
                                           keyboard_layout);
@@ -4096,7 +4096,7 @@ static bool    ui_app_caret_shown;
 static void ui_app_create_caret(int32_t w, int32_t h) {
     ui_app_caret_w = w;
     ui_app_caret_h = h;
-    ut_fatal_if_error(ut_b2e(CreateCaret(ui_app_window(), null, w, h)));
+    ut_fatal_win32err(CreateCaret(ui_app_window(), null, w, h));
     assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
 }
 
@@ -4107,13 +4107,13 @@ static void ui_app_invalidate_caret(void) {
         RECT rc = { ui_app_caret_x, ui_app_caret_y,
                     ui_app_caret_x + ui_app_caret_w,
                     ui_app_caret_y + ui_app_caret_h };
-        ut_fatal_if_error(ut_b2e(InvalidateRect(ui_app_window(), &rc, false)));
+        ut_fatal_win32err(InvalidateRect(ui_app_window(), &rc, false));
     }
 }
 
 static void ui_app_show_caret(void) {
     assert(!ui_app_caret_shown);
-    ut_fatal_if_error(ut_b2e(ShowCaret(ui_app_window())));
+    ut_fatal_win32err(ShowCaret(ui_app_window()));
     ui_app_caret_shown = true;
     ui_app_invalidate_caret();
 }
@@ -4122,13 +4122,13 @@ static void ui_app_move_caret(int32_t x, int32_t y) {
     ui_app_invalidate_caret(); // where is was
     ui_app_caret_x = x;
     ui_app_caret_y = y;
-    ut_fatal_if_error(ut_b2e(SetCaretPos(x, y)));
+    ut_fatal_win32err(SetCaretPos(x, y));
     ui_app_invalidate_caret(); // where it is now
 }
 
 static void ui_app_hide_caret(void) {
     assert(ui_app_caret_shown);
-    ut_fatal_if_error(ut_b2e(HideCaret(ui_app_window())));
+    ut_fatal_win32err(HideCaret(ui_app_window()));
     ui_app_invalidate_caret();
     ui_app_caret_shown = false;
 }
@@ -4136,14 +4136,14 @@ static void ui_app_hide_caret(void) {
 static void ui_app_destroy_caret(void) {
     ui_app_caret_w = 0;
     ui_app_caret_h = 0;
-    ut_fatal_if_error(ut_b2e(DestroyCaret()));
+    ut_fatal_win32err(DestroyCaret());
 }
 
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
     swear(0 <= kind && kind < ut_count_of(beep_id));
-    ut_fatal_if_error(ut_b2e(MessageBeep(beep_id[kind])));
+    ut_fatal_win32err(MessageBeep(beep_id[kind]));
 }
 
 static void ui_app_enable_sys_command_close(void) {
@@ -4263,7 +4263,7 @@ static void ui_app_activate(void) {
 
 static void ui_app_bring_to_foreground(void) {
     // SetForegroundWindow() does not activate window:
-    ut_fatal_if_error(ut_b2e(SetForegroundWindow(ui_app_window())));
+    ut_fatal_win32err(SetForegroundWindow(ui_app_window()));
 }
 
 static void ui_app_bring_to_front(void) {
@@ -4277,7 +4277,7 @@ static void ui_app_bring_to_front(void) {
 
 static void ui_app_set_title(const char* title) {
     ui_view.set_text(&ui_caption.title, "%s", title);
-    ut_fatal_if_error(ut_b2e(SetWindowTextA(ui_app_window(), ut_nls.str(title))));
+    ut_fatal_win32err(SetWindowTextA(ui_app_window(), ut_nls.str(title)));
 }
 
 static void ui_app_capture_mouse(bool on) {
@@ -4306,7 +4306,7 @@ static void ui_app_set_console_title(HWND cw) {
     text[ut_count_of(text) - 1] = 0;
     char title[256];
     ut_str_printf(title, "%s - Console", text);
-    ut_fatal_if_error(ut_b2e(SetWindowTextA(cw, title)));
+    ut_fatal_win32err(SetWindowTextA(cw, title));
 }
 
 static void ui_app_restore_console(int32_t *visibility) {
@@ -4333,8 +4333,8 @@ static void ui_app_restore_console(int32_t *visibility) {
     	    }
             // do not resize console window just restore it's position
             enum { flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE };
-            ut_fatal_if_error(ut_b2e(SetWindowPos(cw, null,
-                    rc.x, rc.y, rc.w, rc.h, flags)));
+            ut_fatal_win32err(SetWindowPos(cw, null,
+                    rc.x, rc.y, rc.w, rc.h, flags));
         } else {
             ui_app_console_largest();
         }
@@ -4477,9 +4477,9 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     HBITMAP s = SelectBitmap(src, im->bitmap); ut_not_null(s);
     HBITMAP d = SelectBitmap(dst, bitmap);     ut_not_null(d);
     POINT pt = { 0 };
-    ut_fatal_if_error(ut_b2e(SetBrushOrgEx(dst, 0, 0, &pt)));
-    ut_fatal_if_error(ut_b2e(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
-        im->w, im->h, SRCCOPY)));
+    ut_fatal_win32err(SetBrushOrgEx(dst, 0, 0, &pt));
+    ut_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
+        im->w, im->h, SRCCOPY));
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
     if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
     if (r == 0) {
@@ -4500,10 +4500,10 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     }
     ut_not_null(SelectBitmap(dst, d));
     ut_not_null(SelectBitmap(src, s));
-    ut_fatal_if_error(ut_b2e(DeleteBitmap(bitmap)));
-    ut_fatal_if_error(ut_b2e(DeleteDC(dst)));
-    ut_fatal_if_error(ut_b2e(DeleteDC(src)));
-    ut_fatal_if_error(ut_b2e(ReleaseDC(null, canvas)));
+    ut_fatal_win32err(DeleteBitmap(bitmap));
+    ut_fatal_win32err(DeleteDC(dst));
+    ut_fatal_win32err(DeleteDC(src));
+    ut_fatal_win32err(ReleaseDC(null, canvas));
     return r;
 }
 
@@ -10378,7 +10378,7 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
 //      https://stackoverflow.com/questions/65691101/
 //      traceln("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
 //      // next line works only when running as administator:
-//      ut_fatal_if_error(ut_b2e(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y)));
+//      ut_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
         const bool l_button = ui_app.mouse_left  != work->left;
         const bool r_button = ui_app.mouse_right != work->right;
         ui_app.mouse_left  = work->left;
@@ -10589,7 +10589,7 @@ static void ui_gdi_init(void) {
 
 static void ui_gdi_fini(void) {
     if (ui_gdi_clip != null) {
-        ut_fatal_if_error(ut_b2e(DeleteRgn(ui_gdi_clip)));
+        ut_fatal_win32err(DeleteRgn(ui_gdi_clip));
     }
     ui_gdi_clip = null;
 }
@@ -10636,8 +10636,8 @@ static void ui_gdi_begin(ui_image_t* image) {
     ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.regular.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
     ui_gdi_context.brush = ui_gdi_set_brush(ui_gdi_brush_hollow);
-    ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
-        &ui_gdi_context.brush_origin)));
+    ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
+        &ui_gdi_context.brush_origin));
     ui_color_t tc = ui_colors.get_color(ui_color_id_window_text);
     ui_gdi_context.text_color = ui_gdi_set_text_color(tc);
     ui_gdi_context.background_mode = SetBkMode(ui_gdi_hdc(), TRANSPARENT);
@@ -10645,9 +10645,9 @@ static void ui_gdi_begin(ui_image_t* image) {
 }
 
 static void ui_gdi_end(void) {
-    ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(),
+    ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(),
                    ui_gdi_context.brush_origin.x,
-                   ui_gdi_context.brush_origin.y, null)));
+                   ui_gdi_context.brush_origin.y, null));
     ui_gdi_set_brush(ui_gdi_context.brush);
     ui_gdi_set_pen(ui_gdi_context.pen);
     ui_gdi_set_text_color(ui_gdi_context.text_color);
@@ -10656,7 +10656,7 @@ static void ui_gdi_end(void) {
     if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
         swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
         SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.bitmap);
-        ut_fatal_if_error(ut_b2e(DeleteDC(ui_gdi_context.hdc)));
+        ut_fatal_win32err(DeleteDC(ui_gdi_context.hdc));
     }
     memset(&ui_gdi_context, 0x00, sizeof(ui_gdi_context));
 }
@@ -10675,7 +10675,7 @@ static ui_pen_t ui_gdi_create_pen(ui_color_t c, int32_t width) {
 }
 
 static void ui_gdi_delete_pen(ui_pen_t p) {
-    ut_fatal_if_error(ut_b2e(DeletePen(p)));
+    ut_fatal_win32err(DeletePen(p));
 }
 
 static ui_brush_t ui_gdi_create_brush(ui_color_t c) {
@@ -10701,21 +10701,21 @@ static void ui_gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
 
 static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
     ut_not_null(ui_app.canvas);
-    ut_fatal_if_error(ut_b2e(SetPixel(ui_gdi_hdc(), x, y, ui_gdi_color_ref(c))));
+    ut_fatal_win32err(SetPixel(ui_gdi_hdc(), x, y, ui_gdi_color_ref(c)));
 }
 
 static void ui_gdi_rectangle(int32_t x, int32_t y, int32_t w, int32_t h) {
-    ut_fatal_if_error(ut_b2e(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h)));
+    ut_fatal_win32err(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h));
 }
 
 static void ui_gdi_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
         ui_color_t c) {
     POINT pt;
-    ut_fatal_if_error(ut_b2e(MoveToEx(ui_gdi_hdc(), x0, y0, &pt)));
+    ut_fatal_win32err(MoveToEx(ui_gdi_hdc(), x0, y0, &pt));
     ui_pen_t p = ui_gdi_set_colored_pen(c);
-    ut_fatal_if_error(ut_b2e(LineTo(ui_gdi_hdc(), x1, y1)));
+    ut_fatal_win32err(LineTo(ui_gdi_hdc(), x1, y1));
     ui_gdi_set_pen(p);
-    ut_fatal_if_error(ut_b2e(MoveToEx(ui_gdi_hdc(), pt.x, pt.y, null)));
+    ut_fatal_win32err(MoveToEx(ui_gdi_hdc(), pt.x, pt.y, null));
 }
 
 static void ui_gdi_frame(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -10749,7 +10749,7 @@ static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h,
     c = ui_gdi_set_brush_color(c);
     RECT rc = { x, y, x + w, y + h };
     HBRUSH brush = (HBRUSH)GetCurrentObject(ui_gdi_hdc(), OBJ_BRUSH);
-    ut_fatal_if_error(ut_b2e(FillRect(ui_gdi_hdc(), &rc, brush)));
+    ut_fatal_win32err(FillRect(ui_gdi_hdc(), &rc, brush));
     ui_gdi_set_brush_color(c);
     ui_gdi_set_brush(b);
 }
@@ -10761,7 +10761,7 @@ static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
     static_assert(sizeof(points[0]) == sizeof(*((POINT*)0)), "ui_point_t");
     assert(ui_gdi_hdc() != null && count > 1);
     ui_pen_t pen = ui_gdi_set_colored_pen(c);
-    ut_fatal_if_error(ut_b2e(Polyline(ui_gdi_hdc(), (POINT*)points, count)));
+    ut_fatal_win32err(Polyline(ui_gdi_hdc(), (POINT*)points, count));
     ui_gdi_set_pen(pen);
 }
 
@@ -10901,10 +10901,10 @@ static void ui_gdi_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         bih->biHeight = -ih; // top down image
         bih->biSizeImage = (DWORD)(w * abs(h));
         POINT pt = { 0 };
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
         ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
             pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
@@ -10937,10 +10937,10 @@ static void ui_gdi_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
     if (w > 0 && h != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 3);
         POINT pt = { 0 };
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
         ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
@@ -10953,10 +10953,10 @@ static void ui_gdi_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
     if (w > 0 && h != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 4);
         POINT pt = { 0 };
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
         ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
@@ -10984,7 +10984,7 @@ static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
     image->bitmap = (ui_bitmap_t)CreateDIBSection(c, ui_gdi_init_bitmap_info(w, h, bpp, bi),
                                                DIB_RGB_COLORS, &image->pixels, null, 0x0);
     ut_fatal_if(image->bitmap == null || image->pixels == null);
-    ut_fatal_if_error(ut_b2e(DeleteDC(c)));
+    ut_fatal_win32err(DeleteDC(c));
 }
 
 static void ui_gdi_image_init_rgbx(ui_image_t* image, int32_t w, int32_t h,
@@ -11136,10 +11136,10 @@ static void ui_gdi_alpha(int32_t x, int32_t y, int32_t w, int32_t h,
         bf.BlendFlags = 0;
         bf.AlphaFormat = 0;
     }
-    ut_fatal_if_error(ut_b2e(AlphaBlend(ui_gdi_hdc(), x, y, w, h,
-        c, 0, 0, image->w, image->h, bf)));
+    ut_fatal_win32err(AlphaBlend(ui_gdi_hdc(), x, y, w, h,
+        c, 0, 0, image->w, image->h, bf));
     SelectBitmap((HDC)c, zero1x1);
-    ut_fatal_if_error(ut_b2e(DeleteDC(c)));
+    ut_fatal_win32err(DeleteDC(c));
 }
 
 static void ui_gdi_image(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -11155,10 +11155,10 @@ static void ui_gdi_image(int32_t x, int32_t y, int32_t w, int32_t h,
         HDC c = CreateCompatibleDC(ui_gdi_hdc());
         ut_not_null(c);
         HBITMAP zero1x1 = SelectBitmap(c, image->bitmap);
-        ut_fatal_if_error(ut_b2e(StretchBlt(ui_gdi_hdc(), x, y, w, h,
-            c, 0, 0, image->w, image->h, SRCCOPY)));
+        ut_fatal_win32err(StretchBlt(ui_gdi_hdc(), x, y, w, h,
+            c, 0, 0, image->w, image->h, SRCCOPY));
         SelectBitmap(c, zero1x1);
-        ut_fatal_if_error(ut_b2e(DeleteDC(c)));
+        ut_fatal_win32err(DeleteDC(c));
     }
 }
 
@@ -11169,18 +11169,18 @@ static void ui_gdi_icon(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_cleartype(bool on) {
     enum { spif = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE };
-    ut_fatal_if_error(ut_b2e(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
-                                                   true, 0, spif)));
+    ut_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
+                                                   true, 0, spif));
     uintptr_t s = on ? FE_FONTSMOOTHINGCLEARTYPE : FE_FONTSMOOTHINGSTANDARD;
-    ut_fatal_if_error(ut_b2e(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
-        0, (void*)s, spif)));
+    ut_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
+        0, (void*)s, spif));
 }
 
 static void ui_gdi_font_smoothing_contrast(int32_t c) {
     ut_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
     if (c == -1) { c = 1400; }
-    ut_fatal_if_error(ut_b2e(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
-        0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)));
+    ut_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
+        0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
 }
 
 ut_static_assertion(ui_gdi_font_quality_default == DEFAULT_QUALITY);
@@ -11223,7 +11223,7 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
 }
 
 static void ui_gdi_delete_font(ui_font_t f) {
-    ut_fatal_if_error(ut_b2e(DeleteFont(f)));
+    ut_fatal_win32err(DeleteFont(f));
 }
 
 // guaranteed to return dc != null even if not painting
@@ -11249,7 +11249,7 @@ static void ui_gdi_release_dc(HDC hdc) {
 } while (0)
 
 #define ui_gdi_hdc_with_font(f, ...) do {    \
-    ut_not_null(f);                             \
+    ut_not_null(f);                          \
     HDC hdc = ui_gdi_get_dc();               \
     HFONT font_ = SelectFont(hdc, (HFONT)f); \
     { __VA_ARGS__ }                          \
@@ -11265,7 +11265,7 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-textmetrica
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-outlinetextmetrica
     TEXTMETRICA tm = {0};
-    ut_fatal_if_error(ut_b2e(GetTextMetricsA(hdc, &tm)));
+    ut_fatal_win32err(GetTextMetricsA(hdc, &tm));
     char pitch[64] = { 0 };
     if (tm.tmPitchAndFamily & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
     if (tm.tmPitchAndFamily & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
@@ -11317,7 +11317,7 @@ static void ui_gdi_dump_fm(ui_font_t f) {
 
 static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     TEXTMETRICA tm = {0};
-    ut_fatal_if_error(ut_b2e(GetTextMetricsA(hdc, &tm)));
+    ut_fatal_win32err(GetTextMetricsA(hdc, &tm));
     swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
@@ -11378,12 +11378,12 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
     ui_gdi_hdc_with_font(f, {
         ui_gdi_get_fm(hdc, fm);
         // ut_glyph_nbsp and "M" have the same result
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, "m", 1, &em)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, "|", 1, &vl)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         SIZE e3 = {0}; // Three-Em Dash
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, 
-            ut_glyph_three_em_dash, 1, &e3)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc,
+            ut_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
 //      traceln("vl: %d %d", vl.cx, vl.cy);
 //      traceln("e3: %d %d", e3.cx, e3.cy);
@@ -11402,15 +11402,15 @@ if (0) {
     HDC hdc = ui_gdi_hdc();
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, "M", 1, &em)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, "|", 1, &vl)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         traceln("vl: %d %d", vl.cx, vl.cy);
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
         traceln("e3: %d %d", e3.cx, e3.cy);
     }
 }
@@ -11566,7 +11566,7 @@ static uint8_t* ui_gdi_load_image(const void* data, int32_t bytes, int* w, int* 
 }
 
 static void ui_gdi_image_dispose(ui_image_t* image) {
-    ut_fatal_if_error(ut_b2e(DeleteBitmap(image->bitmap)));
+    ut_fatal_win32err(DeleteBitmap(image->bitmap));
     memset(image, 0, sizeof(ui_image_t));
 }
 
@@ -12389,6 +12389,8 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 // Win32 API BOOL -> errno_t translation
 
 #define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
+
+void ut_win32_close_handle(void* h);
 
 #endif // WIN32
 

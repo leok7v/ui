@@ -35,4 +35,6 @@
 
 #define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
 
+void ut_win32_close_handle(void* h);
+
 #endif // WIN32

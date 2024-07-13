@@ -172,5 +172,8 @@
     <ClCompile Include="..\src\ut\ut_work.c">
       <Filter>src\ut</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ut\ut_win32.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

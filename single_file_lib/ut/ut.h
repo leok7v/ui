@@ -182,7 +182,7 @@ typedef struct str32K_t {
 // shorthand:
 
 #define strprintf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
-#define strerr(r) (ut_str.error((r)).s) // use only as strpintf() parameter
+#define strerr(r) (ut_str.error((r)).s) // use only as ut_str_printf() parameter
 
 // The strings are expected to be UTF-8 encoded.
 // Copy functions fatal fail if the destination buffer is too small.
@@ -1954,6 +1954,8 @@ end_c
 
 #define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
 
+void ut_win32_close_handle(void* h);
+
 #endif // WIN32
 // ___________________________________ ut.c ___________________________________
 
@@ -2607,11 +2609,10 @@ typedef ut_begin_packed struct symbol_info_s {
 
 #pragma push_macro("ut_bt_load_dll")
 
-#define ut_bt_load_dll(fn)                              \
-do {                                                    \
-    if (GetModuleHandleA(fn) == null) {                 \
-        ut_fatal_if_error(ut_b2e(LoadLibraryA(fn)));    \
-    }                                                   \
+#define ut_bt_load_dll(fn) do {              \
+    if (GetModuleHandleA(fn) == null) {      \
+        ut_fatal_win32err(LoadLibraryA(fn)); \
+    }                                        \
 } while (0)
 
 static void ut_bt_init(void) {
@@ -2983,13 +2984,13 @@ static void ut_bt_trace_all_but_self(void) {
                                 ut_bt.trace(&bt, "*");
                             }
                             ut_debug.println("<Thread", tid, tn.name, "");
-                            ut_fatal_if_error(ut_b2e(CloseHandle(thread)));
+                            ut_win32_close_handle(thread);
                         }
                     }
                 }
             } while (Thread32Next(snapshot, &te));
         }
-        CloseHandle(snapshot);
+        ut_win32_close_handle(snapshot);
     }
 }
 
@@ -3780,11 +3781,13 @@ static int get_final_path_name_by_fd(int fd, char *buffer, int32_t bytes) {
 
 #endif
 
-static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s, bool follow_symlink) {
+static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s,
+                             bool follow_symlink) {
     errno_t r = 0;
     BY_HANDLE_FILE_INFORMATION fi;
-    ut_fatal_if_error(ut_b2e(GetFileInformationByHandle(file, &fi)));
-    const bool symlink = (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+    ut_fatal_win32err(GetFileInformationByHandle(file, &fi));
+    const bool symlink =
+        (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
     if (follow_symlink && symlink) {
         const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
         DWORD n = GetFinalPathNameByHandleA(file, null, 0, flags);
@@ -3856,7 +3859,7 @@ static errno_t ut_files_flush(ut_file_t* file) {
 }
 
 static void ut_files_close(ut_file_t* file) {
-    ut_fatal_if_error(ut_b2e(CloseHandle(file)));
+    ut_win32_close_handle(file);
 }
 
 static errno_t ut_files_write_fully(const char* filename, const void* data,
@@ -3883,8 +3886,9 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
             bytes -= chunk;
         }
         if (transferred != null) { *transferred = written; }
-        errno_t rc = ut_b2e(CloseHandle(file));
+        errno_t rc = FlushFileBuffers(file);
         if (r == 0) { r = rc; }
+        ut_win32_close_handle(file);
     }
     return r;
 }
@@ -4072,8 +4076,8 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
 static errno_t ut_files_chmod777(const char* pathname) {
     SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
     PSID everyone = null; // Create a well-known SID for the Everyone group.
-    ut_fatal_if_error(ut_b2e(AllocateAndInitializeSid(&SIDAuthWorld, 1,
-             SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone)));
+    ut_fatal_win32err(AllocateAndInitializeSid(&SIDAuthWorld, 1,
+             SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone));
     EXPLICIT_ACCESSA ea[1] = { { 0 } };
     // Initialize an EXPLICIT_ACCESS structure for an ACE.
     ea[0].grfAccessPermissions = 0xFFFFFFFF;
@@ -4088,11 +4092,11 @@ static errno_t ut_files_chmod777(const char* pathname) {
     // Initialize a security descriptor.
     uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH] = {0};
     SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)stack;
-    ut_fatal_if_error(ut_b2e(InitializeSecurityDescriptor(sd,
-        SECURITY_DESCRIPTOR_REVISION)));
+    ut_fatal_win32err(InitializeSecurityDescriptor(sd,
+        SECURITY_DESCRIPTOR_REVISION));
     // Add the ACL to the security descriptor.
-    ut_fatal_if_error(ut_b2e(SetSecurityDescriptorDacl(sd,
-        /* present flag: */ true, acl, /* not a default DACL: */  false)));
+    ut_fatal_win32err(SetSecurityDescriptorDacl(sd,
+        /* present flag: */ true, acl, /* not a default DACL: */  false));
     // Change the security attributes
     errno_t r = ut_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
@@ -4362,7 +4366,7 @@ static const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
 
 static void ut_files_closedir(ut_folder_t* folder) {
     ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
-    ut_fatal_if_error(ut_b2e(FindClose(d->handle)));
+    ut_fatal_win32err(FindClose(d->handle));
 }
 
 #pragma push_macro("files_test_failed")
@@ -4845,7 +4849,7 @@ static ut_heap_t* ut_heap_create(bool serialized) {
 }
 
 static void ut_heap_dispose(ut_heap_t* h) {
-    ut_fatal_if_error(ut_b2e(HeapDestroy((HANDLE)h)));
+    ut_fatal_win32err(HeapDestroy((HANDLE)h));
 }
 
 static inline HANDLE ut_heap_or_process_heap(ut_heap_t* h) {
@@ -4880,7 +4884,7 @@ static errno_t ut_heap_reallocate(ut_heap_t* h, void* *p, int64_t bytes,
 }
 
 static void ut_heap_deallocate(ut_heap_t* h, void* a) {
-    ut_fatal_if_error(ut_b2e(HeapFree(ut_heap_or_process_heap(h), 0, a)));
+    ut_fatal_win32err(HeapFree(ut_heap_or_process_heap(h), 0, a));
 }
 
 static int64_t ut_heap_bytes(ut_heap_t* h, void* a) {
@@ -4947,14 +4951,14 @@ static void* ut_loader_all;
 static void* ut_loader_sym_all(const char* name) {
     void* sym = null;
     DWORD bytes = 0;
-    ut_fatal_if_error(ut_b2e(EnumProcessModules(GetCurrentProcess(),
-                                                null, 0, &bytes)));
+    ut_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
+                                         null, 0, &bytes));
     assert(bytes % sizeof(HMODULE) == 0);
     assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
     HMODULE* modules = null;
     ut_fatal_if_error(ut_heap.allocate(null, (void**)&modules, bytes, false));
-    ut_fatal_if_error(ut_b2e(EnumProcessModules(GetCurrentProcess(),
-                                                modules, bytes, &bytes)));
+    ut_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
+                                         modules, bytes, &bytes));
     const int32_t n = bytes / (int32_t)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
         sym = ut_loader.sym(modules[i], name);
@@ -4978,7 +4982,7 @@ static void* ut_loader_sym(void* handle, const char* name) {
 
 static void ut_loader_close(void* handle) {
     if (handle != &ut_loader_all) {
-        ut_fatal_if_error(ut_b2e(FreeLibrary(handle)));
+        ut_fatal_win32err(FreeLibrary(handle));
     }
 }
 
@@ -5064,7 +5068,7 @@ static errno_t ut_mem_map_view_of_file(HANDLE file,
         DWORD access = rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
         address = MapViewOfFile(mapping, access, 0, 0, (SIZE_T)*bytes);
         if (address == null) { r = ut_runtime.err(); }
-        ut_fatal_if_error(ut_b2e(CloseHandle(mapping)));
+        ut_win32_close_handle(mapping);
     }
     if (r == 0) {
         *data = address;
@@ -5081,7 +5085,7 @@ static errno_t ut_mem_set_token_privilege(void* token,
             const char* name, bool e) {
     TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
     tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
-    ut_fatal_if_error(ut_b2e(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid)));
+    ut_fatal_win32err(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid));
     return ut_b2e(AdjustTokenPrivileges(token, false, &tp,
                sizeof(TOKEN_PRIVILEGES), null, null));
 }
@@ -5099,7 +5103,7 @@ static errno_t ut_mem_adjust_process_privilege_manage_volume_name(void) {
         const char* se_manage_volume_name = SE_MANAGE_VOLUME_NAME;
         #endif
         r = ut_mem_set_token_privilege(token, se_manage_volume_name, true);
-        ut_fatal_if_error(ut_b2e(CloseHandle(token)));
+        ut_win32_close_handle(token);
     }
     return r;
 }
@@ -5120,7 +5124,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
         r = ut_runtime.err();
     } else {
         LARGE_INTEGER eof = { .QuadPart = 0 };
-        ut_fatal_if_error(ut_b2e(GetFileSizeEx(file, &eof)));
+        ut_fatal_win32err(GetFileSizeEx(file, &eof));
         if (rw && *bytes > eof.QuadPart) { // increase file size
             const LARGE_INTEGER size = { .QuadPart = *bytes };
             r = r != 0 ? r : (ut_b2e(SetFilePointerEx(file, size, null, FILE_BEGIN)));
@@ -5137,7 +5141,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
             *bytes = eof.QuadPart;
         }
         r = r != 0 ? r : ut_mem_map_view_of_file(file, data, bytes, rw);
-        ut_fatal_if_error(ut_b2e(CloseHandle(file)));
+        ut_win32_close_handle(file);
     }
     return r;
 }
@@ -5154,7 +5158,7 @@ static void ut_mem_unmap(void* data, int64_t bytes) {
     assert(data != null && bytes > 0);
     (void)bytes; /* unused only need for posix version */
     if (data != null && bytes > 0) {
-        ut_fatal_if_error(ut_b2e(UnmapViewOfFile(data)));
+        ut_fatal_win32err(UnmapViewOfFile(data));
     }
 }
 
@@ -5438,7 +5442,7 @@ static errno_t ut_nls_set_locale(const char* locale) {
             r = ut_runtime.err();
             traceln("LocaleNameToLCID(\"%s\") failed %s", locale, ut_str.error(r));
         } else {
-            ut_fatal_if_error(ut_b2e(SetThreadLocale(lc_id)));
+            ut_fatal_win32err(SetThreadLocale(lc_id));
             memset((void*)ut_nls_ls, 0, sizeof(ut_nls_ls)); // start all over
         }
     }
@@ -5814,10 +5818,6 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
     return (int32_t)count;
 }
 
-static void ut_processes_close_handle(HANDLE h) {
-    ut_fatal_if_error(ut_b2e(CloseHandle(h)));
-}
-
 static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
     assert(name != null && count > 0);
     errno_t r = 0;
@@ -5826,7 +5826,7 @@ static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
     if (p != null) {
         r = ut_b2e(GetModuleFileNameExA(p, null, name, count));
         name[count - 1] = 0; // ensure zero termination
-        ut_processes_close_handle(p);
+        ut_win32_close_handle(p);
     } else {
         r = ERROR_NOT_FOUND;
     }
@@ -5836,7 +5836,7 @@ static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
 static bool ut_processes_present(uint64_t pid) {
     void* h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, (DWORD)pid);
     bool b = h != null;
-    if (h != null) { ut_processes_close_handle(h); }
+    if (h != null) { ut_win32_close_handle(h); }
     return b;
 }
 
@@ -5914,7 +5914,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
                         "failed %s", pid, h, strerr(rq));
             }
         }
-        ut_processes_close_handle(h);
+        ut_win32_close_handle(h);
         if (r == ERROR_ACCESS_DENIED) { // special case
             ut_thread.sleep_for(0.015); // need to wait a bit
             HANDLE retry = OpenProcess(access, 0, (DWORD)pid);
@@ -5925,7 +5925,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
                         pid, h, path, strerr(r));
                 r = 0;
             } else {
-                ut_processes_close_handle(retry);
+                ut_win32_close_handle(retry);
             }
         }
         if (r != 0) {
@@ -6014,12 +6014,12 @@ static void ut_processes_close_pipes(STARTUPINFOA* si,
         HANDLE *read_out,
         HANDLE *read_err,
         HANDLE *write_in) {
-    if (si->hStdOutput != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdOutput); }
-    if (si->hStdError  != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdError);  }
-    if (si->hStdInput  != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdInput);  }
-    if (*read_out != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*read_out); }
-    if (*read_err != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*read_err); }
-    if (*write_in != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*write_in); }
+    if (si->hStdOutput != INVALID_HANDLE_VALUE) { ut_win32_close_handle(si->hStdOutput); }
+    if (si->hStdError  != INVALID_HANDLE_VALUE) { ut_win32_close_handle(si->hStdError);  }
+    if (si->hStdInput  != INVALID_HANDLE_VALUE) { ut_win32_close_handle(si->hStdInput);  }
+    if (*read_out != INVALID_HANDLE_VALUE) { ut_win32_close_handle(*read_out); }
+    if (*read_err != INVALID_HANDLE_VALUE) { ut_win32_close_handle(*read_err); }
+    if (*write_in != INVALID_HANDLE_VALUE) { ut_win32_close_handle(*write_in); }
 }
 
 static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
@@ -6103,15 +6103,15 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     }
     if (r == 0) {
         // not relevant: stdout can be written in other threads
-        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hThread)));
+        ut_win32_close_handle(pi.hThread);
         pi.hThread = null;
         // need to close si.hStdO* handles on caller side so,
         // when the process closes handles of the pipes, EOF happens
         // on caller side with io result ERROR_BROKEN_PIPE
         // indicating no more data can be read or written
-        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdOutput)));
-        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdError)));
-        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdInput)));
+        ut_win32_close_handle(si.hStdOutput);
+        ut_win32_close_handle(si.hStdError);
+        ut_win32_close_handle(si.hStdInput);
         si.hStdOutput = INVALID_HANDLE_VALUE;
         si.hStdError  = INVALID_HANDLE_VALUE;
         si.hStdInput  = INVALID_HANDLE_VALUE;
@@ -6150,7 +6150,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         }
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         // expected never to fail
-        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hProcess)));
+        ut_win32_close_handle(pi.hProcess);
     }
     return r;
 }
@@ -6218,10 +6218,10 @@ static errno_t ut_processes_spawn(const char* command) {
     r = ut_b2e(CreateProcessA(null, ut_str.drop_const(command), null, null,
             /*bInheritHandles:*/false, flags, null, null, &si, &pi));
     if (r == 0) { // Close handles immediately
-        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hProcess)));
-        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hThread)));
+        ut_win32_close_handle(pi.hProcess);
+        ut_win32_close_handle(pi.hThread);
     } else {
-//      traceln("CreateProcess() failed %s", strerr(r));
+        traceln("CreateProcess() failed %s", strerr(r));
     }
     return r;
 }
@@ -6229,8 +6229,7 @@ static errno_t ut_processes_spawn(const char* command) {
 static const char* ut_processes_name(void) {
     static char mn[ut_files_max_path];
     if (mn[0] == 0) {
-        ut_fatal_if_error(ut_b2e(GetModuleFileNameA(null, mn, 
-                                                    ut_count_of(mn))));
+        ut_fatal_win32err(GetModuleFileNameA(null, mn, ut_count_of(mn)));
     }
     return mn;
 }
@@ -7293,14 +7292,6 @@ ut_streams_if ut_streams = {
 
 // _______________________________ ut_threads.c _______________________________
 
-// TODO: make available in ut_win32.h
-
-static inline void ut_win32_close_handle(void* h) {
-    #pragma warning(suppress: 6001) // shut up overzealous IntelliSense
-    ut_fatal_win32err(CloseHandle((HANDLE)h));
-}
-
-
 // events:
 
 static ut_event_t ut_event_create(void) {
@@ -7756,10 +7747,9 @@ static ut_thread_t ut_thread_self(void) {
 }
 
 static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
-    // GetCurrentThread() returns pseudo-handle, not a real handle
-    // if real handle is ever needed may do ut_thread_id_of() and
-    //  instead, though it will mean
-    // CloseHandle is needed.
+    // GetCurrentThread() returns pseudo-handle, not a real handle.
+    // if real handle is ever needed do ut_thread_id_of() instead
+    // but don't forget to do ut_thread.close() after that.
     *t = (ut_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
     return *t == null ? (errno_t)GetLastError() : 0;
 }
@@ -8100,6 +8090,13 @@ ut_vigil_if ut_vigil = {
     .fatal_if_error    = vigil_fatal_if_error,
     .test = vigil_test
 };
+
+// ________________________________ ut_win32.c ________________________________
+
+void ut_win32_close_handle(void* h) {
+    #pragma warning(suppress: 6001) // shut up overzealous IntelliSense
+    ut_fatal_win32err(CloseHandle((HANDLE)h));
+}
 
 // ________________________________ ut_work.c _________________________________
 

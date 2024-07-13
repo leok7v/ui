@@ -85,10 +85,6 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
     return (int32_t)count;
 }
 
-static void ut_processes_close_handle(HANDLE h) {
-    ut_fatal_if_error(ut_b2e(CloseHandle(h)));
-}
-
 static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
     assert(name != null && count > 0);
     errno_t r = 0;
@@ -97,7 +93,7 @@ static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
     if (p != null) {
         r = ut_b2e(GetModuleFileNameExA(p, null, name, count));
         name[count - 1] = 0; // ensure zero termination
-        ut_processes_close_handle(p);
+        ut_win32_close_handle(p);
     } else {
         r = ERROR_NOT_FOUND;
     }
@@ -107,7 +103,7 @@ static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
 static bool ut_processes_present(uint64_t pid) {
     void* h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, (DWORD)pid);
     bool b = h != null;
-    if (h != null) { ut_processes_close_handle(h); }
+    if (h != null) { ut_win32_close_handle(h); }
     return b;
 }
 
@@ -185,7 +181,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
                         "failed %s", pid, h, strerr(rq));
             }
         }
-        ut_processes_close_handle(h);
+        ut_win32_close_handle(h);
         if (r == ERROR_ACCESS_DENIED) { // special case
             ut_thread.sleep_for(0.015); // need to wait a bit
             HANDLE retry = OpenProcess(access, 0, (DWORD)pid);
@@ -196,7 +192,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
                         pid, h, path, strerr(r));
                 r = 0;
             } else {
-                ut_processes_close_handle(retry);
+                ut_win32_close_handle(retry);
             }
         }
         if (r != 0) {
@@ -285,12 +281,12 @@ static void ut_processes_close_pipes(STARTUPINFOA* si,
         HANDLE *read_out,
         HANDLE *read_err,
         HANDLE *write_in) {
-    if (si->hStdOutput != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdOutput); }
-    if (si->hStdError  != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdError);  }
-    if (si->hStdInput  != INVALID_HANDLE_VALUE) { ut_processes_close_handle(si->hStdInput);  }
-    if (*read_out != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*read_out); }
-    if (*read_err != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*read_err); }
-    if (*write_in != INVALID_HANDLE_VALUE) { ut_processes_close_handle(*write_in); }
+    if (si->hStdOutput != INVALID_HANDLE_VALUE) { ut_win32_close_handle(si->hStdOutput); }
+    if (si->hStdError  != INVALID_HANDLE_VALUE) { ut_win32_close_handle(si->hStdError);  }
+    if (si->hStdInput  != INVALID_HANDLE_VALUE) { ut_win32_close_handle(si->hStdInput);  }
+    if (*read_out != INVALID_HANDLE_VALUE) { ut_win32_close_handle(*read_out); }
+    if (*read_err != INVALID_HANDLE_VALUE) { ut_win32_close_handle(*read_err); }
+    if (*write_in != INVALID_HANDLE_VALUE) { ut_win32_close_handle(*write_in); }
 }
 
 static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
@@ -374,15 +370,15 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     }
     if (r == 0) {
         // not relevant: stdout can be written in other threads
-        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hThread)));
+        ut_win32_close_handle(pi.hThread);
         pi.hThread = null;
         // need to close si.hStdO* handles on caller side so,
         // when the process closes handles of the pipes, EOF happens
         // on caller side with io result ERROR_BROKEN_PIPE
         // indicating no more data can be read or written
-        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdOutput)));
-        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdError)));
-        ut_fatal_if_error(ut_b2e(CloseHandle(si.hStdInput)));
+        ut_win32_close_handle(si.hStdOutput);
+        ut_win32_close_handle(si.hStdError);
+        ut_win32_close_handle(si.hStdInput);
         si.hStdOutput = INVALID_HANDLE_VALUE;
         si.hStdError  = INVALID_HANDLE_VALUE;
         si.hStdInput  = INVALID_HANDLE_VALUE;
@@ -421,7 +417,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         }
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         // expected never to fail
-        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hProcess)));
+        ut_win32_close_handle(pi.hProcess);
     }
     return r;
 }
@@ -489,10 +485,10 @@ static errno_t ut_processes_spawn(const char* command) {
     r = ut_b2e(CreateProcessA(null, ut_str.drop_const(command), null, null,
             /*bInheritHandles:*/false, flags, null, null, &si, &pi));
     if (r == 0) { // Close handles immediately
-        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hProcess)));
-        ut_fatal_if_error(ut_b2e(CloseHandle(pi.hThread)));
+        ut_win32_close_handle(pi.hProcess);
+        ut_win32_close_handle(pi.hThread);
     } else {
-//      traceln("CreateProcess() failed %s", strerr(r));
+        traceln("CreateProcess() failed %s", strerr(r));
     }
     return r;
 }
@@ -500,8 +496,7 @@ static errno_t ut_processes_spawn(const char* command) {
 static const char* ut_processes_name(void) {
     static char mn[ut_files_max_path];
     if (mn[0] == 0) {
-        ut_fatal_if_error(ut_b2e(GetModuleFileNameA(null, mn, 
-                                                    ut_count_of(mn))));
+        ut_fatal_win32err(GetModuleFileNameA(null, mn, ut_count_of(mn)));
     }
     return mn;
 }

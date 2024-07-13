@@ -143,7 +143,7 @@ static errno_t ut_nls_set_locale(const char* locale) {
             r = ut_runtime.err();
             traceln("LocaleNameToLCID(\"%s\") failed %s", locale, ut_str.error(r));
         } else {
-            ut_fatal_if_error(ut_b2e(SetThreadLocale(lc_id)));
+            ut_fatal_win32err(SetThreadLocale(lc_id));
             memset((void*)ut_nls_ls, 0, sizeof(ut_nls_ls)); // start all over
         }
     }

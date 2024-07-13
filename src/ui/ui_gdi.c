@@ -34,7 +34,7 @@ static void ui_gdi_init(void) {
 
 static void ui_gdi_fini(void) {
     if (ui_gdi_clip != null) {
-        ut_fatal_if_error(ut_b2e(DeleteRgn(ui_gdi_clip)));
+        ut_fatal_win32err(DeleteRgn(ui_gdi_clip));
     }
     ui_gdi_clip = null;
 }
@@ -81,8 +81,8 @@ static void ui_gdi_begin(ui_image_t* image) {
     ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.regular.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
     ui_gdi_context.brush = ui_gdi_set_brush(ui_gdi_brush_hollow);
-    ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
-        &ui_gdi_context.brush_origin)));
+    ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
+        &ui_gdi_context.brush_origin));
     ui_color_t tc = ui_colors.get_color(ui_color_id_window_text);
     ui_gdi_context.text_color = ui_gdi_set_text_color(tc);
     ui_gdi_context.background_mode = SetBkMode(ui_gdi_hdc(), TRANSPARENT);
@@ -90,9 +90,9 @@ static void ui_gdi_begin(ui_image_t* image) {
 }
 
 static void ui_gdi_end(void) {
-    ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(),
+    ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(),
                    ui_gdi_context.brush_origin.x,
-                   ui_gdi_context.brush_origin.y, null)));
+                   ui_gdi_context.brush_origin.y, null));
     ui_gdi_set_brush(ui_gdi_context.brush);
     ui_gdi_set_pen(ui_gdi_context.pen);
     ui_gdi_set_text_color(ui_gdi_context.text_color);
@@ -101,7 +101,7 @@ static void ui_gdi_end(void) {
     if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
         swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
         SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.bitmap);
-        ut_fatal_if_error(ut_b2e(DeleteDC(ui_gdi_context.hdc)));
+        ut_fatal_win32err(DeleteDC(ui_gdi_context.hdc));
     }
     memset(&ui_gdi_context, 0x00, sizeof(ui_gdi_context));
 }
@@ -120,7 +120,7 @@ static ui_pen_t ui_gdi_create_pen(ui_color_t c, int32_t width) {
 }
 
 static void ui_gdi_delete_pen(ui_pen_t p) {
-    ut_fatal_if_error(ut_b2e(DeletePen(p)));
+    ut_fatal_win32err(DeletePen(p));
 }
 
 static ui_brush_t ui_gdi_create_brush(ui_color_t c) {
@@ -146,21 +146,21 @@ static void ui_gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
 
 static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
     ut_not_null(ui_app.canvas);
-    ut_fatal_if_error(ut_b2e(SetPixel(ui_gdi_hdc(), x, y, ui_gdi_color_ref(c))));
+    ut_fatal_win32err(SetPixel(ui_gdi_hdc(), x, y, ui_gdi_color_ref(c)));
 }
 
 static void ui_gdi_rectangle(int32_t x, int32_t y, int32_t w, int32_t h) {
-    ut_fatal_if_error(ut_b2e(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h)));
+    ut_fatal_win32err(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h));
 }
 
 static void ui_gdi_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
         ui_color_t c) {
     POINT pt;
-    ut_fatal_if_error(ut_b2e(MoveToEx(ui_gdi_hdc(), x0, y0, &pt)));
+    ut_fatal_win32err(MoveToEx(ui_gdi_hdc(), x0, y0, &pt));
     ui_pen_t p = ui_gdi_set_colored_pen(c);
-    ut_fatal_if_error(ut_b2e(LineTo(ui_gdi_hdc(), x1, y1)));
+    ut_fatal_win32err(LineTo(ui_gdi_hdc(), x1, y1));
     ui_gdi_set_pen(p);
-    ut_fatal_if_error(ut_b2e(MoveToEx(ui_gdi_hdc(), pt.x, pt.y, null)));
+    ut_fatal_win32err(MoveToEx(ui_gdi_hdc(), pt.x, pt.y, null));
 }
 
 static void ui_gdi_frame(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -194,7 +194,7 @@ static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h,
     c = ui_gdi_set_brush_color(c);
     RECT rc = { x, y, x + w, y + h };
     HBRUSH brush = (HBRUSH)GetCurrentObject(ui_gdi_hdc(), OBJ_BRUSH);
-    ut_fatal_if_error(ut_b2e(FillRect(ui_gdi_hdc(), &rc, brush)));
+    ut_fatal_win32err(FillRect(ui_gdi_hdc(), &rc, brush));
     ui_gdi_set_brush_color(c);
     ui_gdi_set_brush(b);
 }
@@ -206,7 +206,7 @@ static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
     static_assert(sizeof(points[0]) == sizeof(*((POINT*)0)), "ui_point_t");
     assert(ui_gdi_hdc() != null && count > 1);
     ui_pen_t pen = ui_gdi_set_colored_pen(c);
-    ut_fatal_if_error(ut_b2e(Polyline(ui_gdi_hdc(), (POINT*)points, count)));
+    ut_fatal_win32err(Polyline(ui_gdi_hdc(), (POINT*)points, count));
     ui_gdi_set_pen(pen);
 }
 
@@ -346,10 +346,10 @@ static void ui_gdi_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         bih->biHeight = -ih; // top down image
         bih->biSizeImage = (DWORD)(w * abs(h));
         POINT pt = { 0 };
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
         ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
             pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
@@ -382,10 +382,10 @@ static void ui_gdi_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
     if (w > 0 && h != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 3);
         POINT pt = { 0 };
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
         ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
@@ -398,10 +398,10 @@ static void ui_gdi_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
     if (w > 0 && h != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 4);
         POINT pt = { 0 };
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
         ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
-        ut_fatal_if_error(ut_b2e(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt)));
+        ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
@@ -429,7 +429,7 @@ static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
     image->bitmap = (ui_bitmap_t)CreateDIBSection(c, ui_gdi_init_bitmap_info(w, h, bpp, bi),
                                                DIB_RGB_COLORS, &image->pixels, null, 0x0);
     ut_fatal_if(image->bitmap == null || image->pixels == null);
-    ut_fatal_if_error(ut_b2e(DeleteDC(c)));
+    ut_fatal_win32err(DeleteDC(c));
 }
 
 static void ui_gdi_image_init_rgbx(ui_image_t* image, int32_t w, int32_t h,
@@ -581,10 +581,10 @@ static void ui_gdi_alpha(int32_t x, int32_t y, int32_t w, int32_t h,
         bf.BlendFlags = 0;
         bf.AlphaFormat = 0;
     }
-    ut_fatal_if_error(ut_b2e(AlphaBlend(ui_gdi_hdc(), x, y, w, h,
-        c, 0, 0, image->w, image->h, bf)));
+    ut_fatal_win32err(AlphaBlend(ui_gdi_hdc(), x, y, w, h,
+        c, 0, 0, image->w, image->h, bf));
     SelectBitmap((HDC)c, zero1x1);
-    ut_fatal_if_error(ut_b2e(DeleteDC(c)));
+    ut_fatal_win32err(DeleteDC(c));
 }
 
 static void ui_gdi_image(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -600,10 +600,10 @@ static void ui_gdi_image(int32_t x, int32_t y, int32_t w, int32_t h,
         HDC c = CreateCompatibleDC(ui_gdi_hdc());
         ut_not_null(c);
         HBITMAP zero1x1 = SelectBitmap(c, image->bitmap);
-        ut_fatal_if_error(ut_b2e(StretchBlt(ui_gdi_hdc(), x, y, w, h,
-            c, 0, 0, image->w, image->h, SRCCOPY)));
+        ut_fatal_win32err(StretchBlt(ui_gdi_hdc(), x, y, w, h,
+            c, 0, 0, image->w, image->h, SRCCOPY));
         SelectBitmap(c, zero1x1);
-        ut_fatal_if_error(ut_b2e(DeleteDC(c)));
+        ut_fatal_win32err(DeleteDC(c));
     }
 }
 
@@ -614,18 +614,18 @@ static void ui_gdi_icon(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_cleartype(bool on) {
     enum { spif = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE };
-    ut_fatal_if_error(ut_b2e(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
-                                                   true, 0, spif)));
+    ut_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
+                                                   true, 0, spif));
     uintptr_t s = on ? FE_FONTSMOOTHINGCLEARTYPE : FE_FONTSMOOTHINGSTANDARD;
-    ut_fatal_if_error(ut_b2e(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
-        0, (void*)s, spif)));
+    ut_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
+        0, (void*)s, spif));
 }
 
 static void ui_gdi_font_smoothing_contrast(int32_t c) {
     ut_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
     if (c == -1) { c = 1400; }
-    ut_fatal_if_error(ut_b2e(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
-        0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE)));
+    ut_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
+        0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
 }
 
 ut_static_assertion(ui_gdi_font_quality_default == DEFAULT_QUALITY);
@@ -668,7 +668,7 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
 }
 
 static void ui_gdi_delete_font(ui_font_t f) {
-    ut_fatal_if_error(ut_b2e(DeleteFont(f)));
+    ut_fatal_win32err(DeleteFont(f));
 }
 
 // guaranteed to return dc != null even if not painting
@@ -694,7 +694,7 @@ static void ui_gdi_release_dc(HDC hdc) {
 } while (0)
 
 #define ui_gdi_hdc_with_font(f, ...) do {    \
-    ut_not_null(f);                             \
+    ut_not_null(f);                          \
     HDC hdc = ui_gdi_get_dc();               \
     HFONT font_ = SelectFont(hdc, (HFONT)f); \
     { __VA_ARGS__ }                          \
@@ -710,7 +710,7 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-textmetrica
     // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-outlinetextmetrica
     TEXTMETRICA tm = {0};
-    ut_fatal_if_error(ut_b2e(GetTextMetricsA(hdc, &tm)));
+    ut_fatal_win32err(GetTextMetricsA(hdc, &tm));
     char pitch[64] = { 0 };
     if (tm.tmPitchAndFamily & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
     if (tm.tmPitchAndFamily & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
@@ -762,7 +762,7 @@ static void ui_gdi_dump_fm(ui_font_t f) {
 
 static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     TEXTMETRICA tm = {0};
-    ut_fatal_if_error(ut_b2e(GetTextMetricsA(hdc, &tm)));
+    ut_fatal_win32err(GetTextMetricsA(hdc, &tm));
     swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
@@ -823,12 +823,12 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
     ui_gdi_hdc_with_font(f, {
         ui_gdi_get_fm(hdc, fm);
         // ut_glyph_nbsp and "M" have the same result
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, "m", 1, &em)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, "|", 1, &vl)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         SIZE e3 = {0}; // Three-Em Dash
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, 
-            ut_glyph_three_em_dash, 1, &e3)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc,
+            ut_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
 //      traceln("vl: %d %d", vl.cx, vl.cy);
 //      traceln("e3: %d %d", e3.cx, e3.cy);
@@ -847,15 +847,15 @@ if (0) {
     HDC hdc = ui_gdi_hdc();
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, "M", 1, &em)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em));
         traceln("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, "|", 1, &vl)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         traceln("vl: %d %d", vl.cx, vl.cy);
-        ut_fatal_if_error(ut_b2e(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3)));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
         traceln("e3: %d %d", e3.cx, e3.cy);
     }
 }
@@ -1011,7 +1011,7 @@ static uint8_t* ui_gdi_load_image(const void* data, int32_t bytes, int* w, int* 
 }
 
 static void ui_gdi_image_dispose(ui_image_t* image) {
-    ut_fatal_if_error(ut_b2e(DeleteBitmap(image->bitmap)));
+    ut_fatal_win32err(DeleteBitmap(image->bitmap));
     memset(image, 0, sizeof(ui_image_t));
 }
 

@@ -30,7 +30,7 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
 //      https://stackoverflow.com/questions/65691101/
 //      traceln("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
 //      // next line works only when running as administator:
-//      ut_fatal_if_error(ut_b2e(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y)));
+//      ut_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
         const bool l_button = ui_app.mouse_left  != work->left;
         const bool r_button = ui_app.mouse_right != work->right;
         ui_app.mouse_left  = work->left;
