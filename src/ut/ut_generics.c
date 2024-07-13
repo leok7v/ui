@@ -60,7 +60,7 @@ static void ut_generics_test(void) {
         swear(ut_max(a, b) == b);
         swear(ut_min(a, b) == a);
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 #else

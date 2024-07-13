@@ -343,7 +343,7 @@ static void ut_bt_thread(HANDLE thread, ut_bt_t* bt) {
         GetThreadContext(thread, &context);
         ut_bt.context(thread, &context, bt);
         if (ResumeThread(thread) == (DWORD)-1) {
-            traceln("ResumeThread() failed %s", ut_str.error(ut_runtime.err()));
+            ut_traceln("ResumeThread() failed %s", ut_str.error(ut_runtime.err()));
             ExitProcess(0xBD);
         }
     }
@@ -361,12 +361,12 @@ static void ut_bt_trace_all_but_self(void) {
     assert(ut_bt_process != null && ut_bt_pid != 0);
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
     if (snapshot == INVALID_HANDLE_VALUE) {
-        traceln("CreateToolhelp32Snapshot failed %s",
+        ut_traceln("CreateToolhelp32Snapshot failed %s",
                 ut_str.error(ut_runtime.err()));
     } else {
         THREADENTRY32 te = { .dwSize = sizeof(THREADENTRY32) };
         if (!Thread32First(snapshot, &te)) {
-            traceln("Thread32First failed %s", ut_str.error(ut_runtime.err()));
+            ut_traceln("Thread32First failed %s", ut_str.error(ut_runtime.err()));
         } else {
             do {
                 if (te.th32OwnerProcessID == ut_bt_pid) {
@@ -448,7 +448,7 @@ static void ut_bt_test(void) {
     }
     swear(strstr(ut_bt_test_output, "ut_bt_test") != null,
           "%s", ut_bt_test_output);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 #else

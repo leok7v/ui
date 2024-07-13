@@ -28,7 +28,7 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
         ui_app.mouse.y = y;
 //      https://stackoverflow.com/questions/22259936/
 //      https://stackoverflow.com/questions/65691101/
-//      traceln("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
+//      ut_traceln("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
 //      // next line works only when running as administator:
 //      ut_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
         const bool l_button = ui_app.mouse_left  != work->left;
@@ -91,7 +91,7 @@ static void ui_fuzzing_character(void) {
     uint32_t rnd = ut_num.random32(&ui_fuzzing_seed);
     int ch = 0x20 + rnd % (128 - 0x20);
     if (ui_fuzzing_debug) {
-        traceln("character(0x%02X %d %c)", ch, ch, ch);
+        ut_traceln("character(0x%02X %d %c)", ch, ch, ch);
     }
     static char utf8[8];
     utf8[0] = (char)ch;
@@ -123,7 +123,7 @@ static void ui_fuzzing_key(void) {
     ui_fuzzing_alt_ctrl_shift();
     uint32_t ix = ut_num.random32(&ui_fuzzing_seed) % ut_count_of(keys);
     if (ui_fuzzing_debug) {
-        traceln("key(%s)", keys[ix].name);
+        ut_traceln("key(%s)", keys[ix].name);
     }
     ui_fuzzing_work.key = keys[ix].key;
     ui_fuzzing_post();
@@ -144,7 +144,7 @@ static void ui_fuzzing_mouse(void) {
         ui_fuzzing_work.right = !ui_fuzzing_work.right;
     }
     if (ui_fuzzing_debug) {
-        traceln("mouse(%d,%d) %s%s", pt.x, pt.y,
+        ut_traceln("mouse(%d,%d) %s%s", pt.x, pt.y,
                 ui_fuzzing_work.left ? "L" : "_", ui_fuzzing_work.right ? "R" : "_");
     }
     ui_fuzzing_work.pt = &pt;

@@ -247,7 +247,7 @@ static void ut_atomics_test(void) {
     int64_t loaded_int64 = ut_atomics.load64(&int64_var);
     swear(loaded_int64 == int64_var);
     ut_atomics.memory_fence();
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
     #endif
 }
 

@@ -35,19 +35,19 @@ static void every_sec(ui_view_t* unused(v)) {
 
 static bool tap(ui_view_t* v, int32_t ix, bool pressed) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
-    traceln("ix: %d inside: %d %s", ix, inside, pressed ? "dw" : "up");
+    ut_traceln("ix: %d inside: %d %s", ix, inside, pressed ? "dw" : "up");
     return inside;
 }
 
 static bool long_press(ui_view_t* v, int32_t ix) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
-    traceln("ix: %d inside: %d", ix, inside);
+    ut_traceln("ix: %d inside: %d", ix, inside);
     return inside;
 }
 
 static bool double_tap(ui_view_t* v, int32_t ix) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
-    traceln("ix: %d inside: %d", ix, inside);
+    ut_traceln("ix: %d inside: %d", ix, inside);
     return inside;
 }
 

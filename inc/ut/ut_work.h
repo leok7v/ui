@@ -87,7 +87,7 @@ end_c
 
     static void every_100ms(ut_work_t* w) {
         int32_t* i = (int32_t*)w->data;
-        traceln("i: %d", *i);
+        ut_traceln("i: %d", *i);
         (*i)++;
         w->when = ut_clock.seconds() + 0.100;
         ut_work_queue.post(w);
@@ -120,7 +120,7 @@ end_c
 
     static void every_200ms(ut_work_t* w) {
         ut_work_ex_t* ex = (ut_work_ex_t*)w;
-        traceln("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
+        ut_traceln("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
         ex->i++;
         const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
         w->when = ut_clock.seconds() + 0.200;

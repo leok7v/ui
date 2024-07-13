@@ -100,7 +100,7 @@ static void ut_event_test(void) {
     for (int32_t i = 0; i < ut_count_of(events); i++) {
         ut_event.dispose(events[i]);
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 #else
@@ -178,7 +178,7 @@ static void ut_mutex_test(void) {
         ut_thread.join(ts[i], -1);
     }
     ut_mutex.dispose(&mutex);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 ut_mutex_if ut_mutex = {
@@ -226,7 +226,7 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
 //  uint64_t cur_ns = cur100ns * 100uLL;
     // max resolution is lowest possible delay between timer events
 //  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
-//      traceln("timer resolution min: %.3f max: %.3f cur: %.3f"
+//      ut_traceln("timer resolution min: %.3f max: %.3f cur: %.3f"
 //          " ms (milliseconds)",
 //          ut_thread_ns2ms(min_ns),
 //          ut_thread_ns2ms(max_ns),
@@ -241,7 +241,7 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
 //      min_ns = min100ns * 100uLL;
 //      max_ns = max100ns * 100uLL; // the smallest interval
 //      cur_ns = cur100ns * 100uLL;
-//      traceln("timer resolution min: %.3f max: %.3f cur: %.3f ms (milliseconds)",
+//      ut_traceln("timer resolution min: %.3f max: %.3f cur: %.3f ms (milliseconds)",
 //          ut_thread_ns2ms(min_ns),
 //          ut_thread_ns2ms(max_ns),
 //          ut_thread_ns2ms(cur_ns));
@@ -317,7 +317,7 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
         ut_fatal_win32err(GetLogicalProcessorInformation(&lpi[0], &bytes));
         for (int32_t i = 0; i < n; i++) {
 //          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
-//              traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
+//              ut_traceln("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
 //                  lpi[i].ProcessorMask, lpi[i].Relationship,
 //                  ut_thread_rel2str(lpi[i].Relationship));
 //          }
@@ -381,7 +381,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     if (r == 0) {
         ut_win32_close_handle(t);
     } else {
-        traceln("failed to join thread %p %s", t, ut_strerr(r));
+        ut_traceln("failed to join thread %p %s", t, ut_strerr(r));
     }
     return r;
 }
@@ -477,7 +477,7 @@ typedef struct ut_thread_philosophers_s {
 
 #define verbose(...) do {                                 \
     if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
-        traceln(__VA_ARGS__);                             \
+        ut_traceln(__VA_ARGS__);                             \
     }                                                     \
 } while (0)
 
@@ -589,7 +589,7 @@ static void ut_thread_test(void) {
     ut_thread.detach(detached_loop);
     // leave detached threads sleeping and running till ExitProcess(0)
     // that should NOT hang.
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 #pragma pop_macro("verbose")

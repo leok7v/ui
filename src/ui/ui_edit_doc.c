@@ -1190,7 +1190,7 @@ static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
         if (s->b == s->g && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
-//          traceln("forcefully moving to heap");
+//          ut_traceln("forcefully moving to heap");
             // this is usually done in the process of concatenation
             // of 2 ascii strings when result is known to be longer
             // than ut_count_of(ui_edit_str_g2b_ascii) - 1 but the
@@ -1253,7 +1253,7 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
             }
         } else {
 //          const int32_t b64 = ut_min(s->b, 64);
-//          traceln("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
+//          ut_traceln("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
         }
     }
 }
@@ -1453,7 +1453,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
             }
         }
         if (i % 100 == 99) {
-            traceln("%2d%% [%d][%d][%d][%d][%d] "
+            ut_traceln("%2d%% [%d][%d][%d][%d][%d] "
                     "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\": \"%s\"",
                 (i * 100) / npn,
                 gix_src[0], gix_src[1], gix_src[2], gix_src[3], gix_src[4],

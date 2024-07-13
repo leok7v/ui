@@ -5,7 +5,7 @@ static void* stb_malloc(size_t n) {
     void* a = null;
     errno_t r = ut_heap.allocate(null, &a, n, false);
     swear(r == 0 && a != null);
-//  traceln("%p : %8lld", a, n);
+//  ut_traceln("%p : %8lld", a, n);
     return a;
 }
 
@@ -14,7 +14,7 @@ static void* stb_realloc(void* p, size_t n) {
     void* a = p;
     errno_t r = ut_heap.reallocate(null, &a, n, false);
     swear(r == 0 && a != null);
-//  traceln("%p -> %p : %8lld", p, a, n);
+//  ut_traceln("%p -> %p : %8lld", p, a, n);
     return a;
 }
 
@@ -23,12 +23,12 @@ static void* stb_realloc_sized(void* p, size_t unused(s), size_t n) {
     void* a = p;
     errno_t r = ut_heap.reallocate(null, &a, n, false);
     swear(r == 0 && a != null);
-//  traceln("%p : %8lld -> %p : %8lld", p, s, a, n);
+//  ut_traceln("%p : %8lld -> %p : %8lld", p, s, a, n);
     return a;
 }
 
 static void  stb_free(void* p) {
-//  traceln("%p", p);
+//  ut_traceln("%p", p);
     ut_heap.deallocate(null, p);
 }
 

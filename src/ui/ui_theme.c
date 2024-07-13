@@ -13,7 +13,7 @@ static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
     DWORD bytes = sizeof(light_theme);
     errno_t r = RegGetValueA(root, path, key, RRF_RT_DWORD, &type, v, &bytes);
     if (r != 0) {
-        traceln("RegGetValueA(%s\\%s) failed %s", path, key, ut_strerr(r));
+        ut_traceln("RegGetValueA(%s\\%s) failed %s", path, key, ut_strerr(r));
     }
     return r;
 }
@@ -70,7 +70,7 @@ static void ui_theme_set_preferred_app_mode(int32_t mode) {
     // SetPreferredAppMode(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
     // "The specified program requires a newer version of Windows."
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        traceln("SetPreferredAppMode(AllowDark) failed %s", ut_strerr(r));
+        ut_traceln("SetPreferredAppMode(AllowDark) failed %s", ut_strerr(r));
     }
 }
 
@@ -84,7 +84,7 @@ static void ui_theme_flush_menu_themes(void) {
     // FlushMenuThemes() works but returns ERROR_OLD_WIN_VERSION
     // on newest Windows 11 but it is not documented thus no complains.
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        traceln("FlushMenuThemes(AllowDark) failed %s", ut_strerr(r));
+        ut_traceln("FlushMenuThemes(AllowDark) failed %s", ut_strerr(r));
     }
 }
 
@@ -96,7 +96,7 @@ static void ui_theme_allow_dark_mode_for_app(bool allow) {
     if (AllowDarkModeForApp != null) {
         errno_t r = ut_b2e(AllowDarkModeForApp(allow));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("AllowDarkModeForApp(true) failed %s", ut_strerr(r));
+            ut_traceln("AllowDarkModeForApp(true) failed %s", ut_strerr(r));
         }
     }
 }
@@ -111,7 +111,7 @@ static void ui_theme_allow_dark_mode_for_window(bool allow) {
         // AllowDarkModeForWindow(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
         // "The specified program requires a newer version of Windows."
         if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-            traceln("AllowDarkModeForWindow(true) failed %s", ut_strerr(r));
+            ut_traceln("AllowDarkModeForWindow(true) failed %s", ut_strerr(r));
         }
     }
 }
@@ -140,7 +140,7 @@ static void ui_theme_refresh(void) {
     errno_t r = DwmSetWindowAttribute((HWND)ui_app.window,
         DWMWA_USE_IMMERSIVE_DARK_MODE, &dark_mode, sizeof(dark_mode));
     if (r != 0) {
-        traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
+        ut_traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
                 "failed %s", ut_strerr(r));
     }
     ui_theme.allow_dark_mode_for_app(dark_mode);

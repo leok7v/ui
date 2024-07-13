@@ -68,7 +68,7 @@ static int32_t ut_config_size(const char* name, const char* key) {
         if (r == ERROR_FILE_NOT_FOUND) {
             bytes = 0; // do not report data_size() often used this way
         } else if (r != 0) {
-            traceln("%s.RegQueryValueExA(\"%s\") failed %s",
+            ut_traceln("%s.RegQueryValueExA(\"%s\") failed %s",
                 name, key, ut_strerr(r));
             bytes = 0; // on any error behave as empty data
         } else {
@@ -92,7 +92,7 @@ static int32_t ut_config_load(const char* name,
             // returns -1 ui_app.data_size() should be used
         } else if (r != 0) {
             if (r != ERROR_FILE_NOT_FOUND) {
-                traceln("%s.RegQueryValueExA(\"%s\") failed %s",
+                ut_traceln("%s.RegQueryValueExA(\"%s\") failed %s",
                     name, key, ut_strerr(r));
             }
             read = 0; // on any error behave as empty data
@@ -121,7 +121,7 @@ static void ut_config_test(void) {
     swear(size == bytes);
     swear(ut_config.remove(name, key) == 0);
     swear(ut_config.clean(name) == 0);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 #else

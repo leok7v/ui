@@ -60,7 +60,7 @@ static ui_view_t test = ui_view(stack);
 static ui_view_t tools_list = ui_view(list);
 
 static void tools(ui_button_t* b) {
-    traceln("b->state.pressed: %d", b->state.pressed);
+    ut_traceln("b->state.pressed: %d", b->state.pressed);
 //  menu is "flip" button. It will do this:
 //  b->state.pressed = !b->state.pressed;
 //  automatically before callback.
@@ -154,8 +154,8 @@ static void crash(ui_button_t* unused(b)) {
         #pragma warning(disable: 4723)   // potential division by zero
         int32_t  a[5];
         int32_t* p = a;
-        traceln("%d\n", ut_count_of(a));
-        traceln("%d\n", ut_count_of(p)); // expected "division by zero"
+        ut_traceln("%d\n", ut_count_of(a));
+        ut_traceln("%d\n", ut_count_of(p)); // expected "division by zero"
         #pragma warning(pop)
         #endif
         (*nil)++; // expected "access violation"
@@ -340,7 +340,7 @@ static void span_test(ui_view_t* parent) {
         it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
 //      it->fm      = &ui_app.fm.H1;
-//      traceln("%s 0x%02X", it->text, it->align);
+//      ut_traceln("%s 0x%02X", it->text, it->align);
     });
     top.max_h = 0;
     bottom.max_h = 0;
@@ -390,7 +390,7 @@ static void slider_format(ui_view_t* v) {
 
 static void slider_callback(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
-    traceln("value: %d", slider->value);
+    ut_traceln("value: %d", slider->value);
 }
 
 static void controls_set_margins(ui_view_t* v, bool on_off) {
@@ -434,11 +434,11 @@ static void controls_large(ui_view_t* v) {
 
 static void button_pressed(ui_view_t* v) {
     if (v->shortcut != 0) {
-        traceln("'%c' 0x%02X %d, %s \"%s\"",
+        ut_traceln("'%c' 0x%02X %d, %s \"%s\"",
             v->shortcut, v->shortcut, v->shortcut,
             ui_view_debug_id(v), v->p.text);
     } else {
-        traceln("%s \"%s\"", ui_view_debug_id(v), v->p.text);
+        ut_traceln("%s \"%s\"", ui_view_debug_id(v), v->p.text);
     }
 }
 
@@ -525,10 +525,10 @@ static void edit1_test(ui_view_t* parent) {
             if (ut_files.exists(ut_args.v[1])) {
                 errno_t r = ut_mem.map_ro(ut_args.v[1], &text, &bytes);
                 if (r != 0) {
-                    traceln("ut_mem.map_ro(%s) failed %s", ut_args.v[1], ut_str.error(r));
+                    ut_traceln("ut_mem.map_ro(%s) failed %s", ut_args.v[1], ut_str.error(r));
                 }
             } else {
-                traceln("file \"%s\" does not exist", ut_args.v[1]);
+                ut_traceln("file \"%s\" does not exist", ut_args.v[1]);
             }
         }
     }

@@ -92,7 +92,7 @@ static void ut_streams_test(void) {
     {   // read/write test
         // TODO: implement
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 #else

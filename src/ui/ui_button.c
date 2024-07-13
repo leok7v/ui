@@ -81,20 +81,20 @@ static void ui_button_callback(ui_button_t* b) {
     if (b->callback != null) { b->callback(b); }
     if (pressed != b->state.pressed) {
         if (b->flip) { // warn the client of strange logic:
-            traceln("strange flip the button with button.flip: true");
+            ut_traceln("strange flip the button with button.flip: true");
             // if client wants to flip pressed state manually it
             // should do it for the button.flip = false
         }
-//      traceln("disarmed immediately");
+//      ut_traceln("disarmed immediately");
         b->p.armed_until = 0;
         b->state.armed = false;
     } else {
         if (b->flip) {
-//          traceln("disarmed immediately");
+//          ut_traceln("disarmed immediately");
             b->p.armed_until = 0;
             b->state.armed = false;
         } else {
-//          traceln("will disarm in 1/4 seconds");
+//          ut_traceln("will disarm in 1/4 seconds");
             b->p.armed_until = ui_app.now + 0.250;
         }
     }

@@ -2243,14 +2243,14 @@ static void ui_app_update_wt_timeout(void) {
         fp64_t dt = next_due_at - ut_clock.seconds();
         if (dt <= 0) {
 // TODO: remove
-//          traceln("post(WM_NULL) dt: %.6f", dt);
+//          ut_traceln("post(WM_NULL) dt: %.6f", dt);
             ui_app_post_message(WM_NULL, 0, 0);
         } else if (last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
             LARGE_INTEGER rt = {0}; // relative negative time
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
 // TODO: remove
-//          traceln("dt: %.6f %lld", dt, rt.QuadPart);
+//          ut_traceln("dt: %.6f %lld", dt, rt.QuadPart);
             swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
             ut_fatal_win32err(
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
@@ -2276,7 +2276,7 @@ static void ui_app_alarm_thread(void* unused(p)) {
         int32_t ix = ut_event.wait_any(ut_count_of(es), es);
         if (ix == 0) {
 // TODO: remove
-//          traceln("post(WM_NULL)");
+//          ut_traceln("post(WM_NULL)");
             ui_app_post_message(WM_NULL, 0, 0);
         } else {
             break;
@@ -2370,50 +2370,50 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
                     dpi->monitor_effective = max_xy;
-//                  traceln("ui_app.dpi.monitor_effective := max(%d,%d)", dpi_x, dpi_y);
+//                  ut_traceln("ui_app.dpi.monitor_effective := max(%d,%d)", dpi_x, dpi_y);
                     break;
                 case MDT_ANGULAR_DPI:
                     dpi->monitor_angular = max_xy;
-//                  traceln("ui_app.dpi.monitor_angular := max(%d,%d)", dpi_x, dpi_y);
+//                  ut_traceln("ui_app.dpi.monitor_angular := max(%d,%d)", dpi_x, dpi_y);
                     break;
                 case MDT_RAW_DPI:
                     dpi->monitor_raw = max_xy;
-//                  traceln("ui_app.dpi.monitor_raw := max(%d,%d)", dpi_x, dpi_y);
+//                  ut_traceln("ui_app.dpi.monitor_raw := max(%d,%d)", dpi_x, dpi_y);
                     break;
                 default: assert(false);
             }
             dpi->monitor_max = ut_max(dpi->monitor_max, max_xy);
         }
     }
-//  traceln("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
+//  ut_traceln("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
 }
 
 #ifndef UI_APP_DEBUG
 
 static void ui_app_dump_dpi(void) {
-    traceln("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
-    traceln("ui_app.dpi.monitor_angular  : %d", ui_app.dpi.monitor_angular    );
-    traceln("ui_app.dpi.monitor_raw      : %d", ui_app.dpi.monitor_raw        );
-    traceln("ui_app.dpi.monitor_max      : %d", ui_app.dpi.monitor_max        );
-    traceln("ui_app.dpi.window           : %d", ui_app.dpi.window             );
-    traceln("ui_app.dpi.system           : %d", ui_app.dpi.system             );
-    traceln("ui_app.dpi.process          : %d", ui_app.dpi.process            );
-    traceln("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y,
+    ut_traceln("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
+    ut_traceln("ui_app.dpi.monitor_angular  : %d", ui_app.dpi.monitor_angular    );
+    ut_traceln("ui_app.dpi.monitor_raw      : %d", ui_app.dpi.monitor_raw        );
+    ut_traceln("ui_app.dpi.monitor_max      : %d", ui_app.dpi.monitor_max        );
+    ut_traceln("ui_app.dpi.window           : %d", ui_app.dpi.window             );
+    ut_traceln("ui_app.dpi.system           : %d", ui_app.dpi.system             );
+    ut_traceln("ui_app.dpi.process          : %d", ui_app.dpi.process            );
+    ut_traceln("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y,
                                              ui_app.mrc.w, ui_app.mrc.h);
-    traceln("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y,
+    ut_traceln("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y,
                                              ui_app.wrc.w, ui_app.wrc.h);
-    traceln("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y,
+    ut_traceln("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y,
                                              ui_app.crc.w, ui_app.crc.h);
-    traceln("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y,
+    ut_traceln("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y,
                                              ui_app.work_area.w, ui_app.work_area.h);
     int32_t mxt_x = GetSystemMetrics(SM_CXMAXTRACK);
     int32_t mxt_y = GetSystemMetrics(SM_CYMAXTRACK);
-    traceln("MAXTRACK: %d, %d", mxt_x, mxt_y);
+    ut_traceln("MAXTRACK: %d, %d", mxt_x, mxt_y);
     int32_t scr_x = GetSystemMetrics(SM_CXSCREEN);
     int32_t scr_y = GetSystemMetrics(SM_CYSCREEN);
     fp64_t monitor_x = (fp64_t)scr_x / (fp64_t)ui_app.dpi.monitor_max;
     fp64_t monitor_y = (fp64_t)scr_y / (fp64_t)ui_app.dpi.monitor_max;
-    traceln("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
+    ut_traceln("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
 }
 
 #endif
@@ -2479,7 +2479,7 @@ static void ui_app_init_fonts(int32_t dpi) {
     ui_gdi.update_fm(&ui_app.fm.regular, (ui_font_t)CreateFontIndirectW(&lf));
 //  ui_gdi.dump_fm(ui_app.fm.regular.font);
     const fp64_t fh = ui_app_ncm.lfMessageFont.lfHeight;
-//  traceln("lfHeight=%.1f", fh);
+//  ut_traceln("lfHeight=%.1f", fh);
     assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
@@ -2576,22 +2576,22 @@ static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump)
     };
     ui_app_enum_monitors(&wiw);
     if (dump) {
-        traceln("wiw.space: %d,%d %dx%d",
+        ut_traceln("wiw.space: %d,%d %dx%d",
               wiw.space.x, wiw.space.y, wiw.space.w, wiw.space.h);
-        traceln("MAXTRACK: %d, %d", wiw.max_track.x, wiw.max_track.y);
-        traceln("wpl.rcNormalPosition: %d,%d %dx%d",
+        ut_traceln("MAXTRACK: %d, %d", wiw.max_track.x, wiw.max_track.y);
+        ut_traceln("wpl.rcNormalPosition: %d,%d %dx%d",
             wpl.rcNormalPosition.left, wpl.rcNormalPosition.top,
             wpl.rcNormalPosition.right - wpl.rcNormalPosition.left,
             wpl.rcNormalPosition.bottom - wpl.rcNormalPosition.top);
-        traceln("wpl.ptMinPosition: %d,%d",
+        ut_traceln("wpl.ptMinPosition: %d,%d",
             wpl.ptMinPosition.x, wpl.ptMinPosition.y);
-        traceln("wpl.ptMaxPosition: %d,%d",
+        ut_traceln("wpl.ptMaxPosition: %d,%d",
             wpl.ptMaxPosition.x, wpl.ptMaxPosition.y);
-        traceln("wpl.showCmd: %d", wpl.showCmd);
+        ut_traceln("wpl.showCmd: %d", wpl.showCmd);
         // WPF_SETMINPOSITION. WPF_RESTORETOMAXIMIZED WPF_ASYNCWINDOWPLACEMENT
-        traceln("wpl.flags: %d", wpl.flags);
+        ut_traceln("wpl.flags: %d", wpl.flags);
     }
-//  traceln("%d,%d %dx%d show=%d", wiw.placement.x, wiw.placement.y,
+//  ut_traceln("%d,%d %dx%d show=%d", wiw.placement.x, wiw.placement.y,
 //      wiw.placement.w, wiw.placement.h, wiw.show);
     ut_config.save(ui_app.class_name, name, &wiw, sizeof(wiw));
     ui_app_update_mi(&ui_app.wrc, MONITOR_DEFAULTTONEAREST);
@@ -2605,12 +2605,12 @@ static void ui_app_save_console_pos(void) {
         CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
         int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
         if (r != 0) {
-            traceln("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+            ut_traceln("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
         } else {
             ut_config.save(ui_app.class_name, "console_screen_buffer_infoex",
                             &info, (int32_t)sizeof(info));
-//          traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
-//          traceln("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
+//          ut_traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
+//          ut_traceln("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
 //              info.srWindow.Right - info.srWindow.Left,
 //              info.srWindow.Bottom - info.srWindow.Top);
         }
@@ -2646,21 +2646,21 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
                                 sizeof(wiw);
     if (loaded) {
         #ifdef UI_APP_DEBUG
-            traceln("wiw.placement: %d,%d %dx%d", wiw.placement.x, wiw.placement.y,
+            ut_traceln("wiw.placement: %d,%d %dx%d", wiw.placement.x, wiw.placement.y,
                 wiw.placement.w, wiw.placement.h);
-            traceln("wiw.mrc: %d,%d %dx%d", wiw.mrc.x, wiw.mrc.y, wiw.mrc.w, wiw.mrc.h);
-            traceln("wiw.work_area: %d,%d %dx%d", wiw.work_area.x, wiw.work_area.y,
+            ut_traceln("wiw.mrc: %d,%d %dx%d", wiw.mrc.x, wiw.mrc.y, wiw.mrc.w, wiw.mrc.h);
+            ut_traceln("wiw.work_area: %d,%d %dx%d", wiw.work_area.x, wiw.work_area.y,
                                                   wiw.work_area.w, wiw.work_area.h);
-            traceln("wiw.min_position: %d,%d", wiw.min_position.x, wiw.min_position.y);
-            traceln("wiw.max_position: %d,%d", wiw.max_position.x, wiw.max_position.y);
-            traceln("wiw.max_track: %d,%d", wiw.max_track.x, wiw.max_track.y);
-            traceln("wiw.dpi: %d", wiw.dpi);
-            traceln("wiw.flags: %d", wiw.flags);
-            traceln("wiw.show: %d", wiw.show);
+            ut_traceln("wiw.min_position: %d,%d", wiw.min_position.x, wiw.min_position.y);
+            ut_traceln("wiw.max_position: %d,%d", wiw.max_position.x, wiw.max_position.y);
+            ut_traceln("wiw.max_track: %d,%d", wiw.max_track.x, wiw.max_track.y);
+            ut_traceln("wiw.dpi: %d", wiw.dpi);
+            ut_traceln("wiw.flags: %d", wiw.flags);
+            ut_traceln("wiw.show: %d", wiw.show);
         #endif
         ui_app_update_mi(&wiw.placement, MONITOR_DEFAULTTONEAREST);
         bool same_monitor = memcmp(&wiw.mrc, &ui_app.mrc, sizeof(wiw.mrc)) == 0;
-//      traceln("%d,%d %dx%d", p->x, p->y, p->w, p->h);
+//      ut_traceln("%d,%d %dx%d", p->x, p->y, p->w, p->h);
         if (same_monitor) {
             *rect = wiw.placement;
         } else { // moving to another monitor
@@ -2675,9 +2675,9 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
         }
         *visibility = wiw.show;
     }
-//  traceln("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
+//  ut_traceln("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
     ui_app_bring_window_inside_monitor(&ui_app.mrc, rect);
-//  traceln("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
+//  ut_traceln("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
     return loaded;
 }
 
@@ -2689,7 +2689,7 @@ static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
     if (loaded) {
         ui_app_update_mi(&wiw.placement, MONITOR_DEFAULTTONEAREST);
         bool same_monitor = memcmp(&wiw.mrc, &ui_app.mrc, sizeof(wiw.mrc)) == 0;
-//      traceln("%d,%d %dx%d", p->x, p->y, p->w, p->h);
+//      ut_traceln("%d,%d %dx%d", p->x, p->y, p->w, p->h);
         if (same_monitor) {
             *rect = wiw.placement;
         } else { // moving to another monitor
@@ -2934,7 +2934,7 @@ static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
     if (!ui_view.is_hidden(ui_app.caption) && inside) {
         uint16_t lr = ui_app.mouse_swapped ? WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
         if (m == lr) {
-//          traceln("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
+//          ut_traceln("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
             ui_app_show_sys_menu(screen.x, screen.y);
         }
     } else {
@@ -2965,14 +2965,14 @@ static void ui_app_toast_paint(void) {
             assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
             av->y = av->h * step / (ui_app_animation_steps - 1);
-//          traceln("step=%d of %d y=%d", ui_app.animating.step,
+//          ut_traceln("step=%d of %d y=%d", ui_app.animating.step,
 //                  ui_app_toast_steps, av->y);
             ui_app_measure_and_layout(av);
             // dim main window (as `disabled`):
             fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
             ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h, &image_dark, alpha);
             av->x = (ui_app.root->w - av->w) / 2;
-//          traceln("ui_app.animating.y: %d av->y: %d",
+//          ut_traceln("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
         } else {
             av->x = ui_app.animating.x;
@@ -2983,7 +2983,7 @@ static void ui_app_toast_paint(void) {
             av->x = ut_min(mx, ut_max(0, cx));
             av->y = ut_min(
                 ui_app.root->h - em_h, ut_max(0, ui_app.animating.y));
-//          traceln("ui_app.animating.y: %d av->y: %d",
+//          ut_traceln("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
         }
         int32_t x = av->x - em_w / 4;
@@ -3189,7 +3189,7 @@ static void ui_app_paint_stats(void) {
         if (since_last > 1.0 / 120.0) { // 240Hz monitor
             ui_app.paint_dt_min = ut_min(ui_app.paint_dt_min, since_last);
         }
-//      traceln("paint_dt_min: %.6f since_last: %.6f",
+//      ut_traceln("paint_dt_min: %.6f since_last: %.6f",
 //              ui_app.paint_dt_min, since_last);
     }
     ui_app.paint_last = ui_app.now;
@@ -3222,7 +3222,7 @@ static void ui_app_wm_paint(void) {
         PAINTSTRUCT ps = {0};
         BeginPaint(ui_app_window(), &ps);
         ui_app.prc = ui_app_rect2ui(&ps.rcPaint);
-//      traceln("%d,%d %dx%d", ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h);
+//      ut_traceln("%d,%d %dx%d", ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h);
         ui_app_paint_on_canvas(ps.hdc);
         EndPaint(ui_app_window(), &ps);
     }
@@ -3261,11 +3261,11 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         // expected:
         // SPI_SETICONTITLELOGFONT 0x22 ?
         // SPI_SETNONCLIENTMETRICS 0x2A ?
-//      traceln("wp: 0x%08X", wp);
+//      ut_traceln("wp: 0x%08X", wp);
         // actual wp == 0x0000
         ui_theme.refresh();
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
-        traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
+        ut_traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
         int32_t n = GetUserDefaultLocaleName(ln, ut_count_of(ln));
         ut_fatal_if(n <= 0);
@@ -3346,7 +3346,7 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     if (ix != -1) {
         const int32_t double_click_msec = (int32_t)GetDoubleClickTime();
         const fp64_t  double_click_dt = double_click_msec / 1000.0; // seconds
-//      traceln("double_click_msec: %d double_click_dt: %.3fs",
+//      ut_traceln("double_click_msec: %d double_click_dt: %.3fs",
 //               double_click_msec, double_click_dt);
         const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
@@ -3372,7 +3372,7 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
             }
         } else if (up) {
             fp64_t since_clicked = ui_app.now - clicked[ix];
-//          traceln("pressed[%d]: %d %.3f", ix, pressed[ix], since_clicked);
+//          ut_traceln("pressed[%d]: %d %.3f", ix, pressed[ix], since_clicked);
             ui_view.tap(ui_app.root, ix, !up);
             // only if Windows are not detecting DLBCLKs
             if ((ui_app_wc.style & CS_DBLCLKS) == 0 &&
@@ -3489,7 +3489,7 @@ static void ui_app_wm_kill_focus(void) {
 
 static int64_t ui_app_wm_nc_calculate_size(int64_t wp, int64_t lp) {
 //  NCCALCSIZE_PARAMS* szp = (NCCALCSIZE_PARAMS*)lp;
-//  traceln("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
+//  ut_traceln("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
 //      wp, ui_app.is_maximized(),
 //      szp->rgrc[0].left, szp->rgrc[0].top, szp->rgrc[0].right, szp->rgrc[0].bottom,
 //      szp->rgrc[1].left, szp->rgrc[1].top, szp->rgrc[1].right, szp->rgrc[1].bottom,
@@ -3508,7 +3508,7 @@ static int64_t ui_app_wm_get_dpi_scaled_size(int64_t wp) {
         int32_t dpi = wp;
         SIZE* sz = (SIZE*)lp; // in/out
         ui_point_t cell = { sz->cx, sz->cy };
-        traceln("WM_GETDPISCALEDSIZE dpi %d := %d "
+        ut_traceln("WM_GETDPISCALEDSIZE dpi %d := %d "
             "size %d,%d *may/must* be adjusted",
             ui_app.dpi.window, dpi, cell.x, cell.y);
     #else
@@ -3537,7 +3537,7 @@ static void ui_app_wm_dpi_changed(void) {
 
 static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
     uint16_t sys_cmd = (uint16_t)(wp & 0xFF0);
-//  traceln("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
+//  ut_traceln("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
 //          wp, lp, lp, sys_cmd);
     if (sys_cmd == SC_MINIMIZE && ui_app.hide_on_minimize) {
         ui_app.show_window(ui.visibility.min_na);
@@ -3545,7 +3545,7 @@ static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
     } else  if (sys_cmd == SC_MINIMIZE && ui_app.no_decor) {
         ui_app.show_window(ui.visibility.min_na);
     }
-//  if (sys_cmd == SC_KEYMENU) { traceln("SC_KEYMENU lp: %lld", lp); }
+//  if (sys_cmd == SC_KEYMENU) { ut_traceln("SC_KEYMENU lp: %lld", lp); }
     // If the selection is in menu handle the key event
     if (sys_cmd == SC_KEYMENU && lp != 0x20) {
         return true; // handled: This prevents the error/beep sound
@@ -3554,7 +3554,7 @@ static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
         return true; // handled: prevent maximizing no decorations window
     }
 //  if (sys_cmd == SC_MOUSEMENU) {
-//      traceln("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
+//      ut_traceln("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
 //  }
     return false; // drop down to to DefWindowProc
 }
@@ -3562,11 +3562,11 @@ static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
 static void ui_app_wm_window_position_changing(int64_t wp, int64_t lp) {
     #ifdef UI_APP_DEBUG // TODO: ui_app.debug.trace.window_position?
         WINDOWPOS* pos = (WINDOWPOS*)lp;
-        traceln("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
+        ut_traceln("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
         if (pos->flags & SWP_SHOWWINDOW) {
-            traceln("SWP_SHOWWINDOW");
+            ut_traceln("SWP_SHOWWINDOW");
         } else if (pos->flags & SWP_HIDEWINDOW) {
-            traceln("SWP_HIDEWINDOW");
+            ut_traceln("SWP_HIDEWINDOW");
         }
     #else
         (void)wp; // unused
@@ -3594,7 +3594,7 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
 // TODO: remove
-//  if (message == WM_NULL) { traceln("got(WM_NULL)"); }
+//  if (message == WM_NULL) { ut_traceln("got(WM_NULL)"); }
     ui_app.now = ut_clock.seconds();
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
@@ -3703,9 +3703,9 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_LBUTTONDOWN     : case WM_RBUTTONDOWN  : case WM_MBUTTONDOWN  :
         case WM_LBUTTONUP       : case WM_RBUTTONUP    : case WM_MBUTTONUP    :
         case WM_LBUTTONDBLCLK   : case WM_RBUTTONDBLCLK: case WM_MBUTTONDBLCLK:
-//          if (m == WM_LBUTTONDOWN)   { traceln("WM_LBUTTONDOWN"); }
-//          if (m == WM_LBUTTONUP)     { traceln("WM_LBUTTONUP"); }
-//          if (m == WM_LBUTTONDBLCLK) { traceln("WM_LBUTTONDBLCLK"); }
+//          if (m == WM_LBUTTONDOWN)   { ut_traceln("WM_LBUTTONDOWN"); }
+//          if (m == WM_LBUTTONUP)     { ut_traceln("WM_LBUTTONUP"); }
+//          if (m == WM_LBUTTONDBLCLK) { ut_traceln("WM_LBUTTONDBLCLK"); }
             ui_app_wm_mouse(m, wp, lp);
             break; // drop to DefWindowProc()
         case WM_MOUSEHOVER      :
@@ -3720,13 +3720,13 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break; // drop to DefWindowProc()
         // debugging:
         #ifdef UI_APP_DEBUGING_ALT_KEYBOARD_SHORTCUTS
-        case WM_PARENTNOTIFY  : traceln("WM_PARENTNOTIFY");     break;
-        case WM_ENTERMENULOOP : traceln("WM_ENTERMENULOOP");    return 0;
-        case WM_EXITMENULOOP  : traceln("WM_EXITMENULOOP");     return 0;
-        case WM_INITMENU      : traceln("WM_INITMENU");         return 0;
-        case WM_MENUCHAR      : traceln("WM_MENUCHAR");         return MNC_CLOSE << 16;
-        case WM_CAPTURECHANGED: traceln("WM_CAPTURECHANGED");   break;
-        case WM_MENUSELECT    : traceln("WM_MENUSELECT");       return 0;
+        case WM_PARENTNOTIFY  : ut_traceln("WM_PARENTNOTIFY");     break;
+        case WM_ENTERMENULOOP : ut_traceln("WM_ENTERMENULOOP");    return 0;
+        case WM_EXITMENULOOP  : ut_traceln("WM_EXITMENULOOP");     return 0;
+        case WM_INITMENU      : ut_traceln("WM_INITMENU");         return 0;
+        case WM_MENUCHAR      : ut_traceln("WM_MENUCHAR");         return MNC_CLOSE << 16;
+        case WM_CAPTURECHANGED: ut_traceln("WM_CAPTURECHANGED");   break;
+        case WM_MENUSELECT    : ut_traceln("WM_MENUSELECT");       return 0;
         #else
         // ***Important***: prevents annoying beeps on Alt+Shortcut
         case WM_MENUCHAR      : return MNC_CLOSE << 16;
@@ -3741,7 +3741,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break; // drop to DefWindowProc()
         // TODO:
         case WM_UNICHAR       : // only UTF-32 via PostMessage?
-            traceln("???");
+            ut_traceln("???");
             // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
             // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
             break;
@@ -3933,7 +3933,7 @@ static void ui_app_request_redraw(void) {  // < 2us
 }
 
 static void ui_app_draw(void) {
-    traceln("avoid at all cost. bad performance, bad UX");
+    ut_traceln("avoid at all cost. bad performance, bad UX");
     UpdateWindow(ui_app_window());
 }
 
@@ -3984,7 +3984,7 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
         int result = ToUnicodeEx(virtualKey, scan_code, keyboard_state,
                                  utf16, ut_count_of(utf16), 0, keyboard_layout);
         if (result > 0) {
-            traceln("0x%04X04X is_key_released: %d down: %d repeat: %d",
+            ut_traceln("0x%04X04X is_key_released: %d down: %d repeat: %d",
                      utf16[0], utf16[1], is_key_released, was_key_down,
                      repeat_count);
         }
@@ -4189,7 +4189,7 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
     if (r != 0) {
-        traceln("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+        ut_traceln("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     } else {
         // tricky because correct order of the calls
         // SetConsoleWindowInfo() SetConsoleScreenBufferSize() depends on
@@ -4201,14 +4201,14 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
         SMALL_RECT const min_win = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
         int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
-//      if (r0 != 0) { traceln("SetConsoleWindowInfo() %s", strerr(r0)); }
+//      if (r0 != 0) { ut_traceln("SetConsoleWindowInfo() %s", strerr(r0)); }
         int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
-//      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r1)); }
+//      if (r1 != 0) { ut_traceln("SetConsoleScreenBufferSize() %s", strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
             r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
-            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", ut_strerr(r0)); }
+            if (r0 != 0) { ut_traceln("SetConsoleScreenBufferSize() %s", ut_strerr(r0)); }
             r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
-            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", ut_strerr(r1)); }
+            if (r1 != 0) { ut_traceln("SetConsoleWindowInfo() %s", ut_strerr(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
     }
@@ -4317,7 +4317,7 @@ static void ui_app_restore_console(int32_t *visibility) {
         ui_rect_t rc = ui_app_rect2ui(&wr);
         ui_app_load_console_pos(&rc, visibility);
         if (rc.w > 0 && rc.h > 0) {
-//          traceln("%d,%d %dx%d px", rc.x, rc.y, rc.w, rc.h);
+//          ut_traceln("%d,%d %dx%d px", rc.x, rc.y, rc.w, rc.h);
             CONSOLE_SCREEN_BUFFER_INFOEX info = {
                 sizeof(CONSOLE_SCREEN_BUFFER_INFOEX)
             };
@@ -4327,8 +4327,8 @@ static void ui_app_restore_console(int32_t *visibility) {
                 SMALL_RECT sr = info.srWindow;
                 int16_t w = (int16_t)ut_max(sr.Right - sr.Left + 1, 80);
                 int16_t h = (int16_t)ut_max(sr.Bottom - sr.Top + 1, 24);
-//              traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
-//              traceln("%d,%d %dx%d", sr.Left, sr.Top, w, h);
+//              ut_traceln("info: %dx%d", info.dwSize.X, info.dwSize.Y);
+//              ut_traceln("%d,%d %dx%d", sr.Left, sr.Top, w, h);
                 if (w > 0 && h > 0) { ui_app_set_console_size(w, h); }
     	    }
             // do not resize console window just restore it's position
@@ -4372,14 +4372,14 @@ static int ui_app_console_create(void) {
 
 static fp32_t ui_app_px2in(int32_t pixels) {
     assert(ui_app.dpi.monitor_max > 0);
-//  traceln("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+//  ut_traceln("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
     return ui_app.dpi.monitor_max > 0 ?
            (fp32_t)pixels / (fp32_t)ui_app.dpi.monitor_max : 0;
 }
 
 static int32_t ui_app_in2px(fp32_t inches) {
     assert(ui_app.dpi.monitor_max > 0);
-//  traceln("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+//  ut_traceln("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
     return (int32_t)(inches * (fp64_t)ui_app.dpi.monitor_max + 0.5);
 }
 
@@ -4481,21 +4481,21 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     ut_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
         im->w, im->h, SRCCOPY));
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
-    if (r != 0) { traceln("OpenClipboard() failed %s", ut_strerr(r)); }
+    if (r != 0) { ut_traceln("OpenClipboard() failed %s", ut_strerr(r)); }
     if (r == 0) {
         r = ut_b2e(EmptyClipboard());
-        if (r != 0) { traceln("EmptyClipboard() failed %s", ut_strerr(r)); }
+        if (r != 0) { ut_traceln("EmptyClipboard() failed %s", ut_strerr(r)); }
     }
     if (r == 0) {
         r = ut_b2e(SetClipboardData(CF_BITMAP, bitmap));
         if (r != 0) {
-            traceln("SetClipboardData() failed %s", ut_strerr(r));
+            ut_traceln("SetClipboardData() failed %s", ut_strerr(r));
         }
     }
     if (r == 0) {
         r = ut_b2e(CloseClipboard());
         if (r != 0) {
-            traceln("CloseClipboard() failed %s", ut_strerr(r));
+            ut_traceln("CloseClipboard() failed %s", ut_strerr(r));
         }
     }
     ut_not_null(SelectBitmap(dst, d));
@@ -4622,12 +4622,12 @@ static void ui_app_set_dpi_awareness(void) {
     errno_t error = ut_b2e(SetProcessDpiAwarenessContext(
             DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     if (error == ERROR_ACCESS_DENIED) {
-        traceln("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
+        ut_traceln("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
         // dpi awareness already set, manifest, registry, windows policy
         // Try via Shell:
         HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
         if (hr == E_ACCESSDENIED) {
-            traceln("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
+            ut_traceln("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
         }
     }
     DPI_AWARENESS_CONTEXT dpi_awareness_context_2 =
@@ -4645,7 +4645,7 @@ static void ui_app_init_windows(void) {
     ui_app.dpi.monitor_angular = ui_app.dpi.system;
     ui_app.dpi.monitor_raw = ui_app.dpi.system;
     ui_app.dpi.monitor_max = ui_app.dpi.system;
-//  traceln("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
+//  ut_traceln("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
     static const RECT nowhere = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
     ui_rect_t r = ui_app_rect2ui(&nowhere);
     ui_app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
@@ -4748,7 +4748,7 @@ static void ui_app_test_dispatch_until(ut_work_queue_t* q, int32_t* i,
 
 static void ui_app_test_every_100ms(ut_work_t* w) {
     int32_t* i = (int32_t*)w->data;
-    traceln("i: %d", *i);
+    ut_traceln("i: %d", *i);
     (*i)++;
     w->when = ut_clock.seconds() + 0.100;
     ut_work_queue.post(w);
@@ -4781,7 +4781,7 @@ typedef struct ut_work_ex_s {
 
 static void ui_app_test_every_200ms(ut_work_t* w) {
     ut_work_ex_t* ex = (ut_work_ex_t*)w;
-    traceln("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
+    ut_traceln("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
     ex->i++;
     const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
     w->when = ut_clock.seconds() + 0.200;
@@ -4809,12 +4809,12 @@ static fp64_t ui_app_test_timestamp_4;
 
 static void ui_app_test_in_1_second(ut_work_t* unused(work)) {
     ui_app_test_timestamp_3 = ut_clock.seconds();
-    traceln("ETA 3 seconds");
+    ut_traceln("ETA 3 seconds");
 }
 
 static void ui_app_test_in_2_seconds(ut_work_t* unused(work)) {
     ui_app_test_timestamp_2 = ut_clock.seconds();
-    traceln("ETA 2 seconds");
+    ut_traceln("ETA 2 seconds");
     static ut_work_t invoke_in_1_seconds;
     invoke_in_1_seconds = (ut_work_t){
         .queue = null, // &ui_app_queue will be used
@@ -4826,7 +4826,7 @@ static void ui_app_test_in_2_seconds(ut_work_t* unused(work)) {
 
 static void ui_app_test_in_4_seconds(ut_work_t* unused(work)) {
     ui_app_test_timestamp_4 = ut_clock.seconds();
-    traceln("ETA 4 seconds");
+    ut_traceln("ETA 4 seconds");
 //  expected sequence of callbacks:
 //  2:732 ui_app_test_in_2_seconds ETA 2 seconds
 //  3:724 ui_app_test_in_1_second  ETA 3 seconds
@@ -4843,7 +4843,7 @@ static void ui_app_test_in_4_seconds(ut_work_t* unused(work)) {
 static void ui_app_test_post(void) {
     ui_app_test_work_queue_1();
     ui_app_test_work_queue_2();
-    traceln("see Output/Timestamps");
+    ut_traceln("see Output/Timestamps");
     static ut_work_t invoke_in_2_seconds;
     static ut_work_t invoke_in_4_seconds;
     ui_app_test_timestamp_0 = ut_clock.seconds();
@@ -4893,7 +4893,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         ui_app.border.w = ut_min(max_border, ui_app.border.w);
         ui_app.border.h = ut_min(max_border, ui_app.border.h);
     }
-//  traceln("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
+//  ut_traceln("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
     // TODO: use AdjustWindowRectEx instead
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrectex
     wr.x -= ui_app.border.w;
@@ -4954,7 +4954,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE unused(previous),
     // for Translate message and WM_CHAR to deliver UTF-8 characters
     // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
     if (GetACP() != 65001) {
-        traceln("codepage: %d UTF-8 will not be supported", GetACP());
+        ut_traceln("codepage: %d UTF-8 will not be supported", GetACP());
     }
     // at the moment of writing there is no API call to inform Windows about process
     // preferred codepage except manifest.xml file in resource #1.
@@ -5075,20 +5075,20 @@ static void ui_button_callback(ui_button_t* b) {
     if (b->callback != null) { b->callback(b); }
     if (pressed != b->state.pressed) {
         if (b->flip) { // warn the client of strange logic:
-            traceln("strange flip the button with button.flip: true");
+            ut_traceln("strange flip the button with button.flip: true");
             // if client wants to flip pressed state manually it
             // should do it for the button.flip = false
         }
-//      traceln("disarmed immediately");
+//      ut_traceln("disarmed immediately");
         b->p.armed_until = 0;
         b->state.armed = false;
     } else {
         if (b->flip) {
-//          traceln("disarmed immediately");
+//          ut_traceln("disarmed immediately");
             b->p.armed_until = 0;
             b->state.armed = false;
         } else {
-//          traceln("will disarm in 1/4 seconds");
+//          ut_traceln("will disarm in 1/4 seconds");
             b->p.armed_until = ui_app.now + 0.250;
         }
     }
@@ -5241,7 +5241,7 @@ static void ui_caption_full(ui_button_t* unused(b)) {
 static int64_t ui_caption_hit_test(const ui_view_t* v, ui_point_t pt) {
     swear(v == &ui_caption.view);
     assert(ui_view.inside(v, &pt));
-//  traceln("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
+//  ut_traceln("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
 //      x, y,
 //      ui_caption.icon.x, ui_caption.icon.y,
 //      ui_caption.icon.w, ui_caption.icon.h,
@@ -5821,7 +5821,7 @@ static bool ui_containers_debug = false;
 // makes code inside iterator debugger friendly and ensures correct __LINE__
 
 #define debugln(...) do {                                \
-    if (ui_containers_debug) {  traceln(__VA_ARGS__); }  \
+    if (ui_containers_debug) {  ut_traceln(__VA_ARGS__); }  \
 } while (0)
 
 static int32_t ui_layout_nesting;
@@ -6359,7 +6359,7 @@ static void ui_container_paint(ui_view_t* v) {
         !ui_color_is_transparent(v->background)) {
         ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     } else {
-//      traceln("%s undefined", ui_view_debug_id(v));
+//      ut_traceln("%s undefined", ui_view_debug_id(v));
     }
 }
 
@@ -7766,7 +7766,7 @@ static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
         if (s->b == s->g && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
-//          traceln("forcefully moving to heap");
+//          ut_traceln("forcefully moving to heap");
             // this is usually done in the process of concatenation
             // of 2 ascii strings when result is known to be longer
             // than ut_count_of(ui_edit_str_g2b_ascii) - 1 but the
@@ -7829,7 +7829,7 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
             }
         } else {
 //          const int32_t b64 = ut_min(s->b, 64);
-//          traceln("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
+//          ut_traceln("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
         }
     }
 }
@@ -8029,7 +8029,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
             }
         }
         if (i % 100 == 99) {
-            traceln("%2d%% [%d][%d][%d][%d][%d] "
+            ut_traceln("%2d%% [%d][%d][%d][%d][%d] "
                     "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\": \"%s\"",
                 (i * 100) / npn,
                 gix_src[0], gix_src[1], gix_src[2], gix_src[3], gix_src[4],
@@ -8676,7 +8676,7 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
 //  static fp64_t length_sum;
 //  time_sum += time;
 //  length_sum += n;
-//  traceln("avg=%.6fms per char total %.3fms", time_sum / length_sum, time_sum);
+//  ut_traceln("avg=%.6fms per char total %.3fms", time_sum / length_sum, time_sum);
     return x;
 }
 
@@ -9076,7 +9076,7 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
     if (0 <= pt.x && pt.x < e->edit.w && 0 <= pt.y && pt.y < e->edit.h) {
         // all good, inside visible rectangle or right after it
     } else {
-//      traceln("%d:%d (%d,%d) outside of %dx%d", pg.pn, pg.gp,
+//      ut_traceln("%d:%d (%d,%d) outside of %dx%d", pg.pn, pg.gp,
 //          pt.x, pt.y, e->edit.w, e->edit.h);
         pt = (ui_point_t){-1, -1};
     }
@@ -9110,7 +9110,7 @@ static int32_t ui_edit_glyph_width_px(ui_edit_t* e, const ui_edit_pg_t pg) {
 static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
 // TODO: remove
 //  const ui_ltrb_t i = ui_view.margins(&e->view, &e->view.insets);
-//  traceln("x,y: %d,%d insets left:%d right:%d", x, y, i.left, i.right);
+//  ut_traceln("x,y: %d,%d insets left:%d right:%d", x, y, i.left, i.right);
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t pg = {-1, -1};
     int32_t py = 0; // paragraph `y' coordinate
@@ -9130,14 +9130,14 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
                 } else {
                     pg.gp = r->gp + ui_edit_glyph_at_x(e, i, j, x);
 // TODO: remove
-//                  traceln("pg.gp: %d r->gp: %d ui_edit_glyph_at_x(%d, %d, x:%d)",
+//                  ut_traceln("pg.gp: %d r->gp: %d ui_edit_glyph_at_x(%d, %d, x:%d)",
 //                          pg.gp, r->gp, i, j, x, ui_edit_glyph_at_x(e, i, j, x));
                     if (pg.gp < r->glyphs - 1) {
                         ui_edit_pg_t right = {pg.pn, pg.gp + 1};
                         int32_t x0 = ui_edit_pg_to_xy(e, pg).x;
                         int32_t x1 = ui_edit_pg_to_xy(e, right).x;
 // TODO: remove
-//                      traceln("x0: %d x1: %d", x0, x1);
+//                      ut_traceln("x0: %d x1: %d", x0, x1);
                         if (x1 - x < x - x0) {
                             pg.gp++; // snap to closest glyph's 'x'
                         }
@@ -9150,7 +9150,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
         if (py > e->h) { break; }
     }
 // TODO: remove
-//  traceln("x,y: %d,%d p:d %d:%d", x, y, pg.pn, pg.gp);
+//  ut_traceln("x,y: %d,%d p:d %d:%d", x, y, pg.pn, pg.gp);
     return pg;
 }
 
@@ -9167,7 +9167,7 @@ static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
         e->caret.x = x;
         e->caret.y = y;
 // TODO: remove
-//      traceln("caret: %d, %d", x, y);
+//      ut_traceln("caret: %d, %d", x, y);
     }
 }
 
@@ -9678,7 +9678,7 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
                 e->selection.a[0] = e->selection.a[1];
                 ui_edit_move_caret(e, e->selection.a[1]);
             } else {
-                traceln("invalid UTF8: 0x%02X%02X%02X%02X",
+                ut_traceln("invalid UTF8: 0x%02X%02X%02X%02X",
                         utf8[0], utf8[1], utf8[2], utf8[3]);
             }
         }
@@ -9710,7 +9710,7 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
                 first_ascii = glyph.bytes == 1 ? *glyph.s : 0x00;
                 if (g.bytes == 0 || *g.s <= 0x20) {
                     from.gp++;
-//                  traceln("left while space @%d 0x%02X", from.gp, *g.s);
+//                  ut_traceln("left while space @%d 0x%02X", from.gp, *g.s);
                     break;
                 }
             }
@@ -9722,13 +9722,13 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
                 const bool starts_with_alnum = isalnum(first_ascii);
                 bool stop = starts_with_alnum && g.bytes == 1 && !isalnum(*g.s);
                 if (g.bytes == 0 || *g.s <= 0x20 || stop) {
-//                  traceln("right while space @%d 0x%02X", to.gp, *g.s);
+//                  ut_traceln("right while space @%d 0x%02X", to.gp, *g.s);
                     break;
                 }
             }
             e->selection.a[1] = to;
             ui_edit_caret_to(e, to);
-//          traceln("e->selection.a[1] = %d.%d", to.pn, to.gp);
+//          ut_traceln("e->selection.a[1] = %d.%d", to.pn, to.gp);
             ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
             e->edit.buttons = 0;
         }
@@ -9766,12 +9766,12 @@ static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
 //  TODO: remove
-//  traceln("x,y: %d,%d p:d %d:%d", e->caret.x, e->caret.y, pg.pn, pg.gp);
+//  ut_traceln("x,y: %d,%d p:d %d:%d", e->caret.x, e->caret.y, pg.pn, pg.gp);
     if (0 <= pg.pn && 0 <= pg.gp && ui_view.has_focus(&e->view)) {
         swear(dt->np > 0 && pg.pn < dt->np);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
         if (pg.gp > glyphs) { pg.gp = ut_max(0, glyphs); }
-//      traceln("move_caret: %d.%d", p.pn, p.gp);
+//      ut_traceln("move_caret: %d.%d", p.pn, p.gp);
         ui_edit_move_caret(e, pg);
     }
 }
@@ -9792,7 +9792,7 @@ static bool ui_edit_tap(ui_view_t* v, int32_t unused(ix), bool pressed) {
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
 //  TODO: remove
-//  traceln("mouse: %d,%d x,y: %d %d inside: %d", ui_app.mouse.x, ui_app.mouse.y, x, y, inside);
+//  ut_traceln("mouse: %d,%d x,y: %d %d inside: %d", ui_app.mouse.x, ui_app.mouse.y, x, y, inside);
     if (inside) {
         if (pressed) {
             e->edit.buttons = 0;
@@ -9851,7 +9851,7 @@ static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
             const int32_t y = e->caret.y - e->inside.top;
             ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
 // TODO: remove
-//          traceln("x,y: %d,%d caret: %d,%d p:d %d:%d", x, y, e->caret.x, e->caret.y, pg.pn, pg.gp);
+//          ut_traceln("x,y: %d,%d caret: %d,%d p:d %d:%d", x, y, e->caret.x, e->caret.y, pg.pn, pg.gp);
             if (pg.pn >= 0 && pg.gp >= 0) {
                 assert(pg.gp <= e->doc->text.ps[pg.pn].g);
                 ui_edit_move_caret(e, pg);
@@ -10135,7 +10135,7 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
     const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
     for (int32_t j = ui_edit_first_visible_run(e, pn);
                  j < runs && y < e->y + e->inside.bottom; j++) {
-//      traceln("[%d.%d] @%d,%d bytes: %d", pn, j, x, y, run[j].bytes);
+//      ut_traceln("[%d.%d] @%d,%d bytes: %d", pn, j, x, y, run[j].bytes);
         if (rc.y - e->fm->height <= y && y < rc.y + rc.h) {
             const char* text = str->u + run[j].bp;
             ui_edit_paint_selection(e, y, &run[j], text, pn,
@@ -10375,7 +10375,7 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
         ui_app.mouse.y = y;
 //      https://stackoverflow.com/questions/22259936/
 //      https://stackoverflow.com/questions/65691101/
-//      traceln("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
+//      ut_traceln("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
 //      // next line works only when running as administator:
 //      ut_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
         const bool l_button = ui_app.mouse_left  != work->left;
@@ -10438,7 +10438,7 @@ static void ui_fuzzing_character(void) {
     uint32_t rnd = ut_num.random32(&ui_fuzzing_seed);
     int ch = 0x20 + rnd % (128 - 0x20);
     if (ui_fuzzing_debug) {
-        traceln("character(0x%02X %d %c)", ch, ch, ch);
+        ut_traceln("character(0x%02X %d %c)", ch, ch, ch);
     }
     static char utf8[8];
     utf8[0] = (char)ch;
@@ -10470,7 +10470,7 @@ static void ui_fuzzing_key(void) {
     ui_fuzzing_alt_ctrl_shift();
     uint32_t ix = ut_num.random32(&ui_fuzzing_seed) % ut_count_of(keys);
     if (ui_fuzzing_debug) {
-        traceln("key(%s)", keys[ix].name);
+        ut_traceln("key(%s)", keys[ix].name);
     }
     ui_fuzzing_work.key = keys[ix].key;
     ui_fuzzing_post();
@@ -10491,7 +10491,7 @@ static void ui_fuzzing_mouse(void) {
         ui_fuzzing_work.right = !ui_fuzzing_work.right;
     }
     if (ui_fuzzing_debug) {
-        traceln("mouse(%d,%d) %s%s", pt.x, pt.y,
+        ut_traceln("mouse(%d,%d) %s%s", pt.x, pt.y,
                 ui_fuzzing_work.left ? "L" : "_", ui_fuzzing_work.right ? "R" : "_");
     }
     ui_fuzzing_work.pt = &pt;
@@ -10743,7 +10743,7 @@ static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t c) {
-//  traceln("%d,%d %dx%d 0x%08X", x, y, w, h, (uint32_t)c);
+//  ut_traceln("%d,%d %dx%d 0x%08X", x, y, w, h, (uint32_t)c);
     ui_brush_t b = ui_gdi_set_brush(ui_gdi_brush_color);
     c = ui_gdi_set_brush_color(c);
     RECT rc = { x, y, x + w, y + h };
@@ -11270,14 +11270,14 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
     if (tm.tmPitchAndFamily & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
     if (tm.tmPitchAndFamily & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
     if (tm.tmPitchAndFamily & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
-    traceln("tm: .pitch_and_family: %s", pitch);
-    traceln(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
+    ut_traceln("tm: .pitch_and_family: %s", pitch);
+    ut_traceln(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
             tm.tmHeight, tm.tmAscent, tm.tmDescent);
-    traceln(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
+    ut_traceln(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
             tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
-    traceln(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
+    ut_traceln(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
             tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
-    traceln(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
+    ut_traceln(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
             tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
     swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
@@ -11286,27 +11286,27 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
     // unsupported XHeight CapEmHeight
     // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
     //             CharSlopeRise, CharSlopeRun, ItalicAngle
-    traceln("otm: .Ascent       : %2d   .Descent        : %2d",
+    ut_traceln("otm: .Ascent       : %2d   .Descent        : %2d",
             otm.otmAscent, otm.otmDescent);
-    traceln(".otmLineGap        : %2u", otm.otmLineGap);
-    traceln(".FontBox.ltrb      :  %d,%d %2d,%2d",
+    ut_traceln(".otmLineGap        : %2u", otm.otmLineGap);
+    ut_traceln(".FontBox.ltrb      :  %d,%d %2d,%2d",
             otm.otmrcFontBox.left, otm.otmrcFontBox.top,
             otm.otmrcFontBox.right, otm.otmrcFontBox.bottom);
-    traceln(".MinimumPPEM       : %2u    (minimum height in pixels)",
+    ut_traceln(".MinimumPPEM       : %2u    (minimum height in pixels)",
             otm.otmusMinimumPPEM);
-    traceln(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
+    ut_traceln(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
             otm.otmptSubscriptOffset.x, otm.otmptSubscriptOffset.y,
             otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y);
-    traceln(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
+    ut_traceln(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
             otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y,
             otm.otmptSuperscriptSize.x,   otm.otmptSuperscriptSize.y);
-    traceln(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
+    ut_traceln(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
             otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
-    traceln(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
+    ut_traceln(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
             otm.otmsStrikeoutSize,  otm.otmsStrikeoutPosition);
     int32_t h = otm.otmAscent + abs(tm.tmDescent); // without diacritical space above
     fp32_t pts = (h * 72.0f)  / GetDeviceCaps(hdc, LOGPIXELSY);
-    traceln("height: %.1fpt", pts);
+    ut_traceln("height: %.1fpt", pts);
 }
 
 static void ui_gdi_dump_fm(ui_font_t f) {
@@ -11384,14 +11384,14 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
         ut_fatal_win32err(GetTextExtentPoint32A(hdc,
             ut_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
-//      traceln("vl: %d %d", vl.cx, vl.cy);
-//      traceln("e3: %d %d", e3.cx, e3.cy);
-//      traceln("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
+//      ut_traceln("vl: %d %d", vl.cx, vl.cy);
+//      ut_traceln("e3: %d %d", e3.cx, e3.cy);
+//      ut_traceln("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
 //              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
     });
     assert(fm->baseline <= fm->height);
     fm->em = (ui_wh_t){ .w = fm->height, .h = fm->height };
-//  traceln("fm.em: %dx%d", fm->em.w, fm->em.h);
+//  ut_traceln("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
 
 static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
@@ -11402,15 +11402,15 @@ if (0) {
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
-        traceln("em: %d %d", em.cx, em.cy);
+        ut_traceln("em: %d %d", em.cx, em.cy);
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em));
-        traceln("em: %d %d", em.cx, em.cy);
+        ut_traceln("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        traceln("vl: %d %d", vl.cx, vl.cy);
+        ut_traceln("vl: %d %d", vl.cx, vl.cy);
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
-        traceln("e3: %d %d", e3.cx, e3.cy);
+        ut_traceln("e3: %d %d", e3.cx, e3.cy);
     }
 }
     int32_t count = ut_str.utf16_chars(s);
@@ -11783,7 +11783,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
                 if (!ui_view.is_hidden(c)) {
                     mxw[i] = ut_max(mxw[i], c->w);
                     r->h = ut_max(r->h, c->h);
-//                  traceln("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
+//                  ut_traceln("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
 //                          i, r->fm->baseline, c->fm->baseline);
 //                  r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
                 }
@@ -12048,7 +12048,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     ui_wh_t mt = s->fm->em;
     if (s->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.margins(&s->view, &s->padding);
-        traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
+        ut_traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
@@ -12056,7 +12056,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
             ut_min(64, strlen(text)), text);
         const ui_margins_t in = s->insets;
         const ui_margins_t pd = s->padding;
-        traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+        ut_traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
             in.left + in.right, in.top + in.bottom,
@@ -12079,7 +12079,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
         mt = measure_text(s->fm, "%s", text);
     }
     if (s->debug.trace.mt) {
-        traceln(" mt: %dx%d", mt.w, mt.h);
+        ut_traceln(" mt: %dx%d", mt.w, mt.h);
     }
     return mt;
 }
@@ -12109,7 +12109,7 @@ static void ui_slider_measure(ui_view_t* v) {
     }
     v->h = ut_max(v->h, i.top + fm->em.h + i.bottom);
     if (s->debug.trace.mt) {
-        traceln("<%dx%d", s->w, s->h);
+        ut_traceln("<%dx%d", s->w, s->h);
     }
 }
 
@@ -12337,7 +12337,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
         int32_t value_min, int32_t value_max,
         void (*callback)(ui_view_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
-    if (min_w_em < 6.0) { traceln("6.0 em minimum"); }
+    if (min_w_em < 6.0) { ut_traceln("6.0 em minimum"); }
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
     s->callback = callback;
@@ -12406,7 +12406,7 @@ static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
     DWORD bytes = sizeof(light_theme);
     errno_t r = RegGetValueA(root, path, key, RRF_RT_DWORD, &type, v, &bytes);
     if (r != 0) {
-        traceln("RegGetValueA(%s\\%s) failed %s", path, key, ut_strerr(r));
+        ut_traceln("RegGetValueA(%s\\%s) failed %s", path, key, ut_strerr(r));
     }
     return r;
 }
@@ -12463,7 +12463,7 @@ static void ui_theme_set_preferred_app_mode(int32_t mode) {
     // SetPreferredAppMode(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
     // "The specified program requires a newer version of Windows."
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        traceln("SetPreferredAppMode(AllowDark) failed %s", ut_strerr(r));
+        ut_traceln("SetPreferredAppMode(AllowDark) failed %s", ut_strerr(r));
     }
 }
 
@@ -12477,7 +12477,7 @@ static void ui_theme_flush_menu_themes(void) {
     // FlushMenuThemes() works but returns ERROR_OLD_WIN_VERSION
     // on newest Windows 11 but it is not documented thus no complains.
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        traceln("FlushMenuThemes(AllowDark) failed %s", ut_strerr(r));
+        ut_traceln("FlushMenuThemes(AllowDark) failed %s", ut_strerr(r));
     }
 }
 
@@ -12489,7 +12489,7 @@ static void ui_theme_allow_dark_mode_for_app(bool allow) {
     if (AllowDarkModeForApp != null) {
         errno_t r = ut_b2e(AllowDarkModeForApp(allow));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("AllowDarkModeForApp(true) failed %s", ut_strerr(r));
+            ut_traceln("AllowDarkModeForApp(true) failed %s", ut_strerr(r));
         }
     }
 }
@@ -12504,7 +12504,7 @@ static void ui_theme_allow_dark_mode_for_window(bool allow) {
         // AllowDarkModeForWindow(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
         // "The specified program requires a newer version of Windows."
         if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-            traceln("AllowDarkModeForWindow(true) failed %s", ut_strerr(r));
+            ut_traceln("AllowDarkModeForWindow(true) failed %s", ut_strerr(r));
         }
     }
 }
@@ -12533,7 +12533,7 @@ static void ui_theme_refresh(void) {
     errno_t r = DwmSetWindowAttribute((HWND)ui_app.window,
         DWMWA_USE_IMMERSIVE_DARK_MODE, &dark_mode, sizeof(dark_mode));
     if (r != 0) {
-        traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
+        ut_traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
                 "failed %s", ut_strerr(r));
     }
     ui_theme.allow_dark_mode_for_app(dark_mode);
@@ -12608,7 +12608,7 @@ static const char* ui_toggle_on_off_label(ui_view_t* v,
 
 static void ui_toggle_measure(ui_view_t* v) {
     if (v->min_w_em < 3.0f) {
-        traceln("3.0f em minimum width");
+        ut_traceln("3.0f em minimum width");
         v->min_w_em = 4.0f;
     }
     ui_view.measure_control(v);
@@ -12830,7 +12830,7 @@ static void ui_view_disband(ui_view_t* p) {
 
 static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
     if (ui_view.is_hidden(v)) {
-        traceln("hidden: %s", ui_view_debug_id(v));
+        ut_traceln("hidden: %s", ui_view_debug_id(v));
     } else {
         ui_rect_t rc = {0};
         if (r != null) {
@@ -12850,7 +12850,7 @@ static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
             rc.h += p.top + p.bottom;
         }
         if (v->debug.trace.prc) {
-            traceln("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+            ut_traceln("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
         }
         ui_app.invalidate(&rc);
     }
@@ -12933,7 +12933,7 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
         const int32_t dy = tm->mt.h / 2 - y_of_x_line;
         tm->xy.y += dy / 2;
         if (v->debug.trace.mt) {
-            traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
+            ut_traceln(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
                       y_of_x_line, tm->mt.h, dy);
         }
     }
@@ -12948,7 +12948,7 @@ static void ui_view_measure_control(ui_view_t* v) {
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.margins(v, &v->padding);
-        traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
+        ut_traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
             i.left, i.top, i.right, i.bottom,
@@ -12956,7 +12956,7 @@ static void ui_view_measure_control(ui_view_t* v) {
             ut_min(64, strlen(s)), s);
         const ui_margins_t in = v->insets;
         const ui_margins_t pd = v->padding;
-        traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+        ut_traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
             in.left + in.right, in.top + in.bottom,
@@ -12965,13 +12965,13 @@ static void ui_view_measure_control(ui_view_t* v) {
     }
     ui_view_text_measure(v, s, &v->text);
     if (v->debug.trace.mt) {
-        traceln(" mt: %d %d", v->text.mt.w, v->text.mt.h);
+        ut_traceln(" mt: %d %d", v->text.mt.w, v->text.mt.h);
     }
     v->w = ut_max(v->w, i.left + v->text.mt.w + i.right);
     v->h = ut_max(v->h, i.top  + v->text.mt.h + i.bottom);
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
-        traceln("<%dx%d text_align x,y: %d,%d",
+        ut_traceln("<%dx%d text_align x,y: %d,%d",
                 v->w, v->h, v->text.xy.x, v->text.xy.y);
     }
 }
@@ -12998,11 +12998,11 @@ static void ui_view_measure(ui_view_t* v) {
 static void ui_layout_view(ui_view_t* unused(v)) {
 //  ui_ltrb_t i = ui_view.margins(v, &v->insets);
 //  ui_ltrb_t p = ui_view.margins(v, &v->padding);
-//  traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
+//  ut_traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
 //               v->p.text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
 //               i.left, i.top, i.right, i.bottom);
-//  traceln("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  ut_traceln("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static void ui_view_layout_children(ui_view_t* v) {
@@ -13012,7 +13012,7 @@ static void ui_view_layout_children(ui_view_t* v) {
 }
 
 static void ui_view_layout(ui_view_t* v) {
-//  traceln(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  ut_traceln(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
         if (v->layout != null && v->layout != ui_view_layout) {
             v->layout(v);
@@ -13022,7 +13022,7 @@ static void ui_view_layout(ui_view_t* v) {
         if (v->composed != null) { v->composed(v); }
         ui_view_layout_children(v);
     }
-//  traceln("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  ut_traceln("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
@@ -13077,7 +13077,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     const ui_ltrb_t p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
-//      traceln("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
+//      ut_traceln("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
 //          v->x, v->y, v->w, v->h,
 //          v->padding.left, v->padding.top, v->padding.right, v->padding.bottom);
         *r = (ui_rect_t) {
@@ -13086,7 +13086,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
             .w = v->w + p.left + p.right,
             .h = v->h + p.top  + p.bottom,
         };
-//      traceln("%s %d,%d %dx%d", v->p.text,
+//      ut_traceln("%s %d,%d %dx%d", v->p.text,
 //          r->x, r->y, r->w, r->h);
     }
 }
@@ -13260,7 +13260,7 @@ static void ui_view_paint(ui_view_t* v) {
     ui_view_resolve_color_ids(v);
     if (v->debug.trace.prc) {
         const char* s = ui_view.string(v);
-        traceln("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
+        ut_traceln("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
                 ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h,
                 ut_min(64, strlen(s)), s);
     }
@@ -13318,14 +13318,14 @@ static void ui_view_update_hover(ui_view_t* v, bool hidden) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     v->state.hover = !ui_view.is_hidden(v) && inside;
     if (hover != v->state.hover) {
-//      traceln("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
+//      ut_traceln("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
         ui_view.hover_changed(v); // even for hidden
         if (!hidden) { ui_view.invalidate(v, null); }
     }
 }
 
 static void ui_view_mouse_hover(ui_view_t* v) {
-//  traceln("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//  ut_traceln("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
     // mouse hover over is dispatched even to disabled views
@@ -13336,7 +13336,7 @@ static void ui_view_mouse_hover(ui_view_t* v) {
 }
 
 static void ui_view_mouse_move(ui_view_t* v) {
-//  traceln("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//  ut_traceln("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
     // mouse move is dispatched even to disabled views
@@ -13642,7 +13642,7 @@ static void ui_view_test(void) {
     ui_view_no_siblings(&c3); ui_view_no_siblings(&c4);
     ui_view_no_siblings(&g1); ui_view_no_siblings(&g2);
     ui_view_no_siblings(&g3); ui_view_no_siblings(&g4);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 #pragma pop_macro("ui_view_no_siblings")

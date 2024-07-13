@@ -163,7 +163,7 @@ ut_worker_if ut_worker = {
 
 // tests:
 
-// keep in mind that traceln() may be blocking and is a subject
+// keep in mind that ut_traceln() may be blocking and is a subject
 // of "astronomical" wait state times in order of dozens of ms.
 
 static int32_t ut_test_called;
@@ -220,10 +220,10 @@ static void ut_every_millisecond(ut_work_t* w) {
     if (ut_debug.verbosity.level > ut_debug.verbosity.info) {
         const fp64_t since_start = now - ut_test_work_start;
         const fp64_t dt = w->when - ut_test_work_start;
-        traceln("%d now: %.6f time: %.6f", *i, since_start, dt);
+        ut_traceln("%d now: %.6f time: %.6f", *i, since_start, dt);
     }
     (*i)++;
-    // read ut_clock.seconds() again because traceln() above could block
+    // read ut_clock.seconds() again because ut_traceln() above could block
     w->when = ut_clock.seconds() + 0.001;
     ut_work_queue.post(w);
 }
@@ -248,7 +248,7 @@ static void ut_work_queue_test_2(void) {
     ut_work_queue.flush(&q);
     swear(q.head == null);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
-        traceln("called: %d times", i);
+        ut_traceln("called: %d times", i);
     }
 }
 
@@ -271,12 +271,12 @@ static void ut_every_other_millisecond(ut_work_t* w) {
     if (ut_debug.verbosity.level > ut_debug.verbosity.info) {
         const fp64_t since_start = now - ut_test_work_start;
         const fp64_t dt  = w->when - ut_test_work_start;
-        traceln(".i: %d .extra: {.a: %d .b: %d} now: %.6f time: %.6f",
+        ut_traceln(".i: %d .extra: {.a: %d .b: %d} now: %.6f time: %.6f",
                 ex->i, ex->s.a, ex->s.b, since_start, dt);
     }
     ex->i++;
     const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
-    // read ut_clock.seconds() again because traceln() above could block
+    // read ut_clock.seconds() again because ut_traceln() above could block
     w->when = ut_clock.seconds() + 0.002;
     ut_work_queue.post(w);
 }
@@ -301,7 +301,7 @@ static void ut_work_queue_test_3(void) {
     ut_work_queue.flush(&q);
     swear(q.head == null);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
-        traceln("called: %d times", ex.i);
+        ut_traceln("called: %d times", ex.i);
     }
 }
 
@@ -309,7 +309,7 @@ static void ut_work_queue_test(void) {
     ut_work_queue_test_1();
     ut_work_queue_test_2();
     ut_work_queue_test_3();
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 static int32_t ut_test_do_work_called;

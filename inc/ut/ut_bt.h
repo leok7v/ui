@@ -41,7 +41,7 @@ typedef struct {
     void (*capture)(ut_bt_t *bt, int32_t skip); // number of frames to skip
     void (*context)(ut_thread_t thread, const void* context, ut_bt_t *bt);
     void (*symbolize)(ut_bt_t *bt);
-    // dump backtrace into traceln():
+    // dump backtrace into ut_traceln():
     void (*trace)(const ut_bt_t* bt, const char* stop);
     void (*trace_self)(const char* stop);
     void (*trace_all_but_self)(void); // trace all threads

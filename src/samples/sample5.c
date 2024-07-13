@@ -86,7 +86,7 @@ ui_toggle_on_off(ro, "&Read Only", 7.0f, {
         int32_t ix = focused();
         if (ix >= 0) {
             edit[ix]->ro = ro->state.pressed;
-    //      traceln("edit[%d].readonly: %d", ix, edit[ix]->ro);
+    //      ut_traceln("edit[%d].readonly: %d", ix, edit[ix]->ro);
             focus_back_to_edit();
         }
     }
@@ -96,7 +96,7 @@ ui_toggle_on_off(ww, "Hide &Word Wrap", 7.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
         edit[ix]->hide_word_wrap = ww->state.pressed;
-//      traceln("edit[%d].hide_word_wrap: %d", ix, edit[ix]->hide_word_wrap);
+//      ut_traceln("edit[%d].hide_word_wrap: %d", ix, edit[ix]->hide_word_wrap);
         focus_back_to_edit();
     }
 });
@@ -120,7 +120,7 @@ ui_toggle_on_off(sl, "&Single Line", 7.0f, {
         } else if (0 <= ix && ix < 2) {
             ui_edit_t* e = edit[ix];
             e->sle = sl->state.pressed;
-    //      traceln("edit[%d].multiline: %d", ix, e->multiline);
+    //      ut_traceln("edit[%d].multiline: %d", ix, e->multiline);
             if (e->sle) {
                 ui_edit.select_all(e);
                 ui_edit.paste(e, "Hello World! Single Line Edit", -1);
@@ -168,7 +168,7 @@ static void set_text(int32_t ix) {
         edit[ix]->view.w, edit[ix]->view.h,
         edit[ix]->scroll.pn, edit[ix]->scroll.rn);
     if (0) {
-        traceln("%d:%d %d:%d %dx%d scroll %03d:%03d",
+        ut_traceln("%d:%d %d:%d %dx%d scroll %03d:%03d",
             edit[ix]->selection.a[0].pn, edit[ix]->selection.a[0].gp,
             edit[ix]->selection.a[1].pn, edit[ix]->selection.a[1].gp,
             edit[ix]->view.w, edit[ix]->view.h,
@@ -219,7 +219,7 @@ static void open_file(const char* pathname) {
 }
 
 static void every_100ms(void) {
-//  traceln("");
+//  ut_traceln("");
     static ui_view_t* last;
     if (last != ui_app.focus) { ui_app.request_redraw(); }
 //  last = ui_app.focus;
@@ -256,7 +256,7 @@ static bool key_pressed(ui_view_t* unused(view), int64_t key) {
 static void edit_enter(ui_edit_t* e) {
     assert(e->sle);
     if (!ui_app.shift) { // ignore shift ENTER:
-        traceln("text: %.*s", e->doc->text.ps[0].b, e->doc->text.ps[0].u);
+        ut_traceln("text: %.*s", e->doc->text.ps[0].b, e->doc->text.ps[0].u);
     }
 }
 

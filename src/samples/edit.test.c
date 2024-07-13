@@ -214,7 +214,7 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
         paragraphs--;
     }
     *s = 0;
-//  traceln("%s\n", p.text);
+//  ut_traceln("%s\n", p.text);
 }
 
 void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {

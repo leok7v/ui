@@ -262,7 +262,7 @@ static void ut_args_WinMain(void) {
 
 static void ut_args_test_verify(const char* cl, int32_t expected, ...) {
     if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
-        traceln("cl: `%s`", cl);
+        ut_traceln("cl: `%s`", cl);
     }
     int32_t argc = ut_args.c;
     const char** argv = ut_args.v;
@@ -276,7 +276,7 @@ static void ut_args_test_verify(const char* cl, int32_t expected, ...) {
     for (int32_t i = 0; i < expected; i++) {
         const char* s = va_arg(va, const char*);
 //      if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
-//          traceln("ut_args.v[%d]: `%s` expected: `%s`", i, ut_args.v[i], s);
+//          ut_traceln("ut_args.v[%d]: `%s` expected: `%s`", i, ut_args.v[i], s);
 //      }
         // Warning 6385: reading data outside of array
         const char* ai = _Pragma("warning(suppress:  6385)")ut_args.v[i];
@@ -319,7 +319,7 @@ static void ut_args_test(void) {
     ut_args_test_verify("foo.exe \\",     2, "foo.exe", "\\");
     ut_args_test_verify("foo.exe \\\\",   2, "foo.exe", "\\\\");
     ut_args_test_verify("foo.exe \\\\\\", 2, "foo.exe", "\\\\\\");
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
 }
 
 #else
