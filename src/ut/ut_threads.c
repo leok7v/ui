@@ -381,7 +381,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     if (r == 0) {
         ut_win32_close_handle(t);
     } else {
-        traceln("failed to join thread %p %s", t, strerr(r));
+        traceln("failed to join thread %p %s", t, ut_strerr(r));
     }
     return r;
 }

@@ -53,7 +53,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     }
     if (s->format != null) {
         s->format(&s->view);
-        strprintf(formatted, "%s", text);
+        ut_str_printf(formatted, "%s", text);
         mt = measure_text(s->fm, "%s", formatted);
         // TODO: format string 0x08X?
     } else if (text != null && (strstr(text, "%d") != null ||

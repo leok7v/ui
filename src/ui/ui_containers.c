@@ -470,7 +470,7 @@ static void ui_stack_measure(ui_view_t* p) {
             text[0] = 0;
             for (int32_t c = 0; c < ut_count_of(sides[r]); c++) {
                 char line[128];
-                strprintf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
+                ut_str_printf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
                 strcat(text, line);
             }
             debugln("%*c sides[%d] %s", ui_layout_nesting, 0x20, r, text);

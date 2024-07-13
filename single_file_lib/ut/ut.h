@@ -179,10 +179,7 @@ typedef struct str32K_t {
 
 #define ut_str_printf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
 
-// shorthand:
-
-#define strprintf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
-#define strerr(r) (ut_str.error((r)).s) // use only as ut_str_printf() parameter
+#define ut_strerr(r) (ut_str.error((r)).s) // use only as ut_str_printf() parameter
 
 // The strings are expected to be UTF-8 encoded.
 // Copy functions fatal fail if the destination buffer is too small.
@@ -194,8 +191,8 @@ typedef struct {
     int32_t (*len16)(const uint16_t* utf16);
     int32_t (*utf8bytes)(const char* utf8, int32_t bytes); // 0 on error
     int32_t (*glyphs)(const char* utf8, int32_t bytes); // -1 on error
-    bool (*starts)(const char* s1, const char* s2); // s1 starts with s2
-    bool (*ends)(const char* s1, const char* s2);   // s1 ends with s2
+    bool (*starts)(const char* s1, const char* s2);  // s1 starts with s2
+    bool (*ends)(const char* s1, const char* s2);    // s1 ends with s2
     bool (*istarts)(const char* s1, const char* s2); // ignore case
     bool (*iends)(const char* s1, const char* s2);   // ignore case
     // string truncation is fatal use strlen() to check at call site
@@ -219,8 +216,8 @@ typedef struct {
     // like functions, not stored or passed for prolonged call chains.
     // See implementation for details.
     str64_t (*int64_dg)(int64_t v, bool uint, const char* gs);
-    str64_t (*int64)(int64_t v);   // with UTF-8 thin space
-    str64_t (*uint64)(uint64_t v); // with UTF-8 thin space
+    str64_t (*int64)(int64_t v);      // with UTF-8 thin space
+    str64_t (*uint64)(uint64_t v);    // with UTF-8 thin space
     str64_t (*int64_lc)(int64_t v);   // with locale separator
     str64_t (*uint64_lc)(uint64_t v); // with locale separator
     str128_t (*fp)(const char* format, fp64_t v); // respects locale
@@ -241,7 +238,6 @@ typedef struct {
 // thin_space "\xE2\x80\x89" Unicode: U+2009
 
 extern ut_str_if ut_str;
-
 
 // ___________________________________ ut.h ___________________________________
 
@@ -2711,7 +2707,7 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
     DWORD64 displacement = 0;
     if (SymFromInlineContext(ut_bt_process, pc, inline_context,
                             &displacement, &si->info)) {
-        strprintf(bt->symbol[i], "%s", si->info.Name);
+        ut_str_printf(bt->symbol[i], "%s", si->info.Name);
     } else {
         bt->error = ut_runtime.err();
     }
@@ -2720,7 +2716,7 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
     if (SymGetLineFromInlineContext(ut_bt_process,
                                     pc, inline_context, 0,
                                     &offset, &li)) {
-        strprintf(bt->file[i], "%s", li.FileName);
+        ut_str_printf(bt->file[i], "%s", li.FileName);
         bt->line[i] = li.LineNumber;
     }
 }
@@ -2757,12 +2753,12 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
         }
     } else {
         if (SymFromAddr(ut_bt_process, pc, &offsetFromSymbol, &si.info)) {
-            strprintf(bt->symbol[i], "%s", si.info.Name);
+            ut_str_printf(bt->symbol[i], "%s", si.info.Name);
             DWORD d = 0; // displacement
             IMAGEHLP_LINE64 ln = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
             if (SymGetLineFromAddr64(ut_bt_process, pc, &d, &ln)) {
                 bt->line[i] = ln.LineNumber;
-                strprintf(bt->file[i], "%s", ln.FileName);
+                ut_str_printf(bt->file[i], "%s", ln.FileName);
             } else {
                 bt->error = ut_runtime.err();
                 if (ut_bt_function(pc, &si.info)) {
@@ -2779,7 +2775,7 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
         } else {
             bt->error = ut_runtime.err();
             if (ut_bt_function(pc, &si.info)) {
-                strprintf(bt->symbol[i], "%s", si.info.Name);
+                ut_str_printf(bt->symbol[i], "%s", si.info.Name);
                 GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                     ut_count_of(bt->file[i]) - 1);
                 bt->file[i][ut_count_of(bt->file[i]) - 1] = 0;
@@ -2855,9 +2851,9 @@ static const char* ut_bt_string(const ut_bt_t* bt,
         const char* file = bt->file[i];
         const char* name = bt->symbol[i];
         if (file[0] != 0 && name[0] != 0) {
-            strprintf(s, "%s(%d): %s\n", file, line, name);
+            ut_str_printf(s, "%s(%d): %s\n", file, line, name);
         } else if (file[0] == 0 && name[0] != 0) {
-            strprintf(s, "%s\n", name);
+            ut_str_printf(s, "%s\n", name);
         }
         s[ut_count_of(s) - 1] = 0;
         int32_t k = (int32_t)strlen(s);
@@ -3082,16 +3078,16 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
         assert(utf16[chars - 1] == 0);
         const int32_t n = (int32_t)ut_str.len16(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : ut_runtime.err();
-        if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
+        if (r != 0) { traceln("OpenClipboard() failed %s", ut_strerr(r)); }
         if (r == 0) {
             r = EmptyClipboard() ? 0 : ut_runtime.err();
-            if (r != 0) { traceln("EmptyClipboard() failed %s", strerr(r)); }
+            if (r != 0) { traceln("EmptyClipboard() failed %s", ut_strerr(r)); }
         }
         void* global = null;
         if (r == 0) {
             global = GlobalAlloc(GMEM_MOVEABLE, (size_t)n * 2);
             r = global != null ? 0 : ut_runtime.err();
-            if (r != 0) { traceln("GlobalAlloc() failed %s", strerr(r)); }
+            if (r != 0) { traceln("GlobalAlloc() failed %s", ut_strerr(r)); }
         }
         if (r == 0) {
             char* d = (char*)GlobalLock(global);
@@ -3100,7 +3096,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
             r = ut_b2e(SetClipboardData(CF_UNICODETEXT, global));
             GlobalUnlock(global);
             if (r != 0) {
-                traceln("SetClipboardData() failed %s", strerr(r));
+                traceln("SetClipboardData() failed %s", ut_strerr(r));
                 GlobalFree(global);
             } else {
                 // do not free global memory. It's owned by system clipboard now
@@ -3109,7 +3105,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
         if (r == 0) {
             r = ut_b2e(CloseClipboard());
             if (r != 0) {
-                traceln("CloseClipboard() failed %s", strerr(r));
+                traceln("CloseClipboard() failed %s", ut_strerr(r));
             }
         }
         ut_heap.free(utf16);
@@ -3120,7 +3116,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
 static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
     ut_not_null(bytes);
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
-    if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
+    if (r != 0) { traceln("OpenClipboard() failed %s", ut_strerr(r)); }
     if (r == 0) {
         HANDLE global = GetClipboardData(CF_UNICODETEXT);
         if (global == null) {
@@ -3420,7 +3416,7 @@ static int32_t ut_config_size(const char* name, const char* key) {
             bytes = 0; // do not report data_size() often used this way
         } else if (r != 0) {
             traceln("%s.RegQueryValueExA(\"%s\") failed %s",
-                name, key, strerr(r));
+                name, key, ut_strerr(r));
             bytes = 0; // on any error behave as empty data
         } else {
             bytes = (int32_t)cb;
@@ -3444,7 +3440,7 @@ static int32_t ut_config_load(const char* name,
         } else if (r != 0) {
             if (r != ERROR_FILE_NOT_FOUND) {
                 traceln("%s.RegQueryValueExA(\"%s\") failed %s",
-                    name, key, strerr(r));
+                    name, key, ut_strerr(r));
             }
             read = 0; // on any error behave as empty data
         } else {
@@ -3605,7 +3601,7 @@ static void ut_debug_perror(const char* file, int32_t line,
             ut_debug.println_va(file, line, func, format, va);
             va_end(va);
         }
-        ut_debug.println(file, line, func, "error: %s", strerr(error));
+        ut_debug.println(file, line, func, "error: %s", ut_strerr(error));
     }
 }
 
@@ -3923,7 +3919,7 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
             if (r == 0) {
                 assert(ut_files.exists(fn) && !ut_files.is_folder(fn));
             } else {
-                traceln("GetTempFileNameA() failed %s", strerr(r));
+                traceln("GetTempFileNameA() failed %s", ut_strerr(r));
             }
         } else {
             r = ERROR_BUFFER_OVERFLOW;
@@ -4011,7 +4007,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
                 group, account,
                 ace->Header.AceType, ace->Mask, ace->Header.AceFlags);
     } else {
-        traceln("LookupAccountSidA() failed %s", strerr(r));
+        traceln("LookupAccountSidA() failed %s", ut_strerr(r));
     }
     return r;
 }
@@ -4103,7 +4099,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
     // Change the security attributes
     errno_t r = ut_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
-        traceln("chmod777(%s) failed %s", pathname, strerr(r));
+        traceln("chmod777(%s) failed %s", pathname, ut_strerr(r));
     }
     if (everyone != null) { FreeSid(everyone); }
     if (acl != null) { LocalFree(acl); }
@@ -4205,7 +4201,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
                     ut_files_append_name(pn, pnc, fn, name);
                     r = ut_files.unlink(pn);
                     if (r != 0) {
-                        traceln("remove(%s) failed %s", pn, strerr(r));
+                        traceln("remove(%s) failed %s", pn, ut_strerr(r));
                     }
                 }
             }
@@ -4305,7 +4301,7 @@ static const char* ut_files_tmp(void) {
         // the terminating null character. If the function fails, the
         // return value is zero.
         errno_t r = GetTempPathA(ut_count_of(tmp), tmp) == 0 ? ut_runtime.err() : 0;
-        ut_fatal_if(r != 0, "GetTempPathA() failed %s", strerr(r));
+        ut_fatal_if(r != 0, "GetTempPathA() failed %s", ut_strerr(r));
     }
     return tmp;
 }
@@ -4379,7 +4375,7 @@ static void ut_files_closedir(ut_folder_t* folder) {
 
 // TODO: change ut_fatal_if() to swear()
 
-#define ut_files_test_failed " failed %s", strerr(ut_runtime.err())
+#define ut_files_test_failed " failed %s", ut_strerr(ut_runtime.err())
 
 #pragma push_macro("verbose") // --verbosity trace
 
@@ -4423,16 +4419,16 @@ static void folders_test(void) {
     char cwd[256] = { 0 };
     ut_fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
     ut_fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
-                tmp, strerr(ut_runtime.err()));
+                tmp, ut_strerr(ut_runtime.err()));
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
     char tmp_file[ut_files_max_path]; // create_tmp() is thread safe race free:
     errno_t r = ut_files.create_tmp(tmp_file, ut_count_of(tmp_file));
-    ut_fatal_if(r != 0, "ut_files.create_tmp() failed %s", strerr(r));
+    ut_fatal_if(r != 0, "ut_files.create_tmp() failed %s", ut_strerr(r));
     char tmp_dir[ut_files_max_path];
     ut_str_printf(tmp_dir, "%s.dir", tmp_file);
     r = ut_files.mkdirs(tmp_dir);
-    ut_fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, strerr(r));
+    ut_fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, ut_strerr(r));
     verbose("%s", tmp_dir);
     ut_folder_t folder;
     char pn[ut_files_max_path] = { 0 };
@@ -4447,15 +4443,15 @@ static void folders_test(void) {
     const char* content = "content";
     int64_t transferred = 0;
     r = ut_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
-    ut_fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, strerr(r));
+    ut_fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, ut_strerr(r));
     swear(transferred == (int64_t)strlen(content));
     r = ut_files.link(pn, hard);
     ut_fatal_if(r != 0, "ut_files.link(\"%s\", \"%s\") failed %s",
-                      pn, hard, strerr(r));
+                      pn, hard, ut_strerr(r));
     r = ut_files.mkdirs(sub);
-    ut_fatal_if(r != 0, "ut_files.mkdirs(\"%s\") failed %s", sub, strerr(r));
+    ut_fatal_if(r != 0, "ut_files.mkdirs(\"%s\") failed %s", sub, ut_strerr(r));
     r = ut_files.opendir(&folder, tmp_dir);
-    ut_fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, strerr(r));
+    ut_fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, ut_strerr(r));
     for (;;) {
         ut_files_stat_t st = { 0 };
         const char* name = ut_files.readdir(&folder, &st);
@@ -4501,12 +4497,12 @@ static void folders_test(void) {
     ut_files.closedir(&folder);
     r = ut_files.rmdirs(tmp_dir);
     ut_fatal_if(r != 0, "ut_files.rmdirs(\"%s\") failed %s",
-                     tmp_dir, strerr(r));
+                     tmp_dir, ut_strerr(r));
     r = ut_files.unlink(tmp_file);
     ut_fatal_if(r != 0, "ut_files.unlink(\"%s\") failed %s",
-                     tmp_file, strerr(r));
+                     tmp_file, ut_strerr(r));
     ut_fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
-             cwd, strerr(ut_runtime.err()));
+             cwd, ut_strerr(ut_runtime.err()));
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
 }
 
@@ -4547,11 +4543,11 @@ static void ut_files_test(void) {
                 ut_fatal_if(ut_files.seek(f, &position, ut_files.seek_set) != 0 ||
                          position != i,
                         "ut_files.seek(position: %lld) failed %s",
-                         position, strerr(ut_runtime.err()));
+                         position, ut_strerr(ut_runtime.err()));
                 ut_fatal_if(ut_files.read(f, test, j, &transferred) != 0 ||
                          transferred != j,
                         "ut_files.read() transferred: %lld failed %s",
-                        transferred, strerr(ut_runtime.err()));
+                        transferred, ut_strerr(ut_runtime.err()));
                 for (int32_t k = 0; k < j; k++) {
                     swear(test[k] == data[i + k],
                          "Data mismatch at position: %d, length %d"
@@ -4613,16 +4609,16 @@ static void ut_files_test(void) {
         ut_fatal_if(!ut_files.exists(tf), "file \"%s\" does not exist", tf);
         ut_fatal_if(ut_files.is_folder(tf), "%s is a folder", tf);
         ut_fatal_if(ut_files.chmod777(tf) != 0, "ut_files.chmod777(\"%s\") failed %s",
-                 tf, strerr(ut_runtime.err()));
+                 tf, ut_strerr(ut_runtime.err()));
         char folder[256] = { 0 };
         ut_str_printf(folder, "%s.folder\\subfolder", tf);
         ut_fatal_if(ut_files.mkdirs(folder) != 0, "ut_files.mkdirs(\"%s\") failed %s",
-            folder, strerr(ut_runtime.err()));
+            folder, ut_strerr(ut_runtime.err()));
         ut_fatal_if(!ut_files.is_folder(folder), "\"%s\" is not a folder", folder);
         ut_fatal_if(ut_files.chmod777(folder) != 0, "ut_files.chmod777(\"%s\") failed %s",
-                 folder, strerr(ut_runtime.err()));
+                 folder, ut_strerr(ut_runtime.err()));
         ut_fatal_if(ut_files.rmdirs(folder) != 0, "ut_files.rmdirs(\"%s\") failed %s",
-                 folder, strerr(ut_runtime.err()));
+                 folder, ut_strerr(ut_runtime.err()));
         ut_fatal_if(ut_files.exists(folder), "folder \"%s\" still exists", folder);
     }
     {   // getcwd, chdir
@@ -4630,17 +4626,17 @@ static void ut_files_test(void) {
         char cwd[256] = { 0 };
         ut_fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
         ut_fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
-                 tmp, strerr(ut_runtime.err()));
+                 tmp, ut_strerr(ut_runtime.err()));
         // symlink
         if (ut_processes.is_elevated()) {
             char sym_link[ut_files_max_path];
             ut_str_printf(sym_link, "%s.sym_link", tf);
             ut_fatal_if(ut_files.symlink(tf, sym_link) != 0,
                 "ut_files.symlink(\"%s\", \"%s\") failed %s",
-                tf, sym_link, strerr(ut_runtime.err()));
+                tf, sym_link, ut_strerr(ut_runtime.err()));
             ut_fatal_if(!ut_files.is_symlink(sym_link), "\"%s\" is not a sym_link", sym_link);
             ut_fatal_if(ut_files.unlink(sym_link) != 0, "ut_files.unlink(\"%s\") failed %s",
-                    sym_link, strerr(ut_runtime.err()));
+                    sym_link, ut_strerr(ut_runtime.err()));
         } else {
             traceln("Skipping ut_files.symlink test: process is not elevated");
         }
@@ -4649,26 +4645,26 @@ static void ut_files_test(void) {
         ut_str_printf(hard_link, "%s.hard_link", tf);
         ut_fatal_if(ut_files.link(tf, hard_link) != 0,
             "ut_files.link(\"%s\", \"%s\") failed %s",
-            tf, hard_link, strerr(ut_runtime.err()));
+            tf, hard_link, ut_strerr(ut_runtime.err()));
         ut_fatal_if(!ut_files.exists(hard_link), "\"%s\" does not exist", hard_link);
         ut_fatal_if(ut_files.unlink(hard_link) != 0, "ut_files.unlink(\"%s\") failed %s",
-                 hard_link, strerr(ut_runtime.err()));
+                 hard_link, ut_strerr(ut_runtime.err()));
         ut_fatal_if(ut_files.exists(hard_link), "\"%s\" still exists", hard_link);
         // copy, move:
         ut_fatal_if(ut_files.copy(tf, "copied_file") != 0,
             "ut_files.copy(\"%s\", 'copied_file') failed %s",
-            tf, strerr(ut_runtime.err()));
+            tf, ut_strerr(ut_runtime.err()));
         ut_fatal_if(!ut_files.exists("copied_file"), "'copied_file' does not exist");
         ut_fatal_if(ut_files.move("copied_file", "moved_file") != 0,
             "ut_files.move('copied_file', 'moved_file') failed %s",
-            strerr(ut_runtime.err()));
+            ut_strerr(ut_runtime.err()));
         ut_fatal_if(ut_files.exists("copied_file"), "'copied_file' still exists");
         ut_fatal_if(!ut_files.exists("moved_file"), "'moved_file' does not exist");
         ut_fatal_if(ut_files.unlink("moved_file") != 0,
                 "ut_files.unlink('moved_file') failed %s",
-                 strerr(ut_runtime.err()));
+                 ut_strerr(ut_runtime.err()));
         ut_fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
-                    cwd, strerr(ut_runtime.err()));
+                    cwd, ut_strerr(ut_runtime.err()));
     }
     ut_fatal_if(ut_files.unlink(tf) != 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { traceln("done"); }
@@ -5214,7 +5210,7 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
         if (a == null) {
             r = ut_runtime.err();
             if (r != 0) {
-                traceln("VirtualAlloc(%lld) failed %s", bytes, strerr(r));
+                traceln("VirtualAlloc(%lld) failed %s", bytes, ut_strerr(r));
             }
         } else {
             r = VirtualLock(a, bytes) ? 0 : ut_runtime.err();
@@ -5224,7 +5220,7 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                 SIZE_T min_mem = 0, max_mem = 0;
                 r = ut_b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
                 if (r != 0) {
-                    traceln("GetProcessWorkingSetSize() failed %s", strerr(r));
+                    traceln("GetProcessWorkingSetSize() failed %s", ut_strerr(r));
                 } else {
                     max_mem =  max_mem + bytes * 2LL;
                     max_mem = (max_mem + page_size - 1) / page_size * page_size +
@@ -5234,19 +5230,19 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                             min_mem, max_mem));
                     if (r != 0) {
                         traceln("SetProcessWorkingSetSize(%lld, %lld) failed %s",
-                            (uint64_t)min_mem, (uint64_t)max_mem, strerr(r));
+                            (uint64_t)min_mem, (uint64_t)max_mem, ut_strerr(r));
                     } else {
                         r = ut_b2e(VirtualLock(a, bytes));
                     }
                 }
             }
             if (r != 0) {
-                traceln("VirtualLock(%lld) failed %s", bytes, strerr(r));
+                traceln("VirtualLock(%lld) failed %s", bytes, ut_strerr(r));
             }
         }
     }
     if (r != 0) {
-        traceln("mem_alloc_pages(%lld) failed %s", bytes, strerr(r));
+        traceln("mem_alloc_pages(%lld) failed %s", bytes, ut_strerr(r));
         assert(a == null);
     }
     return a;
@@ -5259,19 +5255,19 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     SIZE_T page_size = (SIZE_T)ut_mem_page_size();
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
         r = EINVAL;
-        traceln("failed %s", strerr(r));
+        traceln("failed %s", ut_strerr(r));
     } else {
         if (a != null) {
             // in case it was successfully locked
             r = ut_b2e(VirtualUnlock(a, bytes));
             if (r != 0) {
-                traceln("VirtualUnlock() failed %s", strerr(r));
+                traceln("VirtualUnlock() failed %s", ut_strerr(r));
             }
             // If the "dwFreeType" parameter is MEM_RELEASE, "dwSize" parameter
             // must be the base address returned by the VirtualAlloc function when
             // the region of pages is reserved.
             r = ut_b2e(VirtualFree(a, 0, MEM_RELEASE));
-            if (r != 0) { traceln("VirtuaFree() failed %s", strerr(r)); }
+            if (r != 0) { traceln("VirtuaFree() failed %s", ut_strerr(r)); }
         }
     }
 }
@@ -5904,7 +5900,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
             errno_t rq = ut_b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
             if (rq != 0) {
                 traceln("QueryFullProcessImageNameA(pid=%d, h=%p) "
-                        "failed %s", pid, h, strerr(rq));
+                        "failed %s", pid, h, ut_strerr(rq));
             }
         }
         ut_win32_close_handle(h);
@@ -5915,7 +5911,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
             if (retry == null) {
                 traceln("TerminateProcess(pid=%d, h=%p, im=%s) "
                         "failed but zombie died after: %s",
-                        pid, h, path, strerr(r));
+                        pid, h, path, ut_strerr(r));
                 r = 0;
             } else {
                 ut_win32_close_handle(retry);
@@ -5923,7 +5919,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
         }
         if (r != 0) {
             traceln("TerminateProcess(pid=%d, h=%p, im=%s) failed %s",
-                pid, h, path, strerr(r));
+                pid, h, path, ut_strerr(r));
         }
     }
     if (r != 0) { errno = r; }
@@ -5958,7 +5954,7 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
                 SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
                 0, 0, 0, 0, 0, 0, &administrators_group));
     if (r != 0) {
-        traceln("AllocateAndInitializeSid() failed %s", strerr(r));
+        traceln("AllocateAndInitializeSid() failed %s", ut_strerr(r));
     }
     PSID system_ops = null;
     SID_IDENTIFIER_AUTHORITY system_ops_authority = SECURITY_NT_AUTHORITY;
@@ -5966,7 +5962,7 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
             SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_SYSTEM_OPS,
             0, 0, 0, 0, 0, 0, &system_ops));
     if (r != 0) {
-        traceln("AllocateAndInitializeSid() failed %s", strerr(r));
+        traceln("AllocateAndInitializeSid() failed %s", ut_strerr(r));
     }
     if (administrators_group != null) {
         r = ut_b2e(CheckTokenMembership(null, administrators_group, &elevated));
@@ -5977,7 +5973,7 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
     if (administrators_group != null) { FreeSid(administrators_group); }
     if (system_ops != null) { FreeSid(system_ops); }
     if (r != 0) {
-        traceln("failed %s", strerr(r));
+        traceln("failed %s", ut_strerr(r));
     }
     return elevated;
 }
@@ -6080,15 +6076,15 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     errno_t ri = ut_b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
     if (ro != 0 || re != 0 || ri != 0) {
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
-        if (ro != 0) { traceln("CreatePipe() failed %s", strerr(ro)); r = ro; }
-        if (re != 0) { traceln("CreatePipe() failed %s", strerr(re)); r = re; }
-        if (ri != 0) { traceln("CreatePipe() failed %s", strerr(ri)); r = ri; }
+        if (ro != 0) { traceln("CreatePipe() failed %s", ut_strerr(ro)); r = ro; }
+        if (re != 0) { traceln("CreatePipe() failed %s", ut_strerr(re)); r = re; }
+        if (ri != 0) { traceln("CreatePipe() failed %s", ut_strerr(ri)); r = ri; }
     }
     if (r == 0) {
         r = ut_b2e(CreateProcessA(null, ut_str.drop_const(child->command),
                 null, null, true, CREATE_NO_WINDOW, null, null, &si, &pi));
         if (r != 0) {
-            traceln("CreateProcess() failed %s", strerr(r));
+            traceln("CreateProcess() failed %s", ut_strerr(r));
             ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         }
     }
@@ -6111,7 +6107,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
             if (child->timeout > 0 && ut_clock.seconds() > deadline) {
                 r = ut_b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
-                    traceln("TerminateProcess() failed %s", strerr(r));
+                    traceln("TerminateProcess() failed %s", ut_strerr(r));
                 } else {
                     done = true;
                 }
@@ -6136,7 +6132,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         if (rx == 0) {
             child->exit_code = xc;
         } else {
-            traceln("GetExitCodeProcess() failed %s", strerr(rx));
+            traceln("GetExitCodeProcess() failed %s", ut_strerr(rx));
             if (r != 0) { r = rx; } // report earliest error
         }
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
@@ -6212,7 +6208,7 @@ static errno_t ut_processes_spawn(const char* command) {
         ut_win32_close_handle(pi.hProcess);
         ut_win32_close_handle(pi.hThread);
     } else {
-        traceln("CreateProcess() failed %s", strerr(r));
+        traceln("CreateProcess() failed %s", ut_strerr(r));
     }
     return r;
 }
@@ -6259,7 +6255,7 @@ static void ut_processes_test(void) {
                 r = ut_processes.nameof(pids[i], path, ut_count_of(path));
                 if (r != ERROR_NOT_FOUND) {
                     assert(r == 0 && path[0] != 0);
-                    verbose("%6d %s %s", pids[i], path, strerr(r));
+                    verbose("%6d %s %s", pids[i], path, ut_strerr(r));
                 }
             }
         }
@@ -6883,7 +6879,7 @@ static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
         char message[ut_countof(text.s)];
         const int32_t bytes = ut_str.utf8_bytes(utf16);
         if (bytes >= ut_count_of(message)) {
-            strprintf(message, "error message is too long: %d bytes", bytes);
+            ut_str_printf(message, "error message is too long: %d bytes", bytes);
         } else {
             ut_str.utf16to8(message, ut_count_of(message), utf16);
         }
@@ -7663,7 +7659,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     if (r == 0) {
         ut_win32_close_handle(t);
     } else {
-        traceln("failed to join thread %p %s", t, strerr(r));
+        traceln("failed to join thread %p %s", t, ut_strerr(r));
     }
     return r;
 }

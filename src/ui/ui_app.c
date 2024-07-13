@@ -416,7 +416,7 @@ static void ui_app_save_console_pos(void) {
         CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
         int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
         if (r != 0) {
-            traceln("GetConsoleScreenBufferInfoEx() %s", strerr(r));
+            traceln("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
         } else {
             ut_config.save(ui_app.class_name, "console_screen_buffer_infoex",
                             &info, (int32_t)sizeof(info));
@@ -2000,7 +2000,7 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
     if (r != 0) {
-        traceln("GetConsoleScreenBufferInfoEx() %s", strerr(r));
+        traceln("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     } else {
         // tricky because correct order of the calls
         // SetConsoleWindowInfo() SetConsoleScreenBufferSize() depends on
@@ -2017,9 +2017,9 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
 //      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
             r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
-            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r0)); }
+            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", ut_strerr(r0)); }
             r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
-            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", strerr(r1)); }
+            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", ut_strerr(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
     }
@@ -2044,7 +2044,7 @@ static void ui_app_console_largest(void) {
     */
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", strerr(r));
+    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     COORD c = GetLargestConsoleWindowSize(console);
     if (c.X > 80) { c.X &= ~0x7; }
     if (c.Y > 24) { c.Y &= ~0x3; }
@@ -2052,10 +2052,10 @@ static void ui_app_console_largest(void) {
     if (c.Y > 24) { c.Y -= 4; }
     ui_app_set_console_size(c.X, c.Y);
     r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", strerr(r));
+    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     info.dwSize.Y = 9999; // maximum value at the moment of implementation
     r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", strerr(r));
+    ut_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     ui_app_save_console_pos();
 }
 
@@ -2292,21 +2292,21 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     ut_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
         im->w, im->h, SRCCOPY));
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
-    if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
+    if (r != 0) { traceln("OpenClipboard() failed %s", ut_strerr(r)); }
     if (r == 0) {
         r = ut_b2e(EmptyClipboard());
-        if (r != 0) { traceln("EmptyClipboard() failed %s", strerr(r)); }
+        if (r != 0) { traceln("EmptyClipboard() failed %s", ut_strerr(r)); }
     }
     if (r == 0) {
         r = ut_b2e(SetClipboardData(CF_BITMAP, bitmap));
         if (r != 0) {
-            traceln("SetClipboardData() failed %s", strerr(r));
+            traceln("SetClipboardData() failed %s", ut_strerr(r));
         }
     }
     if (r == 0) {
         r = ut_b2e(CloseClipboard());
         if (r != 0) {
-            traceln("CloseClipboard() failed %s", strerr(r));
+            traceln("CloseClipboard() failed %s", ut_strerr(r));
         }
     }
     ut_not_null(SelectBitmap(dst, d));
@@ -2515,7 +2515,7 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     if (home != null) {
         const char* name = ui_app.class_name  != null ?
                            ui_app.class_name : "ui_app";
-        strprintf(fn, "%s\\%s_crash_log.txt", home, name);
+        ut_str_printf(fn, "%s\\%s_crash_log.txt", home, name);
         ui_app_crash_log = fopen(fn, "w");
     }
     ut_debug.println(null, 0, null,
@@ -2532,7 +2532,7 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     if (ui_app_crash_log != null) {
         fclose(ui_app_crash_log);
         char cmd[1024];
-        strprintf(cmd, "cmd.exe /c start notepad \"%s\"", fn);
+        ut_str_printf(cmd, "cmd.exe /c start notepad \"%s\"", fn);
         system(cmd);
     }
     return EXCEPTION_CONTINUE_SEARCH;

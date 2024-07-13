@@ -2605,7 +2605,7 @@ static void ui_app_save_console_pos(void) {
         CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
         int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
         if (r != 0) {
-            traceln("GetConsoleScreenBufferInfoEx() %s", strerr(r));
+            traceln("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
         } else {
             ut_config.save(ui_app.class_name, "console_screen_buffer_infoex",
                             &info, (int32_t)sizeof(info));
@@ -4189,7 +4189,7 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
     if (r != 0) {
-        traceln("GetConsoleScreenBufferInfoEx() %s", strerr(r));
+        traceln("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     } else {
         // tricky because correct order of the calls
         // SetConsoleWindowInfo() SetConsoleScreenBufferSize() depends on
@@ -4206,9 +4206,9 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
 //      if (r1 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
             r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
-            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", strerr(r0)); }
+            if (r0 != 0) { traceln("SetConsoleScreenBufferSize() %s", ut_strerr(r0)); }
             r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
-            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", strerr(r1)); }
+            if (r1 != 0) { traceln("SetConsoleWindowInfo() %s", ut_strerr(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
     }
@@ -4233,7 +4233,7 @@ static void ui_app_console_largest(void) {
     */
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", strerr(r));
+    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     COORD c = GetLargestConsoleWindowSize(console);
     if (c.X > 80) { c.X &= ~0x7; }
     if (c.Y > 24) { c.Y &= ~0x3; }
@@ -4241,10 +4241,10 @@ static void ui_app_console_largest(void) {
     if (c.Y > 24) { c.Y -= 4; }
     ui_app_set_console_size(c.X, c.Y);
     r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", strerr(r));
+    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     info.dwSize.Y = 9999; // maximum value at the moment of implementation
     r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", strerr(r));
+    ut_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     ui_app_save_console_pos();
 }
 
@@ -4481,21 +4481,21 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     ut_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
         im->w, im->h, SRCCOPY));
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
-    if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
+    if (r != 0) { traceln("OpenClipboard() failed %s", ut_strerr(r)); }
     if (r == 0) {
         r = ut_b2e(EmptyClipboard());
-        if (r != 0) { traceln("EmptyClipboard() failed %s", strerr(r)); }
+        if (r != 0) { traceln("EmptyClipboard() failed %s", ut_strerr(r)); }
     }
     if (r == 0) {
         r = ut_b2e(SetClipboardData(CF_BITMAP, bitmap));
         if (r != 0) {
-            traceln("SetClipboardData() failed %s", strerr(r));
+            traceln("SetClipboardData() failed %s", ut_strerr(r));
         }
     }
     if (r == 0) {
         r = ut_b2e(CloseClipboard());
         if (r != 0) {
-            traceln("CloseClipboard() failed %s", strerr(r));
+            traceln("CloseClipboard() failed %s", ut_strerr(r));
         }
     }
     ut_not_null(SelectBitmap(dst, d));
@@ -4704,7 +4704,7 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     if (home != null) {
         const char* name = ui_app.class_name  != null ?
                            ui_app.class_name : "ui_app";
-        strprintf(fn, "%s\\%s_crash_log.txt", home, name);
+        ut_str_printf(fn, "%s\\%s_crash_log.txt", home, name);
         ui_app_crash_log = fopen(fn, "w");
     }
     ut_debug.println(null, 0, null,
@@ -4721,7 +4721,7 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     if (ui_app_crash_log != null) {
         fclose(ui_app_crash_log);
         char cmd[1024];
-        strprintf(cmd, "cmd.exe /c start notepad \"%s\"", fn);
+        ut_str_printf(cmd, "cmd.exe /c start notepad \"%s\"", fn);
         system(cmd);
     }
     return EXCEPTION_CONTINUE_SEARCH;
@@ -5369,12 +5369,12 @@ static void ui_caption_init(ui_view_t* v) {
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
-    strprintf(ui_caption.menu.hint, "%s", ut_nls.str("Menu"));
-    strprintf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
-    strprintf(ui_caption.mini.hint, "%s", ut_nls.str("Minimize"));
-    strprintf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
-    strprintf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
-    strprintf(ui_caption.quit.hint, "%s", ut_nls.str("Close"));
+    ut_str_printf(ui_caption.menu.hint, "%s", ut_nls.str("Menu"));
+    ut_str_printf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
+    ut_str_printf(ui_caption.mini.hint, "%s", ut_nls.str("Minimize"));
+    ut_str_printf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
+    ut_str_printf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
+    ut_str_printf(ui_caption.quit.hint, "%s", ut_nls.str("Close"));
     ui_caption.icon.icon     = ui_app.icon;
     ui_caption.icon.padding  = p0;
     ui_caption.icon.paint    = ui_caption_button_icon_paint;
@@ -6278,7 +6278,7 @@ static void ui_stack_measure(ui_view_t* p) {
             text[0] = 0;
             for (int32_t c = 0; c < ut_count_of(sides[r]); c++) {
                 char line[128];
-                strprintf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
+                ut_str_printf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
                 strcat(text, line);
             }
             debugln("%*c sides[%d] %s", ui_layout_nesting, 0x20, r, text);
@@ -12065,7 +12065,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     }
     if (s->format != null) {
         s->format(&s->view);
-        strprintf(formatted, "%s", text);
+        ut_str_printf(formatted, "%s", text);
         mt = measure_text(s->fm, "%s", formatted);
         // TODO: format string 0x08X?
     } else if (text != null && (strstr(text, "%d") != null ||
@@ -12406,7 +12406,7 @@ static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
     DWORD bytes = sizeof(light_theme);
     errno_t r = RegGetValueA(root, path, key, RRF_RT_DWORD, &type, v, &bytes);
     if (r != 0) {
-        traceln("RegGetValueA(%s\\%s) failed %s", path, key, strerr(r));
+        traceln("RegGetValueA(%s\\%s) failed %s", path, key, ut_strerr(r));
     }
     return r;
 }
@@ -12463,7 +12463,7 @@ static void ui_theme_set_preferred_app_mode(int32_t mode) {
     // SetPreferredAppMode(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
     // "The specified program requires a newer version of Windows."
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        traceln("SetPreferredAppMode(AllowDark) failed %s", strerr(r));
+        traceln("SetPreferredAppMode(AllowDark) failed %s", ut_strerr(r));
     }
 }
 
@@ -12477,7 +12477,7 @@ static void ui_theme_flush_menu_themes(void) {
     // FlushMenuThemes() works but returns ERROR_OLD_WIN_VERSION
     // on newest Windows 11 but it is not documented thus no complains.
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        traceln("FlushMenuThemes(AllowDark) failed %s", strerr(r));
+        traceln("FlushMenuThemes(AllowDark) failed %s", ut_strerr(r));
     }
 }
 
@@ -12489,7 +12489,7 @@ static void ui_theme_allow_dark_mode_for_app(bool allow) {
     if (AllowDarkModeForApp != null) {
         errno_t r = ut_b2e(AllowDarkModeForApp(allow));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            traceln("AllowDarkModeForApp(true) failed %s", strerr(r));
+            traceln("AllowDarkModeForApp(true) failed %s", ut_strerr(r));
         }
     }
 }
@@ -12504,7 +12504,7 @@ static void ui_theme_allow_dark_mode_for_window(bool allow) {
         // AllowDarkModeForWindow(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
         // "The specified program requires a newer version of Windows."
         if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-            traceln("AllowDarkModeForWindow(true) failed %s", strerr(r));
+            traceln("AllowDarkModeForWindow(true) failed %s", ut_strerr(r));
         }
     }
 }
@@ -12534,7 +12534,7 @@ static void ui_theme_refresh(void) {
         DWMWA_USE_IMMERSIVE_DARK_MODE, &dark_mode, sizeof(dark_mode));
     if (r != 0) {
         traceln("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
-                "failed %s", strerr(r));
+                "failed %s", ut_strerr(r));
     }
     ui_theme.allow_dark_mode_for_app(dark_mode);
     ui_theme.allow_dark_mode_for_window(dark_mode);

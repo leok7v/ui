@@ -189,7 +189,7 @@ static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
         char message[ut_countof(text.s)];
         const int32_t bytes = ut_str.utf8_bytes(utf16);
         if (bytes >= ut_count_of(message)) {
-            strprintf(message, "error message is too long: %d bytes", bytes);
+            ut_str_printf(message, "error message is too long: %d bytes", bytes);
         } else {
             ut_str.utf16to8(message, ut_count_of(message), utf16);
         }

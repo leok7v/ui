@@ -167,7 +167,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
             errno_t rq = ut_b2e(QueryFullProcessImageNameA(h, 0, path, &bytes));
             if (rq != 0) {
                 traceln("QueryFullProcessImageNameA(pid=%d, h=%p) "
-                        "failed %s", pid, h, strerr(rq));
+                        "failed %s", pid, h, ut_strerr(rq));
             }
         }
         ut_win32_close_handle(h);
@@ -178,7 +178,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
             if (retry == null) {
                 traceln("TerminateProcess(pid=%d, h=%p, im=%s) "
                         "failed but zombie died after: %s",
-                        pid, h, path, strerr(r));
+                        pid, h, path, ut_strerr(r));
                 r = 0;
             } else {
                 ut_win32_close_handle(retry);
@@ -186,7 +186,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
         }
         if (r != 0) {
             traceln("TerminateProcess(pid=%d, h=%p, im=%s) failed %s",
-                pid, h, path, strerr(r));
+                pid, h, path, ut_strerr(r));
         }
     }
     if (r != 0) { errno = r; }
@@ -221,7 +221,7 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
                 SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
                 0, 0, 0, 0, 0, 0, &administrators_group));
     if (r != 0) {
-        traceln("AllocateAndInitializeSid() failed %s", strerr(r));
+        traceln("AllocateAndInitializeSid() failed %s", ut_strerr(r));
     }
     PSID system_ops = null;
     SID_IDENTIFIER_AUTHORITY system_ops_authority = SECURITY_NT_AUTHORITY;
@@ -229,7 +229,7 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
             SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_SYSTEM_OPS,
             0, 0, 0, 0, 0, 0, &system_ops));
     if (r != 0) {
-        traceln("AllocateAndInitializeSid() failed %s", strerr(r));
+        traceln("AllocateAndInitializeSid() failed %s", ut_strerr(r));
     }
     if (administrators_group != null) {
         r = ut_b2e(CheckTokenMembership(null, administrators_group, &elevated));
@@ -240,7 +240,7 @@ static bool ut_processes_is_elevated(void) { // Is process running as Admin / Sy
     if (administrators_group != null) { FreeSid(administrators_group); }
     if (system_ops != null) { FreeSid(system_ops); }
     if (r != 0) {
-        traceln("failed %s", strerr(r));
+        traceln("failed %s", ut_strerr(r));
     }
     return elevated;
 }
@@ -343,15 +343,15 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
     errno_t ri = ut_b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
     if (ro != 0 || re != 0 || ri != 0) {
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
-        if (ro != 0) { traceln("CreatePipe() failed %s", strerr(ro)); r = ro; }
-        if (re != 0) { traceln("CreatePipe() failed %s", strerr(re)); r = re; }
-        if (ri != 0) { traceln("CreatePipe() failed %s", strerr(ri)); r = ri; }
+        if (ro != 0) { traceln("CreatePipe() failed %s", ut_strerr(ro)); r = ro; }
+        if (re != 0) { traceln("CreatePipe() failed %s", ut_strerr(re)); r = re; }
+        if (ri != 0) { traceln("CreatePipe() failed %s", ut_strerr(ri)); r = ri; }
     }
     if (r == 0) {
         r = ut_b2e(CreateProcessA(null, ut_str.drop_const(child->command),
                 null, null, true, CREATE_NO_WINDOW, null, null, &si, &pi));
         if (r != 0) {
-            traceln("CreateProcess() failed %s", strerr(r));
+            traceln("CreateProcess() failed %s", ut_strerr(r));
             ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
         }
     }
@@ -374,7 +374,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
             if (child->timeout > 0 && ut_clock.seconds() > deadline) {
                 r = ut_b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
-                    traceln("TerminateProcess() failed %s", strerr(r));
+                    traceln("TerminateProcess() failed %s", ut_strerr(r));
                 } else {
                     done = true;
                 }
@@ -399,7 +399,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         if (rx == 0) {
             child->exit_code = xc;
         } else {
-            traceln("GetExitCodeProcess() failed %s", strerr(rx));
+            traceln("GetExitCodeProcess() failed %s", ut_strerr(rx));
             if (r != 0) { r = rx; } // report earliest error
         }
         ut_processes_close_pipes(&si, &read_out, &read_err, &write_in);
@@ -475,7 +475,7 @@ static errno_t ut_processes_spawn(const char* command) {
         ut_win32_close_handle(pi.hProcess);
         ut_win32_close_handle(pi.hThread);
     } else {
-        traceln("CreateProcess() failed %s", strerr(r));
+        traceln("CreateProcess() failed %s", ut_strerr(r));
     }
     return r;
 }
@@ -522,7 +522,7 @@ static void ut_processes_test(void) {
                 r = ut_processes.nameof(pids[i], path, ut_count_of(path));
                 if (r != ERROR_NOT_FOUND) {
                     assert(r == 0 && path[0] != 0);
-                    verbose("%6d %s %s", pids[i], path, strerr(r));
+                    verbose("%6d %s %s", pids[i], path, ut_strerr(r));
                 }
             }
         }

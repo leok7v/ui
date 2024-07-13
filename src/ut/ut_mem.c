@@ -156,7 +156,7 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
         if (a == null) {
             r = ut_runtime.err();
             if (r != 0) {
-                traceln("VirtualAlloc(%lld) failed %s", bytes, strerr(r));
+                traceln("VirtualAlloc(%lld) failed %s", bytes, ut_strerr(r));
             }
         } else {
             r = VirtualLock(a, bytes) ? 0 : ut_runtime.err();
@@ -166,7 +166,7 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                 SIZE_T min_mem = 0, max_mem = 0;
                 r = ut_b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
                 if (r != 0) {
-                    traceln("GetProcessWorkingSetSize() failed %s", strerr(r));
+                    traceln("GetProcessWorkingSetSize() failed %s", ut_strerr(r));
                 } else {
                     max_mem =  max_mem + bytes * 2LL;
                     max_mem = (max_mem + page_size - 1) / page_size * page_size +
@@ -176,19 +176,19 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                             min_mem, max_mem));
                     if (r != 0) {
                         traceln("SetProcessWorkingSetSize(%lld, %lld) failed %s",
-                            (uint64_t)min_mem, (uint64_t)max_mem, strerr(r));
+                            (uint64_t)min_mem, (uint64_t)max_mem, ut_strerr(r));
                     } else {
                         r = ut_b2e(VirtualLock(a, bytes));
                     }
                 }
             }
             if (r != 0) {
-                traceln("VirtualLock(%lld) failed %s", bytes, strerr(r));
+                traceln("VirtualLock(%lld) failed %s", bytes, ut_strerr(r));
             }
         }
     }
     if (r != 0) {
-        traceln("mem_alloc_pages(%lld) failed %s", bytes, strerr(r));
+        traceln("mem_alloc_pages(%lld) failed %s", bytes, ut_strerr(r));
         assert(a == null);
     }
     return a;
@@ -201,19 +201,19 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     SIZE_T page_size = (SIZE_T)ut_mem_page_size();
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
         r = EINVAL;
-        traceln("failed %s", strerr(r));
+        traceln("failed %s", ut_strerr(r));
     } else {
         if (a != null) {
             // in case it was successfully locked
             r = ut_b2e(VirtualUnlock(a, bytes));
             if (r != 0) {
-                traceln("VirtualUnlock() failed %s", strerr(r));
+                traceln("VirtualUnlock() failed %s", ut_strerr(r));
             }
             // If the "dwFreeType" parameter is MEM_RELEASE, "dwSize" parameter
             // must be the base address returned by the VirtualAlloc function when
             // the region of pages is reserved.
             r = ut_b2e(VirtualFree(a, 0, MEM_RELEASE));
-            if (r != 0) { traceln("VirtuaFree() failed %s", strerr(r)); }
+            if (r != 0) { traceln("VirtuaFree() failed %s", ut_strerr(r)); }
         }
     }
 }

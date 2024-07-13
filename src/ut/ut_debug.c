@@ -114,7 +114,7 @@ static void ut_debug_perror(const char* file, int32_t line,
             ut_debug.println_va(file, line, func, format, va);
             va_end(va);
         }
-        ut_debug.println(file, line, func, "error: %s", strerr(error));
+        ut_debug.println(file, line, func, "error: %s", ut_strerr(error));
     }
 }
 

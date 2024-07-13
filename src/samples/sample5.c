@@ -214,7 +214,7 @@ static void open_file(const char* pathname) {
         ut_mem.unmap(file, bytes);
     } else {
         ui_app.toast(5.3, "\nFailed to open file \"%s\".\n%s\n",
-                  pathname, strerr(ut_runtime.err()));
+                  pathname, ut_strerr(ut_runtime.err()));
     }
 }
 

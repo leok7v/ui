@@ -26,10 +26,7 @@ typedef struct str32K_t {
 
 #define ut_str_printf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
 
-// shorthand:
-
-#define strprintf(s, ...) ut_str.format((s), ut_count_of(s), "" __VA_ARGS__)
-#define strerr(r) (ut_str.error((r)).s) // use only as ut_str_printf() parameter
+#define ut_strerr(r) (ut_str.error((r)).s) // use only as ut_str_printf() parameter
 
 // The strings are expected to be UTF-8 encoded.
 // Copy functions fatal fail if the destination buffer is too small.
@@ -41,8 +38,8 @@ typedef struct {
     int32_t (*len16)(const uint16_t* utf16);
     int32_t (*utf8bytes)(const char* utf8, int32_t bytes); // 0 on error
     int32_t (*glyphs)(const char* utf8, int32_t bytes); // -1 on error
-    bool (*starts)(const char* s1, const char* s2); // s1 starts with s2
-    bool (*ends)(const char* s1, const char* s2);   // s1 ends with s2
+    bool (*starts)(const char* s1, const char* s2);  // s1 starts with s2
+    bool (*ends)(const char* s1, const char* s2);    // s1 ends with s2
     bool (*istarts)(const char* s1, const char* s2); // ignore case
     bool (*iends)(const char* s1, const char* s2);   // ignore case
     // string truncation is fatal use strlen() to check at call site
@@ -66,8 +63,8 @@ typedef struct {
     // like functions, not stored or passed for prolonged call chains.
     // See implementation for details.
     str64_t (*int64_dg)(int64_t v, bool uint, const char* gs);
-    str64_t (*int64)(int64_t v);   // with UTF-8 thin space
-    str64_t (*uint64)(uint64_t v); // with UTF-8 thin space
+    str64_t (*int64)(int64_t v);      // with UTF-8 thin space
+    str64_t (*uint64)(uint64_t v);    // with UTF-8 thin space
     str64_t (*int64_lc)(int64_t v);   // with locale separator
     str64_t (*uint64_lc)(uint64_t v); // with locale separator
     str128_t (*fp)(const char* format, fp64_t v); // respects locale
@@ -90,4 +87,3 @@ typedef struct {
 extern ut_str_if ut_str;
 
 end_c
-

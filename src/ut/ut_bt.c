@@ -109,7 +109,7 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
     DWORD64 displacement = 0;
     if (SymFromInlineContext(ut_bt_process, pc, inline_context,
                             &displacement, &si->info)) {
-        strprintf(bt->symbol[i], "%s", si->info.Name);
+        ut_str_printf(bt->symbol[i], "%s", si->info.Name);
     } else {
         bt->error = ut_runtime.err();
     }
@@ -118,7 +118,7 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
     if (SymGetLineFromInlineContext(ut_bt_process,
                                     pc, inline_context, 0,
                                     &offset, &li)) {
-        strprintf(bt->file[i], "%s", li.FileName);
+        ut_str_printf(bt->file[i], "%s", li.FileName);
         bt->line[i] = li.LineNumber;
     }
 }
@@ -155,12 +155,12 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
         }
     } else {
         if (SymFromAddr(ut_bt_process, pc, &offsetFromSymbol, &si.info)) {
-            strprintf(bt->symbol[i], "%s", si.info.Name);
+            ut_str_printf(bt->symbol[i], "%s", si.info.Name);
             DWORD d = 0; // displacement
             IMAGEHLP_LINE64 ln = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
             if (SymGetLineFromAddr64(ut_bt_process, pc, &d, &ln)) {
                 bt->line[i] = ln.LineNumber;
-                strprintf(bt->file[i], "%s", ln.FileName);
+                ut_str_printf(bt->file[i], "%s", ln.FileName);
             } else {
                 bt->error = ut_runtime.err();
                 if (ut_bt_function(pc, &si.info)) {
@@ -177,7 +177,7 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
         } else {
             bt->error = ut_runtime.err();
             if (ut_bt_function(pc, &si.info)) {
-                strprintf(bt->symbol[i], "%s", si.info.Name);
+                ut_str_printf(bt->symbol[i], "%s", si.info.Name);
                 GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                     ut_count_of(bt->file[i]) - 1);
                 bt->file[i][ut_count_of(bt->file[i]) - 1] = 0;
@@ -253,9 +253,9 @@ static const char* ut_bt_string(const ut_bt_t* bt,
         const char* file = bt->file[i];
         const char* name = bt->symbol[i];
         if (file[0] != 0 && name[0] != 0) {
-            strprintf(s, "%s(%d): %s\n", file, line, name);
+            ut_str_printf(s, "%s(%d): %s\n", file, line, name);
         } else if (file[0] == 0 && name[0] != 0) {
-            strprintf(s, "%s\n", name);
+            ut_str_printf(s, "%s\n", name);
         }
         s[ut_count_of(s) - 1] = 0;
         int32_t k = (int32_t)strlen(s);

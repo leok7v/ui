@@ -215,12 +215,12 @@ static void ui_caption_init(ui_view_t* v) {
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
-    strprintf(ui_caption.menu.hint, "%s", ut_nls.str("Menu"));
-    strprintf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
-    strprintf(ui_caption.mini.hint, "%s", ut_nls.str("Minimize"));
-    strprintf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
-    strprintf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
-    strprintf(ui_caption.quit.hint, "%s", ut_nls.str("Close"));
+    ut_str_printf(ui_caption.menu.hint, "%s", ut_nls.str("Menu"));
+    ut_str_printf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
+    ut_str_printf(ui_caption.mini.hint, "%s", ut_nls.str("Minimize"));
+    ut_str_printf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
+    ut_str_printf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
+    ut_str_printf(ui_caption.quit.hint, "%s", ut_nls.str("Close"));
     ui_caption.icon.icon     = ui_app.icon;
     ui_caption.icon.padding  = p0;
     ui_caption.icon.paint    = ui_caption_button_icon_paint;

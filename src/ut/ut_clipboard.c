@@ -11,16 +11,16 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
         assert(utf16[chars - 1] == 0);
         const int32_t n = (int32_t)ut_str.len16(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : ut_runtime.err();
-        if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
+        if (r != 0) { traceln("OpenClipboard() failed %s", ut_strerr(r)); }
         if (r == 0) {
             r = EmptyClipboard() ? 0 : ut_runtime.err();
-            if (r != 0) { traceln("EmptyClipboard() failed %s", strerr(r)); }
+            if (r != 0) { traceln("EmptyClipboard() failed %s", ut_strerr(r)); }
         }
         void* global = null;
         if (r == 0) {
             global = GlobalAlloc(GMEM_MOVEABLE, (size_t)n * 2);
             r = global != null ? 0 : ut_runtime.err();
-            if (r != 0) { traceln("GlobalAlloc() failed %s", strerr(r)); }
+            if (r != 0) { traceln("GlobalAlloc() failed %s", ut_strerr(r)); }
         }
         if (r == 0) {
             char* d = (char*)GlobalLock(global);
@@ -29,7 +29,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
             r = ut_b2e(SetClipboardData(CF_UNICODETEXT, global));
             GlobalUnlock(global);
             if (r != 0) {
-                traceln("SetClipboardData() failed %s", strerr(r));
+                traceln("SetClipboardData() failed %s", ut_strerr(r));
                 GlobalFree(global);
             } else {
                 // do not free global memory. It's owned by system clipboard now
@@ -38,7 +38,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
         if (r == 0) {
             r = ut_b2e(CloseClipboard());
             if (r != 0) {
-                traceln("CloseClipboard() failed %s", strerr(r));
+                traceln("CloseClipboard() failed %s", ut_strerr(r));
             }
         }
         ut_heap.free(utf16);
@@ -49,7 +49,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
 static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
     ut_not_null(bytes);
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
-    if (r != 0) { traceln("OpenClipboard() failed %s", strerr(r)); }
+    if (r != 0) { traceln("OpenClipboard() failed %s", ut_strerr(r)); }
     if (r == 0) {
         HANDLE global = GetClipboardData(CF_UNICODETEXT);
         if (global == null) {
