@@ -1624,7 +1624,8 @@ static bool ui_edit_reallocate_runs(ui_edit_t* e, int32_t p, int32_t np) {
         ok = ut_heap.realloc_zero((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
         if (ok) {
             const int32_t n = ut_max(0, new_np - p - d - 1);
-            memmove(e->para + p + 1 + d, e->para + p + 1, n * sizeof(e->para[0]));
+            memmove(e->para + p + 1 + d, e->para + p + 1,
+                    (size_t)n * sizeof(e->para[0]));
             const int32_t m = ut_min(new_np, p + 1 + d);
             for (int32_t i = p + 1; i < m; i++) {
                 e->para[i].run = null;

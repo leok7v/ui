@@ -6016,7 +6016,7 @@ static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
                                  &available, null));
     if (r != 0) {
         if (r != ERROR_BROKEN_PIPE) { // unexpected!
-//          ut_traceln("PeekNamedPipe() failed %s", strerr(r));
+//          ut_traceln("PeekNamedPipe() failed %s", ut_strerr(r));
         }
         // process has exited and closed the pipe
         assert(r == ERROR_BROKEN_PIPE);
@@ -6126,7 +6126,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         }
         // broken pipe actually signifies EOF on the pipe
         if (r == ERROR_BROKEN_PIPE) { r = 0; } // not an error
-//      if (r != 0) { ut_traceln("pipe loop failed %s", strerr(r));}
+//      if (r != 0) { ut_traceln("pipe loop failed %s", ut_strerr(r));}
         DWORD xc = 0;
         errno_t rx = ut_b2e(GetExitCodeProcess(pi.hProcess, &xc));
         if (rx == 0) {

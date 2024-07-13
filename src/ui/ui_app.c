@@ -2012,9 +2012,9 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
         SMALL_RECT const min_win = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
         int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
-//      if (r0 != 0) { ut_traceln("SetConsoleWindowInfo() %s", strerr(r0)); }
+//      if (r0 != 0) { ut_traceln("SetConsoleWindowInfo() %s", ut_strerr(r0)); }
         int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
-//      if (r1 != 0) { ut_traceln("SetConsoleScreenBufferSize() %s", strerr(r1)); }
+//      if (r1 != 0) { ut_traceln("SetConsoleScreenBufferSize() %s", ut_strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
             r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
             if (r0 != 0) { ut_traceln("SetConsoleScreenBufferSize() %s", ut_strerr(r0)); }
@@ -2037,10 +2037,10 @@ static void ui_app_console_largest(void) {
     /* DOES NOT WORK:
     DWORD mode = 0;
     r = GetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "GetConsoleMode() %s", strerr(r));
+    ut_fatal_if_error(r, "GetConsoleMode() %s", ut_strerr(r));
     mode &= ~ENABLE_AUTO_POSITION;
     r = SetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "SetConsoleMode() %s", strerr(r));
+    ut_fatal_if_error(r, "SetConsoleMode() %s", ut_strerr(r));
     */
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();

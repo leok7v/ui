@@ -2025,7 +2025,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     ui_rect_t wrc;  // window rectangle including non-client area
     ui_rect_t crc;  // client rectangle
     ui_rect_t mrc;  // monitor rectangle
-    ui_rect_t prc;  // previously invalidated paint rectagle inside crc
+    ui_rect_t prc;  // previously invalidated paint rectangle inside crc
     ui_rect_t work_area; // current monitor work area
     int32_t   caption_height; // caption height
     ui_wh_t   border;    // frame border size
@@ -4201,9 +4201,9 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
         SMALL_RECT const min_win = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
         int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
-//      if (r0 != 0) { ut_traceln("SetConsoleWindowInfo() %s", strerr(r0)); }
+//      if (r0 != 0) { ut_traceln("SetConsoleWindowInfo() %s", ut_strerr(r0)); }
         int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
-//      if (r1 != 0) { ut_traceln("SetConsoleScreenBufferSize() %s", strerr(r1)); }
+//      if (r1 != 0) { ut_traceln("SetConsoleScreenBufferSize() %s", ut_strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
             r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
             if (r0 != 0) { ut_traceln("SetConsoleScreenBufferSize() %s", ut_strerr(r0)); }
@@ -4226,10 +4226,10 @@ static void ui_app_console_largest(void) {
     /* DOES NOT WORK:
     DWORD mode = 0;
     r = GetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "GetConsoleMode() %s", strerr(r));
+    ut_fatal_if_error(r, "GetConsoleMode() %s", ut_strerr(r));
     mode &= ~ENABLE_AUTO_POSITION;
     r = SetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "SetConsoleMode() %s", strerr(r));
+    ut_fatal_if_error(r, "SetConsoleMode() %s", ut_strerr(r));
     */
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
@@ -6214,7 +6214,7 @@ static void ui_list_layout(ui_view_t* p) {
                 if (c->type == ui_view_spacer) {
                     c->x = pbx.x;
                     c->w = pbx.x + pbx.w - pbx.x;
-                    c->h = partial; // TODO: xxxxx last?
+                    c->h = partial; // TODO: last?
                     spacers--;
                 }
                 int32_t ch = padding.top + c->h + padding.bottom;
@@ -7041,7 +7041,7 @@ static void ui_edit_doc_copy(const ui_edit_doc_t* d,
         const int32_t c = (int32_t)(uintptr_t)(to - text);
         if (bytes > 0) {
             swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
-            memmove(to, u, bytes);
+            memmove(to, u, (size_t)bytes);
             to += bytes;
         }
         if (pn < r.to.pn) {
@@ -7064,7 +7064,7 @@ static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
     ui_edit_str_t* ps = null; // ps[np]
     bool ok = ui_edit_doc_realloc_ps_no_init(&ps, 0, np);
     if (ok) {
-        memmove(ps, t->ps, pn * sizeof(ui_edit_str_t));
+        memmove(ps, t->ps, (size_t)pn * sizeof(ui_edit_str_t));
         // `s` first line of `insert`
         ok = ui_edit_str.init(&ps[pn], s->u, s->b, true);
         // lines of `insert` between `s` and `e`
@@ -7079,11 +7079,12 @@ static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
         }
         assert(t->np - pn - 1 >= 0);
         memmove(ps + pn + insert->np, t->ps + pn + 1,
-               (t->np - pn - 1) * sizeof(ui_edit_str_t));
+               (size_t)(t->np - pn - 1) * sizeof(ui_edit_str_t));
         if (ok) {
             // this two regions where moved to `ps`
             memset(t->ps, 0x00, pn * sizeof(ui_edit_str_t));
-            memset(t->ps + pn + 1, 0x00, (t->np - pn - 1) * sizeof(ui_edit_str_t));
+            memset(t->ps + pn + 1, 0x00,
+                   (size_t)(t->np - pn - 1) * sizeof(ui_edit_str_t));
             // deallocate what was copied from `insert`
             ui_edit_doc_realloc_ps_no_init(&t->ps, t->np, 0);
             t->np = np;
@@ -7164,7 +7165,7 @@ static bool ui_edit_text_remove_lines(ui_edit_text_t* t,
     }
     if (t->np - to - 1 > 0) {
         memmove(&t->ps[from + 1], &t->ps[to + 1],
-                (t->np - to - 1) * sizeof(ui_edit_str_t));
+                (size_t)(t->np - to - 1) * sizeof(ui_edit_str_t));
     }
     t->np -= to - from;
     if (ok) {
@@ -7255,7 +7256,7 @@ static void ui_edit_text_copy(const ui_edit_text_t* t,
         const int32_t c = (int32_t)(uintptr_t)(to - text);
         swear(c + bytes < b, "d: %d bytes:%d b: %d", c, bytes, b);
         if (bytes > 0) {
-            memmove(to, u, bytes);
+            memmove(to, u, (size_t)bytes);
             to += bytes;
         }
         if (pn < r.to.pn) {
@@ -7690,7 +7691,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
 static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
     const int64_t _4_bytes = (int64_t)sizeof(int32_t);
     // start with number of glyphs == number of bytes (ASCII text):
-    bool ok = ut_heap.alloc(&s->g2b, (s->b + 1) * _4_bytes) == 0;
+    bool ok = ut_heap.alloc(&s->g2b, (size_t)(s->b + 1) * _4_bytes) == 0;
     int32_t i = 0; // index in u[] string
     int32_t k = 1; // glyph number
     // g2b[k] start postion in uint8_t offset from utf8 text of glyph[k]
@@ -7733,7 +7734,7 @@ static bool ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b,
     } else {
         if (heap) {
             ok = ut_heap.alloc((void**)&s->u, b) == 0;
-            if (ok) { s->c = b; memmove(s->u, u, b); }
+            if (ok) { s->c = b; memmove(s->u, u, (size_t)b); }
         } else {
             s->u = (char*)u;
         }
@@ -7774,7 +7775,7 @@ static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
         }
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
         ok = ut_heap.alloc(&s->g2b, bytes) == 0;
-        if (ok) { memmove(s->g2b, ui_edit_str_g2b_ascii, bytes); }
+        if (ok) { memmove(s->g2b, ui_edit_str_g2b_ascii, (size_t)bytes); }
     }
     return ok;
 }
@@ -7785,7 +7786,7 @@ static bool ui_edit_str_move_to_heap(ui_edit_str_t* s, int32_t c) {
     if (s->c == 0) { // s->u points outside of the heap
         const char* o = s->u;
         ok = ut_heap.alloc((void**)&s->u, c) == 0;
-        if (ok) { memmove(s->u, o, s->b); }
+        if (ok) { memmove(s->u, o, (size_t)s->b); }
     } else if (s->c < c) {
         ok = ut_heap.realloc((void**)&s->u, c) == 0;
     }
@@ -7845,9 +7846,10 @@ static bool ui_edit_str_remove(ui_edit_str_t* s, int32_t f, int32_t t) {
         if (ok) {
             const int32_t bytes_to_shift = s->b - s->g2b[t];
             assert(0 <= bytes_to_shift && bytes_to_shift <= s->b);
-            memmove(s->u + s->g2b[f], s->u + s->g2b[t], bytes_to_shift);
+            memmove(s->u + s->g2b[f], s->u + s->g2b[t], (size_t)bytes_to_shift);
             if (s->g2b != ui_edit_str_g2b_ascii) {
-                memmove(s->g2b + f, s->g2b + t, (s->g - t + 1) * sizeof(int32_t));
+                memmove(s->g2b + f, s->g2b + t,
+                        (size_t)(s->g - t + 1) * sizeof(int32_t));
                 for (int32_t i = f; i <= s->g; i++) {
                     s->g2b[i] -= bytes_to_remove;
                 }
@@ -7901,16 +7903,16 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                 if (bytes_to_insert <= bytes_to_remove) {
                     memmove(s->u + s->g2b[f] + bytes_to_insert,
                            s->u + s->g2b[f] + bytes_to_remove,
-                           s->b - s->g2b[f] - bytes_to_remove);
+                           (size_t)(s->b - s->g2b[f] - bytes_to_remove));
                     if (all_ascii) {
                         assert(s->g2b == ui_edit_str_g2b_ascii);
                     } else {
                         assert(s->g2b != ui_edit_str_g2b_ascii);
                         memmove(s->g2b + f + glyphs_to_insert,
                                s->g2b + f + glyphs_to_remove,
-                               (s->g - t + 1) * _4_bytes);
+                               (size_t)(s->g - t + 1) * _4_bytes);
                     }
-                    memmove(s->u + s->g2b[f], ins.u, ins.b);
+                    memmove(s->u + s->g2b[f], ins.u, (size_t)ins.b);
                 } else {
                     if (all_ascii) {
                         assert(s->g2b == ui_edit_str_g2b_ascii);
@@ -7919,22 +7921,23 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                         const int32_t g = s->g + glyphs_to_insert -
                                                  glyphs_to_remove;
                         assert(g > s->g);
-                        ok = ut_heap.realloc(&s->g2b, (g + 1) * _4_bytes) == 0;
+                        ok = ut_heap.realloc(&s->g2b,
+                                             (size_t)(g + 1) * _4_bytes) == 0;
                     }
                     // need to shift bytes staring with s.g2b[t] toward the end
                     if (ok) {
                         memmove(s->u + s->g2b[f] + bytes_to_insert,
                                 s->u + s->g2b[f] + bytes_to_remove,
-                                s->b - s->g2b[f] - bytes_to_remove);
+                                (size_t)(s->b - s->g2b[f] - bytes_to_remove));
                         if (all_ascii) {
                             assert(s->g2b == ui_edit_str_g2b_ascii);
                         } else {
                             assert(s->g2b != ui_edit_str_g2b_ascii);
                             memmove(s->g2b + f + glyphs_to_insert,
                                     s->g2b + f + glyphs_to_remove,
-                                    (s->g - t + 1) * _4_bytes);
+                                    (size_t)(s->g - t + 1) * _4_bytes);
                         }
-                        memmove(s->u + s->g2b[f], ins.u, ins.b);
+                        memmove(s->u + s->g2b[f], ins.u, (size_t)ins.b);
                     }
                 }
                 if (ok) {
@@ -8204,7 +8207,7 @@ static void ui_edit_doc_test_big_text(void) {
     enum { MB10 = 10 * 1000 * 1000 };
     char* text = null;
     ut_heap.alloc(&text, MB10);
-    memset(text, 'a', MB10 - 1);
+    memset(text, 'a', (size_t)MB10 - 1);
     char* p = text;
     uint32_t seed = 0x1;
     for (;;) {
@@ -10215,7 +10218,8 @@ static bool ui_edit_reallocate_runs(ui_edit_t* e, int32_t p, int32_t np) {
         ok = ut_heap.realloc_zero((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
         if (ok) {
             const int32_t n = ut_max(0, new_np - p - d - 1);
-            memmove(e->para + p + 1 + d, e->para + p + 1, n * sizeof(e->para[0]));
+            memmove(e->para + p + 1 + d, e->para + p + 1,
+                    (size_t)n * sizeof(e->para[0]));
             const int32_t m = ut_min(new_np, p + 1 + d);
             for (int32_t i = p + 1; i < m; i++) {
                 e->para[i].run = null;
@@ -10376,7 +10380,7 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
 //      https://stackoverflow.com/questions/22259936/
 //      https://stackoverflow.com/questions/65691101/
 //      ut_traceln("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
-//      // next line works only when running as administator:
+//      // next line works only when running as administrator:
 //      ut_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
         const bool l_button = ui_app.mouse_left  != work->left;
         const bool r_button = ui_app.mouse_right != work->right;

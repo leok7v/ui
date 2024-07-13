@@ -406,7 +406,7 @@ static void ui_list_layout(ui_view_t* p) {
                 if (c->type == ui_view_spacer) {
                     c->x = pbx.x;
                     c->w = pbx.x + pbx.w - pbx.x;
-                    c->h = partial; // TODO: xxxxx last?
+                    c->h = partial; // TODO: last?
                     spacers--;
                 }
                 int32_t ch = padding.top + c->h + padding.bottom;

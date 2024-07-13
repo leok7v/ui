@@ -130,37 +130,6 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
     ut_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
     ut_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
     ut_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
-    static const char* words[] = {
-        "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing",
-        "elit", "quisque", "faucibus", "ex", "sapien", "vitae", "pellentesque",
-        "sem", "placerat", "in", "id", "cursus", "mi", "pretium", "tellus",
-        "duis", "convallis", "tempus", "leo", "eu", "aenean", "sed", "diam",
-        "urna", "tempor", "pulvinar", "vivamus", "fringilla", "lacus", "nec",
-        "metus", "bibendum", "egestas", "iaculis", "massa", "nisl",
-        "malesuada", "lacinia", "integer", "nunc", "posuere", "ut", "hendrerit",
-        "semper", "vel", "class", "aptent", "taciti", "sociosqu", "ad", "litora",
-        "torquent", "per", "conubia", "nostra", "inceptos",
-        "himenaeos", "orci", "varius", "natoque", "penatibus", "et", "magnis",
-        "dis", "parturient", "montes", "nascetur", "ridiculus", "mus", "donec",
-        "rhoncus", "eros", "lobortis", "nulla", "molestie", "mattis",
-        "scelerisque", "maximus", "eget", "fermentum", "odio", "phasellus",
-        "non", "purus", "est", "efficitur", "laoreet", "mauris", "pharetra",
-        "vestibulum", "fusce", "dictum", "risus", "blandit", "quis",
-        "suspendisse", "aliquet", "nisi", "sodales", "consequat", "magna",
-        "ante", "condimentum", "neque", "at", "luctus", "nibh", "finibus",
-        "facilisis", "dapibus", "etiam", "interdum", "tortor", "ligula",
-        "congue", "sollicitudin", "erat", "viverra", "ac", "tincidunt", "nam",
-        "porta", "elementum", "a", "enim", "euismod", "quam", "justo",
-        "lectus", "commodo", "augue", "arcu", "dignissim", "velit", "aliquam",
-        "imperdiet", "mollis", "nullam", "volutpat", "porttitor",
-        "ullamcorper", "rutrum", "gravida", "cras", "eleifend", "turpis",
-        "fames", "primis", "vulputate", "ornare", "sagittis", "vehicula",
-        "praesent", "dui", "felis", "venenatis", "ultrices", "proin", "libero",
-        "feugiat", "tristique", "accumsan", "maecenas", "potenti", "ultricies",
-        "habitant", "morbi", "senectus", "netus", "suscipit", "auctor",
-        "curabitur", "facilisi", "cubilia", "curae", "hac", "habitasse",
-        "platea", "dictumst"
-    };
     char* s = p.text;
     char* end = p.text + p.count - 64;
     uint32_t paragraphs = p.min_paragraphs +
@@ -175,7 +144,9 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
                 (p.min_words == p.max_words ? 0 :
                  ut_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
             for (uint32_t i = 0; i < words_in_sentence && s < end; i++) {
-                const char* word = words[ut_num.random32(&p.seed) % ut_count_of(words)];
+                const int32_t ix = ut_num.random32(&p.seed) %
+                                   ut_count_of(lorem_ipsum_words);
+                const char* word = lorem_ipsum_words[ix];
                 memcpy(s, word, strlen(word));
                 if (i == 0) { *s = (char)toupper(*s); }
                 s += strlen(word);
