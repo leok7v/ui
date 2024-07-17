@@ -2,6 +2,8 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
+// TODO: Ctrl+A Ctrl+V Ctrl+C Ctrl+X Ctrl+Z Ctrl+Y
+
 static bool     ui_fuzzing_debug = true;
 static uint32_t ui_fuzzing_seed;
 static bool     ui_fuzzing_running;
