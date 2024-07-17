@@ -6639,15 +6639,23 @@ static errno_t ut_str_utf16to8(char* utf8, int32_t capacity,
     return r;
 }
 
-static errno_t ut_str_utf8to16(uint16_t* d, int32_t capacity,
+static errno_t ut_str_utf8to16(uint16_t* utf16, int32_t capacity,
         const char* utf8, int32_t bytes) {
     const int32_t required = ut_str.utf16_chars(utf8, bytes);
     errno_t r = required < 0 ? ut_runtime.err() : 0;
     if (r == 0) {
         swear(required >= 0 && capacity >= required);
         int32_t count = MultiByteToWideChar(CP_UTF8, 0, utf8, bytes,
-                                            d, capacity);
+                                            utf16, capacity);
         swear(required == count);
+        if (count > 0 && !IsNormalizedString(NormalizationC, utf16, count)) {
+            ut_runtime.set_err(0);
+            int32_t n = NormalizeString(NormalizationC, utf16, count, utf16, count);
+            if (n <= 0) {
+                r = ut_runtime.err();
+                ut_traceln("NormalizeString() failed %s", ut_strerr(r));
+            }
+        }
     }
     return r;
 }

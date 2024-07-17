@@ -1436,7 +1436,7 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 }
 
 static void ui_app_wm_input_language_change(uint64_t wp) {
-    #ifndef UI_APP_TRACE_WM_INPUT_LANGUAGE_CHANGE
+    #ifdef UI_APP_TRACE_WM_INPUT_LANGUAGE_CHANGE
     static struct { uint8_t charset; const char* name; } cs[] = {
         { ANSI_CHARSET       ,     "ANSI_CHARSET       " },
         { DEFAULT_CHARSET    ,     "DEFAULT_CHARSET    " },

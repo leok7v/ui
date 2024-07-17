@@ -290,8 +290,8 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
         t->np = np;
         t->ps = ps;
     } else if (ps != null) {
-        ok = ui_edit_doc_realloc_ps(&ps, n, 0); // free()
-        swear(ok);
+        bool shrink = ui_edit_doc_realloc_ps(&ps, n, 0); // free()
+        swear(shrink);
         ut_heap.free(ps);
         t->np = 0;
         t->ps = null;

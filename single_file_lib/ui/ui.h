@@ -3637,7 +3637,7 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
 }
 
 static void ui_app_wm_input_language_change(uint64_t wp) {
-    #ifndef UI_APP_TRACE_WM_INPUT_LANGUAGE_CHANGE
+    #ifdef UI_APP_TRACE_WM_INPUT_LANGUAGE_CHANGE
     static struct { uint8_t charset; const char* name; } cs[] = {
         { ANSI_CHARSET       ,     "ANSI_CHARSET       " },
         { DEFAULT_CHARSET    ,     "DEFAULT_CHARSET    " },
@@ -7008,8 +7008,8 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
         t->np = np;
         t->ps = ps;
     } else if (ps != null) {
-        ok = ui_edit_doc_realloc_ps(&ps, n, 0); // free()
-        swear(ok);
+        bool shrink = ui_edit_doc_realloc_ps(&ps, n, 0); // free()
+        swear(shrink);
         ut_heap.free(ps);
         t->np = 0;
         t->ps = null;
