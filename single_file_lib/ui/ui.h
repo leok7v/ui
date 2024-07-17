@@ -1417,6 +1417,7 @@ typedef struct ui_edit_s {
     } edit;
     // number of fully (not partially clipped) visible `runs' from top to bottom:
     int32_t visible_runs;
+    // TODO: remove focused because it is the same as caret != (-1, -1)
     bool focused;     // is focused and created caret
     bool ro;          // Read Only
     bool sle;         // Single Line Edit
@@ -9006,12 +9007,14 @@ static void ui_edit_create_caret(ui_edit_t* e) {
     e->caret_width = ut_min(3, ut_max(1, (int32_t)px));
     ui_app.create_caret(e->caret_width, e->fm->height);
     e->focused = true; // means caret was created
+//  ut_traceln("e->focused := true %s", ui_view_debug_id(&e->view));
 }
 
 static void ui_edit_destroy_caret(ui_edit_t* e) {
     ut_fatal_if(!e->focused);
     ui_app.destroy_caret();
     e->focused = false; // means caret was destroyed
+//  ut_traceln("e->focused := false %s", ui_view_debug_id(&e->view));
 }
 
 static void ui_edit_show_caret(ui_edit_t* e) {
@@ -9727,11 +9730,12 @@ static void ui_edit_key_enter(ui_edit_t* e) {
 }
 
 static bool ui_edit_key_pressed(ui_view_t* v, int64_t key) {
-    bool swallow = true;
+    bool swallow = false;
     assert(v->type == ui_view_text);
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_text_t* dt = &e->doc->text; // document text
     if (e->focused) {
+        swallow = true;
         if (key == ui.key.down && e->selection.a[1].pn < dt->np) {
             ui_edit.key_down(e);
         } else if (key == ui.key.up && dt->np > 1) {
@@ -9760,7 +9764,6 @@ static bool ui_edit_key_pressed(ui_view_t* v, int64_t key) {
     }
     return swallow;
 }
-
 
 static void ui_edit_undo(ui_edit_t* e) {
     if (e->doc->undo != null) {
@@ -10217,6 +10220,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
         ui_edit_destroy_caret(e);
         ui_edit_create_caret(e);
         ui_edit_show_caret(e);
+        assert(e->focused);
     }
 }
 

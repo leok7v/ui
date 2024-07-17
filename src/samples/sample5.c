@@ -336,6 +336,9 @@ static void opened(void) {
     right.max_h = ui.infinity;
     set_text(0); // need to be two lines for measure
     ui_view.set_focus(&edit[0]->view);
+    edit0.debug.id = "#edit0";
+    edit1.debug.id = "#edit1";
+    edit2.debug.id = "#edit2";
     if (ut_args.c > 1) { open_file(ut_args.v[1]); }
 }
 

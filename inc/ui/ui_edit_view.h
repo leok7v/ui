@@ -66,6 +66,7 @@ typedef struct ui_edit_s {
     } edit;
     // number of fully (not partially clipped) visible `runs' from top to bottom:
     int32_t visible_runs;
+    // TODO: remove focused because it is the same as caret != (-1, -1)
     bool focused;     // is focused and created caret
     bool ro;          // Read Only
     bool sle;         // Single Line Edit
