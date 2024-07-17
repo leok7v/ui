@@ -1761,7 +1761,7 @@ typedef struct ut_work_queue_s ut_work_queue_t;
 typedef struct ut_work_s {
     ut_work_queue_t* queue; // queue where the call is or was last scheduled
     fp64_t when;       // proc() call will be made after or at this time
-    void (*ui_fuzzing_work)(ut_work_t* c);
+    void (*work)(ut_work_t* c);
     void*  data;       // extra data that will be passed to proc() call
     ut_event_t  done;  // if not null signalled after calling proc() or canceling
     ut_work_t*  next;  // next element in the queue (implementation detail)
@@ -8039,7 +8039,7 @@ static bool ut_work_queue_get(ut_work_queue_t* q, ut_work_t* *r) {
 }
 
 static void ut_work_queue_call(ut_work_t* w) {
-    if (w->ui_fuzzing_work != null) { w->ui_fuzzing_work(w); }
+    if (w->work != null) { w->work(w); }
     if (w->done != null) { ut_event.set(w->done); }
 }
 
@@ -8136,12 +8136,12 @@ static void ut_work_queue_test_1(void) {
     ut_work_queue_t q = {0};
     ut_work_t c1 = {
         .queue = &q,
-        .ui_fuzzing_work = ut_never_called,
+        .work = ut_never_called,
         .when = now + 1.0
     };
     ut_work_t c2 = {
         .queue = &q,
-        .ui_fuzzing_work = ut_never_called,
+        .work = ut_never_called,
         .when = now + 0.5
     };
     ut_work_queue.post(&c1);
@@ -8193,7 +8193,7 @@ static void ut_work_queue_test_2(void) {
     int32_t i = 0;
     ut_work_t c = {
         .queue = &q,
-        .ui_fuzzing_work = ut_every_millisecond,
+        .work = ut_every_millisecond,
         .when = ut_test_work_start + 0.001,
         .data = &i
     };
@@ -8245,7 +8245,7 @@ static void ut_work_queue_test_3(void) {
     ut_work_queue_t q = {0};
     ut_work_ex_t ex = {
         .queue = &q,
-        .ui_fuzzing_work = ut_every_other_millisecond,
+        .work = ut_every_other_millisecond,
         .when = now + 0.002,
         .s = { .a = 1, .b = 2 },
         .i = 0
@@ -8283,14 +8283,14 @@ static void ut_worker_test(void) {
     ut_worker_t worker = { 0 };
     ut_worker.start(&worker);
     ut_work_t asap = {
-        .when  = 0, // A.S.A.P.
-        .done  = ut_event.create(),
-        .ui_fuzzing_work  = ut_test_do_work
+        .when = 0, // A.S.A.P.
+        .done = ut_event.create(),
+        .work = ut_test_do_work
     };
     ut_work_t later = {
-        .when  = ut_clock.seconds() + 0.010, // 10ms
-        .done  = ut_event.create(),
-        .ui_fuzzing_work  = ut_test_do_work
+        .when = ut_clock.seconds() + 0.010, // 10ms
+        .done = ut_event.create(),
+        .work = ut_test_do_work
     };
     ut_worker.post(&worker, &asap);
     ut_worker.post(&worker, &later);

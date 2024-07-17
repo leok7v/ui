@@ -397,7 +397,7 @@ static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
     swear(f == &ui_fuzzing_work);
     ui_fuzzing_work = (ui_fuzzing_t){
         .base = { .when = ut_clock.seconds() + 0.001, // 1ms
-                  .ui_fuzzing_work = ui_fuzzing_do_work },
+                  .work = ui_fuzzing_do_work },
     };
     uint32_t rnd = ui_fuzzing_random() % 100;
     if (rnd < 80) {
