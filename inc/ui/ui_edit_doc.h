@@ -162,6 +162,17 @@ typedef struct ui_edit_str_if {
     void (*shrink)(ui_edit_str_t* s); // get rid of extra heap memory
     bool (*replace)(ui_edit_str_t* s, int32_t from, int32_t to, // glyphs
                     const char* utf8, int32_t bytes); // [from..to[ exclusive
+    bool (*is_zwj)(uint32_t utf32); // zero width joiner
+    bool (*is_letter)(uint32_t utf32); // in European Alphabets
+    bool (*is_digit)(uint32_t utf32);
+    bool (*is_symbol)(uint32_t utf32);
+    bool (*is_alphanumeric)(uint32_t utf32);
+    bool (*is_blank)(uint32_t utf32); // white space
+    bool (*is_punctuation)(uint32_t utf32);
+    bool (*is_combining)(uint32_t utf32);
+    bool (*is_spacing)(uint32_t utf32); // spacing modifiers
+    bool (*is_cjk_or_emoji)(uint32_t utf32);
+    bool (*can_break)(uint32_t cp1, uint32_t cp2);
     void (*test)(void);
     void (*free)(ui_edit_str_t* s);
     const ui_edit_str_t* const empty;

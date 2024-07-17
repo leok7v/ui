@@ -221,7 +221,7 @@
 #define ut_glyph_chinese_jin4                                               "\xE5\xA3\xB9"
 
 // Chinese "gong" https://www.compart.com/en/unicode/U+8D70
-#define ut_glyph_chinese_gong                                                "\xE8\xB4\xB0"
+#define ut_glyph_chinese_gong                                                "\xE8\xB5\xB0"
 
 // https://www.compart.com/en/unicode/U+1F9F8
 #define ut_glyph_teddy_bear                                                 "\xF0\x9F\xA7\xB8"
