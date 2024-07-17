@@ -1077,7 +1077,7 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
                 }
             }
         }
-        if (0x20 <= ch && !e->ro) { // 0x20 space
+        if (0x20 <= (uint8_t)ch && !e->ro) { // 0x20 space
             int32_t len = (int32_t)strlen(utf8);
             int32_t bytes = ut_str.utf8bytes(utf8, len);
             if (bytes > 0) {

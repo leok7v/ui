@@ -46,13 +46,26 @@ typedef struct {
     void (*lower)(char* d, int32_t capacity, const char* s); // ASCII only
     void (*upper)(char* d, int32_t capacity, const char* s); // ASCII only
     // utf8/utf16 conversion
-    int32_t (*utf8_bytes)(const uint16_t* utf16); // UTF-8 byte required
-    int32_t (*utf16_chars)(const char* s); // UTF-16 chars required
+    // If `chars` argument is -1, the function utf8_bytes includes the zero
+    // terminating character in the conversion and the returned byte count.
+    int32_t (*utf8_bytes)(const uint16_t* utf16, int32_t bytes); // bytes count
+    // If `bytes` argument is -1, the function utf16_chars() includes the zero
+    // terminating character in the conversion and the returned character count.
+    int32_t (*utf16_chars)(const char* utf8, int32_t bytes); // chars count
     // utf8_bytes() and utf16_chars() return -1 on invalid UTF-8/UTF-16
-    // utf8_bytes(L"") returns 1 for zero termination
-    // utf16_chars("") returns 1 for zero termination
-    void (*utf16to8)(char* d, int32_t capacity, const uint16_t* utf16);
-    void (*utf8to16)(uint16_t* d, int32_t capacity, const char* utf8);
+    // utf8_bytes(L"", -1) returns 1 for zero termination
+    // utf16_chars("", -1) returns 1 for zero termination
+    // chars: -1 means both source and destination are zero terminated
+    errno_t (*utf16to8)(char* utf8, int32_t capacity,
+                        const uint16_t* utf16, int32_t chars);
+    // bytes: -1 means both source and destination are zero terminated
+    errno_t (*utf8to16)(uint16_t* utf16, int32_t capacity,
+                        const char* utf8, int32_t bytes);
+    // https://compart.com/en/unicode/U+1F41E
+    // Lady Beetle: utf16 L"\xD83D\xDC1E" utf8 "\xF0\x9F\x90\x9E"
+    //           surrogates:  high   low
+    bool (*utf16_is_low_surrogate)(uint16_t utf16char);
+    bool (*utf16_is_high_surrogate)(uint16_t utf16char);
     // string formatting printf style:
     void (*format_va)(char* utf8, int32_t count, const char* format, va_list va);
     void (*format)(char* utf8, int32_t count, const char* format, ...);

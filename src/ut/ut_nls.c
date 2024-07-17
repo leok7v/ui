@@ -29,8 +29,8 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
     uint16_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
-    HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
-        MAKEINTRESOURCE(block), lang_id);
+    HRSRC res = FindResourceExW(((HMODULE)null), RT_STRING,
+        MAKEINTRESOURCEW(block), lang_id);
 //  ut_traceln("FindResourceExA(block=%d lang_id=%04X)=%p", block, lang_id, res);
     uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
     uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
@@ -55,13 +55,13 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
 }
 
 static const char* ut_nls_save_string(uint16_t* utf16) {
-    const int32_t bytes = ut_str.utf8_bytes(utf16);
+    const int32_t bytes = ut_str.utf8_bytes(utf16, -1);
     swear(bytes > 1);
     char* s = ut_nls_strings_free;
     uintptr_t left = (uintptr_t)ut_count_of(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
     ut_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
-    ut_str.utf16to8(s, (int32_t)left, utf16);
+    ut_str.utf16to8(s, (int32_t)left, utf16, -1);
     assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
     ut_nls_strings_free += bytes;
     return s;
@@ -123,7 +123,7 @@ static const char* ut_nls_locale(void) {
         errno_t r = ut_runtime.err();
         ut_traceln("LCIDToLocaleName(0x%04X) failed %s", lc_id, ut_str.error(r));
     } else {
-        ut_str.utf16to8(ln, ut_count_of(ln), utf16);
+        ut_str.utf16to8(ln, ut_count_of(ln), utf16, -1);
     }
     return ln;
 }
@@ -131,7 +131,7 @@ static const char* ut_nls_locale(void) {
 static errno_t ut_nls_set_locale(const char* locale) {
     errno_t r = 0;
     uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
-    ut_str.utf8to16(utf16, ut_count_of(utf16), locale);
+    ut_str.utf8to16(utf16, ut_count_of(utf16), locale, -1);
     uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1]; // resolved locale name
     int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)ut_count_of(rln));
     if (n == 0) {
@@ -156,8 +156,8 @@ static void ut_nls_init(void) {
     LANGID lang_id = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
     for (int32_t strid = 0; strid < ut_count_of(ut_nls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
-        HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
-            MAKEINTRESOURCE(block), lang_id);
+        HRSRC res = FindResourceExW(((HMODULE)null), RT_STRING,
+            MAKEINTRESOURCEW(block), lang_id);
         uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
         uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
         if (ws == null) { break; }

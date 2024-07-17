@@ -275,7 +275,7 @@ static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
     tn.name[0] = 0;
     wchar_t* thread_name = null;
     if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
-        ut_str.utf16to8(tn.name, ut_count_of(tn.name), thread_name);
+        ut_str.utf16to8(tn.name, ut_count_of(tn.name), thread_name, -1);
         LocalFree(thread_name);
     }
     return tn;

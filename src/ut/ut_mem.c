@@ -43,11 +43,7 @@ static errno_t ut_mem_adjust_process_privilege_manage_volume_name(void) {
     HANDLE token = null;
     errno_t r = ut_b2e(OpenProcessToken(process, access, &token));
     if (r == 0) {
-        #ifdef UNICODE
-        const char* se_manage_volume_name = utf16to8(SE_MANAGE_VOLUME_NAME);
-        #else
-        const char* se_manage_volume_name = SE_MANAGE_VOLUME_NAME;
-        #endif
+        const char* se_manage_volume_name = "SeManageVolumePrivilege";
         r = ut_mem_set_token_privilege(token, se_manage_volume_name, true);
         ut_win32_close_handle(token);
     }

@@ -573,7 +573,8 @@ static const char* ut_files_known_folder(int32_t kf) {
     if (known_folders[kf].s[0] == 0) {
         uint16_t* path = null;
         ut_fatal_if_error(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
-        ut_str.utf16to8(known_folders[kf].s, ut_count_of(known_folders[kf].s), path);
+        const int32_t n = ut_count_of(known_folders[kf].s);
+        ut_str.utf16to8(known_folders[kf].s, n, path, -1);
         CoTaskMemFree(path);
 	}
     return known_folders[kf].s;

@@ -56,7 +56,7 @@ static HMODULE ui_theme_uxtheme(void) {
 
 static void* ui_theme_uxtheme_func(uint16_t ordinal) {
     HMODULE uxtheme = ui_theme_uxtheme();
-    void* proc = (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(ordinal));
+    void* proc = (void*)GetProcAddress(uxtheme, MAKEINTRESOURCEA(ordinal));
     ut_not_null(proc);
     return proc;
 }

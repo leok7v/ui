@@ -22,7 +22,7 @@ static void ut_debug_output(const char* s, int32_t count) {
         }
         // SetConsoleCP(CP_UTF8) is not guaranteed to be called
         uint16_t* wide = ut_stackalloc((count + 1) * sizeof(uint16_t));
-        ut_str.utf8to16(wide, count, s);
+        ut_str.utf8to16(wide, count, s, -1);
         OutputDebugStringW(wide);
     }
 }

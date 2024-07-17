@@ -2,7 +2,7 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static bool     ui_fuzzing_debug; // = true;
+static bool     ui_fuzzing_debug = true;
 static uint32_t ui_fuzzing_seed;
 static bool     ui_fuzzing_running;
 static bool     ui_fuzzing_inside;
@@ -41,7 +41,7 @@ static const char* lorem_ipsum_words[] = {
     "platea", "dictumst"
 };
 
-#define lorem_ipsum_canonique \
+#define ui_fuzzing_lorem_ipsum_canonique \
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do "         \
     "eiusmod  tempor incididunt ut labore et dolore magna aliqua.Ut enim ad "  \
     "minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip " \
@@ -50,14 +50,14 @@ static const char* lorem_ipsum_words[] = {
     "sint occaecat cupidatat non proident, sunt in culpa qui officia "         \
     "deserunt mollit anim id est laborum."
 
-#define lorem_ipsum_chinese \
+#define ui_fuzzing_lorem_ipsum_chinese \
     "\xE6\x88\x91\xE6\x98\xAF\xE6\x94\xBE\xE7\xBD\xAE\xE6\x96\x87\xE6\x9C\xAC\xE7\x9A\x84\xE4" \
     "\xBD\x8D\xE7\xBD\xAE\xE3\x80\x82\xE8\xBF\x99\xE9\x87\x8C\xE6\x94\xBE\xE7\xBD\xAE\xE4\xBA" \
     "\x86\xE5\x81\x87\xE6\x96\x87\xE5\x81\x87\xE5\xAD\x97\xE3\x80\x82\xE5\xB8\x8C\xE6\x9C\x9B" \
     "\xE8\xBF\x99\xE4\xBA\x9B\xE6\x96\x87\xE5\xAD\x97\xE5\x8F\xAF\xE4\xBB\xA5\xE5\xA1\xAB\xE5" \
     "\x85\x85\xE7\xA9\xBA\xE7\x99\xBD\xE3\x80\x82";
 
-#define  lorem_ipsum_japanese \
+#define ui_fuzzing_lorem_ipsum_japanese \
     "\xE3\x81\x93\xE3\x82\x8C\xE3\x81\xAF\xE3\x83\x80\xE3\x83\x9F\xE3\x83\xBC\xE3\x83\x86\xE3" \
     "\x82\xAD\xE3\x82\xB9\xE3\x83\x88\xE3\x81\xA7\xE3\x81\x99\xE3\x80\x82\xE3\x81\x93\xE3\x81" \
     "\x93\xE3\x81\xAB\xE6\x96\x87\xE7\xAB\xA0\xE3\x81\x8C\xE5\x85\xA5\xE3\x82\x8A\xE3\x81\xBE" \
@@ -67,7 +67,7 @@ static const char* lorem_ipsum_words[] = {
     "\xE3\x81\x84\xE3\x81\xBE\xE3\x81\x99\xE3\x80\x82";
 
 
-#define lorem_ipsum_korean \
+#define ui_fuzzing_lorem_ipsum_korean \
     "\xEC\x9D\xB4\xEA\xB2\x83\xEC\x9D\x80\x20\xEB\x8D\x94\xEB\xAF\xB8\x20\xED\x85\x8D\xEC\x8A" \
     "\xA4\xED\x8A\xB8\xEC\x9E\x85\xEB\x8B\x88\xEB\x8B\xA4\x2E\x20\xEC\x97\xAC\xEA\xB8\xB0\xEC" \
     "\x97\x90\x20\xEB\xAC\xB8\xEC\x9E\x90\xEA\xB0\x80\x20\xEB\x93\x9C\xEC\x96\xB4\xEA\xB0\x80" \
@@ -76,7 +76,7 @@ static const char* lorem_ipsum_words[] = {
     "\x85\x8D\xEC\x8A\xA4\xED\x8A\xB8\xEB\xA5\xBC\x20\xEC\x82\xAC\xEC\x9A\xA9\xED\x95\xA9\xEB" \
     "\x8B\x88\xEB\x8B\xA4\x2E";
 
-#define lorem_ipsum_emoji \
+#define ui_fuzzing_lorem_ipsum_emoji \
     "\xF0\x9F\x8D\x95\xF0\x9F\x9A\x80\xF0\x9F\xA6\x84\xF0\x9F\x92\xBB\xF0\x9F\x8E\x89\xF0\x9F" \
     "\x8C\x88\xF0\x9F\x90\xB1\xF0\x9F\x93\x9A\xF0\x9F\x8E\xA8\xF0\x9F\x8D\x94\xF0\x9F\x8D\xA6" \
     "\xF0\x9F\x8E\xB8\xF0\x9F\xA7\xA9\xF0\x9F\x8D\xBF\xF0\x9F\x93\xB7\xF0\x9F\x8E\xA4\xF0\x9F" \
@@ -100,6 +100,15 @@ typedef struct {
     int32_t max_words;
     const char* append; // append after each paragraph (e.g. extra "\n")
 } ui_fuzzing_generator_params_t;
+
+static uint32_t ui_fuzzing_random(void) {
+    return ut_num.random32(&ui_fuzzing_seed);
+}
+
+static fp64_t ui_fuzzing_random_fp64(void) {
+    uint32_t r = ui_fuzzing_random();
+    return (fp64_t)r / (fp64_t)UINT32_MAX;
+}
 
 static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
     ut_fatal_if(p.count < 1024); // at least 1KB expected
@@ -165,6 +174,45 @@ static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
 //  ut_traceln("%s\n", p.text);
 }
 
+static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
+        char text[]) {
+    static fp64_t freq[96] = {
+        0.1716, 0.0023, 0.0027, 0.0002, 0.0001, 0.0005, 0.0013, 0.0012,
+        0.0015, 0.0014, 0.0017, 0.0002, 0.0084, 0.0020, 0.0075, 0.0040,
+        0.0135, 0.0045, 0.0053, 0.0053, 0.0047, 0.0047, 0.0043, 0.0047,
+        0.0057, 0.0044, 0.0037, 0.0004, 0.0016, 0.0004, 0.0017, 0.0017,
+        0.0020, 0.0045, 0.0026, 0.0020, 0.0027, 0.0021, 0.0025, 0.0026,
+        0.0030, 0.0025, 0.0021, 0.0018, 0.0028, 0.0026, 0.0024, 0.0020,
+        0.0025, 0.0026, 0.0030, 0.0022, 0.0027, 0.0022, 0.0020, 0.0023,
+        0.0015, 0.0016, 0.0009, 0.0005, 0.0005, 0.0001, 0.0003, 0.0003,
+        0.0078, 0.0013, 0.0012, 0.0008, 0.0012, 0.0007, 0.0006, 0.0011,
+        0.0016, 0.0012, 0.0011, 0.0004, 0.0004, 0.0016, 0.0013, 0.0009,
+        0.0009, 0.0008, 0.0013, 0.0011, 0.0013, 0.0012, 0.0006, 0.0007,
+        0.0011, 0.0005, 0.0007, 0.0003, 0.0002, 0.0006, 0.0002, 0.0005
+    };
+    static fp64_t cumulative_freq[96];
+    static bool initialized = 0;
+    if (!initialized) {
+        cumulative_freq[0] = freq[0];
+        for (int i = 1; i < ut_countof(freq); i++) {
+            cumulative_freq[i] = cumulative_freq[i - 1] + freq[i];
+        }
+        initialized = 1;
+    }
+    int32_t i = 0;
+    while (i < number_of_characters) {
+        text[i] = 0x00;
+        fp64_t r = ui_fuzzing_random_fp64();
+        for (int j = 0; j < 96 && text[i] == 0; j++) {
+            if (r < cumulative_freq[j]) {
+                text[i] = (char)(0x20 + j);
+            }
+        }
+        if (text[i] != 0) { i++; }
+    }
+    text[number_of_characters] = 0x00;
+}
+
 static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
     swear(work == &ui_fuzzing_work);
     ui_app.alt = work->alt;
@@ -204,7 +252,7 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
     }
     if (ui_fuzzing_running) {
         if (ui_fuzzing.next == null) {
-            ui_fuzzing.random(work);
+            ui_fuzzing.next_random(work);
         } else {
             ui_fuzzing.next(work);
         }
@@ -230,31 +278,43 @@ static void ui_fuzzing_post(void) {
 }
 
 static void ui_fuzzing_alt_ctrl_shift(void) {
-    switch (ut_num.random32(&ui_fuzzing_seed) % 8) {
-        case 0: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 0; break;
-        case 1: ui_fuzzing_work.alt = 1; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 0; break;
-        case 2: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 1; ui_fuzzing_work.shift = 0; break;
-        case 3: ui_fuzzing_work.alt = 1; ui_fuzzing_work.ctrl = 1; ui_fuzzing_work.shift = 0; break;
-        case 4: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 1; break;
-        case 5: ui_fuzzing_work.alt = 1; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 1; break;
-        case 6: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 1; ui_fuzzing_work.shift = 1; break;
-        case 7: ui_fuzzing_work.alt = 1; ui_fuzzing_work.ctrl = 1; ui_fuzzing_work.shift = 1; break;
+    ui_fuzzing_t* w = &ui_fuzzing_work;
+    switch (ui_fuzzing_random() % 8) {
+        case 0: w->alt = 0; w->ctrl = 0; w->shift = 0; break;
+        case 1: w->alt = 1; w->ctrl = 0; w->shift = 0; break;
+        case 2: w->alt = 0; w->ctrl = 1; w->shift = 0; break;
+        case 3: w->alt = 1; w->ctrl = 1; w->shift = 0; break;
+        case 4: w->alt = 0; w->ctrl = 0; w->shift = 1; break;
+        case 5: w->alt = 1; w->ctrl = 0; w->shift = 1; break;
+        case 6: w->alt = 0; w->ctrl = 1; w->shift = 1; break;
+        case 7: w->alt = 1; w->ctrl = 1; w->shift = 1; break;
         default: assert(false);
     }
 }
 
 static void ui_fuzzing_character(void) {
-    static char utf8[32];
-    uint32_t rnd = ut_num.random32(&ui_fuzzing_seed);
-    int32_t n = (int32_t)ut_max(1, rnd % ut_count_of(utf8));
-    for (int32_t i = 0; i < n - 1; i++) {
-        rnd = ut_num.random32(&ui_fuzzing_seed);
-        int ch = 0x20 + rnd % (128 - 0x20);
-        utf8[i] = (char)ch; utf8[i + 1] = 0;
-    }
-    ui_fuzzing_work.utf8 = utf8;
-    if (ui_fuzzing_debug) {
-        ut_traceln("%s", utf8);
+    static char utf8[4 * 1024];
+    if (ui_fuzzing_work.utf8 == null) {
+        fp64_t r = ui_fuzzing_random_fp64();
+        if (r < 0.125) {
+            uint32_t rnd = ui_fuzzing_random();
+            int32_t n = (int32_t)ut_max(1, rnd % 32);
+            ui_fuzzing_next_gibberish(n, utf8);
+            ui_fuzzing_work.utf8 = utf8;
+            if (ui_fuzzing_debug) {
+    //          ut_traceln("%s", utf8);
+            }
+        } else if (r < 0.25) {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_chinese;
+        } else if (r < 0.375) {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_japanese;
+        } else if (r < 0.5) {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_korean;
+        } else if (r < 0.5 + 0.125) {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_emoji;
+        } else {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_canonique;
+        }
     }
     ui_fuzzing_post();
 }
@@ -274,15 +334,13 @@ static void ui_fuzzing_key(void) {
         { ui.key.pagedw,  "pgdw",   },
         { ui.key.insert,  "insert"  },
         { ui.key.enter,   "enter"   },
-// TODO: cut copy paste erase need special treatment in fuzzing
-//       otherwise text collapses to nothing pretty fast
-//      ui.key.del,
-//      ui.key.back,
+        { ui.key.del,     "delete"  },
+        { ui.key.back,    "back"   },
     };
     ui_fuzzing_alt_ctrl_shift();
-    uint32_t ix = ut_num.random32(&ui_fuzzing_seed) % ut_count_of(keys);
+    uint32_t ix = ui_fuzzing_random() % ut_count_of(keys);
     if (ui_fuzzing_debug) {
-        ut_traceln("key(%s)", keys[ix].name);
+//      ut_traceln("key(%s)", keys[ix].name);
     }
     ui_fuzzing_work.key = keys[ix].key;
     ui_fuzzing_post();
@@ -292,45 +350,30 @@ static void ui_fuzzing_mouse(void) {
     // mouse events only inside edit control otherwise
     // they will start clicking buttons around
     ui_view_t* v = ui_app.content;
-    int32_t x = ut_num.random32(&ui_fuzzing_seed) % v->w;
-    int32_t y = ut_num.random32(&ui_fuzzing_seed) % v->h;
+    ui_fuzzing_t* w = &ui_fuzzing_work;
+    int32_t x = ui_fuzzing_random() % v->w;
+    int32_t y = ui_fuzzing_random() % v->h;
     static ui_point_t pt;
     pt = (ui_point_t){ x + v->x, y + v->y };
-    if (ut_num.random32(&ui_fuzzing_seed) % 2) {
-        ui_fuzzing_work.left  = !ui_fuzzing_work.left;
+    if (ui_fuzzing_random() % 2) {
+        w->left  = !w->left;
     }
-    if (ut_num.random32(&ui_fuzzing_seed) % 2) {
-        ui_fuzzing_work.right = !ui_fuzzing_work.right;
+    if (ui_fuzzing_random() % 2) {
+        w->right = !w->right;
     }
     if (ui_fuzzing_debug) {
-        ut_traceln("mouse(%d,%d) %s%s", pt.x, pt.y,
-                ui_fuzzing_work.left ? "L" : "_", ui_fuzzing_work.right ? "R" : "_");
+//      ut_traceln("mouse(%d,%d) %s%s", pt.x, pt.y,
+//              w->left ? "L" : "_", w->right ? "R" : "_");
     }
-    ui_fuzzing_work.pt = &pt;
+    w->pt = &pt;
     ui_fuzzing_post();
-}
-
-static void ui_fuzzing_next_random(void) {
-    // TODO: 100 times per second:
-    ui_fuzzing_work = (ui_fuzzing_t){
-        .base = { .when = ut_clock.seconds() + 0.001, // 1ms
-                  .ui_fuzzing_work = ui_fuzzing_do_work },
-    };
-    uint32_t rnd = ut_num.random32(&ui_fuzzing_seed) % 100;
-    if (rnd < 80) {
-        ui_fuzzing_character();
-    } else if (rnd < 90) {
-        ui_fuzzing_key();
-    } else {
-        ui_fuzzing_mouse();
-    }
 }
 
 static void ui_fuzzing_start(uint32_t seed) {
     ui_fuzzing_seed = seed | 0x1;
     ui_fuzzing_running = true;
     if (ui_fuzzing.next == null) {
-        ui_fuzzing.random(&ui_fuzzing_work);
+        ui_fuzzing.next_random(&ui_fuzzing_work);
     } else {
         ui_fuzzing.next(&ui_fuzzing_work);
     }
@@ -348,16 +391,27 @@ static void ui_fuzzing_stop(void) {
     ui_fuzzing_running = false;
 }
 
-static void ui_fuzzing_random(ui_fuzzing_t* f) {
+static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
     swear(f == &ui_fuzzing_work);
-    ui_fuzzing_next_random();
+    ui_fuzzing_work = (ui_fuzzing_t){
+        .base = { .when = ut_clock.seconds() + 0.001, // 1ms
+                  .ui_fuzzing_work = ui_fuzzing_do_work },
+    };
+    uint32_t rnd = ui_fuzzing_random() % 100;
+    if (rnd < 80) {
+        ui_fuzzing_character();
+    } else if (rnd < 90) {
+        ui_fuzzing_key();
+    } else {
+        ui_fuzzing_mouse();
+    }
 }
 
 ui_fuzzing_if ui_fuzzing = {
     .start       = ui_fuzzing_start,
     .is_running  = ui_fuzzing_is_running,
     .from_inside = ui_fuzzing_from_inside,
-    .random      = ui_fuzzing_random,
+    .next_random = ui_fuzzing_next_random,
     .dispatch    = ui_fuzzing_dispatch,
     .next        = null,
     .custom      = null,

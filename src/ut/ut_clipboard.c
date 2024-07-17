@@ -2,12 +2,12 @@
 #include "ut/ut_win32.h"
 
 static errno_t ut_clipboard_put_text(const char* utf8) {
-    int32_t chars = ut_str.utf16_chars(utf8);
+    int32_t chars = ut_str.utf16_chars(utf8, -1);
     int32_t bytes = (chars + 1) * 2;
     uint16_t* utf16 = null;
     errno_t r = ut_heap.alloc((void**)&utf16, (size_t)bytes);
     if (utf16 != null) {
-        ut_str.utf8to16(utf16, bytes, utf8);
+        ut_str.utf8to16(utf16, bytes, utf8, -1);
         assert(utf16[chars - 1] == 0);
         const int32_t n = (int32_t)ut_str.len16(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : ut_runtime.err();
@@ -57,13 +57,13 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
         } else {
             uint16_t* utf16 = (uint16_t*)GlobalLock(global);
             if (utf16 != null) {
-                int32_t utf8_bytes = ut_str.utf8_bytes(utf16);
+                int32_t utf8_bytes = ut_str.utf8_bytes(utf16, -1);
                 if (utf8 != null) {
                     char* decoded = (char*)malloc((size_t)utf8_bytes);
                     if (decoded == null) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
-                        ut_str.utf16to8(decoded, utf8_bytes, utf16);
+                        ut_str.utf16to8(decoded, utf8_bytes, utf16, -1);
                         int32_t n = ut_min(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, (size_t)n);
                         free(decoded);

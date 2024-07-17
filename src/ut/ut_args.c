@@ -241,7 +241,7 @@ static void ut_args_WinMain(void) {
     int32_t n = (int32_t)ut_str.len16(wcl);
     char* cl = null;
     ut_fatal_if_error(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
-    ut_str.utf16to8(cl, n * 2 + 1, wcl);
+    ut_str.utf16to8(cl, n * 2 + 1, wcl, -1);
     ut_args_parse(cl);
     ut_heap.deallocate(null, cl);
     ut_args.env = (const char**)(void*)_environ;

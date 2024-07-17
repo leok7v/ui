@@ -395,7 +395,7 @@ static void ut_thread_detach(ut_thread_t t) {
 static void ut_thread_name(const char* name) {
     uint16_t stack[128];
     ut_fatal_if(ut_str.len(name) >= ut_count_of(stack), "name too long: %s", name);
-    ut_str.utf8to16(stack, ut_count_of(stack), name);
+    ut_str.utf8to16(stack, ut_count_of(stack), name, -1);
     HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
     // notoriously returns 0x10000000 for no good reason whatsoever
     ut_fatal_if(!SUCCEEDED(r));

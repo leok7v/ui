@@ -5,6 +5,9 @@
 #pragma warning(disable: 4255) // no function prototype: '()' to '(void)'
 #pragma warning(disable: 4459) // declaration of '...' hides global declaration
 
+#pragma push_macro("UNICODE")
+#define UNICODE // always because otherwise IME does not work
+
 // ut:
 #include <Windows.h>  // used by:
 #include <Psapi.h>    // both ut_loader.c and ut_processes.c
@@ -16,14 +19,17 @@
 #include <ShlObj_core.h>  // ut_files.c
 #include <Shlwapi.h>      // ut_files.c
 // ui:
-#include <windowsx.h>
 #include <commdlg.h>
-#include <dwmapi.h>
-#include <ShellScalingApi.h>
-#include <VersionHelpers.h>
 #include <dbghelp.h>
+#include <dwmapi.h>
+#include <imm.h>
+#include <ShellScalingApi.h>
 #include <tlhelp32.h>
+#include <VersionHelpers.h>
+#include <windowsx.h>
 #include <winnt.h>
+
+#pragma pop_macro("UNICODE")
 
 #pragma warning(pop)
 

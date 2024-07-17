@@ -32,7 +32,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
     }
     uint16_t wn[1024];
     ut_fatal_if(strlen(base) >= ut_count_of(wn), "name too long: %s", base);
-    ut_str.utf8to16(wn, ut_count_of(wn), base);
+    ut_str.utf8to16(wn, ut_count_of(wn), base, -1);
     size_t count = 0;
     uint64_t pid = 0;
     uint8_t* data = null;

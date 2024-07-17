@@ -2168,8 +2168,8 @@ typedef struct ui_fuzzing_if {
     void (*start)(uint32_t seed);
     bool (*is_running)(void);
     bool (*from_inside)(void); // true if called originated inside fuzzing
-    void (*random)(ui_fuzzing_t* f);   // called if `next` is null
-    void (*dispatch)(ui_fuzzing_t* f); // dispatch work
+    void (*next_random)(ui_fuzzing_t* f); // called if `next` is null
+    void (*dispatch)(ui_fuzzing_t* f);    // dispatch work
     // next() called instead of random if not null
     void (*next)(ui_fuzzing_t* f);
     // custom() called instead of dispatch() if not null
@@ -2194,10 +2194,12 @@ end_c
 #pragma push_macro("ui_app_window")
 #pragma push_macro("ui_app_canvas")
 
+static bool ui_app_trace_utf16_keyboard_input;
+
 #define ui_app_window() ((HWND)ui_app.window)
 #define ui_app_canvas() ((HDC)ui_app.canvas)
 
-static WNDCLASSA ui_app_wc; // window class
+static WNDCLASSW ui_app_wc; // window class
 
 static NONCLIENTMETRICSW ui_app_ncm = { sizeof(NONCLIENTMETRICSW) };
 static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
@@ -2212,6 +2214,10 @@ static uintptr_t ui_app_timer_1s_id;
 static uintptr_t ui_app_timer_100ms_id;
 
 static bool ui_app_layout_dirty; // call layout() before paint
+
+static char ui_app_decoded_pressed[16];  // utf8 of last decoded pressed key
+static char ui_app_decoded_released[16]; // utf8 of last decoded released key
+static uint16_t ui_app_high_surrogate;
 
 typedef void (*ui_app_animate_function_t)(int32_t step);
 
@@ -2457,14 +2463,14 @@ static int32_t ui_app_pt2px(fp64_t pt) {
 
 static void ui_app_init_cursors(void) {
     if (ui_app.cursors.arrow == null) {
-        ui_app.cursors.arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
-        ui_app.cursors.wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
-        ui_app.cursors.ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
-        ui_app.cursors.size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
-        ui_app.cursors.size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
-        ui_app.cursors.size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
-        ui_app.cursors.size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
-        ui_app.cursors.size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
+        ui_app.cursors.arrow     = (ui_cursor_t)LoadCursorW(null, IDC_ARROW);
+        ui_app.cursors.wait      = (ui_cursor_t)LoadCursorW(null, IDC_WAIT);
+        ui_app.cursors.ibeam     = (ui_cursor_t)LoadCursorW(null, IDC_IBEAM);
+        ui_app.cursors.size_nwse = (ui_cursor_t)LoadCursorW(null, IDC_SIZENWSE);
+        ui_app.cursors.size_nesw = (ui_cursor_t)LoadCursorW(null, IDC_SIZENESW);
+        ui_app.cursors.size_we   = (ui_cursor_t)LoadCursorW(null, IDC_SIZEWE);
+        ui_app.cursors.size_ns   = (ui_cursor_t)LoadCursorW(null, IDC_SIZENS);
+        ui_app.cursors.size_all  = (ui_cursor_t)LoadCursorW(null, IDC_SIZEALL);
         ui_app.cursor = ui_app.cursors.arrow;
     }
 }
@@ -2493,7 +2499,8 @@ static void ui_app_init_fonts(int32_t dpi) {
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
-    ut_str.utf8to16(lf.lfFaceName, ut_count_of(lf.lfFaceName), "Cascadia Mono");
+    ut_str.utf8to16(lf.lfFaceName, ut_count_of(lf.lfFaceName),
+                    "Cascadia Mono", -1);
     ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
 }
 
@@ -2529,7 +2536,7 @@ typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
         HDC unused(hdc), RECT* unused(rc1), LPARAM that) {
     ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
-    MONITORINFOEX mi = { .cbSize = sizeof(MONITORINFOEX) };
+    MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
     ut_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
     const int32_t min_x = ut_min(mi.rcMonitor.left, mi.rcMonitor.right);
@@ -2830,11 +2837,37 @@ static void ui_app_toast_character(const char* utf8);
 static bool ui_app_toast_key_pressed(int64_t key);
 static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed);
 
-static void ui_app_wm_char(ui_view_t* view, const char* utf8) {
+static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
+    char utf8[32 + 1];
+    int32_t utf8bytes = ut_str.utf8_bytes(utf16, -1);
+    swear(utf8bytes < ut_countof(utf8) - 1); // 32 bytes + 0x00
+    ut_str.utf16to8(utf8, ut_countof(utf8), utf16, -1);
+    utf8[utf8bytes] = 0x00;
     if (ui_app.animating.view != null) {
         ui_app_toast_character(utf8);
     } else {
         ui_view.character(view, utf8);
+    }
+    ui_app_high_surrogate = 0x0000;
+}
+
+static void ui_app_wm_char(ui_view_t* view, const uint16_t* utf16) {
+    int32_t utf16chars = ut_str.len16(utf16);
+    swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
+    const uint16_t utf16char = utf16[0];
+    if (utf16chars == 1 && ut_str.utf16_is_high_surrogate(utf16char)) {
+        ui_app_high_surrogate = utf16char;
+    } else if (utf16chars == 1 && ut_str.utf16_is_low_surrogate(utf16char)) {
+        if (ui_app_high_surrogate != 0) {
+            uint16_t utf16_surrogate_pair[3] = {
+                ui_app_high_surrogate,
+                utf16char,
+                0x0000
+            };
+            ui_app_dispatch_wm_char(view, utf16_surrogate_pair);
+        }
+    } else {
+        ui_app_dispatch_wm_char(view, utf16);
     }
 }
 
@@ -3457,16 +3490,16 @@ static int64_t ui_app_wm_nc_hit_test(int64_t wp, int64_t lp) {
     if (ht != ui.hit_test.nowhere) {
         return ht;
     } else {
-        return DefWindowProc(ui_app_window(), WM_NCHITTEST, wp, lp);
+        return DefWindowProcW(ui_app_window(), WM_NCHITTEST, wp, lp);
     }
 }
 
 static int64_t ui_app_wm_sys_key_down(int64_t wp, int64_t lp) {
     ui_app_alt_ctrl_shift(true, wp);
     if (ui_app_wm_key_pressed(ui_app.root, wp) || wp == VK_MENU) {
-        return 0; // no DefWindowProc()
+        return 0; // no DefWindowProcW()
     } else {
-        return DefWindowProc(ui_app_window(), WM_SYSKEYDOWN, wp, lp);
+        return DefWindowProcW(ui_app_window(), WM_SYSKEYDOWN, wp, lp);
     }
 }
 
@@ -3498,7 +3531,7 @@ static int64_t ui_app_wm_nc_calculate_size(int64_t wp, int64_t lp) {
     if (wp == true && ui_app.no_decor && !ui_app.is_maximized()) {
         return 0;
     } else {
-        return DefWindowProc(ui_app_window(), WM_NCCALCSIZE, wp, lp);
+        return DefWindowProcW(ui_app_window(), WM_NCCALCSIZE, wp, lp);
     }
 }
 
@@ -3591,6 +3624,122 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
     }
 }
 
+static void ui_app_wm_input_language_change(uint64_t wp) {
+    #ifndef UI_APP_TRACE_WM_INPUT_LANGUAGE_CHANGE
+    static struct { uint8_t charset; const char* name; } cs[] = {
+        { ANSI_CHARSET       ,     "ANSI_CHARSET       " },
+        { DEFAULT_CHARSET    ,     "DEFAULT_CHARSET    " },
+        { SYMBOL_CHARSET     ,     "SYMBOL_CHARSET     " },
+        { MAC_CHARSET        ,     "MAC_CHARSET        " },
+        { SHIFTJIS_CHARSET   ,     "SHIFTJIS_CHARSET   " },
+        { HANGEUL_CHARSET    ,     "HANGEUL_CHARSET    " },
+        { HANGUL_CHARSET     ,     "HANGUL_CHARSET     " },
+        { GB2312_CHARSET     ,     "GB2312_CHARSET     " },
+        { CHINESEBIG5_CHARSET,     "CHINESEBIG5_CHARSET" },
+        { OEM_CHARSET        ,     "OEM_CHARSET        " },
+        { JOHAB_CHARSET      ,     "JOHAB_CHARSET      " },
+        { HEBREW_CHARSET     ,     "HEBREW_CHARSET     " },
+        { ARABIC_CHARSET     ,     "ARABIC_CHARSET     " },
+        { GREEK_CHARSET      ,     "GREEK_CHARSET      " },
+        { TURKISH_CHARSET    ,     "TURKISH_CHARSET    " },
+        { VIETNAMESE_CHARSET ,     "VIETNAMESE_CHARSET " },
+        { THAI_CHARSET       ,     "THAI_CHARSET       " },
+        { EASTEUROPE_CHARSET ,     "EASTEUROPE_CHARSET " },
+        { RUSSIAN_CHARSET    ,     "RUSSIAN_CHARSET    " },
+        { BALTIC_CHARSET     ,     "BALTIC_CHARSET     " }
+    };
+    for (int32_t i = 0; i < ut_countof(cs); i++) {
+        if (cs[i].charset == wp) {
+            ut_traceln("WM_INPUTLANGCHANGE: 0x%08X %s", wp, cs[i].name);
+            break;
+        }
+    }
+    #else
+        (void)wp; // unused
+    #endif
+}
+
+static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
+    // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
+    swear(m == WM_KEYDOWN || m == WM_SYSKEYDOWN ||
+          m == WM_KEYUP   || m == WM_SYSKEYUP);
+    uint16_t vk_code   = LOWORD(wp);
+    uint16_t key_flags = HIWORD(lp);
+    uint16_t scan_code = LOBYTE(key_flags);
+    if ((key_flags & KF_EXTENDED) == KF_EXTENDED) {
+        scan_code = MAKEWORD(scan_code, 0xE0);
+    }
+    // previous key-state flag, 1 on autorepeat
+    bool was_key_down = (key_flags & KF_REPEAT) == KF_REPEAT;
+    // repeat count, > 0 if several key down messages was combined into one
+    uint16_t repeat_count = LOWORD(lp);
+    // transition-state flag, 1 on key up
+    bool is_key_released = (key_flags & KF_UP) == KF_UP;
+    // if we want to distinguish these keys:
+    switch (vk_code) {
+        case VK_SHIFT:   // converts to VK_LSHIFT or VK_RSHIFT
+        case VK_CONTROL: // converts to VK_LCONTROL or VK_RCONTROL
+        case VK_MENU:    // converts to VK_LMENU or VK_RMENU
+            vk_code = LOWORD(MapVirtualKeyW(scan_code, MAPVK_VSC_TO_VK_EX));
+            break;
+        default: break;
+    }
+    static BYTE keyboard_state[256];
+    uint16_t utf16[3] = {0};
+    ut_fatal_win32err(GetKeyboardState(keyboard_state));
+    // HKL low word Language Identifier
+    //     high word device handle to the physical layout of the keyboard
+    const HKL kl = GetKeyboardLayout(0);
+    // Map virtual key to scan code
+    UINT vk = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, kl);
+//  ut_traceln("virtual_key: %02X keyboard layout: %08X",
+//              virtual_key, kl);
+    memset(ui_app_decoded_released, 0x00, sizeof(ui_app_decoded_released));
+    memset(ui_app_decoded_pressed,  0x00, sizeof(ui_app_decoded_pressed));
+    // Translate scan code to character
+    int32_t r = ToUnicodeEx(vk, scan_code, keyboard_state,
+                            utf16, ut_count_of(utf16), 0, kl);
+    if (r > 0) {
+        ut_static_assertion(ut_countof(ui_app_decoded_pressed) ==
+                            ut_countof(ui_app_decoded_released));
+        enum { capacity = (int32_t)ut_countof(ui_app_decoded_released) };
+        char* utf8 = is_key_released ?
+            ui_app_decoded_released : ui_app_decoded_pressed;
+        ut_str.utf16to8(utf8, capacity, utf16, -1);
+        if (ui_app_trace_utf16_keyboard_input) {
+            ut_traceln("0x%04X%04X released: %d down: %d repeat: %d \"%s\"",
+                    utf16[0], utf16[1], is_key_released, was_key_down,
+                    repeat_count, utf8);
+        }
+    } else if (r == 0) {
+        // The specified virtual key has no translation for the
+        // current state of the keyboard. (E.g. arrows, enter etc)
+    } else {
+        assert(r < 0);
+        // The specified virtual key is a dead key character (accent or diacritic).
+        if (ui_app_trace_utf16_keyboard_input) { ut_traceln("dead key"); }
+    }
+}
+
+static void ui_app_ime_composition(int64_t lp) {
+    if (lp & GCS_RESULTSTR) {
+        HIMC imc = ImmGetContext(ui_app_window());
+        if (imc != null) {
+            char utf8[16];
+            uint16_t utf16[4] = {0};
+            uint32_t bytes = ImmGetCompositionStringW(imc, GCS_RESULTSTR, null, 0);
+            uint32_t count = bytes / sizeof(uint16_t);
+            if (0 < count && count < ut_countof(utf16) - 1) {
+                ImmGetCompositionStringW(imc, GCS_RESULTSTR, utf16, bytes);
+                utf16[count] = 0x00;
+                ut_str.utf16to8(utf8, ut_countof(utf8), utf16, -1);
+                ut_traceln("bytes: %d 0x%04X 0x%04X %s", bytes, utf16[0], utf16[1], utf8);
+            }
+            ut_fatal_win32err(ImmReleaseContext(ui_app_window(), imc));
+        }
+    }
+}
+
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
 // TODO: remove
@@ -3632,57 +3781,60 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
         case WM_ACTIVATE         :
             ui_app_wm_activate(wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_SYSCOMMAND  :
             if (ui_app_wm_sys_command(wp, lp)) { return 0; }
-            break; // drop to DefWindowProc()
+            break;
         case WM_WINDOWPOSCHANGING:
             ui_app_wm_window_position_changing(wp, lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_WINDOWPOSCHANGED:
             ui_app_window_position_changed((WINDOWPOS*)lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_NCHITTEST    :
             return ui_app_wm_nc_hit_test(wp, lp);
         case WM_SYSKEYDOWN   :
             return ui_app_wm_sys_key_down(wp, lp);
         case WM_SYSCHAR      :
             if (wp == VK_MENU) { return 0; } // swallow - no DefWindowProc()
-            break; // drop to DefWindowProc()
+            break;
         case WM_KEYDOWN      :
             ui_app_alt_ctrl_shift(true, wp);
             if (ui_app_wm_key_pressed(ui_app.root, wp)) { return 0; } // swallow
-            break; // drop to DefWindowProc()
+            break;
         case WM_SYSKEYUP:
         case WM_KEYUP        :
             ui_app_alt_ctrl_shift(false, wp);
             ui_view.key_released(ui_app.root, wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_TIMER        :
             ui_app_wm_timer((ui_timer_t)wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_ERASEBKGND   :
             return true; // no DefWindowProc()
+        case WM_INPUTLANGCHANGE:
+            ui_app_wm_input_language_change(wp);
+            break;
         case WM_CHAR         :
-            ui_app_wm_char(ui_app.root, (const char*)&wp);
-            break; // TODO: CreateWindowW() and utf16->utf8
+            ui_app_wm_char(ui_app.root, (const uint16_t*)&wp);
+            break;
         case WM_PRINTCLIENT  :
             ui_app_paint_on_canvas((HDC)wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_SETFOCUS     :
             ui_app_wm_set_focus();
-            break; // drop to DefWindowProc()
+            break;
         case WM_KILLFOCUS    :
             ui_app_wm_kill_focus();
-            break; // drop to DefWindowProc()
+            break;
         case WM_NCCALCSIZE:
             return ui_app_wm_nc_calculate_size(wp, lp);
         case WM_PAINT        :
             ui_app_wm_paint();
-            break; // drop to DefWindowProc()
+            break;
         case WM_CONTEXTMENU  :
             (void)ui_view.context_menu(ui_app.root);
-            break; // drop to DefWindowProc()
+            break;
         case WM_THEMECHANGED :
             ui_theme.refresh();
             break;
@@ -3693,13 +3845,13 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             return ui_app_wm_get_dpi_scaled_size(wp);
         case WM_DPICHANGED  :
             ui_app_wm_dpi_changed();
-            break; // drop to DefWindowProc()
+            break;
         case WM_NCLBUTTONDOWN   : case WM_NCRBUTTONDOWN  : case WM_NCMBUTTONDOWN  :
         case WM_NCLBUTTONUP     : case WM_NCRBUTTONUP    : case WM_NCMBUTTONUP    :
         case WM_NCLBUTTONDBLCLK : case WM_NCRBUTTONDBLCLK: case WM_NCMBUTTONDBLCLK:
         case WM_NCMOUSEMOVE     :
             ui_app_nc_mouse_buttons(m, wp, lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_LBUTTONDOWN     : case WM_RBUTTONDOWN  : case WM_MBUTTONDOWN  :
         case WM_LBUTTONUP       : case WM_RBUTTONUP    : case WM_MBUTTONUP    :
         case WM_LBUTTONDBLCLK   : case WM_RBUTTONDBLCLK: case WM_MBUTTONDBLCLK:
@@ -3707,17 +3859,17 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
 //          if (m == WM_LBUTTONUP)     { ut_traceln("WM_LBUTTONUP"); }
 //          if (m == WM_LBUTTONDBLCLK) { ut_traceln("WM_LBUTTONDBLCLK"); }
             ui_app_wm_mouse(m, wp, lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_MOUSEHOVER      :
         case WM_MOUSEMOVE       :
             ui_app_wm_mouse(m, wp, lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_MOUSEWHEEL   :
             ui_app_wm_mouse_wheel(true, wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_MOUSEHWHEEL  :
             ui_app_wm_mouse_wheel(false, wp);
-            break; // drop to DefWindowProc()
+            break;
         // debugging:
         #ifdef UI_APP_DEBUGING_ALT_KEYBOARD_SHORTCUTS
         case WM_PARENTNOTIFY  : ut_traceln("WM_PARENTNOTIFY");     break;
@@ -3738,7 +3890,28 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                 SetCursor((HCURSOR)ui_app.cursor);
                 return true; // must NOT call DefWindowProc()
             }
-            break; // drop to DefWindowProc()
+            break;
+#ifdef UI_APP_USE_WM_IME
+        case WM_IME_CHAR:
+            ut_traceln("WM_IME_CHAR: 0x%04X", wp);
+            break;
+        case WM_IME_NOTIFY:
+            ut_traceln("WM_IME_NOTIFY");
+            break;
+        case WM_IME_REQUEST:
+            ut_traceln("WM_IME_REQUEST");
+            break;
+        case WM_IME_STARTCOMPOSITION:
+            ut_traceln("WM_IME_STARTCOMPOSITION");
+            break;
+        case WM_IME_ENDCOMPOSITION:
+            ut_traceln("WM_IME_ENDCOMPOSITION");
+            break;
+        case WM_IME_COMPOSITION:
+            ut_traceln("WM_IME_COMPOSITION");
+            ui_app_ime_composition(lp);
+            break;
+#endif  // UI_APP_USE_WM_IME
         // TODO:
         case WM_UNICHAR       : // only UTF-32 via PostMessage?
             ut_traceln("???");
@@ -3748,7 +3921,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         default:
             break;
     }
-    return DefWindowProcA(ui_app_window(), (UINT)m, (WPARAM)wp, lp);
+    return DefWindowProcW(ui_app_window(), (UINT)m, (WPARAM)wp, lp);
 }
 
 static long ui_app_get_window_long(int32_t index) {
@@ -3861,7 +4034,9 @@ static void ui_app_init_sys_menu(void) {
 }
 
 static void ui_app_create_window(const ui_rect_t r) {
-    WNDCLASSA* wc = &ui_app_wc;
+    uint16_t class_name[256];
+    ut_str.utf8to16(class_name, ut_countof(class_name), ui_app.class_name, -1);
+    WNDCLASSW* wc = &ui_app_wc;
     // CS_DBLCLKS no longer needed. Because code detects long-press
     // it does double click too. Editor uses both for word and paragraph select.
     wc->style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_SAVEBITS;
@@ -3873,11 +4048,13 @@ static void ui_app_create_window(const ui_rect_t r) {
     wc->hCursor = (HCURSOR)ui_app.cursor;
     wc->hbrBackground = null;
     wc->lpszMenuName = null;
-    wc->lpszClassName = ui_app.class_name;
-    ATOM atom = RegisterClassA(wc);
+    wc->lpszClassName = class_name;
+    ATOM atom = RegisterClassW(wc);
     ut_fatal_if(atom == 0);
-    HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
-        ui_app.class_name, ui_app.title, ui_app_window_style(),
+    uint16_t title[256];
+    ut_str.utf8to16(title, ut_countof(title), ui_app.title, -1);
+    HWND window = CreateWindowExW(WS_EX_COMPOSITED | WS_EX_LAYERED,
+        class_name, title, ui_app_window_style(),
         r.x, r.y, r.w, r.h, null, null, wc->hInstance, null);
     ut_not_null(ui_app.window);
     swear(window == ui_app_window());
@@ -3943,63 +4120,16 @@ static void ui_app_invalidate_rect(const ui_rect_t* r) {
 //  ut_bt_here();
 }
 
-static bool ui_app_trace_utf16_keyboard_input; // = true;
-
-static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
-    // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
-    if (ui_app_trace_utf16_keyboard_input) {
-        swear(m == WM_KEYDOWN || m == WM_KEYUP ||
-              m == WM_SYSKEYDOWN || m == WM_SYSKEYUP);
-        uint16_t vk_code   = LOWORD(wp);
-        uint16_t key_flags = HIWORD(lp);
-        uint16_t scan_code = LOBYTE(key_flags);
-        if ((key_flags & KF_EXTENDED) == KF_EXTENDED) {
-            scan_code = MAKEWORD(scan_code, 0xE0);
-        }
-        // previous key-state flag, 1 on autorepeat
-        bool was_key_down = (key_flags & KF_REPEAT) == KF_REPEAT;
-        // repeat count, > 0 if several key down messages was combined into one
-        uint16_t repeat_count = LOWORD(lp);
-        // transition-state flag, 1 on key up
-        bool is_key_released = (key_flags & KF_UP) == KF_UP;
-        // if we want to distinguish these keys:
-        switch (vk_code) {
-            case VK_SHIFT:   // converts to VK_LSHIFT or VK_RSHIFT
-            case VK_CONTROL: // converts to VK_LCONTROL or VK_RCONTROL
-            case VK_MENU:    // converts to VK_LMENU or VK_RMENU
-                vk_code = LOWORD(MapVirtualKeyW(scan_code, MAPVK_VSC_TO_VK_EX));
-                break;
-            default: break;
-        }
-        static BYTE keyboard_state[256];
-        uint16_t utf16[2];
-        HKL keyboard_layout = GetKeyboardLayout(0);
-        // HKL low word Language Identifier
-        //     high word device handle to the physical layout of the keyboard
-        ut_fatal_win32err(GetKeyboardState(keyboard_state));
-        // Map virtual key to scan code
-        UINT virtualKey = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX,
-                                          keyboard_layout);
-        // Translate scan code to character
-        int result = ToUnicodeEx(virtualKey, scan_code, keyboard_state,
-                                 utf16, ut_count_of(utf16), 0, keyboard_layout);
-        if (result > 0) {
-            ut_traceln("0x%04X04X is_key_released: %d down: %d repeat: %d",
-                     utf16[0], utf16[1], is_key_released, was_key_down,
-                     repeat_count);
-        }
-    }
-}
-
 static int32_t ui_app_message_loop(void) {
     MSG msg = {0};
-    while (GetMessage(&msg, null, 0, 0)) {
-        if (msg.message == WM_KEYDOWN || msg.message == WM_KEYUP ||
+    while (GetMessageW(&msg, null, 0, 0)) {
+        if (msg.message == WM_KEYDOWN    || msg.message == WM_KEYUP ||
             msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP) {
+            // before TranslateMessage():
             ui_app_decode_keyboard(msg.message, msg.wParam, msg.lParam);
         }
         TranslateMessage(&msg);
-        DispatchMessageA(&msg);
+        DispatchMessageW(&msg);
     }
     ut_work_queue.flush(&ui_app_queue);
     assert(msg.message == WM_QUIT);
@@ -4425,13 +4555,13 @@ static const char* ui_app_open_file(const char* folder,
         uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
             uint16_t* s0 = s;
-            ut_str.utf8to16(s0, left, pairs[i + 0]);
+            ut_str.utf8to16(s0, left, pairs[i + 0], -1);
             int32_t n0 = (int32_t)ut_str.len16(s0);
             assert(n0 > 0);
             s += n0 + 1;
             left -= n0 + 1;
             uint16_t* s1 = s;
-            ut_str.utf8to16(s1, left, pairs[i + 1]);
+            ut_str.utf8to16(s1, left, pairs[i + 1], -1);
             int32_t n1 = (int32_t)ut_str.len16(s1);
             assert(n1 > 0);
             s[n1] = 0;
@@ -4442,7 +4572,7 @@ static const char* ui_app_open_file(const char* folder,
     }
     static uint16_t dir[ut_files_max_path];
     dir[0] = 0;
-    ut_str.utf8to16(dir, ut_count_of(dir), folder);
+    ut_str.utf8to16(dir, ut_count_of(dir), folder, -1);
     static uint16_t path[ut_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
@@ -4455,7 +4585,7 @@ static const char* ui_app_open_file(const char* folder,
     static ut_file_name_t fn;
     fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        ut_str.utf16to8(fn.s, ut_count_of(fn.s), path);
+        ut_str.utf16to8(fn.s, ut_count_of(fn.s), path, -1);
     } else {
         fn.s[0] = 0;
     }
@@ -4865,7 +4995,7 @@ static void ui_app_test_post(void) {
 
 static int ui_app_win_main(HINSTANCE instance) {
     // IDI_ICON 101:
-    ui_app.icon = (ui_icon_t)LoadIconA(instance, MAKEINTRESOURCE(101));
+    ui_app.icon = (ui_icon_t)LoadIconW(instance, MAKEINTRESOURCE(101));
     ut_not_null(ui_app.init);
     ui_app_init_windows();
     ui_gdi.init();
@@ -9671,7 +9801,7 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
                 }
             }
         }
-        if (0x20 <= ch && !e->ro) { // 0x20 space
+        if (0x20 <= (uint8_t)ch && !e->ro) { // 0x20 space
             int32_t len = (int32_t)strlen(utf8);
             int32_t bytes = ut_str.utf8bytes(utf8, len);
             if (bytes > 0) {
@@ -10353,7 +10483,7 @@ ui_edit_if ui_edit = {
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 
-static bool     ui_fuzzing_debug; // = true;
+static bool     ui_fuzzing_debug = true;
 static uint32_t ui_fuzzing_seed;
 static bool     ui_fuzzing_running;
 static bool     ui_fuzzing_inside;
@@ -10392,7 +10522,7 @@ static const char* lorem_ipsum_words[] = {
     "platea", "dictumst"
 };
 
-#define lorem_ipsum_canonique \
+#define ui_fuzzing_lorem_ipsum_canonique \
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do "         \
     "eiusmod  tempor incididunt ut labore et dolore magna aliqua.Ut enim ad "  \
     "minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip " \
@@ -10401,14 +10531,14 @@ static const char* lorem_ipsum_words[] = {
     "sint occaecat cupidatat non proident, sunt in culpa qui officia "         \
     "deserunt mollit anim id est laborum."
 
-#define lorem_ipsum_chinese \
+#define ui_fuzzing_lorem_ipsum_chinese \
     "\xE6\x88\x91\xE6\x98\xAF\xE6\x94\xBE\xE7\xBD\xAE\xE6\x96\x87\xE6\x9C\xAC\xE7\x9A\x84\xE4" \
     "\xBD\x8D\xE7\xBD\xAE\xE3\x80\x82\xE8\xBF\x99\xE9\x87\x8C\xE6\x94\xBE\xE7\xBD\xAE\xE4\xBA" \
     "\x86\xE5\x81\x87\xE6\x96\x87\xE5\x81\x87\xE5\xAD\x97\xE3\x80\x82\xE5\xB8\x8C\xE6\x9C\x9B" \
     "\xE8\xBF\x99\xE4\xBA\x9B\xE6\x96\x87\xE5\xAD\x97\xE5\x8F\xAF\xE4\xBB\xA5\xE5\xA1\xAB\xE5" \
     "\x85\x85\xE7\xA9\xBA\xE7\x99\xBD\xE3\x80\x82";
 
-#define  lorem_ipsum_japanese \
+#define ui_fuzzing_lorem_ipsum_japanese \
     "\xE3\x81\x93\xE3\x82\x8C\xE3\x81\xAF\xE3\x83\x80\xE3\x83\x9F\xE3\x83\xBC\xE3\x83\x86\xE3" \
     "\x82\xAD\xE3\x82\xB9\xE3\x83\x88\xE3\x81\xA7\xE3\x81\x99\xE3\x80\x82\xE3\x81\x93\xE3\x81" \
     "\x93\xE3\x81\xAB\xE6\x96\x87\xE7\xAB\xA0\xE3\x81\x8C\xE5\x85\xA5\xE3\x82\x8A\xE3\x81\xBE" \
@@ -10418,7 +10548,7 @@ static const char* lorem_ipsum_words[] = {
     "\xE3\x81\x84\xE3\x81\xBE\xE3\x81\x99\xE3\x80\x82";
 
 
-#define lorem_ipsum_korean \
+#define ui_fuzzing_lorem_ipsum_korean \
     "\xEC\x9D\xB4\xEA\xB2\x83\xEC\x9D\x80\x20\xEB\x8D\x94\xEB\xAF\xB8\x20\xED\x85\x8D\xEC\x8A" \
     "\xA4\xED\x8A\xB8\xEC\x9E\x85\xEB\x8B\x88\xEB\x8B\xA4\x2E\x20\xEC\x97\xAC\xEA\xB8\xB0\xEC" \
     "\x97\x90\x20\xEB\xAC\xB8\xEC\x9E\x90\xEA\xB0\x80\x20\xEB\x93\x9C\xEC\x96\xB4\xEA\xB0\x80" \
@@ -10427,7 +10557,7 @@ static const char* lorem_ipsum_words[] = {
     "\x85\x8D\xEC\x8A\xA4\xED\x8A\xB8\xEB\xA5\xBC\x20\xEC\x82\xAC\xEC\x9A\xA9\xED\x95\xA9\xEB" \
     "\x8B\x88\xEB\x8B\xA4\x2E";
 
-#define lorem_ipsum_emoji \
+#define ui_fuzzing_lorem_ipsum_emoji \
     "\xF0\x9F\x8D\x95\xF0\x9F\x9A\x80\xF0\x9F\xA6\x84\xF0\x9F\x92\xBB\xF0\x9F\x8E\x89\xF0\x9F" \
     "\x8C\x88\xF0\x9F\x90\xB1\xF0\x9F\x93\x9A\xF0\x9F\x8E\xA8\xF0\x9F\x8D\x94\xF0\x9F\x8D\xA6" \
     "\xF0\x9F\x8E\xB8\xF0\x9F\xA7\xA9\xF0\x9F\x8D\xBF\xF0\x9F\x93\xB7\xF0\x9F\x8E\xA4\xF0\x9F" \
@@ -10451,6 +10581,15 @@ typedef struct {
     int32_t max_words;
     const char* append; // append after each paragraph (e.g. extra "\n")
 } ui_fuzzing_generator_params_t;
+
+static uint32_t ui_fuzzing_random(void) {
+    return ut_num.random32(&ui_fuzzing_seed);
+}
+
+static fp64_t ui_fuzzing_random_fp64(void) {
+    uint32_t r = ui_fuzzing_random();
+    return (fp64_t)r / (fp64_t)UINT32_MAX;
+}
 
 static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
     ut_fatal_if(p.count < 1024); // at least 1KB expected
@@ -10516,6 +10655,45 @@ static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
 //  ut_traceln("%s\n", p.text);
 }
 
+static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
+        char text[]) {
+    static fp64_t freq[96] = {
+        0.1716, 0.0023, 0.0027, 0.0002, 0.0001, 0.0005, 0.0013, 0.0012,
+        0.0015, 0.0014, 0.0017, 0.0002, 0.0084, 0.0020, 0.0075, 0.0040,
+        0.0135, 0.0045, 0.0053, 0.0053, 0.0047, 0.0047, 0.0043, 0.0047,
+        0.0057, 0.0044, 0.0037, 0.0004, 0.0016, 0.0004, 0.0017, 0.0017,
+        0.0020, 0.0045, 0.0026, 0.0020, 0.0027, 0.0021, 0.0025, 0.0026,
+        0.0030, 0.0025, 0.0021, 0.0018, 0.0028, 0.0026, 0.0024, 0.0020,
+        0.0025, 0.0026, 0.0030, 0.0022, 0.0027, 0.0022, 0.0020, 0.0023,
+        0.0015, 0.0016, 0.0009, 0.0005, 0.0005, 0.0001, 0.0003, 0.0003,
+        0.0078, 0.0013, 0.0012, 0.0008, 0.0012, 0.0007, 0.0006, 0.0011,
+        0.0016, 0.0012, 0.0011, 0.0004, 0.0004, 0.0016, 0.0013, 0.0009,
+        0.0009, 0.0008, 0.0013, 0.0011, 0.0013, 0.0012, 0.0006, 0.0007,
+        0.0011, 0.0005, 0.0007, 0.0003, 0.0002, 0.0006, 0.0002, 0.0005
+    };
+    static fp64_t cumulative_freq[96];
+    static bool initialized = 0;
+    if (!initialized) {
+        cumulative_freq[0] = freq[0];
+        for (int i = 1; i < ut_countof(freq); i++) {
+            cumulative_freq[i] = cumulative_freq[i - 1] + freq[i];
+        }
+        initialized = 1;
+    }
+    int32_t i = 0;
+    while (i < number_of_characters) {
+        text[i] = 0x00;
+        fp64_t r = ui_fuzzing_random_fp64();
+        for (int j = 0; j < 96 && text[i] == 0; j++) {
+            if (r < cumulative_freq[j]) {
+                text[i] = (char)(0x20 + j);
+            }
+        }
+        if (text[i] != 0) { i++; }
+    }
+    text[number_of_characters] = 0x00;
+}
+
 static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
     swear(work == &ui_fuzzing_work);
     ui_app.alt = work->alt;
@@ -10555,7 +10733,7 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
     }
     if (ui_fuzzing_running) {
         if (ui_fuzzing.next == null) {
-            ui_fuzzing.random(work);
+            ui_fuzzing.next_random(work);
         } else {
             ui_fuzzing.next(work);
         }
@@ -10581,31 +10759,43 @@ static void ui_fuzzing_post(void) {
 }
 
 static void ui_fuzzing_alt_ctrl_shift(void) {
-    switch (ut_num.random32(&ui_fuzzing_seed) % 8) {
-        case 0: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 0; break;
-        case 1: ui_fuzzing_work.alt = 1; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 0; break;
-        case 2: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 1; ui_fuzzing_work.shift = 0; break;
-        case 3: ui_fuzzing_work.alt = 1; ui_fuzzing_work.ctrl = 1; ui_fuzzing_work.shift = 0; break;
-        case 4: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 1; break;
-        case 5: ui_fuzzing_work.alt = 1; ui_fuzzing_work.ctrl = 0; ui_fuzzing_work.shift = 1; break;
-        case 6: ui_fuzzing_work.alt = 0; ui_fuzzing_work.ctrl = 1; ui_fuzzing_work.shift = 1; break;
-        case 7: ui_fuzzing_work.alt = 1; ui_fuzzing_work.ctrl = 1; ui_fuzzing_work.shift = 1; break;
+    ui_fuzzing_t* w = &ui_fuzzing_work;
+    switch (ui_fuzzing_random() % 8) {
+        case 0: w->alt = 0; w->ctrl = 0; w->shift = 0; break;
+        case 1: w->alt = 1; w->ctrl = 0; w->shift = 0; break;
+        case 2: w->alt = 0; w->ctrl = 1; w->shift = 0; break;
+        case 3: w->alt = 1; w->ctrl = 1; w->shift = 0; break;
+        case 4: w->alt = 0; w->ctrl = 0; w->shift = 1; break;
+        case 5: w->alt = 1; w->ctrl = 0; w->shift = 1; break;
+        case 6: w->alt = 0; w->ctrl = 1; w->shift = 1; break;
+        case 7: w->alt = 1; w->ctrl = 1; w->shift = 1; break;
         default: assert(false);
     }
 }
 
 static void ui_fuzzing_character(void) {
-    static char utf8[32];
-    uint32_t rnd = ut_num.random32(&ui_fuzzing_seed);
-    int32_t n = (int32_t)ut_max(1, rnd % ut_count_of(utf8));
-    for (int32_t i = 0; i < n - 1; i++) {
-        rnd = ut_num.random32(&ui_fuzzing_seed);
-        int ch = 0x20 + rnd % (128 - 0x20);
-        utf8[i] = (char)ch; utf8[i + 1] = 0;
-    }
-    ui_fuzzing_work.utf8 = utf8;
-    if (ui_fuzzing_debug) {
-        ut_traceln("%s", utf8);
+    static char utf8[4 * 1024];
+    if (ui_fuzzing_work.utf8 == null) {
+        fp64_t r = ui_fuzzing_random_fp64();
+        if (r < 0.125) {
+            uint32_t rnd = ui_fuzzing_random();
+            int32_t n = (int32_t)ut_max(1, rnd % 32);
+            ui_fuzzing_next_gibberish(n, utf8);
+            ui_fuzzing_work.utf8 = utf8;
+            if (ui_fuzzing_debug) {
+    //          ut_traceln("%s", utf8);
+            }
+        } else if (r < 0.25) {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_chinese;
+        } else if (r < 0.375) {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_japanese;
+        } else if (r < 0.5) {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_korean;
+        } else if (r < 0.5 + 0.125) {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_emoji;
+        } else {
+            ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_canonique;
+        }
     }
     ui_fuzzing_post();
 }
@@ -10625,15 +10815,13 @@ static void ui_fuzzing_key(void) {
         { ui.key.pagedw,  "pgdw",   },
         { ui.key.insert,  "insert"  },
         { ui.key.enter,   "enter"   },
-// TODO: cut copy paste erase need special treatment in fuzzing
-//       otherwise text collapses to nothing pretty fast
-//      ui.key.del,
-//      ui.key.back,
+        { ui.key.del,     "delete"  },
+        { ui.key.back,    "back"   },
     };
     ui_fuzzing_alt_ctrl_shift();
-    uint32_t ix = ut_num.random32(&ui_fuzzing_seed) % ut_count_of(keys);
+    uint32_t ix = ui_fuzzing_random() % ut_count_of(keys);
     if (ui_fuzzing_debug) {
-        ut_traceln("key(%s)", keys[ix].name);
+//      ut_traceln("key(%s)", keys[ix].name);
     }
     ui_fuzzing_work.key = keys[ix].key;
     ui_fuzzing_post();
@@ -10643,45 +10831,30 @@ static void ui_fuzzing_mouse(void) {
     // mouse events only inside edit control otherwise
     // they will start clicking buttons around
     ui_view_t* v = ui_app.content;
-    int32_t x = ut_num.random32(&ui_fuzzing_seed) % v->w;
-    int32_t y = ut_num.random32(&ui_fuzzing_seed) % v->h;
+    ui_fuzzing_t* w = &ui_fuzzing_work;
+    int32_t x = ui_fuzzing_random() % v->w;
+    int32_t y = ui_fuzzing_random() % v->h;
     static ui_point_t pt;
     pt = (ui_point_t){ x + v->x, y + v->y };
-    if (ut_num.random32(&ui_fuzzing_seed) % 2) {
-        ui_fuzzing_work.left  = !ui_fuzzing_work.left;
+    if (ui_fuzzing_random() % 2) {
+        w->left  = !w->left;
     }
-    if (ut_num.random32(&ui_fuzzing_seed) % 2) {
-        ui_fuzzing_work.right = !ui_fuzzing_work.right;
+    if (ui_fuzzing_random() % 2) {
+        w->right = !w->right;
     }
     if (ui_fuzzing_debug) {
-        ut_traceln("mouse(%d,%d) %s%s", pt.x, pt.y,
-                ui_fuzzing_work.left ? "L" : "_", ui_fuzzing_work.right ? "R" : "_");
+//      ut_traceln("mouse(%d,%d) %s%s", pt.x, pt.y,
+//              w->left ? "L" : "_", w->right ? "R" : "_");
     }
-    ui_fuzzing_work.pt = &pt;
+    w->pt = &pt;
     ui_fuzzing_post();
-}
-
-static void ui_fuzzing_next_random(void) {
-    // TODO: 100 times per second:
-    ui_fuzzing_work = (ui_fuzzing_t){
-        .base = { .when = ut_clock.seconds() + 0.001, // 1ms
-                  .ui_fuzzing_work = ui_fuzzing_do_work },
-    };
-    uint32_t rnd = ut_num.random32(&ui_fuzzing_seed) % 100;
-    if (rnd < 80) {
-        ui_fuzzing_character();
-    } else if (rnd < 90) {
-        ui_fuzzing_key();
-    } else {
-        ui_fuzzing_mouse();
-    }
 }
 
 static void ui_fuzzing_start(uint32_t seed) {
     ui_fuzzing_seed = seed | 0x1;
     ui_fuzzing_running = true;
     if (ui_fuzzing.next == null) {
-        ui_fuzzing.random(&ui_fuzzing_work);
+        ui_fuzzing.next_random(&ui_fuzzing_work);
     } else {
         ui_fuzzing.next(&ui_fuzzing_work);
     }
@@ -10699,16 +10872,27 @@ static void ui_fuzzing_stop(void) {
     ui_fuzzing_running = false;
 }
 
-static void ui_fuzzing_random(ui_fuzzing_t* f) {
+static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
     swear(f == &ui_fuzzing_work);
-    ui_fuzzing_next_random();
+    ui_fuzzing_work = (ui_fuzzing_t){
+        .base = { .when = ut_clock.seconds() + 0.001, // 1ms
+                  .ui_fuzzing_work = ui_fuzzing_do_work },
+    };
+    uint32_t rnd = ui_fuzzing_random() % 100;
+    if (rnd < 80) {
+        ui_fuzzing_character();
+    } else if (rnd < 90) {
+        ui_fuzzing_key();
+    } else {
+        ui_fuzzing_mouse();
+    }
 }
 
 ui_fuzzing_if ui_fuzzing = {
     .start       = ui_fuzzing_start,
     .is_running  = ui_fuzzing_is_running,
     .from_inside = ui_fuzzing_from_inside,
-    .random      = ui_fuzzing_random,
+    .next_random = ui_fuzzing_next_random,
     .dispatch    = ui_fuzzing_dispatch,
     .next        = null,
     .custom      = null,
@@ -11576,11 +11760,11 @@ if (0) {
         ut_traceln("e3: %d %d", e3.cx, e3.cy);
     }
 }
-    int32_t count = ut_str.utf16_chars(s);
+    int32_t count = ut_str.utf16_chars(s, -1);
     assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
     swear(count <= ut_count_of(ws), "find another way to draw!");
-    ut_str.utf8to16(ws, count, s);
+    ut_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
         ui_gdi_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });
@@ -12522,6 +12706,9 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 #pragma warning(disable: 4255) // no function prototype: '()' to '(void)'
 #pragma warning(disable: 4459) // declaration of '...' hides global declaration
 
+#pragma push_macro("UNICODE")
+#define UNICODE // always because otherwise IME does not work
+
 // ut:
 #include <Windows.h>  // used by:
 #include <Psapi.h>    // both ut_loader.c and ut_processes.c
@@ -12533,14 +12720,17 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 #include <ShlObj_core.h>  // ut_files.c
 #include <Shlwapi.h>      // ut_files.c
 // ui:
-#include <windowsx.h>
 #include <commdlg.h>
-#include <dwmapi.h>
-#include <ShellScalingApi.h>
-#include <VersionHelpers.h>
 #include <dbghelp.h>
+#include <dwmapi.h>
+#include <imm.h>
+#include <ShellScalingApi.h>
 #include <tlhelp32.h>
+#include <VersionHelpers.h>
+#include <windowsx.h>
 #include <winnt.h>
+
+#pragma pop_macro("UNICODE")
 
 #pragma warning(pop)
 
@@ -12612,7 +12802,7 @@ static HMODULE ui_theme_uxtheme(void) {
 
 static void* ui_theme_uxtheme_func(uint16_t ordinal) {
     HMODULE uxtheme = ui_theme_uxtheme();
-    void* proc = (void*)GetProcAddress(uxtheme, MAKEINTRESOURCE(ordinal));
+    void* proc = (void*)GetProcAddress(uxtheme, MAKEINTRESOURCEA(ordinal));
     ut_not_null(proc);
     return proc;
 }

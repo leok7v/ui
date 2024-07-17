@@ -5,10 +5,12 @@
 #pragma push_macro("ui_app_window")
 #pragma push_macro("ui_app_canvas")
 
+static bool ui_app_trace_utf16_keyboard_input;
+
 #define ui_app_window() ((HWND)ui_app.window)
 #define ui_app_canvas() ((HDC)ui_app.canvas)
 
-static WNDCLASSA ui_app_wc; // window class
+static WNDCLASSW ui_app_wc; // window class
 
 static NONCLIENTMETRICSW ui_app_ncm = { sizeof(NONCLIENTMETRICSW) };
 static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
@@ -23,6 +25,10 @@ static uintptr_t ui_app_timer_1s_id;
 static uintptr_t ui_app_timer_100ms_id;
 
 static bool ui_app_layout_dirty; // call layout() before paint
+
+static char ui_app_decoded_pressed[16];  // utf8 of last decoded pressed key
+static char ui_app_decoded_released[16]; // utf8 of last decoded released key
+static uint16_t ui_app_high_surrogate;
 
 typedef void (*ui_app_animate_function_t)(int32_t step);
 
@@ -268,14 +274,14 @@ static int32_t ui_app_pt2px(fp64_t pt) {
 
 static void ui_app_init_cursors(void) {
     if (ui_app.cursors.arrow == null) {
-        ui_app.cursors.arrow     = (ui_cursor_t)LoadCursorA(null, IDC_ARROW);
-        ui_app.cursors.wait      = (ui_cursor_t)LoadCursorA(null, IDC_WAIT);
-        ui_app.cursors.ibeam     = (ui_cursor_t)LoadCursorA(null, IDC_IBEAM);
-        ui_app.cursors.size_nwse = (ui_cursor_t)LoadCursorA(null, IDC_SIZENWSE);
-        ui_app.cursors.size_nesw = (ui_cursor_t)LoadCursorA(null, IDC_SIZENESW);
-        ui_app.cursors.size_we   = (ui_cursor_t)LoadCursorA(null, IDC_SIZEWE);
-        ui_app.cursors.size_ns   = (ui_cursor_t)LoadCursorA(null, IDC_SIZENS);
-        ui_app.cursors.size_all  = (ui_cursor_t)LoadCursorA(null, IDC_SIZEALL);
+        ui_app.cursors.arrow     = (ui_cursor_t)LoadCursorW(null, IDC_ARROW);
+        ui_app.cursors.wait      = (ui_cursor_t)LoadCursorW(null, IDC_WAIT);
+        ui_app.cursors.ibeam     = (ui_cursor_t)LoadCursorW(null, IDC_IBEAM);
+        ui_app.cursors.size_nwse = (ui_cursor_t)LoadCursorW(null, IDC_SIZENWSE);
+        ui_app.cursors.size_nesw = (ui_cursor_t)LoadCursorW(null, IDC_SIZENESW);
+        ui_app.cursors.size_we   = (ui_cursor_t)LoadCursorW(null, IDC_SIZEWE);
+        ui_app.cursors.size_ns   = (ui_cursor_t)LoadCursorW(null, IDC_SIZENS);
+        ui_app.cursors.size_all  = (ui_cursor_t)LoadCursorW(null, IDC_SIZEALL);
         ui_app.cursor = ui_app.cursors.arrow;
     }
 }
@@ -304,7 +310,8 @@ static void ui_app_init_fonts(int32_t dpi) {
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
-    ut_str.utf8to16(lf.lfFaceName, ut_count_of(lf.lfFaceName), "Cascadia Mono");
+    ut_str.utf8to16(lf.lfFaceName, ut_count_of(lf.lfFaceName),
+                    "Cascadia Mono", -1);
     ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
 }
 
@@ -340,7 +347,7 @@ typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
         HDC unused(hdc), RECT* unused(rc1), LPARAM that) {
     ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
-    MONITORINFOEX mi = { .cbSize = sizeof(MONITORINFOEX) };
+    MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
     ut_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
     const int32_t min_x = ut_min(mi.rcMonitor.left, mi.rcMonitor.right);
@@ -641,11 +648,37 @@ static void ui_app_toast_character(const char* utf8);
 static bool ui_app_toast_key_pressed(int64_t key);
 static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed);
 
-static void ui_app_wm_char(ui_view_t* view, const char* utf8) {
+static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
+    char utf8[32 + 1];
+    int32_t utf8bytes = ut_str.utf8_bytes(utf16, -1);
+    swear(utf8bytes < ut_countof(utf8) - 1); // 32 bytes + 0x00
+    ut_str.utf16to8(utf8, ut_countof(utf8), utf16, -1);
+    utf8[utf8bytes] = 0x00;
     if (ui_app.animating.view != null) {
         ui_app_toast_character(utf8);
     } else {
         ui_view.character(view, utf8);
+    }
+    ui_app_high_surrogate = 0x0000;
+}
+
+static void ui_app_wm_char(ui_view_t* view, const uint16_t* utf16) {
+    int32_t utf16chars = ut_str.len16(utf16);
+    swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
+    const uint16_t utf16char = utf16[0];
+    if (utf16chars == 1 && ut_str.utf16_is_high_surrogate(utf16char)) {
+        ui_app_high_surrogate = utf16char;
+    } else if (utf16chars == 1 && ut_str.utf16_is_low_surrogate(utf16char)) {
+        if (ui_app_high_surrogate != 0) {
+            uint16_t utf16_surrogate_pair[3] = {
+                ui_app_high_surrogate,
+                utf16char,
+                0x0000
+            };
+            ui_app_dispatch_wm_char(view, utf16_surrogate_pair);
+        }
+    } else {
+        ui_app_dispatch_wm_char(view, utf16);
     }
 }
 
@@ -1268,16 +1301,16 @@ static int64_t ui_app_wm_nc_hit_test(int64_t wp, int64_t lp) {
     if (ht != ui.hit_test.nowhere) {
         return ht;
     } else {
-        return DefWindowProc(ui_app_window(), WM_NCHITTEST, wp, lp);
+        return DefWindowProcW(ui_app_window(), WM_NCHITTEST, wp, lp);
     }
 }
 
 static int64_t ui_app_wm_sys_key_down(int64_t wp, int64_t lp) {
     ui_app_alt_ctrl_shift(true, wp);
     if (ui_app_wm_key_pressed(ui_app.root, wp) || wp == VK_MENU) {
-        return 0; // no DefWindowProc()
+        return 0; // no DefWindowProcW()
     } else {
-        return DefWindowProc(ui_app_window(), WM_SYSKEYDOWN, wp, lp);
+        return DefWindowProcW(ui_app_window(), WM_SYSKEYDOWN, wp, lp);
     }
 }
 
@@ -1309,7 +1342,7 @@ static int64_t ui_app_wm_nc_calculate_size(int64_t wp, int64_t lp) {
     if (wp == true && ui_app.no_decor && !ui_app.is_maximized()) {
         return 0;
     } else {
-        return DefWindowProc(ui_app_window(), WM_NCCALCSIZE, wp, lp);
+        return DefWindowProcW(ui_app_window(), WM_NCCALCSIZE, wp, lp);
     }
 }
 
@@ -1402,6 +1435,122 @@ static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
     }
 }
 
+static void ui_app_wm_input_language_change(uint64_t wp) {
+    #ifndef UI_APP_TRACE_WM_INPUT_LANGUAGE_CHANGE
+    static struct { uint8_t charset; const char* name; } cs[] = {
+        { ANSI_CHARSET       ,     "ANSI_CHARSET       " },
+        { DEFAULT_CHARSET    ,     "DEFAULT_CHARSET    " },
+        { SYMBOL_CHARSET     ,     "SYMBOL_CHARSET     " },
+        { MAC_CHARSET        ,     "MAC_CHARSET        " },
+        { SHIFTJIS_CHARSET   ,     "SHIFTJIS_CHARSET   " },
+        { HANGEUL_CHARSET    ,     "HANGEUL_CHARSET    " },
+        { HANGUL_CHARSET     ,     "HANGUL_CHARSET     " },
+        { GB2312_CHARSET     ,     "GB2312_CHARSET     " },
+        { CHINESEBIG5_CHARSET,     "CHINESEBIG5_CHARSET" },
+        { OEM_CHARSET        ,     "OEM_CHARSET        " },
+        { JOHAB_CHARSET      ,     "JOHAB_CHARSET      " },
+        { HEBREW_CHARSET     ,     "HEBREW_CHARSET     " },
+        { ARABIC_CHARSET     ,     "ARABIC_CHARSET     " },
+        { GREEK_CHARSET      ,     "GREEK_CHARSET      " },
+        { TURKISH_CHARSET    ,     "TURKISH_CHARSET    " },
+        { VIETNAMESE_CHARSET ,     "VIETNAMESE_CHARSET " },
+        { THAI_CHARSET       ,     "THAI_CHARSET       " },
+        { EASTEUROPE_CHARSET ,     "EASTEUROPE_CHARSET " },
+        { RUSSIAN_CHARSET    ,     "RUSSIAN_CHARSET    " },
+        { BALTIC_CHARSET     ,     "BALTIC_CHARSET     " }
+    };
+    for (int32_t i = 0; i < ut_countof(cs); i++) {
+        if (cs[i].charset == wp) {
+            ut_traceln("WM_INPUTLANGCHANGE: 0x%08X %s", wp, cs[i].name);
+            break;
+        }
+    }
+    #else
+        (void)wp; // unused
+    #endif
+}
+
+static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
+    // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
+    swear(m == WM_KEYDOWN || m == WM_SYSKEYDOWN ||
+          m == WM_KEYUP   || m == WM_SYSKEYUP);
+    uint16_t vk_code   = LOWORD(wp);
+    uint16_t key_flags = HIWORD(lp);
+    uint16_t scan_code = LOBYTE(key_flags);
+    if ((key_flags & KF_EXTENDED) == KF_EXTENDED) {
+        scan_code = MAKEWORD(scan_code, 0xE0);
+    }
+    // previous key-state flag, 1 on autorepeat
+    bool was_key_down = (key_flags & KF_REPEAT) == KF_REPEAT;
+    // repeat count, > 0 if several key down messages was combined into one
+    uint16_t repeat_count = LOWORD(lp);
+    // transition-state flag, 1 on key up
+    bool is_key_released = (key_flags & KF_UP) == KF_UP;
+    // if we want to distinguish these keys:
+    switch (vk_code) {
+        case VK_SHIFT:   // converts to VK_LSHIFT or VK_RSHIFT
+        case VK_CONTROL: // converts to VK_LCONTROL or VK_RCONTROL
+        case VK_MENU:    // converts to VK_LMENU or VK_RMENU
+            vk_code = LOWORD(MapVirtualKeyW(scan_code, MAPVK_VSC_TO_VK_EX));
+            break;
+        default: break;
+    }
+    static BYTE keyboard_state[256];
+    uint16_t utf16[3] = {0};
+    ut_fatal_win32err(GetKeyboardState(keyboard_state));
+    // HKL low word Language Identifier
+    //     high word device handle to the physical layout of the keyboard
+    const HKL kl = GetKeyboardLayout(0);
+    // Map virtual key to scan code
+    UINT vk = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, kl);
+//  ut_traceln("virtual_key: %02X keyboard layout: %08X",
+//              virtual_key, kl);
+    memset(ui_app_decoded_released, 0x00, sizeof(ui_app_decoded_released));
+    memset(ui_app_decoded_pressed,  0x00, sizeof(ui_app_decoded_pressed));
+    // Translate scan code to character
+    int32_t r = ToUnicodeEx(vk, scan_code, keyboard_state,
+                            utf16, ut_count_of(utf16), 0, kl);
+    if (r > 0) {
+        ut_static_assertion(ut_countof(ui_app_decoded_pressed) ==
+                            ut_countof(ui_app_decoded_released));
+        enum { capacity = (int32_t)ut_countof(ui_app_decoded_released) };
+        char* utf8 = is_key_released ?
+            ui_app_decoded_released : ui_app_decoded_pressed;
+        ut_str.utf16to8(utf8, capacity, utf16, -1);
+        if (ui_app_trace_utf16_keyboard_input) {
+            ut_traceln("0x%04X%04X released: %d down: %d repeat: %d \"%s\"",
+                    utf16[0], utf16[1], is_key_released, was_key_down,
+                    repeat_count, utf8);
+        }
+    } else if (r == 0) {
+        // The specified virtual key has no translation for the
+        // current state of the keyboard. (E.g. arrows, enter etc)
+    } else {
+        assert(r < 0);
+        // The specified virtual key is a dead key character (accent or diacritic).
+        if (ui_app_trace_utf16_keyboard_input) { ut_traceln("dead key"); }
+    }
+}
+
+static void ui_app_ime_composition(int64_t lp) {
+    if (lp & GCS_RESULTSTR) {
+        HIMC imc = ImmGetContext(ui_app_window());
+        if (imc != null) {
+            char utf8[16];
+            uint16_t utf16[4] = {0};
+            uint32_t bytes = ImmGetCompositionStringW(imc, GCS_RESULTSTR, null, 0);
+            uint32_t count = bytes / sizeof(uint16_t);
+            if (0 < count && count < ut_countof(utf16) - 1) {
+                ImmGetCompositionStringW(imc, GCS_RESULTSTR, utf16, bytes);
+                utf16[count] = 0x00;
+                ut_str.utf16to8(utf8, ut_countof(utf8), utf16, -1);
+                ut_traceln("bytes: %d 0x%04X 0x%04X %s", bytes, utf16[0], utf16[1], utf8);
+            }
+            ut_fatal_win32err(ImmReleaseContext(ui_app_window(), imc));
+        }
+    }
+}
+
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
 // TODO: remove
@@ -1443,57 +1592,60 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
         case WM_ACTIVATE         :
             ui_app_wm_activate(wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_SYSCOMMAND  :
             if (ui_app_wm_sys_command(wp, lp)) { return 0; }
-            break; // drop to DefWindowProc()
+            break;
         case WM_WINDOWPOSCHANGING:
             ui_app_wm_window_position_changing(wp, lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_WINDOWPOSCHANGED:
             ui_app_window_position_changed((WINDOWPOS*)lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_NCHITTEST    :
             return ui_app_wm_nc_hit_test(wp, lp);
         case WM_SYSKEYDOWN   :
             return ui_app_wm_sys_key_down(wp, lp);
         case WM_SYSCHAR      :
             if (wp == VK_MENU) { return 0; } // swallow - no DefWindowProc()
-            break; // drop to DefWindowProc()
+            break;
         case WM_KEYDOWN      :
             ui_app_alt_ctrl_shift(true, wp);
             if (ui_app_wm_key_pressed(ui_app.root, wp)) { return 0; } // swallow
-            break; // drop to DefWindowProc()
+            break;
         case WM_SYSKEYUP:
         case WM_KEYUP        :
             ui_app_alt_ctrl_shift(false, wp);
             ui_view.key_released(ui_app.root, wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_TIMER        :
             ui_app_wm_timer((ui_timer_t)wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_ERASEBKGND   :
             return true; // no DefWindowProc()
+        case WM_INPUTLANGCHANGE:
+            ui_app_wm_input_language_change(wp);
+            break;
         case WM_CHAR         :
-            ui_app_wm_char(ui_app.root, (const char*)&wp);
-            break; // TODO: CreateWindowW() and utf16->utf8
+            ui_app_wm_char(ui_app.root, (const uint16_t*)&wp);
+            break;
         case WM_PRINTCLIENT  :
             ui_app_paint_on_canvas((HDC)wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_SETFOCUS     :
             ui_app_wm_set_focus();
-            break; // drop to DefWindowProc()
+            break;
         case WM_KILLFOCUS    :
             ui_app_wm_kill_focus();
-            break; // drop to DefWindowProc()
+            break;
         case WM_NCCALCSIZE:
             return ui_app_wm_nc_calculate_size(wp, lp);
         case WM_PAINT        :
             ui_app_wm_paint();
-            break; // drop to DefWindowProc()
+            break;
         case WM_CONTEXTMENU  :
             (void)ui_view.context_menu(ui_app.root);
-            break; // drop to DefWindowProc()
+            break;
         case WM_THEMECHANGED :
             ui_theme.refresh();
             break;
@@ -1504,13 +1656,13 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             return ui_app_wm_get_dpi_scaled_size(wp);
         case WM_DPICHANGED  :
             ui_app_wm_dpi_changed();
-            break; // drop to DefWindowProc()
+            break;
         case WM_NCLBUTTONDOWN   : case WM_NCRBUTTONDOWN  : case WM_NCMBUTTONDOWN  :
         case WM_NCLBUTTONUP     : case WM_NCRBUTTONUP    : case WM_NCMBUTTONUP    :
         case WM_NCLBUTTONDBLCLK : case WM_NCRBUTTONDBLCLK: case WM_NCMBUTTONDBLCLK:
         case WM_NCMOUSEMOVE     :
             ui_app_nc_mouse_buttons(m, wp, lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_LBUTTONDOWN     : case WM_RBUTTONDOWN  : case WM_MBUTTONDOWN  :
         case WM_LBUTTONUP       : case WM_RBUTTONUP    : case WM_MBUTTONUP    :
         case WM_LBUTTONDBLCLK   : case WM_RBUTTONDBLCLK: case WM_MBUTTONDBLCLK:
@@ -1518,17 +1670,17 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
 //          if (m == WM_LBUTTONUP)     { ut_traceln("WM_LBUTTONUP"); }
 //          if (m == WM_LBUTTONDBLCLK) { ut_traceln("WM_LBUTTONDBLCLK"); }
             ui_app_wm_mouse(m, wp, lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_MOUSEHOVER      :
         case WM_MOUSEMOVE       :
             ui_app_wm_mouse(m, wp, lp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_MOUSEWHEEL   :
             ui_app_wm_mouse_wheel(true, wp);
-            break; // drop to DefWindowProc()
+            break;
         case WM_MOUSEHWHEEL  :
             ui_app_wm_mouse_wheel(false, wp);
-            break; // drop to DefWindowProc()
+            break;
         // debugging:
         #ifdef UI_APP_DEBUGING_ALT_KEYBOARD_SHORTCUTS
         case WM_PARENTNOTIFY  : ut_traceln("WM_PARENTNOTIFY");     break;
@@ -1549,7 +1701,28 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
                 SetCursor((HCURSOR)ui_app.cursor);
                 return true; // must NOT call DefWindowProc()
             }
-            break; // drop to DefWindowProc()
+            break;
+#ifdef UI_APP_USE_WM_IME
+        case WM_IME_CHAR:
+            ut_traceln("WM_IME_CHAR: 0x%04X", wp);
+            break;
+        case WM_IME_NOTIFY:
+            ut_traceln("WM_IME_NOTIFY");
+            break;
+        case WM_IME_REQUEST:
+            ut_traceln("WM_IME_REQUEST");
+            break;
+        case WM_IME_STARTCOMPOSITION:
+            ut_traceln("WM_IME_STARTCOMPOSITION");
+            break;
+        case WM_IME_ENDCOMPOSITION:
+            ut_traceln("WM_IME_ENDCOMPOSITION");
+            break;
+        case WM_IME_COMPOSITION:
+            ut_traceln("WM_IME_COMPOSITION");
+            ui_app_ime_composition(lp);
+            break;
+#endif  // UI_APP_USE_WM_IME
         // TODO:
         case WM_UNICHAR       : // only UTF-32 via PostMessage?
             ut_traceln("???");
@@ -1559,7 +1732,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         default:
             break;
     }
-    return DefWindowProcA(ui_app_window(), (UINT)m, (WPARAM)wp, lp);
+    return DefWindowProcW(ui_app_window(), (UINT)m, (WPARAM)wp, lp);
 }
 
 static long ui_app_get_window_long(int32_t index) {
@@ -1672,7 +1845,9 @@ static void ui_app_init_sys_menu(void) {
 }
 
 static void ui_app_create_window(const ui_rect_t r) {
-    WNDCLASSA* wc = &ui_app_wc;
+    uint16_t class_name[256];
+    ut_str.utf8to16(class_name, ut_countof(class_name), ui_app.class_name, -1);
+    WNDCLASSW* wc = &ui_app_wc;
     // CS_DBLCLKS no longer needed. Because code detects long-press
     // it does double click too. Editor uses both for word and paragraph select.
     wc->style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC | CS_SAVEBITS;
@@ -1684,11 +1859,13 @@ static void ui_app_create_window(const ui_rect_t r) {
     wc->hCursor = (HCURSOR)ui_app.cursor;
     wc->hbrBackground = null;
     wc->lpszMenuName = null;
-    wc->lpszClassName = ui_app.class_name;
-    ATOM atom = RegisterClassA(wc);
+    wc->lpszClassName = class_name;
+    ATOM atom = RegisterClassW(wc);
     ut_fatal_if(atom == 0);
-    HWND window = CreateWindowExA(WS_EX_COMPOSITED | WS_EX_LAYERED,
-        ui_app.class_name, ui_app.title, ui_app_window_style(),
+    uint16_t title[256];
+    ut_str.utf8to16(title, ut_countof(title), ui_app.title, -1);
+    HWND window = CreateWindowExW(WS_EX_COMPOSITED | WS_EX_LAYERED,
+        class_name, title, ui_app_window_style(),
         r.x, r.y, r.w, r.h, null, null, wc->hInstance, null);
     ut_not_null(ui_app.window);
     swear(window == ui_app_window());
@@ -1754,63 +1931,16 @@ static void ui_app_invalidate_rect(const ui_rect_t* r) {
 //  ut_bt_here();
 }
 
-static bool ui_app_trace_utf16_keyboard_input; // = true;
-
-static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
-    // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
-    if (ui_app_trace_utf16_keyboard_input) {
-        swear(m == WM_KEYDOWN || m == WM_KEYUP ||
-              m == WM_SYSKEYDOWN || m == WM_SYSKEYUP);
-        uint16_t vk_code   = LOWORD(wp);
-        uint16_t key_flags = HIWORD(lp);
-        uint16_t scan_code = LOBYTE(key_flags);
-        if ((key_flags & KF_EXTENDED) == KF_EXTENDED) {
-            scan_code = MAKEWORD(scan_code, 0xE0);
-        }
-        // previous key-state flag, 1 on autorepeat
-        bool was_key_down = (key_flags & KF_REPEAT) == KF_REPEAT;
-        // repeat count, > 0 if several key down messages was combined into one
-        uint16_t repeat_count = LOWORD(lp);
-        // transition-state flag, 1 on key up
-        bool is_key_released = (key_flags & KF_UP) == KF_UP;
-        // if we want to distinguish these keys:
-        switch (vk_code) {
-            case VK_SHIFT:   // converts to VK_LSHIFT or VK_RSHIFT
-            case VK_CONTROL: // converts to VK_LCONTROL or VK_RCONTROL
-            case VK_MENU:    // converts to VK_LMENU or VK_RMENU
-                vk_code = LOWORD(MapVirtualKeyW(scan_code, MAPVK_VSC_TO_VK_EX));
-                break;
-            default: break;
-        }
-        static BYTE keyboard_state[256];
-        uint16_t utf16[2];
-        HKL keyboard_layout = GetKeyboardLayout(0);
-        // HKL low word Language Identifier
-        //     high word device handle to the physical layout of the keyboard
-        ut_fatal_win32err(GetKeyboardState(keyboard_state));
-        // Map virtual key to scan code
-        UINT virtualKey = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX,
-                                          keyboard_layout);
-        // Translate scan code to character
-        int result = ToUnicodeEx(virtualKey, scan_code, keyboard_state,
-                                 utf16, ut_count_of(utf16), 0, keyboard_layout);
-        if (result > 0) {
-            ut_traceln("0x%04X04X is_key_released: %d down: %d repeat: %d",
-                     utf16[0], utf16[1], is_key_released, was_key_down,
-                     repeat_count);
-        }
-    }
-}
-
 static int32_t ui_app_message_loop(void) {
     MSG msg = {0};
-    while (GetMessage(&msg, null, 0, 0)) {
-        if (msg.message == WM_KEYDOWN || msg.message == WM_KEYUP ||
+    while (GetMessageW(&msg, null, 0, 0)) {
+        if (msg.message == WM_KEYDOWN    || msg.message == WM_KEYUP ||
             msg.message == WM_SYSKEYDOWN || msg.message == WM_SYSKEYUP) {
+            // before TranslateMessage():
             ui_app_decode_keyboard(msg.message, msg.wParam, msg.lParam);
         }
         TranslateMessage(&msg);
-        DispatchMessageA(&msg);
+        DispatchMessageW(&msg);
     }
     ut_work_queue.flush(&ui_app_queue);
     assert(msg.message == WM_QUIT);
@@ -2236,13 +2366,13 @@ static const char* ui_app_open_file(const char* folder,
         uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
             uint16_t* s0 = s;
-            ut_str.utf8to16(s0, left, pairs[i + 0]);
+            ut_str.utf8to16(s0, left, pairs[i + 0], -1);
             int32_t n0 = (int32_t)ut_str.len16(s0);
             assert(n0 > 0);
             s += n0 + 1;
             left -= n0 + 1;
             uint16_t* s1 = s;
-            ut_str.utf8to16(s1, left, pairs[i + 1]);
+            ut_str.utf8to16(s1, left, pairs[i + 1], -1);
             int32_t n1 = (int32_t)ut_str.len16(s1);
             assert(n1 > 0);
             s[n1] = 0;
@@ -2253,7 +2383,7 @@ static const char* ui_app_open_file(const char* folder,
     }
     static uint16_t dir[ut_files_max_path];
     dir[0] = 0;
-    ut_str.utf8to16(dir, ut_count_of(dir), folder);
+    ut_str.utf8to16(dir, ut_count_of(dir), folder, -1);
     static uint16_t path[ut_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
@@ -2266,7 +2396,7 @@ static const char* ui_app_open_file(const char* folder,
     static ut_file_name_t fn;
     fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        ut_str.utf16to8(fn.s, ut_count_of(fn.s), path);
+        ut_str.utf16to8(fn.s, ut_count_of(fn.s), path, -1);
     } else {
         fn.s[0] = 0;
     }
@@ -2676,7 +2806,7 @@ static void ui_app_test_post(void) {
 
 static int ui_app_win_main(HINSTANCE instance) {
     // IDI_ICON 101:
-    ui_app.icon = (ui_icon_t)LoadIconA(instance, MAKEINTRESOURCE(101));
+    ui_app.icon = (ui_icon_t)LoadIconW(instance, MAKEINTRESOURCE(101));
     ut_not_null(ui_app.init);
     ui_app_init_windows();
     ui_gdi.init();

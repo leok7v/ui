@@ -859,11 +859,11 @@ if (0) {
         ut_traceln("e3: %d %d", e3.cx, e3.cy);
     }
 }
-    int32_t count = ut_str.utf16_chars(s);
+    int32_t count = ut_str.utf16_chars(s, -1);
     assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
     swear(count <= ut_count_of(ws), "find another way to draw!");
-    ut_str.utf8to16(ws, count, s);
+    ut_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
         ui_gdi_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });

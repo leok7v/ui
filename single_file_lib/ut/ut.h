@@ -199,13 +199,26 @@ typedef struct {
     void (*lower)(char* d, int32_t capacity, const char* s); // ASCII only
     void (*upper)(char* d, int32_t capacity, const char* s); // ASCII only
     // utf8/utf16 conversion
-    int32_t (*utf8_bytes)(const uint16_t* utf16); // UTF-8 byte required
-    int32_t (*utf16_chars)(const char* s); // UTF-16 chars required
+    // If `chars` argument is -1, the function utf8_bytes includes the zero
+    // terminating character in the conversion and the returned byte count.
+    int32_t (*utf8_bytes)(const uint16_t* utf16, int32_t bytes); // bytes count
+    // If `bytes` argument is -1, the function utf16_chars() includes the zero
+    // terminating character in the conversion and the returned character count.
+    int32_t (*utf16_chars)(const char* utf8, int32_t bytes); // chars count
     // utf8_bytes() and utf16_chars() return -1 on invalid UTF-8/UTF-16
-    // utf8_bytes(L"") returns 1 for zero termination
-    // utf16_chars("") returns 1 for zero termination
-    void (*utf16to8)(char* d, int32_t capacity, const uint16_t* utf16);
-    void (*utf8to16)(uint16_t* d, int32_t capacity, const char* utf8);
+    // utf8_bytes(L"", -1) returns 1 for zero termination
+    // utf16_chars("", -1) returns 1 for zero termination
+    // chars: -1 means both source and destination are zero terminated
+    errno_t (*utf16to8)(char* utf8, int32_t capacity,
+                        const uint16_t* utf16, int32_t chars);
+    // bytes: -1 means both source and destination are zero terminated
+    errno_t (*utf8to16)(uint16_t* utf16, int32_t capacity,
+                        const char* utf8, int32_t bytes);
+    // https://compart.com/en/unicode/U+1F41E
+    // Lady Beetle: utf16 L"\xD83D\xDC1E" utf8 "\xF0\x9F\x90\x9E"
+    //           surrogates:  high   low
+    bool (*utf16_is_low_surrogate)(uint16_t utf16char);
+    bool (*utf16_is_high_surrogate)(uint16_t utf16char);
     // string formatting printf style:
     void (*format_va)(char* utf8, int32_t count, const char* format, va_list va);
     void (*format)(char* utf8, int32_t count, const char* format, ...);
@@ -1920,6 +1933,9 @@ end_c
 #pragma warning(disable: 4255) // no function prototype: '()' to '(void)'
 #pragma warning(disable: 4459) // declaration of '...' hides global declaration
 
+#pragma push_macro("UNICODE")
+#define UNICODE // always because otherwise IME does not work
+
 // ut:
 #include <Windows.h>  // used by:
 #include <Psapi.h>    // both ut_loader.c and ut_processes.c
@@ -1931,14 +1947,17 @@ end_c
 #include <ShlObj_core.h>  // ut_files.c
 #include <Shlwapi.h>      // ut_files.c
 // ui:
-#include <windowsx.h>
 #include <commdlg.h>
-#include <dwmapi.h>
-#include <ShellScalingApi.h>
-#include <VersionHelpers.h>
 #include <dbghelp.h>
+#include <dwmapi.h>
+#include <imm.h>
+#include <ShellScalingApi.h>
 #include <tlhelp32.h>
+#include <VersionHelpers.h>
+#include <windowsx.h>
 #include <winnt.h>
+
+#pragma pop_macro("UNICODE")
 
 #pragma warning(pop)
 
@@ -2204,7 +2223,7 @@ static void ut_args_WinMain(void) {
     int32_t n = (int32_t)ut_str.len16(wcl);
     char* cl = null;
     ut_fatal_if_error(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
-    ut_str.utf16to8(cl, n * 2 + 1, wcl);
+    ut_str.utf16to8(cl, n * 2 + 1, wcl, -1);
     ut_args_parse(cl);
     ut_heap.deallocate(null, cl);
     ut_args.env = (const char**)(void*)_environ;
@@ -2873,7 +2892,7 @@ static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
     tn.name[0] = 0;
     wchar_t* thread_name = null;
     if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
-        ut_str.utf16to8(tn.name, ut_count_of(tn.name), thread_name);
+        ut_str.utf16to8(tn.name, ut_count_of(tn.name), thread_name, -1);
         LocalFree(thread_name);
     }
     return tn;
@@ -3069,12 +3088,12 @@ ut_bt_if ut_bt = {
 // ______________________________ ut_clipboard.c ______________________________
 
 static errno_t ut_clipboard_put_text(const char* utf8) {
-    int32_t chars = ut_str.utf16_chars(utf8);
+    int32_t chars = ut_str.utf16_chars(utf8, -1);
     int32_t bytes = (chars + 1) * 2;
     uint16_t* utf16 = null;
     errno_t r = ut_heap.alloc((void**)&utf16, (size_t)bytes);
     if (utf16 != null) {
-        ut_str.utf8to16(utf16, bytes, utf8);
+        ut_str.utf8to16(utf16, bytes, utf8, -1);
         assert(utf16[chars - 1] == 0);
         const int32_t n = (int32_t)ut_str.len16(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : ut_runtime.err();
@@ -3124,13 +3143,13 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
         } else {
             uint16_t* utf16 = (uint16_t*)GlobalLock(global);
             if (utf16 != null) {
-                int32_t utf8_bytes = ut_str.utf8_bytes(utf16);
+                int32_t utf8_bytes = ut_str.utf8_bytes(utf16, -1);
                 if (utf8 != null) {
                     char* decoded = (char*)malloc((size_t)utf8_bytes);
                     if (decoded == null) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
-                        ut_str.utf16to8(decoded, utf8_bytes, utf16);
+                        ut_str.utf16to8(decoded, utf8_bytes, utf16, -1);
                         int32_t n = ut_min(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, (size_t)n);
                         free(decoded);
@@ -3509,7 +3528,7 @@ static void ut_debug_output(const char* s, int32_t count) {
         }
         // SetConsoleCP(CP_UTF8) is not guaranteed to be called
         uint16_t* wide = ut_stackalloc((count + 1) * sizeof(uint16_t));
-        ut_str.utf8to16(wide, count, s);
+        ut_str.utf8to16(wide, count, s, -1);
         OutputDebugStringW(wide);
     }
 }
@@ -4279,7 +4298,8 @@ static const char* ut_files_known_folder(int32_t kf) {
     if (known_folders[kf].s[0] == 0) {
         uint16_t* path = null;
         ut_fatal_if_error(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
-        ut_str.utf16to8(known_folders[kf].s, ut_count_of(known_folders[kf].s), path);
+        const int32_t n = ut_count_of(known_folders[kf].s);
+        ut_str.utf16to8(known_folders[kf].s, n, path, -1);
         CoTaskMemFree(path);
 	}
     return known_folders[kf].s;
@@ -5097,11 +5117,7 @@ static errno_t ut_mem_adjust_process_privilege_manage_volume_name(void) {
     HANDLE token = null;
     errno_t r = ut_b2e(OpenProcessToken(process, access, &token));
     if (r == 0) {
-        #ifdef UNICODE
-        const char* se_manage_volume_name = utf16to8(SE_MANAGE_VOLUME_NAME);
-        #else
-        const char* se_manage_volume_name = SE_MANAGE_VOLUME_NAME;
-        #endif
+        const char* se_manage_volume_name = "SeManageVolumePrivilege";
         r = ut_mem_set_token_privilege(token, se_manage_volume_name, true);
         ut_win32_close_handle(token);
     }
@@ -5328,8 +5344,8 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
     uint16_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
-    HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
-        MAKEINTRESOURCE(block), lang_id);
+    HRSRC res = FindResourceExW(((HMODULE)null), RT_STRING,
+        MAKEINTRESOURCEW(block), lang_id);
 //  ut_traceln("FindResourceExA(block=%d lang_id=%04X)=%p", block, lang_id, res);
     uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
     uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
@@ -5354,13 +5370,13 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
 }
 
 static const char* ut_nls_save_string(uint16_t* utf16) {
-    const int32_t bytes = ut_str.utf8_bytes(utf16);
+    const int32_t bytes = ut_str.utf8_bytes(utf16, -1);
     swear(bytes > 1);
     char* s = ut_nls_strings_free;
     uintptr_t left = (uintptr_t)ut_count_of(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
     ut_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
-    ut_str.utf16to8(s, (int32_t)left, utf16);
+    ut_str.utf16to8(s, (int32_t)left, utf16, -1);
     assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
     ut_nls_strings_free += bytes;
     return s;
@@ -5422,7 +5438,7 @@ static const char* ut_nls_locale(void) {
         errno_t r = ut_runtime.err();
         ut_traceln("LCIDToLocaleName(0x%04X) failed %s", lc_id, ut_str.error(r));
     } else {
-        ut_str.utf16to8(ln, ut_count_of(ln), utf16);
+        ut_str.utf16to8(ln, ut_count_of(ln), utf16, -1);
     }
     return ln;
 }
@@ -5430,7 +5446,7 @@ static const char* ut_nls_locale(void) {
 static errno_t ut_nls_set_locale(const char* locale) {
     errno_t r = 0;
     uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
-    ut_str.utf8to16(utf16, ut_count_of(utf16), locale);
+    ut_str.utf8to16(utf16, ut_count_of(utf16), locale, -1);
     uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1]; // resolved locale name
     int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)ut_count_of(rln));
     if (n == 0) {
@@ -5455,8 +5471,8 @@ static void ut_nls_init(void) {
     LANGID lang_id = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
     for (int32_t strid = 0; strid < ut_count_of(ut_nls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
-        HRSRC res = FindResourceExA(((HMODULE)null), RT_STRING,
-            MAKEINTRESOURCE(block), lang_id);
+        HRSRC res = FindResourceExW(((HMODULE)null), RT_STRING,
+            MAKEINTRESOURCEW(block), lang_id);
         uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
         uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
         if (ws == null) { break; }
@@ -5765,7 +5781,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
     }
     uint16_t wn[1024];
     ut_fatal_if(strlen(base) >= ut_count_of(wn), "name too long: %s", base);
-    ut_str.utf8to16(wn, ut_count_of(wn), base);
+    ut_str.utf8to16(wn, ut_count_of(wn), base, -1);
     size_t count = 0;
     uint64_t pid = 0;
     uint8_t* data = null;
@@ -6411,228 +6427,6 @@ ut_runtime_if ut_runtime = {
     }
 };
 
-/*
-
-
-.error = { //      win32             posix
-    .out_of_memory    = ERROR_OUTOFMEMORY,     // ENOMEM
-    .file_not_found   = ERROR_FILE_NOT_FOUND,   // ENOENT
-    .insufficient_buffer = ERROR_INSUFFICIENT_BUFFER, // E2BIG
-    .more_data      = ERROR_MORE_DATA,      // ENOBUFS
-    .invalid_data    = ERROR_INVALID_DATA,    // EINVAL
-    .invalid_parameter  = ERROR_INVALID_PARAMETER,  // EINVAL
-    .access_denied    = ERROR_ACCESS_DENIED,    // EACCES
-    .invalid_handle    = ERROR_INVALID_HANDLE,   // EBADF
-    .no_child_process   = ERROR_NO_PROC_SLOTS,   // ECHILD
-    .resource_deadlock  = ERROR_LOCK_VIOLATION,  // EDEADLK
-    .disk_full      = ERROR_DISK_FULL,      // ENOSPC
-    .broken_pipe     = ERROR_BROKEN_PIPE,    // EPIPE
-    .name_too_long    = ERROR_FILENAME_EXCED_RANGE, // ENAMETOOLONG
-    .not_empty      = ERROR_DIR_NOT_EMPTY,  // ENOTEMPTY
-    .io_error       = ERROR_IO_DEVICE,     // EIO
-    .interrupted     = ERROR_OPERATION_ABORTED, // EINTR
-    .bad_file       = ERROR_BAD_FILE_TYPE,    // EBADF
-    .device_not_ready  = ERROR_NOT_READY,      // ENXIO
-    .directory_not_empty = ERROR_DIR_NOT_EMPTY,    // ENOTEMPTY
-    .disk_full      = ERROR_DISK_FULL,      // ENOSPC
-    .file_exists     = ERROR_FILE_EXISTS,     // EEXIST
-    .not_a_directory   = ERROR_DIRECTORY,      // ENOTDIR
-    .path_not_found   = ERROR_PATH_NOT_FOUND,   // ENOENT
-    .pipe_not_connected = ERROR_PIPE_NOT_CONNECTED, // EPIPE
-    .read_only_file   = ERROR_WRITE_PROTECT,    // EROFS
-    .too_many_open_files = ERROR_TOO_MANY_OPEN_FILES, // EMFILE
-  }
-
-
-
-
-EPERM
-ENOENT
-ESRCH
-EINTR
-EIO
-ENXIO
-E2BIG
-ENOEXEC
-EBADF
-ECHILD
-EAGAIN
-ENOMEM
-EACCES
-EFAULT
-EBUSY
-EEXIST
-EXDEV
-ENODEV
-ENOTDIR
-EISDIR
-ENFILE
-EMFILE
-ENOTTY
-EFBIG
-ENOSPC
-ESPIPE
-EROFS
-EMLINK
-EPIPE
-EDOM
-EDEADLK
-ENAMETOOLONG
-ENOLCK
-ENOSYS
-ENOTEMPTY
-EINVAL
-ERANGE
-EILSEQ
-STRUNCATE
-EADDRINUSE
-EADDRNOTAVAIL
-EAFNOSUPPORT
-EALREADY
-EBADMSG
-ECANCELED
-ECONNABORTED
-ECONNREFUSED
-ECONNRESET
-EDESTADDRREQ
-EHOSTUNREACH
-EIDRM
-EINPROGRESS
-EISCONN
-ELOOP
-EMSGSIZE
-ENETDOWN
-ENETRESET
-ENETUNREACH
-ENOBUFS
-ENODATA
-ENOLINK
-ENOMSG
-ENOPROTOOPT
-ENOSR
-ENOSTR
-ENOTCONN
-ENOTRECOVERABLE
-ENOTSOCK
-ENOTSUP
-EOPNOTSUPP
-EOTHER
-EOVERFLOW
-EOWNERDEAD
-EPROTO
-EPROTONOSUPPORT
-EPROTOTYPE
-ETIME
-ETIMEDOUT
-ETXTBSY
-EWOULDBLOCK
-EXDEV
-EDEADLK
-ENAMETOOLONG
-ENOLCK
-ENOSYS
-ENOTEMPTY
-ELOOP
-EWOULDBLOCK
-EAGAIN
-ENOMSG
-EIDRM
-ECHRNG
-EL2NSYNC
-EL3HLT
-EL3RST
-ELNRNG
-EUNATCH
-ENOCSI
-EL2HLT
-EBADE
-EBADR
-EXFULL
-ENOANO
-EBADRQC
-EBADSLT
-EDEADLOCK
-EDEADLK
-EBFONT
-ENOSTR
-ENODATA
-ETIME
-ENOSR
-ENONET
-ENOPKG
-EREMOTE
-ENOLINK
-EADV
-ESRMNT
-ECOMM
-EPROTO
-EMULTIHOP
-EDOTDOT
-EBADMSG
-EOVERFLOW
-ENOTUNIQ
-EBADFD
-EREMCHG
-ELIBACC
-ELIBBAD
-ELIBSCN
-ELIBMAX
-ELIBEXEC
-EILSEQ
-ERESTART
-ESTRPIPE
-EUSERS
-ENOTSOCK
-EDESTADDRREQ
-EMSGSIZE
-EPROTOTYPE
-ENOPROTOOPT
-EPROTONOSUPPORT
-ESOCKTNOSUPPORT
-EOPNOTSUPP
-EPFNOSUPPORT
-EAFNOSUPPORT
-EADDRINUSE
-EADDRNOTAVAIL
-ENETDOWN
-ENETUNREACH
-ENETRESET
-ECONNABORTED
-ECONNRESET
-ENOBUFS
-EISCONN
-ENOTCONN
-ESHUTDOWN
-ETOOMANYREFS
-ETIMEDOUT
-ECONNREFUSED
-EHOSTDOWN
-EHOSTUNREACH
-EALREADY
-EINPROGRESS
-ESTALE
-EUCLEAN
-ENOTNAM
-ENAVAIL
-EISNAM
-EREMOTEIO
-EDQUOT
-ENOMEDIUM
-EMEDIUMTYPE
-ECANCELED
-ENOKEY
-EKEYEXPIRED
-EKEYREVOKED
-EKEYREJECTED
-EOWNERDEAD
-ENOTRECOVERABLE
-ERFKILL
-EHWPOISON
-
-
-*/
-
-
 #pragma comment(lib, "advapi32")
 #pragma comment(lib, "ntdll")
 #pragma comment(lib, "psapi")
@@ -6640,6 +6434,7 @@ EHWPOISON
 #pragma comment(lib, "shlwapi")
 #pragma comment(lib, "kernel32")
 #pragma comment(lib, "user32") // clipboard
+#pragma comment(lib, "imm32")  // Internationalization input method
 #pragma comment(lib, "ole32")  // ut_files.known_folder CoMemFree
 #pragma comment(lib, "dbghelp")
 #pragma comment(lib, "imagehlp")
@@ -6791,40 +6586,77 @@ static bool ut_str_i_ends(const char* s1, const char* s2) {
     return n1 >= n2 && strnicmp(s1 + n1 - n2, s2, n2) == 0;
 }
 
-static int32_t ut_str_utf8_bytes(const uint16_t* utf16) {
-    // If cchWideChar argument is -1, the function WideCharToMultiByte
-    // includes the zero-terminating character in the conversion and
-    // the returned byte count.
-    int32_t required_bytes_count =
+static int32_t ut_str_utf8_bytes(const uint16_t* utf16, int32_t chars) {
+    // If `chars` argument is -1, the function utf8_bytes includes the zero
+    // terminating character in the conversion and the returned byte count.
+    // Function will fail (return 0) on incomplete surrogate pairs like
+    // 0xD83D without following 0xDC1E https://compart.com/en/unicode/U+1F41E
+    if (chars == 0) { return 0; }
+    if (chars < 0 && utf16[0] == 0x0000) { return 1; }
+    const int32_t required_bytes_count =
         WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-        utf16, -1, null, 0, null, null);
-    swear(required_bytes_count < 0 || required_bytes_count > 0);
-    return required_bytes_count;
+        utf16, chars, null, 0, null, null);
+    if (required_bytes_count == 0) {
+        errno_t r = ut_runtime.err();
+        ut_traceln("WideCharToMultiByte() failed %s", ut_strerr(r));
+        ut_runtime.set_err(r);
+    }
+    return required_bytes_count == 0 ? -1 : required_bytes_count;
 }
 
-static int32_t ut_str_utf16_chars(const char* utf8) {
-    // If cbMultiByte argument is -1, the function MultiByteToWideChar
-    // includes the zero-terminating character in the conversion and
-    // the returned byte count.
-    int32_t required_wide_chars_count =
-        MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
-    swear(required_wide_chars_count < 0 || required_wide_chars_count > 0);
-    return required_wide_chars_count;
+static int32_t ut_str_utf16_chars(const char* utf8, int32_t bytes) {
+    // If `bytes` argument is -1, the function utf16_chars() includes the zero
+    // terminating character in the conversion and the returned character count.
+    if (bytes == 0) { return 0; }
+    if (bytes < 0 && utf8[0] == 0x00) { return 1; }
+    const int32_t required_wide_chars_count =
+        MultiByteToWideChar(CP_UTF8, 0, utf8, bytes, null, 0);
+    if (required_wide_chars_count == 0) {
+        errno_t r = ut_runtime.err();
+        ut_traceln("MultiByteToWideChar() failed %s", ut_strerr(r));
+        ut_runtime.set_err(r);
+    }
+    return required_wide_chars_count == 0 ? -1 : required_wide_chars_count;
 }
 
-static void ut_str_utf16to8(char* d, int32_t capacity, const uint16_t* utf16) {
-    const int32_t required = ut_str.utf8_bytes(utf16);
-    swear(required > 0 && capacity >= required);
-    int32_t bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-                        utf16, -1, d, capacity, null, null);
-    swear(required == bytes);
+static errno_t ut_str_utf16to8(char* utf8, int32_t capacity,
+        const uint16_t* utf16, int32_t chars) {
+    if (chars == 0) { return 0; }
+    if (chars < 0 && utf16[0] == 0x0000) {
+        swear(capacity >= 1);
+        utf8[0] = 0x00;
+        return 0;
+    }
+    const int32_t required = ut_str.utf8_bytes(utf16, chars);
+    errno_t r = required < 0 ? ut_runtime.err() : 0;
+    if (r == 0) {
+        swear(required > 0 && capacity >= required);
+        int32_t bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
+                            utf16, chars, utf8, capacity, null, null);
+        swear(required == bytes);
+    }
+    return r;
 }
 
-static void ut_str_utf8to16(uint16_t* d, int32_t capacity, const char* utf8) {
-    const int32_t required = ut_str.utf16_chars(utf8);
-    swear(required > 0 && capacity >= required);
-    int32_t count = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, d, capacity);
-    swear(required == count);
+static errno_t ut_str_utf8to16(uint16_t* d, int32_t capacity,
+        const char* utf8, int32_t bytes) {
+    const int32_t required = ut_str.utf16_chars(utf8, bytes);
+    errno_t r = required < 0 ? ut_runtime.err() : 0;
+    if (r == 0) {
+        swear(required >= 0 && capacity >= required);
+        int32_t count = MultiByteToWideChar(CP_UTF8, 0, utf8, bytes,
+                                            d, capacity);
+        swear(required == count);
+    }
+    return r;
+}
+
+static bool ut_str_utf16_is_low_surrogate(uint16_t utf16char) {
+    return 0xDC00 <= utf16char && utf16char <= 0xDFFF;
+}
+
+static bool ut_str_utf16_is_high_surrogate(uint16_t utf16char) {
+    return 0xD800 <= utf16char && utf16char <= 0xDBFF;
 }
 
 static void ut_str_format_va(char* utf8, int32_t count, const char* format,
@@ -6877,11 +6709,11 @@ static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
         k = (int32_t)ut_str.len16(utf16);
         if (k > 0 && utf16[k - 1] == '\r') { utf16[k - 1] = 0; }
         char message[ut_countof(text.s)];
-        const int32_t bytes = ut_str.utf8_bytes(utf16);
+        const int32_t bytes = ut_str.utf8_bytes(utf16, -1);
         if (bytes >= ut_count_of(message)) {
             ut_str_printf(message, "error message is too long: %d bytes", bytes);
         } else {
-            ut_str.utf16to8(message, ut_count_of(message), utf16);
+            ut_str.utf16to8(message, ut_count_of(message), utf16, -1);
         }
         // truncating printf to string:
         ut_str_printf(text.s, "0x%08X(%d) \"%s\"", error, error, message);
@@ -6908,7 +6740,7 @@ static const char* ut_str_grouping_separator(void) {
         // decimal_separator  == "."
         static char grouping_separator[8];
         if (grouping_separator[0] == 0x00) {
-            errno_t r = ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+            errno_t r = ut_b2e(GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
                 grouping_separator, sizeof(grouping_separator)));
             swear(r == 0 && grouping_separator[0] != 0);
         }
@@ -7006,7 +6838,7 @@ static str64_t ut_str_uint64_lc(uint64_t v) {
 static str128_t ut_str_fp(const char* format, fp64_t v) {
     static char decimal_separator[8];
     if (decimal_separator[0] == 0) {
-        errno_t r = ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
+        errno_t r = ut_b2e(GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
             decimal_separator, sizeof(decimal_separator)));
         swear(r == 0 && decimal_separator[0] != 0);
     }
@@ -7078,13 +6910,13 @@ static void ut_str_test(void) {
     #pragma pop_macro("glyph_chinese_two")
     #pragma pop_macro("glyph_chinese_one")
     uint16_t wide_str[100] = {0};
-    ut_str.utf8to16(wide_str, ut_count_of(wide_str), utf8_str);
+    ut_str.utf8to16(wide_str, ut_count_of(wide_str), utf8_str, -1);
     char utf8[100] = {0};
-    ut_str.utf16to8(utf8, ut_count_of(utf8), wide_str);
+    ut_str.utf16to8(utf8, ut_count_of(utf8), wide_str, -1);
     uint16_t utf16[100];
-    ut_str.utf8to16(utf16, ut_count_of(utf16), utf8);
+    ut_str.utf8to16(utf16, ut_count_of(utf16), utf8, -1);
     char narrow_str[100] = {0};
-    ut_str.utf16to8(narrow_str, ut_count_of(narrow_str), utf16);
+    ut_str.utf16to8(narrow_str, ut_count_of(narrow_str), utf16, -1);
     swear(strcmp(narrow_str, utf8_str) == 0);
     char formatted[100];
     ut_str.format(formatted, ut_count_of(formatted), "n: %d, s: %s", 42, "test");
@@ -7139,33 +6971,35 @@ static void ut_str_test(void) {}
 #endif
 
 ut_str_if ut_str = {
-    .drop_const         = ut_str_drop_const,
-    .len                = ut_str_len,
-    .len16              = ut_str_utf16len,
-    .utf8bytes          = ut_str_utf8bytes,
-    .glyphs             = ut_str_glyphs,
-    .lower              = ut_str_lower,
-    .upper              = ut_str_upper,
-    .starts             = ut_str_starts,
-    .ends               = ut_str_ends,
-    .istarts            = ut_str_i_starts,
-    .iends              = ut_str_i_ends,
-    .utf8_bytes         = ut_str_utf8_bytes,
-    .utf16_chars        = ut_str_utf16_chars,
-    .utf16to8           = ut_str_utf16to8,
-    .utf8to16           = ut_str_utf8to16,
-    .format             = ut_str_format,
-    .format_va          = ut_str_format_va,
-    .error              = ut_str_error,
-    .error_nls          = ut_str_error_nls,
-    .grouping_separator = ut_str_grouping_separator,
-    .int64_dg           = ut_str_int64_dg,
-    .int64              = ut_str_int64,
-    .uint64             = ut_str_uint64,
-    .int64_lc           = ut_str_int64,
-    .uint64_lc          = ut_str_uint64,
-    .fp                 = ut_str_fp,
-    .test               = ut_str_test
+    .drop_const              = ut_str_drop_const,
+    .len                     = ut_str_len,
+    .len16                   = ut_str_utf16len,
+    .utf8bytes               = ut_str_utf8bytes,
+    .glyphs                  = ut_str_glyphs,
+    .lower                   = ut_str_lower,
+    .upper                   = ut_str_upper,
+    .starts                  = ut_str_starts,
+    .ends                    = ut_str_ends,
+    .istarts                 = ut_str_i_starts,
+    .iends                   = ut_str_i_ends,
+    .utf8_bytes              = ut_str_utf8_bytes,
+    .utf16_chars             = ut_str_utf16_chars,
+    .utf16to8                = ut_str_utf16to8,
+    .utf8to16                = ut_str_utf8to16,
+    .utf16_is_low_surrogate  = ut_str_utf16_is_low_surrogate,
+    .utf16_is_high_surrogate = ut_str_utf16_is_high_surrogate,
+    .format                  = ut_str_format,
+    .format_va               = ut_str_format_va,
+    .error                   = ut_str_error,
+    .error_nls               = ut_str_error_nls,
+    .grouping_separator      = ut_str_grouping_separator,
+    .int64_dg                = ut_str_int64_dg,
+    .int64                   = ut_str_int64,
+    .uint64                  = ut_str_uint64,
+    .int64_lc                = ut_str_int64,
+    .uint64_lc               = ut_str_uint64,
+    .fp                      = ut_str_fp,
+    .test                    = ut_str_test
 };
 
 // _______________________________ ut_streams.c _______________________________
@@ -7673,7 +7507,7 @@ static void ut_thread_detach(ut_thread_t t) {
 static void ut_thread_name(const char* name) {
     uint16_t stack[128];
     ut_fatal_if(ut_str.len(name) >= ut_count_of(stack), "name too long: %s", name);
-    ut_str.utf8to16(stack, ut_count_of(stack), name);
+    ut_str.utf8to16(stack, ut_count_of(stack), name, -1);
     HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
     // notoriously returns 0x10000000 for no good reason whatsoever
     ut_fatal_if(!SUCCEEDED(r));

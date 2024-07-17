@@ -101,40 +101,77 @@ static bool ut_str_i_ends(const char* s1, const char* s2) {
     return n1 >= n2 && strnicmp(s1 + n1 - n2, s2, n2) == 0;
 }
 
-static int32_t ut_str_utf8_bytes(const uint16_t* utf16) {
-    // If cchWideChar argument is -1, the function WideCharToMultiByte
-    // includes the zero-terminating character in the conversion and
-    // the returned byte count.
-    int32_t required_bytes_count =
+static int32_t ut_str_utf8_bytes(const uint16_t* utf16, int32_t chars) {
+    // If `chars` argument is -1, the function utf8_bytes includes the zero
+    // terminating character in the conversion and the returned byte count.
+    // Function will fail (return 0) on incomplete surrogate pairs like
+    // 0xD83D without following 0xDC1E https://compart.com/en/unicode/U+1F41E
+    if (chars == 0) { return 0; }
+    if (chars < 0 && utf16[0] == 0x0000) { return 1; }
+    const int32_t required_bytes_count =
         WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-        utf16, -1, null, 0, null, null);
-    swear(required_bytes_count < 0 || required_bytes_count > 0);
-    return required_bytes_count;
+        utf16, chars, null, 0, null, null);
+    if (required_bytes_count == 0) {
+        errno_t r = ut_runtime.err();
+        ut_traceln("WideCharToMultiByte() failed %s", ut_strerr(r));
+        ut_runtime.set_err(r);
+    }
+    return required_bytes_count == 0 ? -1 : required_bytes_count;
 }
 
-static int32_t ut_str_utf16_chars(const char* utf8) {
-    // If cbMultiByte argument is -1, the function MultiByteToWideChar
-    // includes the zero-terminating character in the conversion and
-    // the returned byte count.
-    int32_t required_wide_chars_count =
-        MultiByteToWideChar(CP_UTF8, 0, utf8, -1, null, 0);
-    swear(required_wide_chars_count < 0 || required_wide_chars_count > 0);
-    return required_wide_chars_count;
+static int32_t ut_str_utf16_chars(const char* utf8, int32_t bytes) {
+    // If `bytes` argument is -1, the function utf16_chars() includes the zero
+    // terminating character in the conversion and the returned character count.
+    if (bytes == 0) { return 0; }
+    if (bytes < 0 && utf8[0] == 0x00) { return 1; }
+    const int32_t required_wide_chars_count =
+        MultiByteToWideChar(CP_UTF8, 0, utf8, bytes, null, 0);
+    if (required_wide_chars_count == 0) {
+        errno_t r = ut_runtime.err();
+        ut_traceln("MultiByteToWideChar() failed %s", ut_strerr(r));
+        ut_runtime.set_err(r);
+    }
+    return required_wide_chars_count == 0 ? -1 : required_wide_chars_count;
 }
 
-static void ut_str_utf16to8(char* d, int32_t capacity, const uint16_t* utf16) {
-    const int32_t required = ut_str.utf8_bytes(utf16);
-    swear(required > 0 && capacity >= required);
-    int32_t bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
-                        utf16, -1, d, capacity, null, null);
-    swear(required == bytes);
+static errno_t ut_str_utf16to8(char* utf8, int32_t capacity,
+        const uint16_t* utf16, int32_t chars) {
+    if (chars == 0) { return 0; }
+    if (chars < 0 && utf16[0] == 0x0000) {
+        swear(capacity >= 1);
+        utf8[0] = 0x00;
+        return 0;
+    }
+    const int32_t required = ut_str.utf8_bytes(utf16, chars);
+    errno_t r = required < 0 ? ut_runtime.err() : 0;
+    if (r == 0) {
+        swear(required > 0 && capacity >= required);
+        int32_t bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
+                            utf16, chars, utf8, capacity, null, null);
+        swear(required == bytes);
+    }
+    return r;
 }
 
-static void ut_str_utf8to16(uint16_t* d, int32_t capacity, const char* utf8) {
-    const int32_t required = ut_str.utf16_chars(utf8);
-    swear(required > 0 && capacity >= required);
-    int32_t count = MultiByteToWideChar(CP_UTF8, 0, utf8, -1, d, capacity);
-    swear(required == count);
+static errno_t ut_str_utf8to16(uint16_t* d, int32_t capacity,
+        const char* utf8, int32_t bytes) {
+    const int32_t required = ut_str.utf16_chars(utf8, bytes);
+    errno_t r = required < 0 ? ut_runtime.err() : 0;
+    if (r == 0) {
+        swear(required >= 0 && capacity >= required);
+        int32_t count = MultiByteToWideChar(CP_UTF8, 0, utf8, bytes,
+                                            d, capacity);
+        swear(required == count);
+    }
+    return r;
+}
+
+static bool ut_str_utf16_is_low_surrogate(uint16_t utf16char) {
+    return 0xDC00 <= utf16char && utf16char <= 0xDFFF;
+}
+
+static bool ut_str_utf16_is_high_surrogate(uint16_t utf16char) {
+    return 0xD800 <= utf16char && utf16char <= 0xDBFF;
 }
 
 static void ut_str_format_va(char* utf8, int32_t count, const char* format,
@@ -187,11 +224,11 @@ static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
         k = (int32_t)ut_str.len16(utf16);
         if (k > 0 && utf16[k - 1] == '\r') { utf16[k - 1] = 0; }
         char message[ut_countof(text.s)];
-        const int32_t bytes = ut_str.utf8_bytes(utf16);
+        const int32_t bytes = ut_str.utf8_bytes(utf16, -1);
         if (bytes >= ut_count_of(message)) {
             ut_str_printf(message, "error message is too long: %d bytes", bytes);
         } else {
-            ut_str.utf16to8(message, ut_count_of(message), utf16);
+            ut_str.utf16to8(message, ut_count_of(message), utf16, -1);
         }
         // truncating printf to string:
         ut_str_printf(text.s, "0x%08X(%d) \"%s\"", error, error, message);
@@ -218,7 +255,7 @@ static const char* ut_str_grouping_separator(void) {
         // decimal_separator  == "."
         static char grouping_separator[8];
         if (grouping_separator[0] == 0x00) {
-            errno_t r = ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
+            errno_t r = ut_b2e(GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
                 grouping_separator, sizeof(grouping_separator)));
             swear(r == 0 && grouping_separator[0] != 0);
         }
@@ -316,7 +353,7 @@ static str64_t ut_str_uint64_lc(uint64_t v) {
 static str128_t ut_str_fp(const char* format, fp64_t v) {
     static char decimal_separator[8];
     if (decimal_separator[0] == 0) {
-        errno_t r = ut_b2e(GetLocaleInfo(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
+        errno_t r = ut_b2e(GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
             decimal_separator, sizeof(decimal_separator)));
         swear(r == 0 && decimal_separator[0] != 0);
     }
@@ -388,13 +425,13 @@ static void ut_str_test(void) {
     #pragma pop_macro("glyph_chinese_two")
     #pragma pop_macro("glyph_chinese_one")
     uint16_t wide_str[100] = {0};
-    ut_str.utf8to16(wide_str, ut_count_of(wide_str), utf8_str);
+    ut_str.utf8to16(wide_str, ut_count_of(wide_str), utf8_str, -1);
     char utf8[100] = {0};
-    ut_str.utf16to8(utf8, ut_count_of(utf8), wide_str);
+    ut_str.utf16to8(utf8, ut_count_of(utf8), wide_str, -1);
     uint16_t utf16[100];
-    ut_str.utf8to16(utf16, ut_count_of(utf16), utf8);
+    ut_str.utf8to16(utf16, ut_count_of(utf16), utf8, -1);
     char narrow_str[100] = {0};
-    ut_str.utf16to8(narrow_str, ut_count_of(narrow_str), utf16);
+    ut_str.utf16to8(narrow_str, ut_count_of(narrow_str), utf16, -1);
     swear(strcmp(narrow_str, utf8_str) == 0);
     char formatted[100];
     ut_str.format(formatted, ut_count_of(formatted), "n: %d, s: %s", 42, "test");
@@ -449,31 +486,33 @@ static void ut_str_test(void) {}
 #endif
 
 ut_str_if ut_str = {
-    .drop_const         = ut_str_drop_const,
-    .len                = ut_str_len,
-    .len16              = ut_str_utf16len,
-    .utf8bytes          = ut_str_utf8bytes,
-    .glyphs             = ut_str_glyphs,
-    .lower              = ut_str_lower,
-    .upper              = ut_str_upper,
-    .starts             = ut_str_starts,
-    .ends               = ut_str_ends,
-    .istarts            = ut_str_i_starts,
-    .iends              = ut_str_i_ends,
-    .utf8_bytes         = ut_str_utf8_bytes,
-    .utf16_chars        = ut_str_utf16_chars,
-    .utf16to8           = ut_str_utf16to8,
-    .utf8to16           = ut_str_utf8to16,
-    .format             = ut_str_format,
-    .format_va          = ut_str_format_va,
-    .error              = ut_str_error,
-    .error_nls          = ut_str_error_nls,
-    .grouping_separator = ut_str_grouping_separator,
-    .int64_dg           = ut_str_int64_dg,
-    .int64              = ut_str_int64,
-    .uint64             = ut_str_uint64,
-    .int64_lc           = ut_str_int64,
-    .uint64_lc          = ut_str_uint64,
-    .fp                 = ut_str_fp,
-    .test               = ut_str_test
+    .drop_const              = ut_str_drop_const,
+    .len                     = ut_str_len,
+    .len16                   = ut_str_utf16len,
+    .utf8bytes               = ut_str_utf8bytes,
+    .glyphs                  = ut_str_glyphs,
+    .lower                   = ut_str_lower,
+    .upper                   = ut_str_upper,
+    .starts                  = ut_str_starts,
+    .ends                    = ut_str_ends,
+    .istarts                 = ut_str_i_starts,
+    .iends                   = ut_str_i_ends,
+    .utf8_bytes              = ut_str_utf8_bytes,
+    .utf16_chars             = ut_str_utf16_chars,
+    .utf16to8                = ut_str_utf16to8,
+    .utf8to16                = ut_str_utf8to16,
+    .utf16_is_low_surrogate  = ut_str_utf16_is_low_surrogate,
+    .utf16_is_high_surrogate = ut_str_utf16_is_high_surrogate,
+    .format                  = ut_str_format,
+    .format_va               = ut_str_format_va,
+    .error                   = ut_str_error,
+    .error_nls               = ut_str_error_nls,
+    .grouping_separator      = ut_str_grouping_separator,
+    .int64_dg                = ut_str_int64_dg,
+    .int64                   = ut_str_int64,
+    .uint64                  = ut_str_uint64,
+    .int64_lc                = ut_str_int64,
+    .uint64_lc               = ut_str_uint64,
+    .fp                      = ut_str_fp,
+    .test                    = ut_str_test
 };
