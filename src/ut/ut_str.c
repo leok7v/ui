@@ -174,6 +174,32 @@ static bool ut_str_utf16_is_high_surrogate(uint16_t utf16char) {
     return 0xD800 <= utf16char && utf16char <= 0xDBFF;
 }
 
+static uint32_t ut_str_utf32(const char* utf8, int32_t bytes) {
+    uint32_t utf32 = 0;
+    if ((utf8[0] & 0x80) == 0) {
+        utf32 = utf8[0];
+        swear(bytes == 1);
+    } else if ((utf8[0] & 0xE0) == 0xC0) {
+        utf32  = (utf8[0] & 0x1F) << 6;
+        utf32 |= (utf8[1] & 0x3F);
+        swear(bytes == 2);
+    } else if ((utf8[0] & 0xF0) == 0xE0) {
+        utf32  = (utf8[0] & 0x0F) << 12;
+        utf32 |= (utf8[1] & 0x3F) <<  6;
+        utf32 |= (utf8[2] & 0x3F);
+        swear(bytes == 3);
+    } else if ((utf8[0] & 0xF8) == 0xF0) {
+        utf32  = (utf8[0] & 0x07) << 18;
+        utf32 |= (utf8[1] & 0x3F) << 12;
+        utf32 |= (utf8[2] & 0x3F) <<  6;
+        utf32 |= (utf8[3] & 0x3F);
+        swear(bytes == 4);
+    } else {
+        swear(false);
+    }
+    return utf32;
+}
+
 static void ut_str_format_va(char* utf8, int32_t count, const char* format,
         va_list va) {
     #if defined(__GNUC__) || defined(__clang__)
@@ -503,6 +529,7 @@ ut_str_if ut_str = {
     .utf8to16                = ut_str_utf8to16,
     .utf16_is_low_surrogate  = ut_str_utf16_is_low_surrogate,
     .utf16_is_high_surrogate = ut_str_utf16_is_high_surrogate,
+    .utf32                   = ut_str_utf32,
     .format                  = ut_str_format,
     .format_va               = ut_str_format_va,
     .error                   = ut_str_error,

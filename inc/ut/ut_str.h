@@ -66,6 +66,7 @@ typedef struct {
     //           surrogates:  high   low
     bool (*utf16_is_low_surrogate)(uint16_t utf16char);
     bool (*utf16_is_high_surrogate)(uint16_t utf16char);
+    uint32_t (*utf32)(const char* utf8, int32_t bytes); // single codepoint
     // string formatting printf style:
     void (*format_va)(char* utf8, int32_t count, const char* format, va_list va);
     void (*format)(char* utf8, int32_t count, const char* format, ...);

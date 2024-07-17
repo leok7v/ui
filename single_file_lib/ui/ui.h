@@ -9471,21 +9471,194 @@ static ui_edit_pg_t ui_edit_insert_paragraph_break(ui_edit_t* e,
     return ok ? next : pg;
 }
 
+static ui_edit_pg_t ui_edit_skip_left_blanks(ui_edit_t* e,
+    ui_edit_pg_t pg) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    swear(pg.pn <= dt->np - 1);
+    while (pg.gp > 0) {
+        pg.gp--;
+        ui_edit_glyph_t glyph = ui_edit_glyph_at(e, pg);
+        if (glyph.bytes > 0 && (uint8_t)*glyph.s != 0x20u) {
+            pg.gp++;
+            break;
+        }
+    }
+    return pg;
+}
+
+static ui_edit_pg_t ui_edit_skip_right_blanks(ui_edit_t* e,
+    ui_edit_pg_t pg) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    swear(pg.pn <= dt->np - 1);
+    int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
+    ui_edit_glyph_t glyph = ui_edit_glyph_at(e, pg);
+    while (pg.gp < glyphs && glyph.bytes > 0 && (uint8_t)*glyph.s == 0x20u) {
+        pg.gp++;
+        glyph = ui_edit_glyph_at(e, pg);
+    }
+    return pg;
+}
+
+static bool ui_edit_is_cjk_or_emoji(uint32_t utf32) {
+    // Simplified range checks
+    return
+        // CJK Unified Ideographs and Extensions
+        (utf32 >=  0x3400 && utf32 <=  0x4DBF) ||
+        (utf32 >=  0x4E00 && utf32 <=  0x9FFF) ||
+        (utf32 >= 0x20000 && utf32 <= 0x2A6DF) ||
+        (utf32 >= 0x2A700 && utf32 <= 0x2B73F) ||
+        (utf32 >= 0x2B740 && utf32 <= 0x2B81F) ||
+        (utf32 >= 0x2B820 && utf32 <= 0x2CEAF) ||
+        (utf32 >= 0x2CEB0 && utf32 <= 0x2EBEF) ||
+        // CJK Compatibility Ideographs
+        (utf32 >= 0xF900 && utf32 <= 0xFAFF)   ||
+        (utf32 >= 0x2F800 && utf32 <= 0x2FA1F) ||
+        // Emojis and Symbols
+        (utf32 >= 0x1F300 && utf32 <= 0x1F5FF) ||
+        (utf32 >= 0x1F600 && utf32 <= 0x1F64F) ||
+        (utf32 >= 0x1F680 && utf32 <= 0x1F6FF) ||
+        (utf32 >= 0x1F700 && utf32 <= 0x1F77F) ||
+        (utf32 >= 0x1F780 && utf32 <= 0x1F7FF) ||
+        (utf32 >= 0x1F800 && utf32 <= 0x1F8FF) ||
+        (utf32 >= 0x1F900 && utf32 <= 0x1F9FF) ||
+        (utf32 >= 0x1FA00 && utf32 <= 0x1FA6F) ||
+        (utf32 >= 0x1FA70 && utf32 <= 0x1FAFF) ||
+        (utf32 >= 0x1FB00 && utf32 <= 0x1FBFF);
+}
+
+static bool ui_edit_can_break(const char* utf8_1, int32_t b1,
+                              const char* utf8_2, int32_t b2) {
+    uint32_t cp1 = ut_str.utf32(utf8_1, b1);
+    uint32_t cp2 = ut_str.utf32(utf8_2, b2);
+    return ui_edit_is_cjk_or_emoji(cp1) || ui_edit_is_cjk_or_emoji(cp2);
+}
+
+static ui_edit_range_t ui_edit_word_range(ui_edit_t* e, ui_edit_pg_t pg) {
+    ui_edit_range_t r = { .from = pg, .to = pg };
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    if (0 <= pg.pn && 0 <= pg.gp) {
+        swear(pg.pn <= dt->np - 1);
+        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
+        if (pg.gp > glyphs) { pg.gp = ut_max(0, glyphs); }
+        ui_edit_glyph_t glyph = ui_edit_glyph_at(e, pg);
+        uint8_t b = (uint8_t)*glyph.s; // byte unsigned
+        bool not_a_white_space = glyph.bytes > 0 && b > 0x20u;
+        if (!not_a_white_space && pg.gp > 0) {
+            pg.gp--;
+            glyph = ui_edit_glyph_at(e, pg);
+            b = (uint8_t)*glyph.s; // byte unsigned
+            not_a_white_space = glyph.bytes > 0 && b > 0x20u;
+        }
+        b = (uint8_t)*glyph.s; // byte unsigned
+        if (glyph.bytes > 0 && 0x20u < b) {
+            ui_edit_pg_t from = pg;
+            ui_edit_glyph_t g = ui_edit_glyph_at(e, from);
+            b = (uint8_t)*glyph.s; // byte unsigned
+            char first_ascii = from.gp == 0 && glyphs > 0 &&
+                               glyph.bytes == 1 && b <= 0x7Fu ? *glyph.s : 0x00;
+            while (from.gp > 0) {
+                from.gp--;
+                g = ui_edit_glyph_at(e, from);
+                b = (uint8_t)*glyph.s; // byte unsigned
+                first_ascii = glyph.bytes == 1 && b <= 0x7Fu ? *glyph.s : first_ascii;
+                const bool starts_with_alnum = isalnum(first_ascii);
+                bool stop = starts_with_alnum &&
+                            (g.bytes != 1 || b > 0x7Fu || !isalnum(*g.s));
+                if (g.bytes != 1 || b <= 0x20u || b > 0x7Fu || stop) {
+                    from.gp++;
+//                  ut_traceln("left while space @%d 0x%02X", from.gp, *g.s);
+                    break;
+                }
+            }
+            r.from = from;
+            ui_edit_pg_t to = pg;
+            while (to.gp < glyphs) {
+                to.gp++;
+                g = ui_edit_glyph_at(e, to);
+                const bool starts_with_alnum = isalnum(first_ascii);
+                b = (uint8_t)*glyph.s; // byte unsigned
+                bool stop = starts_with_alnum &&
+                            (g.bytes != 1 || b > 0x7Fu || !isalnum(*g.s));
+                if (g.bytes != 1 || b <= 0x20u || b > 0x7Fu || stop) {
+//                  ut_traceln("right while space @%d 0x%02X", to.gp, *g.s);
+                    break;
+                }
+            }
+            r.to = to;
+        }
+    }
+    return r;
+}
+
+static void ui_edit_ctrl_left(ui_edit_t* e) {
+    ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
+    const ui_edit_range_t s = e->selection;
+    ui_edit_pg_t to = e->selection.to;
+    if (to.gp == 0) {
+        if (to.pn > 0) {
+            to.pn--;
+            int32_t runs = 0;
+            const ui_edit_run_t* run = ui_edit_paragraph_runs(e, to.pn, &runs);
+            to.gp = run[runs - 1].gp + run[runs - 1].glyphs;
+        }
+    } else {
+        to.gp--;
+    }
+    const ui_edit_pg_t lf = ui_edit_skip_left_blanks(e, to);
+    const ui_edit_range_t w = ui_edit_word_range(e, lf);
+    e->selection.to = w.from;
+    if (ui_app.shift) {
+        e->selection.from = s.from;
+    } else {
+        e->selection.from = w.from;
+    }
+    ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
+}
+
 static void ui_edit_key_left(ui_edit_t* e) {
     ui_edit_pg_t to = e->selection.a[1];
     if (to.pn > 0 || to.gp > 0) {
-        ui_point_t pt = ui_edit_pg_to_xy(e, to);
-        if (pt.x == 0 && pt.y == 0) {
-            ui_edit_scroll_down(e, 1);
+        if (ui_app.ctrl) {
+            ui_edit_ctrl_left(e);
+        } else {
+            ui_point_t pt = ui_edit_pg_to_xy(e, to);
+            if (pt.x == 0 && pt.y == 0) {
+                ui_edit_scroll_down(e, 1);
+            }
+            if (to.gp > 0) {
+                to.gp--;
+            } else if (to.pn > 0) {
+                to.pn--;
+                to.gp = ui_edit_glyphs_in_paragraph(e, to.pn);
+            }
+            ui_edit_move_caret(e, to);
+            e->last_x = -1;
         }
-        if (to.gp > 0) {
-            to.gp--;
-        } else if (to.pn > 0) {
-            to.pn--;
-            to.gp = ui_edit_glyphs_in_paragraph(e, to.pn);
+    }
+}
+
+static void ui_edit_ctrl_right(ui_edit_t* e) {
+    const ui_edit_text_t* dt = &e->doc->text; // document text
+    ui_edit_range_t s = e->selection;
+    ui_edit_pg_t to = e->selection.to;
+    int32_t glyphs = ui_edit_glyphs_in_paragraph(e, to.pn);
+    if (to.pn < dt->np - 1 || to.gp < glyphs) {
+        ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
+        if (to.gp == glyphs) {
+            to.pn++;
+            to.gp = 0;
+        } else {
+            to.gp++;
         }
-        ui_edit_move_caret(e, to);
-        e->last_x = -1;
+        ui_edit_pg_t rt = ui_edit_skip_right_blanks(e, to);
+        ui_edit_range_t w = ui_edit_word_range(e, rt);
+        e->selection.to = w.to;
+        if (ui_app.shift) {
+            e->selection.from = s.from;
+        } else {
+            e->selection.from = w.to;
+        }
+        ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
     }
 }
 
@@ -9493,17 +9666,21 @@ static void ui_edit_key_right(ui_edit_t* e) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t to = e->selection.a[1];
     if (to.pn < dt->np) {
-        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, to.pn);
-        if (to.gp < glyphs) {
-            to.gp++;
-            ui_edit_scroll_into_view(e, to);
-        } else if (!e->sle && to.pn < dt->np - 1) {
-            to.pn++;
-            to.gp = 0;
-            ui_edit_scroll_into_view(e, to);
+        if (ui_app.ctrl) {
+            ui_edit_ctrl_right(e);
+        } else {
+            int32_t glyphs = ui_edit_glyphs_in_paragraph(e, to.pn);
+            if (to.gp < glyphs) {
+                to.gp++;
+                ui_edit_scroll_into_view(e, to);
+            } else if (!e->sle && to.pn < dt->np - 1) {
+                to.pn++;
+                to.gp = 0;
+                ui_edit_scroll_into_view(e, to);
+            }
+            ui_edit_move_caret(e, to);
+            e->last_x = -1;
         }
-        ui_edit_move_caret(e, to);
-        e->last_x = -1;
     }
 }
 
@@ -9607,8 +9784,29 @@ static void ui_edit_key_home(ui_edit_t* e) {
     ui_edit_move_caret(e, e->selection.a[1]);
 }
 
+static void ui_edit_key_eol(ui_edit_t* e) {
+    const ui_edit_text_t* dt = &e->doc->text; // document text
+    int32_t pn = e->selection.a[1].pn;
+    int32_t gp = e->selection.a[1].gp;
+    assert(0 <= pn && pn < dt->np);
+    const ui_edit_str_t* str = &dt->ps[pn];
+    int32_t runs = 0;
+    const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
+    int32_t rn = ui_edit_pg_to_pr(e, e->selection.a[1]).rn;
+    assert(0 <= rn && rn < runs);
+    if (rn == runs - 1) {
+        e->selection.a[1].gp = str->g;
+    } else if (e->selection.a[1].gp == str->g) {
+        // at the end of paragraph do nothing (or move caret to EOF?)
+    } else if (str->g > 0 && gp != run[rn].glyphs - 1) {
+        e->selection.a[1].gp = run[rn].gp + run[rn].glyphs - 1;
+    } else {
+        e->selection.a[1].gp = str->g;
+    }
+}
+
 static void ui_edit_key_end(ui_edit_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+    const ui_edit_text_t* dt = &e->doc->text; // document text
     if (ui_app.ctrl) {
         int32_t py = e->inside.bottom;
         for (int32_t i = dt->np - 1; i >= 0 && py >= e->fm->height; i--) {
@@ -9624,23 +9822,7 @@ static void ui_edit_key_end(ui_edit_t* e) {
         e->selection.a[1] = ui_edit_text.end(dt);
         ui_edit_invalidate_view(e);
     } else {
-        int32_t pn = e->selection.a[1].pn;
-        int32_t gp = e->selection.a[1].gp;
-        assert(0 <= pn && pn < dt->np);
-        const ui_edit_str_t* str = &dt->ps[pn];
-        int32_t runs = 0;
-        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
-        int32_t rn = ui_edit_pg_to_pr(e, e->selection.a[1]).rn;
-        assert(0 <= rn && rn < runs);
-        if (rn == runs - 1) {
-            e->selection.a[1].gp = str->g;
-        } else if (e->selection.a[1].gp == str->g) {
-            // at the end of paragraph do nothing (or move caret to EOF?)
-        } else if (str->g > 0 && gp != run[rn].glyphs - 1) {
-            e->selection.a[1].gp = run[rn].gp + run[rn].glyphs - 1;
-        } else {
-            e->selection.a[1].gp = str->g;
-        }
+        ui_edit_key_eol(e);
     }
     if (!ui_app.shift) {
         e->selection.a[0] = e->selection.a[1];
@@ -9804,7 +9986,7 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
                 }
             }
         }
-        if (0x20 <= (uint8_t)ch && !e->ro) { // 0x20 space
+        if (0x20u <= (uint8_t)ch && !e->ro) { // 0x20 space
             int32_t len = (int32_t)strlen(utf8);
             int32_t bytes = ut_str.utf8bytes(utf8, len);
             if (bytes > 0) {
@@ -9822,59 +10004,17 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
     #pragma pop_macro("ui_edit_ctrl")
 }
 
-static ui_edit_range_t ui_edit_word(ui_edit_t* e, ui_edit_pg_t pg) {
-    ui_edit_range_t r = { .from = pg, .to = pg };
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    if (0 <= pg.pn && 0 <= pg.gp) {
-        swear(pg.pn <= dt->np - 1);
-        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
-        if (pg.gp > glyphs) { pg.gp = ut_max(0, glyphs); }
-        ui_edit_glyph_t glyph = ui_edit_glyph_at(e, pg);
-        bool not_a_white_space = glyph.bytes > 0 && *glyph.s > 0x20;
-        if (!not_a_white_space && pg.gp > 0) {
-            pg.gp--;
-            glyph = ui_edit_glyph_at(e, pg);
-            not_a_white_space = glyph.bytes > 0 && *glyph.s > 0x20;
-        }
-        if (glyph.bytes > 0 && *glyph.s > 0x20) {
-            ui_edit_pg_t from = pg;
-            char first_ascii = 0x00;
-            while (from.gp > 0) {
-                from.gp--;
-                ui_edit_glyph_t g = ui_edit_glyph_at(e, from);
-                first_ascii = glyph.bytes == 1 ? *glyph.s : 0x00;
-                if (g.bytes == 0 || *g.s <= 0x20) {
-                    from.gp++;
-//                  ut_traceln("left while space @%d 0x%02X", from.gp, *g.s);
-                    break;
-                }
-            }
-            r.from = from;
-            ui_edit_pg_t to = pg;
-            while (to.gp < glyphs) {
-                to.gp++;
-                ui_edit_glyph_t g = ui_edit_glyph_at(e, to);
-                const bool starts_with_alnum = isalnum(first_ascii);
-                bool stop = starts_with_alnum && g.bytes == 1 && !isalnum(*g.s);
-                if (g.bytes == 0 || *g.s <= 0x20 || stop) {
-//                  ut_traceln("right while space @%d 0x%02X", to.gp, *g.s);
-                    break;
-                }
-            }
-            r.to = to;
-        }
-    }
-    return r;
-}
-
 static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
+    ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
     ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
-#if 1
     if (0 <= pg.pn && 0 <= pg.gp) {
-        ui_edit_range_t r = ui_edit_word(e, pg);
+        ui_edit_range_t r = ui_edit_word_range(e, pg);
+        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, r.to.pn);
+        if (r.to.pn == r.from.pn && r.to.gp == r.from.gp && r.to.gp < glyphs) {
+            r.to.gp++; // at least one glyph to the right
+        }
         if (ui_edit_range.compare(r.from, pg) != 0 ||
             ui_edit_range.compare(r.to, pg) != 0) {
-            ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
             e->selection = r;
             ui_edit_caret_to(e, r.to);
 //          ut_traceln("e->selection.a[1] = %d.%d", to.pn, to.gp);
@@ -9882,58 +10022,6 @@ static void ui_edit_select_word(ui_edit_t* e, int32_t x, int32_t y) {
             e->edit.buttons = 0;
         }
     }
-#else
-    if (0 <= pg.pn && 0 <= pg.gp) {
-        ui_edit_text_t* dt = &e->doc->text; // document text
-        ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-        swear(pg.pn <= dt->np - 1);
-        int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
-        if (pg.gp > glyphs) { pg.gp = ut_max(0, glyphs); }
-        ui_edit_glyph_t glyph = ui_edit_glyph_at(e, pg);
-        bool not_a_white_space = glyph.bytes > 0 && *glyph.s > 0x20;
-        if (!not_a_white_space && pg.gp > 0) {
-            pg.gp--;
-            glyph = ui_edit_glyph_at(e, pg);
-            not_a_white_space = glyph.bytes > 0 && *glyph.s > 0x20;
-        }
-        if (glyph.bytes > 0 && *glyph.s > 0x20) {
-            ui_edit_pg_t from = pg;
-            char first_ascii = 0x00;
-            while (from.gp > 0) {
-                from.gp--;
-                ui_edit_glyph_t g = ui_edit_glyph_at(e, from);
-                first_ascii = glyph.bytes == 1 ? *glyph.s : 0x00;
-                if (g.bytes == 0 || *g.s <= 0x20) {
-                    from.gp++;
-//                  ut_traceln("left while space @%d 0x%02X", from.gp, *g.s);
-                    break;
-                }
-            }
-            e->selection.a[0] = from;
-            ui_edit_pg_t to = pg;
-            while (to.gp < glyphs) {
-                to.gp++;
-                ui_edit_glyph_t g = ui_edit_glyph_at(e, to);
-                const bool starts_with_alnum = isalnum(first_ascii);
-                bool stop = starts_with_alnum && g.bytes == 1 && !isalnum(*g.s);
-                if (g.bytes == 0 || *g.s <= 0x20 || stop) {
-//                  ut_traceln("right while space @%d 0x%02X", to.gp, *g.s);
-                    break;
-                }
-            }
-            e->selection.a[1] = to;
-            {
-                ui_edit_range_t r = ui_edit_word(e, pg);
-                assert(r.from.pn == from.pn && r.to.pn == to.pn);
-                assert(r.from.gp == from.gp && r.to.gp == to.gp);
-            }
-            ui_edit_caret_to(e, to);
-//          ut_traceln("e->selection.a[1] = %d.%d", to.pn, to.gp);
-            ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-            e->edit.buttons = 0;
-        }
-    }
-#endif
 }
 
 static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
@@ -10551,6 +10639,8 @@ ui_edit_if ui_edit = {
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
+
+// TODO: Ctrl+A Ctrl+V Ctrl+C Ctrl+X Ctrl+Z Ctrl+Y
 
 static bool     ui_fuzzing_debug = true;
 static uint32_t ui_fuzzing_seed;
