@@ -225,7 +225,7 @@ static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
                         ui_gdi_set_brush(ui_gdi_brush_color);
     ui_color_t c = tf ? ui_colors.transparent : ui_gdi_set_brush_color(fill);
     ui_pen_t p = ui_gdi_set_colored_pen(border);
-    HDC hdc = (HDC)ui_app.canvas;
+    HDC hdc = ui_gdi_context.hdc;
     int32_t l = x - radius;
     int32_t t = y - radius;
     int32_t r = x + radius + 1;
@@ -934,7 +934,6 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
         .rc = {.left = x, .top = y, .right = right, .bottom = 0 },
         .flags = flags
     };
-
     ui_color_t c = ta->color;
     if (!ta->measure) {
         if (ui_color_is_undefined(c)) {
@@ -980,6 +979,73 @@ static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
     va_start(va, format);
     ui_wh_t wh = ui_gdi_multiline_va(ta, x, y, w, format, va);
     va_end(va);
+    return wh;
+}
+
+static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
+        const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
+    swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
+    assert(false, "Does not work for Tamil simplest utf8: \xe0\xae\x9a utf16: 0x0B9A");
+    x[0] = 0;
+    ui_wh_t wh = { .w = 0, .h = 0 };
+    if (bytes > 0) {
+        const int32_t chars = ut_str.utf16_chars(utf8, bytes);
+        uint16_t* utf16 = ut_stackalloc((chars + 1) * sizeof(uint16_t));
+        uint16_t* output = ut_stackalloc((chars + 1) * sizeof(uint16_t));
+        const errno_t r = ut_str.utf8to16(utf16, chars, utf8, bytes);
+        swear(r == 0);
+// TODO: remove
+#if 1
+        char str[16 * 1024] = {0};
+        char hex[16 * 1024] = {0};
+        for (int i = 0; i < chars; i++) {
+            ut_str_printf(hex, "%04X ", utf16[i]);
+            strcat(str, hex);
+        }
+ut_traceln("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf8, bytes, glyphs, ta->fm->font, ui_gdi_context.hdc);
+#endif
+        GCP_RESULTSW gcp = {
+            .lStructSize = sizeof(GCP_RESULTSW),
+            .lpOutString = output,
+            .nGlyphs = glyphs
+        };
+        gcp.lpDx = (int*)ut_stackalloc((chars + 1) * sizeof(int));
+        DWORD n = 0;
+        const int mx = INT32_MAX; // max extent
+        const DWORD f = GCP_MAXEXTENT; // |GCP_GLYPHSHAPE|GCP_DIACRITIC|GCP_LIGATE
+        if (ta->fm->font != null) {
+            ui_gdi_hdc_with_font(ta->fm->font, {
+                n = GetCharacterPlacementW(hdc, utf16, chars, mx, &gcp, f);
+            });
+        } else { // with already selected font
+            ui_gdi_with_hdc({
+                n = GetCharacterPlacementW(hdc, utf16, chars, mx, &gcp, f);
+            });
+        }
+        wh = (ui_wh_t){ .w = LOWORD(n), .h = HIWORD(n) };
+        if (n != 0) {
+            // IS_HIGH_SURROGATE(wch)
+            // IS_LOW_SURROGATE(wch)
+            // IS_SURROGATE_PAIR(hs, ls)
+            int32_t i = 0;
+            int32_t k = 1;
+            while (i < chars) {
+                x[k] = x[k - 1] + gcp.lpDx[i];
+//              ut_traceln("%d", x[i]);
+                k++;
+                if (i < chars - 1 && ut_str.utf16_is_high_surrogate(utf16[i]) &&
+                                     ut_str.utf16_is_low_surrogate(utf16[i + 1])) {
+                    i += 2;
+                } else {
+                    i++;
+                }
+            }
+            assert(k == glyphs + 1);
+        } else {
+//          assert(false, "GetCharacterPlacementW() failed");
+            ut_traceln("GetCharacterPlacementW() failed");
+        }
+    }
     return wh;
 }
 
@@ -1082,6 +1148,7 @@ ui_gdi_if ui_gdi = {
     .text                     = ui_gdi_text,
     .multiline_va             = ui_gdi_multiline_va,
     .multiline                = ui_gdi_multiline,
+    .glyphs_placement         = ui_gdi_glyphs_placement,
     .fini                     = ui_gdi_fini
 };
 

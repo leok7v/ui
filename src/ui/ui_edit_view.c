@@ -69,7 +69,21 @@ static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
     }
 }
 
+#if 0
+static void ui_edit_text_width_gp(ui_edit_t* e, const char* utf8, int32_t bytes) {
+    const int32_t glyphs = ut_str.glyphs(utf8, bytes);
+    ut_traceln("\"%.*s\" bytes:%d glyphs:%d", bytes, utf8, bytes, glyphs);
+    int32_t* x = (int32_t*)ut_stackalloc((glyphs + 1) * sizeof(int32_t));
+    const ui_gdi_ta_t ta = { .fm = e->fm };
+    ui_wh_t wh = ui_gdi.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
+//  ut_traceln("wh: %dx%d", wh.w, wh.h);
+}
+#endif
+
 static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
+//  if (n > 0) {
+//      ui_edit_text_width_gp(e, s, n);
+//  }
 //  fp64_t time = ut_clock.seconds();
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
@@ -974,6 +988,7 @@ static void ui_edit_key_right(ui_edit_t* e) {
                 ui_edit_scroll_into_view(e, to);
             }
             ui_edit_move_caret(e, to);
+// TODO: last_x does not work!
             e->last_x = -1;
         }
     }

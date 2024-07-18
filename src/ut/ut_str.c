@@ -162,6 +162,7 @@ static errno_t ut_str_utf8to16(uint16_t* utf16, int32_t capacity,
         int32_t count = MultiByteToWideChar(CP_UTF8, 0, utf8, bytes,
                                             utf16, capacity);
         swear(required == count);
+#if 0 // TODO: incorrect need output != input
         if (count > 0 && !IsNormalizedString(NormalizationC, utf16, count)) {
             ut_runtime.set_err(0);
             int32_t n = NormalizeString(NormalizationC, utf16, count, utf16, count);
@@ -170,6 +171,7 @@ static errno_t ut_str_utf8to16(uint16_t* utf16, int32_t capacity,
                 ut_traceln("NormalizeString() failed %s", ut_strerr(r));
             }
         }
+#endif 
     }
     return r;
 }

@@ -1477,6 +1477,7 @@ static bool ui_edit_str_is_letter(uint32_t utf32) {
         (utf32 >= 0x00F8 && utf32 <= 0x00FF) ||  // Latin-1 lowercase
         (utf32 >= 0x0100 && utf32 <= 0x017F) ||  // Latin Extended-A
         (utf32 >= 0x0180 && utf32 <= 0x024F) ||  // Latin Extended-B
+        (utf32 >= 0x0250 && utf32 <= 0x02AF) ||  // IPA Extensions
         (utf32 >= 0x0370 && utf32 <= 0x03FF) ||  // Greek and Coptic
         (utf32 >= 0x0400 && utf32 <= 0x04FF) ||  // Cyrillic
         (utf32 >= 0x0500 && utf32 <= 0x052F) ||  // Cyrillic Supplement
