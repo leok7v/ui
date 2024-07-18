@@ -121,7 +121,7 @@ static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_button_mouse_click(ui_view_t* v, int32_t unused(ix),
+static void ui_button_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
     ui_button_t* b = (ui_button_t*)v;

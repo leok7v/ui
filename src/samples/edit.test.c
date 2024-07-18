@@ -148,7 +148,7 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
                  ut_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
             for (uint32_t i = 0; i < words_in_sentence && s < end; i++) {
                 const int32_t ix = ut_num.random32(&p.seed) %
-                                   ut_count_of(lorem_ipsum_words);
+                                   ut_countof(lorem_ipsum_words);
                 const char* word = lorem_ipsum_words[ix];
                 memcpy(s, word, strlen(word));
                 if (i == 0) { *s = (char)toupper(*s); }
@@ -195,7 +195,7 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     static char text[64 * 1024];
     ui_edit_lorem_ipsum_generator_params_t p = {
         .text = text,
-        .count = ut_count_of(text),
+        .count = ut_countof(text),
         .min_paragraphs = 4,
         .max_paragraphs = 15,
         .min_sentences  = 4,

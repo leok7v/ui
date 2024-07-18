@@ -133,7 +133,7 @@ static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
                  ut_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
             for (uint32_t i = 0; i < words_in_sentence && s < end; i++) {
                 const int32_t ix = ut_num.random32(&p.seed) %
-                                   ut_count_of(lorem_ipsum_words);
+                                   ut_countof(lorem_ipsum_words);
                 const char* word = lorem_ipsum_words[ix];
                 memcpy(s, word, strlen(word));
                 if (i == 0) { *s = (char)toupper(*s); }
@@ -340,7 +340,7 @@ static void ui_fuzzing_key(void) {
         { ui.key.back,    "back"   },
     };
     ui_fuzzing_alt_ctrl_shift();
-    uint32_t ix = ui_fuzzing_random() % ut_count_of(keys);
+    uint32_t ix = ui_fuzzing_random() % ut_countof(keys);
     if (ui_fuzzing_debug) {
 //      ut_traceln("key(%s)", keys[ix].name);
     }

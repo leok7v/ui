@@ -31,7 +31,7 @@ static int32_t focused(void) {
     // ui_app.focus can point to a button, thus see which edit
     // control was focused last
     int32_t ix = -1;
-    for (int32_t i = 0; i < ut_count_of(edit) && ix < 0; i++) {
+    for (int32_t i = 0; i < ut_countof(edit) && ix < 0; i++) {
         if (ui_app.focus == &edit[i]->view) { ix = i; }
         if (edit[i]->focused) { ix = i; }
     }
@@ -50,7 +50,7 @@ static void focus_back_to_edit(void) {
 }
 
 static void scaled_fonts(void) {
-    assert(0 <= fx && fx < ut_count_of(fs));
+    assert(0 <= fx && fx < ut_countof(fs));
     if (mf.font != null) { ui_gdi.delete_font(mf.font); }
     int32_t h = (int32_t)(ui_app.fm.mono.height * fs[fx] + 0.5);
     ui_gdi.update_fm(&mf, ui_gdi.font(ui_app.fm.mono.font, h, -1));
@@ -132,7 +132,7 @@ ui_toggle_on_off(sl, "&Single Line", 7.0f, {
 });
 
 static void font_plus(void) {
-    if (fx < ut_count_of(fs) - 1) {
+    if (fx < ut_countof(fs) - 1) {
         fx++;
         scaled_fonts();
         ui_app.request_layout();
@@ -184,7 +184,7 @@ static void set_text(int32_t ix) {
 static void paint(ui_view_t* v) {
     ui_gdi.fill(0, 0, v->w, v->h, ui_colors.black);
     int32_t ix = focused();
-    for (int32_t i = 0; i < ut_count_of(edit); i++) {
+    for (int32_t i = 0; i < ut_countof(edit); i++) {
         ui_view_t* e = &edit[i]->view;
         ui_color_t c = edit[i]->ro ?
             ui_colors.tone_red : ui_colors.blue;
@@ -225,7 +225,7 @@ static void every_100ms(void) {
 //  last = ui_app.focus;
 }
 
-static bool key_pressed(ui_view_t* unused(view), int64_t key) {
+static bool key_pressed(ui_view_t* ut_unused(view), int64_t key) {
     bool swallow = false;
     if (ui_app.focused() && key == ui.key.escape) { ui_app.close(); }
     int32_t ix = focused();
@@ -281,7 +281,7 @@ static void opened(void) {
     scaled_fonts();
     label.fm = &ui_app.fm.mono;
     ut_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
-    for (int32_t i = 0; i < ut_count_of(edit); i++) {
+    for (int32_t i = 0; i < ut_countof(edit); i++) {
         ui_edit_doc.init(doc[i], null, 0, false);
         if (i < 2) {
             ui_edit_init_with_lorem_ipsum(&doc[i]->text);

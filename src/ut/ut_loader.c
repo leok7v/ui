@@ -39,7 +39,7 @@ static void* ut_loader_sym_all(const char* name) {
     return sym;
 }
 
-static void* ut_loader_open(const char* filename, int32_t unused(mode)) {
+static void* ut_loader_open(const char* filename, int32_t ut_unused(mode)) {
     return filename == null ? &ut_loader_all : (void*)LoadLibraryA(filename);
 }
 

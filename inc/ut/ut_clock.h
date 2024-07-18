@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 typedef struct {
     int32_t const nsec_in_usec; // nano in micro second
@@ -27,5 +27,5 @@ typedef struct {
 
 extern ut_clock_if ut_clock;
 
-end_c
+ut_end_c
 

@@ -1383,7 +1383,7 @@ static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t ix) {
     e->edit.buttons &= ~(1 << ix);
 }
 
-static bool ui_edit_tap(ui_view_t* v, int32_t unused(ix), bool pressed) {
+static bool ui_edit_tap(ui_view_t* v, int32_t ut_unused(ix), bool pressed) {
     // `ix` ignored for now till context menu (copy/paste/select...)
     ui_edit_t* e = (ui_edit_t*)v;
     assert(ui_view.inside(v, &ui_app.mouse));
@@ -1404,7 +1404,7 @@ static bool ui_edit_tap(ui_view_t* v, int32_t unused(ix), bool pressed) {
     return true;
 }
 
-static bool ui_edit_long_press(ui_view_t* v, int32_t unused(ix)) {
+static bool ui_edit_long_press(ui_view_t* v, int32_t ut_unused(ix)) {
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
@@ -1415,7 +1415,7 @@ static bool ui_edit_long_press(ui_view_t* v, int32_t unused(ix)) {
     return true;
 }
 
-static bool ui_edit_double_tap(ui_view_t* v, int32_t unused(ix)) {
+static bool ui_edit_double_tap(ui_view_t* v, int32_t ut_unused(ix)) {
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
@@ -1859,7 +1859,7 @@ static void ui_edit_after(ui_edit_notify_t* notify,
         e->selection = *ni->x;
         // this is needed by undo/redo: trim selection
         ui_edit_pg_t* pg = e->selection.a;
-        for (int32_t i = 0; i < ut_count_of(e->selection.a); i++) {
+        for (int32_t i = 0; i < ut_countof(e->selection.a); i++) {
             pg[i].pn = ut_max(0, ut_min(dt->np - 1, pg[i].pn));
             pg[i].gp = ut_max(0, ut_min(dt->ps[pg[i].pn].g, pg[i].gp));
         }

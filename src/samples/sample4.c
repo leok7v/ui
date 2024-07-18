@@ -36,7 +36,7 @@ static void load_images(void) {
     int r = 0;
     void* data = null;
     int64_t bytes = 0;
-    for (int i = 0; i < ut_count_of(image); i++) {
+    for (int i = 0; i < ut_countof(image); i++) {
         if (i == 0) {
             r = ut_mem.map_ro(filename, &data, &bytes);
         } else {

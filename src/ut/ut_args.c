@@ -218,8 +218,8 @@ static const char* ut_args_basename(void) {
             s++;
         }
         int32_t n = ut_str.len(b);
-        swear(n < ut_count_of(basename));
-        strncpy(basename, b, ut_count_of(basename) - 1);
+        swear(n < ut_countof(basename));
+        strncpy(basename, b, ut_countof(basename) - 1);
         char* d = basename + n - 1;
         while (d > basename && *d != '.') { d--; }
         if (*d == '.') { *d = 0x00; }

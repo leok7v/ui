@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut.h"
 
-begin_c
+ut_begin_c
 
 // Minimalistic "react"-like work_queue or work items and
 // a thread based workers. See ut_worker_test() for usage.
@@ -72,7 +72,7 @@ extern ut_worker_if ut_worker;
 // It is the responsibility of the caller to ensure that no other
 // work is posted after calling .join() because it will be lost.
 
-end_c
+ut_end_c
 
 /*
     Usage examples:

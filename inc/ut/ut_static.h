@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 // ut_static_init(unique_name) { code_to_execute_before_main }
 
@@ -45,4 +45,4 @@ void* ut_force_symbol_reference(void* symbol);
 
 void ut_static_init_test(void);
 
-end_c
+ut_end_c

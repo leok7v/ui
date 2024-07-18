@@ -3,7 +3,7 @@
 
 // "bt" stands for Stack Back Trace (not British Telecom)
 
-begin_c
+ut_begin_c
 
 enum { ut_bt_max_depth = 32 };    // increase if not enough
 enum { ut_bt_max_symbol = 1024 }; // MSFT symbol size limit
@@ -58,4 +58,4 @@ extern ut_bt_if ut_bt;
     ut_bt.trace(&bt_, "*"); \
 } while (0)
 
-end_c
+ut_end_c

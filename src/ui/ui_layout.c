@@ -50,7 +50,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
     #pragma warning(disable: 6385)
     #pragma warning(disable: 6386)
     int32_t mxw[1024]; // more than enough for sane humane UI
-    swear(cols <= ut_count_of(mxw));
+    swear(cols <= ut_countof(mxw));
     memset(mxw, 0, (size_t)cols * sizeof(int32_t));
     ui_view_for_each(v, r, {
         if (!ui_view.is_hidden(r)) {

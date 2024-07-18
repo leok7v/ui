@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 // space for "short" 260 utf-16 characters filename in utf-8 format:
 typedef struct ut_file_name_s { char s[1024]; } ut_file_name_t;
@@ -103,4 +103,4 @@ typedef struct {
 
 extern ut_files_if ut_files;
 
-end_c
+ut_end_c

@@ -3,7 +3,7 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-begin_c
+ut_begin_c
 
 // https://en.wikipedia.org/wiki/Fuzzing
 // aka "Monkey" testing
@@ -42,5 +42,5 @@ typedef struct ui_fuzzing_if {
 
 extern ui_fuzzing_if ui_fuzzing;
 
-end_c
+ut_end_c
 

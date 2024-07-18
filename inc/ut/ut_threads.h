@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 typedef struct ut_event_s* ut_event_t;
 
@@ -54,4 +54,4 @@ typedef struct {
 
 extern ut_thread_if ut_thread;
 
-end_c
+ut_end_c

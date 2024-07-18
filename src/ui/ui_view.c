@@ -315,7 +315,7 @@ static void ui_view_measure(ui_view_t* v) {
     }
 }
 
-static void ui_layout_view(ui_view_t* unused(v)) {
+static void ui_layout_view(ui_view_t* ut_unused(v)) {
 //  ui_ltrb_t i = ui_view.margins(v, &v->insets);
 //  ui_ltrb_t p = ui_view.margins(v, &v->padding);
 //  ut_traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
@@ -425,7 +425,7 @@ static void ui_view_update_shortcut(ui_view_t* v) {
 
 static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     char t[ut_countof(v->p.text)];
-    ut_str.format_va(t, ut_count_of(t), format, va);
+    ut_str.format_va(t, ut_countof(t), format, va);
     char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);

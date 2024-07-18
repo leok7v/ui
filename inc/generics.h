@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 // Most of ut/ui code is written the way of min(a,b) max(a,b)
 // not having side effects on the arguments and thus evaluating
@@ -100,4 +100,4 @@ typedef struct {
 
 extern ut_generics_if ut_generics;
 
-end_c
+ut_end_c

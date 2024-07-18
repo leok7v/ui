@@ -18,7 +18,7 @@ static void* stb_realloc(void* p, size_t n) {
     return a;
 }
 
-static void* stb_realloc_sized(void* p, size_t unused(s), size_t n) {
+static void* stb_realloc_sized(void* p, size_t ut_unused(s), size_t n) {
     assert(n > 0);
     void* a = p;
     errno_t r = ut_heap.reallocate(null, &a, n, false);

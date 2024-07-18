@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 typedef struct {
     errno_t (*err)(void); // errno or GetLastError()
@@ -40,4 +40,4 @@ typedef struct {
 
 extern ut_runtime_if ut_runtime;
 
-end_c
+ut_end_c

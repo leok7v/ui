@@ -85,12 +85,12 @@ static void ui_app_post(ut_work_t* w) {
     ui_app_update_wt_timeout();
 }
 
-static void ui_app_alarm_thread(void* unused(p)) {
+static void ui_app_alarm_thread(void* ut_unused(p)) {
     ut_thread.realtime();
     ut_thread.name("ui_app.alarm");
     for (;;) {
         ut_event_t es[] = { ui_app_wt, ui_app_event_quit };
-        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
+        int32_t ix = ut_event.wait_any(ut_countof(es), es);
         if (ix == 0) {
 // TODO: remove
 //          ut_traceln("post(WM_NULL)");
@@ -106,12 +106,12 @@ static void ui_app_alarm_thread(void* unused(p)) {
 // which is unacceptable for video drawing at monitor
 // refresh rate
 
-static void ui_app_redraw_thread(void* unused(p)) {
+static void ui_app_redraw_thread(void* ut_unused(p)) {
     ut_thread.realtime();
     ut_thread.name("ui_app.redraw");
     for (;;) {
         ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
-        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
+        int32_t ix = ut_event.wait_any(ut_countof(es), es);
         if (ix == 0) {
             if (ui_app_window() != null) {
                 InvalidateRect(ui_app_window(), null, false);
@@ -310,7 +310,7 @@ static void ui_app_init_fonts(int32_t dpi) {
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
-    ut_str.utf8to16(lf.lfFaceName, ut_count_of(lf.lfFaceName),
+    ut_str.utf8to16(lf.lfFaceName, ut_countof(lf.lfFaceName),
                     "Cascadia Mono", -1);
     ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
 }
@@ -345,7 +345,7 @@ typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
 } ut_end_packed ui_app_wiw_t;
 
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
-        HDC unused(hdc), RECT* unused(rc1), LPARAM that) {
+        HDC ut_unused(hdc), RECT* ut_unused(rc1), LPARAM that) {
     ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
     MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
     ut_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
@@ -1111,10 +1111,10 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         ut_traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
-        int32_t n = GetUserDefaultLocaleName(ln, ut_count_of(ln));
+        int32_t n = GetUserDefaultLocaleName(ln, ut_countof(ln));
         ut_fatal_if(n <= 0);
         uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-        n = ResolveLocaleName(ln, rln, ut_count_of(rln));
+        n = ResolveLocaleName(ln, rln, ut_countof(rln));
         ut_fatal_if(n <= 0);
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
         ut_fatal_win32err(SetThreadLocale(lc_id));
@@ -1509,7 +1509,7 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
     memset(ui_app_decoded_pressed,  0x00, sizeof(ui_app_decoded_pressed));
     // Translate scan code to character
     int32_t r = ToUnicodeEx(vk, scan_code, keyboard_state,
-                            utf16, ut_count_of(utf16), 0, kl);
+                            utf16, ut_countof(utf16), 0, kl);
     if (r > 0) {
         ut_static_assertion(ut_countof(ui_app_decoded_pressed) ==
                             ut_countof(ui_app_decoded_released));
@@ -1914,7 +1914,7 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
-static bool ui_app_set_focus(ui_view_t* unused(v)) { return false; }
+static bool ui_app_set_focus(ui_view_t* ut_unused(v)) { return false; }
 
 static void ui_app_request_redraw(void) {  // < 2us
     SetEvent(ui_app_event_invalidate);
@@ -2083,7 +2083,7 @@ static void ui_app_destroy_caret(void) {
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
-    swear(0 <= kind && kind < ut_count_of(beep_id));
+    swear(0 <= kind && kind < ut_countof(beep_id));
     ut_fatal_win32err(MessageBeep(beep_id[kind]));
 }
 
@@ -2243,8 +2243,8 @@ static void ui_app_set_console_title(HWND cw) {
     swear(ut_thread.id() == ui_app.tid);
     static char text[256];
     text[0] = 0;
-    GetWindowTextA((HWND)ui_app.window, text, ut_count_of(text));
-    text[ut_count_of(text) - 1] = 0;
+    GetWindowTextA((HWND)ui_app.window, text, ut_countof(text));
+    text[ut_countof(text) - 1] = 0;
     char title[256];
     ut_str_printf(title, "%s - Console", text);
     ut_fatal_win32err(SetWindowTextA(cw, title));
@@ -2362,7 +2362,7 @@ static const char* ui_app_open_file(const char* folder,
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
-        int32_t left = ut_count_of(memory) - 2;
+        int32_t left = ut_countof(memory) - 2;
         uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
             uint16_t* s0 = s;
@@ -2383,7 +2383,7 @@ static const char* ui_app_open_file(const char* folder,
     }
     static uint16_t dir[ut_files_max_path];
     dir[0] = 0;
-    ut_str.utf8to16(dir, ut_count_of(dir), folder, -1);
+    ut_str.utf8to16(dir, ut_countof(dir), folder, -1);
     static uint16_t path[ut_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
@@ -2396,7 +2396,7 @@ static const char* ui_app_open_file(const char* folder,
     static ut_file_name_t fn;
     fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        ut_str.utf16to8(fn.s, ut_count_of(fn.s), path, -1);
+        ut_str.utf16to8(fn.s, ut_countof(fn.s), path, -1);
     } else {
         fn.s[0] = 0;
     }
@@ -2748,12 +2748,12 @@ static fp64_t ui_app_test_timestamp_2;
 static fp64_t ui_app_test_timestamp_3;
 static fp64_t ui_app_test_timestamp_4;
 
-static void ui_app_test_in_1_second(ut_work_t* unused(work)) {
+static void ui_app_test_in_1_second(ut_work_t* ut_unused(work)) {
     ui_app_test_timestamp_3 = ut_clock.seconds();
     ut_traceln("ETA 3 seconds");
 }
 
-static void ui_app_test_in_2_seconds(ut_work_t* unused(work)) {
+static void ui_app_test_in_2_seconds(ut_work_t* ut_unused(work)) {
     ui_app_test_timestamp_2 = ut_clock.seconds();
     ut_traceln("ETA 2 seconds");
     static ut_work_t invoke_in_1_seconds;
@@ -2765,7 +2765,7 @@ static void ui_app_test_in_2_seconds(ut_work_t* unused(work)) {
     ui_app.post(&invoke_in_1_seconds);
 }
 
-static void ui_app_test_in_4_seconds(ut_work_t* unused(work)) {
+static void ui_app_test_in_4_seconds(ut_work_t* ut_unused(work)) {
     ui_app_test_timestamp_4 = ut_clock.seconds();
     ut_traceln("ETA 4 seconds");
 //  expected sequence of callbacks:
@@ -2885,8 +2885,8 @@ static int ui_app_win_main(HINSTANCE instance) {
 
 #pragma warning(disable: 28251) // inconsistent annotations
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE unused(previous),
-        char* unused(command), int show) {
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE ut_unused(previous),
+        char* ut_unused(command), int show) {
     SetUnhandledExceptionFilter(ui_app_exception_filter);
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
     ut_fatal_if_error(CoInitializeEx(0, co_init));

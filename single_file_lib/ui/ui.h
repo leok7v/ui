@@ -57,35 +57,22 @@ typedef double fp64_t;
 // of it is not specified.
 
 #ifdef __cplusplus
-    #define begin_c extern "C" {
-    #define end_c } // extern "C"
+    #define ut_begin_c extern "C" {
+    #define ut_end_c } // extern "C"
 #else
-    #define begin_c // C headers compiled as C++
-    #define end_c
+    #define ut_begin_c // C headers compiled as C++
+    #define ut_end_c
 #endif
 
-// ut_countof() and ut_count_of() are suitable for
+// ut_countof() and ut_countof() are suitable for
 // small < 2^31 element arrays
 
-// constexpr
 #define ut_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
 
-// ut_count_of() generates "array bounds" exception
-// at runtime because ((void*)&(a) == &(a)[0]) does NOT evaluate
-// to constant expression in cl.exe version 19.40.33811
-#define ut_count_of(a) (int32_t)(sizeof((a)) / sizeof((a)[1]) +     \
-    (((void*)&(a) == &(a)[0]) ?                                     \
-    0 : (size_t)ut_debug.raise(ut_debug.exception.array_bounds)))
-// https://stackoverflow.com/questions/19452971/array-size-macro-that-rejects-pointers/
-// int a[5];
-// int *b = a;
-// printf("%d\n", ut_count_of(a));
-// printf("%d\n", ut_count_of(b)); // "Integer division by zero"
-
 #if defined(__GNUC__) || defined(__clang__)
-    #define force_inline __attribute__((always_inline))
+    #define ut_force_inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
-    #define force_inline __forceinline
+    #define ut_force_inline __forceinline
 #endif
 
 #ifndef __cplusplus
@@ -95,12 +82,12 @@ typedef double fp64_t;
 #endif
 
 #if defined(_MSC_VER)
-    #define thread_local __declspec(thread)
+    #define ut_thread_local __declspec(thread)
 #else
     #ifndef __cplusplus
-        #define thread_local _Thread_local // C99
+        #define ut_thread_local _Thread_local // C99
     #else
-        // C++ supports thread_local keyword
+        // C++ supports ut_thread_local keyword
     #endif
 #endif
 
@@ -136,14 +123,14 @@ typedef double fp64_t;
 // Instead of:
 //      void foo(param_type_t param) { (void)param; / *unused */ }
 // use:
-//      vod foo(param_type_t unused(param)) { }
+//      vod foo(param_type_t ut_unused(param)) { }
 
 #if defined(__GNUC__) || defined(__clang__)
-#define unused(name) name __attribute__((unused))
+#define ut_unused(name) name __attribute__((unused))
 #elif defined(_MSC_VER)
-#define unused(name) _Pragma("warning(suppress:  4100)") name
+#define ut_unused(name) _Pragma("warning(suppress:  4100)") name
 #else
-#define unused(name) name
+#define ut_unused(name) name
 #endif
 
 // Because MS C compiler is unhappy about alloca() and
@@ -153,12 +140,11 @@ typedef double fp64_t;
 
 // alloca() is messy and in general is a not a good idea.
 // try to avoid if possible. Stack sizes vary from 64KB to 8MB in 2024.
-
-begin_c
 // ________________________________ ui_core.h _________________________________
 
 #include "ut/ut_std.h"
 
+ut_begin_c
 
 typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
@@ -333,10 +319,12 @@ extern ui_if ui;
 // "pixels" on MacOS. Windows used to use "dialog units" which
 // is font size based and this is where the idea is inherited from.
 
-
+ut_end_c
 
 
 // _______________________________ ui_colors.h ________________________________
+
+ut_begin_c
 
 typedef uint64_t ui_color_t; // top 2 bits determine color format
 
@@ -616,6 +604,7 @@ extern ui_colors_if ui_colors;
 // it would be super cool to implement a plethora of palettes
 // with named colors and app "themes" that can be switched
 
+ut_end_c
 // _______________________________ ui_fuzzing.h _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
@@ -624,8 +613,9 @@ extern ui_colors_if ui_colors;
 
 // alphabetical order is not possible because of headers interdependencies
 
-
 // _________________________________ ui_gdi.h _________________________________
+
+ut_begin_c
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
@@ -803,9 +793,11 @@ typedef struct {
 
 extern ui_gdi_if ui_gdi;
 
-
+ut_end_c
 
 // ________________________________ ui_view.h _________________________________
+
+ut_begin_c
 
 enum ui_view_type_t {
     ui_view_stack     = 'vwst',
@@ -1083,10 +1075,12 @@ extern ui_view_if ui_view;
 } while (0)
 
 
+ut_end_c
 // _____________________________ ui_containers.h ______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
+ut_begin_c
 
 typedef struct ui_view_s ui_view_t;
 
@@ -1137,10 +1131,12 @@ void ui_view_init_span(ui_view_t* v);
 void ui_view_init_list(ui_view_t* v);
 void ui_view_init_spacer(ui_view_t* v);
 
+ut_end_c
 // ______________________________ ui_edit_doc.h _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
+ut_begin_c
 
 typedef struct ui_edit_str_s ui_edit_str_t;
 
@@ -1365,10 +1361,12 @@ extern ui_edit_str_if ui_edit_str;
 */
 
 
+ut_end_c
 // ______________________________ ui_edit_view.h ______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
+ut_begin_c
 
 // important ui_edit_t will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
@@ -1563,9 +1561,11 @@ extern ui_edit_if ui_edit;
     other API that expects zero terminated strings.
 */
 
-
+ut_end_c
 
 // _______________________________ ui_layout.h ________________________________
+
+ut_begin_c
 
  // TODO: ui_ namespace
 
@@ -1587,9 +1587,11 @@ typedef struct {
 
 extern layouts_if layouts;
 
-
+ut_end_c
 
 // ________________________________ ui_label.h ________________________________
+
+ut_begin_c
 
 typedef ui_view_t ui_label_t;
 
@@ -1625,9 +1627,11 @@ void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_lis
 // which is subtle C difference of constant and
 // variable initialization and I did not find universal way
 
-
+ut_end_c
 
 // _______________________________ ui_button.h ________________________________
+
+ut_begin_c
 
 typedef ui_view_t ui_button_t;
 
@@ -1717,9 +1721,11 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // }
 
 
-
+ut_end_c
 
 // _______________________________ ui_slider.h ________________________________
+
+ut_begin_c
 
 typedef struct ui_slider_s ui_slider_t;
 
@@ -1795,10 +1801,12 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     .value_min = mn, .value_max = mx, .value = mn,                  \
 }
 
+ut_end_c
 // ________________________________ ui_theme.h ________________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
+ut_begin_c
 
 enum {
     ui_theme_app_mode_default     = 0,
@@ -1821,9 +1829,11 @@ typedef struct  {
 
 extern ui_theme_if ui_theme;
 
-
+ut_end_c
 
 // _______________________________ ui_toggle.h ________________________________
+
+ut_begin_c
 
 typedef ui_view_t ui_toggle_t;
 
@@ -1875,9 +1885,11 @@ void ui_view_init_toggle(ui_view_t* v);
     }                                                       \
 }
 
-
+ut_end_c
 
 // _________________________________ ui_mbx.h _________________________________
+
+ut_begin_c
 
 // Options like:
 //   "Yes"|"No"|"Abort"|"Retry"|"Ignore"|"Cancel"|"Try"|"Continue"
@@ -1939,10 +1951,12 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
     .options = (const char*[]){ __VA_ARGS__, null },        \
 }
 
+ut_end_c
 // _______________________________ ui_caption.h _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 
+ut_begin_c
 
 typedef struct ui_caption_s {
     ui_view_t view;
@@ -1960,9 +1974,11 @@ typedef struct ui_caption_s {
 
 extern ui_caption_t ui_caption;
 
-
+ut_end_c
 
 // _________________________________ ui_app.h _________________________________
+
+ut_begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
@@ -2136,7 +2152,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     //     {"Text Files", ".txt;.doc;.ini",
     //      "Executables", ".exe",
     //      "All Files", "*"};
-    // const char* fn = ui_app.open_filename("C:\\", filter, ut_count_of(filter));
+    // const char* fn = ui_app.open_filename("C:\\", filter, ut_countof(filter));
     const char* (*open_file)(const char* folder, const char* filter[], int32_t n);
     bool (*is_stdout_redirected)(void);
     bool (*is_console_visible)(void);
@@ -2155,7 +2171,9 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
 
 extern ui_app_t ui_app;
 
+ut_end_c
 
+ut_begin_c
 
 // https://en.wikipedia.org/wiki/Fuzzing
 // aka "Monkey" testing
@@ -2194,9 +2212,8 @@ typedef struct ui_fuzzing_if {
 
 extern ui_fuzzing_if ui_fuzzing;
 
+ut_end_c
 
-
-end_c
 
 #endif // ui_definition
 
@@ -2289,12 +2306,12 @@ static void ui_app_post(ut_work_t* w) {
     ui_app_update_wt_timeout();
 }
 
-static void ui_app_alarm_thread(void* unused(p)) {
+static void ui_app_alarm_thread(void* ut_unused(p)) {
     ut_thread.realtime();
     ut_thread.name("ui_app.alarm");
     for (;;) {
         ut_event_t es[] = { ui_app_wt, ui_app_event_quit };
-        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
+        int32_t ix = ut_event.wait_any(ut_countof(es), es);
         if (ix == 0) {
 // TODO: remove
 //          ut_traceln("post(WM_NULL)");
@@ -2310,12 +2327,12 @@ static void ui_app_alarm_thread(void* unused(p)) {
 // which is unacceptable for video drawing at monitor
 // refresh rate
 
-static void ui_app_redraw_thread(void* unused(p)) {
+static void ui_app_redraw_thread(void* ut_unused(p)) {
     ut_thread.realtime();
     ut_thread.name("ui_app.redraw");
     for (;;) {
         ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
-        int32_t ix = ut_event.wait_any(ut_count_of(es), es);
+        int32_t ix = ut_event.wait_any(ut_countof(es), es);
         if (ix == 0) {
             if (ui_app_window() != null) {
                 InvalidateRect(ui_app_window(), null, false);
@@ -2514,7 +2531,7 @@ static void ui_app_init_fonts(int32_t dpi) {
     lf = ui_app_ncm.lfMessageFont;
     lf.lfPitchAndFamily &= FIXED_PITCH;
     // TODO: how to get monospaced from Win32 API?
-    ut_str.utf8to16(lf.lfFaceName, ut_count_of(lf.lfFaceName),
+    ut_str.utf8to16(lf.lfFaceName, ut_countof(lf.lfFaceName),
                     "Cascadia Mono", -1);
     ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
 }
@@ -2549,7 +2566,7 @@ typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
 } ut_end_packed ui_app_wiw_t;
 
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
-        HDC unused(hdc), RECT* unused(rc1), LPARAM that) {
+        HDC ut_unused(hdc), RECT* ut_unused(rc1), LPARAM that) {
     ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
     MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
     ut_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
@@ -3315,10 +3332,10 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
         ut_traceln("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
-        int32_t n = GetUserDefaultLocaleName(ln, ut_count_of(ln));
+        int32_t n = GetUserDefaultLocaleName(ln, ut_countof(ln));
         ut_fatal_if(n <= 0);
         uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-        n = ResolveLocaleName(ln, rln, ut_count_of(rln));
+        n = ResolveLocaleName(ln, rln, ut_countof(rln));
         ut_fatal_if(n <= 0);
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
         ut_fatal_win32err(SetThreadLocale(lc_id));
@@ -3713,7 +3730,7 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
     memset(ui_app_decoded_pressed,  0x00, sizeof(ui_app_decoded_pressed));
     // Translate scan code to character
     int32_t r = ToUnicodeEx(vk, scan_code, keyboard_state,
-                            utf16, ut_count_of(utf16), 0, kl);
+                            utf16, ut_countof(utf16), 0, kl);
     if (r > 0) {
         ut_static_assertion(ut_countof(ui_app_decoded_pressed) ==
                             ut_countof(ui_app_decoded_released));
@@ -4118,7 +4135,7 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
-static bool ui_app_set_focus(ui_view_t* unused(v)) { return false; }
+static bool ui_app_set_focus(ui_view_t* ut_unused(v)) { return false; }
 
 static void ui_app_request_redraw(void) {  // < 2us
     SetEvent(ui_app_event_invalidate);
@@ -4287,7 +4304,7 @@ static void ui_app_destroy_caret(void) {
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
-    swear(0 <= kind && kind < ut_count_of(beep_id));
+    swear(0 <= kind && kind < ut_countof(beep_id));
     ut_fatal_win32err(MessageBeep(beep_id[kind]));
 }
 
@@ -4447,8 +4464,8 @@ static void ui_app_set_console_title(HWND cw) {
     swear(ut_thread.id() == ui_app.tid);
     static char text[256];
     text[0] = 0;
-    GetWindowTextA((HWND)ui_app.window, text, ut_count_of(text));
-    text[ut_count_of(text) - 1] = 0;
+    GetWindowTextA((HWND)ui_app.window, text, ut_countof(text));
+    text[ut_countof(text) - 1] = 0;
     char title[256];
     ut_str_printf(title, "%s - Console", text);
     ut_fatal_win32err(SetWindowTextA(cw, title));
@@ -4566,7 +4583,7 @@ static const char* ui_app_open_file(const char* folder,
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
-        int32_t left = ut_count_of(memory) - 2;
+        int32_t left = ut_countof(memory) - 2;
         uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
             uint16_t* s0 = s;
@@ -4587,7 +4604,7 @@ static const char* ui_app_open_file(const char* folder,
     }
     static uint16_t dir[ut_files_max_path];
     dir[0] = 0;
-    ut_str.utf8to16(dir, ut_count_of(dir), folder, -1);
+    ut_str.utf8to16(dir, ut_countof(dir), folder, -1);
     static uint16_t path[ut_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
@@ -4600,7 +4617,7 @@ static const char* ui_app_open_file(const char* folder,
     static ut_file_name_t fn;
     fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        ut_str.utf16to8(fn.s, ut_count_of(fn.s), path, -1);
+        ut_str.utf16to8(fn.s, ut_countof(fn.s), path, -1);
     } else {
         fn.s[0] = 0;
     }
@@ -4952,12 +4969,12 @@ static fp64_t ui_app_test_timestamp_2;
 static fp64_t ui_app_test_timestamp_3;
 static fp64_t ui_app_test_timestamp_4;
 
-static void ui_app_test_in_1_second(ut_work_t* unused(work)) {
+static void ui_app_test_in_1_second(ut_work_t* ut_unused(work)) {
     ui_app_test_timestamp_3 = ut_clock.seconds();
     ut_traceln("ETA 3 seconds");
 }
 
-static void ui_app_test_in_2_seconds(ut_work_t* unused(work)) {
+static void ui_app_test_in_2_seconds(ut_work_t* ut_unused(work)) {
     ui_app_test_timestamp_2 = ut_clock.seconds();
     ut_traceln("ETA 2 seconds");
     static ut_work_t invoke_in_1_seconds;
@@ -4969,7 +4986,7 @@ static void ui_app_test_in_2_seconds(ut_work_t* unused(work)) {
     ui_app.post(&invoke_in_1_seconds);
 }
 
-static void ui_app_test_in_4_seconds(ut_work_t* unused(work)) {
+static void ui_app_test_in_4_seconds(ut_work_t* ut_unused(work)) {
     ui_app_test_timestamp_4 = ut_clock.seconds();
     ut_traceln("ETA 4 seconds");
 //  expected sequence of callbacks:
@@ -5089,8 +5106,8 @@ static int ui_app_win_main(HINSTANCE instance) {
 
 #pragma warning(disable: 28251) // inconsistent annotations
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE unused(previous),
-        char* unused(command), int show) {
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE ut_unused(previous),
+        char* ut_unused(command), int show) {
     SetUnhandledExceptionFilter(ui_app_exception_filter);
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
     ut_fatal_if_error(CoInitializeEx(0, co_init));
@@ -5260,7 +5277,7 @@ static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_button_mouse_click(ui_view_t* v, int32_t unused(ix),
+static void ui_button_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
     ui_button_t* b = (ui_button_t*)v;
@@ -5331,11 +5348,11 @@ static void ui_caption_esc_full_screen(ui_view_t* v, const char utf8[]) {
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
 }
 
-static void ui_caption_quit(ui_button_t* unused(b)) {
+static void ui_caption_quit(ui_button_t* ut_unused(b)) {
     ui_app.close();
 }
 
-static void ui_caption_mini(ui_button_t* unused(b)) {
+static void ui_caption_mini(ui_button_t* ut_unused(b)) {
     ui_app.show_window(ui.visibility.minimize);
 }
 
@@ -5349,7 +5366,7 @@ static void ui_caption_mode_appearance(void) {
     }
 }
 
-static void ui_caption_mode(ui_button_t* unused(b)) {
+static void ui_caption_mode(ui_button_t* ut_unused(b)) {
     bool was_dark = ui_theme.is_app_dark();
     ui_app.light_mode =  was_dark;
     ui_app.dark_mode  = !was_dark;
@@ -5370,7 +5387,7 @@ static void ui_caption_maximize_or_restore(void) {
     ui_caption.maxi.state.hidden = ui_app.no_decor;
 }
 
-static void ui_caption_maxi(ui_button_t* unused(b)) {
+static void ui_caption_maxi(ui_button_t* ut_unused(b)) {
     if (!ui_app.is_maximized()) {
         ui_app.show_window(ui.visibility.maximize);
     } else if (ui_app.is_maximized() || ui_app.is_minimized()) {
@@ -5379,7 +5396,7 @@ static void ui_caption_maxi(ui_button_t* unused(b)) {
     ui_caption_maximize_or_restore();
 }
 
-static void ui_caption_full(ui_button_t* unused(b)) {
+static void ui_caption_full(ui_button_t* ut_unused(b)) {
     ui_caption_toggle_full();
 }
 
@@ -5442,7 +5459,7 @@ static void ui_caption_button_icon_paint(ui_view_t* v) {
     ui_gdi.icon(v->x + dx, v->y + dy, w, h, v->icon);
 }
 
-static void ui_caption_prepare(ui_view_t* unused(v)) {
+static void ui_caption_prepare(ui_view_t* ut_unused(v)) {
     ui_caption.title.state.hidden = false;
 }
 
@@ -5751,7 +5768,7 @@ static struct {
 
 static ui_color_t ui_colors_get_color(int32_t color_id) {
     // SysGetColor() does not work on Win10
-    swear(0 < color_id && color_id < ut_count_of(ui_theme_colors));
+    swear(0 < color_id && color_id < ut_countof(ui_theme_colors));
     return ui_theme.is_app_dark() ?
            ui_theme_colors[color_id].dark :
            ui_theme_colors[color_id].light;
@@ -6012,8 +6029,8 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
         "insets { %.3f %.3f %.3f %.3f } align: 0x%02X",                       \
         ui_view_debug_id(v),                                                  \
         &v->type, v->x, v->y, v->w, v->h,                                     \
-        ui_stack_finite_int(v->max_w, maxw, ut_count_of(maxw)),               \
-        ui_stack_finite_int(v->max_h, maxh, ut_count_of(maxh)),               \
+        ui_stack_finite_int(v->max_w, maxw, ut_countof(maxw)),               \
+        ui_stack_finite_int(v->max_h, maxh, ut_countof(maxh)),               \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
         v->insets.left, v->insets.top, v->insets.right, v->insets.bottom,     \
         v->align);                                                            \
@@ -6418,10 +6435,10 @@ static void ui_stack_measure(ui_view_t* p) {
         }
     } ui_view_for_each_end(p, c);
     if (ui_containers_debug) {
-        for (int32_t r = 0; r < ut_count_of(sides); r++) {
+        for (int32_t r = 0; r < ut_countof(sides); r++) {
             char text[1024];
             text[0] = 0;
-            for (int32_t c = 0; c < ut_count_of(sides[r]); c++) {
+            for (int32_t c = 0; c < ut_countof(sides[r]); c++) {
                 char line[128];
                 ut_str_printf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
                 strcat(text, line);
@@ -7877,7 +7894,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
         ut_heap.free(s->g2b);
     } else {
         #ifdef UI_EDIT_STR_TEST // check ui_edit_str_g2b_ascii integrity
-            for (int32_t i = 0; i < ut_count_of(ui_edit_str_g2b_ascii); i++) {
+            for (int32_t i = 0; i < ut_countof(ui_edit_str_g2b_ascii); i++) {
                 assert(ui_edit_str_g2b_ascii[i] == i);
             }
         #endif
@@ -7974,11 +7991,11 @@ static int32_t ui_edit_str_bytes(ui_edit_str_t* s,
 static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
-        if (s->b == s->g && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
+        if (s->b == s->g && s->g < ut_countof(ui_edit_str_g2b_ascii) - 1) {
 //          ut_traceln("forcefully moving to heap");
             // this is usually done in the process of concatenation
             // of 2 ascii strings when result is known to be longer
-            // than ut_count_of(ui_edit_str_g2b_ascii) - 1 but the
+            // than ut_countof(ui_edit_str_g2b_ascii) - 1 but the
             // first string in concatenation is short. It's OK.
         }
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
@@ -8029,7 +8046,7 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
     }
     // Optimize memory for short ASCII only strings:
     if (s->g2b != ui_edit_str_g2b_ascii) {
-        if (s->g == s->b && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
+        if (s->g == s->b && s->g < ut_countof(ui_edit_str_g2b_ascii) - 1) {
             // If this is an ascii only utf8 string shorter than
             // ui_edit_str_g2b_ascii it does not need .g2b[] allocated:
             if (s->g2b != ui_edit_str_g2b_ascii) {
@@ -8099,7 +8116,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
             // keep g2b == ui_edit_str_g2b_ascii as much as possible
             const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
                                    ins.g2b == ui_edit_str_g2b_ascii &&
-                                   bytes < ut_count_of(ui_edit_str_g2b_ascii) - 1;
+                                   bytes < ut_countof(ui_edit_str_g2b_ascii) - 1;
             ok = ui_edit_str_move_to_heap(s, c);
             if (ok) {
                 if (!all_ascii) {
@@ -8440,13 +8457,13 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                     char rep[128] = {0};
                     for (int32_t j = 0; j < n; j++) { strcat(rep, gs[gix_rep[j]]); }
                     char e1[128] = {0}; // expected based on s.g2b[]
-                    snprintf(e1, ut_count_of(e1), "%.*s%s%.*s",
+                    snprintf(e1, ut_countof(e1), "%.*s%s%.*s",
                         s.g2b[f], src,
                         rep,
                         s.b - s.g2b[t], src + s.g2b[t]
                     );
                     char e2[128] = {0}; // expected based on gs[]
-                    snprintf(e2, ut_count_of(e1), "%.*s%s%.*s",
+                    snprintf(e2, ut_countof(e1), "%.*s%s%.*s",
                         g2p[f], src,
                         rep,
                         (int32_t)strlen(src) - g2p[t], src + g2p[t]
@@ -8682,13 +8699,13 @@ typedef struct ui_edit_doc_test_notify_s {
 } ui_edit_doc_test_notify_t;
 
 static void ui_edit_doc_test_before(ui_edit_notify_t* n,
-        const ui_edit_notify_info_t* unused(ni)) {
+        const ui_edit_notify_info_t* ut_unused(ni)) {
     ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
     notify->count_before++;
 }
 
 static void ui_edit_doc_test_after(ui_edit_notify_t* n,
-        const ui_edit_notify_info_t* unused(ni)) {
+        const ui_edit_notify_info_t* ut_unused(ni)) {
     ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
     notify->count_after++;
 }
@@ -8783,7 +8800,7 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
-        for (int32_t i = 0; i < ut_count_of(ins); i++) {
+        for (int32_t i = 0; i < ut_countof(ins); i++) {
             swear(ui_edit_doc.init(d, null, 0, false));
             const char* s = "GoodbyeCruelUniverse";
             swear(ui_edit_doc.replace(d, null, s, -1));
@@ -10361,7 +10378,7 @@ static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t ix) {
     e->edit.buttons &= ~(1 << ix);
 }
 
-static bool ui_edit_tap(ui_view_t* v, int32_t unused(ix), bool pressed) {
+static bool ui_edit_tap(ui_view_t* v, int32_t ut_unused(ix), bool pressed) {
     // `ix` ignored for now till context menu (copy/paste/select...)
     ui_edit_t* e = (ui_edit_t*)v;
     assert(ui_view.inside(v, &ui_app.mouse));
@@ -10382,7 +10399,7 @@ static bool ui_edit_tap(ui_view_t* v, int32_t unused(ix), bool pressed) {
     return true;
 }
 
-static bool ui_edit_long_press(ui_view_t* v, int32_t unused(ix)) {
+static bool ui_edit_long_press(ui_view_t* v, int32_t ut_unused(ix)) {
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
@@ -10393,7 +10410,7 @@ static bool ui_edit_long_press(ui_view_t* v, int32_t unused(ix)) {
     return true;
 }
 
-static bool ui_edit_double_tap(ui_view_t* v, int32_t unused(ix)) {
+static bool ui_edit_double_tap(ui_view_t* v, int32_t ut_unused(ix)) {
     ui_edit_t* e = (ui_edit_t*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
@@ -10837,7 +10854,7 @@ static void ui_edit_after(ui_edit_notify_t* notify,
         e->selection = *ni->x;
         // this is needed by undo/redo: trim selection
         ui_edit_pg_t* pg = e->selection.a;
-        for (int32_t i = 0; i < ut_count_of(e->selection.a); i++) {
+        for (int32_t i = 0; i < ut_countof(e->selection.a); i++) {
             pg[i].pn = ut_max(0, ut_min(dt->np - 1, pg[i].pn));
             pg[i].gp = ut_max(0, ut_min(dt->ps[pg[i].pn].g, pg[i].gp));
         }
@@ -11059,7 +11076,7 @@ static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
                  ut_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
             for (uint32_t i = 0; i < words_in_sentence && s < end; i++) {
                 const int32_t ix = ut_num.random32(&p.seed) %
-                                   ut_count_of(lorem_ipsum_words);
+                                   ut_countof(lorem_ipsum_words);
                 const char* word = lorem_ipsum_words[ix];
                 memcpy(s, word, strlen(word));
                 if (i == 0) { *s = (char)toupper(*s); }
@@ -11266,7 +11283,7 @@ static void ui_fuzzing_key(void) {
         { ui.key.back,    "back"   },
     };
     ui_fuzzing_alt_ctrl_shift();
-    uint32_t ix = ui_fuzzing_random() % ut_count_of(keys);
+    uint32_t ix = ui_fuzzing_random() % ut_countof(keys);
     if (ui_fuzzing_debug) {
 //      ut_traceln("key(%s)", keys[ix].name);
     }
@@ -12210,7 +12227,7 @@ if (0) {
     int32_t count = ut_str.utf16_chars(s, -1);
     assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
-    swear(count <= ut_count_of(ws), "find another way to draw!");
+    swear(count <= ut_countof(ws), "find another way to draw!");
     ut_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
@@ -12241,11 +12258,11 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     ut_not_null(p);
     char text[4096]; // expected to be enough for single text draw
     text[0] = 0;
-    ut_str.format_va(text, ut_count_of(text), p->format, p->va);
-    text[ut_count_of(text) - 1] = 0;
+    ut_str.format_va(text, ut_countof(text), p->format, p->va);
+    text[ut_countof(text) - 1] = 0;
     int32_t k = (int32_t)ut_str.len(text);
     if (k > 0) {
-        swear(k > 0 && k < ut_count_of(text), "k=%d n=%d fmt=%s", k, p->format);
+        swear(k > 0 && k < ut_countof(text), "k=%d n=%d fmt=%s", k, p->format);
         // rectangle is always calculated - it makes draw text
         // much slower but UI layer is mostly uses bitmap caching:
         if ((p->flags & DT_CALCRECT) == 0) {
@@ -12633,7 +12650,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
     #pragma warning(disable: 6385)
     #pragma warning(disable: 6386)
     int32_t mxw[1024]; // more than enough for sane humane UI
-    swear(cols <= ut_count_of(mxw));
+    swear(cols <= ut_countof(mxw));
     memset(mxw, 0, (size_t)cols * sizeof(int32_t));
     ui_view_for_each(v, r, {
         if (!ui_view.is_hidden(r)) {
@@ -12771,7 +12788,7 @@ static void ui_mbx_button(ui_button_t* b) {
     ui_mbx_t* m = (ui_mbx_t*)b->parent;
     assert(m->type == ui_view_mbx);
     m->option = -1;
-    for (int32_t i = 0; i < ut_count_of(m->button) && m->option < 0; i++) {
+    for (int32_t i = 0; i < ut_countof(m->button) && m->option < 0; i++) {
         if (b == &m->button[i]) {
             m->option = i;
             if (m->callback != null) { m->callback(&m->view); }
@@ -12836,13 +12853,13 @@ void ui_view_init_mbx(ui_view_t* v) {
     v->layout = ui_mbx_layout;
     m->fm = &ui_app.fm.regular;
     int32_t n = 0;
-    while (m->options[n] != null && n < ut_count_of(m->button) - 1) {
+    while (m->options[n] != null && n < ut_countof(m->button) - 1) {
         m->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
         ui_view.set_text(&m->button[n], "%s", m->options[n]);
         n++;
     }
-    swear(n <= ut_count_of(m->button), "inhumane: %d buttons is too many", n);
-    if (n > ut_count_of(m->button)) { n = ut_count_of(m->button); }
+    swear(n <= ut_countof(m->button), "inhumane: %d buttons is too many", n);
+    if (n > ut_countof(m->button)) { n = ut_countof(m->button); }
     m->label = (ui_label_t)ui_label(0, "");
     ui_view.set_text(&m->label, "%s", ui_view.string(&m->view));
     ui_view.add_last(&m->view, &m->label);
@@ -13030,7 +13047,7 @@ static void ui_slider_paint(ui_view_t* v) {
         text = ui_view.string(v);
     } else if (text != null &&
         (strstr(text, "%d") != null || strstr(text, "%u") != null)) {
-        ut_str.format(formatted, ut_count_of(formatted), text, s->value);
+        ut_str.format(formatted, ut_countof(formatted), text, s->value);
         s->p.strid = 0; // nls again
         text = ut_nls.str(formatted);
     }
@@ -13047,7 +13064,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.text(&ta, tx, ty, "%s", text);
 }
 
-static void ui_slider_mouse_click(ui_view_t* v, int32_t unused(ix),
+static void ui_slider_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     ui_slider_t* s = (ui_slider_t*)v;
     if (pressed) {
@@ -13485,7 +13502,7 @@ static void ui_toggle_measure(ui_view_t* v) {
 static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
     char txt[ut_countof(v->p.text)];
-    const char* label = ui_toggle_on_off_label(v, txt, ut_count_of(txt));
+    const char* label = ui_toggle_on_off_label(v, txt, ut_countof(txt));
     const char* text = ut_nls.str(label);
     ui_view_text_metrics_t tm = {0};
     ui_view.text_measure(v, text, &tm);
@@ -13516,7 +13533,7 @@ static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_toggle_mouse_click(ui_view_t* v, int32_t unused(ix),
+static void ui_toggle_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     if (pressed && ui_view.inside(v, &ui_app.mouse)) {
         ui_toggle_flip((ui_toggle_t*)v);
@@ -13862,7 +13879,7 @@ static void ui_view_measure(ui_view_t* v) {
     }
 }
 
-static void ui_layout_view(ui_view_t* unused(v)) {
+static void ui_layout_view(ui_view_t* ut_unused(v)) {
 //  ui_ltrb_t i = ui_view.margins(v, &v->insets);
 //  ui_ltrb_t p = ui_view.margins(v, &v->padding);
 //  ut_traceln(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
@@ -13972,7 +13989,7 @@ static void ui_view_update_shortcut(ui_view_t* v) {
 
 static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     char t[ut_countof(v->p.text)];
-    ut_str.format_va(t, ut_count_of(t), format, va);
+    ut_str.format_va(t, ut_countof(t), format, va);
     char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);

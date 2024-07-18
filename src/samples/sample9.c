@@ -94,10 +94,10 @@ static const char* filter[] = {
     "Executables", "*.exe"
 };
 
-static void open_file(ui_button_t* unused(b)) {
+static void open_file(ui_button_t* ut_unused(b)) {
     const char* home = ut_files.known_folder(ut_files.folder.home);
     //  all files filer: null, 0
-    const char* fn = ui_app.open_file(home, filter, ut_count_of(filter));
+    const char* fn = ui_app.open_file(home, filter, ut_countof(filter));
     if (fn[0] != 0) {
         ui_view.set_text(&toast_filename, "\n%s\n", fn);
         ut_traceln("\"%s\"", fn);
@@ -127,7 +127,7 @@ static void flip_locale(ui_button_t* b) {
 static ui_button_t button_locale = ui_button(
     ut_glyph_kanji_onna_female "A", 1, flip_locale);
 
-static void about_clicked(ui_button_t* unused(b)) {
+static void about_clicked(ui_button_t* ut_unused(b)) {
     ui_app.show_toast(&about, 10.0);
 }
 
@@ -138,7 +138,7 @@ ui_button_clicked(button_mbx, "&Message Box", 7.5, {
 });
 
 
-static void scroll_toggle(ui_button_t* unused(b)) {
+static void scroll_toggle(ui_button_t* ut_unused(b)) {
     ui_app.request_redraw();
 }
 
@@ -300,7 +300,7 @@ static void measure(ui_view_t* v) {
     panel_center.h = h - panel_bottom.h - panel_top.h;
 }
 
-static void layout(ui_view_t* unused(view)) {
+static void layout(ui_view_t* ut_unused(view)) {
     assert(view->fm->em.w > 0 && view->fm->em.h > 0);
     const int32_t h = ui_app.root->h;
     panel_top.x = 0;
@@ -324,7 +324,7 @@ static void zoom_out(void) {
 }
 
 static void zoom_in(int x, int y) {
-    assert(top < ut_count_of(stack));
+    assert(top < ut_countof(stack));
     stack[top].x = sx;
     stack[top].y = sy;
     top++;
@@ -333,7 +333,7 @@ static void zoom_in(int x, int y) {
     sy += zoom * y / image.h;
 }
 
-static void mouse_click(ui_view_t* unused(v), int32_t ix, bool pressed) {
+static void mouse_click(ui_view_t* ut_unused(v), int32_t ix, bool pressed) {
     int mx = ui_app.mouse.x - panel_center.x;
     int my = ui_app.mouse.y - panel_center.y;
     if (0 <= mx && mx < panel_center.w && 0 <= my && my < panel_center.h) {
@@ -343,7 +343,7 @@ static void mouse_click(ui_view_t* unused(v), int32_t ix, bool pressed) {
             if (pressed && ix == 2) {
                 if (zoom < 1) { zoom_out(); refresh(); }
             } else if (pressed && ix == 0) {
-                if (top < ut_count_of(stack)) { zoom_in(x, y); refresh(); }
+                if (top < ut_countof(stack)) { zoom_in(x, y); refresh(); }
             }
         }
         ui_app.request_redraw();
@@ -428,7 +428,7 @@ static void opened(void) {
     ui_app.content->key_pressed  = keyboard; // virtual_keys
     ui_app.content->mouse_scroll = mouse_scroll;
     panel_center.mouse_click = mouse_click;
-    int n = ut_count_of(pixels);
+    int n = ut_countof(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(ut_countof(pixels) == ut_countof(pixels[0]), "square");
     ui_gdi.image_init(&image, n, n, (int32_t)sizeof(pixels[0][0]), (uint8_t*)pixels);
@@ -446,10 +446,10 @@ static void opened(void) {
     button_locale.shortcut = 'l';
     button_full_screen.shortcut = 'f';
 #ifdef SAMPLE9_USE_STATIC_UI_VIEW_MACROS
-    ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, ut_count_of(stack) - 1,
+    ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, ut_countof(stack) - 1,
         zoomer_callback);
 #else
-    zoomer = (ui_slider_t)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, ut_count_of(stack) - 1,
+    zoomer = (ui_slider_t)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, ut_countof(stack) - 1,
         slider_format, zoomer_callback);
 #endif
     ut_str_printf(button_mbx.hint, "Show Yes/No message box");
@@ -514,7 +514,7 @@ static void mandelbrot(ui_image_t* im) {
                 ui_color_rgb(255, 170,   0),  ui_color_rgb(204, 128,   0),
                 ui_color_rgb(153,  87,   0),  ui_color_rgb(106,  52,   3)
             };
-            ui_color_t color = palette[iteration % ut_count_of(palette)];
+            ui_color_t color = palette[iteration % ut_countof(palette)];
             uint8_t* px = &((uint8_t*)im->pixels)[r * im->w * 4 + c * 4];
             px[3] = 0xFF;
             px[0] = (color >> 16) & 0xFF;

@@ -53,7 +53,7 @@ static const char* midi_file(void) {
         int r = ut_mem.map_resource("mr_blue_sky_midi", &data, &bytes);
         ut_fatal_if_error(r);
         ut_fatal_if_error(ut_files.create_tmp(filename,
-                                      ut_count_of(filename)));
+                                      ut_countof(filename)));
         assert(filename[0] != 0);
         int64_t written = 0;
         ut_fatal_if_error(ut_files.write_fully(filename, data, bytes,
@@ -92,13 +92,13 @@ static void paint(ui_view_t* view) {
         ut_glyph_speaker : ut_glyph_mute);
 }
 
-static void character(ui_view_t* unused(view), const char* utf8) {
+static void character(ui_view_t* ut_unused(view), const char* utf8) {
     if (utf8[0] == 'q' || utf8[0] == 'Q' || utf8[0] == 033) {
         ui_app.close();
     }
 }
 
-static void mouse_click(ui_view_t* unused(v), int32_t ix, bool pressed) {
+static void mouse_click(ui_view_t* ut_unused(v), int32_t ix, bool pressed) {
     if (pressed &&
         0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fm.H1.em.w &&
         0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fm.H1.em.h) {
@@ -113,8 +113,8 @@ static void mouse_click(ui_view_t* unused(v), int32_t ix, bool pressed) {
     }
 }
 
-static bool message(ui_view_t* unused(view), int32_t m, int64_t wp, int64_t lp,
-        int64_t* unused(ret)) {
+static bool message(ui_view_t* ut_unused(view), int32_t m, int64_t wp, int64_t lp,
+        int64_t* ut_unused(ret)) {
     if (m == midi.notify && (wp & midi.successful) != 0 && lp == mds.device_id) {
         midi.stop(&mds);
         midi.close(&mds);
@@ -193,7 +193,7 @@ static void animate(void) {
     }
 }
 
-static void animated_gif_loader(void* unused(ignored)) {
+static void animated_gif_loader(void* ut_unused(ignored)) {
     ui_cursor_t cursor = ui_app.cursor;
     ui_app.set_cursor(ui_app.cursors.wait);
     load_gif();

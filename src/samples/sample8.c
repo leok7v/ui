@@ -138,13 +138,13 @@ static ui_mbx_t mbx = ui_mbx( // message box
     "\n",
     null, null);
 
-static void about(ui_button_t* unused(b)) {
+static void about(ui_button_t* ut_unused(b)) {
     ui_app.show_toast(&mbx.view, 10.0);
 }
 
 static char* nil;
 
-static void crash(ui_button_t* unused(b)) {
+static void crash(ui_button_t* ut_unused(b)) {
     // two random ways to crash in release configuration
     if (ut_clock.nanoseconds() % 2 == 0) {
         swear(false, "should crash in release configuration");
@@ -154,8 +154,8 @@ static void crash(ui_button_t* unused(b)) {
         #pragma warning(disable: 4723)   // potential division by zero
         int32_t  a[5];
         int32_t* p = a;
-        ut_traceln("%d\n", ut_count_of(a));
-        ut_traceln("%d\n", ut_count_of(p)); // expected "division by zero"
+        ut_traceln("%d\n", ut_countof(a));
+        ut_traceln("%d\n", ut_countof(p)); // expected "division by zero"
         #pragma warning(pop)
         #endif
         (*nil)++; // expected "access violation"
@@ -171,7 +171,7 @@ static void insert_into_caption(ui_button_t* b, const char* hint) {
     ui_view.add_before(b,  &ui_caption.mini);
 }
 
-static void ui_app_root_composed(ui_view_t* unused(v)) {
+static void ui_app_root_composed(ui_view_t* ut_unused(v)) {
     app_data.light = !ui_theme.is_app_dark();
 }
 

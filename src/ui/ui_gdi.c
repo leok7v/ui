@@ -862,7 +862,7 @@ if (0) {
     int32_t count = ut_str.utf16_chars(s, -1);
     assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
-    swear(count <= ut_count_of(ws), "find another way to draw!");
+    swear(count <= ut_countof(ws), "find another way to draw!");
     ut_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
@@ -893,11 +893,11 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     ut_not_null(p);
     char text[4096]; // expected to be enough for single text draw
     text[0] = 0;
-    ut_str.format_va(text, ut_count_of(text), p->format, p->va);
-    text[ut_count_of(text) - 1] = 0;
+    ut_str.format_va(text, ut_countof(text), p->format, p->va);
+    text[ut_countof(text) - 1] = 0;
     int32_t k = (int32_t)ut_str.len(text);
     if (k > 0) {
-        swear(k > 0 && k < ut_count_of(text), "k=%d n=%d fmt=%s", k, p->format);
+        swear(k > 0 && k < ut_countof(text), "k=%d n=%d fmt=%s", k, p->format);
         // rectangle is always calculated - it makes draw text
         // much slower but UI layer is mostly uses bitmap caching:
         if ((p->flags & DT_CALCRECT) == 0) {

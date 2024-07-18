@@ -2,7 +2,7 @@
 #include "ut/ut_std.h"
 #include "ui/ui_view.h"
 
-begin_c
+ut_begin_c
 
 // Options like:
 //   "Yes"|"No"|"Abort"|"Retry"|"Ignore"|"Cancel"|"Try"|"Continue"
@@ -64,4 +64,4 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
     .options = (const char*[]){ __VA_ARGS__, null },        \
 }
 
-end_c
+ut_end_c

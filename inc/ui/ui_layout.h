@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
  // TODO: ui_ namespace
 
@@ -23,4 +23,4 @@ typedef struct {
 
 extern layouts_if layouts;
 
-end_c
+ut_end_c

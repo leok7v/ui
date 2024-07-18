@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 typedef struct ut_stream_if ut_stream_if;
 
@@ -33,4 +33,4 @@ typedef struct {
 
 extern ut_streams_if ut_streams;
 
-end_c
+ut_end_c

@@ -73,17 +73,17 @@ static void ut_streams_read_write(ut_stream_memory_if* s,
 static void ut_streams_test(void) {
     {   // read test
         uint8_t memory[256];
-        for (int32_t i = 0; i < ut_count_of(memory); i++) { memory[i] = (uint8_t)i; }
-        for (int32_t i = 1; i < ut_count_of(memory) - 1; i++) {
+        for (int32_t i = 0; i < ut_countof(memory); i++) { memory[i] = (uint8_t)i; }
+        for (int32_t i = 1; i < ut_countof(memory) - 1; i++) {
             ut_stream_memory_if ms; // memory stream
             ut_streams.read_only(&ms, memory, sizeof(memory));
             uint8_t data[256];
-            for (int32_t j = 0; j < ut_count_of(data); j++) { data[j] = 0xFF; }
+            for (int32_t j = 0; j < ut_countof(data); j++) { data[j] = 0xFF; }
             int64_t transferred = 0;
             errno_t r = ms.stream.read(&ms.stream, data, i, &transferred);
             swear(r == 0 && transferred == i);
             for (int32_t j = 0; j < i; j++) { swear(data[j] == memory[j]); }
-            for (int32_t j = i; j < ut_count_of(data); j++) { swear(data[j] == 0xFF); }
+            for (int32_t j = i; j < ut_countof(data); j++) { swear(data[j] == 0xFF); }
         }
     }
     {   // write test

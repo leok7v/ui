@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 typedef struct ui_point_s { int32_t x, y; } ui_point_t;
 typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
@@ -176,5 +176,5 @@ extern ui_if ui;
 // "pixels" on MacOS. Windows used to use "dialog units" which
 // is font size based and this is where the idea is inherited from.
 
-end_c
+ut_end_c
 

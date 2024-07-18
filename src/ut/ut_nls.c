@@ -25,7 +25,7 @@ static const char* ut_nls_ls[ut_nls_str_count_max]; // localized strings
 static const char* ut_nls_ns[ut_nls_str_count_max]; // neutral language strings
 
 static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
-    assert(0 <= strid && strid < ut_count_of(ut_nls_ns));
+    assert(0 <= strid && strid < ut_countof(ut_nls_ns));
     uint16_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
@@ -58,7 +58,7 @@ static const char* ut_nls_save_string(uint16_t* utf16) {
     const int32_t bytes = ut_str.utf8_bytes(utf16, -1);
     swear(bytes > 1);
     char* s = ut_nls_strings_free;
-    uintptr_t left = (uintptr_t)ut_count_of(ut_nls_strings_memory) -
+    uintptr_t left = (uintptr_t)ut_countof(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
     ut_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
     ut_str.utf16to8(s, (int32_t)left, utf16, -1);
@@ -68,9 +68,9 @@ static const char* ut_nls_save_string(uint16_t* utf16) {
 }
 
 static const char* ut_nls_localized_string(int32_t strid) {
-    swear(0 < strid && strid < ut_count_of(ut_nls_ns));
+    swear(0 < strid && strid < ut_countof(ut_nls_ns));
     const char* s = null;
-    if (0 < strid && strid < ut_count_of(ut_nls_ns)) {
+    if (0 < strid && strid < ut_countof(ut_nls_ns)) {
         if (ut_nls_ls[strid] != null) {
             s = ut_nls_ls[strid];
         } else {
@@ -115,7 +115,7 @@ static const char* ut_nls_str(const char* s) {
 static const char* ut_nls_locale(void) {
     uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
     LCID lc_id = GetThreadLocale();
-    int32_t n = LCIDToLocaleName(lc_id, utf16, ut_count_of(utf16),
+    int32_t n = LCIDToLocaleName(lc_id, utf16, ut_countof(utf16),
         LOCALE_ALLOW_NEUTRAL_NAMES);
     static char ln[LOCALE_NAME_MAX_LENGTH * 4 + 1];
     ln[0] = 0;
@@ -123,7 +123,7 @@ static const char* ut_nls_locale(void) {
         errno_t r = ut_runtime.err();
         ut_traceln("LCIDToLocaleName(0x%04X) failed %s", lc_id, ut_str.error(r));
     } else {
-        ut_str.utf16to8(ln, ut_count_of(ln), utf16, -1);
+        ut_str.utf16to8(ln, ut_countof(ln), utf16, -1);
     }
     return ln;
 }
@@ -131,9 +131,9 @@ static const char* ut_nls_locale(void) {
 static errno_t ut_nls_set_locale(const char* locale) {
     errno_t r = 0;
     uint16_t utf16[LOCALE_NAME_MAX_LENGTH + 1];
-    ut_str.utf8to16(utf16, ut_count_of(utf16), locale, -1);
+    ut_str.utf8to16(utf16, ut_countof(utf16), locale, -1);
     uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1]; // resolved locale name
-    int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)ut_count_of(rln));
+    int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)ut_countof(rln));
     if (n == 0) {
         r = ut_runtime.err();
         ut_traceln("ResolveLocaleName(\"%s\") failed %s", locale, ut_str.error(r));
@@ -152,9 +152,9 @@ static errno_t ut_nls_set_locale(const char* locale) {
 
 static void ut_nls_init(void) {
     static_assert(ut_countof(ut_nls_ns) % 16 == 0, 
-                 "ut_count_of(ns) must be multiple of 16");
+                 "ut_countof(ns) must be multiple of 16");
     LANGID lang_id = MAKELANGID(LANG_ENGLISH, SUBLANG_NEUTRAL);
-    for (int32_t strid = 0; strid < ut_count_of(ut_nls_ns); strid += 16) {
+    for (int32_t strid = 0; strid < ut_countof(ut_nls_ns); strid += 16) {
         int32_t block = strid / 16 + 1;
         HRSRC res = FindResourceExW(((HMODULE)null), RT_STRING,
             MAKEINTRESOURCEW(block), lang_id);

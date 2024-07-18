@@ -59,7 +59,7 @@ static void ui_toggle_measure(ui_view_t* v) {
 static void ui_toggle_paint(ui_view_t* v) {
     assert(v->type == ui_view_toggle);
     char txt[ut_countof(v->p.text)];
-    const char* label = ui_toggle_on_off_label(v, txt, ut_count_of(txt));
+    const char* label = ui_toggle_on_off_label(v, txt, ut_countof(txt));
     const char* text = ut_nls.str(label);
     ui_view_text_metrics_t tm = {0};
     ui_view.text_measure(v, text, &tm);
@@ -90,7 +90,7 @@ static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_toggle_mouse_click(ui_view_t* v, int32_t unused(ix),
+static void ui_toggle_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     if (pressed && ui_view.inside(v, &ui_app.mouse)) {
         ui_toggle_flip((ui_toggle_t*)v);

@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 // It is absolutely OK to use posix compliant
 // malloc()/calloc()/realloc()/free() function calls with understanding
@@ -52,5 +52,5 @@ extern ut_heap_if ut_heap;
 // threads can benefit from not serialized, not LFH if they allocate and free
 // memory in time critical loops.
 
-end_c
+ut_end_c
 

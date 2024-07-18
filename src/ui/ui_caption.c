@@ -32,11 +32,11 @@ static void ui_caption_esc_full_screen(ui_view_t* v, const char utf8[]) {
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
 }
 
-static void ui_caption_quit(ui_button_t* unused(b)) {
+static void ui_caption_quit(ui_button_t* ut_unused(b)) {
     ui_app.close();
 }
 
-static void ui_caption_mini(ui_button_t* unused(b)) {
+static void ui_caption_mini(ui_button_t* ut_unused(b)) {
     ui_app.show_window(ui.visibility.minimize);
 }
 
@@ -50,7 +50,7 @@ static void ui_caption_mode_appearance(void) {
     }
 }
 
-static void ui_caption_mode(ui_button_t* unused(b)) {
+static void ui_caption_mode(ui_button_t* ut_unused(b)) {
     bool was_dark = ui_theme.is_app_dark();
     ui_app.light_mode =  was_dark;
     ui_app.dark_mode  = !was_dark;
@@ -71,7 +71,7 @@ static void ui_caption_maximize_or_restore(void) {
     ui_caption.maxi.state.hidden = ui_app.no_decor;
 }
 
-static void ui_caption_maxi(ui_button_t* unused(b)) {
+static void ui_caption_maxi(ui_button_t* ut_unused(b)) {
     if (!ui_app.is_maximized()) {
         ui_app.show_window(ui.visibility.maximize);
     } else if (ui_app.is_maximized() || ui_app.is_minimized()) {
@@ -80,7 +80,7 @@ static void ui_caption_maxi(ui_button_t* unused(b)) {
     ui_caption_maximize_or_restore();
 }
 
-static void ui_caption_full(ui_button_t* unused(b)) {
+static void ui_caption_full(ui_button_t* ut_unused(b)) {
     ui_caption_toggle_full();
 }
 
@@ -143,7 +143,7 @@ static void ui_caption_button_icon_paint(ui_view_t* v) {
     ui_gdi.icon(v->x + dx, v->y + dy, w, h, v->icon);
 }
 
-static void ui_caption_prepare(ui_view_t* unused(v)) {
+static void ui_caption_prepare(ui_view_t* ut_unused(v)) {
     ui_caption.title.state.hidden = false;
 }
 

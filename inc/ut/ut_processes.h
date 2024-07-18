@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_streams.h"
 
-begin_c
+ut_begin_c
 
 typedef struct {
     const char* command;
@@ -37,4 +37,4 @@ typedef struct {
 
 extern ut_processes_if ut_processes;
 
-end_c
+ut_end_c

@@ -3,7 +3,7 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-begin_c
+ut_begin_c
 
 // important ui_edit_t will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
@@ -198,4 +198,4 @@ extern ui_edit_if ui_edit;
     other API that expects zero terminated strings.
 */
 
-end_c
+ut_end_c

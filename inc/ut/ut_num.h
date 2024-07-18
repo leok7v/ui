@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 typedef struct {
     uint64_t lo;
@@ -25,5 +25,5 @@ typedef struct {
 
 extern ut_num_if ut_num;
 
-end_c
+ut_end_c
 

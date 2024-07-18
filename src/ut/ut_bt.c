@@ -42,7 +42,7 @@ static void ut_bt_init(void) {
 static void ut_bt_capture(ut_bt_t* bt, int32_t skip) {
     ut_bt_init();
     SetLastError(0);
-    bt->frames = CaptureStackBackTrace(1 + skip, ut_count_of(bt->stack),
+    bt->frames = CaptureStackBackTrace(1 + skip, ut_countof(bt->stack),
         bt->stack, (DWORD*)&bt->hash);
     bt->error = ut_runtime.err();
 }
@@ -135,7 +135,7 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
     const DWORD64 pc = (DWORD64)bt->stack[i];
     symbol_info_t si = {
         .info = { .SizeOfStruct = sizeof(SYMBOL_INFO),
-                  .MaxNameLen = ut_count_of(si.name) }
+                  .MaxNameLen = ut_countof(si.name) }
     };
     bt->file[i][0] = 0;
     bt->line[i] = 0;
@@ -165,8 +165,8 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
                 bt->error = ut_runtime.err();
                 if (ut_bt_function(pc, &si.info)) {
                     GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
-                        ut_count_of(bt->file[i]) - 1);
-                    bt->file[i][ut_count_of(bt->file[i]) - 1] = 0;
+                        ut_countof(bt->file[i]) - 1);
+                    bt->file[i][ut_countof(bt->file[i]) - 1] = 0;
                     bt->line[i]    = 0;
                 } else  {
                     bt->file[i][0] = 0x00;
@@ -179,8 +179,8 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
             if (ut_bt_function(pc, &si.info)) {
                 ut_str_printf(bt->symbol[i], "%s", si.info.Name);
                 GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
-                    ut_count_of(bt->file[i]) - 1);
-                bt->file[i][ut_count_of(bt->file[i]) - 1] = 0;
+                    ut_countof(bt->file[i]) - 1);
+                bt->file[i][ut_countof(bt->file[i]) - 1] = 0;
                 bt->error = 0;
                 i++;
             } else {
@@ -200,7 +200,7 @@ static void ut_bt_symbolize_backtrace(ut_bt_t* bt) {
     void* stack[ut_countof(bt->stack)];
     memcpy(stack, bt->stack, n * sizeof(stack[0]));
     bt->frames = 0;
-    for (int32_t i = 0; i < n && bt->frames < ut_count_of(bt->stack); i++) {
+    for (int32_t i = 0; i < n && bt->frames < ut_countof(bt->stack); i++) {
         bt->stack[bt->frames] = stack[i];
         bt->frames = ut_bt_symbolize_frame(bt, i);
     }
@@ -257,7 +257,7 @@ static const char* ut_bt_string(const ut_bt_t* bt,
         } else if (file[0] == 0 && name[0] != 0) {
             ut_str_printf(s, "%s\n", name);
         }
-        s[ut_count_of(s) - 1] = 0;
+        s[ut_countof(s) - 1] = 0;
         int32_t k = (int32_t)strlen(s);
         if (k < n) {
             memcpy(p, s, (size_t)k + 1);
@@ -275,7 +275,7 @@ static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
     tn.name[0] = 0;
     wchar_t* thread_name = null;
     if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
-        ut_str.utf16to8(tn.name, ut_count_of(tn.name), thread_name, -1);
+        ut_str.utf16to8(tn.name, ut_countof(tn.name), thread_name, -1);
         LocalFree(thread_name);
     }
     return tn;
@@ -326,7 +326,7 @@ static void ut_bt_context(ut_thread_t thread, const void* ctx,
             SymFunctionTableAccess64, SymGetModuleBase64, null)) {
         DWORD64 pc = stack_frame.AddrPC.Offset;
         if (pc == 0) { break; }
-        if (bt->frames < ut_count_of(bt->stack)) {
+        if (bt->frames < ut_countof(bt->stack)) {
             bt->stack[bt->frames] = (void*)pc;
             bt->frames = ut_bt_symbolize_frame(bt, bt->frames);
         }
@@ -406,7 +406,7 @@ static bool ut_bt_tee(const char* s, int32_t count) {
     if (count > 0 && s[count - 1] == 0) { // zero terminated
         int32_t k = (int32_t)(uintptr_t)(
             ut_bt_test_output_p - ut_bt_test_output);
-        int32_t space = ut_count_of(ut_bt_test_output) - k;
+        int32_t space = ut_countof(ut_bt_test_output) - k;
         if (count < space) {
             memcpy(ut_bt_test_output_p, s, count);
             ut_bt_test_output_p += count - 1; // w/o 0x00

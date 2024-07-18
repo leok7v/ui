@@ -57,8 +57,8 @@ int main(int argc, const char* argv[], const char *envp[]) {
 
 #pragma warning(suppress: 28251) // no annotations
 
-int APIENTRY WinMain(HINSTANCE unused(inst), HINSTANCE unused(prev),
-                     char* unused(command), int unused(show)) {
+int APIENTRY WinMain(HINSTANCE ut_unused(inst), HINSTANCE ut_unused(prev),
+                     char* ut_unused(command), int ut_unused(show)) {
     ut_args.WinMain(); // Uses GetCommandLineW() which has full pathname
     int r = run();
     ut_args.fini();

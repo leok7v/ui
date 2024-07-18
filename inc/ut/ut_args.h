@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 typedef struct {
     // On Unix it is responsibility of the main() to assign these values
@@ -77,4 +77,4 @@ extern ut_args_if ut_args;
 
 */
 
-end_c
+ut_end_c

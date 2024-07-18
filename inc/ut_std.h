@@ -50,35 +50,22 @@ typedef double fp64_t;
 // of it is not specified.
 
 #ifdef __cplusplus
-    #define begin_c extern "C" {
-    #define end_c } // extern "C"
+    #define ut_begin_c extern "C" {
+    #define ut_end_c } // extern "C"
 #else
-    #define begin_c // C headers compiled as C++
-    #define end_c
+    #define ut_begin_c // C headers compiled as C++
+    #define ut_end_c
 #endif
 
-// ut_countof() and ut_count_of() are suitable for
+// ut_countof() and ut_countof() are suitable for
 // small < 2^31 element arrays
 
-// constexpr
 #define ut_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
 
-// ut_count_of() generates "array bounds" exception
-// at runtime because ((void*)&(a) == &(a)[0]) does NOT evaluate
-// to constant expression in cl.exe version 19.40.33811
-#define ut_count_of(a) (int32_t)(sizeof((a)) / sizeof((a)[1]) +     \
-    (((void*)&(a) == &(a)[0]) ?                                     \
-    0 : (size_t)ut_debug.raise(ut_debug.exception.array_bounds)))
-// https://stackoverflow.com/questions/19452971/array-size-macro-that-rejects-pointers/
-// int a[5];
-// int *b = a;
-// printf("%d\n", ut_count_of(a));
-// printf("%d\n", ut_count_of(b)); // "Integer division by zero"
-
 #if defined(__GNUC__) || defined(__clang__)
-    #define force_inline __attribute__((always_inline))
+    #define ut_force_inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
-    #define force_inline __forceinline
+    #define ut_force_inline __forceinline
 #endif
 
 #ifndef __cplusplus
@@ -88,12 +75,12 @@ typedef double fp64_t;
 #endif
 
 #if defined(_MSC_VER)
-    #define thread_local __declspec(thread)
+    #define ut_thread_local __declspec(thread)
 #else
     #ifndef __cplusplus
-        #define thread_local _Thread_local // C99
+        #define ut_thread_local _Thread_local // C99
     #else
-        // C++ supports thread_local keyword
+        // C++ supports ut_thread_local keyword
     #endif
 #endif
 
@@ -129,14 +116,14 @@ typedef double fp64_t;
 // Instead of:
 //      void foo(param_type_t param) { (void)param; / *unused */ }
 // use:
-//      vod foo(param_type_t unused(param)) { }
+//      vod foo(param_type_t ut_unused(param)) { }
 
 #if defined(__GNUC__) || defined(__clang__)
-#define unused(name) name __attribute__((unused))
+#define ut_unused(name) name __attribute__((unused))
 #elif defined(_MSC_VER)
-#define unused(name) _Pragma("warning(suppress:  4100)") name
+#define ut_unused(name) _Pragma("warning(suppress:  4100)") name
 #else
-#define unused(name) name
+#define ut_unused(name) name
 #endif
 
 // Because MS C compiler is unhappy about alloca() and

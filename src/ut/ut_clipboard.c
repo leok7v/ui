@@ -86,7 +86,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
 static void ut_clipboard_test(void) {
     ut_fatal_if_error(ut_clipboard.put_text("Hello Clipboard"));
     char text[256];
-    int32_t bytes = ut_count_of(text);
+    int32_t bytes = ut_countof(text);
     ut_fatal_if_error(ut_clipboard.get_text(text, &bytes));
     swear(strcmp(text, "Hello Clipboard") == 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }

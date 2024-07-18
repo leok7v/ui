@@ -2,7 +2,7 @@
 #include "ut/ut_std.h"
 #include "ui/ui_button.h"
 
-begin_c
+ut_begin_c
 
 typedef struct ui_slider_s ui_slider_t;
 
@@ -78,4 +78,4 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     .value_min = mn, .value_max = mx, .value = mn,                  \
 }
 
-end_c
+ut_end_c

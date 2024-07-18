@@ -2,7 +2,7 @@
 #include "ut/ut_std.h"
 #include "ui/ui_view.h"
 
-begin_c
+ut_begin_c
 
 typedef ui_view_t ui_label_t;
 
@@ -38,4 +38,4 @@ void ui_label_init_va(ui_label_t* t, fp32_t min_w_em, const char* format, va_lis
 // which is subtle C difference of constant and
 // variable initialization and I did not find universal way
 
-end_c
+ut_end_c

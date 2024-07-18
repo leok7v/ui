@@ -31,14 +31,14 @@ static void opened(void) {
     ui_app.content->hit_test = hit_test;
 }
 
-static void character(ui_view_t* unused(v), const char* utf8) {
+static void character(ui_view_t* ut_unused(v), const char* utf8) {
     if (utf8[0] == 033) { // escape
         if (!ui_app.is_full_screen) { ui_app.quit(0); }
         if ( ui_app.is_full_screen) { ui_app.full_screen(false); }
     }
 }
 
-static bool key_pressed(ui_view_t* unused(v), int64_t key) {
+static bool key_pressed(ui_view_t* ut_unused(v), int64_t key) {
     bool swallow = key == ui.key.f11;
     if (swallow) { ui_app.full_screen(!ui_app.is_full_screen); }
     return swallow;

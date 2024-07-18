@@ -121,7 +121,7 @@ static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
 
 static uint32_t ut_num_random32(uint32_t* state) {
     // https://gist.github.com/tommyettinger/46a874533244883189143505d203312c
-    static thread_local bool started; // first seed must be odd
+    static ut_thread_local bool started; // first seed must be odd
     if (!started) { started = true; *state |= 1; }
     uint32_t z = (*state += 0x6D2B79F5UL);
     z = (z ^ (z >> 15)) * (z | 1UL);
@@ -131,7 +131,7 @@ static uint32_t ut_num_random32(uint32_t* state) {
 
 static uint64_t ut_num_random64(uint64_t *state) {
     // https://gist.github.com/tommyettinger/e6d3e8816da79b45bfe582384c2fe14a
-    static thread_local bool started; // first seed must be odd
+    static ut_thread_local bool started; // first seed must be odd
     if (!started) { started = true; *state |= 1; }
 	const uint64_t s = *state;
 	const uint64_t z = (s ^ s >> 25) * (*state += 0x6A5D39EAE12657AAULL);

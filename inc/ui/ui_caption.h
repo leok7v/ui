@@ -1,7 +1,7 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ui/ui.h"
 
-begin_c
+ut_begin_c
 
 typedef struct ui_caption_s {
     ui_view_t view;
@@ -19,4 +19,4 @@ typedef struct ui_caption_s {
 
 extern ui_caption_t ui_caption;
 
-end_c
+ut_end_c

@@ -1156,7 +1156,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
         ut_heap.free(s->g2b);
     } else {
         #ifdef UI_EDIT_STR_TEST // check ui_edit_str_g2b_ascii integrity
-            for (int32_t i = 0; i < ut_count_of(ui_edit_str_g2b_ascii); i++) {
+            for (int32_t i = 0; i < ut_countof(ui_edit_str_g2b_ascii); i++) {
                 assert(ui_edit_str_g2b_ascii[i] == i);
             }
         #endif
@@ -1253,11 +1253,11 @@ static int32_t ui_edit_str_bytes(ui_edit_str_t* s,
 static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
-        if (s->b == s->g && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
+        if (s->b == s->g && s->g < ut_countof(ui_edit_str_g2b_ascii) - 1) {
 //          ut_traceln("forcefully moving to heap");
             // this is usually done in the process of concatenation
             // of 2 ascii strings when result is known to be longer
-            // than ut_count_of(ui_edit_str_g2b_ascii) - 1 but the
+            // than ut_countof(ui_edit_str_g2b_ascii) - 1 but the
             // first string in concatenation is short. It's OK.
         }
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
@@ -1308,7 +1308,7 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
     }
     // Optimize memory for short ASCII only strings:
     if (s->g2b != ui_edit_str_g2b_ascii) {
-        if (s->g == s->b && s->g < ut_count_of(ui_edit_str_g2b_ascii) - 1) {
+        if (s->g == s->b && s->g < ut_countof(ui_edit_str_g2b_ascii) - 1) {
             // If this is an ascii only utf8 string shorter than
             // ui_edit_str_g2b_ascii it does not need .g2b[] allocated:
             if (s->g2b != ui_edit_str_g2b_ascii) {
@@ -1378,7 +1378,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
             // keep g2b == ui_edit_str_g2b_ascii as much as possible
             const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
                                    ins.g2b == ui_edit_str_g2b_ascii &&
-                                   bytes < ut_count_of(ui_edit_str_g2b_ascii) - 1;
+                                   bytes < ut_countof(ui_edit_str_g2b_ascii) - 1;
             ok = ui_edit_str_move_to_heap(s, c);
             if (ok) {
                 if (!all_ascii) {
@@ -1719,13 +1719,13 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                     char rep[128] = {0};
                     for (int32_t j = 0; j < n; j++) { strcat(rep, gs[gix_rep[j]]); }
                     char e1[128] = {0}; // expected based on s.g2b[]
-                    snprintf(e1, ut_count_of(e1), "%.*s%s%.*s",
+                    snprintf(e1, ut_countof(e1), "%.*s%s%.*s",
                         s.g2b[f], src,
                         rep,
                         s.b - s.g2b[t], src + s.g2b[t]
                     );
                     char e2[128] = {0}; // expected based on gs[]
-                    snprintf(e2, ut_count_of(e1), "%.*s%s%.*s",
+                    snprintf(e2, ut_countof(e1), "%.*s%s%.*s",
                         g2p[f], src,
                         rep,
                         (int32_t)strlen(src) - g2p[t], src + g2p[t]
@@ -1961,13 +1961,13 @@ typedef struct ui_edit_doc_test_notify_s {
 } ui_edit_doc_test_notify_t;
 
 static void ui_edit_doc_test_before(ui_edit_notify_t* n,
-        const ui_edit_notify_info_t* unused(ni)) {
+        const ui_edit_notify_info_t* ut_unused(ni)) {
     ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
     notify->count_before++;
 }
 
 static void ui_edit_doc_test_after(ui_edit_notify_t* n,
-        const ui_edit_notify_info_t* unused(ni)) {
+        const ui_edit_notify_info_t* ut_unused(ni)) {
     ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
     notify->count_after++;
 }
@@ -2062,7 +2062,7 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
-        for (int32_t i = 0; i < ut_count_of(ins); i++) {
+        for (int32_t i = 0; i < ut_countof(ins); i++) {
             swear(ui_edit_doc.init(d, null, 0, false));
             const char* s = "GoodbyeCruelUniverse";
             swear(ui_edit_doc.replace(d, null, s, -1));

@@ -5,7 +5,7 @@ static void ui_mbx_button(ui_button_t* b) {
     ui_mbx_t* m = (ui_mbx_t*)b->parent;
     assert(m->type == ui_view_mbx);
     m->option = -1;
-    for (int32_t i = 0; i < ut_count_of(m->button) && m->option < 0; i++) {
+    for (int32_t i = 0; i < ut_countof(m->button) && m->option < 0; i++) {
         if (b == &m->button[i]) {
             m->option = i;
             if (m->callback != null) { m->callback(&m->view); }
@@ -70,13 +70,13 @@ void ui_view_init_mbx(ui_view_t* v) {
     v->layout = ui_mbx_layout;
     m->fm = &ui_app.fm.regular;
     int32_t n = 0;
-    while (m->options[n] != null && n < ut_count_of(m->button) - 1) {
+    while (m->options[n] != null && n < ut_countof(m->button) - 1) {
         m->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
         ui_view.set_text(&m->button[n], "%s", m->options[n]);
         n++;
     }
-    swear(n <= ut_count_of(m->button), "inhumane: %d buttons is too many", n);
-    if (n > ut_count_of(m->button)) { n = ut_count_of(m->button); }
+    swear(n <= ut_countof(m->button), "inhumane: %d buttons is too many", n);
+    if (n > ut_countof(m->button)) { n = ut_countof(m->button); }
     m->label = (ui_label_t)ui_label(0, "");
     ui_view.set_text(&m->label, "%s", ui_view.string(&m->view));
     ui_view.add_last(&m->view, &m->label);

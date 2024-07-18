@@ -3,7 +3,7 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-begin_c
+ut_begin_c
 
 typedef struct ui_edit_str_s ui_edit_str_t;
 
@@ -228,4 +228,4 @@ extern ui_edit_str_if ui_edit_str;
 */
 
 
-end_c
+ut_end_c

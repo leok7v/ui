@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
@@ -179,4 +179,4 @@ typedef struct {
 
 extern ui_gdi_if ui_gdi;
 
-end_c
+ut_end_c

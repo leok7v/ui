@@ -38,27 +38,27 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         // full path is useful in MSVC debugger output pane (clickable)
         // for all other scenarios short filename without path is preferable:
         const char* name = IsDebuggerPresent() ? file : ut_files.basename(file);
-        snprintf(file_line, ut_count_of(file_line) - 1, "%s(%d):", name, line);
+        snprintf(file_line, ut_countof(file_line) - 1, "%s(%d):", name, line);
     }
-    file_line[ut_count_of(file_line) - 1] = 0x00; // always zero terminated'
+    file_line[ut_countof(file_line) - 1] = 0x00; // always zero terminated'
     ut_debug_max_file_line = ut_max(ut_debug_max_file_line,
                                     (int32_t)strlen(file_line));
     ut_debug_max_function  = ut_max(ut_debug_max_function,
                                     (int32_t)strlen(func));
     char prefix[2 * 1024];
     // snprintf() does not guarantee zero termination on truncation
-    snprintf(prefix, ut_count_of(prefix) - 1, "%-*s %-*s",
+    snprintf(prefix, ut_countof(prefix) - 1, "%-*s %-*s",
             ut_debug_max_file_line, file_line,
             ut_debug_max_function,  func);
-    prefix[ut_count_of(prefix) - 1] = 0; // zero terminated
+    prefix[ut_countof(prefix) - 1] = 0; // zero terminated
     char text[2 * 1024];
     if (format != null && format[0] != 0) {
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wformat-nonliteral"
         #endif
-        vsnprintf(text, ut_count_of(text) - 1, format, va);
-        text[ut_count_of(text) - 1] = 0;
+        vsnprintf(text, ut_countof(text) - 1, format, va);
+        text[ut_countof(text) - 1] = 0;
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic pop
         #endif
@@ -66,15 +66,15 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         text[0] = 0;
     }
     char output[4 * 1024];
-    snprintf(output, ut_count_of(output) - 1, "%s %s", prefix, text);
-    output[ut_count_of(output) - 2] = 0;
+    snprintf(output, ut_countof(output) - 1, "%s %s", prefix, text);
+    output[ut_countof(output) - 2] = 0;
     // strip trailing \n which can be remnant of fprintf("...\n")
     int32_t n = (int32_t)strlen(output);
     while (n > 0 && (output[n - 1] == '\n' || output[n - 1] == '\r')) {
         output[n - 1] = 0;
         n--;
     }
-    assert(n + 1 < ut_count_of(output));
+    assert(n + 1 < ut_countof(output));
     // Win32 OutputDebugString() needs \n
     output[n + 0] = '\n';
     output[n + 1] = 0;

@@ -101,7 +101,7 @@ static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
 }
 
 static void paint(ui_view_t* v) {
-    for (int i = 0; i < ut_count_of(ts); i++) {
+    for (int i = 0; i < ut_countof(ts); i++) {
         if (ts[i].samples >= 2) { stats(i); }
     }
     if (ts[0].spread > 0 && ts[1].spread > 0) {
@@ -160,11 +160,11 @@ static void opened(void) {
     ut_not_null(thread);
 }
 
-static void detached_sleep(void* unused(p)) {
+static void detached_sleep(void* ut_unused(p)) {
     ut_thread.sleep_for(100.0); // seconds
 }
 
-static void detached_loop(void* unused(p)) {
+static void detached_loop(void* ut_unused(p)) {
     uint64_t sum = 0;
     for (uint64_t i = 0; i < UINT64_MAX; i++) {
         sum += i;

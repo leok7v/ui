@@ -157,7 +157,7 @@ static void ui_slider_paint(ui_view_t* v) {
         text = ui_view.string(v);
     } else if (text != null &&
         (strstr(text, "%d") != null || strstr(text, "%u") != null)) {
-        ut_str.format(formatted, ut_count_of(formatted), text, s->value);
+        ut_str.format(formatted, ut_countof(formatted), text, s->value);
         s->p.strid = 0; // nls again
         text = ut_nls.str(formatted);
     }
@@ -174,7 +174,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.text(&ta, tx, ty, "%s", text);
 }
 
-static void ui_slider_mouse_click(ui_view_t* v, int32_t unused(ix),
+static void ui_slider_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     ui_slider_t* s = (ui_slider_t*)v;
     if (pressed) {

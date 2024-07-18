@@ -168,7 +168,7 @@ ut_worker_if ut_worker = {
 
 static int32_t ut_test_called;
 
-static void ut_never_called(ut_work_t* unused(w)) {
+static void ut_never_called(ut_work_t* ut_unused(w)) {
     ut_test_called++;
 }
 
@@ -314,7 +314,7 @@ static void ut_work_queue_test(void) {
 
 static int32_t ut_test_do_work_called;
 
-static void ut_test_do_work(ut_work_t* unused(w)) {
+static void ut_test_do_work(ut_work_t* ut_unused(w)) {
     ut_test_do_work_called++;
 }
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 enum ui_view_type_t {
     ui_view_stack     = 'vwst',
@@ -279,4 +279,4 @@ extern ui_view_if ui_view;
 } while (0)
 
 
-end_c
+ut_end_c

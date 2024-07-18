@@ -4,7 +4,7 @@
 // ^^^ ensures that <assert.h> will not be included and redefined again
 #undef assert // because better assert(b, ...) is be defined below
 
-begin_c
+ut_begin_c
 
 // better assert() - augmented with printf format and parameters
 // swear() - release configuration assert() in honor of:
@@ -69,4 +69,4 @@ extern ut_vigil_if ut_vigil;
     (void)(ut_vigil.fatal_if_error(__FILE__, __LINE__, __func__,     \
                                    #c, ut_b2e(c), "" __VA_ARGS__))
 
-end_c
+ut_end_c

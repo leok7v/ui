@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-begin_c
+ut_begin_c
 
 // see:
 // https://pubs.opengroup.org/onlinepubs/7908799/xsh/dlfcn.h.html
@@ -22,4 +22,4 @@ typedef struct {
 
 extern ut_loader_if ut_loader;
 
-end_c
+ut_end_c
