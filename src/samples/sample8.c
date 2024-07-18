@@ -491,7 +491,7 @@ static void controls_test(ui_view_t* parent) {
             align(&button2,      ui.align.left),
             align(&slider2.view, ui.align.left),
             align(&slider3.view, ui.align.left),
-            align(&margins,         ui.align.left),
+            align(&margins,      ui.align.left),
             align(&fm,           ui.align.left),
             align(&spacer,       ui.align.left),
         null),
@@ -510,11 +510,12 @@ static void controls_test(ui_view_t* parent) {
     controls_margins(&margins);
     large.state.pressed = app_data.large;
     controls_large(&large);
+
+toggle1.debug.id = "#toggle.1";
+slider1.debug.id = "#slider.1";
 }
 
 // edit1 test
-
-#include <signal.h>
 
 static void edit1_test(ui_view_t* parent) {
     ui_view.disband(parent);

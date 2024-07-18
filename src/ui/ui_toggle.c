@@ -61,14 +61,13 @@ static void ui_toggle_paint(ui_view_t* v) {
     char txt[ut_countof(v->p.text)];
     const char* label = ui_toggle_on_off_label(v, txt, ut_countof(txt));
     const char* text = ut_nls.str(label);
-    ui_view_text_metrics_t tm = {0};
-    ui_view.text_measure(v, text, &tm);
-    ui_view.text_align(v, &tm);
+    ui_view.text_measure(v, text, &v->text);
+    ui_view.text_align(v, &v->text);
     ui_toggle_paint_on_off(v);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
-    ui_gdi.text(&ta, v->x + tm.xy.x, v->y + tm.xy.y, "%s", text);
+    ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {

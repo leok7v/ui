@@ -85,7 +85,8 @@ static void ui_slider_measure(ui_view_t* v) {
     s->dec.fm = fm;
     s->inc.fm = fm;
     ut_assert(s->dec.state.hidden == s->inc.state.hidden, "not the same");
-    s->text.mt = ui_slider_measure_text(s);
+    ui_view.measure_control(v);
+//  s->text.mt = ui_slider_measure_text(s);
     if (s->dec.state.hidden) {
         v->w = ut_max(v->w, i.left + s->mt.w + i.right);
     } else {
@@ -163,15 +164,12 @@ static void ui_slider_paint(ui_view_t* v) {
     }
     // because current value was formatted into `text` need to
     // remeasure and align text again:
-    ui_view_text_metrics_t tm = {0};
-    ui_view.text_measure(v, text, &tm);
-    ui_view.text_align(v, &tm);
+    ui_view.text_measure(v, text, &v->text);
+    ui_view.text_align(v, &v->text);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_gdi_ta_t ta = { .fm = fm, .color = text_color };
-    const int32_t tx = v->x + tm.xy.x;
-    const int32_t ty = v->y + tm.xy.y;
-    ui_gdi.text(&ta, tx, ty, "%s", text);
+    ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
 static void ui_slider_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
