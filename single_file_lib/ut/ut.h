@@ -7863,7 +7863,7 @@ static int32_t ut_vigil_test_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     ut_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
     ut_fatal_if_not(line > __LINE__, "line: %s", line);
-    ut_assert(strcmp(func, "vigil_test") == 0, "func: %s", func);
+    ut_assert(strcmp(func, "ut_vigil_test") == 0, "func: %s", func);
     ut_fatal_if(condition == null || condition[0] == 0);
     ut_fatal_if(format == null || format[0] == 0);
     ut_vigil_test_failed_assertion_count++;
@@ -7888,7 +7888,7 @@ static int32_t ut_vigil_test_fatal_termination(const char* file, int32_t line,
     ut_assert(en == 2, "errno: %d expected 2", en);
     ut_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
     ut_fatal_if_not(line > __LINE__, "line: %s", line);
-    ut_assert(strcmp(func, "vigil_test") == 0, "func: %s", func);
+    ut_assert(strcmp(func, "ut_vigil_test") == 0, "func: %s", func);
     ut_assert(strcmp(condition, "") == 0); // not yet used expected to be ""
     ut_assert(format != null && format[0] != 0);
     ut_vigil_test_fatal_calls_count++;
