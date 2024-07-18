@@ -800,33 +800,7 @@ static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
     ui_edit_text_t* t = &d->text;
     const ui_edit_range_t r = ui_edit_text.ordered(t, range);
     ui_edit_doc_before_replace_text(d, r, i);
-#if 0
-    bool ok = undo == null ? true : ui_edit_text.copy(t, &r, &undo->text);
-    // TODO: remove
-    ui_edit_range_t x = r;
-    if (ok) {
-        if (ui_edit_range.is_empty(r)) {
-            x.to.pn = r.from.pn + i->np - 1;
-            x.to.gp = i->np == 1 ?
-                      r.from.gp + i->ps[0].g :
-                      i->ps[i->np - 1].g;
-            ok = ui_edit_text_insert(t, r.from, i);
-        } else if (i->np == 1 && r.from.pn == r.to.pn) {
-            x.to.pn = r.from.pn + i->np - 1;
-            x.to.gp = r.from.gp + i->ps[0].g;
-            ok = ui_edit_str.replace(&t->ps[r.from.pn],
-                                r.from.gp, r.to.gp,
-                                i->ps[0].u, i->ps[0].b);
-        } else {
-            x.to.pn = r.from.pn + i->np - 1;
-            x.to.gp = i->np == 1 ? r.from.gp + i->ps[0].g : i->ps[0].g;
-            ok = ui_edit_text_insert_remove(t, r, i);
-        }
-    }
-    if (undo != null) { undo->range = x; }
-#else
     bool ok = ui_edit_text.replace(t, &r, i, undo);
-#endif
     ui_edit_doc_after_replace_text(d, ok, r, undo->range, i);
     return ok;
 }
@@ -841,6 +815,7 @@ static bool ui_edit_doc_replace_undoable(ui_edit_doc_t* d,
         // redo stack is not valid after new replace, empty it:
         while (d->redo != null) {
             ui_edit_to_do_t* next = d->redo->next;
+            d->redo->next = null;
             ui_edit_doc.dispose_to_do(d->redo);
             ut_heap.free(d->redo);
             d->redo = next;
@@ -855,6 +830,49 @@ static bool ui_edit_utf8_to_heap_text(const char* u, int32_t b,
     return ui_edit_text.init(it, b != 0 ? u : null, b, true);
 }
 
+
+static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
+    ui_edit_to_do_t* undo = d->undo;
+    ui_edit_to_do_t* next = undo->next;
+//  ut_traceln("i: %.*s", i->ps[0].b, i->ps[0].u);
+//  if (i->np == 1 && i->ps[0].g == 1) {
+//      ut_traceln("an: %d", ui_edit_str.is_letter(ut_str.utf32(i->ps[0].u, i->ps[0].b)));
+//  }
+    bool coalesced = false;
+    const bool alpha_numeric = i->np == 1 && i->ps[0].g == 1 &&
+        ui_edit_str.is_letter(ut_str.utf32(i->ps[0].u, i->ps[0].b));
+    if (alpha_numeric && next != null) {
+        const ui_edit_range_t ur = undo->range;
+        const ui_edit_text_t* ut = &undo->text;
+        const ui_edit_range_t nr = next->range;
+        const ui_edit_text_t* nt = &next->text;
+//      ut_traceln("next: \"%.*s\" %d:%d..%d:%d undo: \"%.*s\" %d:%d..%d:%d",
+//          nt->ps[0].b, nt->ps[0].u, nr.from.pn, nr.from.gp, nr.to.pn, nr.to.gp,
+//          ut->ps[0].b, ut->ps[0].u, ur.from.pn, ur.from.gp, ur.to.pn, ur.to.gp);
+        const bool c =
+            nr.from.pn == nr.to.pn && ur.from.pn == ur.to.pn &&
+            nr.from.pn == ur.from.pn &&
+            ut->np == 1 && ut->ps[0].g == 0 &&
+            nt->np == 1 && nt->ps[0].g == 0 &&
+            nr.to.gp == ur.from.gp && nr.to.gp > 0;
+        if (c) {
+            const ui_edit_str_t* str = &d->text.ps[nr.from.pn];
+            const int32_t* g2b = str->g2b;
+            const char* utf8 = str->u + g2b[nr.to.gp - 1];
+            uint32_t utf32 = ut_str.utf32(utf8, g2b[nr.to.gp] - g2b[nr.to.gp - 1]);
+            coalesced = ui_edit_str.is_letter(utf32);
+        }
+        if (coalesced) {
+//          ut_traceln("coalesced");
+            next->range.to.gp++;
+            d->undo = next;
+            undo->next = null;
+            coalesced = true;
+        }
+    }
+    return coalesced;
+}
+
 static bool ui_edit_doc_replace(ui_edit_doc_t* d,
         const ui_edit_range_t* range, const char* u, int32_t b) {
     ui_edit_text_t* t = &d->text;
@@ -866,11 +884,19 @@ static bool ui_edit_doc_replace(ui_edit_doc_t* d,
         ok = ui_edit_utf8_to_heap_text(u, b, &i);
         if (ok) {
             ok = ui_edit_doc_replace_undoable(d, &r, &i, undo);
+            if (ok) {
+                if (ui_edit_doc_coalesce_undo(d, &i)) {
+                    ui_edit_doc.dispose_to_do(undo);
+                    ut_heap.free(undo);
+                    undo = null;
+                }
+            }
             ui_edit_text.dispose(&i);
         }
         if (!ok) {
             ui_edit_doc.dispose_to_do(undo);
             ut_heap.free(undo);
+            undo = null;
         }
     }
     return ok;
