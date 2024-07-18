@@ -73,7 +73,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
 }
 
 static void ui_slider_measure(ui_view_t* v) {
-    assert(v->type == ui_view_slider);
+    ut_assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     const ui_fm_t* fm = v->fm;
     const ui_ltrb_t i = ui_view.margins(v, &v->insets);
@@ -84,7 +84,7 @@ static void ui_slider_measure(ui_view_t* v) {
     // dec and inc have same font metrics as a slider:
     s->dec.fm = fm;
     s->inc.fm = fm;
-    assert(s->dec.state.hidden == s->inc.state.hidden, "not the same");
+    ut_assert(s->dec.state.hidden == s->inc.state.hidden, "not the same");
     s->text.mt = ui_slider_measure_text(s);
     if (s->dec.state.hidden) {
         v->w = ut_max(v->w, i.left + s->mt.w + i.right);
@@ -102,7 +102,7 @@ static void ui_slider_measure(ui_view_t* v) {
 }
 
 static void ui_slider_layout(ui_view_t* v) {
-    assert(v->type == ui_view_slider);
+    ut_assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     // disregard inc/dec .state.hidden bit for layout:
     const ui_ltrb_t i = ui_view.margins(v, &v->insets);
@@ -113,14 +113,14 @@ static void ui_slider_layout(ui_view_t* v) {
 }
 
 static void ui_slider_paint(ui_view_t* v) {
-    assert(v->type == ui_view_slider);
+    ut_assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     const ui_fm_t* fm = v->fm;
     const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
-    assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+    ut_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
     const int32_t dx = s->dec.state.hidden ? 0 : dec_w;
     const int32_t x = v->x + dx + i.left;
     const int32_t w = ui_slider_width(s);
@@ -137,7 +137,7 @@ static void ui_slider_paint(ui_view_t* v) {
     d1 = c;
     d0 = ui_colors.darken(c, 1.0f / 64.0f);
     const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
-    assert(range > 0, "range: %.6f", range);
+    ut_assert(range > 0, "range: %.6f", range);
     const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
     const int32_t wi = (int32_t)(vw + 0.5);
     ui_gdi.gradient(x, v->y, wi, v->h, d1, d0, true);
@@ -181,7 +181,7 @@ static void ui_slider_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);
         const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
         const int32_t dec_w = s->dec.w + dec_p.right;
-        assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+        ut_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
         const int32_t sw = ui_slider_width(s); // slider width
         const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
         const int32_t vx = v->x + i.left + dx;
@@ -205,7 +205,7 @@ static void ui_slider_mouse_move(ui_view_t* v) {
     if (drag) {
         const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
         const int32_t dec_w = s->dec.w + dec_p.right;
-        assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+        ut_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
         const int32_t sw = ui_slider_width(s); // slider width
         const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
         const int32_t vx = v->x + i.left + dx;
@@ -252,7 +252,7 @@ static void ui_slider_inc_dec(ui_button_t* b) {
 }
 
 static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
-    assert(v->type == ui_view_slider);
+    ut_assert(v->type == ui_view_slider);
     ui_slider_t* s = (ui_slider_t*)v;
     if (ui_view.is_hidden(v) || ui_view.is_disabled(v)) {
         s->time = 0;
@@ -275,7 +275,7 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
 }
 
 void ui_view_init_slider(ui_view_t* v) {
-    assert(v->type == ui_view_slider);
+    ut_assert(v->type == ui_view_slider);
     v->measure       = ui_slider_measure;
     v->layout        = ui_slider_layout;
     v->paint         = ui_slider_paint;

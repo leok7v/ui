@@ -2,8 +2,8 @@
 #include "ui/ui.h"
 
 static void ui_label_paint(ui_view_t* v) {
-    assert(v->type == ui_view_label);
-    assert(!ui_view.is_hidden(v));
+    ut_assert(v->type == ui_view_label);
+    ut_assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
     ui_color_t c = v->state.hover && v->highlightable ?
         ui_colors.interpolate(v->color, ui_colors.blue, 1.0f / 8.0f) :
@@ -28,7 +28,7 @@ static void ui_label_paint(ui_view_t* v) {
 }
 
 static bool ui_label_context_menu(ui_view_t* v) {
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    ut_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
         ut_clipboard.put_text(ui_view.string(v));
@@ -41,7 +41,7 @@ static bool ui_label_context_menu(ui_view_t* v) {
 }
 
 static void ui_label_character(ui_view_t* v, const char* utf8) {
-    assert(v->type == ui_view_label);
+    ut_assert(v->type == ui_view_label);
     if (v->state.hover && !ui_view.is_hidden(v)) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
@@ -52,7 +52,7 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
 }
 
 void ui_view_init_label(ui_view_t* v) {
-    assert(v->type == ui_view_label);
+    ut_assert(v->type == ui_view_label);
     v->paint         = ui_label_paint;
     v->character     = ui_label_character;
     v->context_menu  = ui_label_context_menu;

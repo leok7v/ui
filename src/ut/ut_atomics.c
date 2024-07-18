@@ -38,7 +38,7 @@ static int64_t ut_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
 }
 
 static int32_t ut_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
-    assert(sizeof(int32_t) == sizeof(unsigned long));
+    ut_assert(sizeof(int32_t) == sizeof(unsigned long));
     return (int32_t)InterlockedExchange((volatile LONG*)a, (unsigned long)v);
 }
 
@@ -181,14 +181,14 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
     // not strictly necessary on strong mem model Intel/AMD but
     // see: https://cfsamsonbooks.gitbook.io/explaining-atomics-in-rust/
     //      Fig 2 Inconsistent C11 execution of SB and 2+2W
-    assert(*spinlock == 1);
+    ut_assert(*spinlock == 1);
 }
 
 #pragma pop_macro("ut_builtin_cpu_pause")
 #pragma pop_macro("ut_sync_bool_compare_and_swap")
 
 static void spinlock_release(volatile int64_t* spinlock) {
-    assert(*spinlock == 1);
+    ut_assert(*spinlock == 1);
     *spinlock = 0;
     // tribute to lengthy Linus discussion going since 2006:
     ut_atomics.memory_fence();
@@ -201,51 +201,51 @@ static void ut_atomics_test(void) {
     volatile void* ptr_var = null;
     int64_t spinlock = 0;
     void* old_ptr = ut_atomics.exchange_ptr(&ptr_var, (void*)123);
-    swear(old_ptr == null);
-    swear(ptr_var == (void*)123);
+    ut_swear(old_ptr == null);
+    ut_swear(ptr_var == (void*)123);
     int32_t incremented_int32 = ut_atomics.increment_int32(&int32_var);
-    swear(incremented_int32 == 1);
-    swear(int32_var == 1);
+    ut_swear(incremented_int32 == 1);
+    ut_swear(int32_var == 1);
     int32_t decremented_int32 = ut_atomics.decrement_int32(&int32_var);
-    swear(decremented_int32 == 0);
-    swear(int32_var == 0);
+    ut_swear(decremented_int32 == 0);
+    ut_swear(int32_var == 0);
     int64_t incremented_int64 = ut_atomics.increment_int64(&int64_var);
-    swear(incremented_int64 == 1);
-    swear(int64_var == 1);
+    ut_swear(incremented_int64 == 1);
+    ut_swear(int64_var == 1);
     int64_t decremented_int64 = ut_atomics.decrement_int64(&int64_var);
-    swear(decremented_int64 == 0);
-    swear(int64_var == 0);
+    ut_swear(decremented_int64 == 0);
+    ut_swear(int64_var == 0);
     int32_t added_int32 = ut_atomics.add_int32(&int32_var, 5);
-    swear(added_int32 == 5);
-    swear(int32_var == 5);
+    ut_swear(added_int32 == 5);
+    ut_swear(int32_var == 5);
     int64_t added_int64 = ut_atomics.add_int64(&int64_var, 10);
-    swear(added_int64 == 10);
-    swear(int64_var == 10);
+    ut_swear(added_int64 == 10);
+    ut_swear(int64_var == 10);
     int32_t old_int32 = ut_atomics.exchange_int32(&int32_var, 3);
-    swear(old_int32 == 5);
-    swear(int32_var == 3);
+    ut_swear(old_int32 == 5);
+    ut_swear(int32_var == 3);
     int64_t old_int64 = ut_atomics.exchange_int64(&int64_var, 6);
-    swear(old_int64 == 10);
-    swear(int64_var == 6);
+    ut_swear(old_int64 == 10);
+    ut_swear(int64_var == 6);
     bool int32_exchanged = ut_atomics.compare_exchange_int32(&int32_var, 3, 4);
-    swear(int32_exchanged);
-    swear(int32_var == 4);
+    ut_swear(int32_exchanged);
+    ut_swear(int32_var == 4);
     bool int64_exchanged = ut_atomics.compare_exchange_int64(&int64_var, 6, 7);
-    swear(int64_exchanged);
-    swear(int64_var == 7);
+    ut_swear(int64_exchanged);
+    ut_swear(int64_var == 7);
     ptr_var = (void*)0x123;
     bool ptr_exchanged = ut_atomics.compare_exchange_ptr(&ptr_var,
         (void*)0x123, (void*)0x456);
-    swear(ptr_exchanged);
-    swear(ptr_var == (void*)0x456);
+    ut_swear(ptr_exchanged);
+    ut_swear(ptr_var == (void*)0x456);
     ut_atomics.spinlock_acquire(&spinlock);
-    swear(spinlock == 1);
+    ut_swear(spinlock == 1);
     ut_atomics.spinlock_release(&spinlock);
-    swear(spinlock == 0);
+    ut_swear(spinlock == 0);
     int32_t loaded_int32 = ut_atomics.load32(&int32_var);
-    swear(loaded_int32 == int32_var);
+    ut_swear(loaded_int32 == int32_var);
     int64_t loaded_int64 = ut_atomics.load64(&int64_var);
-    swear(loaded_int64 == int64_var);
+    ut_swear(loaded_int64 == int64_var);
     ut_atomics.memory_fence();
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
     #endif

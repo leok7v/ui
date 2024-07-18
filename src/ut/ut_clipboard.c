@@ -8,7 +8,7 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
     errno_t r = ut_heap.alloc((void**)&utf16, (size_t)bytes);
     if (utf16 != null) {
         ut_str.utf8to16(utf16, bytes, utf8, -1);
-        assert(utf16[chars - 1] == 0);
+        ut_assert(utf16[chars - 1] == 0);
         const int32_t n = (int32_t)ut_str.len16(utf16) + 1;
         r = OpenClipboard(GetDesktopWindow()) ? 0 : ut_runtime.err();
         if (r != 0) { ut_println("OpenClipboard() failed %s", ut_strerr(r)); }
@@ -88,7 +88,7 @@ static void ut_clipboard_test(void) {
     char text[256];
     int32_t bytes = ut_countof(text);
     ut_fatal_if_error(ut_clipboard.get_text(text, &bytes));
-    swear(strcmp(text, "Hello Clipboard") == 0);
+    ut_swear(strcmp(text, "Hello Clipboard") == 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
 }
 

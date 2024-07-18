@@ -147,7 +147,7 @@ static char* nil;
 static void crash(ui_button_t* ut_unused(b)) {
     // two random ways to crash in release configuration
     if (ut_clock.nanoseconds() % 2 == 0) {
-        swear(false, "should crash in release configuration");
+        ut_swear(false, "should crash in release configuration");
     } else {
         #if 0 // cl.exe compains even with disabled warnings
         #pragma warning(push)            // this is intentional for testing
@@ -536,7 +536,7 @@ static void edit1_test(ui_view_t* parent) {
     static ui_edit_t edit = {0};
     static ui_edit_doc_t doc = {0};
     if (doc.text.np == 0) {
-        swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
+        ut_swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
         ui_edit.init(&edit, &doc);
     }
     ui_view.add(&test,

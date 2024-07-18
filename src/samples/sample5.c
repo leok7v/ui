@@ -50,7 +50,7 @@ static void focus_back_to_edit(void) {
 }
 
 static void scaled_fonts(void) {
-    assert(0 <= fx && fx < ut_countof(fs));
+    ut_assert(0 <= fx && fx < ut_countof(fs));
     if (mf.font != null) { ui_gdi.delete_font(mf.font); }
     int32_t h = (int32_t)(ui_app.fm.mono.height * fs[fx] + 0.5);
     ui_gdi.update_fm(&mf, ui_gdi.font(ui_app.fm.mono.font, h, -1));
@@ -254,7 +254,7 @@ static bool key_pressed(ui_view_t* ut_unused(view), int64_t key) {
 }
 
 static void edit_enter(ui_edit_t* e) {
-    assert(e->sle);
+    ut_assert(e->sle);
     if (!ui_app.shift) { // ignore shift ENTER:
         ut_println("text: %.*s", e->doc->text.ps[0].b, e->doc->text.ps[0].u);
     }

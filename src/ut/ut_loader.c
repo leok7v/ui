@@ -22,8 +22,8 @@ static void* ut_loader_sym_all(const char* name) {
     DWORD bytes = 0;
     ut_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
                                          null, 0, &bytes));
-    assert(bytes % sizeof(HMODULE) == 0);
-    assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
+    ut_assert(bytes % sizeof(HMODULE) == 0);
+    ut_assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
     HMODULE* modules = null;
     ut_fatal_if_error(ut_heap.allocate(null, (void**)&modules, bytes, false));
     ut_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
@@ -66,12 +66,12 @@ void ut_loader_test_exported_function(void) { ut_loader_test_count++; }
 static void ut_loader_test(void) {
     ut_loader_test_count = 0;
     ut_loader_test_exported_function(); // to make sure it is linked in
-    swear(ut_loader_test_count == 1);
+    ut_swear(ut_loader_test_count == 1);
     void* global = ut_loader.open(null, ut_loader.local);
     typedef void (*foo_t)(void);
     foo_t foo = (foo_t)ut_loader.sym(global, "ut_loader_test_exported_function");
     foo();
-    swear(ut_loader_test_count == 2);
+    ut_swear(ut_loader_test_count == 2);
     ut_loader.close(global);
     // NtQueryTimerResolution - http://undocumented.ntinternals.net/
     typedef long (__stdcall *query_timer_resolution_t)(

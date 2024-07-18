@@ -110,7 +110,7 @@ typedef double fp64_t;
 
 // In callbacks the formal parameters are
 // frequently unused. Also sometimes parameters
-// are used in debug configuration only (e.g. assert() checks)
+// are used in debug configuration only (e.g. ut_assert() checks)
 // but not in release.
 // C does not have anonymous parameters like C++
 // Instead of:

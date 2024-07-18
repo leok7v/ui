@@ -26,13 +26,13 @@ static void ut_bt_init(void) {
         options |= SYMOPT_LOAD_LINES;
         options |= SYMOPT_UNDNAME;
         options |= SYMOPT_LOAD_ANYTHING;
-        swear(SymSetOptions(options));
+        ut_swear(SymSetOptions(options));
         ut_bt_pid = GetProcessId(GetCurrentProcess());
-        swear(ut_bt_pid != 0);
+        ut_swear(ut_bt_pid != 0);
         ut_bt_process = OpenProcess(PROCESS_ALL_ACCESS, false,
                                            ut_bt_pid);
-        swear(ut_bt_process != null);
-        swear(SymInitialize(ut_bt_process, null, true), "%s",
+        ut_swear(ut_bt_process != null);
+        ut_swear(SymInitialize(ut_bt_process, null, true), "%s",
                             ut_str.error(ut_runtime.err()));
     }
 }
@@ -192,7 +192,7 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
 }
 
 static void ut_bt_symbolize_backtrace(ut_bt_t* bt) {
-    assert(!bt->symbolized);
+    ut_assert(!bt->symbolized);
     bt->error = 0;
     ut_bt_init();
     // ut_bt_symbolize_frame() may produce zero, one or many frames
@@ -226,7 +226,7 @@ static const char* ut_bt_stops[] = {
 static void ut_bt_trace(const ut_bt_t* bt, const char* stop) {
     #pragma push_macro("ut_bt_glyph_called_from")
     #define ut_bt_glyph_called_from ut_glyph_north_west_arrow_with_hook
-    assert(bt->symbolized, "need ut_bt.symbolize(bt)");
+    ut_assert(bt->symbolized, "need ut_bt.symbolize(bt)");
     const char** alt = stop != null && strcmp(stop, "*") == 0 ?
                        ut_bt_stops : null;
     for (int32_t i = 0; i < bt->frames; i++) {
@@ -244,7 +244,7 @@ static void ut_bt_trace(const ut_bt_t* bt, const char* stop) {
 
 static const char* ut_bt_string(const ut_bt_t* bt,
         char* text, int32_t count) {
-    assert(bt->symbolized, "need ut_bt.symbolize(bt)");
+    ut_assert(bt->symbolized, "need ut_bt.symbolize(bt)");
     char s[1024];
     char* p = text;
     int32_t n = count;
@@ -337,7 +337,7 @@ static void ut_bt_context(ut_thread_t thread, const void* ctx,
 static void ut_bt_thread(HANDLE thread, ut_bt_t* bt) {
     bt->frames = 0;
     // cannot suspend callers thread
-    swear(ut_thread.id_of(thread) != ut_thread.id());
+    ut_swear(ut_thread.id_of(thread) != ut_thread.id());
     if (SuspendThread(thread) != (DWORD)-1) {
         CONTEXT context = { .ContextFlags = CONTEXT_FULL };
         GetThreadContext(thread, &context);
@@ -358,7 +358,7 @@ static void ut_bt_trace_self(const char* stop) {
 
 static void ut_bt_trace_all_but_self(void) {
     ut_bt_init();
-    assert(ut_bt_process != null && ut_bt_pid != 0);
+    ut_assert(ut_bt_process != null && ut_bt_pid != 0);
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
     if (snapshot == INVALID_HANDLE_VALUE) {
         ut_println("CreateToolhelp32Snapshot failed %s",
@@ -429,7 +429,7 @@ static void ut_bt_test(void) {
     ut_bt_t bt = {{0}};
     ut_bt.capture(&bt, 0);
     // ut_bt_test <- ut_runtime_test <- run <- main
-    swear(bt.frames >= 3);
+    ut_swear(bt.frames >= 3);
     ut_bt.symbolize(&bt);
     ut_bt.trace(&bt, null);
     ut_bt.trace(&bt, "main");
@@ -446,7 +446,7 @@ static void ut_bt_test(void) {
         ut_debug.output(ut_bt_test_output,
             (int32_t)strlen(ut_bt_test_output) + 1);
     }
-    swear(strstr(ut_bt_test_output, "ut_bt_test") != null,
+    ut_swear(strstr(ut_bt_test_output, "ut_bt_test") != null,
           "%s", ut_bt_test_output);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
 }

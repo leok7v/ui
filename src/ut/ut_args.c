@@ -4,8 +4,8 @@
 static void* ut_args_memory;
 
 static void ut_args_main(int32_t argc, const char* argv[], const char** env) {
-    swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
-    swear(ut_args_memory == null);
+    ut_swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
+    ut_swear(ut_args_memory == null);
     ut_args.c = argc;
     ut_args.v = argv;
     ut_args.env = env;
@@ -21,8 +21,8 @@ static int32_t ut_args_option_index(const char* option) {
 
 static void ut_args_remove_at(int32_t ix) {
     // returns new argc
-    assert(0 < ut_args.c);
-    assert(0 < ix && ix < ut_args.c); // cannot remove ut_args.v[0]
+    ut_assert(0 < ut_args.c);
+    ut_assert(0 < ix && ix < ut_args.c); // cannot remove ut_args.v[0]
     for (int32_t i = ix; i < ut_args.c; i++) {
         ut_args.v[i] = ut_args.v[i + 1];
     }
@@ -96,7 +96,7 @@ static ut_args_pair_t ut_args_parse_backslashes(ut_args_pair_t p) {
     enum { quote = '"', backslash = '\\' };
     const char* s = p.s;
     char* d = p.d;
-    swear(*s == backslash);
+    ut_swear(*s == backslash);
     int32_t bsc = 0; // number of backslashes
     while (*s == backslash) { s++; bsc++; }
     if (*s == quote) {
@@ -114,7 +114,7 @@ static ut_args_pair_t ut_args_parse_quoted(ut_args_pair_t p) {
     enum { quote = '"', backslash = '\\' };
     const char* s = p.s;
     char* d = p.d;
-    swear(*s == quote);
+    ut_swear(*s == quote);
     s++; // opening quote (skip)
     while (*s != 0x00) {
         if (*s == backslash) {
@@ -137,10 +137,10 @@ static ut_args_pair_t ut_args_parse_quoted(ut_args_pair_t p) {
 }
 
 static void ut_args_parse(const char* s) {
-    swear(s[0] != 0, "cannot parse empty string");
-    swear(ut_args.c == 0);
-    swear(ut_args.v == null);
-    swear(ut_args_memory == null);
+    ut_swear(s[0] != 0, "cannot parse empty string");
+    ut_swear(ut_args.c == 0);
+    ut_swear(ut_args.v == null);
+    ut_swear(ut_args_memory == null);
     enum { quote = '"', backslash = '\\', tab = '\t', space = 0x20 };
     const int32_t len = (int32_t)strlen(s);
     // Worst-case scenario (possible to optimize with dry run of parse)
@@ -203,13 +203,13 @@ static void ut_args_parse(const char* s) {
     if (ut_args.c < n) {
         ut_args.v[ut_args.c] = null;
     }
-    swear(ut_args.c < n, "not enough memory - adjust guestimates");
-    swear(d <= e, "not enough memory - adjust guestimates");
+    ut_swear(ut_args.c < n, "not enough memory - adjust guestimates");
+    ut_swear(d <= e, "not enough memory - adjust guestimates");
 }
 
 static const char* ut_args_basename(void) {
     static char basename[260];
-    swear(ut_args.c > 0);
+    ut_swear(ut_args.c > 0);
     if (basename[0] == 0) {
         const char* s = ut_args.v[0];
         const char* b = s;
@@ -218,7 +218,7 @@ static const char* ut_args_basename(void) {
             s++;
         }
         int32_t n = ut_str.len(b);
-        swear(n < ut_countof(basename));
+        ut_swear(n < ut_countof(basename));
         strncpy(basename, b, ut_countof(basename) - 1);
         char* d = basename + n - 1;
         while (d > basename && *d != '.') { d--; }
@@ -235,8 +235,8 @@ static void ut_args_fini(void) {
 }
 
 static void ut_args_WinMain(void) {
-    swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
-    swear(ut_args_memory == null);
+    ut_swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
+    ut_swear(ut_args_memory == null);
     const uint16_t* wcl = GetCommandLineW();
     int32_t n = (int32_t)ut_str.len16(wcl);
     char* cl = null;
@@ -280,8 +280,8 @@ static void ut_args_test_verify(const char* cl, int32_t expected, ...) {
 //      }
         // Warning 6385: reading data outside of array
         const char* ai = _Pragma("warning(suppress:  6385)")ut_args.v[i];
-        swear(strcmp(ai, s) == 0, "ut_args.v[%d]: `%s` expected: `%s`",
-              i, ai, s);
+        ut_swear(strcmp(ai, s) == 0, "ut_args.v[%d]: `%s` expected: `%s`",
+                 i, ai, s);
     }
     va_end(va);
     ut_args.fini();

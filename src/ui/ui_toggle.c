@@ -53,11 +53,11 @@ static void ui_toggle_measure(ui_view_t* v) {
         v->min_w_em = 4.0f;
     }
     ui_view.measure_control(v);
-    assert(v->type == ui_view_toggle);
+    ut_assert(v->type == ui_view_toggle);
 }
 
 static void ui_toggle_paint(ui_view_t* v) {
-    assert(v->type == ui_view_toggle);
+    ut_assert(v->type == ui_view_toggle);
     char txt[ut_countof(v->p.text)];
     const char* label = ui_toggle_on_off_label(v, txt, ut_countof(txt));
     const char* text = ut_nls.str(label);
@@ -98,7 +98,7 @@ static void ui_toggle_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
 }
 
 void ui_view_init_toggle(ui_view_t* v) {
-    assert(v->type == ui_view_toggle);
+    ut_assert(v->type == ui_view_toggle);
     v->mouse_click   = ui_toggle_mouse_click;
     v->paint         = ui_toggle_paint;
     v->measure       = ui_toggle_measure;

@@ -3,7 +3,7 @@
 
 static void ui_mbx_button(ui_button_t* b) {
     ui_mbx_t* m = (ui_mbx_t*)b->parent;
-    assert(m->type == ui_view_mbx);
+    ut_assert(m->type == ui_view_mbx);
     m->option = -1;
     for (int32_t i = 0; i < ut_countof(m->button) && m->option < 0; i++) {
         if (b == &m->button[i]) {
@@ -75,7 +75,7 @@ void ui_view_init_mbx(ui_view_t* v) {
         ui_view.set_text(&m->button[n], "%s", m->options[n]);
         n++;
     }
-    swear(n <= ut_countof(m->button), "inhumane: %d buttons is too many", n);
+    ut_swear(n <= ut_countof(m->button), "inhumane: %d buttons is too many", n);
     if (n > ut_countof(m->button)) { n = ut_countof(m->button); }
     m->label = (ui_label_t)ui_label(0, "");
     ui_view.set_text(&m->label, "%s", ui_view.string(&m->view));

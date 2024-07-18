@@ -75,7 +75,7 @@ ui_mbx_chosen(mbx, // message box
 
 static void mbx_callback(ui_view_t* v) {
     ui_mbx_t* mbx = (ui_mbx_t*)v;
-    assert(-1 <= mbx->option && mbx->option < 2);
+    ut_assert(-1 <= mbx->option && mbx->option < 2);
     static const char* name[] = { "Cancel", "Yes", "No" };
     ut_println("option: %d \"%s\"", mbx->option, name[mbx->option + 1]);
 }
@@ -193,7 +193,7 @@ static void panel_paint(ui_view_t* v) {
         ui_gdi.line(v->x, v->y + v->h, v->x + v->w, v->y + v->h, c);
         ui_gdi.line(v->x + v->w, v->y, v->x, v->y, c);
     } else {
-        assert(v == &panel_center);
+        ut_assert(v == &panel_center);
         ui_gdi.line(v->x, v->y, v->x, v->y + v->h, c);
     }
     int32_t x = v->x + panel_border + ut_max(1, v->fm->em.w / 8);
@@ -286,7 +286,7 @@ static void measure(ui_view_t* v) {
     v->fm = &ui_app.fm.mono;
     panel_border = ut_max(1, v->fm->em.h / 4);
     frame_border = ut_max(1, v->fm->em.h / 8);
-    assert(panel_border > 0 && frame_border > 0);
+    ut_assert(panel_border > 0 && frame_border > 0);
     const int32_t w = ui_app.root->w;
     const int32_t h = ui_app.root->h;
     // measure ui elements
@@ -301,7 +301,7 @@ static void measure(ui_view_t* v) {
 }
 
 static void layout(ui_view_t* ut_unused(view)) {
-    assert(view->fm->em.w > 0 && view->fm->em.h > 0);
+    ut_assert(view->fm->em.w > 0 && view->fm->em.h > 0);
     const int32_t h = ui_app.root->h;
     panel_top.x = 0;
     panel_top.y = 0;
@@ -316,7 +316,7 @@ static void layout(ui_view_t* ut_unused(view)) {
 static void refresh(void);
 
 static void zoom_out(void) {
-    assert(top > 0);
+    ut_assert(top > 0);
     top--;
     sx = stack[top].x;
     sy = stack[top].y;
@@ -324,7 +324,7 @@ static void zoom_out(void) {
 }
 
 static void zoom_in(int x, int y) {
-    assert(top < ut_countof(stack));
+    ut_assert(top < ut_countof(stack));
     stack[top].x = sx;
     stack[top].y = sy;
     top++;
@@ -485,7 +485,7 @@ static fp64_t scale0to1(int v, int range, fp64_t sh, fp64_t zm) {
 }
 
 static fp64_t into(fp64_t v, fp64_t lo, fp64_t hi) {
-    assert(0 <= v && v <= 1);
+    ut_assert(0 <= v && v <= 1);
     return v * (hi - lo) + lo;
 }
 

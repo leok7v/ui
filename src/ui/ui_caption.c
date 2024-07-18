@@ -27,7 +27,7 @@ static void ui_caption_toggle_full(void) {
 }
 
 static void ui_caption_esc_full_screen(ui_view_t* v, const char utf8[]) {
-    swear(v == ui_caption.view.parent);
+    ut_swear(v == ui_caption.view.parent);
     // TODO: inside ui_app.c instead of here?
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
 }
@@ -85,8 +85,8 @@ static void ui_caption_full(ui_button_t* ut_unused(b)) {
 }
 
 static int64_t ui_caption_hit_test(const ui_view_t* v, ui_point_t pt) {
-    swear(v == &ui_caption.view);
-    assert(ui_view.inside(v, &pt));
+    ut_swear(v == &ui_caption.view);
+    ut_assert(ui_view.inside(v, &pt));
 //  ut_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
 //      x, y,
 //      ui_caption.icon.x, ui_caption.icon.y,
@@ -122,7 +122,7 @@ static const ui_margins_t ui_caption_button_button_padding =
       .right = 0.25,  .bottom = 0.0};
 
 static void ui_caption_button_measure(ui_view_t* v) {
-    assert(v->type == ui_view_button);
+    ut_assert(v->type == ui_view_button);
     ui_view.measure_control(v);
     const int32_t dx = ui_app.caption_height - v->w;
     const int32_t dy = ui_app.caption_height - v->h;
@@ -181,7 +181,7 @@ static void ui_caption_paint(ui_view_t* v) {
 }
 
 static void ui_caption_init(ui_view_t* v) {
-    swear(v == &ui_caption.view, "caption is a singleton");
+    ut_swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
     ui_caption.view.insets = (ui_margins_t){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;

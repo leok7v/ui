@@ -74,7 +74,7 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         output[n - 1] = 0;
         n--;
     }
-    assert(n + 1 < ut_countof(output));
+    ut_assert(n + 1 < ut_countof(output));
     // Win32 OutputDebugString() needs \n
     output[n + 0] = '\n';
     output[n + 1] = 0;

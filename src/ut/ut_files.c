@@ -172,7 +172,7 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
         while (r == 0 && bytes > 0) {
             uint64_t write = bytes >= UINT32_MAX ?
                 (uint64_t)(UINT32_MAX) - 0xFFFFuLL : (uint64_t)bytes;
-            assert(0 < write && write < (uint64_t)UINT32_MAX);
+            ut_assert(0 < write && write < (uint64_t)UINT32_MAX);
             DWORD chunk = 0;
             r = ut_b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
             written += chunk;
@@ -196,13 +196,13 @@ static errno_t ut_files_unlink(const char* pathname) {
 
 static errno_t ut_files_create_tmp(char* fn, int32_t count) {
     // create temporary file (not folder!) see folders_test() about racing
-    swear(fn != null && count > 0);
+    ut_swear(fn != null && count > 0);
     const char* tmp = ut_files.tmp();
     errno_t r = 0;
     if (count < (int32_t)strlen(tmp) + 8) {
         r = ERROR_BUFFER_OVERFLOW;
     } else {
-        assert(count > (int32_t)strlen(tmp) + 8);
+        ut_assert(count > (int32_t)strlen(tmp) + 8);
         // If GetTempFileNameA() succeeds, the return value is the length,
         // in chars, of the string copied to lpBuffer, not including the
         // terminating null character.If the function fails,
@@ -211,7 +211,7 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
             char prefix[4] = { 0 };
             r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? ut_runtime.err() : 0;
             if (r == 0) {
-                assert(ut_files.exists(fn) && !ut_files.is_folder(fn));
+                ut_assert(ut_files.exists(fn) && !ut_files.is_folder(fn));
             } else {
                 ut_println("GetTempFileNameA() failed %s", ut_strerr(r));
             }
@@ -602,7 +602,7 @@ static const char* ut_files_tmp(void) {
 }
 
 static errno_t ut_files_cwd(char* fn, int32_t count) {
-    swear(count > 1);
+    ut_swear(count > 1);
     DWORD bytes = (DWORD)(count - 1);
     errno_t r = ut_b2e(GetCurrentDirectoryA(bytes, fn));
     fn[count - 1] = 0; // always
@@ -739,7 +739,7 @@ static void folders_test(void) {
     int64_t transferred = 0;
     r = ut_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
     ut_fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, ut_strerr(r));
-    swear(transferred == (int64_t)strlen(content));
+    ut_swear(transferred == (int64_t)strlen(content));
     r = ut_files.link(pn, hard);
     ut_fatal_if(r != 0, "ut_files.link(\"%s\", \"%s\") failed %s",
                       pn, hard, ut_strerr(r));
@@ -754,7 +754,7 @@ static void folders_test(void) {
         uint64_t at = st.accessed;
         uint64_t ct = st.created;
         uint64_t ut = st.updated;
-        swear(ct <= at && ct <= ut);
+        ut_swear(ct <= at && ct <= ut);
         ut_clock.local(ct, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
         bool is_folder = st.type & ut_files.type_folder;
         bool is_symlink = st.type & ut_files.type_symlink;
@@ -763,17 +763,17 @@ static void folders_test(void) {
                 name, year, month, day, hh, mm, ss, ms, mc,
                 bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
         if (strcmp(name, "file") == 0 || strcmp(name, "hard") == 0) {
-            swear(bytes == (int64_t)strlen(content),
+            ut_swear(bytes == (int64_t)strlen(content),
                     "size of \"%s\": %lld is incorrect expected: %d",
                     name, bytes, transferred);
         }
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
-            swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
+            ut_swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
         } else {
-            swear((strcmp(name, "subd") == 0) == is_folder,
+            ut_swear((strcmp(name, "subd") == 0) == is_folder,
                   "\"%s\" is_folder: %d", name, is_folder);
             // empirically timestamps are imprecise on NTFS
-            swear(at >= before, "access: %lld  >= %lld", at, before);
+            ut_swear(at >= before, "access: %lld  >= %lld", at, before);
             if (ct < before || ut < before || at >= after || ct >= after || ut >= after) {
                 ut_println("file: %s", name);
                 folders_dump_time("before", before);
@@ -781,12 +781,12 @@ static void folders_test(void) {
                 folders_dump_time("update", ut);
                 folders_dump_time("access", at);
             }
-            swear(ct >= before, "create: %lld  >= %lld", ct, before);
-            swear(ut >= before, "update: %lld  >= %lld", ut, before);
+            ut_swear(ct >= before, "create: %lld  >= %lld", ct, before);
+            ut_swear(ut >= before, "update: %lld  >= %lld", ut, before);
             // and no later than 2 seconds since folders_test()
-            swear(at < after, "access: %lld  < %lld", at, after);
-            swear(ct < after, "create: %lld  < %lld", ct, after);
-            swear(at < after, "update: %lld  < %lld", ut, after);
+            ut_swear(at < after, "access: %lld  < %lld", at, after);
+            ut_swear(ct < after, "create: %lld  < %lld", ct, after);
+            ut_swear(at < after, "update: %lld  < %lld", ut, after);
         }
     }
     ut_files.closedir(&folder);
@@ -844,7 +844,7 @@ static void ut_files_test(void) {
                         "ut_files.read() transferred: %lld failed %s",
                         transferred, ut_strerr(ut_runtime.err()));
                 for (int32_t k = 0; k < j; k++) {
-                    swear(test[k] == data[i + k],
+                    ut_swear(test[k] == data[i + k],
                          "Data mismatch at position: %d, length %d"
                          "test[%d]: 0x%02X != data[%d + %d]: 0x%02X ",
                           i, j,
@@ -852,7 +852,7 @@ static void ut_files_test(void) {
                 }
             }
         }
-        swear((ut_files.o_rd | ut_files.o_wr) != ut_files.o_rw);
+        ut_swear((ut_files.o_rd | ut_files.o_wr) != ut_files.o_rw);
         ut_fatal_if(ut_files.open(&f, tf, ut_files.o_rw) != 0 || !ut_files.is_valid(f),
                 "ut_files.open()" ut_files_test_failed);
         for (int32_t i = 0; i < 256; i++) {
@@ -868,23 +868,23 @@ static void ut_files_test(void) {
             uint8_t read_val = 0;
             ut_fatal_if(ut_files.read(f, &read_val, 1, &transferred) != 0 ||
                      transferred != 1, "ut_files.read()" ut_files_test_failed);
-            swear(read_val == val, "Data mismatch at position %d", i);
+            ut_swear(read_val == val, "Data mismatch at position %d", i);
         }
         ut_files_stat_t s = { 0 };
         ut_files.stat(f, &s, false);
         uint64_t before = now - 1 * (uint64_t)ut_clock.usec_in_sec; // one second before now
         uint64_t after  = now + 2 * (uint64_t)ut_clock.usec_in_sec; // two seconds after
-        swear(before <= s.created  && s.created  <= after,
+        ut_swear(before <= s.created  && s.created  <= after,
              "before: %lld created: %lld after: %lld", before, s.created, after);
-        swear(before <= s.accessed && s.accessed <= after,
+        ut_swear(before <= s.accessed && s.accessed <= after,
              "before: %lld created: %lld accessed: %lld", before, s.accessed, after);
-        swear(before <= s.updated  && s.updated  <= after,
+        ut_swear(before <= s.updated  && s.updated  <= after,
              "before: %lld created: %lld updated: %lld", before, s.updated, after);
         ut_files.close(f);
         ut_fatal_if(ut_files.open(&f, tf, ut_files.o_wr | ut_files.o_create | ut_files.o_trunc) != 0 ||
                 !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
         ut_files.stat(f, &s, false);
-        swear(s.size == 0, "File is not empty after truncation. .size: %lld", s.size);
+        ut_swear(s.size == 0, "File is not empty after truncation. .size: %lld", s.size);
         ut_files.close(f);
     }
     {  // Append test with threads

@@ -216,7 +216,7 @@ static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
 }
 
 static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
-    swear(work == &ui_fuzzing_work);
+    ut_swear(work == &ui_fuzzing_work);
     ui_app.alt = work->alt;
     ui_app.ctrl = work->ctrl;
     ui_app.shift = work->shift;
@@ -250,7 +250,7 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
         }
         work->pt = null;
     } else {
-        assert(false, "TODO: ?");
+        ut_assert(false, "TODO: ?");
     }
     if (ui_fuzzing_running) {
         if (ui_fuzzing.next == null) {
@@ -290,7 +290,7 @@ static void ui_fuzzing_alt_ctrl_shift(void) {
         case 5: w->alt = 1; w->ctrl = 0; w->shift = 1; break;
         case 6: w->alt = 0; w->ctrl = 1; w->shift = 1; break;
         case 7: w->alt = 1; w->ctrl = 1; w->shift = 1; break;
-        default: assert(false);
+        default: ut_assert(false);
     }
 }
 
@@ -394,7 +394,7 @@ static void ui_fuzzing_stop(void) {
 }
 
 static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
-    swear(f == &ui_fuzzing_work);
+    ut_swear(f == &ui_fuzzing_work);
     ui_fuzzing_work = (ui_fuzzing_t){
         .base = { .when = ut_clock.seconds() + 0.001, // 1ms
                   .work = ui_fuzzing_do_work },

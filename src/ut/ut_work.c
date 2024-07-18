@@ -7,11 +7,11 @@ static void ut_work_queue_no_duplicates(ut_work_t* w) {
         found = e == w;
         if (!found) { e = e->next; }
     }
-    swear(!found);
+    ut_swear(!found);
 }
 
 static void ut_work_queue_post(ut_work_t* w) {
-    assert(w->queue != null && w != null && w->when >= 0.0);
+    ut_assert(w->queue != null && w != null && w->when >= 0.0);
     ut_work_queue_t* q = w->queue;
     ut_atomics.spinlock_acquire(&q->lock);
     ut_work_queue_no_duplicates(w); // under lock
@@ -35,7 +35,7 @@ static void ut_work_queue_post(ut_work_t* w) {
 }
 
 static void ut_work_queue_cancel(ut_work_t* w) {
-    swear(!w->canceled && w->queue != null && w->queue->head != null);
+    ut_swear(!w->canceled && w->queue != null && w->queue->head != null);
     ut_work_queue_t* q = w->queue;
     ut_atomics.spinlock_acquire(&q->lock);
     ut_work_t* p = null;
@@ -57,7 +57,7 @@ static void ut_work_queue_cancel(ut_work_t* w) {
         }
     }
     ut_atomics.spinlock_release(&q->lock);
-    swear(w->canceled);
+    ut_swear(w->canceled);
     if (w->done != null) { ut_event.set(w->done); }
     if (changed && q->changed != null) { ut_event.set(q->changed); }
 }
@@ -122,7 +122,7 @@ static void ut_worker_thread(void* p) {
 }
 
 static void ut_worker_start(ut_worker_t* worker) {
-    assert(worker->wake == null && !worker->quit);
+    ut_assert(worker->wake == null && !worker->quit);
     worker->wake  = ut_event.create();
     worker->queue = (ut_work_queue_t){
         .head = null, .lock = 0, .changed = worker->wake
@@ -139,13 +139,13 @@ static errno_t ut_worker_join(ut_worker_t* worker, fp64_t to) {
         worker->wake = null;
         worker->thread = null;
         worker->quit = false;
-        swear(worker->queue.head == null);
+        ut_swear(worker->queue.head == null);
     }
     return r;
 }
 
 static void ut_worker_post(ut_worker_t* worker, ut_work_t* w) {
-    assert(!worker->quit && worker->wake != null && worker->thread != null);
+    ut_assert(!worker->quit && worker->wake != null && worker->thread != null);
     w->queue = &worker->queue;
     ut_work_queue.post(w);
 }
@@ -188,26 +188,26 @@ static void ut_work_queue_test_1(void) {
         .when = now + 0.5
     };
     ut_work_queue.post(&c1);
-    swear(q.head == &c1 && q.head->next == null);
+    ut_swear(q.head == &c1 && q.head->next == null);
     ut_work_queue.post(&c2);
-    swear(q.head == &c2 && q.head->next == &c1);
+    ut_swear(q.head == &c2 && q.head->next == &c1);
     ut_work_queue.flush(&q);
     // test that canceled events are not dispatched
-    swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+    ut_swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
     c1.canceled = false;
     c2.canceled = false;
     // test the ut_work_queue.cancel() function
     ut_work_queue.post(&c1);
     ut_work_queue.post(&c2);
-    swear(q.head == &c2 && q.head->next == &c1);
+    ut_swear(q.head == &c2 && q.head->next == &c1);
     ut_work_queue.cancel(&c2);
-    swear(c2.canceled && q.head == &c1 && q.head->next == null);
+    ut_swear(c2.canceled && q.head == &c1 && q.head->next == null);
     c2.canceled = false;
     ut_work_queue.post(&c2);
     ut_work_queue.cancel(&c1);
-    swear(c1.canceled && q.head == &c2 && q.head->next == null);
+    ut_swear(c1.canceled && q.head == &c2 && q.head->next == null);
     ut_work_queue.flush(&q);
-    swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+    ut_swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
 }
 
 // simple way of passing a single pointer to call_later
@@ -246,7 +246,7 @@ static void ut_work_queue_test_2(void) {
         ut_work_queue.dispatch(&q);
     }
     ut_work_queue.flush(&q);
-    swear(q.head == null);
+    ut_swear(q.head == null);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
         ut_println("called: %d times", i);
     }
@@ -299,7 +299,7 @@ static void ut_work_queue_test_3(void) {
         ut_work_queue.dispatch(&q);
     }
     ut_work_queue.flush(&q);
-    swear(q.head == null);
+    ut_swear(q.head == null);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
         ut_println("called: %d times", ex.i);
     }
@@ -348,7 +348,7 @@ static void ut_worker_test(void) {
     // quit the worker thread:
     ut_fatal_if_error(ut_worker.join(&worker, -1.0));
     // does worker respect .when dispatch time?
-    swear(ut_clock.seconds() >= later.when);
+    ut_swear(ut_clock.seconds() >= later.when);
 }
 
 #else

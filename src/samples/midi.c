@@ -41,7 +41,7 @@ static void midi_warn_if_error_(int r, const char* call, const char* func,
 
 static errno_t midi_open(midi_t* m, void* window, const char* filename) {
     midi_t_* mi = (midi_t_*)m;
-    assert(ut_thread.id() == tid);
+    ut_assert(ut_thread.id() == tid);
     mi->window = (uintptr_t)window;
     mi->mop.dwCallback = mi->window;
     mi->mop.wDeviceID = (WORD)-1;
@@ -52,14 +52,14 @@ static errno_t midi_open(midi_t* m, void* window, const char* filename) {
             MCI_OPEN_TYPE | MCI_OPEN_TYPE_ID | MCI_OPEN_ELEMENT,
             (uintptr_t)&mi->mop);
     midi_warn_if_error(r);
-    assert(mi->mop.wDeviceID != -1);
+    ut_assert(mi->mop.wDeviceID != -1);
     m->device_id = mi->mop.wDeviceID;
     return r;
 }
 
 static errno_t midi_play(midi_t* m) {
     midi_t_* mi = (midi_t_*)m;
-    assert(ut_thread.id() == tid);
+    ut_assert(ut_thread.id() == tid);
     memset(&mi->pp, 0x00, sizeof(mi->pp));
     mi->pp.dwCallback = (uintptr_t)mi->window;
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_PLAY, MCI_NOTIFY,
@@ -70,7 +70,7 @@ static errno_t midi_play(midi_t* m) {
 
 static errno_t midi_stop(midi_t* m) {
     midi_t_* mi = (midi_t_*)m;
-    assert(ut_thread.id() == tid);
+    ut_assert(ut_thread.id() == tid);
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_STOP, 0, 0);
     midi_warn_if_error(r);
     return r;

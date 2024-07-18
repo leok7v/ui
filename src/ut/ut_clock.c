@@ -16,7 +16,7 @@ static uint64_t ut_clock_microseconds_since_epoch(void) { // NOT monotonic
     GetSystemTimePreciseAsFileTime(&ft);
     uint64_t microseconds =
         (((uint64_t)ft.dwHighDateTime) << 32 | ft.dwLowDateTime) / 10;
-    assert(microseconds > 0);
+    ut_assert(microseconds > 0);
     return microseconds;
 }
 
@@ -107,17 +107,17 @@ static uint64_t ut_clock_nanoseconds(void) {
     if (freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
-        assert(frequency.HighPart == 0);
+        ut_assert(frequency.HighPart == 0);
         // even 1GHz frequency should fit into 32 bit unsigned
-        assert(frequency.HighPart == 0, "%08lX%%08lX",
+        ut_assert(frequency.HighPart == 0, "%08lX%%08lX",
                frequency.HighPart, frequency.LowPart);
         // known values: 10,000,000 and 3,000,000 10MHz, 3MHz
-        assert(frequency.LowPart % (1000 * 1000) == 0);
+        ut_assert(frequency.LowPart % (1000 * 1000) == 0);
         // if we start getting weird frequencies not
         // multiples of MHz ut_num.gcd() approach may need
         // to be revised in favor of ut_num.muldiv64x64()
         freq = frequency.LowPart;
-        assert(freq != 0 && freq < (uint32_t)ut_clock.nsec_in_sec);
+        ut_assert(freq != 0 && freq < (uint32_t)ut_clock.nsec_in_sec);
         // to avoid ut_num.muldiv128:
         uint32_t divider = ut_num.gcd32((uint32_t)ut_clock.nsec_in_sec, freq);
         freq /= divider;
@@ -149,7 +149,7 @@ static void ut_clock_test(void) {
         t1 = ut_clock.nanoseconds();
         count++;
     }
-    swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
+    ut_swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }

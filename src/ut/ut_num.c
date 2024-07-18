@@ -67,7 +67,7 @@ static inline bool ut_num_uint128_high_bit(const ut_num128_t a) {
 }
 
 static uint64_t ut_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
-    swear(divisor > 0, "divisor: %lld", divisor);
+    ut_swear(divisor > 0, "divisor: %lld", divisor);
     ut_num128_t r = ut_num.mul64x64(a, b); // reminder: a * b
     uint64_t q = 0; // quotient
     if (r.hi >= divisor) {
@@ -79,11 +79,11 @@ static uint64_t ut_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
             ut_num_shift128_left_inline(&d);
             shift++;
         }
-        assert(shift <= 64);
+        ut_assert(shift <= 64);
         while (shift >= 0 && (d.hi != 0 || d.lo != 0)) {
             if (!ut_num_less128_inline(r, d)) {
                 r = ut_num_sub128_inline(r, d);
-                assert(shift < 64);
+                ut_assert(shift < 64);
                 q |= (1ULL << shift);
             }
             ut_num_shift128_right_inline(&d);
@@ -109,8 +109,8 @@ static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
     uint32_t j = ut_trailing_zeros(v);  v >>= j;
     uint32_t k = ut_min(i, j);
     for (;;) {
-        assert(u % 2 == 1, "u = %d should be odd", u);
-        assert(v % 2 == 1, "v = %d should be odd", v);
+        ut_assert(u % 2 == 1, "u = %d should be odd", u);
+        ut_assert(v % 2 == 1, "v = %d should be odd", v);
         if (u > v) { uint32_t swap = u; u = v; v = swap; }
         v -= u;
         if (v == 0) { return u << k; }
@@ -187,7 +187,7 @@ static uint32_t ctz_2(uint32_t x) {
 static void ut_num_test(void) {
     #ifdef UT_TESTS
     {
-        swear(ut_num.gcd32(1000000000, 24000000) == 8000000);
+        ut_swear(ut_num.gcd32(1000000000, 24000000) == 8000000);
         // https://asecuritysite.com/encryption/nprimes?y=64
         // https://www.rapidtables.com/convert/number/decimal-to-hex.html
         uint64_t p = 15843490434539008357u; // prime
@@ -197,11 +197,11 @@ static void ut_num_test(void) {
         ut_num128_t pq = {.hi = 0xC25778F20853A9A1uLL,
                        .lo = 0xEC0C27C467C45D25uLL };
         ut_num128_t p_q = ut_num.mul64x64(p, q);
-        swear(p_q.hi == pq.hi && pq.lo == pq.lo);
+        ut_swear(p_q.hi == pq.hi && pq.lo == pq.lo);
         uint64_t p1 = ut_num.muldiv128(p, q, q);
         uint64_t q1 = ut_num.muldiv128(p, q, p);
-        swear(p1 == p);
-        swear(q1 == q);
+        ut_swear(p1 == p);
+        ut_swear(q1 == q);
     }
     #ifdef DEBUG
     enum { n = 100 };
@@ -214,18 +214,18 @@ static void ut_num_test(void) {
         uint64_t q = ut_num.random64(&seed64);
         uint64_t p1 = ut_num.muldiv128(p, q, q);
         uint64_t q1 = ut_num.muldiv128(p, q, p);
-        swear(p == p1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
-        swear(q == q1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
+        ut_swear(p == p1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
+        ut_swear(q == q1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
     }
     uint32_t seed32 = 1;
     for (int32_t i = 0; i < n; i++) {
         uint64_t p = ut_num.random32(&seed32);
         uint64_t q = ut_num.random32(&seed32);
         uint64_t r = ut_num.muldiv128(p, q, 1);
-        swear(r == p * q);
+        ut_swear(r == p * q);
         // division by the maximum uint64_t value:
         r = ut_num.muldiv128(p, q, UINT64_MAX);
-        swear(r == 0);
+        ut_swear(r == 0);
     }
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
     #endif

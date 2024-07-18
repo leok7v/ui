@@ -110,17 +110,17 @@ static void ut_config_test(void) {
     const char* name = strrchr(ut_args.v[0], '\\');
     if (name == null) { name = strrchr(ut_args.v[0], '/'); }
     name = name != null ? name + 1 : ut_args.v[0];
-    swear(name != null);
+    ut_swear(name != null);
     const char* key = "test";
     const char data[] = "data";
     int32_t bytes = sizeof(data);
-    swear(ut_config.save(name, key, data, bytes) == 0);
+    ut_swear(ut_config.save(name, key, data, bytes) == 0);
     char read[256];
-    swear(ut_config.load(name, key, read, bytes) == bytes);
+    ut_swear(ut_config.load(name, key, read, bytes) == bytes);
     int32_t size = ut_config.size(name, key);
-    swear(size == bytes);
-    swear(ut_config.remove(name, key) == 0);
-    swear(ut_config.clean(name) == 0);
+    ut_swear(size == bytes);
+    ut_swear(ut_config.remove(name, key) == 0);
+    ut_swear(ut_config.clean(name) == 0);
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
 }
 

@@ -25,7 +25,7 @@ static const char* ut_nls_ls[ut_nls_str_count_max]; // localized strings
 static const char* ut_nls_ns[ut_nls_str_count_max]; // neutral language strings
 
 static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
-    assert(0 <= strid && strid < ut_countof(ut_nls_ns));
+    ut_assert(0 <= strid && strid < ut_countof(ut_nls_ns));
     uint16_t* r = null;
     int32_t block = strid / 16 + 1;
     int32_t index  = strid % 16;
@@ -40,7 +40,7 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
             if (ws[0] != 0) {
                 int32_t count = (int32_t)ws[0];  // String size in characters.
                 ws++;
-                assert(ws[count - 1] == 0, "use rc.exe /n command line option");
+                ut_assert(ws[count - 1] == 0, "use rc.exe /n command line option");
                 if (i == index) { // the string has been found
 //                  ut_println("%04X found %s", lang_id, utf16to8(ws));
                     r = ws;
@@ -56,19 +56,19 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
 
 static const char* ut_nls_save_string(uint16_t* utf16) {
     const int32_t bytes = ut_str.utf8_bytes(utf16, -1);
-    swear(bytes > 1);
+    ut_swear(bytes > 1);
     char* s = ut_nls_strings_free;
     uintptr_t left = (uintptr_t)ut_countof(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
     ut_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
     ut_str.utf16to8(s, (int32_t)left, utf16, -1);
-    assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
+    ut_assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
     ut_nls_strings_free += bytes;
     return s;
 }
 
 static const char* ut_nls_localized_string(int32_t strid) {
-    swear(0 < strid && strid < ut_countof(ut_nls_ns));
+    ut_swear(0 < strid && strid < ut_countof(ut_nls_ns));
     const char* s = null;
     if (0 < strid && strid < ut_countof(ut_nls_ns)) {
         if (ut_nls_ls[strid] != null) {

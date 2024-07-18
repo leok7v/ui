@@ -35,7 +35,7 @@ static void composed(ui_view_t* view) {
 
 static void stats(int32_t ix) {
     volatile time_stats_t* t = &ts[ix];
-    assert(t->samples >= 2, "no samples");
+    ut_assert(t->samples >= 2, "no samples");
     int n = ut_min(N, t->samples);
     t->min_dt = 1.0; // 1 second is 100x of 10ms
     t->max_dt = 0;
@@ -142,7 +142,7 @@ static void timer_thread(void* p) {
 }
 
 static void timer(ui_view_t* view, ui_timer_t id) {
-    swear(view == ui_app.content);
+    ut_swear(view == ui_app.content);
     // there are at least 3 timers notifications coming here:
     // 1 seconds, 100ms and 10ms:
     if (id == timer10ms) {

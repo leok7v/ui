@@ -49,7 +49,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         if (r == 0) {
             r = NtQuerySystemInformation(SystemProcessInformation, data, bytes, &bytes);
         } else {
-            assert(r == (errno_t)ERROR_NOT_ENOUGH_MEMORY);
+            ut_assert(r == (errno_t)ERROR_NOT_ENOUGH_MEMORY);
         }
     }
     #pragma pop_macro("STATUS_INFO_LENGTH_MISMATCH")
@@ -81,12 +81,12 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         }
     }
     if (data != null) { ut_heap.deallocate(null, data); }
-    assert(count <= (uint64_t)INT32_MAX);
+    ut_assert(count <= (uint64_t)INT32_MAX);
     return (int32_t)count;
 }
 
 static errno_t ut_processes_nameof(uint64_t pid, char* name, int32_t count) {
-    assert(name != null && count > 0);
+    ut_assert(name != null && count > 0);
     errno_t r = 0;
     name[0] = 0;
     HANDLE p = OpenProcess(PROCESS_ALL_ACCESS, false, (DWORD)pid);
@@ -152,7 +152,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     DWORD milliseconds = timeout < 0 ? INFINITE : (DWORD)(timeout * 1000);
     enum { access = PROCESS_QUERY_LIMITED_INFORMATION |
                     PROCESS_TERMINATE | SYNCHRONIZE };
-    assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
+    ut_assert((DWORD)pid == pid); // Windows... HANDLE vs DWORD in different APIs
     errno_t r = ERROR_NOT_FOUND;
     HANDLE h = OpenProcess(access, 0, (DWORD)pid);
     if (h != null) {
@@ -286,7 +286,7 @@ static errno_t ut_processes_child_read(ut_stream_if* out, HANDLE pipe) {
 //          ut_println("PeekNamedPipe() failed %s", ut_strerr(r));
         }
         // process has exited and closed the pipe
-        assert(r == ERROR_BROKEN_PIPE);
+        ut_assert(r == ERROR_BROKEN_PIPE);
     } else if (available > 0) {
         DWORD bytes_read = 0;
         r = ut_b2e(ReadFile(pipe, data, sizeof(data), &bytes_read, null));
@@ -314,7 +314,7 @@ static errno_t ut_processes_child_write(ut_stream_if* in, HANDLE pipe) {
             r = ut_b2e(WriteFile(pipe, data, (DWORD)bytes_read,
                              &bytes_written, null));
             ut_println("r: %d bytes_written: %d", r, bytes_written);
-            assert((int32_t)bytes_written <= bytes_read);
+            ut_assert((int32_t)bytes_written <= bytes_read);
             data += bytes_written;
             bytes_read -= bytes_written;
         }
@@ -521,7 +521,7 @@ static void ut_processes_test(void) {
                 #pragma warning(suppress: 6011) // dereferencing null
                 r = ut_processes.nameof(pids[i], path, ut_countof(path));
                 if (r != ERROR_NOT_FOUND) {
-                    assert(r == 0 && path[0] != 0);
+                    ut_assert(r == 0 && path[0] != 0);
                     verbose("%6d %s %s", pids[i], path, ut_strerr(r));
                 }
             }

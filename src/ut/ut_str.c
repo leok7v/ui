@@ -19,7 +19,7 @@ static int32_t ut_str_utf16len(const uint16_t* utf16) {
 }
 
 static int32_t ut_str_utf8bytes(const char* s, int32_t b) {
-    assert(b >= 1, "should not be called with bytes < 1");
+    ut_assert(b >= 1, "should not be called with bytes < 1");
     const uint8_t* const u = (const uint8_t*)s;
     // based on:
     // https://stackoverflow.com/questions/66715611/check-for-valid-utf-8-encoding-in-c
@@ -50,7 +50,7 @@ static int32_t ut_str_utf8bytes(const char* s, int32_t b) {
 }
 
 static int32_t ut_str_glyphs(const char* utf8, int32_t bytes) {
-    swear(bytes >= 0);
+    ut_swear(bytes >= 0);
     bool ok = true;
     int32_t i = 0;
     int32_t k = 1;
@@ -64,14 +64,14 @@ static int32_t ut_str_glyphs(const char* utf8, int32_t bytes) {
 
 static void ut_str_lower(char* d, int32_t capacity, const char* s) {
     int32_t n = ut_str.len(s);
-    swear(capacity > n);
+    ut_swear(capacity > n);
     for (int32_t i = 0; i < n; i++) { d[i] = (char)tolower(s[i]); }
     d[n] = 0;
 }
 
 static void ut_str_upper(char* d, int32_t capacity, const char* s) {
     int32_t n = ut_str.len(s);
-    swear(capacity > n);
+    ut_swear(capacity > n);
     for (int32_t i = 0; i < n; i++) { d[i] = (char)toupper(s[i]); }
     d[n] = 0;
 }
@@ -138,17 +138,17 @@ static errno_t ut_str_utf16to8(char* utf8, int32_t capacity,
         const uint16_t* utf16, int32_t chars) {
     if (chars == 0) { return 0; }
     if (chars < 0 && utf16[0] == 0x0000) {
-        swear(capacity >= 1);
+        ut_swear(capacity >= 1);
         utf8[0] = 0x00;
         return 0;
     }
     const int32_t required = ut_str.utf8_bytes(utf16, chars);
     errno_t r = required < 0 ? ut_runtime.err() : 0;
     if (r == 0) {
-        swear(required > 0 && capacity >= required);
+        ut_swear(required > 0 && capacity >= required);
         int32_t bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
                             utf16, chars, utf8, capacity, null, null);
-        swear(required == bytes);
+        ut_swear(required == bytes);
     }
     return r;
 }
@@ -158,10 +158,10 @@ static errno_t ut_str_utf8to16(uint16_t* utf16, int32_t capacity,
     const int32_t required = ut_str.utf16_chars(utf8, bytes);
     errno_t r = required < 0 ? ut_runtime.err() : 0;
     if (r == 0) {
-        swear(required >= 0 && capacity >= required);
+        ut_swear(required >= 0 && capacity >= required);
         int32_t count = MultiByteToWideChar(CP_UTF8, 0, utf8, bytes,
                                             utf16, capacity);
-        swear(required == count);
+        ut_swear(required == count);
 #if 0 // TODO: incorrect need output != input
         if (count > 0 && !IsNormalizedString(NormalizationC, utf16, count)) {
             ut_runtime.set_err(0);
@@ -188,24 +188,24 @@ static uint32_t ut_str_utf32(const char* utf8, int32_t bytes) {
     uint32_t utf32 = 0;
     if ((utf8[0] & 0x80) == 0) {
         utf32 = utf8[0];
-        swear(bytes == 1);
+        ut_swear(bytes == 1);
     } else if ((utf8[0] & 0xE0) == 0xC0) {
         utf32  = (utf8[0] & 0x1F) << 6;
         utf32 |= (utf8[1] & 0x3F);
-        swear(bytes == 2);
+        ut_swear(bytes == 2);
     } else if ((utf8[0] & 0xF0) == 0xE0) {
         utf32  = (utf8[0] & 0x0F) << 12;
         utf32 |= (utf8[1] & 0x3F) <<  6;
         utf32 |= (utf8[2] & 0x3F);
-        swear(bytes == 3);
+        ut_swear(bytes == 3);
     } else if ((utf8[0] & 0xF8) == 0xF0) {
         utf32  = (utf8[0] & 0x07) << 18;
         utf32 |= (utf8[1] & 0x3F) << 12;
         utf32 |= (utf8[2] & 0x3F) <<  6;
         utf32 |= (utf8[3] & 0x3F);
-        swear(bytes == 4);
+        ut_swear(bytes == 4);
     } else {
-        swear(false);
+        ut_swear(false);
     }
     return utf32;
 }
@@ -252,7 +252,7 @@ static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
     // If FormatMessageW() succeeds, the return value is the number of utf16
     // characters stored in the output buffer, excluding the terminating zero.
     if (count > 0) {
-        swear(count < ut_countof(utf16));
+        ut_swear(count < ut_countof(utf16));
         utf16[count] = 0;
         // remove trailing '\r\n'
         int32_t k = count;
@@ -293,7 +293,7 @@ static const char* ut_str_grouping_separator(void) {
         if (grouping_separator[0] == 0x00) {
             errno_t r = ut_b2e(GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
                 grouping_separator, sizeof(grouping_separator)));
-            swear(r == 0 && grouping_separator[0] != 0);
+            ut_swear(r == 0 && grouping_separator[0] != 0);
         }
         return grouping_separator;
     #else
@@ -334,7 +334,7 @@ static str64_t ut_str_int64_dg(int64_t v, // digit_grouped
     // does not respect locale or UI separators...
     // Do it hard way:
     const int32_t m = (int32_t)strlen(gs);
-    swear(m < 5); // utf-8 4 bytes max
+    ut_swear(m < 5); // utf-8 4 bytes max
     // 64 calls per thread 32 or less bytes each because:
     // "18446744073709551615" 21 characters + 6x4 groups:
     // "18'446'744'073'709'551'615" 27 characters
@@ -356,7 +356,7 @@ static str64_t ut_str_int64_dg(int64_t v, // digit_grouped
     int32_t r = max_text_bytes - 1;
     while (i > 0) {
         i--;
-        assert(r > 3 + m);
+        ut_assert(r > 3 + m);
         if (i == gc) {
             ut_str.format(s, r, "%d%s", groups[i], gc > 0 ? gs : "");
         } else {
@@ -391,9 +391,9 @@ static str128_t ut_str_fp(const char* format, fp64_t v) {
     if (decimal_separator[0] == 0) {
         errno_t r = ut_b2e(GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
             decimal_separator, sizeof(decimal_separator)));
-        swear(r == 0 && decimal_separator[0] != 0);
+        ut_swear(r == 0 && decimal_separator[0] != 0);
     }
-    swear(strlen(decimal_separator) <= 4);
+    ut_swear(strlen(decimal_separator) <= 4);
     str128_t f; // formatted float point
     // snprintf format does not handle thousands separators on all know runtimes
     // and respects setlocale() on Un*x systems but in MS runtime only when
@@ -423,17 +423,17 @@ static str128_t ut_str_fp(const char* format, fp64_t v) {
 #ifdef UT_TESTS
 
 static void ut_str_test(void) {
-    swear(ut_str.len("hello") == 5);
-    swear(ut_str.starts("hello world", "hello"));
-    swear(ut_str.ends("hello world", "world"));
-    swear(ut_str.istarts("hello world", "HeLlO"));
-    swear(ut_str.iends("hello world", "WoRlD"));
+    ut_swear(ut_str.len("hello") == 5);
+    ut_swear(ut_str.starts("hello world", "hello"));
+    ut_swear(ut_str.ends("hello world", "world"));
+    ut_swear(ut_str.istarts("hello world", "HeLlO"));
+    ut_swear(ut_str.iends("hello world", "WoRlD"));
     char ls[20] = {0};
     ut_str.lower(ls, ut_countof(ls), "HeLlO WoRlD");
-    swear(strcmp(ls, "hello world") == 0);
+    ut_swear(strcmp(ls, "hello world") == 0);
     char upper[11] = {0};
     ut_str.upper(upper, ut_countof(upper), "hello12345");
-    swear(strcmp(upper,  "HELLO12345") == 0);
+    ut_swear(strcmp(upper,  "HELLO12345") == 0);
     #pragma push_macro("glyph_chinese_one")
     #pragma push_macro("glyph_chinese_two")
     #pragma push_macro("glyph_teddy_bear")
@@ -448,14 +448,14 @@ static void ut_str_test(void) {
             ut_glyph_chinese_jin4 ut_glyph_chinese_gong
             "3456789 "
             glyph_ice_cube;
-    swear(ut_str.utf8bytes("\x01", 1) == 1);
-    swear(ut_str.utf8bytes("\x7F", 1) == 1);
-    swear(ut_str.utf8bytes("\x80", 1) == 0);
+    ut_swear(ut_str.utf8bytes("\x01", 1) == 1);
+    ut_swear(ut_str.utf8bytes("\x7F", 1) == 1);
+    ut_swear(ut_str.utf8bytes("\x80", 1) == 0);
 //  swear(ut_str.utf8bytes(glyph_chinese_one, 0) == 0);
-    swear(ut_str.utf8bytes(glyph_chinese_one, 1) == 0);
-    swear(ut_str.utf8bytes(glyph_chinese_one, 2) == 0);
-    swear(ut_str.utf8bytes(glyph_chinese_one, 3) == 3);
-    swear(ut_str.utf8bytes(glyph_teddy_bear,  4) == 4);
+    ut_swear(ut_str.utf8bytes(glyph_chinese_one, 1) == 0);
+    ut_swear(ut_str.utf8bytes(glyph_chinese_one, 2) == 0);
+    ut_swear(ut_str.utf8bytes(glyph_chinese_one, 3) == 3);
+    ut_swear(ut_str.utf8bytes(glyph_teddy_bear,  4) == 4);
     #pragma pop_macro("glyph_ice_cube")
     #pragma pop_macro("glyph_teddy_bear")
     #pragma pop_macro("glyph_chinese_two")
@@ -468,30 +468,30 @@ static void ut_str_test(void) {
     ut_str.utf8to16(utf16, ut_countof(utf16), utf8, -1);
     char narrow_str[100] = {0};
     ut_str.utf16to8(narrow_str, ut_countof(narrow_str), utf16, -1);
-    swear(strcmp(narrow_str, utf8_str) == 0);
+    ut_swear(strcmp(narrow_str, utf8_str) == 0);
     char formatted[100];
     ut_str.format(formatted, ut_countof(formatted), "n: %d, s: %s", 42, "test");
-    swear(strcmp(formatted, "n: 42, s: test") == 0);
+    ut_swear(strcmp(formatted, "n: 42, s: test") == 0);
     // numeric values digit grouping format:
-    swear(strcmp("0", ut_str.int64_dg(0, true, ",").s) == 0);
-    swear(strcmp("-1", ut_str.int64_dg(-1, false, ",").s) == 0);
-    swear(strcmp("999", ut_str.int64_dg(999, true, ",").s) == 0);
-    swear(strcmp("-999", ut_str.int64_dg(-999, false, ",").s) == 0);
-    swear(strcmp("1,001", ut_str.int64_dg(1001, true, ",").s) == 0);
-    swear(strcmp("-1,001", ut_str.int64_dg(-1001, false, ",").s) == 0);
-    swear(strcmp("18,446,744,073,709,551,615",
+    ut_swear(strcmp("0", ut_str.int64_dg(0, true, ",").s) == 0);
+    ut_swear(strcmp("-1", ut_str.int64_dg(-1, false, ",").s) == 0);
+    ut_swear(strcmp("999", ut_str.int64_dg(999, true, ",").s) == 0);
+    ut_swear(strcmp("-999", ut_str.int64_dg(-999, false, ",").s) == 0);
+    ut_swear(strcmp("1,001", ut_str.int64_dg(1001, true, ",").s) == 0);
+    ut_swear(strcmp("-1,001", ut_str.int64_dg(-1001, false, ",").s) == 0);
+    ut_swear(strcmp("18,446,744,073,709,551,615",
         ut_str.int64_dg(UINT64_MAX, true, ",").s) == 0
     );
-    swear(strcmp("9,223,372,036,854,775,807",
+    ut_swear(strcmp("9,223,372,036,854,775,807",
         ut_str.int64_dg(INT64_MAX, false, ",").s) == 0
     );
-    swear(strcmp("-9,223,372,036,854,775,808",
+    ut_swear(strcmp("-9,223,372,036,854,775,808",
         ut_str.int64_dg(INT64_MIN, false, ",").s) == 0
     );
     //  see:
     // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
     uint32_t pi_fp32 = 0x40490FDBULL; // 3.14159274101257324
-    swear(strcmp("3.141592741",
+    ut_swear(strcmp("3.141592741",
                 ut_str.fp("%.9f", *(fp32_t*)&pi_fp32).s) == 0,
           "%s", ut_str.fp("%.9f", *(fp32_t*)&pi_fp32).s
     );
@@ -501,7 +501,7 @@ static void ut_str_test(void) {
     //
     //  https://en.wikipedia.org/wiki/Double-precision_floating-point_format
     uint64_t pi_fp64 = 0x400921FB54442D18ULL;
-    swear(strcmp("3.141592653589793116",
+    ut_swear(strcmp("3.141592653589793116",
                 ut_str.fp("%.18f", *(fp64_t*)&pi_fp64).s) == 0,
           "%s", ut_str.fp("%.18f", *(fp64_t*)&pi_fp64).s
     );

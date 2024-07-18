@@ -34,7 +34,7 @@ static bool ui_theme_use_light_theme(const char* key) {
     } else if (ui_app.light_mode) {
         return true;
     } else {
-        assert(ui_app.dark_mode);
+        ut_assert(ui_app.dark_mode);
         return false;
     }
 }
@@ -130,7 +130,7 @@ static bool ui_theme_is_app_dark(void) {
 }
 
 static void ui_theme_refresh(void) {
-    swear(ui_app.window != null);
+    ut_swear(ui_app.window != null);
     ui_theme_dark = -1;
     BOOL dark_mode = ui_theme_is_app_dark(); // must be 32-bit "BOOL"
     static const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;

@@ -61,17 +61,17 @@
 
 #define ui_edit_check_zeros(a_, b_) do {                                    \
     for (int32_t i_ = 0; i_ < (b_); i_++) {                                 \
-        assert(((const uint8_t*)(a_))[i_] == 0x00);                         \
+        ut_assert(((const uint8_t*)(a_))[i_] == 0x00);                         \
     }                                                                       \
 } while (0)
 
 #define ui_edit_check_pg_inside_text(t_, pg_)                               \
-    assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->np &&                        \
+    ut_assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->np &&                        \
            0 <= (pg_)->gp && (pg_)->gp <= (t_)->ps[(pg_)->pn].g)
 
 #define ui_edit_check_range_inside_text(t_, r_) do {                        \
-    assert((r_)->from.pn <= (r_)->to.pn);                                   \
-    assert((r_)->from.pn <  (r_)->to.pn || (r_)->from.gp <= (r_)->to.gp);   \
+    ut_assert((r_)->from.pn <= (r_)->to.pn);                                   \
+    ut_assert((r_)->from.pn <  (r_)->to.pn || (r_)->from.gp <= (r_)->to.gp);   \
     ui_edit_check_pg_inside_text(t_, (&(r_)->from));                        \
     ui_edit_check_pg_inside_text(t_, (&(r_)->to));                          \
 } while (0)
@@ -90,7 +90,7 @@ static ui_edit_range_t ui_edit_text_all_on_null(const ui_edit_text_t* t,
     if (range != null) {
         r = *range;
     } else {
-        assert(t->np >= 1);
+        ut_assert(t->np >= 1);
         r.from.pn = 0;
         r.from.gp = 0;
         r.to.pn = t->np - 1;
@@ -149,12 +149,12 @@ static ui_edit_range_t ui_edit_text_end_range(const ui_edit_text_t* t) {
 }
 
 static uint64_t ui_edit_range_uint64(const ui_edit_pg_t pg) {
-    assert(pg.pn >= 0 && pg.gp >= 0);
+    ut_assert(pg.pn >= 0 && pg.gp >= 0);
     return ((uint64_t)pg.pn << 32) | (uint64_t)pg.gp;
 }
 
 static ui_edit_pg_t ui_edit_range_pg(uint64_t uint64) {
-    assert((int32_t)(uint64 >> 32) >= 0 && (int32_t)uint64 >= 0);
+    ut_assert((int32_t)(uint64 >> 32) >= 0 && (int32_t)uint64 >= 0);
     return (ui_edit_pg_t){ .pn = (int32_t)(uint64 >> 32), .gp = (int32_t)uint64 };
 }
 
@@ -224,7 +224,7 @@ static bool ui_edit_doc_realloc_ps(ui_edit_str_t* *ps,
     if (ok) {
         for (int32_t i = old_np; i < new_np; i++) {
             ok = ui_edit_str.init(&(*ps)[i], null, 0, false);
-            swear(ok, "because .init(\"\", 0) does NOT allocate memory");
+            ut_swear(ok, "because .init(\"\", 0) does NOT allocate memory");
         }
     }
     return ok;
@@ -252,18 +252,18 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
             lf = k < b && s[k] == '\n';
             if (np >= n) {
                 int32_t n1_5 = n * 3 / 2; // n * 1.5
-                assert(n1_5 > n);
+                ut_assert(n1_5 > n);
                 ok = ui_edit_doc_realloc_ps(&ps, n, n1_5);
                 if (ok) { n = n1_5; }
             }
             if (ok) {
                 // insider knowledge about ui_edit_str allocation behaviour:
-                assert(ps[np].c == 0 && ps[np].b == 0 &&
+                ut_assert(ps[np].c == 0 && ps[np].b == 0 &&
                        ps[np].g2b[0] == 0);
                 ui_edit_str.free(&ps[np]);
                 // process "\r\n" strings
                 const int32_t e = k > i && s[k - 1] == '\r' ? k - 1 : k;
-                const int32_t bytes = e - i; assert(bytes >= 0);
+                const int32_t bytes = e - i; ut_assert(bytes >= 0);
                 const char* u = bytes == 0 ? null : s + i;
                 // str.init may allocate str.g2b[] on the heap and may fail
                 ok = ui_edit_str.init(&ps[np], u, bytes, heap && bytes > 0);
@@ -280,18 +280,18 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
         }
     }
     if (ok && np == 0) { // special case empty string to a single paragraph
-        assert(b <= 0 && (b == 0 || s[0] == 0x00));
+        ut_assert(b <= 0 && (b == 0 || s[0] == 0x00));
         np = 1; // ps[0] is already initialized as empty str
         ok = ui_edit_doc_realloc_ps(&ps, n, 1);
-        swear(ok, "shrinking ps[] above");
+        ut_swear(ok, "shrinking ps[] above");
     }
     if (ok) {
-        assert(np > 0);
+        ut_assert(np > 0);
         t->np = np;
         t->ps = ps;
     } else if (ps != null) {
         bool shrink = ui_edit_doc_realloc_ps(&ps, n, 0); // free()
-        swear(shrink);
+        ut_swear(shrink);
         ut_heap.free(ps);
         t->np = 0;
         t->ps = null;
@@ -302,10 +302,10 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
 static void ui_edit_text_dispose(ui_edit_text_t* t) {
     if (t->np != 0) {
         ui_edit_doc_realloc_ps(&t->ps, t->np, 0);
-        assert(t->ps == null);
+        ut_assert(t->ps == null);
         t->np = 0;
     } else {
-        assert(t->np == 0 && t->ps == null);
+        ut_assert(t->np == 0 && t->ps == null);
     }
 }
 
@@ -381,7 +381,7 @@ static bool ui_edit_doc_subscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
         ok = ut_heap.alloc_zero((void**)&t->listeners, sizeof(*o)) == 0;
         if (ok) { o = t->listeners; }
     } else {
-        while (o->next != null) { swear(o->notify != notify); o = o->next; }
+        while (o->next != null) { ut_swear(o->notify != notify); o = o->next; }
         ok = ut_heap.alloc_zero((void**)&o->next, sizeof(*o)) == 0;
         if (ok) { o->next->prev = o; o = o->next; }
     }
@@ -395,7 +395,7 @@ static void ui_edit_doc_unsubscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) 
     while (o != null) {
         ui_edit_listener_t* n = o->next;
         if (o->notify == notify) {
-            assert(!removed);
+            ut_assert(!removed);
             if (o->prev != null) { o->prev->next = n; }
             if (o->next != null) { o->next->prev = o->prev; }
             if (o == t->listeners) { t->listeners = n; }
@@ -404,7 +404,7 @@ static void ui_edit_doc_unsubscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) 
         }
         o = n;
     }
-    swear(removed);
+    ut_swear(removed);
 }
 
 static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
@@ -431,7 +431,7 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
         } else {
             bytes = p->b;
         }
-        assert(t->ps[pn - r.from.pn].g == 0);
+        ut_assert(t->ps[pn - r.from.pn].g == 0);
         const char* u_or_null = bytes == 0 ? null : u;
         ui_edit_str.replace(&t->ps[pn - r.from.pn], 0, 0, u_or_null, bytes);
     }
@@ -464,17 +464,17 @@ static void ui_edit_doc_copy(const ui_edit_doc_t* d,
         }
         const int32_t c = (int32_t)(uintptr_t)(to - text);
         if (bytes > 0) {
-            swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
+            ut_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
             memmove(to, u, (size_t)bytes);
             to += bytes;
         }
         if (pn < r.to.pn) {
-            swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
+            ut_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
             *to++ = '\n';
         }
     }
     const int32_t c = (int32_t)(uintptr_t)(to - text);
-    swear(c + 1 == b, "c: %d b: %d", c, b);
+    ut_swear(c + 1 == b, "c: %d b: %d", c, b);
     *to++ = 0x00;
 }
 
@@ -482,9 +482,9 @@ static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
         const ui_edit_str_t* s, const ui_edit_text_t* insert,
         const ui_edit_str_t* e) {
     // insert 2 or more paragraphs
-    assert(0 <= pn && pn < t->np);
+    ut_assert(0 <= pn && pn < t->np);
     const int32_t np = t->np + insert->np - 1;
-    assert(np > 0);
+    ut_assert(np > 0);
     ui_edit_str_t* ps = null; // ps[np]
     bool ok = ui_edit_doc_realloc_ps_no_init(&ps, 0, np);
     if (ok) {
@@ -501,7 +501,7 @@ static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
             const int32_t ix = pn + insert->np - 1; // last `insert` index
             ok = ui_edit_str.init(&ps[ix], e->u, e->b, true);
         }
-        assert(t->np - pn - 1 >= 0);
+        ut_assert(t->np - pn - 1 >= 0);
         memmove(ps + pn + insert->np, t->ps + pn + 1,
                (size_t)(t->np - pn - 1) * sizeof(ui_edit_str_t));
         if (ok) {
@@ -523,18 +523,18 @@ static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
 static bool ui_edit_text_insert_1(ui_edit_text_t* t,
         const ui_edit_pg_t ip, // insertion point
         const ui_edit_text_t* insert) {
-    assert(0 <= ip.pn && ip.pn < t->np);
+    ut_assert(0 <= ip.pn && ip.pn < t->np);
     ui_edit_str_t* str = &t->ps[ip.pn]; // string in document text
-    assert(insert->np == 1);
+    ut_assert(insert->np == 1);
     ui_edit_str_t* ins = &insert->ps[0]; // string to insert
-    assert(0 <= ip.gp && ip.gp <= str->g);
+    ut_assert(0 <= ip.gp && ip.gp <= str->g);
     // ui_edit_str.replace() is all or nothing:
     return ui_edit_str.replace(str, ip.gp, ip.gp, ins->u, ins->b);
 }
 
 static bool ui_edit_substr_append(ui_edit_str_t* d, const ui_edit_str_t* s1,
     int32_t gp1, const ui_edit_str_t* s2) { // s1[0:gp1] + s2
-    assert(d != s1 && d != s2);
+    ut_assert(d != s1 && d != s2);
     const int32_t b = s1->g2b[gp1];
     bool ok = ui_edit_str.init(d, b == 0 ? null : s1->u, b, true);
     if (ok) {
@@ -547,7 +547,7 @@ static bool ui_edit_substr_append(ui_edit_str_t* d, const ui_edit_str_t* s1,
 
 static bool ui_edit_append_substr(ui_edit_str_t* d, const ui_edit_str_t* s1,
     const ui_edit_str_t* s2, int32_t gp2) {  // s1 + s2[gp1:*]
-    assert(d != s1 && d != s2);
+    ut_assert(d != s1 && d != s2);
     bool ok = ui_edit_str.init(d, s1->b == 0 ? null : s1->u, s1->b, true);
     if (ok) {
         const int32_t o = s2->g2b[gp2]; // offset (bytes)
@@ -646,7 +646,7 @@ static bool ui_edit_text_copy_text(const ui_edit_text_t* t,
         } else {
             bytes = p->b;
         }
-        assert(to->ps[pn - r.from.pn].g == 0);
+        ut_assert(to->ps[pn - r.from.pn].g == 0);
         const char* u_or_null = bytes == 0 ? null : u;
         ui_edit_str.replace(&to->ps[pn - r.from.pn], 0, 0, u_or_null, bytes);
     }
@@ -678,18 +678,18 @@ static void ui_edit_text_copy(const ui_edit_text_t* t,
             bytes = p->b;
         }
         const int32_t c = (int32_t)(uintptr_t)(to - text);
-        swear(c + bytes < b, "d: %d bytes:%d b: %d", c, bytes, b);
+        ut_swear(c + bytes < b, "d: %d bytes:%d b: %d", c, bytes, b);
         if (bytes > 0) {
             memmove(to, u, (size_t)bytes);
             to += bytes;
         }
         if (pn < r.to.pn) {
-            swear(c + bytes + 1 < b, "d: %d bytes:%d b: %d", c, bytes, b);
+            ut_swear(c + bytes + 1 < b, "d: %d bytes:%d b: %d", c, bytes, b);
             *to++ = '\n';
         }
     }
     const int32_t c = (int32_t)(uintptr_t)(to - text);
-    swear(c + 1 == b, "d: %d b: %d", c, b);
+    ut_swear(c + 1 == b, "d: %d b: %d", c, b);
     *to++ = 0x00;
 }
 
@@ -826,7 +826,7 @@ static bool ui_edit_doc_replace_undoable(ui_edit_doc_t* d,
 
 static bool ui_edit_utf8_to_heap_text(const char* u, int32_t b,
         ui_edit_text_t* it) {
-    assert((b == 0) == (u == null || u[0] == 0x00));
+    ut_assert((b == 0) == (u == null || u[0] == 0x00));
     return ui_edit_text.init(it, b != 0 ? u : null, b, true);
 }
 
@@ -953,8 +953,8 @@ static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
     memset(d, 0x00, sizeof(d));
-    assert(bytes >= 0);
-    assert((utf8 == null) == (bytes == 0));
+    ut_assert(bytes >= 0);
+    ut_assert((utf8 == null) == (bytes == 0));
     if (ok) {
         if (bytes == 0) { // empty string
             ok = ut_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_edit_str_t)) == 0;
@@ -992,7 +992,7 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
         ut_heap.free(d->redo);
         d->redo = next;
     }
-    assert(d->listeners == null, "unsubscribe listeners?");
+    ut_assert(d->listeners == null, "unsubscribe listeners?");
     while (d->listeners != null) {
         ui_edit_listener_t* next = d->listeners->next;
         d->listeners->next = null;
@@ -1084,32 +1084,32 @@ ui_edit_str_if ui_edit_str = {
 
 #define ui_edit_str_check(s) do {                                   \
     /* check the s struct constrains */                             \
-    assert(s->b >= 0);                                              \
-    assert(s->c == 0 || s->c >= s->b);                              \
-    assert(s->g >= 0);                                              \
+    ut_assert(s->b >= 0);                                              \
+    ut_assert(s->c == 0 || s->c >= s->b);                              \
+    ut_assert(s->g >= 0);                                              \
     /* s->g2b[] may be null (not heap allocated) when .b == 0 */    \
-    if (s->g == 0) { assert(s->b == 0); }                           \
+    if (s->g == 0) { ut_assert(s->b == 0); }                           \
     if (s->g > 0) {                                                 \
-        assert(s->g2b[0] == 0 && s->g2b[s->g] == s->b);             \
+        ut_assert(s->g2b[0] == 0 && s->g2b[s->g] == s->b);             \
     }                                                               \
     for (int32_t i = 1; i < s->g; i++) {                            \
-        assert(0 < s->g2b[i] - s->g2b[i - 1] &&                     \
+        ut_assert(0 < s->g2b[i] - s->g2b[i - 1] &&                     \
                    s->g2b[i] - s->g2b[i - 1] <= 4);                 \
-        assert(s->g2b[i] - s->g2b[i - 1] ==                         \
+        ut_assert(s->g2b[i] - s->g2b[i - 1] ==                         \
             ut_str.utf8bytes(                                 \
             s->u + s->g2b[i - 1], s->g2b[i] - s->g2b[i - 1]));      \
     }                                                               \
 } while (0)
 
 #define ui_edit_str_check_from_to(s, f, t) do {                     \
-    assert(0 <= f && f <= s->g);                                    \
-    assert(0 <= t && t <= s->g);                                    \
-    assert(f <= t);                                                 \
+    ut_assert(0 <= f && f <= s->g);                                    \
+    ut_assert(0 <= t && t <= s->g);                                    \
+    ut_assert(f <= t);                                                 \
 } while (0)
 
 #define ui_edit_str_check_empty(u, b) do {                          \
-    if (b == 0) { assert(u != null && u[0] == 0x00); }              \
-    if (u == null || u[0] == 0x00) { assert(b == 0); }              \
+    if (b == 0) { ut_assert(u != null && u[0] == 0x00); }              \
+    if (u == null || u[0] == 0x00) { ut_assert(b == 0); }              \
 } while (0)
 
 
@@ -1128,26 +1128,26 @@ ui_edit_str_if ui_edit_str = {
 #define ui_edit_str_parameters(u, b) do {                           \
     if (u == null) { u = ui_edit_str_empty_utf8; }                  \
     if (b < 0)  {                                                   \
-        assert(strlen(u) < INT32_MAX);                              \
+        ut_assert(strlen(u) < INT32_MAX);                              \
         b = (int32_t)strlen(u);                                     \
     }                                                               \
     ui_edit_str_check_empty(u, b);                                  \
 } while (0)
 
 static int32_t ui_edit_str_gp_to_bp(const char* utf8, int32_t bytes, int32_t gp) {
-    swear(bytes >= 0);
+    ut_swear(bytes >= 0);
     bool ok = true;
     int32_t c = 0;
     int32_t i = 0;
     if (bytes > 0) {
         while (c < gp && ok) {
-            assert(i < bytes);
+            ut_assert(i < bytes);
             const int32_t b = ut_str.utf8bytes(utf8 + i, bytes - i);
             ok = 0 < b && i + b <= bytes;
             if (ok) { i += b; c++; }
         }
     }
-    assert(i <= bytes);
+    ut_assert(i <= bytes);
     return ok ? i : -1;
 }
 
@@ -1157,7 +1157,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
     } else {
         #ifdef UI_EDIT_STR_TEST // check ui_edit_str_g2b_ascii integrity
             for (int32_t i = 0; i < ut_countof(ui_edit_str_g2b_ascii); i++) {
-                assert(ui_edit_str_g2b_ascii[i] == i);
+                ut_assert(ui_edit_str_g2b_ascii[i] == i);
             }
         #endif
     }
@@ -1192,13 +1192,13 @@ static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
         }
     }
     if (ok) {
-        assert(0 < k && k <= s->b + 1);
+        ut_assert(0 < k && k <= s->b + 1);
         s->g2b[0] = 0;
-        assert(s->g2b[k - 1] == s->b);
+        ut_assert(s->g2b[k - 1] == s->b);
         s->g = k - 1;
         if (k < s->b + 1) {
             ok = ut_heap.realloc(&s->g2b, k * _4_bytes) == 0;
-            assert(ok, "shrinking - should always be ok");
+            ut_assert(ok, "shrinking - should always be ok");
         }
     }
     return ok;
@@ -1217,7 +1217,7 @@ static bool ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b,
     if (b == 0) { // cast below intentionally removes "const" qualifier
         s->g2b = (int32_t*)ui_edit_str_g2b_ascii;
         s->u = (char*)u;
-        assert(s->c == 0 && u[0] == 0x00);
+        ut_assert(s->c == 0 && u[0] == 0x00);
     } else {
         if (heap) {
             ok = ut_heap.alloc((void**)&s->u, b) == 0;
@@ -1269,7 +1269,7 @@ static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
 
 static bool ui_edit_str_move_to_heap(ui_edit_str_t* s, int32_t c) {
     bool ok = true;
-    assert(c >= s->b, "can expand cannot shrink");
+    ut_assert(c >= s->b, "can expand cannot shrink");
     if (s->c == 0) { // s->u points outside of the heap
         const char* o = s->u;
         ok = ut_heap.alloc((void**)&s->u, c) == 0;
@@ -1282,7 +1282,7 @@ static bool ui_edit_str_move_to_heap(ui_edit_str_t* s, int32_t c) {
 }
 
 static bool ui_edit_str_expand(ui_edit_str_t* s, int32_t c) {
-    swear(c > 0);
+    ut_swear(c > 0);
     bool ok = ui_edit_str_move_to_heap(s, c);
     if (ok && c > s->c) {
         if (ut_heap.realloc((void**)&s->u, c) == 0) {
@@ -1296,13 +1296,13 @@ static bool ui_edit_str_expand(ui_edit_str_t* s, int32_t c) {
 
 static void ui_edit_str_shrink(ui_edit_str_t* s) {
     if (s->c > s->b) { // s->c == 0 for empty and single byte ASCII strings
-        assert(s->u != ui_edit_str_empty_utf8);
+        ut_assert(s->u != ui_edit_str_empty_utf8);
         if (s->b == 0) {
             ut_heap.free(s->u);
             s->u = ui_edit_str_empty_utf8;
         } else {
             bool ok = ut_heap.realloc((void**)&s->u, s->b) == 0;
-            swear(ok, "smaller size is always expected to be ok");
+            ut_swear(ok, "smaller size is always expected to be ok");
         }
         s->c = s->b;
     }
@@ -1327,12 +1327,12 @@ static bool ui_edit_str_remove(ui_edit_str_t* s, int32_t f, int32_t t) {
     ui_edit_str_check_from_to(s, f, t);
     ui_edit_str_check(s);
     const int32_t bytes_to_remove = s->g2b[t] - s->g2b[f];
-    assert(bytes_to_remove >= 0);
+    ut_assert(bytes_to_remove >= 0);
     if (bytes_to_remove > 0) {
         ok = ui_edit_str_move_to_heap(s, s->b);
         if (ok) {
             const int32_t bytes_to_shift = s->b - s->g2b[t];
-            assert(0 <= bytes_to_shift && bytes_to_shift <= s->b);
+            ut_assert(0 <= bytes_to_shift && bytes_to_shift <= s->b);
             memmove(s->u + s->g2b[f], s->u + s->g2b[t], (size_t)bytes_to_shift);
             if (s->g2b != ui_edit_str_g2b_ascii) {
                 memmove(s->g2b + f, s->g2b + t,
@@ -1342,7 +1342,7 @@ static bool ui_edit_str_remove(ui_edit_str_t* s, int32_t f, int32_t t) {
                 }
             } else {
                 // no need to shrink g2b[] for ASCII only strings:
-                for (int32_t i = 0; i <= s->g; i++) { assert(s->g2b[i] == i); }
+                for (int32_t i = 0; i <= s->g; i++) { ut_assert(s->g2b[i] == i); }
             }
             s->b -= bytes_to_remove;
             s->g -= t - f;
@@ -1372,8 +1372,8 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
         const int32_t glyphs_to_remove = t - f; // only for readability
         if (ok) {
             const int32_t bytes = s->b + bytes_to_insert - bytes_to_remove;
-            assert(ins.g2b != null); // pacify code analysis
-            assert(bytes > 0);
+            ut_assert(ins.g2b != null); // pacify code analysis
+            ut_assert(bytes > 0);
             const int32_t c = ut_max(s->b, bytes);
             // keep g2b == ui_edit_str_g2b_ascii as much as possible
             const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
@@ -1392,9 +1392,9 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                            s->u + s->g2b[f] + bytes_to_remove,
                            (size_t)(s->b - s->g2b[f] - bytes_to_remove));
                     if (all_ascii) {
-                        assert(s->g2b == ui_edit_str_g2b_ascii);
+                        ut_assert(s->g2b == ui_edit_str_g2b_ascii);
                     } else {
-                        assert(s->g2b != ui_edit_str_g2b_ascii);
+                        ut_assert(s->g2b != ui_edit_str_g2b_ascii);
                         memmove(s->g2b + f + glyphs_to_insert,
                                s->g2b + f + glyphs_to_remove,
                                (size_t)(s->g - t + 1) * _4_bytes);
@@ -1402,12 +1402,12 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                     memmove(s->u + s->g2b[f], ins.u, (size_t)ins.b);
                 } else {
                     if (all_ascii) {
-                        assert(s->g2b == ui_edit_str_g2b_ascii);
+                        ut_assert(s->g2b == ui_edit_str_g2b_ascii);
                     } else {
-                        assert(s->g2b != ui_edit_str_g2b_ascii);
+                        ut_assert(s->g2b != ui_edit_str_g2b_ascii);
                         const int32_t g = s->g + glyphs_to_insert -
                                                  glyphs_to_remove;
-                        assert(g > s->g);
+                        ut_assert(g > s->g);
                         ok = ut_heap.realloc(&s->g2b,
                                              (size_t)(g + 1) * _4_bytes) == 0;
                     }
@@ -1417,9 +1417,9 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                                 s->u + s->g2b[f] + bytes_to_remove,
                                 (size_t)(s->b - s->g2b[f] - bytes_to_remove));
                         if (all_ascii) {
-                            assert(s->g2b == ui_edit_str_g2b_ascii);
+                            ut_assert(s->g2b == ui_edit_str_g2b_ascii);
                         } else {
-                            assert(s->g2b != ui_edit_str_g2b_ascii);
+                            ut_assert(s->g2b != ui_edit_str_g2b_ascii);
                             memmove(s->g2b + f + glyphs_to_insert,
                                     s->g2b + f + glyphs_to_remove,
                                     (size_t)(s->g - t + 1) * _4_bytes);
@@ -1429,33 +1429,33 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                 }
                 if (ok) {
                     if (!all_ascii) {
-                        assert(s->g2b != null && s->g2b != ui_edit_str_g2b_ascii);
+                        ut_assert(s->g2b != null && s->g2b != ui_edit_str_g2b_ascii);
                         for (int32_t i = f; i <= f + glyphs_to_insert; i++) {
                             s->g2b[i] = ins.g2b[i - f] + s->g2b[f];
                         }
                     } else {
-                        assert(s->g2b == ui_edit_str_g2b_ascii);
+                        ut_assert(s->g2b == ui_edit_str_g2b_ascii);
                         for (int32_t i = f; i <= f + glyphs_to_insert; i++) {
-                            assert(ui_edit_str_g2b_ascii[i] == i);
-                            assert(ins.g2b[i - f] + s->g2b[f] == i);
+                            ut_assert(ui_edit_str_g2b_ascii[i] == i);
+                            ut_assert(ins.g2b[i - f] + s->g2b[f] == i);
                         }
                     }
                     s->b += bytes_to_insert - bytes_to_remove;
                     s->g += glyphs_to_insert - glyphs_to_remove;
-                    assert(s->b == bytes);
+                    ut_assert(s->b == bytes);
                     if (!all_ascii) {
-                        assert(s->g2b != ui_edit_str_g2b_ascii);
+                        ut_assert(s->g2b != ui_edit_str_g2b_ascii);
                         for (int32_t i = f + glyphs_to_insert + 1; i <= s->g; i++) {
                             s->g2b[i] += bytes_to_insert - bytes_to_remove;
                         }
                         s->g2b[s->g] = s->b;
                     } else {
-                        assert(s->g2b == ui_edit_str_g2b_ascii);
+                        ut_assert(s->g2b == ui_edit_str_g2b_ascii);
                         for (int32_t i = f + glyphs_to_insert + 1; i <= s->g; i++) {
-                            assert(s->g2b[i] == i);
-                            assert(ui_edit_str_g2b_ascii[i] == i);
+                            ut_assert(s->g2b[i] == i);
+                            ut_assert(ui_edit_str_g2b_ascii[i] == i);
                         }
-                        assert(s->g2b[s->g] == s->b);
+                        ut_assert(s->g2b[s->g] == s->b);
                     }
                 }
             }
@@ -1689,7 +1689,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
         for (int32_t j = 0; j < n; j++) {
             if (gix_src[j] > 0) {
                 strcat(src, gs[gix_src[j]]);
-                assert(1 <= ngx && ngx <= n);
+                ut_assert(1 <= ngx && ngx <= n);
                 g2p[ngx] = g2p[ngx - 1] + gb[gix_src[j]];
                 ngx++;
             }
@@ -1705,7 +1705,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
         ui_edit_str_t s = {0};
         // reference constructor does not copy to heap:
         bool ok = ui_edit_str_init(&s, src, -1, false);
-        swear(ok);
+        ut_swear(ok);
         for (int32_t f = 0; f <= s.g; f++) { // from
             for (int32_t t = f; t <= s.g; t++) { // to
                 int32_t gix_rep[n] = {0};
@@ -1730,16 +1730,16 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                         rep,
                         (int32_t)strlen(src) - g2p[t], src + g2p[t]
                     );
-                    swear(strcmp(e1, e2) == 0,
+                    ut_swear(strcmp(e1, e2) == 0,
                         "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
                         "e1: \"%s\" e2: \"%s\"",
                         s.b, s.c, s.b, s.u, s.g, f, t, rep, e1, e2);
                     ui_edit_str_t c = {0}; // copy
                     ok = ui_edit_str_init(&c, src, -1, true);
-                    swear(ok);
+                    ut_swear(ok);
                     ok = ui_edit_str_replace(&c, f, t, rep, -1);
-                    swear(ok);
-                    swear(memcmp(c.u, e1, c.b) == 0,
+                    ut_swear(ok);
+                    ut_swear(memcmp(c.u, e1, c.b) == 0,
                            "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
                            "expected: \"%s\"",
                            s.b, s.c, s.b, s.u, s.g,
@@ -1755,7 +1755,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
 static void ui_edit_str_test_glyph_bytes(void) {
     #pragma push_macro("glyph_bytes_test")
     #define glyph_bytes_test(s, b, expectancy) \
-        swear(ut_str.utf8bytes(s, b) == expectancy)
+        ut_swear(ut_str.utf8bytes(s, b) == expectancy)
     // Valid Sequences
     glyph_bytes_test("a", 1, 1);
     glyph_bytes_test(ui_edit_gbp, 2, 2);
@@ -1789,11 +1789,11 @@ static void ui_edit_str_test(void) {
     {
         ui_edit_str_t s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
-        swear(ok);
-        swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
-        swear(s.g == 5 && s.g2b != null);
+        ut_swear(ok);
+        ut_swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
+        ut_swear(s.g == 5 && s.g2b != null);
         for (int32_t i = 0; i <= s.g; i++) {
-            swear(s.g2b[i] == i);
+            ut_swear(s.g2b[i] == i);
         }
         ui_edit_str_free(&s);
     }
@@ -1804,40 +1804,40 @@ static void ui_edit_str_test(void) {
         ui_edit_str_t s = {0};
         const int32_t n = (int32_t)strlen(currencies);
         bool ok = ui_edit_str_init(&s, money, n, true);
-        swear(ok);
-        swear(s.b == n && s.c == s.b && memcmp(s.u, money, s.b) == 0);
-        swear(s.g == 4 && s.g2b != null);
+        ut_swear(ok);
+        ut_swear(s.b == n && s.c == s.b && memcmp(s.u, money, s.b) == 0);
+        ut_swear(s.g == 4 && s.g2b != null);
         const int32_t g2b[] = {0, 1, 3, 6, 10};
         for (int32_t i = 0; i <= s.g; i++) {
-            swear(s.g2b[i] == g2b[i]);
+            ut_swear(s.g2b[i] == g2b[i]);
         }
         ui_edit_str_free(&s);
     }
     {
         ui_edit_str_t s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
-        swear(ok);
+        ut_swear(ok);
         ok = ui_edit_str_replace(&s, 1, 4, null, 0);
-        swear(ok);
-        swear(s.b == 2 && memcmp(s.u, "ho", 2) == 0);
-        swear(s.g == 2 && s.g2b[0] == 0 && s.g2b[1] == 1 && s.g2b[2] == 2);
+        ut_swear(ok);
+        ut_swear(s.b == 2 && memcmp(s.u, "ho", 2) == 0);
+        ut_swear(s.g == 2 && s.g2b[0] == 0 && s.g2b[1] == 1 && s.g2b[2] == 2);
         ui_edit_str_free(&s);
     }
     {
         ui_edit_str_t s = {0};
         bool ok = ui_edit_str_init(&s, "Hello world", -1, false);
-        swear(ok);
+        ut_swear(ok);
         ok = ui_edit_str_replace(&s, 5, 6, " cruel ", -1);
-        swear(ok);
+        ut_swear(ok);
         ok = ui_edit_str_replace(&s, 0, 5, "Goodbye", -1);
-        swear(ok);
+        ut_swear(ok);
         ok = ui_edit_str_replace(&s, s.g - 5, s.g, "Universe", -1);
-        swear(ok);
-        swear(s.g == 22 && s.g2b[0] == 0 && s.g2b[s.g] == s.b);
+        ut_swear(ok);
+        ut_swear(s.g == 22 && s.g2b[0] == 0 && s.g2b[s.g] == s.b);
         for (int32_t i = 1; i < s.g; i++) {
-            swear(s.g2b[i] == i); // because every glyph is ASCII
+            ut_swear(s.g2b[i] == i); // because every glyph is ASCII
         }
-        swear(memcmp(s.u, "Goodbye cruel Universe", 22) == 0);
+        ut_swear(memcmp(s.u, "Goodbye cruel Universe", 22) == 0);
         ui_edit_str_free(&s);
     }
     #ifdef UI_STR_TEST_REPLACE_ALL_PERMUTATIONS
@@ -1882,7 +1882,7 @@ static void ui_edit_doc_test_big_text(void) {
     text[MB10 - 1] = 0x00;
     ui_edit_text_t t = {0};
     bool ok = ui_edit_text.init(&t, text, MB10, false);
-    swear(ok);
+    ut_swear(ok);
     ui_edit_text.dispose(&t);
     ut_heap.free(text);
 }
@@ -1894,11 +1894,11 @@ static void ui_edit_doc_test_paragraphs(void) {
         {   // empty string to paragraphs:
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, null, 0, false);
-            swear(ok);
-            swear(t.ps != null && t.np == 1);
-            swear(t.ps[0].u[0] == 0 &&
+            ut_swear(ok);
+            ut_swear(t.ps != null && t.np == 1);
+            ut_swear(t.ps[0].u[0] == 0 &&
                   t.ps[0].c == 0);
-            swear(t.ps[0].b == 0 &&
+            ut_swear(t.ps[0].b == 0 &&
                   t.ps[0].g == 0);
             ui_edit_text.dispose(&t);
         }
@@ -1907,28 +1907,28 @@ static void ui_edit_doc_test_paragraphs(void) {
             const int32_t n = (int32_t)strlen(hello);
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, hello, n, false);
-            swear(ok);
-            swear(t.ps != null && t.np == 1);
-            swear(t.ps[0].u == hello);
-            swear(t.ps[0].c == 0);
-            swear(t.ps[0].b == n);
-            swear(t.ps[0].g == n);
+            ut_swear(ok);
+            ut_swear(t.ps != null && t.np == 1);
+            ut_swear(t.ps[0].u == hello);
+            ut_swear(t.ps[0].c == 0);
+            ut_swear(t.ps[0].b == n);
+            ut_swear(t.ps[0].g == n);
             ui_edit_text.dispose(&t);
         }
         {   // string with "\n" at the end
             const char* hello = "hello\n";
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
-            swear(ok);
-            swear(t.ps != null && t.np == 2);
-            swear(t.ps[0].u == hello);
-            swear(t.ps[0].c == 0);
-            swear(t.ps[0].b == 5);
-            swear(t.ps[0].g == 5);
-            swear(t.ps[1].u[0] == 0x00);
-            swear(t.ps[0].c == 0);
-            swear(t.ps[1].b == 0);
-            swear(t.ps[1].g == 0);
+            ut_swear(ok);
+            ut_swear(t.ps != null && t.np == 2);
+            ut_swear(t.ps[0].u == hello);
+            ut_swear(t.ps[0].c == 0);
+            ut_swear(t.ps[0].b == 5);
+            ut_swear(t.ps[0].g == 5);
+            ut_swear(t.ps[1].u[0] == 0x00);
+            ut_swear(t.ps[0].c == 0);
+            ut_swear(t.ps[1].b == 0);
+            ut_swear(t.ps[1].g == 0);
             ui_edit_text.dispose(&t);
         }
         {   // two string separated by "\n"
@@ -1936,16 +1936,16 @@ static void ui_edit_doc_test_paragraphs(void) {
             const char* world = hello + 6;
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
-            swear(ok);
-            swear(t.ps != null && t.np == 2);
-            swear(t.ps[0].u == hello);
-            swear(t.ps[0].c == 0);
-            swear(t.ps[0].b == 5);
-            swear(t.ps[0].g == 5);
-            swear(t.ps[1].u == world);
-            swear(t.ps[0].c == 0);
-            swear(t.ps[1].b == 5);
-            swear(t.ps[1].g == 5);
+            ut_swear(ok);
+            ut_swear(t.ps != null && t.np == 2);
+            ut_swear(t.ps[0].u == hello);
+            ut_swear(t.ps[0].c == 0);
+            ut_swear(t.ps[0].b == 5);
+            ut_swear(t.ps[0].g == 5);
+            ut_swear(t.ps[1].u == world);
+            ut_swear(t.ps[0].c == 0);
+            ut_swear(t.ps[1].b == 5);
+            ut_swear(t.ps[1].g == 5);
             ui_edit_text.dispose(&t);
         }
     }
@@ -1980,11 +1980,11 @@ static struct {
 static void ui_edit_doc_test_0(void) {
     ui_edit_doc_t edit_doc = {0};
     ui_edit_doc_t* d = &edit_doc;
-    swear(ui_edit_doc.init(d, null, 0, false));
+    ut_swear(ui_edit_doc.init(d, null, 0, false));
     ui_edit_text_t ins_text = {0};
-    swear(ui_edit_text.init(&ins_text, "a", 1, false));
+    ut_swear(ui_edit_text.init(&ins_text, "a", 1, false));
     ui_edit_to_do_t undo = {0};
-    swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
+    ut_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
     ui_edit_doc.dispose(d);
@@ -1993,11 +1993,11 @@ static void ui_edit_doc_test_0(void) {
 static void ui_edit_doc_test_1(void) {
     ui_edit_doc_t edit_doc = {0};
     ui_edit_doc_t* d = &edit_doc;
-    swear(ui_edit_doc.init(d, null, 0, false));
+    ut_swear(ui_edit_doc.init(d, null, 0, false));
     ui_edit_text_t ins_text = {0};
-    swear(ui_edit_text.init(&ins_text, "a", 1, false));
+    ut_swear(ui_edit_text.init(&ins_text, "a", 1, false));
     ui_edit_to_do_t undo = {0};
-    swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
+    ut_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
     ui_edit_doc.dispose(d);
@@ -2007,7 +2007,7 @@ static void ui_edit_doc_test_2(void) {
     {   // two string separated by "\n"
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d, null, 0, false));
+        ut_swear(ui_edit_doc.init(d, null, 0, false));
         ui_edit_notify_t notify1 = {0};
         ui_edit_notify_t notify2 = {0};
         ui_edit_doc_test_notify_t before_and_after = {0};
@@ -2016,18 +2016,18 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_doc.subscribe(d, &notify1);
         ui_edit_doc.subscribe(d, &before_and_after.notify);
         ui_edit_doc.subscribe(d, &notify2);
-        swear(ui_edit_doc.bytes(d, null) == 0, "expected empty");
+        ut_swear(ui_edit_doc.bytes(d, null) == 0, "expected empty");
         const char* hello = "hello\nworld";
-        swear(ui_edit_doc.replace(d, null, hello, -1));
+        ut_swear(ui_edit_doc.replace(d, null, hello, -1));
         ui_edit_text_t t = {0};
-        swear(ui_edit_doc.copy_text(d, null, &t));
-        swear(t.np == 2);
-        swear(t.ps[0].b == 5);
-        swear(t.ps[0].g == 5);
-        swear(memcmp(t.ps[0].u, "hello", 5) == 0);
-        swear(t.ps[1].b == 5);
-        swear(t.ps[1].g == 5);
-        swear(memcmp(t.ps[1].u, "world", 5) == 0);
+        ut_swear(ui_edit_doc.copy_text(d, null, &t));
+        ut_swear(t.np == 2);
+        ut_swear(t.ps[0].b == 5);
+        ut_swear(t.ps[0].g == 5);
+        ut_swear(memcmp(t.ps[0].u, "hello", 5) == 0);
+        ut_swear(t.ps[1].b == 5);
+        ut_swear(t.ps[1].g == 5);
+        ut_swear(memcmp(t.ps[1].u, "world", 5) == 0);
         ui_edit_text.dispose(&t);
         ui_edit_doc.unsubscribe(d, &notify1);
         ui_edit_doc.unsubscribe(d, &before_and_after.notify);
@@ -2038,23 +2038,23 @@ static void ui_edit_doc_test_2(void) {
     {   // three string separated by "\n"
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d, null, 0, false));
+        ut_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s = "Goodbye" "\n" "Cruel" "\n" "Universe";
-        swear(ui_edit_doc.replace(d, null, s, -1));
+        ut_swear(ui_edit_doc.replace(d, null, s, -1));
         ui_edit_text_t t = {0};
-        swear(ui_edit_doc.copy_text(d, null, &t));
+        ut_swear(ui_edit_doc.copy_text(d, null, &t));
         ui_edit_text.dispose(&t);
         ui_edit_range_t r = { .from = {.pn = 0, .gp = 4},
                               .to   = {.pn = 2, .gp = 3} };
-        swear(ui_edit_doc.replace(d, &r, null, 0));
-        swear(d->text.np == 1);
-        swear(d->text.ps[0].b == 9);
-        swear(d->text.ps[0].g == 9);
-        swear(memcmp(d->text.ps[0].u, "Goodverse", 9) == 0);
-        swear(ui_edit_doc.replace(d, null, null, 0)); // remove all
-        swear(d->text.np == 1);
-        swear(d->text.ps[0].b == 0);
-        swear(d->text.ps[0].g == 0);
+        ut_swear(ui_edit_doc.replace(d, &r, null, 0));
+        ut_swear(d->text.np == 1);
+        ut_swear(d->text.ps[0].b == 9);
+        ut_swear(d->text.ps[0].g == 9);
+        ut_swear(memcmp(d->text.ps[0].u, "Goodverse", 9) == 0);
+        ut_swear(ui_edit_doc.replace(d, null, null, 0)); // remove all
+        ut_swear(d->text.np == 1);
+        ut_swear(d->text.ps[0].b == 0);
+        ut_swear(d->text.ps[0].g == 0);
         ui_edit_doc.dispose(d);
     }
     // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
@@ -2063,20 +2063,20 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_doc_t* d = &edit_doc;
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
         for (int32_t i = 0; i < ut_countof(ins); i++) {
-            swear(ui_edit_doc.init(d, null, 0, false));
+            ut_swear(ui_edit_doc.init(d, null, 0, false));
             const char* s = "GoodbyeCruelUniverse";
-            swear(ui_edit_doc.replace(d, null, s, -1));
+            ut_swear(ui_edit_doc.replace(d, null, s, -1));
             ui_edit_range_t r = { .from = {.pn = 0, .gp =  7},
                                   .to   = {.pn = 0, .gp = 12} };
             ui_edit_text_t ins_text = {0};
             ui_edit_text.init(&ins_text, ins[i], -1, false);
             ui_edit_to_do_t undo = {0};
-            swear(ui_edit_text.replace(&d->text, &r, &ins_text, &undo));
+            ut_swear(ui_edit_text.replace(&d->text, &r, &ins_text, &undo));
             ui_edit_to_do_t redo = {0};
-            swear(ui_edit_text.replace(&d->text, &undo.range, &undo.text, &redo));
+            ut_swear(ui_edit_text.replace(&d->text, &undo.range, &undo.text, &redo));
             ui_edit_doc.dispose_to_do(&undo);
             undo.range = (ui_edit_range_t){0};
-            swear(ui_edit_text.replace(&d->text, &redo.range, &redo.text, &undo));
+            ut_swear(ui_edit_text.replace(&d->text, &redo.range, &redo.text, &undo));
             ui_edit_doc.dispose_to_do(&redo);
             ui_edit_doc.dispose_to_do(&undo);
             ui_edit_text.dispose(&ins_text);
@@ -2092,31 +2092,31 @@ static void ui_edit_doc_test_3(void) {
         ui_edit_doc_test_notify_t before_and_after = {0};
         before_and_after.notify.before = ui_edit_doc_test_before;
         before_and_after.notify.after  = ui_edit_doc_test_after;
-        swear(ui_edit_doc.init(d, null, 0, false));
-        swear(ui_edit_doc.subscribe(d, &before_and_after.notify));
+        ut_swear(ui_edit_doc.init(d, null, 0, false));
+        ut_swear(ui_edit_doc.subscribe(d, &before_and_after.notify));
         const char* s = "Goodbye Cruel Universe";
         const int32_t before = before_and_after.count_before;
         const int32_t after  = before_and_after.count_after;
-        swear(ui_edit_doc.replace(d, null, s, -1));
+        ut_swear(ui_edit_doc.replace(d, null, s, -1));
         const int32_t bytes = (int32_t)strlen(s);
-        swear(before + 1 == before_and_after.count_before);
-        swear(after  + 1 == before_and_after.count_after);
-        swear(d->text.np == 1);
-        swear(ui_edit_doc.bytes(d, null) == bytes);
+        ut_swear(before + 1 == before_and_after.count_before);
+        ut_swear(after  + 1 == before_and_after.count_after);
+        ut_swear(d->text.np == 1);
+        ut_swear(ui_edit_doc.bytes(d, null) == bytes);
         ui_edit_text_t t = {0};
-        swear(ui_edit_doc.copy_text(d, null, &t));
-        swear(t.np == 1);
-        swear(t.ps[0].b == bytes);
-        swear(t.ps[0].g == bytes);
-        swear(memcmp(t.ps[0].u, s, t.ps[0].b) == 0);
+        ut_swear(ui_edit_doc.copy_text(d, null, &t));
+        ut_swear(t.np == 1);
+        ut_swear(t.ps[0].b == bytes);
+        ut_swear(t.ps[0].g == bytes);
+        ut_swear(memcmp(t.ps[0].u, s, t.ps[0].b) == 0);
         // with "\n" and 0x00 at the end:
         int32_t utf8bytes = ui_edit_doc.utf8bytes(d, null);
         char* p = null;
-        swear(ut_heap.alloc((void**)&p, utf8bytes) == 0);
+        ut_swear(ut_heap.alloc((void**)&p, utf8bytes) == 0);
         p[utf8bytes - 1] = 0xFF;
         ui_edit_doc.copy(d, null, p, utf8bytes);
-        swear(p[utf8bytes - 1] == 0x00);
-        swear(memcmp(p, s, bytes) == 0);
+        ut_swear(p[utf8bytes - 1] == 0x00);
+        ut_swear(memcmp(p, s, bytes) == 0);
         ut_heap.free(p);
         ui_edit_text.dispose(&t);
         ui_edit_doc.unsubscribe(d, &before_and_after.notify);
@@ -2125,24 +2125,24 @@ static void ui_edit_doc_test_3(void) {
     {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d, null, 0, false));
+        ut_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s =
             "Hello World"
             "\n"
             "Goodbye Cruel Universe";
-        swear(ui_edit_doc.replace(d, null, s, -1));
-        swear(ui_edit_doc.undo(d));
-        swear(ui_edit_doc.bytes(d, null) == 0);
-        swear(ui_edit_doc.utf8bytes(d, null) == 1);
-        swear(ui_edit_doc.redo(d));
+        ut_swear(ui_edit_doc.replace(d, null, s, -1));
+        ut_swear(ui_edit_doc.undo(d));
+        ut_swear(ui_edit_doc.bytes(d, null) == 0);
+        ut_swear(ui_edit_doc.utf8bytes(d, null) == 1);
+        ut_swear(ui_edit_doc.redo(d));
         {
             int32_t utf8bytes = ui_edit_doc.utf8bytes(d, null);
             char* p = null;
-            swear(ut_heap.alloc((void**)&p, utf8bytes) == 0);
+            ut_swear(ut_heap.alloc((void**)&p, utf8bytes) == 0);
             p[utf8bytes - 1] = 0xFF;
             ui_edit_doc.copy(d, null, p, utf8bytes);
-            swear(p[utf8bytes - 1] == 0x00);
-            swear(memcmp(p, s, utf8bytes) == 0);
+            ut_swear(p[utf8bytes - 1] == 0x00);
+            ut_swear(memcmp(p, s, utf8bytes) == 0);
             ut_heap.free(p);
         }
         ui_edit_doc.dispose(d);
@@ -2153,20 +2153,20 @@ static void ui_edit_doc_test_4(void) {
     {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        swear(ui_edit_doc.init(d, null, 0, false));
+        ut_swear(ui_edit_doc.init(d, null, 0, false));
         ui_edit_range_t r = {0};
         r = ui_edit_text.end_range(&d->text);
-        swear(ui_edit_doc.replace(d, &r, "a", -1));
+        ut_swear(ui_edit_doc.replace(d, &r, "a", -1));
         r = ui_edit_text.end_range(&d->text);
-        swear(ui_edit_doc.replace(d, &r, "\n", -1));
+        ut_swear(ui_edit_doc.replace(d, &r, "\n", -1));
         r = ui_edit_text.end_range(&d->text);
-        swear(ui_edit_doc.replace(d, &r, "b", -1));
+        ut_swear(ui_edit_doc.replace(d, &r, "b", -1));
         r = ui_edit_text.end_range(&d->text);
-        swear(ui_edit_doc.replace(d, &r, "\n", -1));
+        ut_swear(ui_edit_doc.replace(d, &r, "\n", -1));
         r = ui_edit_text.end_range(&d->text);
-        swear(ui_edit_doc.replace(d, &r, "c", -1));
+        ut_swear(ui_edit_doc.replace(d, &r, "c", -1));
         r = ui_edit_text.end_range(&d->text);
-        swear(ui_edit_doc.replace(d, &r, "\n", -1));
+        ut_swear(ui_edit_doc.replace(d, &r, "\n", -1));
         ui_edit_doc.dispose(d);
     }
 }
@@ -2175,7 +2175,7 @@ static void ui_edit_doc_test(void) {
     {
         ui_edit_range_t r = { .from = {0,0}, .to = {0,0} };
         ut_static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
-        swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
+        ut_swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
     }
     #ifdef UI_EDIT_DOC_TEST_PARAGRAPHS
         ui_edit_doc_test_paragraphs();

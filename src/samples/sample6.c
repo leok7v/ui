@@ -54,11 +54,11 @@ static const char* midi_file(void) {
         ut_fatal_if_error(r);
         ut_fatal_if_error(ut_files.create_tmp(filename,
                                       ut_countof(filename)));
-        assert(filename[0] != 0);
+        ut_assert(filename[0] != 0);
         int64_t written = 0;
         ut_fatal_if_error(ut_files.write_fully(filename, data, bytes,
                                                         &written));
-        assert(written == bytes);
+        ut_assert(written == bytes);
     }
     return filename;
 }
@@ -135,7 +135,7 @@ static void load_gif(void) {
     ut_fatal_if_error(r);
     // load_animated_gif() calls realloc(delays) w/o first alloc()
     r = ut_heap.allocate(null, (void**)&gif.delays, sizeof(int32_t), false);
-    swear(r == 0 && gif.delays != null);
+    ut_swear(r == 0 && gif.delays != null);
     gif.pixels = load_animated_gif(data, bytes, &gif.delays,
         &gif.w, &gif.h, &gif.frames, &gif.bpp, 4);
     if (gif.pixels == null || gif.bpp != 4 || gif.frames < 1) {

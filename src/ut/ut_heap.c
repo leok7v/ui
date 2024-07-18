@@ -38,7 +38,7 @@ static inline HANDLE ut_heap_or_process_heap(ut_heap_t* h) {
 }
 
 static errno_t ut_heap_allocate(ut_heap_t* h, void* *p, int64_t bytes, bool zero) {
-    swear(bytes > 0);
+    ut_swear(bytes > 0);
     #ifdef DEBUG
         static bool enabled;
         if (!enabled) {
@@ -53,7 +53,7 @@ static errno_t ut_heap_allocate(ut_heap_t* h, void* *p, int64_t bytes, bool zero
 
 static errno_t ut_heap_reallocate(ut_heap_t* h, void* *p, int64_t bytes,
         bool zero) {
-    swear(bytes > 0);
+    ut_swear(bytes > 0);
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
     void* a = *p == null ? // HeapReAlloc(..., null, bytes) may not work
         HeapAlloc(ut_heap_or_process_heap(h), flags, (SIZE_T)bytes) :
@@ -81,7 +81,7 @@ static void ut_heap_test(void) {
     for (int i = 0; i < 1024; i++) {
         b[i] = (int32_t)(ut_num.random32(&seed) % 1024) + 1;
         errno_t r = ut_heap.alloc(&a[i], b[i]);
-        swear(r == 0);
+        ut_swear(r == 0);
     }
     for (int i = 0; i < 1024; i++) {
         ut_heap.free(a[i]);
@@ -89,7 +89,7 @@ static void ut_heap_test(void) {
     HeapCompact(ut_heap_or_process_heap(null), 0);
     // "There is no extended error information for HeapValidate;
     //  do not call GetLastError."
-    swear(HeapValidate(ut_heap_or_process_heap(null), 0, null));
+    ut_swear(HeapValidate(ut_heap_or_process_heap(null), 0, null));
     if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }

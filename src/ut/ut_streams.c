@@ -3,9 +3,9 @@
 
 static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t bytes,
         int64_t *transferred) {
-    swear(bytes > 0);
+    ut_swear(bytes > 0);
     ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
-    swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
+    ut_swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
     int64_t transfer = ut_min(bytes, s->bytes_read - s->pos_read);
@@ -17,9 +17,9 @@ static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t 
 
 static errno_t ut_streams_memory_write(ut_stream_if* stream, const void* data, int64_t bytes,
         int64_t *transferred) {
-    swear(bytes > 0);
+    ut_swear(bytes > 0);
     ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
-    swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
+    ut_swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
     bool overflow = s->bytes_write - s->pos_write <= 0;
@@ -81,9 +81,9 @@ static void ut_streams_test(void) {
             for (int32_t j = 0; j < ut_countof(data); j++) { data[j] = 0xFF; }
             int64_t transferred = 0;
             errno_t r = ms.stream.read(&ms.stream, data, i, &transferred);
-            swear(r == 0 && transferred == i);
-            for (int32_t j = 0; j < i; j++) { swear(data[j] == memory[j]); }
-            for (int32_t j = i; j < ut_countof(data); j++) { swear(data[j] == 0xFF); }
+            ut_swear(r == 0 && transferred == i);
+            for (int32_t j = 0; j < i; j++) { ut_swear(data[j] == memory[j]); }
+            for (int32_t j = i; j < ut_countof(data); j++) { ut_swear(data[j] == 0xFF); }
         }
     }
     {   // write test

@@ -115,7 +115,7 @@ static void ui_button_character(ui_view_t* v, const char* utf8) {
 }
 
 static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
-    assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    ut_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_button_trigger(v); }
     return trigger; // swallow if true
@@ -125,7 +125,7 @@ static void ui_button_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
     ui_button_t* b = (ui_button_t*)v;
-    assert(ui_view.inside(b, &ui_app.mouse));
+    ut_assert(ui_view.inside(b, &ui_app.mouse));
     ui_view.invalidate(v, null); // always on any press/release inside
     if (pressed && b->flip) {
         if (b->flip) { ui_button_callback(b); }
@@ -138,7 +138,7 @@ static void ui_button_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
 }
 
 void ui_view_init_button(ui_view_t* v) {
-    assert(v->type == ui_view_button);
+    ut_assert(v->type == ui_view_button);
     v->mouse_click   = ui_button_mouse_click;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;

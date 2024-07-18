@@ -68,7 +68,7 @@ static void ui_app_update_wt_timeout(void) {
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
 // TODO: remove
 //          ut_println("dt: %.6f %lld", dt, rt.QuadPart);
-            swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
+            ut_swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
             ut_fatal_win32err(
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
             );
@@ -80,7 +80,7 @@ static void ui_app_update_wt_timeout(void) {
 static void ui_app_post(ut_work_t* w) {
     if (w->queue == null) { w->queue = &ui_app_queue; }
     // work item can be reused but only with the same queue
-    assert(w->queue == &ui_app_queue);
+    ut_assert(w->queue == &ui_app_queue);
     ut_work_queue.post(w);
     ui_app_update_wt_timeout();
 }
@@ -197,7 +197,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
                     dpi->monitor_raw = max_xy;
 //                  ut_println("ui_app.dpi.monitor_raw := max(%d,%d)", dpi_x, dpi_y);
                     break;
-                default: assert(false);
+                default: ut_assert(false);
             }
             dpi->monitor_max = ut_max(dpi->monitor_max, max_xy);
         }
@@ -297,7 +297,7 @@ static void ui_app_init_fonts(int32_t dpi) {
 //  ui_gdi.dump_fm(ui_app.fm.regular.font);
     const fp64_t fh = ui_app_ncm.lfMessageFont.lfHeight;
 //  ut_println("lfHeight=%.1f", fh);
-    assert(fh != 0);
+    ut_assert(fh != 0);
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
     ui_gdi.update_fm(&ui_app.fm.H1, (ui_font_t)CreateFontIndirectW(&lf));
@@ -446,7 +446,7 @@ static bool ui_app_is_fully_inside(const ui_rect_t* inner,
 }
 
 static void ui_app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* wrc) {
-    assert(mrc->w > 0 && mrc->h > 0);
+    ut_assert(mrc->w > 0 && mrc->h > 0);
     // Check if window rect is inside monitor rect
     if (!ui_app_is_fully_inside(wrc, mrc)) {
         // Move window into monitor rect
@@ -532,10 +532,10 @@ static void ui_app_timer_kill(ui_timer_t timer) {
 
 static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
     ut_not_null(ui_app_window());
-    assert(10 <= ms && ms < 0x7FFFFFFF);
+    ut_assert(10 <= ms && ms < 0x7FFFFFFF);
     ui_timer_t tid = (ui_timer_t)SetTimer(ui_app_window(), id, (uint32_t)ms, null);
     ut_fatal_if(tid == 0);
-    assert(tid == id);
+    ut_assert(tid == id);
     return tid;
 }
 
@@ -573,7 +573,7 @@ static void ui_app_window_opening(void) {
     ui_app_init_cursors();
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
-    assert(ui_app.cursors.arrow != null);
+    ut_assert(ui_app.cursors.arrow != null);
     ui_app.set_cursor(ui_app.cursors.arrow);
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
     ut_not_null(ui_app.canvas);
@@ -630,7 +630,7 @@ static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
 }
 
 static void ui_app_paint(ui_view_t* view) {
-    assert(ui_app_window() != null);
+    ut_assert(ui_app_window() != null);
     // crc = {0,0} on minimized windows but paint is still called
     if (ui_app.crc.w > 0 && ui_app.crc.h > 0) { ui_view.paint(view); }
 }
@@ -651,7 +651,7 @@ static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed);
 static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
     char utf8[32 + 1];
     int32_t utf8bytes = ut_str.utf8_bytes(utf16, -1);
-    swear(utf8bytes < ut_countof(utf8) - 1); // 32 bytes + 0x00
+    ut_swear(utf8bytes < ut_countof(utf8) - 1); // 32 bytes + 0x00
     ut_str.utf16to8(utf8, ut_countof(utf8), utf16, -1);
     utf8[utf8bytes] = 0x00;
     if (ui_app.animating.view != null) {
@@ -664,7 +664,7 @@ static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
 
 static void ui_app_wm_char(ui_view_t* view, const uint16_t* utf16) {
     int32_t utf16chars = ut_str.len16(utf16);
-    swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
+    ut_swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
     const uint16_t utf16char = utf16[0];
     if (utf16chars == 1 && ut_str.utf16_is_high_surrogate(utf16char)) {
         ui_app_high_surrogate = utf16char;
@@ -711,7 +711,7 @@ static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
              (m == WM_LBUTTONDOWN || m == WM_LBUTTONUP) ? 0 :
             ((m == WM_MBUTTONDOWN || m == WM_MBUTTONUP) ? 1 :
             ((m == WM_RBUTTONDOWN || m == WM_RBUTTONUP) ? 2 : -1));
-        swear(i >= 0);
+        ut_swear(i >= 0);
         const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
         const bool pressed =
             m == WM_LBUTTONDOWN ||
@@ -730,11 +730,11 @@ static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
              (m == WM_LBUTTONDBLCLK) ? 0 :
             ((m == WM_MBUTTONDBLCLK) ? 1 :
             ((m == WM_RBUTTONDBLCLK) ? 2 : -1));
-        swear(i >= 0);
+        ut_swear(i >= 0);
         const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
         ui_view.double_click(av != null && av->double_click != null ? av : v, ix);
     } else {
-        assert(false, "m: 0x%04X", m);
+        ut_assert(false, "m: 0x%04X", m);
     }
 }
 
@@ -764,7 +764,7 @@ static int32_t ui_app_nc_mouse_message(int32_t m) {
         case WM_NCRBUTTONDOWN   : return WM_RBUTTONDOWN;
         case WM_NCRBUTTONUP     : return WM_RBUTTONUP;
         case WM_NCRBUTTONDBLCLK : return WM_RBUTTONDBLCLK;
-        default: swear(false, "fix me m: %d", m);
+        default: ut_swear(false, "fix me m: %d", m);
     }
     return -1;
 }
@@ -806,7 +806,7 @@ static void ui_app_toast_paint(void) {
         const int32_t em_w = av->fm->em.w;
         const int32_t em_h = av->fm->em.h;
         if (!hint) {
-            assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
+            ut_assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
             av->y = av->h * step / (ui_app_animation_steps - 1);
 //          ut_println("step=%d of %d y=%d", ui_app.animating.step,
@@ -889,7 +889,7 @@ static void ui_app_toast_cancel(void) {
 }
 
 static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed) {
-    swear(v == ui_app.animating.view);
+    ut_swear(v == ui_app.animating.view);
     if (pressed) {
         const ui_fm_t* fm = v->fm;
         const int32_t right = v->x + v->w;
@@ -997,7 +997,7 @@ static void ui_app_view_active_frame_paint(void) {
     ui_color_t c = ui_app.is_active() ?
         ui_colors.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
         ui_colors.get_color(ui_color_id_inactive_title);
-    assert(ui_app.border.w == ui_app.border.h);
+    ut_assert(ui_app.border.w == ui_app.border.h);
     const int32_t w = ui_app.wrc.w;
     const int32_t h = ui_app.wrc.h;
     for (int32_t i = 0; i < ui_app.border.w; i++) {
@@ -1138,7 +1138,7 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma push_macro("ui_timers_done")
 
     #define ui_set_timer(t, ms) do {                 \
-        assert(t == 0);                              \
+        ut_assert(t == 0);                              \
         t = ui_app_timer_set((uintptr_t)&t, ms);     \
     } while (0)
 
@@ -1226,7 +1226,7 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
             }
             ui_kill_timer(timer_p[ix]); // long press is not the case
         } else if (m == double_tap) {
-            assert((ui_app_wc.style & CS_DBLCLKS) != 0);
+            ut_assert((ui_app_wc.style & CS_DBLCLKS) != 0);
             ui_view.double_tap(ui_app.root, ix);
             ui_timers_done(ix);
         }
@@ -1237,9 +1237,9 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 }
 
 static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
-    swear(v == ui_app.root);
+    ut_swear(v == ui_app.root);
     if (ui_app.no_decor) {
-        assert(ui_app.border.w == ui_app.border.h);
+        ut_assert(ui_app.border.w == ui_app.border.h);
         // on 96dpi monitors ui_app.border is 1x1
         // make it easier for the user to resize window
         int32_t border = ut_max(4, ui_app.border.w * 2);
@@ -1316,7 +1316,7 @@ static int64_t ui_app_wm_sys_key_down(int64_t wp, int64_t lp) {
 
 static void ui_app_wm_set_focus(void) {
     if (!ui_app.root->state.hidden) {
-        assert(GetActiveWindow() == ui_app_window());
+        ut_assert(GetActiveWindow() == ui_app_window());
         if (ui_app.focus != null && ui_app.focus->focus_lost != null) {
             ui_app.focus->focus_gained(ui_app.focus);
         }
@@ -1472,7 +1472,7 @@ static void ui_app_wm_input_language_change(uint64_t wp) {
 
 static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
     // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
-    swear(m == WM_KEYDOWN || m == WM_SYSKEYDOWN ||
+    ut_swear(m == WM_KEYDOWN || m == WM_SYSKEYDOWN ||
           m == WM_KEYUP   || m == WM_SYSKEYUP);
     uint16_t vk_code   = LOWORD(wp);
     uint16_t key_flags = HIWORD(lp);
@@ -1526,7 +1526,7 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
         // The specified virtual key has no translation for the
         // current state of the keyboard. (E.g. arrows, enter etc)
     } else {
-        assert(r < 0);
+        ut_assert(r < 0);
         // The specified virtual key is a dead key character (accent or diacritic).
         if (ui_app_trace_utf16_keyboard_input) { ut_println("dead key"); }
     }
@@ -1559,7 +1559,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
     } else {
-        assert(ui_app_window() == window);
+        ut_assert(ui_app_window() == window);
     }
     ut_work_queue.dispatch(&ui_app_queue);
     ui_app_update_wt_timeout(); // because head might have changed
@@ -1773,7 +1773,7 @@ static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
     }
     if (color != ui_color_undefined) {
         mask |= LWA_COLORKEY;
-        assert(ui_color_is_8bit(color));
+        ut_assert(ui_color_is_8bit(color));
         c = ui_gdi.color_rgb(color);
     }
     return ut_b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
@@ -1868,7 +1868,7 @@ static void ui_app_create_window(const ui_rect_t r) {
         class_name, title, ui_app_window_style(),
         r.x, r.y, r.w, r.h, null, null, wc->hInstance, null);
     ut_not_null(ui_app.window);
-    swear(window == ui_app_window());
+    ut_swear(window == ui_app_window());
     ui_app.show_window(ui.visibility.hide);
     ui_view.set_text(&ui_caption.title, "%s", ui_app.title);
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
@@ -1943,7 +1943,7 @@ static int32_t ui_app_message_loop(void) {
         DispatchMessageW(&msg);
     }
     ut_work_queue.flush(&ui_app_queue);
-    assert(msg.message == WM_QUIT);
+    ut_assert(msg.message == WM_QUIT);
     return (int32_t)msg.wParam;
 }
 
@@ -2038,7 +2038,7 @@ static void ui_app_create_caret(int32_t w, int32_t h) {
     ui_app_caret_w = w;
     ui_app_caret_h = h;
     ut_fatal_win32err(CreateCaret(ui_app_window(), null, w, h));
-    assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
+    ut_assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
 }
 
 static void ui_app_invalidate_caret(void) {
@@ -2053,7 +2053,7 @@ static void ui_app_invalidate_caret(void) {
 }
 
 static void ui_app_show_caret(void) {
-    assert(!ui_app_caret_shown);
+    ut_assert(!ui_app_caret_shown);
     ut_fatal_win32err(ShowCaret(ui_app_window()));
     ui_app_caret_shown = true;
     ui_app_invalidate_caret();
@@ -2068,7 +2068,7 @@ static void ui_app_move_caret(int32_t x, int32_t y) {
 }
 
 static void ui_app_hide_caret(void) {
-    assert(ui_app_caret_shown);
+    ut_assert(ui_app_caret_shown);
     ut_fatal_win32err(HideCaret(ui_app_window()));
     ui_app_invalidate_caret();
     ui_app_caret_shown = false;
@@ -2083,7 +2083,7 @@ static void ui_app_destroy_caret(void) {
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
-    swear(0 <= kind && kind < ut_countof(beep_id));
+    ut_swear(0 <= kind && kind < ut_countof(beep_id));
     ut_fatal_win32err(MessageBeep(beep_id[kind]));
 }
 
@@ -2224,11 +2224,11 @@ static void ui_app_set_title(const char* title) {
 static void ui_app_capture_mouse(bool on) {
     static int32_t mouse_capture;
     if (on) {
-        swear(mouse_capture == 0);
+        ut_swear(mouse_capture == 0);
         mouse_capture++;
         SetCapture(ui_app_window());
     } else {
-        swear(mouse_capture == 1);
+        ut_swear(mouse_capture == 1);
         mouse_capture--;
         ReleaseCapture();
     }
@@ -2240,7 +2240,7 @@ static void ui_app_move_and_resize(const ui_rect_t* rc) {
 }
 
 static void ui_app_set_console_title(HWND cw) {
-    swear(ut_thread.id() == ui_app.tid);
+    ut_swear(ut_thread.id() == ui_app.tid);
     static char text[256];
     text[0] = 0;
     GetWindowTextA((HWND)ui_app.window, text, ut_countof(text));
@@ -2312,14 +2312,14 @@ static int ui_app_console_create(void) {
 }
 
 static fp32_t ui_app_px2in(int32_t pixels) {
-    assert(ui_app.dpi.monitor_max > 0);
+    ut_assert(ui_app.dpi.monitor_max > 0);
 //  ut_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
     return ui_app.dpi.monitor_max > 0 ?
            (fp32_t)pixels / (fp32_t)ui_app.dpi.monitor_max : 0;
 }
 
 static int32_t ui_app_in2px(fp32_t inches) {
-    assert(ui_app.dpi.monitor_max > 0);
+    ut_assert(ui_app.dpi.monitor_max > 0);
 //  ut_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
     return (int32_t)(inches * (fp64_t)ui_app.dpi.monitor_max + 0.5);
 }
@@ -2330,7 +2330,7 @@ static void ui_app_request_layout(void) {
 }
 
 static void ui_app_show_window(int32_t show) {
-    assert(ui.visibility.hide <= show &&
+    ut_assert(ui.visibility.hide <= show &&
            show <= ui.visibility.force_min);
     // ShowWindow() does not have documented error reporting
     bool was_visible = ShowWindow(ui_app_window(), show);
@@ -2355,8 +2355,8 @@ static void ui_app_show_window(int32_t show) {
 
 static const char* ui_app_open_file(const char* folder,
         const char* pairs[], int32_t n) {
-    swear(ut_thread.id() == ui_app.tid);
-    assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
+    ut_swear(ut_thread.id() == ui_app.tid);
+    ut_assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
     static uint16_t memory[4 * 1024];
     uint16_t* filter = memory;
     if (pairs == null || n == 0) {
@@ -2368,13 +2368,13 @@ static const char* ui_app_open_file(const char* folder,
             uint16_t* s0 = s;
             ut_str.utf8to16(s0, left, pairs[i + 0], -1);
             int32_t n0 = (int32_t)ut_str.len16(s0);
-            assert(n0 > 0);
+            ut_assert(n0 > 0);
             s += n0 + 1;
             left -= n0 + 1;
             uint16_t* s1 = s;
             ut_str.utf8to16(s1, left, pairs[i + 1], -1);
             int32_t n1 = (int32_t)ut_str.len16(s1);
-            assert(n1 > 0);
+            ut_assert(n1 > 0);
             s[n1] = 0;
             s += n1 + 1;
             left -= n1 + 1;
@@ -2462,7 +2462,7 @@ static bool ui_app_focused(void) { return GetFocus() == ui_app_window(); }
 static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
-    assert(ut_thread.id() == ui_app.tid, "cannot be called from background thread");
+    ut_assert(ut_thread.id() == ui_app.tid, "cannot be called from background thread");
     ut_runtime.set_err(0);
     w = SetFocus((HWND)w); // w previous focused window
     if (w == null) { ut_fatal_if_error(ut_runtime.err()); }
@@ -2527,8 +2527,8 @@ static void ui_app_init(void) {
     ui_app.root->hit_test = ui_app_root_hit_test;
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
-    assert(ui_app.content->type == ui_view_stack);
-    assert(ui_app.content->background == ui_colors.transparent);
+    ut_assert(ui_app.content->type == ui_view_stack);
+    ut_assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;
     ui_app.root->insets  = (ui_margins_t){ 0, 0, 0, 0 };
@@ -2573,7 +2573,7 @@ static void ui_app_set_dpi_awareness(void) {
     }
     DPI_AWARENESS_CONTEXT dpi_awareness_context_2 =
         GetThreadDpiAwarenessContext();
-    swear(dpi_awareness_context_1 != dpi_awareness_context_2);
+    ut_swear(dpi_awareness_context_1 != dpi_awareness_context_2);
 }
 
 static void ui_app_init_windows(void) {
@@ -2597,21 +2597,21 @@ static ui_rect_t ui_app_window_initial_rectangle(void) {
     const ui_window_sizing_t* ws = &ui_app.window_sizing;
     // it is not practical and thus not implemented handling
     // == (0, 0) and != (0, 0) for sizing half dimension (only w or only h)
-    swear((ws->min_w != 0) == (ws->min_h != 0) &&
+    ut_swear((ws->min_w != 0) == (ws->min_h != 0) &&
            ws->min_w >= 0 && ws->min_h >= 0,
           "ui_app.window_sizing .min_w=%.1f .min_h=%.1f", ws->min_w, ws->min_h);
-    swear((ws->ini_w != 0) == (ws->ini_h != 0) &&
+    ut_swear((ws->ini_w != 0) == (ws->ini_h != 0) &&
            ws->ini_w >= 0 && ws->ini_h >= 0,
           "ui_app.window_sizing .ini_w=%.1f .ini_h=%.1f", ws->ini_w, ws->ini_h);
-    swear((ws->max_w != 0) == (ws->max_h != 0) &&
+    ut_swear((ws->max_w != 0) == (ws->max_h != 0) &&
            ws->max_w >= 0 && ws->max_h >= 0,
           "ui_app.window_sizing .max_w=%.1f .max_h=%.1f", ws->max_w, ws->max_h);
     // if max is set then min and ini must be less than max
     if (ws->max_w != 0 || ws->max_h != 0) {
-        swear(ws->min_w <= ws->max_w && ws->min_h <= ws->max_h,
+        ut_swear(ws->min_w <= ws->max_w && ws->min_h <= ws->max_h,
             "ui_app.window_sizing .min_w=%.1f .min_h=%.1f .max_w=%1.f .max_h=%.1f",
              ws->min_w, ws->min_h, ws->max_w, ws->max_h);
-        swear(ws->ini_w <= ws->max_w && ws->ini_h <= ws->max_h,
+        ut_swear(ws->ini_w <= ws->max_w && ws->ini_h <= ws->max_h,
             "ui_app.window_sizing .min_w=%.1f .min_h=%.1f .max_w=%1.f .max_h=%.1f",
                 ws->ini_w, ws->ini_h, ws->max_w, ws->max_h);
     }

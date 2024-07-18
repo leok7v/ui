@@ -97,7 +97,7 @@ static errno_t ut_mem_map_rw(const char* filename, void* *data, int64_t *bytes) 
 }
 
 static void ut_mem_unmap(void* data, int64_t bytes) {
-    assert(data != null && bytes > 0);
+    ut_assert(data != null && bytes > 0);
     (void)bytes; /* unused only need for posix version */
     if (data != null && bytes > 0) {
         ut_fatal_win32err(UnmapViewOfFile(data));
@@ -133,10 +133,10 @@ static int ut_mem_large_page_size(void) {
 }
 
 static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
-    assert(bytes_multiple_of_page_size > 0);
+    ut_assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
     SIZE_T page_size = (SIZE_T)ut_mem_page_size();
-    assert(bytes % page_size == 0);
+    ut_assert(bytes % page_size == 0);
     errno_t r = 0;
     void* a = null;
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
@@ -185,13 +185,13 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
     }
     if (r != 0) {
         ut_println("mem_alloc_pages(%lld) failed %s", bytes, ut_strerr(r));
-        assert(a == null);
+        ut_assert(a == null);
     }
     return a;
 }
 
 static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
-    assert(bytes_multiple_of_page_size > 0);
+    ut_assert(bytes_multiple_of_page_size > 0);
     SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
     errno_t r = 0;
     SIZE_T page_size = (SIZE_T)ut_mem_page_size();
@@ -216,11 +216,11 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
 
 static void ut_mem_test(void) {
     #ifdef UT_TESTS
-    swear(ut_args.c > 0);
+    ut_swear(ut_args.c > 0);
     void* data = null;
     int64_t bytes = 0;
-    swear(ut_mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
-    swear(data != null && bytes != 0);
+    ut_swear(ut_mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
+    ut_swear(data != null && bytes != 0);
     ut_mem.unmap(data, bytes);
     // TODO: page_size large_page_size allocate deallocate
     // TODO: test heap functions

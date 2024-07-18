@@ -50,7 +50,7 @@ static ui_brush_t ui_gdi_set_brush(ui_brush_t b) {
 }
 
 static uint32_t ui_gdi_color_rgb(ui_color_t c) {
-    assert(ui_color_is_8bit(c));
+    ut_assert(ui_color_is_8bit(c));
     return (COLORREF)(c & 0xFFFFFFFF);
 }
 
@@ -68,15 +68,15 @@ static ui_font_t ui_gdi_set_font(ui_font_t f) {
 }
 
 static void ui_gdi_begin(ui_image_t* image) {
-    swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
+    ut_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
-        swear(image->bitmap != null);
+        ut_swear(image->bitmap != null);
         ui_gdi_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
         ui_gdi_context.bitmap = SelectBitmap(ui_gdi_hdc(),
                                              (HBITMAP)image->bitmap);
     } else {
         ui_gdi_context.hdc = (HDC)ui_app.canvas;
-        swear(ui_gdi_context.bitmap == null);
+        ut_swear(ui_gdi_context.bitmap == null);
     }
     ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.regular.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
@@ -99,7 +99,7 @@ static void ui_gdi_end(void) {
     SetBkMode(ui_gdi_hdc(), ui_gdi_context.background_mode);
     SetStretchBltMode(ui_gdi_hdc(), ui_gdi_context.stretch_mode);
     if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
-        swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
+        ut_swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
         SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.bitmap);
         ut_fatal_win32err(DeleteDC(ui_gdi_context.hdc));
     }
@@ -113,7 +113,7 @@ static ui_pen_t ui_gdi_set_colored_pen(ui_color_t c) {
 }
 
 static ui_pen_t ui_gdi_create_pen(ui_color_t c, int32_t width) {
-    assert(width >= 1);
+    ut_assert(width >= 1);
     ui_pen_t pen = (ui_pen_t)CreatePen(PS_SOLID, width, ui_gdi_color_ref(c));
     ut_not_null(pen);
     return pen;
@@ -204,7 +204,7 @@ static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
     static_assert(sizeof(points->x) == sizeof(((POINT*)0)->x), "ui_point_t");
     static_assert(sizeof(points->y) == sizeof(((POINT*)0)->y), "ui_point_t");
     static_assert(sizeof(points[0]) == sizeof(*((POINT*)0)), "ui_point_t");
-    assert(ui_gdi_hdc() != null && count > 1);
+    ut_assert(ui_gdi_hdc() != null && count > 1);
     ui_pen_t pen = ui_gdi_set_colored_pen(c);
     ut_fatal_win32err(Polyline(ui_gdi_hdc(), (POINT*)points, count));
     ui_gdi_set_pen(pen);
@@ -212,14 +212,14 @@ static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
 
 static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
         ui_color_t border, ui_color_t fill) {
-    swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
+    ut_swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
     // Win32 GDI even radius drawing looks ugly squarish and asymmetrical.
-    swear(radius % 2 == 1, "radius: %d must be odd");
+    ut_swear(radius % 2 == 1, "radius: %d must be odd");
     if (ui_color_is_transparent(border)) {
-        assert(!ui_color_is_transparent(fill));
+        ut_assert(!ui_color_is_transparent(fill));
         border = fill;
     }
-    assert(!ui_color_is_transparent(border));
+    ut_assert(!ui_color_is_transparent(border));
     const bool tf = ui_color_is_transparent(fill);   // transparent fill
     ui_brush_t brush = tf ? ui_gdi_set_brush(ui_gdi_brush_hollow) :
                         ui_gdi_set_brush(ui_gdi_brush_color);
@@ -279,7 +279,7 @@ static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border, ui_color_t fill) {
-    swear(!ui_color_is_transparent(border) || !ui_color_is_transparent(fill));
+    ut_swear(!ui_color_is_transparent(border) || !ui_color_is_transparent(fill));
     if (!ui_color_is_transparent(fill)) {
         ui_gdi_fill_rounded(x, y, w, h, radius, fill);
     }
@@ -338,7 +338,7 @@ static void ui_gdi_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels) {
     ut_fatal_if(stride != ((iw + 3) & ~0x3));
-    assert(w > 0 && h != 0); // h can be negative
+    ut_assert(w > 0 && h != 0); // h can be negative
     if (w > 0 && h != 0) {
         BITMAPINFO *bi = ui_gdi_greyscale_bitmap_info(); // global! not thread safe
         BITMAPINFOHEADER* bih = &bi->bmiHeader;
@@ -354,7 +354,7 @@ static void ui_gdi_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
 }
 
 static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
-    assert(w > 0 && h >= 0); // h cannot be negative?
+    ut_assert(w > 0 && h >= 0); // h cannot be negative?
     BITMAPINFOHEADER bi = {
         .biSize = sizeof(BITMAPINFOHEADER),
         .biPlanes = 1,
@@ -378,7 +378,7 @@ static void ui_gdi_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t iw, int32_t ih, int32_t stride,
         const uint8_t* pixels) {
     ut_fatal_if(stride != ((iw * 3 + 3) & ~0x3));
-    assert(w > 0 && h != 0); // h can be negative
+    ut_assert(w > 0 && h != 0); // h can be negative
     if (w > 0 && h != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 3);
         POINT pt = { 0 };
@@ -394,7 +394,7 @@ static void ui_gdi_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
         int32_t iw, int32_t ih, int32_t stride,
         const uint8_t* pixels) {
     ut_fatal_if(stride != ((iw * 4 + 3) & ~0x3));
-    assert(w > 0 && h != 0); // h can be negative
+    ut_assert(w > 0 && h != 0); // h can be negative
     if (w > 0 && h != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 4);
         POINT pt = { 0 };
@@ -407,7 +407,7 @@ static void ui_gdi_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
 
 static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
         BITMAPINFO* bi) {
-    assert(w > 0 && h >= 0); // h cannot be negative?
+    ut_assert(w > 0 && h >= 0); // h cannot be negative?
     bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
     bi->bmiHeader.biWidth = w;
     bi->bmiHeader.biHeight = -h;  // top down image
@@ -564,8 +564,8 @@ static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t b
 
 static void ui_gdi_alpha(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_image_t* image, fp64_t alpha) {
-    assert(image->bpp > 0);
-    assert(0 <= alpha && alpha <= 1);
+    ut_assert(image->bpp > 0);
+    ut_assert(0 <= alpha && alpha <= 1);
     ut_not_null(ui_gdi_hdc());
     HDC c = CreateCompatibleDC(ui_gdi_hdc());
     ut_not_null(c);
@@ -589,7 +589,7 @@ static void ui_gdi_alpha(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_image(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_image_t* image) {
-    assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
+    ut_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     ut_not_null(ui_gdi_hdc());
     if (image->bpp == 1) { // StretchBlt() is bad for greyscale
         BITMAPINFO* bi = ui_gdi_greyscale_bitmap_info();
@@ -637,7 +637,7 @@ ut_static_assertion(ui_gdi_font_quality_cleartype == CLEARTYPE_QUALITY);
 ut_static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
 static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
-    assert(h > 0);
+    ut_assert(h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(ui_app.fm.regular.font, sizeof(lf), &lf);
     ut_fatal_if(n != (int32_t)sizeof(lf));
@@ -653,7 +653,7 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
 }
 
 static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
-    assert(f != null && h > 0);
+    ut_assert(f != null && h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
     ut_fatal_if(n != (int32_t)sizeof(lf));
@@ -725,10 +725,10 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
             tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
     ut_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
             tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
-    swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    ut_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    ut_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // unsupported XHeight CapEmHeight
     // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
     //             CharSlopeRise, CharSlopeRun, ItalicAngle
@@ -763,10 +763,10 @@ static void ui_gdi_dump_fm(ui_font_t f) {
 static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     TEXTMETRICA tm = {0};
     ut_fatal_win32err(GetTextMetricsA(hdc, &tm));
-    swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    ut_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    ut_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // "tm.tmAscent" The ascent (units above the base line) of characters
     // and actually is "baseline" in other terminology
     // "otm.otmAscent" The maximum distance characters in this font extend
@@ -806,7 +806,7 @@ static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     // Negative from the bottom (font.height)
     // tm.Descent: The descent (units below the base line) of characters.
     // Positive from the baseline down
-    assert(tm.tmDescent >= 0 && otm.otmDescent <= 0 &&
+    ut_assert(tm.tmDescent >= 0 && otm.otmDescent <= 0 &&
            -otm.otmDescent <= tm.tmDescent,
            "tm.tmDescent: %d otm.otmDescent: %d", tm.tmDescent, otm.otmDescent);
     // "Mac" typography is ignored because it's usefulness is unclear.
@@ -835,7 +835,7 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
 //      ut_println("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
 //              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
     });
-    assert(fm->baseline <= fm->height);
+    ut_assert(fm->baseline <= fm->height);
     fm->em = (ui_wh_t){ .w = fm->height, .h = fm->height };
 //  ut_println("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
@@ -860,9 +860,9 @@ if (0) {
     }
 }
     int32_t count = ut_str.utf16_chars(s, -1);
-    assert(0 < count && count < 4096, "be reasonable count: %d?", count);
+    ut_assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
-    swear(count <= ut_countof(ws), "find another way to draw!");
+    ut_swear(count <= ut_countof(ws), "find another way to draw!");
     ut_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
@@ -897,16 +897,16 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     text[ut_countof(text) - 1] = 0;
     int32_t k = (int32_t)ut_str.len(text);
     if (k > 0) {
-        swear(k > 0 && k < ut_countof(text), "k=%d n=%d fmt=%s", k, p->format);
+        ut_swear(k > 0 && k < ut_countof(text), "k=%d n=%d fmt=%s", k, p->format);
         // rectangle is always calculated - it makes draw text
         // much slower but UI layer is mostly uses bitmap caching:
         if ((p->flags & DT_CALCRECT) == 0) {
             // no actual drawing just calculate rectangle
             bool b = ui_gdi_draw_utf16(p->fm->font, text, -1, &p->rc, p->flags | DT_CALCRECT);
-            assert(b, "text_utf16(%s) failed", text); (void)b;
+            ut_assert(b, "text_utf16(%s) failed", text); (void)b;
         }
         bool b = ui_gdi_draw_utf16(p->fm->font, text, -1, &p->rc, p->flags);
-        assert(b, "text_utf16(%s) failed", text); (void)b;
+        ut_assert(b, "text_utf16(%s) failed", text); (void)b;
     } else {
         p->rc.right = p->rc.left;
         p->rc.bottom = p->rc.top + p->fm->height;
@@ -937,10 +937,10 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
     ui_color_t c = ta->color;
     if (!ta->measure) {
         if (ui_color_is_undefined(c)) {
-            swear(ta->color_id > 0);
+            ut_swear(ta->color_id > 0);
             c = ui_colors.get_color(ta->color_id);
         } else {
-            swear(ta->color_id == 0);
+            ut_swear(ta->color_id == 0);
         }
         c = ui_gdi_set_text_color(c);
     }
@@ -984,8 +984,8 @@ static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
 
 static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
-    swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
-    assert(false, "Does not work for Tamil simplest utf8: \xe0\xae\x9a utf16: 0x0B9A");
+    ut_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
+    ut_assert(false, "Does not work for Tamil simplest utf8: \xe0\xae\x9a utf16: 0x0B9A");
     x[0] = 0;
     ui_wh_t wh = { .w = 0, .h = 0 };
     if (bytes > 0) {
@@ -993,7 +993,7 @@ static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         uint16_t* utf16 = ut_stackalloc((chars + 1) * sizeof(uint16_t));
         uint16_t* output = ut_stackalloc((chars + 1) * sizeof(uint16_t));
         const errno_t r = ut_str.utf8to16(utf16, chars, utf8, bytes);
-        swear(r == 0);
+        ut_swear(r == 0);
 // TODO: remove
 #if 1
         char str[16 * 1024] = {0};
@@ -1040,9 +1040,9 @@ ut_println("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf
                     i++;
                 }
             }
-            assert(k == glyphs + 1);
+            ut_assert(k == glyphs + 1);
         } else {
-//          assert(false, "GetCharacterPlacementW() failed");
+//          ut_assert(false, "GetCharacterPlacementW() failed");
             ut_println("GetCharacterPlacementW() failed");
         }
     }

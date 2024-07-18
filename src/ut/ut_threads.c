@@ -26,9 +26,9 @@ static void ut_event_reset(ut_event_t e) {
 static int32_t ut_event_wait_or_timeout(ut_event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
     DWORD i = WaitForSingleObject(e, ms);
-    swear(i != WAIT_FAILED, "i: %d", i);
+    ut_swear(i != WAIT_FAILED, "i: %d", i);
     errno_t r = ut_wait_ix2e(i);
-    if (r != 0) { swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    if (r != 0) { ut_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
     return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
@@ -36,13 +36,13 @@ static void ut_event_wait(ut_event_t e) { ut_event_wait_or_timeout(e, -1); }
 
 static int32_t ut_event_wait_any_or_timeout(int32_t n,
         ut_event_t events[], fp64_t s) {
-    swear(n < 64); // Win32 API limit
+    ut_swear(n < 64); // Win32 API limit
     const uint32_t ms = s < 0 ? INFINITE : (uint32_t)(s * 1000.0 + 0.5);
     const HANDLE* es = (const HANDLE*)events;
     DWORD i = WaitForMultipleObjects((DWORD)n, es, false, ms);
-    swear(i != WAIT_FAILED, "i: %d", i);
+    ut_swear(i != WAIT_FAILED, "i: %d", i);
     errno_t r = ut_wait_ix2e(i);
-    if (r != 0) { swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    if (r != 0) { ut_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
     return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
@@ -62,7 +62,7 @@ static void ut_event_dispose(ut_event_t h) {
 static void ut_event_test_check_time(fp64_t start, fp64_t expected) {
     fp64_t elapsed = ut_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays (observed)
-    swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.250,
+    ut_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.250,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
@@ -77,7 +77,7 @@ static void ut_event_test(void) {
     const fp64_t timeout_seconds = 1.0 / 8.0;
     int32_t result = ut_event.wait_or_timeout(event, timeout_seconds);
     ut_event_test_check_time(start, timeout_seconds);
-    swear(result == -1); // Timeout expected
+    ut_swear(result == -1); // Timeout expected
     enum { count = 5 };
     ut_event_t events[count];
     for (int32_t i = 0; i < ut_countof(events); i++) {
@@ -86,15 +86,15 @@ static void ut_event_test(void) {
     start = ut_clock.seconds();
     ut_event.set(events[2]); // Set the third event
     int32_t index = ut_event.wait_any(ut_countof(events), events);
-    swear(index == 2);
+    ut_swear(index == 2);
     ut_event_test_check_time(start, 0);
-    swear(index == 2); // Third event should be triggered
+    ut_swear(index == 2); // Third event should be triggered
     ut_event.reset(events[2]); // Reset the third event
     start = ut_clock.seconds();
     result = ut_event.wait_any_or_timeout(ut_countof(events), events, timeout_seconds);
-    swear(result == -1);
+    ut_swear(result == -1);
     ut_event_test_check_time(start, timeout_seconds);
-    swear(result == -1); // Timeout expected
+    ut_swear(result == -1); // Timeout expected
     // Clean up
     ut_event.dispose(event);
     for (int32_t i = 0; i < ut_countof(events); i++) {
@@ -149,7 +149,7 @@ static void ut_mutex_dispose(ut_mutex_t* m) {
 static void ut_mutex_test_check_time(fp64_t start, fp64_t expected) {
     fp64_t elapsed = ut_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
-    swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
+    ut_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
@@ -293,7 +293,7 @@ static const char* ut_thread_rel2str(int32_t rel) {
         case RelationProcessorDie    : return "ProcessorDie    ";
         case RelationNumaNodeEx      : return "NumaNodeEx      ";
         case RelationProcessorModule : return "ProcessorModule ";
-        default: assert(false, "fix me"); return "???";
+        default: ut_assert(false, "fix me"); return "???";
     }
 }
 
@@ -310,10 +310,10 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
         static SYSTEM_LOGICAL_PROCESSOR_INFORMATION lpi[64];
         DWORD bytes = 0;
         GetLogicalProcessorInformation(null, &bytes);
-        assert(bytes % sizeof(lpi[0]) == 0);
+        ut_assert(bytes % sizeof(lpi[0]) == 0);
         // number of lpi entries == 27 on 6 core / 12 logical processors system
         int32_t n = bytes / sizeof(lpi[0]);
-        assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
+        ut_assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
         ut_fatal_win32err(GetLogicalProcessorInformation(&lpi[0], &bytes));
         for (int32_t i = 0; i < n; i++) {
 //          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
@@ -322,7 +322,7 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
 //                  ut_thread_rel2str(lpi[i].Relationship));
 //          }
             if (lpi[i].Relationship == RelationProcessorCore) {
-                assert(cores < ut_countof(affinity), "increase affinity[%d]", cores);
+                ut_assert(cores < ut_countof(affinity), "increase affinity[%d]", cores);
                 if (cores < ut_countof(affinity)) {
                     any |= lpi[i].ProcessorMask;
                     affinity[cores] = lpi[i].ProcessorMask;
@@ -333,11 +333,11 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
         initialized = true;
     } else {
         while (initialized == 0) { ut_thread.sleep_for(1 / 1024.0); }
-        assert(any != 0); // should not ever happen
+        ut_assert(any != 0); // should not ever happen
         if (any == 0) { any = (uint64_t)(-1LL); }
     }
     uint64_t mask = next < cores ? affinity[next] : any;
-    assert(mask != 0);
+    ut_assert(mask != 0);
     // assume last physical core is least popular
     if (next < cores) { next++; } // not circular
     return mask;
@@ -377,7 +377,7 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     const uint32_t ms = timeout < 0 ? INFINITE : (uint32_t)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, (DWORD)ms);
     errno_t r = ut_wait_ix2e(ix);
-    assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");
+    ut_assert(r != ERROR_REQUEST_ABORTED, "AFAIK thread can`t be ABANDONED");
     if (r == 0) {
         ut_win32_close_handle(t);
     } else {
@@ -402,7 +402,7 @@ static void ut_thread_name(const char* name) {
 }
 
 static void ut_thread_sleep_for(fp64_t seconds) {
-    assert(seconds >= 0);
+    ut_assert(seconds >= 0);
     if (seconds < 0) { seconds = 0; }
     int64_t ns100 = (int64_t)(seconds * 1.0e+7); // in 0.1 us aka 100ns
     typedef int32_t (__stdcall *nt_delay_execution_t)(BOOLEAN alertable,
@@ -542,7 +542,7 @@ static void ut_thread_detached_loop(void* ut_unused(p)) {
     uint64_t sum = 0;
     for (uint64_t i = 0; i < UINT64_MAX; i++) { sum += i; }
     // make sure that compiler won't get rid of the loop:
-    swear(sum == 0x8000000000000001ULL, "sum: %llu 0x%16llX", sum, sum);
+    ut_swear(sum == 0x8000000000000001ULL, "sum: %llu 0x%16llX", sum, sum);
 }
 
 static void ut_thread_test(void) {

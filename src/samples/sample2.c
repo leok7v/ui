@@ -3,7 +3,7 @@
 #include "single_file_lib/ui/ui.h"
 
 static int64_t hit_test(const ui_view_t* v, ui_point_t pt) {
-    swear(v == ui_app.content);
+    ut_swear(v == ui_app.content);
     if (ui_view.inside(v, &pt)) {
         if (pt.y < v->fm->em.h && ui_app.caption->state.hidden) {
             ui_app.caption->state.hidden = false;
