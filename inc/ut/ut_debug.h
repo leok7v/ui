@@ -66,7 +66,7 @@ typedef struct {
     void (*test)(void);
 } ut_debug_if;
 
-#define ut_traceln(...) ut_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define ut_println(...) ut_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
 extern ut_debug_if ut_debug;
 

@@ -83,7 +83,7 @@ static void download(void) {
             "\"%s\" --output \"%s\" 2>nul >nul", url, filename);
         int r = system(cmd);
         if (r != 0) {
-            ut_traceln("download %s failed %d %s", filename, r, ut_strerr(r));
+            ut_println("download %s failed %d %s", filename, r, ut_strerr(r));
         }
     }
 }

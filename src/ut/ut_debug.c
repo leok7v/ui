@@ -163,7 +163,7 @@ static int32_t ut_debug_verbosity_from_string(const char* s) {
 static void ut_debug_test(void) {
     #ifdef UT_TESTS
     // not clear what can be tested here
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 

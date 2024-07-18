@@ -68,7 +68,7 @@ static ui_label_t about = ui_label(34.56f,
 ui_mbx_chosen(mbx, // message box
     "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
     "is it the longest English language word or not?", {
-    ut_traceln("option=%d", option); // -1 or index of { "&Yes", "&No" }
+    ut_println("option=%d", option); // -1 or index of { "&Yes", "&No" }
 }, "&Yes", "&No");
 
 #else
@@ -77,7 +77,7 @@ static void mbx_callback(ui_view_t* v) {
     ui_mbx_t* mbx = (ui_mbx_t*)v;
     assert(-1 <= mbx->option && mbx->option < 2);
     static const char* name[] = { "Cancel", "Yes", "No" };
-    ut_traceln("option: %d \"%s\"", mbx->option, name[mbx->option + 1]);
+    ut_println("option: %d \"%s\"", mbx->option, name[mbx->option + 1]);
 }
 
 static ui_mbx_t mbx = ui_mbx( // message box
@@ -100,7 +100,7 @@ static void open_file(ui_button_t* ut_unused(b)) {
     const char* fn = ui_app.open_file(home, filter, ut_countof(filter));
     if (fn[0] != 0) {
         ui_view.set_text(&toast_filename, "\n%s\n", fn);
-        ut_traceln("\"%s\"", fn);
+        ut_println("\"%s\"", fn);
         ui_app.show_toast(&toast_filename, 3.3);
     }
 }
@@ -228,7 +228,7 @@ static void right_paint(ui_view_t* v) {
         ut_nls.str("&Full Screen"));
     int32_t x = label_multiline.x;
     int32_t y = label_multiline.y + label_multiline.h + v->fm->em.h / 4;
-//  ut_traceln("%d,%d %dx%d",
+//  ut_println("%d,%d %dx%d",
 //      label_multiline.x,
 //      label_multiline.y,
 //      label_multiline.w,

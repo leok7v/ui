@@ -151,7 +151,7 @@ static void vigil_test(void) {
     errno = en;
     ut_runtime.set_err(er);
     ut_vigil = ut_vigil_test_saved;
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else

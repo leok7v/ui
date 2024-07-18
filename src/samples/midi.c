@@ -25,8 +25,8 @@ static void midi_warn_if_error_(int r, const char* call, const char* func,
     if (r != 0) {
         static char error[256];
         mciGetErrorString(r, error, ut_countof(error));
-        ut_traceln("%s:%d %s", func, line, call);
-        ut_traceln("%d - MCIERR_BASE: %d %s", r, r - MCIERR_BASE, error);
+        ut_println("%s:%d %s", func, line, call);
+        ut_println("%d - MCIERR_BASE: %d %s", r, r - MCIERR_BASE, error);
     }
 }
 

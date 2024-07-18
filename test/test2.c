@@ -10,7 +10,7 @@ int main(int argc, char* argv[], char *envp[]) {
         ut_debug.verbosity.level = ut_debug.verbosity.info;
     }
     ut_runtime.test();
-    ut_traceln("all tests passed\n");
+    ut_println("all tests passed\n");
     ut_args.fini();
     return 0;
 }

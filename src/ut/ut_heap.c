@@ -90,7 +90,7 @@ static void ut_heap_test(void) {
     // "There is no extended error information for HeapValidate;
     //  do not call GetLastError."
     swear(HeapValidate(ut_heap_or_process_heap(null), 0, null));
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 

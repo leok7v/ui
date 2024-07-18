@@ -152,7 +152,7 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
         if (a == null) {
             r = ut_runtime.err();
             if (r != 0) {
-                ut_traceln("VirtualAlloc(%lld) failed %s", bytes, ut_strerr(r));
+                ut_println("VirtualAlloc(%lld) failed %s", bytes, ut_strerr(r));
             }
         } else {
             r = VirtualLock(a, bytes) ? 0 : ut_runtime.err();
@@ -162,7 +162,7 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                 SIZE_T min_mem = 0, max_mem = 0;
                 r = ut_b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
                 if (r != 0) {
-                    ut_traceln("GetProcessWorkingSetSize() failed %s", ut_strerr(r));
+                    ut_println("GetProcessWorkingSetSize() failed %s", ut_strerr(r));
                 } else {
                     max_mem =  max_mem + bytes * 2LL;
                     max_mem = (max_mem + page_size - 1) / page_size * page_size +
@@ -171,7 +171,7 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                     r = ut_b2e(SetProcessWorkingSetSize(GetCurrentProcess(),
                             min_mem, max_mem));
                     if (r != 0) {
-                        ut_traceln("SetProcessWorkingSetSize(%lld, %lld) failed %s",
+                        ut_println("SetProcessWorkingSetSize(%lld, %lld) failed %s",
                             (uint64_t)min_mem, (uint64_t)max_mem, ut_strerr(r));
                     } else {
                         r = ut_b2e(VirtualLock(a, bytes));
@@ -179,12 +179,12 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
                 }
             }
             if (r != 0) {
-                ut_traceln("VirtualLock(%lld) failed %s", bytes, ut_strerr(r));
+                ut_println("VirtualLock(%lld) failed %s", bytes, ut_strerr(r));
             }
         }
     }
     if (r != 0) {
-        ut_traceln("mem_alloc_pages(%lld) failed %s", bytes, ut_strerr(r));
+        ut_println("mem_alloc_pages(%lld) failed %s", bytes, ut_strerr(r));
         assert(a == null);
     }
     return a;
@@ -197,19 +197,19 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     SIZE_T page_size = (SIZE_T)ut_mem_page_size();
     if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
         r = EINVAL;
-        ut_traceln("failed %s", ut_strerr(r));
+        ut_println("failed %s", ut_strerr(r));
     } else {
         if (a != null) {
             // in case it was successfully locked
             r = ut_b2e(VirtualUnlock(a, bytes));
             if (r != 0) {
-                ut_traceln("VirtualUnlock() failed %s", ut_strerr(r));
+                ut_println("VirtualUnlock() failed %s", ut_strerr(r));
             }
             // If the "dwFreeType" parameter is MEM_RELEASE, "dwSize" parameter
             // must be the base address returned by the VirtualAlloc function when
             // the region of pages is reserved.
             r = ut_b2e(VirtualFree(a, 0, MEM_RELEASE));
-            if (r != 0) { ut_traceln("VirtuaFree() failed %s", ut_strerr(r)); }
+            if (r != 0) { ut_println("VirtuaFree() failed %s", ut_strerr(r)); }
         }
     }
 }
@@ -224,7 +224,7 @@ static void ut_mem_test(void) {
     ut_mem.unmap(data, bytes);
     // TODO: page_size large_page_size allocate deallocate
     // TODO: test heap functions
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 

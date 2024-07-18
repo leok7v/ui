@@ -139,7 +139,7 @@ static void load_gif(void) {
     gif.pixels = load_animated_gif(data, bytes, &gif.delays,
         &gif.w, &gif.h, &gif.frames, &gif.bpp, 4);
     if (gif.pixels == null || gif.bpp != 4 || gif.frames < 1) {
-        ut_traceln("%s", stbi_failure_reason());
+        ut_println("%s", stbi_failure_reason());
     }
     ut_fatal_if(gif.pixels == null || gif.bpp != 4 || gif.frames < 1);
     // resources cannot be unmapped do not call ut_mem.unmap()
@@ -153,7 +153,7 @@ static void animate(void) {
             break;
         }
         if (animation.x >= 0 && animation.y >= 0) {
-//          ut_traceln("%d %d speed: %d %d", animation.x, animation.y, animation.speed_x, animation.speed_y);
+//          ut_println("%d %d speed: %d %d", animation.x, animation.y, animation.speed_x, animation.speed_y);
             animation.index = (animation.index + 1) % gif.frames;
             while (animation.speed_x == 0) {
                 animation.speed_x = ut_num.random32(&animation.seed) % (max_speed * 2 + 1) - max_speed;
@@ -226,7 +226,7 @@ static void init(void) {
     int bpp = 0; // bytes (!) per pixel
     void* pixels = load_image(data, bytes, &w, &h, &bpp, 0);
     if (pixels == null) {
-        ut_traceln("%s", stbi_failure_reason());
+        ut_println("%s", stbi_failure_reason());
     }
     ut_not_null(pixels);
     ui_gdi.image_init(&background, w, h, bpp, pixels);

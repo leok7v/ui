@@ -834,9 +834,9 @@ static bool ui_edit_utf8_to_heap_text(const char* u, int32_t b,
 static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
     ui_edit_to_do_t* undo = d->undo;
     ui_edit_to_do_t* next = undo->next;
-//  ut_traceln("i: %.*s", i->ps[0].b, i->ps[0].u);
+//  ut_println("i: %.*s", i->ps[0].b, i->ps[0].u);
 //  if (i->np == 1 && i->ps[0].g == 1) {
-//      ut_traceln("an: %d", ui_edit_str.is_letter(ut_str.utf32(i->ps[0].u, i->ps[0].b)));
+//      ut_println("an: %d", ui_edit_str.is_letter(ut_str.utf32(i->ps[0].u, i->ps[0].b)));
 //  }
     bool coalesced = false;
     const bool alpha_numeric = i->np == 1 && i->ps[0].g == 1 &&
@@ -846,7 +846,7 @@ static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
         const ui_edit_text_t* ut = &undo->text;
         const ui_edit_range_t nr = next->range;
         const ui_edit_text_t* nt = &next->text;
-//      ut_traceln("next: \"%.*s\" %d:%d..%d:%d undo: \"%.*s\" %d:%d..%d:%d",
+//      ut_println("next: \"%.*s\" %d:%d..%d:%d undo: \"%.*s\" %d:%d..%d:%d",
 //          nt->ps[0].b, nt->ps[0].u, nr.from.pn, nr.from.gp, nr.to.pn, nr.to.gp,
 //          ut->ps[0].b, ut->ps[0].u, ur.from.pn, ur.from.gp, ur.to.pn, ur.to.gp);
         const bool c =
@@ -863,7 +863,7 @@ static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
             coalesced = ui_edit_str.is_letter(utf32);
         }
         if (coalesced) {
-//          ut_traceln("coalesced");
+//          ut_println("coalesced");
             next->range.to.gp++;
             d->undo = next;
             undo->next = null;
@@ -1254,7 +1254,7 @@ static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
         if (s->b == s->g && s->g < ut_countof(ui_edit_str_g2b_ascii) - 1) {
-//          ut_traceln("forcefully moving to heap");
+//          ut_println("forcefully moving to heap");
             // this is usually done in the process of concatenation
             // of 2 ascii strings when result is known to be longer
             // than ut_countof(ui_edit_str_g2b_ascii) - 1 but the
@@ -1317,7 +1317,7 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
             }
         } else {
 //          const int32_t b64 = ut_min(s->b, 64);
-//          ut_traceln("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
+//          ut_println("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
         }
     }
 }
@@ -1695,7 +1695,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
             }
         }
         if (i % 100 == 99) {
-            ut_traceln("%2d%% [%d][%d][%d][%d][%d] "
+            ut_println("%2d%% [%d][%d][%d][%d][%d] "
                     "\"%s\",\"%s\",\"%s\",\"%s\",\"%s\": \"%s\"",
                 (i * 100) / npn,
                 gix_src[0], gix_src[1], gix_src[2], gix_src[3], gix_src[4],

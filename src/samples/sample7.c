@@ -30,7 +30,7 @@ static int32_t N = max_count;
 
 static void composed(ui_view_t* view) {
     if (view->w > 0) { N = ut_min(view->w, N); }
-    ut_traceln("M: %d", N);
+    ut_println("M: %d", N);
 }
 
 static void stats(int32_t ix) {
@@ -57,7 +57,7 @@ static void stats(int32_t ix) {
     fp64_t spread = ut_max_fp64(d0, d1) * 2;
     t->spread = ut_max(t->spread, spread);
 //  if (t->samples % 1000 == 0) {
-//      ut_traceln("[%d] samples: %6d spread: %.6f min %.6f max %.6f",
+//      ut_println("[%d] samples: %6d spread: %.6f min %.6f max %.6f",
 //              ix, t->samples, t->spread, t->min_dt, t->max_dt);
 //  }
 }
@@ -170,7 +170,7 @@ static void detached_loop(void* ut_unused(p)) {
         sum += i;
     }
     // making sure that compiler won't get rid of the loop:
-    ut_traceln("%lld", sum);
+    ut_println("%lld", sum);
 }
 
 static void closed(void) {

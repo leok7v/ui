@@ -9,7 +9,7 @@ void* ut_force_symbol_reference(void* symbol) {
         ut_countof(ut_static_symbol_reference), ut_static_symbol_reference);
     if (ut_static_symbol_reference_count < ut_countof(ut_static_symbol_reference)) {
         ut_static_symbol_reference[ut_static_symbol_reference_count] = symbol;
-//      ut_traceln("ut_static_symbol_reference[%d] = %p", ut_static_symbol_reference_count,
+//      ut_println("ut_static_symbol_reference[%d] = %p", ut_static_symbol_reference_count,
 //               ut_static_symbol_reference[symbol_reference_count]);
         ut_static_symbol_reference_count++;
     }
@@ -32,7 +32,7 @@ ut_static_init(static_init_test) { ut_static_init_function(); }
 void ut_static_init_test(void) {
     ut_fatal_if(ut_static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else

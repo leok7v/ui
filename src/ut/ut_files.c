@@ -213,7 +213,7 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
             if (r == 0) {
                 assert(ut_files.exists(fn) && !ut_files.is_folder(fn));
             } else {
-                ut_traceln("GetTempFileNameA() failed %s", ut_strerr(r));
+                ut_println("GetTempFileNameA() failed %s", ut_strerr(r));
             }
         } else {
             r = ERROR_BUFFER_OVERFLOW;
@@ -297,11 +297,11 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
     errno_t r = ut_b2e(LookupAccountSidA(null, sid, account,
                                      &l1, group, &l2, &use));
     if (r == 0) {
-        ut_traceln("%s/%s: type: %d, mask: 0x%X, flags:%d",
+        ut_println("%s/%s: type: %d, mask: 0x%X, flags:%d",
                 group, account,
                 ace->Header.AceType, ace->Mask, ace->Header.AceFlags);
     } else {
-        ut_traceln("LookupAccountSidA() failed %s", ut_strerr(r));
+        ut_println("LookupAccountSidA() failed %s", ut_strerr(r));
     }
     return r;
 }
@@ -331,7 +331,7 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
                     found = ace;
                 } else if (ace->Header.AceType !=
                            ACCESS_ALLOWED_ACE_TYPE) {
-                    ut_traceln("%d ACE_TYPE is not supported.",
+                    ut_println("%d ACE_TYPE is not supported.",
                              ace->Header.AceType);
                     r = ERROR_INVALID_PARAMETER;
                 }
@@ -340,14 +340,14 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
         }
         if (r == 0 && found) {
             if ((found->Mask & mask) != mask) {
-//              ut_traceln("updating existing ace");
+//              ut_println("updating existing ace");
                 found->Mask |= mask;
                 r = ut_files_set_acl(obj, obj_type, acl);
             } else {
-//              ut_traceln("desired access is already allowed by ace");
+//              ut_println("desired access is already allowed by ace");
             }
         } else if (r == 0) {
-//          ut_traceln("inserting new ace");
+//          ut_println("inserting new ace");
             ACL* new_acl = null;
             byte flags = obj_type == SE_FILE_OBJECT ?
                 CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE : 0;
@@ -393,7 +393,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
     // Change the security attributes
     errno_t r = ut_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
-        ut_traceln("chmod777(%s) failed %s", pathname, ut_strerr(r));
+        ut_println("chmod777(%s) failed %s", pathname, ut_strerr(r));
     }
     if (everyone != null) { FreeSid(everyone); }
     if (acl != null) { LocalFree(acl); }
@@ -495,7 +495,7 @@ static errno_t ut_files_rmdirs(const char* fn) {
                     ut_files_append_name(pn, pnc, fn, name);
                     r = ut_files.unlink(pn);
                     if (r != 0) {
-                        ut_traceln("remove(%s) failed %s", pn, ut_strerr(r));
+                        ut_println("remove(%s) failed %s", pn, ut_strerr(r));
                     }
                 }
             }
@@ -676,7 +676,7 @@ static void ut_files_closedir(ut_folder_t* folder) {
 
 #define verbose(...) do {                                       \
     if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
-        ut_traceln(__VA_ARGS__);                                   \
+        ut_println(__VA_ARGS__);                                   \
     }                                                           \
 } while (0)
 
@@ -690,7 +690,7 @@ static void folders_dump_time(const char* label, uint64_t us) {
     int32_t ms = 0;
     int32_t mc = 0;
     ut_clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
-    ut_traceln("%-7s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
+    ut_println("%-7s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
             label, year, month, day, hh, mm, ss, ms, mc);
 }
 
@@ -775,7 +775,7 @@ static void folders_test(void) {
             // empirically timestamps are imprecise on NTFS
             swear(at >= before, "access: %lld  >= %lld", at, before);
             if (ct < before || ut < before || at >= after || ct >= after || ut >= after) {
-                ut_traceln("file: %s", name);
+                ut_println("file: %s", name);
                 folders_dump_time("before", before);
                 folders_dump_time("create", ct);
                 folders_dump_time("update", ut);
@@ -798,7 +798,7 @@ static void folders_test(void) {
                      tmp_file, ut_strerr(r));
     ut_fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
              cwd, ut_strerr(ut_runtime.err()));
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #pragma pop_macro("verbose")
@@ -933,7 +933,7 @@ static void ut_files_test(void) {
             ut_fatal_if(ut_files.unlink(sym_link) != 0, "ut_files.unlink(\"%s\") failed %s",
                     sym_link, ut_strerr(ut_runtime.err()));
         } else {
-            ut_traceln("Skipping ut_files.symlink test: process is not elevated");
+            ut_println("Skipping ut_files.symlink test: process is not elevated");
         }
         // hard link
         char hard_link[ut_files_max_path];
@@ -962,7 +962,7 @@ static void ut_files_test(void) {
                     cwd, ut_strerr(ut_runtime.err()));
     }
     ut_fatal_if(ut_files.unlink(tf) != 0);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else

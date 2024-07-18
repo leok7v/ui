@@ -13,7 +13,7 @@ static bool ui_containers_debug = false;
 // makes code inside iterator debugger friendly and ensures correct __LINE__
 
 #define debugln(...) do {                                \
-    if (ui_containers_debug) {  ut_traceln(__VA_ARGS__); }  \
+    if (ui_containers_debug) {  ut_println(__VA_ARGS__); }  \
 } while (0)
 
 static int32_t ui_layout_nesting;
@@ -551,7 +551,7 @@ static void ui_container_paint(ui_view_t* v) {
         !ui_color_is_transparent(v->background)) {
         ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     } else {
-//      ut_traceln("%s undefined", ui_view_debug_id(v));
+//      ut_println("%s undefined", ui_view_debug_id(v));
     }
 }
 

@@ -227,7 +227,7 @@ static void ut_num_test(void) {
         r = ut_num.muldiv128(p, q, UINT64_MAX);
         swear(r == 0);
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 

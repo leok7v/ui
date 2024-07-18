@@ -88,13 +88,13 @@ typedef double fp64_t;
 // usage: typedef ut_begin_packed struct foo_s { ... } ut_end_packed foo_t;
 
 #if defined(__GNUC__) || defined(__clang__)
-#define attribute_packed __attribute__((packed))
+#define ut_attribute_packed __attribute__((packed))
 #define ut_begin_packed
-#define ut_end_packed attribute_packed
+#define ut_end_packed ut_attribute_packed
 #else
 #define ut_begin_packed ut_pragma( pack(push, 1) )
 #define ut_end_packed ut_pragma( pack(pop) )
-#define attribute_packed
+#define ut_attribute_packed
 #endif
 
 // usage: typedef struct ut_aligned_8 foo_s { ... } foo_t;

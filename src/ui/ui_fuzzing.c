@@ -173,7 +173,7 @@ static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
         paragraphs--;
     }
     *s = 0;
-//  ut_traceln("%s\n", p.text);
+//  ut_println("%s\n", p.text);
 }
 
 static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
@@ -234,7 +234,7 @@ static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
         ui_app.mouse.y = y;
 //      https://stackoverflow.com/questions/22259936/
 //      https://stackoverflow.com/questions/65691101/
-//      ut_traceln("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
+//      ut_println("%d,%d", x + ui_app.wrc.x, y + ui_app.wrc.y);
 //      // next line works only when running as administrator:
 //      ut_fatal_win32err(SetCursorPos(x + ui_app.wrc.x, y + ui_app.wrc.y));
         const bool l_button = ui_app.mouse_left  != work->left;
@@ -304,7 +304,7 @@ static void ui_fuzzing_character(void) {
             ui_fuzzing_next_gibberish(n, utf8);
             ui_fuzzing_work.utf8 = utf8;
             if (ui_fuzzing_debug) {
-    //          ut_traceln("%s", utf8);
+    //          ut_println("%s", utf8);
             }
         } else if (r < 0.25) {
             ui_fuzzing_work.utf8 = ui_fuzzing_lorem_ipsum_chinese;
@@ -342,7 +342,7 @@ static void ui_fuzzing_key(void) {
     ui_fuzzing_alt_ctrl_shift();
     uint32_t ix = ui_fuzzing_random() % ut_countof(keys);
     if (ui_fuzzing_debug) {
-//      ut_traceln("key(%s)", keys[ix].name);
+//      ut_println("key(%s)", keys[ix].name);
     }
     ui_fuzzing_work.key = keys[ix].key;
     ui_fuzzing_post();
@@ -364,7 +364,7 @@ static void ui_fuzzing_mouse(void) {
         w->right = !w->right;
     }
     if (ui_fuzzing_debug) {
-//      ut_traceln("mouse(%d,%d) %s%s", pt.x, pt.y,
+//      ut_println("mouse(%d,%d) %s%s", pt.x, pt.y,
 //              w->left ? "L" : "_", w->right ? "R" : "_");
     }
     w->pt = &pt;

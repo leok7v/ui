@@ -49,7 +49,7 @@ static const char* ui_toggle_on_off_label(ui_view_t* v,
 
 static void ui_toggle_measure(ui_view_t* v) {
     if (v->min_w_em < 3.0f) {
-        ut_traceln("3.0f em minimum width");
+        ut_println("3.0f em minimum width");
         v->min_w_em = 4.0f;
     }
     ui_view.measure_control(v);

@@ -31,10 +31,10 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
     int32_t index  = strid % 16;
     HRSRC res = FindResourceExW(((HMODULE)null), RT_STRING,
         MAKEINTRESOURCEW(block), lang_id);
-//  ut_traceln("FindResourceExA(block=%d lang_id=%04X)=%p", block, lang_id, res);
+//  ut_println("FindResourceExA(block=%d lang_id=%04X)=%p", block, lang_id, res);
     uint8_t* memory = res == null ? null : (uint8_t*)LoadResource(null, res);
     uint16_t* ws = memory == null ? null : (uint16_t*)LockResource(memory);
-//  ut_traceln("LockResource(block=%d lang_id=%04X)=%p", block, lang_id, ws);
+//  ut_println("LockResource(block=%d lang_id=%04X)=%p", block, lang_id, ws);
     if (ws != null) {
         for (int32_t i = 0; i < 16 && r == null; i++) {
             if (ws[0] != 0) {
@@ -42,7 +42,7 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
                 ws++;
                 assert(ws[count - 1] == 0, "use rc.exe /n command line option");
                 if (i == index) { // the string has been found
-//                  ut_traceln("%04X found %s", lang_id, utf16to8(ws));
+//                  ut_println("%04X found %s", lang_id, utf16to8(ws));
                     r = ws;
                 }
                 ws += count;
@@ -121,7 +121,7 @@ static const char* ut_nls_locale(void) {
     ln[0] = 0;
     if (n == 0) {
         errno_t r = ut_runtime.err();
-        ut_traceln("LCIDToLocaleName(0x%04X) failed %s", lc_id, ut_str.error(r));
+        ut_println("LCIDToLocaleName(0x%04X) failed %s", lc_id, ut_str.error(r));
     } else {
         ut_str.utf16to8(ln, ut_countof(ln), utf16, -1);
     }
@@ -136,12 +136,12 @@ static errno_t ut_nls_set_locale(const char* locale) {
     int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)ut_countof(rln));
     if (n == 0) {
         r = ut_runtime.err();
-        ut_traceln("ResolveLocaleName(\"%s\") failed %s", locale, ut_str.error(r));
+        ut_println("ResolveLocaleName(\"%s\") failed %s", locale, ut_str.error(r));
     } else {
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
         if (lc_id == 0) {
             r = ut_runtime.err();
-            ut_traceln("LocaleNameToLCID(\"%s\") failed %s", locale, ut_str.error(r));
+            ut_println("LocaleNameToLCID(\"%s\") failed %s", locale, ut_str.error(r));
         } else {
             ut_fatal_win32err(SetThreadLocale(lc_id));
             memset((void*)ut_nls_ls, 0, sizeof(ut_nls_ls)); // start all over
@@ -169,7 +169,7 @@ static void ut_nls_init(void) {
                 ut_fatal_if(ws[count - 1] != 0, "use rc.exe /n");
                 ut_nls_ns[ix] = ut_nls_save_string(ws);
                 ut_nls_strings_count = ix + 1;
-//              ut_traceln("ns[%d] := %d \"%s\"", ix, strlen(ut_nls_ns[ix]), ut_nls_ns[ix]);
+//              ut_println("ns[%d] := %d \"%s\"", ix, strlen(ut_nls_ns[ix]), ut_nls_ns[ix]);
                 ws += count;
             } else {
                 ws++;

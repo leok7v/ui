@@ -150,7 +150,7 @@ static void ut_clock_test(void) {
         count++;
     }
     swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 

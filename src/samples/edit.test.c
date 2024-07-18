@@ -188,7 +188,7 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
         paragraphs--;
     }
     *s = 0;
-//  ut_traceln("%s\n", p.text);
+//  ut_println("%s\n", p.text);
 }
 
 void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
@@ -219,7 +219,7 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     // test bad UTF8
     static const char* th_bad_utf8 = "\xE0\xB8\x9A\xE0\xB8\xA3\xE0\xB8\xB4\xE0\xB9\x80\xE0\xB8\xA7\xE0\xB8\x93\xE0\xB8\x8A\xE0\xB8\xB8\xE0\xB8\x94\xE0\xB8\xA5\xE0\xB8\xB0\xE0\xB8\xA5\xE0\xB8\xB0\xE0\xB8\xAA\xE0\xB8\xB2\xE0\xB8\x87\xE0\xE0\xB9\x80\xE0\xB8\xA3\xE0\xB8\x87\xE0\xB9\x84\xE0\xB8\xA5\xE0\xB8\xA1\xE0\xB8\x95\xE0\xB8\xA3\xE0\xB8\xB4\xE0\xB8\xA1\xE0\xB8\xAD\xE0\xB9\x88\xE0\xB8\xB2\xE0\xB8\x94\xE0\xB8\xAD\xE0\xB8\x94\xE0\xB8\xAA\xE0\xB9\x80\xE0\xB8\xA3\xE0\xB8\xA2\xE0\xB8\xA2\xE0\xB8\xA7\xE0\xB8\xA5\xE0\xB8\xB1\xE0\xB8\x9A\xE0\xB8\x81\xE0\xB8\xB4\xE0\xB8\x9B\xE0\xB8\x81\xE0\xB8\xA7\xE0\xB8\xB1\xE0\xB8\x87\x2E";
     end = ui_edit_text.end_range(t);
-//  ut_traceln("%s", th_bad_utf8);
+//  ut_println("%s", th_bad_utf8);
     bool expected_false = ui_edit_text.replace_utf8(t, &end, th_bad_utf8, -1, null);
     swear(expected_false == false);
     static const char* en_sentence_utf8 = "\x54\x68\x65\x20\x71\x75\x69\x63\x6b\x20\x62\x72\x6f\x77\x6e\x20\x66\x6f\x78\x20\x6a\x75\x6d\x70\x73\x20\x6f\x76\x65\x72\x20\x74\x68\x65\x20\x6c\x61\x7a\x79\x20\x64\x6f\x67\x2e";
@@ -289,7 +289,7 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     };
     for (int i = 0; i < sizeof(sentences) / sizeof(sentences[0]); i++) {
         end = ui_edit_text.end_range(t);
-//      ut_traceln("%s %s", sentences[i].id, sentences[i].s);
+//      ut_println("%s %s", sentences[i].id, sentences[i].s);
         swear(ui_edit_text.replace_utf8(t, &end, sentences[i].s, -1, null));
         swear(ui_edit_text.replace_utf8(t, &end, "\n\n", -1, null));
     }

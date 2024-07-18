@@ -61,7 +61,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
                 if (!ui_view.is_hidden(c)) {
                     mxw[i] = ut_max(mxw[i], c->w);
                     r->h = ut_max(r->h, c->h);
-//                  ut_traceln("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
+//                  ut_println("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
 //                          i, r->fm->baseline, c->fm->baseline);
 //                  r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
                 }

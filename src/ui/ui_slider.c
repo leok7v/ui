@@ -36,7 +36,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     ui_wh_t mt = s->fm->em;
     if (s->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.margins(&s->view, &s->padding);
-        ut_traceln(">%dx%d em: %dx%d min: %.1fx%.1f "
+        ut_println(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
@@ -44,7 +44,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
             ut_min(64, strlen(text)), text);
         const ui_margins_t in = s->insets;
         const ui_margins_t pd = s->padding;
-        ut_traceln(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+        ut_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
             in.left + in.right, in.top + in.bottom,
@@ -67,7 +67,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
         mt = measure_text(s->fm, "%s", text);
     }
     if (s->debug.trace.mt) {
-        ut_traceln(" mt: %dx%d", mt.w, mt.h);
+        ut_println(" mt: %dx%d", mt.w, mt.h);
     }
     return mt;
 }
@@ -97,7 +97,7 @@ static void ui_slider_measure(ui_view_t* v) {
     }
     v->h = ut_max(v->h, i.top + fm->em.h + i.bottom);
     if (s->debug.trace.mt) {
-        ut_traceln("<%dx%d", s->w, s->h);
+        ut_println("<%dx%d", s->w, s->h);
     }
 }
 
@@ -325,7 +325,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
         int32_t value_min, int32_t value_max,
         void (*callback)(ui_view_t* r)) {
     static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
-    if (min_w_em < 6.0) { ut_traceln("6.0 em minimum"); }
+    if (min_w_em < 6.0) { ut_println("6.0 em minimum"); }
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
     s->callback = callback;

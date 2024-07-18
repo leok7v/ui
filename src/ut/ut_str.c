@@ -113,7 +113,7 @@ static int32_t ut_str_utf8_bytes(const uint16_t* utf16, int32_t chars) {
         utf16, chars, null, 0, null, null);
     if (required_bytes_count == 0) {
         errno_t r = ut_runtime.err();
-        ut_traceln("WideCharToMultiByte() failed %s", ut_strerr(r));
+        ut_println("WideCharToMultiByte() failed %s", ut_strerr(r));
         ut_runtime.set_err(r);
     }
     return required_bytes_count == 0 ? -1 : required_bytes_count;
@@ -128,7 +128,7 @@ static int32_t ut_str_utf16_chars(const char* utf8, int32_t bytes) {
         MultiByteToWideChar(CP_UTF8, 0, utf8, bytes, null, 0);
     if (required_wide_chars_count == 0) {
         errno_t r = ut_runtime.err();
-        ut_traceln("MultiByteToWideChar() failed %s", ut_strerr(r));
+        ut_println("MultiByteToWideChar() failed %s", ut_strerr(r));
         ut_runtime.set_err(r);
     }
     return required_wide_chars_count == 0 ? -1 : required_wide_chars_count;
@@ -168,7 +168,7 @@ static errno_t ut_str_utf8to16(uint16_t* utf16, int32_t capacity,
             int32_t n = NormalizeString(NormalizationC, utf16, count, utf16, count);
             if (n <= 0) {
                 r = ut_runtime.err();
-                ut_traceln("NormalizeString() failed %s", ut_strerr(r));
+                ut_println("NormalizeString() failed %s", ut_strerr(r));
             }
         }
 #endif 
@@ -512,7 +512,7 @@ static void ut_str_test(void) {
     //
     //  actual "pi" first 64 digits:
     //  3.1415926535897932384626433832795028841971693993751058209749445923
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_traceln("done"); }
+    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else

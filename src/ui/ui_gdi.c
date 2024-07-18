@@ -189,7 +189,7 @@ static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t c) {
-//  ut_traceln("%d,%d %dx%d 0x%08X", x, y, w, h, (uint32_t)c);
+//  ut_println("%d,%d %dx%d 0x%08X", x, y, w, h, (uint32_t)c);
     ui_brush_t b = ui_gdi_set_brush(ui_gdi_brush_color);
     c = ui_gdi_set_brush_color(c);
     RECT rc = { x, y, x + w, y + h };
@@ -716,14 +716,14 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
     if (tm.tmPitchAndFamily & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
     if (tm.tmPitchAndFamily & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
     if (tm.tmPitchAndFamily & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
-    ut_traceln("tm: .pitch_and_family: %s", pitch);
-    ut_traceln(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
+    ut_println("tm: .pitch_and_family: %s", pitch);
+    ut_println(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
             tm.tmHeight, tm.tmAscent, tm.tmDescent);
-    ut_traceln(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
+    ut_println(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
             tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
-    ut_traceln(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
+    ut_println(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
             tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
-    ut_traceln(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
+    ut_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
             tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
     swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
@@ -732,27 +732,27 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
     // unsupported XHeight CapEmHeight
     // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
     //             CharSlopeRise, CharSlopeRun, ItalicAngle
-    ut_traceln("otm: .Ascent       : %2d   .Descent        : %2d",
+    ut_println("otm: .Ascent       : %2d   .Descent        : %2d",
             otm.otmAscent, otm.otmDescent);
-    ut_traceln(".otmLineGap        : %2u", otm.otmLineGap);
-    ut_traceln(".FontBox.ltrb      :  %d,%d %2d,%2d",
+    ut_println(".otmLineGap        : %2u", otm.otmLineGap);
+    ut_println(".FontBox.ltrb      :  %d,%d %2d,%2d",
             otm.otmrcFontBox.left, otm.otmrcFontBox.top,
             otm.otmrcFontBox.right, otm.otmrcFontBox.bottom);
-    ut_traceln(".MinimumPPEM       : %2u    (minimum height in pixels)",
+    ut_println(".MinimumPPEM       : %2u    (minimum height in pixels)",
             otm.otmusMinimumPPEM);
-    ut_traceln(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
+    ut_println(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
             otm.otmptSubscriptOffset.x, otm.otmptSubscriptOffset.y,
             otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y);
-    ut_traceln(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
+    ut_println(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
             otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y,
             otm.otmptSuperscriptSize.x,   otm.otmptSuperscriptSize.y);
-    ut_traceln(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
+    ut_println(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
             otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
-    ut_traceln(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
+    ut_println(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
             otm.otmsStrikeoutSize,  otm.otmsStrikeoutPosition);
     int32_t h = otm.otmAscent + abs(tm.tmDescent); // without diacritical space above
     fp32_t pts = (h * 72.0f)  / GetDeviceCaps(hdc, LOGPIXELSY);
-    ut_traceln("height: %.1fpt", pts);
+    ut_println("height: %.1fpt", pts);
 }
 
 static void ui_gdi_dump_fm(ui_font_t f) {
@@ -830,14 +830,14 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
         ut_fatal_win32err(GetTextExtentPoint32A(hdc,
             ut_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
-//      ut_traceln("vl: %d %d", vl.cx, vl.cy);
-//      ut_traceln("e3: %d %d", e3.cx, e3.cy);
-//      ut_traceln("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
+//      ut_println("vl: %d %d", vl.cx, vl.cy);
+//      ut_println("e3: %d %d", e3.cx, e3.cy);
+//      ut_println("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
 //              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
     });
     assert(fm->baseline <= fm->height);
     fm->em = (ui_wh_t){ .w = fm->height, .h = fm->height };
-//  ut_traceln("fm.em: %dx%d", fm->em.w, fm->em.h);
+//  ut_println("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
 
 static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
@@ -848,15 +848,15 @@ if (0) {
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
-        ut_traceln("em: %d %d", em.cx, em.cy);
+        ut_println("em: %d %d", em.cx, em.cy);
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em));
-        ut_traceln("em: %d %d", em.cx, em.cy);
+        ut_println("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        ut_traceln("vl: %d %d", vl.cx, vl.cy);
+        ut_println("vl: %d %d", vl.cx, vl.cy);
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
-        ut_traceln("e3: %d %d", e3.cx, e3.cy);
+        ut_println("e3: %d %d", e3.cx, e3.cy);
     }
 }
     int32_t count = ut_str.utf16_chars(s, -1);
@@ -1002,7 +1002,7 @@ static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
             ut_str_printf(hex, "%04X ", utf16[i]);
             strcat(str, hex);
         }
-ut_traceln("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf8, bytes, glyphs, ta->fm->font, ui_gdi_context.hdc);
+ut_println("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf8, bytes, glyphs, ta->fm->font, ui_gdi_context.hdc);
 #endif
         GCP_RESULTSW gcp = {
             .lStructSize = sizeof(GCP_RESULTSW),
@@ -1031,7 +1031,7 @@ ut_traceln("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf
             int32_t k = 1;
             while (i < chars) {
                 x[k] = x[k - 1] + gcp.lpDx[i];
-//              ut_traceln("%d", x[i]);
+//              ut_println("%d", x[i]);
                 k++;
                 if (i < chars - 1 && ut_str.utf16_is_high_surrogate(utf16[i]) &&
                                      ut_str.utf16_is_low_surrogate(utf16[i + 1])) {
@@ -1043,7 +1043,7 @@ ut_traceln("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf
             assert(k == glyphs + 1);
         } else {
 //          assert(false, "GetCharacterPlacementW() failed");
-            ut_traceln("GetCharacterPlacementW() failed");
+            ut_println("GetCharacterPlacementW() failed");
         }
     }
     return wh;
