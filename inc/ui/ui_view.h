@@ -28,7 +28,7 @@ typedef struct ui_view_private_s { // do not access directly
 } ui_view_private_t;
 
 typedef struct ui_view_text_metrics_s { // ui_view.measure_text() fills these attributes:
-    ui_wh_t    mt; // text width and height
+    ui_wh_t    wh; // text width and height
     ui_point_t xy; // text offset inside view
     bool multiline; // text contains "\n"
 } ui_view_text_metrics_t;

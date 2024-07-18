@@ -33,7 +33,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     const ui_fm_t* fm = s->fm;
     const char* text = ui_view.string(&s->view);
     const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
-    ui_wh_t mt = s->fm->em;
+    ui_wh_t wh = s->fm->em;
     if (s->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.margins(&s->view, &s->padding);
         ut_println(">%dx%d em: %dx%d min: %.1fx%.1f "
@@ -54,22 +54,22 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     if (s->format != null) {
         s->format(&s->view);
         ut_str_printf(formatted, "%s", text);
-        mt = measure_text(s->fm, "%s", formatted);
+        wh = measure_text(s->fm, "%s", formatted);
         // TODO: format string 0x08X?
     } else if (text != null && (strstr(text, "%d") != null ||
                                 strstr(text, "%u") != null)) {
         ui_wh_t mt_min = measure_text(s->fm, text, s->value_min);
         ui_wh_t mt_max = measure_text(s->fm, text, s->value_max);
         ui_wh_t mt_val = measure_text(s->fm, text, s->value);
-        mt.h = ut_max(mt_val.h, ut_max(mt_min.h, mt_max.h));
-        mt.w = ut_max(mt_val.w, ut_max(mt_min.w, mt_max.w));
+        wh.h = ut_max(mt_val.h, ut_max(mt_min.h, mt_max.h));
+        wh.w = ut_max(mt_val.w, ut_max(mt_min.w, mt_max.w));
     } else if (text != null && text[0] != 0) {
-        mt = measure_text(s->fm, "%s", text);
+        wh = measure_text(s->fm, "%s", text);
     }
     if (s->debug.trace.mt) {
-        ut_println(" mt: %dx%d", mt.w, mt.h);
+        ut_println(" mt: %dx%d", wh.w, wh.h);
     }
-    return mt;
+    return wh;
 }
 
 static void ui_slider_measure(ui_view_t* v) {
@@ -88,13 +88,13 @@ static void ui_slider_measure(ui_view_t* v) {
     ui_view.measure_control(v);
 //  s->text.mt = ui_slider_measure_text(s);
     if (s->dec.state.hidden) {
-        v->w = ut_max(v->w, i.left + s->mt.w + i.right);
+        v->w = ut_max(v->w, i.left + s->wh.w + i.right);
     } else {
         ui_view.measure(&s->dec); // remeasure with inherited metrics
         ui_view.measure(&s->inc);
         const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
         const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
-        v->w = ut_max(v->w, s->dec.w + dec_p.right + s->mt.w + inc_p.left + s->inc.w);
+        v->w = ut_max(v->w, s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w);
     }
     v->h = ut_max(v->h, i.top + fm->em.h + i.bottom);
     if (s->debug.trace.mt) {

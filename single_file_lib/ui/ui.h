@@ -824,7 +824,7 @@ typedef struct ui_view_private_s { // do not access directly
 } ui_view_private_t;
 
 typedef struct ui_view_text_metrics_s { // ui_view.measure_text() fills these attributes:
-    ui_wh_t    mt; // text width and height
+    ui_wh_t    wh; // text width and height
     ui_point_t xy; // text offset inside view
     bool multiline; // text contains "\n"
 } ui_view_text_metrics_t;
@@ -1736,7 +1736,7 @@ typedef struct ui_slider_s {
     };
     int32_t step;
     fp64_t time; // time last button was pressed
-    ui_wh_t mt;  // text measurement (special case for %0*d)
+    ui_wh_t wh;  // text measurement (special case for %0*d)
     ui_button_t inc; // can be hidden
     ui_button_t dec; // can be hidden
     int32_t value;  // for ui_slider_t range slider control
@@ -12923,7 +12923,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     const ui_fm_t* fm = s->fm;
     const char* text = ui_view.string(&s->view);
     const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
-    ui_wh_t mt = s->fm->em;
+    ui_wh_t wh = s->fm->em;
     if (s->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.margins(&s->view, &s->padding);
         ut_println(">%dx%d em: %dx%d min: %.1fx%.1f "
@@ -12944,22 +12944,22 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     if (s->format != null) {
         s->format(&s->view);
         ut_str_printf(formatted, "%s", text);
-        mt = measure_text(s->fm, "%s", formatted);
+        wh = measure_text(s->fm, "%s", formatted);
         // TODO: format string 0x08X?
     } else if (text != null && (strstr(text, "%d") != null ||
                                 strstr(text, "%u") != null)) {
         ui_wh_t mt_min = measure_text(s->fm, text, s->value_min);
         ui_wh_t mt_max = measure_text(s->fm, text, s->value_max);
         ui_wh_t mt_val = measure_text(s->fm, text, s->value);
-        mt.h = ut_max(mt_val.h, ut_max(mt_min.h, mt_max.h));
-        mt.w = ut_max(mt_val.w, ut_max(mt_min.w, mt_max.w));
+        wh.h = ut_max(mt_val.h, ut_max(mt_min.h, mt_max.h));
+        wh.w = ut_max(mt_val.w, ut_max(mt_min.w, mt_max.w));
     } else if (text != null && text[0] != 0) {
-        mt = measure_text(s->fm, "%s", text);
+        wh = measure_text(s->fm, "%s", text);
     }
     if (s->debug.trace.mt) {
-        ut_println(" mt: %dx%d", mt.w, mt.h);
+        ut_println(" mt: %dx%d", wh.w, wh.h);
     }
-    return mt;
+    return wh;
 }
 
 static void ui_slider_measure(ui_view_t* v) {
@@ -12978,13 +12978,13 @@ static void ui_slider_measure(ui_view_t* v) {
     ui_view.measure_control(v);
 //  s->text.mt = ui_slider_measure_text(s);
     if (s->dec.state.hidden) {
-        v->w = ut_max(v->w, i.left + s->mt.w + i.right);
+        v->w = ut_max(v->w, i.left + s->wh.w + i.right);
     } else {
         ui_view.measure(&s->dec); // remeasure with inherited metrics
         ui_view.measure(&s->inc);
         const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
         const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
-        v->w = ut_max(v->w, s->dec.w + dec_p.right + s->mt.w + inc_p.left + s->inc.w);
+        v->w = ut_max(v->w, s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w);
     }
     v->h = ut_max(v->h, i.top + fm->em.h + i.bottom);
     if (s->debug.trace.mt) {
@@ -13769,16 +13769,16 @@ static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
 static void ui_view_text_measure(ui_view_t* v, const char* s,
         ui_view_text_metrics_t* tm) {
     const ui_fm_t* fm = v->fm;
-    tm->mt = (ui_wh_t){ .w = 0, .h = fm->height };
+    tm->wh = (ui_wh_t){ .w = 0, .h = fm->height };
     if (s[0] == 0) {
         tm->multiline = false;
     } else {
         tm->multiline = strchr(s, '\n') != null;
         if (v->type == ui_view_label && tm->multiline) {
             int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)fm->em.w + 0.5);
-            tm->mt = ui_view.text_metrics(v->x, v->y, true,  w, fm, "%s", s);
+            tm->wh = ui_view.text_metrics(v->x, v->y, true,  w, fm, "%s", s);
         } else {
-            tm->mt = ui_view.text_metrics(v->x, v->y, false, 0, fm, "%s", s);
+            tm->wh = ui_view.text_metrics(v->x, v->y, false, 0, fm, "%s", s);
         }
     }
 }
@@ -13792,30 +13792,30 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
                            .h = v->h - i.top - i.bottom };
     const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
     const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
-    tm->xy.x = i.left + (i_wh.w - tm->mt.w) / 2;
+    tm->xy.x = i.left + (i_wh.w - tm->wh.w) / 2;
     if (h_align & ui.align.left) {
         tm->xy.x = i.left;
     } else if (h_align & ui.align.right) {
-        tm->xy.x = i_wh.w - tm->mt.w - i.right;
+        tm->xy.x = i_wh.w - tm->wh.w - i.right;
     }
     // vertical centering is trickier.
     // mt.h is height of all measured lines of text
-    tm->xy.y = i.top + (i_wh.h - tm->mt.h) / 2;
+    tm->xy.y = i.top + (i_wh.h - tm->wh.h) / 2;
     if (v_align & ui.align.top) {
         tm->xy.y = i.top;
     } else if (v_align & ui.align.bottom) {
-        tm->xy.y = i_wh.h - tm->mt.h - i.bottom;
+        tm->xy.y = i_wh.h - tm->wh.h - i.bottom;
     } else if (!tm->multiline) {
         // UI controls should have x-height line in the dead center
         // of the control to be visually balanced.
         // y offset of "x-line" of the glyph:
         const int32_t y_of_x_line = fm->baseline - fm->x_height;
         // `dy` offset of the center to x-line (middle of glyph cell)
-        const int32_t dy = tm->mt.h / 2 - y_of_x_line;
+        const int32_t dy = tm->wh.h / 2 - y_of_x_line;
         tm->xy.y += dy / 2;
         if (v->debug.trace.mt) {
             ut_println(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
-                      y_of_x_line, tm->mt.h, dy);
+                      y_of_x_line, tm->wh.h, dy);
         }
     }
 }
@@ -13846,10 +13846,10 @@ static void ui_view_measure_control(ui_view_t* v) {
     }
     ui_view_text_measure(v, s, &v->text);
     if (v->debug.trace.mt) {
-        ut_println(" mt: %d %d", v->text.mt.w, v->text.mt.h);
+        ut_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
     }
-    v->w = ut_max(v->w, i.left + v->text.mt.w + i.right);
-    v->h = ut_max(v->h, i.top  + v->text.mt.h + i.bottom);
+    v->w = ut_max(v->w, i.left + v->text.wh.w + i.right);
+    v->h = ut_max(v->h, i.top  + v->text.wh.h + i.bottom);
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
         ut_println("<%dx%d text_align x,y: %d,%d",
@@ -14412,10 +14412,10 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
         if (ib > 0) { ui_gdi.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
         if ((ui_view.is_container(v) || ui_view.is_spacer(v)) &&
             v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
-            ui_wh_t mt = ui_view_text_metrics(v->x, v->y, false, 0,
+            ui_wh_t wh = ui_view_text_metrics(v->x, v->y, false, 0,
                                               v->fm, "%s", ui_view.string(v));
-            const int32_t tx = v->x + (v->w - mt.w) / 2;
-            const int32_t ty = v->y + (v->h - mt.h) / 2;
+            const int32_t tx = v->x + (v->w - wh.w) / 2;
+            const int32_t ty = v->y + (v->h - wh.h) / 2;
             c = ui_color_is_rgb(v->color) ^ 0xFFFFFF;
             const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
             ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
