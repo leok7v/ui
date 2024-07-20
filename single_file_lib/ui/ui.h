@@ -806,6 +806,7 @@ enum ui_view_type_t {
     ui_view_button    = 'vwbt',
     ui_view_toggle    = 'vwtg',
     ui_view_slider    = 'vwsl',
+    ui_view_image     = 'vwiv',
     ui_view_text      = 'vwtx',
     ui_view_span      = 'vwhs',
     ui_view_list      = 'vwvs',
@@ -944,7 +945,7 @@ typedef struct ui_view_if {
     // children va_args must be null terminated
     ui_view_t* (*add)(ui_view_t* parent, ...);
     void (*add_first)(ui_view_t* parent, ui_view_t* child);
-    void (*add_last)(ui_view_t* parent,  ui_view_t* child);
+    void (*add_last)(ui_view_t*  parent, ui_view_t* child);
     void (*add_after)(ui_view_t* child,  ui_view_t* after);
     void (*add_before)(ui_view_t* child, ui_view_t* before);
     void (*remove)(ui_view_t* v); // removes view from it`s parent
@@ -5113,8 +5114,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE ut_unused(previous),
     ut_fatal_if_error(CoInitializeEx(0, co_init));
     SetConsoleCP(CP_UTF8);
     // Expected manifest.xml containing UTF-8 code page
-    // for Translate message and WM_CHAR to deliver UTF-8 characters
-    // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
+    // for TranslateMessage and WM_CHAR to deliver UTF-8 characters
+    // see:
+    // https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
+    // .rc file must have:
+    // 1 RT_MANIFEST "manifest.xml"
     if (GetACP() != 65001) {
         ut_println("codepage: %d UTF-8 will not be supported", GetACP());
     }
@@ -5158,7 +5162,10 @@ int main(int argc, const char* argv[], const char** envp) {
 #include "ut/ut.h"
 
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
-    if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
+    if (!v->state.hidden) {
+        v->p.armed_until = 0;
+        v->state.armed = false;
+    } else if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
         v->state.armed = false;
         ui_view.invalidate(v, null);
@@ -6116,7 +6123,8 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
         ut_assert(c->align == ui.align.bottom);
         c->y = ut_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
     } else { // effective height (c->h might have been changed)
-        ut_assert(c->align == ui.align.center);
+        ut_assert(c->align == ui.align.center,
+                  "only top, center, bottom alignment for span");
         const int32_t ch = padding.top + c->h + padding.bottom;
         c->y = ut_max(min_y, pbx.y + (pbx.h - ch) / 2 + padding.top);
     }
@@ -6292,7 +6300,8 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
         ut_assert(c->align == ui.align.right);
         c->x = ut_max(min_x, pbx.x + pbx.w - c->w - padding.right);
     } else {
-        ut_assert(c->align == ui.align.center);
+        ut_assert(c->align == ui.align.center,
+                  "only left, center, right, alignment for list");
         const int32_t cw = padding.left + c->w + padding.right;
         c->x = ut_max(min_x, pbx.x + (pbx.w - cw) / 2 + padding.left);
     }
@@ -13923,14 +13932,14 @@ static bool ui_view_is_parent_of(const ui_view_t* parent,
     return false;
 }
 
-static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* g) {
-    const fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
-    const fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
+static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* m) {
+    const fp64_t gw = (fp64_t)m->left + (fp64_t)m->right;
+    const fp64_t gh = (fp64_t)m->top  + (fp64_t)m->bottom;
     const ui_wh_t* em = &v->fm->em;
     const int32_t em_w = (int32_t)(em->w * gw + 0.5);
     const int32_t em_h = (int32_t)(em->h * gh + 0.5);
-    const int32_t left = (int32_t)((fp64_t)em->w * (fp64_t)g->left + 0.5);
-    const int32_t top  = (int32_t)((fp64_t)em->h * (fp64_t)g->top  + 0.5);
+    const int32_t left = (int32_t)((fp64_t)em->w * (fp64_t)m->left + 0.5);
+    const int32_t top  = (int32_t)((fp64_t)em->h * (fp64_t)m->top  + 0.5);
     return (ui_ltrb_t) {
         .left   = left,         .top    = top,
         .right  = em_w - left,  .bottom = em_h - top

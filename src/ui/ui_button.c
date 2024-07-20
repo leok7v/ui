@@ -2,7 +2,10 @@
 #include "ui/ui.h"
 
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
-    if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
+    if (!v->state.hidden) {
+        v->p.armed_until = 0;
+        v->state.armed = false;
+    } else if (v->p.armed_until != 0 && ui_app.now > v->p.armed_until) {
         v->p.armed_until = 0;
         v->state.armed = false;
         ui_view.invalidate(v, null);

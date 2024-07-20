@@ -362,14 +362,14 @@ static bool ui_view_is_parent_of(const ui_view_t* parent,
     return false;
 }
 
-static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* g) {
-    const fp64_t gw = (fp64_t)g->left + (fp64_t)g->right;
-    const fp64_t gh = (fp64_t)g->top  + (fp64_t)g->bottom;
+static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* m) {
+    const fp64_t gw = (fp64_t)m->left + (fp64_t)m->right;
+    const fp64_t gh = (fp64_t)m->top  + (fp64_t)m->bottom;
     const ui_wh_t* em = &v->fm->em;
     const int32_t em_w = (int32_t)(em->w * gw + 0.5);
     const int32_t em_h = (int32_t)(em->h * gh + 0.5);
-    const int32_t left = (int32_t)((fp64_t)em->w * (fp64_t)g->left + 0.5);
-    const int32_t top  = (int32_t)((fp64_t)em->h * (fp64_t)g->top  + 0.5);
+    const int32_t left = (int32_t)((fp64_t)em->w * (fp64_t)m->left + 0.5);
+    const int32_t top  = (int32_t)((fp64_t)em->h * (fp64_t)m->top  + 0.5);
     return (ui_ltrb_t) {
         .left   = left,         .top    = top,
         .right  = em_w - left,  .bottom = em_h - top

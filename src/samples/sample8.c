@@ -272,6 +272,9 @@ static ui_view_t* align(ui_view_t* v, int32_t align) {
 }
 
 static void stack_test(ui_view_t* parent) {
+    // TODO: do not need to disband everything just remove children
+    // and switch. list_test() becomes init() like switching views
+    // removing and adding child
     ui_view.disband(parent);
     static ui_view_t  stack        = ui_view(stack);
     static ui_label_t left         = ui_label(0, " left ");
@@ -312,6 +315,9 @@ static void stack_test(ui_view_t* parent) {
 }
 
 static void span_test(ui_view_t* parent) {
+    // TODO: do not need to disband everything just remove children
+    // and switch. list_test() becomes init() like switching views
+    // removing and adding child
     ui_view.disband(parent);
     static ui_view_t  span   = ui_view(span);
     static ui_label_t left   = ui_label(0, " left ");
@@ -347,6 +353,9 @@ static void span_test(ui_view_t* parent) {
 }
 
 static void list_test(ui_view_t* parent) {
+    // TODO: do not need to disband everything just remove children
+    // and switch. list_test() becomes init() like switching views
+    // removing and adding child
     ui_view.disband(parent);
     static ui_view_t  list         = ui_view(list);
     static ui_label_t left         = ui_label(0, " left ");
@@ -448,6 +457,9 @@ static void controls_test(ui_view_t* parent) {
         ut_glyph_combining_enclosing_circle             \
         "B" ut_glyph_box_drawings_light_diagonal_cross  \
         ut_glyph_E_with_cedilla_and_breve
+    // TODO: do not need to disband everything just remove children
+    // and switch. list_test() becomes init() like switching views
+    // removing and adding child
     ui_view.disband(parent);
     static ui_view_t   list    = ui_view(list);
     static ui_view_t   span    = ui_view(span);
@@ -518,6 +530,9 @@ slider1.debug.id = "#slider.1";
 // edit1 test
 
 static void edit1_test(ui_view_t* parent) {
+    // TODO: do not need to disband everything just remove children
+    // and switch. list_test() becomes init() like switching views
+    // removing and adding child
     ui_view.disband(parent);
     static void* text;
     static int64_t bytes;

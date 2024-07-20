@@ -10,6 +10,7 @@ enum ui_view_type_t {
     ui_view_button    = 'vwbt',
     ui_view_toggle    = 'vwtg',
     ui_view_slider    = 'vwsl',
+    ui_view_image     = 'vwiv',
     ui_view_text      = 'vwtx',
     ui_view_span      = 'vwhs',
     ui_view_list      = 'vwvs',
@@ -148,7 +149,7 @@ typedef struct ui_view_if {
     // children va_args must be null terminated
     ui_view_t* (*add)(ui_view_t* parent, ...);
     void (*add_first)(ui_view_t* parent, ui_view_t* child);
-    void (*add_last)(ui_view_t* parent,  ui_view_t* child);
+    void (*add_last)(ui_view_t*  parent, ui_view_t* child);
     void (*add_after)(ui_view_t* child,  ui_view_t* after);
     void (*add_before)(ui_view_t* child, ui_view_t* before);
     void (*remove)(ui_view_t* v); // removes view from it`s parent

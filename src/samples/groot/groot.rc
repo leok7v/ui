@@ -1,0 +1,19 @@
+#ifdef RC_INVOKED
+#ifndef _INC_WINDOWS
+#define _INC_WINDOWS
+#include "winres.h"           // extract from windows header
+#endif
+#endif
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(1252)
+
+101 ICON "groot.ico"
+
+#define file_description "Groot"
+#define original_file_name "groot.exe"
+#define product_name "groot"
+#define company_name "https://leok7v.github.io/"
+#define copyright "Copyright (C) 2021-2024 Dmitry `Leo` Kuznetsov. All rights reserved."
+
+#include "..\..\inc\ut\version.rc.in"

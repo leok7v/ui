@@ -45,6 +45,10 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sample7", "sample7.vcxproj"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sample8", "sample8.vcxproj", "{7A21BE1F-678C-4733-A9F0-A7BEEECF3CCE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{9CACB4C0-49E4-4B37-B45A-B36F2CAA7A15}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "groot", "groot.vcxproj", "{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		debug|arm64 = debug|arm64
@@ -181,9 +185,20 @@ Global
 		{7A21BE1F-678C-4733-A9F0-A7BEEECF3CCE}.release|arm64.Build.0 = Release|arm64
 		{7A21BE1F-678C-4733-A9F0-A7BEEECF3CCE}.release|x64.ActiveCfg = Release|x64
 		{7A21BE1F-678C-4733-A9F0-A7BEEECF3CCE}.release|x64.Build.0 = Release|x64
+		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.debug|arm64.ActiveCfg = debug|arm64
+		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.debug|arm64.Build.0 = debug|arm64
+		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.debug|x64.ActiveCfg = debug|x64
+		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.debug|x64.Build.0 = debug|x64
+		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.release|arm64.ActiveCfg = release|arm64
+		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.release|arm64.Build.0 = release|arm64
+		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.release|x64.ActiveCfg = release|x64
+		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.release|x64.Build.0 = release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3} = {9CACB4C0-49E4-4B37-B45A-B36F2CAA7A15}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {4903FF9C-ADBE-4753-BB20-C4EEE5D83493}

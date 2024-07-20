@@ -146,7 +146,8 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
         ut_assert(c->align == ui.align.bottom);
         c->y = ut_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
     } else { // effective height (c->h might have been changed)
-        ut_assert(c->align == ui.align.center);
+        ut_assert(c->align == ui.align.center,
+                  "only top, center, bottom alignment for span");
         const int32_t ch = padding.top + c->h + padding.bottom;
         c->y = ut_max(min_y, pbx.y + (pbx.h - ch) / 2 + padding.top);
     }
@@ -322,7 +323,8 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
         ut_assert(c->align == ui.align.right);
         c->x = ut_max(min_x, pbx.x + pbx.w - c->w - padding.right);
     } else {
-        ut_assert(c->align == ui.align.center);
+        ut_assert(c->align == ui.align.center,
+                  "only left, center, right, alignment for list");
         const int32_t cw = padding.left + c->w + padding.right;
         c->x = ut_max(min_x, pbx.x + (pbx.w - cw) / 2 + padding.left);
     }

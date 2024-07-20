@@ -2892,8 +2892,11 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE ut_unused(previous),
     ut_fatal_if_error(CoInitializeEx(0, co_init));
     SetConsoleCP(CP_UTF8);
     // Expected manifest.xml containing UTF-8 code page
-    // for Translate message and WM_CHAR to deliver UTF-8 characters
-    // see: https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
+    // for TranslateMessage and WM_CHAR to deliver UTF-8 characters
+    // see:
+    // https://learn.microsoft.com/en-us/windows/apps/design/globalizing/use-utf8-code-page
+    // .rc file must have:
+    // 1 RT_MANIFEST "manifest.xml"
     if (GetACP() != 65001) {
         ut_println("codepage: %d UTF-8 will not be supported", GetACP());
     }

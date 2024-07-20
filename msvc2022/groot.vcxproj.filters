@@ -1,0 +1,28 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClInclude Include="..\src\samples\i18n.h" />
+    <ClInclude Include="..\inc\ut\version.h" />
+    <ClInclude Include="..\src\samples\groot\rocket.h" />
+    <ClInclude Include="..\src\samples\groot\groot.h" />
+    <ClInclude Include="..\src\samples\stb_image.h" />
+    <ClInclude Include="..\src\samples\groot\ui_iv.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\src\samples\groot\groot.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\src\samples\groot\groot.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <Xml Include="manifest.xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\inc\ut\version.rc.in" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\samples\groot\groot.c" />
+    <ClCompile Include="..\src\samples\stb_image.c" />
+    <ClCompile Include="..\src\samples\groot\ui_iv.c" />
+  </ItemGroup>
+</Project>
