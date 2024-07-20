@@ -78,18 +78,24 @@ static void ui_iv_hide_toolbar(ui_iv_t* iv, bool hide) {
 }
 
 static void ui_iv_enable_zoom(ui_iv_t* iv) {
+#if 0 // Disabled buttons do not look good TODO: need disabled same looking button?
     fp64_t scale = iv->scale(iv);
     // whole image is visible
     bool whole = (int32_t)(iv->image.w * scale) <= iv->view.w &&
                  (int32_t)(iv->image.h * scale) <= iv->view.h;
     iv->tool.zoom_out.state.disabled = whole;
     iv->tool.zoom_1t1.state.disabled = iv->value == 4;
+#endif
+    iv->tool.zoom_in.state.disabled = false;
+    iv->tool.zoom_out.state.disabled = false;
+    iv->tool.zoom_1t1.state.disabled = false;
+
 }
 
 static void ui_iv_composed(ui_view_t* v) {
     ut_assert(v->type == ui_view_image);
     ui_iv_t* iv = (ui_iv_t*)v;
-    iv->tool.bar.x = v->x;
+    iv->tool.bar.x = v->x + v->w - iv->tool.bar.w;
     iv->tool.bar.y = v->y;
     iv->tool.ratio.x = v->x + v->w - iv->tool.ratio.w;
     iv->tool.ratio.y = v->y + v->h - iv->tool.ratio.h;
@@ -127,12 +133,12 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
     int32_t zd = iv->zd;
     fp64_t scale_before = iv->scale(iv);
     // whole image is visible
-    bool whole = (int32_t)(iv->image.w * scale_before) <= iv->view.w &&
-                 (int32_t)(iv->image.h * scale_before) <= iv->view.h;
-    if (n > 0 && !iv->tool.zoom_in.state.disabled) {
+//  bool whole = (int32_t)(iv->image.w * scale_before) <= iv->view.w &&
+//               (int32_t)(iv->image.h * scale_before) <= iv->view.h;
+    if (n > 0) {
         zn = n + 1;
         zd = 1;
-    } else if (n < 0 && !iv->tool.zoom_out.state.disabled) {
+    } else if (n < 0) {
         zn = 1;
         zd = -n + 1;
     } else if (n == 0) {
@@ -140,7 +146,7 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
         zd = 1;
     }
     fp64_t scale_after = ui_iv_scaleof(zn, zd);
-    if (!whole || scale_after >= scale_before) {
+    if (scale_after != scale_before) {
         iv->zn = zn;
         iv->zd = zd;
         const int32_t nm = 1 << (iv->zn - 1);
@@ -154,9 +160,10 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
     } else {
         ut_assert(false);
     }
+    // is whole image visible?
     fp64_t s = iv->scale(iv);
-    whole = (int32_t)(iv->image.w * s) <= iv->view.w &&
-            (int32_t)(iv->image.h * s) <= iv->view.h;
+    bool whole = (int32_t)(iv->image.w * s) <= iv->view.w &&
+                 (int32_t)(iv->image.h * s) <= iv->view.h;
     if (whole) { iv->sx = 0.5; iv->sy = 0.5; }
     ui_iv_enable_zoom(iv);
     ui_view.invalidate(&iv->view, null);
@@ -265,34 +272,19 @@ static void ui_iv_zoom_1t1(ui_button_t* b) {
     ui_iv_zoomed(iv);
 }
 
-#define glyph_left        "\xE2\x86\x90" // "ShortLeftArrow"
-#define glyph_up          "\xE2\x86\x91" // "ShortUpArrow"
-#define glyph_right       "\xE2\x86\x92" // "ShortRightArrow"
-#define glyph_down        "\xE2\x86\x93" // "ShortDownArrow"
-// telephone_recorder is magnifying glass shaped
-// none of empty set and slashed zero or capital letter O with a stroke
-// look like a good slashed zero:
-#define glyph_empty_set   "\xE2\x88\x85"
-#define glyph_latin_capital_letter_O_with_stroke "\xC3\x98"
-#define ut_glyph_clear_screen "\xE2\x8E\x9A"
-#define ut_glyph_clear_screen "\xE2\x8E\x9A"
-// Roman Numeral One Hundred Thousand
-// E2 86 88
-#define ut_glyph_roman_numeral_one_hundred_thousand "\xE2\x86\x88"
-// U+1F158 Negative Circled Latin Capital Letter I
-// F0 9F 85 98
-#define ut_glyph_negative_circled_latin_capital_letter_i "\xF0\x9F\x85\x98"
 // U+1F502 Clockwise Rightwards and Leftwards Open Circle Arrows with Circled One Overlay
 // F0 9F 94 82
 // ut_glyph_clockwise_rightwards_and_leftwards_open_circle_arrows_with_circled_one_overlay "\xF0\x9F\x94\x82"
-#define ut_glyph_one_overlay "\xF0\x9F\x94\x82"
+#define ut_glyph_open_circle_arrows_one_overlay "\xF0\x9F\x94\x82"
 
 static ui_label_t ui_iv_about = ui_label(0,
     "Keyboard shortcuts:\n\n"
     "  Ctrl+C copies image to the clipboard.\n"
     "  \xE2\x9E\x95 zoom in; \xE2\x9E\x96 zoom out; "
-    ut_glyph_one_overlay " 1:1\n\n"
-    "  Arrows " glyph_left glyph_up glyph_down glyph_right
+    ut_glyph_open_circle_arrows_one_overlay " 1:1\n\n"
+    "  Arrows "
+    ut_glyph_leftward_arrow ut_glyph_upwards_arrow
+    ut_glyph_downwards_arrow ut_glyph_rightwards_arrow
     " to pan an image inside the view.\n\n"
     "Try mouse wheel or mouse / touchpad hold and drag to pan.\n"
 );
@@ -312,8 +304,7 @@ static void ui_iv_help(ui_button_t* ut_unused(b)) {
 static void ui_iv_copy_to_clipboard(ui_iv_t* iv) {
     ui_image_t image = {0};
     ui_gdi.image_init(&image, iv->image.w, iv->image.h, iv->image.c, iv->image.pixels);
-//  TODO: copy_bitmap
-//  ut_clipboard.copy_bitmap(&image);
+    ut_clipboard.put_image(&image);
     ui_gdi.image_dispose(&image);
     static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
     ui_app.show_hint(&hint, ui_app.mouse.x,
@@ -368,7 +359,7 @@ static void ui_iv_add_button(ui_iv_t* iv, ui_button_t* b,
     b->insets  = (ui_margins_t){0};
     b->padding = (ui_margins_t){0};
     b->flat = true;
-    b->fm = &iv->tool.fm;
+    b->fm = &ui_app.fm.mono;
     b->min_w_em = 1.5f;
 //  b->debug.paint.fm = true;
 //  b->paint = ui_iv_button_paint;
@@ -393,20 +384,25 @@ void ui_iv_init(ui_iv_t* iv) {
     iv->view.key_pressed  = ui_iv_key_pressed;
     iv->view.fm           = &ui_app.fm.regular;
     iv->view.focusable    = true;
-    // slightly enlarged fonts because loupe zoom in/out
-    // does not look good in H1/regular fonts
-    int32_t h = ui_app.fm.mono.height;
-    ui_gdi.update_fm(&iv->tool.fm, ui_gdi.font(ui_app.fm.mono.font, h * 10 / 8, -1));
     iv->tool.bar = (ui_view_t)ui_view(span);
     // buttons:
     ui_iv_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_iv_copy,
         "Copy to Clipboard Ctrl+C");
-    ui_iv_add_button(iv, &iv->tool.zoom_out, ut_glyph_heavy_minus_sign, ui_iv_zoom_out, "Zoom Out");
-    ui_iv_add_button(iv, &iv->tool.zoom_1t1, ut_glyph_one_overlay,      ui_iv_zoom_1t1, "Reset to 1:1");
-    ui_iv_add_button(iv, &iv->tool.zoom_in,  ut_glyph_heavy_plus_sign,  ui_iv_zoom_in,  "Zoom In");
-    ui_iv_add_button(iv, &iv->tool.help,     "?", ui_iv_help, "Help");
+    ui_iv_add_button(iv, &iv->tool.zoom_out,
+                    ut_glyph_heavy_minus_sign,
+                    ui_iv_zoom_out, "Zoom Out");
+    ui_iv_add_button(iv, &iv->tool.zoom_1t1,
+                    ut_glyph_open_circle_arrows_one_overlay,
+                    ui_iv_zoom_1t1, "Reset to 1:1");
+    ui_iv_add_button(iv, &iv->tool.zoom_in,
+                     ut_glyph_heavy_plus_sign,
+                     ui_iv_zoom_in,  "Zoom In");
+    ui_iv_add_button(iv, &iv->tool.help,
+                     "?", ui_iv_help, "Help");
     iv->tool.zoom_1t1.min_w_em = 1.25f;
     iv->tool.ratio = (ui_label_t)ui_label(0, "1:1");
+    iv->tool.ratio.color = ui_colors.get_color(ui_color_id_highlight);
+    iv->tool.ratio.color_id = ui_color_id_highlight;
     ui_view.add_last(&iv->view, &iv->tool.bar);
     ui_view.add_last(&iv->view, &iv->tool.ratio);
     iv->tool.bar.state.hidden = true;
@@ -421,7 +417,7 @@ void ui_iv_init(ui_iv_t* iv) {
 }
 
 void ui_iv_fini(ui_iv_t* iv) {
-    ui_gdi.delete_font(iv->tool.fm.font);
+    ut_assert(iv->parent == null && iv->next == null);
     memset(iv, 0x00, sizeof(iv));
 }
 

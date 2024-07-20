@@ -103,6 +103,7 @@ static void opened(void) {
 }
 
 static void closed(void) {
+    ui_view.disband(ui_app.content);
     ui_iv_fini(&iv);
 }
 

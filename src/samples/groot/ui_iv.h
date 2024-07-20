@@ -36,7 +36,6 @@ typedef struct ui_iv_s {
         ui_button_t zoom_out;
         ui_button_t help;
         ui_label_t  ratio;
-        ui_fm_t fm;
     } tool;
     ui_point_t drag_start;
     fp64_t when; // to hide toolbar

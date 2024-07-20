@@ -5,9 +5,8 @@
 #endif
 #endif
 
-LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
-#pragma code_page(1252)
 
+1 RT_MANIFEST "manifest.xml"
 101 ICON "groot.ico"
 
 #define file_description "Groot"
@@ -17,3 +16,8 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #define copyright "Copyright (C) 2021-2024 Dmitry `Leo` Kuznetsov. All rights reserved."
 
 #include "..\..\inc\ut\version.rc.in"
+
+#include "i18n.h"
+
+LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
+#pragma code_page(65001)
