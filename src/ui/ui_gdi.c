@@ -315,7 +315,7 @@ static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
         BITMAPINFO bi;
         RGBQUAD rgb[256];
     } bitmap_rgb_t;
-    static bitmap_rgb_t storage; // for grayscale palette
+    static bitmap_rgb_t storage; // for gs palette
     static BITMAPINFO* bi = &storage.bi;
     BITMAPINFOHEADER* bih = &bi->bmiHeader;
     if (bih->biSize == 0) { // once
@@ -334,21 +334,22 @@ static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
     return bi;
 }
 
-static void ui_gdi_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels) {
-    ut_fatal_if(stride != ((iw + 3) & ~0x3));
-    ut_assert(w > 0 && h != 0); // h can be negative
-    if (w > 0 && h != 0) {
+static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
+    ut_fatal_if(stride != ((width + 3) & ~0x3));
+    ut_assert(iw > 0 && ih != 0); // h can be negative
+    if (iw > 0 && ih != 0) {
         BITMAPINFO *bi = ui_gdi_greyscale_bitmap_info(); // global! not thread safe
         BITMAPINFOHEADER* bih = &bi->bmiHeader;
-        bih->biWidth = iw;
-        bih->biHeight = -ih; // top down image
-        bih->biSizeImage = (DWORD)(w * abs(h));
+        bih->biWidth = width;
+        bih->biHeight = -height; // top down image
+        bih->biSizeImage = (DWORD)(iw * abs(ih));
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
-            pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
+        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+                                                ix, iy, iw, ih,
+                    pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
@@ -369,37 +370,39 @@ static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
    return bi;
 }
 
-// bgr(iw) assumes strides are padded and rounded up to 4 bytes
+// bgr(width) assumes strides are padded and rounded up to 4 bytes
 // if this is not the case use ui_gdi.image_init() that will unpack
 // and align scanlines prior to draw
 
-static void ui_gdi_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride,
+static void ui_gdi_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    ut_fatal_if(stride != ((iw * 3 + 3) & ~0x3));
-    ut_assert(w > 0 && h != 0); // h can be negative
-    if (w > 0 && h != 0) {
-        BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 3);
+    ut_fatal_if(stride != ((width * 3 + 3) & ~0x3));
+    ut_assert(iw > 0 && ih != 0); // h can be negative
+    if (iw > 0 && ih != 0) {
+        BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(width, height, 3);
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
-            pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
+        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+                                                ix, iy, iw, ih,
+                    pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
-static void ui_gdi_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride,
+static void ui_gdi_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    ut_fatal_if(stride != ((iw * 4 + 3) & ~0x3));
-    ut_assert(w > 0 && h != 0); // h can be negative
-    if (w > 0 && h != 0) {
-        BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 4);
+    ut_fatal_if(stride != ((width * 4 + 3) & ~0x3));
+    ut_assert(iw > 0 && ih != 0); // h can be negative
+    if (iw > 0 && ih != 0) {
+        BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(width, height, 4);
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
+        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+                                                ix, iy, iw, ih,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
@@ -562,7 +565,8 @@ static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t b
     image->stride = stride;
 }
 
-static void ui_gdi_alpha(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_image_t* image, fp64_t alpha) {
     ut_assert(image->bpp > 0);
     ut_assert(0 <= alpha && alpha <= 1);
@@ -581,27 +585,32 @@ static void ui_gdi_alpha(int32_t x, int32_t y, int32_t w, int32_t h,
         bf.BlendFlags = 0;
         bf.AlphaFormat = 0;
     }
-    ut_fatal_win32err(AlphaBlend(ui_gdi_hdc(), x, y, w, h,
-        c, 0, 0, image->w, image->h, bf));
+    ut_assert(0 <= ix && ix < image->w && 0 <= iy && iy < image->h);
+    ut_assert(ix + iw <= image->w && iy + ih <= image->h);
+    ut_fatal_win32err(AlphaBlend(ui_gdi_hdc(), dx, dy, dw, dh,
+                                 c, ix, iy, iw, ih, bf));
     SelectBitmap((HDC)c, zero1x1);
     ut_fatal_win32err(DeleteDC(c));
 }
 
-static void ui_gdi_image(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_gdi_image(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_image_t* image) {
     ut_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
+    ut_assert(0 <= ix && ix < image->w && 0 <= iy && iy < image->h);
+    ut_assert(ix + iw <= image->w && iy + ih <= image->h);
     ut_not_null(ui_gdi_hdc());
     if (image->bpp == 1) { // StretchBlt() is bad for greyscale
-        BITMAPINFO* bi = ui_gdi_greyscale_bitmap_info();
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), x, y, w, h, 0, 0, image->w, image->h,
-            image->pixels, ui_gdi_init_bitmap_info(image->w, image->h, 1, bi),
-            DIB_RGB_COLORS, SRCCOPY) == 0);
+        BITMAPINFO* bi   = ui_gdi_greyscale_bitmap_info();
+        BITMAPINFO* info = ui_gdi_init_bitmap_info(image->w, image->h, 1, bi);
+        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh, ix, iy, iw, ih,
+            image->pixels, info, DIB_RGB_COLORS, SRCCOPY) == 0);
     } else {
         HDC c = CreateCompatibleDC(ui_gdi_hdc());
         ut_not_null(c);
         HBITMAP zero1x1 = SelectBitmap(c, image->bitmap);
-        ut_fatal_win32err(StretchBlt(ui_gdi_hdc(), x, y, w, h,
-            c, 0, 0, image->w, image->h, SRCCOPY));
+        ut_fatal_win32err(StretchBlt(ui_gdi_hdc(), dx, dy, dw, dh,
+            c, ix, iy, iw, ih, SRCCOPY));
         SelectBitmap(c, zero1x1);
         ut_fatal_win32err(DeleteDC(c));
     }

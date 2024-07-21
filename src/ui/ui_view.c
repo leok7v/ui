@@ -585,7 +585,8 @@ static void ui_view_paint(ui_view_t* v) {
                 ut_min(64, strlen(s)), s);
     }
     if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
-        if (v->paint != null) { v->paint(v); }
+        if (v->erase   != null) { v->erase(v); }
+        if (v->paint   != null) { v->paint(v); }
         if (v->painted != null) { v->painted(v); }
         if (v->debug.paint.margins) { ui_view.debug_paint_margins(v); }
         if (v->debug.paint.fm)   { ui_view.debug_paint_fm(v); }

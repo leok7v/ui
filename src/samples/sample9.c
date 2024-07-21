@@ -278,7 +278,8 @@ static void center_paint(ui_view_t* view) {
     int x = (view->w - image.w) / 2;
     int y = (view->h - image.h) / 2;
 //  ui_gdi.alpha(view->x + x, view->y + y, image.w, image.h, &image, 0.5);
-    ui_gdi.image(view->x + x, view->y + y, image.w, image.h, &image);
+    ui_gdi.image(view->x + x, view->y + y, image.w, image.h,
+                 0, 0, image.w, image.h, &image);
 //  ui_gdi.set_clip(0, 0, 0, 0);
 }
 

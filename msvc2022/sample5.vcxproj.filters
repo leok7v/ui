@@ -7,8 +7,10 @@
     <ClInclude Include="..\src\samples\version.h">
       <Filter>res</Filter>
     </ClInclude>
-    <ClInclude Include="..\single_file_lib\ui\ui.h" />
     <ClInclude Include="..\single_file_lib\ut\ut.h" />
+    <ClInclude Include="..\single_file_lib\ui\ui.h">
+      <Filter>res</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="res">

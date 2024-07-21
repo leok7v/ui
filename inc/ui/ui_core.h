@@ -24,12 +24,12 @@ typedef struct ui_region_s* ui_region_t;
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
 typedef struct ui_image_s { // TODO: ui_ namespace
+    void* pixels;
     int32_t w; // width
     int32_t h; // height
     int32_t bpp;    // "components" bytes per pixel
     int32_t stride; // bytes per scanline rounded up to: (w * bpp + 3) & ~3
     ui_bitmap_t bitmap;
-    void* pixels;
 } ui_image_t;
 
 // ui_margins_t are used for padding and insets and expressed

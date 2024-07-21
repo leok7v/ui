@@ -74,7 +74,7 @@ static void paint(ui_view_t* view) {
     int32_t x = (view->w - w) / 2;
     int32_t y = (view->h - h) / 2;
     ui_gdi.set_clip(0, 0, view->w, view->h);
-    ui_gdi.image(x, y, w, h, &background);
+    ui_gdi.image(x, y, w, h, 0, 0, background.w, background.h, &background);
     ui_gdi.set_clip(0, 0, 0, 0);
     if (gif.pixels != null) {
         uint8_t* p = gif.pixels + gif.w * gif.h * gif.bpp * animation.index;
@@ -82,7 +82,7 @@ static void paint(ui_view_t* view) {
         ui_gdi.image_init(&frame, gif.w, gif.h, gif.bpp, p);
         x = animation.x - gif.w / 2;
         y = animation.y - gif.h / 2;
-        ui_gdi.alpha(x, y, gif.w, gif.h, &frame, 1.0);
+        ui_gdi.alpha(x, y, gif.w, gif.h, 0,0, frame.w, frame.h, &frame, 1.0);
         ui_gdi.image_dispose(&frame);
     }
     ui_gdi_ta_t ta = ui_gdi.ta.H1;

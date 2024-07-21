@@ -814,7 +814,9 @@ static void ui_app_toast_paint(void) {
             ui_app_measure_and_layout(av);
             // dim main window (as `disabled`):
             fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
-            ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h, &image_dark, alpha);
+            ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h,
+                         0, 0, image_dark.w, image_dark.h,
+                        &image_dark, alpha);
             av->x = (ui_app.root->w - av->w) / 2;
 //          ut_println("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);

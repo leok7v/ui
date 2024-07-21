@@ -2,7 +2,7 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-static bool ui_containers_debug = false;
+static bool ui_containers_debug;
 
 #pragma push_macro("debugln")
 #pragma push_macro("ui_layout_dump")
@@ -19,26 +19,27 @@ static bool ui_containers_debug = false;
 static int32_t ui_layout_nesting;
 
 #define ui_layout_enter(v) do {                                  \
-    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);                  \
-    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);                 \
-    debugln("%*c>%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d", \
+    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);               \
+    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);              \
+    debugln("%*c> %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d %s",\
             ui_layout_nesting, 0x20,                             \
-            ui_view.string(v), v->x, v->y, v->w, v->h,           \
+            v->x, v->y, v->w, v->h,                              \
             p_.left, p_.top, p_.right, p_.bottom,                \
-            i_.left, i_.top, i_.right, i_.bottom);               \
+            i_.left, i_.top, i_.right, i_.bottom,                \
+            ui_view_debug_id(v));                                \
     ui_layout_nesting += 4;                                      \
 } while (0)
 
 #define ui_layout_exit(v) do {                                   \
     ui_layout_nesting -= 4;                                      \
-    debugln("%*c<%s %d,%d %dx%d",                                \
+    debugln("%*c< %d,%d %dx%d %s",                               \
             ui_layout_nesting, 0x20,                             \
-            ui_view.string(v), v->x, v->y, v->w, v->h);          \
+            v->x, v->y, v->w, v->h, ui_view_debug_id(v));        \
 } while (0)
 
 #define ui_layout_clild(v) do {                                  \
-    debugln("%*c %s %d,%d %dx%d", ui_layout_nesting, 0x20,       \
-            ui_view.string(c), c->x, c->y, c->w, c->h);          \
+    debugln("%*c %d,%d %dx%d %s", ui_layout_nesting, 0x20,       \
+            c->x, c->y, c->w, c->h, ui_view_debug_id(v));        \
 } while (0)
 
 static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {

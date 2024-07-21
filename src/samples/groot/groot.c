@@ -5,6 +5,10 @@
 #include "stb_image.h"
 #include "ui_iv.h"
 
+enum { width = 1024, height = 512 };
+
+static uint8_t gs[width * height]; // greyscale
+
 static ui_image_t image_rgba;
 static ui_image_t image_rgb;
 
@@ -14,8 +18,9 @@ static ui_label_t label_right  = ui_label(0, "Right");
 static ui_label_t label_top    = ui_label(0, "Top");
 static ui_label_t label_bottom = ui_label(0, "Bottom");
 
-static ui_view_t  view_image   = ui_view(stack);
-static ui_iv_t    iv;
+static ui_iv_t view_groot;
+static ui_iv_t view_rocket;
+static ui_iv_t zoomable;
 
 static ui_label_t button_right = ui_button("&Button", 0, null);
 
@@ -23,18 +28,7 @@ static void init_image(ui_image_t* image, const uint8_t* data, int64_t bytes);
 static void opened(void);
 
 static void panel_paint(ui_view_t* v) {
-//  ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.gray);
-//  ui_gdi.frame(v->x + 0, v->y + 0, v->w + 1, v->h + 1, ui_colors.onyx);
     ui_gdi.frame(v->x + 1, v->y + 1, v->w - 1, v->h - 1, ui_colors.black);
-}
-
-static void view_image_measure(ui_view_t* v) {
-    v->w = image_rgba.w * 2;
-    v->h = image_rgba.h * 2;
-}
-
-static void view_image_paint(ui_view_t* v) {
-    ui_gdi.alpha(v->x, v->y, image_rgba.w * 2, image_rgba.h * 2, &image_rgba, 0.99);
 }
 
 static ui_view_t* align(ui_view_t* v, int32_t align) {
@@ -43,7 +37,16 @@ static ui_view_t* align(ui_view_t* v, int32_t align) {
 }
 
 static void opened(void) {
-    ui_iv_init(&iv);
+    ui_iv_init_with(&zoomable, gs, width, height, 1, width);
+    zoomable.focusable = true; // enable zoom pan
+    ui_iv_init_with(&view_groot,  image_rgba.pixels,
+                                  image_rgba.w, image_rgba.h,
+                                  image_rgba.bpp, image_rgba.stride);
+    view_groot.zoom = 3; view_groot.zn = 2; view_groot.zd = 1; // 2:1
+    ui_iv_init_with(&view_rocket, image_rgb.pixels,
+                                  image_rgb.w,  image_rgb.h,
+                                  image_rgb.bpp, image_rgb.stride);
+    view_rocket.zoom = 3; view_rocket.zn = 2; view_rocket.zd = 1; // 2:1
     static ui_view_t  top    = ui_view(stack);
     static ui_view_t  center = ui_view(span);
     static ui_view_t  left   = ui_view(list);
@@ -51,8 +54,15 @@ static void opened(void) {
     static ui_view_t  bottom = ui_view(stack);
     static ui_view_t  spacer = ui_view(spacer);
     static ui_view_t* panels[] = { &top, &left, &right, &bottom  };
-    ui_view.add(&left,   align(&iv.view, ui.align.left), null);
-    ui_view.add(&right,  &label_right, &spacer, &view_image, &button_right, null);
+    ui_view.add(&left,   align(&zoomable.view, ui.align.left), null);
+    ui_view.add(&right,
+                &label_right,
+                &spacer,
+                &view_groot,
+                &view_rocket,
+                &button_right,
+                null
+    );
     ui_view.add(&top,    &label_top,    null);
     ui_view.add(&bottom, &label_bottom, null);
     ui_view.add(&center,
@@ -80,8 +90,6 @@ static void opened(void) {
         panels[i]->insets  = (ui_margins_t){0};
         panels[i]->padding = (ui_margins_t){0};
     }
-    view_image.measure = view_image_measure;
-    view_image.paint   = view_image_paint;
     list.background_id = ui_color_id_window;
     list.debug.id = "#list";
     ui_view_for_each(&list, it, {
@@ -93,23 +101,38 @@ static void opened(void) {
         it->max_h   = ui.infinity;
     });
     center.max_h = ui.infinity;
-    iv.view.max_h = ui.infinity;
-    iv.view.max_w = ui.infinity;
-    iv.image.pixels = image_rgb.pixels;
-    iv.image.w = image_rgb.w;
-    iv.image.h = image_rgb.h;
-    iv.image.c = image_rgb.bpp;
-    iv.image.s = image_rgb.stride;
+    zoomable.view.max_h = ui.infinity;
+    zoomable.view.max_w = ui.infinity;
+    right.debug.trace.mt = true;
+    view_groot.debug.id  = "#view.groot";
+    view_rocket.debug.id = "#view.rocket";
 }
 
 static void closed(void) {
     ui_view.disband(ui_app.content);
-    ui_iv_fini(&iv);
+    ui_iv_fini(&zoomable);
+}
+
+static void init_gs(void) {
+    uint32_t* pixels = (uint32_t*)image_rgba.pixels;
+    ut_assert(image_rgba.w == 64 && image_rgba.h == 64 && image_rgba.bpp == 4);
+    for (int y = 0; y < height; y++) {
+        int32_t y64 = y % 64;
+        for (int x = 0; x < width; x++) {
+            int32_t x64 = x % 64;
+            uint32_t rgba = pixels[y64 * 64 + x64];
+            ui_color_t c = (ui_color_t)rgba;
+            c = ui_colors.gray_with_same_intensity(c);
+            gs[y * width + x] = ((x / 64) % 2) == ((y / 64) % 2) ?
+                (uint8_t)(c & 0xFF) : 0xC0;
+        }
+    }
 }
 
 static void init(void) {
     init_image(&image_rgb, rocket, ut_countof(rocket));
     init_image(&image_rgba, groot, ut_countof(groot));
+    init_gs();
 }
 
 static void fini(void) {
@@ -127,8 +150,8 @@ ui_app_t ui_app = {
     .opened = opened,
     .closed = closed,
     .window_sizing = { // inches
-        .min_w = 4.0f,
-        .min_h = 2.0f,
+        .min_w = 5.0f,
+        .min_h = 4.0f,
         .ini_w = 11.0f,
         .ini_h = 7.0f
     }

@@ -20,6 +20,11 @@
 // Heavy Plus Sign https://www.compart.com/en/unicode/U+2795
 #define ut_glyph_heavy_plus_sign                        "\xE2\x9E\x95"
 
+// Clockwise Rightwards and Leftwards Open Circle Arrows with Circled One Overlay
+// https://www.compart.com/en/unicode/U+1F502
+// ut_glyph_clockwise_rightwards_and_leftwards_open_circle_arrows_with_circled_one_overlay...
+#define ut_glyph_open_circle_arrows_one_overlay         "\xF0\x9F\x94\x82"
+
 // Halfwidth Katakana-Hiragana Prolonged Sound Mark https://www.compart.com/en/unicode/U+FF70
 #define ut_glyph_prolonged_sound_mark                   "\xEF\xBD\xB0"
 

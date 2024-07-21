@@ -5,6 +5,15 @@ ut_begin_c
 
 // "iv" stands for "image view"
 
+// To enable zoom/pan make view focusable:
+// iv.focusable = true;
+
+// Field .image may have .pixels pointer and .bitmap == null.
+// If this is the case the direct pixels transfer to the
+// device is used. RGBA bitmaps must be allocated on the
+// device otherwise ui_gdi.rgbx() call is used and alpha
+// is ignored.
+
 typedef struct ui_iv_s ui_iv_t;
 
 typedef struct ui_iv_s {
@@ -12,15 +21,10 @@ typedef struct ui_iv_s {
         ui_view_t view;
         struct ui_view_s;
     };
-    struct {
-        const uint8_t* pixels;
-        int32_t w; // width
-        int32_t h; // height
-        int32_t c; // 1, 3, 4
-        int32_t s; // stride - usually w * c but may differ
-    } image;
+    ui_image_t image;
+    fp64_t     alpha; // for rgba images
     // actual zoom: z = 2 ^ (zn - 1) / 2 ^ (zd - 1)
-    int32_t value; // 0..8
+    int32_t zoom; // 0..8
     // 0=16:1 1=8:1 2=4:1 3=2:1 4=1:1 5=1:2 6=1:4 7=1:8 8=1:16
     int32_t zn; // zoom nominator (1, 2, 3, ...)
     int32_t zd; // zoom denominator (1, 2, 3, ...)
@@ -42,6 +46,9 @@ typedef struct ui_iv_s {
 } ui_iv_t;
 
 void ui_iv_init(ui_iv_t* iv);
+void ui_iv_init_with(ui_iv_t* iv, const uint8_t* pixels,
+                                  int32_t w, int32_t h,
+                                  int32_t c, int32_t s);
 void ui_iv_fini(ui_iv_t* iv);
 
 ut_end_c

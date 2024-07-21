@@ -138,22 +138,27 @@ typedef struct {
         int32_t odd_radius, ui_color_t border, ui_color_t fill);
     void (*gradient)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical);
-    // greyscale() sx, sy, sw, sh screen rectangle
-    // x, y, w, h rectangle inside pixels[ih][iw] uint8_t array
-    void (*greyscale)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+    // dx, dy, dw, dh destination rectangle
+    // ix, iy, iw, ih rectangle inside pixels[height][width]
+    // pixels array
+    void (*greyscale)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels);
+    void (*bgr)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels);
+    void (*bgrx)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
-    void (*bgr)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
-    void (*bgrx)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
-    void (*alpha)(int32_t x, int32_t y, int32_t w, int32_t h,
-        ui_image_t* image, fp64_t alpha); // alpha blend image
-    void (*image)(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels);
+    // alpha() blend only works with device allocated bitmaps
+    void (*alpha)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        ui_image_t* image, fp64_t alpha); // alpha blend
+    // image() only works with device allocated bitmaps
+    void (*image)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_image_t* image);
-    void (*icon)(int32_t x, int32_t y, int32_t w, int32_t h,
+    void (*icon)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         ui_icon_t icon);
     // text:
     void (*cleartype)(bool on); // system wide change: don't use

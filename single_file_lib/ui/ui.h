@@ -167,12 +167,12 @@ typedef struct ui_region_s* ui_region_t;
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
 typedef struct ui_image_s { // TODO: ui_ namespace
+    void* pixels;
     int32_t w; // width
     int32_t h; // height
     int32_t bpp;    // "components" bytes per pixel
     int32_t stride; // bytes per scanline rounded up to: (w * bpp + 3) & ~3
     ui_bitmap_t bitmap;
-    void* pixels;
 } ui_image_t;
 
 // ui_margins_t are used for padding and insets and expressed
@@ -752,22 +752,27 @@ typedef struct {
         int32_t odd_radius, ui_color_t border, ui_color_t fill);
     void (*gradient)(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical);
-    // greyscale() sx, sy, sw, sh screen rectangle
-    // x, y, w, h rectangle inside pixels[ih][iw] uint8_t array
-    void (*greyscale)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
+    // dx, dy, dw, dh destination rectangle
+    // ix, iy, iw, ih rectangle inside pixels[height][width]
+    // pixels array
+    void (*greyscale)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels);
+    void (*bgr)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels);
+    void (*bgrx)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
-    void (*bgr)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
-    void (*bgrx)(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels);
-    void (*alpha)(int32_t x, int32_t y, int32_t w, int32_t h,
-        ui_image_t* image, fp64_t alpha); // alpha blend image
-    void (*image)(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels);
+    // alpha() blend only works with device allocated bitmaps
+    void (*alpha)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        ui_image_t* image, fp64_t alpha); // alpha blend
+    // image() only works with device allocated bitmaps
+    void (*image)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_image_t* image);
-    void (*icon)(int32_t x, int32_t y, int32_t w, int32_t h,
+    void (*icon)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         ui_icon_t icon);
     // text:
     void (*cleartype)(bool on); // system wide change: don't use
@@ -862,11 +867,12 @@ typedef struct ui_view_s {
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     // before methods: called before measure()/layout()/paint()
-    void (*prepare)(ui_view_t* v);  // called before measure()
-    void (*measure)(ui_view_t* v);  // determine w, h (bottom up)
-    void (*measured)(ui_view_t* v); // called after measure()
-    void (*layout)(ui_view_t* v);   // set x, y possibly adjust w, h (top down)
-    void (*composed)(ui_view_t* v); // after layout() is done (laid out)
+    void (*prepare)(ui_view_t* v);    // called before measure()
+    void (*measure)(ui_view_t* v);    // determine w, h (bottom up)
+    void (*measured)(ui_view_t* v);   // called after measure()
+    void (*layout)(ui_view_t* v);     // set x, y possibly adjust w, h (top down)
+    void (*composed)(ui_view_t* v);   // after layout() is done (laid out)
+    void (*erase)(ui_view_t* v);      // called before paint()
     void (*paint)(ui_view_t* v);
     void (*painted)(ui_view_t* v);  // called after paint()
     // composed() is effectively called right before paint() and
@@ -3036,7 +3042,9 @@ static void ui_app_toast_paint(void) {
             ui_app_measure_and_layout(av);
             // dim main window (as `disabled`):
             fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
-            ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h, &image_dark, alpha);
+            ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h,
+                         0, 0, image_dark.w, image_dark.h,
+                        &image_dark, alpha);
             av->x = (ui_app.root->w - av->w) / 2;
 //          ut_println("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
@@ -5284,11 +5292,12 @@ static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_button_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
+static bool ui_button_tap(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
     ui_button_t* b = (ui_button_t*)v;
     ut_assert(ui_view.inside(b, &ui_app.mouse));
+    ui_app.show_hint(null, -1, -1, 0);
     ui_view.invalidate(v, null); // always on any press/release inside
     if (pressed && b->flip) {
         if (b->flip) { ui_button_callback(b); }
@@ -5298,11 +5307,12 @@ static void ui_button_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
     } else { // released
         if (!b->flip) { ui_button_callback(b); }
     }
+    return true;
 }
 
 void ui_view_init_button(ui_view_t* v) {
     ut_assert(v->type == ui_view_button);
-    v->mouse_click   = ui_button_mouse_click;
+    v->tap           = ui_button_tap;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;
     v->every_100ms   = ui_button_every_100ms;
@@ -5979,7 +5989,7 @@ ui_colors_if ui_colors = {
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ut/ut.h"
 
-static bool ui_containers_debug = false;
+static bool ui_containers_debug;
 
 #pragma push_macro("debugln")
 #pragma push_macro("ui_layout_dump")
@@ -5996,26 +6006,27 @@ static bool ui_containers_debug = false;
 static int32_t ui_layout_nesting;
 
 #define ui_layout_enter(v) do {                                  \
-    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);                  \
-    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);                 \
-    debugln("%*c>%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d", \
+    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);               \
+    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);              \
+    debugln("%*c> %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d %s",\
             ui_layout_nesting, 0x20,                             \
-            ui_view.string(v), v->x, v->y, v->w, v->h,           \
+            v->x, v->y, v->w, v->h,                              \
             p_.left, p_.top, p_.right, p_.bottom,                \
-            i_.left, i_.top, i_.right, i_.bottom);               \
+            i_.left, i_.top, i_.right, i_.bottom,                \
+            ui_view_debug_id(v));                                \
     ui_layout_nesting += 4;                                      \
 } while (0)
 
 #define ui_layout_exit(v) do {                                   \
     ui_layout_nesting -= 4;                                      \
-    debugln("%*c<%s %d,%d %dx%d",                                \
+    debugln("%*c< %d,%d %dx%d %s",                               \
             ui_layout_nesting, 0x20,                             \
-            ui_view.string(v), v->x, v->y, v->w, v->h);          \
+            v->x, v->y, v->w, v->h, ui_view_debug_id(v));        \
 } while (0)
 
 #define ui_layout_clild(v) do {                                  \
-    debugln("%*c %s %d,%d %dx%d", ui_layout_nesting, 0x20,       \
-            ui_view.string(c), c->x, c->y, c->w, c->h);          \
+    debugln("%*c %d,%d %dx%d %s", ui_layout_nesting, 0x20,       \
+            c->x, c->y, c->w, c->h, ui_view_debug_id(v));        \
 } while (0)
 
 static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
@@ -11689,7 +11700,7 @@ static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
         BITMAPINFO bi;
         RGBQUAD rgb[256];
     } bitmap_rgb_t;
-    static bitmap_rgb_t storage; // for grayscale palette
+    static bitmap_rgb_t storage; // for gs palette
     static BITMAPINFO* bi = &storage.bi;
     BITMAPINFOHEADER* bih = &bi->bmiHeader;
     if (bih->biSize == 0) { // once
@@ -11708,21 +11719,22 @@ static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
     return bi;
 }
 
-static void ui_gdi_greyscale(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride, const uint8_t* pixels) {
-    ut_fatal_if(stride != ((iw + 3) & ~0x3));
-    ut_assert(w > 0 && h != 0); // h can be negative
-    if (w > 0 && h != 0) {
+static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
+    ut_fatal_if(stride != ((width + 3) & ~0x3));
+    ut_assert(iw > 0 && ih != 0); // h can be negative
+    if (iw > 0 && ih != 0) {
         BITMAPINFO *bi = ui_gdi_greyscale_bitmap_info(); // global! not thread safe
         BITMAPINFOHEADER* bih = &bi->bmiHeader;
-        bih->biWidth = iw;
-        bih->biHeight = -ih; // top down image
-        bih->biSizeImage = (DWORD)(w * abs(h));
+        bih->biWidth = width;
+        bih->biHeight = -height; // top down image
+        bih->biSizeImage = (DWORD)(iw * abs(ih));
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
-            pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
+        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+                                                ix, iy, iw, ih,
+                    pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
@@ -11743,37 +11755,39 @@ static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
    return bi;
 }
 
-// bgr(iw) assumes strides are padded and rounded up to 4 bytes
+// bgr(width) assumes strides are padded and rounded up to 4 bytes
 // if this is not the case use ui_gdi.image_init() that will unpack
 // and align scanlines prior to draw
 
-static void ui_gdi_bgr(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride,
+static void ui_gdi_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    ut_fatal_if(stride != ((iw * 3 + 3) & ~0x3));
-    ut_assert(w > 0 && h != 0); // h can be negative
-    if (w > 0 && h != 0) {
-        BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 3);
+    ut_fatal_if(stride != ((width * 3 + 3) & ~0x3));
+    ut_assert(iw > 0 && ih != 0); // h can be negative
+    if (iw > 0 && ih != 0) {
+        BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(width, height, 3);
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
-            pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
+        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+                                                ix, iy, iw, ih,
+                    pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
 }
 
-static void ui_gdi_bgrx(int32_t sx, int32_t sy, int32_t sw, int32_t sh,
-        int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t iw, int32_t ih, int32_t stride,
+static void ui_gdi_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    ut_fatal_if(stride != ((iw * 4 + 3) & ~0x3));
-    ut_assert(w > 0 && h != 0); // h can be negative
-    if (w > 0 && h != 0) {
-        BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(iw, ih, 4);
+    ut_fatal_if(stride != ((width * 4 + 3) & ~0x3));
+    ut_assert(iw > 0 && ih != 0); // h can be negative
+    if (iw > 0 && ih != 0) {
+        BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(width, height, 4);
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), sx, sy, sw, sh, x, y, w, h,
+        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+                                                ix, iy, iw, ih,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
     }
@@ -11936,7 +11950,8 @@ static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t b
     image->stride = stride;
 }
 
-static void ui_gdi_alpha(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_image_t* image, fp64_t alpha) {
     ut_assert(image->bpp > 0);
     ut_assert(0 <= alpha && alpha <= 1);
@@ -11955,27 +11970,32 @@ static void ui_gdi_alpha(int32_t x, int32_t y, int32_t w, int32_t h,
         bf.BlendFlags = 0;
         bf.AlphaFormat = 0;
     }
-    ut_fatal_win32err(AlphaBlend(ui_gdi_hdc(), x, y, w, h,
-        c, 0, 0, image->w, image->h, bf));
+    ut_assert(0 <= ix && ix < image->w && 0 <= iy && iy < image->h);
+    ut_assert(ix + iw <= image->w && iy + ih <= image->h);
+    ut_fatal_win32err(AlphaBlend(ui_gdi_hdc(), dx, dy, dw, dh,
+                                 c, ix, iy, iw, ih, bf));
     SelectBitmap((HDC)c, zero1x1);
     ut_fatal_win32err(DeleteDC(c));
 }
 
-static void ui_gdi_image(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_gdi_image(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_image_t* image) {
     ut_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
+    ut_assert(0 <= ix && ix < image->w && 0 <= iy && iy < image->h);
+    ut_assert(ix + iw <= image->w && iy + ih <= image->h);
     ut_not_null(ui_gdi_hdc());
     if (image->bpp == 1) { // StretchBlt() is bad for greyscale
-        BITMAPINFO* bi = ui_gdi_greyscale_bitmap_info();
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), x, y, w, h, 0, 0, image->w, image->h,
-            image->pixels, ui_gdi_init_bitmap_info(image->w, image->h, 1, bi),
-            DIB_RGB_COLORS, SRCCOPY) == 0);
+        BITMAPINFO* bi   = ui_gdi_greyscale_bitmap_info();
+        BITMAPINFO* info = ui_gdi_init_bitmap_info(image->w, image->h, 1, bi);
+        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh, ix, iy, iw, ih,
+            image->pixels, info, DIB_RGB_COLORS, SRCCOPY) == 0);
     } else {
         HDC c = CreateCompatibleDC(ui_gdi_hdc());
         ut_not_null(c);
         HBITMAP zero1x1 = SelectBitmap(c, image->bitmap);
-        ut_fatal_win32err(StretchBlt(ui_gdi_hdc(), x, y, w, h,
-            c, 0, 0, image->w, image->h, SRCCOPY));
+        ut_fatal_win32err(StretchBlt(ui_gdi_hdc(), dx, dy, dw, dh,
+            c, ix, iy, iw, ih, SRCCOPY));
         SelectBitmap(c, zero1x1);
         ut_fatal_win32err(DeleteDC(c));
     }
@@ -14155,7 +14175,8 @@ static void ui_view_paint(ui_view_t* v) {
                 ut_min(64, strlen(s)), s);
     }
     if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
-        if (v->paint != null) { v->paint(v); }
+        if (v->erase   != null) { v->erase(v); }
+        if (v->paint   != null) { v->paint(v); }
         if (v->painted != null) { v->painted(v); }
         if (v->debug.paint.margins) { ui_view.debug_paint_margins(v); }
         if (v->debug.paint.fm)   { ui_view.debug_paint_fm(v); }
