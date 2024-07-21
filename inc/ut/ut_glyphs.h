@@ -555,3 +555,11 @@
 // Frame with an X
 // https://compart.com/en/unicode/U+1F5BE
 #define ut_glyph_frame_with_an_x "\xF0\x9F\x96\xBE"
+
+// Left Right Arrow
+// https://compart.com/en/unicode/U+2194
+#define ut_glyph_left_right_arrow "\xE2\x86\x94"
+
+// Up Down Arrow
+// https://compart.com/en/unicode/U+2195
+#define ut_glyph_up_down_arrow "\xE2\x86\x95"

@@ -337,8 +337,10 @@ static ui_label_t ui_iv_about = ui_label(0,
     "Keyboard shortcuts:\n\n"
     "Ctrl+C copies image to the clipboard.\n\n"
     ut_glyph_heavy_plus_sign " zoom in; "
-    ut_glyph_heavy_minus_sign " zoom out; "
+    ut_glyph_heavy_minus_sign " zoom out;\n"
     ut_glyph_open_circle_arrows_one_overlay " 1:1.\n\n"
+    ut_glyph_left_right_arrow " Fit;\n"
+    ut_glyph_up_down_arrow " Fill.\n\n"
     "Left/Right Arrows "
     ut_glyph_leftward_arrow
     ut_glyph_rightwards_arrow
@@ -448,10 +450,10 @@ void ui_iv_init(ui_iv_t* iv) {
                      ut_glyph_heavy_plus_sign,
                      ui_iv_zoom_in,  "Zoom In");
     ui_iv_add_button(iv, &iv->tool.fit,
-                     ut_glyph_frame_with_tiles,
+                     ut_glyph_left_right_arrow,
                      ui_iv_fit,  "Fit");
     ui_iv_add_button(iv, &iv->tool.fill,
-                     ut_glyph_document_with_picture,
+                     ut_glyph_up_down_arrow,
                      ui_iv_fill,  "Fill");
     ui_iv_add_button(iv, &iv->tool.help,
                      "?", ui_iv_help, "Help");

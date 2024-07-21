@@ -7,7 +7,9 @@
 
 // TODO: two views on gs bitmap
 // TODO: alpha slider for groot
-// TODO: ui_text with groot as background
+// TODO: stack(ui_text, view_groot)
+// Top: Find single line edit control
+// bottom: status or something
 
 enum { width = 512, height = 512 };
 
