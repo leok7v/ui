@@ -9,7 +9,15 @@ static fp64_t ui_iv_scaleof(int32_t nominator, int32_t denominator) {
 }
 
 static fp64_t ui_iv_scale(ui_iv_t* iv) {
-    return ui_iv_scaleof(iv->zn, iv->zd);
+    if (iv->fit) {
+        return min((fp64_t)iv->view.w / iv->image.w,
+                   (fp64_t)iv->view.h / iv->image.h);
+    } else if (iv->fill) {
+        return max((fp64_t)iv->view.w / iv->image.w,
+                   (fp64_t)iv->view.h / iv->image.h);
+    } else {
+        return ui_iv_scaleof(iv->zn, iv->zd);
+    }
 }
 
 static ui_rect_t ui_iv_position(ui_iv_t* iv) {
@@ -18,8 +26,8 @@ static ui_rect_t ui_iv_position(ui_iv_t* iv) {
         int32_t iw = iv->image.w;
         int32_t ih = iv->image.h;
         // zoomed image width and height
-        rc.w = iw * (1 << (iv->zn - 1)) / (1 << (iv->zd - 1));
-        rc.h = ih * (1 << (iv->zn - 1)) / (1 << (iv->zd - 1));
+        rc.w = (int32_t)((fp64_t)iw * ui_iv.scale(iv));
+        rc.h = (int32_t)((fp64_t)ih * ui_iv.scale(iv));
         int32_t shift_x = (int32_t)((rc.w - iv->view.w) * iv->sx);
         int32_t shift_y = (int32_t)((rc.h - iv->view.h) * iv->sy);
         // shift_x and shift_y are in zoomed image coordinates
@@ -30,17 +38,16 @@ static ui_rect_t ui_iv_position(ui_iv_t* iv) {
 }
 
 static void ui_iv_paint(ui_view_t* v) {
-//  ut_assert(v->type == ui_view_image);
-    ut_assert(!v->state.hidden);
     ui_iv_t* iv = (ui_iv_t*)v;
-    ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.black);
+//  ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.black);
     if (iv->image.pixels != null) {
         ui_gdi.set_clip(v->x, v->y, v->w, v->h);
-        ut_assert(0 < iv->zn && iv->zn <= 16);
-        ut_assert(0 < iv->zd && iv->zd <= 16);
+        ut_swear(!iv->fit || !iv->fill, "make up your mind");
+        ut_swear(0 < iv->zn && iv->zn <= 16);
+        ut_swear(0 < iv->zd && iv->zd <= 16);
         // only 1:2 and 2:1 etc are supported:
-        if (iv->zn != 1) { ut_assert(iv->zd == 1); }
-        if (iv->zd != 1) { ut_assert(iv->zn == 1); }
+        if (iv->zn != 1) { ut_swear(iv->zd == 1); }
+        if (iv->zd != 1) { ut_swear(iv->zn == 1); }
         const int32_t iw = iv->image.w;
         const int32_t ih = iv->image.h;
         ui_rect_t rc = ui_iv_position(iv);
@@ -66,7 +73,7 @@ static void ui_iv_paint(ui_view_t* v) {
                               &iv->image, iv->alpha);
             }
         } else {
-            ut_assert(false, "unsupported .c: %d", iv->image.bpp);
+            ut_swear(false, "unsupported .c: %d", iv->image.bpp);
         }
         if (ui_view.has_focus(v)) {
             ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
@@ -99,11 +106,26 @@ static void ui_iv_show_tools(ui_iv_t* iv, bool show) {
     }
 }
 
+static void ui_iv_fit_fill_scale(ui_iv_t* iv) {
+    fp64_t s = ui_iv.scale(iv);
+    ut_assert(s != 0);
+    if (s > 1) {
+        ui_view.set_text(&iv->tool.ratio, "1:%.3f", s);
+    } else if (s != 0 && s <= 1) {
+        ui_view.set_text(&iv->tool.ratio, "%.3f:1", 1.0 / s);
+    } else {
+        // s should not be zero ever
+    }
+}
+
 static void ui_iv_measure(ui_view_t* v) {
+    ui_iv_t* iv = (ui_iv_t*)v;
     if (!v->focusable) {
-        ui_iv_t* iv = (ui_iv_t*)v;
-        v->w = (int32_t)(iv->image.w * ui_iv_scale(iv));
-        v->h = (int32_t)(iv->image.h * ui_iv_scale(iv));
+        v->w = (int32_t)(iv->image.w * ui_iv.scale(iv));
+        v->h = (int32_t)(iv->image.h * ui_iv.scale(iv));
+        if (iv->fit || iv->fill) {
+            ui_iv_fit_fill_scale(iv);
+        }
     } else {
         v->w = 0;
         v->h = 0;
@@ -112,6 +134,10 @@ static void ui_iv_measure(ui_view_t* v) {
 
 static void ui_iv_layout(ui_view_t* v) {
     ui_iv_t* iv = (ui_iv_t*)v;
+    if (iv->fit || iv->fill) {
+        ui_iv_fit_fill_scale(iv);
+        ui_view.measure_control(&iv->tool.ratio);
+    }
     iv->tool.bar.x = v->x + v->w - iv->tool.bar.w;
     iv->tool.bar.y = v->y;
     iv->tool.ratio.x = v->x + v->w - iv->tool.ratio.w;
@@ -136,11 +162,13 @@ static void ui_iv_focus_gained(ui_view_t* v) {
 }
 
 static void ui_iv_zoomed(ui_iv_t* iv) {
+    iv->fill = false;
+    iv->fit  = false;
     // 0=16:1 1=8:1 2=4:1 3=2:1 4=1:1 5=1:2 6=1:4 7=1:8 8=1:16
     int32_t n  = iv->zoom - 4;
     int32_t zn = iv->zn;
     int32_t zd = iv->zd;
-    fp64_t scale_before = iv->scale(iv);
+    fp64_t scale_before = ui_iv.scale(iv);
     // whole image is visible
 //  bool whole = (int32_t)(iv->image.w * scale_before) <= iv->view.w &&
 //               (int32_t)(iv->image.h * scale_before) <= iv->view.h;
@@ -167,10 +195,10 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
     } else if (iv->zd == 1) {
         iv->zoom = 4 + (iv->zn - 1);
     } else {
-        ut_assert(false);
+        ut_swear(false);
     }
     // is whole image visible?
-    fp64_t s = iv->scale(iv);
+    fp64_t s = ui_iv.scale(iv);
     bool whole = (int32_t)(iv->image.w * s) <= iv->view.w &&
                  (int32_t)(iv->image.h * s) <= iv->view.h;
     if (whole) { iv->sx = 0.5; iv->sy = 0.5; }
@@ -183,7 +211,7 @@ static void ui_iv_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     fp64_t dy = (fp64_t)dx_dy.y;
     ui_iv_t* iv = (ui_iv_t*)v;
     if (ui_view.has_focus(v)) {
-        fp64_t s = iv->scale(iv);
+        fp64_t s = ui_iv.scale(iv);
         if (iv->image.w * s > iv->view.w || iv->image.h * s > iv->view.h) {
             iv->sx = max(0.0, min(iv->sx + dx / iv->image.w, 1.0));
         } else {
@@ -199,7 +227,6 @@ static void ui_iv_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
 }
 
 static bool ui_iv_tap(ui_view_t* v, int32_t ix, bool pressed) {
-    ut_assert(!v->state.disabled);
     ui_iv_t* iv = (ui_iv_t*)v;
     const int32_t x = ui_app.mouse.x - iv->view.x;
     const int32_t y = ui_app.mouse.y - iv->view.y;
@@ -219,7 +246,6 @@ static bool ui_iv_tap(ui_view_t* v, int32_t ix, bool pressed) {
 }
 
 static bool ui_iv_move(ui_view_t* v) {
-    ut_assert(!v->state.disabled);
     ui_iv_t* iv = (ui_iv_t*)v;
     bool drag_started = iv->drag_start.x >= 0 && iv->drag_start.y >= 0;
     bool tools  = !iv->tool.bar.state.hidden &&
@@ -241,7 +267,6 @@ static bool ui_iv_move(ui_view_t* v) {
 
 static bool ui_iv_key_pressed(ui_view_t* v, int64_t vk) {
     ui_iv_t* iv = (ui_iv_t*)v;
-    ut_assert(iv->view.type == ui_view_image);
     bool swallowed = false;
     if (ui_view.has_focus(v)) {
         swallowed = true;
@@ -272,7 +297,6 @@ static bool ui_iv_key_pressed(ui_view_t* v, int64_t vk) {
 
 static void ui_iv_zoom_in(ui_button_t* b) {
     ui_iv_t* iv = (ui_iv_t*)b->that;
-    ut_assert(iv->view.type == ui_view_image);
     if (iv->zoom < 8) {
         iv->zoom++;
         ui_iv_zoomed(iv);
@@ -281,16 +305,30 @@ static void ui_iv_zoom_in(ui_button_t* b) {
 
 static void ui_iv_zoom_out(ui_button_t* b) {
     ui_iv_t* iv = (ui_iv_t*)b->that;
-    ut_assert(iv->view.type == ui_view_image);
     if (iv->zoom > 0) {
         iv->zoom--;
         ui_iv_zoomed(iv);
     }
 }
 
+static void ui_iv_fit(ui_button_t* b) {
+    ui_iv_t* iv = (ui_iv_t*)b->that;
+    iv->fit  = true;
+    iv->fill = false;
+    ui_iv_fit_fill_scale(iv);
+    ui_view.invalidate(&iv->view, null);
+}
+
+static void ui_iv_fill(ui_button_t* b) {
+    ui_iv_t* iv = (ui_iv_t*)b->that;
+    iv->fill = true;
+    iv->fit  = false;
+    ui_iv_fit_fill_scale(iv);
+    ui_view.invalidate(&iv->view, null);
+}
+
 static void ui_iv_zoom_1t1(ui_button_t* b) {
     ui_iv_t* iv = (ui_iv_t*)b->that;
-    ut_assert(iv->view.type == ui_view_image);
     iv->zoom = 4;
     ui_iv_zoomed(iv);
 }
@@ -333,7 +371,6 @@ static void ui_iv_copy_to_clipboard(ui_iv_t* iv) {
 
 static void ui_iv_copy(ui_button_t* b) {
     ui_iv_t* iv = (ui_iv_t*)b->that;
-    ut_assert(iv->view.type == ui_view_image);
     ui_iv_copy_to_clipboard(iv);
 }
 
@@ -385,8 +422,6 @@ static void ui_iv_add_button(ui_iv_t* iv, ui_button_t* b,
 void ui_iv_init(ui_iv_t* iv) {
     memset(iv, 0x00, sizeof(*iv));
     iv->view.type         = ui_view_image;
-    iv->scale             = ui_iv_scale;
-    iv->position          = ui_iv_position;
     iv->view.paint        = ui_iv_paint;
     iv->view.tap          = ui_iv_tap;
     iv->view.mouse_move   = ui_iv_move;
@@ -412,6 +447,12 @@ void ui_iv_init(ui_iv_t* iv) {
     ui_iv_add_button(iv, &iv->tool.zoom_in,
                      ut_glyph_heavy_plus_sign,
                      ui_iv_zoom_in,  "Zoom In");
+    ui_iv_add_button(iv, &iv->tool.fit,
+                     ut_glyph_frame_with_tiles,
+                     ui_iv_fit,  "Fit");
+    ui_iv_add_button(iv, &iv->tool.fill,
+                     ut_glyph_document_with_picture,
+                     ui_iv_fill,  "Fill");
     ui_iv_add_button(iv, &iv->tool.help,
                      "?", ui_iv_help, "Help");
     iv->tool.zoom_1t1.min_w_em = 1.25f;
@@ -443,8 +484,23 @@ void ui_iv_init_with(ui_iv_t* iv, const uint8_t* pixels,
     iv->image.stride = s;
 }
 
-void ui_iv_fini(ui_iv_t* iv) {
-    ut_assert(iv->parent == null && iv->next == null);
-    memset(iv, 0x00, sizeof(iv));
+static void ui_iv_ratio(ui_iv_t* iv, int32_t zn, int32_t zd) {
+    ut_swear(0 < zn && zn <= 16);
+    ut_swear(0 < zd && zd <= 16);
+    // only 1:2 and 2:1 etc are supported:
+    if (zn != 1) { ut_swear(zd == 1); }
+    if (zd != 1) { ut_swear(zn == 1); }
+    iv->zn = zn;
+    iv->zd = zd;
+    iv->fit  = false;
+    iv->fill = false;
 }
+
+ui_iv_if ui_iv = {
+    .init      = ui_iv_init,
+    .init_with = ui_iv_init_with,
+    .ratio     = null, // TODO
+    .scale     = ui_iv_scale,
+    .position  = ui_iv_position
+};
 

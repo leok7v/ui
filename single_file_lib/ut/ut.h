@@ -1319,7 +1319,22 @@ ut_end_c
 // https://compart.com/en/unicode/U+20DD
 #define ut_glyph_combining_enclosing_circle "\xE2\x83\x9D"
 
+// Frame with Picture
+// https://compart.com/en/unicode/U+1F5BC
+#define ut_glyph_frame_with_picture "\xF0\x9F\x96\xBC"
+// with emoji variation selector: "\xF0\x9F\x96\xBC\xEF\xB8\x8F"
 
+// Document with Picture
+// https://compart.com/en/unicode/U+1F5BB
+#define ut_glyph_document_with_picture "\xF0\x9F\x96\xBB"
+
+// Frame with Tiles
+// https://compart.com/en/unicode/U+1F5BD
+#define ut_glyph_frame_with_tiles "\xF0\x9F\x96\xBD"
+
+// Frame with an X
+// https://compart.com/en/unicode/U+1F5BE
+#define ut_glyph_frame_with_an_x "\xF0\x9F\x96\xBE"
 
 // ________________________________ ut_heap.h _________________________________
 

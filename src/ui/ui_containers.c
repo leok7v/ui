@@ -12,7 +12,7 @@ static bool ui_containers_debug;
 // Usage of: ui_view_for_each_begin(p, c) { ... } ui_view_for_each_end(p, c)
 // makes code inside iterator debugger friendly and ensures correct __LINE__
 
-#define debugln(...) do {                                \
+#define debugln(...) do {                                   \
     if (ui_containers_debug) {  ut_println(__VA_ARGS__); }  \
 } while (0)
 
@@ -21,7 +21,7 @@ static int32_t ui_layout_nesting;
 #define ui_layout_enter(v) do {                                  \
     ui_ltrb_t i_ = ui_view.margins(v, &v->insets);               \
     ui_ltrb_t p_ = ui_view.margins(v, &v->padding);              \
-    debugln("%*c> %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d %s",\
+    debugln("%*c> %d,%d %dx%d p: %d %d %d %d i: %d %d %d %d %s", \
             ui_layout_nesting, 0x20,                             \
             v->x, v->y, v->w, v->h,                              \
             p_.left, p_.top, p_.right, p_.bottom,                \
