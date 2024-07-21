@@ -4774,7 +4774,7 @@ static void ui_app_init(void) {
     // for ui_view_debug_paint:
     ui_view.set_text(ui_app.root, "ui_app.root");
     ui_view.set_text(ui_app.content, "ui_app.content");
-    ui_app.init();
+    if (ui_app.init != null) { ui_app.init(); }
 }
 
 static void ui_app_set_dpi_awareness(void) {
@@ -5037,7 +5037,6 @@ static void ui_app_test_post(void) {
 static int ui_app_win_main(HINSTANCE instance) {
     // IDI_ICON 101:
     ui_app.icon = (ui_icon_t)LoadIconW(instance, MAKEINTRESOURCE(101));
-    ut_not_null(ui_app.init);
     ui_app_init_windows();
     ui_gdi.init();
     ut_clipboard.put_image = ui_app_clipboard_put_image;
