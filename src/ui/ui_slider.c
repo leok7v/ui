@@ -305,10 +305,12 @@ void ui_view_init_slider(ui_view_t* v) {
     // in measure() and layout()
     v->insets  = s->dec.insets;
     v->padding = s->dec.padding;
-    s->dec.padding.right = 0.125f;
+    s->dec.padding.right = 0;
     s->dec.padding.left  = 0;
-    s->inc.padding.left  = 0.125f;
+    s->inc.padding.left  = 0;
     s->inc.padding.right = 0;
+    s->dec.flat = true;
+    s->inc.flat = true;
     s->dec.min_h_em = 1.0f + ui_view_i_tb * 2;
     s->dec.min_w_em = 1.0f + ui_view_i_tb * 2;
     s->inc.min_h_em = 1.0f + ui_view_i_tb * 2;

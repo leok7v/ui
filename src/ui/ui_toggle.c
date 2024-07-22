@@ -11,11 +11,10 @@ static void ui_toggle_paint_on_off(ui_view_t* v) {
     const int32_t a = v->fm->ascent;
     const int32_t d = v->fm->descent;
     const int32_t w = v->fm->em.w;
-    int32_t h = a + d;
-    int32_t r = (h / 2) | 0x1; // must be odd
-    h = r * 2 + 1;
+    int32_t r = ((a + d + 1) / 2) | 0x1; // radius must be odd
+    int32_t h = r * 2 + 1;
     y += (v->h - i.top - i.bottom - h + 1) / 2;
-    y += r;
+    y += r + 1; // because radius is odd
     x += r;
     ui_color_t border = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5) :

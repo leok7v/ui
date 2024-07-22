@@ -522,9 +522,13 @@ static void controls_test(ui_view_t* parent) {
     controls_margins(&margins);
     large.state.pressed = app_data.large;
     controls_large(&large);
-
-toggle1.debug.id = "#toggle.1";
-slider1.debug.id = "#slider.1";
+    toggle1.debug.id = "#toggle.1";
+    slider1.debug.id = "#slider.1";
+//  slider1.debug.trace.mt = true;
+//  slider1.inc.debug.trace.mt = true;
+//  slider1.dec.debug.trace.mt = true;
+    slider1.inc.debug.id = "#slider.1.inc";
+    slider1.dec.debug.id = "#slider.1.dec";
 }
 
 // edit1 test
