@@ -223,7 +223,6 @@ static void ui_view_text_measure(ui_view_t* v, const char* s,
 }
 
 static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
-    const ui_fm_t* fm = v->fm;
     tm->xy = (ui_point_t){ .x = -1, .y = -1 };
     const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // i_wh the inside insets w x h:
@@ -231,7 +230,7 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
                            .h = v->h - i.top - i.bottom };
     const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
     const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
-    tm->xy.x = i.left + (i_wh.w - tm->wh.w) / 2;
+    tm->xy.x = i.left + (i_wh.w - tm->wh.w + 1) / 2;
     if (h_align & ui.align.left) {
         tm->xy.x = i.left;
     } else if (h_align & ui.align.right) {
@@ -239,15 +238,17 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
     }
     // vertical centering is trickier.
     // mt.h is height of all measured lines of text
-    tm->xy.y = i.top + (i_wh.h - tm->wh.h) / 2;
+    tm->xy.y = i.top + (i_wh.h - tm->wh.h + 1) / 2;
     if (v_align & ui.align.top) {
         tm->xy.y = i.top;
     } else if (v_align & ui.align.bottom) {
         tm->xy.y = i_wh.h - tm->wh.h - i.bottom;
     } else if (!tm->multiline) {
+#if 0 // TODO: doesn't look good or right:
         // UI controls should have x-height line in the dead center
         // of the control to be visually balanced.
         // y offset of "x-line" of the glyph:
+        const ui_fm_t* fm = v->fm;
         const int32_t y_of_x_line = fm->baseline - fm->x_height;
         // `dy` offset of the center to x-line (middle of glyph cell)
         const int32_t dy = tm->wh.h / 2 - y_of_x_line;
@@ -256,6 +257,7 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
             ut_println(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
                       y_of_x_line, tm->wh.h, dy);
         }
+#endif
     }
 }
 
@@ -268,11 +270,12 @@ static void ui_view_measure_control(ui_view_t* v) {
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.margins(v, &v->padding);
-        ut_println(">%dx%d em: %dx%d min: %.1fx%.1f "
-                "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
+        ut_println(">%dx%d em: %dx%d min: %.3fx%.3f "
+                "i: %d %d %d %d p: %d %d %d %d %s \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
+            ui_view_debug_id(v),
             ut_min(64, strlen(s)), s);
         const ui_margins_t in = v->insets;
         const ui_margins_t pd = v->padding;
@@ -291,8 +294,9 @@ static void ui_view_measure_control(ui_view_t* v) {
     v->h = ut_max(v->h, i.top  + v->text.wh.h + i.bottom);
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
-        ut_println("<%dx%d text_align x,y: %d,%d",
-                v->w, v->h, v->text.xy.x, v->text.xy.y);
+        ut_println("<%dx%d text_align x,y: %d,%d %s",
+                v->w, v->h, v->text.xy.x, v->text.xy.y,
+                ui_view_debug_id(v));
     }
 }
 
