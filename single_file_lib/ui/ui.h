@@ -2547,30 +2547,34 @@ static void ui_app_ncm_dump_fonts(void) {
 
 static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
                                   ui_fm_t* fm) {
+    ut_swear(abs(lf->lfHeight) == fm->height - fm->internal_leading);
+    ut_swear(fm->external_leading == 0); // "Segoe UI" and "Cascadia Mono"
+    ut_swear(ui_app.dpi.window >= 72);
     // "The height, in logical units, of the font's character cell or character.
-    //  The character height value (also known as the em height) is the character
-    // cell height value minus the internal-leading value."
-    ut_assert(abs(lf->lfHeight) == fm->height - fm->internal_leading);
-    ut_assert(fm->external_leading == 0); // for "Segoe UI" and "Cascadia Mono"
-    ut_assert(ui_app.dpi.window >= 72);
-    int32_t ascender = fm->baseline - fm->ascent;
-    int32_t cell = fm->height - ascender - fm->descent;
-    fp64_t  pt = fm->height * 72.0 / (fp64_t)ui_app.dpi.window;
-    ut_println("%-6s .lfH: %+3d h: %d pt: %6.3f "
-               "a: %2d c: %2d d: %d bl: %2d il: %2d lg: %d",
-                name, lf->lfHeight, fm->height, pt,
-                ascender, cell, fm->descent, fm->baseline,
-                fm->internal_leading, fm->line_gap);
-    #if 0 // TODO: need better understanding of box geometry in
-          // "design units"
-        // box scale factor: design units -> pixels
-        fp64_t  sf = pt * 72.0 / (fp64_t)fm->design_units_per_em;
-        sf *= (fp64_t)ui_app.dpi.window / 72.0; // into pixels (unclear???)
-        int32_t bx = (int32_t)(fm->box.x * sf + 0.5);
-        int32_t by = (int32_t)(fm->box.y * sf + 0.5);
-        int32_t bw = (int32_t)(fm->box.w * sf + 0.5);
-        int32_t bh = (int32_t)(fm->box.h * sf + 0.5);
-        ut_println("%-6s .box: %d,%d %dx%d", name, bx, by, bw, bh);
+    //  The character height value (also known as the em height) is the
+    //  character cell height value minus the internal-leading value."
+    #ifdef UI_APP_DUMP_FONT_SIZE
+        int32_t ascender = fm->baseline - fm->ascent;
+        int32_t cell = fm->height - ascender - fm->descent;
+        fp64_t  pt = fm->height * 72.0 / (fp64_t)ui_app.dpi.window;
+        ut_println("%-6s .lfH: %+3d h: %d pt: %6.3f "
+                   "a: %2d c: %2d d: %d bl: %2d il: %2d lg: %d",
+                    name, lf->lfHeight, fm->height, pt,
+                    ascender, cell, fm->descent, fm->baseline,
+                    fm->internal_leading, fm->line_gap);
+        #if 0 // TODO: need better understanding of box geometry in
+              // "design units"
+            // box scale factor: design units -> pixels
+            fp64_t  sf = pt * 72.0 / (fp64_t)fm->design_units_per_em;
+            sf *= (fp64_t)ui_app.dpi.window / 72.0; // into pixels (unclear???)
+            int32_t bx = (int32_t)(fm->box.x * sf + 0.5);
+            int32_t by = (int32_t)(fm->box.y * sf + 0.5);
+            int32_t bw = (int32_t)(fm->box.w * sf + 0.5);
+            int32_t bh = (int32_t)(fm->box.h * sf + 0.5);
+            ut_println("%-6s .box: %d,%d %dx%d", name, bx, by, bw, bh);
+        #endif
+    #else
+        (void)name; // unused
     #endif
 }
 
@@ -2619,11 +2623,11 @@ static void ui_app_init_fonts(int32_t dpi) {
     // TODO: how to get name of monospaced from Win32 API?
     wcscpy_s(mono.lfFaceName, ut_countof(mono.lfFaceName), L"Cascadia Mono");
     mono.lfPitchAndFamily |= FIXED_PITCH;
-    ut_println("ui_app.fm.mono");
+//  ut_println("ui_app.fm.mono");
     ui_app_init_fms(&ui_app.fm.mono, &mono);
     LOGFONTW prop = ui_app_ncm.lfMessageFont;
     prop.lfHeight--; // inc by 1
-    ut_println("ui_app.fm.prop");
+//  ut_println("ui_app.fm.prop");
     ui_app_init_fms(&ui_app.fm.prop, &ui_app_ncm.lfMessageFont);
 }
 
