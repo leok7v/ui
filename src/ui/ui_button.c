@@ -76,7 +76,6 @@ static void ui_button_paint(ui_view_t* v) {
 }
 
 static void ui_button_callback(ui_button_t* b) {
-    ui_app.show_hint(null, -1, -1, 0);
     // for flip buttons the state of the button flips
     // *before* callback.
     if (b->flip) { b->state.pressed = !b->state.pressed; }
@@ -127,19 +126,19 @@ static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
 static bool ui_button_tap(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
-    ui_button_t* b = (ui_button_t*)v;
-    ut_assert(ui_view.inside(b, &ui_app.mouse));
-    ui_app.show_hint(null, -1, -1, 0);
-    ui_view.invalidate(v, null); // always on any press/release inside
-    if (pressed && b->flip) {
-        if (b->flip) { ui_button_callback(b); }
-    } else if (pressed) {
-        if (!v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
-        v->state.armed = true;
-    } else { // released
-        if (!b->flip) { ui_button_callback(b); }
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    if (inside) {
+        ui_view.invalidate(v, null); // always on any press/release inside
+        ui_button_t* b = (ui_button_t*)v;
+        if (pressed && b->flip) {
+            if (b->flip) { ui_button_callback(b); }
+        } else if (pressed) {
+            v->state.armed = true;
+        } else { // released
+            if (!b->flip) { ui_button_callback(b); }
+        }
     }
-    return true;
+    return pressed && inside; // swallow clicks inside
 }
 
 void ui_view_init_button(ui_view_t* v) {

@@ -334,10 +334,9 @@ static void zoom_in(int x, int y) {
     sy += zoom * y / image.h;
 }
 
-static void mouse_click(ui_view_t* ut_unused(v), int32_t ix, bool pressed) {
-    int mx = ui_app.mouse.x - panel_center.x;
-    int my = ui_app.mouse.y - panel_center.y;
-    if (0 <= mx && mx < panel_center.w && 0 <= my && my < panel_center.h) {
+static bool tap(ui_view_t* ut_unused(v), int32_t ix, bool pressed) {
+    const bool inside = ui_view.inside(&panel_center, &ui_app.mouse);
+    if (pressed && inside) {
         int x = ui_app.mouse.x - (panel_center.w - image.w) / 2 - panel_center.x;
         int y = ui_app.mouse.y - (panel_center.h - image.h) / 2 - panel_center.y;
         if (0 <= x && x < image.w && 0 <= y && y < image.h) {
@@ -349,6 +348,7 @@ static void mouse_click(ui_view_t* ut_unused(v), int32_t ix, bool pressed) {
         }
         ui_app.request_redraw();
     }
+    return pressed && inside;
 }
 
 static void slider_format(ui_view_t* v) {
@@ -428,7 +428,7 @@ static void opened(void) {
     ui_app.content->character    = character;
     ui_app.content->key_pressed  = keyboard; // virtual_keys
     ui_app.content->mouse_scroll = mouse_scroll;
-    panel_center.mouse_click = mouse_click;
+    panel_center.tap = tap;
     int n = ut_countof(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(ut_countof(pixels) == ut_countof(pixels[0]), "square");

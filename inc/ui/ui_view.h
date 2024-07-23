@@ -86,7 +86,6 @@ typedef struct ui_view_s {
     void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     void (*mouse_hover)(ui_view_t* v); // hover over
     void (*mouse_move)(ui_view_t* v);
-    void (*mouse_click)(ui_view_t* v,  int32_t ix, bool pressed);
     void (*double_click)(ui_view_t* v, int32_t ix);
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
@@ -189,10 +188,6 @@ typedef struct ui_view_if {
     void (*hovering)(ui_view_t* v, bool start);
     void (*mouse_hover)(ui_view_t* v); // hover over
     void (*mouse_move)(ui_view_t* v);
-    // TODO: remove
-    void (*mouse_click)(ui_view_t* v,  int32_t ix, bool pressed);
-    void (*double_click)(ui_view_t* v, int32_t ix);
-    // TODO: remove ^^^
     void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     ui_wh_t (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, va_list va);
@@ -211,7 +206,6 @@ typedef struct ui_view_if {
     void (*hover_changed)(ui_view_t* v);
     bool (*is_shortcut_key)(ui_view_t* v, int64_t key);
     bool (*context_menu)(ui_view_t* v);
-    // preferred to mouse_click() because of possibility of touch devices
     // `ix` 0: left 1: middle 2: right
     bool (*tap)(ui_view_t* v, int32_t ix, bool pressed);
     bool (*long_press)(ui_view_t* v, int32_t ix);

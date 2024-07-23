@@ -682,17 +682,6 @@ static void ui_view_double_click(ui_view_t* v, int32_t ix) {
     }
 }
 
-static void ui_view_mouse_click(ui_view_t* v, int32_t ix, bool pressed) {
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        ui_view_for_each(v, c, { ui_view_mouse_click(c, ix, pressed); });
-        const bool inside = ui_view.inside(v, &ui_app.mouse);
-        if (inside) {
-            if (v->focusable) { ui_view.set_focus(v); }
-            if (v->mouse_click != null) { v->mouse_click(v, ix, pressed); }
-        }
-    }
-}
-
 static void ui_view_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->mouse_scroll != null) { v->mouse_scroll(v, dx_dy); }
@@ -735,9 +724,14 @@ static bool ui_view_tap(ui_view_t* v, int32_t ix, bool pressed) {
             if (swallow) { break; }
         });
         const bool inside = ui_view.inside(v, &ui_app.mouse);
-        if (!swallow && inside) {
+        if (!swallow && pressed && inside) {
             if (v->focusable) { ui_view.set_focus(v); }
             if (v->tap != null) { swallow = v->tap(v, ix, pressed); }
+        }
+        if (!swallow && !pressed) {
+            // mouse click release is never swallowed because a lot
+            // of controls want to hear it:
+            if (v->tap != null) { (void)v->tap(v, ix, pressed); }
         }
     }
     return swallow;
@@ -1018,8 +1012,6 @@ ui_view_if ui_view = {
     .lose_hidden_focus   = ui_view_lose_hidden_focus,
     .mouse_hover         = ui_view_mouse_hover,
     .mouse_move          = ui_view_mouse_move,
-    .mouse_click         = ui_view_mouse_click,
-    .double_click        = ui_view_double_click,
     .mouse_scroll        = ui_view_mouse_scroll,
     .hovering            = ui_view_hovering,
     .hover_changed       = ui_view_hover_changed,

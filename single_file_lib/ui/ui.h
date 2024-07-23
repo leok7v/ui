@@ -865,7 +865,6 @@ typedef struct ui_view_s {
     void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     void (*mouse_hover)(ui_view_t* v); // hover over
     void (*mouse_move)(ui_view_t* v);
-    void (*mouse_click)(ui_view_t* v,  int32_t ix, bool pressed);
     void (*double_click)(ui_view_t* v, int32_t ix);
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
@@ -968,10 +967,6 @@ typedef struct ui_view_if {
     void (*hovering)(ui_view_t* v, bool start);
     void (*mouse_hover)(ui_view_t* v); // hover over
     void (*mouse_move)(ui_view_t* v);
-    // TODO: remove
-    void (*mouse_click)(ui_view_t* v,  int32_t ix, bool pressed);
-    void (*double_click)(ui_view_t* v, int32_t ix);
-    // TODO: remove ^^^
     void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
     ui_wh_t (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
         const ui_fm_t* fm, const char* format, va_list va);
@@ -990,7 +985,6 @@ typedef struct ui_view_if {
     void (*hover_changed)(ui_view_t* v);
     bool (*is_shortcut_key)(ui_view_t* v, int64_t key);
     bool (*context_menu)(ui_view_t* v);
-    // preferred to mouse_click() because of possibility of touch devices
     // `ix` 0: left 1: middle 2: right
     bool (*tap)(ui_view_t* v, int32_t ix, bool pressed);
     bool (*long_press)(ui_view_t* v, int32_t ix);
@@ -2962,7 +2956,7 @@ static void ui_app_measure_and_layout(ui_view_t* view) {
 
 static void ui_app_toast_character(const char* utf8);
 static bool ui_app_toast_key_pressed(int64_t key);
-static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed);
+static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed);
 
 static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
     char utf8[32 + 1];
@@ -3006,7 +3000,8 @@ static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
     }
 }
 
-static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
+static bool ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
+    bool swallow = false;
     // override ui_app_update_mouse_buttons_state() (sic):
     // because mouse message can be from the past
     ui_app.mouse_left   = f & (ui_app.mouse_swapped ? MK_RBUTTON : MK_LBUTTON);
@@ -3035,9 +3030,13 @@ static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
             m == WM_RBUTTONDOWN;
         if (av != null) {
             // because of "micro" close button:
-            ui_app_toast_mouse_click(ui_app.animating.view, ix, pressed);
+            swallow = ui_app_toast_tap(ui_app.animating.view, ix, pressed);
         } else {
-            ui_view.mouse_click(v, ix, pressed);
+            if (av != null && av->tap != null) {
+                swallow = ui_view.tap(av, ix, pressed);
+            } else {
+                // tap detector will handle the tap() calling
+            }
         }
     } else if (m == WM_LBUTTONDBLCLK ||
                m == WM_MBUTTONDBLCLK ||
@@ -3047,11 +3046,15 @@ static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
             ((m == WM_MBUTTONDBLCLK) ? 1 :
             ((m == WM_RBUTTONDBLCLK) ? 2 : -1));
         ut_swear(i >= 0);
-        const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
-        ui_view.double_click(av != null && av->double_click != null ? av : v, ix);
+        if (av != null && av->double_tap != null) {
+            const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
+            swallow = ui_view.double_tap(av, ix);
+        }
+        // otherwise tap detector will do the double_tap() call
     } else {
         ut_assert(false, "m: 0x%04X", m);
     }
+    return swallow;
 }
 
 static void ui_app_show_sys_menu(int32_t x, int32_t y) {
@@ -3085,7 +3088,8 @@ static int32_t ui_app_nc_mouse_message(int32_t m) {
     return -1;
 }
 
-static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
+static bool ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
+    bool swallow = false;
     POINT screen = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
     POINT client = screen;
     ScreenToClient(ui_app_window(), &client);
@@ -3095,11 +3099,13 @@ static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
         uint16_t lr = ui_app.mouse_swapped ? WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
         if (m == lr) {
 //          ut_println("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
+            swallow = true;
             ui_app_show_sys_menu(screen.x, screen.y);
         }
     } else {
-        ui_app_mouse(ui_app.root, ui_app_nc_mouse_message(m), wp);
+        swallow = ui_app_mouse(ui_app.root, ui_app_nc_mouse_message(m), wp);
     }
+    return swallow;
 }
 
 enum { ui_app_animation_steps = 63 };
@@ -3206,7 +3212,8 @@ static void ui_app_toast_cancel(void) {
     }
 }
 
-static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed) {
+static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed) {
+    bool swallow = false;
     ut_swear(v == ui_app.animating.view);
     if (pressed) {
         const ui_fm_t* fm = v->fm;
@@ -3220,8 +3227,9 @@ static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed) {
         }
     }
     if (ui_app.animating.view != null) { // could have been canceled above
-        ui_view.mouse_click(v, left, pressed);
+        swallow = ui_view.tap(v, ix, pressed); // TODO: do we need it?
     }
+    return swallow;
 }
 
 static void ui_app_toast_character(const char* utf8) {
@@ -3269,7 +3277,9 @@ static void ui_app_animate_step(ui_app_animate_function_t f, int32_t step, int32
         cancel = true;
     }
     if (cancel) {
-        if (ui_app_animate.timer != 0) { ui_app.kill_timer(ui_app_animate.timer); }
+        if (ui_app_animate.timer != 0) {
+            ui_app.kill_timer(ui_app_animate.timer);
+        }
         ui_app_animate.step = 0;
         ui_app_animate.timer = 0;
         ui_app_animate.f = null;
@@ -3447,7 +3457,8 @@ static void ui_app_show_task_bar(bool show) {
     }
 }
 
-static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
+static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
+    bool swallow = false;
     enum { tap = 1, long_press = 2, double_tap = 3 };
     // TODO: click detector does not handle WM_NCLBUTTONDOWN, ...
     //       it can be modified to do so if needed
@@ -3456,7 +3467,7 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma push_macro("ui_timers_done")
 
     #define ui_set_timer(t, ms) do {                 \
-        ut_assert(t == 0);                              \
+        ut_assert(t == 0);                           \
         t = ui_app_timer_set((uintptr_t)&t, ms);     \
     } while (0)
 
@@ -3498,14 +3509,17 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
             if (wp == timer_p[i]) {
                 ui_app.mouse = (ui_point_t){ click_at[i].x, click_at[i].y };
                 ui_view.long_press(ui_app.root, i);
+//              ut_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
             }
             if (wp == timer_d[i]) {
+//              ut_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
             }
         }
     }
     if (ix != -1) {
+        ui_app.show_hint(null, -1, -1, 0); // dismiss hint on any click
         const int32_t double_click_msec = (int32_t)GetDoubleClickTime();
         const fp64_t  double_click_dt = double_click_msec / 1000.0; // seconds
 //      ut_println("double_click_msec: %d double_click_dt: %.3fs",
@@ -3520,14 +3534,19 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
                 abs(pt.y - click_at[ix].y) <= double_click_y) {
                 ui_app.mouse = (ui_point_t){ click_at[ix].x, click_at[ix].y };
                 ui_view.double_tap(ui_app.root, ix);
+//              ut_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
             } else {
+//              ut_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix); // clear timers
                 clicked[ix]  = ui_app.now;
                 click_at[ix] = pt;
                 pressed[ix]  = true;
+//              ut_println("clicked[%d] := %.1f %d,%d pressed[%d] := true",
+//                          ix, clicked[ix], pt.x, pt.y, ix);
                 if ((ui_app_wc.style & CS_DBLCLKS) == 0) {
                     // only if Windows are not detecting DLBCLKs
+//                  ut_println("ui_set_timer(timer_d[%d])", ix);
                     ui_set_timer(timer_d[ix], double_click_msec);  // 0.5s
                 }
                 ui_set_timer(timer_p[ix], double_click_msec * 3 / 4); // 0.375s
@@ -3535,23 +3554,26 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
         } else if (up) {
             fp64_t since_clicked = ui_app.now - clicked[ix];
 //          ut_println("pressed[%d]: %d %.3f", ix, pressed[ix], since_clicked);
-            ui_view.tap(ui_app.root, ix, !up);
             // only if Windows are not detecting DLBCLKs
             if ((ui_app_wc.style & CS_DBLCLKS) == 0 &&
                  pressed[ix] && since_clicked > double_click_dt) {
                 ui_view.double_tap(ui_app.root, ix);
+//              ut_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
             }
+            swallow = ui_view.tap(ui_app.root, ix, !up);
             ui_kill_timer(timer_p[ix]); // long press is not the case
         } else if (m == double_tap) {
             ut_assert((ui_app_wc.style & CS_DBLCLKS) != 0);
-            ui_view.double_tap(ui_app.root, ix);
+            swallow = ui_view.double_tap(ui_app.root, ix);
             ui_timers_done(ix);
+//          ut_println("timer_p[%d] _d && _p timers done", ix);
         }
     }
     #pragma pop_macro("ui_timers_done")
     #pragma pop_macro("ui_kill_timer")
     #pragma pop_macro("ui_set_timer")
+    return swallow;
 }
 
 static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
@@ -3736,11 +3758,11 @@ static void ui_app_wm_window_position_changing(int64_t wp, int64_t lp) {
     #endif
 }
 
-static void ui_app_wm_mouse(int32_t m, int64_t wp, int64_t lp) {
+static bool ui_app_wm_mouse(int32_t m, int64_t wp, int64_t lp) {
     // note: x, y is already in client coordinates
     ui_app.mouse.x = GET_X_LPARAM(lp);
     ui_app.mouse.y = GET_Y_LPARAM(lp);
-    ui_app_mouse(ui_app.root, m, wp);
+    return ui_app_mouse(ui_app.root, m, wp);
 }
 
 static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
@@ -3987,11 +4009,11 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
 //          if (m == WM_LBUTTONDOWN)   { ut_println("WM_LBUTTONDOWN"); }
 //          if (m == WM_LBUTTONUP)     { ut_println("WM_LBUTTONUP"); }
 //          if (m == WM_LBUTTONDBLCLK) { ut_println("WM_LBUTTONDBLCLK"); }
-            ui_app_wm_mouse(m, wp, lp);
+            if (ui_app_wm_mouse(m, wp, lp)) { return 0; }
             break;
         case WM_MOUSEHOVER      :
         case WM_MOUSEMOVE       :
-            ui_app_wm_mouse(m, wp, lp);
+            if (ui_app_wm_mouse(m, wp, lp)) { return 0; }
             break;
         case WM_MOUSEWHEEL   :
             ui_app_wm_mouse_wheel(true, wp);
@@ -4312,6 +4334,7 @@ static void ui_app_show_hint_or_toast(ui_view_t* v, int32_t x, int32_t y,
         ui_app_animate_start(ui_app_toast_dim, steps);
         ui_app.animating.view = v;
         v->parent = ui_app.root;
+        if (v->focusable) { ui_view.set_focus(v); }
         ui_app.animating.time = timeout > 0 ? ui_app.now + timeout : 0;
     } else {
         ui_app_toast_cancel();
@@ -5331,7 +5354,6 @@ static void ui_button_paint(ui_view_t* v) {
 }
 
 static void ui_button_callback(ui_button_t* b) {
-    ui_app.show_hint(null, -1, -1, 0);
     // for flip buttons the state of the button flips
     // *before* callback.
     if (b->flip) { b->state.pressed = !b->state.pressed; }
@@ -5382,19 +5404,19 @@ static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
 static bool ui_button_tap(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
-    ui_button_t* b = (ui_button_t*)v;
-    ut_assert(ui_view.inside(b, &ui_app.mouse));
-    ui_app.show_hint(null, -1, -1, 0);
-    ui_view.invalidate(v, null); // always on any press/release inside
-    if (pressed && b->flip) {
-        if (b->flip) { ui_button_callback(b); }
-    } else if (pressed) {
-        if (!v->state.armed) { ui_app.show_hint(null, -1, -1, 0); }
-        v->state.armed = true;
-    } else { // released
-        if (!b->flip) { ui_button_callback(b); }
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    if (inside) {
+        ui_view.invalidate(v, null); // always on any press/release inside
+        ui_button_t* b = (ui_button_t*)v;
+        if (pressed && b->flip) {
+            if (b->flip) { ui_button_callback(b); }
+        } else if (pressed) {
+            v->state.armed = true;
+        } else { // released
+            if (!b->flip) { ui_button_callback(b); }
+        }
     }
-    return true;
+    return pressed && inside; // swallow clicks inside
 }
 
 void ui_view_init_button(ui_view_t* v) {
@@ -9405,7 +9427,7 @@ static void ui_edit_create_caret(ui_edit_t* e) {
     ut_assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
     e->caret_width = ut_min(3, ut_max(1, (int32_t)px));
-    ui_app.create_caret(e->caret_width, ui_edit_line_height(e));
+    ui_app.create_caret(e->caret_width, e->fm->height); // w/o line_gap
     e->focused = true; // means caret was created
 //  ut_println("e->focused := true %s", ui_view_debug_id(&e->view));
 }
@@ -10497,12 +10519,10 @@ static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t ix) {
 static bool ui_edit_tap(ui_view_t* v, int32_t ut_unused(ix), bool pressed) {
     // `ix` ignored for now till context menu (copy/paste/select...)
     ui_edit_t* e = (ui_edit_t*)v;
-    ut_assert(ui_view.inside(v, &ui_app.mouse));
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
+    // not just inside view but inside insets:
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
-//  TODO: remove
-//  ut_println("mouse: %d,%d x,y: %d %d inside: %d", ui_app.mouse.x, ui_app.mouse.y, x, y, inside);
     if (inside) {
         if (pressed) {
             e->edit.buttons = 0;
@@ -10512,6 +10532,7 @@ static bool ui_edit_tap(ui_view_t* v, int32_t ut_unused(ix), bool pressed) {
             ui_edit_mouse_button_up(e, ix);
         }
     }
+    if (!pressed) { ui_edit_mouse_button_up(e, ix); }
     return true;
 }
 
@@ -12963,7 +12984,12 @@ static void ui_mbx_button(ui_button_t* b) {
     for (int32_t i = 0; i < ut_countof(m->button) && m->option < 0; i++) {
         if (b == &m->button[i]) {
             m->option = i;
-            if (m->callback != null) { m->callback(&m->view); }
+            if (m->callback != null) {
+                m->callback(&m->view);
+                // need to disarm button because message box about to close
+                b->state.pressed = false;
+                b->state.armed = false;
+            }
         }
     }
     ui_app.show_toast(null, 0);
@@ -13051,7 +13077,8 @@ void ui_mbx_init(ui_mbx_t* m, const char* options[],
     m->measured  = ui_mbx_measured;
     m->layout    = ui_mbx_layout;
     m->color_id  = ui_color_id_window;
-    m->options = options;
+    m->options   = options;
+    m->focusable = true;
     va_list va;
     va_start(va, format);
     ui_view.set_text_va(&m->view, format, va);
@@ -13234,50 +13261,60 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
-static void ui_slider_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
+static bool ui_slider_tap(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
-    ui_slider_t* s = (ui_slider_t*)v;
-    if (pressed) {
-        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
-        const int32_t dec_w = s->dec.w + dec_p.right;
-        ut_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
-        const int32_t sw = ui_slider_width(s); // slider width
-        const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
-        const int32_t vx = v->x + i.left + dx;
-        const int32_t x = ui_app.mouse.x - vx;
-        const int32_t y = ui_app.mouse.y - (v->y + i.top);
-        if (0 <= x && x < sw && 0 <= y && y < v->h) {
-            const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
-            fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
-            int32_t vw = (int32_t)(val + s->value_min + 0.5);
-            s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
-            if (s->callback != null) { s->callback(&s->view); }
-            ui_slider_invalidate(s);
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    if (inside) {
+        if (pressed) {
+            ui_slider_t* s = (ui_slider_t*)v;
+            const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+            const int32_t dec_w = s->dec.w + dec_p.right;
+            ut_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
+            const int32_t sw = ui_slider_width(s); // slider width
+            const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
+            const int32_t vx = v->x + i.left + dx;
+            const int32_t x = ui_app.mouse.x - vx;
+            const int32_t y = ui_app.mouse.y - (v->y + i.top);
+            if (0 <= x && x < sw && 0 <= y && y < v->h) {
+                const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
+                fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
+                int32_t vw = (int32_t)(val + s->value_min + 0.5);
+                s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+                if (s->callback != null) { s->callback(&s->view); }
+                ui_slider_invalidate(s);
+            }
         }
     }
+    return pressed && inside; // swallow inside clicks
 }
 
 static void ui_slider_mouse_move(ui_view_t* v) {
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-    ui_slider_t* s = (ui_slider_t*)v;
-    bool drag = ui_app.mouse_left || ui_app.mouse_right;
-    if (drag) {
-        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
-        const int32_t dec_w = s->dec.w + dec_p.right;
-        ut_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
-        const int32_t sw = ui_slider_width(s); // slider width
-        const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
-        const int32_t vx = v->x + i.left + dx;
-        const int32_t x = ui_app.mouse.x - vx;
-        const int32_t y = ui_app.mouse.y - (v->y + i.top);
-        if (0 <= x && x < sw && 0 <= y && y < v->h) {
-            const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
-            fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
-            int32_t vw = (int32_t)(val + s->value_min + 0.5);
-            s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
-            if (s->callback != null) { s->callback(&s->view); }
-            ui_slider_invalidate(s);
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    if (inside) {
+        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+        ui_slider_t* s = (ui_slider_t*)v;
+        bool drag = ui_app.mouse_left || ui_app.mouse_right;
+        if (drag) {
+            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+            const int32_t dec_w = s->dec.w + dec_p.right;
+            ut_assert(s->dec.state.hidden == s->inc.state.hidden,
+                      ".dec .inc must be .hidden in sync");
+            const int32_t sw = ui_slider_width(s); // slider width
+            const int32_t dx = s->dec.state.hidden ? 0 : dec_w + dec_p.right;
+            const int32_t vx = v->x + i.left + dx;
+            const int32_t x = ui_app.mouse.x - vx;
+            const int32_t y = ui_app.mouse.y - (v->y + i.top);
+            if (0 <= x && x < sw && 0 <= y && y < v->h) {
+                const fp64_t fmax = (fp64_t)s->value_max;
+                const fp64_t fmin = (fp64_t)s->value_min;
+                const fp64_t range = fmax - fmin;
+                fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
+                int32_t vw = (int32_t)(val + s->value_min + 0.5);
+                s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+                if (s->callback != null) { s->callback(&s->view); }
+                ui_slider_invalidate(s);
+            }
         }
     }
 }
@@ -13339,7 +13376,7 @@ void ui_view_init_slider(ui_view_t* v) {
     v->measure       = ui_slider_measure;
     v->layout        = ui_slider_layout;
     v->paint         = ui_slider_paint;
-    v->mouse_click   = ui_slider_mouse_click;
+    v->tap           = ui_slider_tap;
     v->mouse_move    = ui_slider_mouse_move;
     v->every_100ms   = ui_slider_every_100ms;
     v->color_id      = ui_color_id_window_text;
@@ -13703,16 +13740,16 @@ static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_toggle_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
+static bool ui_toggle_tap(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
-    if (pressed && ui_view.inside(v, &ui_app.mouse)) {
-        ui_toggle_flip((ui_toggle_t*)v);
-    }
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    if (pressed && inside) { ui_toggle_flip((ui_toggle_t*)v); }
+    return pressed && inside;
 }
 
 void ui_view_init_toggle(ui_view_t* v) {
     ut_assert(v->type == ui_view_toggle);
-    v->mouse_click   = ui_toggle_mouse_click;
+    v->tap           = ui_toggle_tap;
     v->paint         = ui_toggle_paint;
     v->measure       = ui_toggle_measure;
     v->character     = ui_toggle_character;
@@ -14416,17 +14453,6 @@ static void ui_view_double_click(ui_view_t* v, int32_t ix) {
     }
 }
 
-static void ui_view_mouse_click(ui_view_t* v, int32_t ix, bool pressed) {
-    if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
-        ui_view_for_each(v, c, { ui_view_mouse_click(c, ix, pressed); });
-        const bool inside = ui_view.inside(v, &ui_app.mouse);
-        if (inside) {
-            if (v->focusable) { ui_view.set_focus(v); }
-            if (v->mouse_click != null) { v->mouse_click(v, ix, pressed); }
-        }
-    }
-}
-
 static void ui_view_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->mouse_scroll != null) { v->mouse_scroll(v, dx_dy); }
@@ -14469,9 +14495,14 @@ static bool ui_view_tap(ui_view_t* v, int32_t ix, bool pressed) {
             if (swallow) { break; }
         });
         const bool inside = ui_view.inside(v, &ui_app.mouse);
-        if (!swallow && inside) {
+        if (!swallow && pressed && inside) {
             if (v->focusable) { ui_view.set_focus(v); }
             if (v->tap != null) { swallow = v->tap(v, ix, pressed); }
+        }
+        if (!swallow && !pressed) {
+            // mouse click release is never swallowed because a lot
+            // of controls want to hear it:
+            if (v->tap != null) { (void)v->tap(v, ix, pressed); }
         }
     }
     return swallow;
@@ -14752,8 +14783,6 @@ ui_view_if ui_view = {
     .lose_hidden_focus   = ui_view_lose_hidden_focus,
     .mouse_hover         = ui_view_mouse_hover,
     .mouse_move          = ui_view_mouse_move,
-    .mouse_click         = ui_view_mouse_click,
-    .double_click        = ui_view_double_click,
     .mouse_scroll        = ui_view_mouse_scroll,
     .hovering            = ui_view_hovering,
     .hover_changed       = ui_view_hover_changed,

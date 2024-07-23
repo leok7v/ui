@@ -98,19 +98,19 @@ static void character(ui_view_t* ut_unused(view), const char* utf8) {
     }
 }
 
-static void mouse_click(ui_view_t* ut_unused(v), int32_t ix, bool pressed) {
-    if (pressed &&
+static bool tap(ui_view_t* ut_unused(v), int32_t ix, bool pressed) {
+    const bool inside =
         0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fm.prop.H1.em.w &&
-        0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fm.prop.H1.em.h) {
+        0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fm.prop.H1.em.h;
+    if (pressed && inside) {
         muted = !muted;
         if (muted) {
             midi.stop(&mds);
-//          midi.close(&mds);
         } else {
-//          midi.open(&mds, ui_app.window, midi_file());
             midi.play(&mds);
         }
     }
+    return pressed && inside; // swallow mouse clicks inside mute button
 }
 
 static bool message(ui_view_t* ut_unused(view), int32_t m, int64_t wp, int64_t lp,
@@ -213,11 +213,11 @@ static void opened(void) {
 
 static void init(void) {
     ui_app.title = title;
-    ui_app.content->paint       = paint;
-    ui_app.content->character   = character;
-    ui_app.content->message     = message;
-    ui_app.content->mouse_click = mouse_click;
-    ui_app.opened               = opened;
+    ui_app.content->paint     = paint;
+    ui_app.content->character = character;
+    ui_app.content->message   = message;
+    ui_app.content->tap       = tap;
+    ui_app.opened             = opened;
     void* data = null;
     int64_t bytes = 0;
     ut_fatal_if_error(ut_mem.map_resource("sample_png", &data, &bytes));

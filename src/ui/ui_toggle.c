@@ -88,16 +88,16 @@ static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static void ui_toggle_mouse_click(ui_view_t* v, int32_t ut_unused(ix),
+static bool ui_toggle_tap(ui_view_t* v, int32_t ut_unused(ix),
         bool pressed) {
-    if (pressed && ui_view.inside(v, &ui_app.mouse)) {
-        ui_toggle_flip((ui_toggle_t*)v);
-    }
+    const bool inside = ui_view.inside(v, &ui_app.mouse);
+    if (pressed && inside) { ui_toggle_flip((ui_toggle_t*)v); }
+    return pressed && inside;
 }
 
 void ui_view_init_toggle(ui_view_t* v) {
     ut_assert(v->type == ui_view_toggle);
-    v->mouse_click   = ui_toggle_mouse_click;
+    v->tap           = ui_toggle_tap;
     v->paint         = ui_toggle_paint;
     v->measure       = ui_toggle_measure;
     v->character     = ui_toggle_character;

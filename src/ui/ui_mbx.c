@@ -8,7 +8,12 @@ static void ui_mbx_button(ui_button_t* b) {
     for (int32_t i = 0; i < ut_countof(m->button) && m->option < 0; i++) {
         if (b == &m->button[i]) {
             m->option = i;
-            if (m->callback != null) { m->callback(&m->view); }
+            if (m->callback != null) {
+                m->callback(&m->view);
+                // need to disarm button because message box about to close
+                b->state.pressed = false;
+                b->state.armed = false;
+            }
         }
     }
     ui_app.show_toast(null, 0);
@@ -96,7 +101,8 @@ void ui_mbx_init(ui_mbx_t* m, const char* options[],
     m->measured  = ui_mbx_measured;
     m->layout    = ui_mbx_layout;
     m->color_id  = ui_color_id_window;
-    m->options = options;
+    m->options   = options;
+    m->focusable = true;
     va_list va;
     va_start(va, format);
     ui_view.set_text_va(&m->view, format, va);

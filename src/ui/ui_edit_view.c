@@ -303,7 +303,7 @@ static void ui_edit_create_caret(ui_edit_t* e) {
     ut_assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
     e->caret_width = ut_min(3, ut_max(1, (int32_t)px));
-    ui_app.create_caret(e->caret_width, ui_edit_line_height(e));
+    ui_app.create_caret(e->caret_width, e->fm->height); // w/o line_gap
     e->focused = true; // means caret was created
 //  ut_println("e->focused := true %s", ui_view_debug_id(&e->view));
 }
@@ -1395,12 +1395,10 @@ static void ui_edit_mouse_button_up(ui_edit_t* e, int32_t ix) {
 static bool ui_edit_tap(ui_view_t* v, int32_t ut_unused(ix), bool pressed) {
     // `ix` ignored for now till context menu (copy/paste/select...)
     ui_edit_t* e = (ui_edit_t*)v;
-    ut_assert(ui_view.inside(v, &ui_app.mouse));
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
+    // not just inside view but inside insets:
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
-//  TODO: remove
-//  ut_println("mouse: %d,%d x,y: %d %d inside: %d", ui_app.mouse.x, ui_app.mouse.y, x, y, inside);
     if (inside) {
         if (pressed) {
             e->edit.buttons = 0;
@@ -1410,6 +1408,7 @@ static bool ui_edit_tap(ui_view_t* v, int32_t ut_unused(ix), bool pressed) {
             ui_edit_mouse_button_up(e, ix);
         }
     }
+    if (!pressed) { ui_edit_mouse_button_up(e, ix); }
     return true;
 }
 

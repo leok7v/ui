@@ -741,7 +741,7 @@ static void ui_app_measure_and_layout(ui_view_t* view) {
 
 static void ui_app_toast_character(const char* utf8);
 static bool ui_app_toast_key_pressed(int64_t key);
-static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed);
+static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed);
 
 static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
     char utf8[32 + 1];
@@ -785,7 +785,8 @@ static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
     }
 }
 
-static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
+static bool ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
+    bool swallow = false;
     // override ui_app_update_mouse_buttons_state() (sic):
     // because mouse message can be from the past
     ui_app.mouse_left   = f & (ui_app.mouse_swapped ? MK_RBUTTON : MK_LBUTTON);
@@ -814,9 +815,13 @@ static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
             m == WM_RBUTTONDOWN;
         if (av != null) {
             // because of "micro" close button:
-            ui_app_toast_mouse_click(ui_app.animating.view, ix, pressed);
+            swallow = ui_app_toast_tap(ui_app.animating.view, ix, pressed);
         } else {
-            ui_view.mouse_click(v, ix, pressed);
+            if (av != null && av->tap != null) {
+                swallow = ui_view.tap(av, ix, pressed);
+            } else {
+                // tap detector will handle the tap() calling
+            }
         }
     } else if (m == WM_LBUTTONDBLCLK ||
                m == WM_MBUTTONDBLCLK ||
@@ -826,11 +831,15 @@ static void ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
             ((m == WM_MBUTTONDBLCLK) ? 1 :
             ((m == WM_RBUTTONDBLCLK) ? 2 : -1));
         ut_swear(i >= 0);
-        const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
-        ui_view.double_click(av != null && av->double_click != null ? av : v, ix);
+        if (av != null && av->double_tap != null) {
+            const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
+            swallow = ui_view.double_tap(av, ix);
+        }
+        // otherwise tap detector will do the double_tap() call
     } else {
         ut_assert(false, "m: 0x%04X", m);
     }
+    return swallow;
 }
 
 static void ui_app_show_sys_menu(int32_t x, int32_t y) {
@@ -864,7 +873,8 @@ static int32_t ui_app_nc_mouse_message(int32_t m) {
     return -1;
 }
 
-static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
+static bool ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
+    bool swallow = false;
     POINT screen = {GET_X_LPARAM(lp), GET_Y_LPARAM(lp)};
     POINT client = screen;
     ScreenToClient(ui_app_window(), &client);
@@ -874,11 +884,13 @@ static void ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
         uint16_t lr = ui_app.mouse_swapped ? WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
         if (m == lr) {
 //          ut_println("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
+            swallow = true;
             ui_app_show_sys_menu(screen.x, screen.y);
         }
     } else {
-        ui_app_mouse(ui_app.root, ui_app_nc_mouse_message(m), wp);
+        swallow = ui_app_mouse(ui_app.root, ui_app_nc_mouse_message(m), wp);
     }
+    return swallow;
 }
 
 enum { ui_app_animation_steps = 63 };
@@ -985,7 +997,8 @@ static void ui_app_toast_cancel(void) {
     }
 }
 
-static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed) {
+static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed) {
+    bool swallow = false;
     ut_swear(v == ui_app.animating.view);
     if (pressed) {
         const ui_fm_t* fm = v->fm;
@@ -999,8 +1012,9 @@ static void ui_app_toast_mouse_click(ui_view_t* v, bool left, bool pressed) {
         }
     }
     if (ui_app.animating.view != null) { // could have been canceled above
-        ui_view.mouse_click(v, left, pressed);
+        swallow = ui_view.tap(v, ix, pressed); // TODO: do we need it?
     }
+    return swallow;
 }
 
 static void ui_app_toast_character(const char* utf8) {
@@ -1048,7 +1062,9 @@ static void ui_app_animate_step(ui_app_animate_function_t f, int32_t step, int32
         cancel = true;
     }
     if (cancel) {
-        if (ui_app_animate.timer != 0) { ui_app.kill_timer(ui_app_animate.timer); }
+        if (ui_app_animate.timer != 0) {
+            ui_app.kill_timer(ui_app_animate.timer);
+        }
         ui_app_animate.step = 0;
         ui_app_animate.timer = 0;
         ui_app_animate.f = null;
@@ -1226,7 +1242,8 @@ static void ui_app_show_task_bar(bool show) {
     }
 }
 
-static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
+static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
+    bool swallow = false;
     enum { tap = 1, long_press = 2, double_tap = 3 };
     // TODO: click detector does not handle WM_NCLBUTTONDOWN, ...
     //       it can be modified to do so if needed
@@ -1235,7 +1252,7 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma push_macro("ui_timers_done")
 
     #define ui_set_timer(t, ms) do {                 \
-        ut_assert(t == 0);                              \
+        ut_assert(t == 0);                           \
         t = ui_app_timer_set((uintptr_t)&t, ms);     \
     } while (0)
 
@@ -1277,14 +1294,17 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
             if (wp == timer_p[i]) {
                 ui_app.mouse = (ui_point_t){ click_at[i].x, click_at[i].y };
                 ui_view.long_press(ui_app.root, i);
+//              ut_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
             }
             if (wp == timer_d[i]) {
+//              ut_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
             }
         }
     }
     if (ix != -1) {
+        ui_app.show_hint(null, -1, -1, 0); // dismiss hint on any click
         const int32_t double_click_msec = (int32_t)GetDoubleClickTime();
         const fp64_t  double_click_dt = double_click_msec / 1000.0; // seconds
 //      ut_println("double_click_msec: %d double_click_dt: %.3fs",
@@ -1299,14 +1319,19 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
                 abs(pt.y - click_at[ix].y) <= double_click_y) {
                 ui_app.mouse = (ui_point_t){ click_at[ix].x, click_at[ix].y };
                 ui_view.double_tap(ui_app.root, ix);
+//              ut_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
             } else {
+//              ut_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix); // clear timers
                 clicked[ix]  = ui_app.now;
                 click_at[ix] = pt;
                 pressed[ix]  = true;
+//              ut_println("clicked[%d] := %.1f %d,%d pressed[%d] := true",
+//                          ix, clicked[ix], pt.x, pt.y, ix);
                 if ((ui_app_wc.style & CS_DBLCLKS) == 0) {
                     // only if Windows are not detecting DLBCLKs
+//                  ut_println("ui_set_timer(timer_d[%d])", ix);
                     ui_set_timer(timer_d[ix], double_click_msec);  // 0.5s
                 }
                 ui_set_timer(timer_p[ix], double_click_msec * 3 / 4); // 0.375s
@@ -1314,23 +1339,26 @@ static void ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
         } else if (up) {
             fp64_t since_clicked = ui_app.now - clicked[ix];
 //          ut_println("pressed[%d]: %d %.3f", ix, pressed[ix], since_clicked);
-            ui_view.tap(ui_app.root, ix, !up);
             // only if Windows are not detecting DLBCLKs
             if ((ui_app_wc.style & CS_DBLCLKS) == 0 &&
                  pressed[ix] && since_clicked > double_click_dt) {
                 ui_view.double_tap(ui_app.root, ix);
+//              ut_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
             }
+            swallow = ui_view.tap(ui_app.root, ix, !up);
             ui_kill_timer(timer_p[ix]); // long press is not the case
         } else if (m == double_tap) {
             ut_assert((ui_app_wc.style & CS_DBLCLKS) != 0);
-            ui_view.double_tap(ui_app.root, ix);
+            swallow = ui_view.double_tap(ui_app.root, ix);
             ui_timers_done(ix);
+//          ut_println("timer_p[%d] _d && _p timers done", ix);
         }
     }
     #pragma pop_macro("ui_timers_done")
     #pragma pop_macro("ui_kill_timer")
     #pragma pop_macro("ui_set_timer")
+    return swallow;
 }
 
 static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
@@ -1515,11 +1543,11 @@ static void ui_app_wm_window_position_changing(int64_t wp, int64_t lp) {
     #endif
 }
 
-static void ui_app_wm_mouse(int32_t m, int64_t wp, int64_t lp) {
+static bool ui_app_wm_mouse(int32_t m, int64_t wp, int64_t lp) {
     // note: x, y is already in client coordinates
     ui_app.mouse.x = GET_X_LPARAM(lp);
     ui_app.mouse.y = GET_Y_LPARAM(lp);
-    ui_app_mouse(ui_app.root, m, wp);
+    return ui_app_mouse(ui_app.root, m, wp);
 }
 
 static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
@@ -1766,11 +1794,11 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
 //          if (m == WM_LBUTTONDOWN)   { ut_println("WM_LBUTTONDOWN"); }
 //          if (m == WM_LBUTTONUP)     { ut_println("WM_LBUTTONUP"); }
 //          if (m == WM_LBUTTONDBLCLK) { ut_println("WM_LBUTTONDBLCLK"); }
-            ui_app_wm_mouse(m, wp, lp);
+            if (ui_app_wm_mouse(m, wp, lp)) { return 0; }
             break;
         case WM_MOUSEHOVER      :
         case WM_MOUSEMOVE       :
-            ui_app_wm_mouse(m, wp, lp);
+            if (ui_app_wm_mouse(m, wp, lp)) { return 0; }
             break;
         case WM_MOUSEWHEEL   :
             ui_app_wm_mouse_wheel(true, wp);
@@ -2091,6 +2119,7 @@ static void ui_app_show_hint_or_toast(ui_view_t* v, int32_t x, int32_t y,
         ui_app_animate_start(ui_app_toast_dim, steps);
         ui_app.animating.view = v;
         v->parent = ui_app.root;
+        if (v->focusable) { ui_view.set_focus(v); }
         ui_app.animating.time = timeout > 0 ? ui_app.now + timeout : 0;
     } else {
         ui_app_toast_cancel();
