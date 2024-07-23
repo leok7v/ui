@@ -633,7 +633,6 @@ typedef struct ui_fm_s { // font metrics
     ui_font_t font;
     ui_wh_t em;        // "em" square point size expressed in pixels *)
     // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
-    ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
     int32_t height;    // font height in pixels
     int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
     int32_t ascent;    // the maximum glyphs extend above the baseline
@@ -653,6 +652,8 @@ typedef struct ui_fm_s { // font metrics
     int32_t underscore_position;
     int32_t strike_through; // height
     int32_t strike_through_position;
+    int32_t design_units_per_em; // aka EM square ~ 2048
+    ui_rect_t box; // bounding box of the glyphs in design units
     bool mono;
 } ui_fm_t;
 
@@ -673,40 +674,6 @@ typedef struct ui_fm_s { // font metrics
   ascender for "diacritics circumflex" is (h:55 - a:30 - d:11) = 14
 */
 
-typedef struct ui_fms_s {
-    // when font handles are re-created on system scaling change
-    // metrics "em" and font geometry filled
-    ui_fm_t regular; // proportional UI font
-    ui_fm_t mono; // monospaced  UI font
-    ui_fm_t H1; // bold header font
-    ui_fm_t H2;
-    ui_fm_t H3;
-} ui_fms_t;
-
-// TODO: fonts
-#if 0
-
-typedef struct ui_fms_s {
-    struct {
-        ui_fm_t title;    // largest font
-        ui_fm_t subtitle; // larger then `H1`
-        ui_fm_t H1;       // largest header font
-        ui_fm_t H2;
-        ui_fm_t H3;       // larger then `normal`
-        ui_fm_t normal;   // larger then `normal`
-    } prop; // proportional
-    struct {
-        ui_fm_t title;    // largest font
-        ui_fm_t subtitle; // larger then `H1`
-        ui_fm_t H1;       // largest header font
-        ui_fm_t H2;
-        ui_fm_t H3;       // larger then `normal`
-        ui_fm_t normal;   // larger then `normal`
-    } mono; // monospaced
-} ui_fms_t;
-
-#endif
-
 typedef struct ui_gdi_ta_s { // text attributes
     const ui_fm_t* fm; // font metrics
     int32_t color_id;  // <= 0 use color
@@ -716,11 +683,22 @@ typedef struct ui_gdi_ta_s { // text attributes
 
 typedef struct {
     struct {
-        ui_gdi_ta_t const regular;
-        ui_gdi_ta_t const mono;
-        ui_gdi_ta_t const H1;
-        ui_gdi_ta_t const H2;
-        ui_gdi_ta_t const H3;
+        struct {
+            ui_gdi_ta_t const normal;
+            ui_gdi_ta_t const title;
+            ui_gdi_ta_t const rubric;
+            ui_gdi_ta_t const H1;
+            ui_gdi_ta_t const H2;
+            ui_gdi_ta_t const H3;
+        } prop;
+        struct {
+            ui_gdi_ta_t const normal;
+            ui_gdi_ta_t const title;
+            ui_gdi_ta_t const rubric;
+            ui_gdi_ta_t const H1;
+            ui_gdi_ta_t const H2;
+            ui_gdi_ta_t const H3;
+        } mono;
     } const ta;
     void (*init)(void);
     void (*fini)(void);
@@ -1128,7 +1106,7 @@ typedef struct ui_view_s ui_view_t;
 #define ui_view(view_type) {            \
     .type = (ui_view_ ## view_type),    \
     .init = ui_view_init_ ## view_type, \
-    .fm   = &ui_app.fm.regular,         \
+    .fm   = &ui_app.fm.prop.normal,     \
     .color = ui_color_transparent,      \
     .color_id = 0                       \
 }
@@ -1609,7 +1587,7 @@ void ui_view_init_label(ui_view_t* v);
 
 #define ui_label(min_width_em, s) {                    \
     .type = ui_view_label, .init = ui_view_init_label, \
-    .fm = &ui_app.fm.regular,                          \
+    .fm = &ui_app.fm.prop.normal,                      \
     .p.text = s,                                       \
     .min_w_em = min_width_em, .min_h_em = 1.25f,       \
     .insets  = {                                       \
@@ -1658,7 +1636,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     ui_button_t name = {                                    \
         .type = ui_view_button,                             \
         .init = ui_view_init_button,                        \
-        .fm = &ui_app.fm.regular,                           \
+        .fm = &ui_app.fm.prop.normal,                       \
         .p.text = s,                                        \
         .callback = name ## _clicked,                       \
         .color_id = ui_color_id_button_text,                \
@@ -1676,7 +1654,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 #define ui_button(s, min_width_em, clicked) {               \
     .type = ui_view_button,                                 \
     .init = ui_view_init_button,                            \
-    .fm = &ui_app.fm.regular,                               \
+    .fm = &ui_app.fm.prop.normal,                           \
     .p.text = s,                                            \
     .callback = clicked,                                    \
     .color_id = ui_color_id_button_text,                    \
@@ -1770,7 +1748,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .view = {                                                   \
             .type = ui_view_slider,                                 \
             .init = ui_view_init_slider,                            \
-            .fm = &ui_app.fm.regular,                               \
+            .fm = &ui_app.fm.prop.normal,                           \
             .p.text = s,                                            \
             .format = fmt,                                          \
             .callback = name ## _changed,                           \
@@ -1791,7 +1769,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     .view = {                                                       \
         .type = ui_view_slider,                                     \
         .init = ui_view_init_slider,                                \
-        .fm = &ui_app.fm.regular,                                   \
+        .fm = &ui_app.fm.prop.normal,                               \
         .p.text = s,                                                \
         .callback = changed,                                        \
         .format = fmt,                                              \
@@ -1861,7 +1839,7 @@ void ui_view_init_toggle(ui_view_t* v);
     ui_toggle_t name = {                                    \
         .type = ui_view_toggle,                             \
         .init = ui_view_init_toggle,                        \
-        .fm = &ui_app.fm.regular,                           \
+        .fm = &ui_app.fm.prop.normal,                       \
         .min_w_em = min_width_em,  .min_h_em = 1.25f,       \
         .p.text = s,                                        \
         .callback = name ## _on_off,                        \
@@ -1878,7 +1856,7 @@ void ui_view_init_toggle(ui_view_t* v);
 #define ui_toggle(s, min_width_em, on_off) {                \
     .type = ui_view_toggle,                                 \
     .init = ui_view_init_toggle,                            \
-    .fm = &ui_app.fm.regular,                               \
+    .fm = &ui_app.fm.prop.normal,                           \
     .p.text = s,                                            \
     .callback = on_off,                                     \
     .min_w_em = min_width_em,  .min_h_em = 1.25f,           \
@@ -1933,7 +1911,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
         .view = {                                                \
             .type = ui_view_mbx,                                 \
             .init = ui_view_init_mbx,                            \
-            .fm = &ui_app.fm.regular,                            \
+            .fm = &ui_app.fm.prop.normal,                        \
             .p.text = s,                                         \
             .callback = name ## _chosen,                         \
             .padding = { .left  = 0.125, .top    = 0.25,         \
@@ -1947,7 +1925,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 #define ui_mbx(s, chosen, ...) {                            \
     .view = {                                               \
         .type = ui_view_mbx, .init = ui_view_init_mbx,      \
-        .fm = &ui_app.fm.regular,                           \
+        .fm = &ui_app.fm.prop.normal,                       \
         .p.text = s,                                        \
         .callback = chosen,                                 \
         .padding = { .left  = 0.125, .top    = 0.25,        \
@@ -2019,6 +1997,18 @@ typedef struct ui_window_sizing_s {
 	// on all launches except the very first.
 } ui_window_sizing_t;
 
+typedef struct ui_fms_s {
+    // when font handles are re-created on system scaling change
+    // metrics "em" and font geometry filled
+    ui_fm_t normal; // regular UI font ~ 11-12pt
+    ui_fm_t tiny;   // small UI font ~ 8pt
+    ui_fm_t title;  // Largest Title font
+    ui_fm_t rubric; // Subtitle font
+    ui_fm_t H1;     // bolder header font
+    ui_fm_t H2;
+    ui_fm_t H3;
+} ui_fms_t;
+
 typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after methods
     // implemented by client:
     const char* class_name;
@@ -2073,7 +2063,10 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     ui_view_t* content;
     ui_view_t* caption;
     ui_view_t* focus; // does not affect message routing
-    ui_fms_t   fm;
+    struct { // font metrics and handles
+        ui_fms_t prop;  // proportional fonts
+        ui_fms_t mono;  // monospaced fonts
+    } fm;
     // TODO: struct {} keyboard
     // keyboard state now:
     bool alt;
@@ -2485,18 +2478,30 @@ static void ui_app_update_crc(void) {
 }
 
 static void ui_app_dispose_fonts(void) {
-    ui_gdi.delete_font(ui_app.fm.regular.font);
-    ui_gdi.delete_font(ui_app.fm.H1.font);
-    ui_gdi.delete_font(ui_app.fm.H2.font);
-    ui_gdi.delete_font(ui_app.fm.H3.font);
-    ui_gdi.delete_font(ui_app.fm.mono.font);
+    ui_gdi.delete_font(ui_app.fm.prop.normal.font);
+    ui_gdi.delete_font(ui_app.fm.prop.tiny.font);
+    ui_gdi.delete_font(ui_app.fm.prop.title.font);
+    ui_gdi.delete_font(ui_app.fm.prop.rubric.font);
+    ui_gdi.delete_font(ui_app.fm.prop.H1.font);
+    ui_gdi.delete_font(ui_app.fm.prop.H2.font);
+    ui_gdi.delete_font(ui_app.fm.prop.H3.font);
+    memset(&ui_app.fm.prop, 0x00, sizeof(ui_app.fm.prop));
+    ui_gdi.delete_font(ui_app.fm.mono.normal.font);
+    ui_gdi.delete_font(ui_app.fm.mono.tiny.font);
+    ui_gdi.delete_font(ui_app.fm.mono.title.font);
+    ui_gdi.delete_font(ui_app.fm.mono.rubric.font);
+    ui_gdi.delete_font(ui_app.fm.mono.H1.font);
+    ui_gdi.delete_font(ui_app.fm.mono.H2.font);
+    ui_gdi.delete_font(ui_app.fm.mono.H3.font);
+    memset(&ui_app.fm.mono, 0x00, sizeof(ui_app.fm.mono));
 }
 
-static int32_t ui_app_px2pt(fp64_t px) {
-    return (int32_t)(px * 72.0 / (fp64_t)ui_app.dpi.window + 0.5);
+static fp64_t ui_app_px2pt(fp64_t px) {
+    ut_assert(ui_app.dpi.window >= 72.0);
+    return px * 72.0 / (fp64_t)ui_app.dpi.window;
 }
 
-static int32_t ui_app_pt2px(fp64_t pt) {
+static int32_t ui_app_pt2px(fp64_t pt) { // rounded
     return (int32_t)(pt * (fp64_t)ui_app.dpi.window / 72.0 + 0.5);
 }
 
@@ -2514,33 +2519,112 @@ static void ui_app_init_cursors(void) {
     }
 }
 
+static void ui_app_ncm_dump_fonts(void) {
+    // Win10/Win11 all 5 fonts are exactly the same:
+//  Caption  : Segoe UI 0x-12 weight: 400 quality: 0
+//  SmCaption: Segoe UI 0x-12 weight: 400 quality: 0
+//  Menu     : Segoe UI 0x-12 weight: 400 quality: 0
+//  Status   : Segoe UI 0x-12 weight: 400 quality: 0
+//  Message  : Segoe UI 0x-12 weight: 400 quality: 0
+#if 0
+    const LOGFONTW* fonts[] = {
+        &ui_app_ncm.lfCaptionFont, &ui_app_ncm.lfSmCaptionFont,
+        &ui_app_ncm.lfMenuFont, &ui_app_ncm.lfStatusFont,
+        &ui_app_ncm.lfMessageFont
+    };
+    const char* font_names[] = {
+        "Caption", "SmCaption", "Menu", "Status", "Message"
+    };
+    for (int32_t i = 0; i < ut_countof(fonts); i++) {
+        const LOGFONTW* lf = fonts[i];
+        char fn[128];
+        ut_str.utf16to8(fn, ut_countof(fn), lf->lfFaceName, -1);
+        ut_println("%-9s: %s %dx%d weight: %d quality: %d", font_names[i], fn,
+                   lf->lfWidth, lf->lfHeight, lf->lfWeight, lf->lfQuality);
+    }
+#endif
+}
+
+static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
+                                  ui_fm_t* fm) {
+    // "The height, in logical units, of the font's character cell or character.
+    //  The character height value (also known as the em height) is the character
+    // cell height value minus the internal-leading value."
+    ut_assert(abs(lf->lfHeight) == fm->height - fm->internal_leading);
+    ut_assert(fm->external_leading == 0); // for "Segoe UI" and "Cascadia Mono"
+    ut_assert(ui_app.dpi.window >= 72);
+    int32_t ascender = fm->baseline - fm->ascent;
+    int32_t cell = fm->height - ascender - fm->descent;
+    fp64_t  pt = fm->height * 72.0 / (fp64_t)ui_app.dpi.window;
+    ut_println("%-6s .lfH: %+3d h: %d pt: %6.3f "
+               "a: %2d c: %2d d: %d bl: %2d il: %2d lg: %d",
+                name, lf->lfHeight, fm->height, pt,
+                ascender, cell, fm->descent, fm->baseline,
+                fm->internal_leading, fm->line_gap);
+    #if 0 // TODO: need better understanding of box geometry in
+          // "design units"
+        // box scale factor: design units -> pixels
+        fp64_t  sf = pt * 72.0 / (fp64_t)fm->design_units_per_em;
+        sf *= (fp64_t)ui_app.dpi.window / 72.0; // into pixels (unclear???)
+        int32_t bx = (int32_t)(fm->box.x * sf + 0.5);
+        int32_t by = (int32_t)(fm->box.y * sf + 0.5);
+        int32_t bw = (int32_t)(fm->box.w * sf + 0.5);
+        int32_t bh = (int32_t)(fm->box.h * sf + 0.5);
+        ut_println("%-6s .box: %d,%d %dx%d", name, bx, by, bw, bh);
+    #endif
+}
+
+static void ui_app_init_fms(ui_fms_t* fms, const LOGFONTW* base) {
+    LOGFONTW lf = *base;
+    // lf.lfQuality is zero (DEFAULT_QUALITY) that gets internally
+    // interpreted as CLEARTYPE_QUALITY (if clear type is enabled
+    // system wide and it looks really bad on 4K monitors
+    // Experimentally it looks like Windows UI is using PROOF_QUALITY
+    // which is anti-aliased w/o ClearType rainbows
+    // TODO: maybe DEFAULT_QUALITY on 96DPI,
+    //             PROOF_QUALITY below 4K
+    //             ANTIALIASED_QUALITY on 4K and ?
+    lf.lfQuality = ANTIALIASED_QUALITY;
+    ui_gdi.update_fm(&fms->normal, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("normal", &lf, &fms->normal);
+    const fp64_t fh = lf.lfHeight;
+    ut_swear(fh != 0);
+    lf.lfHeight = (int32_t)(fh * 8.0 / 11.0 + 0.5);
+    ui_gdi.update_fm(&fms->tiny, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("tiny", &lf, &fms->tiny);
+
+    lf.lfWeight = FW_SEMIBOLD;
+    lf.lfHeight = (int32_t)(fh * 2.25 + 0.5);
+    ui_gdi.update_fm(&fms->title, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("title", &lf, &fms->title);
+    lf.lfHeight = (int32_t)(fh * 2.00 + 0.5);
+    ui_gdi.update_fm(&fms->rubric, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("rubric", &lf, &fms->rubric);
+    lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
+    ui_gdi.update_fm(&fms->H1, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("H1", &lf, &fms->H1);
+    lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
+    ui_gdi.update_fm(&fms->H2, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("H2", &lf, &fms->H2);
+    lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
+    ui_gdi.update_fm(&fms->H3, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("H3", &lf, &fms->H3);
+}
+
 static void ui_app_init_fonts(int32_t dpi) {
     ui_app_update_ncm(dpi);
-    if (ui_app.fm.regular.font != null) { ui_app_dispose_fonts(); }
-    LOGFONTW lf = ui_app_ncm.lfMessageFont;
-    // lf.lfQuality is CLEARTYPE_QUALITY which looks bad on 4K monitors
-    // Windows UI uses PROOF_QUALITY which is aliased w/o ClearType rainbows
-    lf.lfQuality = ANTIALIASED_QUALITY; // PROOF_QUALITY;
-    ui_gdi.update_fm(&ui_app.fm.regular, (ui_font_t)CreateFontIndirectW(&lf));
-//  ui_gdi.dump_fm(ui_app.fm.regular.font);
-    const fp64_t fh = ui_app_ncm.lfMessageFont.lfHeight;
-//  ut_println("lfHeight=%.1f", fh);
-    ut_assert(fh != 0);
-    lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
-    ui_gdi.update_fm(&ui_app.fm.H1, (ui_font_t)CreateFontIndirectW(&lf));
-    lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
-    ui_gdi.update_fm(&ui_app.fm.H2, (ui_font_t)CreateFontIndirectW(&lf));
-    lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
-    ui_gdi.update_fm(&ui_app.fm.H3, (ui_font_t)CreateFontIndirectW(&lf));
-    lf = ui_app_ncm.lfMessageFont;
-    lf.lfPitchAndFamily &= FIXED_PITCH;
-    // TODO: how to get monospaced from Win32 API?
-    ut_str.utf8to16(lf.lfFaceName, ut_countof(lf.lfFaceName),
-                    "Cascadia Mono", -1);
-    ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_ncm_dump_fonts();
+    if (ui_app.fm.prop.normal.font != null) { ui_app_dispose_fonts(); }
+    LOGFONTW mono = ui_app_ncm.lfMessageFont;
+    // TODO: how to get name of monospaced from Win32 API?
+    wcscpy_s(mono.lfFaceName, ut_countof(mono.lfFaceName), L"Cascadia Mono");
+    mono.lfPitchAndFamily |= FIXED_PITCH;
+    ut_println("ui_app.fm.mono");
+    ui_app_init_fms(&ui_app.fm.mono, &mono);
+    LOGFONTW prop = ui_app_ncm.lfMessageFont;
+    prop.lfHeight--; // inc by 1
+    ut_println("ui_app.fm.prop");
+    ui_app_init_fms(&ui_app.fm.prop, &ui_app_ncm.lfMessageFont);
 }
 
 static void ui_app_data_save(const char* name, const void* data, int32_t bytes) {
@@ -3080,7 +3164,7 @@ static void ui_app_toast_paint(void) {
                 const int32_t tx = r - em_w / 2;
                 const int32_t ty = 0;
                 const ui_gdi_ta_t ta = {
-                    .fm = &ui_app.fm.regular,
+                    .fm = &ui_app.fm.prop.normal,
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
                 };
@@ -4694,8 +4778,8 @@ static void window_request_focus(void* w) {
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
     ut_assert(ut_thread.id() == ui_app.tid, "cannot be called from background thread");
     ut_runtime.set_err(0);
-    w = SetFocus((HWND)w); // w previous focused window
-    if (w == null) { ut_fatal_if_error(ut_runtime.err()); }
+    HWND previous = SetFocus((HWND)w); // previously focused window
+    if (previous == null) { ut_fatal_if_error(ut_runtime.err()); }
 }
 
 static void ui_app_request_focus(void) {
@@ -5077,7 +5161,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         ui_app_bring_window_inside_monitor(&ui_app.mrc, &wr);
     }
     ui_app.root->state.hidden = true; // start with ui hidden
-    ui_app.root->fm = &ui_app.fm.regular;
+    ui_app.root->fm = &ui_app.fm.prop.normal;
     ui_app.root->w = wr.w - ui_app.border.w * 2;
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint
@@ -5484,7 +5568,7 @@ static void ui_caption_measured(ui_view_t* v) {
     int32_t w = 0;
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
-            it->fm = &ui_app.fm.mono;
+            it->fm = &ui_app.fm.mono.normal;
             it->flat = true;
             ui_caption_button_measure(it);
         }
@@ -5531,13 +5615,13 @@ static void ui_caption_init(ui_view_t* v) {
         null);
     ui_caption.view.color_id = ui_color_id_window_text;
     static const ui_margins_t p0 = { .left  = 0.0,   .top    = 0.0,
-                                  .right = 0.0,   .bottom = 0.0};
+                                     .right = 0.0,   .bottom = 0.0};
     static const ui_margins_t pd = { .left  = 0.25,  .top    = 0.0,
-                                  .right = 0.25,  .bottom = 0.0};
+                                     .right = 0.25,  .bottom = 0.0};
     static const ui_margins_t in = { .left  = 0.0,   .top    = 0.0,
-                                  .right = 0.0,   .bottom = 0.0};
+                                     .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
-        c->fm = &ui_app.fm.regular;
+        c->fm = &ui_app.fm.prop.normal;
         c->color_id = ui_caption.view.color_id;
         if (c->type != ui_view_button) {
             c->padding = pd;
@@ -5579,7 +5663,7 @@ static void ui_caption_init(ui_view_t* v) {
 ui_caption_t ui_caption =  {
     .view = {
         .type     = ui_view_span,
-        .fm       = &ui_app.fm.regular,
+        .fm       = &ui_app.fm.prop.normal,
         .init     = ui_caption_init,
         .hit_test = ui_caption_hit_test,
         .state.hidden = true
@@ -9063,6 +9147,15 @@ static void ui_edit_invalidate_rect(const ui_edit_t* e, const ui_rect_t rc) {
     ui_view.invalidate(&e->view, &rc);
 }
 
+static int32_t ui_edit_line_height(ui_edit_t* e) {
+    // at 96dpi:
+    // "Segoe UI" height + line_gap: 16
+    // ui_app.fm.prop h: 15 pt: 11.250 a:  3 c:  9 d: 3 bl: 12 il: 3 lg: 2
+    // "Cascadia Mono" height + line_gap: 17
+    // ui_app.fm.mono h: 16 pt: 12.000 a:  2 c: 11 d: 3 bl: 13 il: 4 lg: 0
+    return e->fm->height + e->fm->line_gap;
+}
+
 static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
     const ui_edit_range_t r = ui_edit_range.order(e->selection);
     const ui_ltrb_t i = ui_view.margins(&e->view, &e->insets);
@@ -9075,9 +9168,9 @@ static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
         int32_t w = p1.x - p0.x != 0 ?
                 p1.x - p0.x + max_w : e->caret_width;
         return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
-                             .w = w, .h = e->fm->height };
+                             .w = w, .h = ui_edit_line_height(e) };
     } else {
-        const int32_t h = p1.y - p0.y + e->fm->height;
+        const int32_t h = p1.y - p0.y + ui_edit_line_height(e);
         return (ui_rect_t) { .x = 0, .y = i.top + p0.y,
                              .w = e->w, .h = h };
     }
@@ -9101,7 +9194,7 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
 //  fp64_t time = ut_clock.seconds();
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
-    // "ui_app.fm.regular" ~250us (microseconds) DirectWrite ~100us
+    // "ui_app.fm.prop.normal" ~250us (microseconds) DirectWrite ~100us
     const ui_gdi_ta_t ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
@@ -9308,7 +9401,7 @@ static void ui_edit_create_caret(ui_edit_t* e) {
     ut_assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
     e->caret_width = ut_min(3, ut_max(1, (int32_t)px));
-    ui_app.create_caret(e->caret_width, e->fm->height);
+    ui_app.create_caret(e->caret_width, ui_edit_line_height(e));
     e->focused = true; // means caret was created
 //  ut_println("e->focused := true %s", ui_view_debug_id(&e->view));
 }
@@ -9509,7 +9602,7 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
                     break;
                 }
             }
-            pt.y += e->fm->height;
+            pt.y += ui_edit_line_height(e);
         }
     }
     if (0 <= pt.x && pt.x < e->edit.w && 0 <= pt.y && pt.y < e->edit.h) {
@@ -9561,7 +9654,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
         for (int32_t j = ui_edit_first_visible_run(e, i); j < runs && pg.pn < 0; j++) {
             const ui_edit_run_t* r = &run[j];
             const char* s = str->u + run[j].bp;
-            if (py <= y && y < py + e->fm->height) {
+            if (py <= y && y < py + ui_edit_line_height(e)) {
                 int32_t w = ui_edit_text_width(e, s, r->bytes);
                 pg.pn = i;
                 if (x >= w) {
@@ -9583,7 +9676,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
                     }
                 }
             } else {
-                py += e->fm->height;
+                py += ui_edit_line_height(e);
             }
         }
         if (py > e->h) { break; }
@@ -9681,7 +9774,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
             const int32_t fvr = ui_edit_first_visible_run(e, i);
             for (int32_t j = fvr; j < runs && py < bottom; j++) {
                 last = (uint64_t)i << 32 | j;
-                py += e->fm->height;
+                py += ui_edit_line_height(e);
             }
         }
         int32_t sle_runs = e->sle && e->w > 0 ?
@@ -9689,7 +9782,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
         ui_edit_pg_t end = ui_edit_text.end(dt);
         ui_edit_pr_t lp = ui_edit_pg_to_pr(e, end);
         uint64_t eof = (uint64_t)(dt->np - 1) << 32 | lp.rn;
-        if (last == eof && py <= bottom - e->fm->height) {
+        if (last == eof && py <= bottom - ui_edit_line_height(e)) {
             // vertical white space for EOF on the screen
             last = (uint64_t)dt->np << 32 | 0;
         }
@@ -9699,7 +9792,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
             ui_edit_invalidate_view(e);
             e->scroll.pn = pg.pn;
             e->scroll.rn = rn;
-        } else if (e->sle && sle_runs * e->fm->height <= e->h) {
+        } else if (e->sle && sle_runs * ui_edit_line_height(e) <= e->h) {
             // single line edit control fits vertically - no scroll
         } else {
             ui_edit_invalidate_view(e);
@@ -9708,7 +9801,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
             e->scroll.rn = rn;
             while (e->scroll.pn > 0 || e->scroll.rn > 0) {
                 ui_point_t pt = ui_edit_pg_to_xy(e, pg);
-                if (pt.y + e->fm->height > bottom - e->fm->height) { break; }
+                if (pt.y + ui_edit_line_height(e) > bottom - ui_edit_line_height(e)) { break; }
                 if (e->scroll.rn > 0) {
                     e->scroll.rn--;
                 } else {
@@ -10064,7 +10157,7 @@ static void ui_edit_key_down(ui_edit_t* e) {
     if (!e->sle && run_count >= e->visible_runs - 1) {
         ui_edit_scroll_up(e, 1);
     } else {
-        pt.y += e->fm->height;
+        pt.y += ui_edit_line_height(e);
     }
     ui_edit_pg_t to = ui_edit_xy_to_pg(e, pt.x, pt.y);
     if (to.pn >= 0 && to.gp >= 0) {
@@ -10133,11 +10226,11 @@ static void ui_edit_key_end(ui_edit_t* e) {
     const ui_edit_text_t* dt = &e->doc->text; // document text
     if (ui_app.ctrl) {
         int32_t py = e->inside.bottom;
-        for (int32_t i = dt->np - 1; i >= 0 && py >= e->fm->height; i--) {
+        for (int32_t i = dt->np - 1; i >= 0 && py >= ui_edit_line_height(e); i--) {
             int32_t runs = ui_edit_paragraph_run_count(e, i);
-            for (int32_t j = runs - 1; j >= 0 && py >= e->fm->height; j--) {
-                py -= e->fm->height;
-                if (py < e->fm->height) {
+            for (int32_t j = runs - 1; j >= 0 && py >= ui_edit_line_height(e); j--) {
+                py -= ui_edit_line_height(e);
+                if (py < ui_edit_line_height(e)) {
                     e->scroll.pn = i;
                     e->scroll.rn = j;
                 }
@@ -10447,7 +10540,7 @@ static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
         if (ui_app.focus == v) {
             ut_assert(v->type == ui_view_text);
             ui_edit_t* e = (ui_edit_t*)v;
-            int32_t lines = (abs(dy) + v->fm->height - 1) / v->fm->height;
+            int32_t lines = (abs(dy) + ui_edit_line_height(e) - 1) / ui_edit_line_height(e);
             if (dy > 0) {
                 ui_edit_scroll_down(e, lines);
             } else if (dy < 0) {
@@ -10552,11 +10645,11 @@ static void ui_edit_clipboard_copy(ui_edit_t* e) {
         ut_heap.free(text);
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
         int32_t x = e->x + e->caret.x;
-        int32_t y = e->y + e->caret.y - e->fm->height;
+        int32_t y = e->y + e->caret.y - ui_edit_line_height(e);
         if (y < ui_app.content->y) {
-            y += e->fm->height * 2;
+            y += ui_edit_line_height(e) * 2;
         }
-        if (y > ui_app.content->y + ui_app.content->h - e->fm->height) {
+        if (y > ui_app.content->y + ui_app.content->h - ui_edit_line_height(e)) {
             y = e->caret.y;
         }
         ui_app.show_hint(&hint, x, y, 0.5);
@@ -10628,7 +10721,7 @@ static void ui_edit_prepare_sle(ui_edit_t* e) {
     // lines of text (and shrinking back) to avoid horizontal scroll
     int32_t runs = ut_max(1, ut_min(2, ui_edit_paragraph_run_count(e, 0)));
     const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
-    int32_t h = insets.top + v->fm->height * runs + insets.bottom;
+    int32_t h = insets.top + ui_edit_line_height(e) * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
     if (v->min_h_em != min_h_em) {
         v->min_h_em = min_h_em;
@@ -10660,7 +10753,7 @@ static void ui_edit_measure(ui_view_t* v) { // bottom up
     // enforce minimum size - it makes it checking corner cases much simpler
     // and it's hard to edit anything in a smaller area - will result in bad UX
     if (v->w < v->fm->em.w * 4) { v->w = i.left + v->fm->em.w * 4 + i.right; }
-    if (v->h < v->fm->height)   { v->h = i.top + v->fm->height + i.bottom; }
+    if (v->h < ui_edit_line_height(e))   { v->h = i.top + ui_edit_line_height(e) + i.bottom; }
 }
 
 static void ui_edit_layout(ui_view_t* v) { // top down
@@ -10669,7 +10762,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_insets(e);
     // fully visible runs
-    e->visible_runs = e->h / e->fm->height;
+    e->visible_runs = e->h / ui_edit_line_height(e);
     ui_edit_invalidate_run(e, e->scroll.pn);
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
@@ -10733,7 +10826,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             }
             const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
-            ui_gdi.fill(x + x0, y, x1 - x0, e->fm->height, selection_color);
+            ui_gdi.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), selection_color);
         }
     }
 }
@@ -10750,7 +10843,7 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
     for (int32_t j = ui_edit_first_visible_run(e, pn);
                  j < runs && y < e->y + e->inside.bottom; j++) {
 //      ut_println("[%d.%d] @%d,%d bytes: %d", pn, j, x, y, run[j].bytes);
-        if (rc.y - e->fm->height <= y && y < rc.y + rc.h) {
+        if (rc.y - ui_edit_line_height(e) <= y && y < rc.y + rc.h) {
             const char* text = str->u + run[j].bp;
             ui_edit_paint_selection(e, y, &run[j], text, pn,
                                     run[j].gp, run[j].gp + run[j].glyphs);
@@ -10759,7 +10852,7 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
                 ui_gdi.text(ta, x + e->edit.w, y, "%s", ww);
             }
         }
-        y += e->fm->height;
+        y += ui_edit_line_height(e);
     }
     return y;
 }
@@ -10901,7 +10994,7 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     ui_edit_doc.subscribe(d, &e->listener.notify);
     e->color_id = ui_color_id_window_text;
     e->background_id = ui_color_id_window;
-    e->fm = &ui_app.fm.regular;
+    e->fm = &ui_app.fm.prop.normal;
     e->insets  = (ui_margins_t){ 0.25, 0.25, 0.50, 0.25 };
     e->padding = (ui_margins_t){ 0.25, 0.25, 0.25, 0.25 };
     e->min_w_em = 1.0;
@@ -11462,7 +11555,7 @@ static void ui_gdi_begin(ui_image_t* image) {
         ui_gdi_context.hdc = (HDC)ui_app.canvas;
         ut_swear(ui_gdi_context.bitmap == null);
     }
-    ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.regular.font);
+    ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.prop.normal.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
     ui_gdi_context.brush = ui_gdi_set_brush(ui_gdi_brush_hollow);
     ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
@@ -12032,7 +12125,7 @@ ut_static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_Q
 static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
     ut_assert(h > 0);
     LOGFONTA lf = {0};
-    int32_t n = GetObjectA(ui_app.fm.regular.font, sizeof(lf), &lf);
+    int32_t n = GetObjectA(ui_app.fm.prop.normal.font, sizeof(lf), &lf);
     ut_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     ut_str_printf(lf.lfFaceName, "%s", family);
@@ -12189,10 +12282,11 @@ static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     fm->underscore_position = otm.otmsUnderscorePosition;
     fm->strike_through = otm.otmsStrikeoutSize;
     fm->strike_through_position = otm.otmsStrikeoutPosition;
+    fm->design_units_per_em = (int)otm.otmEMSquare;
     fm->box = (ui_rect_t){
                 otm.otmrcFontBox.left, otm.otmrcFontBox.top,
                 otm.otmrcFontBox.right - otm.otmrcFontBox.left,
-                otm.otmrcFontBox.bottom - otm.otmrcFontBox.top
+                otm.otmrcFontBox.top - otm.otmrcFontBox.bottom // inverted
     };
     // otm.Descent: The maximum distance characters in this font extend below
     // the base line. This is the typographic descent for the font.
@@ -12206,7 +12300,7 @@ static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     // Italic angle/slant/run is ignored because at the moment edit
     // view implementation does not support italics and thus does not
     // need it. Easy to add if necessary.
-};
+}
 
 static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
     ut_not_null(f);
@@ -12476,36 +12570,82 @@ static void ui_gdi_image_dispose(ui_image_t* image) {
 
 ui_gdi_if ui_gdi = {
     .ta = {
-        .regular = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.regular,
-            .measure  = false
+        .prop = {
+            .normal = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.normal,
+                .measure  = false
+            },
+            .title = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.title,
+                .measure  = false
+            },
+            .rubric = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.rubric,
+                .measure  = false
+            },
+            .H1 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.H1,
+                .measure  = false
+            },
+            .H2 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.H2,
+                .measure  = false
+            },
+            .H3 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.H3,
+                .measure  = false
+            }
         },
         .mono = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.mono,
-            .measure  = false
+            .normal = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.normal,
+                .measure  = false
+            },
+            .title = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.title,
+                .measure  = false
+            },
+            .rubric = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.rubric,
+                .measure  = false
+            },
+            .H1 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.H1,
+                .measure  = false
+            },
+            .H2 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.H2,
+                .measure  = false
+            },
+            .H3 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.H3,
+                .measure  = false
+            }
         },
-        .H1 = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.H1,
-            .measure  = false
-        },
-        .H2 = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.H2,
-            .measure  = false
-        },
-        .H3 = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.H3,
-            .measure  = false
-        }
     },
     .init                     = ui_gdi_init,
     .begin                    = ui_gdi_begin,
@@ -12879,7 +13019,7 @@ void ui_view_init_mbx(ui_view_t* v) {
     ui_mbx_t* m = (ui_mbx_t*)v;
     v->measured = ui_mbx_measured;
     v->layout = ui_mbx_layout;
-    m->fm = &ui_app.fm.regular;
+    m->fm = &ui_app.fm.prop.normal;
     int32_t n = 0;
     while (m->options[n] != null && n < ut_countof(m->button) - 1) {
         m->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);
@@ -13223,10 +13363,12 @@ void ui_view_init_slider(ui_view_t* v) {
     // in measure() and layout()
     v->insets  = s->dec.insets;
     v->padding = s->dec.padding;
-    s->dec.padding.right = 0.125f;
+    s->dec.padding.right = 0;
     s->dec.padding.left  = 0;
-    s->inc.padding.left  = 0.125f;
+    s->inc.padding.left  = 0;
     s->inc.padding.right = 0;
+    s->dec.flat = true;
+    s->inc.flat = true;
     s->dec.min_h_em = 1.0f + ui_view_i_tb * 2;
     s->dec.min_w_em = 1.0f + ui_view_i_tb * 2;
     s->inc.min_h_em = 1.0f + ui_view_i_tb * 2;
@@ -13480,11 +13622,10 @@ static void ui_toggle_paint_on_off(ui_view_t* v) {
     const int32_t a = v->fm->ascent;
     const int32_t d = v->fm->descent;
     const int32_t w = v->fm->em.w;
-    int32_t h = a + d;
-    int32_t r = (h / 2) | 0x1; // must be odd
-    h = r * 2 + 1;
+    int32_t r = ((a + d + 1) / 2) | 0x1; // radius must be odd
+    int32_t h = r * 2 + 1;
     y += (v->h - i.top - i.bottom - h + 1) / 2;
-    y += r;
+    y += r + 1; // because radius is odd
     x += r;
     ui_color_t border = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5) :
@@ -13812,7 +13953,6 @@ static void ui_view_text_measure(ui_view_t* v, const char* s,
 }
 
 static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
-    const ui_fm_t* fm = v->fm;
     tm->xy = (ui_point_t){ .x = -1, .y = -1 };
     const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // i_wh the inside insets w x h:
@@ -13820,7 +13960,7 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
                            .h = v->h - i.top - i.bottom };
     const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
     const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
-    tm->xy.x = i.left + (i_wh.w - tm->wh.w) / 2;
+    tm->xy.x = i.left + (i_wh.w - tm->wh.w + 1) / 2;
     if (h_align & ui.align.left) {
         tm->xy.x = i.left;
     } else if (h_align & ui.align.right) {
@@ -13828,15 +13968,17 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
     }
     // vertical centering is trickier.
     // mt.h is height of all measured lines of text
-    tm->xy.y = i.top + (i_wh.h - tm->wh.h) / 2;
+    tm->xy.y = i.top + (i_wh.h - tm->wh.h + 1) / 2;
     if (v_align & ui.align.top) {
         tm->xy.y = i.top;
     } else if (v_align & ui.align.bottom) {
         tm->xy.y = i_wh.h - tm->wh.h - i.bottom;
     } else if (!tm->multiline) {
+#if 0 // TODO: doesn't look good or right:
         // UI controls should have x-height line in the dead center
         // of the control to be visually balanced.
         // y offset of "x-line" of the glyph:
+        const ui_fm_t* fm = v->fm;
         const int32_t y_of_x_line = fm->baseline - fm->x_height;
         // `dy` offset of the center to x-line (middle of glyph cell)
         const int32_t dy = tm->wh.h / 2 - y_of_x_line;
@@ -13845,6 +13987,7 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
             ut_println(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
                       y_of_x_line, tm->wh.h, dy);
         }
+#endif
     }
 }
 
@@ -13857,11 +14000,12 @@ static void ui_view_measure_control(ui_view_t* v) {
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.margins(v, &v->padding);
-        ut_println(">%dx%d em: %dx%d min: %.1fx%.1f "
-                "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
+        ut_println(">%dx%d em: %dx%d min: %.3fx%.3f "
+                "i: %d %d %d %d p: %d %d %d %d %s \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
+            ui_view_debug_id(v),
             ut_min(64, strlen(s)), s);
         const ui_margins_t in = v->insets;
         const ui_margins_t pd = v->padding;
@@ -13880,8 +14024,9 @@ static void ui_view_measure_control(ui_view_t* v) {
     v->h = ut_max(v->h, i.top  + v->text.wh.h + i.bottom);
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
-        ut_println("<%dx%d text_align x,y: %d,%d",
-                v->w, v->h, v->text.xy.x, v->text.xy.y);
+        ut_println("<%dx%d text_align x,y: %d,%d %s",
+                v->w, v->h, v->text.xy.x, v->text.xy.y,
+                ui_view_debug_id(v));
     }
 }
 

@@ -39,7 +39,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
         .view = {                                                \
             .type = ui_view_mbx,                                 \
             .init = ui_view_init_mbx,                            \
-            .fm = &ui_app.fm.regular,                            \
+            .fm = &ui_app.fm.prop.normal,                        \
             .p.text = s,                                         \
             .callback = name ## _chosen,                         \
             .padding = { .left  = 0.125, .top    = 0.25,         \
@@ -53,7 +53,7 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
 #define ui_mbx(s, chosen, ...) {                            \
     .view = {                                               \
         .type = ui_view_mbx, .init = ui_view_init_mbx,      \
-        .fm = &ui_app.fm.regular,                           \
+        .fm = &ui_app.fm.prop.normal,                       \
         .p.text = s,                                        \
         .callback = chosen,                                 \
         .padding = { .left  = 0.125, .top    = 0.25,        \

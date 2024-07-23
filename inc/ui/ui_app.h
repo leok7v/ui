@@ -35,6 +35,18 @@ typedef struct ui_window_sizing_s {
 	// on all launches except the very first.
 } ui_window_sizing_t;
 
+typedef struct ui_fms_s {
+    // when font handles are re-created on system scaling change
+    // metrics "em" and font geometry filled
+    ui_fm_t normal; // regular UI font ~ 11-12pt
+    ui_fm_t tiny;   // small UI font ~ 8pt
+    ui_fm_t title;  // Largest Title font
+    ui_fm_t rubric; // Subtitle font
+    ui_fm_t H1;     // bolder header font
+    ui_fm_t H2;
+    ui_fm_t H3;
+} ui_fms_t;
+
 typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after methods
     // implemented by client:
     const char* class_name;
@@ -89,7 +101,10 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     ui_view_t* content;
     ui_view_t* caption;
     ui_view_t* focus; // does not affect message routing
-    ui_fms_t   fm;
+    struct { // font metrics and handles
+        ui_fms_t prop;  // proportional fonts
+        ui_fms_t mono;  // monospaced fonts
+    } fm;
     // TODO: struct {} keyboard
     // keyboard state now:
     bool alt;

@@ -52,11 +52,11 @@ static void focus_back_to_edit(void) {
 static void scaled_fonts(void) {
     ut_assert(0 <= fx && fx < ut_countof(fs));
     if (mf.font != null) { ui_gdi.delete_font(mf.font); }
-    int32_t h = (int32_t)(ui_app.fm.mono.height * fs[fx] + 0.5);
-    ui_gdi.update_fm(&mf, ui_gdi.font(ui_app.fm.mono.font, h, -1));
+    int32_t h = (int32_t)(ui_app.fm.mono.normal.height * fs[fx] + 0.5);
+    ui_gdi.update_fm(&mf, ui_gdi.font(ui_app.fm.mono.normal.font, h, -1));
     if (pf.font != null) { ui_gdi.delete_font(pf.font); }
-    h = (int32_t)(ui_app.fm.regular.height * fs[fx] + 0.5);
-    ui_gdi.update_fm(&pf, ui_gdi.font(ui_app.fm.regular.font, h, -1));
+    h = (int32_t)(ui_app.fm.prop.normal.height * fs[fx] + 0.5);
+    ui_gdi.update_fm(&pf, ui_gdi.font(ui_app.fm.prop.normal.font, h, -1));
 }
 
 ui_button_clicked(full_screen, "&Full Screen", 7.0f, {
@@ -279,7 +279,7 @@ static void opened(void) {
     ui_app.content->paint       = paint;
     ui_app.content->key_pressed = key_pressed;
     scaled_fonts();
-    label.fm = &ui_app.fm.mono;
+    label.fm = &ui_app.fm.mono.normal;
     ut_str_printf(fuzz.hint, "Ctrl+Shift+F5 to start / F5 to stop Fuzzing");
     for (int32_t i = 0; i < ut_countof(edit); i++) {
         ui_edit_doc.init(doc[i], null, 0, false);

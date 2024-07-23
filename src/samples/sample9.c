@@ -151,7 +151,7 @@ static ui_view_t panel_bottom = ui_view(stack);
 static ui_view_t panel_center = ui_view(stack);
 static ui_view_t panel_right  = ui_view(stack);
 
-static const ui_gdi_ta_t* ta = &ui_gdi.ta.regular;
+static const ui_gdi_ta_t* ta = &ui_gdi.ta.prop.normal;
 
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
@@ -236,15 +236,15 @@ static void right_paint(ui_view_t* v) {
 //  );
 
     println(&x, &y, "%s", ut_nls.str("Proportional"));
-    ta = &ui_gdi.ta.mono;
+    ta = &ui_gdi.ta.mono.normal;
     println(&x, &y, "%s", ut_nls.str("Monospaced"));
-    ta = &ui_gdi.ta.H1;
+    ta = &ui_gdi.ta.prop.H1;
     println(&x, &y, "H1 %s", ut_nls.str("Header"));
-    ta = &ui_gdi.ta.H2;
+    ta = &ui_gdi.ta.prop.H2;
     println(&x, &y, "H2 %s", ut_nls.str("Header"));
-    ta = &ui_gdi.ta.H3;
+    ta = &ui_gdi.ta.prop.H3;
     println(&x, &y, "H3 %s", ut_nls.str("Header"));
-    ta = &ui_gdi.ta.regular;
+    ta = &ui_gdi.ta.prop.normal;
     println(&x, &y, "%s %dx%d root: %d,%d %dx%d", ut_nls.str("Client area"),
             ui_app.crc.w, ui_app.crc.h,
             ui_app.root->x, ui_app.root->y,
@@ -284,7 +284,7 @@ static void center_paint(ui_view_t* view) {
 }
 
 static void measure(ui_view_t* v) {
-    v->fm = &ui_app.fm.mono;
+    v->fm = &ui_app.fm.mono.normal;
     panel_border = ut_max(1, v->fm->em.h / 4);
     frame_border = ut_max(1, v->fm->em.h / 8);
     ut_assert(panel_border > 0 && frame_border > 0);

@@ -65,14 +65,14 @@ static void stats(int32_t ix) {
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *x += ui_gdi.text_va(&ui_gdi.ta.mono, *x, *y, format, va).w;
+    *x += ui_gdi.text_va(&ui_gdi.ta.mono.normal, *x, *y, format, va).w;
     va_end(va);
 }
 
 static void println(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *y += ui_gdi.text_va(&ui_gdi.ta.mono, *x, *y, format, va).h;
+    *y += ui_gdi.text_va(&ui_gdi.ta.mono.normal, *x, *y, format, va).h;
     va_end(va);
 }
 
@@ -108,10 +108,10 @@ static void paint(ui_view_t* v) {
         char paint_stats[256];
         ut_str_printf(paint_stats, "avg paint time %.1f ms %.1f fps",
             ui_app.paint_avg * 1000, ui_app.paint_fps);
-        ui_gdi_ta_t ta = ui_gdi.ta.mono;
+        ui_gdi_ta_t ta = ui_gdi.ta.mono.normal;
         ta.measure = true;
         ui_wh_t wh = ui_view.text_metrics(0, 0, false, 0,
-                        &ui_app.fm.mono, "%s", paint_stats);
+                        &ui_app.fm.mono.normal, "%s", paint_stats);
         int32_t x = v->w - wh.w - v->fm->em.w;
         int32_t y = v->fm->em.h;
         print(&x, &y, "%s", paint_stats);

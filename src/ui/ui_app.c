@@ -257,18 +257,30 @@ static void ui_app_update_crc(void) {
 }
 
 static void ui_app_dispose_fonts(void) {
-    ui_gdi.delete_font(ui_app.fm.regular.font);
-    ui_gdi.delete_font(ui_app.fm.H1.font);
-    ui_gdi.delete_font(ui_app.fm.H2.font);
-    ui_gdi.delete_font(ui_app.fm.H3.font);
-    ui_gdi.delete_font(ui_app.fm.mono.font);
+    ui_gdi.delete_font(ui_app.fm.prop.normal.font);
+    ui_gdi.delete_font(ui_app.fm.prop.tiny.font);
+    ui_gdi.delete_font(ui_app.fm.prop.title.font);
+    ui_gdi.delete_font(ui_app.fm.prop.rubric.font);
+    ui_gdi.delete_font(ui_app.fm.prop.H1.font);
+    ui_gdi.delete_font(ui_app.fm.prop.H2.font);
+    ui_gdi.delete_font(ui_app.fm.prop.H3.font);
+    memset(&ui_app.fm.prop, 0x00, sizeof(ui_app.fm.prop));
+    ui_gdi.delete_font(ui_app.fm.mono.normal.font);
+    ui_gdi.delete_font(ui_app.fm.mono.tiny.font);
+    ui_gdi.delete_font(ui_app.fm.mono.title.font);
+    ui_gdi.delete_font(ui_app.fm.mono.rubric.font);
+    ui_gdi.delete_font(ui_app.fm.mono.H1.font);
+    ui_gdi.delete_font(ui_app.fm.mono.H2.font);
+    ui_gdi.delete_font(ui_app.fm.mono.H3.font);
+    memset(&ui_app.fm.mono, 0x00, sizeof(ui_app.fm.mono));
 }
 
-static int32_t ui_app_px2pt(fp64_t px) {
-    return (int32_t)(px * 72.0 / (fp64_t)ui_app.dpi.window + 0.5);
+static fp64_t ui_app_px2pt(fp64_t px) {
+    ut_assert(ui_app.dpi.window >= 72.0);
+    return px * 72.0 / (fp64_t)ui_app.dpi.window;
 }
 
-static int32_t ui_app_pt2px(fp64_t pt) {
+static int32_t ui_app_pt2px(fp64_t pt) { // rounded
     return (int32_t)(pt * (fp64_t)ui_app.dpi.window / 72.0 + 0.5);
 }
 
@@ -286,33 +298,112 @@ static void ui_app_init_cursors(void) {
     }
 }
 
+static void ui_app_ncm_dump_fonts(void) {
+    // Win10/Win11 all 5 fonts are exactly the same:
+//  Caption  : Segoe UI 0x-12 weight: 400 quality: 0
+//  SmCaption: Segoe UI 0x-12 weight: 400 quality: 0
+//  Menu     : Segoe UI 0x-12 weight: 400 quality: 0
+//  Status   : Segoe UI 0x-12 weight: 400 quality: 0
+//  Message  : Segoe UI 0x-12 weight: 400 quality: 0
+#if 0
+    const LOGFONTW* fonts[] = {
+        &ui_app_ncm.lfCaptionFont, &ui_app_ncm.lfSmCaptionFont,
+        &ui_app_ncm.lfMenuFont, &ui_app_ncm.lfStatusFont,
+        &ui_app_ncm.lfMessageFont
+    };
+    const char* font_names[] = {
+        "Caption", "SmCaption", "Menu", "Status", "Message"
+    };
+    for (int32_t i = 0; i < ut_countof(fonts); i++) {
+        const LOGFONTW* lf = fonts[i];
+        char fn[128];
+        ut_str.utf16to8(fn, ut_countof(fn), lf->lfFaceName, -1);
+        ut_println("%-9s: %s %dx%d weight: %d quality: %d", font_names[i], fn,
+                   lf->lfWidth, lf->lfHeight, lf->lfWeight, lf->lfQuality);
+    }
+#endif
+}
+
+static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
+                                  ui_fm_t* fm) {
+    // "The height, in logical units, of the font's character cell or character.
+    //  The character height value (also known as the em height) is the character
+    // cell height value minus the internal-leading value."
+    ut_assert(abs(lf->lfHeight) == fm->height - fm->internal_leading);
+    ut_assert(fm->external_leading == 0); // for "Segoe UI" and "Cascadia Mono"
+    ut_assert(ui_app.dpi.window >= 72);
+    int32_t ascender = fm->baseline - fm->ascent;
+    int32_t cell = fm->height - ascender - fm->descent;
+    fp64_t  pt = fm->height * 72.0 / (fp64_t)ui_app.dpi.window;
+    ut_println("%-6s .lfH: %+3d h: %d pt: %6.3f "
+               "a: %2d c: %2d d: %d bl: %2d il: %2d lg: %d",
+                name, lf->lfHeight, fm->height, pt,
+                ascender, cell, fm->descent, fm->baseline,
+                fm->internal_leading, fm->line_gap);
+    #if 0 // TODO: need better understanding of box geometry in
+          // "design units"
+        // box scale factor: design units -> pixels
+        fp64_t  sf = pt * 72.0 / (fp64_t)fm->design_units_per_em;
+        sf *= (fp64_t)ui_app.dpi.window / 72.0; // into pixels (unclear???)
+        int32_t bx = (int32_t)(fm->box.x * sf + 0.5);
+        int32_t by = (int32_t)(fm->box.y * sf + 0.5);
+        int32_t bw = (int32_t)(fm->box.w * sf + 0.5);
+        int32_t bh = (int32_t)(fm->box.h * sf + 0.5);
+        ut_println("%-6s .box: %d,%d %dx%d", name, bx, by, bw, bh);
+    #endif
+}
+
+static void ui_app_init_fms(ui_fms_t* fms, const LOGFONTW* base) {
+    LOGFONTW lf = *base;
+    // lf.lfQuality is zero (DEFAULT_QUALITY) that gets internally
+    // interpreted as CLEARTYPE_QUALITY (if clear type is enabled
+    // system wide and it looks really bad on 4K monitors
+    // Experimentally it looks like Windows UI is using PROOF_QUALITY
+    // which is anti-aliased w/o ClearType rainbows
+    // TODO: maybe DEFAULT_QUALITY on 96DPI,
+    //             PROOF_QUALITY below 4K
+    //             ANTIALIASED_QUALITY on 4K and ?
+    lf.lfQuality = ANTIALIASED_QUALITY;
+    ui_gdi.update_fm(&fms->normal, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("normal", &lf, &fms->normal);
+    const fp64_t fh = lf.lfHeight;
+    ut_swear(fh != 0);
+    lf.lfHeight = (int32_t)(fh * 8.0 / 11.0 + 0.5);
+    ui_gdi.update_fm(&fms->tiny, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("tiny", &lf, &fms->tiny);
+
+    lf.lfWeight = FW_SEMIBOLD;
+    lf.lfHeight = (int32_t)(fh * 2.25 + 0.5);
+    ui_gdi.update_fm(&fms->title, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("title", &lf, &fms->title);
+    lf.lfHeight = (int32_t)(fh * 2.00 + 0.5);
+    ui_gdi.update_fm(&fms->rubric, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("rubric", &lf, &fms->rubric);
+    lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
+    ui_gdi.update_fm(&fms->H1, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("H1", &lf, &fms->H1);
+    lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
+    ui_gdi.update_fm(&fms->H2, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("H2", &lf, &fms->H2);
+    lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
+    ui_gdi.update_fm(&fms->H3, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_dump_font_size("H3", &lf, &fms->H3);
+}
+
 static void ui_app_init_fonts(int32_t dpi) {
     ui_app_update_ncm(dpi);
-    if (ui_app.fm.regular.font != null) { ui_app_dispose_fonts(); }
-    LOGFONTW lf = ui_app_ncm.lfMessageFont;
-    // lf.lfQuality is CLEARTYPE_QUALITY which looks bad on 4K monitors
-    // Windows UI uses PROOF_QUALITY which is aliased w/o ClearType rainbows
-    lf.lfQuality = ANTIALIASED_QUALITY; // PROOF_QUALITY;
-    ui_gdi.update_fm(&ui_app.fm.regular, (ui_font_t)CreateFontIndirectW(&lf));
-//  ui_gdi.dump_fm(ui_app.fm.regular.font);
-    const fp64_t fh = ui_app_ncm.lfMessageFont.lfHeight;
-//  ut_println("lfHeight=%.1f", fh);
-    ut_assert(fh != 0);
-    lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
-    ui_gdi.update_fm(&ui_app.fm.H1, (ui_font_t)CreateFontIndirectW(&lf));
-    lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
-    ui_gdi.update_fm(&ui_app.fm.H2, (ui_font_t)CreateFontIndirectW(&lf));
-    lf.lfWeight = FW_SEMIBOLD;
-    lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
-    ui_gdi.update_fm(&ui_app.fm.H3, (ui_font_t)CreateFontIndirectW(&lf));
-    lf = ui_app_ncm.lfMessageFont;
-    lf.lfPitchAndFamily &= FIXED_PITCH;
-    // TODO: how to get monospaced from Win32 API?
-    ut_str.utf8to16(lf.lfFaceName, ut_countof(lf.lfFaceName),
-                    "Cascadia Mono", -1);
-    ui_gdi.update_fm(&ui_app.fm.mono, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_app_ncm_dump_fonts();
+    if (ui_app.fm.prop.normal.font != null) { ui_app_dispose_fonts(); }
+    LOGFONTW mono = ui_app_ncm.lfMessageFont;
+    // TODO: how to get name of monospaced from Win32 API?
+    wcscpy_s(mono.lfFaceName, ut_countof(mono.lfFaceName), L"Cascadia Mono");
+    mono.lfPitchAndFamily |= FIXED_PITCH;
+    ut_println("ui_app.fm.mono");
+    ui_app_init_fms(&ui_app.fm.mono, &mono);
+    LOGFONTW prop = ui_app_ncm.lfMessageFont;
+    prop.lfHeight--; // inc by 1
+    ut_println("ui_app.fm.prop");
+    ui_app_init_fms(&ui_app.fm.prop, &ui_app_ncm.lfMessageFont);
 }
 
 static void ui_app_data_save(const char* name, const void* data, int32_t bytes) {
@@ -852,7 +943,7 @@ static void ui_app_toast_paint(void) {
                 const int32_t tx = r - em_w / 2;
                 const int32_t ty = 0;
                 const ui_gdi_ta_t ta = {
-                    .fm = &ui_app.fm.regular,
+                    .fm = &ui_app.fm.prop.normal,
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
                 };
@@ -2466,8 +2557,8 @@ static void window_request_focus(void* w) {
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
     ut_assert(ut_thread.id() == ui_app.tid, "cannot be called from background thread");
     ut_runtime.set_err(0);
-    w = SetFocus((HWND)w); // w previous focused window
-    if (w == null) { ut_fatal_if_error(ut_runtime.err()); }
+    HWND previous = SetFocus((HWND)w); // previously focused window
+    if (previous == null) { ut_fatal_if_error(ut_runtime.err()); }
 }
 
 static void ui_app_request_focus(void) {
@@ -2849,7 +2940,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         ui_app_bring_window_inside_monitor(&ui_app.mrc, &wr);
     }
     ui_app.root->state.hidden = true; // start with ui hidden
-    ui_app.root->fm = &ui_app.fm.regular;
+    ui_app.root->fm = &ui_app.fm.prop.normal;
     ui_app.root->w = wr.w - ui_app.border.w * 2;
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint

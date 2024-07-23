@@ -19,7 +19,6 @@ typedef struct ui_fm_s { // font metrics
     ui_font_t font;
     ui_wh_t em;        // "em" square point size expressed in pixels *)
     // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
-    ui_rect_t box;     // bounding box of the glyphs (doesn't look good in Win32)
     int32_t height;    // font height in pixels
     int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
     int32_t ascent;    // the maximum glyphs extend above the baseline
@@ -39,6 +38,8 @@ typedef struct ui_fm_s { // font metrics
     int32_t underscore_position;
     int32_t strike_through; // height
     int32_t strike_through_position;
+    int32_t design_units_per_em; // aka EM square ~ 2048
+    ui_rect_t box; // bounding box of the glyphs in design units
     bool mono;
 } ui_fm_t;
 
@@ -59,40 +60,6 @@ typedef struct ui_fm_s { // font metrics
   ascender for "diacritics circumflex" is (h:55 - a:30 - d:11) = 14
 */
 
-typedef struct ui_fms_s {
-    // when font handles are re-created on system scaling change
-    // metrics "em" and font geometry filled
-    ui_fm_t regular; // proportional UI font
-    ui_fm_t mono; // monospaced  UI font
-    ui_fm_t H1; // bold header font
-    ui_fm_t H2;
-    ui_fm_t H3;
-} ui_fms_t;
-
-// TODO: fonts
-#if 0
-
-typedef struct ui_fms_s {
-    struct {
-        ui_fm_t title;    // largest font
-        ui_fm_t subtitle; // larger then `H1`
-        ui_fm_t H1;       // largest header font
-        ui_fm_t H2;
-        ui_fm_t H3;       // larger then `normal`
-        ui_fm_t normal;   // larger then `normal`
-    } prop; // proportional
-    struct {
-        ui_fm_t title;    // largest font
-        ui_fm_t subtitle; // larger then `H1`
-        ui_fm_t H1;       // largest header font
-        ui_fm_t H2;
-        ui_fm_t H3;       // larger then `normal`
-        ui_fm_t normal;   // larger then `normal`
-    } mono; // monospaced
-} ui_fms_t;
-
-#endif
-
 typedef struct ui_gdi_ta_s { // text attributes
     const ui_fm_t* fm; // font metrics
     int32_t color_id;  // <= 0 use color
@@ -102,11 +69,22 @@ typedef struct ui_gdi_ta_s { // text attributes
 
 typedef struct {
     struct {
-        ui_gdi_ta_t const regular;
-        ui_gdi_ta_t const mono;
-        ui_gdi_ta_t const H1;
-        ui_gdi_ta_t const H2;
-        ui_gdi_ta_t const H3;
+        struct {
+            ui_gdi_ta_t const normal;
+            ui_gdi_ta_t const title;
+            ui_gdi_ta_t const rubric;
+            ui_gdi_ta_t const H1;
+            ui_gdi_ta_t const H2;
+            ui_gdi_ta_t const H3;
+        } prop;
+        struct {
+            ui_gdi_ta_t const normal;
+            ui_gdi_ta_t const title;
+            ui_gdi_ta_t const rubric;
+            ui_gdi_ta_t const H1;
+            ui_gdi_ta_t const H2;
+            ui_gdi_ta_t const H3;
+        } mono;
     } const ta;
     void (*init)(void);
     void (*fini)(void);

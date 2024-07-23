@@ -23,7 +23,7 @@ void ui_view_init_toggle(ui_view_t* v);
     ui_toggle_t name = {                                    \
         .type = ui_view_toggle,                             \
         .init = ui_view_init_toggle,                        \
-        .fm = &ui_app.fm.regular,                           \
+        .fm = &ui_app.fm.prop.normal,                       \
         .min_w_em = min_width_em,  .min_h_em = 1.25f,       \
         .p.text = s,                                        \
         .callback = name ## _on_off,                        \
@@ -40,7 +40,7 @@ void ui_view_init_toggle(ui_view_t* v);
 #define ui_toggle(s, min_width_em, on_off) {                \
     .type = ui_view_toggle,                                 \
     .init = ui_view_init_toggle,                            \
-    .fm = &ui_app.fm.regular,                               \
+    .fm = &ui_app.fm.prop.normal,                           \
     .p.text = s,                                            \
     .callback = on_off,                                     \
     .min_w_em = min_width_em,  .min_h_em = 1.25f,           \

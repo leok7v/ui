@@ -40,7 +40,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
         .view = {                                                   \
             .type = ui_view_slider,                                 \
             .init = ui_view_init_slider,                            \
-            .fm = &ui_app.fm.regular,                               \
+            .fm = &ui_app.fm.prop.normal,                           \
             .p.text = s,                                            \
             .format = fmt,                                          \
             .callback = name ## _changed,                           \
@@ -61,7 +61,7 @@ void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
     .view = {                                                       \
         .type = ui_view_slider,                                     \
         .init = ui_view_init_slider,                                \
-        .fm = &ui_app.fm.regular,                                   \
+        .fm = &ui_app.fm.prop.normal,                               \
         .p.text = s,                                                \
         .callback = changed,                                        \
         .format = fmt,                                              \

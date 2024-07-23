@@ -49,6 +49,15 @@ static void ui_edit_invalidate_rect(const ui_edit_t* e, const ui_rect_t rc) {
     ui_view.invalidate(&e->view, &rc);
 }
 
+static int32_t ui_edit_line_height(ui_edit_t* e) {
+    // at 96dpi:
+    // "Segoe UI" height + line_gap: 16
+    // ui_app.fm.prop h: 15 pt: 11.250 a:  3 c:  9 d: 3 bl: 12 il: 3 lg: 2
+    // "Cascadia Mono" height + line_gap: 17
+    // ui_app.fm.mono h: 16 pt: 12.000 a:  2 c: 11 d: 3 bl: 13 il: 4 lg: 0
+    return e->fm->height + e->fm->line_gap;
+}
+
 static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
     const ui_edit_range_t r = ui_edit_range.order(e->selection);
     const ui_ltrb_t i = ui_view.margins(&e->view, &e->insets);
@@ -61,9 +70,9 @@ static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
         int32_t w = p1.x - p0.x != 0 ?
                 p1.x - p0.x + max_w : e->caret_width;
         return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
-                             .w = w, .h = e->fm->height };
+                             .w = w, .h = ui_edit_line_height(e) };
     } else {
-        const int32_t h = p1.y - p0.y + e->fm->height;
+        const int32_t h = p1.y - p0.y + ui_edit_line_height(e);
         return (ui_rect_t) { .x = 0, .y = i.top + p0.y,
                              .w = e->w, .h = h };
     }
@@ -87,7 +96,7 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
 //  fp64_t time = ut_clock.seconds();
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
-    // "ui_app.fm.regular" ~250us (microseconds) DirectWrite ~100us
+    // "ui_app.fm.prop.normal" ~250us (microseconds) DirectWrite ~100us
     const ui_gdi_ta_t ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
@@ -294,7 +303,7 @@ static void ui_edit_create_caret(ui_edit_t* e) {
     ut_assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
     e->caret_width = ut_min(3, ut_max(1, (int32_t)px));
-    ui_app.create_caret(e->caret_width, e->fm->height);
+    ui_app.create_caret(e->caret_width, ui_edit_line_height(e));
     e->focused = true; // means caret was created
 //  ut_println("e->focused := true %s", ui_view_debug_id(&e->view));
 }
@@ -495,7 +504,7 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
                     break;
                 }
             }
-            pt.y += e->fm->height;
+            pt.y += ui_edit_line_height(e);
         }
     }
     if (0 <= pt.x && pt.x < e->edit.w && 0 <= pt.y && pt.y < e->edit.h) {
@@ -547,7 +556,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
         for (int32_t j = ui_edit_first_visible_run(e, i); j < runs && pg.pn < 0; j++) {
             const ui_edit_run_t* r = &run[j];
             const char* s = str->u + run[j].bp;
-            if (py <= y && y < py + e->fm->height) {
+            if (py <= y && y < py + ui_edit_line_height(e)) {
                 int32_t w = ui_edit_text_width(e, s, r->bytes);
                 pg.pn = i;
                 if (x >= w) {
@@ -569,7 +578,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_t* e, int32_t x, int32_t y) {
                     }
                 }
             } else {
-                py += e->fm->height;
+                py += ui_edit_line_height(e);
             }
         }
         if (py > e->h) { break; }
@@ -667,7 +676,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
             const int32_t fvr = ui_edit_first_visible_run(e, i);
             for (int32_t j = fvr; j < runs && py < bottom; j++) {
                 last = (uint64_t)i << 32 | j;
-                py += e->fm->height;
+                py += ui_edit_line_height(e);
             }
         }
         int32_t sle_runs = e->sle && e->w > 0 ?
@@ -675,7 +684,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
         ui_edit_pg_t end = ui_edit_text.end(dt);
         ui_edit_pr_t lp = ui_edit_pg_to_pr(e, end);
         uint64_t eof = (uint64_t)(dt->np - 1) << 32 | lp.rn;
-        if (last == eof && py <= bottom - e->fm->height) {
+        if (last == eof && py <= bottom - ui_edit_line_height(e)) {
             // vertical white space for EOF on the screen
             last = (uint64_t)dt->np << 32 | 0;
         }
@@ -685,7 +694,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
             ui_edit_invalidate_view(e);
             e->scroll.pn = pg.pn;
             e->scroll.rn = rn;
-        } else if (e->sle && sle_runs * e->fm->height <= e->h) {
+        } else if (e->sle && sle_runs * ui_edit_line_height(e) <= e->h) {
             // single line edit control fits vertically - no scroll
         } else {
             ui_edit_invalidate_view(e);
@@ -694,7 +703,7 @@ static void ui_edit_scroll_into_view(ui_edit_t* e, const ui_edit_pg_t pg) {
             e->scroll.rn = rn;
             while (e->scroll.pn > 0 || e->scroll.rn > 0) {
                 ui_point_t pt = ui_edit_pg_to_xy(e, pg);
-                if (pt.y + e->fm->height > bottom - e->fm->height) { break; }
+                if (pt.y + ui_edit_line_height(e) > bottom - ui_edit_line_height(e)) { break; }
                 if (e->scroll.rn > 0) {
                     e->scroll.rn--;
                 } else {
@@ -1050,7 +1059,7 @@ static void ui_edit_key_down(ui_edit_t* e) {
     if (!e->sle && run_count >= e->visible_runs - 1) {
         ui_edit_scroll_up(e, 1);
     } else {
-        pt.y += e->fm->height;
+        pt.y += ui_edit_line_height(e);
     }
     ui_edit_pg_t to = ui_edit_xy_to_pg(e, pt.x, pt.y);
     if (to.pn >= 0 && to.gp >= 0) {
@@ -1119,11 +1128,11 @@ static void ui_edit_key_end(ui_edit_t* e) {
     const ui_edit_text_t* dt = &e->doc->text; // document text
     if (ui_app.ctrl) {
         int32_t py = e->inside.bottom;
-        for (int32_t i = dt->np - 1; i >= 0 && py >= e->fm->height; i--) {
+        for (int32_t i = dt->np - 1; i >= 0 && py >= ui_edit_line_height(e); i--) {
             int32_t runs = ui_edit_paragraph_run_count(e, i);
-            for (int32_t j = runs - 1; j >= 0 && py >= e->fm->height; j--) {
-                py -= e->fm->height;
-                if (py < e->fm->height) {
+            for (int32_t j = runs - 1; j >= 0 && py >= ui_edit_line_height(e); j--) {
+                py -= ui_edit_line_height(e);
+                if (py < ui_edit_line_height(e)) {
                     e->scroll.pn = i;
                     e->scroll.rn = j;
                 }
@@ -1433,7 +1442,7 @@ static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
         if (ui_app.focus == v) {
             ut_assert(v->type == ui_view_text);
             ui_edit_t* e = (ui_edit_t*)v;
-            int32_t lines = (abs(dy) + v->fm->height - 1) / v->fm->height;
+            int32_t lines = (abs(dy) + ui_edit_line_height(e) - 1) / ui_edit_line_height(e);
             if (dy > 0) {
                 ui_edit_scroll_down(e, lines);
             } else if (dy < 0) {
@@ -1538,11 +1547,11 @@ static void ui_edit_clipboard_copy(ui_edit_t* e) {
         ut_heap.free(text);
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
         int32_t x = e->x + e->caret.x;
-        int32_t y = e->y + e->caret.y - e->fm->height;
+        int32_t y = e->y + e->caret.y - ui_edit_line_height(e);
         if (y < ui_app.content->y) {
-            y += e->fm->height * 2;
+            y += ui_edit_line_height(e) * 2;
         }
-        if (y > ui_app.content->y + ui_app.content->h - e->fm->height) {
+        if (y > ui_app.content->y + ui_app.content->h - ui_edit_line_height(e)) {
             y = e->caret.y;
         }
         ui_app.show_hint(&hint, x, y, 0.5);
@@ -1614,7 +1623,7 @@ static void ui_edit_prepare_sle(ui_edit_t* e) {
     // lines of text (and shrinking back) to avoid horizontal scroll
     int32_t runs = ut_max(1, ut_min(2, ui_edit_paragraph_run_count(e, 0)));
     const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
-    int32_t h = insets.top + v->fm->height * runs + insets.bottom;
+    int32_t h = insets.top + ui_edit_line_height(e) * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
     if (v->min_h_em != min_h_em) {
         v->min_h_em = min_h_em;
@@ -1646,7 +1655,7 @@ static void ui_edit_measure(ui_view_t* v) { // bottom up
     // enforce minimum size - it makes it checking corner cases much simpler
     // and it's hard to edit anything in a smaller area - will result in bad UX
     if (v->w < v->fm->em.w * 4) { v->w = i.left + v->fm->em.w * 4 + i.right; }
-    if (v->h < v->fm->height)   { v->h = i.top + v->fm->height + i.bottom; }
+    if (v->h < ui_edit_line_height(e))   { v->h = i.top + ui_edit_line_height(e) + i.bottom; }
 }
 
 static void ui_edit_layout(ui_view_t* v) { // top down
@@ -1655,7 +1664,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     ui_edit_t* e = (ui_edit_t*)v;
     ui_edit_insets(e);
     // fully visible runs
-    e->visible_runs = e->h / e->fm->height;
+    e->visible_runs = e->h / ui_edit_line_height(e);
     ui_edit_invalidate_run(e, e->scroll.pn);
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
@@ -1719,7 +1728,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             }
             const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
-            ui_gdi.fill(x + x0, y, x1 - x0, e->fm->height, selection_color);
+            ui_gdi.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), selection_color);
         }
     }
 }
@@ -1736,7 +1745,7 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
     for (int32_t j = ui_edit_first_visible_run(e, pn);
                  j < runs && y < e->y + e->inside.bottom; j++) {
 //      ut_println("[%d.%d] @%d,%d bytes: %d", pn, j, x, y, run[j].bytes);
-        if (rc.y - e->fm->height <= y && y < rc.y + rc.h) {
+        if (rc.y - ui_edit_line_height(e) <= y && y < rc.y + rc.h) {
             const char* text = str->u + run[j].bp;
             ui_edit_paint_selection(e, y, &run[j], text, pn,
                                     run[j].gp, run[j].gp + run[j].glyphs);
@@ -1745,7 +1754,7 @@ static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
                 ui_gdi.text(ta, x + e->edit.w, y, "%s", ww);
             }
         }
-        y += e->fm->height;
+        y += ui_edit_line_height(e);
     }
     return y;
 }
@@ -1887,7 +1896,7 @@ static void ui_edit_init(ui_edit_t* e, ui_edit_doc_t* d) {
     ui_edit_doc.subscribe(d, &e->listener.notify);
     e->color_id = ui_color_id_window_text;
     e->background_id = ui_color_id_window;
-    e->fm = &ui_app.fm.regular;
+    e->fm = &ui_app.fm.prop.normal;
     e->insets  = (ui_margins_t){ 0.25, 0.25, 0.50, 0.25 };
     e->padding = (ui_margins_t){ 0.25, 0.25, 0.25, 0.25 };
     e->min_w_em = 1.0;

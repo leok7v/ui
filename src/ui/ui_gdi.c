@@ -78,7 +78,7 @@ static void ui_gdi_begin(ui_image_t* image) {
         ui_gdi_context.hdc = (HDC)ui_app.canvas;
         ut_swear(ui_gdi_context.bitmap == null);
     }
-    ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.regular.font);
+    ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.prop.normal.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
     ui_gdi_context.brush = ui_gdi_set_brush(ui_gdi_brush_hollow);
     ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0,
@@ -648,7 +648,7 @@ ut_static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_Q
 static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
     ut_assert(h > 0);
     LOGFONTA lf = {0};
-    int32_t n = GetObjectA(ui_app.fm.regular.font, sizeof(lf), &lf);
+    int32_t n = GetObjectA(ui_app.fm.prop.normal.font, sizeof(lf), &lf);
     ut_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     ut_str_printf(lf.lfFaceName, "%s", family);
@@ -805,10 +805,11 @@ static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     fm->underscore_position = otm.otmsUnderscorePosition;
     fm->strike_through = otm.otmsStrikeoutSize;
     fm->strike_through_position = otm.otmsStrikeoutPosition;
+    fm->design_units_per_em = (int)otm.otmEMSquare;
     fm->box = (ui_rect_t){
                 otm.otmrcFontBox.left, otm.otmrcFontBox.top,
                 otm.otmrcFontBox.right - otm.otmrcFontBox.left,
-                otm.otmrcFontBox.bottom - otm.otmrcFontBox.top
+                otm.otmrcFontBox.top - otm.otmrcFontBox.bottom // inverted
     };
     // otm.Descent: The maximum distance characters in this font extend below
     // the base line. This is the typographic descent for the font.
@@ -822,7 +823,7 @@ static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     // Italic angle/slant/run is ignored because at the moment edit
     // view implementation does not support italics and thus does not
     // need it. Easy to add if necessary.
-};
+}
 
 static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
     ut_not_null(f);
@@ -1092,36 +1093,82 @@ static void ui_gdi_image_dispose(ui_image_t* image) {
 
 ui_gdi_if ui_gdi = {
     .ta = {
-        .regular = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.regular,
-            .measure  = false
+        .prop = {
+            .normal = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.normal,
+                .measure  = false
+            },
+            .title = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.title,
+                .measure  = false
+            },
+            .rubric = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.rubric,
+                .measure  = false
+            },
+            .H1 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.H1,
+                .measure  = false
+            },
+            .H2 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.H2,
+                .measure  = false
+            },
+            .H3 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.H3,
+                .measure  = false
+            }
         },
         .mono = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.mono,
-            .measure  = false
+            .normal = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.normal,
+                .measure  = false
+            },
+            .title = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.title,
+                .measure  = false
+            },
+            .rubric = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.rubric,
+                .measure  = false
+            },
+            .H1 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.H1,
+                .measure  = false
+            },
+            .H2 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.H2,
+                .measure  = false
+            },
+            .H3 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.H3,
+                .measure  = false
+            }
         },
-        .H1 = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.H1,
-            .measure  = false
-        },
-        .H2 = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.H2,
-            .measure  = false
-        },
-        .H3 = {
-            .color_id = ui_color_id_window_text,
-            .color    = ui_color_undefined,
-            .fm       = &ui_app.fm.H3,
-            .measure  = false
-        }
     },
     .init                     = ui_gdi_init,
     .begin                    = ui_gdi_begin,

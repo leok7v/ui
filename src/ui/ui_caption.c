@@ -152,7 +152,7 @@ static void ui_caption_measured(ui_view_t* v) {
     int32_t w = 0;
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
-            it->fm = &ui_app.fm.mono;
+            it->fm = &ui_app.fm.mono.normal;
             it->flat = true;
             ui_caption_button_measure(it);
         }
@@ -199,13 +199,13 @@ static void ui_caption_init(ui_view_t* v) {
         null);
     ui_caption.view.color_id = ui_color_id_window_text;
     static const ui_margins_t p0 = { .left  = 0.0,   .top    = 0.0,
-                                  .right = 0.0,   .bottom = 0.0};
+                                     .right = 0.0,   .bottom = 0.0};
     static const ui_margins_t pd = { .left  = 0.25,  .top    = 0.0,
-                                  .right = 0.25,  .bottom = 0.0};
+                                     .right = 0.25,  .bottom = 0.0};
     static const ui_margins_t in = { .left  = 0.0,   .top    = 0.0,
-                                  .right = 0.0,   .bottom = 0.0};
+                                     .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
-        c->fm = &ui_app.fm.regular;
+        c->fm = &ui_app.fm.prop.normal;
         c->color_id = ui_caption.view.color_id;
         if (c->type != ui_view_button) {
             c->padding = pd;
@@ -247,7 +247,7 @@ static void ui_caption_init(ui_view_t* v) {
 ui_caption_t ui_caption =  {
     .view = {
         .type     = ui_view_span,
-        .fm       = &ui_app.fm.regular,
+        .fm       = &ui_app.fm.prop.normal,
         .init     = ui_caption_init,
         .hit_test = ui_caption_hit_test,
         .state.hidden = true

@@ -415,7 +415,7 @@ static void ui_iv_add_button(ui_iv_t* iv, ui_button_t* b,
     b->insets  = (ui_margins_t){0};
     b->padding = (ui_margins_t){0};
     b->flat = true;
-    b->fm = &ui_app.fm.mono;
+    b->fm = &ui_app.fm.mono.normal;
     b->min_w_em = 1.5f;
     ut_str_printf(b->hint, "%s", hint);
     ui_view.add_last(&iv->tool.bar, b);
@@ -435,7 +435,7 @@ void ui_iv_init(ui_iv_t* iv) {
     iv->view.mouse_scroll = ui_iv_mouse_scroll;
     iv->view.character    = ui_iv_character;
     iv->view.key_pressed  = ui_iv_key_pressed;
-    iv->view.fm           = &ui_app.fm.regular;
+    iv->view.fm           = &ui_app.fm.prop.normal;
     iv->tool.bar = (ui_view_t)ui_view(span);
     // buttons:
     ui_iv_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_iv_copy,

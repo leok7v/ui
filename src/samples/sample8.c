@@ -309,7 +309,7 @@ static void stack_test(ui_view_t* parent) {
     ui_view_for_each(&stack, it, {
         it->debug.paint.margins = true;
         it->color = ui_colors.onyx;
-//      it->fm    = &ui_app.fm.H1;
+//      it->fm    = &ui_app.fm.prop.H1;
         it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
     });
 }
@@ -345,7 +345,7 @@ static void span_test(ui_view_t* parent) {
         it->color   = ui_colors.onyx;
         it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
-//      it->fm      = &ui_app.fm.H1;
+//      it->fm      = &ui_app.fm.prop.H1;
 //      ut_println("%s 0x%02X", it->text, it->align);
     });
     top.max_h = 0;
@@ -384,7 +384,7 @@ static void list_test(ui_view_t* parent) {
         // TODO: labels, buttons etc should define their own default padding != 0
         it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_w   = ui.infinity;
-//      it->fm      = &ui_app.fm.H1;
+//      it->fm      = &ui_app.fm.prop.H1;
     });
     left.max_w = 0;
     right.max_w = 0;
@@ -431,7 +431,7 @@ static void controls_fm(ui_view_t* v) {
 static void controls_set_large(ui_view_t* v, bool on_off) {
     ui_view_for_each(v, it, {
         controls_set_large(it, on_off);
-        it->fm = on_off ? &ui_app.fm.H1 : &ui_app.fm.regular;
+        it->fm = on_off ? &ui_app.fm.prop.H1 : &ui_app.fm.prop.normal;
     });
 }
 
@@ -566,7 +566,7 @@ static void edit1_test(ui_view_t* parent) {
     null);
     list.max_w      = ui.infinity;
     list.max_h      = ui.infinity;
-    edit.view.fm    = &ui_app.fm.mono;
+    edit.view.fm    = &ui_app.fm.mono.normal;
     edit.view.max_w = ui.infinity;
     edit.view.max_h = ui.infinity;
 //  edit.view.debug.paint.margins = true;

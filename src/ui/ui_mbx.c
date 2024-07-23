@@ -68,7 +68,7 @@ void ui_view_init_mbx(ui_view_t* v) {
     ui_mbx_t* m = (ui_mbx_t*)v;
     v->measured = ui_mbx_measured;
     v->layout = ui_mbx_layout;
-    m->fm = &ui_app.fm.regular;
+    m->fm = &ui_app.fm.prop.normal;
     int32_t n = 0;
     while (m->options[n] != null && n < ut_countof(m->button) - 1) {
         m->button[n] = (ui_button_t)ui_button("", 6.0, ui_mbx_button);

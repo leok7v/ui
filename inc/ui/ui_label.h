@@ -13,7 +13,7 @@ void ui_view_init_label(ui_view_t* v);
 
 #define ui_label(min_width_em, s) {                    \
     .type = ui_view_label, .init = ui_view_init_label, \
-    .fm = &ui_app.fm.regular,                          \
+    .fm = &ui_app.fm.prop.normal,                      \
     .p.text = s,                                       \
     .min_w_em = min_width_em, .min_h_em = 1.25f,       \
     .insets  = {                                       \

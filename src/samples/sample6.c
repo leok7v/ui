@@ -85,7 +85,7 @@ static void paint(ui_view_t* view) {
         ui_gdi.alpha(x, y, gif.w, gif.h, 0,0, frame.w, frame.h, &frame, 1.0);
         ui_gdi.image_dispose(&frame);
     }
-    ui_gdi_ta_t ta = ui_gdi.ta.H1;
+    ui_gdi_ta_t ta = ui_gdi.ta.prop.H1;
     ta.color_id = 0;
     ta.color = muted ? ui_colors.green : ui_colors.red;
     ui_gdi.text(&ta, 0, 0, "%s", muted ?
@@ -100,8 +100,8 @@ static void character(ui_view_t* ut_unused(view), const char* utf8) {
 
 static void mouse_click(ui_view_t* ut_unused(v), int32_t ix, bool pressed) {
     if (pressed &&
-        0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fm.H1.em.w &&
-        0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fm.H1.em.h) {
+        0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fm.prop.H1.em.w &&
+        0 <= ui_app.mouse.y && ui_app.mouse.y < ui_app.fm.prop.H1.em.h) {
         muted = !muted;
         if (muted) {
             midi.stop(&mds);

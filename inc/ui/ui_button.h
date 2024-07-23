@@ -22,7 +22,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     ui_button_t name = {                                    \
         .type = ui_view_button,                             \
         .init = ui_view_init_button,                        \
-        .fm = &ui_app.fm.regular,                           \
+        .fm = &ui_app.fm.prop.normal,                       \
         .p.text = s,                                        \
         .callback = name ## _clicked,                       \
         .color_id = ui_color_id_button_text,                \
@@ -40,7 +40,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 #define ui_button(s, min_width_em, clicked) {               \
     .type = ui_view_button,                                 \
     .init = ui_view_init_button,                            \
-    .fm = &ui_app.fm.regular,                               \
+    .fm = &ui_app.fm.prop.normal,                           \
     .p.text = s,                                            \
     .callback = clicked,                                    \
     .color_id = ui_color_id_button_text,                    \
