@@ -2,7 +2,7 @@
 #include "ui/ui.h"
 #include "ui_iv.h"
 
-static fp64_t ui_iv_scaleof(int32_t nominator, int32_t denominator) {
+static fp64_t ui_iv_scale_of(int32_t nominator, int32_t denominator) {
     const int32_t zn = 1 << (nominator - 1);
     const int32_t zd = 1 << (denominator - 1);
     return (fp64_t)zn / (fp64_t)zd;
@@ -16,7 +16,7 @@ static fp64_t ui_iv_scale(ui_iv_t* iv) {
         return max((fp64_t)iv->view.w / iv->image.w,
                    (fp64_t)iv->view.h / iv->image.h);
     } else {
-        return ui_iv_scaleof(iv->zn, iv->zd);
+        return ui_iv_scale_of(iv->zn, iv->zd);
     }
 }
 
@@ -169,9 +169,6 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
     int32_t zn = iv->zn;
     int32_t zd = iv->zd;
     fp64_t scale_before = ui_iv.scale(iv);
-    // whole image is visible
-//  bool whole = (int32_t)(iv->image.w * scale_before) <= iv->view.w &&
-//               (int32_t)(iv->image.h * scale_before) <= iv->view.h;
     if (n > 0) {
         zn = n + 1;
         zd = 1;
@@ -182,7 +179,7 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
         zn = 1;
         zd = 1;
     }
-    fp64_t scale_after = ui_iv_scaleof(zn, zd);
+    fp64_t scale_after = ui_iv_scale_of(zn, zd);
     if (scale_after != scale_before) {
         iv->zn = zn;
         iv->zd = zd;
@@ -245,7 +242,7 @@ static bool ui_iv_tap(ui_view_t* v, int32_t ix, bool pressed) {
     return inside;
 }
 
-static bool ui_iv_move(ui_view_t* v) {
+static bool ui_iv_mouse_move(ui_view_t* v) {
     ui_iv_t* iv = (ui_iv_t*)v;
     bool drag_started = iv->drag_start.x >= 0 && iv->drag_start.y >= 0;
     bool tools  = !iv->tool.bar.state.hidden &&
@@ -260,6 +257,8 @@ static bool ui_iv_move(ui_view_t* v) {
         iv->drag_start = (ui_point_t){x, y};
     } else if (inside) {
         ui_iv_show_tools(iv, true);
+    } else if (!inside && !tools) {
+        ui_iv_show_tools(iv, false);
     }
 //  ut_println("inside %s", inside ? "true" : "false");
     return inside;
@@ -339,8 +338,8 @@ static ui_label_t ui_iv_about = ui_label(0,
     ut_glyph_heavy_plus_sign " zoom in; "
     ut_glyph_heavy_minus_sign " zoom out;\n"
     ut_glyph_open_circle_arrows_one_overlay " 1:1.\n\n"
-    ut_glyph_left_right_arrow " Fit;\n"
-    ut_glyph_up_down_arrow " Fill.\n\n"
+    ut_glyph_up_down_arrow " Fit;\n"
+    ut_glyph_left_right_arrow " Fill.\n\n"
     "Left/Right Arrows "
     ut_glyph_leftward_arrow
     ut_glyph_rightwards_arrow
@@ -426,7 +425,7 @@ void ui_iv_init(ui_iv_t* iv) {
     iv->view.type         = ui_view_image;
     iv->view.paint        = ui_iv_paint;
     iv->view.tap          = ui_iv_tap;
-    iv->view.mouse_move   = ui_iv_move;
+    iv->view.mouse_move   = ui_iv_mouse_move;
     iv->view.measure      = ui_iv_measure;
     iv->view.layout       = ui_iv_layout;
     iv->view.every_100ms  = ui_iv_every_100ms;
@@ -450,10 +449,10 @@ void ui_iv_init(ui_iv_t* iv) {
                      ut_glyph_heavy_plus_sign,
                      ui_iv_zoom_in,  "Zoom In");
     ui_iv_add_button(iv, &iv->tool.fit,
-                     ut_glyph_left_right_arrow,
+                     ut_glyph_up_down_arrow,
                      ui_iv_fit,  "Fit");
     ui_iv_add_button(iv, &iv->tool.fill,
-                     ut_glyph_up_down_arrow,
+                     ut_glyph_left_right_arrow,
                      ui_iv_fill,  "Fill");
     ui_iv_add_button(iv, &iv->tool.help,
                      "?", ui_iv_help, "Help");

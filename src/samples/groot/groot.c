@@ -5,11 +5,9 @@
 #include "stb_image.h"
 #include "ui_iv.h"
 
-// TODO: two views on gs bitmap
-// TODO: alpha slider for groot
-// TODO: stack(ui_text, view_groot)
-// Top: Find single line edit control
-// bottom: status or something
+// TODO: stack(ui_text with the content "I am groot..", view_groot)
+// Top: Find single line edit control "groot" with Find button that selects found text
+// bottom: UTC time and local time status of all views?, debug toggles (text metric and margins)
 
 enum { width = 512, height = 512 };
 
@@ -21,9 +19,11 @@ static ui_label_t label_right  = ui_label(0, "Right");
 static ui_label_t label_top    = ui_label(0, "Top");
 static ui_label_t label_bottom = ui_label(0, "Bottom");
 
+static ui_image_t image; // grayscale image
+
 static ui_iv_t view_groot;
 static ui_iv_t view_rocket;
-static ui_iv_t view_gs;
+static ui_iv_t view_gs[2]; // two views at the same image
 
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,
     int32_t* bpp, int32_t preferred_bytes_per_pixel) {
@@ -32,13 +32,13 @@ static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t*
     return pixels;
 }
 
-static void init_image(ui_image_t* image, const uint8_t* data, int64_t bytes) {
+static void init_image(ui_image_t* i, const uint8_t* data, int64_t bytes) {
     int32_t w = 0;
     int32_t h = 0;
     int32_t c = 0;
     void* pixels = load_image(data, bytes, &w, &h, &c, 0);
     ut_not_null(pixels);
-    ui_gdi.image_init(image, w, h, c, pixels);
+    ui_gdi.image_init(i, w, h, c, pixels);
     stbi_image_free(pixels);
 }
 
@@ -59,7 +59,7 @@ static void init_gs(void) {
     }
 }
 
-static void panel_paint(ui_view_t* v) {
+static void panel_erase(ui_view_t* v) {
     ui_gdi.frame(v->x + 1, v->y + 1, v->w - 1, v->h - 1, ui_colors.black);
 }
 
@@ -98,9 +98,11 @@ static void opened(void) {
     init_gs();
     // painting greyscale pixels w/o pushing them into device
     // bitmap:
-    ui_iv.init_with(&view_gs, gs, width, height, 1, width);
-    view_gs.erase = gs_erase;
-    view_gs.focusable = true; // enable zoom pan
+    for (int32_t i = 0; i < ut_countof(view_gs); i++) {
+        ui_iv.init_with(&view_gs[i], gs, width, height, 1, width);
+        view_gs[i].erase = gs_erase;
+        view_gs[i].focusable = true; // enable zoom pan
+    }
     static ui_view_t   top    = ui_view(stack);
     static ui_view_t   center = ui_view(span);
     static ui_view_t   left   = ui_view(list);
@@ -110,7 +112,11 @@ static void opened(void) {
     static ui_slider_t slider = ui_slider("128", 8.0f, 0, 255,
             slider_format, slider_callback);
     slider.value = 128;
-    ui_view.add(&left,   align(&view_gs.view, ui.align.left), null);
+    ui_view.add(&left,
+            align(&view_gs[0].view, ui.align.left),
+            align(&view_gs[1].view, ui.align.left),
+            null
+    );
     ui_view.add(&right,
                 &label_right,
                 &spacer,
@@ -143,7 +149,7 @@ static void opened(void) {
     center.padding = (ui_margins_t){0};
     static ui_view_t* panels[] = { &top, &left, &right, &bottom  };
     for (int32_t i = 0; i < ut_countof(panels); i++) {
-        panels[i]->paint = panel_paint;
+        panels[i]->erase = panel_erase;
         panels[i]->padding = (ui_margins_t){0};
         panels[i]->insets  = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
     }
@@ -158,8 +164,15 @@ static void opened(void) {
         it->max_h   = ui.infinity;
     });
     center.max_h = ui.infinity;
-    view_gs.view.max_h = ui.infinity;
-    view_gs.view.max_w = ui.infinity;
+    for (int32_t i = 0; i < ut_countof(view_gs); i++) {
+        view_gs[i].erase = panel_erase;
+        view_gs[i].max_h = ui.infinity;
+        view_gs[i].max_w = ui.infinity;
+    }
+    view_gs[0].padding.bottom = 0.25f;
+    view_gs[1].padding.top    = 0.25f;
+    view_gs[0].fit  = true;
+    view_gs[1].fill = true;
     right.debug.trace.mt = true;
     view_groot.debug.id  = "#view.groot";
     view_rocket.debug.id = "#view.rocket";

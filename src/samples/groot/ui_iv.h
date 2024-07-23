@@ -21,7 +21,7 @@ typedef struct ui_iv_s {
         ui_view_t view;
         struct ui_view_s;
     };
-    ui_image_t image;
+    ui_image_t image; // view does NOT own or dispose image->bitmap
     fp64_t     alpha; // for rgba images
     // actual scale() is: z = 2 ^ (zn - 1) / 2 ^ (zd - 1)
     int32_t zoom; // 0..8
