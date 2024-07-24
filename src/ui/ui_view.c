@@ -470,6 +470,8 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
     if (start && ui_app.animating.view == null && v->hint[0] != 0 &&
        !ui_view.is_hidden(v)) {
         hint.padding = (ui_margins_t){0, 0, 0, 0};
+        hint.parent = ui_app.content;
+        hint.state.hidden = false;
         ui_view_show_hint(v, &hint);
     } else if (!start && ui_app.animating.view == &hint) {
         ui_app.show_hint(null, -1, -1, 0);
