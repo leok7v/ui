@@ -1313,7 +1313,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
         ui_point_t pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
         if (m == tap && !up) {
-            ui_view.tap(ui_app.root, ix, !up);
+            swallow = ui_view.tap(ui_app.root, ix, !up);
             if (ui_app.now  - clicked[ix]  <= double_click_dt &&
                 abs(pt.x - click_at[ix].x) <= double_click_x &&
                 abs(pt.y - click_at[ix].y) <= double_click_y) {
@@ -1694,7 +1694,9 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     int64_t ret = 0;
     ui_app_update_mouse_buttons_state();
     ui_view.lose_hidden_focus(ui_app.root);
-    ui_app_click_detector((uint32_t)m, (WPARAM)wp, (LPARAM)lp);
+    if (ui_app_click_detector((uint32_t)m, (WPARAM)wp, (LPARAM)lp)) {
+        return 0;
+    }
     if (ui_view.message(ui_app.root, m, wp, lp, &ret)) {
         return (LRESULT)ret;
     }
