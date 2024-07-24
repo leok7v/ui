@@ -224,22 +224,26 @@ static void ui_iv_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
 }
 
 static bool ui_iv_tap(ui_view_t* v, int32_t ix, bool pressed) {
-    ui_iv_t* iv = (ui_iv_t*)v;
-    const int32_t x = ui_app.mouse.x - iv->view.x;
-    const int32_t y = ui_app.mouse.y - iv->view.y;
-    bool tools  = !iv->tool.bar.state.hidden &&
-                  ui_view.inside(&iv->tool.bar, &ui_app.mouse);
-    bool inside = ui_view.inside(&iv->view, &ui_app.mouse) && !tools;
-    bool left   = ix == 0;
-    bool drag_started = iv->drag_start.x >= 0 && iv->drag_start.y >= 0;
-    if (left && inside && !drag_started) {
-        iv->drag_start = (ui_point_t){x, y};
-    }
-    if (!pressed) {
-        iv->drag_start = (ui_point_t){-1, -1};
+    bool swallow = false;
+    if (v->focusable) {
+        ui_iv_t* iv = (ui_iv_t*)v;
+        const int32_t x = ui_app.mouse.x - iv->view.x;
+        const int32_t y = ui_app.mouse.y - iv->view.y;
+        bool tools  = !iv->tool.bar.state.hidden &&
+                      ui_view.inside(&iv->tool.bar, &ui_app.mouse);
+        bool inside = ui_view.inside(&iv->view, &ui_app.mouse) && !tools;
+        bool left   = ix == 0;
+        bool drag_started = iv->drag_start.x >= 0 && iv->drag_start.y >= 0;
+        if (left && inside && !drag_started) {
+            iv->drag_start = (ui_point_t){x, y};
+        }
+        if (!pressed) {
+            iv->drag_start = (ui_point_t){-1, -1};
+        }
+        swallow = inside || tools;
     }
 //  ut_println("inside %s", inside ? "true" : "false");
-    return inside;
+    return swallow;
 }
 
 static bool ui_iv_mouse_move(ui_view_t* v) {
@@ -472,6 +476,7 @@ void ui_iv_init(ui_iv_t* iv) {
     iv->sx = 0.5;
     iv->sy = 0.5;
     iv->drag_start = (ui_point_t){-1, -1};
+    iv->debug.id = "#image";
 }
 
 void ui_iv_init_with(ui_iv_t* iv, const uint8_t* pixels,
@@ -500,7 +505,7 @@ static void ui_iv_ratio(ui_iv_t* iv, int32_t zn, int32_t zd) {
 ui_iv_if ui_iv = {
     .init      = ui_iv_init,
     .init_with = ui_iv_init_with,
-    .ratio     = null, // TODO
+    .ratio     = ui_iv_ratio,
     .scale     = ui_iv_scale,
     .position  = ui_iv_position
 };
