@@ -40,13 +40,28 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg);
 // characters. Thus even if edit is monospaced glyph measurements are used
 // in text layout.
 
-static void ui_edit_invalidate_view(const ui_edit_t* e) {
-    ui_view.invalidate(&e->view, null);
+static void ui_edit_invalidate_parent(const ui_edit_t* e, const ui_rect_t* rc) {
+    // For transparent background of edit_view parent must draw background.
+    // In the current implementation invalidate() causes whole stack redraw
+    // in rectangle thus it does not matter much. But if it is ever optimized
+    // it will matter.
+    ui_color_t b = e->background;
+    if (ui_color_is_undefined(b) || ui_color_is_transparent(b)) {
+        ui_view.invalidate(e->parent, rc);
+    }
 }
 
 static void ui_edit_invalidate_rect(const ui_edit_t* e, const ui_rect_t rc) {
-    ut_assert(rc.w > 0 && rc.h > 0);
-    ui_view.invalidate(&e->view, &rc);
+    ut_assert(rc.w >= 0 && rc.h > 0); // w may be zero for empty selection
+    if (rc.w > 0 && rc.h > 0) {
+        ui_view.invalidate(&e->view, &rc);
+        ui_edit_invalidate_parent(e, &rc);
+    }
+}
+
+static void ui_edit_invalidate_view(const ui_edit_t* e) {
+    ui_view.invalidate(&e->view, null);
+    ui_edit_invalidate_parent(e, null);
 }
 
 static int32_t ui_edit_line_height(ui_edit_t* e) {
@@ -930,6 +945,7 @@ static void ui_edit_ctrl_left(ui_edit_t* e) {
     } else {
         e->selection.from = w.from;
     }
+    ui_edit_move_caret(e, e->selection.to);
     ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
 }
 
@@ -976,6 +992,7 @@ static void ui_edit_ctrl_right(ui_edit_t* e) {
         } else {
             e->selection.from = w.to;
         }
+        ui_edit_move_caret(e, e->selection.to);
         ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
     }
 }
@@ -1719,15 +1736,16 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
             ut_swear(ofs0 >= 0 && ofs1 >= 0);
             int32_t x0 = ui_edit_text_width(e, text, ofs0);
             int32_t x1 = ui_edit_text_width(e, text, ofs1);
-            // selection_color is MSVC dark mode selection color
+            // selection color is MSVC dark mode selection color
             // TODO: need light mode selection color tpp
-            ui_color_t selection_color = ui_color_rgb(0x26, 0x4F, 0x78); // ui_color_rgb(64, 72, 96);
+            ui_color_t sc = ui_color_rgb(0x26, 0x4F, 0x78); // selection color
             if (!e->focused || !ui_app.focused()) {
-                selection_color = ui_colors.darken(selection_color, 0.1f);
+                sc = ui_colors.darken(sc, 0.1f);
             }
             const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
-            ui_gdi.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), selection_color);
+            // event if background is transparent
+            ui_gdi.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), sc);
         }
     }
 }
@@ -1769,7 +1787,10 @@ static void ui_edit_paint(ui_view_t* v) {
     if (ui.intersect_rect(&rc, &vrc, &ui_app.prc)) {
         // because last line of the view may extend over the bottom
         ui_gdi.set_clip(v->x, v->y, v->w, v->h);
-        ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, v->background);
+        ui_color_t b = v->background;
+        if (!ui_color_is_undefined(b) && !ui_color_is_transparent(b)) {
+            ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, b);
+        }
         const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
         int32_t x = v->x + insets.left;
         int32_t y = v->y + insets.top;
