@@ -953,7 +953,11 @@ static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
     memset(d, 0x00, sizeof(d));
-    ut_assert(bytes >= 0);
+    if (bytes < 0) {
+        size_t n = strlen(utf8);
+        ut_swear(n < INT32_MAX);
+        bytes = (int32_t)n;
+    }
     ut_assert((utf8 == null) == (bytes == 0));
     if (ok) {
         if (bytes == 0) { // empty string
