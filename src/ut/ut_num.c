@@ -2,31 +2,31 @@
 #include <intrin.h>
 //#include <immintrin.h> // _tzcnt_u32
 
-static inline ut_num128_t ut_num_add128_inline(const ut_num128_t a, const ut_num128_t b) {
-    ut_num128_t r = a;
+static inline rt_num128_t rt_num_add128_inline(const rt_num128_t a, const rt_num128_t b) {
+    rt_num128_t r = a;
     r.hi += b.hi;
     r.lo += b.lo;
     if (r.lo < b.lo) { r.hi++; } // carry
     return r;
 }
 
-static inline ut_num128_t ut_num_sub128_inline(const ut_num128_t a, const ut_num128_t b) {
-    ut_num128_t r = a;
+static inline rt_num128_t rt_num_sub128_inline(const rt_num128_t a, const rt_num128_t b) {
+    rt_num128_t r = a;
     r.hi -= b.hi;
     if (r.lo < b.lo) { r.hi--; } // borrow
     r.lo -= b.lo;
     return r;
 }
 
-static ut_num128_t ut_num_add128(const ut_num128_t a, const ut_num128_t b) {
-    return ut_num_add128_inline(a, b);
+static rt_num128_t rt_num_add128(const rt_num128_t a, const rt_num128_t b) {
+    return rt_num_add128_inline(a, b);
 }
 
-static ut_num128_t ut_num_sub128(const ut_num128_t a, const ut_num128_t b) {
-    return ut_num_sub128_inline(a, b);
+static rt_num128_t rt_num_sub128(const rt_num128_t a, const rt_num128_t b) {
+    return rt_num_sub128_inline(a, b);
 }
 
-static ut_num128_t ut_num_mul64x64(uint64_t a, uint64_t b) {
+static rt_num128_t rt_num_mul64x64(uint64_t a, uint64_t b) {
     uint64_t a_lo = (uint32_t)a;
     uint64_t a_hi = a >> 32;
     uint64_t b_lo = (uint32_t)b;
@@ -43,57 +43,57 @@ static ut_num128_t ut_num_mul64x64(uint64_t a, uint64_t b) {
     high += ((uint64_t)(cross1 < cross2 != 0)) << 32;
     high = high + (cross1 >> 32);
     low = ((cross1 & 0xFFFFFFFF) << 32) + (low & 0xFFFFFFFF);
-    return (ut_num128_t){.lo = low, .hi = high };
+    return (rt_num128_t){.lo = low, .hi = high };
 }
 
-static inline void ut_num_shift128_left_inline(ut_num128_t* n) {
+static inline void rt_num_shift128_left_inline(rt_num128_t* n) {
     const uint64_t top = (1ULL << 63);
     n->hi = (n->hi << 1) | ((n->lo & top) ? 1 : 0);
     n->lo = (n->lo << 1);
 }
 
-static inline void ut_num_shift128_right_inline(ut_num128_t* n) {
+static inline void rt_num_shift128_right_inline(rt_num128_t* n) {
     const uint64_t top = (1ULL << 63);
     n->lo = (n->lo >> 1) | ((n->hi & 0x1) ? top : 0);
     n->hi = (n->hi >> 1);
 }
 
-static inline bool ut_num_less128_inline(const ut_num128_t a, const ut_num128_t b) {
+static inline bool rt_num_less128_inline(const rt_num128_t a, const rt_num128_t b) {
     return a.hi < b.hi || (a.hi == b.hi && a.lo < b.lo);
 }
 
-static inline bool ut_num_uint128_high_bit(const ut_num128_t a) {
+static inline bool rt_num_uint128_high_bit(const rt_num128_t a) {
     return (int64_t)a.hi < 0;
 }
 
-static uint64_t ut_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
+static uint64_t rt_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
     rt_swear(divisor > 0, "divisor: %lld", divisor);
-    ut_num128_t r = ut_num.mul64x64(a, b); // reminder: a * b
+    rt_num128_t r = rt_num.mul64x64(a, b); // reminder: a * b
     uint64_t q = 0; // quotient
     if (r.hi >= divisor) {
         q = UINT64_MAX; // overflow
     } else {
         int32_t  shift = 0;
-        ut_num128_t d = { .hi = 0, .lo = divisor };
-        while (!ut_num_uint128_high_bit(d) && ut_num_less128_inline(d, r)) {
-            ut_num_shift128_left_inline(&d);
+        rt_num128_t d = { .hi = 0, .lo = divisor };
+        while (!rt_num_uint128_high_bit(d) && rt_num_less128_inline(d, r)) {
+            rt_num_shift128_left_inline(&d);
             shift++;
         }
-        ut_assert(shift <= 64);
+        rt_assert(shift <= 64);
         while (shift >= 0 && (d.hi != 0 || d.lo != 0)) {
-            if (!ut_num_less128_inline(r, d)) {
-                r = ut_num_sub128_inline(r, d);
-                ut_assert(shift < 64);
+            if (!rt_num_less128_inline(r, d)) {
+                r = rt_num_sub128_inline(r, d);
+                rt_assert(shift < 64);
                 q |= (1ULL << shift);
             }
-            ut_num_shift128_right_inline(&d);
+            rt_num_shift128_right_inline(&d);
             shift--;
         }
     }
     return q;
 }
 
-static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
+static uint32_t rt_num_gcd32(uint32_t u, uint32_t v) {
     #pragma push_macro("ut_trailing_zeros")
     #ifdef _M_ARM64
     #define ut_trailing_zeros(x) (_CountTrailingZeros(x))
@@ -109,8 +109,8 @@ static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
     uint32_t j = ut_trailing_zeros(v);  v >>= j;
     uint32_t k = rt_min(i, j);
     for (;;) {
-        ut_assert(u % 2 == 1, "u = %d should be odd", u);
-        ut_assert(v % 2 == 1, "v = %d should be odd", v);
+        rt_assert(u % 2 == 1, "u = %d should be odd", u);
+        rt_assert(v % 2 == 1, "v = %d should be odd", v);
         if (u > v) { uint32_t swap = u; u = v; v = swap; }
         v -= u;
         if (v == 0) { return u << k; }
@@ -119,9 +119,9 @@ static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
     #pragma pop_macro("ut_trailing_zeros")
 }
 
-static uint32_t ut_num_random32(uint32_t* state) {
+static uint32_t rt_num_random32(uint32_t* state) {
     // https://gist.github.com/tommyettinger/46a874533244883189143505d203312c
-    static ut_thread_local bool started; // first seed must be odd
+    static rt_thread_local bool started; // first seed must be odd
     if (!started) { started = true; *state |= 1; }
     uint32_t z = (*state += 0x6D2B79F5UL);
     z = (z ^ (z >> 15)) * (z | 1UL);
@@ -129,9 +129,9 @@ static uint32_t ut_num_random32(uint32_t* state) {
     return z ^ (z >> 14);
 }
 
-static uint64_t ut_num_random64(uint64_t *state) {
+static uint64_t rt_num_random64(uint64_t *state) {
     // https://gist.github.com/tommyettinger/e6d3e8816da79b45bfe582384c2fe14a
-    static ut_thread_local bool started; // first seed must be odd
+    static rt_thread_local bool started; // first seed must be odd
     if (!started) { started = true; *state |= 1; }
 	const uint64_t s = *state;
 	const uint64_t z = (s ^ s >> 25) * (*state += 0x6A5D39EAE12657AAULL);
@@ -140,7 +140,7 @@ static uint64_t ut_num_random64(uint64_t *state) {
 
 // https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function
 
-static uint32_t ut_num_hash32(const char *data, int64_t len) {
+static uint32_t rt_num_hash32(const char *data, int64_t len) {
     uint32_t hash  = 0x811c9dc5;  // FNV_offset_basis for 32-bit
     uint32_t prime = 0x01000193; // FNV_prime for 32-bit
     if (len > 0) {
@@ -157,7 +157,7 @@ static uint32_t ut_num_hash32(const char *data, int64_t len) {
     return hash;
 }
 
-static uint64_t ut_num_hash64(const char *data, int64_t len) {
+static uint64_t rt_num_hash64(const char *data, int64_t len) {
     uint64_t hash  = 0xcbf29ce484222325; // FNV_offset_basis for 64-bit
     uint64_t prime = 0x100000001b3;      // FNV_prime for 64-bit
     if (len > 0) {
@@ -184,22 +184,22 @@ static uint32_t ctz_2(uint32_t x) {
     return n;
 }
 
-static void ut_num_test(void) {
+static void rt_num_test(void) {
     #ifdef UT_TESTS
     {
-        rt_swear(ut_num.gcd32(1000000000, 24000000) == 8000000);
+        rt_swear(rt_num.gcd32(1000000000, 24000000) == 8000000);
         // https://asecuritysite.com/encryption/nprimes?y=64
         // https://www.rapidtables.com/convert/number/decimal-to-hex.html
         uint64_t p = 15843490434539008357u; // prime
         uint64_t q = 16304766625841520833u; // prime
         // pq: 258324414073910997987910483408576601381
         //     0xC25778F20853A9A1EC0C27C467C45D25
-        ut_num128_t pq = {.hi = 0xC25778F20853A9A1uLL,
+        rt_num128_t pq = {.hi = 0xC25778F20853A9A1uLL,
                        .lo = 0xEC0C27C467C45D25uLL };
-        ut_num128_t p_q = ut_num.mul64x64(p, q);
+        rt_num128_t p_q = rt_num.mul64x64(p, q);
         rt_swear(p_q.hi == pq.hi && pq.lo == pq.lo);
-        uint64_t p1 = ut_num.muldiv128(p, q, q);
-        uint64_t q1 = ut_num.muldiv128(p, q, p);
+        uint64_t p1 = rt_num.muldiv128(p, q, q);
+        uint64_t q1 = rt_num.muldiv128(p, q, p);
         rt_swear(p1 == p);
         rt_swear(q1 == q);
     }
@@ -210,36 +210,36 @@ static void ut_num_test(void) {
     #endif
     uint64_t seed64 = 1;
     for (int32_t i = 0; i < n; i++) {
-        uint64_t p = ut_num.random64(&seed64);
-        uint64_t q = ut_num.random64(&seed64);
-        uint64_t p1 = ut_num.muldiv128(p, q, q);
-        uint64_t q1 = ut_num.muldiv128(p, q, p);
+        uint64_t p = rt_num.random64(&seed64);
+        uint64_t q = rt_num.random64(&seed64);
+        uint64_t p1 = rt_num.muldiv128(p, q, q);
+        uint64_t q1 = rt_num.muldiv128(p, q, p);
         rt_swear(p == p1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
         rt_swear(q == q1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
     }
     uint32_t seed32 = 1;
     for (int32_t i = 0; i < n; i++) {
-        uint64_t p = ut_num.random32(&seed32);
-        uint64_t q = ut_num.random32(&seed32);
-        uint64_t r = ut_num.muldiv128(p, q, 1);
+        uint64_t p = rt_num.random32(&seed32);
+        uint64_t q = rt_num.random32(&seed32);
+        uint64_t r = rt_num.muldiv128(p, q, 1);
         rt_swear(r == p * q);
         // division by the maximum uint64_t value:
-        r = ut_num.muldiv128(p, q, UINT64_MAX);
+        r = rt_num.muldiv128(p, q, UINT64_MAX);
         rt_swear(r == 0);
     }
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
     #endif
 }
 
-ut_num_if ut_num = {
-    .add128    = ut_num_add128,
-    .sub128    = ut_num_sub128,
-    .mul64x64  = ut_num_mul64x64,
-    .muldiv128 = ut_num_muldiv128,
-    .gcd32     = ut_num_gcd32,
-    .random32  = ut_num_random32,
-    .random64  = ut_num_random64,
-    .hash32    = ut_num_hash32,
-    .hash64    = ut_num_hash64,
-    .test      = ut_num_test
+rt_num_if rt_num = {
+    .add128    = rt_num_add128,
+    .sub128    = rt_num_sub128,
+    .mul64x64  = rt_num_mul64x64,
+    .muldiv128 = rt_num_muldiv128,
+    .gcd32     = rt_num_gcd32,
+    .random32  = rt_num_random32,
+    .random64  = rt_num_random64,
+    .hash32    = rt_num_hash32,
+    .hash64    = rt_num_hash64,
+    .test      = rt_num_test
 };

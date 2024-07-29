@@ -1,16 +1,16 @@
 #pragma once
 #include "ut/ut_streams.h"
 
-ut_begin_c
+rt_begin_c
 
 typedef struct {
     const char* command;
-    ut_stream_if* in;
-    ut_stream_if* out;
-    ut_stream_if* err;
+    rt_stream_if* in;
+    rt_stream_if* out;
+    rt_stream_if* err;
     uint32_t exit_code;
     fp64_t   timeout; // seconds
-} ut_processes_child_t;
+} rt_processes_child_t;
 
 // Process name may be an the executable filename with
 // full, partial or absent pathname.
@@ -27,14 +27,14 @@ typedef struct {
     errno_t   (*kill_all)(const char* name, fp64_t timeout_seconds);
     bool      (*is_elevated)(void); // Is process running as root/ Admin / System?
     errno_t   (*restart_elevated)(void); // retuns error or exits on success
-    errno_t   (*run)(ut_processes_child_t* child);
-    errno_t   (*popen)(const char* command, int32_t *xc, ut_stream_if* output,
+    errno_t   (*run)(rt_processes_child_t* child);
+    errno_t   (*popen)(const char* command, int32_t *xc, rt_stream_if* output,
                        fp64_t timeout_seconds); // <= 0 infinite
     // popen() does NOT guarantee stream zero termination on errors
     errno_t  (*spawn)(const char* command); // spawn fully detached process
     void (*test)(void);
-} ut_processes_if;
+} rt_processes_if;
 
-extern ut_processes_if ut_processes;
+extern rt_processes_if rt_processes;
 
-ut_end_c
+rt_end_c

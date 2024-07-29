@@ -22,11 +22,11 @@ static int run(void) {
         rt_debug.verbosity.level = rt_debug.verbosity.verbose;
     }
     rt_core.test();
-    ut_println("all tests passed\n\n");
-//  ut_println("rt_args.basename(): %s", rt_args.basename());
-//  ut_println("rt_args.v[0]: %s", rt_args.v[0]);
+    rt_println("all tests passed\n\n");
+//  rt_println("rt_args.basename(): %s", rt_args.basename());
+//  rt_println("rt_args.v[0]: %s", rt_args.v[0]);
 //  for (int i = 1; i < rt_args.c; i++) {
-//      ut_println("rt_args.v[%d]: %s", i, rt_args.v[i]);
+//      rt_println("rt_args.v[%d]: %s", i, rt_args.v[i]);
 //  }
     //  $ .\bin\debug\test1.exe "Hello World" Hello World
     //  rt_args.v[0]: .\bin\debug\test1.exe
@@ -57,8 +57,8 @@ int main(int argc, const char* argv[], const char *envp[]) {
 
 #pragma warning(suppress: 28251) // no annotations
 
-int APIENTRY WinMain(HINSTANCE ut_unused(inst), HINSTANCE ut_unused(prev),
-                     char* ut_unused(command), int ut_unused(show)) {
+int APIENTRY WinMain(HINSTANCE rt_unused(inst), HINSTANCE rt_unused(prev),
+                     char* rt_unused(command), int rt_unused(show)) {
     rt_args.WinMain(); // Uses GetCommandLineW() which has full pathname
     int r = run();
     rt_args.fini();

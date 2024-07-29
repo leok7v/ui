@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
 typedef struct { // i18n national language support
     void (*init)(void);
@@ -15,8 +15,8 @@ typedef struct { // i18n national language support
     int32_t (*strid)(const char* s);
     // given strid > 0 returns localized string or default value
     const char* (*string)(int32_t strid, const char* defau1t);
-} ut_nls_if;
+} rt_nls_if;
 
-extern ut_nls_if ut_nls;
+extern rt_nls_if rt_nls;
 
-ut_end_c
+rt_end_c

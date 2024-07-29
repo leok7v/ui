@@ -1,42 +1,42 @@
 #include "ut/ut.h"
 
-static void*   ut_static_symbol_reference[1024];
-static int32_t ut_static_symbol_reference_count;
+static void*   rt_static_symbol_reference[1024];
+static int32_t rt_static_symbol_reference_count;
 
-void* ut_force_symbol_reference(void* symbol) {
-    ut_assert(ut_static_symbol_reference_count <= ut_countof(ut_static_symbol_reference),
-        "increase size of ut_static_symbol_reference[%d] to at least %d",
-        ut_countof(ut_static_symbol_reference), ut_static_symbol_reference);
-    if (ut_static_symbol_reference_count < ut_countof(ut_static_symbol_reference)) {
-        ut_static_symbol_reference[ut_static_symbol_reference_count] = symbol;
-//      ut_println("ut_static_symbol_reference[%d] = %p", ut_static_symbol_reference_count,
-//               ut_static_symbol_reference[symbol_reference_count]);
-        ut_static_symbol_reference_count++;
+void* rt_force_symbol_reference(void* symbol) {
+    rt_assert(rt_static_symbol_reference_count <= rt_countof(rt_static_symbol_reference),
+        "increase size of rt_static_symbol_reference[%d] to at least %d",
+        rt_countof(rt_static_symbol_reference), rt_static_symbol_reference);
+    if (rt_static_symbol_reference_count < rt_countof(rt_static_symbol_reference)) {
+        rt_static_symbol_reference[rt_static_symbol_reference_count] = symbol;
+//      rt_println("rt_static_symbol_reference[%d] = %p", rt_static_symbol_reference_count,
+//               rt_static_symbol_reference[symbol_reference_count]);
+        rt_static_symbol_reference_count++;
     }
     return symbol;
 }
 
-// test ut_static_init() { code } that will be executed in random
+// test rt_static_init() { code } that will be executed in random
 // order but before main()
 
 #ifdef UT_TESTS
 
-static int32_t ut_static_init_function_called;
+static int32_t rt_static_init_function_called;
 
-static void ut_force_inline ut_static_init_function(void) {
-    ut_static_init_function_called = 1;
+static void rt_force_inline rt_static_init_function(void) {
+    rt_static_init_function_called = 1;
 }
 
-ut_static_init(static_init_test) { ut_static_init_function(); }
+rt_static_init(static_init_test) { rt_static_init_function(); }
 
-void ut_static_init_test(void) {
-    rt_fatal_if(ut_static_init_function_called != 1,
+void rt_static_init_test(void) {
+    rt_fatal_if(rt_static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
 #else
 
-void ut_static_init_test(void) {}
+void rt_static_init_test(void) {}
 
 #endif

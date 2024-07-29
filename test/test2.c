@@ -10,7 +10,7 @@ int main(int argc, char* argv[], char *envp[]) {
         rt_debug.verbosity.level = rt_debug.verbosity.info;
     }
     rt_core.test();
-    ut_println("all tests passed\n");
+    rt_println("all tests passed\n");
     rt_args.fini();
     return 0;
 }

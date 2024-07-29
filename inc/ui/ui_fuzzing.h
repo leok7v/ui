@@ -3,13 +3,13 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-ut_begin_c
+rt_begin_c
 
 // https://en.wikipedia.org/wiki/Fuzzing
 // aka "Monkey" testing
 
 typedef struct ui_fuzzing_s {
-    ut_work_t    base;
+    rt_work_t    base;
     const char*  utf8; // .character(utf8)
     int32_t      key;  // .key_pressed(key)/.key_released(key)
     ui_point_t*  pt;   // .move_move()
@@ -42,5 +42,5 @@ typedef struct ui_fuzzing_if {
 
 extern ui_fuzzing_if ui_fuzzing;
 
-ut_end_c
+rt_end_c
 

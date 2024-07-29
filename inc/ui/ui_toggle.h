@@ -2,7 +2,7 @@
 #include "ut/ut_std.h"
 #include "ui/ui_view.h"
 
-ut_begin_c
+rt_begin_c
 
 typedef ui_view_t ui_toggle_t;
 
@@ -54,4 +54,4 @@ void ui_view_init_toggle(ui_view_t* v);
     }                                                       \
 }
 
-ut_end_c
+rt_end_c

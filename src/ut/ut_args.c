@@ -21,8 +21,8 @@ static int32_t rt_args_option_index(const char* option) {
 
 static void rt_args_remove_at(int32_t ix) {
     // returns new argc
-    ut_assert(0 < rt_args.c);
-    ut_assert(0 < ix && ix < rt_args.c); // cannot remove rt_args.v[0]
+    rt_assert(0 < rt_args.c);
+    rt_assert(0 < ix && ix < rt_args.c); // cannot remove rt_args.v[0]
     for (int32_t i = ix; i < rt_args.c; i++) {
         rt_args.v[i] = rt_args.v[i + 1];
     }
@@ -217,9 +217,9 @@ static const char* rt_args_basename(void) {
             if (*s == '\\' || *s == '/') { b = s + 1; }
             s++;
         }
-        int32_t n = ut_str.len(b);
-        rt_swear(n < ut_countof(basename));
-        strncpy(basename, b, ut_countof(basename) - 1);
+        int32_t n = rt_str.len(b);
+        rt_swear(n < rt_countof(basename));
+        strncpy(basename, b, rt_countof(basename) - 1);
         char* d = basename + n - 1;
         while (d > basename && *d != '.') { d--; }
         if (*d == '.') { *d = 0x00; }
@@ -238,10 +238,10 @@ static void rt_args_WinMain(void) {
     rt_swear(rt_args.c == 0 && rt_args.v == null && rt_args.env == null);
     rt_swear(rt_args_memory == null);
     const uint16_t* wcl = GetCommandLineW();
-    int32_t n = (int32_t)ut_str.len16(wcl);
+    int32_t n = (int32_t)rt_str.len16(wcl);
     char* cl = null;
     rt_fatal_if_error(rt_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
-    ut_str.utf16to8(cl, n * 2 + 1, wcl, -1);
+    rt_str.utf16to8(cl, n * 2 + 1, wcl, -1);
     rt_args_parse(cl);
     rt_heap.deallocate(null, cl);
     rt_args.env = (const char**)(void*)_environ;
@@ -262,7 +262,7 @@ static void rt_args_WinMain(void) {
 
 static void rt_args_test_verify(const char* cl, int32_t expected, ...) {
     if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
-        ut_println("cl: `%s`", cl);
+        rt_println("cl: `%s`", cl);
     }
     int32_t argc = rt_args.c;
     const char** argv = rt_args.v;
@@ -276,7 +276,7 @@ static void rt_args_test_verify(const char* cl, int32_t expected, ...) {
     for (int32_t i = 0; i < expected; i++) {
         const char* s = va_arg(va, const char*);
 //      if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
-//          ut_println("rt_args.v[%d]: `%s` expected: `%s`", i, rt_args.v[i], s);
+//          rt_println("rt_args.v[%d]: `%s` expected: `%s`", i, rt_args.v[i], s);
 //      }
         // Warning 6385: reading data outside of array
         const char* ai = _Pragma("warning(suppress:  6385)")rt_args.v[i];
@@ -319,7 +319,7 @@ static void rt_args_test(void) {
     rt_args_test_verify("foo.exe \\",     2, "foo.exe", "\\");
     rt_args_test_verify("foo.exe \\\\",   2, "foo.exe", "\\\\");
     rt_args_test_verify("foo.exe \\\\\\", 2, "foo.exe", "\\\\\\");
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
 #else

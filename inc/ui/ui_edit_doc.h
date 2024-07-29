@@ -3,7 +3,7 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-ut_begin_c
+rt_begin_c
 
 typedef struct ui_edit_str_s ui_edit_str_t;
 
@@ -19,10 +19,10 @@ typedef struct ui_edit_pg_s { // page/glyph coordinates
     int32_t gp; // zero based glyph position ("column")
 } ui_edit_pg_t;
 
-typedef union ut_begin_packed ui_edit_range_s {
+typedef union rt_begin_packed ui_edit_range_s {
     struct { ui_edit_pg_t from; ui_edit_pg_t to; };
     ui_edit_pg_t a[2];
-} ut_end_packed ui_edit_range_t; // "from"[0] "to"[1]
+} rt_end_packed ui_edit_range_t; // "from"[0] "to"[1]
 
 typedef struct ui_edit_text_s {
     int32_t np;   // number of paragraphs
@@ -143,7 +143,7 @@ typedef struct ui_edit_text_if {
 
 extern ui_edit_text_if ui_edit_text;
 
-typedef struct ut_begin_packed ui_edit_str_s {
+typedef struct rt_begin_packed ui_edit_str_s {
     char* u;    // always correct utf8 bytes not zero terminated(!) sequence
     // s.g2b[s.g + 1] glyph to byte position inside s.u[]
     // s.g2b[0] == 0, s.g2b[s.glyphs] == s.bytes
@@ -151,7 +151,7 @@ typedef struct ut_begin_packed ui_edit_str_s {
     int32_t  b;    // number of bytes
     int32_t  c;    // when capacity is zero .u is not heap allocated
     int32_t  g;    // number of glyphs
-} ut_end_packed ui_edit_str_t;
+} rt_end_packed ui_edit_str_t;
 
 typedef struct ui_edit_str_if {
     bool (*init)(ui_edit_str_t* s, const char* utf8, int32_t bytes, bool heap);
@@ -228,4 +228,4 @@ extern ui_edit_str_if ui_edit_str;
 */
 
 
-ut_end_c
+rt_end_c

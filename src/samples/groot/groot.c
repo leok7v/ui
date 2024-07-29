@@ -38,7 +38,7 @@ static void init_image(ui_image_t* i, const uint8_t* data, int64_t bytes) {
     int32_t h = 0;
     int32_t c = 0;
     void* pixels = load_image(data, bytes, &w, &h, &c, 0);
-    ut_not_null(pixels);
+    rt_not_null(pixels);
     ui_gdi.image_init(i, w, h, c, pixels);
     stbi_image_free(pixels);
 }
@@ -46,7 +46,7 @@ static void init_image(ui_image_t* i, const uint8_t* data, int64_t bytes) {
 static void init_gs(void) {
     const ui_image_t* i = &view_groot.image;
     uint32_t* pixels = (uint32_t*)i->pixels;
-    ut_assert(i->w == 64 && i->h == 64 && i->bpp == 4);
+    rt_assert(i->w == 64 && i->h == 64 && i->bpp == 4);
     for (int y = 0; y < height; y++) {
         int32_t y64 = y % 64;
         for (int x = 0; x < width; x++) {
@@ -76,12 +76,12 @@ static void slider_format(ui_view_t* v) {
 static void slider_callback(ui_view_t* v) {
     ui_slider_t* s = (ui_slider_t*)v;
     view_groot.alpha = (fp64_t)s->value / 256.0;
-//  ut_println("value: %d", slider->value);
+//  rt_println("value: %d", slider->value);
 }
 
 static void init_images(void) {
     ui_iv.init(&view_groot);
-    init_image(&view_groot.image, groot, ut_countof(groot));
+    init_image(&view_groot.image, groot, rt_countof(groot));
     // view of groot image:
     ui_iv.ratio(&view_groot, 4, 1); // 4:1
     view_groot.alpha = 0.5;
@@ -89,7 +89,7 @@ static void init_images(void) {
     view_groot.focusable = false; // because it is stacked under text editor
     // view of rocket image:
     ui_iv.init(&view_rocket);
-    init_image(&view_rocket.image, rocket, ut_countof(rocket));
+    init_image(&view_rocket.image, rocket, rt_countof(rocket));
     ui_iv.ratio(&view_rocket, 3, 1); // 3:1
     view_rocket.padding = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // no zoom/pan
@@ -108,7 +108,7 @@ static void init_text(void) {
     view_text.insets = (ui_margins_t){0};
     view_text.background_id = 0;
     view_text.background = ui_colors.transparent;
-    ut_str_printf(view_text.hint,
+    rt_str_printf(view_text.hint,
         "Text Edit:\n\n"
         "Try double clicking to select a word\n"
         "or long-pressing to select a paragraph.\n\n"
@@ -136,7 +136,7 @@ static void opened(void) {
     static ui_label_t label_top    = ui_label(0, "Top");
     static ui_label_t label_bottom = ui_label(0, "Bottom");
     // painting greyscale pixels will be handled w/o device bitmap:
-    for (int32_t i = 0; i < ut_countof(view_gs); i++) {
+    for (int32_t i = 0; i < rt_countof(view_gs); i++) {
         ui_iv.init_with(&view_gs[i], gs, width, height, 1, width);
         view_gs[i].erase = gs_erase;
         view_gs[i].focusable = true; // enable zoom pan
@@ -187,7 +187,7 @@ static void opened(void) {
     center.insets  = (ui_margins_t){0};
     center.padding = (ui_margins_t){0};
     static ui_view_t* panels[] = { &top, &left, &right, &bottom  };
-    for (int32_t i = 0; i < ut_countof(panels); i++) {
+    for (int32_t i = 0; i < rt_countof(panels); i++) {
         panels[i]->erase = panel_erase;
         panels[i]->padding = (ui_margins_t){0};
         panels[i]->insets  = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
@@ -203,7 +203,7 @@ static void opened(void) {
         it->max_h   = ui.infinity;
     });
     center.max_h = ui.infinity;
-    for (int32_t i = 0; i < ut_countof(view_gs); i++) {
+    for (int32_t i = 0; i < rt_countof(view_gs); i++) {
         fill_parent(&view_gs[i].view)->erase = panel_erase;
     }
     view_gs[0].padding.bottom = 0.25f;

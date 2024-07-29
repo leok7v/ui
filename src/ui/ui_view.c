@@ -14,8 +14,8 @@ static void ui_view_update_shortcut(ui_view_t* v);
 
 static inline void ui_view_check_type(ui_view_t* v) {
     // little endian:
-    ut_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
-    ut_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
+    rt_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
+    rt_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
     rt_swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
           "not a view: %4.4s 0x%08X (forgotten &static_view?)",
           &v->type, v->type);
@@ -84,7 +84,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
-    ut_not_null(a->parent);
+    rt_not_null(a->parent);
     c->parent = a->parent;
     c->next = a->next;
     c->prev = a;
@@ -98,7 +98,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
-    ut_not_null(b->parent);
+    rt_not_null(b->parent);
     c->parent = b->parent;
     c->prev = b->prev;
     c->next = b;
@@ -111,8 +111,8 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
 }
 
 static void ui_view_remove(ui_view_t* c) {
-    ut_not_null(c->parent);
-    ut_not_null(c->parent->child);
+    rt_not_null(c->parent);
+    rt_not_null(c->parent->child);
     // if a view that has focus is removed from parent:
     if (c == ui_app.focus) { ui_view.set_focus(null); }
     if (c->prev == c) {
@@ -150,7 +150,7 @@ static void ui_view_disband(ui_view_t* p) {
 
 static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
     if (ui_view.is_hidden(v)) {
-        ut_println("hidden: %s", ui_view_debug_id(v));
+        rt_println("hidden: %s", ui_view_debug_id(v));
     } else {
         ui_rect_t rc = {0};
         if (r != null) {
@@ -170,7 +170,7 @@ static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
             rc.h += p.top + p.bottom;
         }
         if (v->debug.trace.prc) {
-            ut_println("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
+            rt_println("%d,%d %dx%d", rc.x, rc.y, rc.w, rc.h);
         }
         ui_app.invalidate(&rc);
     }
@@ -178,11 +178,11 @@ static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
 
 static const char* ui_view_string(ui_view_t* v) {
     if (v->p.strid == 0) {
-        int32_t id = ut_nls.strid(v->p.text);
+        int32_t id = rt_nls.strid(v->p.text);
         v->p.strid = id > 0 ? id : -1;
     }
     return v->p.strid < 0 ? v->p.text : // not localized
-        ut_nls.string(v->p.strid, v->p.text);
+        rt_nls.string(v->p.strid, v->p.text);
 }
 
 static ui_wh_t ui_view_text_metrics_va(int32_t x, int32_t y,
@@ -254,7 +254,7 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
         const int32_t dy = tm->wh.h / 2 - y_of_x_line;
         tm->xy.y += dy / 2;
         if (v->debug.trace.mt) {
-            ut_println(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
+            rt_println(" x-line: %d mt.h: %d mt.h / 2 - x_line: %d",
                       y_of_x_line, tm->wh.h, dy);
         }
 #endif
@@ -270,7 +270,7 @@ static void ui_view_measure_control(ui_view_t* v) {
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
         const ui_ltrb_t p = ui_view.margins(v, &v->padding);
-        ut_println(">%dx%d em: %dx%d min: %.3fx%.3f "
+        rt_println(">%dx%d em: %dx%d min: %.3fx%.3f "
                 "i: %d %d %d %d p: %d %d %d %d %s \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
             i.left, i.top, i.right, i.bottom,
@@ -279,7 +279,7 @@ static void ui_view_measure_control(ui_view_t* v) {
             rt_min(64, strlen(s)), s);
         const ui_margins_t in = v->insets;
         const ui_margins_t pd = v->padding;
-        ut_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
+        rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
             in.left + in.right, in.top + in.bottom,
@@ -288,13 +288,13 @@ static void ui_view_measure_control(ui_view_t* v) {
     }
     ui_view_text_measure(v, s, &v->text);
     if (v->debug.trace.mt) {
-        ut_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
+        rt_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
     }
     v->w = rt_max(v->w, i.left + v->text.wh.w + i.right);
     v->h = rt_max(v->h, i.top  + v->text.wh.h + i.bottom);
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
-        ut_println("<%dx%d text_align x,y: %d,%d %s",
+        rt_println("<%dx%d text_align x,y: %d,%d %s",
                 v->w, v->h, v->text.xy.x, v->text.xy.y,
                 ui_view_debug_id(v));
     }
@@ -319,14 +319,14 @@ static void ui_view_measure(ui_view_t* v) {
     }
 }
 
-static void ui_layout_view(ui_view_t* ut_unused(v)) {
+static void ui_layout_view(ui_view_t* rt_unused(v)) {
 //  ui_ltrb_t i = ui_view.margins(v, &v->insets);
 //  ui_ltrb_t p = ui_view.margins(v, &v->padding);
-//  ut_println(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
+//  rt_println(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
 //               v->p.text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
 //               i.left, i.top, i.right, i.bottom);
-//  ut_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static void ui_view_layout_children(ui_view_t* v) {
@@ -336,7 +336,7 @@ static void ui_view_layout_children(ui_view_t* v) {
 }
 
 static void ui_view_layout(ui_view_t* v) {
-//  ut_println(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  rt_println(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
         if (v->layout != null && v->layout != ui_view_layout) {
             v->layout(v);
@@ -346,7 +346,7 @@ static void ui_view_layout(ui_view_t* v) {
         if (v->composed != null) { v->composed(v); }
         ui_view_layout_children(v);
     }
-//  ut_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
+//  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
 static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
@@ -401,7 +401,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     const ui_ltrb_t p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
-//      ut_println("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
+//      rt_println("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
 //          v->x, v->y, v->w, v->h,
 //          v->padding.left, v->padding.top, v->padding.right, v->padding.bottom);
         *r = (ui_rect_t) {
@@ -410,7 +410,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
             .w = v->w + p.left + p.right,
             .h = v->h + p.top  + p.bottom,
         };
-//      ut_println("%s %d,%d %dx%d", v->p.text,
+//      rt_println("%s %d,%d %dx%d", v->p.text,
 //          r->x, r->y, r->w, r->h);
     }
 }
@@ -428,8 +428,8 @@ static void ui_view_update_shortcut(ui_view_t* v) {
 }
 
 static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
-    char t[ut_countof(v->p.text)];
-    ut_str.format_va(t, ut_countof(t), format, va);
+    char t[rt_countof(v->p.text)];
+    rt_str.format_va(t, rt_countof(t), format, va);
     char* s = v->p.text;
     if (strcmp(s, t) != 0) {
         int32_t n = (int32_t)strlen(t);
@@ -582,11 +582,11 @@ static void ui_view_resolve_color_ids(ui_view_t* v) {
 }
 
 static void ui_view_paint(ui_view_t* v) {
-    ut_assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
+    rt_assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     ui_view_resolve_color_ids(v);
     if (v->debug.trace.prc) {
         const char* s = ui_view.string(v);
-        ut_println("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
+        rt_println("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
                 ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h,
                 rt_min(64, strlen(s)), s);
     }
@@ -645,14 +645,14 @@ static void ui_view_update_hover(ui_view_t* v, bool hidden) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     v->state.hover = !ui_view.is_hidden(v) && inside;
     if (hover != v->state.hover) {
-//      ut_println("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
+//      rt_println("hover := %d %p %s", v->state.hover, v, ui_view_debug_id(v));
         ui_view.hover_changed(v); // even for hidden
         if (!hidden) { ui_view.invalidate(v, null); }
     }
 }
 
 static void ui_view_mouse_hover(ui_view_t* v) {
-//  ut_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
     // mouse hover over is dispatched even to disabled views
@@ -663,7 +663,7 @@ static void ui_view_mouse_hover(ui_view_t* v) {
 }
 
 static void ui_view_mouse_move(ui_view_t* v) {
-//  ut_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
+//  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
     // mouse move is dispatched even to disabled views
@@ -794,7 +794,7 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     }
     // message() callback is called even for hidden and disabled views
     // could be useful for enabling conditions of post() messages from
-    // background ut_thread.
+    // background rt_thread.
     if (view->message != null) {
         if (view->message(view, m, wp, lp, ret)) { return true; }
     }
@@ -963,7 +963,7 @@ static void ui_view_test(void) {
     ui_view_no_siblings(&c3); ui_view_no_siblings(&c4);
     ui_view_no_siblings(&g1); ui_view_no_siblings(&g2);
     ui_view_no_siblings(&g3); ui_view_no_siblings(&g4);
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
 #pragma pop_macro("ui_view_no_siblings")
@@ -1030,7 +1030,7 @@ ui_view_if ui_view = {
 
 #ifdef UI_VIEW_TEST
 
-ut_static_init(ui_view) {
+rt_static_init(ui_view) {
     ui_view.test();
 }
 

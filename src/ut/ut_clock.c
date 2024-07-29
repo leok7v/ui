@@ -16,7 +16,7 @@ static uint64_t rt_clock_microseconds_since_epoch(void) { // NOT monotonic
     GetSystemTimePreciseAsFileTime(&ft);
     uint64_t microseconds =
         (((uint64_t)ft.dwHighDateTime) << 32 | ft.dwLowDateTime) / 10;
-    ut_assert(microseconds > 0);
+    rt_assert(microseconds > 0);
     return microseconds;
 }
 
@@ -90,7 +90,7 @@ static fp64_t rt_clock_seconds(void) { // since_boot
 // it would take approximately 213,503 days (or about 584.5 years)
 // for rt_clock.nanoseconds() to overflow
 //
-// for divider = ut_num.gcd32(nsec_in_sec, freq) below and 10MHz timer
+// for divider = rt_num.gcd32(nsec_in_sec, freq) below and 10MHz timer
 // the actual duration is shorter because of (mul == 100)
 //    (uint64_t)qpc.QuadPart * mul
 // 64 bit overflow and is about 5.8 years.
@@ -107,19 +107,19 @@ static uint64_t rt_clock_nanoseconds(void) {
     if (freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
-        ut_assert(frequency.HighPart == 0);
+        rt_assert(frequency.HighPart == 0);
         // even 1GHz frequency should fit into 32 bit unsigned
-        ut_assert(frequency.HighPart == 0, "%08lX%%08lX",
+        rt_assert(frequency.HighPart == 0, "%08lX%%08lX",
                frequency.HighPart, frequency.LowPart);
         // known values: 10,000,000 and 3,000,000 10MHz, 3MHz
-        ut_assert(frequency.LowPart % (1000 * 1000) == 0);
+        rt_assert(frequency.LowPart % (1000 * 1000) == 0);
         // if we start getting weird frequencies not
-        // multiples of MHz ut_num.gcd() approach may need
-        // to be revised in favor of ut_num.muldiv64x64()
+        // multiples of MHz rt_num.gcd() approach may need
+        // to be revised in favor of rt_num.muldiv64x64()
         freq = frequency.LowPart;
-        ut_assert(freq != 0 && freq < (uint32_t)rt_clock.nsec_in_sec);
-        // to avoid ut_num.muldiv128:
-        uint32_t divider = ut_num.gcd32((uint32_t)rt_clock.nsec_in_sec, freq);
+        rt_assert(freq != 0 && freq < (uint32_t)rt_clock.nsec_in_sec);
+        // to avoid rt_num.muldiv128:
+        uint32_t divider = rt_num.gcd32((uint32_t)rt_clock.nsec_in_sec, freq);
         freq /= divider;
         mul  /= divider;
     }
@@ -150,7 +150,7 @@ static void rt_clock_test(void) {
         count++;
     }
     rt_swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
     #endif
 }
 

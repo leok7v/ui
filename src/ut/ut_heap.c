@@ -28,7 +28,7 @@ static rt_heap_t* rt_heap_create(bool serialized) {
 }
 
 static void rt_heap_dispose(rt_heap_t* h) {
-    ut_fatal_win32err(HeapDestroy((HANDLE)h));
+    rt_fatal_win32err(HeapDestroy((HANDLE)h));
 }
 
 static inline HANDLE rt_heap_or_process_heap(rt_heap_t* h) {
@@ -63,7 +63,7 @@ static errno_t rt_heap_reallocate(rt_heap_t* h, void* *p, int64_t bytes,
 }
 
 static void rt_heap_deallocate(rt_heap_t* h, void* a) {
-    ut_fatal_win32err(HeapFree(rt_heap_or_process_heap(h), 0, a));
+    rt_fatal_win32err(HeapFree(rt_heap_or_process_heap(h), 0, a));
 }
 
 static int64_t rt_heap_bytes(rt_heap_t* h, void* a) {
@@ -79,7 +79,7 @@ static void rt_heap_test(void) {
     int32_t b[1024]; // bytes
     uint32_t seed = 0x1;
     for (int i = 0; i < 1024; i++) {
-        b[i] = (int32_t)(ut_num.random32(&seed) % 1024) + 1;
+        b[i] = (int32_t)(rt_num.random32(&seed) % 1024) + 1;
         errno_t r = rt_heap.alloc(&a[i], b[i]);
         rt_swear(r == 0);
     }
@@ -90,7 +90,7 @@ static void rt_heap_test(void) {
     // "There is no extended error information for HeapValidate;
     //  do not call GetLastError."
     rt_swear(HeapValidate(rt_heap_or_process_heap(null), 0, null));
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
     #endif
 }
 

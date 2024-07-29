@@ -1,32 +1,32 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
-typedef struct str64_t {
+typedef struct rt_str64_t {
     char s[64];
-} str64_t;
+} rt_str64_t;
 
-typedef struct str128_t {
+typedef struct rt_str128_t {
     char s[128];
-} str128_t;
+} rt_str128_t;
 
-typedef struct str1024_t {
+typedef struct rt_str1024_t {
     char s[1024];
-} str1024_t;
+} rt_str1024_t;
 
-typedef struct str32K_t {
+typedef struct rt_str32K_t {
     char s[32 * 1024];
-} str32K_t;
+} rt_str32K_t;
 
 // truncating string printf:
-// char s[100]; ut_str_printf(s, "Hello %s", "world");
+// char s[100]; rt_str_printf(s, "Hello %s", "world");
 // do not use with char* and char s[] parameters
-// because ut_countof(s) will be sizeof(char*) not the size of the buffer.
+// because rt_countof(s) will be sizeof(char*) not the size of the buffer.
 
-#define ut_str_printf(s, ...) ut_str.format((s), ut_countof(s), "" __VA_ARGS__)
+#define rt_str_printf(s, ...) rt_str.format((s), rt_countof(s), "" __VA_ARGS__)
 
-#define ut_strerr(r) (ut_str.error((r)).s) // use only as ut_str_printf() parameter
+#define rt_strerr(r) (rt_str.error((r)).s) // use only as rt_str_printf() parameter
 
 // The strings are expected to be UTF-8 encoded.
 // Copy functions fatal fail if the destination buffer is too small.
@@ -76,17 +76,17 @@ typedef struct {
     // intended to be used in the arguments list of .format() or .printf()
     // like functions, not stored or passed for prolonged call chains.
     // See implementation for details.
-    str64_t (*int64_dg)(int64_t v, bool uint, const char* gs);
-    str64_t (*int64)(int64_t v);      // with UTF-8 thin space
-    str64_t (*uint64)(uint64_t v);    // with UTF-8 thin space
-    str64_t (*int64_lc)(int64_t v);   // with locale separator
-    str64_t (*uint64_lc)(uint64_t v); // with locale separator
-    str128_t (*fp)(const char* format, fp64_t v); // respects locale
+    rt_str64_t (*int64_dg)(int64_t v, bool uint, const char* gs);
+    rt_str64_t (*int64)(int64_t v);      // with UTF-8 thin space
+    rt_str64_t (*uint64)(uint64_t v);    // with UTF-8 thin space
+    rt_str64_t (*int64_lc)(int64_t v);   // with locale separator
+    rt_str64_t (*uint64_lc)(uint64_t v); // with locale separator
+    rt_str128_t (*fp)(const char* format, fp64_t v); // respects locale
     // errors to strings
-    str1024_t (*error)(int32_t error);     // en-US
-    str1024_t (*error_nls)(int32_t error); // national locale string
+    rt_str1024_t (*error)(int32_t error);     // en-US
+    rt_str1024_t (*error_nls)(int32_t error); // national locale string
     void (*test)(void);
-} ut_str_if;
+} rt_str_if;
 
 // Known grouping separators
 // https://en.wikipedia.org/wiki/Decimal_separator#Digit_grouping
@@ -98,6 +98,6 @@ typedef struct {
 // space "\x20"
 // thin_space "\xE2\x80\x89" Unicode: U+2009
 
-extern ut_str_if ut_str;
+extern rt_str_if rt_str;
 
-ut_end_c
+rt_end_c

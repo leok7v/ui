@@ -21,8 +21,8 @@ static void rt_debug_output(const char* s, int32_t count) {
             fprintf(stderr, "%s", s);
         }
         // SetConsoleCP(CP_UTF8) is not guaranteed to be called
-        uint16_t* wide = ut_stackalloc((count + 1) * sizeof(uint16_t));
-        ut_str.utf8to16(wide, count, s, -1);
+        uint16_t* wide = rt_stackalloc((count + 1) * sizeof(uint16_t));
+        rt_str.utf8to16(wide, count, s, -1);
         OutputDebugStringW(wide);
     }
 }
@@ -38,27 +38,27 @@ static void rt_debug_println_va(const char* file, int32_t line, const char* func
         // full path is useful in MSVC debugger output pane (clickable)
         // for all other scenarios short filename without path is preferable:
         const char* name = IsDebuggerPresent() ? file : rt_files.basename(file);
-        snprintf(file_line, ut_countof(file_line) - 1, "%s(%d):", name, line);
+        snprintf(file_line, rt_countof(file_line) - 1, "%s(%d):", name, line);
     }
-    file_line[ut_countof(file_line) - 1] = 0x00; // always zero terminated'
+    file_line[rt_countof(file_line) - 1] = 0x00; // always zero terminated'
     rt_debug_max_file_line = rt_max(rt_debug_max_file_line,
                                     (int32_t)strlen(file_line));
     rt_debug_max_function  = rt_max(rt_debug_max_function,
                                     (int32_t)strlen(func));
     char prefix[2 * 1024];
     // snprintf() does not guarantee zero termination on truncation
-    snprintf(prefix, ut_countof(prefix) - 1, "%-*s %-*s",
+    snprintf(prefix, rt_countof(prefix) - 1, "%-*s %-*s",
             rt_debug_max_file_line, file_line,
             rt_debug_max_function,  func);
-    prefix[ut_countof(prefix) - 1] = 0; // zero terminated
+    prefix[rt_countof(prefix) - 1] = 0; // zero terminated
     char text[2 * 1024];
     if (format != null && format[0] != 0) {
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic push
         #pragma GCC diagnostic ignored "-Wformat-nonliteral"
         #endif
-        vsnprintf(text, ut_countof(text) - 1, format, va);
-        text[ut_countof(text) - 1] = 0;
+        vsnprintf(text, rt_countof(text) - 1, format, va);
+        text[rt_countof(text) - 1] = 0;
         #if defined(__GNUC__) || defined(__clang__)
         #pragma GCC diagnostic pop
         #endif
@@ -66,15 +66,15 @@ static void rt_debug_println_va(const char* file, int32_t line, const char* func
         text[0] = 0;
     }
     char output[4 * 1024];
-    snprintf(output, ut_countof(output) - 1, "%s %s", prefix, text);
-    output[ut_countof(output) - 2] = 0;
+    snprintf(output, rt_countof(output) - 1, "%s %s", prefix, text);
+    output[rt_countof(output) - 2] = 0;
     // strip trailing \n which can be remnant of fprintf("...\n")
     int32_t n = (int32_t)strlen(output);
     while (n > 0 && (output[n - 1] == '\n' || output[n - 1] == '\r')) {
         output[n - 1] = 0;
         n--;
     }
-    ut_assert(n + 1 < ut_countof(output));
+    rt_assert(n + 1 < rt_countof(output));
     // Win32 OutputDebugString() needs \n
     output[n + 0] = '\n';
     output[n + 1] = 0;
@@ -114,7 +114,7 @@ static void rt_debug_perror(const char* file, int32_t line,
             rt_debug.println_va(file, line, func, format, va);
             va_end(va);
         }
-        rt_debug.println(file, line, func, "error: %s", ut_strerr(error));
+        rt_debug.println(file, line, func, "error: %s", rt_strerr(error));
     }
 }
 
@@ -155,7 +155,7 @@ static int32_t rt_debug_verbosity_from_string(const char* s) {
                v <= rt_debug.verbosity.trace) {
         return v;
     } else {
-        ut_fatal("invalid verbosity: %s", s);
+        rt_fatal("invalid verbosity: %s", s);
         return rt_debug.verbosity.quiet;
     }
 }
@@ -163,7 +163,7 @@ static int32_t rt_debug_verbosity_from_string(const char* s) {
 static void rt_debug_test(void) {
     #ifdef UT_TESTS
     // not clear what can be tested here
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
     #endif
 }
 

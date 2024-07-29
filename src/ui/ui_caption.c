@@ -32,25 +32,25 @@ static void ui_caption_esc_full_screen(ui_view_t* v, const char utf8[]) {
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
 }
 
-static void ui_caption_quit(ui_button_t* ut_unused(b)) {
+static void ui_caption_quit(ui_button_t* rt_unused(b)) {
     ui_app.close();
 }
 
-static void ui_caption_mini(ui_button_t* ut_unused(b)) {
+static void ui_caption_mini(ui_button_t* rt_unused(b)) {
     ui_app.show_window(ui.visibility.minimize);
 }
 
 static void ui_caption_mode_appearance(void) {
     if (ui_theme.is_app_dark()) {
         ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_light);
-        ut_str_printf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
+        rt_str_printf(ui_caption.mode.hint, "%s", rt_nls.str("Switch to Light Mode"));
     } else {
         ui_view.set_text(&ui_caption.mode, "%s", ui_caption_glyph_dark);
-        ut_str_printf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Dark Mode"));
+        rt_str_printf(ui_caption.mode.hint, "%s", rt_nls.str("Switch to Dark Mode"));
     }
 }
 
-static void ui_caption_mode(ui_button_t* ut_unused(b)) {
+static void ui_caption_mode(ui_button_t* rt_unused(b)) {
     bool was_dark = ui_theme.is_app_dark();
     ui_app.light_mode =  was_dark;
     ui_app.dark_mode  = !was_dark;
@@ -62,16 +62,16 @@ static void ui_caption_maximize_or_restore(void) {
     ui_view.set_text(&ui_caption.maxi, "%s",
         ui_app.is_maximized() ?
         ui_caption_glyph_rest : ui_caption_glyph_maxi);
-    ut_str_printf(ui_caption.maxi.hint, "%s",
+    rt_str_printf(ui_caption.maxi.hint, "%s",
         ui_app.is_maximized() ?
-        ut_nls.str("Restore") : ut_nls.str("Maximize"));
+        rt_nls.str("Restore") : rt_nls.str("Maximize"));
     // non-decorated windows on Win32 are "popup" style
     // that cannot be maximized. Full screen will serve
     // the purpose of maximization.
     ui_caption.maxi.state.hidden = ui_app.no_decor;
 }
 
-static void ui_caption_maxi(ui_button_t* ut_unused(b)) {
+static void ui_caption_maxi(ui_button_t* rt_unused(b)) {
     if (!ui_app.is_maximized()) {
         ui_app.show_window(ui.visibility.maximize);
     } else if (ui_app.is_maximized() || ui_app.is_minimized()) {
@@ -80,14 +80,14 @@ static void ui_caption_maxi(ui_button_t* ut_unused(b)) {
     ui_caption_maximize_or_restore();
 }
 
-static void ui_caption_full(ui_button_t* ut_unused(b)) {
+static void ui_caption_full(ui_button_t* rt_unused(b)) {
     ui_caption_toggle_full();
 }
 
 static int64_t ui_caption_hit_test(const ui_view_t* v, ui_point_t pt) {
     rt_swear(v == &ui_caption.view);
-    ut_assert(ui_view.inside(v, &pt));
-//  ut_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
+    rt_assert(ui_view.inside(v, &pt));
+//  rt_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
 //      x, y,
 //      ui_caption.icon.x, ui_caption.icon.y,
 //      ui_caption.icon.w, ui_caption.icon.h,
@@ -122,7 +122,7 @@ static const ui_margins_t ui_caption_button_button_padding =
       .right = 0.25,  .bottom = 0.0};
 
 static void ui_caption_button_measure(ui_view_t* v) {
-    ut_assert(v->type == ui_view_button);
+    rt_assert(v->type == ui_view_button);
     ui_view.measure_control(v);
     const int32_t dx = ui_app.caption_height - v->w;
     const int32_t dy = ui_app.caption_height - v->h;
@@ -143,7 +143,7 @@ static void ui_caption_button_icon_paint(ui_view_t* v) {
     ui_gdi.icon(v->x + dx, v->y + dy, w, h, v->icon);
 }
 
-static void ui_caption_prepare(ui_view_t* ut_unused(v)) {
+static void ui_caption_prepare(ui_view_t* rt_unused(v)) {
     ui_caption.title.state.hidden = false;
 }
 
@@ -215,12 +215,12 @@ static void ui_caption_init(ui_view_t* v) {
         c->min_w_em = 0.5f;
         c->min_h_em = 0.5f;
     });
-    ut_str_printf(ui_caption.menu.hint, "%s", ut_nls.str("Menu"));
-    ut_str_printf(ui_caption.mode.hint, "%s", ut_nls.str("Switch to Light Mode"));
-    ut_str_printf(ui_caption.mini.hint, "%s", ut_nls.str("Minimize"));
-    ut_str_printf(ui_caption.maxi.hint, "%s", ut_nls.str("Maximize"));
-    ut_str_printf(ui_caption.full.hint, "%s", ut_nls.str("Full Screen (ESC to restore)"));
-    ut_str_printf(ui_caption.quit.hint, "%s", ut_nls.str("Close"));
+    rt_str_printf(ui_caption.menu.hint, "%s", rt_nls.str("Menu"));
+    rt_str_printf(ui_caption.mode.hint, "%s", rt_nls.str("Switch to Light Mode"));
+    rt_str_printf(ui_caption.mini.hint, "%s", rt_nls.str("Minimize"));
+    rt_str_printf(ui_caption.maxi.hint, "%s", rt_nls.str("Maximize"));
+    rt_str_printf(ui_caption.full.hint, "%s", rt_nls.str("Full Screen (ESC to restore)"));
+    rt_str_printf(ui_caption.quit.hint, "%s", rt_nls.str("Close"));
     ui_caption.icon.icon     = ui_app.icon;
     ui_caption.icon.padding  = p0;
     ui_caption.icon.paint    = ui_caption_button_icon_paint;

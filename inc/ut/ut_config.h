@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
 // Persistent storage for configuration and other small data
 // related to specific application.
@@ -23,5 +23,5 @@ typedef struct {
 
 extern rt_config_if rt_config;
 
-ut_end_c
+rt_end_c
 

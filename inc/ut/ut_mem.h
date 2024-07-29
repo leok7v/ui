@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
 typedef struct {
     // whole file read only
@@ -20,9 +20,9 @@ typedef struct {
     void* (*allocate)(int64_t bytes_multiple_of_page_size);
     void  (*deallocate)(void* a, int64_t bytes_multiple_of_page_size);
     void  (*test)(void);
-} ut_mem_if;
+} rt_mem_if;
 
-extern ut_mem_if ut_mem;
+extern rt_mem_if rt_mem;
 
-ut_end_c
+rt_end_c
 

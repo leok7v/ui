@@ -13,7 +13,7 @@ static errno_t ui_theme_reg_get_uint32(HKEY root, const char* path,
     DWORD bytes = sizeof(light_theme);
     errno_t r = RegGetValueA(root, path, key, RRF_RT_DWORD, &type, v, &bytes);
     if (r != 0) {
-        ut_println("RegGetValueA(%s\\%s) failed %s", path, key, ut_strerr(r));
+        rt_println("RegGetValueA(%s\\%s) failed %s", path, key, rt_strerr(r));
     }
     return r;
 }
@@ -34,7 +34,7 @@ static bool ui_theme_use_light_theme(const char* key) {
     } else if (ui_app.light_mode) {
         return true;
     } else {
-        ut_assert(ui_app.dark_mode);
+        rt_assert(ui_app.dark_mode);
         return false;
     }
 }
@@ -50,14 +50,14 @@ static HMODULE ui_theme_uxtheme(void) {
             uxtheme = LoadLibraryA("uxtheme.dll");
         }
     }
-    ut_not_null(uxtheme);
+    rt_not_null(uxtheme);
     return uxtheme;
 }
 
 static void* ui_theme_uxtheme_func(uint16_t ordinal) {
     HMODULE uxtheme = ui_theme_uxtheme();
     void* proc = (void*)GetProcAddress(uxtheme, MAKEINTRESOURCEA(ordinal));
-    ut_not_null(proc);
+    rt_not_null(proc);
     return proc;
 }
 
@@ -65,12 +65,12 @@ static void ui_theme_set_preferred_app_mode(int32_t mode) {
     typedef BOOL (__stdcall *SetPreferredAppMode_t)(int32_t mode);
     SetPreferredAppMode_t SetPreferredAppMode = (SetPreferredAppMode_t)
             (SetPreferredAppMode_t)ui_theme_uxtheme_func(135);
-    errno_t r = ut_b2e(SetPreferredAppMode(mode));
+    errno_t r = rt_b2e(SetPreferredAppMode(mode));
     // On Win11: 10.0.22631
     // SetPreferredAppMode(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
     // "The specified program requires a newer version of Windows."
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        ut_println("SetPreferredAppMode(AllowDark) failed %s", ut_strerr(r));
+        rt_println("SetPreferredAppMode(AllowDark) failed %s", rt_strerr(r));
     }
 }
 
@@ -80,11 +80,11 @@ static void ui_theme_flush_menu_themes(void) {
     typedef BOOL (__stdcall *FlushMenuThemes_t)(void);
     FlushMenuThemes_t FlushMenuThemes = (FlushMenuThemes_t)
             (FlushMenuThemes_t)ui_theme_uxtheme_func(136);
-    errno_t r = ut_b2e(FlushMenuThemes());
+    errno_t r = rt_b2e(FlushMenuThemes());
     // FlushMenuThemes() works but returns ERROR_OLD_WIN_VERSION
     // on newest Windows 11 but it is not documented thus no complains.
     if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-        ut_println("FlushMenuThemes(AllowDark) failed %s", ut_strerr(r));
+        rt_println("FlushMenuThemes(AllowDark) failed %s", rt_strerr(r));
     }
 }
 
@@ -94,9 +94,9 @@ static void ui_theme_allow_dark_mode_for_app(bool allow) {
     AllowDarkModeForApp_t AllowDarkModeForApp =
             (AllowDarkModeForApp_t)ui_theme_uxtheme_func(132);
     if (AllowDarkModeForApp != null) {
-        errno_t r = ut_b2e(AllowDarkModeForApp(allow));
+        errno_t r = rt_b2e(AllowDarkModeForApp(allow));
         if (r != 0 && r != ERROR_PROC_NOT_FOUND) {
-            ut_println("AllowDarkModeForApp(true) failed %s", ut_strerr(r));
+            rt_println("AllowDarkModeForApp(true) failed %s", rt_strerr(r));
         }
     }
 }
@@ -106,12 +106,12 @@ static void ui_theme_allow_dark_mode_for_window(bool allow) {
     AllowDarkModeForWindow_t AllowDarkModeForWindow =
         (AllowDarkModeForWindow_t)ui_theme_uxtheme_func(133);
     if (AllowDarkModeForWindow != null) {
-        int r = ut_b2e(AllowDarkModeForWindow((HWND)ui_app.window, allow));
+        int r = rt_b2e(AllowDarkModeForWindow((HWND)ui_app.window, allow));
         // On Win11: 10.0.22631
         // AllowDarkModeForWindow(true) failed 0x0000047E(1150) ERROR_OLD_WIN_VERSION
         // "The specified program requires a newer version of Windows."
         if (r != 0 && r != ERROR_PROC_NOT_FOUND && r != ERROR_OLD_WIN_VERSION) {
-            ut_println("AllowDarkModeForWindow(true) failed %s", ut_strerr(r));
+            rt_println("AllowDarkModeForWindow(true) failed %s", rt_strerr(r));
         }
     }
 }
@@ -140,8 +140,8 @@ static void ui_theme_refresh(void) {
     errno_t r = DwmSetWindowAttribute((HWND)ui_app.window,
         DWMWA_USE_IMMERSIVE_DARK_MODE, &dark_mode, sizeof(dark_mode));
     if (r != 0) {
-        ut_println("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
-                "failed %s", ut_strerr(r));
+        rt_println("DwmSetWindowAttribute(DWMWA_USE_IMMERSIVE_DARK_MODE) "
+                "failed %s", rt_strerr(r));
     }
     ui_theme.allow_dark_mode_for_app(dark_mode);
     ui_theme.allow_dark_mode_for_window(dark_mode);

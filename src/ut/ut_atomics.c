@@ -38,7 +38,7 @@ static int64_t rt_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
 }
 
 static int32_t rt_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
-    ut_assert(sizeof(int32_t) == sizeof(unsigned long));
+    rt_assert(sizeof(int32_t) == sizeof(unsigned long));
     return (int32_t)InterlockedExchange((volatile LONG*)a, (unsigned long)v);
 }
 
@@ -83,8 +83,8 @@ _mm_mfence();
 // int_fast32_t: Fastest integer type with at least 32 bits.
 // int_least32_t: Smallest integer type with at least 32 bits.
 
-ut_static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
-ut_static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
+rt_static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
+rt_static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
 
 static int32_t rt_atomics_increment_int32(volatile int32_t* a) {
     return atomic_fetch_add((volatile atomic_int_fast32_t*)a, 1) + 1;
@@ -146,12 +146,12 @@ static int64_t rt_atomics_load_int64(volatile int64_t* a) {
 }
 
 static void* rt_atomics_exchange_ptr(volatile void* *a, void* v) {
-    ut_static_assertion(sizeof(void*) == sizeof(uint64_t));
+    rt_static_assertion(sizeof(void*) == sizeof(uint64_t));
     return (void*)(intptr_t)rt_atomics.exchange_int64((int64_t*)a, (int64_t)v);
 }
 
 static bool rt_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
-    ut_static_assertion(sizeof(void*) == sizeof(int64_t));
+    rt_static_assertion(sizeof(void*) == sizeof(int64_t));
     return rt_atomics.compare_exchange_int64((int64_t*)a,
         (int64_t)comparand, (int64_t)v);
 }
@@ -181,14 +181,14 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
     // not strictly necessary on strong mem model Intel/AMD but
     // see: https://cfsamsonbooks.gitbook.io/explaining-atomics-in-rust/
     //      Fig 2 Inconsistent C11 execution of SB and 2+2W
-    ut_assert(*spinlock == 1);
+    rt_assert(*spinlock == 1);
 }
 
 #pragma pop_macro("ut_builtin_cpu_pause")
 #pragma pop_macro("ut_sync_bool_compare_and_swap")
 
 static void spinlock_release(volatile int64_t* spinlock) {
-    ut_assert(*spinlock == 1);
+    rt_assert(*spinlock == 1);
     *spinlock = 0;
     // tribute to lengthy Linus discussion going since 2006:
     rt_atomics.memory_fence();
@@ -247,14 +247,14 @@ static void rt_atomics_test(void) {
     int64_t loaded_int64 = rt_atomics.load64(&int64_var);
     rt_swear(loaded_int64 == int64_var);
     rt_atomics.memory_fence();
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
     #endif
 }
 
 #ifndef __INTELLISENSE__ // IntelliSense chokes on _Atomic(_Type)
 
-ut_static_assertion(sizeof(void*) == sizeof(int64_t));
-ut_static_assertion(sizeof(void*) == sizeof(uintptr_t));
+rt_static_assertion(sizeof(void*) == sizeof(int64_t));
+rt_static_assertion(sizeof(void*) == sizeof(uintptr_t));
 
 rt_atomics_if rt_atomics = {
     .exchange_ptr    = rt_atomics_exchange_ptr,

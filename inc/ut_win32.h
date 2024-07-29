@@ -10,9 +10,9 @@
 
 // ut:
 #include <Windows.h>  // used by:
-#include <Psapi.h>    // both rt_loader.c and ut_processes.c
-#include <shellapi.h> // ut_processes.c
-#include <winternl.h> // ut_processes.c
+#include <Psapi.h>    // both rt_loader.c and rt_processes.c
+#include <shellapi.h> // rt_processes.c
+#include <winternl.h> // rt_processes.c
 #include <initguid.h>     // for knownfolders
 #include <KnownFolders.h> // rt_files.c
 #include <AclAPI.h>       // rt_files.c
@@ -39,11 +39,11 @@
 
 // Win32 API BOOL -> errno_t translation
 
-#define ut_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
+#define rt_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
 
-void ut_win32_close_handle(void* h);
+void rt_win32_close_handle(void* h);
 /* translate ix to error */
-errno_t ut_wait_ix2e(uint32_t r);
+errno_t rt_wait_ix2e(uint32_t r);
 
 
 #endif // WIN32

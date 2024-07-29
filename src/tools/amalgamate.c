@@ -24,7 +24,7 @@
 #define null NULL
 
 #ifndef countof
-    #define ut_countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
+    #define rt_countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #endif
 
 #define strequ(s1, s2) (strcmp((s1), (s2)) == 0)
@@ -91,7 +91,7 @@ static bool set_has(set_t* set, const char* s) {
 static void set_add(set_t* set, const char* s) {
     assert(!set_has(set, s));
     if (!set_has(set, s)) {
-        rt_fatal_if(set->n == ut_countof(set->a), "too many files");
+        rt_fatal_if(set->n == rt_countof(set->a), "too many files");
         set->a[set->n] = dup(s);
         set->n++;
     }
@@ -114,7 +114,7 @@ static void tail_trim(char* s) {
 
 static void divider(const char* fn) {
     char underscores[40] = {0};
-    memset(underscores, '_', ut_countof(underscores) - 1);
+    memset(underscores, '_', rt_countof(underscores) - 1);
     int32_t i = (int)(74 - strlen(fn)) / 2;
     int32_t j = (int)(74 - i - (int)strlen(fn));
     printf("// %.*s %s %.*s\n\n", i, underscores, fn, j, underscores);
@@ -127,7 +127,7 @@ static const char* include(char* s) {
         s += strlen(include);
         const char* q = strchr(s, '"');
         if (q != null) {
-            snprintf(fn, ut_countof(fn) - 1, "%.*s", (int)(q - s), s);
+            snprintf(fn, rt_countof(fn) - 1, "%.*s", (int)(q - s), s);
             return strstr(fn, name) == fn && fn[strlen_name] == '/' ?
                    dup(fn + strlen_name + 1) : null;
         }
@@ -153,7 +153,7 @@ static void parse(const char* fn) {
     rt_fatal_if(f == null, "file not found: `%s`", fn);
     static char line[16 * 1024];
     bool first = true;
-    while (fgets(line, ut_countof(line) - 1, f) != null) {
+    while (fgets(line, rt_countof(line) - 1, f) != null) {
         tail_trim(line);
         const char* in = include(line);
         if (in != null) {
@@ -206,8 +206,8 @@ int main(int argc, const char* argv[]) {
     if (argc < 2) { exit(usage()); }
     name = argv[1];
     strlen_name = (int)strlen(name);
-    snprintf(inc, ut_countof(inc) - 1, "inc/%s", name);
-    snprintf(src, ut_countof(inc) - 1, "src/%s", name);
+    snprintf(inc, rt_countof(inc) - 1, "inc/%s", name);
+    snprintf(src, rt_countof(inc) - 1, "src/%s", name);
     definition();
     implementation();
     return 0;

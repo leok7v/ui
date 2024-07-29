@@ -137,25 +137,25 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
     char* end = p.text + p.count - 64;
     uint32_t paragraphs = p.min_paragraphs +
         (p.min_paragraphs == p.max_paragraphs ? 0 :
-         ut_num.random32(&p.seed) % (p.max_paragraphs - p.min_paragraphs + 1));
+         rt_num.random32(&p.seed) % (p.max_paragraphs - p.min_paragraphs + 1));
     while (paragraphs > 0 && s < end) {
         uint32_t sentences_in_paragraph = p.min_sentences +
             (p.min_sentences == p.max_sentences ? 0 :
-             ut_num.random32(&p.seed) % (p.max_sentences - p.min_sentences + 1));
+             rt_num.random32(&p.seed) % (p.max_sentences - p.min_sentences + 1));
         while (sentences_in_paragraph > 0 && s < end) {
             const uint32_t words_in_sentence = p.min_words +
                 (p.min_words == p.max_words ? 0 :
-                 ut_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
+                 rt_num.random32(&p.seed) % (p.max_words - p.min_words + 1));
             for (uint32_t i = 0; i < words_in_sentence && s < end; i++) {
-                const int32_t ix = ut_num.random32(&p.seed) %
-                                   ut_countof(lorem_ipsum_words);
+                const int32_t ix = rt_num.random32(&p.seed) %
+                                   rt_countof(lorem_ipsum_words);
                 const char* word = lorem_ipsum_words[ix];
                 memcpy(s, word, strlen(word));
                 if (i == 0) { *s = (char)toupper(*s); }
                 s += strlen(word);
                 if (i < words_in_sentence - 1 && s < end) {
                     const char* delimiter = "\x20";
-                    int32_t punctuation = ut_num.random32(&p.seed) % 128;
+                    int32_t punctuation = rt_num.random32(&p.seed) % 128;
                     switch (punctuation) {
                         case 0:
                         case 1:
@@ -188,14 +188,14 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
         paragraphs--;
     }
     *s = 0;
-//  ut_println("%s\n", p.text);
+//  rt_println("%s\n", p.text);
 }
 
 void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     static char text[64 * 1024];
     ui_edit_lorem_ipsum_generator_params_t p = {
         .text = text,
-        .count = ut_countof(text),
+        .count = rt_countof(text),
         .min_paragraphs = 4,
         .max_paragraphs = 15,
         .min_sentences  = 4,
@@ -219,7 +219,7 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     // test bad UTF8
     static const char* th_bad_utf8 = "\xE0\xB8\x9A\xE0\xB8\xA3\xE0\xB8\xB4\xE0\xB9\x80\xE0\xB8\xA7\xE0\xB8\x93\xE0\xB8\x8A\xE0\xB8\xB8\xE0\xB8\x94\xE0\xB8\xA5\xE0\xB8\xB0\xE0\xB8\xA5\xE0\xB8\xB0\xE0\xB8\xAA\xE0\xB8\xB2\xE0\xB8\x87\xE0\xE0\xB9\x80\xE0\xB8\xA3\xE0\xB8\x87\xE0\xB9\x84\xE0\xB8\xA5\xE0\xB8\xA1\xE0\xB8\x95\xE0\xB8\xA3\xE0\xB8\xB4\xE0\xB8\xA1\xE0\xB8\xAD\xE0\xB9\x88\xE0\xB8\xB2\xE0\xB8\x94\xE0\xB8\xAD\xE0\xB8\x94\xE0\xB8\xAA\xE0\xB9\x80\xE0\xB8\xA3\xE0\xB8\xA2\xE0\xB8\xA2\xE0\xB8\xA7\xE0\xB8\xA5\xE0\xB8\xB1\xE0\xB8\x9A\xE0\xB8\x81\xE0\xB8\xB4\xE0\xB8\x9B\xE0\xB8\x81\xE0\xB8\xA7\xE0\xB8\xB1\xE0\xB8\x87\x2E";
     end = ui_edit_text.end_range(t);
-//  ut_println("%s", th_bad_utf8);
+//  rt_println("%s", th_bad_utf8);
     bool expected_false = ui_edit_text.replace_utf8(t, &end, th_bad_utf8, -1, null);
     rt_swear(expected_false == false);
     static const char* en_sentence_utf8 = "\x54\x68\x65\x20\x71\x75\x69\x63\x6b\x20\x62\x72\x6f\x77\x6e\x20\x66\x6f\x78\x20\x6a\x75\x6d\x70\x73\x20\x6f\x76\x65\x72\x20\x74\x68\x65\x20\x6c\x61\x7a\x79\x20\x64\x6f\x67\x2e";
@@ -289,7 +289,7 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     };
     for (int i = 0; i < sizeof(sentences) / sizeof(sentences[0]); i++) {
         end = ui_edit_text.end_range(t);
-//      ut_println("%s %s", sentences[i].id, sentences[i].s);
+//      rt_println("%s %s", sentences[i].id, sentences[i].s);
         rt_swear(ui_edit_text.replace_utf8(t, &end, sentences[i].s, -1, null));
         rt_swear(ui_edit_text.replace_utf8(t, &end, "\n\n", -1, null));
     }

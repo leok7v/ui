@@ -3,12 +3,12 @@
 
 // "bt" stands for Stack Back Trace (not British Telecom)
 
-ut_begin_c
+rt_begin_c
 
 enum { rt_backtrace_max_depth = 32 };    // increase if not enough
 enum { rt_backtrace_max_symbol = 1024 }; // MSFT symbol size limit
 
-typedef struct thread_s* ut_thread_t;
+typedef struct thread_s* rt_thread_t;
 
 typedef char rt_backtrace_symbol_t[rt_backtrace_max_symbol];
 typedef char rt_backtrace_file_t[512];
@@ -39,9 +39,9 @@ typedef struct rt_backtrace_s {
 
 typedef struct {
     void (*capture)(rt_backtrace_t *bt, int32_t skip); // number of frames to skip
-    void (*context)(ut_thread_t thread, const void* context, rt_backtrace_t *bt);
+    void (*context)(rt_thread_t thread, const void* context, rt_backtrace_t *bt);
     void (*symbolize)(rt_backtrace_t *bt);
-    // dump backtrace into ut_println():
+    // dump backtrace into rt_println():
     void (*trace)(const rt_backtrace_t* bt, const char* stop);
     void (*trace_self)(const char* stop);
     void (*trace_all_but_self)(void); // trace all threads
@@ -58,4 +58,4 @@ extern rt_backtrace_if rt_backtrace;
     rt_backtrace.trace(&bt_, "*"); \
 } while (0)
 
-ut_end_c
+rt_end_c

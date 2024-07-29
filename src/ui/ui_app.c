@@ -15,11 +15,11 @@ static WNDCLASSW ui_app_wc; // window class
 static NONCLIENTMETRICSW ui_app_ncm = { sizeof(NONCLIENTMETRICSW) };
 static MONITORINFO ui_app_mi = {sizeof(MONITORINFO)};
 
-static ut_event_t ui_app_event_quit;
-static ut_event_t ui_app_event_invalidate;
-static ut_event_t ui_app_wt; // waitable timer;
+static rt_event_t ui_app_event_quit;
+static rt_event_t ui_app_event_invalidate;
+static rt_event_t ui_app_wt; // waitable timer;
 
-static ut_work_queue_t ui_app_queue;
+static rt_work_queue_t ui_app_queue;
 
 static uintptr_t ui_app_timer_1s_id;
 static uintptr_t ui_app_timer_100ms_id;
@@ -44,7 +44,7 @@ static struct {
 // 32ms intervals and can be delayed.
 
 static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
-    ut_fatal_win32err(PostMessageA(ui_app_window(), (UINT)m,
+    rt_fatal_win32err(PostMessageA(ui_app_window(), (UINT)m,
             (WPARAM)wp, (LPARAM)lp));
 }
 
@@ -60,16 +60,16 @@ static void ui_app_update_wt_timeout(void) {
         fp64_t dt = next_due_at - rt_clock.seconds();
         if (dt <= 0) {
 // TODO: remove
-//          ut_println("post(WM_NULL) dt: %.6f", dt);
+//          rt_println("post(WM_NULL) dt: %.6f", dt);
             ui_app_post_message(WM_NULL, 0, 0);
         } else if (last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
             LARGE_INTEGER rt = {0}; // relative negative time
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
 // TODO: remove
-//          ut_println("dt: %.6f %lld", dt, rt.QuadPart);
+//          rt_println("dt: %.6f %lld", dt, rt.QuadPart);
             rt_swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
-            ut_fatal_win32err(
+            rt_fatal_win32err(
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
             );
         }
@@ -77,23 +77,23 @@ static void ui_app_update_wt_timeout(void) {
     }
 }
 
-static void ui_app_post(ut_work_t* w) {
+static void ui_app_post(rt_work_t* w) {
     if (w->queue == null) { w->queue = &ui_app_queue; }
     // work item can be reused but only with the same queue
-    ut_assert(w->queue == &ui_app_queue);
-    ut_work_queue.post(w);
+    rt_assert(w->queue == &ui_app_queue);
+    rt_work_queue.post(w);
     ui_app_update_wt_timeout();
 }
 
-static void ui_app_alarm_thread(void* ut_unused(p)) {
-    ut_thread.realtime();
-    ut_thread.name("ui_app.alarm");
+static void ui_app_alarm_thread(void* rt_unused(p)) {
+    rt_thread.realtime();
+    rt_thread.name("ui_app.alarm");
     for (;;) {
-        ut_event_t es[] = { ui_app_wt, ui_app_event_quit };
-        int32_t ix = ut_event.wait_any(ut_countof(es), es);
+        rt_event_t es[] = { ui_app_wt, ui_app_event_quit };
+        int32_t ix = rt_event.wait_any(rt_countof(es), es);
         if (ix == 0) {
 // TODO: remove
-//          ut_println("post(WM_NULL)");
+//          rt_println("post(WM_NULL)");
             ui_app_post_message(WM_NULL, 0, 0);
         } else {
             break;
@@ -106,12 +106,12 @@ static void ui_app_alarm_thread(void* ut_unused(p)) {
 // which is unacceptable for video drawing at monitor
 // refresh rate
 
-static void ui_app_redraw_thread(void* ut_unused(p)) {
-    ut_thread.realtime();
-    ut_thread.name("ui_app.redraw");
+static void ui_app_redraw_thread(void* rt_unused(p)) {
+    rt_thread.realtime();
+    rt_thread.name("ui_app.redraw");
     for (;;) {
-        ut_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
-        int32_t ix = ut_event.wait_any(ut_countof(es), es);
+        rt_event_t es[] = { ui_app_event_invalidate, ui_app_event_quit };
+        int32_t ix = rt_event.wait_any(rt_countof(es), es);
         if (ix == 0) {
             if (ui_app_window() != null) {
                 InvalidateRect(ui_app_window(), null, false);
@@ -154,7 +154,7 @@ static RECT ui_app_ui2rect(const ui_rect_t* u) {
 
 static void ui_app_update_ncm(int32_t dpi) {
     // Only UTF-16 version supported SystemParametersInfoForDpi
-    ut_fatal_win32err(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
+    rt_fatal_win32err(SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS,
         sizeof(ui_app_ncm), &ui_app_ncm, 0, (DWORD)dpi));
 }
 
@@ -172,7 +172,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
         // The device may need to be manually reset."
         int32_t r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
         if (r != 0) {
-            ut_thread.sleep_for(1.0 / 32); // and retry:
+            rt_thread.sleep_for(1.0 / 32); // and retry:
             r = GetDpiForMonitor(monitor, (MONITOR_DPI_TYPE)mtd, &dpi_x, &dpi_y);
         }
         if (r == 0) {
@@ -187,50 +187,50 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
                     dpi->monitor_effective = max_xy;
-//                  ut_println("ui_app.dpi.monitor_effective := max(%d,%d)", dpi_x, dpi_y);
+//                  rt_println("ui_app.dpi.monitor_effective := max(%d,%d)", dpi_x, dpi_y);
                     break;
                 case MDT_ANGULAR_DPI:
                     dpi->monitor_angular = max_xy;
-//                  ut_println("ui_app.dpi.monitor_angular := max(%d,%d)", dpi_x, dpi_y);
+//                  rt_println("ui_app.dpi.monitor_angular := max(%d,%d)", dpi_x, dpi_y);
                     break;
                 case MDT_RAW_DPI:
                     dpi->monitor_raw = max_xy;
-//                  ut_println("ui_app.dpi.monitor_raw := max(%d,%d)", dpi_x, dpi_y);
+//                  rt_println("ui_app.dpi.monitor_raw := max(%d,%d)", dpi_x, dpi_y);
                     break;
-                default: ut_assert(false);
+                default: rt_assert(false);
             }
             dpi->monitor_max = rt_max(dpi->monitor_max, max_xy);
         }
     }
-//  ut_println("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
+//  rt_println("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
 }
 
 #ifndef UI_APP_DEBUG
 
 static void ui_app_dump_dpi(void) {
-    ut_println("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
-    ut_println("ui_app.dpi.monitor_angular  : %d", ui_app.dpi.monitor_angular    );
-    ut_println("ui_app.dpi.monitor_raw      : %d", ui_app.dpi.monitor_raw        );
-    ut_println("ui_app.dpi.monitor_max      : %d", ui_app.dpi.monitor_max        );
-    ut_println("ui_app.dpi.window           : %d", ui_app.dpi.window             );
-    ut_println("ui_app.dpi.system           : %d", ui_app.dpi.system             );
-    ut_println("ui_app.dpi.process          : %d", ui_app.dpi.process            );
-    ut_println("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y,
+    rt_println("ui_app.dpi.monitor_effective: %d", ui_app.dpi.monitor_effective  );
+    rt_println("ui_app.dpi.monitor_angular  : %d", ui_app.dpi.monitor_angular    );
+    rt_println("ui_app.dpi.monitor_raw      : %d", ui_app.dpi.monitor_raw        );
+    rt_println("ui_app.dpi.monitor_max      : %d", ui_app.dpi.monitor_max        );
+    rt_println("ui_app.dpi.window           : %d", ui_app.dpi.window             );
+    rt_println("ui_app.dpi.system           : %d", ui_app.dpi.system             );
+    rt_println("ui_app.dpi.process          : %d", ui_app.dpi.process            );
+    rt_println("ui_app.mrc      : %d,%d %dx%d", ui_app.mrc.x, ui_app.mrc.y,
                                              ui_app.mrc.w, ui_app.mrc.h);
-    ut_println("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y,
+    rt_println("ui_app.wrc      : %d,%d %dx%d", ui_app.wrc.x, ui_app.wrc.y,
                                              ui_app.wrc.w, ui_app.wrc.h);
-    ut_println("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y,
+    rt_println("ui_app.crc      : %d,%d %dx%d", ui_app.crc.x, ui_app.crc.y,
                                              ui_app.crc.w, ui_app.crc.h);
-    ut_println("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y,
+    rt_println("ui_app.work_area: %d,%d %dx%d", ui_app.work_area.x, ui_app.work_area.y,
                                              ui_app.work_area.w, ui_app.work_area.h);
     int32_t mxt_x = GetSystemMetrics(SM_CXMAXTRACK);
     int32_t mxt_y = GetSystemMetrics(SM_CYMAXTRACK);
-    ut_println("MAXTRACK: %d, %d", mxt_x, mxt_y);
+    rt_println("MAXTRACK: %d, %d", mxt_x, mxt_y);
     int32_t scr_x = GetSystemMetrics(SM_CXSCREEN);
     int32_t scr_y = GetSystemMetrics(SM_CYSCREEN);
     fp64_t monitor_x = (fp64_t)scr_x / (fp64_t)ui_app.dpi.monitor_max;
     fp64_t monitor_y = (fp64_t)scr_y / (fp64_t)ui_app.dpi.monitor_max;
-    ut_println("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
+    rt_println("SCREEN: %d, %d %.1fx%.1f\"", scr_x, scr_y, monitor_x, monitor_y);
 }
 
 #endif
@@ -242,7 +242,7 @@ static bool ui_app_update_mi(const ui_rect_t* r, uint32_t flags) {
 //  HMONITOR mw = MonitorFromWindow(ui_app_window(), flags);
     if (monitor != null) {
         ui_app_update_monitor_dpi(monitor, &ui_app.dpi);
-        ut_fatal_win32err(GetMonitorInfoA(monitor, &ui_app_mi));
+        rt_fatal_win32err(GetMonitorInfoA(monitor, &ui_app_mi));
         ui_app.work_area = ui_app_rect2ui(&ui_app_mi.rcWork);
         ui_app.mrc = ui_app_rect2ui(&ui_app_mi.rcMonitor);
 //      ui_app_dump_dpi();
@@ -252,7 +252,7 @@ static bool ui_app_update_mi(const ui_rect_t* r, uint32_t flags) {
 
 static void ui_app_update_crc(void) {
     RECT rc = {0};
-    ut_fatal_win32err(GetClientRect(ui_app_window(), &rc));
+    rt_fatal_win32err(GetClientRect(ui_app_window(), &rc));
     ui_app.crc = ui_app_rect2ui(&rc);
 }
 
@@ -276,7 +276,7 @@ static void ui_app_dispose_fonts(void) {
 }
 
 static fp64_t ui_app_px2pt(fp64_t px) {
-    ut_assert(ui_app.dpi.window >= 72.0);
+    rt_assert(ui_app.dpi.window >= 72.0);
     return px * 72.0 / (fp64_t)ui_app.dpi.window;
 }
 
@@ -314,11 +314,11 @@ static void ui_app_ncm_dump_fonts(void) {
     const char* font_names[] = {
         "Caption", "SmCaption", "Menu", "Status", "Message"
     };
-    for (int32_t i = 0; i < ut_countof(fonts); i++) {
+    for (int32_t i = 0; i < rt_countof(fonts); i++) {
         const LOGFONTW* lf = fonts[i];
         char fn[128];
-        ut_str.utf16to8(fn, ut_countof(fn), lf->lfFaceName, -1);
-        ut_println("%-9s: %s %dx%d weight: %d quality: %d", font_names[i], fn,
+        rt_str.utf16to8(fn, rt_countof(fn), lf->lfFaceName, -1);
+        rt_println("%-9s: %s %dx%d weight: %d quality: %d", font_names[i], fn,
                    lf->lfWidth, lf->lfHeight, lf->lfWeight, lf->lfQuality);
     }
 #endif
@@ -336,7 +336,7 @@ static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
         int32_t ascender = fm->baseline - fm->ascent;
         int32_t cell = fm->height - ascender - fm->descent;
         fp64_t  pt = fm->height * 72.0 / (fp64_t)ui_app.dpi.window;
-        ut_println("%-6s .lfH: %+3d h: %d pt: %6.3f "
+        rt_println("%-6s .lfH: %+3d h: %d pt: %6.3f "
                    "a: %2d c: %2d d: %d bl: %2d il: %2d lg: %d",
                     name, lf->lfHeight, fm->height, pt,
                     ascender, cell, fm->descent, fm->baseline,
@@ -350,7 +350,7 @@ static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
             int32_t by = (int32_t)(fm->box.y * sf + 0.5);
             int32_t bw = (int32_t)(fm->box.w * sf + 0.5);
             int32_t bh = (int32_t)(fm->box.h * sf + 0.5);
-            ut_println("%-6s .box: %d,%d %dx%d", name, bx, by, bw, bh);
+            rt_println("%-6s .box: %d,%d %dx%d", name, bx, by, bw, bh);
         #endif
     #else
         (void)name; // unused
@@ -400,13 +400,13 @@ static void ui_app_init_fonts(int32_t dpi) {
     if (ui_app.fm.prop.normal.font != null) { ui_app_dispose_fonts(); }
     LOGFONTW mono = ui_app_ncm.lfMessageFont;
     // TODO: how to get name of monospaced from Win32 API?
-    wcscpy_s(mono.lfFaceName, ut_countof(mono.lfFaceName), L"Cascadia Mono");
+    wcscpy_s(mono.lfFaceName, rt_countof(mono.lfFaceName), L"Cascadia Mono");
     mono.lfPitchAndFamily |= FIXED_PITCH;
-//  ut_println("ui_app.fm.mono");
+//  rt_println("ui_app.fm.mono");
     ui_app_init_fms(&ui_app.fm.mono, &mono);
     LOGFONTW prop = ui_app_ncm.lfMessageFont;
     prop.lfHeight--; // inc by 1
-//  ut_println("ui_app.fm.prop");
+//  rt_println("ui_app.fm.prop");
     ui_app_init_fms(&ui_app.fm.prop, &ui_app_ncm.lfMessageFont);
 }
 
@@ -422,7 +422,7 @@ static int32_t ui_app_data_load(const char* name, void* data, int32_t bytes) {
     return rt_config.load(ui_app.class_name, name, data, bytes);
 }
 
-typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
+typedef rt_begin_packed struct ui_app_wiw_s { // "where is window"
     // coordinates in pixels relative (0,0) top left corner
     // of primary monitor from GetWindowPlacement
     int32_t    bytes;
@@ -437,13 +437,13 @@ typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
     int32_t    dpi;          // of the monitor on which window (x,y) is located
     int32_t    flags;        // WPF_SETMINPOSITION. WPF_RESTORETOMAXIMIZED
     int32_t    show;         // show command
-} ut_end_packed ui_app_wiw_t;
+} rt_end_packed ui_app_wiw_t;
 
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
-        HDC ut_unused(hdc), RECT* ut_unused(rc1), LPARAM that) {
+        HDC rt_unused(hdc), RECT* rt_unused(rc1), LPARAM that) {
     ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
     MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
-    ut_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
+    rt_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
     const int32_t min_x = rt_min(mi.rcMonitor.left, mi.rcMonitor.right);
     const int32_t min_y = rt_min(mi.rcMonitor.top,  mi.rcMonitor.bottom);
@@ -466,11 +466,11 @@ static void ui_app_enum_monitors(ui_app_wiw_t* wiw) {
 
 static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump) {
     RECT wr = {0};
-    ut_fatal_win32err(GetWindowRect((HWND)wnd, &wr));
+    rt_fatal_win32err(GetWindowRect((HWND)wnd, &wr));
     ui_rect_t wrc = ui_app_rect2ui(&wr);
     ui_app_update_mi(&wrc, MONITOR_DEFAULTTONEAREST);
     WINDOWPLACEMENT wpl = { .length = sizeof(wpl) };
-    ut_fatal_win32err(GetWindowPlacement((HWND)wnd, &wpl));
+    rt_fatal_win32err(GetWindowPlacement((HWND)wnd, &wpl));
     // note the replacement of wpl.rcNormalPosition with wrc:
     ui_app_wiw_t wiw = { // where is window
         .bytes = sizeof(ui_app_wiw_t),
@@ -489,22 +489,22 @@ static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump)
     };
     ui_app_enum_monitors(&wiw);
     if (dump) {
-        ut_println("wiw.space: %d,%d %dx%d",
+        rt_println("wiw.space: %d,%d %dx%d",
               wiw.space.x, wiw.space.y, wiw.space.w, wiw.space.h);
-        ut_println("MAXTRACK: %d, %d", wiw.max_track.x, wiw.max_track.y);
-        ut_println("wpl.rcNormalPosition: %d,%d %dx%d",
+        rt_println("MAXTRACK: %d, %d", wiw.max_track.x, wiw.max_track.y);
+        rt_println("wpl.rcNormalPosition: %d,%d %dx%d",
             wpl.rcNormalPosition.left, wpl.rcNormalPosition.top,
             wpl.rcNormalPosition.right - wpl.rcNormalPosition.left,
             wpl.rcNormalPosition.bottom - wpl.rcNormalPosition.top);
-        ut_println("wpl.ptMinPosition: %d,%d",
+        rt_println("wpl.ptMinPosition: %d,%d",
             wpl.ptMinPosition.x, wpl.ptMinPosition.y);
-        ut_println("wpl.ptMaxPosition: %d,%d",
+        rt_println("wpl.ptMaxPosition: %d,%d",
             wpl.ptMaxPosition.x, wpl.ptMaxPosition.y);
-        ut_println("wpl.showCmd: %d", wpl.showCmd);
+        rt_println("wpl.showCmd: %d", wpl.showCmd);
         // WPF_SETMINPOSITION. WPF_RESTORETOMAXIMIZED WPF_ASYNCWINDOWPLACEMENT
-        ut_println("wpl.flags: %d", wpl.flags);
+        rt_println("wpl.flags: %d", wpl.flags);
     }
-//  ut_println("%d,%d %dx%d show=%d", wiw.placement.x, wiw.placement.y,
+//  rt_println("%d,%d %dx%d show=%d", wiw.placement.x, wiw.placement.y,
 //      wiw.placement.w, wiw.placement.h, wiw.show);
     rt_config.save(ui_app.class_name, name, &wiw, sizeof(wiw));
     ui_app_update_mi(&ui_app.wrc, MONITOR_DEFAULTTONEAREST);
@@ -518,12 +518,12 @@ static void ui_app_save_console_pos(void) {
         CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
         int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
         if (r != 0) {
-            ut_println("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+            rt_println("GetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
         } else {
             rt_config.save(ui_app.class_name, "console_screen_buffer_infoex",
                             &info, (int32_t)sizeof(info));
-//          ut_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
-//          ut_println("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
+//          rt_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
+//          rt_println("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
 //              info.srWindow.Right - info.srWindow.Left,
 //              info.srWindow.Bottom - info.srWindow.Top);
         }
@@ -541,7 +541,7 @@ static bool ui_app_is_fully_inside(const ui_rect_t* inner,
 }
 
 static void ui_app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* wrc) {
-    ut_assert(mrc->w > 0 && mrc->h > 0);
+    rt_assert(mrc->w > 0 && mrc->h > 0);
     // Check if window rect is inside monitor rect
     if (!ui_app_is_fully_inside(wrc, mrc)) {
         // Move window into monitor rect
@@ -559,21 +559,21 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
                                 sizeof(wiw);
     if (loaded) {
         #ifdef UI_APP_DEBUG
-            ut_println("wiw.placement: %d,%d %dx%d", wiw.placement.x, wiw.placement.y,
+            rt_println("wiw.placement: %d,%d %dx%d", wiw.placement.x, wiw.placement.y,
                 wiw.placement.w, wiw.placement.h);
-            ut_println("wiw.mrc: %d,%d %dx%d", wiw.mrc.x, wiw.mrc.y, wiw.mrc.w, wiw.mrc.h);
-            ut_println("wiw.work_area: %d,%d %dx%d", wiw.work_area.x, wiw.work_area.y,
+            rt_println("wiw.mrc: %d,%d %dx%d", wiw.mrc.x, wiw.mrc.y, wiw.mrc.w, wiw.mrc.h);
+            rt_println("wiw.work_area: %d,%d %dx%d", wiw.work_area.x, wiw.work_area.y,
                                                   wiw.work_area.w, wiw.work_area.h);
-            ut_println("wiw.min_position: %d,%d", wiw.min_position.x, wiw.min_position.y);
-            ut_println("wiw.max_position: %d,%d", wiw.max_position.x, wiw.max_position.y);
-            ut_println("wiw.max_track: %d,%d", wiw.max_track.x, wiw.max_track.y);
-            ut_println("wiw.dpi: %d", wiw.dpi);
-            ut_println("wiw.flags: %d", wiw.flags);
-            ut_println("wiw.show: %d", wiw.show);
+            rt_println("wiw.min_position: %d,%d", wiw.min_position.x, wiw.min_position.y);
+            rt_println("wiw.max_position: %d,%d", wiw.max_position.x, wiw.max_position.y);
+            rt_println("wiw.max_track: %d,%d", wiw.max_track.x, wiw.max_track.y);
+            rt_println("wiw.dpi: %d", wiw.dpi);
+            rt_println("wiw.flags: %d", wiw.flags);
+            rt_println("wiw.show: %d", wiw.show);
         #endif
         ui_app_update_mi(&wiw.placement, MONITOR_DEFAULTTONEAREST);
         bool same_monitor = memcmp(&wiw.mrc, &ui_app.mrc, sizeof(wiw.mrc)) == 0;
-//      ut_println("%d,%d %dx%d", p->x, p->y, p->w, p->h);
+//      rt_println("%d,%d %dx%d", p->x, p->y, p->w, p->h);
         if (same_monitor) {
             *rect = wiw.placement;
         } else { // moving to another monitor
@@ -588,9 +588,9 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
         }
         *visibility = wiw.show;
     }
-//  ut_println("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
+//  rt_println("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
     ui_app_bring_window_inside_monitor(&ui_app.mrc, rect);
-//  ut_println("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
+//  rt_println("%d,%d %dx%d show=%d", rect->x, rect->y, rect->w, rect->h, *visibility);
     return loaded;
 }
 
@@ -602,7 +602,7 @@ static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
     if (loaded) {
         ui_app_update_mi(&wiw.placement, MONITOR_DEFAULTTONEAREST);
         bool same_monitor = memcmp(&wiw.mrc, &ui_app.mrc, sizeof(wiw.mrc)) == 0;
-//      ut_println("%d,%d %dx%d", p->x, p->y, p->w, p->h);
+//      rt_println("%d,%d %dx%d", p->x, p->y, p->w, p->h);
         if (same_monitor) {
             *rect = wiw.placement;
         } else { // moving to another monitor
@@ -622,15 +622,15 @@ static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
 }
 
 static void ui_app_timer_kill(ui_timer_t timer) {
-    ut_fatal_win32err(KillTimer(ui_app_window(), timer));
+    rt_fatal_win32err(KillTimer(ui_app_window(), timer));
 }
 
 static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
-    ut_not_null(ui_app_window());
-    ut_assert(10 <= ms && ms < 0x7FFFFFFF);
+    rt_not_null(ui_app_window());
+    rt_assert(10 <= ms && ms < 0x7FFFFFFF);
     ui_timer_t tid = (ui_timer_t)SetTimer(ui_app_window(), id, (uint32_t)ms, null);
     rt_fatal_if(tid == 0);
-    ut_assert(tid == id);
+    rt_assert(tid == id);
     return tid;
 }
 
@@ -668,10 +668,10 @@ static void ui_app_window_opening(void) {
     ui_app_init_cursors();
     ui_app_timer_1s_id = ui_app.set_timer((uintptr_t)&ui_app_timer_1s_id, 1000);
     ui_app_timer_100ms_id = ui_app.set_timer((uintptr_t)&ui_app_timer_100ms_id, 100);
-    ut_assert(ui_app.cursors.arrow != null);
+    rt_assert(ui_app.cursors.arrow != null);
     ui_app.set_cursor(ui_app.cursors.arrow);
     ui_app.canvas = (ui_canvas_t)GetDC(ui_app_window());
-    ut_not_null(ui_app.canvas);
+    rt_not_null(ui_app.canvas);
     if (ui_app.opened != null) { ui_app.opened(); }
     ui_view.set_text(ui_app.root, "ui_app.root"); // debugging
     ui_app_wm_timer(ui_app_timer_100ms_id);
@@ -725,7 +725,7 @@ static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
 }
 
 static void ui_app_paint(ui_view_t* view) {
-    ut_assert(ui_app_window() != null);
+    rt_assert(ui_app_window() != null);
     // crc = {0,0} on minimized windows but paint is still called
     if (ui_app.crc.w > 0 && ui_app.crc.h > 0) { ui_view.paint(view); }
 }
@@ -745,9 +745,9 @@ static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed);
 
 static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
     char utf8[32 + 1];
-    int32_t utf8bytes = ut_str.utf8_bytes(utf16, -1);
-    rt_swear(utf8bytes < ut_countof(utf8) - 1); // 32 bytes + 0x00
-    ut_str.utf16to8(utf8, ut_countof(utf8), utf16, -1);
+    int32_t utf8bytes = rt_str.utf8_bytes(utf16, -1);
+    rt_swear(utf8bytes < rt_countof(utf8) - 1); // 32 bytes + 0x00
+    rt_str.utf16to8(utf8, rt_countof(utf8), utf16, -1);
     utf8[utf8bytes] = 0x00;
     if (ui_app.animating.view != null) {
         ui_app_toast_character(utf8);
@@ -758,12 +758,12 @@ static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
 }
 
 static void ui_app_wm_char(ui_view_t* view, const uint16_t* utf16) {
-    int32_t utf16chars = ut_str.len16(utf16);
+    int32_t utf16chars = rt_str.len16(utf16);
     rt_swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
     const uint16_t utf16char = utf16[0];
-    if (utf16chars == 1 && ut_str.utf16_is_high_surrogate(utf16char)) {
+    if (utf16chars == 1 && rt_str.utf16_is_high_surrogate(utf16char)) {
         ui_app_high_surrogate = utf16char;
-    } else if (utf16chars == 1 && ut_str.utf16_is_low_surrogate(utf16char)) {
+    } else if (utf16chars == 1 && rt_str.utf16_is_low_surrogate(utf16char)) {
         if (ui_app_high_surrogate != 0) {
             uint16_t utf16_surrogate_pair[3] = {
                 ui_app_high_surrogate,
@@ -837,7 +837,7 @@ static bool ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
         }
         // otherwise tap detector will do the double_tap() call
     } else {
-        ut_assert(false, "m: 0x%04X", m);
+        rt_assert(false, "m: 0x%04X", m);
     }
     return swallow;
 }
@@ -883,7 +883,7 @@ static bool ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
     if (!ui_view.is_hidden(ui_app.caption) && inside) {
         uint16_t lr = ui_app.mouse_swapped ? WM_NCLBUTTONDOWN : WM_NCRBUTTONDOWN;
         if (m == lr) {
-//          ut_println("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
+//          rt_println("WM_NC*BUTTONDOWN %d %d", ui_app.mouse.x, ui_app.mouse.y);
             swallow = true;
             ui_app_show_sys_menu(screen.x, screen.y);
         }
@@ -913,10 +913,10 @@ static void ui_app_toast_paint(void) {
         const int32_t em_w = av->fm->em.w;
         const int32_t em_h = av->fm->em.h;
         if (!hint) {
-            ut_assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
+            rt_assert(0 <= ui_app.animating.step && ui_app.animating.step < ui_app_animation_steps);
             int32_t step = ui_app.animating.step - (ui_app_animation_steps - 1);
             av->y = av->h * step / (ui_app_animation_steps - 1);
-//          ut_println("step=%d of %d y=%d", ui_app.animating.step,
+//          rt_println("step=%d of %d y=%d", ui_app.animating.step,
 //                  ui_app_toast_steps, av->y);
             ui_app_measure_and_layout(av);
             // dim main window (as `disabled`):
@@ -925,7 +925,7 @@ static void ui_app_toast_paint(void) {
                          0, 0, image_dark.w, image_dark.h,
                         &image_dark, alpha);
             av->x = (ui_app.root->w - av->w) / 2;
-//          ut_println("ui_app.animating.y: %d av->y: %d",
+//          rt_println("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
         } else {
             av->x = ui_app.animating.x;
@@ -936,7 +936,7 @@ static void ui_app_toast_paint(void) {
             av->x = rt_min(mx, rt_max(0, cx));
             av->y = rt_min(
                 ui_app.root->h - em_h, rt_max(0, ui_app.animating.y));
-//          ut_println("ui_app.animating.y: %d av->y: %d",
+//          rt_println("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
         }
         int32_t x = av->x - em_w / 4;
@@ -1090,8 +1090,8 @@ static void ui_app_view_paint(ui_view_t* v) {
 }
 
 static void ui_app_view_layout(void) {
-    ut_not_null(ui_app.window);
-    ut_not_null(ui_app.canvas);
+    rt_not_null(ui_app.window);
+    rt_not_null(ui_app.canvas);
     if (ui_app.no_decor) {
         ui_app.root->x = ui_app.border.w;
         ui_app.root->y = ui_app.border.h;
@@ -1110,7 +1110,7 @@ static void ui_app_view_active_frame_paint(void) {
     ui_color_t c = ui_app.is_active() ?
         ui_colors.get_color(ui_color_id_highlight) : // ui_colors.btn_hover_highlight
         ui_colors.get_color(ui_color_id_inactive_title);
-    ut_assert(ui_app.border.w == ui_app.border.h);
+    rt_assert(ui_app.border.w == ui_app.border.h);
     const int32_t w = ui_app.wrc.w;
     const int32_t h = ui_app.wrc.h;
     for (int32_t i = 0; i < ui_app.border.w; i++) {
@@ -1146,7 +1146,7 @@ static void ui_app_paint_stats(void) {
         if (since_last > 1.0 / 120.0) { // 240Hz monitor
             ui_app.paint_dt_min = rt_min(ui_app.paint_dt_min, since_last);
         }
-//      ut_println("paint_dt_min: %.6f since_last: %.6f",
+//      rt_println("paint_dt_min: %.6f since_last: %.6f",
 //              ui_app.paint_dt_min, since_last);
     }
     ui_app.paint_last = ui_app.now;
@@ -1179,7 +1179,7 @@ static void ui_app_wm_paint(void) {
         PAINTSTRUCT ps = {0};
         BeginPaint(ui_app_window(), &ps);
         ui_app.prc = ui_app_rect2ui(&ps.rcPaint);
-//      ut_println("%d,%d %dx%d", ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h);
+//      rt_println("%d,%d %dx%d", ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h);
         ui_app_paint_on_canvas(ps.hdc);
         EndPaint(ui_app_window(), &ps);
     }
@@ -1198,7 +1198,7 @@ static void ui_app_window_position_changed(const WINDOWPOS* wp) {
     if (!ui_app.root->state.hidden && (moved || sized) &&
         !hiding && monitor != null) {
         RECT wrc = ui_app_ui2rect(&ui_app.wrc);
-        ut_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
+        rt_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
         ui_app.wrc = ui_app_rect2ui(&wrc);
         ui_app_update_mi(&ui_app.wrc, MONITOR_DEFAULTTONEAREST);
         ui_app_update_crc();
@@ -1218,19 +1218,19 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         // expected:
         // SPI_SETICONTITLELOGFONT 0x22 ?
         // SPI_SETNONCLIENTMETRICS 0x2A ?
-//      ut_println("wp: 0x%08X", wp);
+//      rt_println("wp: 0x%08X", wp);
         // actual wp == 0x0000
         ui_theme.refresh();
     } else if (wp == 0 && lp != 0 && strcmp((const char*)lp, "intl") == 0) {
-        ut_println("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
+        rt_println("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
-        int32_t n = GetUserDefaultLocaleName(ln, ut_countof(ln));
+        int32_t n = GetUserDefaultLocaleName(ln, rt_countof(ln));
         rt_fatal_if(n <= 0);
         uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
-        n = ResolveLocaleName(ln, rln, ut_countof(rln));
+        n = ResolveLocaleName(ln, rln, rt_countof(rln));
         rt_fatal_if(n <= 0);
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
-        ut_fatal_win32err(SetThreadLocale(lc_id));
+        rt_fatal_win32err(SetThreadLocale(lc_id));
     }
 }
 
@@ -1252,7 +1252,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #pragma push_macro("ui_timers_done")
 
     #define ui_set_timer(t, ms) do {                 \
-        ut_assert(t == 0);                           \
+        rt_assert(t == 0);                           \
         t = ui_app_timer_set((uintptr_t)&t, ms);     \
     } while (0)
 
@@ -1294,11 +1294,11 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
             if (wp == timer_p[i]) {
                 ui_app.mouse = (ui_point_t){ click_at[i].x, click_at[i].y };
                 ui_view.long_press(ui_app.root, i);
-//              ut_println("timer_p[%d] _d && _p timers done", i);
+//              rt_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
             }
             if (wp == timer_d[i]) {
-//              ut_println("timer_p[%d] _d && _p timers done", i);
+//              rt_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
             }
         }
@@ -1307,7 +1307,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
         ui_app.show_hint(null, -1, -1, 0); // dismiss hint on any click
         const int32_t double_click_msec = (int32_t)GetDoubleClickTime();
         const fp64_t  double_click_dt = double_click_msec / 1000.0; // seconds
-//      ut_println("double_click_msec: %d double_click_dt: %.3fs",
+//      rt_println("double_click_msec: %d double_click_dt: %.3fs",
 //               double_click_msec, double_click_dt);
         const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
@@ -1319,40 +1319,40 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
                 abs(pt.y - click_at[ix].y) <= double_click_y) {
                 ui_app.mouse = (ui_point_t){ click_at[ix].x, click_at[ix].y };
                 ui_view.double_tap(ui_app.root, ix);
-//              ut_println("timer_p[%d] _d && _p timers done", ix);
+//              rt_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
             } else {
-//              ut_println("timer_p[%d] _d && _p timers done", ix);
+//              rt_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix); // clear timers
                 clicked[ix]  = ui_app.now;
                 click_at[ix] = pt;
                 pressed[ix]  = true;
-//              ut_println("clicked[%d] := %.1f %d,%d pressed[%d] := true",
+//              rt_println("clicked[%d] := %.1f %d,%d pressed[%d] := true",
 //                          ix, clicked[ix], pt.x, pt.y, ix);
                 if ((ui_app_wc.style & CS_DBLCLKS) == 0) {
                     // only if Windows are not detecting DLBCLKs
-//                  ut_println("ui_set_timer(timer_d[%d])", ix);
+//                  rt_println("ui_set_timer(timer_d[%d])", ix);
                     ui_set_timer(timer_d[ix], double_click_msec);  // 0.5s
                 }
                 ui_set_timer(timer_p[ix], double_click_msec * 3 / 4); // 0.375s
             }
         } else if (up) {
             fp64_t since_clicked = ui_app.now - clicked[ix];
-//          ut_println("pressed[%d]: %d %.3f", ix, pressed[ix], since_clicked);
+//          rt_println("pressed[%d]: %d %.3f", ix, pressed[ix], since_clicked);
             // only if Windows are not detecting DLBCLKs
             if ((ui_app_wc.style & CS_DBLCLKS) == 0 &&
                  pressed[ix] && since_clicked > double_click_dt) {
                 ui_view.double_tap(ui_app.root, ix);
-//              ut_println("timer_p[%d] _d && _p timers done", ix);
+//              rt_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
             }
             swallow = ui_view.tap(ui_app.root, ix, !up);
             ui_kill_timer(timer_p[ix]); // long press is not the case
         } else if (m == double_tap) {
-            ut_assert((ui_app_wc.style & CS_DBLCLKS) != 0);
+            rt_assert((ui_app_wc.style & CS_DBLCLKS) != 0);
             swallow = ui_view.double_tap(ui_app.root, ix);
             ui_timers_done(ix);
-//          ut_println("timer_p[%d] _d && _p timers done", ix);
+//          rt_println("timer_p[%d] _d && _p timers done", ix);
         }
     }
     #pragma pop_macro("ui_timers_done")
@@ -1364,7 +1364,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
     rt_swear(v == ui_app.root);
     if (ui_app.no_decor) {
-        ut_assert(ui_app.border.w == ui_app.border.h);
+        rt_assert(ui_app.border.w == ui_app.border.h);
         // on 96dpi monitors ui_app.border is 1x1
         // make it easier for the user to resize window
         int32_t border = rt_max(4, ui_app.border.w * 2);
@@ -1441,7 +1441,7 @@ static int64_t ui_app_wm_sys_key_down(int64_t wp, int64_t lp) {
 
 static void ui_app_wm_set_focus(void) {
     if (!ui_app.root->state.hidden) {
-        ut_assert(GetActiveWindow() == ui_app_window());
+        rt_assert(GetActiveWindow() == ui_app_window());
         if (ui_app.focus != null && ui_app.focus->focus_lost != null) {
             ui_app.focus->focus_gained(ui_app.focus);
         }
@@ -1458,7 +1458,7 @@ static void ui_app_wm_kill_focus(void) {
 
 static int64_t ui_app_wm_nc_calculate_size(int64_t wp, int64_t lp) {
 //  NCCALCSIZE_PARAMS* szp = (NCCALCSIZE_PARAMS*)lp;
-//  ut_println("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
+//  rt_println("WM_NCCALCSIZE wp: %lld is_max: %d (%d %d %d %d) (%d %d %d %d) (%d %d %d %d)",
 //      wp, ui_app.is_maximized(),
 //      szp->rgrc[0].left, szp->rgrc[0].top, szp->rgrc[0].right, szp->rgrc[0].bottom,
 //      szp->rgrc[1].left, szp->rgrc[1].top, szp->rgrc[1].right, szp->rgrc[1].bottom,
@@ -1477,7 +1477,7 @@ static int64_t ui_app_wm_get_dpi_scaled_size(int64_t wp) {
         int32_t dpi = wp;
         SIZE* sz = (SIZE*)lp; // in/out
         ui_point_t cell = { sz->cx, sz->cy };
-        ut_println("WM_GETDPISCALEDSIZE dpi %d := %d "
+        rt_println("WM_GETDPISCALEDSIZE dpi %d := %d "
             "size %d,%d *may/must* be adjusted",
             ui_app.dpi.window, dpi, cell.x, cell.y);
     #else
@@ -1506,7 +1506,7 @@ static void ui_app_wm_dpi_changed(void) {
 
 static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
     uint16_t sys_cmd = (uint16_t)(wp & 0xFF0);
-//  ut_println("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
+//  rt_println("WM_SYSCOMMAND wp: 0x%08llX lp: 0x%016llX %lld sys: 0x%04X",
 //          wp, lp, lp, sys_cmd);
     if (sys_cmd == SC_MINIMIZE && ui_app.hide_on_minimize) {
         ui_app.show_window(ui.visibility.min_na);
@@ -1514,7 +1514,7 @@ static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
     } else  if (sys_cmd == SC_MINIMIZE && ui_app.no_decor) {
         ui_app.show_window(ui.visibility.min_na);
     }
-//  if (sys_cmd == SC_KEYMENU) { ut_println("SC_KEYMENU lp: %lld", lp); }
+//  if (sys_cmd == SC_KEYMENU) { rt_println("SC_KEYMENU lp: %lld", lp); }
     // If the selection is in menu handle the key event
     if (sys_cmd == SC_KEYMENU && lp != 0x20) {
         return true; // handled: This prevents the error/beep sound
@@ -1523,7 +1523,7 @@ static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
         return true; // handled: prevent maximizing no decorations window
     }
 //  if (sys_cmd == SC_MOUSEMENU) {
-//      ut_println("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
+//      rt_println("SC_KEYMENU.SC_MOUSEMENU 0x%00llX %lld", wp, lp);
 //  }
     return false; // drop down to to DefWindowProc
 }
@@ -1531,11 +1531,11 @@ static bool ui_app_wm_sys_command(int64_t wp, int64_t lp) {
 static void ui_app_wm_window_position_changing(int64_t wp, int64_t lp) {
     #ifdef UI_APP_DEBUG // TODO: ui_app.debug.trace.window_position?
         WINDOWPOS* pos = (WINDOWPOS*)lp;
-        ut_println("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
+        rt_println("WM_WINDOWPOSCHANGING flags: 0x%08X", pos->flags);
         if (pos->flags & SWP_SHOWWINDOW) {
-            ut_println("SWP_SHOWWINDOW");
+            rt_println("SWP_SHOWWINDOW");
         } else if (pos->flags & SWP_HIDEWINDOW) {
-            ut_println("SWP_HIDEWINDOW");
+            rt_println("SWP_HIDEWINDOW");
         }
     #else
         (void)wp; // unused
@@ -1584,9 +1584,9 @@ static void ui_app_wm_input_language_change(uint64_t wp) {
         { RUSSIAN_CHARSET    ,     "RUSSIAN_CHARSET    " },
         { BALTIC_CHARSET     ,     "BALTIC_CHARSET     " }
     };
-    for (int32_t i = 0; i < ut_countof(cs); i++) {
+    for (int32_t i = 0; i < rt_countof(cs); i++) {
         if (cs[i].charset == wp) {
-            ut_println("WM_INPUTLANGCHANGE: 0x%08X %s", wp, cs[i].name);
+            rt_println("WM_INPUTLANGCHANGE: 0x%08X %s", wp, cs[i].name);
             break;
         }
     }
@@ -1622,28 +1622,28 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
     }
     static BYTE keyboard_state[256];
     uint16_t utf16[3] = {0};
-    ut_fatal_win32err(GetKeyboardState(keyboard_state));
+    rt_fatal_win32err(GetKeyboardState(keyboard_state));
     // HKL low word Language Identifier
     //     high word device handle to the physical layout of the keyboard
     const HKL kl = GetKeyboardLayout(0);
     // Map virtual key to scan code
     UINT vk = MapVirtualKeyEx(scan_code, MAPVK_VSC_TO_VK_EX, kl);
-//  ut_println("virtual_key: %02X keyboard layout: %08X",
+//  rt_println("virtual_key: %02X keyboard layout: %08X",
 //              virtual_key, kl);
     memset(ui_app_decoded_released, 0x00, sizeof(ui_app_decoded_released));
     memset(ui_app_decoded_pressed,  0x00, sizeof(ui_app_decoded_pressed));
     // Translate scan code to character
     int32_t r = ToUnicodeEx(vk, scan_code, keyboard_state,
-                            utf16, ut_countof(utf16), 0, kl);
+                            utf16, rt_countof(utf16), 0, kl);
     if (r > 0) {
-        ut_static_assertion(ut_countof(ui_app_decoded_pressed) ==
-                            ut_countof(ui_app_decoded_released));
-        enum { capacity = (int32_t)ut_countof(ui_app_decoded_released) };
+        rt_static_assertion(rt_countof(ui_app_decoded_pressed) ==
+                            rt_countof(ui_app_decoded_released));
+        enum { capacity = (int32_t)rt_countof(ui_app_decoded_released) };
         char* utf8 = is_key_released ?
             ui_app_decoded_released : ui_app_decoded_pressed;
-        ut_str.utf16to8(utf8, capacity, utf16, -1);
+        rt_str.utf16to8(utf8, capacity, utf16, -1);
         if (ui_app_trace_utf16_keyboard_input) {
-            ut_println("0x%04X%04X released: %d down: %d repeat: %d \"%s\"",
+            rt_println("0x%04X%04X released: %d down: %d repeat: %d \"%s\"",
                     utf16[0], utf16[1], is_key_released, was_key_down,
                     repeat_count, utf8);
         }
@@ -1651,9 +1651,9 @@ static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
         // The specified virtual key has no translation for the
         // current state of the keyboard. (E.g. arrows, enter etc)
     } else {
-        ut_assert(r < 0);
+        rt_assert(r < 0);
         // The specified virtual key is a dead key character (accent or diacritic).
-        if (ui_app_trace_utf16_keyboard_input) { ut_println("dead key"); }
+        if (ui_app_trace_utf16_keyboard_input) { rt_println("dead key"); }
     }
 }
 
@@ -1665,13 +1665,13 @@ static void ui_app_ime_composition(int64_t lp) {
             uint16_t utf16[4] = {0};
             uint32_t bytes = ImmGetCompositionStringW(imc, GCS_RESULTSTR, null, 0);
             uint32_t count = bytes / sizeof(uint16_t);
-            if (0 < count && count < ut_countof(utf16) - 1) {
+            if (0 < count && count < rt_countof(utf16) - 1) {
                 ImmGetCompositionStringW(imc, GCS_RESULTSTR, utf16, bytes);
                 utf16[count] = 0x00;
-                ut_str.utf16to8(utf8, ut_countof(utf8), utf16, -1);
-                ut_println("bytes: %d 0x%04X 0x%04X %s", bytes, utf16[0], utf16[1], utf8);
+                rt_str.utf16to8(utf8, rt_countof(utf8), utf16, -1);
+                rt_println("bytes: %d 0x%04X 0x%04X %s", bytes, utf16[0], utf16[1], utf8);
             }
-            ut_fatal_win32err(ImmReleaseContext(ui_app_window(), imc));
+            rt_fatal_win32err(ImmReleaseContext(ui_app_window(), imc));
         }
     }
 }
@@ -1679,14 +1679,14 @@ static void ui_app_ime_composition(int64_t lp) {
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
 // TODO: remove
-//  if (message == WM_NULL) { ut_println("got(WM_NULL)"); }
+//  if (message == WM_NULL) { rt_println("got(WM_NULL)"); }
     ui_app.now = rt_clock.seconds();
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
     } else {
-        ut_assert(ui_app_window() == window);
+        rt_assert(ui_app_window() == window);
     }
-    ut_work_queue.dispatch(&ui_app_queue);
+    rt_work_queue.dispatch(&ui_app_queue);
     ui_app_update_wt_timeout(); // because head might have changed
     const int32_t m  = (int32_t)message;
     const int64_t wp = (int64_t)w_param;
@@ -1793,9 +1793,9 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         case WM_LBUTTONDOWN     : case WM_RBUTTONDOWN  : case WM_MBUTTONDOWN  :
         case WM_LBUTTONUP       : case WM_RBUTTONUP    : case WM_MBUTTONUP    :
         case WM_LBUTTONDBLCLK   : case WM_RBUTTONDBLCLK: case WM_MBUTTONDBLCLK:
-//          if (m == WM_LBUTTONDOWN)   { ut_println("WM_LBUTTONDOWN"); }
-//          if (m == WM_LBUTTONUP)     { ut_println("WM_LBUTTONUP"); }
-//          if (m == WM_LBUTTONDBLCLK) { ut_println("WM_LBUTTONDBLCLK"); }
+//          if (m == WM_LBUTTONDOWN)   { rt_println("WM_LBUTTONDOWN"); }
+//          if (m == WM_LBUTTONUP)     { rt_println("WM_LBUTTONUP"); }
+//          if (m == WM_LBUTTONDBLCLK) { rt_println("WM_LBUTTONDBLCLK"); }
             if (ui_app_wm_mouse(m, wp, lp)) { return 0; }
             break;
         case WM_MOUSEHOVER      :
@@ -1810,13 +1810,13 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
         // debugging:
         #ifdef UI_APP_DEBUGING_ALT_KEYBOARD_SHORTCUTS
-        case WM_PARENTNOTIFY  : ut_println("WM_PARENTNOTIFY");     break;
-        case WM_ENTERMENULOOP : ut_println("WM_ENTERMENULOOP");    return 0;
-        case WM_EXITMENULOOP  : ut_println("WM_EXITMENULOOP");     return 0;
-        case WM_INITMENU      : ut_println("WM_INITMENU");         return 0;
-        case WM_MENUCHAR      : ut_println("WM_MENUCHAR");         return MNC_CLOSE << 16;
-        case WM_CAPTURECHANGED: ut_println("WM_CAPTURECHANGED");   break;
-        case WM_MENUSELECT    : ut_println("WM_MENUSELECT");       return 0;
+        case WM_PARENTNOTIFY  : rt_println("WM_PARENTNOTIFY");     break;
+        case WM_ENTERMENULOOP : rt_println("WM_ENTERMENULOOP");    return 0;
+        case WM_EXITMENULOOP  : rt_println("WM_EXITMENULOOP");     return 0;
+        case WM_INITMENU      : rt_println("WM_INITMENU");         return 0;
+        case WM_MENUCHAR      : rt_println("WM_MENUCHAR");         return MNC_CLOSE << 16;
+        case WM_CAPTURECHANGED: rt_println("WM_CAPTURECHANGED");   break;
+        case WM_MENUSELECT    : rt_println("WM_MENUSELECT");       return 0;
         #else
         // ***Important***: prevents annoying beeps on Alt+Shortcut
         case WM_MENUCHAR      : return MNC_CLOSE << 16;
@@ -1831,28 +1831,28 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
             break;
 #ifdef UI_APP_USE_WM_IME
         case WM_IME_CHAR:
-            ut_println("WM_IME_CHAR: 0x%04X", wp);
+            rt_println("WM_IME_CHAR: 0x%04X", wp);
             break;
         case WM_IME_NOTIFY:
-            ut_println("WM_IME_NOTIFY");
+            rt_println("WM_IME_NOTIFY");
             break;
         case WM_IME_REQUEST:
-            ut_println("WM_IME_REQUEST");
+            rt_println("WM_IME_REQUEST");
             break;
         case WM_IME_STARTCOMPOSITION:
-            ut_println("WM_IME_STARTCOMPOSITION");
+            rt_println("WM_IME_STARTCOMPOSITION");
             break;
         case WM_IME_ENDCOMPOSITION:
-            ut_println("WM_IME_ENDCOMPOSITION");
+            rt_println("WM_IME_ENDCOMPOSITION");
             break;
         case WM_IME_COMPOSITION:
-            ut_println("WM_IME_COMPOSITION");
+            rt_println("WM_IME_COMPOSITION");
             ui_app_ime_composition(lp);
             break;
 #endif  // UI_APP_USE_WM_IME
         // TODO:
         case WM_UNICHAR       : // only UTF-32 via PostMessage?
-            ut_println("???");
+            rt_println("???");
             // see: https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input
             // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-tounicode
             break;
@@ -1900,10 +1900,10 @@ static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
     }
     if (color != ui_color_undefined) {
         mask |= LWA_COLORKEY;
-        ut_assert(ui_color_is_8bit(color));
+        rt_assert(ui_color_is_8bit(color));
         c = ui_gdi.color_rgb(color);
     }
-    return ut_b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
+    return rt_b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
 }
 
 static void ui_app_set_dwm_attribute(uint32_t mode, void* a, DWORD bytes) {
@@ -1935,16 +1935,16 @@ static void ui_app_init_dwm(void) {
 
 static void ui_app_swp(HWND top, int32_t x, int32_t y, int32_t w, int32_t h,
         uint32_t f) {
-    ut_fatal_win32err(SetWindowPos(ui_app_window(), top, x, y, w, h, f));
+    rt_fatal_win32err(SetWindowPos(ui_app_window(), top, x, y, w, h, f));
 }
 
 static void ui_app_swp_flags(uint32_t f) {
-    ut_fatal_win32err(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, f));
+    rt_fatal_win32err(SetWindowPos(ui_app_window(), null, 0, 0, 0, 0, f));
 }
 
 static void ui_app_disable_sys_menu_item(HMENU sys_menu, uint32_t item) {
     const uint32_t f = MF_BYCOMMAND | MF_DISABLED;
-    ut_fatal_win32err(EnableMenuItem(sys_menu, item, f));
+    rt_fatal_win32err(EnableMenuItem(sys_menu, item, f));
 }
 
 static void ui_app_init_sys_menu(void) {
@@ -1953,7 +1953,7 @@ static void ui_app_init_sys_menu(void) {
     // SetPreferredAppMode() failed 0x000005B0(1456) "A menu item was not found."
     // this is why they just disabled instead.
     HMENU sys_menu = GetSystemMenu(ui_app_window(), false);
-    ut_not_null(sys_menu);
+    rt_not_null(sys_menu);
     if (ui_app.no_min || ui_app.no_max) {
         int32_t exclude = WS_SIZEBOX;
         if (ui_app.no_min) { exclude = WS_MINIMIZEBOX; }
@@ -1973,7 +1973,7 @@ static void ui_app_init_sys_menu(void) {
 
 static void ui_app_create_window(const ui_rect_t r) {
     uint16_t class_name[256];
-    ut_str.utf8to16(class_name, ut_countof(class_name), ui_app.class_name, -1);
+    rt_str.utf8to16(class_name, rt_countof(class_name), ui_app.class_name, -1);
     WNDCLASSW* wc = &ui_app_wc;
     // CS_DBLCLKS no longer needed. Because code detects long-press
     // it does double click too. Editor uses both for word and paragraph select.
@@ -1990,17 +1990,17 @@ static void ui_app_create_window(const ui_rect_t r) {
     ATOM atom = RegisterClassW(wc);
     rt_fatal_if(atom == 0);
     uint16_t title[256];
-    ut_str.utf8to16(title, ut_countof(title), ui_app.title, -1);
+    rt_str.utf8to16(title, rt_countof(title), ui_app.title, -1);
     HWND window = CreateWindowExW(WS_EX_COMPOSITED | WS_EX_LAYERED,
         class_name, title, ui_app_window_style(),
         r.x, r.y, r.w, r.h, null, null, wc->hInstance, null);
-    ut_not_null(ui_app.window);
+    rt_not_null(ui_app.window);
     rt_swear(window == ui_app_window());
     ui_app.show_window(ui.visibility.hide);
     ui_view.set_text(&ui_caption.title, "%s", ui_app.title);
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
     RECT wrc = ui_app_ui2rect(&r);
-    ut_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
+    rt_fatal_win32err(GetWindowRect(ui_app_window(), &wrc));
     ui_app.wrc = ui_app_rect2ui(&wrc);
     ui_app_init_dwm();
     ui_app_init_sys_menu();
@@ -2024,14 +2024,14 @@ static void ui_app_full_screen(bool on) {
             ui_app_modify_window_style(0, WS_OVERLAPPEDWINDOW|WS_POPUPWINDOW);
             ui_app_modify_window_style(WS_POPUP | WS_VISIBLE, 0);
             wp.length = sizeof(wp);
-            ut_fatal_win32err(GetWindowPlacement(ui_app_window(), &wp));
+            rt_fatal_win32err(GetWindowPlacement(ui_app_window(), &wp));
             WINDOWPLACEMENT nwp = wp;
             nwp.showCmd = SW_SHOWNORMAL;
             nwp.rcNormalPosition = (RECT){ui_app.mrc.x, ui_app.mrc.y,
                 ui_app.mrc.x + ui_app.mrc.w, ui_app.mrc.y + ui_app.mrc.h};
-            ut_fatal_win32err(SetWindowPlacement(ui_app_window(), &nwp));
+            rt_fatal_win32err(SetWindowPlacement(ui_app_window(), &nwp));
         } else {
-            ut_fatal_win32err(SetWindowPlacement(ui_app_window(), &wp));
+            rt_fatal_win32err(SetWindowPlacement(ui_app_window(), &wp));
             ui_app_set_window_long(GWL_STYLE, ui_app_window_style());
             enum { flags = SWP_FRAMECHANGED | SWP_NOMOVE | SWP_NOSIZE |
                            SWP_NOZORDER | SWP_NOOWNERZORDER };
@@ -2041,14 +2041,14 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
-static bool ui_app_set_focus(ui_view_t* ut_unused(v)) { return false; }
+static bool ui_app_set_focus(ui_view_t* rt_unused(v)) { return false; }
 
 static void ui_app_request_redraw(void) {  // < 2us
     SetEvent(ui_app_event_invalidate);
 }
 
 static void ui_app_draw(void) {
-    ut_println("avoid at all cost. bad performance, bad UX");
+    rt_println("avoid at all cost. bad performance, bad UX");
     UpdateWindow(ui_app_window());
 }
 
@@ -2069,14 +2069,14 @@ static int32_t ui_app_message_loop(void) {
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
     }
-    ut_work_queue.flush(&ui_app_queue);
-    ut_assert(msg.message == WM_QUIT);
+    rt_work_queue.flush(&ui_app_queue);
+    rt_assert(msg.message == WM_QUIT);
     return (int32_t)msg.wParam;
 }
 
 static void ui_app_dispose(void) {
     ui_app_dispose_fonts();
-    ut_event.dispose(ui_app_event_invalidate);
+    rt_event.dispose(ui_app_event_invalidate);
     ui_app_event_invalidate = null;
 }
 
@@ -2165,8 +2165,8 @@ static bool    ui_app_caret_shown;
 static void ui_app_create_caret(int32_t w, int32_t h) {
     ui_app_caret_w = w;
     ui_app_caret_h = h;
-    ut_fatal_win32err(CreateCaret(ui_app_window(), null, w, h));
-    ut_assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
+    rt_fatal_win32err(CreateCaret(ui_app_window(), null, w, h));
+    rt_assert(GetSystemMetrics(SM_CARETBLINKINGENABLED));
 }
 
 static void ui_app_invalidate_caret(void) {
@@ -2176,13 +2176,13 @@ static void ui_app_invalidate_caret(void) {
         RECT rc = { ui_app_caret_x, ui_app_caret_y,
                     ui_app_caret_x + ui_app_caret_w,
                     ui_app_caret_y + ui_app_caret_h };
-        ut_fatal_win32err(InvalidateRect(ui_app_window(), &rc, false));
+        rt_fatal_win32err(InvalidateRect(ui_app_window(), &rc, false));
     }
 }
 
 static void ui_app_show_caret(void) {
-    ut_assert(!ui_app_caret_shown);
-    ut_fatal_win32err(ShowCaret(ui_app_window()));
+    rt_assert(!ui_app_caret_shown);
+    rt_fatal_win32err(ShowCaret(ui_app_window()));
     ui_app_caret_shown = true;
     ui_app_invalidate_caret();
 }
@@ -2191,13 +2191,13 @@ static void ui_app_move_caret(int32_t x, int32_t y) {
     ui_app_invalidate_caret(); // where is was
     ui_app_caret_x = x;
     ui_app_caret_y = y;
-    ut_fatal_win32err(SetCaretPos(x, y));
+    rt_fatal_win32err(SetCaretPos(x, y));
     ui_app_invalidate_caret(); // where it is now
 }
 
 static void ui_app_hide_caret(void) {
-    ut_assert(ui_app_caret_shown);
-    ut_fatal_win32err(HideCaret(ui_app_window()));
+    rt_assert(ui_app_caret_shown);
+    rt_fatal_win32err(HideCaret(ui_app_window()));
     ui_app_invalidate_caret();
     ui_app_caret_shown = false;
 }
@@ -2205,14 +2205,14 @@ static void ui_app_hide_caret(void) {
 static void ui_app_destroy_caret(void) {
     ui_app_caret_w = 0;
     ui_app_caret_h = 0;
-    ut_fatal_win32err(DestroyCaret());
+    rt_fatal_win32err(DestroyCaret());
 }
 
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
-    rt_swear(0 <= kind && kind < ut_countof(beep_id));
-    ut_fatal_win32err(MessageBeep(beep_id[kind]));
+    rt_swear(0 <= kind && kind < rt_countof(beep_id));
+    rt_fatal_win32err(MessageBeep(beep_id[kind]));
 }
 
 static void ui_app_enable_sys_command_close(void) {
@@ -2232,7 +2232,7 @@ static int ui_app_console_attach(void) {
     int r = AttachConsole(ATTACH_PARENT_PROCESS) ? 0 : rt_core.err();
     if (r == 0) {
         ui_app_console_disable_close();
-        ut_thread.sleep_for(0.1); // give cmd.exe a chance to print prompt again
+        rt_thread.sleep_for(0.1); // give cmd.exe a chance to print prompt again
         printf("\n");
     }
     return r;
@@ -2258,7 +2258,7 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
     if (r != 0) {
-        ut_println("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+        rt_println("GetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
     } else {
         // tricky because correct order of the calls
         // SetConsoleWindowInfo() SetConsoleScreenBufferSize() depends on
@@ -2270,14 +2270,14 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
         SMALL_RECT const min_win = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
         int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : rt_core.err();
-//      if (r0 != 0) { ut_println("SetConsoleWindowInfo() %s", ut_strerr(r0)); }
+//      if (r0 != 0) { rt_println("SetConsoleWindowInfo() %s", rt_strerr(r0)); }
         int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : rt_core.err();
-//      if (r1 != 0) { ut_println("SetConsoleScreenBufferSize() %s", ut_strerr(r1)); }
+//      if (r1 != 0) { rt_println("SetConsoleScreenBufferSize() %s", rt_strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
             r0 = SetConsoleScreenBufferSize(console, c) ? 0 : rt_core.err();
-            if (r0 != 0) { ut_println("SetConsoleScreenBufferSize() %s", ut_strerr(r0)); }
+            if (r0 != 0) { rt_println("SetConsoleScreenBufferSize() %s", rt_strerr(r0)); }
             r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : rt_core.err();
-            if (r1 != 0) { ut_println("SetConsoleWindowInfo() %s", ut_strerr(r1)); }
+            if (r1 != 0) { rt_println("SetConsoleWindowInfo() %s", rt_strerr(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
     }
@@ -2295,14 +2295,14 @@ static void ui_app_console_largest(void) {
     /* DOES NOT WORK:
     DWORD mode = 0;
     r = GetConsoleMode(console, &mode) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "GetConsoleMode() %s", ut_strerr(r));
+    rt_fatal_if_error(r, "GetConsoleMode() %s", rt_strerr(r));
     mode &= ~ENABLE_AUTO_POSITION;
     r = SetConsoleMode(console, &mode) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "SetConsoleMode() %s", ut_strerr(r));
+    rt_fatal_if_error(r, "SetConsoleMode() %s", rt_strerr(r));
     */
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
     int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+    rt_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
     COORD c = GetLargestConsoleWindowSize(console);
     if (c.X > 80) { c.X &= ~0x7; }
     if (c.Y > 24) { c.Y &= ~0x3; }
@@ -2310,10 +2310,10 @@ static void ui_app_console_largest(void) {
     if (c.Y > 24) { c.Y -= 4; }
     ui_app_set_console_size(c.X, c.Y);
     r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+    rt_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
     info.dwSize.Y = 9999; // maximum value at the moment of implementation
     r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
-    rt_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+    rt_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", rt_strerr(r));
     ui_app_save_console_pos();
 }
 
@@ -2332,7 +2332,7 @@ static void ui_app_activate(void) {
 
 static void ui_app_bring_to_foreground(void) {
     // SetForegroundWindow() does not activate window:
-    ut_fatal_win32err(SetForegroundWindow(ui_app_window()));
+    rt_fatal_win32err(SetForegroundWindow(ui_app_window()));
 }
 
 static void ui_app_bring_to_front(void) {
@@ -2346,7 +2346,7 @@ static void ui_app_bring_to_front(void) {
 
 static void ui_app_set_title(const char* title) {
     ui_view.set_text(&ui_caption.title, "%s", title);
-    ut_fatal_win32err(SetWindowTextA(ui_app_window(), ut_nls.str(title)));
+    rt_fatal_win32err(SetWindowTextA(ui_app_window(), rt_nls.str(title)));
 }
 
 static void ui_app_capture_mouse(bool on) {
@@ -2368,14 +2368,14 @@ static void ui_app_move_and_resize(const ui_rect_t* rc) {
 }
 
 static void ui_app_set_console_title(HWND cw) {
-    rt_swear(ut_thread.id() == ui_app.tid);
+    rt_swear(rt_thread.id() == ui_app.tid);
     static char text[256];
     text[0] = 0;
-    GetWindowTextA((HWND)ui_app.window, text, ut_countof(text));
-    text[ut_countof(text) - 1] = 0;
+    GetWindowTextA((HWND)ui_app.window, text, rt_countof(text));
+    text[rt_countof(text) - 1] = 0;
     char title[256];
-    ut_str_printf(title, "%s - Console", text);
-    ut_fatal_win32err(SetWindowTextA(cw, title));
+    rt_str_printf(title, "%s - Console", text);
+    rt_fatal_win32err(SetWindowTextA(cw, title));
 }
 
 static void ui_app_restore_console(int32_t *visibility) {
@@ -2386,7 +2386,7 @@ static void ui_app_restore_console(int32_t *visibility) {
         ui_rect_t rc = ui_app_rect2ui(&wr);
         ui_app_load_console_pos(&rc, visibility);
         if (rc.w > 0 && rc.h > 0) {
-//          ut_println("%d,%d %dx%d px", rc.x, rc.y, rc.w, rc.h);
+//          rt_println("%d,%d %dx%d px", rc.x, rc.y, rc.w, rc.h);
             CONSOLE_SCREEN_BUFFER_INFOEX info = {
                 sizeof(CONSOLE_SCREEN_BUFFER_INFOEX)
             };
@@ -2396,13 +2396,13 @@ static void ui_app_restore_console(int32_t *visibility) {
                 SMALL_RECT sr = info.srWindow;
                 int16_t w = (int16_t)rt_max(sr.Right - sr.Left + 1, 80);
                 int16_t h = (int16_t)rt_max(sr.Bottom - sr.Top + 1, 24);
-//              ut_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
-//              ut_println("%d,%d %dx%d", sr.Left, sr.Top, w, h);
+//              rt_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
+//              rt_println("%d,%d %dx%d", sr.Left, sr.Top, w, h);
                 if (w > 0 && h > 0) { ui_app_set_console_size(w, h); }
     	    }
             // do not resize console window just restore it's position
             enum { flags = SWP_NOZORDER | SWP_NOACTIVATE | SWP_NOSIZE };
-            ut_fatal_win32err(SetWindowPos(cw, null,
+            rt_fatal_win32err(SetWindowPos(cw, null,
                     rc.x, rc.y, rc.w, rc.h, flags));
         } else {
             ui_app_console_largest();
@@ -2440,15 +2440,15 @@ static int ui_app_console_create(void) {
 }
 
 static fp32_t ui_app_px2in(int32_t pixels) {
-    ut_assert(ui_app.dpi.monitor_max > 0);
-//  ut_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+    rt_assert(ui_app.dpi.monitor_max > 0);
+//  rt_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
     return ui_app.dpi.monitor_max > 0 ?
            (fp32_t)pixels / (fp32_t)ui_app.dpi.monitor_max : 0;
 }
 
 static int32_t ui_app_in2px(fp32_t inches) {
-    ut_assert(ui_app.dpi.monitor_max > 0);
-//  ut_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
+    rt_assert(ui_app.dpi.monitor_max > 0);
+//  rt_println("ui_app.dpi.monitor_raw: %d", ui_app.dpi.monitor_max);
     return (int32_t)(inches * (fp64_t)ui_app.dpi.monitor_max + 0.5);
 }
 
@@ -2458,7 +2458,7 @@ static void ui_app_request_layout(void) {
 }
 
 static void ui_app_show_window(int32_t show) {
-    ut_assert(ui.visibility.hide <= show &&
+    rt_assert(ui.visibility.hide <= show &&
            show <= ui.visibility.force_min);
     // ShowWindow() does not have documented error reporting
     bool was_visible = ShowWindow(ui_app_window(), show);
@@ -2483,26 +2483,26 @@ static void ui_app_show_window(int32_t show) {
 
 static const char* ui_app_open_file(const char* folder,
         const char* pairs[], int32_t n) {
-    rt_swear(ut_thread.id() == ui_app.tid);
-    ut_assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
+    rt_swear(rt_thread.id() == ui_app.tid);
+    rt_assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
     static uint16_t memory[4 * 1024];
     uint16_t* filter = memory;
     if (pairs == null || n == 0) {
         filter = L"All Files\0*\0\0";
     } else {
-        int32_t left = ut_countof(memory) - 2;
+        int32_t left = rt_countof(memory) - 2;
         uint16_t* s = memory;
         for (int32_t i = 0; i < n; i+= 2) {
             uint16_t* s0 = s;
-            ut_str.utf8to16(s0, left, pairs[i + 0], -1);
-            int32_t n0 = (int32_t)ut_str.len16(s0);
-            ut_assert(n0 > 0);
+            rt_str.utf8to16(s0, left, pairs[i + 0], -1);
+            int32_t n0 = (int32_t)rt_str.len16(s0);
+            rt_assert(n0 > 0);
             s += n0 + 1;
             left -= n0 + 1;
             uint16_t* s1 = s;
-            ut_str.utf8to16(s1, left, pairs[i + 1], -1);
-            int32_t n1 = (int32_t)ut_str.len16(s1);
-            ut_assert(n1 > 0);
+            rt_str.utf8to16(s1, left, pairs[i + 1], -1);
+            int32_t n1 = (int32_t)rt_str.len16(s1);
+            rt_assert(n1 > 0);
             s[n1] = 0;
             s += n1 + 1;
             left -= n1 + 1;
@@ -2511,7 +2511,7 @@ static const char* ui_app_open_file(const char* folder,
     }
     static uint16_t dir[rt_files_max_path];
     dir[0] = 0;
-    ut_str.utf8to16(dir, ut_countof(dir), folder, -1);
+    rt_str.utf8to16(dir, rt_countof(dir), folder, -1);
     static uint16_t path[rt_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
@@ -2521,10 +2521,10 @@ static const char* ui_app_open_file(const char* folder,
     ofn.lpstrInitialDir = dir;
     ofn.lpstrFile = path;
     ofn.nMaxFile = sizeof(path);
-    static ut_file_name_t fn;
+    static rt_file_name_t fn;
     fn.s[0] = 0;
     if (GetOpenFileNameW(&ofn) && path[0] != 0) {
-        ut_str.utf16to8(fn.s, ut_countof(fn.s), path, -1);
+        rt_str.utf16to8(fn.s, rt_countof(fn.s), path, -1);
     } else {
         fn.s[0] = 0;
     }
@@ -2535,44 +2535,44 @@ static const char* ui_app_open_file(const char* folder,
 
 static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     HDC canvas = GetDC(null);
-    ut_not_null(canvas);
-    HDC src = CreateCompatibleDC(canvas); ut_not_null(src);
-    HDC dst = CreateCompatibleDC(canvas); ut_not_null(dst);
+    rt_not_null(canvas);
+    HDC src = CreateCompatibleDC(canvas); rt_not_null(src);
+    HDC dst = CreateCompatibleDC(canvas); rt_not_null(dst);
     // CreateCompatibleBitmap(dst) will create monochrome bitmap!
     // CreateCompatibleBitmap(canvas) will create display compatible
     HBITMAP bitmap = CreateCompatibleBitmap(canvas, im->w, im->h);
 //  HBITMAP bitmap = CreateBitmap(image.w, image.h, 1, 32, null);
-    ut_not_null(bitmap);
-    HBITMAP s = SelectBitmap(src, im->bitmap); ut_not_null(s);
-    HBITMAP d = SelectBitmap(dst, bitmap);     ut_not_null(d);
+    rt_not_null(bitmap);
+    HBITMAP s = SelectBitmap(src, im->bitmap); rt_not_null(s);
+    HBITMAP d = SelectBitmap(dst, bitmap);     rt_not_null(d);
     POINT pt = { 0 };
-    ut_fatal_win32err(SetBrushOrgEx(dst, 0, 0, &pt));
-    ut_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
+    rt_fatal_win32err(SetBrushOrgEx(dst, 0, 0, &pt));
+    rt_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
         im->w, im->h, SRCCOPY));
-    errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
-    if (r != 0) { ut_println("OpenClipboard() failed %s", ut_strerr(r)); }
+    errno_t r = rt_b2e(OpenClipboard(GetDesktopWindow()));
+    if (r != 0) { rt_println("OpenClipboard() failed %s", rt_strerr(r)); }
     if (r == 0) {
-        r = ut_b2e(EmptyClipboard());
-        if (r != 0) { ut_println("EmptyClipboard() failed %s", ut_strerr(r)); }
+        r = rt_b2e(EmptyClipboard());
+        if (r != 0) { rt_println("EmptyClipboard() failed %s", rt_strerr(r)); }
     }
     if (r == 0) {
-        r = ut_b2e(SetClipboardData(CF_BITMAP, bitmap));
+        r = rt_b2e(SetClipboardData(CF_BITMAP, bitmap));
         if (r != 0) {
-            ut_println("SetClipboardData() failed %s", ut_strerr(r));
+            rt_println("SetClipboardData() failed %s", rt_strerr(r));
         }
     }
     if (r == 0) {
-        r = ut_b2e(CloseClipboard());
+        r = rt_b2e(CloseClipboard());
         if (r != 0) {
-            ut_println("CloseClipboard() failed %s", ut_strerr(r));
+            rt_println("CloseClipboard() failed %s", rt_strerr(r));
         }
     }
-    ut_not_null(SelectBitmap(dst, d));
-    ut_not_null(SelectBitmap(src, s));
-    ut_fatal_win32err(DeleteBitmap(bitmap));
-    ut_fatal_win32err(DeleteDC(dst));
-    ut_fatal_win32err(DeleteDC(src));
-    ut_fatal_win32err(ReleaseDC(null, canvas));
+    rt_not_null(SelectBitmap(dst, d));
+    rt_not_null(SelectBitmap(src, s));
+    rt_fatal_win32err(DeleteBitmap(bitmap));
+    rt_fatal_win32err(DeleteDC(dst));
+    rt_fatal_win32err(DeleteDC(src));
+    rt_fatal_win32err(ReleaseDC(null, canvas));
     return r;
 }
 
@@ -2590,7 +2590,7 @@ static bool ui_app_focused(void) { return GetFocus() == ui_app_window(); }
 static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
-    ut_assert(ut_thread.id() == ui_app.tid, "cannot be called from background thread");
+    rt_assert(rt_thread.id() == ui_app.tid, "cannot be called from background thread");
     rt_core.set_err(0);
     HWND previous = SetFocus((HWND)w); // previously focused window
     if (previous == null) { rt_fatal_if_error(rt_core.err()); }
@@ -2601,8 +2601,8 @@ static void ui_app_request_focus(void) {
 }
 
 static void ui_app_init(void) {
-    ui_app_event_quit           = ut_event.create_manual();
-    ui_app_event_invalidate     = ut_event.create();
+    ui_app_event_quit           = rt_event.create_manual();
+    ui_app_event_invalidate     = rt_event.create();
     ui_app.request_redraw       = ui_app_request_redraw;
     ui_app.post                 = ui_app_post;
     ui_app.draw                 = ui_app_draw;
@@ -2655,8 +2655,8 @@ static void ui_app_init(void) {
     ui_app.root->hit_test = ui_app_root_hit_test;
     ui_view.add(ui_app.root, ui_app.caption, ui_app.content, null);
     ui_view_call_init(ui_app.root); // to get done with container_init()
-    ut_assert(ui_app.content->type == ui_view_stack);
-    ut_assert(ui_app.content->background == ui_colors.transparent);
+    rt_assert(ui_app.content->type == ui_view_stack);
+    rt_assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;
     ui_app.root->insets  = (ui_margins_t){ 0, 0, 0, 0 };
@@ -2688,15 +2688,15 @@ static void ui_app_set_dpi_awareness(void) {
     DPI_AWARENESS_CONTEXT dpi_awareness_context_1 =
         GetThreadDpiAwarenessContext();
     // https://blogs.windows.com/windowsdeveloper/2017/05/19/improving-high-dpi-experience-gdi-based-desktop-apps/
-    errno_t error = ut_b2e(SetProcessDpiAwarenessContext(
+    errno_t error = rt_b2e(SetProcessDpiAwarenessContext(
             DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2));
     if (error == ERROR_ACCESS_DENIED) {
-        ut_println("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
+        rt_println("Warning: SetProcessDpiAwarenessContext(): ERROR_ACCESS_DENIED");
         // dpi awareness already set, manifest, registry, windows policy
         // Try via Shell:
         HRESULT hr = SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE);
         if (hr == E_ACCESSDENIED) {
-            ut_println("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
+            rt_println("Warning: SetProcessDpiAwareness(): E_ACCESSDENIED");
         }
     }
     DPI_AWARENESS_CONTEXT dpi_awareness_context_2 =
@@ -2714,7 +2714,7 @@ static void ui_app_init_windows(void) {
     ui_app.dpi.monitor_angular = ui_app.dpi.system;
     ui_app.dpi.monitor_raw = ui_app.dpi.system;
     ui_app.dpi.monitor_max = ui_app.dpi.system;
-//  ut_println("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
+//  rt_println("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
     static const RECT nowhere = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
     ui_rect_t r = ui_app_rect2ui(&nowhere);
     ui_app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
@@ -2773,7 +2773,7 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     if (home != null) {
         const char* name = ui_app.class_name  != null ?
                            ui_app.class_name : "ui_app";
-        ut_str_printf(fn, "%s\\%s_crash_log.txt", home, name);
+        rt_str_printf(fn, "%s\\%s_crash_log.txt", home, name);
         ui_app_crash_log = fopen(fn, "w");
     }
     rt_debug.println(null, 0, null,
@@ -2781,16 +2781,16 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     rt_debug.println(null, 0, null,
         "paste it here: https://github.com/leok7v/ui/discussions/4");
     rt_debug.println(null, 0, null,
-        "%s exception: %s", rt_args.basename(), ut_str.error(ex));
+        "%s exception: %s", rt_args.basename(), rt_str.error(ex));
     rt_backtrace_t bt = {{0}};
-    rt_backtrace.context(ut_thread.self(), ep->ContextRecord, &bt);
+    rt_backtrace.context(rt_thread.self(), ep->ContextRecord, &bt);
     rt_backtrace.trace(&bt, "*");
     rt_backtrace.trace_all_but_self();
     rt_debug.tee = tee;
     if (ui_app_crash_log != null) {
         fclose(ui_app_crash_log);
         char cmd[1024];
-        ut_str_printf(cmd, "cmd.exe /c start notepad \"%s\"", fn);
+        rt_str_printf(cmd, "cmd.exe /c start notepad \"%s\"", fn);
         system(cmd);
     }
     return EXCEPTION_CONTINUE_SEARCH;
@@ -2801,65 +2801,65 @@ static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
 #ifdef UI_APP_TEST_POST
 
 // The dispatch_until() is just for testing purposes.
-// Usually ut_work_queue.dispatch(q) will be called inside each
+// Usually rt_work_queue.dispatch(q) will be called inside each
 // iteration of message loop of a dispatch [UI] thread.
 
-static void ui_app_test_dispatch_until(ut_work_queue_t* q, int32_t* i,
+static void ui_app_test_dispatch_until(rt_work_queue_t* q, int32_t* i,
         const int32_t n) {
     while (q->head != null && *i < n) {
-        ut_thread.sleep_for(0.0001); // 100 microseconds
-        ut_work_queue.dispatch(q);
+        rt_thread.sleep_for(0.0001); // 100 microseconds
+        rt_work_queue.dispatch(q);
     }
-    ut_work_queue.flush(q);
+    rt_work_queue.flush(q);
 }
 
 // simple way of passing a single pointer to call_later
 
-static void ui_app_test_every_100ms(ut_work_t* w) {
+static void ui_app_test_every_100ms(rt_work_t* w) {
     int32_t* i = (int32_t*)w->data;
-    ut_println("i: %d", *i);
+    rt_println("i: %d", *i);
     (*i)++;
     w->when = rt_clock.seconds() + 0.100;
-    ut_work_queue.post(w);
+    rt_work_queue.post(w);
 }
 
 static void ui_app_test_work_queue_1(void) {
-    ut_work_queue_t queue = {0};
+    rt_work_queue_t queue = {0};
     // if a single pointer will suffice
     int32_t i = 0;
-    ut_work_t work = {
+    rt_work_t work = {
         .queue = &queue,
         .when  = rt_clock.seconds() + 0.100,
         .work  = ui_app_test_every_100ms,
         .data  = &i
     };
-    ut_work_queue.post(&work);
+    rt_work_queue.post(&work);
     ui_app_test_dispatch_until(&queue, &i, 4);
 }
 
-// extending ut_work_t with extra data:
+// extending rt_work_t with extra data:
 
-typedef struct ut_work_ex_s {
+typedef struct rt_work_ex_s {
     union {
-        ut_work_t base;
-        struct ut_work_s;
+        rt_work_t base;
+        struct rt_work_s;
     };
     struct { int32_t a; int32_t b; } s;
     int32_t i;
-} ut_work_ex_t;
+} rt_work_ex_t;
 
-static void ui_app_test_every_200ms(ut_work_t* w) {
-    ut_work_ex_t* ex = (ut_work_ex_t*)w;
-    ut_println("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
+static void ui_app_test_every_200ms(rt_work_t* w) {
+    rt_work_ex_t* ex = (rt_work_ex_t*)w;
+    rt_println("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
     ex->i++;
     const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
     w->when = rt_clock.seconds() + 0.200;
-    ut_work_queue.post(w);
+    rt_work_queue.post(w);
 }
 
 static void ui_app_test_work_queue_2(void) {
-    ut_work_queue_t queue = {0};
-    ut_work_ex_t work = {
+    rt_work_queue_t queue = {0};
+    rt_work_ex_t work = {
         .queue = &queue,
         .when  = rt_clock.seconds() + 0.200,
         .work  = ui_app_test_every_200ms,
@@ -2867,7 +2867,7 @@ static void ui_app_test_work_queue_2(void) {
         .s = { .a = 1, .b = 2 },
         .i = 0
     };
-    ut_work_queue.post(&work.base);
+    rt_work_queue.post(&work.base);
     ui_app_test_dispatch_until(&queue, &work.i, 4);
 }
 
@@ -2876,16 +2876,16 @@ static fp64_t ui_app_test_timestamp_2;
 static fp64_t ui_app_test_timestamp_3;
 static fp64_t ui_app_test_timestamp_4;
 
-static void ui_app_test_in_1_second(ut_work_t* ut_unused(work)) {
+static void ui_app_test_in_1_second(rt_work_t* rt_unused(work)) {
     ui_app_test_timestamp_3 = rt_clock.seconds();
-    ut_println("ETA 3 seconds");
+    rt_println("ETA 3 seconds");
 }
 
-static void ui_app_test_in_2_seconds(ut_work_t* ut_unused(work)) {
+static void ui_app_test_in_2_seconds(rt_work_t* rt_unused(work)) {
     ui_app_test_timestamp_2 = rt_clock.seconds();
-    ut_println("ETA 2 seconds");
-    static ut_work_t invoke_in_1_seconds;
-    invoke_in_1_seconds = (ut_work_t){
+    rt_println("ETA 2 seconds");
+    static rt_work_t invoke_in_1_seconds;
+    invoke_in_1_seconds = (rt_work_t){
         .queue = null, // &ui_app_queue will be used
         .when = rt_clock.seconds() + 1.0, // seconds
         .work = ui_app_test_in_1_second
@@ -2893,9 +2893,9 @@ static void ui_app_test_in_2_seconds(ut_work_t* ut_unused(work)) {
     ui_app.post(&invoke_in_1_seconds);
 }
 
-static void ui_app_test_in_4_seconds(ut_work_t* ut_unused(work)) {
+static void ui_app_test_in_4_seconds(rt_work_t* rt_unused(work)) {
     ui_app_test_timestamp_4 = rt_clock.seconds();
-    ut_println("ETA 4 seconds");
+    rt_println("ETA 4 seconds");
 //  expected sequence of callbacks:
 //  2:732 ui_app_test_in_2_seconds ETA 2 seconds
 //  3:724 ui_app_test_in_1_second  ETA 3 seconds
@@ -2912,16 +2912,16 @@ static void ui_app_test_in_4_seconds(ut_work_t* ut_unused(work)) {
 static void ui_app_test_post(void) {
     ui_app_test_work_queue_1();
     ui_app_test_work_queue_2();
-    ut_println("see Output/Timestamps");
-    static ut_work_t invoke_in_2_seconds;
-    static ut_work_t invoke_in_4_seconds;
+    rt_println("see Output/Timestamps");
+    static rt_work_t invoke_in_2_seconds;
+    static rt_work_t invoke_in_4_seconds;
     ui_app_test_timestamp_0 = rt_clock.seconds();
-    invoke_in_2_seconds = (ut_work_t){
+    invoke_in_2_seconds = (rt_work_t){
         .queue = null, // &ui_app_queue will be used
         .when = rt_clock.seconds() + 2.0, // seconds
         .work = ui_app_test_in_2_seconds
     };
-    invoke_in_4_seconds = (ut_work_t){
+    invoke_in_4_seconds = (rt_work_t){
         .queue = null, // &ui_app_queue will be used
         .when = rt_clock.seconds() + 4.0, // seconds
         .work = ui_app_test_in_4_seconds
@@ -2961,7 +2961,7 @@ static int ui_app_win_main(HINSTANCE instance) {
         ui_app.border.w = rt_min(max_border, ui_app.border.w);
         ui_app.border.h = rt_min(max_border, ui_app.border.h);
     }
-//  ut_println("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
+//  rt_println("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
     // TODO: use AdjustWindowRectEx instead
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-adjustwindowrectex
     wr.x -= ui_app.border.w;
@@ -2979,32 +2979,32 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app.root->w = wr.w - ui_app.border.w * 2;
     ui_app.root->h = wr.h - ui_app.border.h * 2 - ui_app.caption_height;
     ui_app_layout_dirty = true; // layout will be done before first paint
-    ut_not_null(ui_app.class_name);
-    ui_app_wt = (ut_event_t)CreateWaitableTimerA(null, false, null);
-    ut_thread_t alarm  = ut_thread.start(ui_app_alarm_thread, null);
+    rt_not_null(ui_app.class_name);
+    ui_app_wt = (rt_event_t)CreateWaitableTimerA(null, false, null);
+    rt_thread_t alarm  = rt_thread.start(ui_app_alarm_thread, null);
     if (!ui_app.no_ui) {
         ui_app_create_window(wr);
         ui_app_init_fonts(ui_app.dpi.window);
-        ut_thread_t redraw = ut_thread.start(ui_app_redraw_thread, null);
+        rt_thread_t redraw = rt_thread.start(ui_app_redraw_thread, null);
         #ifdef UI_APP_TEST_POST
             ui_app_test_post();
         #endif
         r = ui_app_message_loop();
         // ui_app.fini() must be called before ui_app_dispose()
         if (ui_app.fini != null) { ui_app.fini(); }
-        ut_event.set(ui_app_event_quit);
-        ut_thread.join(redraw, -1);
+        rt_event.set(ui_app_event_quit);
+        rt_thread.join(redraw, -1);
         ui_app_dispose();
         if (r == 0 && ui_app.exit_code != 0) { r = ui_app.exit_code; }
     } else {
         r = ui_app.main();
         if (ui_app.fini != null) { ui_app.fini(); }
     }
-    ut_event.set(ui_app_event_quit);
-    ut_thread.join(alarm, -1);
-    ut_event.dispose(ui_app_event_quit);
+    rt_event.set(ui_app_event_quit);
+    rt_thread.join(alarm, -1);
+    rt_event.dispose(ui_app_event_quit);
     ui_app_event_quit = null;
-    ut_event.dispose(ui_app_wt);
+    rt_event.dispose(ui_app_wt);
     ui_app_wt = null;
     ui_gdi.fini();
     return r;
@@ -3012,8 +3012,8 @@ static int ui_app_win_main(HINSTANCE instance) {
 
 #pragma warning(disable: 28251) // inconsistent annotations
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE ut_unused(previous),
-        char* ut_unused(command), int show) {
+int WINAPI WinMain(HINSTANCE instance, HINSTANCE rt_unused(previous),
+        char* rt_unused(command), int show) {
     SetUnhandledExceptionFilter(ui_app_exception_filter);
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
     rt_fatal_if_error(CoInitializeEx(0, co_init));
@@ -3025,15 +3025,15 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE ut_unused(previous),
     // .rc file must have:
     // 1 RT_MANIFEST "manifest.xml"
     if (GetACP() != 65001) {
-        ut_println("codepage: %d UTF-8 will not be supported", GetACP());
+        rt_println("codepage: %d UTF-8 will not be supported", GetACP());
     }
     // at the moment of writing there is no API call to inform Windows about process
     // preferred codepage except manifest.xml file in resource #1.
     // Absence of manifest.xml will result to ancient and useless ANSI 1252 codepage
     // TODO: may need to change CreateWindowA() to CreateWindowW() and
     // translate UTF16 to UTF8
-    ui_app.tid = ut_thread.id();
-    ut_nls.init();
+    ui_app.tid = rt_thread.id();
+    rt_nls.init();
     ui_app.visibility = show;
     rt_args.WinMain();
     int32_t r = ui_app_win_main(instance);
@@ -3045,8 +3045,8 @@ int main(int argc, const char* argv[], const char** envp) {
     SetUnhandledExceptionFilter(ui_app_exception_filter);
     rt_fatal_if_error(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
     rt_args.main(argc, argv, envp);
-    ut_nls.init();
-    ui_app.tid = ut_thread.id();
+    rt_nls.init();
+    ui_app.tid = rt_thread.id();
     int r = ui_app.main();
     rt_args.fini();
     return r;

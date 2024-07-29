@@ -42,34 +42,34 @@
     <ClInclude Include="..\inc\ut\rt_loader.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_mem.h">
+    <ClInclude Include="..\inc\ut\rt_mem.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_num.h">
+    <ClInclude Include="..\inc\ut\rt_num.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_processes.h">
+    <ClInclude Include="..\inc\ut\rt_processes.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\rt_core.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_static.h">
+    <ClInclude Include="..\inc\ut\rt_static.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_std.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_str.h">
+    <ClInclude Include="..\inc\ut\rt_str.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_streams.h">
+    <ClInclude Include="..\inc\ut\rt_streams.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_threads.h">
+    <ClInclude Include="..\inc\ut\rt_threads.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_vigil.h">
+    <ClInclude Include="..\inc\ut\rt_vigil.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_win32.h">

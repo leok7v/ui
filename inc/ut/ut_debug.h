@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
 // debug interface essentially is:
 // vfprintf(stderr, format, va)
@@ -66,8 +66,8 @@ typedef struct {
     void (*test)(void);
 } rt_debug_if;
 
-#define ut_println(...) rt_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define rt_println(...) rt_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
 extern rt_debug_if rt_debug;
 
-ut_end_c
+rt_end_c

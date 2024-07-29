@@ -1,9 +1,9 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
-void ut_win32_close_handle(void* h) {
+void rt_win32_close_handle(void* h) {
     #pragma warning(suppress: 6001) // shut up overzealous IntelliSense
-    ut_fatal_win32err(CloseHandle((HANDLE)h));
+    rt_fatal_win32err(CloseHandle((HANDLE)h));
 }
 
 // WAIT_ABANDONED only reported for mutexes not events
@@ -11,7 +11,7 @@ void ut_win32_close_handle(void* h) {
 // by another thread while the calling thread was waiting for it.
 
 /* translate ix to error */
-errno_t ut_wait_ix2e(uint32_t r) {
+errno_t rt_wait_ix2e(uint32_t r) {
     const int32_t ix = (int32_t)r;
     return (errno_t)(
           (int32_t)WAIT_OBJECT_0 <= ix && ix <= WAIT_OBJECT_0 + 63 ? 0 :

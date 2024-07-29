@@ -36,22 +36,22 @@ static void load_images(void) {
     int r = 0;
     void* data = null;
     int64_t bytes = 0;
-    for (int i = 0; i < ut_countof(image); i++) {
+    for (int i = 0; i < rt_countof(image); i++) {
         if (i == 0) {
-            r = ut_mem.map_ro(filename, &data, &bytes);
+            r = rt_mem.map_ro(filename, &data, &bytes);
         } else {
-            r = ut_mem.map_resource("sample_png", &data, &bytes);
+            r = rt_mem.map_resource("sample_png", &data, &bytes);
         }
         rt_fatal_if_error(r);
         int w = 0;
         int h = 0;
         int bpp = 0; // bytes (!) per pixel
         void* pixels = load_image(data, bytes, &w, &h, &bpp, 0);
-        ut_not_null(pixels);
+        rt_not_null(pixels);
         ui_gdi.image_init(&image[i], w, h, bpp, pixels);
         stbi_image_free(pixels);
         // do not unmap resources:
-        if (i == 0) { ut_mem.unmap(data, bytes); }
+        if (i == 0) { rt_mem.unmap(data, bytes); }
     }
 }
 
@@ -80,11 +80,11 @@ static void download(void) {
         "Wikipedia-sipi-image-db-mandrill-4.2.03.png";
     if (!rt_files.exists(filename)) {
         char cmd[256];
-        ut_str_printf(cmd, "curl.exe  --silent --fail --create-dirs "
+        rt_str_printf(cmd, "curl.exe  --silent --fail --create-dirs "
             "\"%s\" --output \"%s\" 2>nul >nul", url, filename);
         int r = system(cmd);
         if (r != 0) {
-            ut_println("download %s failed %d %s", filename, r, ut_strerr(r));
+            rt_println("download %s failed %d %s", filename, r, rt_strerr(r));
         }
     }
 }
@@ -92,7 +92,7 @@ static void download(void) {
 static void init(void) {
     ui_app.title = title;
     ui_app.content->paint = paint;
-    ut_str_printf(filename, "%s\\mandrill-4.2.03.png",
+    rt_str_printf(filename, "%s\\mandrill-4.2.03.png",
         rt_files.known_folder(rt_files.folder.pictures));
     download();
     load_images();

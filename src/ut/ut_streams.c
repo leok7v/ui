@@ -1,10 +1,10 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
-static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t bytes,
+static errno_t rt_streams_memory_read(rt_stream_if* stream, void* data, int64_t bytes,
         int64_t *transferred) {
     rt_swear(bytes > 0);
-    ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
+    rt_stream_memory_if* s = (rt_stream_memory_if*)stream;
     rt_swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
@@ -15,10 +15,10 @@ static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t 
     return 0;
 }
 
-static errno_t ut_streams_memory_write(ut_stream_if* stream, const void* data, int64_t bytes,
+static errno_t rt_streams_memory_write(rt_stream_if* stream, const void* data, int64_t bytes,
         int64_t *transferred) {
     rt_swear(bytes > 0);
-    ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
+    rt_stream_memory_if* s = (rt_stream_memory_if*)stream;
     rt_swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
@@ -30,9 +30,9 @@ static errno_t ut_streams_memory_write(ut_stream_if* stream, const void* data, i
     return overflow ? ERROR_INSUFFICIENT_BUFFER : 0;
 }
 
-static void ut_streams_read_only(ut_stream_memory_if* s,
+static void rt_streams_read_only(rt_stream_memory_if* s,
         const void* data, int64_t bytes) {
-    s->stream.read = ut_streams_memory_read;
+    s->stream.read = rt_streams_memory_read;
     s->stream.write = null;
     s->data_read = data;
     s->bytes_read = bytes;
@@ -42,10 +42,10 @@ static void ut_streams_read_only(ut_stream_memory_if* s,
     s->pos_write = 0;
 }
 
-static void ut_streams_write_only(ut_stream_memory_if* s,
+static void rt_streams_write_only(rt_stream_memory_if* s,
         void* data, int64_t bytes) {
     s->stream.read = null;
-    s->stream.write = ut_streams_memory_write;
+    s->stream.write = rt_streams_memory_write;
     s->data_read = null;
     s->bytes_read = 0;
     s->pos_read = 0;
@@ -54,11 +54,11 @@ static void ut_streams_write_only(ut_stream_memory_if* s,
     s->pos_write = 0;
 }
 
-static void ut_streams_read_write(ut_stream_memory_if* s,
+static void rt_streams_read_write(rt_stream_memory_if* s,
         const void* read, int64_t read_bytes,
         void* write, int64_t write_bytes) {
-    s->stream.read = ut_streams_memory_read;
-    s->stream.write = ut_streams_memory_write;
+    s->stream.read = rt_streams_memory_read;
+    s->stream.write = rt_streams_memory_write;
     s->data_read = read;
     s->bytes_read = read_bytes;
     s->pos_read = 0;
@@ -70,20 +70,20 @@ static void ut_streams_read_write(ut_stream_memory_if* s,
 
 #ifdef UT_TESTS
 
-static void ut_streams_test(void) {
+static void rt_streams_test(void) {
     {   // read test
         uint8_t memory[256];
-        for (int32_t i = 0; i < ut_countof(memory); i++) { memory[i] = (uint8_t)i; }
-        for (int32_t i = 1; i < ut_countof(memory) - 1; i++) {
-            ut_stream_memory_if ms; // memory stream
-            ut_streams.read_only(&ms, memory, sizeof(memory));
+        for (int32_t i = 0; i < rt_countof(memory); i++) { memory[i] = (uint8_t)i; }
+        for (int32_t i = 1; i < rt_countof(memory) - 1; i++) {
+            rt_stream_memory_if ms; // memory stream
+            rt_streams.read_only(&ms, memory, sizeof(memory));
             uint8_t data[256];
-            for (int32_t j = 0; j < ut_countof(data); j++) { data[j] = 0xFF; }
+            for (int32_t j = 0; j < rt_countof(data); j++) { data[j] = 0xFF; }
             int64_t transferred = 0;
             errno_t r = ms.stream.read(&ms.stream, data, i, &transferred);
             rt_swear(r == 0 && transferred == i);
             for (int32_t j = 0; j < i; j++) { rt_swear(data[j] == memory[j]); }
-            for (int32_t j = i; j < ut_countof(data); j++) { rt_swear(data[j] == 0xFF); }
+            for (int32_t j = i; j < rt_countof(data); j++) { rt_swear(data[j] == 0xFF); }
         }
     }
     {   // write test
@@ -92,18 +92,18 @@ static void ut_streams_test(void) {
     {   // read/write test
         // TODO: implement
     }
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
 #else
 
-static void ut_streams_test(void) { }
+static void rt_streams_test(void) { }
 
 #endif
 
-ut_streams_if ut_streams = {
-    .read_only  = ut_streams_read_only,
-    .write_only = ut_streams_write_only,
-    .read_write = ut_streams_read_write,
-    .test       = ut_streams_test
+rt_streams_if rt_streams = {
+    .read_only  = rt_streams_read_only,
+    .write_only = rt_streams_write_only,
+    .read_write = rt_streams_read_write,
+    .test       = rt_streams_test
 };

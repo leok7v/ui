@@ -2,7 +2,7 @@
 #include "ut/ut_std.h"
 #include "ui/ui_view.h"
 
-ut_begin_c
+rt_begin_c
 
 typedef ui_view_t ui_button_t;
 
@@ -92,4 +92,4 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
 // }
 
 
-ut_end_c
+rt_end_c

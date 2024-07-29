@@ -13,9 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ut_stringify(x) #x
-#define ut_tostring(x) ut_stringify(x)
-#define ut_pragma(x) _Pragma(ut_tostring(x))
+#define rt_stringify(x) #x
+#define rt_tostring(x) rt_stringify(x)
+#define rt_pragma(x) _Pragma(rt_tostring(x))
 
 #if defined(__GNUC__) || defined(__clang__) // TODO: remove and fix code
 #pragma GCC diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
@@ -30,17 +30,17 @@
 #pragma GCC diagnostic ignored "-Wcast-align"
 #pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 #pragma GCC diagnostic ignored "-Wused-but-marked-unused" // because in debug only
-#define ut_msvc_pragma(x)
-#define ut_gcc_pragma(x) ut_pragma(x)
+#define rt_msvc_pragma(x)
+#define rt_gcc_pragma(x) rt_pragma(x)
 #else
-#define ut_gcc_pragma(x)
-#define ut_msvc_pragma(x) ut_pragma(x)
+#define rt_gcc_pragma(x)
+#define rt_msvc_pragma(x) rt_pragma(x)
 #endif
 
 #ifdef _MSC_VER
-    #define ut_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
+    #define rt_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
 #else
-    #define ut_suppress_constant_cond_exp
+    #define rt_suppress_constant_cond_exp
 #endif
 
 // Type aliases for floating-point types similar to <stdint.h>
@@ -50,22 +50,22 @@ typedef double fp64_t;
 // of it is not specified.
 
 #ifdef __cplusplus
-    #define ut_begin_c extern "C" {
-    #define ut_end_c } // extern "C"
+    #define rt_begin_c extern "C" {
+    #define rt_end_c } // extern "C"
 #else
-    #define ut_begin_c // C headers compiled as C++
-    #define ut_end_c
+    #define rt_begin_c // C headers compiled as C++
+    #define rt_end_c
 #endif
 
-// ut_countof() and ut_countof() are suitable for
+// rt_countof() and rt_countof() are suitable for
 // small < 2^31 element arrays
 
-#define ut_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
+#define rt_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
 
 #if defined(__GNUC__) || defined(__clang__)
-    #define ut_force_inline __attribute__((always_inline))
+    #define rt_force_inline __attribute__((always_inline))
 #elif defined(_MSC_VER)
-    #define ut_force_inline __forceinline
+    #define rt_force_inline __forceinline
 #endif
 
 #ifndef __cplusplus
@@ -75,61 +75,61 @@ typedef double fp64_t;
 #endif
 
 #if defined(_MSC_VER)
-    #define ut_thread_local __declspec(thread)
+    #define rt_thread_local __declspec(thread)
 #else
     #ifndef __cplusplus
-        #define ut_thread_local _Thread_local // C99
+        #define rt_thread_local _Thread_local // C99
     #else
-        // C++ supports ut_thread_local keyword
+        // C++ supports rt_thread_local keyword
     #endif
 #endif
 
-// ut_begin_packed ut_end_packed
-// usage: typedef ut_begin_packed struct foo_s { ... } ut_end_packed foo_t;
+// rt_begin_packed rt_end_packed
+// usage: typedef rt_begin_packed struct foo_s { ... } rt_end_packed foo_t;
 
 #if defined(__GNUC__) || defined(__clang__)
-#define ut_attribute_packed __attribute__((packed))
-#define ut_begin_packed
-#define ut_end_packed ut_attribute_packed
+#define rt_attribute_packed __attribute__((packed))
+#define rt_begin_packed
+#define rt_end_packed rt_attribute_packed
 #else
-#define ut_begin_packed ut_pragma( pack(push, 1) )
-#define ut_end_packed ut_pragma( pack(pop) )
-#define ut_attribute_packed
+#define rt_begin_packed rt_pragma( pack(push, 1) )
+#define rt_end_packed rt_pragma( pack(pop) )
+#define rt_attribute_packed
 #endif
 
-// usage: typedef struct ut_aligned_8 foo_s { ... } foo_t;
+// usage: typedef struct rt_aligned_8 foo_s { ... } foo_t;
 
 #if defined(__GNUC__) || defined(__clang__)
-#define ut_aligned_8 __attribute__((aligned(8)))
+#define rt_aligned_8 __attribute__((aligned(8)))
 #elif defined(_MSC_VER)
-#define ut_aligned_8 __declspec(align(8))
+#define rt_aligned_8 __declspec(align(8))
 #else
-#define ut_aligned_8
+#define rt_aligned_8
 #endif
 
 
 // In callbacks the formal parameters are
 // frequently unused. Also sometimes parameters
-// are used in debug configuration only (e.g. ut_assert() checks)
+// are used in debug configuration only (e.g. rt_assert() checks)
 // but not in release.
 // C does not have anonymous parameters like C++
 // Instead of:
 //      void foo(param_type_t param) { (void)param; / *unused */ }
 // use:
-//      vod foo(param_type_t ut_unused(param)) { }
+//      vod foo(param_type_t rt_unused(param)) { }
 
 #if defined(__GNUC__) || defined(__clang__)
-#define ut_unused(name) name __attribute__((unused))
+#define rt_unused(name) name __attribute__((unused))
 #elif defined(_MSC_VER)
-#define ut_unused(name) _Pragma("warning(suppress:  4100)") name
+#define rt_unused(name) _Pragma("warning(suppress:  4100)") name
 #else
-#define ut_unused(name) name
+#define rt_unused(name) name
 #endif
 
 // Because MS C compiler is unhappy about alloca() and
 // does not implement (C99 optional) dynamic arrays on the stack:
 
-#define ut_stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
+#define rt_stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
 
 // alloca() is messy and in general is a not a good idea.
 // try to avoid if possible. Stack sizes vary from 64KB to 8MB in 2024.

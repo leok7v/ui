@@ -1,7 +1,7 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ui/ui.h"
 
-ut_begin_c
+rt_begin_c
 
 typedef struct ui_view_s ui_view_t;
 
@@ -52,4 +52,4 @@ void ui_view_init_span(ui_view_t* v);
 void ui_view_init_list(ui_view_t* v);
 void ui_view_init_spacer(ui_view_t* v);
 
-ut_end_c
+rt_end_c

@@ -2,7 +2,7 @@
 #include "ui/ui.h"
 
 static void measurements_center(ui_view_t* view) {
-    ut_assert(view->child != null && view->child->next == view->child,
+    rt_assert(view->child != null && view->child->next == view->child,
         "must be a single child parent");
     ui_view_t* c = view->child; // even if hidden measure it
     c->w = view->w;
@@ -10,7 +10,7 @@ static void measurements_center(ui_view_t* view) {
 }
 
 static void measurements_horizontal(ui_view_t* view, int32_t gap) {
-    ut_assert(view->child != null, "not a single child?");
+    rt_assert(view->child != null, "not a single child?");
     view->w = 0;
     view->h = 0;
     bool seen = false;
@@ -25,7 +25,7 @@ static void measurements_horizontal(ui_view_t* view, int32_t gap) {
 }
 
 static void measurements_vertical(ui_view_t* view, int32_t gap) {
-    ut_assert(view->child != null, "not a single child?");
+    rt_assert(view->child != null, "not a single child?");
     view->h = 0;
     bool seen = false;
     ui_view_for_each(view, c, {
@@ -44,13 +44,13 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
         int32_t n = 0;
         ui_view_for_each(r, c, { n++; });
         if (cols == 0) { cols = n; }
-        ut_assert(n > 0 && cols == n);
+        rt_assert(n > 0 && cols == n);
     });
     #pragma warning(push) // mxw[] IntelliSense confusion
     #pragma warning(disable: 6385)
     #pragma warning(disable: 6386)
     int32_t mxw[1024]; // more than enough for sane humane UI
-    rt_swear(cols <= ut_countof(mxw));
+    rt_swear(cols <= rt_countof(mxw));
     memset(mxw, 0, (size_t)cols * sizeof(int32_t));
     ui_view_for_each(v, r, {
         if (!ui_view.is_hidden(r)) {
@@ -61,7 +61,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
                 if (!ui_view.is_hidden(c)) {
                     mxw[i] = rt_max(mxw[i], c->w);
                     r->h = rt_max(r->h, c->h);
-//                  ut_println("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
+//                  rt_println("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
 //                          i, r->fm->baseline, c->fm->baseline);
 //                  r->fm->baseline = rt_max(r->fm->baseline, c->fm->baseline);
                 }
@@ -112,7 +112,7 @@ measurements_if measurements = {
 // layouts
 
 static void layouts_center(ui_view_t* view) {
-    ut_assert(view->child != null && view->child->next == view->child,
+    rt_assert(view->child != null && view->child->next == view->child,
         "must be a single child parent");
     ui_view_t* c = view->child;
     c->x = (view->w - c->w) / 2;
@@ -121,7 +121,7 @@ static void layouts_center(ui_view_t* view) {
 
 static void layouts_horizontal(ui_view_t* view, int32_t x, int32_t y,
         int32_t gap) {
-    ut_assert(view->child != null, "not a single child?");
+    rt_assert(view->child != null, "not a single child?");
     bool seen = false;
     ui_view_for_each(view, c, {
         if (!ui_view.is_hidden(c)) {
@@ -136,7 +136,7 @@ static void layouts_horizontal(ui_view_t* view, int32_t x, int32_t y,
 
 static void layouts_vertical(ui_view_t* view, int32_t x, int32_t y,
         int32_t gap) {
-    ut_assert(view->child != null, "not a single child?");
+    rt_assert(view->child != null, "not a single child?");
     bool seen = false;
     ui_view_for_each(view, c, {
         if (!ui_view.is_hidden(c)) {
@@ -150,7 +150,7 @@ static void layouts_vertical(ui_view_t* view, int32_t x, int32_t y,
 }
 
 static void layouts_grid(ui_view_t* view, int32_t gap_h, int32_t gap_v) {
-    ut_assert(view->child != null, "not a single child?");
+    rt_assert(view->child != null, "not a single child?");
     int32_t x = view->x;
     int32_t y = view->y;
     bool row_seen = false;

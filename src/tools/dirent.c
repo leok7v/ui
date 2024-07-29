@@ -11,7 +11,7 @@
 #define null ((void*)0)
 
 #ifndef countof
-    #define ut_countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
+    #define rt_countof(a) ((int)(sizeof(a) / sizeof((a)[0])))
 #endif
 
 typedef struct dir_s {
@@ -24,8 +24,8 @@ DIR *opendir(const char *dirname) {
     dir_t *d = calloc(1, sizeof(dir_t));
     if (d != null) {
         char spec[NAME_MAX + 2]; // extra room for "\*" suffix
-        snprintf(spec, ut_countof(spec) - 1, "%s\\*", dirname);
-        spec[ut_countof(spec) - 1] = 0;
+        snprintf(spec, rt_countof(spec) - 1, "%s\\*", dirname);
+        spec[rt_countof(spec) - 1] = 0;
         d->handle = FindFirstFileA(spec, &d->find);
         if (d->handle == INVALID_HANDLE_VALUE) {
             free(d);
@@ -40,7 +40,7 @@ struct dirent* readdir(DIR* dir) {
     struct dirent* de = null;
     if (d->handle != INVALID_HANDLE_VALUE &&
         FindNextFileA(d->handle, &d->find)) {
-        enum { n = ut_countof(d->entry.d_name) };
+        enum { n = rt_countof(d->entry.d_name) };
         strncpy(d->entry.d_name, d->find.cFileName, n - 1);
         d->entry.d_name[n - 1] = 0x00; // Ensure zero termination
         de = &d->entry;

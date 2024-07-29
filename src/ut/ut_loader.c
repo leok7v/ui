@@ -20,13 +20,13 @@ static void* rt_loader_all;
 static void* rt_loader_sym_all(const char* name) {
     void* sym = null;
     DWORD bytes = 0;
-    ut_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
+    rt_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
                                          null, 0, &bytes));
-    ut_assert(bytes % sizeof(HMODULE) == 0);
-    ut_assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
+    rt_assert(bytes % sizeof(HMODULE) == 0);
+    rt_assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
     HMODULE* modules = null;
     rt_fatal_if_error(rt_heap.allocate(null, (void**)&modules, bytes, false));
-    ut_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
+    rt_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
                                          modules, bytes, &bytes));
     const int32_t n = bytes / (int32_t)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
@@ -39,7 +39,7 @@ static void* rt_loader_sym_all(const char* name) {
     return sym;
 }
 
-static void* rt_loader_open(const char* filename, int32_t ut_unused(mode)) {
+static void* rt_loader_open(const char* filename, int32_t rt_unused(mode)) {
     return filename == null ? &rt_loader_all : (void*)LoadLibraryA(filename);
 }
 
@@ -51,7 +51,7 @@ static void* rt_loader_sym(void* handle, const char* name) {
 
 static void rt_loader_close(void* handle) {
     if (handle != &rt_loader_all) {
-        ut_fatal_win32err(FreeLibrary(handle));
+        rt_fatal_win32err(FreeLibrary(handle));
     }
 }
 
@@ -90,7 +90,7 @@ static void rt_loader_test(void) {
     rt_fatal_if(query_timer_resolution(
         &min_resolution, &max_resolution, &cur_resolution) != 0);
 //  if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
-//      ut_println("timer resolution min: %.3f max: %.3f cur: %.3f millisecond",
+//      rt_println("timer resolution min: %.3f max: %.3f cur: %.3f millisecond",
 //          min_resolution / 10.0 / 1000.0,
 //          max_resolution / 10.0 / 1000.0,
 //          cur_resolution / 10.0 / 1000.0);
@@ -106,7 +106,7 @@ static void rt_loader_test(void) {
     foo();
     rt_swear(rt_loader_test_calls_count == 2);
 #endif
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
 #else

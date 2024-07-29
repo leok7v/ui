@@ -1,14 +1,14 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
 // space for "short" 260 utf-16 characters filename in utf-8 format:
-typedef struct ut_file_name_s { char s[1024]; } ut_file_name_t;
+typedef struct rt_file_name_s { char s[1024]; } rt_file_name_t;
 
-enum { rt_files_max_path = (int32_t)sizeof(ut_file_name_t) }; // *)
+enum { rt_files_max_path = (int32_t)sizeof(rt_file_name_t) }; // *)
 
-typedef struct ut_file_s ut_file_t;
+typedef struct rt_file_s rt_file_t;
 
 typedef struct rt_files_stat_s {
     uint64_t created;
@@ -23,7 +23,7 @@ typedef struct rt_folder_s {
 } rt_folder_t;
 
 typedef struct {
-    ut_file_t* const invalid; // (ut_file_t*)-1
+    rt_file_t* const invalid; // (rt_file_t*)-1
     // rt_files_stat_t.type:
     int32_t const type_folder;
     int32_t const type_symlink;
@@ -54,14 +54,14 @@ typedef struct {
         int32_t const bin;       // "c:\Program Files" aka "/bin" aka "/Applications"
         int32_t const data;      // "c:\ProgramData" aka "/var" aka "/data"
     } const folder;
-    errno_t (*open)(ut_file_t* *file, const char* filename, int32_t flags);
-    bool    (*is_valid)(ut_file_t* file); // checks both null and invalid
-    errno_t (*seek)(ut_file_t* file, int64_t *position, int32_t method);
-    errno_t (*stat)(ut_file_t* file, rt_files_stat_t* stat, bool follow_symlink);
-    errno_t (*read)(ut_file_t* file, void* data, int64_t bytes, int64_t *transferred);
-    errno_t (*write)(ut_file_t* file, const void* data, int64_t bytes, int64_t *transferred);
-    errno_t (*flush)(ut_file_t* file);
-    void    (*close)(ut_file_t* file);
+    errno_t (*open)(rt_file_t* *file, const char* filename, int32_t flags);
+    bool    (*is_valid)(rt_file_t* file); // checks both null and invalid
+    errno_t (*seek)(rt_file_t* file, int64_t *position, int32_t method);
+    errno_t (*stat)(rt_file_t* file, rt_files_stat_t* stat, bool follow_symlink);
+    errno_t (*read)(rt_file_t* file, void* data, int64_t bytes, int64_t *transferred);
+    errno_t (*write)(rt_file_t* file, const void* data, int64_t bytes, int64_t *transferred);
+    errno_t (*flush)(rt_file_t* file);
+    void    (*close)(rt_file_t* file);
     errno_t (*write_fully)(const char* filename, const void* data,
                            int64_t bytes, int64_t *transferred);
     bool (*exists)(const char* pathname); // does not guarantee any access writes
@@ -103,4 +103,4 @@ typedef struct {
 
 extern rt_files_if rt_files;
 
-ut_end_c
+rt_end_c

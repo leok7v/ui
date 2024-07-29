@@ -2,7 +2,7 @@
 #include "ut/ut_win32.h"
 
 // abort does NOT call atexit() functions and
-// does NOT flush ut_streams. Also Win32 runtime
+// does NOT flush rt_streams. Also Win32 runtime
 // abort() attempt to show Abort/Retry/Ignore
 // MessageBox - thus ExitProcess()
 
@@ -18,7 +18,7 @@ static errno_t rt_core_err(void) { return (errno_t)GetLastError(); }
 
 static void rt_core_seterr(errno_t err) { SetLastError((DWORD)err); }
 
-ut_static_init(runtime) {
+rt_static_init(runtime) {
     SetErrorMode(
         // The system does not display the critical-error-handler message box.
         // Instead, the system sends the error to the calling process:
@@ -44,21 +44,21 @@ static void rt_core_test(void) { // in alphabetical order
     rt_clock.test();
     rt_config.test();
     rt_debug.test();
-    ut_event.test();
+    rt_event.test();
     rt_files.test();
     rt_generics.test();
     rt_heap.test();
     rt_loader.test();
-    ut_mem.test();
-    ut_mutex.test();
-    ut_num.test();
-    ut_processes.test();
-    ut_static_init_test();
-    ut_str.test();
-    ut_streams.test();
-    ut_thread.test();
-    ut_vigil.test();
-    ut_worker.test();
+    rt_mem.test();
+    rt_mutex.test();
+    rt_num.test();
+    rt_processes.test();
+    rt_static_init_test();
+    rt_str.test();
+    rt_streams.test();
+    rt_thread.test();
+    rt_vigil.test();
+    rt_worker.test();
 }
 
 #else

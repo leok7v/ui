@@ -3,7 +3,7 @@
 
 // Will be deprecated soon after Microsoft fully supports <stdatomic.h>
 
-ut_begin_c
+rt_begin_c
 
 typedef struct {
     void* (*exchange_ptr)(volatile void** a, void* v); // retuns previous value
@@ -34,4 +34,4 @@ typedef struct {
 
 extern rt_atomics_if rt_atomics;
 
-ut_end_c
+rt_end_c

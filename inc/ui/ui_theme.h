@@ -1,7 +1,7 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "ui/ui.h"
 
-ut_begin_c
+rt_begin_c
 
 enum {
     ui_theme_app_mode_default     = 0,
@@ -24,4 +24,4 @@ typedef struct  {
 
 extern ui_theme_if ui_theme;
 
-ut_end_c
+rt_end_c

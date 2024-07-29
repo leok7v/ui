@@ -83,20 +83,20 @@ static void ui_button_callback(ui_button_t* b) {
     if (b->callback != null) { b->callback(b); }
     if (pressed != b->state.pressed) {
         if (b->flip) { // warn the client of strange logic:
-            ut_println("strange flip the button with button.flip: true");
+            rt_println("strange flip the button with button.flip: true");
             // if client wants to flip pressed state manually it
             // should do it for the button.flip = false
         }
-//      ut_println("disarmed immediately");
+//      rt_println("disarmed immediately");
         b->p.armed_until = 0;
         b->state.armed = false;
     } else {
         if (b->flip) {
-//          ut_println("disarmed immediately");
+//          rt_println("disarmed immediately");
             b->p.armed_until = 0;
             b->state.armed = false;
         } else {
-//          ut_println("will disarm in 1/4 seconds");
+//          rt_println("will disarm in 1/4 seconds");
             b->p.armed_until = ui_app.now + 0.250;
         }
     }
@@ -117,13 +117,13 @@ static void ui_button_character(ui_view_t* v, const char* utf8) {
 }
 
 static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
-    ut_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
+    rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_button_trigger(v); }
     return trigger; // swallow if true
 }
 
-static bool ui_button_tap(ui_view_t* v, int32_t ut_unused(ix),
+static bool ui_button_tap(ui_view_t* v, int32_t rt_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
     const bool inside = ui_view.inside(v, &ui_app.mouse);
@@ -142,7 +142,7 @@ static bool ui_button_tap(ui_view_t* v, int32_t ut_unused(ix),
 }
 
 void ui_view_init_button(ui_view_t* v) {
-    ut_assert(v->type == ui_view_button);
+    rt_assert(v->type == ui_view_button);
     v->tap           = ui_button_tap;
     v->paint         = ui_button_paint;
     v->character     = ui_button_character;

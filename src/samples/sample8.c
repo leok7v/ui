@@ -6,7 +6,7 @@ static const char* title = "Sample8: Panels";
 
 enum { version = 0x102 };
 
-typedef ut_begin_packed struct app_data_t {
+typedef rt_begin_packed struct app_data_t {
     int32_t version;
     int32_t menu_used;
     int32_t selected_view;
@@ -15,7 +15,7 @@ typedef ut_begin_packed struct app_data_t {
     int32_t large; // show large H3 controls
     int32_t margins;  // draw controls padding and insets
     int32_t fm;    // draw controls font metrics
-} ut_end_packed app_data_t;
+} rt_end_packed app_data_t;
 
 static app_data_t app_data = { .version = version };
 
@@ -60,7 +60,7 @@ static ui_view_t test = ui_view(stack);
 static ui_view_t tools_list = ui_view(list);
 
 static void tools(ui_button_t* b) {
-    ut_println("b->state.pressed: %d", b->state.pressed);
+    rt_println("b->state.pressed: %d", b->state.pressed);
 //  menu is "flip" button. It will do this:
 //  b->state.pressed = !b->state.pressed;
 //  automatically before callback.
@@ -138,13 +138,13 @@ static ui_mbx_t mbx = ui_mbx( // message box
     "\n",
     null, null);
 
-static void about(ui_button_t* ut_unused(b)) {
+static void about(ui_button_t* rt_unused(b)) {
     ui_app.show_toast(&mbx.view, 10.0);
 }
 
 static char* nil;
 
-static void crash(ui_button_t* ut_unused(b)) {
+static void crash(ui_button_t* rt_unused(b)) {
     // two random ways to crash in release configuration
     if (rt_clock.nanoseconds() % 2 == 0) {
         rt_swear(false, "should crash in release configuration");
@@ -154,8 +154,8 @@ static void crash(ui_button_t* ut_unused(b)) {
         #pragma warning(disable: 4723)   // potential division by zero
         int32_t  a[5];
         int32_t* p = a;
-        ut_println("%d\n", ut_countof(a));
-        ut_println("%d\n", ut_countof(p)); // expected "division by zero"
+        rt_println("%d\n", rt_countof(a));
+        rt_println("%d\n", rt_countof(p)); // expected "division by zero"
         #pragma warning(pop)
         #endif
         (*nil)++; // expected "access violation"
@@ -163,7 +163,7 @@ static void crash(ui_button_t* ut_unused(b)) {
 }
 
 static void insert_into_caption(ui_button_t* b, const char* hint) {
-    ut_str_printf(b->hint, "%s", hint);
+    rt_str_printf(b->hint, "%s", hint);
     b->flat = true;
     b->padding = (ui_margins_t){0,0,0,0};
     b->insets  = (ui_margins_t){0,0,0,0};
@@ -171,7 +171,7 @@ static void insert_into_caption(ui_button_t* b, const char* hint) {
     ui_view.add_before(b,  &ui_caption.mini);
 }
 
-static void ui_app_root_composed(ui_view_t* ut_unused(v)) {
+static void ui_app_root_composed(ui_view_t* rt_unused(v)) {
     app_data.light = !ui_theme.is_app_dark();
 }
 
@@ -225,7 +225,7 @@ static void opened(void) {
         it->align = ui.align.left;
         it->padding.bottom = 0;
     });
-    ut_str_printf(button_stack.hint,
+    rt_str_printf(button_stack.hint,
         "Shows ui_view(stack) layout\n"
         "Resizing Window will allow\n"
         "too see how it behaves");
@@ -346,7 +346,7 @@ static void span_test(ui_view_t* parent) {
         it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
 //      it->fm      = &ui_app.fm.prop.H1;
-//      ut_println("%s 0x%02X", it->text, it->align);
+//      rt_println("%s 0x%02X", it->text, it->align);
     });
     top.max_h = 0;
     bottom.max_h = 0;
@@ -394,12 +394,12 @@ static void list_test(ui_view_t* parent) {
 
 static void slider_format(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
-    ui_view.set_text(v, "%s", ut_str.uint64(slider->value));
+    ui_view.set_text(v, "%s", rt_str.uint64(slider->value));
 }
 
 static void slider_callback(ui_view_t* v) {
     ui_slider_t* slider = (ui_slider_t*)v;
-    ut_println("value: %d", slider->value);
+    rt_println("value: %d", slider->value);
 }
 
 static void controls_set_margins(ui_view_t* v, bool on_off) {
@@ -443,11 +443,11 @@ static void controls_large(ui_view_t* v) {
 
 static void button_pressed(ui_view_t* v) {
     if (v->shortcut != 0) {
-        ut_println("'%c' 0x%02X %d, %s \"%s\"",
+        rt_println("'%c' 0x%02X %d, %s \"%s\"",
             v->shortcut, v->shortcut, v->shortcut,
             ui_view_debug_id(v), v->p.text);
     } else {
-        ut_println("%s \"%s\"", ui_view_debug_id(v), v->p.text);
+        rt_println("%s \"%s\"", ui_view_debug_id(v), v->p.text);
     }
 }
 
@@ -543,12 +543,12 @@ static void edit1_test(ui_view_t* parent) {
     if (text == null) {
         if (rt_args.c > 1) {
             if (rt_files.exists(rt_args.v[1])) {
-                errno_t r = ut_mem.map_ro(rt_args.v[1], &text, &bytes);
+                errno_t r = rt_mem.map_ro(rt_args.v[1], &text, &bytes);
                 if (r != 0) {
-                    ut_println("ut_mem.map_ro(%s) failed %s", rt_args.v[1], ut_str.error(r));
+                    rt_println("rt_mem.map_ro(%s) failed %s", rt_args.v[1], rt_str.error(r));
                 }
             } else {
-                ut_println("file \"%s\" does not exist", rt_args.v[1]);
+                rt_println("file \"%s\" does not exist", rt_args.v[1]);
             }
         }
     }
@@ -571,6 +571,6 @@ static void edit1_test(ui_view_t* parent) {
     edit.view.max_h = ui.infinity;
 //  edit.view.debug.paint.margins = true;
 //  edit.view.debug.trace.prc = true;
-    ut_str_printf(edit.p.text, "#edit");
+    rt_str_printf(edit.p.text, "#edit");
     ui_view.set_focus(&edit.view);
 }

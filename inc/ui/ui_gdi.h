@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
 // Graphic Device Interface (selected parts of Windows GDI)
 
@@ -155,11 +155,11 @@ typedef struct {
         int32_t w, const char* format, va_list va); // "w" can be zero
     ui_wh_t (*multiline)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
         int32_t w, const char* format, ...);
-    // x[ut_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
+    // x[rt_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
     ui_wh_t (*glyphs_placement)(const ui_gdi_ta_t* ta, const char* utf8,
         int32_t bytes, int32_t x[/*glyphs + 1*/], int32_t glyphs);
 } ui_gdi_if;
 
 extern ui_gdi_if ui_gdi;
 
-ut_end_c
+rt_end_c

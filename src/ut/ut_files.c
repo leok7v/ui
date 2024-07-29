@@ -5,15 +5,15 @@
 // https://learn.microsoft.com/en-us/windows/win32/fileio/appending-one-file-to-another-file?redirectedfrom=MSDN
 
 // are posix and Win32 seek in agreement?
-ut_static_assertion(SEEK_SET == FILE_BEGIN);
-ut_static_assertion(SEEK_CUR == FILE_CURRENT);
-ut_static_assertion(SEEK_END == FILE_END);
+rt_static_assertion(SEEK_SET == FILE_BEGIN);
+rt_static_assertion(SEEK_CUR == FILE_CURRENT);
+rt_static_assertion(SEEK_END == FILE_END);
 
 #ifndef O_SYNC
 #define O_SYNC (0x10000)
 #endif
 
-static errno_t rt_files_open(ut_file_t* *file, const char* fn, int32_t f) {
+static errno_t rt_files_open(rt_file_t* *file, const char* fn, int32_t f) {
     DWORD access = (f & rt_files.o_wr) ? GENERIC_WRITE :
                    (f & rt_files.o_rw) ? GENERIC_READ | GENERIC_WRITE :
                                       GENERIC_READ;
@@ -30,14 +30,14 @@ static errno_t rt_files_open(ut_file_t* *file, const char* fn, int32_t f) {
     return *file != INVALID_HANDLE_VALUE ? 0 : rt_core.err();
 }
 
-static bool rt_files_is_valid(ut_file_t* file) { // both null and rt_files.invalid
+static bool rt_files_is_valid(rt_file_t* file) { // both null and rt_files.invalid
     return file != rt_files.invalid && file != null;
 }
 
-static errno_t rt_files_seek(ut_file_t* file, int64_t *position, int32_t method) {
+static errno_t rt_files_seek(rt_file_t* file, int64_t *position, int32_t method) {
     LARGE_INTEGER distance_to_move = { .QuadPart = *position };
     LARGE_INTEGER p = { 0 }; // pointer
-    errno_t r = ut_b2e(SetFilePointerEx(file, distance_to_move, &p, (DWORD)method));
+    errno_t r = rt_b2e(SetFilePointerEx(file, distance_to_move, &p, (DWORD)method));
     if (r == 0) { *position = p.QuadPart; }
     return r;
 }
@@ -74,11 +74,11 @@ static int get_final_path_name_by_fd(int fd, char *buffer, int32_t bytes) {
 
 #endif
 
-static errno_t rt_files_stat(ut_file_t* file, rt_files_stat_t* s,
+static errno_t rt_files_stat(rt_file_t* file, rt_files_stat_t* s,
                              bool follow_symlink) {
     errno_t r = 0;
     BY_HANDLE_FILE_INFORMATION fi;
-    ut_fatal_win32err(GetFileInformationByHandle(file, &fi));
+    rt_fatal_win32err(GetFileInformationByHandle(file, &fi));
     const bool symlink =
         (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
     if (follow_symlink && symlink) {
@@ -94,7 +94,7 @@ static errno_t rt_files_stat(ut_file_t* file, rt_files_stat_t* s,
                 if (n == 0) {
                     r = rt_core.err();
                 } else {
-                    ut_file_t* f = rt_files.invalid;
+                    rt_file_t* f = rt_files.invalid;
                     r = rt_files.open(&f, name, rt_files.o_rd);
                     if (r == 0) { // keep following:
                         r = rt_files.stat(f, s, follow_symlink);
@@ -115,13 +115,13 @@ static errno_t rt_files_stat(ut_file_t* file, rt_files_stat_t* s,
     return r;
 }
 
-static errno_t rt_files_read(ut_file_t* file, void* data, int64_t bytes, int64_t *transferred) {
+static errno_t rt_files_read(rt_file_t* file, void* data, int64_t bytes, int64_t *transferred) {
     errno_t r = 0;
     *transferred = 0;
     while (bytes > 0 && r == 0) {
         DWORD chunk_size = (DWORD)(bytes > UINT32_MAX ? UINT32_MAX : bytes);
         DWORD bytes_read = 0;
-        r = ut_b2e(ReadFile(file, data, chunk_size, &bytes_read, null));
+        r = rt_b2e(ReadFile(file, data, chunk_size, &bytes_read, null));
         if (r == 0) {
             *transferred += bytes_read;
             bytes -= bytes_read;
@@ -131,13 +131,13 @@ static errno_t rt_files_read(ut_file_t* file, void* data, int64_t bytes, int64_t
     return r;
 }
 
-static errno_t rt_files_write(ut_file_t* file, const void* data, int64_t bytes, int64_t *transferred) {
+static errno_t rt_files_write(rt_file_t* file, const void* data, int64_t bytes, int64_t *transferred) {
     errno_t r = 0;
     *transferred = 0;
     while (bytes > 0 && r == 0) {
         DWORD chunk_size = (DWORD)(bytes > UINT32_MAX ? UINT32_MAX : bytes);
         DWORD bytes_read = 0;
-        r = ut_b2e(WriteFile(file, data, chunk_size, &bytes_read, null));
+        r = rt_b2e(WriteFile(file, data, chunk_size, &bytes_read, null));
         if (r == 0) {
             *transferred += bytes_read;
             bytes -= bytes_read;
@@ -147,12 +147,12 @@ static errno_t rt_files_write(ut_file_t* file, const void* data, int64_t bytes, 
     return r;
 }
 
-static errno_t rt_files_flush(ut_file_t* file) {
-    return ut_b2e(FlushFileBuffers(file));
+static errno_t rt_files_flush(rt_file_t* file) {
+    return rt_b2e(FlushFileBuffers(file));
 }
 
-static void rt_files_close(ut_file_t* file) {
-    ut_win32_close_handle(file);
+static void rt_files_close(rt_file_t* file) {
+    rt_win32_close_handle(file);
 }
 
 static errno_t rt_files_write_fully(const char* filename, const void* data,
@@ -172,25 +172,25 @@ static errno_t rt_files_write_fully(const char* filename, const void* data,
         while (r == 0 && bytes > 0) {
             uint64_t write = bytes >= UINT32_MAX ?
                 (uint64_t)(UINT32_MAX) - 0xFFFFuLL : (uint64_t)bytes;
-            ut_assert(0 < write && write < (uint64_t)UINT32_MAX);
+            rt_assert(0 < write && write < (uint64_t)UINT32_MAX);
             DWORD chunk = 0;
-            r = ut_b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
+            r = rt_b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
             written += chunk;
             bytes -= chunk;
         }
         if (transferred != null) { *transferred = written; }
-        errno_t rc = ut_b2e(FlushFileBuffers(file));
+        errno_t rc = rt_b2e(FlushFileBuffers(file));
         if (r == 0) { r = rc; }
-        ut_win32_close_handle(file);
+        rt_win32_close_handle(file);
     }
     return r;
 }
 
 static errno_t rt_files_unlink(const char* pathname) {
     if (rt_files.is_folder(pathname)) {
-        return ut_b2e(RemoveDirectoryA(pathname));
+        return rt_b2e(RemoveDirectoryA(pathname));
     } else {
-        return ut_b2e(DeleteFileA(pathname));
+        return rt_b2e(DeleteFileA(pathname));
     }
 }
 
@@ -202,7 +202,7 @@ static errno_t rt_files_create_tmp(char* fn, int32_t count) {
     if (count < (int32_t)strlen(tmp) + 8) {
         r = ERROR_BUFFER_OVERFLOW;
     } else {
-        ut_assert(count > (int32_t)strlen(tmp) + 8);
+        rt_assert(count > (int32_t)strlen(tmp) + 8);
         // If GetTempFileNameA() succeeds, the return value is the length,
         // in chars, of the string copied to lpBuffer, not including the
         // terminating null character.If the function fails,
@@ -211,9 +211,9 @@ static errno_t rt_files_create_tmp(char* fn, int32_t count) {
             char prefix[4] = { 0 };
             r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? rt_core.err() : 0;
             if (r == 0) {
-                ut_assert(rt_files.exists(fn) && !rt_files.is_folder(fn));
+                rt_assert(rt_files.exists(fn) && !rt_files.is_folder(fn));
             } else {
-                ut_println("GetTempFileNameA() failed %s", ut_strerr(r));
+                rt_println("GetTempFileNameA() failed %s", rt_strerr(r));
             }
         } else {
             r = ERROR_BUFFER_OVERFLOW;
@@ -248,22 +248,22 @@ static errno_t rt_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     ACL* bigger = null;
     uint32_t bytes_needed = sizeof(ACCESS_ALLOWED_ACE) + GetLengthSid(sid)
                           - sizeof(DWORD);
-    errno_t r = ut_b2e(GetAclInformation(acl, &info, sizeof(ACL_SIZE_INFORMATION),
+    errno_t r = rt_b2e(GetAclInformation(acl, &info, sizeof(ACL_SIZE_INFORMATION),
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
         const int64_t bytes = (int64_t)(info.AclBytesInUse + bytes_needed);
         r = rt_heap.allocate(null, (void**)&bigger, bytes, true);
         if (r == 0) {
-            r = ut_b2e(InitializeAcl((ACL*)bigger,
+            r = rt_b2e(InitializeAcl((ACL*)bigger,
                     info.AclBytesInUse + bytes_needed, ACL_REVISION));
         }
     }
     if (r == 0 && bigger != null) {
         for (int32_t i = 0; i < (int32_t)info.AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace = null;
-            r = ut_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
+            r = rt_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
-            r = ut_b2e(AddAce(bigger, ACL_REVISION, MAXDWORD, ace,
+            r = rt_b2e(AddAce(bigger, ACL_REVISION, MAXDWORD, ace,
                            ace->Header.AceSize));
             if (r != 0) { break; }
         }
@@ -278,7 +278,7 @@ static errno_t rt_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
             ace->Mask = mask;
             ace->SidStart = sizeof(ACCESS_ALLOWED_ACE);
             memcpy(&ace->SidStart, sid, GetLengthSid(sid));
-            r = ut_b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
+            r = rt_b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
                            ace, bytes_needed));
             rt_heap.deallocate(null, ace);
         }
@@ -294,14 +294,14 @@ static errno_t rt_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
     char account[128];
     char group[128];
     SID_NAME_USE use;
-    errno_t r = ut_b2e(LookupAccountSidA(null, sid, account,
+    errno_t r = rt_b2e(LookupAccountSidA(null, sid, account,
                                      &l1, group, &l2, &use));
     if (r == 0) {
-        ut_println("%s/%s: type: %d, mask: 0x%X, flags:%d",
+        rt_println("%s/%s: type: %d, mask: 0x%X, flags:%d",
                 group, account,
                 ace->Header.AceType, ace->Mask, ace->Header.AceFlags);
     } else {
-        ut_println("LookupAccountSidA() failed %s", ut_strerr(r));
+        rt_println("LookupAccountSidA() failed %s", rt_strerr(r));
     }
     return r;
 }
@@ -309,9 +309,9 @@ static errno_t rt_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
 static errno_t rt_files_add_acl_ace(void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
     uint8_t stack[SECURITY_MAX_SID_SIZE] = {0};
-    DWORD n = ut_countof(stack);
+    DWORD n = rt_countof(stack);
     SID* sid = (SID*)stack;
-    errno_t r = ut_b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
+    errno_t r = rt_b2e(CreateWellKnownSid((WELL_KNOWN_SID_TYPE)sid_type,
                                        null, sid, &n));
     if (r != 0) {
         return ERROR_INVALID_PARAMETER;
@@ -323,7 +323,7 @@ static errno_t rt_files_add_acl_ace(void* obj, int32_t obj_type,
         ACCESS_ALLOWED_ACE* found = null;
         for (int32_t i = 0; i < acl->AceCount; i++) {
             ACCESS_ALLOWED_ACE* ace = null;
-            r = ut_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
+            r = rt_b2e(GetAce(acl, (DWORD)i, (void**)&ace));
             if (r != 0) { break; }
             if (EqualSid((SID*)&ace->SidStart, sid)) {
                 if (ace->Header.AceType == ACCESS_ALLOWED_ACE_TYPE &&
@@ -331,7 +331,7 @@ static errno_t rt_files_add_acl_ace(void* obj, int32_t obj_type,
                     found = ace;
                 } else if (ace->Header.AceType !=
                            ACCESS_ALLOWED_ACE_TYPE) {
-                    ut_println("%d ACE_TYPE is not supported.",
+                    rt_println("%d ACE_TYPE is not supported.",
                              ace->Header.AceType);
                     r = ERROR_INVALID_PARAMETER;
                 }
@@ -340,14 +340,14 @@ static errno_t rt_files_add_acl_ace(void* obj, int32_t obj_type,
         }
         if (r == 0 && found) {
             if ((found->Mask & mask) != mask) {
-//              ut_println("updating existing ace");
+//              rt_println("updating existing ace");
                 found->Mask |= mask;
                 r = rt_files_set_acl(obj, obj_type, acl);
             } else {
-//              ut_println("desired access is already allowed by ace");
+//              rt_println("desired access is already allowed by ace");
             }
         } else if (r == 0) {
-//          ut_println("inserting new ace");
+//          rt_println("inserting new ace");
             ACL* new_acl = null;
             byte flags = obj_type == SE_FILE_OBJECT ?
                 CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE : 0;
@@ -369,7 +369,7 @@ static errno_t rt_files_add_acl_ace(void* obj, int32_t obj_type,
 static errno_t rt_files_chmod777(const char* pathname) {
     SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
     PSID everyone = null; // Create a well-known SID for the Everyone group.
-    ut_fatal_win32err(AllocateAndInitializeSid(&SIDAuthWorld, 1,
+    rt_fatal_win32err(AllocateAndInitializeSid(&SIDAuthWorld, 1,
              SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone));
     EXPLICIT_ACCESSA ea[1] = { { 0 } };
     // Initialize an EXPLICIT_ACCESS structure for an ACE.
@@ -385,15 +385,15 @@ static errno_t rt_files_chmod777(const char* pathname) {
     // Initialize a security descriptor.
     uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH] = {0};
     SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)stack;
-    ut_fatal_win32err(InitializeSecurityDescriptor(sd,
+    rt_fatal_win32err(InitializeSecurityDescriptor(sd,
         SECURITY_DESCRIPTOR_REVISION));
     // Add the ACL to the security descriptor.
-    ut_fatal_win32err(SetSecurityDescriptorDacl(sd,
+    rt_fatal_win32err(SetSecurityDescriptorDacl(sd,
         /* present flag: */ true, acl, /* not a default DACL: */  false));
     // Change the security attributes
-    errno_t r = ut_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
+    errno_t r = rt_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
     if (r != 0) {
-        ut_println("chmod777(%s) failed %s", pathname, ut_strerr(r));
+        rt_println("chmod777(%s) failed %s", pathname, rt_strerr(r));
     }
     if (everyone != null) { FreeSid(everyone); }
     if (acl != null) { LocalFree(acl); }
@@ -414,7 +414,7 @@ static errno_t rt_files_mkdirs(const char* dir) {
     while (r == 0 && next != null) {
         if (next > dir && *(next - 1) != ':') {
             memcpy(s, dir, (size_t)(next - dir));
-            r = ut_b2e(CreateDirectoryA(s, null));
+            r = rt_b2e(CreateDirectoryA(s, null));
             if (r == ERROR_ALREADY_EXISTS) { r = 0; }
         }
         if (r == 0) {
@@ -424,7 +424,7 @@ static errno_t rt_files_mkdirs(const char* dir) {
         }
     }
     if (r == 0) {
-        r = ut_b2e(CreateDirectoryA(dir, null));
+        r = rt_b2e(CreateDirectoryA(dir, null));
     }
     rt_heap.deallocate(null, s);
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
@@ -448,9 +448,9 @@ static errno_t rt_files_mkdirs(const char* dir) {
 
 #define rt_files_append_name(pn, pnc, fn, name) do {     \
     if (strcmp(fn, "\\") == 0 || strcmp(fn, "/") == 0) { \
-        ut_str.format(pn, pnc, "\\%s", name);            \
+        rt_str.format(pn, pnc, "\\%s", name);            \
     } else {                                             \
-        ut_str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
+        rt_str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
     }                                                    \
 } while (0)
 
@@ -495,7 +495,7 @@ static errno_t rt_files_rmdirs(const char* fn) {
                     rt_files_append_name(pn, pnc, fn, name);
                     r = rt_files.unlink(pn);
                     if (r != 0) {
-                        ut_println("remove(%s) failed %s", pn, ut_strerr(r));
+                        rt_println("remove(%s) failed %s", pn, rt_strerr(r));
                     }
                 }
             }
@@ -531,7 +531,7 @@ static const char* rt_files_basename(const char* pathname) {
 }
 
 static errno_t rt_files_copy(const char* s, const char* d) {
-    return ut_b2e(CopyFileA(s, d, false));
+    return rt_b2e(CopyFileA(s, d, false));
 }
 
 static errno_t rt_files_move(const char* s, const char* d) {
@@ -539,19 +539,19 @@ static errno_t rt_files_move(const char* s, const char* d) {
         MOVEFILE_REPLACE_EXISTING |
         MOVEFILE_COPY_ALLOWED |
         MOVEFILE_WRITE_THROUGH;
-    return ut_b2e(MoveFileExA(s, d, flags));
+    return rt_b2e(MoveFileExA(s, d, flags));
 }
 
 static errno_t rt_files_link(const char* from, const char* to) {
     // note reverse order of parameters:
-    return ut_b2e(CreateHardLinkA(to, from, null));
+    return rt_b2e(CreateHardLinkA(to, from, null));
 }
 
 static errno_t rt_files_symlink(const char* from, const char* to) {
     // The correct order of parameters for CreateSymbolicLinkA is:
     // CreateSymbolicLinkA(symlink_to_create, existing_file, flags);
     DWORD flags = rt_files.is_folder(from) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
-    return ut_b2e(CreateSymbolicLinkA(to, from, flags));
+    return rt_b2e(CreateSymbolicLinkA(to, from, flags));
 }
 
 static const char* rt_files_known_folder(int32_t kf) {
@@ -568,13 +568,13 @@ static const char* rt_files_known_folder(int32_t kf) {
         &FOLDERID_ProgramFiles,
         &FOLDERID_ProgramData
     };
-    static ut_file_name_t known_folders[ut_countof(kf_ids)];
-    rt_fatal_if(!(0 <= kf && kf < ut_countof(kf_ids)), "invalid kf=%d", kf);
+    static rt_file_name_t known_folders[rt_countof(kf_ids)];
+    rt_fatal_if(!(0 <= kf && kf < rt_countof(kf_ids)), "invalid kf=%d", kf);
     if (known_folders[kf].s[0] == 0) {
         uint16_t* path = null;
         rt_fatal_if_error(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
-        const int32_t n = ut_countof(known_folders[kf].s);
-        ut_str.utf16to8(known_folders[kf].s, n, path, -1);
+        const int32_t n = rt_countof(known_folders[kf].s);
+        rt_str.utf16to8(known_folders[kf].s, n, path, -1);
         CoTaskMemFree(path);
 	}
     return known_folders[kf].s;
@@ -595,8 +595,8 @@ static const char* rt_files_tmp(void) {
         // in chars, of the string copied to lpBuffer, not including
         // the terminating null character. If the function fails, the
         // return value is zero.
-        errno_t r = GetTempPathA(ut_countof(tmp), tmp) == 0 ? rt_core.err() : 0;
-        rt_fatal_if(r != 0, "GetTempPathA() failed %s", ut_strerr(r));
+        errno_t r = GetTempPathA(rt_countof(tmp), tmp) == 0 ? rt_core.err() : 0;
+        rt_fatal_if(r != 0, "GetTempPathA() failed %s", rt_strerr(r));
     }
     return tmp;
 }
@@ -604,13 +604,13 @@ static const char* rt_files_tmp(void) {
 static errno_t rt_files_cwd(char* fn, int32_t count) {
     rt_swear(count > 1);
     DWORD bytes = (DWORD)(count - 1);
-    errno_t r = ut_b2e(GetCurrentDirectoryA(bytes, fn));
+    errno_t r = rt_b2e(GetCurrentDirectoryA(bytes, fn));
     fn[count - 1] = 0; // always
     return r;
 }
 
 static errno_t rt_files_chdir(const char* fn) {
-    return ut_b2e(SetCurrentDirectoryA(fn));
+    return rt_b2e(SetCurrentDirectoryA(fn));
 }
 
 typedef struct rt_files_dir_s {
@@ -618,7 +618,7 @@ typedef struct rt_files_dir_s {
     WIN32_FIND_DATAA find; // On Win64: 320 bytes
 } rt_files_dir_t;
 
-ut_static_assertion(sizeof(rt_files_dir_t) <= sizeof(rt_folder_t));
+rt_static_assertion(sizeof(rt_files_dir_t) <= sizeof(rt_folder_t));
 
 static errno_t rt_files_opendir(rt_folder_t* folder, const char* folder_name) {
     rt_files_dir_t* d = (rt_files_dir_t*)(void*)folder;
@@ -627,7 +627,7 @@ static errno_t rt_files_opendir(rt_folder_t* folder, const char* folder_name) {
     // extra room for "\*" suffix
     errno_t r = rt_heap.allocate(null, (void**)&fn, (int64_t)n + 3, false);
     if (r == 0) {
-        ut_str.format(fn, n + 3, "%s\\*", folder_name);
+        rt_str.format(fn, n + 3, "%s\\*", folder_name);
         fn[n + 2] = 0;
         d->handle = FindFirstFileA(fn, &d->find);
         if (d->handle == INVALID_HANDLE_VALUE) { r = rt_core.err(); }
@@ -646,7 +646,7 @@ static const char* rt_files_readdir(rt_folder_t* folder, rt_files_stat_t* s) {
     if (FindNextFileA(d->handle, &d->find)) {
         fn = d->find.cFileName;
         // Ensure zero termination
-        d->find.cFileName[ut_countof(d->find.cFileName) - 1] = 0x00;
+        d->find.cFileName[rt_countof(d->find.cFileName) - 1] = 0x00;
         if (s != null) {
             s->accessed = rt_files_ft2us(&d->find.ftLastAccessTime);
             s->created = rt_files_ft2us(&d->find.ftCreationTime);
@@ -661,7 +661,7 @@ static const char* rt_files_readdir(rt_folder_t* folder, rt_files_stat_t* s) {
 
 static void rt_files_closedir(rt_folder_t* folder) {
     rt_files_dir_t* d = (rt_files_dir_t*)(void*)folder;
-    ut_fatal_win32err(FindClose(d->handle));
+    rt_fatal_win32err(FindClose(d->handle));
 }
 
 #pragma push_macro("files_test_failed")
@@ -670,13 +670,13 @@ static void rt_files_closedir(rt_folder_t* folder) {
 
 // TODO: change rt_fatal_if() to swear()
 
-#define rt_files_test_failed " failed %s", ut_strerr(rt_core.err())
+#define rt_files_test_failed " failed %s", rt_strerr(rt_core.err())
 
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                       \
     if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) { \
-        ut_println(__VA_ARGS__);                                   \
+        rt_println(__VA_ARGS__);                                   \
     }                                                           \
 } while (0)
 
@@ -690,7 +690,7 @@ static void folders_dump_time(const char* label, uint64_t us) {
     int32_t ms = 0;
     int32_t mc = 0;
     rt_clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
-    ut_println("%-7s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
+    rt_println("%-7s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
             label, year, month, day, hh, mm, ss, ms, mc);
 }
 
@@ -714,39 +714,39 @@ static void folders_test(void) {
     char cwd[256] = { 0 };
     rt_fatal_if(rt_files.cwd(cwd, sizeof(cwd)) != 0, "rt_files.cwd() failed");
     rt_fatal_if(rt_files.chdir(tmp) != 0, "rt_files.chdir(\"%s\") failed %s",
-                tmp, ut_strerr(rt_core.err()));
+                tmp, rt_strerr(rt_core.err()));
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
     char tmp_file[rt_files_max_path]; // create_tmp() is thread safe race free:
-    errno_t r = rt_files.create_tmp(tmp_file, ut_countof(tmp_file));
-    rt_fatal_if(r != 0, "rt_files.create_tmp() failed %s", ut_strerr(r));
+    errno_t r = rt_files.create_tmp(tmp_file, rt_countof(tmp_file));
+    rt_fatal_if(r != 0, "rt_files.create_tmp() failed %s", rt_strerr(r));
     char tmp_dir[rt_files_max_path];
-    ut_str_printf(tmp_dir, "%s.dir", tmp_file);
+    rt_str_printf(tmp_dir, "%s.dir", tmp_file);
     r = rt_files.mkdirs(tmp_dir);
-    rt_fatal_if(r != 0, "rt_files.mkdirs(%s) failed %s", tmp_dir, ut_strerr(r));
+    rt_fatal_if(r != 0, "rt_files.mkdirs(%s) failed %s", tmp_dir, rt_strerr(r));
     verbose("%s", tmp_dir);
     rt_folder_t folder;
     char pn[rt_files_max_path] = { 0 };
-    ut_str_printf(pn, "%s/file", tmp_dir);
+    rt_str_printf(pn, "%s/file", tmp_dir);
     // cannot test symlinks because they are only
     // available to Administrators and in Developer mode
 //  char sym[rt_files_max_path] = { 0 };
     char hard[rt_files_max_path] = { 0 };
     char sub[rt_files_max_path] = { 0 };
-    ut_str_printf(hard, "%s/hard", tmp_dir);
-    ut_str_printf(sub, "%s/subd", tmp_dir);
+    rt_str_printf(hard, "%s/hard", tmp_dir);
+    rt_str_printf(sub, "%s/subd", tmp_dir);
     const char* content = "content";
     int64_t transferred = 0;
     r = rt_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
-    rt_fatal_if(r != 0, "rt_files.write_fully(\"%s\") failed %s", pn, ut_strerr(r));
+    rt_fatal_if(r != 0, "rt_files.write_fully(\"%s\") failed %s", pn, rt_strerr(r));
     rt_swear(transferred == (int64_t)strlen(content));
     r = rt_files.link(pn, hard);
     rt_fatal_if(r != 0, "rt_files.link(\"%s\", \"%s\") failed %s",
-                      pn, hard, ut_strerr(r));
+                      pn, hard, rt_strerr(r));
     r = rt_files.mkdirs(sub);
-    rt_fatal_if(r != 0, "rt_files.mkdirs(\"%s\") failed %s", sub, ut_strerr(r));
+    rt_fatal_if(r != 0, "rt_files.mkdirs(\"%s\") failed %s", sub, rt_strerr(r));
     r = rt_files.opendir(&folder, tmp_dir);
-    rt_fatal_if(r != 0, "rt_files.opendir(\"%s\") failed %s", tmp_dir, ut_strerr(r));
+    rt_fatal_if(r != 0, "rt_files.opendir(\"%s\") failed %s", tmp_dir, rt_strerr(r));
     for (;;) {
         rt_files_stat_t st = { 0 };
         const char* name = rt_files.readdir(&folder, &st);
@@ -775,7 +775,7 @@ static void folders_test(void) {
             // empirically timestamps are imprecise on NTFS
             rt_swear(at >= before, "access: %lld  >= %lld", at, before);
             if (ct < before || ut < before || at >= after || ct >= after || ut >= after) {
-                ut_println("file: %s", name);
+                rt_println("file: %s", name);
                 folders_dump_time("before", before);
                 folders_dump_time("create", ct);
                 folders_dump_time("update", ut);
@@ -792,57 +792,57 @@ static void folders_test(void) {
     rt_files.closedir(&folder);
     r = rt_files.rmdirs(tmp_dir);
     rt_fatal_if(r != 0, "rt_files.rmdirs(\"%s\") failed %s",
-                     tmp_dir, ut_strerr(r));
+                     tmp_dir, rt_strerr(r));
     r = rt_files.unlink(tmp_file);
     rt_fatal_if(r != 0, "rt_files.unlink(\"%s\") failed %s",
-                     tmp_file, ut_strerr(r));
+                     tmp_file, rt_strerr(r));
     rt_fatal_if(rt_files.chdir(cwd) != 0, "rt_files.chdir(\"%s\") failed %s",
-             cwd, ut_strerr(rt_core.err()));
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+             cwd, rt_strerr(rt_core.err()));
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
 #pragma pop_macro("verbose")
 
 static void rt_files_test_append_thread(void* p) {
-    ut_file_t* f = (ut_file_t*)p;
+    rt_file_t* f = (rt_file_t*)p;
     uint8_t data[256] = {0};
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     int64_t transferred = 0;
-    rt_fatal_if(rt_files.write(f, data, ut_countof(data), &transferred) != 0 ||
-             transferred != ut_countof(data), "rt_files.write()" rt_files_test_failed);
+    rt_fatal_if(rt_files.write(f, data, rt_countof(data), &transferred) != 0 ||
+             transferred != rt_countof(data), "rt_files.write()" rt_files_test_failed);
 }
 
 static void rt_files_test(void) {
     folders_test();
     uint64_t now = rt_clock.microseconds(); // epoch time
     char tf[256]; // temporary file
-    rt_fatal_if(rt_files.create_tmp(tf, ut_countof(tf)) != 0,
+    rt_fatal_if(rt_files.create_tmp(tf, rt_countof(tf)) != 0,
             "rt_files.create_tmp()" rt_files_test_failed);
     uint8_t data[256] = {0};
     int64_t transferred = 0;
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     {
-        ut_file_t* f = rt_files.invalid;
+        rt_file_t* f = rt_files.invalid;
         rt_fatal_if(rt_files.open(&f, tf,
                  rt_files.o_wr | rt_files.o_create | rt_files.o_trunc) != 0 ||
                 !rt_files.is_valid(f), "rt_files.open()" rt_files_test_failed);
-        rt_fatal_if(rt_files.write_fully(tf, data, ut_countof(data), &transferred) != 0 ||
-                 transferred != ut_countof(data),
+        rt_fatal_if(rt_files.write_fully(tf, data, rt_countof(data), &transferred) != 0 ||
+                 transferred != rt_countof(data),
                 "rt_files.write_fully()" rt_files_test_failed);
         rt_fatal_if(rt_files.open(&f, tf, rt_files.o_rd) != 0 ||
                 !rt_files.is_valid(f), "rt_files.open()" rt_files_test_failed);
         for (int32_t i = 0; i < 256; i++) {
             for (int32_t j = 1; j < 256 - i; j++) {
-                uint8_t test[ut_countof(data)] = { 0 };
+                uint8_t test[rt_countof(data)] = { 0 };
                 int64_t position = i;
                 rt_fatal_if(rt_files.seek(f, &position, rt_files.seek_set) != 0 ||
                          position != i,
                         "rt_files.seek(position: %lld) failed %s",
-                         position, ut_strerr(rt_core.err()));
+                         position, rt_strerr(rt_core.err()));
                 rt_fatal_if(rt_files.read(f, test, j, &transferred) != 0 ||
                          transferred != j,
                         "rt_files.read() transferred: %lld failed %s",
-                        transferred, ut_strerr(rt_core.err()));
+                        transferred, rt_strerr(rt_core.err()));
                 for (int32_t k = 0; k < j; k++) {
                     rt_swear(test[k] == data[i + k],
                          "Data mismatch at position: %d, length %d"
@@ -888,32 +888,32 @@ static void rt_files_test(void) {
         rt_files.close(f);
     }
     {  // Append test with threads
-        ut_file_t* f = rt_files.invalid;
+        rt_file_t* f = rt_files.invalid;
         rt_fatal_if(rt_files.open(&f, tf, rt_files.o_rw | rt_files.o_append) != 0 ||
                 !rt_files.is_valid(f), "rt_files.open()" rt_files_test_failed);
-        ut_thread_t thread1 = ut_thread.start(rt_files_test_append_thread, f);
-        ut_thread_t thread2 = ut_thread.start(rt_files_test_append_thread, f);
-        ut_thread.join(thread1, -1);
-        ut_thread.join(thread2, -1);
+        rt_thread_t thread1 = rt_thread.start(rt_files_test_append_thread, f);
+        rt_thread_t thread2 = rt_thread.start(rt_files_test_append_thread, f);
+        rt_thread.join(thread1, -1);
+        rt_thread.join(thread2, -1);
         rt_files.close(f);
     }
     {   // write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
-        rt_fatal_if(rt_files.write_fully(tf, data, ut_countof(data), &transferred) != 0 ||
-                 transferred != ut_countof(data),
+        rt_fatal_if(rt_files.write_fully(tf, data, rt_countof(data), &transferred) != 0 ||
+                 transferred != rt_countof(data),
                 "rt_files.write_fully() failed %s", rt_core.err());
         rt_fatal_if(!rt_files.exists(tf), "file \"%s\" does not exist", tf);
         rt_fatal_if(rt_files.is_folder(tf), "%s is a folder", tf);
         rt_fatal_if(rt_files.chmod777(tf) != 0, "rt_files.chmod777(\"%s\") failed %s",
-                 tf, ut_strerr(rt_core.err()));
+                 tf, rt_strerr(rt_core.err()));
         char folder[256] = { 0 };
-        ut_str_printf(folder, "%s.folder\\subfolder", tf);
+        rt_str_printf(folder, "%s.folder\\subfolder", tf);
         rt_fatal_if(rt_files.mkdirs(folder) != 0, "rt_files.mkdirs(\"%s\") failed %s",
-            folder, ut_strerr(rt_core.err()));
+            folder, rt_strerr(rt_core.err()));
         rt_fatal_if(!rt_files.is_folder(folder), "\"%s\" is not a folder", folder);
         rt_fatal_if(rt_files.chmod777(folder) != 0, "rt_files.chmod777(\"%s\") failed %s",
-                 folder, ut_strerr(rt_core.err()));
+                 folder, rt_strerr(rt_core.err()));
         rt_fatal_if(rt_files.rmdirs(folder) != 0, "rt_files.rmdirs(\"%s\") failed %s",
-                 folder, ut_strerr(rt_core.err()));
+                 folder, rt_strerr(rt_core.err()));
         rt_fatal_if(rt_files.exists(folder), "folder \"%s\" still exists", folder);
     }
     {   // getcwd, chdir
@@ -921,48 +921,48 @@ static void rt_files_test(void) {
         char cwd[256] = { 0 };
         rt_fatal_if(rt_files.cwd(cwd, sizeof(cwd)) != 0, "rt_files.cwd() failed");
         rt_fatal_if(rt_files.chdir(tmp) != 0, "rt_files.chdir(\"%s\") failed %s",
-                 tmp, ut_strerr(rt_core.err()));
+                 tmp, rt_strerr(rt_core.err()));
         // symlink
-        if (ut_processes.is_elevated()) {
+        if (rt_processes.is_elevated()) {
             char sym_link[rt_files_max_path];
-            ut_str_printf(sym_link, "%s.sym_link", tf);
+            rt_str_printf(sym_link, "%s.sym_link", tf);
             rt_fatal_if(rt_files.symlink(tf, sym_link) != 0,
                 "rt_files.symlink(\"%s\", \"%s\") failed %s",
-                tf, sym_link, ut_strerr(rt_core.err()));
+                tf, sym_link, rt_strerr(rt_core.err()));
             rt_fatal_if(!rt_files.is_symlink(sym_link), "\"%s\" is not a sym_link", sym_link);
             rt_fatal_if(rt_files.unlink(sym_link) != 0, "rt_files.unlink(\"%s\") failed %s",
-                    sym_link, ut_strerr(rt_core.err()));
+                    sym_link, rt_strerr(rt_core.err()));
         } else {
-            ut_println("Skipping rt_files.symlink test: process is not elevated");
+            rt_println("Skipping rt_files.symlink test: process is not elevated");
         }
         // hard link
         char hard_link[rt_files_max_path];
-        ut_str_printf(hard_link, "%s.hard_link", tf);
+        rt_str_printf(hard_link, "%s.hard_link", tf);
         rt_fatal_if(rt_files.link(tf, hard_link) != 0,
             "rt_files.link(\"%s\", \"%s\") failed %s",
-            tf, hard_link, ut_strerr(rt_core.err()));
+            tf, hard_link, rt_strerr(rt_core.err()));
         rt_fatal_if(!rt_files.exists(hard_link), "\"%s\" does not exist", hard_link);
         rt_fatal_if(rt_files.unlink(hard_link) != 0, "rt_files.unlink(\"%s\") failed %s",
-                 hard_link, ut_strerr(rt_core.err()));
+                 hard_link, rt_strerr(rt_core.err()));
         rt_fatal_if(rt_files.exists(hard_link), "\"%s\" still exists", hard_link);
         // copy, move:
         rt_fatal_if(rt_files.copy(tf, "copied_file") != 0,
             "rt_files.copy(\"%s\", 'copied_file') failed %s",
-            tf, ut_strerr(rt_core.err()));
+            tf, rt_strerr(rt_core.err()));
         rt_fatal_if(!rt_files.exists("copied_file"), "'copied_file' does not exist");
         rt_fatal_if(rt_files.move("copied_file", "moved_file") != 0,
             "rt_files.move('copied_file', 'moved_file') failed %s",
-            ut_strerr(rt_core.err()));
+            rt_strerr(rt_core.err()));
         rt_fatal_if(rt_files.exists("copied_file"), "'copied_file' still exists");
         rt_fatal_if(!rt_files.exists("moved_file"), "'moved_file' does not exist");
         rt_fatal_if(rt_files.unlink("moved_file") != 0,
                 "rt_files.unlink('moved_file') failed %s",
-                 ut_strerr(rt_core.err()));
+                 rt_strerr(rt_core.err()));
         rt_fatal_if(rt_files.chdir(cwd) != 0, "rt_files.chdir(\"%s\") failed %s",
-                    cwd, ut_strerr(rt_core.err()));
+                    cwd, rt_strerr(rt_core.err()));
     }
     rt_fatal_if(rt_files.unlink(tf) != 0);
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
 #else
@@ -974,7 +974,7 @@ static void rt_files_test(void) {}
 #pragma pop_macro("files_test_failed")
 
 rt_files_if rt_files = {
-    .invalid  = (ut_file_t*)INVALID_HANDLE_VALUE,
+    .invalid  = (rt_file_t*)INVALID_HANDLE_VALUE,
     // rt_files_stat_t.type:
     .type_folder  = 0x00000010, // FILE_ATTRIBUTE_DIRECTORY
     .type_symlink = 0x00000400, // FILE_ATTRIBUTE_REPARSE_POINT

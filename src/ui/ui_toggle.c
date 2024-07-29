@@ -38,28 +38,28 @@ static void ui_toggle_paint_on_off(ui_view_t* v) {
 
 static const char* ui_toggle_on_off_label(ui_view_t* v,
         char* label, int32_t count)  {
-    ut_str.format(label, count, "%s", ui_view.string(v));
+    rt_str.format(label, count, "%s", ui_view.string(v));
     char* s = strstr(label, "___");
     if (s != null) {
         memcpy(s, v->state.pressed ? "On " : "Off", 3);
     }
-    return ut_nls.str(label);
+    return rt_nls.str(label);
 }
 
 static void ui_toggle_measure(ui_view_t* v) {
     if (v->min_w_em < 3.0f) {
-        ut_println("3.0f em minimum width");
+        rt_println("3.0f em minimum width");
         v->min_w_em = 4.0f;
     }
     ui_view.measure_control(v);
-    ut_assert(v->type == ui_view_toggle);
+    rt_assert(v->type == ui_view_toggle);
 }
 
 static void ui_toggle_paint(ui_view_t* v) {
-    ut_assert(v->type == ui_view_toggle);
-    char txt[ut_countof(v->p.text)];
-    const char* label = ui_toggle_on_off_label(v, txt, ut_countof(txt));
-    const char* text = ut_nls.str(label);
+    rt_assert(v->type == ui_view_toggle);
+    char txt[rt_countof(v->p.text)];
+    const char* label = ui_toggle_on_off_label(v, txt, rt_countof(txt));
+    const char* text = rt_nls.str(label);
     ui_view.text_measure(v, text, &v->text);
     ui_view.text_align(v, &v->text);
     ui_toggle_paint_on_off(v);
@@ -88,7 +88,7 @@ static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
     return trigger; // swallow if true
 }
 
-static bool ui_toggle_tap(ui_view_t* v, int32_t ut_unused(ix),
+static bool ui_toggle_tap(ui_view_t* v, int32_t rt_unused(ix),
         bool pressed) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (pressed && inside) { ui_toggle_flip((ui_toggle_t*)v); }
@@ -96,7 +96,7 @@ static bool ui_toggle_tap(ui_view_t* v, int32_t ut_unused(ix),
 }
 
 void ui_view_init_toggle(ui_view_t* v) {
-    ut_assert(v->type == ui_view_toggle);
+    rt_assert(v->type == ui_view_toggle);
     v->tap           = ui_toggle_tap;
     v->paint         = ui_toggle_paint;
     v->measure       = ui_toggle_measure;

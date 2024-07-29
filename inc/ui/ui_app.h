@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
@@ -138,7 +138,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     } animating;
     // call_later(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
-    void (*post)(ut_work_t* work); // work.when == 0 meaning ASAP
+    void (*post)(rt_work_t* work); // work.when == 0 meaning ASAP
     void (*request_redraw)(void);  // very fast <2 microseconds
     void (*draw)(void); // paint window now - bad idea do not use
     // inch to pixels and reverse translation via ui_app.dpi.window
@@ -190,7 +190,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     //     {"Text Files", ".txt;.doc;.ini",
     //      "Executables", ".exe",
     //      "All Files", "*"};
-    // const char* fn = ui_app.open_filename("C:\\", filter, ut_countof(filter));
+    // const char* fn = ui_app.open_filename("C:\\", filter, rt_countof(filter));
     const char* (*open_file)(const char* folder, const char* filter[], int32_t n);
     bool (*is_stdout_redirected)(void);
     bool (*is_console_visible)(void);
@@ -209,4 +209,4 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
 
 extern ui_app_t ui_app;
 
-ut_end_c
+rt_end_c

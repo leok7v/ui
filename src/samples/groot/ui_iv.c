@@ -108,7 +108,7 @@ static void ui_iv_show_tools(ui_iv_t* iv, bool show) {
 
 static void ui_iv_fit_fill_scale(ui_iv_t* iv) {
     fp64_t s = ui_iv.scale(iv);
-    ut_assert(s != 0);
+    rt_assert(s != 0);
     if (s > 1) {
         ui_view.set_text(&iv->tool.ratio, "1:%.3f", s);
     } else if (s != 0 && s <= 1) {
@@ -242,7 +242,7 @@ static bool ui_iv_tap(ui_view_t* v, int32_t ix, bool pressed) {
         }
         swallow = inside || tools;
     }
-//  ut_println("inside %s", inside ? "true" : "false");
+//  rt_println("inside %s", inside ? "true" : "false");
     return swallow;
 }
 
@@ -264,7 +264,7 @@ static bool ui_iv_mouse_move(ui_view_t* v) {
     } else if (!inside && !tools) {
         ui_iv_show_tools(iv, false);
     }
-//  ut_println("inside %s", inside ? "true" : "false");
+//  rt_println("inside %s", inside ? "true" : "false");
     return inside;
 }
 
@@ -354,7 +354,7 @@ static ui_label_t ui_iv_about = ui_label(0,
     "Mouse wheel or mouse / touchpad hold and drag to pan.\n"
 );
 
-static void ui_iv_help(ui_button_t* ut_unused(b)) {
+static void ui_iv_help(ui_button_t* rt_unused(b)) {
     ui_app.show_toast(&ui_iv_about, 7.0);
 }
 
@@ -420,7 +420,7 @@ static void ui_iv_add_button(ui_iv_t* iv, ui_button_t* b,
     b->flat = true;
     b->fm = &ui_app.fm.mono.normal;
     b->min_w_em = 1.5f;
-    ut_str_printf(b->hint, "%s", hint);
+    rt_str_printf(b->hint, "%s", hint);
     ui_view.add_last(&iv->tool.bar, b);
 }
 

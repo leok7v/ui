@@ -13,7 +13,7 @@ static bool ui_containers_debug;
 // makes code inside iterator debugger friendly and ensures correct __LINE__
 
 #define debugln(...) do {                                   \
-    if (ui_containers_debug) {  ut_println(__VA_ARGS__); }  \
+    if (ui_containers_debug) {  rt_println(__VA_ARGS__); }  \
 } while (0)
 
 static int32_t ui_layout_nesting;
@@ -45,9 +45,9 @@ static int32_t ui_layout_nesting;
 static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
     rt_swear(v >= 0);
     if (v == ui.infinity) {
-        ut_str.format(text, count, "%s", rt_glyph_infinity);
+        rt_str.format(text, count, "%s", rt_glyph_infinity);
     } else {
-        ut_str.format(text, count, "%d", v);
+        rt_str.format(text, count, "%d", v);
     }
     return text;
 }
@@ -60,8 +60,8 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
         "insets { %.3f %.3f %.3f %.3f } align: 0x%02X",                       \
         ui_view_debug_id(v),                                                  \
         &v->type, v->x, v->y, v->w, v->h,                                     \
-        ui_stack_finite_int(v->max_w, maxw, ut_countof(maxw)),               \
-        ui_stack_finite_int(v->max_h, maxh, ut_countof(maxh)),               \
+        ui_stack_finite_int(v->max_w, maxw, rt_countof(maxw)),               \
+        ui_stack_finite_int(v->max_h, maxh, rt_countof(maxh)),               \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
         v->insets.left, v->insets.top, v->insets.right, v->insets.bottom,     \
         v->align);                                                            \
@@ -141,13 +141,13 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
     }
     int32_t min_y = pbx.y + padding.top;
     if ((c->align & ui.align.top) != 0) {
-        ut_assert(c->align == ui.align.top);
+        rt_assert(c->align == ui.align.top);
         c->y = min_y;
     } else if ((c->align & ui.align.bottom) != 0) {
-        ut_assert(c->align == ui.align.bottom);
+        rt_assert(c->align == ui.align.bottom);
         c->y = rt_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
     } else { // effective height (c->h might have been changed)
-        ut_assert(c->align == ui.align.center,
+        rt_assert(c->align == ui.align.center,
                   "only top, center, bottom alignment for span");
         const int32_t ch = padding.top + c->h + padding.bottom;
         c->y = rt_max(min_y, pbx.y + (pbx.h - ch) / 2 + padding.top);
@@ -208,7 +208,7 @@ static void ui_span_layout(ui_view_t* p) {
                 } else if (c->max_w > 0) {
                     const int32_t max_w = rt_min(c->max_w, xw);
                     int64_t proportional = (xw * (int64_t)max_w) / max_w_sum;
-                    ut_assert(proportional <= (int64_t)INT32_MAX);
+                    rt_assert(proportional <= (int64_t)INT32_MAX);
                     int32_t cw = (int32_t)proportional;
                     c->w = rt_min(c->max_w, c->w + cw);
                     k++;
@@ -318,13 +318,13 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
     }
     int32_t min_x = pbx.x + padding.left;
     if ((c->align & ui.align.left) != 0) {
-        ut_assert(c->align == ui.align.left);
+        rt_assert(c->align == ui.align.left);
         c->x = min_x;
     } else if ((c->align & ui.align.right) != 0) {
-        ut_assert(c->align == ui.align.right);
+        rt_assert(c->align == ui.align.right);
         c->x = rt_max(min_x, pbx.x + pbx.w - c->w - padding.right);
     } else {
-        ut_assert(c->align == ui.align.center,
+        rt_assert(c->align == ui.align.center,
                   "only left, center, right, alignment for list");
         const int32_t cw = padding.left + c->w + padding.right;
         c->x = rt_max(min_x, pbx.x + (pbx.w - cw) / 2 + padding.left);
@@ -382,7 +382,7 @@ static void ui_list_layout(ui_view_t* p) {
                 if (c->type != ui_view_spacer && c->max_h > 0) {
                     const int32_t max_h = rt_min(c->max_h, xh);
                     int64_t proportional = (xh * (int64_t)max_h) / max_h_sum;
-                    ut_assert(proportional <= (int64_t)INT32_MAX);
+                    rt_assert(proportional <= (int64_t)INT32_MAX);
                     int32_t ch = (int32_t)proportional;
                     c->h = rt_min(c->max_h, c->h + ch);
                     k++;
@@ -468,12 +468,12 @@ static void ui_stack_measure(ui_view_t* p) {
         }
     } ui_view_for_each_end(p, c);
     if (ui_containers_debug) {
-        for (int32_t r = 0; r < ut_countof(sides); r++) {
+        for (int32_t r = 0; r < rt_countof(sides); r++) {
             char text[1024];
             text[0] = 0;
-            for (int32_t c = 0; c < ut_countof(sides[r]); c++) {
+            for (int32_t c = 0; c < rt_countof(sides[r]); c++) {
                 char line[128];
-                ut_str_printf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
+                rt_str_printf(line, " %4dx%-4d", sides[r][c].w, sides[r][c].h);
                 strcat(text, line);
             }
             debugln("%*c sides[%d] %s", ui_layout_nesting, 0x20, r, text);
@@ -554,7 +554,7 @@ static void ui_container_paint(ui_view_t* v) {
         !ui_color_is_transparent(v->background)) {
         ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
     } else {
-//      ut_println("%s undefined", ui_view_debug_id(v));
+//      rt_println("%s undefined", ui_view_debug_id(v));
     }
 }
 

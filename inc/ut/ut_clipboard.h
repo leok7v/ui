@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
 typedef struct ui_image_s ui_image_t;
 
@@ -14,4 +14,4 @@ typedef struct {
 
 extern rt_clipboard_if rt_clipboard;
 
-ut_end_c
+rt_end_c

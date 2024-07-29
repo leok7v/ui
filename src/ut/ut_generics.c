@@ -60,7 +60,7 @@ static void rt_generics_test(void) {
         rt_swear(rt_max(a, b) == b);
         rt_swear(rt_min(a, b) == a);
     }
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
 #else

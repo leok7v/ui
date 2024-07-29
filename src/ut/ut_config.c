@@ -12,7 +12,7 @@ static const DWORD rt_config_access =
 
 static errno_t rt_config_get_reg_key(const char* name, HKEY *key) {
     char path[256] = {0};
-    ut_str_printf(path, "%s\\%s", rt_config_apps, name);
+    rt_str_printf(path, "%s\\%s", rt_config_apps, name);
     errno_t r = RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, rt_config_access, key);
     if (r != 0) {
         const DWORD option = REG_OPTION_NON_VOLATILE;
@@ -68,8 +68,8 @@ static int32_t rt_config_size(const char* name, const char* key) {
         if (r == ERROR_FILE_NOT_FOUND) {
             bytes = 0; // do not report data_size() often used this way
         } else if (r != 0) {
-            ut_println("%s.RegQueryValueExA(\"%s\") failed %s",
-                name, key, ut_strerr(r));
+            rt_println("%s.RegQueryValueExA(\"%s\") failed %s",
+                name, key, rt_strerr(r));
             bytes = 0; // on any error behave as empty data
         } else {
             bytes = (int32_t)cb;
@@ -92,8 +92,8 @@ static int32_t rt_config_load(const char* name,
             // returns -1 ui_app.data_size() should be used
         } else if (r != 0) {
             if (r != ERROR_FILE_NOT_FOUND) {
-                ut_println("%s.RegQueryValueExA(\"%s\") failed %s",
-                    name, key, ut_strerr(r));
+                rt_println("%s.RegQueryValueExA(\"%s\") failed %s",
+                    name, key, rt_strerr(r));
             }
             read = 0; // on any error behave as empty data
         } else {
@@ -121,7 +121,7 @@ static void rt_config_test(void) {
     rt_swear(size == bytes);
     rt_swear(rt_config.remove(name, key) == 0);
     rt_swear(rt_config.clean(name) == 0);
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
 #else

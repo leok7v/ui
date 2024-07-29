@@ -1,7 +1,7 @@
 #include "ut/ut.h"
 #include "ui/ui.h"
 
-ut_begin_c
+rt_begin_c
 
 // "iv" stands for "image view"
 
@@ -63,5 +63,5 @@ typedef struct ui_iv_if {
 
 extern ui_iv_if ui_iv;
 
-ut_end_c
+rt_end_c
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "ut/ut_std.h"
 
-ut_begin_c
+rt_begin_c
 
 // It is absolutely OK to use posix compliant
 // malloc()/calloc()/realloc()/free() function calls with understanding
@@ -47,10 +47,10 @@ extern rt_heap_if rt_heap;
 
 // *) zero in reallocate applies to the newly appended bytes
 
-// On Windows ut_mem.heap is based on serialized LFH returned by GetProcessHeap()
+// On Windows rt_mem.heap is based on serialized LFH returned by GetProcessHeap()
 // https://learn.microsoft.com/en-us/windows/win32/memory/low-fragmentation-heap
 // threads can benefit from not serialized, not LFH if they allocate and free
 // memory in time critical loops.
 
-ut_end_c
+rt_end_c
 

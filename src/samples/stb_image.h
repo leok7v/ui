@@ -1994,7 +1994,7 @@ typedef struct
    int restart_interval, todo;
 
 // kernels
-   void (*idct_block_kernel)(stbi_uc *out, int out_stride, short data[64]);
+   void (*idct_block_kernel)(stbi_uc *out, int ort_stride, short data[64]);
    void (*YCbCr_to_RGB_kernel)(stbi_uc *out, const stbi_uc *y, const stbi_uc *pcb, const stbi_uc *pcr, int count, int step);
    stbi_uc *(*resample_row_hv_2_kernel)(stbi_uc *out, stbi_uc *in_near, stbi_uc *in_far, int w, int hs);
 } stbi__jpeg;
@@ -2463,7 +2463,7 @@ stbi_inline static stbi_uc stbi__clamp(int x)
    t1 += p2+p4;                                \
    t0 += p1+p3;
 
-static void stbi__idct_block(stbi_uc *out, int out_stride, short data[64])
+static void stbi__idct_block(stbi_uc *out, int ort_stride, short data[64])
 {
    int i,val[64],*v=val;
    stbi_uc *o;
@@ -2496,7 +2496,7 @@ static void stbi__idct_block(stbi_uc *out, int out_stride, short data[64])
       }
    }
 
-   for (i=0, v=val, o=out; i < 8; ++i,v+=8,o+=out_stride) {
+   for (i=0, v=val, o=out; i < 8; ++i,v+=8,o+=ort_stride) {
       // no fast case since the first 1D IDCT spread components out
       STBI__IDCT_1D(v[0],v[1],v[2],v[3],v[4],v[5],v[6],v[7])
       // constants scaled things up by 1<<12, plus we had 1<<2 from first
@@ -2526,7 +2526,7 @@ static void stbi__idct_block(stbi_uc *out, int out_stride, short data[64])
 // sse2 integer IDCT. not the fastest possible implementation but it
 // produces bit-identical results to the generic C version so it's
 // fully "transparent".
-static void stbi__idct_simd(stbi_uc *out, int out_stride, short data[64])
+static void stbi__idct_simd(stbi_uc *out, int ort_stride, short data[64])
 {
    // This is constructed to match our regular (generic) integer IDCT exactly.
    __m128i row0, row1, row2, row3, row4, row5, row6, row7;
@@ -2680,13 +2680,13 @@ static void stbi__idct_simd(stbi_uc *out, int out_stride, short data[64])
       dct_interleave8(p1, p3); // a4b4c4d4...
 
       // store
-      _mm_storel_epi64((__m128i *) out, p0); out += out_stride;
-      _mm_storel_epi64((__m128i *) out, _mm_shuffle_epi32(p0, 0x4e)); out += out_stride;
-      _mm_storel_epi64((__m128i *) out, p2); out += out_stride;
-      _mm_storel_epi64((__m128i *) out, _mm_shuffle_epi32(p2, 0x4e)); out += out_stride;
-      _mm_storel_epi64((__m128i *) out, p1); out += out_stride;
-      _mm_storel_epi64((__m128i *) out, _mm_shuffle_epi32(p1, 0x4e)); out += out_stride;
-      _mm_storel_epi64((__m128i *) out, p3); out += out_stride;
+      _mm_storel_epi64((__m128i *) out, p0); out += ort_stride;
+      _mm_storel_epi64((__m128i *) out, _mm_shuffle_epi32(p0, 0x4e)); out += ort_stride;
+      _mm_storel_epi64((__m128i *) out, p2); out += ort_stride;
+      _mm_storel_epi64((__m128i *) out, _mm_shuffle_epi32(p2, 0x4e)); out += ort_stride;
+      _mm_storel_epi64((__m128i *) out, p1); out += ort_stride;
+      _mm_storel_epi64((__m128i *) out, _mm_shuffle_epi32(p1, 0x4e)); out += ort_stride;
+      _mm_storel_epi64((__m128i *) out, p3); out += ort_stride;
       _mm_storel_epi64((__m128i *) out, _mm_shuffle_epi32(p3, 0x4e));
    }
 
@@ -2707,7 +2707,7 @@ static void stbi__idct_simd(stbi_uc *out, int out_stride, short data[64])
 
 // NEON integer IDCT. should produce bit-identical
 // results to the generic C version.
-static void stbi__idct_simd(stbi_uc *out, int out_stride, short data[64])
+static void stbi__idct_simd(stbi_uc *out, int ort_stride, short data[64])
 {
    int16x8_t row0, row1, row2, row3, row4, row5, row6, row7;
 
@@ -2886,13 +2886,13 @@ static void stbi__idct_simd(stbi_uc *out, int out_stride, short data[64])
       dct_trn8_32(p3, p7);
 
       // store
-      vst1_u8(out, p0); out += out_stride;
-      vst1_u8(out, p1); out += out_stride;
-      vst1_u8(out, p2); out += out_stride;
-      vst1_u8(out, p3); out += out_stride;
-      vst1_u8(out, p4); out += out_stride;
-      vst1_u8(out, p5); out += out_stride;
-      vst1_u8(out, p6); out += out_stride;
+      vst1_u8(out, p0); out += ort_stride;
+      vst1_u8(out, p1); out += ort_stride;
+      vst1_u8(out, p2); out += ort_stride;
+      vst1_u8(out, p3); out += ort_stride;
+      vst1_u8(out, p4); out += ort_stride;
+      vst1_u8(out, p5); out += ort_stride;
+      vst1_u8(out, p6); out += ort_stride;
       vst1_u8(out, p7);
 
 #undef dct_trn8_8
@@ -4182,7 +4182,7 @@ typedef struct
 
    char *zout;
    char *zout_start;
-   char *zout_end;
+   char *zort_end;
    int   z_expandable;
 
    stbi__zhuffman z_length, z_distance;
@@ -4276,7 +4276,7 @@ static int stbi__zexpand(stbi__zbuf *z, char *zout, int n)  // need to make room
    z->zout = zout;
    if (!z->z_expandable) return stbi__err("output buffer limit","Corrupt PNG");
    cur   = (unsigned int) (z->zout - z->zout_start);
-   limit = old_limit = (unsigned) (z->zout_end - z->zout_start);
+   limit = old_limit = (unsigned) (z->zort_end - z->zout_start);
    if (UINT_MAX - cur < (unsigned) n) return stbi__err("outofmem", "Out of memory");
    while (cur + n > limit) {
       if(limit > UINT_MAX / 2) return stbi__err("outofmem", "Out of memory");
@@ -4287,7 +4287,7 @@ static int stbi__zexpand(stbi__zbuf *z, char *zout, int n)  // need to make room
    if (q == NULL) return stbi__err("outofmem", "Out of memory");
    z->zout_start = q;
    z->zout       = q + cur;
-   z->zout_end   = q + limit;
+   z->zort_end   = q + limit;
    return 1;
 }
 
@@ -4312,7 +4312,7 @@ static int stbi__parse_huffman_block(stbi__zbuf *a)
       int z = stbi__zhuffman_decode(a, &a->z_length);
       if (z < 256) {
          if (z < 0) return stbi__err("bad huffman code","Corrupt PNG"); // error in huffman codes
-         if (zout >= a->zout_end) {
+         if (zout >= a->zort_end) {
             if (!stbi__zexpand(a, zout, 1)) return 0;
             zout = a->zout;
          }
@@ -4340,7 +4340,7 @@ static int stbi__parse_huffman_block(stbi__zbuf *a)
          dist = stbi__zdist_base[z];
          if (stbi__zdist_extra[z]) dist += stbi__zreceive(a, stbi__zdist_extra[z]);
          if (zout - a->zout_start < dist) return stbi__err("bad dist","Corrupt PNG");
-         if (len > a->zout_end - zout) {
+         if (len > a->zort_end - zout) {
             if (!stbi__zexpand(a, zout, len)) return 0;
             zout = a->zout;
          }
@@ -4426,7 +4426,7 @@ static int stbi__parse_uncompressed_block(stbi__zbuf *a)
    nlen = header[3] * 256 + header[2];
    if (nlen != (len ^ 0xffff)) return stbi__err("zlib corrupt","Corrupt PNG");
    if (a->zbuffer + len > a->zbuffer_end) return stbi__err("read past buffer","Corrupt PNG");
-   if (a->zout + len > a->zout_end)
+   if (a->zout + len > a->zort_end)
       if (!stbi__zexpand(a, a->zout, len)) return 0;
    memcpy(a->zout, a->zbuffer, len);
    a->zbuffer += len;
@@ -4510,7 +4510,7 @@ static int stbi__do_zlib(stbi__zbuf *a, char *obuf, int olen, int exp, int parse
 {
    a->zout_start = obuf;
    a->zout       = obuf;
-   a->zout_end   = obuf + olen;
+   a->zort_end   = obuf + olen;
    a->z_expandable = exp;
 
    return stbi__parse_zlib(a, parse_header);

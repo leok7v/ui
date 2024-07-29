@@ -5,7 +5,7 @@
 #include <time.h>
 
 #ifdef _MSC_FULL_VER
-#define ut_countof(a) _countof(a)
+#define rt_countof(a) _countof(a)
 #define popen(c, m) _popen(c, m)
 #define pclose(f) _pclose(f)
 #endif
@@ -44,7 +44,7 @@ int main(void) {
     printf("\n");
     static char hash[max_command_output];
     strcpy(hash, "BADF00D");
-    if (run_command("git rev-parse --short HEAD", hash, ut_countof(hash)) != 0) {
+    if (run_command("git rev-parse --short HEAD", hash, rt_countof(hash)) != 0) {
         fprintf(stderr, "Failed to get git hash.\n");
         return 1;
     }
@@ -53,7 +53,7 @@ int main(void) {
     struct tm* utc = gmtime(&t);
     static char tag[max_command_output];
     strcpy(tag, "C0DEFEED");
-    if (run_command("git describe --tags HEAD 2>nul", tag, ut_countof(tag)) != 0) {
+    if (run_command("git describe --tags HEAD 2>nul", tag, rt_countof(tag)) != 0) {
         fprintf(stderr, "Failed to get git tag.\n");
         return 1;
     }
