@@ -1,4 +1,4 @@
-#include "ut/ut.h"
+#include "rt/rt.h"
 #include <stdio.h>
 
 static int usage(void) {
@@ -53,7 +53,7 @@ int main(int argc, const char* argv[], const char *envp[]) {
     return r;
 }
 
-#include "ut/ut_win32.h"
+#include "rt/rt_win32.h"
 
 #pragma warning(suppress: 28251) // no annotations
 

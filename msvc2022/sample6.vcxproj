@@ -157,10 +157,6 @@
       <Project>{9b9ac256-a764-474a-ad7a-31411fe694e2}</Project>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
-    <ProjectReference Include="ut.vcxproj">
-      <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\src\samples\mr_blue_sky.midi" />

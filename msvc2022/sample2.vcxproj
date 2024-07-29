@@ -150,14 +150,6 @@
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
     </ProjectReference>
-    <ProjectReference Include="ui.vcxproj">
-      <Project>{9b9ac256-a764-474a-ad7a-31411fe694e2}</Project>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
-    </ProjectReference>
-    <ProjectReference Include="ut.vcxproj">
-      <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
-      <LinkLibraryDependencies>false</LinkLibraryDependencies>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

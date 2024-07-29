@@ -129,10 +129,10 @@
       <Command Condition="'$(Configuration)|$(Platform)'=='debug|arm64'">$(SolutionDir)..\scripts\prebuild.bat $(Platform)</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='release|x64'">$(SolutionDir)..\scripts\prebuild.bat $(Platform)</Command>
       <Command Condition="'$(Configuration)|$(Platform)'=='release|arm64'">$(SolutionDir)..\scripts\prebuild.bat $(Platform)</Command>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='debug|x64'">$(SolutionDir)..\inc\ut\version.h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='debug|arm64'">$(SolutionDir)..\inc\ut\version.h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='release|x64'">$(SolutionDir)..\inc\ut\version.h</Outputs>
-      <Outputs Condition="'$(Configuration)|$(Platform)'=='release|arm64'">$(SolutionDir)..\inc\ut\version.h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='debug|x64'">$(SolutionDir)..\inc\rt\version.h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='debug|arm64'">$(SolutionDir)..\inc\rt\version.h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='release|x64'">$(SolutionDir)..\inc\rt\version.h</Outputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='release|arm64'">$(SolutionDir)..\inc\rt\version.h</Outputs>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='debug|x64'">false</LinkObjects>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='debug|arm64'">false</LinkObjects>
       <LinkObjects Condition="'$(Configuration)|$(Platform)'=='release|x64'">false</LinkObjects>

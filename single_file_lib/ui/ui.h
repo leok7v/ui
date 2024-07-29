@@ -142,7 +142,7 @@ typedef double fp64_t;
 // try to avoid if possible. Stack sizes vary from 64KB to 8MB in 2024.
 // ________________________________ ui_core.h _________________________________
 
-#include "ut/ut_std.h"
+#include "rt/rt_std.h"
 
 rt_begin_c
 
@@ -608,7 +608,7 @@ rt_end_c
 // _______________________________ ui_fuzzing.h _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "ut/ut.h"
+#include "rt/rt.h"
 // ___________________________________ ui.h ___________________________________
 
 // alphabetical order is not possible because of headers interdependencies
@@ -2214,8 +2214,8 @@ rt_end_c
 #ifdef ui_implementation
 // _________________________________ ui_app.c _________________________________
 
-#include "ut/ut.h"
-#include "ut/ut_win32.h"
+#include "rt/rt.h"
+#include "rt/rt_win32.h"
 
 #pragma push_macro("ui_app_window")
 #pragma push_macro("ui_app_canvas")
@@ -5279,7 +5279,7 @@ int main(int argc, const char* argv[], const char** envp) {
 #pragma comment(lib, "uxtheme")
 // _______________________________ ui_button.c ________________________________
 
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     if (!v->state.hidden) {
@@ -5444,7 +5444,7 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 // _______________________________ ui_caption.c _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 #pragma push_macro("ui_caption_glyph_rest")
 #pragma push_macro("ui_caption_glyph_menu")
@@ -5717,7 +5717,7 @@ ui_caption_t ui_caption =  {
 #pragma pop_macro("ui_caption_glyph_quit")
 // _______________________________ ui_colors.c ________________________________
 
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 static inline uint8_t ui_color_clamp_uint8(fp64_t value) {
     return value < 0 ? 0 : (value > 255 ? 255 : (uint8_t)value);
@@ -6098,7 +6098,7 @@ ui_colors_if ui_colors = {
 // _____________________________ ui_containers.c ______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 static bool ui_containers_debug;
 
@@ -6712,8 +6712,8 @@ void ui_view_init_stack(ui_view_t* v) {
 #pragma pop_macro("debugln")
 // ________________________________ ui_core.c _________________________________
 
-#include "ut/ut.h"
-#include "ut/ut_win32.h"
+#include "rt/rt.h"
+#include "rt/rt_win32.h"
 
 #define UI_WM_ANIMATE  (WM_APP + 0x7FFF)
 #define UI_WM_OPENING  (WM_APP + 0x7FFE)
@@ -6869,7 +6869,7 @@ ui_if ui = {
 // ______________________________ ui_edit_doc.c _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 #undef UI_EDIT_STR_TEST
 #undef UI_EDIT_DOC_TEST
@@ -9131,7 +9131,7 @@ ui_edit_doc_if ui_edit_doc = {
 // ______________________________ ui_edit_view.c ______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 // TODO: find all "== dt->np" it is wrong pn < dt->np fix them all
 // TODO: undo/redo coalescing
@@ -11107,7 +11107,7 @@ ui_edit_if ui_edit = {
 // _______________________________ ui_fuzzing.c _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 // TODO: Ctrl+A Ctrl+V Ctrl+C Ctrl+X Ctrl+Z Ctrl+Y
 
@@ -11528,8 +11528,8 @@ ui_fuzzing_if ui_fuzzing = {
 };
 // _________________________________ ui_gdi.c _________________________________
 
-#include "ut/ut.h"
-#include "ut/ut_win32.h"
+#include "rt/rt.h"
+#include "rt/rt_win32.h"
 
 #pragma push_macro("ui_gdi_with_hdc")
 #pragma push_macro("ui_gdi_hdc_with_font")
@@ -12741,7 +12741,7 @@ ui_gdi_if ui_gdi = {
 #pragma pop_macro("ui_gdi_with_hdc")
 // ________________________________ ui_label.c ________________________________
 
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 static void ui_label_paint(ui_view_t* v) {
     rt_assert(v->type == ui_view_label);
@@ -12819,7 +12819,7 @@ void ui_label_init(ui_label_t* v, fp32_t min_w_em, const char* format, ...) {
 }
 // _______________________________ ui_layout.c ________________________________
 
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 static void measurements_center(ui_view_t* view) {
     rt_assert(view->child != null && view->child->next == view->child,
@@ -13002,7 +13002,7 @@ layouts_if layouts = {
 };
 // _________________________________ ui_mbx.c _________________________________
 
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 static void ui_mbx_button(ui_button_t* b) {
     ui_mbx_t* m = (ui_mbx_t*)b->parent;
@@ -13115,7 +13115,7 @@ void ui_mbx_init(ui_mbx_t* m, const char* options[],
 }
 // _______________________________ ui_slider.c ________________________________
 
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 static void ui_slider_invalidate(const ui_slider_t* s) {
     const ui_view_t* v = &s->view;
@@ -13464,7 +13464,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 // ________________________________ ui_theme.c ________________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "ut/ut.h"
+#include "rt/rt.h"
 // ________________________________ ut_win32.h ________________________________
 
 #ifdef WIN32
@@ -13678,7 +13678,7 @@ ui_theme_if ui_theme = {
 
 // _______________________________ ui_toggle.c ________________________________
 
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 static void ui_toggle_paint_on_off(ui_view_t* v) {
     const ui_ltrb_t i = ui_view.margins(v, &v->insets);
@@ -13797,7 +13797,7 @@ void ui_toggle_init(ui_toggle_t* t, const char* label, fp32_t ems,
 }
 // ________________________________ ui_view.c _________________________________
 
-#include "ut/ut.h"
+#include "rt/rt.h"
 
 static const fp64_t ui_view_hover_delay = 1.5; // seconds
 

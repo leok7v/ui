@@ -1,6 +1,6 @@
-#include "ut/ut.h"
+#include "rt/rt.h"
 #include "ui/ui.h"
-#include "ut/ut_win32.h"
+#include "rt/rt_win32.h"
 
 #pragma push_macro("ui_app_window")
 #pragma push_macro("ui_app_canvas")

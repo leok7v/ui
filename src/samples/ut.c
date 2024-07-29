@@ -1,2 +1,2 @@
-#define ut_implementation
-#include "single_file_lib/ut/ut.h"
+#define rt_implementation
+#include "single_file_lib/rt/rt.h"

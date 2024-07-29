@@ -1,6 +1,6 @@
-#include "ut/ut.h"
+#include "rt/rt.h"
 #include "ui/ui.h"
-#include "ut/ut_win32.h"
+#include "rt/rt_win32.h"
 
 #pragma push_macro("ui_gdi_with_hdc")
 #pragma push_macro("ui_gdi_hdc_with_font")

@@ -62,7 +62,7 @@
     <ProjectReference Include="amalgamate.vcxproj">
       <Project>{1ea9bf0c-402b-4852-bd16-644244f0d1b9}</Project>
     </ProjectReference>
-    <ProjectReference Include="ut.vcxproj">
+    <ProjectReference Include="rt.vcxproj">
       <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
     </ProjectReference>
   </ItemGroup>

@@ -150,10 +150,6 @@
       <Project>{9b9ac256-a764-474a-ad7a-31411fe694e2}</Project>
       <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
     </ProjectReference>
-    <ProjectReference Include="ut.vcxproj">
-      <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
-      <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Xml Include="manifest.xml" />

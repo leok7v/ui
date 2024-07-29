@@ -17,7 +17,7 @@ sample_png RCDATA "sample.png" // https://en.wikipedia.org/wiki/File:Philips_PM5
 #define original_file_name "sample.exe"
 #define product_name "sample"
 
-#include "..\inc\ut\version.rc.in"
+#include "..\inc\rt\version.rc.in"
 
 LANGUAGE LANG_CHINESE, SUBLANG_NEUTRAL
 

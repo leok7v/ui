@@ -76,7 +76,7 @@
     </Link>
     <ClCompile />
     <ClCompile>
-      <PreprocessorDefinitions>UT_TESTS;_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RT_TESTS;_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='debug|arm64'">
@@ -88,7 +88,7 @@
     </Link>
     <ClCompile />
     <ClCompile>
-      <PreprocessorDefinitions>UT_TESTS;_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RT_TESTS;_DEBUG;DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|x64'">
@@ -98,7 +98,7 @@
     </Link>
     <ClCompile />
     <ClCompile>
-      <PreprocessorDefinitions>UT_TESTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RT_TESTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='release|arm64'">
@@ -108,7 +108,7 @@
     </Link>
     <ClCompile />
     <ClCompile>
-      <PreprocessorDefinitions>UT_TESTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RT_TESTS;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -122,9 +122,8 @@
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
     </ProjectReference>
-    <ProjectReference Include="ut.vcxproj">
+    <ProjectReference Include="rt.vcxproj">
       <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
       <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
   </ItemGroup>

@@ -1,5 +1,5 @@
-#define ut_implementation
-#include "single_file_lib/ut/ut.h"
+#define rt_implementation
+#include "single_file_lib/rt/rt.h"
 
 int main(int argc, char* argv[], char *envp[]) {
     rt_args.main(argc, argv, envp);

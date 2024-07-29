@@ -15,7 +15,7 @@
 #define company_name "https://leok7v.github.io/"
 #define copyright "Copyright (C) 2021-2024 Dmitry `Leo` Kuznetsov. All rights reserved."
 
-#include "..\..\inc\ut\version.rc.in"
+#include "..\..\inc\rt\version.rc.in"
 
 #include "i18n.h"
 

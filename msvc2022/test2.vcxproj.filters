@@ -18,58 +18,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ut\rt_args.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_atomics.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_clock.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_config.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_debug.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_files.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_heap.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_loader.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_mem.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_num.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_processes.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_core.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_static.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut_std.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_str.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_streams.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_threads.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_vigil.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_win32.h">
@@ -78,8 +27,23 @@
     <ClInclude Include="..\single_file_lib\ut\ut.h">
       <Filter>single_file_lib\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_backtrace.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_args.h" />
+    <ClInclude Include="..\inc\ut\ut_atomics.h" />
+    <ClInclude Include="..\inc\ut\ut_bt.h" />
+    <ClInclude Include="..\inc\ut\ut_clock.h" />
+    <ClInclude Include="..\inc\ut\ut_config.h" />
+    <ClInclude Include="..\inc\ut\ut_debug.h" />
+    <ClInclude Include="..\inc\ut\ut_files.h" />
+    <ClInclude Include="..\inc\ut\ut_heap.h" />
+    <ClInclude Include="..\inc\ut\ut_loader.h" />
+    <ClInclude Include="..\inc\ut\ut_mem.h" />
+    <ClInclude Include="..\inc\ut\ut_num.h" />
+    <ClInclude Include="..\inc\ut\ut_processes.h" />
+    <ClInclude Include="..\inc\ut\ut_runtime.h" />
+    <ClInclude Include="..\inc\ut\ut_static.h" />
+    <ClInclude Include="..\inc\ut\ut_str.h" />
+    <ClInclude Include="..\inc\ut\ut_streams.h" />
+    <ClInclude Include="..\inc\ut\ut_threads.h" />
+    <ClInclude Include="..\inc\ut\ut_vigil.h" />
   </ItemGroup>
 </Project>

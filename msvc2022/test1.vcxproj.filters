@@ -27,24 +27,6 @@
     <ClInclude Include="..\inc\ut\ut_win32.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_args.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_atomics.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_clock.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_debug.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_files.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_loader.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut_mem.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
@@ -54,31 +36,16 @@
     <ClInclude Include="..\inc\ut\ut_processes.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_core.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut_static.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_str.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_heap.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_config.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_std.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_clipboard.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ut\rt_backtrace.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
   </ItemGroup>

@@ -6,5 +6,5 @@
 #define original_file_name "test1.exe"
 #define product_name "test1"
 
-#include "..\inc\ut\version.rc.in"
+#include "..\inc\rt\version.rc.in"
 

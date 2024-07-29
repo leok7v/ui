@@ -1,0 +1,179 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="inc">
+      <UniqueIdentifier>{4c769adc-9483-4a7d-86f9-288a6f0c0b7e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="inc\rt">
+      <UniqueIdentifier>{024f6238-556d-4e5c-80a5-c4e0c49f8ce2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src">
+      <UniqueIdentifier>{a4450c50-a72b-444f-be12-c4ebf4fe6b4a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\rt">
+      <UniqueIdentifier>{c6383183-3d91-4a7b-9c26-cb1405bf1216}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\inc\rt\rt_args.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_atomics.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_clipboard.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_clock.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_config.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_debug.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_files.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_heap.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_loader.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_mem.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_num.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_processes.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_static.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_std.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_streams.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_threads.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\version.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_vigil.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_win32.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_generics.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_nls.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_glyphs.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_str.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_work.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_core.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\rt\rt_backtrace.h">
+      <Filter>inc\rt</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\inc\rt\version.rc.in">
+      <Filter>inc\rt</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\src\rt\rt_args.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_atomics.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_clipboard.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_clock.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_config.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_debug.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_files.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_heap.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_loader.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_mem.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_num.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_processes.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_static.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_streams.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_threads.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_vigil.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_generics.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_nls.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_str.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_work.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_win32.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_core.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\rt\rt_backtrace.c">
+      <Filter>src\rt</Filter>
+    </ClCompile>
+  </ItemGroup>
+</Project>

@@ -1,5 +1,5 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "ut/ut.h"
+#include "rt/rt.h"
 #include "ui/ui.h"
 
 static char title[128] = "Polyglot"; // https://youtu.be/D36zd8yNTbQ
