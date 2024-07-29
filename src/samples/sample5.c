@@ -18,13 +18,13 @@ static int32_t fx = 2; // fs[2] == 1.0
 static ui_fm_t mf; // mono font
 static ui_fm_t pf; // proportional font
 
-static ui_edit_t edit0;
-static ui_edit_t edit1;
-static ui_edit_t edit2;
+static ui_edit_view_t edit0;
+static ui_edit_view_t edit1;
+static ui_edit_view_t edit2;
 static ui_edit_doc_t edit_doc_0;
 static ui_edit_doc_t edit_doc_1;
 static ui_edit_doc_t edit_doc_2;
-static ui_edit_t* edit[] = { &edit0, &edit1, &edit2 };
+static ui_edit_view_t* edit[] = { &edit0, &edit1, &edit2 };
 static ui_edit_doc_t* doc[] = { &edit_doc_0, &edit_doc_1, &edit_doc_2 };
 
 static int32_t focused(void) {
@@ -105,7 +105,7 @@ ui_toggle_on_off(ww, "Hide &Word Wrap", 7.0f, {
 ui_toggle_on_off(mono, "&Mono", 7.0f, {
     int32_t ix = focused();
     if (ix >= 0) {
-        ui_edit.set_font(edit[ix], mono->state.pressed ? &mf : &pf);
+        ui_edit_view.set_font(edit[ix], mono->state.pressed ? &mf : &pf);
         focus_back_to_edit();
     } else {
         mono->state.pressed = !mono->state.pressed;
@@ -118,12 +118,12 @@ ui_toggle_on_off(sl, "&Single Line", 7.0f, {
         if (ix == 2) {
             sl->state.pressed = true; // always single line
         } else if (0 <= ix && ix < 2) {
-            ui_edit_t* e = edit[ix];
+            ui_edit_view_t* e = edit[ix];
             e->sle = sl->state.pressed;
     //      rt_println("edit[%d].multiline: %d", ix, e->multiline);
             if (e->sle) {
-                ui_edit.select_all(e);
-                ui_edit.paste(e, "Hello World! Single Line Edit", -1);
+                ui_edit_view.select_all(e);
+                ui_edit_view.replace(e, "Hello World! Single Line Edit", -1);
             }
             ui_app.request_layout();
             focus_back_to_edit();
@@ -206,10 +206,10 @@ static void open_file(const char* pathname) {
     int64_t bytes = 0;
     if (rt_mem.map_ro(pathname, &file, &bytes) == 0) {
         if (0 < bytes && bytes <= INT64_MAX) {
-            ui_edit.select_all(edit[0]);
-            ui_edit.paste(edit[0], file, (int32_t)bytes);
+            ui_edit_view.select_all(edit[0]);
+            ui_edit_view.replace(edit[0], file, (int32_t)bytes);
             ui_edit_pg_t start = { .pn = 0, .gp = 0 };
-            ui_edit.move(edit[0], start);
+            ui_edit_view.move(edit[0], start);
         }
         rt_mem.unmap(file, bytes);
     } else {
@@ -253,7 +253,7 @@ static bool key_pressed(ui_view_t* rt_unused(view), int64_t key) {
     return swallow;
 }
 
-static void edit_enter(ui_edit_t* e) {
+static void edit_enter(ui_edit_view_t* e) {
     rt_assert(e->sle);
     if (!ui_app.shift) { // ignore shift ENTER:
         rt_println("text: %.*s", e->doc->text.ps[0].b, e->doc->text.ps[0].u);
@@ -286,7 +286,7 @@ static void opened(void) {
         if (i < 2) {
             ui_edit_init_with_lorem_ipsum(&doc[i]->text);
         }
-        ui_edit.init(edit[i], doc[i]);
+        ui_edit_view.init(edit[i], doc[i]);
         edit[i]->view.max_w = ui.infinity;
         if (i < 2) { edit[i]->view.max_h = ui.infinity; }
         edit[i]->view.fm = &pf;
@@ -298,7 +298,7 @@ static void opened(void) {
     rt_str_printf(edit[2]->view.p.text, "edit.sle");
 //  edit[2]->select_all(edit[2]);
 //  edit[2]->paste(edit[2], "Single line", -1);
-    ui_edit.enter = edit_enter;
+    ui_edit_view.enter = edit_enter;
     static ui_view_t span    = ui_view(span);
     static ui_view_t spacer1 = ui_view(spacer);
     static ui_view_t spacer2 = ui_view(spacer);

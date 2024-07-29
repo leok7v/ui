@@ -30,7 +30,7 @@ typedef struct ui_edit_text_s {
 } ui_edit_text_t;
 
 typedef struct ui_edit_notify_info_s {
-    bool ok; // false if ui_edit.replace() failed (bad utf8 or no memory)
+    bool ok; // false if ui_edit_view.replace() failed (bad utf8 or no memory)
     const ui_edit_doc_t*   const d;
     const ui_edit_range_t* const r; // range to be replaced
     const ui_edit_range_t* const x; // extended range (replacement)

@@ -553,11 +553,11 @@ static void edit1_test(ui_view_t* parent) {
         }
     }
     static ui_view_t list = ui_view(list);
-    static ui_edit_t edit = {0};
+    static ui_edit_view_t edit = {0};
     static ui_edit_doc_t doc = {0};
     if (doc.text.np == 0) {
         rt_swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
-        ui_edit.init(&edit, &doc);
+        ui_edit_view.init(&edit, &doc);
     }
     ui_view.add(&test,
         ui_view.add(&list,

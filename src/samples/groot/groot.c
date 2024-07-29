@@ -23,7 +23,7 @@ static ui_iv_t view_groot;
 static ui_iv_t view_rocket;
 static ui_iv_t view_gs[2]; // two views at the same image
 
-static ui_edit_t     view_text;
+static ui_edit_view_t     view_text;
 static ui_edit_doc_t document;
 
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,
@@ -83,14 +83,14 @@ static void init_images(void) {
     ui_iv.init(&view_groot);
     init_image(&view_groot.image, groot, rt_countof(groot));
     // view of groot image:
-    ui_iv.ratio(&view_groot, 4, 1); // 4:1
+//  ui_iv.ratio(&view_groot, 4, 1); // 4:1
     view_groot.alpha = 0.5;
     view_groot.padding = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // because it is stacked under text editor
     // view of rocket image:
     ui_iv.init(&view_rocket);
     init_image(&view_rocket.image, rocket, rt_countof(rocket));
-    ui_iv.ratio(&view_rocket, 3, 1); // 3:1
+//  ui_iv.ratio(&view_rocket, 3, 1); // 3:1
     view_rocket.padding = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // no zoom/pan
     init_gs();
@@ -102,7 +102,7 @@ static void init_text(void) {
     "Rocket: \"Well, he don't know talking good like me and you, "
               "so his vocabulistics is limited to 'I' and 'am' and 'Groot.' "
               "Exclusively, in that order.\"", -1, false));
-    ui_edit.init(&view_text, &document);
+    ui_edit_view.init(&view_text, &document);
     view_text.hide_word_wrap = true;
     view_text.padding = (ui_margins_t){0};
     view_text.insets = (ui_margins_t){0};
@@ -183,6 +183,8 @@ static void opened(void) {
         ),
         null
     );
+    list.debug.id = "#list";
+    right.debug.id = "#right";
 //  list.debug.paint.margins = true;
     center.insets  = (ui_margins_t){0};
     center.padding = (ui_margins_t){0};
@@ -193,7 +195,6 @@ static void opened(void) {
         panels[i]->insets  = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
     }
     list.background_id = ui_color_id_window;
-    list.debug.id = "#list";
     ui_view_for_each(&list, it, {
 //      it->debug.paint.margins = true;
         it->max_w   = ui.infinity;
@@ -210,9 +211,14 @@ static void opened(void) {
     view_gs[1].padding.top    = 0.25f;
     view_gs[0].fit  = true;
     view_gs[1].fill = true;
-    right.debug.trace.mt = true;
     view_groot.debug.id  = "#view.groot";
     view_rocket.debug.id = "#view.rocket";
+    view_groot.max_w = ui.infinity;
+    view_groot.max_h = ui.infinity;
+    view_groot.fill = true;
+    view_rocket.max_w = ui.infinity;
+    view_rocket.max_h = ui.infinity;
+//  view_rocket.fill = true;
 }
 
 static void closed(void) {

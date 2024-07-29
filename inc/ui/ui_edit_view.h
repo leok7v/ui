@@ -5,10 +5,10 @@
 
 rt_begin_c
 
-// important ui_edit_t will refuse to layout into a box smaller than
+// important ui_edit_view_t will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
 
-typedef struct ui_edit_s ui_edit_t;
+typedef struct ui_edit_view_s ui_edit_view_t;
 
 typedef struct ui_edit_str_s ui_edit_str_t;
 
@@ -46,7 +46,7 @@ typedef struct ui_edit_notify_view_s {
     uintptr_t        data; // before -> after listener data
 } ui_edit_notify_view_t;
 
-typedef struct ui_edit_s {
+typedef struct ui_edit_view_s {
     union {
         ui_view_t view;
         struct ui_view_s;
@@ -74,43 +74,43 @@ typedef struct ui_edit_s {
     int32_t shown;    // debug: caret show/hide counter 0|1
     // paragraphs memory:
     ui_edit_paragraph_t* para; // para[e->doc->text.np]
-} ui_edit_t;
+} ui_edit_view_t;
 
-typedef struct ui_edit_if {
-    void (*init)(ui_edit_t* e, ui_edit_doc_t* d);
-    void (*set_font)(ui_edit_t* e, ui_fm_t* fm); // see notes below (*)
-    void (*move)(ui_edit_t* e, ui_edit_pg_t pg); // move caret clear selection
+typedef struct ui_edit_view_if {
+    void (*init)(ui_edit_view_t* e, ui_edit_doc_t* d);
+    void (*set_font)(ui_edit_view_t* e, ui_fm_t* fm); // see notes below (*)
+    void (*move)(ui_edit_view_t* e, ui_edit_pg_t pg); // move caret clear selection
     // replace selected text. If bytes < 0 text is treated as zero terminated
-    void (*paste)(ui_edit_t* e, const char* text, int32_t bytes);
+    void (*replace)(ui_edit_view_t* e, const char* text, int32_t bytes);
     // call save(e, null, &bytes) to retrieve number of utf8
     // bytes required to save whole text including 0x00 terminating bytes
-    errno_t (*save)(ui_edit_t* e, char* text, int32_t* bytes);
-    void (*copy_to_clipboard)(ui_edit_t* e);
-    void (*cut_to_clipboard)(ui_edit_t* e);
+    errno_t (*save)(ui_edit_view_t* e, char* text, int32_t* bytes);
+    void (*copy)(ui_edit_view_t* e);  // to clipboard
+    void (*cut)(ui_edit_view_t* e);   // to clipboard
     // replace selected text with content of clipboard:
-    void (*paste_from_clipboard)(ui_edit_t* e);
-    void (*select_all)(ui_edit_t* e); // select whole text
-    void (*erase)(ui_edit_t* e); // delete selected text
+    void (*paste)(ui_edit_view_t* e); // from clipboard
+    void (*select_all)(ui_edit_view_t* e); // select whole text
+    void (*erase)(ui_edit_view_t* e); // delete selected text
     // keyboard actions dispatcher:
-    void (*key_down)(ui_edit_t* e);
-    void (*key_up)(ui_edit_t* e);
-    void (*key_left)(ui_edit_t* e);
-    void (*key_right)(ui_edit_t* e);
-    void (*key_page_up)(ui_edit_t* e);
-    void (*key_page_down)(ui_edit_t* e);
-    void (*key_home)(ui_edit_t* e);
-    void (*key_end)(ui_edit_t* e);
-    void (*key_delete)(ui_edit_t* e);
-    void (*key_backspace)(ui_edit_t* e);
-    void (*key_enter)(ui_edit_t* e);
+    void (*key_down)(ui_edit_view_t* e);
+    void (*key_up)(ui_edit_view_t* e);
+    void (*key_left)(ui_edit_view_t* e);
+    void (*key_right)(ui_edit_view_t* e);
+    void (*key_page_up)(ui_edit_view_t* e);
+    void (*key_page_down)(ui_edit_view_t* e);
+    void (*key_home)(ui_edit_view_t* e);
+    void (*key_end)(ui_edit_view_t* e);
+    void (*key_delete)(ui_edit_view_t* e);
+    void (*key_backspace)(ui_edit_view_t* e);
+    void (*key_enter)(ui_edit_view_t* e);
     // called when ENTER keyboard key is pressed in single line mode
-    void (*enter)(ui_edit_t* e);
+    void (*enter)(ui_edit_view_t* e);
     // fuzzer test:
-    void (*fuzz)(ui_edit_t* e);      // start/stop fuzzing test
-    void (*dispose)(ui_edit_t* e);
-} ui_edit_if;
+    void (*fuzz)(ui_edit_view_t* e);      // start/stop fuzzing test
+    void (*dispose)(ui_edit_view_t* e);
+} ui_edit_view_if;
 
-extern ui_edit_if ui_edit;
+extern ui_edit_view_if ui_edit_view;
 
 /*
     Notes:
