@@ -18,28 +18,28 @@ static bool ui_containers_debug;
 
 static int32_t ui_layout_nesting;
 
-#define ui_layout_enter(v) do {                                  \
-    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);               \
-    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);              \
-    debugln("%*c> %d,%d %dx%d p: %d %d %d %d i: %d %d %d %d %s", \
-            ui_layout_nesting, 0x20,                             \
-            v->x, v->y, v->w, v->h,                              \
-            p_.left, p_.top, p_.right, p_.bottom,                \
-            i_.left, i_.top, i_.right, i_.bottom,                \
-            ui_view_debug_id(v));                                \
-    ui_layout_nesting += 4;                                      \
+#define ui_layout_enter(v) do {                                         \
+    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);                      \
+    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);                     \
+    debugln("%*c> %4d,%-4d %4dx%-4d p: %d %d %d %d i: %d %d %d %d %s",  \
+            ui_layout_nesting, 0x20,                                    \
+            v->x, v->y, v->w, v->h,                                     \
+            p_.left, p_.top, p_.right, p_.bottom,                       \
+            i_.left, i_.top, i_.right, i_.bottom,                       \
+            ui_view_debug_id(v));                                       \
+    ui_layout_nesting += 4;                                             \
 } while (0)
 
-#define ui_layout_exit(v) do {                                   \
-    ui_layout_nesting -= 4;                                      \
-    debugln("%*c< %d,%d %dx%d %s",                               \
-            ui_layout_nesting, 0x20,                             \
-            v->x, v->y, v->w, v->h, ui_view_debug_id(v));        \
+#define ui_layout_exit(v) do {                                          \
+    ui_layout_nesting -= 4;                                             \
+    debugln("%*c< %4d,%-4d %4dx%-4d %s",                                \
+            ui_layout_nesting, 0x20,                                    \
+            v->x, v->y, v->w, v->h, ui_view_debug_id(v));               \
 } while (0)
 
-#define ui_layout_clild(v) do {                                  \
-    debugln("%*c %d,%d %dx%d %s", ui_layout_nesting, 0x20,       \
-            c->x, c->y, c->w, c->h, ui_view_debug_id(v));        \
+#define ui_layout_clild(v) do {                                         \
+    debugln("%*c %4d,%-4d %4dx%-4d %s", ui_layout_nesting, 0x20,        \
+            c->x, c->y, c->w, c->h, ui_view_debug_id(v));               \
 } while (0)
 
 static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
@@ -55,13 +55,13 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
 #define ui_layout_dump(v) do {                                                \
     char maxw[32];                                                            \
     char maxh[32];                                                            \
-    debugln("%s[%4.4s] %d,%d %dx%d, max[%sx%s] "                              \
+    debugln("%s[%4.4s] %4d,%-4d %4dx%-4d, max[%sx%s] "                        \
         "padding { %.3f %.3f %.3f %.3f } "                                    \
         "insets { %.3f %.3f %.3f %.3f } align: 0x%02X",                       \
         ui_view_debug_id(v),                                                  \
         &v->type, v->x, v->y, v->w, v->h,                                     \
-        ui_stack_finite_int(v->max_w, maxw, rt_countof(maxw)),               \
-        ui_stack_finite_int(v->max_h, maxh, rt_countof(maxh)),               \
+        ui_stack_finite_int(v->max_w, maxw, rt_countof(maxw)),                \
+        ui_stack_finite_int(v->max_h, maxh, rt_countof(maxh)),                \
         v->padding.left, v->padding.top, v->padding.right, v->padding.bottom, \
         v->insets.left, v->insets.top, v->insets.right, v->insets.bottom,     \
         v->align);                                                            \
@@ -494,7 +494,7 @@ static void ui_stack_measure(ui_view_t* p) {
         }
         wh.h = rt_max(wh.h, sum_h);
     }
-    debugln("%*c wh %dx%d", ui_layout_nesting, 0x20, wh.w, wh.h);
+    debugln("%*c wh %4dx%-4d", ui_layout_nesting, 0x20, wh.w, wh.h);
     p->w = insets.left + wh.w + insets.right;
     p->h = insets.top  + wh.h + insets.bottom;
     ui_layout_exit(p);
