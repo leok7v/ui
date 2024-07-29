@@ -21,7 +21,7 @@
     <ClInclude Include="..\inc\ut\ut_std.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_win32.h">
+    <ClInclude Include="..\inc\ut\rt_win32.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\single_file_lib\ut\ut.h">

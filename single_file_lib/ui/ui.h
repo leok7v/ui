@@ -4,7 +4,7 @@
 // ___________________________________ ui.h ___________________________________
 
 // alphabetical order is not possible because of headers interdependencies
-// _________________________________ ut_std.h _________________________________
+// _________________________________ rt_std.h _________________________________
 
 #include <ctype.h>
 #include <errno.h>
@@ -13465,7 +13465,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "rt/rt.h"
-// ________________________________ ut_win32.h ________________________________
+// ________________________________ rt_win32.h ________________________________
 
 #ifdef WIN32
 

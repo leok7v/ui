@@ -166,25 +166,25 @@ rt_worker_if rt_worker = {
 // keep in mind that rt_println() may be blocking and is a subject
 // of "astronomical" wait state times in order of dozens of ms.
 
-static int32_t ut_test_called;
+static int32_t rt_test_called;
 
-static void ut_never_called(rt_work_t* rt_unused(w)) {
-    ut_test_called++;
+static void rt_never_called(rt_work_t* rt_unused(w)) {
+    rt_test_called++;
 }
 
 static void rt_work_queue_test_1(void) {
-    ut_test_called = 0;
+    rt_test_called = 0;
     // testing insertion time ordering of two events into queue
     const fp64_t now = rt_clock.seconds();
     rt_work_queue_t q = {0};
     rt_work_t c1 = {
         .queue = &q,
-        .work = ut_never_called,
+        .work = rt_never_called,
         .when = now + 1.0
     };
     rt_work_t c2 = {
         .queue = &q,
-        .work = ut_never_called,
+        .work = rt_never_called,
         .when = now + 0.5
     };
     rt_work_queue.post(&c1);
@@ -193,7 +193,7 @@ static void rt_work_queue_test_1(void) {
     rt_swear(q.head == &c2 && q.head->next == &c1);
     rt_work_queue.flush(&q);
     // test that canceled events are not dispatched
-    rt_swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+    rt_swear(rt_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
     c1.canceled = false;
     c2.canceled = false;
     // test the rt_work_queue.cancel() function
@@ -207,19 +207,19 @@ static void rt_work_queue_test_1(void) {
     rt_work_queue.cancel(&c1);
     rt_swear(c1.canceled && q.head == &c2 && q.head->next == null);
     rt_work_queue.flush(&q);
-    rt_swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+    rt_swear(rt_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
 }
 
 // simple way of passing a single pointer to call_later
 
-static fp64_t ut_test_work_start; // makes timing debug traces easier to read
+static fp64_t rt_test_work_start; // makes timing debug traces easier to read
 
-static void ut_every_millisecond(rt_work_t* w) {
+static void rt_every_millisecond(rt_work_t* w) {
     int32_t* i = (int32_t*)w->data;
     fp64_t now = rt_clock.seconds();
     if (rt_debug.verbosity.level > rt_debug.verbosity.info) {
-        const fp64_t since_start = now - ut_test_work_start;
-        const fp64_t dt = w->when - ut_test_work_start;
+        const fp64_t since_start = now - rt_test_work_start;
+        const fp64_t dt = w->when - rt_test_work_start;
         rt_println("%d now: %.6f time: %.6f", *i, since_start, dt);
     }
     (*i)++;
@@ -230,14 +230,14 @@ static void ut_every_millisecond(rt_work_t* w) {
 
 static void rt_work_queue_test_2(void) {
     rt_thread.realtime();
-    ut_test_work_start = rt_clock.seconds();
+    rt_test_work_start = rt_clock.seconds();
     rt_work_queue_t q = {0};
     // if a single pointer will suffice
     int32_t i = 0;
     rt_work_t c = {
         .queue = &q,
-        .work = ut_every_millisecond,
-        .when = ut_test_work_start + 0.001,
+        .work = rt_every_millisecond,
+        .when = rt_test_work_start + 0.001,
         .data = &i
     };
     rt_work_queue.post(&c);
@@ -265,12 +265,12 @@ typedef struct rt_work_ex_s {
     int32_t i;
 } rt_work_ex_t;
 
-static void ut_every_other_millisecond(rt_work_t* w) {
+static void rt_every_other_millisecond(rt_work_t* w) {
     rt_work_ex_t* ex = (rt_work_ex_t*)w;
     fp64_t now = rt_clock.seconds();
     if (rt_debug.verbosity.level > rt_debug.verbosity.info) {
-        const fp64_t since_start = now - ut_test_work_start;
-        const fp64_t dt  = w->when - ut_test_work_start;
+        const fp64_t since_start = now - rt_test_work_start;
+        const fp64_t dt  = w->when - rt_test_work_start;
         rt_println(".i: %d .extra: {.a: %d .b: %d} now: %.6f time: %.6f",
                 ex->i, ex->s.a, ex->s.b, since_start, dt);
     }
@@ -288,7 +288,7 @@ static void rt_work_queue_test_3(void) {
     rt_work_queue_t q = {0};
     rt_work_ex_t ex = {
         .queue = &q,
-        .work = ut_every_other_millisecond,
+        .work = rt_every_other_millisecond,
         .when = now + 0.002,
         .s = { .a = 1, .b = 2 },
         .i = 0
@@ -312,10 +312,10 @@ static void rt_work_queue_test(void) {
     if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
 }
 
-static int32_t ut_test_do_work_called;
+static int32_t rt_test_do_work_called;
 
-static void ut_test_do_work(rt_work_t* rt_unused(w)) {
-    ut_test_do_work_called++;
+static void rt_test_do_work(rt_work_t* rt_unused(w)) {
+    rt_test_do_work_called++;
 }
 
 static void rt_worker_test(void) {
@@ -328,12 +328,12 @@ static void rt_worker_test(void) {
     rt_work_t asap = {
         .when = 0, // A.S.A.P.
         .done = rt_event.create(),
-        .work = ut_test_do_work
+        .work = rt_test_do_work
     };
     rt_work_t later = {
         .when = rt_clock.seconds() + 0.010, // 10ms
         .done = rt_event.create(),
-        .work = ut_test_do_work
+        .work = rt_test_do_work
     };
     rt_worker.post(&worker, &asap);
     rt_worker.post(&worker, &later);

@@ -94,19 +94,19 @@ static uint64_t rt_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
 }
 
 static uint32_t rt_num_gcd32(uint32_t u, uint32_t v) {
-    #pragma push_macro("ut_trailing_zeros")
+    #pragma push_macro("rt_trailing_zeros")
     #ifdef _M_ARM64
-    #define ut_trailing_zeros(x) (_CountTrailingZeros(x))
+    #define rt_trailing_zeros(x) (_CountTrailingZeros(x))
     #else
-    #define ut_trailing_zeros(x) ((int32_t)_tzcnt_u32(x))
+    #define rt_trailing_zeros(x) ((int32_t)_tzcnt_u32(x))
     #endif
     if (u == 0) {
         return v;
     } else if (v == 0) {
         return u;
     }
-    uint32_t i = ut_trailing_zeros(u);  u >>= i;
-    uint32_t j = ut_trailing_zeros(v);  v >>= j;
+    uint32_t i = rt_trailing_zeros(u);  u >>= i;
+    uint32_t j = rt_trailing_zeros(v);  v >>= j;
     uint32_t k = rt_min(i, j);
     for (;;) {
         rt_assert(u % 2 == 1, "u = %d should be odd", u);
@@ -114,9 +114,9 @@ static uint32_t rt_num_gcd32(uint32_t u, uint32_t v) {
         if (u > v) { uint32_t swap = u; u = v; v = swap; }
         v -= u;
         if (v == 0) { return u << k; }
-        v >>= ut_trailing_zeros(v);
+        v >>= rt_trailing_zeros(v);
     }
-    #pragma pop_macro("ut_trailing_zeros")
+    #pragma pop_macro("rt_trailing_zeros")
 }
 
 static uint32_t rt_num_random32(uint32_t* state) {

@@ -156,16 +156,16 @@ static bool rt_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, 
         (int64_t)comparand, (int64_t)v);
 }
 
-#pragma push_macro("ut_sync_bool_compare_and_swap")
-#pragma push_macro("ut_builtin_cpu_pause")
+#pragma push_macro("rt_sync_bool_compare_and_swap")
+#pragma push_macro("rt_builtin_cpu_pause")
 
 // https://en.wikipedia.org/wiki/Spinlock
 
-#define ut_sync_bool_compare_and_swap(p, old_val, new_val)          \
+#define rt_sync_bool_compare_and_swap(p, old_val, new_val)          \
     (_InterlockedCompareExchange64(p, new_val, old_val) == old_val)
 
 // https://stackoverflow.com/questions/37063700/mm-pause-usage-in-gcc-on-intel
-#define ut_builtin_cpu_pause() do { YieldProcessor(); } while (0)
+#define rt_builtin_cpu_pause() do { YieldProcessor(); } while (0)
 
 static void spinlock_acquire(volatile int64_t* spinlock) {
     // Very basic implementation of a spinlock. This is currently
@@ -174,8 +174,8 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
     // have minimal thread contention).
     // Not a performance champion (because of mem_fence()) but serves
     // the purpose. mem_fence() can be reduced to mem_sfence()... sigh
-    while (!ut_sync_bool_compare_and_swap(spinlock, 0, 1)) {
-        while (*spinlock) { ut_builtin_cpu_pause(); }
+    while (!rt_sync_bool_compare_and_swap(spinlock, 0, 1)) {
+        while (*spinlock) { rt_builtin_cpu_pause(); }
     }
     rt_atomics.memory_fence();
     // not strictly necessary on strong mem model Intel/AMD but
@@ -184,8 +184,8 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
     rt_assert(*spinlock == 1);
 }
 
-#pragma pop_macro("ut_builtin_cpu_pause")
-#pragma pop_macro("ut_sync_bool_compare_and_swap")
+#pragma pop_macro("rt_builtin_cpu_pause")
+#pragma pop_macro("rt_sync_bool_compare_and_swap")
 
 static void spinlock_release(volatile int64_t* spinlock) {
     rt_assert(*spinlock == 1);

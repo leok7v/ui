@@ -57,12 +57,13 @@ static void rt_loader_close(void* handle) {
 
 #ifdef RT_TESTS
 
-#define RT_LOADER_TEST_EXPORTED_FUNCTION
+// manually test exported function once and comment out because of
+// creating .lib out of each .exe is annoying
+
+#undef RT_LOADER_TEST_EXPORTED_FUNCTION
 
 #ifdef RT_LOADER_TEST_EXPORTED_FUNCTION
 
-// manually test once and comment out because creating .lib
-// out of each .exe is annoying
 
 static int32_t rt_loader_test_calls_count;
 

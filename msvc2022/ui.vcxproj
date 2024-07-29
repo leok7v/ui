@@ -37,7 +37,6 @@
     <ClInclude Include="..\inc\ui\ui_mbx.h" />
     <ClInclude Include="..\inc\ui\ui_slider.h" />
     <ClInclude Include="..\inc\ui\ui_view.h" />
-    <ClInclude Include="..\inc\ui\ut_std.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\ui\ui_app.c" />

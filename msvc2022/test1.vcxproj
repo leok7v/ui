@@ -121,19 +121,6 @@
     <ClCompile Include="..\test\test1.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ut\ut_mem.h" />
-    <ClInclude Include="..\inc\ut\ut_num.h" />
-    <ClInclude Include="..\inc\ut\ut_processes.h" />
-    <ClInclude Include="..\inc\ut\ut_static.h" />
-    <ClInclude Include="..\inc\ut\ut_std.h" />
-    <ClInclude Include="..\inc\ut\ut_str.h" />
-    <ClInclude Include="..\inc\ut\ut_streams.h" />
-    <ClInclude Include="..\inc\ut\ut_threads.h" />
-    <ClInclude Include="..\inc\ut\ut.h" />
-    <ClInclude Include="..\inc\ut\ut_vigil.h" />
-    <ClInclude Include="..\inc\ut\ut_win32.h" />
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="..\test\test1.rc" />
   </ItemGroup>
   <ItemGroup>

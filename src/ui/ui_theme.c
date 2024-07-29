@@ -1,7 +1,7 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "rt/rt.h"
 #include "ui/ui.h"
-#include "ui/ut_win32.h"
+#include "ui/rt_win32.h"
 
 static int32_t ui_theme_dark = -1; // -1 unknown
 
