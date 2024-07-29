@@ -68,15 +68,15 @@ static ui_font_t ui_gdi_set_font(ui_font_t f) {
 }
 
 static void ui_gdi_begin(ui_image_t* image) {
-    ut_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
+    rt_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
-        ut_swear(image->bitmap != null);
+        rt_swear(image->bitmap != null);
         ui_gdi_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
         ui_gdi_context.bitmap = SelectBitmap(ui_gdi_hdc(),
                                              (HBITMAP)image->bitmap);
     } else {
         ui_gdi_context.hdc = (HDC)ui_app.canvas;
-        ut_swear(ui_gdi_context.bitmap == null);
+        rt_swear(ui_gdi_context.bitmap == null);
     }
     ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.prop.normal.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
@@ -99,7 +99,7 @@ static void ui_gdi_end(void) {
     SetBkMode(ui_gdi_hdc(), ui_gdi_context.background_mode);
     SetStretchBltMode(ui_gdi_hdc(), ui_gdi_context.stretch_mode);
     if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
-        ut_swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
+        rt_swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
         SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.bitmap);
         ut_fatal_win32err(DeleteDC(ui_gdi_context.hdc));
     }
@@ -141,7 +141,7 @@ static void ui_gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
         ui_gdi_clip = (ui_region_t)CreateRectRgn(x, y, x + w, y + h);
         ut_not_null(ui_gdi_clip);
     }
-    ut_fatal_if(SelectClipRgn(ui_gdi_hdc(), (HRGN)ui_gdi_clip) == ERROR);
+    rt_fatal_if(SelectClipRgn(ui_gdi_hdc(), (HRGN)ui_gdi_clip) == ERROR);
 }
 
 static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
@@ -212,9 +212,9 @@ static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
 
 static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
         ui_color_t border, ui_color_t fill) {
-    ut_swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
+    rt_swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
     // Win32 GDI even radius drawing looks ugly squarish and asymmetrical.
-    ut_swear(radius % 2 == 1, "radius: %d must be odd");
+    rt_swear(radius % 2 == 1, "radius: %d must be odd");
     if (ui_color_is_transparent(border)) {
         ut_assert(!ui_color_is_transparent(fill));
         border = fill;
@@ -279,7 +279,7 @@ static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border, ui_color_t fill) {
-    ut_swear(!ui_color_is_transparent(border) || !ui_color_is_transparent(fill));
+    rt_swear(!ui_color_is_transparent(border) || !ui_color_is_transparent(fill));
     if (!ui_color_is_transparent(fill)) {
         ui_gdi_fill_rounded(x, y, w, h, radius, fill);
     }
@@ -337,7 +337,7 @@ static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
 static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
-    ut_fatal_if(stride != ((width + 3) & ~0x3));
+    rt_fatal_if(stride != ((width + 3) & ~0x3));
     ut_assert(iw > 0 && ih != 0); // h can be negative
     if (iw > 0 && ih != 0) {
         BITMAPINFO *bi = ui_gdi_greyscale_bitmap_info(); // global! not thread safe
@@ -347,7 +347,7 @@ static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         bih->biSizeImage = (DWORD)(iw * abs(ih));
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+        rt_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
                                                 ix, iy, iw, ih,
                     pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
@@ -378,13 +378,13 @@ static void ui_gdi_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    ut_fatal_if(stride != ((width * 3 + 3) & ~0x3));
+    rt_fatal_if(stride != ((width * 3 + 3) & ~0x3));
     ut_assert(iw > 0 && ih != 0); // h can be negative
     if (iw > 0 && ih != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(width, height, 3);
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+        rt_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
                                                 ix, iy, iw, ih,
                     pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
@@ -395,13 +395,13 @@ static void ui_gdi_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    ut_fatal_if(stride != ((width * 4 + 3) & ~0x3));
+    rt_fatal_if(stride != ((width * 4 + 3) & ~0x3));
     ut_assert(iw > 0 && ih != 0); // h can be negative
     if (iw > 0 && ih != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(width, height, 4);
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+        rt_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
                                                 ix, iy, iw, ih,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
@@ -423,7 +423,7 @@ static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
 
 static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp) {
-    ut_fatal_if(image->bitmap != null, "image_dispose() not called?");
+    rt_fatal_if(image->bitmap != null, "image_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
     // before window is created
     HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
@@ -431,7 +431,7 @@ static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
     BITMAPINFO* bi = bpp == 1 ? ui_gdi_greyscale_bitmap_info() : &local;
     image->bitmap = (ui_bitmap_t)CreateDIBSection(c, ui_gdi_init_bitmap_info(w, h, bpp, bi),
                                                DIB_RGB_COLORS, &image->pixels, null, 0x0);
-    ut_fatal_if(image->bitmap == null || image->pixels == null);
+    rt_fatal_if(image->bitmap == null || image->pixels == null);
     ut_fatal_win32err(DeleteDC(c));
 }
 
@@ -439,7 +439,7 @@ static void ui_gdi_image_init_rgbx(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
-    ut_fatal_if(bpp != 4, "bpp: %d", bpp);
+    rt_fatal_if(bpp != 4, "bpp: %d", bpp);
     ui_gdi_create_dib_section(image, w, h, bpp);
     const int32_t stride = (w * bpp + 3) & ~0x3;
     uint8_t* scanline = image->pixels;
@@ -483,7 +483,7 @@ static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t b
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
-    ut_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
+    rt_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
     ui_gdi_create_dib_section(image, w, h, bpp);
     // Win32 bitmaps stride is rounded up to 4 bytes
     const int32_t stride = (w * bpp + 3) & ~0x3;
@@ -603,7 +603,7 @@ static void ui_gdi_image(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
     if (image->bpp == 1) { // StretchBlt() is bad for greyscale
         BITMAPINFO* bi   = ui_gdi_greyscale_bitmap_info();
         BITMAPINFO* info = ui_gdi_init_bitmap_info(image->w, image->h, 1, bi);
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh, ix, iy, iw, ih,
+        rt_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh, ix, iy, iw, ih,
             image->pixels, info, DIB_RGB_COLORS, SRCCOPY) == 0);
     } else {
         HDC c = CreateCompatibleDC(ui_gdi_hdc());
@@ -631,7 +631,7 @@ static void ui_gdi_cleartype(bool on) {
 }
 
 static void ui_gdi_font_smoothing_contrast(int32_t c) {
-    ut_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
+    rt_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
     if (c == -1) { c = 1400; }
     ut_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
         0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
@@ -649,14 +649,14 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
     ut_assert(h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(ui_app.fm.prop.normal.font, sizeof(lf), &lf);
-    ut_fatal_if(n != (int32_t)sizeof(lf));
+    rt_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     ut_str_printf(lf.lfFaceName, "%s", family);
     if (ui_gdi_font_quality_default <= q &&
         q <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
-        ut_fatal_if(q != -1, "use -1 for do not care quality");
+        rt_fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
@@ -665,13 +665,13 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
     ut_assert(f != null && h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    ut_fatal_if(n != (int32_t)sizeof(lf));
+    rt_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     if (ui_gdi_font_quality_default <= q &&
         q <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
-        ut_fatal_if(q != -1, "use -1 for do not care quality");
+        rt_fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
@@ -734,10 +734,10 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
             tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
     ut_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
             tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
-    ut_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    ut_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // unsupported XHeight CapEmHeight
     // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
     //             CharSlopeRise, CharSlopeRun, ItalicAngle
@@ -772,10 +772,10 @@ static void ui_gdi_dump_fm(ui_font_t f) {
 static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     TEXTMETRICA tm = {0};
     ut_fatal_win32err(GetTextMetricsA(hdc, &tm));
-    ut_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    ut_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // "tm.tmAscent" The ascent (units above the base line) of characters
     // and actually is "baseline" in other terminology
     // "otm.otmAscent" The maximum distance characters in this font extend
@@ -832,13 +832,13 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
 //  ui_gdi.dump_fm(f);
     ui_gdi_hdc_with_font(f, {
         ui_gdi_get_fm(hdc, fm);
-        // ut_glyph_nbsp and "M" have the same result
+        // rt_glyph_nbsp and "M" have the same result
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         SIZE e3 = {0}; // Three-Em Dash
         ut_fatal_win32err(GetTextExtentPoint32A(hdc,
-            ut_glyph_three_em_dash, 1, &e3));
+            rt_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
 //      ut_println("vl: %d %d", vl.cx, vl.cy);
 //      ut_println("e3: %d %d", e3.cx, e3.cy);
@@ -859,20 +859,20 @@ if (0) {
         SIZE em = {0, 0}; // "M"
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
         ut_println("em: %d %d", em.cx, em.cy);
-        ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_em_quad, 1, &em));
         ut_println("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         ut_println("vl: %d %d", vl.cx, vl.cy);
-        ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_three_em_dash, 1, &e3));
         ut_println("e3: %d %d", e3.cx, e3.cy);
     }
 }
     int32_t count = ut_str.utf16_chars(s, -1);
     ut_assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
-    ut_swear(count <= ut_countof(ws), "find another way to draw!");
+    rt_swear(count <= ut_countof(ws), "find another way to draw!");
     ut_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
@@ -907,7 +907,7 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     text[ut_countof(text) - 1] = 0;
     int32_t k = (int32_t)ut_str.len(text);
     if (k > 0) {
-        ut_swear(k > 0 && k < ut_countof(text), "k=%d n=%d fmt=%s", k, p->format);
+        rt_swear(k > 0 && k < ut_countof(text), "k=%d n=%d fmt=%s", k, p->format);
         // rectangle is always calculated - it makes draw text
         // much slower but UI layer is mostly uses bitmap caching:
         if ((p->flags & DT_CALCRECT) == 0) {
@@ -947,10 +947,10 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
     ui_color_t c = ta->color;
     if (!ta->measure) {
         if (ui_color_is_undefined(c)) {
-            ut_swear(ta->color_id > 0);
+            rt_swear(ta->color_id > 0);
             c = ui_colors.get_color(ta->color_id);
         } else {
-            ut_swear(ta->color_id == 0);
+            rt_swear(ta->color_id == 0);
         }
         c = ui_gdi_set_text_color(c);
     }
@@ -994,7 +994,7 @@ static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
 
 static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
-    ut_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
+    rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
     ut_assert(false, "Does not work for Tamil simplest utf8: \xe0\xae\x9a utf16: 0x0B9A");
     x[0] = 0;
     ui_wh_t wh = { .w = 0, .h = 0 };
@@ -1003,7 +1003,7 @@ static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         uint16_t* utf16 = ut_stackalloc((chars + 1) * sizeof(uint16_t));
         uint16_t* output = ut_stackalloc((chars + 1) * sizeof(uint16_t));
         const errno_t r = ut_str.utf8to16(utf16, chars, utf8, bytes);
-        ut_swear(r == 0);
+        rt_swear(r == 0);
 // TODO: remove
 #if 1
         char str[16 * 1024] = {0};
@@ -1079,7 +1079,7 @@ static uint8_t* ui_gdi_load_image(const void* data, int32_t bytes, int* w, int* 
     #else // see instructions above
         (void)data; (void)bytes; (void)data; (void)w; (void)h;
         (void)bytes_per_pixel; (void)preferred_bytes_per_pixel;
-        ut_fatal_if(true, "curl.exe --silent --fail --create-dirs "
+        rt_fatal_if(true, "curl.exe --silent --fail --create-dirs "
             "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h "
             "--output ext/stb_image.h");
         return null;

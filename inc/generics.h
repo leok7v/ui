@@ -12,71 +12,71 @@ ut_begin_c
 // Type safety comes with the cost of complexity in puritan
 // or stoic language like C:
 
-static inline int8_t   ut_max_int8(int8_t x, int8_t y)       { return x > y ? x : y; }
-static inline int16_t  ut_max_int16(int16_t x, int16_t y)    { return x > y ? x : y; }
-static inline int32_t  ut_max_int32(int32_t x, int32_t y)    { return x > y ? x : y; }
-static inline int64_t  ut_max_int64(int64_t x, int64_t y)    { return x > y ? x : y; }
-static inline uint8_t  ut_max_uint8(uint8_t x, uint8_t y)    { return x > y ? x : y; }
-static inline uint16_t ut_max_uint16(uint16_t x, uint16_t y) { return x > y ? x : y; }
-static inline uint32_t ut_max_uint32(uint32_t x, uint32_t y) { return x > y ? x : y; }
-static inline uint64_t ut_max_uint64(uint64_t x, uint64_t y) { return x > y ? x : y; }
-static inline fp32_t   ut_max_fp32(fp32_t x, fp32_t y)       { return x > y ? x : y; }
-static inline fp64_t   ut_max_fp64(fp64_t x, fp64_t y)       { return x > y ? x : y; }
+static inline int8_t   rt_max_int8(int8_t x, int8_t y)       { return x > y ? x : y; }
+static inline int16_t  rt_max_int16(int16_t x, int16_t y)    { return x > y ? x : y; }
+static inline int32_t  rt_max_int32(int32_t x, int32_t y)    { return x > y ? x : y; }
+static inline int64_t  rt_max_int64(int64_t x, int64_t y)    { return x > y ? x : y; }
+static inline uint8_t  rt_max_uint8(uint8_t x, uint8_t y)    { return x > y ? x : y; }
+static inline uint16_t rt_max_uint16(uint16_t x, uint16_t y) { return x > y ? x : y; }
+static inline uint32_t rt_max_uint32(uint32_t x, uint32_t y) { return x > y ? x : y; }
+static inline uint64_t rt_max_uint64(uint64_t x, uint64_t y) { return x > y ? x : y; }
+static inline fp32_t   rt_max_fp32(fp32_t x, fp32_t y)       { return x > y ? x : y; }
+static inline fp64_t   rt_max_fp64(fp64_t x, fp64_t y)       { return x > y ? x : y; }
 
 // MS cl.exe version 19.39.33523 has issues with "long":
 // does not pick up int32_t/uint32_t types for "long" and "unsigned long"
 // need to handle long / unsigned long separately:
 
-static inline long          ut_max_long(long x, long y)                    { return x > y ? x : y; }
-static inline unsigned long ut_max_ulong(unsigned long x, unsigned long y) { return x > y ? x : y; }
+static inline long          rt_max_long(long x, long y)                    { return x > y ? x : y; }
+static inline unsigned long rt_max_ulong(unsigned long x, unsigned long y) { return x > y ? x : y; }
 
-static inline int8_t   ut_min_int8(int8_t x, int8_t y)       { return x < y ? x : y; }
-static inline int16_t  ut_min_int16(int16_t x, int16_t y)    { return x < y ? x : y; }
-static inline int32_t  ut_min_int32(int32_t x, int32_t y)    { return x < y ? x : y; }
-static inline int64_t  ut_min_int64(int64_t x, int64_t y)    { return x < y ? x : y; }
-static inline uint8_t  ut_min_uint8(uint8_t x, uint8_t y)    { return x < y ? x : y; }
-static inline uint16_t ut_min_uint16(uint16_t x, uint16_t y) { return x < y ? x : y; }
-static inline uint32_t ut_min_uint32(uint32_t x, uint32_t y) { return x < y ? x : y; }
-static inline uint64_t ut_min_uint64(uint64_t x, uint64_t y) { return x < y ? x : y; }
-static inline fp32_t   ut_min_fp32(fp32_t x, fp32_t y)       { return x < y ? x : y; }
-static inline fp64_t   ut_min_fp64(fp64_t x, fp64_t y)       { return x < y ? x : y; }
+static inline int8_t   rt_min_int8(int8_t x, int8_t y)       { return x < y ? x : y; }
+static inline int16_t  rt_min_int16(int16_t x, int16_t y)    { return x < y ? x : y; }
+static inline int32_t  rt_min_int32(int32_t x, int32_t y)    { return x < y ? x : y; }
+static inline int64_t  rt_min_int64(int64_t x, int64_t y)    { return x < y ? x : y; }
+static inline uint8_t  rt_min_uint8(uint8_t x, uint8_t y)    { return x < y ? x : y; }
+static inline uint16_t rt_min_uint16(uint16_t x, uint16_t y) { return x < y ? x : y; }
+static inline uint32_t rt_min_uint32(uint32_t x, uint32_t y) { return x < y ? x : y; }
+static inline uint64_t rt_min_uint64(uint64_t x, uint64_t y) { return x < y ? x : y; }
+static inline fp32_t   rt_min_fp32(fp32_t x, fp32_t y)       { return x < y ? x : y; }
+static inline fp64_t   rt_min_fp64(fp64_t x, fp64_t y)       { return x < y ? x : y; }
 
-static inline long          ut_min_long(long x, long y)                    { return x < y ? x : y; }
-static inline unsigned long ut_min_ulong(unsigned long x, unsigned long y) { return x < y ? x : y; }
+static inline long          rt_min_long(long x, long y)                    { return x < y ? x : y; }
+static inline unsigned long rt_min_ulong(unsigned long x, unsigned long y) { return x < y ? x : y; }
 
 
-static inline void ut_min_undefined(void) { }
-static inline void ut_max_undefined(void) { }
+static inline void rt_min_undefined(void) { }
+static inline void rt_max_undefined(void) { }
 
-#define ut_max(X, Y) _Generic((X) + (Y), \
-    int8_t:   ut_max_int8,   \
-    int16_t:  ut_max_int16,  \
-    int32_t:  ut_max_int32,  \
-    int64_t:  ut_max_int64,  \
-    uint8_t:  ut_max_uint8,  \
-    uint16_t: ut_max_uint16, \
-    uint32_t: ut_max_uint32, \
-    uint64_t: ut_max_uint64, \
-    fp32_t:   ut_max_fp32,   \
-    fp64_t:   ut_max_fp64,   \
-    long:     ut_max_long,   \
-    unsigned long: ut_max_ulong, \
-    default:  ut_max_undefined)(X, Y)
+#define rt_max(X, Y) _Generic((X) + (Y), \
+    int8_t:   rt_max_int8,   \
+    int16_t:  rt_max_int16,  \
+    int32_t:  rt_max_int32,  \
+    int64_t:  rt_max_int64,  \
+    uint8_t:  rt_max_uint8,  \
+    uint16_t: rt_max_uint16, \
+    uint32_t: rt_max_uint32, \
+    uint64_t: rt_max_uint64, \
+    fp32_t:   rt_max_fp32,   \
+    fp64_t:   rt_max_fp64,   \
+    long:     rt_max_long,   \
+    unsigned long: rt_max_ulong, \
+    default:  rt_max_undefined)(X, Y)
 
-#define ut_min(X, Y) _Generic((X) + (Y), \
-    int8_t:   ut_min_int8,   \
-    int16_t:  ut_min_int16,  \
-    int32_t:  ut_min_int32,  \
-    int64_t:  ut_min_int64,  \
-    uint8_t:  ut_min_uint8,  \
-    uint16_t: ut_min_uint16, \
-    uint32_t: ut_min_uint32, \
-    uint64_t: ut_min_uint64, \
-    fp32_t:   ut_min_fp32,   \
-    fp64_t:   ut_min_fp64,   \
-    long:     ut_min_long,   \
-    unsigned long: ut_min_ulong, \
-    default:  ut_min_undefined)(X, Y)
+#define rt_min(X, Y) _Generic((X) + (Y), \
+    int8_t:   rt_min_int8,   \
+    int16_t:  rt_min_int16,  \
+    int32_t:  rt_min_int32,  \
+    int64_t:  rt_min_int64,  \
+    uint8_t:  rt_min_uint8,  \
+    uint16_t: rt_min_uint16, \
+    uint32_t: rt_min_uint32, \
+    uint64_t: rt_min_uint64, \
+    fp32_t:   rt_min_fp32,   \
+    fp64_t:   rt_min_fp64,   \
+    long:     rt_min_long,   \
+    unsigned long: rt_min_ulong, \
+    default:  rt_min_undefined)(X, Y)
 
 // The expression (X) + (Y) is used in _Generic primarily for type promotion
 // and compatibility between different types of the two operands. In C, when
@@ -96,8 +96,8 @@ static inline void ut_max_undefined(void) { }
 
 typedef struct {
     void (*test)(void);
-} ut_generics_if;
+} rt_generics_if;
 
-extern ut_generics_if ut_generics;
+extern rt_generics_if rt_generics;
 
 ut_end_c

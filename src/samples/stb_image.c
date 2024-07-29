@@ -3,8 +3,8 @@
 static void* stb_malloc(size_t n) {
     ut_assert(n > 0);
     void* a = null;
-    errno_t r = ut_heap.allocate(null, &a, n, false);
-    ut_swear(r == 0 && a != null);
+    errno_t r = rt_heap.allocate(null, &a, n, false);
+    rt_swear(r == 0 && a != null);
 //  ut_println("%p : %8lld", a, n);
     return a;
 }
@@ -12,8 +12,8 @@ static void* stb_malloc(size_t n) {
 static void* stb_realloc(void* p, size_t n) {
     ut_assert(n > 0);
     void* a = p;
-    errno_t r = ut_heap.reallocate(null, &a, n, false);
-    ut_swear(r == 0 && a != null);
+    errno_t r = rt_heap.reallocate(null, &a, n, false);
+    rt_swear(r == 0 && a != null);
 //  ut_println("%p -> %p : %8lld", p, a, n);
     return a;
 }
@@ -21,15 +21,15 @@ static void* stb_realloc(void* p, size_t n) {
 static void* stb_realloc_sized(void* p, size_t ut_unused(s), size_t n) {
     ut_assert(n > 0);
     void* a = p;
-    errno_t r = ut_heap.reallocate(null, &a, n, false);
-    ut_swear(r == 0 && a != null);
+    errno_t r = rt_heap.reallocate(null, &a, n, false);
+    rt_swear(r == 0 && a != null);
 //  ut_println("%p : %8lld -> %p : %8lld", p, s, a, n);
     return a;
 }
 
 static void  stb_free(void* p) {
 //  ut_println("%p", p);
-    ut_heap.deallocate(null, p);
+    rt_heap.deallocate(null, p);
 }
 
 #pragma warning(disable: 4459) // declaration of '...' hides global declaration

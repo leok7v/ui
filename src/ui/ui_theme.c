@@ -130,7 +130,7 @@ static bool ui_theme_is_app_dark(void) {
 }
 
 static void ui_theme_refresh(void) {
-    ut_swear(ui_app.window != null);
+    rt_swear(ui_app.window != null);
     ui_theme_dark = -1;
     BOOL dark_mode = ui_theme_is_app_dark(); // must be 32-bit "BOOL"
     static const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;

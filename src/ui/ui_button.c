@@ -20,7 +20,7 @@ static void ui_button_paint(ui_view_t* v) {
     const int32_t h = v->h;
     const int32_t x = v->x;
     const int32_t y = v->y;
-    const int32_t r = (0x1 | ut_max(3, v->fm->em.h / 4));  // odd radius
+    const int32_t r = (0x1 | rt_max(3, v->fm->em.h / 4));  // odd radius
     const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     const fp32_t d2 = d / 2;

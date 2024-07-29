@@ -27,22 +27,22 @@
     <ClInclude Include="..\inc\ut\ut_win32.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_args.h">
+    <ClInclude Include="..\inc\ut\rt_args.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_atomics.h">
+    <ClInclude Include="..\inc\ut\rt_atomics.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_clock.h">
+    <ClInclude Include="..\inc\ut\rt_clock.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_debug.h">
+    <ClInclude Include="..\inc\ut\rt_debug.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_files.h">
+    <ClInclude Include="..\inc\ut\rt_files.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_loader.h">
+    <ClInclude Include="..\inc\ut\rt_loader.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_mem.h">
@@ -54,7 +54,7 @@
     <ClInclude Include="..\inc\ut\ut_processes.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_runtime.h">
+    <ClInclude Include="..\inc\ut\rt_core.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_static.h">
@@ -63,10 +63,10 @@
     <ClInclude Include="..\inc\ut\ut_str.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_heap.h">
+    <ClInclude Include="..\inc\ut\rt_heap.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_config.h">
+    <ClInclude Include="..\inc\ut\rt_config.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut.h">
@@ -75,10 +75,10 @@
     <ClInclude Include="..\inc\ut\ut_std.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_clipboard.h">
+    <ClInclude Include="..\inc\ut\rt_clipboard.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_bt.h">
+    <ClInclude Include="..\inc\ut\rt_backtrace.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
   </ItemGroup>

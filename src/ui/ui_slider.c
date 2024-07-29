@@ -41,7 +41,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
-            ut_min(64, strlen(text)), text);
+            rt_min(64, strlen(text)), text);
         const ui_margins_t in = s->insets;
         const ui_margins_t pd = s->padding;
         ut_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
@@ -61,8 +61,8 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
         ui_wh_t mt_min = measure_text(s->fm, text, s->value_min);
         ui_wh_t mt_max = measure_text(s->fm, text, s->value_max);
         ui_wh_t mt_val = measure_text(s->fm, text, s->value);
-        wh.h = ut_max(mt_val.h, ut_max(mt_min.h, mt_max.h));
-        wh.w = ut_max(mt_val.w, ut_max(mt_min.w, mt_max.w));
+        wh.h = rt_max(mt_val.h, rt_max(mt_min.h, mt_max.h));
+        wh.w = rt_max(mt_val.w, rt_max(mt_min.w, mt_max.w));
     } else if (text != null && text[0] != 0) {
         wh = measure_text(s->fm, "%s", text);
     }
@@ -78,7 +78,7 @@ static void ui_slider_measure(ui_view_t* v) {
     const ui_fm_t* fm = v->fm;
     const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // slider cannot be smaller than 2*em
-    const fp32_t min_w_em = ut_max(2.0f, v->min_w_em);
+    const fp32_t min_w_em = rt_max(2.0f, v->min_w_em);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)   min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     // dec and inc have same font metrics as a slider:
@@ -88,15 +88,15 @@ static void ui_slider_measure(ui_view_t* v) {
     ui_view.measure_control(v);
 //  s->text.mt = ui_slider_measure_text(s);
     if (s->dec.state.hidden) {
-        v->w = ut_max(v->w, i.left + s->wh.w + i.right);
+        v->w = rt_max(v->w, i.left + s->wh.w + i.right);
     } else {
         ui_view.measure(&s->dec); // remeasure with inherited metrics
         ui_view.measure(&s->inc);
         const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
         const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
-        v->w = ut_max(v->w, s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w);
+        v->w = rt_max(v->w, s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w);
     }
-    v->h = ut_max(v->h, i.top + fm->em.h + i.bottom);
+    v->h = rt_max(v->h, i.top + fm->em.h + i.bottom);
     if (s->debug.trace.mt) {
         ut_println("<%dx%d", s->w, s->h);
     }
@@ -191,7 +191,7 @@ static bool ui_slider_tap(ui_view_t* v, int32_t ut_unused(ix),
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
                 fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
-                s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+                s->value = rt_min(rt_max(vw, s->value_min), s->value_max);
                 if (s->callback != null) { s->callback(&s->view); }
                 ui_slider_invalidate(s);
             }
@@ -222,7 +222,7 @@ static void ui_slider_mouse_move(ui_view_t* v) {
                 const fp64_t range = fmax - fmin;
                 fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
-                s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+                s->value = rt_min(rt_max(vw, s->value_min), s->value_max);
                 if (s->callback != null) { s->callback(&s->view); }
                 ui_slider_invalidate(s);
             }
@@ -235,10 +235,10 @@ static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
         int32_t v = s->value;
         if (v > s->value_min && sign < 0) {
-            mul = ut_min(v - s->value_min, mul);
+            mul = rt_min(v - s->value_min, mul);
             v += mul * sign;
         } else if (v < s->value_max && sign > 0) {
-            mul = ut_min(s->value_max - v, mul);
+            mul = rt_min(s->value_max - v, mul);
             v += mul * sign;
         }
         if (s->value != v) {
@@ -277,7 +277,7 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
             int32_t mul = sec >= 1 ? initial << (sec - 1) : initial;
             const int64_t range = (int64_t)s->value_max - (int64_t)s->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
-            ui_slider_inc_dec_value(s, sign, ut_max(mul, 1));
+            ui_slider_inc_dec_value(s, sign, rt_max(mul, 1));
         }
     }
 }
@@ -297,11 +297,11 @@ void ui_view_init_slider(ui_view_t* v) {
         " Hold key while clicking\n"
         " Ctrl: x 10 Shift: x 100 \n"
         " Ctrl+Shift: x 1000 \n for step multiplier.";
-    s->dec = (ui_button_t)ui_button(ut_glyph_fullwidth_hyphen_minus, 0, // ut_glyph_heavy_minus_sign
+    s->dec = (ui_button_t)ui_button(rt_glyph_fullwidth_hyphen_minus, 0, // rt_glyph_heavy_minus_sign
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
     ut_str_printf(s->dec.hint, "%s", accel);
-    s->inc = (ui_button_t)ui_button(ut_glyph_fullwidth_plus_sign, 0, // ut_glyph_heavy_plus_sign
+    s->inc = (ui_button_t)ui_button(rt_glyph_fullwidth_plus_sign, 0, // rt_glyph_heavy_plus_sign
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
     ui_view.add(&s->view, &s->dec, &s->inc, null);
@@ -339,7 +339,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
     s->callback = callback;
-    s->min_w_em = ut_max(6.0f, min_w_em);
+    s->min_w_em = rt_max(6.0f, min_w_em);
     s->value_min = value_min;
     s->value_max = value_max;
     s->value = value_min;

@@ -19,10 +19,10 @@ typedef struct {
     int32_t const verbose;  // 2 detailed diagnostic
     int32_t const debug;    // 3 including debug messages
     int32_t const trace;    // 4 everything (may include nested calls)
-} ut_verbosity_if;
+} rt_verbosity_if;
 
 typedef struct {
-    ut_verbosity_if verbosity;
+    rt_verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
     // "T" connector for outside write; return false to proceed with default
     bool (*tee)(const char* s, int32_t count); // return true to intercept
@@ -64,10 +64,10 @@ typedef struct {
         uint32_t const possible_deadlock;
     } exception;
     void (*test)(void);
-} ut_debug_if;
+} rt_debug_if;
 
-#define ut_println(...) ut_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define ut_println(...) rt_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
-extern ut_debug_if ut_debug;
+extern rt_debug_if rt_debug;
 
 ut_end_c

@@ -17,7 +17,7 @@ errno_t ut_wait_ix2e(uint32_t r) {
           (int32_t)WAIT_OBJECT_0 <= ix && ix <= WAIT_OBJECT_0 + 63 ? 0 :
           (ix == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :
             (ix == WAIT_TIMEOUT ? ERROR_TIMEOUT :
-              (ix == WAIT_FAILED) ? ut_runtime.err() : ERROR_INVALID_HANDLE
+              (ix == WAIT_FAILED) ? rt_core.err() : ERROR_INVALID_HANDLE
             )
           )
     );

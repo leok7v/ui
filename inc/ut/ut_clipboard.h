@@ -10,8 +10,8 @@ typedef struct {
     errno_t (*get_text)(char* text, int32_t* bytes);
     errno_t (*put_image)(ui_image_t* image); // only for Windows apps
     void (*test)(void);
-} ut_clipboard_if;
+} rt_clipboard_if;
 
-extern ut_clipboard_if ut_clipboard;
+extern rt_clipboard_if rt_clipboard;
 
 ut_end_c

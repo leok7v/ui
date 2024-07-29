@@ -89,7 +89,7 @@ ut_end_c
         int32_t* i = (int32_t*)w->data;
         ut_println("i: %d", *i);
         (*i)++;
-        w->when = ut_clock.seconds() + 0.100;
+        w->when = rt_clock.seconds() + 0.100;
         ut_work_queue.post(w);
     }
 
@@ -99,7 +99,7 @@ ut_end_c
         int32_t i = 0;
         ut_work_t work = {
             .queue = &queue,
-            .when  = ut_clock.seconds() + 0.100,
+            .when  = rt_clock.seconds() + 0.100,
             .work  = every_100ms,
             .data  = &i
         };
@@ -123,7 +123,7 @@ ut_end_c
         ut_println("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
         ex->i++;
         const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
-        w->when = ut_clock.seconds() + 0.200;
+        w->when = rt_clock.seconds() + 0.200;
         ut_work_queue.post(w);
     }
 
@@ -131,7 +131,7 @@ ut_end_c
         ut_work_queue_t queue = {0};
         ut_work_ex_t work = {
             .queue = &queue,
-            .when  = ut_clock.seconds() + 0.200,
+            .when  = rt_clock.seconds() + 0.200,
             .work  = every_200ms,
             .data  = null,
             .s = { .a = 1, .b = 2 },
@@ -159,14 +159,14 @@ ut_end_c
         ut_worker_t worker = { 0 };
         ut_worker.start(&worker);
         ut_work_t work = {
-            .when  = ut_clock.seconds() + 0.010, // 10ms
+            .when  = rt_clock.seconds() + 0.010, // 10ms
             .done  = ut_event.create(),
             .work  = do_work
         };
         ut_worker.post(&worker, &work);
         ut_event.wait(work.done);    // await(work)
         ut_event.dispose(work.done); // responsibility of the caller
-        ut_fatal_if_error(ut_worker.join(&worker, -1.0));
+        rt_fatal_if_error(ut_worker.join(&worker, -1.0));
     }
 
     // Hint:

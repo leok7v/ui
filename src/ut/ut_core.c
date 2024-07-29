@@ -6,17 +6,17 @@
 // abort() attempt to show Abort/Retry/Ignore
 // MessageBox - thus ExitProcess()
 
-static void ut_runtime_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
+static void rt_core_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
 
-static void ut_runtime_exit(int32_t exit_code) { exit(exit_code); }
+static void rt_core_exit(int32_t exit_code) { exit(exit_code); }
 
 // TODO: consider r = HRESULT_FROM_WIN32() and r = HRESULT_CODE(hr);
 // this separates posix error codes from win32 error codes
 
 
-static errno_t ut_runtime_err(void) { return (errno_t)GetLastError(); }
+static errno_t rt_core_err(void) { return (errno_t)GetLastError(); }
 
-static void ut_runtime_seterr(errno_t err) { SetLastError((DWORD)err); }
+static void rt_core_seterr(errno_t err) { SetLastError((DWORD)err); }
 
 ut_static_init(runtime) {
     SetErrorMode(
@@ -36,19 +36,19 @@ ut_static_init(runtime) {
 
 #ifdef UT_TESTS
 
-static void ut_runtime_test(void) { // in alphabetical order
-    ut_args.test();
-    ut_atomics.test();
-    ut_bt.test();
-    ut_clipboard.test();
-    ut_clock.test();
-    ut_config.test();
-    ut_debug.test();
+static void rt_core_test(void) { // in alphabetical order
+    rt_args.test();
+    rt_atomics.test();
+    rt_backtrace.test();
+    rt_clipboard.test();
+    rt_clock.test();
+    rt_config.test();
+    rt_debug.test();
     ut_event.test();
-    ut_files.test();
-    ut_generics.test();
-    ut_heap.test();
-    ut_loader.test();
+    rt_files.test();
+    rt_generics.test();
+    rt_heap.test();
+    rt_loader.test();
     ut_mem.test();
     ut_mutex.test();
     ut_num.test();
@@ -63,16 +63,16 @@ static void ut_runtime_test(void) { // in alphabetical order
 
 #else
 
-static void ut_runtime_test(void) { }
+static void rt_core_test(void) { }
 
 #endif
 
-ut_runtime_if ut_runtime = {
-    .err     = ut_runtime_err,
-    .set_err = ut_runtime_seterr,
-    .abort   = ut_runtime_abort,
-    .exit    = ut_runtime_exit,
-    .test    = ut_runtime_test,
+rt_core_if rt_core = {
+    .err     = rt_core_err,
+    .set_err = rt_core_seterr,
+    .abort   = rt_core_abort,
+    .exit    = rt_core_exit,
+    .test    = rt_core_test,
     .error   = {                                              // posix
         .access_denied          = ERROR_ACCESS_DENIED,        // EACCES
         .bad_file               = ERROR_BAD_FILE_TYPE,        // EBADF
@@ -110,7 +110,7 @@ ut_runtime_if ut_runtime = {
 #pragma comment(lib, "kernel32")
 #pragma comment(lib, "user32") // clipboard
 #pragma comment(lib, "imm32")  // Internationalization input method
-#pragma comment(lib, "ole32")  // ut_files.known_folder CoMemFree
+#pragma comment(lib, "ole32")  // rt_files.known_folder CoMemFree
 #pragma comment(lib, "dbghelp")
 #pragma comment(lib, "imagehlp")
 

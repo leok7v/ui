@@ -33,7 +33,7 @@ static void ui_mbx_measured(ui_view_t* v) {
         for (int32_t i = 0; i < n; i++) {
             bw += m->button[i].w;
         }
-        v->w = ut_max(tw, bw + em_x * 2);
+        v->w = rt_max(tw, bw + em_x * 2);
         v->h = th + m->button[0].h + em_y + em_y / 2;
     } else {
         v->h = th + em_y / 2;
@@ -80,7 +80,7 @@ void ui_view_init_mbx(ui_view_t* v) {
         ui_view.set_text(&m->button[n], "%s", m->options[n]);
         n++;
     }
-    ut_swear(n <= ut_countof(m->button), "inhumane: %d buttons is too many", n);
+    rt_swear(n <= ut_countof(m->button), "inhumane: %d buttons is too many", n);
     if (n > ut_countof(m->button)) { n = ut_countof(m->button); }
     m->label = (ui_label_t)ui_label(0, "");
     ui_view.set_text(&m->label, "%s", ui_view.string(&m->view));

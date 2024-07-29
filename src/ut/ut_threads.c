@@ -26,9 +26,9 @@ static void ut_event_reset(ut_event_t e) {
 static int32_t ut_event_wait_or_timeout(ut_event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
     DWORD i = WaitForSingleObject(e, ms);
-    ut_swear(i != WAIT_FAILED, "i: %d", i);
+    rt_swear(i != WAIT_FAILED, "i: %d", i);
     errno_t r = ut_wait_ix2e(i);
-    if (r != 0) { ut_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    if (r != 0) { rt_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
     return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
@@ -36,13 +36,13 @@ static void ut_event_wait(ut_event_t e) { ut_event_wait_or_timeout(e, -1); }
 
 static int32_t ut_event_wait_any_or_timeout(int32_t n,
         ut_event_t events[], fp64_t s) {
-    ut_swear(n < 64); // Win32 API limit
+    rt_swear(n < 64); // Win32 API limit
     const uint32_t ms = s < 0 ? INFINITE : (uint32_t)(s * 1000.0 + 0.5);
     const HANDLE* es = (const HANDLE*)events;
     DWORD i = WaitForMultipleObjects((DWORD)n, es, false, ms);
-    ut_swear(i != WAIT_FAILED, "i: %d", i);
+    rt_swear(i != WAIT_FAILED, "i: %d", i);
     errno_t r = ut_wait_ix2e(i);
-    if (r != 0) { ut_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    if (r != 0) { rt_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
     return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
@@ -60,47 +60,47 @@ static void ut_event_dispose(ut_event_t h) {
 
 // check if the elapsed time is within the expected range
 static void ut_event_test_check_time(fp64_t start, fp64_t expected) {
-    fp64_t elapsed = ut_clock.seconds() - start;
+    fp64_t elapsed = rt_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays (observed)
-    ut_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.250,
+    rt_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.250,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
 static void ut_event_test(void) {
     ut_event_t event = ut_event.create();
-    fp64_t start = ut_clock.seconds();
+    fp64_t start = rt_clock.seconds();
     ut_event.set(event);
     ut_event.wait(event);
     ut_event_test_check_time(start, 0); // Event should be immediate
     ut_event.reset(event);
-    start = ut_clock.seconds();
+    start = rt_clock.seconds();
     const fp64_t timeout_seconds = 1.0 / 8.0;
     int32_t result = ut_event.wait_or_timeout(event, timeout_seconds);
     ut_event_test_check_time(start, timeout_seconds);
-    ut_swear(result == -1); // Timeout expected
+    rt_swear(result == -1); // Timeout expected
     enum { count = 5 };
     ut_event_t events[count];
     for (int32_t i = 0; i < ut_countof(events); i++) {
         events[i] = ut_event.create_manual();
     }
-    start = ut_clock.seconds();
+    start = rt_clock.seconds();
     ut_event.set(events[2]); // Set the third event
     int32_t index = ut_event.wait_any(ut_countof(events), events);
-    ut_swear(index == 2);
+    rt_swear(index == 2);
     ut_event_test_check_time(start, 0);
-    ut_swear(index == 2); // Third event should be triggered
+    rt_swear(index == 2); // Third event should be triggered
     ut_event.reset(events[2]); // Reset the third event
-    start = ut_clock.seconds();
+    start = rt_clock.seconds();
     result = ut_event.wait_any_or_timeout(ut_countof(events), events, timeout_seconds);
-    ut_swear(result == -1);
+    rt_swear(result == -1);
     ut_event_test_check_time(start, timeout_seconds);
-    ut_swear(result == -1); // Timeout expected
+    rt_swear(result == -1); // Timeout expected
     // Clean up
     ut_event.dispose(event);
     for (int32_t i = 0; i < ut_countof(events); i++) {
         ut_event.dispose(events[i]);
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
@@ -147,9 +147,9 @@ static void ut_mutex_dispose(ut_mutex_t* m) {
 
 // check if the elapsed time is within the expected range
 static void ut_mutex_test_check_time(fp64_t start, fp64_t expected) {
-    fp64_t elapsed = ut_clock.seconds() - start;
+    fp64_t elapsed = rt_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
-    ut_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
+    rt_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
@@ -163,7 +163,7 @@ static void ut_mutex_test_lock_unlock(void* arg) {
 static void ut_mutex_test(void) {
     ut_mutex_t mutex;
     ut_mutex.init(&mutex);
-    fp64_t start = ut_clock.seconds();
+    fp64_t start = rt_clock.seconds();
     ut_mutex.lock(&mutex);
     ut_mutex.unlock(&mutex);
     // Lock and unlock should be immediate
@@ -178,7 +178,7 @@ static void ut_mutex_test(void) {
         ut_thread.join(ts[i], -1);
     }
     ut_mutex.dispose(&mutex);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 ut_mutex_if ut_mutex = {
@@ -197,14 +197,14 @@ static void* ut_thread_ntdll(void) {
         ntdll = (void*)GetModuleHandleA("ntdll.dll");
     }
     if (ntdll == null) {
-        ntdll = ut_loader.open("ntdll.dll", 0);
+        ntdll = rt_loader.open("ntdll.dll", 0);
     }
     ut_not_null(ntdll);
     return ntdll;
 }
 
 static fp64_t ut_thread_ns2ms(int64_t ns) {
-    return (fp64_t)ns / (fp64_t)ut_clock.nsec_in_msec;
+    return (fp64_t)ns / (fp64_t)rt_clock.nsec_in_msec;
 }
 
 static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
@@ -214,18 +214,18 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
         BOOLEAN set, ULONG* actual_resolution); // ntdll.dll
     void* nt_dll = ut_thread_ntdll();
     query_timer_resolution_t query_timer_resolution =  (query_timer_resolution_t)
-        ut_loader.sym(nt_dll, "NtQueryTimerResolution");
+        rt_loader.sym(nt_dll, "NtQueryTimerResolution");
     set_timer_resolution_t set_timer_resolution = (set_timer_resolution_t)
-        ut_loader.sym(nt_dll, "NtSetTimerResolution");
+        rt_loader.sym(nt_dll, "NtSetTimerResolution");
     unsigned long min100ns = 16 * 10 * 1000;
     unsigned long max100ns =  1 * 10 * 1000;
     unsigned long cur100ns =  0;
-    ut_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+    rt_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
     uint64_t max_ns = max100ns * 100uLL;
 //  uint64_t min_ns = min100ns * 100uLL;
 //  uint64_t cur_ns = cur100ns * 100uLL;
     // max resolution is lowest possible delay between timer events
-//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+//  if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
 //      ut_println("timer resolution min: %.3f max: %.3f cur: %.3f"
 //          " ms (milliseconds)",
 //          ut_thread_ns2ms(min_ns),
@@ -233,11 +233,11 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
 //          ut_thread_ns2ms(cur_ns));
 //  }
     // note that maximum resolution is actually < minimum
-    nanoseconds = ut_max(max_ns, nanoseconds);
+    nanoseconds = rt_max(max_ns, nanoseconds);
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
-    ut_fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
-    ut_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
-//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+    rt_fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
+    rt_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+//  if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
 //      min_ns = min100ns * 100uLL;
 //      max_ns = max100ns * 100uLL; // the smallest interval
 //      cur_ns = cur100ns * 100uLL;
@@ -304,7 +304,7 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
     static int32_t cores = 0; // number of physical processors (cores)
     static uint64_t any;
     static uint64_t affinity[64]; // mask for each physical processor
-    bool set_to_true = ut_atomics.compare_exchange_int32(&init, false, true);
+    bool set_to_true = rt_atomics.compare_exchange_int32(&init, false, true);
     if (set_to_true) {
         // Concept D: 6 cores, 12 logical processors: 27 lpi entries
         static SYSTEM_LOGICAL_PROCESSOR_INFORMATION lpi[64];
@@ -316,7 +316,7 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
         ut_assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
         ut_fatal_win32err(GetLogicalProcessorInformation(&lpi[0], &bytes));
         for (int32_t i = 0; i < n; i++) {
-//          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+//          if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
 //              ut_println("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
 //                  lpi[i].ProcessorMask, lpi[i].Relationship,
 //                  ut_thread_rel2str(lpi[i].Relationship));
@@ -351,7 +351,7 @@ static void ut_thread_realtime(void) {
     ut_fatal_win32err(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
     // desired: 0.5ms = 500us (microsecond) = 50,000ns
-    ut_thread_set_timer_resolution((uint64_t)ut_clock.nsec_in_usec * 500ULL);
+    ut_thread_set_timer_resolution((uint64_t)rt_clock.nsec_in_usec * 500ULL);
     ut_fatal_win32err(SetThreadAffinityMask(GetCurrentThread(),
         ut_thread_next_physical_processor_affinity_mask()));
     ut_thread_disable_power_throttling();
@@ -373,7 +373,7 @@ static bool is_handle_valid(void* h) {
 
 static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     ut_not_null(t);
-    ut_fatal_if(!is_handle_valid(t));
+    rt_fatal_if(!is_handle_valid(t));
     const uint32_t ms = timeout < 0 ? INFINITE : (uint32_t)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, (DWORD)ms);
     errno_t r = ut_wait_ix2e(ix);
@@ -388,17 +388,17 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
 
 static void ut_thread_detach(ut_thread_t t) {
     ut_not_null(t);
-    ut_fatal_if(!is_handle_valid(t));
+    rt_fatal_if(!is_handle_valid(t));
     ut_win32_close_handle(t);
 }
 
 static void ut_thread_name(const char* name) {
     uint16_t stack[128];
-    ut_fatal_if(ut_str.len(name) >= ut_countof(stack), "name too long: %s", name);
+    rt_fatal_if(ut_str.len(name) >= ut_countof(stack), "name too long: %s", name);
     ut_str.utf8to16(stack, ut_countof(stack), name, -1);
     HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
     // notoriously returns 0x10000000 for no good reason whatsoever
-    ut_fatal_if(!SUCCEEDED(r));
+    rt_fatal_if(!SUCCEEDED(r));
 }
 
 static void ut_thread_sleep_for(fp64_t seconds) {
@@ -414,7 +414,7 @@ static void ut_thread_sleep_for(fp64_t seconds) {
     if (NtDelayExecution == null) {
         void* ntdll = ut_thread_ntdll();
         NtDelayExecution = (nt_delay_execution_t)
-            ut_loader.sym(ntdll, "NtDelayExecution");
+            rt_loader.sym(ntdll, "NtDelayExecution");
         ut_not_null(NtDelayExecution);
     }
     // If "alertable" is set, sleep_for() can break earlier
@@ -443,7 +443,7 @@ static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
     // if real handle is ever needed do ut_thread_id_of() instead
     // but don't forget to do ut_thread.close() after that.
     *t = (ut_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
-    return *t == null ? ut_runtime.err() : 0;
+    return *t == null ? rt_core.err() : 0;
 }
 
 static void ut_thread_close(ut_thread_t t) {
@@ -476,7 +476,7 @@ typedef struct ut_thread_philosophers_s {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                 \
-    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
+    if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) { \
         ut_println(__VA_ARGS__);                             \
     }                                                     \
 } while (0)
@@ -542,7 +542,7 @@ static void ut_thread_detached_loop(void* ut_unused(p)) {
     uint64_t sum = 0;
     for (uint64_t i = 0; i < UINT64_MAX; i++) { sum += i; }
     // make sure that compiler won't get rid of the loop:
-    ut_swear(sum == 0x8000000000000001ULL, "sum: %llu 0x%16llX", sum, sum);
+    rt_swear(sum == 0x8000000000000001ULL, "sum: %llu 0x%16llX", sum, sum);
 }
 
 static void ut_thread_test(void) {
@@ -589,7 +589,7 @@ static void ut_thread_test(void) {
     ut_thread.detach(detached_loop);
     // leave detached threads sleeping and running till ExitProcess(0)
     // that should NOT hang.
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #pragma pop_macro("verbose")

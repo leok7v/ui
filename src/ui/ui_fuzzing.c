@@ -113,10 +113,10 @@ static fp64_t ui_fuzzing_random_fp64(void) {
 }
 
 static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
-    ut_fatal_if(p.count < 1024); // at least 1KB expected
-    ut_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
-    ut_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
-    ut_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
+    rt_fatal_if(p.count < 1024); // at least 1KB expected
+    rt_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
+    rt_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
+    rt_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
     char* s = p.text;
     // assume longest word is less than 128
     char* end = p.text + p.count - 128;
@@ -216,7 +216,7 @@ static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
 }
 
 static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
-    ut_swear(work == &ui_fuzzing_work);
+    rt_swear(work == &ui_fuzzing_work);
     ui_app.alt = work->alt;
     ui_app.ctrl = work->ctrl;
     ui_app.shift = work->shift;
@@ -300,7 +300,7 @@ static void ui_fuzzing_character(void) {
         fp64_t r = ui_fuzzing_random_fp64();
         if (r < 0.125) {
             uint32_t rnd = ui_fuzzing_random();
-            int32_t n = (int32_t)ut_max(1, rnd % 32);
+            int32_t n = (int32_t)rt_max(1, rnd % 32);
             ui_fuzzing_next_gibberish(n, utf8);
             ui_fuzzing_work.utf8 = utf8;
             if (ui_fuzzing_debug) {
@@ -394,9 +394,9 @@ static void ui_fuzzing_stop(void) {
 }
 
 static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
-    ut_swear(f == &ui_fuzzing_work);
+    rt_swear(f == &ui_fuzzing_work);
     ui_fuzzing_work = (ui_fuzzing_t){
-        .base = { .when = ut_clock.seconds() + 0.001, // 1ms
+        .base = { .when = rt_clock.seconds() + 0.001, // 1ms
                   .work = ui_fuzzing_do_work },
     };
     uint32_t rnd = ui_fuzzing_random() % 100;

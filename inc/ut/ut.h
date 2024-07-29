@@ -3,7 +3,7 @@
 #include "ut/ut_str.h" // defines str_*_t types
 // the rest is in alphabetical order (no inter dependencies)
 #include "ut/ut_args.h"
-#include "ut/ut_bt.h"
+#include "ut/ut_backtrace.h"
 #include "ut/ut_atomics.h"
 #include "ut/ut_clipboard.h"
 #include "ut/ut_clock.h"
@@ -20,7 +20,7 @@
 #include "ut/ut_static.h"
 #include "ut/ut_streams.h"
 #include "ut/ut_processes.h"
-#include "ut/ut_runtime.h"
+#include "ut/ut_core.h"
 #include "ut/ut_threads.h"
 #include "ut/ut_vigil.h"
 #include "ut/ut_work.h"

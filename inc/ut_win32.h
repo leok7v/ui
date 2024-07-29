@@ -10,14 +10,14 @@
 
 // ut:
 #include <Windows.h>  // used by:
-#include <Psapi.h>    // both ut_loader.c and ut_processes.c
+#include <Psapi.h>    // both rt_loader.c and ut_processes.c
 #include <shellapi.h> // ut_processes.c
 #include <winternl.h> // ut_processes.c
 #include <initguid.h>     // for knownfolders
-#include <KnownFolders.h> // ut_files.c
-#include <AclAPI.h>       // ut_files.c
-#include <ShlObj_core.h>  // ut_files.c
-#include <Shlwapi.h>      // ut_files.c
+#include <KnownFolders.h> // rt_files.c
+#include <AclAPI.h>       // rt_files.c
+#include <ShlObj_core.h>  // rt_files.c
+#include <Shlwapi.h>      // rt_files.c
 // ui:
 #include <commdlg.h>
 #include <dbghelp.h>
@@ -35,7 +35,7 @@
 
 #include <fcntl.h>
 
-#define ut_export __declspec(dllexport)
+#define rt_export __declspec(dllexport)
 
 // Win32 API BOOL -> errno_t translation
 

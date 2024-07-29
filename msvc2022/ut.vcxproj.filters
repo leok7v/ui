@@ -51,9 +51,6 @@
     <ClInclude Include="..\inc\ut\ut_processes.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_runtime.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut_static.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
@@ -87,13 +84,17 @@
     <ClInclude Include="..\inc\ut\ut_glyphs.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\ut\ut_bt.h">
-      <Filter>inc\ut</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\ut\ut_str.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
     <ClInclude Include="..\inc\ut\ut_work.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_runtime.h" />
+    <ClInclude Include="..\inc\ut\ut_core.h">
+      <Filter>inc\ut</Filter>
+    </ClInclude>
+    <ClInclude Include="..\inc\ut\ut_backtrace.h">
       <Filter>inc\ut</Filter>
     </ClInclude>
   </ItemGroup>
@@ -139,9 +140,6 @@
     <ClCompile Include="..\src\ut\ut_processes.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\ut_runtime.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\ut\ut_static.c">
       <Filter>src\ut</Filter>
     </ClCompile>
@@ -163,9 +161,6 @@
     <ClCompile Include="..\src\ut\ut_nls.c">
       <Filter>src\ut</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ut\ut_bt.c">
-      <Filter>src\ut</Filter>
-    </ClCompile>
     <ClCompile Include="..\src\ut\ut_str.c">
       <Filter>src\ut</Filter>
     </ClCompile>
@@ -173,6 +168,13 @@
       <Filter>src\ut</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ut\ut_win32.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\ut_runtime.c" />
+    <ClCompile Include="..\src\ut\ut_core.c">
+      <Filter>src\ut</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ut\ut_backtrace.c">
       <Filter>src\ut</Filter>
     </ClCompile>
   </ItemGroup>

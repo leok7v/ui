@@ -95,7 +95,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     ui_rect_t work_area; // current monitor work area
     int32_t   caption_height; // caption height
     ui_wh_t   border;    // frame border size
-    // not to call ut_clock.seconds() too often:
+    // not to call rt_clock.seconds() too often:
     fp64_t     now;  // ssb "seconds since boot" updated on each message
     ui_view_t* root; // show_window() changes ui.hidden
     ui_view_t* content;
@@ -203,7 +203,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     fp64_t paint_max;  // max of last 128 paint
     fp64_t paint_avg;  // EMA of last 128 paints
     fp64_t paint_fps;  // EMA of last 128 paints
-    fp64_t paint_last; // ut_clock.seconds() of last paint
+    fp64_t paint_last; // rt_clock.seconds() of last paint
     fp64_t paint_dt_min; // minimum time between 2 paints
 } ui_app_t;
 

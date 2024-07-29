@@ -24,7 +24,7 @@ ut_begin_c
 // be careful with zeroing heap memory. It will result in virtual
 // to physical memory mapping and may be expensive.
 
-typedef struct ut_heap_s ut_heap_t;
+typedef struct rt_heap_s rt_heap_t;
 
 typedef struct { // heap == null uses process serialized LFH
     errno_t (*alloc)(void* *a, int64_t bytes);
@@ -33,17 +33,17 @@ typedef struct { // heap == null uses process serialized LFH
     errno_t (*realloc_zero)(void* *a, int64_t bytes);
     void    (*free)(void* a);
     // heaps:
-    ut_heap_t* (*create)(bool serialized);
-    errno_t (*allocate)(ut_heap_t* heap, void* *a, int64_t bytes, bool zero);
+    rt_heap_t* (*create)(bool serialized);
+    errno_t (*allocate)(rt_heap_t* heap, void* *a, int64_t bytes, bool zero);
     // reallocate may return ERROR_OUTOFMEMORY w/o changing 'a' *)
-    errno_t (*reallocate)(ut_heap_t* heap, void* *a, int64_t bytes, bool zero);
-    void    (*deallocate)(ut_heap_t* heap, void* a);
-    int64_t (*bytes)(ut_heap_t* heap, void* a); // actual allocated size
-    void    (*dispose)(ut_heap_t* heap);
+    errno_t (*reallocate)(rt_heap_t* heap, void* *a, int64_t bytes, bool zero);
+    void    (*deallocate)(rt_heap_t* heap, void* a);
+    int64_t (*bytes)(rt_heap_t* heap, void* a); // actual allocated size
+    void    (*dispose)(rt_heap_t* heap);
     void    (*test)(void);
-} ut_heap_if;
+} rt_heap_if;
 
-extern ut_heap_if ut_heap;
+extern rt_heap_if rt_heap;
 
 // *) zero in reallocate applies to the newly appended bytes
 

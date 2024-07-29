@@ -18,7 +18,7 @@ static void measurements_horizontal(ui_view_t* view, int32_t gap) {
         if (!ui_view.is_hidden(c)) {
             if (seen) { view->w += gap; }
             view->w += c->w;
-            view->h = ut_max(view->h, c->h);
+            view->h = rt_max(view->h, c->h);
             seen = true;
         }
     });
@@ -32,7 +32,7 @@ static void measurements_vertical(ui_view_t* view, int32_t gap) {
         if (!ui_view.is_hidden(c)) {
             if (seen) { view->h += gap; }
             view->h += c->h;
-            view->w = ut_max(view->w, c->w);
+            view->w = rt_max(view->w, c->w);
             seen = true;
         }
     });
@@ -50,7 +50,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
     #pragma warning(disable: 6385)
     #pragma warning(disable: 6386)
     int32_t mxw[1024]; // more than enough for sane humane UI
-    ut_swear(cols <= ut_countof(mxw));
+    rt_swear(cols <= ut_countof(mxw));
     memset(mxw, 0, (size_t)cols * sizeof(int32_t));
     ui_view_for_each(v, r, {
         if (!ui_view.is_hidden(r)) {
@@ -59,11 +59,11 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
             int32_t i = 0;
             ui_view_for_each(r, c, {
                 if (!ui_view.is_hidden(c)) {
-                    mxw[i] = ut_max(mxw[i], c->w);
-                    r->h = ut_max(r->h, c->h);
+                    mxw[i] = rt_max(mxw[i], c->w);
+                    r->h = rt_max(r->h, c->h);
 //                  ut_println("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
 //                          i, r->fm->baseline, c->fm->baseline);
-//                  r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
+//                  r->fm->baseline = rt_max(r->fm->baseline, c->fm->baseline);
                 }
                 i++;
             });
@@ -90,7 +90,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
                     c->w = mxw[i++];
                     r->w += c->w;
                     if (cols_seen > 0) { r->w += gap_h; }
-                    v->w = ut_max(v->w, r->w);
+                    v->w = rt_max(v->w, r->w);
                     cols_seen++;
                 }
             });

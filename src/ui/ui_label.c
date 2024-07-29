@@ -31,7 +31,7 @@ static bool ui_label_context_menu(ui_view_t* v) {
     ut_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
-        ut_clipboard.put_text(ui_view.string(v));
+        rt_clipboard.put_text(ui_view.string(v));
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
         int32_t x = v->x + v->w / 2;
         int32_t y = v->y + v->h;
@@ -46,7 +46,7 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {
-            ut_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
+            rt_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
         }
     }
 }

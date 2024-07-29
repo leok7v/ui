@@ -42,12 +42,12 @@ static void ui_iv_paint(ui_view_t* v) {
 //  ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.black);
     if (iv->image.pixels != null) {
         ui_gdi.set_clip(v->x, v->y, v->w, v->h);
-        ut_swear(!iv->fit || !iv->fill, "make up your mind");
-        ut_swear(0 < iv->zn && iv->zn <= 16);
-        ut_swear(0 < iv->zd && iv->zd <= 16);
+        rt_swear(!iv->fit || !iv->fill, "make up your mind");
+        rt_swear(0 < iv->zn && iv->zn <= 16);
+        rt_swear(0 < iv->zd && iv->zd <= 16);
         // only 1:2 and 2:1 etc are supported:
-        if (iv->zn != 1) { ut_swear(iv->zd == 1); }
-        if (iv->zd != 1) { ut_swear(iv->zn == 1); }
+        if (iv->zn != 1) { rt_swear(iv->zd == 1); }
+        if (iv->zd != 1) { rt_swear(iv->zn == 1); }
         const int32_t iw = iv->image.w;
         const int32_t ih = iv->image.h;
         ui_rect_t rc = ui_iv_position(iv);
@@ -73,7 +73,7 @@ static void ui_iv_paint(ui_view_t* v) {
                               &iv->image, iv->alpha);
             }
         } else {
-            ut_swear(false, "unsupported .c: %d", iv->image.bpp);
+            rt_swear(false, "unsupported .c: %d", iv->image.bpp);
         }
         if (ui_view.has_focus(v)) {
             ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
@@ -99,7 +99,7 @@ static void ui_iv_show_tools(ui_iv_t* iv, bool show) {
             ui_app.request_layout();
         }
         if (show) { // hide in 3.3 seconds:
-            iv->when = ut_clock.seconds() + 3.3;
+            iv->when = rt_clock.seconds() + 3.3;
         } else {
             iv->when = 0;
         }
@@ -146,7 +146,7 @@ static void ui_iv_layout(ui_view_t* v) {
 
 static void ui_iv_every_100ms(ui_view_t* v) {
     ui_iv_t* iv = (ui_iv_t*)v;
-    if (iv->when != 0 && ut_clock.seconds() > iv->when) {
+    if (iv->when != 0 && rt_clock.seconds() > iv->when) {
         ui_iv_show_tools(iv, false);
     }
 }
@@ -192,7 +192,7 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
     } else if (iv->zd == 1) {
         iv->zoom = 4 + (iv->zn - 1);
     } else {
-        ut_swear(false);
+        rt_swear(false);
     }
     // is whole image visible?
     fp64_t s = ui_iv.scale(iv);
@@ -339,17 +339,17 @@ static void ui_iv_zoom_1t1(ui_button_t* b) {
 static ui_label_t ui_iv_about = ui_label(0,
     "Keyboard shortcuts:\n\n"
     "Ctrl+C copies image to the clipboard.\n\n"
-    ut_glyph_heavy_plus_sign " zoom in; "
-    ut_glyph_heavy_minus_sign " zoom out;\n"
-    ut_glyph_open_circle_arrows_one_overlay " 1:1.\n\n"
-    ut_glyph_up_down_arrow " Fit;\n"
-    ut_glyph_left_right_arrow " Fill.\n\n"
+    rt_glyph_heavy_plus_sign " zoom in; "
+    rt_glyph_heavy_minus_sign " zoom out;\n"
+    rt_glyph_open_circle_arrows_one_overlay " 1:1.\n\n"
+    rt_glyph_up_down_arrow " Fit;\n"
+    rt_glyph_left_right_arrow " Fill.\n\n"
     "Left/Right Arrows "
-    ut_glyph_leftward_arrow
-    ut_glyph_rightwards_arrow
+    rt_glyph_leftward_arrow
+    rt_glyph_rightwards_arrow
     "Up/Down Arrows "
-    ut_glyph_upwards_arrow
-    ut_glyph_downwards_arrow
+    rt_glyph_upwards_arrow
+    rt_glyph_downwards_arrow
     "\npans the image inside view.\n\n"
     "Mouse wheel or mouse / touchpad hold and drag to pan.\n"
 );
@@ -361,11 +361,11 @@ static void ui_iv_help(ui_button_t* ut_unused(b)) {
 static void ui_iv_copy_to_clipboard(ui_iv_t* iv) {
     ui_image_t image = {0};
     if (iv->image.bitmap != null) {
-        ut_clipboard.put_image(&iv->image);
+        rt_clipboard.put_image(&iv->image);
     } else {
         ui_gdi.image_init(&image, iv->image.w, iv->image.h,
                                   iv->image.bpp, iv->image.pixels);
-        ut_clipboard.put_image(&image);
+        rt_clipboard.put_image(&image);
         ui_gdi.image_dispose(&image);
     }
     static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
@@ -444,19 +444,19 @@ void ui_iv_init(ui_iv_t* iv) {
     ui_iv_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_iv_copy,
         "Copy to Clipboard Ctrl+C");
     ui_iv_add_button(iv, &iv->tool.zoom_out,
-                    ut_glyph_heavy_minus_sign,
+                    rt_glyph_heavy_minus_sign,
                     ui_iv_zoom_out, "Zoom Out");
     ui_iv_add_button(iv, &iv->tool.zoom_1t1,
-                    ut_glyph_open_circle_arrows_one_overlay,
+                    rt_glyph_open_circle_arrows_one_overlay,
                     ui_iv_zoom_1t1, "Reset to 1:1");
     ui_iv_add_button(iv, &iv->tool.zoom_in,
-                     ut_glyph_heavy_plus_sign,
+                     rt_glyph_heavy_plus_sign,
                      ui_iv_zoom_in,  "Zoom In");
     ui_iv_add_button(iv, &iv->tool.fit,
-                     ut_glyph_up_down_arrow,
+                     rt_glyph_up_down_arrow,
                      ui_iv_fit,  "Fit");
     ui_iv_add_button(iv, &iv->tool.fill,
-                     ut_glyph_left_right_arrow,
+                     rt_glyph_left_right_arrow,
                      ui_iv_fill,  "Fill");
     ui_iv_add_button(iv, &iv->tool.help,
                      "?", ui_iv_help, "Help");
@@ -491,11 +491,11 @@ void ui_iv_init_with(ui_iv_t* iv, const uint8_t* pixels,
 }
 
 static void ui_iv_ratio(ui_iv_t* iv, int32_t zn, int32_t zd) {
-    ut_swear(0 < zn && zn <= 16);
-    ut_swear(0 < zd && zd <= 16);
+    rt_swear(0 < zn && zn <= 16);
+    rt_swear(0 < zd && zd <= 16);
     // only 1:2 and 2:1 etc are supported:
-    if (zn != 1) { ut_swear(zd == 1); }
-    if (zd != 1) { ut_swear(zn == 1); }
+    if (zn != 1) { rt_swear(zd == 1); }
+    if (zd != 1) { rt_swear(zn == 1); }
     iv->zn = zn;
     iv->zd = zd;
     iv->fit  = false;

@@ -36,7 +36,7 @@ static void midi_warn_if_error_(int r, const char* call, const char* func,
 
 #define midi_fatal_if_error(call) do {                                  \
     int _r_ = call; midi_warn_if_error_(r, #call, __func__, __LINE__);  \
-    ut_fatal_if_error(r);                                               \
+    rt_fatal_if_error(r);                                               \
 } while (0)
 
 static errno_t midi_open(midi_t* m, void* window, const char* filename) {

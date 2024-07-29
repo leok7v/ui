@@ -107,7 +107,7 @@ static void debug(ui_button_t* b) {
 }
 
 static ui_button_t button_bugs =
-        ui_button(ut_glyph_lady_beetle, 0.0f, debug);
+        ui_button(rt_glyph_lady_beetle, 0.0f, debug);
 
 static ui_mbx_t mbx = ui_mbx( // message box
     "Orange frames represent stack, span, or list\n"
@@ -121,9 +121,9 @@ static ui_mbx_t mbx = ui_mbx( // message box
     "unless an alignment is specified by a child.\n"
     "\n"
     "When child.max_w = "
-    ut_glyph_infinity
+    rt_glyph_infinity
     "or child.max_h = "
-    ut_glyph_infinity
+    rt_glyph_infinity
     ",\n"
     "the child expands in the specified direction.\n"
     "\n"
@@ -146,8 +146,8 @@ static char* nil;
 
 static void crash(ui_button_t* ut_unused(b)) {
     // two random ways to crash in release configuration
-    if (ut_clock.nanoseconds() % 2 == 0) {
-        ut_swear(false, "should crash in release configuration");
+    if (rt_clock.nanoseconds() % 2 == 0) {
+        rt_swear(false, "should crash in release configuration");
     } else {
         #if 0 // cl.exe compains even with disabled warnings
         #pragma warning(push)            // this is intentional for testing
@@ -243,16 +243,16 @@ static void opened(void) {
     ui_caption.icon.state.hidden = true;
     tools_list.state.hidden = true;
     if (app_data.menu_used == 0) {
-        ui_app.toast(4.5, ut_glyph_leftward_arrow
+        ui_app.toast(4.5, rt_glyph_leftward_arrow
                           " click "
-                          ut_glyph_trigram_for_heaven
+                          rt_glyph_trigram_for_heaven
                           " menu button");
     }
     // caption buttons:
     static ui_button_t button_info =
-           ui_button(ut_glyph_circled_information_source, 0.0f, about);
+           ui_button(rt_glyph_circled_information_source, 0.0f, about);
     static ui_button_t button_bomb =
-           ui_button(ut_glyph_bomb, 0.0f, crash);
+           ui_button(rt_glyph_bomb, 0.0f, crash);
     insert_into_caption(&button_info, "About");
     insert_into_caption(&button_bugs, "Debug");
     insert_into_caption(&button_bomb, "Intentionally Crash");
@@ -453,10 +453,10 @@ static void button_pressed(ui_view_t* v) {
 
 static void controls_test(ui_view_t* parent) {
     #define wild_string                                 \
-        "A"  ut_glyph_zwsp                              \
-        ut_glyph_combining_enclosing_circle             \
-        "B" ut_glyph_box_drawings_light_diagonal_cross  \
-        ut_glyph_E_with_cedilla_and_breve
+        "A"  rt_glyph_zwsp                              \
+        rt_glyph_combining_enclosing_circle             \
+        "B" rt_glyph_box_drawings_light_diagonal_cross  \
+        rt_glyph_E_with_cedilla_and_breve
     // TODO: do not need to disband everything just remove children
     // and switch. list_test() becomes init() like switching views
     // removing and adding child
@@ -541,14 +541,14 @@ static void edit1_test(ui_view_t* parent) {
     static void* text;
     static int64_t bytes;
     if (text == null) {
-        if (ut_args.c > 1) {
-            if (ut_files.exists(ut_args.v[1])) {
-                errno_t r = ut_mem.map_ro(ut_args.v[1], &text, &bytes);
+        if (rt_args.c > 1) {
+            if (rt_files.exists(rt_args.v[1])) {
+                errno_t r = ut_mem.map_ro(rt_args.v[1], &text, &bytes);
                 if (r != 0) {
-                    ut_println("ut_mem.map_ro(%s) failed %s", ut_args.v[1], ut_str.error(r));
+                    ut_println("ut_mem.map_ro(%s) failed %s", rt_args.v[1], ut_str.error(r));
                 }
             } else {
-                ut_println("file \"%s\" does not exist", ut_args.v[1]);
+                ut_println("file \"%s\" does not exist", rt_args.v[1]);
             }
         }
     }
@@ -556,7 +556,7 @@ static void edit1_test(ui_view_t* parent) {
     static ui_edit_t edit = {0};
     static ui_edit_doc_t doc = {0};
     if (doc.text.np == 0) {
-        ut_swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
+        rt_swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
         ui_edit.init(&edit, &doc);
     }
     ui_view.add(&test,

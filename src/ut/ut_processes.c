@@ -15,7 +15,7 @@ typedef struct ut_processes_pidof_lambda_s {
 static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
     int32_t n = ut_str.len(pname);
-    ut_fatal_if(n + 5 >= ut_countof(stack), "name is too long: %s", pname);
+    rt_fatal_if(n + 5 >= ut_countof(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
     if (!ut_str.iends(pname, ".exe")) {
@@ -31,7 +31,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         base = name;
     }
     uint16_t wn[1024];
-    ut_fatal_if(strlen(base) >= ut_countof(wn), "name too long: %s", base);
+    rt_fatal_if(strlen(base) >= ut_countof(wn), "name too long: %s", base);
     ut_str.utf8to16(wn, ut_countof(wn), base, -1);
     size_t count = 0;
     uint64_t pid = 0;
@@ -45,7 +45,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         // too much for stack alloca()
         // add little extra if new process is spawned in between calls.
         bytes += sizeof(SYSTEM_PROCESS_INFORMATION) * 32;
-        r = ut_heap.reallocate(null, (void**)&data, bytes, false);
+        r = rt_heap.reallocate(null, (void**)&data, bytes, false);
         if (r == 0) {
             r = NtQuerySystemInformation(SystemProcessInformation, data, bytes, &bytes);
         } else {
@@ -61,7 +61,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
             if (match) {
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (base != name) {
-                    char path[ut_files_max_path];
+                    char path[rt_files_max_path];
                     match = ut_processes.nameof(pid, path, ut_countof(path)) == 0 &&
                             ut_str.iends(path, name);
 //                  ut_println("\"%s\" -> \"%s\" match: %d", name, path, match);
@@ -80,7 +80,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
                 ((uint8_t*)proc + proc->NextEntryOffset) : null;
         }
     }
-    if (data != null) { ut_heap.deallocate(null, data); }
+    if (data != null) { rt_heap.deallocate(null, data); }
     ut_assert(count <= (uint64_t)INT32_MAX);
     return (int32_t)count;
 }
@@ -156,7 +156,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     errno_t r = ERROR_NOT_FOUND;
     HANDLE h = OpenProcess(access, 0, (DWORD)pid);
     if (h != null) {
-        char path[ut_files_max_path];
+        char path[rt_files_max_path];
         path[0] = 0;
         r = ut_b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
         if (r == 0) {
@@ -258,7 +258,7 @@ static errno_t ut_processes_restart_elevated(void) {
         if (r == ERROR_CANCELLED) {
             ut_println("The user unable or refused to allow privileges elevation");
         } else if (r == 0) {
-            ut_runtime.exit(0); // second copy of the app is running now
+            rt_core.exit(0); // second copy of the app is running now
         }
     }
     return r;
@@ -323,7 +323,7 @@ static errno_t ut_processes_child_write(ut_stream_if* in, HANDLE pipe) {
 }
 
 static errno_t ut_processes_run(ut_processes_child_t* child) {
-    const fp64_t deadline = ut_clock.seconds() + child->timeout;
+    const fp64_t deadline = rt_clock.seconds() + child->timeout;
     errno_t r = 0;
     STARTUPINFOA si = {
         .cb = sizeof(STARTUPINFOA),
@@ -371,7 +371,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         si.hStdInput  = INVALID_HANDLE_VALUE;
         bool done = false;
         while (!done && r == 0) {
-            if (child->timeout > 0 && ut_clock.seconds() > deadline) {
+            if (child->timeout > 0 && rt_clock.seconds() > deadline) {
                 r = ut_b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
                     ut_println("TerminateProcess() failed %s", ut_strerr(r));
@@ -481,7 +481,7 @@ static errno_t ut_processes_spawn(const char* command) {
 }
 
 static const char* ut_processes_name(void) {
-    static char mn[ut_files_max_path];
+    static char mn[rt_files_max_path];
     if (mn[0] == 0) {
         ut_fatal_win32err(GetModuleFileNameA(null, mn, ut_countof(mn)));
     }
@@ -493,7 +493,7 @@ static const char* ut_processes_name(void) {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                       \
-    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
+    if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) { \
         ut_println(__VA_ARGS__);                                   \
     }                                                           \
 } while (0)
@@ -508,7 +508,7 @@ static void ut_processes_test(void) {
         errno_t r = ut_processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
-            r = ut_heap.reallocate(null, (void**)&pids,
+            r = rt_heap.reallocate(null, (void**)&pids,
                                   (int64_t)sizeof(uint64_t) * (int64_t)size,
                                   false);
             if (r == 0) {
@@ -526,7 +526,7 @@ static void ut_processes_test(void) {
                 }
             }
         }
-        ut_heap.deallocate(null, pids);
+        rt_heap.deallocate(null, pids);
     }
     // test popen()
     int32_t xc = 0;

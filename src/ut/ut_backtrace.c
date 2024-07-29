@@ -1,56 +1,56 @@
 #include "ut/ut.h"
 #include "ut/ut_win32.h"
 
-static void* ut_bt_process;
-static DWORD ut_bt_pid;
+static void* rt_backtrace_process;
+static DWORD rt_backtrace_pid;
 
 typedef ut_begin_packed struct symbol_info_s {
-    SYMBOL_INFO info; char name[ut_bt_max_symbol];
+    SYMBOL_INFO info; char name[rt_backtrace_max_symbol];
 } ut_end_packed symbol_info_t;
 
-#pragma push_macro("ut_bt_load_dll")
+#pragma push_macro("rt_backtrace_load_dll")
 
-#define ut_bt_load_dll(fn) do {              \
+#define rt_backtrace_load_dll(fn) do {              \
     if (GetModuleHandleA(fn) == null) {      \
         ut_fatal_win32err(LoadLibraryA(fn)); \
     }                                        \
 } while (0)
 
-static void ut_bt_init(void) {
-    if (ut_bt_process == null) {
-        ut_bt_load_dll("dbghelp.dll");
-        ut_bt_load_dll("imagehlp.dll");
+static void rt_backtrace_init(void) {
+    if (rt_backtrace_process == null) {
+        rt_backtrace_load_dll("dbghelp.dll");
+        rt_backtrace_load_dll("imagehlp.dll");
         DWORD options = SymGetOptions();
 //      options |= SYMOPT_DEBUG;
         options |= SYMOPT_NO_PROMPTS;
         options |= SYMOPT_LOAD_LINES;
         options |= SYMOPT_UNDNAME;
         options |= SYMOPT_LOAD_ANYTHING;
-        ut_swear(SymSetOptions(options));
-        ut_bt_pid = GetProcessId(GetCurrentProcess());
-        ut_swear(ut_bt_pid != 0);
-        ut_bt_process = OpenProcess(PROCESS_ALL_ACCESS, false,
-                                           ut_bt_pid);
-        ut_swear(ut_bt_process != null);
-        ut_swear(SymInitialize(ut_bt_process, null, true), "%s",
-                            ut_str.error(ut_runtime.err()));
+        rt_swear(SymSetOptions(options));
+        rt_backtrace_pid = GetProcessId(GetCurrentProcess());
+        rt_swear(rt_backtrace_pid != 0);
+        rt_backtrace_process = OpenProcess(PROCESS_ALL_ACCESS, false,
+                                           rt_backtrace_pid);
+        rt_swear(rt_backtrace_process != null);
+        rt_swear(SymInitialize(rt_backtrace_process, null, true), "%s",
+                            ut_str.error(rt_core.err()));
     }
 }
 
-#pragma pop_macro("ut_bt_load_dll")
+#pragma pop_macro("rt_backtrace_load_dll")
 
-static void ut_bt_capture(ut_bt_t* bt, int32_t skip) {
-    ut_bt_init();
+static void rt_backtrace_capture(rt_backtrace_t* bt, int32_t skip) {
+    rt_backtrace_init();
     SetLastError(0);
     bt->frames = CaptureStackBackTrace(1 + skip, ut_countof(bt->stack),
         bt->stack, (DWORD*)&bt->hash);
-    bt->error = ut_runtime.err();
+    bt->error = rt_core.err();
 }
 
-static bool ut_bt_function(DWORD64 pc, SYMBOL_INFO* si) {
+static bool rt_backtrace_function(DWORD64 pc, SYMBOL_INFO* si) {
     // find DLL exported function
     bool found = false;
-    const DWORD64 module_base = SymGetModuleBase64(ut_bt_process, pc);
+    const DWORD64 module_base = SymGetModuleBase64(rt_backtrace_process, pc);
     if (module_base != 0) {
         const DWORD flags = GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT |
                             GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS;
@@ -99,7 +99,7 @@ static bool ut_bt_function(DWORD64 pc, SYMBOL_INFO* si) {
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code
 // https://github.com/rogerorr/articles/blob/main/Debugging_Optimised_Code/SimpleStackWalker.cpp#L301
 
-static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
+static const void rt_backtrace_symbolize_inline_frame(rt_backtrace_t* bt,
         int32_t i, DWORD64 pc, DWORD inline_context, symbol_info_t* si) {
     si->info.Name[0] = 0;
     si->info.NameLen = 0;
@@ -107,15 +107,15 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
     bt->line[i] = 0;
     bt->symbol[i][0] = 0;
     DWORD64 displacement = 0;
-    if (SymFromInlineContext(ut_bt_process, pc, inline_context,
+    if (SymFromInlineContext(rt_backtrace_process, pc, inline_context,
                             &displacement, &si->info)) {
         ut_str_printf(bt->symbol[i], "%s", si->info.Name);
     } else {
-        bt->error = ut_runtime.err();
+        bt->error = rt_core.err();
     }
     IMAGEHLP_LINE64 li = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
     DWORD offset = 0;
-    if (SymGetLineFromInlineContext(ut_bt_process,
+    if (SymGetLineFromInlineContext(rt_backtrace_process,
                                     pc, inline_context, 0,
                                     &offset, &li)) {
         ut_str_printf(bt->file[i], "%s", li.FileName);
@@ -131,7 +131,7 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
 //
 // https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2003/cc757875(v=ws.10)
 
-static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
+static int32_t rt_backtrace_symbolize_frame(rt_backtrace_t* bt, int32_t i) {
     const DWORD64 pc = (DWORD64)bt->stack[i];
     symbol_info_t si = {
         .info = { .SizeOfStruct = sizeof(SYMBOL_INFO),
@@ -142,28 +142,28 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
     bt->symbol[i][0] = 0;
     DWORD64 offsetFromSymbol = 0;
     const DWORD inline_count =
-        SymAddrIncludeInlineTrace(ut_bt_process, pc);
+        SymAddrIncludeInlineTrace(rt_backtrace_process, pc);
     if (inline_count > 0) {
         DWORD ic = 0; // inline context
         DWORD fi = 0; // frame index
-        if (SymQueryInlineTrace(ut_bt_process,
+        if (SymQueryInlineTrace(rt_backtrace_process,
                                 pc, 0, pc, pc, &ic, &fi)) {
             for (DWORD k = 0; k < inline_count; k++, ic++) {
-                ut_bt_symbolize_inline_frame(bt, i, pc, ic, &si);
+                rt_backtrace_symbolize_inline_frame(bt, i, pc, ic, &si);
                 i++;
             }
         }
     } else {
-        if (SymFromAddr(ut_bt_process, pc, &offsetFromSymbol, &si.info)) {
+        if (SymFromAddr(rt_backtrace_process, pc, &offsetFromSymbol, &si.info)) {
             ut_str_printf(bt->symbol[i], "%s", si.info.Name);
             DWORD d = 0; // displacement
             IMAGEHLP_LINE64 ln = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
-            if (SymGetLineFromAddr64(ut_bt_process, pc, &d, &ln)) {
+            if (SymGetLineFromAddr64(rt_backtrace_process, pc, &d, &ln)) {
                 bt->line[i] = ln.LineNumber;
                 ut_str_printf(bt->file[i], "%s", ln.FileName);
             } else {
-                bt->error = ut_runtime.err();
-                if (ut_bt_function(pc, &si.info)) {
+                bt->error = rt_core.err();
+                if (rt_backtrace_function(pc, &si.info)) {
                     GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                         ut_countof(bt->file[i]) - 1);
                     bt->file[i][ut_countof(bt->file[i]) - 1] = 0;
@@ -175,8 +175,8 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
             }
             i++;
         } else {
-            bt->error = ut_runtime.err();
-            if (ut_bt_function(pc, &si.info)) {
+            bt->error = rt_core.err();
+            if (rt_backtrace_function(pc, &si.info)) {
                 ut_str_printf(bt->symbol[i], "%s", si.info.Name);
                 GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                     ut_countof(bt->file[i]) - 1);
@@ -191,27 +191,27 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
     return i;
 }
 
-static void ut_bt_symbolize_backtrace(ut_bt_t* bt) {
+static void rt_backtrace_symbolize_backtrace(rt_backtrace_t* bt) {
     ut_assert(!bt->symbolized);
     bt->error = 0;
-    ut_bt_init();
-    // ut_bt_symbolize_frame() may produce zero, one or many frames
+    rt_backtrace_init();
+    // rt_backtrace_symbolize_frame() may produce zero, one or many frames
     int32_t n = bt->frames;
     void* stack[ut_countof(bt->stack)];
     memcpy(stack, bt->stack, n * sizeof(stack[0]));
     bt->frames = 0;
     for (int32_t i = 0; i < n && bt->frames < ut_countof(bt->stack); i++) {
         bt->stack[bt->frames] = stack[i];
-        bt->frames = ut_bt_symbolize_frame(bt, i);
+        bt->frames = rt_backtrace_symbolize_frame(bt, i);
     }
     bt->symbolized = true;
 }
 
-static void ut_bt_symbolize(ut_bt_t* bt) {
-    if (!bt->symbolized) { ut_bt_symbolize_backtrace(bt); }
+static void rt_backtrace_symbolize(rt_backtrace_t* bt) {
+    if (!bt->symbolized) { rt_backtrace_symbolize_backtrace(bt); }
 }
 
-static const char* ut_bt_stops[] = {
+static const char* rt_backtrace_stops[] = {
     "main",
     "WinMain",
     "BaseThreadInitThunk",
@@ -223,28 +223,28 @@ static const char* ut_bt_stops[] = {
     null
 };
 
-static void ut_bt_trace(const ut_bt_t* bt, const char* stop) {
-    #pragma push_macro("ut_bt_glyph_called_from")
-    #define ut_bt_glyph_called_from ut_glyph_north_west_arrow_with_hook
-    ut_assert(bt->symbolized, "need ut_bt.symbolize(bt)");
+static void rt_backtrace_trace(const rt_backtrace_t* bt, const char* stop) {
+    #pragma push_macro("rt_backtrace_glyph_called_from")
+    #define rt_backtrace_glyph_called_from rt_glyph_north_west_arrow_with_hook
+    ut_assert(bt->symbolized, "need rt_backtrace.symbolize(bt)");
     const char** alt = stop != null && strcmp(stop, "*") == 0 ?
-                       ut_bt_stops : null;
+                       rt_backtrace_stops : null;
     for (int32_t i = 0; i < bt->frames; i++) {
-        ut_debug.println(bt->file[i], bt->line[i], bt->symbol[i],
-            ut_bt_glyph_called_from "%s",
+        rt_debug.println(bt->file[i], bt->line[i], bt->symbol[i],
+            rt_backtrace_glyph_called_from "%s",
             i == i < bt->frames - 1 ? "\n" : ""); // extra \n for last line
         if (stop != null && strcmp(bt->symbol[i], stop) == 0) { break; }
         const char** s = alt;
         while (s != null && *s != null && strcmp(bt->symbol[i], *s) != 0) { s++; }
         if (s != null && *s != null)  { break; }
     }
-    #pragma pop_macro("ut_bt_glyph_called_from")
+    #pragma pop_macro("rt_backtrace_glyph_called_from")
 }
 
 
-static const char* ut_bt_string(const ut_bt_t* bt,
+static const char* rt_backtrace_string(const rt_backtrace_t* bt,
         char* text, int32_t count) {
-    ut_assert(bt->symbolized, "need ut_bt.symbolize(bt)");
+    ut_assert(bt->symbolized, "need rt_backtrace.symbolize(bt)");
     char s[1024];
     char* p = text;
     int32_t n = count;
@@ -268,10 +268,10 @@ static const char* ut_bt_string(const ut_bt_t* bt,
     return text;
 }
 
-typedef struct { char name[32]; } ut_bt_thread_name_t;
+typedef struct { char name[32]; } rt_backtrace_thread_name_t;
 
-static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
-    ut_bt_thread_name_t tn;
+static rt_backtrace_thread_name_t rt_backtrace_thread_name(HANDLE thread) {
+    rt_backtrace_thread_name_t tn;
     tn.name[0] = 0;
     wchar_t* thread_name = null;
     if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
@@ -281,8 +281,8 @@ static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
     return tn;
 }
 
-static void ut_bt_context(ut_thread_t thread, const void* ctx,
-        ut_bt_t* bt) {
+static void rt_backtrace_context(ut_thread_t thread, const void* ctx,
+        rt_backtrace_t* bt) {
     CONTEXT* context = (CONTEXT*)ctx;
     STACKFRAME64 stack_frame = { 0 };
     int machine_type = IMAGE_FILE_MACHINE_UNKNOWN;
@@ -320,71 +320,71 @@ static void ut_bt_context(ut_thread_t thread, const void* ctx,
     #else
         #error "Unsupported platform"
     #endif
-    ut_bt_init();
-    while (StackWalk64(machine_type, ut_bt_process,
+    rt_backtrace_init();
+    while (StackWalk64(machine_type, rt_backtrace_process,
             (HANDLE)thread, &stack_frame, context, null,
             SymFunctionTableAccess64, SymGetModuleBase64, null)) {
         DWORD64 pc = stack_frame.AddrPC.Offset;
         if (pc == 0) { break; }
         if (bt->frames < ut_countof(bt->stack)) {
             bt->stack[bt->frames] = (void*)pc;
-            bt->frames = ut_bt_symbolize_frame(bt, bt->frames);
+            bt->frames = rt_backtrace_symbolize_frame(bt, bt->frames);
         }
     }
     bt->symbolized = true;
 }
 
-static void ut_bt_thread(HANDLE thread, ut_bt_t* bt) {
+static void rt_backtrace_thread(HANDLE thread, rt_backtrace_t* bt) {
     bt->frames = 0;
     // cannot suspend callers thread
-    ut_swear(ut_thread.id_of(thread) != ut_thread.id());
+    rt_swear(ut_thread.id_of(thread) != ut_thread.id());
     if (SuspendThread(thread) != (DWORD)-1) {
         CONTEXT context = { .ContextFlags = CONTEXT_FULL };
         GetThreadContext(thread, &context);
-        ut_bt.context(thread, &context, bt);
+        rt_backtrace.context(thread, &context, bt);
         if (ResumeThread(thread) == (DWORD)-1) {
-            ut_println("ResumeThread() failed %s", ut_str.error(ut_runtime.err()));
+            ut_println("ResumeThread() failed %s", ut_str.error(rt_core.err()));
             ExitProcess(0xBD);
         }
     }
 }
 
-static void ut_bt_trace_self(const char* stop) {
-    ut_bt_t bt = {{0}};
-    ut_bt.capture(&bt, 2);
-    ut_bt.symbolize(&bt);
-    ut_bt.trace(&bt, stop);
+static void rt_backtrace_trace_self(const char* stop) {
+    rt_backtrace_t bt = {{0}};
+    rt_backtrace.capture(&bt, 2);
+    rt_backtrace.symbolize(&bt);
+    rt_backtrace.trace(&bt, stop);
 }
 
-static void ut_bt_trace_all_but_self(void) {
-    ut_bt_init();
-    ut_assert(ut_bt_process != null && ut_bt_pid != 0);
+static void rt_backtrace_trace_all_but_self(void) {
+    rt_backtrace_init();
+    ut_assert(rt_backtrace_process != null && rt_backtrace_pid != 0);
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
     if (snapshot == INVALID_HANDLE_VALUE) {
         ut_println("CreateToolhelp32Snapshot failed %s",
-                ut_str.error(ut_runtime.err()));
+                ut_str.error(rt_core.err()));
     } else {
         THREADENTRY32 te = { .dwSize = sizeof(THREADENTRY32) };
         if (!Thread32First(snapshot, &te)) {
-            ut_println("Thread32First failed %s", ut_str.error(ut_runtime.err()));
+            ut_println("Thread32First failed %s", ut_str.error(rt_core.err()));
         } else {
             do {
-                if (te.th32OwnerProcessID == ut_bt_pid) {
+                if (te.th32OwnerProcessID == rt_backtrace_pid) {
                     static const DWORD flags = THREAD_ALL_ACCESS |
                        THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT;
                     uint32_t tid = te.th32ThreadID;
                     if (tid != (uint32_t)ut_thread.id()) {
                         HANDLE thread = OpenThread(flags, false, tid);
                         if (thread != null) {
-                            ut_bt_t bt = {0};
-                            ut_bt_thread(thread, &bt);
-                            ut_bt_thread_name_t tn = ut_bt_thread_name(thread);
-                            ut_debug.println(">Thread", tid, tn.name,
+                            rt_backtrace_t bt = {0};
+                            rt_backtrace_thread(thread, &bt);
+                            rt_backtrace_thread_name_t tn = rt_backtrace_thread_name(thread);
+                            rt_debug.println(">Thread", tid, tn.name,
                                 "id 0x%08X (%d)", tid, tid);
                             if (bt.frames > 0) {
-                                ut_bt.trace(&bt, "*");
+                                rt_backtrace.trace(&bt, "*");
                             }
-                            ut_debug.println("<Thread", tid, tn.name, "");
+                            rt_debug.println("<Thread", tid, tn.name, "");
                             ut_win32_close_handle(thread);
                         }
                     }
@@ -397,73 +397,73 @@ static void ut_bt_trace_all_but_self(void) {
 
 #ifdef UT_TESTS
 
-static bool (*ut_bt_debug_tee)(const char* s, int32_t count);
+static bool (*rt_backtrace_debug_tee)(const char* s, int32_t count);
 
-static char  ut_bt_test_output[16 * 1024];
-static char* ut_bt_test_output_p;
+static char  rt_backtrace_test_output[16 * 1024];
+static char* rt_backtrace_test_output_p;
 
-static bool ut_bt_tee(const char* s, int32_t count) {
+static bool rt_backtrace_tee(const char* s, int32_t count) {
     if (count > 0 && s[count - 1] == 0) { // zero terminated
         int32_t k = (int32_t)(uintptr_t)(
-            ut_bt_test_output_p - ut_bt_test_output);
-        int32_t space = ut_countof(ut_bt_test_output) - k;
+            rt_backtrace_test_output_p - rt_backtrace_test_output);
+        int32_t space = ut_countof(rt_backtrace_test_output) - k;
         if (count < space) {
-            memcpy(ut_bt_test_output_p, s, count);
-            ut_bt_test_output_p += count - 1; // w/o 0x00
+            memcpy(rt_backtrace_test_output_p, s, count);
+            rt_backtrace_test_output_p += count - 1; // w/o 0x00
         }
     } else {
-        ut_debug.breakpoint(); // incorrect output() cannot append
+        rt_debug.breakpoint(); // incorrect output() cannot append
     }
     return true; // intercepted, do not do OutputDebugString()
 }
 
-static void ut_bt_test_thread(void* e) {
+static void rt_backtrace_test_thread(void* e) {
     ut_event.wait(*(ut_event_t*)e);
 }
 
-static void ut_bt_test(void) {
-    ut_bt_debug_tee = ut_debug.tee;
-    ut_bt_test_output_p = ut_bt_test_output;
-    ut_bt_test_output[0] = 0x00;
-    ut_debug.tee = ut_bt_tee;
-    ut_bt_t bt = {{0}};
-    ut_bt.capture(&bt, 0);
-    // ut_bt_test <- ut_runtime_test <- run <- main
-    ut_swear(bt.frames >= 3);
-    ut_bt.symbolize(&bt);
-    ut_bt.trace(&bt, null);
-    ut_bt.trace(&bt, "main");
-    ut_bt.trace(&bt, null);
-    ut_bt.trace(&bt, "main");
+static void rt_backtrace_test(void) {
+    rt_backtrace_debug_tee = rt_debug.tee;
+    rt_backtrace_test_output_p = rt_backtrace_test_output;
+    rt_backtrace_test_output[0] = 0x00;
+    rt_debug.tee = rt_backtrace_tee;
+    rt_backtrace_t bt = {{0}};
+    rt_backtrace.capture(&bt, 0);
+    // rt_backtrace_test <- rt_core_test <- run <- main
+    rt_swear(bt.frames >= 3);
+    rt_backtrace.symbolize(&bt);
+    rt_backtrace.trace(&bt, null);
+    rt_backtrace.trace(&bt, "main");
+    rt_backtrace.trace(&bt, null);
+    rt_backtrace.trace(&bt, "main");
     ut_event_t e = ut_event.create();
-    ut_thread_t thread = ut_thread.start(ut_bt_test_thread, &e);
-    ut_bt.trace_all_but_self();
+    ut_thread_t thread = ut_thread.start(rt_backtrace_test_thread, &e);
+    rt_backtrace.trace_all_but_self();
     ut_event.set(e);
     ut_thread.join(thread, -1.0);
     ut_event.dispose(e);
-    ut_debug.tee = ut_bt_debug_tee;
-    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
-        ut_debug.output(ut_bt_test_output,
-            (int32_t)strlen(ut_bt_test_output) + 1);
+    rt_debug.tee = rt_backtrace_debug_tee;
+    if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
+        rt_debug.output(rt_backtrace_test_output,
+            (int32_t)strlen(rt_backtrace_test_output) + 1);
     }
-    ut_swear(strstr(ut_bt_test_output, "ut_bt_test") != null,
-          "%s", ut_bt_test_output);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_swear(strstr(rt_backtrace_test_output, "rt_backtrace_test") != null,
+          "%s", rt_backtrace_test_output);
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
 
-static void ut_bt_test(void) { }
+static void rt_backtrace_test(void) { }
 
 #endif
 
-ut_bt_if ut_bt = {
-    .capture            = ut_bt_capture,
-    .context            = ut_bt_context,
-    .symbolize          = ut_bt_symbolize,
-    .trace              = ut_bt_trace,
-    .trace_self         = ut_bt_trace_self,
-    .trace_all_but_self = ut_bt_trace_all_but_self,
-    .string             = ut_bt_string,
-    .test               = ut_bt_test
+rt_backtrace_if rt_backtrace = {
+    .capture            = rt_backtrace_capture,
+    .context            = rt_backtrace_context,
+    .symbolize          = rt_backtrace_symbolize,
+    .trace              = rt_backtrace_trace,
+    .trace_self         = rt_backtrace_trace_self,
+    .trace_all_but_self = rt_backtrace_trace_all_but_self,
+    .string             = rt_backtrace_string,
+    .test               = rt_backtrace_test
 };

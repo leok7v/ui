@@ -48,7 +48,7 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
         case 3: r = p * 255; g = q * 255; b = i * 255; break;
         case 4: r = t * 255; g = p * 255; b = i * 255; break;
         case 5: r = i * 255; g = p * 255; b = q * 255; break;
-        default: ut_swear(false); break;
+        default: rt_swear(false); break;
     }
     ut_assert(0 <= r && r <= 255);
     ut_assert(0 <= g && g <= 255);
@@ -178,7 +178,7 @@ static struct {
 
 static ui_color_t ui_colors_get_color(int32_t color_id) {
     // SysGetColor() does not work on Win10
-    ut_swear(0 < color_id && color_id < ut_countof(ui_theme_colors));
+    rt_swear(0 < color_id && color_id < ut_countof(ui_theme_colors));
     return ui_theme.is_app_dark() ?
            ui_theme_colors[color_id].dark :
            ui_theme_colors[color_id].light;

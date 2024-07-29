@@ -83,7 +83,7 @@ static const char* lorem_ipsum_words[] = {
 
 
 static const char* content =
-    ut_glyph_lady_beetle "\n"
+    rt_glyph_lady_beetle "\n"
 #if 1
     "Good bye Universe...\n"
     "Hello World!\n"
@@ -97,13 +97,13 @@ static const char* content =
     "0         10        20        30        40        50        60        70        80        90\n"
     "01234567890123456789012345678901234567890abcdefghi01234567890123456789012345678901234567890123456789\n"
     "\n"
-    "0" ut_glyph_chinese_jin4 ut_glyph_chinese_gong "3456789\n"
+    "0" rt_glyph_chinese_jin4 rt_glyph_chinese_gong "3456789\n"
     "\n"
-    ut_glyph_teddy_bear "\n"
-    ut_glyph_teddy_bear ut_glyph_ice_cube ut_glyph_teddy_bear
-    ut_glyph_ice_cube ut_glyph_teddy_bear ut_glyph_ice_cube "\n"
-    ut_glyph_teddy_bear ut_glyph_ice_cube ut_glyph_teddy_bear " - "
-    ut_glyph_ice_cube ut_glyph_teddy_bear ut_glyph_ice_cube "\n"
+    rt_glyph_teddy_bear "\n"
+    rt_glyph_teddy_bear rt_glyph_ice_cube rt_glyph_teddy_bear
+    rt_glyph_ice_cube rt_glyph_teddy_bear rt_glyph_ice_cube "\n"
+    rt_glyph_teddy_bear rt_glyph_ice_cube rt_glyph_teddy_bear " - "
+    rt_glyph_ice_cube rt_glyph_teddy_bear rt_glyph_ice_cube "\n"
     "\n"
     lorem_ipsum_canonique "\n"
     lorem_ipsum_canonique;
@@ -129,10 +129,10 @@ typedef struct {
 } ui_edit_lorem_ipsum_generator_params_t;
 
 static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t p) {
-    ut_fatal_if(p.count < 1024); // at least 1KB expected
-    ut_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
-    ut_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
-    ut_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
+    rt_fatal_if(p.count < 1024); // at least 1KB expected
+    rt_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
+    rt_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
+    rt_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
     char* s = p.text;
     char* end = p.text + p.count - 64;
     uint32_t paragraphs = p.min_paragraphs +
@@ -207,21 +207,21 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     #ifdef DEBUG
         p.seed = 1; // repeatable sequence of pseudo random numbers
     #else
-        p.seed = (int32_t)ut_clock.nanoseconds() | 0x1; // must be odd
+        p.seed = (int32_t)rt_clock.nanoseconds() | 0x1; // must be odd
     #endif
     ui_edit_lorem_ipsum_generator(p);
-    ut_swear(ui_edit_text.replace_utf8(t, null, content, -1, null));
+    rt_swear(ui_edit_text.replace_utf8(t, null, content, -1, null));
 #if 1
     ui_edit_range_t end = ui_edit_text.end_range(t);
-    ut_swear(ui_edit_text.replace_utf8(t, &end, "\n\n", -1, null));
+    rt_swear(ui_edit_text.replace_utf8(t, &end, "\n\n", -1, null));
     end = ui_edit_text.end_range(t);
-    ut_swear(ui_edit_text.replace_utf8(t, &end, p.text, -1, null));
+    rt_swear(ui_edit_text.replace_utf8(t, &end, p.text, -1, null));
     // test bad UTF8
     static const char* th_bad_utf8 = "\xE0\xB8\x9A\xE0\xB8\xA3\xE0\xB8\xB4\xE0\xB9\x80\xE0\xB8\xA7\xE0\xB8\x93\xE0\xB8\x8A\xE0\xB8\xB8\xE0\xB8\x94\xE0\xB8\xA5\xE0\xB8\xB0\xE0\xB8\xA5\xE0\xB8\xB0\xE0\xB8\xAA\xE0\xB8\xB2\xE0\xB8\x87\xE0\xE0\xB9\x80\xE0\xB8\xA3\xE0\xB8\x87\xE0\xB9\x84\xE0\xB8\xA5\xE0\xB8\xA1\xE0\xB8\x95\xE0\xB8\xA3\xE0\xB8\xB4\xE0\xB8\xA1\xE0\xB8\xAD\xE0\xB9\x88\xE0\xB8\xB2\xE0\xB8\x94\xE0\xB8\xAD\xE0\xB8\x94\xE0\xB8\xAA\xE0\xB9\x80\xE0\xB8\xA3\xE0\xB8\xA2\xE0\xB8\xA2\xE0\xB8\xA7\xE0\xB8\xA5\xE0\xB8\xB1\xE0\xB8\x9A\xE0\xB8\x81\xE0\xB8\xB4\xE0\xB8\x9B\xE0\xB8\x81\xE0\xB8\xA7\xE0\xB8\xB1\xE0\xB8\x87\x2E";
     end = ui_edit_text.end_range(t);
 //  ut_println("%s", th_bad_utf8);
     bool expected_false = ui_edit_text.replace_utf8(t, &end, th_bad_utf8, -1, null);
-    ut_swear(expected_false == false);
+    rt_swear(expected_false == false);
     static const char* en_sentence_utf8 = "\x54\x68\x65\x20\x71\x75\x69\x63\x6b\x20\x62\x72\x6f\x77\x6e\x20\x66\x6f\x78\x20\x6a\x75\x6d\x70\x73\x20\x6f\x76\x65\x72\x20\x74\x68\x65\x20\x6c\x61\x7a\x79\x20\x64\x6f\x67\x2e";
     static const char* es_sentence_utf8 = "\x45\x6c\x20\x76\x65\x6c\x6f\x7a\x20\x6d\x75\x72\x63\x69\x65\xcc\x81\x6c\x61\x67\x6f\x20\x68\x69\x6e\x64\x75\xcc\x81\x20\x63\x6f\x6d\x69\xcc\x81\x61\x20\x66\x65\x6c\x69\x7a\x20\x63\x61\x72\x64\x69\x6c\x6c\x6f\x20\x79\x20\x6b\x69\x77\x69\x2e";
     static const char* fr_sentence_utf8 = "\x50\x6f\x72\x74\x65\x7a\x20\x63\x65\x20\x76\x69\x65\x75\x78\x20\x77\x68\x69\x73\x6b\x79\x20\x61\x75\x20\x6a\x75\x67\x65\x20\x62\x6c\x6f\x6e\x64\x20\x71\x75\x69\x20\x66\x75\x6d\x65\x2e";
@@ -290,11 +290,11 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     for (int i = 0; i < sizeof(sentences) / sizeof(sentences[0]); i++) {
         end = ui_edit_text.end_range(t);
 //      ut_println("%s %s", sentences[i].id, sentences[i].s);
-        ut_swear(ui_edit_text.replace_utf8(t, &end, sentences[i].s, -1, null));
-        ut_swear(ui_edit_text.replace_utf8(t, &end, "\n\n", -1, null));
+        rt_swear(ui_edit_text.replace_utf8(t, &end, sentences[i].s, -1, null));
+        rt_swear(ui_edit_text.replace_utf8(t, &end, "\n\n", -1, null));
     }
     static const char* pirate_flag_utf8 = "\xF0\x9F\x8F\xB4\xE2\x80\x8D\xE2\x98\xA0\xEF\xB8\x8F";
     end = ui_edit_text.end_range(t);
-    ut_swear(ui_edit_text.replace_utf8(t, &end, pirate_flag_utf8, -1, null));
+    rt_swear(ui_edit_text.replace_utf8(t, &end, pirate_flag_utf8, -1, null));
 #endif
 }

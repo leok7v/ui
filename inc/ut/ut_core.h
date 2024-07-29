@@ -36,8 +36,8 @@ typedef struct {
         errno_t const resource_deadlock;    // EDEADLK
         errno_t const too_many_open_files;  // EMFILE
     } const error;
-} ut_runtime_if;
+} rt_core_if;
 
-extern ut_runtime_if ut_runtime;
+extern rt_core_if rt_core;
 
 ut_end_c

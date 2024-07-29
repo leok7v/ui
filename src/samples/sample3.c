@@ -18,10 +18,10 @@ static void toggle_full_screen(ui_button_t* b) {
     b->state.pressed = !b->state.pressed;
     ui_app.full_screen(b->state.pressed);
     ui_view.set_text(b, "%s", !b->state.pressed ?
-        ut_glyph_square_four_corners : ut_glyph_two_joined_squares);
+        rt_glyph_square_four_corners : rt_glyph_two_joined_squares);
 }
 
-ui_button_clicked(button_fs, ut_glyph_square_four_corners, 1.0, {
+ui_button_clicked(button_fs, rt_glyph_square_four_corners, 1.0, {
     toggle_full_screen(button_fs);
 });
 
@@ -67,7 +67,7 @@ static void measure(ui_view_t* view) {
         stop_rendering();
         im = &image[!index];
         ui_gdi.image_dispose(im);
-        ut_fatal_if(w * h * 4 > ut_countof(pixels[!index]),
+        rt_fatal_if(w * h * 4 > ut_countof(pixels[!index]),
             "increase size of pixels[][%d * %d * 4]", w, h);
         ui_gdi.image_init(im, w, h, 4, pixels[!index]);
         request_rendering();
@@ -105,7 +105,7 @@ static void fini(void) {
 }
 
 static void opened(void) {
-    ut_fatal_if(ui_app.root->w * ui_app.root->h * 4 > ut_countof(pixels[0]),
+    rt_fatal_if(ui_app.root->w * ui_app.root->h * 4 > ut_countof(pixels[0]),
         "increase size of pixels[][%d * %d * 4]", ui_app.root->w, ui_app.root->h);
     ui_app.fini = fini;
     ui_app.closed = closed;
@@ -148,7 +148,7 @@ static fp64_t scale(int32_t x, int32_t n, fp64_t low, fp64_t hi) {
 }
 
 static void mandelbrot(ui_image_t* im) {
-    fp64_t time = ut_clock.seconds();
+    fp64_t time = rt_clock.seconds();
     for (int32_t r = 0; r < im->h && !stop; r++) {
         fp64_t y0 = scale(r, im->h, -1.12, 1.12);
         for (int32_t c = 0; c < im->w && !stop; c++) {
@@ -181,7 +181,7 @@ static void mandelbrot(ui_image_t* im) {
             px[2] = (color >>  0) & 0xFF;
         }
     }
-    render_time = ut_clock.seconds() - time;
+    render_time = rt_clock.seconds() - time;
 }
 
 static void renderer(void* unused) {

@@ -56,11 +56,11 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
 
 static const char* ut_nls_save_string(uint16_t* utf16) {
     const int32_t bytes = ut_str.utf8_bytes(utf16, -1);
-    ut_swear(bytes > 1);
+    rt_swear(bytes > 1);
     char* s = ut_nls_strings_free;
     uintptr_t left = (uintptr_t)ut_countof(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
-    ut_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
+    rt_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
     ut_str.utf16to8(s, (int32_t)left, utf16, -1);
     ut_assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
     ut_nls_strings_free += bytes;
@@ -68,7 +68,7 @@ static const char* ut_nls_save_string(uint16_t* utf16) {
 }
 
 static const char* ut_nls_localized_string(int32_t strid) {
-    ut_swear(0 < strid && strid < ut_countof(ut_nls_ns));
+    rt_swear(0 < strid && strid < ut_countof(ut_nls_ns));
     const char* s = null;
     if (0 < strid && strid < ut_countof(ut_nls_ns)) {
         if (ut_nls_ls[strid] != null) {
@@ -120,7 +120,7 @@ static const char* ut_nls_locale(void) {
     static char ln[LOCALE_NAME_MAX_LENGTH * 4 + 1];
     ln[0] = 0;
     if (n == 0) {
-        errno_t r = ut_runtime.err();
+        errno_t r = rt_core.err();
         ut_println("LCIDToLocaleName(0x%04X) failed %s", lc_id, ut_str.error(r));
     } else {
         ut_str.utf16to8(ln, ut_countof(ln), utf16, -1);
@@ -135,12 +135,12 @@ static errno_t ut_nls_set_locale(const char* locale) {
     uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1]; // resolved locale name
     int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)ut_countof(rln));
     if (n == 0) {
-        r = ut_runtime.err();
+        r = rt_core.err();
         ut_println("ResolveLocaleName(\"%s\") failed %s", locale, ut_str.error(r));
     } else {
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
         if (lc_id == 0) {
-            r = ut_runtime.err();
+            r = rt_core.err();
             ut_println("LocaleNameToLCID(\"%s\") failed %s", locale, ut_str.error(r));
         } else {
             ut_fatal_win32err(SetThreadLocale(lc_id));
@@ -166,7 +166,7 @@ static void ut_nls_init(void) {
             uint16_t count = ws[0];
             if (count > 0) {
                 ws++;
-                ut_fatal_if(ws[count - 1] != 0, "use rc.exe /n");
+                rt_fatal_if(ws[count - 1] != 0, "use rc.exe /n");
                 ut_nls_ns[ix] = ut_nls_save_string(ws);
                 ut_nls_strings_count = ix + 1;
 //              ut_println("ns[%d] := %d \"%s\"", ix, strlen(ut_nls_ns[ix]), ut_nls_ns[ix]);

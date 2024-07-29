@@ -46,17 +46,17 @@ static void* load_animated_gif(const uint8_t* data, int64_t bytes,
     int32_t preferred_bytes_per_pixel);
 
 static const char* midi_file(void) {
-    static char filename[ut_files_max_path];
+    static char filename[rt_files_max_path];
     if (filename[0] == 0) {
         void* data = null;
         int64_t bytes = 0;
         int r = ut_mem.map_resource("mr_blue_sky_midi", &data, &bytes);
-        ut_fatal_if_error(r);
-        ut_fatal_if_error(ut_files.create_tmp(filename,
+        rt_fatal_if_error(r);
+        rt_fatal_if_error(rt_files.create_tmp(filename,
                                       ut_countof(filename)));
         ut_assert(filename[0] != 0);
         int64_t written = 0;
-        ut_fatal_if_error(ut_files.write_fully(filename, data, bytes,
+        rt_fatal_if_error(rt_files.write_fully(filename, data, bytes,
                                                         &written));
         ut_assert(written == bytes);
     }
@@ -69,8 +69,8 @@ static void paint(ui_view_t* view) {
         animation.y = (view->h - gif.h) / 2;
     }
     ui_gdi.fill(0, 0, view->w, view->h, ui_colors.black);
-    int32_t w = ut_min(view->w, background.w);
-    int32_t h = ut_min(view->h, background.h);
+    int32_t w = rt_min(view->w, background.w);
+    int32_t h = rt_min(view->h, background.h);
     int32_t x = (view->w - w) / 2;
     int32_t y = (view->h - h) / 2;
     ui_gdi.set_clip(0, 0, view->w, view->h);
@@ -89,7 +89,7 @@ static void paint(ui_view_t* view) {
     ta.color_id = 0;
     ta.color = muted ? ui_colors.green : ui_colors.red;
     ui_gdi.text(&ta, 0, 0, "%s", muted ?
-        ut_glyph_speaker : ut_glyph_mute);
+        rt_glyph_speaker : rt_glyph_mute);
 }
 
 static void character(ui_view_t* ut_unused(view), const char* utf8) {
@@ -125,23 +125,23 @@ static bool message(ui_view_t* ut_unused(view), int32_t m, int64_t wp, int64_t l
 }
 
 static void delete_midi_file(void) {
-    ut_fatal_if_error(ut_files.unlink(midi_file()));
+    rt_fatal_if_error(rt_files.unlink(midi_file()));
 }
 
 static void load_gif(void) {
     void* data = null;
     int64_t bytes = 0;
     errno_t r = ut_mem.map_resource("groot_gif", &data, &bytes);
-    ut_fatal_if_error(r);
+    rt_fatal_if_error(r);
     // load_animated_gif() calls realloc(delays) w/o first alloc()
-    r = ut_heap.allocate(null, (void**)&gif.delays, sizeof(int32_t), false);
-    ut_swear(r == 0 && gif.delays != null);
+    r = rt_heap.allocate(null, (void**)&gif.delays, sizeof(int32_t), false);
+    rt_swear(r == 0 && gif.delays != null);
     gif.pixels = load_animated_gif(data, bytes, &gif.delays,
         &gif.w, &gif.h, &gif.frames, &gif.bpp, 4);
     if (gif.pixels == null || gif.bpp != 4 || gif.frames < 1) {
         ut_println("%s", stbi_failure_reason());
     }
-    ut_fatal_if(gif.pixels == null || gif.bpp != 4 || gif.frames < 1);
+    rt_fatal_if(gif.pixels == null || gif.bpp != 4 || gif.frames < 1);
     // resources cannot be unmapped do not call ut_mem.unmap()
 }
 
@@ -202,7 +202,7 @@ static void animated_gif_loader(void* ut_unused(ignored)) {
 }
 
 static void opened(void) {
-    animation.seed = (uint32_t)ut_clock.nanoseconds();
+    animation.seed = (uint32_t)rt_clock.nanoseconds();
     animation.x = -1;
     animation.y = -1;
     animation.quit = ut_event.create();
@@ -220,7 +220,7 @@ static void init(void) {
     ui_app.opened             = opened;
     void* data = null;
     int64_t bytes = 0;
-    ut_fatal_if_error(ut_mem.map_resource("sample_png", &data, &bytes));
+    rt_fatal_if_error(ut_mem.map_resource("sample_png", &data, &bytes));
     int w = 0;
     int h = 0;
     int bpp = 0; // bytes (!) per pixel
@@ -263,7 +263,7 @@ static void* load_animated_gif(const uint8_t* data, int64_t bytes,
 
 
 static int  console(void) {
-    ut_fatal_if(true, "%s only SUBSYSTEM:WINDOWS", ut_args.basename());
+    rt_fatal_if(true, "%s only SUBSYSTEM:WINDOWS", rt_args.basename());
     return 1;
 }
 

@@ -21,10 +21,11 @@
   <ItemGroup>
     <ClInclude Include="..\inc\ut\ut_args.h" />
     <ClInclude Include="..\inc\ut\ut_atomics.h" />
-    <ClInclude Include="..\inc\ut\ut_bt.h" />
+    <ClInclude Include="..\inc\ut\ut_backtrace.h" />
     <ClInclude Include="..\inc\ut\ut_clipboard.h" />
     <ClInclude Include="..\inc\ut\ut_clock.h" />
     <ClInclude Include="..\inc\ut\ut_config.h" />
+    <ClInclude Include="..\inc\ut\ut_core.h" />
     <ClInclude Include="..\inc\ut\ut_debug.h" />
     <ClInclude Include="..\inc\ut\ut_files.h" />
     <ClInclude Include="..\inc\ut\ut_generics.h" />
@@ -35,7 +36,6 @@
     <ClInclude Include="..\inc\ut\ut_nls.h" />
     <ClInclude Include="..\inc\ut\ut_num.h" />
     <ClInclude Include="..\inc\ut\ut_processes.h" />
-    <ClInclude Include="..\inc\ut\ut_runtime.h" />
     <ClInclude Include="..\inc\ut\ut_static.h" />
     <ClInclude Include="..\inc\ut\ut_std.h" />
     <ClInclude Include="..\inc\ut\ut_str.h" />
@@ -53,10 +53,11 @@
   <ItemGroup>
     <ClCompile Include="..\src\ut\ut_args.c" />
     <ClCompile Include="..\src\ut\ut_atomics.c" />
-    <ClCompile Include="..\src\ut\ut_bt.c" />
+    <ClCompile Include="..\src\ut\ut_backtrace.c" />
     <ClCompile Include="..\src\ut\ut_clipboard.c" />
     <ClCompile Include="..\src\ut\ut_clock.c" />
     <ClCompile Include="..\src\ut\ut_config.c" />
+    <ClCompile Include="..\src\ut\ut_core.c" />
     <ClCompile Include="..\src\ut\ut_debug.c" />
     <ClCompile Include="..\src\ut\ut_files.c" />
     <ClCompile Include="..\src\ut\ut_generics.c" />
@@ -66,7 +67,6 @@
     <ClCompile Include="..\src\ut\ut_nls.c" />
     <ClCompile Include="..\src\ut\ut_num.c" />
     <ClCompile Include="..\src\ut\ut_processes.c" />
-    <ClCompile Include="..\src\ut\ut_runtime.c" />
     <ClCompile Include="..\src\ut\ut_static.c" />
     <ClCompile Include="..\src\ut\ut_str.c" />
     <ClCompile Include="..\src\ut\ut_streams.c" />

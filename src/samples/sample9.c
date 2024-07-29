@@ -42,8 +42,8 @@ static ui_label_t label_multiline = ui_label(19.0,
     "Click inside or +/- to zoom;\n"
     "right mouse click to zoom out;\n"
     "use touchpad or keyboard "
-    ut_glyph_leftwards_white_arrow ut_glyph_upwards_white_arrow
-    ut_glyph_downwards_white_arrow ut_glyph_rightwards_white_arrow
+    rt_glyph_leftwards_white_arrow rt_glyph_upwards_white_arrow
+    rt_glyph_downwards_white_arrow rt_glyph_rightwards_white_arrow
     " to pan");
 
 static ui_label_t about = ui_label(34.56f,
@@ -58,7 +58,7 @@ static ui_label_t about = ui_label(34.56f,
     "incorrect Simplified Chinese localization."
     "\n\n"
     "Press ESC or click the "
-    ut_glyph_multiplication_sign
+    rt_glyph_multiplication_sign
     " button in right top corner "
     "to dismiss this message or just wait - it will disappear by "
     "itself in 10 seconds.\n");
@@ -95,7 +95,7 @@ static const char* filter[] = {
 };
 
 static void open_file(ui_button_t* ut_unused(b)) {
-    const char* home = ut_files.known_folder(ut_files.folder.home);
+    const char* home = rt_files.known_folder(rt_files.folder.home);
     //  all files filer: null, 0
     const char* fn = ui_app.open_file(home, filter, ut_countof(filter));
     if (fn[0] != 0) {
@@ -116,16 +116,16 @@ static void flip_full_clicked(ui_button_t* b) {
 }
 
 static ui_button_t button_full_screen = ui_button(
-        ut_glyph_square_four_corners, 1, flip_full_clicked);
+        rt_glyph_square_four_corners, 1, flip_full_clicked);
 
 static void flip_locale(ui_button_t* b) {
     b->state.pressed = !b->state.pressed;
-    ut_fatal_if_error(ut_nls.set_locale(b->state.pressed ? "zh-CN" : "en-US"));
+    rt_fatal_if_error(ut_nls.set_locale(b->state.pressed ? "zh-CN" : "en-US"));
     ui_app.request_layout(); // because center panel layout changed
 }
 
 static ui_button_t button_locale = ui_button(
-    ut_glyph_kanji_onna_female "A", 1, flip_locale);
+    rt_glyph_kanji_onna_female "A", 1, flip_locale);
 
 static void about_clicked(ui_button_t* ut_unused(b)) {
     ui_app.show_toast(&about, 10.0);
@@ -196,13 +196,13 @@ static void panel_paint(ui_view_t* v) {
         ut_assert(v == &panel_center);
         ui_gdi.line(v->x, v->y, v->x, v->y + v->h, c);
     }
-    int32_t x = v->x + panel_border + ut_max(1, v->fm->em.w / 8);
-    int32_t y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);
+    int32_t x = v->x + panel_border + rt_max(1, v->fm->em.w / 8);
+    int32_t y = v->y + panel_border + rt_max(1, v->fm->em.h / 4);
     const int32_t radius = (v->fm->em.h / 4) | 0x1;
     ui_gdi.rounded(x, y, v->fm->em.w * 12, v->fm->em.h,
            radius,  v->color, ui_colors.transparent);
-    x = v->x + panel_border + ut_max(1, v->fm->em.w / 2);
-    y = v->y + panel_border + ut_max(1, v->fm->em.h / 4);
+    x = v->x + panel_border + rt_max(1, v->fm->em.w / 2);
+    y = v->y + panel_border + rt_max(1, v->fm->em.h / 4);
     ui_gdi.text(ta, x, y, "%d,%d %dx%d %s",
                      v->x, v->y, v->w, v->h, ui_view.string(v));
 }
@@ -285,8 +285,8 @@ static void center_paint(ui_view_t* view) {
 
 static void measure(ui_view_t* v) {
     v->fm = &ui_app.fm.mono.normal;
-    panel_border = ut_max(1, v->fm->em.h / 4);
-    frame_border = ut_max(1, v->fm->em.h / 8);
+    panel_border = rt_max(1, v->fm->em.h / 4);
+    frame_border = rt_max(1, v->fm->em.h / 8);
     ut_assert(panel_border > 0 && frame_border > 0);
     const int32_t w = ui_app.root->w;
     const int32_t h = ui_app.root->h;
@@ -383,7 +383,7 @@ static void character(ui_view_t* view, const char* utf8) {
     } else if (ch == '+' || ch == '=') {
         zoom /= 2; refresh();
     } else if (ch == '-' || ch == '_') {
-        zoom = ut_min(zoom * 2, 1.0); refresh();
+        zoom = rt_min(zoom * 2, 1.0); refresh();
     } else if (ch == '<' || ch == ',') {
         ui_point_t pt = {+image.w / 8, 0};
         mouse_scroll(view, pt);
@@ -391,7 +391,7 @@ static void character(ui_view_t* view, const char* utf8) {
         ui_point_t pt = {-image.w / 8, 0};
         mouse_scroll(view, pt);
     } else if (ch == 3) { // Ctrl+C
-        ut_clipboard.put_image(&image);
+        rt_clipboard.put_image(&image);
     }
 }
 
@@ -534,7 +534,7 @@ static void refresh(void) {
     zoomer.value = 0;
     fp64_t z = 1;
     while (z != zoom) { zoomer.value++; z /= 2; }
-    zoomer.value = ut_min(zoomer.value, zoomer.value_max);
+    zoomer.value = rt_min(zoomer.value, zoomer.value_max);
     mandelbrot(&image);
     ui_app.request_redraw();
 }

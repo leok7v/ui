@@ -252,7 +252,7 @@ typedef struct {
     // On Unix it is responsibility of the main() to assign these values
     int32_t c;      // argc
     const char** v; // argv[argc]
-    const char** env; // ut_args.env[] is null-terminated
+    const char** env; // rt_args.env[] is null-terminated
     void    (*main)(int32_t argc, const char* argv[], const char** env);
     void    (*WinMain)(void); // windows specific
     int32_t (*option_index)(const char* option); // e.g. option: "--verbosity" or "-v"
@@ -271,9 +271,9 @@ typedef struct {
     const char* (*basename)(void);
     void (*fini)(void);
     void (*test)(void);
-} ut_args_if;
+} rt_args_if;
 
-extern ut_args_if ut_args;
+extern rt_args_if rt_args;
 
 /* Usage:
 
@@ -282,9 +282,9 @@ extern ut_args_if ut_args;
     static int run(void);
 
     int main(int argc, char* argv[], char* envp[]) { // link.exe /SUBSYSTEM:CONSOLE
-        ut_args.main(argc, argv, envp); // Initialize args with command-line parameters
+        rt_args.main(argc, argv, envp); // Initialize args with command-line parameters
         int r = run();
-        ut_args.fini();
+        rt_args.fini();
         return r;
     }
 
@@ -292,28 +292,28 @@ extern ut_args_if ut_args;
 
     int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prev, char* command, int show) {
         // link.exe /SUBSYSTEM:WINDOWS
-        ut_args.WinMain();
+        rt_args.WinMain();
         int r = run();
-        ut_args.fini();
+        rt_args.fini();
         return 0;
     }
 
     static int run(void) {
-        if (ut_args.option_bool("-v")) {
-            ut_debug.verbosity.level = ut_debug.verbosity.verbose;
+        if (rt_args.option_bool("-v")) {
+            rt_debug.verbosity.level = rt_debug.verbosity.verbose;
         }
         int64_t num = 0;
-        if (ut_args.option_int("--number", &num)) {
+        if (rt_args.option_int("--number", &num)) {
             printf("--number: %ld\n", num);
         }
-        const char* path = ut_args.option_str("--path");
+        const char* path = rt_args.option_str("--path");
         if (path != null) {
             printf("--path: %s\n", path);
         }
-        printf("ut_args.basename(): %s\n", ut_args.basename());
-        printf("ut_args.v[0]: %s\n", ut_args.v[0]);
-        for (int i = 1; i < ut_args.c; i++) {
-            printf("ut_args.v[%d]: %s\n", i, ut_args.v[i]);
+        printf("rt_args.basename(): %s\n", rt_args.basename());
+        printf("rt_args.v[0]: %s\n", rt_args.v[0]);
+        for (int i = 1; i < rt_args.c; i++) {
+            printf("rt_args.v[%d]: %s\n", i, rt_args.v[i]);
         }
         return 0;
     }
@@ -324,30 +324,30 @@ extern ut_args_if ut_args;
 
 ut_end_c
 
-// _________________________________ ut_bt.h __________________________________
+// ______________________________ ut_backtrace.h ______________________________
 
 // "bt" stands for Stack Back Trace (not British Telecom)
 
 ut_begin_c
 
-enum { ut_bt_max_depth = 32 };    // increase if not enough
-enum { ut_bt_max_symbol = 1024 }; // MSFT symbol size limit
+enum { rt_backtrace_max_depth = 32 };    // increase if not enough
+enum { rt_backtrace_max_symbol = 1024 }; // MSFT symbol size limit
 
 typedef struct thread_s* ut_thread_t;
 
-typedef char ut_bt_symbol_t[ut_bt_max_symbol];
-typedef char ut_bt_file_t[512];
+typedef char rt_backtrace_symbol_t[rt_backtrace_max_symbol];
+typedef char rt_backtrace_file_t[512];
 
-typedef struct ut_bt_s {
+typedef struct rt_backtrace_s {
     int32_t frames; // 0 if capture() failed
     uint32_t hash;
     errno_t  error; // last error set by capture() or symbolize()
-    void* stack[ut_bt_max_depth];
-    ut_bt_symbol_t symbol[ut_bt_max_depth];
-    ut_bt_file_t file[ut_bt_max_depth];
-    int32_t line[ut_bt_max_depth];
+    void* stack[rt_backtrace_max_depth];
+    rt_backtrace_symbol_t symbol[rt_backtrace_max_depth];
+    rt_backtrace_file_t file[rt_backtrace_max_depth];
+    int32_t line[rt_backtrace_max_depth];
     bool symbolized;
-} ut_bt_t;
+} rt_backtrace_t;
 
 //  calling .trace(bt, /*stop:*/"*")
 //  stops backtrace dumping at any of the known Microsoft runtime
@@ -363,24 +363,24 @@ typedef struct ut_bt_s {
 // provides complete backtrace to the bottom of stack
 
 typedef struct {
-    void (*capture)(ut_bt_t *bt, int32_t skip); // number of frames to skip
-    void (*context)(ut_thread_t thread, const void* context, ut_bt_t *bt);
-    void (*symbolize)(ut_bt_t *bt);
+    void (*capture)(rt_backtrace_t *bt, int32_t skip); // number of frames to skip
+    void (*context)(ut_thread_t thread, const void* context, rt_backtrace_t *bt);
+    void (*symbolize)(rt_backtrace_t *bt);
     // dump backtrace into ut_println():
-    void (*trace)(const ut_bt_t* bt, const char* stop);
+    void (*trace)(const rt_backtrace_t* bt, const char* stop);
     void (*trace_self)(const char* stop);
     void (*trace_all_but_self)(void); // trace all threads
-    const char* (*string)(const ut_bt_t* bt, char* text, int32_t count);
+    const char* (*string)(const rt_backtrace_t* bt, char* text, int32_t count);
     void (*test)(void);
-} ut_bt_if;
+} rt_backtrace_if;
 
-extern ut_bt_if ut_bt;
+extern rt_backtrace_if rt_backtrace;
 
-#define ut_bt_here() do {   \
-    ut_bt_t bt_ = {0};      \
-    ut_bt.capture(&bt_, 0); \
-    ut_bt.symbolize(&bt_);  \
-    ut_bt.trace(&bt_, "*"); \
+#define rt_backtrace_here() do {   \
+    rt_backtrace_t bt_ = {0};      \
+    rt_backtrace.capture(&bt_, 0); \
+    rt_backtrace.symbolize(&bt_);  \
+    rt_backtrace.trace(&bt_, "*"); \
 } while (0)
 
 ut_end_c
@@ -416,9 +416,9 @@ typedef struct {
     int64_t (*load64)(volatile int64_t* a);
     void (*memory_fence)(void);
     void (*test)(void);
-} ut_atomics_if;
+} rt_atomics_if;
 
-extern ut_atomics_if ut_atomics;
+extern rt_atomics_if rt_atomics;
 
 ut_end_c
 
@@ -433,9 +433,9 @@ typedef struct {
     errno_t (*get_text)(char* text, int32_t* bytes);
     errno_t (*put_image)(ui_image_t* image); // only for Windows apps
     void (*test)(void);
-} ut_clipboard_if;
+} rt_clipboard_if;
 
-extern ut_clipboard_if ut_clipboard;
+extern rt_clipboard_if rt_clipboard;
 
 ut_end_c
 
@@ -463,9 +463,9 @@ typedef struct {
         int32_t* day, int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms,
         int32_t* mc);
     void (*test)(void);
-} ut_clock_if;
+} rt_clock_if;
 
-extern ut_clock_if ut_clock;
+extern rt_clock_if rt_clock;
 
 ut_end_c
 
@@ -478,7 +478,7 @@ ut_begin_c
 // related to specific application.
 // on Unix-like system ~/.name/key files are used.
 // On Window User registry (could be .dot files/folders).
-// "name" is customary basename of "ut_args.v[0]"
+// "name" is customary basename of "rt_args.v[0]"
 
 typedef struct {
     errno_t (*save)(const char* name, const char* key,
@@ -490,9 +490,9 @@ typedef struct {
     errno_t (*remove)(const char* name, const char* key);
     errno_t (*clean)(const char* name); // remove all subkeys
     void (*test)(void);
-} ut_config_if;
+} rt_config_if;
 
-extern ut_config_if ut_config;
+extern rt_config_if rt_config;
 
 ut_end_c
 
@@ -517,10 +517,10 @@ typedef struct {
     int32_t const verbose;  // 2 detailed diagnostic
     int32_t const debug;    // 3 including debug messages
     int32_t const trace;    // 4 everything (may include nested calls)
-} ut_verbosity_if;
+} rt_verbosity_if;
 
 typedef struct {
-    ut_verbosity_if verbosity;
+    rt_verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
     // "T" connector for outside write; return false to proceed with default
     bool (*tee)(const char* s, int32_t count); // return true to intercept
@@ -562,11 +562,11 @@ typedef struct {
         uint32_t const possible_deadlock;
     } exception;
     void (*test)(void);
-} ut_debug_if;
+} rt_debug_if;
 
-#define ut_println(...) ut_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
+#define ut_println(...) rt_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
-extern ut_debug_if ut_debug;
+extern rt_debug_if rt_debug;
 
 ut_end_c
 
@@ -577,25 +577,25 @@ ut_begin_c
 // space for "short" 260 utf-16 characters filename in utf-8 format:
 typedef struct ut_file_name_s { char s[1024]; } ut_file_name_t;
 
-enum { ut_files_max_path = (int32_t)sizeof(ut_file_name_t) }; // *)
+enum { rt_files_max_path = (int32_t)sizeof(ut_file_name_t) }; // *)
 
 typedef struct ut_file_s ut_file_t;
 
-typedef struct ut_files_stat_s {
+typedef struct rt_files_stat_s {
     uint64_t created;
     uint64_t accessed;
     uint64_t updated;
     int64_t  size; // bytes
     int64_t  type; // device / folder / symlink
-} ut_files_stat_t;
+} rt_files_stat_t;
 
-typedef struct ut_folder_s {
+typedef struct rt_folder_s {
     uint8_t data[512]; // implementation specific
-} ut_folder_t;
+} rt_folder_t;
 
 typedef struct {
     ut_file_t* const invalid; // (ut_file_t*)-1
-    // ut_files_stat_t.type:
+    // rt_files_stat_t.type:
     int32_t const type_folder;
     int32_t const type_symlink;
     int32_t const type_device;
@@ -628,7 +628,7 @@ typedef struct {
     errno_t (*open)(ut_file_t* *file, const char* filename, int32_t flags);
     bool    (*is_valid)(ut_file_t* file); // checks both null and invalid
     errno_t (*seek)(ut_file_t* file, int64_t *position, int32_t method);
-    errno_t (*stat)(ut_file_t* file, ut_files_stat_t* stat, bool follow_symlink);
+    errno_t (*stat)(ut_file_t* file, rt_files_stat_t* stat, bool follow_symlink);
     errno_t (*read)(ut_file_t* file, void* data, int64_t bytes, int64_t *transferred);
     errno_t (*write)(ut_file_t* file, const void* data, int64_t bytes, int64_t *transferred);
     errno_t (*flush)(ut_file_t* file);
@@ -657,13 +657,13 @@ typedef struct {
     // There are better, native, higher performance ways to iterate thru
     // folders in Posix, Linux and Windows. The following is minimalistic
     // approach to folder content reading:
-    errno_t (*opendir)(ut_folder_t* folder, const char* folder_name);
-    const char* (*readdir)(ut_folder_t* folder, ut_files_stat_t* optional);
-    void (*closedir)(ut_folder_t* folder);
+    errno_t (*opendir)(rt_folder_t* folder, const char* folder_name);
+    const char* (*readdir)(rt_folder_t* folder, rt_files_stat_t* optional);
+    void (*closedir)(rt_folder_t* folder);
     void (*test)(void);
-} ut_files_if;
+} rt_files_if;
 
-// *) ut_files_max_path is a compromise - way longer than Windows MAX_PATH of 260
+// *) rt_files_max_path is a compromise - way longer than Windows MAX_PATH of 260
 // and somewhat shorter than 32 * 1024 Windows long path.
 // Use with caution understanding that it is a limitation and where it is
 // important heap may and should be used. Do not to rely on thread stack size
@@ -672,7 +672,7 @@ typedef struct {
 // **) symlink on Win32 is only allowed in Admin elevated
 //     processes and in Developer mode.
 
-extern ut_files_if ut_files;
+extern rt_files_if rt_files;
 
 ut_end_c
 
@@ -689,71 +689,71 @@ ut_begin_c
 // Type safety comes with the cost of complexity in puritan
 // or stoic language like C:
 
-static inline int8_t   ut_max_int8(int8_t x, int8_t y)       { return x > y ? x : y; }
-static inline int16_t  ut_max_int16(int16_t x, int16_t y)    { return x > y ? x : y; }
-static inline int32_t  ut_max_int32(int32_t x, int32_t y)    { return x > y ? x : y; }
-static inline int64_t  ut_max_int64(int64_t x, int64_t y)    { return x > y ? x : y; }
-static inline uint8_t  ut_max_uint8(uint8_t x, uint8_t y)    { return x > y ? x : y; }
-static inline uint16_t ut_max_uint16(uint16_t x, uint16_t y) { return x > y ? x : y; }
-static inline uint32_t ut_max_uint32(uint32_t x, uint32_t y) { return x > y ? x : y; }
-static inline uint64_t ut_max_uint64(uint64_t x, uint64_t y) { return x > y ? x : y; }
-static inline fp32_t   ut_max_fp32(fp32_t x, fp32_t y)       { return x > y ? x : y; }
-static inline fp64_t   ut_max_fp64(fp64_t x, fp64_t y)       { return x > y ? x : y; }
+static inline int8_t   rt_max_int8(int8_t x, int8_t y)       { return x > y ? x : y; }
+static inline int16_t  rt_max_int16(int16_t x, int16_t y)    { return x > y ? x : y; }
+static inline int32_t  rt_max_int32(int32_t x, int32_t y)    { return x > y ? x : y; }
+static inline int64_t  rt_max_int64(int64_t x, int64_t y)    { return x > y ? x : y; }
+static inline uint8_t  rt_max_uint8(uint8_t x, uint8_t y)    { return x > y ? x : y; }
+static inline uint16_t rt_max_uint16(uint16_t x, uint16_t y) { return x > y ? x : y; }
+static inline uint32_t rt_max_uint32(uint32_t x, uint32_t y) { return x > y ? x : y; }
+static inline uint64_t rt_max_uint64(uint64_t x, uint64_t y) { return x > y ? x : y; }
+static inline fp32_t   rt_max_fp32(fp32_t x, fp32_t y)       { return x > y ? x : y; }
+static inline fp64_t   rt_max_fp64(fp64_t x, fp64_t y)       { return x > y ? x : y; }
 
 // MS cl.exe version 19.39.33523 has issues with "long":
 // does not pick up int32_t/uint32_t types for "long" and "unsigned long"
 // need to handle long / unsigned long separately:
 
-static inline long          ut_max_long(long x, long y)                    { return x > y ? x : y; }
-static inline unsigned long ut_max_ulong(unsigned long x, unsigned long y) { return x > y ? x : y; }
+static inline long          rt_max_long(long x, long y)                    { return x > y ? x : y; }
+static inline unsigned long rt_max_ulong(unsigned long x, unsigned long y) { return x > y ? x : y; }
 
-static inline int8_t   ut_min_int8(int8_t x, int8_t y)       { return x < y ? x : y; }
-static inline int16_t  ut_min_int16(int16_t x, int16_t y)    { return x < y ? x : y; }
-static inline int32_t  ut_min_int32(int32_t x, int32_t y)    { return x < y ? x : y; }
-static inline int64_t  ut_min_int64(int64_t x, int64_t y)    { return x < y ? x : y; }
-static inline uint8_t  ut_min_uint8(uint8_t x, uint8_t y)    { return x < y ? x : y; }
-static inline uint16_t ut_min_uint16(uint16_t x, uint16_t y) { return x < y ? x : y; }
-static inline uint32_t ut_min_uint32(uint32_t x, uint32_t y) { return x < y ? x : y; }
-static inline uint64_t ut_min_uint64(uint64_t x, uint64_t y) { return x < y ? x : y; }
-static inline fp32_t   ut_min_fp32(fp32_t x, fp32_t y)       { return x < y ? x : y; }
-static inline fp64_t   ut_min_fp64(fp64_t x, fp64_t y)       { return x < y ? x : y; }
+static inline int8_t   rt_min_int8(int8_t x, int8_t y)       { return x < y ? x : y; }
+static inline int16_t  rt_min_int16(int16_t x, int16_t y)    { return x < y ? x : y; }
+static inline int32_t  rt_min_int32(int32_t x, int32_t y)    { return x < y ? x : y; }
+static inline int64_t  rt_min_int64(int64_t x, int64_t y)    { return x < y ? x : y; }
+static inline uint8_t  rt_min_uint8(uint8_t x, uint8_t y)    { return x < y ? x : y; }
+static inline uint16_t rt_min_uint16(uint16_t x, uint16_t y) { return x < y ? x : y; }
+static inline uint32_t rt_min_uint32(uint32_t x, uint32_t y) { return x < y ? x : y; }
+static inline uint64_t rt_min_uint64(uint64_t x, uint64_t y) { return x < y ? x : y; }
+static inline fp32_t   rt_min_fp32(fp32_t x, fp32_t y)       { return x < y ? x : y; }
+static inline fp64_t   rt_min_fp64(fp64_t x, fp64_t y)       { return x < y ? x : y; }
 
-static inline long          ut_min_long(long x, long y)                    { return x < y ? x : y; }
-static inline unsigned long ut_min_ulong(unsigned long x, unsigned long y) { return x < y ? x : y; }
+static inline long          rt_min_long(long x, long y)                    { return x < y ? x : y; }
+static inline unsigned long rt_min_ulong(unsigned long x, unsigned long y) { return x < y ? x : y; }
 
 
-static inline void ut_min_undefined(void) { }
-static inline void ut_max_undefined(void) { }
+static inline void rt_min_undefined(void) { }
+static inline void rt_max_undefined(void) { }
 
-#define ut_max(X, Y) _Generic((X) + (Y), \
-    int8_t:   ut_max_int8,   \
-    int16_t:  ut_max_int16,  \
-    int32_t:  ut_max_int32,  \
-    int64_t:  ut_max_int64,  \
-    uint8_t:  ut_max_uint8,  \
-    uint16_t: ut_max_uint16, \
-    uint32_t: ut_max_uint32, \
-    uint64_t: ut_max_uint64, \
-    fp32_t:   ut_max_fp32,   \
-    fp64_t:   ut_max_fp64,   \
-    long:     ut_max_long,   \
-    unsigned long: ut_max_ulong, \
-    default:  ut_max_undefined)(X, Y)
+#define rt_max(X, Y) _Generic((X) + (Y), \
+    int8_t:   rt_max_int8,   \
+    int16_t:  rt_max_int16,  \
+    int32_t:  rt_max_int32,  \
+    int64_t:  rt_max_int64,  \
+    uint8_t:  rt_max_uint8,  \
+    uint16_t: rt_max_uint16, \
+    uint32_t: rt_max_uint32, \
+    uint64_t: rt_max_uint64, \
+    fp32_t:   rt_max_fp32,   \
+    fp64_t:   rt_max_fp64,   \
+    long:     rt_max_long,   \
+    unsigned long: rt_max_ulong, \
+    default:  rt_max_undefined)(X, Y)
 
-#define ut_min(X, Y) _Generic((X) + (Y), \
-    int8_t:   ut_min_int8,   \
-    int16_t:  ut_min_int16,  \
-    int32_t:  ut_min_int32,  \
-    int64_t:  ut_min_int64,  \
-    uint8_t:  ut_min_uint8,  \
-    uint16_t: ut_min_uint16, \
-    uint32_t: ut_min_uint32, \
-    uint64_t: ut_min_uint64, \
-    fp32_t:   ut_min_fp32,   \
-    fp64_t:   ut_min_fp64,   \
-    long:     ut_min_long,   \
-    unsigned long: ut_min_ulong, \
-    default:  ut_min_undefined)(X, Y)
+#define rt_min(X, Y) _Generic((X) + (Y), \
+    int8_t:   rt_min_int8,   \
+    int16_t:  rt_min_int16,  \
+    int32_t:  rt_min_int32,  \
+    int64_t:  rt_min_int64,  \
+    uint8_t:  rt_min_uint8,  \
+    uint16_t: rt_min_uint16, \
+    uint32_t: rt_min_uint32, \
+    uint64_t: rt_min_uint64, \
+    fp32_t:   rt_min_fp32,   \
+    fp64_t:   rt_min_fp64,   \
+    long:     rt_min_long,   \
+    unsigned long: rt_min_ulong, \
+    default:  rt_min_undefined)(X, Y)
 
 // The expression (X) + (Y) is used in _Generic primarily for type promotion
 // and compatibility between different types of the two operands. In C, when
@@ -773,576 +773,576 @@ static inline void ut_max_undefined(void) { }
 
 typedef struct {
     void (*test)(void);
-} ut_generics_if;
+} rt_generics_if;
 
-extern ut_generics_if ut_generics;
+extern rt_generics_if rt_generics;
 
 ut_end_c
 
 // _______________________________ ut_glyphs.h ________________________________
 
 // Square Four Corners https://www.compart.com/en/unicode/U+26F6
-#define ut_glyph_square_four_corners                    "\xE2\x9B\xB6"
+#define rt_glyph_square_four_corners                    "\xE2\x9B\xB6"
 
 // Circled Cross Formee
 // https://codepoints.net/U+1F902
-#define ut_glyph_circled_cross_formee                   "\xF0\x9F\xA4\x82"
+#define rt_glyph_circled_cross_formee                   "\xF0\x9F\xA4\x82"
 
 // White Large Square https://www.compart.com/en/unicode/U+2B1C
-#define ut_glyph_white_large_square                     "\xE2\xAC\x9C"
+#define rt_glyph_white_large_square                     "\xE2\xAC\x9C"
 
 // N-Ary Times Operator https://www.compart.com/en/unicode/U+2A09
-#define ut_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
+#define rt_glyph_n_ary_times_operator                   "\xE2\xA8\x89"
 
 // Heavy Minus Sign https://www.compart.com/en/unicode/U+2796
-#define ut_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
+#define rt_glyph_heavy_minus_sign                       "\xE2\x9E\x96"
 
 // Heavy Plus Sign https://www.compart.com/en/unicode/U+2795
-#define ut_glyph_heavy_plus_sign                        "\xE2\x9E\x95"
+#define rt_glyph_heavy_plus_sign                        "\xE2\x9E\x95"
 
 // Clockwise Rightwards and Leftwards Open Circle Arrows with Circled One Overlay
 // https://www.compart.com/en/unicode/U+1F502
-// ut_glyph_clockwise_rightwards_and_leftwards_open_circle_arrows_with_circled_one_overlay...
-#define ut_glyph_open_circle_arrows_one_overlay         "\xF0\x9F\x94\x82"
+// rt_glyph_clockwise_rightwards_and_leftwards_open_circle_arrows_with_circled_one_overlay...
+#define rt_glyph_open_circle_arrows_one_overlay         "\xF0\x9F\x94\x82"
 
 // Halfwidth Katakana-Hiragana Prolonged Sound Mark https://www.compart.com/en/unicode/U+FF70
-#define ut_glyph_prolonged_sound_mark                   "\xEF\xBD\xB0"
+#define rt_glyph_prolonged_sound_mark                   "\xEF\xBD\xB0"
 
 // Fullwidth Plus Sign https://www.compart.com/en/unicode/U+FF0B
-#define ut_glyph_fullwidth_plus_sign                    "\xEF\xBC\x8B"
+#define rt_glyph_fullwidth_plus_sign                    "\xEF\xBC\x8B"
 
 // Fullwidth Hyphen-Minus https://www.compart.com/en/unicode/U+FF0D
-#define ut_glyph_fullwidth_hyphen_minus                "\xEF\xBC\x8D"
+#define rt_glyph_fullwidth_hyphen_minus                 "\xEF\xBC\x8D"
 
 
 // Heavy Multiplication X https://www.compart.com/en/unicode/U+2716
-#define ut_glyph_heavy_multiplication_x                 "\xE2\x9C\x96"
+#define rt_glyph_heavy_multiplication_x                 "\xE2\x9C\x96"
 
 // Multiplication Sign https://www.compart.com/en/unicode/U+00D7
-#define ut_glyph_multiplication_sign                    "\xC3\x97"
+#define rt_glyph_multiplication_sign                    "\xC3\x97"
 
 // Trigram For Heaven (caption menu button) https://www.compart.com/en/unicode/U+2630
-#define ut_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
+#define rt_glyph_trigram_for_heaven                     "\xE2\x98\xB0"
 
 // (tool bar drag handle like: msvc toolbars)
 // Braille Pattern Dots-12345678  https://www.compart.com/en/unicode/U+28FF
-#define ut_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
+#define rt_glyph_braille_pattern_dots_12345678          "\xE2\xA3\xBF"
 
 // White Square Containing Black Medium Square
 // https://compart.com/en/unicode/U+1F795
-#define ut_glyph_white_square_containing_black_medium_square "\xF0\x9F\x9E\x95"
+#define rt_glyph_white_square_containing_black_medium_square "\xF0\x9F\x9E\x95"
 
 // White Medium Square
 // https://compart.com/en/unicode/U+25FB
-#define ut_glyph_white_medium_square                   "\xE2\x97\xBB"
+#define rt_glyph_white_medium_square                   "\xE2\x97\xBB"
 
 // White Square with Upper Right Quadrant
 // https://compart.com/en/unicode/U+25F3
-#define ut_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
+#define rt_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
 
 // White Square with Upper Left Quadrant https://www.compart.com/en/unicode/U+25F0
-#define ut_glyph_white_square_with_upper_left_quadrant "\xE2\x97\xB0"
+#define rt_glyph_white_square_with_upper_left_quadrant "\xE2\x97\xB0"
 
 // White Square with Lower Left Quadrant https://www.compart.com/en/unicode/U+25F1
-#define ut_glyph_white_square_with_lower_left_quadrant "\xE2\x97\xB1"
+#define rt_glyph_white_square_with_lower_left_quadrant "\xE2\x97\xB1"
 
 // White Square with Lower Right Quadrant https://www.compart.com/en/unicode/U+25F2
-#define ut_glyph_white_square_with_lower_right_quadrant "\xE2\x97\xB2"
+#define rt_glyph_white_square_with_lower_right_quadrant "\xE2\x97\xB2"
 
 // White Square with Upper Right Quadrant https://www.compart.com/en/unicode/U+25F3
-#define ut_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
+#define rt_glyph_white_square_with_upper_right_quadrant "\xE2\x97\xB3"
 
 // White Square with Vertical Bisecting Line https://www.compart.com/en/unicode/U+25EB
-#define ut_glyph_white_square_with_vertical_bisecting_line "\xE2\x97\xAB"
+#define rt_glyph_white_square_with_vertical_bisecting_line "\xE2\x97\xAB"
 
 // (White Square with Horizontal Bisecting Line)
 // Squared Minus https://www.compart.com/en/unicode/U+229F
-#define ut_glyph_squared_minus                          "\xE2\x8A\x9F"
+#define rt_glyph_squared_minus                          "\xE2\x8A\x9F"
 
 // North East and South West Arrow https://www.compart.com/en/unicode/U+2922
-#define ut_glyph_north_east_and_south_west_arrow        "\xE2\xA4\xA2"
+#define rt_glyph_north_east_and_south_west_arrow        "\xE2\xA4\xA2"
 
 // South East Arrow to Corner https://www.compart.com/en/unicode/U+21F2
-#define ut_glyph_south_east_white_arrow_to_corner       "\xE2\x87\xB2"
+#define rt_glyph_south_east_white_arrow_to_corner       "\xE2\x87\xB2"
 
 // North West Arrow to Corner https://www.compart.com/en/unicode/U+21F1
-#define ut_glyph_north_west_white_arrow_to_corner       "\xE2\x87\xB1"
+#define rt_glyph_north_west_white_arrow_to_corner       "\xE2\x87\xB1"
 
 // Leftwards Arrow to Bar https://www.compart.com/en/unicode/U+21E6
-#define ut_glyph_leftwards_white_arrow_to_bar           "\xE2\x87\xA6"
+#define rt_glyph_leftwards_white_arrow_to_bar           "\xE2\x87\xA6"
 
 // Rightwards Arrow to Bar https://www.compart.com/en/unicode/U+21E8
-#define ut_glyph_rightwards_white_arrow_to_bar          "\xE2\x87\xA8"
+#define rt_glyph_rightwards_white_arrow_to_bar          "\xE2\x87\xA8"
 
 // Upwards White Arrow https://www.compart.com/en/unicode/U+21E7
-#define ut_glyph_upwards_white_arrow                    "\xE2\x87\xA7"
+#define rt_glyph_upwards_white_arrow                    "\xE2\x87\xA7"
 
 // Downwards White Arrow https://www.compart.com/en/unicode/U+21E9
-#define ut_glyph_downwards_white_arrow                  "\xE2\x87\xA9"
+#define rt_glyph_downwards_white_arrow                  "\xE2\x87\xA9"
 
 // Leftwards White Arrow https://www.compart.com/en/unicode/U+21E4
-#define ut_glyph_leftwards_white_arrow                  "\xE2\x87\xA4"
+#define rt_glyph_leftwards_white_arrow                  "\xE2\x87\xA4"
 
 // Rightwards White Arrow https://www.compart.com/en/unicode/U+21E5
-#define ut_glyph_rightwards_white_arrow                 "\xE2\x87\xA5"
+#define rt_glyph_rightwards_white_arrow                 "\xE2\x87\xA5"
 
 // Upwards White Arrow on Pedestal https://www.compart.com/en/unicode/U+21EB
-#define ut_glyph_upwards_white_arrow_on_pedestal        "\xE2\x87\xAB"
+#define rt_glyph_upwards_white_arrow_on_pedestal        "\xE2\x87\xAB"
 
 // Braille Pattern Dots-678 https://www.compart.com/en/unicode/U+28E0
-#define ut_glyph_3_dots_tiny_right_bottom_triangle      "\xE2\xA3\xA0"
+#define rt_glyph_3_dots_tiny_right_bottom_triangle      "\xE2\xA3\xA0"
 
 // Braille Pattern Dots-2345678 https://www.compart.com/en/unicode/U+28FE
 // Combining the two into:
-#define ut_glyph_dotted_right_bottom_triangle           "\xE2\xA3\xA0\xE2\xA3\xBE"
+#define rt_glyph_dotted_right_bottom_triangle           "\xE2\xA3\xA0\xE2\xA3\xBE"
 
 // Upper Right Drop-Shadowed White Square https://www.compart.com/en/unicode/U+2750
-#define ut_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
+#define rt_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
 
 // No-Break Space (NBSP)
 // https://www.compart.com/en/unicode/U+00A0
-#define ut_glyph_nbsp                                   "\xC2\xA0"
+#define rt_glyph_nbsp                                   "\xC2\xA0"
 
 // Word Joiner (WJ)
 // https://compart.com/en/unicode/U+2060
-#define ut_glyph_word_joiner                            "\xE2\x81\xA0"
+#define rt_glyph_word_joiner                            "\xE2\x81\xA0"
 
 // Zero Width Space (ZWSP)
 // https://compart.com/en/unicode/U+200B
-#define ut_glyph_zwsp                                  "\xE2\x80\x8B"
+#define rt_glyph_zwsp                                   "\xE2\x80\x8B"
 
 // Zero Width Joiner (ZWJ)
 // https://compart.com/en/unicode/u+200D
-#define ut_glyph_zwj                                   "\xE2\x80\x8D"
+#define rt_glyph_zwj                                    "\xE2\x80\x8D"
 
 // En Quad
 // https://compart.com/en/unicode/U+2000
-#define ut_glyph_en_quad "\xE2\x80\x80"
+#define rt_glyph_en_quad "\xE2\x80\x80"
 
 // Em Quad
 // https://compart.com/en/unicode/U+2001
-#define ut_glyph_em_quad "\xE2\x80\x81"
+#define rt_glyph_em_quad "\xE2\x80\x81"
 
 // En Space
 // https://compart.com/en/unicode/U+2002
-#define ut_glyph_en_space "\xE2\x80\x82"
+#define rt_glyph_en_space "\xE2\x80\x82"
 
 // Em Space
 // https://compart.com/en/unicode/U+2003
-#define ut_glyph_em_space "\xE2\x80\x83"
+#define rt_glyph_em_space "\xE2\x80\x83"
 
 // Hyphen https://www.compart.com/en/unicode/U+2010
-#define ut_glyph_hyphen                                "\xE2\x80\x90"
+#define rt_glyph_hyphen                                "\xE2\x80\x90"
 
 // Non-Breaking Hyphen https://www.compart.com/en/unicode/U+2011
-#define ut_glyph_non_breaking_hyphen                   "\xE2\x80\x91"
+#define rt_glyph_non_breaking_hyphen                   "\xE2\x80\x91"
 
 // Fullwidth Low Line https://www.compart.com/en/unicode/U+FF3F
-#define ut_glyph_fullwidth_low_line                    "\xEF\xBC\xBF"
+#define rt_glyph_fullwidth_low_line                    "\xEF\xBC\xBF"
 
-// #define ut_glyph_light_horizontal                     "\xE2\x94\x80"
+// #define rt_glyph_light_horizontal                     "\xE2\x94\x80"
 // Light Horizontal https://www.compart.com/en/unicode/U+2500
-#define ut_glyph_light_horizontal                     "\xE2\x94\x80"
+#define rt_glyph_light_horizontal                     "\xE2\x94\x80"
 
 // Three-Em Dash https://www.compart.com/en/unicode/U+2E3B
-#define ut_glyph_three_em_dash                         "\xE2\xB8\xBB"
+#define rt_glyph_three_em_dash                         "\xE2\xB8\xBB"
 
 // Infinity https://www.compart.com/en/unicode/U+221E
-#define ut_glyph_infinity                              "\xE2\x88\x9E"
+#define rt_glyph_infinity                              "\xE2\x88\x9E"
 
 // Black Large Circle https://www.compart.com/en/unicode/U+2B24
-#define ut_glyph_black_large_circle                    "\xE2\xAC\xA4"
+#define rt_glyph_black_large_circle                    "\xE2\xAC\xA4"
 
 // Large Circle https://www.compart.com/en/unicode/U+25EF
-#define ut_glyph_large_circle                          "\xE2\x97\xAF"
+#define rt_glyph_large_circle                          "\xE2\x97\xAF"
 
 // Heavy Leftwards Arrow with Equilateral Arrowhead https://www.compart.com/en/unicode/U+1F818
-#define ut_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead           "\xF0\x9F\xA0\x98"
+#define rt_glyph_heavy_leftwards_arrow_with_equilateral_arrowhead           "\xF0\x9F\xA0\x98"
 
 // Heavy Rightwards Arrow with Equilateral Arrowhead https://www.compart.com/en/unicode/U+1F81A
-#define ut_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead          "\xF0\x9F\xA0\x9A"
+#define rt_glyph_heavy_rightwards_arrow_with_equilateral_arrowhead          "\xF0\x9F\xA0\x9A"
 
 // Heavy Leftwards Arrow with Large Equilateral Arrowhead https://www.compart.com/en/unicode/U+1F81C
-#define ut_glyph_heavy_leftwards_arrow_with_large_equilateral_arrowhead     "\xF0\x9F\xA0\x9C"
+#define rt_glyph_heavy_leftwards_arrow_with_large_equilateral_arrowhead     "\xF0\x9F\xA0\x9C"
 
 // Heavy Rightwards Arrow with Large Equilateral Arrowhead https://www.compart.com/en/unicode/U+1F81E
-#define ut_glyph_heavy_rightwards_arrow_with_large_equilateral_arrowhead    "\xF0\x9F\xA0\x9E"
+#define rt_glyph_heavy_rightwards_arrow_with_large_equilateral_arrowhead    "\xF0\x9F\xA0\x9E"
 
 // CJK Unified Ideograph-5973: Kanji Onna "Female" https://www.compart.com/en/unicode/U+5973
-#define ut_glyph_kanji_onna_female                                          "\xE2\xBC\xA5"
+#define rt_glyph_kanji_onna_female                                          "\xE2\xBC\xA5"
 
 // Leftwards Arrow https://www.compart.com/en/unicode/U+2190
-#define ut_glyph_leftward_arrow                                             "\xE2\x86\x90"
+#define rt_glyph_leftward_arrow                                             "\xE2\x86\x90"
 
 // Upwards Arrow https://www.compart.com/en/unicode/U+2191
-#define ut_glyph_upwards_arrow                                              "\xE2\x86\x91"
+#define rt_glyph_upwards_arrow                                              "\xE2\x86\x91"
 
 // Rightwards Arrow
 // https://www.compart.com/en/unicode/U+2192
-#define ut_glyph_rightwards_arrow                                           "\xE2\x86\x92"
+#define rt_glyph_rightwards_arrow                                           "\xE2\x86\x92"
 
 // Downwards Arrow https://www.compart.com/en/unicode/U+2193
-#define ut_glyph_downwards_arrow                                            "\xE2\x86\x93"
+#define rt_glyph_downwards_arrow                                            "\xE2\x86\x93"
 
 // Thin Space https://www.compart.com/en/unicode/U+2009
-#define ut_glyph_thin_space                                                 "\xE2\x80\x89"
+#define rt_glyph_thin_space                                                 "\xE2\x80\x89"
 
 // Medium Mathematical Space (MMSP) https://www.compart.com/en/unicode/U+205F
-#define ut_glyph_mmsp                                                       "\xE2\x81\x9F"
+#define rt_glyph_mmsp                                                       "\xE2\x81\x9F"
 
 // Three-Per-Em Space https://www.compart.com/en/unicode/U+2004
-#define ut_glyph_three_per_em                                               "\xE2\x80\x84"
+#define rt_glyph_three_per_em                                               "\xE2\x80\x84"
 
 // Six-Per-Em Space https://www.compart.com/en/unicode/U+2006
-#define ut_glyph_six_per_em                                                 "\xE2\x80\x86"
+#define rt_glyph_six_per_em                                                 "\xE2\x80\x86"
 
 // Punctuation Space https://www.compart.com/en/unicode/U+2008
-#define ut_glyph_punctuation                                                "\xE2\x80\x88"
+#define rt_glyph_punctuation                                                "\xE2\x80\x88"
 
 // Hair Space https://www.compart.com/en/unicode/U+200A
-#define ut_glyph_hair_space                                                 "\xE2\x80\x8A"
+#define rt_glyph_hair_space                                                 "\xE2\x80\x8A"
 
 // Chinese "jin4" https://www.compart.com/en/unicode/U+58F9
-#define ut_glyph_chinese_jin4                                               "\xE5\xA3\xB9"
+#define rt_glyph_chinese_jin4                                               "\xE5\xA3\xB9"
 
 // Chinese "gong" https://www.compart.com/en/unicode/U+8D70
-#define ut_glyph_chinese_gong                                                "\xE8\xB5\xB0"
+#define rt_glyph_chinese_gong                                                "\xE8\xB5\xB0"
 
 // https://www.compart.com/en/unicode/U+1F9F8
-#define ut_glyph_teddy_bear                                                 "\xF0\x9F\xA7\xB8"
+#define rt_glyph_teddy_bear                                                 "\xF0\x9F\xA7\xB8"
 
 // https://www.compart.com/en/unicode/U+1F9CA
-#define ut_glyph_ice_cube                                                   "\xF0\x9F\xA7\x8A"
+#define rt_glyph_ice_cube                                                   "\xF0\x9F\xA7\x8A"
 
 // Speaker https://www.compart.com/en/unicode/U+1F508
-#define ut_glyph_speaker                                                    "\xF0\x9F\x94\x88"
+#define rt_glyph_speaker                                                    "\xF0\x9F\x94\x88"
 
 // Speaker with Cancellation Stroke https://www.compart.com/en/unicode/U+1F507
-#define ut_glyph_mute                                                       "\xF0\x9F\x94\x87"
+#define rt_glyph_mute                                                       "\xF0\x9F\x94\x87"
 
 // TODO: this is used for Font Metric Visualization
 
 // Full Block https://www.compart.com/en/unicode/U+2588
-#define ut_glyph_full_block                             "\xE2\x96\x88"
+#define rt_glyph_full_block                             "\xE2\x96\x88"
 
 // Black Square https://www.compart.com/en/unicode/U+25A0
-#define ut_glyph_black_square                           "\xE2\x96\xA0"
+#define rt_glyph_black_square                           "\xE2\x96\xA0"
 
 // the appearance of a dragon walking
 // CJK Unified Ideograph-9F98 https://www.compart.com/en/unicode/U+9F98
-#define ut_glyph_walking_dragon                         "\xE9\xBE\x98"
+#define rt_glyph_walking_dragon                         "\xE9\xBE\x98"
 
 // possibly highest "diacritical marks" character (Vietnamese)
 // Latin Small Letter U with Horn and Hook Above https://www.compart.com/en/unicode/U+1EED
-#define ut_glyph_u_with_horn_and_hook_above             "\xC7\xAD"
+#define rt_glyph_u_with_horn_and_hook_above             "\xC7\xAD"
 
 // possibly "long descender" character
 // Latin Small Letter Qp Digraph https://www.compart.com/en/unicode/U+0239
-#define ut_glyph_qp_digraph                             "\xC9\xB9"
+#define rt_glyph_qp_digraph                             "\xC9\xB9"
 
 // another possibly "long descender" character
 // Cyrillic Small Letter Shha with Descender https://www.compart.com/en/unicode/U+0527
-#define ut_glyph_shha_with_descender                    "\xD4\xA7"
+#define rt_glyph_shha_with_descender                    "\xD4\xA7"
 
 // a"very long descender" character
 // Tibetan Mark Caret Yig Mgo Phur Shad Ma https://www.compart.com/en/unicode/U+0F06
-#define ut_glyph_caret_yig_mgo_phur_shad_ma             "\xE0\xBC\x86"
+#define rt_glyph_caret_yig_mgo_phur_shad_ma             "\xE0\xBC\x86"
 
 // Tibetan Vowel Sign Vocalic Ll https://www.compart.com/en/unicode/U+0F79
-#define ut_glyph_vocalic_ll                             "\xE0\xBD\xB9"
+#define rt_glyph_vocalic_ll                             "\xE0\xBD\xB9"
 
 // https://www.compart.com/en/unicode/U+1F4A3
-#define ut_glyph_bomb "\xF0\x9F\x92\xA3"
+#define rt_glyph_bomb "\xF0\x9F\x92\xA3"
 
 // https://www.compart.com/en/unicode/U+1F4A1
-#define ut_glyph_electric_light_bulb "\xF0\x9F\x92\xA1"
+#define rt_glyph_electric_light_bulb "\xF0\x9F\x92\xA1"
 
 // https://www.compart.com/en/unicode/U+1F4E2
-#define ut_glyph_public_address_loudspeaker "\xF0\x9F\x93\xA2"
+#define rt_glyph_public_address_loudspeaker "\xF0\x9F\x93\xA2"
 
 // https://www.compart.com/en/unicode/U+1F517
-#define ut_glyph_link_symbol "\xF0\x9F\x94\x97"
+#define rt_glyph_link_symbol "\xF0\x9F\x94\x97"
 
 // https://www.compart.com/en/unicode/U+1F571
-#define ut_glyph_black_skull_and_crossbones "\xF0\x9F\x95\xB1"
+#define rt_glyph_black_skull_and_crossbones "\xF0\x9F\x95\xB1"
 
 // https://www.compart.com/en/unicode/U+1F5B5
-#define ut_glyph_screen "\xF0\x9F\x96\xB5"
+#define rt_glyph_screen "\xF0\x9F\x96\xB5"
 
 // https://www.compart.com/en/unicode/U+1F5D7
-#define ut_glyph_overlap "\xF0\x9F\x97\x97"
+#define rt_glyph_overlap "\xF0\x9F\x97\x97"
 
 // https://www.compart.com/en/unicode/U+1F5D6
-#define ut_glyph_maximize "\xF0\x9F\x97\x96"
+#define rt_glyph_maximize "\xF0\x9F\x97\x96"
 
 // https://www.compart.com/en/unicode/U+1F5D5
-#define ut_glyph_minimize "\xF0\x9F\x97\x95"
+#define rt_glyph_minimize "\xF0\x9F\x97\x95"
 
 // Desktop Window
 // https://compart.com/en/unicode/U+1F5D4
-#define ut_glyph_desktop_window "\xF0\x9F\x97\x94"
+#define rt_glyph_desktop_window "\xF0\x9F\x97\x94"
 
 // https://www.compart.com/en/unicode/U+1F5D9
-#define ut_glyph_cancellation_x "\xF0\x9F\x97\x99"
+#define rt_glyph_cancellation_x "\xF0\x9F\x97\x99"
 
 // https://www.compart.com/en/unicode/U+1F5DF
-#define ut_glyph_page_with_circled_text "\xF0\x9F\x97\x9F"
+#define rt_glyph_page_with_circled_text "\xF0\x9F\x97\x9F"
 
 // https://www.compart.com/en/unicode/U+1F533
-#define ut_glyph_white_square_button "\xF0\x9F\x94\xB3"
+#define rt_glyph_white_square_button "\xF0\x9F\x94\xB3"
 
 // https://www.compart.com/en/unicode/U+1F532
-#define ut_glyph_black_square_button "\xF0\x9F\x94\xB2"
+#define rt_glyph_black_square_button "\xF0\x9F\x94\xB2"
 
 // https://www.compart.com/en/unicode/U+1F5F9
-#define ut_glyph_ballot_box_with_bold_check "\xF0\x9F\x97\xB9"
+#define rt_glyph_ballot_box_with_bold_check "\xF0\x9F\x97\xB9"
 
 // https://www.compart.com/en/unicode/U+1F5F8
-#define ut_glyph_light_check_mark "\xF0\x9F\x97\xB8"
+#define rt_glyph_light_check_mark "\xF0\x9F\x97\xB8"
 
 // https://compart.com/en/unicode/U+1F4BB
-#define ut_glyph_personal_computer "\xF0\x9F\x92\xBB"
+#define rt_glyph_personal_computer "\xF0\x9F\x92\xBB"
 
 // https://compart.com/en/unicode/U+1F4DC
-#define ut_glyph_desktop_computer "\xF0\x9F\x93\x9C"
+#define rt_glyph_desktop_computer "\xF0\x9F\x93\x9C"
 
 // https://compart.com/en/unicode/U+1F4DD
-#define ut_glyph_printer "\xF0\x9F\x93\x9D"
+#define rt_glyph_printer "\xF0\x9F\x93\x9D"
 
 // https://compart.com/en/unicode/U+1F4F9
-#define ut_glyph_video_camera "\xF0\x9F\x93\xB9"
+#define rt_glyph_video_camera "\xF0\x9F\x93\xB9"
 
 // https://compart.com/en/unicode/U+1F4F8
-#define ut_glyph_camera "\xF0\x9F\x93\xB8"
+#define rt_glyph_camera "\xF0\x9F\x93\xB8"
 
 // https://compart.com/en/unicode/U+1F505
-#define ut_glyph_high_brightness "\xF0\x9F\x94\x85"
+#define rt_glyph_high_brightness "\xF0\x9F\x94\x85"
 
 // https://compart.com/en/unicode/U+1F506
-#define ut_glyph_low_brightness "\xF0\x9F\x94\x86"
+#define rt_glyph_low_brightness "\xF0\x9F\x94\x86"
 
 // https://compart.com/en/unicode/U+1F507
-#define ut_glyph_speaker_with_cancellation_stroke "\xF0\x9F\x94\x87"
+#define rt_glyph_speaker_with_cancellation_stroke "\xF0\x9F\x94\x87"
 
 // https://compart.com/en/unicode/U+1F509
-#define ut_glyph_speaker_with_one_sound_wave "\xF0\x9F\x94\x89"
+#define rt_glyph_speaker_with_one_sound_wave "\xF0\x9F\x94\x89"
 
 // Right-Pointing Magnifying Glass
 // https://compart.com/en/unicode/U+1F50E
-#define ut_glyph_right_pointing_magnifying_glass "\xF0\x9F\x94\x8E"
+#define rt_glyph_right_pointing_magnifying_glass "\xF0\x9F\x94\x8E"
 
 // Radio Button
 // https://compart.com/en/unicode/U+1F518
-#define ut_glyph_radio_button "\xF0\x9F\x94\x98"
+#define rt_glyph_radio_button "\xF0\x9F\x94\x98"
 
 // https://compart.com/en/unicode/U+1F525
-#define ut_glyph_fire "\xF0\x9F\x94\xA5"
+#define rt_glyph_fire "\xF0\x9F\x94\xA5"
 
 // Gear
 // https://compart.com/en/unicode/U+2699
-#define ut_glyph_gear "\xE2\x9A\x99"
+#define rt_glyph_gear "\xE2\x9A\x99"
 
 // Nut and Bolt
 // https://compart.com/en/unicode/U+1F529
-#define ut_glyph_nut_and_bolt "\xF0\x9F\x94\xA9"
+#define rt_glyph_nut_and_bolt "\xF0\x9F\x94\xA9"
 
 // Hammer and Wrench
 // https://compart.com/en/unicode/U+1F6E0
-#define ut_glyph_hammer_and_wrench "\xF0\x9F\x9B\xA0"
+#define rt_glyph_hammer_and_wrench "\xF0\x9F\x9B\xA0"
 
 // https://compart.com/en/unicode/U+1F53E
-#define ut_glyph_upwards_button "\xF0\x9F\x94\xBE"
+#define rt_glyph_upwards_button "\xF0\x9F\x94\xBE"
 
 // https://compart.com/en/unicode/U+1F53F
-#define ut_glyph_downwards_button "\xF0\x9F\x94\xBF"
+#define rt_glyph_downwards_button "\xF0\x9F\x94\xBF"
 
 // https://compart.com/en/unicode/U+1F5C7
-#define ut_glyph_litter_in_bin_sign "\xF0\x9F\x97\x87"
+#define rt_glyph_litter_in_bin_sign "\xF0\x9F\x97\x87"
 
 // Checker Board
 // https://compart.com/en/unicode/U+1F67E
-#define ut_glyph_checker_board "\xF0\x9F\x9A\xBE"
+#define rt_glyph_checker_board "\xF0\x9F\x9A\xBE"
 
 // Reverse Checker Board
 // https://compart.com/en/unicode/U+1F67F
-#define ut_glyph_reverse_checker_board "\xF0\x9F\x9A\xBF"
+#define rt_glyph_reverse_checker_board "\xF0\x9F\x9A\xBF"
 
 // Clipboard
 // https://compart.com/en/unicode/U+1F4CB
-#define ut_glyph_clipboard "\xF0\x9F\x93\x8B"
+#define rt_glyph_clipboard "\xF0\x9F\x93\x8B"
 
 // Two Joined Squares https://www.compart.com/en/unicode/U+29C9
-#define ut_glyph_two_joined_squares "\xE2\xA7\x89"
+#define rt_glyph_two_joined_squares "\xE2\xA7\x89"
 
 // White Heavy Check Mark
 // https://compart.com/en/unicode/U+2705
-#define ut_glyph_white_heavy_check_mark "\xE2\x9C\x85"
+#define rt_glyph_white_heavy_check_mark "\xE2\x9C\x85"
 
 // Negative Squared Cross Mark
 // https://compart.com/en/unicode/U+274E
-#define ut_glyph_negative_squared_cross_mark "\xE2\x9D\x8E"
+#define rt_glyph_negative_squared_cross_mark "\xE2\x9D\x8E"
 
 // Lower Right Drop-Shadowed White Square
 // https://compart.com/en/unicode/U+274F
-#define ut_glyph_lower_right_drop_shadowed_white_square "\xE2\x9D\x8F"
+#define rt_glyph_lower_right_drop_shadowed_white_square "\xE2\x9D\x8F"
 
 // Upper Right Drop-Shadowed White Square
 // https://compart.com/en/unicode/U+2750
-#define ut_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
+#define rt_glyph_upper_right_drop_shadowed_white_square "\xE2\x9D\x90"
 
 // Lower Right Shadowed White Square
 // https://compart.com/en/unicode/U+2751
-#define ut_glyph_lower_right_shadowed_white_square "\xE2\x9D\x91"
+#define rt_glyph_lower_right_shadowed_white_square "\xE2\x9D\x91"
 
 // Upper Right Shadowed White Square
 // https://compart.com/en/unicode/U+2752
-#define ut_glyph_upper_right_shadowed_white_square "\xE2\x9D\x92"
+#define rt_glyph_upper_right_shadowed_white_square "\xE2\x9D\x92"
 
 // Left Double Wiggly Fence
 // https://compart.com/en/unicode/U+29DA
-#define ut_glyph_left_double_wiggly_fence "\xE2\xA7\x9A"
+#define rt_glyph_left_double_wiggly_fence "\xE2\xA7\x9A"
 
 // Right Double Wiggly Fence
 // https://compart.com/en/unicode/U+29DB
-#define ut_glyph_right_double_wiggly_fence "\xE2\xA7\x9B"
+#define rt_glyph_right_double_wiggly_fence "\xE2\xA7\x9B"
 
 // Logical Or
 // https://compart.com/en/unicode/U+2228
-#define ut_glyph_logical_or "\xE2\x88\xA8"
+#define rt_glyph_logical_or "\xE2\x88\xA8"
 
 // Logical And
 // https://compart.com/en/unicode/U+2227
-#define ut_glyph_logical_and "\xE2\x88\xA7"
+#define rt_glyph_logical_and "\xE2\x88\xA7"
 
 // Double Vertical Bar (Pause)
 // https://compart.com/en/unicode/U+23F8
-#define ut_glyph_double_vertical_bar "\xE2\x8F\xB8"
+#define rt_glyph_double_vertical_bar "\xE2\x8F\xB8"
 
 // Black Square For Stop
 // https://compart.com/en/unicode/U+23F9
-#define ut_glyph_black_square_for_stop "\xE2\x8F\xB9"
+#define rt_glyph_black_square_for_stop "\xE2\x8F\xB9"
 
 // Black Circle For Record
 // https://compart.com/en/unicode/U+23FA
-#define ut_glyph_black_circle_for_record "\xE2\x8F\xBA"
+#define rt_glyph_black_circle_for_record "\xE2\x8F\xBA"
 
 // Negative Squared Latin Capital Letter "I"
 // https://compart.com/en/unicode/U+1F158
-#define ut_glyph_negative_squared_latin_capital_letter_i "\xF0\x9F\x85\x98"
-#define ut_glyph_info ut_glyph_negative_squared_latin_capital_letter_i
+#define rt_glyph_negative_squared_latin_capital_letter_i "\xF0\x9F\x85\x98"
+#define rt_glyph_info rt_glyph_negative_squared_latin_capital_letter_i
 
 // Circled Information Source
 // https://compart.com/en/unicode/U+1F6C8
-#define ut_glyph_circled_information_source "\xF0\x9F\x9B\x88"
+#define rt_glyph_circled_information_source "\xF0\x9F\x9B\x88"
 
 // Information Source
 // https://compart.com/en/unicode/U+2139
-#define ut_glyph_information_source "\xE2\x84\xB9"
+#define rt_glyph_information_source "\xE2\x84\xB9"
 
 // Squared Cool
 // https://compart.com/en/unicode/U+1F192
-#define ut_glyph_squared_cool "\xF0\x9F\x86\x92"
+#define rt_glyph_squared_cool "\xF0\x9F\x86\x92"
 
 // Squared OK
 // https://compart.com/en/unicode/U+1F197
-#define ut_glyph_squared_ok "\xF0\x9F\x86\x97"
+#define rt_glyph_squared_ok "\xF0\x9F\x86\x97"
 
 // Squared Free
 // https://compart.com/en/unicode/U+1F193
-#define ut_glyph_squared_free "\xF0\x9F\x86\x93"
+#define rt_glyph_squared_free "\xF0\x9F\x86\x93"
 
 // Squared New
 // https://compart.com/en/unicode/U+1F195
-#define ut_glyph_squared_new "\xF0\x9F\x86\x95"
+#define rt_glyph_squared_new "\xF0\x9F\x86\x95"
 
 // Lady Beetle
 // https://compart.com/en/unicode/U+1F41E
-#define ut_glyph_lady_beetle "\xF0\x9F\x90\x9E"
+#define rt_glyph_lady_beetle "\xF0\x9F\x90\x9E"
 
 // Brain
 // https://compart.com/en/unicode/U+1F9E0
-#define ut_glyph_brain "\xF0\x9F\xA7\xA0"
+#define rt_glyph_brain "\xF0\x9F\xA7\xA0"
 
 // South West Arrow with Hook
 // https://www.compart.com/en/unicode/U+2926
-#define ut_glyph_south_west_arrow_with_hook "\xE2\xA4\xA6"
+#define rt_glyph_south_west_arrow_with_hook "\xE2\xA4\xA6"
 
 // North West Arrow with Hook
 // https://www.compart.com/en/unicode/U+2923
-#define ut_glyph_north_west_arrow_with_hook "\xE2\xA4\xA3"
+#define rt_glyph_north_west_arrow_with_hook "\xE2\xA4\xA3"
 
 // White Sun with Rays
 // https://www.compart.com/en/unicode/U+263C
-#define ut_glyph_white_sun_with_rays "\xE2\x98\xBC"
+#define rt_glyph_white_sun_with_rays "\xE2\x98\xBC"
 
 // Black Sun with Rays
 // https://www.compart.com/en/unicode/U+2600
-#define ut_glyph_black_sun_with_rays "\xE2\x98\x80"
+#define rt_glyph_black_sun_with_rays "\xE2\x98\x80"
 
 // Sun Behind Cloud
 // https://www.compart.com/en/unicode/U+26C5
-#define ut_glyph_sun_behind_cloud "\xE2\x9B\x85"
+#define rt_glyph_sun_behind_cloud "\xE2\x9B\x85"
 
 // White Sun
 // https://www.compart.com/en/unicode/U+1F323
-#define ut_glyph_white_sun "\xF0\x9F\x8C\xA3"
+#define rt_glyph_white_sun "\xF0\x9F\x8C\xA3"
 
 // Crescent Moon
 // https://www.compart.com/en/unicode/U+1F319
-#define ut_glyph_crescent_moon "\xF0\x9F\x8C\x99"
+#define rt_glyph_crescent_moon "\xF0\x9F\x8C\x99"
 
 // Latin Capital Letter E with Cedilla and Breve
 // https://compart.com/en/unicode/U+1E1C
-#define ut_glyph_E_with_cedilla_and_breve "\xE1\xB8\x9C"
+#define rt_glyph_E_with_cedilla_and_breve "\xE1\xB8\x9C"
 
 // Box Drawings Heavy Vertical and Horizontal
 // https://compart.com/en/unicode/U+254B
-#define ut_glyph_box_drawings_heavy_vertical_and_horizontal "\xE2\x95\x8B"
+#define rt_glyph_box_drawings_heavy_vertical_and_horizontal "\xE2\x95\x8B"
 
 // Box Drawings Light Diagonal Cross
 // https://compart.com/en/unicode/U+2573
-#define ut_glyph_box_drawings_light_diagonal_cross "\xE2\x95\xB3"
+#define rt_glyph_box_drawings_light_diagonal_cross "\xE2\x95\xB3"
 
 // Combining Enclosing Square
 // https://compart.com/en/unicode/U+20DE
-#define ut_glyph_combining_enclosing_square "\xE2\x83\x9E"
+#define rt_glyph_combining_enclosing_square "\xE2\x83\x9E"
 
 // Combining Enclosing Screen
 // https://compart.com/en/unicode/U+20E2
-#define ut_glyph_combining_enclosing_screen "\xE2\x83\xA2"
+#define rt_glyph_combining_enclosing_screen "\xE2\x83\xA2"
 
 // Combining Enclosing Keycap
 // https://compart.com/en/unicode/U+20E3
-#define ut_glyph_combining_enclosing_keycap "\xE2\x83\xA3"
+#define rt_glyph_combining_enclosing_keycap "\xE2\x83\xA3"
 
 // Combining Enclosing Circle
 // https://compart.com/en/unicode/U+20DD
-#define ut_glyph_combining_enclosing_circle "\xE2\x83\x9D"
+#define rt_glyph_combining_enclosing_circle "\xE2\x83\x9D"
 
 // Frame with Picture
 // https://compart.com/en/unicode/U+1F5BC
-#define ut_glyph_frame_with_picture "\xF0\x9F\x96\xBC"
+#define rt_glyph_frame_with_picture "\xF0\x9F\x96\xBC"
 // with emoji variation selector: "\xF0\x9F\x96\xBC\xEF\xB8\x8F"
 
 // Document with Picture
 // https://compart.com/en/unicode/U+1F5BB
-#define ut_glyph_document_with_picture "\xF0\x9F\x96\xBB"
+#define rt_glyph_document_with_picture "\xF0\x9F\x96\xBB"
 
 // Frame with Tiles
 // https://compart.com/en/unicode/U+1F5BD
-#define ut_glyph_frame_with_tiles "\xF0\x9F\x96\xBD"
+#define rt_glyph_frame_with_tiles "\xF0\x9F\x96\xBD"
 
 // Frame with an X
 // https://compart.com/en/unicode/U+1F5BE
-#define ut_glyph_frame_with_an_x "\xF0\x9F\x96\xBE"
+#define rt_glyph_frame_with_an_x "\xF0\x9F\x96\xBE"
 
 // Left Right Arrow
 // https://compart.com/en/unicode/U+2194
-#define ut_glyph_left_right_arrow "\xE2\x86\x94"
+#define rt_glyph_left_right_arrow "\xE2\x86\x94"
 
 // Up Down Arrow
 // https://compart.com/en/unicode/U+2195
-#define ut_glyph_up_down_arrow "\xE2\x86\x95"
+#define rt_glyph_up_down_arrow "\xE2\x86\x95"
 
 // ________________________________ ut_heap.h _________________________________
 
@@ -1369,7 +1369,7 @@ ut_begin_c
 // be careful with zeroing heap memory. It will result in virtual
 // to physical memory mapping and may be expensive.
 
-typedef struct ut_heap_s ut_heap_t;
+typedef struct rt_heap_s rt_heap_t;
 
 typedef struct { // heap == null uses process serialized LFH
     errno_t (*alloc)(void* *a, int64_t bytes);
@@ -1378,17 +1378,17 @@ typedef struct { // heap == null uses process serialized LFH
     errno_t (*realloc_zero)(void* *a, int64_t bytes);
     void    (*free)(void* a);
     // heaps:
-    ut_heap_t* (*create)(bool serialized);
-    errno_t (*allocate)(ut_heap_t* heap, void* *a, int64_t bytes, bool zero);
+    rt_heap_t* (*create)(bool serialized);
+    errno_t (*allocate)(rt_heap_t* heap, void* *a, int64_t bytes, bool zero);
     // reallocate may return ERROR_OUTOFMEMORY w/o changing 'a' *)
-    errno_t (*reallocate)(ut_heap_t* heap, void* *a, int64_t bytes, bool zero);
-    void    (*deallocate)(ut_heap_t* heap, void* a);
-    int64_t (*bytes)(ut_heap_t* heap, void* a); // actual allocated size
-    void    (*dispose)(ut_heap_t* heap);
+    errno_t (*reallocate)(rt_heap_t* heap, void* *a, int64_t bytes, bool zero);
+    void    (*deallocate)(rt_heap_t* heap, void* a);
+    int64_t (*bytes)(rt_heap_t* heap, void* a); // actual allocated size
+    void    (*dispose)(rt_heap_t* heap);
     void    (*test)(void);
-} ut_heap_if;
+} rt_heap_if;
 
-extern ut_heap_if ut_heap;
+extern rt_heap_if rt_heap;
 
 // *) zero in reallocate applies to the newly appended bytes
 
@@ -1419,9 +1419,9 @@ typedef struct {
     void* (*sym)(void* handle, const char* name);
     void  (*close)(void* handle);
     void (*test)(void);
-} ut_loader_if;
+} rt_loader_if;
 
-extern ut_loader_if ut_loader;
+extern rt_loader_if rt_loader;
 
 ut_end_c
 
@@ -1628,7 +1628,7 @@ extern ut_processes_if ut_processes;
 
 ut_end_c
 
-// _______________________________ ut_runtime.h _______________________________
+// ________________________________ ut_core.h _________________________________
 
 ut_begin_c
 
@@ -1665,9 +1665,9 @@ typedef struct {
         errno_t const resource_deadlock;    // EDEADLK
         errno_t const too_many_open_files;  // EMFILE
     } const error;
-} ut_runtime_if;
+} rt_core_if;
 
-extern ut_runtime_if ut_runtime;
+extern rt_core_if rt_core;
 
 ut_end_c
 
@@ -1733,7 +1733,7 @@ ut_end_c
 ut_begin_c
 
 // better ut_assert() - augmented with printf format and parameters
-// ut_swear() - release configuration ut_assert() in honor of:
+// rt_swear() - release configuration ut_assert() in honor of:
 // https://github.com/munificent/vigil
 
 #define ut_static_assertion(condition) static_assert(condition, #condition)
@@ -1759,9 +1759,9 @@ extern ut_vigil_if ut_vigil;
   #define ut_assert(b, ...) ((void)0)
 #endif
 
-// ut_swear() is runtime ut_assert() for both debug and release configurations
+// rt_swear() is runtime ut_assert() for both debug and release configurations
 
-#define ut_swear(b, ...) ut_suppress_constant_cond_exp                 \
+#define rt_swear(b, ...) ut_suppress_constant_cond_exp                 \
     /* const cond */                                                \
     (void)((!!(b)) || ut_vigil.failed_assertion(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
@@ -1769,19 +1769,19 @@ extern ut_vigil_if ut_vigil;
 #define ut_fatal(...) (void)(ut_vigil.fatal_termination(            \
     __FILE__, __LINE__,  __func__, "",  "" __VA_ARGS__))
 
-#define ut_fatal_if(b, ...) ut_suppress_constant_cond_exp           \
+#define rt_fatal_if(b, ...) ut_suppress_constant_cond_exp           \
     /* const cond */                                                \
     (void)((!(b)) || ut_vigil.fatal_termination(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 
-#define ut_fatal_if_not(b, ...) ut_suppress_constant_cond_exp        \
+#define rt_fatal_if_not(b, ...) ut_suppress_constant_cond_exp        \
     /* const cond */                                                 \
     (void)((!!(b)) || ut_vigil.fatal_termination(__FILE__, __LINE__, \
     __func__, #b, "" __VA_ARGS__))
 
-#define ut_not_null(e, ...) ut_fatal_if((e) == null, "" __VA_ARGS__)
+#define ut_not_null(e, ...) rt_fatal_if((e) == null, "" __VA_ARGS__)
 
-#define ut_fatal_if_error(r, ...) ut_suppress_constant_cond_exp      \
+#define rt_fatal_if_error(r, ...) ut_suppress_constant_cond_exp      \
     /* const cond */                                                 \
     (void)(ut_vigil.fatal_if_error(__FILE__, __LINE__, __func__,     \
                                    #r, r, "" __VA_ARGS__))
@@ -1886,7 +1886,7 @@ ut_end_c
         int32_t* i = (int32_t*)w->data;
         ut_println("i: %d", *i);
         (*i)++;
-        w->when = ut_clock.seconds() + 0.100;
+        w->when = rt_clock.seconds() + 0.100;
         ut_work_queue.post(w);
     }
 
@@ -1896,7 +1896,7 @@ ut_end_c
         int32_t i = 0;
         ut_work_t work = {
             .queue = &queue,
-            .when  = ut_clock.seconds() + 0.100,
+            .when  = rt_clock.seconds() + 0.100,
             .work  = every_100ms,
             .data  = &i
         };
@@ -1920,7 +1920,7 @@ ut_end_c
         ut_println("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
         ex->i++;
         const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
-        w->when = ut_clock.seconds() + 0.200;
+        w->when = rt_clock.seconds() + 0.200;
         ut_work_queue.post(w);
     }
 
@@ -1928,7 +1928,7 @@ ut_end_c
         ut_work_queue_t queue = {0};
         ut_work_ex_t work = {
             .queue = &queue,
-            .when  = ut_clock.seconds() + 0.200,
+            .when  = rt_clock.seconds() + 0.200,
             .work  = every_200ms,
             .data  = null,
             .s = { .a = 1, .b = 2 },
@@ -1956,14 +1956,14 @@ ut_end_c
         ut_worker_t worker = { 0 };
         ut_worker.start(&worker);
         ut_work_t work = {
-            .when  = ut_clock.seconds() + 0.010, // 10ms
+            .when  = rt_clock.seconds() + 0.010, // 10ms
             .done  = ut_event.create(),
             .work  = do_work
         };
         ut_worker.post(&worker, &work);
         ut_event.wait(work.done);    // await(work)
         ut_event.dispose(work.done); // responsibility of the caller
-        ut_fatal_if_error(ut_worker.join(&worker, -1.0));
+        rt_fatal_if_error(ut_worker.join(&worker, -1.0));
     }
 
     // Hint:
@@ -1987,14 +1987,14 @@ ut_end_c
 
 // ut:
 #include <Windows.h>  // used by:
-#include <Psapi.h>    // both ut_loader.c and ut_processes.c
+#include <Psapi.h>    // both rt_loader.c and ut_processes.c
 #include <shellapi.h> // ut_processes.c
 #include <winternl.h> // ut_processes.c
 #include <initguid.h>     // for knownfolders
-#include <KnownFolders.h> // ut_files.c
-#include <AclAPI.h>       // ut_files.c
-#include <ShlObj_core.h>  // ut_files.c
-#include <Shlwapi.h>      // ut_files.c
+#include <KnownFolders.h> // rt_files.c
+#include <AclAPI.h>       // rt_files.c
+#include <ShlObj_core.h>  // rt_files.c
+#include <Shlwapi.h>      // rt_files.c
 // ui:
 #include <commdlg.h>
 #include <dbghelp.h>
@@ -2012,7 +2012,7 @@ ut_end_c
 
 #include <fcntl.h>
 
-#define ut_export __declspec(dllexport)
+#define rt_export __declspec(dllexport)
 
 // Win32 API BOOL -> errno_t translation
 
@@ -2032,45 +2032,45 @@ errno_t ut_wait_ix2e(uint32_t r);
 
 // ________________________________ ut_args.c _________________________________
 
-static void* ut_args_memory;
+static void* rt_args_memory;
 
-static void ut_args_main(int32_t argc, const char* argv[], const char** env) {
-    ut_swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
-    ut_swear(ut_args_memory == null);
-    ut_args.c = argc;
-    ut_args.v = argv;
-    ut_args.env = env;
+static void rt_args_main(int32_t argc, const char* argv[], const char** env) {
+    rt_swear(rt_args.c == 0 && rt_args.v == null && rt_args.env == null);
+    rt_swear(rt_args_memory == null);
+    rt_args.c = argc;
+    rt_args.v = argv;
+    rt_args.env = env;
 }
 
-static int32_t ut_args_option_index(const char* option) {
-    for (int32_t i = 1; i < ut_args.c; i++) {
-        if (strcmp(ut_args.v[i], "--") == 0) { break; } // no options after '--'
-        if (strcmp(ut_args.v[i], option) == 0) { return i; }
+static int32_t rt_args_option_index(const char* option) {
+    for (int32_t i = 1; i < rt_args.c; i++) {
+        if (strcmp(rt_args.v[i], "--") == 0) { break; } // no options after '--'
+        if (strcmp(rt_args.v[i], option) == 0) { return i; }
     }
     return -1;
 }
 
-static void ut_args_remove_at(int32_t ix) {
+static void rt_args_remove_at(int32_t ix) {
     // returns new argc
-    ut_assert(0 < ut_args.c);
-    ut_assert(0 < ix && ix < ut_args.c); // cannot remove ut_args.v[0]
-    for (int32_t i = ix; i < ut_args.c; i++) {
-        ut_args.v[i] = ut_args.v[i + 1];
+    ut_assert(0 < rt_args.c);
+    ut_assert(0 < ix && ix < rt_args.c); // cannot remove rt_args.v[0]
+    for (int32_t i = ix; i < rt_args.c; i++) {
+        rt_args.v[i] = rt_args.v[i + 1];
     }
-    ut_args.v[ut_args.c - 1] = "";
-    ut_args.c--;
+    rt_args.v[rt_args.c - 1] = "";
+    rt_args.c--;
 }
 
-static bool ut_args_option_bool(const char* option) {
-    int32_t ix = ut_args_option_index(option);
-    if (ix > 0) { ut_args_remove_at(ix); }
+static bool rt_args_option_bool(const char* option) {
+    int32_t ix = rt_args_option_index(option);
+    if (ix > 0) { rt_args_remove_at(ix); }
     return ix > 0;
 }
 
-static bool ut_args_option_int(const char* option, int64_t *value) {
-    int32_t ix = ut_args_option_index(option);
-    if (ix > 0 && ix < ut_args.c - 1) {
-        const char* s = ut_args.v[ix + 1];
+static bool rt_args_option_int(const char* option, int64_t *value) {
+    int32_t ix = rt_args_option_index(option);
+    if (ix > 0 && ix < rt_args.c - 1) {
+        const char* s = rt_args.v[ix + 1];
         int32_t base = (strstr(s, "0x") == s || strstr(s, "0X") == s) ? 16 : 10;
         const char* b = s + (base == 10 ? 0 : 2);
         char* e = null;
@@ -2085,23 +2085,23 @@ static bool ut_args_option_int(const char* option, int64_t *value) {
         ix = -1;
     }
     if (ix > 0) {
-        ut_args_remove_at(ix); // remove option
-        ut_args_remove_at(ix); // remove following number
+        rt_args_remove_at(ix); // remove option
+        rt_args_remove_at(ix); // remove following number
     }
     return ix > 0;
 }
 
-static const char* ut_args_option_str(const char* option) {
-    int32_t ix = ut_args_option_index(option);
+static const char* rt_args_option_str(const char* option) {
+    int32_t ix = rt_args_option_index(option);
     const char* s = null;
-    if (ix > 0 && ix < ut_args.c - 1) {
-        s = ut_args.v[ix + 1];
+    if (ix > 0 && ix < rt_args.c - 1) {
+        s = rt_args.v[ix + 1];
     } else {
         ix = -1;
     }
     if (ix > 0) {
-        ut_args_remove_at(ix); // remove option
-        ut_args_remove_at(ix); // remove following string
+        rt_args_remove_at(ix); // remove option
+        rt_args_remove_at(ix); // remove following string
     }
     return ix > 0 ? s : null;
 }
@@ -2121,13 +2121,13 @@ static const char* ut_args_option_str(const char* option) {
 // https://web.archive.org/web/20231115181633/http://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments?view=msvc-170
 // Alternative: just use CommandLineToArgvW()
 
-typedef struct { const char* s; char* d; const char* e; } ut_args_pair_t;
+typedef struct { const char* s; char* d; const char* e; } rt_args_pair_t;
 
-static ut_args_pair_t ut_args_parse_backslashes(ut_args_pair_t p) {
+static rt_args_pair_t rt_args_parse_backslashes(rt_args_pair_t p) {
     enum { quote = '"', backslash = '\\' };
     const char* s = p.s;
     char* d = p.d;
-    ut_swear(*s == backslash);
+    rt_swear(*s == backslash);
     int32_t bsc = 0; // number of backslashes
     while (*s == backslash) { s++; bsc++; }
     if (*s == quote) {
@@ -2138,18 +2138,18 @@ static ut_args_pair_t ut_args_parse_backslashes(ut_args_pair_t p) {
         // unless they immediately precede a quote:
         while (bsc > 0 && d < p.e) { *d++ = backslash; bsc--; }
     }
-    return (ut_args_pair_t){ .s = s, .d = d, .e = p.e };
+    return (rt_args_pair_t){ .s = s, .d = d, .e = p.e };
 }
 
-static ut_args_pair_t ut_args_parse_quoted(ut_args_pair_t p) {
+static rt_args_pair_t rt_args_parse_quoted(rt_args_pair_t p) {
     enum { quote = '"', backslash = '\\' };
     const char* s = p.s;
     char* d = p.d;
-    ut_swear(*s == quote);
+    rt_swear(*s == quote);
     s++; // opening quote (skip)
     while (*s != 0x00) {
         if (*s == backslash) {
-            p = ut_args_parse_backslashes((ut_args_pair_t){
+            p = rt_args_parse_backslashes((rt_args_pair_t){
                         .s = s, .d = d, .e = p.e });
             s = p.s; d = p.d;
         } else if (*s == quote && s[1] == quote) {
@@ -2164,27 +2164,27 @@ static ut_args_pair_t ut_args_parse_quoted(ut_args_pair_t p) {
             *d++ = *s++;
         }
     }
-    return (ut_args_pair_t){ .s = s, .d = d, .e = p.e };
+    return (rt_args_pair_t){ .s = s, .d = d, .e = p.e };
 }
 
-static void ut_args_parse(const char* s) {
-    ut_swear(s[0] != 0, "cannot parse empty string");
-    ut_swear(ut_args.c == 0);
-    ut_swear(ut_args.v == null);
-    ut_swear(ut_args_memory == null);
+static void rt_args_parse(const char* s) {
+    rt_swear(s[0] != 0, "cannot parse empty string");
+    rt_swear(rt_args.c == 0);
+    rt_swear(rt_args.v == null);
+    rt_swear(rt_args_memory == null);
     enum { quote = '"', backslash = '\\', tab = '\t', space = 0x20 };
     const int32_t len = (int32_t)strlen(s);
     // Worst-case scenario (possible to optimize with dry run of parse)
     // at least 2 characters per token in "a b c d e" plush null at the end:
     const int32_t k = ((len + 2) / 2 + 1) * (int32_t)sizeof(void*) + (int32_t)sizeof(void*);
     const int32_t n = k + (len + 2) * (int32_t)sizeof(char);
-    ut_fatal_if_error(ut_heap.allocate(null, &ut_args_memory, n, true));
-    ut_args.c = 0;
-    ut_args.v = (const char**)ut_args_memory;
-    char* d = (char*)(((char*)ut_args.v) + k);
+    rt_fatal_if_error(rt_heap.allocate(null, &rt_args_memory, n, true));
+    rt_args.c = 0;
+    rt_args.v = (const char**)rt_args_memory;
+    char* d = (char*)(((char*)rt_args.v) + k);
     char* e = d + n; // end of memory
     // special rules for 1st argument:
-    if (ut_args.c < n) { ut_args.v[ut_args.c++] = d; }
+    if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; }
     if (*s == quote) {
         s++;
         while (*s != 0x00 && *s != quote && d < e) { *d++ = *s++; }
@@ -2204,23 +2204,23 @@ static void ut_args_parse(const char* s) {
         while (*s == space || *s == tab) { s++; }
         if (*s == 0) { break; }
         if (*s == quote && s[1] == 0 && d < e) { // unbalanced single quote
-            if (ut_args.c < n) { ut_args.v[ut_args.c++] = d; } // spec does not say what to do
+            if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; } // spec does not say what to do
             *d++ = *s++;
         } else if (*s == quote) { // quoted arg
-            if (ut_args.c < n) { ut_args.v[ut_args.c++] = d; }
-            ut_args_pair_t p = ut_args_parse_quoted(
-                    (ut_args_pair_t){ .s = s, .d = d, .e = e });
+            if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; }
+            rt_args_pair_t p = rt_args_parse_quoted(
+                    (rt_args_pair_t){ .s = s, .d = d, .e = e });
             s = p.s; d = p.d;
         } else { // non-quoted arg (that can have quoted strings inside)
-            if (ut_args.c < n) { ut_args.v[ut_args.c++] = d; }
+            if (rt_args.c < n) { rt_args.v[rt_args.c++] = d; }
             while (*s != 0) {
                 if (*s == backslash) {
-                    ut_args_pair_t p = ut_args_parse_backslashes(
-                            (ut_args_pair_t){ .s = s, .d = d, .e = e });
+                    rt_args_pair_t p = rt_args_parse_backslashes(
+                            (rt_args_pair_t){ .s = s, .d = d, .e = e });
                     s = p.s; d = p.d;
                 } else if (*s == quote) {
-                    ut_args_pair_t p = ut_args_parse_quoted(
-                            (ut_args_pair_t){ .s = s, .d = d, .e = e });
+                    rt_args_pair_t p = rt_args_parse_quoted(
+                            (rt_args_pair_t){ .s = s, .d = d, .e = e });
                     s = p.s; d = p.d;
                 } else if (*s == tab || *s == space) {
                     break;
@@ -2231,25 +2231,25 @@ static void ut_args_parse(const char* s) {
         }
         if (d < e) { *d++ = 0; }
     }
-    if (ut_args.c < n) {
-        ut_args.v[ut_args.c] = null;
+    if (rt_args.c < n) {
+        rt_args.v[rt_args.c] = null;
     }
-    ut_swear(ut_args.c < n, "not enough memory - adjust guestimates");
-    ut_swear(d <= e, "not enough memory - adjust guestimates");
+    rt_swear(rt_args.c < n, "not enough memory - adjust guestimates");
+    rt_swear(d <= e, "not enough memory - adjust guestimates");
 }
 
-static const char* ut_args_basename(void) {
+static const char* rt_args_basename(void) {
     static char basename[260];
-    ut_swear(ut_args.c > 0);
+    rt_swear(rt_args.c > 0);
     if (basename[0] == 0) {
-        const char* s = ut_args.v[0];
+        const char* s = rt_args.v[0];
         const char* b = s;
         while (*s != 0) {
             if (*s == '\\' || *s == '/') { b = s + 1; }
             s++;
         }
         int32_t n = ut_str.len(b);
-        ut_swear(n < ut_countof(basename));
+        rt_swear(n < ut_countof(basename));
         strncpy(basename, b, ut_countof(basename) - 1);
         char* d = basename + n - 1;
         while (d > basename && *d != '.') { d--; }
@@ -2258,24 +2258,24 @@ static const char* ut_args_basename(void) {
     return basename;
 }
 
-static void ut_args_fini(void) {
-    ut_heap.deallocate(null, ut_args_memory); // can be null is parse() was not called
-    ut_args_memory = null;
-    ut_args.c = 0;
-    ut_args.v = null;
+static void rt_args_fini(void) {
+    rt_heap.deallocate(null, rt_args_memory); // can be null is parse() was not called
+    rt_args_memory = null;
+    rt_args.c = 0;
+    rt_args.v = null;
 }
 
-static void ut_args_WinMain(void) {
-    ut_swear(ut_args.c == 0 && ut_args.v == null && ut_args.env == null);
-    ut_swear(ut_args_memory == null);
+static void rt_args_WinMain(void) {
+    rt_swear(rt_args.c == 0 && rt_args.v == null && rt_args.env == null);
+    rt_swear(rt_args_memory == null);
     const uint16_t* wcl = GetCommandLineW();
     int32_t n = (int32_t)ut_str.len16(wcl);
     char* cl = null;
-    ut_fatal_if_error(ut_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
+    rt_fatal_if_error(rt_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
     ut_str.utf16to8(cl, n * 2 + 1, wcl, -1);
-    ut_args_parse(cl);
-    ut_heap.deallocate(null, cl);
-    ut_args.env = (const char**)(void*)_environ;
+    rt_args_parse(cl);
+    rt_heap.deallocate(null, cl);
+    rt_args.env = (const char**)(void*)_environ;
 }
 
 #ifdef UT_TESTS
@@ -2291,85 +2291,85 @@ static void ut_args_WinMain(void) {
 
 #ifndef __INTELLISENSE__ // confused data analysis
 
-static void ut_args_test_verify(const char* cl, int32_t expected, ...) {
-    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+static void rt_args_test_verify(const char* cl, int32_t expected, ...) {
+    if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
         ut_println("cl: `%s`", cl);
     }
-    int32_t argc = ut_args.c;
-    const char** argv = ut_args.v;
-    void* memory = ut_args_memory;
-    ut_args.c = 0;
-    ut_args.v = null;
-    ut_args_memory = null;
-    ut_args_parse(cl);
+    int32_t argc = rt_args.c;
+    const char** argv = rt_args.v;
+    void* memory = rt_args_memory;
+    rt_args.c = 0;
+    rt_args.v = null;
+    rt_args_memory = null;
+    rt_args_parse(cl);
     va_list va;
     va_start(va, expected);
     for (int32_t i = 0; i < expected; i++) {
         const char* s = va_arg(va, const char*);
-//      if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
-//          ut_println("ut_args.v[%d]: `%s` expected: `%s`", i, ut_args.v[i], s);
+//      if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
+//          ut_println("rt_args.v[%d]: `%s` expected: `%s`", i, rt_args.v[i], s);
 //      }
         // Warning 6385: reading data outside of array
-        const char* ai = _Pragma("warning(suppress:  6385)")ut_args.v[i];
-        ut_swear(strcmp(ai, s) == 0, "ut_args.v[%d]: `%s` expected: `%s`",
+        const char* ai = _Pragma("warning(suppress:  6385)")rt_args.v[i];
+        rt_swear(strcmp(ai, s) == 0, "rt_args.v[%d]: `%s` expected: `%s`",
                  i, ai, s);
     }
     va_end(va);
-    ut_args.fini();
+    rt_args.fini();
     // restore command line arguments:
-    ut_args.c = argc;
-    ut_args.v = argv;
-    ut_args_memory = memory;
+    rt_args.c = argc;
+    rt_args.v = argv;
+    rt_args_memory = memory;
 }
 
 #endif // __INTELLISENSE__
 
-static void ut_args_test(void) {
-    // The first argument (ut_args.v[0]) is treated specially.
+static void rt_args_test(void) {
+    // The first argument (rt_args.v[0]) is treated specially.
     // It represents the program name. Because it must be a valid pathname,
     // parts surrounded by quote (") are allowed. The quote aren't included
-    // in the ut_args.v[0] output. The parts surrounded by quote prevent
+    // in the rt_args.v[0] output. The parts surrounded by quote prevent
     // interpretation of a space or tab character as the end of the argument.
     // The escaping rules don't apply.
-    ut_args_test_verify("\"c:\\foo\\bar\\snafu.exe\"", 1,
+    rt_args_test_verify("\"c:\\foo\\bar\\snafu.exe\"", 1,
                      "c:\\foo\\bar\\snafu.exe");
-    ut_args_test_verify("c:\\foo\\bar\\snafu.exe", 1,
+    rt_args_test_verify("c:\\foo\\bar\\snafu.exe", 1,
                      "c:\\foo\\bar\\snafu.exe");
-    ut_args_test_verify("foo.exe \"a b c\" d e", 4,
+    rt_args_test_verify("foo.exe \"a b c\" d e", 4,
                      "foo.exe", "a b c", "d", "e");
-    ut_args_test_verify("foo.exe \"ab\\\"c\" \"\\\\\" d", 4,
+    rt_args_test_verify("foo.exe \"ab\\\"c\" \"\\\\\" d", 4,
                      "foo.exe", "ab\"c", "\\", "d");
-    ut_args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
+    rt_args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
                      "foo.exe", "a\\\\\\b", "de fg", "h");
-    ut_args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
+    rt_args_test_verify("foo.exe a\\\\\\b d\"e f\"g h", 4,
                      "foo.exe", "a\\\\\\b", "de fg", "h");
-    ut_args_test_verify("foo.exe a\"b\"\" c d", 2, // unmatched quote
+    rt_args_test_verify("foo.exe a\"b\"\" c d", 2, // unmatched quote
                      "foo.exe", "ab\" c d");
     // unbalanced quote and backslash:
-    ut_args_test_verify("foo.exe \"",     2, "foo.exe", "\"");
-    ut_args_test_verify("foo.exe \\",     2, "foo.exe", "\\");
-    ut_args_test_verify("foo.exe \\\\",   2, "foo.exe", "\\\\");
-    ut_args_test_verify("foo.exe \\\\\\", 2, "foo.exe", "\\\\\\");
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_args_test_verify("foo.exe \"",     2, "foo.exe", "\"");
+    rt_args_test_verify("foo.exe \\",     2, "foo.exe", "\\");
+    rt_args_test_verify("foo.exe \\\\",   2, "foo.exe", "\\\\");
+    rt_args_test_verify("foo.exe \\\\\\", 2, "foo.exe", "\\\\\\");
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
 
-static void ut_args_test(void) {}
+static void rt_args_test(void) {}
 
 #endif
 
-ut_args_if ut_args = {
-    .main         = ut_args_main,
-    .WinMain      = ut_args_WinMain,
-    .option_index = ut_args_option_index,
-    .remove_at    = ut_args_remove_at,
-    .option_bool  = ut_args_option_bool,
-    .option_int   = ut_args_option_int,
-    .option_str   = ut_args_option_str,
-    .basename     = ut_args_basename,
-    .fini         = ut_args_fini,
-    .test         = ut_args_test
+rt_args_if rt_args = {
+    .main         = rt_args_main,
+    .WinMain      = rt_args_WinMain,
+    .option_index = rt_args_option_index,
+    .remove_at    = rt_args_remove_at,
+    .option_bool  = rt_args_option_bool,
+    .option_int   = rt_args_option_int,
+    .option_str   = rt_args_option_str,
+    .basename     = rt_args_basename,
+    .fini         = rt_args_fini,
+    .test         = rt_args_test
 };
 // _______________________________ ut_atomics.c _______________________________
 
@@ -2382,46 +2382,46 @@ ut_args_if ut_args = {
 
 #ifndef UT_ATOMICS_HAS_STDATOMIC_H
 
-static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
+static int32_t rt_atomics_increment_int32(volatile int32_t* a) {
     return InterlockedIncrement((volatile LONG*)a);
 }
 
-static int32_t ut_atomics_decrement_int32(volatile int32_t* a) {
+static int32_t rt_atomics_decrement_int32(volatile int32_t* a) {
     return InterlockedDecrement((volatile LONG*)a);
 }
 
-static int64_t ut_atomics_increment_int64(volatile int64_t* a) {
+static int64_t rt_atomics_increment_int64(volatile int64_t* a) {
     return InterlockedIncrement64((__int64 volatile *)a);
 }
 
-static int64_t ut_atomics_decrement_int64(volatile int64_t* a) {
+static int64_t rt_atomics_decrement_int64(volatile int64_t* a) {
     return InterlockedDecrement64((__int64 volatile *)a);
 }
 
-static int32_t ut_atomics_add_int32(volatile int32_t* a, int32_t v) {
+static int32_t rt_atomics_add_int32(volatile int32_t* a, int32_t v) {
     return InterlockedAdd((LONG volatile *)a, v);
 }
 
-static int64_t ut_atomics_add_int64(volatile int64_t* a, int64_t v) {
+static int64_t rt_atomics_add_int64(volatile int64_t* a, int64_t v) {
     return InterlockedAdd64((__int64 volatile *)a, v);
 }
 
-static int64_t ut_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
+static int64_t rt_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
     return (int64_t)InterlockedExchange64((LONGLONG*)a, (LONGLONG)v);
 }
 
-static int32_t ut_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
+static int32_t rt_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
     ut_assert(sizeof(int32_t) == sizeof(unsigned long));
     return (int32_t)InterlockedExchange((volatile LONG*)a, (unsigned long)v);
 }
 
-static bool ut_atomics_compare_exchange_int64(volatile int64_t* a,
+static bool rt_atomics_compare_exchange_int64(volatile int64_t* a,
         int64_t comparand, int64_t v) {
     return (int64_t)InterlockedCompareExchange64((LONGLONG*)a,
         (LONGLONG)v, (LONGLONG)comparand) == comparand;
 }
 
-static bool ut_atomics_compare_exchange_int32(volatile int32_t* a,
+static bool rt_atomics_compare_exchange_int32(volatile int32_t* a,
         int32_t comparand, int32_t v) {
     return (int64_t)InterlockedCompareExchange((LONG*)a,
         (LONG)v, (LONG)comparand) == comparand;
@@ -2459,46 +2459,46 @@ _mm_mfence();
 ut_static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
 ut_static_assertion(sizeof(int32_t) == sizeof(int_least32_t));
 
-static int32_t ut_atomics_increment_int32(volatile int32_t* a) {
+static int32_t rt_atomics_increment_int32(volatile int32_t* a) {
     return atomic_fetch_add((volatile atomic_int_fast32_t*)a, 1) + 1;
 }
 
-static int32_t ut_atomics_decrement_int32(volatile int32_t* a) {
+static int32_t rt_atomics_decrement_int32(volatile int32_t* a) {
     return atomic_fetch_sub((volatile atomic_int_fast32_t*)a, 1) - 1;
 }
 
-static int64_t ut_atomics_increment_int64(volatile int64_t* a) {
+static int64_t rt_atomics_increment_int64(volatile int64_t* a) {
     return atomic_fetch_add((volatile atomic_int_fast64_t*)a, 1) + 1;
 }
 
-static int64_t ut_atomics_decrement_int64(volatile int64_t* a) {
+static int64_t rt_atomics_decrement_int64(volatile int64_t* a) {
     return atomic_fetch_sub((volatile atomic_int_fast64_t*)a, 1) - 1;
 }
 
-static int32_t ut_atomics_add_int32(volatile int32_t* a, int32_t v) {
+static int32_t rt_atomics_add_int32(volatile int32_t* a, int32_t v) {
     return atomic_fetch_add((volatile atomic_int_fast32_t*)a, v) + v;
 }
 
-static int64_t ut_atomics_add_int64(volatile int64_t* a, int64_t v) {
+static int64_t rt_atomics_add_int64(volatile int64_t* a, int64_t v) {
     return atomic_fetch_add((volatile atomic_int_fast64_t*)a, v) + v;
 }
 
-static int64_t ut_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
+static int64_t rt_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
     return atomic_exchange((volatile atomic_int_fast64_t*)a, v);
 }
 
-static int32_t ut_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
+static int32_t rt_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
     return atomic_exchange((volatile atomic_int_fast32_t*)a, v);
 }
 
-static bool ut_atomics_compare_exchange_int64(volatile int64_t* a,
+static bool rt_atomics_compare_exchange_int64(volatile int64_t* a,
     int64_t comparand, int64_t v) {
     return atomic_compare_exchange_strong((volatile atomic_int_fast64_t*)a,
         &comparand, v);
 }
 
 // Code here is not "seen" by IntelliSense but is compiled normally.
-static bool ut_atomics_compare_exchange_int32(volatile int32_t* a,
+static bool rt_atomics_compare_exchange_int32(volatile int32_t* a,
     int32_t comparand, int32_t v) {
     return atomic_compare_exchange_strong((volatile atomic_int_fast32_t*)a,
         &comparand, v);
@@ -2510,22 +2510,22 @@ static void memory_fence(void) { atomic_thread_fence(memory_order_seq_cst); }
 
 #endif // UT_ATOMICS_HAS_STDATOMIC_H
 
-static int32_t ut_atomics_load_int32(volatile int32_t* a) {
-    return ut_atomics.add_int32(a, 0);
+static int32_t rt_atomics_load_int32(volatile int32_t* a) {
+    return rt_atomics.add_int32(a, 0);
 }
 
-static int64_t ut_atomics_load_int64(volatile int64_t* a) {
-    return ut_atomics.add_int64(a, 0);
+static int64_t rt_atomics_load_int64(volatile int64_t* a) {
+    return rt_atomics.add_int64(a, 0);
 }
 
-static void* ut_atomics_exchange_ptr(volatile void* *a, void* v) {
+static void* rt_atomics_exchange_ptr(volatile void* *a, void* v) {
     ut_static_assertion(sizeof(void*) == sizeof(uint64_t));
-    return (void*)(intptr_t)ut_atomics.exchange_int64((int64_t*)a, (int64_t)v);
+    return (void*)(intptr_t)rt_atomics.exchange_int64((int64_t*)a, (int64_t)v);
 }
 
-static bool ut_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
+static bool rt_atomics_compare_exchange_ptr(volatile void* *a, void* comparand, void* v) {
     ut_static_assertion(sizeof(void*) == sizeof(int64_t));
-    return ut_atomics.compare_exchange_int64((int64_t*)a,
+    return rt_atomics.compare_exchange_int64((int64_t*)a,
         (int64_t)comparand, (int64_t)v);
 }
 
@@ -2550,7 +2550,7 @@ static void spinlock_acquire(volatile int64_t* spinlock) {
     while (!ut_sync_bool_compare_and_swap(spinlock, 0, 1)) {
         while (*spinlock) { ut_builtin_cpu_pause(); }
     }
-    ut_atomics.memory_fence();
+    rt_atomics.memory_fence();
     // not strictly necessary on strong mem model Intel/AMD but
     // see: https://cfsamsonbooks.gitbook.io/explaining-atomics-in-rust/
     //      Fig 2 Inconsistent C11 execution of SB and 2+2W
@@ -2564,63 +2564,63 @@ static void spinlock_release(volatile int64_t* spinlock) {
     ut_assert(*spinlock == 1);
     *spinlock = 0;
     // tribute to lengthy Linus discussion going since 2006:
-    ut_atomics.memory_fence();
+    rt_atomics.memory_fence();
 }
 
-static void ut_atomics_test(void) {
+static void rt_atomics_test(void) {
     #ifdef UT_TESTS
     volatile int32_t int32_var = 0;
     volatile int64_t int64_var = 0;
     volatile void* ptr_var = null;
     int64_t spinlock = 0;
-    void* old_ptr = ut_atomics.exchange_ptr(&ptr_var, (void*)123);
-    ut_swear(old_ptr == null);
-    ut_swear(ptr_var == (void*)123);
-    int32_t incremented_int32 = ut_atomics.increment_int32(&int32_var);
-    ut_swear(incremented_int32 == 1);
-    ut_swear(int32_var == 1);
-    int32_t decremented_int32 = ut_atomics.decrement_int32(&int32_var);
-    ut_swear(decremented_int32 == 0);
-    ut_swear(int32_var == 0);
-    int64_t incremented_int64 = ut_atomics.increment_int64(&int64_var);
-    ut_swear(incremented_int64 == 1);
-    ut_swear(int64_var == 1);
-    int64_t decremented_int64 = ut_atomics.decrement_int64(&int64_var);
-    ut_swear(decremented_int64 == 0);
-    ut_swear(int64_var == 0);
-    int32_t added_int32 = ut_atomics.add_int32(&int32_var, 5);
-    ut_swear(added_int32 == 5);
-    ut_swear(int32_var == 5);
-    int64_t added_int64 = ut_atomics.add_int64(&int64_var, 10);
-    ut_swear(added_int64 == 10);
-    ut_swear(int64_var == 10);
-    int32_t old_int32 = ut_atomics.exchange_int32(&int32_var, 3);
-    ut_swear(old_int32 == 5);
-    ut_swear(int32_var == 3);
-    int64_t old_int64 = ut_atomics.exchange_int64(&int64_var, 6);
-    ut_swear(old_int64 == 10);
-    ut_swear(int64_var == 6);
-    bool int32_exchanged = ut_atomics.compare_exchange_int32(&int32_var, 3, 4);
-    ut_swear(int32_exchanged);
-    ut_swear(int32_var == 4);
-    bool int64_exchanged = ut_atomics.compare_exchange_int64(&int64_var, 6, 7);
-    ut_swear(int64_exchanged);
-    ut_swear(int64_var == 7);
+    void* old_ptr = rt_atomics.exchange_ptr(&ptr_var, (void*)123);
+    rt_swear(old_ptr == null);
+    rt_swear(ptr_var == (void*)123);
+    int32_t incremented_int32 = rt_atomics.increment_int32(&int32_var);
+    rt_swear(incremented_int32 == 1);
+    rt_swear(int32_var == 1);
+    int32_t decremented_int32 = rt_atomics.decrement_int32(&int32_var);
+    rt_swear(decremented_int32 == 0);
+    rt_swear(int32_var == 0);
+    int64_t incremented_int64 = rt_atomics.increment_int64(&int64_var);
+    rt_swear(incremented_int64 == 1);
+    rt_swear(int64_var == 1);
+    int64_t decremented_int64 = rt_atomics.decrement_int64(&int64_var);
+    rt_swear(decremented_int64 == 0);
+    rt_swear(int64_var == 0);
+    int32_t added_int32 = rt_atomics.add_int32(&int32_var, 5);
+    rt_swear(added_int32 == 5);
+    rt_swear(int32_var == 5);
+    int64_t added_int64 = rt_atomics.add_int64(&int64_var, 10);
+    rt_swear(added_int64 == 10);
+    rt_swear(int64_var == 10);
+    int32_t old_int32 = rt_atomics.exchange_int32(&int32_var, 3);
+    rt_swear(old_int32 == 5);
+    rt_swear(int32_var == 3);
+    int64_t old_int64 = rt_atomics.exchange_int64(&int64_var, 6);
+    rt_swear(old_int64 == 10);
+    rt_swear(int64_var == 6);
+    bool int32_exchanged = rt_atomics.compare_exchange_int32(&int32_var, 3, 4);
+    rt_swear(int32_exchanged);
+    rt_swear(int32_var == 4);
+    bool int64_exchanged = rt_atomics.compare_exchange_int64(&int64_var, 6, 7);
+    rt_swear(int64_exchanged);
+    rt_swear(int64_var == 7);
     ptr_var = (void*)0x123;
-    bool ptr_exchanged = ut_atomics.compare_exchange_ptr(&ptr_var,
+    bool ptr_exchanged = rt_atomics.compare_exchange_ptr(&ptr_var,
         (void*)0x123, (void*)0x456);
-    ut_swear(ptr_exchanged);
-    ut_swear(ptr_var == (void*)0x456);
-    ut_atomics.spinlock_acquire(&spinlock);
-    ut_swear(spinlock == 1);
-    ut_atomics.spinlock_release(&spinlock);
-    ut_swear(spinlock == 0);
-    int32_t loaded_int32 = ut_atomics.load32(&int32_var);
-    ut_swear(loaded_int32 == int32_var);
-    int64_t loaded_int64 = ut_atomics.load64(&int64_var);
-    ut_swear(loaded_int64 == int64_var);
-    ut_atomics.memory_fence();
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_swear(ptr_exchanged);
+    rt_swear(ptr_var == (void*)0x456);
+    rt_atomics.spinlock_acquire(&spinlock);
+    rt_swear(spinlock == 1);
+    rt_atomics.spinlock_release(&spinlock);
+    rt_swear(spinlock == 0);
+    int32_t loaded_int32 = rt_atomics.load32(&int32_var);
+    rt_swear(loaded_int32 == int32_var);
+    int64_t loaded_int64 = rt_atomics.load64(&int64_var);
+    rt_swear(loaded_int64 == int64_var);
+    rt_atomics.memory_fence();
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 
@@ -2629,25 +2629,25 @@ static void ut_atomics_test(void) {
 ut_static_assertion(sizeof(void*) == sizeof(int64_t));
 ut_static_assertion(sizeof(void*) == sizeof(uintptr_t));
 
-ut_atomics_if ut_atomics = {
-    .exchange_ptr    = ut_atomics_exchange_ptr,
-    .increment_int32 = ut_atomics_increment_int32,
-    .decrement_int32 = ut_atomics_decrement_int32,
-    .increment_int64 = ut_atomics_increment_int64,
-    .decrement_int64 = ut_atomics_decrement_int64,
-    .add_int32 = ut_atomics_add_int32,
-    .add_int64 = ut_atomics_add_int64,
-    .exchange_int32  = ut_atomics_exchange_int32,
-    .exchange_int64  = ut_atomics_exchange_int64,
-    .compare_exchange_int64 = ut_atomics_compare_exchange_int64,
-    .compare_exchange_int32 = ut_atomics_compare_exchange_int32,
-    .compare_exchange_ptr = ut_atomics_compare_exchange_ptr,
-    .load32 = ut_atomics_load_int32,
-    .load64 = ut_atomics_load_int64,
+rt_atomics_if rt_atomics = {
+    .exchange_ptr    = rt_atomics_exchange_ptr,
+    .increment_int32 = rt_atomics_increment_int32,
+    .decrement_int32 = rt_atomics_decrement_int32,
+    .increment_int64 = rt_atomics_increment_int64,
+    .decrement_int64 = rt_atomics_decrement_int64,
+    .add_int32 = rt_atomics_add_int32,
+    .add_int64 = rt_atomics_add_int64,
+    .exchange_int32  = rt_atomics_exchange_int32,
+    .exchange_int64  = rt_atomics_exchange_int64,
+    .compare_exchange_int64 = rt_atomics_compare_exchange_int64,
+    .compare_exchange_int32 = rt_atomics_compare_exchange_int32,
+    .compare_exchange_ptr = rt_atomics_compare_exchange_ptr,
+    .load32 = rt_atomics_load_int32,
+    .load64 = rt_atomics_load_int64,
     .spinlock_acquire = spinlock_acquire,
     .spinlock_release = spinlock_release,
     .memory_fence = memory_fence,
-    .test = ut_atomics_test
+    .test = rt_atomics_test
 };
 
 #endif // __INTELLISENSE__
@@ -2665,58 +2665,58 @@ ut_atomics_if ut_atomics = {
 
 #pragma warning(pop)
 
-// _________________________________ ut_bt.c __________________________________
+// ______________________________ ut_backtrace.c ______________________________
 
-static void* ut_bt_process;
-static DWORD ut_bt_pid;
+static void* rt_backtrace_process;
+static DWORD rt_backtrace_pid;
 
 typedef ut_begin_packed struct symbol_info_s {
-    SYMBOL_INFO info; char name[ut_bt_max_symbol];
+    SYMBOL_INFO info; char name[rt_backtrace_max_symbol];
 } ut_end_packed symbol_info_t;
 
-#pragma push_macro("ut_bt_load_dll")
+#pragma push_macro("rt_backtrace_load_dll")
 
-#define ut_bt_load_dll(fn) do {              \
+#define rt_backtrace_load_dll(fn) do {              \
     if (GetModuleHandleA(fn) == null) {      \
         ut_fatal_win32err(LoadLibraryA(fn)); \
     }                                        \
 } while (0)
 
-static void ut_bt_init(void) {
-    if (ut_bt_process == null) {
-        ut_bt_load_dll("dbghelp.dll");
-        ut_bt_load_dll("imagehlp.dll");
+static void rt_backtrace_init(void) {
+    if (rt_backtrace_process == null) {
+        rt_backtrace_load_dll("dbghelp.dll");
+        rt_backtrace_load_dll("imagehlp.dll");
         DWORD options = SymGetOptions();
 //      options |= SYMOPT_DEBUG;
         options |= SYMOPT_NO_PROMPTS;
         options |= SYMOPT_LOAD_LINES;
         options |= SYMOPT_UNDNAME;
         options |= SYMOPT_LOAD_ANYTHING;
-        ut_swear(SymSetOptions(options));
-        ut_bt_pid = GetProcessId(GetCurrentProcess());
-        ut_swear(ut_bt_pid != 0);
-        ut_bt_process = OpenProcess(PROCESS_ALL_ACCESS, false,
-                                           ut_bt_pid);
-        ut_swear(ut_bt_process != null);
-        ut_swear(SymInitialize(ut_bt_process, null, true), "%s",
-                            ut_str.error(ut_runtime.err()));
+        rt_swear(SymSetOptions(options));
+        rt_backtrace_pid = GetProcessId(GetCurrentProcess());
+        rt_swear(rt_backtrace_pid != 0);
+        rt_backtrace_process = OpenProcess(PROCESS_ALL_ACCESS, false,
+                                           rt_backtrace_pid);
+        rt_swear(rt_backtrace_process != null);
+        rt_swear(SymInitialize(rt_backtrace_process, null, true), "%s",
+                            ut_str.error(rt_core.err()));
     }
 }
 
-#pragma pop_macro("ut_bt_load_dll")
+#pragma pop_macro("rt_backtrace_load_dll")
 
-static void ut_bt_capture(ut_bt_t* bt, int32_t skip) {
-    ut_bt_init();
+static void rt_backtrace_capture(rt_backtrace_t* bt, int32_t skip) {
+    rt_backtrace_init();
     SetLastError(0);
     bt->frames = CaptureStackBackTrace(1 + skip, ut_countof(bt->stack),
         bt->stack, (DWORD*)&bt->hash);
-    bt->error = ut_runtime.err();
+    bt->error = rt_core.err();
 }
 
-static bool ut_bt_function(DWORD64 pc, SYMBOL_INFO* si) {
+static bool rt_backtrace_function(DWORD64 pc, SYMBOL_INFO* si) {
     // find DLL exported function
     bool found = false;
-    const DWORD64 module_base = SymGetModuleBase64(ut_bt_process, pc);
+    const DWORD64 module_base = SymGetModuleBase64(rt_backtrace_process, pc);
     if (module_base != 0) {
         const DWORD flags = GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT |
                             GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS;
@@ -2765,7 +2765,7 @@ static bool ut_bt_function(DWORD64 pc, SYMBOL_INFO* si) {
 // https://github.com/rogerorr/articles/tree/main/Debugging_Optimised_Code
 // https://github.com/rogerorr/articles/blob/main/Debugging_Optimised_Code/SimpleStackWalker.cpp#L301
 
-static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
+static const void rt_backtrace_symbolize_inline_frame(rt_backtrace_t* bt,
         int32_t i, DWORD64 pc, DWORD inline_context, symbol_info_t* si) {
     si->info.Name[0] = 0;
     si->info.NameLen = 0;
@@ -2773,15 +2773,15 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
     bt->line[i] = 0;
     bt->symbol[i][0] = 0;
     DWORD64 displacement = 0;
-    if (SymFromInlineContext(ut_bt_process, pc, inline_context,
+    if (SymFromInlineContext(rt_backtrace_process, pc, inline_context,
                             &displacement, &si->info)) {
         ut_str_printf(bt->symbol[i], "%s", si->info.Name);
     } else {
-        bt->error = ut_runtime.err();
+        bt->error = rt_core.err();
     }
     IMAGEHLP_LINE64 li = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
     DWORD offset = 0;
-    if (SymGetLineFromInlineContext(ut_bt_process,
+    if (SymGetLineFromInlineContext(rt_backtrace_process,
                                     pc, inline_context, 0,
                                     &offset, &li)) {
         ut_str_printf(bt->file[i], "%s", li.FileName);
@@ -2797,7 +2797,7 @@ static const void ut_bt_symbolize_inline_frame(ut_bt_t* bt,
 //
 // https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2003/cc757875(v=ws.10)
 
-static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
+static int32_t rt_backtrace_symbolize_frame(rt_backtrace_t* bt, int32_t i) {
     const DWORD64 pc = (DWORD64)bt->stack[i];
     symbol_info_t si = {
         .info = { .SizeOfStruct = sizeof(SYMBOL_INFO),
@@ -2808,28 +2808,28 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
     bt->symbol[i][0] = 0;
     DWORD64 offsetFromSymbol = 0;
     const DWORD inline_count =
-        SymAddrIncludeInlineTrace(ut_bt_process, pc);
+        SymAddrIncludeInlineTrace(rt_backtrace_process, pc);
     if (inline_count > 0) {
         DWORD ic = 0; // inline context
         DWORD fi = 0; // frame index
-        if (SymQueryInlineTrace(ut_bt_process,
+        if (SymQueryInlineTrace(rt_backtrace_process,
                                 pc, 0, pc, pc, &ic, &fi)) {
             for (DWORD k = 0; k < inline_count; k++, ic++) {
-                ut_bt_symbolize_inline_frame(bt, i, pc, ic, &si);
+                rt_backtrace_symbolize_inline_frame(bt, i, pc, ic, &si);
                 i++;
             }
         }
     } else {
-        if (SymFromAddr(ut_bt_process, pc, &offsetFromSymbol, &si.info)) {
+        if (SymFromAddr(rt_backtrace_process, pc, &offsetFromSymbol, &si.info)) {
             ut_str_printf(bt->symbol[i], "%s", si.info.Name);
             DWORD d = 0; // displacement
             IMAGEHLP_LINE64 ln = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
-            if (SymGetLineFromAddr64(ut_bt_process, pc, &d, &ln)) {
+            if (SymGetLineFromAddr64(rt_backtrace_process, pc, &d, &ln)) {
                 bt->line[i] = ln.LineNumber;
                 ut_str_printf(bt->file[i], "%s", ln.FileName);
             } else {
-                bt->error = ut_runtime.err();
-                if (ut_bt_function(pc, &si.info)) {
+                bt->error = rt_core.err();
+                if (rt_backtrace_function(pc, &si.info)) {
                     GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                         ut_countof(bt->file[i]) - 1);
                     bt->file[i][ut_countof(bt->file[i]) - 1] = 0;
@@ -2841,8 +2841,8 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
             }
             i++;
         } else {
-            bt->error = ut_runtime.err();
-            if (ut_bt_function(pc, &si.info)) {
+            bt->error = rt_core.err();
+            if (rt_backtrace_function(pc, &si.info)) {
                 ut_str_printf(bt->symbol[i], "%s", si.info.Name);
                 GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
                     ut_countof(bt->file[i]) - 1);
@@ -2857,27 +2857,27 @@ static int32_t ut_bt_symbolize_frame(ut_bt_t* bt, int32_t i) {
     return i;
 }
 
-static void ut_bt_symbolize_backtrace(ut_bt_t* bt) {
+static void rt_backtrace_symbolize_backtrace(rt_backtrace_t* bt) {
     ut_assert(!bt->symbolized);
     bt->error = 0;
-    ut_bt_init();
-    // ut_bt_symbolize_frame() may produce zero, one or many frames
+    rt_backtrace_init();
+    // rt_backtrace_symbolize_frame() may produce zero, one or many frames
     int32_t n = bt->frames;
     void* stack[ut_countof(bt->stack)];
     memcpy(stack, bt->stack, n * sizeof(stack[0]));
     bt->frames = 0;
     for (int32_t i = 0; i < n && bt->frames < ut_countof(bt->stack); i++) {
         bt->stack[bt->frames] = stack[i];
-        bt->frames = ut_bt_symbolize_frame(bt, i);
+        bt->frames = rt_backtrace_symbolize_frame(bt, i);
     }
     bt->symbolized = true;
 }
 
-static void ut_bt_symbolize(ut_bt_t* bt) {
-    if (!bt->symbolized) { ut_bt_symbolize_backtrace(bt); }
+static void rt_backtrace_symbolize(rt_backtrace_t* bt) {
+    if (!bt->symbolized) { rt_backtrace_symbolize_backtrace(bt); }
 }
 
-static const char* ut_bt_stops[] = {
+static const char* rt_backtrace_stops[] = {
     "main",
     "WinMain",
     "BaseThreadInitThunk",
@@ -2889,28 +2889,28 @@ static const char* ut_bt_stops[] = {
     null
 };
 
-static void ut_bt_trace(const ut_bt_t* bt, const char* stop) {
-    #pragma push_macro("ut_bt_glyph_called_from")
-    #define ut_bt_glyph_called_from ut_glyph_north_west_arrow_with_hook
-    ut_assert(bt->symbolized, "need ut_bt.symbolize(bt)");
+static void rt_backtrace_trace(const rt_backtrace_t* bt, const char* stop) {
+    #pragma push_macro("rt_backtrace_glyph_called_from")
+    #define rt_backtrace_glyph_called_from rt_glyph_north_west_arrow_with_hook
+    ut_assert(bt->symbolized, "need rt_backtrace.symbolize(bt)");
     const char** alt = stop != null && strcmp(stop, "*") == 0 ?
-                       ut_bt_stops : null;
+                       rt_backtrace_stops : null;
     for (int32_t i = 0; i < bt->frames; i++) {
-        ut_debug.println(bt->file[i], bt->line[i], bt->symbol[i],
-            ut_bt_glyph_called_from "%s",
+        rt_debug.println(bt->file[i], bt->line[i], bt->symbol[i],
+            rt_backtrace_glyph_called_from "%s",
             i == i < bt->frames - 1 ? "\n" : ""); // extra \n for last line
         if (stop != null && strcmp(bt->symbol[i], stop) == 0) { break; }
         const char** s = alt;
         while (s != null && *s != null && strcmp(bt->symbol[i], *s) != 0) { s++; }
         if (s != null && *s != null)  { break; }
     }
-    #pragma pop_macro("ut_bt_glyph_called_from")
+    #pragma pop_macro("rt_backtrace_glyph_called_from")
 }
 
 
-static const char* ut_bt_string(const ut_bt_t* bt,
+static const char* rt_backtrace_string(const rt_backtrace_t* bt,
         char* text, int32_t count) {
-    ut_assert(bt->symbolized, "need ut_bt.symbolize(bt)");
+    ut_assert(bt->symbolized, "need rt_backtrace.symbolize(bt)");
     char s[1024];
     char* p = text;
     int32_t n = count;
@@ -2934,10 +2934,10 @@ static const char* ut_bt_string(const ut_bt_t* bt,
     return text;
 }
 
-typedef struct { char name[32]; } ut_bt_thread_name_t;
+typedef struct { char name[32]; } rt_backtrace_thread_name_t;
 
-static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
-    ut_bt_thread_name_t tn;
+static rt_backtrace_thread_name_t rt_backtrace_thread_name(HANDLE thread) {
+    rt_backtrace_thread_name_t tn;
     tn.name[0] = 0;
     wchar_t* thread_name = null;
     if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
@@ -2947,8 +2947,8 @@ static ut_bt_thread_name_t ut_bt_thread_name(HANDLE thread) {
     return tn;
 }
 
-static void ut_bt_context(ut_thread_t thread, const void* ctx,
-        ut_bt_t* bt) {
+static void rt_backtrace_context(ut_thread_t thread, const void* ctx,
+        rt_backtrace_t* bt) {
     CONTEXT* context = (CONTEXT*)ctx;
     STACKFRAME64 stack_frame = { 0 };
     int machine_type = IMAGE_FILE_MACHINE_UNKNOWN;
@@ -2986,71 +2986,71 @@ static void ut_bt_context(ut_thread_t thread, const void* ctx,
     #else
         #error "Unsupported platform"
     #endif
-    ut_bt_init();
-    while (StackWalk64(machine_type, ut_bt_process,
+    rt_backtrace_init();
+    while (StackWalk64(machine_type, rt_backtrace_process,
             (HANDLE)thread, &stack_frame, context, null,
             SymFunctionTableAccess64, SymGetModuleBase64, null)) {
         DWORD64 pc = stack_frame.AddrPC.Offset;
         if (pc == 0) { break; }
         if (bt->frames < ut_countof(bt->stack)) {
             bt->stack[bt->frames] = (void*)pc;
-            bt->frames = ut_bt_symbolize_frame(bt, bt->frames);
+            bt->frames = rt_backtrace_symbolize_frame(bt, bt->frames);
         }
     }
     bt->symbolized = true;
 }
 
-static void ut_bt_thread(HANDLE thread, ut_bt_t* bt) {
+static void rt_backtrace_thread(HANDLE thread, rt_backtrace_t* bt) {
     bt->frames = 0;
     // cannot suspend callers thread
-    ut_swear(ut_thread.id_of(thread) != ut_thread.id());
+    rt_swear(ut_thread.id_of(thread) != ut_thread.id());
     if (SuspendThread(thread) != (DWORD)-1) {
         CONTEXT context = { .ContextFlags = CONTEXT_FULL };
         GetThreadContext(thread, &context);
-        ut_bt.context(thread, &context, bt);
+        rt_backtrace.context(thread, &context, bt);
         if (ResumeThread(thread) == (DWORD)-1) {
-            ut_println("ResumeThread() failed %s", ut_str.error(ut_runtime.err()));
+            ut_println("ResumeThread() failed %s", ut_str.error(rt_core.err()));
             ExitProcess(0xBD);
         }
     }
 }
 
-static void ut_bt_trace_self(const char* stop) {
-    ut_bt_t bt = {{0}};
-    ut_bt.capture(&bt, 2);
-    ut_bt.symbolize(&bt);
-    ut_bt.trace(&bt, stop);
+static void rt_backtrace_trace_self(const char* stop) {
+    rt_backtrace_t bt = {{0}};
+    rt_backtrace.capture(&bt, 2);
+    rt_backtrace.symbolize(&bt);
+    rt_backtrace.trace(&bt, stop);
 }
 
-static void ut_bt_trace_all_but_self(void) {
-    ut_bt_init();
-    ut_assert(ut_bt_process != null && ut_bt_pid != 0);
+static void rt_backtrace_trace_all_but_self(void) {
+    rt_backtrace_init();
+    ut_assert(rt_backtrace_process != null && rt_backtrace_pid != 0);
     HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
     if (snapshot == INVALID_HANDLE_VALUE) {
         ut_println("CreateToolhelp32Snapshot failed %s",
-                ut_str.error(ut_runtime.err()));
+                ut_str.error(rt_core.err()));
     } else {
         THREADENTRY32 te = { .dwSize = sizeof(THREADENTRY32) };
         if (!Thread32First(snapshot, &te)) {
-            ut_println("Thread32First failed %s", ut_str.error(ut_runtime.err()));
+            ut_println("Thread32First failed %s", ut_str.error(rt_core.err()));
         } else {
             do {
-                if (te.th32OwnerProcessID == ut_bt_pid) {
+                if (te.th32OwnerProcessID == rt_backtrace_pid) {
                     static const DWORD flags = THREAD_ALL_ACCESS |
                        THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT;
                     uint32_t tid = te.th32ThreadID;
                     if (tid != (uint32_t)ut_thread.id()) {
                         HANDLE thread = OpenThread(flags, false, tid);
                         if (thread != null) {
-                            ut_bt_t bt = {0};
-                            ut_bt_thread(thread, &bt);
-                            ut_bt_thread_name_t tn = ut_bt_thread_name(thread);
-                            ut_debug.println(">Thread", tid, tn.name,
+                            rt_backtrace_t bt = {0};
+                            rt_backtrace_thread(thread, &bt);
+                            rt_backtrace_thread_name_t tn = rt_backtrace_thread_name(thread);
+                            rt_debug.println(">Thread", tid, tn.name,
                                 "id 0x%08X (%d)", tid, tid);
                             if (bt.frames > 0) {
-                                ut_bt.trace(&bt, "*");
+                                rt_backtrace.trace(&bt, "*");
                             }
-                            ut_debug.println("<Thread", tid, tn.name, "");
+                            rt_debug.println("<Thread", tid, tn.name, "");
                             ut_win32_close_handle(thread);
                         }
                     }
@@ -3063,98 +3063,98 @@ static void ut_bt_trace_all_but_self(void) {
 
 #ifdef UT_TESTS
 
-static bool (*ut_bt_debug_tee)(const char* s, int32_t count);
+static bool (*rt_backtrace_debug_tee)(const char* s, int32_t count);
 
-static char  ut_bt_test_output[16 * 1024];
-static char* ut_bt_test_output_p;
+static char  rt_backtrace_test_output[16 * 1024];
+static char* rt_backtrace_test_output_p;
 
-static bool ut_bt_tee(const char* s, int32_t count) {
+static bool rt_backtrace_tee(const char* s, int32_t count) {
     if (count > 0 && s[count - 1] == 0) { // zero terminated
         int32_t k = (int32_t)(uintptr_t)(
-            ut_bt_test_output_p - ut_bt_test_output);
-        int32_t space = ut_countof(ut_bt_test_output) - k;
+            rt_backtrace_test_output_p - rt_backtrace_test_output);
+        int32_t space = ut_countof(rt_backtrace_test_output) - k;
         if (count < space) {
-            memcpy(ut_bt_test_output_p, s, count);
-            ut_bt_test_output_p += count - 1; // w/o 0x00
+            memcpy(rt_backtrace_test_output_p, s, count);
+            rt_backtrace_test_output_p += count - 1; // w/o 0x00
         }
     } else {
-        ut_debug.breakpoint(); // incorrect output() cannot append
+        rt_debug.breakpoint(); // incorrect output() cannot append
     }
     return true; // intercepted, do not do OutputDebugString()
 }
 
-static void ut_bt_test_thread(void* e) {
+static void rt_backtrace_test_thread(void* e) {
     ut_event.wait(*(ut_event_t*)e);
 }
 
-static void ut_bt_test(void) {
-    ut_bt_debug_tee = ut_debug.tee;
-    ut_bt_test_output_p = ut_bt_test_output;
-    ut_bt_test_output[0] = 0x00;
-    ut_debug.tee = ut_bt_tee;
-    ut_bt_t bt = {{0}};
-    ut_bt.capture(&bt, 0);
-    // ut_bt_test <- ut_runtime_test <- run <- main
-    ut_swear(bt.frames >= 3);
-    ut_bt.symbolize(&bt);
-    ut_bt.trace(&bt, null);
-    ut_bt.trace(&bt, "main");
-    ut_bt.trace(&bt, null);
-    ut_bt.trace(&bt, "main");
+static void rt_backtrace_test(void) {
+    rt_backtrace_debug_tee = rt_debug.tee;
+    rt_backtrace_test_output_p = rt_backtrace_test_output;
+    rt_backtrace_test_output[0] = 0x00;
+    rt_debug.tee = rt_backtrace_tee;
+    rt_backtrace_t bt = {{0}};
+    rt_backtrace.capture(&bt, 0);
+    // rt_backtrace_test <- rt_core_test <- run <- main
+    rt_swear(bt.frames >= 3);
+    rt_backtrace.symbolize(&bt);
+    rt_backtrace.trace(&bt, null);
+    rt_backtrace.trace(&bt, "main");
+    rt_backtrace.trace(&bt, null);
+    rt_backtrace.trace(&bt, "main");
     ut_event_t e = ut_event.create();
-    ut_thread_t thread = ut_thread.start(ut_bt_test_thread, &e);
-    ut_bt.trace_all_but_self();
+    ut_thread_t thread = ut_thread.start(rt_backtrace_test_thread, &e);
+    rt_backtrace.trace_all_but_self();
     ut_event.set(e);
     ut_thread.join(thread, -1.0);
     ut_event.dispose(e);
-    ut_debug.tee = ut_bt_debug_tee;
-    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
-        ut_debug.output(ut_bt_test_output,
-            (int32_t)strlen(ut_bt_test_output) + 1);
+    rt_debug.tee = rt_backtrace_debug_tee;
+    if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
+        rt_debug.output(rt_backtrace_test_output,
+            (int32_t)strlen(rt_backtrace_test_output) + 1);
     }
-    ut_swear(strstr(ut_bt_test_output, "ut_bt_test") != null,
-          "%s", ut_bt_test_output);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_swear(strstr(rt_backtrace_test_output, "rt_backtrace_test") != null,
+          "%s", rt_backtrace_test_output);
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
 
-static void ut_bt_test(void) { }
+static void rt_backtrace_test(void) { }
 
 #endif
 
-ut_bt_if ut_bt = {
-    .capture            = ut_bt_capture,
-    .context            = ut_bt_context,
-    .symbolize          = ut_bt_symbolize,
-    .trace              = ut_bt_trace,
-    .trace_self         = ut_bt_trace_self,
-    .trace_all_but_self = ut_bt_trace_all_but_self,
-    .string             = ut_bt_string,
-    .test               = ut_bt_test
+rt_backtrace_if rt_backtrace = {
+    .capture            = rt_backtrace_capture,
+    .context            = rt_backtrace_context,
+    .symbolize          = rt_backtrace_symbolize,
+    .trace              = rt_backtrace_trace,
+    .trace_self         = rt_backtrace_trace_self,
+    .trace_all_but_self = rt_backtrace_trace_all_but_self,
+    .string             = rt_backtrace_string,
+    .test               = rt_backtrace_test
 };
 
 // ______________________________ ut_clipboard.c ______________________________
 
-static errno_t ut_clipboard_put_text(const char* utf8) {
+static errno_t rt_clipboard_put_text(const char* utf8) {
     int32_t chars = ut_str.utf16_chars(utf8, -1);
     int32_t bytes = (chars + 1) * 2;
     uint16_t* utf16 = null;
-    errno_t r = ut_heap.alloc((void**)&utf16, (size_t)bytes);
+    errno_t r = rt_heap.alloc((void**)&utf16, (size_t)bytes);
     if (utf16 != null) {
         ut_str.utf8to16(utf16, bytes, utf8, -1);
         ut_assert(utf16[chars - 1] == 0);
         const int32_t n = (int32_t)ut_str.len16(utf16) + 1;
-        r = OpenClipboard(GetDesktopWindow()) ? 0 : ut_runtime.err();
+        r = OpenClipboard(GetDesktopWindow()) ? 0 : rt_core.err();
         if (r != 0) { ut_println("OpenClipboard() failed %s", ut_strerr(r)); }
         if (r == 0) {
-            r = EmptyClipboard() ? 0 : ut_runtime.err();
+            r = EmptyClipboard() ? 0 : rt_core.err();
             if (r != 0) { ut_println("EmptyClipboard() failed %s", ut_strerr(r)); }
         }
         void* global = null;
         if (r == 0) {
             global = GlobalAlloc(GMEM_MOVEABLE, (size_t)n * 2);
-            r = global != null ? 0 : ut_runtime.err();
+            r = global != null ? 0 : rt_core.err();
             if (r != 0) { ut_println("GlobalAlloc() failed %s", ut_strerr(r)); }
         }
         if (r == 0) {
@@ -3176,19 +3176,19 @@ static errno_t ut_clipboard_put_text(const char* utf8) {
                 ut_println("CloseClipboard() failed %s", ut_strerr(r));
             }
         }
-        ut_heap.free(utf16);
+        rt_heap.free(utf16);
     }
     return r;
 }
 
-static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
+static errno_t rt_clipboard_get_text(char* utf8, int32_t* bytes) {
     ut_not_null(bytes);
     errno_t r = ut_b2e(OpenClipboard(GetDesktopWindow()));
     if (r != 0) { ut_println("OpenClipboard() failed %s", ut_strerr(r)); }
     if (r == 0) {
         HANDLE global = GetClipboardData(CF_UNICODETEXT);
         if (global == null) {
-            r = ut_runtime.err();
+            r = rt_core.err();
         } else {
             uint16_t* utf16 = (uint16_t*)GlobalLock(global);
             if (utf16 != null) {
@@ -3199,7 +3199,7 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
                         ut_str.utf16to8(decoded, utf8_bytes, utf16, -1);
-                        int32_t n = ut_min(*bytes, utf8_bytes);
+                        int32_t n = rt_min(*bytes, utf8_bytes);
                         memcpy(utf8, decoded, (size_t)n);
                         free(decoded);
                         if (n < utf8_bytes) {
@@ -3218,41 +3218,41 @@ static errno_t ut_clipboard_get_text(char* utf8, int32_t* bytes) {
 
 #ifdef UT_TESTS
 
-static void ut_clipboard_test(void) {
-    ut_fatal_if_error(ut_clipboard.put_text("Hello Clipboard"));
+static void rt_clipboard_test(void) {
+    rt_fatal_if_error(rt_clipboard.put_text("Hello Clipboard"));
     char text[256];
     int32_t bytes = ut_countof(text);
-    ut_fatal_if_error(ut_clipboard.get_text(text, &bytes));
-    ut_swear(strcmp(text, "Hello Clipboard") == 0);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_fatal_if_error(rt_clipboard.get_text(text, &bytes));
+    rt_swear(strcmp(text, "Hello Clipboard") == 0);
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
 
-static void ut_clipboard_test(void) {
+static void rt_clipboard_test(void) {
 }
 
 #endif
 
-ut_clipboard_if ut_clipboard = {
-    .put_text   = ut_clipboard_put_text,
-    .get_text   = ut_clipboard_get_text,
+rt_clipboard_if rt_clipboard = {
+    .put_text   = rt_clipboard_put_text,
+    .get_text   = rt_clipboard_get_text,
     .put_image  = null, // implemented in ui.app
-    .test       = ut_clipboard_test
+    .test       = rt_clipboard_test
 };
 
 // ________________________________ ut_clock.c ________________________________
 
 enum {
-    ut_clock_nsec_in_usec = 1000, // nano in micro
-    ut_clock_nsec_in_msec = ut_clock_nsec_in_usec * 1000, // nano in milli
-    ut_clock_nsec_in_sec  = ut_clock_nsec_in_msec * 1000,
-    ut_clock_usec_in_msec = 1000, // micro in mill
-    ut_clock_msec_in_sec  = 1000, // milli in sec
-    ut_clock_usec_in_sec  = ut_clock_usec_in_msec * ut_clock_msec_in_sec // micro in sec
+    rt_clock_nsec_in_usec = 1000, // nano in micro
+    rt_clock_nsec_in_msec = rt_clock_nsec_in_usec * 1000, // nano in milli
+    rt_clock_nsec_in_sec  = rt_clock_nsec_in_msec * 1000,
+    rt_clock_usec_in_msec = 1000, // micro in mill
+    rt_clock_msec_in_sec  = 1000, // milli in sec
+    rt_clock_usec_in_sec  = rt_clock_usec_in_msec * rt_clock_msec_in_sec // micro in sec
 };
 
-static uint64_t ut_clock_microseconds_since_epoch(void) { // NOT monotonic
+static uint64_t rt_clock_microseconds_since_epoch(void) { // NOT monotonic
     FILETIME ft; // time in 100ns interval (tenth of microsecond)
     // since 12:00 A.M. January 1, 1601 Coordinated Universal Time (UTC)
     GetSystemTimePreciseAsFileTime(&ft);
@@ -3262,14 +3262,14 @@ static uint64_t ut_clock_microseconds_since_epoch(void) { // NOT monotonic
     return microseconds;
 }
 
-static uint64_t ut_clock_localtime(void) {
+static uint64_t rt_clock_localtime(void) {
     TIME_ZONE_INFORMATION tzi; // UTC = local time + bias
     GetTimeZoneInformation(&tzi);
     uint64_t bias = (uint64_t)tzi.Bias * 60LL * 1000 * 1000; // in microseconds
-    return ut_clock_microseconds_since_epoch() - bias;
+    return rt_clock_microseconds_since_epoch() - bias;
 }
 
-static void ut_clock_utc(uint64_t microseconds,
+static void rt_clock_utc(uint64_t microseconds,
         int32_t* year, int32_t* month, int32_t* day,
         int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
     uint64_t time_in_100ns = microseconds * 10;
@@ -3287,7 +3287,7 @@ static void ut_clock_utc(uint64_t microseconds,
     *mc = microseconds % 1000;
 }
 
-static void ut_clock_local(uint64_t microseconds,
+static void rt_clock_local(uint64_t microseconds,
         int32_t* year, int32_t* month, int32_t* day,
         int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
     uint64_t time_in_100ns = microseconds * 10;
@@ -3308,7 +3308,7 @@ static void ut_clock_local(uint64_t microseconds,
     *mc = microseconds % 1000;
 }
 
-static fp64_t ut_clock_seconds(void) { // since_boot
+static fp64_t rt_clock_seconds(void) { // since_boot
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static fp64_t one_over_freq;
@@ -3330,7 +3330,7 @@ static fp64_t ut_clock_seconds(void) { // since_boot
 //                          24 hours / day
 //
 // it would take approximately 213,503 days (or about 584.5 years)
-// for ut_clock.nanoseconds() to overflow
+// for rt_clock.nanoseconds() to overflow
 //
 // for divider = ut_num.gcd32(nsec_in_sec, freq) below and 10MHz timer
 // the actual duration is shorter because of (mul == 100)
@@ -3338,14 +3338,14 @@ static fp64_t ut_clock_seconds(void) { // since_boot
 // 64 bit overflow and is about 5.8 years.
 //
 // In a long running code like services is advisable to use
-// ut_clock.nanoseconds() to measure only deltas and pay close attention
+// rt_clock.nanoseconds() to measure only deltas and pay close attention
 // to the wrap around despite of 5 years monotony
 
-static uint64_t ut_clock_nanoseconds(void) {
+static uint64_t rt_clock_nanoseconds(void) {
     LARGE_INTEGER qpc;
     QueryPerformanceCounter(&qpc);
     static uint32_t freq;
-    static uint32_t mul = ut_clock_nsec_in_sec;
+    static uint32_t mul = rt_clock_nsec_in_sec;
     if (freq == 0) {
         LARGE_INTEGER frequency;
         QueryPerformanceFrequency(&frequency);
@@ -3359,9 +3359,9 @@ static uint64_t ut_clock_nanoseconds(void) {
         // multiples of MHz ut_num.gcd() approach may need
         // to be revised in favor of ut_num.muldiv64x64()
         freq = frequency.LowPart;
-        ut_assert(freq != 0 && freq < (uint32_t)ut_clock.nsec_in_sec);
+        ut_assert(freq != 0 && freq < (uint32_t)rt_clock.nsec_in_sec);
         // to avoid ut_num.muldiv128:
-        uint32_t divider = ut_num.gcd32((uint32_t)ut_clock.nsec_in_sec, freq);
+        uint32_t divider = ut_num.gcd32((uint32_t)rt_clock.nsec_in_sec, freq);
         freq /= divider;
         mul  /= divider;
     }
@@ -3371,47 +3371,47 @@ static uint64_t ut_clock_nanoseconds(void) {
 
 // Difference between 1601 and 1970 in microseconds:
 
-static const uint64_t ut_clock_epoch_diff_usec = 11644473600000000ULL;
+static const uint64_t rt_clock_epoch_diff_usec = 11644473600000000ULL;
 
-static uint64_t ut_clock_unix_microseconds(void) {
-    return ut_clock.microseconds() - ut_clock_epoch_diff_usec;
+static uint64_t rt_clock_unix_microseconds(void) {
+    return rt_clock.microseconds() - rt_clock_epoch_diff_usec;
 }
 
-static uint64_t ut_clock_unix_seconds(void) {
-    return ut_clock.unix_microseconds() / (uint64_t)ut_clock.usec_in_sec;
+static uint64_t rt_clock_unix_seconds(void) {
+    return rt_clock.unix_microseconds() / (uint64_t)rt_clock.usec_in_sec;
 }
 
-static void ut_clock_test(void) {
+static void rt_clock_test(void) {
     #ifdef UT_TESTS
     // TODO: implement more tests
-    uint64_t t0 = ut_clock.nanoseconds();
-    uint64_t t1 = ut_clock.nanoseconds();
+    uint64_t t0 = rt_clock.nanoseconds();
+    uint64_t t1 = rt_clock.nanoseconds();
     int32_t count = 0;
     while (t0 == t1 && count < 1024) {
-        t1 = ut_clock.nanoseconds();
+        t1 = rt_clock.nanoseconds();
         count++;
     }
-    ut_swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_swear(t0 != t1, "count: %d t0: %lld t1: %lld", count, t0, t1);
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 
-ut_clock_if ut_clock = {
-    .nsec_in_usec      = ut_clock_nsec_in_usec,
-    .nsec_in_msec      = ut_clock_nsec_in_msec,
-    .nsec_in_sec       = ut_clock_nsec_in_sec,
-    .usec_in_msec      = ut_clock_usec_in_msec,
-    .msec_in_sec       = ut_clock_msec_in_sec,
-    .usec_in_sec       = ut_clock_usec_in_sec,
-    .seconds           = ut_clock_seconds,
-    .nanoseconds       = ut_clock_nanoseconds,
-    .unix_microseconds = ut_clock_unix_microseconds,
-    .unix_seconds      = ut_clock_unix_seconds,
-    .microseconds      = ut_clock_microseconds_since_epoch,
-    .localtime         = ut_clock_localtime,
-    .utc               = ut_clock_utc,
-    .local             = ut_clock_local,
-    .test              = ut_clock_test
+rt_clock_if rt_clock = {
+    .nsec_in_usec      = rt_clock_nsec_in_usec,
+    .nsec_in_msec      = rt_clock_nsec_in_msec,
+    .nsec_in_sec       = rt_clock_nsec_in_sec,
+    .usec_in_msec      = rt_clock_usec_in_msec,
+    .msec_in_sec       = rt_clock_msec_in_sec,
+    .usec_in_sec       = rt_clock_usec_in_sec,
+    .seconds           = rt_clock_seconds,
+    .nanoseconds       = rt_clock_nanoseconds,
+    .unix_microseconds = rt_clock_unix_microseconds,
+    .unix_seconds      = rt_clock_unix_seconds,
+    .microseconds      = rt_clock_microseconds_since_epoch,
+    .localtime         = rt_clock_localtime,
+    .utc               = rt_clock_utc,
+    .local             = rt_clock_local,
+    .test              = rt_clock_test
 };
 
 // _______________________________ ut_config.c ________________________________
@@ -3419,63 +3419,63 @@ ut_clock_if ut_clock = {
 // On Unix the implementation should keep KV pairs in
 // key-named files inside .name/ folder
 
-static const char* ut_config_apps = "Software\\leok7v\\ui\\apps";
+static const char* rt_config_apps = "Software\\leok7v\\ui\\apps";
 
-static const DWORD ut_config_access =
+static const DWORD rt_config_access =
     KEY_READ|KEY_WRITE|KEY_SET_VALUE|KEY_QUERY_VALUE|
     KEY_ENUMERATE_SUB_KEYS|DELETE;
 
-static errno_t ut_config_get_reg_key(const char* name, HKEY *key) {
+static errno_t rt_config_get_reg_key(const char* name, HKEY *key) {
     char path[256] = {0};
-    ut_str_printf(path, "%s\\%s", ut_config_apps, name);
-    errno_t r = RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, ut_config_access, key);
+    ut_str_printf(path, "%s\\%s", rt_config_apps, name);
+    errno_t r = RegOpenKeyExA(HKEY_CURRENT_USER, path, 0, rt_config_access, key);
     if (r != 0) {
         const DWORD option = REG_OPTION_NON_VOLATILE;
         r = RegCreateKeyExA(HKEY_CURRENT_USER, path, 0, null, option,
-                            ut_config_access, null, key, null);
+                            rt_config_access, null, key, null);
     }
     return r;
 }
 
-static errno_t ut_config_save(const char* name,
+static errno_t rt_config_save(const char* name,
         const char* key, const void* data, int32_t bytes) {
     errno_t r = 0;
     HKEY k = null;
-    r = ut_config_get_reg_key(name, &k);
+    r = rt_config_get_reg_key(name, &k);
     if (k != null) {
         r = RegSetValueExA(k, key, 0, REG_BINARY,
             (const uint8_t*)data, (DWORD)bytes);
-        ut_fatal_if_error(RegCloseKey(k));
+        rt_fatal_if_error(RegCloseKey(k));
     }
     return r;
 }
 
-static errno_t ut_config_remove(const char* name, const char* key) {
+static errno_t rt_config_remove(const char* name, const char* key) {
     errno_t r = 0;
     HKEY k = null;
-    r = ut_config_get_reg_key(name, &k);
+    r = rt_config_get_reg_key(name, &k);
     if (k != null) {
         r = RegDeleteValueA(k, key);
-        ut_fatal_if_error(RegCloseKey(k));
+        rt_fatal_if_error(RegCloseKey(k));
     }
     return r;
 }
 
-static errno_t ut_config_clean(const char* name) {
+static errno_t rt_config_clean(const char* name) {
     errno_t r = 0;
     HKEY k = null;
-    if (RegOpenKeyExA(HKEY_CURRENT_USER, ut_config_apps,
-                                      0, ut_config_access, &k) == 0) {
+    if (RegOpenKeyExA(HKEY_CURRENT_USER, rt_config_apps,
+                                      0, rt_config_access, &k) == 0) {
        r = RegDeleteTreeA(k, name);
-       ut_fatal_if_error(RegCloseKey(k));
+       rt_fatal_if_error(RegCloseKey(k));
     }
     return r;
 }
 
-static int32_t ut_config_size(const char* name, const char* key) {
+static int32_t rt_config_size(const char* name, const char* key) {
     int32_t bytes = -1;
     HKEY k = null;
-    errno_t r = ut_config_get_reg_key(name, &k);
+    errno_t r = rt_config_get_reg_key(name, &k);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = 0;
@@ -3489,16 +3489,16 @@ static int32_t ut_config_size(const char* name, const char* key) {
         } else {
             bytes = (int32_t)cb;
         }
-        ut_fatal_if_error(RegCloseKey(k));
+        rt_fatal_if_error(RegCloseKey(k));
     }
     return bytes;
 }
 
-static int32_t ut_config_load(const char* name,
+static int32_t rt_config_load(const char* name,
         const char* key, void* data, int32_t bytes) {
     int32_t read = -1;
     HKEY k = null;
-    errno_t r = ut_config_get_reg_key(name, &k);
+    errno_t r = rt_config_get_reg_key(name, &k);
     if (k != null) {
         DWORD type = REG_BINARY;
         DWORD cb = (DWORD)bytes;
@@ -3514,49 +3514,166 @@ static int32_t ut_config_load(const char* name,
         } else {
             read = (int32_t)cb;
         }
-        ut_fatal_if_error(RegCloseKey(k));
+        rt_fatal_if_error(RegCloseKey(k));
     }
     return read;
 }
 
 #ifdef UT_TESTS
 
-static void ut_config_test(void) {
-    const char* name = strrchr(ut_args.v[0], '\\');
-    if (name == null) { name = strrchr(ut_args.v[0], '/'); }
-    name = name != null ? name + 1 : ut_args.v[0];
-    ut_swear(name != null);
+static void rt_config_test(void) {
+    const char* name = strrchr(rt_args.v[0], '\\');
+    if (name == null) { name = strrchr(rt_args.v[0], '/'); }
+    name = name != null ? name + 1 : rt_args.v[0];
+    rt_swear(name != null);
     const char* key = "test";
     const char data[] = "data";
     int32_t bytes = sizeof(data);
-    ut_swear(ut_config.save(name, key, data, bytes) == 0);
+    rt_swear(rt_config.save(name, key, data, bytes) == 0);
     char read[256];
-    ut_swear(ut_config.load(name, key, read, bytes) == bytes);
-    int32_t size = ut_config.size(name, key);
-    ut_swear(size == bytes);
-    ut_swear(ut_config.remove(name, key) == 0);
-    ut_swear(ut_config.clean(name) == 0);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_swear(rt_config.load(name, key, read, bytes) == bytes);
+    int32_t size = rt_config.size(name, key);
+    rt_swear(size == bytes);
+    rt_swear(rt_config.remove(name, key) == 0);
+    rt_swear(rt_config.clean(name) == 0);
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
 
-static void ut_config_test(void) { }
+static void rt_config_test(void) { }
 
 #endif
 
-ut_config_if ut_config = {
-    .save   = ut_config_save,
-    .size   = ut_config_size,
-    .load   = ut_config_load,
-    .remove = ut_config_remove,
-    .clean  = ut_config_clean,
-    .test   = ut_config_test
+rt_config_if rt_config = {
+    .save   = rt_config_save,
+    .size   = rt_config_size,
+    .load   = rt_config_load,
+    .remove = rt_config_remove,
+    .clean  = rt_config_clean,
+    .test   = rt_config_test
 };
+
+// ________________________________ ut_core.c _________________________________
+
+// abort does NOT call atexit() functions and
+// does NOT flush ut_streams. Also Win32 runtime
+// abort() attempt to show Abort/Retry/Ignore
+// MessageBox - thus ExitProcess()
+
+static void rt_core_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
+
+static void rt_core_exit(int32_t exit_code) { exit(exit_code); }
+
+// TODO: consider r = HRESULT_FROM_WIN32() and r = HRESULT_CODE(hr);
+// this separates posix error codes from win32 error codes
+
+
+static errno_t rt_core_err(void) { return (errno_t)GetLastError(); }
+
+static void rt_core_seterr(errno_t err) { SetLastError((DWORD)err); }
+
+ut_static_init(runtime) {
+    SetErrorMode(
+        // The system does not display the critical-error-handler message box.
+        // Instead, the system sends the error to the calling process:
+        SEM_FAILCRITICALERRORS|
+        // The system automatically fixes memory alignment faults and
+        // makes them invisible to the application.
+        SEM_NOALIGNMENTFAULTEXCEPT|
+        // The system does not display the Windows Error Reporting dialog.
+        SEM_NOGPFAULTERRORBOX|
+        // The OpenFile function does not display a message box when it fails
+        // to find a file. Instead, the error is returned to the caller.
+        // This error mode overrides the OF_PROMPT flag.
+        SEM_NOOPENFILEERRORBOX);
+}
+
+#ifdef UT_TESTS
+
+static void rt_core_test(void) { // in alphabetical order
+    rt_args.test();
+    rt_atomics.test();
+    rt_backtrace.test();
+    rt_clipboard.test();
+    rt_clock.test();
+    rt_config.test();
+    rt_debug.test();
+    ut_event.test();
+    rt_files.test();
+    rt_generics.test();
+    rt_heap.test();
+    rt_loader.test();
+    ut_mem.test();
+    ut_mutex.test();
+    ut_num.test();
+    ut_processes.test();
+    ut_static_init_test();
+    ut_str.test();
+    ut_streams.test();
+    ut_thread.test();
+    ut_vigil.test();
+    ut_worker.test();
+}
+
+#else
+
+static void rt_core_test(void) { }
+
+#endif
+
+rt_core_if rt_core = {
+    .err     = rt_core_err,
+    .set_err = rt_core_seterr,
+    .abort   = rt_core_abort,
+    .exit    = rt_core_exit,
+    .test    = rt_core_test,
+    .error   = {                                              // posix
+        .access_denied          = ERROR_ACCESS_DENIED,        // EACCES
+        .bad_file               = ERROR_BAD_FILE_TYPE,        // EBADF
+        .broken_pipe            = ERROR_BROKEN_PIPE,          // EPIPE
+        .device_not_ready       = ERROR_NOT_READY,            // ENXIO
+        .directory_not_empty    = ERROR_DIR_NOT_EMPTY,        // ENOTEMPTY
+        .disk_full              = ERROR_DISK_FULL,            // ENOSPC
+        .file_exists            = ERROR_FILE_EXISTS,          // EEXIST
+        .file_not_found         = ERROR_FILE_NOT_FOUND,       // ENOENT
+        .insufficient_buffer    = ERROR_INSUFFICIENT_BUFFER,  // E2BIG
+        .interrupted            = ERROR_OPERATION_ABORTED,    // EINTR
+        .invalid_data           = ERROR_INVALID_DATA,         // EINVAL
+        .invalid_handle         = ERROR_INVALID_HANDLE,       // EBADF
+        .invalid_parameter      = ERROR_INVALID_PARAMETER,    // EINVAL
+        .io_error               = ERROR_IO_DEVICE,            // EIO
+        .more_data              = ERROR_MORE_DATA,            // ENOBUFS
+        .name_too_long          = ERROR_FILENAME_EXCED_RANGE, // ENAMETOOLONG
+        .no_child_process       = ERROR_NO_PROC_SLOTS,        // ECHILD
+        .not_a_directory        = ERROR_DIRECTORY,            // ENOTDIR
+        .not_empty              = ERROR_DIR_NOT_EMPTY,        // ENOTEMPTY
+        .out_of_memory          = ERROR_OUTOFMEMORY,          // ENOMEM
+        .path_not_found         = ERROR_PATH_NOT_FOUND,       // ENOENT
+        .pipe_not_connected     = ERROR_PIPE_NOT_CONNECTED,   // EPIPE
+        .read_only_file         = ERROR_WRITE_PROTECT,        // EROFS
+        .resource_deadlock      = ERROR_LOCK_VIOLATION,       // EDEADLK
+        .too_many_open_files    = ERROR_TOO_MANY_OPEN_FILES,  // EMFILE
+    }
+};
+
+#pragma comment(lib, "advapi32")
+#pragma comment(lib, "ntdll")
+#pragma comment(lib, "psapi")
+#pragma comment(lib, "shell32")
+#pragma comment(lib, "shlwapi")
+#pragma comment(lib, "kernel32")
+#pragma comment(lib, "user32") // clipboard
+#pragma comment(lib, "imm32")  // Internationalization input method
+#pragma comment(lib, "ole32")  // rt_files.known_folder CoMemFree
+#pragma comment(lib, "dbghelp")
+#pragma comment(lib, "imagehlp")
+
+
 
 // ________________________________ ut_debug.c ________________________________
 
-static const char* ut_debug_abbreviate(const char* file) {
+static const char* rt_debug_abbreviate(const char* file) {
     const char* fn = strrchr(file, '\\');
     if (fn == null) { fn = strrchr(file, '/'); }
     return fn != null ? fn + 1 : file;
@@ -3564,12 +3681,12 @@ static const char* ut_debug_abbreviate(const char* file) {
 
 #ifdef WINDOWS
 
-static int32_t ut_debug_max_file_line;
-static int32_t ut_debug_max_function;
+static int32_t rt_debug_max_file_line;
+static int32_t rt_debug_max_function;
 
-static void ut_debug_output(const char* s, int32_t count) {
+static void rt_debug_output(const char* s, int32_t count) {
     bool intercepted = false;
-    if (ut_debug.tee != null) { intercepted = ut_debug.tee(s, count); }
+    if (rt_debug.tee != null) { intercepted = rt_debug.tee(s, count); }
     if (!intercepted) {
         // For link.exe /Subsystem:Windows code stdout/stderr are often closed
         if (stderr != null && fileno(stderr) >= 0) {
@@ -3582,7 +3699,7 @@ static void ut_debug_output(const char* s, int32_t count) {
     }
 }
 
-static void ut_debug_println_va(const char* file, int32_t line, const char* func,
+static void rt_debug_println_va(const char* file, int32_t line, const char* func,
         const char* format, va_list va) {
     if (func == null) { func = ""; }
     char file_line[1024];
@@ -3592,19 +3709,19 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
         if (file == null) { file = ""; } // backtrace can have null files
         // full path is useful in MSVC debugger output pane (clickable)
         // for all other scenarios short filename without path is preferable:
-        const char* name = IsDebuggerPresent() ? file : ut_files.basename(file);
+        const char* name = IsDebuggerPresent() ? file : rt_files.basename(file);
         snprintf(file_line, ut_countof(file_line) - 1, "%s(%d):", name, line);
     }
     file_line[ut_countof(file_line) - 1] = 0x00; // always zero terminated'
-    ut_debug_max_file_line = ut_max(ut_debug_max_file_line,
+    rt_debug_max_file_line = rt_max(rt_debug_max_file_line,
                                     (int32_t)strlen(file_line));
-    ut_debug_max_function  = ut_max(ut_debug_max_function,
+    rt_debug_max_function  = rt_max(rt_debug_max_function,
                                     (int32_t)strlen(func));
     char prefix[2 * 1024];
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, ut_countof(prefix) - 1, "%-*s %-*s",
-            ut_debug_max_file_line, file_line,
-            ut_debug_max_function,  func);
+            rt_debug_max_file_line, file_line,
+            rt_debug_max_function,  func);
     prefix[ut_countof(prefix) - 1] = 0; // zero terminated
     char text[2 * 1024];
     if (format != null && format[0] != 0) {
@@ -3633,12 +3750,12 @@ static void ut_debug_println_va(const char* file, int32_t line, const char* func
     // Win32 OutputDebugString() needs \n
     output[n + 0] = '\n';
     output[n + 1] = 0;
-    ut_debug.output(output, n + 2); // including 0x00
+    rt_debug.output(output, n + 2); // including 0x00
 }
 
 #else // posix version:
 
-static void ut_debug_vprintf(const char* file, int32_t line, const char* func,
+static void rt_debug_vprintf(const char* file, int32_t line, const char* func,
         const char* format, va_list va) {
     fprintf(stderr, "%s(%d): %s ", file, line, func);
     vfprintf(stderr, format, va);
@@ -3647,78 +3764,78 @@ static void ut_debug_vprintf(const char* file, int32_t line, const char* func,
 
 #endif
 
-static void ut_debug_perrno(const char* file, int32_t line,
+static void rt_debug_perrno(const char* file, int32_t line,
     const char* func, int32_t err_no, const char* format, ...) {
     if (err_no != 0) {
         if (format != null && format[0] != 0) {
             va_list va;
             va_start(va, format);
-            ut_debug.println_va(file, line, func, format, va);
+            rt_debug.println_va(file, line, func, format, va);
             va_end(va);
         }
-        ut_debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
+        rt_debug.println(file, line, func, "errno: %d %s", err_no, strerror(err_no));
     }
 }
 
-static void ut_debug_perror(const char* file, int32_t line,
+static void rt_debug_perror(const char* file, int32_t line,
     const char* func, int32_t error, const char* format, ...) {
     if (error != 0) {
         if (format != null && format[0] != 0) {
             va_list va;
             va_start(va, format);
-            ut_debug.println_va(file, line, func, format, va);
+            rt_debug.println_va(file, line, func, format, va);
             va_end(va);
         }
-        ut_debug.println(file, line, func, "error: %s", ut_strerr(error));
+        rt_debug.println(file, line, func, "error: %s", ut_strerr(error));
     }
 }
 
-static void ut_debug_println(const char* file, int32_t line, const char* func,
+static void rt_debug_println(const char* file, int32_t line, const char* func,
         const char* format, ...) {
     va_list va;
     va_start(va, format);
-    ut_debug.println_va(file, line, func, format, va);
+    rt_debug.println_va(file, line, func, format, va);
     va_end(va);
 }
 
-static bool ut_debug_is_debugger_present(void) { return IsDebuggerPresent(); }
+static bool rt_debug_is_debugger_present(void) { return IsDebuggerPresent(); }
 
-static void ut_debug_breakpoint(void) {
-    if (ut_debug.is_debugger_present()) { DebugBreak(); }
+static void rt_debug_breakpoint(void) {
+    if (rt_debug.is_debugger_present()) { DebugBreak(); }
 }
 
-static errno_t ut_debug_raise(uint32_t exception) {
-    ut_runtime.set_err(0);
+static errno_t rt_debug_raise(uint32_t exception) {
+    rt_core.set_err(0);
     RaiseException(exception, EXCEPTION_NONCONTINUABLE, 0, null);
-    return ut_runtime.err();
+    return rt_core.err();
 }
 
-static int32_t ut_debug_verbosity_from_string(const char* s) {
+static int32_t rt_debug_verbosity_from_string(const char* s) {
     char* n = null;
     long v = strtol(s, &n, 10);
     if (stricmp(s, "quiet") == 0) {
-        return ut_debug.verbosity.quiet;
+        return rt_debug.verbosity.quiet;
     } else if (stricmp(s, "info") == 0) {
-        return ut_debug.verbosity.info;
+        return rt_debug.verbosity.info;
     } else if (stricmp(s, "verbose") == 0) {
-        return ut_debug.verbosity.verbose;
+        return rt_debug.verbosity.verbose;
     } else if (stricmp(s, "debug") == 0) {
-        return ut_debug.verbosity.debug;
+        return rt_debug.verbosity.debug;
     } else if (stricmp(s, "trace") == 0) {
-        return ut_debug.verbosity.trace;
-    } else if (n > s && ut_debug.verbosity.quiet <= v &&
-               v <= ut_debug.verbosity.trace) {
+        return rt_debug.verbosity.trace;
+    } else if (n > s && rt_debug.verbosity.quiet <= v &&
+               v <= rt_debug.verbosity.trace) {
         return v;
     } else {
         ut_fatal("invalid verbosity: %s", s);
-        return ut_debug.verbosity.quiet;
+        return rt_debug.verbosity.quiet;
     }
 }
 
-static void ut_debug_test(void) {
+static void rt_debug_test(void) {
     #ifdef UT_TESTS
     // not clear what can be tested here
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 
@@ -3726,7 +3843,7 @@ static void ut_debug_test(void) {
 #define STATUS_POSSIBLE_DEADLOCK 0xC0000194uL
 #endif
 
-ut_debug_if ut_debug = {
+rt_debug_if rt_debug = {
     .verbosity = {
         .level   =  0,
         .quiet   =  0,
@@ -3735,16 +3852,16 @@ ut_debug_if ut_debug = {
         .debug   =  3,
         .trace   =  4,
     },
-    .verbosity_from_string = ut_debug_verbosity_from_string,
+    .verbosity_from_string = rt_debug_verbosity_from_string,
     .tee                   = null,
-    .output                = ut_debug_output,
-    .println               = ut_debug_println,
-    .println_va            = ut_debug_println_va,
-    .perrno                = ut_debug_perrno,
-    .perror                = ut_debug_perror,
-    .is_debugger_present   = ut_debug_is_debugger_present,
-    .breakpoint            = ut_debug_breakpoint,
-    .raise                 = ut_debug_raise,
+    .output                = rt_debug_output,
+    .println               = rt_debug_println,
+    .println_va            = rt_debug_println_va,
+    .perrno                = rt_debug_perrno,
+    .perror                = rt_debug_perror,
+    .is_debugger_present   = rt_debug_is_debugger_present,
+    .breakpoint            = rt_debug_breakpoint,
+    .raise                 = rt_debug_raise,
     .exception             = {
         .access_violation        = EXCEPTION_ACCESS_VIOLATION,
         .datatype_misalignment   = EXCEPTION_DATATYPE_MISALIGNMENT,
@@ -3770,7 +3887,7 @@ ut_debug_if ut_debug = {
         .invalid_handle          = EXCEPTION_INVALID_HANDLE,
         .possible_deadlock       = EXCEPTION_POSSIBLE_DEADLOCK
     },
-    .test                  = ut_debug_test
+    .test                  = rt_debug_test
 };
 
 // ________________________________ ut_files.c ________________________________
@@ -3787,28 +3904,28 @@ ut_static_assertion(SEEK_END == FILE_END);
 #define O_SYNC (0x10000)
 #endif
 
-static errno_t ut_files_open(ut_file_t* *file, const char* fn, int32_t f) {
-    DWORD access = (f & ut_files.o_wr) ? GENERIC_WRITE :
-                   (f & ut_files.o_rw) ? GENERIC_READ | GENERIC_WRITE :
+static errno_t rt_files_open(ut_file_t* *file, const char* fn, int32_t f) {
+    DWORD access = (f & rt_files.o_wr) ? GENERIC_WRITE :
+                   (f & rt_files.o_rw) ? GENERIC_READ | GENERIC_WRITE :
                                       GENERIC_READ;
-    access |= (f & ut_files.o_append) ? FILE_APPEND_DATA : 0;
+    access |= (f & rt_files.o_append) ? FILE_APPEND_DATA : 0;
     DWORD disposition =
-        (f & ut_files.o_create) ? ((f & ut_files.o_excl)  ? CREATE_NEW :
-                                (f & ut_files.o_trunc) ? CREATE_ALWAYS :
+        (f & rt_files.o_create) ? ((f & rt_files.o_excl)  ? CREATE_NEW :
+                                (f & rt_files.o_trunc) ? CREATE_ALWAYS :
                                                       OPEN_ALWAYS) :
-            (f & ut_files.o_trunc) ? TRUNCATE_EXISTING : OPEN_EXISTING;
+            (f & rt_files.o_trunc) ? TRUNCATE_EXISTING : OPEN_EXISTING;
     const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
     DWORD attr = FILE_ATTRIBUTE_NORMAL;
     attr |= (f & O_SYNC) ? FILE_FLAG_WRITE_THROUGH : 0;
     *file = CreateFileA(fn, access, share, null, disposition, attr, null);
-    return *file != INVALID_HANDLE_VALUE ? 0 : ut_runtime.err();
+    return *file != INVALID_HANDLE_VALUE ? 0 : rt_core.err();
 }
 
-static bool ut_files_is_valid(ut_file_t* file) { // both null and ut_files.invalid
-    return file != ut_files.invalid && file != null;
+static bool rt_files_is_valid(ut_file_t* file) { // both null and rt_files.invalid
+    return file != rt_files.invalid && file != null;
 }
 
-static errno_t ut_files_seek(ut_file_t* file, int64_t *position, int32_t method) {
+static errno_t rt_files_seek(ut_file_t* file, int64_t *position, int32_t method) {
     LARGE_INTEGER distance_to_move = { .QuadPart = *position };
     LARGE_INTEGER p = { 0 }; // pointer
     errno_t r = ut_b2e(SetFilePointerEx(file, distance_to_move, &p, (DWORD)method));
@@ -3816,20 +3933,20 @@ static errno_t ut_files_seek(ut_file_t* file, int64_t *position, int32_t method)
     return r;
 }
 
-static inline uint64_t ut_files_ft_to_us(FILETIME ft) { // us (microseconds)
+static inline uint64_t rt_files_ft_to_us(FILETIME ft) { // us (microseconds)
     return (ft.dwLowDateTime | (((uint64_t)ft.dwHighDateTime) << 32)) / 10;
 }
 
-static int64_t ut_files_a2t(DWORD a) {
+static int64_t rt_files_a2t(DWORD a) {
     int64_t type = 0;
     if (a & FILE_ATTRIBUTE_REPARSE_POINT) {
-        type |= ut_files.type_symlink;
+        type |= rt_files.type_symlink;
     }
     if (a & FILE_ATTRIBUTE_DIRECTORY) {
-        type |= ut_files.type_folder;
+        type |= rt_files.type_folder;
     }
     if (a & FILE_ATTRIBUTE_DEVICE) {
-        type |= ut_files.type_device;
+        type |= rt_files.type_device;
     }
     return type;
 }
@@ -3848,7 +3965,7 @@ static int get_final_path_name_by_fd(int fd, char *buffer, int32_t bytes) {
 
 #endif
 
-static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s,
+static errno_t rt_files_stat(ut_file_t* file, rt_files_stat_t* s,
                              bool follow_symlink) {
     errno_t r = 0;
     BY_HANDLE_FILE_INFORMATION fi;
@@ -3859,37 +3976,37 @@ static errno_t ut_files_stat(ut_file_t* file, ut_files_stat_t* s,
         const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
         DWORD n = GetFinalPathNameByHandleA(file, null, 0, flags);
         if (n == 0) {
-            r = ut_runtime.err();
+            r = rt_core.err();
         } else {
             char* name = null;
-            r = ut_heap.allocate(null, (void**)&name, (int64_t)n + 2, false);
+            r = rt_heap.allocate(null, (void**)&name, (int64_t)n + 2, false);
             if (r == 0) {
                 n = GetFinalPathNameByHandleA(file, name, n + 1, flags);
                 if (n == 0) {
-                    r = ut_runtime.err();
+                    r = rt_core.err();
                 } else {
-                    ut_file_t* f = ut_files.invalid;
-                    r = ut_files.open(&f, name, ut_files.o_rd);
+                    ut_file_t* f = rt_files.invalid;
+                    r = rt_files.open(&f, name, rt_files.o_rd);
                     if (r == 0) { // keep following:
-                        r = ut_files.stat(f, s, follow_symlink);
-                        ut_files.close(f);
+                        r = rt_files.stat(f, s, follow_symlink);
+                        rt_files.close(f);
                     }
                 }
-                ut_heap.deallocate(null, name);
+                rt_heap.deallocate(null, name);
             }
         }
     } else {
         s->size = (int64_t)((uint64_t)fi.nFileSizeLow |
                           (((uint64_t)fi.nFileSizeHigh) << 32));
-        s->created  = ut_files_ft_to_us(fi.ftCreationTime); // since epoch
-        s->accessed = ut_files_ft_to_us(fi.ftLastAccessTime);
-        s->updated  = ut_files_ft_to_us(fi.ftLastWriteTime);
-        s->type = ut_files_a2t(fi.dwFileAttributes);
+        s->created  = rt_files_ft_to_us(fi.ftCreationTime); // since epoch
+        s->accessed = rt_files_ft_to_us(fi.ftLastAccessTime);
+        s->updated  = rt_files_ft_to_us(fi.ftLastWriteTime);
+        s->type = rt_files_a2t(fi.dwFileAttributes);
     }
     return r;
 }
 
-static errno_t ut_files_read(ut_file_t* file, void* data, int64_t bytes, int64_t *transferred) {
+static errno_t rt_files_read(ut_file_t* file, void* data, int64_t bytes, int64_t *transferred) {
     errno_t r = 0;
     *transferred = 0;
     while (bytes > 0 && r == 0) {
@@ -3905,7 +4022,7 @@ static errno_t ut_files_read(ut_file_t* file, void* data, int64_t bytes, int64_t
     return r;
 }
 
-static errno_t ut_files_write(ut_file_t* file, const void* data, int64_t bytes, int64_t *transferred) {
+static errno_t rt_files_write(ut_file_t* file, const void* data, int64_t bytes, int64_t *transferred) {
     errno_t r = 0;
     *transferred = 0;
     while (bytes > 0 && r == 0) {
@@ -3921,15 +4038,15 @@ static errno_t ut_files_write(ut_file_t* file, const void* data, int64_t bytes, 
     return r;
 }
 
-static errno_t ut_files_flush(ut_file_t* file) {
+static errno_t rt_files_flush(ut_file_t* file) {
     return ut_b2e(FlushFileBuffers(file));
 }
 
-static void ut_files_close(ut_file_t* file) {
+static void rt_files_close(ut_file_t* file) {
     ut_win32_close_handle(file);
 }
 
-static errno_t ut_files_write_fully(const char* filename, const void* data,
+static errno_t rt_files_write_fully(const char* filename, const void* data,
                                  int64_t bytes, int64_t *transferred) {
     if (transferred != null) { *transferred = 0; }
     errno_t r = 0;
@@ -3939,7 +4056,7 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
     HANDLE file = CreateFileA(filename, access, share, null, CREATE_ALWAYS,
                               flags, null);
     if (file == INVALID_HANDLE_VALUE) {
-        r = ut_runtime.err();
+        r = rt_core.err();
     } else {
         int64_t written = 0;
         const uint8_t* p = (const uint8_t*)data;
@@ -3960,18 +4077,18 @@ static errno_t ut_files_write_fully(const char* filename, const void* data,
     return r;
 }
 
-static errno_t ut_files_unlink(const char* pathname) {
-    if (ut_files.is_folder(pathname)) {
+static errno_t rt_files_unlink(const char* pathname) {
+    if (rt_files.is_folder(pathname)) {
         return ut_b2e(RemoveDirectoryA(pathname));
     } else {
         return ut_b2e(DeleteFileA(pathname));
     }
 }
 
-static errno_t ut_files_create_tmp(char* fn, int32_t count) {
+static errno_t rt_files_create_tmp(char* fn, int32_t count) {
     // create temporary file (not folder!) see folders_test() about racing
-    ut_swear(fn != null && count > 0);
-    const char* tmp = ut_files.tmp();
+    rt_swear(fn != null && count > 0);
+    const char* tmp = rt_files.tmp();
     errno_t r = 0;
     if (count < (int32_t)strlen(tmp) + 8) {
         r = ERROR_BUFFER_OVERFLOW;
@@ -3983,9 +4100,9 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
         // the return value is zero.
         if (count > (int32_t)strlen(tmp) + 8) {
             char prefix[4] = { 0 };
-            r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? ut_runtime.err() : 0;
+            r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? rt_core.err() : 0;
             if (r == 0) {
-                ut_assert(ut_files.exists(fn) && !ut_files.is_folder(fn));
+                ut_assert(rt_files.exists(fn) && !rt_files.is_folder(fn));
             } else {
                 ut_println("GetTempFileNameA() failed %s", ut_strerr(r));
             }
@@ -4000,23 +4117,23 @@ static errno_t ut_files_create_tmp(char* fn, int32_t count) {
 #pragma push_macro("files_get_acl")
 #pragma push_macro("files_set_acl")
 
-#define ut_files_acl_args(acl) DACL_SECURITY_INFORMATION, null, null, acl, null
+#define rt_files_acl_args(acl) DACL_SECURITY_INFORMATION, null, null, acl, null
 
-#define ut_files_get_acl(obj, type, acl, sd) (errno_t)(         \
+#define rt_files_get_acl(obj, type, acl, sd) (errno_t)(         \
     (type == SE_FILE_OBJECT ? GetNamedSecurityInfoA((char*)obj, \
-             SE_FILE_OBJECT, ut_files_acl_args(acl), &sd) :     \
+             SE_FILE_OBJECT, rt_files_acl_args(acl), &sd) :     \
     (type == SE_KERNEL_OBJECT) ? GetSecurityInfo((HANDLE)obj,   \
-             SE_KERNEL_OBJECT, ut_files_acl_args(acl), &sd) :   \
+             SE_KERNEL_OBJECT, rt_files_acl_args(acl), &sd) :   \
     ERROR_INVALID_PARAMETER))
 
-#define ut_files_set_acl(obj, type, acl) (errno_t)(             \
+#define rt_files_set_acl(obj, type, acl) (errno_t)(             \
     (type == SE_FILE_OBJECT ? SetNamedSecurityInfoA((char*)obj, \
-             SE_FILE_OBJECT, ut_files_acl_args(acl)) :          \
+             SE_FILE_OBJECT, rt_files_acl_args(acl)) :          \
     (type == SE_KERNEL_OBJECT) ? SetSecurityInfo((HANDLE)obj,   \
-             SE_KERNEL_OBJECT, ut_files_acl_args(acl)) :        \
+             SE_KERNEL_OBJECT, rt_files_acl_args(acl)) :        \
     ERROR_INVALID_PARAMETER))
 
-static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
+static errno_t rt_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
                                  ACL** free_me, byte flags) {
     ACL_SIZE_INFORMATION info = {0};
     ACL* bigger = null;
@@ -4026,7 +4143,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
         AclSizeInformation));
     if (r == 0 && info.AclBytesFree < bytes_needed) {
         const int64_t bytes = (int64_t)(info.AclBytesInUse + bytes_needed);
-        r = ut_heap.allocate(null, (void**)&bigger, bytes, true);
+        r = rt_heap.allocate(null, (void**)&bigger, bytes, true);
         if (r == 0) {
             r = ut_b2e(InitializeAcl((ACL*)bigger,
                     info.AclBytesInUse + bytes_needed, ACL_REVISION));
@@ -4044,7 +4161,7 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
     }
     if (r == 0) {
         ACCESS_ALLOWED_ACE* ace = null;
-        r = ut_heap.allocate(null, (void**)&ace, bytes_needed, true);
+        r = rt_heap.allocate(null, (void**)&ace, bytes_needed, true);
         if (r == 0) {
             ace->Header.AceFlags = flags;
             ace->Header.AceType = ACCESS_ALLOWED_ACE_TYPE;
@@ -4054,14 +4171,14 @@ static errno_t ut_files_acl_add_ace(ACL* acl, SID* sid, uint32_t mask,
             memcpy(&ace->SidStart, sid, GetLengthSid(sid));
             r = ut_b2e(AddAce(bigger != null ? bigger : acl, ACL_REVISION, MAXDWORD,
                            ace, bytes_needed));
-            ut_heap.deallocate(null, ace);
+            rt_heap.deallocate(null, ace);
         }
     }
     *free_me = bigger;
     return r;
 }
 
-static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
+static errno_t rt_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
     // handy for debugging
     SID* sid = (SID*)&ace->SidStart;
     DWORD l1 = 128, l2 = 128;
@@ -4080,7 +4197,7 @@ static errno_t ut_files_lookup_sid(ACCESS_ALLOWED_ACE* ace) {
     return r;
 }
 
-static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
+static errno_t rt_files_add_acl_ace(void* obj, int32_t obj_type,
                                  int32_t sid_type, uint32_t mask) {
     uint8_t stack[SECURITY_MAX_SID_SIZE] = {0};
     DWORD n = ut_countof(stack);
@@ -4092,7 +4209,7 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
     }
     ACL* acl = null;
     void* sd = null;
-    r = ut_files_get_acl(obj, obj_type, &acl, sd);
+    r = rt_files_get_acl(obj, obj_type, &acl, sd);
     if (r == 0) {
         ACCESS_ALLOWED_ACE* found = null;
         for (int32_t i = 0; i < acl->AceCount; i++) {
@@ -4116,7 +4233,7 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
             if ((found->Mask & mask) != mask) {
 //              ut_println("updating existing ace");
                 found->Mask |= mask;
-                r = ut_files_set_acl(obj, obj_type, acl);
+                r = rt_files_set_acl(obj, obj_type, acl);
             } else {
 //              ut_println("desired access is already allowed by ace");
             }
@@ -4125,11 +4242,11 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
             ACL* new_acl = null;
             byte flags = obj_type == SE_FILE_OBJECT ?
                 CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE : 0;
-            r = ut_files_acl_add_ace(acl, sid, mask, &new_acl, flags);
+            r = rt_files_acl_add_ace(acl, sid, mask, &new_acl, flags);
             if (r == 0) {
-                r = ut_files_set_acl(obj, obj_type, (new_acl != null ? new_acl : acl));
+                r = rt_files_set_acl(obj, obj_type, (new_acl != null ? new_acl : acl));
             }
-            if (new_acl != null) { ut_heap.deallocate(null, new_acl); }
+            if (new_acl != null) { rt_heap.deallocate(null, new_acl); }
         }
     }
     if (sd != null) { LocalFree(sd); }
@@ -4140,7 +4257,7 @@ static errno_t ut_files_add_acl_ace(void* obj, int32_t obj_type,
 #pragma pop_macro("files_get_acl")
 #pragma pop_macro("files_acl_args")
 
-static errno_t ut_files_chmod777(const char* pathname) {
+static errno_t rt_files_chmod777(const char* pathname) {
     SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
     PSID everyone = null; // Create a well-known SID for the Everyone group.
     ut_fatal_win32err(AllocateAndInitializeSid(&SIDAuthWorld, 1,
@@ -4155,7 +4272,7 @@ static errno_t ut_files_chmod777(const char* pathname) {
     ea[0].Trustee.ptstrName  = (LPSTR)everyone;
     // Create a new ACL that contains the new ACEs.
     ACL* acl = null;
-    ut_fatal_if_error(SetEntriesInAclA(1, ea, null, &acl));
+    rt_fatal_if_error(SetEntriesInAclA(1, ea, null, &acl));
     // Initialize a security descriptor.
     uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH] = {0};
     SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)stack;
@@ -4179,10 +4296,10 @@ static errno_t ut_files_chmod777(const char* pathname) {
 //  descriptor. The ACLs in the default security descriptor for a directory
 //  are inherited from its parent directory."
 
-static errno_t ut_files_mkdirs(const char* dir) {
+static errno_t rt_files_mkdirs(const char* dir) {
     const int32_t n = (int32_t)strlen(dir) + 1;
     char* s = null;
-    errno_t r = ut_heap.allocate(null, (void**)&s, n, true);
+    errno_t r = rt_heap.allocate(null, (void**)&s, n, true);
     const char* next = strchr(dir, '\\');
     if (next == null) { next = strchr(dir, '/'); }
     while (r == 0 && next != null) {
@@ -4200,27 +4317,27 @@ static errno_t ut_files_mkdirs(const char* dir) {
     if (r == 0) {
         r = ut_b2e(CreateDirectoryA(dir, null));
     }
-    ut_heap.deallocate(null, s);
+    rt_heap.deallocate(null, s);
     return r == ERROR_ALREADY_EXISTS ? 0 : r;
 }
 
-#pragma push_macro("ut_files_realloc_path")
-#pragma push_macro("ut_files_append_name")
+#pragma push_macro("rt_files_realloc_path")
+#pragma push_macro("rt_files_append_name")
 
-#define ut_files_realloc_path(r, pn, pnc, fn, name) do {                \
+#define rt_files_realloc_path(r, pn, pnc, fn, name) do {                \
     const int32_t bytes = (int32_t)(strlen(fn) + strlen(name) + 3);     \
     if (bytes > pnc) {                                                  \
-        r = ut_heap.reallocate(null, (void**)&pn, bytes, false);        \
+        r = rt_heap.reallocate(null, (void**)&pn, bytes, false);        \
         if (r != 0) {                                                   \
             pnc = bytes;                                                \
         } else {                                                        \
-            ut_heap.deallocate(null, pn);                               \
+            rt_heap.deallocate(null, pn);                               \
             pn = null;                                                  \
         }                                                               \
     }                                                                   \
 } while (0)
 
-#define ut_files_append_name(pn, pnc, fn, name) do {     \
+#define rt_files_append_name(pn, pnc, fn, name) do {     \
     if (strcmp(fn, "\\") == 0 || strcmp(fn, "/") == 0) { \
         ut_str.format(pn, pnc, "\\%s", name);            \
     } else {                                             \
@@ -4228,10 +4345,10 @@ static errno_t ut_files_mkdirs(const char* dir) {
     }                                                    \
 } while (0)
 
-static errno_t ut_files_rmdirs(const char* fn) {
-    ut_files_stat_t st;
-    ut_folder_t folder;
-    errno_t r = ut_files.opendir(&folder, fn);
+static errno_t rt_files_rmdirs(const char* fn) {
+    rt_files_stat_t st;
+    rt_folder_t folder;
+    errno_t r = rt_files.opendir(&folder, fn);
     if (r == 0) {
         int32_t k = (int32_t)strlen(fn);
         // remove trailing backslash (except if it is root: "/" or "\\")
@@ -4240,75 +4357,75 @@ static errno_t ut_files_rmdirs(const char* fn) {
         }
         int32_t pnc = 64 * 1024; // pathname "pn" capacity in bytes
         char* pn = null;
-        r = ut_heap.allocate(null, (void**)&pn, pnc, false);
+        r = rt_heap.allocate(null, (void**)&pn, pnc, false);
         while (r == 0) {
             // recurse into sub folders and remove them first
             // do NOT follow symlinks - it could be disastrous
-            const char* name = ut_files.readdir(&folder, &st);
+            const char* name = rt_files.readdir(&folder, &st);
             if (name == null) { break; }
             if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0 &&
-                (st.type & ut_files.type_symlink) == 0 &&
-                (st.type & ut_files.type_folder) != 0) {
-                ut_files_realloc_path(r, pn, pnc, fn, name);
+                (st.type & rt_files.type_symlink) == 0 &&
+                (st.type & rt_files.type_folder) != 0) {
+                rt_files_realloc_path(r, pn, pnc, fn, name);
                 if (r == 0) {
-                    ut_files_append_name(pn, pnc, fn, name);
-                    r = ut_files.rmdirs(pn);
+                    rt_files_append_name(pn, pnc, fn, name);
+                    r = rt_files.rmdirs(pn);
                 }
             }
         }
-        ut_files.closedir(&folder);
-        r = ut_files.opendir(&folder, fn);
+        rt_files.closedir(&folder);
+        r = rt_files.opendir(&folder, fn);
         while (r == 0) {
-            const char* name = ut_files.readdir(&folder, &st);
+            const char* name = rt_files.readdir(&folder, &st);
             if (name == null) { break; }
             // symlinks are already removed as normal files
             if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0 &&
-                (st.type & ut_files.type_folder) == 0) {
-                ut_files_realloc_path(r, pn, pnc, fn, name);
+                (st.type & rt_files.type_folder) == 0) {
+                rt_files_realloc_path(r, pn, pnc, fn, name);
                 if (r == 0) {
-                    ut_files_append_name(pn, pnc, fn, name);
-                    r = ut_files.unlink(pn);
+                    rt_files_append_name(pn, pnc, fn, name);
+                    r = rt_files.unlink(pn);
                     if (r != 0) {
                         ut_println("remove(%s) failed %s", pn, ut_strerr(r));
                     }
                 }
             }
         }
-        ut_heap.deallocate(null, pn);
-        ut_files.closedir(&folder);
+        rt_heap.deallocate(null, pn);
+        rt_files.closedir(&folder);
     }
-    if (r == 0) { r = ut_files.unlink(fn); }
+    if (r == 0) { r = rt_files.unlink(fn); }
     return r;
 }
 
-#pragma pop_macro("ut_files_append_name")
-#pragma pop_macro("ut_files_realloc_path")
+#pragma pop_macro("rt_files_append_name")
+#pragma pop_macro("rt_files_realloc_path")
 
-static bool ut_files_exists(const char* path) {
+static bool rt_files_exists(const char* path) {
     return PathFileExistsA(path);
 }
 
-static bool ut_files_is_folder(const char* path) {
+static bool rt_files_is_folder(const char* path) {
     return PathIsDirectoryA(path);
 }
 
-static bool ut_files_is_symlink(const char* filename) {
+static bool rt_files_is_symlink(const char* filename) {
     DWORD attributes = GetFileAttributesA(filename);
     return attributes != INVALID_FILE_ATTRIBUTES &&
           (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 }
 
-static const char* ut_files_basename(const char* pathname) {
+static const char* rt_files_basename(const char* pathname) {
     const char* bn = strrchr(pathname, '\\');
     if (bn == null) { bn = strrchr(pathname, '/'); }
     return bn != null ? bn + 1 : pathname;
 }
 
-static errno_t ut_files_copy(const char* s, const char* d) {
+static errno_t rt_files_copy(const char* s, const char* d) {
     return ut_b2e(CopyFileA(s, d, false));
 }
 
-static errno_t ut_files_move(const char* s, const char* d) {
+static errno_t rt_files_move(const char* s, const char* d) {
     static const DWORD flags =
         MOVEFILE_REPLACE_EXISTING |
         MOVEFILE_COPY_ALLOWED |
@@ -4316,19 +4433,19 @@ static errno_t ut_files_move(const char* s, const char* d) {
     return ut_b2e(MoveFileExA(s, d, flags));
 }
 
-static errno_t ut_files_link(const char* from, const char* to) {
+static errno_t rt_files_link(const char* from, const char* to) {
     // note reverse order of parameters:
     return ut_b2e(CreateHardLinkA(to, from, null));
 }
 
-static errno_t ut_files_symlink(const char* from, const char* to) {
+static errno_t rt_files_symlink(const char* from, const char* to) {
     // The correct order of parameters for CreateSymbolicLinkA is:
     // CreateSymbolicLinkA(symlink_to_create, existing_file, flags);
-    DWORD flags = ut_files.is_folder(from) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
+    DWORD flags = rt_files.is_folder(from) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
     return ut_b2e(CreateSymbolicLinkA(to, from, flags));
 }
 
-static const char* ut_files_known_folder(int32_t kf) {
+static const char* rt_files_known_folder(int32_t kf) {
     // known folder ids order must match enum see:
     static const GUID* kf_ids[] = {
         &FOLDERID_Profile,
@@ -4343,10 +4460,10 @@ static const char* ut_files_known_folder(int32_t kf) {
         &FOLDERID_ProgramData
     };
     static ut_file_name_t known_folders[ut_countof(kf_ids)];
-    ut_fatal_if(!(0 <= kf && kf < ut_countof(kf_ids)), "invalid kf=%d", kf);
+    rt_fatal_if(!(0 <= kf && kf < ut_countof(kf_ids)), "invalid kf=%d", kf);
     if (known_folders[kf].s[0] == 0) {
         uint16_t* path = null;
-        ut_fatal_if_error(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
+        rt_fatal_if_error(SHGetKnownFolderPath(kf_ids[kf], 0, null, &path));
         const int32_t n = ut_countof(known_folders[kf].s);
         ut_str.utf16to8(known_folders[kf].s, n, path, -1);
         CoTaskMemFree(path);
@@ -4354,78 +4471,78 @@ static const char* ut_files_known_folder(int32_t kf) {
     return known_folders[kf].s;
 }
 
-static const char* ut_files_bin(void) {
-    return ut_files_known_folder(ut_files.folder.bin);
+static const char* rt_files_bin(void) {
+    return rt_files_known_folder(rt_files.folder.bin);
 }
 
-static const char* ut_files_data(void) {
-    return ut_files_known_folder(ut_files.folder.data);
+static const char* rt_files_data(void) {
+    return rt_files_known_folder(rt_files.folder.data);
 }
 
-static const char* ut_files_tmp(void) {
-    static char tmp[ut_files_max_path];
+static const char* rt_files_tmp(void) {
+    static char tmp[rt_files_max_path];
     if (tmp[0] == 0) {
         // If GetTempPathA() succeeds, the return value is the length,
         // in chars, of the string copied to lpBuffer, not including
         // the terminating null character. If the function fails, the
         // return value is zero.
-        errno_t r = GetTempPathA(ut_countof(tmp), tmp) == 0 ? ut_runtime.err() : 0;
-        ut_fatal_if(r != 0, "GetTempPathA() failed %s", ut_strerr(r));
+        errno_t r = GetTempPathA(ut_countof(tmp), tmp) == 0 ? rt_core.err() : 0;
+        rt_fatal_if(r != 0, "GetTempPathA() failed %s", ut_strerr(r));
     }
     return tmp;
 }
 
-static errno_t ut_files_cwd(char* fn, int32_t count) {
-    ut_swear(count > 1);
+static errno_t rt_files_cwd(char* fn, int32_t count) {
+    rt_swear(count > 1);
     DWORD bytes = (DWORD)(count - 1);
     errno_t r = ut_b2e(GetCurrentDirectoryA(bytes, fn));
     fn[count - 1] = 0; // always
     return r;
 }
 
-static errno_t ut_files_chdir(const char* fn) {
+static errno_t rt_files_chdir(const char* fn) {
     return ut_b2e(SetCurrentDirectoryA(fn));
 }
 
-typedef struct ut_files_dir_s {
+typedef struct rt_files_dir_s {
     HANDLE handle;
     WIN32_FIND_DATAA find; // On Win64: 320 bytes
-} ut_files_dir_t;
+} rt_files_dir_t;
 
-ut_static_assertion(sizeof(ut_files_dir_t) <= sizeof(ut_folder_t));
+ut_static_assertion(sizeof(rt_files_dir_t) <= sizeof(rt_folder_t));
 
-static errno_t ut_files_opendir(ut_folder_t* folder, const char* folder_name) {
-    ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
+static errno_t rt_files_opendir(rt_folder_t* folder, const char* folder_name) {
+    rt_files_dir_t* d = (rt_files_dir_t*)(void*)folder;
     int32_t n = (int32_t)strlen(folder_name);
     char* fn = null;
     // extra room for "\*" suffix
-    errno_t r = ut_heap.allocate(null, (void**)&fn, (int64_t)n + 3, false);
+    errno_t r = rt_heap.allocate(null, (void**)&fn, (int64_t)n + 3, false);
     if (r == 0) {
         ut_str.format(fn, n + 3, "%s\\*", folder_name);
         fn[n + 2] = 0;
         d->handle = FindFirstFileA(fn, &d->find);
-        if (d->handle == INVALID_HANDLE_VALUE) { r = ut_runtime.err(); }
-        ut_heap.deallocate(null, fn);
+        if (d->handle == INVALID_HANDLE_VALUE) { r = rt_core.err(); }
+        rt_heap.deallocate(null, fn);
     }
     return r;
 }
 
-static uint64_t ut_files_ft2us(FILETIME* ft) { // 100ns units to microseconds:
+static uint64_t rt_files_ft2us(FILETIME* ft) { // 100ns units to microseconds:
     return (((uint64_t)ft->dwHighDateTime) << 32 | ft->dwLowDateTime) / 10;
 }
 
-static const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
+static const char* rt_files_readdir(rt_folder_t* folder, rt_files_stat_t* s) {
     const char* fn = null;
-    ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
+    rt_files_dir_t* d = (rt_files_dir_t*)(void*)folder;
     if (FindNextFileA(d->handle, &d->find)) {
         fn = d->find.cFileName;
         // Ensure zero termination
         d->find.cFileName[ut_countof(d->find.cFileName) - 1] = 0x00;
         if (s != null) {
-            s->accessed = ut_files_ft2us(&d->find.ftLastAccessTime);
-            s->created = ut_files_ft2us(&d->find.ftCreationTime);
-            s->updated = ut_files_ft2us(&d->find.ftLastWriteTime);
-            s->type = ut_files_a2t(d->find.dwFileAttributes);
+            s->accessed = rt_files_ft2us(&d->find.ftLastAccessTime);
+            s->created = rt_files_ft2us(&d->find.ftCreationTime);
+            s->updated = rt_files_ft2us(&d->find.ftLastWriteTime);
+            s->type = rt_files_a2t(d->find.dwFileAttributes);
             s->size = (int64_t)((((uint64_t)d->find.nFileSizeHigh) << 32) |
                                   (uint64_t)d->find.nFileSizeLow);
         }
@@ -4433,8 +4550,8 @@ static const char* ut_files_readdir(ut_folder_t* folder, ut_files_stat_t* s) {
     return fn;
 }
 
-static void ut_files_closedir(ut_folder_t* folder) {
-    ut_files_dir_t* d = (ut_files_dir_t*)(void*)folder;
+static void rt_files_closedir(rt_folder_t* folder) {
+    rt_files_dir_t* d = (rt_files_dir_t*)(void*)folder;
     ut_fatal_win32err(FindClose(d->handle));
 }
 
@@ -4442,14 +4559,14 @@ static void ut_files_closedir(ut_folder_t* folder) {
 
 #ifdef UT_TESTS
 
-// TODO: change ut_fatal_if() to swear()
+// TODO: change rt_fatal_if() to swear()
 
-#define ut_files_test_failed " failed %s", ut_strerr(ut_runtime.err())
+#define rt_files_test_failed " failed %s", ut_strerr(rt_core.err())
 
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                       \
-    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
+    if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) { \
         ut_println(__VA_ARGS__);                                   \
     }                                                           \
 } while (0)
@@ -4463,15 +4580,15 @@ static void folders_dump_time(const char* label, uint64_t us) {
     int32_t ss = 0;
     int32_t ms = 0;
     int32_t mc = 0;
-    ut_clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    rt_clock.local(us, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
     ut_println("%-7s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
             label, year, month, day, hh, mm, ss, ms, mc);
 }
 
 static void folders_test(void) {
-    uint64_t now = ut_clock.microseconds(); // microseconds since epoch
-    uint64_t before = now - 1 * (uint64_t)ut_clock.usec_in_sec; // one second earlier
-    uint64_t after  = now + 2 * (uint64_t)ut_clock.usec_in_sec; // two seconds later
+    uint64_t now = rt_clock.microseconds(); // microseconds since epoch
+    uint64_t before = now - 1 * (uint64_t)rt_clock.usec_in_sec; // one second earlier
+    uint64_t after  = now + 2 * (uint64_t)rt_clock.usec_in_sec; // two seconds later
     int32_t year = 0;
     int32_t month = 0;
     int32_t day = 0;
@@ -4480,74 +4597,74 @@ static void folders_test(void) {
     int32_t ss = 0;
     int32_t ms = 0;
     int32_t mc = 0;
-    ut_clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+    rt_clock.local(now, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
     verbose("now: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d",
              year, month, day, hh, mm, ss, ms, mc);
     // Test cwd, setcwd
-    const char* tmp = ut_files.tmp();
+    const char* tmp = rt_files.tmp();
     char cwd[256] = { 0 };
-    ut_fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
-    ut_fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
-                tmp, ut_strerr(ut_runtime.err()));
+    rt_fatal_if(rt_files.cwd(cwd, sizeof(cwd)) != 0, "rt_files.cwd() failed");
+    rt_fatal_if(rt_files.chdir(tmp) != 0, "rt_files.chdir(\"%s\") failed %s",
+                tmp, ut_strerr(rt_core.err()));
     // there is no racing free way to create temporary folder
     // without having a temporary file for the duration of folder usage:
-    char tmp_file[ut_files_max_path]; // create_tmp() is thread safe race free:
-    errno_t r = ut_files.create_tmp(tmp_file, ut_countof(tmp_file));
-    ut_fatal_if(r != 0, "ut_files.create_tmp() failed %s", ut_strerr(r));
-    char tmp_dir[ut_files_max_path];
+    char tmp_file[rt_files_max_path]; // create_tmp() is thread safe race free:
+    errno_t r = rt_files.create_tmp(tmp_file, ut_countof(tmp_file));
+    rt_fatal_if(r != 0, "rt_files.create_tmp() failed %s", ut_strerr(r));
+    char tmp_dir[rt_files_max_path];
     ut_str_printf(tmp_dir, "%s.dir", tmp_file);
-    r = ut_files.mkdirs(tmp_dir);
-    ut_fatal_if(r != 0, "ut_files.mkdirs(%s) failed %s", tmp_dir, ut_strerr(r));
+    r = rt_files.mkdirs(tmp_dir);
+    rt_fatal_if(r != 0, "rt_files.mkdirs(%s) failed %s", tmp_dir, ut_strerr(r));
     verbose("%s", tmp_dir);
-    ut_folder_t folder;
-    char pn[ut_files_max_path] = { 0 };
+    rt_folder_t folder;
+    char pn[rt_files_max_path] = { 0 };
     ut_str_printf(pn, "%s/file", tmp_dir);
     // cannot test symlinks because they are only
     // available to Administrators and in Developer mode
-//  char sym[ut_files_max_path] = { 0 };
-    char hard[ut_files_max_path] = { 0 };
-    char sub[ut_files_max_path] = { 0 };
+//  char sym[rt_files_max_path] = { 0 };
+    char hard[rt_files_max_path] = { 0 };
+    char sub[rt_files_max_path] = { 0 };
     ut_str_printf(hard, "%s/hard", tmp_dir);
     ut_str_printf(sub, "%s/subd", tmp_dir);
     const char* content = "content";
     int64_t transferred = 0;
-    r = ut_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
-    ut_fatal_if(r != 0, "ut_files.write_fully(\"%s\") failed %s", pn, ut_strerr(r));
-    ut_swear(transferred == (int64_t)strlen(content));
-    r = ut_files.link(pn, hard);
-    ut_fatal_if(r != 0, "ut_files.link(\"%s\", \"%s\") failed %s",
+    r = rt_files.write_fully(pn, content, (int64_t)strlen(content), &transferred);
+    rt_fatal_if(r != 0, "rt_files.write_fully(\"%s\") failed %s", pn, ut_strerr(r));
+    rt_swear(transferred == (int64_t)strlen(content));
+    r = rt_files.link(pn, hard);
+    rt_fatal_if(r != 0, "rt_files.link(\"%s\", \"%s\") failed %s",
                       pn, hard, ut_strerr(r));
-    r = ut_files.mkdirs(sub);
-    ut_fatal_if(r != 0, "ut_files.mkdirs(\"%s\") failed %s", sub, ut_strerr(r));
-    r = ut_files.opendir(&folder, tmp_dir);
-    ut_fatal_if(r != 0, "ut_files.opendir(\"%s\") failed %s", tmp_dir, ut_strerr(r));
+    r = rt_files.mkdirs(sub);
+    rt_fatal_if(r != 0, "rt_files.mkdirs(\"%s\") failed %s", sub, ut_strerr(r));
+    r = rt_files.opendir(&folder, tmp_dir);
+    rt_fatal_if(r != 0, "rt_files.opendir(\"%s\") failed %s", tmp_dir, ut_strerr(r));
     for (;;) {
-        ut_files_stat_t st = { 0 };
-        const char* name = ut_files.readdir(&folder, &st);
+        rt_files_stat_t st = { 0 };
+        const char* name = rt_files.readdir(&folder, &st);
         if (name == null) { break; }
         uint64_t at = st.accessed;
         uint64_t ct = st.created;
         uint64_t ut = st.updated;
-        ut_swear(ct <= at && ct <= ut);
-        ut_clock.local(ct, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
-        bool is_folder = st.type & ut_files.type_folder;
-        bool is_symlink = st.type & ut_files.type_symlink;
+        rt_swear(ct <= at && ct <= ut);
+        rt_clock.local(ct, &year, &month, &day, &hh, &mm, &ss, &ms, &mc);
+        bool is_folder = st.type & rt_files.type_folder;
+        bool is_symlink = st.type & rt_files.type_symlink;
         int64_t bytes = st.size;
         verbose("%s: %04d-%02d-%02d %02d:%02d:%02d.%03d:%03d %lld bytes %s%s",
                 name, year, month, day, hh, mm, ss, ms, mc,
                 bytes, is_folder ? "[folder]" : "", is_symlink ? "[symlink]" : "");
         if (strcmp(name, "file") == 0 || strcmp(name, "hard") == 0) {
-            ut_swear(bytes == (int64_t)strlen(content),
+            rt_swear(bytes == (int64_t)strlen(content),
                     "size of \"%s\": %lld is incorrect expected: %d",
                     name, bytes, transferred);
         }
         if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
-            ut_swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
+            rt_swear(is_folder, "\"%s\" is_folder: %d", name, is_folder);
         } else {
-            ut_swear((strcmp(name, "subd") == 0) == is_folder,
+            rt_swear((strcmp(name, "subd") == 0) == is_folder,
                   "\"%s\" is_folder: %d", name, is_folder);
             // empirically timestamps are imprecise on NTFS
-            ut_swear(at >= before, "access: %lld  >= %lld", at, before);
+            rt_swear(at >= before, "access: %lld  >= %lld", at, before);
             if (ct < before || ut < before || at >= after || ct >= after || ut >= after) {
                 ut_println("file: %s", name);
                 folders_dump_time("before", before);
@@ -4555,70 +4672,70 @@ static void folders_test(void) {
                 folders_dump_time("update", ut);
                 folders_dump_time("access", at);
             }
-            ut_swear(ct >= before, "create: %lld  >= %lld", ct, before);
-            ut_swear(ut >= before, "update: %lld  >= %lld", ut, before);
+            rt_swear(ct >= before, "create: %lld  >= %lld", ct, before);
+            rt_swear(ut >= before, "update: %lld  >= %lld", ut, before);
             // and no later than 2 seconds since folders_test()
-            ut_swear(at < after, "access: %lld  < %lld", at, after);
-            ut_swear(ct < after, "create: %lld  < %lld", ct, after);
-            ut_swear(at < after, "update: %lld  < %lld", ut, after);
+            rt_swear(at < after, "access: %lld  < %lld", at, after);
+            rt_swear(ct < after, "create: %lld  < %lld", ct, after);
+            rt_swear(at < after, "update: %lld  < %lld", ut, after);
         }
     }
-    ut_files.closedir(&folder);
-    r = ut_files.rmdirs(tmp_dir);
-    ut_fatal_if(r != 0, "ut_files.rmdirs(\"%s\") failed %s",
+    rt_files.closedir(&folder);
+    r = rt_files.rmdirs(tmp_dir);
+    rt_fatal_if(r != 0, "rt_files.rmdirs(\"%s\") failed %s",
                      tmp_dir, ut_strerr(r));
-    r = ut_files.unlink(tmp_file);
-    ut_fatal_if(r != 0, "ut_files.unlink(\"%s\") failed %s",
+    r = rt_files.unlink(tmp_file);
+    rt_fatal_if(r != 0, "rt_files.unlink(\"%s\") failed %s",
                      tmp_file, ut_strerr(r));
-    ut_fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
-             cwd, ut_strerr(ut_runtime.err()));
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_fatal_if(rt_files.chdir(cwd) != 0, "rt_files.chdir(\"%s\") failed %s",
+             cwd, ut_strerr(rt_core.err()));
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #pragma pop_macro("verbose")
 
-static void ut_files_test_append_thread(void* p) {
+static void rt_files_test_append_thread(void* p) {
     ut_file_t* f = (ut_file_t*)p;
     uint8_t data[256] = {0};
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     int64_t transferred = 0;
-    ut_fatal_if(ut_files.write(f, data, ut_countof(data), &transferred) != 0 ||
-             transferred != ut_countof(data), "ut_files.write()" ut_files_test_failed);
+    rt_fatal_if(rt_files.write(f, data, ut_countof(data), &transferred) != 0 ||
+             transferred != ut_countof(data), "rt_files.write()" rt_files_test_failed);
 }
 
-static void ut_files_test(void) {
+static void rt_files_test(void) {
     folders_test();
-    uint64_t now = ut_clock.microseconds(); // epoch time
+    uint64_t now = rt_clock.microseconds(); // epoch time
     char tf[256]; // temporary file
-    ut_fatal_if(ut_files.create_tmp(tf, ut_countof(tf)) != 0,
-            "ut_files.create_tmp()" ut_files_test_failed);
+    rt_fatal_if(rt_files.create_tmp(tf, ut_countof(tf)) != 0,
+            "rt_files.create_tmp()" rt_files_test_failed);
     uint8_t data[256] = {0};
     int64_t transferred = 0;
     for (int i = 0; i < 256; i++) { data[i] = (uint8_t)i; }
     {
-        ut_file_t* f = ut_files.invalid;
-        ut_fatal_if(ut_files.open(&f, tf,
-                 ut_files.o_wr | ut_files.o_create | ut_files.o_trunc) != 0 ||
-                !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
-        ut_fatal_if(ut_files.write_fully(tf, data, ut_countof(data), &transferred) != 0 ||
+        ut_file_t* f = rt_files.invalid;
+        rt_fatal_if(rt_files.open(&f, tf,
+                 rt_files.o_wr | rt_files.o_create | rt_files.o_trunc) != 0 ||
+                !rt_files.is_valid(f), "rt_files.open()" rt_files_test_failed);
+        rt_fatal_if(rt_files.write_fully(tf, data, ut_countof(data), &transferred) != 0 ||
                  transferred != ut_countof(data),
-                "ut_files.write_fully()" ut_files_test_failed);
-        ut_fatal_if(ut_files.open(&f, tf, ut_files.o_rd) != 0 ||
-                !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
+                "rt_files.write_fully()" rt_files_test_failed);
+        rt_fatal_if(rt_files.open(&f, tf, rt_files.o_rd) != 0 ||
+                !rt_files.is_valid(f), "rt_files.open()" rt_files_test_failed);
         for (int32_t i = 0; i < 256; i++) {
             for (int32_t j = 1; j < 256 - i; j++) {
                 uint8_t test[ut_countof(data)] = { 0 };
                 int64_t position = i;
-                ut_fatal_if(ut_files.seek(f, &position, ut_files.seek_set) != 0 ||
+                rt_fatal_if(rt_files.seek(f, &position, rt_files.seek_set) != 0 ||
                          position != i,
-                        "ut_files.seek(position: %lld) failed %s",
-                         position, ut_strerr(ut_runtime.err()));
-                ut_fatal_if(ut_files.read(f, test, j, &transferred) != 0 ||
+                        "rt_files.seek(position: %lld) failed %s",
+                         position, ut_strerr(rt_core.err()));
+                rt_fatal_if(rt_files.read(f, test, j, &transferred) != 0 ||
                          transferred != j,
-                        "ut_files.read() transferred: %lld failed %s",
-                        transferred, ut_strerr(ut_runtime.err()));
+                        "rt_files.read() transferred: %lld failed %s",
+                        transferred, ut_strerr(rt_core.err()));
                 for (int32_t k = 0; k < j; k++) {
-                    ut_swear(test[k] == data[i + k],
+                    rt_swear(test[k] == data[i + k],
                          "Data mismatch at position: %d, length %d"
                          "test[%d]: 0x%02X != data[%d + %d]: 0x%02X ",
                           i, j,
@@ -4626,130 +4743,130 @@ static void ut_files_test(void) {
                 }
             }
         }
-        ut_swear((ut_files.o_rd | ut_files.o_wr) != ut_files.o_rw);
-        ut_fatal_if(ut_files.open(&f, tf, ut_files.o_rw) != 0 || !ut_files.is_valid(f),
-                "ut_files.open()" ut_files_test_failed);
+        rt_swear((rt_files.o_rd | rt_files.o_wr) != rt_files.o_rw);
+        rt_fatal_if(rt_files.open(&f, tf, rt_files.o_rw) != 0 || !rt_files.is_valid(f),
+                "rt_files.open()" rt_files_test_failed);
         for (int32_t i = 0; i < 256; i++) {
             uint8_t val = ~data[i];
             int64_t pos = i;
-            ut_fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
-                    "ut_files.seek() failed %s", ut_runtime.err());
-            ut_fatal_if(ut_files.write(f, &val, 1, &transferred) != 0 ||
-                     transferred != 1, "ut_files.write()" ut_files_test_failed);
+            rt_fatal_if(rt_files.seek(f, &pos, rt_files.seek_set) != 0 || pos != i,
+                    "rt_files.seek() failed %s", rt_core.err());
+            rt_fatal_if(rt_files.write(f, &val, 1, &transferred) != 0 ||
+                     transferred != 1, "rt_files.write()" rt_files_test_failed);
             pos = i;
-            ut_fatal_if(ut_files.seek(f, &pos, ut_files.seek_set) != 0 || pos != i,
-                    "ut_files.seek(pos: %lld i: %d) failed %s", pos, i, ut_runtime.err());
+            rt_fatal_if(rt_files.seek(f, &pos, rt_files.seek_set) != 0 || pos != i,
+                    "rt_files.seek(pos: %lld i: %d) failed %s", pos, i, rt_core.err());
             uint8_t read_val = 0;
-            ut_fatal_if(ut_files.read(f, &read_val, 1, &transferred) != 0 ||
-                     transferred != 1, "ut_files.read()" ut_files_test_failed);
-            ut_swear(read_val == val, "Data mismatch at position %d", i);
+            rt_fatal_if(rt_files.read(f, &read_val, 1, &transferred) != 0 ||
+                     transferred != 1, "rt_files.read()" rt_files_test_failed);
+            rt_swear(read_val == val, "Data mismatch at position %d", i);
         }
-        ut_files_stat_t s = { 0 };
-        ut_files.stat(f, &s, false);
-        uint64_t before = now - 1 * (uint64_t)ut_clock.usec_in_sec; // one second before now
-        uint64_t after  = now + 2 * (uint64_t)ut_clock.usec_in_sec; // two seconds after
-        ut_swear(before <= s.created  && s.created  <= after,
+        rt_files_stat_t s = { 0 };
+        rt_files.stat(f, &s, false);
+        uint64_t before = now - 1 * (uint64_t)rt_clock.usec_in_sec; // one second before now
+        uint64_t after  = now + 2 * (uint64_t)rt_clock.usec_in_sec; // two seconds after
+        rt_swear(before <= s.created  && s.created  <= after,
              "before: %lld created: %lld after: %lld", before, s.created, after);
-        ut_swear(before <= s.accessed && s.accessed <= after,
+        rt_swear(before <= s.accessed && s.accessed <= after,
              "before: %lld created: %lld accessed: %lld", before, s.accessed, after);
-        ut_swear(before <= s.updated  && s.updated  <= after,
+        rt_swear(before <= s.updated  && s.updated  <= after,
              "before: %lld created: %lld updated: %lld", before, s.updated, after);
-        ut_files.close(f);
-        ut_fatal_if(ut_files.open(&f, tf, ut_files.o_wr | ut_files.o_create | ut_files.o_trunc) != 0 ||
-                !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
-        ut_files.stat(f, &s, false);
-        ut_swear(s.size == 0, "File is not empty after truncation. .size: %lld", s.size);
-        ut_files.close(f);
+        rt_files.close(f);
+        rt_fatal_if(rt_files.open(&f, tf, rt_files.o_wr | rt_files.o_create | rt_files.o_trunc) != 0 ||
+                !rt_files.is_valid(f), "rt_files.open()" rt_files_test_failed);
+        rt_files.stat(f, &s, false);
+        rt_swear(s.size == 0, "File is not empty after truncation. .size: %lld", s.size);
+        rt_files.close(f);
     }
     {  // Append test with threads
-        ut_file_t* f = ut_files.invalid;
-        ut_fatal_if(ut_files.open(&f, tf, ut_files.o_rw | ut_files.o_append) != 0 ||
-                !ut_files.is_valid(f), "ut_files.open()" ut_files_test_failed);
-        ut_thread_t thread1 = ut_thread.start(ut_files_test_append_thread, f);
-        ut_thread_t thread2 = ut_thread.start(ut_files_test_append_thread, f);
+        ut_file_t* f = rt_files.invalid;
+        rt_fatal_if(rt_files.open(&f, tf, rt_files.o_rw | rt_files.o_append) != 0 ||
+                !rt_files.is_valid(f), "rt_files.open()" rt_files_test_failed);
+        ut_thread_t thread1 = ut_thread.start(rt_files_test_append_thread, f);
+        ut_thread_t thread2 = ut_thread.start(rt_files_test_append_thread, f);
         ut_thread.join(thread1, -1);
         ut_thread.join(thread2, -1);
-        ut_files.close(f);
+        rt_files.close(f);
     }
     {   // write_fully, exists, is_folder, mkdirs, rmdirs, create_tmp, chmod777
-        ut_fatal_if(ut_files.write_fully(tf, data, ut_countof(data), &transferred) != 0 ||
+        rt_fatal_if(rt_files.write_fully(tf, data, ut_countof(data), &transferred) != 0 ||
                  transferred != ut_countof(data),
-                "ut_files.write_fully() failed %s", ut_runtime.err());
-        ut_fatal_if(!ut_files.exists(tf), "file \"%s\" does not exist", tf);
-        ut_fatal_if(ut_files.is_folder(tf), "%s is a folder", tf);
-        ut_fatal_if(ut_files.chmod777(tf) != 0, "ut_files.chmod777(\"%s\") failed %s",
-                 tf, ut_strerr(ut_runtime.err()));
+                "rt_files.write_fully() failed %s", rt_core.err());
+        rt_fatal_if(!rt_files.exists(tf), "file \"%s\" does not exist", tf);
+        rt_fatal_if(rt_files.is_folder(tf), "%s is a folder", tf);
+        rt_fatal_if(rt_files.chmod777(tf) != 0, "rt_files.chmod777(\"%s\") failed %s",
+                 tf, ut_strerr(rt_core.err()));
         char folder[256] = { 0 };
         ut_str_printf(folder, "%s.folder\\subfolder", tf);
-        ut_fatal_if(ut_files.mkdirs(folder) != 0, "ut_files.mkdirs(\"%s\") failed %s",
-            folder, ut_strerr(ut_runtime.err()));
-        ut_fatal_if(!ut_files.is_folder(folder), "\"%s\" is not a folder", folder);
-        ut_fatal_if(ut_files.chmod777(folder) != 0, "ut_files.chmod777(\"%s\") failed %s",
-                 folder, ut_strerr(ut_runtime.err()));
-        ut_fatal_if(ut_files.rmdirs(folder) != 0, "ut_files.rmdirs(\"%s\") failed %s",
-                 folder, ut_strerr(ut_runtime.err()));
-        ut_fatal_if(ut_files.exists(folder), "folder \"%s\" still exists", folder);
+        rt_fatal_if(rt_files.mkdirs(folder) != 0, "rt_files.mkdirs(\"%s\") failed %s",
+            folder, ut_strerr(rt_core.err()));
+        rt_fatal_if(!rt_files.is_folder(folder), "\"%s\" is not a folder", folder);
+        rt_fatal_if(rt_files.chmod777(folder) != 0, "rt_files.chmod777(\"%s\") failed %s",
+                 folder, ut_strerr(rt_core.err()));
+        rt_fatal_if(rt_files.rmdirs(folder) != 0, "rt_files.rmdirs(\"%s\") failed %s",
+                 folder, ut_strerr(rt_core.err()));
+        rt_fatal_if(rt_files.exists(folder), "folder \"%s\" still exists", folder);
     }
     {   // getcwd, chdir
-        const char* tmp = ut_files.tmp();
+        const char* tmp = rt_files.tmp();
         char cwd[256] = { 0 };
-        ut_fatal_if(ut_files.cwd(cwd, sizeof(cwd)) != 0, "ut_files.cwd() failed");
-        ut_fatal_if(ut_files.chdir(tmp) != 0, "ut_files.chdir(\"%s\") failed %s",
-                 tmp, ut_strerr(ut_runtime.err()));
+        rt_fatal_if(rt_files.cwd(cwd, sizeof(cwd)) != 0, "rt_files.cwd() failed");
+        rt_fatal_if(rt_files.chdir(tmp) != 0, "rt_files.chdir(\"%s\") failed %s",
+                 tmp, ut_strerr(rt_core.err()));
         // symlink
         if (ut_processes.is_elevated()) {
-            char sym_link[ut_files_max_path];
+            char sym_link[rt_files_max_path];
             ut_str_printf(sym_link, "%s.sym_link", tf);
-            ut_fatal_if(ut_files.symlink(tf, sym_link) != 0,
-                "ut_files.symlink(\"%s\", \"%s\") failed %s",
-                tf, sym_link, ut_strerr(ut_runtime.err()));
-            ut_fatal_if(!ut_files.is_symlink(sym_link), "\"%s\" is not a sym_link", sym_link);
-            ut_fatal_if(ut_files.unlink(sym_link) != 0, "ut_files.unlink(\"%s\") failed %s",
-                    sym_link, ut_strerr(ut_runtime.err()));
+            rt_fatal_if(rt_files.symlink(tf, sym_link) != 0,
+                "rt_files.symlink(\"%s\", \"%s\") failed %s",
+                tf, sym_link, ut_strerr(rt_core.err()));
+            rt_fatal_if(!rt_files.is_symlink(sym_link), "\"%s\" is not a sym_link", sym_link);
+            rt_fatal_if(rt_files.unlink(sym_link) != 0, "rt_files.unlink(\"%s\") failed %s",
+                    sym_link, ut_strerr(rt_core.err()));
         } else {
-            ut_println("Skipping ut_files.symlink test: process is not elevated");
+            ut_println("Skipping rt_files.symlink test: process is not elevated");
         }
         // hard link
-        char hard_link[ut_files_max_path];
+        char hard_link[rt_files_max_path];
         ut_str_printf(hard_link, "%s.hard_link", tf);
-        ut_fatal_if(ut_files.link(tf, hard_link) != 0,
-            "ut_files.link(\"%s\", \"%s\") failed %s",
-            tf, hard_link, ut_strerr(ut_runtime.err()));
-        ut_fatal_if(!ut_files.exists(hard_link), "\"%s\" does not exist", hard_link);
-        ut_fatal_if(ut_files.unlink(hard_link) != 0, "ut_files.unlink(\"%s\") failed %s",
-                 hard_link, ut_strerr(ut_runtime.err()));
-        ut_fatal_if(ut_files.exists(hard_link), "\"%s\" still exists", hard_link);
+        rt_fatal_if(rt_files.link(tf, hard_link) != 0,
+            "rt_files.link(\"%s\", \"%s\") failed %s",
+            tf, hard_link, ut_strerr(rt_core.err()));
+        rt_fatal_if(!rt_files.exists(hard_link), "\"%s\" does not exist", hard_link);
+        rt_fatal_if(rt_files.unlink(hard_link) != 0, "rt_files.unlink(\"%s\") failed %s",
+                 hard_link, ut_strerr(rt_core.err()));
+        rt_fatal_if(rt_files.exists(hard_link), "\"%s\" still exists", hard_link);
         // copy, move:
-        ut_fatal_if(ut_files.copy(tf, "copied_file") != 0,
-            "ut_files.copy(\"%s\", 'copied_file') failed %s",
-            tf, ut_strerr(ut_runtime.err()));
-        ut_fatal_if(!ut_files.exists("copied_file"), "'copied_file' does not exist");
-        ut_fatal_if(ut_files.move("copied_file", "moved_file") != 0,
-            "ut_files.move('copied_file', 'moved_file') failed %s",
-            ut_strerr(ut_runtime.err()));
-        ut_fatal_if(ut_files.exists("copied_file"), "'copied_file' still exists");
-        ut_fatal_if(!ut_files.exists("moved_file"), "'moved_file' does not exist");
-        ut_fatal_if(ut_files.unlink("moved_file") != 0,
-                "ut_files.unlink('moved_file') failed %s",
-                 ut_strerr(ut_runtime.err()));
-        ut_fatal_if(ut_files.chdir(cwd) != 0, "ut_files.chdir(\"%s\") failed %s",
-                    cwd, ut_strerr(ut_runtime.err()));
+        rt_fatal_if(rt_files.copy(tf, "copied_file") != 0,
+            "rt_files.copy(\"%s\", 'copied_file') failed %s",
+            tf, ut_strerr(rt_core.err()));
+        rt_fatal_if(!rt_files.exists("copied_file"), "'copied_file' does not exist");
+        rt_fatal_if(rt_files.move("copied_file", "moved_file") != 0,
+            "rt_files.move('copied_file', 'moved_file') failed %s",
+            ut_strerr(rt_core.err()));
+        rt_fatal_if(rt_files.exists("copied_file"), "'copied_file' still exists");
+        rt_fatal_if(!rt_files.exists("moved_file"), "'moved_file' does not exist");
+        rt_fatal_if(rt_files.unlink("moved_file") != 0,
+                "rt_files.unlink('moved_file') failed %s",
+                 ut_strerr(rt_core.err()));
+        rt_fatal_if(rt_files.chdir(cwd) != 0, "rt_files.chdir(\"%s\") failed %s",
+                    cwd, ut_strerr(rt_core.err()));
     }
-    ut_fatal_if(ut_files.unlink(tf) != 0);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_fatal_if(rt_files.unlink(tf) != 0);
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
 
-static void ut_files_test(void) {}
+static void rt_files_test(void) {}
 
 #endif // UT_TESTS
 
 #pragma pop_macro("files_test_failed")
 
-ut_files_if ut_files = {
+rt_files_if rt_files = {
     .invalid  = (ut_file_t*)INVALID_HANDLE_VALUE,
-    // ut_files_stat_t.type:
+    // rt_files_stat_t.type:
     .type_folder  = 0x00000010, // FILE_ATTRIBUTE_DIRECTORY
     .type_symlink = 0x00000400, // FILE_ATTRIBUTE_REPARSE_POINT
     .type_device  = 0x00000040, // FILE_ATTRIBUTE_DEVICE
@@ -4780,155 +4897,155 @@ ut_files_if ut_files = {
         .data      = 9  // c:\ProgramData
     },
     // methods:
-    .open         = ut_files_open,
-    .is_valid     = ut_files_is_valid,
-    .seek         = ut_files_seek,
-    .stat         = ut_files_stat,
-    .read         = ut_files_read,
-    .write        = ut_files_write,
-    .flush        = ut_files_flush,
-    .close        = ut_files_close,
-    .write_fully  = ut_files_write_fully,
-    .exists       = ut_files_exists,
-    .is_folder    = ut_files_is_folder,
-    .is_symlink   = ut_files_is_symlink,
-    .mkdirs       = ut_files_mkdirs,
-    .rmdirs       = ut_files_rmdirs,
-    .create_tmp   = ut_files_create_tmp,
-    .chmod777     = ut_files_chmod777,
-    .unlink       = ut_files_unlink,
-    .link         = ut_files_link,
-    .symlink      = ut_files_symlink,
-    .basename     = ut_files_basename,
-    .copy         = ut_files_copy,
-    .move         = ut_files_move,
-    .cwd          = ut_files_cwd,
-    .chdir        = ut_files_chdir,
-    .known_folder = ut_files_known_folder,
-    .bin          = ut_files_bin,
-    .data         = ut_files_data,
-    .tmp          = ut_files_tmp,
-    .opendir      = ut_files_opendir,
-    .readdir      = ut_files_readdir,
-    .closedir     = ut_files_closedir,
-    .test         = ut_files_test
+    .open         = rt_files_open,
+    .is_valid     = rt_files_is_valid,
+    .seek         = rt_files_seek,
+    .stat         = rt_files_stat,
+    .read         = rt_files_read,
+    .write        = rt_files_write,
+    .flush        = rt_files_flush,
+    .close        = rt_files_close,
+    .write_fully  = rt_files_write_fully,
+    .exists       = rt_files_exists,
+    .is_folder    = rt_files_is_folder,
+    .is_symlink   = rt_files_is_symlink,
+    .mkdirs       = rt_files_mkdirs,
+    .rmdirs       = rt_files_rmdirs,
+    .create_tmp   = rt_files_create_tmp,
+    .chmod777     = rt_files_chmod777,
+    .unlink       = rt_files_unlink,
+    .link         = rt_files_link,
+    .symlink      = rt_files_symlink,
+    .basename     = rt_files_basename,
+    .copy         = rt_files_copy,
+    .move         = rt_files_move,
+    .cwd          = rt_files_cwd,
+    .chdir        = rt_files_chdir,
+    .known_folder = rt_files_known_folder,
+    .bin          = rt_files_bin,
+    .data         = rt_files_data,
+    .tmp          = rt_files_tmp,
+    .opendir      = rt_files_opendir,
+    .readdir      = rt_files_readdir,
+    .closedir     = rt_files_closedir,
+    .test         = rt_files_test
 };
 
 // ______________________________ ut_generics.c _______________________________
 
 #ifdef UT_TESTS
 
-static void ut_generics_test(void) {
+static void rt_generics_test(void) {
     {
         int8_t a = 10, b = 20;
-        ut_swear(ut_max(a++, b++) == 20);
-        ut_swear(ut_min(a++, b++) == 11);
+        rt_swear(rt_max(a++, b++) == 20);
+        rt_swear(rt_min(a++, b++) == 11);
     }
     {
         int32_t a = 10, b = 20;
-        ut_swear(ut_max(a++, b++) == 20);
-        ut_swear(ut_min(a++, b++) == 11);
+        rt_swear(rt_max(a++, b++) == 20);
+        rt_swear(rt_min(a++, b++) == 11);
     }
     {
         fp32_t a = 1.1f, b = 2.2f;
-        ut_swear(ut_max(a, b) == b);
-        ut_swear(ut_min(a, b) == a);
+        rt_swear(rt_max(a, b) == b);
+        rt_swear(rt_min(a, b) == a);
     }
     {
         fp64_t a = 1.1, b = 2.2;
-        ut_swear(ut_max(a, b) == b);
-        ut_swear(ut_min(a, b) == a);
+        rt_swear(rt_max(a, b) == b);
+        rt_swear(rt_min(a, b) == a);
     }
     {
         fp32_t a = 1.1f, b = 2.2f;
-        ut_swear(ut_max(a, b) == b);
-        ut_swear(ut_min(a, b) == a);
+        rt_swear(rt_max(a, b) == b);
+        rt_swear(rt_min(a, b) == a);
     }
     {
         fp64_t a = 1.1, b = 2.2;
-        ut_swear(ut_max(a, b) == b);
-        ut_swear(ut_min(a, b) == a);
+        rt_swear(rt_max(a, b) == b);
+        rt_swear(rt_min(a, b) == a);
     }
     {
         char a = 1, b = 2;
-        ut_swear(ut_max(a, b) == b);
-        ut_swear(ut_min(a, b) == a);
+        rt_swear(rt_max(a, b) == b);
+        rt_swear(rt_min(a, b) == a);
     }
     {
         unsigned char a = 1, b = 2;
-        ut_swear(ut_max(a, b) == b);
-        ut_swear(ut_min(a, b) == a);
+        rt_swear(rt_max(a, b) == b);
+        rt_swear(rt_min(a, b) == a);
     }
     // MS cl.exe version 19.39.33523 has issues with "long":
     // does not pick up int32_t/uint32_t types for "long" and "unsigned long"
     {
         long int a = 1, b = 2;
-        ut_swear(ut_max(a, b) == b);
-        ut_swear(ut_min(a, b) == a);
+        rt_swear(rt_max(a, b) == b);
+        rt_swear(rt_min(a, b) == a);
     }
     {
         unsigned long a = 1, b = 2;
-        ut_swear(ut_max(a, b) == b);
-        ut_swear(ut_min(a, b) == a);
+        rt_swear(rt_max(a, b) == b);
+        rt_swear(rt_min(a, b) == a);
     }
     {
         long long a = 1, b = 2;
-        ut_swear(ut_max(a, b) == b);
-        ut_swear(ut_min(a, b) == a);
+        rt_swear(rt_max(a, b) == b);
+        rt_swear(rt_min(a, b) == a);
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
 
-static void ut_generics_test(void) { }
+static void rt_generics_test(void) { }
 
 #endif
 
-ut_generics_if ut_generics = {
-    .test = ut_generics_test
+rt_generics_if rt_generics = {
+    .test = rt_generics_test
 };
 
 
 // ________________________________ ut_heap.c _________________________________
 
-static errno_t ut_heap_alloc(void* *a, int64_t bytes) {
-    return ut_heap.allocate(null, a, bytes, false);
+static errno_t rt_heap_alloc(void* *a, int64_t bytes) {
+    return rt_heap.allocate(null, a, bytes, false);
 }
 
-static errno_t ut_heap_alloc_zero(void* *a, int64_t bytes) {
-    return ut_heap.allocate(null, a, bytes, true);
+static errno_t rt_heap_alloc_zero(void* *a, int64_t bytes) {
+    return rt_heap.allocate(null, a, bytes, true);
 }
 
-static errno_t ut_heap_realloc(void* *a, int64_t bytes) {
-    return ut_heap.reallocate(null, a, bytes, false);
+static errno_t rt_heap_realloc(void* *a, int64_t bytes) {
+    return rt_heap.reallocate(null, a, bytes, false);
 }
 
-static errno_t ut_heap_realloc_zero(void* *a, int64_t bytes) {
-    return ut_heap.reallocate(null, a, bytes, true);
+static errno_t rt_heap_realloc_zero(void* *a, int64_t bytes) {
+    return rt_heap.reallocate(null, a, bytes, true);
 }
 
-static void ut_heap_free(void* a) {
-    ut_heap.deallocate(null, a);
+static void rt_heap_free(void* a) {
+    rt_heap.deallocate(null, a);
 }
 
-static ut_heap_t* ut_heap_create(bool serialized) {
+static rt_heap_t* rt_heap_create(bool serialized) {
     const DWORD options = serialized ? 0 : HEAP_NO_SERIALIZE;
-    return (ut_heap_t*)HeapCreate(options, 0, 0);
+    return (rt_heap_t*)HeapCreate(options, 0, 0);
 }
 
-static void ut_heap_dispose(ut_heap_t* h) {
+static void rt_heap_dispose(rt_heap_t* h) {
     ut_fatal_win32err(HeapDestroy((HANDLE)h));
 }
 
-static inline HANDLE ut_heap_or_process_heap(ut_heap_t* h) {
+static inline HANDLE rt_heap_or_process_heap(rt_heap_t* h) {
     static HANDLE process_heap;
     if (process_heap == null) { process_heap = GetProcessHeap(); }
     return h != null ? (HANDLE)h : process_heap;
 }
 
-static errno_t ut_heap_allocate(ut_heap_t* h, void* *p, int64_t bytes, bool zero) {
-    ut_swear(bytes > 0);
+static errno_t rt_heap_allocate(rt_heap_t* h, void* *p, int64_t bytes, bool zero) {
+    rt_swear(bytes > 0);
     #ifdef DEBUG
         static bool enabled;
         if (!enabled) {
@@ -4937,32 +5054,32 @@ static errno_t ut_heap_allocate(ut_heap_t* h, void* *p, int64_t bytes, bool zero
         }
     #endif
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
-    *p = HeapAlloc(ut_heap_or_process_heap(h), flags, (SIZE_T)bytes);
+    *p = HeapAlloc(rt_heap_or_process_heap(h), flags, (SIZE_T)bytes);
     return *p == null ? ERROR_OUTOFMEMORY : 0;
 }
 
-static errno_t ut_heap_reallocate(ut_heap_t* h, void* *p, int64_t bytes,
+static errno_t rt_heap_reallocate(rt_heap_t* h, void* *p, int64_t bytes,
         bool zero) {
-    ut_swear(bytes > 0);
+    rt_swear(bytes > 0);
     const DWORD flags = zero ? HEAP_ZERO_MEMORY : 0;
     void* a = *p == null ? // HeapReAlloc(..., null, bytes) may not work
-        HeapAlloc(ut_heap_or_process_heap(h), flags, (SIZE_T)bytes) :
-        HeapReAlloc(ut_heap_or_process_heap(h), flags, *p, (SIZE_T)bytes);
+        HeapAlloc(rt_heap_or_process_heap(h), flags, (SIZE_T)bytes) :
+        HeapReAlloc(rt_heap_or_process_heap(h), flags, *p, (SIZE_T)bytes);
     if (a != null) { *p = a; }
     return a == null ? ERROR_OUTOFMEMORY : 0;
 }
 
-static void ut_heap_deallocate(ut_heap_t* h, void* a) {
-    ut_fatal_win32err(HeapFree(ut_heap_or_process_heap(h), 0, a));
+static void rt_heap_deallocate(rt_heap_t* h, void* a) {
+    ut_fatal_win32err(HeapFree(rt_heap_or_process_heap(h), 0, a));
 }
 
-static int64_t ut_heap_bytes(ut_heap_t* h, void* a) {
-    SIZE_T bytes = HeapSize(ut_heap_or_process_heap(h), 0, a);
-    ut_fatal_if(bytes == (SIZE_T)-1);
+static int64_t rt_heap_bytes(rt_heap_t* h, void* a) {
+    SIZE_T bytes = HeapSize(rt_heap_or_process_heap(h), 0, a);
+    rt_fatal_if(bytes == (SIZE_T)-1);
     return (int64_t)bytes;
 }
 
-static void ut_heap_test(void) {
+static void rt_heap_test(void) {
     #ifdef UT_TESTS
     // TODO: allocate, reallocate deallocate, create, dispose
     void*   a[1024]; // addresses
@@ -4970,33 +5087,33 @@ static void ut_heap_test(void) {
     uint32_t seed = 0x1;
     for (int i = 0; i < 1024; i++) {
         b[i] = (int32_t)(ut_num.random32(&seed) % 1024) + 1;
-        errno_t r = ut_heap.alloc(&a[i], b[i]);
-        ut_swear(r == 0);
+        errno_t r = rt_heap.alloc(&a[i], b[i]);
+        rt_swear(r == 0);
     }
     for (int i = 0; i < 1024; i++) {
-        ut_heap.free(a[i]);
+        rt_heap.free(a[i]);
     }
-    HeapCompact(ut_heap_or_process_heap(null), 0);
+    HeapCompact(rt_heap_or_process_heap(null), 0);
     // "There is no extended error information for HeapValidate;
     //  do not call GetLastError."
-    ut_swear(HeapValidate(ut_heap_or_process_heap(null), 0, null));
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_swear(HeapValidate(rt_heap_or_process_heap(null), 0, null));
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 
-ut_heap_if ut_heap = {
-    .alloc        = ut_heap_alloc,
-    .alloc_zero   = ut_heap_alloc_zero,
-    .realloc      = ut_heap_realloc,
-    .realloc_zero = ut_heap_realloc_zero,
-    .free         = ut_heap_free,
-    .create       = ut_heap_create,
-    .allocate     = ut_heap_allocate,
-    .reallocate   = ut_heap_reallocate,
-    .deallocate   = ut_heap_deallocate,
-    .bytes        = ut_heap_bytes,
-    .dispose      = ut_heap_dispose,
-    .test         = ut_heap_test
+rt_heap_if rt_heap = {
+    .alloc        = rt_heap_alloc,
+    .alloc_zero   = rt_heap_alloc_zero,
+    .realloc      = rt_heap_realloc,
+    .realloc_zero = rt_heap_realloc_zero,
+    .free         = rt_heap_free,
+    .create       = rt_heap_create,
+    .allocate     = rt_heap_allocate,
+    .reallocate   = rt_heap_reallocate,
+    .deallocate   = rt_heap_deallocate,
+    .bytes        = rt_heap_bytes,
+    .dispose      = rt_heap_dispose,
+    .test         = rt_heap_test
 };
 
 // _______________________________ ut_loader.c ________________________________
@@ -5015,9 +5132,9 @@ ut_heap_if ut_heap = {
 // with the RTLD_LOCAL flag, we create our own list later on. They are
 // excluded from EnumProcessModules() iteration.
 
-static void* ut_loader_all;
+static void* rt_loader_all;
 
-static void* ut_loader_sym_all(const char* name) {
+static void* rt_loader_sym_all(const char* name) {
     void* sym = null;
     DWORD bytes = 0;
     ut_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
@@ -5025,101 +5142,112 @@ static void* ut_loader_sym_all(const char* name) {
     ut_assert(bytes % sizeof(HMODULE) == 0);
     ut_assert(bytes / sizeof(HMODULE) < 1024); // OK to allocate 8KB on stack
     HMODULE* modules = null;
-    ut_fatal_if_error(ut_heap.allocate(null, (void**)&modules, bytes, false));
+    rt_fatal_if_error(rt_heap.allocate(null, (void**)&modules, bytes, false));
     ut_fatal_win32err(EnumProcessModules(GetCurrentProcess(),
                                          modules, bytes, &bytes));
     const int32_t n = bytes / (int32_t)sizeof(HMODULE);
     for (int32_t i = 0; i < n && sym != null; i++) {
-        sym = ut_loader.sym(modules[i], name);
+        sym = rt_loader.sym(modules[i], name);
     }
     if (sym == null) {
-        sym = ut_loader.sym(GetModuleHandleA(null), name);
+        sym = rt_loader.sym(GetModuleHandleA(null), name);
     }
-    ut_heap.deallocate(null, modules);
+    rt_heap.deallocate(null, modules);
     return sym;
 }
 
-static void* ut_loader_open(const char* filename, int32_t ut_unused(mode)) {
-    return filename == null ? &ut_loader_all : (void*)LoadLibraryA(filename);
+static void* rt_loader_open(const char* filename, int32_t ut_unused(mode)) {
+    return filename == null ? &rt_loader_all : (void*)LoadLibraryA(filename);
 }
 
-static void* ut_loader_sym(void* handle, const char* name) {
-    return handle == &ut_loader_all ?
-            (void*)ut_loader_sym_all(name) :
+static void* rt_loader_sym(void* handle, const char* name) {
+    return handle == &rt_loader_all ?
+            (void*)rt_loader_sym_all(name) :
             (void*)GetProcAddress((HMODULE)handle, name);
 }
 
-static void ut_loader_close(void* handle) {
-    if (handle != &ut_loader_all) {
+static void rt_loader_close(void* handle) {
+    if (handle != &rt_loader_all) {
         ut_fatal_win32err(FreeLibrary(handle));
     }
 }
 
 #ifdef UT_TESTS
 
-static int32_t ut_loader_test_count;
+#define RT_LOADER_TEST_EXPORTED_FUNCTION
 
-ut_export void ut_loader_test_exported_function(void);
+#ifdef RT_LOADER_TEST_EXPORTED_FUNCTION
 
-void ut_loader_test_exported_function(void) { ut_loader_test_count++; }
+// manually test once and comment out because creating .lib
+// out of each .exe is annoying
 
-static void ut_loader_test(void) {
-    ut_loader_test_count = 0;
-    ut_loader_test_exported_function(); // to make sure it is linked in
-    ut_swear(ut_loader_test_count == 1);
-    void* global = ut_loader.open(null, ut_loader.local);
-    typedef void (*foo_t)(void);
-    foo_t foo = (foo_t)ut_loader.sym(global, "ut_loader_test_exported_function");
-    foo();
-    ut_swear(ut_loader_test_count == 2);
-    ut_loader.close(global);
+static int32_t rt_loader_test_calls_count;
+
+rt_export void rt_loader_test_exported_function(void);
+
+void rt_loader_test_exported_function(void) { rt_loader_test_calls_count++; }
+
+#endif
+
+static void rt_loader_test(void) {
+    void* global = rt_loader.open(null, rt_loader.local);
+    rt_loader.close(global);
     // NtQueryTimerResolution - http://undocumented.ntinternals.net/
     typedef long (__stdcall *query_timer_resolution_t)(
         long* minimum_resolution,
         long* maximum_resolution,
         long* current_resolution);
-    void* nt_dll = ut_loader.open("ntdll", ut_loader.local);
+    void* nt_dll = rt_loader.open("ntdll", rt_loader.local);
     query_timer_resolution_t query_timer_resolution =
-        (query_timer_resolution_t)ut_loader.sym(nt_dll, "NtQueryTimerResolution");
+        (query_timer_resolution_t)rt_loader.sym(nt_dll, "NtQueryTimerResolution");
     // in 100ns = 0.1us units
     long min_resolution = 0;
     long max_resolution = 0; // lowest possible delay between timer events
     long cur_resolution = 0;
-    ut_fatal_if(query_timer_resolution(
+    rt_fatal_if(query_timer_resolution(
         &min_resolution, &max_resolution, &cur_resolution) != 0);
-//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+//  if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
 //      ut_println("timer resolution min: %.3f max: %.3f cur: %.3f millisecond",
 //          min_resolution / 10.0 / 1000.0,
 //          max_resolution / 10.0 / 1000.0,
 //          cur_resolution / 10.0 / 1000.0);
 //      // Interesting observation cur_resolution sometimes 15.625ms or 1.0ms
 //  }
-    ut_loader.close(nt_dll);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    rt_loader.close(nt_dll);
+#ifdef RT_LOADER_TEST_EXPORTED_FUNCTION
+    rt_loader_test_calls_count = 0;
+    rt_loader_test_exported_function(); // to make sure it is linked in
+    rt_swear(rt_loader_test_calls_count == 1);
+    typedef void (*foo_t)(void);
+    foo_t foo = (foo_t)rt_loader.sym(global, "rt_loader_test_exported_function");
+    foo();
+    rt_swear(rt_loader_test_calls_count == 2);
+#endif
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
 
-static void ut_loader_test(void) {}
+static void rt_loader_test(void) {}
 
 #endif
 
 enum {
-    ut_loader_local  = 0,       // RTLD_LOCAL  All symbols are not made available for relocation processing by other modules.
-    ut_loader_lazy   = 1,       // RTLD_LAZY   Relocations are performed at an implementation-dependent time.
-    ut_loader_now    = 2,       // RTLD_NOW    Relocations are performed when the object is loaded.
-    ut_loader_global = 0x00100, // RTLD_GLOBAL All symbols are available for relocation processing of other modules.
+    rt_loader_local  = 0,       // RTLD_LOCAL  All symbols are not made available for relocation processing by other modules.
+    rt_loader_lazy   = 1,       // RTLD_LAZY   Relocations are performed at an implementation-dependent time.
+    rt_loader_now    = 2,       // RTLD_NOW    Relocations are performed when the object is loaded.
+    rt_loader_global = 0x00100, // RTLD_GLOBAL All symbols are available for relocation processing of other modules.
 };
 
-ut_loader_if ut_loader = {
-    .local  = ut_loader_local,
-    .lazy   = ut_loader_lazy,
-    .now    = ut_loader_now,
-    .global = ut_loader_global,
-    .open   = ut_loader_open,
-    .sym    = ut_loader_sym,
-    .close  = ut_loader_close,
-    .test   = ut_loader_test
+rt_loader_if rt_loader = {
+    .local  = rt_loader_local,
+    .lazy   = rt_loader_lazy,
+    .now    = rt_loader_now,
+    .global = rt_loader_global,
+    .open   = rt_loader_open,
+    .sym    = rt_loader_sym,
+    .close  = rt_loader_close,
+    .test   = rt_loader_test
 };
 
 // _________________________________ ut_mem.c _________________________________
@@ -5132,11 +5260,11 @@ static errno_t ut_mem_map_view_of_file(HANDLE file,
         rw ? PAGE_READWRITE : PAGE_READONLY,
         (uint32_t)(*bytes >> 32), (uint32_t)*bytes, null);
     if (mapping == null) {
-        r = ut_runtime.err();
+        r = rt_core.err();
     } else {
         DWORD access = rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
         address = MapViewOfFile(mapping, access, 0, 0, (SIZE_T)*bytes);
-        if (address == null) { r = ut_runtime.err(); }
+        if (address == null) { r = rt_core.err(); }
         ut_win32_close_handle(mapping);
     }
     if (r == 0) {
@@ -5186,7 +5314,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
     HANDLE file = CreateFileA(filename, access, share, null, disposition,
                               flags, null);
     if (file == INVALID_HANDLE_VALUE) {
-        r = ut_runtime.err();
+        r = rt_core.err();
     } else {
         LARGE_INTEGER eof = { .QuadPart = 0 };
         ut_fatal_win32err(GetFileSizeEx(file, &eof));
@@ -5236,7 +5364,7 @@ static errno_t ut_mem_map_resource(const char* label, void* *data, int64_t *byte
     if (res != null) { *bytes = SizeofResource(null, res); }
     HGLOBAL g = res != null ? LoadResource(null, res) : null;
     *data = g != null ? LockResource(g) : null;
-    return *data != null ? 0 : ut_runtime.err();
+    return *data != null ? 0 : rt_core.err();
 }
 
 static int32_t ut_mem_page_size(void) {
@@ -5273,12 +5401,12 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
             a = VirtualAlloc(null, bytes, type, PAGE_READWRITE);
         }
         if (a == null) {
-            r = ut_runtime.err();
+            r = rt_core.err();
             if (r != 0) {
                 ut_println("VirtualAlloc(%lld) failed %s", bytes, ut_strerr(r));
             }
         } else {
-            r = VirtualLock(a, bytes) ? 0 : ut_runtime.err();
+            r = VirtualLock(a, bytes) ? 0 : rt_core.err();
             if (r == ERROR_WORKING_SET_QUOTA) {
                 // The default size is 345 pages (for example,
                 // this is 1,413,120 bytes on systems with a 4K page size).
@@ -5339,15 +5467,15 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
 
 static void ut_mem_test(void) {
     #ifdef UT_TESTS
-    ut_swear(ut_args.c > 0);
+    rt_swear(rt_args.c > 0);
     void* data = null;
     int64_t bytes = 0;
-    ut_swear(ut_mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
-    ut_swear(data != null && bytes != 0);
+    rt_swear(ut_mem.map_ro(rt_args.v[0], &data, &bytes) == 0);
+    rt_swear(data != null && bytes != 0);
     ut_mem.unmap(data, bytes);
     // TODO: page_size large_page_size allocate deallocate
     // TODO: test heap functions
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 
@@ -5420,11 +5548,11 @@ static uint16_t* ut_nls_load_string(int32_t strid, LANGID lang_id) {
 
 static const char* ut_nls_save_string(uint16_t* utf16) {
     const int32_t bytes = ut_str.utf8_bytes(utf16, -1);
-    ut_swear(bytes > 1);
+    rt_swear(bytes > 1);
     char* s = ut_nls_strings_free;
     uintptr_t left = (uintptr_t)ut_countof(ut_nls_strings_memory) -
         (uintptr_t)(ut_nls_strings_free - ut_nls_strings_memory);
-    ut_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
+    rt_fatal_if(left < (uintptr_t)bytes, "string_memory[] overflow");
     ut_str.utf16to8(s, (int32_t)left, utf16, -1);
     ut_assert((int32_t)strlen(s) == bytes - 1, "utf16to8() does not truncate");
     ut_nls_strings_free += bytes;
@@ -5432,7 +5560,7 @@ static const char* ut_nls_save_string(uint16_t* utf16) {
 }
 
 static const char* ut_nls_localized_string(int32_t strid) {
-    ut_swear(0 < strid && strid < ut_countof(ut_nls_ns));
+    rt_swear(0 < strid && strid < ut_countof(ut_nls_ns));
     const char* s = null;
     if (0 < strid && strid < ut_countof(ut_nls_ns)) {
         if (ut_nls_ls[strid] != null) {
@@ -5484,7 +5612,7 @@ static const char* ut_nls_locale(void) {
     static char ln[LOCALE_NAME_MAX_LENGTH * 4 + 1];
     ln[0] = 0;
     if (n == 0) {
-        errno_t r = ut_runtime.err();
+        errno_t r = rt_core.err();
         ut_println("LCIDToLocaleName(0x%04X) failed %s", lc_id, ut_str.error(r));
     } else {
         ut_str.utf16to8(ln, ut_countof(ln), utf16, -1);
@@ -5499,12 +5627,12 @@ static errno_t ut_nls_set_locale(const char* locale) {
     uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1]; // resolved locale name
     int32_t n = (int32_t)ResolveLocaleName(utf16, rln, (DWORD)ut_countof(rln));
     if (n == 0) {
-        r = ut_runtime.err();
+        r = rt_core.err();
         ut_println("ResolveLocaleName(\"%s\") failed %s", locale, ut_str.error(r));
     } else {
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
         if (lc_id == 0) {
-            r = ut_runtime.err();
+            r = rt_core.err();
             ut_println("LocaleNameToLCID(\"%s\") failed %s", locale, ut_str.error(r));
         } else {
             ut_fatal_win32err(SetThreadLocale(lc_id));
@@ -5530,7 +5658,7 @@ static void ut_nls_init(void) {
             uint16_t count = ws[0];
             if (count > 0) {
                 ws++;
-                ut_fatal_if(ws[count - 1] != 0, "use rc.exe /n");
+                rt_fatal_if(ws[count - 1] != 0, "use rc.exe /n");
                 ut_nls_ns[ix] = ut_nls_save_string(ws);
                 ut_nls_strings_count = ix + 1;
 //              ut_println("ns[%d] := %d \"%s\"", ix, strlen(ut_nls_ns[ix]), ut_nls_ns[ix]);
@@ -5620,7 +5748,7 @@ static inline bool ut_num_uint128_high_bit(const ut_num128_t a) {
 }
 
 static uint64_t ut_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
-    ut_swear(divisor > 0, "divisor: %lld", divisor);
+    rt_swear(divisor > 0, "divisor: %lld", divisor);
     ut_num128_t r = ut_num.mul64x64(a, b); // reminder: a * b
     uint64_t q = 0; // quotient
     if (r.hi >= divisor) {
@@ -5660,7 +5788,7 @@ static uint32_t ut_num_gcd32(uint32_t u, uint32_t v) {
     }
     uint32_t i = ut_trailing_zeros(u);  u >>= i;
     uint32_t j = ut_trailing_zeros(v);  v >>= j;
-    uint32_t k = ut_min(i, j);
+    uint32_t k = rt_min(i, j);
     for (;;) {
         ut_assert(u % 2 == 1, "u = %d should be odd", u);
         ut_assert(v % 2 == 1, "v = %d should be odd", v);
@@ -5740,7 +5868,7 @@ static uint32_t ctz_2(uint32_t x) {
 static void ut_num_test(void) {
     #ifdef UT_TESTS
     {
-        ut_swear(ut_num.gcd32(1000000000, 24000000) == 8000000);
+        rt_swear(ut_num.gcd32(1000000000, 24000000) == 8000000);
         // https://asecuritysite.com/encryption/nprimes?y=64
         // https://www.rapidtables.com/convert/number/decimal-to-hex.html
         uint64_t p = 15843490434539008357u; // prime
@@ -5750,11 +5878,11 @@ static void ut_num_test(void) {
         ut_num128_t pq = {.hi = 0xC25778F20853A9A1uLL,
                        .lo = 0xEC0C27C467C45D25uLL };
         ut_num128_t p_q = ut_num.mul64x64(p, q);
-        ut_swear(p_q.hi == pq.hi && pq.lo == pq.lo);
+        rt_swear(p_q.hi == pq.hi && pq.lo == pq.lo);
         uint64_t p1 = ut_num.muldiv128(p, q, q);
         uint64_t q1 = ut_num.muldiv128(p, q, p);
-        ut_swear(p1 == p);
-        ut_swear(q1 == q);
+        rt_swear(p1 == p);
+        rt_swear(q1 == q);
     }
     #ifdef DEBUG
     enum { n = 100 };
@@ -5767,20 +5895,20 @@ static void ut_num_test(void) {
         uint64_t q = ut_num.random64(&seed64);
         uint64_t p1 = ut_num.muldiv128(p, q, q);
         uint64_t q1 = ut_num.muldiv128(p, q, p);
-        ut_swear(p == p1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
-        ut_swear(q == q1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
+        rt_swear(p == p1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
+        rt_swear(q == q1, "0%16llx (0%16llu) != 0%16llx (0%16llu)", p, p1);
     }
     uint32_t seed32 = 1;
     for (int32_t i = 0; i < n; i++) {
         uint64_t p = ut_num.random32(&seed32);
         uint64_t q = ut_num.random32(&seed32);
         uint64_t r = ut_num.muldiv128(p, q, 1);
-        ut_swear(r == p * q);
+        rt_swear(r == p * q);
         // division by the maximum uint64_t value:
         r = ut_num.muldiv128(p, q, UINT64_MAX);
-        ut_swear(r == 0);
+        rt_swear(r == 0);
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 
@@ -5813,7 +5941,7 @@ typedef struct ut_processes_pidof_lambda_s {
 static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof_lambda_t* la) {
     char stack[1024]; // avoid alloca()
     int32_t n = ut_str.len(pname);
-    ut_fatal_if(n + 5 >= ut_countof(stack), "name is too long: %s", pname);
+    rt_fatal_if(n + 5 >= ut_countof(stack), "name is too long: %s", pname);
     const char* name = pname;
     // append ".exe" if not present:
     if (!ut_str.iends(pname, ".exe")) {
@@ -5829,7 +5957,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         base = name;
     }
     uint16_t wn[1024];
-    ut_fatal_if(strlen(base) >= ut_countof(wn), "name too long: %s", base);
+    rt_fatal_if(strlen(base) >= ut_countof(wn), "name too long: %s", base);
     ut_str.utf8to16(wn, ut_countof(wn), base, -1);
     size_t count = 0;
     uint64_t pid = 0;
@@ -5843,7 +5971,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
         // too much for stack alloca()
         // add little extra if new process is spawned in between calls.
         bytes += sizeof(SYSTEM_PROCESS_INFORMATION) * 32;
-        r = ut_heap.reallocate(null, (void**)&data, bytes, false);
+        r = rt_heap.reallocate(null, (void**)&data, bytes, false);
         if (r == 0) {
             r = NtQuerySystemInformation(SystemProcessInformation, data, bytes, &bytes);
         } else {
@@ -5859,7 +5987,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
             if (match) {
                 pid = (uint64_t)proc->UniqueProcessId; // HANDLE .UniqueProcessId
                 if (base != name) {
-                    char path[ut_files_max_path];
+                    char path[rt_files_max_path];
                     match = ut_processes.nameof(pid, path, ut_countof(path)) == 0 &&
                             ut_str.iends(path, name);
 //                  ut_println("\"%s\" -> \"%s\" match: %d", name, path, match);
@@ -5878,7 +6006,7 @@ static int32_t ut_processes_for_each_pidof(const char* pname, ut_processes_pidof
                 ((uint8_t*)proc + proc->NextEntryOffset) : null;
         }
     }
-    if (data != null) { ut_heap.deallocate(null, data); }
+    if (data != null) { rt_heap.deallocate(null, data); }
     ut_assert(count <= (uint64_t)INT32_MAX);
     return (int32_t)count;
 }
@@ -5954,7 +6082,7 @@ static errno_t ut_processes_kill(uint64_t pid, fp64_t timeout) {
     errno_t r = ERROR_NOT_FOUND;
     HANDLE h = OpenProcess(access, 0, (DWORD)pid);
     if (h != null) {
-        char path[ut_files_max_path];
+        char path[rt_files_max_path];
         path[0] = 0;
         r = ut_b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
         if (r == 0) {
@@ -6056,7 +6184,7 @@ static errno_t ut_processes_restart_elevated(void) {
         if (r == ERROR_CANCELLED) {
             ut_println("The user unable or refused to allow privileges elevation");
         } else if (r == 0) {
-            ut_runtime.exit(0); // second copy of the app is running now
+            rt_core.exit(0); // second copy of the app is running now
         }
     }
     return r;
@@ -6121,7 +6249,7 @@ static errno_t ut_processes_child_write(ut_stream_if* in, HANDLE pipe) {
 }
 
 static errno_t ut_processes_run(ut_processes_child_t* child) {
-    const fp64_t deadline = ut_clock.seconds() + child->timeout;
+    const fp64_t deadline = rt_clock.seconds() + child->timeout;
     errno_t r = 0;
     STARTUPINFOA si = {
         .cb = sizeof(STARTUPINFOA),
@@ -6169,7 +6297,7 @@ static errno_t ut_processes_run(ut_processes_child_t* child) {
         si.hStdInput  = INVALID_HANDLE_VALUE;
         bool done = false;
         while (!done && r == 0) {
-            if (child->timeout > 0 && ut_clock.seconds() > deadline) {
+            if (child->timeout > 0 && rt_clock.seconds() > deadline) {
                 r = ut_b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
                 if (r != 0) {
                     ut_println("TerminateProcess() failed %s", ut_strerr(r));
@@ -6279,7 +6407,7 @@ static errno_t ut_processes_spawn(const char* command) {
 }
 
 static const char* ut_processes_name(void) {
-    static char mn[ut_files_max_path];
+    static char mn[rt_files_max_path];
     if (mn[0] == 0) {
         ut_fatal_win32err(GetModuleFileNameA(null, mn, ut_countof(mn)));
     }
@@ -6291,7 +6419,7 @@ static const char* ut_processes_name(void) {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                       \
-    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
+    if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) { \
         ut_println(__VA_ARGS__);                                   \
     }                                                           \
 } while (0)
@@ -6306,7 +6434,7 @@ static void ut_processes_test(void) {
         errno_t r = ut_processes.pids(names[j], null, size, &count);
         while (r == ERROR_MORE_DATA && count > 0) {
             size = count * 2; // set of processes may change rapidly
-            r = ut_heap.reallocate(null, (void**)&pids,
+            r = rt_heap.reallocate(null, (void**)&pids,
                                   (int64_t)sizeof(uint64_t) * (int64_t)size,
                                   false);
             if (r == 0) {
@@ -6324,7 +6452,7 @@ static void ut_processes_test(void) {
                 }
             }
         }
-        ut_heap.deallocate(null, pids);
+        rt_heap.deallocate(null, pids);
     }
     // test popen()
     int32_t xc = 0;
@@ -6373,123 +6501,6 @@ ut_processes_if ut_processes = {
     .test                = ut_processes_test
 };
 
-// _______________________________ ut_runtime.c _______________________________
-
-// abort does NOT call atexit() functions and
-// does NOT flush ut_streams. Also Win32 runtime
-// abort() attempt to show Abort/Retry/Ignore
-// MessageBox - thus ExitProcess()
-
-static void ut_runtime_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
-
-static void ut_runtime_exit(int32_t exit_code) { exit(exit_code); }
-
-// TODO: consider r = HRESULT_FROM_WIN32() and r = HRESULT_CODE(hr);
-// this separates posix error codes from win32 error codes
-
-
-static errno_t ut_runtime_err(void) { return (errno_t)GetLastError(); }
-
-static void ut_runtime_seterr(errno_t err) { SetLastError((DWORD)err); }
-
-ut_static_init(runtime) {
-    SetErrorMode(
-        // The system does not display the critical-error-handler message box.
-        // Instead, the system sends the error to the calling process:
-        SEM_FAILCRITICALERRORS|
-        // The system automatically fixes memory alignment faults and
-        // makes them invisible to the application.
-        SEM_NOALIGNMENTFAULTEXCEPT|
-        // The system does not display the Windows Error Reporting dialog.
-        SEM_NOGPFAULTERRORBOX|
-        // The OpenFile function does not display a message box when it fails
-        // to find a file. Instead, the error is returned to the caller.
-        // This error mode overrides the OF_PROMPT flag.
-        SEM_NOOPENFILEERRORBOX);
-}
-
-#ifdef UT_TESTS
-
-static void ut_runtime_test(void) { // in alphabetical order
-    ut_args.test();
-    ut_atomics.test();
-    ut_bt.test();
-    ut_clipboard.test();
-    ut_clock.test();
-    ut_config.test();
-    ut_debug.test();
-    ut_event.test();
-    ut_files.test();
-    ut_generics.test();
-    ut_heap.test();
-    ut_loader.test();
-    ut_mem.test();
-    ut_mutex.test();
-    ut_num.test();
-    ut_processes.test();
-    ut_static_init_test();
-    ut_str.test();
-    ut_streams.test();
-    ut_thread.test();
-    ut_vigil.test();
-    ut_worker.test();
-}
-
-#else
-
-static void ut_runtime_test(void) { }
-
-#endif
-
-ut_runtime_if ut_runtime = {
-    .err     = ut_runtime_err,
-    .set_err = ut_runtime_seterr,
-    .abort   = ut_runtime_abort,
-    .exit    = ut_runtime_exit,
-    .test    = ut_runtime_test,
-    .error   = {                                              // posix
-        .access_denied          = ERROR_ACCESS_DENIED,        // EACCES
-        .bad_file               = ERROR_BAD_FILE_TYPE,        // EBADF
-        .broken_pipe            = ERROR_BROKEN_PIPE,          // EPIPE
-        .device_not_ready       = ERROR_NOT_READY,            // ENXIO
-        .directory_not_empty    = ERROR_DIR_NOT_EMPTY,        // ENOTEMPTY
-        .disk_full              = ERROR_DISK_FULL,            // ENOSPC
-        .file_exists            = ERROR_FILE_EXISTS,          // EEXIST
-        .file_not_found         = ERROR_FILE_NOT_FOUND,       // ENOENT
-        .insufficient_buffer    = ERROR_INSUFFICIENT_BUFFER,  // E2BIG
-        .interrupted            = ERROR_OPERATION_ABORTED,    // EINTR
-        .invalid_data           = ERROR_INVALID_DATA,         // EINVAL
-        .invalid_handle         = ERROR_INVALID_HANDLE,       // EBADF
-        .invalid_parameter      = ERROR_INVALID_PARAMETER,    // EINVAL
-        .io_error               = ERROR_IO_DEVICE,            // EIO
-        .more_data              = ERROR_MORE_DATA,            // ENOBUFS
-        .name_too_long          = ERROR_FILENAME_EXCED_RANGE, // ENAMETOOLONG
-        .no_child_process       = ERROR_NO_PROC_SLOTS,        // ECHILD
-        .not_a_directory        = ERROR_DIRECTORY,            // ENOTDIR
-        .not_empty              = ERROR_DIR_NOT_EMPTY,        // ENOTEMPTY
-        .out_of_memory          = ERROR_OUTOFMEMORY,          // ENOMEM
-        .path_not_found         = ERROR_PATH_NOT_FOUND,       // ENOENT
-        .pipe_not_connected     = ERROR_PIPE_NOT_CONNECTED,   // EPIPE
-        .read_only_file         = ERROR_WRITE_PROTECT,        // EROFS
-        .resource_deadlock      = ERROR_LOCK_VIOLATION,       // EDEADLK
-        .too_many_open_files    = ERROR_TOO_MANY_OPEN_FILES,  // EMFILE
-    }
-};
-
-#pragma comment(lib, "advapi32")
-#pragma comment(lib, "ntdll")
-#pragma comment(lib, "psapi")
-#pragma comment(lib, "shell32")
-#pragma comment(lib, "shlwapi")
-#pragma comment(lib, "kernel32")
-#pragma comment(lib, "user32") // clipboard
-#pragma comment(lib, "imm32")  // Internationalization input method
-#pragma comment(lib, "ole32")  // ut_files.known_folder CoMemFree
-#pragma comment(lib, "dbghelp")
-#pragma comment(lib, "imagehlp")
-
-
-
 // _______________________________ ut_static.c ________________________________
 
 static void*   ut_static_symbol_reference[1024];
@@ -6522,9 +6533,9 @@ static void ut_force_inline ut_static_init_function(void) {
 ut_static_init(static_init_test) { ut_static_init_function(); }
 
 void ut_static_init_test(void) {
-    ut_fatal_if(ut_static_init_function_called != 1,
+    rt_fatal_if(ut_static_init_function_called != 1,
         "static_init_function() expected to be called before main()");
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
@@ -6584,7 +6595,7 @@ static int32_t ut_str_utf8bytes(const char* s, int32_t b) {
 }
 
 static int32_t ut_str_glyphs(const char* utf8, int32_t bytes) {
-    ut_swear(bytes >= 0);
+    rt_swear(bytes >= 0);
     bool ok = true;
     int32_t i = 0;
     int32_t k = 1;
@@ -6598,14 +6609,14 @@ static int32_t ut_str_glyphs(const char* utf8, int32_t bytes) {
 
 static void ut_str_lower(char* d, int32_t capacity, const char* s) {
     int32_t n = ut_str.len(s);
-    ut_swear(capacity > n);
+    rt_swear(capacity > n);
     for (int32_t i = 0; i < n; i++) { d[i] = (char)tolower(s[i]); }
     d[n] = 0;
 }
 
 static void ut_str_upper(char* d, int32_t capacity, const char* s) {
     int32_t n = ut_str.len(s);
-    ut_swear(capacity > n);
+    rt_swear(capacity > n);
     for (int32_t i = 0; i < n; i++) { d[i] = (char)toupper(s[i]); }
     d[n] = 0;
 }
@@ -6646,9 +6657,9 @@ static int32_t ut_str_utf8_bytes(const uint16_t* utf16, int32_t chars) {
         WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
         utf16, chars, null, 0, null, null);
     if (required_bytes_count == 0) {
-        errno_t r = ut_runtime.err();
+        errno_t r = rt_core.err();
         ut_println("WideCharToMultiByte() failed %s", ut_strerr(r));
-        ut_runtime.set_err(r);
+        rt_core.set_err(r);
     }
     return required_bytes_count == 0 ? -1 : required_bytes_count;
 }
@@ -6661,9 +6672,9 @@ static int32_t ut_str_utf16_chars(const char* utf8, int32_t bytes) {
     const int32_t required_wide_chars_count =
         MultiByteToWideChar(CP_UTF8, 0, utf8, bytes, null, 0);
     if (required_wide_chars_count == 0) {
-        errno_t r = ut_runtime.err();
+        errno_t r = rt_core.err();
         ut_println("MultiByteToWideChar() failed %s", ut_strerr(r));
-        ut_runtime.set_err(r);
+        rt_core.set_err(r);
     }
     return required_wide_chars_count == 0 ? -1 : required_wide_chars_count;
 }
@@ -6672,17 +6683,17 @@ static errno_t ut_str_utf16to8(char* utf8, int32_t capacity,
         const uint16_t* utf16, int32_t chars) {
     if (chars == 0) { return 0; }
     if (chars < 0 && utf16[0] == 0x0000) {
-        ut_swear(capacity >= 1);
+        rt_swear(capacity >= 1);
         utf8[0] = 0x00;
         return 0;
     }
     const int32_t required = ut_str.utf8_bytes(utf16, chars);
-    errno_t r = required < 0 ? ut_runtime.err() : 0;
+    errno_t r = required < 0 ? rt_core.err() : 0;
     if (r == 0) {
-        ut_swear(required > 0 && capacity >= required);
+        rt_swear(required > 0 && capacity >= required);
         int32_t bytes = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
                             utf16, chars, utf8, capacity, null, null);
-        ut_swear(required == bytes);
+        rt_swear(required == bytes);
     }
     return r;
 }
@@ -6690,18 +6701,18 @@ static errno_t ut_str_utf16to8(char* utf8, int32_t capacity,
 static errno_t ut_str_utf8to16(uint16_t* utf16, int32_t capacity,
         const char* utf8, int32_t bytes) {
     const int32_t required = ut_str.utf16_chars(utf8, bytes);
-    errno_t r = required < 0 ? ut_runtime.err() : 0;
+    errno_t r = required < 0 ? rt_core.err() : 0;
     if (r == 0) {
-        ut_swear(required >= 0 && capacity >= required);
+        rt_swear(required >= 0 && capacity >= required);
         int32_t count = MultiByteToWideChar(CP_UTF8, 0, utf8, bytes,
                                             utf16, capacity);
-        ut_swear(required == count);
+        rt_swear(required == count);
 #if 0 // TODO: incorrect need output != input
         if (count > 0 && !IsNormalizedString(NormalizationC, utf16, count)) {
-            ut_runtime.set_err(0);
+            rt_core.set_err(0);
             int32_t n = NormalizeString(NormalizationC, utf16, count, utf16, count);
             if (n <= 0) {
-                r = ut_runtime.err();
+                r = rt_core.err();
                 ut_println("NormalizeString() failed %s", ut_strerr(r));
             }
         }
@@ -6722,24 +6733,24 @@ static uint32_t ut_str_utf32(const char* utf8, int32_t bytes) {
     uint32_t utf32 = 0;
     if ((utf8[0] & 0x80) == 0) {
         utf32 = utf8[0];
-        ut_swear(bytes == 1);
+        rt_swear(bytes == 1);
     } else if ((utf8[0] & 0xE0) == 0xC0) {
         utf32  = (utf8[0] & 0x1F) << 6;
         utf32 |= (utf8[1] & 0x3F);
-        ut_swear(bytes == 2);
+        rt_swear(bytes == 2);
     } else if ((utf8[0] & 0xF0) == 0xE0) {
         utf32  = (utf8[0] & 0x0F) << 12;
         utf32 |= (utf8[1] & 0x3F) <<  6;
         utf32 |= (utf8[2] & 0x3F);
-        ut_swear(bytes == 3);
+        rt_swear(bytes == 3);
     } else if ((utf8[0] & 0xF8) == 0xF0) {
         utf32  = (utf8[0] & 0x07) << 18;
         utf32 |= (utf8[1] & 0x3F) << 12;
         utf32 |= (utf8[2] & 0x3F) <<  6;
         utf32 |= (utf8[3] & 0x3F);
-        ut_swear(bytes == 4);
+        rt_swear(bytes == 4);
     } else {
-        ut_swear(false);
+        rt_swear(false);
     }
     return utf32;
 }
@@ -6786,7 +6797,7 @@ static str1024_t ut_str_error_for_language(int32_t error, LANGID language) {
     // If FormatMessageW() succeeds, the return value is the number of utf16
     // characters stored in the output buffer, excluding the terminating zero.
     if (count > 0) {
-        ut_swear(count < ut_countof(utf16));
+        rt_swear(count < ut_countof(utf16));
         utf16[count] = 0;
         // remove trailing '\r\n'
         int32_t k = count;
@@ -6827,7 +6838,7 @@ static const char* ut_str_grouping_separator(void) {
         if (grouping_separator[0] == 0x00) {
             errno_t r = ut_b2e(GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_STHOUSAND,
                 grouping_separator, sizeof(grouping_separator)));
-            ut_swear(r == 0 && grouping_separator[0] != 0);
+            rt_swear(r == 0 && grouping_separator[0] != 0);
         }
         return grouping_separator;
     #else
@@ -6868,7 +6879,7 @@ static str64_t ut_str_int64_dg(int64_t v, // digit_grouped
     // does not respect locale or UI separators...
     // Do it hard way:
     const int32_t m = (int32_t)strlen(gs);
-    ut_swear(m < 5); // utf-8 4 bytes max
+    rt_swear(m < 5); // utf-8 4 bytes max
     // 64 calls per thread 32 or less bytes each because:
     // "18446744073709551615" 21 characters + 6x4 groups:
     // "18'446'744'073'709'551'615" 27 characters
@@ -6905,11 +6916,11 @@ static str64_t ut_str_int64_dg(int64_t v, // digit_grouped
 }
 
 static str64_t ut_str_int64(int64_t v) {
-    return ut_str_int64_dg(v, false, ut_glyph_hair_space);
+    return ut_str_int64_dg(v, false, rt_glyph_hair_space);
 }
 
 static str64_t ut_str_uint64(uint64_t v) {
-    return ut_str_int64_dg(v, true, ut_glyph_hair_space);
+    return ut_str_int64_dg(v, true, rt_glyph_hair_space);
 }
 
 static str64_t ut_str_int64_lc(int64_t v) {
@@ -6925,9 +6936,9 @@ static str128_t ut_str_fp(const char* format, fp64_t v) {
     if (decimal_separator[0] == 0) {
         errno_t r = ut_b2e(GetLocaleInfoA(LOCALE_USER_DEFAULT, LOCALE_SDECIMAL,
             decimal_separator, sizeof(decimal_separator)));
-        ut_swear(r == 0 && decimal_separator[0] != 0);
+        rt_swear(r == 0 && decimal_separator[0] != 0);
     }
-    ut_swear(strlen(decimal_separator) <= 4);
+    rt_swear(strlen(decimal_separator) <= 4);
     str128_t f; // formatted float point
     // snprintf format does not handle thousands separators on all know runtimes
     // and respects setlocale() on Un*x systems but in MS runtime only when
@@ -6957,17 +6968,17 @@ static str128_t ut_str_fp(const char* format, fp64_t v) {
 #ifdef UT_TESTS
 
 static void ut_str_test(void) {
-    ut_swear(ut_str.len("hello") == 5);
-    ut_swear(ut_str.starts("hello world", "hello"));
-    ut_swear(ut_str.ends("hello world", "world"));
-    ut_swear(ut_str.istarts("hello world", "HeLlO"));
-    ut_swear(ut_str.iends("hello world", "WoRlD"));
+    rt_swear(ut_str.len("hello") == 5);
+    rt_swear(ut_str.starts("hello world", "hello"));
+    rt_swear(ut_str.ends("hello world", "world"));
+    rt_swear(ut_str.istarts("hello world", "HeLlO"));
+    rt_swear(ut_str.iends("hello world", "WoRlD"));
     char ls[20] = {0};
     ut_str.lower(ls, ut_countof(ls), "HeLlO WoRlD");
-    ut_swear(strcmp(ls, "hello world") == 0);
+    rt_swear(strcmp(ls, "hello world") == 0);
     char upper[11] = {0};
     ut_str.upper(upper, ut_countof(upper), "hello12345");
-    ut_swear(strcmp(upper,  "HELLO12345") == 0);
+    rt_swear(strcmp(upper,  "HELLO12345") == 0);
     #pragma push_macro("glyph_chinese_one")
     #pragma push_macro("glyph_chinese_two")
     #pragma push_macro("glyph_teddy_bear")
@@ -6979,17 +6990,17 @@ static void ut_str_test(void) {
     const char* utf8_str =
             glyph_teddy_bear
             "0"
-            ut_glyph_chinese_jin4 ut_glyph_chinese_gong
+            rt_glyph_chinese_jin4 rt_glyph_chinese_gong
             "3456789 "
             glyph_ice_cube;
-    ut_swear(ut_str.utf8bytes("\x01", 1) == 1);
-    ut_swear(ut_str.utf8bytes("\x7F", 1) == 1);
-    ut_swear(ut_str.utf8bytes("\x80", 1) == 0);
+    rt_swear(ut_str.utf8bytes("\x01", 1) == 1);
+    rt_swear(ut_str.utf8bytes("\x7F", 1) == 1);
+    rt_swear(ut_str.utf8bytes("\x80", 1) == 0);
 //  swear(ut_str.utf8bytes(glyph_chinese_one, 0) == 0);
-    ut_swear(ut_str.utf8bytes(glyph_chinese_one, 1) == 0);
-    ut_swear(ut_str.utf8bytes(glyph_chinese_one, 2) == 0);
-    ut_swear(ut_str.utf8bytes(glyph_chinese_one, 3) == 3);
-    ut_swear(ut_str.utf8bytes(glyph_teddy_bear,  4) == 4);
+    rt_swear(ut_str.utf8bytes(glyph_chinese_one, 1) == 0);
+    rt_swear(ut_str.utf8bytes(glyph_chinese_one, 2) == 0);
+    rt_swear(ut_str.utf8bytes(glyph_chinese_one, 3) == 3);
+    rt_swear(ut_str.utf8bytes(glyph_teddy_bear,  4) == 4);
     #pragma pop_macro("glyph_ice_cube")
     #pragma pop_macro("glyph_teddy_bear")
     #pragma pop_macro("glyph_chinese_two")
@@ -7002,30 +7013,30 @@ static void ut_str_test(void) {
     ut_str.utf8to16(utf16, ut_countof(utf16), utf8, -1);
     char narrow_str[100] = {0};
     ut_str.utf16to8(narrow_str, ut_countof(narrow_str), utf16, -1);
-    ut_swear(strcmp(narrow_str, utf8_str) == 0);
+    rt_swear(strcmp(narrow_str, utf8_str) == 0);
     char formatted[100];
     ut_str.format(formatted, ut_countof(formatted), "n: %d, s: %s", 42, "test");
-    ut_swear(strcmp(formatted, "n: 42, s: test") == 0);
+    rt_swear(strcmp(formatted, "n: 42, s: test") == 0);
     // numeric values digit grouping format:
-    ut_swear(strcmp("0", ut_str.int64_dg(0, true, ",").s) == 0);
-    ut_swear(strcmp("-1", ut_str.int64_dg(-1, false, ",").s) == 0);
-    ut_swear(strcmp("999", ut_str.int64_dg(999, true, ",").s) == 0);
-    ut_swear(strcmp("-999", ut_str.int64_dg(-999, false, ",").s) == 0);
-    ut_swear(strcmp("1,001", ut_str.int64_dg(1001, true, ",").s) == 0);
-    ut_swear(strcmp("-1,001", ut_str.int64_dg(-1001, false, ",").s) == 0);
-    ut_swear(strcmp("18,446,744,073,709,551,615",
+    rt_swear(strcmp("0", ut_str.int64_dg(0, true, ",").s) == 0);
+    rt_swear(strcmp("-1", ut_str.int64_dg(-1, false, ",").s) == 0);
+    rt_swear(strcmp("999", ut_str.int64_dg(999, true, ",").s) == 0);
+    rt_swear(strcmp("-999", ut_str.int64_dg(-999, false, ",").s) == 0);
+    rt_swear(strcmp("1,001", ut_str.int64_dg(1001, true, ",").s) == 0);
+    rt_swear(strcmp("-1,001", ut_str.int64_dg(-1001, false, ",").s) == 0);
+    rt_swear(strcmp("18,446,744,073,709,551,615",
         ut_str.int64_dg(UINT64_MAX, true, ",").s) == 0
     );
-    ut_swear(strcmp("9,223,372,036,854,775,807",
+    rt_swear(strcmp("9,223,372,036,854,775,807",
         ut_str.int64_dg(INT64_MAX, false, ",").s) == 0
     );
-    ut_swear(strcmp("-9,223,372,036,854,775,808",
+    rt_swear(strcmp("-9,223,372,036,854,775,808",
         ut_str.int64_dg(INT64_MIN, false, ",").s) == 0
     );
     //  see:
     // https://en.wikipedia.org/wiki/Single-precision_floating-point_format
     uint32_t pi_fp32 = 0x40490FDBULL; // 3.14159274101257324
-    ut_swear(strcmp("3.141592741",
+    rt_swear(strcmp("3.141592741",
                 ut_str.fp("%.9f", *(fp32_t*)&pi_fp32).s) == 0,
           "%s", ut_str.fp("%.9f", *(fp32_t*)&pi_fp32).s
     );
@@ -7035,7 +7046,7 @@ static void ut_str_test(void) {
     //
     //  https://en.wikipedia.org/wiki/Double-precision_floating-point_format
     uint64_t pi_fp64 = 0x400921FB54442D18ULL;
-    ut_swear(strcmp("3.141592653589793116",
+    rt_swear(strcmp("3.141592653589793116",
                 ut_str.fp("%.18f", *(fp64_t*)&pi_fp64).s) == 0,
           "%s", ut_str.fp("%.18f", *(fp64_t*)&pi_fp64).s
     );
@@ -7046,7 +7057,7 @@ static void ut_str_test(void) {
     //
     //  actual "pi" first 64 digits:
     //  3.1415926535897932384626433832795028841971693993751058209749445923
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
@@ -7092,12 +7103,12 @@ ut_str_if ut_str = {
 
 static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t bytes,
         int64_t *transferred) {
-    ut_swear(bytes > 0);
+    rt_swear(bytes > 0);
     ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
-    ut_swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
+    rt_swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
-    int64_t transfer = ut_min(bytes, s->bytes_read - s->pos_read);
+    int64_t transfer = rt_min(bytes, s->bytes_read - s->pos_read);
     memcpy(data, (const uint8_t*)s->data_read + s->pos_read, (size_t)transfer);
     s->pos_read += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -7106,13 +7117,13 @@ static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t 
 
 static errno_t ut_streams_memory_write(ut_stream_if* stream, const void* data, int64_t bytes,
         int64_t *transferred) {
-    ut_swear(bytes > 0);
+    rt_swear(bytes > 0);
     ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
-    ut_swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
+    rt_swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
     bool overflow = s->bytes_write - s->pos_write <= 0;
-    int64_t transfer = ut_min(bytes, s->bytes_write - s->pos_write);
+    int64_t transfer = rt_min(bytes, s->bytes_write - s->pos_write);
     memcpy((uint8_t*)s->data_write + s->pos_write, data, (size_t)transfer);
     s->pos_write += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -7170,9 +7181,9 @@ static void ut_streams_test(void) {
             for (int32_t j = 0; j < ut_countof(data); j++) { data[j] = 0xFF; }
             int64_t transferred = 0;
             errno_t r = ms.stream.read(&ms.stream, data, i, &transferred);
-            ut_swear(r == 0 && transferred == i);
-            for (int32_t j = 0; j < i; j++) { ut_swear(data[j] == memory[j]); }
-            for (int32_t j = i; j < ut_countof(data); j++) { ut_swear(data[j] == 0xFF); }
+            rt_swear(r == 0 && transferred == i);
+            for (int32_t j = 0; j < i; j++) { rt_swear(data[j] == memory[j]); }
+            for (int32_t j = i; j < ut_countof(data); j++) { rt_swear(data[j] == 0xFF); }
         }
     }
     {   // write test
@@ -7181,7 +7192,7 @@ static void ut_streams_test(void) {
     {   // read/write test
         // TODO: implement
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
@@ -7224,9 +7235,9 @@ static void ut_event_reset(ut_event_t e) {
 static int32_t ut_event_wait_or_timeout(ut_event_t e, fp64_t seconds) {
     uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
     DWORD i = WaitForSingleObject(e, ms);
-    ut_swear(i != WAIT_FAILED, "i: %d", i);
+    rt_swear(i != WAIT_FAILED, "i: %d", i);
     errno_t r = ut_wait_ix2e(i);
-    if (r != 0) { ut_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    if (r != 0) { rt_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
     return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
@@ -7234,13 +7245,13 @@ static void ut_event_wait(ut_event_t e) { ut_event_wait_or_timeout(e, -1); }
 
 static int32_t ut_event_wait_any_or_timeout(int32_t n,
         ut_event_t events[], fp64_t s) {
-    ut_swear(n < 64); // Win32 API limit
+    rt_swear(n < 64); // Win32 API limit
     const uint32_t ms = s < 0 ? INFINITE : (uint32_t)(s * 1000.0 + 0.5);
     const HANDLE* es = (const HANDLE*)events;
     DWORD i = WaitForMultipleObjects((DWORD)n, es, false, ms);
-    ut_swear(i != WAIT_FAILED, "i: %d", i);
+    rt_swear(i != WAIT_FAILED, "i: %d", i);
     errno_t r = ut_wait_ix2e(i);
-    if (r != 0) { ut_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    if (r != 0) { rt_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
     return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : i);
 }
 
@@ -7258,47 +7269,47 @@ static void ut_event_dispose(ut_event_t h) {
 
 // check if the elapsed time is within the expected range
 static void ut_event_test_check_time(fp64_t start, fp64_t expected) {
-    fp64_t elapsed = ut_clock.seconds() - start;
+    fp64_t elapsed = rt_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays (observed)
-    ut_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.250,
+    rt_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.250,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
 static void ut_event_test(void) {
     ut_event_t event = ut_event.create();
-    fp64_t start = ut_clock.seconds();
+    fp64_t start = rt_clock.seconds();
     ut_event.set(event);
     ut_event.wait(event);
     ut_event_test_check_time(start, 0); // Event should be immediate
     ut_event.reset(event);
-    start = ut_clock.seconds();
+    start = rt_clock.seconds();
     const fp64_t timeout_seconds = 1.0 / 8.0;
     int32_t result = ut_event.wait_or_timeout(event, timeout_seconds);
     ut_event_test_check_time(start, timeout_seconds);
-    ut_swear(result == -1); // Timeout expected
+    rt_swear(result == -1); // Timeout expected
     enum { count = 5 };
     ut_event_t events[count];
     for (int32_t i = 0; i < ut_countof(events); i++) {
         events[i] = ut_event.create_manual();
     }
-    start = ut_clock.seconds();
+    start = rt_clock.seconds();
     ut_event.set(events[2]); // Set the third event
     int32_t index = ut_event.wait_any(ut_countof(events), events);
-    ut_swear(index == 2);
+    rt_swear(index == 2);
     ut_event_test_check_time(start, 0);
-    ut_swear(index == 2); // Third event should be triggered
+    rt_swear(index == 2); // Third event should be triggered
     ut_event.reset(events[2]); // Reset the third event
-    start = ut_clock.seconds();
+    start = rt_clock.seconds();
     result = ut_event.wait_any_or_timeout(ut_countof(events), events, timeout_seconds);
-    ut_swear(result == -1);
+    rt_swear(result == -1);
     ut_event_test_check_time(start, timeout_seconds);
-    ut_swear(result == -1); // Timeout expected
+    rt_swear(result == -1); // Timeout expected
     // Clean up
     ut_event.dispose(event);
     for (int32_t i = 0; i < ut_countof(events); i++) {
         ut_event.dispose(events[i]);
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
@@ -7345,9 +7356,9 @@ static void ut_mutex_dispose(ut_mutex_t* m) {
 
 // check if the elapsed time is within the expected range
 static void ut_mutex_test_check_time(fp64_t start, fp64_t expected) {
-    fp64_t elapsed = ut_clock.seconds() - start;
+    fp64_t elapsed = rt_clock.seconds() - start;
     // Old Windows scheduler is prone to 2x16.6ms ~ 33ms delays
-    ut_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
+    rt_swear(elapsed >= expected - 0.04 && elapsed <= expected + 0.04,
           "expected: %f elapsed %f seconds", expected, elapsed);
 }
 
@@ -7361,7 +7372,7 @@ static void ut_mutex_test_lock_unlock(void* arg) {
 static void ut_mutex_test(void) {
     ut_mutex_t mutex;
     ut_mutex.init(&mutex);
-    fp64_t start = ut_clock.seconds();
+    fp64_t start = rt_clock.seconds();
     ut_mutex.lock(&mutex);
     ut_mutex.unlock(&mutex);
     // Lock and unlock should be immediate
@@ -7376,7 +7387,7 @@ static void ut_mutex_test(void) {
         ut_thread.join(ts[i], -1);
     }
     ut_mutex.dispose(&mutex);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 ut_mutex_if ut_mutex = {
@@ -7395,14 +7406,14 @@ static void* ut_thread_ntdll(void) {
         ntdll = (void*)GetModuleHandleA("ntdll.dll");
     }
     if (ntdll == null) {
-        ntdll = ut_loader.open("ntdll.dll", 0);
+        ntdll = rt_loader.open("ntdll.dll", 0);
     }
     ut_not_null(ntdll);
     return ntdll;
 }
 
 static fp64_t ut_thread_ns2ms(int64_t ns) {
-    return (fp64_t)ns / (fp64_t)ut_clock.nsec_in_msec;
+    return (fp64_t)ns / (fp64_t)rt_clock.nsec_in_msec;
 }
 
 static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
@@ -7412,18 +7423,18 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
         BOOLEAN set, ULONG* actual_resolution); // ntdll.dll
     void* nt_dll = ut_thread_ntdll();
     query_timer_resolution_t query_timer_resolution =  (query_timer_resolution_t)
-        ut_loader.sym(nt_dll, "NtQueryTimerResolution");
+        rt_loader.sym(nt_dll, "NtQueryTimerResolution");
     set_timer_resolution_t set_timer_resolution = (set_timer_resolution_t)
-        ut_loader.sym(nt_dll, "NtSetTimerResolution");
+        rt_loader.sym(nt_dll, "NtSetTimerResolution");
     unsigned long min100ns = 16 * 10 * 1000;
     unsigned long max100ns =  1 * 10 * 1000;
     unsigned long cur100ns =  0;
-    ut_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+    rt_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
     uint64_t max_ns = max100ns * 100uLL;
 //  uint64_t min_ns = min100ns * 100uLL;
 //  uint64_t cur_ns = cur100ns * 100uLL;
     // max resolution is lowest possible delay between timer events
-//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+//  if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
 //      ut_println("timer resolution min: %.3f max: %.3f cur: %.3f"
 //          " ms (milliseconds)",
 //          ut_thread_ns2ms(min_ns),
@@ -7431,11 +7442,11 @@ static void ut_thread_set_timer_resolution(uint64_t nanoseconds) {
 //          ut_thread_ns2ms(cur_ns));
 //  }
     // note that maximum resolution is actually < minimum
-    nanoseconds = ut_max(max_ns, nanoseconds);
+    nanoseconds = rt_max(max_ns, nanoseconds);
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
-    ut_fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
-    ut_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
-//  if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+    rt_fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
+    rt_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
+//  if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
 //      min_ns = min100ns * 100uLL;
 //      max_ns = max100ns * 100uLL; // the smallest interval
 //      cur_ns = cur100ns * 100uLL;
@@ -7502,7 +7513,7 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
     static int32_t cores = 0; // number of physical processors (cores)
     static uint64_t any;
     static uint64_t affinity[64]; // mask for each physical processor
-    bool set_to_true = ut_atomics.compare_exchange_int32(&init, false, true);
+    bool set_to_true = rt_atomics.compare_exchange_int32(&init, false, true);
     if (set_to_true) {
         // Concept D: 6 cores, 12 logical processors: 27 lpi entries
         static SYSTEM_LOGICAL_PROCESSOR_INFORMATION lpi[64];
@@ -7514,7 +7525,7 @@ static uint64_t ut_thread_next_physical_processor_affinity_mask(void) {
         ut_assert(bytes <= sizeof(lpi), "increase lpi[%d]", n);
         ut_fatal_win32err(GetLogicalProcessorInformation(&lpi[0], &bytes));
         for (int32_t i = 0; i < n; i++) {
-//          if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+//          if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
 //              ut_println("[%2d] affinity mask 0x%016llX relationship=%d %s", i,
 //                  lpi[i].ProcessorMask, lpi[i].Relationship,
 //                  ut_thread_rel2str(lpi[i].Relationship));
@@ -7549,7 +7560,7 @@ static void ut_thread_realtime(void) {
     ut_fatal_win32err(SetThreadPriorityBoost(GetCurrentThread(),
         /* bDisablePriorityBoost = */ false));
     // desired: 0.5ms = 500us (microsecond) = 50,000ns
-    ut_thread_set_timer_resolution((uint64_t)ut_clock.nsec_in_usec * 500ULL);
+    ut_thread_set_timer_resolution((uint64_t)rt_clock.nsec_in_usec * 500ULL);
     ut_fatal_win32err(SetThreadAffinityMask(GetCurrentThread(),
         ut_thread_next_physical_processor_affinity_mask()));
     ut_thread_disable_power_throttling();
@@ -7571,7 +7582,7 @@ static bool is_handle_valid(void* h) {
 
 static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
     ut_not_null(t);
-    ut_fatal_if(!is_handle_valid(t));
+    rt_fatal_if(!is_handle_valid(t));
     const uint32_t ms = timeout < 0 ? INFINITE : (uint32_t)(timeout * 1000.0 + 0.5);
     DWORD ix = WaitForSingleObject(t, (DWORD)ms);
     errno_t r = ut_wait_ix2e(ix);
@@ -7586,17 +7597,17 @@ static errno_t ut_thread_join(ut_thread_t t, fp64_t timeout) {
 
 static void ut_thread_detach(ut_thread_t t) {
     ut_not_null(t);
-    ut_fatal_if(!is_handle_valid(t));
+    rt_fatal_if(!is_handle_valid(t));
     ut_win32_close_handle(t);
 }
 
 static void ut_thread_name(const char* name) {
     uint16_t stack[128];
-    ut_fatal_if(ut_str.len(name) >= ut_countof(stack), "name too long: %s", name);
+    rt_fatal_if(ut_str.len(name) >= ut_countof(stack), "name too long: %s", name);
     ut_str.utf8to16(stack, ut_countof(stack), name, -1);
     HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
     // notoriously returns 0x10000000 for no good reason whatsoever
-    ut_fatal_if(!SUCCEEDED(r));
+    rt_fatal_if(!SUCCEEDED(r));
 }
 
 static void ut_thread_sleep_for(fp64_t seconds) {
@@ -7612,7 +7623,7 @@ static void ut_thread_sleep_for(fp64_t seconds) {
     if (NtDelayExecution == null) {
         void* ntdll = ut_thread_ntdll();
         NtDelayExecution = (nt_delay_execution_t)
-            ut_loader.sym(ntdll, "NtDelayExecution");
+            rt_loader.sym(ntdll, "NtDelayExecution");
         ut_not_null(NtDelayExecution);
     }
     // If "alertable" is set, sleep_for() can break earlier
@@ -7641,7 +7652,7 @@ static errno_t ut_thread_open(ut_thread_t *t, uint64_t id) {
     // if real handle is ever needed do ut_thread_id_of() instead
     // but don't forget to do ut_thread.close() after that.
     *t = (ut_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
-    return *t == null ? ut_runtime.err() : 0;
+    return *t == null ? rt_core.err() : 0;
 }
 
 static void ut_thread_close(ut_thread_t t) {
@@ -7674,7 +7685,7 @@ typedef struct ut_thread_philosophers_s {
 #pragma push_macro("verbose") // --verbosity trace
 
 #define verbose(...) do {                                 \
-    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) { \
+    if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) { \
         ut_println(__VA_ARGS__);                             \
     }                                                     \
 } while (0)
@@ -7740,7 +7751,7 @@ static void ut_thread_detached_loop(void* ut_unused(p)) {
     uint64_t sum = 0;
     for (uint64_t i = 0; i < UINT64_MAX; i++) { sum += i; }
     // make sure that compiler won't get rid of the loop:
-    ut_swear(sum == 0x8000000000000001ULL, "sum: %llu 0x%16llX", sum, sum);
+    rt_swear(sum == 0x8000000000000001ULL, "sum: %llu 0x%16llX", sum, sum);
 }
 
 static void ut_thread_test(void) {
@@ -7787,7 +7798,7 @@ static void ut_thread_test(void) {
     ut_thread.detach(detached_loop);
     // leave detached threads sleeping and running till ExitProcess(0)
     // that should NOT hang.
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #pragma pop_macro("verbose")
@@ -7817,20 +7828,20 @@ ut_thread_if ut_thread = {
 #include <string.h>
 
 static void ut_vigil_breakpoint_and_abort(void) {
-    ut_debug.breakpoint(); // only if debugger is present
-    ut_debug.raise(ut_debug.exception.noncontinuable);
-    ut_runtime.abort();
+    rt_debug.breakpoint(); // only if debugger is present
+    rt_debug.raise(rt_debug.exception.noncontinuable);
+    rt_core.abort();
 }
 
 static int32_t ut_vigil_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    ut_debug.println_va(file, line, func, format, va);
+    rt_debug.println_va(file, line, func, format, va);
     va_end(va);
-    ut_debug.println(file, line, func, "assertion failed: %s\n", condition);
+    rt_debug.println(file, line, func, "assertion failed: %s\n", condition);
     // avoid warnings: conditional expression always true and unreachable code
-    const bool always_true = ut_runtime.abort != null;
+    const bool always_true = rt_core.abort != null;
     if (always_true) { ut_vigil_breakpoint_and_abort(); }
     return 0;
 }
@@ -7838,21 +7849,21 @@ static int32_t ut_vigil_failed_assertion(const char* file, int32_t line,
 static int32_t ut_vigil_fatal_termination_va(const char* file, int32_t line,
         const char* func, const char* condition, errno_t r,
         const char* format, va_list va) {
-    const int32_t er = ut_runtime.err();
+    const int32_t er = rt_core.err();
     const int32_t en = errno;
-    ut_debug.println_va(file, line, func, format, va);
+    rt_debug.println_va(file, line, func, format, va);
     if (r != er && r != 0) {
-        ut_debug.perror(file, line, func, r, "");
+        rt_debug.perror(file, line, func, r, "");
     }
     // report last errors:
-    if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
-    if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
+    if (er != 0) { rt_debug.perror(file, line, func, er, ""); }
+    if (en != 0) { rt_debug.perrno(file, line, func, en, ""); }
     if (condition != null && condition[0] != 0) {
-        ut_debug.println(file, line, func, "FATAL: %s\n", condition);
+        rt_debug.println(file, line, func, "FATAL: %s\n", condition);
     } else {
-        ut_debug.println(file, line, func, "FATAL\n");
+        rt_debug.println(file, line, func, "FATAL\n");
     }
-    const bool always_true = ut_runtime.abort != null;
+    const bool always_true = rt_core.abort != null;
     if (always_true) { ut_vigil_breakpoint_and_abort(); }
     return 0;
 }
@@ -7889,18 +7900,18 @@ static int32_t      ut_vigil_test_failed_assertion_count;
 
 static int32_t ut_vigil_test_failed_assertion(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    ut_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
-    ut_fatal_if_not(line > __LINE__, "line: %s", line);
+    rt_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
+    rt_fatal_if_not(line > __LINE__, "line: %s", line);
     ut_assert(strcmp(func, "ut_vigil_test") == 0, "func: %s", func);
-    ut_fatal_if(condition == null || condition[0] == 0);
-    ut_fatal_if(format == null || format[0] == 0);
+    rt_fatal_if(condition == null || condition[0] == 0);
+    rt_fatal_if(format == null || format[0] == 0);
     ut_vigil_test_failed_assertion_count++;
-    if (ut_debug.verbosity.level >= ut_debug.verbosity.trace) {
+    if (rt_debug.verbosity.level >= rt_debug.verbosity.trace) {
         va_list va;
         va_start(va, format);
-        ut_debug.println_va(file, line, func, format, va);
+        rt_debug.println_va(file, line, func, format, va);
         va_end(va);
-        ut_debug.println(file, line, func, "assertion failed: %s (expected)\n",
+        rt_debug.println(file, line, func, "assertion failed: %s (expected)\n",
                      condition);
     }
     return 0;
@@ -7910,27 +7921,27 @@ static int32_t ut_vigil_test_fatal_calls_count;
 
 static int32_t ut_vigil_test_fatal_termination(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...) {
-    const int32_t er = ut_runtime.err();
+    const int32_t er = rt_core.err();
     const int32_t en = errno;
-    ut_assert(er == 2, "ut_runtime.err: %d expected 2", er);
+    ut_assert(er == 2, "rt_core.err: %d expected 2", er);
     ut_assert(en == 2, "errno: %d expected 2", en);
-    ut_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
-    ut_fatal_if_not(line > __LINE__, "line: %s", line);
+    rt_fatal_if_not(strcmp(file,  __FILE__) == 0, "file: %s", file);
+    rt_fatal_if_not(line > __LINE__, "line: %s", line);
     ut_assert(strcmp(func, "ut_vigil_test") == 0, "func: %s", func);
     ut_assert(strcmp(condition, "") == 0); // not yet used expected to be ""
     ut_assert(format != null && format[0] != 0);
     ut_vigil_test_fatal_calls_count++;
-    if (ut_debug.verbosity.level > ut_debug.verbosity.trace) {
+    if (rt_debug.verbosity.level > rt_debug.verbosity.trace) {
         va_list va;
         va_start(va, format);
-        ut_debug.println_va(file, line, func, format, va);
+        rt_debug.println_va(file, line, func, format, va);
         va_end(va);
-        if (er != 0) { ut_debug.perror(file, line, func, er, ""); }
-        if (en != 0) { ut_debug.perrno(file, line, func, en, ""); }
+        if (er != 0) { rt_debug.perror(file, line, func, er, ""); }
+        if (en != 0) { rt_debug.perrno(file, line, func, en, ""); }
         if (condition != null && condition[0] != 0) {
-            ut_debug.println(file, line, func, "FATAL: %s (testing)\n", condition);
+            rt_debug.println(file, line, func, "FATAL: %s (testing)\n", condition);
         } else {
-            ut_debug.println(file, line, func, "FATAL (testing)\n");
+            rt_debug.println(file, line, func, "FATAL (testing)\n");
         }
     }
     return 0;
@@ -7941,9 +7952,9 @@ static int32_t ut_vigil_test_fatal_termination(const char* file, int32_t line,
 static void ut_vigil_test(void) {
     ut_vigil_test_saved = ut_vigil;
     int32_t en = errno;
-    int32_t er = ut_runtime.err();
+    int32_t er = rt_core.err();
     errno = 2; // ENOENT
-    ut_runtime.set_err(2); // ERROR_FILE_NOT_FOUND
+    rt_core.set_err(2); // ERROR_FILE_NOT_FOUND
     ut_vigil.failed_assertion  = ut_vigil_test_failed_assertion;
     ut_vigil.fatal_termination = ut_vigil_test_fatal_termination;
     int32_t count = ut_vigil_test_fatal_calls_count;
@@ -7952,18 +7963,18 @@ static void ut_vigil_test(void) {
     count = ut_vigil_test_failed_assertion_count;
     ut_assert(false, "testing: ut_assert(%s)", "false");
     #ifdef DEBUG // verify that ut_assert() is only compiled in DEBUG:
-        ut_fatal_if_not(ut_vigil_test_failed_assertion_count == count + 1);
+        rt_fatal_if_not(ut_vigil_test_failed_assertion_count == count + 1);
     #else // not RELEASE buid:
-        ut_fatal_if_not(ut_vigil_test_failed_assertion_count == count);
+        rt_fatal_if_not(ut_vigil_test_failed_assertion_count == count);
     #endif
     count = ut_vigil_test_failed_assertion_count;
-    ut_swear(false, "testing: swear(%s)", "false");
+    rt_swear(false, "testing: swear(%s)", "false");
     // swear() is triggered in both debug and release configurations:
-    ut_fatal_if_not(ut_vigil_test_failed_assertion_count == count + 1);
+    rt_fatal_if_not(ut_vigil_test_failed_assertion_count == count + 1);
     errno = en;
-    ut_runtime.set_err(er);
+    rt_core.set_err(er);
     ut_vigil = ut_vigil_test_saved;
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else
@@ -7997,7 +8008,7 @@ errno_t ut_wait_ix2e(uint32_t r) {
           (int32_t)WAIT_OBJECT_0 <= ix && ix <= WAIT_OBJECT_0 + 63 ? 0 :
           (ix == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :
             (ix == WAIT_TIMEOUT ? ERROR_TIMEOUT :
-              (ix == WAIT_FAILED) ? ut_runtime.err() : ERROR_INVALID_HANDLE
+              (ix == WAIT_FAILED) ? rt_core.err() : ERROR_INVALID_HANDLE
             )
           )
     );
@@ -8012,13 +8023,13 @@ static void ut_work_queue_no_duplicates(ut_work_t* w) {
         found = e == w;
         if (!found) { e = e->next; }
     }
-    ut_swear(!found);
+    rt_swear(!found);
 }
 
 static void ut_work_queue_post(ut_work_t* w) {
     ut_assert(w->queue != null && w != null && w->when >= 0.0);
     ut_work_queue_t* q = w->queue;
-    ut_atomics.spinlock_acquire(&q->lock);
+    rt_atomics.spinlock_acquire(&q->lock);
     ut_work_queue_no_duplicates(w); // under lock
     //  Enqueue in time sorted order least ->time first to save
     //  time searching in fetching from queue which is more frequent.
@@ -8035,14 +8046,14 @@ static void ut_work_queue_post(ut_work_t* w) {
     } else {
         p->next = w;
     }
-    ut_atomics.spinlock_release(&q->lock);
+    rt_atomics.spinlock_release(&q->lock);
     if (head && q->changed != null) { ut_event.set(q->changed); }
 }
 
 static void ut_work_queue_cancel(ut_work_t* w) {
-    ut_swear(!w->canceled && w->queue != null && w->queue->head != null);
+    rt_swear(!w->canceled && w->queue != null && w->queue->head != null);
     ut_work_queue_t* q = w->queue;
-    ut_atomics.spinlock_acquire(&q->lock);
+    rt_atomics.spinlock_acquire(&q->lock);
     ut_work_t* p = null;
     ut_work_t* e = q->head;
     bool changed = false; // head changed
@@ -8061,8 +8072,8 @@ static void ut_work_queue_cancel(ut_work_t* w) {
             e = e->next;
         }
     }
-    ut_atomics.spinlock_release(&q->lock);
-    ut_swear(w->canceled);
+    rt_atomics.spinlock_release(&q->lock);
+    rt_swear(w->canceled);
     if (w->done != null) { ut_event.set(w->done); }
     if (changed && q->changed != null) { ut_event.set(q->changed); }
 }
@@ -8073,14 +8084,14 @@ static void ut_work_queue_flush(ut_work_queue_t* q) {
 
 static bool ut_work_queue_get(ut_work_queue_t* q, ut_work_t* *r) {
     ut_work_t* w = null;
-    ut_atomics.spinlock_acquire(&q->lock);
-    bool changed = q->head != null && q->head->when <= ut_clock.seconds();
+    rt_atomics.spinlock_acquire(&q->lock);
+    bool changed = q->head != null && q->head->when <= rt_clock.seconds();
     if (changed) {
         w = q->head;
         q->head = w->next;
         w->next = null;
     }
-    ut_atomics.spinlock_release(&q->lock);
+    rt_atomics.spinlock_release(&q->lock);
     *r = w;
     if (changed && q->changed != null) { ut_event.set(q->changed); }
     return w != null;
@@ -8112,11 +8123,11 @@ static void ut_worker_thread(void* p) {
     while (!worker->quit) {
         ut_work_queue.dispatch(q);
         fp64_t timeout = -1.0; // forever
-        ut_atomics.spinlock_acquire(&q->lock);
+        rt_atomics.spinlock_acquire(&q->lock);
         if (q->head != null) {
-            timeout = ut_max(0, q->head->when - ut_clock.seconds());
+            timeout = rt_max(0, q->head->when - rt_clock.seconds());
         }
-        ut_atomics.spinlock_release(&q->lock);
+        rt_atomics.spinlock_release(&q->lock);
         // if another item is inserted into head after unlocking
         // the `wake` event guaranteed to be signalled
         if (!worker->quit && timeout != 0) {
@@ -8144,7 +8155,7 @@ static errno_t ut_worker_join(ut_worker_t* worker, fp64_t to) {
         worker->wake = null;
         worker->thread = null;
         worker->quit = false;
-        ut_swear(worker->queue.head == null);
+        rt_swear(worker->queue.head == null);
     }
     return r;
 }
@@ -8180,7 +8191,7 @@ static void ut_never_called(ut_work_t* ut_unused(w)) {
 static void ut_work_queue_test_1(void) {
     ut_test_called = 0;
     // testing insertion time ordering of two events into queue
-    const fp64_t now = ut_clock.seconds();
+    const fp64_t now = rt_clock.seconds();
     ut_work_queue_t q = {0};
     ut_work_t c1 = {
         .queue = &q,
@@ -8193,26 +8204,26 @@ static void ut_work_queue_test_1(void) {
         .when = now + 0.5
     };
     ut_work_queue.post(&c1);
-    ut_swear(q.head == &c1 && q.head->next == null);
+    rt_swear(q.head == &c1 && q.head->next == null);
     ut_work_queue.post(&c2);
-    ut_swear(q.head == &c2 && q.head->next == &c1);
+    rt_swear(q.head == &c2 && q.head->next == &c1);
     ut_work_queue.flush(&q);
     // test that canceled events are not dispatched
-    ut_swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+    rt_swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
     c1.canceled = false;
     c2.canceled = false;
     // test the ut_work_queue.cancel() function
     ut_work_queue.post(&c1);
     ut_work_queue.post(&c2);
-    ut_swear(q.head == &c2 && q.head->next == &c1);
+    rt_swear(q.head == &c2 && q.head->next == &c1);
     ut_work_queue.cancel(&c2);
-    ut_swear(c2.canceled && q.head == &c1 && q.head->next == null);
+    rt_swear(c2.canceled && q.head == &c1 && q.head->next == null);
     c2.canceled = false;
     ut_work_queue.post(&c2);
     ut_work_queue.cancel(&c1);
-    ut_swear(c1.canceled && q.head == &c2 && q.head->next == null);
+    rt_swear(c1.canceled && q.head == &c2 && q.head->next == null);
     ut_work_queue.flush(&q);
-    ut_swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
+    rt_swear(ut_test_called == 0 && c1.canceled && c2.canceled && q.head == null);
 }
 
 // simple way of passing a single pointer to call_later
@@ -8221,21 +8232,21 @@ static fp64_t ut_test_work_start; // makes timing debug traces easier to read
 
 static void ut_every_millisecond(ut_work_t* w) {
     int32_t* i = (int32_t*)w->data;
-    fp64_t now = ut_clock.seconds();
-    if (ut_debug.verbosity.level > ut_debug.verbosity.info) {
+    fp64_t now = rt_clock.seconds();
+    if (rt_debug.verbosity.level > rt_debug.verbosity.info) {
         const fp64_t since_start = now - ut_test_work_start;
         const fp64_t dt = w->when - ut_test_work_start;
         ut_println("%d now: %.6f time: %.6f", *i, since_start, dt);
     }
     (*i)++;
-    // read ut_clock.seconds() again because ut_println() above could block
-    w->when = ut_clock.seconds() + 0.001;
+    // read rt_clock.seconds() again because ut_println() above could block
+    w->when = rt_clock.seconds() + 0.001;
     ut_work_queue.post(w);
 }
 
 static void ut_work_queue_test_2(void) {
     ut_thread.realtime();
-    ut_test_work_start = ut_clock.seconds();
+    ut_test_work_start = rt_clock.seconds();
     ut_work_queue_t q = {0};
     // if a single pointer will suffice
     int32_t i = 0;
@@ -8251,8 +8262,8 @@ static void ut_work_queue_test_2(void) {
         ut_work_queue.dispatch(&q);
     }
     ut_work_queue.flush(&q);
-    ut_swear(q.head == null);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
+    rt_swear(q.head == null);
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) {
         ut_println("called: %d times", i);
     }
 }
@@ -8272,8 +8283,8 @@ typedef struct ut_work_ex_s {
 
 static void ut_every_other_millisecond(ut_work_t* w) {
     ut_work_ex_t* ex = (ut_work_ex_t*)w;
-    fp64_t now = ut_clock.seconds();
-    if (ut_debug.verbosity.level > ut_debug.verbosity.info) {
+    fp64_t now = rt_clock.seconds();
+    if (rt_debug.verbosity.level > rt_debug.verbosity.info) {
         const fp64_t since_start = now - ut_test_work_start;
         const fp64_t dt  = w->when - ut_test_work_start;
         ut_println(".i: %d .extra: {.a: %d .b: %d} now: %.6f time: %.6f",
@@ -8281,15 +8292,15 @@ static void ut_every_other_millisecond(ut_work_t* w) {
     }
     ex->i++;
     const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
-    // read ut_clock.seconds() again because ut_println() above could block
-    w->when = ut_clock.seconds() + 0.002;
+    // read rt_clock.seconds() again because ut_println() above could block
+    w->when = rt_clock.seconds() + 0.002;
     ut_work_queue.post(w);
 }
 
 static void ut_work_queue_test_3(void) {
     ut_thread.realtime();
     ut_static_assertion(offsetof(ut_work_ex_t, base) == 0);
-    const fp64_t now = ut_clock.seconds();
+    const fp64_t now = rt_clock.seconds();
     ut_work_queue_t q = {0};
     ut_work_ex_t ex = {
         .queue = &q,
@@ -8304,8 +8315,8 @@ static void ut_work_queue_test_3(void) {
         ut_work_queue.dispatch(&q);
     }
     ut_work_queue.flush(&q);
-    ut_swear(q.head == null);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) {
+    rt_swear(q.head == null);
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) {
         ut_println("called: %d times", ex.i);
     }
 }
@@ -8314,7 +8325,7 @@ static void ut_work_queue_test(void) {
     ut_work_queue_test_1();
     ut_work_queue_test_2();
     ut_work_queue_test_3();
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 static int32_t ut_test_do_work_called;
@@ -8325,8 +8336,8 @@ static void ut_test_do_work(ut_work_t* ut_unused(w)) {
 
 static void ut_worker_test(void) {
 //  uncomment one of the following lines to see the output
-//  ut_debug.verbosity.level = ut_debug.verbosity.info;
-//  ut_debug.verbosity.level = ut_debug.verbosity.verbose;
+//  rt_debug.verbosity.level = rt_debug.verbosity.info;
+//  rt_debug.verbosity.level = rt_debug.verbosity.verbose;
     ut_work_queue_test(); // first test ut_work_queue
     ut_worker_t worker = { 0 };
     ut_worker.start(&worker);
@@ -8336,7 +8347,7 @@ static void ut_worker_test(void) {
         .work = ut_test_do_work
     };
     ut_work_t later = {
-        .when = ut_clock.seconds() + 0.010, // 10ms
+        .when = rt_clock.seconds() + 0.010, // 10ms
         .done = ut_event.create(),
         .work = ut_test_do_work
     };
@@ -8351,9 +8362,9 @@ static void ut_worker_test(void) {
     ut_event.wait(later.done); // await(later)
     ut_event.dispose(later.done); // responsibility of the caller
     // quit the worker thread:
-    ut_fatal_if_error(ut_worker.join(&worker, -1.0));
+    rt_fatal_if_error(ut_worker.join(&worker, -1.0));
     // does worker respect .when dispatch time?
-    ut_swear(ut_clock.seconds() >= later.when);
+    rt_swear(rt_clock.seconds() >= later.when);
 }
 
 #else

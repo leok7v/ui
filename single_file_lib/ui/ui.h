@@ -802,7 +802,7 @@ typedef struct ui_view_s ui_view_t;
 typedef struct ui_view_private_s { // do not access directly
     char text[1024]; // utf8 zero terminated
     int32_t strid;    // 0 for not yet localized, -1 no localization
-    fp64_t armed_until; // ut_clock.seconds() - when to release
+    fp64_t armed_until; // rt_clock.seconds() - when to release
     fp64_t hover_when;  // time in seconds when to call hovered()
     // use: ui_view.string(v) and ui_view.set_string()
 } ui_view_private_t;
@@ -2051,7 +2051,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     ui_rect_t work_area; // current monitor work area
     int32_t   caption_height; // caption height
     ui_wh_t   border;    // frame border size
-    // not to call ut_clock.seconds() too often:
+    // not to call rt_clock.seconds() too often:
     fp64_t     now;  // ssb "seconds since boot" updated on each message
     ui_view_t* root; // show_window() changes ui.hidden
     ui_view_t* content;
@@ -2159,7 +2159,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     fp64_t paint_max;  // max of last 128 paint
     fp64_t paint_avg;  // EMA of last 128 paints
     fp64_t paint_fps;  // EMA of last 128 paints
-    fp64_t paint_last; // ut_clock.seconds() of last paint
+    fp64_t paint_last; // rt_clock.seconds() of last paint
     fp64_t paint_dt_min; // minimum time between 2 paints
 } ui_app_t;
 
@@ -2265,14 +2265,14 @@ static void ui_app_post_message(int32_t m, int64_t wp, int64_t lp) {
 
 static void ui_app_update_wt_timeout(void) {
     fp64_t next_due_at = -1.0;
-    ut_atomics.spinlock_acquire(&ui_app_queue.lock);
+    rt_atomics.spinlock_acquire(&ui_app_queue.lock);
     if (ui_app_queue.head != null) {
         next_due_at = ui_app_queue.head->when;
     }
-    ut_atomics.spinlock_release(&ui_app_queue.lock);
+    rt_atomics.spinlock_release(&ui_app_queue.lock);
     if (next_due_at >= 0) {
         static fp64_t last_next_due_at;
-        fp64_t dt = next_due_at - ut_clock.seconds();
+        fp64_t dt = next_due_at - rt_clock.seconds();
         if (dt <= 0) {
 // TODO: remove
 //          ut_println("post(WM_NULL) dt: %.6f", dt);
@@ -2283,7 +2283,7 @@ static void ui_app_update_wt_timeout(void) {
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
 // TODO: remove
 //          ut_println("dt: %.6f %lld", dt, rt.QuadPart);
-            ut_swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
+            rt_swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
             ut_fatal_win32err(
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
             );
@@ -2398,7 +2398,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
             // EFFECTIVE_DPI 192 192 (with regard of user scaling)
             // ANGULAR_DPI 224 224 (diagonal)
             // RAW_DPI 72 72
-            const int32_t max_xy = (int32_t)ut_max(dpi_x, dpi_y);
+            const int32_t max_xy = (int32_t)rt_max(dpi_x, dpi_y);
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
                     dpi->monitor_effective = max_xy;
@@ -2414,7 +2414,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
                     break;
                 default: ut_assert(false);
             }
-            dpi->monitor_max = ut_max(dpi->monitor_max, max_xy);
+            dpi->monitor_max = rt_max(dpi->monitor_max, max_xy);
         }
     }
 //  ut_println("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
@@ -2541,9 +2541,9 @@ static void ui_app_ncm_dump_fonts(void) {
 
 static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
                                   ui_fm_t* fm) {
-    ut_swear(abs(lf->lfHeight) == fm->height - fm->internal_leading);
-    ut_swear(fm->external_leading == 0); // "Segoe UI" and "Cascadia Mono"
-    ut_swear(ui_app.dpi.window >= 72);
+    rt_swear(abs(lf->lfHeight) == fm->height - fm->internal_leading);
+    rt_swear(fm->external_leading == 0); // "Segoe UI" and "Cascadia Mono"
+    rt_swear(ui_app.dpi.window >= 72);
     // "The height, in logical units, of the font's character cell or character.
     //  The character height value (also known as the em height) is the
     //  character cell height value minus the internal-leading value."
@@ -2586,7 +2586,7 @@ static void ui_app_init_fms(ui_fms_t* fms, const LOGFONTW* base) {
     ui_gdi.update_fm(&fms->normal, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("normal", &lf, &fms->normal);
     const fp64_t fh = lf.lfHeight;
-    ut_swear(fh != 0);
+    rt_swear(fh != 0);
     lf.lfHeight = (int32_t)(fh * 8.0 / 11.0 + 0.5);
     ui_gdi.update_fm(&fms->tiny, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("tiny", &lf, &fms->tiny);
@@ -2626,15 +2626,15 @@ static void ui_app_init_fonts(int32_t dpi) {
 }
 
 static void ui_app_data_save(const char* name, const void* data, int32_t bytes) {
-    ut_config.save(ui_app.class_name, name, data, bytes);
+    rt_config.save(ui_app.class_name, name, data, bytes);
 }
 
 static int32_t ui_app_data_size(const char* name) {
-    return ut_config.size(ui_app.class_name, name);
+    return rt_config.size(ui_app.class_name, name);
 }
 
 static int32_t ui_app_data_load(const char* name, void* data, int32_t bytes) {
-    return ut_config.load(ui_app.class_name, name, data, bytes);
+    return rt_config.load(ui_app.class_name, name, data, bytes);
 }
 
 typedef ut_begin_packed struct ui_app_wiw_s { // "where is window"
@@ -2660,14 +2660,14 @@ static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
     MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
     ut_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
-    const int32_t min_x = ut_min(mi.rcMonitor.left, mi.rcMonitor.right);
-    const int32_t min_y = ut_min(mi.rcMonitor.top,  mi.rcMonitor.bottom);
-    const int32_t max_w = ut_max(mi.rcMonitor.left, mi.rcMonitor.right);
-    const int32_t max_h = ut_max(mi.rcMonitor.top,  mi.rcMonitor.bottom);
-    wiw->space.x = ut_min(wiw->space.x, min_x);
-    wiw->space.y = ut_min(wiw->space.y, min_y);
-    wiw->space.w = ut_max(wiw->space.w, max_w);
-    wiw->space.h = ut_max(wiw->space.h, max_h);
+    const int32_t min_x = rt_min(mi.rcMonitor.left, mi.rcMonitor.right);
+    const int32_t min_y = rt_min(mi.rcMonitor.top,  mi.rcMonitor.bottom);
+    const int32_t max_w = rt_max(mi.rcMonitor.left, mi.rcMonitor.right);
+    const int32_t max_h = rt_max(mi.rcMonitor.top,  mi.rcMonitor.bottom);
+    wiw->space.x = rt_min(wiw->space.x, min_x);
+    wiw->space.y = rt_min(wiw->space.y, min_y);
+    wiw->space.w = rt_max(wiw->space.w, max_w);
+    wiw->space.h = rt_max(wiw->space.h, max_h);
     return true; // keep going
 }
 
@@ -2721,7 +2721,7 @@ static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump)
     }
 //  ut_println("%d,%d %dx%d show=%d", wiw.placement.x, wiw.placement.y,
 //      wiw.placement.w, wiw.placement.h, wiw.show);
-    ut_config.save(ui_app.class_name, name, &wiw, sizeof(wiw));
+    rt_config.save(ui_app.class_name, name, &wiw, sizeof(wiw));
     ui_app_update_mi(&ui_app.wrc, MONITOR_DEFAULTTONEAREST);
 }
 
@@ -2731,11 +2731,11 @@ static void ui_app_save_console_pos(void) {
         ui_app_save_window_pos((ui_window_t)cw, "wic", false);
         HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
         CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-        int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
+        int32_t r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
         if (r != 0) {
             ut_println("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
         } else {
-            ut_config.save(ui_app.class_name, "console_screen_buffer_infoex",
+            rt_config.save(ui_app.class_name, "console_screen_buffer_infoex",
                             &info, (int32_t)sizeof(info));
 //          ut_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
 //          ut_println("%d,%d %dx%d", info.srWindow.Left, info.srWindow.Top,
@@ -2745,7 +2745,7 @@ static void ui_app_save_console_pos(void) {
     }
     int32_t v = ui_app.is_console_visible();
     // "icv" "is console visible"
-    ut_config.save(ui_app.class_name, "icv", &v, (int32_t)sizeof(v));
+    rt_config.save(ui_app.class_name, "icv", &v, (int32_t)sizeof(v));
 }
 
 static bool ui_app_is_fully_inside(const ui_rect_t* inner,
@@ -2760,17 +2760,17 @@ static void ui_app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* 
     // Check if window rect is inside monitor rect
     if (!ui_app_is_fully_inside(wrc, mrc)) {
         // Move window into monitor rect
-        wrc->x = ut_max(mrc->x, ut_min(mrc->x + mrc->w - wrc->w, wrc->x));
-        wrc->y = ut_max(mrc->y, ut_min(mrc->y + mrc->h - wrc->h, wrc->y));
+        wrc->x = rt_max(mrc->x, rt_min(mrc->x + mrc->w - wrc->w, wrc->x));
+        wrc->y = rt_max(mrc->y, rt_min(mrc->y + mrc->h - wrc->h, wrc->y));
         // Adjust size to fit into monitor rect
-        wrc->w = ut_min(wrc->w, mrc->w);
-        wrc->h = ut_min(wrc->h, mrc->h);
+        wrc->w = rt_min(wrc->w, mrc->w);
+        wrc->h = rt_min(wrc->h, mrc->h);
     }
 }
 
 static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
     ui_app_wiw_t wiw = {0}; // where is window
-    bool loaded = ut_config.load(ui_app.class_name, "wiw", &wiw, sizeof(wiw)) ==
+    bool loaded = rt_config.load(ui_app.class_name, "wiw", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
         #ifdef UI_APP_DEBUG
@@ -2812,7 +2812,7 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
 static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
     ui_app_wiw_t wiw = {0}; // where is window
     *visibility = 0; // boolean
-    bool loaded = ut_config.load(ui_app.class_name, "wic", &wiw, sizeof(wiw)) ==
+    bool loaded = rt_config.load(ui_app.class_name, "wic", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
         ui_app_update_mi(&wiw.placement, MONITOR_DEFAULTTONEAREST);
@@ -2844,7 +2844,7 @@ static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
     ut_not_null(ui_app_window());
     ut_assert(10 <= ms && ms < 0x7FFFFFFF);
     ui_timer_t tid = (ui_timer_t)SetTimer(ui_app_window(), id, (uint32_t)ms, null);
-    ut_fatal_if(tid == 0);
+    rt_fatal_if(tid == 0);
     ut_assert(tid == id);
     return tid;
 }
@@ -2891,7 +2891,7 @@ static void ui_app_window_opening(void) {
     ui_view.set_text(ui_app.root, "ui_app.root"); // debugging
     ui_app_wm_timer(ui_app_timer_100ms_id);
     ui_app_wm_timer(ui_app_timer_1s_id);
-    ut_fatal_if(ReleaseDC(ui_app_window(), ui_app_canvas()) == 0);
+    rt_fatal_if(ReleaseDC(ui_app_window(), ui_app_canvas()) == 0);
     ui_app.canvas = null;
     ui_app.request_layout(); // request layout
     if (ui_app.last_visibility == ui.visibility.maximize) {
@@ -2932,8 +2932,8 @@ static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
         mmi->ptMaxTrackSize.y = max_h;
     } else {
         // clip max_w and max_h to monitor work area
-        mmi->ptMaxTrackSize.x = ut_min(max_w, wa->w);
-        mmi->ptMaxTrackSize.y = ut_min(max_h, wa->h);
+        mmi->ptMaxTrackSize.x = rt_min(max_w, wa->w);
+        mmi->ptMaxTrackSize.y = rt_min(max_h, wa->h);
     }
     mmi->ptMaxSize.x = mmi->ptMaxTrackSize.x;
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
@@ -2961,7 +2961,7 @@ static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed);
 static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
     char utf8[32 + 1];
     int32_t utf8bytes = ut_str.utf8_bytes(utf16, -1);
-    ut_swear(utf8bytes < ut_countof(utf8) - 1); // 32 bytes + 0x00
+    rt_swear(utf8bytes < ut_countof(utf8) - 1); // 32 bytes + 0x00
     ut_str.utf16to8(utf8, ut_countof(utf8), utf16, -1);
     utf8[utf8bytes] = 0x00;
     if (ui_app.animating.view != null) {
@@ -2974,7 +2974,7 @@ static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
 
 static void ui_app_wm_char(ui_view_t* view, const uint16_t* utf16) {
     int32_t utf16chars = ut_str.len16(utf16);
-    ut_swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
+    rt_swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
     const uint16_t utf16char = utf16[0];
     if (utf16chars == 1 && ut_str.utf16_is_high_surrogate(utf16char)) {
         ui_app_high_surrogate = utf16char;
@@ -3022,7 +3022,7 @@ static bool ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
              (m == WM_LBUTTONDOWN || m == WM_LBUTTONUP) ? 0 :
             ((m == WM_MBUTTONDOWN || m == WM_MBUTTONUP) ? 1 :
             ((m == WM_RBUTTONDOWN || m == WM_RBUTTONUP) ? 2 : -1));
-        ut_swear(i >= 0);
+        rt_swear(i >= 0);
         const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
         const bool pressed =
             m == WM_LBUTTONDOWN ||
@@ -3045,7 +3045,7 @@ static bool ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
              (m == WM_LBUTTONDBLCLK) ? 0 :
             ((m == WM_MBUTTONDBLCLK) ? 1 :
             ((m == WM_RBUTTONDBLCLK) ? 2 : -1));
-        ut_swear(i >= 0);
+        rt_swear(i >= 0);
         if (av != null && av->double_tap != null) {
             const int32_t ix = ui_app.mouse_swapped ? 2 - i : i;
             swallow = ui_view.double_tap(av, ix);
@@ -3083,7 +3083,7 @@ static int32_t ui_app_nc_mouse_message(int32_t m) {
         case WM_NCRBUTTONDOWN   : return WM_RBUTTONDOWN;
         case WM_NCRBUTTONUP     : return WM_RBUTTONUP;
         case WM_NCRBUTTONDBLCLK : return WM_RBUTTONDBLCLK;
-        default: ut_swear(false, "fix me m: %d", m);
+        default: rt_swear(false, "fix me m: %d", m);
     }
     return -1;
 }
@@ -3135,7 +3135,7 @@ static void ui_app_toast_paint(void) {
 //                  ui_app_toast_steps, av->y);
             ui_app_measure_and_layout(av);
             // dim main window (as `disabled`):
-            fp64_t alpha = ut_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
+            fp64_t alpha = rt_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
             ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h,
                          0, 0, image_dark.w, image_dark.h,
                         &image_dark, alpha);
@@ -3148,9 +3148,9 @@ static void ui_app_toast_paint(void) {
             ui_app_measure_and_layout(av);
             int32_t mx = ui_app.root->w - av->w - em_w;
             int32_t cx = ui_app.animating.x - av->w / 2;
-            av->x = ut_min(mx, ut_max(0, cx));
-            av->y = ut_min(
-                ui_app.root->h - em_h, ut_max(0, ui_app.animating.y));
+            av->x = rt_min(mx, rt_max(0, cx));
+            av->y = rt_min(
+                ui_app.root->h - em_h, rt_max(0, ui_app.animating.y));
 //          ut_println("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
         }
@@ -3179,7 +3179,7 @@ static void ui_app_toast_paint(void) {
                     .color_id = ui_color_id_window_text
                 };
                 ui_gdi.text(&ta, tx, ty, "%s",
-                                 ut_glyph_multiplication_sign);
+                                 rt_glyph_multiplication_sign);
             }
         }
     }
@@ -3214,7 +3214,7 @@ static void ui_app_toast_cancel(void) {
 
 static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed) {
     bool swallow = false;
-    ut_swear(v == ui_app.animating.view);
+    rt_swear(v == ui_app.animating.view);
     if (pressed) {
         const ui_fm_t* fm = v->fm;
         const int32_t right = v->x + v->w;
@@ -3335,8 +3335,8 @@ static void ui_app_view_active_frame_paint(void) {
 
 static void ui_app_paint_stats(void) {
     if (ui_app.paint_count % 128 == 0) { ui_app.paint_max = 0; }
-    ui_app.paint_time = ut_clock.seconds() - ui_app.now;
-    ui_app.paint_max = ut_max(ui_app.paint_time, ui_app.paint_max);
+    ui_app.paint_time = rt_clock.seconds() - ui_app.now;
+    ui_app.paint_max = rt_max(ui_app.paint_time, ui_app.paint_max);
     if (ui_app.paint_avg == 0) {
         ui_app.paint_avg = ui_app.paint_time;
     } else { // EMA over 32 paint() calls
@@ -3359,7 +3359,7 @@ static void ui_app_paint_stats(void) {
     } else {
         fp64_t since_last = ui_app.now - ui_app.paint_last;
         if (since_last > 1.0 / 120.0) { // 240Hz monitor
-            ui_app.paint_dt_min = ut_min(ui_app.paint_dt_min, since_last);
+            ui_app.paint_dt_min = rt_min(ui_app.paint_dt_min, since_last);
         }
 //      ut_println("paint_dt_min: %.6f since_last: %.6f",
 //              ui_app.paint_dt_min, since_last);
@@ -3440,10 +3440,10 @@ static void ui_app_setting_change(uintptr_t wp, uintptr_t lp) {
         ut_println("wp: 0x%04X", wp); // SPI_SETLOCALEINFO 0x24 ?
         uint16_t ln[LOCALE_NAME_MAX_LENGTH + 1];
         int32_t n = GetUserDefaultLocaleName(ln, ut_countof(ln));
-        ut_fatal_if(n <= 0);
+        rt_fatal_if(n <= 0);
         uint16_t rln[LOCALE_NAME_MAX_LENGTH + 1];
         n = ResolveLocaleName(ln, rln, ut_countof(rln));
-        ut_fatal_if(n <= 0);
+        rt_fatal_if(n <= 0);
         LCID lc_id = LocaleNameToLCID(rln, LOCALE_ALLOW_NEUTRAL_NAMES);
         ut_fatal_win32err(SetThreadLocale(lc_id));
     }
@@ -3528,7 +3528,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
         ui_point_t pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
         if (m == tap && !up) {
-            ui_view.tap(ui_app.root, ix, !up);
+            swallow = ui_view.tap(ui_app.root, ix, !up);
             if (ui_app.now  - clicked[ix]  <= double_click_dt &&
                 abs(pt.x - click_at[ix].x) <= double_click_x &&
                 abs(pt.y - click_at[ix].y) <= double_click_y) {
@@ -3577,12 +3577,12 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 }
 
 static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
-    ut_swear(v == ui_app.root);
+    rt_swear(v == ui_app.root);
     if (ui_app.no_decor) {
         ut_assert(ui_app.border.w == ui_app.border.h);
         // on 96dpi monitors ui_app.border is 1x1
         // make it easier for the user to resize window
-        int32_t border = ut_max(4, ui_app.border.w * 2);
+        int32_t border = rt_max(4, ui_app.border.w * 2);
         if (ui_app.animating.view != null) {
             return ui.hit_test.client; // message box or toast is up
         } else if (!ui_view.is_hidden(&ui_caption.view) &&
@@ -3812,7 +3812,7 @@ static void ui_app_wm_input_language_change(uint64_t wp) {
 
 static void ui_app_decode_keyboard(int32_t m, int64_t wp, int64_t lp) {
     // https://learn.microsoft.com/en-us/windows/win32/inputdev/about-keyboard-input#keystroke-message-flags
-    ut_swear(m == WM_KEYDOWN || m == WM_SYSKEYDOWN ||
+    rt_swear(m == WM_KEYDOWN || m == WM_SYSKEYDOWN ||
           m == WM_KEYUP   || m == WM_SYSKEYUP);
     uint16_t vk_code   = LOWORD(wp);
     uint16_t key_flags = HIWORD(lp);
@@ -3895,7 +3895,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
 // TODO: remove
 //  if (message == WM_NULL) { ut_println("got(WM_NULL)"); }
-    ui_app.now = ut_clock.seconds();
+    ui_app.now = rt_clock.seconds();
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
     } else {
@@ -3909,7 +3909,9 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
     int64_t ret = 0;
     ui_app_update_mouse_buttons_state();
     ui_view.lose_hidden_focus(ui_app.root);
-    ui_app_click_detector((uint32_t)m, (WPARAM)wp, (LPARAM)lp);
+    if (ui_app_click_detector((uint32_t)m, (WPARAM)wp, (LPARAM)lp)) {
+        return 0;
+    }
     if (ui_view.message(ui_app.root, m, wp, lp, &ret)) {
         return (LRESULT)ret;
     }
@@ -4076,16 +4078,16 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
 }
 
 static long ui_app_get_window_long(int32_t index) {
-    ut_runtime.set_err(0);
+    rt_core.set_err(0);
     long v = GetWindowLongA(ui_app_window(), index);
-    ut_fatal_if_error(ut_runtime.err());
+    rt_fatal_if_error(rt_core.err());
     return v;
 }
 
 static long ui_app_set_window_long(int32_t index, long value) {
-    ut_runtime.set_err(0);
+    rt_core.set_err(0);
     long r = SetWindowLongA(ui_app_window(), index, value); // r previous value
-    ut_fatal_if_error(ut_runtime.err());
+    rt_fatal_if_error(rt_core.err());
     return r;
 }
 
@@ -4120,7 +4122,7 @@ static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
 }
 
 static void ui_app_set_dwm_attribute(uint32_t mode, void* a, DWORD bytes) {
-    ut_fatal_if_error(DwmSetWindowAttribute(ui_app_window(), mode, a, bytes));
+    rt_fatal_if_error(DwmSetWindowAttribute(ui_app_window(), mode, a, bytes));
 }
 
 static void ui_app_init_dwm(void) {
@@ -4140,7 +4142,7 @@ static void ui_app_init_dwm(void) {
     if (ui_app.no_decor) {
         ui_app_set_dwm_attribute(DWMWA_ALLOW_NCPAINT, &e, sizeof(e));
         MARGINS margins = { 0, 0, 0, 0 };
-        ut_fatal_if_error(
+        rt_fatal_if_error(
             DwmExtendFrameIntoClientArea(ui_app_window(), &margins)
         );
     }
@@ -4201,14 +4203,14 @@ static void ui_app_create_window(const ui_rect_t r) {
     wc->lpszMenuName = null;
     wc->lpszClassName = class_name;
     ATOM atom = RegisterClassW(wc);
-    ut_fatal_if(atom == 0);
+    rt_fatal_if(atom == 0);
     uint16_t title[256];
     ut_str.utf8to16(title, ut_countof(title), ui_app.title, -1);
     HWND window = CreateWindowExW(WS_EX_COMPOSITED | WS_EX_LAYERED,
         class_name, title, ui_app_window_style(),
         r.x, r.y, r.w, r.h, null, null, wc->hInstance, null);
     ut_not_null(ui_app.window);
-    ut_swear(window == ui_app_window());
+    rt_swear(window == ui_app_window());
     ui_app.show_window(ui.visibility.hide);
     ui_view.set_text(&ui_caption.title, "%s", ui_app.title);
     ui_app.dpi.window = (int32_t)GetDpiForWindow(ui_app_window());
@@ -4268,7 +4270,7 @@ static void ui_app_draw(void) {
 static void ui_app_invalidate_rect(const ui_rect_t* r) {
     RECT rc = ui_app_ui2rect(r);
     InvalidateRect(ui_app_window(), &rc, false);
-//  ut_bt_here();
+//  rt_backtrace_here();
 }
 
 static int32_t ui_app_message_loop(void) {
@@ -4424,7 +4426,7 @@ static void ui_app_destroy_caret(void) {
 static void ui_app_beep(int32_t kind) {
     static int32_t beep_id[] = { MB_OK, MB_ICONINFORMATION, MB_ICONQUESTION,
                           MB_ICONWARNING, MB_ICONERROR};
-    ut_swear(0 <= kind && kind < ut_countof(beep_id));
+    rt_swear(0 <= kind && kind < ut_countof(beep_id));
     ut_fatal_win32err(MessageBeep(beep_id[kind]));
 }
 
@@ -4442,7 +4444,7 @@ static void ui_app_console_disable_close(void) {
 }
 
 static int ui_app_console_attach(void) {
-    int r = AttachConsole(ATTACH_PARENT_PROCESS) ? 0 : ut_runtime.err();
+    int r = AttachConsole(ATTACH_PARENT_PROCESS) ? 0 : rt_core.err();
     if (r == 0) {
         ui_app_console_disable_close();
         ut_thread.sleep_for(0.1); // give cmd.exe a chance to print prompt again
@@ -4469,7 +4471,7 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
     // width/height in characters
     HANDLE console = GetStdHandle(STD_OUTPUT_HANDLE);
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
+    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
     if (r != 0) {
         ut_println("GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     } else {
@@ -4482,14 +4484,14 @@ static int ui_app_set_console_size(int16_t w, int16_t h) {
         COORD c = {w, h};
         SMALL_RECT const min_win = { 0, 0, c.X - 1, c.Y - 1 };
         c.Y = 9001; // maximum buffer number of rows at the moment of implementation
-        int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
+        int r0 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : rt_core.err();
 //      if (r0 != 0) { ut_println("SetConsoleWindowInfo() %s", ut_strerr(r0)); }
-        int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
+        int r1 = SetConsoleScreenBufferSize(console, c) ? 0 : rt_core.err();
 //      if (r1 != 0) { ut_println("SetConsoleScreenBufferSize() %s", ut_strerr(r1)); }
         if (r0 != 0 || r1 != 0) { // try in reverse order (which expected to work):
-            r0 = SetConsoleScreenBufferSize(console, c) ? 0 : ut_runtime.err();
+            r0 = SetConsoleScreenBufferSize(console, c) ? 0 : rt_core.err();
             if (r0 != 0) { ut_println("SetConsoleScreenBufferSize() %s", ut_strerr(r0)); }
-            r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : ut_runtime.err();
+            r1 = SetConsoleWindowInfo(console, true, &min_win) ? 0 : rt_core.err();
             if (r1 != 0) { ut_println("SetConsoleWindowInfo() %s", ut_strerr(r1)); }
 	    }
         r = r0 == 0 ? r1 : r0; // first of two errors
@@ -4507,26 +4509,26 @@ static void ui_app_console_largest(void) {
     // and: https://learn.microsoft.com/en-us/windows/console/setconsolemode
     /* DOES NOT WORK:
     DWORD mode = 0;
-    r = GetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "GetConsoleMode() %s", ut_strerr(r));
+    r = GetConsoleMode(console, &mode) ? 0 : rt_core.err();
+    rt_fatal_if_error(r, "GetConsoleMode() %s", ut_strerr(r));
     mode &= ~ENABLE_AUTO_POSITION;
-    r = SetConsoleMode(console, &mode) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "SetConsoleMode() %s", ut_strerr(r));
+    r = SetConsoleMode(console, &mode) ? 0 : rt_core.err();
+    rt_fatal_if_error(r, "SetConsoleMode() %s", ut_strerr(r));
     */
     CONSOLE_SCREEN_BUFFER_INFOEX info = { sizeof(CONSOLE_SCREEN_BUFFER_INFOEX) };
-    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+    int r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
+    rt_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     COORD c = GetLargestConsoleWindowSize(console);
     if (c.X > 80) { c.X &= ~0x7; }
     if (c.Y > 24) { c.Y &= ~0x3; }
     if (c.X > 80) { c.X -= 8; }
     if (c.Y > 24) { c.Y -= 4; }
     ui_app_set_console_size(c.X, c.Y);
-    r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+    r = GetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
+    rt_fatal_if_error(r, "GetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     info.dwSize.Y = 9999; // maximum value at the moment of implementation
-    r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : ut_runtime.err();
-    ut_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
+    r = SetConsoleScreenBufferInfoEx(console, &info) ? 0 : rt_core.err();
+    rt_fatal_if_error(r, "SetConsoleScreenBufferInfoEx() %s", ut_strerr(r));
     ui_app_save_console_pos();
 }
 
@@ -4538,9 +4540,9 @@ static void ui_app_make_topmost(void) {
 }
 
 static void ui_app_activate(void) {
-    ut_runtime.set_err(0);
+    rt_core.set_err(0);
     HWND previous = SetActiveWindow(ui_app_window());
-    if (previous == null) { ut_fatal_if_error(ut_runtime.err()); }
+    if (previous == null) { rt_fatal_if_error(rt_core.err()); }
 }
 
 static void ui_app_bring_to_foreground(void) {
@@ -4565,11 +4567,11 @@ static void ui_app_set_title(const char* title) {
 static void ui_app_capture_mouse(bool on) {
     static int32_t mouse_capture;
     if (on) {
-        ut_swear(mouse_capture == 0);
+        rt_swear(mouse_capture == 0);
         mouse_capture++;
         SetCapture(ui_app_window());
     } else {
-        ut_swear(mouse_capture == 1);
+        rt_swear(mouse_capture == 1);
         mouse_capture--;
         ReleaseCapture();
     }
@@ -4581,7 +4583,7 @@ static void ui_app_move_and_resize(const ui_rect_t* rc) {
 }
 
 static void ui_app_set_console_title(HWND cw) {
-    ut_swear(ut_thread.id() == ui_app.tid);
+    rt_swear(ut_thread.id() == ui_app.tid);
     static char text[256];
     text[0] = 0;
     GetWindowTextA((HWND)ui_app.window, text, ut_countof(text));
@@ -4603,12 +4605,12 @@ static void ui_app_restore_console(int32_t *visibility) {
             CONSOLE_SCREEN_BUFFER_INFOEX info = {
                 sizeof(CONSOLE_SCREEN_BUFFER_INFOEX)
             };
-            int32_t r = ut_config.load(ui_app.class_name,
+            int32_t r = rt_config.load(ui_app.class_name,
                 "console_screen_buffer_infoex", &info, (int32_t)sizeof(info));
             if (r == sizeof(info)) { // 24x80
                 SMALL_RECT sr = info.srWindow;
-                int16_t w = (int16_t)ut_max(sr.Right - sr.Left + 1, 80);
-                int16_t h = (int16_t)ut_max(sr.Bottom - sr.Top + 1, 24);
+                int16_t w = (int16_t)rt_max(sr.Right - sr.Left + 1, 80);
+                int16_t h = (int16_t)rt_max(sr.Bottom - sr.Top + 1, 24);
 //              ut_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
 //              ut_println("%d,%d %dx%d", sr.Left, sr.Top, w, h);
                 if (w > 0 && h > 0) { ui_app_set_console_size(w, h); }
@@ -4642,7 +4644,7 @@ static void ui_app_console_show(bool b) {
 }
 
 static int ui_app_console_create(void) {
-    int r = AllocConsole() ? 0 : ut_runtime.err();
+    int r = AllocConsole() ? 0 : rt_core.err();
     if (r == 0) {
         ui_app_console_disable_close();
         int32_t visibility = 0;
@@ -4696,7 +4698,7 @@ static void ui_app_show_window(int32_t show) {
 
 static const char* ui_app_open_file(const char* folder,
         const char* pairs[], int32_t n) {
-    ut_swear(ut_thread.id() == ui_app.tid);
+    rt_swear(ut_thread.id() == ui_app.tid);
     ut_assert(pairs == null && n == 0 || n >= 2 && n % 2 == 0);
     static uint16_t memory[4 * 1024];
     uint16_t* filter = memory;
@@ -4722,10 +4724,10 @@ static const char* ui_app_open_file(const char* folder,
         }
         *s++ = 0;
     }
-    static uint16_t dir[ut_files_max_path];
+    static uint16_t dir[rt_files_max_path];
     dir[0] = 0;
     ut_str.utf8to16(dir, ut_countof(dir), folder, -1);
-    static uint16_t path[ut_files_max_path];
+    static uint16_t path[rt_files_max_path];
     path[0] = 0;
     OPENFILENAMEW ofn = { sizeof(ofn) };
     ofn.hwndOwner = (HWND)ui_app.window;
@@ -4804,9 +4806,9 @@ static void window_request_focus(void* w) {
     // https://stackoverflow.com/questions/62649124/pywin32-setfocus-resulting-in-access-is-denied-error
     // https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-attachthreadinput
     ut_assert(ut_thread.id() == ui_app.tid, "cannot be called from background thread");
-    ut_runtime.set_err(0);
+    rt_core.set_err(0);
     HWND previous = SetFocus((HWND)w); // previously focused window
-    if (previous == null) { ut_fatal_if_error(ut_runtime.err()); }
+    if (previous == null) { rt_fatal_if_error(rt_core.err()); }
 }
 
 static void ui_app_request_focus(void) {
@@ -4914,7 +4916,7 @@ static void ui_app_set_dpi_awareness(void) {
     }
     DPI_AWARENESS_CONTEXT dpi_awareness_context_2 =
         GetThreadDpiAwarenessContext();
-    ut_swear(dpi_awareness_context_1 != dpi_awareness_context_2);
+    rt_swear(dpi_awareness_context_1 != dpi_awareness_context_2);
 }
 
 static void ui_app_init_windows(void) {
@@ -4938,21 +4940,21 @@ static ui_rect_t ui_app_window_initial_rectangle(void) {
     const ui_window_sizing_t* ws = &ui_app.window_sizing;
     // it is not practical and thus not implemented handling
     // == (0, 0) and != (0, 0) for sizing half dimension (only w or only h)
-    ut_swear((ws->min_w != 0) == (ws->min_h != 0) &&
+    rt_swear((ws->min_w != 0) == (ws->min_h != 0) &&
            ws->min_w >= 0 && ws->min_h >= 0,
           "ui_app.window_sizing .min_w=%.1f .min_h=%.1f", ws->min_w, ws->min_h);
-    ut_swear((ws->ini_w != 0) == (ws->ini_h != 0) &&
+    rt_swear((ws->ini_w != 0) == (ws->ini_h != 0) &&
            ws->ini_w >= 0 && ws->ini_h >= 0,
           "ui_app.window_sizing .ini_w=%.1f .ini_h=%.1f", ws->ini_w, ws->ini_h);
-    ut_swear((ws->max_w != 0) == (ws->max_h != 0) &&
+    rt_swear((ws->max_w != 0) == (ws->max_h != 0) &&
            ws->max_w >= 0 && ws->max_h >= 0,
           "ui_app.window_sizing .max_w=%.1f .max_h=%.1f", ws->max_w, ws->max_h);
     // if max is set then min and ini must be less than max
     if (ws->max_w != 0 || ws->max_h != 0) {
-        ut_swear(ws->min_w <= ws->max_w && ws->min_h <= ws->max_h,
+        rt_swear(ws->min_w <= ws->max_w && ws->min_h <= ws->max_h,
             "ui_app.window_sizing .min_w=%.1f .min_h=%.1f .max_w=%1.f .max_h=%.1f",
              ws->min_w, ws->min_h, ws->max_w, ws->max_h);
-        ut_swear(ws->ini_w <= ws->max_w && ws->ini_h <= ws->max_h,
+        rt_swear(ws->ini_w <= ws->max_w && ws->ini_h <= ws->max_h,
             "ui_app.window_sizing .min_w=%.1f .min_h=%.1f .max_w=%1.f .max_h=%.1f",
                 ws->ini_w, ws->ini_h, ws->max_w, ws->max_h);
     }
@@ -4979,27 +4981,27 @@ static bool ui_app_write_backtrace(const char* s, int32_t n) {
 static LONG ui_app_exception_filter(EXCEPTION_POINTERS* ep) {
     char fn[1024];
     DWORD ex = ep->ExceptionRecord->ExceptionCode; // exception code
-    // T-connector for intercepting ut_debug.output:
-    bool (*tee)(const char* s, int32_t n) = ut_debug.tee;
-    ut_debug.tee = ui_app_write_backtrace;
-    const char* home = ut_files.known_folder(ut_files.folder.home);
+    // T-connector for intercepting rt_debug.output:
+    bool (*tee)(const char* s, int32_t n) = rt_debug.tee;
+    rt_debug.tee = ui_app_write_backtrace;
+    const char* home = rt_files.known_folder(rt_files.folder.home);
     if (home != null) {
         const char* name = ui_app.class_name  != null ?
                            ui_app.class_name : "ui_app";
         ut_str_printf(fn, "%s\\%s_crash_log.txt", home, name);
         ui_app_crash_log = fopen(fn, "w");
     }
-    ut_debug.println(null, 0, null,
+    rt_debug.println(null, 0, null,
         "To file and issue report copy this log and");
-    ut_debug.println(null, 0, null,
+    rt_debug.println(null, 0, null,
         "paste it here: https://github.com/leok7v/ui/discussions/4");
-    ut_debug.println(null, 0, null,
-        "%s exception: %s", ut_args.basename(), ut_str.error(ex));
-    ut_bt_t bt = {{0}};
-    ut_bt.context(ut_thread.self(), ep->ContextRecord, &bt);
-    ut_bt.trace(&bt, "*");
-    ut_bt.trace_all_but_self();
-    ut_debug.tee = tee;
+    rt_debug.println(null, 0, null,
+        "%s exception: %s", rt_args.basename(), ut_str.error(ex));
+    rt_backtrace_t bt = {{0}};
+    rt_backtrace.context(ut_thread.self(), ep->ContextRecord, &bt);
+    rt_backtrace.trace(&bt, "*");
+    rt_backtrace.trace_all_but_self();
+    rt_debug.tee = tee;
     if (ui_app_crash_log != null) {
         fclose(ui_app_crash_log);
         char cmd[1024];
@@ -5032,7 +5034,7 @@ static void ui_app_test_every_100ms(ut_work_t* w) {
     int32_t* i = (int32_t*)w->data;
     ut_println("i: %d", *i);
     (*i)++;
-    w->when = ut_clock.seconds() + 0.100;
+    w->when = rt_clock.seconds() + 0.100;
     ut_work_queue.post(w);
 }
 
@@ -5042,7 +5044,7 @@ static void ui_app_test_work_queue_1(void) {
     int32_t i = 0;
     ut_work_t work = {
         .queue = &queue,
-        .when  = ut_clock.seconds() + 0.100,
+        .when  = rt_clock.seconds() + 0.100,
         .work  = ui_app_test_every_100ms,
         .data  = &i
     };
@@ -5066,7 +5068,7 @@ static void ui_app_test_every_200ms(ut_work_t* w) {
     ut_println("ex { .i: %d, .s.a: %d .s.b: %d}", ex->i, ex->s.a, ex->s.b);
     ex->i++;
     const int32_t swap = ex->s.a; ex->s.a = ex->s.b; ex->s.b = swap;
-    w->when = ut_clock.seconds() + 0.200;
+    w->when = rt_clock.seconds() + 0.200;
     ut_work_queue.post(w);
 }
 
@@ -5074,7 +5076,7 @@ static void ui_app_test_work_queue_2(void) {
     ut_work_queue_t queue = {0};
     ut_work_ex_t work = {
         .queue = &queue,
-        .when  = ut_clock.seconds() + 0.200,
+        .when  = rt_clock.seconds() + 0.200,
         .work  = ui_app_test_every_200ms,
         .data  = null,
         .s = { .a = 1, .b = 2 },
@@ -5090,24 +5092,24 @@ static fp64_t ui_app_test_timestamp_3;
 static fp64_t ui_app_test_timestamp_4;
 
 static void ui_app_test_in_1_second(ut_work_t* ut_unused(work)) {
-    ui_app_test_timestamp_3 = ut_clock.seconds();
+    ui_app_test_timestamp_3 = rt_clock.seconds();
     ut_println("ETA 3 seconds");
 }
 
 static void ui_app_test_in_2_seconds(ut_work_t* ut_unused(work)) {
-    ui_app_test_timestamp_2 = ut_clock.seconds();
+    ui_app_test_timestamp_2 = rt_clock.seconds();
     ut_println("ETA 2 seconds");
     static ut_work_t invoke_in_1_seconds;
     invoke_in_1_seconds = (ut_work_t){
         .queue = null, // &ui_app_queue will be used
-        .when = ut_clock.seconds() + 1.0, // seconds
+        .when = rt_clock.seconds() + 1.0, // seconds
         .work = ui_app_test_in_1_second
     };
     ui_app.post(&invoke_in_1_seconds);
 }
 
 static void ui_app_test_in_4_seconds(ut_work_t* ut_unused(work)) {
-    ui_app_test_timestamp_4 = ut_clock.seconds();
+    ui_app_test_timestamp_4 = rt_clock.seconds();
     ut_println("ETA 4 seconds");
 //  expected sequence of callbacks:
 //  2:732 ui_app_test_in_2_seconds ETA 2 seconds
@@ -5128,15 +5130,15 @@ static void ui_app_test_post(void) {
     ut_println("see Output/Timestamps");
     static ut_work_t invoke_in_2_seconds;
     static ut_work_t invoke_in_4_seconds;
-    ui_app_test_timestamp_0 = ut_clock.seconds();
+    ui_app_test_timestamp_0 = rt_clock.seconds();
     invoke_in_2_seconds = (ut_work_t){
         .queue = null, // &ui_app_queue will be used
-        .when = ut_clock.seconds() + 2.0, // seconds
+        .when = rt_clock.seconds() + 2.0, // seconds
         .work = ui_app_test_in_2_seconds
     };
     invoke_in_4_seconds = (ut_work_t){
         .queue = null, // &ui_app_queue will be used
-        .when = ut_clock.seconds() + 4.0, // seconds
+        .when = rt_clock.seconds() + 4.0, // seconds
         .work = ui_app_test_in_4_seconds
     };
     ui_app.post(&invoke_in_4_seconds);
@@ -5150,7 +5152,7 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app.icon = (ui_icon_t)LoadIconW(instance, MAKEINTRESOURCE(101));
     ui_app_init_windows();
     ui_gdi.init();
-    ut_clipboard.put_image = ui_app_clipboard_put_image;
+    rt_clipboard.put_image = ui_app_clipboard_put_image;
     ui_app.last_visibility = ui.visibility.defau1t;
     ui_app_init();
     int r = 0;
@@ -5171,8 +5173,8 @@ static int ui_app_win_main(HINSTANCE instance) {
         // border is too think (5 pixels) narrow down to 3x3
         const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :
             (ui_app.dpi.window >= 192 ? 3 : 2);
-        ui_app.border.w = ut_min(max_border, ui_app.border.w);
-        ui_app.border.h = ut_min(max_border, ui_app.border.h);
+        ui_app.border.w = rt_min(max_border, ui_app.border.w);
+        ui_app.border.h = rt_min(max_border, ui_app.border.h);
     }
 //  ut_println("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
     // TODO: use AdjustWindowRectEx instead
@@ -5229,7 +5231,7 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE ut_unused(previous),
         char* ut_unused(command), int show) {
     SetUnhandledExceptionFilter(ui_app_exception_filter);
     const COINIT co_init = COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY;
-    ut_fatal_if_error(CoInitializeEx(0, co_init));
+    rt_fatal_if_error(CoInitializeEx(0, co_init));
     SetConsoleCP(CP_UTF8);
     // Expected manifest.xml containing UTF-8 code page
     // for TranslateMessage and WM_CHAR to deliver UTF-8 characters
@@ -5248,20 +5250,20 @@ int WINAPI WinMain(HINSTANCE instance, HINSTANCE ut_unused(previous),
     ui_app.tid = ut_thread.id();
     ut_nls.init();
     ui_app.visibility = show;
-    ut_args.WinMain();
+    rt_args.WinMain();
     int32_t r = ui_app_win_main(instance);
-    ut_args.fini();
+    rt_args.fini();
     return r;
 }
 
 int main(int argc, const char* argv[], const char** envp) {
     SetUnhandledExceptionFilter(ui_app_exception_filter);
-    ut_fatal_if_error(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
-    ut_args.main(argc, argv, envp);
+    rt_fatal_if_error(CoInitializeEx(0, COINIT_MULTITHREADED | COINIT_SPEED_OVER_MEMORY));
+    rt_args.main(argc, argv, envp);
     ut_nls.init();
     ui_app.tid = ut_thread.id();
     int r = ui_app.main();
-    ut_args.fini();
+    rt_args.fini();
     return r;
 }
 
@@ -5298,7 +5300,7 @@ static void ui_button_paint(ui_view_t* v) {
     const int32_t h = v->h;
     const int32_t x = v->x;
     const int32_t y = v->y;
-    const int32_t r = (0x1 | ut_max(3, v->fm->em.h / 4));  // odd radius
+    const int32_t r = (0x1 | rt_max(3, v->fm->em.h / 4));  // odd radius
     const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     const fp32_t d2 = d / 2;
@@ -5453,14 +5455,14 @@ void ui_button_init(ui_button_t* b, const char* label, fp32_t ems,
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest  ut_glyph_white_square_with_upper_right_quadrant // instead of ut_glyph_desktop_window
-#define ui_caption_glyph_menu  ut_glyph_trigram_for_heaven
-#define ui_caption_glyph_dark  ut_glyph_crescent_moon
-#define ui_caption_glyph_light ut_glyph_white_sun_with_rays
-#define ui_caption_glyph_mini  ut_glyph_minimize
-#define ui_caption_glyph_maxi  ut_glyph_white_square_with_lower_left_quadrant // instead of ut_glyph_maximize
-#define ui_caption_glyph_full  ut_glyph_square_four_corners
-#define ui_caption_glyph_quit  ut_glyph_cancellation_x
+#define ui_caption_glyph_rest  rt_glyph_white_square_with_upper_right_quadrant // instead of rt_glyph_desktop_window
+#define ui_caption_glyph_menu  rt_glyph_trigram_for_heaven
+#define ui_caption_glyph_dark  rt_glyph_crescent_moon
+#define ui_caption_glyph_light rt_glyph_white_sun_with_rays
+#define ui_caption_glyph_mini  rt_glyph_minimize
+#define ui_caption_glyph_maxi  rt_glyph_white_square_with_lower_left_quadrant // instead of rt_glyph_maximize
+#define ui_caption_glyph_full  rt_glyph_square_four_corners
+#define ui_caption_glyph_quit  rt_glyph_cancellation_x
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
@@ -5469,7 +5471,7 @@ static void ui_caption_toggle_full(void) {
 }
 
 static void ui_caption_esc_full_screen(ui_view_t* v, const char utf8[]) {
-    ut_swear(v == ui_caption.view.parent);
+    rt_swear(v == ui_caption.view.parent);
     // TODO: inside ui_app.c instead of here?
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
 }
@@ -5527,7 +5529,7 @@ static void ui_caption_full(ui_button_t* ut_unused(b)) {
 }
 
 static int64_t ui_caption_hit_test(const ui_view_t* v, ui_point_t pt) {
-    ut_swear(v == &ui_caption.view);
+    rt_swear(v == &ui_caption.view);
     ut_assert(ui_view.inside(v, &pt));
 //  ut_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
 //      x, y,
@@ -5623,7 +5625,7 @@ static void ui_caption_paint(ui_view_t* v) {
 }
 
 static void ui_caption_init(ui_view_t* v) {
-    ut_swear(v == &ui_caption.view, "caption is a singleton");
+    rt_swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
     ui_caption.view.insets = (ui_margins_t){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
@@ -5694,7 +5696,7 @@ ui_caption_t ui_caption =  {
         .hit_test = ui_caption_hit_test,
         .state.hidden = true
     },
-    .icon   = ui_button(ut_glyph_nbsp, 0.0, null),
+    .icon   = ui_button(rt_glyph_nbsp, 0.0, null),
     .title  = ui_label(0, ""),
     .spacer = ui_view(spacer),
     .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),
@@ -5764,7 +5766,7 @@ static ui_color_t ui_color_hsi_to_rgb(fp64_t h, fp64_t s, fp64_t i, uint8_t a) {
         case 3: r = p * 255; g = q * 255; b = i * 255; break;
         case 4: r = t * 255; g = p * 255; b = i * 255; break;
         case 5: r = i * 255; g = p * 255; b = q * 255; break;
-        default: ut_swear(false); break;
+        default: rt_swear(false); break;
     }
     ut_assert(0 <= r && r <= 255);
     ut_assert(0 <= g && g <= 255);
@@ -5894,7 +5896,7 @@ static struct {
 
 static ui_color_t ui_colors_get_color(int32_t color_id) {
     // SysGetColor() does not work on Win10
-    ut_swear(0 < color_id && color_id < ut_countof(ui_theme_colors));
+    rt_swear(0 < color_id && color_id < ut_countof(ui_theme_colors));
     return ui_theme.is_app_dark() ?
            ui_theme_colors[color_id].dark :
            ui_theme_colors[color_id].light;
@@ -6139,9 +6141,9 @@ static int32_t ui_layout_nesting;
 } while (0)
 
 static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
-    ut_swear(v >= 0);
+    rt_swear(v >= 0);
     if (v == ui.infinity) {
-        ut_str.format(text, count, "%s", ut_glyph_infinity);
+        ut_str.format(text, count, "%s", rt_glyph_infinity);
     } else {
         ut_str.format(text, count, "%d", v);
     }
@@ -6165,14 +6167,14 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
 
 static void ui_span_measure(ui_view_t* p) {
     ui_layout_enter(p);
-    ut_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
+    rt_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     ui_ltrb_t insets;
     ui_view.inbox(p, null, &insets);
     int32_t w = insets.left;
     int32_t h = 0;
     int32_t max_w = w;
     ui_view_for_each_begin(p, c) {
-        ut_swear(c->max_w == 0 || c->max_w >= c->w,
+        rt_swear(c->max_w == 0 || c->max_w >= c->w,
               "max_w: %d w: %d", c->max_w, c->w);
         if (ui_view.is_hidden(c)) {
             // nothing
@@ -6185,15 +6187,15 @@ static void ui_span_measure(ui_view_t* p) {
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
-            h = ut_max(h, cbx.h);
+            h = rt_max(h, cbx.h);
             if (c->max_w == ui.infinity) {
                 max_w = ui.infinity;
             } else if (max_w < ui.infinity && c->max_w != 0) {
-                ut_swear(c->max_w >= c->w, "c->max_w %d < c->w %d ",
+                rt_swear(c->max_w >= c->w, "c->max_w %d < c->w %d ",
                       c->max_w, c->w);
                 max_w += c->max_w;
             } else if (max_w < ui.infinity) {
-                ut_swear(0 <= max_w + cbx.w &&
+                rt_swear(0 <= max_w + cbx.w &&
                       (int64_t)max_w + (int64_t)cbx.w < (int64_t)ui.infinity,
                       "max_w:%d + cbx.w:%d = %d", max_w, cbx.w, max_w + cbx.w);
                 max_w += cbx.w;
@@ -6203,19 +6205,19 @@ static void ui_span_measure(ui_view_t* p) {
         ui_layout_clild(c);
     } ui_view_for_each_end(p, c);
     if (0 < max_w && max_w < ui.infinity) {
-        ut_swear(0 <= max_w + insets.right &&
+        rt_swear(0 <= max_w + insets.right &&
               (int64_t)max_w + (int64_t)insets.right < (int64_t)ui.infinity,
              "max_w:%d + right:%d = %d", max_w, insets.right, max_w + insets.right);
         max_w += insets.right;
     }
-    ut_swear(max_w == 0 || max_w >= w, "max_w: %d w: %d", max_w, w);
+    rt_swear(max_w == 0 || max_w >= w, "max_w: %d w: %d", max_w, w);
     if (ui_view.is_hidden(p)) {
         p->w = 0;
         p->h = 0;
     } else {
         p->w = w + insets.right;
         p->h = insets.top + h + insets.bottom;
-        ut_swear(p->max_w == 0 || p->max_w >= p->w,
+        rt_swear(p->max_w == 0 || p->max_w >= p->w,
               "max_w: %d is less than actual width: %d", p->max_w, p->w);
     }
     ui_layout_exit(p);
@@ -6233,7 +6235,7 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
     // encouraged but allowed
     if (c->max_h == ui.infinity) {
         // important c->h changed, cbx.h is no longer valid
-        c->h = ut_max(c->h, pbx.h - padding.top - padding.bottom);
+        c->h = rt_max(c->h, pbx.h - padding.top - padding.bottom);
     }
     int32_t min_y = pbx.y + padding.top;
     if ((c->align & ui.align.top) != 0) {
@@ -6241,12 +6243,12 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
         c->y = min_y;
     } else if ((c->align & ui.align.bottom) != 0) {
         ut_assert(c->align == ui.align.bottom);
-        c->y = ut_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
+        c->y = rt_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
     } else { // effective height (c->h might have been changed)
         ut_assert(c->align == ui.align.center,
                   "only top, center, bottom alignment for span");
         const int32_t ch = padding.top + c->h + padding.bottom;
-        c->y = ut_max(min_y, pbx.y + (pbx.h - ch) / 2 + padding.top);
+        c->y = rt_max(min_y, pbx.y + (pbx.h - ch) / 2 + padding.top);
     }
     c->x = x + padding.left;
     return c->x + c->w + padding.right;
@@ -6254,7 +6256,7 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
 
 static void ui_span_layout(ui_view_t* p) {
     ui_layout_enter(p);
-    ut_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
+    rt_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6271,7 +6273,7 @@ static void ui_span_layout(ui_view_t* p) {
                 spacers++;
             } else {
                 x = ui_span_place_child(c, pbx, x);
-                ut_swear(c->max_w == 0 || c->max_w >= c->w,
+                rt_swear(c->max_w == 0 || c->max_w >= c->w,
                       "max_w:%d < w:%d", c->max_w, c->w);
                 if (c->max_w > 0) {
                     max_w_count++;
@@ -6280,13 +6282,13 @@ static void ui_span_layout(ui_view_t* p) {
             ui_layout_clild(c);
         }
     } ui_view_for_each_end(p, c);
-    int32_t xw = ut_max(0, pbx.x + pbx.w - x); // excess width
+    int32_t xw = rt_max(0, pbx.x + pbx.w - x); // excess width
     int32_t max_w_sum = 0;
     if (xw > 0 && max_w_count > 0) {
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c) && c->type != ui_view_spacer &&
                  c->max_w > 0) {
-                max_w_sum += ut_min(c->max_w, xw);
+                max_w_sum += rt_min(c->max_w, xw);
                 ui_layout_clild(c);
             }
         } ui_view_for_each_end(p, c);
@@ -6300,13 +6302,13 @@ static void ui_span_layout(ui_view_t* p) {
                 ui_ltrb_t padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type == ui_view_spacer) {
-                    ut_swear(padding.left == 0 && padding.right == 0);
+                    rt_swear(padding.left == 0 && padding.right == 0);
                 } else if (c->max_w > 0) {
-                    const int32_t max_w = ut_min(c->max_w, xw);
+                    const int32_t max_w = rt_min(c->max_w, xw);
                     int64_t proportional = (xw * (int64_t)max_w) / max_w_sum;
                     ut_assert(proportional <= (int64_t)INT32_MAX);
                     int32_t cw = (int32_t)proportional;
-                    c->w = ut_min(c->max_w, c->w + cw);
+                    c->w = rt_min(c->max_w, c->w + cw);
                     k++;
                 }
                 // TODO: take into account .align of a child and adjust x
@@ -6317,10 +6319,10 @@ static void ui_span_layout(ui_view_t* p) {
                 ui_layout_clild(c);
             }
         } ui_view_for_each_end(p, c);
-        ut_swear(k == max_w_count);
+        rt_swear(k == max_w_count);
     }
     // excess width after max_w of non-spacers taken into account
-    xw = ut_max(0, pbx.x + pbx.w - x);
+    xw = rt_max(0, pbx.x + pbx.w - x);
     if (xw > 0 && spacers > 0) {
         // evenly distribute excess among spacers
         int32_t partial = xw / spacers;
@@ -6347,7 +6349,7 @@ static void ui_span_layout(ui_view_t* p) {
 
 static void ui_list_measure(ui_view_t* p) {
     ui_layout_enter(p);
-    ut_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
+    rt_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6355,7 +6357,7 @@ static void ui_list_measure(ui_view_t* p) {
     int32_t h = insets.top;
     int32_t w = 0;
     ui_view_for_each_begin(p, c) {
-        ut_swear(c->max_h == 0 || c->max_h >= c->h, "max_h: %d h: %d",
+        rt_swear(c->max_h == 0 || c->max_h >= c->h, "max_h: %d h: %d",
               c->max_h, c->h);
         if (!ui_view.is_hidden(c)) {
             if (c->type == ui_view_spacer) {
@@ -6366,15 +6368,15 @@ static void ui_list_measure(ui_view_t* p) {
                 ui_rect_t cbx; // child "out" box expanded by padding
                 ui_ltrb_t padding;
                 ui_view.outbox(c, &cbx, &padding);
-                w = ut_max(w, cbx.w);
+                w = rt_max(w, cbx.w);
                 if (c->max_h == ui.infinity) {
                     max_h = ui.infinity;
                 } else if (max_h < ui.infinity && c->max_h != 0) {
-                    ut_swear(c->max_h >= c->h, "c->max_h:%d < c->h: %d",
+                    rt_swear(c->max_h >= c->h, "c->max_h:%d < c->h: %d",
                           c->max_h, c->h);
                     max_h += c->max_h;
                 } else if (max_h < ui.infinity) {
-                    ut_swear(0 <= max_h + cbx.h &&
+                    rt_swear(0 <= max_h + cbx.h &&
                           (int64_t)max_h + (int64_t)cbx.h < (int64_t)ui.infinity,
                           "max_h:%d + ch:%d = %d", max_h, cbx.h, max_h + cbx.h);
                     max_h += cbx.h;
@@ -6385,7 +6387,7 @@ static void ui_list_measure(ui_view_t* p) {
         }
     } ui_view_for_each_end(p, c);
     if (max_h < ui.infinity) {
-        ut_swear(0 <= max_h + insets.bottom &&
+        rt_swear(0 <= max_h + insets.bottom &&
               (int64_t)max_h + (int64_t)insets.bottom < (int64_t)ui.infinity,
              "max_h:%d + bottom:%d = %d",
               max_h, insets.bottom, max_h + insets.bottom);
@@ -6410,7 +6412,7 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
     // *always* fill vertical view size of the parent
     // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
     if (c->max_w == ui.infinity) {
-        c->w = ut_max(c->w, pbx.w - padding.left - padding.right);
+        c->w = rt_max(c->w, pbx.w - padding.left - padding.right);
     }
     int32_t min_x = pbx.x + padding.left;
     if ((c->align & ui.align.left) != 0) {
@@ -6418,12 +6420,12 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
         c->x = min_x;
     } else if ((c->align & ui.align.right) != 0) {
         ut_assert(c->align == ui.align.right);
-        c->x = ut_max(min_x, pbx.x + pbx.w - c->w - padding.right);
+        c->x = rt_max(min_x, pbx.x + pbx.w - c->w - padding.right);
     } else {
         ut_assert(c->align == ui.align.center,
                   "only left, center, right, alignment for list");
         const int32_t cw = padding.left + c->w + padding.right;
-        c->x = ut_max(min_x, pbx.x + (pbx.w - cw) / 2 + padding.left);
+        c->x = rt_max(min_x, pbx.x + (pbx.w - cw) / 2 + padding.left);
     }
     c->y = y + padding.top;
     return c->y + c->h + padding.bottom;
@@ -6431,7 +6433,7 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
 
 static void ui_list_layout(ui_view_t* p) {
     ui_layout_enter(p);
-    ut_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
+    rt_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6450,7 +6452,7 @@ static void ui_list_layout(ui_view_t* p) {
             spacers++;
         } else {
             y = ui_list_place_child(c, pbx, y);
-            ut_swear(c->max_h == 0 || c->max_h >= c->h,
+            rt_swear(c->max_h == 0 || c->max_h >= c->h,
                   "max_h:%d < h:%d", c->max_h, c->h);
             if (c->max_h > 0) {
                 // clamp max_h to the effective parent height
@@ -6458,12 +6460,12 @@ static void ui_list_layout(ui_view_t* p) {
             }
         }
     } ui_view_for_each_end(p, c);
-    int32_t xh = ut_max(0, pbx.y + pbx.h - y); // excess height
+    int32_t xh = rt_max(0, pbx.y + pbx.h - y); // excess height
     if (xh > 0 && max_h_count > 0) {
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c) && c->type != ui_view_spacer &&
                  c->max_h > 0) {
-                max_h_sum += ut_min(c->max_h, xh);
+                max_h_sum += rt_min(c->max_h, xh);
             }
         } ui_view_for_each_end(p, c);
     }
@@ -6476,11 +6478,11 @@ static void ui_list_layout(ui_view_t* p) {
                 ui_ltrb_t padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type != ui_view_spacer && c->max_h > 0) {
-                    const int32_t max_h = ut_min(c->max_h, xh);
+                    const int32_t max_h = rt_min(c->max_h, xh);
                     int64_t proportional = (xh * (int64_t)max_h) / max_h_sum;
                     ut_assert(proportional <= (int64_t)INT32_MAX);
                     int32_t ch = (int32_t)proportional;
-                    c->h = ut_min(c->max_h, c->h + ch);
+                    c->h = rt_min(c->max_h, c->h + ch);
                     k++;
                 }
                 int32_t ch = padding.top + c->h + padding.bottom;
@@ -6489,10 +6491,10 @@ static void ui_list_layout(ui_view_t* p) {
                 ui_layout_clild(c);
             }
         } ui_view_for_each_end(p, c);
-        ut_swear(k == max_h_count);
+        rt_swear(k == max_h_count);
     }
     // excess height after max_h of non-spacers taken into account
-    xh = ut_max(0, pbx.y + pbx.h - y); // excess height
+    xh = rt_max(0, pbx.y + pbx.h - y); // excess height
     if (xh > 0 && spacers > 0) {
         // evenly distribute excess among spacers
         int32_t partial = xh / spacers;
@@ -6539,13 +6541,13 @@ static void ui_stack_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
     } else if (c->align == (ui.align.right|ui.align.bottom)) {
         *row = 2; *col = 2;
     } else {
-        ut_swear(false, "invalid child align: 0x%02X", c->align);
+        rt_swear(false, "invalid child align: 0x%02X", c->align);
     }
 }
 
 static void ui_stack_measure(ui_view_t* p) {
     ui_layout_enter(p);
-    ut_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
+    rt_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6558,8 +6560,8 @@ static void ui_stack_measure(ui_view_t* p) {
             int32_t row = 0;
             int32_t col = 0;
             ui_stack_child_3x3(c, &row, &col);
-            sides[row][col].w = ut_max(sides[row][col].w, cbx.w);
-            sides[row][col].h = ut_max(sides[row][col].h, cbx.h);
+            sides[row][col].w = rt_max(sides[row][col].w, cbx.w);
+            sides[row][col].h = rt_max(sides[row][col].h, cbx.h);
             ui_layout_clild(c);
         }
     } ui_view_for_each_end(p, c);
@@ -6581,14 +6583,14 @@ static void ui_stack_measure(ui_view_t* p) {
         for (int32_t c = 0; c < 3; c++) {
             sum_w += sides[r][c].w;
         }
-        wh.w = ut_max(wh.w, sum_w);
+        wh.w = rt_max(wh.w, sum_w);
     }
     for (int32_t c = 0; c < 3; c++) {
         int32_t sum_h = 0;
         for (int32_t r = 0; r < 3; r++) {
             sum_h += sides[r][c].h;
         }
-        wh.h = ut_max(wh.h, sum_h);
+        wh.h = rt_max(wh.h, sum_h);
     }
     debugln("%*c wh %dx%d", ui_layout_nesting, 0x20, wh.w, wh.h);
     p->w = insets.left + wh.w + insets.right;
@@ -6598,7 +6600,7 @@ static void ui_stack_measure(ui_view_t* p) {
 
 static void ui_stack_layout(ui_view_t* p) {
     ui_layout_enter(p);
-    ut_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
+    rt_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
     ui_rect_t pbx; // parent "in" box (sans insets)
     ui_ltrb_t insets;
     ui_view.inbox(p, &pbx, &insets);
@@ -6611,33 +6613,33 @@ static void ui_stack_layout(ui_view_t* p) {
             const int32_t ph = p->h - insets.top - insets.bottom - padding.top - padding.bottom;
             int32_t cw = c->max_w == ui.infinity ? pw : c->max_w;
             if (cw > 0) {
-                c->w = ut_min(cw, pw);
+                c->w = rt_min(cw, pw);
             }
             int32_t ch = c->max_h == ui.infinity ? ph : c->max_h;
             if (ch > 0) {
-                c->h = ut_min(ch, ph);
+                c->h = rt_min(ch, ph);
             }
-            ut_swear((c->align & (ui.align.left|ui.align.right)) !=
+            rt_swear((c->align & (ui.align.left|ui.align.right)) !=
                                (ui.align.left|ui.align.right),
                    "align: left|right 0x%02X", c->align);
-            ut_swear((c->align & (ui.align.top|ui.align.bottom)) !=
+            rt_swear((c->align & (ui.align.top|ui.align.bottom)) !=
                                (ui.align.top|ui.align.bottom),
                    "align: top|bottom 0x%02X", c->align);
             int32_t min_x = pbx.x + padding.left;
             if ((c->align & ui.align.left) != 0) {
                 c->x = min_x;
             } else if ((c->align & ui.align.right) != 0) {
-                c->x = ut_max(min_x, pbx.x + pbx.w - c->w - padding.right);
+                c->x = rt_max(min_x, pbx.x + pbx.w - c->w - padding.right);
             } else {
-                c->x = ut_max(min_x, min_x + (pbx.w - (padding.left + c->w + padding.right)) / 2);
+                c->x = rt_max(min_x, min_x + (pbx.w - (padding.left + c->w + padding.right)) / 2);
             }
             int32_t min_y = pbx.y + padding.top;
             if ((c->align & ui.align.top) != 0) {
                 c->y = min_y;
             } else if ((c->align & ui.align.bottom) != 0) {
-                c->y = ut_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
+                c->y = rt_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
             } else {
-                c->y = ut_max(min_y, min_y + (pbx.h - (padding.top + c->h + padding.bottom)) / 2);
+                c->y = rt_max(min_y, min_y + (pbx.h - (padding.top + c->h + padding.bottom)) / 2);
             }
             ui_layout_clild(c);
         }
@@ -6665,7 +6667,7 @@ static void ui_view_container_init(ui_view_t* v) {
 }
 
 void ui_view_init_span(ui_view_t* v) {
-    ut_swear(v->type == ui_view_span, "type %4.4s 0x%08X", &v->type, v->type);
+    rt_swear(v->type == ui_view_span, "type %4.4s 0x%08X", &v->type, v->type);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_span_measure; }
     if (v->layout  == null) { v->layout  = ui_span_layout; }
@@ -6675,7 +6677,7 @@ void ui_view_init_span(ui_view_t* v) {
 }
 
 void ui_view_init_list(ui_view_t* v) {
-    ut_swear(v->type == ui_view_list, "type %4.4s 0x%08X", &v->type, v->type);
+    rt_swear(v->type == ui_view_list, "type %4.4s 0x%08X", &v->type, v->type);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_list_measure; }
     if (v->layout  == null) { v->layout  = ui_list_layout; }
@@ -6685,7 +6687,7 @@ void ui_view_init_list(ui_view_t* v) {
 }
 
 void ui_view_init_spacer(ui_view_t* v) {
-    ut_swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
+    rt_swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
     v->w = 0;
     v->h = 0;
     v->max_w = ui.infinity;
@@ -6728,10 +6730,10 @@ static bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
 static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
                                             const ui_rect_t* r1) {
     ui_rect_t r = {0};
-    r.x = ut_max(r0->x, r1->x);  // Maximum of left edges
-    r.y = ut_max(r0->y, r1->y);  // Maximum of top edges
-    r.w = ut_min(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
-    r.h = ut_min(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
+    r.x = rt_max(r0->x, r1->x);  // Maximum of left edges
+    r.y = rt_max(r0->y, r1->y);  // Maximum of top edges
+    r.w = rt_min(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
+    r.h = rt_min(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
     bool b = r.w > 0 && r.h > 0;
     if (!b) {
         r.w = 0;
@@ -6743,10 +6745,10 @@ static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
 
 static ui_rect_t ui_combine_rect(const ui_rect_t* r0, const ui_rect_t* r1) {
     return (ui_rect_t) {
-        .x = ut_min(r0->x, r1->x),
-        .y = ut_min(r0->y, r1->y),
-        .w = ut_max(r0->x + r0->w, r1->x + r1->w) - ut_min(r0->x, r1->x),
-        .h = ut_max(r0->y + r0->h, r1->y + r1->h) - ut_min(r0->y, r1->y)
+        .x = rt_min(r0->x, r1->x),
+        .y = rt_min(r0->y, r1->y),
+        .w = rt_max(r0->x + r0->w, r1->x + r1->w) - rt_min(r0->x, r1->x),
+        .h = rt_max(r0->y + r0->h, r1->y + r1->h) - rt_min(r0->y, r1->y)
     };
 }
 
@@ -6895,18 +6897,18 @@ ui_if ui = {
 #pragma push_macro("ui_edit_doc_dump")
 
 #define ui_edit_pg_dump(pg)                              \
-    ut_debug.println(__FILE__, __LINE__, __func__,       \
+    rt_debug.println(__FILE__, __LINE__, __func__,       \
                     "pn:%d gp:%d", (pg)->pn, (pg)->gp)
 
 #define ui_edit_range_dump(r)                            \
-    ut_debug.println(__FILE__, __LINE__, __func__,       \
+    rt_debug.println(__FILE__, __LINE__, __func__,       \
             "from {pn:%d gp:%d} to {pn:%d gp:%d}",       \
     (r)->from.pn, (r)->from.gp, (r)->to.pn, (r)->to.gp);
 
 #define ui_edit_text_dump(t) do {                        \
     for (int32_t i_ = 0; i_ < (t)->np; i_++) {           \
         const ui_edit_str_t* p_ = &t->ps[i_];            \
-        ut_debug.println(__FILE__, __LINE__, __func__,   \
+        rt_debug.println(__FILE__, __LINE__, __func__,   \
             "ps[%d].%d: %.*s", i_, p_->b, p_->b, p_->u); \
     }                                                    \
 } while (0)
@@ -6915,7 +6917,7 @@ ui_if ui = {
 #define ui_edit_doc_dump(d) do {                                \
     for (int32_t i_ = 0; i_ < (d)->text.np; i_++) {             \
         const ui_edit_str_t* p_ = &(d)->text.ps[i_];            \
-        ut_debug.println(__FILE__, __LINE__, __func__,          \
+        rt_debug.println(__FILE__, __LINE__, __func__,          \
             "ps[%d].b:%d.c:%d: %p %.*s", i_, p_->b, p_->c,      \
             p_, p_->b, p_->u);                                  \
     }                                                           \
@@ -7077,10 +7079,10 @@ static bool ui_edit_doc_realloc_ps_no_init(ui_edit_str_t* *ps,
     for (int32_t i = new_np; i < old_np; i++) { ui_edit_str.free(&(*ps)[i]); }
     bool ok = true;
     if (new_np == 0) {
-        ut_heap.free(*ps);
+        rt_heap.free(*ps);
         *ps = null;
     } else {
-        ok = ut_heap.realloc_zero((void**)ps, new_np * sizeof(ui_edit_str_t)) == 0;
+        ok = rt_heap.realloc_zero((void**)ps, new_np * sizeof(ui_edit_str_t)) == 0;
     }
     return ok;
 }
@@ -7091,7 +7093,7 @@ static bool ui_edit_doc_realloc_ps(ui_edit_str_t* *ps,
     if (ok) {
         for (int32_t i = old_np; i < new_np; i++) {
             ok = ui_edit_str.init(&(*ps)[i], null, 0, false);
-            ut_swear(ok, "because .init(\"\", 0) does NOT allocate memory");
+            rt_swear(ok, "because .init(\"\", 0) does NOT allocate memory");
         }
     }
     return ok;
@@ -7107,7 +7109,7 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
     if (b < 0) { b = (int32_t)strlen(s); }
     // if caller is concerned with best performance - it should pass b >= 0
     int32_t np = 0; // number of paragraphs
-    int32_t n = ut_max(b / 64, 2); // initial number of allocated paragraphs
+    int32_t n = rt_max(b / 64, 2); // initial number of allocated paragraphs
     ui_edit_str_t* ps = null; // ps[n]
     bool ok = ui_edit_doc_realloc_ps(&ps, 0, n);
     if (ok) {
@@ -7150,7 +7152,7 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
         ut_assert(b <= 0 && (b == 0 || s[0] == 0x00));
         np = 1; // ps[0] is already initialized as empty str
         ok = ui_edit_doc_realloc_ps(&ps, n, 1);
-        ut_swear(ok, "shrinking ps[] above");
+        rt_swear(ok, "shrinking ps[] above");
     }
     if (ok) {
         ut_assert(np > 0);
@@ -7158,8 +7160,8 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
         t->ps = ps;
     } else if (ps != null) {
         bool shrink = ui_edit_doc_realloc_ps(&ps, n, 0); // free()
-        ut_swear(shrink);
-        ut_heap.free(ps);
+        rt_swear(shrink);
+        rt_heap.free(ps);
         t->np = 0;
         t->ps = null;
     }
@@ -7245,11 +7247,11 @@ static bool ui_edit_doc_subscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
     bool ok = true;
     ui_edit_listener_t* o = t->listeners;
     if (o == null) {
-        ok = ut_heap.alloc_zero((void**)&t->listeners, sizeof(*o)) == 0;
+        ok = rt_heap.alloc_zero((void**)&t->listeners, sizeof(*o)) == 0;
         if (ok) { o = t->listeners; }
     } else {
-        while (o->next != null) { ut_swear(o->notify != notify); o = o->next; }
-        ok = ut_heap.alloc_zero((void**)&o->next, sizeof(*o)) == 0;
+        while (o->next != null) { rt_swear(o->notify != notify); o = o->next; }
+        ok = rt_heap.alloc_zero((void**)&o->next, sizeof(*o)) == 0;
         if (ok) { o->next->prev = o; o = o->next; }
     }
     if (ok) { o->notify = notify; }
@@ -7266,12 +7268,12 @@ static void ui_edit_doc_unsubscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) 
             if (o->prev != null) { o->prev->next = n; }
             if (o->next != null) { o->next->prev = o->prev; }
             if (o == t->listeners) { t->listeners = n; }
-            ut_heap.free(o);
+            rt_heap.free(o);
             removed = true;
         }
         o = n;
     }
-    ut_swear(removed);
+    rt_swear(removed);
 }
 
 static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
@@ -7331,17 +7333,17 @@ static void ui_edit_doc_copy(const ui_edit_doc_t* d,
         }
         const int32_t c = (int32_t)(uintptr_t)(to - text);
         if (bytes > 0) {
-            ut_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
+            rt_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
             memmove(to, u, (size_t)bytes);
             to += bytes;
         }
         if (pn < r.to.pn) {
-            ut_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
+            rt_swear(c + bytes < b, "c: %d bytes: %d b: %d", c, bytes, b);
             *to++ = '\n';
         }
     }
     const int32_t c = (int32_t)(uintptr_t)(to - text);
-    ut_swear(c + 1 == b, "c: %d b: %d", c, b);
+    rt_swear(c + 1 == b, "c: %d b: %d", c, b);
     *to++ = 0x00;
 }
 
@@ -7545,18 +7547,18 @@ static void ui_edit_text_copy(const ui_edit_text_t* t,
             bytes = p->b;
         }
         const int32_t c = (int32_t)(uintptr_t)(to - text);
-        ut_swear(c + bytes < b, "d: %d bytes:%d b: %d", c, bytes, b);
+        rt_swear(c + bytes < b, "d: %d bytes:%d b: %d", c, bytes, b);
         if (bytes > 0) {
             memmove(to, u, (size_t)bytes);
             to += bytes;
         }
         if (pn < r.to.pn) {
-            ut_swear(c + bytes + 1 < b, "d: %d bytes:%d b: %d", c, bytes, b);
+            rt_swear(c + bytes + 1 < b, "d: %d bytes:%d b: %d", c, bytes, b);
             *to++ = '\n';
         }
     }
     const int32_t c = (int32_t)(uintptr_t)(to - text);
-    ut_swear(c + 1 == b, "d: %d b: %d", c, b);
+    rt_swear(c + 1 == b, "d: %d b: %d", c, b);
     *to++ = 0x00;
 }
 
@@ -7684,7 +7686,7 @@ static bool ui_edit_doc_replace_undoable(ui_edit_doc_t* d,
             ui_edit_to_do_t* next = d->redo->next;
             d->redo->next = null;
             ui_edit_doc.dispose_to_do(d->redo);
-            ut_heap.free(d->redo);
+            rt_heap.free(d->redo);
             d->redo = next;
         }
     }
@@ -7745,7 +7747,7 @@ static bool ui_edit_doc_replace(ui_edit_doc_t* d,
     ui_edit_text_t* t = &d->text;
     const ui_edit_range_t r = ui_edit_text.ordered(t, range);
     ui_edit_to_do_t* undo = null;
-    bool ok = ut_heap.alloc_zero((void**)&undo, sizeof(ui_edit_to_do_t)) == 0;
+    bool ok = rt_heap.alloc_zero((void**)&undo, sizeof(ui_edit_to_do_t)) == 0;
     if (ok) {
         ui_edit_text_t i = {0};
         ok = ui_edit_utf8_to_heap_text(u, b, &i);
@@ -7754,7 +7756,7 @@ static bool ui_edit_doc_replace(ui_edit_doc_t* d,
             if (ok) {
                 if (ui_edit_doc_coalesce_undo(d, &i)) {
                     ui_edit_doc.dispose_to_do(undo);
-                    ut_heap.free(undo);
+                    rt_heap.free(undo);
                     undo = null;
                 }
             }
@@ -7762,7 +7764,7 @@ static bool ui_edit_doc_replace(ui_edit_doc_t* d,
         }
         if (!ok) {
             ui_edit_doc.dispose_to_do(undo);
-            ut_heap.free(undo);
+            rt_heap.free(undo);
             undo = null;
         }
     }
@@ -7773,12 +7775,12 @@ static bool ui_edit_doc_do(ui_edit_doc_t* d, ui_edit_to_do_t* to_do,
         ui_edit_to_do_t* *stack) {
     const ui_edit_range_t* r = &to_do->range;
     ui_edit_to_do_t* redo = null;
-    bool ok = ut_heap.alloc_zero((void**)&redo, sizeof(ui_edit_to_do_t)) == 0;
+    bool ok = rt_heap.alloc_zero((void**)&redo, sizeof(ui_edit_to_do_t)) == 0;
     if (ok) {
         ok = ui_edit_doc_replace_text(d, r, &to_do->text, redo);
         if (ok) {
             ui_edit_doc.dispose_to_do(to_do);
-            ut_heap.free(to_do);
+            rt_heap.free(to_do);
         }
         if (ok) {
             redo->next = *stack;
@@ -7786,7 +7788,7 @@ static bool ui_edit_doc_do(ui_edit_doc_t* d, ui_edit_to_do_t* to_do,
         } else {
             if (redo != null) {
                 ui_edit_doc.dispose_to_do(redo);
-                ut_heap.free(redo);
+                rt_heap.free(redo);
             }
         }
     }
@@ -7820,11 +7822,15 @@ static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
     memset(d, 0x00, sizeof(d));
-    ut_assert(bytes >= 0);
+    if (bytes < 0) {
+        size_t n = strlen(utf8);
+        rt_swear(n < INT32_MAX);
+        bytes = (int32_t)n;
+    }
     ut_assert((utf8 == null) == (bytes == 0));
     if (ok) {
         if (bytes == 0) { // empty string
-            ok = ut_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_edit_str_t)) == 0;
+            ok = rt_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_edit_str_t)) == 0;
             if (ok) {
                 d->text.np = 1;
                 ok = ui_edit_str.init(&d->text.ps[0], null, 0, false);
@@ -7841,7 +7847,7 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
         ui_edit_str.free(&d->text.ps[i]);
     }
     if (d->text.ps != null) {
-        ut_heap.free(d->text.ps);
+        rt_heap.free(d->text.ps);
         d->text.ps = null;
     }
     d->text.np  = 0;
@@ -7849,21 +7855,21 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
         ui_edit_to_do_t* next = d->undo->next;
         d->undo->next = null;
         ui_edit_doc.dispose_to_do(d->undo);
-        ut_heap.free(d->undo);
+        rt_heap.free(d->undo);
         d->undo = next;
     }
     while (d->redo != null) {
         ui_edit_to_do_t* next = d->redo->next;
         d->redo->next = null;
         ui_edit_doc.dispose_to_do(d->redo);
-        ut_heap.free(d->redo);
+        rt_heap.free(d->redo);
         d->redo = next;
     }
     ut_assert(d->listeners == null, "unsubscribe listeners?");
     while (d->listeners != null) {
         ui_edit_listener_t* next = d->listeners->next;
         d->listeners->next = null;
-        ut_heap.free(d->listeners->next);
+        rt_heap.free(d->listeners->next);
         d->listeners = next;
     }
     ui_edit_check_zeros(d, sizeof(*d));
@@ -8002,7 +8008,7 @@ ui_edit_str_if ui_edit_str = {
 } while (0)
 
 static int32_t ui_edit_str_gp_to_bp(const char* utf8, int32_t bytes, int32_t gp) {
-    ut_swear(bytes >= 0);
+    rt_swear(bytes >= 0);
     bool ok = true;
     int32_t c = 0;
     int32_t i = 0;
@@ -8020,7 +8026,7 @@ static int32_t ui_edit_str_gp_to_bp(const char* utf8, int32_t bytes, int32_t gp)
 
 static void ui_edit_str_free(ui_edit_str_t* s) {
     if (s->g2b != null && s->g2b != ui_edit_str_g2b_ascii) {
-        ut_heap.free(s->g2b);
+        rt_heap.free(s->g2b);
     } else {
         #ifdef UI_EDIT_STR_TEST // check ui_edit_str_g2b_ascii integrity
             for (int32_t i = 0; i < ut_countof(ui_edit_str_g2b_ascii); i++) {
@@ -8031,7 +8037,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
     s->g2b = null;
     s->g = 0;
     if (s->c > 0) {
-        ut_heap.free(s->u);
+        rt_heap.free(s->u);
         s->u = null;
         s->c = 0;
         s->b = 0;
@@ -8045,7 +8051,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
 static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
     const int64_t _4_bytes = (int64_t)sizeof(int32_t);
     // start with number of glyphs == number of bytes (ASCII text):
-    bool ok = ut_heap.alloc(&s->g2b, (size_t)(s->b + 1) * _4_bytes) == 0;
+    bool ok = rt_heap.alloc(&s->g2b, (size_t)(s->b + 1) * _4_bytes) == 0;
     int32_t i = 0; // index in u[] string
     int32_t k = 1; // glyph number
     // g2b[k] start postion in uint8_t offset from utf8 text of glyph[k]
@@ -8064,7 +8070,7 @@ static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
         ut_assert(s->g2b[k - 1] == s->b);
         s->g = k - 1;
         if (k < s->b + 1) {
-            ok = ut_heap.realloc(&s->g2b, k * _4_bytes) == 0;
+            ok = rt_heap.realloc(&s->g2b, k * _4_bytes) == 0;
             ut_assert(ok, "shrinking - should always be ok");
         }
     }
@@ -8087,7 +8093,7 @@ static bool ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b,
         ut_assert(s->c == 0 && u[0] == 0x00);
     } else {
         if (heap) {
-            ok = ut_heap.alloc((void**)&s->u, b) == 0;
+            ok = rt_heap.alloc((void**)&s->u, b) == 0;
             if (ok) { s->c = b; memmove(s->u, u, (size_t)b); }
         } else {
             s->u = (char*)u;
@@ -8128,7 +8134,7 @@ static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
             // first string in concatenation is short. It's OK.
         }
         const int32_t bytes = (s->g + 1) * (int32_t)sizeof(int32_t);
-        ok = ut_heap.alloc(&s->g2b, bytes) == 0;
+        ok = rt_heap.alloc(&s->g2b, bytes) == 0;
         if (ok) { memmove(s->g2b, ui_edit_str_g2b_ascii, (size_t)bytes); }
     }
     return ok;
@@ -8139,20 +8145,20 @@ static bool ui_edit_str_move_to_heap(ui_edit_str_t* s, int32_t c) {
     ut_assert(c >= s->b, "can expand cannot shrink");
     if (s->c == 0) { // s->u points outside of the heap
         const char* o = s->u;
-        ok = ut_heap.alloc((void**)&s->u, c) == 0;
+        ok = rt_heap.alloc((void**)&s->u, c) == 0;
         if (ok) { memmove(s->u, o, (size_t)s->b); }
     } else if (s->c < c) {
-        ok = ut_heap.realloc((void**)&s->u, c) == 0;
+        ok = rt_heap.realloc((void**)&s->u, c) == 0;
     }
     if (ok) { s->c = c; }
     return ok;
 }
 
 static bool ui_edit_str_expand(ui_edit_str_t* s, int32_t c) {
-    ut_swear(c > 0);
+    rt_swear(c > 0);
     bool ok = ui_edit_str_move_to_heap(s, c);
     if (ok && c > s->c) {
-        if (ut_heap.realloc((void**)&s->u, c) == 0) {
+        if (rt_heap.realloc((void**)&s->u, c) == 0) {
             s->c = c;
         } else {
             ok = false;
@@ -8165,11 +8171,11 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
     if (s->c > s->b) { // s->c == 0 for empty and single byte ASCII strings
         ut_assert(s->u != ui_edit_str_empty_utf8);
         if (s->b == 0) {
-            ut_heap.free(s->u);
+            rt_heap.free(s->u);
             s->u = ui_edit_str_empty_utf8;
         } else {
-            bool ok = ut_heap.realloc((void**)&s->u, s->b) == 0;
-            ut_swear(ok, "smaller size is always expected to be ok");
+            bool ok = rt_heap.realloc((void**)&s->u, s->b) == 0;
+            rt_swear(ok, "smaller size is always expected to be ok");
         }
         s->c = s->b;
     }
@@ -8179,11 +8185,11 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
             // If this is an ascii only utf8 string shorter than
             // ui_edit_str_g2b_ascii it does not need .g2b[] allocated:
             if (s->g2b != ui_edit_str_g2b_ascii) {
-                ut_heap.free(s->g2b);
+                rt_heap.free(s->g2b);
                 s->g2b = ui_edit_str_g2b_ascii;
             }
         } else {
-//          const int32_t b64 = ut_min(s->b, 64);
+//          const int32_t b64 = rt_min(s->b, 64);
 //          ut_println("none ASCII: .b:%d .g:%d %*.*s", s->b, s->g, b64, b64, s->u);
         }
     }
@@ -8241,7 +8247,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
             const int32_t bytes = s->b + bytes_to_insert - bytes_to_remove;
             ut_assert(ins.g2b != null); // pacify code analysis
             ut_assert(bytes > 0);
-            const int32_t c = ut_max(s->b, bytes);
+            const int32_t c = rt_max(s->b, bytes);
             // keep g2b == ui_edit_str_g2b_ascii as much as possible
             const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
                                    ins.g2b == ui_edit_str_g2b_ascii &&
@@ -8275,7 +8281,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                         const int32_t g = s->g + glyphs_to_insert -
                                                  glyphs_to_remove;
                         ut_assert(g > s->g);
-                        ok = ut_heap.realloc(&s->g2b,
+                        ok = rt_heap.realloc(&s->g2b,
                                              (size_t)(g + 1) * _4_bytes) == 0;
                     }
                     // need to shift bytes staring with s.g2b[t] toward the end
@@ -8572,7 +8578,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
         ui_edit_str_t s = {0};
         // reference constructor does not copy to heap:
         bool ok = ui_edit_str_init(&s, src, -1, false);
-        ut_swear(ok);
+        rt_swear(ok);
         for (int32_t f = 0; f <= s.g; f++) { // from
             for (int32_t t = f; t <= s.g; t++) { // to
                 int32_t gix_rep[n] = {0};
@@ -8597,16 +8603,16 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                         rep,
                         (int32_t)strlen(src) - g2p[t], src + g2p[t]
                     );
-                    ut_swear(strcmp(e1, e2) == 0,
+                    rt_swear(strcmp(e1, e2) == 0,
                         "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
                         "e1: \"%s\" e2: \"%s\"",
                         s.b, s.c, s.b, s.u, s.g, f, t, rep, e1, e2);
                     ui_edit_str_t c = {0}; // copy
                     ok = ui_edit_str_init(&c, src, -1, true);
-                    ut_swear(ok);
+                    rt_swear(ok);
                     ok = ui_edit_str_replace(&c, f, t, rep, -1);
-                    ut_swear(ok);
-                    ut_swear(memcmp(c.u, e1, c.b) == 0,
+                    rt_swear(ok);
+                    rt_swear(memcmp(c.u, e1, c.b) == 0,
                            "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
                            "expected: \"%s\"",
                            s.b, s.c, s.b, s.u, s.g,
@@ -8622,7 +8628,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
 static void ui_edit_str_test_glyph_bytes(void) {
     #pragma push_macro("glyph_bytes_test")
     #define glyph_bytes_test(s, b, expectancy) \
-        ut_swear(ut_str.utf8bytes(s, b) == expectancy)
+        rt_swear(ut_str.utf8bytes(s, b) == expectancy)
     // Valid Sequences
     glyph_bytes_test("a", 1, 1);
     glyph_bytes_test(ui_edit_gbp, 2, 2);
@@ -8656,11 +8662,11 @@ static void ui_edit_str_test(void) {
     {
         ui_edit_str_t s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
-        ut_swear(ok);
-        ut_swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
-        ut_swear(s.g == 5 && s.g2b != null);
+        rt_swear(ok);
+        rt_swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
+        rt_swear(s.g == 5 && s.g2b != null);
         for (int32_t i = 0; i <= s.g; i++) {
-            ut_swear(s.g2b[i] == i);
+            rt_swear(s.g2b[i] == i);
         }
         ui_edit_str_free(&s);
     }
@@ -8671,40 +8677,40 @@ static void ui_edit_str_test(void) {
         ui_edit_str_t s = {0};
         const int32_t n = (int32_t)strlen(currencies);
         bool ok = ui_edit_str_init(&s, money, n, true);
-        ut_swear(ok);
-        ut_swear(s.b == n && s.c == s.b && memcmp(s.u, money, s.b) == 0);
-        ut_swear(s.g == 4 && s.g2b != null);
+        rt_swear(ok);
+        rt_swear(s.b == n && s.c == s.b && memcmp(s.u, money, s.b) == 0);
+        rt_swear(s.g == 4 && s.g2b != null);
         const int32_t g2b[] = {0, 1, 3, 6, 10};
         for (int32_t i = 0; i <= s.g; i++) {
-            ut_swear(s.g2b[i] == g2b[i]);
+            rt_swear(s.g2b[i] == g2b[i]);
         }
         ui_edit_str_free(&s);
     }
     {
         ui_edit_str_t s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
-        ut_swear(ok);
+        rt_swear(ok);
         ok = ui_edit_str_replace(&s, 1, 4, null, 0);
-        ut_swear(ok);
-        ut_swear(s.b == 2 && memcmp(s.u, "ho", 2) == 0);
-        ut_swear(s.g == 2 && s.g2b[0] == 0 && s.g2b[1] == 1 && s.g2b[2] == 2);
+        rt_swear(ok);
+        rt_swear(s.b == 2 && memcmp(s.u, "ho", 2) == 0);
+        rt_swear(s.g == 2 && s.g2b[0] == 0 && s.g2b[1] == 1 && s.g2b[2] == 2);
         ui_edit_str_free(&s);
     }
     {
         ui_edit_str_t s = {0};
         bool ok = ui_edit_str_init(&s, "Hello world", -1, false);
-        ut_swear(ok);
+        rt_swear(ok);
         ok = ui_edit_str_replace(&s, 5, 6, " cruel ", -1);
-        ut_swear(ok);
+        rt_swear(ok);
         ok = ui_edit_str_replace(&s, 0, 5, "Goodbye", -1);
-        ut_swear(ok);
+        rt_swear(ok);
         ok = ui_edit_str_replace(&s, s.g - 5, s.g, "Universe", -1);
-        ut_swear(ok);
-        ut_swear(s.g == 22 && s.g2b[0] == 0 && s.g2b[s.g] == s.b);
+        rt_swear(ok);
+        rt_swear(s.g == 22 && s.g2b[0] == 0 && s.g2b[s.g] == s.b);
         for (int32_t i = 1; i < s.g; i++) {
-            ut_swear(s.g2b[i] == i); // because every glyph is ASCII
+            rt_swear(s.g2b[i] == i); // because every glyph is ASCII
         }
-        ut_swear(memcmp(s.u, "Goodbye cruel Universe", 22) == 0);
+        rt_swear(memcmp(s.u, "Goodbye cruel Universe", 22) == 0);
         ui_edit_str_free(&s);
     }
     #ifdef UI_STR_TEST_REPLACE_ALL_PERMUTATIONS
@@ -8736,7 +8742,7 @@ static void ui_edit_str_test(void) {
 static void ui_edit_doc_test_big_text(void) {
     enum { MB10 = 10 * 1000 * 1000 };
     char* text = null;
-    ut_heap.alloc(&text, MB10);
+    rt_heap.alloc(&text, MB10);
     memset(text, 'a', (size_t)MB10 - 1);
     char* p = text;
     uint32_t seed = 0x1;
@@ -8749,9 +8755,9 @@ static void ui_edit_doc_test_big_text(void) {
     text[MB10 - 1] = 0x00;
     ui_edit_text_t t = {0};
     bool ok = ui_edit_text.init(&t, text, MB10, false);
-    ut_swear(ok);
+    rt_swear(ok);
     ui_edit_text.dispose(&t);
-    ut_heap.free(text);
+    rt_heap.free(text);
 }
 
 static void ui_edit_doc_test_paragraphs(void) {
@@ -8761,11 +8767,11 @@ static void ui_edit_doc_test_paragraphs(void) {
         {   // empty string to paragraphs:
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, null, 0, false);
-            ut_swear(ok);
-            ut_swear(t.ps != null && t.np == 1);
-            ut_swear(t.ps[0].u[0] == 0 &&
+            rt_swear(ok);
+            rt_swear(t.ps != null && t.np == 1);
+            rt_swear(t.ps[0].u[0] == 0 &&
                   t.ps[0].c == 0);
-            ut_swear(t.ps[0].b == 0 &&
+            rt_swear(t.ps[0].b == 0 &&
                   t.ps[0].g == 0);
             ui_edit_text.dispose(&t);
         }
@@ -8774,28 +8780,28 @@ static void ui_edit_doc_test_paragraphs(void) {
             const int32_t n = (int32_t)strlen(hello);
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, hello, n, false);
-            ut_swear(ok);
-            ut_swear(t.ps != null && t.np == 1);
-            ut_swear(t.ps[0].u == hello);
-            ut_swear(t.ps[0].c == 0);
-            ut_swear(t.ps[0].b == n);
-            ut_swear(t.ps[0].g == n);
+            rt_swear(ok);
+            rt_swear(t.ps != null && t.np == 1);
+            rt_swear(t.ps[0].u == hello);
+            rt_swear(t.ps[0].c == 0);
+            rt_swear(t.ps[0].b == n);
+            rt_swear(t.ps[0].g == n);
             ui_edit_text.dispose(&t);
         }
         {   // string with "\n" at the end
             const char* hello = "hello\n";
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
-            ut_swear(ok);
-            ut_swear(t.ps != null && t.np == 2);
-            ut_swear(t.ps[0].u == hello);
-            ut_swear(t.ps[0].c == 0);
-            ut_swear(t.ps[0].b == 5);
-            ut_swear(t.ps[0].g == 5);
-            ut_swear(t.ps[1].u[0] == 0x00);
-            ut_swear(t.ps[0].c == 0);
-            ut_swear(t.ps[1].b == 0);
-            ut_swear(t.ps[1].g == 0);
+            rt_swear(ok);
+            rt_swear(t.ps != null && t.np == 2);
+            rt_swear(t.ps[0].u == hello);
+            rt_swear(t.ps[0].c == 0);
+            rt_swear(t.ps[0].b == 5);
+            rt_swear(t.ps[0].g == 5);
+            rt_swear(t.ps[1].u[0] == 0x00);
+            rt_swear(t.ps[0].c == 0);
+            rt_swear(t.ps[1].b == 0);
+            rt_swear(t.ps[1].g == 0);
             ui_edit_text.dispose(&t);
         }
         {   // two string separated by "\n"
@@ -8803,16 +8809,16 @@ static void ui_edit_doc_test_paragraphs(void) {
             const char* world = hello + 6;
             ui_edit_text_t t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
-            ut_swear(ok);
-            ut_swear(t.ps != null && t.np == 2);
-            ut_swear(t.ps[0].u == hello);
-            ut_swear(t.ps[0].c == 0);
-            ut_swear(t.ps[0].b == 5);
-            ut_swear(t.ps[0].g == 5);
-            ut_swear(t.ps[1].u == world);
-            ut_swear(t.ps[0].c == 0);
-            ut_swear(t.ps[1].b == 5);
-            ut_swear(t.ps[1].g == 5);
+            rt_swear(ok);
+            rt_swear(t.ps != null && t.np == 2);
+            rt_swear(t.ps[0].u == hello);
+            rt_swear(t.ps[0].c == 0);
+            rt_swear(t.ps[0].b == 5);
+            rt_swear(t.ps[0].g == 5);
+            rt_swear(t.ps[1].u == world);
+            rt_swear(t.ps[0].c == 0);
+            rt_swear(t.ps[1].b == 5);
+            rt_swear(t.ps[1].g == 5);
             ui_edit_text.dispose(&t);
         }
     }
@@ -8847,11 +8853,11 @@ static struct {
 static void ui_edit_doc_test_0(void) {
     ui_edit_doc_t edit_doc = {0};
     ui_edit_doc_t* d = &edit_doc;
-    ut_swear(ui_edit_doc.init(d, null, 0, false));
+    rt_swear(ui_edit_doc.init(d, null, 0, false));
     ui_edit_text_t ins_text = {0};
-    ut_swear(ui_edit_text.init(&ins_text, "a", 1, false));
+    rt_swear(ui_edit_text.init(&ins_text, "a", 1, false));
     ui_edit_to_do_t undo = {0};
-    ut_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
+    rt_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
     ui_edit_doc.dispose(d);
@@ -8860,11 +8866,11 @@ static void ui_edit_doc_test_0(void) {
 static void ui_edit_doc_test_1(void) {
     ui_edit_doc_t edit_doc = {0};
     ui_edit_doc_t* d = &edit_doc;
-    ut_swear(ui_edit_doc.init(d, null, 0, false));
+    rt_swear(ui_edit_doc.init(d, null, 0, false));
     ui_edit_text_t ins_text = {0};
-    ut_swear(ui_edit_text.init(&ins_text, "a", 1, false));
+    rt_swear(ui_edit_text.init(&ins_text, "a", 1, false));
     ui_edit_to_do_t undo = {0};
-    ut_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
+    rt_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
     ui_edit_doc.dispose(d);
@@ -8874,7 +8880,7 @@ static void ui_edit_doc_test_2(void) {
     {   // two string separated by "\n"
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        ut_swear(ui_edit_doc.init(d, null, 0, false));
+        rt_swear(ui_edit_doc.init(d, null, 0, false));
         ui_edit_notify_t notify1 = {0};
         ui_edit_notify_t notify2 = {0};
         ui_edit_doc_test_notify_t before_and_after = {0};
@@ -8883,18 +8889,18 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_doc.subscribe(d, &notify1);
         ui_edit_doc.subscribe(d, &before_and_after.notify);
         ui_edit_doc.subscribe(d, &notify2);
-        ut_swear(ui_edit_doc.bytes(d, null) == 0, "expected empty");
+        rt_swear(ui_edit_doc.bytes(d, null) == 0, "expected empty");
         const char* hello = "hello\nworld";
-        ut_swear(ui_edit_doc.replace(d, null, hello, -1));
+        rt_swear(ui_edit_doc.replace(d, null, hello, -1));
         ui_edit_text_t t = {0};
-        ut_swear(ui_edit_doc.copy_text(d, null, &t));
-        ut_swear(t.np == 2);
-        ut_swear(t.ps[0].b == 5);
-        ut_swear(t.ps[0].g == 5);
-        ut_swear(memcmp(t.ps[0].u, "hello", 5) == 0);
-        ut_swear(t.ps[1].b == 5);
-        ut_swear(t.ps[1].g == 5);
-        ut_swear(memcmp(t.ps[1].u, "world", 5) == 0);
+        rt_swear(ui_edit_doc.copy_text(d, null, &t));
+        rt_swear(t.np == 2);
+        rt_swear(t.ps[0].b == 5);
+        rt_swear(t.ps[0].g == 5);
+        rt_swear(memcmp(t.ps[0].u, "hello", 5) == 0);
+        rt_swear(t.ps[1].b == 5);
+        rt_swear(t.ps[1].g == 5);
+        rt_swear(memcmp(t.ps[1].u, "world", 5) == 0);
         ui_edit_text.dispose(&t);
         ui_edit_doc.unsubscribe(d, &notify1);
         ui_edit_doc.unsubscribe(d, &before_and_after.notify);
@@ -8905,23 +8911,23 @@ static void ui_edit_doc_test_2(void) {
     {   // three string separated by "\n"
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        ut_swear(ui_edit_doc.init(d, null, 0, false));
+        rt_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s = "Goodbye" "\n" "Cruel" "\n" "Universe";
-        ut_swear(ui_edit_doc.replace(d, null, s, -1));
+        rt_swear(ui_edit_doc.replace(d, null, s, -1));
         ui_edit_text_t t = {0};
-        ut_swear(ui_edit_doc.copy_text(d, null, &t));
+        rt_swear(ui_edit_doc.copy_text(d, null, &t));
         ui_edit_text.dispose(&t);
         ui_edit_range_t r = { .from = {.pn = 0, .gp = 4},
                               .to   = {.pn = 2, .gp = 3} };
-        ut_swear(ui_edit_doc.replace(d, &r, null, 0));
-        ut_swear(d->text.np == 1);
-        ut_swear(d->text.ps[0].b == 9);
-        ut_swear(d->text.ps[0].g == 9);
-        ut_swear(memcmp(d->text.ps[0].u, "Goodverse", 9) == 0);
-        ut_swear(ui_edit_doc.replace(d, null, null, 0)); // remove all
-        ut_swear(d->text.np == 1);
-        ut_swear(d->text.ps[0].b == 0);
-        ut_swear(d->text.ps[0].g == 0);
+        rt_swear(ui_edit_doc.replace(d, &r, null, 0));
+        rt_swear(d->text.np == 1);
+        rt_swear(d->text.ps[0].b == 9);
+        rt_swear(d->text.ps[0].g == 9);
+        rt_swear(memcmp(d->text.ps[0].u, "Goodverse", 9) == 0);
+        rt_swear(ui_edit_doc.replace(d, null, null, 0)); // remove all
+        rt_swear(d->text.np == 1);
+        rt_swear(d->text.ps[0].b == 0);
+        rt_swear(d->text.ps[0].g == 0);
         ui_edit_doc.dispose(d);
     }
     // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
@@ -8930,20 +8936,20 @@ static void ui_edit_doc_test_2(void) {
         ui_edit_doc_t* d = &edit_doc;
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
         for (int32_t i = 0; i < ut_countof(ins); i++) {
-            ut_swear(ui_edit_doc.init(d, null, 0, false));
+            rt_swear(ui_edit_doc.init(d, null, 0, false));
             const char* s = "GoodbyeCruelUniverse";
-            ut_swear(ui_edit_doc.replace(d, null, s, -1));
+            rt_swear(ui_edit_doc.replace(d, null, s, -1));
             ui_edit_range_t r = { .from = {.pn = 0, .gp =  7},
                                   .to   = {.pn = 0, .gp = 12} };
             ui_edit_text_t ins_text = {0};
             ui_edit_text.init(&ins_text, ins[i], -1, false);
             ui_edit_to_do_t undo = {0};
-            ut_swear(ui_edit_text.replace(&d->text, &r, &ins_text, &undo));
+            rt_swear(ui_edit_text.replace(&d->text, &r, &ins_text, &undo));
             ui_edit_to_do_t redo = {0};
-            ut_swear(ui_edit_text.replace(&d->text, &undo.range, &undo.text, &redo));
+            rt_swear(ui_edit_text.replace(&d->text, &undo.range, &undo.text, &redo));
             ui_edit_doc.dispose_to_do(&undo);
             undo.range = (ui_edit_range_t){0};
-            ut_swear(ui_edit_text.replace(&d->text, &redo.range, &redo.text, &undo));
+            rt_swear(ui_edit_text.replace(&d->text, &redo.range, &redo.text, &undo));
             ui_edit_doc.dispose_to_do(&redo);
             ui_edit_doc.dispose_to_do(&undo);
             ui_edit_text.dispose(&ins_text);
@@ -8959,32 +8965,32 @@ static void ui_edit_doc_test_3(void) {
         ui_edit_doc_test_notify_t before_and_after = {0};
         before_and_after.notify.before = ui_edit_doc_test_before;
         before_and_after.notify.after  = ui_edit_doc_test_after;
-        ut_swear(ui_edit_doc.init(d, null, 0, false));
-        ut_swear(ui_edit_doc.subscribe(d, &before_and_after.notify));
+        rt_swear(ui_edit_doc.init(d, null, 0, false));
+        rt_swear(ui_edit_doc.subscribe(d, &before_and_after.notify));
         const char* s = "Goodbye Cruel Universe";
         const int32_t before = before_and_after.count_before;
         const int32_t after  = before_and_after.count_after;
-        ut_swear(ui_edit_doc.replace(d, null, s, -1));
+        rt_swear(ui_edit_doc.replace(d, null, s, -1));
         const int32_t bytes = (int32_t)strlen(s);
-        ut_swear(before + 1 == before_and_after.count_before);
-        ut_swear(after  + 1 == before_and_after.count_after);
-        ut_swear(d->text.np == 1);
-        ut_swear(ui_edit_doc.bytes(d, null) == bytes);
+        rt_swear(before + 1 == before_and_after.count_before);
+        rt_swear(after  + 1 == before_and_after.count_after);
+        rt_swear(d->text.np == 1);
+        rt_swear(ui_edit_doc.bytes(d, null) == bytes);
         ui_edit_text_t t = {0};
-        ut_swear(ui_edit_doc.copy_text(d, null, &t));
-        ut_swear(t.np == 1);
-        ut_swear(t.ps[0].b == bytes);
-        ut_swear(t.ps[0].g == bytes);
-        ut_swear(memcmp(t.ps[0].u, s, t.ps[0].b) == 0);
+        rt_swear(ui_edit_doc.copy_text(d, null, &t));
+        rt_swear(t.np == 1);
+        rt_swear(t.ps[0].b == bytes);
+        rt_swear(t.ps[0].g == bytes);
+        rt_swear(memcmp(t.ps[0].u, s, t.ps[0].b) == 0);
         // with "\n" and 0x00 at the end:
         int32_t utf8bytes = ui_edit_doc.utf8bytes(d, null);
         char* p = null;
-        ut_swear(ut_heap.alloc((void**)&p, utf8bytes) == 0);
+        rt_swear(rt_heap.alloc((void**)&p, utf8bytes) == 0);
         p[utf8bytes - 1] = 0xFF;
         ui_edit_doc.copy(d, null, p, utf8bytes);
-        ut_swear(p[utf8bytes - 1] == 0x00);
-        ut_swear(memcmp(p, s, bytes) == 0);
-        ut_heap.free(p);
+        rt_swear(p[utf8bytes - 1] == 0x00);
+        rt_swear(memcmp(p, s, bytes) == 0);
+        rt_heap.free(p);
         ui_edit_text.dispose(&t);
         ui_edit_doc.unsubscribe(d, &before_and_after.notify);
         ui_edit_doc.dispose(d);
@@ -8992,25 +8998,25 @@ static void ui_edit_doc_test_3(void) {
     {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        ut_swear(ui_edit_doc.init(d, null, 0, false));
+        rt_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s =
             "Hello World"
             "\n"
             "Goodbye Cruel Universe";
-        ut_swear(ui_edit_doc.replace(d, null, s, -1));
-        ut_swear(ui_edit_doc.undo(d));
-        ut_swear(ui_edit_doc.bytes(d, null) == 0);
-        ut_swear(ui_edit_doc.utf8bytes(d, null) == 1);
-        ut_swear(ui_edit_doc.redo(d));
+        rt_swear(ui_edit_doc.replace(d, null, s, -1));
+        rt_swear(ui_edit_doc.undo(d));
+        rt_swear(ui_edit_doc.bytes(d, null) == 0);
+        rt_swear(ui_edit_doc.utf8bytes(d, null) == 1);
+        rt_swear(ui_edit_doc.redo(d));
         {
             int32_t utf8bytes = ui_edit_doc.utf8bytes(d, null);
             char* p = null;
-            ut_swear(ut_heap.alloc((void**)&p, utf8bytes) == 0);
+            rt_swear(rt_heap.alloc((void**)&p, utf8bytes) == 0);
             p[utf8bytes - 1] = 0xFF;
             ui_edit_doc.copy(d, null, p, utf8bytes);
-            ut_swear(p[utf8bytes - 1] == 0x00);
-            ut_swear(memcmp(p, s, utf8bytes) == 0);
-            ut_heap.free(p);
+            rt_swear(p[utf8bytes - 1] == 0x00);
+            rt_swear(memcmp(p, s, utf8bytes) == 0);
+            rt_heap.free(p);
         }
         ui_edit_doc.dispose(d);
     }
@@ -9020,20 +9026,20 @@ static void ui_edit_doc_test_4(void) {
     {
         ui_edit_doc_t edit_doc = {0};
         ui_edit_doc_t* d = &edit_doc;
-        ut_swear(ui_edit_doc.init(d, null, 0, false));
+        rt_swear(ui_edit_doc.init(d, null, 0, false));
         ui_edit_range_t r = {0};
         r = ui_edit_text.end_range(&d->text);
-        ut_swear(ui_edit_doc.replace(d, &r, "a", -1));
+        rt_swear(ui_edit_doc.replace(d, &r, "a", -1));
         r = ui_edit_text.end_range(&d->text);
-        ut_swear(ui_edit_doc.replace(d, &r, "\n", -1));
+        rt_swear(ui_edit_doc.replace(d, &r, "\n", -1));
         r = ui_edit_text.end_range(&d->text);
-        ut_swear(ui_edit_doc.replace(d, &r, "b", -1));
+        rt_swear(ui_edit_doc.replace(d, &r, "b", -1));
         r = ui_edit_text.end_range(&d->text);
-        ut_swear(ui_edit_doc.replace(d, &r, "\n", -1));
+        rt_swear(ui_edit_doc.replace(d, &r, "\n", -1));
         r = ui_edit_text.end_range(&d->text);
-        ut_swear(ui_edit_doc.replace(d, &r, "c", -1));
+        rt_swear(ui_edit_doc.replace(d, &r, "c", -1));
         r = ui_edit_text.end_range(&d->text);
-        ut_swear(ui_edit_doc.replace(d, &r, "\n", -1));
+        rt_swear(ui_edit_doc.replace(d, &r, "\n", -1));
         ui_edit_doc.dispose(d);
     }
 }
@@ -9042,7 +9048,7 @@ static void ui_edit_doc_test(void) {
     {
         ui_edit_range_t r = { .from = {0,0}, .to = {0,0} };
         ut_static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
-        ut_swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
+        rt_swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
     }
     #ifdef UI_EDIT_DOC_TEST_PARAGRAPHS
         ui_edit_doc_test_paragraphs();
@@ -9164,13 +9170,28 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg);
 // characters. Thus even if edit is monospaced glyph measurements are used
 // in text layout.
 
-static void ui_edit_invalidate_view(const ui_edit_t* e) {
-    ui_view.invalidate(&e->view, null);
+static void ui_edit_invalidate_parent(const ui_edit_t* e, const ui_rect_t* rc) {
+    // For transparent background of edit_view parent must draw background.
+    // In the current implementation invalidate() causes whole stack redraw
+    // in rectangle thus it does not matter much. But if it is ever optimized
+    // it will matter.
+    ui_color_t b = e->background;
+    if (ui_color_is_undefined(b) || ui_color_is_transparent(b)) {
+        ui_view.invalidate(e->parent, rc);
+    }
 }
 
 static void ui_edit_invalidate_rect(const ui_edit_t* e, const ui_rect_t rc) {
-    ut_assert(rc.w > 0 && rc.h > 0);
-    ui_view.invalidate(&e->view, &rc);
+    ut_assert(rc.w >= 0 && rc.h > 0); // w may be zero for empty selection
+    if (rc.w > 0 && rc.h > 0) {
+        ui_view.invalidate(&e->view, &rc);
+        ui_edit_invalidate_parent(e, &rc);
+    }
+}
+
+static void ui_edit_invalidate_view(const ui_edit_t* e) {
+    ui_view.invalidate(&e->view, null);
+    ui_edit_invalidate_parent(e, null);
 }
 
 static int32_t ui_edit_line_height(ui_edit_t* e) {
@@ -9190,7 +9211,7 @@ static ui_rect_t ui_edit_selection_rect(ui_edit_t* e) {
     if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
         return (ui_rect_t) { .x = 0, .y = 0, .w = e->w, .h = e->h };
     } else if (p0.y == p1.y) {
-        const int32_t max_w = ut_max(e->fm->max_char_width, e->fm->em.w);
+        const int32_t max_w = rt_max(e->fm->max_char_width, e->fm->em.w);
         int32_t w = p1.x - p0.x != 0 ?
                 p1.x - p0.x + max_w : e->caret_width;
         return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
@@ -9217,7 +9238,7 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
 //  if (n > 0) {
 //      ui_edit_text_width_gp(e, s, n);
 //  }
-//  fp64_t time = ut_clock.seconds();
+//  fp64_t time = rt_clock.seconds();
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
     // "ui_app.fm.prop.normal" ~250us (microseconds) DirectWrite ~100us
@@ -9227,7 +9248,7 @@ static int32_t ui_edit_text_width(ui_edit_t* e, const char* s, int32_t n) {
 //  TODO: remove
 //  int32_t x = n == 0 ? 0 : ui_gdi.measure_text(e->fm, "%.*s", n, s).w;
 
-//  time = (ut_clock.seconds() - time) * 1000.0;
+//  time = (rt_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
 //  static fp64_t length_sum;
 //  time_sum += time;
@@ -9260,12 +9281,12 @@ static int32_t ui_edit_word_break_at(ui_edit_t* e, int32_t pn, int32_t rn,
         const int32_t glyphs_in_this_run = str->g - gp;
         int32_t* g2b = &str->g2b[gp];
         // 4 is maximum number of bytes in a UTF-8 sequence
-        int32_t gc = ut_min(4, glyphs_in_this_run);
+        int32_t gc = rt_min(4, glyphs_in_this_run);
         int32_t w = ui_edit_text_width(e, text, g2b[gc] - bp);
         count++;
         chars += g2b[gc] - bp;
         while (gc < glyphs_in_this_run && w < width) {
-            gc = ut_min(gc * 4, glyphs_in_this_run);
+            gc = rt_min(gc * 4, glyphs_in_this_run);
             w = ui_edit_text_width(e, text, g2b[gc] - bp);
             count++;
             chars += g2b[gc] - bp;
@@ -9321,7 +9342,7 @@ static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_t* e, ui_edit_pg_t p) {
     if (bp < bytes) {
         g.s = s + bp;
         g.bytes = ut_str.utf8bytes(g.s, bytes - bp);
-        ut_swear(g.bytes > 0);
+        rt_swear(g.bytes > 0);
     }
     return g;
 }
@@ -9330,7 +9351,7 @@ static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_t* e, ui_edit_pg_t p) {
 
 static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
         int32_t* runs) {
-//  fp64_t time = ut_clock.seconds();
+//  fp64_t time = rt_clock.seconds();
     ut_assert(e->w > 0);
     ui_edit_text_t* dt = &e->doc->text; // document text
     ut_assert(0 <= pn && pn < dt->np);
@@ -9345,9 +9366,9 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
         if (p->run == null) {
             ut_assert(p->runs == 0 && p->run == null);
             const int32_t max_runs = str->b + 1;
-            bool ok = ut_heap.alloc((void**)&p->run, max_runs *
+            bool ok = rt_heap.alloc((void**)&p->run, max_runs *
                                     sizeof(ui_edit_run_t)) == 0;
-            ut_swear(ok);
+            rt_swear(ok);
             ui_edit_run_t* run = p->run;
             run[0].bp = 0;
             run[0].gp = 0;
@@ -9393,8 +9414,8 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
                 }
                 ut_assert(rc > 0);
                 p->runs = rc; // truncate heap capacity array:
-                ok = ut_heap.realloc((void**)&p->run, rc * sizeof(ui_edit_run_t)) == 0;
-                ut_swear(ok);
+                ok = rt_heap.realloc((void**)&p->run, rc * sizeof(ui_edit_run_t)) == 0;
+                rt_swear(ok);
             }
         }
         *runs = p->runs;
@@ -9405,7 +9426,7 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_t* e, int32_t pn,
 }
 
 static int32_t ui_edit_paragraph_run_count(ui_edit_t* e, int32_t pn) {
-    ut_swear(e->w > 0);
+    rt_swear(e->w > 0);
     ui_edit_text_t* dt = &e->doc->text; // document text
     int32_t runs = 0;
     if (e->w > 0 && 0 <= pn && pn < dt->np) {
@@ -9422,18 +9443,18 @@ static int32_t ui_edit_glyphs_in_paragraph(ui_edit_t* e, int32_t pn) {
 }
 
 static void ui_edit_create_caret(ui_edit_t* e) {
-    ut_fatal_if(e->focused);
+    rt_fatal_if(e->focused);
     ut_assert(ui_app.is_active());
     ut_assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
-    e->caret_width = ut_min(3, ut_max(1, (int32_t)px));
+    e->caret_width = rt_min(3, rt_max(1, (int32_t)px));
     ui_app.create_caret(e->caret_width, e->fm->height); // w/o line_gap
     e->focused = true; // means caret was created
 //  ut_println("e->focused := true %s", ui_view_debug_id(&e->view));
 }
 
 static void ui_edit_destroy_caret(ui_edit_t* e) {
-    ut_fatal_if(!e->focused);
+    rt_fatal_if(!e->focused);
     ui_app.destroy_caret();
     e->focused = false; // means caret was destroyed
 //  ut_println("e->focused := false %s", ui_view_debug_id(&e->view));
@@ -9470,15 +9491,15 @@ static void ui_edit_allocate_runs(ui_edit_t* e) {
     ut_assert(e->para == null);
     ut_assert(dt->np > 0);
     ut_assert(e->para == null);
-    bool done = ut_heap.alloc_zero((void**)&e->para,
+    bool done = rt_heap.alloc_zero((void**)&e->para,
                 dt->np * sizeof(e->para[0])) == 0;
-    ut_swear(done, "out of memory - cannot continue");
+    rt_swear(done, "out of memory - cannot continue");
 }
 
 static void ui_edit_invalidate_run(ui_edit_t* e, int32_t i) {
     if (e->para[i].run != null) {
         ut_assert(e->para[i].runs > 0);
-        ut_heap.free(e->para[i].run);
+        rt_heap.free(e->para[i].run);
         e->para[i].run = null;
         e->para[i].runs = 0;
     } else {
@@ -9488,7 +9509,7 @@ static void ui_edit_invalidate_run(ui_edit_t* e, int32_t i) {
 
 static void ui_edit_invalidate_runs(ui_edit_t* e, int32_t f, int32_t t,
         int32_t np) { // [from..to] inclusive inside [0..np - 1]
-    ut_swear(e->para != null && f <= t && 0 <= f && t < np);
+    rt_swear(e->para != null && f <= t && 0 <= f && t < np);
     for (int32_t i = f; i <= t; i++) { ui_edit_invalidate_run(e, i); }
 }
 
@@ -9500,7 +9521,7 @@ static void ui_edit_invalidate_all_runs(ui_edit_t* e) {
 static void ui_edit_dispose_runs(ui_edit_t* e, int32_t np) {
     ut_assert(e->para != null);
     ui_edit_invalidate_runs(e, 0, np - 1, np);
-    ut_heap.free(e->para);
+    rt_heap.free(e->para);
     e->para = null;
 }
 
@@ -9608,7 +9629,7 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
     ut_assert(0 <= pg.pn && pg.pn < dt->np);
     ui_point_t pt = { .x = -1, .y = 0 };
     const int32_t spn = e->scroll.pn + e->visible_runs + 1;
-    const int32_t pn = ut_min(ut_min(spn, pg.pn + 1), dt->np - 1);
+    const int32_t pn = rt_min(rt_min(spn, pg.pn + 1), dt->np - 1);
     for (int32_t i = e->scroll.pn; i <= pn && pt.x < 0; i++) {
         ut_assert(0 <= i && i < dt->np);
         const ui_edit_str_t* str = &dt->ps[i];
@@ -9623,7 +9644,7 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_t* e, const ui_edit_pg_t pg) {
                     const char* s = str->u + run[j].bp;
                     const uint32_t bp2e = str->b - run[j].bp; // to end of str
                     int32_t ofs = ui_edit_str.gp_to_bp(s, bp2e, pg.gp - run[j].gp);
-                    ut_swear(ofs >= 0);
+                    rt_swear(ofs >= 0);
                     pt.x = ui_edit_text_width(e, s, ofs);
                     break;
                 }
@@ -9651,10 +9672,10 @@ static int32_t ui_edit_glyph_width_px(ui_edit_t* e, const ui_edit_pg_t pg) {
         return 0; // empty paragraph
     } else if (pg.gp < gc) {
         const int32_t bp = ui_edit_str.gp_to_bp(text, str->b, pg.gp);
-        ut_swear(bp >= 0);
+        rt_swear(bp >= 0);
         const char* s = text + bp;
         int32_t bytes_in_glyph = ut_str.utf8bytes(s, str->b - bp);
-        ut_swear(bytes_in_glyph > 0);
+        rt_swear(bytes_in_glyph > 0);
         int32_t x = ui_edit_text_width(e, s, bytes_in_glyph);
         return x;
     } else {
@@ -9721,7 +9742,7 @@ static void ui_edit_set_caret(ui_edit_t* e, int32_t x, int32_t y) {
         // caret in i.left .. e->view.w - i.right
         //          i.top  .. e->view.h - i.bottom
         // coordinate space
-        ut_swear(i.left <= x && x < e->w && i.top <= y && y < e->h);
+        rt_swear(i.left <= x && x < e->w && i.top <= y && y < e->h);
         e->caret.x = x;
         e->caret.y = y;
 // TODO: remove
@@ -9738,7 +9759,7 @@ static void ui_edit_scroll_up(ui_edit_t* e, int32_t run_count) {
     while (run_count > 0 && e->scroll.pn < dt->np - 1) {
         const ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
         const ui_edit_pg_t next = (ui_edit_pg_t){
-            .pn = ut_min(scroll.pn + e->visible_runs + 1, dt->np - 1),
+            .pn = rt_min(scroll.pn + e->visible_runs + 1, dt->np - 1),
             .gp = 0
         };
         const int32_t between = ui_edit_runs_between(e, scroll, next);
@@ -9767,7 +9788,7 @@ static void ui_edit_scroll_down(ui_edit_t* e, int32_t run_count) {
     ut_assert(0 < run_count, "does it make sense to have 0 scroll?");
     while (run_count > 0 && (e->scroll.pn > 0 || e->scroll.rn > 0)) {
         int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
-        e->scroll.rn = ut_min(e->scroll.rn, runs - 1);
+        e->scroll.rn = rt_min(e->scroll.rn, runs - 1);
         if (e->scroll.rn == 0 && e->scroll.pn > 0) {
             e->scroll.pn--;
             e->scroll.rn = ui_edit_paragraph_run_count(e, e->scroll.pn) - 1;
@@ -9944,7 +9965,7 @@ static ui_edit_glyph_t ui_edit_right_of(ui_edit_t* e, ui_edit_pg_t pg) {
 static ui_edit_pg_t ui_edit_skip_left_blanks(ui_edit_t* e,
     ui_edit_pg_t pg) {
     ui_edit_text_t* dt = &e->doc->text; // document text
-    ut_swear(pg.pn <= dt->np - 1);
+    rt_swear(pg.pn <= dt->np - 1);
     while (pg.gp > 0) {
         pg.gp--;
         ui_edit_glyph_t glyph = ui_edit_glyph_at(e, pg);
@@ -9959,7 +9980,7 @@ static ui_edit_pg_t ui_edit_skip_left_blanks(ui_edit_t* e,
 static ui_edit_pg_t ui_edit_skip_right_blanks(ui_edit_t* e,
     ui_edit_pg_t pg) {
     ui_edit_text_t* dt = &e->doc->text; // document text
-    ut_swear(pg.pn <= dt->np - 1);
+    rt_swear(pg.pn <= dt->np - 1);
     int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
     ui_edit_glyph_t glyph = ui_edit_glyph_at(e, pg);
     while (pg.gp < glyphs && glyph.bytes > 0 && ui_edit_is_blank(glyph)) {
@@ -9973,10 +9994,10 @@ static ui_edit_range_t ui_edit_word_range(ui_edit_t* e, ui_edit_pg_t pg) {
     ui_edit_range_t r = { .from = pg, .to = pg };
     ui_edit_text_t* dt = &e->doc->text; // document text
     if (0 <= pg.pn && 0 <= pg.gp) {
-        ut_swear(pg.pn <= dt->np - 1);
+        rt_swear(pg.pn <= dt->np - 1);
         // number of glyphs in paragraph:
         int32_t ng = ui_edit_glyphs_in_paragraph(e, pg.pn);
-        if (pg.gp > ng) { pg.gp = ut_max(0, ng); }
+        if (pg.gp > ng) { pg.gp = rt_max(0, ng); }
         ui_edit_glyph_t g = ui_edit_glyph_at(e, pg);
         if (ng <= 1) {
             r.to.gp = ng;
@@ -10054,6 +10075,7 @@ static void ui_edit_ctrl_left(ui_edit_t* e) {
     } else {
         e->selection.from = w.from;
     }
+    ui_edit_move_caret(e, e->selection.to);
     ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
 }
 
@@ -10100,6 +10122,7 @@ static void ui_edit_ctrl_right(ui_edit_t* e) {
         } else {
             e->selection.from = w.to;
         }
+        ui_edit_move_caret(e, e->selection.to);
         ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
     }
 }
@@ -10274,10 +10297,10 @@ static void ui_edit_key_end(ui_edit_t* e) {
 }
 
 static void ui_edit_key_page_up(ui_edit_t* e) {
-    int32_t n = ut_max(1, e->visible_runs - 1);
+    int32_t n = rt_max(1, e->visible_runs - 1);
     ui_edit_pg_t scr = ui_edit_scroll_pg(e);
     const ui_edit_pg_t prev = (ui_edit_pg_t){
-        .pn = ut_max(scr.pn - e->visible_runs - 1, 0),
+        .pn = rt_max(scr.pn - e->visible_runs - 1, 0),
         .gp = 0
     };
     const int32_t m = ui_edit_runs_between(e, prev, scr);
@@ -10297,10 +10320,10 @@ static void ui_edit_key_page_up(ui_edit_t* e) {
 
 static void ui_edit_key_page_down(ui_edit_t* e) {
     const ui_edit_text_t* dt = &e->doc->text; // document text
-    const int32_t n = ut_max(1, e->visible_runs - 1);
+    const int32_t n = rt_max(1, e->visible_runs - 1);
     const ui_edit_pg_t scr = ui_edit_scroll_pg(e);
     const ui_edit_pg_t next = (ui_edit_pg_t){
-        .pn = ut_min(scr.pn + e->visible_runs + 1, dt->np - 1),
+        .pn = rt_min(scr.pn + e->visible_runs + 1, dt->np - 1),
         .gp = 0
     };
     const int32_t m = ui_edit_runs_between(e, scr, next);
@@ -10474,7 +10497,7 @@ static void ui_edit_select_paragraph(ui_edit_t* e, int32_t x, int32_t y) {
     if (0 <= p.pn && 0 <= p.gp) {
         ui_edit_range_t r = ui_edit_text.ordered(dt, &e->selection);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
-        if (p.gp > glyphs) { p.gp = ut_max(0, glyphs); }
+        if (p.gp > glyphs) { p.gp = rt_max(0, glyphs); }
         if (p.pn == r.a[0].pn && r.a[0].pn == r.a[1].pn &&
             r.a[0].gp <= p.gp && p.gp <= r.a[1].gp) {
             r.a[0].gp = 0;
@@ -10500,9 +10523,9 @@ static void ui_edit_click(ui_edit_t* e, int32_t x, int32_t y) {
 //  TODO: remove
 //  ut_println("x,y: %d,%d p:d %d:%d", e->caret.x, e->caret.y, pg.pn, pg.gp);
     if (0 <= pg.pn && 0 <= pg.gp && ui_view.has_focus(&e->view)) {
-        ut_swear(dt->np > 0 && pg.pn < dt->np);
+        rt_swear(dt->np > 0 && pg.pn < dt->np);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
-        if (pg.gp > glyphs) { pg.gp = ut_max(0, glyphs); }
+        if (pg.gp > glyphs) { pg.gp = rt_max(0, glyphs); }
 //      ut_println("move_caret: %d.%d", p.pn, p.gp);
         ui_edit_move_caret(e, pg);
     }
@@ -10648,9 +10671,9 @@ static int32_t ui_edit_save(ui_edit_t* e, char* text, int32_t* bytes) {
     const int32_t utf8bytes = ui_edit_doc.utf8bytes(e->doc, null);
     if (text == null) {
         *bytes = utf8bytes;
-        r = ut_runtime.error.more_data;
+        r = rt_core.error.more_data;
     } else if (*bytes < utf8bytes) {
-        r = ut_runtime.error.insufficient_buffer;
+        r = rt_core.error.insufficient_buffer;
     } else {
         ui_edit_doc.copy(e->doc, null, text, utf8bytes);
         ut_assert(text[utf8bytes - 1] == 0x00);
@@ -10662,12 +10685,12 @@ static void ui_edit_clipboard_copy(ui_edit_t* e) {
     int32_t utf8bytes = ui_edit_doc.utf8bytes(e->doc, &e->selection);
     if (utf8bytes > 0) {
         char* text = null;
-        bool ok = ut_heap.alloc((void**)&text, utf8bytes) == 0;
-        ut_swear(ok);
+        bool ok = rt_heap.alloc((void**)&text, utf8bytes) == 0;
+        rt_swear(ok);
         ui_edit_doc.copy(e->doc, &e->selection, text, utf8bytes);
         ut_assert(text[utf8bytes - 1] == 0x00); // verify zero termination
-        ut_clipboard.put_text(text);
-        ut_heap.free(text);
+        rt_clipboard.put_text(text);
+        rt_heap.free(text);
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
         int32_t x = e->x + e->caret.x;
         int32_t y = e->y + e->caret.y - ui_edit_line_height(e);
@@ -10719,13 +10742,13 @@ static void ui_edit_clipboard_paste(ui_edit_t* e) {
     if (!e->ro) {
         ui_edit_pg_t pg = e->selection.a[1];
         int32_t bytes = 0;
-        ut_clipboard.get_text(null, &bytes);
+        rt_clipboard.get_text(null, &bytes);
         if (bytes > 0) {
             char* text = null;
-            bool ok = ut_heap.alloc((void**)&text, bytes) == 0;
-            ut_swear(ok);
-            int32_t r = ut_clipboard.get_text(text, &bytes);
-            ut_fatal_if_error(r);
+            bool ok = rt_heap.alloc((void**)&text, bytes) == 0;
+            rt_swear(ok);
+            int32_t r = rt_clipboard.get_text(text, &bytes);
+            rt_fatal_if_error(r);
             if (bytes > 0 && text[bytes - 1] == 0) {
                 bytes--; // clipboard includes zero terminator
             }
@@ -10734,17 +10757,17 @@ static void ui_edit_clipboard_paste(ui_edit_t* e) {
                 pg = ui_edit_paste_text(e, text, bytes);
                 ui_edit_move_caret(e, pg);
             }
-            ut_heap.free(text);
+            rt_heap.free(text);
         }
     }
 }
 
 static void ui_edit_prepare_sle(ui_edit_t* e) {
     ui_view_t* v = &e->view;
-    ut_swear(e->sle && v->w > 0);
+    rt_swear(e->sle && v->w > 0);
     // shingle line edit is capable of resizing itself to two
     // lines of text (and shrinking back) to avoid horizontal scroll
-    int32_t runs = ut_max(1, ut_min(2, ui_edit_paragraph_run_count(e, 0)));
+    int32_t runs = rt_max(1, rt_min(2, ui_edit_paragraph_run_count(e, 0)));
     const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     int32_t h = insets.top + ui_edit_line_height(e) * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
@@ -10803,7 +10826,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
         const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
         if (runs <= 2 && e->scroll.rn == 1) {
             ui_edit_pg_t top = scroll;
-            top.gp = ut_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
+            top.gp = rt_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
             ui_edit_scroll_into_view(e, top);
         }
     }
@@ -10833,25 +10856,26 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
     uint64_t s1 = ui_edit_range.uint64(pnc0);
     uint64_t e1 = ui_edit_range.uint64(pnc1);
     if (s0 <= e1 && s1 <= e0) {
-        uint64_t start = ut_max(s0, s1) - (uint64_t)c0;
-        uint64_t end = ut_min(e0, e1) - (uint64_t)c0;
+        uint64_t start = rt_max(s0, s1) - (uint64_t)c0;
+        uint64_t end = rt_min(e0, e1) - (uint64_t)c0;
         if (start < end) {
             int32_t fro = (int32_t)start;
             int32_t to  = (int32_t)end;
             int32_t ofs0 = ui_edit_str.gp_to_bp(text, r->bytes, fro);
             int32_t ofs1 = ui_edit_str.gp_to_bp(text, r->bytes, to);
-            ut_swear(ofs0 >= 0 && ofs1 >= 0);
+            rt_swear(ofs0 >= 0 && ofs1 >= 0);
             int32_t x0 = ui_edit_text_width(e, text, ofs0);
             int32_t x1 = ui_edit_text_width(e, text, ofs1);
-            // selection_color is MSVC dark mode selection color
+            // selection color is MSVC dark mode selection color
             // TODO: need light mode selection color tpp
-            ui_color_t selection_color = ui_color_rgb(0x26, 0x4F, 0x78); // ui_color_rgb(64, 72, 96);
+            ui_color_t sc = ui_color_rgb(0x26, 0x4F, 0x78); // selection color
             if (!e->focused || !ui_app.focused()) {
-                selection_color = ui_colors.darken(selection_color, 0.1f);
+                sc = ui_colors.darken(sc, 0.1f);
             }
             const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
-            ui_gdi.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), selection_color);
+            // event if background is transparent
+            ui_gdi.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), sc);
         }
     }
 }
@@ -10859,7 +10883,7 @@ static void ui_edit_paint_selection(ui_edit_t* e, int32_t y, const ui_edit_run_t
 static int32_t ui_edit_paint_paragraph(ui_edit_t* e,
         const ui_gdi_ta_t* ta, int32_t x, int32_t y, int32_t pn,
         ui_rect_t rc) {
-    static const char* ww = ut_glyph_south_west_arrow_with_hook;
+    static const char* ww = rt_glyph_south_west_arrow_with_hook;
     ui_edit_text_t* dt = &e->doc->text; // document text
     ut_assert(0 <= pn && pn < dt->np);
     const ui_edit_str_t* str = &dt->ps[pn];
@@ -10893,7 +10917,10 @@ static void ui_edit_paint(ui_view_t* v) {
     if (ui.intersect_rect(&rc, &vrc, &ui_app.prc)) {
         // because last line of the view may extend over the bottom
         ui_gdi.set_clip(v->x, v->y, v->w, v->h);
-        ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, v->background);
+        ui_color_t b = v->background;
+        if (!ui_color_is_undefined(b) && !ui_color_is_transparent(b)) {
+            ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, b);
+        }
         const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
         int32_t x = v->x + insets.left;
         int32_t y = v->y + insets.top;
@@ -10935,21 +10962,21 @@ static bool ui_edit_reallocate_runs(ui_edit_t* e, int32_t p, int32_t np) {
     } else if (new_np < old_np) { // shrinking - delete runs
         const int32_t d = old_np - new_np; // `d` delta > 0
         if (p + d < old_np - 1) {
-            const int32_t n = ut_max(0, old_np - p - d - 1);
+            const int32_t n = rt_max(0, old_np - p - d - 1);
             memcpy(e->para + p + 1, e->para + p + 1 + d, n * sizeof(e->para[0]));
         }
         if (p < new_np) { ui_edit_invalidate_run(e, p); }
-        ok = ut_heap.realloc((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
-        ut_swear(ok, "shrinking");
+        ok = rt_heap.realloc((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
+        rt_swear(ok, "shrinking");
     } else { // growing - insert runs
         ui_edit_invalidate_run(e, p);
         int32_t d = new_np - old_np;  // `d` delta > 0
-        ok = ut_heap.realloc_zero((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
+        ok = rt_heap.realloc_zero((void**)&e->para, new_np * sizeof(e->para[0])) == 0;
         if (ok) {
-            const int32_t n = ut_max(0, new_np - p - d - 1);
+            const int32_t n = rt_max(0, new_np - p - d - 1);
             memmove(e->para + p + 1 + d, e->para + p + 1,
                     (size_t)n * sizeof(e->para[0]));
-            const int32_t m = ut_min(new_np, p + 1 + d);
+            const int32_t m = rt_min(new_np, p + 1 + d);
             for (int32_t i = p + 1; i < m; i++) {
                 e->para[i].run = null;
                 e->para[i].runs = 0;
@@ -10963,7 +10990,7 @@ static void ui_edit_before(ui_edit_notify_t* notify,
          const ui_edit_notify_info_t* ni) {
     ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
     ui_edit_t* e = (ui_edit_t*)n->that;
-    ut_swear(e->doc == ni->d);
+    rt_swear(e->doc == ni->d);
     if (e->w > 0 && e->h > 0) {
         const ui_edit_text_t* dt = &e->doc->text; // document text
         ut_assert(dt->np > 0);
@@ -10986,14 +11013,14 @@ static void ui_edit_after(ui_edit_notify_t* notify,
     if (e->w > 0 && e->h > 0) {
         // number of paragraphs before replace():
         const int32_t np = (int32_t)n->data;
-        ut_swear(dt->np == np - ni->deleted + ni->inserted);
+        rt_swear(dt->np == np - ni->deleted + ni->inserted);
         ui_edit_reallocate_runs(e, ni->r->from.pn, np);
         e->selection = *ni->x;
         // this is needed by undo/redo: trim selection
         ui_edit_pg_t* pg = e->selection.a;
         for (int32_t i = 0; i < ut_countof(e->selection.a); i++) {
-            pg[i].pn = ut_max(0, ut_min(dt->np - 1, pg[i].pn));
-            pg[i].gp = ut_max(0, ut_min(dt->ps[pg[i].pn].g, pg[i].gp));
+            pg[i].pn = rt_max(0, rt_min(dt->np - 1, pg[i].pn));
+            pg[i].gp = rt_max(0, rt_min(dt->ps[pg[i].pn].g, pg[i].gp));
         }
         if (ni->r->from.pn != ni->r->to.pn &&
             ni->x->from.pn != ni->x->to.pn &&
@@ -11193,10 +11220,10 @@ static fp64_t ui_fuzzing_random_fp64(void) {
 }
 
 static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
-    ut_fatal_if(p.count < 1024); // at least 1KB expected
-    ut_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
-    ut_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
-    ut_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
+    rt_fatal_if(p.count < 1024); // at least 1KB expected
+    rt_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
+    rt_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
+    rt_fatal_if_not(2 < p.min_words && p.min_words <= p.max_words);
     char* s = p.text;
     // assume longest word is less than 128
     char* end = p.text + p.count - 128;
@@ -11296,7 +11323,7 @@ static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
 }
 
 static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
-    ut_swear(work == &ui_fuzzing_work);
+    rt_swear(work == &ui_fuzzing_work);
     ui_app.alt = work->alt;
     ui_app.ctrl = work->ctrl;
     ui_app.shift = work->shift;
@@ -11380,7 +11407,7 @@ static void ui_fuzzing_character(void) {
         fp64_t r = ui_fuzzing_random_fp64();
         if (r < 0.125) {
             uint32_t rnd = ui_fuzzing_random();
-            int32_t n = (int32_t)ut_max(1, rnd % 32);
+            int32_t n = (int32_t)rt_max(1, rnd % 32);
             ui_fuzzing_next_gibberish(n, utf8);
             ui_fuzzing_work.utf8 = utf8;
             if (ui_fuzzing_debug) {
@@ -11474,9 +11501,9 @@ static void ui_fuzzing_stop(void) {
 }
 
 static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
-    ut_swear(f == &ui_fuzzing_work);
+    rt_swear(f == &ui_fuzzing_work);
     ui_fuzzing_work = (ui_fuzzing_t){
-        .base = { .when = ut_clock.seconds() + 0.001, // 1ms
+        .base = { .when = rt_clock.seconds() + 0.001, // 1ms
                   .work = ui_fuzzing_do_work },
     };
     uint32_t rnd = ui_fuzzing_random() % 100;
@@ -11570,15 +11597,15 @@ static ui_font_t ui_gdi_set_font(ui_font_t f) {
 }
 
 static void ui_gdi_begin(ui_image_t* image) {
-    ut_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
+    rt_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
-        ut_swear(image->bitmap != null);
+        rt_swear(image->bitmap != null);
         ui_gdi_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
         ui_gdi_context.bitmap = SelectBitmap(ui_gdi_hdc(),
                                              (HBITMAP)image->bitmap);
     } else {
         ui_gdi_context.hdc = (HDC)ui_app.canvas;
-        ut_swear(ui_gdi_context.bitmap == null);
+        rt_swear(ui_gdi_context.bitmap == null);
     }
     ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.prop.normal.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
@@ -11601,7 +11628,7 @@ static void ui_gdi_end(void) {
     SetBkMode(ui_gdi_hdc(), ui_gdi_context.background_mode);
     SetStretchBltMode(ui_gdi_hdc(), ui_gdi_context.stretch_mode);
     if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
-        ut_swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
+        rt_swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
         SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.bitmap);
         ut_fatal_win32err(DeleteDC(ui_gdi_context.hdc));
     }
@@ -11643,7 +11670,7 @@ static void ui_gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
         ui_gdi_clip = (ui_region_t)CreateRectRgn(x, y, x + w, y + h);
         ut_not_null(ui_gdi_clip);
     }
-    ut_fatal_if(SelectClipRgn(ui_gdi_hdc(), (HRGN)ui_gdi_clip) == ERROR);
+    rt_fatal_if(SelectClipRgn(ui_gdi_hdc(), (HRGN)ui_gdi_clip) == ERROR);
 }
 
 static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
@@ -11714,9 +11741,9 @@ static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
 
 static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
         ui_color_t border, ui_color_t fill) {
-    ut_swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
+    rt_swear(!ui_color_is_transparent(border) || ui_color_is_transparent(fill));
     // Win32 GDI even radius drawing looks ugly squarish and asymmetrical.
-    ut_swear(radius % 2 == 1, "radius: %d must be odd");
+    rt_swear(radius % 2 == 1, "radius: %d must be odd");
     if (ui_color_is_transparent(border)) {
         ut_assert(!ui_color_is_transparent(fill));
         border = fill;
@@ -11781,7 +11808,7 @@ static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
 
 static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border, ui_color_t fill) {
-    ut_swear(!ui_color_is_transparent(border) || !ui_color_is_transparent(fill));
+    rt_swear(!ui_color_is_transparent(border) || !ui_color_is_transparent(fill));
     if (!ui_color_is_transparent(fill)) {
         ui_gdi_fill_rounded(x, y, w, h, radius, fill);
     }
@@ -11839,7 +11866,7 @@ static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
 static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
-    ut_fatal_if(stride != ((width + 3) & ~0x3));
+    rt_fatal_if(stride != ((width + 3) & ~0x3));
     ut_assert(iw > 0 && ih != 0); // h can be negative
     if (iw > 0 && ih != 0) {
         BITMAPINFO *bi = ui_gdi_greyscale_bitmap_info(); // global! not thread safe
@@ -11849,7 +11876,7 @@ static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         bih->biSizeImage = (DWORD)(iw * abs(ih));
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+        rt_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
                                                 ix, iy, iw, ih,
                     pixels, bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
@@ -11880,13 +11907,13 @@ static void ui_gdi_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    ut_fatal_if(stride != ((width * 3 + 3) & ~0x3));
+    rt_fatal_if(stride != ((width * 3 + 3) & ~0x3));
     ut_assert(iw > 0 && ih != 0); // h can be negative
     if (iw > 0 && ih != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(width, height, 3);
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+        rt_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
                                                 ix, iy, iw, ih,
                     pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
@@ -11897,13 +11924,13 @@ static void ui_gdi_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    ut_fatal_if(stride != ((width * 4 + 3) & ~0x3));
+    rt_fatal_if(stride != ((width * 4 + 3) & ~0x3));
     ut_assert(iw > 0 && ih != 0); // h can be negative
     if (iw > 0 && ih != 0) {
         BITMAPINFOHEADER bi = ui_gdi_bgrx_init_bi(width, height, 4);
         POINT pt = { 0 };
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), 0, 0, &pt));
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
+        rt_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh,
                                                 ix, iy, iw, ih,
             pixels, (BITMAPINFO*)&bi, DIB_RGB_COLORS, SRCCOPY) == 0);
         ut_fatal_win32err(SetBrushOrgEx(ui_gdi_hdc(), pt.x, pt.y, &pt));
@@ -11925,7 +11952,7 @@ static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
 
 static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp) {
-    ut_fatal_if(image->bitmap != null, "image_dispose() not called?");
+    rt_fatal_if(image->bitmap != null, "image_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
     // before window is created
     HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
@@ -11933,7 +11960,7 @@ static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
     BITMAPINFO* bi = bpp == 1 ? ui_gdi_greyscale_bitmap_info() : &local;
     image->bitmap = (ui_bitmap_t)CreateDIBSection(c, ui_gdi_init_bitmap_info(w, h, bpp, bi),
                                                DIB_RGB_COLORS, &image->pixels, null, 0x0);
-    ut_fatal_if(image->bitmap == null || image->pixels == null);
+    rt_fatal_if(image->bitmap == null || image->pixels == null);
     ut_fatal_win32err(DeleteDC(c));
 }
 
@@ -11941,7 +11968,7 @@ static void ui_gdi_image_init_rgbx(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
-    ut_fatal_if(bpp != 4, "bpp: %d", bpp);
+    rt_fatal_if(bpp != 4, "bpp: %d", bpp);
     ui_gdi_create_dib_section(image, w, h, bpp);
     const int32_t stride = (w * bpp + 3) & ~0x3;
     uint8_t* scanline = image->pixels;
@@ -11985,7 +12012,7 @@ static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t b
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
-    ut_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
+    rt_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
     ui_gdi_create_dib_section(image, w, h, bpp);
     // Win32 bitmaps stride is rounded up to 4 bytes
     const int32_t stride = (w * bpp + 3) & ~0x3;
@@ -12105,7 +12132,7 @@ static void ui_gdi_image(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
     if (image->bpp == 1) { // StretchBlt() is bad for greyscale
         BITMAPINFO* bi   = ui_gdi_greyscale_bitmap_info();
         BITMAPINFO* info = ui_gdi_init_bitmap_info(image->w, image->h, 1, bi);
-        ut_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh, ix, iy, iw, ih,
+        rt_fatal_if(StretchDIBits(ui_gdi_hdc(), dx, dy, dw, dh, ix, iy, iw, ih,
             image->pixels, info, DIB_RGB_COLORS, SRCCOPY) == 0);
     } else {
         HDC c = CreateCompatibleDC(ui_gdi_hdc());
@@ -12133,7 +12160,7 @@ static void ui_gdi_cleartype(bool on) {
 }
 
 static void ui_gdi_font_smoothing_contrast(int32_t c) {
-    ut_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
+    rt_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
     if (c == -1) { c = 1400; }
     ut_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
         0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
@@ -12151,14 +12178,14 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
     ut_assert(h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(ui_app.fm.prop.normal.font, sizeof(lf), &lf);
-    ut_fatal_if(n != (int32_t)sizeof(lf));
+    rt_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     ut_str_printf(lf.lfFaceName, "%s", family);
     if (ui_gdi_font_quality_default <= q &&
         q <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
-        ut_fatal_if(q != -1, "use -1 for do not care quality");
+        rt_fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
@@ -12167,13 +12194,13 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
     ut_assert(f != null && h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    ut_fatal_if(n != (int32_t)sizeof(lf));
+    rt_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     if (ui_gdi_font_quality_default <= q &&
         q <= ui_gdi_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
-        ut_fatal_if(q != -1, "use -1 for do not care quality");
+        rt_fatal_if(q != -1, "use -1 for do not care quality");
     }
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
@@ -12236,10 +12263,10 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
             tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
     ut_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
             tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
-    ut_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    ut_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // unsupported XHeight CapEmHeight
     // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
     //             CharSlopeRise, CharSlopeRun, ItalicAngle
@@ -12274,10 +12301,10 @@ static void ui_gdi_dump_fm(ui_font_t f) {
 static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     TEXTMETRICA tm = {0};
     ut_fatal_win32err(GetTextMetricsA(hdc, &tm));
-    ut_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
     OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
     uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    ut_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
     // "tm.tmAscent" The ascent (units above the base line) of characters
     // and actually is "baseline" in other terminology
     // "otm.otmAscent" The maximum distance characters in this font extend
@@ -12334,13 +12361,13 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
 //  ui_gdi.dump_fm(f);
     ui_gdi_hdc_with_font(f, {
         ui_gdi_get_fm(hdc, fm);
-        // ut_glyph_nbsp and "M" have the same result
+        // rt_glyph_nbsp and "M" have the same result
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         SIZE e3 = {0}; // Three-Em Dash
         ut_fatal_win32err(GetTextExtentPoint32A(hdc,
-            ut_glyph_three_em_dash, 1, &e3));
+            rt_glyph_three_em_dash, 1, &e3));
         fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
 //      ut_println("vl: %d %d", vl.cx, vl.cy);
 //      ut_println("e3: %d %d", e3.cx, e3.cy);
@@ -12361,20 +12388,20 @@ if (0) {
         SIZE em = {0, 0}; // "M"
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
         ut_println("em: %d %d", em.cx, em.cy);
-        ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_em_quad, 1, &em));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_em_quad, 1, &em));
         ut_println("em: %d %d", em.cx, em.cy);
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
         SIZE e3 = {0}; // Three-Em Dash
         ut_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
         ut_println("vl: %d %d", vl.cx, vl.cy);
-        ut_fatal_win32err(GetTextExtentPoint32A(hdc, ut_glyph_three_em_dash, 1, &e3));
+        ut_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_three_em_dash, 1, &e3));
         ut_println("e3: %d %d", e3.cx, e3.cy);
     }
 }
     int32_t count = ut_str.utf16_chars(s, -1);
     ut_assert(0 < count && count < 4096, "be reasonable count: %d?", count);
     uint16_t ws[4096];
-    ut_swear(count <= ut_countof(ws), "find another way to draw!");
+    rt_swear(count <= ut_countof(ws), "find another way to draw!");
     ut_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
@@ -12409,7 +12436,7 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
     text[ut_countof(text) - 1] = 0;
     int32_t k = (int32_t)ut_str.len(text);
     if (k > 0) {
-        ut_swear(k > 0 && k < ut_countof(text), "k=%d n=%d fmt=%s", k, p->format);
+        rt_swear(k > 0 && k < ut_countof(text), "k=%d n=%d fmt=%s", k, p->format);
         // rectangle is always calculated - it makes draw text
         // much slower but UI layer is mostly uses bitmap caching:
         if ((p->flags & DT_CALCRECT) == 0) {
@@ -12449,10 +12476,10 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
     ui_color_t c = ta->color;
     if (!ta->measure) {
         if (ui_color_is_undefined(c)) {
-            ut_swear(ta->color_id > 0);
+            rt_swear(ta->color_id > 0);
             c = ui_colors.get_color(ta->color_id);
         } else {
-            ut_swear(ta->color_id == 0);
+            rt_swear(ta->color_id == 0);
         }
         c = ui_gdi_set_text_color(c);
     }
@@ -12496,7 +12523,7 @@ static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
 
 static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
-    ut_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
+    rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
     ut_assert(false, "Does not work for Tamil simplest utf8: \xe0\xae\x9a utf16: 0x0B9A");
     x[0] = 0;
     ui_wh_t wh = { .w = 0, .h = 0 };
@@ -12505,7 +12532,7 @@ static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
         uint16_t* utf16 = ut_stackalloc((chars + 1) * sizeof(uint16_t));
         uint16_t* output = ut_stackalloc((chars + 1) * sizeof(uint16_t));
         const errno_t r = ut_str.utf8to16(utf16, chars, utf8, bytes);
-        ut_swear(r == 0);
+        rt_swear(r == 0);
 // TODO: remove
 #if 1
         char str[16 * 1024] = {0};
@@ -12581,7 +12608,7 @@ static uint8_t* ui_gdi_load_image(const void* data, int32_t bytes, int* w, int* 
     #else // see instructions above
         (void)data; (void)bytes; (void)data; (void)w; (void)h;
         (void)bytes_per_pixel; (void)preferred_bytes_per_pixel;
-        ut_fatal_if(true, "curl.exe --silent --fail --create-dirs "
+        rt_fatal_if(true, "curl.exe --silent --fail --create-dirs "
             "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h "
             "--output ext/stb_image.h");
         return null;
@@ -12746,7 +12773,7 @@ static bool ui_label_context_menu(ui_view_t* v) {
     ut_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
-        ut_clipboard.put_text(ui_view.string(v));
+        rt_clipboard.put_text(ui_view.string(v));
         static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
         int32_t x = v->x + v->w / 2;
         int32_t y = v->y + v->h;
@@ -12761,7 +12788,7 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
         char ch = utf8[0];
         // Copy to clipboard works for hover over text
         if ((ch == 3 || ch == 'c' || ch == 'C') && ui_app.ctrl) {
-            ut_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
+            rt_clipboard.put_text(ui_view.string(v)); // 3 is ASCII for Ctrl+C
         }
     }
 }
@@ -12811,7 +12838,7 @@ static void measurements_horizontal(ui_view_t* view, int32_t gap) {
         if (!ui_view.is_hidden(c)) {
             if (seen) { view->w += gap; }
             view->w += c->w;
-            view->h = ut_max(view->h, c->h);
+            view->h = rt_max(view->h, c->h);
             seen = true;
         }
     });
@@ -12825,7 +12852,7 @@ static void measurements_vertical(ui_view_t* view, int32_t gap) {
         if (!ui_view.is_hidden(c)) {
             if (seen) { view->h += gap; }
             view->h += c->h;
-            view->w = ut_max(view->w, c->w);
+            view->w = rt_max(view->w, c->w);
             seen = true;
         }
     });
@@ -12843,7 +12870,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
     #pragma warning(disable: 6385)
     #pragma warning(disable: 6386)
     int32_t mxw[1024]; // more than enough for sane humane UI
-    ut_swear(cols <= ut_countof(mxw));
+    rt_swear(cols <= ut_countof(mxw));
     memset(mxw, 0, (size_t)cols * sizeof(int32_t));
     ui_view_for_each(v, r, {
         if (!ui_view.is_hidden(r)) {
@@ -12852,11 +12879,11 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
             int32_t i = 0;
             ui_view_for_each(r, c, {
                 if (!ui_view.is_hidden(c)) {
-                    mxw[i] = ut_max(mxw[i], c->w);
-                    r->h = ut_max(r->h, c->h);
+                    mxw[i] = rt_max(mxw[i], c->w);
+                    r->h = rt_max(r->h, c->h);
 //                  ut_println("[%d] r.fm->baseline: %d c.fm->baseline: %d ",
 //                          i, r->fm->baseline, c->fm->baseline);
-//                  r->fm->baseline = ut_max(r->fm->baseline, c->fm->baseline);
+//                  r->fm->baseline = rt_max(r->fm->baseline, c->fm->baseline);
                 }
                 i++;
             });
@@ -12883,7 +12910,7 @@ static void measurements_grid(ui_view_t* v, int32_t gap_h, int32_t gap_v) {
                     c->w = mxw[i++];
                     r->w += c->w;
                     if (cols_seen > 0) { r->w += gap_h; }
-                    v->w = ut_max(v->w, r->w);
+                    v->w = rt_max(v->w, r->w);
                     cols_seen++;
                 }
             });
@@ -13009,7 +13036,7 @@ static void ui_mbx_measured(ui_view_t* v) {
         for (int32_t i = 0; i < n; i++) {
             bw += m->button[i].w;
         }
-        v->w = ut_max(tw, bw + em_x * 2);
+        v->w = rt_max(tw, bw + em_x * 2);
         v->h = th + m->button[0].h + em_y + em_y / 2;
     } else {
         v->h = th + em_y / 2;
@@ -13056,7 +13083,7 @@ void ui_view_init_mbx(ui_view_t* v) {
         ui_view.set_text(&m->button[n], "%s", m->options[n]);
         n++;
     }
-    ut_swear(n <= ut_countof(m->button), "inhumane: %d buttons is too many", n);
+    rt_swear(n <= ut_countof(m->button), "inhumane: %d buttons is too many", n);
     if (n > ut_countof(m->button)) { n = ut_countof(m->button); }
     m->label = (ui_label_t)ui_label(0, "");
     ui_view.set_text(&m->label, "%s", ui_view.string(&m->view));
@@ -13130,7 +13157,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
-            ut_min(64, strlen(text)), text);
+            rt_min(64, strlen(text)), text);
         const ui_margins_t in = s->insets;
         const ui_margins_t pd = s->padding;
         ut_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
@@ -13150,8 +13177,8 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
         ui_wh_t mt_min = measure_text(s->fm, text, s->value_min);
         ui_wh_t mt_max = measure_text(s->fm, text, s->value_max);
         ui_wh_t mt_val = measure_text(s->fm, text, s->value);
-        wh.h = ut_max(mt_val.h, ut_max(mt_min.h, mt_max.h));
-        wh.w = ut_max(mt_val.w, ut_max(mt_min.w, mt_max.w));
+        wh.h = rt_max(mt_val.h, rt_max(mt_min.h, mt_max.h));
+        wh.w = rt_max(mt_val.w, rt_max(mt_min.w, mt_max.w));
     } else if (text != null && text[0] != 0) {
         wh = measure_text(s->fm, "%s", text);
     }
@@ -13167,7 +13194,7 @@ static void ui_slider_measure(ui_view_t* v) {
     const ui_fm_t* fm = v->fm;
     const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // slider cannot be smaller than 2*em
-    const fp32_t min_w_em = ut_max(2.0f, v->min_w_em);
+    const fp32_t min_w_em = rt_max(2.0f, v->min_w_em);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)   min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     // dec and inc have same font metrics as a slider:
@@ -13177,15 +13204,15 @@ static void ui_slider_measure(ui_view_t* v) {
     ui_view.measure_control(v);
 //  s->text.mt = ui_slider_measure_text(s);
     if (s->dec.state.hidden) {
-        v->w = ut_max(v->w, i.left + s->wh.w + i.right);
+        v->w = rt_max(v->w, i.left + s->wh.w + i.right);
     } else {
         ui_view.measure(&s->dec); // remeasure with inherited metrics
         ui_view.measure(&s->inc);
         const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
         const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
-        v->w = ut_max(v->w, s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w);
+        v->w = rt_max(v->w, s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w);
     }
-    v->h = ut_max(v->h, i.top + fm->em.h + i.bottom);
+    v->h = rt_max(v->h, i.top + fm->em.h + i.bottom);
     if (s->debug.trace.mt) {
         ut_println("<%dx%d", s->w, s->h);
     }
@@ -13280,7 +13307,7 @@ static bool ui_slider_tap(ui_view_t* v, int32_t ut_unused(ix),
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
                 fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
-                s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+                s->value = rt_min(rt_max(vw, s->value_min), s->value_max);
                 if (s->callback != null) { s->callback(&s->view); }
                 ui_slider_invalidate(s);
             }
@@ -13311,7 +13338,7 @@ static void ui_slider_mouse_move(ui_view_t* v) {
                 const fp64_t range = fmax - fmin;
                 fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
-                s->value = ut_min(ut_max(vw, s->value_min), s->value_max);
+                s->value = rt_min(rt_max(vw, s->value_min), s->value_max);
                 if (s->callback != null) { s->callback(&s->view); }
                 ui_slider_invalidate(s);
             }
@@ -13324,10 +13351,10 @@ static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
         int32_t v = s->value;
         if (v > s->value_min && sign < 0) {
-            mul = ut_min(v - s->value_min, mul);
+            mul = rt_min(v - s->value_min, mul);
             v += mul * sign;
         } else if (v < s->value_max && sign > 0) {
-            mul = ut_min(s->value_max - v, mul);
+            mul = rt_min(s->value_max - v, mul);
             v += mul * sign;
         }
         if (s->value != v) {
@@ -13366,7 +13393,7 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
             int32_t mul = sec >= 1 ? initial << (sec - 1) : initial;
             const int64_t range = (int64_t)s->value_max - (int64_t)s->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
-            ui_slider_inc_dec_value(s, sign, ut_max(mul, 1));
+            ui_slider_inc_dec_value(s, sign, rt_max(mul, 1));
         }
     }
 }
@@ -13386,11 +13413,11 @@ void ui_view_init_slider(ui_view_t* v) {
         " Hold key while clicking\n"
         " Ctrl: x 10 Shift: x 100 \n"
         " Ctrl+Shift: x 1000 \n for step multiplier.";
-    s->dec = (ui_button_t)ui_button(ut_glyph_fullwidth_hyphen_minus, 0, // ut_glyph_heavy_minus_sign
+    s->dec = (ui_button_t)ui_button(rt_glyph_fullwidth_hyphen_minus, 0, // rt_glyph_heavy_minus_sign
                                     ui_slider_inc_dec);
     s->dec.fm = v->fm;
     ut_str_printf(s->dec.hint, "%s", accel);
-    s->inc = (ui_button_t)ui_button(ut_glyph_fullwidth_plus_sign, 0, // ut_glyph_heavy_plus_sign
+    s->inc = (ui_button_t)ui_button(rt_glyph_fullwidth_plus_sign, 0, // rt_glyph_heavy_plus_sign
                                     ui_slider_inc_dec);
     s->inc.fm = v->fm;
     ui_view.add(&s->view, &s->dec, &s->inc, null);
@@ -13428,7 +13455,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
     s->callback = callback;
-    s->min_w_em = ut_max(6.0f, min_w_em);
+    s->min_w_em = rt_max(6.0f, min_w_em);
     s->value_min = value_min;
     s->value_max = value_max;
     s->value = value_min;
@@ -13451,14 +13478,14 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 
 // ut:
 #include <Windows.h>  // used by:
-#include <Psapi.h>    // both ut_loader.c and ut_processes.c
+#include <Psapi.h>    // both rt_loader.c and ut_processes.c
 #include <shellapi.h> // ut_processes.c
 #include <winternl.h> // ut_processes.c
 #include <initguid.h>     // for knownfolders
-#include <KnownFolders.h> // ut_files.c
-#include <AclAPI.h>       // ut_files.c
-#include <ShlObj_core.h>  // ut_files.c
-#include <Shlwapi.h>      // ut_files.c
+#include <KnownFolders.h> // rt_files.c
+#include <AclAPI.h>       // rt_files.c
+#include <ShlObj_core.h>  // rt_files.c
+#include <Shlwapi.h>      // rt_files.c
 // ui:
 #include <commdlg.h>
 #include <dbghelp.h>
@@ -13476,7 +13503,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 
 #include <fcntl.h>
 
-#define ut_export __declspec(dllexport)
+#define rt_export __declspec(dllexport)
 
 // Win32 API BOOL -> errno_t translation
 
@@ -13616,7 +13643,7 @@ static bool ui_theme_is_app_dark(void) {
 }
 
 static void ui_theme_refresh(void) {
-    ut_swear(ui_app.window != null);
+    rt_swear(ui_app.window != null);
     ui_theme_dark = -1;
     BOOL dark_mode = ui_theme_is_app_dark(); // must be 32-bit "BOOL"
     static const DWORD DWMWA_USE_IMMERSIVE_DARK_MODE = 20;
@@ -13787,7 +13814,7 @@ static inline void ui_view_check_type(ui_view_t* v) {
     // little endian:
     ut_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
     ut_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
-    ut_swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
+    rt_swear(((uint32_t)v->type & 0xFFFF0000U) == ('vwXX'  & 0xFFFF0000U),
           "not a view: %4.4s 0x%08X (forgotten &static_view?)",
           &v->type, v->type);
 }
@@ -13797,9 +13824,9 @@ static void ui_view_verify(ui_view_t* p) {
     ui_view_for_each(p, c, {
         ui_view_check_type(c);
         ui_view_update_shortcut(c);
-        ut_swear(c->parent == p);
-        ut_swear(c == c->next->prev);
-        ut_swear(c == c->prev->next);
+        rt_swear(c->parent == p);
+        rt_swear(c == c->next->prev);
+        rt_swear(c == c->prev->next);
     });
 }
 
@@ -13808,7 +13835,7 @@ static ui_view_t* ui_view_add(ui_view_t* p, ...) {
     va_start(va, p);
     ui_view_t* c = va_arg(va, ui_view_t*);
     while (c != null) {
-        ut_swear(c->parent == null && c->prev == null && c->next == null);
+        rt_swear(c->parent == null && c->prev == null && c->next == null);
         ui_view.add_last(p, c);
         c = va_arg(va, ui_view_t*);
     }
@@ -13819,7 +13846,7 @@ static ui_view_t* ui_view_add(ui_view_t* p, ...) {
 }
 
 static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
-    ut_swear(c->parent == null && c->prev == null && c->next == null);
+    rt_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
         c->prev = c;
@@ -13836,7 +13863,7 @@ static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
 }
 
 static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
-    ut_swear(c->parent == null && c->prev == null && c->next == null);
+    rt_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
         c->prev = c;
@@ -13854,7 +13881,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
 }
 
 static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
-    ut_swear(c->parent == null && c->prev == null && c->next == null);
+    rt_swear(c->parent == null && c->prev == null && c->next == null);
     ut_not_null(a->parent);
     c->parent = a->parent;
     c->next = a->next;
@@ -13868,7 +13895,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
 }
 
 static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
-    ut_swear(c->parent == null && c->prev == null && c->next == null);
+    rt_swear(c->parent == null && c->prev == null && c->next == null);
     ut_not_null(b->parent);
     c->parent = b->parent;
     c->prev = b->prev;
@@ -13887,7 +13914,7 @@ static void ui_view_remove(ui_view_t* c) {
     // if a view that has focus is removed from parent:
     if (c == ui_app.focus) { ui_view.set_focus(null); }
     if (c->prev == c) {
-        ut_swear(c->next == c);
+        rt_swear(c->next == c);
         c->parent->child = null;
     } else {
         c->prev->next = c->next;
@@ -14047,7 +14074,7 @@ static void ui_view_measure_control(ui_view_t* v) {
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
             ui_view_debug_id(v),
-            ut_min(64, strlen(s)), s);
+            rt_min(64, strlen(s)), s);
         const ui_margins_t in = v->insets;
         const ui_margins_t pd = v->padding;
         ut_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
@@ -14061,8 +14088,8 @@ static void ui_view_measure_control(ui_view_t* v) {
     if (v->debug.trace.mt) {
         ut_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
     }
-    v->w = ut_max(v->w, i.left + v->text.wh.w + i.right);
-    v->h = ut_max(v->h, i.top  + v->text.wh.h + i.bottom);
+    v->w = rt_max(v->w, i.left + v->text.wh.w + i.right);
+    v->h = rt_max(v->h, i.top  + v->text.wh.h + i.bottom);
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
         ut_println("<%dx%d text_align x,y: %d,%d %s",
@@ -14128,7 +14155,7 @@ static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
 
 static bool ui_view_is_parent_of(const ui_view_t* parent,
         const ui_view_t* child) {
-    ut_swear(parent != null && child != null);
+    rt_swear(parent != null && child != null);
     const ui_view_t* p = child->parent;
     while (p != null) {
         if (parent == p) { return true; }
@@ -14152,8 +14179,8 @@ static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* m) {
 }
 
 static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
-    ut_swear(r != null || insets != null);
-    ut_swear(v->max_w >= 0 && v->max_h >= 0);
+    rt_swear(r != null || insets != null);
+    rt_swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t i = ui_view_margins(v, &v->insets);
     if (insets != null) { *insets = i; }
     if (r != null) {
@@ -14167,8 +14194,8 @@ static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
 }
 
 static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
-    ut_swear(r != null || padding != null);
-    ut_swear(v->max_w >= 0 && v->max_h >= 0);
+    rt_swear(r != null || padding != null);
+    rt_swear(v->max_w >= 0 && v->max_h >= 0);
     const ui_ltrb_t p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
@@ -14241,6 +14268,8 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
     if (start && ui_app.animating.view == null && v->hint[0] != 0 &&
        !ui_view.is_hidden(v)) {
         hint.padding = (ui_margins_t){0, 0, 0, 0};
+        hint.parent = ui_app.content;
+        hint.state.hidden = false;
         ui_view_show_hint(v, &hint);
     } else if (!start && ui_app.animating.view == &hint) {
         ui_app.show_hint(null, -1, -1, 0);
@@ -14357,7 +14386,7 @@ static void ui_view_paint(ui_view_t* v) {
         const char* s = ui_view.string(v);
         ut_println("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
                 ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h,
-                ut_min(64, strlen(s)), s);
+                rt_min(64, strlen(s)), s);
     }
     if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
         if (v->erase   != null) { v->erase(v); }
@@ -14379,10 +14408,10 @@ static void ui_view_set_focus(ui_view_t* v) {
         ui_view_t* loosing = ui_app.focus;
         ui_view_t* gaining = v;
         if (gaining != null) {
-            ut_swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
+            rt_swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
                                         !ui_view.is_disabled(gaining));
         }
-        if (loosing != null) { ut_swear(loosing->focusable); }
+        if (loosing != null) { rt_swear(loosing->focusable); }
         ui_app.focus = v;
         if (loosing != null && loosing->focus_lost != null) {
             loosing->focus_lost(loosing);
@@ -14466,7 +14495,7 @@ static void ui_view_hover_changed(ui_view_t* v) {
             v->p.hover_when = 0;
             ui_view.hovering(v, false); // cancel hover
         } else {
-            ut_swear(ui_view_hover_delay >= 0);
+            rt_swear(ui_view_hover_delay >= 0);
             if (v->p.hover_when >= 0) {
                 v->p.hover_when = ui_app.now + ui_view_hover_delay;
             }
@@ -14664,7 +14693,7 @@ static void ui_view_debug_paint_fm(ui_view_t* v) {
 #pragma push_macro("ui_view_no_siblings")
 
 #define ui_view_no_siblings(v) do {                    \
-    ut_swear((v)->parent == null && (v)->child == null && \
+    rt_swear((v)->parent == null && (v)->child == null && \
           (v)->prev == null && (v)->next == null);     \
 } while (0)
 
@@ -14695,15 +14724,15 @@ static void ui_view_test(void) {
     ui_view.remove(&c3);                            ui_view_verify(&p0);
     // add_first, add_last, add_before, add_after
     ui_view.add_first(&p0, &c1);                    ui_view_verify(&p0);
-    ut_swear(p0.child == &c1);
+    rt_swear(p0.child == &c1);
     ui_view.add_last(&p0, &c4);                     ui_view_verify(&p0);
-    ut_swear(p0.child == &c1 && p0.child->prev == &c4);
+    rt_swear(p0.child == &c1 && p0.child->prev == &c4);
     ui_view.add_after(&c2, &c1);                    ui_view_verify(&p0);
-    ut_swear(p0.child == &c1);
-    ut_swear(c1.next == &c2);
+    rt_swear(p0.child == &c1);
+    rt_swear(c1.next == &c2);
     ui_view.add_before(&c3, &c4);                   ui_view_verify(&p0);
-    ut_swear(p0.child == &c1);
-    ut_swear(c4.prev == &c3);
+    rt_swear(p0.child == &c1);
+    rt_swear(c4.prev == &c3);
     // removing all
     ui_view.remove(&c1);                            ui_view_verify(&p0);
     ui_view.remove(&c2);                            ui_view_verify(&p0);
@@ -14732,7 +14761,7 @@ static void ui_view_test(void) {
     ui_view_no_siblings(&c3); ui_view_no_siblings(&c4);
     ui_view_no_siblings(&g1); ui_view_no_siblings(&g2);
     ui_view_no_siblings(&g3); ui_view_no_siblings(&g4);
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #pragma pop_macro("ui_view_no_siblings")

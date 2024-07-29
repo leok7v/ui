@@ -97,7 +97,7 @@ static void init_images(void) {
 }
 
 static void init_text(void) {
-    ut_swear(ui_edit_doc.init(&document,
+    rt_swear(ui_edit_doc.init(&document,
     "Star-Lord: \"What is wrong with giving tree, here?\"\n"
     "Rocket: \"Well, he don't know talking good like me and you, "
               "so his vocabulistics is limited to 'I' and 'am' and 'Groot.' "

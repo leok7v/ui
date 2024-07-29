@@ -12,7 +12,7 @@ static char filename[260]; // c:\Users\user\Pictures\mandrill-4.2.03.png
 static void init(void);
 
 static int  console(void) {
-    ut_fatal_if(true, "%s only SUBSYSTEM:WINDOWS", ut_args.basename());
+    rt_fatal_if(true, "%s only SUBSYSTEM:WINDOWS", rt_args.basename());
     return 1;
 }
 
@@ -42,7 +42,7 @@ static void load_images(void) {
         } else {
             r = ut_mem.map_resource("sample_png", &data, &bytes);
         }
-        ut_fatal_if_error(r);
+        rt_fatal_if_error(r);
         int w = 0;
         int h = 0;
         int bpp = 0; // bytes (!) per pixel
@@ -58,8 +58,8 @@ static void load_images(void) {
 static void paint(ui_view_t* view) {
     ui_gdi.fill(0, 0, view->w, view->h, ui_colors.black);
     if (image[1].w > 0 && image[1].h > 0) {
-        int w = ut_min(view->w, image[1].w);
-        int h = ut_min(view->h, image[1].h);
+        int w = rt_min(view->w, image[1].w);
+        int h = rt_min(view->h, image[1].h);
         int x = (view->w - w) / 2;
         int y = (view->h - h) / 2;
         ui_gdi.set_clip(0, 0, view->w, view->h);
@@ -78,7 +78,7 @@ static void download(void) {
     static const char* url =
         "https://upload.wikimedia.org/wikipedia/commons/c/c1/"
         "Wikipedia-sipi-image-db-mandrill-4.2.03.png";
-    if (!ut_files.exists(filename)) {
+    if (!rt_files.exists(filename)) {
         char cmd[256];
         ut_str_printf(cmd, "curl.exe  --silent --fail --create-dirs "
             "\"%s\" --output \"%s\" 2>nul >nul", url, filename);
@@ -93,7 +93,7 @@ static void init(void) {
     ui_app.title = title;
     ui_app.content->paint = paint;
     ut_str_printf(filename, "%s\\mandrill-4.2.03.png",
-        ut_files.known_folder(ut_files.folder.pictures));
+        rt_files.known_folder(rt_files.folder.pictures));
     download();
     load_images();
 }

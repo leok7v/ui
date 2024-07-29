@@ -214,7 +214,7 @@ static void open_file(const char* pathname) {
         ut_mem.unmap(file, bytes);
     } else {
         ui_app.toast(5.3, "\nFailed to open file \"%s\".\n%s\n",
-                  pathname, ut_strerr(ut_runtime.err()));
+                  pathname, ut_strerr(rt_core.err()));
     }
 }
 
@@ -339,7 +339,7 @@ static void opened(void) {
     edit0.debug.id = "#edit0";
     edit1.debug.id = "#edit1";
     edit2.debug.id = "#edit2";
-    if (ut_args.c > 1) { open_file(ut_args.v[1]); }
+    if (rt_args.c > 1) { open_file(rt_args.v[1]); }
 }
 
 static void init(void) {

@@ -57,7 +57,7 @@ static void opened(void) {
     ui_app.content->every_sec = every_sec;
     label.fm = &fm;
     ui_view.add(ui_app.content, &label, null);
-    locale = (int32_t)(ut_clock.nanoseconds() & 0xFFFF % ut_countof(locales));
+    locale = (int32_t)(rt_clock.nanoseconds() & 0xFFFF % ut_countof(locales));
     label.tap = tap;
     label.long_press = long_press;
     label.double_tap = double_tap;

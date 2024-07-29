@@ -3,12 +3,12 @@
 
 static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t bytes,
         int64_t *transferred) {
-    ut_swear(bytes > 0);
+    rt_swear(bytes > 0);
     ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
-    ut_swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
+    rt_swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
-    int64_t transfer = ut_min(bytes, s->bytes_read - s->pos_read);
+    int64_t transfer = rt_min(bytes, s->bytes_read - s->pos_read);
     memcpy(data, (const uint8_t*)s->data_read + s->pos_read, (size_t)transfer);
     s->pos_read += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -17,13 +17,13 @@ static errno_t ut_streams_memory_read(ut_stream_if* stream, void* data, int64_t 
 
 static errno_t ut_streams_memory_write(ut_stream_if* stream, const void* data, int64_t bytes,
         int64_t *transferred) {
-    ut_swear(bytes > 0);
+    rt_swear(bytes > 0);
     ut_stream_memory_if* s = (ut_stream_memory_if*)stream;
-    ut_swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
+    rt_swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
     bool overflow = s->bytes_write - s->pos_write <= 0;
-    int64_t transfer = ut_min(bytes, s->bytes_write - s->pos_write);
+    int64_t transfer = rt_min(bytes, s->bytes_write - s->pos_write);
     memcpy((uint8_t*)s->data_write + s->pos_write, data, (size_t)transfer);
     s->pos_write += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -81,9 +81,9 @@ static void ut_streams_test(void) {
             for (int32_t j = 0; j < ut_countof(data); j++) { data[j] = 0xFF; }
             int64_t transferred = 0;
             errno_t r = ms.stream.read(&ms.stream, data, i, &transferred);
-            ut_swear(r == 0 && transferred == i);
-            for (int32_t j = 0; j < i; j++) { ut_swear(data[j] == memory[j]); }
-            for (int32_t j = i; j < ut_countof(data); j++) { ut_swear(data[j] == 0xFF); }
+            rt_swear(r == 0 && transferred == i);
+            for (int32_t j = 0; j < i; j++) { rt_swear(data[j] == memory[j]); }
+            for (int32_t j = i; j < ut_countof(data); j++) { rt_swear(data[j] == 0xFF); }
         }
     }
     {   // write test
@@ -92,7 +92,7 @@ static void ut_streams_test(void) {
     {   // read/write test
         // TODO: implement
     }
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
 }
 
 #else

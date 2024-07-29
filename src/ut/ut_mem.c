@@ -9,11 +9,11 @@ static errno_t ut_mem_map_view_of_file(HANDLE file,
         rw ? PAGE_READWRITE : PAGE_READONLY,
         (uint32_t)(*bytes >> 32), (uint32_t)*bytes, null);
     if (mapping == null) {
-        r = ut_runtime.err();
+        r = rt_core.err();
     } else {
         DWORD access = rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
         address = MapViewOfFile(mapping, access, 0, 0, (SIZE_T)*bytes);
-        if (address == null) { r = ut_runtime.err(); }
+        if (address == null) { r = rt_core.err(); }
         ut_win32_close_handle(mapping);
     }
     if (r == 0) {
@@ -63,7 +63,7 @@ static errno_t ut_mem_map_file(const char* filename, void* *data,
     HANDLE file = CreateFileA(filename, access, share, null, disposition,
                               flags, null);
     if (file == INVALID_HANDLE_VALUE) {
-        r = ut_runtime.err();
+        r = rt_core.err();
     } else {
         LARGE_INTEGER eof = { .QuadPart = 0 };
         ut_fatal_win32err(GetFileSizeEx(file, &eof));
@@ -113,7 +113,7 @@ static errno_t ut_mem_map_resource(const char* label, void* *data, int64_t *byte
     if (res != null) { *bytes = SizeofResource(null, res); }
     HGLOBAL g = res != null ? LoadResource(null, res) : null;
     *data = g != null ? LockResource(g) : null;
-    return *data != null ? 0 : ut_runtime.err();
+    return *data != null ? 0 : rt_core.err();
 }
 
 static int32_t ut_mem_page_size(void) {
@@ -150,12 +150,12 @@ static void* ut_mem_allocate(int64_t bytes_multiple_of_page_size) {
             a = VirtualAlloc(null, bytes, type, PAGE_READWRITE);
         }
         if (a == null) {
-            r = ut_runtime.err();
+            r = rt_core.err();
             if (r != 0) {
                 ut_println("VirtualAlloc(%lld) failed %s", bytes, ut_strerr(r));
             }
         } else {
-            r = VirtualLock(a, bytes) ? 0 : ut_runtime.err();
+            r = VirtualLock(a, bytes) ? 0 : rt_core.err();
             if (r == ERROR_WORKING_SET_QUOTA) {
                 // The default size is 345 pages (for example,
                 // this is 1,413,120 bytes on systems with a 4K page size).
@@ -216,15 +216,15 @@ static void ut_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
 
 static void ut_mem_test(void) {
     #ifdef UT_TESTS
-    ut_swear(ut_args.c > 0);
+    rt_swear(rt_args.c > 0);
     void* data = null;
     int64_t bytes = 0;
-    ut_swear(ut_mem.map_ro(ut_args.v[0], &data, &bytes) == 0);
-    ut_swear(data != null && bytes != 0);
+    rt_swear(ut_mem.map_ro(rt_args.v[0], &data, &bytes) == 0);
+    rt_swear(data != null && bytes != 0);
     ut_mem.unmap(data, bytes);
     // TODO: page_size large_page_size allocate deallocate
     // TODO: test heap functions
-    if (ut_debug.verbosity.level > ut_debug.verbosity.quiet) { ut_println("done"); }
+    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { ut_println("done"); }
     #endif
 }
 

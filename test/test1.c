@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 static int usage(void) {
-    fprintf(stderr, "Usage: %s [options]\n", ut_args.basename());
+    fprintf(stderr, "Usage: %s [options]\n", rt_args.basename());
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "  --help, -h     - this help\n");
     fprintf(stderr, "  --verbosity    - set verbosity level "
@@ -12,28 +12,28 @@ static int usage(void) {
 }
 
 static int run(void) {
-    if (ut_args.option_bool("--help") || ut_args.option_bool("-?")) {
+    if (rt_args.option_bool("--help") || rt_args.option_bool("-?")) {
         return usage();
     }
-    const char* v = ut_args.option_str("--verbosity");
+    const char* v = rt_args.option_str("--verbosity");
     if (v != null) {
-        ut_debug.verbosity.level = ut_debug.verbosity_from_string(v);
-    } else if (ut_args.option_bool("-v") || ut_args.option_bool("--verbose")) {
-        ut_debug.verbosity.level = ut_debug.verbosity.verbose;
+        rt_debug.verbosity.level = rt_debug.verbosity_from_string(v);
+    } else if (rt_args.option_bool("-v") || rt_args.option_bool("--verbose")) {
+        rt_debug.verbosity.level = rt_debug.verbosity.verbose;
     }
-    ut_runtime.test();
+    rt_core.test();
     ut_println("all tests passed\n\n");
-//  ut_println("ut_args.basename(): %s", ut_args.basename());
-//  ut_println("ut_args.v[0]: %s", ut_args.v[0]);
-//  for (int i = 1; i < ut_args.c; i++) {
-//      ut_println("ut_args.v[%d]: %s", i, ut_args.v[i]);
+//  ut_println("rt_args.basename(): %s", rt_args.basename());
+//  ut_println("rt_args.v[0]: %s", rt_args.v[0]);
+//  for (int i = 1; i < rt_args.c; i++) {
+//      ut_println("rt_args.v[%d]: %s", i, rt_args.v[i]);
 //  }
     //  $ .\bin\debug\test1.exe "Hello World" Hello World
-    //  ut_args.v[0]: .\bin\debug\test1.exe
-    //  ut_args.basename(): test1
-    //  ut_args.v[1]: Hello World
-    //  ut_args.v[2]: Hello
-    //  ut_args.v[3]: World
+    //  rt_args.v[0]: .\bin\debug\test1.exe
+    //  rt_args.basename(): test1
+    //  rt_args.v[1]: Hello World
+    //  rt_args.v[2]: Hello
+    //  rt_args.v[3]: World
     return 0;
 }
 
@@ -47,9 +47,9 @@ static int run(void) {
 // to select and call appropriate function:
 
 int main(int argc, const char* argv[], const char *envp[]) {
-    ut_args.main(argc, argv, envp);
+    rt_args.main(argc, argv, envp);
     int r = run();
-    ut_args.fini();
+    rt_args.fini();
     return r;
 }
 
@@ -59,8 +59,8 @@ int main(int argc, const char* argv[], const char *envp[]) {
 
 int APIENTRY WinMain(HINSTANCE ut_unused(inst), HINSTANCE ut_unused(prev),
                      char* ut_unused(command), int ut_unused(show)) {
-    ut_args.WinMain(); // Uses GetCommandLineW() which has full pathname
+    rt_args.WinMain(); // Uses GetCommandLineW() which has full pathname
     int r = run();
-    ut_args.fini();
+    rt_args.fini();
     return r;
 }

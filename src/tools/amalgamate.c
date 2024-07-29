@@ -37,7 +37,7 @@ static char src[256];
 static char mem[1024 * 1023];
 static char* brk = mem;
 
-#define ut_fatal_if(x, ...) do {                                   \
+#define rt_fatal_if(x, ...) do {                                   \
     if (x) {                                                    \
         fprintf(stderr, "%s:%d: %s\n", __FILE__, __LINE__, #x); \
         fprintf(stderr, "" __VA_ARGS__);                        \
@@ -54,7 +54,7 @@ static const char* basename(const char* filename) {
 
 static char* dup(const char* s) { // strdup() like to avoid leaks reporting
     int n = (int)strlen(s) + 1;
-    ut_fatal_if(brk + n > mem + sizeof(mem), "out of memory");
+    rt_fatal_if(brk + n > mem + sizeof(mem), "out of memory");
     char* c = (char*)memcpy(brk, s, (size_t)n);
     brk += n;
     return c;
@@ -63,7 +63,7 @@ static char* dup(const char* s) { // strdup() like to avoid leaks reporting
 static char* concat(const char* s1, const char* s2) {
     int n1 = (int)strlen(s1);
     int n2 = (int)strlen(s2);
-    ut_fatal_if(brk + n1 + n2 + 1 > mem + sizeof(mem), "out of memory");
+    rt_fatal_if(brk + n1 + n2 + 1 > mem + sizeof(mem), "out of memory");
     char* c = brk;
     memcpy((char*)memcpy(brk, s1, (size_t)n1) + n1, s2, (size_t)n2 + 1);
     brk += n1 + n2 + 1;
@@ -91,7 +91,7 @@ static bool set_has(set_t* set, const char* s) {
 static void set_add(set_t* set, const char* s) {
     assert(!set_has(set, s));
     if (!set_has(set, s)) {
-        ut_fatal_if(set->n == ut_countof(set->a), "too many files");
+        rt_fatal_if(set->n == ut_countof(set->a), "too many files");
         set->a[set->n] = dup(s);
         set->n++;
     }
@@ -150,7 +150,7 @@ static bool ignore(const char* s) {
 
 static void parse(const char* fn) {
     FILE* f = fopen(fn, "r");
-    ut_fatal_if(f == null, "file not found: `%s`", fn);
+    rt_fatal_if(f == null, "file not found: `%s`", fn);
     static char line[16 * 1024];
     bool first = true;
     while (fgets(line, ut_countof(line) - 1, f) != null) {
@@ -187,7 +187,7 @@ static void implementation(void) {
     printf("\n");
     printf("#ifdef %s_implementation\n", name);
     DIR* d = opendir(src);
-    ut_fatal_if(d == null, "folder not found: `%s`", src);
+    rt_fatal_if(d == null, "folder not found: `%s`", src);
     struct dirent* e = readdir(d);
     while (e != null) {
         if (ends_with(e->d_name, ".c")) {
@@ -195,7 +195,7 @@ static void implementation(void) {
         }
         e = readdir(d);
     }
-    ut_fatal_if(closedir(d) != 0);
+    rt_fatal_if(closedir(d) != 0);
     printf("\n");
     printf("#endif // %s_implementation\n", name);
     printf("\n");

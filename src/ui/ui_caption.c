@@ -11,14 +11,14 @@
 #pragma push_macro("ui_caption_glyph_full")
 #pragma push_macro("ui_caption_glyph_quit")
 
-#define ui_caption_glyph_rest  ut_glyph_white_square_with_upper_right_quadrant // instead of ut_glyph_desktop_window
-#define ui_caption_glyph_menu  ut_glyph_trigram_for_heaven
-#define ui_caption_glyph_dark  ut_glyph_crescent_moon
-#define ui_caption_glyph_light ut_glyph_white_sun_with_rays
-#define ui_caption_glyph_mini  ut_glyph_minimize
-#define ui_caption_glyph_maxi  ut_glyph_white_square_with_lower_left_quadrant // instead of ut_glyph_maximize
-#define ui_caption_glyph_full  ut_glyph_square_four_corners
-#define ui_caption_glyph_quit  ut_glyph_cancellation_x
+#define ui_caption_glyph_rest  rt_glyph_white_square_with_upper_right_quadrant // instead of rt_glyph_desktop_window
+#define ui_caption_glyph_menu  rt_glyph_trigram_for_heaven
+#define ui_caption_glyph_dark  rt_glyph_crescent_moon
+#define ui_caption_glyph_light rt_glyph_white_sun_with_rays
+#define ui_caption_glyph_mini  rt_glyph_minimize
+#define ui_caption_glyph_maxi  rt_glyph_white_square_with_lower_left_quadrant // instead of rt_glyph_maximize
+#define ui_caption_glyph_full  rt_glyph_square_four_corners
+#define ui_caption_glyph_quit  rt_glyph_cancellation_x
 
 static void ui_caption_toggle_full(void) {
     ui_app.full_screen(!ui_app.is_full_screen);
@@ -27,7 +27,7 @@ static void ui_caption_toggle_full(void) {
 }
 
 static void ui_caption_esc_full_screen(ui_view_t* v, const char utf8[]) {
-    ut_swear(v == ui_caption.view.parent);
+    rt_swear(v == ui_caption.view.parent);
     // TODO: inside ui_app.c instead of here?
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
 }
@@ -85,7 +85,7 @@ static void ui_caption_full(ui_button_t* ut_unused(b)) {
 }
 
 static int64_t ui_caption_hit_test(const ui_view_t* v, ui_point_t pt) {
-    ut_swear(v == &ui_caption.view);
+    rt_swear(v == &ui_caption.view);
     ut_assert(ui_view.inside(v, &pt));
 //  ut_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
 //      x, y,
@@ -181,7 +181,7 @@ static void ui_caption_paint(ui_view_t* v) {
 }
 
 static void ui_caption_init(ui_view_t* v) {
-    ut_swear(v == &ui_caption.view, "caption is a singleton");
+    rt_swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
     ui_caption.view.insets = (ui_margins_t){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
@@ -252,7 +252,7 @@ ui_caption_t ui_caption =  {
         .hit_test = ui_caption_hit_test,
         .state.hidden = true
     },
-    .icon   = ui_button(ut_glyph_nbsp, 0.0, null),
+    .icon   = ui_button(rt_glyph_nbsp, 0.0, null),
     .title  = ui_label(0, ""),
     .spacer = ui_view(spacer),
     .menu   = ui_button(ui_caption_glyph_menu, 0.0, null),

@@ -23,7 +23,7 @@ typedef struct ui_view_s ui_view_t;
 typedef struct ui_view_private_s { // do not access directly
     char text[1024]; // utf8 zero terminated
     int32_t strid;    // 0 for not yet localized, -1 no localization
-    fp64_t armed_until; // ut_clock.seconds() - when to release
+    fp64_t armed_until; // rt_clock.seconds() - when to release
     fp64_t hover_when;  // time in seconds when to call hovered()
     // use: ui_view.string(v) and ui_view.set_string()
 } ui_view_private_t;
