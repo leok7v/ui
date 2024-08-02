@@ -851,14 +851,14 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
         if (it > 0) { ui_gdi.frame(v->x, v->y, v->w, it, c); }
         if (ib > 0) { ui_gdi.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
         if ((ui_view.is_container(v) || ui_view.is_spacer(v)) &&
-            v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
+            v->w > 0 && v->h > 0) {
             ui_wh_t wh = ui_view_text_metrics(v->x, v->y, false, 0,
                                               v->fm, "%s", ui_view.string(v));
-            const int32_t tx = v->x + (v->w - wh.w) / 2;
-            const int32_t ty = v->y + (v->h - wh.h) / 2;
-            c = ui_color_is_rgb(v->color) ^ 0xFFFFFF;
-            const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
-            ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
+            const int32_t tx = v->x;
+            const int32_t ty = v->y + v->h - wh.h;
+            const ui_gdi_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
+            ui_gdi.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
+                        v->x, v->y, v->w, v->h);
         }
     }
 }
