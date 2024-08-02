@@ -196,6 +196,7 @@ static void ui_span_layout(ui_view_t* p) {
         } ui_view_for_each_end(p, c);
     }
     if (xw > 0 && max_w_count > 0) {
+        debugln("%*c pass 2: fill parent", ui_layout_nesting, 0x20);
         x = p->x + insets.left;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
@@ -227,6 +228,7 @@ static void ui_span_layout(ui_view_t* p) {
     xw = rt_max(0, pbx.x + pbx.w - x);
     if (xw > 0 && spacers > 0) {
         // evenly distribute excess among spacers
+        debugln("%*c pass 3: expand spacers", ui_layout_nesting, 0x20);
         int32_t partial = xw / spacers;
         x = p->x + insets.left;
         ui_view_for_each_begin(p, c) {
@@ -372,6 +374,7 @@ static void ui_list_layout(ui_view_t* p) {
         } ui_view_for_each_end(p, c);
     }
     if (xh > 0 && max_h_count > 0) {
+        debugln("%*c pass 2: fill parent", ui_layout_nesting, 0x20);
         y = pbx.y;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
@@ -399,6 +402,7 @@ static void ui_list_layout(ui_view_t* p) {
     xh = rt_max(0, pbx.y + pbx.h - y); // excess height
     if (xh > 0 && spacers > 0) {
         // evenly distribute excess among spacers
+        debugln("%*c pass 3: expand spacers", ui_layout_nesting, 0x20);
         int32_t partial = xh / spacers;
         y = pbx.y;
         ui_view_for_each_begin(p, c) {
