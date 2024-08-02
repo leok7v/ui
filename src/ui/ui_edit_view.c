@@ -673,7 +673,6 @@ static void ui_edit_scroll_up(ui_edit_view_t* e, int32_t run_count) {
         if (ui_edit_range.compare(lfv, eot) == 0) {
             run_count = 0;
         } else {
-            const ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
             const int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
             if (e->scroll.rn < runs - 1) {
                 e->scroll.rn++;
@@ -1114,7 +1113,6 @@ static void ui_edit_view_key_up(ui_edit_view_t* e) {
 }
 
 static void ui_edit_view_key_down(ui_edit_view_t* e) {
-    const ui_edit_text_t* dt = &e->doc->text; // document text
     const ui_edit_pg_t pg = e->selection.a[1];
     ui_point_t pt = ui_edit_pg_to_xy(e, pg);
     ui_edit_reuse_last_x(e, &pt); // TODO: does not work! (used to work broken now)

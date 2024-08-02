@@ -6294,6 +6294,7 @@ static void ui_span_layout(ui_view_t* p) {
         } ui_view_for_each_end(p, c);
     }
     if (xw > 0 && max_w_count > 0) {
+        debugln("%*c pass 2: fill parent", ui_layout_nesting, 0x20);
         x = p->x + insets.left;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
@@ -6325,6 +6326,7 @@ static void ui_span_layout(ui_view_t* p) {
     xw = rt_max(0, pbx.x + pbx.w - x);
     if (xw > 0 && spacers > 0) {
         // evenly distribute excess among spacers
+        debugln("%*c pass 3: expand spacers", ui_layout_nesting, 0x20);
         int32_t partial = xw / spacers;
         x = p->x + insets.left;
         ui_view_for_each_begin(p, c) {
@@ -6470,6 +6472,7 @@ static void ui_list_layout(ui_view_t* p) {
         } ui_view_for_each_end(p, c);
     }
     if (xh > 0 && max_h_count > 0) {
+        debugln("%*c pass 2: fill parent", ui_layout_nesting, 0x20);
         y = pbx.y;
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
@@ -6497,6 +6500,7 @@ static void ui_list_layout(ui_view_t* p) {
     xh = rt_max(0, pbx.y + pbx.h - y); // excess height
     if (xh > 0 && spacers > 0) {
         // evenly distribute excess among spacers
+        debugln("%*c pass 3: expand spacers", ui_layout_nesting, 0x20);
         int32_t partial = xh / spacers;
         y = pbx.y;
         ui_view_for_each_begin(p, c) {
@@ -9625,21 +9629,26 @@ static int32_t ui_edit_first_visible_run(ui_edit_view_t* e, int32_t pn) {
 // ui_edit::pg_to_xy() paragraph # glyph # -> (x,y) in [0,0  width x height]
 
 static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg) {
+//  TODO: remove rt_println() below
+//rt_println("pn:gp %d:%d", pg.pn, pg.gp);
     ui_edit_text_t* dt = &e->doc->text; // document text
     rt_assert(0 <= pg.pn && pg.pn < dt->np);
     ui_point_t pt = { .x = -1, .y = 0 };
-    const int32_t spn = e->scroll.pn + e->visible_runs + 1;
-    const int32_t pn = rt_min(rt_min(spn, pg.pn + 1), dt->np - 1);
+    const int32_t spn = e->scroll.pn + 1;
+    const int32_t pn = rt_min(rt_max(spn, pg.pn + 1), dt->np - 1);
     for (int32_t i = e->scroll.pn; i <= pn && pt.x < 0; i++) {
         rt_assert(0 <= i && i < dt->np);
         const ui_edit_str_t* str = &dt->ps[i];
         int32_t runs = 0;
         const ui_edit_run_t* run = ui_edit_paragraph_runs(e, i, &runs);
+//rt_println("pn: %d (pn) runs: %d", i, runs);
         for (int32_t j = ui_edit_first_visible_run(e, i); j < runs; j++) {
+//          rt_println("pn:#rn %d:#%d .y:%d", i, j, pt.y);
             const int32_t last_run = j == runs - 1;
-            int32_t gc = run[j].glyphs;
+            const int32_t gc = run[j].glyphs; // glyphs count
             if (i == pg.pn) {
                 // in the last `run` of a paragraph x after last glyph is OK
+//rt_println("inside run[%d] %d", j, run[j].gp <= pg.gp && pg.gp < run[j].gp + gc + last_run);
                 if (run[j].gp <= pg.gp && pg.gp < run[j].gp + gc + last_run) {
                     const char* s = str->u + run[j].bp;
                     const uint32_t bp2e = str->b - run[j].bp; // to end of str
@@ -9650,15 +9659,19 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg) {
                 }
             }
             pt.y += ui_edit_line_height(e);
+//rt_println("pt.y:%d", pt.y);
         }
     }
     if (0 <= pt.x && pt.x < e->edit.w && 0 <= pt.y && pt.y < e->edit.h) {
         // all good, inside visible rectangle or right after it
+//rt_println("%d:%d (%d,%d) inside of %dx%d *** all good", pg.pn, pg.gp,
+//    pt.x, pt.y, e->edit.w, e->edit.h);
     } else {
-//      rt_println("%d:%d (%d,%d) outside of %dx%d", pg.pn, pg.gp,
-//          pt.x, pt.y, e->edit.w, e->edit.h);
+        rt_println("%d:%d (%d,%d) outside of %dx%d", pg.pn, pg.gp,
+            pt.x, pt.y, e->edit.w, e->edit.h);
         pt = (ui_point_t){-1, -1};
     }
+//rt_println("");
     return pt;
 }
 
@@ -9750,30 +9763,62 @@ static void ui_edit_set_caret(ui_edit_view_t* e, int32_t x, int32_t y) {
     }
 }
 
+static ui_edit_pg_t ui_edit_view_end_of_text(ui_edit_view_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    return (ui_edit_pg_t){ .pn = dt->np - 1, .gp = dt->ps[dt->np - 1].g };
+}
+
+static ui_edit_pg_t ui_edit_view_last_fully_visible(ui_edit_view_t* e) {
+    ui_edit_text_t* dt = &e->doc->text; // document text
+    ui_edit_pg_t pg = ui_edit_scroll_pg(e);
+    int32_t visible_runs = e->visible_runs;
+    while (visible_runs > 0) {
+        int32_t runs = 0;
+        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pg.pn, &runs);
+        int32_t i = 0;
+        pg.gp = 0;
+        while (visible_runs > 0 && i < runs) {
+            pg.gp += run[i].glyphs;
+            visible_runs--;
+            i++;
+        }
+        if (visible_runs > 0) {
+            if (pg.pn < dt->np - 1) {
+                pg.pn++;
+                pg.gp = 0;
+            } else {
+                visible_runs = 0; // reached end of text
+            }
+        }
+    }
+    return pg;
+}
+
 // scroll_up() text moves up (north) in the visible view,
 // scroll position increments moves down (south)
 
 static void ui_edit_scroll_up(ui_edit_view_t* e, int32_t run_count) {
     ui_edit_text_t* dt = &e->doc->text; // document text
     rt_assert(0 < run_count, "does it make sense to have 0 scroll?");
-    while (run_count > 0 && e->scroll.pn < dt->np - 1) {
-        const ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
-        const ui_edit_pg_t next = (ui_edit_pg_t){
-            .pn = rt_min(scroll.pn + e->visible_runs + 1, dt->np - 1),
-            .gp = 0
-        };
-        const int32_t between = ui_edit_runs_between(e, scroll, next);
-        if (between <= e->visible_runs - 1) {
-            run_count = 0; // enough
+    ui_edit_pg_t eot  = ui_edit_view_end_of_text(e);
+    while (run_count > 0) {
+        ui_edit_pg_t lfv = ui_edit_view_last_fully_visible(e);
+        rt_println("eot: %d:%d lfv: %d:%d", eot.pn, eot.gp, lfv.pn, lfv.gp);
+        if (ui_edit_range.compare(lfv, eot) == 0) {
+            run_count = 0;
         } else {
             const int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
             if (e->scroll.rn < runs - 1) {
                 e->scroll.rn++;
+                run_count--;
             } else if (e->scroll.pn < dt->np - 1) {
                 e->scroll.pn++;
                 e->scroll.rn = 0;
+                run_count--;
+            } else {
+                rt_println("???");
+                run_count = 0; // enough
             }
-            run_count--;
             rt_assert(e->scroll.pn >= 0 && e->scroll.rn >= 0);
         }
     }
@@ -9863,7 +9908,9 @@ static void ui_edit_scroll_into_view(ui_edit_view_t* e, const ui_edit_pg_t pg) {
 static void ui_edit_caret_to(ui_edit_view_t* e, const ui_edit_pg_t to) {
     ui_edit_scroll_into_view(e, to);
     ui_point_t pt =  ui_edit_pg_to_xy(e, to);
-    ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
+    if (pt.x >= 0 && pt.y >= 0) {
+        ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
+    }
 }
 
 static void ui_edit_move_caret(ui_edit_view_t* e, const ui_edit_pg_t pg) {
@@ -10168,10 +10215,13 @@ static void ui_edit_reuse_last_x(ui_edit_view_t* e, ui_point_t* pt) {
 
 static void ui_edit_view_key_up(ui_edit_view_t* e) {
     const ui_edit_pg_t pg = e->selection.a[1];
+// TODO: remove
+//rt_println("pn:pg %d:%d", pg.pn, pg.gp);
     ui_edit_pg_t to = pg;
     if (to.pn > 0 || ui_edit_pg_to_pr(e, to).rn > 0) {
         // top of the text
         ui_point_t pt = ui_edit_pg_to_xy(e, to);
+        rt_assert(pt.x >= 0 && pt.y >= 0);
         if (pt.y == 0) {
             ui_edit_scroll_down(e, 1);
         } else {
@@ -10199,11 +10249,11 @@ static void ui_edit_view_key_up(ui_edit_view_t* e) {
 static void ui_edit_view_key_down(ui_edit_view_t* e) {
     const ui_edit_pg_t pg = e->selection.a[1];
     ui_point_t pt = ui_edit_pg_to_xy(e, pg);
-    ui_edit_reuse_last_x(e, &pt);
-    // scroll runs guaranteed to be already layout for current state of view:
+    ui_edit_reuse_last_x(e, &pt); // TODO: does not work! (used to work broken now)
+    // scroll runs guaranteed to be already laid out for current state of view:
     ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
     const int32_t run_count = ui_edit_runs_between(e, scroll, pg);
-    if (!e->sle && run_count >= e->visible_runs - 1) {
+    if (!e->sle && run_count > e->visible_runs - 1) {
         ui_edit_scroll_up(e, 1);
     } else {
         pt.y += ui_edit_line_height(e);
@@ -10323,8 +10373,8 @@ static void ui_edit_view_key_page_down(ui_edit_view_t* e) {
     const int32_t n = rt_max(1, e->visible_runs - 1);
     const ui_edit_pg_t scr = ui_edit_scroll_pg(e);
     const ui_edit_pg_t next = (ui_edit_pg_t){
-        .pn = rt_min(scr.pn + e->visible_runs + 1, dt->np - 1),
-        .gp = 0
+        .pn = rt_min(scr.pn + 1, dt->np - 1),
+        .gp = scr.pn + 1 == dt->np - 1 ? dt->ps[dt->np - 1].g : 0
     };
     const int32_t m = ui_edit_runs_between(e, scr, next);
     if (m > n) {
@@ -14649,14 +14699,14 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
         if (it > 0) { ui_gdi.frame(v->x, v->y, v->w, it, c); }
         if (ib > 0) { ui_gdi.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
         if ((ui_view.is_container(v) || ui_view.is_spacer(v)) &&
-            v->w > 0 && v->h > 0 && v->color != ui_colors.transparent) {
+            v->w > 0 && v->h > 0) {
             ui_wh_t wh = ui_view_text_metrics(v->x, v->y, false, 0,
                                               v->fm, "%s", ui_view.string(v));
-            const int32_t tx = v->x + (v->w - wh.w) / 2;
-            const int32_t ty = v->y + (v->h - wh.h) / 2;
-            c = ui_color_is_rgb(v->color) ^ 0xFFFFFF;
-            const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
-            ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
+            const int32_t tx = v->x;
+            const int32_t ty = v->y + v->h - wh.h;
+            const ui_gdi_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
+            ui_gdi.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
+                        v->x, v->y, v->w, v->h);
         }
     }
 }
