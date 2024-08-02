@@ -23,8 +23,8 @@ static ui_iv_t view_groot;
 static ui_iv_t view_rocket;
 static ui_iv_t view_gs[2]; // two views at the same image
 
-static ui_edit_view_t     view_text;
-static ui_edit_doc_t document;
+static ui_edit_view_t  view_text;
+static ui_edit_doc_t   document;
 
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,
     int32_t* bpp, int32_t preferred_bytes_per_pixel) {
@@ -84,13 +84,14 @@ static void init_images(void) {
     init_image(&view_groot.image, groot, rt_countof(groot));
     // view of groot image:
 //  ui_iv.ratio(&view_groot, 4, 1); // 4:1
+    ui_iv.ratio(&view_groot, 3, 1); // 4:1
     view_groot.alpha = 0.5;
     view_groot.padding = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // because it is stacked under text editor
     // view of rocket image:
     ui_iv.init(&view_rocket);
     init_image(&view_rocket.image, rocket, rt_countof(rocket));
-//  ui_iv.ratio(&view_rocket, 3, 1); // 3:1
+    ui_iv.ratio(&view_rocket, 3, 1); // 3:1
     view_rocket.padding = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // no zoom/pan
     init_gs();
@@ -104,8 +105,10 @@ static void init_text(void) {
               "Exclusively, in that order.\"", -1, false));
     ui_edit_view.init(&view_text, &document);
     view_text.hide_word_wrap = true;
+view_text.hide_word_wrap = false; // TODO: debugging remove
     view_text.padding = (ui_margins_t){0};
-    view_text.insets = (ui_margins_t){0};
+// TODO: commented out for debugging uncomment is hiding word wrap
+//  view_text.insets = (ui_margins_t){0};
     view_text.background_id = 0;
     view_text.background = ui_colors.transparent;
     rt_str_printf(view_text.hint,
@@ -152,20 +155,20 @@ static void opened(void) {
             slider_format, slider_callback);
     slider.value = 128;
     ui_view.add(fill_parent(&left),
-            align(&view_gs[0].view, ui.align.left),
-            align(&view_gs[1].view, ui.align.left),
-            null
+                align(&view_gs[0].view, ui.align.left),
+                align(&view_gs[1].view, ui.align.left),
+                null
     );
     ui_view.add(&stack,
-                &view_groot,
+                fill_parent(&view_groot.view),
                 fill_parent(&view_text.view),
                 null
     );
     ui_view.add(&right,
                 &spacer,
-                &view_rocket,
+                fill_parent(&view_rocket.view),
                 &slider,
-                &stack,
+                fill_parent(&stack),
                 null
     );
     ui_view.add(&top,    &label_top,    null);
@@ -176,16 +179,18 @@ static void opened(void) {
                 null);
     ui_view.add(ui_app.content,
         ui_view.add(fill_parent(&list),
-            align(&top,    ui.align.center),
-            align(&center, ui.align.left),
-            align(&bottom, ui.align.center),
-            null
+                    align(&top,    ui.align.center),
+                    align(&center, ui.align.left),
+                    align(&bottom, ui.align.center),
+                    null
         ),
         null
     );
+    stack.debug.id = "#stack: edit+image";
     list.debug.id = "#list";
     right.debug.id = "#right";
 //  list.debug.paint.margins = true;
+right.debug.paint.margins = true;
     center.insets  = (ui_margins_t){0};
     center.padding = (ui_margins_t){0};
     static ui_view_t* panels[] = { &top, &left, &right, &bottom  };
@@ -213,11 +218,11 @@ static void opened(void) {
     view_gs[1].fill = true;
     view_groot.debug.id  = "#view.groot";
     view_rocket.debug.id = "#view.rocket";
-    view_groot.max_w = ui.infinity;
-    view_groot.max_h = ui.infinity;
-    view_groot.fill = true;
-    view_rocket.max_w = ui.infinity;
-    view_rocket.max_h = ui.infinity;
+
+    view_groot.fit = true;
+    view_rocket.fit = true;
+
+//  view_groot.fill = true;
 //  view_rocket.fill = true;
 }
 
@@ -235,7 +240,7 @@ ui_app_t ui_app = {
     .closed = closed,
     .window_sizing = { // inches
         .min_w = 7.0f,
-        .min_h = 6.0f,
+        .min_h = 7.0f,
         .ini_w = 11.0f,
         .ini_h = 7.0f
     }

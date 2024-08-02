@@ -9,12 +9,12 @@ static fp64_t ui_iv_scale_of(int32_t nominator, int32_t denominator) {
 }
 
 static fp64_t ui_iv_scale(ui_iv_t* iv) {
-    if (iv->fit) {
-        return min((fp64_t)iv->view.w / iv->image.w,
-                   (fp64_t)iv->view.h / iv->image.h);
-    } else if (iv->fill) {
-        return max((fp64_t)iv->view.w / iv->image.w,
-                   (fp64_t)iv->view.h / iv->image.h);
+    if (iv->fit && iv->w > 0 && iv->h > 0) {
+        return min((fp64_t)iv->w / iv->image.w,
+                   (fp64_t)iv->h / iv->image.h);
+    } else if (iv->fill && iv->w > 0 && iv->h > 0) {
+        return max((fp64_t)iv->w / iv->image.w,
+                   (fp64_t)iv->h / iv->image.h);
     } else {
         return ui_iv_scale_of(iv->zn, iv->zd);
     }
@@ -28,11 +28,11 @@ static ui_rect_t ui_iv_position(ui_iv_t* iv) {
         // zoomed image width and height
         rc.w = (int32_t)((fp64_t)iw * ui_iv.scale(iv));
         rc.h = (int32_t)((fp64_t)ih * ui_iv.scale(iv));
-        int32_t shift_x = (int32_t)((rc.w - iv->view.w) * iv->sx);
-        int32_t shift_y = (int32_t)((rc.h - iv->view.h) * iv->sy);
+        int32_t shift_x = (int32_t)((rc.w - iv->w) * iv->sx);
+        int32_t shift_y = (int32_t)((rc.h - iv->h) * iv->sy);
         // shift_x and shift_y are in zoomed image coordinates
-        rc.x = iv->view.x - shift_x; // screen x
-        rc.y = iv->view.y - shift_y; // screen y
+        rc.x = iv->x - shift_x; // screen x
+        rc.y = iv->y - shift_y; // screen y
     }
     return rc;
 }
@@ -121,6 +121,9 @@ static void ui_iv_fit_fill_scale(ui_iv_t* iv) {
 static void ui_iv_measure(ui_view_t* v) {
     ui_iv_t* iv = (ui_iv_t*)v;
     if (!v->focusable) {
+if (strcmp(ui_view_debug_id(v), "#view.groot") == 0) {
+    rt_println("#view.groot: %d x %d %.3f", iv->image.w, iv->image.h, ui_iv.scale(iv));
+}
         v->w = (int32_t)(iv->image.w * ui_iv.scale(iv));
         v->h = (int32_t)(iv->image.h * ui_iv.scale(iv));
         if (iv->fit || iv->fill) {
@@ -196,8 +199,8 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
     }
     // is whole image visible?
     fp64_t s = ui_iv.scale(iv);
-    bool whole = (int32_t)(iv->image.w * s) <= iv->view.w &&
-                 (int32_t)(iv->image.h * s) <= iv->view.h;
+    bool whole = (int32_t)(iv->image.w * s) <= iv->w &&
+                 (int32_t)(iv->image.h * s) <= iv->h;
     if (whole) { iv->sx = 0.5; iv->sy = 0.5; }
     ui_view.invalidate(&iv->view, null);
     ui_iv_show_tools(iv, true);
@@ -209,12 +212,12 @@ static void ui_iv_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     ui_iv_t* iv = (ui_iv_t*)v;
     if (ui_view.has_focus(v)) {
         fp64_t s = ui_iv.scale(iv);
-        if (iv->image.w * s > iv->view.w || iv->image.h * s > iv->view.h) {
+        if (iv->image.w * s > iv->w || iv->image.h * s > iv->h) {
             iv->sx = max(0.0, min(iv->sx + dx / iv->image.w, 1.0));
         } else {
             iv->sx = 0.5;
         }
-        if (iv->image.h * s > iv->view.h) {
+        if (iv->image.h * s > iv->h) {
             iv->sy = max(0.0, min(iv->sy + dy / iv->image.h, 1.0));
         } else {
             iv->sy = 0.5;
@@ -227,8 +230,8 @@ static bool ui_iv_tap(ui_view_t* v, int32_t ix, bool pressed) {
     bool swallow = false;
     if (v->focusable) {
         ui_iv_t* iv = (ui_iv_t*)v;
-        const int32_t x = ui_app.mouse.x - iv->view.x;
-        const int32_t y = ui_app.mouse.y - iv->view.y;
+        const int32_t x = ui_app.mouse.x - iv->x;
+        const int32_t y = ui_app.mouse.y - iv->y;
         bool tools  = !iv->tool.bar.state.hidden &&
                       ui_view.inside(&iv->tool.bar, &ui_app.mouse);
         bool inside = ui_view.inside(&iv->view, &ui_app.mouse) && !tools;
@@ -254,8 +257,8 @@ static bool ui_iv_mouse_move(ui_view_t* v) {
     bool inside = ui_view.inside(&iv->view, &ui_app.mouse) && !tools;
     if (drag_started && inside) {
         ui_iv_show_tools(iv, false);
-        const int32_t x = ui_app.mouse.x - iv->view.x;
-        const int32_t y = ui_app.mouse.y - iv->view.y;
+        const int32_t x = ui_app.mouse.x - iv->x;
+        const int32_t y = ui_app.mouse.y - iv->y;
         ui_point_t dx_dy = {iv->drag_start.x - x, iv->drag_start.y - y};
         ui_iv_mouse_scroll(v, dx_dy);
         iv->drag_start = (ui_point_t){x, y};
@@ -274,13 +277,13 @@ static bool ui_iv_key_pressed(ui_view_t* v, int64_t vk) {
     if (ui_view.has_focus(v)) {
         swallowed = true;
         if (vk == ui.key.up) {
-            ui_iv_mouse_scroll(v, (ui_point_t){0, -iv->view.h / 8});
+            ui_iv_mouse_scroll(v, (ui_point_t){0, -iv->h / 8});
         } else if (vk == ui.key.down) {
-            ui_iv_mouse_scroll(v, (ui_point_t){0, +iv->view.h / 8});
+            ui_iv_mouse_scroll(v, (ui_point_t){0, +iv->h / 8});
         } else if (vk == ui.key.left) {
-            ui_iv_mouse_scroll(v, (ui_point_t){-iv->view.w / 8, 0});
+            ui_iv_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
         } else if (vk == ui.key.right) {
-            ui_iv_mouse_scroll(v, (ui_point_t){+iv->view.w / 8, 0});
+            ui_iv_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
         } else if (vk == ui.key.plus) {
             if (iv->zoom < 8) {
                 iv->zoom++;
@@ -370,7 +373,7 @@ static void ui_iv_copy_to_clipboard(ui_iv_t* iv) {
     }
     static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
     ui_app.show_hint(&hint, ui_app.mouse.x,
-                            ui_app.mouse.y + iv->view.fm->height,
+                            ui_app.mouse.y + iv->fm->height,
                      1.5);
 }
 
@@ -394,9 +397,9 @@ static void ui_iv_character(ui_view_t* v, const char* utf8) {
                 ui_iv_zoomed(iv);
             }
         } else if (ch == '<' || ch == ',') {
-            ui_iv_mouse_scroll(v, (ui_point_t){-iv->view.w / 8, 0});
+            ui_iv_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
         } else if (ch == '>' || ch == '.') {
-            ui_iv_mouse_scroll(v, (ui_point_t){+iv->view.w / 8, 0});
+            ui_iv_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
         } else if (ch == '0') {
             iv->zoom = 4;
             ui_iv_zoomed(iv);
@@ -426,19 +429,19 @@ static void ui_iv_add_button(ui_iv_t* iv, ui_button_t* b,
 
 void ui_iv_init(ui_iv_t* iv) {
     memset(iv, 0x00, sizeof(*iv));
-    iv->view.type         = ui_view_image;
-    iv->view.paint        = ui_iv_paint;
-    iv->view.tap          = ui_iv_tap;
-    iv->view.mouse_move   = ui_iv_mouse_move;
-    iv->view.measure      = ui_iv_measure;
-    iv->view.layout       = ui_iv_layout;
-    iv->view.every_100ms  = ui_iv_every_100ms;
-    iv->view.focus_lost   = ui_iv_focus_lost;
-    iv->view.focus_gained = ui_iv_focus_gained;
-    iv->view.mouse_scroll = ui_iv_mouse_scroll;
-    iv->view.character    = ui_iv_character;
-    iv->view.key_pressed  = ui_iv_key_pressed;
-    iv->view.fm           = &ui_app.fm.prop.normal;
+    iv->type         = ui_view_image;
+    iv->paint        = ui_iv_paint;
+    iv->tap          = ui_iv_tap;
+    iv->mouse_move   = ui_iv_mouse_move;
+    iv->measure      = ui_iv_measure;
+    iv->layout       = ui_iv_layout;
+    iv->every_100ms  = ui_iv_every_100ms;
+    iv->focus_lost   = ui_iv_focus_lost;
+    iv->focus_gained = ui_iv_focus_gained;
+    iv->mouse_scroll = ui_iv_mouse_scroll;
+    iv->character    = ui_iv_character;
+    iv->key_pressed  = ui_iv_key_pressed;
+    iv->fm           = &ui_app.fm.prop.normal;
     iv->tool.bar = (ui_view_t)ui_view(span);
     // buttons:
     ui_iv_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_iv_copy,
