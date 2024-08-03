@@ -2248,15 +2248,11 @@ static void ui_app_update_wt_timeout(void) {
         static fp64_t last_next_due_at;
         fp64_t dt = next_due_at - rt_clock.seconds();
         if (dt <= 0) {
-// TODO: remove
-//          rt_println("post(WM_NULL) dt: %.6f", dt);
             ui_app_post_message(WM_NULL, 0, 0);
         } else if (last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
             LARGE_INTEGER rt = {0}; // relative negative time
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
-// TODO: remove
-//          rt_println("dt: %.6f %lld", dt, rt.QuadPart);
             rt_swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
             rt_fatal_win32err(
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
@@ -2281,8 +2277,6 @@ static void ui_app_alarm_thread(void* rt_unused(p)) {
         rt_event_t es[] = { ui_app_wt, ui_app_event_quit };
         int32_t ix = rt_event.wait_any(rt_countof(es), es);
         if (ix == 0) {
-// TODO: remove
-//          rt_println("post(WM_NULL)");
             ui_app_post_message(WM_NULL, 0, 0);
         } else {
             break;
@@ -3867,8 +3861,6 @@ static void ui_app_ime_composition(int64_t lp) {
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
-// TODO: remove
-//  if (message == WM_NULL) { rt_println("got(WM_NULL)"); }
     ui_app.now = rt_clock.seconds();
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;
@@ -9213,9 +9205,6 @@ static void ui_edit_text_width_gp(ui_edit_view_t* e, const char* utf8, int32_t b
 #endif
 
 static int32_t ui_edit_text_width(ui_edit_view_t* e, const char* s, int32_t n) {
-//  if (n > 0) {
-//      ui_edit_text_width_gp(e, s, n);
-//  }
 //  fp64_t time = rt_clock.seconds();
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
@@ -9223,9 +9212,6 @@ static int32_t ui_edit_text_width(ui_edit_view_t* e, const char* s, int32_t n) {
     const ui_gdi_ta_t ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
-//  TODO: remove
-//  int32_t x = n == 0 ? 0 : ui_gdi.measure_text(e->fm, "%.*s", n, s).w;
-
 //  time = (rt_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
 //  static fp64_t length_sum;
@@ -9603,8 +9589,6 @@ static int32_t ui_edit_first_visible_run(ui_edit_view_t* e, int32_t pn) {
 // ui_edit::pg_to_xy() paragraph # glyph # -> (x,y) in [0,0  width x height]
 
 static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg) {
-//  TODO: remove rt_println() below
-//rt_println("pn:gp %d:%d", pg.pn, pg.gp);
     ui_edit_text_t* dt = &e->doc->text; // document text
     rt_assert(0 <= pg.pn && pg.pn < dt->np);
     ui_point_t pt = { .x = -1, .y = 0 };
@@ -9615,14 +9599,11 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg) {
         const ui_edit_str_t* str = &dt->ps[i];
         int32_t runs = 0;
         const ui_edit_run_t* run = ui_edit_paragraph_runs(e, i, &runs);
-//rt_println("pn: %d (pn) runs: %d", i, runs);
         for (int32_t j = ui_edit_first_visible_run(e, i); j < runs; j++) {
-//          rt_println("pn:#rn %d:#%d .y:%d", i, j, pt.y);
             const int32_t last_run = j == runs - 1;
             const int32_t gc = run[j].glyphs; // glyphs count
             if (i == pg.pn) {
                 // in the last `run` of a paragraph x after last glyph is OK
-//rt_println("inside run[%d] %d", j, run[j].gp <= pg.gp && pg.gp < run[j].gp + gc + last_run);
                 if (run[j].gp <= pg.gp && pg.gp < run[j].gp + gc + last_run) {
                     const char* s = str->u + run[j].bp;
                     const uint32_t bp2e = str->b - run[j].bp; // to end of str
@@ -9633,19 +9614,15 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg) {
                 }
             }
             pt.y += ui_edit_line_height(e);
-//rt_println("pt.y:%d", pt.y);
         }
     }
     if (0 <= pt.x && pt.x < e->edit.w && 0 <= pt.y && pt.y < e->edit.h) {
         // all good, inside visible rectangle or right after it
-//rt_println("%d:%d (%d,%d) inside of %dx%d *** all good", pg.pn, pg.gp,
-//    pt.x, pt.y, e->edit.w, e->edit.h);
     } else {
         rt_println("%d:%d (%d,%d) outside of %dx%d", pg.pn, pg.gp,
             pt.x, pt.y, e->edit.w, e->edit.h);
         pt = (ui_point_t){-1, -1};
     }
-//rt_println("");
     return pt;
 }
 
@@ -9674,9 +9651,6 @@ static int32_t ui_edit_glyph_width_px(ui_edit_view_t* e, const ui_edit_pg_t pg) 
 // xy_to_pg() (x,y) (0,0, width x height) -> paragraph # glyph #
 
 static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_view_t* e, int32_t x, int32_t y) {
-// TODO: remove
-//  const ui_ltrb_t i = ui_view.margins(&e->view, &e->view.insets);
-//  rt_println("x,y: %d,%d insets left:%d right:%d", x, y, i.left, i.right);
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t pg = {-1, -1};
     int32_t py = 0; // paragraph `y' coordinate
@@ -9695,15 +9669,10 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_view_t* e, int32_t x, int32_t y) {
                     pg.gp = r->gp + r->glyphs;
                 } else {
                     pg.gp = r->gp + ui_edit_glyph_at_x(e, i, j, x);
-// TODO: remove
-//                  rt_println("pg.gp: %d r->gp: %d ui_edit_glyph_at_x(%d, %d, x:%d)",
-//                          pg.gp, r->gp, i, j, x, ui_edit_glyph_at_x(e, i, j, x));
                     if (pg.gp < r->glyphs - 1) {
                         ui_edit_pg_t right = {pg.pn, pg.gp + 1};
                         int32_t x0 = ui_edit_pg_to_xy(e, pg).x;
                         int32_t x1 = ui_edit_pg_to_xy(e, right).x;
-// TODO: remove
-//                      rt_println("x0: %d x1: %d", x0, x1);
                         if (x1 - x < x - x0) {
                             pg.gp++; // snap to closest glyph's 'x'
                         }
@@ -9715,8 +9684,6 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_view_t* e, int32_t x, int32_t y) {
         }
         if (py > e->h) { break; }
     }
-// TODO: remove
-//  rt_println("x,y: %d,%d p:d %d:%d", x, y, pg.pn, pg.gp);
     return pg;
 }
 
@@ -9732,8 +9699,6 @@ static void ui_edit_set_caret(ui_edit_view_t* e, int32_t x, int32_t y) {
         rt_swear(i.left <= x && x < e->w && i.top <= y && y < e->h);
         e->caret.x = x;
         e->caret.y = y;
-// TODO: remove
-//      rt_println("caret: %d, %d", x, y);
     }
 }
 
@@ -10189,8 +10154,6 @@ static void ui_edit_reuse_last_x(ui_edit_view_t* e, ui_point_t* pt) {
 
 static void ui_edit_view_key_up(ui_edit_view_t* e) {
     const ui_edit_pg_t pg = e->selection.a[1];
-// TODO: remove
-//rt_println("pn:pg %d:%d", pg.pn, pg.gp);
     ui_edit_pg_t to = pg;
     if (to.pn > 0 || ui_edit_pg_to_pr(e, to).rn > 0) {
         // top of the text
@@ -10544,13 +10507,10 @@ static void ui_edit_click(ui_edit_view_t* e, int32_t x, int32_t y) {
     rt_assert(0 <= x && x < e->w && 0 <= y && y < e->h);
     ui_edit_text_t* dt = &e->doc->text; // document text
     ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
-//  TODO: remove
-//  rt_println("x,y: %d,%d p:d %d:%d", e->caret.x, e->caret.y, pg.pn, pg.gp);
     if (0 <= pg.pn && 0 <= pg.gp && ui_view.has_focus(&e->view)) {
         rt_swear(dt->np > 0 && pg.pn < dt->np);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
         if (pg.gp > glyphs) { pg.gp = rt_max(0, glyphs); }
-//      rt_println("move_caret: %d.%d", p.pn, p.gp);
         ui_edit_move_caret(e, pg);
     }
 }
@@ -10628,8 +10588,6 @@ static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
             const int32_t x = e->caret.x - e->inside.left;
             const int32_t y = e->caret.y - e->inside.top;
             ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
-// TODO: remove
-//          rt_println("x,y: %d,%d caret: %d,%d p:d %d:%d", x, y, e->caret.x, e->caret.y, pg.pn, pg.gp);
             if (pg.pn >= 0 && pg.gp >= 0) {
                 rt_assert(pg.gp <= e->doc->text.ps[pg.pn].g);
                 ui_edit_move_caret(e, pg);

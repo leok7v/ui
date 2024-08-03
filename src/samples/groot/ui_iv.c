@@ -121,9 +121,6 @@ static void ui_iv_fit_fill_scale(ui_iv_t* iv) {
 static void ui_iv_measure(ui_view_t* v) {
     ui_iv_t* iv = (ui_iv_t*)v;
     if (!v->focusable) {
-if (strcmp(ui_view_debug_id(v), "#view.groot") == 0) {
-    rt_println("#view.groot: %d x %d %.3f", iv->image.w, iv->image.h, ui_iv.scale(iv));
-}
         v->w = (int32_t)(iv->image.w * ui_iv.scale(iv));
         v->h = (int32_t)(iv->image.h * ui_iv.scale(iv));
         if (iv->fit || iv->fill) {

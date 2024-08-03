@@ -239,9 +239,9 @@ ui_app_t ui_app = {
     .opened = opened,
     .closed = closed,
     .window_sizing = { // inches
-        .min_w = 7.0f,
-        .min_h = 7.0f,
-        .ini_w = 11.0f,
-        .ini_h = 7.0f
+        .min_w = 5.0f,
+        .min_h = 4.0f,
+        .ini_w = 10.0f,
+        .ini_h = 6.0f
     }
 };

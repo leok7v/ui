@@ -59,15 +59,11 @@ static void ui_app_update_wt_timeout(void) {
         static fp64_t last_next_due_at;
         fp64_t dt = next_due_at - rt_clock.seconds();
         if (dt <= 0) {
-// TODO: remove
-//          rt_println("post(WM_NULL) dt: %.6f", dt);
             ui_app_post_message(WM_NULL, 0, 0);
         } else if (last_next_due_at != next_due_at) {
             // Negative values indicate relative time in 100ns intervals
             LARGE_INTEGER rt = {0}; // relative negative time
             rt.QuadPart = (LONGLONG)(-dt * 1.0E+7);
-// TODO: remove
-//          rt_println("dt: %.6f %lld", dt, rt.QuadPart);
             rt_swear(rt.QuadPart < 0, "dt: %.6f %lld", dt, rt.QuadPart);
             rt_fatal_win32err(
                 SetWaitableTimer(ui_app_wt, &rt, 0, null, null, 0)
@@ -92,8 +88,6 @@ static void ui_app_alarm_thread(void* rt_unused(p)) {
         rt_event_t es[] = { ui_app_wt, ui_app_event_quit };
         int32_t ix = rt_event.wait_any(rt_countof(es), es);
         if (ix == 0) {
-// TODO: remove
-//          rt_println("post(WM_NULL)");
             ui_app_post_message(WM_NULL, 0, 0);
         } else {
             break;
@@ -1678,8 +1672,6 @@ static void ui_app_ime_composition(int64_t lp) {
 
 static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         WPARAM w_param, LPARAM l_param) {
-// TODO: remove
-//  if (message == WM_NULL) { rt_println("got(WM_NULL)"); }
     ui_app.now = rt_clock.seconds();
     if (ui_app.window == null) {
         ui_app.window = (ui_window_t)window;

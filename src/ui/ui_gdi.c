@@ -1064,8 +1064,8 @@ rt_println("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf
 //    curl.exe https://raw.githubusercontent.com/nothings/stb/master/stb_image.h stb_image.h
 //    to the project precompile build step
 // 2. After
-//    #define quick_implementation
-//    include "quick.h"
+//    #define ui_implementation
+//    include "ui/ui.h"
 //    add
 //    #define STBI_ASSERT(x) assert(x)
 //    #define STB_IMAGE_IMPLEMENTATION

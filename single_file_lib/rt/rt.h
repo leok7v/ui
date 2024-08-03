@@ -3419,7 +3419,7 @@ rt_clock_if rt_clock = {
 // On Unix the implementation should keep KV pairs in
 // key-named files inside .name/ folder
 
-static const char* rt_config_apps = "Software\\leok7v\\ui\\apps";
+static const char* rt_config_apps = "Software\\ui\\apps";
 
 static const DWORD rt_config_access =
     KEY_READ|KEY_WRITE|KEY_SET_VALUE|KEY_QUERY_VALUE|
