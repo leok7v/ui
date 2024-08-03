@@ -39,7 +39,7 @@ static void init_image(ui_bitmap_t* i, const uint8_t* data, int64_t bytes) {
     int32_t c = 0;
     void* pixels = load_image(data, bytes, &w, &h, &c, 0);
     rt_not_null(pixels);
-    ui_gdi.image_init(i, w, h, c, pixels);
+    ui_gdi.bitmap_init(i, w, h, c, pixels);
     stbi_image_free(pixels);
 }
 
@@ -228,8 +228,8 @@ right.debug.paint.margins = true;
 
 static void closed(void) {
     ui_view.disband(ui_app.content);
-    ui_gdi.image_dispose(&view_groot.image);
-    ui_gdi.image_dispose(&view_rocket.image);
+    ui_gdi.bitmap_dispose(&view_groot.image);
+    ui_gdi.bitmap_dispose(&view_rocket.image);
 }
 
 ui_app_t ui_app = {

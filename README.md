@@ -10,15 +10,15 @@ Posix/MacOS/iOS/Linux/Android - possible
 # Two Namespaces:
 
 ```
-ut_ for utility helpers
+rt_ for minimalistic fail fast runtime
 ui_ for UI types and interfaces
 ```
 
 # Minimalistic "Hello" Application Example
 
 ```c
-#include "ui.h"
-#include "ut.h"
+#include "ui/ui.h"
+#include "rt/rt.h"
 
 static ui_label_t label = ui_label(0.0, "Hello");
 

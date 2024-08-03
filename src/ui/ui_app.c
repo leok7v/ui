@@ -893,12 +893,12 @@ static void ui_app_toast_paint(void) {
     static ui_bitmap_t image_dark;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
-        ui_gdi.image_init(&image_dark, 1, 1, 3, pixels);
+        ui_gdi.bitmap_init(&image_dark, 1, 1, 3, pixels);
     }
     static ui_bitmap_t image_light;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
-        ui_gdi.image_init(&image_light, 1, 1, 3, pixels);
+        ui_gdi.bitmap_init(&image_light, 1, 1, 3, pixels);
     }
     ui_view_t* av = ui_app.animating.view;
     if (av != null) {

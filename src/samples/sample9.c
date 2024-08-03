@@ -278,7 +278,7 @@ static void center_paint(ui_view_t* view) {
     int x = (view->w - image.w) / 2;
     int y = (view->h - image.h) / 2;
 //  ui_gdi.alpha(view->x + x, view->y + y, image.w, image.h, &image, 0.5);
-    ui_gdi.image(view->x + x, view->y + y, image.w, image.h,
+    ui_gdi.bitmap(view->x + x, view->y + y, image.w, image.h,
                  0, 0, image.w, image.h, &image);
 //  ui_gdi.set_clip(0, 0, 0, 0);
 }
@@ -432,7 +432,7 @@ static void opened(void) {
     int n = rt_countof(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(rt_countof(pixels) == rt_countof(pixels[0]), "square");
-    ui_gdi.image_init(&image, n, n, (int32_t)sizeof(pixels[0][0]), (uint8_t*)pixels);
+    ui_gdi.bitmap_init(&image, n, n, (int32_t)sizeof(pixels[0][0]), (uint8_t*)pixels);
     init_panel(&panel_top,    "top",    ui_colors.orange, panel_paint);
     init_panel(&panel_center, "center", ui_colors.white, center_paint);
     init_panel(&panel_bottom, "bottom", ui_colors.tone_blue, panel_paint);

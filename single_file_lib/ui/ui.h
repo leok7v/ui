@@ -701,17 +701,17 @@ typedef struct {
     } const ta;
     void (*init)(void);
     void (*fini)(void);
-    void (*begin)(ui_bitmap_t* image_or_null);
+    void (*begin)(ui_bitmap_t* bitmap_or_null);
     // all paint must be done in between
     void (*end)(void);
     // TODO: move to ui_colors
     uint32_t (*color_rgb)(ui_color_t c); // rgb color
     // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
-    void (*image_init)(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
+    void (*bitmap_init)(ui_bitmap_t* bitmap, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels);
-    void (*image_init_rgbx)(ui_bitmap_t* image, int32_t w, int32_t h,
+    void (*bitmap_init_rgbx)(ui_bitmap_t* bitmap, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
-    void (*image_dispose)(ui_bitmap_t* image);
+    void (*bitmap_dispose)(ui_bitmap_t* bitmap);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
@@ -744,11 +744,11 @@ typedef struct {
     // alpha() blend only works with device allocated bitmaps
     void (*alpha)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* image, fp64_t alpha); // alpha blend
-    // image() only works with device allocated bitmaps
-    void (*image)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        ui_bitmap_t* bitmap, fp64_t alpha); // alpha blend
+    // bitmap() only works with device allocated bitmaps
+    void (*bitmap)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* image);
+        ui_bitmap_t* bitmap);
     void (*icon)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         ui_icon_t icon);
     // text:
@@ -3081,12 +3081,12 @@ static void ui_app_toast_paint(void) {
     static ui_bitmap_t image_dark;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
-        ui_gdi.image_init(&image_dark, 1, 1, 3, pixels);
+        ui_gdi.bitmap_init(&image_dark, 1, 1, 3, pixels);
     }
     static ui_bitmap_t image_light;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
-        ui_gdi.image_init(&image_light, 1, 1, 3, pixels);
+        ui_gdi.bitmap_init(&image_light, 1, 1, 3, pixels);
     }
     ui_view_t* av = ui_app.animating.view;
     if (av != null) {
@@ -11880,7 +11880,7 @@ static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
 }
 
 // bgr(width) assumes strides are padded and rounded up to 4 bytes
-// if this is not the case use ui_gdi.image_init() that will unpack
+// if this is not the case use ui_gdi.bitmap_init() that will unpack
 // and align scanlines prior to draw
 
 static void ui_gdi_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
@@ -11932,7 +11932,7 @@ static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
 
 static void ui_gdi_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp) {
-    rt_fatal_if(image->texture != null, "image_dispose() not called?");
+    rt_fatal_if(image->texture != null, "bitmap_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
     // before window is created
     HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
@@ -11946,7 +11946,7 @@ static void ui_gdi_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
     rt_fatal_win32err(DeleteDC(c));
 }
 
-static void ui_gdi_image_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
+static void ui_gdi_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -11990,7 +11990,7 @@ static void ui_gdi_image_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
     image->stride = stride;
 }
 
-static void ui_gdi_image_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
+static void ui_gdi_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -12104,7 +12104,7 @@ static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
     rt_fatal_win32err(DeleteDC(c));
 }
 
-static void ui_gdi_image(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+static void ui_gdi_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_bitmap_t* image) {
     rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
@@ -12570,19 +12570,19 @@ rt_println("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf
     return wh;
 }
 
-// to enable load_image() function
+// to enable load_bitmap() function
 // 1. Add
-//    curl.exe https://raw.githubusercontent.com/nothings/stb/master/stb_image.h stb_image.h
+//    curl.exe https://raw.githubusercontent.com/nothings/stb/master/stb_bitmap.h stb_bitmap.h
 //    to the project precompile build step
 // 2. After
 //    #define ui_implementation
 //    include "ui/ui.h"
 //    add
 //    #define STBI_ASSERT(x) assert(x)
-//    #define STB_IMAGE_IMPLEMENTATION
-//    #include "stb_image.h"
+//    #define STB_bitmap_IMPLEMENTATION
+//    #include "stb_bitmap.h"
 
-static uint8_t* ui_gdi_load_image(const void* data, int32_t bytes, int* w, int* h,
+static uint8_t* ui_gdi_load_bitmap(const void* data, int32_t bytes, int* w, int* h,
         int* bytes_per_pixel, int32_t preferred_bytes_per_pixel) {
     #ifdef STBI_VERSION
         return stbi_load_from_memory((uint8_t const*)data, bytes, w, h,
@@ -12591,13 +12591,13 @@ static uint8_t* ui_gdi_load_image(const void* data, int32_t bytes, int* w, int* 
         (void)data; (void)bytes; (void)data; (void)w; (void)h;
         (void)bytes_per_pixel; (void)preferred_bytes_per_pixel;
         rt_fatal_if(true, "curl.exe --silent --fail --create-dirs "
-            "https://raw.githubusercontent.com/nothings/stb/master/stb_image.h "
-            "--output ext/stb_image.h");
+            "https://raw.githubusercontent.com/nothings/stb/master/stb_bitmap.h "
+            "--output ext/stb_bitmap.h");
         return null;
     #endif
 }
 
-static void ui_gdi_image_dispose(ui_bitmap_t* image) {
+static void ui_gdi_bitmap_dispose(ui_bitmap_t* image) {
     rt_fatal_win32err(DeleteBitmap(image->texture));
     memset(image, 0, sizeof(ui_bitmap_t));
 }
@@ -12685,11 +12685,11 @@ ui_gdi_if ui_gdi = {
     .begin                    = ui_gdi_begin,
     .end                      = ui_gdi_end,
     .color_rgb                = ui_gdi_color_rgb,
-    .image_init               = ui_gdi_image_init,
-    .image_init_rgbx          = ui_gdi_image_init_rgbx,
-    .image_dispose            = ui_gdi_image_dispose,
+    .bitmap_init              = ui_gdi_bitmap_init,
+    .bitmap_init_rgbx         = ui_gdi_bitmap_init_rgbx,
+    .bitmap_dispose           = ui_gdi_bitmap_dispose,
     .alpha                    = ui_gdi_alpha,
-    .image                    = ui_gdi_image,
+    .bitmap                   = ui_gdi_bitmap,
     .icon                     = ui_gdi_icon,
     .set_clip                 = ui_gdi_set_clip,
     .pixel                    = ui_gdi_pixel,

@@ -363,10 +363,10 @@ static void ui_iv_copy_to_clipboard(ui_iv_t* iv) {
     if (iv->image.texture != null) {
         rt_clipboard.put_image(&iv->image);
     } else {
-        ui_gdi.image_init(&image, iv->image.w, iv->image.h,
+        ui_gdi.bitmap_init(&image, iv->image.w, iv->image.h,
                                   iv->image.bpp, iv->image.pixels);
         rt_clipboard.put_image(&image);
-        ui_gdi.image_dispose(&image);
+        ui_gdi.bitmap_dispose(&image);
     }
     static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
     ui_app.show_hint(&hint, ui_app.mouse.x,
