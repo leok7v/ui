@@ -127,7 +127,6 @@
     <ClInclude Include="..\inc\ut\version.h" />
     <ClInclude Include="..\src\samples\groot\groot.h" />
     <ClInclude Include="..\src\samples\groot\rocket.h" />
-    <ClInclude Include="..\src\samples\groot\ui_iv.h" />
     <ClInclude Include="..\src\samples\i18n.h" />
     <ClInclude Include="..\src\samples\stb_image.h" />
   </ItemGroup>
@@ -157,7 +156,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\samples\groot\groot.c" />
-    <ClCompile Include="..\src\samples\groot\ui_iv.c" />
     <ClCompile Include="..\src\samples\stb_image.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -3,7 +3,6 @@
 #include "rocket.h"
 #include "groot.h"
 #include "stb_image.h"
-#include "ui_iv.h"
 
 // TODO: stack(ui_text with the content "I am groot..", view_groot)
 // Top: Find single line edit control "groot" with Find button that selects found text
@@ -19,9 +18,9 @@ enum { width = 512, height = 512 };
 static uint8_t gs[width * height]; // greyscale
 //static ui_bitmap_t image; // grayscale image
 
-static ui_iv_t view_groot;
-static ui_iv_t view_rocket;
-static ui_iv_t view_gs[2]; // two views at the same image
+static ui_image_t view_groot;
+static ui_image_t view_rocket;
+static ui_image_t view_gs[2]; // two views at the same image
 
 static ui_edit_view_t  view_text;
 static ui_edit_doc_t   document;
@@ -80,18 +79,18 @@ static void slider_callback(ui_view_t* v) {
 }
 
 static void init_images(void) {
-    ui_iv.init(&view_groot);
+    ui_image.init(&view_groot);
     init_image(&view_groot.image, groot, rt_countof(groot));
     // view of groot image:
-//  ui_iv.ratio(&view_groot, 4, 1); // 4:1
-    ui_iv.ratio(&view_groot, 3, 1); // 4:1
+//  ui_image.ratio(&view_groot, 4, 1); // 4:1
+    ui_image.ratio(&view_groot, 3, 1); // 4:1
     view_groot.alpha = 0.5;
     view_groot.padding = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // because it is stacked under text editor
     // view of rocket image:
-    ui_iv.init(&view_rocket);
+    ui_image.init(&view_rocket);
     init_image(&view_rocket.image, rocket, rt_countof(rocket));
-    ui_iv.ratio(&view_rocket, 3, 1); // 3:1
+    ui_image.ratio(&view_rocket, 3, 1); // 3:1
     view_rocket.padding = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // no zoom/pan
     init_gs();
@@ -140,7 +139,7 @@ static void opened(void) {
     static ui_label_t label_bottom = ui_label(0, "Bottom");
     // painting greyscale pixels will be handled w/o device bitmap:
     for (int32_t i = 0; i < rt_countof(view_gs); i++) {
-        ui_iv.init_with(&view_gs[i], gs, width, height, 1, width);
+        ui_image.init_with(&view_gs[i], gs, width, height, 1, width);
         view_gs[i].erase = gs_erase;
         view_gs[i].focusable = true; // enable zoom pan
     }

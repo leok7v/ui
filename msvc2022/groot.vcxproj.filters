@@ -6,7 +6,6 @@
     <ClInclude Include="..\src\samples\groot\rocket.h" />
     <ClInclude Include="..\src\samples\groot\groot.h" />
     <ClInclude Include="..\src\samples\stb_image.h" />
-    <ClInclude Include="..\src\samples\groot\ui_iv.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\src\samples\groot\groot.ico" />
@@ -23,6 +22,5 @@
   <ItemGroup>
     <ClCompile Include="..\src\samples\groot\groot.c" />
     <ClCompile Include="..\src\samples\stb_image.c" />
-    <ClCompile Include="..\src\samples\groot\ui_iv.c" />
   </ItemGroup>
 </Project>

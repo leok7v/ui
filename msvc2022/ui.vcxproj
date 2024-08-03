@@ -27,6 +27,7 @@
     <ClInclude Include="..\inc\ui\ui_edit_doc.h" />
     <ClInclude Include="..\inc\ui\ui_edit_view.h" />
     <ClInclude Include="..\inc\ui\ui_fuzzing.h" />
+    <ClInclude Include="..\inc\ui\ui_image.h" />
     <ClInclude Include="..\inc\ui\ui_theme.h" />
     <ClInclude Include="..\inc\ui\ui_toggle.h" />
     <ClInclude Include="..\inc\ui\ui_colors.h" />
@@ -45,6 +46,7 @@
     <ClCompile Include="..\src\ui\ui_edit_doc.c" />
     <ClCompile Include="..\src\ui\ui_edit_view.c" />
     <ClCompile Include="..\src\ui\ui_fuzzing.c" />
+    <ClCompile Include="..\src\ui\ui_image.c" />
     <ClCompile Include="..\src\ui\ui_theme.c" />
     <ClCompile Include="..\src\ui\ui_toggle.c" />
     <ClCompile Include="..\src\ui\ui_colors.c" />

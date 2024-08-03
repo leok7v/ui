@@ -1,14 +1,13 @@
 #include "rt/rt.h"
 #include "ui/ui.h"
-#include "ui_iv.h"
 
-static fp64_t ui_iv_scale_of(int32_t nominator, int32_t denominator) {
+static fp64_t ui_image_scale_of(int32_t nominator, int32_t denominator) {
     const int32_t zn = 1 << (nominator - 1);
     const int32_t zd = 1 << (denominator - 1);
     return (fp64_t)zn / (fp64_t)zd;
 }
 
-static fp64_t ui_iv_scale(ui_iv_t* iv) {
+static fp64_t ui_image_scale(ui_image_t* iv) {
     if (iv->fit && iv->w > 0 && iv->h > 0) {
         return min((fp64_t)iv->w / iv->image.w,
                    (fp64_t)iv->h / iv->image.h);
@@ -16,18 +15,18 @@ static fp64_t ui_iv_scale(ui_iv_t* iv) {
         return max((fp64_t)iv->w / iv->image.w,
                    (fp64_t)iv->h / iv->image.h);
     } else {
-        return ui_iv_scale_of(iv->zn, iv->zd);
+        return ui_image_scale_of(iv->zn, iv->zd);
     }
 }
 
-static ui_rect_t ui_iv_position(ui_iv_t* iv) {
+static ui_rect_t ui_image_position(ui_image_t* iv) {
     ui_rect_t rc = { 0, 0, 0, 0 };
     if (iv->image.pixels != null) {
         int32_t iw = iv->image.w;
         int32_t ih = iv->image.h;
         // zoomed image width and height
-        rc.w = (int32_t)((fp64_t)iw * ui_iv.scale(iv));
-        rc.h = (int32_t)((fp64_t)ih * ui_iv.scale(iv));
+        rc.w = (int32_t)((fp64_t)iw * ui_image.scale(iv));
+        rc.h = (int32_t)((fp64_t)ih * ui_image.scale(iv));
         int32_t shift_x = (int32_t)((rc.w - iv->w) * iv->sx);
         int32_t shift_y = (int32_t)((rc.h - iv->h) * iv->sy);
         // shift_x and shift_y are in zoomed image coordinates
@@ -37,8 +36,8 @@ static ui_rect_t ui_iv_position(ui_iv_t* iv) {
     return rc;
 }
 
-static void ui_iv_paint(ui_view_t* v) {
-    ui_iv_t* iv = (ui_iv_t*)v;
+static void ui_image_paint(ui_view_t* v) {
+    ui_image_t* iv = (ui_image_t*)v;
 //  ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.black);
     if (iv->image.pixels != null) {
         ui_gdi.set_clip(v->x, v->y, v->w, v->h);
@@ -50,7 +49,7 @@ static void ui_iv_paint(ui_view_t* v) {
         if (iv->zd != 1) { rt_swear(iv->zn == 1); }
         const int32_t iw = iv->image.w;
         const int32_t ih = iv->image.h;
-        ui_rect_t rc = ui_iv_position(iv);
+        ui_rect_t rc = ui_image_position(iv);
         if (iv->image.bpp == 1) {
             ui_gdi.greyscale(rc.x, rc.y, rc.w, rc.h,
                 0, 0, iw, ih,
@@ -83,14 +82,14 @@ static void ui_iv_paint(ui_view_t* v) {
     }
 }
 
-static void ui_iv_tools_background(ui_view_t* v) {
+static void ui_image_tools_background(ui_view_t* v) {
     ui_color_t face = ui_colors.get_color(ui_color_id_button_face);
     ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
     ui_gdi.fill(v->x, v->y, v->w, v->h, face);
     ui_gdi.frame(v->x, v->y, v->w, v->h, highlight);
 }
 
-static void ui_iv_show_tools(ui_iv_t* iv, bool show) {
+static void ui_image_show_tools(ui_image_t* iv, bool show) {
     if (iv->focusable) {
         if (iv->tool.bar.state.hidden  != !show) {
             iv->tool.bar.state.hidden   = !show;
@@ -106,8 +105,8 @@ static void ui_iv_show_tools(ui_iv_t* iv, bool show) {
     }
 }
 
-static void ui_iv_fit_fill_scale(ui_iv_t* iv) {
-    fp64_t s = ui_iv.scale(iv);
+static void ui_image_fit_fill_scale(ui_image_t* iv) {
+    fp64_t s = ui_image.scale(iv);
     rt_assert(s != 0);
     if (s > 1) {
         ui_view.set_text(&iv->tool.ratio, "1:%.3f", s);
@@ -118,13 +117,13 @@ static void ui_iv_fit_fill_scale(ui_iv_t* iv) {
     }
 }
 
-static void ui_iv_measure(ui_view_t* v) {
-    ui_iv_t* iv = (ui_iv_t*)v;
+static void ui_image_measure(ui_view_t* v) {
+    ui_image_t* iv = (ui_image_t*)v;
     if (!v->focusable) {
-        v->w = (int32_t)(iv->image.w * ui_iv.scale(iv));
-        v->h = (int32_t)(iv->image.h * ui_iv.scale(iv));
+        v->w = (int32_t)(iv->image.w * ui_image.scale(iv));
+        v->h = (int32_t)(iv->image.h * ui_image.scale(iv));
         if (iv->fit || iv->fill) {
-            ui_iv_fit_fill_scale(iv);
+            ui_image_fit_fill_scale(iv);
         }
     } else {
         v->w = 0;
@@ -132,10 +131,10 @@ static void ui_iv_measure(ui_view_t* v) {
     }
 }
 
-static void ui_iv_layout(ui_view_t* v) {
-    ui_iv_t* iv = (ui_iv_t*)v;
+static void ui_image_layout(ui_view_t* v) {
+    ui_image_t* iv = (ui_image_t*)v;
     if (iv->fit || iv->fill) {
-        ui_iv_fit_fill_scale(iv);
+        ui_image_fit_fill_scale(iv);
         ui_view.measure_control(&iv->tool.ratio);
     }
     iv->tool.bar.x = v->x + v->w - iv->tool.bar.w;
@@ -144,31 +143,31 @@ static void ui_iv_layout(ui_view_t* v) {
     iv->tool.ratio.y = v->y + v->h - iv->tool.ratio.h;
 }
 
-static void ui_iv_every_100ms(ui_view_t* v) {
-    ui_iv_t* iv = (ui_iv_t*)v;
+static void ui_image_every_100ms(ui_view_t* v) {
+    ui_image_t* iv = (ui_image_t*)v;
     if (iv->when != 0 && rt_clock.seconds() > iv->when) {
-        ui_iv_show_tools(iv, false);
+        ui_image_show_tools(iv, false);
     }
 }
 
-static void ui_iv_focus_lost(ui_view_t* v) {
-    ui_iv_t* iv = (ui_iv_t*)v;
-    ui_iv_show_tools(iv, ui_view.has_focus(v));
+static void ui_image_focus_lost(ui_view_t* v) {
+    ui_image_t* iv = (ui_image_t*)v;
+    ui_image_show_tools(iv, ui_view.has_focus(v));
 }
 
-static void ui_iv_focus_gained(ui_view_t* v) {
-    ui_iv_t* iv = (ui_iv_t*)v;
-    ui_iv_show_tools(iv, ui_view.has_focus(v));
+static void ui_image_focus_gained(ui_view_t* v) {
+    ui_image_t* iv = (ui_image_t*)v;
+    ui_image_show_tools(iv, ui_view.has_focus(v));
 }
 
-static void ui_iv_zoomed(ui_iv_t* iv) {
+static void ui_image_zoomed(ui_image_t* iv) {
     iv->fill = false;
     iv->fit  = false;
     // 0=16:1 1=8:1 2=4:1 3=2:1 4=1:1 5=1:2 6=1:4 7=1:8 8=1:16
     int32_t n  = iv->zoom - 4;
     int32_t zn = iv->zn;
     int32_t zd = iv->zd;
-    fp64_t scale_before = ui_iv.scale(iv);
+    fp64_t scale_before = ui_image.scale(iv);
     if (n > 0) {
         zn = n + 1;
         zd = 1;
@@ -179,7 +178,7 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
         zn = 1;
         zd = 1;
     }
-    fp64_t scale_after = ui_iv_scale_of(zn, zd);
+    fp64_t scale_after = ui_image_scale_of(zn, zd);
     if (scale_after != scale_before) {
         iv->zn = zn;
         iv->zd = zd;
@@ -195,20 +194,20 @@ static void ui_iv_zoomed(ui_iv_t* iv) {
         rt_swear(false);
     }
     // is whole image visible?
-    fp64_t s = ui_iv.scale(iv);
+    fp64_t s = ui_image.scale(iv);
     bool whole = (int32_t)(iv->image.w * s) <= iv->w &&
                  (int32_t)(iv->image.h * s) <= iv->h;
     if (whole) { iv->sx = 0.5; iv->sy = 0.5; }
     ui_view.invalidate(&iv->view, null);
-    ui_iv_show_tools(iv, true);
+    ui_image_show_tools(iv, true);
 }
 
-static void ui_iv_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+static void ui_image_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     fp64_t dx = (fp64_t)dx_dy.x;
     fp64_t dy = (fp64_t)dx_dy.y;
-    ui_iv_t* iv = (ui_iv_t*)v;
+    ui_image_t* iv = (ui_image_t*)v;
     if (ui_view.has_focus(v)) {
-        fp64_t s = ui_iv.scale(iv);
+        fp64_t s = ui_image.scale(iv);
         if (iv->image.w * s > iv->w || iv->image.h * s > iv->h) {
             iv->sx = max(0.0, min(iv->sx + dx / iv->image.w, 1.0));
         } else {
@@ -223,10 +222,10 @@ static void ui_iv_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     }
 }
 
-static bool ui_iv_tap(ui_view_t* v, int32_t ix, bool pressed) {
+static bool ui_image_tap(ui_view_t* v, int32_t ix, bool pressed) {
     bool swallow = false;
     if (v->focusable) {
-        ui_iv_t* iv = (ui_iv_t*)v;
+        ui_image_t* iv = (ui_image_t*)v;
         const int32_t x = ui_app.mouse.x - iv->x;
         const int32_t y = ui_app.mouse.y - iv->y;
         bool tools  = !iv->tool.bar.state.hidden &&
@@ -246,50 +245,50 @@ static bool ui_iv_tap(ui_view_t* v, int32_t ix, bool pressed) {
     return swallow;
 }
 
-static bool ui_iv_mouse_move(ui_view_t* v) {
-    ui_iv_t* iv = (ui_iv_t*)v;
+static bool ui_image_mouse_move(ui_view_t* v) {
+    ui_image_t* iv = (ui_image_t*)v;
     bool drag_started = iv->drag_start.x >= 0 && iv->drag_start.y >= 0;
     bool tools  = !iv->tool.bar.state.hidden &&
                   ui_view.inside(&iv->tool.bar, &ui_app.mouse);
     bool inside = ui_view.inside(&iv->view, &ui_app.mouse) && !tools;
     if (drag_started && inside) {
-        ui_iv_show_tools(iv, false);
+        ui_image_show_tools(iv, false);
         const int32_t x = ui_app.mouse.x - iv->x;
         const int32_t y = ui_app.mouse.y - iv->y;
         ui_point_t dx_dy = {iv->drag_start.x - x, iv->drag_start.y - y};
-        ui_iv_mouse_scroll(v, dx_dy);
+        ui_image_mouse_scroll(v, dx_dy);
         iv->drag_start = (ui_point_t){x, y};
     } else if (inside) {
-        ui_iv_show_tools(iv, true);
+        ui_image_show_tools(iv, true);
     } else if (!inside && !tools) {
-        ui_iv_show_tools(iv, false);
+        ui_image_show_tools(iv, false);
     }
 //  rt_println("inside %s", inside ? "true" : "false");
     return inside;
 }
 
-static bool ui_iv_key_pressed(ui_view_t* v, int64_t vk) {
-    ui_iv_t* iv = (ui_iv_t*)v;
+static bool ui_image_key_pressed(ui_view_t* v, int64_t vk) {
+    ui_image_t* iv = (ui_image_t*)v;
     bool swallowed = false;
     if (ui_view.has_focus(v)) {
         swallowed = true;
         if (vk == ui.key.up) {
-            ui_iv_mouse_scroll(v, (ui_point_t){0, -iv->h / 8});
+            ui_image_mouse_scroll(v, (ui_point_t){0, -iv->h / 8});
         } else if (vk == ui.key.down) {
-            ui_iv_mouse_scroll(v, (ui_point_t){0, +iv->h / 8});
+            ui_image_mouse_scroll(v, (ui_point_t){0, +iv->h / 8});
         } else if (vk == ui.key.left) {
-            ui_iv_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
         } else if (vk == ui.key.right) {
-            ui_iv_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
         } else if (vk == ui.key.plus) {
             if (iv->zoom < 8) {
                 iv->zoom++;
-                ui_iv_zoomed(iv);
+                ui_image_zoomed(iv);
             }
         } else if (vk == ui.key.minus) {
             if (iv->zoom > 0) {
                 iv->zoom--;
-                ui_iv_zoomed(iv);
+                ui_image_zoomed(iv);
             }
         } else {
             swallowed = false;
@@ -298,45 +297,45 @@ static bool ui_iv_key_pressed(ui_view_t* v, int64_t vk) {
     return swallowed;
 }
 
-static void ui_iv_zoom_in(ui_button_t* b) {
-    ui_iv_t* iv = (ui_iv_t*)b->that;
+static void ui_image_zoom_in(ui_button_t* b) {
+    ui_image_t* iv = (ui_image_t*)b->that;
     if (iv->zoom < 8) {
         iv->zoom++;
-        ui_iv_zoomed(iv);
+        ui_image_zoomed(iv);
     }
 }
 
-static void ui_iv_zoom_out(ui_button_t* b) {
-    ui_iv_t* iv = (ui_iv_t*)b->that;
+static void ui_image_zoom_out(ui_button_t* b) {
+    ui_image_t* iv = (ui_image_t*)b->that;
     if (iv->zoom > 0) {
         iv->zoom--;
-        ui_iv_zoomed(iv);
+        ui_image_zoomed(iv);
     }
 }
 
-static void ui_iv_fit(ui_button_t* b) {
-    ui_iv_t* iv = (ui_iv_t*)b->that;
+static void ui_image_fit(ui_button_t* b) {
+    ui_image_t* iv = (ui_image_t*)b->that;
     iv->fit  = true;
     iv->fill = false;
-    ui_iv_fit_fill_scale(iv);
+    ui_image_fit_fill_scale(iv);
     ui_view.invalidate(&iv->view, null);
 }
 
-static void ui_iv_fill(ui_button_t* b) {
-    ui_iv_t* iv = (ui_iv_t*)b->that;
+static void ui_image_fill(ui_button_t* b) {
+    ui_image_t* iv = (ui_image_t*)b->that;
     iv->fill = true;
     iv->fit  = false;
-    ui_iv_fit_fill_scale(iv);
+    ui_image_fit_fill_scale(iv);
     ui_view.invalidate(&iv->view, null);
 }
 
-static void ui_iv_zoom_1t1(ui_button_t* b) {
-    ui_iv_t* iv = (ui_iv_t*)b->that;
+static void ui_image_zoom_1t1(ui_button_t* b) {
+    ui_image_t* iv = (ui_image_t*)b->that;
     iv->zoom = 4;
-    ui_iv_zoomed(iv);
+    ui_image_zoomed(iv);
 }
 
-static ui_label_t ui_iv_about = ui_label(0,
+static ui_label_t ui_image_about = ui_label(0,
     "Keyboard shortcuts:\n\n"
     "Ctrl+C copies image to the clipboard.\n\n"
     rt_glyph_heavy_plus_sign " zoom in; "
@@ -354,11 +353,11 @@ static ui_label_t ui_iv_about = ui_label(0,
     "Mouse wheel or mouse / touchpad hold and drag to pan.\n"
 );
 
-static void ui_iv_help(ui_button_t* rt_unused(b)) {
-    ui_app.show_toast(&ui_iv_about, 7.0);
+static void ui_image_help(ui_button_t* rt_unused(b)) {
+    ui_app.show_toast(&ui_image_about, 7.0);
 }
 
-static void ui_iv_copy_to_clipboard(ui_iv_t* iv) {
+static void ui_image_copy_to_clipboard(ui_image_t* iv) {
     ui_bitmap_t image = {0};
     if (iv->image.texture != null) {
         rt_clipboard.put_image(&iv->image);
@@ -374,39 +373,39 @@ static void ui_iv_copy_to_clipboard(ui_iv_t* iv) {
                      1.5);
 }
 
-static void ui_iv_copy(ui_button_t* b) {
-    ui_iv_t* iv = (ui_iv_t*)b->that;
-    ui_iv_copy_to_clipboard(iv);
+static void ui_image_copy(ui_button_t* b) {
+    ui_image_t* iv = (ui_image_t*)b->that;
+    ui_image_copy_to_clipboard(iv);
 }
 
-static void ui_iv_character(ui_view_t* v, const char* utf8) {
-    ui_iv_t* iv = (ui_iv_t*)v;
+static void ui_image_character(ui_view_t* v, const char* utf8) {
+    ui_image_t* iv = (ui_image_t*)v;
     if (ui_view.has_focus(v)) { // && ui_app.ctrl ?
         char ch = utf8[0];
         if (ch == '+' || ch == '=') {
             if (iv->zoom < 8) {
                 iv->zoom++;
-                ui_iv_zoomed(iv);
+                ui_image_zoomed(iv);
             }
         } else if (ch == '-' || ch == '_') {
             if (iv->zoom > 0) {
                 iv->zoom--;
-                ui_iv_zoomed(iv);
+                ui_image_zoomed(iv);
             }
         } else if (ch == '<' || ch == ',') {
-            ui_iv_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
         } else if (ch == '>' || ch == '.') {
-            ui_iv_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
         } else if (ch == '0') {
             iv->zoom = 4;
-            ui_iv_zoomed(iv);
+            ui_image_zoomed(iv);
         } else if (ch == 3 && iv->image.pixels != null) { // Ctrl+C
-            ui_iv_copy_to_clipboard(iv);
+            ui_image_copy_to_clipboard(iv);
         }
     }
 }
 
-static void ui_iv_add_button(ui_iv_t* iv, ui_button_t* b,
+static void ui_image_add_button(ui_image_t* iv, ui_button_t* b,
     const char* label, void (*cb)(ui_button_t* b), const char* hint) {
     *b = (ui_button_t)ui_button("", 0.0f, cb);
     ui_view.set_text(b, label);
@@ -424,42 +423,42 @@ static void ui_iv_add_button(ui_iv_t* iv, ui_button_t* b,
     ui_view.add_last(&iv->tool.bar, b);
 }
 
-void ui_iv_init(ui_iv_t* iv) {
+void ui_image_init(ui_image_t* iv) {
     memset(iv, 0x00, sizeof(*iv));
     iv->type         = ui_view_image;
-    iv->paint        = ui_iv_paint;
-    iv->tap          = ui_iv_tap;
-    iv->mouse_move   = ui_iv_mouse_move;
-    iv->measure      = ui_iv_measure;
-    iv->layout       = ui_iv_layout;
-    iv->every_100ms  = ui_iv_every_100ms;
-    iv->focus_lost   = ui_iv_focus_lost;
-    iv->focus_gained = ui_iv_focus_gained;
-    iv->mouse_scroll = ui_iv_mouse_scroll;
-    iv->character    = ui_iv_character;
-    iv->key_pressed  = ui_iv_key_pressed;
+    iv->paint        = ui_image_paint;
+    iv->tap          = ui_image_tap;
+    iv->mouse_move   = ui_image_mouse_move;
+    iv->measure      = ui_image_measure;
+    iv->layout       = ui_image_layout;
+    iv->every_100ms  = ui_image_every_100ms;
+    iv->focus_lost   = ui_image_focus_lost;
+    iv->focus_gained = ui_image_focus_gained;
+    iv->mouse_scroll = ui_image_mouse_scroll;
+    iv->character    = ui_image_character;
+    iv->key_pressed  = ui_image_key_pressed;
     iv->fm           = &ui_app.fm.prop.normal;
     iv->tool.bar = (ui_view_t)ui_view(span);
     // buttons:
-    ui_iv_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_iv_copy,
+    ui_image_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_image_copy,
         "Copy to Clipboard Ctrl+C");
-    ui_iv_add_button(iv, &iv->tool.zoom_out,
+    ui_image_add_button(iv, &iv->tool.zoom_out,
                     rt_glyph_heavy_minus_sign,
-                    ui_iv_zoom_out, "Zoom Out");
-    ui_iv_add_button(iv, &iv->tool.zoom_1t1,
+                    ui_image_zoom_out, "Zoom Out");
+    ui_image_add_button(iv, &iv->tool.zoom_1t1,
                     rt_glyph_open_circle_arrows_one_overlay,
-                    ui_iv_zoom_1t1, "Reset to 1:1");
-    ui_iv_add_button(iv, &iv->tool.zoom_in,
+                    ui_image_zoom_1t1, "Reset to 1:1");
+    ui_image_add_button(iv, &iv->tool.zoom_in,
                      rt_glyph_heavy_plus_sign,
-                     ui_iv_zoom_in,  "Zoom In");
-    ui_iv_add_button(iv, &iv->tool.fit,
+                     ui_image_zoom_in,  "Zoom In");
+    ui_image_add_button(iv, &iv->tool.fit,
                      rt_glyph_up_down_arrow,
-                     ui_iv_fit,  "Fit");
-    ui_iv_add_button(iv, &iv->tool.fill,
+                     ui_image_fit,  "Fit");
+    ui_image_add_button(iv, &iv->tool.fill,
                      rt_glyph_left_right_arrow,
-                     ui_iv_fill,  "Fill");
-    ui_iv_add_button(iv, &iv->tool.help,
-                     "?", ui_iv_help, "Help");
+                     ui_image_fill,  "Fill");
+    ui_image_add_button(iv, &iv->tool.help,
+                     "?", ui_image_help, "Help");
     iv->tool.zoom_1t1.min_w_em = 1.25f;
     iv->tool.ratio = (ui_label_t)ui_label(0, "1:1");
     iv->tool.ratio.color = ui_colors.get_color(ui_color_id_highlight);
@@ -468,8 +467,8 @@ void ui_iv_init(ui_iv_t* iv) {
     ui_view.add_last(&iv->view, &iv->tool.ratio);
     iv->tool.bar.state.hidden = true;
     iv->tool.ratio.state.hidden = true;
-    iv->tool.bar.erase   = ui_iv_tools_background;
-    iv->tool.ratio.erase = ui_iv_tools_background;
+    iv->tool.bar.erase   = ui_image_tools_background;
+    iv->tool.ratio.erase = ui_image_tools_background;
     iv->zoom = 4;
     iv->zn = 1;
     iv->zd = 1;
@@ -479,10 +478,10 @@ void ui_iv_init(ui_iv_t* iv) {
     iv->debug.id = "#image";
 }
 
-void ui_iv_init_with(ui_iv_t* iv, const uint8_t* pixels,
+void ui_image_init_with(ui_image_t* iv, const uint8_t* pixels,
                                   int32_t w, int32_t h,
                                   int32_t c, int32_t s) {
-    ui_iv_init(iv);
+    ui_image_init(iv);
     iv->image.pixels = (uint8_t*)pixels;
     iv->image.w = w;
     iv->image.h = h;
@@ -490,7 +489,7 @@ void ui_iv_init_with(ui_iv_t* iv, const uint8_t* pixels,
     iv->image.stride = s;
 }
 
-static void ui_iv_ratio(ui_iv_t* iv, int32_t zn, int32_t zd) {
+static void ui_image_ratio(ui_image_t* iv, int32_t zn, int32_t zd) {
     rt_swear(0 < zn && zn <= 16);
     rt_swear(0 < zd && zd <= 16);
     // only 1:2 and 2:1 etc are supported:
@@ -502,11 +501,11 @@ static void ui_iv_ratio(ui_iv_t* iv, int32_t zn, int32_t zd) {
     iv->fill = false;
 }
 
-ui_iv_if ui_iv = {
-    .init      = ui_iv_init,
-    .init_with = ui_iv_init_with,
-    .ratio     = ui_iv_ratio,
-    .scale     = ui_iv_scale,
-    .position  = ui_iv_position
+ui_image_if ui_image = {
+    .init      = ui_image_init,
+    .init_with = ui_image_init_with,
+    .ratio     = ui_image_ratio,
+    .scale     = ui_image_scale,
+    .position  = ui_image_position
 };
 

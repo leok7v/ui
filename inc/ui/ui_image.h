@@ -3,7 +3,7 @@
 
 rt_begin_c
 
-// "iv" stands for "image view"
+// "image view"
 
 // To enable zoom/pan make view focusable:
 // iv.focusable = true;
@@ -14,9 +14,9 @@ rt_begin_c
 // device otherwise ui_gdi.rgbx() call is used and alpha
 // is ignored.
 
-typedef struct ui_iv_s ui_iv_t;
+typedef struct ui_image_s ui_image_t;
 
-typedef struct ui_iv_s {
+typedef struct ui_image_s {
     union {
         ui_view_t view;
         struct ui_view_s;
@@ -47,21 +47,21 @@ typedef struct ui_iv_s {
     bool fill;   // fill entire view
     // fit and fill cannot be true at the same time
     // when fit: false and fill: false the zoom ratio is in effect
-} ui_iv_t;
+} ui_image_t;
 
-typedef struct ui_iv_if {
-    void      (*init)(ui_iv_t* iv);
-    void      (*init_with)(ui_iv_t* iv, const uint8_t* pixels,
+typedef struct ui_image_if {
+    void      (*init)(ui_image_t* iv);
+    void      (*init_with)(ui_image_t* iv, const uint8_t* pixels,
                            int32_t width, int32_t height,
                            int32_t bpp, int32_t stride);
     // ration can only be: 16:1 8:1 4:1 2:1 1:1 1:2 1:4 1:8 1:16
     // but ignored if .fit or .fill is true
-    void      (*ratio)(ui_iv_t* iv, int32_t nominator, int32_t denominator);
-    fp64_t    (*scale)(ui_iv_t* iv); // 2 ^ (zn - 1) / 2 ^ (zd - 1)
-    ui_rect_t (*position)(ui_iv_t* iv);
-} ui_iv_if;
+    void      (*ratio)(ui_image_t* iv, int32_t nominator, int32_t denominator);
+    fp64_t    (*scale)(ui_image_t* iv); // 2 ^ (zn - 1) / 2 ^ (zd - 1)
+    ui_rect_t (*position)(ui_image_t* iv);
+} ui_image_if;
 
-extern ui_iv_if ui_iv;
+extern ui_image_if ui_image;
 
 rt_end_c
 
