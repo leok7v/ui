@@ -891,12 +891,12 @@ enum { ui_app_animation_steps = 63 };
 
 static void ui_app_toast_paint(void) {
     static ui_image_t image_dark;
-    if (image_dark.bitmap == null) {
+    if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
         ui_gdi.image_init(&image_dark, 1, 1, 3, pixels);
     }
     static ui_image_t image_light;
-    if (image_dark.bitmap == null) {
+    if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
         ui_gdi.image_init(&image_light, 1, 1, 3, pixels);
     }
@@ -2532,11 +2532,10 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     HDC dst = CreateCompatibleDC(canvas); rt_not_null(dst);
     // CreateCompatibleBitmap(dst) will create monochrome bitmap!
     // CreateCompatibleBitmap(canvas) will create display compatible
-    HBITMAP bitmap = CreateCompatibleBitmap(canvas, im->w, im->h);
-//  HBITMAP bitmap = CreateBitmap(image.w, image.h, 1, 32, null);
-    rt_not_null(bitmap);
-    HBITMAP s = SelectBitmap(src, im->bitmap); rt_not_null(s);
-    HBITMAP d = SelectBitmap(dst, bitmap);     rt_not_null(d);
+    HBITMAP texture = CreateCompatibleBitmap(canvas, im->w, im->h);
+    rt_not_null(texture);
+    HBITMAP s = SelectBitmap(src, im->texture); rt_not_null(s);
+    HBITMAP d = SelectBitmap(dst, texture);     rt_not_null(d);
     POINT pt = { 0 };
     rt_fatal_win32err(SetBrushOrgEx(dst, 0, 0, &pt));
     rt_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
@@ -2548,7 +2547,7 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
         if (r != 0) { rt_println("EmptyClipboard() failed %s", rt_strerr(r)); }
     }
     if (r == 0) {
-        r = rt_b2e(SetClipboardData(CF_BITMAP, bitmap));
+        r = rt_b2e(SetClipboardData(CF_BITMAP, texture));
         if (r != 0) {
             rt_println("SetClipboardData() failed %s", rt_strerr(r));
         }
@@ -2561,7 +2560,7 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     }
     rt_not_null(SelectBitmap(dst, d));
     rt_not_null(SelectBitmap(src, s));
-    rt_fatal_win32err(DeleteBitmap(bitmap));
+    rt_fatal_win32err(DeleteBitmap(texture));
     rt_fatal_win32err(DeleteDC(dst));
     rt_fatal_win32err(DeleteDC(src));
     rt_fatal_win32err(ReleaseDC(null, canvas));

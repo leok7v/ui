@@ -151,18 +151,15 @@ typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
 typedef struct ui_ltbr_s { int32_t left, top, right, bottom; } ui_ltrb_t;
 typedef struct ui_wh_s   { int32_t w, h; } ui_wh_t;
 
-typedef struct ui_window_s* ui_window_t;
-typedef struct ui_icon_s*   ui_icon_t;
-typedef struct ui_canvas_s* ui_canvas_t;
-typedef struct ui_bitmap_s* ui_bitmap_t;
-typedef struct ui_font_s*   ui_font_t;
-typedef struct ui_brush_s*  ui_brush_t;
-typedef struct ui_pen_s*    ui_pen_t;
-typedef struct ui_cursor_s* ui_cursor_t;
-typedef struct ui_region_s* ui_region_t;
-
-// *)  .em square pixel size of glyph "m"
-//     https://en.wikipedia.org/wiki/Em_(typography)
+typedef struct ui_window_s*  ui_window_t;
+typedef struct ui_icon_s*    ui_icon_t;
+typedef struct ui_canvas_s*  ui_canvas_t;
+typedef struct ui_texture_s* ui_texture_t;
+typedef struct ui_font_s*    ui_font_t;
+typedef struct ui_brush_s*   ui_brush_t;
+typedef struct ui_pen_s*     ui_pen_t;
+typedef struct ui_cursor_s*  ui_cursor_t;
+typedef struct ui_region_s*  ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
@@ -172,13 +169,15 @@ typedef struct ui_image_s { // TODO: ui_ namespace
     int32_t h; // height
     int32_t bpp;    // "components" bytes per pixel
     int32_t stride; // bytes per scanline rounded up to: (w * bpp + 3) & ~3
-    ui_bitmap_t bitmap;
+    ui_texture_t texture; // device allocated texture handle
 } ui_image_t;
 
 // ui_margins_t are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.
 // Pay attention that "em" is not square. "M" measurement
 // for most fonts are em.w = 0.5 * em.h
+// .em square pixel size of glyph "m"
+// https://en.wikipedia.org/wiki/Em_(typography)
 
 typedef struct ui_gaps_s { // in partial "em"s
     fp32_t left;
@@ -3080,12 +3079,12 @@ enum { ui_app_animation_steps = 63 };
 
 static void ui_app_toast_paint(void) {
     static ui_image_t image_dark;
-    if (image_dark.bitmap == null) {
+    if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
         ui_gdi.image_init(&image_dark, 1, 1, 3, pixels);
     }
     static ui_image_t image_light;
-    if (image_dark.bitmap == null) {
+    if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
         ui_gdi.image_init(&image_light, 1, 1, 3, pixels);
     }
@@ -4721,11 +4720,10 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     HDC dst = CreateCompatibleDC(canvas); rt_not_null(dst);
     // CreateCompatibleBitmap(dst) will create monochrome bitmap!
     // CreateCompatibleBitmap(canvas) will create display compatible
-    HBITMAP bitmap = CreateCompatibleBitmap(canvas, im->w, im->h);
-//  HBITMAP bitmap = CreateBitmap(image.w, image.h, 1, 32, null);
-    rt_not_null(bitmap);
-    HBITMAP s = SelectBitmap(src, im->bitmap); rt_not_null(s);
-    HBITMAP d = SelectBitmap(dst, bitmap);     rt_not_null(d);
+    HBITMAP texture = CreateCompatibleBitmap(canvas, im->w, im->h);
+    rt_not_null(texture);
+    HBITMAP s = SelectBitmap(src, im->texture); rt_not_null(s);
+    HBITMAP d = SelectBitmap(dst, texture);     rt_not_null(d);
     POINT pt = { 0 };
     rt_fatal_win32err(SetBrushOrgEx(dst, 0, 0, &pt));
     rt_fatal_win32err(StretchBlt(dst, 0, 0, im->w, im->h, src, 0, 0,
@@ -4737,7 +4735,7 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
         if (r != 0) { rt_println("EmptyClipboard() failed %s", rt_strerr(r)); }
     }
     if (r == 0) {
-        r = rt_b2e(SetClipboardData(CF_BITMAP, bitmap));
+        r = rt_b2e(SetClipboardData(CF_BITMAP, texture));
         if (r != 0) {
             rt_println("SetClipboardData() failed %s", rt_strerr(r));
         }
@@ -4750,7 +4748,7 @@ static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
     }
     rt_not_null(SelectBitmap(dst, d));
     rt_not_null(SelectBitmap(src, s));
-    rt_fatal_win32err(DeleteBitmap(bitmap));
+    rt_fatal_win32err(DeleteBitmap(texture));
     rt_fatal_win32err(DeleteDC(dst));
     rt_fatal_win32err(DeleteDC(src));
     rt_fatal_win32err(ReleaseDC(null, canvas));
@@ -11530,7 +11528,7 @@ typedef struct ui_gdi_context_s {
     ui_color_t text_color;
     POINT brush_origin;
     ui_brush_t brush;
-    HBITMAP bitmap;
+    HBITMAP texture;
 } ui_gdi_context_t;
 
 static ui_gdi_context_t ui_gdi_context;
@@ -11581,13 +11579,13 @@ static ui_font_t ui_gdi_set_font(ui_font_t f) {
 static void ui_gdi_begin(ui_image_t* image) {
     rt_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
-        rt_swear(image->bitmap != null);
+        rt_swear(image->texture != null);
         ui_gdi_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
-        ui_gdi_context.bitmap = SelectBitmap(ui_gdi_hdc(),
-                                             (HBITMAP)image->bitmap);
+        ui_gdi_context.texture = SelectBitmap(ui_gdi_hdc(),
+                                             (HBITMAP)image->texture);
     } else {
         ui_gdi_context.hdc = (HDC)ui_app.canvas;
-        rt_swear(ui_gdi_context.bitmap == null);
+        rt_swear(ui_gdi_context.texture == null);
     }
     ui_gdi_context.font  = ui_gdi_set_font(ui_app.fm.prop.normal.font);
     ui_gdi_context.pen   = ui_gdi_set_pen(ui_gdi_pen_hollow);
@@ -11610,8 +11608,8 @@ static void ui_gdi_end(void) {
     SetBkMode(ui_gdi_hdc(), ui_gdi_context.background_mode);
     SetStretchBltMode(ui_gdi_hdc(), ui_gdi_context.stretch_mode);
     if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
-        rt_swear(ui_gdi_context.bitmap != null); // 1x1 bitmap
-        SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.bitmap);
+        rt_swear(ui_gdi_context.texture != null); // 1x1 bitmap
+        SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.texture);
         rt_fatal_win32err(DeleteDC(ui_gdi_context.hdc));
     }
     memset(&ui_gdi_context, 0x00, sizeof(ui_gdi_context));
@@ -11934,15 +11932,17 @@ static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
 
 static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
         int32_t bpp) {
-    rt_fatal_if(image->bitmap != null, "image_dispose() not called?");
+    rt_fatal_if(image->texture != null, "image_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
     // before window is created
     HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
     BITMAPINFO local = { {sizeof(BITMAPINFOHEADER)} };
     BITMAPINFO* bi = bpp == 1 ? ui_gdi_greyscale_bitmap_info() : &local;
-    image->bitmap = (ui_bitmap_t)CreateDIBSection(c, ui_gdi_init_bitmap_info(w, h, bpp, bi),
-                                               DIB_RGB_COLORS, &image->pixels, null, 0x0);
-    rt_fatal_if(image->bitmap == null || image->pixels == null);
+    image->texture = (ui_texture_t)CreateDIBSection(c, 
+            ui_gdi_init_bitmap_info(w, h, bpp, bi),
+            DIB_RGB_COLORS, &image->pixels, null, 0x0
+    );
+    rt_fatal_if(image->texture == null || image->pixels == null);
     rt_fatal_win32err(DeleteDC(c));
 }
 
@@ -12084,7 +12084,7 @@ static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
     rt_not_null(ui_gdi_hdc());
     HDC c = CreateCompatibleDC(ui_gdi_hdc());
     rt_not_null(c);
-    HBITMAP zero1x1 = SelectBitmap((HDC)c, (HBITMAP)image->bitmap);
+    HBITMAP zero1x1 = SelectBitmap((HDC)c, (HBITMAP)image->texture);
     BLENDFUNCTION bf = { 0 };
     bf.SourceConstantAlpha = (uint8_t)(0xFF * alpha + 0.49);
     if (image->bpp == 4) {
@@ -12119,7 +12119,7 @@ static void ui_gdi_image(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
     } else {
         HDC c = CreateCompatibleDC(ui_gdi_hdc());
         rt_not_null(c);
-        HBITMAP zero1x1 = SelectBitmap(c, image->bitmap);
+        HBITMAP zero1x1 = SelectBitmap(c, image->texture);
         rt_fatal_win32err(StretchBlt(ui_gdi_hdc(), dx, dy, dw, dh,
             c, ix, iy, iw, ih, SRCCOPY));
         SelectBitmap(c, zero1x1);
@@ -12575,8 +12575,8 @@ rt_println("%.*s %s %p bytes:%d glyphs:%d font:%p hdc:%p", bytes, utf8, str, utf
 //    curl.exe https://raw.githubusercontent.com/nothings/stb/master/stb_image.h stb_image.h
 //    to the project precompile build step
 // 2. After
-//    #define quick_implementation
-//    include "quick.h"
+//    #define ui_implementation
+//    include "ui/ui.h"
 //    add
 //    #define STBI_ASSERT(x) assert(x)
 //    #define STB_IMAGE_IMPLEMENTATION
@@ -12598,7 +12598,7 @@ static uint8_t* ui_gdi_load_image(const void* data, int32_t bytes, int* w, int* 
 }
 
 static void ui_gdi_image_dispose(ui_image_t* image) {
-    rt_fatal_win32err(DeleteBitmap(image->bitmap));
+    rt_fatal_win32err(DeleteBitmap(image->texture));
     memset(image, 0, sizeof(ui_image_t));
 }
 

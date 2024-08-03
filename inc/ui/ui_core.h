@@ -8,18 +8,15 @@ typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
 typedef struct ui_ltbr_s { int32_t left, top, right, bottom; } ui_ltrb_t;
 typedef struct ui_wh_s   { int32_t w, h; } ui_wh_t;
 
-typedef struct ui_window_s* ui_window_t;
-typedef struct ui_icon_s*   ui_icon_t;
-typedef struct ui_canvas_s* ui_canvas_t;
-typedef struct ui_bitmap_s* ui_bitmap_t;
-typedef struct ui_font_s*   ui_font_t;
-typedef struct ui_brush_s*  ui_brush_t;
-typedef struct ui_pen_s*    ui_pen_t;
-typedef struct ui_cursor_s* ui_cursor_t;
-typedef struct ui_region_s* ui_region_t;
-
-// *)  .em square pixel size of glyph "m"
-//     https://en.wikipedia.org/wiki/Em_(typography)
+typedef struct ui_window_s*  ui_window_t;
+typedef struct ui_icon_s*    ui_icon_t;
+typedef struct ui_canvas_s*  ui_canvas_t;
+typedef struct ui_texture_s* ui_texture_t;
+typedef struct ui_font_s*    ui_font_t;
+typedef struct ui_brush_s*   ui_brush_t;
+typedef struct ui_pen_s*     ui_pen_t;
+typedef struct ui_cursor_s*  ui_cursor_t;
+typedef struct ui_region_s*  ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
@@ -29,13 +26,15 @@ typedef struct ui_image_s { // TODO: ui_ namespace
     int32_t h; // height
     int32_t bpp;    // "components" bytes per pixel
     int32_t stride; // bytes per scanline rounded up to: (w * bpp + 3) & ~3
-    ui_bitmap_t bitmap;
+    ui_texture_t texture; // device allocated texture handle
 } ui_image_t;
 
 // ui_margins_t are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.
 // Pay attention that "em" is not square. "M" measurement
 // for most fonts are em.w = 0.5 * em.h
+// .em square pixel size of glyph "m"
+// https://en.wikipedia.org/wiki/Em_(typography)
 
 typedef struct ui_gaps_s { // in partial "em"s
     fp32_t left;

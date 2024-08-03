@@ -62,7 +62,7 @@ static void ui_iv_paint(ui_view_t* v) {
                          iw, ih, iv->image.stride,
                          iv->image.pixels);
         } else if (iv->image.bpp == 4) {
-            if (iv->image.bitmap == null) {
+            if (iv->image.texture == null) {
                 ui_gdi.bgrx(rc.x, rc.y, rc.w, rc.h,
                               0, 0, iw, ih,
                               iw, ih, iv->image.stride,
@@ -360,7 +360,7 @@ static void ui_iv_help(ui_button_t* rt_unused(b)) {
 
 static void ui_iv_copy_to_clipboard(ui_iv_t* iv) {
     ui_image_t image = {0};
-    if (iv->image.bitmap != null) {
+    if (iv->image.texture != null) {
         rt_clipboard.put_image(&iv->image);
     } else {
         ui_gdi.image_init(&image, iv->image.w, iv->image.h,
