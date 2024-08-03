@@ -127,10 +127,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\single_file_lib\rt\rt.h" />
     <ClInclude Include="..\single_file_lib\ui\ui.h" />
     <ClInclude Include="..\src\samples\i18n.h" />
     <ClInclude Include="..\src\samples\version.h" />
-    <ClInclude Include="..\single_file_lib\ut\ut.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\src\samples\sample.ico" />
@@ -140,27 +140,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\samples\edit.test.c" />
-    <ClCompile Include="..\src\samples\ui.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|arm64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|arm64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="..\src\samples\ui.c" />
     <ClCompile Include="..\src\samples\sample5.c" />
-    <ClCompile Include="..\src\samples\ut.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|arm64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|arm64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='debug|x64'">true</ExcludedFromBuild>
-    </ClCompile>
+    <ClCompile Include="..\src\samples\rt.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="prebuild.vcxproj">
       <Project>{9f53c795-2a93-4154-8b04-bb1829d67602}</Project>
     </ProjectReference>
+    <ProjectReference Include="rt.vcxproj">
+      <Project>{8b9ac256-a764-474a-ad7a-31411fe694e1}</Project>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
     <ProjectReference Include="ui.vcxproj">
       <Project>{9b9ac256-a764-474a-ad7a-31411fe694e2}</Project>
-      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

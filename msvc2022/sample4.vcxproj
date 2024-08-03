@@ -127,11 +127,11 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\single_file_lib\rt\rt.h" />
     <ClInclude Include="..\single_file_lib\ui\ui.h" />
     <ClInclude Include="..\src\samples\i18n.h" />
     <ClInclude Include="..\src\samples\version.h" />
     <ClInclude Include="..\stb_image.h" />
-    <ClInclude Include="..\single_file_lib\ut\ut.h" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="..\src\samples\sample.ico" />
@@ -144,7 +144,7 @@
     <ClCompile Include="..\src\samples\ui.c" />
     <ClCompile Include="..\src\samples\sample4.c" />
     <ClCompile Include="..\src\samples\stb_image.c" />
-    <ClCompile Include="..\src\samples\ut.c" />
+    <ClCompile Include="..\src\samples\rt.c" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="prebuild.vcxproj">

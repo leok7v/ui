@@ -128,27 +128,7 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ut\ut_args.h" />
-    <ClInclude Include="..\inc\ut\ut_atomics.h" />
-    <ClInclude Include="..\inc\ut\ut_bt.h" />
-    <ClInclude Include="..\inc\ut\ut_clock.h" />
-    <ClInclude Include="..\inc\ut\ut_config.h" />
-    <ClInclude Include="..\inc\ut\ut_debug.h" />
-    <ClInclude Include="..\inc\ut\ut_files.h" />
-    <ClInclude Include="..\inc\ut\ut_heap.h" />
-    <ClInclude Include="..\inc\ut\ut_loader.h" />
-    <ClInclude Include="..\inc\ut\ut_mem.h" />
-    <ClInclude Include="..\inc\ut\ut_num.h" />
-    <ClInclude Include="..\inc\ut\ut_processes.h" />
-    <ClInclude Include="..\inc\ut\ut_runtime.h" />
-    <ClInclude Include="..\inc\ut\ut_static.h" />
-    <ClInclude Include="..\inc\ut\ut_std.h" />
-    <ClInclude Include="..\inc\ut\ut_str.h" />
-    <ClInclude Include="..\inc\ut\ut_streams.h" />
-    <ClInclude Include="..\inc\ut\ut_threads.h" />
-    <ClInclude Include="..\inc\ut\ut_vigil.h" />
-    <ClInclude Include="..\inc\ut\ut_win32.h" />
-    <ClInclude Include="..\single_file_lib\ut\ut.h" />
+    <ClInclude Include="..\single_file_lib\rt\rt.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

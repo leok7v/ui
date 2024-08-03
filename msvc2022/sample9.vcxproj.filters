@@ -7,12 +7,25 @@
     <ClInclude Include="..\src\samples\version.h">
       <Filter>res</Filter>
     </ClInclude>
-    <ClInclude Include="..\single_file_lib\ui\ui.h" />
-    <ClInclude Include="..\single_file_lib\ut\ut.h" />
+    <ClInclude Include="..\single_file_lib\rt\rt.h">
+      <Filter>single_file_lib\rt</Filter>
+    </ClInclude>
+    <ClInclude Include="..\single_file_lib\ui\ui.h">
+      <Filter>single_file_lib\ui</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="res">
       <UniqueIdentifier>{c60b96ea-15fe-4796-86c9-3b9428dc82c7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="single_file_lib">
+      <UniqueIdentifier>{0b936939-cf81-415a-861e-4c0d87625788}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="single_file_lib\rt">
+      <UniqueIdentifier>{96a3d1bd-6d12-44d3-9226-8ee7bd0e87f8}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="single_file_lib\ui">
+      <UniqueIdentifier>{4d363118-820b-458d-b1c4-9b3cdfa6a3be}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -28,6 +41,6 @@
   <ItemGroup>
     <ClCompile Include="..\src\samples\sample9.c" />
     <ClCompile Include="..\src\samples\ui.c" />
-    <ClCompile Include="..\src\samples\ut.c" />
+    <ClCompile Include="..\src\samples\rt.c" />
   </ItemGroup>
 </Project>

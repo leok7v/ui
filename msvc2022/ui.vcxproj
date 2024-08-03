@@ -33,7 +33,6 @@
     <ClInclude Include="..\inc\ui\ui_core.h" />
     <ClInclude Include="..\inc\ui\ui_gdi.h" />
     <ClInclude Include="..\inc\ui\ui_label.h" />
-    <ClInclude Include="..\inc\ui\ui_layout.h" />
     <ClInclude Include="..\inc\ui\ui_mbx.h" />
     <ClInclude Include="..\inc\ui\ui_slider.h" />
     <ClInclude Include="..\inc\ui\ui_view.h" />
@@ -52,7 +51,6 @@
     <ClCompile Include="..\src\ui\ui_core.c" />
     <ClCompile Include="..\src\ui\ui_gdi.c" />
     <ClCompile Include="..\src\ui\ui_label.c" />
-    <ClCompile Include="..\src\ui\ui_layout.c" />
     <ClCompile Include="..\src\ui\ui_mbx.c" />
     <ClCompile Include="..\src\ui\ui_slider.c" />
     <ClCompile Include="..\src\ui\ui_view.c" />
