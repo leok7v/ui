@@ -67,7 +67,7 @@ static ui_font_t ui_gdi_set_font(ui_font_t f) {
     return (ui_font_t)SelectFont(ui_gdi_hdc(), (HFONT)f);
 }
 
-static void ui_gdi_begin(ui_image_t* image) {
+static void ui_gdi_begin(ui_bitmap_t* image) {
     rt_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
         rt_swear(image->texture != null);
@@ -421,7 +421,7 @@ static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
     return bi;
 }
 
-static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
+static void ui_gdi_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp) {
     rt_fatal_if(image->texture != null, "image_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
@@ -437,7 +437,7 @@ static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
     rt_fatal_win32err(DeleteDC(c));
 }
 
-static void ui_gdi_image_init_rgbx(ui_image_t* image, int32_t w, int32_t h,
+static void ui_gdi_image_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -481,7 +481,7 @@ static void ui_gdi_image_init_rgbx(ui_image_t* image, int32_t w, int32_t h,
     image->stride = stride;
 }
 
-static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t bpp,
+static void ui_gdi_image_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -569,7 +569,7 @@ static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t b
 
 static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_image_t* image, fp64_t alpha) {
+        ui_bitmap_t* image, fp64_t alpha) {
     rt_assert(image->bpp > 0);
     rt_assert(0 <= alpha && alpha <= 1);
     rt_not_null(ui_gdi_hdc());
@@ -597,7 +597,7 @@ static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 
 static void ui_gdi_image(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_image_t* image) {
+        ui_bitmap_t* image) {
     rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     rt_assert(0 <= ix && ix < image->w && 0 <= iy && iy < image->h);
     rt_assert(ix + iw <= image->w && iy + ih <= image->h);
@@ -1088,9 +1088,9 @@ static uint8_t* ui_gdi_load_image(const void* data, int32_t bytes, int* w, int* 
     #endif
 }
 
-static void ui_gdi_image_dispose(ui_image_t* image) {
+static void ui_gdi_image_dispose(ui_bitmap_t* image) {
     rt_fatal_win32err(DeleteBitmap(image->texture));
-    memset(image, 0, sizeof(ui_image_t));
+    memset(image, 0, sizeof(ui_bitmap_t));
 }
 
 ui_gdi_if ui_gdi = {

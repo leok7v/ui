@@ -88,17 +88,17 @@ typedef struct {
     } const ta;
     void (*init)(void);
     void (*fini)(void);
-    void (*begin)(ui_image_t* image_or_null);
+    void (*begin)(ui_bitmap_t* image_or_null);
     // all paint must be done in between
     void (*end)(void);
     // TODO: move to ui_colors
     uint32_t (*color_rgb)(ui_color_t c); // rgb color
     // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
-    void (*image_init)(ui_image_t* image, int32_t w, int32_t h, int32_t bpp,
+    void (*image_init)(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels);
-    void (*image_init_rgbx)(ui_image_t* image, int32_t w, int32_t h,
+    void (*image_init_rgbx)(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
-    void (*image_dispose)(ui_image_t* image);
+    void (*image_dispose)(ui_bitmap_t* image);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
@@ -131,11 +131,11 @@ typedef struct {
     // alpha() blend only works with device allocated bitmaps
     void (*alpha)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_image_t* image, fp64_t alpha); // alpha blend
+        ui_bitmap_t* image, fp64_t alpha); // alpha blend
     // image() only works with device allocated bitmaps
     void (*image)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_image_t* image);
+        ui_bitmap_t* image);
     void (*icon)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         ui_icon_t icon);
     // text:

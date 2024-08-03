@@ -163,14 +163,14 @@ typedef struct ui_region_s*  ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
-typedef struct ui_image_s { // TODO: ui_ namespace
+typedef struct ui_bitmap_s { // TODO: ui_ namespace
     void* pixels;
     int32_t w; // width
     int32_t h; // height
     int32_t bpp;    // "components" bytes per pixel
     int32_t stride; // bytes per scanline rounded up to: (w * bpp + 3) & ~3
     ui_texture_t texture; // device allocated texture handle
-} ui_image_t;
+} ui_bitmap_t;
 
 // ui_margins_t are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.
@@ -260,8 +260,8 @@ typedef struct ui_s {
         int32_t const right;
         int32_t const home;
         int32_t const end;
-        int32_t const pageup;
-        int32_t const pagedw;
+        int32_t const page_up;
+        int32_t const page_down;
         int32_t const insert;
         int32_t const del;
         int32_t const back;
@@ -701,17 +701,17 @@ typedef struct {
     } const ta;
     void (*init)(void);
     void (*fini)(void);
-    void (*begin)(ui_image_t* image_or_null);
+    void (*begin)(ui_bitmap_t* image_or_null);
     // all paint must be done in between
     void (*end)(void);
     // TODO: move to ui_colors
     uint32_t (*color_rgb)(ui_color_t c); // rgb color
     // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
-    void (*image_init)(ui_image_t* image, int32_t w, int32_t h, int32_t bpp,
+    void (*image_init)(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels);
-    void (*image_init_rgbx)(ui_image_t* image, int32_t w, int32_t h,
+    void (*image_init_rgbx)(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
-    void (*image_dispose)(ui_image_t* image);
+    void (*image_dispose)(ui_bitmap_t* image);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
@@ -744,11 +744,11 @@ typedef struct {
     // alpha() blend only works with device allocated bitmaps
     void (*alpha)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_image_t* image, fp64_t alpha); // alpha blend
+        ui_bitmap_t* image, fp64_t alpha); // alpha blend
     // image() only works with device allocated bitmaps
     void (*image)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_image_t* image);
+        ui_bitmap_t* image);
     void (*icon)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         ui_icon_t icon);
     // text:
@@ -3078,12 +3078,12 @@ static bool ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
 enum { ui_app_animation_steps = 63 };
 
 static void ui_app_toast_paint(void) {
-    static ui_image_t image_dark;
+    static ui_bitmap_t image_dark;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
         ui_gdi.image_init(&image_dark, 1, 1, 3, pixels);
     }
-    static ui_image_t image_light;
+    static ui_bitmap_t image_light;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
         ui_gdi.image_init(&image_light, 1, 1, 3, pixels);
@@ -4713,7 +4713,7 @@ static const char* ui_app_open_file(const char* folder,
 
 // TODO: use clipboard instead?
 
-static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
+static errno_t ui_app_clipboard_put_image(ui_bitmap_t* im) {
     HDC canvas = GetDC(null);
     rt_not_null(canvas);
     HDC src = CreateCompatibleDC(canvas); rt_not_null(src);
@@ -6784,45 +6784,45 @@ ui_if ui = {
         .help              = HTHELP
     },
     .key = {
-        .up     = VK_UP,
-        .down   = VK_DOWN,
-        .left   = VK_LEFT,
-        .right  = VK_RIGHT,
-        .home   = VK_HOME,
-        .end    = VK_END,
-        .pageup = VK_PRIOR,
-        .pagedw = VK_NEXT,
-        .insert = VK_INSERT,
-        .del    = VK_DELETE,
-        .back   = VK_BACK,
-        .escape = VK_ESCAPE,
-        .enter  = VK_RETURN,
-        .minus  = VK_OEM_MINUS,
-        .plus   = VK_OEM_PLUS,
-        .f1     = VK_F1,
-        .f2     = VK_F2,
-        .f3     = VK_F3,
-        .f4     = VK_F4,
-        .f5     = VK_F5,
-        .f6     = VK_F6,
-        .f7     = VK_F7,
-        .f8     = VK_F8,
-        .f9     = VK_F9,
-        .f10    = VK_F10,
-        .f11    = VK_F11,
-        .f12    = VK_F12,
-        .f13    = VK_F13,
-        .f14    = VK_F14,
-        .f15    = VK_F15,
-        .f16    = VK_F16,
-        .f17    = VK_F17,
-        .f18    = VK_F18,
-        .f19    = VK_F19,
-        .f20    = VK_F20,
-        .f21    = VK_F21,
-        .f22    = VK_F22,
-        .f23    = VK_F23,
-        .f24    = VK_F24,
+        .up        = VK_UP,
+        .down      = VK_DOWN,
+        .left      = VK_LEFT,
+        .right     = VK_RIGHT,
+        .home      = VK_HOME,
+        .end       = VK_END,
+        .page_up   = VK_PRIOR,
+        .page_down = VK_NEXT,
+        .insert    = VK_INSERT,
+        .del       = VK_DELETE,
+        .back      = VK_BACK,
+        .escape    = VK_ESCAPE,
+        .enter     = VK_RETURN,
+        .minus     = VK_OEM_MINUS,
+        .plus      = VK_OEM_PLUS,
+        .f1        = VK_F1,
+        .f2        = VK_F2,
+        .f3        = VK_F3,
+        .f4        = VK_F4,
+        .f5        = VK_F5,
+        .f6        = VK_F6,
+        .f7        = VK_F7,
+        .f8        = VK_F8,
+        .f9        = VK_F9,
+        .f10       = VK_F10,
+        .f11       = VK_F11,
+        .f12       = VK_F12,
+        .f13       = VK_F13,
+        .f14       = VK_F14,
+        .f15       = VK_F15,
+        .f16       = VK_F16,
+        .f17       = VK_F17,
+        .f18       = VK_F18,
+        .f19       = VK_F19,
+        .f20       = VK_F20,
+        .f21       = VK_F21,
+        .f22       = VK_F22,
+        .f23       = VK_F23,
+        .f24       = VK_F24,
     },
     .beep = {
         .ok         = 0,
@@ -10377,9 +10377,9 @@ static bool ui_edit_view_key_pressed(ui_view_t* v, int64_t key) {
             ui_edit_view.key_left(e);
         } else if (key == ui.key.right) {
             ui_edit_view.key_right(e);
-        } else if (key == ui.key.pageup) {
+        } else if (key == ui.key.page_up) {
             ui_edit_view.key_page_up(e);
-        } else if (key == ui.key.pagedw) {
+        } else if (key == ui.key.page_down) {
             ui_edit_view.key_page_down(e);
         } else if (key == ui.key.home) {
             ui_edit_view.key_home(e);
@@ -11413,18 +11413,18 @@ static void ui_fuzzing_key(void) {
         int32_t key;
         const char* name;
     } keys[] = {
-        { ui.key.up,      "up",     },
-        { ui.key.down,    "down",   },
-        { ui.key.left,    "left",   },
-        { ui.key.right,   "right",  },
-        { ui.key.home,    "home",   },
-        { ui.key.end,     "end",    },
-        { ui.key.pageup,  "pgup",   },
-        { ui.key.pagedw,  "pgdw",   },
-        { ui.key.insert,  "insert"  },
-        { ui.key.enter,   "enter"   },
-        { ui.key.del,     "delete"  },
-        { ui.key.back,    "back"   },
+        { ui.key.up,        "up",     },
+        { ui.key.down,      "down",   },
+        { ui.key.left,      "left",   },
+        { ui.key.right,     "right",  },
+        { ui.key.home,      "home",   },
+        { ui.key.end,       "end",    },
+        { ui.key.page_up,   "pgup",   },
+        { ui.key.page_down, "pgdw",   },
+        { ui.key.insert,    "insert"  },
+        { ui.key.enter,     "enter"   },
+        { ui.key.del,       "delete"  },
+        { ui.key.back,      "back"    },
     };
     ui_fuzzing_alt_ctrl_shift();
     uint32_t ix = ui_fuzzing_random() % rt_countof(keys);
@@ -11576,7 +11576,7 @@ static ui_font_t ui_gdi_set_font(ui_font_t f) {
     return (ui_font_t)SelectFont(ui_gdi_hdc(), (HFONT)f);
 }
 
-static void ui_gdi_begin(ui_image_t* image) {
+static void ui_gdi_begin(ui_bitmap_t* image) {
     rt_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
         rt_swear(image->texture != null);
@@ -11930,7 +11930,7 @@ static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
     return bi;
 }
 
-static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
+static void ui_gdi_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp) {
     rt_fatal_if(image->texture != null, "image_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
@@ -11946,7 +11946,7 @@ static void ui_gdi_create_dib_section(ui_image_t* image, int32_t w, int32_t h,
     rt_fatal_win32err(DeleteDC(c));
 }
 
-static void ui_gdi_image_init_rgbx(ui_image_t* image, int32_t w, int32_t h,
+static void ui_gdi_image_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -11990,7 +11990,7 @@ static void ui_gdi_image_init_rgbx(ui_image_t* image, int32_t w, int32_t h,
     image->stride = stride;
 }
 
-static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t bpp,
+static void ui_gdi_image_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -12078,7 +12078,7 @@ static void ui_gdi_image_init(ui_image_t* image, int32_t w, int32_t h, int32_t b
 
 static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_image_t* image, fp64_t alpha) {
+        ui_bitmap_t* image, fp64_t alpha) {
     rt_assert(image->bpp > 0);
     rt_assert(0 <= alpha && alpha <= 1);
     rt_not_null(ui_gdi_hdc());
@@ -12106,7 +12106,7 @@ static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 
 static void ui_gdi_image(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_image_t* image) {
+        ui_bitmap_t* image) {
     rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     rt_assert(0 <= ix && ix < image->w && 0 <= iy && iy < image->h);
     rt_assert(ix + iw <= image->w && iy + ih <= image->h);
@@ -12597,9 +12597,9 @@ static uint8_t* ui_gdi_load_image(const void* data, int32_t bytes, int* w, int* 
     #endif
 }
 
-static void ui_gdi_image_dispose(ui_image_t* image) {
+static void ui_gdi_image_dispose(ui_bitmap_t* image) {
     rt_fatal_win32err(DeleteBitmap(image->texture));
-    memset(image, 0, sizeof(ui_image_t));
+    memset(image, 0, sizeof(ui_bitmap_t));
 }
 
 ui_gdi_if ui_gdi = {

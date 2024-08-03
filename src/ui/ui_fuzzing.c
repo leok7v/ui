@@ -326,18 +326,18 @@ static void ui_fuzzing_key(void) {
         int32_t key;
         const char* name;
     } keys[] = {
-        { ui.key.up,      "up",     },
-        { ui.key.down,    "down",   },
-        { ui.key.left,    "left",   },
-        { ui.key.right,   "right",  },
-        { ui.key.home,    "home",   },
-        { ui.key.end,     "end",    },
-        { ui.key.pageup,  "pgup",   },
-        { ui.key.pagedw,  "pgdw",   },
-        { ui.key.insert,  "insert"  },
-        { ui.key.enter,   "enter"   },
-        { ui.key.del,     "delete"  },
-        { ui.key.back,    "back"   },
+        { ui.key.up,        "up",     },
+        { ui.key.down,      "down",   },
+        { ui.key.left,      "left",   },
+        { ui.key.right,     "right",  },
+        { ui.key.home,      "home",   },
+        { ui.key.end,       "end",    },
+        { ui.key.page_up,   "pgup",   },
+        { ui.key.page_down, "pgdw",   },
+        { ui.key.insert,    "insert"  },
+        { ui.key.enter,     "enter"   },
+        { ui.key.del,       "delete"  },
+        { ui.key.back,      "back"    },
     };
     ui_fuzzing_alt_ctrl_shift();
     uint32_t ix = ui_fuzzing_random() % rt_countof(keys);

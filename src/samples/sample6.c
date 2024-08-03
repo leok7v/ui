@@ -32,7 +32,7 @@ static bool muted;
 
 static midi_t mds;
 
-static ui_image_t  background;
+static ui_bitmap_t  background;
 
 static void init(void);
 static void fini(void);
@@ -78,7 +78,7 @@ static void paint(ui_view_t* view) {
     ui_gdi.set_clip(0, 0, 0, 0);
     if (gif.pixels != null) {
         uint8_t* p = gif.pixels + gif.w * gif.h * gif.bpp * animation.index;
-        ui_image_t frame = { 0 };
+        ui_bitmap_t frame = { 0 };
         ui_gdi.image_init(&frame, gif.w, gif.h, gif.bpp, p);
         x = animation.x - gif.w / 2;
         y = animation.y - gif.h / 2;

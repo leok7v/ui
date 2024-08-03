@@ -3,7 +3,7 @@
 #include "single_file_lib/ui/ui.h"
 
 static volatile int32_t index; // index of image to paint, !ix to render
-static ui_image_t image[2];
+static ui_bitmap_t image[2];
 static uint8_t pixels[2][4 * 4096 * 4096];
 
 static rt_thread_t thread;
@@ -62,7 +62,7 @@ static void measure(ui_view_t* view) {
     view->h = ui_app.root->h;
     const int32_t w = view->w;
     const int32_t h = view->h;
-    ui_image_t* im = &image[index];
+    ui_bitmap_t* im = &image[index];
     if (w != im->w || h != im->h) {
         stop_rendering();
         im = &image[!index];
@@ -147,7 +147,7 @@ static fp64_t scale(int32_t x, int32_t n, fp64_t low, fp64_t hi) {
     return x / (fp64_t)(n - 1) * (hi - low) + low;
 }
 
-static void mandelbrot(ui_image_t* im) {
+static void mandelbrot(ui_bitmap_t* im) {
     fp64_t time = rt_clock.seconds();
     for (int32_t r = 0; r < im->h && !stop; r++) {
         fp64_t y0 = scale(r, im->h, -1.12, 1.12);

@@ -22,7 +22,7 @@ ui_app_t ui_app = {
 static int32_t panel_border = 1;
 static int32_t frame_border = 1;
 
-static ui_image_t image;
+static ui_bitmap_t image;
 static uint32_t pixels[1024][1024];
 
 static fp64_t zoom = 0.5;
@@ -490,7 +490,7 @@ static fp64_t into(fp64_t v, fp64_t lo, fp64_t hi) {
     return v * (hi - lo) + lo;
 }
 
-static void mandelbrot(ui_image_t* im) {
+static void mandelbrot(ui_bitmap_t* im) {
     for (int r = 0; r < im->h; r++) {
         fp64_t y0 = into(scale0to1(r, im->h, sy, zoom), -1.12, 1.12);
         for (int c = 0; c < im->w; c++) {

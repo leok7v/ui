@@ -890,12 +890,12 @@ static bool ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
 enum { ui_app_animation_steps = 63 };
 
 static void ui_app_toast_paint(void) {
-    static ui_image_t image_dark;
+    static ui_bitmap_t image_dark;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
         ui_gdi.image_init(&image_dark, 1, 1, 3, pixels);
     }
-    static ui_image_t image_light;
+    static ui_bitmap_t image_light;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
         ui_gdi.image_init(&image_light, 1, 1, 3, pixels);
@@ -2525,7 +2525,7 @@ static const char* ui_app_open_file(const char* folder,
 
 // TODO: use clipboard instead?
 
-static errno_t ui_app_clipboard_put_image(ui_image_t* im) {
+static errno_t ui_app_clipboard_put_image(ui_bitmap_t* im) {
     HDC canvas = GetDC(null);
     rt_not_null(canvas);
     HDC src = CreateCompatibleDC(canvas); rt_not_null(src);

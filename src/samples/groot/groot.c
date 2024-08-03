@@ -17,7 +17,7 @@
 enum { width = 512, height = 512 };
 
 static uint8_t gs[width * height]; // greyscale
-//static ui_image_t image; // grayscale image
+//static ui_bitmap_t image; // grayscale image
 
 static ui_iv_t view_groot;
 static ui_iv_t view_rocket;
@@ -33,7 +33,7 @@ static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t*
     return pixels;
 }
 
-static void init_image(ui_image_t* i, const uint8_t* data, int64_t bytes) {
+static void init_image(ui_bitmap_t* i, const uint8_t* data, int64_t bytes) {
     int32_t w = 0;
     int32_t h = 0;
     int32_t c = 0;
@@ -44,7 +44,7 @@ static void init_image(ui_image_t* i, const uint8_t* data, int64_t bytes) {
 }
 
 static void init_gs(void) {
-    const ui_image_t* i = &view_groot.image;
+    const ui_bitmap_t* i = &view_groot.image;
     uint32_t* pixels = (uint32_t*)i->pixels;
     rt_assert(i->w == 64 && i->h == 64 && i->bpp == 4);
     for (int y = 0; y < height; y++) {

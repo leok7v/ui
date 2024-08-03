@@ -359,7 +359,7 @@ static void ui_iv_help(ui_button_t* rt_unused(b)) {
 }
 
 static void ui_iv_copy_to_clipboard(ui_iv_t* iv) {
-    ui_image_t image = {0};
+    ui_bitmap_t image = {0};
     if (iv->image.texture != null) {
         rt_clipboard.put_image(&iv->image);
     } else {

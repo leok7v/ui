@@ -1279,9 +1279,9 @@ static bool ui_edit_view_key_pressed(ui_view_t* v, int64_t key) {
             ui_edit_view.key_left(e);
         } else if (key == ui.key.right) {
             ui_edit_view.key_right(e);
-        } else if (key == ui.key.pageup) {
+        } else if (key == ui.key.page_up) {
             ui_edit_view.key_page_up(e);
-        } else if (key == ui.key.pagedw) {
+        } else if (key == ui.key.page_down) {
             ui_edit_view.key_page_down(e);
         } else if (key == ui.key.home) {
             ui_edit_view.key_home(e);
