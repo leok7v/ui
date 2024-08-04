@@ -1698,6 +1698,13 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         ui_app_animate_step((ui_app_animate_function_t)lp, (int32_t)wp, -1);
         return 0;
     }
+    ui_app_message_handler_t* handler = ui_app.handlers; 
+    while (handler != null) { 
+        if (handler->callback(handler, m, wp, lp, &ret)) {
+            return ret;
+        }
+        handler = handler->next;
+    }
     switch (m) {
         case WM_GETMINMAXINFO:
             ui_app_get_min_max_info((MINMAXINFO*)lp);

@@ -12,6 +12,7 @@
 #include "ui/ui_label.h"
 #include "ui/ui_button.h"
 #include "ui/ui_image.h"
+#include "ui/ui_midi.h"
 #include "ui/ui_slider.h"
 #include "ui/ui_theme.h"
 #include "ui/ui_toggle.h"

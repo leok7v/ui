@@ -1,7 +1,6 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "single_file_lib/rt/rt.h"
 #include "single_file_lib/ui/ui.h"
-#include "midi.h"
 #include "stb_image.h"
 
 const char* title = "Sample6: I am groot";
@@ -30,7 +29,7 @@ static struct {
 
 static bool muted;
 
-static midi_t mds;
+static ui_midi_t mds;
 
 static ui_bitmap_t  background;
 
@@ -105,23 +104,20 @@ static bool tap(ui_view_t* rt_unused(v), int32_t ix, bool pressed) {
     if (pressed && inside) {
         muted = !muted;
         if (muted) {
-            midi.stop(&mds);
+            ui_midi.stop(&mds);
         } else {
-            midi.play(&mds);
+            ui_midi.play(&mds);
         }
     }
     return pressed && inside; // swallow mouse clicks inside mute button
 }
 
-static bool message(ui_view_t* rt_unused(view), int32_t m, int64_t wp, int64_t lp,
-        int64_t* rt_unused(ret)) {
-    if (m == midi.notify && (wp & midi.successful) != 0 && lp == mds.device_id) {
-        midi.stop(&mds);
-        midi.close(&mds);
-        midi.open(&mds, ui_app.window, midi_file());
-        midi.play(&mds);
-    }
-    return m == midi.notify;
+static int64_t notify(ui_midi_t* m, int64_t rt_unused(flags)) {
+    ui_midi.stop(m);
+    ui_midi.close(m);
+    ui_midi.open(m, midi_file());
+    ui_midi.play(m);
+    return 0;
 }
 
 static void delete_midi_file(void) {
@@ -207,15 +203,14 @@ static void opened(void) {
     animation.y = -1;
     animation.quit = rt_event.create();
     animation.thread = rt_thread.start(animated_gif_loader, null);
-    midi.open(&mds, ui_app.window, midi_file());
-    midi.play(&mds);
+    ui_midi.open(&mds, midi_file());
+    ui_midi.play(&mds);
 }
 
 static void init(void) {
     ui_app.title = title;
     ui_app.content->paint     = paint;
     ui_app.content->character = character;
-    ui_app.content->message   = message;
     ui_app.content->tap       = tap;
     ui_app.opened             = opened;
     void* data = null;
@@ -237,11 +232,11 @@ static void fini(void) {
     rt_event.set(animation.quit);
     rt_thread.join(animation.thread, -1);
     rt_event.dispose(animation.quit);
-    midi.stop(&mds);
+    ui_midi.stop(&mds);
     ui_gdi.bitmap_dispose(&background);
     stbi_image_free(gif.pixels);
     stbi_image_free(gif.delays);
-    midi.close(&mds);
+    ui_midi.close(&mds);
     delete_midi_file();
 }
 

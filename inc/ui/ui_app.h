@@ -5,6 +5,15 @@ rt_begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
+typedef struct ui_app_message_handler_s ui_app_message_handler_t;
+
+typedef struct ui_app_message_handler_s {
+    void* that;
+    ui_app_message_handler_t* next;
+    bool (*callback)(ui_app_message_handler_t* handler, int32_t m, 
+                     int64_t wp, int64_t lp, int64_t* rt);
+} ui_app_message_handler_t;
+
 typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
     int32_t system;  // system dpi
     int32_t process; // process dpi
@@ -136,7 +145,8 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
     } animating;
-    // call_later(..., delay_in_seconds, ...) can be scheduled from any thread executed
+    ui_app_message_handler_t* handlers;
+    // post(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
     void (*post)(rt_work_t* work); // work.when == 0 meaning ASAP
     void (*request_redraw)(void);  // very fast <2 microseconds

@@ -130,7 +130,6 @@
     <ClInclude Include="..\single_file_lib\rt\rt.h" />
     <ClInclude Include="..\single_file_lib\ui\ui.h" />
     <ClInclude Include="..\src\samples\i18n.h" />
-    <ClInclude Include="..\src\samples\midi.h" />
     <ClInclude Include="..\src\samples\stb_image.h" />
     <ClInclude Include="..\src\samples\version.h" />
   </ItemGroup>
@@ -143,7 +142,6 @@
     <ResourceCompile Include="..\src\samples\sample6.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\samples\midi.c" />
     <ClCompile Include="..\src\samples\ui.c" />
     <ClCompile Include="..\src\samples\sample6.c" />
     <ClCompile Include="..\src\samples\stb_image.c" />
