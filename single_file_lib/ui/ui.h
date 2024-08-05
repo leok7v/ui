@@ -1763,16 +1763,44 @@ typedef struct {
     // flags bitset:
     int32_t const successful;
     int32_t const superseded;
-    int32_t const aborted;
-    int32_t const failure;
-    int32_t const success;
+    int32_t const aborted; // on stop() call
+    int32_t const failure; // on error playing media
+    int32_t const success; // when the clip is done playing
     errno_t (*open)(ui_midi_t* midi, const char* filename);
     errno_t (*play)(ui_midi_t* midi);
+    errno_t (*pause)(ui_midi_t* midi);
+    errno_t (*resume)(ui_midi_t* midi);  // does not work for midi seq
+    errno_t (*rewind)(ui_midi_t* midi);
     errno_t (*stop)(ui_midi_t* midi);
+    errno_t (*get_volume)(ui_midi_t* midi, fp64_t *volume);
+    errno_t (*set_volume)(ui_midi_t* midi, fp64_t  volume);
+    bool    (*is_open)(ui_midi_t* midi);
+    bool    (*is_playing)(ui_midi_t* midi);
+    bool    (*is_paused)(ui_midi_t* midi);
     void    (*close)(ui_midi_t* midi);
 } ui_midi_if;
 
 extern ui_midi_if ui_midi;
+
+
+/*
+    successful:
+    "The conditions initiating the callback function have been met."
+    I guess meaning media is done playing...
+
+    aborted:
+    "The device received a command that prevented the current
+    conditions for initiating the callback function from
+    being met. If a new command interrupts the current command
+    and it also requests notification, the device sends this
+    message only and not `superseded`".
+    I guess meaning media is stopped playing...
+
+    failure:
+    "A device error occurred while the device was executing the command."
+
+
+*/
 
 #ifdef __cplusplus
 }
@@ -13556,21 +13584,18 @@ void ui_mbx_init(ui_mbx_t* m, const char* options[],
 
 #pragma comment(lib, "winmm")
 
-static uint64_t tid; // mi is thread sensitive
-
-rt_static_init(midi) {
-    tid = rt_thread.id(); // main() thread
-}
-
 typedef struct ui_midi_s_ {
-    uintptr_t window;
     MCI_OPEN_PARMSA mop; // opaque
-    MCI_PLAY_PARMS pp;
-    int64_t device_id;
     ui_app_message_handler_t handler;
+    char alias[32];
+    int64_t device_id;
+    uintptr_t window;
+    bool playing;
+    bool paused;
 } ui_midi_t_;
 
-rt_static_assertion(sizeof(ui_midi_t) >= sizeof(ui_midi_t_) + sizeof(int64_t));
+rt_static_assertion(sizeof(ui_midi_t) >= sizeof(ui_midi_t_) + sizeof(void*));
+rt_static_assertion(MMSYSERR_NOERROR == 0);
 
 static void ui_midi_warn_if_error_(int r, const char* call, const char* func,
         int line) {
@@ -13594,6 +13619,7 @@ static void ui_midi_warn_if_error_(int r, const char* call, const char* func,
 static bool ui_midi_message_callback(ui_app_message_handler_t* h, int32_t m,
                                      int64_t wp, int64_t lp, int64_t* rt) {
     if (m == MM_MCINOTIFY) {
+#ifdef UI_MIDI_DEBUG
         rt_println("device_id: %lld", lp);
         if (wp & MCI_NOTIFY_SUCCESSFUL) {
             rt_println("MCI_NOTIFY_SUCCESSFUL");
@@ -13607,6 +13633,7 @@ static bool ui_midi_message_callback(ui_app_message_handler_t* h, int32_t m,
         if (wp & MCI_NOTIFY_FAILURE) {
             rt_println("MCI_NOTIFY_FAILURE");
         }
+#endif
         ui_midi_t* midi = (ui_midi_t*)h->that;
         ui_midi_t_* mi  = (ui_midi_t_*)midi;
         if (mi->device_id == lp) {
@@ -13641,18 +13668,22 @@ static void ui_midi_remove_handler(ui_midi_t* m) {
 }
 
 static errno_t ui_midi_open(ui_midi_t* m, const char* filename) {
+    rt_swear(rt_thread.id() == ui_app.tid);
     ui_midi_t_* mi = (ui_midi_t_*)m;
-    rt_assert(rt_thread.id() == tid);
     mi->handler.that = mi;
     mi->handler.next = ui_app.handlers;
     ui_app.handlers = &mi->handler;
     mi->window = (uintptr_t)ui_app.window;
+    mi->playing = false;
+    mi->paused  = false;
     mi->mop.dwCallback = mi->window;
     mi->mop.wDeviceID = (WORD)-1;
     mi->mop.lpstrDeviceType = (const char*)MCI_DEVTYPE_SEQUENCER;
     mi->mop.lpstrElementName = filename;
-    mi->mop.lpstrAlias = null;
-    const DWORD_PTR flags = MCI_OPEN_TYPE | MCI_OPEN_TYPE_ID | MCI_OPEN_ELEMENT;
+    mi->mop.lpstrAlias = mi->alias;
+    rt_str_printf(mi->alias, "%p", m);
+    const DWORD_PTR flags = MCI_OPEN_TYPE | MCI_OPEN_TYPE_ID |
+                            MCI_OPEN_ELEMENT | MCI_OPEN_ALIAS;
     errno_t r = mciSendCommandA(0, MCI_OPEN, flags, (uintptr_t)&mi->mop);
     ui_midi_warn_if_error(r);
     rt_assert(mi->mop.wDeviceID != -1);
@@ -13660,37 +13691,117 @@ static errno_t ui_midi_open(ui_midi_t* m, const char* filename) {
     mi->device_id = mi->mop.wDeviceID;
     if (r != 0) {
         ui_midi_remove_handler(m);
+        memset(&mi->mop, 0x00, sizeof(mi->mop));
+        mi->window = 0;
     }
     return r;
 }
 
 static errno_t ui_midi_play(ui_midi_t* m) {
+    rt_swear(rt_thread.id() == ui_app.tid);
     ui_midi_t_* mi = (ui_midi_t_*)m;
-    rt_assert(rt_thread.id() == tid);
-    memset(&mi->pp, 0x00, sizeof(mi->pp));
-    mi->pp.dwCallback = (uintptr_t)mi->window;
-    errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_PLAY, MCI_NOTIFY,
-        (uintptr_t)&mi->pp);
+    rt_swear(ui_midi.is_open(m));
+    MCI_PLAY_PARMS  pp = { .dwCallback = (uintptr_t)mi->window };
+    errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_PLAY, MCI_NOTIFY, (uintptr_t)&pp);
     ui_midi_warn_if_error(r);
+    if (r == 0) {
+        mi->playing = true;
+        mi->paused  = false;
+    }
+    return r;
+}
+
+static errno_t ui_midi_pause(ui_midi_t* m) {
+    rt_swear(rt_thread.id() == ui_app.tid);
+    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m) && !ui_midi.is_paused(m));
+    ui_midi_t_* mi = (ui_midi_t_*)m;
+    MCI_GENERIC_PARMS p = { .dwCallback = (uintptr_t)mi->window };
+    errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_PAUSE, MCI_WAIT, (DWORD_PTR)&p);
+    ui_midi_warn_if_error(r);
+    if (r == 0) { mi->paused = true; }
+    return r;
+}
+
+static errno_t ui_midi_resume(ui_midi_t* m) {
+    rt_swear(rt_thread.id() == ui_app.tid);
+    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m) && ui_midi.is_paused(m));
+    ui_midi_t_* mi = (ui_midi_t_*)m;
+    MCI_GENERIC_PARMS p = { .dwCallback = (uintptr_t)mi->window };
+    errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_RESUME, MCI_WAIT, (DWORD_PTR)&p);
+    ui_midi_warn_if_error(r);
+    if (r == 0) { mi->paused = false; }
+    return r;
+}
+
+static errno_t ui_midi_rewind(ui_midi_t* m) {
+    rt_swear(rt_thread.id() == ui_app.tid);
+    rt_swear(ui_midi.is_open(m));
+    ui_midi_t_* mi = (ui_midi_t_*)m;
+    MCI_SEEK_PARMS p = { .dwCallback = (uintptr_t)mi->window, .dwTo = 0 };
+    const DWORD f = MCI_WAIT|MCI_SEEK_TO_START;
+    errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_SEEK, f, (DWORD_PTR)&p);
+    ui_midi_warn_if_error(r);
+    if (r == 0) { mi->paused = false; }
+    return r;
+}
+
+static errno_t ui_midi_get_volume(ui_midi_t* m, fp64_t* volume) {
+    rt_swear(rt_thread.id() == ui_app.tid);
+    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
+    DWORD v = 0;
+    errno_t r = midiOutGetVolume((HMIDIOUT)0, &v);
+    ui_midi_warn_if_error(r);
+    *volume = (fp64_t)v / (fp64_t)0xFFFFFFFFU;
+    return 0;
+}
+
+static errno_t ui_midi_set_volume(ui_midi_t* m, fp64_t volume) {
+    rt_swear(rt_thread.id() == ui_app.tid);
+    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
+    DWORD v = (DWORD)(volume * (fp64_t)0xFFFFFFFFU);
+    errno_t r = midiOutSetVolume((HMIDIOUT)0, v);
+    ui_midi_warn_if_error(r);
+    rt_fatal_if_error(r);
     return r;
 }
 
 static errno_t ui_midi_stop(ui_midi_t* m) {
+    rt_swear(rt_thread.id() == ui_app.tid);
+    rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
     ui_midi_t_* mi = (ui_midi_t_*)m;
-    rt_assert(rt_thread.id() == tid);
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_STOP, 0, 0);
     ui_midi_warn_if_error(r);
+    if (r == 0) { mi->playing = false; }
     return r;
 }
 
 static void ui_midi_close(ui_midi_t* m) {
+    rt_swear(rt_thread.id() == ui_app.tid);
+    rt_swear(ui_midi.is_open(m) && !ui_midi.is_playing(m));
     ui_midi_t_* mi = (ui_midi_t_*)m;
-    errno_t r = mciSendCommandA(mi->mop.wDeviceID,
-        MCI_CLOSE, MCI_WAIT, 0);
+    errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_CLOSE, MCI_WAIT, 0);
     ui_midi_warn_if_error(r);
     r = mciSendCommandA(MCI_ALL_DEVICE_ID, MCI_CLOSE, MCI_WAIT, 0);
     ui_midi_warn_if_error(r);
+    rt_fatal_if_error(r, "sound card is unplugged on the fly?");
+    memset(&mi->mop, 0x00, sizeof(mi->mop));
+    mi->window = 0;
     ui_midi_remove_handler(m);
+}
+
+static bool ui_midi_is_open(ui_midi_t* m) {
+    ui_midi_t_* mi = (ui_midi_t_*)m;
+    return mi->window != 0;
+}
+
+static bool ui_midi_is_playing(ui_midi_t* m) {
+    ui_midi_t_* mi = (ui_midi_t_*)m;
+    return mi->playing;
+}
+
+static bool ui_midi_is_paused(ui_midi_t* m) {
+    ui_midi_t_* mi = (ui_midi_t_*)m;
+    return mi->paused;
 }
 
 ui_midi_if ui_midi = {
@@ -13701,7 +13812,15 @@ ui_midi_if ui_midi = {
     .success    = MCI_NOTIFY_SUCCESSFUL,
     .open       = ui_midi_open,
     .play       = ui_midi_play,
+    .pause      = ui_midi_pause,
+    .resume     = ui_midi_resume,
+    .rewind     = ui_midi_rewind,
+    .get_volume = ui_midi_get_volume,
+    .set_volume = ui_midi_set_volume,
     .stop       = ui_midi_stop,
+    .is_open    = ui_midi_is_open,
+    .is_playing = ui_midi_is_playing,
+    .is_paused  = ui_midi_is_paused,
     .close      = ui_midi_close
 };
 // _______________________________ ui_slider.c ________________________________

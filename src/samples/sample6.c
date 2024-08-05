@@ -27,15 +27,18 @@ static struct {
     int32_t  speed_y;
 } animation;
 
-static bool muted;
+static bool   muted;
+static fp64_t volume; // be mute
 
-static ui_midi_t mds;
+static ui_midi_t midi;
 
 static ui_bitmap_t  background;
 
 static void init(void);
 static void fini(void);
 static void character(ui_view_t* view, const char* utf8);
+static void stop_and_close(void);
+static void open_and_play(void);
 
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,
     int32_t* bpp, int32_t preferred_bytes_per_pixel);
@@ -97,6 +100,11 @@ static void character(ui_view_t* rt_unused(view), const char* utf8) {
     }
 }
 
+// midi sequencer can "pause()" but actually by stopping
+//      playing the stream and sending `aborted` notification.
+//      .resume() says this operation is not supported.
+// .open() after .stop() .close() takes 4+ seconds
+
 static bool tap(ui_view_t* rt_unused(v), int32_t ix, bool pressed) {
     const bool inside =
         0 <= ui_app.mouse.x && ui_app.mouse.x < ui_app.fm.prop.H1.em.w &&
@@ -104,20 +112,72 @@ static bool tap(ui_view_t* rt_unused(v), int32_t ix, bool pressed) {
     if (pressed && inside) {
         muted = !muted;
         if (muted) {
-            ui_midi.stop(&mds);
+            if (ui_midi.is_playing(&midi) && !ui_midi.is_paused(&midi)) {
+                rt_fatal_if_error(ui_midi.get_volume(&midi, &volume));
+                rt_fatal_if_error(ui_midi.set_volume(&midi,  0));
+#ifdef UI_MIDI_PAUSE_RESUME
+                rt_fatal_if_error(ui_midi.pause(&midi));
+#endif
+            }
         } else {
-            ui_midi.play(&mds);
+            rt_fatal_if_error(ui_midi.set_volume(&midi,  volume));
+#ifdef UI_MIDI_PAUSE_RESUME
+            if (!ui_midi.is_open(&midi)) {
+                open_and_play();
+            } else if (!ui_midi.is_playing(&midi)) {
+                rt_fatal_if_error(ui_midi.play(&midi));
+            } else {
+                rt_fatal_if_error(ui_midi.resume(&midi));
+            }
+#endif
         }
     }
     return pressed && inside; // swallow mouse clicks inside mute button
 }
 
-static int64_t notify(ui_midi_t* m, int64_t rt_unused(flags)) {
-    ui_midi.stop(m);
-    ui_midi.close(m);
-    ui_midi.open(m, midi_file());
-    ui_midi.play(m);
+static int64_t notify(ui_midi_t* m, int64_t flags) {
+    rt_swear(&midi == m);
+    rt_println();
+    if (flags & ui_midi.aborted)    { rt_println("aborted"); }
+    if (flags & ui_midi.successful) { rt_println("successful"); }
+    if (flags & ui_midi.superseded) { rt_println("superseded"); }
+    if (flags & ui_midi.failure)    { rt_println("failure"); }
+    if (flags & ui_midi.success)    { rt_println("success"); }
+    // aborted : is received on ui_midi.stop()
+    // success : is received on the end of mini sequence playback
+//  if ((flags & ui_midi.aborted) != 0 || (flags & ui_midi.success) != 0) {
+    if ((flags & ui_midi.aborted) != 0) {
+        stop_and_close();
+    } else if ((flags & ui_midi.success) != 0) {
+        rt_fatal_if_error(ui_midi.stop(&midi));
+        rt_fatal_if_error(ui_midi.rewind(&midi));
+        rt_fatal_if_error(ui_midi.play(&midi));
+    }
     return 0;
+}
+
+static void stop_and_close(void) {
+    if (ui_midi.is_open(&midi)) {
+        if (ui_midi.is_playing(&midi)) {
+            midi.notify = null;
+            rt_fatal_if_error(ui_midi.stop(&midi));
+            ui_midi.close(&midi);
+        }
+    }
+}
+
+static void open_and_play(void) {
+    if (!ui_midi.is_open(&midi)) {
+//      fp64_t t = rt_clock.seconds();
+        // first call to MIDI Sequencer .open() takes 1.122 seconds
+        // next  attempt to .open() after .close() takes 4.237 seconds!
+        rt_fatal_if_error(ui_midi.open(&midi, midi_file()));
+//      rt_println("%.6f seconds", rt_clock.seconds() - t);
+    }
+    if (!ui_midi.is_playing(&midi)) {
+        midi.notify = notify;
+        rt_fatal_if_error(ui_midi.play(&midi));
+    }
 }
 
 static void delete_midi_file(void) {
@@ -203,8 +263,7 @@ static void opened(void) {
     animation.y = -1;
     animation.quit = rt_event.create();
     animation.thread = rt_thread.start(animated_gif_loader, null);
-    ui_midi.open(&mds, midi_file());
-    ui_midi.play(&mds);
+    open_and_play();
 }
 
 static void init(void) {
@@ -232,11 +291,10 @@ static void fini(void) {
     rt_event.set(animation.quit);
     rt_thread.join(animation.thread, -1);
     rt_event.dispose(animation.quit);
-    ui_midi.stop(&mds);
     ui_gdi.bitmap_dispose(&background);
     stbi_image_free(gif.pixels);
     stbi_image_free(gif.delays);
-    ui_midi.close(&mds);
+    stop_and_close();
     delete_midi_file();
 }
 
