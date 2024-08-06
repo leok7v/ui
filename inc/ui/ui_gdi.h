@@ -118,7 +118,10 @@ typedef struct {
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical);
     // dx, dy, dw, dh destination rectangle
     // ix, iy, iw, ih rectangle inside pixels[height][width]
-    // pixels array
+    void (*pixels)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
+        int32_t bpp, const uint8_t* pixels); // bytes per pixel
     void (*greyscale)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride, const uint8_t* pixels);

@@ -334,6 +334,21 @@ static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
     return bi;
 }
 
+static void ui_gdi_pixels(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
+        int32_t bpp, const uint8_t* pixels) {
+    if (bpp == 1) {
+        ui_gdi.greyscale(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+    } else if (bpp == 3) {
+        ui_gdi.bgr(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+    } else if (bpp == 4) {
+        ui_gdi.bgrx(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+    } else {
+        rt_fatal("bpp: %d not {1, 3, 4}", bpp);
+    }
+}
+
 static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
@@ -1192,6 +1207,7 @@ ui_gdi_if ui_gdi = {
     .circle                   = ui_gdi_circle,
     .rounded                  = ui_gdi_rounded,
     .gradient                 = ui_gdi_gradient,
+    .pixels                   = ui_gdi_pixels,
     .greyscale                = ui_gdi_greyscale,
     .bgr                      = ui_gdi_bgr,
     .bgrx                     = ui_gdi_bgrx,

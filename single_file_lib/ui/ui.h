@@ -731,7 +731,10 @@ typedef struct {
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical);
     // dx, dy, dw, dh destination rectangle
     // ix, iy, iw, ih rectangle inside pixels[height][width]
-    // pixels array
+    void (*pixels)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
+        int32_t bpp, const uint8_t* pixels); // bytes per pixel
     void (*greyscale)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride, const uint8_t* pixels);
@@ -2201,9 +2204,9 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
         ui_cursor_t size_ns;   // north - south
         ui_cursor_t size_all;  // north - south
     } cursors;
-    struct { // animation state
+    struct { // animated_groot state
         ui_view_t* view;
-        ui_view_t* focused; // focused view before animation started
+        ui_view_t* focused; // focused view before animated_groot started
         int32_t step;
         fp64_t time; // closing time or zero
         int32_t x; // (x,y) for tooltip (-1,y) for toast
@@ -3374,7 +3377,7 @@ static void ui_app_animate_step(ui_app_animate_function_t f, int32_t step, int32
     // calls function(0..step-1) exactly step times
     bool cancel = false;
     if (f != null && f != ui_app_animate.f && step == 0 && steps > 0) {
-        // start animation
+        // start animated_groot
         ui_app_animate.count = steps;
         ui_app_animate.f = f;
         f(step);
@@ -11995,6 +11998,21 @@ static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
     return bi;
 }
 
+static void ui_gdi_pixels(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
+        int32_t bpp, const uint8_t* pixels) {
+    if (bpp == 1) {
+        ui_gdi.greyscale(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+    } else if (bpp == 3) {
+        ui_gdi.bgr(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+    } else if (bpp == 4) {
+        ui_gdi.bgrx(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+    } else {
+        rt_fatal("bpp: %d not {1, 3, 4}", bpp);
+    }
+}
+
 static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
@@ -12853,6 +12871,7 @@ ui_gdi_if ui_gdi = {
     .circle                   = ui_gdi_circle,
     .rounded                  = ui_gdi_rounded,
     .gradient                 = ui_gdi_gradient,
+    .pixels                   = ui_gdi_pixels,
     .greyscale                = ui_gdi_greyscale,
     .bgr                      = ui_gdi_bgr,
     .bgrx                     = ui_gdi_bgrx,
