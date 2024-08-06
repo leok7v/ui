@@ -39,6 +39,9 @@
     <Image Include="..\src\samples\groot.gif">
       <Filter>res</Filter>
     </Image>
+    <Image Include="..\src\samples\gotg.gif">
+      <Filter>res</Filter>
+    </Image>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\samples\sample6.rc">

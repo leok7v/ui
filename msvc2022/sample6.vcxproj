@@ -134,6 +134,7 @@
     <ClInclude Include="..\src\samples\version.h" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="..\src\samples\gotg.gif" />
     <Image Include="..\src\samples\groot.gif" />
     <Image Include="..\src\samples\sample.ico" />
     <Image Include="..\src\samples\sample.png" />

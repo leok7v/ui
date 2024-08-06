@@ -137,9 +137,9 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
         ui_cursor_t size_ns;   // north - south
         ui_cursor_t size_all;  // north - south
     } cursors;
-    struct { // animation state
+    struct { // animated_groot state
         ui_view_t* view;
-        ui_view_t* focused; // focused view before animation started
+        ui_view_t* focused; // focused view before animated_groot started
         int32_t step;
         fp64_t time; // closing time or zero
         int32_t x; // (x,y) for tooltip (-1,y) for toast

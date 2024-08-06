@@ -1041,7 +1041,7 @@ static void ui_app_animate_step(ui_app_animate_function_t f, int32_t step, int32
     // calls function(0..step-1) exactly step times
     bool cancel = false;
     if (f != null && f != ui_app_animate.f && step == 0 && steps > 0) {
-        // start animation
+        // start animated_groot
         ui_app_animate.count = steps;
         ui_app_animate.f = f;
         f(step);

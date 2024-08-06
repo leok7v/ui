@@ -1,7 +1,8 @@
 ﻿#include "sample.rc"
 
-groot_gif        RCDATA "groot.gif"        // 512x512+alpha animated gif
-mr_blue_sky_midi RCDATA "mr_blue_sky.midi"
+groot_gif        RCDATA "groot.gif" // animated dancing groot
+gotg_gif         RCDATA "gotg.gif"  // animated Guardians of The Galaxy 2 movie
+mr_blue_sky_midi RCDATA "mr_blue_sky.midi" // free music
 
 // groot.gif made with https://ezgif.com/ ffmpeg and GIMP (re export with Dispose every frame
 // https://tinyurl.com/dancing-baby-groot
