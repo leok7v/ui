@@ -5,9 +5,9 @@
 
 // Code in this sample illustrates how to load animated gifs
 // and use them as a movie backdrop and sprites.
-// Sample coed uses ui_app.post() to excute animation steps on the
+// Sample coed uses ui_app.post() to execute animation steps on the
 // dispatch thread.
-// It also plays MIDI background song in a loop.
+// It also plays mutable MIDI song in a loop.
 // Simple mute button implemented by hand to avoid containers layout
 // logic.
 
@@ -87,17 +87,19 @@ static void paint_movie(animation_t* a) {
 }
 
 static void paint_mute_unmute(ui_view_t* v) {
-    ui_gdi_ta_t ta = ui_gdi.ta.prop.H1;
+    ui_gdi_ta_t ta = ui_gdi.ta.prop.H3;
     ta.color_id = 0;
     ta.color = muted ? ui_colors.green : ui_colors.red;
     #define str_unmuted rt_glyph_mute  " mute"
     #define str_muted rt_glyph_speaker " unmute"
-    const int32_t mx = v->x + ui_app.fm.prop.H1.em.w / 16;
-    const int32_t my = v->y + ui_app.fm.prop.H1.em.h / 16;
-    const int32_t mw = ui_app.fm.prop.H1.em.w * 4;
-    const int32_t mh = ui_app.fm.prop.H1.em.h;
-    ui_gdi.rounded(mx, my, mw, mh, 5, ui_colors.shadow, ui_colors.shadow);
-    ui_gdi.text(&ta, 0, 0, "%s", muted ? str_muted : str_unmuted);
+    const int32_t mx = v->x + ui_app.fm.prop.H3.em.w / 16;
+    const int32_t my = v->y + ui_app.fm.prop.H3.em.h / 16;
+    const int32_t mw = ui_app.fm.prop.H3.em.w * 5;
+    const int32_t mh = ui_app.fm.prop.H3.em.h;
+    ui_gdi.rounded(mx, my, mw, mh, (mh / 3) | 0x1,
+                   ta.color, ui_colors.transparent);
+    ui_gdi.text(&ta, ui_app.fm.prop.H3.em.w / 4, 0, "%s",
+                muted ? str_muted : str_unmuted);
 }
 
 static void paint(ui_view_t* v) {
@@ -118,8 +120,8 @@ static void character(ui_view_t* rt_unused(v), const char* utf8) {
 }
 
 static bool tap(ui_view_t* rt_unused(v), int32_t ix, bool pressed) {
-    const int32_t w = ui_app.fm.prop.H1.em.w * 4;
-    const int32_t h = ui_app.fm.prop.H1.em.h;
+    const int32_t w = ui_app.fm.prop.H3.em.w * 5;
+    const int32_t h = ui_app.fm.prop.H3.em.h;
     const bool inside =
         0 <= ui_app.mouse.x && ui_app.mouse.x < w &&
         0 <= ui_app.mouse.y && ui_app.mouse.y < h;
@@ -341,16 +343,12 @@ static void opened(void) {
 
 static void closed(void) {
     rt_thread.join(thread, -1);
-    ui_gdi.bitmap_dispose(&background);
-    stbi_image_free(groot.pixels);
-    stbi_image_free(groot.delays);
     if (ui_midi.is_open(&midi)) {
         // restore pre-muted volume:
         rt_fatal_if_error(ui_midi.set_volume(&midi,
                         volume != 0 ? volume : 0.5));
     }
     stop_and_close();
-    delete_midi_file();
 }
 
 static void init(void) {
@@ -361,6 +359,15 @@ static void init(void) {
     ui_app.opened             = opened;
     ui_app.closed             = closed;
     load_png();
+}
+
+static void fini(void) {
+    ui_gdi.bitmap_dispose(&background);
+    stbi_image_free(groot.pixels);
+    stbi_image_free(groot.delays);
+    stbi_image_free(movie.pixels);
+    stbi_image_free(movie.delays);
+    delete_midi_file();
 }
 
 static void* load_image(const uint8_t* data, int64_t bytes,
@@ -403,10 +410,11 @@ ui_app_t ui_app = {
     .class_name = "sample6",
     .dark_mode = true,
     .init = init,
+    .fini = fini,
     .window_sizing = {
         .min_w =  4.0f,
         .min_h =  3.0f,
-        .ini_w =  8.0f,
-        .ini_h =  6.0f
+        .ini_w =  4.0f,
+        .ini_h =  3.0f
     }
 };
