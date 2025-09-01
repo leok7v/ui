@@ -2077,7 +2077,7 @@ typedef struct ui_app_message_handler_s ui_app_message_handler_t;
 typedef struct ui_app_message_handler_s {
     void* that;
     ui_app_message_handler_t* next;
-    bool (*callback)(ui_app_message_handler_t* handler, int32_t m, 
+    bool (*callback)(ui_app_message_handler_t* handler, int32_t m,
                      int64_t wp, int64_t lp, int64_t* rt);
 } ui_app_message_handler_t;
 
@@ -4034,8 +4034,8 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         ui_app_animate_step((ui_app_animate_function_t)lp, (int32_t)wp, -1);
         return 0;
     }
-    ui_app_message_handler_t* handler = ui_app.handlers; 
-    while (handler != null) { 
+    ui_app_message_handler_t* handler = ui_app.handlers;
+    while (handler != null) {
         if (handler->callback(handler, m, wp, lp, &ret)) {
             return ret;
         }
@@ -7052,20 +7052,20 @@ ui_if ui = {
 // ui_edit_check_zeros only works for packed structs:
 
 #define ui_edit_check_zeros(a_, b_) do {                                    \
-    for (int32_t i_ = 0; i_ < (b_); i_++) {                                 \
-        rt_assert(((const uint8_t*)(a_))[i_] == 0x00);                         \
+    for (int32_t i_ = 0; i_ < (int32_t)(b_); i_++) {                        \
+        rt_assert(((const uint8_t*)(a_))[i_] == 0x00);                      \
     }                                                                       \
 } while (0)
 
 #define ui_edit_check_pg_inside_text(t_, pg_)                               \
-    rt_assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->np &&                        \
+    rt_assert(0 <= (pg_)->pn && (pg_)->pn < (t_)->np &&                     \
            0 <= (pg_)->gp && (pg_)->gp <= (t_)->ps[(pg_)->pn].g)
 
-#define ui_edit_check_range_inside_text(t_, r_) do {                        \
-    rt_assert((r_)->from.pn <= (r_)->to.pn);                                   \
-    rt_assert((r_)->from.pn <  (r_)->to.pn || (r_)->from.gp <= (r_)->to.gp);   \
-    ui_edit_check_pg_inside_text(t_, (&(r_)->from));                        \
-    ui_edit_check_pg_inside_text(t_, (&(r_)->to));                          \
+#define ui_edit_check_range_inside_text(t_, r_) do {                         \
+    rt_assert((r_)->from.pn <= (r_)->to.pn);                                 \
+    rt_assert((r_)->from.pn <  (r_)->to.pn || (r_)->from.gp <= (r_)->to.gp); \
+    ui_edit_check_pg_inside_text(t_, (&(r_)->from));                         \
+    ui_edit_check_pg_inside_text(t_, (&(r_)->to));                           \
 } while (0)
 
 #else
@@ -8001,7 +8001,7 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
 // ui_edit_str
 
 static int32_t ui_edit_str_g2b_ascii[1024]; // ui_edit_str_g2b_ascii[i] == i for all "i"
-static int8_t  ui_edit_str_empty_utf8[1] = {0x00};
+static char    ui_edit_str_empty_utf8[1] = {0x00};
 
 static const ui_edit_str_t ui_edit_str_empty = {
     .u = ui_edit_str_empty_utf8,
@@ -12108,7 +12108,7 @@ static void ui_gdi_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
     HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
     BITMAPINFO local = { {sizeof(BITMAPINFOHEADER)} };
     BITMAPINFO* bi = bpp == 1 ? ui_gdi_greyscale_bitmap_info() : &local;
-    image->texture = (ui_texture_t)CreateDIBSection(c, 
+    image->texture = (ui_texture_t)CreateDIBSection(c,
             ui_gdi_init_bitmap_info(w, h, bpp, bi),
             DIB_RGB_COLORS, &image->pixels, null, 0x0
     );

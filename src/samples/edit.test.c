@@ -287,7 +287,7 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
         {"so", so_sentence_utf8},  {"uz", uz_sentence_utf8},  {"az", az_sentence_utf8},
         {"hy", hy_sentence_utf8},  {"ja", ja_sentence_utf8},  {"zh", zh_sentence_utf8}
     };
-    for (int i = 0; i < sizeof(sentences) / sizeof(sentences[0]); i++) {
+    for (int i = 0; i < (int)(sizeof(sentences) / sizeof(sentences[0])); i++) {
         end = ui_edit_text.end_range(t);
 //      rt_println("%s %s", sentences[i].id, sentences[i].s);
         rt_swear(ui_edit_text.replace_utf8(t, &end, sentences[i].s, -1, null));

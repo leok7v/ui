@@ -1009,7 +1009,7 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
 // ui_edit_str
 
 static int32_t ui_edit_str_g2b_ascii[1024]; // ui_edit_str_g2b_ascii[i] == i for all "i"
-static int8_t  ui_edit_str_empty_utf8[1] = {0x00};
+static char    ui_edit_str_empty_utf8[1] = {0x00};
 
 static const ui_edit_str_t ui_edit_str_empty = {
     .u = ui_edit_str_empty_utf8,
