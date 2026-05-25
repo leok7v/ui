@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="res">
+      <UniqueIdentifier>{22220000-0000-0000-0000-000000000001}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="..\samples\sfh.c" />
+    <ClCompile Include="..\src\ui\dxd.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\samples\i18n.h">
+      <Filter>res</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="..\samples\sample.rc">
+      <Filter>res</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\samples\sample.ico">
+      <Filter>res</Filter>
+    </Image>
+  </ItemGroup>
+</Project>

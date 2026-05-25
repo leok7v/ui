@@ -51,6 +51,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{2A7E0001
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{2A7E0002-0000-4000-8000-000000000002}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sfh", "sfh.vcxproj", "{5FED0000-0000-4000-8000-000000000001}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		debug|arm64 = debug|arm64
@@ -187,11 +189,20 @@ Global
 		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.release|arm64.Build.0 = release|arm64
 		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.release|x64.ActiveCfg = release|x64
 		{4A21BE1F-678C-4733-ABF0-A7BFFFCF2CC3}.release|x64.Build.0 = release|x64
+		{5FED0000-0000-4000-8000-000000000001}.debug|arm64.ActiveCfg = debug|arm64
+		{5FED0000-0000-4000-8000-000000000001}.debug|arm64.Build.0 = debug|arm64
+		{5FED0000-0000-4000-8000-000000000001}.debug|x64.ActiveCfg = debug|x64
+		{5FED0000-0000-4000-8000-000000000001}.debug|x64.Build.0 = debug|x64
+		{5FED0000-0000-4000-8000-000000000001}.release|arm64.ActiveCfg = release|arm64
+		{5FED0000-0000-4000-8000-000000000001}.release|arm64.Build.0 = release|arm64
+		{5FED0000-0000-4000-8000-000000000001}.release|x64.ActiveCfg = release|x64
+		{5FED0000-0000-4000-8000-000000000001}.release|x64.Build.0 = release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{5FED0000-0000-4000-8000-000000000001} = {9CACB4C0-49E4-4B37-B45A-B36F2CAA7A15}
 		{4A21BE1F-678C-4733-A9F0-A7BFFFCF3CC2} = {9CACB4C0-49E4-4B37-B45A-B36F2CAA7A15}
 		{0B45C2EE-3A7E-46B0-8B8D-5DB62BF75A43} = {9CACB4C0-49E4-4B37-B45A-B36F2CAA7A15}
 		{0B45C2EE-3A7E-46B0-3B3D-5DB62BF75A43} = {9CACB4C0-49E4-4B37-B45A-B36F2CAA7A15}

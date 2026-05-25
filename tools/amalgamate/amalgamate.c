@@ -148,6 +148,26 @@ static bool ignore(const char* s) {
     return strequ(s, "#pragma once") || already_included(s);
 }
 
+// In the layered single-header (sfh_) output a non-inlined cross-module include
+// like "posix/posix.h" must point at the sibling amalgam "sfh_posix.h".
+static const char* sfh_rewrite(const char* line) {
+    static const char* mods[] = { "core", "trace", "posix", "ui" };
+    static char buf[16 * 1024];
+    for (int32_t i = 0; i < rt_countof(mods); i++) {
+        char from[64];
+        snprintf(from, rt_countof(from) - 1, "\"%s/%s.h\"", mods[i], mods[i]);
+        const char* p = strstr(line, from);
+        if (p != null) {
+            char to[64];
+            snprintf(to, rt_countof(to) - 1, "\"sfh_%s.h\"", mods[i]);
+            snprintf(buf, rt_countof(buf) - 1, "%.*s%s%s",
+                     (int)(p - line), line, to, p + strlen(from));
+            return buf;
+        }
+    }
+    return line;
+}
+
 static void parse(const char* fn) {
     FILE* f = fopen(fn, "r");
     rt_fatal_if(f == null, "file not found: `%s`", fn);
@@ -163,9 +183,9 @@ static void parse(const char* fn) {
             }
         } else if (ends_with(fn, ".c") || !ignore(line)) {
             if (first && line[0] != 0) {
-                divider(fn + 5 + strlen_name); first = false;
+                divider(basename(fn)); first = false;
             }
-            printf("%s\n", line);
+            printf("%s\n", sfh_rewrite(line));
         }
     }
     fclose(f);
@@ -185,7 +205,9 @@ static void definition(void) {
 
 static void implementation(void) {
     printf("\n");
-    printf("#ifdef %s_implementation\n", name);
+    printf("#if defined(%s_implementation) && !defined(%s_implementation_included)\n",
+           name, name);
+    printf("#define %s_implementation_included\n", name);
     DIR* d = opendir(src);
     rt_fatal_if(d == null, "folder not found: `%s`", src);
     struct dirent* e = readdir(d);
@@ -206,7 +228,7 @@ int main(int argc, const char* argv[]) {
     if (argc < 2) { exit(usage()); }
     name = argv[1];
     strlen_name = (int)strlen(name);
-    snprintf(inc, rt_countof(inc) - 1, "inc/%s", name);
+    snprintf(inc, rt_countof(inc) - 1, "include/%s", name);
     snprintf(src, rt_countof(inc) - 1, "src/%s", name);
     definition();
     implementation();

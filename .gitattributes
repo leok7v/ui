@@ -1,0 +1,4 @@
+# Generated single-file-header amalgams: keep byte-for-byte as amalgamate.exe
+# emits them (no EOL normalization) so regenerating them does not churn
+# `git status` / produce spurious "modified" with an empty diff.
+include/sfh_*.h -text
