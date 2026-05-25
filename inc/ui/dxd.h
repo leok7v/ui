@@ -52,7 +52,7 @@ void dxd_gradient(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h,
 void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh,
                int32_t sx, int32_t sy, int32_t sw, int32_t sh,
                int32_t w, int32_t h, int32_t stride, int32_t bpp,
-               const uint8_t * pixels, fp64_t opacity);
+               const uint8_t * pixels, fp64_t opacity, bool premultiplied);
 
 // Text. `font` is the GDI ui_font_t (HFONT); a DirectWrite text format is
 // derived from its LOGFONT. `measure_only` skips drawing. `w` > 0 with

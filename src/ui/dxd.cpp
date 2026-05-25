@@ -1,4 +1,9 @@
 // Direct2D + DirectWrite drawing backend for ui_gdi. See inc/ui/dxd.h.
+// The rt/ui headers are C; compiling them as C++ trips benign warnings
+// (deleted special members on const-field structs, nameless unions) under
+// /Wall -- silence those around the includes only.
+#pragma warning(push)
+#pragma warning(disable: 4201 4459 4623 4625 4626 5026 5027 5039)
 #include "rt/rt.h"
 #include "ui/ui.h"
 #include <windows.h>
@@ -6,6 +11,7 @@
 #include <d2d1helper.h>
 #include <dwrite.h>
 #include <stdlib.h>
+#pragma warning(pop)
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
@@ -16,6 +22,7 @@
 
 static ID2D1Factory *  g_d2d_factory    = null;
 static IDWriteFactory * g_dwrite_factory = null;
+static ID2D1DCRenderTarget * g_target = null;
 
 struct dxd_context_s {
     ID2D1DCRenderTarget * target;
@@ -25,9 +32,7 @@ struct dxd_context_s {
 };
 
 static D2D1_COLOR_F dxd_color_f(ui_color_t c) {
-    // ui_color_rgb() encodes opaque colors with the alpha byte == 0 (GDI
-    // ignored alpha). Direct2D honors alpha, so map 0 -> fully opaque;
-    // ui_color_rgba(...,a) with a > 0 keeps its explicit alpha.
+    // ui_color_rgb leaves the alpha byte 0 to denote an opaque color.
     uint8_t a = ui_color_a(c);
     if (a == 0) { a = 0xFF; }
     D2D1_COLOR_F color = {
@@ -69,6 +74,7 @@ bool dxd_init(void) {
 }
 
 void dxd_fini(void) {
+    if (g_target != null) { g_target->Release(); g_target = null; }
     if (g_dwrite_factory != null) { g_dwrite_factory->Release(); g_dwrite_factory = null; }
     if (g_d2d_factory != null) { g_d2d_factory->Release(); g_d2d_factory = null; }
 }
@@ -80,24 +86,21 @@ dxd_context_t dxd_begin(void * hdc, const ui_rect_t * rc) {
         ctx->brush = null;
         ctx->brush_color = 0;
         ctx->brush_valid = false;
-        D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(
-            D2D1_RENDER_TARGET_TYPE_DEFAULT,
-            D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
-                              D2D1_ALPHA_MODE_PREMULTIPLIED),
-            0, 0, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_FEATURE_LEVEL_DEFAULT);
-        HRESULT hr = g_d2d_factory->CreateDCRenderTarget(&props, &ctx->target);
-        if (SUCCEEDED(hr)) {
-            RECT rect = { rc->x, rc->y, rc->x + rc->w, rc->y + rc->h };
-            hr = ctx->target->BindDC((HDC)hdc, &rect);
-            if (SUCCEEDED(hr)) {
-                ctx->target->BeginDraw();
-                ctx->target->SetTextAntialiasMode(
-                    D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
-            } else {
-                ctx->target->Release();
-                free(ctx);
-                ctx = null;
+        if (g_target == null) {
+            D2D1_RENDER_TARGET_PROPERTIES props = D2D1::RenderTargetProperties(
+                D2D1_RENDER_TARGET_TYPE_DEFAULT,
+                D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+                                  D2D1_ALPHA_MODE_PREMULTIPLIED),
+                0, 0, D2D1_RENDER_TARGET_USAGE_NONE, D2D1_FEATURE_LEVEL_DEFAULT);
+            if (FAILED(g_d2d_factory->CreateDCRenderTarget(&props, &g_target))) {
+                g_target = null;
             }
+        }
+        RECT rect = { rc->x, rc->y, rc->x + rc->w, rc->y + rc->h };
+        if (g_target != null && SUCCEEDED(g_target->BindDC((HDC)hdc, &rect))) {
+            ctx->target = g_target;
+            g_target->BeginDraw();
+            g_target->SetTextAntialiasMode(D2D1_TEXT_ANTIALIAS_MODE_CLEARTYPE);
         } else {
             free(ctx);
             ctx = null;
@@ -111,7 +114,6 @@ void dxd_end(dxd_context_t ctx) {
         if (ctx->brush != null) { ctx->brush->Release(); }
         if (ctx->target != null) {
             ctx->target->EndDraw();
-            ctx->target->Release();
         }
         free(ctx);
     }
@@ -255,7 +257,7 @@ void dxd_gradient(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h,
                   ui_color_t c0, ui_color_t c1, bool vertical) {
     if (ctx != null && ctx->target != null) {
         ID2D1GradientStopCollection * stops = null;
-        D2D1_GRADIENT_STOP gs[2] = {0};
+        D2D1_GRADIENT_STOP gs[2] = {};
         gs[0].position = 0.0f; gs[0].color = dxd_color_f(c0);
         gs[1].position = 1.0f; gs[1].color = dxd_color_f(c1);
         HRESULT hr = ctx->target->CreateGradientStopCollection(
@@ -279,18 +281,15 @@ void dxd_gradient(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h,
     }
 }
 
-// Upload a CPU pixel buffer to a transient D2D bitmap and draw it. bpp 1/3
-// are expanded to opaque BGRA; bpp 4 is taken as BGRA. Per-pixel alpha is
-// treated as opaque for now (global opacity still applies) -- a known
-// limitation for the per-pixel-alpha image path.
 void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh,
                int32_t sx, int32_t sy, int32_t sw, int32_t sh,
                int32_t w, int32_t h, int32_t stride, int32_t bpp,
-               const uint8_t * pixels, fp64_t opacity) {
+               const uint8_t * pixels, fp64_t opacity, bool premultiplied) {
     if (ctx == null || ctx->target == null || w <= 0 || h <= 0 ||
         pixels == null) {
         return;
     }
+    const bool keep_alpha = premultiplied && bpp == 4;
     uint8_t * bgra = (uint8_t *)malloc((size_t)w * (size_t)h * 4);
     if (bgra == null) { return; }
     for (int32_t yy = 0; yy < h; yy++) {
@@ -309,14 +308,15 @@ void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh
                 dst[0] = src[xx * 4 + 0];
                 dst[1] = src[xx * 4 + 1];
                 dst[2] = src[xx * 4 + 2];
-                dst[3] = 0xFF;
+                dst[3] = keep_alpha ? src[xx * 4 + 3] : 0xFF;
             }
             dst += 4;
         }
     }
     ID2D1Bitmap * bmp = null;
     D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(
-        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE));
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM,
+            keep_alpha ? D2D1_ALPHA_MODE_PREMULTIPLIED : D2D1_ALPHA_MODE_IGNORE));
     HRESULT hr = ctx->target->CreateBitmap(D2D1::SizeU((UINT32)w, (UINT32)h),
         bgra, (UINT32)(w * 4), &props, &bmp);
     if (SUCCEEDED(hr) && bmp != null) {

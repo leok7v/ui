@@ -834,7 +834,7 @@ void dxd_gradient(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h,
 void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh,
                int32_t sx, int32_t sy, int32_t sw, int32_t sh,
                int32_t w, int32_t h, int32_t stride, int32_t bpp,
-               const uint8_t * pixels, fp64_t opacity);
+               const uint8_t * pixels, fp64_t opacity, bool premultiplied);
 
 // Text. `font` is the GDI ui_font_t (HFONT); a DirectWrite text format is
 // derived from its LOGFONT. `measure_only` skips drawing. `w` > 0 with
@@ -12115,7 +12115,7 @@ static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
     dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              width, height, stride, 1, pixels, 1.0);
+              width, height, stride, 1, pixels, 1.0, false);
 }
 
 static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
@@ -12143,7 +12143,7 @@ static void ui_gdi_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
     dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              width, height, stride, 3, pixels, 1.0);
+              width, height, stride, 3, pixels, 1.0, false);
 }
 
 static void ui_gdi_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
@@ -12151,7 +12151,7 @@ static void ui_gdi_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
     dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              width, height, stride, 4, pixels, 1.0);
+              width, height, stride, 4, pixels, 1.0, false);
 }
 
 static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
@@ -12320,7 +12320,7 @@ static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
     rt_assert(0 <= alpha && alpha <= 1);
     dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
               image->w, image->h, image->stride, image->bpp,
-              (const uint8_t*)image->pixels, alpha);
+              (const uint8_t*)image->pixels, alpha, true);
 }
 
 static void ui_gdi_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
@@ -12329,7 +12329,7 @@ static void ui_gdi_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
     rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
               image->w, image->h, image->stride, image->bpp,
-              (const uint8_t*)image->pixels, 1.0);
+              (const uint8_t*)image->pixels, 1.0, false);
 }
 
 static void ui_gdi_icon(int32_t x, int32_t y, int32_t w, int32_t h,

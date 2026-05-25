@@ -56,7 +56,7 @@
     <ClCompile Include="..\src\ui\ui_core.c" />
     <ClCompile Include="..\src\ui\ui_gdi.c" />
     <ClCompile Include="..\src\ui\dxd.cpp">
-      <AdditionalOptions>/EHsc /volatile:ms</AdditionalOptions>
+      <AdditionalOptions>/W3 /EHsc /volatile:ms</AdditionalOptions>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_label.c" />
     <ClCompile Include="..\src\ui\ui_mbx.c" />
