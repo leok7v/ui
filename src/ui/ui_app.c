@@ -178,7 +178,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
             // EFFECTIVE_DPI 192 192 (with regard of user scaling)
             // ANGULAR_DPI 224 224 (diagonal)
             // RAW_DPI 72 72
-            const int32_t max_xy = (int32_t)rt_max(dpi_x, dpi_y);
+            const int32_t max_xy = (int32_t)(dpi_x > dpi_y ? dpi_x : dpi_y);
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
                     dpi->monitor_effective = max_xy;
@@ -194,7 +194,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
                     break;
                 default: rt_assert(false);
             }
-            dpi->monitor_max = rt_max(dpi->monitor_max, max_xy);
+            dpi->monitor_max = dpi->monitor_max > max_xy ? dpi->monitor_max : max_xy;
         }
     }
 //  rt_println("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
@@ -440,14 +440,16 @@ static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
     MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
     rt_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
-    const int32_t min_x = rt_min(mi.rcMonitor.left, mi.rcMonitor.right);
-    const int32_t min_y = rt_min(mi.rcMonitor.top,  mi.rcMonitor.bottom);
-    const int32_t max_w = rt_max(mi.rcMonitor.left, mi.rcMonitor.right);
-    const int32_t max_h = rt_max(mi.rcMonitor.top,  mi.rcMonitor.bottom);
-    wiw->space.x = rt_min(wiw->space.x, min_x);
-    wiw->space.y = rt_min(wiw->space.y, min_y);
-    wiw->space.w = rt_max(wiw->space.w, max_w);
-    wiw->space.h = rt_max(wiw->space.h, max_h);
+    const int32_t l = mi.rcMonitor.left, r = mi.rcMonitor.right;
+    const int32_t t = mi.rcMonitor.top,  b = mi.rcMonitor.bottom;
+    const int32_t min_x = l < r ? l : r;
+    const int32_t min_y = t < b ? t : b;
+    const int32_t max_w = l > r ? l : r;
+    const int32_t max_h = t > b ? t : b;
+    wiw->space.x = wiw->space.x < min_x ? wiw->space.x : min_x;
+    wiw->space.y = wiw->space.y < min_y ? wiw->space.y : min_y;
+    wiw->space.w = wiw->space.w > max_w ? wiw->space.w : max_w;
+    wiw->space.h = wiw->space.h > max_h ? wiw->space.h : max_h;
     return true; // keep going
 }
 
@@ -540,11 +542,13 @@ static void ui_app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* 
     // Check if window rect is inside monitor rect
     if (!ui_app_is_fully_inside(wrc, mrc)) {
         // Move window into monitor rect
-        wrc->x = rt_max(mrc->x, rt_min(mrc->x + mrc->w - wrc->w, wrc->x));
-        wrc->y = rt_max(mrc->y, rt_min(mrc->y + mrc->h - wrc->h, wrc->y));
+        const int32_t x = mrc->x + mrc->w - wrc->w < wrc->x ? mrc->x + mrc->w - wrc->w : wrc->x;
+        wrc->x = mrc->x > x ? mrc->x : x;
+        const int32_t y = mrc->y + mrc->h - wrc->h < wrc->y ? mrc->y + mrc->h - wrc->h : wrc->y;
+        wrc->y = mrc->y > y ? mrc->y : y;
         // Adjust size to fit into monitor rect
-        wrc->w = rt_min(wrc->w, mrc->w);
-        wrc->h = rt_min(wrc->h, mrc->h);
+        wrc->w = wrc->w < mrc->w ? wrc->w : mrc->w;
+        wrc->h = wrc->h < mrc->h ? wrc->h : mrc->h;
     }
 }
 
@@ -715,8 +719,8 @@ static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
         mmi->ptMaxTrackSize.y = max_h;
     } else {
         // clip max_w and max_h to monitor work area
-        mmi->ptMaxTrackSize.x = rt_min(max_w, wa->w);
-        mmi->ptMaxTrackSize.y = rt_min(max_h, wa->h);
+        mmi->ptMaxTrackSize.x = max_w < wa->w ? max_w : wa->w;
+        mmi->ptMaxTrackSize.y = max_h < wa->h ? max_h : wa->h;
     }
     mmi->ptMaxSize.x = mmi->ptMaxTrackSize.x;
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
@@ -924,7 +928,8 @@ static void ui_app_toast_paint(void) {
 //                  ui_app_toast_steps, av->y);
             ui_app_measure_and_layout(av);
             // dim main window (as `disabled`):
-            fp64_t alpha = rt_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
+            const fp64_t da = 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps;
+            fp64_t alpha = 0.40 < da ? 0.40 : da;
             ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h,
                          0, 0, image_dark.w, image_dark.h,
                         &image_dark, alpha);
@@ -937,9 +942,11 @@ static void ui_app_toast_paint(void) {
             ui_app_measure_and_layout(av);
             int32_t mx = ui_app.root->w - av->w - em_w;
             int32_t cx = ui_app.animating.x - av->w / 2;
-            av->x = rt_min(mx, rt_max(0, cx));
-            av->y = rt_min(
-                ui_app.root->h - em_h, rt_max(0, ui_app.animating.y));
+            const int32_t x = 0 > cx ? 0 : cx;
+            av->x = mx < x ? mx : x;
+            const int32_t y = 0 > ui_app.animating.y ? 0 : ui_app.animating.y;
+            const int32_t h = ui_app.root->h - em_h;
+            av->y = h < y ? h : y;
 //          rt_println("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
         }
@@ -1125,7 +1132,7 @@ static void ui_app_view_active_frame_paint(void) {
 static void ui_app_paint_stats(void) {
     if (ui_app.paint_count % 128 == 0) { ui_app.paint_max = 0; }
     ui_app.paint_time = rt_clock.seconds() - ui_app.now;
-    ui_app.paint_max = rt_max(ui_app.paint_time, ui_app.paint_max);
+    ui_app.paint_max = ui_app.paint_time > ui_app.paint_max ? ui_app.paint_time : ui_app.paint_max;
     if (ui_app.paint_avg == 0) {
         ui_app.paint_avg = ui_app.paint_time;
     } else { // EMA over 32 paint() calls
@@ -1148,7 +1155,7 @@ static void ui_app_paint_stats(void) {
     } else {
         fp64_t since_last = ui_app.now - ui_app.paint_last;
         if (since_last > 1.0 / 120.0) { // 240Hz monitor
-            ui_app.paint_dt_min = rt_min(ui_app.paint_dt_min, since_last);
+            ui_app.paint_dt_min = ui_app.paint_dt_min < since_last ? ui_app.paint_dt_min : since_last;
         }
 //      rt_println("paint_dt_min: %.6f since_last: %.6f",
 //              ui_app.paint_dt_min, since_last);
@@ -1372,7 +1379,7 @@ static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
         rt_assert(ui_app.border.w == ui_app.border.h);
         // on 96dpi monitors ui_app.border is 1x1
         // make it easier for the user to resize window
-        int32_t border = rt_max(4, ui_app.border.w * 2);
+        int32_t border = 4 > ui_app.border.w * 2 ? 4 : ui_app.border.w * 2;
         if (ui_app.animating.view != null) {
             return ui.hit_test.client; // message box or toast is up
         } else if (!ui_view.is_hidden(&ui_caption.view) &&
@@ -2416,8 +2423,8 @@ static void ui_app_restore_console(int32_t *visibility) {
                 "console_screen_buffer_infoex", &info, (int32_t)sizeof(info));
             if (r == sizeof(info)) { // 24x80
                 SMALL_RECT sr = info.srWindow;
-                int16_t w = (int16_t)rt_max(sr.Right - sr.Left + 1, 80);
-                int16_t h = (int16_t)rt_max(sr.Bottom - sr.Top + 1, 24);
+                int16_t w = (int16_t)(sr.Right - sr.Left + 1 > 80 ? sr.Right - sr.Left + 1 : 80);
+                int16_t h = (int16_t)(sr.Bottom - sr.Top + 1 > 24 ? sr.Bottom - sr.Top + 1 : 24);
 //              rt_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
 //              rt_println("%d,%d %dx%d", sr.Left, sr.Top, w, h);
                 if (w > 0 && h > 0) { ui_app_set_console_size(w, h); }
@@ -2992,8 +2999,8 @@ static int ui_app_win_main(HINSTANCE instance) {
         // border is too think (5 pixels) narrow down to 3x3
         const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :
             (ui_app.dpi.window >= 192 ? 3 : 2);
-        ui_app.border.w = rt_min(max_border, ui_app.border.w);
-        ui_app.border.h = rt_min(max_border, ui_app.border.h);
+        ui_app.border.w = max_border < ui_app.border.w ? max_border : ui_app.border.w;
+        ui_app.border.h = max_border < ui_app.border.h ? max_border : ui_app.border.h;
     }
 //  rt_println("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
     // TODO: use AdjustWindowRectEx instead

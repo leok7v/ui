@@ -9,11 +9,11 @@ static fp64_t ui_image_scale_of(int32_t nominator, int32_t denominator) {
 
 static fp64_t ui_image_scale(ui_image_t* iv) {
     if (iv->fit && iv->w > 0 && iv->h > 0) {
-        return min((fp64_t)iv->w / iv->image.w,
-                   (fp64_t)iv->h / iv->image.h);
+        return (fp64_t)iv->w / iv->image.w < (fp64_t)iv->h / iv->image.h ?
+                (fp64_t)iv->w / iv->image.w : (fp64_t)iv->h / iv->image.h;
     } else if (iv->fill && iv->w > 0 && iv->h > 0) {
-        return max((fp64_t)iv->w / iv->image.w,
-                   (fp64_t)iv->h / iv->image.h);
+        return (fp64_t)iv->w / iv->image.w > (fp64_t)iv->h / iv->image.h ?
+                (fp64_t)iv->w / iv->image.w : (fp64_t)iv->h / iv->image.h;
     } else {
         return ui_image_scale_of(iv->zn, iv->zd);
     }
@@ -219,12 +219,14 @@ static void ui_image_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     if (ui_view.has_focus(v)) {
         fp64_t s = ui_image.scale(iv);
         if (iv->image.w * s > iv->w || iv->image.h * s > iv->h) {
-            iv->sx = max(0.0, min(iv->sx + dx / iv->image.w, 1.0));
+            const fp64_t nx = iv->sx + dx / iv->image.w < 1.0 ? iv->sx + dx / iv->image.w : 1.0;
+            iv->sx = 0.0 > nx ? 0.0 : nx;
         } else {
             iv->sx = 0.5;
         }
         if (iv->image.h * s > iv->h) {
-            iv->sy = max(0.0, min(iv->sy + dy / iv->image.h, 1.0));
+            const fp64_t ny = iv->sy + dy / iv->image.h < 1.0 ? iv->sy + dy / iv->image.h : 1.0;
+            iv->sy = 0.0 > ny ? 0.0 : ny;
         } else {
             iv->sy = 0.5;
         }

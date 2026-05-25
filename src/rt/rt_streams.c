@@ -8,7 +8,8 @@ static errno_t rt_streams_memory_read(rt_stream_if* stream, void* data, int64_t 
     rt_swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
-    int64_t transfer = rt_min(bytes, s->bytes_read - s->pos_read);
+    const int64_t avail = s->bytes_read - s->pos_read;
+    int64_t transfer = bytes < avail ? bytes : avail;
     memcpy(data, (const uint8_t*)s->data_read + s->pos_read, (size_t)transfer);
     s->pos_read += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -22,8 +23,9 @@ static errno_t rt_streams_memory_write(rt_stream_if* stream, const void* data, i
     rt_swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
-    bool overflow = s->bytes_write - s->pos_write <= 0;
-    int64_t transfer = rt_min(bytes, s->bytes_write - s->pos_write);
+    const int64_t avail = s->bytes_write - s->pos_write;
+    bool overflow = avail <= 0;
+    int64_t transfer = bytes < avail ? bytes : avail;
     memcpy((uint8_t*)s->data_write + s->pos_write, data, (size_t)transfer);
     s->pos_write += transfer;
     if (transferred != null) { *transferred = transfer; }

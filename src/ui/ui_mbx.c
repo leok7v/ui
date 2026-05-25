@@ -33,7 +33,7 @@ static void ui_mbx_measured(ui_view_t* v) {
         for (int32_t i = 0; i < n; i++) {
             bw += m->button[i].w;
         }
-        v->w = rt_max(tw, bw + em_x * 2);
+        v->w = tw > bw + em_x * 2 ? tw : bw + em_x * 2;
         v->h = th + m->button[0].h + em_y + em_y / 2;
     } else {
         v->h = th + em_y / 2;

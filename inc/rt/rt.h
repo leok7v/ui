@@ -11,7 +11,6 @@
 #include "rt/rt_core.h"
 #include "rt/rt_debug.h"
 #include "rt/rt_files.h"
-#include "rt/rt_generics.h"
 #include "rt/rt_glyphs.h"
 #include "rt/rt_heap.h"
 #include "rt/rt_loader.h"

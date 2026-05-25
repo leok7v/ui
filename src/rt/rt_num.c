@@ -107,7 +107,7 @@ static uint32_t rt_num_gcd32(uint32_t u, uint32_t v) {
     }
     uint32_t i = rt_trailing_zeros(u);  u >>= i;
     uint32_t j = rt_trailing_zeros(v);  v >>= j;
-    uint32_t k = rt_min(i, j);
+    uint32_t k = i < j ? i : j;
     for (;;) {
         rt_assert(u % 2 == 1, "u = %d should be odd", u);
         rt_assert(v % 2 == 1, "v = %d should be odd", v);

@@ -75,9 +75,6 @@
     <ClInclude Include="..\inc\rt\rt_win32.h">
       <Filter>inc\rt</Filter>
     </ClInclude>
-    <ClInclude Include="..\inc\rt\rt_generics.h">
-      <Filter>inc\rt</Filter>
-    </ClInclude>
     <ClInclude Include="..\inc\rt\rt_nls.h">
       <Filter>inc\rt</Filter>
     </ClInclude>
@@ -152,9 +149,6 @@
       <Filter>src\rt</Filter>
     </ClCompile>
     <ClCompile Include="..\src\rt\rt_vigil.c">
-      <Filter>src\rt</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\rt\rt_generics.c">
       <Filter>src\rt</Filter>
     </ClCompile>
     <ClCompile Include="..\src\rt\rt_nls.c">

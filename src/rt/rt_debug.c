@@ -41,10 +41,10 @@ static void rt_debug_println_va(const char* file, int32_t line, const char* func
         snprintf(file_line, rt_countof(file_line) - 1, "%s(%d):", name, line);
     }
     file_line[rt_countof(file_line) - 1] = 0x00; // always zero terminated'
-    rt_debug_max_file_line = rt_max(rt_debug_max_file_line,
-                                    (int32_t)strlen(file_line));
-    rt_debug_max_function  = rt_max(rt_debug_max_function,
-                                    (int32_t)strlen(func));
+    const int32_t fl = (int32_t)strlen(file_line);
+    rt_debug_max_file_line = rt_debug_max_file_line > fl ? rt_debug_max_file_line : fl;
+    const int32_t fn = (int32_t)strlen(func);
+    rt_debug_max_function  = rt_debug_max_function > fn ? rt_debug_max_function : fn;
     char prefix[2 * 1024];
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, rt_countof(prefix) - 1, "%-*s %-*s",

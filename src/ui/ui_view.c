@@ -276,7 +276,7 @@ static void ui_view_measure_control(ui_view_t* v) {
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
             ui_view_debug_id(v),
-            rt_min(64, strlen(s)), s);
+            (64 < strlen(s) ? 64 : strlen(s)), s);
         const ui_margins_t in = v->insets;
         const ui_margins_t pd = v->padding;
         rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
@@ -290,8 +290,8 @@ static void ui_view_measure_control(ui_view_t* v) {
     if (v->debug.trace.mt) {
         rt_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
     }
-    v->w = rt_max(v->w, i.left + v->text.wh.w + i.right);
-    v->h = rt_max(v->h, i.top  + v->text.wh.h + i.bottom);
+    v->w = v->w > i.left + v->text.wh.w + i.right ? v->w : i.left + v->text.wh.w + i.right;
+    v->h = v->h > i.top  + v->text.wh.h + i.bottom ? v->h : i.top  + v->text.wh.h + i.bottom;
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
         rt_println("<%dx%d text_align x,y: %d,%d %s",
@@ -589,7 +589,7 @@ static void ui_view_paint(ui_view_t* v) {
         const char* s = ui_view.string(v);
         rt_println("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
                 ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h,
-                rt_min(64, strlen(s)), s);
+                (64 < strlen(s) ? 64 : strlen(s)), s);
     }
     if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
         if (v->erase   != null) { v->erase(v); }

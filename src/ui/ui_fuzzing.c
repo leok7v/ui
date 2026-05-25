@@ -301,7 +301,7 @@ static void ui_fuzzing_character(void) {
         fp64_t r = ui_fuzzing_random_fp64();
         if (r < 0.125) {
             uint32_t rnd = ui_fuzzing_random();
-            int32_t n = (int32_t)rt_max(1, rnd % 32);
+            int32_t n = (int32_t)(1 > rnd % 32 ? 1 : rnd % 32);
             ui_fuzzing_next_gibberish(n, utf8);
             ui_fuzzing_work.utf8 = utf8;
             if (ui_fuzzing_debug) {

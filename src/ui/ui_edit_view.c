@@ -81,7 +81,7 @@ static ui_rect_t ui_edit_selection_rect(ui_edit_view_t* e) {
     if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
         return (ui_rect_t) { .x = 0, .y = 0, .w = e->w, .h = e->h };
     } else if (p0.y == p1.y) {
-        const int32_t max_w = rt_max(e->fm->max_char_width, e->fm->em.w);
+        const int32_t max_w = e->fm->max_char_width > e->fm->em.w ? e->fm->max_char_width : e->fm->em.w;
         int32_t w = p1.x - p0.x != 0 ?
                 p1.x - p0.x + max_w : e->caret_width;
         return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
@@ -153,12 +153,12 @@ static int32_t ui_edit_word_break_at(ui_edit_view_t* e, int32_t pn, int32_t rn,
         const int32_t glyphs_in_this_run = str->g - gp;
         int32_t* g2b = &str->g2b[gp];
         // 4 is maximum number of bytes in a UTF-8 sequence
-        int32_t gc = rt_min(4, glyphs_in_this_run);
+        int32_t gc = 4 < glyphs_in_this_run ? 4 : glyphs_in_this_run;
         int32_t w = ui_edit_text_width(e, text, g2b[gc] - bp);
         count++;
         chars += g2b[gc] - bp;
         while (gc < glyphs_in_this_run && w < width) {
-            gc = rt_min(gc * 4, glyphs_in_this_run);
+            gc = gc * 4 < glyphs_in_this_run ? gc * 4 : glyphs_in_this_run;
             w = ui_edit_text_width(e, text, g2b[gc] - bp);
             count++;
             chars += g2b[gc] - bp;
@@ -319,7 +319,8 @@ static void ui_edit_create_caret(ui_edit_view_t* e) {
     rt_assert(ui_app.is_active());
     rt_assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
-    e->caret_width = rt_min(3, rt_max(1, (int32_t)px));
+    const int32_t cw = 1 > (int32_t)px ? 1 : (int32_t)px;
+    e->caret_width = 3 < cw ? 3 : cw;
     ui_app.create_caret(e->caret_width, e->fm->height); // w/o line_gap
     e->focused = true; // means caret was created
 //  rt_println("e->focused := true %s", ui_view_debug_id(&e->view));
@@ -501,7 +502,8 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg) {
     rt_assert(0 <= pg.pn && pg.pn < dt->np);
     ui_point_t pt = { .x = -1, .y = 0 };
     const int32_t spn = e->scroll.pn + 1;
-    const int32_t pn = rt_min(rt_max(spn, pg.pn + 1), dt->np - 1);
+    const int32_t mp = spn > pg.pn + 1 ? spn : pg.pn + 1;
+    const int32_t pn = mp < dt->np - 1 ? mp : dt->np - 1;
     for (int32_t i = e->scroll.pn; i <= pn && pt.x < 0; i++) {
         rt_assert(0 <= i && i < dt->np);
         const ui_edit_str_t* str = &dt->ps[i];
@@ -680,7 +682,7 @@ static void ui_edit_scroll_down(ui_edit_view_t* e, int32_t run_count) {
     rt_assert(0 < run_count, "does it make sense to have 0 scroll?");
     while (run_count > 0 && (e->scroll.pn > 0 || e->scroll.rn > 0)) {
         int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
-        e->scroll.rn = rt_min(e->scroll.rn, runs - 1);
+        e->scroll.rn = e->scroll.rn < runs - 1 ? e->scroll.rn : runs - 1;
         if (e->scroll.rn == 0 && e->scroll.pn > 0) {
             e->scroll.pn--;
             e->scroll.rn = ui_edit_paragraph_run_count(e, e->scroll.pn) - 1;
@@ -891,7 +893,7 @@ static ui_edit_range_t ui_edit_word_range(ui_edit_view_t* e, ui_edit_pg_t pg) {
         rt_swear(pg.pn <= dt->np - 1);
         // number of glyphs in paragraph:
         int32_t ng = ui_edit_glyphs_in_paragraph(e, pg.pn);
-        if (pg.gp > ng) { pg.gp = rt_max(0, ng); }
+        if (pg.gp > ng) { pg.gp = 0 > ng ? 0 : ng; }
         ui_edit_glyph_t g = ui_edit_glyph_at(e, pg);
         if (ng <= 1) {
             r.to.gp = ng;
@@ -1198,10 +1200,10 @@ static void ui_edit_view_key_end(ui_edit_view_t* e) {
 }
 
 static void ui_edit_view_key_page_up(ui_edit_view_t* e) {
-    int32_t n = rt_max(1, e->visible_runs - 1);
+    int32_t n = 1 > e->visible_runs - 1 ? 1 : e->visible_runs - 1;
     ui_edit_pg_t scr = ui_edit_scroll_pg(e);
     const ui_edit_pg_t prev = (ui_edit_pg_t){
-        .pn = rt_max(scr.pn - e->visible_runs - 1, 0),
+        .pn = scr.pn - e->visible_runs - 1 > 0 ? scr.pn - e->visible_runs - 1 : 0,
         .gp = 0
     };
     const int32_t m = ui_edit_runs_between(e, prev, scr);
@@ -1221,10 +1223,10 @@ static void ui_edit_view_key_page_up(ui_edit_view_t* e) {
 
 static void ui_edit_view_key_page_down(ui_edit_view_t* e) {
     const ui_edit_text_t* dt = &e->doc->text; // document text
-    const int32_t n = rt_max(1, e->visible_runs - 1);
+    const int32_t n = 1 > e->visible_runs - 1 ? 1 : e->visible_runs - 1;
     const ui_edit_pg_t scr = ui_edit_scroll_pg(e);
     const ui_edit_pg_t next = (ui_edit_pg_t){
-        .pn = rt_min(scr.pn + 1, dt->np - 1),
+        .pn = scr.pn + 1 < dt->np - 1 ? scr.pn + 1 : dt->np - 1,
         .gp = scr.pn + 1 == dt->np - 1 ? dt->ps[dt->np - 1].g : 0
     };
     const int32_t m = ui_edit_runs_between(e, scr, next);
@@ -1398,7 +1400,7 @@ static void ui_edit_select_paragraph(ui_edit_view_t* e, int32_t x, int32_t y) {
     if (0 <= p.pn && 0 <= p.gp) {
         ui_edit_range_t r = ui_edit_text.ordered(dt, &e->selection);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
-        if (p.gp > glyphs) { p.gp = rt_max(0, glyphs); }
+        if (p.gp > glyphs) { p.gp = 0 > glyphs ? 0 : glyphs; }
         if (p.pn == r.a[0].pn && r.a[0].pn == r.a[1].pn &&
             r.a[0].gp <= p.gp && p.gp <= r.a[1].gp) {
             r.a[0].gp = 0;
@@ -1424,7 +1426,7 @@ static void ui_edit_click(ui_edit_view_t* e, int32_t x, int32_t y) {
     if (0 <= pg.pn && 0 <= pg.gp && ui_view.has_focus(&e->view)) {
         rt_swear(dt->np > 0 && pg.pn < dt->np);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
-        if (pg.gp > glyphs) { pg.gp = rt_max(0, glyphs); }
+        if (pg.gp > glyphs) { pg.gp = 0 > glyphs ? 0 : glyphs; }
         ui_edit_move_caret(e, pg);
     }
 }
@@ -1663,7 +1665,8 @@ static void ui_edit_prepare_sle(ui_edit_view_t* e) {
     rt_swear(e->sle && v->w > 0);
     // shingle line edit is capable of resizing itself to two
     // lines of text (and shrinking back) to avoid horizontal scroll
-    int32_t runs = rt_max(1, rt_min(2, ui_edit_paragraph_run_count(e, 0)));
+    const int32_t prc = ui_edit_paragraph_run_count(e, 0);
+    int32_t runs = 1 > (2 < prc ? 2 : prc) ? 1 : (2 < prc ? 2 : prc);
     const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     int32_t h = insets.top + ui_edit_line_height(e) * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
@@ -1722,7 +1725,8 @@ static void ui_edit_layout(ui_view_t* v) { // top down
         const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
         if (runs <= 2 && e->scroll.rn == 1) {
             ui_edit_pg_t top = scroll;
-            top.gp = rt_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
+            const int32_t g = top.gp - run[e->scroll.rn].glyphs - 1;
+            top.gp = 0 > g ? 0 : g;
             ui_edit_scroll_into_view(e, top);
         }
     }
@@ -1752,8 +1756,8 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
     uint64_t s1 = ui_edit_range.uint64(pnc0);
     uint64_t e1 = ui_edit_range.uint64(pnc1);
     if (s0 <= e1 && s1 <= e0) {
-        uint64_t start = rt_max(s0, s1) - (uint64_t)c0;
-        uint64_t end = rt_min(e0, e1) - (uint64_t)c0;
+        uint64_t start = (s0 > s1 ? s0 : s1) - (uint64_t)c0;
+        uint64_t end = (e0 < e1 ? e0 : e1) - (uint64_t)c0;
         if (start < end) {
             int32_t fro = (int32_t)start;
             int32_t to  = (int32_t)end;
@@ -1939,10 +1943,13 @@ static void ui_edit_after(ui_edit_notify_t* notify,
     e->selection = *ni->x;
     ui_edit_pg_t* pg = e->selection.a;
     for (int32_t i = 0; i < rt_countof(e->selection.a); i++) {
-        pg[i].pn = rt_max(0, rt_min(dt->np - 1, pg[i].pn));
-        pg[i].gp = rt_max(0, rt_min(dt->ps[pg[i].pn].g, pg[i].gp));
+        const int32_t pn = dt->np - 1 < pg[i].pn ? dt->np - 1 : pg[i].pn;
+        pg[i].pn = 0 > pn ? 0 : pn;
+        const int32_t gp = dt->ps[pg[i].pn].g < pg[i].gp ? dt->ps[pg[i].pn].g : pg[i].gp;
+        pg[i].gp = 0 > gp ? 0 : gp;
     }
-    e->scroll.pn = rt_max(0, rt_min(dt->np - 1, e->scroll.pn));
+    const int32_t spn = dt->np - 1 < e->scroll.pn ? dt->np - 1 : e->scroll.pn;
+    e->scroll.pn = 0 > spn ? 0 : spn;
     if (e->w > 0 && e->h > 0) {
         if (ni->r->from.pn != ni->r->to.pn &&
             ni->x->from.pn != ni->x->to.pn &&

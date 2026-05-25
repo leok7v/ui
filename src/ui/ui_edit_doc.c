@@ -240,7 +240,7 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
     if (b < 0) { b = (int32_t)strlen(s); }
     // if caller is concerned with best performance - it should pass b >= 0
     int32_t np = 0; // number of paragraphs
-    int32_t n = rt_max(b / 64, 2); // initial number of allocated paragraphs
+    int32_t n = b / 64 > 2 ? b / 64 : 2; // initial number of allocated paragraphs
     ui_edit_str_t* ps = null; // ps[n]
     bool ok = ui_edit_doc_realloc_ps(&ps, 0, n);
     if (ok) {
@@ -1378,7 +1378,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
             const int32_t bytes = s->b + bytes_to_insert - bytes_to_remove;
             rt_assert(ins.g2b != null); // pacify code analysis
             rt_assert(bytes > 0);
-            const int32_t c = rt_max(s->b, bytes);
+            const int32_t c = s->b > bytes ? s->b : bytes;
             // keep g2b == ui_edit_str_g2b_ascii as much as possible
             const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
                                    ins.g2b == ui_edit_str_g2b_ascii &&

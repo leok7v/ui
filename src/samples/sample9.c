@@ -196,13 +196,13 @@ static void panel_paint(ui_view_t* v) {
         rt_assert(v == &panel_center);
         ui_gdi.line(v->x, v->y, v->x, v->y + v->h, c);
     }
-    int32_t x = v->x + panel_border + rt_max(1, v->fm->em.w / 8);
-    int32_t y = v->y + panel_border + rt_max(1, v->fm->em.h / 4);
+    int32_t x = v->x + panel_border + (1 > v->fm->em.w / 8 ? 1 : v->fm->em.w / 8);
+    int32_t y = v->y + panel_border + (1 > v->fm->em.h / 4 ? 1 : v->fm->em.h / 4);
     const int32_t radius = (v->fm->em.h / 4) | 0x1;
     ui_gdi.rounded(x, y, v->fm->em.w * 12, v->fm->em.h,
            radius,  v->color, ui_colors.transparent);
-    x = v->x + panel_border + rt_max(1, v->fm->em.w / 2);
-    y = v->y + panel_border + rt_max(1, v->fm->em.h / 4);
+    x = v->x + panel_border + (1 > v->fm->em.w / 2 ? 1 : v->fm->em.w / 2);
+    y = v->y + panel_border + (1 > v->fm->em.h / 4 ? 1 : v->fm->em.h / 4);
     ui_gdi.text(ta, x, y, "%d,%d %dx%d %s",
                      v->x, v->y, v->w, v->h, ui_view.string(v));
 }
@@ -285,8 +285,8 @@ static void center_paint(ui_view_t* view) {
 
 static void measure(ui_view_t* v) {
     v->fm = &ui_app.fm.mono.normal;
-    panel_border = rt_max(1, v->fm->em.h / 4);
-    frame_border = rt_max(1, v->fm->em.h / 8);
+    panel_border = 1 > v->fm->em.h / 4 ? 1 : v->fm->em.h / 4;
+    frame_border = 1 > v->fm->em.h / 8 ? 1 : v->fm->em.h / 8;
     rt_assert(panel_border > 0 && frame_border > 0);
     const int32_t w = ui_app.root->w;
     const int32_t h = ui_app.root->h;
@@ -383,7 +383,7 @@ static void character(ui_view_t* view, const char* utf8) {
     } else if (ch == '+' || ch == '=') {
         zoom /= 2; refresh();
     } else if (ch == '-' || ch == '_') {
-        zoom = rt_min(zoom * 2, 1.0); refresh();
+        zoom = zoom * 2 < 1.0 ? zoom * 2 : 1.0; refresh();
     } else if (ch == '<' || ch == ',') {
         ui_point_t pt = {+image.w / 8, 0};
         mouse_scroll(view, pt);
@@ -534,7 +534,7 @@ static void refresh(void) {
     zoomer.value = 0;
     fp64_t z = 1;
     while (z != zoom) { zoomer.value++; z /= 2; }
-    zoomer.value = rt_min(zoomer.value, zoomer.value_max);
+    zoomer.value = zoomer.value < zoomer.value_max ? zoomer.value : zoomer.value_max;
     mandelbrot(&image);
     ui_app.request_redraw();
 }

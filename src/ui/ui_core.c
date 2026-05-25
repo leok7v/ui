@@ -17,10 +17,12 @@ static bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
 static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
                                             const ui_rect_t* r1) {
     ui_rect_t r = {0};
-    r.x = rt_max(r0->x, r1->x);  // Maximum of left edges
-    r.y = rt_max(r0->y, r1->y);  // Maximum of top edges
-    r.w = rt_min(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
-    r.h = rt_min(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
+    r.x = r0->x > r1->x ? r0->x : r1->x;  // Maximum of left edges
+    r.y = r0->y > r1->y ? r0->y : r1->y;  // Maximum of top edges
+    const int32_t r0r = r0->x + r0->w, r1r = r1->x + r1->w; // right edges
+    const int32_t r0b = r0->y + r0->h, r1b = r1->y + r1->h; // bottom edges
+    r.w = (r0r < r1r ? r0r : r1r) - r.x;  // Width of overlap
+    r.h = (r0b < r1b ? r0b : r1b) - r.y;  // Height of overlap
     bool b = r.w > 0 && r.h > 0;
     if (!b) {
         r.w = 0;
@@ -31,11 +33,15 @@ static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
 }
 
 static ui_rect_t ui_combine_rect(const ui_rect_t* r0, const ui_rect_t* r1) {
+    const int32_t x = r0->x < r1->x ? r0->x : r1->x; // min left
+    const int32_t y = r0->y < r1->y ? r0->y : r1->y; // min top
+    const int32_t r0r = r0->x + r0->w, r1r = r1->x + r1->w; // right edges
+    const int32_t r0b = r0->y + r0->h, r1b = r1->y + r1->h; // bottom edges
     return (ui_rect_t) {
-        .x = rt_min(r0->x, r1->x),
-        .y = rt_min(r0->y, r1->y),
-        .w = rt_max(r0->x + r0->w, r1->x + r1->w) - rt_min(r0->x, r1->x),
-        .h = rt_max(r0->y + r0->h, r1->y + r1->h) - rt_min(r0->y, r1->y)
+        .x = x,
+        .y = y,
+        .w = (r0r > r1r ? r0r : r1r) - x,
+        .h = (r0b > r1b ? r0b : r1b) - y
     };
 }
 

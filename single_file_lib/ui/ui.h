@@ -2514,7 +2514,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
             // EFFECTIVE_DPI 192 192 (with regard of user scaling)
             // ANGULAR_DPI 224 224 (diagonal)
             // RAW_DPI 72 72
-            const int32_t max_xy = (int32_t)rt_max(dpi_x, dpi_y);
+            const int32_t max_xy = (int32_t)(dpi_x > dpi_y ? dpi_x : dpi_y);
             switch (mtd) {
                 case MDT_EFFECTIVE_DPI:
                     dpi->monitor_effective = max_xy;
@@ -2530,7 +2530,7 @@ static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
                     break;
                 default: rt_assert(false);
             }
-            dpi->monitor_max = rt_max(dpi->monitor_max, max_xy);
+            dpi->monitor_max = dpi->monitor_max > max_xy ? dpi->monitor_max : max_xy;
         }
     }
 //  rt_println("ui_app.dpi.monitor_max := %d", dpi->monitor_max);
@@ -2776,14 +2776,16 @@ static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
     MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
     rt_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
-    const int32_t min_x = rt_min(mi.rcMonitor.left, mi.rcMonitor.right);
-    const int32_t min_y = rt_min(mi.rcMonitor.top,  mi.rcMonitor.bottom);
-    const int32_t max_w = rt_max(mi.rcMonitor.left, mi.rcMonitor.right);
-    const int32_t max_h = rt_max(mi.rcMonitor.top,  mi.rcMonitor.bottom);
-    wiw->space.x = rt_min(wiw->space.x, min_x);
-    wiw->space.y = rt_min(wiw->space.y, min_y);
-    wiw->space.w = rt_max(wiw->space.w, max_w);
-    wiw->space.h = rt_max(wiw->space.h, max_h);
+    const int32_t l = mi.rcMonitor.left, r = mi.rcMonitor.right;
+    const int32_t t = mi.rcMonitor.top,  b = mi.rcMonitor.bottom;
+    const int32_t min_x = l < r ? l : r;
+    const int32_t min_y = t < b ? t : b;
+    const int32_t max_w = l > r ? l : r;
+    const int32_t max_h = t > b ? t : b;
+    wiw->space.x = wiw->space.x < min_x ? wiw->space.x : min_x;
+    wiw->space.y = wiw->space.y < min_y ? wiw->space.y : min_y;
+    wiw->space.w = wiw->space.w > max_w ? wiw->space.w : max_w;
+    wiw->space.h = wiw->space.h > max_h ? wiw->space.h : max_h;
     return true; // keep going
 }
 
@@ -2876,11 +2878,13 @@ static void ui_app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* 
     // Check if window rect is inside monitor rect
     if (!ui_app_is_fully_inside(wrc, mrc)) {
         // Move window into monitor rect
-        wrc->x = rt_max(mrc->x, rt_min(mrc->x + mrc->w - wrc->w, wrc->x));
-        wrc->y = rt_max(mrc->y, rt_min(mrc->y + mrc->h - wrc->h, wrc->y));
+        const int32_t x = mrc->x + mrc->w - wrc->w < wrc->x ? mrc->x + mrc->w - wrc->w : wrc->x;
+        wrc->x = mrc->x > x ? mrc->x : x;
+        const int32_t y = mrc->y + mrc->h - wrc->h < wrc->y ? mrc->y + mrc->h - wrc->h : wrc->y;
+        wrc->y = mrc->y > y ? mrc->y : y;
         // Adjust size to fit into monitor rect
-        wrc->w = rt_min(wrc->w, mrc->w);
-        wrc->h = rt_min(wrc->h, mrc->h);
+        wrc->w = wrc->w < mrc->w ? wrc->w : mrc->w;
+        wrc->h = wrc->h < mrc->h ? wrc->h : mrc->h;
     }
 }
 
@@ -3051,8 +3055,8 @@ static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
         mmi->ptMaxTrackSize.y = max_h;
     } else {
         // clip max_w and max_h to monitor work area
-        mmi->ptMaxTrackSize.x = rt_min(max_w, wa->w);
-        mmi->ptMaxTrackSize.y = rt_min(max_h, wa->h);
+        mmi->ptMaxTrackSize.x = max_w < wa->w ? max_w : wa->w;
+        mmi->ptMaxTrackSize.y = max_h < wa->h ? max_h : wa->h;
     }
     mmi->ptMaxSize.x = mmi->ptMaxTrackSize.x;
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
@@ -3260,7 +3264,8 @@ static void ui_app_toast_paint(void) {
 //                  ui_app_toast_steps, av->y);
             ui_app_measure_and_layout(av);
             // dim main window (as `disabled`):
-            fp64_t alpha = rt_min(0.40, 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps);
+            const fp64_t da = 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps;
+            fp64_t alpha = 0.40 < da ? 0.40 : da;
             ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h,
                          0, 0, image_dark.w, image_dark.h,
                         &image_dark, alpha);
@@ -3273,9 +3278,11 @@ static void ui_app_toast_paint(void) {
             ui_app_measure_and_layout(av);
             int32_t mx = ui_app.root->w - av->w - em_w;
             int32_t cx = ui_app.animating.x - av->w / 2;
-            av->x = rt_min(mx, rt_max(0, cx));
-            av->y = rt_min(
-                ui_app.root->h - em_h, rt_max(0, ui_app.animating.y));
+            const int32_t x = 0 > cx ? 0 : cx;
+            av->x = mx < x ? mx : x;
+            const int32_t y = 0 > ui_app.animating.y ? 0 : ui_app.animating.y;
+            const int32_t h = ui_app.root->h - em_h;
+            av->y = h < y ? h : y;
 //          rt_println("ui_app.animating.y: %d av->y: %d",
 //                  ui_app.animating.y, av->y);
         }
@@ -3461,7 +3468,7 @@ static void ui_app_view_active_frame_paint(void) {
 static void ui_app_paint_stats(void) {
     if (ui_app.paint_count % 128 == 0) { ui_app.paint_max = 0; }
     ui_app.paint_time = rt_clock.seconds() - ui_app.now;
-    ui_app.paint_max = rt_max(ui_app.paint_time, ui_app.paint_max);
+    ui_app.paint_max = ui_app.paint_time > ui_app.paint_max ? ui_app.paint_time : ui_app.paint_max;
     if (ui_app.paint_avg == 0) {
         ui_app.paint_avg = ui_app.paint_time;
     } else { // EMA over 32 paint() calls
@@ -3484,7 +3491,7 @@ static void ui_app_paint_stats(void) {
     } else {
         fp64_t since_last = ui_app.now - ui_app.paint_last;
         if (since_last > 1.0 / 120.0) { // 240Hz monitor
-            ui_app.paint_dt_min = rt_min(ui_app.paint_dt_min, since_last);
+            ui_app.paint_dt_min = ui_app.paint_dt_min < since_last ? ui_app.paint_dt_min : since_last;
         }
 //      rt_println("paint_dt_min: %.6f since_last: %.6f",
 //              ui_app.paint_dt_min, since_last);
@@ -3708,7 +3715,7 @@ static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
         rt_assert(ui_app.border.w == ui_app.border.h);
         // on 96dpi monitors ui_app.border is 1x1
         // make it easier for the user to resize window
-        int32_t border = rt_max(4, ui_app.border.w * 2);
+        int32_t border = 4 > ui_app.border.w * 2 ? 4 : ui_app.border.w * 2;
         if (ui_app.animating.view != null) {
             return ui.hit_test.client; // message box or toast is up
         } else if (!ui_view.is_hidden(&ui_caption.view) &&
@@ -4752,8 +4759,8 @@ static void ui_app_restore_console(int32_t *visibility) {
                 "console_screen_buffer_infoex", &info, (int32_t)sizeof(info));
             if (r == sizeof(info)) { // 24x80
                 SMALL_RECT sr = info.srWindow;
-                int16_t w = (int16_t)rt_max(sr.Right - sr.Left + 1, 80);
-                int16_t h = (int16_t)rt_max(sr.Bottom - sr.Top + 1, 24);
+                int16_t w = (int16_t)(sr.Right - sr.Left + 1 > 80 ? sr.Right - sr.Left + 1 : 80);
+                int16_t h = (int16_t)(sr.Bottom - sr.Top + 1 > 24 ? sr.Bottom - sr.Top + 1 : 24);
 //              rt_println("info: %dx%d", info.dwSize.X, info.dwSize.Y);
 //              rt_println("%d,%d %dx%d", sr.Left, sr.Top, w, h);
                 if (w > 0 && h > 0) { ui_app_set_console_size(w, h); }
@@ -5328,8 +5335,8 @@ static int ui_app_win_main(HINSTANCE instance) {
         // border is too think (5 pixels) narrow down to 3x3
         const int32_t max_border = ui_app.dpi.window <= 100 ? 1 :
             (ui_app.dpi.window >= 192 ? 3 : 2);
-        ui_app.border.w = rt_min(max_border, ui_app.border.w);
-        ui_app.border.h = rt_min(max_border, ui_app.border.h);
+        ui_app.border.w = max_border < ui_app.border.w ? max_border : ui_app.border.w;
+        ui_app.border.h = max_border < ui_app.border.h ? max_border : ui_app.border.h;
     }
 //  rt_println("frame: %d,%d caption_height: %d", ui_app.border.w, ui_app.border.h, ui_app.caption_height);
     // TODO: use AdjustWindowRectEx instead
@@ -5455,7 +5462,7 @@ static void ui_button_paint(ui_view_t* v) {
     const int32_t h = v->h;
     const int32_t x = v->x;
     const int32_t y = v->y;
-    const int32_t r = (0x1 | rt_max(3, v->fm->em.h / 4));  // odd radius
+    const int32_t r = (0x1 | (3 > v->fm->em.h / 4 ? 3 : v->fm->em.h / 4));  // odd radius
     const fp32_t d = ui_theme.is_app_dark() ? 0.50f : 0.25f;
     ui_color_t d0 = ui_colors.darken(v->background, d);
     const fp32_t d2 = d / 2;
@@ -6354,7 +6361,7 @@ static void ui_span_measure(ui_view_t* p) {
             ui_rect_t cbx; // child "out" box expanded by padding
             ui_ltrb_t padding;
             ui_view.outbox(c, &cbx, &padding);
-            h = rt_max(h, cbx.h);
+            h = h > cbx.h ? h : cbx.h;
             if (c->max_w == ui.infinity) {
                 max_w = ui.infinity;
             } else if (max_w < ui.infinity && c->max_w != 0) {
@@ -6402,7 +6409,8 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
     // encouraged but allowed
     if (c->max_h == ui.infinity) {
         // important c->h changed, cbx.h is no longer valid
-        c->h = rt_max(c->h, pbx.h - padding.top - padding.bottom);
+        const int32_t h = pbx.h - padding.top - padding.bottom;
+        c->h = c->h > h ? c->h : h;
     }
     int32_t min_y = pbx.y + padding.top;
     if ((c->align & ui.align.top) != 0) {
@@ -6410,12 +6418,14 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
         c->y = min_y;
     } else if ((c->align & ui.align.bottom) != 0) {
         rt_assert(c->align == ui.align.bottom);
-        c->y = rt_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
+        const int32_t y = pbx.y + pbx.h - c->h - padding.bottom;
+        c->y = min_y > y ? min_y : y;
     } else { // effective height (c->h might have been changed)
         rt_assert(c->align == ui.align.center,
                   "only top, center, bottom alignment for span");
         const int32_t ch = padding.top + c->h + padding.bottom;
-        c->y = rt_max(min_y, pbx.y + (pbx.h - ch) / 2 + padding.top);
+        const int32_t y = pbx.y + (pbx.h - ch) / 2 + padding.top;
+        c->y = min_y > y ? min_y : y;
     }
     c->x = x + padding.left;
     return c->x + c->w + padding.right;
@@ -6449,13 +6459,13 @@ static void ui_span_layout(ui_view_t* p) {
             ui_layout_clild(c);
         }
     } ui_view_for_each_end(p, c);
-    int32_t xw = rt_max(0, pbx.x + pbx.w - x); // excess width
+    int32_t xw = 0 > pbx.x + pbx.w - x ? 0 : pbx.x + pbx.w - x; // excess width
     int32_t max_w_sum = 0;
     if (xw > 0 && max_w_count > 0) {
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c) && c->type != ui_view_spacer &&
                  c->max_w > 0) {
-                max_w_sum += rt_min(c->max_w, xw);
+                max_w_sum += (c->max_w < xw ? c->max_w : xw);
                 ui_layout_clild(c);
             }
         } ui_view_for_each_end(p, c);
@@ -6472,11 +6482,11 @@ static void ui_span_layout(ui_view_t* p) {
                 if (c->type == ui_view_spacer) {
                     rt_swear(padding.left == 0 && padding.right == 0);
                 } else if (c->max_w > 0) {
-                    const int32_t max_w = rt_min(c->max_w, xw);
+                    const int32_t max_w = c->max_w < xw ? c->max_w : xw;
                     int64_t proportional = (xw * (int64_t)max_w) / max_w_sum;
                     rt_assert(proportional <= (int64_t)INT32_MAX);
                     int32_t cw = (int32_t)proportional;
-                    c->w = rt_min(c->max_w, c->w + cw);
+                    c->w = c->max_w < c->w + cw ? c->max_w : c->w + cw;
                     k++;
                 }
                 // TODO: take into account .align of a child and adjust x
@@ -6490,7 +6500,7 @@ static void ui_span_layout(ui_view_t* p) {
         rt_swear(k == max_w_count);
     }
     // excess width after max_w of non-spacers taken into account
-    xw = rt_max(0, pbx.x + pbx.w - x);
+    xw = 0 > pbx.x + pbx.w - x ? 0 : pbx.x + pbx.w - x;
     if (xw > 0 && spacers > 0) {
         // evenly distribute excess among spacers
         debugln("%*c pass 3: expand spacers", ui_layout_nesting, 0x20);
@@ -6537,7 +6547,7 @@ static void ui_list_measure(ui_view_t* p) {
                 ui_rect_t cbx; // child "out" box expanded by padding
                 ui_ltrb_t padding;
                 ui_view.outbox(c, &cbx, &padding);
-                w = rt_max(w, cbx.w);
+                w = w > cbx.w ? w : cbx.w;
                 if (c->max_h == ui.infinity) {
                     max_h = ui.infinity;
                 } else if (max_h < ui.infinity && c->max_h != 0) {
@@ -6581,7 +6591,8 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
     // *always* fill vertical view size of the parent
     // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
     if (c->max_w == ui.infinity) {
-        c->w = rt_max(c->w, pbx.w - padding.left - padding.right);
+        const int32_t w = pbx.w - padding.left - padding.right;
+        c->w = c->w > w ? c->w : w;
     }
     int32_t min_x = pbx.x + padding.left;
     if ((c->align & ui.align.left) != 0) {
@@ -6589,12 +6600,14 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
         c->x = min_x;
     } else if ((c->align & ui.align.right) != 0) {
         rt_assert(c->align == ui.align.right);
-        c->x = rt_max(min_x, pbx.x + pbx.w - c->w - padding.right);
+        const int32_t x = pbx.x + pbx.w - c->w - padding.right;
+        c->x = min_x > x ? min_x : x;
     } else {
         rt_assert(c->align == ui.align.center,
                   "only left, center, right, alignment for list");
         const int32_t cw = padding.left + c->w + padding.right;
-        c->x = rt_max(min_x, pbx.x + (pbx.w - cw) / 2 + padding.left);
+        const int32_t x = pbx.x + (pbx.w - cw) / 2 + padding.left;
+        c->x = min_x > x ? min_x : x;
     }
     c->y = y + padding.top;
     return c->y + c->h + padding.bottom;
@@ -6629,12 +6642,12 @@ static void ui_list_layout(ui_view_t* p) {
             }
         }
     } ui_view_for_each_end(p, c);
-    int32_t xh = rt_max(0, pbx.y + pbx.h - y); // excess height
+    int32_t xh = 0 > pbx.y + pbx.h - y ? 0 : pbx.y + pbx.h - y; // excess height
     if (xh > 0 && max_h_count > 0) {
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c) && c->type != ui_view_spacer &&
                  c->max_h > 0) {
-                max_h_sum += rt_min(c->max_h, xh);
+                max_h_sum += (c->max_h < xh ? c->max_h : xh);
             }
         } ui_view_for_each_end(p, c);
     }
@@ -6648,11 +6661,11 @@ static void ui_list_layout(ui_view_t* p) {
                 ui_ltrb_t padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type != ui_view_spacer && c->max_h > 0) {
-                    const int32_t max_h = rt_min(c->max_h, xh);
+                    const int32_t max_h = c->max_h < xh ? c->max_h : xh;
                     int64_t proportional = (xh * (int64_t)max_h) / max_h_sum;
                     rt_assert(proportional <= (int64_t)INT32_MAX);
                     int32_t ch = (int32_t)proportional;
-                    c->h = rt_min(c->max_h, c->h + ch);
+                    c->h = c->max_h < c->h + ch ? c->max_h : c->h + ch;
                     k++;
                 }
                 int32_t ch = padding.top + c->h + padding.bottom;
@@ -6664,7 +6677,7 @@ static void ui_list_layout(ui_view_t* p) {
         rt_swear(k == max_h_count);
     }
     // excess height after max_h of non-spacers taken into account
-    xh = rt_max(0, pbx.y + pbx.h - y); // excess height
+    xh = 0 > pbx.y + pbx.h - y ? 0 : pbx.y + pbx.h - y; // excess height
     if (xh > 0 && spacers > 0) {
         // evenly distribute excess among spacers
         debugln("%*c pass 3: expand spacers", ui_layout_nesting, 0x20);
@@ -6735,8 +6748,8 @@ static void ui_stack_measure(ui_view_t* p) {
             int32_t row = 0;
             int32_t col = 0;
             ui_stack_child_3x3(c, &row, &col);
-            sides[row][col].w = rt_max(sides[row][col].w, cbx.w);
-            sides[row][col].h = rt_max(sides[row][col].h, cbx.h);
+            sides[row][col].w = sides[row][col].w > cbx.w ? sides[row][col].w : cbx.w;
+            sides[row][col].h = sides[row][col].h > cbx.h ? sides[row][col].h : cbx.h;
             ui_layout_clild(c);
         }
     } ui_view_for_each_end(p, c);
@@ -6758,14 +6771,14 @@ static void ui_stack_measure(ui_view_t* p) {
         for (int32_t c = 0; c < 3; c++) {
             sum_w += sides[r][c].w;
         }
-        wh.w = rt_max(wh.w, sum_w);
+        wh.w = wh.w > sum_w ? wh.w : sum_w;
     }
     for (int32_t c = 0; c < 3; c++) {
         int32_t sum_h = 0;
         for (int32_t r = 0; r < 3; r++) {
             sum_h += sides[r][c].h;
         }
-        wh.h = rt_max(wh.h, sum_h);
+        wh.h = wh.h > sum_h ? wh.h : sum_h;
     }
     debugln("%*c wh %4dx%-4d", ui_layout_nesting, 0x20, wh.w, wh.h);
     p->w = insets.left + wh.w + insets.right;
@@ -6788,11 +6801,11 @@ static void ui_stack_layout(ui_view_t* p) {
             const int32_t ph = p->h - insets.top - insets.bottom - padding.top - padding.bottom;
             int32_t cw = c->max_w == ui.infinity ? pw : c->max_w;
             if (cw > 0) {
-                c->w = rt_min(cw, pw);
+                c->w = cw < pw ? cw : pw;
             }
             int32_t ch = c->max_h == ui.infinity ? ph : c->max_h;
             if (ch > 0) {
-                c->h = rt_min(ch, ph);
+                c->h = ch < ph ? ch : ph;
             }
             rt_swear((c->align & (ui.align.left|ui.align.right)) !=
                                (ui.align.left|ui.align.right),
@@ -6804,17 +6817,21 @@ static void ui_stack_layout(ui_view_t* p) {
             if ((c->align & ui.align.left) != 0) {
                 c->x = min_x;
             } else if ((c->align & ui.align.right) != 0) {
-                c->x = rt_max(min_x, pbx.x + pbx.w - c->w - padding.right);
+                const int32_t x = pbx.x + pbx.w - c->w - padding.right;
+                c->x = min_x > x ? min_x : x;
             } else {
-                c->x = rt_max(min_x, min_x + (pbx.w - (padding.left + c->w + padding.right)) / 2);
+                const int32_t x = min_x + (pbx.w - (padding.left + c->w + padding.right)) / 2;
+                c->x = min_x > x ? min_x : x;
             }
             int32_t min_y = pbx.y + padding.top;
             if ((c->align & ui.align.top) != 0) {
                 c->y = min_y;
             } else if ((c->align & ui.align.bottom) != 0) {
-                c->y = rt_max(min_y, pbx.y + pbx.h - c->h - padding.bottom);
+                const int32_t y = pbx.y + pbx.h - c->h - padding.bottom;
+                c->y = min_y > y ? min_y : y;
             } else {
-                c->y = rt_max(min_y, min_y + (pbx.h - (padding.top + c->h + padding.bottom)) / 2);
+                const int32_t y = min_y + (pbx.h - (padding.top + c->h + padding.bottom)) / 2;
+                c->y = min_y > y ? min_y : y;
             }
             ui_layout_clild(c);
         }
@@ -6907,10 +6924,12 @@ static bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
 static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
                                             const ui_rect_t* r1) {
     ui_rect_t r = {0};
-    r.x = rt_max(r0->x, r1->x);  // Maximum of left edges
-    r.y = rt_max(r0->y, r1->y);  // Maximum of top edges
-    r.w = rt_min(r0->x + r0->w, r1->x + r1->w) - r.x;  // Width of overlap
-    r.h = rt_min(r0->y + r0->h, r1->y + r1->h) - r.y;  // Height of overlap
+    r.x = r0->x > r1->x ? r0->x : r1->x;  // Maximum of left edges
+    r.y = r0->y > r1->y ? r0->y : r1->y;  // Maximum of top edges
+    const int32_t r0r = r0->x + r0->w, r1r = r1->x + r1->w; // right edges
+    const int32_t r0b = r0->y + r0->h, r1b = r1->y + r1->h; // bottom edges
+    r.w = (r0r < r1r ? r0r : r1r) - r.x;  // Width of overlap
+    r.h = (r0b < r1b ? r0b : r1b) - r.y;  // Height of overlap
     bool b = r.w > 0 && r.h > 0;
     if (!b) {
         r.w = 0;
@@ -6921,11 +6940,15 @@ static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
 }
 
 static ui_rect_t ui_combine_rect(const ui_rect_t* r0, const ui_rect_t* r1) {
+    const int32_t x = r0->x < r1->x ? r0->x : r1->x; // min left
+    const int32_t y = r0->y < r1->y ? r0->y : r1->y; // min top
+    const int32_t r0r = r0->x + r0->w, r1r = r1->x + r1->w; // right edges
+    const int32_t r0b = r0->y + r0->h, r1b = r1->y + r1->h; // bottom edges
     return (ui_rect_t) {
-        .x = rt_min(r0->x, r1->x),
-        .y = rt_min(r0->y, r1->y),
-        .w = rt_max(r0->x + r0->w, r1->x + r1->w) - rt_min(r0->x, r1->x),
-        .h = rt_max(r0->y + r0->h, r1->y + r1->h) - rt_min(r0->y, r1->y)
+        .x = x,
+        .y = y,
+        .w = (r0r > r1r ? r0r : r1r) - x,
+        .h = (r0b > r1b ? r0b : r1b) - y
     };
 }
 
@@ -7286,7 +7309,7 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
     if (b < 0) { b = (int32_t)strlen(s); }
     // if caller is concerned with best performance - it should pass b >= 0
     int32_t np = 0; // number of paragraphs
-    int32_t n = rt_max(b / 64, 2); // initial number of allocated paragraphs
+    int32_t n = b / 64 > 2 ? b / 64 : 2; // initial number of allocated paragraphs
     ui_edit_str_t* ps = null; // ps[n]
     bool ok = ui_edit_doc_realloc_ps(&ps, 0, n);
     if (ok) {
@@ -8424,7 +8447,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
             const int32_t bytes = s->b + bytes_to_insert - bytes_to_remove;
             rt_assert(ins.g2b != null); // pacify code analysis
             rt_assert(bytes > 0);
-            const int32_t c = rt_max(s->b, bytes);
+            const int32_t c = s->b > bytes ? s->b : bytes;
             // keep g2b == ui_edit_str_g2b_ascii as much as possible
             const bool all_ascii = s->g2b == ui_edit_str_g2b_ascii &&
                                    ins.g2b == ui_edit_str_g2b_ascii &&
@@ -9388,7 +9411,7 @@ static ui_rect_t ui_edit_selection_rect(ui_edit_view_t* e) {
     if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
         return (ui_rect_t) { .x = 0, .y = 0, .w = e->w, .h = e->h };
     } else if (p0.y == p1.y) {
-        const int32_t max_w = rt_max(e->fm->max_char_width, e->fm->em.w);
+        const int32_t max_w = e->fm->max_char_width > e->fm->em.w ? e->fm->max_char_width : e->fm->em.w;
         int32_t w = p1.x - p0.x != 0 ?
                 p1.x - p0.x + max_w : e->caret_width;
         return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
@@ -9460,12 +9483,12 @@ static int32_t ui_edit_word_break_at(ui_edit_view_t* e, int32_t pn, int32_t rn,
         const int32_t glyphs_in_this_run = str->g - gp;
         int32_t* g2b = &str->g2b[gp];
         // 4 is maximum number of bytes in a UTF-8 sequence
-        int32_t gc = rt_min(4, glyphs_in_this_run);
+        int32_t gc = 4 < glyphs_in_this_run ? 4 : glyphs_in_this_run;
         int32_t w = ui_edit_text_width(e, text, g2b[gc] - bp);
         count++;
         chars += g2b[gc] - bp;
         while (gc < glyphs_in_this_run && w < width) {
-            gc = rt_min(gc * 4, glyphs_in_this_run);
+            gc = gc * 4 < glyphs_in_this_run ? gc * 4 : glyphs_in_this_run;
             w = ui_edit_text_width(e, text, g2b[gc] - bp);
             count++;
             chars += g2b[gc] - bp;
@@ -9626,7 +9649,8 @@ static void ui_edit_create_caret(ui_edit_view_t* e) {
     rt_assert(ui_app.is_active());
     rt_assert(ui_app.focused());
     fp64_t px = ui_app.dpi.monitor_raw / 100.0 + 0.5;
-    e->caret_width = rt_min(3, rt_max(1, (int32_t)px));
+    const int32_t cw = 1 > (int32_t)px ? 1 : (int32_t)px;
+    e->caret_width = 3 < cw ? 3 : cw;
     ui_app.create_caret(e->caret_width, e->fm->height); // w/o line_gap
     e->focused = true; // means caret was created
 //  rt_println("e->focused := true %s", ui_view_debug_id(&e->view));
@@ -9808,7 +9832,8 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg) {
     rt_assert(0 <= pg.pn && pg.pn < dt->np);
     ui_point_t pt = { .x = -1, .y = 0 };
     const int32_t spn = e->scroll.pn + 1;
-    const int32_t pn = rt_min(rt_max(spn, pg.pn + 1), dt->np - 1);
+    const int32_t mp = spn > pg.pn + 1 ? spn : pg.pn + 1;
+    const int32_t pn = mp < dt->np - 1 ? mp : dt->np - 1;
     for (int32_t i = e->scroll.pn; i <= pn && pt.x < 0; i++) {
         rt_assert(0 <= i && i < dt->np);
         const ui_edit_str_t* str = &dt->ps[i];
@@ -9987,7 +10012,7 @@ static void ui_edit_scroll_down(ui_edit_view_t* e, int32_t run_count) {
     rt_assert(0 < run_count, "does it make sense to have 0 scroll?");
     while (run_count > 0 && (e->scroll.pn > 0 || e->scroll.rn > 0)) {
         int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
-        e->scroll.rn = rt_min(e->scroll.rn, runs - 1);
+        e->scroll.rn = e->scroll.rn < runs - 1 ? e->scroll.rn : runs - 1;
         if (e->scroll.rn == 0 && e->scroll.pn > 0) {
             e->scroll.pn--;
             e->scroll.rn = ui_edit_paragraph_run_count(e, e->scroll.pn) - 1;
@@ -10198,7 +10223,7 @@ static ui_edit_range_t ui_edit_word_range(ui_edit_view_t* e, ui_edit_pg_t pg) {
         rt_swear(pg.pn <= dt->np - 1);
         // number of glyphs in paragraph:
         int32_t ng = ui_edit_glyphs_in_paragraph(e, pg.pn);
-        if (pg.gp > ng) { pg.gp = rt_max(0, ng); }
+        if (pg.gp > ng) { pg.gp = 0 > ng ? 0 : ng; }
         ui_edit_glyph_t g = ui_edit_glyph_at(e, pg);
         if (ng <= 1) {
             r.to.gp = ng;
@@ -10505,10 +10530,10 @@ static void ui_edit_view_key_end(ui_edit_view_t* e) {
 }
 
 static void ui_edit_view_key_page_up(ui_edit_view_t* e) {
-    int32_t n = rt_max(1, e->visible_runs - 1);
+    int32_t n = 1 > e->visible_runs - 1 ? 1 : e->visible_runs - 1;
     ui_edit_pg_t scr = ui_edit_scroll_pg(e);
     const ui_edit_pg_t prev = (ui_edit_pg_t){
-        .pn = rt_max(scr.pn - e->visible_runs - 1, 0),
+        .pn = scr.pn - e->visible_runs - 1 > 0 ? scr.pn - e->visible_runs - 1 : 0,
         .gp = 0
     };
     const int32_t m = ui_edit_runs_between(e, prev, scr);
@@ -10528,10 +10553,10 @@ static void ui_edit_view_key_page_up(ui_edit_view_t* e) {
 
 static void ui_edit_view_key_page_down(ui_edit_view_t* e) {
     const ui_edit_text_t* dt = &e->doc->text; // document text
-    const int32_t n = rt_max(1, e->visible_runs - 1);
+    const int32_t n = 1 > e->visible_runs - 1 ? 1 : e->visible_runs - 1;
     const ui_edit_pg_t scr = ui_edit_scroll_pg(e);
     const ui_edit_pg_t next = (ui_edit_pg_t){
-        .pn = rt_min(scr.pn + 1, dt->np - 1),
+        .pn = scr.pn + 1 < dt->np - 1 ? scr.pn + 1 : dt->np - 1,
         .gp = scr.pn + 1 == dt->np - 1 ? dt->ps[dt->np - 1].g : 0
     };
     const int32_t m = ui_edit_runs_between(e, scr, next);
@@ -10705,7 +10730,7 @@ static void ui_edit_select_paragraph(ui_edit_view_t* e, int32_t x, int32_t y) {
     if (0 <= p.pn && 0 <= p.gp) {
         ui_edit_range_t r = ui_edit_text.ordered(dt, &e->selection);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
-        if (p.gp > glyphs) { p.gp = rt_max(0, glyphs); }
+        if (p.gp > glyphs) { p.gp = 0 > glyphs ? 0 : glyphs; }
         if (p.pn == r.a[0].pn && r.a[0].pn == r.a[1].pn &&
             r.a[0].gp <= p.gp && p.gp <= r.a[1].gp) {
             r.a[0].gp = 0;
@@ -10731,7 +10756,7 @@ static void ui_edit_click(ui_edit_view_t* e, int32_t x, int32_t y) {
     if (0 <= pg.pn && 0 <= pg.gp && ui_view.has_focus(&e->view)) {
         rt_swear(dt->np > 0 && pg.pn < dt->np);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
-        if (pg.gp > glyphs) { pg.gp = rt_max(0, glyphs); }
+        if (pg.gp > glyphs) { pg.gp = 0 > glyphs ? 0 : glyphs; }
         ui_edit_move_caret(e, pg);
     }
 }
@@ -10970,7 +10995,8 @@ static void ui_edit_prepare_sle(ui_edit_view_t* e) {
     rt_swear(e->sle && v->w > 0);
     // shingle line edit is capable of resizing itself to two
     // lines of text (and shrinking back) to avoid horizontal scroll
-    int32_t runs = rt_max(1, rt_min(2, ui_edit_paragraph_run_count(e, 0)));
+    const int32_t prc = ui_edit_paragraph_run_count(e, 0);
+    int32_t runs = 1 > (2 < prc ? 2 : prc) ? 1 : (2 < prc ? 2 : prc);
     const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
     int32_t h = insets.top + ui_edit_line_height(e) * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
@@ -11029,7 +11055,8 @@ static void ui_edit_layout(ui_view_t* v) { // top down
         const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
         if (runs <= 2 && e->scroll.rn == 1) {
             ui_edit_pg_t top = scroll;
-            top.gp = rt_max(0, top.gp - run[e->scroll.rn].glyphs - 1);
+            const int32_t g = top.gp - run[e->scroll.rn].glyphs - 1;
+            top.gp = 0 > g ? 0 : g;
             ui_edit_scroll_into_view(e, top);
         }
     }
@@ -11059,8 +11086,8 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
     uint64_t s1 = ui_edit_range.uint64(pnc0);
     uint64_t e1 = ui_edit_range.uint64(pnc1);
     if (s0 <= e1 && s1 <= e0) {
-        uint64_t start = rt_max(s0, s1) - (uint64_t)c0;
-        uint64_t end = rt_min(e0, e1) - (uint64_t)c0;
+        uint64_t start = (s0 > s1 ? s0 : s1) - (uint64_t)c0;
+        uint64_t end = (e0 < e1 ? e0 : e1) - (uint64_t)c0;
         if (start < end) {
             int32_t fro = (int32_t)start;
             int32_t to  = (int32_t)end;
@@ -11246,10 +11273,13 @@ static void ui_edit_after(ui_edit_notify_t* notify,
     e->selection = *ni->x;
     ui_edit_pg_t* pg = e->selection.a;
     for (int32_t i = 0; i < rt_countof(e->selection.a); i++) {
-        pg[i].pn = rt_max(0, rt_min(dt->np - 1, pg[i].pn));
-        pg[i].gp = rt_max(0, rt_min(dt->ps[pg[i].pn].g, pg[i].gp));
+        const int32_t pn = dt->np - 1 < pg[i].pn ? dt->np - 1 : pg[i].pn;
+        pg[i].pn = 0 > pn ? 0 : pn;
+        const int32_t gp = dt->ps[pg[i].pn].g < pg[i].gp ? dt->ps[pg[i].pn].g : pg[i].gp;
+        pg[i].gp = 0 > gp ? 0 : gp;
     }
-    e->scroll.pn = rt_max(0, rt_min(dt->np - 1, e->scroll.pn));
+    const int32_t spn = dt->np - 1 < e->scroll.pn ? dt->np - 1 : e->scroll.pn;
+    e->scroll.pn = 0 > spn ? 0 : spn;
     if (e->w > 0 && e->h > 0) {
         if (ni->r->from.pn != ni->r->to.pn &&
             ni->x->from.pn != ni->x->to.pn &&
@@ -11637,7 +11667,7 @@ static void ui_fuzzing_character(void) {
         fp64_t r = ui_fuzzing_random_fp64();
         if (r < 0.125) {
             uint32_t rnd = ui_fuzzing_random();
-            int32_t n = (int32_t)rt_max(1, rnd % 32);
+            int32_t n = (int32_t)(1 > rnd % 32 ? 1 : rnd % 32);
             ui_fuzzing_next_gibberish(n, utf8);
             ui_fuzzing_work.utf8 = utf8;
             if (ui_fuzzing_debug) {
@@ -13007,11 +13037,11 @@ static fp64_t ui_image_scale_of(int32_t nominator, int32_t denominator) {
 
 static fp64_t ui_image_scale(ui_image_t* iv) {
     if (iv->fit && iv->w > 0 && iv->h > 0) {
-        return min((fp64_t)iv->w / iv->image.w,
-                   (fp64_t)iv->h / iv->image.h);
+        return (fp64_t)iv->w / iv->image.w < (fp64_t)iv->h / iv->image.h ?
+                (fp64_t)iv->w / iv->image.w : (fp64_t)iv->h / iv->image.h;
     } else if (iv->fill && iv->w > 0 && iv->h > 0) {
-        return max((fp64_t)iv->w / iv->image.w,
-                   (fp64_t)iv->h / iv->image.h);
+        return (fp64_t)iv->w / iv->image.w > (fp64_t)iv->h / iv->image.h ?
+                (fp64_t)iv->w / iv->image.w : (fp64_t)iv->h / iv->image.h;
     } else {
         return ui_image_scale_of(iv->zn, iv->zd);
     }
@@ -13217,12 +13247,14 @@ static void ui_image_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     if (ui_view.has_focus(v)) {
         fp64_t s = ui_image.scale(iv);
         if (iv->image.w * s > iv->w || iv->image.h * s > iv->h) {
-            iv->sx = max(0.0, min(iv->sx + dx / iv->image.w, 1.0));
+            const fp64_t nx = iv->sx + dx / iv->image.w < 1.0 ? iv->sx + dx / iv->image.w : 1.0;
+            iv->sx = 0.0 > nx ? 0.0 : nx;
         } else {
             iv->sx = 0.5;
         }
         if (iv->image.h * s > iv->h) {
-            iv->sy = max(0.0, min(iv->sy + dy / iv->image.h, 1.0));
+            const fp64_t ny = iv->sy + dy / iv->image.h < 1.0 ? iv->sy + dy / iv->image.h : 1.0;
+            iv->sy = 0.0 > ny ? 0.0 : ny;
         } else {
             iv->sy = 0.5;
         }
@@ -13632,7 +13664,7 @@ static void ui_mbx_measured(ui_view_t* v) {
         for (int32_t i = 0; i < n; i++) {
             bw += m->button[i].w;
         }
-        v->w = rt_max(tw, bw + em_x * 2);
+        v->w = tw > bw + em_x * 2 ? tw : bw + em_x * 2;
         v->h = th + m->button[0].h + em_y + em_y / 2;
     } else {
         v->h = th + em_y / 2;
@@ -13966,7 +13998,7 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
-            rt_min(64, strlen(text)), text);
+            (64 < strlen(text) ? 64 : strlen(text)), text);
         const ui_margins_t in = s->insets;
         const ui_margins_t pd = s->padding;
         rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
@@ -13986,8 +14018,10 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
         ui_wh_t mt_min = measure_text(s->fm, text, s->value_min);
         ui_wh_t mt_max = measure_text(s->fm, text, s->value_max);
         ui_wh_t mt_val = measure_text(s->fm, text, s->value);
-        wh.h = rt_max(mt_val.h, rt_max(mt_min.h, mt_max.h));
-        wh.w = rt_max(mt_val.w, rt_max(mt_min.w, mt_max.w));
+        const int32_t mh = mt_min.h > mt_max.h ? mt_min.h : mt_max.h;
+        const int32_t mw = mt_min.w > mt_max.w ? mt_min.w : mt_max.w;
+        wh.h = mt_val.h > mh ? mt_val.h : mh;
+        wh.w = mt_val.w > mw ? mt_val.w : mw;
     } else if (text != null && text[0] != 0) {
         wh = measure_text(s->fm, "%s", text);
     }
@@ -14003,7 +14037,7 @@ static void ui_slider_measure(ui_view_t* v) {
     const ui_fm_t* fm = v->fm;
     const ui_ltrb_t i = ui_view.margins(v, &v->insets);
     // slider cannot be smaller than 2*em
-    const fp32_t min_w_em = rt_max(2.0f, v->min_w_em);
+    const fp32_t min_w_em = 2.0f > v->min_w_em ? 2.0f : v->min_w_em;
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)   min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     // dec and inc have same font metrics as a slider:
@@ -14013,15 +14047,16 @@ static void ui_slider_measure(ui_view_t* v) {
     ui_view.measure_control(v);
 //  s->text.mt = ui_slider_measure_text(s);
     if (s->dec.state.hidden) {
-        v->w = rt_max(v->w, i.left + s->wh.w + i.right);
+        v->w = v->w > i.left + s->wh.w + i.right ? v->w : i.left + s->wh.w + i.right;
     } else {
         ui_view.measure(&s->dec); // remeasure with inherited metrics
         ui_view.measure(&s->inc);
         const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
         const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
-        v->w = rt_max(v->w, s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w);
+        const int32_t w = s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w;
+        v->w = v->w > w ? v->w : w;
     }
-    v->h = rt_max(v->h, i.top + fm->em.h + i.bottom);
+    v->h = v->h > i.top + fm->em.h + i.bottom ? v->h : i.top + fm->em.h + i.bottom;
     if (s->debug.trace.mt) {
         rt_println("<%dx%d", s->w, s->h);
     }
@@ -14120,7 +14155,8 @@ static bool ui_slider_tap(ui_view_t* v, int32_t rt_unused(ix),
                 const fp64_t range = (fp64_t)s->value_max - (fp64_t)s->value_min;
                 fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
-                s->value = rt_min(rt_max(vw, s->value_min), s->value_max);
+                const int32_t lo = vw > s->value_min ? vw : s->value_min;
+                s->value = lo < s->value_max ? lo : s->value_max;
                 if (s->callback != null) { s->callback(&s->view); }
                 ui_slider_invalidate(s);
             }
@@ -14151,7 +14187,8 @@ static void ui_slider_mouse_move(ui_view_t* v) {
                 const fp64_t range = fmax - fmin;
                 fp64_t val = (fp64_t)x * range / (fp64_t)(sw - 1);
                 int32_t vw = (int32_t)(val + s->value_min + 0.5);
-                s->value = rt_min(rt_max(vw, s->value_min), s->value_max);
+                const int32_t lo = vw > s->value_min ? vw : s->value_min;
+                s->value = lo < s->value_max ? lo : s->value_max;
                 if (s->callback != null) { s->callback(&s->view); }
                 ui_slider_invalidate(s);
             }
@@ -14164,10 +14201,10 @@ static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
         int32_t v = s->value;
         if (v > s->value_min && sign < 0) {
-            mul = rt_min(v - s->value_min, mul);
+            mul = v - s->value_min < mul ? v - s->value_min : mul;
             v += mul * sign;
         } else if (v < s->value_max && sign > 0) {
-            mul = rt_min(s->value_max - v, mul);
+            mul = s->value_max - v < mul ? s->value_max - v : mul;
             v += mul * sign;
         }
         if (s->value != v) {
@@ -14206,7 +14243,7 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
             int32_t mul = sec >= 1 ? initial << (sec - 1) : initial;
             const int64_t range = (int64_t)s->value_max - (int64_t)s->value_min;
             if (mul > range / 8) { mul = (int32_t)(range / 8); }
-            ui_slider_inc_dec_value(s, sign, rt_max(mul, 1));
+            ui_slider_inc_dec_value(s, sign, (mul > 1 ? mul : 1));
         }
     }
 }
@@ -14268,7 +14305,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
     s->callback = callback;
-    s->min_w_em = rt_max(6.0f, min_w_em);
+    s->min_w_em = 6.0f > min_w_em ? 6.0f : min_w_em;
     s->value_min = value_min;
     s->value_max = value_max;
     s->value = value_min;
@@ -14887,7 +14924,7 @@ static void ui_view_measure_control(ui_view_t* v) {
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
             ui_view_debug_id(v),
-            rt_min(64, strlen(s)), s);
+            (64 < strlen(s) ? 64 : strlen(s)), s);
         const ui_margins_t in = v->insets;
         const ui_margins_t pd = v->padding;
         rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
@@ -14901,8 +14938,8 @@ static void ui_view_measure_control(ui_view_t* v) {
     if (v->debug.trace.mt) {
         rt_println(" mt: %d %d", v->text.wh.w, v->text.wh.h);
     }
-    v->w = rt_max(v->w, i.left + v->text.wh.w + i.right);
-    v->h = rt_max(v->h, i.top  + v->text.wh.h + i.bottom);
+    v->w = v->w > i.left + v->text.wh.w + i.right ? v->w : i.left + v->text.wh.w + i.right;
+    v->h = v->h > i.top  + v->text.wh.h + i.bottom ? v->h : i.top  + v->text.wh.h + i.bottom;
     ui_view_text_align(v, &v->text);
     if (v->debug.trace.mt) {
         rt_println("<%dx%d text_align x,y: %d,%d %s",
@@ -15200,7 +15237,7 @@ static void ui_view_paint(ui_view_t* v) {
         const char* s = ui_view.string(v);
         rt_println("%d,%d %dx%d prc: %d,%d %dx%d \"%.*s\"", v->x, v->y, v->w, v->h,
                 ui_app.prc.x, ui_app.prc.y, ui_app.prc.w, ui_app.prc.h,
-                rt_min(64, strlen(s)), s);
+                (64 < strlen(s) ? 64 : strlen(s)), s);
     }
     if (!v->state.hidden && ui_app.crc.w > 0 && ui_app.crc.h > 0) {
         if (v->erase   != null) { v->erase(v); }

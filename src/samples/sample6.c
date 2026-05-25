@@ -103,8 +103,8 @@ static void paint_mute_unmute(ui_view_t* v) {
 }
 
 static void paint(ui_view_t* v) {
-    const int32_t w = rt_min(v->w, background.w);
-    const int32_t h = rt_min(v->h, background.h);
+    const int32_t w = v->w < background.w ? v->w : background.w;
+    const int32_t h = v->h < background.h ? v->h : background.h;
     const int32_t x = (v->w - w) / 2;
     const int32_t y = (v->h - h) / 2;
     ui_gdi.bitmap(x, y, w, h, 0, 0, background.w, background.h, &background);

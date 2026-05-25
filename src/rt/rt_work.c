@@ -112,7 +112,8 @@ static void rt_worker_thread(void* p) {
         fp64_t timeout = -1.0; // forever
         rt_atomics.spinlock_acquire(&q->lock);
         if (q->head != null) {
-            timeout = rt_max(0, q->head->when - rt_clock.seconds());
+            const fp64_t dt = q->head->when - rt_clock.seconds();
+            timeout = 0 > dt ? 0 : dt;
         }
         rt_atomics.spinlock_release(&q->lock);
         // if another item is inserted into head after unlocking

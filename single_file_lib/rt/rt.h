@@ -724,109 +724,6 @@ extern rt_files_if rt_files;
 
 rt_end_c
 
-// ______________________________ rt_generics.h _______________________________
-
-rt_begin_c
-
-// Most of ut/ui code is written the way of min(a,b) max(a,b)
-// not having side effects on the arguments and thus evaluating
-// them twice ain't a big deal. However, out of curiosity of
-// usefulness of Generic() in C11 standard here is type-safe
-// single evaluation of the arguments version of what could
-// have been simple minimum and maximum macro definitions.
-// Type safety comes with the cost of complexity in puritan
-// or stoic language like C:
-
-static inline int8_t   rt_max_int8(int8_t x, int8_t y)       { return x > y ? x : y; }
-static inline int16_t  rt_max_int16(int16_t x, int16_t y)    { return x > y ? x : y; }
-static inline int32_t  rt_max_int32(int32_t x, int32_t y)    { return x > y ? x : y; }
-static inline int64_t  rt_max_int64(int64_t x, int64_t y)    { return x > y ? x : y; }
-static inline uint8_t  rt_max_uint8(uint8_t x, uint8_t y)    { return x > y ? x : y; }
-static inline uint16_t rt_max_uint16(uint16_t x, uint16_t y) { return x > y ? x : y; }
-static inline uint32_t rt_max_uint32(uint32_t x, uint32_t y) { return x > y ? x : y; }
-static inline uint64_t rt_max_uint64(uint64_t x, uint64_t y) { return x > y ? x : y; }
-static inline fp32_t   rt_max_fp32(fp32_t x, fp32_t y)       { return x > y ? x : y; }
-static inline fp64_t   rt_max_fp64(fp64_t x, fp64_t y)       { return x > y ? x : y; }
-
-// MS cl.exe version 19.39.33523 has issues with "long":
-// does not pick up int32_t/uint32_t types for "long" and "unsigned long"
-// need to handle long / unsigned long separately:
-
-static inline long          rt_max_long(long x, long y)                    { return x > y ? x : y; }
-static inline unsigned long rt_max_ulong(unsigned long x, unsigned long y) { return x > y ? x : y; }
-
-static inline int8_t   rt_min_int8(int8_t x, int8_t y)       { return x < y ? x : y; }
-static inline int16_t  rt_min_int16(int16_t x, int16_t y)    { return x < y ? x : y; }
-static inline int32_t  rt_min_int32(int32_t x, int32_t y)    { return x < y ? x : y; }
-static inline int64_t  rt_min_int64(int64_t x, int64_t y)    { return x < y ? x : y; }
-static inline uint8_t  rt_min_uint8(uint8_t x, uint8_t y)    { return x < y ? x : y; }
-static inline uint16_t rt_min_uint16(uint16_t x, uint16_t y) { return x < y ? x : y; }
-static inline uint32_t rt_min_uint32(uint32_t x, uint32_t y) { return x < y ? x : y; }
-static inline uint64_t rt_min_uint64(uint64_t x, uint64_t y) { return x < y ? x : y; }
-static inline fp32_t   rt_min_fp32(fp32_t x, fp32_t y)       { return x < y ? x : y; }
-static inline fp64_t   rt_min_fp64(fp64_t x, fp64_t y)       { return x < y ? x : y; }
-
-static inline long          rt_min_long(long x, long y)                    { return x < y ? x : y; }
-static inline unsigned long rt_min_ulong(unsigned long x, unsigned long y) { return x < y ? x : y; }
-
-
-static inline void rt_min_undefined(void) { }
-static inline void rt_max_undefined(void) { }
-
-#define rt_max(X, Y) _Generic((X) + (Y), \
-    int8_t:   rt_max_int8,   \
-    int16_t:  rt_max_int16,  \
-    int32_t:  rt_max_int32,  \
-    int64_t:  rt_max_int64,  \
-    uint8_t:  rt_max_uint8,  \
-    uint16_t: rt_max_uint16, \
-    uint32_t: rt_max_uint32, \
-    uint64_t: rt_max_uint64, \
-    fp32_t:   rt_max_fp32,   \
-    fp64_t:   rt_max_fp64,   \
-    long:     rt_max_long,   \
-    unsigned long: rt_max_ulong, \
-    default:  rt_max_undefined)(X, Y)
-
-#define rt_min(X, Y) _Generic((X) + (Y), \
-    int8_t:   rt_min_int8,   \
-    int16_t:  rt_min_int16,  \
-    int32_t:  rt_min_int32,  \
-    int64_t:  rt_min_int64,  \
-    uint8_t:  rt_min_uint8,  \
-    uint16_t: rt_min_uint16, \
-    uint32_t: rt_min_uint32, \
-    uint64_t: rt_min_uint64, \
-    fp32_t:   rt_min_fp32,   \
-    fp64_t:   rt_min_fp64,   \
-    long:     rt_min_long,   \
-    unsigned long: rt_min_ulong, \
-    default:  rt_min_undefined)(X, Y)
-
-// The expression (X) + (Y) is used in _Generic primarily for type promotion
-// and compatibility between different types of the two operands. In C, when
-// you perform an arithmetic operation like addition between two variables,
-// the types of these variables undergo implicit conversions to a common type
-// according to the usual arithmetic conversions defined in the C standard.
-// This helps ensure that:
-//
-// Type Compatibility: The macro works correctly even if X and Y are of
-// different types. By using (X) + (Y), both X and Y are promoted to a common
-// type, which ensures that the macro selects the appropriate function
-// that can handle this common type.
-//
-// Type Safety: It ensures that the selected function can handle the type
-// resulting from the operation, thereby preventing type mismatches that
-// could lead to undefined behavior or compilation errors.
-
-typedef struct {
-    void (*test)(void);
-} rt_generics_if;
-
-extern rt_generics_if rt_generics;
-
-rt_end_c
-
 // _______________________________ rt_glyphs.h ________________________________
 
 // Square Four Corners https://www.compart.com/en/unicode/U+26F6
@@ -3231,7 +3128,7 @@ static errno_t rt_clipboard_get_text(char* utf8, int32_t* bytes) {
                         r = ERROR_OUTOFMEMORY;
                     } else {
                         rt_str.utf16to8(decoded, utf8_bytes, utf16, -1);
-                        int32_t n = rt_min(*bytes, utf8_bytes);
+                        int32_t n = *bytes < utf8_bytes ? *bytes : utf8_bytes;
                         memcpy(utf8, decoded, (size_t)n);
                         free(decoded);
                         if (n < utf8_bytes) {
@@ -3633,7 +3530,6 @@ static void rt_core_test(void) { // in alphabetical order
     rt_debug.test();
     rt_event.test();
     rt_files.test();
-    rt_generics.test();
     rt_heap.test();
     rt_loader.test();
     rt_mem.test();
@@ -3745,10 +3641,10 @@ static void rt_debug_println_va(const char* file, int32_t line, const char* func
         snprintf(file_line, rt_countof(file_line) - 1, "%s(%d):", name, line);
     }
     file_line[rt_countof(file_line) - 1] = 0x00; // always zero terminated'
-    rt_debug_max_file_line = rt_max(rt_debug_max_file_line,
-                                    (int32_t)strlen(file_line));
-    rt_debug_max_function  = rt_max(rt_debug_max_function,
-                                    (int32_t)strlen(func));
+    const int32_t fl = (int32_t)strlen(file_line);
+    rt_debug_max_file_line = rt_debug_max_file_line > fl ? rt_debug_max_file_line : fl;
+    const int32_t fn = (int32_t)strlen(func);
+    rt_debug_max_function  = rt_debug_max_function > fn ? rt_debug_max_function : fn;
     char prefix[2 * 1024];
     // snprintf() does not guarantee zero termination on truncation
     snprintf(prefix, rt_countof(prefix) - 1, "%-*s %-*s",
@@ -4984,81 +4880,6 @@ rt_files_if rt_files = {
     .test         = rt_files_test
 };
 
-// ______________________________ rt_generics.c _______________________________
-
-#ifdef RT_TESTS
-
-static void rt_generics_test(void) {
-    {
-        int8_t a = 10, b = 20;
-        rt_swear(rt_max(a++, b++) == 20);
-        rt_swear(rt_min(a++, b++) == 11);
-    }
-    {
-        int32_t a = 10, b = 20;
-        rt_swear(rt_max(a++, b++) == 20);
-        rt_swear(rt_min(a++, b++) == 11);
-    }
-    {
-        fp32_t a = 1.1f, b = 2.2f;
-        rt_swear(rt_max(a, b) == b);
-        rt_swear(rt_min(a, b) == a);
-    }
-    {
-        fp64_t a = 1.1, b = 2.2;
-        rt_swear(rt_max(a, b) == b);
-        rt_swear(rt_min(a, b) == a);
-    }
-    {
-        fp32_t a = 1.1f, b = 2.2f;
-        rt_swear(rt_max(a, b) == b);
-        rt_swear(rt_min(a, b) == a);
-    }
-    {
-        fp64_t a = 1.1, b = 2.2;
-        rt_swear(rt_max(a, b) == b);
-        rt_swear(rt_min(a, b) == a);
-    }
-    {
-        char a = 1, b = 2;
-        rt_swear(rt_max(a, b) == b);
-        rt_swear(rt_min(a, b) == a);
-    }
-    {
-        unsigned char a = 1, b = 2;
-        rt_swear(rt_max(a, b) == b);
-        rt_swear(rt_min(a, b) == a);
-    }
-    // MS cl.exe version 19.39.33523 has issues with "long":
-    // does not pick up int32_t/uint32_t types for "long" and "unsigned long"
-    {
-        long int a = 1, b = 2;
-        rt_swear(rt_max(a, b) == b);
-        rt_swear(rt_min(a, b) == a);
-    }
-    {
-        unsigned long a = 1, b = 2;
-        rt_swear(rt_max(a, b) == b);
-        rt_swear(rt_min(a, b) == a);
-    }
-    {
-        long long a = 1, b = 2;
-        rt_swear(rt_max(a, b) == b);
-        rt_swear(rt_min(a, b) == a);
-    }
-    if (rt_debug.verbosity.level > rt_debug.verbosity.quiet) { rt_println("done"); }
-}
-
-#else
-
-static void rt_generics_test(void) { }
-
-#endif
-
-rt_generics_if rt_generics = {
-    .test = rt_generics_test
-};
-
 
 // ________________________________ rt_heap.c _________________________________
 
@@ -5848,7 +5669,7 @@ static uint32_t rt_num_gcd32(uint32_t u, uint32_t v) {
     }
     uint32_t i = rt_trailing_zeros(u);  u >>= i;
     uint32_t j = rt_trailing_zeros(v);  v >>= j;
-    uint32_t k = rt_min(i, j);
+    uint32_t k = i < j ? i : j;
     for (;;) {
         rt_assert(u % 2 == 1, "u = %d should be odd", u);
         rt_assert(v % 2 == 1, "v = %d should be odd", v);
@@ -7157,7 +6978,8 @@ static errno_t rt_streams_memory_read(rt_stream_if* stream, void* data, int64_t 
     rt_swear(0 <= s->pos_read && s->pos_read <= s->bytes_read,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_read, s->bytes_read);
-    int64_t transfer = rt_min(bytes, s->bytes_read - s->pos_read);
+    const int64_t avail = s->bytes_read - s->pos_read;
+    int64_t transfer = bytes < avail ? bytes : avail;
     memcpy(data, (const uint8_t*)s->data_read + s->pos_read, (size_t)transfer);
     s->pos_read += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -7171,8 +6993,9 @@ static errno_t rt_streams_memory_write(rt_stream_if* stream, const void* data, i
     rt_swear(0 <= s->pos_write && s->pos_write <= s->bytes_write,
           "bytes: %lld stream .pos: %lld .bytes: %lld",
           bytes, s->pos_write, s->bytes_write);
-    bool overflow = s->bytes_write - s->pos_write <= 0;
-    int64_t transfer = rt_min(bytes, s->bytes_write - s->pos_write);
+    const int64_t avail = s->bytes_write - s->pos_write;
+    bool overflow = avail <= 0;
+    int64_t transfer = bytes < avail ? bytes : avail;
     memcpy((uint8_t*)s->data_write + s->pos_write, data, (size_t)transfer);
     s->pos_write += transfer;
     if (transferred != null) { *transferred = transfer; }
@@ -7491,7 +7314,7 @@ static void rt_thread_set_timer_resolution(uint64_t nanoseconds) {
 //          rt_thread_ns2ms(cur_ns));
 //  }
     // note that maximum resolution is actually < minimum
-    nanoseconds = rt_max(max_ns, nanoseconds);
+    nanoseconds = max_ns > nanoseconds ? max_ns : nanoseconds;
     unsigned long ns = (unsigned long)((nanoseconds + 99) / 100);
     rt_fatal_if(set_timer_resolution(ns, true, &cur100ns) != 0);
     rt_fatal_if(query_timer_resolution(&min100ns, &max100ns, &cur100ns) != 0);
@@ -8182,7 +8005,8 @@ static void rt_worker_thread(void* p) {
         fp64_t timeout = -1.0; // forever
         rt_atomics.spinlock_acquire(&q->lock);
         if (q->head != null) {
-            timeout = rt_max(0, q->head->when - rt_clock.seconds());
+            const fp64_t dt = q->head->when - rt_clock.seconds();
+            timeout = 0 > dt ? 0 : dt;
         }
         rt_atomics.spinlock_release(&q->lock);
         // if another item is inserted into head after unlocking

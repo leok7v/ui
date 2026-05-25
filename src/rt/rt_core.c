@@ -46,7 +46,6 @@ static void rt_core_test(void) { // in alphabetical order
     rt_debug.test();
     rt_event.test();
     rt_files.test();
-    rt_generics.test();
     rt_heap.test();
     rt_loader.test();
     rt_mem.test();

@@ -28,7 +28,6 @@
     <ClInclude Include="..\inc\rt\rt_core.h" />
     <ClInclude Include="..\inc\rt\rt_debug.h" />
     <ClInclude Include="..\inc\rt\rt_files.h" />
-    <ClInclude Include="..\inc\rt\rt_generics.h" />
     <ClInclude Include="..\inc\rt\rt_glyphs.h" />
     <ClInclude Include="..\inc\rt\rt_heap.h" />
     <ClInclude Include="..\inc\rt\rt_loader.h" />
@@ -60,7 +59,6 @@
     <ClCompile Include="..\src\rt\rt_core.c" />
     <ClCompile Include="..\src\rt\rt_debug.c" />
     <ClCompile Include="..\src\rt\rt_files.c" />
-    <ClCompile Include="..\src\rt\rt_generics.c" />
     <ClCompile Include="..\src\rt\rt_heap.c" />
     <ClCompile Include="..\src\rt\rt_loader.c" />
     <ClCompile Include="..\src\rt\rt_mem.c" />

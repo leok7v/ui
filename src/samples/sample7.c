@@ -29,14 +29,14 @@ static ui_point_t points[max_count]; // graph polyline coordinates
 static int32_t N = max_count;
 
 static void composed(ui_view_t* view) {
-    if (view->w > 0) { N = rt_min(view->w, N); }
+    if (view->w > 0) { N = view->w < N ? view->w : N; }
     rt_println("M: %d", N);
 }
 
 static void stats(int32_t ix) {
     volatile time_stats_t* t = &ts[ix];
     rt_assert(t->samples >= 2, "no samples");
-    int n = rt_min(N, t->samples);
+    int n = N < t->samples ? N : t->samples;
     t->min_dt = 1.0; // 1 second is 100x of 10ms
     t->max_dt = 0;
     int j = 0;
@@ -45,8 +45,8 @@ static void stats(int32_t ix) {
         int p0 = (t->pos - i - 1 + n) % n;
         int p1 = (p0 - 1 + n) % n;
         t->dt[j] = t->time[p0] - (t->time[p1] + 0.01); // expected 10ms
-        t->min_dt = rt_min(t->dt[j], t->min_dt);
-        t->max_dt = rt_max(t->dt[j], t->max_dt);
+        t->min_dt = t->dt[j] < t->min_dt ? t->dt[j] : t->min_dt;
+        t->max_dt = t->dt[j] > t->max_dt ? t->dt[j] : t->max_dt;
         sum += t->time[p0] - t->time[p1];
         j++;
     }
@@ -54,8 +54,8 @@ static void stats(int32_t ix) {
     j = 0;
     fp64_t d0 = fabs(t->min_dt);
     fp64_t d1 = fabs(t->max_dt);
-    fp64_t spread = rt_max_fp64(d0, d1) * 2;
-    t->spread = rt_max(t->spread, spread);
+    fp64_t spread = (d0 > d1 ? d0 : d1) * 2;
+    t->spread = t->spread > spread ? t->spread : spread;
 //  if (t->samples % 1000 == 0) {
 //      rt_println("[%d] samples: %6d spread: %.6f min %.6f max %.6f",
 //              ix, t->samples, t->spread, t->min_dt, t->max_dt);
@@ -84,7 +84,7 @@ static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
     ui_gdi.line(0, y, ui_app.root->w, y, ui_colors.white);
     if (t->samples > 2) {
         const fp64_t spread = ts[ix].spread;
-        int n = rt_min(N, t->samples);
+        int n = N < t->samples ? N : t->samples;
         int j = 0;
         for (int i = 0; i < n; i++) {
             points[j].x = n - 1 - i;
