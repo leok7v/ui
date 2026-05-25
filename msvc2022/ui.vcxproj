@@ -19,26 +19,28 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\include\ui\ui_caption.h" />
-    <ClInclude Include="..\include\ui\ui_containers.h" />
+    <ClInclude Include="..\include\ui\dxd.h" />
     <ClInclude Include="..\include\ui\ui.h" />
     <ClInclude Include="..\include\ui\ui_app.h" />
     <ClInclude Include="..\include\ui\ui_button.h" />
+    <ClInclude Include="..\include\ui\ui_caption.h" />
+    <ClInclude Include="..\include\ui\ui_colors.h" />
+    <ClInclude Include="..\include\ui\ui_containers.h" />
+    <ClInclude Include="..\include\ui\ui_core.h" />
+    <ClInclude Include="..\include\ui\ui_draw.h" />
     <ClInclude Include="..\include\ui\ui_edit_doc.h" />
     <ClInclude Include="..\include\ui\ui_edit_view.h" />
     <ClInclude Include="..\include\ui\ui_fuzzing.h" />
+    <ClInclude Include="..\include\ui\ui_glyphs.h" />
     <ClInclude Include="..\include\ui\ui_image.h" />
-    <ClInclude Include="..\include\ui\ui_midi.h" />
-    <ClInclude Include="..\include\ui\ui_theme.h" />
-    <ClInclude Include="..\include\ui\ui_toggle.h" />
-    <ClInclude Include="..\include\ui\ui_colors.h" />
-    <ClInclude Include="..\include\ui\ui_core.h" />
-    <ClInclude Include="..\include\ui\ui_draw.h" />
-    <ClInclude Include="..\include\ui\dxd.h" />
     <ClInclude Include="..\include\ui\ui_label.h" />
     <ClInclude Include="..\include\ui\ui_mbx.h" />
+    <ClInclude Include="..\include\ui\ui_midi.h" />
     <ClInclude Include="..\include\ui\ui_slider.h" />
+    <ClInclude Include="..\include\ui\ui_theme.h" />
+    <ClInclude Include="..\include\ui\ui_toggle.h" />
     <ClInclude Include="..\include\ui\ui_view.h" />
+    <ClInclude Include="..\include\ui\ui_win32.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\core\core.c" />

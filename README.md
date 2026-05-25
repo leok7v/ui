@@ -1,34 +1,57 @@
 # ui
 
-Single header libraries for building primitive UI/UX on Windows10/11.
+Single-header libraries for building primitive UI/UX on Windows 10/11.
 
-[![build-on-push](https://github.com/leok7v/ut/actions/workflows/build-on-push.yml/badge.svg)](https://github.com/leok7v/ut/actions/workflows/build-on-push.yml)
+[![build-on-push](https://github.com/leok7v/ui/actions/workflows/build-on-push.yml/badge.svg)](https://github.com/leok7v/ui/actions/workflows/build-on-push.yml)
 
-# Two Namespaces:
+## Namespaces
 
 ```
-rt_ for minimalistic fail fast runtime
-ui_ for UI types and interfaces
+core_ / trace_  base types and fail-fast tracing
+posix_          cross-platform fail-fast runtime (Win32 + POSIX), built on core/trace
+ui_             UI types and interfaces (Windows-only)
 ```
 
-# Minimalistic "Hello" Application Example
+## Layout
+
+```
+include/   public headers, prefixed:  core/core.h  trace/trace.h  posix/posix.h  ui/ui.h
+src/       implementation:            core/  trace/  posix/  ui/
+samples/   runnable demos (polyglot, translucent, fractal, mandrill, editor,
+           groot, timers, layout, mandelbrot, guardians)
+tools/     build tooling (amalgamate, version)
+vendor/    third-party (stb)
+```
+
+## Getting started (Windows / Visual Studio 2022)
+
+Open `msvc2022/ui.sln`, right-click any project under **samples/** (e.g. `layout` or
+`polyglot`) and choose **Set as Startup Project**, then press **F5**.
+
+From a developer command prompt:
+
+```
+msbuild msvc2022\ui.sln /p:Configuration=debug /p:Platform=x64 /m:1
+```
+
+## Minimal "Hello" application
 
 ```c
+#include "posix/posix.h"
 #include "ui/ui.h"
-#include "rt/rt.h"
 
 static ui_label_t label = ui_label(0.0, "Hello");
 
 static void opened(void) {
-    ui_view.add(ui_app.view, &label, null);
+    ui_view.add(ui_app.content, &label, null);
 }
 
 static void init(void) {
-    ui_app.title = "Sample";
+    ui_app.title  = "Sample";
     ui_app.opened = opened;
 }
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "sample",
     .init = init,
     .window_sizing = {

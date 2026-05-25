@@ -1,128 +1,63 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="inc">
-      <UniqueIdentifier>{4c769adc-9483-4a7d-86f9-288a6f0c0b9e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="inc\ui">
-      <UniqueIdentifier>{24026435-1a60-4f78-a1fd-e3c4f12e5885}</UniqueIdentifier>
-    </Filter>
     <Filter Include="src">
-      <UniqueIdentifier>{a4450c50-a72b-444f-be12-c4ebf4fe5b4a}</UniqueIdentifier>
+      <UniqueIdentifier>{11110000-0000-0000-0000-000000000001}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\core">
+      <UniqueIdentifier>{11110000-0000-0000-0000-000000000002}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\trace">
+      <UniqueIdentifier>{11110000-0000-0000-0000-000000000003}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\posix">
+      <UniqueIdentifier>{11110000-0000-0000-0000-000000000004}</UniqueIdentifier>
     </Filter>
     <Filter Include="src\ui">
-      <UniqueIdentifier>{72fd0a31-5562-44eb-b991-4130091643f4}</UniqueIdentifier>
+      <UniqueIdentifier>{11110000-0000-0000-0000-000000000005}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{11110000-0000-0000-0000-000000000006}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include\ui">
+      <UniqueIdentifier>{11110000-0000-0000-0000-000000000007}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ui\ui_app.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_button.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_toggle.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_colors.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_core.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_gdi.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_label.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_mbx.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_slider.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_view.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_draw.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_caption.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_containers.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_theme.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_edit_view.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_edit_doc.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_fuzzing.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_image.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="..\inc\ui\ui_midi.h">
-      <Filter>inc\ui</Filter>
-    </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
+    <ClCompile Include="..\src\core\core.c">
+      <Filter>src\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\trace\trace.c">
+      <Filter>src\trace</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\posix\posix.c">
+      <Filter>src\posix</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\ui\ui_app.c">
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_button.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\ui_toggle.c">
+    <ClCompile Include="..\src\ui\ui_caption.c">
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_colors.c">
       <Filter>src\ui</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ui\ui_containers.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\ui\ui_core.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui_gdi.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui_label.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui_mbx.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui_slider.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui_view.c">
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_draw.c">
       <Filter>src\ui</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\ui\ui_caption.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui_containers.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui_theme.c">
+    <ClCompile Include="..\src\ui\ui_edit_doc.c">
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_edit_view.c">
-      <Filter>src\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\ui\ui_edit_doc.c">
       <Filter>src\ui</Filter>
     </ClCompile>
     <ClCompile Include="..\src\ui\ui_fuzzing.c">
@@ -131,8 +66,97 @@
     <ClCompile Include="..\src\ui\ui_image.c">
       <Filter>src\ui</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ui\ui_label.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\ui_mbx.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\ui\ui_midi.c">
       <Filter>src\ui</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\ui\ui_slider.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\ui_theme.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\ui_toggle.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\ui_view.c">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\ui\dxd.cpp">
+      <Filter>src\ui</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\include\ui\dxd.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_app.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_button.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_caption.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_colors.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_containers.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_core.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_draw.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_edit_doc.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_edit_view.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_fuzzing.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_glyphs.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_image.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_label.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_mbx.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_midi.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_slider.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_theme.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_toggle.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_view.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\ui\ui_win32.h">
+      <Filter>include\ui</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
