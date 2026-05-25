@@ -71,23 +71,23 @@ static void paint_groot(animation_t* a) {
     const uint8_t* p = g->pixels + g->w * g->h * g->bpp * a->index;
     ui_bitmap_t frame = { 0 };
     // alpha blend needs GPu allocated bitmap
-    ui_gdi.bitmap_init(&frame, g->w, g->h, g->bpp, p);
+    ui_draw.bitmap_init(&frame, g->w, g->h, g->bpp, p);
     const int32_t x = a->x - a->w / 2;
     const int32_t y = a->y - a->h / 2;
-    ui_gdi.alpha(x, y, a->w, a->h, 0, 0, frame.w, frame.h, &frame, 1.0);
-    ui_gdi.bitmap_dispose(&frame);
+    ui_draw.alpha(x, y, a->w, a->h, 0, 0, frame.w, frame.h, &frame, 1.0);
+    ui_draw.bitmap_dispose(&frame);
 }
 
 static void paint_movie(animation_t* a) {
-    ui_gdi.fill(0, 0, ui_app.crc.w, ui_app.crc.h, ui_colors.black);
+    ui_draw.fill(0, 0, ui_app.crc.w, ui_app.crc.h, ui_colors.black);
     const animated_gif_t* g = a->gif;
     const uint8_t* p = g->pixels + g->w * g->h * g->bpp * a->index;
-    ui_gdi.pixels(a->x, a->y, a->w, a->h, 0, 0, g->w, g->h,
+    ui_draw.pixels(a->x, a->y, a->w, a->h, 0, 0, g->w, g->h,
                 g->w, g->h, g->w * g->bpp, g->bpp, p);
 }
 
 static void paint_mute_unmute(ui_view_t* v) {
-    ui_ta_t ta = ui_gdi.ta.prop.H3;
+    ui_ta_t ta = ui_draw.ta.prop.H3;
     ta.color_id = 0;
     ta.color = muted ? ui_colors.green : ui_colors.red;
     #define str_unmuted rt_glyph_mute  " mute"
@@ -96,9 +96,9 @@ static void paint_mute_unmute(ui_view_t* v) {
     const int32_t my = v->y + ui_app.fm.prop.H3.em.h / 16;
     const int32_t mw = ui_app.fm.prop.H3.em.w * 5;
     const int32_t mh = ui_app.fm.prop.H3.em.h;
-    ui_gdi.rounded(mx, my, mw, mh, (mh / 3) | 0x1,
+    ui_draw.rounded(mx, my, mw, mh, (mh / 3) | 0x1,
                    ta.color, ui_colors.transparent);
-    ui_gdi.text(&ta, ui_app.fm.prop.H3.em.w / 4, 0, "%s",
+    ui_draw.text(&ta, ui_app.fm.prop.H3.em.w / 4, 0, "%s",
                 muted ? str_muted : str_unmuted);
 }
 
@@ -107,7 +107,7 @@ static void paint(ui_view_t* v) {
     const int32_t h = v->h < background.h ? v->h : background.h;
     const int32_t x = (v->w - w) / 2;
     const int32_t y = (v->h - h) / 2;
-    ui_gdi.bitmap(x, y, w, h, 0, 0, background.w, background.h, &background);
+    ui_draw.bitmap(x, y, w, h, 0, 0, background.w, background.h, &background);
     if (animated_movie.gif->pixels != null) { paint_movie(&animated_movie); }
     if (animated_groot.gif->pixels != null) { paint_groot(&animated_groot); }
     paint_mute_unmute(v);
@@ -321,7 +321,7 @@ static void load_png(void) { // from resources
         rt_println("%s", stbi_failure_reason());
     }
     rt_not_null(pixels);
-    ui_gdi.bitmap_init(&background, w, h, bpp, pixels);
+    ui_draw.bitmap_init(&background, w, h, bpp, pixels);
     stbi_image_free(pixels);
 }
 
@@ -362,7 +362,7 @@ static void init(void) {
 }
 
 static void fini(void) {
-    ui_gdi.bitmap_dispose(&background);
+    ui_draw.bitmap_dispose(&background);
     stbi_image_free(groot.pixels);
     stbi_image_free(groot.delays);
     stbi_image_free(movie.pixels);

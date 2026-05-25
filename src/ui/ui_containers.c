@@ -570,7 +570,7 @@ static void ui_stack_layout(ui_view_t* p) {
 static void ui_container_paint(ui_view_t* v) {
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
-        ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
+        ui_draw.fill(v->x, v->y, v->w, v->h, v->background);
     } else {
 //      rt_println("%s undefined", ui_view_debug_id(v));
     }

@@ -140,7 +140,7 @@ static void ui_caption_button_icon_paint(ui_view_t* v) {
     w = h;
     int32_t dx = (v->w - w) / 2;
     int32_t dy = (v->h - h) / 2;
-    ui_gdi.icon(v->x + dx, v->y + dy, w, h, v->icon);
+    ui_draw.icon(v->x + dx, v->y + dy, w, h, v->icon);
 }
 
 static void ui_caption_prepare(ui_view_t* rt_unused(v)) {
@@ -174,7 +174,7 @@ static void ui_caption_composed(ui_view_t* v) {
 
 static void ui_caption_paint(ui_view_t* v) {
     ui_color_t background = ui_caption_color();
-    ui_gdi.fill(v->x, v->y, v->w, v->h, background);
+    ui_draw.fill(v->x, v->y, v->w, v->h, background);
 }
 
 static void ui_caption_init(ui_view_t* v) {

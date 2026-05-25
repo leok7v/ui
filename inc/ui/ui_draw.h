@@ -60,7 +60,7 @@ typedef struct ui_fm_s { // font metrics
   ascender for "diacritics circumflex" is (h:55 - a:30 - d:11) = 14
 */
 
-typedef struct ui_gdi_ta_s { // text attributes
+typedef struct ui_draw_ta_s { // text attributes
     const ui_fm_t* fm; // font metrics
     int32_t color_id;  // <= 0 use color
     ui_color_t color;  // ui_colors.undefined() use color_id
@@ -161,8 +161,8 @@ typedef struct {
     // x[rt_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
     ui_wh_t (*glyphs_placement)(const ui_ta_t* ta, const char* utf8,
         int32_t bytes, int32_t x[/*glyphs + 1*/], int32_t glyphs);
-} ui_gdi_if;
+} ui_draw_if;
 
-extern ui_gdi_if ui_gdi;
+extern ui_draw_if ui_draw;
 
 rt_end_c

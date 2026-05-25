@@ -151,19 +151,19 @@ static ui_view_t panel_bottom = ui_view(stack);
 static ui_view_t panel_center = ui_view(stack);
 static ui_view_t panel_right  = ui_view(stack);
 
-static const ui_ta_t* ta = &ui_gdi.ta.prop.normal;
+static const ui_ta_t* ta = &ui_draw.ta.prop.normal;
 
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *x += ui_gdi.text_va(ta, *x, *y, format, va).w;
+    *x += ui_draw.text_va(ta, *x, *y, format, va).w;
     va_end(va);
 }
 
 static void println(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *y += ui_gdi.text_va(ta, *x, *y, format, va).h;
+    *y += ui_draw.text_va(ta, *x, *y, format, va).h;
     va_end(va);
 }
 
@@ -173,7 +173,7 @@ static void after(ui_view_t* v, const char* format, ...) {
     int32_t y = v->y + insets.top;
     va_list va;
     va_start(va, format);
-    ui_gdi.text_va(ta, x, y, format, va);
+    ui_draw.text_va(ta, x, y, format, va);
     va_end(va);
 }
 
@@ -181,29 +181,29 @@ static void panel_paint(ui_view_t* v) {
     if (v->color == ui_colors.transparent) {
         v->color = ui_app.content->color;
     }
-    ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(30, 30, 30));
+    ui_draw.fill(v->x, v->y, v->w, v->h, ui_color_rgb(30, 30, 30));
     ui_color_t c = ui_color_rgb(63, 63, 70);
     if (v == &panel_right) {
-        ui_gdi.line(v->x, v->y, v->x + v->w, v->y, c);
-        ui_gdi.line(v->x + v->w, v->y, v->x + v->w, v->y + v->h, c);
-        ui_gdi.line(v->x + v->w, v->y + v->h, v->x, v->y + v->h, c);
-        ui_gdi.line(v->x, v->y + v->h, v->x, v->y, c);
+        ui_draw.line(v->x, v->y, v->x + v->w, v->y, c);
+        ui_draw.line(v->x + v->w, v->y, v->x + v->w, v->y + v->h, c);
+        ui_draw.line(v->x + v->w, v->y + v->h, v->x, v->y + v->h, c);
+        ui_draw.line(v->x, v->y + v->h, v->x, v->y, c);
     } else if (v == &panel_top || v == &panel_bottom) {
-        ui_gdi.line(v->x, v->y, v->x, v->y + v->h, c);
-        ui_gdi.line(v->x, v->y + v->h, v->x + v->w, v->y + v->h, c);
-        ui_gdi.line(v->x + v->w, v->y, v->x, v->y, c);
+        ui_draw.line(v->x, v->y, v->x, v->y + v->h, c);
+        ui_draw.line(v->x, v->y + v->h, v->x + v->w, v->y + v->h, c);
+        ui_draw.line(v->x + v->w, v->y, v->x, v->y, c);
     } else {
         rt_assert(v == &panel_center);
-        ui_gdi.line(v->x, v->y, v->x, v->y + v->h, c);
+        ui_draw.line(v->x, v->y, v->x, v->y + v->h, c);
     }
     int32_t x = v->x + panel_border + (1 > v->fm->em.w / 8 ? 1 : v->fm->em.w / 8);
     int32_t y = v->y + panel_border + (1 > v->fm->em.h / 4 ? 1 : v->fm->em.h / 4);
     const int32_t radius = (v->fm->em.h / 4) | 0x1;
-    ui_gdi.rounded(x, y, v->fm->em.w * 12, v->fm->em.h,
+    ui_draw.rounded(x, y, v->fm->em.w * 12, v->fm->em.h,
            radius,  v->color, ui_colors.transparent);
     x = v->x + panel_border + (1 > v->fm->em.w / 2 ? 1 : v->fm->em.w / 2);
     y = v->y + panel_border + (1 > v->fm->em.h / 4 ? 1 : v->fm->em.h / 4);
-    ui_gdi.text(ta, x, y, "%d,%d %dx%d %s",
+    ui_draw.text(ta, x, y, "%d,%d %dx%d %s",
                      v->x, v->y, v->w, v->h, ui_view.string(v));
 }
 
@@ -236,15 +236,15 @@ static void right_paint(ui_view_t* v) {
 //  );
 
     println(&x, &y, "%s", rt_nls.str("Proportional"));
-    ta = &ui_gdi.ta.mono.normal;
+    ta = &ui_draw.ta.mono.normal;
     println(&x, &y, "%s", rt_nls.str("Monospaced"));
-    ta = &ui_gdi.ta.prop.H1;
+    ta = &ui_draw.ta.prop.H1;
     println(&x, &y, "H1 %s", rt_nls.str("Header"));
-    ta = &ui_gdi.ta.prop.H2;
+    ta = &ui_draw.ta.prop.H2;
     println(&x, &y, "H2 %s", rt_nls.str("Header"));
-    ta = &ui_gdi.ta.prop.H3;
+    ta = &ui_draw.ta.prop.H3;
     println(&x, &y, "H3 %s", rt_nls.str("Header"));
-    ta = &ui_gdi.ta.prop.normal;
+    ta = &ui_draw.ta.prop.normal;
     println(&x, &y, "%s %dx%d root: %d,%d %dx%d", rt_nls.str("Client area"),
             ui_app.crc.w, ui_app.crc.h,
             ui_app.root->x, ui_app.root->y,
@@ -273,14 +273,14 @@ static void right_paint(ui_view_t* v) {
 }
 
 static void center_paint(ui_view_t* view) {
-//  ui_gdi.set_clip(view->x, view->y, view->w, view->h);
-    ui_gdi.fill(view->x, view->y, view->w, view->h, ui_colors.black);
+//  ui_draw.set_clip(view->x, view->y, view->w, view->h);
+    ui_draw.fill(view->x, view->y, view->w, view->h, ui_colors.black);
     int x = (view->w - image.w) / 2;
     int y = (view->h - image.h) / 2;
-//  ui_gdi.alpha(view->x + x, view->y + y, image.w, image.h, &image, 0.5);
-    ui_gdi.bitmap(view->x + x, view->y + y, image.w, image.h,
+//  ui_draw.alpha(view->x + x, view->y + y, image.w, image.h, &image, 0.5);
+    ui_draw.bitmap(view->x + x, view->y + y, image.w, image.h,
                  0, 0, image.w, image.h, &image);
-//  ui_gdi.set_clip(0, 0, 0, 0);
+//  ui_draw.set_clip(0, 0, 0, 0);
 }
 
 static void measure(ui_view_t* v) {
@@ -432,7 +432,7 @@ static void opened(void) {
     int n = rt_countof(pixels);
     static_assert(sizeof(pixels[0][0]) == 4, "4 bytes per pixel");
     static_assert(rt_countof(pixels) == rt_countof(pixels[0]), "square");
-    ui_gdi.bitmap_init(&image, n, n, (int32_t)sizeof(pixels[0][0]), (uint8_t*)pixels);
+    ui_draw.bitmap_init(&image, n, n, (int32_t)sizeof(pixels[0][0]), (uint8_t*)pixels);
     init_panel(&panel_top,    "top",    ui_colors.orange, panel_paint);
     init_panel(&panel_center, "center", ui_colors.white, center_paint);
     init_panel(&panel_bottom, "bottom", ui_colors.tone_blue, panel_paint);

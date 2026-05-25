@@ -38,7 +38,7 @@ static void init_image(ui_bitmap_t* i, const uint8_t* data, int64_t bytes) {
     int32_t c = 0;
     void* pixels = load_image(data, bytes, &w, &h, &c, 0);
     rt_not_null(pixels);
-    ui_gdi.bitmap_init(i, w, h, c, pixels);
+    ui_draw.bitmap_init(i, w, h, c, pixels);
     stbi_image_free(pixels);
 }
 
@@ -60,11 +60,11 @@ static void init_gs(void) {
 }
 
 static void panel_erase(ui_view_t* v) {
-    ui_gdi.frame(v->x + 1, v->y + 1, v->w - 1, v->h - 1, ui_colors.black);
+    ui_draw.frame(v->x + 1, v->y + 1, v->w - 1, v->h - 1, ui_colors.black);
 }
 
 static void gs_erase(ui_view_t* v) {
-    ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.ennui_black);
+    ui_draw.fill(v->x, v->y, v->w, v->h, ui_colors.ennui_black);
 }
 
 static void slider_format(ui_view_t* v) {
@@ -227,8 +227,8 @@ right.debug.paint.margins = true;
 
 static void closed(void) {
     ui_view.disband(ui_app.content);
-    ui_gdi.bitmap_dispose(&view_groot.image);
-    ui_gdi.bitmap_dispose(&view_rocket.image);
+    ui_draw.bitmap_dispose(&view_groot.image);
+    ui_draw.bitmap_dispose(&view_rocket.image);
 }
 
 ui_app_t ui_app = {

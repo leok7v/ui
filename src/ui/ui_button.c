@@ -30,9 +30,9 @@ static void ui_button_paint(ui_view_t* v) {
                     ui_colors.lighten(v->background, d2) :
                     ui_colors.darken(v->background,  d2);
             if (!pressed) {
-                ui_gdi.gradient(x, y, w, h, d0, d1, true);
+                ui_draw.gradient(x, y, w, h, d0, d1, true);
             } else {
-                ui_gdi.gradient(x, y, w, h, d1, d0, true);
+                ui_draw.gradient(x, y, w, h, d1, d0, true);
             }
         }
     } else {
@@ -54,7 +54,7 @@ static void ui_button_paint(ui_view_t* v) {
         } else if (v->state.hover) {
             fc = ui_colors.darken(fc, 0.250f);
         }
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
+        ui_draw.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
     }
     const int32_t tx = v->x + v->text.xy.x;
     const int32_t ty = v->y + v->text.xy.y;
@@ -69,13 +69,13 @@ static void ui_button_paint(ui_view_t* v) {
             ui_view.debug_paint_fm(v);
         }
         const ui_ta_t ta = { .fm = v->fm, .color = c };
-        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
+        ui_draw.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);
         const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                                .h = v->h - i.top - i.bottom };
         // TODO: icon text alignment
-        ui_gdi.icon(tx, ty + v->text.xy.y, i_wh.w, i_wh.h, v->icon);
+        ui_draw.icon(tx, ty + v->text.xy.y, i_wh.w, i_wh.h, v->icon);
     }
 }
 

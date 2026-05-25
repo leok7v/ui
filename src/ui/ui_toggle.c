@@ -22,18 +22,18 @@ static void ui_toggle_paint_on_off(ui_view_t* v) {
     if (v->state.hover) {
         border = ui_colors.get_color(ui_color_id_hot_tracking);
     }
-    ui_gdi.circle(x, y, r, border, b);
-    ui_gdi.circle(x + w - r, y, r, border, b);
-    ui_gdi.fill(x, y - r, w - r + 1, h, b);
-    ui_gdi.line(x, y - r, x + w - r + 1, y - r, border);
-    ui_gdi.line(x, y + r, x + w - r + 1, y + r, border);
+    ui_draw.circle(x, y, r, border, b);
+    ui_draw.circle(x + w - r, y, r, border, b);
+    ui_draw.fill(x, y - r, w - r + 1, h, b);
+    ui_draw.line(x, y - r, x + w - r + 1, y - r, border);
+    ui_draw.line(x, y + r, x + w - r + 1, y + r, border);
     int32_t x1 = v->state.pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
     ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
     border = ui_theme.is_app_dark() ?
         ui_colors.darken(fill, 0.0625f) : ui_colors.lighten(fill, 0.0625f);
-    ui_gdi.circle(x1, y, r - 2, border, fill);
+    ui_draw.circle(x1, y, r - 2, border, fill);
 }
 
 static const char* ui_toggle_on_off_label(ui_view_t* v,
@@ -66,7 +66,7 @@ static void ui_toggle_paint(ui_view_t* v) {
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_ta_t ta = { .fm = v->fm, .color = text_color };
-    ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
+    ui_draw.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {

@@ -33,7 +33,7 @@
     <ClInclude Include="..\inc\ui\ui_toggle.h" />
     <ClInclude Include="..\inc\ui\ui_colors.h" />
     <ClInclude Include="..\inc\ui\ui_core.h" />
-    <ClInclude Include="..\inc\ui\ui_gdi.h" />
+    <ClInclude Include="..\inc\ui\ui_draw.h" />
     <ClInclude Include="..\inc\ui\dxd.h" />
     <ClInclude Include="..\inc\ui\ui_label.h" />
     <ClInclude Include="..\inc\ui\ui_mbx.h" />
@@ -54,7 +54,7 @@
     <ClCompile Include="..\src\ui\ui_toggle.c" />
     <ClCompile Include="..\src\ui\ui_colors.c" />
     <ClCompile Include="..\src\ui\ui_core.c" />
-    <ClCompile Include="..\src\ui\ui_gdi.c" />
+    <ClCompile Include="..\src\ui\ui_draw.c" />
     <ClCompile Include="..\src\ui\dxd.cpp">
       <AdditionalOptions>/W3 /EHsc /volatile:ms</AdditionalOptions>
     </ClCompile>

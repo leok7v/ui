@@ -23,7 +23,7 @@ static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
     va_list va;
     va_start(va, format);
     const ui_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
-    ui_wh_t wh = ui_gdi.text_va(&ta, 0, 0, format, va);
+    ui_wh_t wh = ui_draw.text_va(&ta, 0, 0, format, va);
     va_end(va);
     return wh;
 }
@@ -133,7 +133,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_color_t d0 = ui_colors.darken(v->background, d);
     d /= 4;
     ui_color_t d1 = ui_colors.darken(v->background, d);
-    ui_gdi.gradient(x, v->y, w, v->h, d1, d0, true);
+    ui_draw.gradient(x, v->y, w, v->h, d1, d0, true);
     // draw value:
     ui_color_t c = ui_theme.is_app_dark() ?
         ui_colors.darken(ui_colors.green, 1.0f / 128.0f) :
@@ -144,7 +144,7 @@ static void ui_slider_paint(ui_view_t* v) {
     rt_assert(range > 0, "range: %.6f", range);
     const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
     const int32_t wi = (int32_t)(vw + 0.5);
-    ui_gdi.gradient(x, v->y, wi, v->h, d1, d0, true);
+    ui_draw.gradient(x, v->y, wi, v->h, d1, d0, true);
     if (!v->flat) {
         ui_color_t color = v->state.hover ?
             ui_colors.get_color(ui_color_id_hot_tracking) :
@@ -154,7 +154,7 @@ static void ui_slider_paint(ui_view_t* v) {
             color = ui_theme.is_app_dark() ? ui_colors.darken(gt, 0.5f)
                                            : ui_colors.lighten(gt, 0.5f);
         }
-        ui_gdi.frame(x, v->y, w, v->h, color);
+        ui_draw.frame(x, v->y, w, v->h, color);
     }
     // text:
     const char* text = ui_view.string(v);
@@ -176,7 +176,7 @@ static void ui_slider_paint(ui_view_t* v) {
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_ta_t ta = { .fm = fm, .color = text_color };
-    ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
+    ui_draw.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
 static bool ui_slider_tap(ui_view_t* v, int32_t rt_unused(ix),

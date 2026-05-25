@@ -27,15 +27,15 @@ ui_button_clicked(button_fs, rt_glyph_square_four_corners, 1.0, {
 
 static void paint(ui_view_t* view) {
     int32_t k = index;
-    ui_gdi.bitmap(0, 0, view->w, view->h,
+    ui_draw.bitmap(0, 0, view->w, view->h,
                  0, 0, image[k].w, image[k].h, &image[k]);
     int32_t tx = view->fm->em.w;
     int32_t ty = view->fm->em.h / 4;
     const ui_ta_t ta = { .fm = view->fm, .color = ui_colors.orange };
-    ui_gdi.text(&ta, tx, ty, "%s",
+    ui_draw.text(&ta, tx, ty, "%s",
                      "Try Full Screen Button there --->");
     ty = view->h - view->fm->em.h * 3 / 2;
-    ui_gdi.text(&ta, tx, ty,
+    ui_draw.text(&ta, tx, ty,
         "render time %.1f ms / avg paint time %.1f ms",
         render_time * 1000, ui_app.paint_avg * 1000);
     if (!rendering) {
@@ -66,10 +66,10 @@ static void measure(ui_view_t* view) {
     if (w != im->w || h != im->h) {
         stop_rendering();
         im = &image[!index];
-        ui_gdi.bitmap_dispose(im);
+        ui_draw.bitmap_dispose(im);
         rt_fatal_if(w * h * 4 > rt_countof(pixels[!index]),
             "increase size of pixels[][%d * %d * 4]", w, h);
-        ui_gdi.bitmap_init(im, w, h, 4, pixels[!index]);
+        ui_draw.bitmap_init(im, w, h, 4, pixels[!index]);
         request_rendering();
     }
 }
@@ -93,8 +93,8 @@ static void closed(void) {
     rt_event.set(quit);
     rt_thread.join(thread, -1);
     thread = null;
-    ui_gdi.bitmap_dispose(&image[0]);
-    ui_gdi.bitmap_dispose(&image[1]);
+    ui_draw.bitmap_dispose(&image[0]);
+    ui_draw.bitmap_dispose(&image[1]);
 }
 
 static void fini(void) {
@@ -117,8 +117,8 @@ static void opened(void) {
     wake = rt_event.create();
     quit = rt_event.create();
     // images:
-    ui_gdi.bitmap_init(&image[0], ui_app.root->w, ui_app.root->h, 4, pixels[0]);
-    ui_gdi.bitmap_init(&image[1], ui_app.root->w, ui_app.root->h, 4, pixels[1]);
+    ui_draw.bitmap_init(&image[0], ui_app.root->w, ui_app.root->h, 4, pixels[0]);
+    ui_draw.bitmap_init(&image[1], ui_app.root->w, ui_app.root->h, 4, pixels[1]);
     thread = rt_thread.start(renderer, null);
     request_rendering();
     rt_str_printf(button_fs.hint, "&Full Screen");

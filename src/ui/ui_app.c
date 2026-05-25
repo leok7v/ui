@@ -252,21 +252,21 @@ static void ui_app_update_crc(void) {
 }
 
 static void ui_app_dispose_fonts(void) {
-    ui_gdi.delete_font(ui_app.fm.prop.normal.font);
-    ui_gdi.delete_font(ui_app.fm.prop.tiny.font);
-    ui_gdi.delete_font(ui_app.fm.prop.title.font);
-    ui_gdi.delete_font(ui_app.fm.prop.rubric.font);
-    ui_gdi.delete_font(ui_app.fm.prop.H1.font);
-    ui_gdi.delete_font(ui_app.fm.prop.H2.font);
-    ui_gdi.delete_font(ui_app.fm.prop.H3.font);
+    ui_draw.delete_font(ui_app.fm.prop.normal.font);
+    ui_draw.delete_font(ui_app.fm.prop.tiny.font);
+    ui_draw.delete_font(ui_app.fm.prop.title.font);
+    ui_draw.delete_font(ui_app.fm.prop.rubric.font);
+    ui_draw.delete_font(ui_app.fm.prop.H1.font);
+    ui_draw.delete_font(ui_app.fm.prop.H2.font);
+    ui_draw.delete_font(ui_app.fm.prop.H3.font);
     memset(&ui_app.fm.prop, 0x00, sizeof(ui_app.fm.prop));
-    ui_gdi.delete_font(ui_app.fm.mono.normal.font);
-    ui_gdi.delete_font(ui_app.fm.mono.tiny.font);
-    ui_gdi.delete_font(ui_app.fm.mono.title.font);
-    ui_gdi.delete_font(ui_app.fm.mono.rubric.font);
-    ui_gdi.delete_font(ui_app.fm.mono.H1.font);
-    ui_gdi.delete_font(ui_app.fm.mono.H2.font);
-    ui_gdi.delete_font(ui_app.fm.mono.H3.font);
+    ui_draw.delete_font(ui_app.fm.mono.normal.font);
+    ui_draw.delete_font(ui_app.fm.mono.tiny.font);
+    ui_draw.delete_font(ui_app.fm.mono.title.font);
+    ui_draw.delete_font(ui_app.fm.mono.rubric.font);
+    ui_draw.delete_font(ui_app.fm.mono.H1.font);
+    ui_draw.delete_font(ui_app.fm.mono.H2.font);
+    ui_draw.delete_font(ui_app.fm.mono.H3.font);
     memset(&ui_app.fm.mono, 0x00, sizeof(ui_app.fm.mono));
 }
 
@@ -363,29 +363,29 @@ static void ui_app_init_fms(ui_fms_t* fms, const LOGFONTW* base) {
     //             PROOF_QUALITY below 4K
     //             ANTIALIASED_QUALITY on 4K and ?
     lf.lfQuality = ANTIALIASED_QUALITY;
-    ui_gdi.update_fm(&fms->normal, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->normal, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("normal", &lf, &fms->normal);
     const fp64_t fh = lf.lfHeight;
     rt_swear(fh != 0);
     lf.lfHeight = (int32_t)(fh * 8.0 / 11.0 + 0.5);
-    ui_gdi.update_fm(&fms->tiny, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->tiny, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("tiny", &lf, &fms->tiny);
 
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 2.25 + 0.5);
-    ui_gdi.update_fm(&fms->title, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->title, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("title", &lf, &fms->title);
     lf.lfHeight = (int32_t)(fh * 2.00 + 0.5);
-    ui_gdi.update_fm(&fms->rubric, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->rubric, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("rubric", &lf, &fms->rubric);
     lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
-    ui_gdi.update_fm(&fms->H1, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->H1, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("H1", &lf, &fms->H1);
     lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
-    ui_gdi.update_fm(&fms->H2, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->H2, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("H2", &lf, &fms->H2);
     lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
-    ui_gdi.update_fm(&fms->H3, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->H3, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("H3", &lf, &fms->H3);
 }
 
@@ -907,12 +907,12 @@ static void ui_app_toast_paint(void) {
     static ui_bitmap_t image_dark;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
-        ui_gdi.bitmap_init(&image_dark, 1, 1, 3, pixels);
+        ui_draw.bitmap_init(&image_dark, 1, 1, 3, pixels);
     }
     static ui_bitmap_t image_light;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
-        ui_gdi.bitmap_init(&image_light, 1, 1, 3, pixels);
+        ui_draw.bitmap_init(&image_light, 1, 1, 3, pixels);
     }
     ui_view_t* av = ui_app.animating.view;
     if (av != null) {
@@ -930,7 +930,7 @@ static void ui_app_toast_paint(void) {
             // dim main window (as `disabled`):
             const fp64_t da = 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps;
             fp64_t alpha = 0.40 < da ? 0.40 : da;
-            ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h,
+            ui_draw.alpha(0, 0, ui_app.crc.w, ui_app.crc.h,
                          0, 0, image_dark.w, image_dark.h,
                         &image_dark, alpha);
             av->x = (ui_app.root->w - av->w) / 2;
@@ -960,7 +960,7 @@ static void ui_app_toast_paint(void) {
             ui_color_rgb(45, 45, 48) : // TODO: hard coded
             ui_colors.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
-        ui_gdi.rounded(x, y, w, h, radius, tint, tint);
+        ui_draw.rounded(x, y, w, h, radius, tint, tint);
         if (!hint) { av->y += em_h / 4; }
         ui_app_paint(av);
         if (!hint) {
@@ -974,7 +974,7 @@ static void ui_app_toast_paint(void) {
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
                 };
-                ui_gdi.text(&ta, tx, ty, "%s",
+                ui_draw.text(&ta, tx, ty, "%s",
                                  rt_glyph_multiplication_sign);
             }
         }
@@ -1096,7 +1096,7 @@ static void ui_app_view_paint(ui_view_t* v) {
     }
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
-        ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
+        ui_draw.fill(v->x, v->y, v->w, v->h, v->background);
     }
 }
 
@@ -1125,7 +1125,7 @@ static void ui_app_view_active_frame_paint(void) {
     const int32_t w = ui_app.wrc.w;
     const int32_t h = ui_app.wrc.h;
     for (int32_t i = 0; i < ui_app.border.w; i++) {
-        ui_gdi.frame(i, i, w - i * 2, h - i * 2, c);
+        ui_draw.frame(i, i, w - i * 2, h - i * 2, c);
     }
 }
 
@@ -1170,7 +1170,7 @@ static void ui_app_paint_on_canvas(HDC hdc) {
     if (ui_app_layout_dirty) {
         ui_app_view_layout();
     }
-    ui_gdi.begin(null);
+    ui_draw.begin(null);
     ui_app_paint(ui_app.root);
     if (ui_app.animating.view != null) { ui_app_toast_paint(); }
     // active frame on top of everything:
@@ -1178,7 +1178,7 @@ static void ui_app_paint_on_canvas(HDC hdc) {
         !ui_app.is_maximized()) {
         ui_app_view_active_frame_paint();
     }
-    ui_gdi.end();
+    ui_draw.end();
     ui_app.paint_count++;
     ui_app.canvas = canvas;
     ui_app_paint_stats();
@@ -1918,7 +1918,7 @@ static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
     if (color != ui_color_undefined) {
         mask |= LWA_COLORKEY;
         rt_assert(ui_color_is_8bit(color));
-        c = ui_gdi.color_rgb(color);
+        c = ui_draw.color_rgb(color);
     }
     return rt_b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
 }
@@ -1932,7 +1932,7 @@ static void ui_app_init_dwm(void) {
         // do not call on Win10 - will fail
         DWM_WINDOW_CORNER_PREFERENCE c = DWMWCP_ROUND;
         ui_app_set_dwm_attribute(DWMWA_WINDOW_CORNER_PREFERENCE, &c, sizeof(c));
-        COLORREF cc = (COLORREF)ui_gdi.color_rgb(ui_color_rgb(45, 45, 48));
+        COLORREF cc = (COLORREF)ui_draw.color_rgb(ui_color_rgb(45, 45, 48));
         ui_app_set_dwm_attribute(DWMWA_CAPTION_COLOR, &cc, sizeof(cc));
     }
     BOOL e = true; // must be 32-bit BOOL because of sizeof()
@@ -2986,7 +2986,7 @@ static int ui_app_win_main(HINSTANCE instance) {
     // IDI_ICON 101:
     ui_app.icon = (ui_icon_t)LoadIconW(instance, MAKEINTRESOURCE(101));
     ui_app_init_windows();
-    ui_gdi.init();
+    ui_draw.init();
     rt_clipboard.put_image = ui_app_clipboard_put_image;
     ui_app.last_visibility = ui.visibility.defau1t;
     ui_app_init();
@@ -3056,7 +3056,7 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app_event_quit = null;
     rt_event.dispose(ui_app_wt);
     ui_app_wt = null;
-    ui_gdi.fini();
+    ui_draw.fini();
     return r;
 }
 

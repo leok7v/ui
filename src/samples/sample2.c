@@ -23,7 +23,7 @@ static void opened(void) {
 //  hello.padding = (ui_margins_t){ 0, 0, 0, 0 };
 //  hello.insets  = (ui_margins_t){ 0, 0, 0, 0 };
     static ui_fm_t fm;
-    ui_gdi.update_fm(&fm, ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5f), -1));
+    ui_draw.update_fm(&fm, ui_draw.create_font("Segoe Script", ui_app.in2px(0.5f), -1));
     hello.fm = &fm;
     ui_app.set_layered_window(ui_color_rgb(30, 30, 30), 0.75f);
     ui_view.add_last(ui_app.content, &hello);

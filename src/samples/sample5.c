@@ -51,12 +51,12 @@ static void focus_back_to_edit(void) {
 
 static void scaled_fonts(void) {
     rt_assert(0 <= fx && fx < rt_countof(fs));
-    if (mf.font != null) { ui_gdi.delete_font(mf.font); }
+    if (mf.font != null) { ui_draw.delete_font(mf.font); }
     int32_t h = (int32_t)(ui_app.fm.mono.normal.height * fs[fx] + 0.5);
-    ui_gdi.update_fm(&mf, ui_gdi.font(ui_app.fm.mono.normal.font, h, -1));
-    if (pf.font != null) { ui_gdi.delete_font(pf.font); }
+    ui_draw.update_fm(&mf, ui_draw.font(ui_app.fm.mono.normal.font, h, -1));
+    if (pf.font != null) { ui_draw.delete_font(pf.font); }
     h = (int32_t)(ui_app.fm.prop.normal.height * fs[fx] + 0.5);
-    ui_gdi.update_fm(&pf, ui_gdi.font(ui_app.fm.prop.normal.font, h, -1));
+    ui_draw.update_fm(&pf, ui_draw.font(ui_app.fm.prop.normal.font, h, -1));
 }
 
 ui_button_clicked(full_screen, "&Full Screen", 7.0f, {
@@ -182,13 +182,13 @@ static void set_text(int32_t ix) {
 }
 
 static void paint(ui_view_t* v) {
-    ui_gdi.fill(0, 0, v->w, v->h, ui_colors.black);
+    ui_draw.fill(0, 0, v->w, v->h, ui_colors.black);
     int32_t ix = focused();
     for (int32_t i = 0; i < rt_countof(edit); i++) {
         ui_view_t* e = &edit[i]->view;
         ui_color_t c = edit[i]->ro ?
             ui_colors.tone_red : ui_colors.blue;
-        ui_gdi.frame(e->x - 1, e->y - 1, e->w + 2, e->h + 2,
+        ui_draw.frame(e->x - 1, e->y - 1, e->w + 2, e->h + 2,
             i == ix ? c : ui_color_rgb(63, 63, 70));
     }
     if (ix >= 0) {

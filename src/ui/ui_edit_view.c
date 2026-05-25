@@ -99,7 +99,7 @@ static void ui_edit_text_width_gp(ui_edit_view_t* e, const char* utf8, int32_t b
     rt_println("\"%.*s\" bytes:%d glyphs:%d", bytes, utf8, bytes, glyphs);
     int32_t* x = (int32_t*)rt_stackalloc((glyphs + 1) * sizeof(int32_t));
     const ui_ta_t ta = { .fm = e->fm };
-    ui_wh_t wh = ui_gdi.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
+    ui_wh_t wh = ui_draw.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
 //  rt_println("wh: %dx%d", wh.w, wh.h);
 }
 #endif
@@ -111,7 +111,7 @@ static int32_t ui_edit_text_width(ui_edit_view_t* e, const char* s, int32_t n) {
     // "ui_app.fm.prop.normal" ~250us (microseconds) DirectWrite ~100us
     const ui_ta_t ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
-    int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
+    int32_t x = n == 0 ? 0 : ui_draw.text(&ta, 0, 0, "%.*s", n, s).w;
 //  time = (rt_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
 //  static fp64_t length_sum;
@@ -1778,7 +1778,7 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
             const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
             // event if background is transparent
-            ui_gdi.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), sc);
+            ui_draw.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), sc);
         }
     }
 }
@@ -1799,9 +1799,9 @@ static int32_t ui_edit_paint_paragraph(ui_edit_view_t* e,
             const char* text = str->u + run[j].bp;
             ui_edit_paint_selection(e, y, &run[j], text, pn,
                                     run[j].gp, run[j].gp + run[j].glyphs);
-            ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
+            ui_draw.text(ta, x, y, "%.*s", run[j].bytes, text);
             if (j < runs - 1 && !e->hide_word_wrap) {
-                ui_gdi.text(ta, x + e->edit.w, y, "%s", ww);
+                ui_draw.text(ta, x + e->edit.w, y, "%s", ww);
             }
         }
         y += ui_edit_line_height(e);
@@ -1819,10 +1819,10 @@ static void ui_edit_paint(ui_view_t* v) {
     ui_rect_t rc;
     if (ui.intersect_rect(&rc, &vrc, &ui_app.prc)) {
         // because last line of the view may extend over the bottom
-        ui_gdi.set_clip(v->x, v->y, v->w, v->h);
+        ui_draw.set_clip(v->x, v->y, v->w, v->h);
         ui_color_t b = v->background;
         if (!ui_color_is_undefined(b) && !ui_color_is_transparent(b)) {
-            ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, b);
+            ui_draw.fill(rc.x, rc.y, rc.w, rc.h, b);
         }
         const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
         int32_t x = v->x + insets.left;
@@ -1834,7 +1834,7 @@ static void ui_edit_paint(ui_view_t* v) {
         for (int32_t i = pn; i < dt->np && y < bottom; i++) {
             y = ui_edit_paint_paragraph(e, &ta, x, y, i, rc);
         }
-        ui_gdi.set_clip(0, 0, 0, 0);
+        ui_draw.set_clip(0, 0, 0, 0);
     }
 }
 

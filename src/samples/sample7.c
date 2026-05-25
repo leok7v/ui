@@ -65,14 +65,14 @@ static void stats(int32_t ix) {
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *x += ui_gdi.text_va(&ui_gdi.ta.mono.normal, *x, *y, format, va).w;
+    *x += ui_draw.text_va(&ui_draw.ta.mono.normal, *x, *y, format, va).w;
     va_end(va);
 }
 
 static void println(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    *y += ui_gdi.text_va(&ui_gdi.ta.mono.normal, *x, *y, format, va).h;
+    *y += ui_draw.text_va(&ui_draw.ta.mono.normal, *x, *y, format, va).h;
     va_end(va);
 }
 
@@ -81,7 +81,7 @@ static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
     const int h2 = ui_app.root->h / 2;
     const int h4 = h2 / 2;
     const int h8 = h4 / 2;
-    ui_gdi.line(0, y, ui_app.root->w, y, ui_colors.white);
+    ui_draw.line(0, y, ui_app.root->w, y, ui_colors.white);
     if (t->samples > 2) {
         const fp64_t spread = ts[ix].spread;
         int n = N < t->samples ? N : t->samples;
@@ -91,7 +91,7 @@ static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
             points[j].y = y - (int32_t)(t->dt[j] * h8 / spread);
             j++;
         }
-        ui_gdi.poly(points, n - 1, c);
+        ui_draw.poly(points, n - 1, c);
         int32_t tx = v->fm->em.w;
         int32_t ty = y - h8 - v->fm->em.h;
         println(&tx, &ty, "min %.3f max %.3f avg %.3f ms  "
@@ -108,7 +108,7 @@ static void paint(ui_view_t* v) {
         char paint_stats[256];
         rt_str_printf(paint_stats, "avg paint time %.1f ms %.1f fps",
             ui_app.paint_avg * 1000, ui_app.paint_fps);
-        ui_ta_t ta = ui_gdi.ta.mono.normal;
+        ui_ta_t ta = ui_draw.ta.mono.normal;
         ta.measure = true;
         ui_wh_t wh = ui_view.text_metrics(0, 0, false, 0,
                         &ui_app.fm.mono.normal, "%s", paint_stats);

@@ -38,9 +38,9 @@ static ui_rect_t ui_image_position(ui_image_t* iv) {
 
 static void ui_image_paint(ui_view_t* v) {
     ui_image_t* iv = (ui_image_t*)v;
-//  ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.black);
+//  ui_draw.fill(v->x, v->y, v->w, v->h, ui_colors.black);
     if (iv->image.pixels != null) {
-        ui_gdi.set_clip(v->x, v->y, v->w, v->h);
+        ui_draw.set_clip(v->x, v->y, v->w, v->h);
         rt_swear(!iv->fit || !iv->fill, "make up your mind");
         rt_swear(0 < iv->zn && iv->zn <= 16);
         rt_swear(0 < iv->zd && iv->zd <= 16);
@@ -51,23 +51,23 @@ static void ui_image_paint(ui_view_t* v) {
         const int32_t ih = iv->image.h;
         ui_rect_t rc = ui_image_position(iv);
         if (iv->image.bpp == 1) {
-            ui_gdi.greyscale(rc.x, rc.y, rc.w, rc.h,
+            ui_draw.greyscale(rc.x, rc.y, rc.w, rc.h,
                 0, 0, iw, ih,
                 iw, ih, iv->image.stride,
                 iv->image.pixels);
         } else if (iv->image.bpp == 3) {
-            ui_gdi.bgr(rc.x, rc.y, rc.w, rc.h,
+            ui_draw.bgr(rc.x, rc.y, rc.w, rc.h,
                          0, 0, iw, ih,
                          iw, ih, iv->image.stride,
                          iv->image.pixels);
         } else if (iv->image.bpp == 4) {
             if (iv->image.texture == null) {
-                ui_gdi.bgrx(rc.x, rc.y, rc.w, rc.h,
+                ui_draw.bgrx(rc.x, rc.y, rc.w, rc.h,
                               0, 0, iw, ih,
                               iw, ih, iv->image.stride,
                               iv->image.pixels);
             } else {
-                ui_gdi.alpha(rc.x, rc.y, rc.w, rc.h,
+                ui_draw.alpha(rc.x, rc.y, rc.w, rc.h,
                               0, 0, iw, ih,
                               &iv->image, iv->alpha);
             }
@@ -82,17 +82,17 @@ static void ui_image_paint(ui_view_t* v) {
         }
         if (ui_view.has_focus(v)) {
             ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
-            ui_gdi.frame(v->x, v->y, v->w, v->h, highlight);
+            ui_draw.frame(v->x, v->y, v->w, v->h, highlight);
         }
-        ui_gdi.set_clip(0, 0, 0, 0);
+        ui_draw.set_clip(0, 0, 0, 0);
     }
 }
 
 static void ui_image_tools_background(ui_view_t* v) {
     ui_color_t face = ui_colors.get_color(ui_color_id_button_face);
     ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
-    ui_gdi.fill(v->x, v->y, v->w, v->h, face);
-    ui_gdi.frame(v->x, v->y, v->w, v->h, highlight);
+    ui_draw.fill(v->x, v->y, v->w, v->h, face);
+    ui_draw.frame(v->x, v->y, v->w, v->h, highlight);
 }
 
 static void ui_image_show_tools(ui_image_t* iv, bool show) {
@@ -374,10 +374,10 @@ static void ui_image_copy_to_clipboard(ui_image_t* iv) {
     if (iv->image.texture != null) {
         rt_clipboard.put_image(&iv->image);
     } else {
-        ui_gdi.bitmap_init(&image, iv->image.w, iv->image.h,
+        ui_draw.bitmap_init(&image, iv->image.w, iv->image.h,
                                   iv->image.bpp, iv->image.pixels);
         rt_clipboard.put_image(&image);
-        ui_gdi.bitmap_dispose(&image);
+        ui_draw.bitmap_dispose(&image);
     }
     static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
     ui_app.show_hint(&hint, ui_app.mouse.x,

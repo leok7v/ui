@@ -477,7 +477,7 @@ rt_end_c
 
 // alphabetical order is not possible because of headers interdependencies
 
-// _________________________________ ui_gdi.h _________________________________
+// ________________________________ ui_draw.h _________________________________
 
 rt_begin_c
 
@@ -538,7 +538,7 @@ typedef struct ui_fm_s { // font metrics
   ascender for "diacritics circumflex" is (h:55 - a:30 - d:11) = 14
 */
 
-typedef struct ui_gdi_ta_s { // text attributes
+typedef struct ui_draw_ta_s { // text attributes
     const ui_fm_t* fm; // font metrics
     int32_t color_id;  // <= 0 use color
     ui_color_t color;  // ui_colors.undefined() use color_id
@@ -639,14 +639,14 @@ typedef struct {
     // x[rt_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
     ui_wh_t (*glyphs_placement)(const ui_ta_t* ta, const char* utf8,
         int32_t bytes, int32_t x[/*glyphs + 1*/], int32_t glyphs);
-} ui_gdi_if;
+} ui_draw_if;
 
-extern ui_gdi_if ui_gdi;
+extern ui_draw_if ui_draw;
 
 rt_end_c
 // __________________________________ dxd.h ___________________________________
 
-// Direct2D + DirectWrite drawing backend for ui_gdi.
+// Direct2D + DirectWrite drawing backend for ui_draw.
 //
 // C ABI; implemented in src/ui/dxd.cpp. Coordinates are int32_t pixels (a
 // float coordinate system is a later change). This header is included by
@@ -1639,7 +1639,7 @@ rt_begin_c
 // Field .image may have .pixels pointer and .bitmap == null.
 // If this is the case the direct pixels transfer to the
 // device is used. RGBA bitmaps must be allocated on the
-// device otherwise ui_gdi.rgbx() call is used and alpha
+// device otherwise ui_draw.rgbx() call is used and alpha
 // is ignored.
 
 typedef struct ui_image_s ui_image_t;
@@ -2537,21 +2537,21 @@ static void ui_app_update_crc(void) {
 }
 
 static void ui_app_dispose_fonts(void) {
-    ui_gdi.delete_font(ui_app.fm.prop.normal.font);
-    ui_gdi.delete_font(ui_app.fm.prop.tiny.font);
-    ui_gdi.delete_font(ui_app.fm.prop.title.font);
-    ui_gdi.delete_font(ui_app.fm.prop.rubric.font);
-    ui_gdi.delete_font(ui_app.fm.prop.H1.font);
-    ui_gdi.delete_font(ui_app.fm.prop.H2.font);
-    ui_gdi.delete_font(ui_app.fm.prop.H3.font);
+    ui_draw.delete_font(ui_app.fm.prop.normal.font);
+    ui_draw.delete_font(ui_app.fm.prop.tiny.font);
+    ui_draw.delete_font(ui_app.fm.prop.title.font);
+    ui_draw.delete_font(ui_app.fm.prop.rubric.font);
+    ui_draw.delete_font(ui_app.fm.prop.H1.font);
+    ui_draw.delete_font(ui_app.fm.prop.H2.font);
+    ui_draw.delete_font(ui_app.fm.prop.H3.font);
     memset(&ui_app.fm.prop, 0x00, sizeof(ui_app.fm.prop));
-    ui_gdi.delete_font(ui_app.fm.mono.normal.font);
-    ui_gdi.delete_font(ui_app.fm.mono.tiny.font);
-    ui_gdi.delete_font(ui_app.fm.mono.title.font);
-    ui_gdi.delete_font(ui_app.fm.mono.rubric.font);
-    ui_gdi.delete_font(ui_app.fm.mono.H1.font);
-    ui_gdi.delete_font(ui_app.fm.mono.H2.font);
-    ui_gdi.delete_font(ui_app.fm.mono.H3.font);
+    ui_draw.delete_font(ui_app.fm.mono.normal.font);
+    ui_draw.delete_font(ui_app.fm.mono.tiny.font);
+    ui_draw.delete_font(ui_app.fm.mono.title.font);
+    ui_draw.delete_font(ui_app.fm.mono.rubric.font);
+    ui_draw.delete_font(ui_app.fm.mono.H1.font);
+    ui_draw.delete_font(ui_app.fm.mono.H2.font);
+    ui_draw.delete_font(ui_app.fm.mono.H3.font);
     memset(&ui_app.fm.mono, 0x00, sizeof(ui_app.fm.mono));
 }
 
@@ -2648,29 +2648,29 @@ static void ui_app_init_fms(ui_fms_t* fms, const LOGFONTW* base) {
     //             PROOF_QUALITY below 4K
     //             ANTIALIASED_QUALITY on 4K and ?
     lf.lfQuality = ANTIALIASED_QUALITY;
-    ui_gdi.update_fm(&fms->normal, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->normal, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("normal", &lf, &fms->normal);
     const fp64_t fh = lf.lfHeight;
     rt_swear(fh != 0);
     lf.lfHeight = (int32_t)(fh * 8.0 / 11.0 + 0.5);
-    ui_gdi.update_fm(&fms->tiny, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->tiny, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("tiny", &lf, &fms->tiny);
 
     lf.lfWeight = FW_SEMIBOLD;
     lf.lfHeight = (int32_t)(fh * 2.25 + 0.5);
-    ui_gdi.update_fm(&fms->title, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->title, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("title", &lf, &fms->title);
     lf.lfHeight = (int32_t)(fh * 2.00 + 0.5);
-    ui_gdi.update_fm(&fms->rubric, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->rubric, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("rubric", &lf, &fms->rubric);
     lf.lfHeight = (int32_t)(fh * 1.75 + 0.5);
-    ui_gdi.update_fm(&fms->H1, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->H1, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("H1", &lf, &fms->H1);
     lf.lfHeight = (int32_t)(fh * 1.4 + 0.5);
-    ui_gdi.update_fm(&fms->H2, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->H2, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("H2", &lf, &fms->H2);
     lf.lfHeight = (int32_t)(fh * 1.15 + 0.5);
-    ui_gdi.update_fm(&fms->H3, (ui_font_t)CreateFontIndirectW(&lf));
+    ui_draw.update_fm(&fms->H3, (ui_font_t)CreateFontIndirectW(&lf));
     ui_app_dump_font_size("H3", &lf, &fms->H3);
 }
 
@@ -3192,12 +3192,12 @@ static void ui_app_toast_paint(void) {
     static ui_bitmap_t image_dark;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
-        ui_gdi.bitmap_init(&image_dark, 1, 1, 3, pixels);
+        ui_draw.bitmap_init(&image_dark, 1, 1, 3, pixels);
     }
     static ui_bitmap_t image_light;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
-        ui_gdi.bitmap_init(&image_light, 1, 1, 3, pixels);
+        ui_draw.bitmap_init(&image_light, 1, 1, 3, pixels);
     }
     ui_view_t* av = ui_app.animating.view;
     if (av != null) {
@@ -3215,7 +3215,7 @@ static void ui_app_toast_paint(void) {
             // dim main window (as `disabled`):
             const fp64_t da = 0.40 * ui_app.animating.step / (fp64_t)ui_app_animation_steps;
             fp64_t alpha = 0.40 < da ? 0.40 : da;
-            ui_gdi.alpha(0, 0, ui_app.crc.w, ui_app.crc.h,
+            ui_draw.alpha(0, 0, ui_app.crc.w, ui_app.crc.h,
                          0, 0, image_dark.w, image_dark.h,
                         &image_dark, alpha);
             av->x = (ui_app.root->w - av->w) / 2;
@@ -3245,7 +3245,7 @@ static void ui_app_toast_paint(void) {
             ui_color_rgb(45, 45, 48) : // TODO: hard coded
             ui_colors.get_color(ui_color_id_button_face);
         ui_color_t tint = ui_colors.interpolate(color, ui_colors.yellow, 0.5f);
-        ui_gdi.rounded(x, y, w, h, radius, tint, tint);
+        ui_draw.rounded(x, y, w, h, radius, tint, tint);
         if (!hint) { av->y += em_h / 4; }
         ui_app_paint(av);
         if (!hint) {
@@ -3259,7 +3259,7 @@ static void ui_app_toast_paint(void) {
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
                 };
-                ui_gdi.text(&ta, tx, ty, "%s",
+                ui_draw.text(&ta, tx, ty, "%s",
                                  rt_glyph_multiplication_sign);
             }
         }
@@ -3381,7 +3381,7 @@ static void ui_app_view_paint(ui_view_t* v) {
     }
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
-        ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
+        ui_draw.fill(v->x, v->y, v->w, v->h, v->background);
     }
 }
 
@@ -3410,7 +3410,7 @@ static void ui_app_view_active_frame_paint(void) {
     const int32_t w = ui_app.wrc.w;
     const int32_t h = ui_app.wrc.h;
     for (int32_t i = 0; i < ui_app.border.w; i++) {
-        ui_gdi.frame(i, i, w - i * 2, h - i * 2, c);
+        ui_draw.frame(i, i, w - i * 2, h - i * 2, c);
     }
 }
 
@@ -3455,7 +3455,7 @@ static void ui_app_paint_on_canvas(HDC hdc) {
     if (ui_app_layout_dirty) {
         ui_app_view_layout();
     }
-    ui_gdi.begin(null);
+    ui_draw.begin(null);
     ui_app_paint(ui_app.root);
     if (ui_app.animating.view != null) { ui_app_toast_paint(); }
     // active frame on top of everything:
@@ -3463,7 +3463,7 @@ static void ui_app_paint_on_canvas(HDC hdc) {
         !ui_app.is_maximized()) {
         ui_app_view_active_frame_paint();
     }
-    ui_gdi.end();
+    ui_draw.end();
     ui_app.paint_count++;
     ui_app.canvas = canvas;
     ui_app_paint_stats();
@@ -4203,7 +4203,7 @@ static errno_t ui_app_set_layered_window(ui_color_t color, fp32_t alpha) {
     if (color != ui_color_undefined) {
         mask |= LWA_COLORKEY;
         rt_assert(ui_color_is_8bit(color));
-        c = ui_gdi.color_rgb(color);
+        c = ui_draw.color_rgb(color);
     }
     return rt_b2e(SetLayeredWindowAttributes(ui_app_window(), c, a, mask));
 }
@@ -4217,7 +4217,7 @@ static void ui_app_init_dwm(void) {
         // do not call on Win10 - will fail
         DWM_WINDOW_CORNER_PREFERENCE c = DWMWCP_ROUND;
         ui_app_set_dwm_attribute(DWMWA_WINDOW_CORNER_PREFERENCE, &c, sizeof(c));
-        COLORREF cc = (COLORREF)ui_gdi.color_rgb(ui_color_rgb(45, 45, 48));
+        COLORREF cc = (COLORREF)ui_draw.color_rgb(ui_color_rgb(45, 45, 48));
         ui_app_set_dwm_attribute(DWMWA_CAPTION_COLOR, &cc, sizeof(cc));
     }
     BOOL e = true; // must be 32-bit BOOL because of sizeof()
@@ -5271,7 +5271,7 @@ static int ui_app_win_main(HINSTANCE instance) {
     // IDI_ICON 101:
     ui_app.icon = (ui_icon_t)LoadIconW(instance, MAKEINTRESOURCE(101));
     ui_app_init_windows();
-    ui_gdi.init();
+    ui_draw.init();
     rt_clipboard.put_image = ui_app_clipboard_put_image;
     ui_app.last_visibility = ui.visibility.defau1t;
     ui_app_init();
@@ -5341,7 +5341,7 @@ static int ui_app_win_main(HINSTANCE instance) {
     ui_app_event_quit = null;
     rt_event.dispose(ui_app_wt);
     ui_app_wt = null;
-    ui_gdi.fini();
+    ui_draw.fini();
     return r;
 }
 
@@ -5430,9 +5430,9 @@ static void ui_button_paint(ui_view_t* v) {
                     ui_colors.lighten(v->background, d2) :
                     ui_colors.darken(v->background,  d2);
             if (!pressed) {
-                ui_gdi.gradient(x, y, w, h, d0, d1, true);
+                ui_draw.gradient(x, y, w, h, d0, d1, true);
             } else {
-                ui_gdi.gradient(x, y, w, h, d1, d0, true);
+                ui_draw.gradient(x, y, w, h, d1, d0, true);
             }
         }
     } else {
@@ -5454,7 +5454,7 @@ static void ui_button_paint(ui_view_t* v) {
         } else if (v->state.hover) {
             fc = ui_colors.darken(fc, 0.250f);
         }
-        ui_gdi.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
+        ui_draw.rounded(v->x, v->y, v->w, v->h, r, bc, fc);
     }
     const int32_t tx = v->x + v->text.xy.x;
     const int32_t ty = v->y + v->text.xy.y;
@@ -5469,13 +5469,13 @@ static void ui_button_paint(ui_view_t* v) {
             ui_view.debug_paint_fm(v);
         }
         const ui_ta_t ta = { .fm = v->fm, .color = c };
-        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
+        ui_draw.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);
         const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
                                .h = v->h - i.top - i.bottom };
         // TODO: icon text alignment
-        ui_gdi.icon(tx, ty + v->text.xy.y, i_wh.w, i_wh.h, v->icon);
+        ui_draw.icon(tx, ty + v->text.xy.y, i_wh.w, i_wh.h, v->icon);
     }
 }
 
@@ -5709,7 +5709,7 @@ static void ui_caption_button_icon_paint(ui_view_t* v) {
     w = h;
     int32_t dx = (v->w - w) / 2;
     int32_t dy = (v->h - h) / 2;
-    ui_gdi.icon(v->x + dx, v->y + dy, w, h, v->icon);
+    ui_draw.icon(v->x + dx, v->y + dy, w, h, v->icon);
 }
 
 static void ui_caption_prepare(ui_view_t* rt_unused(v)) {
@@ -5743,7 +5743,7 @@ static void ui_caption_composed(ui_view_t* v) {
 
 static void ui_caption_paint(ui_view_t* v) {
     ui_color_t background = ui_caption_color();
-    ui_gdi.fill(v->x, v->y, v->w, v->h, background);
+    ui_draw.fill(v->x, v->y, v->w, v->h, background);
 }
 
 static void ui_caption_init(ui_view_t* v) {
@@ -6800,7 +6800,7 @@ static void ui_stack_layout(ui_view_t* p) {
 static void ui_container_paint(ui_view_t* v) {
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
-        ui_gdi.fill(v->x, v->y, v->w, v->h, v->background);
+        ui_draw.fill(v->x, v->y, v->w, v->h, v->background);
     } else {
 //      rt_println("%s undefined", ui_view_debug_id(v));
     }
@@ -7024,6 +7024,1034 @@ ui_if ui = {
 };
 
 // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-showwindow
+// ________________________________ ui_draw.c _________________________________
+
+#include "rt/rt.h"
+#include "rt/rt_win32.h"
+
+#pragma push_macro("ui_draw_with_hdc")
+#pragma push_macro("ui_draw_hdc_with_font")
+
+static ui_brush_t  ui_draw_brush_hollow;
+static ui_brush_t  ui_draw_brush_color;
+static ui_pen_t    ui_draw_pen_hollow;
+static ui_region_t ui_draw_clip;
+
+typedef struct ui_draw_context_s {
+    HDC hdc; // window canvas() or memory DC
+    int32_t background_mode;
+    int32_t stretch_mode;
+    ui_pen_t pen;
+    ui_font_t font;
+    ui_color_t text_color;
+    POINT brush_origin;
+    ui_brush_t brush;
+    HBITMAP texture;
+    dxd_context_t dxd; // Direct2D draw context for this begin()/end() frame
+} ui_draw_context_t;
+
+static ui_draw_context_t ui_draw_context;
+
+#define ui_draw_hdc() (ui_draw_context.hdc)
+
+static void ui_draw_init(void) {
+    dxd_init();
+}
+
+static void ui_draw_fini(void) {
+    dxd_fini();
+}
+
+static ui_pen_t ui_draw_set_pen(ui_pen_t p) {
+    rt_not_null(p);
+    return (ui_pen_t)SelectPen(ui_draw_hdc(), (HPEN)p);
+}
+
+static ui_brush_t ui_draw_set_brush(ui_brush_t b) {
+    rt_not_null(b);
+    return (ui_brush_t)SelectBrush(ui_draw_hdc(), b);
+}
+
+static uint32_t ui_draw_color_rgb(ui_color_t c) {
+    rt_assert(ui_color_is_8bit(c));
+    return (COLORREF)(c & 0xFFFFFFFF);
+}
+
+static COLORREF ui_draw_color_ref(ui_color_t c) {
+    return ui_draw.color_rgb(c);
+}
+
+static ui_color_t ui_draw_set_text_color(ui_color_t c) {
+    return SetTextColor(ui_draw_hdc(), ui_draw_color_ref(c));
+}
+
+static ui_font_t ui_draw_set_font(ui_font_t f) {
+    rt_not_null(f);
+    return (ui_font_t)SelectFont(ui_draw_hdc(), (HFONT)f);
+}
+
+static void ui_draw_begin(ui_bitmap_t* image) {
+    rt_swear(ui_draw_context.hdc == null, "no nested begin()/end()");
+    if (image != null) {
+        rt_swear(image->texture != null);
+        ui_draw_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
+        ui_draw_context.texture = SelectBitmap(ui_draw_hdc(),
+                                             (HBITMAP)image->texture);
+    } else {
+        ui_draw_context.hdc = (HDC)ui_app.canvas;
+        rt_swear(ui_draw_context.texture == null);
+    }
+    ui_draw_context.text_color = ui_colors.get_color(ui_color_id_window_text);
+    ui_rect_t rc = image != null ?
+        (ui_rect_t){ 0, 0, image->w, image->h } :
+        (ui_rect_t){ 0, 0, ui_app.crc.w, ui_app.crc.h };
+    ui_draw_context.dxd = dxd_begin(ui_draw_context.hdc, &rc);
+}
+
+static void ui_draw_end(void) {
+    if (ui_draw_context.dxd != null) {
+        dxd_end(ui_draw_context.dxd);
+        ui_draw_context.dxd = null;
+    }
+    if (ui_draw_context.hdc != (HDC)ui_app.canvas) {
+        rt_swear(ui_draw_context.texture != null); // 1x1 bitmap
+        SelectBitmap(ui_draw_context.hdc, (HBITMAP)ui_draw_context.texture);
+        rt_fatal_win32err(DeleteDC(ui_draw_context.hdc));
+    }
+    memset(&ui_draw_context, 0x00, sizeof(ui_draw_context));
+}
+
+static ui_pen_t ui_draw_set_colored_pen(ui_color_t c) {
+    ui_pen_t p = (ui_pen_t)SelectPen(ui_draw_hdc(), GetStockPen(DC_PEN));
+    SetDCPenColor(ui_draw_hdc(), ui_draw_color_ref(c));
+    return p;
+}
+
+static ui_pen_t ui_draw_create_pen(ui_color_t c, int32_t width) {
+    rt_assert(width >= 1);
+    ui_pen_t pen = (ui_pen_t)CreatePen(PS_SOLID, width, ui_draw_color_ref(c));
+    rt_not_null(pen);
+    return pen;
+}
+
+static void ui_draw_delete_pen(ui_pen_t p) {
+    rt_fatal_win32err(DeletePen(p));
+}
+
+static ui_brush_t ui_draw_create_brush(ui_color_t c) {
+    return (ui_brush_t)CreateSolidBrush(ui_draw_color_ref(c));
+}
+
+static void ui_draw_delete_brush(ui_brush_t b) {
+    DeleteBrush((HBRUSH)b);
+}
+
+static ui_color_t ui_draw_set_brush_color(ui_color_t c) {
+    return SetDCBrushColor(ui_draw_hdc(), ui_draw_color_ref(c));
+}
+
+static void ui_draw_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
+    dxd_set_clip(ui_draw_context.dxd, x, y, w, h);
+}
+
+static void ui_draw_pixel(int32_t x, int32_t y, ui_color_t c) {
+    dxd_pixel(ui_draw_context.dxd, x, y, c);
+}
+
+static void ui_draw_rectangle(int32_t x, int32_t y, int32_t w, int32_t h) {
+    rt_fatal_win32err(Rectangle(ui_draw_hdc(), x, y, x + w, y + h));
+}
+
+static void ui_draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
+        ui_color_t c) {
+    dxd_line(ui_draw_context.dxd, x0, y0, x1, y1, c);
+}
+
+static void ui_draw_frame(int32_t x, int32_t y, int32_t w, int32_t h,
+        ui_color_t c) {
+    dxd_frame(ui_draw_context.dxd, x, y, w, h, c);
+}
+
+static void ui_draw_rect(int32_t x, int32_t y, int32_t w, int32_t h,
+        ui_color_t border, ui_color_t fill) {
+    dxd_rect(ui_draw_context.dxd, x, y, w, h, border, fill);
+}
+
+static void ui_draw_fill(int32_t x, int32_t y, int32_t w, int32_t h,
+        ui_color_t c) {
+    dxd_fill(ui_draw_context.dxd, x, y, w, h, c);
+}
+
+static void ui_draw_poly(ui_point_t* points, int32_t count, ui_color_t c) {
+    dxd_poly(ui_draw_context.dxd, points, count, c);
+}
+
+static void ui_draw_circle(int32_t x, int32_t y, int32_t radius,
+        ui_color_t border, ui_color_t fill) {
+    dxd_circle(ui_draw_context.dxd, x, y, radius, border, fill);
+}
+
+static void ui_draw_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t radius, ui_color_t fill) {
+    int32_t r = x + w - 1; // right
+    int32_t b = y + h - 1; // bottom
+    ui_draw_circle(x + radius, y + radius, radius, fill, fill);
+    ui_draw_circle(r - radius, y + radius, radius, fill, fill);
+    ui_draw_circle(x + radius, b - radius, radius, fill, fill);
+    ui_draw_circle(r - radius, b - radius, radius, fill, fill);
+    // rectangles
+    ui_draw.fill(x + radius, y, w - radius * 2, h, fill);
+    r = x + w - radius;
+    ui_draw.fill(x, y + radius, radius, h - radius * 2, fill);
+    ui_draw.fill(r, y + radius, radius, h - radius * 2, fill);
+}
+
+static void ui_draw_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t radius, ui_color_t border) {
+    {
+        int32_t r = x + w - 1; // right
+        int32_t b = y + h - 1; // bottom
+        ui_draw.set_clip(x, y, radius + 1, radius + 1);
+        ui_draw_circle(x + radius, y + radius, radius, border, ui_colors.transparent);
+        ui_draw.set_clip(r - radius, y, radius + 1, radius + 1);
+        ui_draw_circle(r - radius, y + radius, radius, border, ui_colors.transparent);
+        ui_draw.set_clip(x, b - radius, radius + 1, radius + 1);
+        ui_draw_circle(x + radius, b - radius, radius, border, ui_colors.transparent);
+        ui_draw.set_clip(r - radius, b - radius, radius + 1, radius + 1);
+        ui_draw_circle(r - radius, b - radius, radius, border, ui_colors.transparent);
+        ui_draw.set_clip(0, 0, 0, 0);
+    }
+    {
+        int32_t r = x + w - 1; // right
+        int32_t b = y + h - 1; // bottom
+        ui_draw.line(x + radius, y, r - radius + 1, y, border);
+        ui_draw.line(x + radius, b, r - radius + 1, b, border);
+        ui_draw.line(x - 1, y + radius, x - 1, b - radius + 1, border);
+        ui_draw.line(r + 1, y + radius, r + 1, b - radius + 1, border);
+    }
+}
+
+static void ui_draw_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
+        int32_t radius, ui_color_t border, ui_color_t fill) {
+    dxd_rounded(ui_draw_context.dxd, x, y, w, h, radius, border, fill);
+}
+
+static void ui_draw_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
+        ui_color_t rgba_from, ui_color_t rgba_to, bool vertical) {
+    dxd_gradient(ui_draw_context.dxd, x, y, w, h, rgba_from, rgba_to, vertical);
+}
+
+static BITMAPINFO* ui_draw_greyscale_bitmap_info(void) {
+    typedef struct bitmap_rgb_s {
+        BITMAPINFO bi;
+        RGBQUAD rgb[256];
+    } bitmap_rgb_t;
+    static bitmap_rgb_t storage; // for gs palette
+    static BITMAPINFO* bi = &storage.bi;
+    BITMAPINFOHEADER* bih = &bi->bmiHeader;
+    if (bih->biSize == 0) { // once
+        bih->biSize = sizeof(BITMAPINFOHEADER);
+        for (int32_t i = 0; i < 256; i++) {
+            RGBQUAD* q = &bi->bmiColors[i];
+            q->rgbReserved = 0;
+            q->rgbBlue = q->rgbGreen = q->rgbRed = (uint8_t)i;
+        }
+        bih->biPlanes = 1;
+        bih->biBitCount = 8;
+        bih->biCompression = BI_RGB;
+        bih->biClrUsed = 256;
+        bih->biClrImportant = 256;
+    }
+    return bi;
+}
+
+static void ui_draw_pixels(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
+        int32_t bpp, const uint8_t* pixels) {
+    if (bpp == 1) {
+        ui_draw.greyscale(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+    } else if (bpp == 3) {
+        ui_draw.bgr(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+    } else if (bpp == 4) {
+        ui_draw.bgrx(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+    } else {
+        rt_fatal("bpp: %d not {1, 3, 4}", bpp);
+    }
+}
+
+static void ui_draw_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
+    dxd_image(ui_draw_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
+              width, height, stride, 1, pixels, 1.0, false);
+}
+
+static BITMAPINFOHEADER ui_draw_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
+    rt_assert(w > 0 && h >= 0); // h cannot be negative?
+    BITMAPINFOHEADER bi = {
+        .biSize = sizeof(BITMAPINFOHEADER),
+        .biPlanes = 1,
+        .biBitCount = (uint16_t)(bpp * 8),
+        .biCompression = BI_RGB,
+        .biWidth = w,
+        .biHeight = -h, // top down image
+        .biSizeImage = (DWORD)(w * abs(h) * bpp),
+        .biClrUsed = 0,
+        .biClrImportant = 0
+   };
+   return bi;
+}
+
+// bgr(width) assumes strides are padded and rounded up to 4 bytes
+// if this is not the case use ui_draw.bitmap_init() that will unpack
+// and align scanlines prior to draw
+
+static void ui_draw_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
+        const uint8_t* pixels) {
+    dxd_image(ui_draw_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
+              width, height, stride, 3, pixels, 1.0, false);
+}
+
+static void ui_draw_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        int32_t width, int32_t height, int32_t stride,
+        const uint8_t* pixels) {
+    dxd_image(ui_draw_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
+              width, height, stride, 4, pixels, 1.0, false);
+}
+
+static BITMAPINFO* ui_draw_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
+        BITMAPINFO* bi) {
+    rt_assert(w > 0 && h >= 0); // h cannot be negative?
+    bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bi->bmiHeader.biWidth = w;
+    bi->bmiHeader.biHeight = -h;  // top down image
+    bi->bmiHeader.biPlanes = 1;
+    bi->bmiHeader.biBitCount = (uint16_t)(bpp * 8);
+    bi->bmiHeader.biCompression = BI_RGB;
+    bi->bmiHeader.biSizeImage = (DWORD)(w * abs(h) * bpp);
+    return bi;
+}
+
+static void ui_draw_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
+        int32_t bpp) {
+    rt_fatal_if(image->texture != null, "bitmap_dispose() not called?");
+    // not using GetWindowDC(ui_app.window) will allow to initialize images
+    // before window is created
+    HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
+    BITMAPINFO local = { {sizeof(BITMAPINFOHEADER)} };
+    BITMAPINFO* bi = bpp == 1 ? ui_draw_greyscale_bitmap_info() : &local;
+    image->texture = (ui_texture_t)CreateDIBSection(c, 
+            ui_draw_init_bitmap_info(w, h, bpp, bi),
+            DIB_RGB_COLORS, &image->pixels, null, 0x0
+    );
+    rt_fatal_if(image->texture == null || image->pixels == null);
+    rt_fatal_win32err(DeleteDC(c));
+}
+
+static void ui_draw_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
+        int32_t bpp, const uint8_t* pixels) {
+    bool swapped = bpp < 0;
+    bpp = abs(bpp);
+    rt_fatal_if(bpp != 4, "bpp: %d", bpp);
+    ui_draw_create_dib_section(image, w, h, bpp);
+    const int32_t stride = (w * bpp + 3) & ~0x3;
+    uint8_t* scanline = image->pixels;
+    const uint8_t* rgbx = pixels;
+    if (!swapped) {
+        for (int32_t y = 0; y < h; y++) {
+            uint8_t* bgra = scanline;
+            for (int32_t x = 0; x < w; x++) {
+                bgra[0] = rgbx[2];
+                bgra[1] = rgbx[1];
+                bgra[2] = rgbx[0];
+                bgra[3] = 0xFF;
+                bgra += 4;
+                rgbx += 4;
+            }
+            pixels += w * 4;
+            scanline += stride;
+        }
+    } else {
+        for (int32_t y = 0; y < h; y++) {
+            uint8_t* bgra = scanline;
+            for (int32_t x = 0; x < w; x++) {
+                bgra[0] = rgbx[0];
+                bgra[1] = rgbx[1];
+                bgra[2] = rgbx[2];
+                bgra[3] = 0xFF;
+                bgra += 4;
+                rgbx += 4;
+            }
+            pixels += w * 4;
+            scanline += stride;
+        }
+    }
+    image->w = w;
+    image->h = h;
+    image->bpp = bpp;
+    image->stride = stride;
+}
+
+static void ui_draw_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
+        const uint8_t* pixels) {
+    bool swapped = bpp < 0;
+    bpp = abs(bpp);
+    rt_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
+    ui_draw_create_dib_section(image, w, h, bpp);
+    // Win32 bitmaps stride is rounded up to 4 bytes
+    const int32_t stride = (w * bpp + 3) & ~0x3;
+    uint8_t* scanline = image->pixels;
+    if (bpp == 1) {
+        for (int32_t y = 0; y < h; y++) {
+            memcpy(scanline, pixels, (size_t)w);
+            pixels += w;
+            scanline += stride;
+        }
+    } else if (bpp == 3 && !swapped) {
+        const uint8_t* rgb = pixels;
+        for (int32_t y = 0; y < h; y++) {
+            uint8_t* bgr = scanline;
+            for (int32_t x = 0; x < w; x++) {
+                bgr[0] = rgb[2];
+                bgr[1] = rgb[1];
+                bgr[2] = rgb[0];
+                bgr += 3;
+                rgb += 3;
+            }
+            pixels += w * bpp;
+            scanline += stride;
+        }
+    } else if (bpp == 3 && swapped) {
+        const uint8_t* rgb = pixels;
+        for (int32_t y = 0; y < h; y++) {
+            uint8_t* bgr = scanline;
+            for (int32_t x = 0; x < w; x++) {
+                bgr[0] = rgb[0];
+                bgr[1] = rgb[1];
+                bgr[2] = rgb[2];
+                bgr += 3;
+                rgb += 3;
+            }
+            pixels += w * bpp;
+            scanline += stride;
+        }
+    } else if (bpp == 4 && !swapped) {
+        // premultiply alpha, see:
+        // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
+        const uint8_t* rgba = pixels;
+        for (int32_t y = 0; y < h; y++) {
+            uint8_t* bgra = scanline;
+            for (int32_t x = 0; x < w; x++) {
+                int32_t alpha = rgba[3];
+                bgra[0] = (uint8_t)(rgba[2] * alpha / 255);
+                bgra[1] = (uint8_t)(rgba[1] * alpha / 255);
+                bgra[2] = (uint8_t)(rgba[0] * alpha / 255);
+                bgra[3] = rgba[3];
+                bgra += 4;
+                rgba += 4;
+            }
+            pixels += w * 4;
+            scanline += stride;
+        }
+    } else if (bpp == 4 && swapped) {
+        // premultiply alpha, see:
+        // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
+        const uint8_t* rgba = pixels;
+        for (int32_t y = 0; y < h; y++) {
+            uint8_t* bgra = scanline;
+            for (int32_t x = 0; x < w; x++) {
+                int32_t alpha = rgba[3];
+                bgra[0] = (uint8_t)(rgba[0] * alpha / 255);
+                bgra[1] = (uint8_t)(rgba[1] * alpha / 255);
+                bgra[2] = (uint8_t)(rgba[2] * alpha / 255);
+                bgra[3] = rgba[3];
+                bgra += 4;
+                rgba += 4;
+            }
+            pixels += w * 4;
+            scanline += stride;
+        }
+    }
+    image->w = w;
+    image->h = h;
+    image->bpp = bpp;
+    image->stride = stride;
+}
+
+static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        ui_bitmap_t* image, fp64_t alpha) {
+    rt_assert(image->bpp > 0);
+    rt_assert(0 <= alpha && alpha <= 1);
+    dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
+              ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
+              (const uint8_t*)image->pixels, alpha, true);
+}
+
+static void ui_draw_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
+        ui_bitmap_t* image) {
+    rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
+    dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
+              ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
+              (const uint8_t*)image->pixels, 1.0, false);
+}
+
+static void ui_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h,
+        ui_icon_t icon) {
+    DrawIconEx(ui_draw_hdc(), x, y, (HICON)icon, w, h, 0, NULL, DI_NORMAL | DI_COMPAT);
+}
+
+static void ui_draw_cleartype(bool on) {
+    enum { spif = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE };
+    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
+                                                   true, 0, spif));
+    uintptr_t s = on ? FE_FONTSMOOTHINGCLEARTYPE : FE_FONTSMOOTHINGSTANDARD;
+    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
+        0, (void*)s, spif));
+}
+
+static void ui_draw_font_smoothing_contrast(int32_t c) {
+    rt_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
+    if (c == -1) { c = 1400; }
+    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
+        0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
+}
+
+rt_static_assertion(ui_font_quality_default == DEFAULT_QUALITY);
+rt_static_assertion(ui_font_quality_draft == DRAFT_QUALITY);
+rt_static_assertion(ui_font_quality_proof == PROOF_QUALITY);
+rt_static_assertion(ui_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
+rt_static_assertion(ui_font_quality_antialiased == ANTIALIASED_QUALITY);
+rt_static_assertion(ui_font_quality_cleartype == CLEARTYPE_QUALITY);
+rt_static_assertion(ui_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
+
+static ui_font_t ui_draw_create_font(const char* family, int32_t h, int32_t q) {
+    rt_assert(h > 0);
+    LOGFONTA lf = {0};
+    int32_t n = GetObjectA(ui_app.fm.prop.normal.font, sizeof(lf), &lf);
+    rt_fatal_if(n != (int32_t)sizeof(lf));
+    lf.lfHeight = -h;
+    rt_str_printf(lf.lfFaceName, "%s", family);
+    if (ui_font_quality_default <= q &&
+        q <= ui_font_quality_cleartype_natural) {
+        lf.lfQuality = (uint8_t)q;
+    } else {
+        rt_fatal_if(q != -1, "use -1 for do not care quality");
+    }
+    return (ui_font_t)CreateFontIndirectA(&lf);
+}
+
+static ui_font_t ui_draw_font(ui_font_t f, int32_t h, int32_t q) {
+    rt_assert(f != null && h > 0);
+    LOGFONTA lf = {0};
+    int32_t n = GetObjectA(f, sizeof(lf), &lf);
+    rt_fatal_if(n != (int32_t)sizeof(lf));
+    lf.lfHeight = -h;
+    if (ui_font_quality_default <= q &&
+        q <= ui_font_quality_cleartype_natural) {
+        lf.lfQuality = (uint8_t)q;
+    } else {
+        rt_fatal_if(q != -1, "use -1 for do not care quality");
+    }
+    return (ui_font_t)CreateFontIndirectA(&lf);
+}
+
+static void ui_draw_delete_font(ui_font_t f) {
+    rt_fatal_win32err(DeleteFont(f));
+}
+
+// guaranteed to return dc != null even if not painting
+
+static HDC ui_draw_get_dc(void) {
+    // ui_app.window may be null in early init (font metrics before the
+    // main window exists). GetDC(null) is documented to return the
+    // screen DC, but on some Windows hosts (observed on mb-air-2012)
+    // it returns null. Fall back to CreateICA which produces a
+    // non-drawable Information Context for the display — adequate
+    // for the measurement-only callers that hit this path.
+    HDC hdc = ui_draw_hdc() != null ?
+              ui_draw_hdc() : GetDC((HWND)ui_app.window);
+    if (hdc == null && ui_app.window == null) {
+        hdc = CreateICA("DISPLAY", null, null, null);
+    }
+    rt_not_null(hdc);
+    return hdc;
+}
+
+static void ui_draw_release_dc(HDC hdc) {
+    if (ui_draw_hdc() == null) {
+        // ReleaseDC pairs with GetDC for window DCs but is the wrong
+        // call for an Information Context produced by CreateICA. When
+        // ReleaseDC fails (returns 0) we are looking at the ICA-
+        // fallback path from get_dc above and DeleteDC is the correct
+        // disposal.
+        if (!ReleaseDC((HWND)ui_app.window, hdc)) {
+            DeleteDC(hdc);
+        }
+    }
+}
+
+#define ui_draw_with_hdc(code) do {           \
+    HDC hdc = ui_draw_get_dc();               \
+    code                                     \
+    ui_draw_release_dc(hdc);                  \
+} while (0)
+
+#define ui_draw_hdc_with_font(f, ...) do {    \
+    rt_not_null(f);                          \
+    HDC hdc = ui_draw_get_dc();               \
+    HFONT font_ = SelectFont(hdc, (HFONT)f); \
+    { __VA_ARGS__ }                          \
+    SelectFont(hdc, font_);                  \
+    ui_draw_release_dc(hdc);                  \
+} while (0)
+
+static void ui_draw_dump_hdc_fm(HDC hdc) {
+    // https://en.wikipedia.org/wiki/Quad_(typography)
+    // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
+    // https://stackoverflow.com/questions/27631736/meaning-of-top-ascent-baseline-descent-bottom-and-leading-in-androids-font
+    // Amazingly same since Windows 3.1 1992
+    // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-textmetrica
+    // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-outlinetextmetrica
+    TEXTMETRICA tm = {0};
+    rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
+    char pitch[64] = { 0 };
+    if (tm.tmPitchAndFamily & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
+    if (tm.tmPitchAndFamily & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
+    if (tm.tmPitchAndFamily & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
+    if (tm.tmPitchAndFamily & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
+    rt_println("tm: .pitch_and_family: %s", pitch);
+    rt_println(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
+            tm.tmHeight, tm.tmAscent, tm.tmDescent);
+    rt_println(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
+            tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
+    rt_println(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
+            tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
+    rt_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
+            tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
+    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
+    uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
+    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    // unsupported XHeight CapEmHeight
+    // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
+    //             CharSlopeRise, CharSlopeRun, ItalicAngle
+    rt_println("otm: .Ascent       : %2d   .Descent        : %2d",
+            otm.otmAscent, otm.otmDescent);
+    rt_println(".otmLineGap        : %2u", otm.otmLineGap);
+    rt_println(".FontBox.ltrb      :  %d,%d %2d,%2d",
+            otm.otmrcFontBox.left, otm.otmrcFontBox.top,
+            otm.otmrcFontBox.right, otm.otmrcFontBox.bottom);
+    rt_println(".MinimumPPEM       : %2u    (minimum height in pixels)",
+            otm.otmusMinimumPPEM);
+    rt_println(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
+            otm.otmptSubscriptOffset.x, otm.otmptSubscriptOffset.y,
+            otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y);
+    rt_println(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
+            otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y,
+            otm.otmptSuperscriptSize.x,   otm.otmptSuperscriptSize.y);
+    rt_println(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
+            otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
+    rt_println(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
+            otm.otmsStrikeoutSize,  otm.otmsStrikeoutPosition);
+    int32_t h = otm.otmAscent + abs(tm.tmDescent); // without diacritical space above
+    fp32_t pts = (h * 72.0f)  / GetDeviceCaps(hdc, LOGPIXELSY);
+    rt_println("height: %.1fpt", pts);
+}
+
+static void ui_draw_dump_fm(ui_font_t f) {
+    rt_not_null(f);
+    ui_draw_hdc_with_font(f, { ui_draw_dump_hdc_fm(hdc); });
+}
+
+static void ui_draw_get_fm(HDC hdc, ui_fm_t* fm) {
+    TEXTMETRICA tm = {0};
+    rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
+    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
+    OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
+    uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
+    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
+    // "tm.tmAscent" The ascent (units above the base line) of characters
+    // and actually is "baseline" in other terminology
+    // "otm.otmAscent" The maximum distance characters in this font extend
+    // above the base line. This is the typographic ascent for the font.
+    // otm.otmEMSquare usually is 2048 which is size of rasterizer
+    fm->height   = tm.tmHeight;
+    fm->baseline = tm.tmAscent;
+    fm->ascent   = otm.otmAscent;
+    fm->descent  = tm.tmDescent;
+    fm->baseline = tm.tmAscent;
+    fm->x_height = otm.otmsXHeight;
+    fm->cap_em_height = otm.otmsCapEmHeight;
+    fm->internal_leading = tm.tmInternalLeading;
+    fm->external_leading = tm.tmExternalLeading;
+    fm->average_char_width = tm.tmAveCharWidth;
+    fm->max_char_width = tm.tmMaxCharWidth;
+    fm->line_gap = otm.otmLineGap;
+    fm->subscript.w = otm.otmptSubscriptSize.x;
+    fm->subscript.h = otm.otmptSubscriptSize.y;
+    fm->subscript_offset.x = otm.otmptSubscriptOffset.x;
+    fm->subscript_offset.y = otm.otmptSubscriptOffset.y;
+    fm->superscript.w = otm.otmptSuperscriptSize.x;
+    fm->superscript.h = otm.otmptSuperscriptSize.y;
+    fm->superscript_offset.x = otm.otmptSuperscriptOffset.x;
+    fm->superscript_offset.y = otm.otmptSuperscriptOffset.y;
+    fm->underscore = otm.otmsUnderscoreSize;
+    fm->underscore_position = otm.otmsUnderscorePosition;
+    fm->strike_through = otm.otmsStrikeoutSize;
+    fm->strike_through_position = otm.otmsStrikeoutPosition;
+    fm->design_units_per_em = (int)otm.otmEMSquare;
+    fm->box = (ui_rect_t){
+                otm.otmrcFontBox.left, otm.otmrcFontBox.top,
+                otm.otmrcFontBox.right - otm.otmrcFontBox.left,
+                otm.otmrcFontBox.top - otm.otmrcFontBox.bottom // inverted
+    };
+    // otm.Descent: The maximum distance characters in this font extend below
+    // the base line. This is the typographic descent for the font.
+    // Negative from the bottom (font.height)
+    // tm.Descent: The descent (units below the base line) of characters.
+    // Positive from the baseline down
+    rt_assert(tm.tmDescent >= 0 && otm.otmDescent <= 0 &&
+           -otm.otmDescent <= tm.tmDescent,
+           "tm.tmDescent: %d otm.otmDescent: %d", tm.tmDescent, otm.otmDescent);
+    // "Mac" typography is ignored because it's usefulness is unclear.
+    // Italic angle/slant/run is ignored because at the moment edit
+    // view implementation does not support italics and thus does not
+    // need it. Easy to add if necessary.
+}
+
+static void ui_draw_update_fm(ui_fm_t* fm, ui_font_t f) {
+    rt_not_null(f);
+    SIZE em = {0, 0}; // "m"
+    *fm = (ui_fm_t){ .font = f };
+//  ui_draw.dump_fm(f);
+    ui_draw_hdc_with_font(f, {
+        ui_draw_get_fm(hdc, fm);
+        // rt_glyph_nbsp and "M" have the same result
+        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
+        SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
+        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        SIZE e3 = {0}; // Three-Em Dash
+        rt_fatal_win32err(GetTextExtentPoint32A(hdc,
+            rt_glyph_three_em_dash, 1, &e3));
+        fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
+//      rt_println("vl: %d %d", vl.cx, vl.cy);
+//      rt_println("e3: %d %d", e3.cx, e3.cy);
+//      rt_println("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
+//              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
+    });
+    rt_assert(fm->baseline <= fm->height);
+    fm->em = (ui_wh_t){ .w = fm->height, .h = fm->height };
+//  rt_println("fm.em: %dx%d", fm->em.w, fm->em.h);
+}
+
+static int32_t ui_draw_draw_utf16(ui_font_t font, const char* s, int32_t n,
+        RECT* r, uint32_t format) { // ~70 microsecond Core i-7 3667U 2.0 GHz (2012)
+    // if font == null, draws on HDC with selected font
+if (0) {
+    HDC hdc = ui_draw_hdc();
+    if (hdc != null) {
+        SIZE em = {0, 0}; // "M"
+        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
+        rt_println("em: %d %d", em.cx, em.cy);
+        rt_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_em_quad, 1, &em));
+        rt_println("em: %d %d", em.cx, em.cy);
+        SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
+        SIZE e3 = {0}; // Three-Em Dash
+        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
+        rt_println("vl: %d %d", vl.cx, vl.cy);
+        rt_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_three_em_dash, 1, &e3));
+        rt_println("e3: %d %d", e3.cx, e3.cy);
+    }
+}
+    int32_t count = rt_str.utf16_chars(s, -1);
+    rt_assert(0 < count && count < 4096, "be reasonable count: %d?", count);
+    uint16_t ws[4096];
+    rt_swear(count <= rt_countof(ws), "find another way to draw!");
+    rt_str.utf8to16(ws, count, s, -1);
+    int32_t h = 0; // return value is the height of the text
+    if (font != null) {
+        ui_draw_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });
+    } else { // with already selected font
+        ui_draw_with_hdc({ h = DrawTextW(hdc, ws, n, r, format); });
+    }
+    return h;
+}
+
+typedef struct { // draw text parameters
+    const ui_fm_t* fm;
+    ui_color_t color; // resolved text color (dxd draws with it)
+    const char* format; // format string
+    va_list va;
+    RECT rc;
+    uint32_t flags; // flags:
+    // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-drawtextw
+    // DT_CALCRECT DT_NOCLIP useful for measure
+    // DT_END_ELLIPSIS useful for clipping
+    // DT_LEFT, DT_RIGHT, DT_CENTER useful for paragraphs
+    // DT_WORDBREAK is not good (GDI does not break nicely)
+    // DT_BOTTOM, DT_VCENTER limited usability in weird cases (layout is better)
+    // DT_NOPREFIX not to draw underline at "&Keyboard shortcuts
+    // DT_SINGLELINE versus multiline
+} ui_draw_dtp_t;
+
+static void ui_draw_text_draw(ui_draw_dtp_t* p) {
+    rt_not_null(p);
+    char text[4096]; // expected to be enough for single text draw
+    text[0] = 0;
+    rt_str.format_va(text, rt_countof(text), p->format, p->va);
+    text[rt_countof(text) - 1] = 0;
+    int32_t k = (int32_t)rt_str.len(text);
+    if (k > 0) {
+        rt_swear(k > 0 && k < rt_countof(text), "k=%d n=%d fmt=%s", k, p->format);
+        const bool measure_only = (p->flags & DT_CALCRECT) != 0;
+        const bool multiline = (p->flags & DT_SINGLELINE) == 0;
+        const bool mnemonic = (p->flags & DT_NOPREFIX) == 0;
+        const int32_t w = p->rc.right - p->rc.left;
+        ui_wh_t wh = dxd_text(ui_draw_context.dxd, p->fm->font,
+                              p->rc.left, p->rc.top, w, p->color,
+                              text, k, measure_only, multiline, mnemonic);
+        p->rc.right = p->rc.left + wh.w;
+        p->rc.bottom = p->rc.top + wh.h;
+    } else {
+        p->rc.right = p->rc.left;
+        p->rc.bottom = p->rc.top + p->fm->height;
+    }
+}
+
+enum {
+    sl_draw          = DT_LEFT|DT_NOCLIP|DT_SINGLELINE|DT_NOCLIP,
+    sl_measure       = sl_draw|DT_CALCRECT,
+    ml_draw_break    = DT_LEFT|DT_NOPREFIX|DT_NOCLIP|DT_NOFULLWIDTHCHARBREAK|
+                       DT_WORDBREAK,
+    ml_measure_break = ml_draw_break|DT_CALCRECT,
+    ml_draw          = DT_LEFT|DT_NOPREFIX|DT_NOCLIP|DT_NOFULLWIDTHCHARBREAK,
+    ml_measure       = ml_draw|DT_CALCRECT
+};
+
+static ui_wh_t ui_draw_text_with_flags(const ui_ta_t* ta,
+        int32_t x, int32_t y, int32_t w,
+        const char* format, va_list va, uint32_t flags) {
+    const int32_t right = w == 0 ? 0 : x + w;
+    ui_color_t c = ui_colors.transparent; // unused when measuring
+    if (!ta->measure) {
+        c = ta->color;
+        if (ui_color_is_undefined(c)) {
+            rt_swear(ta->color_id > 0);
+            c = ui_colors.get_color(ta->color_id);
+        } else {
+            rt_swear(ta->color_id == 0);
+        }
+    }
+    ui_draw_dtp_t p = {
+        .fm = ta->fm,
+        .color = c,
+        .format = format,
+        .va = va,
+        .rc = {.left = x, .top = y, .right = right, .bottom = 0 },
+        .flags = flags
+    };
+    ui_draw_text_draw(&p);
+    return (ui_wh_t){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
+}
+
+static ui_wh_t ui_draw_text_va(const ui_ta_t* ta,
+        int32_t x, int32_t y,  const char* format, va_list va) {
+    const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
+    return ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
+}
+
+static ui_wh_t ui_draw_text(const ui_ta_t* ta,
+        int32_t x, int32_t y, const char* format, ...) {
+    const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
+    va_list va;
+    va_start(va, format);
+    ui_wh_t wh = ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
+    va_end(va);
+    return wh;
+}
+
+static ui_wh_t ui_draw_multiline_va(const ui_ta_t* ta,
+        int32_t x, int32_t y, int32_t w, const char* format, va_list va) {
+    const uint32_t flags = ta->measure ?
+                            (w <= 0 ? ml_measure : ml_measure_break) :
+                            (w <= 0 ? ml_draw    : ml_draw_break);
+    return ui_draw_text_with_flags(ta, x, y, w, format, va, flags);
+}
+
+static ui_wh_t ui_draw_multiline(const ui_ta_t* ta,
+        int32_t x, int32_t y, int32_t w, const char* format, ...) {
+    va_list va;
+    va_start(va, format);
+    ui_wh_t wh = ui_draw_multiline_va(ta, x, y, w, format, va);
+    va_end(va);
+    return wh;
+}
+
+static ui_wh_t ui_draw_glyphs_placement(const ui_ta_t* ta,
+        const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
+    rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
+    return dxd_glyphs_placement(ta->fm->font, utf8, bytes, x, glyphs);
+}
+
+// to enable load_bitmap() function
+// 1. Add
+//    curl.exe https://raw.githubusercontent.com/nothings/stb/master/stb_bitmap.h stb_bitmap.h
+//    to the project precompile build step
+// 2. After
+//    #define ui_implementation
+//    include "ui/ui.h"
+//    add
+//    #define STBI_ASSERT(x) assert(x)
+//    #define STB_bitmap_IMPLEMENTATION
+//    #include "stb_bitmap.h"
+
+static uint8_t* ui_draw_load_bitmap(const void* data, int32_t bytes, int* w, int* h,
+        int* bytes_per_pixel, int32_t preferred_bytes_per_pixel) {
+    #ifdef STBI_VERSION
+        return stbi_load_from_memory((uint8_t const*)data, bytes, w, h,
+            bytes_per_pixel, preferred_bytes_per_pixel);
+    #else // see instructions above
+        (void)data; (void)bytes; (void)data; (void)w; (void)h;
+        (void)bytes_per_pixel; (void)preferred_bytes_per_pixel;
+        rt_fatal_if(true, "curl.exe --silent --fail --create-dirs "
+            "https://raw.githubusercontent.com/nothings/stb/master/stb_bitmap.h "
+            "--output ext/stb_bitmap.h");
+        return null;
+    #endif
+}
+
+static void ui_draw_bitmap_dispose(ui_bitmap_t* image) {
+    dxd_bitmap_dispose(&image->dxd);
+    rt_fatal_win32err(DeleteBitmap(image->texture));
+    memset(image, 0, sizeof(ui_bitmap_t));
+}
+
+ui_draw_if ui_draw = {
+    .ta = {
+        .prop = {
+            .normal = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.normal,
+                .measure  = false
+            },
+            .title = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.title,
+                .measure  = false
+            },
+            .rubric = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.rubric,
+                .measure  = false
+            },
+            .H1 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.H1,
+                .measure  = false
+            },
+            .H2 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.H2,
+                .measure  = false
+            },
+            .H3 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.prop.H3,
+                .measure  = false
+            }
+        },
+        .mono = {
+            .normal = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.normal,
+                .measure  = false
+            },
+            .title = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.title,
+                .measure  = false
+            },
+            .rubric = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.rubric,
+                .measure  = false
+            },
+            .H1 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.H1,
+                .measure  = false
+            },
+            .H2 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.H2,
+                .measure  = false
+            },
+            .H3 = {
+                .color_id = ui_color_id_window_text,
+                .color    = ui_color_undefined,
+                .fm       = &ui_app.fm.mono.H3,
+                .measure  = false
+            }
+        },
+    },
+    .init                     = ui_draw_init,
+    .begin                    = ui_draw_begin,
+    .end                      = ui_draw_end,
+    .color_rgb                = ui_draw_color_rgb,
+    .bitmap_init              = ui_draw_bitmap_init,
+    .bitmap_init_rgbx         = ui_draw_bitmap_init_rgbx,
+    .bitmap_dispose           = ui_draw_bitmap_dispose,
+    .alpha                    = ui_draw_alpha,
+    .bitmap                   = ui_draw_bitmap,
+    .icon                     = ui_draw_icon,
+    .set_clip                 = ui_draw_set_clip,
+    .pixel                    = ui_draw_pixel,
+    .line                     = ui_draw_line,
+    .frame                    = ui_draw_frame,
+    .rect                     = ui_draw_rect,
+    .fill                     = ui_draw_fill,
+    .poly                     = ui_draw_poly,
+    .circle                   = ui_draw_circle,
+    .rounded                  = ui_draw_rounded,
+    .gradient                 = ui_draw_gradient,
+    .pixels                   = ui_draw_pixels,
+    .greyscale                = ui_draw_greyscale,
+    .bgr                      = ui_draw_bgr,
+    .bgrx                     = ui_draw_bgrx,
+    .cleartype                = ui_draw_cleartype,
+    .font_smoothing_contrast  = ui_draw_font_smoothing_contrast,
+    .create_font              = ui_draw_create_font,
+    .font                     = ui_draw_font,
+    .delete_font              = ui_draw_delete_font,
+    .dump_fm                  = ui_draw_dump_fm,
+    .update_fm                = ui_draw_update_fm,
+    .text_va                  = ui_draw_text_va,
+    .text                     = ui_draw_text,
+    .multiline_va             = ui_draw_multiline_va,
+    .multiline                = ui_draw_multiline,
+    .glyphs_placement         = ui_draw_glyphs_placement,
+    .fini                     = ui_draw_fini
+};
+
+#pragma pop_macro("ui_draw_hdc_with_font")
+#pragma pop_macro("ui_draw_with_hdc")
 // ______________________________ ui_edit_doc.c _______________________________
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
@@ -9387,7 +10415,7 @@ static void ui_edit_text_width_gp(ui_edit_view_t* e, const char* utf8, int32_t b
     rt_println("\"%.*s\" bytes:%d glyphs:%d", bytes, utf8, bytes, glyphs);
     int32_t* x = (int32_t*)rt_stackalloc((glyphs + 1) * sizeof(int32_t));
     const ui_ta_t ta = { .fm = e->fm };
-    ui_wh_t wh = ui_gdi.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
+    ui_wh_t wh = ui_draw.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
 //  rt_println("wh: %dx%d", wh.w, wh.h);
 }
 #endif
@@ -9399,7 +10427,7 @@ static int32_t ui_edit_text_width(ui_edit_view_t* e, const char* s, int32_t n) {
     // "ui_app.fm.prop.normal" ~250us (microseconds) DirectWrite ~100us
     const ui_ta_t ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
-    int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
+    int32_t x = n == 0 ? 0 : ui_draw.text(&ta, 0, 0, "%.*s", n, s).w;
 //  time = (rt_clock.seconds() - time) * 1000.0;
 //  static fp64_t time_sum;
 //  static fp64_t length_sum;
@@ -11066,7 +12094,7 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
             const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
             // event if background is transparent
-            ui_gdi.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), sc);
+            ui_draw.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), sc);
         }
     }
 }
@@ -11087,9 +12115,9 @@ static int32_t ui_edit_paint_paragraph(ui_edit_view_t* e,
             const char* text = str->u + run[j].bp;
             ui_edit_paint_selection(e, y, &run[j], text, pn,
                                     run[j].gp, run[j].gp + run[j].glyphs);
-            ui_gdi.text(ta, x, y, "%.*s", run[j].bytes, text);
+            ui_draw.text(ta, x, y, "%.*s", run[j].bytes, text);
             if (j < runs - 1 && !e->hide_word_wrap) {
-                ui_gdi.text(ta, x + e->edit.w, y, "%s", ww);
+                ui_draw.text(ta, x + e->edit.w, y, "%s", ww);
             }
         }
         y += ui_edit_line_height(e);
@@ -11107,10 +12135,10 @@ static void ui_edit_paint(ui_view_t* v) {
     ui_rect_t rc;
     if (ui.intersect_rect(&rc, &vrc, &ui_app.prc)) {
         // because last line of the view may extend over the bottom
-        ui_gdi.set_clip(v->x, v->y, v->w, v->h);
+        ui_draw.set_clip(v->x, v->y, v->w, v->h);
         ui_color_t b = v->background;
         if (!ui_color_is_undefined(b) && !ui_color_is_transparent(b)) {
-            ui_gdi.fill(rc.x, rc.y, rc.w, rc.h, b);
+            ui_draw.fill(rc.x, rc.y, rc.w, rc.h, b);
         }
         const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
         int32_t x = v->x + insets.left;
@@ -11122,7 +12150,7 @@ static void ui_edit_paint(ui_view_t* v) {
         for (int32_t i = pn; i < dt->np && y < bottom; i++) {
             y = ui_edit_paint_paragraph(e, &ta, x, y, i, rc);
         }
-        ui_gdi.set_clip(0, 0, 0, 0);
+        ui_draw.set_clip(0, 0, 0, 0);
     }
 }
 
@@ -11744,1034 +12772,6 @@ ui_fuzzing_if ui_fuzzing = {
     .custom      = null,
     .stop        = ui_fuzzing_stop
 };
-// _________________________________ ui_gdi.c _________________________________
-
-#include "rt/rt.h"
-#include "rt/rt_win32.h"
-
-#pragma push_macro("ui_gdi_with_hdc")
-#pragma push_macro("ui_gdi_hdc_with_font")
-
-static ui_brush_t  ui_gdi_brush_hollow;
-static ui_brush_t  ui_gdi_brush_color;
-static ui_pen_t    ui_gdi_pen_hollow;
-static ui_region_t ui_gdi_clip;
-
-typedef struct ui_gdi_context_s {
-    HDC hdc; // window canvas() or memory DC
-    int32_t background_mode;
-    int32_t stretch_mode;
-    ui_pen_t pen;
-    ui_font_t font;
-    ui_color_t text_color;
-    POINT brush_origin;
-    ui_brush_t brush;
-    HBITMAP texture;
-    dxd_context_t dxd; // Direct2D draw context for this begin()/end() frame
-} ui_gdi_context_t;
-
-static ui_gdi_context_t ui_gdi_context;
-
-#define ui_gdi_hdc() (ui_gdi_context.hdc)
-
-static void ui_gdi_init(void) {
-    dxd_init();
-}
-
-static void ui_gdi_fini(void) {
-    dxd_fini();
-}
-
-static ui_pen_t ui_gdi_set_pen(ui_pen_t p) {
-    rt_not_null(p);
-    return (ui_pen_t)SelectPen(ui_gdi_hdc(), (HPEN)p);
-}
-
-static ui_brush_t ui_gdi_set_brush(ui_brush_t b) {
-    rt_not_null(b);
-    return (ui_brush_t)SelectBrush(ui_gdi_hdc(), b);
-}
-
-static uint32_t ui_gdi_color_rgb(ui_color_t c) {
-    rt_assert(ui_color_is_8bit(c));
-    return (COLORREF)(c & 0xFFFFFFFF);
-}
-
-static COLORREF ui_gdi_color_ref(ui_color_t c) {
-    return ui_gdi.color_rgb(c);
-}
-
-static ui_color_t ui_gdi_set_text_color(ui_color_t c) {
-    return SetTextColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
-}
-
-static ui_font_t ui_gdi_set_font(ui_font_t f) {
-    rt_not_null(f);
-    return (ui_font_t)SelectFont(ui_gdi_hdc(), (HFONT)f);
-}
-
-static void ui_gdi_begin(ui_bitmap_t* image) {
-    rt_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
-    if (image != null) {
-        rt_swear(image->texture != null);
-        ui_gdi_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
-        ui_gdi_context.texture = SelectBitmap(ui_gdi_hdc(),
-                                             (HBITMAP)image->texture);
-    } else {
-        ui_gdi_context.hdc = (HDC)ui_app.canvas;
-        rt_swear(ui_gdi_context.texture == null);
-    }
-    ui_gdi_context.text_color = ui_colors.get_color(ui_color_id_window_text);
-    ui_rect_t rc = image != null ?
-        (ui_rect_t){ 0, 0, image->w, image->h } :
-        (ui_rect_t){ 0, 0, ui_app.crc.w, ui_app.crc.h };
-    ui_gdi_context.dxd = dxd_begin(ui_gdi_context.hdc, &rc);
-}
-
-static void ui_gdi_end(void) {
-    if (ui_gdi_context.dxd != null) {
-        dxd_end(ui_gdi_context.dxd);
-        ui_gdi_context.dxd = null;
-    }
-    if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
-        rt_swear(ui_gdi_context.texture != null); // 1x1 bitmap
-        SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.texture);
-        rt_fatal_win32err(DeleteDC(ui_gdi_context.hdc));
-    }
-    memset(&ui_gdi_context, 0x00, sizeof(ui_gdi_context));
-}
-
-static ui_pen_t ui_gdi_set_colored_pen(ui_color_t c) {
-    ui_pen_t p = (ui_pen_t)SelectPen(ui_gdi_hdc(), GetStockPen(DC_PEN));
-    SetDCPenColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
-    return p;
-}
-
-static ui_pen_t ui_gdi_create_pen(ui_color_t c, int32_t width) {
-    rt_assert(width >= 1);
-    ui_pen_t pen = (ui_pen_t)CreatePen(PS_SOLID, width, ui_gdi_color_ref(c));
-    rt_not_null(pen);
-    return pen;
-}
-
-static void ui_gdi_delete_pen(ui_pen_t p) {
-    rt_fatal_win32err(DeletePen(p));
-}
-
-static ui_brush_t ui_gdi_create_brush(ui_color_t c) {
-    return (ui_brush_t)CreateSolidBrush(ui_gdi_color_ref(c));
-}
-
-static void ui_gdi_delete_brush(ui_brush_t b) {
-    DeleteBrush((HBRUSH)b);
-}
-
-static ui_color_t ui_gdi_set_brush_color(ui_color_t c) {
-    return SetDCBrushColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
-}
-
-static void ui_gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
-    dxd_set_clip(ui_gdi_context.dxd, x, y, w, h);
-}
-
-static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
-    dxd_pixel(ui_gdi_context.dxd, x, y, c);
-}
-
-static void ui_gdi_rectangle(int32_t x, int32_t y, int32_t w, int32_t h) {
-    rt_fatal_win32err(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h));
-}
-
-static void ui_gdi_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
-        ui_color_t c) {
-    dxd_line(ui_gdi_context.dxd, x0, y0, x1, y1, c);
-}
-
-static void ui_gdi_frame(int32_t x, int32_t y, int32_t w, int32_t h,
-        ui_color_t c) {
-    dxd_frame(ui_gdi_context.dxd, x, y, w, h, c);
-}
-
-static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h,
-        ui_color_t border, ui_color_t fill) {
-    dxd_rect(ui_gdi_context.dxd, x, y, w, h, border, fill);
-}
-
-static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h,
-        ui_color_t c) {
-    dxd_fill(ui_gdi_context.dxd, x, y, w, h, c);
-}
-
-static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
-    dxd_poly(ui_gdi_context.dxd, points, count, c);
-}
-
-static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
-        ui_color_t border, ui_color_t fill) {
-    dxd_circle(ui_gdi_context.dxd, x, y, radius, border, fill);
-}
-
-static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t radius, ui_color_t fill) {
-    int32_t r = x + w - 1; // right
-    int32_t b = y + h - 1; // bottom
-    ui_gdi_circle(x + radius, y + radius, radius, fill, fill);
-    ui_gdi_circle(r - radius, y + radius, radius, fill, fill);
-    ui_gdi_circle(x + radius, b - radius, radius, fill, fill);
-    ui_gdi_circle(r - radius, b - radius, radius, fill, fill);
-    // rectangles
-    ui_gdi.fill(x + radius, y, w - radius * 2, h, fill);
-    r = x + w - radius;
-    ui_gdi.fill(x, y + radius, radius, h - radius * 2, fill);
-    ui_gdi.fill(r, y + radius, radius, h - radius * 2, fill);
-}
-
-static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t radius, ui_color_t border) {
-    {
-        int32_t r = x + w - 1; // right
-        int32_t b = y + h - 1; // bottom
-        ui_gdi.set_clip(x, y, radius + 1, radius + 1);
-        ui_gdi_circle(x + radius, y + radius, radius, border, ui_colors.transparent);
-        ui_gdi.set_clip(r - radius, y, radius + 1, radius + 1);
-        ui_gdi_circle(r - radius, y + radius, radius, border, ui_colors.transparent);
-        ui_gdi.set_clip(x, b - radius, radius + 1, radius + 1);
-        ui_gdi_circle(x + radius, b - radius, radius, border, ui_colors.transparent);
-        ui_gdi.set_clip(r - radius, b - radius, radius + 1, radius + 1);
-        ui_gdi_circle(r - radius, b - radius, radius, border, ui_colors.transparent);
-        ui_gdi.set_clip(0, 0, 0, 0);
-    }
-    {
-        int32_t r = x + w - 1; // right
-        int32_t b = y + h - 1; // bottom
-        ui_gdi.line(x + radius, y, r - radius + 1, y, border);
-        ui_gdi.line(x + radius, b, r - radius + 1, b, border);
-        ui_gdi.line(x - 1, y + radius, x - 1, b - radius + 1, border);
-        ui_gdi.line(r + 1, y + radius, r + 1, b - radius + 1, border);
-    }
-}
-
-static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
-        int32_t radius, ui_color_t border, ui_color_t fill) {
-    dxd_rounded(ui_gdi_context.dxd, x, y, w, h, radius, border, fill);
-}
-
-static void ui_gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
-        ui_color_t rgba_from, ui_color_t rgba_to, bool vertical) {
-    dxd_gradient(ui_gdi_context.dxd, x, y, w, h, rgba_from, rgba_to, vertical);
-}
-
-static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
-    typedef struct bitmap_rgb_s {
-        BITMAPINFO bi;
-        RGBQUAD rgb[256];
-    } bitmap_rgb_t;
-    static bitmap_rgb_t storage; // for gs palette
-    static BITMAPINFO* bi = &storage.bi;
-    BITMAPINFOHEADER* bih = &bi->bmiHeader;
-    if (bih->biSize == 0) { // once
-        bih->biSize = sizeof(BITMAPINFOHEADER);
-        for (int32_t i = 0; i < 256; i++) {
-            RGBQUAD* q = &bi->bmiColors[i];
-            q->rgbReserved = 0;
-            q->rgbBlue = q->rgbGreen = q->rgbRed = (uint8_t)i;
-        }
-        bih->biPlanes = 1;
-        bih->biBitCount = 8;
-        bih->biCompression = BI_RGB;
-        bih->biClrUsed = 256;
-        bih->biClrImportant = 256;
-    }
-    return bi;
-}
-
-static void ui_gdi_pixels(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
-        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        int32_t width, int32_t height, int32_t stride,
-        int32_t bpp, const uint8_t* pixels) {
-    if (bpp == 1) {
-        ui_gdi.greyscale(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
-    } else if (bpp == 3) {
-        ui_gdi.bgr(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
-    } else if (bpp == 4) {
-        ui_gdi.bgrx(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
-    } else {
-        rt_fatal("bpp: %d not {1, 3, 4}", bpp);
-    }
-}
-
-static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
-        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              width, height, stride, 1, pixels, 1.0, false);
-}
-
-static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
-    rt_assert(w > 0 && h >= 0); // h cannot be negative?
-    BITMAPINFOHEADER bi = {
-        .biSize = sizeof(BITMAPINFOHEADER),
-        .biPlanes = 1,
-        .biBitCount = (uint16_t)(bpp * 8),
-        .biCompression = BI_RGB,
-        .biWidth = w,
-        .biHeight = -h, // top down image
-        .biSizeImage = (DWORD)(w * abs(h) * bpp),
-        .biClrUsed = 0,
-        .biClrImportant = 0
-   };
-   return bi;
-}
-
-// bgr(width) assumes strides are padded and rounded up to 4 bytes
-// if this is not the case use ui_gdi.bitmap_init() that will unpack
-// and align scanlines prior to draw
-
-static void ui_gdi_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
-        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        int32_t width, int32_t height, int32_t stride,
-        const uint8_t* pixels) {
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              width, height, stride, 3, pixels, 1.0, false);
-}
-
-static void ui_gdi_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
-        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        int32_t width, int32_t height, int32_t stride,
-        const uint8_t* pixels) {
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
-              width, height, stride, 4, pixels, 1.0, false);
-}
-
-static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
-        BITMAPINFO* bi) {
-    rt_assert(w > 0 && h >= 0); // h cannot be negative?
-    bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-    bi->bmiHeader.biWidth = w;
-    bi->bmiHeader.biHeight = -h;  // top down image
-    bi->bmiHeader.biPlanes = 1;
-    bi->bmiHeader.biBitCount = (uint16_t)(bpp * 8);
-    bi->bmiHeader.biCompression = BI_RGB;
-    bi->bmiHeader.biSizeImage = (DWORD)(w * abs(h) * bpp);
-    return bi;
-}
-
-static void ui_gdi_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
-        int32_t bpp) {
-    rt_fatal_if(image->texture != null, "bitmap_dispose() not called?");
-    // not using GetWindowDC(ui_app.window) will allow to initialize images
-    // before window is created
-    HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
-    BITMAPINFO local = { {sizeof(BITMAPINFOHEADER)} };
-    BITMAPINFO* bi = bpp == 1 ? ui_gdi_greyscale_bitmap_info() : &local;
-    image->texture = (ui_texture_t)CreateDIBSection(c, 
-            ui_gdi_init_bitmap_info(w, h, bpp, bi),
-            DIB_RGB_COLORS, &image->pixels, null, 0x0
-    );
-    rt_fatal_if(image->texture == null || image->pixels == null);
-    rt_fatal_win32err(DeleteDC(c));
-}
-
-static void ui_gdi_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
-        int32_t bpp, const uint8_t* pixels) {
-    bool swapped = bpp < 0;
-    bpp = abs(bpp);
-    rt_fatal_if(bpp != 4, "bpp: %d", bpp);
-    ui_gdi_create_dib_section(image, w, h, bpp);
-    const int32_t stride = (w * bpp + 3) & ~0x3;
-    uint8_t* scanline = image->pixels;
-    const uint8_t* rgbx = pixels;
-    if (!swapped) {
-        for (int32_t y = 0; y < h; y++) {
-            uint8_t* bgra = scanline;
-            for (int32_t x = 0; x < w; x++) {
-                bgra[0] = rgbx[2];
-                bgra[1] = rgbx[1];
-                bgra[2] = rgbx[0];
-                bgra[3] = 0xFF;
-                bgra += 4;
-                rgbx += 4;
-            }
-            pixels += w * 4;
-            scanline += stride;
-        }
-    } else {
-        for (int32_t y = 0; y < h; y++) {
-            uint8_t* bgra = scanline;
-            for (int32_t x = 0; x < w; x++) {
-                bgra[0] = rgbx[0];
-                bgra[1] = rgbx[1];
-                bgra[2] = rgbx[2];
-                bgra[3] = 0xFF;
-                bgra += 4;
-                rgbx += 4;
-            }
-            pixels += w * 4;
-            scanline += stride;
-        }
-    }
-    image->w = w;
-    image->h = h;
-    image->bpp = bpp;
-    image->stride = stride;
-}
-
-static void ui_gdi_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
-        const uint8_t* pixels) {
-    bool swapped = bpp < 0;
-    bpp = abs(bpp);
-    rt_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
-    ui_gdi_create_dib_section(image, w, h, bpp);
-    // Win32 bitmaps stride is rounded up to 4 bytes
-    const int32_t stride = (w * bpp + 3) & ~0x3;
-    uint8_t* scanline = image->pixels;
-    if (bpp == 1) {
-        for (int32_t y = 0; y < h; y++) {
-            memcpy(scanline, pixels, (size_t)w);
-            pixels += w;
-            scanline += stride;
-        }
-    } else if (bpp == 3 && !swapped) {
-        const uint8_t* rgb = pixels;
-        for (int32_t y = 0; y < h; y++) {
-            uint8_t* bgr = scanline;
-            for (int32_t x = 0; x < w; x++) {
-                bgr[0] = rgb[2];
-                bgr[1] = rgb[1];
-                bgr[2] = rgb[0];
-                bgr += 3;
-                rgb += 3;
-            }
-            pixels += w * bpp;
-            scanline += stride;
-        }
-    } else if (bpp == 3 && swapped) {
-        const uint8_t* rgb = pixels;
-        for (int32_t y = 0; y < h; y++) {
-            uint8_t* bgr = scanline;
-            for (int32_t x = 0; x < w; x++) {
-                bgr[0] = rgb[0];
-                bgr[1] = rgb[1];
-                bgr[2] = rgb[2];
-                bgr += 3;
-                rgb += 3;
-            }
-            pixels += w * bpp;
-            scanline += stride;
-        }
-    } else if (bpp == 4 && !swapped) {
-        // premultiply alpha, see:
-        // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
-        const uint8_t* rgba = pixels;
-        for (int32_t y = 0; y < h; y++) {
-            uint8_t* bgra = scanline;
-            for (int32_t x = 0; x < w; x++) {
-                int32_t alpha = rgba[3];
-                bgra[0] = (uint8_t)(rgba[2] * alpha / 255);
-                bgra[1] = (uint8_t)(rgba[1] * alpha / 255);
-                bgra[2] = (uint8_t)(rgba[0] * alpha / 255);
-                bgra[3] = rgba[3];
-                bgra += 4;
-                rgba += 4;
-            }
-            pixels += w * 4;
-            scanline += stride;
-        }
-    } else if (bpp == 4 && swapped) {
-        // premultiply alpha, see:
-        // https://stackoverflow.com/questions/24595717/alphablend-generating-incorrect-colors
-        const uint8_t* rgba = pixels;
-        for (int32_t y = 0; y < h; y++) {
-            uint8_t* bgra = scanline;
-            for (int32_t x = 0; x < w; x++) {
-                int32_t alpha = rgba[3];
-                bgra[0] = (uint8_t)(rgba[0] * alpha / 255);
-                bgra[1] = (uint8_t)(rgba[1] * alpha / 255);
-                bgra[2] = (uint8_t)(rgba[2] * alpha / 255);
-                bgra[3] = rgba[3];
-                bgra += 4;
-                rgba += 4;
-            }
-            pixels += w * 4;
-            scanline += stride;
-        }
-    }
-    image->w = w;
-    image->h = h;
-    image->bpp = bpp;
-    image->stride = stride;
-}
-
-static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
-        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* image, fp64_t alpha) {
-    rt_assert(image->bpp > 0);
-    rt_assert(0 <= alpha && alpha <= 1);
-    dxd_image_cached(ui_gdi_context.dxd, &image->dxd, dx, dy, dw, dh,
-              ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
-              (const uint8_t*)image->pixels, alpha, true);
-}
-
-static void ui_gdi_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
-        int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* image) {
-    rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
-    dxd_image_cached(ui_gdi_context.dxd, &image->dxd, dx, dy, dw, dh,
-              ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
-              (const uint8_t*)image->pixels, 1.0, false);
-}
-
-static void ui_gdi_icon(int32_t x, int32_t y, int32_t w, int32_t h,
-        ui_icon_t icon) {
-    DrawIconEx(ui_gdi_hdc(), x, y, (HICON)icon, w, h, 0, NULL, DI_NORMAL | DI_COMPAT);
-}
-
-static void ui_gdi_cleartype(bool on) {
-    enum { spif = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE };
-    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
-                                                   true, 0, spif));
-    uintptr_t s = on ? FE_FONTSMOOTHINGCLEARTYPE : FE_FONTSMOOTHINGSTANDARD;
-    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGTYPE,
-        0, (void*)s, spif));
-}
-
-static void ui_gdi_font_smoothing_contrast(int32_t c) {
-    rt_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
-    if (c == -1) { c = 1400; }
-    rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
-        0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
-}
-
-rt_static_assertion(ui_font_quality_default == DEFAULT_QUALITY);
-rt_static_assertion(ui_font_quality_draft == DRAFT_QUALITY);
-rt_static_assertion(ui_font_quality_proof == PROOF_QUALITY);
-rt_static_assertion(ui_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
-rt_static_assertion(ui_font_quality_antialiased == ANTIALIASED_QUALITY);
-rt_static_assertion(ui_font_quality_cleartype == CLEARTYPE_QUALITY);
-rt_static_assertion(ui_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
-
-static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
-    rt_assert(h > 0);
-    LOGFONTA lf = {0};
-    int32_t n = GetObjectA(ui_app.fm.prop.normal.font, sizeof(lf), &lf);
-    rt_fatal_if(n != (int32_t)sizeof(lf));
-    lf.lfHeight = -h;
-    rt_str_printf(lf.lfFaceName, "%s", family);
-    if (ui_font_quality_default <= q &&
-        q <= ui_font_quality_cleartype_natural) {
-        lf.lfQuality = (uint8_t)q;
-    } else {
-        rt_fatal_if(q != -1, "use -1 for do not care quality");
-    }
-    return (ui_font_t)CreateFontIndirectA(&lf);
-}
-
-static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
-    rt_assert(f != null && h > 0);
-    LOGFONTA lf = {0};
-    int32_t n = GetObjectA(f, sizeof(lf), &lf);
-    rt_fatal_if(n != (int32_t)sizeof(lf));
-    lf.lfHeight = -h;
-    if (ui_font_quality_default <= q &&
-        q <= ui_font_quality_cleartype_natural) {
-        lf.lfQuality = (uint8_t)q;
-    } else {
-        rt_fatal_if(q != -1, "use -1 for do not care quality");
-    }
-    return (ui_font_t)CreateFontIndirectA(&lf);
-}
-
-static void ui_gdi_delete_font(ui_font_t f) {
-    rt_fatal_win32err(DeleteFont(f));
-}
-
-// guaranteed to return dc != null even if not painting
-
-static HDC ui_gdi_get_dc(void) {
-    // ui_app.window may be null in early init (font metrics before the
-    // main window exists). GetDC(null) is documented to return the
-    // screen DC, but on some Windows hosts (observed on mb-air-2012)
-    // it returns null. Fall back to CreateICA which produces a
-    // non-drawable Information Context for the display — adequate
-    // for the measurement-only callers that hit this path.
-    HDC hdc = ui_gdi_hdc() != null ?
-              ui_gdi_hdc() : GetDC((HWND)ui_app.window);
-    if (hdc == null && ui_app.window == null) {
-        hdc = CreateICA("DISPLAY", null, null, null);
-    }
-    rt_not_null(hdc);
-    return hdc;
-}
-
-static void ui_gdi_release_dc(HDC hdc) {
-    if (ui_gdi_hdc() == null) {
-        // ReleaseDC pairs with GetDC for window DCs but is the wrong
-        // call for an Information Context produced by CreateICA. When
-        // ReleaseDC fails (returns 0) we are looking at the ICA-
-        // fallback path from get_dc above and DeleteDC is the correct
-        // disposal.
-        if (!ReleaseDC((HWND)ui_app.window, hdc)) {
-            DeleteDC(hdc);
-        }
-    }
-}
-
-#define ui_gdi_with_hdc(code) do {           \
-    HDC hdc = ui_gdi_get_dc();               \
-    code                                     \
-    ui_gdi_release_dc(hdc);                  \
-} while (0)
-
-#define ui_gdi_hdc_with_font(f, ...) do {    \
-    rt_not_null(f);                          \
-    HDC hdc = ui_gdi_get_dc();               \
-    HFONT font_ = SelectFont(hdc, (HFONT)f); \
-    { __VA_ARGS__ }                          \
-    SelectFont(hdc, font_);                  \
-    ui_gdi_release_dc(hdc);                  \
-} while (0)
-
-static void ui_gdi_dump_hdc_fm(HDC hdc) {
-    // https://en.wikipedia.org/wiki/Quad_(typography)
-    // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
-    // https://stackoverflow.com/questions/27631736/meaning-of-top-ascent-baseline-descent-bottom-and-leading-in-androids-font
-    // Amazingly same since Windows 3.1 1992
-    // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-textmetrica
-    // https://learn.microsoft.com/en-us/windows/win32/api/wingdi/ns-wingdi-outlinetextmetrica
-    TEXTMETRICA tm = {0};
-    rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
-    char pitch[64] = { 0 };
-    if (tm.tmPitchAndFamily & TMPF_FIXED_PITCH) { strcat(pitch, "FIXED_PITCH "); }
-    if (tm.tmPitchAndFamily & TMPF_VECTOR)      { strcat(pitch, "VECTOR "); }
-    if (tm.tmPitchAndFamily & TMPF_DEVICE)      { strcat(pitch, "DEVICE "); }
-    if (tm.tmPitchAndFamily & TMPF_TRUETYPE)    { strcat(pitch, "TRUETYPE "); }
-    rt_println("tm: .pitch_and_family: %s", pitch);
-    rt_println(".height            : %2d   .ascent (baseline) : %2d  .descent: %2d",
-            tm.tmHeight, tm.tmAscent, tm.tmDescent);
-    rt_println(".internal_leading  : %2d   .external_leading  : %2d  .ave_char_width: %2d",
-            tm.tmInternalLeading, tm.tmExternalLeading, tm.tmAveCharWidth);
-    rt_println(".max_char_width    : %2d   .weight            : %2d .overhang: %2d",
-            tm.tmMaxCharWidth, tm.tmWeight, tm.tmOverhang);
-    rt_println(".digitized_aspect_x: %2d   .digitized_aspect_y: %2d",
-            tm.tmDigitizedAspectX, tm.tmDigitizedAspectY);
-    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
-    OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
-    uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
-    // unsupported XHeight CapEmHeight
-    // ignored:    MacDescent, MacLineGap, EMSquare, ItalicAngle
-    //             CharSlopeRise, CharSlopeRun, ItalicAngle
-    rt_println("otm: .Ascent       : %2d   .Descent        : %2d",
-            otm.otmAscent, otm.otmDescent);
-    rt_println(".otmLineGap        : %2u", otm.otmLineGap);
-    rt_println(".FontBox.ltrb      :  %d,%d %2d,%2d",
-            otm.otmrcFontBox.left, otm.otmrcFontBox.top,
-            otm.otmrcFontBox.right, otm.otmrcFontBox.bottom);
-    rt_println(".MinimumPPEM       : %2u    (minimum height in pixels)",
-            otm.otmusMinimumPPEM);
-    rt_println(".SubscriptOffset   : %d,%d  .SubscriptSize.x   : %dx%d",
-            otm.otmptSubscriptOffset.x, otm.otmptSubscriptOffset.y,
-            otm.otmptSubscriptSize.x, otm.otmptSubscriptSize.y);
-    rt_println(".SuperscriptOffset : %d,%d  .SuperscriptSize.x : %dx%d",
-            otm.otmptSuperscriptOffset.x, otm.otmptSuperscriptOffset.y,
-            otm.otmptSuperscriptSize.x,   otm.otmptSuperscriptSize.y);
-    rt_println(".UnderscoreSize    : %2d   .UnderscorePosition: %2d",
-            otm.otmsUnderscoreSize, otm.otmsUnderscorePosition);
-    rt_println(".StrikeoutSize     : %2u   .StrikeoutPosition : %2d ",
-            otm.otmsStrikeoutSize,  otm.otmsStrikeoutPosition);
-    int32_t h = otm.otmAscent + abs(tm.tmDescent); // without diacritical space above
-    fp32_t pts = (h * 72.0f)  / GetDeviceCaps(hdc, LOGPIXELSY);
-    rt_println("height: %.1fpt", pts);
-}
-
-static void ui_gdi_dump_fm(ui_font_t f) {
-    rt_not_null(f);
-    ui_gdi_hdc_with_font(f, { ui_gdi_dump_hdc_fm(hdc); });
-}
-
-static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
-    TEXTMETRICA tm = {0};
-    rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
-    rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
-    OUTLINETEXTMETRICA otm = { .otmSize = sizeof(OUTLINETEXTMETRICA) };
-    uint32_t bytes = GetOutlineTextMetricsA(hdc, otm.otmSize, &otm);
-    rt_swear(bytes == sizeof(OUTLINETEXTMETRICA));
-    // "tm.tmAscent" The ascent (units above the base line) of characters
-    // and actually is "baseline" in other terminology
-    // "otm.otmAscent" The maximum distance characters in this font extend
-    // above the base line. This is the typographic ascent for the font.
-    // otm.otmEMSquare usually is 2048 which is size of rasterizer
-    fm->height   = tm.tmHeight;
-    fm->baseline = tm.tmAscent;
-    fm->ascent   = otm.otmAscent;
-    fm->descent  = tm.tmDescent;
-    fm->baseline = tm.tmAscent;
-    fm->x_height = otm.otmsXHeight;
-    fm->cap_em_height = otm.otmsCapEmHeight;
-    fm->internal_leading = tm.tmInternalLeading;
-    fm->external_leading = tm.tmExternalLeading;
-    fm->average_char_width = tm.tmAveCharWidth;
-    fm->max_char_width = tm.tmMaxCharWidth;
-    fm->line_gap = otm.otmLineGap;
-    fm->subscript.w = otm.otmptSubscriptSize.x;
-    fm->subscript.h = otm.otmptSubscriptSize.y;
-    fm->subscript_offset.x = otm.otmptSubscriptOffset.x;
-    fm->subscript_offset.y = otm.otmptSubscriptOffset.y;
-    fm->superscript.w = otm.otmptSuperscriptSize.x;
-    fm->superscript.h = otm.otmptSuperscriptSize.y;
-    fm->superscript_offset.x = otm.otmptSuperscriptOffset.x;
-    fm->superscript_offset.y = otm.otmptSuperscriptOffset.y;
-    fm->underscore = otm.otmsUnderscoreSize;
-    fm->underscore_position = otm.otmsUnderscorePosition;
-    fm->strike_through = otm.otmsStrikeoutSize;
-    fm->strike_through_position = otm.otmsStrikeoutPosition;
-    fm->design_units_per_em = (int)otm.otmEMSquare;
-    fm->box = (ui_rect_t){
-                otm.otmrcFontBox.left, otm.otmrcFontBox.top,
-                otm.otmrcFontBox.right - otm.otmrcFontBox.left,
-                otm.otmrcFontBox.top - otm.otmrcFontBox.bottom // inverted
-    };
-    // otm.Descent: The maximum distance characters in this font extend below
-    // the base line. This is the typographic descent for the font.
-    // Negative from the bottom (font.height)
-    // tm.Descent: The descent (units below the base line) of characters.
-    // Positive from the baseline down
-    rt_assert(tm.tmDescent >= 0 && otm.otmDescent <= 0 &&
-           -otm.otmDescent <= tm.tmDescent,
-           "tm.tmDescent: %d otm.otmDescent: %d", tm.tmDescent, otm.otmDescent);
-    // "Mac" typography is ignored because it's usefulness is unclear.
-    // Italic angle/slant/run is ignored because at the moment edit
-    // view implementation does not support italics and thus does not
-    // need it. Easy to add if necessary.
-}
-
-static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
-    rt_not_null(f);
-    SIZE em = {0, 0}; // "m"
-    *fm = (ui_fm_t){ .font = f };
-//  ui_gdi.dump_fm(f);
-    ui_gdi_hdc_with_font(f, {
-        ui_gdi_get_fm(hdc, fm);
-        // rt_glyph_nbsp and "M" have the same result
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
-        SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        SIZE e3 = {0}; // Three-Em Dash
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc,
-            rt_glyph_three_em_dash, 1, &e3));
-        fm->mono = em.cx == vl.cx && vl.cx == e3.cx;
-//      rt_println("vl: %d %d", vl.cx, vl.cy);
-//      rt_println("e3: %d %d", e3.cx, e3.cy);
-//      rt_println("fm->mono: %d height: %d baseline: %d ascent: %d descent: %d",
-//              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
-    });
-    rt_assert(fm->baseline <= fm->height);
-    fm->em = (ui_wh_t){ .w = fm->height, .h = fm->height };
-//  rt_println("fm.em: %dx%d", fm->em.w, fm->em.h);
-}
-
-static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
-        RECT* r, uint32_t format) { // ~70 microsecond Core i-7 3667U 2.0 GHz (2012)
-    // if font == null, draws on HDC with selected font
-if (0) {
-    HDC hdc = ui_gdi_hdc();
-    if (hdc != null) {
-        SIZE em = {0, 0}; // "M"
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
-        rt_println("em: %d %d", em.cx, em.cy);
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_em_quad, 1, &em));
-        rt_println("em: %d %d", em.cx, em.cy);
-        SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
-        SIZE e3 = {0}; // Three-Em Dash
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, "|", 1, &vl));
-        rt_println("vl: %d %d", vl.cx, vl.cy);
-        rt_fatal_win32err(GetTextExtentPoint32A(hdc, rt_glyph_three_em_dash, 1, &e3));
-        rt_println("e3: %d %d", e3.cx, e3.cy);
-    }
-}
-    int32_t count = rt_str.utf16_chars(s, -1);
-    rt_assert(0 < count && count < 4096, "be reasonable count: %d?", count);
-    uint16_t ws[4096];
-    rt_swear(count <= rt_countof(ws), "find another way to draw!");
-    rt_str.utf8to16(ws, count, s, -1);
-    int32_t h = 0; // return value is the height of the text
-    if (font != null) {
-        ui_gdi_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });
-    } else { // with already selected font
-        ui_gdi_with_hdc({ h = DrawTextW(hdc, ws, n, r, format); });
-    }
-    return h;
-}
-
-typedef struct { // draw text parameters
-    const ui_fm_t* fm;
-    ui_color_t color; // resolved text color (dxd draws with it)
-    const char* format; // format string
-    va_list va;
-    RECT rc;
-    uint32_t flags; // flags:
-    // https://docs.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-drawtextw
-    // DT_CALCRECT DT_NOCLIP useful for measure
-    // DT_END_ELLIPSIS useful for clipping
-    // DT_LEFT, DT_RIGHT, DT_CENTER useful for paragraphs
-    // DT_WORDBREAK is not good (GDI does not break nicely)
-    // DT_BOTTOM, DT_VCENTER limited usability in weird cases (layout is better)
-    // DT_NOPREFIX not to draw underline at "&Keyboard shortcuts
-    // DT_SINGLELINE versus multiline
-} ui_gdi_dtp_t;
-
-static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
-    rt_not_null(p);
-    char text[4096]; // expected to be enough for single text draw
-    text[0] = 0;
-    rt_str.format_va(text, rt_countof(text), p->format, p->va);
-    text[rt_countof(text) - 1] = 0;
-    int32_t k = (int32_t)rt_str.len(text);
-    if (k > 0) {
-        rt_swear(k > 0 && k < rt_countof(text), "k=%d n=%d fmt=%s", k, p->format);
-        const bool measure_only = (p->flags & DT_CALCRECT) != 0;
-        const bool multiline = (p->flags & DT_SINGLELINE) == 0;
-        const bool mnemonic = (p->flags & DT_NOPREFIX) == 0;
-        const int32_t w = p->rc.right - p->rc.left;
-        ui_wh_t wh = dxd_text(ui_gdi_context.dxd, p->fm->font,
-                              p->rc.left, p->rc.top, w, p->color,
-                              text, k, measure_only, multiline, mnemonic);
-        p->rc.right = p->rc.left + wh.w;
-        p->rc.bottom = p->rc.top + wh.h;
-    } else {
-        p->rc.right = p->rc.left;
-        p->rc.bottom = p->rc.top + p->fm->height;
-    }
-}
-
-enum {
-    sl_draw          = DT_LEFT|DT_NOCLIP|DT_SINGLELINE|DT_NOCLIP,
-    sl_measure       = sl_draw|DT_CALCRECT,
-    ml_draw_break    = DT_LEFT|DT_NOPREFIX|DT_NOCLIP|DT_NOFULLWIDTHCHARBREAK|
-                       DT_WORDBREAK,
-    ml_measure_break = ml_draw_break|DT_CALCRECT,
-    ml_draw          = DT_LEFT|DT_NOPREFIX|DT_NOCLIP|DT_NOFULLWIDTHCHARBREAK,
-    ml_measure       = ml_draw|DT_CALCRECT
-};
-
-static ui_wh_t ui_gdi_text_with_flags(const ui_ta_t* ta,
-        int32_t x, int32_t y, int32_t w,
-        const char* format, va_list va, uint32_t flags) {
-    const int32_t right = w == 0 ? 0 : x + w;
-    ui_color_t c = ui_colors.transparent; // unused when measuring
-    if (!ta->measure) {
-        c = ta->color;
-        if (ui_color_is_undefined(c)) {
-            rt_swear(ta->color_id > 0);
-            c = ui_colors.get_color(ta->color_id);
-        } else {
-            rt_swear(ta->color_id == 0);
-        }
-    }
-    ui_gdi_dtp_t p = {
-        .fm = ta->fm,
-        .color = c,
-        .format = format,
-        .va = va,
-        .rc = {.left = x, .top = y, .right = right, .bottom = 0 },
-        .flags = flags
-    };
-    ui_gdi_text_draw(&p);
-    return (ui_wh_t){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
-}
-
-static ui_wh_t ui_gdi_text_va(const ui_ta_t* ta,
-        int32_t x, int32_t y,  const char* format, va_list va) {
-    const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
-    return ui_gdi_text_with_flags(ta, x, y, 0, format, va, flags);
-}
-
-static ui_wh_t ui_gdi_text(const ui_ta_t* ta,
-        int32_t x, int32_t y, const char* format, ...) {
-    const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
-    va_list va;
-    va_start(va, format);
-    ui_wh_t wh = ui_gdi_text_with_flags(ta, x, y, 0, format, va, flags);
-    va_end(va);
-    return wh;
-}
-
-static ui_wh_t ui_gdi_multiline_va(const ui_ta_t* ta,
-        int32_t x, int32_t y, int32_t w, const char* format, va_list va) {
-    const uint32_t flags = ta->measure ?
-                            (w <= 0 ? ml_measure : ml_measure_break) :
-                            (w <= 0 ? ml_draw    : ml_draw_break);
-    return ui_gdi_text_with_flags(ta, x, y, w, format, va, flags);
-}
-
-static ui_wh_t ui_gdi_multiline(const ui_ta_t* ta,
-        int32_t x, int32_t y, int32_t w, const char* format, ...) {
-    va_list va;
-    va_start(va, format);
-    ui_wh_t wh = ui_gdi_multiline_va(ta, x, y, w, format, va);
-    va_end(va);
-    return wh;
-}
-
-static ui_wh_t ui_gdi_glyphs_placement(const ui_ta_t* ta,
-        const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
-    rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
-    return dxd_glyphs_placement(ta->fm->font, utf8, bytes, x, glyphs);
-}
-
-// to enable load_bitmap() function
-// 1. Add
-//    curl.exe https://raw.githubusercontent.com/nothings/stb/master/stb_bitmap.h stb_bitmap.h
-//    to the project precompile build step
-// 2. After
-//    #define ui_implementation
-//    include "ui/ui.h"
-//    add
-//    #define STBI_ASSERT(x) assert(x)
-//    #define STB_bitmap_IMPLEMENTATION
-//    #include "stb_bitmap.h"
-
-static uint8_t* ui_gdi_load_bitmap(const void* data, int32_t bytes, int* w, int* h,
-        int* bytes_per_pixel, int32_t preferred_bytes_per_pixel) {
-    #ifdef STBI_VERSION
-        return stbi_load_from_memory((uint8_t const*)data, bytes, w, h,
-            bytes_per_pixel, preferred_bytes_per_pixel);
-    #else // see instructions above
-        (void)data; (void)bytes; (void)data; (void)w; (void)h;
-        (void)bytes_per_pixel; (void)preferred_bytes_per_pixel;
-        rt_fatal_if(true, "curl.exe --silent --fail --create-dirs "
-            "https://raw.githubusercontent.com/nothings/stb/master/stb_bitmap.h "
-            "--output ext/stb_bitmap.h");
-        return null;
-    #endif
-}
-
-static void ui_gdi_bitmap_dispose(ui_bitmap_t* image) {
-    dxd_bitmap_dispose(&image->dxd);
-    rt_fatal_win32err(DeleteBitmap(image->texture));
-    memset(image, 0, sizeof(ui_bitmap_t));
-}
-
-ui_gdi_if ui_gdi = {
-    .ta = {
-        .prop = {
-            .normal = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.prop.normal,
-                .measure  = false
-            },
-            .title = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.prop.title,
-                .measure  = false
-            },
-            .rubric = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.prop.rubric,
-                .measure  = false
-            },
-            .H1 = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.prop.H1,
-                .measure  = false
-            },
-            .H2 = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.prop.H2,
-                .measure  = false
-            },
-            .H3 = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.prop.H3,
-                .measure  = false
-            }
-        },
-        .mono = {
-            .normal = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.mono.normal,
-                .measure  = false
-            },
-            .title = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.mono.title,
-                .measure  = false
-            },
-            .rubric = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.mono.rubric,
-                .measure  = false
-            },
-            .H1 = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.mono.H1,
-                .measure  = false
-            },
-            .H2 = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.mono.H2,
-                .measure  = false
-            },
-            .H3 = {
-                .color_id = ui_color_id_window_text,
-                .color    = ui_color_undefined,
-                .fm       = &ui_app.fm.mono.H3,
-                .measure  = false
-            }
-        },
-    },
-    .init                     = ui_gdi_init,
-    .begin                    = ui_gdi_begin,
-    .end                      = ui_gdi_end,
-    .color_rgb                = ui_gdi_color_rgb,
-    .bitmap_init              = ui_gdi_bitmap_init,
-    .bitmap_init_rgbx         = ui_gdi_bitmap_init_rgbx,
-    .bitmap_dispose           = ui_gdi_bitmap_dispose,
-    .alpha                    = ui_gdi_alpha,
-    .bitmap                   = ui_gdi_bitmap,
-    .icon                     = ui_gdi_icon,
-    .set_clip                 = ui_gdi_set_clip,
-    .pixel                    = ui_gdi_pixel,
-    .line                     = ui_gdi_line,
-    .frame                    = ui_gdi_frame,
-    .rect                     = ui_gdi_rect,
-    .fill                     = ui_gdi_fill,
-    .poly                     = ui_gdi_poly,
-    .circle                   = ui_gdi_circle,
-    .rounded                  = ui_gdi_rounded,
-    .gradient                 = ui_gdi_gradient,
-    .pixels                   = ui_gdi_pixels,
-    .greyscale                = ui_gdi_greyscale,
-    .bgr                      = ui_gdi_bgr,
-    .bgrx                     = ui_gdi_bgrx,
-    .cleartype                = ui_gdi_cleartype,
-    .font_smoothing_contrast  = ui_gdi_font_smoothing_contrast,
-    .create_font              = ui_gdi_create_font,
-    .font                     = ui_gdi_font,
-    .delete_font              = ui_gdi_delete_font,
-    .dump_fm                  = ui_gdi_dump_fm,
-    .update_fm                = ui_gdi_update_fm,
-    .text_va                  = ui_gdi_text_va,
-    .text                     = ui_gdi_text,
-    .multiline_va             = ui_gdi_multiline_va,
-    .multiline                = ui_gdi_multiline,
-    .glyphs_placement         = ui_gdi_glyphs_placement,
-    .fini                     = ui_gdi_fini
-};
-
-#pragma pop_macro("ui_gdi_hdc_with_font")
-#pragma pop_macro("ui_gdi_with_hdc")
 // ________________________________ ui_image.c ________________________________
 
 #include "rt/rt.h"
@@ -12813,9 +12813,9 @@ static ui_rect_t ui_image_position(ui_image_t* iv) {
 
 static void ui_image_paint(ui_view_t* v) {
     ui_image_t* iv = (ui_image_t*)v;
-//  ui_gdi.fill(v->x, v->y, v->w, v->h, ui_colors.black);
+//  ui_draw.fill(v->x, v->y, v->w, v->h, ui_colors.black);
     if (iv->image.pixels != null) {
-        ui_gdi.set_clip(v->x, v->y, v->w, v->h);
+        ui_draw.set_clip(v->x, v->y, v->w, v->h);
         rt_swear(!iv->fit || !iv->fill, "make up your mind");
         rt_swear(0 < iv->zn && iv->zn <= 16);
         rt_swear(0 < iv->zd && iv->zd <= 16);
@@ -12826,23 +12826,23 @@ static void ui_image_paint(ui_view_t* v) {
         const int32_t ih = iv->image.h;
         ui_rect_t rc = ui_image_position(iv);
         if (iv->image.bpp == 1) {
-            ui_gdi.greyscale(rc.x, rc.y, rc.w, rc.h,
+            ui_draw.greyscale(rc.x, rc.y, rc.w, rc.h,
                 0, 0, iw, ih,
                 iw, ih, iv->image.stride,
                 iv->image.pixels);
         } else if (iv->image.bpp == 3) {
-            ui_gdi.bgr(rc.x, rc.y, rc.w, rc.h,
+            ui_draw.bgr(rc.x, rc.y, rc.w, rc.h,
                          0, 0, iw, ih,
                          iw, ih, iv->image.stride,
                          iv->image.pixels);
         } else if (iv->image.bpp == 4) {
             if (iv->image.texture == null) {
-                ui_gdi.bgrx(rc.x, rc.y, rc.w, rc.h,
+                ui_draw.bgrx(rc.x, rc.y, rc.w, rc.h,
                               0, 0, iw, ih,
                               iw, ih, iv->image.stride,
                               iv->image.pixels);
             } else {
-                ui_gdi.alpha(rc.x, rc.y, rc.w, rc.h,
+                ui_draw.alpha(rc.x, rc.y, rc.w, rc.h,
                               0, 0, iw, ih,
                               &iv->image, iv->alpha);
             }
@@ -12857,17 +12857,17 @@ static void ui_image_paint(ui_view_t* v) {
         }
         if (ui_view.has_focus(v)) {
             ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
-            ui_gdi.frame(v->x, v->y, v->w, v->h, highlight);
+            ui_draw.frame(v->x, v->y, v->w, v->h, highlight);
         }
-        ui_gdi.set_clip(0, 0, 0, 0);
+        ui_draw.set_clip(0, 0, 0, 0);
     }
 }
 
 static void ui_image_tools_background(ui_view_t* v) {
     ui_color_t face = ui_colors.get_color(ui_color_id_button_face);
     ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
-    ui_gdi.fill(v->x, v->y, v->w, v->h, face);
-    ui_gdi.frame(v->x, v->y, v->w, v->h, highlight);
+    ui_draw.fill(v->x, v->y, v->w, v->h, face);
+    ui_draw.frame(v->x, v->y, v->w, v->h, highlight);
 }
 
 static void ui_image_show_tools(ui_image_t* iv, bool show) {
@@ -13149,10 +13149,10 @@ static void ui_image_copy_to_clipboard(ui_image_t* iv) {
     if (iv->image.texture != null) {
         rt_clipboard.put_image(&iv->image);
     } else {
-        ui_gdi.bitmap_init(&image, iv->image.w, iv->image.h,
+        ui_draw.bitmap_init(&image, iv->image.w, iv->image.h,
                                   iv->image.bpp, iv->image.pixels);
         rt_clipboard.put_image(&image);
-        ui_gdi.bitmap_dispose(&image);
+        ui_draw.bitmap_dispose(&image);
     }
     static ui_label_t hint = ui_label(0.0f, "copied to clipboard");
     ui_app.show_hint(&hint, ui_app.mouse.x,
@@ -13313,15 +13313,15 @@ static void ui_label_paint(ui_view_t* v) {
     const bool multiline = strchr(s, '\n') != null;
     if (multiline) {
         int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
-        ui_gdi.multiline(&ta, tx, ty, w, "%s", ui_view.string(v));
+        ui_draw.multiline(&ta, tx, ty, w, "%s", ui_view.string(v));
     } else {
-        ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
+        ui_draw.text(&ta, tx, ty, "%s", ui_view.string(v));
     }
     if (v->state.hover && !v->flat && v->highlightable) {
         ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
         int32_t radius = (v->fm->em.h / 4) | 0x1; // corner radius
         int32_t h = multiline ? v->h : v->fm->baseline + v->fm->descent;
-        ui_gdi.rounded(v->x - radius, v->y, v->w + 2 * radius, h,
+        ui_draw.rounded(v->x - radius, v->y, v->w + 2 * radius, h,
                        radius, highlight, ui_colors.transparent);
     }
 }
@@ -13727,7 +13727,7 @@ static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
     va_list va;
     va_start(va, format);
     const ui_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
-    ui_wh_t wh = ui_gdi.text_va(&ta, 0, 0, format, va);
+    ui_wh_t wh = ui_draw.text_va(&ta, 0, 0, format, va);
     va_end(va);
     return wh;
 }
@@ -13837,7 +13837,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_color_t d0 = ui_colors.darken(v->background, d);
     d /= 4;
     ui_color_t d1 = ui_colors.darken(v->background, d);
-    ui_gdi.gradient(x, v->y, w, v->h, d1, d0, true);
+    ui_draw.gradient(x, v->y, w, v->h, d1, d0, true);
     // draw value:
     ui_color_t c = ui_theme.is_app_dark() ?
         ui_colors.darken(ui_colors.green, 1.0f / 128.0f) :
@@ -13848,7 +13848,7 @@ static void ui_slider_paint(ui_view_t* v) {
     rt_assert(range > 0, "range: %.6f", range);
     const fp64_t  vw = (fp64_t)w * (s->value - s->value_min) / range;
     const int32_t wi = (int32_t)(vw + 0.5);
-    ui_gdi.gradient(x, v->y, wi, v->h, d1, d0, true);
+    ui_draw.gradient(x, v->y, wi, v->h, d1, d0, true);
     if (!v->flat) {
         ui_color_t color = v->state.hover ?
             ui_colors.get_color(ui_color_id_hot_tracking) :
@@ -13858,7 +13858,7 @@ static void ui_slider_paint(ui_view_t* v) {
             color = ui_theme.is_app_dark() ? ui_colors.darken(gt, 0.5f)
                                            : ui_colors.lighten(gt, 0.5f);
         }
-        ui_gdi.frame(x, v->y, w, v->h, color);
+        ui_draw.frame(x, v->y, w, v->h, color);
     }
     // text:
     const char* text = ui_view.string(v);
@@ -13880,7 +13880,7 @@ static void ui_slider_paint(ui_view_t* v) {
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_ta_t ta = { .fm = fm, .color = text_color };
-    ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
+    ui_draw.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
 static bool ui_slider_tap(ui_view_t* v, int32_t rt_unused(ix),
@@ -14249,18 +14249,18 @@ static void ui_toggle_paint_on_off(ui_view_t* v) {
     if (v->state.hover) {
         border = ui_colors.get_color(ui_color_id_hot_tracking);
     }
-    ui_gdi.circle(x, y, r, border, b);
-    ui_gdi.circle(x + w - r, y, r, border, b);
-    ui_gdi.fill(x, y - r, w - r + 1, h, b);
-    ui_gdi.line(x, y - r, x + w - r + 1, y - r, border);
-    ui_gdi.line(x, y + r, x + w - r + 1, y + r, border);
+    ui_draw.circle(x, y, r, border, b);
+    ui_draw.circle(x + w - r, y, r, border, b);
+    ui_draw.fill(x, y - r, w - r + 1, h, b);
+    ui_draw.line(x, y - r, x + w - r + 1, y - r, border);
+    ui_draw.line(x, y + r, x + w - r + 1, y + r, border);
     int32_t x1 = v->state.pressed ? x + w - r : x;
     // circle is too bold in control color - water it down
     ui_color_t fill = ui_theme.is_app_dark() ?
         ui_colors.darken(v->color, 0.5f) : ui_colors.lighten(v->color, 0.5f);
     border = ui_theme.is_app_dark() ?
         ui_colors.darken(fill, 0.0625f) : ui_colors.lighten(fill, 0.0625f);
-    ui_gdi.circle(x1, y, r - 2, border, fill);
+    ui_draw.circle(x1, y, r - 2, border, fill);
 }
 
 static const char* ui_toggle_on_off_label(ui_view_t* v,
@@ -14293,7 +14293,7 @@ static void ui_toggle_paint(ui_view_t* v) {
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
     const ui_ta_t ta = { .fm = v->fm, .color = text_color };
-    ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
+    ui_draw.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {
@@ -14537,8 +14537,8 @@ static ui_wh_t ui_view_text_metrics_va(int32_t x, int32_t y,
     const ui_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
                              .measure = true };
     return multiline ?
-        ui_gdi.multiline_va(&ta, x, y, w, format, va) :
-        ui_gdi.text_va(&ta, x, y, format, va);
+        ui_draw.multiline_va(&ta, x, y, w, format, va) :
+        ui_draw.text_va(&ta, x, y, format, va);
 }
 
 static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
@@ -15173,7 +15173,7 @@ static bool ui_view_is_control(const ui_view_t* v) {
 static void ui_view_debug_paint_margins(ui_view_t* v) {
     if (v->debug.paint.margins) {
         if (v->type == ui_view_spacer) {
-            ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
+            ui_draw.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
         }
         const ui_ltrb_t p = ui_view.margins(v, &v->padding);
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);
@@ -15182,21 +15182,21 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
         const int32_t pr = p.right;
         const int32_t pt = p.top;
         const int32_t pb = p.bottom;
-        if (pl > 0) { ui_gdi.frame(v->x - pl, v->y, pl, v->h, c); }
-        if (pr > 0) { ui_gdi.frame(v->x + v->w, v->y, pr, v->h, c); }
-        if (pt > 0) { ui_gdi.frame(v->x, v->y - pt, v->w, pt, c); }
+        if (pl > 0) { ui_draw.frame(v->x - pl, v->y, pl, v->h, c); }
+        if (pr > 0) { ui_draw.frame(v->x + v->w, v->y, pr, v->h, c); }
+        if (pt > 0) { ui_draw.frame(v->x, v->y - pt, v->w, pt, c); }
         if (p.bottom > 0) {
-            ui_gdi.frame(v->x, v->y + v->h, v->w, pb, c);
+            ui_draw.frame(v->x, v->y + v->h, v->w, pb, c);
         }
         c = ui_colors.orange;
         const int32_t il = i.left;
         const int32_t ir = i.right;
         const int32_t it = i.top;
         const int32_t ib = i.bottom;
-        if (il > 0) { ui_gdi.frame(v->x, v->y, il, v->h, c); }
-        if (ir > 0) { ui_gdi.frame(v->x + v->w - ir, v->y, ir, v->h, c); }
-        if (it > 0) { ui_gdi.frame(v->x, v->y, v->w, it, c); }
-        if (ib > 0) { ui_gdi.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
+        if (il > 0) { ui_draw.frame(v->x, v->y, il, v->h, c); }
+        if (ir > 0) { ui_draw.frame(v->x + v->w - ir, v->y, ir, v->h, c); }
+        if (it > 0) { ui_draw.frame(v->x, v->y, v->w, it, c); }
+        if (ib > 0) { ui_draw.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
         if ((ui_view.is_container(v) || ui_view.is_spacer(v)) &&
             v->w > 0 && v->h > 0) {
             ui_wh_t wh = ui_view_text_metrics(v->x, v->y, false, 0,
@@ -15204,7 +15204,7 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
             const int32_t tx = v->x;
             const int32_t ty = v->y + v->h - wh.h;
             const ui_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
-            ui_gdi.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
+            ui_draw.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
                         v->x, v->y, v->w, v->h);
         }
     }
@@ -15224,16 +15224,16 @@ static void ui_view_debug_paint_fm(ui_view_t* v) {
         const int32_t y_x = y_b - v->fm->x_height;
         const int32_t y_d = y_b + v->fm->descent;
         // fm.height y == 0 line is painted one pixel higher:
-        ui_gdi.line(x, y_0 - 1, x + w, y_0 - 1, ui_colors.red);
-        ui_gdi.line(x, y_a, x + w, y_a, ui_colors.green);
-        ui_gdi.line(x, y_x, x + w, y_x, ui_colors.orange);
-        ui_gdi.line(x, y_b, x + w, y_b, ui_colors.red);
-        ui_gdi.line(x, y_d, x + w, y_d, ui_colors.green);
+        ui_draw.line(x, y_0 - 1, x + w, y_0 - 1, ui_colors.red);
+        ui_draw.line(x, y_a, x + w, y_a, ui_colors.green);
+        ui_draw.line(x, y_x, x + w, y_x, ui_colors.orange);
+        ui_draw.line(x, y_b, x + w, y_b, ui_colors.red);
+        ui_draw.line(x, y_d, x + w, y_d, ui_colors.green);
         if (y_h != y_d) {
-            ui_gdi.line(x, y_d, x + w, y_d, ui_colors.green);
-            ui_gdi.line(x, y_h, x + w, y_h, ui_colors.red);
+            ui_draw.line(x, y_d, x + w, y_d, ui_colors.green);
+            ui_draw.line(x, y_h, x + w, y_h, ui_colors.red);
         } else {
-            ui_gdi.line(x, y_h, x + w, y_h, ui_colors.orange);
+            ui_draw.line(x, y_h, x + w, y_h, ui_colors.orange);
         }
         // fm.height line painted _under_ the actual height
     }

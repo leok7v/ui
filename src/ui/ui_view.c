@@ -191,8 +191,8 @@ static ui_wh_t ui_view_text_metrics_va(int32_t x, int32_t y,
     const ui_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
                              .measure = true };
     return multiline ?
-        ui_gdi.multiline_va(&ta, x, y, w, format, va) :
-        ui_gdi.text_va(&ta, x, y, format, va);
+        ui_draw.multiline_va(&ta, x, y, w, format, va) :
+        ui_draw.text_va(&ta, x, y, format, va);
 }
 
 static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
@@ -827,7 +827,7 @@ static bool ui_view_is_control(const ui_view_t* v) {
 static void ui_view_debug_paint_margins(ui_view_t* v) {
     if (v->debug.paint.margins) {
         if (v->type == ui_view_spacer) {
-            ui_gdi.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
+            ui_draw.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
         }
         const ui_ltrb_t p = ui_view.margins(v, &v->padding);
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);
@@ -836,21 +836,21 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
         const int32_t pr = p.right;
         const int32_t pt = p.top;
         const int32_t pb = p.bottom;
-        if (pl > 0) { ui_gdi.frame(v->x - pl, v->y, pl, v->h, c); }
-        if (pr > 0) { ui_gdi.frame(v->x + v->w, v->y, pr, v->h, c); }
-        if (pt > 0) { ui_gdi.frame(v->x, v->y - pt, v->w, pt, c); }
+        if (pl > 0) { ui_draw.frame(v->x - pl, v->y, pl, v->h, c); }
+        if (pr > 0) { ui_draw.frame(v->x + v->w, v->y, pr, v->h, c); }
+        if (pt > 0) { ui_draw.frame(v->x, v->y - pt, v->w, pt, c); }
         if (p.bottom > 0) {
-            ui_gdi.frame(v->x, v->y + v->h, v->w, pb, c);
+            ui_draw.frame(v->x, v->y + v->h, v->w, pb, c);
         }
         c = ui_colors.orange;
         const int32_t il = i.left;
         const int32_t ir = i.right;
         const int32_t it = i.top;
         const int32_t ib = i.bottom;
-        if (il > 0) { ui_gdi.frame(v->x, v->y, il, v->h, c); }
-        if (ir > 0) { ui_gdi.frame(v->x + v->w - ir, v->y, ir, v->h, c); }
-        if (it > 0) { ui_gdi.frame(v->x, v->y, v->w, it, c); }
-        if (ib > 0) { ui_gdi.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
+        if (il > 0) { ui_draw.frame(v->x, v->y, il, v->h, c); }
+        if (ir > 0) { ui_draw.frame(v->x + v->w - ir, v->y, ir, v->h, c); }
+        if (it > 0) { ui_draw.frame(v->x, v->y, v->w, it, c); }
+        if (ib > 0) { ui_draw.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
         if ((ui_view.is_container(v) || ui_view.is_spacer(v)) &&
             v->w > 0 && v->h > 0) {
             ui_wh_t wh = ui_view_text_metrics(v->x, v->y, false, 0,
@@ -858,7 +858,7 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
             const int32_t tx = v->x;
             const int32_t ty = v->y + v->h - wh.h;
             const ui_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
-            ui_gdi.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
+            ui_draw.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
                         v->x, v->y, v->w, v->h);
         }
     }
@@ -878,16 +878,16 @@ static void ui_view_debug_paint_fm(ui_view_t* v) {
         const int32_t y_x = y_b - v->fm->x_height;
         const int32_t y_d = y_b + v->fm->descent;
         // fm.height y == 0 line is painted one pixel higher:
-        ui_gdi.line(x, y_0 - 1, x + w, y_0 - 1, ui_colors.red);
-        ui_gdi.line(x, y_a, x + w, y_a, ui_colors.green);
-        ui_gdi.line(x, y_x, x + w, y_x, ui_colors.orange);
-        ui_gdi.line(x, y_b, x + w, y_b, ui_colors.red);
-        ui_gdi.line(x, y_d, x + w, y_d, ui_colors.green);
+        ui_draw.line(x, y_0 - 1, x + w, y_0 - 1, ui_colors.red);
+        ui_draw.line(x, y_a, x + w, y_a, ui_colors.green);
+        ui_draw.line(x, y_x, x + w, y_x, ui_colors.orange);
+        ui_draw.line(x, y_b, x + w, y_b, ui_colors.red);
+        ui_draw.line(x, y_d, x + w, y_d, ui_colors.green);
         if (y_h != y_d) {
-            ui_gdi.line(x, y_d, x + w, y_d, ui_colors.green);
-            ui_gdi.line(x, y_h, x + w, y_h, ui_colors.red);
+            ui_draw.line(x, y_d, x + w, y_d, ui_colors.green);
+            ui_draw.line(x, y_h, x + w, y_h, ui_colors.red);
         } else {
-            ui_gdi.line(x, y_h, x + w, y_h, ui_colors.orange);
+            ui_draw.line(x, y_h, x + w, y_h, ui_colors.orange);
         }
         // fm.height line painted _under_ the actual height
     }

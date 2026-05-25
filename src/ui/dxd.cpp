@@ -1,4 +1,4 @@
-// Direct2D + DirectWrite drawing backend for ui_gdi. See inc/ui/dxd.h.
+// Direct2D + DirectWrite drawing backend for ui_draw. See inc/ui/dxd.h.
 // The rt/ui headers are C; compiling them as C++ trips benign warnings
 // (deleted special members on const-field structs, nameless unions) under
 // /Wall -- silence those around the includes only.

@@ -53,7 +53,7 @@ static bool double_tap(ui_view_t* v, int32_t ix) {
 
 static void opened(void) {
     static ui_fm_t fm;
-    ui_gdi.update_fm(&fm, ui_gdi.create_font("Segoe Script", ui_app.in2px(0.5), -1));
+    ui_draw.update_fm(&fm, ui_draw.create_font("Segoe Script", ui_app.in2px(0.5), -1));
     ui_app.content->every_sec = every_sec;
     label.fm = &fm;
     ui_view.add(ui_app.content, &label, null);

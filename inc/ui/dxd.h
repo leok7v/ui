@@ -1,4 +1,4 @@
-// Direct2D + DirectWrite drawing backend for ui_gdi.
+// Direct2D + DirectWrite drawing backend for ui_draw.
 //
 // C ABI; implemented in src/ui/dxd.cpp. Coordinates are int32_t pixels (a
 // float coordinate system is a later change). This header is included by

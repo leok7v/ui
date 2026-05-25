@@ -11,7 +11,7 @@ rt_begin_c
 // Field .image may have .pixels pointer and .bitmap == null.
 // If this is the case the direct pixels transfer to the
 // device is used. RGBA bitmaps must be allocated on the
-// device otherwise ui_gdi.rgbx() call is used and alpha
+// device otherwise ui_draw.rgbx() call is used and alpha
 // is ignored.
 
 typedef struct ui_image_s ui_image_t;

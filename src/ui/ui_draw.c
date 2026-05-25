@@ -2,15 +2,15 @@
 #include "ui/ui.h"
 #include "rt/rt_win32.h"
 
-#pragma push_macro("ui_gdi_with_hdc")
-#pragma push_macro("ui_gdi_hdc_with_font")
+#pragma push_macro("ui_draw_with_hdc")
+#pragma push_macro("ui_draw_hdc_with_font")
 
-static ui_brush_t  ui_gdi_brush_hollow;
-static ui_brush_t  ui_gdi_brush_color;
-static ui_pen_t    ui_gdi_pen_hollow;
-static ui_region_t ui_gdi_clip;
+static ui_brush_t  ui_draw_brush_hollow;
+static ui_brush_t  ui_draw_brush_color;
+static ui_pen_t    ui_draw_pen_hollow;
+static ui_region_t ui_draw_clip;
 
-typedef struct ui_gdi_context_s {
+typedef struct ui_draw_context_s {
     HDC hdc; // window canvas() or memory DC
     int32_t background_mode;
     int32_t stretch_mode;
@@ -21,200 +21,200 @@ typedef struct ui_gdi_context_s {
     ui_brush_t brush;
     HBITMAP texture;
     dxd_context_t dxd; // Direct2D draw context for this begin()/end() frame
-} ui_gdi_context_t;
+} ui_draw_context_t;
 
-static ui_gdi_context_t ui_gdi_context;
+static ui_draw_context_t ui_draw_context;
 
-#define ui_gdi_hdc() (ui_gdi_context.hdc)
+#define ui_draw_hdc() (ui_draw_context.hdc)
 
-static void ui_gdi_init(void) {
+static void ui_draw_init(void) {
     dxd_init();
 }
 
-static void ui_gdi_fini(void) {
+static void ui_draw_fini(void) {
     dxd_fini();
 }
 
-static ui_pen_t ui_gdi_set_pen(ui_pen_t p) {
+static ui_pen_t ui_draw_set_pen(ui_pen_t p) {
     rt_not_null(p);
-    return (ui_pen_t)SelectPen(ui_gdi_hdc(), (HPEN)p);
+    return (ui_pen_t)SelectPen(ui_draw_hdc(), (HPEN)p);
 }
 
-static ui_brush_t ui_gdi_set_brush(ui_brush_t b) {
+static ui_brush_t ui_draw_set_brush(ui_brush_t b) {
     rt_not_null(b);
-    return (ui_brush_t)SelectBrush(ui_gdi_hdc(), b);
+    return (ui_brush_t)SelectBrush(ui_draw_hdc(), b);
 }
 
-static uint32_t ui_gdi_color_rgb(ui_color_t c) {
+static uint32_t ui_draw_color_rgb(ui_color_t c) {
     rt_assert(ui_color_is_8bit(c));
     return (COLORREF)(c & 0xFFFFFFFF);
 }
 
-static COLORREF ui_gdi_color_ref(ui_color_t c) {
-    return ui_gdi.color_rgb(c);
+static COLORREF ui_draw_color_ref(ui_color_t c) {
+    return ui_draw.color_rgb(c);
 }
 
-static ui_color_t ui_gdi_set_text_color(ui_color_t c) {
-    return SetTextColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
+static ui_color_t ui_draw_set_text_color(ui_color_t c) {
+    return SetTextColor(ui_draw_hdc(), ui_draw_color_ref(c));
 }
 
-static ui_font_t ui_gdi_set_font(ui_font_t f) {
+static ui_font_t ui_draw_set_font(ui_font_t f) {
     rt_not_null(f);
-    return (ui_font_t)SelectFont(ui_gdi_hdc(), (HFONT)f);
+    return (ui_font_t)SelectFont(ui_draw_hdc(), (HFONT)f);
 }
 
-static void ui_gdi_begin(ui_bitmap_t* image) {
-    rt_swear(ui_gdi_context.hdc == null, "no nested begin()/end()");
+static void ui_draw_begin(ui_bitmap_t* image) {
+    rt_swear(ui_draw_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
         rt_swear(image->texture != null);
-        ui_gdi_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
-        ui_gdi_context.texture = SelectBitmap(ui_gdi_hdc(),
+        ui_draw_context.hdc = CreateCompatibleDC((HDC)ui_app.canvas);
+        ui_draw_context.texture = SelectBitmap(ui_draw_hdc(),
                                              (HBITMAP)image->texture);
     } else {
-        ui_gdi_context.hdc = (HDC)ui_app.canvas;
-        rt_swear(ui_gdi_context.texture == null);
+        ui_draw_context.hdc = (HDC)ui_app.canvas;
+        rt_swear(ui_draw_context.texture == null);
     }
-    ui_gdi_context.text_color = ui_colors.get_color(ui_color_id_window_text);
+    ui_draw_context.text_color = ui_colors.get_color(ui_color_id_window_text);
     ui_rect_t rc = image != null ?
         (ui_rect_t){ 0, 0, image->w, image->h } :
         (ui_rect_t){ 0, 0, ui_app.crc.w, ui_app.crc.h };
-    ui_gdi_context.dxd = dxd_begin(ui_gdi_context.hdc, &rc);
+    ui_draw_context.dxd = dxd_begin(ui_draw_context.hdc, &rc);
 }
 
-static void ui_gdi_end(void) {
-    if (ui_gdi_context.dxd != null) {
-        dxd_end(ui_gdi_context.dxd);
-        ui_gdi_context.dxd = null;
+static void ui_draw_end(void) {
+    if (ui_draw_context.dxd != null) {
+        dxd_end(ui_draw_context.dxd);
+        ui_draw_context.dxd = null;
     }
-    if (ui_gdi_context.hdc != (HDC)ui_app.canvas) {
-        rt_swear(ui_gdi_context.texture != null); // 1x1 bitmap
-        SelectBitmap(ui_gdi_context.hdc, (HBITMAP)ui_gdi_context.texture);
-        rt_fatal_win32err(DeleteDC(ui_gdi_context.hdc));
+    if (ui_draw_context.hdc != (HDC)ui_app.canvas) {
+        rt_swear(ui_draw_context.texture != null); // 1x1 bitmap
+        SelectBitmap(ui_draw_context.hdc, (HBITMAP)ui_draw_context.texture);
+        rt_fatal_win32err(DeleteDC(ui_draw_context.hdc));
     }
-    memset(&ui_gdi_context, 0x00, sizeof(ui_gdi_context));
+    memset(&ui_draw_context, 0x00, sizeof(ui_draw_context));
 }
 
-static ui_pen_t ui_gdi_set_colored_pen(ui_color_t c) {
-    ui_pen_t p = (ui_pen_t)SelectPen(ui_gdi_hdc(), GetStockPen(DC_PEN));
-    SetDCPenColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
+static ui_pen_t ui_draw_set_colored_pen(ui_color_t c) {
+    ui_pen_t p = (ui_pen_t)SelectPen(ui_draw_hdc(), GetStockPen(DC_PEN));
+    SetDCPenColor(ui_draw_hdc(), ui_draw_color_ref(c));
     return p;
 }
 
-static ui_pen_t ui_gdi_create_pen(ui_color_t c, int32_t width) {
+static ui_pen_t ui_draw_create_pen(ui_color_t c, int32_t width) {
     rt_assert(width >= 1);
-    ui_pen_t pen = (ui_pen_t)CreatePen(PS_SOLID, width, ui_gdi_color_ref(c));
+    ui_pen_t pen = (ui_pen_t)CreatePen(PS_SOLID, width, ui_draw_color_ref(c));
     rt_not_null(pen);
     return pen;
 }
 
-static void ui_gdi_delete_pen(ui_pen_t p) {
+static void ui_draw_delete_pen(ui_pen_t p) {
     rt_fatal_win32err(DeletePen(p));
 }
 
-static ui_brush_t ui_gdi_create_brush(ui_color_t c) {
-    return (ui_brush_t)CreateSolidBrush(ui_gdi_color_ref(c));
+static ui_brush_t ui_draw_create_brush(ui_color_t c) {
+    return (ui_brush_t)CreateSolidBrush(ui_draw_color_ref(c));
 }
 
-static void ui_gdi_delete_brush(ui_brush_t b) {
+static void ui_draw_delete_brush(ui_brush_t b) {
     DeleteBrush((HBRUSH)b);
 }
 
-static ui_color_t ui_gdi_set_brush_color(ui_color_t c) {
-    return SetDCBrushColor(ui_gdi_hdc(), ui_gdi_color_ref(c));
+static ui_color_t ui_draw_set_brush_color(ui_color_t c) {
+    return SetDCBrushColor(ui_draw_hdc(), ui_draw_color_ref(c));
 }
 
-static void ui_gdi_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
-    dxd_set_clip(ui_gdi_context.dxd, x, y, w, h);
+static void ui_draw_set_clip(int32_t x, int32_t y, int32_t w, int32_t h) {
+    dxd_set_clip(ui_draw_context.dxd, x, y, w, h);
 }
 
-static void ui_gdi_pixel(int32_t x, int32_t y, ui_color_t c) {
-    dxd_pixel(ui_gdi_context.dxd, x, y, c);
+static void ui_draw_pixel(int32_t x, int32_t y, ui_color_t c) {
+    dxd_pixel(ui_draw_context.dxd, x, y, c);
 }
 
-static void ui_gdi_rectangle(int32_t x, int32_t y, int32_t w, int32_t h) {
-    rt_fatal_win32err(Rectangle(ui_gdi_hdc(), x, y, x + w, y + h));
+static void ui_draw_rectangle(int32_t x, int32_t y, int32_t w, int32_t h) {
+    rt_fatal_win32err(Rectangle(ui_draw_hdc(), x, y, x + w, y + h));
 }
 
-static void ui_gdi_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
+static void ui_draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1,
         ui_color_t c) {
-    dxd_line(ui_gdi_context.dxd, x0, y0, x1, y1, c);
+    dxd_line(ui_draw_context.dxd, x0, y0, x1, y1, c);
 }
 
-static void ui_gdi_frame(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_draw_frame(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t c) {
-    dxd_frame(ui_gdi_context.dxd, x, y, w, h, c);
+    dxd_frame(ui_draw_context.dxd, x, y, w, h, c);
 }
 
-static void ui_gdi_rect(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_draw_rect(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t border, ui_color_t fill) {
-    dxd_rect(ui_gdi_context.dxd, x, y, w, h, border, fill);
+    dxd_rect(ui_draw_context.dxd, x, y, w, h, border, fill);
 }
 
-static void ui_gdi_fill(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_draw_fill(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t c) {
-    dxd_fill(ui_gdi_context.dxd, x, y, w, h, c);
+    dxd_fill(ui_draw_context.dxd, x, y, w, h, c);
 }
 
-static void ui_gdi_poly(ui_point_t* points, int32_t count, ui_color_t c) {
-    dxd_poly(ui_gdi_context.dxd, points, count, c);
+static void ui_draw_poly(ui_point_t* points, int32_t count, ui_color_t c) {
+    dxd_poly(ui_draw_context.dxd, points, count, c);
 }
 
-static void ui_gdi_circle(int32_t x, int32_t y, int32_t radius,
+static void ui_draw_circle(int32_t x, int32_t y, int32_t radius,
         ui_color_t border, ui_color_t fill) {
-    dxd_circle(ui_gdi_context.dxd, x, y, radius, border, fill);
+    dxd_circle(ui_draw_context.dxd, x, y, radius, border, fill);
 }
 
-static void ui_gdi_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_draw_fill_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t fill) {
     int32_t r = x + w - 1; // right
     int32_t b = y + h - 1; // bottom
-    ui_gdi_circle(x + radius, y + radius, radius, fill, fill);
-    ui_gdi_circle(r - radius, y + radius, radius, fill, fill);
-    ui_gdi_circle(x + radius, b - radius, radius, fill, fill);
-    ui_gdi_circle(r - radius, b - radius, radius, fill, fill);
+    ui_draw_circle(x + radius, y + radius, radius, fill, fill);
+    ui_draw_circle(r - radius, y + radius, radius, fill, fill);
+    ui_draw_circle(x + radius, b - radius, radius, fill, fill);
+    ui_draw_circle(r - radius, b - radius, radius, fill, fill);
     // rectangles
-    ui_gdi.fill(x + radius, y, w - radius * 2, h, fill);
+    ui_draw.fill(x + radius, y, w - radius * 2, h, fill);
     r = x + w - radius;
-    ui_gdi.fill(x, y + radius, radius, h - radius * 2, fill);
-    ui_gdi.fill(r, y + radius, radius, h - radius * 2, fill);
+    ui_draw.fill(x, y + radius, radius, h - radius * 2, fill);
+    ui_draw.fill(r, y + radius, radius, h - radius * 2, fill);
 }
 
-static void ui_gdi_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_draw_rounded_border(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border) {
     {
         int32_t r = x + w - 1; // right
         int32_t b = y + h - 1; // bottom
-        ui_gdi.set_clip(x, y, radius + 1, radius + 1);
-        ui_gdi_circle(x + radius, y + radius, radius, border, ui_colors.transparent);
-        ui_gdi.set_clip(r - radius, y, radius + 1, radius + 1);
-        ui_gdi_circle(r - radius, y + radius, radius, border, ui_colors.transparent);
-        ui_gdi.set_clip(x, b - radius, radius + 1, radius + 1);
-        ui_gdi_circle(x + radius, b - radius, radius, border, ui_colors.transparent);
-        ui_gdi.set_clip(r - radius, b - radius, radius + 1, radius + 1);
-        ui_gdi_circle(r - radius, b - radius, radius, border, ui_colors.transparent);
-        ui_gdi.set_clip(0, 0, 0, 0);
+        ui_draw.set_clip(x, y, radius + 1, radius + 1);
+        ui_draw_circle(x + radius, y + radius, radius, border, ui_colors.transparent);
+        ui_draw.set_clip(r - radius, y, radius + 1, radius + 1);
+        ui_draw_circle(r - radius, y + radius, radius, border, ui_colors.transparent);
+        ui_draw.set_clip(x, b - radius, radius + 1, radius + 1);
+        ui_draw_circle(x + radius, b - radius, radius, border, ui_colors.transparent);
+        ui_draw.set_clip(r - radius, b - radius, radius + 1, radius + 1);
+        ui_draw_circle(r - radius, b - radius, radius, border, ui_colors.transparent);
+        ui_draw.set_clip(0, 0, 0, 0);
     }
     {
         int32_t r = x + w - 1; // right
         int32_t b = y + h - 1; // bottom
-        ui_gdi.line(x + radius, y, r - radius + 1, y, border);
-        ui_gdi.line(x + radius, b, r - radius + 1, b, border);
-        ui_gdi.line(x - 1, y + radius, x - 1, b - radius + 1, border);
-        ui_gdi.line(r + 1, y + radius, r + 1, b - radius + 1, border);
+        ui_draw.line(x + radius, y, r - radius + 1, y, border);
+        ui_draw.line(x + radius, b, r - radius + 1, b, border);
+        ui_draw.line(x - 1, y + radius, x - 1, b - radius + 1, border);
+        ui_draw.line(r + 1, y + radius, r + 1, b - radius + 1, border);
     }
 }
 
-static void ui_gdi_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_draw_rounded(int32_t x, int32_t y, int32_t w, int32_t h,
         int32_t radius, ui_color_t border, ui_color_t fill) {
-    dxd_rounded(ui_gdi_context.dxd, x, y, w, h, radius, border, fill);
+    dxd_rounded(ui_draw_context.dxd, x, y, w, h, radius, border, fill);
 }
 
-static void ui_gdi_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_draw_gradient(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_color_t rgba_from, ui_color_t rgba_to, bool vertical) {
-    dxd_gradient(ui_gdi_context.dxd, x, y, w, h, rgba_from, rgba_to, vertical);
+    dxd_gradient(ui_draw_context.dxd, x, y, w, h, rgba_from, rgba_to, vertical);
 }
 
-static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
+static BITMAPINFO* ui_draw_greyscale_bitmap_info(void) {
     typedef struct bitmap_rgb_s {
         BITMAPINFO bi;
         RGBQUAD rgb[256];
@@ -238,29 +238,29 @@ static BITMAPINFO* ui_gdi_greyscale_bitmap_info(void) {
     return bi;
 }
 
-static void ui_gdi_pixels(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+static void ui_draw_pixels(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride,
         int32_t bpp, const uint8_t* pixels) {
     if (bpp == 1) {
-        ui_gdi.greyscale(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+        ui_draw.greyscale(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
     } else if (bpp == 3) {
-        ui_gdi.bgr(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+        ui_draw.bgr(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
     } else if (bpp == 4) {
-        ui_gdi.bgrx(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
+        ui_draw.bgrx(dx, dy, dw, dh, ix, iy, iw, ih, width, height, stride, pixels);
     } else {
         rt_fatal("bpp: %d not {1, 3, 4}", bpp);
     }
 }
 
-static void ui_gdi_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+static void ui_draw_greyscale(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride, const uint8_t* pixels) {
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
+    dxd_image(ui_draw_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
               width, height, stride, 1, pixels, 1.0, false);
 }
 
-static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
+static BITMAPINFOHEADER ui_draw_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
     rt_assert(w > 0 && h >= 0); // h cannot be negative?
     BITMAPINFOHEADER bi = {
         .biSize = sizeof(BITMAPINFOHEADER),
@@ -277,26 +277,26 @@ static BITMAPINFOHEADER ui_gdi_bgrx_init_bi(int32_t w, int32_t h, int32_t bpp) {
 }
 
 // bgr(width) assumes strides are padded and rounded up to 4 bytes
-// if this is not the case use ui_gdi.bitmap_init() that will unpack
+// if this is not the case use ui_draw.bitmap_init() that will unpack
 // and align scanlines prior to draw
 
-static void ui_gdi_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+static void ui_draw_bgr(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
+    dxd_image(ui_draw_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
               width, height, stride, 3, pixels, 1.0, false);
 }
 
-static void ui_gdi_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+static void ui_draw_bgrx(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         int32_t width, int32_t height, int32_t stride,
         const uint8_t* pixels) {
-    dxd_image(ui_gdi_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
+    dxd_image(ui_draw_context.dxd, dx, dy, dw, dh, ix, iy, iw, ih,
               width, height, stride, 4, pixels, 1.0, false);
 }
 
-static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
+static BITMAPINFO* ui_draw_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
         BITMAPINFO* bi) {
     rt_assert(w > 0 && h >= 0); // h cannot be negative?
     bi->bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
@@ -309,28 +309,28 @@ static BITMAPINFO* ui_gdi_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
     return bi;
 }
 
-static void ui_gdi_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
+static void ui_draw_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp) {
     rt_fatal_if(image->texture != null, "bitmap_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
     // before window is created
     HDC c = CreateCompatibleDC(null); // GetWindowDC(ui_app.window);
     BITMAPINFO local = { {sizeof(BITMAPINFOHEADER)} };
-    BITMAPINFO* bi = bpp == 1 ? ui_gdi_greyscale_bitmap_info() : &local;
+    BITMAPINFO* bi = bpp == 1 ? ui_draw_greyscale_bitmap_info() : &local;
     image->texture = (ui_texture_t)CreateDIBSection(c, 
-            ui_gdi_init_bitmap_info(w, h, bpp, bi),
+            ui_draw_init_bitmap_info(w, h, bpp, bi),
             DIB_RGB_COLORS, &image->pixels, null, 0x0
     );
     rt_fatal_if(image->texture == null || image->pixels == null);
     rt_fatal_win32err(DeleteDC(c));
 }
 
-static void ui_gdi_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
+static void ui_draw_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
     rt_fatal_if(bpp != 4, "bpp: %d", bpp);
-    ui_gdi_create_dib_section(image, w, h, bpp);
+    ui_draw_create_dib_section(image, w, h, bpp);
     const int32_t stride = (w * bpp + 3) & ~0x3;
     uint8_t* scanline = image->pixels;
     const uint8_t* rgbx = pixels;
@@ -369,12 +369,12 @@ static void ui_gdi_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
     image->stride = stride;
 }
 
-static void ui_gdi_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
+static void ui_draw_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
     rt_fatal_if(bpp < 0 || bpp == 2 || bpp > 4, "bpp=%d not {1, 3, 4}", bpp);
-    ui_gdi_create_dib_section(image, w, h, bpp);
+    ui_draw_create_dib_section(image, w, h, bpp);
     // Win32 bitmaps stride is rounded up to 4 bytes
     const int32_t stride = (w * bpp + 3) & ~0x3;
     uint8_t* scanline = image->pixels;
@@ -455,31 +455,31 @@ static void ui_gdi_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t
     image->stride = stride;
 }
 
-static void ui_gdi_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_bitmap_t* image, fp64_t alpha) {
     rt_assert(image->bpp > 0);
     rt_assert(0 <= alpha && alpha <= 1);
-    dxd_image_cached(ui_gdi_context.dxd, &image->dxd, dx, dy, dw, dh,
+    dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
               ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, alpha, true);
 }
 
-static void ui_gdi_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
+static void ui_draw_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
         ui_bitmap_t* image) {
     rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
-    dxd_image_cached(ui_gdi_context.dxd, &image->dxd, dx, dy, dw, dh,
+    dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
               ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
               (const uint8_t*)image->pixels, 1.0, false);
 }
 
-static void ui_gdi_icon(int32_t x, int32_t y, int32_t w, int32_t h,
+static void ui_draw_icon(int32_t x, int32_t y, int32_t w, int32_t h,
         ui_icon_t icon) {
-    DrawIconEx(ui_gdi_hdc(), x, y, (HICON)icon, w, h, 0, NULL, DI_NORMAL | DI_COMPAT);
+    DrawIconEx(ui_draw_hdc(), x, y, (HICON)icon, w, h, 0, NULL, DI_NORMAL | DI_COMPAT);
 }
 
-static void ui_gdi_cleartype(bool on) {
+static void ui_draw_cleartype(bool on) {
     enum { spif = SPIF_UPDATEINIFILE | SPIF_SENDCHANGE };
     rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHING,
                                                    true, 0, spif));
@@ -488,7 +488,7 @@ static void ui_gdi_cleartype(bool on) {
         0, (void*)s, spif));
 }
 
-static void ui_gdi_font_smoothing_contrast(int32_t c) {
+static void ui_draw_font_smoothing_contrast(int32_t c) {
     rt_fatal_if(!(c == -1 || 1000 <= c && c <= 2200), "contrast: %d", c);
     if (c == -1) { c = 1400; }
     rt_fatal_win32err(SystemParametersInfoA(SPI_SETFONTSMOOTHINGCONTRAST,
@@ -503,7 +503,7 @@ rt_static_assertion(ui_font_quality_antialiased == ANTIALIASED_QUALITY);
 rt_static_assertion(ui_font_quality_cleartype == CLEARTYPE_QUALITY);
 rt_static_assertion(ui_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
-static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
+static ui_font_t ui_draw_create_font(const char* family, int32_t h, int32_t q) {
     rt_assert(h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(ui_app.fm.prop.normal.font, sizeof(lf), &lf);
@@ -519,7 +519,7 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
 
-static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
+static ui_font_t ui_draw_font(ui_font_t f, int32_t h, int32_t q) {
     rt_assert(f != null && h > 0);
     LOGFONTA lf = {0};
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
@@ -534,21 +534,21 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
     return (ui_font_t)CreateFontIndirectA(&lf);
 }
 
-static void ui_gdi_delete_font(ui_font_t f) {
+static void ui_draw_delete_font(ui_font_t f) {
     rt_fatal_win32err(DeleteFont(f));
 }
 
 // guaranteed to return dc != null even if not painting
 
-static HDC ui_gdi_get_dc(void) {
+static HDC ui_draw_get_dc(void) {
     // ui_app.window may be null in early init (font metrics before the
     // main window exists). GetDC(null) is documented to return the
     // screen DC, but on some Windows hosts (observed on mb-air-2012)
     // it returns null. Fall back to CreateICA which produces a
     // non-drawable Information Context for the display — adequate
     // for the measurement-only callers that hit this path.
-    HDC hdc = ui_gdi_hdc() != null ?
-              ui_gdi_hdc() : GetDC((HWND)ui_app.window);
+    HDC hdc = ui_draw_hdc() != null ?
+              ui_draw_hdc() : GetDC((HWND)ui_app.window);
     if (hdc == null && ui_app.window == null) {
         hdc = CreateICA("DISPLAY", null, null, null);
     }
@@ -556,8 +556,8 @@ static HDC ui_gdi_get_dc(void) {
     return hdc;
 }
 
-static void ui_gdi_release_dc(HDC hdc) {
-    if (ui_gdi_hdc() == null) {
+static void ui_draw_release_dc(HDC hdc) {
+    if (ui_draw_hdc() == null) {
         // ReleaseDC pairs with GetDC for window DCs but is the wrong
         // call for an Information Context produced by CreateICA. When
         // ReleaseDC fails (returns 0) we are looking at the ICA-
@@ -569,22 +569,22 @@ static void ui_gdi_release_dc(HDC hdc) {
     }
 }
 
-#define ui_gdi_with_hdc(code) do {           \
-    HDC hdc = ui_gdi_get_dc();               \
+#define ui_draw_with_hdc(code) do {           \
+    HDC hdc = ui_draw_get_dc();               \
     code                                     \
-    ui_gdi_release_dc(hdc);                  \
+    ui_draw_release_dc(hdc);                  \
 } while (0)
 
-#define ui_gdi_hdc_with_font(f, ...) do {    \
+#define ui_draw_hdc_with_font(f, ...) do {    \
     rt_not_null(f);                          \
-    HDC hdc = ui_gdi_get_dc();               \
+    HDC hdc = ui_draw_get_dc();               \
     HFONT font_ = SelectFont(hdc, (HFONT)f); \
     { __VA_ARGS__ }                          \
     SelectFont(hdc, font_);                  \
-    ui_gdi_release_dc(hdc);                  \
+    ui_draw_release_dc(hdc);                  \
 } while (0)
 
-static void ui_gdi_dump_hdc_fm(HDC hdc) {
+static void ui_draw_dump_hdc_fm(HDC hdc) {
     // https://en.wikipedia.org/wiki/Quad_(typography)
     // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
     // https://stackoverflow.com/questions/27631736/meaning-of-top-ascent-baseline-descent-bottom-and-leading-in-androids-font
@@ -637,12 +637,12 @@ static void ui_gdi_dump_hdc_fm(HDC hdc) {
     rt_println("height: %.1fpt", pts);
 }
 
-static void ui_gdi_dump_fm(ui_font_t f) {
+static void ui_draw_dump_fm(ui_font_t f) {
     rt_not_null(f);
-    ui_gdi_hdc_with_font(f, { ui_gdi_dump_hdc_fm(hdc); });
+    ui_draw_hdc_with_font(f, { ui_draw_dump_hdc_fm(hdc); });
 }
 
-static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
+static void ui_draw_get_fm(HDC hdc, ui_fm_t* fm) {
     TEXTMETRICA tm = {0};
     rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
     rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
@@ -698,13 +698,13 @@ static void ui_gdi_get_fm(HDC hdc, ui_fm_t* fm) {
     // need it. Easy to add if necessary.
 }
 
-static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
+static void ui_draw_update_fm(ui_fm_t* fm, ui_font_t f) {
     rt_not_null(f);
     SIZE em = {0, 0}; // "m"
     *fm = (ui_fm_t){ .font = f };
-//  ui_gdi.dump_fm(f);
-    ui_gdi_hdc_with_font(f, {
-        ui_gdi_get_fm(hdc, fm);
+//  ui_draw.dump_fm(f);
+    ui_draw_hdc_with_font(f, {
+        ui_draw_get_fm(hdc, fm);
         // rt_glyph_nbsp and "M" have the same result
         rt_fatal_win32err(GetTextExtentPoint32A(hdc, "m", 1, &em));
         SIZE vl = {0}; // "|" Vertical Line https://www.compart.com/en/unicode/U+007C
@@ -723,11 +723,11 @@ static void ui_gdi_update_fm(ui_fm_t* fm, ui_font_t f) {
 //  rt_println("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
 
-static int32_t ui_gdi_draw_utf16(ui_font_t font, const char* s, int32_t n,
+static int32_t ui_draw_draw_utf16(ui_font_t font, const char* s, int32_t n,
         RECT* r, uint32_t format) { // ~70 microsecond Core i-7 3667U 2.0 GHz (2012)
     // if font == null, draws on HDC with selected font
 if (0) {
-    HDC hdc = ui_gdi_hdc();
+    HDC hdc = ui_draw_hdc();
     if (hdc != null) {
         SIZE em = {0, 0}; // "M"
         rt_fatal_win32err(GetTextExtentPoint32A(hdc, "M", 1, &em));
@@ -749,9 +749,9 @@ if (0) {
     rt_str.utf8to16(ws, count, s, -1);
     int32_t h = 0; // return value is the height of the text
     if (font != null) {
-        ui_gdi_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });
+        ui_draw_hdc_with_font(font, { h = DrawTextW(hdc, ws, n, r, format); });
     } else { // with already selected font
-        ui_gdi_with_hdc({ h = DrawTextW(hdc, ws, n, r, format); });
+        ui_draw_with_hdc({ h = DrawTextW(hdc, ws, n, r, format); });
     }
     return h;
 }
@@ -771,9 +771,9 @@ typedef struct { // draw text parameters
     // DT_BOTTOM, DT_VCENTER limited usability in weird cases (layout is better)
     // DT_NOPREFIX not to draw underline at "&Keyboard shortcuts
     // DT_SINGLELINE versus multiline
-} ui_gdi_dtp_t;
+} ui_draw_dtp_t;
 
-static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
+static void ui_draw_text_draw(ui_draw_dtp_t* p) {
     rt_not_null(p);
     char text[4096]; // expected to be enough for single text draw
     text[0] = 0;
@@ -786,7 +786,7 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
         const bool multiline = (p->flags & DT_SINGLELINE) == 0;
         const bool mnemonic = (p->flags & DT_NOPREFIX) == 0;
         const int32_t w = p->rc.right - p->rc.left;
-        ui_wh_t wh = dxd_text(ui_gdi_context.dxd, p->fm->font,
+        ui_wh_t wh = dxd_text(ui_draw_context.dxd, p->fm->font,
                               p->rc.left, p->rc.top, w, p->color,
                               text, k, measure_only, multiline, mnemonic);
         p->rc.right = p->rc.left + wh.w;
@@ -807,7 +807,7 @@ enum {
     ml_measure       = ml_draw|DT_CALCRECT
 };
 
-static ui_wh_t ui_gdi_text_with_flags(const ui_ta_t* ta,
+static ui_wh_t ui_draw_text_with_flags(const ui_ta_t* ta,
         int32_t x, int32_t y, int32_t w,
         const char* format, va_list va, uint32_t flags) {
     const int32_t right = w == 0 ? 0 : x + w;
@@ -821,7 +821,7 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_ta_t* ta,
             rt_swear(ta->color_id == 0);
         }
     }
-    ui_gdi_dtp_t p = {
+    ui_draw_dtp_t p = {
         .fm = ta->fm,
         .color = c,
         .format = format,
@@ -829,44 +829,44 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_ta_t* ta,
         .rc = {.left = x, .top = y, .right = right, .bottom = 0 },
         .flags = flags
     };
-    ui_gdi_text_draw(&p);
+    ui_draw_text_draw(&p);
     return (ui_wh_t){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
 }
 
-static ui_wh_t ui_gdi_text_va(const ui_ta_t* ta,
+static ui_wh_t ui_draw_text_va(const ui_ta_t* ta,
         int32_t x, int32_t y,  const char* format, va_list va) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
-    return ui_gdi_text_with_flags(ta, x, y, 0, format, va, flags);
+    return ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
 }
 
-static ui_wh_t ui_gdi_text(const ui_ta_t* ta,
+static ui_wh_t ui_draw_text(const ui_ta_t* ta,
         int32_t x, int32_t y, const char* format, ...) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
     va_list va;
     va_start(va, format);
-    ui_wh_t wh = ui_gdi_text_with_flags(ta, x, y, 0, format, va, flags);
+    ui_wh_t wh = ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
     va_end(va);
     return wh;
 }
 
-static ui_wh_t ui_gdi_multiline_va(const ui_ta_t* ta,
+static ui_wh_t ui_draw_multiline_va(const ui_ta_t* ta,
         int32_t x, int32_t y, int32_t w, const char* format, va_list va) {
     const uint32_t flags = ta->measure ?
                             (w <= 0 ? ml_measure : ml_measure_break) :
                             (w <= 0 ? ml_draw    : ml_draw_break);
-    return ui_gdi_text_with_flags(ta, x, y, w, format, va, flags);
+    return ui_draw_text_with_flags(ta, x, y, w, format, va, flags);
 }
 
-static ui_wh_t ui_gdi_multiline(const ui_ta_t* ta,
+static ui_wh_t ui_draw_multiline(const ui_ta_t* ta,
         int32_t x, int32_t y, int32_t w, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    ui_wh_t wh = ui_gdi_multiline_va(ta, x, y, w, format, va);
+    ui_wh_t wh = ui_draw_multiline_va(ta, x, y, w, format, va);
     va_end(va);
     return wh;
 }
 
-static ui_wh_t ui_gdi_glyphs_placement(const ui_ta_t* ta,
+static ui_wh_t ui_draw_glyphs_placement(const ui_ta_t* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
     rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
     return dxd_glyphs_placement(ta->fm->font, utf8, bytes, x, glyphs);
@@ -884,7 +884,7 @@ static ui_wh_t ui_gdi_glyphs_placement(const ui_ta_t* ta,
 //    #define STB_bitmap_IMPLEMENTATION
 //    #include "stb_bitmap.h"
 
-static uint8_t* ui_gdi_load_bitmap(const void* data, int32_t bytes, int* w, int* h,
+static uint8_t* ui_draw_load_bitmap(const void* data, int32_t bytes, int* w, int* h,
         int* bytes_per_pixel, int32_t preferred_bytes_per_pixel) {
     #ifdef STBI_VERSION
         return stbi_load_from_memory((uint8_t const*)data, bytes, w, h,
@@ -899,13 +899,13 @@ static uint8_t* ui_gdi_load_bitmap(const void* data, int32_t bytes, int* w, int*
     #endif
 }
 
-static void ui_gdi_bitmap_dispose(ui_bitmap_t* image) {
+static void ui_draw_bitmap_dispose(ui_bitmap_t* image) {
     dxd_bitmap_dispose(&image->dxd);
     rt_fatal_win32err(DeleteBitmap(image->texture));
     memset(image, 0, sizeof(ui_bitmap_t));
 }
 
-ui_gdi_if ui_gdi = {
+ui_draw_if ui_draw = {
     .ta = {
         .prop = {
             .normal = {
@@ -984,44 +984,44 @@ ui_gdi_if ui_gdi = {
             }
         },
     },
-    .init                     = ui_gdi_init,
-    .begin                    = ui_gdi_begin,
-    .end                      = ui_gdi_end,
-    .color_rgb                = ui_gdi_color_rgb,
-    .bitmap_init              = ui_gdi_bitmap_init,
-    .bitmap_init_rgbx         = ui_gdi_bitmap_init_rgbx,
-    .bitmap_dispose           = ui_gdi_bitmap_dispose,
-    .alpha                    = ui_gdi_alpha,
-    .bitmap                   = ui_gdi_bitmap,
-    .icon                     = ui_gdi_icon,
-    .set_clip                 = ui_gdi_set_clip,
-    .pixel                    = ui_gdi_pixel,
-    .line                     = ui_gdi_line,
-    .frame                    = ui_gdi_frame,
-    .rect                     = ui_gdi_rect,
-    .fill                     = ui_gdi_fill,
-    .poly                     = ui_gdi_poly,
-    .circle                   = ui_gdi_circle,
-    .rounded                  = ui_gdi_rounded,
-    .gradient                 = ui_gdi_gradient,
-    .pixels                   = ui_gdi_pixels,
-    .greyscale                = ui_gdi_greyscale,
-    .bgr                      = ui_gdi_bgr,
-    .bgrx                     = ui_gdi_bgrx,
-    .cleartype                = ui_gdi_cleartype,
-    .font_smoothing_contrast  = ui_gdi_font_smoothing_contrast,
-    .create_font              = ui_gdi_create_font,
-    .font                     = ui_gdi_font,
-    .delete_font              = ui_gdi_delete_font,
-    .dump_fm                  = ui_gdi_dump_fm,
-    .update_fm                = ui_gdi_update_fm,
-    .text_va                  = ui_gdi_text_va,
-    .text                     = ui_gdi_text,
-    .multiline_va             = ui_gdi_multiline_va,
-    .multiline                = ui_gdi_multiline,
-    .glyphs_placement         = ui_gdi_glyphs_placement,
-    .fini                     = ui_gdi_fini
+    .init                     = ui_draw_init,
+    .begin                    = ui_draw_begin,
+    .end                      = ui_draw_end,
+    .color_rgb                = ui_draw_color_rgb,
+    .bitmap_init              = ui_draw_bitmap_init,
+    .bitmap_init_rgbx         = ui_draw_bitmap_init_rgbx,
+    .bitmap_dispose           = ui_draw_bitmap_dispose,
+    .alpha                    = ui_draw_alpha,
+    .bitmap                   = ui_draw_bitmap,
+    .icon                     = ui_draw_icon,
+    .set_clip                 = ui_draw_set_clip,
+    .pixel                    = ui_draw_pixel,
+    .line                     = ui_draw_line,
+    .frame                    = ui_draw_frame,
+    .rect                     = ui_draw_rect,
+    .fill                     = ui_draw_fill,
+    .poly                     = ui_draw_poly,
+    .circle                   = ui_draw_circle,
+    .rounded                  = ui_draw_rounded,
+    .gradient                 = ui_draw_gradient,
+    .pixels                   = ui_draw_pixels,
+    .greyscale                = ui_draw_greyscale,
+    .bgr                      = ui_draw_bgr,
+    .bgrx                     = ui_draw_bgrx,
+    .cleartype                = ui_draw_cleartype,
+    .font_smoothing_contrast  = ui_draw_font_smoothing_contrast,
+    .create_font              = ui_draw_create_font,
+    .font                     = ui_draw_font,
+    .delete_font              = ui_draw_delete_font,
+    .dump_fm                  = ui_draw_dump_fm,
+    .update_fm                = ui_draw_update_fm,
+    .text_va                  = ui_draw_text_va,
+    .text                     = ui_draw_text,
+    .multiline_va             = ui_draw_multiline_va,
+    .multiline                = ui_draw_multiline,
+    .glyphs_placement         = ui_draw_glyphs_placement,
+    .fini                     = ui_draw_fini
 };
 
-#pragma pop_macro("ui_gdi_hdc_with_font")
-#pragma pop_macro("ui_gdi_with_hdc")
+#pragma pop_macro("ui_draw_hdc_with_font")
+#pragma pop_macro("ui_draw_with_hdc")

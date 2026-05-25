@@ -48,7 +48,7 @@ static void load_images(void) {
         int bpp = 0; // bytes (!) per pixel
         void* pixels = load_image(data, bytes, &w, &h, &bpp, 0);
         rt_not_null(pixels);
-        ui_gdi.bitmap_init(&image[i], w, h, bpp, pixels);
+        ui_draw.bitmap_init(&image[i], w, h, bpp, pixels);
         stbi_image_free(pixels);
         // do not unmap resources:
         if (i == 0) { rt_mem.unmap(data, bytes); }
@@ -56,20 +56,20 @@ static void load_images(void) {
 }
 
 static void paint(ui_view_t* view) {
-    ui_gdi.fill(0, 0, view->w, view->h, ui_colors.black);
+    ui_draw.fill(0, 0, view->w, view->h, ui_colors.black);
     if (image[1].w > 0 && image[1].h > 0) {
         int w = view->w < image[1].w ? view->w : image[1].w;
         int h = view->h < image[1].h ? view->h : image[1].h;
         int x = (view->w - w) / 2;
         int y = (view->h - h) / 2;
-        ui_gdi.set_clip(0, 0, view->w, view->h);
-        ui_gdi.bitmap(x, y, w, h, 0, 0, image[1].w, image[1].h, &image[1]);
-        ui_gdi.set_clip(0, 0, 0, 0);
+        ui_draw.set_clip(0, 0, view->w, view->h);
+        ui_draw.bitmap(x, y, w, h, 0, 0, image[1].w, image[1].h, &image[1]);
+        ui_draw.set_clip(0, 0, 0, 0);
     }
     if (image[0].w > 0 && image[0].h > 0) {
         int x = (view->w - image[0].w) / 2;
         int y = (view->h - image[0].h) / 2;
-        ui_gdi.bitmap(x, y, image[0].w, image[0].h,
+        ui_draw.bitmap(x, y, image[0].w, image[0].h,
                      0, 0, image[0].w, image[0].h, &image[0]);
     }
 }
