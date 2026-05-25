@@ -349,7 +349,7 @@ static IDWriteTextFormat * dxd_format_for(ui_font_t font) {
 
 ui_wh_t dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
                  int32_t w, ui_color_t color, const char * utf8, int32_t bytes,
-                 bool measure_only, bool multiline) {
+                 bool measure_only, bool multiline, bool mnemonic) {
     ui_wh_t size = {0, 0};
     IDWriteTextFormat * fmt = dxd_format_for(font);
     if (fmt != null && bytes > 0) {
@@ -358,14 +358,37 @@ ui_wh_t dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
             wchar_t * wtext = (wchar_t *)malloc((size_t)chars * sizeof(wchar_t));
             if (wtext != null) {
                 MultiByteToWideChar(CP_UTF8, 0, utf8, bytes, wtext, chars);
+                int32_t n = chars;
+                int32_t underline = -1;
+                if (mnemonic) {
+                    // '&X' marks X as the mnemonic (underlined); '&&' is a
+                    // literal '&'.
+                    int32_t out = 0;
+                    for (int32_t r = 0; r < chars; r++) {
+                        if (wtext[r] == L'&' && r + 1 < chars &&
+                            wtext[r + 1] == L'&') {
+                            wtext[out++] = L'&';
+                            r++;
+                        } else if (wtext[r] == L'&') {
+                            if (underline < 0) { underline = out; }
+                        } else {
+                            wtext[out++] = wtext[r];
+                        }
+                    }
+                    n = out;
+                }
                 IDWriteTextLayout * layout = null;
                 FLOAT max_w = (multiline && w > 0) ? (FLOAT)w :
                     DWRITE_MEASURE_MAX_WIDTH;
                 HRESULT hr = g_dwrite_factory->CreateTextLayout(wtext,
-                    (UINT32)chars, fmt, max_w, DWRITE_MEASURE_MAX_WIDTH, &layout);
+                    (UINT32)n, fmt, max_w, DWRITE_MEASURE_MAX_WIDTH, &layout);
                 if (SUCCEEDED(hr)) {
                     if (!multiline) {
                         layout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+                    }
+                    if (underline >= 0 && underline < n) {
+                        DWRITE_TEXT_RANGE range = { (UINT32)underline, 1 };
+                        layout->SetUnderline(TRUE, range);
                     }
                     DWRITE_TEXT_METRICS m = {0};
                     layout->GetMetrics(&m);

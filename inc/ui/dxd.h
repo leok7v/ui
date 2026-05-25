@@ -56,10 +56,11 @@ void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh
 
 // Text. `font` is the GDI ui_font_t (HFONT); a DirectWrite text format is
 // derived from its LOGFONT. `measure_only` skips drawing. `w` > 0 with
-// `multiline` wraps; otherwise single line. Returns the measured size.
+// `multiline` wraps; otherwise single line. `mnemonic` processes '&' (strip
+// it, underline the next glyph; '&&' is a literal '&'). Returns the size.
 ui_wh_t dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
                  int32_t w, ui_color_t color, const char * utf8, int32_t bytes,
-                 bool measure_only, bool multiline);
+                 bool measure_only, bool multiline, bool mnemonic);
 ui_wh_t dxd_glyphs_placement(ui_font_t font, const char * utf8, int32_t bytes,
                              int32_t x_out[], int32_t glyphs);
 

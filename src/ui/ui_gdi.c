@@ -784,10 +784,11 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
         rt_swear(k > 0 && k < rt_countof(text), "k=%d n=%d fmt=%s", k, p->format);
         const bool measure_only = (p->flags & DT_CALCRECT) != 0;
         const bool multiline = (p->flags & DT_SINGLELINE) == 0;
+        const bool mnemonic = (p->flags & DT_NOPREFIX) == 0;
         const int32_t w = p->rc.right - p->rc.left;
         ui_wh_t wh = dxd_text(ui_gdi_context.dxd, p->fm->font,
                               p->rc.left, p->rc.top, w, p->color,
-                              text, k, measure_only, multiline);
+                              text, k, measure_only, multiline, mnemonic);
         p->rc.right = p->rc.left + wh.w;
         p->rc.bottom = p->rc.top + wh.h;
     } else {

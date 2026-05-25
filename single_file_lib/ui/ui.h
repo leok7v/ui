@@ -838,10 +838,11 @@ void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh
 
 // Text. `font` is the GDI ui_font_t (HFONT); a DirectWrite text format is
 // derived from its LOGFONT. `measure_only` skips drawing. `w` > 0 with
-// `multiline` wraps; otherwise single line. Returns the measured size.
+// `multiline` wraps; otherwise single line. `mnemonic` processes '&' (strip
+// it, underline the next glyph; '&&' is a literal '&'). Returns the size.
 ui_wh_t dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
                  int32_t w, ui_color_t color, const char * utf8, int32_t bytes,
-                 bool measure_only, bool multiline);
+                 bool measure_only, bool multiline, bool mnemonic);
 ui_wh_t dxd_glyphs_placement(ui_font_t font, const char * utf8, int32_t bytes,
                              int32_t x_out[], int32_t glyphs);
 
@@ -12642,10 +12643,11 @@ static void ui_gdi_text_draw(ui_gdi_dtp_t* p) {
         rt_swear(k > 0 && k < rt_countof(text), "k=%d n=%d fmt=%s", k, p->format);
         const bool measure_only = (p->flags & DT_CALCRECT) != 0;
         const bool multiline = (p->flags & DT_SINGLELINE) == 0;
+        const bool mnemonic = (p->flags & DT_NOPREFIX) == 0;
         const int32_t w = p->rc.right - p->rc.left;
         ui_wh_t wh = dxd_text(ui_gdi_context.dxd, p->fm->font,
                               p->rc.left, p->rc.top, w, p->color,
-                              text, k, measure_only, multiline);
+                              text, k, measure_only, multiline, mnemonic);
         p->rc.right = p->rc.left + wh.w;
         p->rc.bottom = p->rc.top + wh.h;
     } else {
