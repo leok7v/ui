@@ -1,3 +1,4 @@
+#define _GNU_SOURCE 1
 #include "posix.h"
 
 
@@ -114,7 +115,7 @@ static void posix_args_fini(void) {
 
 static void posix_args_test(void) {}
 
-posix_args_if posix_args = {
+struct posix_args_if posix_args = {
     .main         = posix_args_main,
     .option_index = posix_args_option_index,
     .remove_at    = posix_args_remove_at,
@@ -138,7 +139,7 @@ static void posix_core_seterr(int err) { errno = err; }
 
 static void posix_core_test(void) {}
 
-posix_core_if posix_core = {
+struct posix_core_if posix_core = {
     .err     = posix_core_err,
     .set_err = posix_core_seterr,
     .abort   = posix_core_abort,
@@ -285,7 +286,7 @@ static int32_t posix_debug_verbosity_from_string(const char * s) {
 
 static void posix_debug_test(void) {}
 
-posix_debug_if posix_debug = {
+struct posix_debug_if posix_debug = {
     .verbosity = {
         .level   =  0,
         .quiet   =  0,
@@ -561,13 +562,13 @@ static void posix_str_format(char * utf8, int32_t count, const char * format, ..
     va_end(va);
 }
 
-static posix_str1024_t posix_str_error(int32_t error) {
-    posix_str1024_t text;
+static struct posix_str1024 posix_str_error(int32_t error) {
+    struct posix_str1024 text;
     snprintf(text.s, posix_countof(text.s), "0x%08X(%d) \"%s\"", error, error, strerror(error));
     return text;
 }
 
-static posix_str1024_t posix_str_error_nls(int32_t error) {
+static struct posix_str1024 posix_str_error_nls(int32_t error) {
     return posix_str_error(error);
 }
 
@@ -577,10 +578,10 @@ static const char * posix_str_grouping_separator(void) {
     return (sep != null && sep[0] != 0) ? sep : "";
 }
 
-static posix_str64_t posix_str_int64_dg(int64_t v, bool uint, const char * gs) {
+static struct posix_str64 posix_str_int64_dg(int64_t v, bool uint, const char * gs) {
     const int32_t m = (int32_t)strlen(gs);
     posix_swear(m < 5);
-    posix_str64_t text;
+    struct posix_str64 text;
     enum { max_text_bytes = posix_countof(text.s) };
     int64_t abs64 = v < 0 ? -v : v;
     uint64_t n = uint ? (uint64_t)v : (v != INT64_MIN ? (uint64_t)abs64 : (uint64_t)INT64_MIN);
@@ -611,31 +612,31 @@ static posix_str64_t posix_str_int64_dg(int64_t v, bool uint, const char * gs) {
     return text;
 }
 
-static posix_str64_t posix_str_int64(int64_t v) {
+static struct posix_str64 posix_str_int64(int64_t v) {
     return posix_str_int64_dg(v, false, "\xE2\x80\x89"); // Thin space
 }
 
-static posix_str64_t posix_str_uint64(uint64_t v) {
+static struct posix_str64 posix_str_uint64(uint64_t v) {
     return posix_str_int64_dg(v, true, "\xE2\x80\x89"); // Thin space
 }
 
-static posix_str64_t posix_str_int64_lc(int64_t v) {
+static struct posix_str64 posix_str_int64_lc(int64_t v) {
     return posix_str_int64_dg(v, false, posix_str_grouping_separator());
 }
 
-static posix_str64_t posix_str_uint64_lc(uint64_t v) {
+static struct posix_str64 posix_str_uint64_lc(uint64_t v) {
     return posix_str_int64_dg(v, true, posix_str_grouping_separator());
 }
 
-static posix_str128_t posix_str_fp(const char * format, fp64_t v) {
+static struct posix_str128 posix_str_fp(const char * format, fp64_t v) {
     struct lconv * locale_info = localeconv();
     const char * decimal_separator = locale_info->decimal_point;
     if (decimal_separator == null || decimal_separator[0] == 0) { decimal_separator = "."; }
-    posix_str128_t f;
+    struct posix_str128 f;
     f.s[0] = 0x00;
     posix_str.format(f.s, posix_countof(f.s), format, v);
     f.s[posix_countof(f.s) - 1] = 0x00;
-    posix_str128_t text;
+    struct posix_str128 text;
     char * s = f.s;
     char * d = text.s;
     while (*s != 0x00) {
@@ -653,7 +654,7 @@ static posix_str128_t posix_str_fp(const char * format, fp64_t v) {
 
 static void posix_str_test(void) {}
 
-posix_str_if posix_str = {
+struct posix_str_if posix_str = {
     .drop_const              = posix_str_drop_const,
     .len                     = posix_str_len,
     .len16                   = posix_str_utf16len,
@@ -745,7 +746,7 @@ static int32_t posix_vigil_fatal_if_error(const char * file, int32_t line,
 
 static void posix_vigil_test(void) {}
 
-posix_vigil_if posix_vigil = {
+struct posix_vigil_if posix_vigil = {
     .failed_assertion  = posix_vigil_failed_assertion,
     .fatal_termination = posix_vigil_fatal_termination,
     .fatal_if_error    = posix_vigil_fatal_if_error,
@@ -764,51 +765,49 @@ posix_vigil_if posix_vigil = {
 
 // _______________________________ posix_atomics.c _______________________________
 
-posix_static_assertion(sizeof(int32_t) == sizeof(int_fast32_t));
-posix_static_assertion(sizeof(int64_t) == sizeof(int_fast64_t));
 
 static void* posix_atomics_exchange_ptr(volatile void** a, void* v) {
     return atomic_exchange((volatile _Atomic(void*)*)a, v);
 }
 
 static int32_t posix_atomics_increment_int32(volatile int32_t* a) {
-    return atomic_fetch_add((volatile atomic_int_fast32_t*)a, 1) + 1;
+    return atomic_fetch_add((volatile _Atomic int32_t*)a, 1) + 1;
 }
 
 static int32_t posix_atomics_decrement_int32(volatile int32_t* a) {
-    return atomic_fetch_sub((volatile atomic_int_fast32_t*)a, 1) - 1;
+    return atomic_fetch_sub((volatile _Atomic int32_t*)a, 1) - 1;
 }
 
 static int64_t posix_atomics_increment_int64(volatile int64_t* a) {
-    return atomic_fetch_add((volatile atomic_int_fast64_t*)a, 1) + 1;
+    return atomic_fetch_add((volatile _Atomic int64_t*)a, 1) + 1;
 }
 
 static int64_t posix_atomics_decrement_int64(volatile int64_t* a) {
-    return atomic_fetch_sub((volatile atomic_int_fast64_t*)a, 1) - 1;
+    return atomic_fetch_sub((volatile _Atomic int64_t*)a, 1) - 1;
 }
 
 static int32_t posix_atomics_add_int32(volatile int32_t* a, int32_t v) {
-    return atomic_fetch_add((volatile atomic_int_fast32_t*)a, v) + v;
+    return atomic_fetch_add((volatile _Atomic int32_t*)a, v) + v;
 }
 
 static int64_t posix_atomics_add_int64(volatile int64_t* a, int64_t v) {
-    return atomic_fetch_add((volatile atomic_int_fast64_t*)a, v) + v;
+    return atomic_fetch_add((volatile _Atomic int64_t*)a, v) + v;
 }
 
 static int32_t posix_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
-    return atomic_exchange((volatile atomic_int_fast32_t*)a, v);
+    return atomic_exchange((volatile _Atomic int32_t*)a, v);
 }
 
 static int64_t posix_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
-    return atomic_exchange((volatile atomic_int_fast64_t*)a, v);
+    return atomic_exchange((volatile _Atomic int64_t*)a, v);
 }
 
 static bool posix_atomics_compare_exchange_int64(volatile int64_t* a, int64_t comparand, int64_t v) {
-    return atomic_compare_exchange_strong((volatile atomic_int_fast64_t*)a, &comparand, v);
+    return atomic_compare_exchange_strong((volatile _Atomic int64_t*)a, &comparand, v);
 }
 
 static bool posix_atomics_compare_exchange_int32(volatile int32_t* a, int32_t comparand, int32_t v) {
-    return atomic_compare_exchange_strong((volatile atomic_int_fast32_t*)a, &comparand, v);
+    return atomic_compare_exchange_strong((volatile _Atomic int32_t*)a, &comparand, v);
 }
 
 static bool posix_atomics_compare_exchange_ptr(volatile void** a, void* comparand, void* v) {
@@ -839,16 +838,16 @@ static void posix_atomics_spinlock_release(volatile int64_t* spinlock) {
 }
 
 static int32_t posix_atomics_load_int32(volatile int32_t* a) {
-    return atomic_load_explicit((volatile atomic_int_fast32_t*)a, memory_order_acquire);
+    return atomic_load_explicit((volatile _Atomic int32_t*)a, memory_order_acquire);
 }
 
 static int64_t posix_atomics_load_int64(volatile int64_t* a) {
-    return atomic_load_explicit((volatile atomic_int_fast64_t*)a, memory_order_acquire);
+    return atomic_load_explicit((volatile _Atomic int64_t*)a, memory_order_acquire);
 }
 
 static void posix_atomics_test(void) {}
 
-posix_atomics_if posix_atomics = {
+struct posix_atomics_if posix_atomics = {
     .exchange_ptr           = posix_atomics_exchange_ptr,
     .increment_int32        = posix_atomics_increment_int32,
     .decrement_int32        = posix_atomics_decrement_int32,
@@ -873,7 +872,7 @@ posix_atomics_if posix_atomics = {
 
 // --- Mutexes ---
 
-static void posix_mutex_init(posix_mutex_t* m) {
+static void posix_mutex_init(struct posix_mutex* m) {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
@@ -882,21 +881,21 @@ static void posix_mutex_init(posix_mutex_t* m) {
     pthread_mutexattr_destroy(&attr);
 }
 
-static void posix_mutex_lock(posix_mutex_t* m) {
+static void posix_mutex_lock(struct posix_mutex* m) {
     pthread_mutex_lock((pthread_mutex_t*)m->content);
 }
 
-static void posix_mutex_unlock(posix_mutex_t* m) {
+static void posix_mutex_unlock(struct posix_mutex* m) {
     pthread_mutex_unlock((pthread_mutex_t*)m->content);
 }
 
-static void posix_mutex_dispose(posix_mutex_t* m) {
+static void posix_mutex_dispose(struct posix_mutex* m) {
     pthread_mutex_destroy((pthread_mutex_t*)m->content);
 }
 
 static void posix_mutex_test(void) {}
 
-posix_mutex_if posix_mutex = {
+struct posix_mutex_if posix_mutex = {
     .init    = posix_mutex_init,
     .lock    = posix_mutex_lock,
     .unlock  = posix_mutex_unlock,
@@ -906,15 +905,15 @@ posix_mutex_if posix_mutex = {
 
 // --- Events ---
 
-typedef struct posix_event_impl_s {
+struct posix_event_impl {
     pthread_mutex_t mutex;
     pthread_cond_t cond;
     bool signaled;
     bool manual_reset;
-} posix_event_impl_t;
+};
 
 static posix_event_t posix_event_create_base(bool manual) {
-    posix_event_impl_t* e = (posix_event_impl_t*)malloc(sizeof(posix_event_impl_t));
+    struct posix_event_impl* e = (struct posix_event_impl*)malloc(sizeof(struct posix_event_impl));
     posix_not_null(e);
     pthread_mutex_init(&e->mutex, null);
     pthread_cond_init(&e->cond, null);
@@ -927,7 +926,7 @@ static posix_event_t posix_event_create(void) { return posix_event_create_base(f
 static posix_event_t posix_event_create_manual(void) { return posix_event_create_base(true); }
 
 static void posix_event_set(posix_event_t e_handle) {
-    posix_event_impl_t* e = (posix_event_impl_t*)e_handle;
+    struct posix_event_impl* e = (struct posix_event_impl*)e_handle;
     pthread_mutex_lock(&e->mutex);
     e->signaled = true;
     pthread_cond_broadcast(&e->cond);
@@ -935,14 +934,14 @@ static void posix_event_set(posix_event_t e_handle) {
 }
 
 static void posix_event_reset(posix_event_t e_handle) {
-    posix_event_impl_t* e = (posix_event_impl_t*)e_handle;
+    struct posix_event_impl* e = (struct posix_event_impl*)e_handle;
     pthread_mutex_lock(&e->mutex);
     e->signaled = false;
     pthread_mutex_unlock(&e->mutex);
 }
 
 static int32_t posix_event_wait_or_timeout(posix_event_t e_handle, fp64_t seconds) {
-    posix_event_impl_t* e = (posix_event_impl_t*)e_handle;
+    struct posix_event_impl* e = (struct posix_event_impl*)e_handle;
     pthread_mutex_lock(&e->mutex);
     int32_t result = 0;
     
@@ -989,7 +988,7 @@ static int32_t posix_event_wait_any_or_timeout(int32_t n, posix_event_t events[]
 
     while (true) {
         for (int32_t i = 0; i < n; i++) {
-            posix_event_impl_t* e = (posix_event_impl_t*)events[i];
+            struct posix_event_impl* e = (struct posix_event_impl*)events[i];
             pthread_mutex_lock(&e->mutex);
             if (e->signaled) {
                 if (!e->manual_reset) { e->signaled = false; }
@@ -1014,7 +1013,7 @@ static int32_t posix_event_wait_any(int32_t n, posix_event_t events[]) {
 }
 
 static void posix_event_dispose(posix_event_t e_handle) {
-    posix_event_impl_t* e = (posix_event_impl_t*)e_handle;
+    struct posix_event_impl* e = (struct posix_event_impl*)e_handle;
     pthread_cond_destroy(&e->cond);
     pthread_mutex_destroy(&e->mutex);
     free(e);
@@ -1022,7 +1021,7 @@ static void posix_event_dispose(posix_event_t e_handle) {
 
 static void posix_event_test(void) {}
 
-posix_event_if posix_event = {
+struct posix_event_if posix_event = {
     .create              = posix_event_create,
     .create_manual       = posix_event_create_manual,
     .set                 = posix_event_set,
@@ -1037,13 +1036,13 @@ posix_event_if posix_event = {
 
 // --- Threads ---
 
-typedef struct {
+struct posix_thread_args {
     void (*func)(void*);
     void* arg;
-} posix_thread_args_t;
+};
 
 static void* posix_thread_wrapper(void* p) {
-    posix_thread_args_t* args = (posix_thread_args_t*)p;
+    struct posix_thread_args* args = (struct posix_thread_args*)p;
     void (*func)(void*) = args->func;
     void* arg = args->arg;
     free(args);
@@ -1053,7 +1052,7 @@ static void* posix_thread_wrapper(void* p) {
 
 static posix_thread_t posix_thread_start(void (*func)(void*), void* p) {
     pthread_t* t = (pthread_t*)malloc(sizeof(pthread_t));
-    posix_thread_args_t* args = (posix_thread_args_t*)malloc(sizeof(posix_thread_args_t));
+    struct posix_thread_args* args = (struct posix_thread_args*)malloc(sizeof(struct posix_thread_args));
     args->func = func;
     args->arg = p;
     posix_fatal_if_error(pthread_create(t, null, posix_thread_wrapper, args));
@@ -1134,7 +1133,7 @@ static void posix_thread_close(posix_thread_t t) {
 
 static void posix_thread_test(void) {}
 
-posix_thread_if posix_thread = {
+struct posix_thread_if posix_thread = {
     .start     = posix_thread_start,
     .join      = posix_thread_join,
     .detach    = posix_thread_detach,
@@ -1152,8 +1151,8 @@ posix_thread_if posix_thread = {
 
 // ________________________________ posix_work.c _________________________________
 
-static void posix_work_queue_no_duplicates(posix_work_t* w) {
-    posix_work_t* e = w->queue->head;
+static void posix_work_queue_no_duplicates(struct posix_work* w) {
+    struct posix_work* e = w->queue->head;
     bool found = false;
     while (e != null && !found) {
         found = (e == w);
@@ -1162,13 +1161,13 @@ static void posix_work_queue_no_duplicates(posix_work_t* w) {
     posix_swear(!found);
 }
 
-static void posix_work_queue_post(posix_work_t* w) {
+static void posix_work_queue_post(struct posix_work* w) {
     posix_assert(w->queue != null && w != null && w->when >= 0.0);
-    posix_work_queue_t* q = w->queue;
+    struct posix_work_queue* q = w->queue;
     posix_atomics.spinlock_acquire(&q->lock);
     posix_work_queue_no_duplicates(w); 
-    posix_work_t* p = null;
-    posix_work_t* e = q->head;
+    struct posix_work* p = null;
+    struct posix_work* e = q->head;
     while (e != null && e->when <= w->when) {
         p = e;
         e = e->next;
@@ -1184,12 +1183,12 @@ static void posix_work_queue_post(posix_work_t* w) {
     if (head && q->changed != null) { posix_event.set(q->changed); }
 }
 
-static void posix_work_queue_cancel(posix_work_t* w) {
+static void posix_work_queue_cancel(struct posix_work* w) {
     if (w != null && w->queue != null && !w->canceled) {
-        posix_work_queue_t* q = w->queue;
+        struct posix_work_queue* q = w->queue;
         posix_atomics.spinlock_acquire(&q->lock);
-        posix_work_t* p = null;
-        posix_work_t* e = q->head;
+        struct posix_work* p = null;
+        struct posix_work* e = q->head;
         bool changed = false; 
         while (e != null && !w->canceled) {
             if (e == w) {
@@ -1212,12 +1211,12 @@ static void posix_work_queue_cancel(posix_work_t* w) {
     }
 }
 
-static void posix_work_queue_flush(posix_work_queue_t* q) {
+static void posix_work_queue_flush(struct posix_work_queue* q) {
     while (q->head != null) { posix_work_queue.cancel(q->head); }
 }
 
-static bool posix_work_queue_get(posix_work_queue_t* q, posix_work_t* *r) {
-    posix_work_t* w = null;
+static bool posix_work_queue_get(struct posix_work_queue* q, struct posix_work* *r) {
+    struct posix_work* w = null;
     posix_atomics.spinlock_acquire(&q->lock);
     
     struct timeval tv;
@@ -1236,17 +1235,17 @@ static bool posix_work_queue_get(posix_work_queue_t* q, posix_work_t* *r) {
     return w != null;
 }
 
-static void posix_work_queue_call(posix_work_t* w) {
+static void posix_work_queue_call(struct posix_work* w) {
     if (w->work != null) { w->work(w); }
     if (w->done != null) { posix_event.set(w->done); }
 }
 
-static void posix_work_queue_dispatch(posix_work_queue_t* q) {
-    posix_work_t* w = null;
+static void posix_work_queue_dispatch(struct posix_work_queue* q) {
+    struct posix_work* w = null;
     while (posix_work_queue.get(q, &w)) { posix_work_queue.call(w); }
 }
 
-posix_work_queue_if posix_work_queue = {
+struct posix_work_queue_if posix_work_queue = {
     .post     = posix_work_queue_post,
     .get      = posix_work_queue_get,
     .call     = posix_work_queue_call,
@@ -1257,8 +1256,8 @@ posix_work_queue_if posix_work_queue = {
 
 static void posix_worker_thread(void* p) {
     posix_thread.name("worker");
-    posix_worker_t* worker = (posix_worker_t*)p;
-    posix_work_queue_t* q = &worker->queue;
+    struct posix_worker* worker = (struct posix_worker*)p;
+    struct posix_work_queue* q = &worker->queue;
     while (!worker->quit) {
         posix_work_queue.dispatch(q);
         fp64_t timeout = -1.0;
@@ -1279,16 +1278,16 @@ static void posix_worker_thread(void* p) {
     posix_work_queue.dispatch(q);
 }
 
-static void posix_worker_start(posix_worker_t* worker) {
+static void posix_worker_start(struct posix_worker* worker) {
     posix_assert(worker->wake == null && !worker->quit);
     worker->wake  = posix_event.create();
-    worker->queue = (posix_work_queue_t){
+    worker->queue = (struct posix_work_queue){
         .head = null, .lock = 0, .changed = worker->wake
     };
     worker->thread = posix_thread.start(posix_worker_thread, worker);
 }
 
-static int posix_worker_join(posix_worker_t* worker, fp64_t to) {
+static int posix_worker_join(struct posix_worker* worker, fp64_t to) {
     worker->quit = true;
     posix_event.set(worker->wake);
     int r = posix_thread.join(worker->thread, to);
@@ -1302,7 +1301,7 @@ static int posix_worker_join(posix_worker_t* worker, fp64_t to) {
     return r;
 }
 
-static void posix_worker_post(posix_worker_t* worker, posix_work_t* w) {
+static void posix_worker_post(struct posix_worker* worker, struct posix_work* w) {
     posix_assert(!worker->quit && worker->wake != null && worker->thread != null);
     w->queue = &worker->queue;
     posix_work_queue.post(w);
@@ -1310,7 +1309,7 @@ static void posix_worker_post(posix_worker_t* worker, posix_work_t* w) {
 
 static void posix_worker_test(void) {}
 
-posix_worker_if posix_worker = {
+struct posix_worker_if posix_worker = {
     .start = posix_worker_start,
     .post  = posix_worker_post,
     .join  = posix_worker_join,
@@ -1377,28 +1376,28 @@ static void posix_heap_free(void* a) {
     free(a);
 }
 
-static posix_heap_t* posix_heap_create(bool serialized) {
-    posix_unused(serialized);
-    return (posix_heap_t*)1; // Dummy handle, standard malloc is thread-safe
+static struct posix_heap* posix_heap_create(bool serialized) {
+    (void)serialized;
+    return (struct posix_heap*)1; // Dummy handle, standard malloc is thread-safe
 }
 
-static int posix_heap_allocate(posix_heap_t* heap, void* *a, int64_t bytes, bool zero) {
-    posix_unused(heap);
+static int posix_heap_allocate(struct posix_heap* heap, void* *a, int64_t bytes, bool zero) {
+    (void)heap;
     return zero ? posix_heap_alloc_zero(a, bytes) : posix_heap_alloc(a, bytes);
 }
 
-static int posix_heap_reallocate(posix_heap_t* heap, void* *a, int64_t bytes, bool zero) {
-    posix_unused(heap);
+static int posix_heap_reallocate(struct posix_heap* heap, void* *a, int64_t bytes, bool zero) {
+    (void)heap;
     return zero ? posix_heap_realloc_zero(a, bytes) : posix_heap_realloc(a, bytes);
 }
 
-static void posix_heap_deallocate(posix_heap_t* heap, void* a) {
-    posix_unused(heap);
+static void posix_heap_deallocate(struct posix_heap* heap, void* a) {
+    (void)heap;
     free(a);
 }
 
-static int64_t posix_heap_bytes(posix_heap_t* heap, void* a) {
-    posix_unused(heap);
+static int64_t posix_heap_bytes(struct posix_heap* heap, void* a) {
+    (void)heap;
     if (a == null) { return 0; }
 #if defined(__APPLE__)
     return (int64_t)malloc_size(a);
@@ -1409,13 +1408,13 @@ static int64_t posix_heap_bytes(posix_heap_t* heap, void* a) {
 #endif
 }
 
-static void posix_heap_dispose(posix_heap_t* heap) {
-    posix_unused(heap);
+static void posix_heap_dispose(struct posix_heap* heap) {
+    (void)heap;
 }
 
 static void posix_heap_test(void) {}
 
-posix_heap_if posix_heap = {
+struct posix_heap_if posix_heap = {
     .alloc        = posix_heap_alloc,
     .alloc_zero   = posix_heap_alloc_zero,
     .realloc      = posix_heap_realloc,
@@ -1484,9 +1483,9 @@ static void posix_mem_unmap(void* data, int64_t bytes) {
 }
 
 static int posix_mem_map_resource(const char* label, void** data, int64_t* bytes) {
-    posix_unused(label);
-    posix_unused(data);
-    posix_unused(bytes);
+    (void)label;
+    (void)data;
+    (void)bytes;
     return ENOSYS; // No direct POSIX equivalent to Win32 RT_RCDATA
 }
 
@@ -1514,7 +1513,7 @@ static void posix_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
 
 static void posix_mem_test(void) {}
 
-posix_mem_if posix_mem = {
+struct posix_mem_if posix_mem = {
     .map_ro          = posix_mem_map_ro,
     .map_rw          = posix_mem_map_rw,
     .unmap           = posix_mem_unmap,
@@ -1528,7 +1527,7 @@ posix_mem_if posix_mem = {
 
 // ________________________________ posix_files.c ________________________________
 
-static int posix_files_open(posix_file_t* *file, const char* filename, int32_t flags) {
+static int posix_files_open(struct posix_file* *file, const char* filename, int32_t flags) {
     int f = 0;
     if ((flags & posix_files.o_rw) == posix_files.o_rw) {
         f |= O_RDWR;
@@ -1548,15 +1547,15 @@ static int posix_files_open(posix_file_t* *file, const char* filename, int32_t f
         *file = posix_files.invalid;
         return errno;
     }
-    *file = (posix_file_t*)(intptr_t)fd;
+    *file = (struct posix_file*)(intptr_t)fd;
     return 0;
 }
 
-static bool posix_files_is_valid(posix_file_t* file) {
+static bool posix_files_is_valid(struct posix_file* file) {
     return file != posix_files.invalid && file != null && (intptr_t)file >= 0;
 }
 
-static int posix_files_seek(posix_file_t* file, int64_t *position, int32_t method) {
+static int posix_files_seek(struct posix_file* file, int64_t *position, int32_t method) {
     int fd = (int)(intptr_t)file;
     off_t res = lseek(fd, (off_t)*position, method);
     if (res == (off_t)-1) { return errno; }
@@ -1564,8 +1563,8 @@ static int posix_files_seek(posix_file_t* file, int64_t *position, int32_t metho
     return 0;
 }
 
-static int posix_files_stat(posix_file_t* file, posix_files_stat_t* s, bool follow_symlink) {
-    posix_unused(follow_symlink); // fstat inherently targets the open file
+static int posix_files_stat(struct posix_file* file, struct posix_files_stat* s, bool follow_symlink) {
+    (void)follow_symlink; // fstat inherently targets the open file
     int fd = (int)(intptr_t)file;
     struct stat st;
     if (fstat(fd, &st) < 0) { return errno; }
@@ -1580,7 +1579,7 @@ static int posix_files_stat(posix_file_t* file, posix_files_stat_t* s, bool foll
     return 0;
 }
 
-static int posix_files_read(posix_file_t* file, void* data, int64_t bytes, int64_t *transferred) {
+static int posix_files_read(struct posix_file* file, void* data, int64_t bytes, int64_t *transferred) {
     int fd = (int)(intptr_t)file;
     ssize_t res = read(fd, data, (size_t)bytes);
     if (res < 0) {
@@ -1591,7 +1590,7 @@ static int posix_files_read(posix_file_t* file, void* data, int64_t bytes, int64
     return 0;
 }
 
-static int posix_files_write(posix_file_t* file, const void* data, int64_t bytes, int64_t *transferred) {
+static int posix_files_write(struct posix_file* file, const void* data, int64_t bytes, int64_t *transferred) {
     int fd = (int)(intptr_t)file;
     ssize_t res = write(fd, data, (size_t)bytes);
     if (res < 0) {
@@ -1602,12 +1601,12 @@ static int posix_files_write(posix_file_t* file, const void* data, int64_t bytes
     return 0;
 }
 
-static int posix_files_flush(posix_file_t* file) {
+static int posix_files_flush(struct posix_file* file) {
     int fd = (int)(intptr_t)file;
     return fsync(fd) == 0 ? 0 : errno;
 }
 
-static void posix_files_close(posix_file_t* file) {
+static void posix_files_close(struct posix_file* file) {
     int fd = (int)(intptr_t)file;
     if (fd >= 0) { close(fd); }
 }
@@ -1697,7 +1696,7 @@ static int posix_files_rmdirs(const char* pathname) {
 }
 
 static int posix_files_create_tmp(char* file, int32_t count) {
-    posix_unused(count);
+    (void)count;
     snprintf(file, (size_t)count, "/tmp/rt_XXXXXX");
     int fd = mkstemp(file);
     if (fd < 0) { return errno; }
@@ -1794,19 +1793,19 @@ static const char* posix_files_tmp(void) {
     return t != null ? t : "/tmp";
 }
 
-typedef struct {
+struct posix_dir {
     DIR* dir;
     struct dirent* entry;
-} posix_dir_t;
+};
 
-static int posix_files_opendir(posix_folder_t* folder, const char* folder_name) {
-    posix_dir_t* d = (posix_dir_t*)folder;
+static int posix_files_opendir(struct posix_folder* folder, const char* folder_name) {
+    struct posix_dir* d = (struct posix_dir*)folder;
     d->dir = opendir(folder_name);
     return d->dir != null ? 0 : errno;
 }
 
-static const char* posix_files_readdir(posix_folder_t* folder, posix_files_stat_t* optional) {
-    posix_dir_t* d = (posix_dir_t*)folder;
+static const char* posix_files_readdir(struct posix_folder* folder, struct posix_files_stat* optional) {
+    struct posix_dir* d = (struct posix_dir*)folder;
     d->entry = readdir(d->dir);
     if (d->entry == null) { return null; }
     if (optional != null) {
@@ -1818,15 +1817,15 @@ static const char* posix_files_readdir(posix_folder_t* folder, posix_files_stat_
     return d->entry->d_name;
 }
 
-static void posix_files_closedir(posix_folder_t* folder) {
-    posix_dir_t* d = (posix_dir_t*)folder;
+static void posix_files_closedir(struct posix_folder* folder) {
+    struct posix_dir* d = (struct posix_dir*)folder;
     if (d->dir != null) { closedir(d->dir); }
 }
 
 static void posix_files_test(void) {}
 
-posix_files_if posix_files = {
-    .invalid      = (posix_file_t*)(intptr_t)-1,
+struct posix_files_if posix_files = {
+    .invalid      = (struct posix_file*)(intptr_t)-1,
     .type_folder  = 0x00000010,
     .type_symlink = 0x00000400,
     .type_device  = 0x00000040,
@@ -1916,9 +1915,9 @@ static int32_t posix_config_size(const char* name, const char* key) {
     struct chars file_path = {0};
     posix_config_get_path(name, key, &file_path);
     int32_t r = -1;
-    posix_file_t* f = posix_files.invalid;
+    struct posix_file* f = posix_files.invalid;
     if (posix_files.open(&f, file_path.data, posix_files.o_rd) == 0) {
-        posix_files_stat_t st;
+        struct posix_files_stat st;
         posix_files.stat(f, &st, false);
         posix_files.close(f);
         r = (int32_t)st.size;
@@ -1931,7 +1930,7 @@ static int32_t posix_config_load(const char* name, const char* key, void* data, 
     struct chars file_path = {0};
     posix_config_get_path(name, key, &file_path);
     int32_t r = -1;
-    posix_file_t* f = posix_files.invalid;
+    struct posix_file* f = posix_files.invalid;
     if (posix_files.open(&f, file_path.data, posix_files.o_rd) == 0) {
         int64_t transferred = 0;
         posix_files.read(f, data, (int64_t)bytes, &transferred);
@@ -1960,7 +1959,7 @@ static int posix_config_clean(const char* name) {
 
 static void posix_config_test(void) {}
 
-posix_config_if posix_config = {
+struct posix_config_if posix_config = {
     .save   = posix_config_save,
     .size   = posix_config_size,
     .load   = posix_config_load,
@@ -1971,9 +1970,9 @@ posix_config_if posix_config = {
 
 // _______________________________ posix_streams.c _______________________________
 
-static int posix_streams_memory_read(posix_stream_if* stream, void* data, int64_t bytes, int64_t *transferred) {
+static int posix_streams_memory_read(struct posix_stream_if* stream, void* data, int64_t bytes, int64_t *transferred) {
     posix_swear(bytes > 0);
-    posix_stream_memory_if* s = (posix_stream_memory_if*)stream;
+    struct posix_stream_memory_if* s = (struct posix_stream_memory_if*)stream;
     posix_swear(0 <= s->pos_read && s->pos_read <= s->bytes_read);
     int64_t transfer = posix_min(bytes, s->bytes_read - s->pos_read);
     memcpy(data, (const uint8_t*)s->data_read + s->pos_read, (size_t)transfer);
@@ -1982,9 +1981,9 @@ static int posix_streams_memory_read(posix_stream_if* stream, void* data, int64_
     return 0;
 }
 
-static int posix_streams_memory_write(posix_stream_if* stream, const void* data, int64_t bytes, int64_t *transferred) {
+static int posix_streams_memory_write(struct posix_stream_if* stream, const void* data, int64_t bytes, int64_t *transferred) {
     posix_swear(bytes > 0);
-    posix_stream_memory_if* s = (posix_stream_memory_if*)stream;
+    struct posix_stream_memory_if* s = (struct posix_stream_memory_if*)stream;
     posix_swear(0 <= s->pos_write && s->pos_write <= s->bytes_write);
     bool overflow = s->bytes_write - s->pos_write <= 0;
     int64_t transfer = posix_min(bytes, s->bytes_write - s->pos_write);
@@ -1994,7 +1993,7 @@ static int posix_streams_memory_write(posix_stream_if* stream, const void* data,
     return overflow ? ENOBUFS : 0;
 }
 
-static void posix_streams_read_only(posix_stream_memory_if* s, const void* data, int64_t bytes) {
+static void posix_streams_read_only(struct posix_stream_memory_if* s, const void* data, int64_t bytes) {
     s->stream.read = posix_streams_memory_read;
     s->stream.write = null;
     s->data_read = data;
@@ -2005,7 +2004,7 @@ static void posix_streams_read_only(posix_stream_memory_if* s, const void* data,
     s->pos_write = 0;
 }
 
-static void posix_streams_write_only(posix_stream_memory_if* s, void* data, int64_t bytes) {
+static void posix_streams_write_only(struct posix_stream_memory_if* s, void* data, int64_t bytes) {
     s->stream.read = null;
     s->stream.write = posix_streams_memory_write;
     s->data_read = null;
@@ -2016,7 +2015,7 @@ static void posix_streams_write_only(posix_stream_memory_if* s, void* data, int6
     s->pos_write = 0;
 }
 
-static void posix_streams_read_write(posix_stream_memory_if* s, const void* read, int64_t read_bytes, void* write, int64_t write_bytes) {
+static void posix_streams_read_write(struct posix_stream_memory_if* s, const void* read, int64_t read_bytes, void* write, int64_t write_bytes) {
     s->stream.read = posix_streams_memory_read;
     s->stream.write = posix_streams_memory_write;
     s->data_read = read;
@@ -2029,7 +2028,7 @@ static void posix_streams_read_write(posix_stream_memory_if* s, const void* read
 
 static void posix_streams_test(void) {}
 
-posix_streams_if posix_streams = {
+struct posix_streams_if posix_streams = {
     .read_only  = posix_streams_read_only,
     .write_only = posix_streams_write_only,
     .read_write = posix_streams_read_write,
@@ -2114,7 +2113,7 @@ static void posix_clock_local(uint64_t microseconds, int32_t* year, int32_t* mon
 
 static void posix_clock_test(void) {}
 
-posix_clock_if posix_clock = {
+struct posix_clock_if posix_clock = {
     .nsec_in_usec      = 1000,
     .nsec_in_msec      = 1000000,
     .nsec_in_sec       = 1000000000,
@@ -2193,12 +2192,12 @@ static bool posix_processes_present(uint64_t pid) {
 }
 
 static int posix_processes_kill(uint64_t pid, fp64_t timeout_seconds) {
-    posix_unused(timeout_seconds); // POSIX kill is immediate signal
+    (void)timeout_seconds; // POSIX kill is immediate signal
     return kill((pid_t)pid, SIGKILL) == 0 ? 0 : errno;
 }
 
 static int posix_processes_kill_all(const char* name, fp64_t timeout_seconds) {
-    posix_unused(timeout_seconds);
+    (void)timeout_seconds;
     char cmd[1024];
     snprintf(cmd, sizeof(cmd), "pkill -9 -f \"%s\"", name);
     return system(cmd) == 0 ? 0 : errno;
@@ -2217,7 +2216,7 @@ static int posix_processes_restart_elevated(void) {
     return 0;
 }
 
-static int posix_processes_run(posix_processes_child_t* child) {
+static int posix_processes_run(struct posix_processes_child* child) {
     int stdout_pipe[2], stderr_pipe[2], stdin_pipe[2];
     if (pipe(stdout_pipe) < 0 || pipe(stderr_pipe) < 0 || pipe(stdin_pipe) < 0) return errno;
 
@@ -2259,8 +2258,8 @@ static int posix_processes_run(posix_processes_child_t* child) {
     return 0;
 }
 
-static int posix_processes_popen(const char* command, int32_t *xc, posix_stream_if* output, fp64_t timeout_seconds) {
-    posix_processes_child_t child = {
+static int posix_processes_popen(const char* command, int32_t *xc, struct posix_stream_if* output, fp64_t timeout_seconds) {
+    struct posix_processes_child child = {
         .command = command,
         .in = null, .out = output, .err = output,
         .exit_code = 0, .timeout = timeout_seconds
@@ -2282,7 +2281,7 @@ static int posix_processes_spawn(const char* command) {
 
 static void posix_processes_test(void) {}
 
-posix_processes_if posix_processes = {
+struct posix_processes_if posix_processes = {
     .name             = posix_processes_name,
     .pid              = posix_processes_pid,
     .pids             = posix_processes_pids,
@@ -2319,7 +2318,7 @@ static void posix_loader_close(void* handle) {
 
 static void posix_loader_test(void) {}
 
-posix_loader_if posix_loader = {
+struct posix_loader_if posix_loader = {
     .local  = 0,
     .lazy   = 1,
     .now    = 2,
@@ -2332,23 +2331,23 @@ posix_loader_if posix_loader = {
 
 // _________________________________ posix_num.c _________________________________
 
-static posix_num128_t posix_num_add128(const posix_num128_t a, const posix_num128_t b) {
-    posix_num128_t r = a;
+static struct posix_num128 posix_num_add128(const struct posix_num128 a, const struct posix_num128 b) {
+    struct posix_num128 r = a;
     r.hi += b.hi;
     r.lo += b.lo;
     if (r.lo < b.lo) { r.hi++; }
     return r;
 }
 
-static posix_num128_t posix_num_sub128(const posix_num128_t a, const posix_num128_t b) {
-    posix_num128_t r = a;
+static struct posix_num128 posix_num_sub128(const struct posix_num128 a, const struct posix_num128 b) {
+    struct posix_num128 r = a;
     r.hi -= b.hi;
     if (r.lo < b.lo) { r.hi--; }
     r.lo -= b.lo;
     return r;
 }
 
-static posix_num128_t posix_num_mul64x64(uint64_t a, uint64_t b) {
+static struct posix_num128 posix_num_mul64x64(uint64_t a, uint64_t b) {
     uint64_t a_lo = (uint32_t)a;
     uint64_t a_hi = a >> 32;
     uint64_t b_lo = (uint32_t)b;
@@ -2362,7 +2361,7 @@ static posix_num128_t posix_num_mul64x64(uint64_t a, uint64_t b) {
     high += ((uint64_t)(cross1 < cross2 != 0)) << 32;
     high = high + (cross1 >> 32);
     low = ((cross1 & 0xFFFFFFFF) << 32) + (low & 0xFFFFFFFF);
-    return (posix_num128_t){.lo = low, .hi = high };
+    return (struct posix_num128){.lo = low, .hi = high };
 }
 
 static uint64_t posix_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
@@ -2426,7 +2425,7 @@ static uint64_t posix_num_hash64(const char *data, int64_t len) {
 
 static void posix_num_test(void) {}
 
-posix_num_if posix_num = {
+struct posix_num_if posix_num = {
     .add128    = posix_num_add128,
     .sub128    = posix_num_sub128,
     .mul64x64  = posix_num_mul64x64,
@@ -2469,7 +2468,7 @@ fp64_t posix_random_uniform(void) {
 
 // ______________________________ posix_backtrace.c ______________________________
 
-static void posix_backtrace_capture(posix_backtrace_t *bt, int32_t skip) {
+static void posix_backtrace_capture(struct posix_backtrace *bt, int32_t skip) {
     void* buffer[posix_backtrace_max_depth];
     int nptrs = backtrace(buffer, posix_backtrace_max_depth);
     bt->frames = posix_min(nptrs - skip, posix_backtrace_max_depth);
@@ -2480,12 +2479,12 @@ static void posix_backtrace_capture(posix_backtrace_t *bt, int32_t skip) {
     bt->error = 0;
 }
 
-static void posix_backtrace_context(posix_thread_t thread, const void* context, posix_backtrace_t *bt) {
-    posix_unused(thread); posix_unused(context);
+static void posix_backtrace_context(posix_thread_t thread, const void* context, struct posix_backtrace *bt) {
+    (void)thread; (void)context;
     bt->frames = 0; // Requires complex arch-specific ucontext unwinding.
 }
 
-static void posix_backtrace_symbolize(posix_backtrace_t *bt) {
+static void posix_backtrace_symbolize(struct posix_backtrace *bt) {
     if (bt->symbolized) return;
     char** strings = backtrace_symbols(bt->stack, bt->frames);
     if (strings == null) {
@@ -2501,15 +2500,15 @@ static void posix_backtrace_symbolize(posix_backtrace_t *bt) {
     bt->symbolized = true;
 }
 
-static void posix_backtrace_trace(const posix_backtrace_t* bt, const char* stop) {
-    posix_unused(stop);
+static void posix_backtrace_trace(const struct posix_backtrace* bt, const char* stop) {
+    (void)stop;
     for (int i = 0; i < bt->frames; i++) {
         posix_debug.println("", 0, bt->symbol[i], "");
     }
 }
 
 static void posix_backtrace_trace_self(const char* stop) {
-    posix_backtrace_t bt = {0};
+    struct posix_backtrace bt = {0};
     posix_backtrace_capture(&bt, 1);
     posix_backtrace_symbolize(&bt);
     posix_backtrace_trace(&bt, stop);
@@ -2519,7 +2518,7 @@ static void posix_backtrace_trace_all_but_self(void) {
     // POSIX lacks standard cross-thread unwinding without ptrace/signals.
 }
 
-static const char* posix_backtrace_string(const posix_backtrace_t* bt, char* text, int32_t count) {
+static const char* posix_backtrace_string(const struct posix_backtrace* bt, char* text, int32_t count) {
     text[0] = '\0';
     for (int i = 0; i < bt->frames; i++) {
         strncat(text, bt->symbol[i], count - strlen(text) - 1);
@@ -2530,7 +2529,7 @@ static const char* posix_backtrace_string(const posix_backtrace_t* bt, char* tex
 
 static void posix_backtrace_test(void) {}
 
-posix_backtrace_if posix_backtrace = {
+struct posix_backtrace_if posix_backtrace = {
     .capture            = posix_backtrace_capture,
     .context            = posix_backtrace_context,
     .symbolize          = posix_backtrace_symbolize,
@@ -2561,16 +2560,16 @@ static const char* posix_nls_str(const char* defau1t) {
 }
 
 static int32_t posix_nls_strid(const char* s) {
-    posix_unused(s);
+    (void)s;
     return -1;
 }
 
 static const char* posix_nls_string(int32_t strid, const char* defau1t) {
-    posix_unused(strid);
+    (void)strid;
     return defau1t;
 }
 
-posix_nls_if posix_nls = {
+struct posix_nls_if posix_nls = {
     .init       = posix_nls_init,
     .locale     = posix_nls_locale,
     .set_locale = posix_nls_set_locale,
@@ -2606,13 +2605,13 @@ static int posix_clipboard_get_text(char* text, int32_t* bytes) {
 }
 
 static int posix_clipboard_put_image(ui_bitmap_t* image) {
-    posix_unused(image);
+    (void)image;
     return ENOSYS;
 }
 
 static void posix_clipboard_test(void) {}
 
-posix_clipboard_if posix_clipboard = {
+struct posix_clipboard_if posix_clipboard = {
     .put_text  = posix_clipboard_put_text,
     .get_text  = posix_clipboard_get_text,
     .put_image = posix_clipboard_put_image,

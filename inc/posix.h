@@ -89,15 +89,15 @@ typedef double fp64_t;
 
 posix_begin_c
 
-typedef struct posix_str64_t { char s[64]; } posix_str64_t;
-typedef struct posix_str128_t { char s[128]; } posix_str128_t;
-typedef struct posix_str1024_t { char s[1024]; } posix_str1024_t;
-typedef struct posix_str32K_t { char s[32 * 1024]; } posix_str32K_t;
+struct posix_str64 { char s[64]; };
+struct posix_str128 { char s[128]; };
+struct posix_str1024 { char s[1024]; };
+struct posix_str32K { char s[32 * 1024]; };
 
 #define posix_str_printf(s, ...) posix_str.format((s), posix_countof(s), "" __VA_ARGS__)
 #define posix_strerr(r) (posix_str.error((r)).s)
 
-typedef struct {
+struct posix_str_if {
     char* (*drop_const)(const char* s);
     int32_t (*len)(const char* s);
     int32_t (*len16)(const uint16_t* utf16);
@@ -119,18 +119,18 @@ typedef struct {
     void (*format_va)(char* utf8, int32_t count, const char* format, va_list va);
     void (*format)(char* utf8, int32_t count, const char* format, ...);
     const char* (*grouping_separator)(void);
-    posix_str64_t (*int64_dg)(int64_t v, bool uint, const char* gs);
-    posix_str64_t (*int64)(int64_t v);
-    posix_str64_t (*uint64)(uint64_t v);
-    posix_str64_t (*int64_lc)(int64_t v);
-    posix_str64_t (*uint64_lc)(uint64_t v);
-    posix_str128_t (*fp)(const char* format, fp64_t v);
-    posix_str1024_t (*error)(int32_t error);
-    posix_str1024_t (*error_nls)(int32_t error);
+    struct posix_str64 (*int64_dg)(int64_t v, bool uint, const char* gs);
+    struct posix_str64 (*int64)(int64_t v);
+    struct posix_str64 (*uint64)(uint64_t v);
+    struct posix_str64 (*int64_lc)(int64_t v);
+    struct posix_str64 (*uint64_lc)(uint64_t v);
+    struct posix_str128 (*fp)(const char* format, fp64_t v);
+    struct posix_str1024 (*error)(int32_t error);
+    struct posix_str1024 (*error_nls)(int32_t error);
     void (*test)(void);
-} posix_str_if;
+};
 
-extern posix_str_if posix_str;
+extern struct posix_str_if posix_str;
 
 posix_end_c
 
@@ -138,7 +138,7 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_args_if {
     int32_t c;
     const char** v;
     const char** env;
@@ -151,9 +151,9 @@ typedef struct {
     const char* (*basename)(void);
     void (*fini)(void);
     void (*test)(void);
-} posix_args_if;
+};
 
-extern posix_args_if posix_args;
+extern struct posix_args_if posix_args;
 
 posix_end_c
 
@@ -168,7 +168,7 @@ typedef struct thread_s* posix_thread_t;
 typedef char posix_backtrace_symbol_t[posix_backtrace_max_symbol];
 typedef char posix_backtrace_file_t[512];
 
-typedef struct posix_backtrace_s {
+struct posix_backtrace {
     int32_t frames;
     uint32_t hash;
     int  error;
@@ -177,23 +177,23 @@ typedef struct posix_backtrace_s {
     posix_backtrace_file_t file[posix_backtrace_max_depth];
     int32_t line[posix_backtrace_max_depth];
     bool symbolized;
-} posix_backtrace_t;
+};
 
-typedef struct {
-    void (*capture)(posix_backtrace_t *bt, int32_t skip);
-    void (*context)(posix_thread_t thread, const void* context, posix_backtrace_t *bt);
-    void (*symbolize)(posix_backtrace_t *bt);
-    void (*trace)(const posix_backtrace_t* bt, const char* stop);
+struct posix_backtrace_if {
+    void (*capture)(struct posix_backtrace *bt, int32_t skip);
+    void (*context)(posix_thread_t thread, const void* context, struct posix_backtrace *bt);
+    void (*symbolize)(struct posix_backtrace *bt);
+    void (*trace)(const struct posix_backtrace* bt, const char* stop);
     void (*trace_self)(const char* stop);
     void (*trace_all_but_self)(void);
-    const char* (*string)(const posix_backtrace_t* bt, char* text, int32_t count);
+    const char* (*string)(const struct posix_backtrace* bt, char* text, int32_t count);
     void (*test)(void);
-} posix_backtrace_if;
+};
 
-extern posix_backtrace_if posix_backtrace;
+extern struct posix_backtrace_if posix_backtrace;
 
 #define posix_backtrace_here() do {  \
-    posix_backtrace_t bt_ = {0};     \
+    struct posix_backtrace bt_ = {0};     \
     posix_backtrace.capture(&bt_, 0);\
     posix_backtrace.symbolize(&bt_); \
     posix_backtrace.trace(&bt_, "*");\
@@ -205,7 +205,7 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_atomics_if {
     void* (*exchange_ptr)(volatile void** a, void* v);
     int32_t (*increment_int32)(volatile int32_t* a);
     int32_t (*decrement_int32)(volatile int32_t* a);
@@ -224,9 +224,9 @@ typedef struct {
     int64_t (*load64)(volatile int64_t* a);
     void (*memory_fence)(void);
     void (*test)(void);
-} posix_atomics_if;
+};
 
-extern posix_atomics_if posix_atomics;
+extern struct posix_atomics_if posix_atomics;
 
 posix_end_c
 
@@ -236,14 +236,14 @@ posix_begin_c
 
 typedef struct ui_bitmap ui_bitmap_t;
 
-typedef struct {
+struct posix_clipboard_if {
     int (*put_text)(const char* s);
     int (*get_text)(char* text, int32_t* bytes);
     int (*put_image)(ui_bitmap_t* image);
     void (*test)(void);
-} posix_clipboard_if;
+};
 
-extern posix_clipboard_if posix_clipboard;
+extern struct posix_clipboard_if posix_clipboard;
 
 posix_end_c
 
@@ -251,7 +251,7 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_clock_if {
     int32_t const nsec_in_usec;
     int32_t const nsec_in_msec;
     int32_t const nsec_in_sec;
@@ -271,9 +271,9 @@ typedef struct {
         int32_t* day, int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms,
         int32_t* mc);
     void (*test)(void);
-} posix_clock_if;
+};
 
-extern posix_clock_if posix_clock;
+extern struct posix_clock_if posix_clock;
 
 posix_end_c
 
@@ -281,16 +281,16 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_config_if {
     int (*save)(const char* name, const char* key, const void* data, int32_t bytes);
     int32_t (*size)(const char* name, const char* key);
     int32_t (*load)(const char* name, const char* key, void* data, int32_t bytes);
     int (*remove)(const char* name, const char* key);
     int (*clean)(const char* name);
     void (*test)(void);
-} posix_config_if;
+};
 
-extern posix_config_if posix_config;
+extern struct posix_config_if posix_config;
 
 posix_end_c
 
@@ -298,7 +298,7 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_core_if {
     int (*err)(void);
     void (*set_err)(int err);
     void (*abort)(void);
@@ -331,9 +331,9 @@ typedef struct {
         int const resource_deadlock;
         int const too_many_open_files;
     } const error;
-} posix_core_if;
+};
 
-extern posix_core_if posix_core;
+extern struct posix_core_if posix_core;
 
 posix_end_c
 
@@ -341,17 +341,17 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_verbosity_if {
     int32_t level;
     int32_t const quiet;
     int32_t const info;
     int32_t const verbose;
     int32_t const debug;
     int32_t const trace;
-} posix_verbosity_if;
+};
 
-typedef struct {
-    posix_verbosity_if verbosity;
+struct posix_debug_if {
+    struct posix_verbosity_if verbosity;
     int32_t (*verbosity_from_string)(const char* s);
     bool (*tee)(const char* s, int32_t count);
     void (*output)(const char* s, int32_t count);
@@ -375,11 +375,11 @@ typedef struct {
         uint32_t const sig_abrt;
     } exception;
     void (*test)(void);
-} posix_debug_if;
+};
 
 #define posix_println(...) posix_debug.println(__FILE__, __LINE__, __func__, "" __VA_ARGS__)
 
-extern posix_debug_if posix_debug;
+extern struct posix_debug_if posix_debug;
 
 posix_end_c
 
@@ -387,26 +387,26 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct posix_file_name_s { char s[1024]; } posix_file_name_t;
+struct posix_file_name { char s[1024]; };
 
-enum { posix_files_max_path = (int32_t)sizeof(posix_file_name_t) };
+enum { posix_files_max_path = (int32_t)sizeof(struct posix_file_name) };
 
-typedef struct posix_file_s posix_file_t;
+struct posix_file;
 
-typedef struct posix_files_stat_s {
+struct posix_files_stat {
     uint64_t created;
     uint64_t accessed;
     uint64_t updated;
     int64_t  size;
     int64_t  type;
-} posix_files_stat_t;
+};
 
-typedef struct posix_folder_s {
+struct posix_folder {
     uint8_t data[512];
-} posix_folder_t;
+};
 
-typedef struct {
-    posix_file_t* const invalid;
+struct posix_files_if {
+    struct posix_file* const invalid;
     int32_t const type_folder;
     int32_t const type_symlink;
     int32_t const type_device;
@@ -433,14 +433,14 @@ typedef struct {
         int32_t const bin;
         int32_t const data;
     } const folder;
-    int (*open)(posix_file_t* *file, const char* filename, int32_t flags);
-    bool    (*is_valid)(posix_file_t* file);
-    int (*seek)(posix_file_t* file, int64_t *position, int32_t method);
-    int (*stat)(posix_file_t* file, posix_files_stat_t* stat, bool follow_symlink);
-    int (*read)(posix_file_t* file, void* data, int64_t bytes, int64_t *transferred);
-    int (*write)(posix_file_t* file, const void* data, int64_t bytes, int64_t *transferred);
-    int (*flush)(posix_file_t* file);
-    void    (*close)(posix_file_t* file);
+    int (*open)(struct posix_file* *file, const char* filename, int32_t flags);
+    bool    (*is_valid)(struct posix_file* file);
+    int (*seek)(struct posix_file* file, int64_t *position, int32_t method);
+    int (*stat)(struct posix_file* file, struct posix_files_stat* stat, bool follow_symlink);
+    int (*read)(struct posix_file* file, void* data, int64_t bytes, int64_t *transferred);
+    int (*write)(struct posix_file* file, const void* data, int64_t bytes, int64_t *transferred);
+    int (*flush)(struct posix_file* file);
+    void    (*close)(struct posix_file* file);
     int (*write_fully)(const char* filename, const void* data,
                            int64_t bytes, int64_t *transferred);
     bool (*exists)(const char* pathname);
@@ -462,13 +462,13 @@ typedef struct {
     const char* (*bin)(void);
     const char* (*data)(void);
     const char* (*tmp)(void);
-    int (*opendir)(posix_folder_t* folder, const char* folder_name);
-    const char* (*readdir)(posix_folder_t* folder, posix_files_stat_t* optional);
-    void (*closedir)(posix_folder_t* folder);
+    int (*opendir)(struct posix_folder* folder, const char* folder_name);
+    const char* (*readdir)(struct posix_folder* folder, struct posix_files_stat* optional);
+    void (*closedir)(struct posix_folder* folder);
     void (*test)(void);
-} posix_files_if;
+};
 
-extern posix_files_if posix_files;
+extern struct posix_files_if posix_files;
 
 posix_end_c
 
@@ -527,11 +527,11 @@ static inline void posix_max_undefined(void) { }
     fp64_t:   posix_min_fp64,   \
     default:  posix_min_undefined)(X, Y)
 
-typedef struct {
+struct posix_generics_if {
     void (*test)(void);
-} posix_generics_if;
+};
 
-extern posix_generics_if posix_generics;
+extern struct posix_generics_if posix_generics;
 
 posix_end_c
 
@@ -539,24 +539,24 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct posix_heap_s posix_heap_t;
+struct posix_heap;
 
-typedef struct {
+struct posix_heap_if {
     int (*alloc)(void* *a, int64_t bytes);
     int (*alloc_zero)(void* *a, int64_t bytes);
     int (*realloc)(void* *a, int64_t bytes);
     int (*realloc_zero)(void* *a, int64_t bytes);
     void    (*free)(void* a);
-    posix_heap_t* (*create)(bool serialized);
-    int (*allocate)(posix_heap_t* heap, void* *a, int64_t bytes, bool zero);
-    int (*reallocate)(posix_heap_t* heap, void* *a, int64_t bytes, bool zero);
-    void    (*deallocate)(posix_heap_t* heap, void* a);
-    int64_t (*bytes)(posix_heap_t* heap, void* a);
-    void    (*dispose)(posix_heap_t* heap);
+    struct posix_heap* (*create)(bool serialized);
+    int (*allocate)(struct posix_heap* heap, void* *a, int64_t bytes, bool zero);
+    int (*reallocate)(struct posix_heap* heap, void* *a, int64_t bytes, bool zero);
+    void    (*deallocate)(struct posix_heap* heap, void* a);
+    int64_t (*bytes)(struct posix_heap* heap, void* a);
+    void    (*dispose)(struct posix_heap* heap);
     void    (*test)(void);
-} posix_heap_if;
+};
 
-extern posix_heap_if posix_heap;
+extern struct posix_heap_if posix_heap;
 
 posix_end_c
 
@@ -564,7 +564,7 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_loader_if {
     int32_t const local;
     int32_t const lazy;
     int32_t const now;
@@ -573,9 +573,9 @@ typedef struct {
     void* (*sym)(void* handle, const char* name);
     void  (*close)(void* handle);
     void (*test)(void);
-} posix_loader_if;
+};
 
-extern posix_loader_if posix_loader;
+extern struct posix_loader_if posix_loader;
 
 posix_end_c
 
@@ -583,7 +583,7 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_mem_if {
     int (*map_ro)(const char* filename, void** data, int64_t* bytes);
     int (*map_rw)(const char* filename, void** data, int64_t* bytes);
     void (*unmap)(void* data, int64_t bytes);
@@ -593,9 +593,9 @@ typedef struct {
     void* (*allocate)(int64_t bytes_multiple_of_page_size);
     void  (*deallocate)(void* a, int64_t bytes_multiple_of_page_size);
     void  (*test)(void);
-} posix_mem_if;
+};
 
-extern posix_mem_if posix_mem;
+extern struct posix_mem_if posix_mem;
 
 posix_end_c
 
@@ -603,16 +603,16 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_nls_if {
     void (*init)(void);
     const char* (*locale)(void);
     int (*set_locale)(const char* locale);
     const char* (*str)(const char* defau1t);
     int32_t (*strid)(const char* s);
     const char* (*string)(int32_t strid, const char* defau1t);
-} posix_nls_if;
+};
 
-extern posix_nls_if posix_nls;
+extern struct posix_nls_if posix_nls;
 
 posix_end_c
 
@@ -620,15 +620,15 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_num128 {
     uint64_t lo;
     uint64_t hi;
-} posix_num128_t;
+};
 
-typedef struct {
-    posix_num128_t (*add128)(const posix_num128_t a, const posix_num128_t b);
-    posix_num128_t (*sub128)(const posix_num128_t a, const posix_num128_t b);
-    posix_num128_t (*mul64x64)(uint64_t a, uint64_t b);
+struct posix_num_if {
+    struct posix_num128 (*add128)(const struct posix_num128 a, const struct posix_num128 b);
+    struct posix_num128 (*sub128)(const struct posix_num128 a, const struct posix_num128 b);
+    struct posix_num128 (*mul64x64)(uint64_t a, uint64_t b);
     uint64_t (*muldiv128)(uint64_t a, uint64_t b, uint64_t d);
     uint32_t (*gcd32)(uint32_t u, uint32_t v);
     uint32_t (*random32)(uint32_t *state);
@@ -636,9 +636,9 @@ typedef struct {
     uint32_t (*hash32)(const char* s, int64_t bytes);
     uint64_t (*hash64)(const char* s, int64_t bytes);
     void     (*test)(void);
-} posix_num_if;
+};
 
-extern posix_num_if posix_num;
+extern struct posix_num_if posix_num;
 
 posix_end_c
 
@@ -671,35 +671,35 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct posix_stream_if posix_stream_if;
+struct posix_stream_if;
 
-typedef struct posix_stream_if {
-    int (*read)(posix_stream_if* s, void* data, int64_t bytes,
+struct posix_stream_if {
+    int (*read)(struct posix_stream_if* s, void* data, int64_t bytes,
                     int64_t *transferred);
-    int (*write)(posix_stream_if* s, const void* data, int64_t bytes,
+    int (*write)(struct posix_stream_if* s, const void* data, int64_t bytes,
                      int64_t *transferred);
-    void    (*close)(posix_stream_if* s);
-} posix_stream_if;
+    void    (*close)(struct posix_stream_if* s);
+};
 
-typedef struct {
-    posix_stream_if  stream;
+struct posix_stream_memory_if {
+    struct posix_stream_if  stream;
     const void* data_read;
     int64_t     bytes_read;
     int64_t     pos_read;
     void* data_write;
     int64_t     bytes_write;
     int64_t     pos_write;
-} posix_stream_memory_if;
+};
 
-typedef struct {
-    void (*read_only)(posix_stream_memory_if* s,  const void* data, int64_t bytes);
-    void (*write_only)(posix_stream_memory_if* s, void* data, int64_t bytes);
-    void (*read_write)(posix_stream_memory_if* s, const void* read, int64_t read_bytes,
+struct posix_streams_if {
+    void (*read_only)(struct posix_stream_memory_if* s,  const void* data, int64_t bytes);
+    void (*write_only)(struct posix_stream_memory_if* s, void* data, int64_t bytes);
+    void (*read_write)(struct posix_stream_memory_if* s, const void* read, int64_t read_bytes,
                                                   void* write, int64_t write_bytes);
     void (*test)(void);
-} posix_streams_if;
+};
 
-extern posix_streams_if posix_streams;
+extern struct posix_streams_if posix_streams;
 
 posix_end_c
 
@@ -707,16 +707,16 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct {
+struct posix_processes_child {
     const char* command;
-    posix_stream_if* in;
-    posix_stream_if* out;
-    posix_stream_if* err;
+    struct posix_stream_if* in;
+    struct posix_stream_if* out;
+    struct posix_stream_if* err;
     uint32_t exit_code;
     fp64_t   timeout;
-} posix_processes_child_t;
+};
 
-typedef struct {
+struct posix_processes_if {
     const char* (*name)(void);
     uint64_t  (*pid)(const char* name);
     int   (*pids)(const char* name, uint64_t* pids, int32_t size,
@@ -727,14 +727,14 @@ typedef struct {
     int   (*kill_all)(const char* name, fp64_t timeout_seconds);
     bool      (*is_elevated)(void);
     int   (*restart_elevated)(void);
-    int   (*run)(posix_processes_child_t* child);
-    int   (*popen)(const char* command, int32_t *xc, posix_stream_if* output,
+    int   (*run)(struct posix_processes_child* child);
+    int   (*popen)(const char* command, int32_t *xc, struct posix_stream_if* output,
                        fp64_t timeout_seconds);
     int  (*spawn)(const char* command);
     void (*test)(void);
-} posix_processes_if;
+};
 
-extern posix_processes_if posix_processes;
+extern struct posix_processes_if posix_processes;
 
 posix_end_c
 
@@ -744,7 +744,7 @@ posix_begin_c
 
 typedef struct posix_event_s* posix_event_t;
 
-typedef struct {
+struct posix_event_if {
     posix_event_t (*create)(void);
     posix_event_t (*create_manual)(void);
     void (*set)(posix_event_t e);
@@ -755,23 +755,23 @@ typedef struct {
     int32_t (*wait_any_or_timeout)(int32_t n, posix_event_t e[], fp64_t seconds);
     void (*dispose)(posix_event_t e);
     void (*test)(void);
-} posix_event_if;
+};
 
-extern posix_event_if posix_event;
+extern struct posix_event_if posix_event;
 
-typedef struct posix_aligned_8 posix_mutex_s { uint8_t content[64]; } posix_mutex_t;
+struct posix_aligned_8 posix_mutex { uint8_t content[64]; };
 
-typedef struct {
-    void (*init)(posix_mutex_t* m);
-    void (*lock)(posix_mutex_t* m);
-    void (*unlock)(posix_mutex_t* m);
-    void (*dispose)(posix_mutex_t* m);
+struct posix_mutex_if {
+    void (*init)(struct posix_mutex* m);
+    void (*lock)(struct posix_mutex* m);
+    void (*unlock)(struct posix_mutex* m);
+    void (*dispose)(struct posix_mutex* m);
     void (*test)(void);
-} posix_mutex_if;
+};
 
-extern posix_mutex_if posix_mutex;
+extern struct posix_mutex_if posix_mutex;
 
-typedef struct {
+struct posix_thread_if {
     posix_thread_t (*start)(void (*func)(void*), void* p);
     int     (*join)(posix_thread_t thread, fp64_t timeout_seconds);
     void        (*detach)(posix_thread_t thread);
@@ -785,9 +785,9 @@ typedef struct {
     int     (*open)(posix_thread_t* t, uint64_t id);
     void        (*close)(posix_thread_t t);
     void        (*test)(void);
-} posix_thread_if;
+};
 
-extern posix_thread_if posix_thread;
+extern struct posix_thread_if posix_thread;
 
 posix_end_c
 
@@ -797,7 +797,7 @@ posix_begin_c
 
 #define posix_static_assertion(condition) _Static_assert(condition, #condition)
 
-typedef struct {
+struct posix_vigil_if {
     int32_t (*failed_assertion)(const char* file, int32_t line,
         const char* func, const char* condition, const char* format, ...);
     int32_t (*fatal_termination)(const char* file, int32_t line,
@@ -805,9 +805,9 @@ typedef struct {
     int32_t (*fatal_if_error)(const char* file, int32_t line, const char* func,
         const char* condition, int r, const char* format, ...);
     void (*test)(void);
-} posix_vigil_if;
+};
 
-extern posix_vigil_if posix_vigil;
+extern struct posix_vigil_if posix_vigil;
 
 #if defined(DEBUG)
   #define posix_assert(b, ...) \
@@ -844,51 +844,51 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct posix_work_s      posix_work_t;
-typedef struct posix_work_queue_s posix_work_queue_t;
+struct posix_work;
+struct posix_work_queue;
 
-typedef struct posix_work_s {
-    posix_work_queue_t* queue;
+struct posix_work {
+    struct posix_work_queue* queue;
     fp64_t when;
-    void (*work)(posix_work_t* c);
+    void (*work)(struct posix_work* c);
     void* data;
     posix_event_t  done;
-    posix_work_t* next;
+    struct posix_work* next;
     bool   canceled;
-} posix_work_t;
+};
 
-typedef struct posix_work_queue_s {
-    posix_work_t* head;
+struct posix_work_queue {
+    struct posix_work* head;
     int64_t    lock;
     posix_event_t changed;
-} posix_work_queue_t;
+};
 
-typedef struct posix_work_queue_if {
-    void (*post)(posix_work_t* c);
-    bool (*get)(posix_work_queue_t*, posix_work_t* *c);
-    void (*call)(posix_work_t* c);
-    void (*dispatch)(posix_work_queue_t* q);
-    void (*cancel)(posix_work_t* c);
-    void (*flush)(posix_work_queue_t* q);
-} posix_work_queue_if;
+struct posix_work_queue_if {
+    void (*post)(struct posix_work* c);
+    bool (*get)(struct posix_work_queue*, struct posix_work* *c);
+    void (*call)(struct posix_work* c);
+    void (*dispatch)(struct posix_work_queue* q);
+    void (*cancel)(struct posix_work* c);
+    void (*flush)(struct posix_work_queue* q);
+};
 
-extern posix_work_queue_if  posix_work_queue;
+extern struct posix_work_queue_if  posix_work_queue;
 
-typedef struct posix_worker_s {
-    posix_work_queue_t queue;
+struct posix_worker {
+    struct posix_work_queue queue;
     posix_thread_t     thread;
     posix_event_t      wake;
     volatile bool  quit;
-} posix_worker_t;
+};
 
-typedef struct posix_worker_if {
-    void    (*start)(posix_worker_t* tq);
-    void    (*post)(posix_worker_t* tq, posix_work_t* w);
-    int (*join)(posix_worker_t* tq, fp64_t timeout);
+struct posix_worker_if {
+    void    (*start)(struct posix_worker* tq);
+    void    (*post)(struct posix_worker* tq, struct posix_work* w);
+    int (*join)(struct posix_worker* tq, fp64_t timeout);
     void    (*test)(void);
-} posix_worker_if;
+};
 
-extern posix_worker_if posix_worker;
+extern struct posix_worker_if posix_worker;
 
 posix_end_c
 
