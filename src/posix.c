@@ -1,12 +1,71 @@
+#if !defined(_WIN32)
 #define _GNU_SOURCE 1
+#else
+#define _CRT_SECURE_NO_WARNINGS   // strncpy/strerror/snprintf are used deliberately
+#define _CRT_NONSTDC_NO_WARNINGS  // fileno/_environ POSIX names
+#endif
 #include "posix.h"
 
+#if defined(_WIN32)
+
+#pragma warning(push)
+#pragma warning(disable: 4255) // no function prototype: '()' to '(void)'
+#pragma warning(disable: 4459) // declaration hides global declaration
+#pragma warning(disable: 4668) // SDK headers test version macros older SDKs lack
+
+#pragma push_macro("UNICODE")
+#define UNICODE // always because otherwise IME does not work
+
+#include <Windows.h>
+#include <Psapi.h>        // posix_loader, posix_processes
+#include <shellapi.h>     // posix_processes
+#include <winternl.h>     // posix_processes
+#include <initguid.h>     // for known folders
+#include <KnownFolders.h> // posix_files
+#include <AclAPI.h>       // posix_files
+#include <ShlObj_core.h>  // posix_files
+#include <Shlwapi.h>      // posix_files
+#include <dbghelp.h>      // posix_backtrace
+#include <tlhelp32.h>     // posix_backtrace
+
+#pragma pop_macro("UNICODE")
+#pragma warning(pop)
+
+#include <fcntl.h>
+#include <intrin.h>
+
+// POSIX names used by the portable code, mapped to MSVC equivalents:
+#define strcasecmp  _stricmp
+#define strncasecmp _strnicmp
+
+// signals MSVC <signal.h> lacks (values are nominal; only stored, not raised):
+#ifndef SIGTRAP
+#define SIGTRAP 5
+#endif
+#ifndef SIGBUS
+#define SIGBUS 10
+#endif
+
+#pragma comment(lib, "advapi32")
+#pragma comment(lib, "ntdll")
+#pragma comment(lib, "psapi")
+#pragma comment(lib, "shell32")
+#pragma comment(lib, "shlwapi")
+#pragma comment(lib, "kernel32")
+#pragma comment(lib, "user32")  // clipboard
+#pragma comment(lib, "ole32")   // posix_files.known_folder CoTaskMemFree
+#pragma comment(lib, "dbghelp")
+#pragma comment(lib, "imagehlp")
+
+#else
 
 #include <stddef.h>
 #include <unistd.h>
 #include <locale.h>
 #include <signal.h>
 #include <execinfo.h>
+
+#endif
 
 // ________________________________ posix_args.c _________________________________
 
@@ -94,12 +153,13 @@ static const char * posix_args_basename(void) {
         const char * s = posix_args.v[0];
         const char * b = s;
         while (*s != 0) {
-            if (*s == '/') { b = s + 1; }
+            if (*s == '/' || *s == '\\') { b = s + 1; }
             s++;
         }
         int32_t n = posix_str.len(b);
         posix_swear(n < posix_countof(basename));
-        strncpy(basename, b, posix_countof(basename) - 1);
+        memcpy(basename, b, (size_t)n);
+        basename[n] = 0x00;
         char * d = basename + n - 1;
         while (d > basename && *d != '.') { d--; }
         if (*d == '.') { *d = 0x00; }
@@ -107,7 +167,141 @@ static const char * posix_args_basename(void) {
     return basename;
 }
 
+#if defined(_WIN32)
+
+// Microsoft command line parsing (see CommandLineToArgvW rules):
+// https://learn.microsoft.com/en-us/cpp/c-language/parsing-c-command-line-arguments
+
+struct posix_args_pair { const char* s; char* d; const char* e; };
+
+static struct posix_args_pair posix_args_parse_backslashes(struct posix_args_pair p) {
+    enum { quote = '"', backslash = '\\' };
+    const char* s = p.s;
+    char* d = p.d;
+    posix_swear(*s == backslash);
+    int32_t bsc = 0; // number of backslashes
+    while (*s == backslash) { s++; bsc++; }
+    if (*s == quote) {
+        while (bsc > 1 && d < p.e) { *d++ = backslash; bsc -= 2; }
+        if (bsc == 1 && d < p.e) { *d++ = *s++; }
+    } else {
+        while (bsc > 0 && d < p.e) { *d++ = backslash; bsc--; }
+    }
+    return (struct posix_args_pair){ .s = s, .d = d, .e = p.e };
+}
+
+static struct posix_args_pair posix_args_parse_quoted(struct posix_args_pair p) {
+    enum { quote = '"', backslash = '\\' };
+    const char* s = p.s;
+    char* d = p.d;
+    posix_swear(*s == quote);
+    s++; // opening quote (skip)
+    while (*s != 0x00) {
+        if (*s == backslash) {
+            p = posix_args_parse_backslashes((struct posix_args_pair){
+                        .s = s, .d = d, .e = p.e });
+            s = p.s; d = p.d;
+        } else if (*s == quote && s[1] == quote) {
+            if (d < p.e) { *d++ = *s++; }
+            s++; // 1 for 2 quotes
+        } else if (*s == quote) {
+            s++; // closing quote (skip)
+            break;
+        } else if (d < p.e) {
+            *d++ = *s++;
+        }
+    }
+    return (struct posix_args_pair){ .s = s, .d = d, .e = p.e };
+}
+
+static void posix_args_parse(const char* s) {
+    posix_swear(s[0] != 0, "cannot parse empty string");
+    posix_swear(posix_args.c == 0);
+    posix_swear(posix_args.v == null);
+    posix_swear(posix_args_memory == null);
+    enum { quote = '"', backslash = '\\', tab = '\t', space = 0x20 };
+    const int32_t len = (int32_t)strlen(s);
+    const int32_t k = ((len + 2) / 2 + 1) * (int32_t)sizeof(void*) + (int32_t)sizeof(void*);
+    const int32_t n = k + (len + 2) * (int32_t)sizeof(char);
+    const int32_t max_argv = k / (int32_t)sizeof(void*) - 1;
+    posix_fatal_if_error(posix_heap.allocate(null, &posix_args_memory, n, true));
+    posix_args.c = 0;
+    posix_args.v = (const char**)posix_args_memory;
+    char* d = (char*)(((char*)posix_args.v) + k);
+    char* e = d + n; // end of memory
+    if (posix_args.c < max_argv) { posix_args.v[posix_args.c++] = d; }
+    if (*s == quote) {
+        s++;
+        while (*s != 0x00 && *s != quote && d < e) { *d++ = *s++; }
+        if (*s == quote) {
+            s++;
+            *d++ = 0x00;
+        } else {
+            while (*s != 0x00) { s++; }
+        }
+    } else {
+        while (*s != 0x00 && *s != space && *s != tab && d < e) {
+            *d++ = *s++;
+        }
+    }
+    if (d < e) { *d++ = 0; }
+    while (d < e) {
+        while (*s == space || *s == tab) { s++; }
+        if (*s == 0) { break; }
+        if (*s == quote && s[1] == 0 && d < e) {
+            if (posix_args.c < max_argv) { posix_args.v[posix_args.c++] = d; }
+            *d++ = *s++;
+        } else if (*s == quote) {
+            if (posix_args.c < max_argv) { posix_args.v[posix_args.c++] = d; }
+            struct posix_args_pair p = posix_args_parse_quoted(
+                    (struct posix_args_pair){ .s = s, .d = d, .e = e });
+            s = p.s; d = p.d;
+        } else {
+            if (posix_args.c < max_argv) { posix_args.v[posix_args.c++] = d; }
+            while (*s != 0) {
+                if (*s == backslash) {
+                    struct posix_args_pair p = posix_args_parse_backslashes(
+                            (struct posix_args_pair){ .s = s, .d = d, .e = e });
+                    s = p.s; d = p.d;
+                } else if (*s == quote) {
+                    struct posix_args_pair p = posix_args_parse_quoted(
+                            (struct posix_args_pair){ .s = s, .d = d, .e = e });
+                    s = p.s; d = p.d;
+                } else if (*s == tab || *s == space) {
+                    break;
+                } else if (d < e) {
+                    *d++ = *s++;
+                }
+            }
+        }
+        if (d < e) { *d++ = 0; }
+    }
+    if (posix_args.c < max_argv) {
+        posix_args.v[posix_args.c] = null;
+    }
+    posix_swear(posix_args.c < max_argv, "not enough memory - adjust guestimates");
+    posix_swear(d <= e, "not enough memory - adjust guestimates");
+}
+
+static void posix_args_WinMain(void) {
+    posix_swear(posix_args.c == 0 && posix_args.v == null && posix_args.env == null);
+    posix_swear(posix_args_memory == null);
+    const uint16_t* wcl = GetCommandLineW();
+    int32_t n = (int32_t)posix_str.len16(wcl);
+    char* cl = null;
+    posix_fatal_if_error(posix_heap.allocate(null, (void**)&cl, n * 2 + 1, false));
+    posix_str.utf16to8(cl, n * 2 + 1, wcl, -1);
+    posix_args_parse(cl);
+    posix_heap.deallocate(null, cl);
+    posix_args.env = (const char**)(void*)_environ;
+}
+
+#endif // _WIN32
+
 static void posix_args_fini(void) {
+    if (posix_args_memory != null) { // set by posix_args_WinMain()/parse()
+        posix_heap.free(posix_args_memory);
+    }
     posix_args_memory = null;
     posix_args.c = 0;
     posix_args.v = null;
@@ -117,6 +311,9 @@ static void posix_args_test(void) {}
 
 struct posix_args_if posix_args = {
     .main         = posix_args_main,
+#if defined(_WIN32)
+    .WinMain      = posix_args_WinMain,
+#endif
     .option_index = posix_args_option_index,
     .remove_at    = posix_args_remove_at,
     .option_bool  = posix_args_option_bool,
@@ -129,13 +326,32 @@ struct posix_args_if posix_args = {
 
 // ________________________________ posix_core.c _________________________________
 
-static void posix_core_abort(void) { abort(); }
+#if defined(_WIN32)
 
-static void posix_core_exit(int32_t exit_code) { exit(exit_code); }
+// abort does NOT call atexit() and does NOT flush streams. Also Win32 runtime
+// abort() attempts to show Abort/Retry/Ignore MessageBox - thus ExitProcess()
+static void posix_core_abort(void) { ExitProcess(ERROR_FATAL_APP_EXIT); }
+
+static int  posix_core_err(void) { return (int)GetLastError(); }
+
+static void posix_core_seterr(int err) { SetLastError((DWORD)err); }
+
+posix_static_init(runtime) {
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT |
+                 SEM_NOGPFAULTERRORBOX  | SEM_NOOPENFILEERRORBOX);
+}
+
+#else
+
+static void posix_core_abort(void) { abort(); }
 
 static int posix_core_err(void) { return errno; }
 
 static void posix_core_seterr(int err) { errno = err; }
+
+#endif
+
+static void posix_core_exit(int32_t exit_code) { exit(exit_code); }
 
 static void posix_core_test(void) {}
 
@@ -145,6 +361,35 @@ struct posix_core_if posix_core = {
     .abort   = posix_core_abort,
     .exit    = posix_core_exit,
     .test    = posix_core_test,
+#if defined(_WIN32)
+    .error   = {                                              // posix
+        .access_denied          = ERROR_ACCESS_DENIED,        // EACCES
+        .bad_file               = ERROR_BAD_FILE_TYPE,        // EBADF
+        .broken_pipe            = ERROR_BROKEN_PIPE,          // EPIPE
+        .device_not_ready       = ERROR_NOT_READY,            // ENXIO
+        .directory_not_empty    = ERROR_DIR_NOT_EMPTY,        // ENOTEMPTY
+        .disk_full              = ERROR_DISK_FULL,            // ENOSPC
+        .file_exists            = ERROR_FILE_EXISTS,          // EEXIST
+        .file_not_found         = ERROR_FILE_NOT_FOUND,       // ENOENT
+        .insufficient_buffer    = ERROR_INSUFFICIENT_BUFFER,  // E2BIG
+        .interrupted            = ERROR_OPERATION_ABORTED,    // EINTR
+        .invalid_data           = ERROR_INVALID_DATA,         // EINVAL
+        .invalid_handle         = ERROR_INVALID_HANDLE,       // EBADF
+        .invalid_parameter      = ERROR_INVALID_PARAMETER,    // EINVAL
+        .io_error               = ERROR_IO_DEVICE,            // EIO
+        .more_data              = ERROR_MORE_DATA,            // ENOBUFS
+        .name_too_long          = ERROR_FILENAME_EXCED_RANGE, // ENAMETOOLONG
+        .no_child_process       = ERROR_NO_PROC_SLOTS,        // ECHILD
+        .not_a_directory        = ERROR_DIRECTORY,            // ENOTDIR
+        .not_empty              = ERROR_DIR_NOT_EMPTY,        // ENOTEMPTY
+        .out_of_memory          = ERROR_OUTOFMEMORY,          // ENOMEM
+        .path_not_found         = ERROR_PATH_NOT_FOUND,       // ENOENT
+        .pipe_not_connected     = ERROR_PIPE_NOT_CONNECTED,   // EPIPE
+        .read_only_file         = ERROR_WRITE_PROTECT,        // EROFS
+        .resource_deadlock      = ERROR_LOCK_VIOLATION,       // EDEADLK
+        .too_many_open_files    = ERROR_TOO_MANY_OPEN_FILES,  // EMFILE
+    }
+#else
     .error   = {
         .access_denied       = EACCES,
         .bad_file            = EBADF,
@@ -172,6 +417,7 @@ struct posix_core_if posix_core = {
         .resource_deadlock   = EDEADLK,
         .too_many_open_files = EMFILE,
     }
+#endif
 };
 
 // ________________________________ posix_debug.c ________________________________
@@ -183,9 +429,15 @@ static void posix_debug_output(const char * s, int32_t count) {
     bool intercepted = false;
     if (posix_debug.tee != null) { intercepted = posix_debug.tee(s, count); }
     if (!intercepted) {
+        // For link.exe /Subsystem:Windows stdout/stderr are often closed
         if (stderr != null && fileno(stderr) >= 0) {
             fprintf(stderr, "%s", s);
         }
+#if defined(_WIN32)
+        uint16_t* wide = posix_stackalloc((count + 1) * (int32_t)sizeof(uint16_t));
+        posix_str.utf8to16(wide, count + 1, s, -1);
+        OutputDebugStringW(wide);
+#endif
     }
 }
 
@@ -247,6 +499,22 @@ static void posix_debug_println(const char * file, int32_t line, const char * fu
     va_end(va);
 }
 
+#if defined(_WIN32)
+
+static bool posix_debug_is_debugger_present(void) { return IsDebuggerPresent(); }
+
+static void posix_debug_breakpoint(void) {
+    if (posix_debug.is_debugger_present()) { DebugBreak(); }
+}
+
+static int posix_debug_raise(uint32_t exception) {
+    posix_core.set_err(0);
+    RaiseException(exception, EXCEPTION_NONCONTINUABLE, 0, null);
+    return posix_core.err();
+}
+
+#else
+
 static bool posix_debug_is_debugger_present(void) {
     // Requires parsing /proc/self/status TracerPid on Linux, or sysctl on Darwin.
     // Stubbed to false to avoid early complexity overhead.
@@ -261,6 +529,8 @@ static int posix_debug_raise(uint32_t exception) {
     raise(exception);
     return posix_core.err();
 }
+
+#endif
 
 static int32_t posix_debug_verbosity_from_string(const char * s) {
     char * n = null;
@@ -562,6 +832,59 @@ static void posix_str_format(char * utf8, int32_t count, const char * format, ..
     va_end(va);
 }
 
+#if defined(_WIN32)
+
+static struct posix_str1024 posix_str_error_for_language(int32_t error, uint16_t language) {
+    DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS;
+    HMODULE module = null;
+    HRESULT hr = 0 <= error && error <= 0xFFFF ?
+        HRESULT_FROM_WIN32((uint32_t)error) : (HRESULT)error;
+    if ((error & 0xC0000000U) == 0xC0000000U) {
+        static HMODULE ntdll; // RtlNtStatusToDosError implies linking to ntdll
+        if (ntdll == null) { ntdll = GetModuleHandleA("ntdll.dll"); }
+        if (ntdll == null) { ntdll = LoadLibraryA("ntdll.dll"); }
+        module = ntdll;
+        hr = HRESULT_FROM_WIN32(RtlNtStatusToDosError((NTSTATUS)error));
+        flags |= FORMAT_MESSAGE_FROM_HMODULE;
+    }
+    struct posix_str1024 text;
+    uint16_t utf16[posix_countof(text.s)];
+    DWORD count = FormatMessageW(flags, module, hr, language,
+            utf16, posix_countof(utf16) - 1, (va_list*)null);
+    utf16[posix_countof(utf16) - 1] = 0; // always
+    if (count > 0) {
+        posix_swear(count < posix_countof(utf16));
+        utf16[count] = 0;
+        int32_t k = (int32_t)count;
+        if (k > 0 && utf16[k - 1] == '\n') { utf16[k - 1] = 0; }
+        k = (int32_t)posix_str.len16(utf16);
+        if (k > 0 && utf16[k - 1] == '\r') { utf16[k - 1] = 0; }
+        char message[posix_countof(text.s)];
+        const int32_t bytes = posix_str.utf8_bytes(utf16, -1);
+        if (bytes >= posix_countof(message)) {
+            posix_str_printf(message, "error message is too long: %d bytes", bytes);
+        } else {
+            posix_str.utf16to8(message, posix_countof(message), utf16, -1);
+        }
+        posix_str_printf(text.s, "0x%08X(%d) \"%s\"", error, error, message);
+    } else {
+        posix_str_printf(text.s, "0x%08X(%d)", error, error);
+    }
+    return text;
+}
+
+static struct posix_str1024 posix_str_error(int32_t error) {
+    const uint16_t language = MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT);
+    return posix_str_error_for_language(error, language);
+}
+
+static struct posix_str1024 posix_str_error_nls(int32_t error) {
+    const uint16_t language = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT);
+    return posix_str_error_for_language(error, language);
+}
+
+#else
+
 static struct posix_str1024 posix_str_error(int32_t error) {
     struct posix_str1024 text;
     snprintf(text.s, posix_countof(text.s), "0x%08X(%d) \"%s\"", error, error, strerror(error));
@@ -571,6 +894,8 @@ static struct posix_str1024 posix_str_error(int32_t error) {
 static struct posix_str1024 posix_str_error_nls(int32_t error) {
     return posix_str_error(error);
 }
+
+#endif
 
 static const char * posix_str_grouping_separator(void) {
     struct lconv * locale_info = localeconv();
@@ -756,15 +1081,95 @@ struct posix_vigil_if posix_vigil = {
 
 
 
+#if !defined(_WIN32)
 #include <stdatomic.h>
 #include <pthread.h>
 #include <time.h>
 #include <sched.h>
 #include <sys/time.h>
 #include <errno.h>
+#endif
 
 // _______________________________ posix_atomics.c _______________________________
 
+#if defined(_WIN32)
+
+static int32_t posix_atomics_increment_int32(volatile int32_t* a) {
+    return InterlockedIncrement((volatile LONG*)a);
+}
+
+static int32_t posix_atomics_decrement_int32(volatile int32_t* a) {
+    return InterlockedDecrement((volatile LONG*)a);
+}
+
+static int64_t posix_atomics_increment_int64(volatile int64_t* a) {
+    return InterlockedIncrement64((__int64 volatile*)a);
+}
+
+static int64_t posix_atomics_decrement_int64(volatile int64_t* a) {
+    return InterlockedDecrement64((__int64 volatile*)a);
+}
+
+static int32_t posix_atomics_add_int32(volatile int32_t* a, int32_t v) {
+    return InterlockedAdd((LONG volatile*)a, v);
+}
+
+static int64_t posix_atomics_add_int64(volatile int64_t* a, int64_t v) {
+    return InterlockedAdd64((__int64 volatile*)a, v);
+}
+
+static int64_t posix_atomics_exchange_int64(volatile int64_t* a, int64_t v) {
+    return (int64_t)InterlockedExchange64((LONGLONG*)a, (LONGLONG)v);
+}
+
+static int32_t posix_atomics_exchange_int32(volatile int32_t* a, int32_t v) {
+    return (int32_t)InterlockedExchange((volatile LONG*)a, (unsigned long)v);
+}
+
+static bool posix_atomics_compare_exchange_int64(volatile int64_t* a,
+        int64_t comparand, int64_t v) {
+    return (int64_t)InterlockedCompareExchange64((LONGLONG*)a,
+        (LONGLONG)v, (LONGLONG)comparand) == comparand;
+}
+
+static bool posix_atomics_compare_exchange_int32(volatile int32_t* a,
+        int32_t comparand, int32_t v) {
+    return (int64_t)InterlockedCompareExchange((LONG*)a,
+        (LONG)v, (LONG)comparand) == comparand;
+}
+
+static void posix_atomics_memory_fence(void) { MemoryBarrier(); }
+
+static void* posix_atomics_exchange_ptr(volatile void** a, void* v) {
+    posix_static_assertion(sizeof(void*) == sizeof(int64_t));
+    return (void*)(intptr_t)posix_atomics_exchange_int64((int64_t*)a, (int64_t)v);
+}
+
+static bool posix_atomics_compare_exchange_ptr(volatile void** a, void* comparand, void* v) {
+    posix_static_assertion(sizeof(void*) == sizeof(int64_t));
+    return posix_atomics_compare_exchange_int64((int64_t*)a,
+        (int64_t)comparand, (int64_t)v);
+}
+
+static void posix_atomics_spinlock_acquire(volatile int64_t* spinlock) {
+    while (_InterlockedCompareExchange64(spinlock, 1, 0) != 0) {
+        while (*spinlock) { YieldProcessor(); }
+    }
+    posix_atomics_memory_fence();
+    posix_assert(*spinlock == 1);
+}
+
+static void posix_atomics_spinlock_release(volatile int64_t* spinlock) {
+    posix_assert(*spinlock == 1);
+    *spinlock = 0;
+    posix_atomics_memory_fence();
+}
+
+static int32_t posix_atomics_load_int32(volatile int32_t* a) { return *a; }
+
+static int64_t posix_atomics_load_int64(volatile int64_t* a) { return *a; }
+
+#else
 
 static void* posix_atomics_exchange_ptr(volatile void** a, void* v) {
     return atomic_exchange((volatile _Atomic(void*)*)a, v);
@@ -845,6 +1250,8 @@ static int64_t posix_atomics_load_int64(volatile int64_t* a) {
     return atomic_load_explicit((volatile _Atomic int64_t*)a, memory_order_acquire);
 }
 
+#endif // _WIN32
+
 static void posix_atomics_test(void) {}
 
 struct posix_atomics_if posix_atomics = {
@@ -868,9 +1275,58 @@ struct posix_atomics_if posix_atomics = {
     .test                   = posix_atomics_test
 };
 
+// _______________________________ posix_win32.c _________________________________
+
+#if defined(_WIN32)
+
+void posix_win32_close_handle(void* h) {
+    #pragma warning(suppress: 6001) // shut up overzealous IntelliSense
+    posix_fatal_win32err(CloseHandle((HANDLE)h));
+}
+
+// WAIT_ABANDONED only reported for mutexes not events.
+// WAIT_FAILED means event was invalid handle or disposed by another thread
+// while the calling thread was waiting for it.
+int posix_wait_ix2e(uint32_t r) {
+    const int32_t ix = (int32_t)r;
+    return (int)(
+          (int32_t)WAIT_OBJECT_0 <= ix && ix <= WAIT_OBJECT_0 + 63 ? 0 :
+          (ix == WAIT_ABANDONED ? ERROR_REQUEST_ABORTED :
+            (ix == WAIT_TIMEOUT ? ERROR_TIMEOUT :
+              (ix == WAIT_FAILED) ? posix_core.err() : ERROR_INVALID_HANDLE
+            )
+          )
+    );
+}
+
+#endif // _WIN32
+
 // _______________________________ posix_threads.c _______________________________
 
 // --- Mutexes ---
+
+#if defined(_WIN32)
+
+posix_static_assertion(sizeof(CRITICAL_SECTION) <= sizeof(struct posix_mutex));
+
+static void posix_mutex_init(struct posix_mutex* m) {
+    CRITICAL_SECTION* cs = (CRITICAL_SECTION*)m;
+    posix_fatal_win32err(InitializeCriticalSectionAndSpinCount(cs, 4096));
+}
+
+static void posix_mutex_lock(struct posix_mutex* m) {
+    EnterCriticalSection((CRITICAL_SECTION*)m);
+}
+
+static void posix_mutex_unlock(struct posix_mutex* m) {
+    LeaveCriticalSection((CRITICAL_SECTION*)m);
+}
+
+static void posix_mutex_dispose(struct posix_mutex* m) {
+    DeleteCriticalSection((CRITICAL_SECTION*)m);
+}
+
+#else
 
 static void posix_mutex_init(struct posix_mutex* m) {
     pthread_mutexattr_t attr;
@@ -893,6 +1349,8 @@ static void posix_mutex_dispose(struct posix_mutex* m) {
     pthread_mutex_destroy((pthread_mutex_t*)m->content);
 }
 
+#endif // _WIN32
+
 static void posix_mutex_test(void) {}
 
 struct posix_mutex_if posix_mutex = {
@@ -904,6 +1362,61 @@ struct posix_mutex_if posix_mutex = {
 };
 
 // --- Events ---
+
+#if defined(_WIN32)
+
+static posix_event_t posix_event_create(void) {
+    HANDLE e = CreateEvent(null, false, false, null);
+    posix_not_null(e);
+    return (posix_event_t)e;
+}
+
+static posix_event_t posix_event_create_manual(void) {
+    HANDLE e = CreateEvent(null, true, false, null);
+    posix_not_null(e);
+    return (posix_event_t)e;
+}
+
+static void posix_event_set(posix_event_t e) {
+    posix_fatal_win32err(SetEvent((HANDLE)e));
+}
+
+static void posix_event_reset(posix_event_t e) {
+    posix_fatal_win32err(ResetEvent((HANDLE)e));
+}
+
+static int32_t posix_event_wait_or_timeout(posix_event_t e, fp64_t seconds) {
+    uint32_t ms = seconds < 0 ? INFINITE : (uint32_t)(seconds * 1000.0 + 0.5);
+    DWORD i = WaitForSingleObject((HANDLE)e, ms);
+    posix_swear(i != WAIT_FAILED, "i: %d", i);
+    int r = posix_wait_ix2e(i);
+    if (r != 0) { posix_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : (int32_t)i);
+}
+
+static void posix_event_wait(posix_event_t e) { posix_event_wait_or_timeout(e, -1); }
+
+static int32_t posix_event_wait_any_or_timeout(int32_t n,
+        posix_event_t events[], fp64_t s) {
+    posix_swear(n < 64); // Win32 API limit
+    const uint32_t ms = s < 0 ? INFINITE : (uint32_t)(s * 1000.0 + 0.5);
+    const HANDLE* es = (const HANDLE*)events;
+    DWORD i = WaitForMultipleObjects((DWORD)n, es, false, ms);
+    posix_swear(i != WAIT_FAILED, "i: %d", i);
+    int r = posix_wait_ix2e(i);
+    if (r != 0) { posix_swear(i == WAIT_TIMEOUT || i == WAIT_ABANDONED); }
+    return i == WAIT_TIMEOUT ? -1 : (i == WAIT_ABANDONED ? -2 : (int32_t)i);
+}
+
+static int32_t posix_event_wait_any(int32_t n, posix_event_t e[]) {
+    return posix_event_wait_any_or_timeout(n, e, -1);
+}
+
+static void posix_event_dispose(posix_event_t h) {
+    posix_win32_close_handle((HANDLE)h);
+}
+
+#else
 
 struct posix_event_impl {
     pthread_mutex_t mutex;
@@ -1019,6 +1532,8 @@ static void posix_event_dispose(posix_event_t e_handle) {
     free(e);
 }
 
+#endif // _WIN32
+
 static void posix_event_test(void) {}
 
 struct posix_event_if posix_event = {
@@ -1035,6 +1550,87 @@ struct posix_event_if posix_event = {
 };
 
 // --- Threads ---
+
+#if defined(_WIN32)
+
+static posix_thread_t posix_thread_start(void (*func)(void*), void* p) {
+    posix_thread_t t = (posix_thread_t)CreateThread(null, 0,
+        (LPTHREAD_START_ROUTINE)(void*)func, p, 0, null);
+    posix_not_null(t);
+    return t;
+}
+
+static bool posix_thread_handle_valid(void* h) {
+    DWORD flags = 0;
+    return GetHandleInformation(h, &flags);
+}
+
+static int posix_thread_join(posix_thread_t t, fp64_t timeout) {
+    posix_not_null(t);
+    posix_fatal_if(!posix_thread_handle_valid((HANDLE)t));
+    const uint32_t ms = timeout < 0 ? INFINITE : (uint32_t)(timeout * 1000.0 + 0.5);
+    DWORD ix = WaitForSingleObject((HANDLE)t, (DWORD)ms);
+    int r = posix_wait_ix2e(ix);
+    if (r == 0) {
+        posix_win32_close_handle((HANDLE)t);
+    } else {
+        posix_println("failed to join thread %p %s", t, posix_strerr(r));
+    }
+    return r;
+}
+
+static void posix_thread_detach(posix_thread_t t) {
+    posix_not_null(t);
+    posix_fatal_if(!posix_thread_handle_valid((HANDLE)t));
+    posix_win32_close_handle((HANDLE)t);
+}
+
+static void posix_thread_name(const char* name) {
+    uint16_t stack[128];
+    posix_fatal_if(posix_str.len(name) >= posix_countof(stack), "name too long: %s", name);
+    posix_str.utf8to16(stack, posix_countof(stack), name, -1);
+    HRESULT r = SetThreadDescription(GetCurrentThread(), stack);
+    posix_fatal_if(!SUCCEEDED(r));
+}
+
+static void posix_thread_realtime(void) {
+    posix_fatal_win32err(SetPriorityClass(GetCurrentProcess(),
+        REALTIME_PRIORITY_CLASS));
+    posix_fatal_win32err(SetThreadPriority(GetCurrentThread(),
+        THREAD_PRIORITY_TIME_CRITICAL));
+    posix_fatal_win32err(SetThreadPriorityBoost(GetCurrentThread(), false));
+}
+
+static void posix_thread_yield(void) { SwitchToThread(); }
+
+static void posix_thread_sleep_for(fp64_t seconds) {
+    if (seconds < 0) { seconds = 0; }
+    Sleep((DWORD)(seconds * 1000.0 + 0.5));
+}
+
+static uint64_t posix_thread_id_of(posix_thread_t t) {
+    return (uint64_t)GetThreadId((HANDLE)t);
+}
+
+static uint64_t posix_thread_id(void) {
+    return (uint64_t)GetThreadId(GetCurrentThread());
+}
+
+static posix_thread_t posix_thread_self(void) {
+    return (posix_thread_t)GetCurrentThread(); // pseudo handle
+}
+
+static int posix_thread_open(posix_thread_t* t, uint64_t id) {
+    *t = (posix_thread_t)OpenThread(THREAD_ALL_ACCESS, false, (DWORD)id);
+    return *t == null ? posix_core.err() : 0;
+}
+
+static void posix_thread_close(posix_thread_t t) {
+    posix_not_null(t);
+    posix_win32_close_handle((HANDLE)t);
+}
+
+#else
 
 struct posix_thread_args {
     void (*func)(void*);
@@ -1131,6 +1727,8 @@ static void posix_thread_close(posix_thread_t t) {
     free((pthread_t*)t);
 }
 
+#endif // _WIN32
+
 static void posix_thread_test(void) {}
 
 struct posix_thread_if posix_thread = {
@@ -1218,11 +1816,7 @@ static void posix_work_queue_flush(struct posix_work_queue* q) {
 static bool posix_work_queue_get(struct posix_work_queue* q, struct posix_work* *r) {
     struct posix_work* w = null;
     posix_atomics.spinlock_acquire(&q->lock);
-    
-    struct timeval tv;
-    gettimeofday(&tv, null);
-    fp64_t now = tv.tv_sec + (tv.tv_usec / 1000000.0);
-
+    fp64_t now = posix_clock.seconds();
     bool changed = (q->head != null && q->head->when <= now);
     if (changed) {
         w = q->head;
@@ -1264,10 +1858,8 @@ static void posix_worker_thread(void* p) {
         posix_atomics.spinlock_acquire(&q->lock);
         
         if (q->head != null) {
-            struct timeval tv;
-            gettimeofday(&tv, null);
-            fp64_t now = tv.tv_sec + (tv.tv_usec / 1000000.0);
-            timeout = posix_max(0, q->head->when - now);
+            fp64_t now = posix_clock.seconds();
+            timeout = posix_max(0.0, q->head->when - now);
         }
         posix_atomics.spinlock_release(&q->lock);
         
@@ -1318,6 +1910,7 @@ struct posix_worker_if posix_worker = {
 
 
 
+#if !defined(_WIN32)
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -1332,6 +1925,7 @@ struct posix_worker_if posix_worker = {
 #elif defined(__linux__)
 #include <malloc.h>
 #endif
+#endif // !_WIN32
 
 // ________________________________ posix_heap.c _________________________________
 
@@ -1431,6 +2025,166 @@ struct posix_heap_if posix_heap = {
 
 // _________________________________ posix_mem.c _________________________________
 
+#if defined(_WIN32)
+
+static int posix_mem_map_view_of_file(HANDLE file, void** data, int64_t* bytes, bool rw) {
+    int r = 0;
+    void* address = null;
+    HANDLE mapping = CreateFileMapping(file, null,
+        rw ? PAGE_READWRITE : PAGE_READONLY,
+        (uint32_t)(*bytes >> 32), (uint32_t)*bytes, null);
+    if (mapping == null) {
+        r = posix_core.err();
+    } else {
+        DWORD access = rw ? FILE_MAP_ALL_ACCESS : FILE_MAP_READ;
+        address = MapViewOfFile(mapping, access, 0, 0, (SIZE_T)*bytes);
+        if (address == null) { r = posix_core.err(); }
+        posix_win32_close_handle(mapping);
+    }
+    if (r == 0) { *data = address; } else { *data = null; *bytes = 0; }
+    return r;
+}
+
+static int posix_mem_set_token_privilege(void* token, const char* name, bool e) {
+    TOKEN_PRIVILEGES tp = { .PrivilegeCount = 1 };
+    tp.Privileges[0].Attributes = e ? SE_PRIVILEGE_ENABLED : 0;
+    posix_fatal_win32err(LookupPrivilegeValueA(null, name, &tp.Privileges[0].Luid));
+    return posix_b2e(AdjustTokenPrivileges(token, false, &tp,
+               sizeof(TOKEN_PRIVILEGES), null, null));
+}
+
+static int posix_mem_adjust_process_privilege_manage_volume_name(void) {
+    const uint32_t access = TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY;
+    const HANDLE process = GetCurrentProcess();
+    HANDLE token = null;
+    int r = posix_b2e(OpenProcessToken(process, access, &token));
+    if (r == 0) {
+        r = posix_mem_set_token_privilege(token, "SeManageVolumePrivilege", true);
+        posix_win32_close_handle(token);
+    }
+    return r;
+}
+
+static int posix_mem_map_file(const char* filename, void** data,
+        int64_t* bytes, bool rw) {
+    if (rw) { (void)posix_mem_adjust_process_privilege_manage_volume_name(); }
+    int r = 0;
+    const DWORD access = GENERIC_READ | (rw ? GENERIC_WRITE : 0);
+    const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+    const DWORD disposition = rw ? OPEN_ALWAYS : OPEN_EXISTING;
+    const DWORD flags = FILE_ATTRIBUTE_NORMAL;
+    HANDLE file = CreateFileA(filename, access, share, null, disposition, flags, null);
+    if (file == INVALID_HANDLE_VALUE) {
+        r = posix_core.err();
+    } else {
+        LARGE_INTEGER eof = { .QuadPart = 0 };
+        posix_fatal_win32err(GetFileSizeEx(file, &eof));
+        if (rw && *bytes > eof.QuadPart) {
+            const LARGE_INTEGER size = { .QuadPart = *bytes };
+            r = r != 0 ? r : posix_b2e(SetFilePointerEx(file, size, null, FILE_BEGIN));
+            r = r != 0 ? r : posix_b2e(SetEndOfFile(file));
+            r = r != 0 ? r : posix_b2e(SetFileValidData(file, *bytes));
+            if (r == ERROR_PRIVILEGE_NOT_HELD) { r = 0; } // ignore
+            const LARGE_INTEGER zero = { .QuadPart = 0 };
+            r = r != 0 ? r : posix_b2e(SetFilePointerEx(file, zero, null, FILE_BEGIN));
+        } else {
+            *bytes = eof.QuadPart;
+        }
+        r = r != 0 ? r : posix_mem_map_view_of_file(file, data, bytes, rw);
+        posix_win32_close_handle(file);
+    }
+    return r;
+}
+
+static int posix_mem_map_ro(const char* filename, void** data, int64_t* bytes) {
+    return posix_mem_map_file(filename, data, bytes, false);
+}
+
+static int posix_mem_map_rw(const char* filename, void** data, int64_t* bytes) {
+    return posix_mem_map_file(filename, data, bytes, true);
+}
+
+static void posix_mem_unmap(void* data, int64_t bytes) {
+    posix_assert(data != null && bytes > 0);
+    (void)bytes;
+    if (data != null && bytes > 0) { posix_fatal_win32err(UnmapViewOfFile(data)); }
+}
+
+static int posix_mem_map_resource(const char* label, void** data, int64_t* bytes) {
+    HRSRC res = FindResourceA(null, label, (const char*)RT_RCDATA);
+    if (res != null) { *bytes = SizeofResource(null, res); }
+    HGLOBAL g = res != null ? LoadResource(null, res) : null;
+    *data = g != null ? LockResource(g) : null;
+    return *data != null ? 0 : posix_core.err();
+}
+
+static int32_t posix_mem_page_size(void) {
+    static SYSTEM_INFO system_info;
+    if (system_info.dwPageSize == 0) { GetSystemInfo(&system_info); }
+    return (int32_t)system_info.dwPageSize;
+}
+
+static int32_t posix_mem_large_page_size(void) {
+    static SIZE_T large_page_minimum = 0;
+    if (large_page_minimum == 0) { large_page_minimum = GetLargePageMinimum(); }
+    return (int32_t)large_page_minimum;
+}
+
+static void* posix_mem_allocate(int64_t bytes_multiple_of_page_size) {
+    posix_assert(bytes_multiple_of_page_size > 0);
+    SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
+    SIZE_T page_size = (SIZE_T)posix_mem_page_size();
+    posix_assert(bytes % page_size == 0);
+    int r = 0;
+    void* a = null;
+    if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
+        SetLastError(ERROR_INVALID_PARAMETER);
+        r = ERROR_INVALID_PARAMETER;
+    } else {
+        const DWORD type = MEM_COMMIT | MEM_RESERVE;
+        a = VirtualAlloc(null, bytes, type | MEM_PHYSICAL, PAGE_READWRITE);
+        if (a == null) { a = VirtualAlloc(null, bytes, type, PAGE_READWRITE); }
+        if (a == null) {
+            r = posix_core.err();
+            posix_println("VirtualAlloc(%lld) failed %s", (int64_t)bytes, posix_strerr(r));
+        } else {
+            r = VirtualLock(a, bytes) ? 0 : posix_core.err();
+            if (r == ERROR_WORKING_SET_QUOTA) {
+                SIZE_T min_mem = 0, max_mem = 0;
+                r = posix_b2e(GetProcessWorkingSetSize(GetCurrentProcess(), &min_mem, &max_mem));
+                if (r == 0) {
+                    max_mem = max_mem + bytes * 2;
+                    max_mem = (max_mem + page_size - 1) / page_size * page_size +
+                               page_size * 16;
+                    if (min_mem < max_mem) { min_mem = max_mem; }
+                    r = posix_b2e(SetProcessWorkingSetSize(GetCurrentProcess(),
+                            min_mem, max_mem));
+                    if (r == 0) { r = posix_b2e(VirtualLock(a, bytes)); }
+                }
+            }
+            if (r != 0) { // locking failed but the allocation is usable
+                posix_println("VirtualLock(%lld) failed %s", (int64_t)bytes, posix_strerr(r));
+            }
+        }
+    }
+    return a;
+}
+
+static void posix_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
+    posix_assert(bytes_multiple_of_page_size > 0);
+    SIZE_T bytes = (SIZE_T)bytes_multiple_of_page_size;
+    SIZE_T page_size = (SIZE_T)posix_mem_page_size();
+    if (bytes_multiple_of_page_size < 0 || bytes % page_size != 0) {
+        posix_println("failed %s", posix_strerr(ERROR_INVALID_PARAMETER));
+    } else if (a != null) {
+        (void)posix_b2e(VirtualUnlock(a, bytes));
+        int r = posix_b2e(VirtualFree(a, 0, MEM_RELEASE));
+        if (r != 0) { posix_println("VirtualFree() failed %s", posix_strerr(r)); }
+    }
+}
+
+#else
+
 static int posix_mem_map_ro(const char* filename, void** data, int64_t* bytes) {
     int fd = open(filename, O_RDONLY);
     if (fd < 0) { return errno; }
@@ -1511,6 +2265,8 @@ static void posix_mem_deallocate(void* a, int64_t bytes_multiple_of_page_size) {
     }
 }
 
+#endif // _WIN32
+
 static void posix_mem_test(void) {}
 
 struct posix_mem_if posix_mem = {
@@ -1526,6 +2282,445 @@ struct posix_mem_if posix_mem = {
 };
 
 // ________________________________ posix_files.c ________________________________
+
+#if defined(_WIN32)
+
+posix_static_assertion(SEEK_SET == FILE_BEGIN);
+posix_static_assertion(SEEK_CUR == FILE_CURRENT);
+posix_static_assertion(SEEK_END == FILE_END);
+
+#ifndef O_SYNC
+#define O_SYNC (0x10000)
+#endif
+
+static int posix_files_open(struct posix_file* *file, const char* fn, int32_t f) {
+    DWORD access = (f & posix_files.o_wr) ? GENERIC_WRITE :
+                   (f & posix_files.o_rw) ? GENERIC_READ | GENERIC_WRITE :
+                                            GENERIC_READ;
+    access |= (f & posix_files.o_append) ? FILE_APPEND_DATA : 0;
+    DWORD disposition =
+        (f & posix_files.o_create) ? ((f & posix_files.o_excl)  ? CREATE_NEW :
+                                      (f & posix_files.o_trunc) ? CREATE_ALWAYS :
+                                                                  OPEN_ALWAYS) :
+            (f & posix_files.o_trunc) ? TRUNCATE_EXISTING : OPEN_EXISTING;
+    const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+    DWORD attr = FILE_ATTRIBUTE_NORMAL;
+    attr |= (f & O_SYNC) ? FILE_FLAG_WRITE_THROUGH : 0;
+    *file = (struct posix_file*)CreateFileA(fn, access, share, null, disposition, attr, null);
+    return *file != (struct posix_file*)INVALID_HANDLE_VALUE ? 0 : posix_core.err();
+}
+
+static bool posix_files_is_valid(struct posix_file* file) {
+    return file != posix_files.invalid && file != null;
+}
+
+static int posix_files_seek(struct posix_file* file, int64_t *position, int32_t method) {
+    LARGE_INTEGER distance_to_move = { .QuadPart = *position };
+    LARGE_INTEGER p = { 0 };
+    int r = posix_b2e(SetFilePointerEx((HANDLE)file, distance_to_move, &p, (DWORD)method));
+    if (r == 0) { *position = p.QuadPart; }
+    return r;
+}
+
+static inline uint64_t posix_files_ft_to_us(FILETIME ft) { // microseconds
+    return (ft.dwLowDateTime | (((uint64_t)ft.dwHighDateTime) << 32)) / 10;
+}
+
+static int64_t posix_files_a2t(DWORD a) {
+    int64_t type = 0;
+    if (a & FILE_ATTRIBUTE_REPARSE_POINT) { type |= posix_files.type_symlink; }
+    if (a & FILE_ATTRIBUTE_DIRECTORY)     { type |= posix_files.type_folder; }
+    if (a & FILE_ATTRIBUTE_DEVICE)        { type |= posix_files.type_device; }
+    return type;
+}
+
+static posix_thread_local int32_t posix_files_stat_depth;
+
+static int posix_files_stat(struct posix_file* file, struct posix_files_stat* s,
+                            bool follow_symlink) {
+    enum { max_symlink_depth = 32 };
+    int r = 0;
+    BY_HANDLE_FILE_INFORMATION fi;
+    posix_fatal_win32err(GetFileInformationByHandle((HANDLE)file, &fi));
+    const bool symlink = (fi.dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+    if (follow_symlink && symlink && posix_files_stat_depth >= max_symlink_depth) {
+        r = (int)ERROR_TOO_MANY_LINKS;
+    } else if (follow_symlink && symlink) {
+        const DWORD flags = FILE_NAME_NORMALIZED | VOLUME_NAME_DOS;
+        DWORD n = GetFinalPathNameByHandleA((HANDLE)file, null, 0, flags);
+        if (n == 0) {
+            r = posix_core.err();
+        } else {
+            char* name = null;
+            r = posix_heap.allocate(null, (void**)&name, (int64_t)n + 2, false);
+            if (r == 0) {
+                n = GetFinalPathNameByHandleA((HANDLE)file, name, n + 1, flags);
+                if (n == 0) {
+                    r = posix_core.err();
+                } else {
+                    struct posix_file* f = posix_files.invalid;
+                    r = posix_files.open(&f, name, posix_files.o_rd);
+                    if (r == 0) {
+                        posix_files_stat_depth++;
+                        r = posix_files.stat(f, s, follow_symlink);
+                        posix_files_stat_depth--;
+                        posix_files.close(f);
+                    }
+                }
+                posix_heap.deallocate(null, name);
+            }
+        }
+    } else {
+        s->size = (int64_t)((uint64_t)fi.nFileSizeLow |
+                          (((uint64_t)fi.nFileSizeHigh) << 32));
+        s->created  = posix_files_ft_to_us(fi.ftCreationTime);
+        s->accessed = posix_files_ft_to_us(fi.ftLastAccessTime);
+        s->updated  = posix_files_ft_to_us(fi.ftLastWriteTime);
+        s->type = posix_files_a2t(fi.dwFileAttributes);
+    }
+    return r;
+}
+
+static int posix_files_read(struct posix_file* file, void* data, int64_t bytes, int64_t *transferred) {
+    int r = 0;
+    *transferred = 0;
+    while (bytes > 0 && r == 0) {
+        DWORD chunk_size = (DWORD)(bytes > UINT32_MAX ? UINT32_MAX : bytes);
+        DWORD bytes_read = 0;
+        r = posix_b2e(ReadFile((HANDLE)file, data, chunk_size, &bytes_read, null));
+        if (r == 0) {
+            *transferred += bytes_read;
+            bytes -= bytes_read;
+            data = (uint8_t*)data + bytes_read;
+            if (bytes_read == 0) { break; } // EOF
+        }
+    }
+    return r;
+}
+
+static int posix_files_write(struct posix_file* file, const void* data, int64_t bytes, int64_t *transferred) {
+    int r = 0;
+    *transferred = 0;
+    while (bytes > 0 && r == 0) {
+        DWORD chunk_size = (DWORD)(bytes > UINT32_MAX ? UINT32_MAX : bytes);
+        DWORD bytes_written = 0;
+        r = posix_b2e(WriteFile((HANDLE)file, data, chunk_size, &bytes_written, null));
+        if (r == 0) {
+            *transferred += bytes_written;
+            bytes -= bytes_written;
+            data = (const uint8_t*)data + bytes_written;
+        }
+    }
+    return r;
+}
+
+static int posix_files_flush(struct posix_file* file) {
+    return posix_b2e(FlushFileBuffers((HANDLE)file));
+}
+
+static void posix_files_close(struct posix_file* file) {
+    posix_win32_close_handle((HANDLE)file);
+}
+
+static int posix_files_write_fully(const char* filename, const void* data,
+                                 int64_t bytes, int64_t *transferred) {
+    if (transferred != null) { *transferred = 0; }
+    int r = 0;
+    const DWORD access = GENERIC_WRITE;
+    const DWORD share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+    const DWORD flags = FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH;
+    HANDLE file = CreateFileA(filename, access, share, null, CREATE_ALWAYS, flags, null);
+    if (file == INVALID_HANDLE_VALUE) {
+        r = posix_core.err();
+    } else {
+        int64_t written = 0;
+        const uint8_t* p = (const uint8_t*)data;
+        while (r == 0 && bytes > 0) {
+            uint64_t write = bytes >= UINT32_MAX ?
+                (uint64_t)(UINT32_MAX) - 0xFFFFuLL : (uint64_t)bytes;
+            DWORD chunk = 0;
+            r = posix_b2e(WriteFile(file, p, (DWORD)write, &chunk, null));
+            written += chunk;
+            bytes -= chunk;
+            p += chunk;
+        }
+        if (transferred != null) { *transferred = written; }
+        int rc = posix_b2e(FlushFileBuffers(file));
+        if (r == 0) { r = rc; }
+        posix_win32_close_handle(file);
+    }
+    return r;
+}
+
+static bool posix_files_exists(const char* path) { return PathFileExistsA(path); }
+
+static bool posix_files_is_folder(const char* path) { return PathIsDirectoryA(path); }
+
+static bool posix_files_is_symlink(const char* filename) {
+    DWORD attributes = GetFileAttributesA(filename);
+    return attributes != INVALID_FILE_ATTRIBUTES &&
+          (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
+}
+
+static const char* posix_files_basename(const char* pathname) {
+    const char* bn = strrchr(pathname, '\\');
+    if (bn == null) { bn = strrchr(pathname, '/'); }
+    return bn != null ? bn + 1 : pathname;
+}
+
+static int posix_files_unlink(const char* pathname) {
+    if (posix_files.is_folder(pathname)) {
+        return posix_b2e(RemoveDirectoryA(pathname));
+    } else {
+        return posix_b2e(DeleteFileA(pathname));
+    }
+}
+
+static int posix_files_create_tmp(char* fn, int32_t count) {
+    posix_swear(fn != null && count > 0);
+    const char* tmp = posix_files.tmp();
+    int r = 0;
+    if (count < (int32_t)strlen(tmp) + 8) {
+        r = (int)ERROR_BUFFER_OVERFLOW;
+    } else {
+        char prefix[4] = { 0 };
+        r = GetTempFileNameA(tmp, prefix, 0, fn) == 0 ? posix_core.err() : 0;
+    }
+    return r;
+}
+
+static int posix_files_chmod777(const char* pathname) {
+    SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
+    PSID everyone = null;
+    posix_fatal_win32err(AllocateAndInitializeSid(&SIDAuthWorld, 1,
+             SECURITY_WORLD_RID, 0, 0, 0, 0, 0, 0, 0, &everyone));
+    EXPLICIT_ACCESSA ea[1] = { { 0 } };
+    ea[0].grfAccessPermissions = 0xFFFFFFFF;
+    ea[0].grfAccessMode  = GRANT_ACCESS;
+    ea[0].grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
+    ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+    ea[0].Trustee.TrusteeType = TRUSTEE_IS_WELL_KNOWN_GROUP;
+    ea[0].Trustee.ptstrName  = (LPSTR)everyone;
+    ACL* acl = null;
+    posix_fatal_if_error(SetEntriesInAclA(1, ea, null, &acl));
+    uint8_t stack[SECURITY_DESCRIPTOR_MIN_LENGTH] = {0};
+    SECURITY_DESCRIPTOR* sd = (SECURITY_DESCRIPTOR*)stack;
+    posix_fatal_win32err(InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION));
+    posix_fatal_win32err(SetSecurityDescriptorDacl(sd, true, acl, false));
+    int r = posix_b2e(SetFileSecurityA(pathname, DACL_SECURITY_INFORMATION, sd));
+    if (everyone != null) { FreeSid(everyone); }
+    if (acl != null) { LocalFree(acl); }
+    return r;
+}
+
+static int posix_files_mkdirs(const char* dir) {
+    const int32_t n = (int32_t)strlen(dir) + 1;
+    char* s = null;
+    int r = posix_heap.allocate(null, (void**)&s, n, true);
+    const char* next = strchr(dir, '\\');
+    if (next == null) { next = strchr(dir, '/'); }
+    while (r == 0 && next != null) {
+        if (next > dir && *(next - 1) != ':') {
+            memcpy(s, dir, (size_t)(next - dir));
+            r = posix_b2e(CreateDirectoryA(s, null));
+            if (r == ERROR_ALREADY_EXISTS) { r = 0; }
+        }
+        if (r == 0) {
+            const char* prev = ++next;
+            next = strchr(prev, '\\');
+            if (next == null) { next = strchr(prev, '/'); }
+        }
+    }
+    if (r == 0) { r = posix_b2e(CreateDirectoryA(dir, null)); }
+    posix_heap.deallocate(null, s);
+    return r == ERROR_ALREADY_EXISTS ? 0 : r;
+}
+
+#pragma push_macro("posix_files_realloc_path")
+#pragma push_macro("posix_files_append_name")
+
+#define posix_files_realloc_path(r, pn, pnc, fn, name) do {             \
+    const int32_t bytes = (int32_t)(strlen(fn) + strlen(name) + 3);     \
+    if (bytes > pnc) {                                                  \
+        r = posix_heap.reallocate(null, (void**)&pn, bytes, false);     \
+        if (r == 0) { pnc = bytes; }                                    \
+        else { posix_heap.deallocate(null, pn); pn = null; }            \
+    }                                                                   \
+} while (0)
+
+#define posix_files_append_name(pn, pnc, fn, name) do {  \
+    if (strcmp(fn, "\\") == 0 || strcmp(fn, "/") == 0) { \
+        posix_str.format(pn, pnc, "\\%s", name);         \
+    } else {                                             \
+        posix_str.format(pn, pnc, "%.*s\\%s", k, fn, name); \
+    }                                                    \
+} while (0)
+
+static int posix_files_rmdirs(const char* fn) {
+    struct posix_files_stat st;
+    struct posix_folder folder;
+    int r = posix_files.opendir(&folder, fn);
+    if (r == 0) {
+        int32_t k = (int32_t)strlen(fn);
+        if (k > 1 && (fn[k - 1] == '/' || fn[k - 1] == '\\')) { k--; }
+        int32_t pnc = 64 * 1024;
+        char* pn = null;
+        r = posix_heap.allocate(null, (void**)&pn, pnc, false);
+        while (r == 0) {
+            const char* name = posix_files.readdir(&folder, &st);
+            if (name == null) { break; }
+            if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0 &&
+                (st.type & posix_files.type_symlink) == 0 &&
+                (st.type & posix_files.type_folder) != 0) {
+                posix_files_realloc_path(r, pn, pnc, fn, name);
+                if (r == 0) {
+                    posix_files_append_name(pn, pnc, fn, name);
+                    r = posix_files.rmdirs(pn);
+                }
+            }
+        }
+        posix_files.closedir(&folder);
+        r = posix_files.opendir(&folder, fn);
+        while (r == 0) {
+            const char* name = posix_files.readdir(&folder, &st);
+            if (name == null) { break; }
+            if (strcmp(name, ".") != 0 && strcmp(name, "..") != 0 &&
+                (st.type & posix_files.type_folder) == 0) {
+                posix_files_realloc_path(r, pn, pnc, fn, name);
+                if (r == 0) {
+                    posix_files_append_name(pn, pnc, fn, name);
+                    r = posix_files.unlink(pn);
+                }
+            }
+        }
+        posix_heap.deallocate(null, pn);
+        posix_files.closedir(&folder);
+    }
+    if (r == 0) { r = posix_files.unlink(fn); }
+    return r;
+}
+
+#pragma pop_macro("posix_files_append_name")
+#pragma pop_macro("posix_files_realloc_path")
+
+static int posix_files_copy(const char* s, const char* d) {
+    return posix_b2e(CopyFileA(s, d, false));
+}
+
+static int posix_files_move(const char* s, const char* d) {
+    static const DWORD flags =
+        MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH;
+    return posix_b2e(MoveFileExA(s, d, flags));
+}
+
+static int posix_files_link(const char* from, const char* to) {
+    return posix_b2e(CreateHardLinkA(to, from, null));
+}
+
+static int posix_files_symlink(const char* from, const char* to) {
+    DWORD flags = posix_files.is_folder(from) ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0;
+    return posix_b2e(CreateSymbolicLinkA(to, from, flags));
+}
+
+static const char* posix_files_known_folder(int32_t kf) {
+    static const GUID* kf_ids[] = {
+        &FOLDERID_Profile,  &FOLDERID_Desktop,   &FOLDERID_Documents,
+        &FOLDERID_Downloads, &FOLDERID_Music,    &FOLDERID_Pictures,
+        &FOLDERID_Videos,   &FOLDERID_Public,    &FOLDERID_ProgramFiles,
+        &FOLDERID_ProgramData
+    };
+    static struct posix_file_name known_folders[posix_countof(kf_ids)];
+    posix_fatal_if(!(0 <= kf && kf < posix_countof(kf_ids)), "invalid kf=%d", kf);
+    if (known_folders[kf].s[0] == 0) {
+        uint16_t* path = null;
+        if (SHGetKnownFolderPath(kf_ids[kf], 0, null, &path) == S_OK && path != null) {
+            const int32_t n = posix_countof(known_folders[kf].s);
+            posix_str.utf16to8(known_folders[kf].s, n, path, -1);
+            CoTaskMemFree(path);
+        }
+    }
+    return known_folders[kf].s;
+}
+
+static const char* posix_files_bin(void) {
+    return posix_files_known_folder(posix_files.folder.bin);
+}
+
+static const char* posix_files_data(void) {
+    return posix_files_known_folder(posix_files.folder.data);
+}
+
+static const char* posix_files_tmp(void) {
+    static char tmp[posix_files_max_path];
+    if (tmp[0] == 0) {
+        int r = GetTempPathA(posix_countof(tmp), tmp) == 0 ? posix_core.err() : 0;
+        posix_fatal_if(r != 0, "GetTempPathA() failed %s", posix_strerr(r));
+    }
+    return tmp;
+}
+
+static int posix_files_cwd(char* fn, int32_t count) {
+    posix_swear(count > 1);
+    DWORD bytes = (DWORD)(count - 1);
+    int r = posix_b2e(GetCurrentDirectoryA(bytes, fn));
+    fn[count - 1] = 0;
+    return r;
+}
+
+static int posix_files_chdir(const char* fn) {
+    return posix_b2e(SetCurrentDirectoryA(fn));
+}
+
+struct posix_files_dir {
+    HANDLE handle;
+    WIN32_FIND_DATAA find;
+};
+
+posix_static_assertion(sizeof(struct posix_files_dir) <= sizeof(struct posix_folder));
+
+static int posix_files_opendir(struct posix_folder* folder, const char* folder_name) {
+    struct posix_files_dir* d = (struct posix_files_dir*)(void*)folder;
+    int32_t n = (int32_t)strlen(folder_name);
+    char* fn = null;
+    int r = posix_heap.allocate(null, (void**)&fn, (int64_t)n + 3, false);
+    if (r == 0) {
+        posix_str.format(fn, n + 3, "%s\\*", folder_name);
+        fn[n + 2] = 0;
+        d->handle = FindFirstFileA(fn, &d->find);
+        if (d->handle == INVALID_HANDLE_VALUE) { r = posix_core.err(); }
+        posix_heap.deallocate(null, fn);
+    }
+    return r;
+}
+
+static uint64_t posix_files_ft2us(FILETIME* ft) {
+    return (((uint64_t)ft->dwHighDateTime) << 32 | ft->dwLowDateTime) / 10;
+}
+
+static const char* posix_files_readdir(struct posix_folder* folder, struct posix_files_stat* s) {
+    const char* fn = null;
+    struct posix_files_dir* d = (struct posix_files_dir*)(void*)folder;
+    if (FindNextFileA(d->handle, &d->find)) {
+        fn = d->find.cFileName;
+        d->find.cFileName[posix_countof(d->find.cFileName) - 1] = 0x00;
+        if (s != null) {
+            s->accessed = posix_files_ft2us(&d->find.ftLastAccessTime);
+            s->created  = posix_files_ft2us(&d->find.ftCreationTime);
+            s->updated  = posix_files_ft2us(&d->find.ftLastWriteTime);
+            s->type = posix_files_a2t(d->find.dwFileAttributes);
+            s->size = (int64_t)((((uint64_t)d->find.nFileSizeHigh) << 32) |
+                                  (uint64_t)d->find.nFileSizeLow);
+        }
+    }
+    return fn;
+}
+
+static void posix_files_closedir(struct posix_folder* folder) {
+    struct posix_files_dir* d = (struct posix_files_dir*)(void*)folder;
+    posix_fatal_win32err(FindClose(d->handle));
+}
+
+#else
 
 static int posix_files_open(struct posix_file* *file, const char* filename, int32_t flags) {
     int f = 0;
@@ -1822,6 +3017,8 @@ static void posix_files_closedir(struct posix_folder* folder) {
     if (d->dir != null) { closedir(d->dir); }
 }
 
+#endif // _WIN32
+
 static void posix_files_test(void) {}
 
 struct posix_files_if posix_files = {
@@ -2038,6 +3235,7 @@ struct posix_streams_if posix_streams = {
 
 
 
+#if !defined(_WIN32)
 #include <time.h>
 #include <sys/time.h>
 #include <sys/wait.h>
@@ -2046,8 +3244,93 @@ struct posix_streams_if posix_streams = {
 #include <spawn.h>
 
 extern char **environ;
+#endif
 
 // ________________________________ posix_clock.c ________________________________
+
+#if defined(_WIN32)
+
+static uint64_t posix_clock_microseconds(void) { // since 1601, NOT monotonic
+    FILETIME ft; // 100ns intervals since 1601 UTC
+    GetSystemTimePreciseAsFileTime(&ft);
+    return (((uint64_t)ft.dwHighDateTime) << 32 | ft.dwLowDateTime) / 10;
+}
+
+static uint64_t posix_clock_localtime(void) {
+    TIME_ZONE_INFORMATION tzi; // UTC = local time + bias
+    GetTimeZoneInformation(&tzi);
+    uint64_t bias = (uint64_t)tzi.Bias * 60LL * 1000 * 1000; // microseconds
+    return posix_clock_microseconds() - bias;
+}
+
+static void posix_clock_utc(uint64_t microseconds, int32_t* year, int32_t* month,
+        int32_t* day, int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
+    uint64_t time_in_100ns = microseconds * 10;
+    FILETIME mst = { (DWORD)(time_in_100ns & 0xFFFFFFFF), (DWORD)(time_in_100ns >> 32) };
+    SYSTEMTIME utc;
+    FileTimeToSystemTime(&mst, &utc);
+    *year = utc.wYear; *month = utc.wMonth; *day = utc.wDay;
+    *hh = utc.wHour; *mm = utc.wMinute; *ss = utc.wSecond;
+    *ms = utc.wMilliseconds;
+    *mc = microseconds % 1000;
+}
+
+static void posix_clock_local(uint64_t microseconds, int32_t* year, int32_t* month,
+        int32_t* day, int32_t* hh, int32_t* mm, int32_t* ss, int32_t* ms, int32_t* mc) {
+    uint64_t time_in_100ns = microseconds * 10;
+    FILETIME mst = { (DWORD)(time_in_100ns & 0xFFFFFFFF), (DWORD)(time_in_100ns >> 32) };
+    SYSTEMTIME utc;
+    FileTimeToSystemTime(&mst, &utc);
+    DYNAMIC_TIME_ZONE_INFORMATION tzi;
+    GetDynamicTimeZoneInformation(&tzi);
+    SYSTEMTIME lt = {0};
+    SystemTimeToTzSpecificLocalTimeEx(&tzi, &utc, &lt);
+    *year = lt.wYear; *month = lt.wMonth; *day = lt.wDay;
+    *hh = lt.wHour; *mm = lt.wMinute; *ss = lt.wSecond;
+    *ms = lt.wMilliseconds;
+    *mc = microseconds % 1000;
+}
+
+static fp64_t posix_clock_seconds(void) { // since boot
+    LARGE_INTEGER qpc;
+    QueryPerformanceCounter(&qpc);
+    static fp64_t one_over_freq;
+    if (one_over_freq == 0) {
+        LARGE_INTEGER frequency;
+        QueryPerformanceFrequency(&frequency);
+        one_over_freq = 1.0 / (fp64_t)frequency.QuadPart;
+    }
+    return (fp64_t)qpc.QuadPart * one_over_freq;
+}
+
+static uint64_t posix_clock_nanoseconds(void) {
+    LARGE_INTEGER qpc;
+    QueryPerformanceCounter(&qpc);
+    static uint32_t freq;
+    static uint32_t mul = 1000000000; // nsec_in_sec
+    if (freq == 0) {
+        LARGE_INTEGER frequency;
+        QueryPerformanceFrequency(&frequency);
+        freq = frequency.LowPart;
+        uint32_t divider = posix_num.gcd32(1000000000u, freq);
+        freq /= divider;
+        mul  /= divider;
+    }
+    uint64_t ns_mul_freq = (uint64_t)qpc.QuadPart * mul;
+    return freq == 1 ? ns_mul_freq : ns_mul_freq / freq;
+}
+
+static const uint64_t posix_clock_epoch_diff_usec = 11644473600000000ULL;
+
+static uint64_t posix_clock_unix_microseconds(void) {
+    return posix_clock_microseconds() - posix_clock_epoch_diff_usec;
+}
+
+static uint64_t posix_clock_unix_seconds(void) {
+    return posix_clock_unix_microseconds() / 1000000ULL;
+}
+
+#else
 
 static fp64_t posix_clock_seconds(void) {
     struct timespec ts;
@@ -2111,6 +3394,8 @@ static void posix_clock_local(uint64_t microseconds, int32_t* year, int32_t* mon
     *mc = (int32_t)(microseconds % 1000);
 }
 
+#endif // _WIN32
+
 static void posix_clock_test(void) {}
 
 struct posix_clock_if posix_clock = {
@@ -2132,6 +3417,367 @@ struct posix_clock_if posix_clock = {
 };
 
 // ______________________________ posix_processes.c ______________________________
+
+#if defined(_WIN32)
+
+struct posix_processes_pidof_lambda {
+    bool (*each)(struct posix_processes_pidof_lambda* p, uint64_t pid);
+    uint64_t* pids;
+    size_t size;
+    size_t count;
+    fp64_t timeout;
+    int error;
+};
+
+static int32_t posix_processes_for_each_pidof(const char* pname,
+        struct posix_processes_pidof_lambda* la) {
+    char stack[1024];
+    int32_t n = posix_str.len(pname);
+    posix_fatal_if(n + 5 >= posix_countof(stack), "name is too long: %s", pname);
+    const char* name = pname;
+    if (!posix_str.iends(pname, ".exe")) {
+        int32_t k = (int32_t)strlen(pname) + 5;
+        char* exe = stack;
+        posix_str.format(exe, k, "%s.exe", pname);
+        name = exe;
+    }
+    const char* base = strrchr(name, '\\');
+    base = base != null ? base + 1 : name;
+    uint16_t wn[1024];
+    posix_fatal_if(strlen(base) >= posix_countof(wn), "name too long: %s", base);
+    posix_str.utf8to16(wn, posix_countof(wn), base, -1);
+    size_t count = 0;
+    uint64_t pid = 0;
+    uint8_t* data = null;
+    ULONG bytes = 0;
+    int r = (int)NtQuerySystemInformation(SystemProcessInformation, data, 0, &bytes);
+    #pragma push_macro("STATUS_INFO_LENGTH_MISMATCH")
+    #define STATUS_INFO_LENGTH_MISMATCH 0xC0000004
+    while (r == (int)STATUS_INFO_LENGTH_MISMATCH) {
+        bytes += sizeof(SYSTEM_PROCESS_INFORMATION) * 32;
+        r = posix_heap.reallocate(null, (void**)&data, bytes, false);
+        if (r == 0) {
+            r = (int)NtQuerySystemInformation(SystemProcessInformation, data, bytes, &bytes);
+        }
+    }
+    #pragma pop_macro("STATUS_INFO_LENGTH_MISMATCH")
+    if (r == 0 && data != null) {
+        SYSTEM_PROCESS_INFORMATION* proc = (SYSTEM_PROCESS_INFORMATION*)data;
+        while (proc != null) {
+            uint16_t* img = proc->ImageName.Buffer;
+            bool match = img != null && _wcsicmp(img, wn) == 0;
+            if (match) {
+                pid = (uint64_t)(uintptr_t)proc->UniqueProcessId;
+                if (base != name) {
+                    char path[posix_files_max_path];
+                    match = posix_processes.nameof(pid, path, posix_countof(path)) == 0 &&
+                            posix_str.iends(path, name);
+                }
+            }
+            if (match) {
+                if (la != null && count < la->size && la->pids != null) {
+                    la->pids[count] = pid;
+                }
+                count++;
+                if (la != null && la->each != null && !la->each(la, pid)) { break; }
+            }
+            proc = proc->NextEntryOffset != 0 ? (SYSTEM_PROCESS_INFORMATION*)
+                ((uint8_t*)proc + proc->NextEntryOffset) : null;
+        }
+    }
+    if (data != null) { posix_heap.deallocate(null, data); }
+    return (int32_t)count;
+}
+
+static int posix_processes_nameof(uint64_t pid, char* name, int32_t count) {
+    posix_assert(name != null && count > 0);
+    int r = 0;
+    name[0] = 0;
+    HANDLE p = OpenProcess(PROCESS_ALL_ACCESS, false, (DWORD)pid);
+    if (p != null) {
+        r = posix_b2e(GetModuleFileNameExA(p, null, name, count));
+        name[count - 1] = 0;
+        posix_win32_close_handle(p);
+    } else {
+        r = (int)ERROR_NOT_FOUND;
+    }
+    return r;
+}
+
+static bool posix_processes_present(uint64_t pid) {
+    void* h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, (DWORD)pid);
+    bool b = h != null;
+    if (h != null) { posix_win32_close_handle(h); }
+    return b;
+}
+
+static bool posix_processes_first_pid(struct posix_processes_pidof_lambda* lambda, uint64_t pid) {
+    lambda->pids[0] = pid;
+    return false;
+}
+
+static uint64_t posix_processes_pid(const char* pname) {
+    uint64_t first[1] = {0};
+    struct posix_processes_pidof_lambda lambda = {
+        .each = posix_processes_first_pid, .pids = first, .size = 1
+    };
+    posix_processes_for_each_pidof(pname, &lambda);
+    return first[0];
+}
+
+static bool posix_processes_store_pid(struct posix_processes_pidof_lambda* lambda, uint64_t pid) {
+    if (lambda->pids != null && lambda->count < lambda->size) {
+        lambda->pids[lambda->count++] = pid;
+    }
+    return true;
+}
+
+static int posix_processes_pids(const char* pname, uint64_t* pids,
+        int32_t size, int32_t *count) {
+    *count = 0;
+    struct posix_processes_pidof_lambda lambda = {
+        .each = posix_processes_store_pid, .pids = pids, .size = (size_t)size
+    };
+    *count = posix_processes_for_each_pidof(pname, &lambda);
+    return (int32_t)lambda.count == *count ? 0 : (int)ERROR_MORE_DATA;
+}
+
+static int posix_processes_kill(uint64_t pid, fp64_t timeout) {
+    DWORD milliseconds = timeout < 0 ? INFINITE : (DWORD)(timeout * 1000);
+    enum { access = PROCESS_QUERY_LIMITED_INFORMATION |
+                    PROCESS_TERMINATE | SYNCHRONIZE };
+    int r = (int)ERROR_NOT_FOUND;
+    HANDLE h = OpenProcess(access, 0, (DWORD)pid);
+    if (h != null) {
+        r = posix_b2e(TerminateProcess(h, ERROR_PROCESS_ABORTED));
+        if (r == 0) {
+            DWORD ix = WaitForSingleObject(h, milliseconds);
+            r = posix_wait_ix2e(ix);
+        }
+        posix_win32_close_handle(h);
+        if (r == ERROR_ACCESS_DENIED) {
+            posix_thread.sleep_for(0.015);
+            HANDLE retry = OpenProcess(access, 0, (DWORD)pid);
+            if (retry == null) { r = 0; } else { posix_win32_close_handle(retry); }
+        }
+    }
+    if (r != 0) { posix_core.set_err(r); }
+    return r;
+}
+
+static bool posix_processes_kill_one(struct posix_processes_pidof_lambda* lambda, uint64_t pid) {
+    int r = posix_processes_kill(pid, lambda->timeout);
+    if (r != 0) { lambda->error = r; }
+    return true;
+}
+
+static int posix_processes_kill_all(const char* name, fp64_t timeout) {
+    struct posix_processes_pidof_lambda lambda = {
+        .each = posix_processes_kill_one, .timeout = timeout
+    };
+    int32_t c = posix_processes_for_each_pidof(name, &lambda);
+    return c == 0 ? (int)ERROR_NOT_FOUND : lambda.error;
+}
+
+static bool posix_processes_is_elevated(void) {
+    BOOL elevated = false;
+    PSID administrators_group = null;
+    SID_IDENTIFIER_AUTHORITY nt_authority = SECURITY_NT_AUTHORITY;
+    int r = posix_b2e(AllocateAndInitializeSid(&nt_authority, 2,
+                SECURITY_BUILTIN_DOMAIN_RID, DOMAIN_ALIAS_RID_ADMINS,
+                0, 0, 0, 0, 0, 0, &administrators_group));
+    if (r == 0 && administrators_group != null) {
+        r = posix_b2e(CheckTokenMembership(null, administrators_group, &elevated));
+        FreeSid(administrators_group);
+    }
+    return elevated;
+}
+
+static int posix_processes_restart_elevated(void) {
+    int r = 0;
+    if (!posix_processes_is_elevated()) {
+        SHELLEXECUTEINFOA sei = { sizeof(sei) };
+        sei.lpVerb = "runas";
+        sei.lpFile = posix_processes.name();
+        sei.nShow = SW_NORMAL;
+        r = posix_b2e(ShellExecuteExA(&sei));
+        if (r == 0) { posix_core.exit(0); } // second elevated copy launched
+    }
+    return r;
+}
+
+static void posix_processes_close_pipes(STARTUPINFOA* si,
+        HANDLE *read_out, HANDLE *read_err, HANDLE *write_in) {
+    if (si->hStdOutput != INVALID_HANDLE_VALUE) { posix_win32_close_handle(si->hStdOutput); }
+    if (si->hStdError  != INVALID_HANDLE_VALUE) { posix_win32_close_handle(si->hStdError);  }
+    if (si->hStdInput  != INVALID_HANDLE_VALUE) { posix_win32_close_handle(si->hStdInput);  }
+    if (*read_out != INVALID_HANDLE_VALUE) { posix_win32_close_handle(*read_out); }
+    if (*read_err != INVALID_HANDLE_VALUE) { posix_win32_close_handle(*read_err); }
+    if (*write_in != INVALID_HANDLE_VALUE) { posix_win32_close_handle(*write_in); }
+}
+
+static int posix_processes_child_read(struct posix_stream_if* out, HANDLE pipe) {
+    char data[32 * 1024];
+    DWORD available = 0;
+    int r = posix_b2e(PeekNamedPipe(pipe, null, sizeof(data), null, &available, null));
+    if (r != 0) {
+        // process exited and closed the pipe
+    } else if (available > 0) {
+        DWORD bytes_read = 0;
+        r = posix_b2e(ReadFile(pipe, data, sizeof(data), &bytes_read, null));
+        if (out != null && r == 0) { r = out->write(out, data, bytes_read, null); }
+    }
+    return r;
+}
+
+static int posix_processes_child_write(struct posix_stream_if* in, HANDLE pipe) {
+    int r = 0;
+    if (in != null) {
+        uint8_t memory[32 * 1024];
+        uint8_t* data = memory;
+        int64_t bytes_read = 0;
+        in->read(in, data, sizeof(data), &bytes_read);
+        while (r == 0 && bytes_read > 0) {
+            DWORD bytes_written = 0;
+            r = posix_b2e(WriteFile(pipe, data, (DWORD)bytes_read, &bytes_written, null));
+            data += bytes_written;
+            bytes_read -= bytes_written;
+        }
+    }
+    return r;
+}
+
+static int posix_processes_run(struct posix_processes_child* child) {
+    const fp64_t deadline = posix_clock.seconds() + child->timeout;
+    int r = 0;
+    STARTUPINFOA si = {
+        .cb = sizeof(STARTUPINFOA),
+        .hStdInput  = INVALID_HANDLE_VALUE,
+        .hStdOutput = INVALID_HANDLE_VALUE,
+        .hStdError  = INVALID_HANDLE_VALUE,
+        .dwFlags     = STARTF_USESHOWWINDOW | STARTF_USESTDHANDLES,
+        .wShowWindow = SW_HIDE
+    };
+    SECURITY_ATTRIBUTES sa = { sizeof(sa), null, true };
+    PROCESS_INFORMATION pi = {0};
+    HANDLE read_out = INVALID_HANDLE_VALUE;
+    HANDLE read_err = INVALID_HANDLE_VALUE;
+    HANDLE write_in = INVALID_HANDLE_VALUE;
+    int ro = posix_b2e(CreatePipe(&read_out, &si.hStdOutput, &sa, 0));
+    int re = posix_b2e(CreatePipe(&read_err, &si.hStdError,  &sa, 0));
+    int ri = posix_b2e(CreatePipe(&si.hStdInput, &write_in,  &sa, 0));
+    if (ro != 0 || re != 0 || ri != 0) {
+        posix_processes_close_pipes(&si, &read_out, &read_err, &write_in);
+        r = ro != 0 ? ro : (re != 0 ? re : ri);
+    }
+    if (r == 0) {
+        r = posix_b2e(CreateProcessA(null, posix_str.drop_const(child->command),
+                null, null, true, CREATE_NO_WINDOW, null, null, &si, &pi));
+        if (r != 0) {
+            posix_processes_close_pipes(&si, &read_out, &read_err, &write_in);
+        }
+    }
+    if (r == 0) {
+        posix_win32_close_handle(pi.hThread);
+        pi.hThread = null;
+        posix_win32_close_handle(si.hStdOutput);
+        posix_win32_close_handle(si.hStdError);
+        posix_win32_close_handle(si.hStdInput);
+        si.hStdOutput = INVALID_HANDLE_VALUE;
+        si.hStdError  = INVALID_HANDLE_VALUE;
+        si.hStdInput  = INVALID_HANDLE_VALUE;
+        bool done = false;
+        while (!done && r == 0) {
+            if (child->timeout > 0 && posix_clock.seconds() > deadline) {
+                r = posix_b2e(TerminateProcess(pi.hProcess, ERROR_SEM_TIMEOUT));
+                if (r == 0) { done = true; }
+            }
+            if (r == 0) { r = posix_processes_child_write(child->in, write_in); }
+            if (r == 0) { r = posix_processes_child_read(child->out, read_out); }
+            if (r == 0) { r = posix_processes_child_read(child->err, read_err); }
+            if (!done) {
+                DWORD ix = WaitForSingleObject(pi.hProcess, 0);
+                done = ix == WAIT_OBJECT_0 || r == ERROR_BROKEN_PIPE;
+            }
+            if (!done) { posix_thread.yield(); }
+        }
+        if (r == ERROR_BROKEN_PIPE) { r = 0; } // EOF
+        DWORD xc = 0;
+        int rx = posix_b2e(GetExitCodeProcess(pi.hProcess, &xc));
+        if (rx == 0) { child->exit_code = xc; } else if (r == 0) { r = rx; }
+        posix_processes_close_pipes(&si, &read_out, &read_err, &write_in);
+        posix_win32_close_handle(pi.hProcess);
+    }
+    return r;
+}
+
+struct posix_processes_io_merge {
+    struct posix_stream_if stream;
+    struct posix_stream_if* output;
+    int error;
+};
+
+static int posix_processes_merge_write(struct posix_stream_if* stream, const void* data,
+        int64_t bytes, int64_t* transferred) {
+    if (transferred != null) { *transferred = 0; }
+    struct posix_processes_io_merge* s = (struct posix_processes_io_merge*)stream;
+    if (s->output != null && bytes > 0) {
+        s->error = s->output->write(s->output, data, bytes, transferred);
+    }
+    return s->error;
+}
+
+static int posix_processes_popen(const char* command, int32_t *exit_code,
+        struct posix_stream_if* output, fp64_t timeout) {
+    posix_not_null(output);
+    struct posix_processes_io_merge merge = {
+        .stream = { .write = posix_processes_merge_write },
+        .output = output, .error = 0
+    };
+    struct posix_processes_child child = {
+        .command = command, .in = null,
+        .out = &merge.stream, .err = &merge.stream,
+        .exit_code = 0, .timeout = timeout
+    };
+    int r = posix_processes_run(&child);
+    if (exit_code != null) { *exit_code = (int32_t)child.exit_code; }
+    uint8_t zero = 0;
+    merge.stream.write(&merge.stream, &zero, 1, null);
+    if (r == 0 && merge.error != 0) { r = merge.error; }
+    return r;
+}
+
+static int posix_processes_spawn(const char* command) {
+    int r = 0;
+    STARTUPINFOA si = {
+        .cb = sizeof(STARTUPINFOA),
+        .dwFlags = STARTF_USESHOWWINDOW,
+        .wShowWindow = SW_HIDE,
+        .hStdInput  = INVALID_HANDLE_VALUE,
+        .hStdOutput = INVALID_HANDLE_VALUE,
+        .hStdError  = INVALID_HANDLE_VALUE
+    };
+    const DWORD flags = CREATE_BREAKAWAY_FROM_JOB | CREATE_NO_WINDOW |
+                        CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS;
+    PROCESS_INFORMATION pi = { .hProcess = null, .hThread = null };
+    r = posix_b2e(CreateProcessA(null, posix_str.drop_const(command), null, null,
+            false, flags, null, null, &si, &pi));
+    if (r == 0) {
+        posix_win32_close_handle(pi.hProcess);
+        posix_win32_close_handle(pi.hThread);
+    }
+    return r;
+}
+
+static const char* posix_processes_name(void) {
+    static char mn[posix_files_max_path];
+    if (mn[0] == 0) {
+        posix_fatal_win32err(GetModuleFileNameA(null, mn, posix_countof(mn)));
+    }
+    return mn;
+}
+
+#else
 
 static const char* posix_processes_name(void) {
     static char path[1024] = {0};
@@ -2279,6 +3925,8 @@ static int posix_processes_spawn(const char* command) {
     return pid < 0 ? errno : 0;
 }
 
+#endif // _WIN32
+
 static void posix_processes_test(void) {}
 
 struct posix_processes_if posix_processes = {
@@ -2299,6 +3947,43 @@ struct posix_processes_if posix_processes = {
 
 // _______________________________ posix_loader.c ________________________________
 
+#if defined(_WIN32)
+
+static void* posix_loader_all;
+
+static void* posix_loader_sym_all(const char* name) {
+    void* sym = null;
+    DWORD bytes = 0;
+    posix_fatal_win32err(EnumProcessModules(GetCurrentProcess(), null, 0, &bytes));
+    HMODULE* modules = null;
+    posix_fatal_if_error(posix_heap.allocate(null, (void**)&modules, bytes, false));
+    posix_fatal_win32err(EnumProcessModules(GetCurrentProcess(), modules, bytes, &bytes));
+    const int32_t n = bytes / (int32_t)sizeof(HMODULE);
+    for (int32_t i = 0; i < n && sym == null; i++) {
+        sym = (void*)GetProcAddress(modules[i], name);
+    }
+    if (sym == null) { sym = (void*)GetProcAddress(GetModuleHandleA(null), name); }
+    posix_heap.deallocate(null, modules);
+    return sym;
+}
+
+static void* posix_loader_open(const char* filename, int32_t mode) {
+    (void)mode;
+    return filename == null ? &posix_loader_all : (void*)LoadLibraryA(filename);
+}
+
+static void* posix_loader_sym(void* handle, const char* name) {
+    return handle == &posix_loader_all ?
+            posix_loader_sym_all(name) :
+            (void*)GetProcAddress((HMODULE)handle, name);
+}
+
+static void posix_loader_close(void* handle) {
+    if (handle != &posix_loader_all) { posix_fatal_win32err(FreeLibrary(handle)); }
+}
+
+#else
+
 static void* posix_loader_open(const char* filename, int32_t mode) {
     int m = 0;
     if (mode == posix_loader.local) m = RTLD_LOCAL | RTLD_LAZY;
@@ -2315,6 +4000,8 @@ static void* posix_loader_sym(void* handle, const char* name) {
 static void posix_loader_close(void* handle) {
     if (handle != null) { dlclose(handle); }
 }
+
+#endif // _WIN32
 
 static void posix_loader_test(void) {}
 
@@ -2364,24 +4051,67 @@ static struct posix_num128 posix_num_mul64x64(uint64_t a, uint64_t b) {
     return (struct posix_num128){.lo = low, .hi = high };
 }
 
-static uint64_t posix_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
-    // Simplified stub to satisfy linker. Full shift-based div requires long impl.
-    // For standard POSIX 64-bit use cases, __int128_t is natively supported on GCC/Clang
-#if defined(__SIZEOF_INT128__)
-    unsigned __int128 p = (unsigned __int128)a * (unsigned __int128)b;
-    return (uint64_t)(p / divisor);
+#if defined(_MSC_VER)
+static inline int32_t posix_num_ctz32(uint32_t x) {
+    unsigned long i = 0; _BitScanForward(&i, x); return (int32_t)i;
+}
 #else
-    return (a * b) / divisor; // Danger: overflows without 128-bit
+static inline int32_t posix_num_ctz32(uint32_t x) { return (int32_t)__builtin_ctz(x); }
 #endif
+
+static inline void posix_num_shift128_left(struct posix_num128* n) {
+    const uint64_t top = (1ULL << 63);
+    n->hi = (n->hi << 1) | ((n->lo & top) ? 1 : 0);
+    n->lo = (n->lo << 1);
+}
+
+static inline void posix_num_shift128_right(struct posix_num128* n) {
+    const uint64_t top = (1ULL << 63);
+    n->lo = (n->lo >> 1) | ((n->hi & 0x1) ? top : 0);
+    n->hi = (n->hi >> 1);
+}
+
+static inline bool posix_num_less128(const struct posix_num128 a, const struct posix_num128 b) {
+    return a.hi < b.hi || (a.hi == b.hi && a.lo < b.lo);
+}
+
+static inline bool posix_num_high_bit128(const struct posix_num128 a) {
+    return (int64_t)a.hi < 0;
+}
+
+// Portable shift-and-subtract long division of (a*b) by divisor; no __int128.
+static uint64_t posix_num_muldiv128(uint64_t a, uint64_t b, uint64_t divisor) {
+    posix_swear(divisor > 0, "divisor: %lld", divisor);
+    struct posix_num128 r = posix_num_mul64x64(a, b);
+    uint64_t q = 0;
+    if (r.hi >= divisor) {
+        q = UINT64_MAX; // overflow
+    } else {
+        int32_t shift = 0;
+        struct posix_num128 d = { .hi = 0, .lo = divisor };
+        while (!posix_num_high_bit128(d) && posix_num_less128(d, r)) {
+            posix_num_shift128_left(&d);
+            shift++;
+        }
+        while (shift >= 0 && (d.hi != 0 || d.lo != 0)) {
+            if (!posix_num_less128(r, d)) {
+                r = posix_num_sub128(r, d);
+                q |= (1ULL << shift);
+            }
+            posix_num_shift128_right(&d);
+            shift--;
+        }
+    }
+    return q;
 }
 
 static uint32_t posix_num_gcd32(uint32_t u, uint32_t v) {
     if (u == 0) return v;
     if (v == 0) return u;
-    uint32_t shift = __builtin_ctz(u | v);
-    u >>= __builtin_ctz(u);
+    uint32_t shift = posix_num_ctz32(u | v);
+    u >>= posix_num_ctz32(u);
     do {
-        v >>= __builtin_ctz(v);
+        v >>= posix_num_ctz32(v);
         if (u > v) { uint32_t t = v; v = u; u = t; }
         v = v - u;
     } while (v != 0);
@@ -2468,6 +4198,337 @@ fp64_t posix_random_uniform(void) {
 
 // ______________________________ posix_backtrace.c ______________________________
 
+#if defined(_WIN32)
+
+// "called from" glyph: North West Arrow with Hook (U+2923), inlined literal so
+// posix.* stays free of the ui glyph table.
+#define posix_backtrace_glyph_called_from "\xE2\xA4\xA3"
+
+static void*  posix_backtrace_process;
+static DWORD  posix_backtrace_pid;
+
+typedef posix_begin_packed struct posix_symbol_info {
+    SYMBOL_INFO info; char name[posix_backtrace_max_symbol];
+} posix_end_packed posix_symbol_info_t;
+
+static void posix_backtrace_init(void) {
+    if (posix_backtrace_process == null) {
+        if (GetModuleHandleA("dbghelp.dll") == null) { posix_fatal_win32err(LoadLibraryA("dbghelp.dll")); }
+        if (GetModuleHandleA("imagehlp.dll") == null) { posix_fatal_win32err(LoadLibraryA("imagehlp.dll")); }
+        DWORD options = SymGetOptions();
+        options |= SYMOPT_NO_PROMPTS | SYMOPT_LOAD_LINES | SYMOPT_UNDNAME |
+                   SYMOPT_LOAD_ANYTHING;
+        posix_swear(SymSetOptions(options));
+        posix_backtrace_pid = GetProcessId(GetCurrentProcess());
+        posix_swear(posix_backtrace_pid != 0);
+        posix_backtrace_process = OpenProcess(PROCESS_ALL_ACCESS, false, posix_backtrace_pid);
+        posix_swear(posix_backtrace_process != null);
+        posix_swear(SymInitialize(posix_backtrace_process, null, true), "%s",
+                    posix_str.error(posix_core.err()).s);
+    }
+}
+
+static void posix_backtrace_capture(struct posix_backtrace* bt, int32_t skip) {
+    posix_backtrace_init();
+    SetLastError(0);
+    bt->frames = CaptureStackBackTrace(1 + skip, posix_countof(bt->stack),
+        bt->stack, (DWORD*)&bt->hash);
+    bt->error = posix_core.err();
+}
+
+static bool posix_backtrace_function(DWORD64 pc, SYMBOL_INFO* si) {
+    bool found = false;
+    const DWORD64 module_base = SymGetModuleBase64(posix_backtrace_process, pc);
+    if (module_base != 0) {
+        const DWORD flags = GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT |
+                            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS;
+        HMODULE module_handle = null;
+        if (GetModuleHandleExA(flags, (const char*)pc, &module_handle)) {
+            DWORD bytes = 0;
+            IMAGE_EXPORT_DIRECTORY* dir = (IMAGE_EXPORT_DIRECTORY*)
+                    ImageDirectoryEntryToDataEx(module_handle, true,
+                            IMAGE_DIRECTORY_ENTRY_EXPORT, &bytes, null);
+            if (dir) {
+                uint8_t* m = (uint8_t*)module_handle;
+                DWORD* functions = (DWORD*)(m + dir->AddressOfFunctions);
+                DWORD* names = (DWORD*)(m + dir->AddressOfNames);
+                WORD* ordinals = (WORD*)(m + dir->AddressOfNameOrdinals);
+                DWORD64 address = 0;
+                DWORD64 min_distance = (DWORD64)-1;
+                const char* function = null;
+                DWORD n_names = dir->NumberOfNames;
+                DWORD max_names = bytes / (DWORD)sizeof(DWORD);
+                if (n_names > max_names) { n_names = max_names; }
+                for (DWORD i = 0; i < n_names; i++) {
+                    WORD ord = ordinals[i];
+                    if (ord < dir->NumberOfFunctions) {
+                        DWORD64 fa = (DWORD64)(m + functions[ord]);
+                        if (fa <= pc) {
+                            DWORD64 distance = pc - fa;
+                            if (distance < min_distance) {
+                                min_distance = distance;
+                                address = fa;
+                                function = (const char*)(m + names[i]);
+                            }
+                        }
+                    }
+                }
+                if (function != null) {
+                    si->ModBase = (uint64_t)m;
+                    snprintf(si->Name, si->MaxNameLen - 1, "%s", function);
+                    si->Name[si->MaxNameLen - 1] = 0x00;
+                    si->NameLen = (DWORD)strlen(si->Name);
+                    si->Address = address;
+                    found = true;
+                }
+            }
+        }
+    }
+    return found;
+}
+
+static void posix_backtrace_symbolize_inline_frame(struct posix_backtrace* bt,
+        int32_t i, DWORD64 pc, DWORD inline_context, posix_symbol_info_t* si) {
+    si->info.Name[0] = 0;
+    si->info.NameLen = 0;
+    bt->file[i][0] = 0;
+    bt->line[i] = 0;
+    bt->symbol[i][0] = 0;
+    DWORD64 displacement = 0;
+    if (SymFromInlineContext(posix_backtrace_process, pc, inline_context,
+                            &displacement, &si->info)) {
+        posix_str_printf(bt->symbol[i], "%s", si->info.Name);
+    } else {
+        bt->error = posix_core.err();
+    }
+    IMAGEHLP_LINE64 li = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
+    DWORD offset = 0;
+    if (SymGetLineFromInlineContext(posix_backtrace_process, pc, inline_context, 0,
+                                    &offset, &li)) {
+        posix_str_printf(bt->file[i], "%s", li.FileName);
+        bt->line[i] = li.LineNumber;
+    }
+}
+
+static int32_t posix_backtrace_symbolize_frame(struct posix_backtrace* bt, int32_t i) {
+    const DWORD64 pc = (DWORD64)bt->stack[i];
+    posix_symbol_info_t si = {
+        .info = { .SizeOfStruct = sizeof(SYMBOL_INFO),
+                  .MaxNameLen = posix_countof(si.name) }
+    };
+    bt->file[i][0] = 0;
+    bt->line[i] = 0;
+    bt->symbol[i][0] = 0;
+    DWORD64 offsetFromSymbol = 0;
+    const DWORD inline_count = SymAddrIncludeInlineTrace(posix_backtrace_process, pc);
+    if (inline_count > 0) {
+        DWORD ic = 0;
+        DWORD fi = 0;
+        if (SymQueryInlineTrace(posix_backtrace_process, pc, 0, pc, pc, &ic, &fi)) {
+            for (DWORD k = 0; k < inline_count; k++, ic++) {
+                posix_backtrace_symbolize_inline_frame(bt, i, pc, ic, &si);
+                i++;
+            }
+        }
+    } else {
+        if (SymFromAddr(posix_backtrace_process, pc, &offsetFromSymbol, &si.info)) {
+            posix_str_printf(bt->symbol[i], "%s", si.info.Name);
+            DWORD d = 0;
+            IMAGEHLP_LINE64 ln = { .SizeOfStruct = sizeof(IMAGEHLP_LINE64) };
+            if (SymGetLineFromAddr64(posix_backtrace_process, pc, &d, &ln)) {
+                bt->line[i] = ln.LineNumber;
+                posix_str_printf(bt->file[i], "%s", ln.FileName);
+            } else {
+                bt->error = posix_core.err();
+                if (posix_backtrace_function(pc, &si.info)) {
+                    GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
+                        posix_countof(bt->file[i]) - 1);
+                    bt->file[i][posix_countof(bt->file[i]) - 1] = 0;
+                    bt->line[i] = 0;
+                } else {
+                    bt->file[i][0] = 0x00;
+                    bt->line[i] = 0;
+                }
+            }
+            i++;
+        } else {
+            bt->error = posix_core.err();
+            if (posix_backtrace_function(pc, &si.info)) {
+                posix_str_printf(bt->symbol[i], "%s", si.info.Name);
+                GetModuleFileNameA((HANDLE)si.info.ModBase, bt->file[i],
+                    posix_countof(bt->file[i]) - 1);
+                bt->file[i][posix_countof(bt->file[i]) - 1] = 0;
+                bt->error = 0;
+                i++;
+            }
+        }
+    }
+    return i;
+}
+
+static void posix_backtrace_symbolize_backtrace(struct posix_backtrace* bt) {
+    posix_assert(!bt->symbolized);
+    bt->error = 0;
+    posix_backtrace_init();
+    int32_t n = bt->frames;
+    void* stack[posix_countof(bt->stack)];
+    memcpy(stack, bt->stack, n * sizeof(stack[0]));
+    bt->frames = 0;
+    for (int32_t i = 0; i < n && bt->frames < posix_countof(bt->stack); i++) {
+        bt->stack[bt->frames] = stack[i];
+        bt->frames = posix_backtrace_symbolize_frame(bt, i);
+    }
+    bt->symbolized = true;
+}
+
+static void posix_backtrace_symbolize(struct posix_backtrace* bt) {
+    if (!bt->symbolized) { posix_backtrace_symbolize_backtrace(bt); }
+}
+
+static const char* posix_backtrace_stops[] = {
+    "main", "WinMain", "BaseThreadInitThunk", "RtlUserThreadStart",
+    "mainCRTStartup", "WinMainCRTStartup", "invoke_main",
+    "NdrInterfacePointerMemorySize", null
+};
+
+static void posix_backtrace_trace(const struct posix_backtrace* bt, const char* stop) {
+    posix_assert(bt->symbolized, "need posix_backtrace.symbolize(bt)");
+    const char** alt = stop != null && strcmp(stop, "*") == 0 ?
+                       posix_backtrace_stops : null;
+    for (int32_t i = 0; i < bt->frames; i++) {
+        posix_debug.println(bt->file[i], bt->line[i], bt->symbol[i],
+            posix_backtrace_glyph_called_from "%s",
+            i == i < bt->frames - 1 ? "\n" : "");
+        if (stop != null && strcmp(bt->symbol[i], stop) == 0) { break; }
+        const char** s = alt;
+        while (s != null && *s != null && strcmp(bt->symbol[i], *s) != 0) { s++; }
+        if (s != null && *s != null) { break; }
+    }
+}
+
+static const char* posix_backtrace_string(const struct posix_backtrace* bt,
+        char* text, int32_t count) {
+    posix_assert(bt->symbolized, "need posix_backtrace.symbolize(bt)");
+    char s[1024];
+    char* p = text;
+    int32_t n = count;
+    for (int32_t i = 0; i < bt->frames && n > 128; i++) {
+        int32_t line = bt->line[i];
+        const char* file = bt->file[i];
+        const char* name = bt->symbol[i];
+        if (file[0] != 0 && name[0] != 0) {
+            posix_str_printf(s, "%s(%d): %s\n", file, line, name);
+        } else if (file[0] == 0 && name[0] != 0) {
+            posix_str_printf(s, "%s\n", name);
+        }
+        s[posix_countof(s) - 1] = 0;
+        int32_t k = (int32_t)strlen(s);
+        if (k < n) { memcpy(p, s, (size_t)k + 1); p += k; n -= k; }
+    }
+    return text;
+}
+
+static void posix_backtrace_context(posix_thread_t thread, const void* ctx,
+        struct posix_backtrace* bt) {
+    CONTEXT* context = (CONTEXT*)ctx;
+    STACKFRAME64 stack_frame = { 0 };
+    int machine_type = IMAGE_FILE_MACHINE_UNKNOWN;
+    #if defined(_M_ARM64)
+        machine_type = IMAGE_FILE_MACHINE_ARM64;
+        stack_frame = (STACKFRAME64){
+            .AddrPC    = {.Offset = context->Pc, .Mode = AddrModeFlat},
+            .AddrFrame = {.Offset = context->Fp, .Mode = AddrModeFlat},
+            .AddrStack = {.Offset = context->Sp, .Mode = AddrModeFlat}
+        };
+    #elif defined(_M_X64)
+        machine_type = IMAGE_FILE_MACHINE_AMD64;
+        stack_frame = (STACKFRAME64){
+            .AddrPC    = {.Offset = context->Rip, .Mode = AddrModeFlat},
+            .AddrFrame = {.Offset = context->Rbp, .Mode = AddrModeFlat},
+            .AddrStack = {.Offset = context->Rsp, .Mode = AddrModeFlat}
+        };
+    #else
+        #error "Unsupported platform"
+    #endif
+    posix_backtrace_init();
+    while (StackWalk64(machine_type, posix_backtrace_process, (HANDLE)thread,
+            &stack_frame, context, null, SymFunctionTableAccess64,
+            SymGetModuleBase64, null)) {
+        DWORD64 pc = stack_frame.AddrPC.Offset;
+        if (pc == 0) { break; }
+        if (bt->frames < posix_countof(bt->stack)) {
+            bt->stack[bt->frames] = (void*)pc;
+            bt->frames = posix_backtrace_symbolize_frame(bt, bt->frames);
+        }
+    }
+    bt->symbolized = true;
+}
+
+typedef struct { char name[32]; } posix_backtrace_thread_name_t;
+
+static posix_backtrace_thread_name_t posix_backtrace_thread_name(HANDLE thread) {
+    posix_backtrace_thread_name_t tn;
+    tn.name[0] = 0;
+    wchar_t* thread_name = null;
+    if (SUCCEEDED(GetThreadDescription(thread, &thread_name))) {
+        posix_str.utf16to8(tn.name, posix_countof(tn.name), thread_name, -1);
+        LocalFree(thread_name);
+    }
+    return tn;
+}
+
+static void posix_backtrace_capture_thread(HANDLE thread, struct posix_backtrace* bt) {
+    bt->frames = 0;
+    posix_swear(posix_thread.id_of(thread) != posix_thread.id());
+    if (SuspendThread(thread) != (DWORD)-1) {
+        CONTEXT context = { .ContextFlags = CONTEXT_FULL };
+        GetThreadContext(thread, &context);
+        posix_backtrace.context(thread, &context, bt);
+        if (ResumeThread(thread) == (DWORD)-1) { ExitProcess(0xBD); }
+    }
+}
+
+static void posix_backtrace_trace_self(const char* stop) {
+    struct posix_backtrace bt = {{0}};
+    posix_backtrace.capture(&bt, 2);
+    posix_backtrace.symbolize(&bt);
+    posix_backtrace.trace(&bt, stop);
+}
+
+static void posix_backtrace_trace_all_but_self(void) {
+    posix_backtrace_init();
+    posix_assert(posix_backtrace_process != null && posix_backtrace_pid != 0);
+    HANDLE snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+    if (snapshot != INVALID_HANDLE_VALUE) {
+        THREADENTRY32 te = { .dwSize = sizeof(THREADENTRY32) };
+        if (Thread32First(snapshot, &te)) {
+            do {
+                if (te.th32OwnerProcessID == posix_backtrace_pid) {
+                    static const DWORD flags = THREAD_ALL_ACCESS |
+                       THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT;
+                    uint32_t tid = te.th32ThreadID;
+                    if (tid != (uint32_t)posix_thread.id()) {
+                        HANDLE thread = OpenThread(flags, false, tid);
+                        if (thread != null) {
+                            struct posix_backtrace bt = {0};
+                            posix_backtrace_capture_thread(thread, &bt);
+                            posix_backtrace_thread_name_t tn = posix_backtrace_thread_name(thread);
+                            posix_debug.println(">Thread", tid, tn.name,
+                                "id 0x%08X (%d)", tid, tid);
+                            if (bt.frames > 0) { posix_backtrace.trace(&bt, "*"); }
+                            posix_debug.println("<Thread", tid, tn.name, "");
+                            posix_win32_close_handle(thread);
+                        }
+                    }
+                }
+            } while (Thread32Next(snapshot, &te));
+        }
+        posix_win32_close_handle(snapshot);
+    }
+}
+
+#else
+
 static void posix_backtrace_capture(struct posix_backtrace *bt, int32_t skip) {
     void* buffer[posix_backtrace_max_depth];
     int nptrs = backtrace(buffer, posix_backtrace_max_depth);
@@ -2527,6 +4588,8 @@ static const char* posix_backtrace_string(const struct posix_backtrace* bt, char
     return text;
 }
 
+#endif // _WIN32
+
 static void posix_backtrace_test(void) {}
 
 struct posix_backtrace_if posix_backtrace = {
@@ -2580,6 +4643,71 @@ struct posix_nls_if posix_nls = {
 
 // ______________________________ posix_clipboard.c ______________________________
 
+#if defined(_WIN32)
+
+static int posix_clipboard_put_text(const char* utf8) {
+    int32_t chars = posix_str.utf16_chars(utf8, -1);
+    int32_t bytes = (chars + 1) * 2;
+    uint16_t* utf16 = null;
+    int r = posix_heap.alloc((void**)&utf16, (size_t)bytes);
+    if (utf16 != null) {
+        posix_str.utf8to16(utf16, bytes, utf8, -1);
+        const int32_t n = (int32_t)posix_str.len16(utf16) + 1;
+        r = OpenClipboard(GetDesktopWindow()) ? 0 : posix_core.err();
+        if (r == 0) { r = EmptyClipboard() ? 0 : posix_core.err(); }
+        void* global = null;
+        if (r == 0) {
+            global = GlobalAlloc(GMEM_MOVEABLE, (size_t)n * 2);
+            r = global != null ? 0 : posix_core.err();
+        }
+        if (r == 0) {
+            char* d = (char*)GlobalLock(global);
+            posix_not_null(d);
+            memcpy(d, utf16, (size_t)n * 2);
+            r = posix_b2e(SetClipboardData(CF_UNICODETEXT, global));
+            GlobalUnlock(global);
+            if (r != 0) { GlobalFree(global); } // else owned by clipboard now
+        }
+        if (r == 0) { r = posix_b2e(CloseClipboard()); }
+        posix_heap.free(utf16);
+    }
+    return r;
+}
+
+static int posix_clipboard_get_text(char* utf8, int32_t* bytes) {
+    posix_not_null(bytes);
+    int r = posix_b2e(OpenClipboard(GetDesktopWindow()));
+    if (r == 0) {
+        HANDLE global = GetClipboardData(CF_UNICODETEXT);
+        if (global == null) {
+            r = posix_core.err();
+        } else {
+            uint16_t* utf16 = (uint16_t*)GlobalLock(global);
+            if (utf16 != null) {
+                int32_t utf8_bytes = posix_str.utf8_bytes(utf16, -1);
+                if (utf8 != null) {
+                    char* decoded = (char*)malloc((size_t)utf8_bytes);
+                    if (decoded == null) {
+                        r = (int)ERROR_OUTOFMEMORY;
+                    } else {
+                        posix_str.utf16to8(decoded, utf8_bytes, utf16, -1);
+                        int32_t nn = *bytes < utf8_bytes ? *bytes : utf8_bytes;
+                        memcpy(utf8, decoded, (size_t)nn);
+                        free(decoded);
+                        if (nn < utf8_bytes) { r = (int)ERROR_INSUFFICIENT_BUFFER; }
+                    }
+                }
+                *bytes = utf8_bytes;
+                GlobalUnlock(global);
+            }
+        }
+        r = posix_b2e(CloseClipboard());
+    }
+    return r;
+}
+
+#else
+
 static int posix_clipboard_put_text(const char* s) {
     char cmd[1024];
 #if defined(__APPLE__)
@@ -2604,6 +4732,8 @@ static int posix_clipboard_get_text(char* text, int32_t* bytes) {
     return 0;
 }
 
+#endif // _WIN32
+
 static int posix_clipboard_put_image(ui_bitmap_t* image) {
     (void)image;
     return ENOSYS;
@@ -2619,6 +4749,23 @@ struct posix_clipboard_if posix_clipboard = {
 };
 
 // _______________________________ posix_static.c ________________________________
+
+#if defined(_MSC_VER)
+
+// Referenced by the posix_static_init() .CRT$XCU constructor machinery so the
+// MSVC linker keeps the constructor entries (see posix.h).
+static void*   posix_static_symbol_reference[1024];
+static int32_t posix_static_symbol_reference_count;
+
+void* posix_force_symbol_reference(void* symbol) {
+    if (posix_static_symbol_reference_count < posix_countof(posix_static_symbol_reference)) {
+        posix_static_symbol_reference[posix_static_symbol_reference_count] = symbol;
+        posix_static_symbol_reference_count++;
+    }
+    return symbol;
+}
+
+#endif
 
 void posix_static_init_test(void) {}
 

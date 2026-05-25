@@ -16,7 +16,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#if defined(_WIN32)
+#include <malloc.h> // _alloca, _msize
+#else
 #include <unistd.h>
+#endif
 
 #define posix_stringify(x) #x
 #define posix_tostring(x) posix_stringify(x)
@@ -63,8 +68,16 @@ typedef double fp64_t;
     #define null nullptr
 #endif
 
-#ifndef __cplusplus
-    #define posix_thread_local _Thread_local
+#if defined(_MSC_VER)
+    #define posix_thread_local __declspec(thread)
+#elif !defined(__cplusplus)
+    #define posix_thread_local _Thread_local // C11
+#endif
+
+#if defined(_MSC_VER)
+    #define posix_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
+#else
+    #define posix_suppress_constant_cond_exp
 #endif
 
 #if defined(__GNUC__) || defined(__clang__)
@@ -83,7 +96,33 @@ typedef double fp64_t;
 
 // Dynamic stack allocation (VLAs are standard in C99, optional in C11)
 // Avoiding alloca() when possible.
+#if defined(_MSC_VER)
+#define posix_stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") _alloca(n))
+#else
 #define posix_stackalloc(n) (__builtin_alloca(n))
+#endif
+
+// _______________________________ posix_win32.h _________________________________
+
+// Win32-only helpers used by the Windows backends and by Windows consumers
+// (e.g. ui.*). On other platforms these are not defined. The macros only
+// reference Win32 APIs at the expansion site, so posix.h itself stays free
+// of <Windows.h>; the implementation (posix.c) and Windows-only consumers
+// include the SDK headers they need.
+
+#if defined(_WIN32)
+
+posix_begin_c
+
+// Win32 BOOL -> errno_t (int) translation: 0 on success, GetLastError() on fail.
+#define posix_b2e(call) ((int)((call) ? 0 : GetLastError()))
+
+void posix_win32_close_handle(void* h);
+int  posix_wait_ix2e(uint32_t r); // translate WaitForSingleObject ix to error
+
+posix_end_c
+
+#endif // _WIN32
 
 // _________________________________ posix_str.h _________________________________
 
@@ -143,6 +182,7 @@ struct posix_args_if {
     const char** v;
     const char** env;
     void    (*main)(int32_t argc, const char* argv[], const char** env);
+    void    (*WinMain)(void); // Windows only; null on other platforms
     int32_t (*option_index)(const char* option);
     void    (*remove_at)(int32_t ix);
     bool    (*option_bool)(const char* option);
@@ -660,8 +700,47 @@ posix_end_c
 
 posix_begin_c
 
+// posix_static_init(unique_name) { code_to_execute_before_main }
+
+#if defined(_MSC_VER)
+
+#if defined(_WIN64) || defined(_M_X64)
+#define _posix_msvc_symbol_prefix_ ""
+#else
+#define _posix_msvc_symbol_prefix_ "_"
+#endif
+
+#pragma comment(linker, "/include:posix_force_symbol_reference")
+
+void* posix_force_symbol_reference(void* symbol);
+
+#define _posix_msvc_ctor_(sym_prefix, func)                              \
+  void func(void);                                                       \
+  int32_t (* posix_array ## func)(void);                                 \
+  int32_t func ## _wrapper(void);                                        \
+  int32_t func ## _wrapper(void) { func();                               \
+  posix_force_symbol_reference((void*)posix_array ## func);              \
+  posix_force_symbol_reference((void*)func ## _wrapper); return 0; }      \
+  extern int32_t (* posix_array ## func)(void);                          \
+  __pragma(comment(linker, "/include:" sym_prefix # func "_wrapper"))    \
+  __pragma(section(".CRT$XCU", read))                                    \
+  __declspec(allocate(".CRT$XCU"))                                       \
+    int32_t (* posix_array ## func)(void) = func ## _wrapper;
+
+#define posix_static_init2_(func, line) _posix_msvc_ctor_(_posix_msvc_symbol_prefix_, \
+    func ## _constructor_##line)                                         \
+    void func ## _constructor_##line(void)
+
+#define posix_static_init1_(func, line) posix_static_init2_(func, line)
+
+#define posix_static_init(func) posix_static_init1_(func, __LINE__)
+
+#else
+
 #define posix_static_init(n) __attribute__((constructor)) \
         static void _init_ ## n ## __LINE__ ## _ctor(void)
+
+#endif
 
 void posix_static_init_test(void);
 
@@ -837,6 +916,12 @@ extern struct posix_vigil_if posix_vigil;
 #define posix_fatal_if_error(r, ...) \
     (void)(posix_vigil.fatal_if_error(__FILE__, __LINE__, __func__,      \
                                    #r, r, "" __VA_ARGS__))
+
+#if defined(_WIN32) // posix_b2e() defined above; only valid in Win32 code
+#define posix_fatal_win32err(c, ...) \
+    (void)(posix_vigil.fatal_if_error(__FILE__, __LINE__, __func__,      \
+                                   #c, posix_b2e(c), "" __VA_ARGS__))
+#endif
 
 posix_end_c
 
