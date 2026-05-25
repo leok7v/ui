@@ -4,145 +4,9 @@
 // ___________________________________ ui.h ___________________________________
 
 // alphabetical order is not possible because of headers interdependencies
-// _________________________________ rt_std.h _________________________________
-
-#include <ctype.h>
-#include <errno.h>
-#include <float.h>
-#include <limits.h>
-#include <locale.h>
-#include <malloc.h>
-#include <signal.h>
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
-#define rt_stringify(x) #x
-#define rt_tostring(x) rt_stringify(x)
-#define rt_pragma(x) _Pragma(rt_tostring(x))
-
-#if defined(__GNUC__) || defined(__clang__) // TODO: remove and fix code
-#pragma GCC diagnostic ignored "-Wgnu-zero-variadic-macro-arguments"
-#pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
-#pragma GCC diagnostic ignored "-Wfour-char-constants"
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-#pragma GCC diagnostic ignored "-Wunsafe-buffer-usage"
-#pragma GCC diagnostic ignored "-Wunused-function"
-#pragma GCC diagnostic ignored "-Wfloat-equal"
-#pragma GCC diagnostic ignored "-Wmissing-noreturn"
-#pragma GCC diagnostic ignored "-Wdouble-promotion"
-#pragma GCC diagnostic ignored "-Wcast-align"
-#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
-#pragma GCC diagnostic ignored "-Wused-but-marked-unused" // because in debug only
-#define rt_msvc_pragma(x)
-#define rt_gcc_pragma(x) rt_pragma(x)
-#else
-#define rt_gcc_pragma(x)
-#define rt_msvc_pragma(x) rt_pragma(x)
-#endif
-
-#ifdef _MSC_VER
-    #define rt_suppress_constant_cond_exp _Pragma("warning(suppress: 4127)")
-#else
-    #define rt_suppress_constant_cond_exp
-#endif
-
-// Type aliases for floating-point types similar to <stdint.h>
-typedef float  fp32_t;
-typedef double fp64_t;
-// "long fp64_t" is required by C standard but the bitness
-// of it is not specified.
-
-#ifdef __cplusplus
-    #define rt_begin_c extern "C" {
-    #define rt_end_c } // extern "C"
-#else
-    #define rt_begin_c // C headers compiled as C++
-    #define rt_end_c
-#endif
-
-// rt_countof() and rt_countof() are suitable for
-// small < 2^31 element arrays
-
-#define rt_countof(a) ((int32_t)((int)(sizeof(a) / sizeof((a)[0]))))
-
-#if defined(__GNUC__) || defined(__clang__)
-    #define rt_force_inline __attribute__((always_inline))
-#elif defined(_MSC_VER)
-    #define rt_force_inline __forceinline
-#endif
-
-#ifndef __cplusplus
-    #define null ((void*)0) // better than NULL which is zero
-#else
-    #define null nullptr
-#endif
-
-#if defined(_MSC_VER)
-    #define rt_thread_local __declspec(thread)
-#else
-    #ifndef __cplusplus
-        #define rt_thread_local _Thread_local // C99
-    #else
-        // C++ supports rt_thread_local keyword
-    #endif
-#endif
-
-// rt_begin_packed rt_end_packed
-// usage: typedef rt_begin_packed struct foo_s { ... } rt_end_packed foo_t;
-
-#if defined(__GNUC__) || defined(__clang__)
-#define rt_attribute_packed __attribute__((packed))
-#define rt_begin_packed
-#define rt_end_packed rt_attribute_packed
-#else
-#define rt_begin_packed rt_pragma( pack(push, 1) )
-#define rt_end_packed rt_pragma( pack(pop) )
-#define rt_attribute_packed
-#endif
-
-// usage: typedef struct rt_aligned_8 foo_s { ... } foo_t;
-
-#if defined(__GNUC__) || defined(__clang__)
-#define rt_aligned_8 __attribute__((aligned(8)))
-#elif defined(_MSC_VER)
-#define rt_aligned_8 __declspec(align(8))
-#else
-#define rt_aligned_8
-#endif
-
-
-// In callbacks the formal parameters are
-// frequently unused. Also sometimes parameters
-// are used in debug configuration only (e.g. rt_assert() checks)
-// but not in release.
-// C does not have anonymous parameters like C++
-// Instead of:
-//      void foo(param_type_t param) { (void)param; / *unused */ }
-// use:
-//      vod foo(param_type_t rt_unused(param)) { }
-
-#if defined(__GNUC__) || defined(__clang__)
-#define rt_unused(name) name __attribute__((unused))
-#elif defined(_MSC_VER)
-#define rt_unused(name) _Pragma("warning(suppress:  4100)") name
-#else
-#define rt_unused(name) name
-#endif
-
-// Because MS C compiler is unhappy about alloca() and
-// does not implement (C99 optional) dynamic arrays on the stack:
-
-#define rt_stackalloc(n) (_Pragma("warning(suppress: 6255 6263)") alloca(n))
-
-// alloca() is messy and in general is a not a good idea.
-// try to avoid if possible. Stack sizes vary from 64KB to 8MB in 2024.
-// ________________________________ ui_core.h _________________________________
-
 #include "rt/rt_std.h"
+
+// ________________________________ ui_core.h _________________________________
 
 rt_begin_c
 
@@ -620,13 +484,13 @@ rt_begin_c
 // Graphic Device Interface (selected parts of Windows GDI)
 
 enum {  // TODO: into gdi int32_t const
-    ui_gdi_font_quality_default = 0,
-    ui_gdi_font_quality_draft = 1,
-    ui_gdi_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
-    ui_gdi_font_quality_nonantialiased = 3,
-    ui_gdi_font_quality_antialiased = 4,
-    ui_gdi_font_quality_cleartype = 5,
-    ui_gdi_font_quality_cleartype_natural = 6
+    ui_font_quality_default = 0,
+    ui_font_quality_draft = 1,
+    ui_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
+    ui_font_quality_nonantialiased = 3,
+    ui_font_quality_antialiased = 4,
+    ui_font_quality_cleartype = 5,
+    ui_font_quality_cleartype_natural = 6
 };
 
 typedef struct ui_fm_s { // font metrics
@@ -679,25 +543,25 @@ typedef struct ui_gdi_ta_s { // text attributes
     int32_t color_id;  // <= 0 use color
     ui_color_t color;  // ui_colors.undefined() use color_id
     bool measure;      // measure only do not draw
-} ui_gdi_ta_t;
+} ui_ta_t;
 
 typedef struct {
     struct {
         struct {
-            ui_gdi_ta_t const normal;
-            ui_gdi_ta_t const title;
-            ui_gdi_ta_t const rubric;
-            ui_gdi_ta_t const H1;
-            ui_gdi_ta_t const H2;
-            ui_gdi_ta_t const H3;
+            ui_ta_t const normal;
+            ui_ta_t const title;
+            ui_ta_t const rubric;
+            ui_ta_t const H1;
+            ui_ta_t const H2;
+            ui_ta_t const H3;
         } prop;
         struct {
-            ui_gdi_ta_t const normal;
-            ui_gdi_ta_t const title;
-            ui_gdi_ta_t const rubric;
-            ui_gdi_ta_t const H1;
-            ui_gdi_ta_t const H2;
-            ui_gdi_ta_t const H3;
+            ui_ta_t const normal;
+            ui_ta_t const title;
+            ui_ta_t const rubric;
+            ui_ta_t const H1;
+            ui_ta_t const H2;
+            ui_ta_t const H3;
         } mono;
     } const ta;
     void (*init)(void);
@@ -764,16 +628,16 @@ typedef struct {
     void      (*delete_font)(ui_font_t f);
     void (*dump_fm)(ui_font_t f); // dump font metrics
     void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics
-    ui_wh_t (*text_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*text_va)(const ui_ta_t* ta, int32_t x, int32_t y,
         const char* format, va_list va);
-    ui_wh_t (*text)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*text)(const ui_ta_t* ta, int32_t x, int32_t y,
         const char* format, ...);
-    ui_wh_t (*multiline_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*multiline_va)(const ui_ta_t* ta, int32_t x, int32_t y,
         int32_t w, const char* format, va_list va); // "w" can be zero
-    ui_wh_t (*multiline)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*multiline)(const ui_ta_t* ta, int32_t x, int32_t y,
         int32_t w, const char* format, ...);
     // x[rt_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
-    ui_wh_t (*glyphs_placement)(const ui_gdi_ta_t* ta, const char* utf8,
+    ui_wh_t (*glyphs_placement)(const ui_ta_t* ta, const char* utf8,
         int32_t bytes, int32_t x[/*glyphs + 1*/], int32_t glyphs);
 } ui_gdi_if;
 
@@ -3390,7 +3254,7 @@ static void ui_app_toast_paint(void) {
                 int32_t r = av->x + av->w;
                 const int32_t tx = r - em_w / 2;
                 const int32_t ty = 0;
-                const ui_gdi_ta_t ta = {
+                const ui_ta_t ta = {
                     .fm = &ui_app.fm.prop.normal,
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
@@ -5604,7 +5468,7 @@ static void ui_button_paint(ui_view_t* v) {
         if (v->debug.paint.fm) {
             ui_view.debug_paint_fm(v);
         }
-        const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
+        const ui_ta_t ta = { .fm = v->fm, .color = c };
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);
@@ -9522,7 +9386,7 @@ static void ui_edit_text_width_gp(ui_edit_view_t* e, const char* utf8, int32_t b
     const int32_t glyphs = rt_str.glyphs(utf8, bytes);
     rt_println("\"%.*s\" bytes:%d glyphs:%d", bytes, utf8, bytes, glyphs);
     int32_t* x = (int32_t*)rt_stackalloc((glyphs + 1) * sizeof(int32_t));
-    const ui_gdi_ta_t ta = { .fm = e->fm };
+    const ui_ta_t ta = { .fm = e->fm };
     ui_wh_t wh = ui_gdi.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
 //  rt_println("wh: %dx%d", wh.w, wh.h);
 }
@@ -9533,7 +9397,7 @@ static int32_t ui_edit_text_width(ui_edit_view_t* e, const char* s, int32_t n) {
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
     // "ui_app.fm.prop.normal" ~250us (microseconds) DirectWrite ~100us
-    const ui_gdi_ta_t ta = { .fm = e->fm, .color = e->color,
+    const ui_ta_t ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
 //  time = (rt_clock.seconds() - time) * 1000.0;
@@ -11208,7 +11072,7 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
 }
 
 static int32_t ui_edit_paint_paragraph(ui_edit_view_t* e,
-        const ui_gdi_ta_t* ta, int32_t x, int32_t y, int32_t pn,
+        const ui_ta_t* ta, int32_t x, int32_t y, int32_t pn,
         ui_rect_t rc) {
     static const char* ww = rt_glyph_south_west_arrow_with_hook;
     ui_edit_text_t* dt = &e->doc->text; // document text
@@ -11251,7 +11115,7 @@ static void ui_edit_paint(ui_view_t* v) {
         const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
         int32_t x = v->x + insets.left;
         int32_t y = v->y + insets.top;
-        const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
+        const ui_ta_t ta = { .fm = v->fm, .color = v->color };
         const int32_t pn = e->scroll.pn;
         const int32_t bottom = v->y + e->inside.bottom;
         rt_assert(pn < dt->np);
@@ -12378,13 +12242,13 @@ static void ui_gdi_font_smoothing_contrast(int32_t c) {
         0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
 }
 
-rt_static_assertion(ui_gdi_font_quality_default == DEFAULT_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_draft == DRAFT_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_proof == PROOF_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_antialiased == ANTIALIASED_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_cleartype == CLEARTYPE_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
+rt_static_assertion(ui_font_quality_default == DEFAULT_QUALITY);
+rt_static_assertion(ui_font_quality_draft == DRAFT_QUALITY);
+rt_static_assertion(ui_font_quality_proof == PROOF_QUALITY);
+rt_static_assertion(ui_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
+rt_static_assertion(ui_font_quality_antialiased == ANTIALIASED_QUALITY);
+rt_static_assertion(ui_font_quality_cleartype == CLEARTYPE_QUALITY);
+rt_static_assertion(ui_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
 static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
     rt_assert(h > 0);
@@ -12393,8 +12257,8 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
     rt_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     rt_str_printf(lf.lfFaceName, "%s", family);
-    if (ui_gdi_font_quality_default <= q &&
-        q <= ui_gdi_font_quality_cleartype_natural) {
+    if (ui_font_quality_default <= q &&
+        q <= ui_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
         rt_fatal_if(q != -1, "use -1 for do not care quality");
@@ -12408,8 +12272,8 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
     rt_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
-    if (ui_gdi_font_quality_default <= q &&
-        q <= ui_gdi_font_quality_cleartype_natural) {
+    if (ui_font_quality_default <= q &&
+        q <= ui_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
         rt_fatal_if(q != -1, "use -1 for do not care quality");
@@ -12690,7 +12554,7 @@ enum {
     ml_measure       = ml_draw|DT_CALCRECT
 };
 
-static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_text_with_flags(const ui_ta_t* ta,
         int32_t x, int32_t y, int32_t w,
         const char* format, va_list va, uint32_t flags) {
     const int32_t right = w == 0 ? 0 : x + w;
@@ -12716,13 +12580,13 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
     return (ui_wh_t){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
 }
 
-static ui_wh_t ui_gdi_text_va(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_text_va(const ui_ta_t* ta,
         int32_t x, int32_t y,  const char* format, va_list va) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
     return ui_gdi_text_with_flags(ta, x, y, 0, format, va, flags);
 }
 
-static ui_wh_t ui_gdi_text(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_text(const ui_ta_t* ta,
         int32_t x, int32_t y, const char* format, ...) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
     va_list va;
@@ -12732,7 +12596,7 @@ static ui_wh_t ui_gdi_text(const ui_gdi_ta_t* ta,
     return wh;
 }
 
-static ui_wh_t ui_gdi_multiline_va(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_multiline_va(const ui_ta_t* ta,
         int32_t x, int32_t y, int32_t w, const char* format, va_list va) {
     const uint32_t flags = ta->measure ?
                             (w <= 0 ? ml_measure : ml_measure_break) :
@@ -12740,7 +12604,7 @@ static ui_wh_t ui_gdi_multiline_va(const ui_gdi_ta_t* ta,
     return ui_gdi_text_with_flags(ta, x, y, w, format, va, flags);
 }
 
-static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_multiline(const ui_ta_t* ta,
         int32_t x, int32_t y, int32_t w, const char* format, ...) {
     va_list va;
     va_start(va, format);
@@ -12749,7 +12613,7 @@ static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
     return wh;
 }
 
-static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_glyphs_placement(const ui_ta_t* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
     rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
     return dxd_glyphs_placement(ta->fm->font, utf8, bytes, x, glyphs);
@@ -13445,7 +13309,7 @@ static void ui_label_paint(ui_view_t* v) {
         v->color;
     const int32_t tx = v->x + v->text.xy.x;
     const int32_t ty = v->y + v->text.xy.y;
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
+    const ui_ta_t ta = { .fm = v->fm, .color = c };
     const bool multiline = strchr(s, '\n') != null;
     if (multiline) {
         int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
@@ -13862,7 +13726,7 @@ static int32_t ui_slider_width(const ui_slider_t* s) {
 static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    const ui_gdi_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
+    const ui_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
     ui_wh_t wh = ui_gdi.text_va(&ta, 0, 0, format, va);
     va_end(va);
     return wh;
@@ -14015,7 +13879,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_view.text_align(v, &v->text);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
-    const ui_gdi_ta_t ta = { .fm = fm, .color = text_color };
+    const ui_ta_t ta = { .fm = fm, .color = text_color };
     ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
@@ -14198,59 +14062,7 @@ void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
 
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
 #include "rt/rt.h"
-// ________________________________ rt_win32.h ________________________________
-
-#ifdef WIN32
-
-#pragma warning(push)
-#pragma warning(disable: 4255) // no function prototype: '()' to '(void)'
-#pragma warning(disable: 4459) // declaration of '...' hides global declaration
-#pragma warning(disable: 4668) // SDK headers (e.g. shellapi.h) test version
-                               // macros like NTDDI_WIN10_GE that older SDKs
-                               // do not define; harmless under /Wall
-
-#pragma push_macro("UNICODE")
-#define UNICODE // always because otherwise IME does not work
-
-// ut:
-#include <Windows.h>  // used by:
-#include <Psapi.h>    // both rt_loader.c and rt_processes.c
-#include <shellapi.h> // rt_processes.c
-#include <winternl.h> // rt_processes.c
-#include <initguid.h>     // for knownfolders
-#include <KnownFolders.h> // rt_files.c
-#include <AclAPI.h>       // rt_files.c
-#include <ShlObj_core.h>  // rt_files.c
-#include <Shlwapi.h>      // rt_files.c
-// ui:
-#include <commdlg.h>
-#include <dbghelp.h>
-#include <dwmapi.h>
-#include <imm.h>
-#include <ShellScalingApi.h>
-#include <tlhelp32.h>
-#include <VersionHelpers.h>
-#include <windowsx.h>
-#include <winnt.h>
-
-#pragma pop_macro("UNICODE")
-
-#pragma warning(pop)
-
-#include <fcntl.h>
-
-#define rt_export __declspec(dllexport)
-
-// Win32 API BOOL -> errno_t translation
-
-#define rt_b2e(call) ((errno_t)(call ? 0 : GetLastError()))
-
-void rt_win32_close_handle(void* h);
-/* translate ix to error */
-errno_t rt_wait_ix2e(uint32_t r);
-
-
-#endif // WIN32
+#include "rt/rt_win32.h"
 
 static int32_t ui_theme_dark = -1; // -1 unknown
 
@@ -14480,7 +14292,7 @@ static void ui_toggle_paint(ui_view_t* v) {
     ui_toggle_paint_on_off(v);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
+    const ui_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
@@ -14722,7 +14534,7 @@ static const char* ui_view_string(ui_view_t* v) {
 static ui_wh_t ui_view_text_metrics_va(int32_t x, int32_t y,
         bool multiline, int32_t w, const ui_fm_t* fm,
         const char* format, va_list va) {
-    const ui_gdi_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
+    const ui_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
                              .measure = true };
     return multiline ?
         ui_gdi.multiline_va(&ta, x, y, w, format, va) :
@@ -15391,7 +15203,7 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
                                               v->fm, "%s", ui_view.string(v));
             const int32_t tx = v->x;
             const int32_t ty = v->y + v->h - wh.h;
-            const ui_gdi_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
+            const ui_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
             ui_gdi.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
                         v->x, v->y, v->w, v->h);
         }

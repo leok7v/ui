@@ -969,7 +969,7 @@ static void ui_app_toast_paint(void) {
                 int32_t r = av->x + av->w;
                 const int32_t tx = r - em_w / 2;
                 const int32_t ty = 0;
-                const ui_gdi_ta_t ta = {
+                const ui_ta_t ta = {
                     .fm = &ui_app.fm.prop.normal,
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text

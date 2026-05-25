@@ -151,7 +151,7 @@ static ui_view_t panel_bottom = ui_view(stack);
 static ui_view_t panel_center = ui_view(stack);
 static ui_view_t panel_right  = ui_view(stack);
 
-static const ui_gdi_ta_t* ta = &ui_gdi.ta.prop.normal;
+static const ui_ta_t* ta = &ui_gdi.ta.prop.normal;
 
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
@@ -219,7 +219,7 @@ static void right_layout(ui_view_t* v) {
 
 static void right_paint(ui_view_t* v) {
     panel_paint(v);
-    const ui_gdi_ta_t* restore = ta;
+    const ui_ta_t* restore = ta;
     after(&button_locale, "&Locale %s", button_locale.state.pressed ?
         "zh-CN" : "en-US");
     after(&button_full_screen, "%s",

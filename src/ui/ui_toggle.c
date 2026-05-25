@@ -65,7 +65,7 @@ static void ui_toggle_paint(ui_view_t* v) {
     ui_toggle_paint_on_off(v);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = text_color };
+    const ui_ta_t ta = { .fm = v->fm, .color = text_color };
     ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 

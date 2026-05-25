@@ -98,7 +98,7 @@ static void ui_edit_text_width_gp(ui_edit_view_t* e, const char* utf8, int32_t b
     const int32_t glyphs = rt_str.glyphs(utf8, bytes);
     rt_println("\"%.*s\" bytes:%d glyphs:%d", bytes, utf8, bytes, glyphs);
     int32_t* x = (int32_t*)rt_stackalloc((glyphs + 1) * sizeof(int32_t));
-    const ui_gdi_ta_t ta = { .fm = e->fm };
+    const ui_ta_t ta = { .fm = e->fm };
     ui_wh_t wh = ui_gdi.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
 //  rt_println("wh: %dx%d", wh.w, wh.h);
 }
@@ -109,7 +109,7 @@ static int32_t ui_edit_text_width(ui_edit_view_t* e, const char* s, int32_t n) {
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
     // "ui_app.fm.prop.normal" ~250us (microseconds) DirectWrite ~100us
-    const ui_gdi_ta_t ta = { .fm = e->fm, .color = e->color,
+    const ui_ta_t ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_gdi.text(&ta, 0, 0, "%.*s", n, s).w;
 //  time = (rt_clock.seconds() - time) * 1000.0;
@@ -1784,7 +1784,7 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
 }
 
 static int32_t ui_edit_paint_paragraph(ui_edit_view_t* e,
-        const ui_gdi_ta_t* ta, int32_t x, int32_t y, int32_t pn,
+        const ui_ta_t* ta, int32_t x, int32_t y, int32_t pn,
         ui_rect_t rc) {
     static const char* ww = rt_glyph_south_west_arrow_with_hook;
     ui_edit_text_t* dt = &e->doc->text; // document text
@@ -1827,7 +1827,7 @@ static void ui_edit_paint(ui_view_t* v) {
         const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
         int32_t x = v->x + insets.left;
         int32_t y = v->y + insets.top;
-        const ui_gdi_ta_t ta = { .fm = v->fm, .color = v->color };
+        const ui_ta_t ta = { .fm = v->fm, .color = v->color };
         const int32_t pn = e->scroll.pn;
         const int32_t bottom = v->y + e->inside.bottom;
         rt_assert(pn < dt->np);

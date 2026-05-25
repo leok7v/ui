@@ -10,7 +10,7 @@ static void ui_label_paint(ui_view_t* v) {
         v->color;
     const int32_t tx = v->x + v->text.xy.x;
     const int32_t ty = v->y + v->text.xy.y;
-    const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
+    const ui_ta_t ta = { .fm = v->fm, .color = c };
     const bool multiline = strchr(s, '\n') != null;
     if (multiline) {
         int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);

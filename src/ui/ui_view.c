@@ -188,7 +188,7 @@ static const char* ui_view_string(ui_view_t* v) {
 static ui_wh_t ui_view_text_metrics_va(int32_t x, int32_t y,
         bool multiline, int32_t w, const ui_fm_t* fm,
         const char* format, va_list va) {
-    const ui_gdi_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
+    const ui_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
                              .measure = true };
     return multiline ?
         ui_gdi.multiline_va(&ta, x, y, w, format, va) :
@@ -857,7 +857,7 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
                                               v->fm, "%s", ui_view.string(v));
             const int32_t tx = v->x;
             const int32_t ty = v->y + v->h - wh.h;
-            const ui_gdi_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
+            const ui_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
             ui_gdi.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
                         v->x, v->y, v->w, v->h);
         }

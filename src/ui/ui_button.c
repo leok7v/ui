@@ -68,7 +68,7 @@ static void ui_button_paint(ui_view_t* v) {
         if (v->debug.paint.fm) {
             ui_view.debug_paint_fm(v);
         }
-        const ui_gdi_ta_t ta = { .fm = v->fm, .color = c };
+        const ui_ta_t ta = { .fm = v->fm, .color = c };
         ui_gdi.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
         const ui_ltrb_t i = ui_view.margins(v, &v->insets);

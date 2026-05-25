@@ -87,7 +87,7 @@ static void paint_movie(animation_t* a) {
 }
 
 static void paint_mute_unmute(ui_view_t* v) {
-    ui_gdi_ta_t ta = ui_gdi.ta.prop.H3;
+    ui_ta_t ta = ui_gdi.ta.prop.H3;
     ta.color_id = 0;
     ta.color = muted ? ui_colors.green : ui_colors.red;
     #define str_unmuted rt_glyph_mute  " mute"

@@ -31,7 +31,7 @@ static void paint(ui_view_t* view) {
                  0, 0, image[k].w, image[k].h, &image[k]);
     int32_t tx = view->fm->em.w;
     int32_t ty = view->fm->em.h / 4;
-    const ui_gdi_ta_t ta = { .fm = view->fm, .color = ui_colors.orange };
+    const ui_ta_t ta = { .fm = view->fm, .color = ui_colors.orange };
     ui_gdi.text(&ta, tx, ty, "%s",
                      "Try Full Screen Button there --->");
     ty = view->h - view->fm->em.h * 3 / 2;

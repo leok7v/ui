@@ -495,13 +495,13 @@ static void ui_gdi_font_smoothing_contrast(int32_t c) {
         0, (void*)(uintptr_t)c, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE));
 }
 
-rt_static_assertion(ui_gdi_font_quality_default == DEFAULT_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_draft == DRAFT_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_proof == PROOF_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_antialiased == ANTIALIASED_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_cleartype == CLEARTYPE_QUALITY);
-rt_static_assertion(ui_gdi_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
+rt_static_assertion(ui_font_quality_default == DEFAULT_QUALITY);
+rt_static_assertion(ui_font_quality_draft == DRAFT_QUALITY);
+rt_static_assertion(ui_font_quality_proof == PROOF_QUALITY);
+rt_static_assertion(ui_font_quality_nonantialiased == NONANTIALIASED_QUALITY);
+rt_static_assertion(ui_font_quality_antialiased == ANTIALIASED_QUALITY);
+rt_static_assertion(ui_font_quality_cleartype == CLEARTYPE_QUALITY);
+rt_static_assertion(ui_font_quality_cleartype_natural == CLEARTYPE_NATURAL_QUALITY);
 
 static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
     rt_assert(h > 0);
@@ -510,8 +510,8 @@ static ui_font_t ui_gdi_create_font(const char* family, int32_t h, int32_t q) {
     rt_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
     rt_str_printf(lf.lfFaceName, "%s", family);
-    if (ui_gdi_font_quality_default <= q &&
-        q <= ui_gdi_font_quality_cleartype_natural) {
+    if (ui_font_quality_default <= q &&
+        q <= ui_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
         rt_fatal_if(q != -1, "use -1 for do not care quality");
@@ -525,8 +525,8 @@ static ui_font_t ui_gdi_font(ui_font_t f, int32_t h, int32_t q) {
     int32_t n = GetObjectA(f, sizeof(lf), &lf);
     rt_fatal_if(n != (int32_t)sizeof(lf));
     lf.lfHeight = -h;
-    if (ui_gdi_font_quality_default <= q &&
-        q <= ui_gdi_font_quality_cleartype_natural) {
+    if (ui_font_quality_default <= q &&
+        q <= ui_font_quality_cleartype_natural) {
         lf.lfQuality = (uint8_t)q;
     } else {
         rt_fatal_if(q != -1, "use -1 for do not care quality");
@@ -807,7 +807,7 @@ enum {
     ml_measure       = ml_draw|DT_CALCRECT
 };
 
-static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_text_with_flags(const ui_ta_t* ta,
         int32_t x, int32_t y, int32_t w,
         const char* format, va_list va, uint32_t flags) {
     const int32_t right = w == 0 ? 0 : x + w;
@@ -833,13 +833,13 @@ static ui_wh_t ui_gdi_text_with_flags(const ui_gdi_ta_t* ta,
     return (ui_wh_t){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
 }
 
-static ui_wh_t ui_gdi_text_va(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_text_va(const ui_ta_t* ta,
         int32_t x, int32_t y,  const char* format, va_list va) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
     return ui_gdi_text_with_flags(ta, x, y, 0, format, va, flags);
 }
 
-static ui_wh_t ui_gdi_text(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_text(const ui_ta_t* ta,
         int32_t x, int32_t y, const char* format, ...) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
     va_list va;
@@ -849,7 +849,7 @@ static ui_wh_t ui_gdi_text(const ui_gdi_ta_t* ta,
     return wh;
 }
 
-static ui_wh_t ui_gdi_multiline_va(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_multiline_va(const ui_ta_t* ta,
         int32_t x, int32_t y, int32_t w, const char* format, va_list va) {
     const uint32_t flags = ta->measure ?
                             (w <= 0 ? ml_measure : ml_measure_break) :
@@ -857,7 +857,7 @@ static ui_wh_t ui_gdi_multiline_va(const ui_gdi_ta_t* ta,
     return ui_gdi_text_with_flags(ta, x, y, w, format, va, flags);
 }
 
-static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_multiline(const ui_ta_t* ta,
         int32_t x, int32_t y, int32_t w, const char* format, ...) {
     va_list va;
     va_start(va, format);
@@ -866,7 +866,7 @@ static ui_wh_t ui_gdi_multiline(const ui_gdi_ta_t* ta,
     return wh;
 }
 
-static ui_wh_t ui_gdi_glyphs_placement(const ui_gdi_ta_t* ta,
+static ui_wh_t ui_gdi_glyphs_placement(const ui_ta_t* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
     rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
     return dxd_glyphs_placement(ta->fm->font, utf8, bytes, x, glyphs);

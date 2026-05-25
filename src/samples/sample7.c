@@ -108,7 +108,7 @@ static void paint(ui_view_t* v) {
         char paint_stats[256];
         rt_str_printf(paint_stats, "avg paint time %.1f ms %.1f fps",
             ui_app.paint_avg * 1000, ui_app.paint_fps);
-        ui_gdi_ta_t ta = ui_gdi.ta.mono.normal;
+        ui_ta_t ta = ui_gdi.ta.mono.normal;
         ta.measure = true;
         ui_wh_t wh = ui_view.text_metrics(0, 0, false, 0,
                         &ui_app.fm.mono.normal, "%s", paint_stats);

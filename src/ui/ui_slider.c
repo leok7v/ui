@@ -22,7 +22,7 @@ static int32_t ui_slider_width(const ui_slider_t* s) {
 static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    const ui_gdi_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
+    const ui_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
     ui_wh_t wh = ui_gdi.text_va(&ta, 0, 0, format, va);
     va_end(va);
     return wh;
@@ -175,7 +175,7 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_view.text_align(v, &v->text);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
-    const ui_gdi_ta_t ta = { .fm = fm, .color = text_color };
+    const ui_ta_t ta = { .fm = fm, .color = text_color };
     ui_gdi.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 

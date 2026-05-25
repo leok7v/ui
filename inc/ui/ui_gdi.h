@@ -6,13 +6,13 @@ rt_begin_c
 // Graphic Device Interface (selected parts of Windows GDI)
 
 enum {  // TODO: into gdi int32_t const
-    ui_gdi_font_quality_default = 0,
-    ui_gdi_font_quality_draft = 1,
-    ui_gdi_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
-    ui_gdi_font_quality_nonantialiased = 3,
-    ui_gdi_font_quality_antialiased = 4,
-    ui_gdi_font_quality_cleartype = 5,
-    ui_gdi_font_quality_cleartype_natural = 6
+    ui_font_quality_default = 0,
+    ui_font_quality_draft = 1,
+    ui_font_quality_proof = 2, // anti-aliased w/o ClearType rainbows
+    ui_font_quality_nonantialiased = 3,
+    ui_font_quality_antialiased = 4,
+    ui_font_quality_cleartype = 5,
+    ui_font_quality_cleartype_natural = 6
 };
 
 typedef struct ui_fm_s { // font metrics
@@ -65,25 +65,25 @@ typedef struct ui_gdi_ta_s { // text attributes
     int32_t color_id;  // <= 0 use color
     ui_color_t color;  // ui_colors.undefined() use color_id
     bool measure;      // measure only do not draw
-} ui_gdi_ta_t;
+} ui_ta_t;
 
 typedef struct {
     struct {
         struct {
-            ui_gdi_ta_t const normal;
-            ui_gdi_ta_t const title;
-            ui_gdi_ta_t const rubric;
-            ui_gdi_ta_t const H1;
-            ui_gdi_ta_t const H2;
-            ui_gdi_ta_t const H3;
+            ui_ta_t const normal;
+            ui_ta_t const title;
+            ui_ta_t const rubric;
+            ui_ta_t const H1;
+            ui_ta_t const H2;
+            ui_ta_t const H3;
         } prop;
         struct {
-            ui_gdi_ta_t const normal;
-            ui_gdi_ta_t const title;
-            ui_gdi_ta_t const rubric;
-            ui_gdi_ta_t const H1;
-            ui_gdi_ta_t const H2;
-            ui_gdi_ta_t const H3;
+            ui_ta_t const normal;
+            ui_ta_t const title;
+            ui_ta_t const rubric;
+            ui_ta_t const H1;
+            ui_ta_t const H2;
+            ui_ta_t const H3;
         } mono;
     } const ta;
     void (*init)(void);
@@ -150,16 +150,16 @@ typedef struct {
     void      (*delete_font)(ui_font_t f);
     void (*dump_fm)(ui_font_t f); // dump font metrics
     void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics
-    ui_wh_t (*text_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*text_va)(const ui_ta_t* ta, int32_t x, int32_t y,
         const char* format, va_list va);
-    ui_wh_t (*text)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*text)(const ui_ta_t* ta, int32_t x, int32_t y,
         const char* format, ...);
-    ui_wh_t (*multiline_va)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*multiline_va)(const ui_ta_t* ta, int32_t x, int32_t y,
         int32_t w, const char* format, va_list va); // "w" can be zero
-    ui_wh_t (*multiline)(const ui_gdi_ta_t* ta, int32_t x, int32_t y,
+    ui_wh_t (*multiline)(const ui_ta_t* ta, int32_t x, int32_t y,
         int32_t w, const char* format, ...);
     // x[rt_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
-    ui_wh_t (*glyphs_placement)(const ui_gdi_ta_t* ta, const char* utf8,
+    ui_wh_t (*glyphs_placement)(const ui_ta_t* ta, const char* utf8,
         int32_t bytes, int32_t x[/*glyphs + 1*/], int32_t glyphs);
 } ui_gdi_if;
 
