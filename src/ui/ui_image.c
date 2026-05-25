@@ -1,4 +1,4 @@
-#include "posix.h"
+#include "posix/posix.h"
 #include "ui/ui.h"
 
 static fp64_t ui_image_scale_of(int32_t nominator, int32_t denominator) {

@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\src\tools\amalgamate.c" />
-    <ClCompile Include="..\src\tools\dirent.c" />
+    <ClCompile Include="..\tools\amalgamate\amalgamate.c" />
+    <ClCompile Include="..\tools\amalgamate\dirent.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\tools\dirent.h" />

@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\tools\version.c" />
+    <ClCompile Include="..\tools\version\version.c" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0EA9BF0C-402B-4852-BD16-644244F0D1B8}</ProjectGuid>

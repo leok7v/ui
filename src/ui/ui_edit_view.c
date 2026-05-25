@@ -1,5 +1,5 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "posix.h"
+#include "posix/posix.h"
 #include "ui/ui.h"
 #include "ui/ui_edit_doc.h"
 

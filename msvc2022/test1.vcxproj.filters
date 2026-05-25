@@ -14,7 +14,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\test\version.rc.in">
+    <None Include="..\tools\version\version.rc.in">
       <Filter>rc</Filter>
     </None>
   </ItemGroup>

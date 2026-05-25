@@ -1,6 +1,6 @@
 # User files
 *.vcxproj.user
-inc/rt/version.h
+tools/version/version.h
 bin/**
 build/**
 lib/**

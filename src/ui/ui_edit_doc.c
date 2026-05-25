@@ -1,5 +1,5 @@
 /* Copyright (c) Dmitry "Leo" Kuznetsov 2021-24 see LICENSE for details */
-#include "posix.h"
+#include "posix/posix.h"
 #include "ui/ui.h"
 
 #undef UI_EDIT_STR_TEST

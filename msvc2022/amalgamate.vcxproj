@@ -89,8 +89,8 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\tools\amalgamate.c" />
-    <ClCompile Include="..\src\tools\dirent.c" />
+    <ClCompile Include="..\tools\amalgamate\amalgamate.c" />
+    <ClCompile Include="..\tools\amalgamate\dirent.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\tools\dirent.h" />

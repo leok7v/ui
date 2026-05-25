@@ -1,4 +1,4 @@
-#include "posix.h"
+#include "posix/posix.h"
 #include <stdio.h>
 
 static int usage(void) {

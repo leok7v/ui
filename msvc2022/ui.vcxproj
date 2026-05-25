@@ -19,54 +19,52 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\inc\ui\ui_caption.h" />
-    <ClInclude Include="..\inc\ui\ui_containers.h" />
-    <ClInclude Include="..\inc\ui\ui.h" />
-    <ClInclude Include="..\inc\ui\ui_app.h" />
-    <ClInclude Include="..\inc\ui\ui_button.h" />
-    <ClInclude Include="..\inc\ui\ui_edit_doc.h" />
-    <ClInclude Include="..\inc\ui\ui_edit_view.h" />
-    <ClInclude Include="..\inc\ui\ui_fuzzing.h" />
-    <ClInclude Include="..\inc\ui\ui_image.h" />
-    <ClInclude Include="..\inc\ui\ui_midi.h" />
-    <ClInclude Include="..\inc\ui\ui_theme.h" />
-    <ClInclude Include="..\inc\ui\ui_toggle.h" />
-    <ClInclude Include="..\inc\ui\ui_colors.h" />
-    <ClInclude Include="..\inc\ui\ui_core.h" />
-    <ClInclude Include="..\inc\ui\ui_draw.h" />
-    <ClInclude Include="..\inc\ui\dxd.h" />
-    <ClInclude Include="..\inc\ui\ui_label.h" />
-    <ClInclude Include="..\inc\ui\ui_mbx.h" />
-    <ClInclude Include="..\inc\ui\ui_slider.h" />
-    <ClInclude Include="..\inc\ui\ui_view.h" />
+    <ClInclude Include="..\include\ui\ui_caption.h" />
+    <ClInclude Include="..\include\ui\ui_containers.h" />
+    <ClInclude Include="..\include\ui\ui.h" />
+    <ClInclude Include="..\include\ui\ui_app.h" />
+    <ClInclude Include="..\include\ui\ui_button.h" />
+    <ClInclude Include="..\include\ui\ui_edit_doc.h" />
+    <ClInclude Include="..\include\ui\ui_edit_view.h" />
+    <ClInclude Include="..\include\ui\ui_fuzzing.h" />
+    <ClInclude Include="..\include\ui\ui_image.h" />
+    <ClInclude Include="..\include\ui\ui_midi.h" />
+    <ClInclude Include="..\include\ui\ui_theme.h" />
+    <ClInclude Include="..\include\ui\ui_toggle.h" />
+    <ClInclude Include="..\include\ui\ui_colors.h" />
+    <ClInclude Include="..\include\ui\ui_core.h" />
+    <ClInclude Include="..\include\ui\ui_draw.h" />
+    <ClInclude Include="..\include\ui\dxd.h" />
+    <ClInclude Include="..\include\ui\ui_label.h" />
+    <ClInclude Include="..\include\ui\ui_mbx.h" />
+    <ClInclude Include="..\include\ui\ui_slider.h" />
+    <ClInclude Include="..\include\ui\ui_view.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\src\core\core.c" />
+    <ClCompile Include="..\src\trace\trace.c" />
+    <ClCompile Include="..\src\posix\posix.c" />
     <ClCompile Include="..\src\ui\ui_app.c" />
     <ClCompile Include="..\src\ui\ui_button.c" />
     <ClCompile Include="..\src\ui\ui_caption.c" />
+    <ClCompile Include="..\src\ui\ui_colors.c" />
     <ClCompile Include="..\src\ui\ui_containers.c" />
+    <ClCompile Include="..\src\ui\ui_core.c" />
+    <ClCompile Include="..\src\ui\ui_draw.c" />
     <ClCompile Include="..\src\ui\ui_edit_doc.c" />
     <ClCompile Include="..\src\ui\ui_edit_view.c" />
     <ClCompile Include="..\src\ui\ui_fuzzing.c" />
     <ClCompile Include="..\src\ui\ui_image.c" />
+    <ClCompile Include="..\src\ui\ui_label.c" />
+    <ClCompile Include="..\src\ui\ui_mbx.c" />
     <ClCompile Include="..\src\ui\ui_midi.c" />
+    <ClCompile Include="..\src\ui\ui_slider.c" />
     <ClCompile Include="..\src\ui\ui_theme.c" />
     <ClCompile Include="..\src\ui\ui_toggle.c" />
-    <ClCompile Include="..\src\ui\ui_colors.c" />
-    <ClCompile Include="..\src\ui\ui_core.c" />
-    <ClCompile Include="..\src\ui\ui_draw.c" />
+    <ClCompile Include="..\src\ui\ui_view.c" />
     <ClCompile Include="..\src\ui\dxd.cpp">
       <AdditionalOptions>/W3 /EHsc /volatile:ms</AdditionalOptions>
     </ClCompile>
-    <ClCompile Include="..\src\ui\ui_label.c" />
-    <ClCompile Include="..\src\ui\ui_mbx.c" />
-    <ClCompile Include="..\src\ui\ui_slider.c" />
-    <ClCompile Include="..\src\ui\ui_view.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="amalgamate.vcxproj">
-      <Project>{1ea9bf0c-402b-4852-bd16-644244f0d1b9}</Project>
-    </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -124,7 +122,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>pushd $(ProjectDir).. &amp;&amp; $(ProjectDir)..\bin\$(Configuration)\$(Platform)\amalgamate.exe $(ProjectName) &gt; single_file_lib\$(ProjectName)\$(ProjectName).h &amp;&amp; popd</Command>
+      <Command></Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>amalgamate "$(ProjectName)" into single_file_lib\$(ProjectName)\$(ProjectName).h</Message>
@@ -138,7 +136,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>pushd $(ProjectDir).. &amp;&amp; $(ProjectDir)..\bin\$(Configuration)\$(Platform)\amalgamate.exe $(ProjectName) &gt; single_file_lib\$(ProjectName)\$(ProjectName).h &amp;&amp; popd</Command>
+      <Command></Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>amalgamate "$(ProjectName)" into single_file_lib\$(ProjectName)\$(ProjectName).h</Message>
@@ -154,7 +152,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>pushd $(ProjectDir).. &amp;&amp; $(ProjectDir)..\bin\$(Configuration)\$(Platform)\amalgamate.exe $(ProjectName) &gt; single_file_lib\$(ProjectName)\$(ProjectName).h &amp;&amp; popd</Command>
+      <Command></Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>amalgamate "$(ProjectName)" into single_file_lib\$(ProjectName)\$(ProjectName).h</Message>
@@ -170,7 +168,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PostBuildEvent>
-      <Command>pushd $(ProjectDir).. &amp;&amp; $(ProjectDir)..\bin\$(Configuration)\$(Platform)\amalgamate.exe $(ProjectName) &gt; single_file_lib\$(ProjectName)\$(ProjectName).h &amp;&amp; popd</Command>
+      <Command></Command>
     </PostBuildEvent>
     <PostBuildEvent>
       <Message>amalgamate "$(ProjectName)" into single_file_lib\$(ProjectName)\$(ProjectName).h</Message>
