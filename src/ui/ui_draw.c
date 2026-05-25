@@ -10,7 +10,7 @@ static ui_brush_t  ui_draw_brush_color;
 static ui_pen_t    ui_draw_pen_hollow;
 static ui_region_t ui_draw_clip;
 
-typedef struct ui_draw_context_s {
+struct ui_draw_context {
     HDC hdc; // window canvas() or memory DC
     int32_t background_mode;
     int32_t stretch_mode;
@@ -21,9 +21,9 @@ typedef struct ui_draw_context_s {
     ui_brush_t brush;
     HBITMAP texture;
     dxd_context_t dxd; // Direct2D draw context for this begin()/end() frame
-} ui_draw_context_t;
+};
 
-static ui_draw_context_t ui_draw_context;
+static struct ui_draw_context ui_draw_context;
 
 #define ui_draw_hdc() (ui_draw_context.hdc)
 
@@ -63,7 +63,7 @@ static ui_font_t ui_draw_set_font(ui_font_t f) {
     return (ui_font_t)SelectFont(ui_draw_hdc(), (HFONT)f);
 }
 
-static void ui_draw_begin(ui_bitmap_t* image) {
+static void ui_draw_begin(struct ui_bitmap* image) {
     rt_swear(ui_draw_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
         rt_swear(image->texture != null);
@@ -75,9 +75,9 @@ static void ui_draw_begin(ui_bitmap_t* image) {
         rt_swear(ui_draw_context.texture == null);
     }
     ui_draw_context.text_color = ui_colors.get_color(ui_color_id_window_text);
-    ui_rect_t rc = image != null ?
-        (ui_rect_t){ 0, 0, image->w, image->h } :
-        (ui_rect_t){ 0, 0, ui_app.crc.w, ui_app.crc.h };
+    struct ui_rect rc = image != null ?
+        (struct ui_rect){ 0, 0, image->w, image->h } :
+        (struct ui_rect){ 0, 0, ui_app.crc.w, ui_app.crc.h };
     ui_draw_context.dxd = dxd_begin(ui_draw_context.hdc, &rc);
 }
 
@@ -155,7 +155,7 @@ static void ui_draw_fill(int32_t x, int32_t y, int32_t w, int32_t h,
     dxd_fill(ui_draw_context.dxd, x, y, w, h, c);
 }
 
-static void ui_draw_poly(ui_point_t* points, int32_t count, ui_color_t c) {
+static void ui_draw_poly(struct ui_point* points, int32_t count, ui_color_t c) {
     dxd_poly(ui_draw_context.dxd, points, count, c);
 }
 
@@ -309,7 +309,7 @@ static BITMAPINFO* ui_draw_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
     return bi;
 }
 
-static void ui_draw_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
+static void ui_draw_create_dib_section(struct ui_bitmap* image, int32_t w, int32_t h,
         int32_t bpp) {
     rt_fatal_if(image->texture != null, "bitmap_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
@@ -325,7 +325,7 @@ static void ui_draw_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
     rt_fatal_win32err(DeleteDC(c));
 }
 
-static void ui_draw_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
+static void ui_draw_bitmap_init_rgbx(struct ui_bitmap* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -369,7 +369,7 @@ static void ui_draw_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
     image->stride = stride;
 }
 
-static void ui_draw_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
+static void ui_draw_bitmap_init(struct ui_bitmap* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -457,7 +457,7 @@ static void ui_draw_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_
 
 static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* image, fp64_t alpha) {
+        struct ui_bitmap* image, fp64_t alpha) {
     rt_assert(image->bpp > 0);
     rt_assert(0 <= alpha && alpha <= 1);
     dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
@@ -467,7 +467,7 @@ static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 
 static void ui_draw_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* image) {
+        struct ui_bitmap* image) {
     rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
               ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
@@ -642,7 +642,7 @@ static void ui_draw_dump_fm(ui_font_t f) {
     ui_draw_hdc_with_font(f, { ui_draw_dump_hdc_fm(hdc); });
 }
 
-static void ui_draw_get_fm(HDC hdc, ui_fm_t* fm) {
+static void ui_draw_get_fm(HDC hdc, struct ui_fm* fm) {
     TEXTMETRICA tm = {0};
     rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
     rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
@@ -679,7 +679,7 @@ static void ui_draw_get_fm(HDC hdc, ui_fm_t* fm) {
     fm->strike_through = otm.otmsStrikeoutSize;
     fm->strike_through_position = otm.otmsStrikeoutPosition;
     fm->design_units_per_em = (int)otm.otmEMSquare;
-    fm->box = (ui_rect_t){
+    fm->box = (struct ui_rect){
                 otm.otmrcFontBox.left, otm.otmrcFontBox.top,
                 otm.otmrcFontBox.right - otm.otmrcFontBox.left,
                 otm.otmrcFontBox.top - otm.otmrcFontBox.bottom // inverted
@@ -698,10 +698,10 @@ static void ui_draw_get_fm(HDC hdc, ui_fm_t* fm) {
     // need it. Easy to add if necessary.
 }
 
-static void ui_draw_update_fm(ui_fm_t* fm, ui_font_t f) {
+static void ui_draw_update_fm(struct ui_fm* fm, ui_font_t f) {
     rt_not_null(f);
     SIZE em = {0, 0}; // "m"
-    *fm = (ui_fm_t){ .font = f };
+    *fm = (struct ui_fm){ .font = f };
 //  ui_draw.dump_fm(f);
     ui_draw_hdc_with_font(f, {
         ui_draw_get_fm(hdc, fm);
@@ -719,7 +719,7 @@ static void ui_draw_update_fm(ui_fm_t* fm, ui_font_t f) {
 //              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
     });
     rt_assert(fm->baseline <= fm->height);
-    fm->em = (ui_wh_t){ .w = fm->height, .h = fm->height };
+    fm->em = (struct ui_wh){ .w = fm->height, .h = fm->height };
 //  rt_println("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
 
@@ -756,8 +756,8 @@ if (0) {
     return h;
 }
 
-typedef struct { // draw text parameters
-    const ui_fm_t* fm;
+struct ui_draw_dtp { // draw text parameters
+    const struct ui_fm* fm;
     ui_color_t color; // resolved text color (dxd draws with it)
     const char* format; // format string
     va_list va;
@@ -771,9 +771,9 @@ typedef struct { // draw text parameters
     // DT_BOTTOM, DT_VCENTER limited usability in weird cases (layout is better)
     // DT_NOPREFIX not to draw underline at "&Keyboard shortcuts
     // DT_SINGLELINE versus multiline
-} ui_draw_dtp_t;
+};
 
-static void ui_draw_text_draw(ui_draw_dtp_t* p) {
+static void ui_draw_text_draw(struct ui_draw_dtp* p) {
     rt_not_null(p);
     char text[4096]; // expected to be enough for single text draw
     text[0] = 0;
@@ -786,7 +786,7 @@ static void ui_draw_text_draw(ui_draw_dtp_t* p) {
         const bool multiline = (p->flags & DT_SINGLELINE) == 0;
         const bool mnemonic = (p->flags & DT_NOPREFIX) == 0;
         const int32_t w = p->rc.right - p->rc.left;
-        ui_wh_t wh = dxd_text(ui_draw_context.dxd, p->fm->font,
+        struct ui_wh wh = dxd_text(ui_draw_context.dxd, p->fm->font,
                               p->rc.left, p->rc.top, w, p->color,
                               text, k, measure_only, multiline, mnemonic);
         p->rc.right = p->rc.left + wh.w;
@@ -807,7 +807,7 @@ enum {
     ml_measure       = ml_draw|DT_CALCRECT
 };
 
-static ui_wh_t ui_draw_text_with_flags(const ui_ta_t* ta,
+static struct ui_wh ui_draw_text_with_flags(const struct ui_ta* ta,
         int32_t x, int32_t y, int32_t w,
         const char* format, va_list va, uint32_t flags) {
     const int32_t right = w == 0 ? 0 : x + w;
@@ -821,7 +821,7 @@ static ui_wh_t ui_draw_text_with_flags(const ui_ta_t* ta,
             rt_swear(ta->color_id == 0);
         }
     }
-    ui_draw_dtp_t p = {
+    struct ui_draw_dtp p = {
         .fm = ta->fm,
         .color = c,
         .format = format,
@@ -830,26 +830,26 @@ static ui_wh_t ui_draw_text_with_flags(const ui_ta_t* ta,
         .flags = flags
     };
     ui_draw_text_draw(&p);
-    return (ui_wh_t){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
+    return (struct ui_wh){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
 }
 
-static ui_wh_t ui_draw_text_va(const ui_ta_t* ta,
+static struct ui_wh ui_draw_text_va(const struct ui_ta* ta,
         int32_t x, int32_t y,  const char* format, va_list va) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
     return ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
 }
 
-static ui_wh_t ui_draw_text(const ui_ta_t* ta,
+static struct ui_wh ui_draw_text(const struct ui_ta* ta,
         int32_t x, int32_t y, const char* format, ...) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
     va_list va;
     va_start(va, format);
-    ui_wh_t wh = ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
+    struct ui_wh wh = ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
     va_end(va);
     return wh;
 }
 
-static ui_wh_t ui_draw_multiline_va(const ui_ta_t* ta,
+static struct ui_wh ui_draw_multiline_va(const struct ui_ta* ta,
         int32_t x, int32_t y, int32_t w, const char* format, va_list va) {
     const uint32_t flags = ta->measure ?
                             (w <= 0 ? ml_measure : ml_measure_break) :
@@ -857,16 +857,16 @@ static ui_wh_t ui_draw_multiline_va(const ui_ta_t* ta,
     return ui_draw_text_with_flags(ta, x, y, w, format, va, flags);
 }
 
-static ui_wh_t ui_draw_multiline(const ui_ta_t* ta,
+static struct ui_wh ui_draw_multiline(const struct ui_ta* ta,
         int32_t x, int32_t y, int32_t w, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    ui_wh_t wh = ui_draw_multiline_va(ta, x, y, w, format, va);
+    struct ui_wh wh = ui_draw_multiline_va(ta, x, y, w, format, va);
     va_end(va);
     return wh;
 }
 
-static ui_wh_t ui_draw_glyphs_placement(const ui_ta_t* ta,
+static struct ui_wh ui_draw_glyphs_placement(const struct ui_ta* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
     rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
     return dxd_glyphs_placement(ta->fm->font, utf8, bytes, x, glyphs);
@@ -899,13 +899,13 @@ static uint8_t* ui_draw_load_bitmap(const void* data, int32_t bytes, int* w, int
     #endif
 }
 
-static void ui_draw_bitmap_dispose(ui_bitmap_t* image) {
+static void ui_draw_bitmap_dispose(struct ui_bitmap* image) {
     dxd_bitmap_dispose(&image->dxd);
     rt_fatal_win32err(DeleteBitmap(image->texture));
-    memset(image, 0, sizeof(ui_bitmap_t));
+    memset(image, 0, sizeof(struct ui_bitmap));
 }
 
-ui_draw_if ui_draw = {
+struct ui_draw_if ui_draw = {
     .ta = {
         .prop = {
             .normal = {

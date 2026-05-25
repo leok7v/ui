@@ -234,7 +234,7 @@ posix_end_c
 
 posix_begin_c
 
-typedef struct ui_bitmap_s ui_bitmap_t;
+typedef struct ui_bitmap ui_bitmap_t;
 
 typedef struct {
     int (*put_text)(const char* s);

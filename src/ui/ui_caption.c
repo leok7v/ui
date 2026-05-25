@@ -26,7 +26,7 @@ static void ui_caption_toggle_full(void) {
     ui_app.request_layout();
 }
 
-static void ui_caption_esc_full_screen(ui_view_t* v, const char utf8[]) {
+static void ui_caption_esc_full_screen(struct ui_view* v, const char utf8[]) {
     rt_swear(v == ui_caption.view.parent);
     // TODO: inside ui_app.c instead of here?
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
@@ -84,7 +84,7 @@ static void ui_caption_full(ui_button_t* rt_unused(b)) {
     ui_caption_toggle_full();
 }
 
-static int64_t ui_caption_hit_test(const ui_view_t* v, ui_point_t pt) {
+static int64_t ui_caption_hit_test(const struct ui_view* v, struct ui_point pt) {
     rt_swear(v == &ui_caption.view);
     rt_assert(ui_view.inside(v, &pt));
 //  rt_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
@@ -117,11 +117,11 @@ static ui_color_t ui_caption_color(void) {
     return c;
 }
 
-static const ui_margins_t ui_caption_button_button_padding =
+static const struct ui_margins ui_caption_button_button_padding =
     { .left  = 0.25,  .top    = 0.0,
       .right = 0.25,  .bottom = 0.0};
 
-static void ui_caption_button_measure(ui_view_t* v) {
+static void ui_caption_button_measure(struct ui_view* v) {
     rt_assert(v->type == ui_view_button);
     ui_view.measure_control(v);
     const int32_t dx = ui_app.caption_height - v->w;
@@ -133,7 +133,7 @@ static void ui_caption_button_measure(ui_view_t* v) {
     v->padding = ui_caption_button_button_padding;
 }
 
-static void ui_caption_button_icon_paint(ui_view_t* v) {
+static void ui_caption_button_icon_paint(struct ui_view* v) {
     int32_t w = v->w;
     int32_t h = v->h;
     while (h > 16 && (h & (h - 1)) != 0) { h--; }
@@ -143,44 +143,44 @@ static void ui_caption_button_icon_paint(ui_view_t* v) {
     ui_draw.icon(v->x + dx, v->y + dy, w, h, v->icon);
 }
 
-static void ui_caption_prepare(ui_view_t* rt_unused(v)) {
+static void ui_caption_prepare(struct ui_view* rt_unused(v)) {
     ui_caption.title.state.hidden = false;
 }
 
-static void ui_caption_measured(ui_view_t* v) {
+static void ui_caption_measured(struct ui_view* v) {
     int32_t w = 0;
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
             ui_caption_button_measure(it);
         }
         if (!it->state.hidden) {
-            const ui_ltrb_t p = ui_view.margins(it, &it->padding);
+            const struct ui_ltrb p = ui_view.margins(it, &it->padding);
             w += it->w + p.left + p.right;
         }
     });
-    const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+    const struct ui_ltrb p = ui_view.margins(v, &v->padding);
     w += p.left + p.right;
     // do not show title if there is not enough space
     ui_caption.title.state.hidden = w > ui_app.root->w;
     v->w = ui_app.root->w;
-    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
+    const struct ui_ltrb insets = ui_view.margins(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
 }
 
-static void ui_caption_composed(ui_view_t* v) {
+static void ui_caption_composed(struct ui_view* v) {
     v->x = ui_app.root->x;
     v->y = ui_app.root->y;
 }
 
-static void ui_caption_paint(ui_view_t* v) {
+static void ui_caption_paint(struct ui_view* v) {
     ui_color_t background = ui_caption_color();
     ui_draw.fill(v->x, v->y, v->w, v->h, background);
 }
 
-static void ui_caption_init(ui_view_t* v) {
+static void ui_caption_init(struct ui_view* v) {
     rt_swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
-    ui_caption.view.insets = (ui_margins_t){ 0.125, 0.0, 0.125, 0.0 };
+    ui_caption.view.insets = (struct ui_margins){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
     v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,
@@ -195,11 +195,11 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.quit,
         null);
     ui_caption.view.color_id = ui_color_id_window_text;
-    static const ui_margins_t p0 = { .left  = 0.0,   .top    = 0.0,
+    static const struct ui_margins p0 = { .left  = 0.0,   .top    = 0.0,
                                      .right = 0.0,   .bottom = 0.0};
-    static const ui_margins_t pd = { .left  = 0.25,  .top    = 0.0,
+    static const struct ui_margins pd = { .left  = 0.25,  .top    = 0.0,
                                      .right = 0.25,  .bottom = 0.0};
-    static const ui_margins_t in = { .left  = 0.0,   .top    = 0.0,
+    static const struct ui_margins in = { .left  = 0.0,   .top    = 0.0,
                                      .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
         // Caption buttons always use the monospaced font and the flat
@@ -248,7 +248,7 @@ static void ui_caption_init(ui_view_t* v) {
 
 }
 
-ui_caption_t ui_caption =  {
+struct ui_caption ui_caption =  {
     .view = {
         .type     = ui_view_span,
         .fm       = &ui_app.fm.prop.normal,

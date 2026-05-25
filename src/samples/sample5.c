@@ -6,26 +6,26 @@
 
 const char* title = "Sample5";
 
-static ui_view_t left   = ui_view(list);
-static ui_view_t right  = ui_view(list);
-static ui_view_t bottom = ui_view(stack);
+static struct ui_view left   = ui_view(list);
+static struct ui_view right  = ui_view(list);
+static struct ui_view bottom = ui_view(stack);
 
 // font scale:
 static const fp64_t fs[] = {0.5, 0.75, 1.0, 1.25, 1.50, 1.75, 2.0};
 // font scale index
 static int32_t fx = 2; // fs[2] == 1.0
 
-static ui_fm_t mf; // mono font
-static ui_fm_t pf; // proportional font
+static struct ui_fm mf; // mono font
+static struct ui_fm pf; // proportional font
 
-static ui_edit_view_t edit0;
-static ui_edit_view_t edit1;
-static ui_edit_view_t edit2;
-static ui_edit_doc_t edit_doc_0;
-static ui_edit_doc_t edit_doc_1;
-static ui_edit_doc_t edit_doc_2;
-static ui_edit_view_t* edit[] = { &edit0, &edit1, &edit2 };
-static ui_edit_doc_t* doc[] = { &edit_doc_0, &edit_doc_1, &edit_doc_2 };
+static struct ui_edit_view edit0;
+static struct ui_edit_view edit1;
+static struct ui_edit_view edit2;
+static struct ui_edit_doc edit_doc_0;
+static struct ui_edit_doc edit_doc_1;
+static struct ui_edit_doc edit_doc_2;
+static struct ui_edit_view* edit[] = { &edit0, &edit1, &edit2 };
+static struct ui_edit_doc* doc[] = { &edit_doc_0, &edit_doc_1, &edit_doc_2 };
 
 static int32_t focused(void) {
     // ui_app.focus can point to a button, thus see which edit
@@ -118,7 +118,7 @@ ui_toggle_on_off(sl, "&Single Line", 7.0f, {
         if (ix == 2) {
             sl->state.pressed = true; // always single line
         } else if (0 <= ix && ix < 2) {
-            ui_edit_view_t* e = edit[ix];
+            struct ui_edit_view* e = edit[ix];
             e->sle = sl->state.pressed;
     //      rt_println("edit[%d].multiline: %d", ix, e->multiline);
             if (e->sle) {
@@ -181,11 +181,11 @@ static void set_text(int32_t ix) {
     rt_str_printf(last, "%s", ui_view.string(&label));
 }
 
-static void paint(ui_view_t* v) {
+static void paint(struct ui_view* v) {
     ui_draw.fill(0, 0, v->w, v->h, ui_colors.black);
     int32_t ix = focused();
     for (int32_t i = 0; i < rt_countof(edit); i++) {
-        ui_view_t* e = &edit[i]->view;
+        struct ui_view* e = &edit[i]->view;
         ui_color_t c = edit[i]->ro ?
             ui_colors.tone_red : ui_colors.blue;
         ui_draw.frame(e->x - 1, e->y - 1, e->w + 2, e->h + 2,
@@ -208,7 +208,7 @@ static void open_file(const char* pathname) {
         if (0 < bytes && bytes <= INT64_MAX) {
             ui_edit_view.select_all(edit[0]);
             ui_edit_view.replace(edit[0], file, (int32_t)bytes);
-            ui_edit_pg_t start = { .pn = 0, .gp = 0 };
+            struct ui_edit_pg start = { .pn = 0, .gp = 0 };
             ui_edit_view.move(edit[0], start);
         }
         rt_mem.unmap(file, bytes);
@@ -220,12 +220,12 @@ static void open_file(const char* pathname) {
 
 static void every_100ms(void) {
 //  rt_println("");
-    static ui_view_t* last;
+    static struct ui_view* last;
     if (last != ui_app.focus) { ui_app.request_redraw(); }
 //  last = ui_app.focus;
 }
 
-static bool key_pressed(ui_view_t* rt_unused(view), int64_t key) {
+static bool key_pressed(struct ui_view* rt_unused(view), int64_t key) {
     bool swallow = false;
     if (ui_app.focused() && key == ui.key.escape) { ui_app.close(); }
     int32_t ix = focused();
@@ -253,7 +253,7 @@ static bool key_pressed(ui_view_t* rt_unused(view), int64_t key) {
     return swallow;
 }
 
-static void edit_enter(ui_edit_view_t* e) {
+static void edit_enter(struct ui_edit_view* e) {
     rt_assert(e->sle);
     if (!ui_app.shift) { // ignore shift ENTER:
         rt_println("text: %.*s", e->doc->text.ps[0].b, e->doc->text.ps[0].u);
@@ -262,7 +262,7 @@ static void edit_enter(ui_edit_view_t* e) {
 
 // see edit.test.c
 
-void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t);
+void ui_edit_init_with_lorem_ipsum(struct ui_edit_text* t);
 
 static bool can_close(void) {
     if (!ui_fuzzing.from_inside()) {
@@ -299,9 +299,9 @@ static void opened(void) {
 //  edit[2]->select_all(edit[2]);
 //  edit[2]->paste(edit[2], "Single line", -1);
     ui_edit_view.enter = edit_enter;
-    static ui_view_t span    = ui_view(span);
-    static ui_view_t spacer1 = ui_view(spacer);
-    static ui_view_t spacer2 = ui_view(spacer);
+    static struct ui_view span    = ui_view(span);
+    static struct ui_view spacer1 = ui_view(spacer);
+    static struct ui_view spacer2 = ui_view(spacer);
     ui_view.add(ui_app.content,
         ui_view.add(&span,
             ui_view.add(&left,
@@ -348,7 +348,7 @@ static void init(void) {
     ui_app.can_close = can_close;
 }
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "sample5",
     .dark_mode = true,
     .init = init,

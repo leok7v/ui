@@ -99,7 +99,7 @@ void dxd_fini(void) {
     if (g_d2d_factory != null) { g_d2d_factory->Release(); g_d2d_factory = null; }
 }
 
-dxd_context_t dxd_begin(void * hdc, const ui_rect_t * rc) {
+dxd_context_t dxd_begin(void * hdc, const struct ui_rect * rc) {
     dxd_context_t ctx = (dxd_context_t)malloc(sizeof(struct dxd_context_s));
     if (ctx != null) {
         ctx->target = null;
@@ -215,7 +215,7 @@ void dxd_fill(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h,
     }
 }
 
-void dxd_poly(dxd_context_t ctx, ui_point_t * points, int32_t count,
+void dxd_poly(dxd_context_t ctx, struct ui_point * points, int32_t count,
               ui_color_t color) {
     if (ctx != null && ctx->target != null && count > 1) {
         ID2D1SolidColorBrush * b = dxd_get_brush(ctx, color);
@@ -454,10 +454,10 @@ static IDWriteTextFormat * dxd_format_for(ui_font_t font) {
     return fmt;
 }
 
-ui_wh_t dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
+struct ui_wh dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
                  int32_t w, ui_color_t color, const char * utf8, int32_t bytes,
                  bool measure_only, bool multiline, bool mnemonic) {
-    ui_wh_t size = {0, 0};
+    struct ui_wh size = {0, 0};
     IDWriteTextFormat * fmt = dxd_format_for(font);
     if (fmt != null && bytes > 0) {
         int32_t chars = MultiByteToWideChar(CP_UTF8, 0, utf8, bytes, null, 0);
@@ -518,9 +518,9 @@ ui_wh_t dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
     return size;
 }
 
-ui_wh_t dxd_glyphs_placement(ui_font_t font, const char * utf8, int32_t bytes,
+struct ui_wh dxd_glyphs_placement(ui_font_t font, const char * utf8, int32_t bytes,
                              int32_t x_out[], int32_t glyphs) {
-    ui_wh_t size = {0, 0};
+    struct ui_wh size = {0, 0};
     IDWriteTextFormat * fmt = dxd_format_for(font);
     if (fmt != null && bytes > 0) {
         int32_t chars = MultiByteToWideChar(CP_UTF8, 0, utf8, bytes, null, 0);

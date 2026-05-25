@@ -1,9 +1,6 @@
 # ui
 
-Single header libraries for building primitive UI/UX.
-
-Win32 only implementation for now. 
-Posix/MacOS/iOS/Linux/Android - possible
+Single header libraries for building primitive UI/UX on Windows10/11.
 
 [![build-on-push](https://github.com/leok7v/ut/actions/workflows/build-on-push.yml/badge.svg)](https://github.com/leok7v/ut/actions/workflows/build-on-push.yml)
 

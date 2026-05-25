@@ -6,15 +6,15 @@
     extern "C" {
 #endif
 
-typedef struct ui_midi_s ui_midi_t;
+struct ui_midi;
 
-typedef struct ui_midi_s {
+struct ui_midi {
     uint8_t data[16 * 8]; // opaque implementation data
     // must return 0 if successful or error otherwise:
-    int64_t (*notify)(ui_midi_t* midi, int64_t flags);
-} ui_midi_t;
+    int64_t (*notify)(struct ui_midi* midi, int64_t flags);
+};
 
-typedef struct {
+struct ui_midi_if {
     // flags bitset:
     int32_t const success; // when the clip is done playing
     int32_t const failure; // on error playing media
@@ -22,18 +22,18 @@ typedef struct {
     int32_t const superseded;
     // midi has it's own section of legacy error messages
     void    (*error)(errno_t r, char* s, int32_t count);
-    errno_t (*open)(ui_midi_t* midi, const char* filename);
-    errno_t (*play)(ui_midi_t* midi);
-    errno_t (*rewind)(ui_midi_t* midi);
-    errno_t (*stop)(ui_midi_t* midi);
-    errno_t (*get_volume)(ui_midi_t* midi, fp64_t *volume);
-    errno_t (*set_volume)(ui_midi_t* midi, fp64_t  volume);
-    bool    (*is_open)(ui_midi_t* midi);
-    bool    (*is_playing)(ui_midi_t* midi);
-    void    (*close)(ui_midi_t* midi);
-} ui_midi_if;
+    errno_t (*open)(struct ui_midi* midi, const char* filename);
+    errno_t (*play)(struct ui_midi* midi);
+    errno_t (*rewind)(struct ui_midi* midi);
+    errno_t (*stop)(struct ui_midi* midi);
+    errno_t (*get_volume)(struct ui_midi* midi, fp64_t *volume);
+    errno_t (*set_volume)(struct ui_midi* midi, fp64_t  volume);
+    bool    (*is_open)(struct ui_midi* midi);
+    bool    (*is_playing)(struct ui_midi* midi);
+    void    (*close)(struct ui_midi* midi);
+};
 
-extern ui_midi_if ui_midi;
+extern struct ui_midi_if ui_midi;
 
 
 /*

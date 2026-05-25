@@ -38,7 +38,7 @@
 
 #define ui_edit_text_dump(t) do {                        \
     for (int32_t i_ = 0; i_ < (t)->np; i_++) {           \
-        const ui_edit_str_t* p_ = &t->ps[i_];            \
+        const struct ui_edit_str* p_ = &t->ps[i_];            \
         rt_debug.println(__FILE__, __LINE__, __func__,   \
             "ps[%d].%d: %.*s", i_, p_->b, p_->b, p_->u); \
     }                                                    \
@@ -47,7 +47,7 @@
 // TODO: undo/redo stacks and listeners
 #define ui_edit_doc_dump(d) do {                                \
     for (int32_t i_ = 0; i_ < (d)->text.np; i_++) {             \
-        const ui_edit_str_t* p_ = &(d)->text.ps[i_];            \
+        const struct ui_edit_str* p_ = &(d)->text.ps[i_];            \
         rt_debug.println(__FILE__, __LINE__, __func__,          \
             "ps[%d].b:%d.c:%d: %p %.*s", i_, p_->b, p_->c,      \
             p_, p_->b, p_->u);                                  \
@@ -84,9 +84,9 @@
 
 #endif
 
-static ui_edit_range_t ui_edit_text_all_on_null(const ui_edit_text_t* t,
-        const ui_edit_range_t* range) {
-    ui_edit_range_t r;
+static union ui_edit_range ui_edit_text_all_on_null(const struct ui_edit_text* t,
+        const union ui_edit_range* range) {
+    union ui_edit_range r;
     if (range != null) {
         r = *range;
     } else {
@@ -99,14 +99,14 @@ static ui_edit_range_t ui_edit_text_all_on_null(const ui_edit_text_t* t,
     return r;
 }
 
-static int ui_edit_range_compare(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2) {
+static int ui_edit_range_compare(const struct ui_edit_pg pg1, const struct ui_edit_pg pg2) {
     int64_t d = (((int64_t)pg1.pn << 32) | pg1.gp) -
                 (((int64_t)pg2.pn << 32) | pg2.gp);
     return d < 0 ? -1 : d > 0 ? 1 : 0;
 }
 
-static ui_edit_range_t ui_edit_range_order(const ui_edit_range_t range) {
-    ui_edit_range_t r = range;
+static union ui_edit_range ui_edit_range_order(const union ui_edit_range range) {
+    union ui_edit_range r = range;
     uint64_t f = ((uint64_t)r.from.pn << 32) | r.from.gp;
     uint64_t t = ((uint64_t)r.to.pn   << 32) | r.to.gp;
     if (ui_edit_range.compare(r.from, r.to) > 0) {
@@ -119,58 +119,58 @@ static ui_edit_range_t ui_edit_range_order(const ui_edit_range_t range) {
     return r;
 }
 
-static ui_edit_range_t ui_edit_text_ordered(const ui_edit_text_t* t,
-        const ui_edit_range_t* r) {
+static union ui_edit_range ui_edit_text_ordered(const struct ui_edit_text* t,
+        const union ui_edit_range* r) {
     return ui_edit_range.order(ui_edit_text.all_on_null(t, r));
 }
 
-static bool ui_edit_range_is_valid(const ui_edit_range_t r) {
+static bool ui_edit_range_is_valid(const union ui_edit_range r) {
     if (0 <= r.from.pn && 0 <= r.to.pn &&
         0 <= r.from.gp && 0 <= r.to.gp) {
-        ui_edit_range_t o = ui_edit_range.order(r);
+        union ui_edit_range o = ui_edit_range.order(r);
         return ui_edit_range.compare(o.from, o.to) <= 0;
     } else {
         return false;
     }
 }
 
-static bool ui_edit_range_is_empty(const ui_edit_range_t r) {
+static bool ui_edit_range_is_empty(const union ui_edit_range r) {
     return r.from.pn == r.to.pn && r.from.gp == r.to.gp;
 }
 
-static ui_edit_pg_t ui_edit_text_end(const ui_edit_text_t* t) {
-    return (ui_edit_pg_t){ .pn = t->np - 1, .gp = t->ps[t->np - 1].g };
+static struct ui_edit_pg ui_edit_text_end(const struct ui_edit_text* t) {
+    return (struct ui_edit_pg){ .pn = t->np - 1, .gp = t->ps[t->np - 1].g };
 }
 
-static ui_edit_range_t ui_edit_text_end_range(const ui_edit_text_t* t) {
-    ui_edit_pg_t e = (ui_edit_pg_t){ .pn = t->np - 1,
+static union ui_edit_range ui_edit_text_end_range(const struct ui_edit_text* t) {
+    struct ui_edit_pg e = (struct ui_edit_pg){ .pn = t->np - 1,
                                      .gp = t->ps[t->np - 1].g };
-    return (ui_edit_range_t){ .from = e, .to = e };
+    return (union ui_edit_range){ .from = e, .to = e };
 }
 
-static uint64_t ui_edit_range_uint64(const ui_edit_pg_t pg) {
+static uint64_t ui_edit_range_uint64(const struct ui_edit_pg pg) {
     rt_assert(pg.pn >= 0 && pg.gp >= 0);
     return ((uint64_t)pg.pn << 32) | (uint64_t)pg.gp;
 }
 
-static ui_edit_pg_t ui_edit_range_pg(uint64_t uint64) {
+static struct ui_edit_pg ui_edit_range_pg(uint64_t uint64) {
     rt_assert((int32_t)(uint64 >> 32) >= 0 && (int32_t)uint64 >= 0);
-    return (ui_edit_pg_t){ .pn = (int32_t)(uint64 >> 32), .gp = (int32_t)uint64 };
+    return (struct ui_edit_pg){ .pn = (int32_t)(uint64 >> 32), .gp = (int32_t)uint64 };
 }
 
-static bool ui_edit_range_inside_text(const ui_edit_text_t* t,
-        const ui_edit_range_t r) {
+static bool ui_edit_range_inside_text(const struct ui_edit_text* t,
+        const union ui_edit_range r) {
     return ui_edit_range.is_valid(r) &&
             0 <= r.from.pn && r.from.pn <= r.to.pn && r.to.pn < t->np &&
             0 <= r.from.gp && r.from.gp <= r.to.gp &&
             r.to.gp <= t->ps[r.to.pn - 1].g;
 }
 
-static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
-    const ui_edit_range_t r2) {
+static union ui_edit_range ui_edit_range_intersect(const union ui_edit_range r1,
+    const union ui_edit_range r2) {
     if (ui_edit_range.is_valid(r1) && ui_edit_range.is_valid(r2)) {
-        ui_edit_range_t o1 = ui_edit_range.order(r1);
-        ui_edit_range_t o2 = ui_edit_range.order(r1);
+        union ui_edit_range o1 = ui_edit_range.order(r1);
+        union ui_edit_range o2 = ui_edit_range.order(r1);
         uint64_t f1 = ((uint64_t)o1.from.pn << 32) | o1.from.gp;
         uint64_t t1 = ((uint64_t)o1.to.pn   << 32) | o1.to.gp;
         uint64_t f2 = ((uint64_t)o2.from.pn << 32) | o2.from.gp;
@@ -179,7 +179,7 @@ static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
             if (t2 <= t1) { // r2 is fully inside r1
                 return r2;
             } else { // r2 is partially inside r1
-                ui_edit_range_t r = {0};
+                union ui_edit_range r = {0};
                 r.from.pn = (int32_t)(f2 >> 32);
                 r.from.gp = (int32_t)(f2);
                 r.to.pn   = (int32_t)(t1 >> 32);
@@ -190,7 +190,7 @@ static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
             if (t1 <= t2) { // r1 is fully inside r2
                 return r1;
             } else { // r1 is partially inside r2
-                ui_edit_range_t r = {0};
+                union ui_edit_range r = {0};
                 r.from.pn = (int32_t)(f1 >> 32);
                 r.from.gp = (int32_t)(f1);
                 r.to.pn   = (int32_t)(t2 >> 32);
@@ -205,7 +205,7 @@ static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
     }
 }
 
-static bool ui_edit_doc_realloc_ps_no_init(ui_edit_str_t* *ps,
+static bool ui_edit_doc_realloc_ps_no_init(struct ui_edit_str* *ps,
         int32_t old_np, int32_t new_np) { // reallocate paragraphs
     for (int32_t i = new_np; i < old_np; i++) { ui_edit_str.free(&(*ps)[i]); }
     bool ok = true;
@@ -213,12 +213,12 @@ static bool ui_edit_doc_realloc_ps_no_init(ui_edit_str_t* *ps,
         rt_heap.free(*ps);
         *ps = null;
     } else {
-        ok = rt_heap.realloc_zero((void**)ps, new_np * sizeof(ui_edit_str_t)) == 0;
+        ok = rt_heap.realloc_zero((void**)ps, new_np * sizeof(struct ui_edit_str)) == 0;
     }
     return ok;
 }
 
-static bool ui_edit_doc_realloc_ps(ui_edit_str_t* *ps,
+static bool ui_edit_doc_realloc_ps(struct ui_edit_str* *ps,
         int32_t old_np, int32_t new_np) { // reallocate paragraphs
     bool ok = ui_edit_doc_realloc_ps_no_init(ps, old_np, new_np);
     if (ok) {
@@ -230,7 +230,7 @@ static bool ui_edit_doc_realloc_ps(ui_edit_str_t* *ps,
     return ok;
 }
 
-static bool ui_edit_text_init(ui_edit_text_t* t,
+static bool ui_edit_text_init(struct ui_edit_text* t,
         const char* s, int32_t b, bool heap) {
     // When text comes from the source that lifetime is shorter
     // than text itself (e.g. paste from clipboard) the parameter
@@ -241,7 +241,7 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
     // if caller is concerned with best performance - it should pass b >= 0
     int32_t np = 0; // number of paragraphs
     int32_t n = b / 64 > 2 ? b / 64 : 2; // initial number of allocated paragraphs
-    ui_edit_str_t* ps = null; // ps[n]
+    struct ui_edit_str* ps = null; // ps[n]
     bool ok = ui_edit_doc_realloc_ps(&ps, 0, n);
     if (ok) {
         bool lf = false;
@@ -299,7 +299,7 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
     return ok;
 }
 
-static void ui_edit_text_dispose(ui_edit_text_t* t) {
+static void ui_edit_text_dispose(struct ui_edit_text* t) {
     if (t->np != 0) {
         ui_edit_doc_realloc_ps(&t->ps, t->np, 0);
         rt_assert(t->ps == null);
@@ -309,7 +309,7 @@ static void ui_edit_text_dispose(ui_edit_text_t* t) {
     }
 }
 
-static void ui_edit_doc_dispose_to_do(ui_edit_to_do_t* to_do) {
+static void ui_edit_doc_dispose_to_do(struct ui_edit_to_do* to_do) {
     if (to_do->text.np > 0) {
         ui_edit_text_dispose(&to_do->text);
     }
@@ -317,13 +317,13 @@ static void ui_edit_doc_dispose_to_do(ui_edit_to_do_t* to_do) {
     ui_edit_check_zeros(to_do, sizeof(*to_do));
 }
 
-static int32_t ui_edit_text_bytes(const ui_edit_text_t* t,
-        const ui_edit_range_t* range) {
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+static int32_t ui_edit_text_bytes(const struct ui_edit_text* t,
+        const union ui_edit_range* range) {
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     ui_edit_check_range_inside_text(t, &r);
     int32_t bytes = 0;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &t->ps[pn];
+        const struct ui_edit_str* p = &t->ps[pn];
         if (pn == r.from.pn && pn == r.to.pn) {
             bytes += p->g2b[r.to.gp] - p->g2b[r.from.gp];
         } else if (pn == r.from.pn) {
@@ -337,22 +337,22 @@ static int32_t ui_edit_text_bytes(const ui_edit_text_t* t,
     return bytes;
 }
 
-static int32_t ui_edit_doc_bytes(const ui_edit_doc_t* d,
-        const ui_edit_range_t* r) {
+static int32_t ui_edit_doc_bytes(const struct ui_edit_doc* d,
+        const union ui_edit_range* r) {
     return ui_edit_text.bytes(&d->text, r);
 }
 
-static int32_t ui_edit_doc_utf8bytes(const ui_edit_doc_t* d,
-        const ui_edit_range_t* range) {
-    const ui_edit_range_t r = ui_edit_text.ordered(&d->text, range);
+static int32_t ui_edit_doc_utf8bytes(const struct ui_edit_doc* d,
+        const union ui_edit_range* range) {
+    const union ui_edit_range r = ui_edit_text.ordered(&d->text, range);
     int32_t bytes = ui_edit_text.bytes(&d->text, &r);
     // "\n" after each paragraph and 0x00
     return bytes + r.to.pn - r.from.pn + 1;
 }
 
-static void ui_edit_notify_before(ui_edit_doc_t* d,
-        const ui_edit_notify_info_t* ni) {
-    ui_edit_listener_t* o = d->listeners;
+static void ui_edit_notify_before(struct ui_edit_doc* d,
+        const struct ui_edit_notify_info* ni) {
+    struct ui_edit_listener* o = d->listeners;
     while (o != null) {
         if (o->notify != null && o->notify->before != null) {
             o->notify->before(o->notify, ni);
@@ -361,9 +361,9 @@ static void ui_edit_notify_before(ui_edit_doc_t* d,
     }
 }
 
-static void ui_edit_notify_after(ui_edit_doc_t* d,
-        const ui_edit_notify_info_t* ni) {
-    ui_edit_listener_t* o = d->listeners;
+static void ui_edit_notify_after(struct ui_edit_doc* d,
+        const struct ui_edit_notify_info* ni) {
+    struct ui_edit_listener* o = d->listeners;
     while (o != null) {
         if (o->notify != null && o->notify->after != null) {
             o->notify->after(o->notify, ni);
@@ -372,11 +372,11 @@ static void ui_edit_notify_after(ui_edit_doc_t* d,
     }
 }
 
-static bool ui_edit_doc_subscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
+static bool ui_edit_doc_subscribe(struct ui_edit_doc* t, struct ui_edit_notify* notify) {
     // TODO: not sure about double linked list.
     // heap allocated resizable array may serve better and may be easier to maintain
     bool ok = true;
-    ui_edit_listener_t* o = t->listeners;
+    struct ui_edit_listener* o = t->listeners;
     if (o == null) {
         ok = rt_heap.alloc_zero((void**)&t->listeners, sizeof(*o)) == 0;
         if (ok) { o = t->listeners; }
@@ -389,11 +389,11 @@ static bool ui_edit_doc_subscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
     return ok;
 }
 
-static void ui_edit_doc_unsubscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
-    ui_edit_listener_t* o = t->listeners;
+static void ui_edit_doc_unsubscribe(struct ui_edit_doc* t, struct ui_edit_notify* notify) {
+    struct ui_edit_listener* o = t->listeners;
     bool removed = false;
     while (o != null) {
-        ui_edit_listener_t* n = o->next;
+        struct ui_edit_listener* n = o->next;
         if (o->notify == notify) {
             rt_assert(!removed);
             if (o->prev != null) { o->prev->next = n; }
@@ -407,17 +407,17 @@ static void ui_edit_doc_unsubscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) 
     rt_swear(removed);
 }
 
-static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
-        const ui_edit_range_t* range, ui_edit_text_t* t) {
+static bool ui_edit_doc_copy_text(const struct ui_edit_doc* d,
+        const union ui_edit_range* range, struct ui_edit_text* t) {
     ui_edit_check_zeros(t, sizeof(*t));
     memset(t, 0x00, sizeof(*t));
-    const ui_edit_range_t r = ui_edit_text.ordered(&d->text, range);
+    const union ui_edit_range r = ui_edit_text.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     int32_t np = r.to.pn - r.from.pn + 1;
     bool ok = ui_edit_doc_realloc_ps(&t->ps, 0, np);
     if (ok) { t->np = np; }
     for (int32_t pn = r.from.pn; ok && pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &d->text.ps[pn];
+        const struct ui_edit_str* p = &d->text.ps[pn];
         const char* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -442,13 +442,13 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
     return ok;
 }
 
-static void ui_edit_doc_copy(const ui_edit_doc_t* d,
-        const ui_edit_range_t* range, char* text, int32_t b) {
-    const ui_edit_range_t r = ui_edit_text.ordered(&d->text, range);
+static void ui_edit_doc_copy(const struct ui_edit_doc* d,
+        const union ui_edit_range* range, char* text, int32_t b) {
+    const union ui_edit_range r = ui_edit_text.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     char* to = text;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &d->text.ps[pn];
+        const struct ui_edit_str* p = &d->text.ps[pn];
         const char* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -478,17 +478,17 @@ static void ui_edit_doc_copy(const ui_edit_doc_t* d,
     *to++ = 0x00;
 }
 
-static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
-        const ui_edit_str_t* s, const ui_edit_text_t* insert,
-        const ui_edit_str_t* e) {
+static bool ui_edit_text_insert_2_or_more(struct ui_edit_text* t, int32_t pn,
+        const struct ui_edit_str* s, const struct ui_edit_text* insert,
+        const struct ui_edit_str* e) {
     // insert 2 or more paragraphs
     rt_assert(0 <= pn && pn < t->np);
     const int32_t np = t->np + insert->np - 1;
     rt_assert(np > 0);
-    ui_edit_str_t* ps = null; // ps[np]
+    struct ui_edit_str* ps = null; // ps[np]
     bool ok = ui_edit_doc_realloc_ps_no_init(&ps, 0, np);
     if (ok) {
-        memmove(ps, t->ps, (size_t)pn * sizeof(ui_edit_str_t));
+        memmove(ps, t->ps, (size_t)pn * sizeof(struct ui_edit_str));
         // `s` first line of `insert`
         ok = ui_edit_str.init(&ps[pn], s->u, s->b, true);
         // lines of `insert` between `s` and `e`
@@ -503,12 +503,12 @@ static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
         }
         rt_assert(t->np - pn - 1 >= 0);
         memmove(ps + pn + insert->np, t->ps + pn + 1,
-               (size_t)(t->np - pn - 1) * sizeof(ui_edit_str_t));
+               (size_t)(t->np - pn - 1) * sizeof(struct ui_edit_str));
         if (ok) {
             // this two regions where moved to `ps`
-            memset(t->ps, 0x00, pn * sizeof(ui_edit_str_t));
+            memset(t->ps, 0x00, pn * sizeof(struct ui_edit_str));
             memset(t->ps + pn + 1, 0x00,
-                   (size_t)(t->np - pn - 1) * sizeof(ui_edit_str_t));
+                   (size_t)(t->np - pn - 1) * sizeof(struct ui_edit_str));
             // deallocate what was copied from `insert`
             ui_edit_doc_realloc_ps_no_init(&t->ps, t->np, 0);
             t->np = np;
@@ -520,20 +520,20 @@ static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
     return ok;
 }
 
-static bool ui_edit_text_insert_1(ui_edit_text_t* t,
-        const ui_edit_pg_t ip, // insertion point
-        const ui_edit_text_t* insert) {
+static bool ui_edit_text_insert_1(struct ui_edit_text* t,
+        const struct ui_edit_pg ip, // insertion point
+        const struct ui_edit_text* insert) {
     rt_assert(0 <= ip.pn && ip.pn < t->np);
-    ui_edit_str_t* str = &t->ps[ip.pn]; // string in document text
+    struct ui_edit_str* str = &t->ps[ip.pn]; // string in document text
     rt_assert(insert->np == 1);
-    ui_edit_str_t* ins = &insert->ps[0]; // string to insert
+    struct ui_edit_str* ins = &insert->ps[0]; // string to insert
     rt_assert(0 <= ip.gp && ip.gp <= str->g);
     // ui_edit_str.replace() is all or nothing:
     return ui_edit_str.replace(str, ip.gp, ip.gp, ins->u, ins->b);
 }
 
-static bool ui_edit_substr_append(ui_edit_str_t* d, const ui_edit_str_t* s1,
-    int32_t gp1, const ui_edit_str_t* s2) { // s1[0:gp1] + s2
+static bool ui_edit_substr_append(struct ui_edit_str* d, const struct ui_edit_str* s1,
+    int32_t gp1, const struct ui_edit_str* s2) { // s1[0:gp1] + s2
     rt_assert(d != s1 && d != s2);
     const int32_t b = s1->g2b[gp1];
     bool ok = ui_edit_str.init(d, b == 0 ? null : s1->u, b, true);
@@ -545,8 +545,8 @@ static bool ui_edit_substr_append(ui_edit_str_t* d, const ui_edit_str_t* s1,
     return ok;
 }
 
-static bool ui_edit_append_substr(ui_edit_str_t* d, const ui_edit_str_t* s1,
-    const ui_edit_str_t* s2, int32_t gp2) {  // s1 + s2[gp1:*]
+static bool ui_edit_append_substr(struct ui_edit_str* d, const struct ui_edit_str* s1,
+    const struct ui_edit_str* s2, int32_t gp2) {  // s1 + s2[gp1:*]
     rt_assert(d != s1 && d != s2);
     bool ok = ui_edit_str.init(d, s1->b == 0 ? null : s1->u, s1->b, true);
     if (ok) {
@@ -559,16 +559,16 @@ static bool ui_edit_append_substr(ui_edit_str_t* d, const ui_edit_str_t* s1,
     return ok;
 }
 
-static bool ui_edit_text_insert(ui_edit_text_t* t, const ui_edit_pg_t ip,
-        const ui_edit_text_t* i) {
+static bool ui_edit_text_insert(struct ui_edit_text* t, const struct ui_edit_pg ip,
+        const struct ui_edit_text* i) {
     bool ok = true;
     if (ok) {
         if (i->np == 1) {
             ok = ui_edit_text_insert_1(t, ip, i);
         } else {
-            ui_edit_str_t* str = &t->ps[ip.pn];
-            ui_edit_str_t s = {0}; // start line of insert text `i`
-            ui_edit_str_t e = {0}; // end   line
+            struct ui_edit_str* str = &t->ps[ip.pn];
+            struct ui_edit_str s = {0}; // start line of insert text `i`
+            struct ui_edit_str e = {0}; // end   line
             if (ui_edit_substr_append(&s, str, ip.gp, &i->ps[0])) {
                 if (ui_edit_append_substr(&e, &i->ps[i->np - 1], str, ip.gp)) {
                     ok = ui_edit_text_insert_2_or_more(t, ip.pn, &s, i, &e);
@@ -581,15 +581,15 @@ static bool ui_edit_text_insert(ui_edit_text_t* t, const ui_edit_pg_t ip,
     return ok;
 }
 
-static bool ui_edit_text_remove_lines(ui_edit_text_t* t,
-    ui_edit_str_t* merge, int32_t from, int32_t to) {
+static bool ui_edit_text_remove_lines(struct ui_edit_text* t,
+    struct ui_edit_str* merge, int32_t from, int32_t to) {
     bool ok = true;
     for (int32_t pn = from + 1; pn <= to; pn++) {
         ui_edit_str.free(&t->ps[pn]);
     }
     if (t->np - to - 1 > 0) {
         memmove(&t->ps[from + 1], &t->ps[to + 1],
-                (size_t)(t->np - to - 1) * sizeof(ui_edit_str_t));
+                (size_t)(t->np - to - 1) * sizeof(struct ui_edit_str));
     }
     t->np -= to - from;
     if (ok) {
@@ -598,12 +598,12 @@ static bool ui_edit_text_remove_lines(ui_edit_text_t* t,
     return ok;
 }
 
-static bool ui_edit_text_insert_remove(ui_edit_text_t* t,
-        const ui_edit_range_t r, const ui_edit_text_t* i) {
+static bool ui_edit_text_insert_remove(struct ui_edit_text* t,
+        const union ui_edit_range r, const struct ui_edit_text* i) {
     bool ok = true;
-    ui_edit_str_t merge = {0};
-    const ui_edit_str_t* s = &t->ps[r.from.pn];
-    const ui_edit_str_t* e = &t->ps[r.to.pn];
+    struct ui_edit_str merge = {0};
+    const struct ui_edit_str* s = &t->ps[r.from.pn];
+    const struct ui_edit_str* e = &t->ps[r.to.pn];
     const int32_t o = e->g2b[r.to.gp];
     const int32_t b = e->b - o;
     const char* u = b == 0 ? null : e->u + o;
@@ -622,17 +622,17 @@ static bool ui_edit_text_insert_remove(ui_edit_text_t* t,
     return ok;
 }
 
-static bool ui_edit_text_copy_text(const ui_edit_text_t* t,
-        const ui_edit_range_t* range, ui_edit_text_t* to) {
+static bool ui_edit_text_copy_text(const struct ui_edit_text* t,
+        const union ui_edit_range* range, struct ui_edit_text* to) {
     ui_edit_check_zeros(to, sizeof(*to));
     memset(to, 0x00, sizeof(*to));
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     ui_edit_check_range_inside_text(t, &r);
     int32_t np = r.to.pn - r.from.pn + 1;
     bool ok = ui_edit_doc_realloc_ps(&to->ps, 0, np);
     if (ok) { to->np = np; }
     for (int32_t pn = r.from.pn; ok && pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &t->ps[pn];
+        const struct ui_edit_str* p = &t->ps[pn];
         const char* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -657,13 +657,13 @@ static bool ui_edit_text_copy_text(const ui_edit_text_t* t,
     return ok;
 }
 
-static void ui_edit_text_copy(const ui_edit_text_t* t,
-        const ui_edit_range_t* range, char* text, int32_t b) {
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+static void ui_edit_text_copy(const struct ui_edit_text* t,
+        const union ui_edit_range* range, char* text, int32_t b) {
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     ui_edit_check_range_inside_text(t, &r);
     char* to = text;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &t->ps[pn];
+        const struct ui_edit_str* p = &t->ps[pn];
         const char* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -693,12 +693,12 @@ static void ui_edit_text_copy(const ui_edit_text_t* t,
     *to++ = 0x00;
 }
 
-static bool ui_edit_text_replace(ui_edit_text_t* t,
-        const ui_edit_range_t* range, const ui_edit_text_t* i,
-        ui_edit_to_do_t* undo) {
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+static bool ui_edit_text_replace(struct ui_edit_text* t,
+        const union ui_edit_range* range, const struct ui_edit_text* i,
+        struct ui_edit_to_do* undo) {
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     bool ok = undo == null ? true : ui_edit_text.copy_text(t, &r, &undo->text);
-    ui_edit_range_t x = r;
+    union ui_edit_range x = r;
     if (ok) {
         if (ui_edit_range.is_empty(r)) {
             x.to.pn = r.from.pn + i->np - 1;
@@ -719,12 +719,12 @@ static bool ui_edit_text_replace(ui_edit_text_t* t,
     return ok;
 }
 
-static bool ui_edit_text_replace_utf8(ui_edit_text_t* t,
-        const ui_edit_range_t* range,
+static bool ui_edit_text_replace_utf8(struct ui_edit_text* t,
+        const union ui_edit_range* range,
         const char* utf8, int32_t b,
-        ui_edit_to_do_t* undo) {
+        struct ui_edit_to_do* undo) {
     if (b < 0) { b = (int32_t)strlen(utf8); }
-    ui_edit_text_t i = {0};
+    struct ui_edit_text i = {0};
     bool ok = ui_edit_text.init(&i, utf8, b, false);
     if (ok) {
         ok = ui_edit_text.replace(t, range, &i, undo);
@@ -733,14 +733,14 @@ static bool ui_edit_text_replace_utf8(ui_edit_text_t* t,
     return ok;
 }
 
-static bool ui_edit_text_dup(ui_edit_text_t* t, const ui_edit_text_t* s) {
+static bool ui_edit_text_dup(struct ui_edit_text* t, const struct ui_edit_text* s) {
     ui_edit_check_zeros(t, sizeof(*t));
     memset(t, 0x00, sizeof(*t));
     bool ok = ui_edit_doc_realloc_ps(&t->ps, 0, s->np);
     if (ok) {
         t->np = s->np;
         for (int32_t i = 0; ok && i < s->np; i++) {
-            const ui_edit_str_t* p = &s->ps[i];
+            const struct ui_edit_str* p = &s->ps[i];
             ok = ui_edit_str.replace(&t->ps[i], 0, 0, p->u, p->b);
         }
     }
@@ -750,29 +750,29 @@ static bool ui_edit_text_dup(ui_edit_text_t* t, const ui_edit_text_t* s) {
     return ok;
 }
 
-static bool ui_edit_text_equal(const ui_edit_text_t* t1,
-        const ui_edit_text_t* t2) {
+static bool ui_edit_text_equal(const struct ui_edit_text* t1,
+        const struct ui_edit_text* t2) {
     bool equal =  t1->np != t2->np;
     for (int32_t i = 0; equal && i < t1->np; i++) {
-        const ui_edit_str_t* p1 = &t1->ps[i];
-        const ui_edit_str_t* p2 = &t2->ps[i];
+        const struct ui_edit_str* p1 = &t1->ps[i];
+        const struct ui_edit_str* p2 = &t2->ps[i];
         equal = p1->b == p2->b &&
                 memcmp(p1->u, p2->u, p1->b) == 0;
     }
     return equal;
 }
 
-static void ui_edit_doc_before_replace_text(ui_edit_doc_t* d,
-        const ui_edit_range_t r, const ui_edit_text_t* t) {
+static void ui_edit_doc_before_replace_text(struct ui_edit_doc* d,
+        const union ui_edit_range r, const struct ui_edit_text* t) {
     ui_edit_check_range_inside_text(&d->text, &r);
-    ui_edit_range_t x = r;
+    union ui_edit_range x = r;
     x.to.pn = r.from.pn + t->np - 1;
     if (r.from.pn == r.to.pn && t->np == 1) {
         x.to.gp = r.from.gp + t->ps[0].g;
     } else {
         x.to.gp = t->ps[t->np - 1].g;
     }
-    const ui_edit_notify_info_t ni_before = {
+    const struct ui_edit_notify_info ni_before = {
         .ok = true, .d = d, .r = &r, .x = &x, .t = t,
         .pnf = r.from.pn, .pnt = r.to.pn,
         .deleted = 0, .inserted = 0
@@ -780,12 +780,12 @@ static void ui_edit_doc_before_replace_text(ui_edit_doc_t* d,
     ui_edit_notify_before(d, &ni_before);
 }
 
-static void ui_edit_doc_after_replace_text(ui_edit_doc_t* d,
+static void ui_edit_doc_after_replace_text(struct ui_edit_doc* d,
         bool ok,
-        const ui_edit_range_t r,
-        const ui_edit_range_t x,
-        const ui_edit_text_t* t) {
-    const ui_edit_notify_info_t ni_after = {
+        const union ui_edit_range r,
+        const union ui_edit_range x,
+        const struct ui_edit_text* t) {
+    const struct ui_edit_notify_info ni_after = {
         .ok = ok, .d = d, .r = &r, .x = &x, .t = t,
         .pnf = r.from.pn, .pnt = x.to.pn,
         .deleted = r.to.pn - r.from.pn,
@@ -794,27 +794,27 @@ static void ui_edit_doc_after_replace_text(ui_edit_doc_t* d,
     ui_edit_notify_after(d, &ni_after);
 }
 
-static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
-        const ui_edit_range_t* range, const ui_edit_text_t* i,
-        ui_edit_to_do_t* undo) {
-    ui_edit_text_t* t = &d->text;
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+static bool ui_edit_doc_replace_text(struct ui_edit_doc* d,
+        const union ui_edit_range* range, const struct ui_edit_text* i,
+        struct ui_edit_to_do* undo) {
+    struct ui_edit_text* t = &d->text;
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     ui_edit_doc_before_replace_text(d, r, i);
     bool ok = ui_edit_text.replace(t, &r, i, undo);
     ui_edit_doc_after_replace_text(d, ok, r, undo->range, i);
     return ok;
 }
 
-static bool ui_edit_doc_replace_undoable(ui_edit_doc_t* d,
-        const ui_edit_range_t* r, const ui_edit_text_t* t,
-        ui_edit_to_do_t* undo) {
+static bool ui_edit_doc_replace_undoable(struct ui_edit_doc* d,
+        const union ui_edit_range* r, const struct ui_edit_text* t,
+        struct ui_edit_to_do* undo) {
     bool ok = ui_edit_doc_replace_text(d, r, t, undo);
     if (ok && undo != null) {
         undo->next = d->undo;
         d->undo = undo;
         // redo stack is not valid after new replace, empty it:
         while (d->redo != null) {
-            ui_edit_to_do_t* next = d->redo->next;
+            struct ui_edit_to_do* next = d->redo->next;
             d->redo->next = null;
             ui_edit_doc.dispose_to_do(d->redo);
             rt_heap.free(d->redo);
@@ -825,15 +825,15 @@ static bool ui_edit_doc_replace_undoable(ui_edit_doc_t* d,
 }
 
 static bool ui_edit_utf8_to_heap_text(const char* u, int32_t b,
-        ui_edit_text_t* it) {
+        struct ui_edit_text* it) {
     rt_assert((b == 0) == (u == null || u[0] == 0x00));
     return ui_edit_text.init(it, b != 0 ? u : null, b, true);
 }
 
 
-static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
-    ui_edit_to_do_t* undo = d->undo;
-    ui_edit_to_do_t* next = undo->next;
+static bool ui_edit_doc_coalesce_undo(struct ui_edit_doc* d, struct ui_edit_text* i) {
+    struct ui_edit_to_do* undo = d->undo;
+    struct ui_edit_to_do* next = undo->next;
 //  rt_println("i: %.*s", i->ps[0].b, i->ps[0].u);
 //  if (i->np == 1 && i->ps[0].g == 1) {
 //      rt_println("an: %d", ui_edit_str.is_letter(rt_str.utf32(i->ps[0].u, i->ps[0].b)));
@@ -842,10 +842,10 @@ static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
     const bool alpha_numeric = i->np == 1 && i->ps[0].g == 1 &&
         ui_edit_str.is_letter(rt_str.utf32(i->ps[0].u, i->ps[0].b));
     if (alpha_numeric && next != null) {
-        const ui_edit_range_t ur = undo->range;
-        const ui_edit_text_t* ut = &undo->text;
-        const ui_edit_range_t nr = next->range;
-        const ui_edit_text_t* nt = &next->text;
+        const union ui_edit_range ur = undo->range;
+        const struct ui_edit_text* ut = &undo->text;
+        const union ui_edit_range nr = next->range;
+        const struct ui_edit_text* nt = &next->text;
 //      rt_println("next: \"%.*s\" %d:%d..%d:%d undo: \"%.*s\" %d:%d..%d:%d",
 //          nt->ps[0].b, nt->ps[0].u, nr.from.pn, nr.from.gp, nr.to.pn, nr.to.gp,
 //          ut->ps[0].b, ut->ps[0].u, ur.from.pn, ur.from.gp, ur.to.pn, ur.to.gp);
@@ -856,7 +856,7 @@ static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
             nt->np == 1 && nt->ps[0].g == 0 &&
             nr.to.gp == ur.from.gp && nr.to.gp > 0;
         if (c) {
-            const ui_edit_str_t* str = &d->text.ps[nr.from.pn];
+            const struct ui_edit_str* str = &d->text.ps[nr.from.pn];
             const int32_t* g2b = str->g2b;
             const char* utf8 = str->u + g2b[nr.to.gp - 1];
             uint32_t utf32 = rt_str.utf32(utf8, g2b[nr.to.gp] - g2b[nr.to.gp - 1]);
@@ -873,14 +873,14 @@ static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
     return coalesced;
 }
 
-static bool ui_edit_doc_replace(ui_edit_doc_t* d,
-        const ui_edit_range_t* range, const char* u, int32_t b) {
-    ui_edit_text_t* t = &d->text;
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
-    ui_edit_to_do_t* undo = null;
-    bool ok = rt_heap.alloc_zero((void**)&undo, sizeof(ui_edit_to_do_t)) == 0;
+static bool ui_edit_doc_replace(struct ui_edit_doc* d,
+        const union ui_edit_range* range, const char* u, int32_t b) {
+    struct ui_edit_text* t = &d->text;
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
+    struct ui_edit_to_do* undo = null;
+    bool ok = rt_heap.alloc_zero((void**)&undo, sizeof(struct ui_edit_to_do)) == 0;
     if (ok) {
-        ui_edit_text_t i = {0};
+        struct ui_edit_text i = {0};
         ok = ui_edit_utf8_to_heap_text(u, b, &i);
         if (ok) {
             ok = ui_edit_doc_replace_undoable(d, &r, &i, undo);
@@ -902,11 +902,11 @@ static bool ui_edit_doc_replace(ui_edit_doc_t* d,
     return ok;
 }
 
-static bool ui_edit_doc_do(ui_edit_doc_t* d, ui_edit_to_do_t* to_do,
-        ui_edit_to_do_t* *stack) {
-    const ui_edit_range_t* r = &to_do->range;
-    ui_edit_to_do_t* redo = null;
-    bool ok = rt_heap.alloc_zero((void**)&redo, sizeof(ui_edit_to_do_t)) == 0;
+static bool ui_edit_doc_do(struct ui_edit_doc* d, struct ui_edit_to_do* to_do,
+        struct ui_edit_to_do* *stack) {
+    const union ui_edit_range* r = &to_do->range;
+    struct ui_edit_to_do* redo = null;
+    bool ok = rt_heap.alloc_zero((void**)&redo, sizeof(struct ui_edit_to_do)) == 0;
     if (ok) {
         ok = ui_edit_doc_replace_text(d, r, &to_do->text, redo);
         if (ok) {
@@ -926,8 +926,8 @@ static bool ui_edit_doc_do(ui_edit_doc_t* d, ui_edit_to_do_t* to_do,
     return ok;
 }
 
-static bool ui_edit_doc_redo(ui_edit_doc_t* d) {
-    ui_edit_to_do_t* to_do = d->redo;
+static bool ui_edit_doc_redo(struct ui_edit_doc* d) {
+    struct ui_edit_to_do* to_do = d->redo;
     if (to_do == null) {
         return false;
     } else {
@@ -937,8 +937,8 @@ static bool ui_edit_doc_redo(ui_edit_doc_t* d) {
     }
 }
 
-static bool ui_edit_doc_undo(ui_edit_doc_t* d) {
-    ui_edit_to_do_t* to_do = d->undo;
+static bool ui_edit_doc_undo(struct ui_edit_doc* d) {
+    struct ui_edit_to_do* to_do = d->undo;
     if (to_do == null) {
         return false;
     } else {
@@ -948,7 +948,7 @@ static bool ui_edit_doc_undo(ui_edit_doc_t* d) {
     }
 }
 
-static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
+static bool ui_edit_doc_init(struct ui_edit_doc* d, const char* utf8,
         int32_t bytes, bool heap) {
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
@@ -961,7 +961,7 @@ static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
     rt_assert((utf8 == null) == (bytes == 0));
     if (ok) {
         if (bytes == 0) { // empty string
-            ok = rt_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_edit_str_t)) == 0;
+            ok = rt_heap.alloc_zero((void**)&d->text.ps, sizeof(struct ui_edit_str)) == 0;
             if (ok) {
                 d->text.np = 1;
                 ok = ui_edit_str.init(&d->text.ps[0], null, 0, false);
@@ -973,7 +973,7 @@ static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
     return ok;
 }
 
-static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
+static void ui_edit_doc_dispose(struct ui_edit_doc* d) {
     for (int32_t i = 0; i < d->text.np; i++) {
         ui_edit_str.free(&d->text.ps[i]);
     }
@@ -983,14 +983,14 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
     }
     d->text.np  = 0;
     while (d->undo != null) {
-        ui_edit_to_do_t* next = d->undo->next;
+        struct ui_edit_to_do* next = d->undo->next;
         d->undo->next = null;
         ui_edit_doc.dispose_to_do(d->undo);
         rt_heap.free(d->undo);
         d->undo = next;
     }
     while (d->redo != null) {
-        ui_edit_to_do_t* next = d->redo->next;
+        struct ui_edit_to_do* next = d->redo->next;
         d->redo->next = null;
         ui_edit_doc.dispose_to_do(d->redo);
         rt_heap.free(d->redo);
@@ -998,7 +998,7 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
     }
     rt_assert(d->listeners == null, "unsubscribe listeners?");
     while (d->listeners != null) {
-        ui_edit_listener_t* next = d->listeners->next;
+        struct ui_edit_listener* next = d->listeners->next;
         d->listeners->next = null;
         rt_heap.free(d->listeners);
         d->listeners = next;
@@ -1011,19 +1011,19 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
 static int32_t ui_edit_str_g2b_ascii[1024]; // ui_edit_str_g2b_ascii[i] == i for all "i"
 static char    ui_edit_str_empty_utf8[1] = {0x00};
 
-static const ui_edit_str_t ui_edit_str_empty = {
+static const struct ui_edit_str ui_edit_str_empty = {
     .u = ui_edit_str_empty_utf8,
     .g2b = ui_edit_str_g2b_ascii,
     .c = 0, .b = 0, .g = 0
 };
 
-static bool    ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b, bool heap);
-static void    ui_edit_str_swap(ui_edit_str_t* s1, ui_edit_str_t* s2);
+static bool    ui_edit_str_init(struct ui_edit_str* s, const char* u, int32_t b, bool heap);
+static void    ui_edit_str_swap(struct ui_edit_str* s1, struct ui_edit_str* s2);
 static int32_t ui_edit_str_gp_to_bp(const char* s, int32_t bytes, int32_t gp);
-static int32_t ui_edit_str_bytes(ui_edit_str_t* s, int32_t f, int32_t t);
-static bool    ui_edit_str_expand(ui_edit_str_t* s, int32_t c);
-static void    ui_edit_str_shrink(ui_edit_str_t* s);
-static bool    ui_edit_str_replace(ui_edit_str_t* s, int32_t f, int32_t t,
+static int32_t ui_edit_str_bytes(struct ui_edit_str* s, int32_t f, int32_t t);
+static bool    ui_edit_str_expand(struct ui_edit_str* s, int32_t c);
+static void    ui_edit_str_shrink(struct ui_edit_str* s);
+static bool    ui_edit_str_replace(struct ui_edit_str* s, int32_t f, int32_t t,
                                    const char* u, int32_t b);
 
 //  bool (*is_zwj)(uint32_t utf32); // zero width joiner
@@ -1051,9 +1051,9 @@ static bool ui_edit_str_is_cjk_or_emoji(uint32_t utf32);
 static bool ui_edit_str_can_break(uint32_t cp1, uint32_t cp2);
 
 static void    ui_edit_str_test(void);
-static void    ui_edit_str_free(ui_edit_str_t* s);
+static void    ui_edit_str_free(struct ui_edit_str* s);
 
-ui_edit_str_if ui_edit_str = {
+struct ui_edit_str_if ui_edit_str = {
     .init            = ui_edit_str_init,
     .swap            = ui_edit_str_swap,
     .gp_to_bp        = ui_edit_str_gp_to_bp,
@@ -1155,7 +1155,7 @@ static int32_t ui_edit_str_gp_to_bp(const char* utf8, int32_t bytes, int32_t gp)
     return ok ? i : -1;
 }
 
-static void ui_edit_str_free(ui_edit_str_t* s) {
+static void ui_edit_str_free(struct ui_edit_str* s) {
     if (s->g2b != null && s->g2b != ui_edit_str_g2b_ascii) {
         rt_heap.free(s->g2b);
     } else {
@@ -1179,7 +1179,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
     ui_edit_check_zeros(s, sizeof(*s));
 }
 
-static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
+static bool ui_edit_str_init_g2b(struct ui_edit_str* s) {
     const int64_t _4_bytes = (int64_t)sizeof(int32_t);
     // start with number of glyphs == number of bytes (ASCII text):
     bool ok = rt_heap.alloc(&s->g2b, (size_t)(s->b + 1) * _4_bytes) == 0;
@@ -1208,7 +1208,7 @@ static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
     return ok;
 }
 
-static bool ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b,
+static bool ui_edit_str_init(struct ui_edit_str* s, const char* u, int32_t b,
         bool heap) {
     enum { n = rt_countof(ui_edit_str_g2b_ascii) };
     if (ui_edit_str_g2b_ascii[n - 1] != n - 1) {
@@ -1243,18 +1243,18 @@ static bool ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b,
     return ok;
 }
 
-static void ui_edit_str_swap(ui_edit_str_t* s1, ui_edit_str_t* s2) {
-    ui_edit_str_t s = *s1; *s1 = *s2; *s2 = s;
+static void ui_edit_str_swap(struct ui_edit_str* s1, struct ui_edit_str* s2) {
+    struct ui_edit_str s = *s1; *s1 = *s2; *s2 = s;
 }
 
-static int32_t ui_edit_str_bytes(ui_edit_str_t* s,
+static int32_t ui_edit_str_bytes(struct ui_edit_str* s,
         int32_t f, int32_t t) { // glyph positions
     ui_edit_str_check_from_to(s, f, t);
     ui_edit_str_check(s);
     return s->g2b[t] - s->g2b[f];
 }
 
-static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
+static bool ui_edit_str_move_g2b_to_heap(struct ui_edit_str* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
         if (s->b == s->g && s->g < rt_countof(ui_edit_str_g2b_ascii) - 1) {
@@ -1271,7 +1271,7 @@ static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     return ok;
 }
 
-static bool ui_edit_str_move_to_heap(ui_edit_str_t* s, int32_t c) {
+static bool ui_edit_str_move_to_heap(struct ui_edit_str* s, int32_t c) {
     bool ok = true;
     rt_assert(c >= s->b, "can expand cannot shrink");
     if (s->c == 0) { // s->u points outside of the heap
@@ -1285,7 +1285,7 @@ static bool ui_edit_str_move_to_heap(ui_edit_str_t* s, int32_t c) {
     return ok;
 }
 
-static bool ui_edit_str_expand(ui_edit_str_t* s, int32_t c) {
+static bool ui_edit_str_expand(struct ui_edit_str* s, int32_t c) {
     rt_swear(c > 0);
     bool ok = ui_edit_str_move_to_heap(s, c);
     if (ok && c > s->c) {
@@ -1298,7 +1298,7 @@ static bool ui_edit_str_expand(ui_edit_str_t* s, int32_t c) {
     return ok;
 }
 
-static void ui_edit_str_shrink(ui_edit_str_t* s) {
+static void ui_edit_str_shrink(struct ui_edit_str* s) {
     if (s->c > s->b) { // s->c == 0 for empty and single byte ASCII strings
         rt_assert(s->u != ui_edit_str_empty_utf8);
         if (s->b == 0) {
@@ -1326,7 +1326,7 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
     }
 }
 
-static bool ui_edit_str_remove(ui_edit_str_t* s, int32_t f, int32_t t) {
+static bool ui_edit_str_remove(struct ui_edit_str* s, int32_t f, int32_t t) {
     bool ok = true; // optimistic approach
     ui_edit_str_check_from_to(s, f, t);
     ui_edit_str_check(s);
@@ -1356,7 +1356,7 @@ static bool ui_edit_str_remove(ui_edit_str_t* s, int32_t f, int32_t t) {
     return ok;
 }
 
-static bool ui_edit_str_replace(ui_edit_str_t* s,
+static bool ui_edit_str_replace(struct ui_edit_str* s,
         int32_t f, int32_t t, const char* u, int32_t b) {
     const int64_t _4_bytes = (int64_t)sizeof(int32_t);
     bool ok = true; // optimistic approach
@@ -1369,7 +1369,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
     if (b == 0) { // just remove glyphs
         ok = ui_edit_str_remove(s, f, t);
     } else { // remove and insert
-        ui_edit_str_t ins = {0};
+        struct ui_edit_str ins = {0};
         // ui_edit_str_init_ro() verifies utf-8 and calculates g2b[]:
         ok = ui_edit_str_init(&ins, u, b, false);
         const int32_t glyphs_to_insert = ins.g; // only for readability
@@ -1388,7 +1388,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                 if (!all_ascii) {
                     ui_edit_str_move_g2b_to_heap(s);
                 }
-                // insert ui_edit_str_t "ins" at glyph position "f"
+                // insert struct ui_edit_str "ins" at glyph position "f"
                 // reusing ins.u[0..ins.b-1] and ins.g2b[0..ins.g]
                 // moving memory using memmove() left to right:
                 if (bytes_to_insert <= bytes_to_remove) {
@@ -1706,7 +1706,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                 gs[gix_src[0]], gs[gix_src[1]], gs[gix_src[2]],
                 gs[gix_src[3]], gs[gix_src[4]], src);
         }
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         // reference constructor does not copy to heap:
         bool ok = ui_edit_str_init(&s, src, -1, false);
         rt_swear(ok);
@@ -1738,7 +1738,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                         "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
                         "e1: \"%s\" e2: \"%s\"",
                         s.b, s.c, s.b, s.u, s.g, f, t, rep, e1, e2);
-                    ui_edit_str_t c = {0}; // copy
+                    struct ui_edit_str c = {0}; // copy
                     ok = ui_edit_str_init(&c, src, -1, true);
                     rt_swear(ok);
                     ok = ui_edit_str_replace(&c, f, t, rep, -1);
@@ -1791,7 +1791,7 @@ static void ui_edit_str_test_glyph_bytes(void) {
 static void ui_edit_str_test(void) {
     ui_edit_str_test_glyph_bytes();
     {
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
         rt_swear(ok);
         rt_swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
@@ -1805,7 +1805,7 @@ static void ui_edit_str_test(void) {
                              ui_edit_euro ui_edit_money_bag;
     const char* money = currencies;
     {
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         const int32_t n = (int32_t)strlen(currencies);
         bool ok = ui_edit_str_init(&s, money, n, true);
         rt_swear(ok);
@@ -1818,7 +1818,7 @@ static void ui_edit_str_test(void) {
         ui_edit_str_free(&s);
     }
     {
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
         rt_swear(ok);
         ok = ui_edit_str_replace(&s, 1, 4, null, 0);
@@ -1828,7 +1828,7 @@ static void ui_edit_str_test(void) {
         ui_edit_str_free(&s);
     }
     {
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         bool ok = ui_edit_str_init(&s, "Hello world", -1, false);
         rt_swear(ok);
         ok = ui_edit_str_replace(&s, 5, 6, " cruel ", -1);
@@ -1884,7 +1884,7 @@ static void ui_edit_doc_test_big_text(void) {
         *p = '\n';
     }
     text[MB10 - 1] = 0x00;
-    ui_edit_text_t t = {0};
+    struct ui_edit_text t = {0};
     bool ok = ui_edit_text.init(&t, text, MB10, false);
     rt_swear(ok);
     ui_edit_text.dispose(&t);
@@ -1896,7 +1896,7 @@ static void ui_edit_doc_test_paragraphs(void) {
     for (int i = 0; i < 100; i++)
     {
         {   // empty string to paragraphs:
-            ui_edit_text_t t = {0};
+            struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, null, 0, false);
             rt_swear(ok);
             rt_swear(t.ps != null && t.np == 1);
@@ -1909,7 +1909,7 @@ static void ui_edit_doc_test_paragraphs(void) {
         {   // string without "\n"
             const char* hello = "hello";
             const int32_t n = (int32_t)strlen(hello);
-            ui_edit_text_t t = {0};
+            struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, hello, n, false);
             rt_swear(ok);
             rt_swear(t.ps != null && t.np == 1);
@@ -1921,7 +1921,7 @@ static void ui_edit_doc_test_paragraphs(void) {
         }
         {   // string with "\n" at the end
             const char* hello = "hello\n";
-            ui_edit_text_t t = {0};
+            struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
             rt_swear(ok);
             rt_swear(t.ps != null && t.np == 2);
@@ -1938,7 +1938,7 @@ static void ui_edit_doc_test_paragraphs(void) {
         {   // two string separated by "\n"
             const char* hello = "hello\nworld";
             const char* world = hello + 6;
-            ui_edit_text_t t = {0};
+            struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
             rt_swear(ok);
             rt_swear(t.ps != null && t.np == 2);
@@ -1958,36 +1958,36 @@ static void ui_edit_doc_test_paragraphs(void) {
     }
 }
 
-typedef struct ui_edit_doc_test_notify_s {
-    ui_edit_notify_t notify;
+struct ui_edit_doc_test_notify {
+    struct ui_edit_notify notify;
     int32_t count_before;
     int32_t count_after;
-} ui_edit_doc_test_notify_t;
+};
 
-static void ui_edit_doc_test_before(ui_edit_notify_t* n,
-        const ui_edit_notify_info_t* rt_unused(ni)) {
-    ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
+static void ui_edit_doc_test_before(struct ui_edit_notify* n,
+        const struct ui_edit_notify_info* rt_unused(ni)) {
+    struct ui_edit_doc_test_notify* notify = (struct ui_edit_doc_test_notify*)n;
     notify->count_before++;
 }
 
-static void ui_edit_doc_test_after(ui_edit_notify_t* n,
-        const ui_edit_notify_info_t* rt_unused(ni)) {
-    ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
+static void ui_edit_doc_test_after(struct ui_edit_notify* n,
+        const struct ui_edit_notify_info* rt_unused(ni)) {
+    struct ui_edit_doc_test_notify* notify = (struct ui_edit_doc_test_notify*)n;
     notify->count_after++;
 }
 
 static struct {
-    ui_edit_notify_t notify;
+    struct ui_edit_notify notify;
 } ui_edit_doc_test_notify;
 
 
 static void ui_edit_doc_test_0(void) {
-    ui_edit_doc_t edit_doc = {0};
-    ui_edit_doc_t* d = &edit_doc;
+    struct ui_edit_doc edit_doc = {0};
+    struct ui_edit_doc* d = &edit_doc;
     rt_swear(ui_edit_doc.init(d, null, 0, false));
-    ui_edit_text_t ins_text = {0};
+    struct ui_edit_text ins_text = {0};
     rt_swear(ui_edit_text.init(&ins_text, "a", 1, false));
-    ui_edit_to_do_t undo = {0};
+    struct ui_edit_to_do undo = {0};
     rt_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
@@ -1995,12 +1995,12 @@ static void ui_edit_doc_test_0(void) {
 }
 
 static void ui_edit_doc_test_1(void) {
-    ui_edit_doc_t edit_doc = {0};
-    ui_edit_doc_t* d = &edit_doc;
+    struct ui_edit_doc edit_doc = {0};
+    struct ui_edit_doc* d = &edit_doc;
     rt_swear(ui_edit_doc.init(d, null, 0, false));
-    ui_edit_text_t ins_text = {0};
+    struct ui_edit_text ins_text = {0};
     rt_swear(ui_edit_text.init(&ins_text, "a", 1, false));
-    ui_edit_to_do_t undo = {0};
+    struct ui_edit_to_do undo = {0};
     rt_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
@@ -2009,12 +2009,12 @@ static void ui_edit_doc_test_1(void) {
 
 static void ui_edit_doc_test_2(void) {
     {   // two string separated by "\n"
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
-        ui_edit_notify_t notify1 = {0};
-        ui_edit_notify_t notify2 = {0};
-        ui_edit_doc_test_notify_t before_and_after = {0};
+        struct ui_edit_notify notify1 = {0};
+        struct ui_edit_notify notify2 = {0};
+        struct ui_edit_doc_test_notify before_and_after = {0};
         before_and_after.notify.before = ui_edit_doc_test_before;
         before_and_after.notify.after  = ui_edit_doc_test_after;
         ui_edit_doc.subscribe(d, &notify1);
@@ -2023,7 +2023,7 @@ static void ui_edit_doc_test_2(void) {
         rt_swear(ui_edit_doc.bytes(d, null) == 0, "expected empty");
         const char* hello = "hello\nworld";
         rt_swear(ui_edit_doc.replace(d, null, hello, -1));
-        ui_edit_text_t t = {0};
+        struct ui_edit_text t = {0};
         rt_swear(ui_edit_doc.copy_text(d, null, &t));
         rt_swear(t.np == 2);
         rt_swear(t.ps[0].b == 5);
@@ -2040,15 +2040,15 @@ static void ui_edit_doc_test_2(void) {
     }
     // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
     {   // three string separated by "\n"
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s = "Goodbye" "\n" "Cruel" "\n" "Universe";
         rt_swear(ui_edit_doc.replace(d, null, s, -1));
-        ui_edit_text_t t = {0};
+        struct ui_edit_text t = {0};
         rt_swear(ui_edit_doc.copy_text(d, null, &t));
         ui_edit_text.dispose(&t);
-        ui_edit_range_t r = { .from = {.pn = 0, .gp = 4},
+        union ui_edit_range r = { .from = {.pn = 0, .gp = 4},
                               .to   = {.pn = 2, .gp = 3} };
         rt_swear(ui_edit_doc.replace(d, &r, null, 0));
         rt_swear(d->text.np == 1);
@@ -2063,23 +2063,23 @@ static void ui_edit_doc_test_2(void) {
     }
     // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
     {
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
         for (int32_t i = 0; i < rt_countof(ins); i++) {
             rt_swear(ui_edit_doc.init(d, null, 0, false));
             const char* s = "GoodbyeCruelUniverse";
             rt_swear(ui_edit_doc.replace(d, null, s, -1));
-            ui_edit_range_t r = { .from = {.pn = 0, .gp =  7},
+            union ui_edit_range r = { .from = {.pn = 0, .gp =  7},
                                   .to   = {.pn = 0, .gp = 12} };
-            ui_edit_text_t ins_text = {0};
+            struct ui_edit_text ins_text = {0};
             ui_edit_text.init(&ins_text, ins[i], -1, false);
-            ui_edit_to_do_t undo = {0};
+            struct ui_edit_to_do undo = {0};
             rt_swear(ui_edit_text.replace(&d->text, &r, &ins_text, &undo));
-            ui_edit_to_do_t redo = {0};
+            struct ui_edit_to_do redo = {0};
             rt_swear(ui_edit_text.replace(&d->text, &undo.range, &undo.text, &redo));
             ui_edit_doc.dispose_to_do(&undo);
-            undo.range = (ui_edit_range_t){0};
+            undo.range = (union ui_edit_range){0};
             rt_swear(ui_edit_text.replace(&d->text, &redo.range, &redo.text, &undo));
             ui_edit_doc.dispose_to_do(&redo);
             ui_edit_doc.dispose_to_do(&undo);
@@ -2091,9 +2091,9 @@ static void ui_edit_doc_test_2(void) {
 
 static void ui_edit_doc_test_3(void) {
     {
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
-        ui_edit_doc_test_notify_t before_and_after = {0};
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
+        struct ui_edit_doc_test_notify before_and_after = {0};
         before_and_after.notify.before = ui_edit_doc_test_before;
         before_and_after.notify.after  = ui_edit_doc_test_after;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
@@ -2107,7 +2107,7 @@ static void ui_edit_doc_test_3(void) {
         rt_swear(after  + 1 == before_and_after.count_after);
         rt_swear(d->text.np == 1);
         rt_swear(ui_edit_doc.bytes(d, null) == bytes);
-        ui_edit_text_t t = {0};
+        struct ui_edit_text t = {0};
         rt_swear(ui_edit_doc.copy_text(d, null, &t));
         rt_swear(t.np == 1);
         rt_swear(t.ps[0].b == bytes);
@@ -2127,8 +2127,8 @@ static void ui_edit_doc_test_3(void) {
         ui_edit_doc.dispose(d);
     }
     {
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s =
             "Hello World"
@@ -2155,10 +2155,10 @@ static void ui_edit_doc_test_3(void) {
 
 static void ui_edit_doc_test_4(void) {
     {
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
-        ui_edit_range_t r = {0};
+        union ui_edit_range r = {0};
         r = ui_edit_text.end_range(&d->text);
         rt_swear(ui_edit_doc.replace(d, &r, "a", -1));
         r = ui_edit_text.end_range(&d->text);
@@ -2177,7 +2177,7 @@ static void ui_edit_doc_test_4(void) {
 
 static void ui_edit_doc_test(void) {
     {
-        ui_edit_range_t r = { .from = {0,0}, .to = {0,0} };
+        union ui_edit_range r = { .from = {0,0}, .to = {0,0} };
         rt_static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
         rt_swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
     }
@@ -2198,12 +2198,12 @@ static void ui_edit_doc_test(void) {
     }
 }
 
-static const ui_edit_range_t ui_edit_invalid_range = {
+static const union ui_edit_range ui_edit_invalid_range = {
     .from = { .pn = -1, .gp = -1},
     .to   = { .pn = -1, .gp = -1}
 };
 
-ui_edit_range_if ui_edit_range = {
+struct ui_edit_range_if ui_edit_range = {
     .compare       = ui_edit_range_compare,
     .order         = ui_edit_range_order,
     .is_valid      = ui_edit_range_is_valid,
@@ -2215,7 +2215,7 @@ ui_edit_range_if ui_edit_range = {
     .invalid_range = &ui_edit_invalid_range
 };
 
-ui_edit_text_if ui_edit_text = {
+struct ui_edit_text_if ui_edit_text = {
     .init          = ui_edit_text_init,
     .bytes         = ui_edit_text_bytes,
     .all_on_null   = ui_edit_text_all_on_null,
@@ -2231,7 +2231,7 @@ ui_edit_text_if ui_edit_text = {
     .dispose       = ui_edit_text_dispose
 };
 
-ui_edit_doc_if ui_edit_doc = {
+struct ui_edit_doc_if ui_edit_doc = {
     .init               = ui_edit_doc_init,
     .replace            = ui_edit_doc_replace,
     .bytes              = ui_edit_doc_bytes,

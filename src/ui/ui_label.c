@@ -1,7 +1,7 @@
 #include "rt/rt.h"
 #include "ui/ui.h"
 
-static void ui_label_paint(ui_view_t* v) {
+static void ui_label_paint(struct ui_view* v) {
     rt_assert(v->type == ui_view_label);
     rt_assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
@@ -10,7 +10,7 @@ static void ui_label_paint(ui_view_t* v) {
         v->color;
     const int32_t tx = v->x + v->text.xy.x;
     const int32_t ty = v->y + v->text.xy.y;
-    const ui_ta_t ta = { .fm = v->fm, .color = c };
+    const struct ui_ta ta = { .fm = v->fm, .color = c };
     const bool multiline = strchr(s, '\n') != null;
     if (multiline) {
         int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
@@ -27,7 +27,7 @@ static void ui_label_paint(ui_view_t* v) {
     }
 }
 
-static bool ui_label_context_menu(ui_view_t* v) {
+static bool ui_label_context_menu(struct ui_view* v) {
     rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
@@ -40,7 +40,7 @@ static bool ui_label_context_menu(ui_view_t* v) {
     return inside;
 }
 
-static void ui_label_character(ui_view_t* v, const char* utf8) {
+static void ui_label_character(struct ui_view* v, const char* utf8) {
     rt_assert(v->type == ui_view_label);
     if (v->state.hover && !ui_view.is_hidden(v)) {
         char ch = utf8[0];
@@ -51,7 +51,7 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-void ui_view_init_label(ui_view_t* v) {
+void ui_view_init_label(struct ui_view* v) {
     rt_assert(v->type == ui_view_label);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->paint         = ui_label_paint;

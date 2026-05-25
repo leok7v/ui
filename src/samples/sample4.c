@@ -5,7 +5,7 @@
 
 const char* title = "Sample4";
 
-static ui_bitmap_t image[2];
+static struct ui_bitmap image[2];
 
 static char filename[260]; // c:\Users\user\Pictures\mandrill-4.2.03.png
 
@@ -16,7 +16,7 @@ static int  console(void) {
     return 1;
 }
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "sample4",
     .init = init,
     .dark_mode = true,
@@ -55,7 +55,7 @@ static void load_images(void) {
     }
 }
 
-static void paint(ui_view_t* view) {
+static void paint(struct ui_view* view) {
     ui_draw.fill(0, 0, view->w, view->h, ui_colors.black);
     if (image[1].w > 0 && image[1].h > 0) {
         int w = view->w < image[1].w ? view->w : image[1].w;

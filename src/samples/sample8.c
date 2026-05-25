@@ -21,11 +21,11 @@ static app_data_t app_data = { .version = version };
 
 static void init(void);
 static void opened(void);
-static void stack_test(ui_view_t* parent);
-static void span_test(ui_view_t* parent);
-static void list_test(ui_view_t* parent);
-static void controls_test(ui_view_t* parent);
-static void edit1_test(ui_view_t* parent);
+static void stack_test(struct ui_view* parent);
+static void span_test(struct ui_view* parent);
+static void list_test(struct ui_view* parent);
+static void controls_test(struct ui_view* parent);
+static void edit1_test(struct ui_view* parent);
 
 static void fini(void) {
     ui_app.data_save("sample8", &app_data, sizeof(app_data));
@@ -42,7 +42,7 @@ static void init(void) {
     ui_app.opened = opened;
 }
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "sample8",
     .no_decor = true,
     .no_max   = true, // TODO: should be implied by no_decor
@@ -55,9 +55,9 @@ ui_app_t ui_app = {
     }
 };
 
-static ui_view_t test = ui_view(stack);
+static struct ui_view test = ui_view(stack);
 
-static ui_view_t tools_list = ui_view(list);
+static struct ui_view tools_list = ui_view(list);
 
 static void tools(ui_button_t* b) {
     rt_println("b->state.pressed: %d", b->state.pressed);
@@ -70,7 +70,7 @@ static void tools(ui_button_t* b) {
 }
 
 static void switch_view(ui_button_t* b, int32_t ix,
-        void (*build_view)(ui_view_t* v)) {
+        void (*build_view)(struct ui_view* v)) {
     if (!b->state.pressed) {
         tools_list.state.hidden = true;
         ui_caption.menu.state.pressed = false;
@@ -109,7 +109,7 @@ static void debug(ui_button_t* b) {
 static ui_button_t button_bugs =
         ui_button(rt_glyph_lady_beetle, 0.0f, debug);
 
-static ui_mbx_t mbx = ui_mbx( // message box
+static struct ui_mbx mbx = ui_mbx( // message box
     "Orange frames represent stack, span, or list\n"
     "components. Green frames indicate padding for\n"
     "children.\n"
@@ -165,19 +165,19 @@ static void crash(ui_button_t* rt_unused(b)) {
 static void insert_into_caption(ui_button_t* b, const char* hint) {
     rt_str_printf(b->hint, "%s", hint);
     b->flat = true;
-    b->padding = (ui_margins_t){0,0,0,0};
-    b->insets  = (ui_margins_t){0,0,0,0};
+    b->padding = (struct ui_margins){0,0,0,0};
+    b->insets  = (struct ui_margins){0,0,0,0};
     b->align   = ui.align.top;
     ui_view.add_before(b,  &ui_caption.mini);
 }
 
-static void ui_app_root_composed(ui_view_t* rt_unused(v)) {
+static void ui_app_root_composed(struct ui_view* rt_unused(v)) {
     app_data.light = !ui_theme.is_app_dark();
 }
 
 static void opened(void) {
-    static ui_view_t list_view = ui_view(list);
-    static ui_view_t span_view = ui_view(span);
+    static struct ui_view list_view = ui_view(list);
+    static struct ui_view span_view = ui_view(span);
     static ui_button_t button_stack =
            ui_button("&Stack", 4.25f, stack);
     static ui_button_t button_span =
@@ -204,14 +204,14 @@ static void opened(void) {
     null);
     list_view.max_w = ui.infinity;
     list_view.max_h = ui.infinity;
-    list_view.insets = (ui_margins_t){ 0, 0, 0, 0 };
+    list_view.insets = (struct ui_margins){ 0, 0, 0, 0 };
     span_view.max_w = ui.infinity;
     span_view.max_h = ui.infinity;
-    span_view.insets = (ui_margins_t){ 0, 0, 0, 0 };
+    span_view.insets = (struct ui_margins){ 0, 0, 0, 0 };
     test.max_w = ui.infinity;
     test.max_h = ui.infinity;
     test.color = ui_colors.transparent;
-    test.insets = (ui_margins_t){ 0, 0, 0, 0 };
+    test.insets = (struct ui_margins){ 0, 0, 0, 0 };
     test.background_id = ui_color_id_window;
     ui_view.set_text(&test, "%s", "test");
 //  test.paint = ui_view.debug_paint;
@@ -266,17 +266,17 @@ static void opened(void) {
     }
 }
 
-static ui_view_t* align(ui_view_t* v, int32_t align) {
+static struct ui_view* align(struct ui_view* v, int32_t align) {
     v->align = align;
     return v;
 }
 
-static void stack_test(ui_view_t* parent) {
+static void stack_test(struct ui_view* parent) {
     // TODO: do not need to disband everything just remove children
     // and switch. list_test() becomes init() like switching views
     // removing and adding child
     ui_view.disband(parent);
-    static ui_view_t  stack        = ui_view(stack);
+    static struct ui_view  stack        = ui_view(stack);
     static ui_label_t left         = ui_label(0, " left ");
     static ui_label_t right        = ui_label(0, " right ");
     static ui_label_t top          = ui_label(0, " top ");
@@ -286,7 +286,7 @@ static void stack_test(ui_view_t* parent) {
     static ui_label_t right_top    = ui_label(0, " right|top ");
     static ui_label_t left_bottom  = ui_label(0, " left|bottom ");
     static ui_label_t center       = ui_label(0, " center ");
-    stack.insets = (ui_margins_t){ 1.0, 0.5, 0.25, 2.0 };
+    stack.insets = (struct ui_margins){ 1.0, 0.5, 0.25, 2.0 };
     ui_view.add(parent,
         ui_view.add(&stack,
             align(&left,         ui.align.left),
@@ -303,26 +303,26 @@ static void stack_test(ui_view_t* parent) {
     stack.debug.paint.margins = true;
     stack.max_w  = ui.infinity;
     stack.max_h  = ui.infinity;
-    stack.insets = (ui_margins_t){ 1.0, 0.5, 0.25, 2.0 };
+    stack.insets = (struct ui_margins){ 1.0, 0.5, 0.25, 2.0 };
     stack.background_id = ui_color_id_window;
     ui_view.set_text(&stack, "#stack");
     ui_view_for_each(&stack, it, {
         it->debug.paint.margins = true;
         it->color = ui_colors.onyx;
 //      it->fm    = &ui_app.fm.prop.H1;
-        it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
+        it->padding = (struct ui_margins){ 2.0, 0.25, 0.5, 1.0 };
     });
 }
 
-static void span_test(ui_view_t* parent) {
+static void span_test(struct ui_view* parent) {
     // TODO: do not need to disband everything just remove children
     // and switch. list_test() becomes init() like switching views
     // removing and adding child
     ui_view.disband(parent);
-    static ui_view_t  span   = ui_view(span);
+    static struct ui_view  span   = ui_view(span);
     static ui_label_t left   = ui_label(0, " left ");
     static ui_label_t right  = ui_label(0, " right ");
-    static ui_view_t  spacer = ui_view(spacer);
+    static struct ui_view  spacer = ui_view(spacer);
     static ui_label_t top    = ui_label(0, " top ");
     static ui_label_t bottom = ui_label(0, " bottom ");
     ui_view.add(parent,
@@ -337,13 +337,13 @@ static void span_test(ui_view_t* parent) {
     span.debug.paint.margins = true;
     span.max_w    = ui.infinity;
     span.max_h    = ui.infinity;
-    span.insets   = (ui_margins_t){ 1.0, 0.5, 0.25, 2.0 };
+    span.insets   = (struct ui_margins){ 1.0, 0.5, 0.25, 2.0 };
     ui_view.set_text(&span, "#span");
     span.background_id = ui_color_id_window;
     ui_view_for_each(&span, it, {
         it->debug.paint.margins = true;
         it->color   = ui_colors.onyx;
-        it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
+        it->padding = (struct ui_margins){ 2.0, 0.25, 0.5, 1.0 };
         it->max_h   = ui.infinity;
 //      it->fm      = &ui_app.fm.prop.H1;
 //      rt_println("%s 0x%02X", it->text, it->align);
@@ -352,15 +352,15 @@ static void span_test(ui_view_t* parent) {
     bottom.max_h = 0;
 }
 
-static void list_test(ui_view_t* parent) {
+static void list_test(struct ui_view* parent) {
     // TODO: do not need to disband everything just remove children
     // and switch. list_test() becomes init() like switching views
     // removing and adding child
     ui_view.disband(parent);
-    static ui_view_t  list         = ui_view(list);
+    static struct ui_view  list         = ui_view(list);
     static ui_label_t left         = ui_label(0, " left ");
     static ui_label_t right        = ui_label(0, " right ");
-    static ui_view_t  spacer       = ui_view(spacer);
+    static struct ui_view  spacer       = ui_view(spacer);
     static ui_label_t top          = ui_label(0, " top ");
     static ui_label_t bottom       = ui_label(0, " bottom ");
     ui_view.add(&test,
@@ -375,14 +375,14 @@ static void list_test(ui_view_t* parent) {
     list.debug.paint.margins = true;
     list.max_w  = ui.infinity;
     list.max_h  = ui.infinity;
-    list.insets = (ui_margins_t){ 1.0, 0.5, 0.25, 2.0 };
+    list.insets = (struct ui_margins){ 1.0, 0.5, 0.25, 2.0 };
     list.background_id = ui_color_id_window;
     ui_view.set_text(&list, "#list");
     ui_view_for_each(&list, it, {
         it->debug.paint.margins = true;
         it->color   = ui_colors.onyx;
         // TODO: labels, buttons etc should define their own default padding != 0
-        it->padding = (ui_margins_t){ 2.0, 0.25, 0.5, 1.0 };
+        it->padding = (struct ui_margins){ 2.0, 0.25, 0.5, 1.0 };
         it->max_w   = ui.infinity;
 //      it->fm      = &ui_app.fm.prop.H1;
     });
@@ -392,56 +392,56 @@ static void list_test(ui_view_t* parent) {
 
 // controls test
 
-static void slider_format(ui_view_t* v) {
-    ui_slider_t* slider = (ui_slider_t*)v;
+static void slider_format(struct ui_view* v) {
+    struct ui_slider* slider = (struct ui_slider*)v;
     ui_view.set_text(v, "%s", rt_str.uint64(slider->value));
 }
 
-static void slider_callback(ui_view_t* v) {
-    ui_slider_t* slider = (ui_slider_t*)v;
+static void slider_callback(struct ui_view* v) {
+    struct ui_slider* slider = (struct ui_slider*)v;
     rt_println("value: %d", slider->value);
 }
 
-static void controls_set_margins(ui_view_t* v, bool on_off) {
+static void controls_set_margins(struct ui_view* v, bool on_off) {
     ui_view_for_each(v, it, {
         controls_set_margins(it, on_off);
         it->debug.paint.margins = on_off;
     } );
 }
 
-static void controls_margins(ui_view_t* v) {
+static void controls_margins(struct ui_view* v) {
     controls_set_margins(v->parent->parent->parent, v->state.pressed);
     ui_app.request_redraw();
     app_data.margins = v->state.pressed;
 }
 
-static void controls_set_fm(ui_view_t* v, bool on_off) {
+static void controls_set_fm(struct ui_view* v, bool on_off) {
     ui_view_for_each(v, it, {
         controls_set_fm(it, on_off);
         it->debug.paint.fm = on_off;
     } );
 }
 
-static void controls_fm(ui_view_t* v) {
+static void controls_fm(struct ui_view* v) {
     controls_set_fm(v->parent->parent->parent, v->state.pressed);
     ui_app.request_redraw();
     app_data.fm = v->state.pressed;
 }
 
-static void controls_set_large(ui_view_t* v, bool on_off) {
+static void controls_set_large(struct ui_view* v, bool on_off) {
     ui_view_for_each(v, it, {
         controls_set_large(it, on_off);
         it->fm = on_off ? &ui_app.fm.prop.H1 : &ui_app.fm.prop.normal;
     });
 }
 
-static void controls_large(ui_view_t* v) {
+static void controls_large(struct ui_view* v) {
     controls_set_large(v->parent->parent->parent, v->state.pressed);
     app_data.large = v->state.pressed;
     ui_app.request_layout();
 }
 
-static void button_pressed(ui_view_t* v) {
+static void button_pressed(struct ui_view* v) {
     if (v->shortcut != 0) {
         rt_println("'%c' 0x%02X %d, %s \"%s\"",
             v->shortcut, v->shortcut, v->shortcut,
@@ -451,7 +451,7 @@ static void button_pressed(ui_view_t* v) {
     }
 }
 
-static void controls_test(ui_view_t* parent) {
+static void controls_test(struct ui_view* parent) {
     #define wild_string                                 \
         "A"  rt_glyph_zwsp                              \
         rt_glyph_combining_enclosing_circle             \
@@ -461,14 +461,14 @@ static void controls_test(ui_view_t* parent) {
     // and switch. list_test() becomes init() like switching views
     // removing and adding child
     ui_view.disband(parent);
-    static ui_view_t   list    = ui_view(list);
-    static ui_view_t   span    = ui_view(span);
+    static struct ui_view   list    = ui_view(list);
+    static struct ui_view   span    = ui_view(span);
     // horizontal inside span
     static ui_toggle_t large   = ui_toggle("&Large", 3.0f, controls_large);
     static ui_label_t  left    = ui_label(0, "Left");
     static ui_button_t button1 = ui_button("&Button", 0, button_pressed);
     static ui_label_t  right   = ui_label(0, "Right");
-    static ui_slider_t slider1 = ui_slider("%d", 6.0f, 0, UINT16_MAX,
+    static struct ui_slider slider1 = ui_slider("%d", 6.0f, 0, UINT16_MAX,
                                            slider_format, slider_callback);
     static ui_toggle_t toggle1 = ui_toggle("Toggle: ___", 4.0f, null);
     static ui_button_t egypt   = ui_button("\xC3\x84\x67\x79\x70\x74\x65\x6E",
@@ -478,15 +478,15 @@ static void controls_test(ui_view_t* parent) {
     #define min_w_in_em (8.5f)
     static ui_label_t  label   = ui_label(min_w_in_em, "Label");
     static ui_button_t button2 = ui_button("Button", min_w_in_em, null);
-    static ui_slider_t slider2 = ui_slider("%d", min_w_in_em, 0, UINT16_MAX,
+    static struct ui_slider slider2 = ui_slider("%d", min_w_in_em, 0, UINT16_MAX,
                                             slider_format, slider_callback);
-    static ui_slider_t slider3 = ui_slider("%d", min_w_in_em, 0, UINT16_MAX,
+    static struct ui_slider slider3 = ui_slider("%d", min_w_in_em, 0, UINT16_MAX,
                                             slider_format, slider_callback);
     static ui_toggle_t margins    = ui_toggle("&margins", min_w_in_em,
                                             controls_margins);
     static ui_toggle_t fm      = ui_toggle("&Font Metrics", min_w_in_em,
                                             controls_fm);
-    static ui_view_t   spacer  = ui_view(spacer);
+    static struct ui_view   spacer  = ui_view(spacer);
     ui_view.add(&test,
         ui_view.add(&list,
             ui_view.add(&span,
@@ -533,7 +533,7 @@ static void controls_test(ui_view_t* parent) {
 
 // edit1 test
 
-static void edit1_test(ui_view_t* parent) {
+static void edit1_test(struct ui_view* parent) {
     // TODO: do not need to disband everything just remove children
     // and switch. list_test() becomes init() like switching views
     // removing and adding child
@@ -552,9 +552,9 @@ static void edit1_test(ui_view_t* parent) {
             }
         }
     }
-    static ui_view_t list = ui_view(list);
-    static ui_edit_view_t edit = {0};
-    static ui_edit_doc_t doc = {0};
+    static struct ui_view list = ui_view(list);
+    static struct ui_edit_view edit = {0};
+    static struct ui_edit_doc doc = {0};
     if (doc.text.np == 0) {
         rt_swear(ui_edit_doc.init(&doc, text, (int32_t)bytes, false));
         ui_edit_view.init(&edit, &doc);

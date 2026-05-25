@@ -24,7 +24,7 @@ void dxd_fini(void);
 
 // `hdc` is the target device context (window canvas or an offscreen memory
 // DC); `rc` is the bound region in pixels.
-dxd_context_t dxd_begin(void * hdc, const ui_rect_t * rc);
+dxd_context_t dxd_begin(void * hdc, const struct ui_rect * rc);
 void          dxd_end(dxd_context_t ctx);
 
 void dxd_set_clip(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h);
@@ -37,7 +37,7 @@ void dxd_rect(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h,
               ui_color_t border, ui_color_t fill);
 void dxd_fill(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h,
               ui_color_t color);
-void dxd_poly(dxd_context_t ctx, ui_point_t * points, int32_t count,
+void dxd_poly(dxd_context_t ctx, struct ui_point * points, int32_t count,
               ui_color_t color);
 void dxd_circle(dxd_context_t ctx, int32_t x, int32_t y, int32_t radius,
                 ui_color_t border, ui_color_t fill);
@@ -58,7 +58,7 @@ void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh
 // (created on first use, refreshed from `pixels` on each call, rebuilt after
 // device loss) so repeated blits of the same image avoid re-creating and
 // re-uploading a Direct2D bitmap every frame. Pass the address of a void*
-// that lives as long as the source pixels (e.g. &ui_bitmap_t.dxd), zeroed
+// that lives as long as the source pixels (e.g. &struct ui_bitmap.dxd), zeroed
 // before first use. Release it with dxd_bitmap_dispose() when the source is
 // freed.
 void dxd_image_cached(dxd_context_t ctx, void ** cache,
@@ -72,10 +72,10 @@ void dxd_bitmap_dispose(void ** cache);
 // derived from its LOGFONT. `measure_only` skips drawing. `w` > 0 with
 // `multiline` wraps; otherwise single line. `mnemonic` processes '&' (strip
 // it, underline the next glyph; '&&' is a literal '&'). Returns the size.
-ui_wh_t dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
+struct ui_wh dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
                  int32_t w, ui_color_t color, const char * utf8, int32_t bytes,
                  bool measure_only, bool multiline, bool mnemonic);
-ui_wh_t dxd_glyphs_placement(ui_font_t font, const char * utf8, int32_t bytes,
+struct ui_wh dxd_glyphs_placement(ui_font_t font, const char * utf8, int32_t bytes,
                              int32_t x_out[], int32_t glyphs);
 
 #ifdef __cplusplus

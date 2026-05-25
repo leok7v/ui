@@ -2,7 +2,7 @@
 #include "single_file_lib/rt/rt.h"
 #include "single_file_lib/ui/ui.h"
 
-static int64_t hit_test(const ui_view_t* v, ui_point_t pt) {
+static int64_t hit_test(const struct ui_view* v, struct ui_point pt) {
     rt_swear(v == ui_app.content);
     if (ui_view.inside(v, &pt)) {
         if (pt.y < v->fm->em.h && ui_app.caption->state.hidden) {
@@ -18,11 +18,11 @@ static int64_t hit_test(const ui_view_t* v, ui_point_t pt) {
 }
 
 static void opened(void) {
-//  ui_app.content->insets = (ui_margins_t){ 0, 0, 0, 0 };
+//  ui_app.content->insets = (struct ui_margins){ 0, 0, 0, 0 };
     static ui_label_t hello = ui_label(0.0, "Hello");
-//  hello.padding = (ui_margins_t){ 0, 0, 0, 0 };
-//  hello.insets  = (ui_margins_t){ 0, 0, 0, 0 };
-    static ui_fm_t fm;
+//  hello.padding = (struct ui_margins){ 0, 0, 0, 0 };
+//  hello.insets  = (struct ui_margins){ 0, 0, 0, 0 };
+    static struct ui_fm fm;
     ui_draw.update_fm(&fm, ui_draw.create_font("Segoe Script", ui_app.in2px(0.5f), -1));
     hello.fm = &fm;
     ui_app.set_layered_window(ui_color_rgb(30, 30, 30), 0.75f);
@@ -31,14 +31,14 @@ static void opened(void) {
     ui_app.content->hit_test = hit_test;
 }
 
-static void character(ui_view_t* rt_unused(v), const char* utf8) {
+static void character(struct ui_view* rt_unused(v), const char* utf8) {
     if (utf8[0] == 033) { // escape
         if (!ui_app.is_full_screen) { ui_app.quit(0); }
         if ( ui_app.is_full_screen) { ui_app.full_screen(false); }
     }
 }
 
-static bool key_pressed(ui_view_t* rt_unused(v), int64_t key) {
+static bool key_pressed(struct ui_view* rt_unused(v), int64_t key) {
     bool swallow = key == ui.key.f11;
     if (swallow) { ui_app.full_screen(!ui_app.is_full_screen); }
     return swallow;
@@ -54,7 +54,7 @@ static void init(void) {
     ui_caption.menu.state.hidden = true;
 }
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "sample2",
     .dark_mode = true,
     .init = init,

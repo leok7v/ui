@@ -127,22 +127,22 @@ static void ui_app_alt_ctrl_shift(bool down, int64_t key) {
     if (key == VK_SHIFT)   { ui_app.shift = down; }
 }
 
-static inline ui_point_t ui_app_point2ui(const POINT* p) {
-    ui_point_t u = { p->x, p->y };
+static inline struct ui_point ui_app_point2ui(const POINT* p) {
+    struct ui_point u = { p->x, p->y };
     return u;
 }
 
-static inline POINT ui_app_ui2point(const ui_point_t* u) {
+static inline POINT ui_app_ui2point(const struct ui_point* u) {
     POINT p = { u->x, u->y };
     return p;
 }
 
-static ui_rect_t ui_app_rect2ui(const RECT* r) {
-    ui_rect_t u = { r->left, r->top, r->right - r->left, r->bottom - r->top };
+static struct ui_rect ui_app_rect2ui(const RECT* r) {
+    struct ui_rect u = { r->left, r->top, r->right - r->left, r->bottom - r->top };
     return u;
 }
 
-static RECT ui_app_ui2rect(const ui_rect_t* u) {
+static RECT ui_app_ui2rect(const struct ui_rect* u) {
     RECT r = { u->x, u->y, u->x + u->w, u->y + u->h };
     return r;
 }
@@ -153,7 +153,7 @@ static void ui_app_update_ncm(int32_t dpi) {
         sizeof(ui_app_ncm), &ui_app_ncm, 0, (DWORD)dpi));
 }
 
-static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
+static void ui_app_update_monitor_dpi(HMONITOR monitor, struct ui_dpi* dpi) {
     dpi->monitor_max = 72;
     for (int32_t mtd = MDT_EFFECTIVE_DPI; mtd <= MDT_RAW_DPI; mtd++) {
         uint32_t dpi_x = 0;
@@ -230,7 +230,7 @@ static void ui_app_dump_dpi(void) {
 
 #endif
 
-static bool ui_app_update_mi(const ui_rect_t* r, uint32_t flags) {
+static bool ui_app_update_mi(const struct ui_rect* r, uint32_t flags) {
     RECT rc = ui_app_ui2rect(r);
     HMONITOR monitor = MonitorFromRect(&rc, flags);
 //  TODO: moving between monitors with different DPIs
@@ -320,7 +320,7 @@ static void ui_app_ncm_dump_fonts(void) {
 }
 
 static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
-                                  ui_fm_t* fm) {
+                                  struct ui_fm* fm) {
     rt_swear(abs(lf->lfHeight) == fm->height - fm->internal_leading);
     rt_swear(fm->external_leading == 0); // "Segoe UI" and "Cascadia Mono"
     rt_swear(ui_app.dpi.window >= 72);
@@ -352,7 +352,7 @@ static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
     #endif
 }
 
-static void ui_app_init_fms(ui_fms_t* fms, const LOGFONTW* base) {
+static void ui_app_init_fms(struct ui_fms* fms, const LOGFONTW* base) {
     LOGFONTW lf = *base;
     // lf.lfQuality is zero (DEFAULT_QUALITY) that gets internally
     // interpreted as CLEARTYPE_QUALITY (if clear type is enabled
@@ -417,26 +417,26 @@ static int32_t ui_app_data_load(const char* name, void* data, int32_t bytes) {
     return rt_config.load(ui_app.class_name, name, data, bytes);
 }
 
-typedef rt_begin_packed struct ui_app_wiw_s { // "where is window"
+rt_begin_packed struct ui_app_wiw { // "where is window"
     // coordinates in pixels relative (0,0) top left corner
     // of primary monitor from GetWindowPlacement
     int32_t    bytes;
     int32_t    padding;      // to align rectangles and points to 8 bytes
-    ui_rect_t  placement;
-    ui_rect_t  mrc;          // monitor rectangle
-    ui_rect_t  work_area;    // monitor work area (mrc sans taskbar etc)
-    ui_point_t min_position; // not used (-1, -1)
-    ui_point_t max_position; // not used (-1, -1)
-    ui_point_t max_track;    // maximum window size (spawning all monitors)
-    ui_rect_t  space;        // surrounding rect x,y,w,h of all monitors
+    struct ui_rect  placement;
+    struct ui_rect  mrc;          // monitor rectangle
+    struct ui_rect  work_area;    // monitor work area (mrc sans taskbar etc)
+    struct ui_point min_position; // not used (-1, -1)
+    struct ui_point max_position; // not used (-1, -1)
+    struct ui_point max_track;    // maximum window size (spawning all monitors)
+    struct ui_rect  space;        // surrounding rect x,y,w,h of all monitors
     int32_t    dpi;          // of the monitor on which window (x,y) is located
     int32_t    flags;        // WPF_SETMINPOSITION. WPF_RESTORETOMAXIMIZED
     int32_t    show;         // show command
-} rt_end_packed ui_app_wiw_t;
+} rt_end_packed;
 
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
         HDC rt_unused(hdc), RECT* rt_unused(rc1), LPARAM that) {
-    ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
+    struct ui_app_wiw* wiw = (struct ui_app_wiw*)(uintptr_t)that;
     MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
     rt_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
@@ -453,7 +453,7 @@ static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
     return true; // keep going
 }
 
-static void ui_app_enum_monitors(ui_app_wiw_t* wiw) {
+static void ui_app_enum_monitors(struct ui_app_wiw* wiw) {
     EnumDisplayMonitors(null, null, ui_app_monitor_enum_proc,
         (LPARAM)(uintptr_t)wiw);
     // because ui_app_monitor_enum_proc() puts max into w,h:
@@ -464,13 +464,13 @@ static void ui_app_enum_monitors(ui_app_wiw_t* wiw) {
 static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump) {
     RECT wr = {0};
     rt_fatal_win32err(GetWindowRect((HWND)wnd, &wr));
-    ui_rect_t wrc = ui_app_rect2ui(&wr);
+    struct ui_rect wrc = ui_app_rect2ui(&wr);
     ui_app_update_mi(&wrc, MONITOR_DEFAULTTONEAREST);
     WINDOWPLACEMENT wpl = { .length = sizeof(wpl) };
     rt_fatal_win32err(GetWindowPlacement((HWND)wnd, &wpl));
     // note the replacement of wpl.rcNormalPosition with wrc:
-    ui_app_wiw_t wiw = { // where is window
-        .bytes = sizeof(ui_app_wiw_t),
+    struct ui_app_wiw wiw = { // where is window
+        .bytes = sizeof(struct ui_app_wiw),
         .placement = wrc,
         .mrc = ui_app.mrc,
         .work_area = ui_app.work_area,
@@ -530,14 +530,14 @@ static void ui_app_save_console_pos(void) {
     rt_config.save(ui_app.class_name, "icv", &v, (int32_t)sizeof(v));
 }
 
-static bool ui_app_is_fully_inside(const ui_rect_t* inner,
-                                const ui_rect_t* outer) {
+static bool ui_app_is_fully_inside(const struct ui_rect* inner,
+                                const struct ui_rect* outer) {
     return
         outer->x <= inner->x && inner->x + inner->w <= outer->x + outer->w &&
         outer->y <= inner->y && inner->y + inner->h <= outer->y + outer->h;
 }
 
-static void ui_app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* wrc) {
+static void ui_app_bring_window_inside_monitor(const struct ui_rect* mrc, struct ui_rect* wrc) {
     rt_assert(mrc->w > 0 && mrc->h > 0);
     // Check if window rect is inside monitor rect
     if (!ui_app_is_fully_inside(wrc, mrc)) {
@@ -552,8 +552,8 @@ static void ui_app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* 
     }
 }
 
-static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
-    ui_app_wiw_t wiw = {0}; // where is window
+static bool ui_app_load_window_pos(struct ui_rect* rect, int32_t *visibility) {
+    struct ui_app_wiw wiw = {0}; // where is window
     bool loaded = rt_config.load(ui_app.class_name, "wiw", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
@@ -593,8 +593,8 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
     return loaded;
 }
 
-static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
-    ui_app_wiw_t wiw = {0}; // where is window
+static bool ui_app_load_console_pos(struct ui_rect* rect, int32_t *visibility) {
+    struct ui_app_wiw wiw = {0}; // where is window
     *visibility = 0; // boolean
     bool loaded = rt_config.load(ui_app.class_name, "wic", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
@@ -633,7 +633,7 @@ static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
     return tid;
 }
 
-static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
+static void ui_app_timer(struct ui_view* view, ui_timer_t id) {
     ui_view.timer(view, id);
     if (id == ui_app_timer_1s_id) { ui_view.every_sec(view); }
     if (id == ui_app_timer_100ms_id) { ui_view.every_100ms(view); }
@@ -706,8 +706,8 @@ static void ui_app_window_closing(void) {
 }
 
 static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
-    const ui_window_sizing_t* ws = &ui_app.window_sizing;
-    const ui_rect_t* wa = &ui_app.work_area;
+    const struct ui_window_sizing* ws = &ui_app.window_sizing;
+    const struct ui_rect* wa = &ui_app.work_area;
     const int32_t min_w = ws->min_w > 0 ? ui_app.in2px(ws->min_w) : ui_app.in2px(1.0);
     const int32_t min_h = ws->min_h > 0 ? ui_app.in2px(ws->min_h) : ui_app.in2px(0.5);
     mmi->ptMinTrackSize.x = min_w;
@@ -726,13 +726,13 @@ static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
 }
 
-static void ui_app_paint(ui_view_t* view) {
+static void ui_app_paint(struct ui_view* view) {
     rt_assert(ui_app_window() != null);
     // crc = {0,0} on minimized windows but paint is still called
     if (ui_app.crc.w > 0 && ui_app.crc.h > 0) { ui_view.paint(view); }
 }
 
-static void ui_app_measure_and_layout(ui_view_t* view) {
+static void ui_app_measure_and_layout(struct ui_view* view) {
     // restore from minimized calls ui_app.crc.w,h == 0
     if (ui_app.crc.w > 0 && ui_app.crc.h > 0 && ui_app_window() != null) {
         ui_view.measure(view);
@@ -743,9 +743,9 @@ static void ui_app_measure_and_layout(ui_view_t* view) {
 
 static void ui_app_toast_character(const char* utf8);
 static bool ui_app_toast_key_pressed(int64_t key);
-static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed);
+static bool ui_app_toast_tap(struct ui_view* v, int32_t ix, bool pressed);
 
-static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
+static void ui_app_dispatch_wm_char(struct ui_view* view, const uint16_t* utf16) {
     char utf8[32 + 1];
     int32_t utf8bytes = rt_str.utf8_bytes(utf16, -1);
     rt_swear(utf8bytes < rt_countof(utf8) - 1); // 32 bytes + 0x00
@@ -759,7 +759,7 @@ static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
     ui_app_high_surrogate = 0x0000;
 }
 
-static void ui_app_wm_char(ui_view_t* view, const uint16_t* utf16) {
+static void ui_app_wm_char(struct ui_view* view, const uint16_t* utf16) {
     int32_t utf16chars = rt_str.len16(utf16);
     rt_swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
     const uint16_t utf16char = utf16[0];
@@ -779,7 +779,7 @@ static void ui_app_wm_char(ui_view_t* view, const uint16_t* utf16) {
     }
 }
 
-static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_app_wm_key_pressed(struct ui_view* v, int64_t key) {
     if (ui_app.animating.view != null) {
         return ui_app_toast_key_pressed(key);
     } else {
@@ -787,14 +787,14 @@ static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
     }
 }
 
-static bool ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
+static bool ui_app_mouse(struct ui_view* v, int32_t m, int64_t f) {
     bool swallow = false;
     // override ui_app_update_mouse_buttons_state() (sic):
     // because mouse message can be from the past
     ui_app.mouse_left   = f & (ui_app.mouse_swapped ? MK_RBUTTON : MK_LBUTTON);
     ui_app.mouse_middle = f & MK_MBUTTON;
     ui_app.mouse_right  = f & (ui_app.mouse_swapped ? MK_LBUTTON : MK_RBUTTON);
-    ui_view_t* av = ui_app.animating.view;
+    struct ui_view* av = ui_app.animating.view;
     if (m == WM_MOUSEHOVER) {
         ui_view.mouse_hover(av != null && av->mouse_hover != null ? av : v);
     } else if (m == WM_MOUSEMOVE) {
@@ -904,17 +904,17 @@ static bool ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
 enum { ui_app_animation_steps = 63 };
 
 static void ui_app_toast_paint(void) {
-    static ui_bitmap_t image_dark;
+    static struct ui_bitmap image_dark;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
         ui_draw.bitmap_init(&image_dark, 1, 1, 3, pixels);
     }
-    static ui_bitmap_t image_light;
+    static struct ui_bitmap image_light;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
         ui_draw.bitmap_init(&image_light, 1, 1, 3, pixels);
     }
-    ui_view_t* av = ui_app.animating.view;
+    struct ui_view* av = ui_app.animating.view;
     if (av != null) {
         ui_view.measure(av);
         bool hint = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
@@ -969,7 +969,7 @@ static void ui_app_toast_paint(void) {
                 int32_t r = av->x + av->w;
                 const int32_t tx = r - em_w / 2;
                 const int32_t ty = 0;
-                const ui_ta_t ta = {
+                const struct ui_ta ta = {
                     .fm = &ui_app.fm.prop.normal,
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
@@ -984,7 +984,7 @@ static void ui_app_toast_paint(void) {
 static void ui_app_toast_cancel(void) {
     if (ui_app.animating.view != null) {
         if (ui_app.animating.view->type == ui_view_mbx) {
-            ui_mbx_t* mx = (ui_mbx_t*)ui_app.animating.view;
+            struct ui_mbx* mx = (struct ui_mbx*)ui_app.animating.view;
             if (mx->option < 0 && mx->callback != null) {
                 mx->callback(&mx->view);
             }
@@ -1008,11 +1008,11 @@ static void ui_app_toast_cancel(void) {
     }
 }
 
-static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed) {
+static bool ui_app_toast_tap(struct ui_view* v, int32_t ix, bool pressed) {
     bool swallow = false;
     rt_swear(v == ui_app.animating.view);
     if (pressed) {
-        const ui_fm_t* fm = v->fm;
+        const struct ui_fm* fm = v->fm;
         const int32_t right = v->x + v->w;
         const int32_t x = right - fm->em.w / 2;
         const int32_t mx = ui_app.mouse.x;
@@ -1089,7 +1089,7 @@ static void ui_app_animate_start(ui_app_animate_function_t f, int32_t steps) {
     ui_app_animate_step(f, 0, steps);
 }
 
-static void ui_app_view_paint(ui_view_t* v) {
+static void ui_app_view_paint(struct ui_view* v) {
     v->color = ui_colors.get_color(v->color_id);
     if (v->background_id > 0) {
         v->background = ui_colors.get_color(v->background_id);
@@ -1275,14 +1275,14 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #define ui_timers_done(ix) do {                  \
         clicked[ix] = 0;                             \
         pressed[ix] = false;                         \
-        click_at[ix] = (ui_point_t){0, 0};           \
+        click_at[ix] = (struct ui_point){0, 0};           \
         ui_kill_timer(timer_p[ix]);                  \
         ui_kill_timer(timer_d[ix]);                  \
     } while (0)
 
     // This function should work regardless to CS_BLKCLK being present
     // 0: Left, 1: Middle, 2: Right
-    static ui_point_t click_at[3];
+    static struct ui_point click_at[3];
     static fp64_t     clicked[3]; // click time
     static bool       pressed[3];
     static ui_timer_t timer_d[3]; // double tap
@@ -1304,7 +1304,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     if (msg == WM_TIMER) { // long press && double tap
         for (int i = 0; i < 3; i++) {
             if (wp == timer_p[i]) {
-                ui_app.mouse = (ui_point_t){ click_at[i].x, click_at[i].y };
+                ui_app.mouse = (struct ui_point){ click_at[i].x, click_at[i].y };
                 ui_view.long_press(ui_app.root, i);
 //              rt_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
@@ -1323,13 +1323,13 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 //               double_click_msec, double_click_dt);
         const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
-        ui_point_t pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+        struct ui_point pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
         if (m == tap && !up) {
             swallow = ui_view.tap(ui_app.root, ix, !up);
             if (ui_app.now  - clicked[ix]  <= double_click_dt &&
                 abs(pt.x - click_at[ix].x) <= double_click_x &&
                 abs(pt.y - click_at[ix].y) <= double_click_y) {
-                ui_app.mouse = (ui_point_t){ click_at[ix].x, click_at[ix].y };
+                ui_app.mouse = (struct ui_point){ click_at[ix].x, click_at[ix].y };
                 ui_view.double_tap(ui_app.root, ix);
 //              rt_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
@@ -1373,7 +1373,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     return swallow;
 }
 
-static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
+static int64_t ui_app_root_hit_test(const struct ui_view* v, struct ui_point pt) {
     rt_swear(v == ui_app.root);
     if (ui_app.no_decor) {
         rt_assert(ui_app.border.w == ui_app.border.h);
@@ -1432,7 +1432,7 @@ static void ui_app_update_mouse_buttons_state(void) {
 }
 
 static int64_t ui_app_wm_nc_hit_test(int64_t wp, int64_t lp) {
-    ui_point_t pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
+    struct ui_point pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
                       GET_Y_LPARAM(lp) - ui_app.wrc.y };
     int64_t ht = ui_view.hit_test(ui_app.root, pt);
     if (ht != ui.hit_test.nowhere) {
@@ -1488,7 +1488,7 @@ static int64_t ui_app_wm_get_dpi_scaled_size(int64_t wp) {
     #ifdef UI_APP_DEBUG
         int32_t dpi = wp;
         SIZE* sz = (SIZE*)lp; // in/out
-        ui_point_t cell = { sz->cx, sz->cy };
+        struct ui_point cell = { sz->cx, sz->cy };
         rt_println("WM_GETDPISCALEDSIZE dpi %d := %d "
             "size %d,%d *may/must* be adjusted",
             ui_app.dpi.window, dpi, cell.x, cell.y);
@@ -1564,10 +1564,10 @@ static bool ui_app_wm_mouse(int32_t m, int64_t wp, int64_t lp) {
 
 static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
     if (vertical) {
-        ui_point_t dx_dy = { 0, GET_WHEEL_DELTA_WPARAM(wp) };
+        struct ui_point dx_dy = { 0, GET_WHEEL_DELTA_WPARAM(wp) };
         ui_view.mouse_scroll(ui_app.root, dx_dy);
     } else {
-        ui_point_t dx_dy = { GET_WHEEL_DELTA_WPARAM(wp), 0 };
+        struct ui_point dx_dy = { GET_WHEEL_DELTA_WPARAM(wp), 0 };
         ui_view.mouse_scroll(ui_app.root, dx_dy);
     }
 }
@@ -1716,7 +1716,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         ui_app_animate_step((ui_app_animate_function_t)lp, (int32_t)wp, -1);
         return 0;
     }
-    ui_app_message_handler_t* handler = ui_app.handlers; 
+    struct ui_app_message_handler* handler = ui_app.handlers; 
     while (handler != null) { 
         if (handler->callback(handler, m, wp, lp, &ret)) {
             return ret;
@@ -1988,7 +1988,7 @@ static void ui_app_init_sys_menu(void) {
     }
 }
 
-static void ui_app_create_window(const ui_rect_t r) {
+static void ui_app_create_window(const struct ui_rect r) {
     uint16_t class_name[256];
     rt_str.utf8to16(class_name, rt_countof(class_name), ui_app.class_name, -1);
     WNDCLASSW* wc = &ui_app_wc;
@@ -2067,7 +2067,7 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
-static bool ui_app_set_focus(ui_view_t* rt_unused(v)) { return false; }
+static bool ui_app_set_focus(struct ui_view* rt_unused(v)) { return false; }
 
 static void ui_app_request_redraw(void) {  // < 2us
     SetEvent(ui_app_event_invalidate);
@@ -2078,7 +2078,7 @@ static void ui_app_draw(void) {
     UpdateWindow(ui_app_window());
 }
 
-static void ui_app_invalidate_rect(const ui_rect_t* r) {
+static void ui_app_invalidate_rect(const struct ui_rect* r) {
     RECT rc = ui_app_ui2rect(r);
     InvalidateRect(ui_app_window(), &rc, false);
 //  rt_backtrace_here();
@@ -2130,14 +2130,14 @@ static void ui_app_quit(int32_t exit_code) {
     ui_app.close(); // close and destroy app only window
 }
 
-static void ui_app_show_hint_or_toast(ui_view_t* v, int32_t x, int32_t y,
+static void ui_app_show_hint_or_toast(struct ui_view* v, int32_t x, int32_t y,
         fp64_t timeout) {
     if (v != null) {
         ui_app.animating.x = x;
         ui_app.animating.y = y;
         ui_app.animating.focused = ui_app.focus;
         if (v->type == ui_view_mbx) {
-            ((ui_mbx_t*)v)->option = -1;
+            ((struct ui_mbx*)v)->option = -1;
             if (v->focusable) {
                  ui_view.set_focus(v);
             }
@@ -2155,11 +2155,11 @@ static void ui_app_show_hint_or_toast(ui_view_t* v, int32_t x, int32_t y,
     }
 }
 
-static void ui_app_show_toast(ui_view_t* view, fp64_t timeout) {
+static void ui_app_show_toast(struct ui_view* view, fp64_t timeout) {
     ui_app_show_hint_or_toast(view, -1, -1, timeout);
 }
 
-static void ui_app_show_hint(ui_view_t* view, int32_t x, int32_t y,
+static void ui_app_show_hint(struct ui_view* view, int32_t x, int32_t y,
         fp64_t timeout) {
     if (view != null) {
         ui_app_show_hint_or_toast(view, x, y, timeout);
@@ -2400,7 +2400,7 @@ static void ui_app_capture_mouse(bool on) {
     }
 }
 
-static void ui_app_move_and_resize(const ui_rect_t* rc) {
+static void ui_app_move_and_resize(const struct ui_rect* rc) {
     enum { swp = SWP_NOZORDER | SWP_NOACTIVATE };
     ui_app_swp(null, rc->x, rc->y, rc->w, rc->h, swp);
 }
@@ -2421,7 +2421,7 @@ static void ui_app_restore_console(int32_t *visibility) {
     if (cw != null) {
         RECT wr = {0};
         GetWindowRect(cw, &wr);
-        ui_rect_t rc = ui_app_rect2ui(&wr);
+        struct ui_rect rc = ui_app_rect2ui(&wr);
         ui_app_load_console_pos(&rc, visibility);
         if (rc.w > 0 && rc.h > 0) {
 //          rt_println("%d,%d %dx%d px", rc.x, rc.y, rc.w, rc.h);
@@ -2571,7 +2571,7 @@ static const char* ui_app_open_file(const char* folder,
 
 // TODO: use clipboard instead?
 
-static errno_t ui_app_clipboard_put_image(ui_bitmap_t* im) {
+static errno_t ui_app_clipboard_put_image(struct ui_bitmap* im) {
     HDC canvas = GetDC(null);
     rt_not_null(canvas);
     HDC src = CreateCompatibleDC(canvas); rt_not_null(src);
@@ -2613,8 +2613,8 @@ static errno_t ui_app_clipboard_put_image(ui_bitmap_t* im) {
     return r;
 }
 
-static ui_view_t ui_app_view = ui_view(list);
-static ui_view_t ui_app_content = ui_view(stack);
+static struct ui_view ui_app_view = ui_view(list);
+static struct ui_view ui_app_content = ui_view(stack);
 
 static bool ui_app_is_active(void) { return GetActiveWindow() == ui_app_window(); }
 
@@ -2702,13 +2702,13 @@ static void ui_app_init(void) {
     rt_assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;
-    ui_app.root->insets  = (ui_margins_t){ 0, 0, 0, 0 };
-    ui_app.root->padding = (ui_margins_t){ 0, 0, 0, 0 };
+    ui_app.root->insets  = (struct ui_margins){ 0, 0, 0, 0 };
+    ui_app.root->padding = (struct ui_margins){ 0, 0, 0, 0 };
     ui_app.root->paint = ui_app_view_paint;
     ui_app.root->max_w = ui.infinity;
     ui_app.root->max_h = ui.infinity;
-    ui_app.content->insets  = (ui_margins_t){ 0, 0, 0, 0 };
-    ui_app.content->padding = (ui_margins_t){ 0, 0, 0, 0 };
+    ui_app.content->insets  = (struct ui_margins){ 0, 0, 0, 0 };
+    ui_app.content->padding = (struct ui_margins){ 0, 0, 0, 0 };
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->state.hidden = !ui_app.no_decor;
@@ -2760,13 +2760,13 @@ static void ui_app_init_windows(void) {
     ui_app.dpi.monitor_max = ui_app.dpi.system;
 //  rt_println("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
     static const RECT nowhere = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
-    ui_rect_t r = ui_app_rect2ui(&nowhere);
+    struct ui_rect r = ui_app_rect2ui(&nowhere);
     ui_app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
     ui_app.dpi.window = ui_app.dpi.monitor_effective;
 }
 
-static ui_rect_t ui_app_window_initial_rectangle(void) {
-    const ui_window_sizing_t* ws = &ui_app.window_sizing;
+static struct ui_rect ui_app_window_initial_rectangle(void) {
+    const struct ui_window_sizing* ws = &ui_app.window_sizing;
     // it is not practical and thus not implemented handling
     // == (0, 0) and != (0, 0) for sizing half dimension (only w or only h)
     rt_swear((ws->min_w != 0) == (ws->min_h != 0) &&
@@ -2792,7 +2792,7 @@ static ui_rect_t ui_app_window_initial_rectangle(void) {
     int32_t min_w = ws->min_w > 0 ? ui_app.in2px(ws->min_w) : ui_app.work_area.w / 4;
     int32_t min_h = ws->min_h > 0 ? ui_app.in2px(ws->min_h) : ui_app.work_area.h / 4;
     // (x, y) (-1, -1) means "let Windows manager position the window"
-    ui_rect_t r = {-1, -1,
+    struct ui_rect r = {-1, -1,
                    ini_w > 0 ? ini_w : min_w, ini_h > 0 ? ini_h : min_h};
     return r;
 }
@@ -2996,7 +2996,7 @@ static int ui_app_win_main(HINSTANCE instance) {
     // https://learn.microsoft.com/en-us/windows/win32/dwm/customframe
     // TODO: if any app need to make to app store they will probably ask for it
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
-    ui_rect_t wr = ui_app_window_initial_rectangle();
+    struct ui_rect wr = ui_app_window_initial_rectangle();
     ui_app.caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION,
                                 (uint32_t)ui_app.dpi.process);
     ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME,

@@ -2,7 +2,7 @@
 #include "ui/ui.h"
 
 static void ui_mbx_button(ui_button_t* b) {
-    ui_mbx_t* m = (ui_mbx_t*)b->parent;
+    struct ui_mbx* m = (struct ui_mbx*)b->parent;
     rt_assert(m->type == ui_view_mbx);
     m->option = -1;
     for (int32_t i = 0; i < rt_countof(m->button) && m->option < 0; i++) {
@@ -19,8 +19,8 @@ static void ui_mbx_button(ui_button_t* b) {
     ui_app.show_toast(null, 0);
 }
 
-static void ui_mbx_measured(ui_view_t* v) {
-    ui_mbx_t* m = (ui_mbx_t*)v;
+static void ui_mbx_measured(struct ui_view* v) {
+    struct ui_mbx* m = (struct ui_mbx*)v;
     int32_t n = 0;
     ui_view_for_each(v, c, { n++; });
     n--; // number of buttons
@@ -41,8 +41,8 @@ static void ui_mbx_measured(ui_view_t* v) {
     }
 }
 
-static void ui_mbx_layout(ui_view_t* v) {
-    ui_mbx_t* m = (ui_mbx_t*)v;
+static void ui_mbx_layout(struct ui_view* v) {
+    struct ui_mbx* m = (struct ui_mbx*)v;
     int32_t n = 0;
     ui_view_for_each(v, c, { n++; });
     n--; // number of buttons
@@ -69,8 +69,8 @@ static void ui_mbx_layout(ui_view_t* v) {
     }
 }
 
-void ui_view_init_mbx(ui_view_t* v) {
-    ui_mbx_t* m = (ui_mbx_t*)v;
+void ui_view_init_mbx(struct ui_view* v) {
+    struct ui_mbx* m = (struct ui_mbx*)v;
     v->measured = ui_mbx_measured;
     v->layout = ui_mbx_layout;
     m->fm = &ui_app.fm.prop.normal;
@@ -95,7 +95,7 @@ void ui_view_init_mbx(ui_view_t* v) {
     if (m->debug.id == null) { m->debug.id = "#mbx"; }
 }
 
-void ui_mbx_init(ui_mbx_t* m, const char* options[],
+void ui_mbx_init(struct ui_mbx* m, const char* options[],
         const char* format, ...) {
     m->type = ui_view_mbx;
     m->measured  = ui_mbx_measured;

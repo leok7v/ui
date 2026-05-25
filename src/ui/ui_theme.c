@@ -151,7 +151,7 @@ static void ui_theme_refresh(void) {
     ui_app.request_layout();
 }
 
-ui_theme_if ui_theme = {
+struct ui_theme_if ui_theme = {
     .is_app_dark                  = ui_theme_is_app_dark,
     .is_system_dark               = ui_theme_is_system_dark,
     .are_apps_dark                = ui_theme_are_apps_dark,

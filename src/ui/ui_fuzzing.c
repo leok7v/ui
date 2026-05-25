@@ -9,7 +9,7 @@ static uint32_t ui_fuzzing_seed;
 static bool     ui_fuzzing_running;
 static bool     ui_fuzzing_inside;
 
-static ui_fuzzing_t ui_fuzzing_work;
+static struct ui_fuzzing ui_fuzzing_work;
 
 static const char* lorem_ipsum_words[] = {
     "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing",
@@ -90,7 +90,7 @@ static const char* lorem_ipsum_words[] = {
     "\xF0\x9F\x93\x80\xF0\x9F\x9A\x80\xF0\x9F\xA7\x81\xF0\x9F\x93\xAF\xF0\x9F\x8C\xAF\xF0\x9F" \
     "\x90\xA5\xF0\x9F\xA7\x83\xF0\x9F\x8D\xBB\xF0\x9F\x8E\xAE";
 
-typedef struct {
+struct ui_fuzzing_generator_params {
     char* text;
     int32_t count; // at least 1KB
     uint32_t seed; // seed for random generator
@@ -101,7 +101,7 @@ typedef struct {
     int32_t min_words; // at least 2
     int32_t max_words;
     const char* append; // append after each paragraph (e.g. extra "\n")
-} ui_fuzzing_generator_params_t;
+};
 
 static uint32_t ui_fuzzing_random(void) {
     return rt_num.random32(&ui_fuzzing_seed);
@@ -112,7 +112,7 @@ static fp64_t ui_fuzzing_random_fp64(void) {
     return (fp64_t)r / (fp64_t)UINT32_MAX;
 }
 
-static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
+static void ui_fuzzing_generator(struct ui_fuzzing_generator_params p) {
     rt_fatal_if(p.count < 1024); // at least 1KB expected
     rt_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
     rt_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
@@ -215,7 +215,7 @@ static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
     text[number_of_characters] = 0x00;
 }
 
-static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
+static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
     rt_swear(work == &ui_fuzzing_work);
     ui_app.alt = work->alt;
     ui_app.ctrl = work->ctrl;
@@ -266,9 +266,9 @@ static void ui_fuzzing_do_work(rt_work_t* p) {
     if (ui_fuzzing_running) {
         ui_fuzzing_inside = true;
         if (ui_fuzzing.custom != null) {
-            ui_fuzzing.custom((ui_fuzzing_t*)p);
+            ui_fuzzing.custom((struct ui_fuzzing*)p);
         } else {
-            ui_fuzzing.dispatch((ui_fuzzing_t*)p);
+            ui_fuzzing.dispatch((struct ui_fuzzing*)p);
         }
         ui_fuzzing_inside = false;
     } else {
@@ -281,7 +281,7 @@ static void ui_fuzzing_post(void) {
 }
 
 static void ui_fuzzing_alt_ctrl_shift(void) {
-    ui_fuzzing_t* w = &ui_fuzzing_work;
+    struct ui_fuzzing* w = &ui_fuzzing_work;
     switch (ui_fuzzing_random() % 8) {
         case 0: w->alt = 0; w->ctrl = 0; w->shift = 0; break;
         case 1: w->alt = 1; w->ctrl = 0; w->shift = 0; break;
@@ -352,12 +352,12 @@ static void ui_fuzzing_key(void) {
 static void ui_fuzzing_mouse(void) {
     // mouse events only inside edit control otherwise
     // they will start clicking buttons around
-    ui_view_t* v = ui_app.content;
-    ui_fuzzing_t* w = &ui_fuzzing_work;
+    struct ui_view* v = ui_app.content;
+    struct ui_fuzzing* w = &ui_fuzzing_work;
     int32_t x = ui_fuzzing_random() % v->w;
     int32_t y = ui_fuzzing_random() % v->h;
-    static ui_point_t pt;
-    pt = (ui_point_t){ x + v->x, y + v->y };
+    static struct ui_point pt;
+    pt = (struct ui_point){ x + v->x, y + v->y };
     if (ui_fuzzing_random() % 2) {
         w->left  = !w->left;
     }
@@ -394,9 +394,9 @@ static void ui_fuzzing_stop(void) {
     ui_fuzzing_running = false;
 }
 
-static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
+static void ui_fuzzing_next_random(struct ui_fuzzing* f) {
     rt_swear(f == &ui_fuzzing_work);
-    ui_fuzzing_work = (ui_fuzzing_t){
+    ui_fuzzing_work = (struct ui_fuzzing){
         .base = { .when = rt_clock.seconds() + 0.001, // 1ms
                   .work = ui_fuzzing_do_work },
     };
@@ -410,7 +410,7 @@ static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
     }
 }
 
-ui_fuzzing_if ui_fuzzing = {
+struct ui_fuzzing_if ui_fuzzing = {
     .start       = ui_fuzzing_start,
     .is_running  = ui_fuzzing_is_running,
     .from_inside = ui_fuzzing_from_inside,

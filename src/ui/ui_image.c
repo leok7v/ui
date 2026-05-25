@@ -7,7 +7,7 @@ static fp64_t ui_image_scale_of(int32_t nominator, int32_t denominator) {
     return (fp64_t)zn / (fp64_t)zd;
 }
 
-static fp64_t ui_image_scale(ui_image_t* iv) {
+static fp64_t ui_image_scale(struct ui_image* iv) {
     if (iv->fit && iv->w > 0 && iv->h > 0) {
         return (fp64_t)iv->w / iv->image.w < (fp64_t)iv->h / iv->image.h ?
                 (fp64_t)iv->w / iv->image.w : (fp64_t)iv->h / iv->image.h;
@@ -19,8 +19,8 @@ static fp64_t ui_image_scale(ui_image_t* iv) {
     }
 }
 
-static ui_rect_t ui_image_position(ui_image_t* iv) {
-    ui_rect_t rc = { 0, 0, 0, 0 };
+static struct ui_rect ui_image_position(struct ui_image* iv) {
+    struct ui_rect rc = { 0, 0, 0, 0 };
     if (iv->image.pixels != null) {
         int32_t iw = iv->image.w;
         int32_t ih = iv->image.h;
@@ -36,8 +36,8 @@ static ui_rect_t ui_image_position(ui_image_t* iv) {
     return rc;
 }
 
-static void ui_image_paint(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_paint(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
 //  ui_draw.fill(v->x, v->y, v->w, v->h, ui_colors.black);
     if (iv->image.pixels != null) {
         ui_draw.set_clip(v->x, v->y, v->w, v->h);
@@ -49,7 +49,7 @@ static void ui_image_paint(ui_view_t* v) {
         if (iv->zd != 1) { rt_swear(iv->zn == 1); }
         const int32_t iw = iv->image.w;
         const int32_t ih = iv->image.h;
-        ui_rect_t rc = ui_image_position(iv);
+        struct ui_rect rc = ui_image_position(iv);
         if (iv->image.bpp == 1) {
             ui_draw.greyscale(rc.x, rc.y, rc.w, rc.h,
                 0, 0, iw, ih,
@@ -88,14 +88,14 @@ static void ui_image_paint(ui_view_t* v) {
     }
 }
 
-static void ui_image_tools_background(ui_view_t* v) {
+static void ui_image_tools_background(struct ui_view* v) {
     ui_color_t face = ui_colors.get_color(ui_color_id_button_face);
     ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
     ui_draw.fill(v->x, v->y, v->w, v->h, face);
     ui_draw.frame(v->x, v->y, v->w, v->h, highlight);
 }
 
-static void ui_image_show_tools(ui_image_t* iv, bool show) {
+static void ui_image_show_tools(struct ui_image* iv, bool show) {
     if (iv->focusable) {
         if (iv->tool.bar.state.hidden  != !show) {
             iv->tool.bar.state.hidden   = !show;
@@ -111,7 +111,7 @@ static void ui_image_show_tools(ui_image_t* iv, bool show) {
     }
 }
 
-static void ui_image_fit_fill_scale(ui_image_t* iv) {
+static void ui_image_fit_fill_scale(struct ui_image* iv) {
     fp64_t s = ui_image.scale(iv);
     rt_assert(s != 0);
     if (s > 1) {
@@ -123,8 +123,8 @@ static void ui_image_fit_fill_scale(ui_image_t* iv) {
     }
 }
 
-static void ui_image_measure(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_measure(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     if (!v->focusable) {
         v->w = (int32_t)(iv->image.w * ui_image.scale(iv));
         v->h = (int32_t)(iv->image.h * ui_image.scale(iv));
@@ -137,8 +137,8 @@ static void ui_image_measure(ui_view_t* v) {
     }
 }
 
-static void ui_image_layout(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_layout(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     if (iv->fit || iv->fill) {
         ui_image_fit_fill_scale(iv);
         ui_view.measure_control(&iv->tool.ratio);
@@ -149,24 +149,24 @@ static void ui_image_layout(ui_view_t* v) {
     iv->tool.ratio.y = v->y + v->h - iv->tool.ratio.h;
 }
 
-static void ui_image_every_100ms(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_every_100ms(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     if (iv->when != 0 && rt_clock.seconds() > iv->when) {
         ui_image_show_tools(iv, false);
     }
 }
 
-static void ui_image_focus_lost(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_focus_lost(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     ui_image_show_tools(iv, ui_view.has_focus(v));
 }
 
-static void ui_image_focus_gained(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_focus_gained(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     ui_image_show_tools(iv, ui_view.has_focus(v));
 }
 
-static void ui_image_zoomed(ui_image_t* iv) {
+static void ui_image_zoomed(struct ui_image* iv) {
     iv->fill = false;
     iv->fit  = false;
     // 0=16:1 1=8:1 2=4:1 3=2:1 4=1:1 5=1:2 6=1:4 7=1:8 8=1:16
@@ -212,10 +212,10 @@ static void ui_image_zoomed(ui_image_t* iv) {
     ui_image_show_tools(iv, true);
 }
 
-static void ui_image_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+static void ui_image_mouse_scroll(struct ui_view* v, struct ui_point dx_dy) {
     fp64_t dx = (fp64_t)dx_dy.x;
     fp64_t dy = (fp64_t)dx_dy.y;
-    ui_image_t* iv = (ui_image_t*)v;
+    struct ui_image* iv = (struct ui_image*)v;
     if (ui_view.has_focus(v)) {
         fp64_t s = ui_image.scale(iv);
         if (iv->image.w * s > iv->w || iv->image.h * s > iv->h) {
@@ -234,10 +234,10 @@ static void ui_image_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     }
 }
 
-static bool ui_image_tap(ui_view_t* v, int32_t ix, bool pressed) {
+static bool ui_image_tap(struct ui_view* v, int32_t ix, bool pressed) {
     bool swallow = false;
     if (v->focusable) {
-        ui_image_t* iv = (ui_image_t*)v;
+        struct ui_image* iv = (struct ui_image*)v;
         const int32_t x = ui_app.mouse.x - iv->x;
         const int32_t y = ui_app.mouse.y - iv->y;
         bool tools  = !iv->tool.bar.state.hidden &&
@@ -246,10 +246,10 @@ static bool ui_image_tap(ui_view_t* v, int32_t ix, bool pressed) {
         bool left   = ix == 0;
         bool drag_started = iv->drag_start.x >= 0 && iv->drag_start.y >= 0;
         if (left && inside && !drag_started) {
-            iv->drag_start = (ui_point_t){x, y};
+            iv->drag_start = (struct ui_point){x, y};
         }
         if (!pressed) {
-            iv->drag_start = (ui_point_t){-1, -1};
+            iv->drag_start = (struct ui_point){-1, -1};
         }
         swallow = inside || tools;
     }
@@ -257,8 +257,8 @@ static bool ui_image_tap(ui_view_t* v, int32_t ix, bool pressed) {
     return swallow;
 }
 
-static bool ui_image_mouse_move(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static bool ui_image_mouse_move(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     bool drag_started = iv->drag_start.x >= 0 && iv->drag_start.y >= 0;
     bool tools  = !iv->tool.bar.state.hidden &&
                   ui_view.inside(&iv->tool.bar, &ui_app.mouse);
@@ -267,9 +267,9 @@ static bool ui_image_mouse_move(ui_view_t* v) {
         ui_image_show_tools(iv, false);
         const int32_t x = ui_app.mouse.x - iv->x;
         const int32_t y = ui_app.mouse.y - iv->y;
-        ui_point_t dx_dy = {iv->drag_start.x - x, iv->drag_start.y - y};
+        struct ui_point dx_dy = {iv->drag_start.x - x, iv->drag_start.y - y};
         ui_image_mouse_scroll(v, dx_dy);
-        iv->drag_start = (ui_point_t){x, y};
+        iv->drag_start = (struct ui_point){x, y};
     } else if (inside) {
         ui_image_show_tools(iv, true);
     } else if (!inside && !tools) {
@@ -279,19 +279,19 @@ static bool ui_image_mouse_move(ui_view_t* v) {
     return inside;
 }
 
-static bool ui_image_key_pressed(ui_view_t* v, int64_t vk) {
-    ui_image_t* iv = (ui_image_t*)v;
+static bool ui_image_key_pressed(struct ui_view* v, int64_t vk) {
+    struct ui_image* iv = (struct ui_image*)v;
     bool swallowed = false;
     if (ui_view.has_focus(v)) {
         swallowed = true;
         if (vk == ui.key.up) {
-            ui_image_mouse_scroll(v, (ui_point_t){0, -iv->h / 8});
+            ui_image_mouse_scroll(v, (struct ui_point){0, -iv->h / 8});
         } else if (vk == ui.key.down) {
-            ui_image_mouse_scroll(v, (ui_point_t){0, +iv->h / 8});
+            ui_image_mouse_scroll(v, (struct ui_point){0, +iv->h / 8});
         } else if (vk == ui.key.left) {
-            ui_image_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (struct ui_point){-iv->w / 8, 0});
         } else if (vk == ui.key.right) {
-            ui_image_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (struct ui_point){+iv->w / 8, 0});
         } else if (vk == ui.key.plus) {
             if (iv->zoom < 8) {
                 iv->zoom++;
@@ -310,7 +310,7 @@ static bool ui_image_key_pressed(ui_view_t* v, int64_t vk) {
 }
 
 static void ui_image_zoom_in(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     if (iv->zoom < 8) {
         iv->zoom++;
         ui_image_zoomed(iv);
@@ -318,7 +318,7 @@ static void ui_image_zoom_in(ui_button_t* b) {
 }
 
 static void ui_image_zoom_out(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     if (iv->zoom > 0) {
         iv->zoom--;
         ui_image_zoomed(iv);
@@ -326,7 +326,7 @@ static void ui_image_zoom_out(ui_button_t* b) {
 }
 
 static void ui_image_fit(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     iv->fit  = true;
     iv->fill = false;
     ui_image_fit_fill_scale(iv);
@@ -334,7 +334,7 @@ static void ui_image_fit(ui_button_t* b) {
 }
 
 static void ui_image_fill(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     iv->fill = true;
     iv->fit  = false;
     ui_image_fit_fill_scale(iv);
@@ -342,7 +342,7 @@ static void ui_image_fill(ui_button_t* b) {
 }
 
 static void ui_image_zoom_1t1(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     iv->zoom = 4;
     ui_image_zoomed(iv);
 }
@@ -369,8 +369,8 @@ static void ui_image_help(ui_button_t* rt_unused(b)) {
     ui_app.show_toast(&ui_image_about, 7.0);
 }
 
-static void ui_image_copy_to_clipboard(ui_image_t* iv) {
-    ui_bitmap_t image = {0};
+static void ui_image_copy_to_clipboard(struct ui_image* iv) {
+    struct ui_bitmap image = {0};
     if (iv->image.texture != null) {
         rt_clipboard.put_image(&iv->image);
     } else {
@@ -386,12 +386,12 @@ static void ui_image_copy_to_clipboard(ui_image_t* iv) {
 }
 
 static void ui_image_copy(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     ui_image_copy_to_clipboard(iv);
 }
 
-static void ui_image_character(ui_view_t* v, const char* utf8) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_character(struct ui_view* v, const char* utf8) {
+    struct ui_image* iv = (struct ui_image*)v;
     if (ui_view.has_focus(v)) { // && ui_app.ctrl ?
         char ch = utf8[0];
         if (ch == '+' || ch == '=') {
@@ -405,9 +405,9 @@ static void ui_image_character(ui_view_t* v, const char* utf8) {
                 ui_image_zoomed(iv);
             }
         } else if (ch == '<' || ch == ',') {
-            ui_image_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (struct ui_point){-iv->w / 8, 0});
         } else if (ch == '>' || ch == '.') {
-            ui_image_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (struct ui_point){+iv->w / 8, 0});
         } else if (ch == '0') {
             iv->zoom = 4;
             ui_image_zoomed(iv);
@@ -417,7 +417,7 @@ static void ui_image_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-static void ui_image_add_button(ui_image_t* iv, ui_button_t* b,
+static void ui_image_add_button(struct ui_image* iv, ui_button_t* b,
     const char* label, void (*cb)(ui_button_t* b), const char* hint) {
     *b = (ui_button_t)ui_button("", 0.0f, cb);
     ui_view.set_text(b, label);
@@ -426,8 +426,8 @@ static void ui_image_add_button(ui_image_t* iv, ui_button_t* b,
     b->insets.bottom = 0;
     b->padding.top = 0;
     b->padding.bottom = 0;
-    b->insets  = (ui_margins_t){0};
-    b->padding = (ui_margins_t){0};
+    b->insets  = (struct ui_margins){0};
+    b->padding = (struct ui_margins){0};
     b->flat = true;
     b->fm = &ui_app.fm.mono.normal;
     b->min_w_em = 1.5f;
@@ -435,7 +435,7 @@ static void ui_image_add_button(ui_image_t* iv, ui_button_t* b,
     ui_view.add_last(&iv->tool.bar, b);
 }
 
-void ui_image_init(ui_image_t* iv) {
+void ui_image_init(struct ui_image* iv) {
     memset(iv, 0x00, sizeof(*iv));
     iv->type         = ui_view_image;
     iv->paint        = ui_image_paint;
@@ -450,7 +450,7 @@ void ui_image_init(ui_image_t* iv) {
     iv->character    = ui_image_character;
     iv->key_pressed  = ui_image_key_pressed;
     iv->fm           = &ui_app.fm.prop.normal;
-    iv->tool.bar = (ui_view_t)ui_view(span);
+    iv->tool.bar = (struct ui_view)ui_view(span);
     // buttons:
     ui_image_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_image_copy,
         "Copy to Clipboard Ctrl+C");
@@ -486,11 +486,11 @@ void ui_image_init(ui_image_t* iv) {
     iv->zd = 1;
     iv->sx = 0.5;
     iv->sy = 0.5;
-    iv->drag_start = (ui_point_t){-1, -1};
+    iv->drag_start = (struct ui_point){-1, -1};
     iv->debug.id = "#image";
 }
 
-void ui_image_init_with(ui_image_t* iv, const uint8_t* pixels,
+void ui_image_init_with(struct ui_image* iv, const uint8_t* pixels,
                                   int32_t w, int32_t h,
                                   int32_t c, int32_t s) {
     ui_image_init(iv);
@@ -501,7 +501,7 @@ void ui_image_init_with(ui_image_t* iv, const uint8_t* pixels,
     iv->image.stride = s;
 }
 
-static void ui_image_ratio(ui_image_t* iv, int32_t zn, int32_t zd) {
+static void ui_image_ratio(struct ui_image* iv, int32_t zn, int32_t zd) {
     rt_swear(0 < zn && zn <= 16);
     rt_swear(0 < zd && zd <= 16);
     // only 1:2 and 2:1 etc are supported:
@@ -513,7 +513,7 @@ static void ui_image_ratio(ui_image_t* iv, int32_t zn, int32_t zd) {
     iv->fill = false;
 }
 
-ui_image_if ui_image = {
+struct ui_image_if ui_image = {
     .init      = ui_image_init,
     .init_with = ui_image_init_with,
     .ratio     = ui_image_ratio,

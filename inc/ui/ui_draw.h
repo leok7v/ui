@@ -15,9 +15,9 @@ enum {  // TODO: into gdi int32_t const
     ui_font_quality_cleartype_natural = 6
 };
 
-typedef struct ui_fm_s { // font metrics
+struct ui_fm { // font metrics
     ui_font_t font;
-    ui_wh_t em;        // "em" square point size expressed in pixels *)
+    struct ui_wh em;        // "em" square point size expressed in pixels *)
     // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
     int32_t height;    // font height in pixels
     int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
@@ -30,18 +30,18 @@ typedef struct ui_fm_s { // font metrics
     int32_t average_char_width;
     int32_t max_char_width;
     int32_t line_gap;  // gap between lines of text
-    ui_wh_t subscript; // height
-    ui_point_t subscript_offset;
-    ui_wh_t superscript;    // height
-    ui_point_t superscript_offset;
+    struct ui_wh subscript; // height
+    struct ui_point subscript_offset;
+    struct ui_wh superscript;    // height
+    struct ui_point superscript_offset;
     int32_t underscore;     // height
     int32_t underscore_position;
     int32_t strike_through; // height
     int32_t strike_through_position;
     int32_t design_units_per_em; // aka EM square ~ 2048
-    ui_rect_t box; // bounding box of the glyphs in design units
+    struct ui_rect box; // bounding box of the glyphs in design units
     bool mono;
-} ui_fm_t;
+};
 
 /* see: https://github.com/leok7v/ui/wiki/Typography-Line-Terms
    https://en.wikipedia.org/wiki/Typeface#Font_metrics
@@ -60,45 +60,45 @@ typedef struct ui_fm_s { // font metrics
   ascender for "diacritics circumflex" is (h:55 - a:30 - d:11) = 14
 */
 
-typedef struct ui_draw_ta_s { // text attributes
-    const ui_fm_t* fm; // font metrics
+struct ui_ta { // text attributes
+    const struct ui_fm* fm; // font metrics
     int32_t color_id;  // <= 0 use color
     ui_color_t color;  // ui_colors.undefined() use color_id
     bool measure;      // measure only do not draw
-} ui_ta_t;
+};
 
-typedef struct {
+struct ui_draw_if {
     struct {
         struct {
-            ui_ta_t const normal;
-            ui_ta_t const title;
-            ui_ta_t const rubric;
-            ui_ta_t const H1;
-            ui_ta_t const H2;
-            ui_ta_t const H3;
+            struct ui_ta const normal;
+            struct ui_ta const title;
+            struct ui_ta const rubric;
+            struct ui_ta const H1;
+            struct ui_ta const H2;
+            struct ui_ta const H3;
         } prop;
         struct {
-            ui_ta_t const normal;
-            ui_ta_t const title;
-            ui_ta_t const rubric;
-            ui_ta_t const H1;
-            ui_ta_t const H2;
-            ui_ta_t const H3;
+            struct ui_ta const normal;
+            struct ui_ta const title;
+            struct ui_ta const rubric;
+            struct ui_ta const H1;
+            struct ui_ta const H2;
+            struct ui_ta const H3;
         } mono;
     } const ta;
     void (*init)(void);
     void (*fini)(void);
-    void (*begin)(ui_bitmap_t* bitmap_or_null);
+    void (*begin)(struct ui_bitmap* bitmap_or_null);
     // all paint must be done in between
     void (*end)(void);
     // TODO: move to ui_colors
     uint32_t (*color_rgb)(ui_color_t c); // rgb color
     // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
-    void (*bitmap_init)(ui_bitmap_t* bitmap, int32_t w, int32_t h, int32_t bpp,
+    void (*bitmap_init)(struct ui_bitmap* bitmap, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels);
-    void (*bitmap_init_rgbx)(ui_bitmap_t* bitmap, int32_t w, int32_t h,
+    void (*bitmap_init_rgbx)(struct ui_bitmap* bitmap, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
-    void (*bitmap_dispose)(ui_bitmap_t* bitmap);
+    void (*bitmap_dispose)(struct ui_bitmap* bitmap);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
@@ -109,7 +109,7 @@ typedef struct {
     void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h,
                       ui_color_t border, ui_color_t fill);
     void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
-    void (*poly)(ui_point_t* points, int32_t count, ui_color_t c);
+    void (*poly)(struct ui_point* points, int32_t count, ui_color_t c);
     void (*circle)(int32_t center_x, int32_t center_y, int32_t odd_radius,
         ui_color_t border, ui_color_t fill);
     void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -134,11 +134,11 @@ typedef struct {
     // alpha() blend only works with device allocated bitmaps
     void (*alpha)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* bitmap, fp64_t alpha); // alpha blend
+        struct ui_bitmap* bitmap, fp64_t alpha); // alpha blend
     // bitmap() only works with device allocated bitmaps
     void (*bitmap)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* bitmap);
+        struct ui_bitmap* bitmap);
     void (*icon)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         ui_icon_t icon);
     // text:
@@ -149,20 +149,20 @@ typedef struct {
     ui_font_t (*font)(ui_font_t f, int32_t height, int32_t quality);
     void      (*delete_font)(ui_font_t f);
     void (*dump_fm)(ui_font_t f); // dump font metrics
-    void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics
-    ui_wh_t (*text_va)(const ui_ta_t* ta, int32_t x, int32_t y,
+    void (*update_fm)(struct ui_fm* fm, ui_font_t f); // fills font metrics
+    struct ui_wh (*text_va)(const struct ui_ta* ta, int32_t x, int32_t y,
         const char* format, va_list va);
-    ui_wh_t (*text)(const ui_ta_t* ta, int32_t x, int32_t y,
+    struct ui_wh (*text)(const struct ui_ta* ta, int32_t x, int32_t y,
         const char* format, ...);
-    ui_wh_t (*multiline_va)(const ui_ta_t* ta, int32_t x, int32_t y,
+    struct ui_wh (*multiline_va)(const struct ui_ta* ta, int32_t x, int32_t y,
         int32_t w, const char* format, va_list va); // "w" can be zero
-    ui_wh_t (*multiline)(const ui_ta_t* ta, int32_t x, int32_t y,
+    struct ui_wh (*multiline)(const struct ui_ta* ta, int32_t x, int32_t y,
         int32_t w, const char* format, ...);
     // x[rt_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
-    ui_wh_t (*glyphs_placement)(const ui_ta_t* ta, const char* utf8,
+    struct ui_wh (*glyphs_placement)(const struct ui_ta* ta, const char* utf8,
         int32_t bytes, int32_t x[/*glyphs + 1*/], int32_t glyphs);
-} ui_draw_if;
+};
 
-extern ui_draw_if ui_draw;
+extern struct ui_draw_if ui_draw;
 
 rt_end_c

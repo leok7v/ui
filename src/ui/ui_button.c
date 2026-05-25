@@ -1,7 +1,7 @@
 #include "rt/rt.h"
 #include "ui/ui.h"
 
-static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
+static void ui_button_every_100ms(struct ui_view* v) { // every 100ms
     if (!v->state.hidden) {
         v->p.armed_until = 0;
         v->state.armed = false;
@@ -13,7 +13,7 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     if (v->p.armed_until != 0) { ui_app.show_hint(null, -1, -1, 0); }
 }
 
-static void ui_button_paint(ui_view_t* v) {
+static void ui_button_paint(struct ui_view* v) {
     bool pressed = (v->state.armed ^ v->state.pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
     const int32_t w = v->w;
@@ -68,11 +68,11 @@ static void ui_button_paint(ui_view_t* v) {
         if (v->debug.paint.fm) {
             ui_view.debug_paint_fm(v);
         }
-        const ui_ta_t ta = { .fm = v->fm, .color = c };
+        const struct ui_ta ta = { .fm = v->fm, .color = c };
         ui_draw.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
-        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-        const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
+        const struct ui_ltrb i = ui_view.margins(v, &v->insets);
+        const struct ui_wh i_wh = { .w = v->w - i.left - i.right,
                                .h = v->h - i.top - i.bottom };
         // TODO: icon text alignment
         ui_draw.icon(tx, ty + v->text.xy.y, i_wh.w, i_wh.h, v->icon);
@@ -106,28 +106,28 @@ static void ui_button_callback(ui_button_t* b) {
     }
 }
 
-static void ui_button_trigger(ui_view_t* v) {
+static void ui_button_trigger(struct ui_view* v) {
     ui_button_t* b = (ui_button_t*)v;
     v->state.armed = true;
     ui_view.invalidate(v, null);
     ui_button_callback(b);
 }
 
-static void ui_button_character(ui_view_t* v, const char* utf8) {
+static void ui_button_character(struct ui_view* v, const char* utf8) {
     char ch = utf8[0]; // TODO: multibyte utf8 shortcuts?
     if (ui_view.is_shortcut_key(v, ch)) {
         ui_button_trigger(v);
     }
 }
 
-static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_button_key_pressed(struct ui_view* v, int64_t key) {
     rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_button_trigger(v); }
     return trigger; // swallow if true
 }
 
-static bool ui_button_tap(ui_view_t* v, int32_t rt_unused(ix),
+static bool ui_button_tap(struct ui_view* v, int32_t rt_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
     const bool inside = ui_view.inside(v, &ui_app.mouse);
@@ -145,7 +145,7 @@ static bool ui_button_tap(ui_view_t* v, int32_t rt_unused(ix),
     return pressed && inside; // swallow clicks inside
 }
 
-void ui_view_init_button(ui_view_t* v) {
+void ui_view_init_button(struct ui_view* v) {
     rt_assert(v->type == ui_view_button);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->tap           = ui_button_tap;

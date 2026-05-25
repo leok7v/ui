@@ -1,8 +1,8 @@
 #include "rt/rt.h"
 #include "ui/ui.h"
 
-static void ui_toggle_paint_on_off(ui_view_t* v) {
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+static void ui_toggle_paint_on_off(struct ui_view* v) {
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     int32_t x = v->x;
     int32_t y = v->y + i.top;
     ui_color_t c = ui_colors.darken(v->background,
@@ -36,7 +36,7 @@ static void ui_toggle_paint_on_off(ui_view_t* v) {
     ui_draw.circle(x1, y, r - 2, border, fill);
 }
 
-static const char* ui_toggle_on_off_label(ui_view_t* v,
+static const char* ui_toggle_on_off_label(struct ui_view* v,
         char* label, int32_t count)  {
     rt_str.format(label, count, "%s", ui_view.string(v));
     char* s = strstr(label, "___");
@@ -46,7 +46,7 @@ static const char* ui_toggle_on_off_label(ui_view_t* v,
     return rt_nls.str(label);
 }
 
-static void ui_toggle_measure(ui_view_t* v) {
+static void ui_toggle_measure(struct ui_view* v) {
     if (v->min_w_em < 3.0f) {
         rt_println("3.0f em minimum width");
         v->min_w_em = 4.0f;
@@ -55,7 +55,7 @@ static void ui_toggle_measure(ui_view_t* v) {
     rt_assert(v->type == ui_view_toggle);
 }
 
-static void ui_toggle_paint(ui_view_t* v) {
+static void ui_toggle_paint(struct ui_view* v) {
     rt_assert(v->type == ui_view_toggle);
     char txt[rt_countof(v->p.text)];
     const char* label = ui_toggle_on_off_label(v, txt, rt_countof(txt));
@@ -65,37 +65,37 @@ static void ui_toggle_paint(ui_view_t* v) {
     ui_toggle_paint_on_off(v);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
-    const ui_ta_t ta = { .fm = v->fm, .color = text_color };
+    const struct ui_ta ta = { .fm = v->fm, .color = text_color };
     ui_draw.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {
-    ui_view.invalidate((ui_view_t*)t, null);
+    ui_view.invalidate((struct ui_view*)t, null);
     t->state.pressed = !t->state.pressed;
     if (t->callback != null) { t->callback(t); }
 }
 
-static void ui_toggle_character(ui_view_t* v, const char* utf8) {
+static void ui_toggle_character(struct ui_view* v, const char* utf8) {
     char ch = utf8[0];
     if (ui_view.is_shortcut_key(v, ch)) {
          ui_toggle_flip((ui_toggle_t*)v);
     }
 }
 
-static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_toggle_key_pressed(struct ui_view* v, int64_t key) {
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_toggle_flip((ui_toggle_t*)v); }
     return trigger; // swallow if true
 }
 
-static bool ui_toggle_tap(ui_view_t* v, int32_t rt_unused(ix),
+static bool ui_toggle_tap(struct ui_view* v, int32_t rt_unused(ix),
         bool pressed) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (pressed && inside) { ui_toggle_flip((ui_toggle_t*)v); }
     return pressed && inside;
 }
 
-void ui_view_init_toggle(ui_view_t* v) {
+void ui_view_init_toggle(struct ui_view* v) {
     rt_assert(v->type == ui_view_toggle);
     v->tap           = ui_toggle_tap;
     v->paint         = ui_toggle_paint;

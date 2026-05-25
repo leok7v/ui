@@ -9,14 +9,14 @@
 #define UI_WM_DTAP     (WM_APP + 0x7FFB) // double tap (aka click)
 #define UI_WM_PRESS    (WM_APP + 0x7FFA)
 
-static bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
+static bool ui_point_in_rect(const struct ui_point* p, const struct ui_rect* r) {
     return r->x <= p->x && p->x < r->x + r->w &&
            r->y <= p->y && p->y < r->y + r->h;
 }
 
-static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
-                                            const ui_rect_t* r1) {
-    ui_rect_t r = {0};
+static bool ui_intersect_rect(struct ui_rect* i, const struct ui_rect* r0,
+                                            const struct ui_rect* r1) {
+    struct ui_rect r = {0};
     r.x = r0->x > r1->x ? r0->x : r1->x;  // Maximum of left edges
     r.y = r0->y > r1->y ? r0->y : r1->y;  // Maximum of top edges
     const int32_t r0r = r0->x + r0->w, r1r = r1->x + r1->w; // right edges
@@ -32,12 +32,12 @@ static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
     return b;
 }
 
-static ui_rect_t ui_combine_rect(const ui_rect_t* r0, const ui_rect_t* r1) {
+static struct ui_rect ui_combine_rect(const struct ui_rect* r0, const struct ui_rect* r1) {
     const int32_t x = r0->x < r1->x ? r0->x : r1->x; // min left
     const int32_t y = r0->y < r1->y ? r0->y : r1->y; // min top
     const int32_t r0r = r0->x + r0->w, r1r = r1->x + r1->w; // right edges
     const int32_t r0b = r0->y + r0->h, r1b = r1->y + r1->h; // bottom edges
-    return (ui_rect_t) {
+    return (struct ui_rect) {
         .x = x,
         .y = y,
         .w = (r0r > r1r ? r0r : r1r) - x,
@@ -45,7 +45,7 @@ static ui_rect_t ui_combine_rect(const ui_rect_t* r0, const ui_rect_t* r1) {
     };
 }
 
-ui_if ui = {
+struct ui_if ui = {
     .point_in_rect  = ui_point_in_rect,
     .intersect_rect = ui_intersect_rect,
     .combine_rect   = ui_combine_rect,

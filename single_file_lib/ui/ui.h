@@ -10,24 +10,24 @@
 
 rt_begin_c
 
-typedef struct ui_point_s { int32_t x, y; } ui_point_t;
-typedef struct ui_rect_s { int32_t x, y, w, h; } ui_rect_t;
-typedef struct ui_ltbr_s { int32_t left, top, right, bottom; } ui_ltrb_t;
-typedef struct ui_wh_s   { int32_t w, h; } ui_wh_t;
+struct ui_point { int32_t x, y; };
+struct ui_rect { int32_t x, y, w, h; };
+struct ui_ltrb { int32_t left, top, right, bottom; };
+struct ui_wh { int32_t w, h; };
 
-typedef struct ui_window_s*  ui_window_t;
-typedef struct ui_icon_s*    ui_icon_t;
-typedef struct ui_canvas_s*  ui_canvas_t;
-typedef struct ui_texture_s* ui_texture_t;
-typedef struct ui_font_s*    ui_font_t;
-typedef struct ui_brush_s*   ui_brush_t;
-typedef struct ui_pen_s*     ui_pen_t;
-typedef struct ui_cursor_s*  ui_cursor_t;
-typedef struct ui_region_s*  ui_region_t;
+typedef struct ui_window*  ui_window_t;
+typedef struct ui_icon*    ui_icon_t;
+typedef struct ui_canvas*  ui_canvas_t;
+typedef struct ui_texture* ui_texture_t;
+typedef struct ui_font*    ui_font_t;
+typedef struct ui_brush*   ui_brush_t;
+typedef struct ui_pen*     ui_pen_t;
+typedef struct ui_cursor*  ui_cursor_t;
+typedef struct ui_region*  ui_region_t;
 
 typedef uintptr_t ui_timer_t; // timer not the same as "id" in set_timer()!
 
-typedef struct ui_bitmap_s { // TODO: ui_ namespace
+struct ui_bitmap { // TODO: ui_ namespace
     void* pixels;
     int32_t w; // width
     int32_t h; // height
@@ -35,28 +35,28 @@ typedef struct ui_bitmap_s { // TODO: ui_ namespace
     int32_t stride; // bytes per scanline rounded up to: (w * bpp + 3) & ~3
     ui_texture_t texture; // device allocated texture handle
     void* dxd; // cached Direct2D device bitmap, owned by dxd_* (do not touch)
-} ui_bitmap_t;
+};
 
-// ui_margins_t are used for padding and insets and expressed
+// struct ui_margins are used for padding and insets and expressed
 // in partial "em"s not in pixels, inches or points.
 // Pay attention that "em" is not square. "M" measurement
 // for most fonts are em.w = 0.5 * em.h
 // .em square pixel size of glyph "m"
 // https://en.wikipedia.org/wiki/Em_(typography)
 
-typedef struct ui_gaps_s { // in partial "em"s
+struct ui_margins { // in partial "em"s
     fp32_t left;
     fp32_t top;
     fp32_t right;
     fp32_t bottom;
-} ui_margins_t;
+};
 
-typedef struct ui_s {
-    bool (*point_in_rect)(const ui_point_t* p, const ui_rect_t* r);
+struct ui_if {
+    bool (*point_in_rect)(const struct ui_point* p, const struct ui_rect* r);
     // intersect_rect(null, r0, r1) and intersect_rect(r0, r0, r1) supported.
-    bool (*intersect_rect)(ui_rect_t* destination, const ui_rect_t* r0,
-                                                   const ui_rect_t* r1);
-    ui_rect_t (*combine_rect)(const ui_rect_t* r0, const ui_rect_t* r1);
+    bool (*intersect_rect)(struct ui_rect* destination, const struct ui_rect* r0,
+                                                   const struct ui_rect* r1);
+    struct ui_rect (*combine_rect)(const struct ui_rect* r0, const struct ui_rect* r1);
     const int32_t infinity; // = INT32_MAX, look better
     struct { // align bitset
         int32_t const center; // = 0, default
@@ -166,11 +166,11 @@ typedef struct ui_s {
         int32_t const warning;
         int32_t const error;
     } beep;
-} ui_if;
+};
 
-extern ui_if ui;
+extern struct ui_if ui;
 
-// ui_margins_t in "em"s:
+// struct ui_margins in "em"s:
 //
 // The reason is that UI fonts may become larger smaller
 // for accessibility reasons with the same display
@@ -255,24 +255,24 @@ enum {
     ui_color_id_accent              = 14
 };
 
-typedef struct ui_control_colors_s {
+struct ui_control_colors {
     ui_color_t text;
     ui_color_t background;
     ui_color_t border;
     ui_color_t accent; // aka highlight
     ui_color_t gradient_top;
     ui_color_t gradient_bottom;
-} control_colors_t;
+};
 
-typedef struct ui_control_state_colors_s {
-    control_colors_t disabled;
-    control_colors_t enabled;
-    control_colors_t hover;
-    control_colors_t armed;
-    control_colors_t pressed;
-} ui_control_state_colors_t;
+struct ui_control_state_colors {
+    struct ui_control_colors disabled;
+    struct ui_control_colors enabled;
+    struct ui_control_colors hover;
+    struct ui_control_colors armed;
+    struct ui_control_colors pressed;
+};
 
-typedef struct ui_colors_s {
+struct ui_colors_if {
     ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
     void       (*rgb_to_hsi)(fp64_t r, fp64_t g, fp64_t b, fp64_t *h, fp64_t *s, fp64_t *i);
     ui_color_t (*hsi_to_rgb)(fp64_t h, fp64_t s, fp64_t i,  uint8_t a);
@@ -288,7 +288,7 @@ typedef struct ui_colors_s {
     ui_color_t (*adjust_saturation)(ui_color_t c,   fp32_t multiplier);
     ui_color_t (*multiply_brightness)(ui_color_t c, fp32_t multiplier);
     ui_color_t (*multiply_saturation)(ui_color_t c, fp32_t multiplier);
-    ui_control_state_colors_t* controls; // colors for UI controls
+    struct ui_control_state_colors* controls; // colors for UI controls
     ui_color_t const transparent;
     ui_color_t const none; // aka CLR_INVALID in wingdi.h
     ui_color_t const text;
@@ -458,9 +458,9 @@ typedef struct ui_colors_s {
     ui_color_t const ceil;
     ui_color_t const moonstone_blue;
     ui_color_t const independence;
-} ui_colors_if;
+};
 
-extern ui_colors_if ui_colors;
+extern struct ui_colors_if ui_colors;
 
 // TODO:
 // https://ankiewicz.com/colors/
@@ -493,9 +493,9 @@ enum {  // TODO: into gdi int32_t const
     ui_font_quality_cleartype_natural = 6
 };
 
-typedef struct ui_fm_s { // font metrics
+struct ui_fm { // font metrics
     ui_font_t font;
-    ui_wh_t em;        // "em" square point size expressed in pixels *)
+    struct ui_wh em;        // "em" square point size expressed in pixels *)
     // https://learn.microsoft.com/en-us/windows/win32/gdi/string-widths-and-heights
     int32_t height;    // font height in pixels
     int32_t baseline;  // bottom of the glyphs sans descenders (align of multi-font text)
@@ -508,18 +508,18 @@ typedef struct ui_fm_s { // font metrics
     int32_t average_char_width;
     int32_t max_char_width;
     int32_t line_gap;  // gap between lines of text
-    ui_wh_t subscript; // height
-    ui_point_t subscript_offset;
-    ui_wh_t superscript;    // height
-    ui_point_t superscript_offset;
+    struct ui_wh subscript; // height
+    struct ui_point subscript_offset;
+    struct ui_wh superscript;    // height
+    struct ui_point superscript_offset;
     int32_t underscore;     // height
     int32_t underscore_position;
     int32_t strike_through; // height
     int32_t strike_through_position;
     int32_t design_units_per_em; // aka EM square ~ 2048
-    ui_rect_t box; // bounding box of the glyphs in design units
+    struct ui_rect box; // bounding box of the glyphs in design units
     bool mono;
-} ui_fm_t;
+};
 
 /* see: https://github.com/leok7v/ui/wiki/Typography-Line-Terms
    https://en.wikipedia.org/wiki/Typeface#Font_metrics
@@ -538,45 +538,45 @@ typedef struct ui_fm_s { // font metrics
   ascender for "diacritics circumflex" is (h:55 - a:30 - d:11) = 14
 */
 
-typedef struct ui_draw_ta_s { // text attributes
-    const ui_fm_t* fm; // font metrics
+struct ui_ta { // text attributes
+    const struct ui_fm* fm; // font metrics
     int32_t color_id;  // <= 0 use color
     ui_color_t color;  // ui_colors.undefined() use color_id
     bool measure;      // measure only do not draw
-} ui_ta_t;
+};
 
-typedef struct {
+struct ui_draw_if {
     struct {
         struct {
-            ui_ta_t const normal;
-            ui_ta_t const title;
-            ui_ta_t const rubric;
-            ui_ta_t const H1;
-            ui_ta_t const H2;
-            ui_ta_t const H3;
+            struct ui_ta const normal;
+            struct ui_ta const title;
+            struct ui_ta const rubric;
+            struct ui_ta const H1;
+            struct ui_ta const H2;
+            struct ui_ta const H3;
         } prop;
         struct {
-            ui_ta_t const normal;
-            ui_ta_t const title;
-            ui_ta_t const rubric;
-            ui_ta_t const H1;
-            ui_ta_t const H2;
-            ui_ta_t const H3;
+            struct ui_ta const normal;
+            struct ui_ta const title;
+            struct ui_ta const rubric;
+            struct ui_ta const H1;
+            struct ui_ta const H2;
+            struct ui_ta const H3;
         } mono;
     } const ta;
     void (*init)(void);
     void (*fini)(void);
-    void (*begin)(ui_bitmap_t* bitmap_or_null);
+    void (*begin)(struct ui_bitmap* bitmap_or_null);
     // all paint must be done in between
     void (*end)(void);
     // TODO: move to ui_colors
     uint32_t (*color_rgb)(ui_color_t c); // rgb color
     // bpp bytes (not bits!) per pixel. bpp = -3 or -4 does not swap RGB to BRG:
-    void (*bitmap_init)(ui_bitmap_t* bitmap, int32_t w, int32_t h, int32_t bpp,
+    void (*bitmap_init)(struct ui_bitmap* bitmap, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels);
-    void (*bitmap_init_rgbx)(ui_bitmap_t* bitmap, int32_t w, int32_t h,
+    void (*bitmap_init_rgbx)(struct ui_bitmap* bitmap, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels); // sets all alphas to 0xFF
-    void (*bitmap_dispose)(ui_bitmap_t* bitmap);
+    void (*bitmap_dispose)(struct ui_bitmap* bitmap);
     void (*set_clip)(int32_t x, int32_t y, int32_t w, int32_t h);
     // use set_clip(0, 0, 0, 0) to clear clip region
     void (*pixel)(int32_t x, int32_t y, ui_color_t c);
@@ -587,7 +587,7 @@ typedef struct {
     void (*rect)(int32_t x, int32_t y, int32_t w, int32_t h,
                       ui_color_t border, ui_color_t fill);
     void (*fill)(int32_t x, int32_t y, int32_t w, int32_t h, ui_color_t c);
-    void (*poly)(ui_point_t* points, int32_t count, ui_color_t c);
+    void (*poly)(struct ui_point* points, int32_t count, ui_color_t c);
     void (*circle)(int32_t center_x, int32_t center_y, int32_t odd_radius,
         ui_color_t border, ui_color_t fill);
     void (*rounded)(int32_t x, int32_t y, int32_t w, int32_t h,
@@ -612,11 +612,11 @@ typedef struct {
     // alpha() blend only works with device allocated bitmaps
     void (*alpha)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* bitmap, fp64_t alpha); // alpha blend
+        struct ui_bitmap* bitmap, fp64_t alpha); // alpha blend
     // bitmap() only works with device allocated bitmaps
     void (*bitmap)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* bitmap);
+        struct ui_bitmap* bitmap);
     void (*icon)(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         ui_icon_t icon);
     // text:
@@ -627,21 +627,21 @@ typedef struct {
     ui_font_t (*font)(ui_font_t f, int32_t height, int32_t quality);
     void      (*delete_font)(ui_font_t f);
     void (*dump_fm)(ui_font_t f); // dump font metrics
-    void (*update_fm)(ui_fm_t* fm, ui_font_t f); // fills font metrics
-    ui_wh_t (*text_va)(const ui_ta_t* ta, int32_t x, int32_t y,
+    void (*update_fm)(struct ui_fm* fm, ui_font_t f); // fills font metrics
+    struct ui_wh (*text_va)(const struct ui_ta* ta, int32_t x, int32_t y,
         const char* format, va_list va);
-    ui_wh_t (*text)(const ui_ta_t* ta, int32_t x, int32_t y,
+    struct ui_wh (*text)(const struct ui_ta* ta, int32_t x, int32_t y,
         const char* format, ...);
-    ui_wh_t (*multiline_va)(const ui_ta_t* ta, int32_t x, int32_t y,
+    struct ui_wh (*multiline_va)(const struct ui_ta* ta, int32_t x, int32_t y,
         int32_t w, const char* format, va_list va); // "w" can be zero
-    ui_wh_t (*multiline)(const ui_ta_t* ta, int32_t x, int32_t y,
+    struct ui_wh (*multiline)(const struct ui_ta* ta, int32_t x, int32_t y,
         int32_t w, const char* format, ...);
     // x[rt_str.glyphs(utf8, bytes)] = {x0, x1, x2, ...}
-    ui_wh_t (*glyphs_placement)(const ui_ta_t* ta, const char* utf8,
+    struct ui_wh (*glyphs_placement)(const struct ui_ta* ta, const char* utf8,
         int32_t bytes, int32_t x[/*glyphs + 1*/], int32_t glyphs);
-} ui_draw_if;
+};
 
-extern ui_draw_if ui_draw;
+extern struct ui_draw_if ui_draw;
 
 rt_end_c
 // __________________________________ dxd.h ___________________________________
@@ -671,7 +671,7 @@ void dxd_fini(void);
 
 // `hdc` is the target device context (window canvas or an offscreen memory
 // DC); `rc` is the bound region in pixels.
-dxd_context_t dxd_begin(void * hdc, const ui_rect_t * rc);
+dxd_context_t dxd_begin(void * hdc, const struct ui_rect * rc);
 void          dxd_end(dxd_context_t ctx);
 
 void dxd_set_clip(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h);
@@ -684,7 +684,7 @@ void dxd_rect(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h,
               ui_color_t border, ui_color_t fill);
 void dxd_fill(dxd_context_t ctx, int32_t x, int32_t y, int32_t w, int32_t h,
               ui_color_t color);
-void dxd_poly(dxd_context_t ctx, ui_point_t * points, int32_t count,
+void dxd_poly(dxd_context_t ctx, struct ui_point * points, int32_t count,
               ui_color_t color);
 void dxd_circle(dxd_context_t ctx, int32_t x, int32_t y, int32_t radius,
                 ui_color_t border, ui_color_t fill);
@@ -705,7 +705,7 @@ void dxd_image(dxd_context_t ctx, int32_t dx, int32_t dy, int32_t dw, int32_t dh
 // (created on first use, refreshed from `pixels` on each call, rebuilt after
 // device loss) so repeated blits of the same image avoid re-creating and
 // re-uploading a Direct2D bitmap every frame. Pass the address of a void*
-// that lives as long as the source pixels (e.g. &ui_bitmap_t.dxd), zeroed
+// that lives as long as the source pixels (e.g. &struct ui_bitmap.dxd), zeroed
 // before first use. Release it with dxd_bitmap_dispose() when the source is
 // freed.
 void dxd_image_cached(dxd_context_t ctx, void ** cache,
@@ -719,10 +719,10 @@ void dxd_bitmap_dispose(void ** cache);
 // derived from its LOGFONT. `measure_only` skips drawing. `w` > 0 with
 // `multiline` wraps; otherwise single line. `mnemonic` processes '&' (strip
 // it, underline the next glyph; '&&' is a literal '&'). Returns the size.
-ui_wh_t dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
+struct ui_wh dxd_text(dxd_context_t ctx, ui_font_t font, int32_t x, int32_t y,
                  int32_t w, ui_color_t color, const char * utf8, int32_t bytes,
                  bool measure_only, bool multiline, bool mnemonic);
-ui_wh_t dxd_glyphs_placement(ui_font_t font, const char * utf8, int32_t bytes,
+struct ui_wh dxd_glyphs_placement(ui_font_t font, const char * utf8, int32_t bytes,
                              int32_t x_out[], int32_t glyphs);
 
 #ifdef __cplusplus
@@ -748,37 +748,37 @@ enum ui_view_type_t {
     ui_view_scroll    = 'vwsc'
 };
 
-typedef struct ui_view_s ui_view_t;
+struct ui_view;
 
-typedef struct ui_view_private_s { // do not access directly
+struct ui_view_private { // do not access directly
     char text[1024]; // utf8 zero terminated
     int32_t strid;    // 0 for not yet localized, -1 no localization
     fp64_t armed_until; // rt_clock.seconds() - when to release
     fp64_t hover_when;  // time in seconds when to call hovered()
     // use: ui_view.string(v) and ui_view.set_string()
-} ui_view_private_t;
+};
 
-typedef struct ui_view_text_metrics_s { // ui_view.measure_text() fills these attributes:
-    ui_wh_t    wh; // text width and height
-    ui_point_t xy; // text offset inside view
+struct ui_view_text_metrics { // ui_view.measure_text() fills these attributes:
+    struct ui_wh    wh; // text width and height
+    struct ui_point xy; // text offset inside view
     bool multiline; // text contains "\n"
-} ui_view_text_metrics_t;
+};
 
-typedef struct ui_view_s {
+struct ui_view {
     enum ui_view_type_t type;
-    ui_view_private_t p; // private
-    void (*init)(ui_view_t* v); // called once before first layout
-    ui_view_t* parent;
-    ui_view_t* child; // first child, circular doubly linked list
-    ui_view_t* prev;  // left or top sibling
-    ui_view_t* next;  // right or top sibling
+    struct ui_view_private p; // private
+    void (*init)(struct ui_view* v); // called once before first layout
+    struct ui_view* parent;
+    struct ui_view* child; // first child, circular doubly linked list
+    struct ui_view* prev;  // left or top sibling
+    struct ui_view* next;  // right or top sibling
     int32_t x;
     int32_t y;
     int32_t w;
     int32_t h;
-    ui_margins_t insets;
-    ui_margins_t padding;
-    ui_view_text_metrics_t text;
+    struct ui_margins insets;
+    struct ui_margins padding;
+    struct ui_view_text_metrics text;
     // see ui.alignment values
     int32_t align; // align inside parent
     int32_t text_align; // align of the text inside control
@@ -788,55 +788,55 @@ typedef struct ui_view_s {
     fp32_t  min_h_em; // > 0 minimum height of a view in "em"s
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
-    const ui_fm_t* fm; // font metrics
+    const struct ui_fm* fm; // font metrics
     int32_t  shortcut; // keyboard shortcut
     void* that;  // for the application use
-    void (*notify)(ui_view_t* v, void* p); // for the application use
+    void (*notify)(struct ui_view* v, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     // before methods: called before measure()/layout()/paint()
-    void (*prepare)(ui_view_t* v);    // called before measure()
-    void (*measure)(ui_view_t* v);    // determine w, h (bottom up)
-    void (*measured)(ui_view_t* v);   // called after measure()
-    void (*layout)(ui_view_t* v);     // set x, y possibly adjust w, h (top down)
-    void (*composed)(ui_view_t* v);   // after layout() is done (laid out)
-    void (*erase)(ui_view_t* v);      // called before paint()
-    void (*paint)(ui_view_t* v);
-    void (*painted)(ui_view_t* v);  // called after paint()
+    void (*prepare)(struct ui_view* v);    // called before measure()
+    void (*measure)(struct ui_view* v);    // determine w, h (bottom up)
+    void (*measured)(struct ui_view* v);   // called after measure()
+    void (*layout)(struct ui_view* v);     // set x, y possibly adjust w, h (top down)
+    void (*composed)(struct ui_view* v);   // after layout() is done (laid out)
+    void (*erase)(struct ui_view* v);      // called before paint()
+    void (*paint)(struct ui_view* v);
+    void (*painted)(struct ui_view* v);  // called after paint()
     // composed() is effectively called right before paint() and
     // can be used to prepare for painting w/o need to override paint()
-    void (*debug_paint)(ui_view_t* v); // called if .debug is set to true
+    void (*debug_paint)(struct ui_view* v); // called if .debug is set to true
     // any message:
-    bool (*message)(ui_view_t* v, int32_t message, int64_t wp, int64_t lp,
+    bool (*message)(struct ui_view* v, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
-    void (*click)(ui_view_t* v);    // ui click callback - view action
-    void (*format)(ui_view_t* v);   // format a value to text (e.g. slider)
-    void (*callback)(ui_view_t* v); // state change callback
-    void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
-    void (*mouse_hover)(ui_view_t* v); // hover over
-    void (*mouse_move)(ui_view_t* v);
-    void (*double_click)(ui_view_t* v, int32_t ix);
+    void (*click)(struct ui_view* v);    // ui click callback - view action
+    void (*format)(struct ui_view* v);   // format a value to text (e.g. slider)
+    void (*callback)(struct ui_view* v); // state change callback
+    void (*mouse_scroll)(struct ui_view* v, struct ui_point dx_dy); // touchpad scroll
+    void (*mouse_hover)(struct ui_view* v); // hover over
+    void (*mouse_move)(struct ui_view* v);
+    void (*double_click)(struct ui_view* v, int32_t ix);
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
     // return true if consumed (halts further calls up the tree)
-    bool (*tap)(ui_view_t* v, int32_t ix, bool pressed); // single click/tap inside ui
-    bool (*long_press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
-    bool (*double_tap)(ui_view_t* v, int32_t ix); // legacy double click
-    bool (*context_menu)(ui_view_t* v); // right mouse click or long press
-    void (*focus_gained)(ui_view_t* v);
-    void (*focus_lost)(ui_view_t* v);
+    bool (*tap)(struct ui_view* v, int32_t ix, bool pressed); // single click/tap inside ui
+    bool (*long_press)(struct ui_view* v, int32_t ix); // two finger click/tap or long press
+    bool (*double_tap)(struct ui_view* v, int32_t ix); // legacy double click
+    bool (*context_menu)(struct ui_view* v); // right mouse click or long press
+    void (*focus_gained)(struct ui_view* v);
+    void (*focus_lost)(struct ui_view* v);
     // translated from key pressed/released to utf8:
-    void (*character)(ui_view_t* v, const char* utf8);
-    bool (*key_pressed)(ui_view_t* v, int64_t key);  // return true to stop
-    bool (*key_released)(ui_view_t* v, int64_t key); // processing
+    void (*character)(struct ui_view* v, const char* utf8);
+    bool (*key_pressed)(struct ui_view* v, int64_t key);  // return true to stop
+    bool (*key_released)(struct ui_view* v, int64_t key); // processing
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled views
-    void (*timer)(ui_view_t* v, ui_timer_t id);
-    void (*every_100ms)(ui_view_t* v); // ~10 x times per second
-    void (*every_sec)(ui_view_t* v); // ~once a second
-    int64_t (*hit_test)(const ui_view_t* v, ui_point_t pt);
+    void (*timer)(struct ui_view* v, ui_timer_t id);
+    void (*every_100ms)(struct ui_view* v); // ~10 x times per second
+    void (*every_sec)(struct ui_view* v); // ~once a second
+    int64_t (*hit_test)(const struct ui_view* v, struct ui_point pt);
     struct {
         bool hidden;    // measure()/ layout() paint() is not called on
         bool disabled;  // mouse, keyboard, key_up/down not called on
@@ -867,7 +867,7 @@ typedef struct ui_view_s {
         } paint;
         const char* id; // for debugging purposes
     } debug; // debug flags
-} ui_view_t;
+};
 
 // tap() / press() APIs guarantee that single tap() is not coming
 // before fp64_t tap/click in expense of fp64_t click delay (0.5 seconds)
@@ -875,83 +875,83 @@ typedef struct ui_view_s {
 // OK for text editing. Thus edit uses raw mouse events to react
 // on clicks and fp64_t clicks.
 
-typedef struct ui_view_if {
+struct ui_view_if {
     // children va_args must be null terminated
-    ui_view_t* (*add)(ui_view_t* parent, ...);
-    void (*add_first)(ui_view_t* parent, ui_view_t* child);
-    void (*add_last)(ui_view_t*  parent, ui_view_t* child);
-    void (*add_after)(ui_view_t* child,  ui_view_t* after);
-    void (*add_before)(ui_view_t* child, ui_view_t* before);
-    void (*remove)(ui_view_t* v); // removes view from it`s parent
-    void (*remove_all)(ui_view_t* parent); // removes all children
-    void (*disband)(ui_view_t* parent); // removes all children recursively
-    bool (*is_parent_of)(const ui_view_t* p, const ui_view_t* c);
-    bool (*inside)(const ui_view_t* v, const ui_point_t* pt);
-    ui_ltrb_t (*margins)(const ui_view_t* v, const ui_margins_t* g); // to pixels
-    void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);
-    void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
-    void (*set_text)(ui_view_t* v, const char* format, ...);
-    void (*set_text_va)(ui_view_t* v, const char* format, va_list va);
+    struct ui_view* (*add)(struct ui_view* parent, ...);
+    void (*add_first)(struct ui_view* parent, struct ui_view* child);
+    void (*add_last)(struct ui_view*  parent, struct ui_view* child);
+    void (*add_after)(struct ui_view* child,  struct ui_view* after);
+    void (*add_before)(struct ui_view* child, struct ui_view* before);
+    void (*remove)(struct ui_view* v); // removes view from it`s parent
+    void (*remove_all)(struct ui_view* parent); // removes all children
+    void (*disband)(struct ui_view* parent); // removes all children recursively
+    bool (*is_parent_of)(const struct ui_view* p, const struct ui_view* c);
+    bool (*inside)(const struct ui_view* v, const struct ui_point* pt);
+    struct ui_ltrb (*margins)(const struct ui_view* v, const struct ui_margins* g); // to pixels
+    void (*inbox)(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* insets);
+    void (*outbox)(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* padding);
+    void (*set_text)(struct ui_view* v, const char* format, ...);
+    void (*set_text_va)(struct ui_view* v, const char* format, va_list va);
     // ui_view.invalidate() prone to 30ms delays don't use in r/t video code
     // ui_view.invalidate(v, ui_app.crc) invalidates whole client rect but
     // ui_view.redraw() (fast non blocking) is much better instead
-    void (*invalidate)(const ui_view_t* v, const ui_rect_t* rect_or_null);
-    bool (*is_orphan)(const ui_view_t* v);   // view parent chain has null
-    bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
-    bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
-    bool (*is_control)(const ui_view_t* v);
-    bool (*is_container)(const ui_view_t* v);
-    bool (*is_spacer)(const ui_view_t* v);
-    const char* (*string)(ui_view_t* v);  // returns localized text
-    void (*timer)(ui_view_t* v, ui_timer_t id);
-    void (*every_sec)(ui_view_t* v);
-    void (*every_100ms)(ui_view_t* v);
-    int64_t (*hit_test)(const ui_view_t* v, ui_point_t pt);
+    void (*invalidate)(const struct ui_view* v, const struct ui_rect* rect_or_null);
+    bool (*is_orphan)(const struct ui_view* v);   // view parent chain has null
+    bool (*is_hidden)(const struct ui_view* v);   // view or any parent is hidden
+    bool (*is_disabled)(const struct ui_view* v); // view or any parent is disabled
+    bool (*is_control)(const struct ui_view* v);
+    bool (*is_container)(const struct ui_view* v);
+    bool (*is_spacer)(const struct ui_view* v);
+    const char* (*string)(struct ui_view* v);  // returns localized text
+    void (*timer)(struct ui_view* v, ui_timer_t id);
+    void (*every_sec)(struct ui_view* v);
+    void (*every_100ms)(struct ui_view* v);
+    int64_t (*hit_test)(const struct ui_view* v, struct ui_point pt);
     // key_pressed() key_released() return true to stop further processing
-    bool (*key_pressed)(ui_view_t* v, int64_t v_key);
-    bool (*key_released)(ui_view_t* v, int64_t v_key);
-    void (*character)(ui_view_t* v, const char* utf8);
-    void (*paint)(ui_view_t* v);
-    bool (*has_focus)(const ui_view_t* v); // ui_app.focused() && ui_app.focus == v
-    void (*set_focus)(ui_view_t* view_or_null);
-    void (*lose_hidden_focus)(ui_view_t* v);
-    void (*hovering)(ui_view_t* v, bool start);
-    void (*mouse_hover)(ui_view_t* v); // hover over
-    void (*mouse_move)(ui_view_t* v);
-    void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
-    ui_wh_t (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
-        const ui_fm_t* fm, const char* format, va_list va);
-    ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
-        const ui_fm_t* fm, const char* format, ...);
-    void (*text_measure)(ui_view_t* v, const char* s,
-        ui_view_text_metrics_t* tm);
-    void (*text_align)(ui_view_t* v, ui_view_text_metrics_t* tm);
-    void (*measure_text)(ui_view_t* v); // fills v->text.mt and .xy
+    bool (*key_pressed)(struct ui_view* v, int64_t v_key);
+    bool (*key_released)(struct ui_view* v, int64_t v_key);
+    void (*character)(struct ui_view* v, const char* utf8);
+    void (*paint)(struct ui_view* v);
+    bool (*has_focus)(const struct ui_view* v); // ui_app.focused() && ui_app.focus == v
+    void (*set_focus)(struct ui_view* view_or_null);
+    void (*lose_hidden_focus)(struct ui_view* v);
+    void (*hovering)(struct ui_view* v, bool start);
+    void (*mouse_hover)(struct ui_view* v); // hover over
+    void (*mouse_move)(struct ui_view* v);
+    void (*mouse_scroll)(struct ui_view* v, struct ui_point dx_dy); // touchpad scroll
+    struct ui_wh (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
+        const struct ui_fm* fm, const char* format, va_list va);
+    struct ui_wh (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
+        const struct ui_fm* fm, const char* format, ...);
+    void (*text_measure)(struct ui_view* v, const char* s,
+        struct ui_view_text_metrics* tm);
+    void (*text_align)(struct ui_view* v, struct ui_view_text_metrics* tm);
+    void (*measure_text)(struct ui_view* v); // fills v->text.mt and .xy
     // measure_control(): control is special case with v->text.mt and .xy
-    void (*measure_control)(ui_view_t* v);
-    void (*measure_children)(ui_view_t* v);
-    void (*layout_children)(ui_view_t* v);
-    void (*measure)(ui_view_t* v);
-    void (*layout)(ui_view_t* v);
-    void (*hover_changed)(ui_view_t* v);
-    bool (*is_shortcut_key)(ui_view_t* v, int64_t key);
-    bool (*context_menu)(ui_view_t* v);
+    void (*measure_control)(struct ui_view* v);
+    void (*measure_children)(struct ui_view* v);
+    void (*layout_children)(struct ui_view* v);
+    void (*measure)(struct ui_view* v);
+    void (*layout)(struct ui_view* v);
+    void (*hover_changed)(struct ui_view* v);
+    bool (*is_shortcut_key)(struct ui_view* v, int64_t key);
+    bool (*context_menu)(struct ui_view* v);
     // `ix` 0: left 1: middle 2: right
-    bool (*tap)(ui_view_t* v, int32_t ix, bool pressed);
-    bool (*long_press)(ui_view_t* v, int32_t ix);
-    bool (*double_tap)(ui_view_t* v, int32_t ix);
-    bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp, int64_t* ret);
-    void (*debug_paint_margins)(ui_view_t* v); // insets padding
-    void (*debug_paint_fm)(ui_view_t* v);   // text font metrics
+    bool (*tap)(struct ui_view* v, int32_t ix, bool pressed);
+    bool (*long_press)(struct ui_view* v, int32_t ix);
+    bool (*double_tap)(struct ui_view* v, int32_t ix);
+    bool (*message)(struct ui_view* v, int32_t m, int64_t wp, int64_t lp, int64_t* ret);
+    void (*debug_paint_margins)(struct ui_view* v); // insets padding
+    void (*debug_paint_fm)(struct ui_view* v);   // text font metrics
     void (*test)(void);
-} ui_view_if;
+};
 
-extern ui_view_if ui_view;
+extern struct ui_view_if ui_view;
 
 // view children iterator:
 
 #define ui_view_for_each_begin(v, it) do {       \
-    ui_view_t* it = (v)->child;                  \
+    struct ui_view* it = (v)->child;                  \
     if (it != null) {                            \
         do {                                     \
 
@@ -998,7 +998,7 @@ extern ui_view_if ui_view;
 
 #define ui_view_call_init(v) do {                   \
     if ((v)->init != null) {                        \
-        void (*_init_)(ui_view_t* _v_) = (v)->init; \
+        void (*_init_)(struct ui_view* _v_) = (v)->init; \
         (v)->init = null; /* before! call */        \
         _init_((v));                                \
     }                                               \
@@ -1012,13 +1012,13 @@ rt_end_c
 
 rt_begin_c
 
-typedef struct ui_view_s ui_view_t;
+struct ui_view;
 
 // Usage:
 //
-// ui_view_t* stack  = ui_view(stack);
-// ui_view_t* horizontal = ui_view(ui_view_span);
-// ui_view_t* vertical   = ui_view(ui_view_list);
+// struct ui_view* stack  = ui_view(stack);
+// struct ui_view* horizontal = ui_view(ui_view_span);
+// struct ui_view* vertical   = ui_view(ui_view_list);
 //
 // containers automatically layout child views
 // similar to SwiftUI HStack and VStack taking .align
@@ -1040,13 +1040,13 @@ typedef struct ui_view_s ui_view_t;
 //
 // void opened(void) {
 //     ui_view.add(ui_app.view, ..., null);
-//     ui_app.view->insets = (ui_margins_t) {
+//     ui_app.view->insets = (struct ui_margins) {
 //         .left  = 0.25, .top    = 0.25,
 //         .right = 0.25, .bottom = 0.25 };
 //     ui_app.view->color = ui_colors.dark_scarlet;
 // }
 
-typedef struct ui_view_s ui_view_t;
+struct ui_view;
 
 #define ui_view(view_type) {            \
     .type = (ui_view_ ## view_type),    \
@@ -1056,10 +1056,10 @@ typedef struct ui_view_s ui_view_t;
     .color_id = 0                       \
 }
 
-void ui_view_init_stack(ui_view_t* v);
-void ui_view_init_span(ui_view_t* v);
-void ui_view_init_list(ui_view_t* v);
-void ui_view_init_spacer(ui_view_t* v);
+void ui_view_init_stack(struct ui_view* v);
+void ui_view_init_span(struct ui_view* v);
+void ui_view_init_list(struct ui_view* v);
+void ui_view_init_spacer(struct ui_view* v);
 
 rt_end_c
 // ______________________________ ui_edit_doc.h _______________________________
@@ -1068,36 +1068,36 @@ rt_end_c
 
 rt_begin_c
 
-typedef struct ui_edit_str_s ui_edit_str_t;
+struct ui_edit_str;
 
-typedef struct ui_edit_doc_s ui_edit_doc_t;
+struct ui_edit_doc;
 
-typedef struct ui_edit_notify_s ui_edit_notify_t;
+struct ui_edit_notify;
 
-typedef struct ui_edit_to_do_s ui_edit_to_do_t;
+struct ui_edit_to_do;
 
-typedef struct ui_edit_pg_s { // page/glyph coordinates
+struct ui_edit_pg { // page/glyph coordinates
     // humans used to line:column coordinates in text
     int32_t pn; // zero based paragraph number ("line number")
     int32_t gp; // zero based glyph position ("column")
-} ui_edit_pg_t;
+};
 
-typedef union rt_begin_packed ui_edit_range_s {
-    struct { ui_edit_pg_t from; ui_edit_pg_t to; };
-    ui_edit_pg_t a[2];
-} rt_end_packed ui_edit_range_t; // "from"[0] "to"[1]
+union rt_begin_packed ui_edit_range {
+    struct { struct ui_edit_pg from; struct ui_edit_pg to; };
+    struct ui_edit_pg a[2];
+} rt_end_packed; // "from"[0] "to"[1]
 
-typedef struct ui_edit_text_s {
+struct ui_edit_text {
     int32_t np;   // number of paragraphs
-    ui_edit_str_t* ps; // ps[np] paragraphs
-} ui_edit_text_t;
+    struct ui_edit_str* ps; // ps[np] paragraphs
+};
 
-typedef struct ui_edit_notify_info_s {
+struct ui_edit_notify_info {
     bool ok; // false if ui_edit_view.replace() failed (bad utf8 or no memory)
-    const ui_edit_doc_t*   const d;
-    const ui_edit_range_t* const r; // range to be replaced
-    const ui_edit_range_t* const x; // extended range (replacement)
-    const ui_edit_text_t*  const t; // replacement text
+    const struct ui_edit_doc*   const d;
+    const union ui_edit_range* const r; // range to be replaced
+    const union ui_edit_range* const x; // extended range (replacement)
+    const struct ui_edit_text*  const t; // replacement text
     // d->text.np number of paragraphs may change after replace
     // before/after: [pnf..pnt] is inside [0..d->text.np-1]
     int32_t const pnf; // paragraph number from
@@ -1108,105 +1108,105 @@ typedef struct ui_edit_notify_info_s {
     // d->text.ps[pnf..pnf + inserted] were inserted
     int32_t const deleted;  // number of deleted  paragraphs (before: 0)
     int32_t const inserted; // paragraph inserted paragraphs (before: 0)
-} ui_edit_notify_info_t;
+};
 
-typedef struct ui_edit_notify_s { // called before and after replace()
-    void (*before)(ui_edit_notify_t* notify, const ui_edit_notify_info_t* ni);
+struct ui_edit_notify { // called before and after replace()
+    void (*before)(struct ui_edit_notify* notify, const struct ui_edit_notify_info* ni);
     // after() is called even if replace() failed with ok: false
-    void (*after)(ui_edit_notify_t* notify, const ui_edit_notify_info_t* ni);
-} ui_edit_notify_t;
+    void (*after)(struct ui_edit_notify* notify, const struct ui_edit_notify_info* ni);
+};
 
-typedef struct ui_edit_listener_s ui_edit_listener_t;
+struct ui_edit_listener;
 
-typedef struct ui_edit_listener_s {
-    ui_edit_notify_t* notify;
-    ui_edit_listener_t* prev;
-    ui_edit_listener_t* next;
-} ui_edit_listener_t;
+struct ui_edit_listener {
+    struct ui_edit_notify* notify;
+    struct ui_edit_listener* prev;
+    struct ui_edit_listener* next;
+};
 
-typedef struct ui_edit_to_do_s { // undo/redo action
-    ui_edit_range_t  range;
-    ui_edit_text_t   text;
-    ui_edit_to_do_t* next; // inside undo or redo list
-} ui_edit_to_do_t;
+struct ui_edit_to_do { // undo/redo action
+    union ui_edit_range  range;
+    struct ui_edit_text   text;
+    struct ui_edit_to_do* next; // inside undo or redo list
+};
 
-typedef struct ui_edit_doc_s {
-    ui_edit_text_t   text;
-    ui_edit_to_do_t* undo; // undo stack
-    ui_edit_to_do_t* redo; // redo stack
-    ui_edit_listener_t* listeners;
-} ui_edit_doc_t;
+struct ui_edit_doc {
+    struct ui_edit_text   text;
+    struct ui_edit_to_do* undo; // undo stack
+    struct ui_edit_to_do* redo; // redo stack
+    struct ui_edit_listener* listeners;
+};
 
-typedef struct ui_edit_doc_if {
+struct ui_edit_doc_if {
     // init(utf8, bytes, heap:false) must have longer lifetime
     // than document, otherwise use heap: true to copy
-    bool    (*init)(ui_edit_doc_t* d, const char* utf8_or_null,
+    bool    (*init)(struct ui_edit_doc* d, const char* utf8_or_null,
                     int32_t bytes, bool heap);
-    bool    (*replace)(ui_edit_doc_t* d, const ui_edit_range_t* r,
+    bool    (*replace)(struct ui_edit_doc* d, const union ui_edit_range* r,
                 const char* utf8, int32_t bytes);
-    int32_t (*bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
-    bool    (*copy_text)(ui_edit_doc_t* d, const ui_edit_range_t* range,
-                ui_edit_text_t* text); // retrieves range into string
-    int32_t (*utf8bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
+    int32_t (*bytes)(const struct ui_edit_doc* d, const union ui_edit_range* range);
+    bool    (*copy_text)(struct ui_edit_doc* d, const union ui_edit_range* range,
+                struct ui_edit_text* text); // retrieves range into string
+    int32_t (*utf8bytes)(const struct ui_edit_doc* d, const union ui_edit_range* range);
     // utf8 must be at least ui_edit_doc.utf8bytes()
-    void    (*copy)(ui_edit_doc_t* d, const ui_edit_range_t* range,
+    void    (*copy)(struct ui_edit_doc* d, const union ui_edit_range* range,
                 char* utf8, int32_t bytes);
     // undo() and push reverse into redo stack
-    bool (*undo)(ui_edit_doc_t* d); // false if there is nothing to redo
+    bool (*undo)(struct ui_edit_doc* d); // false if there is nothing to redo
     // redo() and push reverse into undo stack
-    bool (*redo)(ui_edit_doc_t* d); // false if there is nothing to undo
-    bool (*subscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
-    void (*unsubscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
-    void (*dispose_to_do)(ui_edit_to_do_t* to_do);
-    void (*dispose)(ui_edit_doc_t* d);
+    bool (*redo)(struct ui_edit_doc* d); // false if there is nothing to undo
+    bool (*subscribe)(struct ui_edit_doc* d, struct ui_edit_notify* notify);
+    void (*unsubscribe)(struct ui_edit_doc* d, struct ui_edit_notify* notify);
+    void (*dispose_to_do)(struct ui_edit_to_do* to_do);
+    void (*dispose)(struct ui_edit_doc* d);
     void (*test)(void);
-} ui_edit_doc_if;
+};
 
-extern ui_edit_doc_if ui_edit_doc;
+extern struct ui_edit_doc_if ui_edit_doc;
 
-typedef struct ui_edit_range_if {
-    int (*compare)(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2);
-    ui_edit_range_t (*order)(const ui_edit_range_t r);
-    bool            (*is_valid)(const ui_edit_range_t r);
-    bool            (*is_empty)(const ui_edit_range_t r);
-    uint64_t        (*uint64)(const ui_edit_pg_t pg); // (p << 32 | g)
-    ui_edit_pg_t    (*pg)(uint64_t ui64); // p: (ui64 >> 32) g: (int32_t)ui64
-    bool            (*inside)(const ui_edit_text_t* t,
-                              const ui_edit_range_t r);
-    ui_edit_range_t (*intersect)(const ui_edit_range_t r1,
-                                 const ui_edit_range_t r2);
-    const ui_edit_range_t* const invalid_range; // {{-1,-1},{-1,-1}}
-} ui_edit_range_if;
+struct ui_edit_range_if {
+    int (*compare)(const struct ui_edit_pg pg1, const struct ui_edit_pg pg2);
+    union ui_edit_range (*order)(const union ui_edit_range r);
+    bool            (*is_valid)(const union ui_edit_range r);
+    bool            (*is_empty)(const union ui_edit_range r);
+    uint64_t        (*uint64)(const struct ui_edit_pg pg); // (p << 32 | g)
+    struct ui_edit_pg    (*pg)(uint64_t ui64); // p: (ui64 >> 32) g: (int32_t)ui64
+    bool            (*inside)(const struct ui_edit_text* t,
+                              const union ui_edit_range r);
+    union ui_edit_range (*intersect)(const union ui_edit_range r1,
+                                 const union ui_edit_range r2);
+    const union ui_edit_range* const invalid_range; // {{-1,-1},{-1,-1}}
+};
 
-extern ui_edit_range_if ui_edit_range;
+extern struct ui_edit_range_if ui_edit_range;
 
-typedef struct ui_edit_text_if {
-    bool    (*init)(ui_edit_text_t* t, const char* utf, int32_t b, bool heap);
+struct ui_edit_text_if {
+    bool    (*init)(struct ui_edit_text* t, const char* utf, int32_t b, bool heap);
 
-    int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* r);
+    int32_t (*bytes)(const struct ui_edit_text* t, const union ui_edit_range* r);
     // end() last paragraph, last glyph in text
-    ui_edit_pg_t    (*end)(const ui_edit_text_t* t);
-    ui_edit_range_t (*end_range)(const ui_edit_text_t* t);
-    ui_edit_range_t (*all_on_null)(const ui_edit_text_t* t,
-                                   const ui_edit_range_t* r);
-    ui_edit_range_t (*ordered)(const ui_edit_text_t* t,
-                               const ui_edit_range_t* r);
-    bool    (*dup)(ui_edit_text_t* t, const ui_edit_text_t* s);
-    bool    (*equal)(const ui_edit_text_t* t1, const ui_edit_text_t* t2);
-    bool    (*copy_text)(const ui_edit_text_t* t, const ui_edit_range_t* range,
-                ui_edit_text_t* to);
-    void    (*copy)(const ui_edit_text_t* t, const ui_edit_range_t* range,
+    struct ui_edit_pg    (*end)(const struct ui_edit_text* t);
+    union ui_edit_range (*end_range)(const struct ui_edit_text* t);
+    union ui_edit_range (*all_on_null)(const struct ui_edit_text* t,
+                                   const union ui_edit_range* r);
+    union ui_edit_range (*ordered)(const struct ui_edit_text* t,
+                               const union ui_edit_range* r);
+    bool    (*dup)(struct ui_edit_text* t, const struct ui_edit_text* s);
+    bool    (*equal)(const struct ui_edit_text* t1, const struct ui_edit_text* t2);
+    bool    (*copy_text)(const struct ui_edit_text* t, const union ui_edit_range* range,
+                struct ui_edit_text* to);
+    void    (*copy)(const struct ui_edit_text* t, const union ui_edit_range* range,
                 char* to, int32_t bytes);
-    bool    (*replace)(ui_edit_text_t* t, const ui_edit_range_t* r,
-                const ui_edit_text_t* text, ui_edit_to_do_t* undo_or_null);
-    bool    (*replace_utf8)(ui_edit_text_t* t, const ui_edit_range_t* r,
-                const char* utf8, int32_t bytes, ui_edit_to_do_t* undo_or_null);
-    void    (*dispose)(ui_edit_text_t* t);
-} ui_edit_text_if;
+    bool    (*replace)(struct ui_edit_text* t, const union ui_edit_range* r,
+                const struct ui_edit_text* text, struct ui_edit_to_do* undo_or_null);
+    bool    (*replace_utf8)(struct ui_edit_text* t, const union ui_edit_range* r,
+                const char* utf8, int32_t bytes, struct ui_edit_to_do* undo_or_null);
+    void    (*dispose)(struct ui_edit_text* t);
+};
 
-extern ui_edit_text_if ui_edit_text;
+extern struct ui_edit_text_if ui_edit_text;
 
-typedef struct rt_begin_packed ui_edit_str_s {
+struct rt_begin_packed ui_edit_str {
     char* u;    // always correct utf8 bytes not zero terminated(!) sequence
     // s.g2b[s.g + 1] glyph to byte position inside s.u[]
     // s.g2b[0] == 0, s.g2b[s.glyphs] == s.bytes
@@ -1214,16 +1214,16 @@ typedef struct rt_begin_packed ui_edit_str_s {
     int32_t  b;    // number of bytes
     int32_t  c;    // when capacity is zero .u is not heap allocated
     int32_t  g;    // number of glyphs
-} rt_end_packed ui_edit_str_t;
+} rt_end_packed;
 
-typedef struct ui_edit_str_if {
-    bool (*init)(ui_edit_str_t* s, const char* utf8, int32_t bytes, bool heap);
-    void (*swap)(ui_edit_str_t* s1, ui_edit_str_t* s2);
+struct ui_edit_str_if {
+    bool (*init)(struct ui_edit_str* s, const char* utf8, int32_t bytes, bool heap);
+    void (*swap)(struct ui_edit_str* s1, struct ui_edit_str* s2);
     int32_t (*gp_to_bp)(const char* s, int32_t bytes, int32_t gp); // or -1
-    int32_t (*bytes)(ui_edit_str_t* s, int32_t from, int32_t to); // glyphs
-    bool (*expand)(ui_edit_str_t* s, int32_t capacity); // reallocate
-    void (*shrink)(ui_edit_str_t* s); // get rid of extra heap memory
-    bool (*replace)(ui_edit_str_t* s, int32_t from, int32_t to, // glyphs
+    int32_t (*bytes)(struct ui_edit_str* s, int32_t from, int32_t to); // glyphs
+    bool (*expand)(struct ui_edit_str* s, int32_t capacity); // reallocate
+    void (*shrink)(struct ui_edit_str* s); // get rid of extra heap memory
+    bool (*replace)(struct ui_edit_str* s, int32_t from, int32_t to, // glyphs
                     const char* utf8, int32_t bytes); // [from..to[ exclusive
     bool (*is_zwj)(uint32_t utf32); // zero width joiner
     bool (*is_letter)(uint32_t utf32); // in European Alphabets
@@ -1237,11 +1237,11 @@ typedef struct ui_edit_str_if {
     bool (*is_cjk_or_emoji)(uint32_t utf32);
     bool (*can_break)(uint32_t cp1, uint32_t cp2);
     void (*test)(void);
-    void (*free)(ui_edit_str_t* s);
-    const ui_edit_str_t* const empty;
-} ui_edit_str_if;
+    void (*free)(struct ui_edit_str* s);
+    const struct ui_edit_str* const empty;
+};
 
-extern ui_edit_str_if ui_edit_str;
+extern struct ui_edit_str_if ui_edit_str;
 
 /*
     For caller convenience the bytes parameter in all calls can be set
@@ -1283,7 +1283,7 @@ extern ui_edit_str_if ui_edit_str;
             struct. It is incorrect to call free() on the string that
             was not initialized or already freed.
 
-    All ui_edit_str_t keep "precise" number of utf8 bytes.
+    All struct ui_edit_str keep "precise" number of utf8 bytes.
     Caller may allocate extra byte and set it to 0x00
     after retrieving and copying data from ui_edit_str if
     the string content is intended to be used by any
@@ -1298,60 +1298,60 @@ rt_end_c
 
 rt_begin_c
 
-// important ui_edit_view_t will refuse to layout into a box smaller than
+// important struct ui_edit_view will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
 
-typedef struct ui_edit_view_s ui_edit_view_t;
+struct ui_edit_view;
 
-typedef struct ui_edit_str_s ui_edit_str_t;
+struct ui_edit_str;
 
-typedef struct ui_edit_doc_s ui_edit_doc_t;
+struct ui_edit_doc;
 
-typedef struct ui_edit_notify_s ui_edit_notify_t;
+struct ui_edit_notify;
 
-typedef struct ui_edit_to_do_s ui_edit_to_do_t;
+struct ui_edit_to_do;
 
-typedef struct ui_edit_pr_s { // page/run coordinates
+struct ui_edit_pr { // page/run coordinates
     int32_t pn; // paragraph number
     int32_t rn; // run number inside paragraph
-} ui_edit_pr_t;
+};
 
-typedef struct ui_edit_run_s {
+struct ui_edit_run {
     int32_t bp;     // position in bytes  since start of the paragraph
     int32_t gp;     // position in glyphs since start of the paragraph
     int32_t bytes;  // number of bytes in this `run`
     int32_t glyphs; // number of glyphs in this `run`
     int32_t pixels; // width in pixels
-} ui_edit_run_t;
+};
 
-// ui_edit_paragraph_t.initially text will point to readonly memory
+// struct ui_edit_paragraph.initially text will point to readonly memory
 // with .allocated == 0; as text is modified it is copied to
 // heap and reallocated there.
 
-typedef struct ui_edit_paragraph_s { // "paragraph" view consists of wrapped runs
+struct ui_edit_paragraph { // "paragraph" view consists of wrapped runs
     int32_t runs;       // number of runs in this paragraph
-    ui_edit_run_t* run; // heap allocated array[runs]
-} ui_edit_paragraph_t;
+    struct ui_edit_run* run; // heap allocated array[runs]
+};
 
-typedef struct ui_edit_notify_view_s {
-    ui_edit_notify_t notify;
+struct ui_edit_notify_view {
+    struct ui_edit_notify notify;
     void*            that; // specific for listener
     uintptr_t        data; // before -> after listener data
-} ui_edit_notify_view_t;
+};
 
-typedef struct ui_edit_view_s {
+struct ui_edit_view {
     union {
-        ui_view_t view;
-        struct ui_view_s;
+        struct ui_view view;
+        struct ui_view;
     };
-    ui_edit_doc_t* doc; // document
-    ui_edit_notify_view_t listener;
-    ui_edit_range_t selection; // "from" selection[0] "to" selection[1]
-    ui_point_t caret; // (-1, -1) off
+    struct ui_edit_doc* doc; // document
+    struct ui_edit_notify_view listener;
+    union ui_edit_range selection; // "from" selection[0] "to" selection[1]
+    struct ui_point caret; // (-1, -1) off
     int32_t caret_width; // in pixels
-    ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
+    struct ui_edit_pr scroll; // left top corner paragraph/run coordinates
     int32_t last_x;    // last_x for up/down caret movement
-    ui_ltrb_t inside;  // inside insets space
+    struct ui_ltrb inside;  // inside insets space
     struct {
         int32_t w;       // inside.right - inside.left
         int32_t h;       // inside.bottom - inside.top
@@ -1366,44 +1366,44 @@ typedef struct ui_edit_view_s {
     bool hide_word_wrap; // do not paint word wrap
     int32_t shown;    // debug: caret show/hide counter 0|1
     // paragraphs memory:
-    ui_edit_paragraph_t* para; // para[e->doc->text.np]
-} ui_edit_view_t;
+    struct ui_edit_paragraph* para; // para[e->doc->text.np]
+};
 
-typedef struct ui_edit_view_if {
-    void (*init)(ui_edit_view_t* e, ui_edit_doc_t* d);
-    void (*set_font)(ui_edit_view_t* e, ui_fm_t* fm); // see notes below (*)
-    void (*move)(ui_edit_view_t* e, ui_edit_pg_t pg); // move caret clear selection
+struct ui_edit_view_if {
+    void (*init)(struct ui_edit_view* e, struct ui_edit_doc* d);
+    void (*set_font)(struct ui_edit_view* e, struct ui_fm* fm); // see notes below (*)
+    void (*move)(struct ui_edit_view* e, struct ui_edit_pg pg); // move caret clear selection
     // replace selected text. If bytes < 0 text is treated as zero terminated
-    void (*replace)(ui_edit_view_t* e, const char* text, int32_t bytes);
+    void (*replace)(struct ui_edit_view* e, const char* text, int32_t bytes);
     // call save(e, null, &bytes) to retrieve number of utf8
     // bytes required to save whole text including 0x00 terminating bytes
-    errno_t (*save)(ui_edit_view_t* e, char* text, int32_t* bytes);
-    void (*copy)(ui_edit_view_t* e);  // to clipboard
-    void (*cut)(ui_edit_view_t* e);   // to clipboard
+    errno_t (*save)(struct ui_edit_view* e, char* text, int32_t* bytes);
+    void (*copy)(struct ui_edit_view* e);  // to clipboard
+    void (*cut)(struct ui_edit_view* e);   // to clipboard
     // replace selected text with content of clipboard:
-    void (*paste)(ui_edit_view_t* e); // from clipboard
-    void (*select_all)(ui_edit_view_t* e); // select whole text
-    void (*erase)(ui_edit_view_t* e); // delete selected text
+    void (*paste)(struct ui_edit_view* e); // from clipboard
+    void (*select_all)(struct ui_edit_view* e); // select whole text
+    void (*erase)(struct ui_edit_view* e); // delete selected text
     // keyboard actions dispatcher:
-    void (*key_down)(ui_edit_view_t* e);
-    void (*key_up)(ui_edit_view_t* e);
-    void (*key_left)(ui_edit_view_t* e);
-    void (*key_right)(ui_edit_view_t* e);
-    void (*key_page_up)(ui_edit_view_t* e);
-    void (*key_page_down)(ui_edit_view_t* e);
-    void (*key_home)(ui_edit_view_t* e);
-    void (*key_end)(ui_edit_view_t* e);
-    void (*key_delete)(ui_edit_view_t* e);
-    void (*key_backspace)(ui_edit_view_t* e);
-    void (*key_enter)(ui_edit_view_t* e);
+    void (*key_down)(struct ui_edit_view* e);
+    void (*key_up)(struct ui_edit_view* e);
+    void (*key_left)(struct ui_edit_view* e);
+    void (*key_right)(struct ui_edit_view* e);
+    void (*key_page_up)(struct ui_edit_view* e);
+    void (*key_page_down)(struct ui_edit_view* e);
+    void (*key_home)(struct ui_edit_view* e);
+    void (*key_end)(struct ui_edit_view* e);
+    void (*key_delete)(struct ui_edit_view* e);
+    void (*key_backspace)(struct ui_edit_view* e);
+    void (*key_enter)(struct ui_edit_view* e);
     // called when ENTER keyboard key is pressed in single line mode
-    void (*enter)(ui_edit_view_t* e);
+    void (*enter)(struct ui_edit_view* e);
     // fuzzer test:
-    void (*fuzz)(ui_edit_view_t* e);      // start/stop fuzzing test
-    void (*dispose)(ui_edit_view_t* e);
-} ui_edit_view_if;
+    void (*fuzz)(struct ui_edit_view* e);      // start/stop fuzzing test
+    void (*dispose)(struct ui_edit_view* e);
+};
 
-extern ui_edit_view_if ui_edit_view;
+extern struct ui_edit_view_if ui_edit_view;
 
 /*
     Notes:
@@ -1484,7 +1484,7 @@ extern ui_edit_view_if ui_edit_view;
             struct. It is incorrect to call free() on the string that
             was not initialized or already freed.
 
-    All ui_edit_str_t keep "precise" number of utf8 bytes.
+    All struct ui_edit_str keep "precise" number of utf8 bytes.
     Caller may allocate extra byte and set it to 0x00
     after retrieving and copying data from ui_edit_str if
     the string content is intended to be used by any
@@ -1497,9 +1497,9 @@ rt_end_c
 
 rt_begin_c
 
-typedef ui_view_t ui_label_t;
+typedef struct ui_view ui_label_t;
 
-void ui_view_init_label(ui_view_t* v);
+void ui_view_init_label(struct ui_view* v);
 
 // label insets and padding left/right are intentionally
 // smaller than button/slider/toggle controls
@@ -1537,9 +1537,9 @@ rt_end_c
 
 rt_begin_c
 
-typedef ui_view_t ui_button_t;
+typedef struct ui_view ui_button_t;
 
-void ui_view_init_button(ui_view_t* v);
+void ui_view_init_button(struct ui_view* v);
 
 void ui_button_init(ui_button_t* b, const char* label, fp32_t min_width_em,
     void (*callback)(ui_button_t* b));
@@ -1642,14 +1642,14 @@ rt_begin_c
 // device otherwise ui_draw.rgbx() call is used and alpha
 // is ignored.
 
-typedef struct ui_image_s ui_image_t;
+struct ui_image;
 
-typedef struct ui_image_s {
+struct ui_image {
     union {
-        ui_view_t view;
-        struct ui_view_s;
+        struct ui_view view;
+        struct ui_view;
     };
-    ui_bitmap_t image; // view does NOT own or dispose image->bitmap
+    struct ui_bitmap image; // view does NOT own or dispose image->bitmap
     fp64_t     alpha; // for rgba images
     // actual scale() is: z = 2 ^ (zn - 1) / 2 ^ (zd - 1)
     int32_t zoom; // 0..8
@@ -1659,7 +1659,7 @@ typedef struct ui_image_s {
     fp64_t  sx; // shift x [0..1.0] in view coordinates
     fp64_t  sy; // shift y [0..1.0]
     struct { // only visible when focused
-        ui_view_t   bar; // ui_view(span) {zoom in, zoom 1:1, zoom out, help}
+        struct ui_view   bar; // ui_view(span) {zoom in, zoom 1:1, zoom out, help}
         ui_button_t copy; // copy image to clipboard
         ui_button_t zoom_in;
         ui_button_t zoom_1t1; // 1:1
@@ -1669,27 +1669,27 @@ typedef struct ui_image_s {
         ui_button_t help;
         ui_label_t  ratio;
     } tool;
-    ui_point_t drag_start;
+    struct ui_point drag_start;
     fp64_t when; // to hide toolbar
     bool fit;    // best fit into view
     bool fill;   // fill entire view
     // fit and fill cannot be true at the same time
     // when fit: false and fill: false the zoom ratio is in effect
-} ui_image_t;
+};
 
-typedef struct ui_image_if {
-    void      (*init)(ui_image_t* iv);
-    void      (*init_with)(ui_image_t* iv, const uint8_t* pixels,
+struct ui_image_if {
+    void      (*init)(struct ui_image* iv);
+    void      (*init_with)(struct ui_image* iv, const uint8_t* pixels,
                            int32_t width, int32_t height,
                            int32_t bpp, int32_t stride);
     // ration can only be: 16:1 8:1 4:1 2:1 1:1 1:2 1:4 1:8 1:16
     // but ignored if .fit or .fill is true
-    void      (*ratio)(ui_image_t* iv, int32_t nominator, int32_t denominator);
-    fp64_t    (*scale)(ui_image_t* iv); // 2 ^ (zn - 1) / 2 ^ (zd - 1)
-    ui_rect_t (*position)(ui_image_t* iv);
-} ui_image_if;
+    void      (*ratio)(struct ui_image* iv, int32_t nominator, int32_t denominator);
+    fp64_t    (*scale)(struct ui_image* iv); // 2 ^ (zn - 1) / 2 ^ (zd - 1)
+    struct ui_rect (*position)(struct ui_image* iv);
+};
 
-extern ui_image_if ui_image;
+extern struct ui_image_if ui_image;
 
 rt_end_c
 
@@ -1703,15 +1703,15 @@ rt_end_c
     extern "C" {
 #endif
 
-typedef struct ui_midi_s ui_midi_t;
+struct ui_midi;
 
-typedef struct ui_midi_s {
+struct ui_midi {
     uint8_t data[16 * 8]; // opaque implementation data
     // must return 0 if successful or error otherwise:
-    int64_t (*notify)(ui_midi_t* midi, int64_t flags);
-} ui_midi_t;
+    int64_t (*notify)(struct ui_midi* midi, int64_t flags);
+};
 
-typedef struct {
+struct ui_midi_if {
     // flags bitset:
     int32_t const success; // when the clip is done playing
     int32_t const failure; // on error playing media
@@ -1719,18 +1719,18 @@ typedef struct {
     int32_t const superseded;
     // midi has it's own section of legacy error messages
     void    (*error)(errno_t r, char* s, int32_t count);
-    errno_t (*open)(ui_midi_t* midi, const char* filename);
-    errno_t (*play)(ui_midi_t* midi);
-    errno_t (*rewind)(ui_midi_t* midi);
-    errno_t (*stop)(ui_midi_t* midi);
-    errno_t (*get_volume)(ui_midi_t* midi, fp64_t *volume);
-    errno_t (*set_volume)(ui_midi_t* midi, fp64_t  volume);
-    bool    (*is_open)(ui_midi_t* midi);
-    bool    (*is_playing)(ui_midi_t* midi);
-    void    (*close)(ui_midi_t* midi);
-} ui_midi_if;
+    errno_t (*open)(struct ui_midi* midi, const char* filename);
+    errno_t (*play)(struct ui_midi* midi);
+    errno_t (*rewind)(struct ui_midi* midi);
+    errno_t (*stop)(struct ui_midi* midi);
+    errno_t (*get_volume)(struct ui_midi* midi, fp64_t *volume);
+    errno_t (*set_volume)(struct ui_midi* midi, fp64_t  volume);
+    bool    (*is_open)(struct ui_midi* midi);
+    bool    (*is_playing)(struct ui_midi* midi);
+    void    (*close)(struct ui_midi* midi);
+};
 
-extern ui_midi_if ui_midi;
+extern struct ui_midi_if ui_midi;
 
 
 /*
@@ -1766,39 +1766,39 @@ extern ui_midi_if ui_midi;
 
 rt_begin_c
 
-typedef struct ui_slider_s ui_slider_t;
+struct ui_slider;
 
-typedef struct ui_slider_s {
+struct ui_slider {
     union {
-        ui_view_t view;
-        struct ui_view_s;
+        struct ui_view view;
+        struct ui_view;
     };
     int32_t step;
     fp64_t time; // time last button was pressed
-    ui_wh_t wh;  // text measurement (special case for %0*d)
+    struct ui_wh wh;  // text measurement (special case for %0*d)
     ui_button_t inc; // can be hidden
     ui_button_t dec; // can be hidden
-    int32_t value;  // for ui_slider_t range slider control
+    int32_t value;  // for struct ui_slider range slider control
     int32_t value_min;
     int32_t value_max;
     // style:
     bool notched; // true if marked with a notches and has a thumb
-} ui_slider_t;
+};
 
-void ui_view_init_slider(ui_view_t* v);
+void ui_view_init_slider(struct ui_view* v);
 
-void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
-    int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* r));
+void ui_slider_init(struct ui_slider* r, const char* label, fp32_t min_w_em,
+    int32_t value_min, int32_t value_max, void (*callback)(struct ui_view* r));
 
 // ui_slider_changed can only be used on static slider variables
 
 #define ui_slider_changed(name, s, min_width_em, mn,  mx, fmt, ...) \
-    static void name ## _changed(ui_slider_t* name) {               \
+    static void name ## _changed(struct ui_slider* name) {               \
         (void)name; /* no warning if unused */                      \
         { __VA_ARGS__ }                                             \
     }                                                               \
     static                                                          \
-    ui_slider_t name = {                                            \
+    struct ui_slider name = {                                            \
         .view = {                                                   \
             .type = ui_view_slider,                                 \
             .init = ui_view_init_slider,                            \
@@ -1854,7 +1854,7 @@ enum {
     ui_theme_app_mode_force_light = 3
 };
 
-typedef struct  {
+struct ui_theme_if {
     bool (*is_app_dark)(void);
     bool (*is_system_dark)(void);
     bool (*are_apps_dark)(void);
@@ -1864,9 +1864,9 @@ typedef struct  {
     void (*allow_dark_mode_for_window)(bool allow);
     void (*refresh)(void);
     void (*test)(void);
-} ui_theme_if;
+};
 
-extern ui_theme_if ui_theme;
+extern struct ui_theme_if ui_theme;
 
 rt_end_c
 
@@ -1874,13 +1874,13 @@ rt_end_c
 
 rt_begin_c
 
-typedef ui_view_t ui_toggle_t;
+typedef struct ui_view ui_toggle_t;
 
 // label may contain "___" which will be replaced with "On" / "Off"
 void ui_toggle_init(ui_toggle_t* b, const char* label, fp32_t ems,
     void (*callback)(ui_toggle_t* b));
 
-void ui_view_init_toggle(ui_view_t* v);
+void ui_view_init_toggle(struct ui_view* v);
 
 // ui_toggle_on_off can only be used on static toggle variables
 
@@ -1934,20 +1934,20 @@ rt_begin_c
 //   "Yes"|"No"|"Abort"|"Retry"|"Ignore"|"Cancel"|"Try"|"Continue"
 // maximum number of choices presentable to human is 4.
 
-typedef struct {
+struct ui_mbx {
     union {
-        ui_view_t view;
-        struct ui_view_s;
+        struct ui_view view;
+        struct ui_view;
     };
     ui_label_t   label;
     ui_button_t  button[4];
     int32_t      option; // -1 or option chosen by user
     const char** options;
-} ui_mbx_t;
+};
 
-void ui_view_init_mbx(ui_view_t* v);
+void ui_view_init_mbx(struct ui_view* v);
 
-void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
+void ui_mbx_init(struct ui_mbx* mx, const char* option[], const char* format, ...);
 
 // ui_mbx_on_choice can only be used on static mbx variables
 
@@ -1956,12 +1956,12 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
                                                                  \
     static char* name ## _options[] = { __VA_ARGS__, null };     \
                                                                  \
-    static void name ## _chosen(ui_mbx_t* m, int32_t option) {   \
+    static void name ## _chosen(struct ui_mbx* m, int32_t option) {   \
         (void)m; (void)option; /* no warnings if unused */       \
         code                                                     \
     }                                                            \
     static                                                       \
-    ui_mbx_t name = {                                            \
+    struct ui_mbx name = {                                            \
         .view = {                                                \
             .type = ui_view_mbx,                                 \
             .init = ui_view_init_mbx,                            \
@@ -1997,21 +1997,21 @@ rt_end_c
 
 rt_begin_c
 
-typedef struct ui_caption_s {
-    ui_view_t view;
+struct ui_caption {
+    struct ui_view view;
     // caption`s children:
     ui_button_t icon;
     ui_label_t title;
-    ui_view_t spacer;
+    struct ui_view spacer;
     ui_button_t menu; // use: ui_caption.button_menu.cb := your callback
     ui_button_t mode; // switch between dark/light mode
     ui_button_t mini;
     ui_button_t maxi;
     ui_button_t full;
     ui_button_t quit;
-} ui_caption_t;
+};
 
-extern ui_caption_t ui_caption;
+extern struct ui_caption ui_caption;
 
 rt_end_c
 
@@ -2021,16 +2021,16 @@ rt_begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
-typedef struct ui_app_message_handler_s ui_app_message_handler_t;
+struct ui_app_message_handler;
 
-typedef struct ui_app_message_handler_s {
+struct ui_app_message_handler {
     void* that;
-    ui_app_message_handler_t* next;
-    bool (*callback)(ui_app_message_handler_t* handler, int32_t m, 
+    struct ui_app_message_handler* next;
+    bool (*callback)(struct ui_app_message_handler* handler, int32_t m, 
                      int64_t wp, int64_t lp, int64_t* rt);
-} ui_app_message_handler_t;
+};
 
-typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
+struct ui_dpi { // max(dpi_x, dpi_y)
     int32_t system;  // system dpi
     int32_t process; // process dpi
     // 15" diagonal monitor 3840x2160 175% scaled
@@ -2040,14 +2040,14 @@ typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
     int32_t monitor_angular;   // diagonal raw
     int32_t monitor_max;       // maximum of effective,raw,angular
     int32_t window;            // main window dpi
-} ui_dpi_t;
+};
 
 // in inches (because monitors customary are)
 // it is not in points (1/72 inch) like font size
 // because it is awkward to express large area
 // size in typography measurements.
 
-typedef struct ui_window_sizing_s {
+struct ui_window_sizing {
     fp32_t ini_w; // initial window width in inches
     fp32_t ini_h; // 0,0 means set to min_w, min_h
     fp32_t min_w; // minimum window width in inches
@@ -2058,21 +2058,21 @@ typedef struct ui_window_sizing_s {
 	// initial window sizing only used on the first invocation
 	// actual user sizing is stored in the configuration and used
 	// on all launches except the very first.
-} ui_window_sizing_t;
+};
 
-typedef struct ui_fms_s {
+struct ui_fms {
     // when font handles are re-created on system scaling change
     // metrics "em" and font geometry filled
-    ui_fm_t normal; // regular UI font ~ 11-12pt
-    ui_fm_t tiny;   // small UI font ~ 8pt
-    ui_fm_t title;  // Largest Title font
-    ui_fm_t rubric; // Subtitle font
-    ui_fm_t H1;     // bolder header font
-    ui_fm_t H2;
-    ui_fm_t H3;
-} ui_fms_t;
+    struct ui_fm normal; // regular UI font ~ 11-12pt
+    struct ui_fm tiny;   // small UI font ~ 8pt
+    struct ui_fm title;  // Largest Title font
+    struct ui_fm rubric; // Subtitle font
+    struct ui_fm H1;     // bolder header font
+    struct ui_fm H2;
+    struct ui_fm H3;
+};
 
-typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after methods
+struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data after methods
     // implemented by client:
     const char* class_name;
     // called before creating main window
@@ -2090,7 +2090,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     void (*fini)(void);        // called before WinMain() return
     // must be filled by application:
     const char* title;
-    ui_window_sizing_t const window_sizing;
+    struct ui_window_sizing const window_sizing;
     // TODO: struct {} visibility;
     // see: ui.visibility.*
     int32_t visibility;         // initial window_visibility state
@@ -2112,23 +2112,23 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     ui_icon_t icon; // may be null
     uint64_t  tid; // main thread id
     int32_t   exit_code; // application exit code
-    ui_dpi_t  dpi;
-    ui_rect_t wrc;  // window rectangle including non-client area
-    ui_rect_t crc;  // client rectangle
-    ui_rect_t mrc;  // monitor rectangle
-    ui_rect_t prc;  // previously invalidated paint rectangle inside crc
-    ui_rect_t work_area; // current monitor work area
+    struct ui_dpi  dpi;
+    struct ui_rect wrc;  // window rectangle including non-client area
+    struct ui_rect crc;  // client rectangle
+    struct ui_rect mrc;  // monitor rectangle
+    struct ui_rect prc;  // previously invalidated paint rectangle inside crc
+    struct ui_rect work_area; // current monitor work area
     int32_t   caption_height; // caption height
-    ui_wh_t   border;    // frame border size
+    struct ui_wh   border;    // frame border size
     // not to call rt_clock.seconds() too often:
     fp64_t     now;  // ssb "seconds since boot" updated on each message
-    ui_view_t* root; // show_window() changes ui.hidden
-    ui_view_t* content;
-    ui_view_t* caption;
-    ui_view_t* focus; // does not affect message routing
+    struct ui_view* root; // show_window() changes ui.hidden
+    struct ui_view* content;
+    struct ui_view* caption;
+    struct ui_view* focus; // does not affect message routing
     struct { // font metrics and handles
-        ui_fms_t prop;  // proportional fonts
-        ui_fms_t mono;  // monospaced fonts
+        struct ui_fms prop;  // proportional fonts
+        struct ui_fms mono;  // monospaced fonts
     } fm;
     // TODO: struct {} keyboard
     // keyboard state now:
@@ -2141,7 +2141,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     bool mouse_left;   // left or if buttons are swapped - right button pressed
     bool mouse_middle; // rarely useful
     bool mouse_right;  // context button pressed
-    ui_point_t mouse; // mouse/touchpad pointer
+    struct ui_point mouse; // mouse/touchpad pointer
     ui_cursor_t cursor; // current cursor
     struct {
         ui_cursor_t arrow;
@@ -2154,14 +2154,14 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
         ui_cursor_t size_all;  // north - south
     } cursors;
     struct { // animated_groot state
-        ui_view_t* view;
-        ui_view_t* focused; // focused view before animated_groot started
+        struct ui_view* view;
+        struct ui_view* focused; // focused view before animated_groot started
         int32_t step;
         fp64_t time; // closing time or zero
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
     } animating;
-    ui_app_message_handler_t* handlers;
+    struct ui_app_message_handler* handlers;
     // post(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
     void (*post)(rt_work_t* work); // work.when == 0 meaning ASAP
@@ -2178,7 +2178,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     void (*activate)(void); // request application window activation
     void (*set_title)(const char* title);
     void (*capture_mouse)(bool on); // capture mouse global input on/of
-    void (*move_and_resize)(const ui_rect_t* rc);
+    void (*move_and_resize)(const struct ui_rect* rc);
     void (*bring_to_foreground)(void); // not necessary topmost
     void (*make_topmost)(void);   // in foreground hierarchy of windows
     void (*request_focus)(void);  // request application window keyboard focus
@@ -2186,7 +2186,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
                                   // make_topmost() + request_focus()
     // measure and layout:
     void (*request_layout)(void); // requests layout on UI tree before paint()
-    void (*invalidate)(const ui_rect_t* rc);
+    void (*invalidate)(const struct ui_rect* rc);
     void (*full_screen)(bool on);
     void (*set_cursor)(ui_cursor_t c);
     void (*close)(void); // attempts to close (can_close() permitting)
@@ -2195,8 +2195,8 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     ui_timer_t (*set_timer)(uintptr_t id, int32_t milliseconds); // see notes
     void (*kill_timer)(ui_timer_t id);
     void (*show_window)(int32_t show); // see show_window enum
-    void (*show_toast)(ui_view_t* toast, fp64_t seconds); // toast(null) to cancel
-    void (*show_hint)(ui_view_t* tooltip, int32_t x, int32_t y, fp64_t seconds);
+    void (*show_toast)(struct ui_view* toast, fp64_t seconds); // toast(null) to cancel
+    void (*show_hint)(struct ui_view* tooltip, int32_t x, int32_t y, fp64_t seconds);
     void (*toast_va)(fp64_t seconds, const char* format, va_list va);
     void (*toast)(fp64_t seconds, const char* format, ...);
     // caret calls must be balanced by caller
@@ -2231,9 +2231,9 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     fp64_t paint_fps;  // EMA of last 128 paints
     fp64_t paint_last; // rt_clock.seconds() of last paint
     fp64_t paint_dt_min; // minimum time between 2 paints
-} ui_app_t;
+};
 
-extern ui_app_t ui_app;
+extern struct ui_app ui_app;
 
 rt_end_c
 
@@ -2242,11 +2242,11 @@ rt_begin_c
 // https://en.wikipedia.org/wiki/Fuzzing
 // aka "Monkey" testing
 
-typedef struct ui_fuzzing_s {
+struct ui_fuzzing {
     rt_work_t    base;
     const char*  utf8; // .character(utf8)
     int32_t      key;  // .key_pressed(key)/.key_released(key)
-    ui_point_t*  pt;   // .move_move()
+    struct ui_point*  pt;   // .move_move()
     // key_press and character
     bool         alt;
     bool         ctrl;
@@ -2259,22 +2259,22 @@ typedef struct ui_fuzzing_s {
     // custom
     int32_t      op;
     void*        data;
-} ui_fuzzing_t;
+};
 
-typedef struct ui_fuzzing_if {
+struct ui_fuzzing_if {
     void (*start)(uint32_t seed);
     bool (*is_running)(void);
     bool (*from_inside)(void); // true if called originated inside fuzzing
-    void (*next_random)(ui_fuzzing_t* f); // called if `next` is null
-    void (*dispatch)(ui_fuzzing_t* f);    // dispatch work
+    void (*next_random)(struct ui_fuzzing* f); // called if `next` is null
+    void (*dispatch)(struct ui_fuzzing* f);    // dispatch work
     // next() called instead of random if not null
-    void (*next)(ui_fuzzing_t* f);
+    void (*next)(struct ui_fuzzing* f);
     // custom() called instead of dispatch() if not null
-    void (*custom)(ui_fuzzing_t* f);
+    void (*custom)(struct ui_fuzzing* f);
     void (*stop)(void);
-} ui_fuzzing_if;
+};
 
-extern ui_fuzzing_if ui_fuzzing;
+extern struct ui_fuzzing_if ui_fuzzing;
 
 rt_end_c
 
@@ -2412,22 +2412,22 @@ static void ui_app_alt_ctrl_shift(bool down, int64_t key) {
     if (key == VK_SHIFT)   { ui_app.shift = down; }
 }
 
-static inline ui_point_t ui_app_point2ui(const POINT* p) {
-    ui_point_t u = { p->x, p->y };
+static inline struct ui_point ui_app_point2ui(const POINT* p) {
+    struct ui_point u = { p->x, p->y };
     return u;
 }
 
-static inline POINT ui_app_ui2point(const ui_point_t* u) {
+static inline POINT ui_app_ui2point(const struct ui_point* u) {
     POINT p = { u->x, u->y };
     return p;
 }
 
-static ui_rect_t ui_app_rect2ui(const RECT* r) {
-    ui_rect_t u = { r->left, r->top, r->right - r->left, r->bottom - r->top };
+static struct ui_rect ui_app_rect2ui(const RECT* r) {
+    struct ui_rect u = { r->left, r->top, r->right - r->left, r->bottom - r->top };
     return u;
 }
 
-static RECT ui_app_ui2rect(const ui_rect_t* u) {
+static RECT ui_app_ui2rect(const struct ui_rect* u) {
     RECT r = { u->x, u->y, u->x + u->w, u->y + u->h };
     return r;
 }
@@ -2438,7 +2438,7 @@ static void ui_app_update_ncm(int32_t dpi) {
         sizeof(ui_app_ncm), &ui_app_ncm, 0, (DWORD)dpi));
 }
 
-static void ui_app_update_monitor_dpi(HMONITOR monitor, ui_dpi_t* dpi) {
+static void ui_app_update_monitor_dpi(HMONITOR monitor, struct ui_dpi* dpi) {
     dpi->monitor_max = 72;
     for (int32_t mtd = MDT_EFFECTIVE_DPI; mtd <= MDT_RAW_DPI; mtd++) {
         uint32_t dpi_x = 0;
@@ -2515,7 +2515,7 @@ static void ui_app_dump_dpi(void) {
 
 #endif
 
-static bool ui_app_update_mi(const ui_rect_t* r, uint32_t flags) {
+static bool ui_app_update_mi(const struct ui_rect* r, uint32_t flags) {
     RECT rc = ui_app_ui2rect(r);
     HMONITOR monitor = MonitorFromRect(&rc, flags);
 //  TODO: moving between monitors with different DPIs
@@ -2605,7 +2605,7 @@ static void ui_app_ncm_dump_fonts(void) {
 }
 
 static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
-                                  ui_fm_t* fm) {
+                                  struct ui_fm* fm) {
     rt_swear(abs(lf->lfHeight) == fm->height - fm->internal_leading);
     rt_swear(fm->external_leading == 0); // "Segoe UI" and "Cascadia Mono"
     rt_swear(ui_app.dpi.window >= 72);
@@ -2637,7 +2637,7 @@ static void ui_app_dump_font_size(const char* name, const LOGFONTW* lf,
     #endif
 }
 
-static void ui_app_init_fms(ui_fms_t* fms, const LOGFONTW* base) {
+static void ui_app_init_fms(struct ui_fms* fms, const LOGFONTW* base) {
     LOGFONTW lf = *base;
     // lf.lfQuality is zero (DEFAULT_QUALITY) that gets internally
     // interpreted as CLEARTYPE_QUALITY (if clear type is enabled
@@ -2702,26 +2702,26 @@ static int32_t ui_app_data_load(const char* name, void* data, int32_t bytes) {
     return rt_config.load(ui_app.class_name, name, data, bytes);
 }
 
-typedef rt_begin_packed struct ui_app_wiw_s { // "where is window"
+rt_begin_packed struct ui_app_wiw { // "where is window"
     // coordinates in pixels relative (0,0) top left corner
     // of primary monitor from GetWindowPlacement
     int32_t    bytes;
     int32_t    padding;      // to align rectangles and points to 8 bytes
-    ui_rect_t  placement;
-    ui_rect_t  mrc;          // monitor rectangle
-    ui_rect_t  work_area;    // monitor work area (mrc sans taskbar etc)
-    ui_point_t min_position; // not used (-1, -1)
-    ui_point_t max_position; // not used (-1, -1)
-    ui_point_t max_track;    // maximum window size (spawning all monitors)
-    ui_rect_t  space;        // surrounding rect x,y,w,h of all monitors
+    struct ui_rect  placement;
+    struct ui_rect  mrc;          // monitor rectangle
+    struct ui_rect  work_area;    // monitor work area (mrc sans taskbar etc)
+    struct ui_point min_position; // not used (-1, -1)
+    struct ui_point max_position; // not used (-1, -1)
+    struct ui_point max_track;    // maximum window size (spawning all monitors)
+    struct ui_rect  space;        // surrounding rect x,y,w,h of all monitors
     int32_t    dpi;          // of the monitor on which window (x,y) is located
     int32_t    flags;        // WPF_SETMINPOSITION. WPF_RESTORETOMAXIMIZED
     int32_t    show;         // show command
-} rt_end_packed ui_app_wiw_t;
+} rt_end_packed;
 
 static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
         HDC rt_unused(hdc), RECT* rt_unused(rc1), LPARAM that) {
-    ui_app_wiw_t* wiw = (ui_app_wiw_t*)(uintptr_t)that;
+    struct ui_app_wiw* wiw = (struct ui_app_wiw*)(uintptr_t)that;
     MONITORINFOEXA mi = { .cbSize = sizeof(MONITORINFOEXA) };
     rt_fatal_win32err(GetMonitorInfoA(monitor, (MONITORINFO*)&mi));
     // monitors can be in negative coordinate spaces and even rotated upside-down
@@ -2738,7 +2738,7 @@ static BOOL CALLBACK ui_app_monitor_enum_proc(HMONITOR monitor,
     return true; // keep going
 }
 
-static void ui_app_enum_monitors(ui_app_wiw_t* wiw) {
+static void ui_app_enum_monitors(struct ui_app_wiw* wiw) {
     EnumDisplayMonitors(null, null, ui_app_monitor_enum_proc,
         (LPARAM)(uintptr_t)wiw);
     // because ui_app_monitor_enum_proc() puts max into w,h:
@@ -2749,13 +2749,13 @@ static void ui_app_enum_monitors(ui_app_wiw_t* wiw) {
 static void ui_app_save_window_pos(ui_window_t wnd, const char* name, bool dump) {
     RECT wr = {0};
     rt_fatal_win32err(GetWindowRect((HWND)wnd, &wr));
-    ui_rect_t wrc = ui_app_rect2ui(&wr);
+    struct ui_rect wrc = ui_app_rect2ui(&wr);
     ui_app_update_mi(&wrc, MONITOR_DEFAULTTONEAREST);
     WINDOWPLACEMENT wpl = { .length = sizeof(wpl) };
     rt_fatal_win32err(GetWindowPlacement((HWND)wnd, &wpl));
     // note the replacement of wpl.rcNormalPosition with wrc:
-    ui_app_wiw_t wiw = { // where is window
-        .bytes = sizeof(ui_app_wiw_t),
+    struct ui_app_wiw wiw = { // where is window
+        .bytes = sizeof(struct ui_app_wiw),
         .placement = wrc,
         .mrc = ui_app.mrc,
         .work_area = ui_app.work_area,
@@ -2815,14 +2815,14 @@ static void ui_app_save_console_pos(void) {
     rt_config.save(ui_app.class_name, "icv", &v, (int32_t)sizeof(v));
 }
 
-static bool ui_app_is_fully_inside(const ui_rect_t* inner,
-                                const ui_rect_t* outer) {
+static bool ui_app_is_fully_inside(const struct ui_rect* inner,
+                                const struct ui_rect* outer) {
     return
         outer->x <= inner->x && inner->x + inner->w <= outer->x + outer->w &&
         outer->y <= inner->y && inner->y + inner->h <= outer->y + outer->h;
 }
 
-static void ui_app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* wrc) {
+static void ui_app_bring_window_inside_monitor(const struct ui_rect* mrc, struct ui_rect* wrc) {
     rt_assert(mrc->w > 0 && mrc->h > 0);
     // Check if window rect is inside monitor rect
     if (!ui_app_is_fully_inside(wrc, mrc)) {
@@ -2837,8 +2837,8 @@ static void ui_app_bring_window_inside_monitor(const ui_rect_t* mrc, ui_rect_t* 
     }
 }
 
-static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
-    ui_app_wiw_t wiw = {0}; // where is window
+static bool ui_app_load_window_pos(struct ui_rect* rect, int32_t *visibility) {
+    struct ui_app_wiw wiw = {0}; // where is window
     bool loaded = rt_config.load(ui_app.class_name, "wiw", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
     if (loaded) {
@@ -2878,8 +2878,8 @@ static bool ui_app_load_window_pos(ui_rect_t* rect, int32_t *visibility) {
     return loaded;
 }
 
-static bool ui_app_load_console_pos(ui_rect_t* rect, int32_t *visibility) {
-    ui_app_wiw_t wiw = {0}; // where is window
+static bool ui_app_load_console_pos(struct ui_rect* rect, int32_t *visibility) {
+    struct ui_app_wiw wiw = {0}; // where is window
     *visibility = 0; // boolean
     bool loaded = rt_config.load(ui_app.class_name, "wic", &wiw, sizeof(wiw)) ==
                                 sizeof(wiw);
@@ -2918,7 +2918,7 @@ static ui_timer_t ui_app_timer_set(uintptr_t id, int32_t ms) {
     return tid;
 }
 
-static void ui_app_timer(ui_view_t* view, ui_timer_t id) {
+static void ui_app_timer(struct ui_view* view, ui_timer_t id) {
     ui_view.timer(view, id);
     if (id == ui_app_timer_1s_id) { ui_view.every_sec(view); }
     if (id == ui_app_timer_100ms_id) { ui_view.every_100ms(view); }
@@ -2991,8 +2991,8 @@ static void ui_app_window_closing(void) {
 }
 
 static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
-    const ui_window_sizing_t* ws = &ui_app.window_sizing;
-    const ui_rect_t* wa = &ui_app.work_area;
+    const struct ui_window_sizing* ws = &ui_app.window_sizing;
+    const struct ui_rect* wa = &ui_app.work_area;
     const int32_t min_w = ws->min_w > 0 ? ui_app.in2px(ws->min_w) : ui_app.in2px(1.0);
     const int32_t min_h = ws->min_h > 0 ? ui_app.in2px(ws->min_h) : ui_app.in2px(0.5);
     mmi->ptMinTrackSize.x = min_w;
@@ -3011,13 +3011,13 @@ static void ui_app_get_min_max_info(MINMAXINFO* mmi) {
     mmi->ptMaxSize.y = mmi->ptMaxTrackSize.y;
 }
 
-static void ui_app_paint(ui_view_t* view) {
+static void ui_app_paint(struct ui_view* view) {
     rt_assert(ui_app_window() != null);
     // crc = {0,0} on minimized windows but paint is still called
     if (ui_app.crc.w > 0 && ui_app.crc.h > 0) { ui_view.paint(view); }
 }
 
-static void ui_app_measure_and_layout(ui_view_t* view) {
+static void ui_app_measure_and_layout(struct ui_view* view) {
     // restore from minimized calls ui_app.crc.w,h == 0
     if (ui_app.crc.w > 0 && ui_app.crc.h > 0 && ui_app_window() != null) {
         ui_view.measure(view);
@@ -3028,9 +3028,9 @@ static void ui_app_measure_and_layout(ui_view_t* view) {
 
 static void ui_app_toast_character(const char* utf8);
 static bool ui_app_toast_key_pressed(int64_t key);
-static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed);
+static bool ui_app_toast_tap(struct ui_view* v, int32_t ix, bool pressed);
 
-static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
+static void ui_app_dispatch_wm_char(struct ui_view* view, const uint16_t* utf16) {
     char utf8[32 + 1];
     int32_t utf8bytes = rt_str.utf8_bytes(utf16, -1);
     rt_swear(utf8bytes < rt_countof(utf8) - 1); // 32 bytes + 0x00
@@ -3044,7 +3044,7 @@ static void ui_app_dispatch_wm_char(ui_view_t* view, const uint16_t* utf16) {
     ui_app_high_surrogate = 0x0000;
 }
 
-static void ui_app_wm_char(ui_view_t* view, const uint16_t* utf16) {
+static void ui_app_wm_char(struct ui_view* view, const uint16_t* utf16) {
     int32_t utf16chars = rt_str.len16(utf16);
     rt_swear(0 < utf16chars && utf16chars < 4); // wParam is 64bits
     const uint16_t utf16char = utf16[0];
@@ -3064,7 +3064,7 @@ static void ui_app_wm_char(ui_view_t* view, const uint16_t* utf16) {
     }
 }
 
-static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_app_wm_key_pressed(struct ui_view* v, int64_t key) {
     if (ui_app.animating.view != null) {
         return ui_app_toast_key_pressed(key);
     } else {
@@ -3072,14 +3072,14 @@ static bool ui_app_wm_key_pressed(ui_view_t* v, int64_t key) {
     }
 }
 
-static bool ui_app_mouse(ui_view_t* v, int32_t m, int64_t f) {
+static bool ui_app_mouse(struct ui_view* v, int32_t m, int64_t f) {
     bool swallow = false;
     // override ui_app_update_mouse_buttons_state() (sic):
     // because mouse message can be from the past
     ui_app.mouse_left   = f & (ui_app.mouse_swapped ? MK_RBUTTON : MK_LBUTTON);
     ui_app.mouse_middle = f & MK_MBUTTON;
     ui_app.mouse_right  = f & (ui_app.mouse_swapped ? MK_LBUTTON : MK_RBUTTON);
-    ui_view_t* av = ui_app.animating.view;
+    struct ui_view* av = ui_app.animating.view;
     if (m == WM_MOUSEHOVER) {
         ui_view.mouse_hover(av != null && av->mouse_hover != null ? av : v);
     } else if (m == WM_MOUSEMOVE) {
@@ -3189,17 +3189,17 @@ static bool ui_app_nc_mouse_buttons(int32_t m, int64_t wp, int64_t lp) {
 enum { ui_app_animation_steps = 63 };
 
 static void ui_app_toast_paint(void) {
-    static ui_bitmap_t image_dark;
+    static struct ui_bitmap image_dark;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0x3F, 0x3F, 0x3F };
         ui_draw.bitmap_init(&image_dark, 1, 1, 3, pixels);
     }
-    static ui_bitmap_t image_light;
+    static struct ui_bitmap image_light;
     if (image_dark.texture == null) {
         uint8_t pixels[4] = { 0xC0, 0xC0, 0xC0 };
         ui_draw.bitmap_init(&image_light, 1, 1, 3, pixels);
     }
-    ui_view_t* av = ui_app.animating.view;
+    struct ui_view* av = ui_app.animating.view;
     if (av != null) {
         ui_view.measure(av);
         bool hint = ui_app.animating.x >= 0 && ui_app.animating.y >= 0;
@@ -3254,7 +3254,7 @@ static void ui_app_toast_paint(void) {
                 int32_t r = av->x + av->w;
                 const int32_t tx = r - em_w / 2;
                 const int32_t ty = 0;
-                const ui_ta_t ta = {
+                const struct ui_ta ta = {
                     .fm = &ui_app.fm.prop.normal,
                     .color = ui_color_undefined,
                     .color_id = ui_color_id_window_text
@@ -3269,7 +3269,7 @@ static void ui_app_toast_paint(void) {
 static void ui_app_toast_cancel(void) {
     if (ui_app.animating.view != null) {
         if (ui_app.animating.view->type == ui_view_mbx) {
-            ui_mbx_t* mx = (ui_mbx_t*)ui_app.animating.view;
+            struct ui_mbx* mx = (struct ui_mbx*)ui_app.animating.view;
             if (mx->option < 0 && mx->callback != null) {
                 mx->callback(&mx->view);
             }
@@ -3293,11 +3293,11 @@ static void ui_app_toast_cancel(void) {
     }
 }
 
-static bool ui_app_toast_tap(ui_view_t* v, int32_t ix, bool pressed) {
+static bool ui_app_toast_tap(struct ui_view* v, int32_t ix, bool pressed) {
     bool swallow = false;
     rt_swear(v == ui_app.animating.view);
     if (pressed) {
-        const ui_fm_t* fm = v->fm;
+        const struct ui_fm* fm = v->fm;
         const int32_t right = v->x + v->w;
         const int32_t x = right - fm->em.w / 2;
         const int32_t mx = ui_app.mouse.x;
@@ -3374,7 +3374,7 @@ static void ui_app_animate_start(ui_app_animate_function_t f, int32_t steps) {
     ui_app_animate_step(f, 0, steps);
 }
 
-static void ui_app_view_paint(ui_view_t* v) {
+static void ui_app_view_paint(struct ui_view* v) {
     v->color = ui_colors.get_color(v->color_id);
     if (v->background_id > 0) {
         v->background = ui_colors.get_color(v->background_id);
@@ -3560,14 +3560,14 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     #define ui_timers_done(ix) do {                  \
         clicked[ix] = 0;                             \
         pressed[ix] = false;                         \
-        click_at[ix] = (ui_point_t){0, 0};           \
+        click_at[ix] = (struct ui_point){0, 0};           \
         ui_kill_timer(timer_p[ix]);                  \
         ui_kill_timer(timer_d[ix]);                  \
     } while (0)
 
     // This function should work regardless to CS_BLKCLK being present
     // 0: Left, 1: Middle, 2: Right
-    static ui_point_t click_at[3];
+    static struct ui_point click_at[3];
     static fp64_t     clicked[3]; // click time
     static bool       pressed[3];
     static ui_timer_t timer_d[3]; // double tap
@@ -3589,7 +3589,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     if (msg == WM_TIMER) { // long press && double tap
         for (int i = 0; i < 3; i++) {
             if (wp == timer_p[i]) {
-                ui_app.mouse = (ui_point_t){ click_at[i].x, click_at[i].y };
+                ui_app.mouse = (struct ui_point){ click_at[i].x, click_at[i].y };
                 ui_view.long_press(ui_app.root, i);
 //              rt_println("timer_p[%d] _d && _p timers done", i);
                 ui_timers_done(i);
@@ -3608,13 +3608,13 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
 //               double_click_msec, double_click_dt);
         const int double_click_x = GetSystemMetrics(SM_CXDOUBLECLK) / 2;
         const int double_click_y = GetSystemMetrics(SM_CYDOUBLECLK) / 2;
-        ui_point_t pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
+        struct ui_point pt = { GET_X_LPARAM(lp), GET_Y_LPARAM(lp) };
         if (m == tap && !up) {
             swallow = ui_view.tap(ui_app.root, ix, !up);
             if (ui_app.now  - clicked[ix]  <= double_click_dt &&
                 abs(pt.x - click_at[ix].x) <= double_click_x &&
                 abs(pt.y - click_at[ix].y) <= double_click_y) {
-                ui_app.mouse = (ui_point_t){ click_at[ix].x, click_at[ix].y };
+                ui_app.mouse = (struct ui_point){ click_at[ix].x, click_at[ix].y };
                 ui_view.double_tap(ui_app.root, ix);
 //              rt_println("timer_p[%d] _d && _p timers done", ix);
                 ui_timers_done(ix);
@@ -3658,7 +3658,7 @@ static bool ui_app_click_detector(uint32_t msg, WPARAM wp, LPARAM lp) {
     return swallow;
 }
 
-static int64_t ui_app_root_hit_test(const ui_view_t* v, ui_point_t pt) {
+static int64_t ui_app_root_hit_test(const struct ui_view* v, struct ui_point pt) {
     rt_swear(v == ui_app.root);
     if (ui_app.no_decor) {
         rt_assert(ui_app.border.w == ui_app.border.h);
@@ -3717,7 +3717,7 @@ static void ui_app_update_mouse_buttons_state(void) {
 }
 
 static int64_t ui_app_wm_nc_hit_test(int64_t wp, int64_t lp) {
-    ui_point_t pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
+    struct ui_point pt = { GET_X_LPARAM(lp) - ui_app.wrc.x,
                       GET_Y_LPARAM(lp) - ui_app.wrc.y };
     int64_t ht = ui_view.hit_test(ui_app.root, pt);
     if (ht != ui.hit_test.nowhere) {
@@ -3773,7 +3773,7 @@ static int64_t ui_app_wm_get_dpi_scaled_size(int64_t wp) {
     #ifdef UI_APP_DEBUG
         int32_t dpi = wp;
         SIZE* sz = (SIZE*)lp; // in/out
-        ui_point_t cell = { sz->cx, sz->cy };
+        struct ui_point cell = { sz->cx, sz->cy };
         rt_println("WM_GETDPISCALEDSIZE dpi %d := %d "
             "size %d,%d *may/must* be adjusted",
             ui_app.dpi.window, dpi, cell.x, cell.y);
@@ -3849,10 +3849,10 @@ static bool ui_app_wm_mouse(int32_t m, int64_t wp, int64_t lp) {
 
 static void ui_app_wm_mouse_wheel(bool vertical, int64_t wp) {
     if (vertical) {
-        ui_point_t dx_dy = { 0, GET_WHEEL_DELTA_WPARAM(wp) };
+        struct ui_point dx_dy = { 0, GET_WHEEL_DELTA_WPARAM(wp) };
         ui_view.mouse_scroll(ui_app.root, dx_dy);
     } else {
-        ui_point_t dx_dy = { GET_WHEEL_DELTA_WPARAM(wp), 0 };
+        struct ui_point dx_dy = { GET_WHEEL_DELTA_WPARAM(wp), 0 };
         ui_view.mouse_scroll(ui_app.root, dx_dy);
     }
 }
@@ -4001,7 +4001,7 @@ static LRESULT CALLBACK ui_app_window_proc(HWND window, UINT message,
         ui_app_animate_step((ui_app_animate_function_t)lp, (int32_t)wp, -1);
         return 0;
     }
-    ui_app_message_handler_t* handler = ui_app.handlers; 
+    struct ui_app_message_handler* handler = ui_app.handlers; 
     while (handler != null) { 
         if (handler->callback(handler, m, wp, lp, &ret)) {
             return ret;
@@ -4273,7 +4273,7 @@ static void ui_app_init_sys_menu(void) {
     }
 }
 
-static void ui_app_create_window(const ui_rect_t r) {
+static void ui_app_create_window(const struct ui_rect r) {
     uint16_t class_name[256];
     rt_str.utf8to16(class_name, rt_countof(class_name), ui_app.class_name, -1);
     WNDCLASSW* wc = &ui_app_wc;
@@ -4352,7 +4352,7 @@ static void ui_app_full_screen(bool on) {
     }
 }
 
-static bool ui_app_set_focus(ui_view_t* rt_unused(v)) { return false; }
+static bool ui_app_set_focus(struct ui_view* rt_unused(v)) { return false; }
 
 static void ui_app_request_redraw(void) {  // < 2us
     SetEvent(ui_app_event_invalidate);
@@ -4363,7 +4363,7 @@ static void ui_app_draw(void) {
     UpdateWindow(ui_app_window());
 }
 
-static void ui_app_invalidate_rect(const ui_rect_t* r) {
+static void ui_app_invalidate_rect(const struct ui_rect* r) {
     RECT rc = ui_app_ui2rect(r);
     InvalidateRect(ui_app_window(), &rc, false);
 //  rt_backtrace_here();
@@ -4415,14 +4415,14 @@ static void ui_app_quit(int32_t exit_code) {
     ui_app.close(); // close and destroy app only window
 }
 
-static void ui_app_show_hint_or_toast(ui_view_t* v, int32_t x, int32_t y,
+static void ui_app_show_hint_or_toast(struct ui_view* v, int32_t x, int32_t y,
         fp64_t timeout) {
     if (v != null) {
         ui_app.animating.x = x;
         ui_app.animating.y = y;
         ui_app.animating.focused = ui_app.focus;
         if (v->type == ui_view_mbx) {
-            ((ui_mbx_t*)v)->option = -1;
+            ((struct ui_mbx*)v)->option = -1;
             if (v->focusable) {
                  ui_view.set_focus(v);
             }
@@ -4440,11 +4440,11 @@ static void ui_app_show_hint_or_toast(ui_view_t* v, int32_t x, int32_t y,
     }
 }
 
-static void ui_app_show_toast(ui_view_t* view, fp64_t timeout) {
+static void ui_app_show_toast(struct ui_view* view, fp64_t timeout) {
     ui_app_show_hint_or_toast(view, -1, -1, timeout);
 }
 
-static void ui_app_show_hint(ui_view_t* view, int32_t x, int32_t y,
+static void ui_app_show_hint(struct ui_view* view, int32_t x, int32_t y,
         fp64_t timeout) {
     if (view != null) {
         ui_app_show_hint_or_toast(view, x, y, timeout);
@@ -4685,7 +4685,7 @@ static void ui_app_capture_mouse(bool on) {
     }
 }
 
-static void ui_app_move_and_resize(const ui_rect_t* rc) {
+static void ui_app_move_and_resize(const struct ui_rect* rc) {
     enum { swp = SWP_NOZORDER | SWP_NOACTIVATE };
     ui_app_swp(null, rc->x, rc->y, rc->w, rc->h, swp);
 }
@@ -4706,7 +4706,7 @@ static void ui_app_restore_console(int32_t *visibility) {
     if (cw != null) {
         RECT wr = {0};
         GetWindowRect(cw, &wr);
-        ui_rect_t rc = ui_app_rect2ui(&wr);
+        struct ui_rect rc = ui_app_rect2ui(&wr);
         ui_app_load_console_pos(&rc, visibility);
         if (rc.w > 0 && rc.h > 0) {
 //          rt_println("%d,%d %dx%d px", rc.x, rc.y, rc.w, rc.h);
@@ -4856,7 +4856,7 @@ static const char* ui_app_open_file(const char* folder,
 
 // TODO: use clipboard instead?
 
-static errno_t ui_app_clipboard_put_image(ui_bitmap_t* im) {
+static errno_t ui_app_clipboard_put_image(struct ui_bitmap* im) {
     HDC canvas = GetDC(null);
     rt_not_null(canvas);
     HDC src = CreateCompatibleDC(canvas); rt_not_null(src);
@@ -4898,8 +4898,8 @@ static errno_t ui_app_clipboard_put_image(ui_bitmap_t* im) {
     return r;
 }
 
-static ui_view_t ui_app_view = ui_view(list);
-static ui_view_t ui_app_content = ui_view(stack);
+static struct ui_view ui_app_view = ui_view(list);
+static struct ui_view ui_app_content = ui_view(stack);
 
 static bool ui_app_is_active(void) { return GetActiveWindow() == ui_app_window(); }
 
@@ -4987,13 +4987,13 @@ static void ui_app_init(void) {
     rt_assert(ui_app.content->background == ui_colors.transparent);
     ui_app.root->color_id = ui_color_id_window_text;
     ui_app.root->background_id = ui_color_id_window;
-    ui_app.root->insets  = (ui_margins_t){ 0, 0, 0, 0 };
-    ui_app.root->padding = (ui_margins_t){ 0, 0, 0, 0 };
+    ui_app.root->insets  = (struct ui_margins){ 0, 0, 0, 0 };
+    ui_app.root->padding = (struct ui_margins){ 0, 0, 0, 0 };
     ui_app.root->paint = ui_app_view_paint;
     ui_app.root->max_w = ui.infinity;
     ui_app.root->max_h = ui.infinity;
-    ui_app.content->insets  = (ui_margins_t){ 0, 0, 0, 0 };
-    ui_app.content->padding = (ui_margins_t){ 0, 0, 0, 0 };
+    ui_app.content->insets  = (struct ui_margins){ 0, 0, 0, 0 };
+    ui_app.content->padding = (struct ui_margins){ 0, 0, 0, 0 };
     ui_app.content->max_w = ui.infinity;
     ui_app.content->max_h = ui.infinity;
     ui_app.caption->state.hidden = !ui_app.no_decor;
@@ -5045,13 +5045,13 @@ static void ui_app_init_windows(void) {
     ui_app.dpi.monitor_max = ui_app.dpi.system;
 //  rt_println("ui_app.dpi.monitor_max := %d", ui_app.dpi.system);
     static const RECT nowhere = {0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF, 0x7FFFFFFF};
-    ui_rect_t r = ui_app_rect2ui(&nowhere);
+    struct ui_rect r = ui_app_rect2ui(&nowhere);
     ui_app_update_mi(&r, MONITOR_DEFAULTTOPRIMARY);
     ui_app.dpi.window = ui_app.dpi.monitor_effective;
 }
 
-static ui_rect_t ui_app_window_initial_rectangle(void) {
-    const ui_window_sizing_t* ws = &ui_app.window_sizing;
+static struct ui_rect ui_app_window_initial_rectangle(void) {
+    const struct ui_window_sizing* ws = &ui_app.window_sizing;
     // it is not practical and thus not implemented handling
     // == (0, 0) and != (0, 0) for sizing half dimension (only w or only h)
     rt_swear((ws->min_w != 0) == (ws->min_h != 0) &&
@@ -5077,7 +5077,7 @@ static ui_rect_t ui_app_window_initial_rectangle(void) {
     int32_t min_w = ws->min_w > 0 ? ui_app.in2px(ws->min_w) : ui_app.work_area.w / 4;
     int32_t min_h = ws->min_h > 0 ? ui_app.in2px(ws->min_h) : ui_app.work_area.h / 4;
     // (x, y) (-1, -1) means "let Windows manager position the window"
-    ui_rect_t r = {-1, -1,
+    struct ui_rect r = {-1, -1,
                    ini_w > 0 ? ini_w : min_w, ini_h > 0 ? ini_h : min_h};
     return r;
 }
@@ -5281,7 +5281,7 @@ static int ui_app_win_main(HINSTANCE instance) {
     // https://learn.microsoft.com/en-us/windows/win32/dwm/customframe
     // TODO: if any app need to make to app store they will probably ask for it
     // "wr" Window Rect in pixels: default is -1,-1, ini_w, ini_h
-    ui_rect_t wr = ui_app_window_initial_rectangle();
+    struct ui_rect wr = ui_app_window_initial_rectangle();
     ui_app.caption_height = (int32_t)GetSystemMetricsForDpi(SM_CYCAPTION,
                                 (uint32_t)ui_app.dpi.process);
     ui_app.border.w = (int32_t)GetSystemMetricsForDpi(SM_CXSIZEFRAME,
@@ -5401,7 +5401,7 @@ int main(int argc, const char* argv[], const char** envp) {
 
 #include "rt/rt.h"
 
-static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
+static void ui_button_every_100ms(struct ui_view* v) { // every 100ms
     if (!v->state.hidden) {
         v->p.armed_until = 0;
         v->state.armed = false;
@@ -5413,7 +5413,7 @@ static void ui_button_every_100ms(ui_view_t* v) { // every 100ms
     if (v->p.armed_until != 0) { ui_app.show_hint(null, -1, -1, 0); }
 }
 
-static void ui_button_paint(ui_view_t* v) {
+static void ui_button_paint(struct ui_view* v) {
     bool pressed = (v->state.armed ^ v->state.pressed) == 0;
     if (v->p.armed_until != 0) { pressed = true; }
     const int32_t w = v->w;
@@ -5468,11 +5468,11 @@ static void ui_button_paint(ui_view_t* v) {
         if (v->debug.paint.fm) {
             ui_view.debug_paint_fm(v);
         }
-        const ui_ta_t ta = { .fm = v->fm, .color = c };
+        const struct ui_ta ta = { .fm = v->fm, .color = c };
         ui_draw.text(&ta, tx, ty, "%s", ui_view.string(v));
     } else {
-        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-        const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
+        const struct ui_ltrb i = ui_view.margins(v, &v->insets);
+        const struct ui_wh i_wh = { .w = v->w - i.left - i.right,
                                .h = v->h - i.top - i.bottom };
         // TODO: icon text alignment
         ui_draw.icon(tx, ty + v->text.xy.y, i_wh.w, i_wh.h, v->icon);
@@ -5506,28 +5506,28 @@ static void ui_button_callback(ui_button_t* b) {
     }
 }
 
-static void ui_button_trigger(ui_view_t* v) {
+static void ui_button_trigger(struct ui_view* v) {
     ui_button_t* b = (ui_button_t*)v;
     v->state.armed = true;
     ui_view.invalidate(v, null);
     ui_button_callback(b);
 }
 
-static void ui_button_character(ui_view_t* v, const char* utf8) {
+static void ui_button_character(struct ui_view* v, const char* utf8) {
     char ch = utf8[0]; // TODO: multibyte utf8 shortcuts?
     if (ui_view.is_shortcut_key(v, ch)) {
         ui_button_trigger(v);
     }
 }
 
-static bool ui_button_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_button_key_pressed(struct ui_view* v, int64_t key) {
     rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_button_trigger(v); }
     return trigger; // swallow if true
 }
 
-static bool ui_button_tap(ui_view_t* v, int32_t rt_unused(ix),
+static bool ui_button_tap(struct ui_view* v, int32_t rt_unused(ix),
         bool pressed) {
     // 'ix' ignored - button index acts on any mouse button
     const bool inside = ui_view.inside(v, &ui_app.mouse);
@@ -5545,7 +5545,7 @@ static bool ui_button_tap(ui_view_t* v, int32_t rt_unused(ix),
     return pressed && inside; // swallow clicks inside
 }
 
-void ui_view_init_button(ui_view_t* v) {
+void ui_view_init_button(struct ui_view* v) {
     rt_assert(v->type == ui_view_button);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->tap           = ui_button_tap;
@@ -5595,7 +5595,7 @@ static void ui_caption_toggle_full(void) {
     ui_app.request_layout();
 }
 
-static void ui_caption_esc_full_screen(ui_view_t* v, const char utf8[]) {
+static void ui_caption_esc_full_screen(struct ui_view* v, const char utf8[]) {
     rt_swear(v == ui_caption.view.parent);
     // TODO: inside ui_app.c instead of here?
     if (utf8[0] == 033 && ui_app.is_full_screen) { ui_caption_toggle_full(); }
@@ -5653,7 +5653,7 @@ static void ui_caption_full(ui_button_t* rt_unused(b)) {
     ui_caption_toggle_full();
 }
 
-static int64_t ui_caption_hit_test(const ui_view_t* v, ui_point_t pt) {
+static int64_t ui_caption_hit_test(const struct ui_view* v, struct ui_point pt) {
     rt_swear(v == &ui_caption.view);
     rt_assert(ui_view.inside(v, &pt));
 //  rt_println("%d,%d ui_caption.icon: %d,%d %dx%d inside: %d",
@@ -5686,11 +5686,11 @@ static ui_color_t ui_caption_color(void) {
     return c;
 }
 
-static const ui_margins_t ui_caption_button_button_padding =
+static const struct ui_margins ui_caption_button_button_padding =
     { .left  = 0.25,  .top    = 0.0,
       .right = 0.25,  .bottom = 0.0};
 
-static void ui_caption_button_measure(ui_view_t* v) {
+static void ui_caption_button_measure(struct ui_view* v) {
     rt_assert(v->type == ui_view_button);
     ui_view.measure_control(v);
     const int32_t dx = ui_app.caption_height - v->w;
@@ -5702,7 +5702,7 @@ static void ui_caption_button_measure(ui_view_t* v) {
     v->padding = ui_caption_button_button_padding;
 }
 
-static void ui_caption_button_icon_paint(ui_view_t* v) {
+static void ui_caption_button_icon_paint(struct ui_view* v) {
     int32_t w = v->w;
     int32_t h = v->h;
     while (h > 16 && (h & (h - 1)) != 0) { h--; }
@@ -5712,44 +5712,44 @@ static void ui_caption_button_icon_paint(ui_view_t* v) {
     ui_draw.icon(v->x + dx, v->y + dy, w, h, v->icon);
 }
 
-static void ui_caption_prepare(ui_view_t* rt_unused(v)) {
+static void ui_caption_prepare(struct ui_view* rt_unused(v)) {
     ui_caption.title.state.hidden = false;
 }
 
-static void ui_caption_measured(ui_view_t* v) {
+static void ui_caption_measured(struct ui_view* v) {
     int32_t w = 0;
     ui_view_for_each(v, it, {
         if (it->type == ui_view_button) {
             ui_caption_button_measure(it);
         }
         if (!it->state.hidden) {
-            const ui_ltrb_t p = ui_view.margins(it, &it->padding);
+            const struct ui_ltrb p = ui_view.margins(it, &it->padding);
             w += it->w + p.left + p.right;
         }
     });
-    const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+    const struct ui_ltrb p = ui_view.margins(v, &v->padding);
     w += p.left + p.right;
     // do not show title if there is not enough space
     ui_caption.title.state.hidden = w > ui_app.root->w;
     v->w = ui_app.root->w;
-    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
+    const struct ui_ltrb insets = ui_view.margins(v, &v->insets);
     v->h = insets.top + ui_app.caption_height + insets.bottom;
 }
 
-static void ui_caption_composed(ui_view_t* v) {
+static void ui_caption_composed(struct ui_view* v) {
     v->x = ui_app.root->x;
     v->y = ui_app.root->y;
 }
 
-static void ui_caption_paint(ui_view_t* v) {
+static void ui_caption_paint(struct ui_view* v) {
     ui_color_t background = ui_caption_color();
     ui_draw.fill(v->x, v->y, v->w, v->h, background);
 }
 
-static void ui_caption_init(ui_view_t* v) {
+static void ui_caption_init(struct ui_view* v) {
     rt_swear(v == &ui_caption.view, "caption is a singleton");
     ui_view_init_span(v);
-    ui_caption.view.insets = (ui_margins_t){ 0.125, 0.0, 0.125, 0.0 };
+    ui_caption.view.insets = (struct ui_margins){ 0.125, 0.0, 0.125, 0.0 };
     ui_caption.view.state.hidden = false;
     v->parent->character = ui_caption_esc_full_screen; // ESC for full screen
     ui_view.add(&ui_caption.view,
@@ -5764,11 +5764,11 @@ static void ui_caption_init(ui_view_t* v) {
         &ui_caption.quit,
         null);
     ui_caption.view.color_id = ui_color_id_window_text;
-    static const ui_margins_t p0 = { .left  = 0.0,   .top    = 0.0,
+    static const struct ui_margins p0 = { .left  = 0.0,   .top    = 0.0,
                                      .right = 0.0,   .bottom = 0.0};
-    static const ui_margins_t pd = { .left  = 0.25,  .top    = 0.0,
+    static const struct ui_margins pd = { .left  = 0.25,  .top    = 0.0,
                                      .right = 0.25,  .bottom = 0.0};
-    static const ui_margins_t in = { .left  = 0.0,   .top    = 0.0,
+    static const struct ui_margins in = { .left  = 0.0,   .top    = 0.0,
                                      .right = 0.0,   .bottom = 0.0};
     ui_view_for_each(&ui_caption.view, c, {
         // Caption buttons always use the monospaced font and the flat
@@ -5817,7 +5817,7 @@ static void ui_caption_init(ui_view_t* v) {
 
 }
 
-ui_caption_t ui_caption =  {
+struct ui_caption ui_caption =  {
     .view = {
         .type     = ui_view_span,
         .fm       = &ui_app.fm.prop.normal,
@@ -6034,7 +6034,7 @@ static ui_color_t ui_colors_get_color(int32_t color_id) {
            ui_theme_colors[color_id].light;
 }
 
-ui_colors_if ui_colors = {
+struct ui_colors_if ui_colors = {
     .get_color                = ui_colors_get_color,
     .rgb_to_hsi               = ui_color_rgb_to_hsi,
     .hsi_to_rgb               = ui_color_hsi_to_rgb,
@@ -6249,8 +6249,8 @@ static bool ui_containers_debug;
 static int32_t ui_layout_nesting;
 
 #define ui_layout_enter(v) do {                                         \
-    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);                      \
-    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);                     \
+    struct ui_ltrb i_ = ui_view.margins(v, &v->insets);                      \
+    struct ui_ltrb p_ = ui_view.margins(v, &v->padding);                     \
     debugln("%*c> %4d,%-4d %4dx%-4d p: %d %d %d %d i: %d %d %d %d %s",  \
             ui_layout_nesting, 0x20,                                    \
             v->x, v->y, v->w, v->h,                                     \
@@ -6297,10 +6297,10 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
         v->align);                                                            \
 } while (0)
 
-static void ui_span_measure(ui_view_t* p) {
+static void ui_span_measure(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_ltrb_t insets;
+    struct ui_ltrb insets;
     ui_view.inbox(p, null, &insets);
     int32_t w = insets.left;
     int32_t h = 0;
@@ -6311,13 +6311,13 @@ static void ui_span_measure(ui_view_t* p) {
         if (ui_view.is_hidden(c)) {
             // nothing
         } else if (c->type == ui_view_spacer) {
-            c->padding = (ui_margins_t){ 0, 0, 0, 0 };
+            c->padding = (struct ui_margins){ 0, 0, 0, 0 };
             c->w = 0; // layout will distribute excess here
             c->h = 0; // starts with zero
             max_w = ui.infinity; // spacer make width greedy
         } else {
-            ui_rect_t cbx; // child "out" box expanded by padding
-            ui_ltrb_t padding;
+            struct ui_rect cbx; // child "out" box expanded by padding
+            struct ui_ltrb padding;
             ui_view.outbox(c, &cbx, &padding);
             h = h > cbx.h ? h : cbx.h;
             if (c->max_w == ui.infinity) {
@@ -6359,8 +6359,8 @@ static void ui_span_measure(ui_view_t* p) {
 // may adjust span_w wider number depending on it's own width
 // and ui_span.max_w agreement
 
-static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
-    ui_ltrb_t padding = ui_view.margins(c, &c->padding);
+static int32_t ui_span_place_child(struct ui_view* c, struct ui_rect pbx, int32_t x) {
+    struct ui_ltrb padding = ui_view.margins(c, &c->padding);
     // setting child`s max_h to infinity means that child`s height is
     // *always* fill vertical view size of the parent
     // childs.h can exceed parent.h (vertical overflow) - is not
@@ -6389,11 +6389,11 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
     return c->x + c->w + padding.right;
 }
 
-static void ui_span_layout(ui_view_t* p) {
+static void ui_span_layout(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
     int32_t spacers = 0; // Number of spacers
     int32_t max_w_count = 0;
@@ -6434,8 +6434,8 @@ static void ui_span_layout(ui_view_t* p) {
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c)) {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type == ui_view_spacer) {
                     rt_swear(padding.left == 0 && padding.right == 0);
@@ -6466,8 +6466,8 @@ static void ui_span_layout(ui_view_t* p) {
         x = p->x + insets.left;
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c)) {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type == ui_view_spacer) {
                     c->y = pbx.y;
@@ -6484,11 +6484,11 @@ static void ui_span_layout(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_list_measure(ui_view_t* p) {
+static void ui_list_measure(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
     int32_t max_h = insets.top;
     int32_t h = insets.top;
@@ -6498,12 +6498,12 @@ static void ui_list_measure(ui_view_t* p) {
               c->max_h, c->h);
         if (!ui_view.is_hidden(c)) {
             if (c->type == ui_view_spacer) {
-                c->padding = (ui_margins_t){ 0, 0, 0, 0 };
+                c->padding = (struct ui_margins){ 0, 0, 0, 0 };
                 c->h = 0; // layout will distribute excess here
                 max_h = ui.infinity; // spacer make height greedy
             } else {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 w = w > cbx.w ? w : cbx.w;
                 if (c->max_h == ui.infinity) {
@@ -6543,8 +6543,8 @@ static void ui_list_measure(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
-    ui_ltrb_t padding = ui_view.margins(c, &c->padding);
+static int32_t ui_list_place_child(struct ui_view* c, struct ui_rect pbx, int32_t y) {
+    struct ui_ltrb padding = ui_view.margins(c, &c->padding);
     // setting child`s max_w to infinity means that child`s height is
     // *always* fill vertical view size of the parent
     // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
@@ -6571,11 +6571,11 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
     return c->y + c->h + padding.bottom;
 }
 
-static void ui_list_layout(ui_view_t* p) {
+static void ui_list_layout(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
     int32_t spacers = 0; // Number of spacers
     int32_t max_h_sum = 0;
@@ -6615,8 +6615,8 @@ static void ui_list_layout(ui_view_t* p) {
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c)) {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type != ui_view_spacer && c->max_h > 0) {
                     const int32_t max_h = c->max_h < xh ? c->max_h : xh;
@@ -6643,8 +6643,8 @@ static void ui_list_layout(ui_view_t* p) {
         y = pbx.y;
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c)) {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type == ui_view_spacer) {
                     c->x = pbx.x;
@@ -6662,7 +6662,7 @@ static void ui_list_layout(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_stack_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
+static void ui_stack_child_3x3(struct ui_view* c, int32_t *row, int32_t *col) {
     *row = 0; *col = 0; // makes code analysis happier
     if (c->align == (ui.align.left|ui.align.top)) {
         *row = 0; *col = 0;
@@ -6691,17 +6691,17 @@ static void ui_stack_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
     }
 }
 
-static void ui_stack_measure(ui_view_t* p) {
+static void ui_stack_measure(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
-    ui_wh_t sides[3][3] = { {0, 0} };
+    struct ui_wh sides[3][3] = { {0, 0} };
     ui_view_for_each_begin(p, c) {
         if (!ui_view.is_hidden(c)) {
-            ui_rect_t cbx; // child "out" box expanded by padding
-            ui_ltrb_t padding;
+            struct ui_rect cbx; // child "out" box expanded by padding
+            struct ui_ltrb padding;
             ui_view.outbox(c, &cbx, &padding);
             int32_t row = 0;
             int32_t col = 0;
@@ -6723,7 +6723,7 @@ static void ui_stack_measure(ui_view_t* p) {
             debugln("%*c sides[%d] %s", ui_layout_nesting, 0x20, r, text);
         }
     }
-    ui_wh_t wh = {0, 0};
+    struct ui_wh wh = {0, 0};
     for (int32_t r = 0; r < 3; r++) {
         int32_t sum_w = 0;
         for (int32_t c = 0; c < 3; c++) {
@@ -6744,16 +6744,16 @@ static void ui_stack_measure(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_stack_layout(ui_view_t* p) {
+static void ui_stack_layout(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
     ui_view_for_each_begin(p, c) {
         if (c->type != ui_view_spacer && !ui_view.is_hidden(c)) {
-            ui_rect_t cbx; // child "out" box expanded by padding
-            ui_ltrb_t padding;
+            struct ui_rect cbx; // child "out" box expanded by padding
+            struct ui_ltrb padding;
             ui_view.outbox(c, &cbx, &padding);
             const int32_t pw = p->w - insets.left - insets.right - padding.left - padding.right;
             const int32_t ph = p->h - insets.top - insets.bottom - padding.top - padding.bottom;
@@ -6797,7 +6797,7 @@ static void ui_stack_layout(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_container_paint(ui_view_t* v) {
+static void ui_container_paint(struct ui_view* v) {
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
         ui_draw.fill(v->x, v->y, v->w, v->h, v->background);
@@ -6806,10 +6806,10 @@ static void ui_container_paint(ui_view_t* v) {
     }
 }
 
-static void ui_view_container_init(ui_view_t* v) {
+static void ui_view_container_init(struct ui_view* v) {
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->background = ui_colors.transparent;
-    v->insets  = (ui_margins_t){
+    v->insets  = (struct ui_margins){
        .left  = 0.25, .top    = 0.125,
         .right = 0.25, .bottom = 0.125
 //      .left  = 0.25, .top    = 0.0625,  // TODO: why?
@@ -6817,7 +6817,7 @@ static void ui_view_container_init(ui_view_t* v) {
     };
 }
 
-void ui_view_init_span(ui_view_t* v) {
+void ui_view_init_span(struct ui_view* v) {
     rt_swear(v->type == ui_view_span, "type %4.4s 0x%08X", &v->type, v->type);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_span_measure; }
@@ -6827,7 +6827,7 @@ void ui_view_init_span(ui_view_t* v) {
     if (v->debug.id == null) { v->debug.id = "#ui_span"; }
 }
 
-void ui_view_init_list(ui_view_t* v) {
+void ui_view_init_list(struct ui_view* v) {
     rt_swear(v->type == ui_view_list, "type %4.4s 0x%08X", &v->type, v->type);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_list_measure; }
@@ -6837,7 +6837,7 @@ void ui_view_init_list(ui_view_t* v) {
     if (v->debug.id == null) { v->debug.id = "#ui_list"; }
 }
 
-void ui_view_init_spacer(ui_view_t* v) {
+void ui_view_init_spacer(struct ui_view* v) {
     rt_swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->w = 0;
@@ -6849,7 +6849,7 @@ void ui_view_init_spacer(ui_view_t* v) {
 
 }
 
-void ui_view_init_stack(ui_view_t* v) {
+void ui_view_init_stack(struct ui_view* v) {
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_stack_measure; }
     if (v->layout  == null) { v->layout  = ui_stack_layout; }
@@ -6874,14 +6874,14 @@ void ui_view_init_stack(ui_view_t* v) {
 #define UI_WM_DTAP     (WM_APP + 0x7FFB) // double tap (aka click)
 #define UI_WM_PRESS    (WM_APP + 0x7FFA)
 
-static bool ui_point_in_rect(const ui_point_t* p, const ui_rect_t* r) {
+static bool ui_point_in_rect(const struct ui_point* p, const struct ui_rect* r) {
     return r->x <= p->x && p->x < r->x + r->w &&
            r->y <= p->y && p->y < r->y + r->h;
 }
 
-static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
-                                            const ui_rect_t* r1) {
-    ui_rect_t r = {0};
+static bool ui_intersect_rect(struct ui_rect* i, const struct ui_rect* r0,
+                                            const struct ui_rect* r1) {
+    struct ui_rect r = {0};
     r.x = r0->x > r1->x ? r0->x : r1->x;  // Maximum of left edges
     r.y = r0->y > r1->y ? r0->y : r1->y;  // Maximum of top edges
     const int32_t r0r = r0->x + r0->w, r1r = r1->x + r1->w; // right edges
@@ -6897,12 +6897,12 @@ static bool ui_intersect_rect(ui_rect_t* i, const ui_rect_t* r0,
     return b;
 }
 
-static ui_rect_t ui_combine_rect(const ui_rect_t* r0, const ui_rect_t* r1) {
+static struct ui_rect ui_combine_rect(const struct ui_rect* r0, const struct ui_rect* r1) {
     const int32_t x = r0->x < r1->x ? r0->x : r1->x; // min left
     const int32_t y = r0->y < r1->y ? r0->y : r1->y; // min top
     const int32_t r0r = r0->x + r0->w, r1r = r1->x + r1->w; // right edges
     const int32_t r0b = r0->y + r0->h, r1b = r1->y + r1->h; // bottom edges
-    return (ui_rect_t) {
+    return (struct ui_rect) {
         .x = x,
         .y = y,
         .w = (r0r > r1r ? r0r : r1r) - x,
@@ -6910,7 +6910,7 @@ static ui_rect_t ui_combine_rect(const ui_rect_t* r0, const ui_rect_t* r1) {
     };
 }
 
-ui_if ui = {
+struct ui_if ui = {
     .point_in_rect  = ui_point_in_rect,
     .intersect_rect = ui_intersect_rect,
     .combine_rect   = ui_combine_rect,
@@ -7037,7 +7037,7 @@ static ui_brush_t  ui_draw_brush_color;
 static ui_pen_t    ui_draw_pen_hollow;
 static ui_region_t ui_draw_clip;
 
-typedef struct ui_draw_context_s {
+struct ui_draw_context {
     HDC hdc; // window canvas() or memory DC
     int32_t background_mode;
     int32_t stretch_mode;
@@ -7048,9 +7048,9 @@ typedef struct ui_draw_context_s {
     ui_brush_t brush;
     HBITMAP texture;
     dxd_context_t dxd; // Direct2D draw context for this begin()/end() frame
-} ui_draw_context_t;
+};
 
-static ui_draw_context_t ui_draw_context;
+static struct ui_draw_context ui_draw_context;
 
 #define ui_draw_hdc() (ui_draw_context.hdc)
 
@@ -7090,7 +7090,7 @@ static ui_font_t ui_draw_set_font(ui_font_t f) {
     return (ui_font_t)SelectFont(ui_draw_hdc(), (HFONT)f);
 }
 
-static void ui_draw_begin(ui_bitmap_t* image) {
+static void ui_draw_begin(struct ui_bitmap* image) {
     rt_swear(ui_draw_context.hdc == null, "no nested begin()/end()");
     if (image != null) {
         rt_swear(image->texture != null);
@@ -7102,9 +7102,9 @@ static void ui_draw_begin(ui_bitmap_t* image) {
         rt_swear(ui_draw_context.texture == null);
     }
     ui_draw_context.text_color = ui_colors.get_color(ui_color_id_window_text);
-    ui_rect_t rc = image != null ?
-        (ui_rect_t){ 0, 0, image->w, image->h } :
-        (ui_rect_t){ 0, 0, ui_app.crc.w, ui_app.crc.h };
+    struct ui_rect rc = image != null ?
+        (struct ui_rect){ 0, 0, image->w, image->h } :
+        (struct ui_rect){ 0, 0, ui_app.crc.w, ui_app.crc.h };
     ui_draw_context.dxd = dxd_begin(ui_draw_context.hdc, &rc);
 }
 
@@ -7182,7 +7182,7 @@ static void ui_draw_fill(int32_t x, int32_t y, int32_t w, int32_t h,
     dxd_fill(ui_draw_context.dxd, x, y, w, h, c);
 }
 
-static void ui_draw_poly(ui_point_t* points, int32_t count, ui_color_t c) {
+static void ui_draw_poly(struct ui_point* points, int32_t count, ui_color_t c) {
     dxd_poly(ui_draw_context.dxd, points, count, c);
 }
 
@@ -7336,7 +7336,7 @@ static BITMAPINFO* ui_draw_init_bitmap_info(int32_t w, int32_t h, int32_t bpp,
     return bi;
 }
 
-static void ui_draw_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
+static void ui_draw_create_dib_section(struct ui_bitmap* image, int32_t w, int32_t h,
         int32_t bpp) {
     rt_fatal_if(image->texture != null, "bitmap_dispose() not called?");
     // not using GetWindowDC(ui_app.window) will allow to initialize images
@@ -7352,7 +7352,7 @@ static void ui_draw_create_dib_section(ui_bitmap_t* image, int32_t w, int32_t h,
     rt_fatal_win32err(DeleteDC(c));
 }
 
-static void ui_draw_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
+static void ui_draw_bitmap_init_rgbx(struct ui_bitmap* image, int32_t w, int32_t h,
         int32_t bpp, const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -7396,7 +7396,7 @@ static void ui_draw_bitmap_init_rgbx(ui_bitmap_t* image, int32_t w, int32_t h,
     image->stride = stride;
 }
 
-static void ui_draw_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_t bpp,
+static void ui_draw_bitmap_init(struct ui_bitmap* image, int32_t w, int32_t h, int32_t bpp,
         const uint8_t* pixels) {
     bool swapped = bpp < 0;
     bpp = abs(bpp);
@@ -7484,7 +7484,7 @@ static void ui_draw_bitmap_init(ui_bitmap_t* image, int32_t w, int32_t h, int32_
 
 static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* image, fp64_t alpha) {
+        struct ui_bitmap* image, fp64_t alpha) {
     rt_assert(image->bpp > 0);
     rt_assert(0 <= alpha && alpha <= 1);
     dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
@@ -7494,7 +7494,7 @@ static void ui_draw_alpha(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
 
 static void ui_draw_bitmap(int32_t dx, int32_t dy, int32_t dw, int32_t dh,
         int32_t ix, int32_t iy, int32_t iw, int32_t ih,
-        ui_bitmap_t* image) {
+        struct ui_bitmap* image) {
     rt_assert(image->bpp == 1 || image->bpp == 3 || image->bpp == 4);
     dxd_image_cached(ui_draw_context.dxd, &image->dxd, dx, dy, dw, dh,
               ix, iy, iw, ih, image->w, image->h, image->stride, image->bpp,
@@ -7669,7 +7669,7 @@ static void ui_draw_dump_fm(ui_font_t f) {
     ui_draw_hdc_with_font(f, { ui_draw_dump_hdc_fm(hdc); });
 }
 
-static void ui_draw_get_fm(HDC hdc, ui_fm_t* fm) {
+static void ui_draw_get_fm(HDC hdc, struct ui_fm* fm) {
     TEXTMETRICA tm = {0};
     rt_fatal_win32err(GetTextMetricsA(hdc, &tm));
     rt_swear(tm.tmPitchAndFamily & TMPF_TRUETYPE);
@@ -7706,7 +7706,7 @@ static void ui_draw_get_fm(HDC hdc, ui_fm_t* fm) {
     fm->strike_through = otm.otmsStrikeoutSize;
     fm->strike_through_position = otm.otmsStrikeoutPosition;
     fm->design_units_per_em = (int)otm.otmEMSquare;
-    fm->box = (ui_rect_t){
+    fm->box = (struct ui_rect){
                 otm.otmrcFontBox.left, otm.otmrcFontBox.top,
                 otm.otmrcFontBox.right - otm.otmrcFontBox.left,
                 otm.otmrcFontBox.top - otm.otmrcFontBox.bottom // inverted
@@ -7725,10 +7725,10 @@ static void ui_draw_get_fm(HDC hdc, ui_fm_t* fm) {
     // need it. Easy to add if necessary.
 }
 
-static void ui_draw_update_fm(ui_fm_t* fm, ui_font_t f) {
+static void ui_draw_update_fm(struct ui_fm* fm, ui_font_t f) {
     rt_not_null(f);
     SIZE em = {0, 0}; // "m"
-    *fm = (ui_fm_t){ .font = f };
+    *fm = (struct ui_fm){ .font = f };
 //  ui_draw.dump_fm(f);
     ui_draw_hdc_with_font(f, {
         ui_draw_get_fm(hdc, fm);
@@ -7746,7 +7746,7 @@ static void ui_draw_update_fm(ui_fm_t* fm, ui_font_t f) {
 //              fm->mono, fm->height, fm->baseline, fm->ascent, fm->descent);
     });
     rt_assert(fm->baseline <= fm->height);
-    fm->em = (ui_wh_t){ .w = fm->height, .h = fm->height };
+    fm->em = (struct ui_wh){ .w = fm->height, .h = fm->height };
 //  rt_println("fm.em: %dx%d", fm->em.w, fm->em.h);
 }
 
@@ -7783,8 +7783,8 @@ if (0) {
     return h;
 }
 
-typedef struct { // draw text parameters
-    const ui_fm_t* fm;
+struct ui_draw_dtp { // draw text parameters
+    const struct ui_fm* fm;
     ui_color_t color; // resolved text color (dxd draws with it)
     const char* format; // format string
     va_list va;
@@ -7798,9 +7798,9 @@ typedef struct { // draw text parameters
     // DT_BOTTOM, DT_VCENTER limited usability in weird cases (layout is better)
     // DT_NOPREFIX not to draw underline at "&Keyboard shortcuts
     // DT_SINGLELINE versus multiline
-} ui_draw_dtp_t;
+};
 
-static void ui_draw_text_draw(ui_draw_dtp_t* p) {
+static void ui_draw_text_draw(struct ui_draw_dtp* p) {
     rt_not_null(p);
     char text[4096]; // expected to be enough for single text draw
     text[0] = 0;
@@ -7813,7 +7813,7 @@ static void ui_draw_text_draw(ui_draw_dtp_t* p) {
         const bool multiline = (p->flags & DT_SINGLELINE) == 0;
         const bool mnemonic = (p->flags & DT_NOPREFIX) == 0;
         const int32_t w = p->rc.right - p->rc.left;
-        ui_wh_t wh = dxd_text(ui_draw_context.dxd, p->fm->font,
+        struct ui_wh wh = dxd_text(ui_draw_context.dxd, p->fm->font,
                               p->rc.left, p->rc.top, w, p->color,
                               text, k, measure_only, multiline, mnemonic);
         p->rc.right = p->rc.left + wh.w;
@@ -7834,7 +7834,7 @@ enum {
     ml_measure       = ml_draw|DT_CALCRECT
 };
 
-static ui_wh_t ui_draw_text_with_flags(const ui_ta_t* ta,
+static struct ui_wh ui_draw_text_with_flags(const struct ui_ta* ta,
         int32_t x, int32_t y, int32_t w,
         const char* format, va_list va, uint32_t flags) {
     const int32_t right = w == 0 ? 0 : x + w;
@@ -7848,7 +7848,7 @@ static ui_wh_t ui_draw_text_with_flags(const ui_ta_t* ta,
             rt_swear(ta->color_id == 0);
         }
     }
-    ui_draw_dtp_t p = {
+    struct ui_draw_dtp p = {
         .fm = ta->fm,
         .color = c,
         .format = format,
@@ -7857,26 +7857,26 @@ static ui_wh_t ui_draw_text_with_flags(const ui_ta_t* ta,
         .flags = flags
     };
     ui_draw_text_draw(&p);
-    return (ui_wh_t){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
+    return (struct ui_wh){ p.rc.right - p.rc.left, p.rc.bottom - p.rc.top };
 }
 
-static ui_wh_t ui_draw_text_va(const ui_ta_t* ta,
+static struct ui_wh ui_draw_text_va(const struct ui_ta* ta,
         int32_t x, int32_t y,  const char* format, va_list va) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
     return ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
 }
 
-static ui_wh_t ui_draw_text(const ui_ta_t* ta,
+static struct ui_wh ui_draw_text(const struct ui_ta* ta,
         int32_t x, int32_t y, const char* format, ...) {
     const uint32_t flags = sl_draw | (ta->measure ? sl_measure : 0);
     va_list va;
     va_start(va, format);
-    ui_wh_t wh = ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
+    struct ui_wh wh = ui_draw_text_with_flags(ta, x, y, 0, format, va, flags);
     va_end(va);
     return wh;
 }
 
-static ui_wh_t ui_draw_multiline_va(const ui_ta_t* ta,
+static struct ui_wh ui_draw_multiline_va(const struct ui_ta* ta,
         int32_t x, int32_t y, int32_t w, const char* format, va_list va) {
     const uint32_t flags = ta->measure ?
                             (w <= 0 ? ml_measure : ml_measure_break) :
@@ -7884,16 +7884,16 @@ static ui_wh_t ui_draw_multiline_va(const ui_ta_t* ta,
     return ui_draw_text_with_flags(ta, x, y, w, format, va, flags);
 }
 
-static ui_wh_t ui_draw_multiline(const ui_ta_t* ta,
+static struct ui_wh ui_draw_multiline(const struct ui_ta* ta,
         int32_t x, int32_t y, int32_t w, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    ui_wh_t wh = ui_draw_multiline_va(ta, x, y, w, format, va);
+    struct ui_wh wh = ui_draw_multiline_va(ta, x, y, w, format, va);
     va_end(va);
     return wh;
 }
 
-static ui_wh_t ui_draw_glyphs_placement(const ui_ta_t* ta,
+static struct ui_wh ui_draw_glyphs_placement(const struct ui_ta* ta,
         const char* utf8, int32_t bytes, int32_t x[], int32_t glyphs) {
     rt_swear(bytes >= 0 && glyphs >= 0 && glyphs <= bytes);
     return dxd_glyphs_placement(ta->fm->font, utf8, bytes, x, glyphs);
@@ -7926,13 +7926,13 @@ static uint8_t* ui_draw_load_bitmap(const void* data, int32_t bytes, int* w, int
     #endif
 }
 
-static void ui_draw_bitmap_dispose(ui_bitmap_t* image) {
+static void ui_draw_bitmap_dispose(struct ui_bitmap* image) {
     dxd_bitmap_dispose(&image->dxd);
     rt_fatal_win32err(DeleteBitmap(image->texture));
-    memset(image, 0, sizeof(ui_bitmap_t));
+    memset(image, 0, sizeof(struct ui_bitmap));
 }
 
-ui_draw_if ui_draw = {
+struct ui_draw_if ui_draw = {
     .ta = {
         .prop = {
             .normal = {
@@ -8093,7 +8093,7 @@ ui_draw_if ui_draw = {
 
 #define ui_edit_text_dump(t) do {                        \
     for (int32_t i_ = 0; i_ < (t)->np; i_++) {           \
-        const ui_edit_str_t* p_ = &t->ps[i_];            \
+        const struct ui_edit_str* p_ = &t->ps[i_];            \
         rt_debug.println(__FILE__, __LINE__, __func__,   \
             "ps[%d].%d: %.*s", i_, p_->b, p_->b, p_->u); \
     }                                                    \
@@ -8102,7 +8102,7 @@ ui_draw_if ui_draw = {
 // TODO: undo/redo stacks and listeners
 #define ui_edit_doc_dump(d) do {                                \
     for (int32_t i_ = 0; i_ < (d)->text.np; i_++) {             \
-        const ui_edit_str_t* p_ = &(d)->text.ps[i_];            \
+        const struct ui_edit_str* p_ = &(d)->text.ps[i_];            \
         rt_debug.println(__FILE__, __LINE__, __func__,          \
             "ps[%d].b:%d.c:%d: %p %.*s", i_, p_->b, p_->c,      \
             p_, p_->b, p_->u);                                  \
@@ -8139,9 +8139,9 @@ ui_draw_if ui_draw = {
 
 #endif
 
-static ui_edit_range_t ui_edit_text_all_on_null(const ui_edit_text_t* t,
-        const ui_edit_range_t* range) {
-    ui_edit_range_t r;
+static union ui_edit_range ui_edit_text_all_on_null(const struct ui_edit_text* t,
+        const union ui_edit_range* range) {
+    union ui_edit_range r;
     if (range != null) {
         r = *range;
     } else {
@@ -8154,14 +8154,14 @@ static ui_edit_range_t ui_edit_text_all_on_null(const ui_edit_text_t* t,
     return r;
 }
 
-static int ui_edit_range_compare(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2) {
+static int ui_edit_range_compare(const struct ui_edit_pg pg1, const struct ui_edit_pg pg2) {
     int64_t d = (((int64_t)pg1.pn << 32) | pg1.gp) -
                 (((int64_t)pg2.pn << 32) | pg2.gp);
     return d < 0 ? -1 : d > 0 ? 1 : 0;
 }
 
-static ui_edit_range_t ui_edit_range_order(const ui_edit_range_t range) {
-    ui_edit_range_t r = range;
+static union ui_edit_range ui_edit_range_order(const union ui_edit_range range) {
+    union ui_edit_range r = range;
     uint64_t f = ((uint64_t)r.from.pn << 32) | r.from.gp;
     uint64_t t = ((uint64_t)r.to.pn   << 32) | r.to.gp;
     if (ui_edit_range.compare(r.from, r.to) > 0) {
@@ -8174,58 +8174,58 @@ static ui_edit_range_t ui_edit_range_order(const ui_edit_range_t range) {
     return r;
 }
 
-static ui_edit_range_t ui_edit_text_ordered(const ui_edit_text_t* t,
-        const ui_edit_range_t* r) {
+static union ui_edit_range ui_edit_text_ordered(const struct ui_edit_text* t,
+        const union ui_edit_range* r) {
     return ui_edit_range.order(ui_edit_text.all_on_null(t, r));
 }
 
-static bool ui_edit_range_is_valid(const ui_edit_range_t r) {
+static bool ui_edit_range_is_valid(const union ui_edit_range r) {
     if (0 <= r.from.pn && 0 <= r.to.pn &&
         0 <= r.from.gp && 0 <= r.to.gp) {
-        ui_edit_range_t o = ui_edit_range.order(r);
+        union ui_edit_range o = ui_edit_range.order(r);
         return ui_edit_range.compare(o.from, o.to) <= 0;
     } else {
         return false;
     }
 }
 
-static bool ui_edit_range_is_empty(const ui_edit_range_t r) {
+static bool ui_edit_range_is_empty(const union ui_edit_range r) {
     return r.from.pn == r.to.pn && r.from.gp == r.to.gp;
 }
 
-static ui_edit_pg_t ui_edit_text_end(const ui_edit_text_t* t) {
-    return (ui_edit_pg_t){ .pn = t->np - 1, .gp = t->ps[t->np - 1].g };
+static struct ui_edit_pg ui_edit_text_end(const struct ui_edit_text* t) {
+    return (struct ui_edit_pg){ .pn = t->np - 1, .gp = t->ps[t->np - 1].g };
 }
 
-static ui_edit_range_t ui_edit_text_end_range(const ui_edit_text_t* t) {
-    ui_edit_pg_t e = (ui_edit_pg_t){ .pn = t->np - 1,
+static union ui_edit_range ui_edit_text_end_range(const struct ui_edit_text* t) {
+    struct ui_edit_pg e = (struct ui_edit_pg){ .pn = t->np - 1,
                                      .gp = t->ps[t->np - 1].g };
-    return (ui_edit_range_t){ .from = e, .to = e };
+    return (union ui_edit_range){ .from = e, .to = e };
 }
 
-static uint64_t ui_edit_range_uint64(const ui_edit_pg_t pg) {
+static uint64_t ui_edit_range_uint64(const struct ui_edit_pg pg) {
     rt_assert(pg.pn >= 0 && pg.gp >= 0);
     return ((uint64_t)pg.pn << 32) | (uint64_t)pg.gp;
 }
 
-static ui_edit_pg_t ui_edit_range_pg(uint64_t uint64) {
+static struct ui_edit_pg ui_edit_range_pg(uint64_t uint64) {
     rt_assert((int32_t)(uint64 >> 32) >= 0 && (int32_t)uint64 >= 0);
-    return (ui_edit_pg_t){ .pn = (int32_t)(uint64 >> 32), .gp = (int32_t)uint64 };
+    return (struct ui_edit_pg){ .pn = (int32_t)(uint64 >> 32), .gp = (int32_t)uint64 };
 }
 
-static bool ui_edit_range_inside_text(const ui_edit_text_t* t,
-        const ui_edit_range_t r) {
+static bool ui_edit_range_inside_text(const struct ui_edit_text* t,
+        const union ui_edit_range r) {
     return ui_edit_range.is_valid(r) &&
             0 <= r.from.pn && r.from.pn <= r.to.pn && r.to.pn < t->np &&
             0 <= r.from.gp && r.from.gp <= r.to.gp &&
             r.to.gp <= t->ps[r.to.pn - 1].g;
 }
 
-static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
-    const ui_edit_range_t r2) {
+static union ui_edit_range ui_edit_range_intersect(const union ui_edit_range r1,
+    const union ui_edit_range r2) {
     if (ui_edit_range.is_valid(r1) && ui_edit_range.is_valid(r2)) {
-        ui_edit_range_t o1 = ui_edit_range.order(r1);
-        ui_edit_range_t o2 = ui_edit_range.order(r1);
+        union ui_edit_range o1 = ui_edit_range.order(r1);
+        union ui_edit_range o2 = ui_edit_range.order(r1);
         uint64_t f1 = ((uint64_t)o1.from.pn << 32) | o1.from.gp;
         uint64_t t1 = ((uint64_t)o1.to.pn   << 32) | o1.to.gp;
         uint64_t f2 = ((uint64_t)o2.from.pn << 32) | o2.from.gp;
@@ -8234,7 +8234,7 @@ static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
             if (t2 <= t1) { // r2 is fully inside r1
                 return r2;
             } else { // r2 is partially inside r1
-                ui_edit_range_t r = {0};
+                union ui_edit_range r = {0};
                 r.from.pn = (int32_t)(f2 >> 32);
                 r.from.gp = (int32_t)(f2);
                 r.to.pn   = (int32_t)(t1 >> 32);
@@ -8245,7 +8245,7 @@ static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
             if (t1 <= t2) { // r1 is fully inside r2
                 return r1;
             } else { // r1 is partially inside r2
-                ui_edit_range_t r = {0};
+                union ui_edit_range r = {0};
                 r.from.pn = (int32_t)(f1 >> 32);
                 r.from.gp = (int32_t)(f1);
                 r.to.pn   = (int32_t)(t2 >> 32);
@@ -8260,7 +8260,7 @@ static ui_edit_range_t ui_edit_range_intersect(const ui_edit_range_t r1,
     }
 }
 
-static bool ui_edit_doc_realloc_ps_no_init(ui_edit_str_t* *ps,
+static bool ui_edit_doc_realloc_ps_no_init(struct ui_edit_str* *ps,
         int32_t old_np, int32_t new_np) { // reallocate paragraphs
     for (int32_t i = new_np; i < old_np; i++) { ui_edit_str.free(&(*ps)[i]); }
     bool ok = true;
@@ -8268,12 +8268,12 @@ static bool ui_edit_doc_realloc_ps_no_init(ui_edit_str_t* *ps,
         rt_heap.free(*ps);
         *ps = null;
     } else {
-        ok = rt_heap.realloc_zero((void**)ps, new_np * sizeof(ui_edit_str_t)) == 0;
+        ok = rt_heap.realloc_zero((void**)ps, new_np * sizeof(struct ui_edit_str)) == 0;
     }
     return ok;
 }
 
-static bool ui_edit_doc_realloc_ps(ui_edit_str_t* *ps,
+static bool ui_edit_doc_realloc_ps(struct ui_edit_str* *ps,
         int32_t old_np, int32_t new_np) { // reallocate paragraphs
     bool ok = ui_edit_doc_realloc_ps_no_init(ps, old_np, new_np);
     if (ok) {
@@ -8285,7 +8285,7 @@ static bool ui_edit_doc_realloc_ps(ui_edit_str_t* *ps,
     return ok;
 }
 
-static bool ui_edit_text_init(ui_edit_text_t* t,
+static bool ui_edit_text_init(struct ui_edit_text* t,
         const char* s, int32_t b, bool heap) {
     // When text comes from the source that lifetime is shorter
     // than text itself (e.g. paste from clipboard) the parameter
@@ -8296,7 +8296,7 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
     // if caller is concerned with best performance - it should pass b >= 0
     int32_t np = 0; // number of paragraphs
     int32_t n = b / 64 > 2 ? b / 64 : 2; // initial number of allocated paragraphs
-    ui_edit_str_t* ps = null; // ps[n]
+    struct ui_edit_str* ps = null; // ps[n]
     bool ok = ui_edit_doc_realloc_ps(&ps, 0, n);
     if (ok) {
         bool lf = false;
@@ -8354,7 +8354,7 @@ static bool ui_edit_text_init(ui_edit_text_t* t,
     return ok;
 }
 
-static void ui_edit_text_dispose(ui_edit_text_t* t) {
+static void ui_edit_text_dispose(struct ui_edit_text* t) {
     if (t->np != 0) {
         ui_edit_doc_realloc_ps(&t->ps, t->np, 0);
         rt_assert(t->ps == null);
@@ -8364,7 +8364,7 @@ static void ui_edit_text_dispose(ui_edit_text_t* t) {
     }
 }
 
-static void ui_edit_doc_dispose_to_do(ui_edit_to_do_t* to_do) {
+static void ui_edit_doc_dispose_to_do(struct ui_edit_to_do* to_do) {
     if (to_do->text.np > 0) {
         ui_edit_text_dispose(&to_do->text);
     }
@@ -8372,13 +8372,13 @@ static void ui_edit_doc_dispose_to_do(ui_edit_to_do_t* to_do) {
     ui_edit_check_zeros(to_do, sizeof(*to_do));
 }
 
-static int32_t ui_edit_text_bytes(const ui_edit_text_t* t,
-        const ui_edit_range_t* range) {
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+static int32_t ui_edit_text_bytes(const struct ui_edit_text* t,
+        const union ui_edit_range* range) {
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     ui_edit_check_range_inside_text(t, &r);
     int32_t bytes = 0;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &t->ps[pn];
+        const struct ui_edit_str* p = &t->ps[pn];
         if (pn == r.from.pn && pn == r.to.pn) {
             bytes += p->g2b[r.to.gp] - p->g2b[r.from.gp];
         } else if (pn == r.from.pn) {
@@ -8392,22 +8392,22 @@ static int32_t ui_edit_text_bytes(const ui_edit_text_t* t,
     return bytes;
 }
 
-static int32_t ui_edit_doc_bytes(const ui_edit_doc_t* d,
-        const ui_edit_range_t* r) {
+static int32_t ui_edit_doc_bytes(const struct ui_edit_doc* d,
+        const union ui_edit_range* r) {
     return ui_edit_text.bytes(&d->text, r);
 }
 
-static int32_t ui_edit_doc_utf8bytes(const ui_edit_doc_t* d,
-        const ui_edit_range_t* range) {
-    const ui_edit_range_t r = ui_edit_text.ordered(&d->text, range);
+static int32_t ui_edit_doc_utf8bytes(const struct ui_edit_doc* d,
+        const union ui_edit_range* range) {
+    const union ui_edit_range r = ui_edit_text.ordered(&d->text, range);
     int32_t bytes = ui_edit_text.bytes(&d->text, &r);
     // "\n" after each paragraph and 0x00
     return bytes + r.to.pn - r.from.pn + 1;
 }
 
-static void ui_edit_notify_before(ui_edit_doc_t* d,
-        const ui_edit_notify_info_t* ni) {
-    ui_edit_listener_t* o = d->listeners;
+static void ui_edit_notify_before(struct ui_edit_doc* d,
+        const struct ui_edit_notify_info* ni) {
+    struct ui_edit_listener* o = d->listeners;
     while (o != null) {
         if (o->notify != null && o->notify->before != null) {
             o->notify->before(o->notify, ni);
@@ -8416,9 +8416,9 @@ static void ui_edit_notify_before(ui_edit_doc_t* d,
     }
 }
 
-static void ui_edit_notify_after(ui_edit_doc_t* d,
-        const ui_edit_notify_info_t* ni) {
-    ui_edit_listener_t* o = d->listeners;
+static void ui_edit_notify_after(struct ui_edit_doc* d,
+        const struct ui_edit_notify_info* ni) {
+    struct ui_edit_listener* o = d->listeners;
     while (o != null) {
         if (o->notify != null && o->notify->after != null) {
             o->notify->after(o->notify, ni);
@@ -8427,11 +8427,11 @@ static void ui_edit_notify_after(ui_edit_doc_t* d,
     }
 }
 
-static bool ui_edit_doc_subscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
+static bool ui_edit_doc_subscribe(struct ui_edit_doc* t, struct ui_edit_notify* notify) {
     // TODO: not sure about double linked list.
     // heap allocated resizable array may serve better and may be easier to maintain
     bool ok = true;
-    ui_edit_listener_t* o = t->listeners;
+    struct ui_edit_listener* o = t->listeners;
     if (o == null) {
         ok = rt_heap.alloc_zero((void**)&t->listeners, sizeof(*o)) == 0;
         if (ok) { o = t->listeners; }
@@ -8444,11 +8444,11 @@ static bool ui_edit_doc_subscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
     return ok;
 }
 
-static void ui_edit_doc_unsubscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) {
-    ui_edit_listener_t* o = t->listeners;
+static void ui_edit_doc_unsubscribe(struct ui_edit_doc* t, struct ui_edit_notify* notify) {
+    struct ui_edit_listener* o = t->listeners;
     bool removed = false;
     while (o != null) {
-        ui_edit_listener_t* n = o->next;
+        struct ui_edit_listener* n = o->next;
         if (o->notify == notify) {
             rt_assert(!removed);
             if (o->prev != null) { o->prev->next = n; }
@@ -8462,17 +8462,17 @@ static void ui_edit_doc_unsubscribe(ui_edit_doc_t* t, ui_edit_notify_t* notify) 
     rt_swear(removed);
 }
 
-static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
-        const ui_edit_range_t* range, ui_edit_text_t* t) {
+static bool ui_edit_doc_copy_text(const struct ui_edit_doc* d,
+        const union ui_edit_range* range, struct ui_edit_text* t) {
     ui_edit_check_zeros(t, sizeof(*t));
     memset(t, 0x00, sizeof(*t));
-    const ui_edit_range_t r = ui_edit_text.ordered(&d->text, range);
+    const union ui_edit_range r = ui_edit_text.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     int32_t np = r.to.pn - r.from.pn + 1;
     bool ok = ui_edit_doc_realloc_ps(&t->ps, 0, np);
     if (ok) { t->np = np; }
     for (int32_t pn = r.from.pn; ok && pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &d->text.ps[pn];
+        const struct ui_edit_str* p = &d->text.ps[pn];
         const char* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -8497,13 +8497,13 @@ static bool ui_edit_doc_copy_text(const ui_edit_doc_t* d,
     return ok;
 }
 
-static void ui_edit_doc_copy(const ui_edit_doc_t* d,
-        const ui_edit_range_t* range, char* text, int32_t b) {
-    const ui_edit_range_t r = ui_edit_text.ordered(&d->text, range);
+static void ui_edit_doc_copy(const struct ui_edit_doc* d,
+        const union ui_edit_range* range, char* text, int32_t b) {
+    const union ui_edit_range r = ui_edit_text.ordered(&d->text, range);
     ui_edit_check_range_inside_text(&d->text, &r);
     char* to = text;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &d->text.ps[pn];
+        const struct ui_edit_str* p = &d->text.ps[pn];
         const char* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -8533,17 +8533,17 @@ static void ui_edit_doc_copy(const ui_edit_doc_t* d,
     *to++ = 0x00;
 }
 
-static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
-        const ui_edit_str_t* s, const ui_edit_text_t* insert,
-        const ui_edit_str_t* e) {
+static bool ui_edit_text_insert_2_or_more(struct ui_edit_text* t, int32_t pn,
+        const struct ui_edit_str* s, const struct ui_edit_text* insert,
+        const struct ui_edit_str* e) {
     // insert 2 or more paragraphs
     rt_assert(0 <= pn && pn < t->np);
     const int32_t np = t->np + insert->np - 1;
     rt_assert(np > 0);
-    ui_edit_str_t* ps = null; // ps[np]
+    struct ui_edit_str* ps = null; // ps[np]
     bool ok = ui_edit_doc_realloc_ps_no_init(&ps, 0, np);
     if (ok) {
-        memmove(ps, t->ps, (size_t)pn * sizeof(ui_edit_str_t));
+        memmove(ps, t->ps, (size_t)pn * sizeof(struct ui_edit_str));
         // `s` first line of `insert`
         ok = ui_edit_str.init(&ps[pn], s->u, s->b, true);
         // lines of `insert` between `s` and `e`
@@ -8558,12 +8558,12 @@ static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
         }
         rt_assert(t->np - pn - 1 >= 0);
         memmove(ps + pn + insert->np, t->ps + pn + 1,
-               (size_t)(t->np - pn - 1) * sizeof(ui_edit_str_t));
+               (size_t)(t->np - pn - 1) * sizeof(struct ui_edit_str));
         if (ok) {
             // this two regions where moved to `ps`
-            memset(t->ps, 0x00, pn * sizeof(ui_edit_str_t));
+            memset(t->ps, 0x00, pn * sizeof(struct ui_edit_str));
             memset(t->ps + pn + 1, 0x00,
-                   (size_t)(t->np - pn - 1) * sizeof(ui_edit_str_t));
+                   (size_t)(t->np - pn - 1) * sizeof(struct ui_edit_str));
             // deallocate what was copied from `insert`
             ui_edit_doc_realloc_ps_no_init(&t->ps, t->np, 0);
             t->np = np;
@@ -8575,20 +8575,20 @@ static bool ui_edit_text_insert_2_or_more(ui_edit_text_t* t, int32_t pn,
     return ok;
 }
 
-static bool ui_edit_text_insert_1(ui_edit_text_t* t,
-        const ui_edit_pg_t ip, // insertion point
-        const ui_edit_text_t* insert) {
+static bool ui_edit_text_insert_1(struct ui_edit_text* t,
+        const struct ui_edit_pg ip, // insertion point
+        const struct ui_edit_text* insert) {
     rt_assert(0 <= ip.pn && ip.pn < t->np);
-    ui_edit_str_t* str = &t->ps[ip.pn]; // string in document text
+    struct ui_edit_str* str = &t->ps[ip.pn]; // string in document text
     rt_assert(insert->np == 1);
-    ui_edit_str_t* ins = &insert->ps[0]; // string to insert
+    struct ui_edit_str* ins = &insert->ps[0]; // string to insert
     rt_assert(0 <= ip.gp && ip.gp <= str->g);
     // ui_edit_str.replace() is all or nothing:
     return ui_edit_str.replace(str, ip.gp, ip.gp, ins->u, ins->b);
 }
 
-static bool ui_edit_substr_append(ui_edit_str_t* d, const ui_edit_str_t* s1,
-    int32_t gp1, const ui_edit_str_t* s2) { // s1[0:gp1] + s2
+static bool ui_edit_substr_append(struct ui_edit_str* d, const struct ui_edit_str* s1,
+    int32_t gp1, const struct ui_edit_str* s2) { // s1[0:gp1] + s2
     rt_assert(d != s1 && d != s2);
     const int32_t b = s1->g2b[gp1];
     bool ok = ui_edit_str.init(d, b == 0 ? null : s1->u, b, true);
@@ -8600,8 +8600,8 @@ static bool ui_edit_substr_append(ui_edit_str_t* d, const ui_edit_str_t* s1,
     return ok;
 }
 
-static bool ui_edit_append_substr(ui_edit_str_t* d, const ui_edit_str_t* s1,
-    const ui_edit_str_t* s2, int32_t gp2) {  // s1 + s2[gp1:*]
+static bool ui_edit_append_substr(struct ui_edit_str* d, const struct ui_edit_str* s1,
+    const struct ui_edit_str* s2, int32_t gp2) {  // s1 + s2[gp1:*]
     rt_assert(d != s1 && d != s2);
     bool ok = ui_edit_str.init(d, s1->b == 0 ? null : s1->u, s1->b, true);
     if (ok) {
@@ -8614,16 +8614,16 @@ static bool ui_edit_append_substr(ui_edit_str_t* d, const ui_edit_str_t* s1,
     return ok;
 }
 
-static bool ui_edit_text_insert(ui_edit_text_t* t, const ui_edit_pg_t ip,
-        const ui_edit_text_t* i) {
+static bool ui_edit_text_insert(struct ui_edit_text* t, const struct ui_edit_pg ip,
+        const struct ui_edit_text* i) {
     bool ok = true;
     if (ok) {
         if (i->np == 1) {
             ok = ui_edit_text_insert_1(t, ip, i);
         } else {
-            ui_edit_str_t* str = &t->ps[ip.pn];
-            ui_edit_str_t s = {0}; // start line of insert text `i`
-            ui_edit_str_t e = {0}; // end   line
+            struct ui_edit_str* str = &t->ps[ip.pn];
+            struct ui_edit_str s = {0}; // start line of insert text `i`
+            struct ui_edit_str e = {0}; // end   line
             if (ui_edit_substr_append(&s, str, ip.gp, &i->ps[0])) {
                 if (ui_edit_append_substr(&e, &i->ps[i->np - 1], str, ip.gp)) {
                     ok = ui_edit_text_insert_2_or_more(t, ip.pn, &s, i, &e);
@@ -8636,15 +8636,15 @@ static bool ui_edit_text_insert(ui_edit_text_t* t, const ui_edit_pg_t ip,
     return ok;
 }
 
-static bool ui_edit_text_remove_lines(ui_edit_text_t* t,
-    ui_edit_str_t* merge, int32_t from, int32_t to) {
+static bool ui_edit_text_remove_lines(struct ui_edit_text* t,
+    struct ui_edit_str* merge, int32_t from, int32_t to) {
     bool ok = true;
     for (int32_t pn = from + 1; pn <= to; pn++) {
         ui_edit_str.free(&t->ps[pn]);
     }
     if (t->np - to - 1 > 0) {
         memmove(&t->ps[from + 1], &t->ps[to + 1],
-                (size_t)(t->np - to - 1) * sizeof(ui_edit_str_t));
+                (size_t)(t->np - to - 1) * sizeof(struct ui_edit_str));
     }
     t->np -= to - from;
     if (ok) {
@@ -8653,12 +8653,12 @@ static bool ui_edit_text_remove_lines(ui_edit_text_t* t,
     return ok;
 }
 
-static bool ui_edit_text_insert_remove(ui_edit_text_t* t,
-        const ui_edit_range_t r, const ui_edit_text_t* i) {
+static bool ui_edit_text_insert_remove(struct ui_edit_text* t,
+        const union ui_edit_range r, const struct ui_edit_text* i) {
     bool ok = true;
-    ui_edit_str_t merge = {0};
-    const ui_edit_str_t* s = &t->ps[r.from.pn];
-    const ui_edit_str_t* e = &t->ps[r.to.pn];
+    struct ui_edit_str merge = {0};
+    const struct ui_edit_str* s = &t->ps[r.from.pn];
+    const struct ui_edit_str* e = &t->ps[r.to.pn];
     const int32_t o = e->g2b[r.to.gp];
     const int32_t b = e->b - o;
     const char* u = b == 0 ? null : e->u + o;
@@ -8677,17 +8677,17 @@ static bool ui_edit_text_insert_remove(ui_edit_text_t* t,
     return ok;
 }
 
-static bool ui_edit_text_copy_text(const ui_edit_text_t* t,
-        const ui_edit_range_t* range, ui_edit_text_t* to) {
+static bool ui_edit_text_copy_text(const struct ui_edit_text* t,
+        const union ui_edit_range* range, struct ui_edit_text* to) {
     ui_edit_check_zeros(to, sizeof(*to));
     memset(to, 0x00, sizeof(*to));
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     ui_edit_check_range_inside_text(t, &r);
     int32_t np = r.to.pn - r.from.pn + 1;
     bool ok = ui_edit_doc_realloc_ps(&to->ps, 0, np);
     if (ok) { to->np = np; }
     for (int32_t pn = r.from.pn; ok && pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &t->ps[pn];
+        const struct ui_edit_str* p = &t->ps[pn];
         const char* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -8712,13 +8712,13 @@ static bool ui_edit_text_copy_text(const ui_edit_text_t* t,
     return ok;
 }
 
-static void ui_edit_text_copy(const ui_edit_text_t* t,
-        const ui_edit_range_t* range, char* text, int32_t b) {
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+static void ui_edit_text_copy(const struct ui_edit_text* t,
+        const union ui_edit_range* range, char* text, int32_t b) {
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     ui_edit_check_range_inside_text(t, &r);
     char* to = text;
     for (int32_t pn = r.from.pn; pn <= r.to.pn; pn++) {
-        const ui_edit_str_t* p = &t->ps[pn];
+        const struct ui_edit_str* p = &t->ps[pn];
         const char* u = p->u;
         int32_t bytes = 0;
         if (pn == r.from.pn && pn == r.to.pn) {
@@ -8748,12 +8748,12 @@ static void ui_edit_text_copy(const ui_edit_text_t* t,
     *to++ = 0x00;
 }
 
-static bool ui_edit_text_replace(ui_edit_text_t* t,
-        const ui_edit_range_t* range, const ui_edit_text_t* i,
-        ui_edit_to_do_t* undo) {
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+static bool ui_edit_text_replace(struct ui_edit_text* t,
+        const union ui_edit_range* range, const struct ui_edit_text* i,
+        struct ui_edit_to_do* undo) {
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     bool ok = undo == null ? true : ui_edit_text.copy_text(t, &r, &undo->text);
-    ui_edit_range_t x = r;
+    union ui_edit_range x = r;
     if (ok) {
         if (ui_edit_range.is_empty(r)) {
             x.to.pn = r.from.pn + i->np - 1;
@@ -8774,12 +8774,12 @@ static bool ui_edit_text_replace(ui_edit_text_t* t,
     return ok;
 }
 
-static bool ui_edit_text_replace_utf8(ui_edit_text_t* t,
-        const ui_edit_range_t* range,
+static bool ui_edit_text_replace_utf8(struct ui_edit_text* t,
+        const union ui_edit_range* range,
         const char* utf8, int32_t b,
-        ui_edit_to_do_t* undo) {
+        struct ui_edit_to_do* undo) {
     if (b < 0) { b = (int32_t)strlen(utf8); }
-    ui_edit_text_t i = {0};
+    struct ui_edit_text i = {0};
     bool ok = ui_edit_text.init(&i, utf8, b, false);
     if (ok) {
         ok = ui_edit_text.replace(t, range, &i, undo);
@@ -8788,14 +8788,14 @@ static bool ui_edit_text_replace_utf8(ui_edit_text_t* t,
     return ok;
 }
 
-static bool ui_edit_text_dup(ui_edit_text_t* t, const ui_edit_text_t* s) {
+static bool ui_edit_text_dup(struct ui_edit_text* t, const struct ui_edit_text* s) {
     ui_edit_check_zeros(t, sizeof(*t));
     memset(t, 0x00, sizeof(*t));
     bool ok = ui_edit_doc_realloc_ps(&t->ps, 0, s->np);
     if (ok) {
         t->np = s->np;
         for (int32_t i = 0; ok && i < s->np; i++) {
-            const ui_edit_str_t* p = &s->ps[i];
+            const struct ui_edit_str* p = &s->ps[i];
             ok = ui_edit_str.replace(&t->ps[i], 0, 0, p->u, p->b);
         }
     }
@@ -8805,29 +8805,29 @@ static bool ui_edit_text_dup(ui_edit_text_t* t, const ui_edit_text_t* s) {
     return ok;
 }
 
-static bool ui_edit_text_equal(const ui_edit_text_t* t1,
-        const ui_edit_text_t* t2) {
+static bool ui_edit_text_equal(const struct ui_edit_text* t1,
+        const struct ui_edit_text* t2) {
     bool equal =  t1->np != t2->np;
     for (int32_t i = 0; equal && i < t1->np; i++) {
-        const ui_edit_str_t* p1 = &t1->ps[i];
-        const ui_edit_str_t* p2 = &t2->ps[i];
+        const struct ui_edit_str* p1 = &t1->ps[i];
+        const struct ui_edit_str* p2 = &t2->ps[i];
         equal = p1->b == p2->b &&
                 memcmp(p1->u, p2->u, p1->b) == 0;
     }
     return equal;
 }
 
-static void ui_edit_doc_before_replace_text(ui_edit_doc_t* d,
-        const ui_edit_range_t r, const ui_edit_text_t* t) {
+static void ui_edit_doc_before_replace_text(struct ui_edit_doc* d,
+        const union ui_edit_range r, const struct ui_edit_text* t) {
     ui_edit_check_range_inside_text(&d->text, &r);
-    ui_edit_range_t x = r;
+    union ui_edit_range x = r;
     x.to.pn = r.from.pn + t->np - 1;
     if (r.from.pn == r.to.pn && t->np == 1) {
         x.to.gp = r.from.gp + t->ps[0].g;
     } else {
         x.to.gp = t->ps[t->np - 1].g;
     }
-    const ui_edit_notify_info_t ni_before = {
+    const struct ui_edit_notify_info ni_before = {
         .ok = true, .d = d, .r = &r, .x = &x, .t = t,
         .pnf = r.from.pn, .pnt = r.to.pn,
         .deleted = 0, .inserted = 0
@@ -8835,12 +8835,12 @@ static void ui_edit_doc_before_replace_text(ui_edit_doc_t* d,
     ui_edit_notify_before(d, &ni_before);
 }
 
-static void ui_edit_doc_after_replace_text(ui_edit_doc_t* d,
+static void ui_edit_doc_after_replace_text(struct ui_edit_doc* d,
         bool ok,
-        const ui_edit_range_t r,
-        const ui_edit_range_t x,
-        const ui_edit_text_t* t) {
-    const ui_edit_notify_info_t ni_after = {
+        const union ui_edit_range r,
+        const union ui_edit_range x,
+        const struct ui_edit_text* t) {
+    const struct ui_edit_notify_info ni_after = {
         .ok = ok, .d = d, .r = &r, .x = &x, .t = t,
         .pnf = r.from.pn, .pnt = x.to.pn,
         .deleted = r.to.pn - r.from.pn,
@@ -8849,27 +8849,27 @@ static void ui_edit_doc_after_replace_text(ui_edit_doc_t* d,
     ui_edit_notify_after(d, &ni_after);
 }
 
-static bool ui_edit_doc_replace_text(ui_edit_doc_t* d,
-        const ui_edit_range_t* range, const ui_edit_text_t* i,
-        ui_edit_to_do_t* undo) {
-    ui_edit_text_t* t = &d->text;
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
+static bool ui_edit_doc_replace_text(struct ui_edit_doc* d,
+        const union ui_edit_range* range, const struct ui_edit_text* i,
+        struct ui_edit_to_do* undo) {
+    struct ui_edit_text* t = &d->text;
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
     ui_edit_doc_before_replace_text(d, r, i);
     bool ok = ui_edit_text.replace(t, &r, i, undo);
     ui_edit_doc_after_replace_text(d, ok, r, undo->range, i);
     return ok;
 }
 
-static bool ui_edit_doc_replace_undoable(ui_edit_doc_t* d,
-        const ui_edit_range_t* r, const ui_edit_text_t* t,
-        ui_edit_to_do_t* undo) {
+static bool ui_edit_doc_replace_undoable(struct ui_edit_doc* d,
+        const union ui_edit_range* r, const struct ui_edit_text* t,
+        struct ui_edit_to_do* undo) {
     bool ok = ui_edit_doc_replace_text(d, r, t, undo);
     if (ok && undo != null) {
         undo->next = d->undo;
         d->undo = undo;
         // redo stack is not valid after new replace, empty it:
         while (d->redo != null) {
-            ui_edit_to_do_t* next = d->redo->next;
+            struct ui_edit_to_do* next = d->redo->next;
             d->redo->next = null;
             ui_edit_doc.dispose_to_do(d->redo);
             rt_heap.free(d->redo);
@@ -8880,15 +8880,15 @@ static bool ui_edit_doc_replace_undoable(ui_edit_doc_t* d,
 }
 
 static bool ui_edit_utf8_to_heap_text(const char* u, int32_t b,
-        ui_edit_text_t* it) {
+        struct ui_edit_text* it) {
     rt_assert((b == 0) == (u == null || u[0] == 0x00));
     return ui_edit_text.init(it, b != 0 ? u : null, b, true);
 }
 
 
-static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
-    ui_edit_to_do_t* undo = d->undo;
-    ui_edit_to_do_t* next = undo->next;
+static bool ui_edit_doc_coalesce_undo(struct ui_edit_doc* d, struct ui_edit_text* i) {
+    struct ui_edit_to_do* undo = d->undo;
+    struct ui_edit_to_do* next = undo->next;
 //  rt_println("i: %.*s", i->ps[0].b, i->ps[0].u);
 //  if (i->np == 1 && i->ps[0].g == 1) {
 //      rt_println("an: %d", ui_edit_str.is_letter(rt_str.utf32(i->ps[0].u, i->ps[0].b)));
@@ -8897,10 +8897,10 @@ static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
     const bool alpha_numeric = i->np == 1 && i->ps[0].g == 1 &&
         ui_edit_str.is_letter(rt_str.utf32(i->ps[0].u, i->ps[0].b));
     if (alpha_numeric && next != null) {
-        const ui_edit_range_t ur = undo->range;
-        const ui_edit_text_t* ut = &undo->text;
-        const ui_edit_range_t nr = next->range;
-        const ui_edit_text_t* nt = &next->text;
+        const union ui_edit_range ur = undo->range;
+        const struct ui_edit_text* ut = &undo->text;
+        const union ui_edit_range nr = next->range;
+        const struct ui_edit_text* nt = &next->text;
 //      rt_println("next: \"%.*s\" %d:%d..%d:%d undo: \"%.*s\" %d:%d..%d:%d",
 //          nt->ps[0].b, nt->ps[0].u, nr.from.pn, nr.from.gp, nr.to.pn, nr.to.gp,
 //          ut->ps[0].b, ut->ps[0].u, ur.from.pn, ur.from.gp, ur.to.pn, ur.to.gp);
@@ -8911,7 +8911,7 @@ static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
             nt->np == 1 && nt->ps[0].g == 0 &&
             nr.to.gp == ur.from.gp && nr.to.gp > 0;
         if (c) {
-            const ui_edit_str_t* str = &d->text.ps[nr.from.pn];
+            const struct ui_edit_str* str = &d->text.ps[nr.from.pn];
             const int32_t* g2b = str->g2b;
             const char* utf8 = str->u + g2b[nr.to.gp - 1];
             uint32_t utf32 = rt_str.utf32(utf8, g2b[nr.to.gp] - g2b[nr.to.gp - 1]);
@@ -8928,14 +8928,14 @@ static bool ui_edit_doc_coalesce_undo(ui_edit_doc_t* d, ui_edit_text_t* i) {
     return coalesced;
 }
 
-static bool ui_edit_doc_replace(ui_edit_doc_t* d,
-        const ui_edit_range_t* range, const char* u, int32_t b) {
-    ui_edit_text_t* t = &d->text;
-    const ui_edit_range_t r = ui_edit_text.ordered(t, range);
-    ui_edit_to_do_t* undo = null;
-    bool ok = rt_heap.alloc_zero((void**)&undo, sizeof(ui_edit_to_do_t)) == 0;
+static bool ui_edit_doc_replace(struct ui_edit_doc* d,
+        const union ui_edit_range* range, const char* u, int32_t b) {
+    struct ui_edit_text* t = &d->text;
+    const union ui_edit_range r = ui_edit_text.ordered(t, range);
+    struct ui_edit_to_do* undo = null;
+    bool ok = rt_heap.alloc_zero((void**)&undo, sizeof(struct ui_edit_to_do)) == 0;
     if (ok) {
-        ui_edit_text_t i = {0};
+        struct ui_edit_text i = {0};
         ok = ui_edit_utf8_to_heap_text(u, b, &i);
         if (ok) {
             ok = ui_edit_doc_replace_undoable(d, &r, &i, undo);
@@ -8957,11 +8957,11 @@ static bool ui_edit_doc_replace(ui_edit_doc_t* d,
     return ok;
 }
 
-static bool ui_edit_doc_do(ui_edit_doc_t* d, ui_edit_to_do_t* to_do,
-        ui_edit_to_do_t* *stack) {
-    const ui_edit_range_t* r = &to_do->range;
-    ui_edit_to_do_t* redo = null;
-    bool ok = rt_heap.alloc_zero((void**)&redo, sizeof(ui_edit_to_do_t)) == 0;
+static bool ui_edit_doc_do(struct ui_edit_doc* d, struct ui_edit_to_do* to_do,
+        struct ui_edit_to_do* *stack) {
+    const union ui_edit_range* r = &to_do->range;
+    struct ui_edit_to_do* redo = null;
+    bool ok = rt_heap.alloc_zero((void**)&redo, sizeof(struct ui_edit_to_do)) == 0;
     if (ok) {
         ok = ui_edit_doc_replace_text(d, r, &to_do->text, redo);
         if (ok) {
@@ -8981,8 +8981,8 @@ static bool ui_edit_doc_do(ui_edit_doc_t* d, ui_edit_to_do_t* to_do,
     return ok;
 }
 
-static bool ui_edit_doc_redo(ui_edit_doc_t* d) {
-    ui_edit_to_do_t* to_do = d->redo;
+static bool ui_edit_doc_redo(struct ui_edit_doc* d) {
+    struct ui_edit_to_do* to_do = d->redo;
     if (to_do == null) {
         return false;
     } else {
@@ -8992,8 +8992,8 @@ static bool ui_edit_doc_redo(ui_edit_doc_t* d) {
     }
 }
 
-static bool ui_edit_doc_undo(ui_edit_doc_t* d) {
-    ui_edit_to_do_t* to_do = d->undo;
+static bool ui_edit_doc_undo(struct ui_edit_doc* d) {
+    struct ui_edit_to_do* to_do = d->undo;
     if (to_do == null) {
         return false;
     } else {
@@ -9003,7 +9003,7 @@ static bool ui_edit_doc_undo(ui_edit_doc_t* d) {
     }
 }
 
-static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
+static bool ui_edit_doc_init(struct ui_edit_doc* d, const char* utf8,
         int32_t bytes, bool heap) {
     bool ok = true;
     ui_edit_check_zeros(d, sizeof(*d));
@@ -9016,7 +9016,7 @@ static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
     rt_assert((utf8 == null) == (bytes == 0));
     if (ok) {
         if (bytes == 0) { // empty string
-            ok = rt_heap.alloc_zero((void**)&d->text.ps, sizeof(ui_edit_str_t)) == 0;
+            ok = rt_heap.alloc_zero((void**)&d->text.ps, sizeof(struct ui_edit_str)) == 0;
             if (ok) {
                 d->text.np = 1;
                 ok = ui_edit_str.init(&d->text.ps[0], null, 0, false);
@@ -9028,7 +9028,7 @@ static bool ui_edit_doc_init(ui_edit_doc_t* d, const char* utf8,
     return ok;
 }
 
-static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
+static void ui_edit_doc_dispose(struct ui_edit_doc* d) {
     for (int32_t i = 0; i < d->text.np; i++) {
         ui_edit_str.free(&d->text.ps[i]);
     }
@@ -9038,14 +9038,14 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
     }
     d->text.np  = 0;
     while (d->undo != null) {
-        ui_edit_to_do_t* next = d->undo->next;
+        struct ui_edit_to_do* next = d->undo->next;
         d->undo->next = null;
         ui_edit_doc.dispose_to_do(d->undo);
         rt_heap.free(d->undo);
         d->undo = next;
     }
     while (d->redo != null) {
-        ui_edit_to_do_t* next = d->redo->next;
+        struct ui_edit_to_do* next = d->redo->next;
         d->redo->next = null;
         ui_edit_doc.dispose_to_do(d->redo);
         rt_heap.free(d->redo);
@@ -9053,7 +9053,7 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
     }
     rt_assert(d->listeners == null, "unsubscribe listeners?");
     while (d->listeners != null) {
-        ui_edit_listener_t* next = d->listeners->next;
+        struct ui_edit_listener* next = d->listeners->next;
         d->listeners->next = null;
         rt_heap.free(d->listeners);
         d->listeners = next;
@@ -9066,19 +9066,19 @@ static void ui_edit_doc_dispose(ui_edit_doc_t* d) {
 static int32_t ui_edit_str_g2b_ascii[1024]; // ui_edit_str_g2b_ascii[i] == i for all "i"
 static char    ui_edit_str_empty_utf8[1] = {0x00};
 
-static const ui_edit_str_t ui_edit_str_empty = {
+static const struct ui_edit_str ui_edit_str_empty = {
     .u = ui_edit_str_empty_utf8,
     .g2b = ui_edit_str_g2b_ascii,
     .c = 0, .b = 0, .g = 0
 };
 
-static bool    ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b, bool heap);
-static void    ui_edit_str_swap(ui_edit_str_t* s1, ui_edit_str_t* s2);
+static bool    ui_edit_str_init(struct ui_edit_str* s, const char* u, int32_t b, bool heap);
+static void    ui_edit_str_swap(struct ui_edit_str* s1, struct ui_edit_str* s2);
 static int32_t ui_edit_str_gp_to_bp(const char* s, int32_t bytes, int32_t gp);
-static int32_t ui_edit_str_bytes(ui_edit_str_t* s, int32_t f, int32_t t);
-static bool    ui_edit_str_expand(ui_edit_str_t* s, int32_t c);
-static void    ui_edit_str_shrink(ui_edit_str_t* s);
-static bool    ui_edit_str_replace(ui_edit_str_t* s, int32_t f, int32_t t,
+static int32_t ui_edit_str_bytes(struct ui_edit_str* s, int32_t f, int32_t t);
+static bool    ui_edit_str_expand(struct ui_edit_str* s, int32_t c);
+static void    ui_edit_str_shrink(struct ui_edit_str* s);
+static bool    ui_edit_str_replace(struct ui_edit_str* s, int32_t f, int32_t t,
                                    const char* u, int32_t b);
 
 //  bool (*is_zwj)(uint32_t utf32); // zero width joiner
@@ -9106,9 +9106,9 @@ static bool ui_edit_str_is_cjk_or_emoji(uint32_t utf32);
 static bool ui_edit_str_can_break(uint32_t cp1, uint32_t cp2);
 
 static void    ui_edit_str_test(void);
-static void    ui_edit_str_free(ui_edit_str_t* s);
+static void    ui_edit_str_free(struct ui_edit_str* s);
 
-ui_edit_str_if ui_edit_str = {
+struct ui_edit_str_if ui_edit_str = {
     .init            = ui_edit_str_init,
     .swap            = ui_edit_str_swap,
     .gp_to_bp        = ui_edit_str_gp_to_bp,
@@ -9210,7 +9210,7 @@ static int32_t ui_edit_str_gp_to_bp(const char* utf8, int32_t bytes, int32_t gp)
     return ok ? i : -1;
 }
 
-static void ui_edit_str_free(ui_edit_str_t* s) {
+static void ui_edit_str_free(struct ui_edit_str* s) {
     if (s->g2b != null && s->g2b != ui_edit_str_g2b_ascii) {
         rt_heap.free(s->g2b);
     } else {
@@ -9234,7 +9234,7 @@ static void ui_edit_str_free(ui_edit_str_t* s) {
     ui_edit_check_zeros(s, sizeof(*s));
 }
 
-static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
+static bool ui_edit_str_init_g2b(struct ui_edit_str* s) {
     const int64_t _4_bytes = (int64_t)sizeof(int32_t);
     // start with number of glyphs == number of bytes (ASCII text):
     bool ok = rt_heap.alloc(&s->g2b, (size_t)(s->b + 1) * _4_bytes) == 0;
@@ -9263,7 +9263,7 @@ static bool ui_edit_str_init_g2b(ui_edit_str_t* s) {
     return ok;
 }
 
-static bool ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b,
+static bool ui_edit_str_init(struct ui_edit_str* s, const char* u, int32_t b,
         bool heap) {
     enum { n = rt_countof(ui_edit_str_g2b_ascii) };
     if (ui_edit_str_g2b_ascii[n - 1] != n - 1) {
@@ -9298,18 +9298,18 @@ static bool ui_edit_str_init(ui_edit_str_t* s, const char* u, int32_t b,
     return ok;
 }
 
-static void ui_edit_str_swap(ui_edit_str_t* s1, ui_edit_str_t* s2) {
-    ui_edit_str_t s = *s1; *s1 = *s2; *s2 = s;
+static void ui_edit_str_swap(struct ui_edit_str* s1, struct ui_edit_str* s2) {
+    struct ui_edit_str s = *s1; *s1 = *s2; *s2 = s;
 }
 
-static int32_t ui_edit_str_bytes(ui_edit_str_t* s,
+static int32_t ui_edit_str_bytes(struct ui_edit_str* s,
         int32_t f, int32_t t) { // glyph positions
     ui_edit_str_check_from_to(s, f, t);
     ui_edit_str_check(s);
     return s->g2b[t] - s->g2b[f];
 }
 
-static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
+static bool ui_edit_str_move_g2b_to_heap(struct ui_edit_str* s) {
     bool ok = true;
     if (s->g2b == ui_edit_str_g2b_ascii) { // even for s->g == 0
         if (s->b == s->g && s->g < rt_countof(ui_edit_str_g2b_ascii) - 1) {
@@ -9326,7 +9326,7 @@ static bool ui_edit_str_move_g2b_to_heap(ui_edit_str_t* s) {
     return ok;
 }
 
-static bool ui_edit_str_move_to_heap(ui_edit_str_t* s, int32_t c) {
+static bool ui_edit_str_move_to_heap(struct ui_edit_str* s, int32_t c) {
     bool ok = true;
     rt_assert(c >= s->b, "can expand cannot shrink");
     if (s->c == 0) { // s->u points outside of the heap
@@ -9340,7 +9340,7 @@ static bool ui_edit_str_move_to_heap(ui_edit_str_t* s, int32_t c) {
     return ok;
 }
 
-static bool ui_edit_str_expand(ui_edit_str_t* s, int32_t c) {
+static bool ui_edit_str_expand(struct ui_edit_str* s, int32_t c) {
     rt_swear(c > 0);
     bool ok = ui_edit_str_move_to_heap(s, c);
     if (ok && c > s->c) {
@@ -9353,7 +9353,7 @@ static bool ui_edit_str_expand(ui_edit_str_t* s, int32_t c) {
     return ok;
 }
 
-static void ui_edit_str_shrink(ui_edit_str_t* s) {
+static void ui_edit_str_shrink(struct ui_edit_str* s) {
     if (s->c > s->b) { // s->c == 0 for empty and single byte ASCII strings
         rt_assert(s->u != ui_edit_str_empty_utf8);
         if (s->b == 0) {
@@ -9381,7 +9381,7 @@ static void ui_edit_str_shrink(ui_edit_str_t* s) {
     }
 }
 
-static bool ui_edit_str_remove(ui_edit_str_t* s, int32_t f, int32_t t) {
+static bool ui_edit_str_remove(struct ui_edit_str* s, int32_t f, int32_t t) {
     bool ok = true; // optimistic approach
     ui_edit_str_check_from_to(s, f, t);
     ui_edit_str_check(s);
@@ -9411,7 +9411,7 @@ static bool ui_edit_str_remove(ui_edit_str_t* s, int32_t f, int32_t t) {
     return ok;
 }
 
-static bool ui_edit_str_replace(ui_edit_str_t* s,
+static bool ui_edit_str_replace(struct ui_edit_str* s,
         int32_t f, int32_t t, const char* u, int32_t b) {
     const int64_t _4_bytes = (int64_t)sizeof(int32_t);
     bool ok = true; // optimistic approach
@@ -9424,7 +9424,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
     if (b == 0) { // just remove glyphs
         ok = ui_edit_str_remove(s, f, t);
     } else { // remove and insert
-        ui_edit_str_t ins = {0};
+        struct ui_edit_str ins = {0};
         // ui_edit_str_init_ro() verifies utf-8 and calculates g2b[]:
         ok = ui_edit_str_init(&ins, u, b, false);
         const int32_t glyphs_to_insert = ins.g; // only for readability
@@ -9443,7 +9443,7 @@ static bool ui_edit_str_replace(ui_edit_str_t* s,
                 if (!all_ascii) {
                     ui_edit_str_move_g2b_to_heap(s);
                 }
-                // insert ui_edit_str_t "ins" at glyph position "f"
+                // insert struct ui_edit_str "ins" at glyph position "f"
                 // reusing ins.u[0..ins.b-1] and ins.g2b[0..ins.g]
                 // moving memory using memmove() left to right:
                 if (bytes_to_insert <= bytes_to_remove) {
@@ -9761,7 +9761,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                 gs[gix_src[0]], gs[gix_src[1]], gs[gix_src[2]],
                 gs[gix_src[3]], gs[gix_src[4]], src);
         }
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         // reference constructor does not copy to heap:
         bool ok = ui_edit_str_init(&s, src, -1, false);
         rt_swear(ok);
@@ -9793,7 +9793,7 @@ static void ui_edit_str_test_replace(void) { // exhaustive permutations
                         "s.u[%d:%d]: \"%.*s\" g:%d [%d:%d] rep=\"%s\" "
                         "e1: \"%s\" e2: \"%s\"",
                         s.b, s.c, s.b, s.u, s.g, f, t, rep, e1, e2);
-                    ui_edit_str_t c = {0}; // copy
+                    struct ui_edit_str c = {0}; // copy
                     ok = ui_edit_str_init(&c, src, -1, true);
                     rt_swear(ok);
                     ok = ui_edit_str_replace(&c, f, t, rep, -1);
@@ -9846,7 +9846,7 @@ static void ui_edit_str_test_glyph_bytes(void) {
 static void ui_edit_str_test(void) {
     ui_edit_str_test_glyph_bytes();
     {
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
         rt_swear(ok);
         rt_swear(s.b == 5 && s.c == 0 && memcmp(s.u, "hello", 5) == 0);
@@ -9860,7 +9860,7 @@ static void ui_edit_str_test(void) {
                              ui_edit_euro ui_edit_money_bag;
     const char* money = currencies;
     {
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         const int32_t n = (int32_t)strlen(currencies);
         bool ok = ui_edit_str_init(&s, money, n, true);
         rt_swear(ok);
@@ -9873,7 +9873,7 @@ static void ui_edit_str_test(void) {
         ui_edit_str_free(&s);
     }
     {
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         bool ok = ui_edit_str_init(&s, "hello", -1, false);
         rt_swear(ok);
         ok = ui_edit_str_replace(&s, 1, 4, null, 0);
@@ -9883,7 +9883,7 @@ static void ui_edit_str_test(void) {
         ui_edit_str_free(&s);
     }
     {
-        ui_edit_str_t s = {0};
+        struct ui_edit_str s = {0};
         bool ok = ui_edit_str_init(&s, "Hello world", -1, false);
         rt_swear(ok);
         ok = ui_edit_str_replace(&s, 5, 6, " cruel ", -1);
@@ -9939,7 +9939,7 @@ static void ui_edit_doc_test_big_text(void) {
         *p = '\n';
     }
     text[MB10 - 1] = 0x00;
-    ui_edit_text_t t = {0};
+    struct ui_edit_text t = {0};
     bool ok = ui_edit_text.init(&t, text, MB10, false);
     rt_swear(ok);
     ui_edit_text.dispose(&t);
@@ -9951,7 +9951,7 @@ static void ui_edit_doc_test_paragraphs(void) {
     for (int i = 0; i < 100; i++)
     {
         {   // empty string to paragraphs:
-            ui_edit_text_t t = {0};
+            struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, null, 0, false);
             rt_swear(ok);
             rt_swear(t.ps != null && t.np == 1);
@@ -9964,7 +9964,7 @@ static void ui_edit_doc_test_paragraphs(void) {
         {   // string without "\n"
             const char* hello = "hello";
             const int32_t n = (int32_t)strlen(hello);
-            ui_edit_text_t t = {0};
+            struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, hello, n, false);
             rt_swear(ok);
             rt_swear(t.ps != null && t.np == 1);
@@ -9976,7 +9976,7 @@ static void ui_edit_doc_test_paragraphs(void) {
         }
         {   // string with "\n" at the end
             const char* hello = "hello\n";
-            ui_edit_text_t t = {0};
+            struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
             rt_swear(ok);
             rt_swear(t.ps != null && t.np == 2);
@@ -9993,7 +9993,7 @@ static void ui_edit_doc_test_paragraphs(void) {
         {   // two string separated by "\n"
             const char* hello = "hello\nworld";
             const char* world = hello + 6;
-            ui_edit_text_t t = {0};
+            struct ui_edit_text t = {0};
             bool ok = ui_edit_text.init(&t, hello, -1, false);
             rt_swear(ok);
             rt_swear(t.ps != null && t.np == 2);
@@ -10013,36 +10013,36 @@ static void ui_edit_doc_test_paragraphs(void) {
     }
 }
 
-typedef struct ui_edit_doc_test_notify_s {
-    ui_edit_notify_t notify;
+struct ui_edit_doc_test_notify {
+    struct ui_edit_notify notify;
     int32_t count_before;
     int32_t count_after;
-} ui_edit_doc_test_notify_t;
+};
 
-static void ui_edit_doc_test_before(ui_edit_notify_t* n,
-        const ui_edit_notify_info_t* rt_unused(ni)) {
-    ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
+static void ui_edit_doc_test_before(struct ui_edit_notify* n,
+        const struct ui_edit_notify_info* rt_unused(ni)) {
+    struct ui_edit_doc_test_notify* notify = (struct ui_edit_doc_test_notify*)n;
     notify->count_before++;
 }
 
-static void ui_edit_doc_test_after(ui_edit_notify_t* n,
-        const ui_edit_notify_info_t* rt_unused(ni)) {
-    ui_edit_doc_test_notify_t* notify = (ui_edit_doc_test_notify_t*)n;
+static void ui_edit_doc_test_after(struct ui_edit_notify* n,
+        const struct ui_edit_notify_info* rt_unused(ni)) {
+    struct ui_edit_doc_test_notify* notify = (struct ui_edit_doc_test_notify*)n;
     notify->count_after++;
 }
 
 static struct {
-    ui_edit_notify_t notify;
+    struct ui_edit_notify notify;
 } ui_edit_doc_test_notify;
 
 
 static void ui_edit_doc_test_0(void) {
-    ui_edit_doc_t edit_doc = {0};
-    ui_edit_doc_t* d = &edit_doc;
+    struct ui_edit_doc edit_doc = {0};
+    struct ui_edit_doc* d = &edit_doc;
     rt_swear(ui_edit_doc.init(d, null, 0, false));
-    ui_edit_text_t ins_text = {0};
+    struct ui_edit_text ins_text = {0};
     rt_swear(ui_edit_text.init(&ins_text, "a", 1, false));
-    ui_edit_to_do_t undo = {0};
+    struct ui_edit_to_do undo = {0};
     rt_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
@@ -10050,12 +10050,12 @@ static void ui_edit_doc_test_0(void) {
 }
 
 static void ui_edit_doc_test_1(void) {
-    ui_edit_doc_t edit_doc = {0};
-    ui_edit_doc_t* d = &edit_doc;
+    struct ui_edit_doc edit_doc = {0};
+    struct ui_edit_doc* d = &edit_doc;
     rt_swear(ui_edit_doc.init(d, null, 0, false));
-    ui_edit_text_t ins_text = {0};
+    struct ui_edit_text ins_text = {0};
     rt_swear(ui_edit_text.init(&ins_text, "a", 1, false));
-    ui_edit_to_do_t undo = {0};
+    struct ui_edit_to_do undo = {0};
     rt_swear(ui_edit_text.replace(&d->text, null, &ins_text, &undo));
     ui_edit_doc.dispose_to_do(&undo);
     ui_edit_text.dispose(&ins_text);
@@ -10064,12 +10064,12 @@ static void ui_edit_doc_test_1(void) {
 
 static void ui_edit_doc_test_2(void) {
     {   // two string separated by "\n"
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
-        ui_edit_notify_t notify1 = {0};
-        ui_edit_notify_t notify2 = {0};
-        ui_edit_doc_test_notify_t before_and_after = {0};
+        struct ui_edit_notify notify1 = {0};
+        struct ui_edit_notify notify2 = {0};
+        struct ui_edit_doc_test_notify before_and_after = {0};
         before_and_after.notify.before = ui_edit_doc_test_before;
         before_and_after.notify.after  = ui_edit_doc_test_after;
         ui_edit_doc.subscribe(d, &notify1);
@@ -10078,7 +10078,7 @@ static void ui_edit_doc_test_2(void) {
         rt_swear(ui_edit_doc.bytes(d, null) == 0, "expected empty");
         const char* hello = "hello\nworld";
         rt_swear(ui_edit_doc.replace(d, null, hello, -1));
-        ui_edit_text_t t = {0};
+        struct ui_edit_text t = {0};
         rt_swear(ui_edit_doc.copy_text(d, null, &t));
         rt_swear(t.np == 2);
         rt_swear(t.ps[0].b == 5);
@@ -10095,15 +10095,15 @@ static void ui_edit_doc_test_2(void) {
     }
     // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
     {   // three string separated by "\n"
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s = "Goodbye" "\n" "Cruel" "\n" "Universe";
         rt_swear(ui_edit_doc.replace(d, null, s, -1));
-        ui_edit_text_t t = {0};
+        struct ui_edit_text t = {0};
         rt_swear(ui_edit_doc.copy_text(d, null, &t));
         ui_edit_text.dispose(&t);
-        ui_edit_range_t r = { .from = {.pn = 0, .gp = 4},
+        union ui_edit_range r = { .from = {.pn = 0, .gp = 4},
                               .to   = {.pn = 2, .gp = 3} };
         rt_swear(ui_edit_doc.replace(d, &r, null, 0));
         rt_swear(d->text.np == 1);
@@ -10118,23 +10118,23 @@ static void ui_edit_doc_test_2(void) {
     }
     // TODO: "GoodbyeCruelUniverse" insert 2x"\n" splitting in 3 paragraphs
     {
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         const char* ins[] = { "X\nY", "X\n", "\nY", "\n", "X\nY\nZ" };
         for (int32_t i = 0; i < rt_countof(ins); i++) {
             rt_swear(ui_edit_doc.init(d, null, 0, false));
             const char* s = "GoodbyeCruelUniverse";
             rt_swear(ui_edit_doc.replace(d, null, s, -1));
-            ui_edit_range_t r = { .from = {.pn = 0, .gp =  7},
+            union ui_edit_range r = { .from = {.pn = 0, .gp =  7},
                                   .to   = {.pn = 0, .gp = 12} };
-            ui_edit_text_t ins_text = {0};
+            struct ui_edit_text ins_text = {0};
             ui_edit_text.init(&ins_text, ins[i], -1, false);
-            ui_edit_to_do_t undo = {0};
+            struct ui_edit_to_do undo = {0};
             rt_swear(ui_edit_text.replace(&d->text, &r, &ins_text, &undo));
-            ui_edit_to_do_t redo = {0};
+            struct ui_edit_to_do redo = {0};
             rt_swear(ui_edit_text.replace(&d->text, &undo.range, &undo.text, &redo));
             ui_edit_doc.dispose_to_do(&undo);
-            undo.range = (ui_edit_range_t){0};
+            undo.range = (union ui_edit_range){0};
             rt_swear(ui_edit_text.replace(&d->text, &redo.range, &redo.text, &undo));
             ui_edit_doc.dispose_to_do(&redo);
             ui_edit_doc.dispose_to_do(&undo);
@@ -10146,9 +10146,9 @@ static void ui_edit_doc_test_2(void) {
 
 static void ui_edit_doc_test_3(void) {
     {
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
-        ui_edit_doc_test_notify_t before_and_after = {0};
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
+        struct ui_edit_doc_test_notify before_and_after = {0};
         before_and_after.notify.before = ui_edit_doc_test_before;
         before_and_after.notify.after  = ui_edit_doc_test_after;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
@@ -10162,7 +10162,7 @@ static void ui_edit_doc_test_3(void) {
         rt_swear(after  + 1 == before_and_after.count_after);
         rt_swear(d->text.np == 1);
         rt_swear(ui_edit_doc.bytes(d, null) == bytes);
-        ui_edit_text_t t = {0};
+        struct ui_edit_text t = {0};
         rt_swear(ui_edit_doc.copy_text(d, null, &t));
         rt_swear(t.np == 1);
         rt_swear(t.ps[0].b == bytes);
@@ -10182,8 +10182,8 @@ static void ui_edit_doc_test_3(void) {
         ui_edit_doc.dispose(d);
     }
     {
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
         const char* s =
             "Hello World"
@@ -10210,10 +10210,10 @@ static void ui_edit_doc_test_3(void) {
 
 static void ui_edit_doc_test_4(void) {
     {
-        ui_edit_doc_t edit_doc = {0};
-        ui_edit_doc_t* d = &edit_doc;
+        struct ui_edit_doc edit_doc = {0};
+        struct ui_edit_doc* d = &edit_doc;
         rt_swear(ui_edit_doc.init(d, null, 0, false));
-        ui_edit_range_t r = {0};
+        union ui_edit_range r = {0};
         r = ui_edit_text.end_range(&d->text);
         rt_swear(ui_edit_doc.replace(d, &r, "a", -1));
         r = ui_edit_text.end_range(&d->text);
@@ -10232,7 +10232,7 @@ static void ui_edit_doc_test_4(void) {
 
 static void ui_edit_doc_test(void) {
     {
-        ui_edit_range_t r = { .from = {0,0}, .to = {0,0} };
+        union ui_edit_range r = { .from = {0,0}, .to = {0,0} };
         rt_static_assertion(sizeof(r.from) + sizeof(r.from) == sizeof(r.a));
         rt_swear(&r.from == &r.a[0] && &r.to == &r.a[1]);
     }
@@ -10253,12 +10253,12 @@ static void ui_edit_doc_test(void) {
     }
 }
 
-static const ui_edit_range_t ui_edit_invalid_range = {
+static const union ui_edit_range ui_edit_invalid_range = {
     .from = { .pn = -1, .gp = -1},
     .to   = { .pn = -1, .gp = -1}
 };
 
-ui_edit_range_if ui_edit_range = {
+struct ui_edit_range_if ui_edit_range = {
     .compare       = ui_edit_range_compare,
     .order         = ui_edit_range_order,
     .is_valid      = ui_edit_range_is_valid,
@@ -10270,7 +10270,7 @@ ui_edit_range_if ui_edit_range = {
     .invalid_range = &ui_edit_invalid_range
 };
 
-ui_edit_text_if ui_edit_text = {
+struct ui_edit_text_if ui_edit_text = {
     .init          = ui_edit_text_init,
     .bytes         = ui_edit_text_bytes,
     .all_on_null   = ui_edit_text_all_on_null,
@@ -10286,7 +10286,7 @@ ui_edit_text_if ui_edit_text = {
     .dispose       = ui_edit_text_dispose
 };
 
-ui_edit_doc_if ui_edit_doc = {
+struct ui_edit_doc_if ui_edit_doc = {
     .init               = ui_edit_doc_init,
     .replace            = ui_edit_doc_replace,
     .bytes              = ui_edit_doc_bytes,
@@ -10344,19 +10344,19 @@ ui_edit_doc_if ui_edit_doc = {
 // into a single file header library name_space is
 // used to separate different modules namespaces.
 
-typedef  struct ui_edit_glyph_s {
+struct ui_edit_glyph {
     const char* s;
     int32_t bytes;
-} ui_edit_glyph_t;
+};
 
-static void ui_edit_layout(ui_view_t* v);
-static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg);
+static void ui_edit_layout(struct ui_view* v);
+static struct ui_point ui_edit_pg_to_xy(struct ui_edit_view* e, const struct ui_edit_pg pg);
 
 // Glyphs in monospaced Windows fonts may have different width for non-ASCII
 // characters. Thus even if edit is monospaced glyph measurements are used
 // in text layout.
 
-static void ui_edit_invalidate_parent(const ui_edit_view_t* e, const ui_rect_t* rc) {
+static void ui_edit_invalidate_parent(const struct ui_edit_view* e, const struct ui_rect* rc) {
     // For transparent background of edit_view parent must draw background.
     // In the current implementation invalidate() causes whole stack redraw
     // in rectangle thus it does not matter much. But if it is ever optimized
@@ -10367,7 +10367,7 @@ static void ui_edit_invalidate_parent(const ui_edit_view_t* e, const ui_rect_t* 
     }
 }
 
-static void ui_edit_invalidate_rect(const ui_edit_view_t* e, const ui_rect_t rc) {
+static void ui_edit_invalidate_rect(const struct ui_edit_view* e, const struct ui_rect rc) {
     rt_assert(rc.w >= 0 && rc.h > 0); // w may be zero for empty selection
     if (rc.w > 0 && rc.h > 0) {
         ui_view.invalidate(&e->view, &rc);
@@ -10375,12 +10375,12 @@ static void ui_edit_invalidate_rect(const ui_edit_view_t* e, const ui_rect_t rc)
     }
 }
 
-static void ui_edit_invalidate_view(const ui_edit_view_t* e) {
+static void ui_edit_invalidate_view(const struct ui_edit_view* e) {
     ui_view.invalidate(&e->view, null);
     ui_edit_invalidate_parent(e, null);
 }
 
-static int32_t ui_edit_line_height(ui_edit_view_t* e) {
+static int32_t ui_edit_line_height(struct ui_edit_view* e) {
     // at 96dpi:
     // "Segoe UI" height + line_gap: 16
     // ui_app.fm.prop h: 15 pt: 11.250 a:  3 c:  9 d: 3 bl: 12 il: 3 lg: 2
@@ -10389,43 +10389,43 @@ static int32_t ui_edit_line_height(ui_edit_view_t* e) {
     return e->fm->height + e->fm->line_gap;
 }
 
-static ui_rect_t ui_edit_selection_rect(ui_edit_view_t* e) {
-    const ui_edit_range_t r = ui_edit_range.order(e->selection);
-    const ui_ltrb_t i = ui_view.margins(&e->view, &e->insets);
-    const ui_point_t p0 = ui_edit_pg_to_xy(e, r.from);
-    const ui_point_t p1 = ui_edit_pg_to_xy(e, r.to);
+static struct ui_rect ui_edit_selection_rect(struct ui_edit_view* e) {
+    const union ui_edit_range r = ui_edit_range.order(e->selection);
+    const struct ui_ltrb i = ui_view.margins(&e->view, &e->insets);
+    const struct ui_point p0 = ui_edit_pg_to_xy(e, r.from);
+    const struct ui_point p1 = ui_edit_pg_to_xy(e, r.to);
     if (p0.x < 0 || p1.x < 0) { // selection outside of visible area
-        return (ui_rect_t) { .x = 0, .y = 0, .w = e->w, .h = e->h };
+        return (struct ui_rect) { .x = 0, .y = 0, .w = e->w, .h = e->h };
     } else if (p0.y == p1.y) {
         const int32_t max_w = e->fm->max_char_width > e->fm->em.w ? e->fm->max_char_width : e->fm->em.w;
         int32_t w = p1.x - p0.x != 0 ?
                 p1.x - p0.x + max_w : e->caret_width;
-        return (ui_rect_t) { .x = p0.x, .y = i.top + p0.y,
+        return (struct ui_rect) { .x = p0.x, .y = i.top + p0.y,
                              .w = w, .h = ui_edit_line_height(e) };
     } else {
         const int32_t h = p1.y - p0.y + ui_edit_line_height(e);
-        return (ui_rect_t) { .x = 0, .y = i.top + p0.y,
+        return (struct ui_rect) { .x = 0, .y = i.top + p0.y,
                              .w = e->w, .h = h };
     }
 }
 
 #if 0
-static void ui_edit_text_width_gp(ui_edit_view_t* e, const char* utf8, int32_t bytes) {
+static void ui_edit_text_width_gp(struct ui_edit_view* e, const char* utf8, int32_t bytes) {
     const int32_t glyphs = rt_str.glyphs(utf8, bytes);
     rt_println("\"%.*s\" bytes:%d glyphs:%d", bytes, utf8, bytes, glyphs);
     int32_t* x = (int32_t*)rt_stackalloc((glyphs + 1) * sizeof(int32_t));
-    const ui_ta_t ta = { .fm = e->fm };
-    ui_wh_t wh = ui_draw.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
+    const struct ui_ta ta = { .fm = e->fm };
+    struct ui_wh wh = ui_draw.glyphs_placement(&ta, utf8,  bytes, x, glyphs);
 //  rt_println("wh: %dx%d", wh.w, wh.h);
 }
 #endif
 
-static int32_t ui_edit_text_width(ui_edit_view_t* e, const char* s, int32_t n) {
+static int32_t ui_edit_text_width(struct ui_edit_view* e, const char* s, int32_t n) {
 //  fp64_t time = rt_clock.seconds();
     // average GDI measure_text() performance per character:
     // "ui_app.fm.mono"    ~500us (microseconds)
     // "ui_app.fm.prop.normal" ~250us (microseconds) DirectWrite ~100us
-    const ui_ta_t ta = { .fm = e->fm, .color = e->color,
+    const struct ui_ta ta = { .fm = e->fm, .color = e->color,
                              .measure = true };
     int32_t x = n == 0 ? 0 : ui_draw.text(&ta, 0, 0, "%.*s", n, s).w;
 //  time = (rt_clock.seconds() - time) * 1000.0;
@@ -10437,7 +10437,7 @@ static int32_t ui_edit_text_width(ui_edit_view_t* e, const char* s, int32_t n) {
     return x;
 }
 
-static int32_t ui_edit_word_break_at(ui_edit_view_t* e, int32_t pn, int32_t rn,
+static int32_t ui_edit_word_break_at(struct ui_edit_view* e, int32_t pn, int32_t rn,
         const int32_t width, bool allow_zero) {
     // TODO: in sqlite.c 257,674 lines it takes 11 seconds to get all runs()
     //       on average ui_edit_word_break_at() takes 4 x ui_edit_text_width()
@@ -10448,10 +10448,10 @@ static int32_t ui_edit_word_break_at(ui_edit_view_t* e, int32_t pn, int32_t rn,
     //       MSVC devenv.exe edits sqlite3.c w/o any visible delays
     int32_t count = 0; // stats logging
     int32_t chars = 0;
-    ui_edit_text_t* dt = &e->doc->text; // document text
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 <= pn && pn < dt->np);
-    ui_edit_paragraph_t* p = &e->para[pn];
-    const ui_edit_str_t* str = &dt->ps[pn];
+    struct ui_edit_paragraph* p = &e->para[pn];
+    const struct ui_edit_str* str = &dt->ps[pn];
     int32_t k = 1; // at least 1 glyph
     // offsets inside a run in glyphs and bytes from start of the paragraph;
     // guard against p->run not yet allocated (transient state during after()
@@ -10504,13 +10504,13 @@ static int32_t ui_edit_word_break_at(ui_edit_view_t* e, int32_t pn, int32_t rn,
     return k;
 }
 
-static int32_t ui_edit_word_break(ui_edit_view_t* e, int32_t pn, int32_t rn) {
+static int32_t ui_edit_word_break(struct ui_edit_view* e, int32_t pn, int32_t rn) {
     return ui_edit_word_break_at(e, pn, rn, e->edit.w, false);
 }
 
-static int32_t ui_edit_glyph_at_x(ui_edit_view_t* e, int32_t pn, int32_t rn,
+static int32_t ui_edit_glyph_at_x(struct ui_edit_view* e, int32_t pn, int32_t rn,
         int32_t x) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 <= pn && pn < dt->np);
     if (x == 0 || dt->ps[pn].b == 0) {
         return 0;
@@ -10519,11 +10519,11 @@ static int32_t ui_edit_glyph_at_x(ui_edit_view_t* e, int32_t pn, int32_t rn,
     }
 }
 
-static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_view_t* e, ui_edit_pg_t p) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_edit_glyph_t g = { .s = "", .bytes = 0 };
+static struct ui_edit_glyph ui_edit_glyph_at(struct ui_edit_view* e, struct ui_edit_pg p) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
+    struct ui_edit_glyph g = { .s = "", .bytes = 0 };
     rt_assert(0 <= p.pn && p.pn < dt->np);
-    const ui_edit_str_t* str = &dt->ps[p.pn];
+    const struct ui_edit_str* str = &dt->ps[p.pn];
     const int32_t bytes = str->b;
     const char* s = str->u;
     const int32_t bp = str->g2b[p.gp];
@@ -10537,27 +10537,27 @@ static ui_edit_glyph_t ui_edit_glyph_at(ui_edit_view_t* e, ui_edit_pg_t p) {
 
 // paragraph_runs() breaks paragraph into `runs` according to `width`
 
-static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_view_t* e, int32_t pn,
+static const struct ui_edit_run* ui_edit_paragraph_runs(struct ui_edit_view* e, int32_t pn,
         int32_t* runs) {
 //  fp64_t time = rt_clock.seconds();
     rt_assert(e->w > 0);
-    ui_edit_text_t* dt = &e->doc->text; // document text
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 <= pn && pn < dt->np);
-    const ui_edit_run_t* r = null;
+    const struct ui_edit_run* r = null;
     if (e->para[pn].run != null) {
         *runs = e->para[pn].runs;
         r = e->para[pn].run;
     } else {
         rt_assert(0 <= pn && pn < dt->np);
-        ui_edit_paragraph_t* p = &e->para[pn];
-        const ui_edit_str_t* str = &dt->ps[pn];
+        struct ui_edit_paragraph* p = &e->para[pn];
+        const struct ui_edit_str* str = &dt->ps[pn];
         if (p->run == null) {
             rt_assert(p->runs == 0 && p->run == null);
             const int32_t max_runs = str->b + 1;
             bool ok = rt_heap.alloc((void**)&p->run, max_runs *
-                                    sizeof(ui_edit_run_t)) == 0;
+                                    sizeof(struct ui_edit_run)) == 0;
             rt_swear(ok);
-            ui_edit_run_t* run = p->run;
+            struct ui_edit_run* run = p->run;
             run[0].bp = 0;
             run[0].gp = 0;
             int32_t gc = str->b == 0 ? 0 : ui_edit_word_break(e, pn, 0);
@@ -10602,7 +10602,7 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_view_t* e, int32_t pn
                 }
                 rt_assert(rc > 0);
                 p->runs = rc; // truncate heap capacity array:
-                ok = rt_heap.realloc((void**)&p->run, rc * sizeof(ui_edit_run_t)) == 0;
+                ok = rt_heap.realloc((void**)&p->run, rc * sizeof(struct ui_edit_run)) == 0;
                 rt_swear(ok);
             }
         }
@@ -10613,9 +10613,9 @@ static const ui_edit_run_t* ui_edit_paragraph_runs(ui_edit_view_t* e, int32_t pn
     return r;
 }
 
-static int32_t ui_edit_paragraph_run_count(ui_edit_view_t* e, int32_t pn) {
+static int32_t ui_edit_paragraph_run_count(struct ui_edit_view* e, int32_t pn) {
     rt_swear(e->w > 0);
-    ui_edit_text_t* dt = &e->doc->text; // document text
+    struct ui_edit_text* dt = &e->doc->text; // document text
     int32_t runs = 0;
     if (e->w > 0 && 0 <= pn && pn < dt->np) {
         (void)ui_edit_paragraph_runs(e, pn, &runs);
@@ -10623,14 +10623,14 @@ static int32_t ui_edit_paragraph_run_count(ui_edit_view_t* e, int32_t pn) {
     return runs;
 }
 
-static int32_t ui_edit_glyphs_in_paragraph(ui_edit_view_t* e, int32_t pn) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static int32_t ui_edit_glyphs_in_paragraph(struct ui_edit_view* e, int32_t pn) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 <= pn && pn < dt->np);
     (void)ui_edit_paragraph_run_count(e, pn); // word break into runs
     return dt->ps[pn].g;
 }
 
-static void ui_edit_create_caret(ui_edit_view_t* e) {
+static void ui_edit_create_caret(struct ui_edit_view* e) {
     rt_fatal_if(e->focused);
     rt_assert(ui_app.is_active());
     rt_assert(ui_app.focused());
@@ -10642,19 +10642,19 @@ static void ui_edit_create_caret(ui_edit_view_t* e) {
 //  rt_println("e->focused := true %s", ui_view_debug_id(&e->view));
 }
 
-static void ui_edit_destroy_caret(ui_edit_view_t* e) {
+static void ui_edit_destroy_caret(struct ui_edit_view* e) {
     rt_fatal_if(!e->focused);
     ui_app.destroy_caret();
     e->focused = false; // means caret was destroyed
 //  rt_println("e->focused := false %s", ui_view_debug_id(&e->view));
 }
 
-static void ui_edit_show_caret(ui_edit_view_t* e) {
+static void ui_edit_show_caret(struct ui_edit_view* e) {
     if (e->focused) {
         rt_assert(ui_app.is_active());
         rt_assert(ui_app.focused());
         rt_assert((e->caret.x < 0) == (e->caret.y < 0));
-        const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
+        const struct ui_ltrb insets = ui_view.margins(&e->view, &e->insets);
         int32_t x = e->caret.x < 0 ? insets.left : e->caret.x;
         int32_t y = e->caret.y < 0 ? insets.top  : e->caret.y;
         ui_app.move_caret(e->x + x, e->y + y);
@@ -10667,7 +10667,7 @@ static void ui_edit_show_caret(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_hide_caret(ui_edit_view_t* e) {
+static void ui_edit_hide_caret(struct ui_edit_view* e) {
     if (e->focused) {
         ui_app.hide_caret();
         e->shown--;
@@ -10675,8 +10675,8 @@ static void ui_edit_hide_caret(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_allocate_runs(ui_edit_view_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static void ui_edit_allocate_runs(struct ui_edit_view* e) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(e->para == null);
     rt_assert(dt->np > 0);
     rt_assert(e->para == null);
@@ -10685,7 +10685,7 @@ static void ui_edit_allocate_runs(ui_edit_view_t* e) {
     rt_swear(done, "out of memory - cannot continue");
 }
 
-static void ui_edit_invalidate_run(ui_edit_view_t* e, int32_t i) {
+static void ui_edit_invalidate_run(struct ui_edit_view* e, int32_t i) {
     if (e->para[i].run != null) {
         rt_assert(e->para[i].runs > 0);
         rt_heap.free(e->para[i].run);
@@ -10696,36 +10696,36 @@ static void ui_edit_invalidate_run(ui_edit_view_t* e, int32_t i) {
     }
 }
 
-static void ui_edit_invalidate_runs(ui_edit_view_t* e, int32_t f, int32_t t,
+static void ui_edit_invalidate_runs(struct ui_edit_view* e, int32_t f, int32_t t,
         int32_t np) { // [from..to] inclusive inside [0..np - 1]
     rt_swear(e->para != null && f <= t && 0 <= f && t < np);
     for (int32_t i = f; i <= t; i++) { ui_edit_invalidate_run(e, i); }
 }
 
-static void ui_edit_invalidate_all_runs(ui_edit_view_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static void ui_edit_invalidate_all_runs(struct ui_edit_view* e) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     ui_edit_invalidate_runs(e, 0, dt->np - 1, dt->np);
 }
 
-static void ui_edit_dispose_runs(ui_edit_view_t* e, int32_t np) {
+static void ui_edit_dispose_runs(struct ui_edit_view* e, int32_t np) {
     rt_assert(e->para != null);
     ui_edit_invalidate_runs(e, 0, np - 1, np);
     rt_heap.free(e->para);
     e->para = null;
 }
 
-static void ui_edit_dispose_all_runs(ui_edit_view_t* e) {
+static void ui_edit_dispose_all_runs(struct ui_edit_view* e) {
     ui_edit_dispose_runs(e, e->doc->text.np);
 }
 
-static void ui_edit_layout_now(ui_edit_view_t* e) {
+static void ui_edit_layout_now(struct ui_edit_view* e) {
     if (e->measure != null && e->layout != null && e->w > 0) {
         e->layout(&e->view);
         ui_edit_invalidate_view(e);
     }
 }
 
-static void ui_edit_if_sle_layout(ui_edit_view_t* e) {
+static void ui_edit_if_sle_layout(struct ui_edit_view* e) {
     // only for single line edit controls that were already initialized
     // and measured horizontally at least once.
     if (e->sle && e->layout != null && e->w > 0) {
@@ -10733,7 +10733,7 @@ static void ui_edit_if_sle_layout(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_view_set_font(ui_edit_view_t* e, ui_fm_t* f) {
+static void ui_edit_view_set_font(struct ui_edit_view* e, struct ui_fm* f) {
     ui_edit_invalidate_all_runs(e);
     e->scroll.rn = 0;
     e->fm = f;
@@ -10743,18 +10743,18 @@ static void ui_edit_view_set_font(ui_edit_view_t* e, ui_fm_t* f) {
 
 // Paragraph number, glyph number -> run number
 
-static ui_edit_pr_t ui_edit_pg_to_pr(ui_edit_view_t* e, const ui_edit_pg_t pg) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static struct ui_edit_pr ui_edit_pg_to_pr(struct ui_edit_view* e, const struct ui_edit_pg pg) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 <= pg.pn && pg.pn < dt->np);
-    const ui_edit_str_t* str = &dt->ps[pg.pn];
-    ui_edit_pr_t pr = { .pn = pg.pn, .rn = -1 };
+    const struct ui_edit_str* str = &dt->ps[pg.pn];
+    struct ui_edit_pr pr = { .pn = pg.pn, .rn = -1 };
     if (str->b == 0) { // empty
         rt_assert(pg.gp == 0);
         pr.rn = 0;
     } else {
         rt_assert(0 <= pg.pn && pg.pn < dt->np);
         int32_t runs = 0;
-        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pg.pn, &runs);
+        const struct ui_edit_run* run = ui_edit_paragraph_runs(e, pg.pn, &runs);
         if (pg.gp == str->g + 1) {
             pr.rn = runs - 1; // TODO: past last glyph ??? is this correct?
         } else {
@@ -10773,8 +10773,8 @@ static ui_edit_pr_t ui_edit_pg_to_pr(ui_edit_view_t* e, const ui_edit_pg_t pg) {
     return pr;
 }
 
-static int32_t ui_edit_runs_between(ui_edit_view_t* e, const ui_edit_pg_t pg0,
-        const ui_edit_pg_t pg1) {
+static int32_t ui_edit_runs_between(struct ui_edit_view* e, const struct ui_edit_pg pg0,
+        const struct ui_edit_pg pg1) {
     rt_assert(ui_edit_range.uint64(pg0) <= ui_edit_range.uint64(pg1));
     int32_t rn0 = ui_edit_pg_to_pr(e, pg0).rn;
     int32_t rn1 = ui_edit_pg_to_pr(e, pg1).rn;
@@ -10797,34 +10797,34 @@ static int32_t ui_edit_runs_between(ui_edit_view_t* e, const ui_edit_pg_t pg0,
     return rc;
 }
 
-static ui_edit_pg_t ui_edit_scroll_pg(ui_edit_view_t* e) {
+static struct ui_edit_pg ui_edit_scroll_pg(struct ui_edit_view* e) {
     int32_t runs = 0;
-    const ui_edit_run_t* run = ui_edit_paragraph_runs(e, e->scroll.pn, &runs);
+    const struct ui_edit_run* run = ui_edit_paragraph_runs(e, e->scroll.pn, &runs);
     // layout may decrease number of runs when view is growing:
     if (e->scroll.rn >= runs) { e->scroll.rn = runs - 1; }
     rt_assert(0 <= e->scroll.rn && e->scroll.rn < runs,
             "e->scroll.rn: %d runs: %d", e->scroll.rn, runs);
-    return (ui_edit_pg_t) { .pn = e->scroll.pn, .gp = run[e->scroll.rn].gp };
+    return (struct ui_edit_pg) { .pn = e->scroll.pn, .gp = run[e->scroll.rn].gp };
 }
 
-static int32_t ui_edit_first_visible_run(ui_edit_view_t* e, int32_t pn) {
+static int32_t ui_edit_first_visible_run(struct ui_edit_view* e, int32_t pn) {
     return pn == e->scroll.pn ? e->scroll.rn : 0;
 }
 
 // ui_edit::pg_to_xy() paragraph # glyph # -> (x,y) in [0,0  width x height]
 
-static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static struct ui_point ui_edit_pg_to_xy(struct ui_edit_view* e, const struct ui_edit_pg pg) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 <= pg.pn && pg.pn < dt->np);
-    ui_point_t pt = { .x = -1, .y = 0 };
+    struct ui_point pt = { .x = -1, .y = 0 };
     const int32_t spn = e->scroll.pn + 1;
     const int32_t mp = spn > pg.pn + 1 ? spn : pg.pn + 1;
     const int32_t pn = mp < dt->np - 1 ? mp : dt->np - 1;
     for (int32_t i = e->scroll.pn; i <= pn && pt.x < 0; i++) {
         rt_assert(0 <= i && i < dt->np);
-        const ui_edit_str_t* str = &dt->ps[i];
+        const struct ui_edit_str* str = &dt->ps[i];
         int32_t runs = 0;
-        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, i, &runs);
+        const struct ui_edit_run* run = ui_edit_paragraph_runs(e, i, &runs);
         for (int32_t j = ui_edit_first_visible_run(e, i); j < runs; j++) {
             const int32_t last_run = j == runs - 1;
             const int32_t gc = run[j].glyphs; // glyphs count
@@ -10847,15 +10847,15 @@ static ui_point_t ui_edit_pg_to_xy(ui_edit_view_t* e, const ui_edit_pg_t pg) {
     } else {
         rt_println("%d:%d (%d,%d) outside of %dx%d", pg.pn, pg.gp,
             pt.x, pt.y, e->edit.w, e->edit.h);
-        pt = (ui_point_t){-1, -1};
+        pt = (struct ui_point){-1, -1};
     }
     return pt;
 }
 
-static int32_t ui_edit_glyph_width_px(ui_edit_view_t* e, const ui_edit_pg_t pg) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static int32_t ui_edit_glyph_width_px(struct ui_edit_view* e, const struct ui_edit_pg pg) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 <= pg.pn && pg.pn < dt->np);
-    const ui_edit_str_t* str = &dt->ps[pg.pn];
+    const struct ui_edit_str* str = &dt->ps[pg.pn];
     const char* text = str->u;
     int32_t gc = str->g;
     if (pg.gp == 0 &&  gc == 0) {
@@ -10876,17 +10876,17 @@ static int32_t ui_edit_glyph_width_px(ui_edit_view_t* e, const ui_edit_pg_t pg) 
 
 // xy_to_pg() (x,y) (0,0, width x height) -> paragraph # glyph #
 
-static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_view_t* e, int32_t x, int32_t y) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_edit_pg_t pg = {-1, -1};
+static struct ui_edit_pg ui_edit_xy_to_pg(struct ui_edit_view* e, int32_t x, int32_t y) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
+    struct ui_edit_pg pg = {-1, -1};
     int32_t py = 0; // paragraph `y' coordinate
     for (int32_t i = e->scroll.pn; i < dt->np && pg.pn < 0; i++) {
         rt_assert(0 <= i && i < dt->np);
-        const ui_edit_str_t* str = &dt->ps[i];
+        const struct ui_edit_str* str = &dt->ps[i];
         int32_t runs = 0;
-        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, i, &runs);
+        const struct ui_edit_run* run = ui_edit_paragraph_runs(e, i, &runs);
         for (int32_t j = ui_edit_first_visible_run(e, i); j < runs && pg.pn < 0; j++) {
-            const ui_edit_run_t* r = &run[j];
+            const struct ui_edit_run* r = &run[j];
             const char* s = str->u + run[j].bp;
             if (py <= y && y < py + ui_edit_line_height(e)) {
                 int32_t w = ui_edit_text_width(e, s, r->bytes);
@@ -10896,7 +10896,7 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_view_t* e, int32_t x, int32_t y) {
                 } else {
                     pg.gp = r->gp + ui_edit_glyph_at_x(e, i, j, x);
                     if (pg.gp < r->glyphs - 1) {
-                        ui_edit_pg_t right = {pg.pn, pg.gp + 1};
+                        struct ui_edit_pg right = {pg.pn, pg.gp + 1};
                         int32_t x0 = ui_edit_pg_to_xy(e, pg).x;
                         int32_t x1 = ui_edit_pg_to_xy(e, right).x;
                         if (x1 - x < x - x0) {
@@ -10913,12 +10913,12 @@ static ui_edit_pg_t ui_edit_xy_to_pg(ui_edit_view_t* e, int32_t x, int32_t y) {
     return pg;
 }
 
-static void ui_edit_set_caret(ui_edit_view_t* e, int32_t x, int32_t y) {
+static void ui_edit_set_caret(struct ui_edit_view* e, int32_t x, int32_t y) {
     if (e->caret.x != x || e->caret.y != y) {
         if (e->focused && ui_app.focused()) {
             ui_app.move_caret(e->x + x, e->y + y);
         }
-        const ui_ltrb_t i = ui_view.margins(&e->view, &e->insets);
+        const struct ui_ltrb i = ui_view.margins(&e->view, &e->insets);
         // caret in i.left .. e->view.w - i.right
         //          i.top  .. e->view.h - i.bottom
         // coordinate space
@@ -10928,18 +10928,18 @@ static void ui_edit_set_caret(ui_edit_view_t* e, int32_t x, int32_t y) {
     }
 }
 
-static ui_edit_pg_t ui_edit_view_end_of_text(ui_edit_view_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    return (ui_edit_pg_t){ .pn = dt->np - 1, .gp = dt->ps[dt->np - 1].g };
+static struct ui_edit_pg ui_edit_view_end_of_text(struct ui_edit_view* e) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
+    return (struct ui_edit_pg){ .pn = dt->np - 1, .gp = dt->ps[dt->np - 1].g };
 }
 
-static ui_edit_pg_t ui_edit_view_last_fully_visible(ui_edit_view_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_edit_pg_t pg = ui_edit_scroll_pg(e);
+static struct ui_edit_pg ui_edit_view_last_fully_visible(struct ui_edit_view* e) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
+    struct ui_edit_pg pg = ui_edit_scroll_pg(e);
     int32_t visible_runs = e->visible_runs;
     while (visible_runs > 0) {
         int32_t runs = 0;
-        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pg.pn, &runs);
+        const struct ui_edit_run* run = ui_edit_paragraph_runs(e, pg.pn, &runs);
         int32_t i = 0;
         pg.gp = 0;
         while (visible_runs > 0 && i < runs) {
@@ -10962,12 +10962,12 @@ static ui_edit_pg_t ui_edit_view_last_fully_visible(ui_edit_view_t* e) {
 // scroll_up() text moves up (north) in the visible view,
 // scroll position increments moves down (south)
 
-static void ui_edit_scroll_up(ui_edit_view_t* e, int32_t run_count) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static void ui_edit_scroll_up(struct ui_edit_view* e, int32_t run_count) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 < run_count, "does it make sense to have 0 scroll?");
-    ui_edit_pg_t eot  = ui_edit_view_end_of_text(e);
+    struct ui_edit_pg eot  = ui_edit_view_end_of_text(e);
     while (run_count > 0) {
-        ui_edit_pg_t lfv = ui_edit_view_last_fully_visible(e);
+        struct ui_edit_pg lfv = ui_edit_view_last_fully_visible(e);
         rt_println("eot: %d:%d lfv: %d:%d", eot.pn, eot.gp, lfv.pn, lfv.gp);
         if (ui_edit_range.compare(lfv, eot) == 0) {
             run_count = 0;
@@ -10994,7 +10994,7 @@ static void ui_edit_scroll_up(ui_edit_view_t* e, int32_t run_count) {
 // scroll_dw() text moves down (south) in the visible view,
 // scroll position decrements moves up (north)
 
-static void ui_edit_scroll_down(ui_edit_view_t* e, int32_t run_count) {
+static void ui_edit_scroll_down(struct ui_edit_view* e, int32_t run_count) {
     rt_assert(0 < run_count, "does it make sense to have 0 scroll?");
     while (run_count > 0 && (e->scroll.pn > 0 || e->scroll.rn > 0)) {
         int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
@@ -11014,8 +11014,8 @@ static void ui_edit_scroll_down(ui_edit_view_t* e, int32_t run_count) {
     ui_edit_invalidate_view(e);
 }
 
-static void ui_edit_scroll_into_view(ui_edit_view_t* e, const ui_edit_pg_t pg) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static void ui_edit_scroll_into_view(struct ui_edit_view* e, const struct ui_edit_pg pg) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 <= pg.pn && pg.pn < dt->np && dt->np > 0);
     if (e->inside.bottom > 0) {
         if (e->sle) { rt_assert(pg.pn == 0); }
@@ -11036,8 +11036,8 @@ static void ui_edit_scroll_into_view(ui_edit_view_t* e, const ui_edit_pg_t pg) {
         }
         int32_t sle_runs = e->sle && e->w > 0 ?
             ui_edit_paragraph_run_count(e, 0) : 0;
-        ui_edit_pg_t end = ui_edit_text.end(dt);
-        ui_edit_pr_t lp = ui_edit_pg_to_pr(e, end);
+        struct ui_edit_pg end = ui_edit_text.end(dt);
+        struct ui_edit_pr lp = ui_edit_pg_to_pr(e, end);
         uint64_t eof = (uint64_t)(dt->np - 1) << 32 | lp.rn;
         if (last == eof && py <= bottom - ui_edit_line_height(e)) {
             // vertical white space for EOF on the screen
@@ -11057,7 +11057,7 @@ static void ui_edit_scroll_into_view(ui_edit_view_t* e, const ui_edit_pg_t pg) {
             e->scroll.pn = pg.pn;
             e->scroll.rn = rn;
             while (e->scroll.pn > 0 || e->scroll.rn > 0) {
-                ui_point_t pt = ui_edit_pg_to_xy(e, pg);
+                struct ui_point pt = ui_edit_pg_to_xy(e, pg);
                 if (pt.y + ui_edit_line_height(e) > bottom - ui_edit_line_height(e)) { break; }
                 if (e->scroll.rn > 0) {
                     e->scroll.rn--;
@@ -11070,18 +11070,18 @@ static void ui_edit_scroll_into_view(ui_edit_view_t* e, const ui_edit_pg_t pg) {
     }
 }
 
-static void ui_edit_caret_to(ui_edit_view_t* e, const ui_edit_pg_t to) {
+static void ui_edit_caret_to(struct ui_edit_view* e, const struct ui_edit_pg to) {
     ui_edit_scroll_into_view(e, to);
-    ui_point_t pt =  ui_edit_pg_to_xy(e, to);
+    struct ui_point pt =  ui_edit_pg_to_xy(e, to);
     if (pt.x >= 0 && pt.y >= 0) {
         ui_edit_set_caret(e, pt.x + e->inside.left, pt.y + e->inside.top);
     }
 }
 
-static void ui_edit_move_caret(ui_edit_view_t* e, const ui_edit_pg_t pg) {
+static void ui_edit_move_caret(struct ui_edit_view* e, const struct ui_edit_pg pg) {
     if (e->w > 0) { // width == 0 means no measure/layout yet
-        ui_rect_t before = ui_edit_selection_rect(e);
-        ui_edit_text_t* dt = &e->doc->text; // document text
+        struct ui_rect before = ui_edit_selection_rect(e);
+        struct ui_edit_text* dt = &e->doc->text; // document text
         rt_assert(0 <= pg.pn && pg.pn < dt->np);
         // single line edit control cannot move caret past fist paragraph
         if (!e->sle || pg.pn < dt->np) {
@@ -11091,20 +11091,20 @@ static void ui_edit_move_caret(ui_edit_view_t* e, const ui_edit_pg_t pg) {
                 e->selection.a[0] = e->selection.a[1];
             }
         }
-        ui_rect_t after = ui_edit_selection_rect(e);
+        struct ui_rect after = ui_edit_selection_rect(e);
         ui_edit_invalidate_rect(e, ui.combine_rect(&before, &after));
     }
 }
 
-static ui_edit_pg_t ui_edit_insert_inline(ui_edit_view_t* e, ui_edit_pg_t pg,
+static struct ui_edit_pg ui_edit_insert_inline(struct ui_edit_view* e, struct ui_edit_pg pg,
         const char* text, int32_t bytes) {
     // insert_inline() inserts text (not containing '\n' in it)
     rt_assert(bytes > 0);
     for (int32_t i = 0; i < bytes; i++) { rt_assert(text[i] != '\n'); }
-    ui_edit_range_t r = { .from = pg, .to = pg };
+    union ui_edit_range r = { .from = pg, .to = pg };
     int32_t g = 0;
     if (ui_edit_doc.replace(e->doc, &r, text, bytes)) {
-        ui_edit_text_t t = {0};
+        struct ui_edit_text t = {0};
         if (ui_edit_text.init(&t, text, bytes, false)) {
             rt_assert(t.ps != null && t.np == 1);
             g = t.np == 1 && t.ps != null ? t.ps[0].g : 0;
@@ -11118,35 +11118,35 @@ static ui_edit_pg_t ui_edit_insert_inline(ui_edit_view_t* e, ui_edit_pg_t pg,
     return r.to;
 }
 
-static ui_edit_pg_t ui_edit_insert_paragraph_break(ui_edit_view_t* e,
-        ui_edit_pg_t pg) {
-    ui_edit_range_t r = { .from = pg, .to = pg };
+static struct ui_edit_pg ui_edit_insert_paragraph_break(struct ui_edit_view* e,
+        struct ui_edit_pg pg) {
+    union ui_edit_range r = { .from = pg, .to = pg };
     bool ok = ui_edit_doc.replace(e->doc, &r, "\n", 1);
-    ui_edit_pg_t next = {.pn = pg.pn + 1, .gp = 0};
+    struct ui_edit_pg next = {.pn = pg.pn + 1, .gp = 0};
     return ok ? next : pg;
 }
 
-static bool ui_edit_is_blank(ui_edit_glyph_t g) {
+static bool ui_edit_is_blank(struct ui_edit_glyph g) {
     return g.bytes == 0 || ui_edit_str.is_blank(rt_str.utf32(g.s, g.bytes));
 }
 
-static bool ui_edit_is_punctuation(ui_edit_glyph_t g) {
+static bool ui_edit_is_punctuation(struct ui_edit_glyph g) {
     uint32_t utf32 = g.bytes > 0 ? rt_str.utf32(g.s, g.bytes) : 0;
     return utf32 != 0 && ui_edit_str.is_punctuation(utf32);
 }
 
-static bool ui_edit_is_alphanumeric(ui_edit_glyph_t g) {
+static bool ui_edit_is_alphanumeric(struct ui_edit_glyph g) {
     return g.bytes > 0 &&
         ui_edit_str.is_alphanumeric(rt_str.utf32(g.s, g.bytes));
 }
 
-static bool ui_edit_is_cjk_or_emoji_or_symbol(ui_edit_glyph_t g) {
+static bool ui_edit_is_cjk_or_emoji_or_symbol(struct ui_edit_glyph g) {
     uint32_t utf32 = g.bytes > 0 ? rt_str.utf32(g.s, g.bytes) : 0;
     return utf32 != 0 &&
         (ui_edit_str.is_cjk_or_emoji(utf32) || ui_edit_str.is_symbol(utf32));
 }
 
-static bool ui_edit_is_break(ui_edit_glyph_t g) {
+static bool ui_edit_is_break(struct ui_edit_glyph g) {
     uint32_t utf32 = g.bytes > 0 ? rt_str.utf32(g.s, g.bytes) : 0;
     return utf32 != 0 &&
        (ui_edit_str.is_blank(utf32) ||
@@ -11155,32 +11155,32 @@ static bool ui_edit_is_break(ui_edit_glyph_t g) {
         ui_edit_str.is_cjk_or_emoji(utf32));
 }
 
-static ui_edit_glyph_t ui_edit_left_of(ui_edit_view_t* e, ui_edit_pg_t pg) {
+static struct ui_edit_glyph ui_edit_left_of(struct ui_edit_view* e, struct ui_edit_pg pg) {
     if (pg.gp > 0) {
         pg.gp--;
         return ui_edit_glyph_at(e, pg);
     } else {
-        return (ui_edit_glyph_t){ null, 0 };
+        return (struct ui_edit_glyph){ null, 0 };
     }
 }
 
-static ui_edit_glyph_t ui_edit_right_of(ui_edit_view_t* e, ui_edit_pg_t pg) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static struct ui_edit_glyph ui_edit_right_of(struct ui_edit_view* e, struct ui_edit_pg pg) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     if (pg.gp < dt->ps[pg.pn].g - 1) {
         pg.gp++;
         return ui_edit_glyph_at(e, pg);
     } else {
-        return (ui_edit_glyph_t){ null, 0 };
+        return (struct ui_edit_glyph){ null, 0 };
     }
 }
 
-static ui_edit_pg_t ui_edit_skip_left_blanks(ui_edit_view_t* e,
-    ui_edit_pg_t pg) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static struct ui_edit_pg ui_edit_skip_left_blanks(struct ui_edit_view* e,
+    struct ui_edit_pg pg) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_swear(pg.pn <= dt->np - 1);
     while (pg.gp > 0) {
         pg.gp--;
-        ui_edit_glyph_t glyph = ui_edit_glyph_at(e, pg);
+        struct ui_edit_glyph glyph = ui_edit_glyph_at(e, pg);
         if (glyph.bytes > 0 && !ui_edit_is_blank(glyph)) {
             pg.gp++;
             break;
@@ -11189,12 +11189,12 @@ static ui_edit_pg_t ui_edit_skip_left_blanks(ui_edit_view_t* e,
     return pg;
 }
 
-static ui_edit_pg_t ui_edit_skip_right_blanks(ui_edit_view_t* e,
-    ui_edit_pg_t pg) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static struct ui_edit_pg ui_edit_skip_right_blanks(struct ui_edit_view* e,
+    struct ui_edit_pg pg) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_swear(pg.pn <= dt->np - 1);
     int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
-    ui_edit_glyph_t glyph = ui_edit_glyph_at(e, pg);
+    struct ui_edit_glyph glyph = ui_edit_glyph_at(e, pg);
     while (pg.gp < glyphs && glyph.bytes > 0 && ui_edit_is_blank(glyph)) {
         pg.gp++;
         glyph = ui_edit_glyph_at(e, pg);
@@ -11202,22 +11202,22 @@ static ui_edit_pg_t ui_edit_skip_right_blanks(ui_edit_view_t* e,
     return pg;
 }
 
-static ui_edit_range_t ui_edit_word_range(ui_edit_view_t* e, ui_edit_pg_t pg) {
-    ui_edit_range_t r = { .from = pg, .to = pg };
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static union ui_edit_range ui_edit_word_range(struct ui_edit_view* e, struct ui_edit_pg pg) {
+    union ui_edit_range r = { .from = pg, .to = pg };
+    struct ui_edit_text* dt = &e->doc->text; // document text
     if (0 <= pg.pn && 0 <= pg.gp) {
         rt_swear(pg.pn <= dt->np - 1);
         // number of glyphs in paragraph:
         int32_t ng = ui_edit_glyphs_in_paragraph(e, pg.pn);
         if (pg.gp > ng) { pg.gp = 0 > ng ? 0 : ng; }
-        ui_edit_glyph_t g = ui_edit_glyph_at(e, pg);
+        struct ui_edit_glyph g = ui_edit_glyph_at(e, pg);
         if (ng <= 1) {
             r.to.gp = ng;
         } else if (ui_edit_is_cjk_or_emoji_or_symbol(g)) {
             // r == {pg,pg}
         } else {
-            ui_edit_pg_t from = pg;
-            ui_edit_pg_t to   = pg;
+            struct ui_edit_pg from = pg;
+            struct ui_edit_pg to   = pg;
             if (pg.gp > 0 && ui_edit_is_punctuation(g)) {
                 from.gp--;
                 g = ui_edit_glyph_at(e, from);
@@ -11265,22 +11265,22 @@ static ui_edit_range_t ui_edit_word_range(ui_edit_view_t* e, ui_edit_pg_t pg) {
     return r;
 }
 
-static void ui_edit_ctrl_left(ui_edit_view_t* e) {
+static void ui_edit_ctrl_left(struct ui_edit_view* e) {
     ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-    const ui_edit_range_t s = e->selection;
-    ui_edit_pg_t to = e->selection.to;
+    const union ui_edit_range s = e->selection;
+    struct ui_edit_pg to = e->selection.to;
     if (to.gp == 0) {
         if (to.pn > 0) {
             to.pn--;
             int32_t runs = 0;
-            const ui_edit_run_t* run = ui_edit_paragraph_runs(e, to.pn, &runs);
+            const struct ui_edit_run* run = ui_edit_paragraph_runs(e, to.pn, &runs);
             to.gp = run[runs - 1].gp + run[runs - 1].glyphs;
         }
     } else {
         to.gp--;
     }
-    const ui_edit_pg_t lf = ui_edit_skip_left_blanks(e, to);
-    const ui_edit_range_t w = ui_edit_word_range(e, lf);
+    const struct ui_edit_pg lf = ui_edit_skip_left_blanks(e, to);
+    const union ui_edit_range w = ui_edit_word_range(e, lf);
     e->selection.to = w.from;
     if (ui_app.shift) {
         e->selection.from = s.from;
@@ -11291,13 +11291,13 @@ static void ui_edit_ctrl_left(ui_edit_view_t* e) {
     ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
 }
 
-static void ui_edit_view_key_left(ui_edit_view_t* e) {
-    ui_edit_pg_t to = e->selection.a[1];
+static void ui_edit_view_key_left(struct ui_edit_view* e) {
+    struct ui_edit_pg to = e->selection.a[1];
     if (to.pn > 0 || to.gp > 0) {
         if (ui_app.ctrl) {
             ui_edit_ctrl_left(e);
         } else {
-            ui_point_t pt = ui_edit_pg_to_xy(e, to);
+            struct ui_point pt = ui_edit_pg_to_xy(e, to);
             if (pt.x == 0 && pt.y == 0) {
                 ui_edit_scroll_down(e, 1);
             }
@@ -11313,10 +11313,10 @@ static void ui_edit_view_key_left(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_ctrl_right(ui_edit_view_t* e) {
-    const ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_edit_range_t s = e->selection;
-    ui_edit_pg_t to = e->selection.to;
+static void ui_edit_ctrl_right(struct ui_edit_view* e) {
+    const struct ui_edit_text* dt = &e->doc->text; // document text
+    union ui_edit_range s = e->selection;
+    struct ui_edit_pg to = e->selection.to;
     int32_t glyphs = ui_edit_glyphs_in_paragraph(e, to.pn);
     if (to.pn < dt->np - 1 || to.gp < glyphs) {
         ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
@@ -11326,8 +11326,8 @@ static void ui_edit_ctrl_right(ui_edit_view_t* e) {
         } else {
             to.gp++;
         }
-        ui_edit_pg_t rt = ui_edit_skip_right_blanks(e, to);
-        ui_edit_range_t w = ui_edit_word_range(e, rt);
+        struct ui_edit_pg rt = ui_edit_skip_right_blanks(e, to);
+        union ui_edit_range w = ui_edit_word_range(e, rt);
         e->selection.to = w.to;
         if (ui_app.shift) {
             e->selection.from = s.from;
@@ -11339,9 +11339,9 @@ static void ui_edit_ctrl_right(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_view_key_right(ui_edit_view_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_edit_pg_t to = e->selection.a[1];
+static void ui_edit_view_key_right(struct ui_edit_view* e) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
+    struct ui_edit_pg to = e->selection.a[1];
     if (to.pn < dt->np) {
         if (ui_app.ctrl) {
             ui_edit_ctrl_right(e);
@@ -11362,7 +11362,7 @@ static void ui_edit_view_key_right(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_reuse_last_x(ui_edit_view_t* e, ui_point_t* pt) {
+static void ui_edit_reuse_last_x(struct ui_edit_view* e, struct ui_point* pt) {
     // Vertical caret movement visually tends to drift horizontally in
     // proportional font text. Remembering the starting `x' across a
     // run of up/down arrows alleviates this. Horizontal key handlers
@@ -11384,12 +11384,12 @@ static void ui_edit_reuse_last_x(ui_edit_view_t* e, ui_point_t* pt) {
     }
 }
 
-static void ui_edit_view_key_up(ui_edit_view_t* e) {
-    const ui_edit_pg_t pg = e->selection.a[1];
-    ui_edit_pg_t to = pg;
+static void ui_edit_view_key_up(struct ui_edit_view* e) {
+    const struct ui_edit_pg pg = e->selection.a[1];
+    struct ui_edit_pg to = pg;
     if (to.pn > 0 || ui_edit_pg_to_pr(e, to).rn > 0) {
         // top of the text
-        ui_point_t pt = ui_edit_pg_to_xy(e, to);
+        struct ui_point pt = ui_edit_pg_to_xy(e, to);
         rt_assert(pt.x >= 0 && pt.y >= 0);
         if (pt.y == 0) {
             ui_edit_scroll_down(e, 1);
@@ -11405,7 +11405,7 @@ static void ui_edit_view_key_up(ui_edit_view_t* e) {
             if (rn1 > 0 && rn0 == rn1) { // same run
                 rt_assert(to.gp > 0, "word break must not break on zero gp");
                 int32_t runs = 0;
-                const ui_edit_run_t* run = ui_edit_paragraph_runs(e, to.pn, &runs);
+                const struct ui_edit_run* run = ui_edit_paragraph_runs(e, to.pn, &runs);
                 to.gp = run[rn1].gp;
             }
         }
@@ -11415,25 +11415,25 @@ static void ui_edit_view_key_up(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_view_key_down(ui_edit_view_t* e) {
-    const ui_edit_pg_t pg = e->selection.a[1];
-    ui_point_t pt = ui_edit_pg_to_xy(e, pg);
+static void ui_edit_view_key_down(struct ui_edit_view* e) {
+    const struct ui_edit_pg pg = e->selection.a[1];
+    struct ui_point pt = ui_edit_pg_to_xy(e, pg);
     ui_edit_reuse_last_x(e, &pt);
     // scroll runs guaranteed to be already laid out for current state of view:
-    ui_edit_pg_t scroll = ui_edit_scroll_pg(e);
+    struct ui_edit_pg scroll = ui_edit_scroll_pg(e);
     const int32_t run_count = ui_edit_runs_between(e, scroll, pg);
     if (!e->sle && run_count > e->visible_runs - 1) {
         ui_edit_scroll_up(e, 1);
     } else {
         pt.y += ui_edit_line_height(e);
     }
-    ui_edit_pg_t to = ui_edit_xy_to_pg(e, pt.x, pt.y);
+    struct ui_edit_pg to = ui_edit_xy_to_pg(e, pt.x, pt.y);
     if (to.pn >= 0 && to.gp >= 0) {
         ui_edit_move_caret(e, to);
     }
 }
 
-static void ui_edit_view_key_home(ui_edit_view_t* e) {
+static void ui_edit_view_key_home(struct ui_edit_view* e) {
     if (ui_app.ctrl) {
         e->scroll.pn = 0;
         e->scroll.rn = 0;
@@ -11443,7 +11443,7 @@ static void ui_edit_view_key_home(ui_edit_view_t* e) {
     }
     const int32_t pn = e->selection.a[1].pn;
     int32_t runs = ui_edit_paragraph_run_count(e, pn);
-    const ui_edit_paragraph_t* para = &e->para[pn];
+    const struct ui_edit_paragraph* para = &e->para[pn];
     if (runs <= 1) {
         e->selection.a[1].gp = 0;
     } else {
@@ -11469,14 +11469,14 @@ static void ui_edit_view_key_home(ui_edit_view_t* e) {
     ui_edit_move_caret(e, e->selection.a[1]);
 }
 
-static void ui_edit_view_key_eol(ui_edit_view_t* e) {
-    const ui_edit_text_t* dt = &e->doc->text; // document text
+static void ui_edit_view_key_eol(struct ui_edit_view* e) {
+    const struct ui_edit_text* dt = &e->doc->text; // document text
     int32_t pn = e->selection.a[1].pn;
     int32_t gp = e->selection.a[1].gp;
     rt_assert(0 <= pn && pn < dt->np);
-    const ui_edit_str_t* str = &dt->ps[pn];
+    const struct ui_edit_str* str = &dt->ps[pn];
     int32_t runs = 0;
-    const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
+    const struct ui_edit_run* run = ui_edit_paragraph_runs(e, pn, &runs);
     int32_t rn = ui_edit_pg_to_pr(e, e->selection.a[1]).rn;
     rt_assert(0 <= rn && rn < runs);
     if (rn == runs - 1) {
@@ -11490,8 +11490,8 @@ static void ui_edit_view_key_eol(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_view_key_end(ui_edit_view_t* e) {
-    const ui_edit_text_t* dt = &e->doc->text; // document text
+static void ui_edit_view_key_end(struct ui_edit_view* e) {
+    const struct ui_edit_text* dt = &e->doc->text; // document text
     if (ui_app.ctrl) {
         int32_t py = e->inside.bottom;
         for (int32_t i = dt->np - 1; i >= 0 && py >= ui_edit_line_height(e); i--) {
@@ -11515,76 +11515,76 @@ static void ui_edit_view_key_end(ui_edit_view_t* e) {
     ui_edit_move_caret(e, e->selection.a[1]);
 }
 
-static void ui_edit_view_key_page_up(ui_edit_view_t* e) {
+static void ui_edit_view_key_page_up(struct ui_edit_view* e) {
     int32_t n = 1 > e->visible_runs - 1 ? 1 : e->visible_runs - 1;
-    ui_edit_pg_t scr = ui_edit_scroll_pg(e);
-    const ui_edit_pg_t prev = (ui_edit_pg_t){
+    struct ui_edit_pg scr = ui_edit_scroll_pg(e);
+    const struct ui_edit_pg prev = (struct ui_edit_pg){
         .pn = scr.pn - e->visible_runs - 1 > 0 ? scr.pn - e->visible_runs - 1 : 0,
         .gp = 0
     };
     const int32_t m = ui_edit_runs_between(e, prev, scr);
     if (m > n) {
-        ui_point_t pt = ui_edit_pg_to_xy(e, e->selection.a[1]);
-        ui_edit_pr_t scroll = e->scroll;
+        struct ui_point pt = ui_edit_pg_to_xy(e, e->selection.a[1]);
+        struct ui_edit_pr scroll = e->scroll;
         ui_edit_scroll_down(e, n);
         if (scroll.pn != e->scroll.pn || scroll.rn != e->scroll.rn) {
-            ui_edit_pg_t pg = ui_edit_xy_to_pg(e, pt.x, pt.y);
+            struct ui_edit_pg pg = ui_edit_xy_to_pg(e, pt.x, pt.y);
             ui_edit_move_caret(e, pg);
         }
     } else {
-        const ui_edit_pg_t bof = {.pn = 0, .gp = 0};
+        const struct ui_edit_pg bof = {.pn = 0, .gp = 0};
         ui_edit_move_caret(e, bof);
     }
 }
 
-static void ui_edit_view_key_page_down(ui_edit_view_t* e) {
-    const ui_edit_text_t* dt = &e->doc->text; // document text
+static void ui_edit_view_key_page_down(struct ui_edit_view* e) {
+    const struct ui_edit_text* dt = &e->doc->text; // document text
     const int32_t n = 1 > e->visible_runs - 1 ? 1 : e->visible_runs - 1;
-    const ui_edit_pg_t scr = ui_edit_scroll_pg(e);
-    const ui_edit_pg_t next = (ui_edit_pg_t){
+    const struct ui_edit_pg scr = ui_edit_scroll_pg(e);
+    const struct ui_edit_pg next = (struct ui_edit_pg){
         .pn = scr.pn + 1 < dt->np - 1 ? scr.pn + 1 : dt->np - 1,
         .gp = scr.pn + 1 == dt->np - 1 ? dt->ps[dt->np - 1].g : 0
     };
     const int32_t m = ui_edit_runs_between(e, scr, next);
     if (m > n) {
-        const ui_point_t pt = ui_edit_pg_to_xy(e, e->selection.a[1]);
-        const ui_edit_pr_t scroll = e->scroll;
+        const struct ui_point pt = ui_edit_pg_to_xy(e, e->selection.a[1]);
+        const struct ui_edit_pr scroll = e->scroll;
         ui_edit_scroll_up(e, n);
         if (scroll.pn != e->scroll.pn || scroll.rn != e->scroll.rn) {
-            ui_edit_pg_t pg = ui_edit_xy_to_pg(e, pt.x, pt.y);
+            struct ui_edit_pg pg = ui_edit_xy_to_pg(e, pt.x, pt.y);
             ui_edit_move_caret(e, pg);
         }
     } else {
-        const ui_edit_pg_t end = ui_edit_text.end(dt);
+        const struct ui_edit_pg end = ui_edit_text.end(dt);
         ui_edit_move_caret(e, end);
     }
 }
 
-static void ui_edit_view_key_delete(ui_edit_view_t* e) {
-    ui_edit_text_t* dt = &e->doc->text; // document text
+static void ui_edit_view_key_delete(struct ui_edit_view* e) {
+    struct ui_edit_text* dt = &e->doc->text; // document text
     uint64_t f = ui_edit_range.uint64(e->selection.a[0]);
     uint64_t t = ui_edit_range.uint64(e->selection.a[1]);
     uint64_t end = ui_edit_range.uint64(ui_edit_text.end(dt));
     if (f == t && t != end) {
-        ui_edit_pg_t s1 = e->selection.a[1];
+        struct ui_edit_pg s1 = e->selection.a[1];
         ui_edit_view.key_right(e);
         e->selection.a[1] = s1;
     }
     ui_edit_view.erase(e);
 }
 
-static void ui_edit_view_key_backspace(ui_edit_view_t* e) {
+static void ui_edit_view_key_backspace(struct ui_edit_view* e) {
     uint64_t f = ui_edit_range.uint64(e->selection.a[0]);
     uint64_t t = ui_edit_range.uint64(e->selection.a[1]);
     if (t != 0 && f == t) {
-        ui_edit_pg_t s1 = e->selection.a[1];
+        struct ui_edit_pg s1 = e->selection.a[1];
         ui_edit_view.key_left(e);
         e->selection.a[1] = s1;
     }
     ui_edit_view.erase(e);
 }
 
-static void ui_edit_view_key_enter(ui_edit_view_t* e) {
+static void ui_edit_view_key_enter(struct ui_edit_view* e) {
     rt_assert(!e->ro);
     if (!e->sle) {
         ui_edit_view.erase(e);
@@ -11596,11 +11596,11 @@ static void ui_edit_view_key_enter(ui_edit_view_t* e) {
     }
 }
 
-static bool ui_edit_view_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_edit_view_key_pressed(struct ui_view* v, int64_t key) {
     bool swallow = false;
     rt_assert(v->type == ui_view_text);
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
-    ui_edit_text_t* dt = &e->doc->text; // document text
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
+    struct ui_edit_text* dt = &e->doc->text; // document text
     if (e->focused) {
         swallow = true;
         if (key == ui.key.down && e->selection.a[1].pn < dt->np) {
@@ -11632,14 +11632,14 @@ static bool ui_edit_view_key_pressed(ui_view_t* v, int64_t key) {
     return swallow;
 }
 
-static void ui_edit_undo(ui_edit_view_t* e) {
+static void ui_edit_undo(struct ui_edit_view* e) {
     if (e->doc->undo != null) {
         ui_edit_doc.undo(e->doc);
     } else {
         ui_app.beep(ui.beep.error);
     }
 }
-static void ui_edit_redo(ui_edit_view_t* e) {
+static void ui_edit_redo(struct ui_edit_view* e) {
     if (e->doc->redo != null) {
         ui_edit_doc.redo(e->doc);
     } else {
@@ -11647,12 +11647,12 @@ static void ui_edit_redo(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_character(ui_view_t* v, const char* utf8) {
+static void ui_edit_character(struct ui_view* v, const char* utf8) {
     rt_assert(v->type == ui_view_text);
     rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     #pragma push_macro("ui_edit_ctrl")
     #define ui_edit_ctrl(c) ((char)((c) - 'a' + 1))
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
     if (e->focused) {
         char ch = utf8[0];
         if (ui_app.ctrl) {
@@ -11689,11 +11689,11 @@ static void ui_edit_character(ui_view_t* v, const char* utf8) {
     #pragma pop_macro("ui_edit_ctrl")
 }
 
-static void ui_edit_select_word(ui_edit_view_t* e, int32_t x, int32_t y) {
+static void ui_edit_select_word(struct ui_edit_view* e, int32_t x, int32_t y) {
     ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-    ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
+    struct ui_edit_pg pg = ui_edit_xy_to_pg(e, x, y);
     if (0 <= pg.pn && 0 <= pg.gp) {
-        ui_edit_range_t r = ui_edit_word_range(e, pg);
+        union ui_edit_range r = ui_edit_word_range(e, pg);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, r.to.pn);
         if (r.to.pn == r.from.pn && r.to.gp == r.from.gp && r.to.gp < glyphs) {
             r.to.gp++; // at least one glyph to the right
@@ -11709,12 +11709,12 @@ static void ui_edit_select_word(ui_edit_view_t* e, int32_t x, int32_t y) {
     }
 }
 
-static void ui_edit_select_paragraph(ui_edit_view_t* e, int32_t x, int32_t y) {
+static void ui_edit_select_paragraph(struct ui_edit_view* e, int32_t x, int32_t y) {
     ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_edit_pg_t p = ui_edit_xy_to_pg(e, x, y);
+    struct ui_edit_text* dt = &e->doc->text; // document text
+    struct ui_edit_pg p = ui_edit_xy_to_pg(e, x, y);
     if (0 <= p.pn && 0 <= p.gp) {
-        ui_edit_range_t r = ui_edit_text.ordered(dt, &e->selection);
+        union ui_edit_range r = ui_edit_text.ordered(dt, &e->selection);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, p.pn);
         if (p.gp > glyphs) { p.gp = 0 > glyphs ? 0 : glyphs; }
         if (p.pn == r.a[0].pn && r.a[0].pn == r.a[1].pn &&
@@ -11734,11 +11734,11 @@ static void ui_edit_select_paragraph(ui_edit_view_t* e, int32_t x, int32_t y) {
     }
 }
 
-static void ui_edit_click(ui_edit_view_t* e, int32_t x, int32_t y) {
+static void ui_edit_click(struct ui_edit_view* e, int32_t x, int32_t y) {
     // x, y in 0..e->w, 0->e.h coordinate space
     rt_assert(0 <= x && x < e->w && 0 <= y && y < e->h);
-    ui_edit_text_t* dt = &e->doc->text; // document text
-    ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
+    struct ui_edit_text* dt = &e->doc->text; // document text
+    struct ui_edit_pg pg = ui_edit_xy_to_pg(e, x, y);
     if (0 <= pg.pn && 0 <= pg.gp && ui_view.has_focus(&e->view)) {
         rt_swear(dt->np > 0 && pg.pn < dt->np);
         int32_t glyphs = ui_edit_glyphs_in_paragraph(e, pg.pn);
@@ -11747,17 +11747,17 @@ static void ui_edit_click(ui_edit_view_t* e, int32_t x, int32_t y) {
     }
 }
 
-static void ui_edit_mouse_button_down(ui_edit_view_t* e, int32_t ix) {
+static void ui_edit_mouse_button_down(struct ui_edit_view* e, int32_t ix) {
     e->edit.buttons |= (1 << ix);
 }
 
-static void ui_edit_mouse_button_up(ui_edit_view_t* e, int32_t ix) {
+static void ui_edit_mouse_button_up(struct ui_edit_view* e, int32_t ix) {
     e->edit.buttons &= ~(1 << ix);
 }
 
-static bool ui_edit_tap(ui_view_t* v, int32_t rt_unused(ix), bool pressed) {
+static bool ui_edit_tap(struct ui_view* v, int32_t rt_unused(ix), bool pressed) {
     // `ix` ignored for now till context menu (copy/paste/select...)
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     // not just inside view but inside insets:
@@ -11775,8 +11775,8 @@ static bool ui_edit_tap(ui_view_t* v, int32_t rt_unused(ix), bool pressed) {
     return true;
 }
 
-static bool ui_edit_long_press(ui_view_t* v, int32_t rt_unused(ix)) {
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
+static bool ui_edit_long_press(struct ui_view* v, int32_t rt_unused(ix)) {
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
@@ -11786,8 +11786,8 @@ static bool ui_edit_long_press(ui_view_t* v, int32_t rt_unused(ix)) {
     return true;
 }
 
-static bool ui_edit_double_tap(ui_view_t* v, int32_t rt_unused(ix)) {
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
+static bool ui_edit_double_tap(struct ui_view* v, int32_t rt_unused(ix)) {
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
     const int32_t x = ui_app.mouse.x - (v->x + e->inside.left);
     const int32_t y = ui_app.mouse.y - (v->y + e->inside.top);
     bool inside = 0 <= x && x < e->w && 0 <= y && y < e->h;
@@ -11797,13 +11797,13 @@ static bool ui_edit_double_tap(ui_view_t* v, int32_t rt_unused(ix)) {
     return false;
 }
 
-static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+static void ui_edit_mouse_scroll(struct ui_view* v, struct ui_point dx_dy) {
     if (v->w > 0 && v->h > 0) {
         const int32_t dy = dx_dy.y;
         // TODO: maybe make a use of dx in single line no-word-break edit control?
         if (ui_app.focus == v) {
             rt_assert(v->type == ui_view_text);
-            ui_edit_view_t* e = (ui_edit_view_t*)v;
+            struct ui_edit_view* e = (struct ui_edit_view*)v;
             int32_t lines = (abs(dy) + ui_edit_line_height(e) - 1) / ui_edit_line_height(e);
             if (dy > 0) {
                 ui_edit_scroll_down(e, lines);
@@ -11819,7 +11819,7 @@ static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
 //        and editing habits vary. Easy to implement.
             const int32_t x = e->caret.x - e->inside.left;
             const int32_t y = e->caret.y - e->inside.top;
-            ui_edit_pg_t pg = ui_edit_xy_to_pg(e, x, y);
+            struct ui_edit_pg pg = ui_edit_xy_to_pg(e, x, y);
             if (pg.pn >= 0 && pg.gp >= 0) {
                 rt_assert(pg.gp <= e->doc->text.ps[pg.pn].g);
                 ui_edit_move_caret(e, pg);
@@ -11830,9 +11830,9 @@ static void ui_edit_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     }
 }
 
-static bool ui_edit_focus_gained(ui_view_t* v) {
+static bool ui_edit_focus_gained(struct ui_view* v) {
     rt_assert(v->type == ui_view_text);
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
     rt_assert(v->focusable);
     if (ui_app.focused() && !e->focused) {
         ui_edit_create_caret(e);
@@ -11844,9 +11844,9 @@ static bool ui_edit_focus_gained(ui_view_t* v) {
     return true;
 }
 
-static void ui_edit_focus_lost(ui_view_t* v) {
+static void ui_edit_focus_lost(struct ui_view* v) {
     rt_assert(v->type == ui_view_text);
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
     if (e->focused) {
         ui_edit_hide_caret(e);
         ui_edit_destroy_caret(e);
@@ -11856,13 +11856,13 @@ static void ui_edit_focus_lost(ui_view_t* v) {
     ui_app.request_redraw();
 }
 
-static void ui_edit_view_erase(ui_edit_view_t* e) {
+static void ui_edit_view_erase(struct ui_edit_view* e) {
     if (e->selection.from.pn != e->selection.to.pn) {
         ui_edit_invalidate_view(e);
     } else {
         ui_edit_invalidate_rect(e, ui_edit_selection_rect(e));
     }
-    ui_edit_range_t r = ui_edit_range.order(e->selection);
+    union ui_edit_range r = ui_edit_range.order(e->selection);
     if (!ui_edit_range.is_empty(r) && ui_edit_doc.replace(e->doc, &r, null, 0)) {
         e->selection = r;
         e->selection.to = e->selection.from;
@@ -11870,12 +11870,12 @@ static void ui_edit_view_erase(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_select_all(ui_edit_view_t* e) {
+static void ui_edit_select_all(struct ui_edit_view* e) {
     e->selection = ui_edit_text.all_on_null(&e->doc->text, null);
     ui_edit_invalidate_view(e);
 }
 
-static int32_t ui_edit_view_save(ui_edit_view_t* e, char* text, int32_t* bytes) {
+static int32_t ui_edit_view_save(struct ui_edit_view* e, char* text, int32_t* bytes) {
     rt_not_null(bytes);
     enum {
         error_insufficient_buffer = 122, // ERROR_INSUFFICIENT_BUFFER
@@ -11895,7 +11895,7 @@ static int32_t ui_edit_view_save(ui_edit_view_t* e, char* text, int32_t* bytes) 
     return r;
 }
 
-static void ui_edit_view_copy(ui_edit_view_t* e) {
+static void ui_edit_view_copy(struct ui_edit_view* e) {
     int32_t utf8bytes = ui_edit_doc.utf8bytes(e->doc, &e->selection);
     if (utf8bytes > 0) {
         char* text = null;
@@ -11918,20 +11918,20 @@ static void ui_edit_view_copy(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_view_cut(ui_edit_view_t* e) {
+static void ui_edit_view_cut(struct ui_edit_view* e) {
     int32_t utf8bytes = ui_edit_doc.utf8bytes(e->doc, &e->selection);
     if (utf8bytes > 0) { ui_edit_view_copy(e); }
     if (!e->ro) { ui_edit_view.erase(e); }
 }
 
-static ui_edit_pg_t ui_edit_paste_text(ui_edit_view_t* e,
+static struct ui_edit_pg ui_edit_paste_text(struct ui_edit_view* e,
         const char* text, int32_t bytes) {
     rt_assert(!e->ro);
-    ui_edit_text_t t = {0};
+    struct ui_edit_text t = {0};
     ui_edit_text.init(&t, text, bytes, false);
-    ui_edit_range_t r = ui_edit_text.all_on_null(&t, null);
+    union ui_edit_range r = ui_edit_text.all_on_null(&t, null);
     ui_edit_doc.replace(e->doc, &e->selection, text, bytes);
-    ui_edit_pg_t pg = e->selection.from;
+    struct ui_edit_pg pg = e->selection.from;
     pg.pn += r.to.pn;
     if (e->selection.from.pn == e->selection.to.pn && r.to.pn == 0) {
         pg.gp = e->selection.from.gp + r.to.gp;
@@ -11942,7 +11942,7 @@ static ui_edit_pg_t ui_edit_paste_text(ui_edit_view_t* e,
     return pg;
 }
 
-static void ui_edit_view_replace(ui_edit_view_t* e, const char* s, int32_t n) {
+static void ui_edit_view_replace(struct ui_edit_view* e, const char* s, int32_t n) {
     if (!e->ro) {
         if (n < 0) { n = (int32_t)strlen(s); }
         ui_edit_view.erase(e);
@@ -11952,9 +11952,9 @@ static void ui_edit_view_replace(ui_edit_view_t* e, const char* s, int32_t n) {
     }
 }
 
-static void ui_edit_view_paste(ui_edit_view_t* e) {
+static void ui_edit_view_paste(struct ui_edit_view* e) {
     if (!e->ro) {
-        ui_edit_pg_t pg = e->selection.a[1];
+        struct ui_edit_pg pg = e->selection.a[1];
         int32_t bytes = 0;
         rt_clipboard.get_text(null, &bytes);
         if (bytes > 0) {
@@ -11976,14 +11976,14 @@ static void ui_edit_view_paste(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_prepare_sle(ui_edit_view_t* e) {
-    ui_view_t* v = &e->view;
+static void ui_edit_prepare_sle(struct ui_edit_view* e) {
+    struct ui_view* v = &e->view;
     rt_swear(e->sle && v->w > 0);
     // shingle line edit is capable of resizing itself to two
     // lines of text (and shrinking back) to avoid horizontal scroll
     const int32_t prc = ui_edit_paragraph_run_count(e, 0);
     int32_t runs = 1 > (2 < prc ? 2 : prc) ? 1 : (2 < prc ? 2 : prc);
-    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
+    const struct ui_ltrb insets = ui_view.margins(v, &v->insets);
     int32_t h = insets.top + ui_edit_line_height(e) * runs + insets.bottom;
     fp32_t min_h_em = (fp32_t)h / v->fm->em.h;
     if (v->min_h_em != min_h_em) {
@@ -11991,10 +11991,10 @@ static void ui_edit_prepare_sle(ui_edit_view_t* e) {
     }
 }
 
-static void ui_edit_insets(ui_edit_view_t* e) {
-    ui_view_t* v = &e->view;
-    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
-    e->inside = (ui_ltrb_t){
+static void ui_edit_insets(struct ui_edit_view* e) {
+    struct ui_view* v = &e->view;
+    const struct ui_ltrb insets = ui_view.margins(v, &v->insets);
+    e->inside = (struct ui_ltrb){
         .left   = insets.left,
         .top    = insets.top,
         .right  = v->w - insets.right,
@@ -12006,23 +12006,23 @@ static void ui_edit_insets(ui_edit_view_t* e) {
     if (e->edit.w != width) { ui_edit_invalidate_all_runs(e); }
 }
 
-static void ui_edit_measure(ui_view_t* v) { // bottom up
+static void ui_edit_measure(struct ui_view* v) { // bottom up
     rt_assert(v->type == ui_view_text);
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
     if (v->w > 0 && e->sle) { ui_edit_prepare_sle(e); }
     v->w = (int32_t)((fp64_t)v->fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)v->fm->em.h * (fp64_t)v->min_h_em + 0.5);
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     // enforce minimum size - it makes it checking corner cases much simpler
     // and it's hard to edit anything in a smaller area - will result in bad UX
     if (v->w < v->fm->em.w * 4) { v->w = i.left + v->fm->em.w * 4 + i.right; }
     if (v->h < ui_edit_line_height(e))   { v->h = i.top + ui_edit_line_height(e) + i.bottom; }
 }
 
-static void ui_edit_layout(ui_view_t* v) { // top down
+static void ui_edit_layout(struct ui_view* v) { // top down
     rt_assert(v->type == ui_view_text);
     rt_assert(v->w > 0 && v->h > 0); // could be `if'
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
     ui_edit_insets(e);
     // fully visible runs
     e->visible_runs = e->h / ui_edit_line_height(e);
@@ -12030,7 +12030,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     // number of runs in e->scroll.pn may have changed with e->w change
     int32_t runs = ui_edit_paragraph_run_count(e, e->scroll.pn);
     // glyph position in scroll_pn paragraph:
-    const ui_edit_pg_t scroll = v->w == 0 ? (ui_edit_pg_t){0, 0} :
+    const struct ui_edit_pg scroll = v->w == 0 ? (struct ui_edit_pg){0, 0} :
                                             ui_edit_scroll_pg(e);
     e->scroll.rn = ui_edit_pg_to_pr(e, scroll).rn;
     rt_assert(0 <= e->scroll.rn && e->scroll.rn < runs); (void)runs;
@@ -12038,9 +12038,9 @@ static void ui_edit_layout(ui_view_t* v) { // top down
         e->selection.a[0].pn = 0; // only has single paragraph
         e->selection.a[1].pn = 0;
         // scroll line on top of current cursor position into view
-        const ui_edit_run_t* run = ui_edit_paragraph_runs(e, 0, &runs);
+        const struct ui_edit_run* run = ui_edit_paragraph_runs(e, 0, &runs);
         if (runs <= 2 && e->scroll.rn == 1) {
-            ui_edit_pg_t top = scroll;
+            struct ui_edit_pg top = scroll;
             const int32_t g = top.gp - run[e->scroll.rn].glyphs - 1;
             top.gp = 0 > g ? 0 : g;
             ui_edit_scroll_into_view(e, top);
@@ -12058,7 +12058,7 @@ static void ui_edit_layout(ui_view_t* v) { // top down
     }
 }
 
-static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_run_t* r,
+static void ui_edit_paint_selection(struct ui_edit_view* e, int32_t y, const struct ui_edit_run* r,
         const char* text, int32_t pn, int32_t c0, int32_t c1) {
     uint64_t s0 = ui_edit_range.uint64(e->selection.a[0]);
     uint64_t e0 = ui_edit_range.uint64(e->selection.a[1]);
@@ -12067,8 +12067,8 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
         e0 = s0;
         s0 = swap;
     }
-    const ui_edit_pg_t pnc0 = {.pn = pn, .gp = c0};
-    const ui_edit_pg_t pnc1 = {.pn = pn, .gp = c1};
+    const struct ui_edit_pg pnc0 = {.pn = pn, .gp = c0};
+    const struct ui_edit_pg pnc1 = {.pn = pn, .gp = c1};
     uint64_t s1 = ui_edit_range.uint64(pnc0);
     uint64_t e1 = ui_edit_range.uint64(pnc1);
     if (s0 <= e1 && s1 <= e0) {
@@ -12091,7 +12091,7 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
             if (!e->focused || !ui_app.focused()) {
                 sc = ui_colors.darken(sc, 0.1f);
             }
-            const ui_ltrb_t insets = ui_view.margins(&e->view, &e->insets);
+            const struct ui_ltrb insets = ui_view.margins(&e->view, &e->insets);
             int32_t x = e->x + insets.left;
             // event if background is transparent
             ui_draw.fill(x + x0, y, x1 - x0, ui_edit_line_height(e), sc);
@@ -12099,15 +12099,15 @@ static void ui_edit_paint_selection(ui_edit_view_t* e, int32_t y, const ui_edit_
     }
 }
 
-static int32_t ui_edit_paint_paragraph(ui_edit_view_t* e,
-        const ui_ta_t* ta, int32_t x, int32_t y, int32_t pn,
-        ui_rect_t rc) {
+static int32_t ui_edit_paint_paragraph(struct ui_edit_view* e,
+        const struct ui_ta* ta, int32_t x, int32_t y, int32_t pn,
+        struct ui_rect rc) {
     static const char* ww = rt_glyph_south_west_arrow_with_hook;
-    ui_edit_text_t* dt = &e->doc->text; // document text
+    struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(0 <= pn && pn < dt->np);
-    const ui_edit_str_t* str = &dt->ps[pn];
+    const struct ui_edit_str* str = &dt->ps[pn];
     int32_t runs = 0;
-    const ui_edit_run_t* run = ui_edit_paragraph_runs(e, pn, &runs);
+    const struct ui_edit_run* run = ui_edit_paragraph_runs(e, pn, &runs);
     for (int32_t j = ui_edit_first_visible_run(e, pn);
                  j < runs && y < e->y + e->inside.bottom; j++) {
 //      rt_println("[%d.%d] @%d,%d bytes: %d", pn, j, x, y, run[j].bytes);
@@ -12125,14 +12125,14 @@ static int32_t ui_edit_paint_paragraph(ui_edit_view_t* e,
     return y;
 }
 
-static void ui_edit_paint(ui_view_t* v) {
+static void ui_edit_paint(struct ui_view* v) {
     rt_assert(v->type == ui_view_text);
     rt_assert(!ui_view.is_hidden(v));
-    ui_edit_view_t* e = (ui_edit_view_t*)v;
-    ui_edit_text_t* dt = &e->doc->text; // document text
+    struct ui_edit_view* e = (struct ui_edit_view*)v;
+    struct ui_edit_text* dt = &e->doc->text; // document text
     // drawing text is really expensive, only paint what's needed:
-    ui_rect_t vrc = (ui_rect_t){v->x, v->y, v->w, v->h};
-    ui_rect_t rc;
+    struct ui_rect vrc = (struct ui_rect){v->x, v->y, v->w, v->h};
+    struct ui_rect rc;
     if (ui.intersect_rect(&rc, &vrc, &ui_app.prc)) {
         // because last line of the view may extend over the bottom
         ui_draw.set_clip(v->x, v->y, v->w, v->h);
@@ -12140,10 +12140,10 @@ static void ui_edit_paint(ui_view_t* v) {
         if (!ui_color_is_undefined(b) && !ui_color_is_transparent(b)) {
             ui_draw.fill(rc.x, rc.y, rc.w, rc.h, b);
         }
-        const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
+        const struct ui_ltrb insets = ui_view.margins(v, &v->insets);
         int32_t x = v->x + insets.left;
         int32_t y = v->y + insets.top;
-        const ui_ta_t ta = { .fm = v->fm, .color = v->color };
+        const struct ui_ta ta = { .fm = v->fm, .color = v->color };
         const int32_t pn = e->scroll.pn;
         const int32_t bottom = v->y + e->inside.bottom;
         rt_assert(pn < dt->np);
@@ -12154,7 +12154,7 @@ static void ui_edit_paint(ui_view_t* v) {
     }
 }
 
-static void ui_edit_view_move(ui_edit_view_t* e, ui_edit_pg_t pg) {
+static void ui_edit_view_move(struct ui_edit_view* e, struct ui_edit_pg pg) {
     if (e->w > 0) {
         ui_edit_move_caret(e, pg); // may select text on move
     } else {
@@ -12163,7 +12163,7 @@ static void ui_edit_view_move(ui_edit_view_t* e, ui_edit_pg_t pg) {
     e->selection.a[0] = e->selection.a[1];
 }
 
-static bool ui_edit_reallocate_runs(ui_edit_view_t* e, int32_t p,
+static bool ui_edit_reallocate_runs(struct ui_edit_view* e, int32_t p,
                                     int32_t deleted, int32_t inserted) {
     // Called from after(): d->text.np is already the post-edit count.
     // Anchor paragraph `p` (== r.from.pn) always has its text content
@@ -12175,7 +12175,7 @@ static bool ui_edit_reallocate_runs(ui_edit_view_t* e, int32_t p,
     // Manipulate e->para[] directly rather than calling
     // ui_edit_invalidate_runs() / ui_edit_dispose_all_runs(): those
     // assume the array is in sync with dt->np, which we are restoring.
-    ui_edit_text_t* dt = &e->doc->text;
+    struct ui_edit_text* dt = &e->doc->text;
     bool ok = true;
     int32_t old_np = dt->np - inserted + deleted;
     int32_t new_np = dt->np;
@@ -12222,12 +12222,12 @@ static bool ui_edit_reallocate_runs(ui_edit_view_t* e, int32_t p,
     return ok;
 }
 
-static void ui_edit_before(ui_edit_notify_t* notify,
-         const ui_edit_notify_info_t* ni) {
-    ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
-    ui_edit_view_t* e = (ui_edit_view_t*)n->that;
+static void ui_edit_before(struct ui_edit_notify* notify,
+         const struct ui_edit_notify_info* ni) {
+    struct ui_edit_notify_view* n = (struct ui_edit_notify_view*)notify;
+    struct ui_edit_view* e = (struct ui_edit_view*)n->that;
     rt_swear(e->doc == ni->d);
-    const ui_edit_text_t* dt = &e->doc->text; // document text
+    const struct ui_edit_text* dt = &e->doc->text; // document text
     rt_assert(dt->np > 0);
     // `n->data` is number of paragraphs before replace(); stash
     // unconditionally so after() can read it even when the view is
@@ -12242,11 +12242,11 @@ static void ui_edit_before(ui_edit_notify_t* notify,
     }
 }
 
-static void ui_edit_after(ui_edit_notify_t* notify,
-         const ui_edit_notify_info_t* ni) {
-    ui_edit_notify_view_t* n = (ui_edit_notify_view_t*)notify;
-    ui_edit_view_t* e = (ui_edit_view_t*)n->that;
-    const ui_edit_text_t* dt = &ni->d->text; // document text
+static void ui_edit_after(struct ui_edit_notify* notify,
+         const struct ui_edit_notify_info* ni) {
+    struct ui_edit_notify_view* n = (struct ui_edit_notify_view*)notify;
+    struct ui_edit_view* e = (struct ui_edit_view*)n->that;
+    const struct ui_edit_text* dt = &ni->d->text; // document text
     rt_assert(ni->d == e->doc && dt->np > 0);
     // Per-view cache maintenance must run regardless of visibility, or
     // a hidden view's e->para[] / scroll.pn / selection drifts out of
@@ -12257,7 +12257,7 @@ static void ui_edit_after(ui_edit_notify_t* notify,
     rt_swear(dt->np == np - ni->deleted + ni->inserted);
     ui_edit_reallocate_runs(e, ni->r->from.pn, ni->deleted, ni->inserted);
     e->selection = *ni->x;
-    ui_edit_pg_t* pg = e->selection.a;
+    struct ui_edit_pg* pg = e->selection.a;
     for (int32_t i = 0; i < rt_countof(e->selection.a); i++) {
         const int32_t pn = dt->np - 1 < pg[i].pn ? dt->np - 1 : pg[i].pn;
         pg[i].pn = 0 > pn ? 0 : pn;
@@ -12278,7 +12278,7 @@ static void ui_edit_after(ui_edit_notify_t* notify,
     }
 }
 
-static void ui_edit_view_init(ui_edit_view_t* e, ui_edit_doc_t* d) {
+static void ui_edit_view_init(struct ui_edit_view* e, struct ui_edit_doc* d) {
     memset(e, 0, sizeof(*e));
     rt_assert(d != null && d->text.np > 0);
     e->doc = d;
@@ -12287,13 +12287,13 @@ static void ui_edit_view_init(ui_edit_view_t* e, ui_edit_doc_t* d) {
     e->listener.data = 0;
     e->listener.notify.before = ui_edit_before;
     e->listener.notify.after  = ui_edit_after;
-    rt_static_assertion(offsetof(ui_edit_notify_view_t, notify) == 0);
+    rt_static_assertion(offsetof(struct ui_edit_notify_view, notify) == 0);
     ui_edit_doc.subscribe(d, &e->listener.notify);
     e->color_id = ui_color_id_window_text;
     e->background_id = ui_color_id_window;
     e->fm = &ui_app.fm.prop.normal;
-    e->insets  = (ui_margins_t){ 0.25, 0.25, 0.50, 0.25 };
-    e->padding = (ui_margins_t){ 0.25, 0.25, 0.25, 0.25 };
+    e->insets  = (struct ui_margins){ 0.25, 0.25, 0.50, 0.25 };
+    e->padding = (struct ui_margins){ 0.25, 0.25, 0.25, 0.25 };
     e->min_w_em = 1.0;
     e->min_h_em = 1.0;
     e->type = ui_view_text;
@@ -12302,7 +12302,7 @@ static void ui_edit_view_init(ui_edit_view_t* e, ui_edit_doc_t* d) {
     e->focused   = false;
     e->sle       = false;
     e->ro        = false;
-    e->caret        = (ui_point_t){-1, -1};
+    e->caret        = (struct ui_point){-1, -1};
     e->paint        = ui_edit_paint;
     e->measure      = ui_edit_measure;
     e->layout       = ui_edit_layout;
@@ -12318,13 +12318,13 @@ static void ui_edit_view_init(ui_edit_view_t* e, ui_edit_doc_t* d) {
     if (e->debug.id == null) { e->debug.id = "#edit"; }
 }
 
-static void ui_edit_view_dispose(ui_edit_view_t* e) {
+static void ui_edit_view_dispose(struct ui_edit_view* e) {
     ui_edit_doc.unsubscribe(e->doc, &e->listener.notify);
     ui_edit_dispose_all_runs(e);
     memset(e, 0, sizeof(*e));
 }
 
-ui_edit_view_if ui_edit_view = {
+struct ui_edit_view_if ui_edit_view = {
     .init                 = ui_edit_view_init,
     .set_font             = ui_edit_view_set_font,
     .move                 = ui_edit_view_move,
@@ -12361,7 +12361,7 @@ static uint32_t ui_fuzzing_seed;
 static bool     ui_fuzzing_running;
 static bool     ui_fuzzing_inside;
 
-static ui_fuzzing_t ui_fuzzing_work;
+static struct ui_fuzzing ui_fuzzing_work;
 
 static const char* lorem_ipsum_words[] = {
     "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing",
@@ -12442,7 +12442,7 @@ static const char* lorem_ipsum_words[] = {
     "\xF0\x9F\x93\x80\xF0\x9F\x9A\x80\xF0\x9F\xA7\x81\xF0\x9F\x93\xAF\xF0\x9F\x8C\xAF\xF0\x9F" \
     "\x90\xA5\xF0\x9F\xA7\x83\xF0\x9F\x8D\xBB\xF0\x9F\x8E\xAE";
 
-typedef struct {
+struct ui_fuzzing_generator_params {
     char* text;
     int32_t count; // at least 1KB
     uint32_t seed; // seed for random generator
@@ -12453,7 +12453,7 @@ typedef struct {
     int32_t min_words; // at least 2
     int32_t max_words;
     const char* append; // append after each paragraph (e.g. extra "\n")
-} ui_fuzzing_generator_params_t;
+};
 
 static uint32_t ui_fuzzing_random(void) {
     return rt_num.random32(&ui_fuzzing_seed);
@@ -12464,7 +12464,7 @@ static fp64_t ui_fuzzing_random_fp64(void) {
     return (fp64_t)r / (fp64_t)UINT32_MAX;
 }
 
-static void ui_fuzzing_generator(ui_fuzzing_generator_params_t p) {
+static void ui_fuzzing_generator(struct ui_fuzzing_generator_params p) {
     rt_fatal_if(p.count < 1024); // at least 1KB expected
     rt_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
     rt_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
@@ -12567,7 +12567,7 @@ static void ui_fuzzing_next_gibberish(int32_t number_of_characters,
     text[number_of_characters] = 0x00;
 }
 
-static void ui_fuzzing_dispatch(ui_fuzzing_t* work) {
+static void ui_fuzzing_dispatch(struct ui_fuzzing* work) {
     rt_swear(work == &ui_fuzzing_work);
     ui_app.alt = work->alt;
     ui_app.ctrl = work->ctrl;
@@ -12618,9 +12618,9 @@ static void ui_fuzzing_do_work(rt_work_t* p) {
     if (ui_fuzzing_running) {
         ui_fuzzing_inside = true;
         if (ui_fuzzing.custom != null) {
-            ui_fuzzing.custom((ui_fuzzing_t*)p);
+            ui_fuzzing.custom((struct ui_fuzzing*)p);
         } else {
-            ui_fuzzing.dispatch((ui_fuzzing_t*)p);
+            ui_fuzzing.dispatch((struct ui_fuzzing*)p);
         }
         ui_fuzzing_inside = false;
     } else {
@@ -12633,7 +12633,7 @@ static void ui_fuzzing_post(void) {
 }
 
 static void ui_fuzzing_alt_ctrl_shift(void) {
-    ui_fuzzing_t* w = &ui_fuzzing_work;
+    struct ui_fuzzing* w = &ui_fuzzing_work;
     switch (ui_fuzzing_random() % 8) {
         case 0: w->alt = 0; w->ctrl = 0; w->shift = 0; break;
         case 1: w->alt = 1; w->ctrl = 0; w->shift = 0; break;
@@ -12704,12 +12704,12 @@ static void ui_fuzzing_key(void) {
 static void ui_fuzzing_mouse(void) {
     // mouse events only inside edit control otherwise
     // they will start clicking buttons around
-    ui_view_t* v = ui_app.content;
-    ui_fuzzing_t* w = &ui_fuzzing_work;
+    struct ui_view* v = ui_app.content;
+    struct ui_fuzzing* w = &ui_fuzzing_work;
     int32_t x = ui_fuzzing_random() % v->w;
     int32_t y = ui_fuzzing_random() % v->h;
-    static ui_point_t pt;
-    pt = (ui_point_t){ x + v->x, y + v->y };
+    static struct ui_point pt;
+    pt = (struct ui_point){ x + v->x, y + v->y };
     if (ui_fuzzing_random() % 2) {
         w->left  = !w->left;
     }
@@ -12746,9 +12746,9 @@ static void ui_fuzzing_stop(void) {
     ui_fuzzing_running = false;
 }
 
-static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
+static void ui_fuzzing_next_random(struct ui_fuzzing* f) {
     rt_swear(f == &ui_fuzzing_work);
-    ui_fuzzing_work = (ui_fuzzing_t){
+    ui_fuzzing_work = (struct ui_fuzzing){
         .base = { .when = rt_clock.seconds() + 0.001, // 1ms
                   .work = ui_fuzzing_do_work },
     };
@@ -12762,7 +12762,7 @@ static void ui_fuzzing_next_random(ui_fuzzing_t* f) {
     }
 }
 
-ui_fuzzing_if ui_fuzzing = {
+struct ui_fuzzing_if ui_fuzzing = {
     .start       = ui_fuzzing_start,
     .is_running  = ui_fuzzing_is_running,
     .from_inside = ui_fuzzing_from_inside,
@@ -12782,7 +12782,7 @@ static fp64_t ui_image_scale_of(int32_t nominator, int32_t denominator) {
     return (fp64_t)zn / (fp64_t)zd;
 }
 
-static fp64_t ui_image_scale(ui_image_t* iv) {
+static fp64_t ui_image_scale(struct ui_image* iv) {
     if (iv->fit && iv->w > 0 && iv->h > 0) {
         return (fp64_t)iv->w / iv->image.w < (fp64_t)iv->h / iv->image.h ?
                 (fp64_t)iv->w / iv->image.w : (fp64_t)iv->h / iv->image.h;
@@ -12794,8 +12794,8 @@ static fp64_t ui_image_scale(ui_image_t* iv) {
     }
 }
 
-static ui_rect_t ui_image_position(ui_image_t* iv) {
-    ui_rect_t rc = { 0, 0, 0, 0 };
+static struct ui_rect ui_image_position(struct ui_image* iv) {
+    struct ui_rect rc = { 0, 0, 0, 0 };
     if (iv->image.pixels != null) {
         int32_t iw = iv->image.w;
         int32_t ih = iv->image.h;
@@ -12811,8 +12811,8 @@ static ui_rect_t ui_image_position(ui_image_t* iv) {
     return rc;
 }
 
-static void ui_image_paint(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_paint(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
 //  ui_draw.fill(v->x, v->y, v->w, v->h, ui_colors.black);
     if (iv->image.pixels != null) {
         ui_draw.set_clip(v->x, v->y, v->w, v->h);
@@ -12824,7 +12824,7 @@ static void ui_image_paint(ui_view_t* v) {
         if (iv->zd != 1) { rt_swear(iv->zn == 1); }
         const int32_t iw = iv->image.w;
         const int32_t ih = iv->image.h;
-        ui_rect_t rc = ui_image_position(iv);
+        struct ui_rect rc = ui_image_position(iv);
         if (iv->image.bpp == 1) {
             ui_draw.greyscale(rc.x, rc.y, rc.w, rc.h,
                 0, 0, iw, ih,
@@ -12863,14 +12863,14 @@ static void ui_image_paint(ui_view_t* v) {
     }
 }
 
-static void ui_image_tools_background(ui_view_t* v) {
+static void ui_image_tools_background(struct ui_view* v) {
     ui_color_t face = ui_colors.get_color(ui_color_id_button_face);
     ui_color_t highlight = ui_colors.get_color(ui_color_id_highlight);
     ui_draw.fill(v->x, v->y, v->w, v->h, face);
     ui_draw.frame(v->x, v->y, v->w, v->h, highlight);
 }
 
-static void ui_image_show_tools(ui_image_t* iv, bool show) {
+static void ui_image_show_tools(struct ui_image* iv, bool show) {
     if (iv->focusable) {
         if (iv->tool.bar.state.hidden  != !show) {
             iv->tool.bar.state.hidden   = !show;
@@ -12886,7 +12886,7 @@ static void ui_image_show_tools(ui_image_t* iv, bool show) {
     }
 }
 
-static void ui_image_fit_fill_scale(ui_image_t* iv) {
+static void ui_image_fit_fill_scale(struct ui_image* iv) {
     fp64_t s = ui_image.scale(iv);
     rt_assert(s != 0);
     if (s > 1) {
@@ -12898,8 +12898,8 @@ static void ui_image_fit_fill_scale(ui_image_t* iv) {
     }
 }
 
-static void ui_image_measure(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_measure(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     if (!v->focusable) {
         v->w = (int32_t)(iv->image.w * ui_image.scale(iv));
         v->h = (int32_t)(iv->image.h * ui_image.scale(iv));
@@ -12912,8 +12912,8 @@ static void ui_image_measure(ui_view_t* v) {
     }
 }
 
-static void ui_image_layout(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_layout(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     if (iv->fit || iv->fill) {
         ui_image_fit_fill_scale(iv);
         ui_view.measure_control(&iv->tool.ratio);
@@ -12924,24 +12924,24 @@ static void ui_image_layout(ui_view_t* v) {
     iv->tool.ratio.y = v->y + v->h - iv->tool.ratio.h;
 }
 
-static void ui_image_every_100ms(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_every_100ms(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     if (iv->when != 0 && rt_clock.seconds() > iv->when) {
         ui_image_show_tools(iv, false);
     }
 }
 
-static void ui_image_focus_lost(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_focus_lost(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     ui_image_show_tools(iv, ui_view.has_focus(v));
 }
 
-static void ui_image_focus_gained(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_focus_gained(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     ui_image_show_tools(iv, ui_view.has_focus(v));
 }
 
-static void ui_image_zoomed(ui_image_t* iv) {
+static void ui_image_zoomed(struct ui_image* iv) {
     iv->fill = false;
     iv->fit  = false;
     // 0=16:1 1=8:1 2=4:1 3=2:1 4=1:1 5=1:2 6=1:4 7=1:8 8=1:16
@@ -12987,10 +12987,10 @@ static void ui_image_zoomed(ui_image_t* iv) {
     ui_image_show_tools(iv, true);
 }
 
-static void ui_image_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+static void ui_image_mouse_scroll(struct ui_view* v, struct ui_point dx_dy) {
     fp64_t dx = (fp64_t)dx_dy.x;
     fp64_t dy = (fp64_t)dx_dy.y;
-    ui_image_t* iv = (ui_image_t*)v;
+    struct ui_image* iv = (struct ui_image*)v;
     if (ui_view.has_focus(v)) {
         fp64_t s = ui_image.scale(iv);
         if (iv->image.w * s > iv->w || iv->image.h * s > iv->h) {
@@ -13009,10 +13009,10 @@ static void ui_image_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
     }
 }
 
-static bool ui_image_tap(ui_view_t* v, int32_t ix, bool pressed) {
+static bool ui_image_tap(struct ui_view* v, int32_t ix, bool pressed) {
     bool swallow = false;
     if (v->focusable) {
-        ui_image_t* iv = (ui_image_t*)v;
+        struct ui_image* iv = (struct ui_image*)v;
         const int32_t x = ui_app.mouse.x - iv->x;
         const int32_t y = ui_app.mouse.y - iv->y;
         bool tools  = !iv->tool.bar.state.hidden &&
@@ -13021,10 +13021,10 @@ static bool ui_image_tap(ui_view_t* v, int32_t ix, bool pressed) {
         bool left   = ix == 0;
         bool drag_started = iv->drag_start.x >= 0 && iv->drag_start.y >= 0;
         if (left && inside && !drag_started) {
-            iv->drag_start = (ui_point_t){x, y};
+            iv->drag_start = (struct ui_point){x, y};
         }
         if (!pressed) {
-            iv->drag_start = (ui_point_t){-1, -1};
+            iv->drag_start = (struct ui_point){-1, -1};
         }
         swallow = inside || tools;
     }
@@ -13032,8 +13032,8 @@ static bool ui_image_tap(ui_view_t* v, int32_t ix, bool pressed) {
     return swallow;
 }
 
-static bool ui_image_mouse_move(ui_view_t* v) {
-    ui_image_t* iv = (ui_image_t*)v;
+static bool ui_image_mouse_move(struct ui_view* v) {
+    struct ui_image* iv = (struct ui_image*)v;
     bool drag_started = iv->drag_start.x >= 0 && iv->drag_start.y >= 0;
     bool tools  = !iv->tool.bar.state.hidden &&
                   ui_view.inside(&iv->tool.bar, &ui_app.mouse);
@@ -13042,9 +13042,9 @@ static bool ui_image_mouse_move(ui_view_t* v) {
         ui_image_show_tools(iv, false);
         const int32_t x = ui_app.mouse.x - iv->x;
         const int32_t y = ui_app.mouse.y - iv->y;
-        ui_point_t dx_dy = {iv->drag_start.x - x, iv->drag_start.y - y};
+        struct ui_point dx_dy = {iv->drag_start.x - x, iv->drag_start.y - y};
         ui_image_mouse_scroll(v, dx_dy);
-        iv->drag_start = (ui_point_t){x, y};
+        iv->drag_start = (struct ui_point){x, y};
     } else if (inside) {
         ui_image_show_tools(iv, true);
     } else if (!inside && !tools) {
@@ -13054,19 +13054,19 @@ static bool ui_image_mouse_move(ui_view_t* v) {
     return inside;
 }
 
-static bool ui_image_key_pressed(ui_view_t* v, int64_t vk) {
-    ui_image_t* iv = (ui_image_t*)v;
+static bool ui_image_key_pressed(struct ui_view* v, int64_t vk) {
+    struct ui_image* iv = (struct ui_image*)v;
     bool swallowed = false;
     if (ui_view.has_focus(v)) {
         swallowed = true;
         if (vk == ui.key.up) {
-            ui_image_mouse_scroll(v, (ui_point_t){0, -iv->h / 8});
+            ui_image_mouse_scroll(v, (struct ui_point){0, -iv->h / 8});
         } else if (vk == ui.key.down) {
-            ui_image_mouse_scroll(v, (ui_point_t){0, +iv->h / 8});
+            ui_image_mouse_scroll(v, (struct ui_point){0, +iv->h / 8});
         } else if (vk == ui.key.left) {
-            ui_image_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (struct ui_point){-iv->w / 8, 0});
         } else if (vk == ui.key.right) {
-            ui_image_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (struct ui_point){+iv->w / 8, 0});
         } else if (vk == ui.key.plus) {
             if (iv->zoom < 8) {
                 iv->zoom++;
@@ -13085,7 +13085,7 @@ static bool ui_image_key_pressed(ui_view_t* v, int64_t vk) {
 }
 
 static void ui_image_zoom_in(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     if (iv->zoom < 8) {
         iv->zoom++;
         ui_image_zoomed(iv);
@@ -13093,7 +13093,7 @@ static void ui_image_zoom_in(ui_button_t* b) {
 }
 
 static void ui_image_zoom_out(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     if (iv->zoom > 0) {
         iv->zoom--;
         ui_image_zoomed(iv);
@@ -13101,7 +13101,7 @@ static void ui_image_zoom_out(ui_button_t* b) {
 }
 
 static void ui_image_fit(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     iv->fit  = true;
     iv->fill = false;
     ui_image_fit_fill_scale(iv);
@@ -13109,7 +13109,7 @@ static void ui_image_fit(ui_button_t* b) {
 }
 
 static void ui_image_fill(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     iv->fill = true;
     iv->fit  = false;
     ui_image_fit_fill_scale(iv);
@@ -13117,7 +13117,7 @@ static void ui_image_fill(ui_button_t* b) {
 }
 
 static void ui_image_zoom_1t1(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     iv->zoom = 4;
     ui_image_zoomed(iv);
 }
@@ -13144,8 +13144,8 @@ static void ui_image_help(ui_button_t* rt_unused(b)) {
     ui_app.show_toast(&ui_image_about, 7.0);
 }
 
-static void ui_image_copy_to_clipboard(ui_image_t* iv) {
-    ui_bitmap_t image = {0};
+static void ui_image_copy_to_clipboard(struct ui_image* iv) {
+    struct ui_bitmap image = {0};
     if (iv->image.texture != null) {
         rt_clipboard.put_image(&iv->image);
     } else {
@@ -13161,12 +13161,12 @@ static void ui_image_copy_to_clipboard(ui_image_t* iv) {
 }
 
 static void ui_image_copy(ui_button_t* b) {
-    ui_image_t* iv = (ui_image_t*)b->that;
+    struct ui_image* iv = (struct ui_image*)b->that;
     ui_image_copy_to_clipboard(iv);
 }
 
-static void ui_image_character(ui_view_t* v, const char* utf8) {
-    ui_image_t* iv = (ui_image_t*)v;
+static void ui_image_character(struct ui_view* v, const char* utf8) {
+    struct ui_image* iv = (struct ui_image*)v;
     if (ui_view.has_focus(v)) { // && ui_app.ctrl ?
         char ch = utf8[0];
         if (ch == '+' || ch == '=') {
@@ -13180,9 +13180,9 @@ static void ui_image_character(ui_view_t* v, const char* utf8) {
                 ui_image_zoomed(iv);
             }
         } else if (ch == '<' || ch == ',') {
-            ui_image_mouse_scroll(v, (ui_point_t){-iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (struct ui_point){-iv->w / 8, 0});
         } else if (ch == '>' || ch == '.') {
-            ui_image_mouse_scroll(v, (ui_point_t){+iv->w / 8, 0});
+            ui_image_mouse_scroll(v, (struct ui_point){+iv->w / 8, 0});
         } else if (ch == '0') {
             iv->zoom = 4;
             ui_image_zoomed(iv);
@@ -13192,7 +13192,7 @@ static void ui_image_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-static void ui_image_add_button(ui_image_t* iv, ui_button_t* b,
+static void ui_image_add_button(struct ui_image* iv, ui_button_t* b,
     const char* label, void (*cb)(ui_button_t* b), const char* hint) {
     *b = (ui_button_t)ui_button("", 0.0f, cb);
     ui_view.set_text(b, label);
@@ -13201,8 +13201,8 @@ static void ui_image_add_button(ui_image_t* iv, ui_button_t* b,
     b->insets.bottom = 0;
     b->padding.top = 0;
     b->padding.bottom = 0;
-    b->insets  = (ui_margins_t){0};
-    b->padding = (ui_margins_t){0};
+    b->insets  = (struct ui_margins){0};
+    b->padding = (struct ui_margins){0};
     b->flat = true;
     b->fm = &ui_app.fm.mono.normal;
     b->min_w_em = 1.5f;
@@ -13210,7 +13210,7 @@ static void ui_image_add_button(ui_image_t* iv, ui_button_t* b,
     ui_view.add_last(&iv->tool.bar, b);
 }
 
-void ui_image_init(ui_image_t* iv) {
+void ui_image_init(struct ui_image* iv) {
     memset(iv, 0x00, sizeof(*iv));
     iv->type         = ui_view_image;
     iv->paint        = ui_image_paint;
@@ -13225,7 +13225,7 @@ void ui_image_init(ui_image_t* iv) {
     iv->character    = ui_image_character;
     iv->key_pressed  = ui_image_key_pressed;
     iv->fm           = &ui_app.fm.prop.normal;
-    iv->tool.bar = (ui_view_t)ui_view(span);
+    iv->tool.bar = (struct ui_view)ui_view(span);
     // buttons:
     ui_image_add_button(iv, &iv->tool.copy, "\xF0\x9F\x93\x8B", ui_image_copy,
         "Copy to Clipboard Ctrl+C");
@@ -13261,11 +13261,11 @@ void ui_image_init(ui_image_t* iv) {
     iv->zd = 1;
     iv->sx = 0.5;
     iv->sy = 0.5;
-    iv->drag_start = (ui_point_t){-1, -1};
+    iv->drag_start = (struct ui_point){-1, -1};
     iv->debug.id = "#image";
 }
 
-void ui_image_init_with(ui_image_t* iv, const uint8_t* pixels,
+void ui_image_init_with(struct ui_image* iv, const uint8_t* pixels,
                                   int32_t w, int32_t h,
                                   int32_t c, int32_t s) {
     ui_image_init(iv);
@@ -13276,7 +13276,7 @@ void ui_image_init_with(ui_image_t* iv, const uint8_t* pixels,
     iv->image.stride = s;
 }
 
-static void ui_image_ratio(ui_image_t* iv, int32_t zn, int32_t zd) {
+static void ui_image_ratio(struct ui_image* iv, int32_t zn, int32_t zd) {
     rt_swear(0 < zn && zn <= 16);
     rt_swear(0 < zd && zd <= 16);
     // only 1:2 and 2:1 etc are supported:
@@ -13288,7 +13288,7 @@ static void ui_image_ratio(ui_image_t* iv, int32_t zn, int32_t zd) {
     iv->fill = false;
 }
 
-ui_image_if ui_image = {
+struct ui_image_if ui_image = {
     .init      = ui_image_init,
     .init_with = ui_image_init_with,
     .ratio     = ui_image_ratio,
@@ -13300,7 +13300,7 @@ ui_image_if ui_image = {
 
 #include "rt/rt.h"
 
-static void ui_label_paint(ui_view_t* v) {
+static void ui_label_paint(struct ui_view* v) {
     rt_assert(v->type == ui_view_label);
     rt_assert(!ui_view.is_hidden(v));
     const char* s = ui_view.string(v);
@@ -13309,7 +13309,7 @@ static void ui_label_paint(ui_view_t* v) {
         v->color;
     const int32_t tx = v->x + v->text.xy.x;
     const int32_t ty = v->y + v->text.xy.y;
-    const ui_ta_t ta = { .fm = v->fm, .color = c };
+    const struct ui_ta ta = { .fm = v->fm, .color = c };
     const bool multiline = strchr(s, '\n') != null;
     if (multiline) {
         int32_t w = (int32_t)((fp64_t)v->min_w_em * (fp64_t)v->fm->em.w + 0.5);
@@ -13326,7 +13326,7 @@ static void ui_label_paint(ui_view_t* v) {
     }
 }
 
-static bool ui_label_context_menu(ui_view_t* v) {
+static bool ui_label_context_menu(struct ui_view* v) {
     rt_assert(!ui_view.is_hidden(v) && !ui_view.is_disabled(v));
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
@@ -13339,7 +13339,7 @@ static bool ui_label_context_menu(ui_view_t* v) {
     return inside;
 }
 
-static void ui_label_character(ui_view_t* v, const char* utf8) {
+static void ui_label_character(struct ui_view* v, const char* utf8) {
     rt_assert(v->type == ui_view_label);
     if (v->state.hover && !ui_view.is_hidden(v)) {
         char ch = utf8[0];
@@ -13350,7 +13350,7 @@ static void ui_label_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-void ui_view_init_label(ui_view_t* v) {
+void ui_view_init_label(struct ui_view* v) {
     rt_assert(v->type == ui_view_label);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->paint         = ui_label_paint;
@@ -13380,7 +13380,7 @@ void ui_label_init(ui_label_t* v, fp32_t min_w_em, const char* format, ...) {
 #include "rt/rt.h"
 
 static void ui_mbx_button(ui_button_t* b) {
-    ui_mbx_t* m = (ui_mbx_t*)b->parent;
+    struct ui_mbx* m = (struct ui_mbx*)b->parent;
     rt_assert(m->type == ui_view_mbx);
     m->option = -1;
     for (int32_t i = 0; i < rt_countof(m->button) && m->option < 0; i++) {
@@ -13397,8 +13397,8 @@ static void ui_mbx_button(ui_button_t* b) {
     ui_app.show_toast(null, 0);
 }
 
-static void ui_mbx_measured(ui_view_t* v) {
-    ui_mbx_t* m = (ui_mbx_t*)v;
+static void ui_mbx_measured(struct ui_view* v) {
+    struct ui_mbx* m = (struct ui_mbx*)v;
     int32_t n = 0;
     ui_view_for_each(v, c, { n++; });
     n--; // number of buttons
@@ -13419,8 +13419,8 @@ static void ui_mbx_measured(ui_view_t* v) {
     }
 }
 
-static void ui_mbx_layout(ui_view_t* v) {
-    ui_mbx_t* m = (ui_mbx_t*)v;
+static void ui_mbx_layout(struct ui_view* v) {
+    struct ui_mbx* m = (struct ui_mbx*)v;
     int32_t n = 0;
     ui_view_for_each(v, c, { n++; });
     n--; // number of buttons
@@ -13447,8 +13447,8 @@ static void ui_mbx_layout(ui_view_t* v) {
     }
 }
 
-void ui_view_init_mbx(ui_view_t* v) {
-    ui_mbx_t* m = (ui_mbx_t*)v;
+void ui_view_init_mbx(struct ui_view* v) {
+    struct ui_mbx* m = (struct ui_mbx*)v;
     v->measured = ui_mbx_measured;
     v->layout = ui_mbx_layout;
     m->fm = &ui_app.fm.prop.normal;
@@ -13473,7 +13473,7 @@ void ui_view_init_mbx(ui_view_t* v) {
     if (m->debug.id == null) { m->debug.id = "#mbx"; }
 }
 
-void ui_mbx_init(ui_mbx_t* m, const char* options[],
+void ui_mbx_init(struct ui_mbx* m, const char* options[],
         const char* format, ...) {
     m->type = ui_view_mbx;
     m->measured  = ui_mbx_measured;
@@ -13497,16 +13497,16 @@ void ui_mbx_init(ui_mbx_t* m, const char* options[],
 
 #pragma comment(lib, "winmm")
 
-typedef struct ui_midi_s_ {
+struct ui_midi_implementation {
     MCI_OPEN_PARMSA mop; // opaque
-    ui_app_message_handler_t handler;
+    struct ui_app_message_handler handler;
     char alias[32];
     int64_t device_id;
     uintptr_t window;
     bool playing;
-} ui_midi_t_;
+};
 
-rt_static_assertion(sizeof(ui_midi_t) >= sizeof(ui_midi_t_) + sizeof(void*));
+rt_static_assertion(sizeof(struct ui_midi) >= sizeof(struct ui_midi_implementation) + sizeof(void*));
 rt_static_assertion(MMSYSERR_NOERROR == 0);
 
 static void ui_midi_error(errno_t r, char* text, int32_t count) {
@@ -13532,7 +13532,7 @@ static void ui_midi_warn_if_error_(int r, const char* call, const char* func,
     rt_fatal_if_error(r);                                                   \
 } while (0)
 
-static bool ui_midi_message_callback(ui_app_message_handler_t* h, int32_t m,
+static bool ui_midi_message_callback(struct ui_app_message_handler* h, int32_t m,
                                      int64_t wp, int64_t lp, int64_t* rt) {
     if (m == MM_MCINOTIFY) {
         #ifdef UI_MIDI_DEBUG
@@ -13542,8 +13542,8 @@ static bool ui_midi_message_callback(ui_app_message_handler_t* h, int32_t m,
             if (wp & MCI_NOTIFY_ABORTED)    { rt_println("ABORTED");    }
             if (wp & MCI_NOTIFY_FAILURE)    { rt_println("FAILURE");    }
         #endif
-        ui_midi_t* midi = (ui_midi_t*)h->that;
-        ui_midi_t_* mi  = (ui_midi_t_*)midi;
+        struct ui_midi* midi = (struct ui_midi*)h->that;
+        struct ui_midi_implementation* mi  = (struct ui_midi_implementation*)midi;
         if (mi->device_id == lp) {
             if (midi->notify != null) {
                 *rt = midi->notify(midi, wp);
@@ -13556,9 +13556,9 @@ static bool ui_midi_message_callback(ui_app_message_handler_t* h, int32_t m,
     return false;
 }
 
-static void ui_midi_remove_handler(ui_midi_t* m) {
-    ui_midi_t_* mi  = (ui_midi_t_*)m;
-    ui_app_message_handler_t* h = ui_app.handlers;
+static void ui_midi_remove_handler(struct ui_midi* m) {
+    struct ui_midi_implementation* mi  = (struct ui_midi_implementation*)m;
+    struct ui_app_message_handler* h = ui_app.handlers;
     if (h == &mi->handler) {
         ui_app.handlers = h->next;
     } else {
@@ -13575,9 +13575,9 @@ static void ui_midi_remove_handler(ui_midi_t* m) {
     mi->handler.next = null;
 }
 
-static errno_t ui_midi_open(ui_midi_t* m, const char* filename) {
+static errno_t ui_midi_open(struct ui_midi* m, const char* filename) {
     rt_swear(rt_thread.id() == ui_app.tid);
-    ui_midi_t_* mi = (ui_midi_t_*)m;
+    struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     mi->handler.that = mi;
     mi->handler.next = ui_app.handlers;
     ui_app.handlers = &mi->handler;
@@ -13604,9 +13604,9 @@ static errno_t ui_midi_open(ui_midi_t* m, const char* filename) {
     return r;
 }
 
-static errno_t ui_midi_play(ui_midi_t* m) {
+static errno_t ui_midi_play(struct ui_midi* m) {
     rt_swear(rt_thread.id() == ui_app.tid);
-    ui_midi_t_* mi = (ui_midi_t_*)m;
+    struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     rt_swear(ui_midi.is_open(m));
     MCI_PLAY_PARMS  pp = { .dwCallback = (uintptr_t)mi->window };
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_PLAY, MCI_NOTIFY, (uintptr_t)&pp);
@@ -13617,10 +13617,10 @@ static errno_t ui_midi_play(ui_midi_t* m) {
     return r;
 }
 
-static errno_t ui_midi_rewind(ui_midi_t* m) {
+static errno_t ui_midi_rewind(struct ui_midi* m) {
     rt_swear(rt_thread.id() == ui_app.tid);
     rt_swear(ui_midi.is_open(m));
-    ui_midi_t_* mi = (ui_midi_t_*)m;
+    struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     MCI_SEEK_PARMS p = { .dwCallback = (uintptr_t)mi->window, .dwTo = 0 };
     const DWORD f = MCI_WAIT|MCI_SEEK_TO_START;
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_SEEK, f, (DWORD_PTR)&p);
@@ -13628,7 +13628,7 @@ static errno_t ui_midi_rewind(ui_midi_t* m) {
     return r;
 }
 
-static errno_t ui_midi_get_volume(ui_midi_t* m, fp64_t* volume) {
+static errno_t ui_midi_get_volume(struct ui_midi* m, fp64_t* volume) {
     rt_swear(rt_thread.id() == ui_app.tid);
     rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
     DWORD v = 0;
@@ -13638,7 +13638,7 @@ static errno_t ui_midi_get_volume(ui_midi_t* m, fp64_t* volume) {
     return 0;
 }
 
-static errno_t ui_midi_set_volume(ui_midi_t* m, fp64_t volume) {
+static errno_t ui_midi_set_volume(struct ui_midi* m, fp64_t volume) {
     rt_swear(rt_thread.id() == ui_app.tid);
     rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
     DWORD v = (DWORD)(volume * (fp64_t)0xFFFFFFFFU);
@@ -13651,20 +13651,20 @@ static errno_t ui_midi_set_volume(ui_midi_t* m, fp64_t volume) {
     return r;
 }
 
-static errno_t ui_midi_stop(ui_midi_t* m) {
+static errno_t ui_midi_stop(struct ui_midi* m) {
     rt_swear(rt_thread.id() == ui_app.tid);
     rt_swear(ui_midi.is_open(m) && ui_midi.is_playing(m));
-    ui_midi_t_* mi = (ui_midi_t_*)m;
+    struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_STOP, 0, 0);
     ui_midi_warn_if_error(r);
     if (r == 0) { mi->playing = false; }
     return r;
 }
 
-static void ui_midi_close(ui_midi_t* m) {
+static void ui_midi_close(struct ui_midi* m) {
     rt_swear(rt_thread.id() == ui_app.tid);
     rt_swear(ui_midi.is_open(m) && !ui_midi.is_playing(m));
-    ui_midi_t_* mi = (ui_midi_t_*)m;
+    struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     errno_t r = mciSendCommandA(mi->mop.wDeviceID, MCI_CLOSE, MCI_WAIT, 0);
     ui_midi_warn_if_error(r);
     r = mciSendCommandA(MCI_ALL_DEVICE_ID, MCI_CLOSE, MCI_WAIT, 0);
@@ -13675,17 +13675,17 @@ static void ui_midi_close(ui_midi_t* m) {
     ui_midi_remove_handler(m);
 }
 
-static bool ui_midi_is_open(ui_midi_t* m) {
-    ui_midi_t_* mi = (ui_midi_t_*)m;
+static bool ui_midi_is_open(struct ui_midi* m) {
+    struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     return mi->window != 0;
 }
 
-static bool ui_midi_is_playing(ui_midi_t* m) {
-    ui_midi_t_* mi = (ui_midi_t_*)m;
+static bool ui_midi_is_playing(struct ui_midi* m) {
+    struct ui_midi_implementation* mi = (struct ui_midi_implementation*)m;
     return mi->playing;
 }
 
-ui_midi_if ui_midi = {
+struct ui_midi_if ui_midi = {
     .success    = MCI_NOTIFY_SUCCESSFUL,
     .failure    = MCI_NOTIFY_FAILURE,
     .aborted    = MCI_NOTIFY_ABORTED,
@@ -13705,49 +13705,49 @@ ui_midi_if ui_midi = {
 
 #include "rt/rt.h"
 
-static void ui_slider_invalidate(const ui_slider_t* s) {
-    const ui_view_t* v = &s->view;
+static void ui_slider_invalidate(const struct ui_slider* s) {
+    const struct ui_view* v = &s->view;
     ui_view.invalidate(v, null);
     if (!s->dec.state.hidden) { ui_view.invalidate(&s->dec, null); }
     if (!s->inc.state.hidden) { ui_view.invalidate(&s->dec, null); }
 }
 
-static int32_t ui_slider_width(const ui_slider_t* s) {
-    const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
+static int32_t ui_slider_width(const struct ui_slider* s) {
+    const struct ui_ltrb i = ui_view.margins(&s->view, &s->insets);
     int32_t w = s->w - i.left - i.right;
     if (!s->dec.state.hidden) {
-        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
-        const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
+        const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const struct ui_ltrb inc_p = ui_view.margins(&s->inc, &s->inc.padding);
         w -= s->dec.w + s->inc.w + dec_p.right + inc_p.left;
     }
     return w;
 }
 
-static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
+static struct ui_wh measure_text(const struct ui_fm* fm, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    const ui_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
-    ui_wh_t wh = ui_draw.text_va(&ta, 0, 0, format, va);
+    const struct ui_ta ta = { .fm = fm, .color = ui_colors.white, .measure = true };
+    struct ui_wh wh = ui_draw.text_va(&ta, 0, 0, format, va);
     va_end(va);
     return wh;
 }
 
-static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
+static struct ui_wh ui_slider_measure_text(struct ui_slider* s) {
     char formatted[rt_countof(s->p.text)];
-    const ui_fm_t* fm = s->fm;
+    const struct ui_fm* fm = s->fm;
     const char* text = ui_view.string(&s->view);
-    const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
-    ui_wh_t wh = s->fm->em;
+    const struct ui_ltrb i = ui_view.margins(&s->view, &s->insets);
+    struct ui_wh wh = s->fm->em;
     if (s->debug.trace.mt) {
-        const ui_ltrb_t p = ui_view.margins(&s->view, &s->padding);
+        const struct ui_ltrb p = ui_view.margins(&s->view, &s->padding);
         rt_println(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
             (64 < strlen(text) ? 64 : strlen(text)), text);
-        const ui_margins_t in = s->insets;
-        const ui_margins_t pd = s->padding;
+        const struct ui_margins in = s->insets;
+        const struct ui_margins pd = s->padding;
         rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
@@ -13762,9 +13762,9 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
         // TODO: format string 0x08X?
     } else if (text != null && (strstr(text, "%d") != null ||
                                 strstr(text, "%u") != null)) {
-        ui_wh_t mt_min = measure_text(s->fm, text, s->value_min);
-        ui_wh_t mt_max = measure_text(s->fm, text, s->value_max);
-        ui_wh_t mt_val = measure_text(s->fm, text, s->value);
+        struct ui_wh mt_min = measure_text(s->fm, text, s->value_min);
+        struct ui_wh mt_max = measure_text(s->fm, text, s->value_max);
+        struct ui_wh mt_val = measure_text(s->fm, text, s->value);
         const int32_t mh = mt_min.h > mt_max.h ? mt_min.h : mt_max.h;
         const int32_t mw = mt_min.w > mt_max.w ? mt_min.w : mt_max.w;
         wh.h = mt_val.h > mh ? mt_val.h : mh;
@@ -13778,11 +13778,11 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     return wh;
 }
 
-static void ui_slider_measure(ui_view_t* v) {
+static void ui_slider_measure(struct ui_view* v) {
     rt_assert(v->type == ui_view_slider);
-    ui_slider_t* s = (ui_slider_t*)v;
-    const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    struct ui_slider* s = (struct ui_slider*)v;
+    const struct ui_fm* fm = v->fm;
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     // slider cannot be smaller than 2*em
     const fp32_t min_w_em = 2.0f > v->min_w_em ? 2.0f : v->min_w_em;
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)   min_w_em + 0.5);
@@ -13798,8 +13798,8 @@ static void ui_slider_measure(ui_view_t* v) {
     } else {
         ui_view.measure(&s->dec); // remeasure with inherited metrics
         ui_view.measure(&s->inc);
-        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
-        const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
+        const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const struct ui_ltrb inc_p = ui_view.margins(&s->inc, &s->inc.padding);
         const int32_t w = s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w;
         v->w = v->w > w ? v->w : w;
     }
@@ -13809,23 +13809,23 @@ static void ui_slider_measure(ui_view_t* v) {
     }
 }
 
-static void ui_slider_layout(ui_view_t* v) {
+static void ui_slider_layout(struct ui_view* v) {
     rt_assert(v->type == ui_view_slider);
-    ui_slider_t* s = (ui_slider_t*)v;
+    struct ui_slider* s = (struct ui_slider*)v;
     // disregard inc/dec .state.hidden bit for layout:
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     s->dec.x = v->x + i.left;
     s->dec.y = v->y;
     s->inc.x = v->x + v->w - i.right - s->inc.w;
     s->inc.y = v->y;
 }
 
-static void ui_slider_paint(ui_view_t* v) {
+static void ui_slider_paint(struct ui_view* v) {
     rt_assert(v->type == ui_view_slider);
-    ui_slider_t* s = (ui_slider_t*)v;
-    const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-    const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+    struct ui_slider* s = (struct ui_slider*)v;
+    const struct ui_fm* fm = v->fm;
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
+    const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
     rt_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
@@ -13879,18 +13879,18 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_view.text_align(v, &v->text);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
-    const ui_ta_t ta = { .fm = fm, .color = text_color };
+    const struct ui_ta ta = { .fm = fm, .color = text_color };
     ui_draw.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
-static bool ui_slider_tap(ui_view_t* v, int32_t rt_unused(ix),
+static bool ui_slider_tap(struct ui_view* v, int32_t rt_unused(ix),
         bool pressed) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
         if (pressed) {
-            ui_slider_t* s = (ui_slider_t*)v;
-            const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+            struct ui_slider* s = (struct ui_slider*)v;
+            const struct ui_ltrb i = ui_view.margins(v, &v->insets);
+            const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
             rt_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
             const int32_t sw = ui_slider_width(s); // slider width
@@ -13912,14 +13912,14 @@ static bool ui_slider_tap(ui_view_t* v, int32_t rt_unused(ix),
     return pressed && inside; // swallow inside clicks
 }
 
-static void ui_slider_mouse_move(ui_view_t* v) {
+static void ui_slider_mouse_move(struct ui_view* v) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
-        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-        ui_slider_t* s = (ui_slider_t*)v;
+        const struct ui_ltrb i = ui_view.margins(v, &v->insets);
+        struct ui_slider* s = (struct ui_slider*)v;
         bool drag = ui_app.mouse_left || ui_app.mouse_right;
         if (drag) {
-            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+            const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
             rt_assert(s->dec.state.hidden == s->inc.state.hidden,
                       ".dec .inc must be .hidden in sync");
@@ -13943,7 +13943,7 @@ static void ui_slider_mouse_move(ui_view_t* v) {
     }
 }
 
-static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
+static void ui_slider_inc_dec_value(struct ui_slider* s, int32_t sign, int32_t mul) {
     if (!ui_view.is_hidden(&s->view) && !ui_view.is_disabled(&s->view)) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
         int32_t v = s->value;
@@ -13963,7 +13963,7 @@ static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
 }
 
 static void ui_slider_inc_dec(ui_button_t* b) {
-    ui_slider_t* s = (ui_slider_t*)b->parent;
+    struct ui_slider* s = (struct ui_slider*)b->parent;
     if (!ui_view.is_hidden(&s->view) && !ui_view.is_disabled(&s->view)) {
         int32_t sign = b == &s->inc ? +1 : -1;
         int32_t mul = ui_app.shift && ui_app.ctrl ? 1000 :
@@ -13972,9 +13972,9 @@ static void ui_slider_inc_dec(ui_button_t* b) {
     }
 }
 
-static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
+static void ui_slider_every_100ms(struct ui_view* v) { // 100ms
     rt_assert(v->type == ui_view_slider);
-    ui_slider_t* s = (ui_slider_t*)v;
+    struct ui_slider* s = (struct ui_slider*)v;
     if (ui_view.is_hidden(v) || ui_view.is_disabled(v)) {
         s->time = 0;
     } else if (!s->dec.state.armed && !s->inc.state.armed) {
@@ -13995,7 +13995,7 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
     }
 }
 
-void ui_view_init_slider(ui_view_t* v) {
+void ui_view_init_slider(struct ui_view* v) {
     rt_assert(v->type == ui_view_slider);
     v->measure       = ui_slider_measure;
     v->layout        = ui_slider_layout;
@@ -14005,7 +14005,7 @@ void ui_view_init_slider(ui_view_t* v) {
     v->every_100ms   = ui_slider_every_100ms;
     v->color_id      = ui_color_id_window_text;
     v->background_id = ui_color_id_button_face;
-    ui_slider_t* s = (ui_slider_t*)v;
+    struct ui_slider* s = (struct ui_slider*)v;
     static const char* accel =
         " Hold key while clicking\n"
         " Ctrl: x 10 Shift: x 100 \n"
@@ -14044,10 +14044,10 @@ void ui_view_init_slider(ui_view_t* v) {
     if (v->debug.id == null) { v->debug.id = "#slider"; }
 }
 
-void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
+void ui_slider_init(struct ui_slider* s, const char* label, fp32_t min_w_em,
         int32_t value_min, int32_t value_max,
-        void (*callback)(ui_view_t* r)) {
-    static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
+        void (*callback)(struct ui_view* r)) {
+    static_assert(offsetof(struct ui_slider, view) == 0, "offsetof(.view)");
     if (min_w_em < 6.0) { rt_println("6.0 em minimum"); }
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);
@@ -14212,7 +14212,7 @@ static void ui_theme_refresh(void) {
     ui_app.request_layout();
 }
 
-ui_theme_if ui_theme = {
+struct ui_theme_if ui_theme = {
     .is_app_dark                  = ui_theme_is_app_dark,
     .is_system_dark               = ui_theme_is_system_dark,
     .are_apps_dark                = ui_theme_are_apps_dark,
@@ -14228,8 +14228,8 @@ ui_theme_if ui_theme = {
 
 #include "rt/rt.h"
 
-static void ui_toggle_paint_on_off(ui_view_t* v) {
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+static void ui_toggle_paint_on_off(struct ui_view* v) {
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     int32_t x = v->x;
     int32_t y = v->y + i.top;
     ui_color_t c = ui_colors.darken(v->background,
@@ -14263,7 +14263,7 @@ static void ui_toggle_paint_on_off(ui_view_t* v) {
     ui_draw.circle(x1, y, r - 2, border, fill);
 }
 
-static const char* ui_toggle_on_off_label(ui_view_t* v,
+static const char* ui_toggle_on_off_label(struct ui_view* v,
         char* label, int32_t count)  {
     rt_str.format(label, count, "%s", ui_view.string(v));
     char* s = strstr(label, "___");
@@ -14273,7 +14273,7 @@ static const char* ui_toggle_on_off_label(ui_view_t* v,
     return rt_nls.str(label);
 }
 
-static void ui_toggle_measure(ui_view_t* v) {
+static void ui_toggle_measure(struct ui_view* v) {
     if (v->min_w_em < 3.0f) {
         rt_println("3.0f em minimum width");
         v->min_w_em = 4.0f;
@@ -14282,7 +14282,7 @@ static void ui_toggle_measure(ui_view_t* v) {
     rt_assert(v->type == ui_view_toggle);
 }
 
-static void ui_toggle_paint(ui_view_t* v) {
+static void ui_toggle_paint(struct ui_view* v) {
     rt_assert(v->type == ui_view_toggle);
     char txt[rt_countof(v->p.text)];
     const char* label = ui_toggle_on_off_label(v, txt, rt_countof(txt));
@@ -14292,37 +14292,37 @@ static void ui_toggle_paint(ui_view_t* v) {
     ui_toggle_paint_on_off(v);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
-    const ui_ta_t ta = { .fm = v->fm, .color = text_color };
+    const struct ui_ta ta = { .fm = v->fm, .color = text_color };
     ui_draw.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
 static void ui_toggle_flip(ui_toggle_t* t) {
-    ui_view.invalidate((ui_view_t*)t, null);
+    ui_view.invalidate((struct ui_view*)t, null);
     t->state.pressed = !t->state.pressed;
     if (t->callback != null) { t->callback(t); }
 }
 
-static void ui_toggle_character(ui_view_t* v, const char* utf8) {
+static void ui_toggle_character(struct ui_view* v, const char* utf8) {
     char ch = utf8[0];
     if (ui_view.is_shortcut_key(v, ch)) {
          ui_toggle_flip((ui_toggle_t*)v);
     }
 }
 
-static bool ui_toggle_key_pressed(ui_view_t* v, int64_t key) {
+static bool ui_toggle_key_pressed(struct ui_view* v, int64_t key) {
     const bool trigger = ui_app.alt && ui_view.is_shortcut_key(v, key);
     if (trigger) { ui_toggle_flip((ui_toggle_t*)v); }
     return trigger; // swallow if true
 }
 
-static bool ui_toggle_tap(ui_view_t* v, int32_t rt_unused(ix),
+static bool ui_toggle_tap(struct ui_view* v, int32_t rt_unused(ix),
         bool pressed) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (pressed && inside) { ui_toggle_flip((ui_toggle_t*)v); }
     return pressed && inside;
 }
 
-void ui_view_init_toggle(ui_view_t* v) {
+void ui_view_init_toggle(struct ui_view* v) {
     rt_assert(v->type == ui_view_toggle);
     v->tap           = ui_toggle_tap;
     v->paint         = ui_toggle_paint;
@@ -14351,14 +14351,14 @@ static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 #pragma push_macro("ui_view_for_each")
 
-static void ui_view_update_shortcut(ui_view_t* v);
+static void ui_view_update_shortcut(struct ui_view* v);
 
 // adding and removing views is not expected to be frequent
 // actions by application code (human factor - UI design)
 // thus extra checks and verifications are there even in
 // release code because C is not type safety champion language.
 
-static inline void ui_view_check_type(ui_view_t* v) {
+static inline void ui_view_check_type(struct ui_view* v) {
     // little endian:
     rt_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
     rt_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
@@ -14367,7 +14367,7 @@ static inline void ui_view_check_type(ui_view_t* v) {
           &v->type, v->type);
 }
 
-static void ui_view_verify(ui_view_t* p) {
+static void ui_view_verify(struct ui_view* p) {
     ui_view_check_type(p);
     ui_view_for_each(p, c, {
         ui_view_check_type(c);
@@ -14378,14 +14378,14 @@ static void ui_view_verify(ui_view_t* p) {
     });
 }
 
-static ui_view_t* ui_view_add(ui_view_t* p, ...) {
+static struct ui_view* ui_view_add(struct ui_view* p, ...) {
     va_list va;
     va_start(va, p);
-    ui_view_t* c = va_arg(va, ui_view_t*);
+    struct ui_view* c = va_arg(va, struct ui_view*);
     while (c != null) {
         rt_swear(c->parent == null && c->prev == null && c->next == null);
         ui_view.add_last(p, c);
-        c = va_arg(va, ui_view_t*);
+        c = va_arg(va, struct ui_view*);
     }
     va_end(va);
     ui_view_call_init(p);
@@ -14393,7 +14393,7 @@ static ui_view_t* ui_view_add(ui_view_t* p, ...) {
     return p;
 }
 
-static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
+static void ui_view_add_first(struct ui_view* p, struct ui_view* c) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
@@ -14410,7 +14410,7 @@ static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
     ui_app.request_layout();
 }
 
-static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
+static void ui_view_add_last(struct ui_view* p, struct ui_view* c) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
@@ -14428,7 +14428,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
     ui_app.request_layout();
 }
 
-static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
+static void ui_view_add_after(struct ui_view* c, struct ui_view* a) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
     rt_not_null(a->parent);
     c->parent = a->parent;
@@ -14442,7 +14442,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     ui_app.request_layout();
 }
 
-static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
+static void ui_view_add_before(struct ui_view* c, struct ui_view* b) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
     rt_not_null(b->parent);
     c->parent = b->parent;
@@ -14456,7 +14456,7 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     ui_app.request_layout();
 }
 
-static void ui_view_remove(ui_view_t* c) {
+static void ui_view_remove(struct ui_view* c) {
     rt_not_null(c->parent);
     rt_not_null(c->parent->child);
     // if a view that has focus is removed from parent:
@@ -14478,12 +14478,12 @@ static void ui_view_remove(ui_view_t* c) {
     ui_app.request_layout();
 }
 
-static void ui_view_remove_all(ui_view_t* p) {
+static void ui_view_remove_all(struct ui_view* p) {
     while (p->child != null) { ui_view.remove(p->child); }
     ui_app.request_layout();
 }
 
-static void ui_view_disband(ui_view_t* p) {
+static void ui_view_disband(struct ui_view* p) {
     // do not disband composite controls
     if (p->type != ui_view_mbx && p->type != ui_view_slider) {
         while (p->child != null) {
@@ -14494,22 +14494,22 @@ static void ui_view_disband(ui_view_t* p) {
     ui_app.request_layout();
 }
 
-static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
+static void ui_view_invalidate(const struct ui_view* v, const struct ui_rect* r) {
     if (ui_view.is_hidden(v)) {
         rt_println("hidden: %s", ui_view_debug_id(v));
     } else {
-        ui_rect_t rc = {0};
+        struct ui_rect rc = {0};
         if (r != null) {
-            rc = (ui_rect_t){
+            rc = (struct ui_rect){
                 .x = v->x + r->x,
                 .y = v->y + r->y,
                 .w = r->w,
                 .h = r->h
             };
         } else {
-            rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
+            rc = (struct ui_rect){ v->x, v->y, v->w, v->h};
             // expand view rectangle by padding
-            const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+            const struct ui_ltrb p = ui_view.margins(v, &v->padding);
             rc.x -= p.left;
             rc.y -= p.top;
             rc.w += p.left + p.right;
@@ -14522,7 +14522,7 @@ static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
     }
 }
 
-static const char* ui_view_string(ui_view_t* v) {
+static const char* ui_view_string(struct ui_view* v) {
     if (v->p.strid == 0) {
         int32_t id = rt_nls.strid(v->p.text);
         v->p.strid = id > 0 ? id : -1;
@@ -14531,30 +14531,30 @@ static const char* ui_view_string(ui_view_t* v) {
         rt_nls.string(v->p.strid, v->p.text);
 }
 
-static ui_wh_t ui_view_text_metrics_va(int32_t x, int32_t y,
-        bool multiline, int32_t w, const ui_fm_t* fm,
+static struct ui_wh ui_view_text_metrics_va(int32_t x, int32_t y,
+        bool multiline, int32_t w, const struct ui_fm* fm,
         const char* format, va_list va) {
-    const ui_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
+    const struct ui_ta ta = { .fm = fm, .color = ui_colors.transparent,
                              .measure = true };
     return multiline ?
         ui_draw.multiline_va(&ta, x, y, w, format, va) :
         ui_draw.text_va(&ta, x, y, format, va);
 }
 
-static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
-        bool multiline, int32_t w, const ui_fm_t* fm,
+static struct ui_wh ui_view_text_metrics(int32_t x, int32_t y,
+        bool multiline, int32_t w, const struct ui_fm* fm,
         const char* format, ...) {
     va_list va;
     va_start(va, format);
-    ui_wh_t wh = ui_view_text_metrics_va(x, y, multiline, w, fm, format, va);
+    struct ui_wh wh = ui_view_text_metrics_va(x, y, multiline, w, fm, format, va);
     va_end(va);
     return wh;
 }
 
-static void ui_view_text_measure(ui_view_t* v, const char* s,
-        ui_view_text_metrics_t* tm) {
-    const ui_fm_t* fm = v->fm;
-    tm->wh = (ui_wh_t){ .w = 0, .h = fm->height };
+static void ui_view_text_measure(struct ui_view* v, const char* s,
+        struct ui_view_text_metrics* tm) {
+    const struct ui_fm* fm = v->fm;
+    tm->wh = (struct ui_wh){ .w = 0, .h = fm->height };
     if (s[0] == 0) {
         tm->multiline = false;
     } else {
@@ -14568,11 +14568,11 @@ static void ui_view_text_measure(ui_view_t* v, const char* s,
     }
 }
 
-static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
-    tm->xy = (ui_point_t){ .x = -1, .y = -1 };
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+static void ui_view_text_align(struct ui_view* v, struct ui_view_text_metrics* tm) {
+    tm->xy = (struct ui_point){ .x = -1, .y = -1 };
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     // i_wh the inside insets w x h:
-    const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
+    const struct ui_wh i_wh = { .w = v->w - i.left - i.right,
                            .h = v->h - i.top - i.bottom };
     const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
     const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
@@ -14594,7 +14594,7 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
         // UI controls should have x-height line in the dead center
         // of the control to be visually balanced.
         // y offset of "x-line" of the glyph:
-        const ui_fm_t* fm = v->fm;
+        const struct ui_fm* fm = v->fm;
         const int32_t y_of_x_line = fm->baseline - fm->x_height;
         // `dy` offset of the center to x-line (middle of glyph cell)
         const int32_t dy = tm->wh.h / 2 - y_of_x_line;
@@ -14607,15 +14607,15 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
     }
 }
 
-static void ui_view_measure_control(ui_view_t* v) {
+static void ui_view_measure_control(struct ui_view* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
-    const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    const struct ui_fm* fm = v->fm;
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
-        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+        const struct ui_ltrb p = ui_view.margins(v, &v->padding);
         rt_println(">%dx%d em: %dx%d min: %.3fx%.3f "
                 "i: %d %d %d %d p: %d %d %d %d %s \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
@@ -14623,8 +14623,8 @@ static void ui_view_measure_control(ui_view_t* v) {
             p.left, p.top, p.right, p.bottom,
             ui_view_debug_id(v),
             (64 < strlen(s) ? 64 : strlen(s)), s);
-        const ui_margins_t in = v->insets;
-        const ui_margins_t pd = v->padding;
+        const struct ui_margins in = v->insets;
+        const struct ui_margins pd = v->padding;
         rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
@@ -14646,13 +14646,13 @@ static void ui_view_measure_control(ui_view_t* v) {
     }
 }
 
-static void ui_view_measure_children(ui_view_t* v) {
+static void ui_view_measure_children(struct ui_view* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_for_each(v, c, { ui_view.measure(c); });
     }
 }
 
-static void ui_view_measure(ui_view_t* v) {
+static void ui_view_measure(struct ui_view* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_measure_children(v);
         if (v->prepare != null) { v->prepare(v); }
@@ -14665,9 +14665,9 @@ static void ui_view_measure(ui_view_t* v) {
     }
 }
 
-static void ui_layout_view(ui_view_t* rt_unused(v)) {
-//  ui_ltrb_t i = ui_view.margins(v, &v->insets);
-//  ui_ltrb_t p = ui_view.margins(v, &v->padding);
+static void ui_layout_view(struct ui_view* rt_unused(v)) {
+//  struct ui_ltrb i = ui_view.margins(v, &v->insets);
+//  struct ui_ltrb p = ui_view.margins(v, &v->padding);
 //  rt_println(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
 //               v->p.text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
@@ -14675,13 +14675,13 @@ static void ui_layout_view(ui_view_t* rt_unused(v)) {
 //  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
-static void ui_view_layout_children(ui_view_t* v) {
+static void ui_view_layout_children(struct ui_view* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_for_each(v, c, { ui_view.layout(c); });
     }
 }
 
-static void ui_view_layout(ui_view_t* v) {
+static void ui_view_layout(struct ui_view* v) {
 //  rt_println(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
         if (v->layout != null && v->layout != ui_view_layout) {
@@ -14695,16 +14695,16 @@ static void ui_view_layout(ui_view_t* v) {
 //  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
-static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
+static bool ui_view_inside(const struct ui_view* v, const struct ui_point* pt) {
     const int32_t x = pt->x - v->x;
     const int32_t y = pt->y - v->y;
     return 0 <= x && x < v->w && 0 <= y && y < v->h;
 }
 
-static bool ui_view_is_parent_of(const ui_view_t* parent,
-        const ui_view_t* child) {
+static bool ui_view_is_parent_of(const struct ui_view* parent,
+        const struct ui_view* child) {
     rt_swear(parent != null && child != null);
-    const ui_view_t* p = child->parent;
+    const struct ui_view* p = child->parent;
     while (p != null) {
         if (parent == p) { return true; }
         p = p->parent;
@@ -14712,28 +14712,28 @@ static bool ui_view_is_parent_of(const ui_view_t* parent,
     return false;
 }
 
-static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* m) {
+static struct ui_ltrb ui_view_margins(const struct ui_view* v, const struct ui_margins* m) {
     const fp64_t gw = (fp64_t)m->left + (fp64_t)m->right;
     const fp64_t gh = (fp64_t)m->top  + (fp64_t)m->bottom;
-    const ui_fm_t* fm = v->fm != null ? v->fm : &ui_app.fm.prop.normal;
-    const ui_wh_t* em = &fm->em;
+    const struct ui_fm* fm = v->fm != null ? v->fm : &ui_app.fm.prop.normal;
+    const struct ui_wh* em = &fm->em;
     const int32_t em_w = (int32_t)(em->w * gw + 0.5);
     const int32_t em_h = (int32_t)(em->h * gh + 0.5);
     const int32_t left = (int32_t)((fp64_t)em->w * (fp64_t)m->left + 0.5);
     const int32_t top  = (int32_t)((fp64_t)em->h * (fp64_t)m->top  + 0.5);
-    return (ui_ltrb_t) {
+    return (struct ui_ltrb) {
         .left   = left,         .top    = top,
         .right  = em_w - left,  .bottom = em_h - top
     };
 }
 
-static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
+static void ui_view_inbox(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* insets) {
     rt_swear(r != null || insets != null);
     rt_swear(v->max_w >= 0 && v->max_h >= 0);
-    const ui_ltrb_t i = ui_view_margins(v, &v->insets);
+    const struct ui_ltrb i = ui_view_margins(v, &v->insets);
     if (insets != null) { *insets = i; }
     if (r != null) {
-        *r = (ui_rect_t) {
+        *r = (struct ui_rect) {
             .x = v->x + i.left,
             .y = v->y + i.top,
             .w = v->w - i.left - i.right,
@@ -14742,16 +14742,16 @@ static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
     }
 }
 
-static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
+static void ui_view_outbox(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* padding) {
     rt_swear(r != null || padding != null);
     rt_swear(v->max_w >= 0 && v->max_h >= 0);
-    const ui_ltrb_t p = ui_view_margins(v, &v->padding);
+    const struct ui_ltrb p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
 //      rt_println("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
 //          v->x, v->y, v->w, v->h,
 //          v->padding.left, v->padding.top, v->padding.right, v->padding.bottom);
-        *r = (ui_rect_t) {
+        *r = (struct ui_rect) {
             .x = v->x - p.left,
             .y = v->y - p.top,
             .w = v->w + p.left + p.right,
@@ -14762,7 +14762,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     }
 }
 
-static void ui_view_update_shortcut(ui_view_t* v) {
+static void ui_view_update_shortcut(struct ui_view* v) {
     if (ui_view.is_control(v) && v->type != ui_view_text &&
         v->shortcut == 0x00) {
         const char* s = ui_view.string(v);
@@ -14774,7 +14774,7 @@ static void ui_view_update_shortcut(ui_view_t* v) {
     }
 }
 
-static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
+static void ui_view_set_text_va(struct ui_view* v, const char* format, va_list va) {
     char t[rt_countof(v->p.text)];
     rt_str.format_va(t, rt_countof(t), format, va);
     char* s = v->p.text;
@@ -14787,14 +14787,14 @@ static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     }
 }
 
-static void ui_view_set_text(ui_view_t* v, const char* format, ...) {
+static void ui_view_set_text(struct ui_view* v, const char* format, ...) {
     va_list va;
     va_start(va, format);
     ui_view.set_text_va(v, format, va);
     va_end(va);
 }
 
-static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
+static void ui_view_show_hint(struct ui_view* v, struct ui_view* hint) {
     ui_view_call_init(hint);
     ui_view.set_text(hint, v->hint);
     ui_view.measure(hint);
@@ -14812,11 +14812,11 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_app.show_hint(hint, x + hint->w / 2, y, 0);
 }
 
-static void ui_view_hovering(ui_view_t* v, bool start) {
+static void ui_view_hovering(struct ui_view* v, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
     if (start && ui_app.animating.view == null && v->hint[0] != 0 &&
        !ui_view.is_hidden(v)) {
-        hint.padding = (ui_margins_t){0, 0, 0, 0};
+        hint.padding = (struct ui_margins){0, 0, 0, 0};
         hint.parent = ui_app.content;
         hint.state.hidden = false;
         ui_view_show_hint(v, &hint);
@@ -14825,7 +14825,7 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
     }
 }
 
-static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
+static bool ui_view_is_shortcut_key(struct ui_view* v, int64_t key) {
     // Supported keyboard shortcuts are ASCII characters only for now
     // If there is not focused UI control in Alt+key [Alt] is optional.
     // If there is focused control only Alt+Key is accepted as shortcut
@@ -14837,12 +14837,12 @@ static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
     return keyboard_shortcut;
 }
 
-static bool ui_view_is_orphan(const ui_view_t* v) {
+static bool ui_view_is_orphan(const struct ui_view* v) {
     while (v != ui_app.root && v != null) { v = v->parent; }
     return v == null;
 }
 
-static bool ui_view_is_hidden(const ui_view_t* v) {
+static bool ui_view_is_hidden(const struct ui_view* v) {
     bool hidden = v->state.hidden || ui_view.is_orphan(v);
     while (!hidden && v->parent != null) {
         v = v->parent;
@@ -14851,7 +14851,7 @@ static bool ui_view_is_hidden(const ui_view_t* v) {
     return hidden;
 }
 
-static bool ui_view_is_disabled(const ui_view_t* v) {
+static bool ui_view_is_disabled(const struct ui_view* v) {
     bool disabled = v->state.disabled;
     while (!disabled && v->parent != null) {
         v = v->parent;
@@ -14860,23 +14860,23 @@ static bool ui_view_is_disabled(const ui_view_t* v) {
     return disabled;
 }
 
-static void ui_view_timer(ui_view_t* v, ui_timer_t id) {
+static void ui_view_timer(struct ui_view* v, ui_timer_t id) {
     if (v->timer != null) { v->timer(v, id); }
     // timers are delivered even to hidden and disabled views:
     ui_view_for_each(v, c, { ui_view_timer(c, id); });
 }
 
-static void ui_view_every_sec(ui_view_t* v) {
+static void ui_view_every_sec(struct ui_view* v) {
     if (v->every_sec != null) { v->every_sec(v); }
     ui_view_for_each(v, c, { ui_view_every_sec(c); });
 }
 
-static void ui_view_every_100ms(ui_view_t* v) {
+static void ui_view_every_100ms(struct ui_view* v) {
     if (v->every_100ms != null) { v->every_100ms(v); }
     ui_view_for_each(v, c, { ui_view_every_100ms(c); });
 }
 
-static bool ui_view_key_pressed(ui_view_t* v, int64_t k) {
+static bool ui_view_key_pressed(struct ui_view* v, int64_t k) {
     bool done = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->key_pressed != null) {
@@ -14893,7 +14893,7 @@ static bool ui_view_key_pressed(ui_view_t* v, int64_t k) {
     return done;
 }
 
-static bool ui_view_key_released(ui_view_t* v, int64_t k) {
+static bool ui_view_key_released(struct ui_view* v, int64_t k) {
     bool done = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->key_released != null) {
@@ -14909,7 +14909,7 @@ static bool ui_view_key_released(ui_view_t* v, int64_t k) {
     return done;
 }
 
-static void ui_view_character(ui_view_t* v, const char* utf8) {
+static void ui_view_character(struct ui_view* v, const char* utf8) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->character != null) {
             ui_view_update_shortcut(v);
@@ -14919,7 +14919,7 @@ static void ui_view_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-static void ui_view_resolve_color_ids(ui_view_t* v) {
+static void ui_view_resolve_color_ids(struct ui_view* v) {
     if (v->color_id > 0) {
         v->color = ui_colors.get_color(v->color_id);
     }
@@ -14928,7 +14928,7 @@ static void ui_view_resolve_color_ids(ui_view_t* v) {
     }
 }
 
-static void ui_view_paint(ui_view_t* v) {
+static void ui_view_paint(struct ui_view* v) {
     rt_assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     ui_view_resolve_color_ids(v);
     if (v->debug.trace.prc) {
@@ -14948,14 +14948,14 @@ static void ui_view_paint(ui_view_t* v) {
     }
 }
 
-static bool ui_view_has_focus(const ui_view_t* v) {
+static bool ui_view_has_focus(const struct ui_view* v) {
     return ui_app.focused() && ui_app.focus == v;
 }
 
-static void ui_view_set_focus(ui_view_t* v) {
+static void ui_view_set_focus(struct ui_view* v) {
     if (ui_app.focus != v) {
-        ui_view_t* loosing = ui_app.focus;
-        ui_view_t* gaining = v;
+        struct ui_view* loosing = ui_app.focus;
+        struct ui_view* gaining = v;
         if (gaining != null) {
             rt_swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
                                         !ui_view.is_disabled(gaining));
@@ -14971,7 +14971,7 @@ static void ui_view_set_focus(ui_view_t* v) {
     }
 }
 
-static int64_t ui_view_hit_test(const ui_view_t* v, ui_point_t pt) {
+static int64_t ui_view_hit_test(const struct ui_view* v, struct ui_point pt) {
     int64_t ht = ui.hit_test.nowhere;
     if (!ui_view.is_hidden(v) && v->hit_test != null) {
          ht = v->hit_test(v, pt);
@@ -14987,7 +14987,7 @@ static int64_t ui_view_hit_test(const ui_view_t* v, ui_point_t pt) {
     return ht;
 }
 
-static void ui_view_update_hover(ui_view_t* v, bool hidden) {
+static void ui_view_update_hover(struct ui_view* v, bool hidden) {
     const bool hover  = v->state.hover;
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     v->state.hover = !ui_view.is_hidden(v) && inside;
@@ -14998,7 +14998,7 @@ static void ui_view_update_hover(ui_view_t* v, bool hidden) {
     }
 }
 
-static void ui_view_mouse_hover(ui_view_t* v) {
+static void ui_view_mouse_hover(struct ui_view* v) {
 //  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
@@ -15009,7 +15009,7 @@ static void ui_view_mouse_hover(ui_view_t* v) {
     ui_view_for_each(v, c, { ui_view_mouse_hover(c); });
 }
 
-static void ui_view_mouse_move(ui_view_t* v) {
+static void ui_view_mouse_move(struct ui_view* v) {
 //  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
@@ -15020,7 +15020,7 @@ static void ui_view_mouse_move(ui_view_t* v) {
     ui_view_for_each(v, c, { ui_view_mouse_move(c); });
 }
 
-static void ui_view_double_click(ui_view_t* v, int32_t ix) {
+static void ui_view_double_click(struct ui_view* v, int32_t ix) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         const bool inside = ui_view.inside(v, &ui_app.mouse);
         if (inside) {
@@ -15031,14 +15031,14 @@ static void ui_view_double_click(ui_view_t* v, int32_t ix) {
     }
 }
 
-static void ui_view_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+static void ui_view_mouse_scroll(struct ui_view* v, struct ui_point dx_dy) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->mouse_scroll != null) { v->mouse_scroll(v, dx_dy); }
         ui_view_for_each(v, c, { ui_view_mouse_scroll(c, dx_dy); });
     }
 }
 
-static void ui_view_hover_changed(ui_view_t* v) {
+static void ui_view_hover_changed(struct ui_view* v) {
     if (!v->state.hidden) {
         if (!v->state.hover) {
             v->p.hover_when = 0;
@@ -15052,7 +15052,7 @@ static void ui_view_hover_changed(ui_view_t* v) {
     }
 }
 
-static void ui_view_lose_hidden_focus(ui_view_t* v) {
+static void ui_view_lose_hidden_focus(struct ui_view* v) {
     // removes focus from hidden or disabled ui controls
     if (ui_app.focus != null) {
         if (ui_app.focus == v && (v->state.disabled || v->state.hidden)) {
@@ -15065,7 +15065,7 @@ static void ui_view_lose_hidden_focus(ui_view_t* v) {
     }
 }
 
-static bool ui_view_tap(ui_view_t* v, int32_t ix, bool pressed) {
+static bool ui_view_tap(struct ui_view* v, int32_t ix, bool pressed) {
     bool swallow = false; // consumed
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
@@ -15086,7 +15086,7 @@ static bool ui_view_tap(ui_view_t* v, int32_t ix, bool pressed) {
     return swallow;
 }
 
-static bool ui_view_long_press(ui_view_t* v, int32_t ix) {
+static bool ui_view_long_press(struct ui_view* v, int32_t ix) {
     bool swallow = false; // consumed
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
@@ -15101,7 +15101,7 @@ static bool ui_view_long_press(ui_view_t* v, int32_t ix) {
     return swallow;
 }
 
-static bool ui_view_double_tap(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
+static bool ui_view_double_tap(struct ui_view* v, int32_t ix) { // 0: left 1: middle 2: right
     bool swallow = false; // consumed
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
@@ -15116,7 +15116,7 @@ static bool ui_view_double_tap(ui_view_t* v, int32_t ix) { // 0: left 1: middle 
     return swallow;
 }
 
-static bool ui_view_context_menu(ui_view_t* v) {
+static bool ui_view_context_menu(struct ui_view* v) {
     bool swallow = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
@@ -15131,7 +15131,7 @@ static bool ui_view_context_menu(ui_view_t* v) {
     return swallow;
 }
 
-static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
+static bool ui_view_message(struct ui_view* view, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
     if (!view->state.hidden) {
         if (view->p.hover_when > 0 && ui_app.now > view->p.hover_when) {
@@ -15151,17 +15151,17 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     return false;
 }
 
-static bool ui_view_is_container(const ui_view_t* v) {
+static bool ui_view_is_container(const struct ui_view* v) {
     return  v->type == ui_view_stack ||
             v->type == ui_view_span  ||
             v->type == ui_view_list;
 }
 
-static bool ui_view_is_spacer(const ui_view_t* v) {
+static bool ui_view_is_spacer(const struct ui_view* v) {
     return  v->type == ui_view_spacer;
 }
 
-static bool ui_view_is_control(const ui_view_t* v) {
+static bool ui_view_is_control(const struct ui_view* v) {
     return  v->type == ui_view_text   ||
             v->type == ui_view_label  ||
             v->type == ui_view_toggle ||
@@ -15170,13 +15170,13 @@ static bool ui_view_is_control(const ui_view_t* v) {
             v->type == ui_view_mbx;
 }
 
-static void ui_view_debug_paint_margins(ui_view_t* v) {
+static void ui_view_debug_paint_margins(struct ui_view* v) {
     if (v->debug.paint.margins) {
         if (v->type == ui_view_spacer) {
             ui_draw.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
         }
-        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
-        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+        const struct ui_ltrb p = ui_view.margins(v, &v->padding);
+        const struct ui_ltrb i = ui_view.margins(v, &v->insets);
         ui_color_t c = ui_colors.green;
         const int32_t pl = p.left;
         const int32_t pr = p.right;
@@ -15199,21 +15199,21 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
         if (ib > 0) { ui_draw.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
         if ((ui_view.is_container(v) || ui_view.is_spacer(v)) &&
             v->w > 0 && v->h > 0) {
-            ui_wh_t wh = ui_view_text_metrics(v->x, v->y, false, 0,
+            struct ui_wh wh = ui_view_text_metrics(v->x, v->y, false, 0,
                                               v->fm, "%s", ui_view.string(v));
             const int32_t tx = v->x;
             const int32_t ty = v->y + v->h - wh.h;
-            const ui_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
+            const struct ui_ta ta = { .fm = v->fm, .color = ui_colors.red };
             ui_draw.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
                         v->x, v->y, v->w, v->h);
         }
     }
 }
 
-static void ui_view_debug_paint_fm(ui_view_t* v) {
+static void ui_view_debug_paint_fm(struct ui_view* v) {
     if (v->debug.paint.fm && v->p.text[0] != 0 &&
        !ui_view_is_container(v) && !ui_view_is_spacer(v)) {
-        const ui_point_t t = v->text.xy;
+        const struct ui_point t = v->text.xy;
         const int32_t x = v->x;
         const int32_t y = v->y;
         const int32_t w = v->w;
@@ -15247,15 +15247,15 @@ static void ui_view_debug_paint_fm(ui_view_t* v) {
 } while (0)
 
 static void ui_view_test(void) {
-    ui_view_t p0 = ui_view(stack);
-    ui_view_t c1 = ui_view(stack);
-    ui_view_t c2 = ui_view(stack);
-    ui_view_t c3 = ui_view(stack);
-    ui_view_t c4 = ui_view(stack);
-    ui_view_t g1 = ui_view(stack);
-    ui_view_t g2 = ui_view(stack);
-    ui_view_t g3 = ui_view(stack);
-    ui_view_t g4 = ui_view(stack);
+    struct ui_view p0 = ui_view(stack);
+    struct ui_view c1 = ui_view(stack);
+    struct ui_view c2 = ui_view(stack);
+    struct ui_view c3 = ui_view(stack);
+    struct ui_view c4 = ui_view(stack);
+    struct ui_view g1 = ui_view(stack);
+    struct ui_view g2 = ui_view(stack);
+    struct ui_view g3 = ui_view(stack);
+    struct ui_view g4 = ui_view(stack);
     // add grand children to children:
     ui_view.add(&c2, &g1, &g2, null);               ui_view_verify(&c2);
     ui_view.add(&c3, &g3, &g4, null);               ui_view_verify(&c3);
@@ -15315,7 +15315,7 @@ static void ui_view_test(void) {
 
 #pragma pop_macro("ui_view_no_siblings")
 
-ui_view_if ui_view = {
+struct ui_view_if ui_view = {
     .add                 = ui_view_add,
     .add_first           = ui_view_add_first,
     .add_last            = ui_view_add_last,

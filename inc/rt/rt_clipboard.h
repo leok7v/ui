@@ -3,7 +3,7 @@
 
 rt_begin_c
 
-typedef struct ui_bitmap_s ui_bitmap_t;
+typedef struct ui_bitmap ui_bitmap_t;
 
 typedef struct {
     errno_t (*put_text)(const char* s);

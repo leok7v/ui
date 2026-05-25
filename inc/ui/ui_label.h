@@ -4,9 +4,9 @@
 
 rt_begin_c
 
-typedef ui_view_t ui_label_t;
+typedef struct ui_view ui_label_t;
 
-void ui_view_init_label(ui_view_t* v);
+void ui_view_init_label(struct ui_view* v);
 
 // label insets and padding left/right are intentionally
 // smaller than button/slider/toggle controls

@@ -14,14 +14,14 @@ rt_begin_c
 // device otherwise ui_draw.rgbx() call is used and alpha
 // is ignored.
 
-typedef struct ui_image_s ui_image_t;
+struct ui_image;
 
-typedef struct ui_image_s {
+struct ui_image {
     union {
-        ui_view_t view;
-        struct ui_view_s;
+        struct ui_view view;
+        struct ui_view;
     };
-    ui_bitmap_t image; // view does NOT own or dispose image->bitmap
+    struct ui_bitmap image; // view does NOT own or dispose image->bitmap
     fp64_t     alpha; // for rgba images
     // actual scale() is: z = 2 ^ (zn - 1) / 2 ^ (zd - 1)
     int32_t zoom; // 0..8
@@ -31,7 +31,7 @@ typedef struct ui_image_s {
     fp64_t  sx; // shift x [0..1.0] in view coordinates
     fp64_t  sy; // shift y [0..1.0]
     struct { // only visible when focused
-        ui_view_t   bar; // ui_view(span) {zoom in, zoom 1:1, zoom out, help}
+        struct ui_view   bar; // ui_view(span) {zoom in, zoom 1:1, zoom out, help}
         ui_button_t copy; // copy image to clipboard
         ui_button_t zoom_in;
         ui_button_t zoom_1t1; // 1:1
@@ -41,27 +41,27 @@ typedef struct ui_image_s {
         ui_button_t help;
         ui_label_t  ratio;
     } tool;
-    ui_point_t drag_start;
+    struct ui_point drag_start;
     fp64_t when; // to hide toolbar
     bool fit;    // best fit into view
     bool fill;   // fill entire view
     // fit and fill cannot be true at the same time
     // when fit: false and fill: false the zoom ratio is in effect
-} ui_image_t;
+};
 
-typedef struct ui_image_if {
-    void      (*init)(ui_image_t* iv);
-    void      (*init_with)(ui_image_t* iv, const uint8_t* pixels,
+struct ui_image_if {
+    void      (*init)(struct ui_image* iv);
+    void      (*init_with)(struct ui_image* iv, const uint8_t* pixels,
                            int32_t width, int32_t height,
                            int32_t bpp, int32_t stride);
     // ration can only be: 16:1 8:1 4:1 2:1 1:1 1:2 1:4 1:8 1:16
     // but ignored if .fit or .fill is true
-    void      (*ratio)(ui_image_t* iv, int32_t nominator, int32_t denominator);
-    fp64_t    (*scale)(ui_image_t* iv); // 2 ^ (zn - 1) / 2 ^ (zd - 1)
-    ui_rect_t (*position)(ui_image_t* iv);
-} ui_image_if;
+    void      (*ratio)(struct ui_image* iv, int32_t nominator, int32_t denominator);
+    fp64_t    (*scale)(struct ui_image* iv); // 2 ^ (zn - 1) / 2 ^ (zd - 1)
+    struct ui_rect (*position)(struct ui_image* iv);
+};
 
-extern ui_image_if ui_image;
+extern struct ui_image_if ui_image;
 
 rt_end_c
 

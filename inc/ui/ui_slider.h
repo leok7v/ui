@@ -4,39 +4,39 @@
 
 rt_begin_c
 
-typedef struct ui_slider_s ui_slider_t;
+struct ui_slider;
 
-typedef struct ui_slider_s {
+struct ui_slider {
     union {
-        ui_view_t view;
-        struct ui_view_s;
+        struct ui_view view;
+        struct ui_view;
     };
     int32_t step;
     fp64_t time; // time last button was pressed
-    ui_wh_t wh;  // text measurement (special case for %0*d)
+    struct ui_wh wh;  // text measurement (special case for %0*d)
     ui_button_t inc; // can be hidden
     ui_button_t dec; // can be hidden
-    int32_t value;  // for ui_slider_t range slider control
+    int32_t value;  // for struct ui_slider range slider control
     int32_t value_min;
     int32_t value_max;
     // style:
     bool notched; // true if marked with a notches and has a thumb
-} ui_slider_t;
+};
 
-void ui_view_init_slider(ui_view_t* v);
+void ui_view_init_slider(struct ui_view* v);
 
-void ui_slider_init(ui_slider_t* r, const char* label, fp32_t min_w_em,
-    int32_t value_min, int32_t value_max, void (*callback)(ui_view_t* r));
+void ui_slider_init(struct ui_slider* r, const char* label, fp32_t min_w_em,
+    int32_t value_min, int32_t value_max, void (*callback)(struct ui_view* r));
 
 // ui_slider_changed can only be used on static slider variables
 
 #define ui_slider_changed(name, s, min_width_em, mn,  mx, fmt, ...) \
-    static void name ## _changed(ui_slider_t* name) {               \
+    static void name ## _changed(struct ui_slider* name) {               \
         (void)name; /* no warning if unused */                      \
         { __VA_ARGS__ }                                             \
     }                                                               \
     static                                                          \
-    ui_slider_t name = {                                            \
+    struct ui_slider name = {                                            \
         .view = {                                                   \
             .type = ui_view_slider,                                 \
             .init = ui_view_init_slider,                            \

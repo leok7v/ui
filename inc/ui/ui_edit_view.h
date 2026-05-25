@@ -5,60 +5,60 @@
 
 rt_begin_c
 
-// important ui_edit_view_t will refuse to layout into a box smaller than
+// important struct ui_edit_view will refuse to layout into a box smaller than
 // width 3 x fm->em.w height 1 x fm->em.h
 
-typedef struct ui_edit_view_s ui_edit_view_t;
+struct ui_edit_view;
 
-typedef struct ui_edit_str_s ui_edit_str_t;
+struct ui_edit_str;
 
-typedef struct ui_edit_doc_s ui_edit_doc_t;
+struct ui_edit_doc;
 
-typedef struct ui_edit_notify_s ui_edit_notify_t;
+struct ui_edit_notify;
 
-typedef struct ui_edit_to_do_s ui_edit_to_do_t;
+struct ui_edit_to_do;
 
-typedef struct ui_edit_pr_s { // page/run coordinates
+struct ui_edit_pr { // page/run coordinates
     int32_t pn; // paragraph number
     int32_t rn; // run number inside paragraph
-} ui_edit_pr_t;
+};
 
-typedef struct ui_edit_run_s {
+struct ui_edit_run {
     int32_t bp;     // position in bytes  since start of the paragraph
     int32_t gp;     // position in glyphs since start of the paragraph
     int32_t bytes;  // number of bytes in this `run`
     int32_t glyphs; // number of glyphs in this `run`
     int32_t pixels; // width in pixels
-} ui_edit_run_t;
+};
 
-// ui_edit_paragraph_t.initially text will point to readonly memory
+// struct ui_edit_paragraph.initially text will point to readonly memory
 // with .allocated == 0; as text is modified it is copied to
 // heap and reallocated there.
 
-typedef struct ui_edit_paragraph_s { // "paragraph" view consists of wrapped runs
+struct ui_edit_paragraph { // "paragraph" view consists of wrapped runs
     int32_t runs;       // number of runs in this paragraph
-    ui_edit_run_t* run; // heap allocated array[runs]
-} ui_edit_paragraph_t;
+    struct ui_edit_run* run; // heap allocated array[runs]
+};
 
-typedef struct ui_edit_notify_view_s {
-    ui_edit_notify_t notify;
+struct ui_edit_notify_view {
+    struct ui_edit_notify notify;
     void*            that; // specific for listener
     uintptr_t        data; // before -> after listener data
-} ui_edit_notify_view_t;
+};
 
-typedef struct ui_edit_view_s {
+struct ui_edit_view {
     union {
-        ui_view_t view;
-        struct ui_view_s;
+        struct ui_view view;
+        struct ui_view;
     };
-    ui_edit_doc_t* doc; // document
-    ui_edit_notify_view_t listener;
-    ui_edit_range_t selection; // "from" selection[0] "to" selection[1]
-    ui_point_t caret; // (-1, -1) off
+    struct ui_edit_doc* doc; // document
+    struct ui_edit_notify_view listener;
+    union ui_edit_range selection; // "from" selection[0] "to" selection[1]
+    struct ui_point caret; // (-1, -1) off
     int32_t caret_width; // in pixels
-    ui_edit_pr_t scroll; // left top corner paragraph/run coordinates
+    struct ui_edit_pr scroll; // left top corner paragraph/run coordinates
     int32_t last_x;    // last_x for up/down caret movement
-    ui_ltrb_t inside;  // inside insets space
+    struct ui_ltrb inside;  // inside insets space
     struct {
         int32_t w;       // inside.right - inside.left
         int32_t h;       // inside.bottom - inside.top
@@ -73,44 +73,44 @@ typedef struct ui_edit_view_s {
     bool hide_word_wrap; // do not paint word wrap
     int32_t shown;    // debug: caret show/hide counter 0|1
     // paragraphs memory:
-    ui_edit_paragraph_t* para; // para[e->doc->text.np]
-} ui_edit_view_t;
+    struct ui_edit_paragraph* para; // para[e->doc->text.np]
+};
 
-typedef struct ui_edit_view_if {
-    void (*init)(ui_edit_view_t* e, ui_edit_doc_t* d);
-    void (*set_font)(ui_edit_view_t* e, ui_fm_t* fm); // see notes below (*)
-    void (*move)(ui_edit_view_t* e, ui_edit_pg_t pg); // move caret clear selection
+struct ui_edit_view_if {
+    void (*init)(struct ui_edit_view* e, struct ui_edit_doc* d);
+    void (*set_font)(struct ui_edit_view* e, struct ui_fm* fm); // see notes below (*)
+    void (*move)(struct ui_edit_view* e, struct ui_edit_pg pg); // move caret clear selection
     // replace selected text. If bytes < 0 text is treated as zero terminated
-    void (*replace)(ui_edit_view_t* e, const char* text, int32_t bytes);
+    void (*replace)(struct ui_edit_view* e, const char* text, int32_t bytes);
     // call save(e, null, &bytes) to retrieve number of utf8
     // bytes required to save whole text including 0x00 terminating bytes
-    errno_t (*save)(ui_edit_view_t* e, char* text, int32_t* bytes);
-    void (*copy)(ui_edit_view_t* e);  // to clipboard
-    void (*cut)(ui_edit_view_t* e);   // to clipboard
+    errno_t (*save)(struct ui_edit_view* e, char* text, int32_t* bytes);
+    void (*copy)(struct ui_edit_view* e);  // to clipboard
+    void (*cut)(struct ui_edit_view* e);   // to clipboard
     // replace selected text with content of clipboard:
-    void (*paste)(ui_edit_view_t* e); // from clipboard
-    void (*select_all)(ui_edit_view_t* e); // select whole text
-    void (*erase)(ui_edit_view_t* e); // delete selected text
+    void (*paste)(struct ui_edit_view* e); // from clipboard
+    void (*select_all)(struct ui_edit_view* e); // select whole text
+    void (*erase)(struct ui_edit_view* e); // delete selected text
     // keyboard actions dispatcher:
-    void (*key_down)(ui_edit_view_t* e);
-    void (*key_up)(ui_edit_view_t* e);
-    void (*key_left)(ui_edit_view_t* e);
-    void (*key_right)(ui_edit_view_t* e);
-    void (*key_page_up)(ui_edit_view_t* e);
-    void (*key_page_down)(ui_edit_view_t* e);
-    void (*key_home)(ui_edit_view_t* e);
-    void (*key_end)(ui_edit_view_t* e);
-    void (*key_delete)(ui_edit_view_t* e);
-    void (*key_backspace)(ui_edit_view_t* e);
-    void (*key_enter)(ui_edit_view_t* e);
+    void (*key_down)(struct ui_edit_view* e);
+    void (*key_up)(struct ui_edit_view* e);
+    void (*key_left)(struct ui_edit_view* e);
+    void (*key_right)(struct ui_edit_view* e);
+    void (*key_page_up)(struct ui_edit_view* e);
+    void (*key_page_down)(struct ui_edit_view* e);
+    void (*key_home)(struct ui_edit_view* e);
+    void (*key_end)(struct ui_edit_view* e);
+    void (*key_delete)(struct ui_edit_view* e);
+    void (*key_backspace)(struct ui_edit_view* e);
+    void (*key_enter)(struct ui_edit_view* e);
     // called when ENTER keyboard key is pressed in single line mode
-    void (*enter)(ui_edit_view_t* e);
+    void (*enter)(struct ui_edit_view* e);
     // fuzzer test:
-    void (*fuzz)(ui_edit_view_t* e);      // start/stop fuzzing test
-    void (*dispose)(ui_edit_view_t* e);
-} ui_edit_view_if;
+    void (*fuzz)(struct ui_edit_view* e);      // start/stop fuzzing test
+    void (*dispose)(struct ui_edit_view* e);
+};
 
-extern ui_edit_view_if ui_edit_view;
+extern struct ui_edit_view_if ui_edit_view;
 
 /*
     Notes:
@@ -191,7 +191,7 @@ extern ui_edit_view_if ui_edit_view;
             struct. It is incorrect to call free() on the string that
             was not initialized or already freed.
 
-    All ui_edit_str_t keep "precise" number of utf8 bytes.
+    All struct ui_edit_str keep "precise" number of utf8 bytes.
     Caller may allocate extra byte and set it to 0x00
     after retrieving and copying data from ui_edit_str if
     the string content is intended to be used by any

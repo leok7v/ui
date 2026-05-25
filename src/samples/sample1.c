@@ -25,7 +25,7 @@ static const char* locales[] = { // 123 languages
 static int32_t locale;
 static ui_label_t label = ui_label(0.0, "Hello");
 
-static void every_sec(ui_view_t* rt_unused(v)) {
+static void every_sec(struct ui_view* rt_unused(v)) {
     rt_nls.set_locale(locales[locale]);
     rt_str_printf(title, "Polyglot [%s]", locales[locale]);
     ui_app.set_title(title);
@@ -33,26 +33,26 @@ static void every_sec(ui_view_t* rt_unused(v)) {
     locale = (locale + 1) % rt_countof(locales);
 }
 
-static bool tap(ui_view_t* v, int32_t ix, bool pressed) {
+static bool tap(struct ui_view* v, int32_t ix, bool pressed) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     rt_println("ix: %d inside: %d %s", ix, inside, pressed ? "dw" : "up");
     return inside;
 }
 
-static bool long_press(ui_view_t* v, int32_t ix) {
+static bool long_press(struct ui_view* v, int32_t ix) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     rt_println("ix: %d inside: %d", ix, inside);
     return inside;
 }
 
-static bool double_tap(ui_view_t* v, int32_t ix) {
+static bool double_tap(struct ui_view* v, int32_t ix) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     rt_println("ix: %d inside: %d", ix, inside);
     return inside;
 }
 
 static void opened(void) {
-    static ui_fm_t fm;
+    static struct ui_fm fm;
     ui_draw.update_fm(&fm, ui_draw.create_font("Segoe Script", ui_app.in2px(0.5), -1));
     ui_app.content->every_sec = every_sec;
     label.fm = &fm;
@@ -67,7 +67,7 @@ static void init(void) {
     ui_app.opened = opened;
 }
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "sample1",
     .dark_mode = true,
     .init = init,

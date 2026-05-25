@@ -187,7 +187,7 @@ static ui_color_t ui_colors_get_color(int32_t color_id) {
            ui_theme_colors[color_id].light;
 }
 
-ui_colors_if ui_colors = {
+struct ui_colors_if ui_colors = {
     .get_color                = ui_colors_get_color,
     .rgb_to_hsi               = ui_color_rgb_to_hsi,
     .hsi_to_rgb               = ui_color_hsi_to_rgb,

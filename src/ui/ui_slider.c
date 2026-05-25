@@ -1,49 +1,49 @@
 #include "rt/rt.h"
 #include "ui/ui.h"
 
-static void ui_slider_invalidate(const ui_slider_t* s) {
-    const ui_view_t* v = &s->view;
+static void ui_slider_invalidate(const struct ui_slider* s) {
+    const struct ui_view* v = &s->view;
     ui_view.invalidate(v, null);
     if (!s->dec.state.hidden) { ui_view.invalidate(&s->dec, null); }
     if (!s->inc.state.hidden) { ui_view.invalidate(&s->dec, null); }
 }
 
-static int32_t ui_slider_width(const ui_slider_t* s) {
-    const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
+static int32_t ui_slider_width(const struct ui_slider* s) {
+    const struct ui_ltrb i = ui_view.margins(&s->view, &s->insets);
     int32_t w = s->w - i.left - i.right;
     if (!s->dec.state.hidden) {
-        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
-        const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
+        const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const struct ui_ltrb inc_p = ui_view.margins(&s->inc, &s->inc.padding);
         w -= s->dec.w + s->inc.w + dec_p.right + inc_p.left;
     }
     return w;
 }
 
-static ui_wh_t measure_text(const ui_fm_t* fm, const char* format, ...) {
+static struct ui_wh measure_text(const struct ui_fm* fm, const char* format, ...) {
     va_list va;
     va_start(va, format);
-    const ui_ta_t ta = { .fm = fm, .color = ui_colors.white, .measure = true };
-    ui_wh_t wh = ui_draw.text_va(&ta, 0, 0, format, va);
+    const struct ui_ta ta = { .fm = fm, .color = ui_colors.white, .measure = true };
+    struct ui_wh wh = ui_draw.text_va(&ta, 0, 0, format, va);
     va_end(va);
     return wh;
 }
 
-static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
+static struct ui_wh ui_slider_measure_text(struct ui_slider* s) {
     char formatted[rt_countof(s->p.text)];
-    const ui_fm_t* fm = s->fm;
+    const struct ui_fm* fm = s->fm;
     const char* text = ui_view.string(&s->view);
-    const ui_ltrb_t i = ui_view.margins(&s->view, &s->insets);
-    ui_wh_t wh = s->fm->em;
+    const struct ui_ltrb i = ui_view.margins(&s->view, &s->insets);
+    struct ui_wh wh = s->fm->em;
     if (s->debug.trace.mt) {
-        const ui_ltrb_t p = ui_view.margins(&s->view, &s->padding);
+        const struct ui_ltrb p = ui_view.margins(&s->view, &s->padding);
         rt_println(">%dx%d em: %dx%d min: %.1fx%.1f "
                 "i: %d %d %d %d p: %d %d %d %d \"%.*s\"",
             s->w, s->h, fm->em.w, fm->em.h, s->min_w_em, s->min_h_em,
             i.left, i.top, i.right, i.bottom,
             p.left, p.top, p.right, p.bottom,
             (64 < strlen(text) ? 64 : strlen(text)), text);
-        const ui_margins_t in = s->insets;
-        const ui_margins_t pd = s->padding;
+        const struct ui_margins in = s->insets;
+        const struct ui_margins pd = s->padding;
         rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
@@ -58,9 +58,9 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
         // TODO: format string 0x08X?
     } else if (text != null && (strstr(text, "%d") != null ||
                                 strstr(text, "%u") != null)) {
-        ui_wh_t mt_min = measure_text(s->fm, text, s->value_min);
-        ui_wh_t mt_max = measure_text(s->fm, text, s->value_max);
-        ui_wh_t mt_val = measure_text(s->fm, text, s->value);
+        struct ui_wh mt_min = measure_text(s->fm, text, s->value_min);
+        struct ui_wh mt_max = measure_text(s->fm, text, s->value_max);
+        struct ui_wh mt_val = measure_text(s->fm, text, s->value);
         const int32_t mh = mt_min.h > mt_max.h ? mt_min.h : mt_max.h;
         const int32_t mw = mt_min.w > mt_max.w ? mt_min.w : mt_max.w;
         wh.h = mt_val.h > mh ? mt_val.h : mh;
@@ -74,11 +74,11 @@ static ui_wh_t ui_slider_measure_text(ui_slider_t* s) {
     return wh;
 }
 
-static void ui_slider_measure(ui_view_t* v) {
+static void ui_slider_measure(struct ui_view* v) {
     rt_assert(v->type == ui_view_slider);
-    ui_slider_t* s = (ui_slider_t*)v;
-    const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    struct ui_slider* s = (struct ui_slider*)v;
+    const struct ui_fm* fm = v->fm;
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     // slider cannot be smaller than 2*em
     const fp32_t min_w_em = 2.0f > v->min_w_em ? 2.0f : v->min_w_em;
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)   min_w_em + 0.5);
@@ -94,8 +94,8 @@ static void ui_slider_measure(ui_view_t* v) {
     } else {
         ui_view.measure(&s->dec); // remeasure with inherited metrics
         ui_view.measure(&s->inc);
-        const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
-        const ui_ltrb_t inc_p = ui_view.margins(&s->inc, &s->inc.padding);
+        const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+        const struct ui_ltrb inc_p = ui_view.margins(&s->inc, &s->inc.padding);
         const int32_t w = s->dec.w + dec_p.right + s->wh.w + inc_p.left + s->inc.w;
         v->w = v->w > w ? v->w : w;
     }
@@ -105,23 +105,23 @@ static void ui_slider_measure(ui_view_t* v) {
     }
 }
 
-static void ui_slider_layout(ui_view_t* v) {
+static void ui_slider_layout(struct ui_view* v) {
     rt_assert(v->type == ui_view_slider);
-    ui_slider_t* s = (ui_slider_t*)v;
+    struct ui_slider* s = (struct ui_slider*)v;
     // disregard inc/dec .state.hidden bit for layout:
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     s->dec.x = v->x + i.left;
     s->dec.y = v->y;
     s->inc.x = v->x + v->w - i.right - s->inc.w;
     s->inc.y = v->y;
 }
 
-static void ui_slider_paint(ui_view_t* v) {
+static void ui_slider_paint(struct ui_view* v) {
     rt_assert(v->type == ui_view_slider);
-    ui_slider_t* s = (ui_slider_t*)v;
-    const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-    const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+    struct ui_slider* s = (struct ui_slider*)v;
+    const struct ui_fm* fm = v->fm;
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
+    const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
     // dec button is sticking to the left into slider padding
     const int32_t dec_w = s->dec.w + dec_p.right;
     rt_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
@@ -175,18 +175,18 @@ static void ui_slider_paint(ui_view_t* v) {
     ui_view.text_align(v, &v->text);
     const ui_color_t text_color = !v->state.hover ? v->color :
             (ui_theme.is_app_dark() ? ui_colors.white : ui_colors.black);
-    const ui_ta_t ta = { .fm = fm, .color = text_color };
+    const struct ui_ta ta = { .fm = fm, .color = text_color };
     ui_draw.text(&ta, v->x + v->text.xy.x, v->y + v->text.xy.y, "%s", text);
 }
 
-static bool ui_slider_tap(ui_view_t* v, int32_t rt_unused(ix),
+static bool ui_slider_tap(struct ui_view* v, int32_t rt_unused(ix),
         bool pressed) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
         if (pressed) {
-            ui_slider_t* s = (ui_slider_t*)v;
-            const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+            struct ui_slider* s = (struct ui_slider*)v;
+            const struct ui_ltrb i = ui_view.margins(v, &v->insets);
+            const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
             rt_assert(s->dec.state.hidden == s->inc.state.hidden, "hidden or not together");
             const int32_t sw = ui_slider_width(s); // slider width
@@ -208,14 +208,14 @@ static bool ui_slider_tap(ui_view_t* v, int32_t rt_unused(ix),
     return pressed && inside; // swallow inside clicks
 }
 
-static void ui_slider_mouse_move(ui_view_t* v) {
+static void ui_slider_mouse_move(struct ui_view* v) {
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     if (inside) {
-        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
-        ui_slider_t* s = (ui_slider_t*)v;
+        const struct ui_ltrb i = ui_view.margins(v, &v->insets);
+        struct ui_slider* s = (struct ui_slider*)v;
         bool drag = ui_app.mouse_left || ui_app.mouse_right;
         if (drag) {
-            const ui_ltrb_t dec_p = ui_view.margins(&s->dec, &s->dec.padding);
+            const struct ui_ltrb dec_p = ui_view.margins(&s->dec, &s->dec.padding);
             const int32_t dec_w = s->dec.w + dec_p.right;
             rt_assert(s->dec.state.hidden == s->inc.state.hidden,
                       ".dec .inc must be .hidden in sync");
@@ -239,7 +239,7 @@ static void ui_slider_mouse_move(ui_view_t* v) {
     }
 }
 
-static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
+static void ui_slider_inc_dec_value(struct ui_slider* s, int32_t sign, int32_t mul) {
     if (!ui_view.is_hidden(&s->view) && !ui_view.is_disabled(&s->view)) {
         // full 0x80000000..0x7FFFFFFF (-2147483648..2147483647) range
         int32_t v = s->value;
@@ -259,7 +259,7 @@ static void ui_slider_inc_dec_value(ui_slider_t* s, int32_t sign, int32_t mul) {
 }
 
 static void ui_slider_inc_dec(ui_button_t* b) {
-    ui_slider_t* s = (ui_slider_t*)b->parent;
+    struct ui_slider* s = (struct ui_slider*)b->parent;
     if (!ui_view.is_hidden(&s->view) && !ui_view.is_disabled(&s->view)) {
         int32_t sign = b == &s->inc ? +1 : -1;
         int32_t mul = ui_app.shift && ui_app.ctrl ? 1000 :
@@ -268,9 +268,9 @@ static void ui_slider_inc_dec(ui_button_t* b) {
     }
 }
 
-static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
+static void ui_slider_every_100ms(struct ui_view* v) { // 100ms
     rt_assert(v->type == ui_view_slider);
-    ui_slider_t* s = (ui_slider_t*)v;
+    struct ui_slider* s = (struct ui_slider*)v;
     if (ui_view.is_hidden(v) || ui_view.is_disabled(v)) {
         s->time = 0;
     } else if (!s->dec.state.armed && !s->inc.state.armed) {
@@ -291,7 +291,7 @@ static void ui_slider_every_100ms(ui_view_t* v) { // 100ms
     }
 }
 
-void ui_view_init_slider(ui_view_t* v) {
+void ui_view_init_slider(struct ui_view* v) {
     rt_assert(v->type == ui_view_slider);
     v->measure       = ui_slider_measure;
     v->layout        = ui_slider_layout;
@@ -301,7 +301,7 @@ void ui_view_init_slider(ui_view_t* v) {
     v->every_100ms   = ui_slider_every_100ms;
     v->color_id      = ui_color_id_window_text;
     v->background_id = ui_color_id_button_face;
-    ui_slider_t* s = (ui_slider_t*)v;
+    struct ui_slider* s = (struct ui_slider*)v;
     static const char* accel =
         " Hold key while clicking\n"
         " Ctrl: x 10 Shift: x 100 \n"
@@ -340,10 +340,10 @@ void ui_view_init_slider(ui_view_t* v) {
     if (v->debug.id == null) { v->debug.id = "#slider"; }
 }
 
-void ui_slider_init(ui_slider_t* s, const char* label, fp32_t min_w_em,
+void ui_slider_init(struct ui_slider* s, const char* label, fp32_t min_w_em,
         int32_t value_min, int32_t value_max,
-        void (*callback)(ui_view_t* r)) {
-    static_assert(offsetof(ui_slider_t, view) == 0, "offsetof(.view)");
+        void (*callback)(struct ui_view* r)) {
+    static_assert(offsetof(struct ui_slider, view) == 0, "offsetof(.view)");
     if (min_w_em < 6.0) { rt_println("6.0 em minimum"); }
     s->type = ui_view_slider;
     ui_view.set_text(&s->view, "%s", label);

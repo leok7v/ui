@@ -115,7 +115,7 @@ static const char* content =
 
 // https://en.wikipedia.org/wiki/Lorem_ipsum
 
-typedef struct {
+struct ui_edit_lorem_ipsum_generator_params {
     char* text;
     int32_t count; // at least 1KB
     uint32_t seed; // seed for random generator
@@ -126,9 +126,9 @@ typedef struct {
     int32_t min_words; // at least 2
     int32_t max_words;
     const char* append; // append after each paragraph (e.g. extra "\n")
-} ui_edit_lorem_ipsum_generator_params_t;
+};
 
-static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t p) {
+static void ui_edit_lorem_ipsum_generator(struct ui_edit_lorem_ipsum_generator_params p) {
     rt_fatal_if(p.count < 1024); // at least 1KB expected
     rt_fatal_if_not(0 < p.min_paragraphs && p.min_paragraphs <= p.max_paragraphs);
     rt_fatal_if_not(0 < p.min_sentences && p.min_sentences <= p.max_sentences);
@@ -191,9 +191,9 @@ static void ui_edit_lorem_ipsum_generator(ui_edit_lorem_ipsum_generator_params_t
 //  rt_println("%s\n", p.text);
 }
 
-void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
+void ui_edit_init_with_lorem_ipsum(struct ui_edit_text* t) {
     static char text[64 * 1024];
-    ui_edit_lorem_ipsum_generator_params_t p = {
+    struct ui_edit_lorem_ipsum_generator_params p = {
         .text = text,
         .count = rt_countof(text),
         .min_paragraphs = 4,
@@ -212,7 +212,7 @@ void ui_edit_init_with_lorem_ipsum(ui_edit_text_t* t) {
     ui_edit_lorem_ipsum_generator(p);
     rt_swear(ui_edit_text.replace_utf8(t, null, content, -1, null));
 #if 1
-    ui_edit_range_t end = ui_edit_text.end_range(t);
+    union ui_edit_range end = ui_edit_text.end_range(t);
     rt_swear(ui_edit_text.replace_utf8(t, &end, "\n\n", -1, null));
     end = ui_edit_text.end_range(t);
     rt_swear(ui_edit_text.replace_utf8(t, &end, p.text, -1, null));

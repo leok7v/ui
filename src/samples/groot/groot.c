@@ -16,14 +16,14 @@
 enum { width = 512, height = 512 };
 
 static uint8_t gs[width * height]; // greyscale
-//static ui_bitmap_t image; // grayscale image
+//static struct ui_bitmap image; // grayscale image
 
-static ui_image_t view_groot;
-static ui_image_t view_rocket;
-static ui_image_t view_gs[2]; // two views at the same image
+static struct ui_image view_groot;
+static struct ui_image view_rocket;
+static struct ui_image view_gs[2]; // two views at the same image
 
-static ui_edit_view_t  view_text;
-static ui_edit_doc_t   document;
+static struct ui_edit_view  view_text;
+static struct ui_edit_doc   document;
 
 static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t* h,
     int32_t* bpp, int32_t preferred_bytes_per_pixel) {
@@ -32,7 +32,7 @@ static void* load_image(const uint8_t* data, int64_t bytes, int32_t* w, int32_t*
     return pixels;
 }
 
-static void init_image(ui_bitmap_t* i, const uint8_t* data, int64_t bytes) {
+static void init_image(struct ui_bitmap* i, const uint8_t* data, int64_t bytes) {
     int32_t w = 0;
     int32_t h = 0;
     int32_t c = 0;
@@ -43,7 +43,7 @@ static void init_image(ui_bitmap_t* i, const uint8_t* data, int64_t bytes) {
 }
 
 static void init_gs(void) {
-    const ui_bitmap_t* i = &view_groot.image;
+    const struct ui_bitmap* i = &view_groot.image;
     uint32_t* pixels = (uint32_t*)i->pixels;
     rt_assert(i->w == 64 && i->h == 64 && i->bpp == 4);
     for (int y = 0; y < height; y++) {
@@ -59,21 +59,21 @@ static void init_gs(void) {
     }
 }
 
-static void panel_erase(ui_view_t* v) {
+static void panel_erase(struct ui_view* v) {
     ui_draw.frame(v->x + 1, v->y + 1, v->w - 1, v->h - 1, ui_colors.black);
 }
 
-static void gs_erase(ui_view_t* v) {
+static void gs_erase(struct ui_view* v) {
     ui_draw.fill(v->x, v->y, v->w, v->h, ui_colors.ennui_black);
 }
 
-static void slider_format(ui_view_t* v) {
-    ui_slider_t* s = (ui_slider_t*)v;
+static void slider_format(struct ui_view* v) {
+    struct ui_slider* s = (struct ui_slider*)v;
     ui_view.set_text(v, "%.0f%%", s->value * 100.0 / 255.0);
 }
 
-static void slider_callback(ui_view_t* v) {
-    ui_slider_t* s = (ui_slider_t*)v;
+static void slider_callback(struct ui_view* v) {
+    struct ui_slider* s = (struct ui_slider*)v;
     view_groot.alpha = (fp64_t)s->value / 256.0;
 //  rt_println("value: %d", slider->value);
 }
@@ -85,13 +85,13 @@ static void init_images(void) {
 //  ui_image.ratio(&view_groot, 4, 1); // 4:1
     ui_image.ratio(&view_groot, 3, 1); // 4:1
     view_groot.alpha = 0.5;
-    view_groot.padding = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
+    view_groot.padding = (struct ui_margins){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // because it is stacked under text editor
     // view of rocket image:
     ui_image.init(&view_rocket);
     init_image(&view_rocket.image, rocket, rt_countof(rocket));
     ui_image.ratio(&view_rocket, 3, 1); // 3:1
-    view_rocket.padding = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
+    view_rocket.padding = (struct ui_margins){0.125f, 0.125f, 0.125f, 0.125f};
     view_groot.focusable = false; // no zoom/pan
     init_gs();
 }
@@ -105,9 +105,9 @@ static void init_text(void) {
     ui_edit_view.init(&view_text, &document);
     view_text.hide_word_wrap = true;
 view_text.hide_word_wrap = false; // TODO: debugging remove
-    view_text.padding = (ui_margins_t){0};
+    view_text.padding = (struct ui_margins){0};
 // TODO: commented out for debugging uncomment is hiding word wrap
-//  view_text.insets = (ui_margins_t){0};
+//  view_text.insets = (struct ui_margins){0};
     view_text.background_id = 0;
     view_text.background = ui_colors.transparent;
     rt_str_printf(view_text.hint,
@@ -119,12 +119,12 @@ view_text.hide_word_wrap = false; // TODO: debugging remove
     );
 }
 
-static ui_view_t* align(ui_view_t* v, int32_t align) {
+static struct ui_view* align(struct ui_view* v, int32_t align) {
     v->align = align;
     return v;
 }
 
-static ui_view_t* fill_parent(ui_view_t* v) {
+static struct ui_view* fill_parent(struct ui_view* v) {
     v->max_h  = ui.infinity;
     v->max_w  = ui.infinity;
     return v;
@@ -133,7 +133,7 @@ static ui_view_t* fill_parent(ui_view_t* v) {
 static void opened(void) {
     init_images();
     init_text();
-    static ui_view_t  list         = ui_view(list);
+    static struct ui_view  list         = ui_view(list);
     static ui_label_t label_left   = ui_label(0, "Left");
     static ui_label_t label_top    = ui_label(0, "Top");
     static ui_label_t label_bottom = ui_label(0, "Bottom");
@@ -143,14 +143,14 @@ static void opened(void) {
         view_gs[i].erase = gs_erase;
         view_gs[i].focusable = true; // enable zoom pan
     }
-    static ui_view_t   top    = ui_view(stack);
-    static ui_view_t   center = ui_view(span);
-    static ui_view_t   left   = ui_view(list);
-    static ui_view_t   right  = ui_view(list);
-    static ui_view_t   stack  = ui_view(stack);
-    static ui_view_t   bottom = ui_view(stack);
-    static ui_view_t   spacer = ui_view(spacer);
-    static ui_slider_t slider = ui_slider("128", 16.0f, 0, 255,
+    static struct ui_view   top    = ui_view(stack);
+    static struct ui_view   center = ui_view(span);
+    static struct ui_view   left   = ui_view(list);
+    static struct ui_view   right  = ui_view(list);
+    static struct ui_view   stack  = ui_view(stack);
+    static struct ui_view   bottom = ui_view(stack);
+    static struct ui_view   spacer = ui_view(spacer);
+    static struct ui_slider slider = ui_slider("128", 16.0f, 0, 255,
             slider_format, slider_callback);
     slider.value = 128;
     ui_view.add(fill_parent(&left),
@@ -190,13 +190,13 @@ static void opened(void) {
     right.debug.id = "#right";
 //  list.debug.paint.margins = true;
 right.debug.paint.margins = true;
-    center.insets  = (ui_margins_t){0};
-    center.padding = (ui_margins_t){0};
-    static ui_view_t* panels[] = { &top, &left, &right, &bottom  };
+    center.insets  = (struct ui_margins){0};
+    center.padding = (struct ui_margins){0};
+    static struct ui_view* panels[] = { &top, &left, &right, &bottom  };
     for (int32_t i = 0; i < rt_countof(panels); i++) {
         panels[i]->erase = panel_erase;
-        panels[i]->padding = (ui_margins_t){0};
-        panels[i]->insets  = (ui_margins_t){0.125f, 0.125f, 0.125f, 0.125f};
+        panels[i]->padding = (struct ui_margins){0};
+        panels[i]->insets  = (struct ui_margins){0.125f, 0.125f, 0.125f, 0.125f};
     }
     list.background_id = ui_color_id_window;
     ui_view_for_each(&list, it, {
@@ -231,7 +231,7 @@ static void closed(void) {
     ui_draw.bitmap_dispose(&view_rocket.image);
 }
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "groot",
     .title = "Groot",
     .dark_mode = true,

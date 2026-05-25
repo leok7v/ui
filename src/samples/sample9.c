@@ -7,7 +7,7 @@
 
 static void init(void);
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "sample9",
     .init = init,
     .dark_mode = true,
@@ -22,7 +22,7 @@ ui_app_t ui_app = {
 static int32_t panel_border = 1;
 static int32_t frame_border = 1;
 
-static ui_bitmap_t image;
+static struct ui_bitmap image;
 static uint32_t pixels[1024][1024];
 
 static fp64_t zoom = 0.5;
@@ -32,7 +32,7 @@ static fp64_t sy = 0.25; // [0..1]
 static struct { fp64_t x; fp64_t y; } stack[52];
 static int top = 1; // because it is already zoomed in once above
 
-static ui_slider_t zoomer;
+static struct ui_slider zoomer;
 
 static ui_label_t toast_filename = ui_label(0.0, "filename placeholder");
 
@@ -73,14 +73,14 @@ ui_mbx_chosen(mbx, // message box
 
 #else
 
-static void mbx_callback(ui_view_t* v) {
-    ui_mbx_t* mbx = (ui_mbx_t*)v;
+static void mbx_callback(struct ui_view* v) {
+    struct ui_mbx* mbx = (struct ui_mbx*)v;
     rt_assert(-1 <= mbx->option && mbx->option < 2);
     static const char* name[] = { "Cancel", "Yes", "No" };
     rt_println("option: %d \"%s\"", mbx->option, name[mbx->option + 1]);
 }
 
-static ui_mbx_t mbx = ui_mbx( // message box
+static struct ui_mbx mbx = ui_mbx( // message box
     "\"Pneumonoultramicroscopicsilicovolcanoconiosis\"\n"
     "is it the longest English language word or not?", mbx_callback,
     "&Yes", "&No");
@@ -146,12 +146,12 @@ static ui_toggle_t scroll = ui_toggle("Scroll &Direction:",
                                       /* min_w_em: */ 3.0f,
                               /* callback:*/ scroll_toggle);
 
-static ui_view_t panel_top    = ui_view(stack);
-static ui_view_t panel_bottom = ui_view(stack);
-static ui_view_t panel_center = ui_view(stack);
-static ui_view_t panel_right  = ui_view(stack);
+static struct ui_view panel_top    = ui_view(stack);
+static struct ui_view panel_bottom = ui_view(stack);
+static struct ui_view panel_center = ui_view(stack);
+static struct ui_view panel_right  = ui_view(stack);
 
-static const ui_ta_t* ta = &ui_draw.ta.prop.normal;
+static const struct ui_ta* ta = &ui_draw.ta.prop.normal;
 
 static void print(int32_t *x, int32_t *y, const char* format, ...) {
     va_list va;
@@ -167,8 +167,8 @@ static void println(int32_t *x, int32_t *y, const char* format, ...) {
     va_end(va);
 }
 
-static void after(ui_view_t* v, const char* format, ...) {
-    const ui_ltrb_t insets = ui_view.margins(v, &v->insets);
+static void after(struct ui_view* v, const char* format, ...) {
+    const struct ui_ltrb insets = ui_view.margins(v, &v->insets);
     int32_t x = v->x + v->w + v->fm->em.w;
     int32_t y = v->y + insets.top;
     va_list va;
@@ -177,7 +177,7 @@ static void after(ui_view_t* v, const char* format, ...) {
     va_end(va);
 }
 
-static void panel_paint(ui_view_t* v) {
+static void panel_paint(struct ui_view* v) {
     if (v->color == ui_colors.transparent) {
         v->color = ui_app.content->color;
     }
@@ -207,7 +207,7 @@ static void panel_paint(ui_view_t* v) {
                      v->x, v->y, v->w, v->h, ui_view.string(v));
 }
 
-static void right_layout(ui_view_t* v) {
+static void right_layout(struct ui_view* v) {
     int x = v->x + v->fm->em.w;
     int y = v->y + v->fm->em.h * 2;
     ui_view_for_each(v, c, {
@@ -217,9 +217,9 @@ static void right_layout(ui_view_t* v) {
     });
 }
 
-static void right_paint(ui_view_t* v) {
+static void right_paint(struct ui_view* v) {
     panel_paint(v);
-    const ui_ta_t* restore = ta;
+    const struct ui_ta* restore = ta;
     after(&button_locale, "&Locale %s", button_locale.state.pressed ?
         "zh-CN" : "en-US");
     after(&button_full_screen, "%s",
@@ -272,7 +272,7 @@ static void right_paint(ui_view_t* v) {
     ta = restore;
 }
 
-static void center_paint(ui_view_t* view) {
+static void center_paint(struct ui_view* view) {
 //  ui_draw.set_clip(view->x, view->y, view->w, view->h);
     ui_draw.fill(view->x, view->y, view->w, view->h, ui_colors.black);
     int x = (view->w - image.w) / 2;
@@ -283,7 +283,7 @@ static void center_paint(ui_view_t* view) {
 //  ui_draw.set_clip(0, 0, 0, 0);
 }
 
-static void measure(ui_view_t* v) {
+static void measure(struct ui_view* v) {
     v->fm = &ui_app.fm.mono.normal;
     panel_border = 1 > v->fm->em.h / 4 ? 1 : v->fm->em.h / 4;
     frame_border = 1 > v->fm->em.h / 8 ? 1 : v->fm->em.h / 8;
@@ -301,7 +301,7 @@ static void measure(ui_view_t* v) {
     panel_center.h = h - panel_bottom.h - panel_top.h;
 }
 
-static void layout(ui_view_t* rt_unused(view)) {
+static void layout(struct ui_view* rt_unused(view)) {
     rt_assert(view->fm->em.w > 0 && view->fm->em.h > 0);
     const int32_t h = ui_app.root->h;
     panel_top.x = 0;
@@ -334,7 +334,7 @@ static void zoom_in(int x, int y) {
     sy += zoom * y / image.h;
 }
 
-static bool tap(ui_view_t* rt_unused(v), int32_t ix, bool pressed) {
+static bool tap(struct ui_view* rt_unused(v), int32_t ix, bool pressed) {
     const bool inside = ui_view.inside(&panel_center, &ui_app.mouse);
     if (pressed && inside) {
         int x = ui_app.mouse.x - (panel_center.w - image.w) / 2 - panel_center.x;
@@ -351,13 +351,13 @@ static bool tap(ui_view_t* rt_unused(v), int32_t ix, bool pressed) {
     return pressed && inside;
 }
 
-static void slider_format(ui_view_t* v) {
-    ui_slider_t* slider = (ui_slider_t*)v;
+static void slider_format(struct ui_view* v) {
+    struct ui_slider* slider = (struct ui_slider*)v;
     ui_view.set_text(v, "%s", rt_str.uint64(slider->value));
 }
 
-static void zoomer_callback(ui_view_t* v) {
-    ui_slider_t* slider = (ui_slider_t*)v;
+static void zoomer_callback(struct ui_view* v) {
+    struct ui_slider* slider = (struct ui_slider*)v;
     fp64_t z = 1;
     for (int i = 0; i < slider->value; i++) { z /= 2; }
     while (zoom > z) { zoom_in(image.w / 2, image.h / 2); }
@@ -365,7 +365,7 @@ static void zoomer_callback(ui_view_t* v) {
     refresh();
 }
 
-static void mouse_scroll(ui_view_t* unused, ui_point_t dx_dy) {
+static void mouse_scroll(struct ui_view* unused, struct ui_point dx_dy) {
     (void)unused;
     if (!scroll.state.pressed) { dx_dy.y = -dx_dy.y; }
     if (!scroll.state.pressed) { dx_dy.x = -dx_dy.x; }
@@ -374,7 +374,7 @@ static void mouse_scroll(ui_view_t* unused, ui_point_t dx_dy) {
     refresh();
 }
 
-static void character(ui_view_t* view, const char* utf8) {
+static void character(struct ui_view* view, const char* utf8) {
     char ch = utf8[0];
     if (ch == 'q' || ch == 'Q') {
         ui_app.close();
@@ -385,29 +385,29 @@ static void character(ui_view_t* view, const char* utf8) {
     } else if (ch == '-' || ch == '_') {
         zoom = zoom * 2 < 1.0 ? zoom * 2 : 1.0; refresh();
     } else if (ch == '<' || ch == ',') {
-        ui_point_t pt = {+image.w / 8, 0};
+        struct ui_point pt = {+image.w / 8, 0};
         mouse_scroll(view, pt);
     } else if (ch == '>' || ch == '.') {
-        ui_point_t pt = {-image.w / 8, 0};
+        struct ui_point pt = {-image.w / 8, 0};
         mouse_scroll(view, pt);
     } else if (ch == 3) { // Ctrl+C
         rt_clipboard.put_image(&image);
     }
 }
 
-static bool keyboard(ui_view_t* view, int64_t vk) {
+static bool keyboard(struct ui_view* view, int64_t vk) {
     bool swallow = true;
     if (vk == ui.key.up) {
-        ui_point_t pt = {0, +image.h / 8};
+        struct ui_point pt = {0, +image.h / 8};
         mouse_scroll(view, pt);
     } else if (vk == ui.key.down) {
-        ui_point_t pt = {0, -image.h / 8};
+        struct ui_point pt = {0, -image.h / 8};
         mouse_scroll(view, pt);
     } else if (vk == ui.key.left) {
-        ui_point_t pt = {+image.w / 8, 0};
+        struct ui_point pt = {+image.w / 8, 0};
         mouse_scroll(view, pt);
     } else if (vk == ui.key.right) {
-        ui_point_t pt = {-image.w / 8, 0};
+        struct ui_point pt = {-image.w / 8, 0};
         mouse_scroll(view, pt);
     } else {
         swallow = false;
@@ -415,8 +415,8 @@ static bool keyboard(ui_view_t* view, int64_t vk) {
     return swallow;
 }
 
-static void init_panel(ui_view_t* panel, const char* text, ui_color_t color,
-        void (*paint)(ui_view_t*)) {
+static void init_panel(struct ui_view* panel, const char* text, ui_color_t color,
+        void (*paint)(struct ui_view*)) {
     ui_view.set_text(panel, "%s", text);
     panel->color = color;
     panel->paint = paint;
@@ -450,7 +450,7 @@ static void opened(void) {
     ui_slider_init(&zoomer, "Zoom: 1 / (2^%d)", 7.0, 0, rt_countof(stack) - 1,
         zoomer_callback);
 #else
-    zoomer = (ui_slider_t)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, rt_countof(stack) - 1,
+    zoomer = (struct ui_slider)ui_slider("Zoom: 1 / (2^%d)", 7.0, 0, rt_countof(stack) - 1,
         slider_format, zoomer_callback);
 #endif
     rt_str_printf(button_mbx.hint, "Show Yes/No message box");
@@ -490,7 +490,7 @@ static fp64_t into(fp64_t v, fp64_t lo, fp64_t hi) {
     return v * (hi - lo) + lo;
 }
 
-static void mandelbrot(ui_bitmap_t* im) {
+static void mandelbrot(struct ui_bitmap* im) {
     for (int r = 0; r < im->h; r++) {
         fp64_t y0 = into(scale0to1(r, im->h, sy, zoom), -1.12, 1.12);
         for (int c = 0; c < im->w; c++) {

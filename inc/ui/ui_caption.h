@@ -3,20 +3,20 @@
 
 rt_begin_c
 
-typedef struct ui_caption_s {
-    ui_view_t view;
+struct ui_caption {
+    struct ui_view view;
     // caption`s children:
     ui_button_t icon;
     ui_label_t title;
-    ui_view_t spacer;
+    struct ui_view spacer;
     ui_button_t menu; // use: ui_caption.button_menu.cb := your callback
     ui_button_t mode; // switch between dark/light mode
     ui_button_t mini;
     ui_button_t maxi;
     ui_button_t full;
     ui_button_t quit;
-} ui_caption_t;
+};
 
-extern ui_caption_t ui_caption;
+extern struct ui_caption ui_caption;
 
 rt_end_c

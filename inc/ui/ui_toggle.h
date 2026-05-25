@@ -4,13 +4,13 @@
 
 rt_begin_c
 
-typedef ui_view_t ui_toggle_t;
+typedef struct ui_view ui_toggle_t;
 
 // label may contain "___" which will be replaced with "On" / "Off"
 void ui_toggle_init(ui_toggle_t* b, const char* label, fp32_t ems,
     void (*callback)(ui_toggle_t* b));
 
-void ui_view_init_toggle(ui_view_t* v);
+void ui_view_init_toggle(struct ui_view* v);
 
 // ui_toggle_on_off can only be used on static toggle variables
 

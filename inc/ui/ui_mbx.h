@@ -8,20 +8,20 @@ rt_begin_c
 //   "Yes"|"No"|"Abort"|"Retry"|"Ignore"|"Cancel"|"Try"|"Continue"
 // maximum number of choices presentable to human is 4.
 
-typedef struct {
+struct ui_mbx {
     union {
-        ui_view_t view;
-        struct ui_view_s;
+        struct ui_view view;
+        struct ui_view;
     };
     ui_label_t   label;
     ui_button_t  button[4];
     int32_t      option; // -1 or option chosen by user
     const char** options;
-} ui_mbx_t;
+};
 
-void ui_view_init_mbx(ui_view_t* v);
+void ui_view_init_mbx(struct ui_view* v);
 
-void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
+void ui_mbx_init(struct ui_mbx* mx, const char* option[], const char* format, ...);
 
 // ui_mbx_on_choice can only be used on static mbx variables
 
@@ -30,12 +30,12 @@ void ui_mbx_init(ui_mbx_t* mx, const char* option[], const char* format, ...);
                                                                  \
     static char* name ## _options[] = { __VA_ARGS__, null };     \
                                                                  \
-    static void name ## _chosen(ui_mbx_t* m, int32_t option) {   \
+    static void name ## _chosen(struct ui_mbx* m, int32_t option) {   \
         (void)m; (void)option; /* no warnings if unused */       \
         code                                                     \
     }                                                            \
     static                                                       \
-    ui_mbx_t name = {                                            \
+    struct ui_mbx name = {                                            \
         .view = {                                                \
             .type = ui_view_mbx,                                 \
             .init = ui_view_init_mbx,                            \

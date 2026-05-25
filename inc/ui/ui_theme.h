@@ -10,7 +10,7 @@ enum {
     ui_theme_app_mode_force_light = 3
 };
 
-typedef struct  {
+struct ui_theme_if {
     bool (*is_app_dark)(void);
     bool (*is_system_dark)(void);
     bool (*are_apps_dark)(void);
@@ -20,8 +20,8 @@ typedef struct  {
     void (*allow_dark_mode_for_window)(bool allow);
     void (*refresh)(void);
     void (*test)(void);
-} ui_theme_if;
+};
 
-extern ui_theme_if ui_theme;
+extern struct ui_theme_if ui_theme;
 
 rt_end_c

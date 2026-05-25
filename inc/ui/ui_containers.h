@@ -3,13 +3,13 @@
 
 rt_begin_c
 
-typedef struct ui_view_s ui_view_t;
+struct ui_view;
 
 // Usage:
 //
-// ui_view_t* stack  = ui_view(stack);
-// ui_view_t* horizontal = ui_view(ui_view_span);
-// ui_view_t* vertical   = ui_view(ui_view_list);
+// struct ui_view* stack  = ui_view(stack);
+// struct ui_view* horizontal = ui_view(ui_view_span);
+// struct ui_view* vertical   = ui_view(ui_view_list);
 //
 // containers automatically layout child views
 // similar to SwiftUI HStack and VStack taking .align
@@ -31,13 +31,13 @@ typedef struct ui_view_s ui_view_t;
 //
 // void opened(void) {
 //     ui_view.add(ui_app.view, ..., null);
-//     ui_app.view->insets = (ui_margins_t) {
+//     ui_app.view->insets = (struct ui_margins) {
 //         .left  = 0.25, .top    = 0.25,
 //         .right = 0.25, .bottom = 0.25 };
 //     ui_app.view->color = ui_colors.dark_scarlet;
 // }
 
-typedef struct ui_view_s ui_view_t;
+struct ui_view;
 
 #define ui_view(view_type) {            \
     .type = (ui_view_ ## view_type),    \
@@ -47,9 +47,9 @@ typedef struct ui_view_s ui_view_t;
     .color_id = 0                       \
 }
 
-void ui_view_init_stack(ui_view_t* v);
-void ui_view_init_span(ui_view_t* v);
-void ui_view_init_list(ui_view_t* v);
-void ui_view_init_spacer(ui_view_t* v);
+void ui_view_init_stack(struct ui_view* v);
+void ui_view_init_span(struct ui_view* v);
+void ui_view_init_list(struct ui_view* v);
+void ui_view_init_spacer(struct ui_view* v);
 
 rt_end_c

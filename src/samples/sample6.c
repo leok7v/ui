@@ -47,13 +47,13 @@ static rt_thread_t thread; // animated gifs loader thread
 static bool   muted;
 static fp64_t volume; // be mute
 
-static ui_midi_t midi;
+static struct ui_midi midi;
 
-static ui_bitmap_t background;
+static struct ui_bitmap background;
 
 static void init(void);
 static void fini(void);
-static void character(ui_view_t* view, const char* utf8);
+static void character(struct ui_view* view, const char* utf8);
 static void stop_and_close(void);
 static void open_and_play(void);
 
@@ -69,7 +69,7 @@ static const char* midi_file(void);
 static void paint_groot(animation_t* a) {
     const animated_gif_t* g = a->gif;
     const uint8_t* p = g->pixels + g->w * g->h * g->bpp * a->index;
-    ui_bitmap_t frame = { 0 };
+    struct ui_bitmap frame = { 0 };
     // alpha blend needs GPu allocated bitmap
     ui_draw.bitmap_init(&frame, g->w, g->h, g->bpp, p);
     const int32_t x = a->x - a->w / 2;
@@ -86,8 +86,8 @@ static void paint_movie(animation_t* a) {
                 g->w, g->h, g->w * g->bpp, g->bpp, p);
 }
 
-static void paint_mute_unmute(ui_view_t* v) {
-    ui_ta_t ta = ui_draw.ta.prop.H3;
+static void paint_mute_unmute(struct ui_view* v) {
+    struct ui_ta ta = ui_draw.ta.prop.H3;
     ta.color_id = 0;
     ta.color = muted ? ui_colors.green : ui_colors.red;
     #define str_unmuted rt_glyph_mute  " mute"
@@ -102,7 +102,7 @@ static void paint_mute_unmute(ui_view_t* v) {
                 muted ? str_muted : str_unmuted);
 }
 
-static void paint(ui_view_t* v) {
+static void paint(struct ui_view* v) {
     const int32_t w = v->w < background.w ? v->w : background.w;
     const int32_t h = v->h < background.h ? v->h : background.h;
     const int32_t x = (v->w - w) / 2;
@@ -113,13 +113,13 @@ static void paint(ui_view_t* v) {
     paint_mute_unmute(v);
 }
 
-static void character(ui_view_t* rt_unused(v), const char* utf8) {
+static void character(struct ui_view* rt_unused(v), const char* utf8) {
     if (utf8[0] == 'q' || utf8[0] == 'Q' || utf8[0] == 033) {
         ui_app.close();
     }
 }
 
-static bool tap(ui_view_t* rt_unused(v), int32_t ix, bool pressed) {
+static bool tap(struct ui_view* rt_unused(v), int32_t ix, bool pressed) {
     const int32_t w = ui_app.fm.prop.H3.em.w * 5;
     const int32_t h = ui_app.fm.prop.H3.em.h;
     const bool inside =
@@ -140,7 +140,7 @@ static bool tap(ui_view_t* rt_unused(v), int32_t ix, bool pressed) {
     return swallow; // swallows taps inside mute `button`
 }
 
-static int64_t notify(ui_midi_t* m, int64_t f) { // f: f
+static int64_t notify(struct ui_midi* m, int64_t f) { // f: f
     rt_swear(&midi == m);
     #ifdef UI_MIDI_DEBUG
         if (f & ui_midi.success)    { rt_println("success"); }
@@ -406,7 +406,7 @@ static const char* midi_file(void) {
     return filename;
 }
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "sample6",
     .dark_mode = true,
     .init = init,

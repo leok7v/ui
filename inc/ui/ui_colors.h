@@ -68,24 +68,24 @@ enum {
     ui_color_id_accent              = 14
 };
 
-typedef struct ui_control_colors_s {
+struct ui_control_colors {
     ui_color_t text;
     ui_color_t background;
     ui_color_t border;
     ui_color_t accent; // aka highlight
     ui_color_t gradient_top;
     ui_color_t gradient_bottom;
-} control_colors_t;
+};
 
-typedef struct ui_control_state_colors_s {
-    control_colors_t disabled;
-    control_colors_t enabled;
-    control_colors_t hover;
-    control_colors_t armed;
-    control_colors_t pressed;
-} ui_control_state_colors_t;
+struct ui_control_state_colors {
+    struct ui_control_colors disabled;
+    struct ui_control_colors enabled;
+    struct ui_control_colors hover;
+    struct ui_control_colors armed;
+    struct ui_control_colors pressed;
+};
 
-typedef struct ui_colors_s {
+struct ui_colors_if {
     ui_color_t (*get_color)(int32_t color_id); // ui.colors.*
     void       (*rgb_to_hsi)(fp64_t r, fp64_t g, fp64_t b, fp64_t *h, fp64_t *s, fp64_t *i);
     ui_color_t (*hsi_to_rgb)(fp64_t h, fp64_t s, fp64_t i,  uint8_t a);
@@ -101,7 +101,7 @@ typedef struct ui_colors_s {
     ui_color_t (*adjust_saturation)(ui_color_t c,   fp32_t multiplier);
     ui_color_t (*multiply_brightness)(ui_color_t c, fp32_t multiplier);
     ui_color_t (*multiply_saturation)(ui_color_t c, fp32_t multiplier);
-    ui_control_state_colors_t* controls; // colors for UI controls
+    struct ui_control_state_colors* controls; // colors for UI controls
     ui_color_t const transparent;
     ui_color_t const none; // aka CLR_INVALID in wingdi.h
     ui_color_t const text;
@@ -271,9 +271,9 @@ typedef struct ui_colors_s {
     ui_color_t const ceil;
     ui_color_t const moonstone_blue;
     ui_color_t const independence;
-} ui_colors_if;
+};
 
-extern ui_colors_if ui_colors;
+extern struct ui_colors_if ui_colors;
 
 // TODO:
 // https://ankiewicz.com/colors/

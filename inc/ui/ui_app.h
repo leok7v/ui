@@ -5,16 +5,16 @@ rt_begin_c
 
 // link.exe /SUBSYSTEM:WINDOWS single window application
 
-typedef struct ui_app_message_handler_s ui_app_message_handler_t;
+struct ui_app_message_handler;
 
-typedef struct ui_app_message_handler_s {
+struct ui_app_message_handler {
     void* that;
-    ui_app_message_handler_t* next;
-    bool (*callback)(ui_app_message_handler_t* handler, int32_t m, 
+    struct ui_app_message_handler* next;
+    bool (*callback)(struct ui_app_message_handler* handler, int32_t m, 
                      int64_t wp, int64_t lp, int64_t* rt);
-} ui_app_message_handler_t;
+};
 
-typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
+struct ui_dpi { // max(dpi_x, dpi_y)
     int32_t system;  // system dpi
     int32_t process; // process dpi
     // 15" diagonal monitor 3840x2160 175% scaled
@@ -24,14 +24,14 @@ typedef struct ui_dpi_s { // max(dpi_x, dpi_y)
     int32_t monitor_angular;   // diagonal raw
     int32_t monitor_max;       // maximum of effective,raw,angular
     int32_t window;            // main window dpi
-} ui_dpi_t;
+};
 
 // in inches (because monitors customary are)
 // it is not in points (1/72 inch) like font size
 // because it is awkward to express large area
 // size in typography measurements.
 
-typedef struct ui_window_sizing_s {
+struct ui_window_sizing {
     fp32_t ini_w; // initial window width in inches
     fp32_t ini_h; // 0,0 means set to min_w, min_h
     fp32_t min_w; // minimum window width in inches
@@ -42,21 +42,21 @@ typedef struct ui_window_sizing_s {
 	// initial window sizing only used on the first invocation
 	// actual user sizing is stored in the configuration and used
 	// on all launches except the very first.
-} ui_window_sizing_t;
+};
 
-typedef struct ui_fms_s {
+struct ui_fms {
     // when font handles are re-created on system scaling change
     // metrics "em" and font geometry filled
-    ui_fm_t normal; // regular UI font ~ 11-12pt
-    ui_fm_t tiny;   // small UI font ~ 8pt
-    ui_fm_t title;  // Largest Title font
-    ui_fm_t rubric; // Subtitle font
-    ui_fm_t H1;     // bolder header font
-    ui_fm_t H2;
-    ui_fm_t H3;
-} ui_fms_t;
+    struct ui_fm normal; // regular UI font ~ 11-12pt
+    struct ui_fm tiny;   // small UI font ~ 8pt
+    struct ui_fm title;  // Largest Title font
+    struct ui_fm rubric; // Subtitle font
+    struct ui_fm H1;     // bolder header font
+    struct ui_fm H2;
+    struct ui_fm H3;
+};
 
-typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after methods
+struct ui_app { // TODO: split to struct ui_app and struct ui_app_if, move data after methods
     // implemented by client:
     const char* class_name;
     // called before creating main window
@@ -74,7 +74,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     void (*fini)(void);        // called before WinMain() return
     // must be filled by application:
     const char* title;
-    ui_window_sizing_t const window_sizing;
+    struct ui_window_sizing const window_sizing;
     // TODO: struct {} visibility;
     // see: ui.visibility.*
     int32_t visibility;         // initial window_visibility state
@@ -96,23 +96,23 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     ui_icon_t icon; // may be null
     uint64_t  tid; // main thread id
     int32_t   exit_code; // application exit code
-    ui_dpi_t  dpi;
-    ui_rect_t wrc;  // window rectangle including non-client area
-    ui_rect_t crc;  // client rectangle
-    ui_rect_t mrc;  // monitor rectangle
-    ui_rect_t prc;  // previously invalidated paint rectangle inside crc
-    ui_rect_t work_area; // current monitor work area
+    struct ui_dpi  dpi;
+    struct ui_rect wrc;  // window rectangle including non-client area
+    struct ui_rect crc;  // client rectangle
+    struct ui_rect mrc;  // monitor rectangle
+    struct ui_rect prc;  // previously invalidated paint rectangle inside crc
+    struct ui_rect work_area; // current monitor work area
     int32_t   caption_height; // caption height
-    ui_wh_t   border;    // frame border size
+    struct ui_wh   border;    // frame border size
     // not to call rt_clock.seconds() too often:
     fp64_t     now;  // ssb "seconds since boot" updated on each message
-    ui_view_t* root; // show_window() changes ui.hidden
-    ui_view_t* content;
-    ui_view_t* caption;
-    ui_view_t* focus; // does not affect message routing
+    struct ui_view* root; // show_window() changes ui.hidden
+    struct ui_view* content;
+    struct ui_view* caption;
+    struct ui_view* focus; // does not affect message routing
     struct { // font metrics and handles
-        ui_fms_t prop;  // proportional fonts
-        ui_fms_t mono;  // monospaced fonts
+        struct ui_fms prop;  // proportional fonts
+        struct ui_fms mono;  // monospaced fonts
     } fm;
     // TODO: struct {} keyboard
     // keyboard state now:
@@ -125,7 +125,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     bool mouse_left;   // left or if buttons are swapped - right button pressed
     bool mouse_middle; // rarely useful
     bool mouse_right;  // context button pressed
-    ui_point_t mouse; // mouse/touchpad pointer
+    struct ui_point mouse; // mouse/touchpad pointer
     ui_cursor_t cursor; // current cursor
     struct {
         ui_cursor_t arrow;
@@ -138,14 +138,14 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
         ui_cursor_t size_all;  // north - south
     } cursors;
     struct { // animated_groot state
-        ui_view_t* view;
-        ui_view_t* focused; // focused view before animated_groot started
+        struct ui_view* view;
+        struct ui_view* focused; // focused view before animated_groot started
         int32_t step;
         fp64_t time; // closing time or zero
         int32_t x; // (x,y) for tooltip (-1,y) for toast
         int32_t y; // screen coordinates for tooltip
     } animating;
-    ui_app_message_handler_t* handlers;
+    struct ui_app_message_handler* handlers;
     // post(..., delay_in_seconds, ...) can be scheduled from any thread executed
     // on UI thread
     void (*post)(rt_work_t* work); // work.when == 0 meaning ASAP
@@ -162,7 +162,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     void (*activate)(void); // request application window activation
     void (*set_title)(const char* title);
     void (*capture_mouse)(bool on); // capture mouse global input on/of
-    void (*move_and_resize)(const ui_rect_t* rc);
+    void (*move_and_resize)(const struct ui_rect* rc);
     void (*bring_to_foreground)(void); // not necessary topmost
     void (*make_topmost)(void);   // in foreground hierarchy of windows
     void (*request_focus)(void);  // request application window keyboard focus
@@ -170,7 +170,7 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
                                   // make_topmost() + request_focus()
     // measure and layout:
     void (*request_layout)(void); // requests layout on UI tree before paint()
-    void (*invalidate)(const ui_rect_t* rc);
+    void (*invalidate)(const struct ui_rect* rc);
     void (*full_screen)(bool on);
     void (*set_cursor)(ui_cursor_t c);
     void (*close)(void); // attempts to close (can_close() permitting)
@@ -179,8 +179,8 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     ui_timer_t (*set_timer)(uintptr_t id, int32_t milliseconds); // see notes
     void (*kill_timer)(ui_timer_t id);
     void (*show_window)(int32_t show); // see show_window enum
-    void (*show_toast)(ui_view_t* toast, fp64_t seconds); // toast(null) to cancel
-    void (*show_hint)(ui_view_t* tooltip, int32_t x, int32_t y, fp64_t seconds);
+    void (*show_toast)(struct ui_view* toast, fp64_t seconds); // toast(null) to cancel
+    void (*show_hint)(struct ui_view* tooltip, int32_t x, int32_t y, fp64_t seconds);
     void (*toast_va)(fp64_t seconds, const char* format, va_list va);
     void (*toast)(fp64_t seconds, const char* format, ...);
     // caret calls must be balanced by caller
@@ -215,8 +215,8 @@ typedef struct { // TODO: split to ui_app_t and ui_app_if, move data after metho
     fp64_t paint_fps;  // EMA of last 128 paints
     fp64_t paint_last; // rt_clock.seconds() of last paint
     fp64_t paint_dt_min; // minimum time between 2 paints
-} ui_app_t;
+};
 
-extern ui_app_t ui_app;
+extern struct ui_app ui_app;
 
 rt_end_c

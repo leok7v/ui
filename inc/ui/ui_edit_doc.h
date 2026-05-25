@@ -5,36 +5,36 @@
 
 rt_begin_c
 
-typedef struct ui_edit_str_s ui_edit_str_t;
+struct ui_edit_str;
 
-typedef struct ui_edit_doc_s ui_edit_doc_t;
+struct ui_edit_doc;
 
-typedef struct ui_edit_notify_s ui_edit_notify_t;
+struct ui_edit_notify;
 
-typedef struct ui_edit_to_do_s ui_edit_to_do_t;
+struct ui_edit_to_do;
 
-typedef struct ui_edit_pg_s { // page/glyph coordinates
+struct ui_edit_pg { // page/glyph coordinates
     // humans used to line:column coordinates in text
     int32_t pn; // zero based paragraph number ("line number")
     int32_t gp; // zero based glyph position ("column")
-} ui_edit_pg_t;
+};
 
-typedef union rt_begin_packed ui_edit_range_s {
-    struct { ui_edit_pg_t from; ui_edit_pg_t to; };
-    ui_edit_pg_t a[2];
-} rt_end_packed ui_edit_range_t; // "from"[0] "to"[1]
+union rt_begin_packed ui_edit_range {
+    struct { struct ui_edit_pg from; struct ui_edit_pg to; };
+    struct ui_edit_pg a[2];
+} rt_end_packed; // "from"[0] "to"[1]
 
-typedef struct ui_edit_text_s {
+struct ui_edit_text {
     int32_t np;   // number of paragraphs
-    ui_edit_str_t* ps; // ps[np] paragraphs
-} ui_edit_text_t;
+    struct ui_edit_str* ps; // ps[np] paragraphs
+};
 
-typedef struct ui_edit_notify_info_s {
+struct ui_edit_notify_info {
     bool ok; // false if ui_edit_view.replace() failed (bad utf8 or no memory)
-    const ui_edit_doc_t*   const d;
-    const ui_edit_range_t* const r; // range to be replaced
-    const ui_edit_range_t* const x; // extended range (replacement)
-    const ui_edit_text_t*  const t; // replacement text
+    const struct ui_edit_doc*   const d;
+    const union ui_edit_range* const r; // range to be replaced
+    const union ui_edit_range* const x; // extended range (replacement)
+    const struct ui_edit_text*  const t; // replacement text
     // d->text.np number of paragraphs may change after replace
     // before/after: [pnf..pnt] is inside [0..d->text.np-1]
     int32_t const pnf; // paragraph number from
@@ -45,105 +45,105 @@ typedef struct ui_edit_notify_info_s {
     // d->text.ps[pnf..pnf + inserted] were inserted
     int32_t const deleted;  // number of deleted  paragraphs (before: 0)
     int32_t const inserted; // paragraph inserted paragraphs (before: 0)
-} ui_edit_notify_info_t;
+};
 
-typedef struct ui_edit_notify_s { // called before and after replace()
-    void (*before)(ui_edit_notify_t* notify, const ui_edit_notify_info_t* ni);
+struct ui_edit_notify { // called before and after replace()
+    void (*before)(struct ui_edit_notify* notify, const struct ui_edit_notify_info* ni);
     // after() is called even if replace() failed with ok: false
-    void (*after)(ui_edit_notify_t* notify, const ui_edit_notify_info_t* ni);
-} ui_edit_notify_t;
+    void (*after)(struct ui_edit_notify* notify, const struct ui_edit_notify_info* ni);
+};
 
-typedef struct ui_edit_listener_s ui_edit_listener_t;
+struct ui_edit_listener;
 
-typedef struct ui_edit_listener_s {
-    ui_edit_notify_t* notify;
-    ui_edit_listener_t* prev;
-    ui_edit_listener_t* next;
-} ui_edit_listener_t;
+struct ui_edit_listener {
+    struct ui_edit_notify* notify;
+    struct ui_edit_listener* prev;
+    struct ui_edit_listener* next;
+};
 
-typedef struct ui_edit_to_do_s { // undo/redo action
-    ui_edit_range_t  range;
-    ui_edit_text_t   text;
-    ui_edit_to_do_t* next; // inside undo or redo list
-} ui_edit_to_do_t;
+struct ui_edit_to_do { // undo/redo action
+    union ui_edit_range  range;
+    struct ui_edit_text   text;
+    struct ui_edit_to_do* next; // inside undo or redo list
+};
 
-typedef struct ui_edit_doc_s {
-    ui_edit_text_t   text;
-    ui_edit_to_do_t* undo; // undo stack
-    ui_edit_to_do_t* redo; // redo stack
-    ui_edit_listener_t* listeners;
-} ui_edit_doc_t;
+struct ui_edit_doc {
+    struct ui_edit_text   text;
+    struct ui_edit_to_do* undo; // undo stack
+    struct ui_edit_to_do* redo; // redo stack
+    struct ui_edit_listener* listeners;
+};
 
-typedef struct ui_edit_doc_if {
+struct ui_edit_doc_if {
     // init(utf8, bytes, heap:false) must have longer lifetime
     // than document, otherwise use heap: true to copy
-    bool    (*init)(ui_edit_doc_t* d, const char* utf8_or_null,
+    bool    (*init)(struct ui_edit_doc* d, const char* utf8_or_null,
                     int32_t bytes, bool heap);
-    bool    (*replace)(ui_edit_doc_t* d, const ui_edit_range_t* r,
+    bool    (*replace)(struct ui_edit_doc* d, const union ui_edit_range* r,
                 const char* utf8, int32_t bytes);
-    int32_t (*bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
-    bool    (*copy_text)(ui_edit_doc_t* d, const ui_edit_range_t* range,
-                ui_edit_text_t* text); // retrieves range into string
-    int32_t (*utf8bytes)(const ui_edit_doc_t* d, const ui_edit_range_t* range);
+    int32_t (*bytes)(const struct ui_edit_doc* d, const union ui_edit_range* range);
+    bool    (*copy_text)(struct ui_edit_doc* d, const union ui_edit_range* range,
+                struct ui_edit_text* text); // retrieves range into string
+    int32_t (*utf8bytes)(const struct ui_edit_doc* d, const union ui_edit_range* range);
     // utf8 must be at least ui_edit_doc.utf8bytes()
-    void    (*copy)(ui_edit_doc_t* d, const ui_edit_range_t* range,
+    void    (*copy)(struct ui_edit_doc* d, const union ui_edit_range* range,
                 char* utf8, int32_t bytes);
     // undo() and push reverse into redo stack
-    bool (*undo)(ui_edit_doc_t* d); // false if there is nothing to redo
+    bool (*undo)(struct ui_edit_doc* d); // false if there is nothing to redo
     // redo() and push reverse into undo stack
-    bool (*redo)(ui_edit_doc_t* d); // false if there is nothing to undo
-    bool (*subscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
-    void (*unsubscribe)(ui_edit_doc_t* d, ui_edit_notify_t* notify);
-    void (*dispose_to_do)(ui_edit_to_do_t* to_do);
-    void (*dispose)(ui_edit_doc_t* d);
+    bool (*redo)(struct ui_edit_doc* d); // false if there is nothing to undo
+    bool (*subscribe)(struct ui_edit_doc* d, struct ui_edit_notify* notify);
+    void (*unsubscribe)(struct ui_edit_doc* d, struct ui_edit_notify* notify);
+    void (*dispose_to_do)(struct ui_edit_to_do* to_do);
+    void (*dispose)(struct ui_edit_doc* d);
     void (*test)(void);
-} ui_edit_doc_if;
+};
 
-extern ui_edit_doc_if ui_edit_doc;
+extern struct ui_edit_doc_if ui_edit_doc;
 
-typedef struct ui_edit_range_if {
-    int (*compare)(const ui_edit_pg_t pg1, const ui_edit_pg_t pg2);
-    ui_edit_range_t (*order)(const ui_edit_range_t r);
-    bool            (*is_valid)(const ui_edit_range_t r);
-    bool            (*is_empty)(const ui_edit_range_t r);
-    uint64_t        (*uint64)(const ui_edit_pg_t pg); // (p << 32 | g)
-    ui_edit_pg_t    (*pg)(uint64_t ui64); // p: (ui64 >> 32) g: (int32_t)ui64
-    bool            (*inside)(const ui_edit_text_t* t,
-                              const ui_edit_range_t r);
-    ui_edit_range_t (*intersect)(const ui_edit_range_t r1,
-                                 const ui_edit_range_t r2);
-    const ui_edit_range_t* const invalid_range; // {{-1,-1},{-1,-1}}
-} ui_edit_range_if;
+struct ui_edit_range_if {
+    int (*compare)(const struct ui_edit_pg pg1, const struct ui_edit_pg pg2);
+    union ui_edit_range (*order)(const union ui_edit_range r);
+    bool            (*is_valid)(const union ui_edit_range r);
+    bool            (*is_empty)(const union ui_edit_range r);
+    uint64_t        (*uint64)(const struct ui_edit_pg pg); // (p << 32 | g)
+    struct ui_edit_pg    (*pg)(uint64_t ui64); // p: (ui64 >> 32) g: (int32_t)ui64
+    bool            (*inside)(const struct ui_edit_text* t,
+                              const union ui_edit_range r);
+    union ui_edit_range (*intersect)(const union ui_edit_range r1,
+                                 const union ui_edit_range r2);
+    const union ui_edit_range* const invalid_range; // {{-1,-1},{-1,-1}}
+};
 
-extern ui_edit_range_if ui_edit_range;
+extern struct ui_edit_range_if ui_edit_range;
 
-typedef struct ui_edit_text_if {
-    bool    (*init)(ui_edit_text_t* t, const char* utf, int32_t b, bool heap);
+struct ui_edit_text_if {
+    bool    (*init)(struct ui_edit_text* t, const char* utf, int32_t b, bool heap);
 
-    int32_t (*bytes)(const ui_edit_text_t* t, const ui_edit_range_t* r);
+    int32_t (*bytes)(const struct ui_edit_text* t, const union ui_edit_range* r);
     // end() last paragraph, last glyph in text
-    ui_edit_pg_t    (*end)(const ui_edit_text_t* t);
-    ui_edit_range_t (*end_range)(const ui_edit_text_t* t);
-    ui_edit_range_t (*all_on_null)(const ui_edit_text_t* t,
-                                   const ui_edit_range_t* r);
-    ui_edit_range_t (*ordered)(const ui_edit_text_t* t,
-                               const ui_edit_range_t* r);
-    bool    (*dup)(ui_edit_text_t* t, const ui_edit_text_t* s);
-    bool    (*equal)(const ui_edit_text_t* t1, const ui_edit_text_t* t2);
-    bool    (*copy_text)(const ui_edit_text_t* t, const ui_edit_range_t* range,
-                ui_edit_text_t* to);
-    void    (*copy)(const ui_edit_text_t* t, const ui_edit_range_t* range,
+    struct ui_edit_pg    (*end)(const struct ui_edit_text* t);
+    union ui_edit_range (*end_range)(const struct ui_edit_text* t);
+    union ui_edit_range (*all_on_null)(const struct ui_edit_text* t,
+                                   const union ui_edit_range* r);
+    union ui_edit_range (*ordered)(const struct ui_edit_text* t,
+                               const union ui_edit_range* r);
+    bool    (*dup)(struct ui_edit_text* t, const struct ui_edit_text* s);
+    bool    (*equal)(const struct ui_edit_text* t1, const struct ui_edit_text* t2);
+    bool    (*copy_text)(const struct ui_edit_text* t, const union ui_edit_range* range,
+                struct ui_edit_text* to);
+    void    (*copy)(const struct ui_edit_text* t, const union ui_edit_range* range,
                 char* to, int32_t bytes);
-    bool    (*replace)(ui_edit_text_t* t, const ui_edit_range_t* r,
-                const ui_edit_text_t* text, ui_edit_to_do_t* undo_or_null);
-    bool    (*replace_utf8)(ui_edit_text_t* t, const ui_edit_range_t* r,
-                const char* utf8, int32_t bytes, ui_edit_to_do_t* undo_or_null);
-    void    (*dispose)(ui_edit_text_t* t);
-} ui_edit_text_if;
+    bool    (*replace)(struct ui_edit_text* t, const union ui_edit_range* r,
+                const struct ui_edit_text* text, struct ui_edit_to_do* undo_or_null);
+    bool    (*replace_utf8)(struct ui_edit_text* t, const union ui_edit_range* r,
+                const char* utf8, int32_t bytes, struct ui_edit_to_do* undo_or_null);
+    void    (*dispose)(struct ui_edit_text* t);
+};
 
-extern ui_edit_text_if ui_edit_text;
+extern struct ui_edit_text_if ui_edit_text;
 
-typedef struct rt_begin_packed ui_edit_str_s {
+struct rt_begin_packed ui_edit_str {
     char* u;    // always correct utf8 bytes not zero terminated(!) sequence
     // s.g2b[s.g + 1] glyph to byte position inside s.u[]
     // s.g2b[0] == 0, s.g2b[s.glyphs] == s.bytes
@@ -151,16 +151,16 @@ typedef struct rt_begin_packed ui_edit_str_s {
     int32_t  b;    // number of bytes
     int32_t  c;    // when capacity is zero .u is not heap allocated
     int32_t  g;    // number of glyphs
-} rt_end_packed ui_edit_str_t;
+} rt_end_packed;
 
-typedef struct ui_edit_str_if {
-    bool (*init)(ui_edit_str_t* s, const char* utf8, int32_t bytes, bool heap);
-    void (*swap)(ui_edit_str_t* s1, ui_edit_str_t* s2);
+struct ui_edit_str_if {
+    bool (*init)(struct ui_edit_str* s, const char* utf8, int32_t bytes, bool heap);
+    void (*swap)(struct ui_edit_str* s1, struct ui_edit_str* s2);
     int32_t (*gp_to_bp)(const char* s, int32_t bytes, int32_t gp); // or -1
-    int32_t (*bytes)(ui_edit_str_t* s, int32_t from, int32_t to); // glyphs
-    bool (*expand)(ui_edit_str_t* s, int32_t capacity); // reallocate
-    void (*shrink)(ui_edit_str_t* s); // get rid of extra heap memory
-    bool (*replace)(ui_edit_str_t* s, int32_t from, int32_t to, // glyphs
+    int32_t (*bytes)(struct ui_edit_str* s, int32_t from, int32_t to); // glyphs
+    bool (*expand)(struct ui_edit_str* s, int32_t capacity); // reallocate
+    void (*shrink)(struct ui_edit_str* s); // get rid of extra heap memory
+    bool (*replace)(struct ui_edit_str* s, int32_t from, int32_t to, // glyphs
                     const char* utf8, int32_t bytes); // [from..to[ exclusive
     bool (*is_zwj)(uint32_t utf32); // zero width joiner
     bool (*is_letter)(uint32_t utf32); // in European Alphabets
@@ -174,11 +174,11 @@ typedef struct ui_edit_str_if {
     bool (*is_cjk_or_emoji)(uint32_t utf32);
     bool (*can_break)(uint32_t cp1, uint32_t cp2);
     void (*test)(void);
-    void (*free)(ui_edit_str_t* s);
-    const ui_edit_str_t* const empty;
-} ui_edit_str_if;
+    void (*free)(struct ui_edit_str* s);
+    const struct ui_edit_str* const empty;
+};
 
-extern ui_edit_str_if ui_edit_str;
+extern struct ui_edit_str_if ui_edit_str;
 
 /*
     For caller convenience the bytes parameter in all calls can be set
@@ -220,7 +220,7 @@ extern ui_edit_str_if ui_edit_str;
             struct. It is incorrect to call free() on the string that
             was not initialized or already freed.
 
-    All ui_edit_str_t keep "precise" number of utf8 bytes.
+    All struct ui_edit_str keep "precise" number of utf8 bytes.
     Caller may allocate extra byte and set it to 0x00
     after retrieving and copying data from ui_edit_str if
     the string content is intended to be used by any

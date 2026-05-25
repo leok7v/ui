@@ -5,14 +5,14 @@ static const fp64_t ui_view_hover_delay = 1.5; // seconds
 
 #pragma push_macro("ui_view_for_each")
 
-static void ui_view_update_shortcut(ui_view_t* v);
+static void ui_view_update_shortcut(struct ui_view* v);
 
 // adding and removing views is not expected to be frequent
 // actions by application code (human factor - UI design)
 // thus extra checks and verifications are there even in
 // release code because C is not type safety champion language.
 
-static inline void ui_view_check_type(ui_view_t* v) {
+static inline void ui_view_check_type(struct ui_view* v) {
     // little endian:
     rt_static_assertion(('vwXX' & 0xFFFF0000U) == ('vwZZ' & 0xFFFF0000U));
     rt_static_assertion((ui_view_stack & 0xFFFF0000U) == ('vwXX' & 0xFFFF0000U));
@@ -21,7 +21,7 @@ static inline void ui_view_check_type(ui_view_t* v) {
           &v->type, v->type);
 }
 
-static void ui_view_verify(ui_view_t* p) {
+static void ui_view_verify(struct ui_view* p) {
     ui_view_check_type(p);
     ui_view_for_each(p, c, {
         ui_view_check_type(c);
@@ -32,14 +32,14 @@ static void ui_view_verify(ui_view_t* p) {
     });
 }
 
-static ui_view_t* ui_view_add(ui_view_t* p, ...) {
+static struct ui_view* ui_view_add(struct ui_view* p, ...) {
     va_list va;
     va_start(va, p);
-    ui_view_t* c = va_arg(va, ui_view_t*);
+    struct ui_view* c = va_arg(va, struct ui_view*);
     while (c != null) {
         rt_swear(c->parent == null && c->prev == null && c->next == null);
         ui_view.add_last(p, c);
-        c = va_arg(va, ui_view_t*);
+        c = va_arg(va, struct ui_view*);
     }
     va_end(va);
     ui_view_call_init(p);
@@ -47,7 +47,7 @@ static ui_view_t* ui_view_add(ui_view_t* p, ...) {
     return p;
 }
 
-static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
+static void ui_view_add_first(struct ui_view* p, struct ui_view* c) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
@@ -64,7 +64,7 @@ static void ui_view_add_first(ui_view_t* p, ui_view_t* c) {
     ui_app.request_layout();
 }
 
-static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
+static void ui_view_add_last(struct ui_view* p, struct ui_view* c) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
     c->parent = p;
     if (p->child == null) {
@@ -82,7 +82,7 @@ static void ui_view_add_last(ui_view_t* p, ui_view_t* c) {
     ui_app.request_layout();
 }
 
-static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
+static void ui_view_add_after(struct ui_view* c, struct ui_view* a) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
     rt_not_null(a->parent);
     c->parent = a->parent;
@@ -96,7 +96,7 @@ static void ui_view_add_after(ui_view_t* c, ui_view_t* a) {
     ui_app.request_layout();
 }
 
-static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
+static void ui_view_add_before(struct ui_view* c, struct ui_view* b) {
     rt_swear(c->parent == null && c->prev == null && c->next == null);
     rt_not_null(b->parent);
     c->parent = b->parent;
@@ -110,7 +110,7 @@ static void ui_view_add_before(ui_view_t* c, ui_view_t* b) {
     ui_app.request_layout();
 }
 
-static void ui_view_remove(ui_view_t* c) {
+static void ui_view_remove(struct ui_view* c) {
     rt_not_null(c->parent);
     rt_not_null(c->parent->child);
     // if a view that has focus is removed from parent:
@@ -132,12 +132,12 @@ static void ui_view_remove(ui_view_t* c) {
     ui_app.request_layout();
 }
 
-static void ui_view_remove_all(ui_view_t* p) {
+static void ui_view_remove_all(struct ui_view* p) {
     while (p->child != null) { ui_view.remove(p->child); }
     ui_app.request_layout();
 }
 
-static void ui_view_disband(ui_view_t* p) {
+static void ui_view_disband(struct ui_view* p) {
     // do not disband composite controls
     if (p->type != ui_view_mbx && p->type != ui_view_slider) {
         while (p->child != null) {
@@ -148,22 +148,22 @@ static void ui_view_disband(ui_view_t* p) {
     ui_app.request_layout();
 }
 
-static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
+static void ui_view_invalidate(const struct ui_view* v, const struct ui_rect* r) {
     if (ui_view.is_hidden(v)) {
         rt_println("hidden: %s", ui_view_debug_id(v));
     } else {
-        ui_rect_t rc = {0};
+        struct ui_rect rc = {0};
         if (r != null) {
-            rc = (ui_rect_t){
+            rc = (struct ui_rect){
                 .x = v->x + r->x,
                 .y = v->y + r->y,
                 .w = r->w,
                 .h = r->h
             };
         } else {
-            rc = (ui_rect_t){ v->x, v->y, v->w, v->h};
+            rc = (struct ui_rect){ v->x, v->y, v->w, v->h};
             // expand view rectangle by padding
-            const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+            const struct ui_ltrb p = ui_view.margins(v, &v->padding);
             rc.x -= p.left;
             rc.y -= p.top;
             rc.w += p.left + p.right;
@@ -176,7 +176,7 @@ static void ui_view_invalidate(const ui_view_t* v, const ui_rect_t* r) {
     }
 }
 
-static const char* ui_view_string(ui_view_t* v) {
+static const char* ui_view_string(struct ui_view* v) {
     if (v->p.strid == 0) {
         int32_t id = rt_nls.strid(v->p.text);
         v->p.strid = id > 0 ? id : -1;
@@ -185,30 +185,30 @@ static const char* ui_view_string(ui_view_t* v) {
         rt_nls.string(v->p.strid, v->p.text);
 }
 
-static ui_wh_t ui_view_text_metrics_va(int32_t x, int32_t y,
-        bool multiline, int32_t w, const ui_fm_t* fm,
+static struct ui_wh ui_view_text_metrics_va(int32_t x, int32_t y,
+        bool multiline, int32_t w, const struct ui_fm* fm,
         const char* format, va_list va) {
-    const ui_ta_t ta = { .fm = fm, .color = ui_colors.transparent,
+    const struct ui_ta ta = { .fm = fm, .color = ui_colors.transparent,
                              .measure = true };
     return multiline ?
         ui_draw.multiline_va(&ta, x, y, w, format, va) :
         ui_draw.text_va(&ta, x, y, format, va);
 }
 
-static ui_wh_t ui_view_text_metrics(int32_t x, int32_t y,
-        bool multiline, int32_t w, const ui_fm_t* fm,
+static struct ui_wh ui_view_text_metrics(int32_t x, int32_t y,
+        bool multiline, int32_t w, const struct ui_fm* fm,
         const char* format, ...) {
     va_list va;
     va_start(va, format);
-    ui_wh_t wh = ui_view_text_metrics_va(x, y, multiline, w, fm, format, va);
+    struct ui_wh wh = ui_view_text_metrics_va(x, y, multiline, w, fm, format, va);
     va_end(va);
     return wh;
 }
 
-static void ui_view_text_measure(ui_view_t* v, const char* s,
-        ui_view_text_metrics_t* tm) {
-    const ui_fm_t* fm = v->fm;
-    tm->wh = (ui_wh_t){ .w = 0, .h = fm->height };
+static void ui_view_text_measure(struct ui_view* v, const char* s,
+        struct ui_view_text_metrics* tm) {
+    const struct ui_fm* fm = v->fm;
+    tm->wh = (struct ui_wh){ .w = 0, .h = fm->height };
     if (s[0] == 0) {
         tm->multiline = false;
     } else {
@@ -222,11 +222,11 @@ static void ui_view_text_measure(ui_view_t* v, const char* s,
     }
 }
 
-static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
-    tm->xy = (ui_point_t){ .x = -1, .y = -1 };
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+static void ui_view_text_align(struct ui_view* v, struct ui_view_text_metrics* tm) {
+    tm->xy = (struct ui_point){ .x = -1, .y = -1 };
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     // i_wh the inside insets w x h:
-    const ui_wh_t i_wh = { .w = v->w - i.left - i.right,
+    const struct ui_wh i_wh = { .w = v->w - i.left - i.right,
                            .h = v->h - i.top - i.bottom };
     const int32_t h_align = v->text_align & ~(ui.align.top|ui.align.bottom);
     const int32_t v_align = v->text_align & ~(ui.align.left|ui.align.right);
@@ -248,7 +248,7 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
         // UI controls should have x-height line in the dead center
         // of the control to be visually balanced.
         // y offset of "x-line" of the glyph:
-        const ui_fm_t* fm = v->fm;
+        const struct ui_fm* fm = v->fm;
         const int32_t y_of_x_line = fm->baseline - fm->x_height;
         // `dy` offset of the center to x-line (middle of glyph cell)
         const int32_t dy = tm->wh.h / 2 - y_of_x_line;
@@ -261,15 +261,15 @@ static void ui_view_text_align(ui_view_t* v, ui_view_text_metrics_t* tm) {
     }
 }
 
-static void ui_view_measure_control(ui_view_t* v) {
+static void ui_view_measure_control(struct ui_view* v) {
     v->p.strid = 0;
     const char* s = ui_view.string(v);
-    const ui_fm_t* fm = v->fm;
-    const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+    const struct ui_fm* fm = v->fm;
+    const struct ui_ltrb i = ui_view.margins(v, &v->insets);
     v->w = (int32_t)((fp64_t)fm->em.w * (fp64_t)v->min_w_em + 0.5);
     v->h = (int32_t)((fp64_t)fm->em.h * (fp64_t)v->min_h_em + 0.5);
     if (v->debug.trace.mt) {
-        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
+        const struct ui_ltrb p = ui_view.margins(v, &v->padding);
         rt_println(">%dx%d em: %dx%d min: %.3fx%.3f "
                 "i: %d %d %d %d p: %d %d %d %d %s \"%.*s\"",
             v->w, v->h, fm->em.w, fm->em.h, v->min_w_em, v->min_h_em,
@@ -277,8 +277,8 @@ static void ui_view_measure_control(ui_view_t* v) {
             p.left, p.top, p.right, p.bottom,
             ui_view_debug_id(v),
             (64 < strlen(s) ? 64 : strlen(s)), s);
-        const ui_margins_t in = v->insets;
-        const ui_margins_t pd = v->padding;
+        const struct ui_margins in = v->insets;
+        const struct ui_margins pd = v->padding;
         rt_println(" i: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f"
                 " p: %.3f %.3f %.3f %.3f l+r: %.3f t+b: %.3f",
             in.left, in.top, in.right, in.bottom,
@@ -300,13 +300,13 @@ static void ui_view_measure_control(ui_view_t* v) {
     }
 }
 
-static void ui_view_measure_children(ui_view_t* v) {
+static void ui_view_measure_children(struct ui_view* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_for_each(v, c, { ui_view.measure(c); });
     }
 }
 
-static void ui_view_measure(ui_view_t* v) {
+static void ui_view_measure(struct ui_view* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_measure_children(v);
         if (v->prepare != null) { v->prepare(v); }
@@ -319,9 +319,9 @@ static void ui_view_measure(ui_view_t* v) {
     }
 }
 
-static void ui_layout_view(ui_view_t* rt_unused(v)) {
-//  ui_ltrb_t i = ui_view.margins(v, &v->insets);
-//  ui_ltrb_t p = ui_view.margins(v, &v->padding);
+static void ui_layout_view(struct ui_view* rt_unused(v)) {
+//  struct ui_ltrb i = ui_view.margins(v, &v->insets);
+//  struct ui_ltrb p = ui_view.margins(v, &v->padding);
 //  rt_println(">%s %d,%d %dx%d p: %d %d %d %d  i: %d %d %d %d",
 //               v->p.text, v->x, v->y, v->w, v->h,
 //               p.left, p.top, p.right, p.bottom,
@@ -329,13 +329,13 @@ static void ui_layout_view(ui_view_t* rt_unused(v)) {
 //  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
-static void ui_view_layout_children(ui_view_t* v) {
+static void ui_view_layout_children(struct ui_view* v) {
     if (!ui_view.is_hidden(v)) {
         ui_view_for_each(v, c, { ui_view.layout(c); });
     }
 }
 
-static void ui_view_layout(ui_view_t* v) {
+static void ui_view_layout(struct ui_view* v) {
 //  rt_println(">%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
     if (!ui_view.is_hidden(v)) {
         if (v->layout != null && v->layout != ui_view_layout) {
@@ -349,16 +349,16 @@ static void ui_view_layout(ui_view_t* v) {
 //  rt_println("<%s %d,%d %dx%d", v->p.text, v->x, v->y, v->w, v->h);
 }
 
-static bool ui_view_inside(const ui_view_t* v, const ui_point_t* pt) {
+static bool ui_view_inside(const struct ui_view* v, const struct ui_point* pt) {
     const int32_t x = pt->x - v->x;
     const int32_t y = pt->y - v->y;
     return 0 <= x && x < v->w && 0 <= y && y < v->h;
 }
 
-static bool ui_view_is_parent_of(const ui_view_t* parent,
-        const ui_view_t* child) {
+static bool ui_view_is_parent_of(const struct ui_view* parent,
+        const struct ui_view* child) {
     rt_swear(parent != null && child != null);
-    const ui_view_t* p = child->parent;
+    const struct ui_view* p = child->parent;
     while (p != null) {
         if (parent == p) { return true; }
         p = p->parent;
@@ -366,28 +366,28 @@ static bool ui_view_is_parent_of(const ui_view_t* parent,
     return false;
 }
 
-static ui_ltrb_t ui_view_margins(const ui_view_t* v, const ui_margins_t* m) {
+static struct ui_ltrb ui_view_margins(const struct ui_view* v, const struct ui_margins* m) {
     const fp64_t gw = (fp64_t)m->left + (fp64_t)m->right;
     const fp64_t gh = (fp64_t)m->top  + (fp64_t)m->bottom;
-    const ui_fm_t* fm = v->fm != null ? v->fm : &ui_app.fm.prop.normal;
-    const ui_wh_t* em = &fm->em;
+    const struct ui_fm* fm = v->fm != null ? v->fm : &ui_app.fm.prop.normal;
+    const struct ui_wh* em = &fm->em;
     const int32_t em_w = (int32_t)(em->w * gw + 0.5);
     const int32_t em_h = (int32_t)(em->h * gh + 0.5);
     const int32_t left = (int32_t)((fp64_t)em->w * (fp64_t)m->left + 0.5);
     const int32_t top  = (int32_t)((fp64_t)em->h * (fp64_t)m->top  + 0.5);
-    return (ui_ltrb_t) {
+    return (struct ui_ltrb) {
         .left   = left,         .top    = top,
         .right  = em_w - left,  .bottom = em_h - top
     };
 }
 
-static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
+static void ui_view_inbox(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* insets) {
     rt_swear(r != null || insets != null);
     rt_swear(v->max_w >= 0 && v->max_h >= 0);
-    const ui_ltrb_t i = ui_view_margins(v, &v->insets);
+    const struct ui_ltrb i = ui_view_margins(v, &v->insets);
     if (insets != null) { *insets = i; }
     if (r != null) {
-        *r = (ui_rect_t) {
+        *r = (struct ui_rect) {
             .x = v->x + i.left,
             .y = v->y + i.top,
             .w = v->w - i.left - i.right,
@@ -396,16 +396,16 @@ static void ui_view_inbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets) {
     }
 }
 
-static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding) {
+static void ui_view_outbox(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* padding) {
     rt_swear(r != null || padding != null);
     rt_swear(v->max_w >= 0 && v->max_h >= 0);
-    const ui_ltrb_t p = ui_view_margins(v, &v->padding);
+    const struct ui_ltrb p = ui_view_margins(v, &v->padding);
     if (padding != null) { *padding = p; }
     if (r != null) {
 //      rt_println("%s %d,%d %dx%d %.1f %.1f %.1f %.1f", v->p.text,
 //          v->x, v->y, v->w, v->h,
 //          v->padding.left, v->padding.top, v->padding.right, v->padding.bottom);
-        *r = (ui_rect_t) {
+        *r = (struct ui_rect) {
             .x = v->x - p.left,
             .y = v->y - p.top,
             .w = v->w + p.left + p.right,
@@ -416,7 +416,7 @@ static void ui_view_outbox(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding)
     }
 }
 
-static void ui_view_update_shortcut(ui_view_t* v) {
+static void ui_view_update_shortcut(struct ui_view* v) {
     if (ui_view.is_control(v) && v->type != ui_view_text &&
         v->shortcut == 0x00) {
         const char* s = ui_view.string(v);
@@ -428,7 +428,7 @@ static void ui_view_update_shortcut(ui_view_t* v) {
     }
 }
 
-static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
+static void ui_view_set_text_va(struct ui_view* v, const char* format, va_list va) {
     char t[rt_countof(v->p.text)];
     rt_str.format_va(t, rt_countof(t), format, va);
     char* s = v->p.text;
@@ -441,14 +441,14 @@ static void ui_view_set_text_va(ui_view_t* v, const char* format, va_list va) {
     }
 }
 
-static void ui_view_set_text(ui_view_t* v, const char* format, ...) {
+static void ui_view_set_text(struct ui_view* v, const char* format, ...) {
     va_list va;
     va_start(va, format);
     ui_view.set_text_va(v, format, va);
     va_end(va);
 }
 
-static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
+static void ui_view_show_hint(struct ui_view* v, struct ui_view* hint) {
     ui_view_call_init(hint);
     ui_view.set_text(hint, v->hint);
     ui_view.measure(hint);
@@ -466,11 +466,11 @@ static void ui_view_show_hint(ui_view_t* v, ui_view_t* hint) {
     ui_app.show_hint(hint, x + hint->w / 2, y, 0);
 }
 
-static void ui_view_hovering(ui_view_t* v, bool start) {
+static void ui_view_hovering(struct ui_view* v, bool start) {
     static ui_label_t hint = ui_label(0.0, "");
     if (start && ui_app.animating.view == null && v->hint[0] != 0 &&
        !ui_view.is_hidden(v)) {
-        hint.padding = (ui_margins_t){0, 0, 0, 0};
+        hint.padding = (struct ui_margins){0, 0, 0, 0};
         hint.parent = ui_app.content;
         hint.state.hidden = false;
         ui_view_show_hint(v, &hint);
@@ -479,7 +479,7 @@ static void ui_view_hovering(ui_view_t* v, bool start) {
     }
 }
 
-static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
+static bool ui_view_is_shortcut_key(struct ui_view* v, int64_t key) {
     // Supported keyboard shortcuts are ASCII characters only for now
     // If there is not focused UI control in Alt+key [Alt] is optional.
     // If there is focused control only Alt+Key is accepted as shortcut
@@ -491,12 +491,12 @@ static bool ui_view_is_shortcut_key(ui_view_t* v, int64_t key) {
     return keyboard_shortcut;
 }
 
-static bool ui_view_is_orphan(const ui_view_t* v) {
+static bool ui_view_is_orphan(const struct ui_view* v) {
     while (v != ui_app.root && v != null) { v = v->parent; }
     return v == null;
 }
 
-static bool ui_view_is_hidden(const ui_view_t* v) {
+static bool ui_view_is_hidden(const struct ui_view* v) {
     bool hidden = v->state.hidden || ui_view.is_orphan(v);
     while (!hidden && v->parent != null) {
         v = v->parent;
@@ -505,7 +505,7 @@ static bool ui_view_is_hidden(const ui_view_t* v) {
     return hidden;
 }
 
-static bool ui_view_is_disabled(const ui_view_t* v) {
+static bool ui_view_is_disabled(const struct ui_view* v) {
     bool disabled = v->state.disabled;
     while (!disabled && v->parent != null) {
         v = v->parent;
@@ -514,23 +514,23 @@ static bool ui_view_is_disabled(const ui_view_t* v) {
     return disabled;
 }
 
-static void ui_view_timer(ui_view_t* v, ui_timer_t id) {
+static void ui_view_timer(struct ui_view* v, ui_timer_t id) {
     if (v->timer != null) { v->timer(v, id); }
     // timers are delivered even to hidden and disabled views:
     ui_view_for_each(v, c, { ui_view_timer(c, id); });
 }
 
-static void ui_view_every_sec(ui_view_t* v) {
+static void ui_view_every_sec(struct ui_view* v) {
     if (v->every_sec != null) { v->every_sec(v); }
     ui_view_for_each(v, c, { ui_view_every_sec(c); });
 }
 
-static void ui_view_every_100ms(ui_view_t* v) {
+static void ui_view_every_100ms(struct ui_view* v) {
     if (v->every_100ms != null) { v->every_100ms(v); }
     ui_view_for_each(v, c, { ui_view_every_100ms(c); });
 }
 
-static bool ui_view_key_pressed(ui_view_t* v, int64_t k) {
+static bool ui_view_key_pressed(struct ui_view* v, int64_t k) {
     bool done = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->key_pressed != null) {
@@ -547,7 +547,7 @@ static bool ui_view_key_pressed(ui_view_t* v, int64_t k) {
     return done;
 }
 
-static bool ui_view_key_released(ui_view_t* v, int64_t k) {
+static bool ui_view_key_released(struct ui_view* v, int64_t k) {
     bool done = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->key_released != null) {
@@ -563,7 +563,7 @@ static bool ui_view_key_released(ui_view_t* v, int64_t k) {
     return done;
 }
 
-static void ui_view_character(ui_view_t* v, const char* utf8) {
+static void ui_view_character(struct ui_view* v, const char* utf8) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->character != null) {
             ui_view_update_shortcut(v);
@@ -573,7 +573,7 @@ static void ui_view_character(ui_view_t* v, const char* utf8) {
     }
 }
 
-static void ui_view_resolve_color_ids(ui_view_t* v) {
+static void ui_view_resolve_color_ids(struct ui_view* v) {
     if (v->color_id > 0) {
         v->color = ui_colors.get_color(v->color_id);
     }
@@ -582,7 +582,7 @@ static void ui_view_resolve_color_ids(ui_view_t* v) {
     }
 }
 
-static void ui_view_paint(ui_view_t* v) {
+static void ui_view_paint(struct ui_view* v) {
     rt_assert(ui_app.crc.w > 0 && ui_app.crc.h > 0);
     ui_view_resolve_color_ids(v);
     if (v->debug.trace.prc) {
@@ -602,14 +602,14 @@ static void ui_view_paint(ui_view_t* v) {
     }
 }
 
-static bool ui_view_has_focus(const ui_view_t* v) {
+static bool ui_view_has_focus(const struct ui_view* v) {
     return ui_app.focused() && ui_app.focus == v;
 }
 
-static void ui_view_set_focus(ui_view_t* v) {
+static void ui_view_set_focus(struct ui_view* v) {
     if (ui_app.focus != v) {
-        ui_view_t* loosing = ui_app.focus;
-        ui_view_t* gaining = v;
+        struct ui_view* loosing = ui_app.focus;
+        struct ui_view* gaining = v;
         if (gaining != null) {
             rt_swear(gaining->focusable && !ui_view.is_hidden(gaining) &&
                                         !ui_view.is_disabled(gaining));
@@ -625,7 +625,7 @@ static void ui_view_set_focus(ui_view_t* v) {
     }
 }
 
-static int64_t ui_view_hit_test(const ui_view_t* v, ui_point_t pt) {
+static int64_t ui_view_hit_test(const struct ui_view* v, struct ui_point pt) {
     int64_t ht = ui.hit_test.nowhere;
     if (!ui_view.is_hidden(v) && v->hit_test != null) {
          ht = v->hit_test(v, pt);
@@ -641,7 +641,7 @@ static int64_t ui_view_hit_test(const ui_view_t* v, ui_point_t pt) {
     return ht;
 }
 
-static void ui_view_update_hover(ui_view_t* v, bool hidden) {
+static void ui_view_update_hover(struct ui_view* v, bool hidden) {
     const bool hover  = v->state.hover;
     const bool inside = ui_view.inside(v, &ui_app.mouse);
     v->state.hover = !ui_view.is_hidden(v) && inside;
@@ -652,7 +652,7 @@ static void ui_view_update_hover(ui_view_t* v, bool hidden) {
     }
 }
 
-static void ui_view_mouse_hover(ui_view_t* v) {
+static void ui_view_mouse_hover(struct ui_view* v) {
 //  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
@@ -663,7 +663,7 @@ static void ui_view_mouse_hover(ui_view_t* v) {
     ui_view_for_each(v, c, { ui_view_mouse_hover(c); });
 }
 
-static void ui_view_mouse_move(ui_view_t* v) {
+static void ui_view_mouse_move(struct ui_view* v) {
 //  rt_println("%d,%d %s", ui_app.mouse.x, ui_app.mouse.y,
 //          ui_app.mouse_left  ? "L" : "_",
 //          ui_app.mouse_right ? "R" : "_");
@@ -674,7 +674,7 @@ static void ui_view_mouse_move(ui_view_t* v) {
     ui_view_for_each(v, c, { ui_view_mouse_move(c); });
 }
 
-static void ui_view_double_click(ui_view_t* v, int32_t ix) {
+static void ui_view_double_click(struct ui_view* v, int32_t ix) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         const bool inside = ui_view.inside(v, &ui_app.mouse);
         if (inside) {
@@ -685,14 +685,14 @@ static void ui_view_double_click(ui_view_t* v, int32_t ix) {
     }
 }
 
-static void ui_view_mouse_scroll(ui_view_t* v, ui_point_t dx_dy) {
+static void ui_view_mouse_scroll(struct ui_view* v, struct ui_point dx_dy) {
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         if (v->mouse_scroll != null) { v->mouse_scroll(v, dx_dy); }
         ui_view_for_each(v, c, { ui_view_mouse_scroll(c, dx_dy); });
     }
 }
 
-static void ui_view_hover_changed(ui_view_t* v) {
+static void ui_view_hover_changed(struct ui_view* v) {
     if (!v->state.hidden) {
         if (!v->state.hover) {
             v->p.hover_when = 0;
@@ -706,7 +706,7 @@ static void ui_view_hover_changed(ui_view_t* v) {
     }
 }
 
-static void ui_view_lose_hidden_focus(ui_view_t* v) {
+static void ui_view_lose_hidden_focus(struct ui_view* v) {
     // removes focus from hidden or disabled ui controls
     if (ui_app.focus != null) {
         if (ui_app.focus == v && (v->state.disabled || v->state.hidden)) {
@@ -719,7 +719,7 @@ static void ui_view_lose_hidden_focus(ui_view_t* v) {
     }
 }
 
-static bool ui_view_tap(ui_view_t* v, int32_t ix, bool pressed) {
+static bool ui_view_tap(struct ui_view* v, int32_t ix, bool pressed) {
     bool swallow = false; // consumed
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
@@ -740,7 +740,7 @@ static bool ui_view_tap(ui_view_t* v, int32_t ix, bool pressed) {
     return swallow;
 }
 
-static bool ui_view_long_press(ui_view_t* v, int32_t ix) {
+static bool ui_view_long_press(struct ui_view* v, int32_t ix) {
     bool swallow = false; // consumed
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
@@ -755,7 +755,7 @@ static bool ui_view_long_press(ui_view_t* v, int32_t ix) {
     return swallow;
 }
 
-static bool ui_view_double_tap(ui_view_t* v, int32_t ix) { // 0: left 1: middle 2: right
+static bool ui_view_double_tap(struct ui_view* v, int32_t ix) { // 0: left 1: middle 2: right
     bool swallow = false; // consumed
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
@@ -770,7 +770,7 @@ static bool ui_view_double_tap(ui_view_t* v, int32_t ix) { // 0: left 1: middle 
     return swallow;
 }
 
-static bool ui_view_context_menu(ui_view_t* v) {
+static bool ui_view_context_menu(struct ui_view* v) {
     bool swallow = false;
     if (!ui_view.is_hidden(v) && !ui_view.is_disabled(v)) {
         ui_view_for_each(v, c, {
@@ -785,7 +785,7 @@ static bool ui_view_context_menu(ui_view_t* v) {
     return swallow;
 }
 
-static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
+static bool ui_view_message(struct ui_view* view, int32_t m, int64_t wp, int64_t lp,
         int64_t* ret) {
     if (!view->state.hidden) {
         if (view->p.hover_when > 0 && ui_app.now > view->p.hover_when) {
@@ -805,17 +805,17 @@ static bool ui_view_message(ui_view_t* view, int32_t m, int64_t wp, int64_t lp,
     return false;
 }
 
-static bool ui_view_is_container(const ui_view_t* v) {
+static bool ui_view_is_container(const struct ui_view* v) {
     return  v->type == ui_view_stack ||
             v->type == ui_view_span  ||
             v->type == ui_view_list;
 }
 
-static bool ui_view_is_spacer(const ui_view_t* v) {
+static bool ui_view_is_spacer(const struct ui_view* v) {
     return  v->type == ui_view_spacer;
 }
 
-static bool ui_view_is_control(const ui_view_t* v) {
+static bool ui_view_is_control(const struct ui_view* v) {
     return  v->type == ui_view_text   ||
             v->type == ui_view_label  ||
             v->type == ui_view_toggle ||
@@ -824,13 +824,13 @@ static bool ui_view_is_control(const ui_view_t* v) {
             v->type == ui_view_mbx;
 }
 
-static void ui_view_debug_paint_margins(ui_view_t* v) {
+static void ui_view_debug_paint_margins(struct ui_view* v) {
     if (v->debug.paint.margins) {
         if (v->type == ui_view_spacer) {
             ui_draw.fill(v->x, v->y, v->w, v->h, ui_color_rgb(128, 128, 128));
         }
-        const ui_ltrb_t p = ui_view.margins(v, &v->padding);
-        const ui_ltrb_t i = ui_view.margins(v, &v->insets);
+        const struct ui_ltrb p = ui_view.margins(v, &v->padding);
+        const struct ui_ltrb i = ui_view.margins(v, &v->insets);
         ui_color_t c = ui_colors.green;
         const int32_t pl = p.left;
         const int32_t pr = p.right;
@@ -853,21 +853,21 @@ static void ui_view_debug_paint_margins(ui_view_t* v) {
         if (ib > 0) { ui_draw.frame(v->x, v->y + v->h - ib, v->w, ib, c); }
         if ((ui_view.is_container(v) || ui_view.is_spacer(v)) &&
             v->w > 0 && v->h > 0) {
-            ui_wh_t wh = ui_view_text_metrics(v->x, v->y, false, 0,
+            struct ui_wh wh = ui_view_text_metrics(v->x, v->y, false, 0,
                                               v->fm, "%s", ui_view.string(v));
             const int32_t tx = v->x;
             const int32_t ty = v->y + v->h - wh.h;
-            const ui_ta_t ta = { .fm = v->fm, .color = ui_colors.red };
+            const struct ui_ta ta = { .fm = v->fm, .color = ui_colors.red };
             ui_draw.text(&ta, tx, ty, "%s %d,%d %dx%d", ui_view_debug_id(v),
                         v->x, v->y, v->w, v->h);
         }
     }
 }
 
-static void ui_view_debug_paint_fm(ui_view_t* v) {
+static void ui_view_debug_paint_fm(struct ui_view* v) {
     if (v->debug.paint.fm && v->p.text[0] != 0 &&
        !ui_view_is_container(v) && !ui_view_is_spacer(v)) {
-        const ui_point_t t = v->text.xy;
+        const struct ui_point t = v->text.xy;
         const int32_t x = v->x;
         const int32_t y = v->y;
         const int32_t w = v->w;
@@ -901,15 +901,15 @@ static void ui_view_debug_paint_fm(ui_view_t* v) {
 } while (0)
 
 static void ui_view_test(void) {
-    ui_view_t p0 = ui_view(stack);
-    ui_view_t c1 = ui_view(stack);
-    ui_view_t c2 = ui_view(stack);
-    ui_view_t c3 = ui_view(stack);
-    ui_view_t c4 = ui_view(stack);
-    ui_view_t g1 = ui_view(stack);
-    ui_view_t g2 = ui_view(stack);
-    ui_view_t g3 = ui_view(stack);
-    ui_view_t g4 = ui_view(stack);
+    struct ui_view p0 = ui_view(stack);
+    struct ui_view c1 = ui_view(stack);
+    struct ui_view c2 = ui_view(stack);
+    struct ui_view c3 = ui_view(stack);
+    struct ui_view c4 = ui_view(stack);
+    struct ui_view g1 = ui_view(stack);
+    struct ui_view g2 = ui_view(stack);
+    struct ui_view g3 = ui_view(stack);
+    struct ui_view g4 = ui_view(stack);
     // add grand children to children:
     ui_view.add(&c2, &g1, &g2, null);               ui_view_verify(&c2);
     ui_view.add(&c3, &g3, &g4, null);               ui_view_verify(&c3);
@@ -969,7 +969,7 @@ static void ui_view_test(void) {
 
 #pragma pop_macro("ui_view_no_siblings")
 
-ui_view_if ui_view = {
+struct ui_view_if ui_view = {
     .add                 = ui_view_add,
     .add_first           = ui_view_add_first,
     .add_last            = ui_view_add_last,

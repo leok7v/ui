@@ -18,37 +18,37 @@ enum ui_view_type_t {
     ui_view_scroll    = 'vwsc'
 };
 
-typedef struct ui_view_s ui_view_t;
+struct ui_view;
 
-typedef struct ui_view_private_s { // do not access directly
+struct ui_view_private { // do not access directly
     char text[1024]; // utf8 zero terminated
     int32_t strid;    // 0 for not yet localized, -1 no localization
     fp64_t armed_until; // rt_clock.seconds() - when to release
     fp64_t hover_when;  // time in seconds when to call hovered()
     // use: ui_view.string(v) and ui_view.set_string()
-} ui_view_private_t;
+};
 
-typedef struct ui_view_text_metrics_s { // ui_view.measure_text() fills these attributes:
-    ui_wh_t    wh; // text width and height
-    ui_point_t xy; // text offset inside view
+struct ui_view_text_metrics { // ui_view.measure_text() fills these attributes:
+    struct ui_wh    wh; // text width and height
+    struct ui_point xy; // text offset inside view
     bool multiline; // text contains "\n"
-} ui_view_text_metrics_t;
+};
 
-typedef struct ui_view_s {
+struct ui_view {
     enum ui_view_type_t type;
-    ui_view_private_t p; // private
-    void (*init)(ui_view_t* v); // called once before first layout
-    ui_view_t* parent;
-    ui_view_t* child; // first child, circular doubly linked list
-    ui_view_t* prev;  // left or top sibling
-    ui_view_t* next;  // right or top sibling
+    struct ui_view_private p; // private
+    void (*init)(struct ui_view* v); // called once before first layout
+    struct ui_view* parent;
+    struct ui_view* child; // first child, circular doubly linked list
+    struct ui_view* prev;  // left or top sibling
+    struct ui_view* next;  // right or top sibling
     int32_t x;
     int32_t y;
     int32_t w;
     int32_t h;
-    ui_margins_t insets;
-    ui_margins_t padding;
-    ui_view_text_metrics_t text;
+    struct ui_margins insets;
+    struct ui_margins padding;
+    struct ui_view_text_metrics text;
     // see ui.alignment values
     int32_t align; // align inside parent
     int32_t text_align; // align of the text inside control
@@ -58,55 +58,55 @@ typedef struct ui_view_s {
     fp32_t  min_h_em; // > 0 minimum height of a view in "em"s
     ui_icon_t icon; // used instead of text if != null
     // updated on layout() call
-    const ui_fm_t* fm; // font metrics
+    const struct ui_fm* fm; // font metrics
     int32_t  shortcut; // keyboard shortcut
     void* that;  // for the application use
-    void (*notify)(ui_view_t* v, void* p); // for the application use
+    void (*notify)(struct ui_view* v, void* p); // for the application use
     // two pass layout: measure() .w, .h layout() .x .y
     // first  measure() bottom up - children.layout before parent.layout
     // second layout() top down - parent.layout before children.layout
     // before methods: called before measure()/layout()/paint()
-    void (*prepare)(ui_view_t* v);    // called before measure()
-    void (*measure)(ui_view_t* v);    // determine w, h (bottom up)
-    void (*measured)(ui_view_t* v);   // called after measure()
-    void (*layout)(ui_view_t* v);     // set x, y possibly adjust w, h (top down)
-    void (*composed)(ui_view_t* v);   // after layout() is done (laid out)
-    void (*erase)(ui_view_t* v);      // called before paint()
-    void (*paint)(ui_view_t* v);
-    void (*painted)(ui_view_t* v);  // called after paint()
+    void (*prepare)(struct ui_view* v);    // called before measure()
+    void (*measure)(struct ui_view* v);    // determine w, h (bottom up)
+    void (*measured)(struct ui_view* v);   // called after measure()
+    void (*layout)(struct ui_view* v);     // set x, y possibly adjust w, h (top down)
+    void (*composed)(struct ui_view* v);   // after layout() is done (laid out)
+    void (*erase)(struct ui_view* v);      // called before paint()
+    void (*paint)(struct ui_view* v);
+    void (*painted)(struct ui_view* v);  // called after paint()
     // composed() is effectively called right before paint() and
     // can be used to prepare for painting w/o need to override paint()
-    void (*debug_paint)(ui_view_t* v); // called if .debug is set to true
+    void (*debug_paint)(struct ui_view* v); // called if .debug is set to true
     // any message:
-    bool (*message)(ui_view_t* v, int32_t message, int64_t wp, int64_t lp,
+    bool (*message)(struct ui_view* v, int32_t message, int64_t wp, int64_t lp,
         int64_t* rt); // return true and value in rt to stop processing
-    void (*click)(ui_view_t* v);    // ui click callback - view action
-    void (*format)(ui_view_t* v);   // format a value to text (e.g. slider)
-    void (*callback)(ui_view_t* v); // state change callback
-    void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
-    void (*mouse_hover)(ui_view_t* v); // hover over
-    void (*mouse_move)(ui_view_t* v);
-    void (*double_click)(ui_view_t* v, int32_t ix);
+    void (*click)(struct ui_view* v);    // ui click callback - view action
+    void (*format)(struct ui_view* v);   // format a value to text (e.g. slider)
+    void (*callback)(struct ui_view* v); // state change callback
+    void (*mouse_scroll)(struct ui_view* v, struct ui_point dx_dy); // touchpad scroll
+    void (*mouse_hover)(struct ui_view* v); // hover over
+    void (*mouse_move)(struct ui_view* v);
+    void (*double_click)(struct ui_view* v, int32_t ix);
     // tap(ui, button_index) press(ui, button_index) see note below
     // button index 0: left, 1: middle, 2: right
     // bottom up (leaves to root or children to parent)
     // return true if consumed (halts further calls up the tree)
-    bool (*tap)(ui_view_t* v, int32_t ix, bool pressed); // single click/tap inside ui
-    bool (*long_press)(ui_view_t* v, int32_t ix); // two finger click/tap or long press
-    bool (*double_tap)(ui_view_t* v, int32_t ix); // legacy double click
-    bool (*context_menu)(ui_view_t* v); // right mouse click or long press
-    void (*focus_gained)(ui_view_t* v);
-    void (*focus_lost)(ui_view_t* v);
+    bool (*tap)(struct ui_view* v, int32_t ix, bool pressed); // single click/tap inside ui
+    bool (*long_press)(struct ui_view* v, int32_t ix); // two finger click/tap or long press
+    bool (*double_tap)(struct ui_view* v, int32_t ix); // legacy double click
+    bool (*context_menu)(struct ui_view* v); // right mouse click or long press
+    void (*focus_gained)(struct ui_view* v);
+    void (*focus_lost)(struct ui_view* v);
     // translated from key pressed/released to utf8:
-    void (*character)(ui_view_t* v, const char* utf8);
-    bool (*key_pressed)(ui_view_t* v, int64_t key);  // return true to stop
-    bool (*key_released)(ui_view_t* v, int64_t key); // processing
+    void (*character)(struct ui_view* v, const char* utf8);
+    bool (*key_pressed)(struct ui_view* v, int64_t key);  // return true to stop
+    bool (*key_released)(struct ui_view* v, int64_t key); // processing
     // timer() every_100ms() and every_sec() called
     // even for hidden and disabled views
-    void (*timer)(ui_view_t* v, ui_timer_t id);
-    void (*every_100ms)(ui_view_t* v); // ~10 x times per second
-    void (*every_sec)(ui_view_t* v); // ~once a second
-    int64_t (*hit_test)(const ui_view_t* v, ui_point_t pt);
+    void (*timer)(struct ui_view* v, ui_timer_t id);
+    void (*every_100ms)(struct ui_view* v); // ~10 x times per second
+    void (*every_sec)(struct ui_view* v); // ~once a second
+    int64_t (*hit_test)(const struct ui_view* v, struct ui_point pt);
     struct {
         bool hidden;    // measure()/ layout() paint() is not called on
         bool disabled;  // mouse, keyboard, key_up/down not called on
@@ -137,7 +137,7 @@ typedef struct ui_view_s {
         } paint;
         const char* id; // for debugging purposes
     } debug; // debug flags
-} ui_view_t;
+};
 
 // tap() / press() APIs guarantee that single tap() is not coming
 // before fp64_t tap/click in expense of fp64_t click delay (0.5 seconds)
@@ -145,83 +145,83 @@ typedef struct ui_view_s {
 // OK for text editing. Thus edit uses raw mouse events to react
 // on clicks and fp64_t clicks.
 
-typedef struct ui_view_if {
+struct ui_view_if {
     // children va_args must be null terminated
-    ui_view_t* (*add)(ui_view_t* parent, ...);
-    void (*add_first)(ui_view_t* parent, ui_view_t* child);
-    void (*add_last)(ui_view_t*  parent, ui_view_t* child);
-    void (*add_after)(ui_view_t* child,  ui_view_t* after);
-    void (*add_before)(ui_view_t* child, ui_view_t* before);
-    void (*remove)(ui_view_t* v); // removes view from it`s parent
-    void (*remove_all)(ui_view_t* parent); // removes all children
-    void (*disband)(ui_view_t* parent); // removes all children recursively
-    bool (*is_parent_of)(const ui_view_t* p, const ui_view_t* c);
-    bool (*inside)(const ui_view_t* v, const ui_point_t* pt);
-    ui_ltrb_t (*margins)(const ui_view_t* v, const ui_margins_t* g); // to pixels
-    void (*inbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* insets);
-    void (*outbox)(const ui_view_t* v, ui_rect_t* r, ui_ltrb_t* padding);
-    void (*set_text)(ui_view_t* v, const char* format, ...);
-    void (*set_text_va)(ui_view_t* v, const char* format, va_list va);
+    struct ui_view* (*add)(struct ui_view* parent, ...);
+    void (*add_first)(struct ui_view* parent, struct ui_view* child);
+    void (*add_last)(struct ui_view*  parent, struct ui_view* child);
+    void (*add_after)(struct ui_view* child,  struct ui_view* after);
+    void (*add_before)(struct ui_view* child, struct ui_view* before);
+    void (*remove)(struct ui_view* v); // removes view from it`s parent
+    void (*remove_all)(struct ui_view* parent); // removes all children
+    void (*disband)(struct ui_view* parent); // removes all children recursively
+    bool (*is_parent_of)(const struct ui_view* p, const struct ui_view* c);
+    bool (*inside)(const struct ui_view* v, const struct ui_point* pt);
+    struct ui_ltrb (*margins)(const struct ui_view* v, const struct ui_margins* g); // to pixels
+    void (*inbox)(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* insets);
+    void (*outbox)(const struct ui_view* v, struct ui_rect* r, struct ui_ltrb* padding);
+    void (*set_text)(struct ui_view* v, const char* format, ...);
+    void (*set_text_va)(struct ui_view* v, const char* format, va_list va);
     // ui_view.invalidate() prone to 30ms delays don't use in r/t video code
     // ui_view.invalidate(v, ui_app.crc) invalidates whole client rect but
     // ui_view.redraw() (fast non blocking) is much better instead
-    void (*invalidate)(const ui_view_t* v, const ui_rect_t* rect_or_null);
-    bool (*is_orphan)(const ui_view_t* v);   // view parent chain has null
-    bool (*is_hidden)(const ui_view_t* v);   // view or any parent is hidden
-    bool (*is_disabled)(const ui_view_t* v); // view or any parent is disabled
-    bool (*is_control)(const ui_view_t* v);
-    bool (*is_container)(const ui_view_t* v);
-    bool (*is_spacer)(const ui_view_t* v);
-    const char* (*string)(ui_view_t* v);  // returns localized text
-    void (*timer)(ui_view_t* v, ui_timer_t id);
-    void (*every_sec)(ui_view_t* v);
-    void (*every_100ms)(ui_view_t* v);
-    int64_t (*hit_test)(const ui_view_t* v, ui_point_t pt);
+    void (*invalidate)(const struct ui_view* v, const struct ui_rect* rect_or_null);
+    bool (*is_orphan)(const struct ui_view* v);   // view parent chain has null
+    bool (*is_hidden)(const struct ui_view* v);   // view or any parent is hidden
+    bool (*is_disabled)(const struct ui_view* v); // view or any parent is disabled
+    bool (*is_control)(const struct ui_view* v);
+    bool (*is_container)(const struct ui_view* v);
+    bool (*is_spacer)(const struct ui_view* v);
+    const char* (*string)(struct ui_view* v);  // returns localized text
+    void (*timer)(struct ui_view* v, ui_timer_t id);
+    void (*every_sec)(struct ui_view* v);
+    void (*every_100ms)(struct ui_view* v);
+    int64_t (*hit_test)(const struct ui_view* v, struct ui_point pt);
     // key_pressed() key_released() return true to stop further processing
-    bool (*key_pressed)(ui_view_t* v, int64_t v_key);
-    bool (*key_released)(ui_view_t* v, int64_t v_key);
-    void (*character)(ui_view_t* v, const char* utf8);
-    void (*paint)(ui_view_t* v);
-    bool (*has_focus)(const ui_view_t* v); // ui_app.focused() && ui_app.focus == v
-    void (*set_focus)(ui_view_t* view_or_null);
-    void (*lose_hidden_focus)(ui_view_t* v);
-    void (*hovering)(ui_view_t* v, bool start);
-    void (*mouse_hover)(ui_view_t* v); // hover over
-    void (*mouse_move)(ui_view_t* v);
-    void (*mouse_scroll)(ui_view_t* v, ui_point_t dx_dy); // touchpad scroll
-    ui_wh_t (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
-        const ui_fm_t* fm, const char* format, va_list va);
-    ui_wh_t (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
-        const ui_fm_t* fm, const char* format, ...);
-    void (*text_measure)(ui_view_t* v, const char* s,
-        ui_view_text_metrics_t* tm);
-    void (*text_align)(ui_view_t* v, ui_view_text_metrics_t* tm);
-    void (*measure_text)(ui_view_t* v); // fills v->text.mt and .xy
+    bool (*key_pressed)(struct ui_view* v, int64_t v_key);
+    bool (*key_released)(struct ui_view* v, int64_t v_key);
+    void (*character)(struct ui_view* v, const char* utf8);
+    void (*paint)(struct ui_view* v);
+    bool (*has_focus)(const struct ui_view* v); // ui_app.focused() && ui_app.focus == v
+    void (*set_focus)(struct ui_view* view_or_null);
+    void (*lose_hidden_focus)(struct ui_view* v);
+    void (*hovering)(struct ui_view* v, bool start);
+    void (*mouse_hover)(struct ui_view* v); // hover over
+    void (*mouse_move)(struct ui_view* v);
+    void (*mouse_scroll)(struct ui_view* v, struct ui_point dx_dy); // touchpad scroll
+    struct ui_wh (*text_metrics_va)(int32_t x, int32_t y, bool multiline, int32_t w,
+        const struct ui_fm* fm, const char* format, va_list va);
+    struct ui_wh (*text_metrics)(int32_t x, int32_t y, bool multiline, int32_t w,
+        const struct ui_fm* fm, const char* format, ...);
+    void (*text_measure)(struct ui_view* v, const char* s,
+        struct ui_view_text_metrics* tm);
+    void (*text_align)(struct ui_view* v, struct ui_view_text_metrics* tm);
+    void (*measure_text)(struct ui_view* v); // fills v->text.mt and .xy
     // measure_control(): control is special case with v->text.mt and .xy
-    void (*measure_control)(ui_view_t* v);
-    void (*measure_children)(ui_view_t* v);
-    void (*layout_children)(ui_view_t* v);
-    void (*measure)(ui_view_t* v);
-    void (*layout)(ui_view_t* v);
-    void (*hover_changed)(ui_view_t* v);
-    bool (*is_shortcut_key)(ui_view_t* v, int64_t key);
-    bool (*context_menu)(ui_view_t* v);
+    void (*measure_control)(struct ui_view* v);
+    void (*measure_children)(struct ui_view* v);
+    void (*layout_children)(struct ui_view* v);
+    void (*measure)(struct ui_view* v);
+    void (*layout)(struct ui_view* v);
+    void (*hover_changed)(struct ui_view* v);
+    bool (*is_shortcut_key)(struct ui_view* v, int64_t key);
+    bool (*context_menu)(struct ui_view* v);
     // `ix` 0: left 1: middle 2: right
-    bool (*tap)(ui_view_t* v, int32_t ix, bool pressed);
-    bool (*long_press)(ui_view_t* v, int32_t ix);
-    bool (*double_tap)(ui_view_t* v, int32_t ix);
-    bool (*message)(ui_view_t* v, int32_t m, int64_t wp, int64_t lp, int64_t* ret);
-    void (*debug_paint_margins)(ui_view_t* v); // insets padding
-    void (*debug_paint_fm)(ui_view_t* v);   // text font metrics
+    bool (*tap)(struct ui_view* v, int32_t ix, bool pressed);
+    bool (*long_press)(struct ui_view* v, int32_t ix);
+    bool (*double_tap)(struct ui_view* v, int32_t ix);
+    bool (*message)(struct ui_view* v, int32_t m, int64_t wp, int64_t lp, int64_t* ret);
+    void (*debug_paint_margins)(struct ui_view* v); // insets padding
+    void (*debug_paint_fm)(struct ui_view* v);   // text font metrics
     void (*test)(void);
-} ui_view_if;
+};
 
-extern ui_view_if ui_view;
+extern struct ui_view_if ui_view;
 
 // view children iterator:
 
 #define ui_view_for_each_begin(v, it) do {       \
-    ui_view_t* it = (v)->child;                  \
+    struct ui_view* it = (v)->child;                  \
     if (it != null) {                            \
         do {                                     \
 
@@ -268,7 +268,7 @@ extern ui_view_if ui_view;
 
 #define ui_view_call_init(v) do {                   \
     if ((v)->init != null) {                        \
-        void (*_init_)(ui_view_t* _v_) = (v)->init; \
+        void (*_init_)(struct ui_view* _v_) = (v)->init; \
         (v)->init = null; /* before! call */        \
         _init_((v));                                \
     }                                               \

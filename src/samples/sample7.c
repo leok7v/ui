@@ -24,11 +24,11 @@ typedef struct {
 
 static volatile time_stats_t ts[2];
 
-static ui_point_t points[max_count]; // graph polyline coordinates
+static struct ui_point points[max_count]; // graph polyline coordinates
 
 static int32_t N = max_count;
 
-static void composed(ui_view_t* view) {
+static void composed(struct ui_view* view) {
     if (view->w > 0) { N = view->w < N ? view->w : N; }
     rt_println("M: %d", N);
 }
@@ -76,7 +76,7 @@ static void println(int32_t *x, int32_t *y, const char* format, ...) {
     va_end(va);
 }
 
-static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
+static void graph(struct ui_view* v, int ix, ui_color_t c, int y) {
     volatile time_stats_t* t = &ts[ix];
     const int h2 = ui_app.root->h / 2;
     const int h4 = h2 / 2;
@@ -100,7 +100,7 @@ static void graph(ui_view_t* v, int ix, ui_color_t c, int y) {
     }
 }
 
-static void paint(ui_view_t* v) {
+static void paint(struct ui_view* v) {
     for (int i = 0; i < rt_countof(ts); i++) {
         if (ts[i].samples >= 2) { stats(i); }
     }
@@ -108,9 +108,9 @@ static void paint(ui_view_t* v) {
         char paint_stats[256];
         rt_str_printf(paint_stats, "avg paint time %.1f ms %.1f fps",
             ui_app.paint_avg * 1000, ui_app.paint_fps);
-        ui_ta_t ta = ui_draw.ta.mono.normal;
+        struct ui_ta ta = ui_draw.ta.mono.normal;
         ta.measure = true;
-        ui_wh_t wh = ui_view.text_metrics(0, 0, false, 0,
+        struct ui_wh wh = ui_view.text_metrics(0, 0, false, 0,
                         &ui_app.fm.mono.normal, "%s", paint_stats);
         int32_t x = v->w - wh.w - v->fm->em.w;
         int32_t y = v->fm->em.h;
@@ -141,7 +141,7 @@ static void timer_thread(void* p) {
     }
 }
 
-static void timer(ui_view_t* view, ui_timer_t id) {
+static void timer(struct ui_view* view, ui_timer_t id) {
     rt_swear(view == ui_app.content);
     // there are at least 3 timers notifications coming here:
     // 1 seconds, 100ms and 10ms:
@@ -211,7 +211,7 @@ static void init(void) {
     do_not_start_minimized();
 }
 
-ui_app_t ui_app = {
+struct ui_app ui_app = {
     .class_name = "sample7",
     .init = init,
     .dark_mode = true,

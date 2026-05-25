@@ -19,8 +19,8 @@ static bool ui_containers_debug;
 static int32_t ui_layout_nesting;
 
 #define ui_layout_enter(v) do {                                         \
-    ui_ltrb_t i_ = ui_view.margins(v, &v->insets);                      \
-    ui_ltrb_t p_ = ui_view.margins(v, &v->padding);                     \
+    struct ui_ltrb i_ = ui_view.margins(v, &v->insets);                      \
+    struct ui_ltrb p_ = ui_view.margins(v, &v->padding);                     \
     debugln("%*c> %4d,%-4d %4dx%-4d p: %d %d %d %d i: %d %d %d %d %s",  \
             ui_layout_nesting, 0x20,                                    \
             v->x, v->y, v->w, v->h,                                     \
@@ -67,10 +67,10 @@ static const char* ui_stack_finite_int(int32_t v, char* text, int32_t count) {
         v->align);                                                            \
 } while (0)
 
-static void ui_span_measure(ui_view_t* p) {
+static void ui_span_measure(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_ltrb_t insets;
+    struct ui_ltrb insets;
     ui_view.inbox(p, null, &insets);
     int32_t w = insets.left;
     int32_t h = 0;
@@ -81,13 +81,13 @@ static void ui_span_measure(ui_view_t* p) {
         if (ui_view.is_hidden(c)) {
             // nothing
         } else if (c->type == ui_view_spacer) {
-            c->padding = (ui_margins_t){ 0, 0, 0, 0 };
+            c->padding = (struct ui_margins){ 0, 0, 0, 0 };
             c->w = 0; // layout will distribute excess here
             c->h = 0; // starts with zero
             max_w = ui.infinity; // spacer make width greedy
         } else {
-            ui_rect_t cbx; // child "out" box expanded by padding
-            ui_ltrb_t padding;
+            struct ui_rect cbx; // child "out" box expanded by padding
+            struct ui_ltrb padding;
             ui_view.outbox(c, &cbx, &padding);
             h = h > cbx.h ? h : cbx.h;
             if (c->max_w == ui.infinity) {
@@ -129,8 +129,8 @@ static void ui_span_measure(ui_view_t* p) {
 // may adjust span_w wider number depending on it's own width
 // and ui_span.max_w agreement
 
-static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
-    ui_ltrb_t padding = ui_view.margins(c, &c->padding);
+static int32_t ui_span_place_child(struct ui_view* c, struct ui_rect pbx, int32_t x) {
+    struct ui_ltrb padding = ui_view.margins(c, &c->padding);
     // setting child`s max_h to infinity means that child`s height is
     // *always* fill vertical view size of the parent
     // childs.h can exceed parent.h (vertical overflow) - is not
@@ -159,11 +159,11 @@ static int32_t ui_span_place_child(ui_view_t* c, ui_rect_t pbx, int32_t x) {
     return c->x + c->w + padding.right;
 }
 
-static void ui_span_layout(ui_view_t* p) {
+static void ui_span_layout(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_span, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
     int32_t spacers = 0; // Number of spacers
     int32_t max_w_count = 0;
@@ -204,8 +204,8 @@ static void ui_span_layout(ui_view_t* p) {
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c)) {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type == ui_view_spacer) {
                     rt_swear(padding.left == 0 && padding.right == 0);
@@ -236,8 +236,8 @@ static void ui_span_layout(ui_view_t* p) {
         x = p->x + insets.left;
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c)) {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type == ui_view_spacer) {
                     c->y = pbx.y;
@@ -254,11 +254,11 @@ static void ui_span_layout(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_list_measure(ui_view_t* p) {
+static void ui_list_measure(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
     int32_t max_h = insets.top;
     int32_t h = insets.top;
@@ -268,12 +268,12 @@ static void ui_list_measure(ui_view_t* p) {
               c->max_h, c->h);
         if (!ui_view.is_hidden(c)) {
             if (c->type == ui_view_spacer) {
-                c->padding = (ui_margins_t){ 0, 0, 0, 0 };
+                c->padding = (struct ui_margins){ 0, 0, 0, 0 };
                 c->h = 0; // layout will distribute excess here
                 max_h = ui.infinity; // spacer make height greedy
             } else {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 w = w > cbx.w ? w : cbx.w;
                 if (c->max_h == ui.infinity) {
@@ -313,8 +313,8 @@ static void ui_list_measure(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
-    ui_ltrb_t padding = ui_view.margins(c, &c->padding);
+static int32_t ui_list_place_child(struct ui_view* c, struct ui_rect pbx, int32_t y) {
+    struct ui_ltrb padding = ui_view.margins(c, &c->padding);
     // setting child`s max_w to infinity means that child`s height is
     // *always* fill vertical view size of the parent
     // childs.w can exceed parent.w (horizontal overflow) - not encouraged but allowed
@@ -341,11 +341,11 @@ static int32_t ui_list_place_child(ui_view_t* c, ui_rect_t pbx, int32_t y) {
     return c->y + c->h + padding.bottom;
 }
 
-static void ui_list_layout(ui_view_t* p) {
+static void ui_list_layout(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_list, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
     int32_t spacers = 0; // Number of spacers
     int32_t max_h_sum = 0;
@@ -385,8 +385,8 @@ static void ui_list_layout(ui_view_t* p) {
         int32_t k = 0;
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c)) {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type != ui_view_spacer && c->max_h > 0) {
                     const int32_t max_h = c->max_h < xh ? c->max_h : xh;
@@ -413,8 +413,8 @@ static void ui_list_layout(ui_view_t* p) {
         y = pbx.y;
         ui_view_for_each_begin(p, c) {
             if (!ui_view.is_hidden(c)) {
-                ui_rect_t cbx; // child "out" box expanded by padding
-                ui_ltrb_t padding;
+                struct ui_rect cbx; // child "out" box expanded by padding
+                struct ui_ltrb padding;
                 ui_view.outbox(c, &cbx, &padding);
                 if (c->type == ui_view_spacer) {
                     c->x = pbx.x;
@@ -432,7 +432,7 @@ static void ui_list_layout(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_stack_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
+static void ui_stack_child_3x3(struct ui_view* c, int32_t *row, int32_t *col) {
     *row = 0; *col = 0; // makes code analysis happier
     if (c->align == (ui.align.left|ui.align.top)) {
         *row = 0; *col = 0;
@@ -461,17 +461,17 @@ static void ui_stack_child_3x3(ui_view_t* c, int32_t *row, int32_t *col) {
     }
 }
 
-static void ui_stack_measure(ui_view_t* p) {
+static void ui_stack_measure(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
-    ui_wh_t sides[3][3] = { {0, 0} };
+    struct ui_wh sides[3][3] = { {0, 0} };
     ui_view_for_each_begin(p, c) {
         if (!ui_view.is_hidden(c)) {
-            ui_rect_t cbx; // child "out" box expanded by padding
-            ui_ltrb_t padding;
+            struct ui_rect cbx; // child "out" box expanded by padding
+            struct ui_ltrb padding;
             ui_view.outbox(c, &cbx, &padding);
             int32_t row = 0;
             int32_t col = 0;
@@ -493,7 +493,7 @@ static void ui_stack_measure(ui_view_t* p) {
             debugln("%*c sides[%d] %s", ui_layout_nesting, 0x20, r, text);
         }
     }
-    ui_wh_t wh = {0, 0};
+    struct ui_wh wh = {0, 0};
     for (int32_t r = 0; r < 3; r++) {
         int32_t sum_w = 0;
         for (int32_t c = 0; c < 3; c++) {
@@ -514,16 +514,16 @@ static void ui_stack_measure(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_stack_layout(ui_view_t* p) {
+static void ui_stack_layout(struct ui_view* p) {
     ui_layout_enter(p);
     rt_swear(p->type == ui_view_stack, "type %4.4s 0x%08X", &p->type, p->type);
-    ui_rect_t pbx; // parent "in" box (sans insets)
-    ui_ltrb_t insets;
+    struct ui_rect pbx; // parent "in" box (sans insets)
+    struct ui_ltrb insets;
     ui_view.inbox(p, &pbx, &insets);
     ui_view_for_each_begin(p, c) {
         if (c->type != ui_view_spacer && !ui_view.is_hidden(c)) {
-            ui_rect_t cbx; // child "out" box expanded by padding
-            ui_ltrb_t padding;
+            struct ui_rect cbx; // child "out" box expanded by padding
+            struct ui_ltrb padding;
             ui_view.outbox(c, &cbx, &padding);
             const int32_t pw = p->w - insets.left - insets.right - padding.left - padding.right;
             const int32_t ph = p->h - insets.top - insets.bottom - padding.top - padding.bottom;
@@ -567,7 +567,7 @@ static void ui_stack_layout(ui_view_t* p) {
     ui_layout_exit(p);
 }
 
-static void ui_container_paint(ui_view_t* v) {
+static void ui_container_paint(struct ui_view* v) {
     if (!ui_color_is_undefined(v->background) &&
         !ui_color_is_transparent(v->background)) {
         ui_draw.fill(v->x, v->y, v->w, v->h, v->background);
@@ -576,10 +576,10 @@ static void ui_container_paint(ui_view_t* v) {
     }
 }
 
-static void ui_view_container_init(ui_view_t* v) {
+static void ui_view_container_init(struct ui_view* v) {
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->background = ui_colors.transparent;
-    v->insets  = (ui_margins_t){
+    v->insets  = (struct ui_margins){
        .left  = 0.25, .top    = 0.125,
         .right = 0.25, .bottom = 0.125
 //      .left  = 0.25, .top    = 0.0625,  // TODO: why?
@@ -587,7 +587,7 @@ static void ui_view_container_init(ui_view_t* v) {
     };
 }
 
-void ui_view_init_span(ui_view_t* v) {
+void ui_view_init_span(struct ui_view* v) {
     rt_swear(v->type == ui_view_span, "type %4.4s 0x%08X", &v->type, v->type);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_span_measure; }
@@ -597,7 +597,7 @@ void ui_view_init_span(ui_view_t* v) {
     if (v->debug.id == null) { v->debug.id = "#ui_span"; }
 }
 
-void ui_view_init_list(ui_view_t* v) {
+void ui_view_init_list(struct ui_view* v) {
     rt_swear(v->type == ui_view_list, "type %4.4s 0x%08X", &v->type, v->type);
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_list_measure; }
@@ -607,7 +607,7 @@ void ui_view_init_list(ui_view_t* v) {
     if (v->debug.id == null) { v->debug.id = "#ui_list"; }
 }
 
-void ui_view_init_spacer(ui_view_t* v) {
+void ui_view_init_spacer(struct ui_view* v) {
     rt_swear(v->type == ui_view_spacer, "type %4.4s 0x%08X", &v->type, v->type);
     if (v->fm == null) { v->fm = &ui_app.fm.prop.normal; }
     v->w = 0;
@@ -619,7 +619,7 @@ void ui_view_init_spacer(ui_view_t* v) {
 
 }
 
-void ui_view_init_stack(ui_view_t* v) {
+void ui_view_init_stack(struct ui_view* v) {
     ui_view_container_init(v);
     if (v->measure == null) { v->measure = ui_stack_measure; }
     if (v->layout  == null) { v->layout  = ui_stack_layout; }
